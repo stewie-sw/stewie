@@ -1,0 +1,10 @@
+{
+ "schema_version": "1.0",
+ "scene_name": "haworth_subsample_60x60",
+ "base_cell_m": 5.0,
+ "grid": {
+  "rows": 60,
+  "cols": 60
+ },
+ "provenance": "REAL 60x60 center crop of haworth_10km_5m (NASA LOLA); subsample for fast CI tests"
+}
