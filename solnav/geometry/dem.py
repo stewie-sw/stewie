@@ -47,13 +47,19 @@ def crop_meters(height: np.ndarray, posting_m: float, size_m: float,
 
 
 def register_to_dem(local_patch: np.ndarray, dem_patch: np.ndarray,
-                    search_radius_cells: int = 8):
-    """Brute-force scan-to-DEM: slide local_patch over dem_patch within +/- radius,
-    return (best_dr, best_dc, best_rmse). Compares the overlap after removing a
-    per-shift mean offset (height is relative). Real registration, no shortcuts."""
+                    search_radius_cells: int = 8, min_valid_frac: float = 0.5,
+                    min_relief_m: float = 1e-3):
+    """Brute-force scan-to-DEM: slide local_patch over dem_patch within +/- radius, return
+    (best_dr, best_dc, best_rmse). Overlap compared after removing a per-shift mean offset
+    (height is relative). NaN-SAFE (HIGH-06): LOLA PSR tiles carry NaN no-data, so means/RMSE use
+    nanmean over the FINITE overlap, shifts with < min_valid_frac finite cells are skipped, and a
+    flat patch (relief < min_relief_m, MED-04) is rejected as ambiguous instead of silently locking
+    onto the first scanned shift."""
     lp = local_patch.astype(np.float64)
     dp = dem_patch.astype(np.float64)
     lh, lw = lp.shape
+    if np.isfinite(lp).sum() == 0 or np.nanstd(lp) < min_relief_m:
+        raise ValueError("local patch has no relief / no valid cells; DEM registration is ambiguous")
     best = (0, 0, np.inf)
     for dr in range(-search_radius_cells, search_radius_cells + 1):
         for dc in range(-search_radius_cells, search_radius_cells + 1):
@@ -61,8 +67,11 @@ def register_to_dem(local_patch: np.ndarray, dem_patch: np.ndarray,
             if r0 < 0 or c0 < 0 or r0 + lh > dp.shape[0] or c0 + lw > dp.shape[1]:
                 continue
             sub = dp[r0:r0 + lh, c0:c0 + lw]
-            diff = (lp - lp.mean()) - (sub - sub.mean())
-            rmse = float(np.sqrt(np.mean(diff ** 2)))
+            diff = (lp - np.nanmean(lp)) - (sub - np.nanmean(sub))
+            valid = np.isfinite(diff)
+            if valid.mean() < min_valid_frac:
+                continue
+            rmse = float(np.sqrt(np.mean(diff[valid] ** 2)))
             if rmse < best[2]:
                 best = (dr, dc, rmse)
     return best

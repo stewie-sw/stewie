@@ -14,6 +14,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ..config import load_profile
+
 # Geometry. The NASA RASSOR GLB (demo/assets/rassor.glb, KSC-TOPS-7) gives a REAL
 # overall envelope X*Y*Z = 0.848 x 0.938 x 1.657 m (single merged mesh -> envelope
 # only, not per-limb segmentation). IPEx ~ 0.7x RASSOR (Schuler 2024) -> ~0.59 x
@@ -21,11 +23,14 @@ import numpy as np
 # remain [CONFIRM] vs the LAC geometry page. Angle LIMITS are real [SPEC].
 RASSOR_ENVELOPE_M = (0.848, 0.938, 1.657)        # REAL, from the GLB POSITION accessor min/max
 IPEX_ENVELOPE_M = tuple(round(0.7 * d, 3) for d in RASSOR_ENVELOPE_M)  # ~0.59 x 0.66 x 1.16 m
-ARM_LENGTH_M = 0.30        # [CONFIRM] ~ (IPEx length - body)/2 from the GLB envelope
-PIVOT_HEIGHT_M = 0.25      # [CONFIRM]
-WHEEL_RADIUS_M = 0.15      # [CONFIRM]
-WHEELBASE_M = 0.60         # [CONFIRM]
-TRACK_M = 0.50             # [CONFIRM] (IPEx X-envelope ~0.59 m)
+_PROFILE = load_profile()
+_POSTURE = _PROFILE.data["posture"]
+_VEHICLE = _PROFILE.vehicle
+ARM_LENGTH_M = float(_POSTURE["arm_length_m"])
+PIVOT_HEIGHT_M = float(_POSTURE["pivot_height_m"])
+WHEEL_RADIUS_M = float(_VEHICLE["wheel_radius_m"])
+WHEELBASE_M = float(_VEHICLE["wheelbase_m"])
+TRACK_M = float(_VEHICLE["track_gauge_m"])
 GROUND_GAP_M = PIVOT_HEIGHT_M - WHEEL_RADIUS_M   # drum must reach ground before it lifts
 # masses [CONFIRM] (30 kg class): chassis + 4 drums
 CHASSIS_MASS_KG = 22.0
@@ -49,8 +54,8 @@ POSTURES = {
 # Maneuvers (transitions/locomotion) vs static positions: DRUM_WALK is a locomotion
 # maneuver (creep while raised); the rest are static perception geometries. RASSOR/IPEx
 # also document Z-dump and self-right as non-perception maneuvers (out of the nav library).
-ARM_NOMINAL_MAX_DEG = 55.0
-ARM_MECH_MAX_DEG = 135.0          # ~2.36 rad absolute mechanical limit
+ARM_NOMINAL_MAX_DEG = float(_POSTURE["nominal_limit_deg"])
+ARM_MECH_MAX_DEG = float(np.degrees(_POSTURE["mechanical_limit_rad"]))
 
 
 @dataclass

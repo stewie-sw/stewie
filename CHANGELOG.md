@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Added packaged `DUSTGYM_IPEX_V1` and `OFFICIAL_LAC_2025_UNVERIFIED` system profiles.
+- Added schema, checksum, FOV/intrinsics, stereo-baseline, and runtime compatibility validation.
+- Camera rig, IPEx specifications, posture geometry, and lunar terramechanics now use the selected
+  `SOLNAV_PROFILE`.
+- Runtime Dustgym camera metadata is rejected when an official/mismatched profile is selected.
+- Corrected the fallback side-camera axes to match captured Dustgym geometry.
+
 ## 0.1.0 (2026-06-06)
 First scaffold with analytic, rendered-fixture, and substrate-backed primitives.
 

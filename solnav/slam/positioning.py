@@ -36,8 +36,13 @@ def trilaterate(known_points, ranges):
     P = np.asarray(known_points, float); r = np.asarray(ranges, float)
     if len(P) < 3:
         raise ValueError("trilateration needs >= 3 landmarks")
+    if len(P) != len(r):
+        raise ValueError("known_points and ranges must have equal length")
     P0, r0 = P[0], r[0]
     A = 2.0 * (P[1:] - P0)
+    if np.linalg.matrix_rank(A, tol=1e-9) < 2:
+        raise ValueError("trilateration geometry is rank-deficient (collinear landmarks); "
+                         "lstsq would return a min-norm (silently wrong) solution (HIGH-05)")
     bvec = (np.sum(P[1:]**2, axis=1) - np.sum(P0**2) - r[1:]**2 + r0**2)
     x, *_ = np.linalg.lstsq(A, bvec, rcond=None)
     return x

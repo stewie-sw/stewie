@@ -13,7 +13,8 @@ measurement-model simulations. Evidence modes must not be conflated:
 | `solnav/geometry/shadow_metric.py` | P5 | Perspective ray/ground geometry plus a controlled orthographic rendered-sensor fixture; general caster-base/tip detection remains open. |
 | `solnav/geometry/stereo.py` | A4/A5 | Disparity to depth, back-projection, midpoint triangulation, posture vertical-parallax baseline. |
 | `solnav/perception/masking.py` | A2/A5 | Semantic-mask feature filtering (keep ground/rock; drop sky/lander/fiducial/shadow), self-supervised shadow mask for eval mode, overlay. |
-| `solnav/ipex/specs.py` | - | Provenance-tagged IPEx constants ([SPEC]/[CONFIRM]); real intrinsics/baseline/sun from a LAC-twin sensors.json. |
+| `solnav/config/` | - | Packaged, checksummed system profiles; validates camera/FOV/baseline closure and rejects mixed-profile runtime metadata. |
+| `solnav/ipex/specs.py` | - | Profile-backed IPEx constants for Dustgym or the staged official-LAC substrate. |
 | `solnav/bridge/dustgym_io.py` | - | Reads the real dustgym/LAC Seam-2 `sensors.json` (cameras, stereo, Sun, poses) and PNGs; writes `cmd_vel` and posture commands. No dustgym edits. |
 
 ## Next milestones (not stubbed; require deps not yet installed)
@@ -28,6 +29,22 @@ pip install -e .            # numpy/scipy/imageio/opencv
 python3 -m pytest tests -q
 ```
 External rendered-fixture tests skip cleanly when their declared assets are absent.
+
+## System profiles
+
+`DUSTGYM_IPEX_V1` is the verified default. Select a profile once, before importing geometry or
+platform modules:
+
+```bash
+SOLNAV_PROFILE=DUSTGYM_IPEX_V1 python3 demo/end_to_end.py
+SOLNAV_PROFILE=OFFICIAL_LAC_2025_UNVERIFIED python3 -c \
+  "from solnav.ipex import IPEX; print(IPEX.profile_id, IPEX.stereo_baseline_m)"
+```
+
+The official profile is intentionally `UNVERIFIED`; `load_profile(..., require_verified=True)`
+rejects it until an installed-kit checksum and calibration bundle replace the staged facts.
+`CameraRig.from_sensors(...)` validates runtime camera names, dimensions, focal length, baseline,
+and fixed extrinsics against the selected profile before accepting the frame.
 
 ## Principles
 No fabricated results and no unlabeled evidence modes. Geometry tests use known-answer analytic

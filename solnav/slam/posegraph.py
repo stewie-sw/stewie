@@ -78,10 +78,15 @@ class PoseGraph:
                 _, i, lm, z, info = f
                 dx, dy = lm[0] - X[i, 0], lm[1] - X[i, 1]
                 q = dx*dx + dy*dy
+                if q < 1e-12:                          # landmark coincident with pose -> bearing undefined
+                    raise ValueError(f"degenerate landmark factor: landmark at pose {i} "
+                                     "(zero range -> NaN Jacobian) (MED-09)")
                 r = np.array([wrap(np.arctan2(dy, dx) - X[i, 2] - z)])
                 J = np.zeros((1, 3 * N))
                 J[0, 3*i:3*i+3] = [dy/q, -dx/q, -1.0]
                 rows_r.append(r); rows_J.append(J); w.append(np.array([info]))
+        if not rows_r:
+            raise ValueError("empty pose graph: no factors to linearize (MED-09)")
         r = np.concatenate(rows_r)
         J = np.vstack(rows_J)
         W = np.concatenate(w)

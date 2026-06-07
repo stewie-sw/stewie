@@ -40,8 +40,11 @@ def test_height_sigma_value_matches_finite_diff():
 def test_stereo_returns_order():
     from imageio.v3 import imread
     L = np.asarray(imread(FIX + "/front_left.png")); R = np.asarray(imread(FIX + "/front_right.png"))
-    d, order = stereo_depth.compute_disparity(L, R, return_order=True)
+    d, order = stereo_depth.compute_disparity(L, R, auto_order=True, return_order=True)
     assert order in ("normal", "swapped") and d.shape == L.shape[:2]
+    # I2 default: production path does NOT auto-pick order
+    d2 = stereo_depth.compute_disparity(L, R, return_order=True)
+    assert d2[1] == "normal" if isinstance(d2, tuple) else True
 
 
 # R5: default rig no longer collapses side cameras; axes consistent with yaw

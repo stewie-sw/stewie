@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Split the dense component-pipeline demo into two larger slide figures:
-  end_to_end_perception.png : real frame | stereo disparity (7% valid) | shadow mask (90%)
+  end_to_end_perception.png : real frame | stereo disparity (valid % printed live) | shadow mask
   end_to_end_map.png        : Haworth DEM crop | posture lift+stability | lander framing vs yaw
+The disparity panel uses a single-frame order calibration (auto_order=True); the printed valid-%
+is computed live, not hardcoded.
 """
 import os
 
@@ -28,7 +30,7 @@ def main():
     L = dustgym_io.load_camera_image(SENSORS, "front_left")
     R = dustgym_io.load_camera_image(SENSORS, "front_right")
     fx = frame.camera("front_left").fx
-    disp = stereo_depth.compute_disparity(L, R)
+    disp = stereo_depth.compute_disparity(L, R, auto_order=True)   # single-frame order calibration
     vf = stereo_depth.valid_fraction(disp)
     sh = masking.detect_shadow_mask(L)
 

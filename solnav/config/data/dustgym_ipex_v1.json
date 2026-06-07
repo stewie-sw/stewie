@@ -1,0 +1,89 @@
+{
+  "schema_version": "solnav_system_profile/1.0",
+  "profile_id": "DUSTGYM_IPEX_V1",
+  "status": "VERIFIED",
+  "substrate": "dustgym",
+  "source": "Dustgym executable constants and captured sensors.json",
+  "frames": {
+    "source": "godot",
+    "body": "REP103",
+    "godot_to_body": [[1, 0, 0], [0, 0, -1], [0, 1, 0]]
+  },
+  "timing": {"drive_dt_s": 0.1, "camera_hz": 10.0, "imu_hz": null},
+  "vehicle": {
+    "dry_mass_kg": 30.0,
+    "n_wheels": 4,
+    "wheelbase_m": 0.30,
+    "track_gauge_m": 0.3645,
+    "wheel_radius_m": 0.1525,
+    "wheel_width_m": 0.18,
+    "contact_length_m": 0.10,
+    "cg_height_m": 0.21,
+    "nominal_speed_mps": 0.30,
+    "nominal_slope_deg": 15.0,
+    "obstacle_height_m": 0.075
+  },
+  "cameras": {
+    "max_live": 4,
+    "optics": {
+      "width_px": 1024,
+      "height_px": 768,
+      "maximum_resolution_px": [2448, 2048],
+      "resolution_policy": "exact",
+      "hfov_deg": 73.99,
+      "fx_px": 679.570327764933,
+      "fy_px": 679.570327764933,
+      "cx_px": 512.0,
+      "cy_px": 384.0,
+      "distortion": [0, 0, 0, 0, 0],
+      "near_m": 0.02,
+      "far_m": 100.0
+    },
+    "entries": [
+      {"name": "front_left", "role": "stereo_front", "yaw_offset_deg": 0.0, "position_frame": "godot", "position_m": [0.30, -0.10, 0.035], "quaternion_xyzw": [0, -0.7071067811865476, 0, 0.7071067811865476], "optical_axis_body": [1, 0, 0]},
+      {"name": "front_right", "role": "stereo_front", "yaw_offset_deg": 0.0, "position_frame": "godot", "position_m": [0.30, -0.10, -0.035], "quaternion_xyzw": [0, -0.7071067811865476, 0, 0.7071067811865476], "optical_axis_body": [1, 0, 0]},
+      {"name": "rear_left", "role": "stereo_rear", "yaw_offset_deg": 180.0, "position_frame": "godot", "position_m": [-0.30, -0.10, 0.035], "quaternion_xyzw": [0, 0.7071067811865476, 0, 0.7071067811865476], "optical_axis_body": [-1, 0, 0]},
+      {"name": "rear_right", "role": "stereo_rear", "yaw_offset_deg": 180.0, "position_frame": "godot", "position_m": [-0.30, -0.10, -0.035], "quaternion_xyzw": [0, 0.7071067811865476, 0, 0.7071067811865476], "optical_axis_body": [-1, 0, 0]},
+      {"name": "left_mono", "role": "side", "yaw_offset_deg": -90.0, "position_frame": "godot", "position_m": [0, -0.05, 0.285], "quaternion_xyzw": [0, 1, 0, 0], "optical_axis_body": [0, -1, 0]},
+      {"name": "right_mono", "role": "side", "yaw_offset_deg": 90.0, "position_frame": "godot", "position_m": [0, -0.05, -0.285], "quaternion_xyzw": [0, 0, 0, 1], "optical_axis_body": [0, 1, 0]},
+      {"name": "drum_front_cam", "role": "drum", "yaw_offset_deg": 0.0, "position_frame": "godot", "position_m": [0.10, 0.18, 0], "quaternion_xyzw": [-0.3585932553, -0.6094349027, -0.3585932553, 0.6094349027], "optical_axis_body": [0.485643, 0, -0.874157]},
+      {"name": "drum_back_cam", "role": "drum", "yaw_offset_deg": 180.0, "position_frame": "godot", "position_m": [-0.10, 0.18, 0], "quaternion_xyzw": [-0.3585932553, 0.6094349027, 0.3585932553, 0.6094349027], "optical_axis_body": [-0.485643, 0, -0.874157]}
+    ]
+  },
+  "stereo": {
+    "front": {"left": "front_left", "right": "front_right", "baseline_m": 0.070},
+    "rear": {"left": "rear_left", "right": "rear_right", "baseline_m": 0.070}
+  },
+  "posture": {
+    "arm_length_m": 0.30,
+    "pivot_height_m": 0.25,
+    "nominal_limit_deg": 55.0,
+    "mechanical_limit_rad": 2.36
+  },
+  "terrain": {
+    "gravity_mps2": 1.62,
+    "rho_surface_kgm3": 1300.0,
+    "rho_deep_kgm3": 1920.0,
+    "transition_depth_m": 0.12,
+    "cohesion_pa": 170.0,
+    "friction_angle_deg": 37.0,
+    "bekker_kc": 1400.0,
+    "bekker_kphi": 820000.0,
+    "sinkage_n": 1.0,
+    "shear_k_m": 0.018,
+    "slip_c1": 0.4,
+    "slip_c2": 0.3
+  },
+  "energy": {
+    "capacity_wh": 1332.0,
+    "drive_j_per_m": 135.0,
+    "dig_j_per_kg": 4151.0,
+    "reserve_fraction": 0.10
+  },
+  "mapping": {
+    "area_m": 27.0,
+    "grid_cells": 180,
+    "cell_m": 0.15,
+    "height_tolerance_m": 0.05
+  }
+}

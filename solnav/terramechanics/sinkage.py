@@ -26,7 +26,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-LUNAR_G = 1.62  # m/s^2
+from ..config import load_profile
+
+_PROFILE = load_profile()
+_TERRAIN = _PROFILE.data["terrain"]
+_VEHICLE = _PROFILE.vehicle
+LUNAR_G = float(_TERRAIN["gravity_mps2"])
 
 
 @dataclass(frozen=True)
@@ -37,9 +42,13 @@ class BekkerParams:
     provenance: str = ""
 
 
-# Measured lunar moduli (NASA LTV white paper, NTRS 20220010732); same as dustgym BODIES["moon"].
-MOON = BekkerParams(1400.0, 820000.0, 1.0,
-                    "NASA LTV terramechanics white paper NTRS 20220010732 (measured)")
+# Profile-selected lunar-domain model. Official profiles must label these as measured or as priors.
+MOON = BekkerParams(
+    float(_TERRAIN["bekker_kc"]),
+    float(_TERRAIN["bekker_kphi"]),
+    float(_TERRAIN["sinkage_n"]),
+    str(_TERRAIN.get("model_status", "Dustgym lunar-domain model")),
+)
 # Mars GRC-3 simulant (Oravec et al. 2020 NASA GRC), for cross-body checks.
 MARS_GRC3 = BekkerParams(23200.0, 606700.0, 1.0, "Oravec et al. 2020 NASA GRC GRC-3")
 
@@ -47,22 +56,36 @@ MARS_GRC3 = BekkerParams(23200.0, 606700.0, 1.0, "Oravec et al. 2020 NASA GRC GR
 def static_load_per_contact(total_mass_kg: float, n_contacts: int = 4, g: float = LUNAR_G) -> float:
     """Equal-split static normal load per contact [N] = m*g/n. (Fore/aft CG transfer
     is a refinement.)"""
+    if n_contacts < 1:
+        raise ValueError("n_contacts must be >= 1")
+    if total_mass_kg < 0:
+        raise ValueError("mass must be non-negative")
     return total_mass_kg * g / n_contacts
 
 
 def contact_pressure(load_n: float, b_m: float, contact_len_m: float) -> float:
     """p = load / (b * l) [Pa]."""
+    if b_m <= 0.0 or contact_len_m <= 0.0:
+        raise ValueError("contact patch dimensions (b_m, contact_len_m) must be positive")
     return load_n / (b_m * contact_len_m)
 
 
 def bekker_sinkage(pressure_pa: float, *, b_m: float, params: BekkerParams = MOON,
                    density_factor: float = 1.0) -> float:
-    """z = (p / (k_c/b + k_phi*s))^(1/n) [m]."""
-    denom = params.k_c / b_m + params.k_phi * density_factor
+    """z = (p / (k_c/b + k_phi*s))^(1/n) [m]. Input-guarded (MED-12): non-positive pressure -> 0
+    (no load, and avoids a complex root for non-integer n); density_factor clamped to >= 1
+    (compaction only stiffens); b_m must be positive."""
+    if b_m <= 0.0:
+        raise ValueError("Bekker width b_m must be positive")
+    if pressure_pa <= 0.0:
+        return 0.0
+    df = max(1.0, density_factor)
+    denom = params.k_c / b_m + params.k_phi * df
     return (pressure_pa / denom) ** (1.0 / params.n)
 
 
-def wheel_sinkage(load_n: float, wheel_width_m: float = 0.18, contact_len_m: float = 0.10,
+def wheel_sinkage(load_n: float, wheel_width_m: float = float(_VEHICLE["wheel_width_m"]),
+                  contact_len_m: float = float(_VEHICLE["contact_length_m"]),
                   params: BekkerParams = MOON, density_factor: float = 1.0) -> float:
     """Static sinkage of a wheel (Bekker width b = wheel width)."""
     p = contact_pressure(load_n, wheel_width_m, contact_len_m)

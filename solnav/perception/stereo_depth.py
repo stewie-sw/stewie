@@ -24,20 +24,28 @@ def _sgbm(L, R, num_disparities, block_size):
     return sgbm.compute(L, R).astype(np.float32) / 16.0
 
 
+def calibrate_stereo_order(left: np.ndarray, right: np.ndarray,
+                           num_disparities: int = 128, block_size: int = 7) -> str:
+    """ONE-TIME diagnostic: return the validated image order ('normal' or 'swapped') for this rig
+    by comparing valid-disparity fraction. Run once at calibration, then PERSIST the result and pass
+    a fixed order to compute_disparity (invariant I2: constant reference camera per run)."""
+    L, R = to_gray(left), to_gray(right)
+    d = _sgbm(L, R, num_disparities, block_size)
+    d_sw = _sgbm(R, L, num_disparities, block_size)
+    return "swapped" if valid_fraction(d_sw) > valid_fraction(d) else "normal"
+
+
 def compute_disparity(left: np.ndarray, right: np.ndarray,
                       num_disparities: int = 128, block_size: int = 7,
-                      auto_order: bool = True, return_order: bool = False):
-    """SGBM disparity (px), float32; <=0 = invalid. SGBM requires positive disparity, i.e.
-    `left` truly image-left. The dustgym Godot rig is left-handed in Z, so the committed
-    (front_left, front_right) naming is image-REVERSED; passing it raw collapses validity to
-    ~7%. With auto_order=True we try both orderings and keep the denser one.
+                      auto_order: bool = False, return_order: bool = False):
+    """SGBM disparity (px), float32; <=0 = invalid. SGBM requires positive disparity, i.e. `left`
+    truly image-left. Pass the cameras in the CALIBRATED order (run calibrate_stereo_order once).
 
-    REFERENCE-FRAME CAVEAT (audit R4): if the swap wins, the disparity is referenced to the
-    OTHER camera. So depth/back-projection must use the matching reference. Pass
-    return_order=True to get (disparity, order) where order is 'normal' or 'swapped'; do not
-    feed an auto-ordered disparity into a fixed-left back-projection without checking `order`.
-    Production: rectify from the exact extrinsics and verify the disparity sign on a known
-    3-D point, then fix the order from calibration (auto_order=False)."""
+    auto_order DEFAULTS TO FALSE (HIGH-04 / invariant I2): the production path must use a constant
+    reference camera fixed from calibration, NOT pick the order per frame by maximizing valid
+    disparity (spec line 896 forbids it). auto_order=True is a single-frame diagnostic convenience
+    only; if the swap wins the disparity is referenced to the OTHER camera, so pass return_order=True
+    and do not feed it into a fixed-left back-projection without checking `order`."""
     L, R = to_gray(left), to_gray(right)
     d = _sgbm(L, R, num_disparities, block_size)
     order = "normal"

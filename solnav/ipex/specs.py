@@ -16,9 +16,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..config import SystemProfile, load_profile
+
 
 @dataclass(frozen=True)
 class IPExSpecs:
+    profile_id: str = "DUSTGYM_IPEX_V1"
+    profile_sha256: str = ""
+
     # Mass / mobility  [SPEC]
     mass_class_kg: float = 30.0
     drive_speed_ms: float = 0.30
@@ -86,5 +91,40 @@ class IPExSpecs:
         """Max regolith per excavation cycle [SPEC: Schuler 2024]."""
         return self.regolith_per_cycle_kg
 
+    @classmethod
+    def from_profile(cls, profile: str | SystemProfile | None = None) -> "IPExSpecs":
+        selected = profile if isinstance(profile, SystemProfile) else load_profile(profile)
+        vehicle = selected.vehicle
+        cameras = selected.cameras
+        optics = cameras["optics"]
+        energy = selected.energy
+        mapping = selected.mapping
+        posture = selected.data["posture"]
+        return cls(
+            profile_id=selected.profile_id,
+            profile_sha256=selected.sha256,
+            mass_class_kg=float(vehicle["dry_mass_kg"]),
+            drive_speed_ms=float(vehicle["nominal_speed_mps"]),
+            slope_max_deg=float(vehicle["nominal_slope_deg"]),
+            obstacle_max_m=float(vehicle["obstacle_height_m"]),
+            arm_nominal_max_deg=float(posture["nominal_limit_deg"]),
+            arm_angle_max_rad=float(posture["mechanical_limit_rad"]),
+            n_cameras=len(cameras["entries"]),
+            max_live_cameras=int(cameras["max_live"]),
+            cam_max_res_wh=tuple(optics["maximum_resolution_px"]),
+            render_hz=float(selected.data["timing"]["camera_hz"]),
+            sim_hz=1.0 / float(selected.data["timing"]["drive_dt_s"]),
+            imu_hz=float(selected.data["timing"]["imu_hz"] or 0.0),
+            stereo_baseline_m=float(selected.data["stereo"]["front"]["baseline_m"]),
+            fx_px=float(optics["fx_px"]),
+            drive_j_per_m=float(energy.get("drive_j_per_m", 0.0)),
+            dig_j_per_kg=float(energy.get("dig_j_per_kg", 0.0)),
+            pack_wh=float(energy["capacity_wh"]),
+            map_area_m=float(mapping["area_m"]),
+            map_grid_cells=int(mapping["grid_cells"]),
+            map_cell_m=float(mapping["cell_m"]),
+            height_tolerance_m=float(mapping["height_tolerance_m"]),
+        )
 
-IPEX = IPExSpecs()
+
+IPEX = IPExSpecs.from_profile()

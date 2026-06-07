@@ -39,10 +39,10 @@ def test_parallel_bearings_raise():
 
 
 def test_f0_optical_axes_in_body_rep103():
-    # Algorithm F0: the Godot->ROS basis change is applied to ORIENTATION too, so optical axes
-    # are body REP-103 (forward +X, left +Y, right -Y, rear -X), not raw Godot -Z (HIGH-01/02).
+    # The profile reproduces captured Dustgym metadata. Its side-camera *names* are opposite their
+    # REP-103 lateral directions: left_mono -> -Y and right_mono -> +Y. Runtime geometry wins.
     d = cr.CameraRig()
     assert np.allclose(d.get("front_left").optical_axis(), [1, 0, 0], atol=1e-9)
-    assert np.allclose(d.get("left_mono").optical_axis(), [0, 1, 0], atol=1e-9)
-    assert np.allclose(d.get("right_mono").optical_axis(), [0, -1, 0], atol=1e-9)
+    assert np.allclose(d.get("left_mono").optical_axis(), [0, -1, 0], atol=1e-9)
+    assert np.allclose(d.get("right_mono").optical_axis(), [0, 1, 0], atol=1e-9)
     assert np.allclose(d.get("rear_left").optical_axis(), [-1, 0, 0], atol=1e-9)

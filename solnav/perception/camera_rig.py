@@ -13,23 +13,16 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from ..config import SystemProfile, load_profile, validate_sensor_frame
 from ..geometry import fov
 
-# Default IPEx layout: (name, yaw offset deg, role, position [x,y,z] m in base_link).
-# Positions are [CONFIRM] approximations from the RASSOR/IPEx envelope; from_sensors() loads
-# the exact ones. front stereo +/-0.035 m in z (the 0.07 m baseline), rear at -0.3 m x.
+_DEFAULT_PROFILE = load_profile("DUSTGYM_IPEX_V1")
 IPEX_LAYOUT = [
-    ("front_left", 0.0, "stereo_front", (0.30, -0.10, 0.035)),
-    ("front_right", 0.0, "stereo_front", (0.30, -0.10, -0.035)),
-    ("rear_left", 180.0, "stereo_rear", (-0.30, -0.10, 0.035)),
-    ("rear_right", 180.0, "stereo_rear", (-0.30, -0.10, -0.035)),
-    ("left_mono", 90.0, "side", (0.0, 0.05, 0.25)),     # +Z (left) -> ground (0, -0.25)
-    ("right_mono", -90.0, "side", (0.0, 0.05, -0.25)),  # -Z (right) -> ground (0, +0.25)
-    ("drum_front_cam", 0.0, "drum", (0.35, 0.0, -0.10)),
-    ("drum_back_cam", 180.0, "drum", (-0.35, 0.0, -0.10)),
+    (c["name"], c["yaw_offset_deg"], c["role"], tuple(c["position_m"]))
+    for c in _DEFAULT_PROFILE.cameras["entries"]
 ]
-MAX_LIVE = 4
-STEREO_BASELINE_M = 0.07
+MAX_LIVE = int(_DEFAULT_PROFILE.cameras["max_live"])
+STEREO_BASELINE_M = float(_DEFAULT_PROFILE.data["stereo"]["front"]["baseline_m"])
 
 
 def godot_to_ros(p) -> np.ndarray:
@@ -69,6 +62,8 @@ class Cam:
     quat_xyzw: np.ndarray = field(default_factory=lambda: np.array([0., 0., 0., 1.]))
     fx: float = 679.57
     width: int = 1024
+    position_frame: str = "godot"
+    axis_body: np.ndarray | None = None
 
     def optical_axis(self) -> np.ndarray:
         """Camera viewing direction in BODY (REP-103) frame. Algorithm F0 (spec sec3 lines 95-109):
@@ -76,36 +71,70 @@ class Cam:
         applied to the ORIENTATION as well as the position, so the body axis is
         godot_to_ros(R_godot @ [0,0,-1]). A forward camera yields ~[1,0,0] (REP-103 +X). Earlier this
         returned the raw Godot axis (HIGH-01/02: positions converted, orientations not)."""
+        if self.axis_body is not None:
+            axis = np.asarray(self.axis_body, dtype=float)
+            return axis / np.linalg.norm(axis)
+        if self.position_frame == "body":
+            return quat_to_R(self.quat_xyzw) @ np.array([0.0, 0.0, -1.0])
         return godot_to_ros(quat_to_R(self.quat_xyzw) @ np.array([0.0, 0.0, -1.0]))
+
+    def body_position(self) -> np.ndarray:
+        if self.position_frame == "body":
+            return np.asarray(self.pos_m, dtype=float)
+        return godot_to_ros(self.pos_m)
 
 
 class CameraRig:
-    def __init__(self, cams=None):
-        # default rig: quats derived from the yaw offsets so optical_axis + axis_angle_deg
-        # are consistent with cameras_seeing (one model, not two).
+    def __init__(self, cams=None, profile: str | SystemProfile | None = None):
+        self.profile = profile if isinstance(profile, SystemProfile) else load_profile(profile)
         if cams is None:
-            cams = [Cam(n, y, r, np.array(p), _quat_yaw(y)) for (n, y, r, p) in IPEX_LAYOUT]
+            optics = self.profile.cameras["optics"]
+            cams = []
+            for c in self.profile.cameras["entries"]:
+                quat = np.asarray(c.get("quaternion_xyzw", _quat_yaw(c["yaw_offset_deg"])), float)
+                cams.append(Cam(
+                    c["name"], float(c["yaw_offset_deg"]), c["role"],
+                    np.asarray(c["position_m"], float), quat,
+                    float(optics["fx_px"]), int(optics["width_px"]),
+                    c["position_frame"], np.asarray(c["optical_axis_body"], float),
+                ))
         self.cams = cams
         self._by = {c.name: c for c in self.cams}
 
     @classmethod
-    def from_sensors(cls, sensors_json_path):
-        """Build the rig with EXACT per-camera extrinsics from a real sensors.json."""
+    def from_sensors(
+        cls,
+        sensors_json_path,
+        profile: str | SystemProfile | None = None,
+        *,
+        validate_profile: bool = True,
+    ):
+        """Build from runtime extrinsics after checking they belong to the selected profile."""
         from ..bridge import dustgym_io
+        selected = profile if isinstance(profile, SystemProfile) else load_profile(profile)
         frame = dustgym_io.read_sensors(sensors_json_path)
-        layout = {n: (y, r) for (n, y, r, _) in IPEX_LAYOUT}
+        if validate_profile:
+            validate_sensor_frame(selected, frame)
+        layout = {
+            c["name"]: (float(c["yaw_offset_deg"]), c["role"])
+            for c in selected.cameras["entries"]
+        }
         cams = []
         for c in frame.cameras:
             y, r = layout.get(c.name, (0.0, "aux"))
             cams.append(Cam(c.name, y, r, np.asarray(c.extrinsic_pos_m, float),
-                            np.asarray(c.extrinsic_quat_xyzw, float), c.fx or 679.57, c.width or 1024))
-        return cls(cams)
+                            np.asarray(c.extrinsic_quat_xyzw, float), c.fx or 679.57,
+                            c.width or 1024, "godot"))
+        return cls(cams, selected)
 
     def get(self, name) -> Cam:
         return self._by[name]
 
     def stereo_pairs(self):
-        return [("front_left", "front_right"), ("rear_left", "rear_right")]
+        return [
+            (pair["left"], pair["right"])
+            for pair in self.profile.data["stereo"].values()
+        ]
 
     def baseline_m(self, name_a, name_b) -> float:
         """Exact distance between two camera mounts (the parallax baseline they provide)."""
@@ -122,7 +151,7 @@ class CameraRig:
         Godot->ROS first (ground plane = (x, -z)), NOT the raw Godot (x, y); otherwise both
         stereo cameras and both side cameras collapse to one planar point. Then rotated by
         rover yaw and translated."""
-        off = godot_to_ros(self._by[name].pos_m)[:2]      # (x, -z) ground offset
+        off = self._by[name].body_position()[:2]
         c, s = np.cos(rover_yaw_rad), np.sin(rover_yaw_rad)
         return np.asarray(rover_xy, float) + np.array([c*off[0] - s*off[1], s*off[0] + c*off[1]])
 
@@ -130,7 +159,7 @@ class CameraRig:
         chosen = [c for c in self.cams if c.role == "stereo_front"][:2]
         side = [c for c in self.cams if c.role == "side"][:1]
         drum = [c for c in self.cams if c.role == "drum"][:1]
-        return (chosen + side + drum)[:MAX_LIVE]
+        return (chosen + side + drum)[:int(self.profile.cameras["max_live"])]
 
     def cameras_seeing(self, world_bearing_deg, rover_yaw_deg, distance_m, tag_size_m=0.15):
         det = fov.tag_detectable(tag_size_m, distance_m, self.cams[0].fx)

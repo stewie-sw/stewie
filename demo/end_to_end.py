@@ -53,7 +53,7 @@ def main():
     ax[0, 0].imshow(stereo_depth.to_gray(L), cmap="gray"); ax[0, 0].set_title("1. Real front-left (low-sun lunar)"); ax[0, 0].axis("off")
 
     # --- 2. stereo depth from rendered images ---
-    disp = stereo_depth.compute_disparity(L, R)
+    disp = stereo_depth.compute_disparity(L, R, auto_order=True)   # single-frame order calibration
     vf = stereo_depth.valid_fraction(disp)
     depth = stereo_depth.disparity_to_depth(disp, fxL, frame.stereo_baseline_m)
     log("RENDERED_SIM", f"stereo SGBM: valid disparity {vf*100:.1f}% "

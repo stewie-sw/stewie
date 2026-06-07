@@ -41,6 +41,9 @@ Repository = "https://github.com/astoreyai/solnav"
 [tool.setuptools.packages.find]
 include = ["solnav*"]
 
+[tool.setuptools.package-data]
+"solnav.config" = ["data/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
