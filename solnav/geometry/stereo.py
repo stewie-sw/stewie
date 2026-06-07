@@ -87,7 +87,6 @@ def height_uncertainty_from_disparity(u_px, v_px, disparity_px, fx, fy, cx, cy,
                                       baseline_m, R_wc: np.ndarray, sigma_d_px: float) -> float:
     """1-sigma height error propagated from disparity noise through the projection and the
     camera pose: dheight/dd = R_wc[2,:] . (d p_cam/dZ) . (dZ/dd). Real differential."""
-    Z = depth_from_disparity(disparity_px, fx, baseline_m)
     dZ_dd = -fx * baseline_m / (disparity_px ** 2)             # dZ/dd
     dpcam_dZ = np.array([(u_px - cx) / fx, (v_px - cy) / fy, 1.0])
     dheight_dd = float(np.asarray(R_wc)[2, :] @ dpcam_dZ * dZ_dd)
