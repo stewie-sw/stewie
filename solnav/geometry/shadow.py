@@ -29,14 +29,15 @@ def shadow_azimuth_deg(sun_azimuth_deg: float) -> float:
     return (sun_azimuth_deg + 180.0) % 360.0
 
 
-def heading_from_shadow(measured_shadow_azimuth_deg: float,
-                        known_sun_azimuth_deg: float,
-                        shadow_azimuth_in_body_deg: float) -> float:
-    """Recover body yaw (deg, from North, clockwise) from a measured shadow.
+def heading_from_shadow(shadow_azimuth_in_body_deg: float,
+                        known_sun_azimuth_deg: float) -> float:
+    """Recover body yaw (deg from North, clockwise) from ONE shadow observation.
 
-    The shadow's true world azimuth is sun_azimuth + 180. The shadow is observed
-    at some azimuth in the body/camera frame. Body yaw = true_world_shadow_azimuth
-    - shadow_azimuth_in_body."""
+    The shadow's true world azimuth is sun_azimuth + 180. If that shadow is observed
+    at `shadow_azimuth_in_body_deg` in the body/camera frame, the body yaw is
+    yaw = (sun_azimuth + 180) - shadow_azimuth_in_body  (mod 360).
+    Single unambiguous measurement (the earlier redundant arg was a bug: it was never
+    read, so two different inputs gave the same answer)."""
     true_world = shadow_azimuth_deg(known_sun_azimuth_deg)
     return (true_world - shadow_azimuth_in_body_deg) % 360.0
 

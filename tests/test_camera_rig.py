@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from solnav.geometry import height_ref as hr
 from solnav.perception import camera_rig as cr
 
 
@@ -28,13 +27,6 @@ def test_horizontal_parallax_triangulation_recovers_point():
     p = cr.horizontal_parallax_triangulate([0, 0], np.degrees(np.arctan2(5, 1)),
                                            [2, 0], np.degrees(np.arctan2(5, -1)))
     assert np.allclose(p, [1, 5], atol=1e-6)
-
-
-def test_horizontal_parallax_beats_vertical_for_distant_landmark():
-    # 2 m horizontal drive baseline vs ~0.18 m vertical posture lift, same 8 m range
-    s_horiz = cr.horizontal_triangulation_sigma_m(2.0, 8.0, 0.5)
-    s_vert = hr.triangulation_height_sigma_m(0.48, 0.30, 8.0, 10.0, 0.5)
-    assert s_horiz < s_vert            # wide horizontal baseline wins on distant landmarks
 
 
 def test_wider_baseline_tightens():

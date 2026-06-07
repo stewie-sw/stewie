@@ -57,15 +57,22 @@ def triangulate_landmark_height(cam_h1_m: float, depression1_deg: float,
     return float(H), float(D)
 
 
-def triangulation_height_sigma_m(cam_h1_m: float, cam_h2_m: float, distance_m: float,
-                                 depression1_deg: float, sigma_deg: float) -> float:
-    """1-sigma on the triangulated landmark height from per-angle noise sigma_deg.
-
-    With tan(d_i)=(h_i-H)/D and height baseline b=|h1-h2|, a first-order propagation gives
-    sigma_H ~ (D^2 / b) * sec^2(delta) * sigma_rad: a bigger posture lift (larger b) tightens
-    the estimate; a farther landmark (larger D) loosens it. Real differential."""
-    b = abs(cam_h1_m - cam_h2_m)
-    if b < 1e-9:
+def triangulation_height_sigma_m(cam_h1_m: float, cam_h2_m: float,
+                                 depression1_deg: float, depression2_deg: float,
+                                 sigma_deg: float) -> float:
+    """1-sigma on the triangulated landmark height, propagated through the ACTUAL two-angle
+    solution `triangulate_landmark_height` by central finite differences:
+        sigma_H^2 = (dH/dd1)^2 sigma^2 + (dH/dd2)^2 sigma^2.
+    Near-parallel geometry (|tan d1 - tan d2| small) is an angular degeneracy with heavy
+    tails -> returns +inf (reject; use sampling/quantiles there). Corrects the earlier
+    closed-form `D^2/b sec^2` estimate, which was ~40x too large for the demo geometry."""
+    t1, t2 = np.tan(np.radians(depression1_deg)), np.tan(np.radians(depression2_deg))
+    if abs(t1 - t2) < 1e-3:
         return float("inf")
-    sec2 = 1.0 / (np.cos(np.radians(depression1_deg)) ** 2)
-    return float((distance_m ** 2 / b) * sec2 * np.radians(sigma_deg))
+    eps = 1e-4
+    def H(d1, d2):
+        return triangulate_landmark_height(cam_h1_m, d1, cam_h2_m, d2)[0]
+    # finite differences are per-degree, so multiply by the per-view sigma in degrees
+    dH_d1 = (H(depression1_deg + eps, depression2_deg) - H(depression1_deg - eps, depression2_deg)) / (2 * eps)
+    dH_d2 = (H(depression1_deg, depression2_deg + eps) - H(depression1_deg, depression2_deg - eps)) / (2 * eps)
+    return float(np.hypot(dH_d1, dH_d2) * sigma_deg)

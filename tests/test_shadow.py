@@ -31,10 +31,10 @@ def test_shadow_azimuth_opposes_sun():
 def test_heading_from_shadow():
     # Sun az 215 -> shadow world az 35. If shadow seen straight ahead (0 in body),
     # body yaw = 35.
-    yaw = shadow.heading_from_shadow(measured_shadow_azimuth_deg=0.0,
-                                     known_sun_azimuth_deg=215.0,
-                                     shadow_azimuth_in_body_deg=0.0)
-    assert abs(yaw - 35.0) < 1e-9
+    assert abs(shadow.heading_from_shadow(0.0, 215.0) - 35.0) < 1e-9
+    # the body-frame measurement is now actually used: different obs -> different yaw
+    assert abs(shadow.heading_from_shadow(10.0, 215.0) - 25.0) < 1e-9
+    assert abs(shadow.heading_from_shadow(90.0, 215.0) - 305.0) < 1e-9
 
 
 def test_invalid_elevation_raises():

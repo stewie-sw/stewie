@@ -32,6 +32,13 @@ MAX_LIVE = 4
 STEREO_BASELINE_M = 0.07
 
 
+def godot_to_ros(p) -> np.ndarray:
+    """Godot world (X horiz, Y up, Z horiz; cam looks -Z) -> ROS/REP-103 (X fwd, Y left, Z up):
+    (x, y, z) -> (x, -z, y). The ground plane is then (x, -z)."""
+    p = np.asarray(p, float)
+    return np.array([p[0], -p[2], p[1]])
+
+
 def quat_to_R(q_xyzw) -> np.ndarray:
     x, y, z, w = q_xyzw
     n = (x*x + y*y + z*z + w*w) ** 0.5
@@ -56,8 +63,9 @@ class Cam:
     width: int = 1024
 
     def optical_axis(self) -> np.ndarray:
-        """Camera viewing direction in base_link (optical +z), from the exact orientation."""
-        return quat_to_R(self.quat_xyzw) @ np.array([0.0, 0.0, 1.0])
+        """Camera viewing direction in base_link, from the exact orientation. Godot cameras
+        look down local -Z (sensor-bridge contract), so the view axis is R @ [0,0,-1]."""
+        return quat_to_R(self.quat_xyzw) @ np.array([0.0, 0.0, -1.0])
 
 
 class CameraRig:
@@ -94,10 +102,13 @@ class CameraRig:
         c = float(np.clip(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)), -1, 1))
         return float(np.degrees(np.arccos(c)))
 
-    def camera_world_xy(self, name, rover_xy, rover_yaw_rad):
-        """Exact world xy of a camera given the rover pose: rover_xy + R(yaw) * planar offset."""
+    def camera_world_xy(self, name, rover_yaw_rad, rover_xy=(0.0, 0.0)):
+        """Exact world xy of a camera given the rover pose. The mount offset is converted
+        Godot->ROS first (ground plane = (x, -z)), NOT the raw Godot (x, y); otherwise both
+        stereo cameras and both side cameras collapse to one planar point. Then rotated by
+        rover yaw and translated."""
+        off = godot_to_ros(self._by[name].pos_m)[:2]      # (x, -z) ground offset
         c, s = np.cos(rover_yaw_rad), np.sin(rover_yaw_rad)
-        off = self._by[name].pos_m[:2]
         return np.asarray(rover_xy, float) + np.array([c*off[0] - s*off[1], s*off[0] + c*off[1]])
 
     def select_active(self):

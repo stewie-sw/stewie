@@ -12,9 +12,12 @@ def test_vertical_parallax_triangulation_recovers():
 
 
 def test_bigger_height_baseline_tightens_estimate():
-    s_small = hr.triangulation_height_sigma_m(1.1, 1.0, 8.0, 10.0, 0.5)   # 0.1 m lift
-    s_big = hr.triangulation_height_sigma_m(2.0, 1.0, 8.0, 10.0, 0.5)     # 1.0 m lift
-    assert s_big < s_small                       # more posture lift -> tighter height
+    H, D = 0.5, 8.0
+    s_small = hr.triangulation_height_sigma_m(1.1, 1.0, hr.depression_to_landmark(1.1, H, D),
+                                              hr.depression_to_landmark(1.0, H, D), 0.5)   # 0.1 m lift
+    s_big = hr.triangulation_height_sigma_m(2.0, 1.0, hr.depression_to_landmark(2.0, H, D),
+                                            hr.depression_to_landmark(1.0, H, D), 0.5)     # 1.0 m lift
+    assert s_big < s_small                       # wider height baseline -> tighter height
 
 
 def test_equal_depressions_cannot_triangulate():

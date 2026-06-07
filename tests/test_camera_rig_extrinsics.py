@@ -26,13 +26,15 @@ def test_front_and_rear_axes_oppose():
 
 def test_camera_world_xy_with_rover_pose():
     rig = cr.CameraRig.from_sensors(FIX)
-    # rover at origin, yaw 0 -> camera world xy == its planar mount offset
-    off = rig.get("front_left").pos_m[:2]
-    w = rig.camera_world_xy("front_left", [0.0, 0.0], 0.0)
-    assert np.allclose(w, off, atol=1e-6)
-    # rotate rover 90 deg -> offset rotates
-    w90 = rig.camera_world_xy("front_left", [0.0, 0.0], np.pi / 2)
-    assert np.allclose(w90, [-off[1], off[0]], atol=1e-6)
+    fl = rig.get("front_left").pos_m
+    ground = np.array([fl[0], -fl[2]])      # Godot->ROS ground offset (x, -z), not (x, y)
+    w = rig.camera_world_xy("front_left", 0.0)
+    assert np.allclose(w, ground, atol=1e-6)
+    w90 = rig.camera_world_xy("front_left", np.pi / 2)
+    assert np.allclose(w90, [-ground[1], ground[0]], atol=1e-6)
+    # the stereo pair must NOT collapse to one ground point (the frame bug)
+    assert not np.allclose(rig.camera_world_xy("front_left", 0.0),
+                           rig.camera_world_xy("front_right", 0.0))
 
 
 def test_default_rig_baselines_without_sensors():

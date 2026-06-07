@@ -87,14 +87,25 @@ class PoseGraph:
         W = np.concatenate(w)
         return r, J, W
 
-    def solve(self, X0, iters=30, tol=1e-9):
-        """Gauss-Newton. Returns optimized (N,3) poses."""
+    def solve(self, X0, iters=30, tol=1e-9, huber_delta=None):
+        """Gauss-Newton (IRLS with an optional Huber robust loss).
+
+        huber_delta (in whitened-residual sigma units, e.g. 2.0) down-weights gross
+        outliers: rows with |whitened residual| > delta get weight delta/|r| instead of 1,
+        so a few bad bearings/loops cannot dominate. None = plain least squares."""
         X = np.array(X0, float)
         N = X.shape[0]
         for _ in range(iters):
             r, J, W = self._linearize(X)
-            Jw = J * np.sqrt(W)[:, None]
-            rw = r * np.sqrt(W)
+            sw = np.sqrt(W)
+            Jw = J * sw[:, None]
+            rw = r * sw
+            if huber_delta is not None:
+                a = np.abs(rw)
+                wh = np.where(a <= huber_delta, 1.0, huber_delta / np.maximum(a, 1e-12))
+                shw = np.sqrt(wh)
+                Jw = Jw * shw[:, None]
+                rw = rw * shw
             H = Jw.T @ Jw + 1e-9 * np.eye(3 * N)
             b = Jw.T @ rw
             dx = np.linalg.solve(H, -b).reshape(N, 3)
