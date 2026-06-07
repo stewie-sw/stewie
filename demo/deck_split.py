@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Split the dense end-to-end demo into two larger slide figures (real pipeline):
+"""Split the dense component-pipeline demo into two larger slide figures:
   end_to_end_perception.png : real frame | stereo disparity (7% valid) | shadow mask (90%)
   end_to_end_map.png        : Haworth DEM crop | posture lift+stability | lander framing vs yaw
 """

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""End-to-end solnav pipeline demo on a REAL frame + the REAL Haworth south-pole DEM.
+"""Component-pipeline demonstration using a rendered frame and the Haworth DEM.
 
-Honest demonstration (every output labeled REAL / [SPEC] / [CONFIRM] / DIFFERENT-SOURCE):
+This is not end-to-end SLAM: the frame and DEM come from different scenes, cast-shadow height is
+analytic rather than image-measured, and no image observation reaches a trajectory estimator.
+Each output is labeled RENDERED / ANALYTIC / [SPEC] / [CONFIRM] / DIFFERENT-SOURCE:
   1. Read a real LAC-twin/dustgym frame (front stereo + sensors.json).
   2. Real stereo depth (cv2 SGBM) -> the honestly-sparse valid fraction on low-sun lunar imagery.
   3. Masking: self-supervised shadow mask; feature filtering keeps textured surface.
@@ -41,47 +43,50 @@ def log(tag, msg):
 def main():
     fig, ax = plt.subplots(2, 3, figsize=(15, 9))
 
-    # --- 1. real frame ---
+    # --- 1. rendered-sensor frame ---
     frame = dustgym_io.read_sensors(SENSORS)
     L = dustgym_io.load_camera_image(SENSORS, "front_left")
     R = dustgym_io.load_camera_image(SENSORS, "front_right")
     fxL = frame.camera("front_left").fx
-    log("REAL", f"frame: {len(frame.cameras)} cameras, front_left {L.shape}, fx={fxL:.1f}, "
-                 f"baseline={frame.stereo_baseline_m:.3f} m, sun elev={frame.sun_elevation_deg} az={frame.sun_azimuth_deg}")
+    log("RENDERED_SIM", f"frame: {len(frame.cameras)} cameras, front_left {L.shape}, fx={fxL:.1f}, "
+                        f"baseline={frame.stereo_baseline_m:.3f} m, sun elev={frame.sun_elevation_deg} az={frame.sun_azimuth_deg}")
     ax[0, 0].imshow(stereo_depth.to_gray(L), cmap="gray"); ax[0, 0].set_title("1. Real front-left (low-sun lunar)"); ax[0, 0].axis("off")
 
-    # --- 2. stereo depth (REAL) ---
+    # --- 2. stereo depth from rendered images ---
     disp = stereo_depth.compute_disparity(L, R)
     vf = stereo_depth.valid_fraction(disp)
     depth = stereo_depth.disparity_to_depth(disp, fxL, frame.stereo_baseline_m)
-    log("REAL", f"stereo SGBM: valid disparity {vf*100:.1f}% (low-texture/low-sun starves naive stereo -> motivates the cues), "
-                 f"depth median {np.nanmedian(depth):.2f} m")
+    log("RENDERED_SIM", f"stereo SGBM: valid disparity {vf*100:.1f}% "
+                        f"(low-texture/low-sun starves naive stereo), depth median "
+                        f"{np.nanmedian(depth):.2f} m")
     im = ax[0, 1].imshow(np.where(disp > 0, disp, np.nan), cmap="magma")
     ax[0, 1].set_title(f"2. Real stereo disparity ({vf*100:.0f}% valid)"); ax[0, 1].axis("off"); fig.colorbar(im, ax=ax[0, 1], fraction=0.04)
 
-    # --- 3. masking (REAL) ---
+    # --- 3. masking on rendered imagery ---
     sh = masking.detect_shadow_mask(L)
-    log("REAL", f"shadow mask: {sh.mean()*100:.1f}% of pixels in shadow (the regions where stereo also fails)")
+    log("RENDERED_SIM", f"shadow mask: {sh.mean()*100:.1f}% of pixels in shadow")
     ax[0, 2].imshow(masking.overlay(stereo_depth.to_gray(L), sh)); ax[0, 2].set_title(f"3. Shadow mask ({sh.mean()*100:.0f}%)"); ax[0, 2].axis("off")
 
-    # --- 4. cast-shadow height (REAL geometry, real sun elevation) ---
+    # --- 4. analytic cast-shadow geometry using the rendered scene's Sun elevation ---
     e = frame.sun_elevation_deg or 5.0
     for H in (0.2, 0.5, 1.0):
-        log("REAL", f"shadow geometry: a {H:.1f} m rock at sun elev {e:.0f} deg casts a {shadow.shadow_length_from_height(H, e):.2f} m shadow (H=L*tan e)")
+        log("ANALYTIC", f"shadow geometry: a {H:.1f} m rock at sun elev {e:.0f} deg "
+                        f"casts a {shadow.shadow_length_from_height(H, e):.2f} m shadow")
 
     # --- 5. DEM (REAL Haworth south pole), 100x100 m crop + registration mechanism ---
     H, posting, meta = dem.load_dem(DEM_DIR)
     patch, (r0, c0), n = dem.crop_meters(H, posting, 100.0)
-    log("REAL", f"Haworth DEM {H.shape} @ {posting:.1f} m posting; 100 m crop = {n}x{n} cells, relief {patch.max()-patch.min():.1f} m")
+    log("REAL_DEM", f"Haworth DEM {H.shape} @ {posting:.1f} m posting; "
+                    f"100 m crop = {n}x{n} cells, relief {patch.max()-patch.min():.1f} m")
     # registration mechanism: shift a sub-patch by a known offset on the REAL DEM, recover it
     sub = patch[3:-3, 3:-3]
     true_dr, true_dc = 2, -1
     shifted_dem = np.roll(np.roll(patch, true_dr, 0), true_dc, 1)
     dr, dc, rmse = dem.register_to_dem(sub, shifted_dem, search_radius_cells=5)
-    log("REAL", f"scan-to-DEM registration recovered shift ({dr},{dc}) vs truth ({true_dr},{true_dc}), RMSE {rmse:.3f} m")
+    log("ANALYTIC+DEM", f"registration recovered injected shift ({dr},{dc}) vs "
+                        f"({true_dr},{true_dc}), RMSE {rmse:.3f} m")
     log("DIFF-SOURCE", "the render scene is a 5 m procedural patch, NOT georeferenced to Haworth; full "
                        "render-to-DEM registration needs a Godot run on the Haworth tile (not done here)")
-    hs = np.gradient(patch.astype(float))[0]
     ax[1, 0].imshow(patch, cmap="gist_earth"); ax[1, 0].set_title(f"5. Real Haworth DEM, 100x100 m ({n}x{n})"); ax[1, 0].axis("off")
 
     # --- 6. posture kinematics (angles [SPEC], dims [CONFIRM]) ---
@@ -115,14 +120,15 @@ def main():
     sweep = fov.yaw_sweep(lander_bearing, lander_dist, cams, IPEX.apriltag_size_m, fxL, yaws)
     det = fov.tag_detectable(IPEX.apriltag_size_m, lander_dist, fxL)
     n_usable = sum(1 for y in yaws if sweep[y]["usable"])
-    log("REAL", f"lander bearing {lander_bearing:.0f} deg, dist {lander_dist:.1f} m, cam HFOV {hfov:.0f} deg, "
-                 f"tag detectable={det}; lander framed by >=1 cam at {n_usable}/{len(yaws)} headings")
+    log("SIM_GEOMETRY", f"lander bearing {lander_bearing:.0f} deg, dist {lander_dist:.1f} m, "
+                        f"cam HFOV {hfov:.0f} deg, tag detectable={det}; lander framed by "
+                        f">=1 cam at {n_usable}/{len(yaws)} headings")
     framed = [len(sweep[y]["cameras_framing"]) for y in yaws]
     ax[1, 2].bar([str(y) for y in yaws], framed, color="#5aa469")
     ax[1, 2].set_title(f"7. Cameras framing lander vs rover yaw (HFOV {hfov:.0f} deg)")
     ax[1, 2].set_xlabel("rover yaw (deg)"); ax[1, 2].set_ylabel("# cameras"); ax[1, 2].tick_params(axis='x', labelsize=6, rotation=90)
 
-    fig.suptitle("solnav end-to-end on a REAL frame + REAL Haworth DEM (see honesty ledger)", fontsize=13)
+    fig.suptitle("solnav component pipeline: rendered frame + Haworth DEM", fontsize=13)
     fig.tight_layout(rect=[0, 0, 1, 0.97])
     fig.savefig(OUT, dpi=150)
     print(f"\nfigure -> {OUT}")

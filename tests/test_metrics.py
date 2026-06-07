@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from solnav.eval import metrics
 
@@ -36,3 +37,35 @@ def test_umeyama_recovers_known_transform():
 
 def test_heading_error_wraps():
     assert metrics.heading_error_deg(np.array([np.pi - 0.01]), np.array([-np.pi + 0.01])) < 2.0
+
+
+@pytest.mark.parametrize(
+    ("fn", "est", "gt"),
+    [
+        (metrics.umeyama_align_2d, np.empty((0, 2)), np.empty((0, 2))),
+        (metrics.final_position_error, np.empty((0, 2)), np.empty((0, 2))),
+        (metrics.final_position_error, np.zeros((2, 2)), np.zeros((3, 2))),
+        (metrics.ate_rmse, np.array([[0.0, np.nan], [1.0, 0.0]]), np.zeros((2, 2))),
+    ],
+)
+def test_metrics_reject_invalid_trajectories(fn, est, gt):
+    with pytest.raises(ValueError):
+        fn(est, gt)
+
+
+def test_similarity_alignment_rejects_zero_source_variance():
+    src = np.ones((3, 2))
+    with pytest.raises(ValueError, match="nonzero source variance"):
+        metrics.umeyama_align_2d(src, src, with_scale=True)
+
+
+def test_rpe_requires_heading_column():
+    with pytest.raises(ValueError, match=r">=3"):
+        metrics.rpe_rmse(np.zeros((2, 2)), np.zeros((2, 2)))
+
+
+def test_heading_error_rejects_invalid_inputs():
+    with pytest.raises(ValueError, match="shape mismatch"):
+        metrics.heading_error_deg(np.zeros(2), np.zeros(3))
+    with pytest.raises(ValueError, match="finite"):
+        metrics.heading_error_deg(np.array([np.nan]), np.array([0.0]))

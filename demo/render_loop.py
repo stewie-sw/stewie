@@ -32,7 +32,9 @@ CX, CZ = 2.56, 2.56                      # scene center (5.12 m patch)
 def render(pose, out_name):
     cmd = ["./render_layers.sh", "--", "--scene", SCENE, "--layers", "terrain,clasts",
            "--pose", ",".join(f"{v:.3f}" for v in pose), "--size", "768x576", "--out", out_name]
-    r = subprocess.run(cmd, cwd=SIDE, capture_output=True, text=True, timeout=200)
+    result = subprocess.run(cmd, cwd=SIDE, capture_output=True, text=True, timeout=200)
+    if result.returncode != 0:
+        return None
     p = os.path.join(OUTd, out_name)
     return p if os.path.exists(p) else None
 
@@ -69,7 +71,8 @@ def main():
            "meerkat_vs_transit_shadow_frac": (meerkat["shadow_frac"] if meerkat else None,
                                               rows[2]["shadow_frac"] if len(rows) > 2 else None)}
     json.dump(res, open(os.path.join(OUT, "render_loop_metrics.json"), "w"), indent=2)
-    for k, v in res.items(): print(f"  {k}: {v}")
+    for k, v in res.items():
+        print(f"  {k}: {v}")
 
     # montage of the per-station renders + shadow overlay
     n = len(rows)
@@ -81,7 +84,8 @@ def main():
         ax[i].imshow(masking.overlay(stereo_depth.to_gray(img), sh))
         ax[i].set_title(f"station {r['station']} (dx={r['dx_m']} m)\nshadow {r['shadow_frac']*100:.0f}%", fontsize=9)
         ax[i].axis("off")
-    for j in range(n, len(ax)): ax[j].axis("off")
+    for j in range(n, len(ax)):
+        ax[j].axis("off")
     fig.suptitle("Per-rover-position Godot renders (real, RTX 3090) + shadow mask: shadows track position", fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.95]); fig.savefig(os.path.join(OUT, "render_loop_montage.png"), dpi=140); plt.close(fig)
     if frames_for_gif:

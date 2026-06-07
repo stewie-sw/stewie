@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integrate and compare the three independent height cues across DIFFERENT POSITIONS:
+"""Algebraically cross-check three height formulas across different positions:
   - cast-shadow height  H = L*tan(e)         (shadow LENGTH L changes as the Sun moves,
                                               i.e. across positions/times; e from solar.py)
   - landmark height     vertical-parallax triangulation from two postures (camera height
@@ -7,7 +7,8 @@
   - stereo relief       H from disparity at the feature range
 A feature of known height is observed from a near-pole site as the Sun advances and as the
 rover changes posture. Each cue's point estimate + its differential 1-sigma is plotted and
-compared (real geometry; no fabricated data).
+compared. Every cue is generated from the same known feature geometry, so agreement verifies
+implementation consistency rather than independent sensor accuracy.
 """
 import json
 import os
@@ -71,7 +72,8 @@ def main():
         "landmark_sigma_m": round(rows[0]["s_lm"], 3),
     }
     json.dump(res, open(os.path.join(OUT, "height_xcheck_metrics.json"), "w"), indent=2)
-    for k, v in res.items(): print(f"  {k}: {v}")
+    for k, v in res.items():
+        print(f"  {k}: {v}")
 
     fig, ax = plt.subplots(1, 3, figsize=(15, 4.5))
     ax[0].plot(e, L, "o-", color="#c0762f"); ax[0].set_xlabel("Sun elevation e (deg)")
@@ -87,7 +89,7 @@ def main():
                    fmt="^-", color="#5aa469", capsize=3, label="stereo relief")
     ax[1].axhline(H_TRUE, ls="--", c="k", lw=0.8, label="true height")
     ax[1].set_xlabel("Sun elevation e (deg)"); ax[1].set_ylabel("recovered feature height (m)")
-    ax[1].set_title("Three height cues agree; differ in precision"); ax[1].legend(fontsize=8)
+    ax[1].set_title("Generated height formulas agree; modeled precision differs"); ax[1].legend(fontsize=8)
     cams = np.linspace(h_low, h_high, 12)
     depr = [hr.depression_to_landmark(h, H_TRUE, D_TRUE) for h in cams]
     ax[2].plot(cams, depr, "o-", color="#004e42")

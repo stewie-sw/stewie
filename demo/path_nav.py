@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
-"""Initial path-navigation validation [SIM, real physics]: drive a real path on the
-real Haworth DEM using dustgym's real slip model, then recover the trajectory with the
-solnav pose-graph SLAM. The drift is REAL (wheel slip robs forward progress); no noise
-is injected. Reports ATE for dead-reckoning vs SLAM and writes a figure + GIF + metrics.
+"""Initial measurement-model path-navigation demonstration.
 
-Honesty: trajectory + slip are dustgym's real physics on the real LOLA Haworth tile.
-Odometry = the commanded (encoder) motion, which over-estimates progress under slip ->
-real position drift. Solar factors use the true heading (the rover observes the real Sun);
-landmark factors use bearings to known DEM landmarks. ATE measures recovery vs truth.
+The trajectory uses the Haworth DEM and dustgym slip model. Odometry is commanded motion, while
+solar and landmark factors are generated directly from hidden truth without image extraction or
+measurement noise. The result is a cue-contribution fixture, not sensor-derived SLAM accuracy.
 """
 import json
 import os
@@ -86,9 +82,11 @@ def main():
 
     def build(use_solar, use_landmark):
         g = pg.PoseGraph(); g.add_prior(0, true[0])
-        for i, z in enumerate(odo): g.add_odom(i, i+1, z)
+        for i, z in enumerate(odo):
+            g.add_odom(i, i+1, z)
         if use_solar:
-            for i in range(0, len(true), 5): g.add_heading(i, true[i,2], info=3000.0)
+            for i in range(0, len(true), 5):
+                g.add_heading(i, true[i,2], info=3000.0)
         if use_landmark:
             for i in range(0, len(true), 8):
                 for L in lm:
@@ -113,7 +111,8 @@ def main():
         "heading_err_full_deg": round(metrics.heading_error_deg(X_full[:,2], true[:,2]), 3),
     }
     json.dump(res, open(os.path.join(OUT, "path_nav_metrics.json"), "w"), indent=2)
-    for k, v in res.items(): print(f"  {k}: {v}")
+    for k, v in res.items():
+        print(f"  {k}: {v}")
 
     # figure: trajectories over the local hillshade
     r0 = int(min(true[:,1].min(), dr[:,1].min())/CELL_M)-8; c0 = int(min(true[:,0].min(), dr[:,0].min())/CELL_M)-8

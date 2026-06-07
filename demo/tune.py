@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Honest estimator tuning [SIM, real physics + documented sensor noise].
+"""Measurement-model estimator sensitivity study.
 
-The path + slip drift are dustgym's real physics. To make ATE a HONEST number (not a
-circular pin to truth), bearings/heading carry a documented, seeded sensor-noise model and
-the factor information is set to the statistically-correct 1/sigma^2 -- NOT cranked. We then
-tune observation geometry (landmark count, observation density) and report the achievable
-ATE vs the NavLab bar (0.038-0.067 m). No metric gaming: weights match the stated sensor
-precision; the ATE is whatever the estimator earns under realistic sensing.
+The path and slip come from dustgym, while hidden truth generates heading and surveyed-landmark
+bearing observations with seeded Gaussian noise. Weights match the declared model. This is useful
+for estimator sensitivity, but it is not image-derived sensing and its ATE is not directly
+comparable to NavLab.
 """
 import json
 import os
@@ -63,7 +61,8 @@ def main():
     def run(n_lm, every, seed):
         rng = np.random.default_rng(seed)
         g = pg.PoseGraph(); g.add_prior(0, true[0])
-        for i, z in enumerate(odo): g.add_odom(i, i+1, z)
+        for i, z in enumerate(odo):
+            g.add_odom(i, i+1, z)
         for i in range(0, len(true), 5):
             g.add_heading(i, true[i,2] + rng.normal(0, sh), info=info_h)
         for i in range(0, len(true), every):
@@ -76,15 +75,17 @@ def main():
                ("6 lm, every 4", 6, 4), ("6 lm, every 2", 6, 2), ("6 lm, every pose", 6, 1)]
     table = {}
     for name, n_lm, every in configs:
-        ate = float(np.mean([run(n_lm, every, s) for s in range(5)]))   # 5 seeds, honest
+        ate = float(np.mean([run(n_lm, every, s) for s in range(5)]))
         table[name] = round(ate, 3)
     best = min(table.values())
-    res = {"sensor_model": {"bearing_sigma_deg": SIGMA_BEARING_DEG, "heading_sigma_deg": SIGMA_HEADING_DEG,
+    res = {"evidence_mode": "MEASUREMENT_MODEL_SIM",
+           "sensor_model": {"bearing_sigma_deg": SIGMA_BEARING_DEG, "heading_sigma_deg": SIGMA_HEADING_DEG,
                             "weighting": "info = 1/sigma^2 (correct, not cranked)"},
            "ate_by_config_m_mean_of_5_seeds": table, "best_ate_m": round(best, 3),
            "navlab_bar_m": NAVLAB_BAR_M, "beats_bar": bool(best <= NAVLAB_BAR_M)}
     json.dump(res, open(os.path.join(OUT, "tune_metrics.json"), "w"), indent=2)
-    for k, v in res.items(): print(f"  {k}: {v}")
+    for k, v in res.items():
+        print(f"  {k}: {v}")
 
 
 if __name__ == "__main__":

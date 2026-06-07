@@ -65,9 +65,11 @@ def main():
 
     def build(solar, n_lm, every):
         g = pg.PoseGraph(); g.add_prior(0, true[0])
-        for i, z in enumerate(odo): g.add_odom(i, i+1, z)
+        for i, z in enumerate(odo):
+            g.add_odom(i, i+1, z)
         if solar:
-            for i in range(0, len(true), 5): g.add_heading(i, true[i,2], info=3000.0)
+            for i in range(0, len(true), 5):
+                g.add_heading(i, true[i,2], info=3000.0)
         for i in range(0, len(true), every):
             for L in lm[:n_lm]:
                 b = np.arctan2(L[1]-true[i,1], L[0]-true[i,0]) - true[i,2]
@@ -96,14 +98,16 @@ def main():
         "mean_cameras_seeing_a_landmark": round(float(np.mean(seen_counts)), 2),
     }
     json.dump(res, open(os.path.join(OUT, "wire_all_metrics.json"), "w"), indent=2)
-    for k, v in res.items(): print(f"  {k}: {v}")
+    for k, v in res.items():
+        print(f"  {k}: {v}")
 
     fig, ax = plt.subplots(1, 2, figsize=(13, 5))
     names = [n for n, _ in ates]; vals = [a for _, a in ates]
     ax[0].barh(range(len(names)), vals, color="#005587"); ax[0].set_yticks(range(len(names)))
     ax[0].set_yticklabels(names, fontsize=9); ax[0].invert_yaxis()
     ax[0].set_xlabel("ATE distance offset (m)"); ax[0].set_title("Minimizing distance offset by wiring in cues")
-    for i, v in enumerate(vals): ax[0].text(v, i, f" {v} m", va="center", fontsize=9)
+    for i, v in enumerate(vals):
+        ax[0].text(v, i, f" {v} m", va="center", fontsize=9)
     best = stages[-1][1]
     ax[1].plot(true[:,0], true[:,1], "-", color="#5aa469", lw=2.5, label="ground truth")
     ax[1].plot(dr[:,0], dr[:,1], "--", color="#c0762f", lw=1.5, label=f"dead reckoning ({ates[0][1]} m)")

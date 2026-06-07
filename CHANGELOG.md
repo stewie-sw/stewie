@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.1.0 (2026-06-06)
-First scaffold. Real, tested primitives; no stubs, no synthetic data.
+First scaffold with analytic, rendered-fixture, and substrate-backed primitives.
 
 - `geometry/solar.py` (A1): lunar Sun elevation/azimuth, sub-solar point, synodic day length, daylight fraction; south-pole grazing-Sun verified.
 - `geometry/shadow.py` (A2): cast-shadow height H = L*tan(e), shadow-azimuth heading, uncertainty.
@@ -12,7 +12,8 @@ First scaffold. Real, tested primitives; no stubs, no synthetic data.
 - `posture/kinematics.py` (A3): posture library (Meerkat/Cobra/Iron Cross) grounded in Schuler et al. 2024; chassis lift/pitch, stability gate, parallax.
 - `ipex/specs.py`: provenance-tagged IPEx constants ([SPEC]/[CONFIRM]).
 - `bridge/dustgym_io.py`: reads the dustgym/LAC Seam-2 sensors.json + PNGs; writes cmd_vel/posture (no dustgym edits).
-- `demo/end_to_end.py`: runs the pipeline on a real frame + real Haworth DEM with an honesty ledger.
+- `demo/end_to_end.py`: component demonstration combining a rendered frame and Haworth DEM from
+  different scenes; not end-to-end SLAM.
 - `demo/assets/rassor.glb`: NASA RASSOR 3D model (public, patent KSC-TOPS-7).
 - 57 tests, 95% coverage, real-data subsample fixtures committed under `tests/fixtures/`.
 

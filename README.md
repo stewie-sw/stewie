@@ -2,8 +2,9 @@
 
 Solar/shadow/posture lunar navigation. The dissertation's navigation package (Aaron W. Storey). A **standalone** package that consumes `dustgym` read-only across its frozen seams; it does not modify dustgym. See `../SOFTWARE_PRD.md` for the full architecture and `../ALGORITHMS.md` for the formal algorithms (A1-A8).
 
-## Status (what is real and tested now)
-Implemented with real, tested code (41 tests passing, no stubs, no synthetic data):
+## Status
+Implemented primitives are covered by analytic fixtures, rendered-image fixtures, and
+measurement-model simulations. Evidence modes must not be conflated:
 
 | Module | Algorithm | What it does |
 |---|---|---|
@@ -27,5 +28,8 @@ python -m pytest tests -q   # 41 tests; real-fixture tests use dustgym renders +
 ```
 Real-fixture tests skip cleanly if the dustgym renders are absent (honest env-gate, not a fake pass).
 
-## Principles (carried from project rules)
-No stubs, no synthetic data, no fabricated values. Geometry/physics tests are known-answer; image/sensor tests use real dustgym renders and a real sensors.json. Every IPEx [CONFIRM] constant must be reconciled against the LAC geometry page before locking.
+## Principles
+No fabricated results and no unlabeled evidence modes. Geometry tests use known-answer analytic
+fixtures; image tests use dustgym renders; estimator studies may use truth-generated measurements
+when labeled `MEASUREMENT_MODEL_SIM`. Every IPEx `[CONFIRM]` constant must be reconciled before
+locking.

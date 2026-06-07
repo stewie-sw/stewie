@@ -43,3 +43,47 @@ def test_height_sigma_grows_with_noise_and_range():
     s_bigL = sm.shadow_height_sigma(3.0, 20.0, 0.01, 0.2)
     s_bigN = sm.shadow_height_sigma(1.0, 20.0, 0.05, 0.2)
     assert s_bigL > s_small and s_bigN > s_small and s_small > 0
+
+
+import os  # noqa: E402
+
+P5IMG = os.path.join(os.path.dirname(__file__), "fixtures", "p5_post_e30.png")
+
+
+@pytest.mark.skipif(not os.path.exists(P5IMG), reason="P5 render fixture absent")
+def test_p5_recovers_real_rendered_post_height():
+    """Recover a known 1.0 m post height from a REAL rendered cast shadow (ortho, m/px exact)."""
+    from imageio.v3 import imread
+    g = np.asarray(imread(P5IMG)).astype(float)
+    if g.ndim == 3:
+        g = g[..., :3].mean(2)
+    dark = g < 0.5 * np.median(g)
+    ys, xs = np.where(dark)
+    center = np.array([g.shape[1] / 2.0, g.shape[0] / 2.0])   # post at world origin -> image center
+    d = np.hypot(xs - center[0], ys - center[1])
+    tip = np.array([xs[int(np.argmax(d))], ys[int(np.argmax(d))]])
+    H, _ = sm.shadow_height_ortho(center, tip, 6.0 / 512, 30.0)
+    assert 0.85 < H < 1.15        # true 1.0 m, from real pixels (~5% error)
+
+
+def test_degenerate_camera_geometry_rejected():
+    with pytest.raises(ValueError, match="distinct"):
+        sm.look_at_basis((0, 0, 0), (0, 0, 0))
+    with pytest.raises(ValueError, match="parallel"):
+        sm.look_at_basis((0, 0, 0), (0, 1, 0), up=(0, 1, 0))
+    with pytest.raises(ValueError, match="FOV"):
+        sm.project((0, 0, 0), EYE, BASIS, W, H, 180.0)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        (1.0, 0.0, 0.01, 0.2),
+        (-1.0, 20.0, 0.01, 0.2),
+        (1.0, 20.0, -0.01, 0.2),
+        (1.0, 20.0, 0.01, np.nan),
+    ],
+)
+def test_shadow_height_sigma_rejects_invalid_domains(args):
+    with pytest.raises(ValueError):
+        sm.shadow_height_sigma(*args)
