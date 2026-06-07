@@ -1,4 +1,23 @@
 {
+  "availability": {
+    "imu": {
+      "reason": "Godot camera egress has no IMU model",
+      "status": "UNAVAILABLE"
+    },
+    "joints": {
+      "reason": "joint telemetry is not emitted by this render path",
+      "status": "UNAVAILABLE"
+    },
+    "power": {
+      "reason": "render path has no battery telemetry",
+      "status": "UNAVAILABLE"
+    },
+    "wheel": {
+      "reason": "Godot camera egress has no wheel encoder model",
+      "status": "UNAVAILABLE"
+    }
+  },
+  "calibration_id": "DUSTGYM_GODOT_CAMERA_RIG_V1",
   "cameras": [
     {
       "extrinsic_in_base_link": {
@@ -33,19 +52,9 @@
         "model": "pinhole"
       },
       "name": "front_left",
-      "pose_in_world": {
-        "position_m": [
-          3.95222067832947,
-          0.152775853872299,
-          3.03099727630615
-        ],
-        "quaternion_xyzw": [
-          0.0,
-          -0.461748600006104,
-          0.0,
-          0.887010812759399
-        ]
-      },
+      "sample_id": "000000:front_left",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
       "width": 1024
     },
     {
@@ -81,19 +90,9 @@
         "model": "pinhole"
       },
       "name": "front_right",
-      "pose_in_world": {
-        "position_m": [
-          3.91207027435303,
-          0.152775853872299,
-          2.97365665435791
-        ],
-        "quaternion_xyzw": [
-          0.0,
-          -0.461748600006104,
-          0.0,
-          0.887010812759399
-        ]
-      },
+      "sample_id": "000000:front_right",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
       "width": 1024
     },
     {
@@ -129,19 +128,9 @@
         "model": "pinhole"
       },
       "name": "rear_left",
-      "pose_in_world": {
-        "position_m": [
-          3.46072959899902,
-          0.152775853872299,
-          3.37514305114746
-        ],
-        "quaternion_xyzw": [
-          0.0,
-          0.887010812759399,
-          0.0,
-          0.461748600006104
-        ]
-      },
+      "sample_id": "000000:rear_left",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
       "width": 1024
     },
     {
@@ -177,19 +166,9 @@
         "model": "pinhole"
       },
       "name": "rear_right",
-      "pose_in_world": {
-        "position_m": [
-          3.42057919502258,
-          0.152775853872299,
-          3.31780242919922
-        ],
-        "quaternion_xyzw": [
-          0.0,
-          0.887010812759399,
-          0.0,
-          0.461748600006104
-        ]
-      },
+      "sample_id": "000000:rear_right",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
       "width": 1024
     },
     {
@@ -225,19 +204,9 @@
         "model": "pinhole"
       },
       "name": "left_mono",
-      "pose_in_world": {
-        "position_m": [
-          3.84986925125122,
-          0.202775850892067,
-          3.40785813331604
-        ],
-        "quaternion_xyzw": [
-          0.0,
-          0.953716993331909,
-          0.0,
-          -0.300705790519714
-        ]
-      },
+      "sample_id": "000000:left_mono",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
       "width": 1024
     },
     {
@@ -273,19 +242,9 @@
         "model": "pinhole"
       },
       "name": "right_mono",
-      "pose_in_world": {
-        "position_m": [
-          3.52293062210083,
-          0.202775850892067,
-          2.94094157218933
-        ],
-        "quaternion_xyzw": [
-          0.0,
-          0.300705790519714,
-          0.0,
-          0.953716993331909
-        ]
-      },
+      "sample_id": "000000:right_mono",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
       "width": 1024
     },
     {
@@ -321,19 +280,9 @@
         "model": "pinhole"
       },
       "name": "drum_front_cam",
-      "pose_in_world": {
-        "position_m": [
-          3.768315076828,
-          0.432775855064392,
-          3.11704230308533
-        ],
-        "quaternion_xyzw": [
-          -0.449827462434769,
-          -0.397967725992203,
-          -0.234165295958519,
-          0.764489114284515
-        ]
-      },
+      "sample_id": "000000:drum_front_cam",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
       "width": 1024
     },
     {
@@ -369,72 +318,26 @@
         "model": "pinhole"
       },
       "name": "drum_back_cam",
-      "pose_in_world": {
-        "position_m": [
-          3.60448479652405,
-          0.432775855064392,
-          3.23175740242004
-        ],
-        "quaternion_xyzw": [
-          -0.234165295958519,
-          0.764489114284515,
-          0.449827462434769,
-          0.397967725992203
-        ]
-      },
+      "sample_id": "000000:drum_back_cam",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
       "width": 1024
     }
   ],
   "frame_convention": "godot",
   "frame_index": 0,
-  "lander": {
-    "apriltag": {
-      "family": "tag36h11",
-      "id": 0,
-      "pose_in_lander": {
-        "position_m": [
-          0,
-          0,
-          0
-        ],
-        "quaternion_xyzw": [
-          0,
-          0,
-          0,
-          1
-        ]
-      },
-      "size_m": 0.15
-    },
-    "frame_id": "lander",
-    "position_m": [
-      5.73428010940552,
-      0.461304426193237,
-      1.74045872688293
-    ],
-    "quaternion_xyzw": [
-      0.0,
-      0.953716993331909,
-      0.0,
-      -0.300705790519714
-    ]
+  "health": {
+    "camera_count": 8,
+    "dropped": false,
+    "stale": false,
+    "status": "OK"
   },
-  "rover": {
-    "frame_id": "base_link",
-    "position_m": [
-      3.68639993667603,
-      0.252775847911835,
-      3.17439985275269
-    ],
-    "quaternion_xyzw": [
-      0.0,
-      0.300705790519714,
-      0.0,
-      0.953716993331909
-    ]
-  },
+  "producer_schema_version": "sensor_bridge/1.1",
+  "profile_id": "DUSTGYM_IPEX_V1",
+  "profile_sha256": "b5015a4613025f05a89e03142f6435f3b1c8e3efeaefcacea1cb0a89f0d04796",
+  "provenance": "RUNTIME_SENSOR",
   "scene": "crater_boulders",
-  "schema_version": "sensor_bridge/1.1",
+  "schema_version": "sensor_bridge_runtime/1.0",
   "stereo": {
     "baseline_m": 0.0699996948242188,
     "left": "front_left",
@@ -449,5 +352,6 @@
     "azimuth_deg": 215.0,
     "elevation_deg": 5.0,
     "time_delta_s": 0.0
-  }
+  },
+  "timestamp_s": 0.0
 }

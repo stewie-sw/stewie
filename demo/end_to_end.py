@@ -29,7 +29,9 @@ from solnav.perception import masking, stereo_depth
 from solnav.posture import kinematics as kin
 
 FOSS = "/mnt/projects/foss_ipex"
-SENSORS = FOSS + "/roversim/godot_sidecar/out/cam/crater_boulders/000/sensors.json"
+CAPTURE = FOSS + "/dustgym/godot_sidecar/out/cam/crater_boulders/000"
+SENSORS = CAPTURE + "/runtime_sensors.json"
+TRUTH = CAPTURE + "/evaluation_truth.json"
 DEM_DIR = FOSS + "/dustgym/samples/lunar_dem/haworth_10km_5m"
 OUT = os.path.join(os.path.dirname(__file__), "out", "end_to_end.png")
 ledger = []
@@ -113,7 +115,7 @@ def main():
     # --- 7. spin relative to lander: AprilTag visibility vs yaw (REAL geometry) ---
     # EVAL-ONLY display geometry: lander/rover poses come from the truth channel
     # (EvaluationTruthPacket), never the estimator-facing SensorFrame (invariant I3).
-    truth = dustgym_io.read_evaluation_truth(SENSORS)
+    truth = dustgym_io.read_evaluation_truth(TRUTH)
     rel = truth.lander_pos_m - truth.rover_pos_m
     lander_bearing = (np.degrees(np.arctan2(rel[1], rel[0]))) % 360.0
     lander_dist = float(np.linalg.norm(rel[:2])) or 5.0

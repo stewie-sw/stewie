@@ -217,11 +217,20 @@ def validate_sensor_frame(
     A frame with an explicit ``profile_id`` must match exactly. Otherwise baseline,
     intrinsics, image dimensions, and fixed-camera positions establish compatibility.
     """
-    explicit = frame.raw.get("profile_id") if getattr(frame, "raw", None) else None
-    if explicit is not None and explicit != profile.profile_id:
+    explicit = getattr(frame, "profile_id", None)
+    if explicit != profile.profile_id:
         raise MixedProfileError(
             f"sensor frame profile_id {explicit!r} does not match selected {profile.profile_id!r}"
         )
+    checksum = getattr(frame, "profile_sha256", None)
+    if checksum != profile.sha256:
+        raise MixedProfileError(
+            f"sensor frame profile checksum {checksum!r} does not match selected {profile.sha256!r}"
+        )
+    if not getattr(frame, "calibration_id", ""):
+        raise MixedProfileError("sensor frame is missing calibration_id")
+    if not math.isfinite(float(getattr(frame, "timestamp_s", math.nan))):
+        raise MixedProfileError("sensor frame is missing a finite timestamp")
 
     expected_optics = profile.cameras["optics"]
     resolution_policy = expected_optics.get("resolution_policy", "exact")

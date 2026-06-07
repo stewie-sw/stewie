@@ -4,7 +4,7 @@ import numpy as np
 
 from solnav.perception import camera_rig as cr
 
-FIX = os.path.join(os.path.dirname(__file__), "fixtures", "frame", "sensors.json")
+FIX = os.path.join(os.path.dirname(__file__), "fixtures", "frame", "runtime_sensors.json")
 
 
 def test_exact_stereo_baseline_from_real_extrinsics():

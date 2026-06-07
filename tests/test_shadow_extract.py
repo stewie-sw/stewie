@@ -67,3 +67,44 @@ def test_image_direction_is_not_a_body_heading_factor():
     assert obs.coordinate_frame == "IMAGE_X_RIGHT_Y_DOWN"
     assert not obs.covariance_calibrated
     assert not hasattr(obs, "z_shadow_body_deg")
+
+
+def test_shadow_segment_maps_to_ground_body_frame():
+    q_down = np.array([-np.sqrt(0.5), 0.0, 0.0, np.sqrt(0.5)])
+    obs = se.map_shadow_segment_to_ground(
+        base_uv=(49.5, 49.5),
+        tip_uv=(74.5, 49.5),
+        camera_position_base_m=(0.0, 1.0, 0.0),
+        camera_quaternion_xyzw=q_down,
+        width_px=100,
+        height_px=100,
+        vertical_fov_deg=90.0,
+        ground_y_m=0.0,
+        camera_id="down_cam",
+        sample_id="frame0:down_cam",
+        periodicity_deg=360,
+        direction_resolved=True,
+    )
+    assert np.allclose(obs.base_ground_m, [0.0, 0.0, 0.0], atol=1e-9)
+    assert np.allclose(obs.direction_body_xz, [1.0, 0.0], atol=1e-9)
+    assert abs(obs.azimuth_body_deg) < 1e-9
+    assert obs.variance_deg2 > 0.0
+    assert obs.coordinate_frame == "BASE_LINK_GODOT_X_FORWARD_Z_RIGHT"
+
+
+def test_axial_shadow_cannot_claim_resolved_direction():
+    with pytest.raises(ValueError, match="resolved direction"):
+        se.map_shadow_segment_to_ground(
+            (49.5, 49.5),
+            (74.5, 49.5),
+            (0.0, 1.0, 0.0),
+            (-np.sqrt(0.5), 0.0, 0.0, np.sqrt(0.5)),
+            100,
+            100,
+            90.0,
+            0.0,
+            camera_id="down_cam",
+            sample_id="frame0:down_cam",
+            periodicity_deg=180,
+            direction_resolved=True,
+        )

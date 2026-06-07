@@ -15,7 +15,7 @@ from solnav.config import (
 from solnav.ipex.specs import IPExSpecs
 from solnav.perception.camera_rig import CameraRig
 
-FIX = os.path.join(os.path.dirname(__file__), "fixtures", "frame", "sensors.json")
+FIX = os.path.join(os.path.dirname(__file__), "fixtures", "frame", "runtime_sensors.json")
 
 
 def test_packaged_profiles_validate_and_have_distinct_geometry():
@@ -48,7 +48,7 @@ def test_runtime_dustgym_frame_matches_dustgym_profile():
 
 def test_runtime_dustgym_frame_rejected_by_official_profile():
     frame = dustgym_io.read_sensors(FIX)
-    with pytest.raises(MixedProfileError, match="camera set mismatch|baseline"):
+    with pytest.raises(MixedProfileError, match="profile_id|camera set mismatch|baseline"):
         validate_sensor_frame(load_profile("official"), frame)
     with pytest.raises(MixedProfileError):
         CameraRig.from_sensors(FIX, "official")

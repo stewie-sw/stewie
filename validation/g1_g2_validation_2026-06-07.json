@@ -1,0 +1,53 @@
+{
+  "schema_version": "solnav_gate_validation/1.0",
+  "date": "2026-06-07",
+  "evidence_mode": "RENDERED_SENSOR_SIM",
+  "manifest": {
+    "status": "PASS",
+    "checked_files": 8,
+    "locked_validation_status": "NOT_ACQUIRED"
+  },
+  "g1": {
+    "status": "IMPLEMENTATION_PASS_RELEASE_BLOCKED",
+    "contract_checks": {
+      "strict_runtime_schema": "PASS",
+      "profile_checksum": "PASS",
+      "calibration_id": "PASS",
+      "timestamps": "PASS",
+      "truth_physical_separation": "PASS",
+      "camera_file_dimensions": "PASS",
+      "frame_and_profile_validation": "PASS"
+    },
+    "blockers": [
+      "Dustgym camera egress explicitly reports IMU/wheel/joint/power channels UNAVAILABLE; the passive wheel/IMU/stereo baseline required by G1 is not reproducible yet.",
+      "No locked validation capture has been acquired; the manifest is frozen but empty."
+    ]
+  },
+  "g2": {
+    "status": "IMPLEMENTATION_PASS_RELEASE_BLOCKED",
+    "fixed_reference_camera": "front_left",
+    "match_camera": "front_right",
+    "lr_consistent_fraction": 0.028076171875,
+    "lr_consistent_pixels": 22080,
+    "median_depth_m": 1.5790777206420898,
+    "median_sigma_depth_m": 0.05241752043366432,
+    "covariance_calibrated": false,
+    "shadow_image_frame": "IMAGE_X_RIGHT_Y_DOWN",
+    "shadow_direction_periodicity_deg": 360,
+    "controlled_p5_height_m": {
+      "sun_e30": 0.9473119350793328,
+      "sun_e50": 0.9583675592678913
+    },
+    "ephemeris_fallback_contract": "PASS",
+    "blockers": [
+      "No independent per-pixel depth truth exists for the committed stereo capture.",
+      "Disparity/shadow/solar covariance has not been calibrated on development scenes and checked on an untouched held-out split.",
+      "General image-derived shadow base/tip association is not implemented; the body/ground mapping consumes an already associated segment."
+    ]
+  },
+  "release_gate_summary": {
+    "G1": "NOT_PASSED",
+    "G2": "NOT_PASSED",
+    "next_gate": "Acquire timestamped IMU/wheel data and untouched depth/shadow truth captures"
+  }
+}

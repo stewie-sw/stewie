@@ -5,8 +5,9 @@ import pytest
 
 from solnav.bridge import dustgym_io
 
-# Committed REAL subsample of a dustgym/LAC Seam-2 frame (no synthetic data).
-REAL_SENSORS = os.path.join(os.path.dirname(__file__), "fixtures", "frame", "sensors.json")
+# Committed real Dustgym 1024x768 capture (no synthetic data).
+REAL_SENSORS = os.path.join(os.path.dirname(__file__), "fixtures", "frame", "runtime_sensors.json")
+REAL_TRUTH = os.path.join(os.path.dirname(__file__), "fixtures", "frame", "evaluation_truth.json")
 _has = os.path.exists(REAL_SENSORS)
 
 
@@ -22,6 +23,9 @@ def test_read_real_sensors_frame():
     assert 600 < fl.fx < 750 and fl.image.endswith(".png")
     # the Sun block carries the low-sun regime
     assert f.sun_elevation_deg is not None and f.sun_azimuth_deg is not None
+    assert f.profile_id == "DUSTGYM_IPEX_V1"
+    assert len(f.profile_sha256) == 64 and f.calibration_id
+    assert f.timestamp_s == 0.0 and f.provenance == "RUNTIME_SENSOR"
 
 
 @pytest.mark.skipif(not _has, reason="dustgym sensors.json fixture not present")
@@ -32,7 +36,9 @@ def test_truth_firewall_sensorframe_carries_no_truth():
     f = dustgym_io.read_sensors(REAL_SENSORS)
     for forbidden in ("rover_pos_m", "rover_quat_xyzw", "lander_pos_m"):
         assert not hasattr(f, forbidden), f"SensorFrame leaks truth field {forbidden}"
-    truth = dustgym_io.read_evaluation_truth(REAL_SENSORS)
+    assert not {"rover", "lander", "camera_poses_in_world"}.intersection(f.raw)
+    assert all("pose_in_world" not in camera for camera in f.raw["cameras"])
+    truth = dustgym_io.read_evaluation_truth(REAL_TRUTH)
     assert truth.provenance == "GROUND_TRUTH_EVAL"
     assert truth.rover_pos_m.shape == (3,) and truth.lander_pos_m.shape == (3,)
 
@@ -41,6 +47,31 @@ def test_truth_firewall_sensorframe_carries_no_truth():
 def test_load_real_camera_image():
     img = dustgym_io.load_camera_image(REAL_SENSORS, "front_left")
     assert img.ndim in (2, 3) and img.shape[0] > 0
+
+
+def test_legacy_combined_packet_is_rejected():
+    legacy = os.path.join(os.path.dirname(REAL_SENSORS), "sensors.json")
+    with pytest.raises(dustgym_io.PacketValidationError, match="runtime_sensors.json"):
+        dustgym_io.read_sensors(legacy)
+
+
+def test_runtime_truth_injection_is_rejected(tmp_path):
+    data = json.load(open(REAL_SENSORS))
+    data["rover"] = {"position_m": [0, 0, 0]}
+    path = tmp_path / "runtime_sensors.json"
+    path.write_text(json.dumps(data))
+    with pytest.raises(dustgym_io.PacketValidationError, match="evaluation-only"):
+        dustgym_io.read_sensors(str(path), validate_images=False)
+
+
+def test_bad_profile_checksum_is_rejected_by_profile_validator():
+    from solnav.config import MixedProfileError, load_profile, validate_sensor_frame
+
+    frame = dustgym_io.read_sensors(REAL_SENSORS)
+    frame.raw["profile_sha256"] = "0" * 64
+    object.__setattr__(frame, "profile_sha256", "0" * 64)
+    with pytest.raises(MixedProfileError, match="checksum"):
+        validate_sensor_frame(load_profile("dustgym"), frame)
 
 
 def test_write_cmd_vel_roundtrip(tmp_path):

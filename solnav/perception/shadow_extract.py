@@ -29,6 +29,22 @@ class ShadowHeadingObs:
     provenance: str = "RUNTIME_DERIVED"
 
 
+@dataclass(frozen=True)
+class GroundShadowObservation:
+    base_ground_m: np.ndarray
+    tip_ground_m: np.ndarray
+    direction_body_xz: np.ndarray
+    azimuth_body_deg: float
+    variance_deg2: float
+    periodicity_deg: int
+    direction_resolved: bool
+    camera_id: str
+    sample_id: str
+    coordinate_frame: str = "BASE_LINK_GODOT_X_FORWARD_Z_RIGHT"
+    covariance_calibrated: bool = False
+    provenance: str = "RUNTIME_DERIVED"
+
+
 def _to_gray(img):
     g = np.asarray(img)
     if g.ndim == 3:
@@ -133,4 +149,94 @@ def extract_shadow_azimuth(image, blur: int = 5, min_conf: float = 0.30,
         dispersion_deg=dispersion_deg,
         periodicity_deg=360,
         direction_resolved=True,
+    )
+
+
+def map_shadow_segment_to_ground(
+    base_uv,
+    tip_uv,
+    camera_position_base_m,
+    camera_quaternion_xyzw,
+    width_px: int,
+    height_px: int,
+    vertical_fov_deg: float,
+    ground_y_m: float,
+    *,
+    camera_id: str,
+    sample_id: str,
+    periodicity_deg: int,
+    direction_resolved: bool,
+    pixel_sigma: float = 1.0,
+    covariance_calibrated: bool = False,
+) -> GroundShadowObservation:
+    """Map an associated shadow base/tip segment into the rover ground frame.
+
+    Godot cameras look along local ``-Z``. The returned azimuth is clockwise
+    from rover ``+X`` toward rover ``+Z``. Axial observations retain period 180;
+    callers may not label them absolute heading until caster association resolves
+    the direction.
+    """
+
+    from ..geometry import shadow_metric
+    from .camera_rig import quat_to_R
+
+    if periodicity_deg not in (180, 360):
+        raise ValueError("shadow periodicity must be 180 or 360 degrees")
+    if direction_resolved and periodicity_deg != 360:
+        raise ValueError("a resolved direction must use 360-degree periodicity")
+    if not camera_id or not sample_id:
+        raise ValueError("camera_id and sample_id are required")
+    if not np.isfinite(pixel_sigma) or pixel_sigma < 0.0:
+        raise ValueError("pixel_sigma must be finite and nonnegative")
+
+    rotation = quat_to_R(np.asarray(camera_quaternion_xyzw, dtype=float))
+    basis = (rotation[:, 0], rotation[:, 1], -rotation[:, 2])
+    eye = np.asarray(camera_position_base_m, dtype=float)
+
+    def project_segment(base, tip):
+        base_ground = shadow_metric.pixel_to_ground(
+            base[0], base[1], eye, basis, width_px, height_px, vertical_fov_deg, ground_y_m
+        )
+        tip_ground = shadow_metric.pixel_to_ground(
+            tip[0], tip[1], eye, basis, width_px, height_px, vertical_fov_deg, ground_y_m
+        )
+        direction = (tip_ground - base_ground)[[0, 2]]
+        length = float(np.linalg.norm(direction))
+        if length <= 1e-9:
+            raise ValueError("shadow base and tip map to the same ground point")
+        direction /= length
+        angle = float(np.degrees(np.arctan2(direction[1], direction[0])) % 360.0)
+        return base_ground, tip_ground, direction, angle
+
+    base = np.asarray(base_uv, dtype=float)
+    tip = np.asarray(tip_uv, dtype=float)
+    if base.shape != (2,) or tip.shape != (2,) or not np.all(np.isfinite([*base, *tip])):
+        raise ValueError("shadow base/tip pixels must be finite 2-vectors")
+    base_ground, tip_ground, direction, angle = project_segment(base, tip)
+
+    errors = []
+    if pixel_sigma > 0.0:
+        for target in ("base", "tip"):
+            for axis in range(2):
+                for sign in (-1.0, 1.0):
+                    perturbed_base = base.copy()
+                    perturbed_tip = tip.copy()
+                    selected = perturbed_base if target == "base" else perturbed_tip
+                    selected[axis] += sign * pixel_sigma
+                    _, _, _, perturbed_angle = project_segment(perturbed_base, perturbed_tip)
+                    period = float(periodicity_deg)
+                    error = (perturbed_angle - angle + period / 2.0) % period - period / 2.0
+                    errors.append(error)
+    variance = float(np.mean(np.square(errors))) if errors else 0.0
+    return GroundShadowObservation(
+        base_ground_m=base_ground,
+        tip_ground_m=tip_ground,
+        direction_body_xz=direction,
+        azimuth_body_deg=angle,
+        variance_deg2=variance,
+        periodicity_deg=periodicity_deg,
+        direction_resolved=direction_resolved,
+        camera_id=camera_id,
+        sample_id=sample_id,
+        covariance_calibrated=covariance_calibrated,
     )

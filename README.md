@@ -15,7 +15,9 @@ measurement-model simulations. Evidence modes must not be conflated:
 | `solnav/perception/masking.py` | A2/A5 | Semantic-mask feature filtering (keep ground/rock; drop sky/lander/fiducial/shadow), self-supervised shadow mask for eval mode, overlay. |
 | `solnav/config/` | - | Packaged, checksummed system profiles; validates camera/FOV/baseline closure and rejects mixed-profile runtime metadata. |
 | `solnav/ipex/specs.py` | - | Profile-backed IPEx constants for Dustgym or the staged official-LAC substrate. |
-| `solnav/bridge/dustgym_io.py` | - | Reads the real dustgym/LAC Seam-2 `sensors.json` (cameras, stereo, Sun, poses) and PNGs; writes `cmd_vel` and posture commands. No dustgym edits. |
+| `solnav/bridge/dustgym_io.py` | - | Strictly validates truth-free `runtime_sensors.json`, reads evaluation truth only from the separate `evaluation_truth.json`, validates image dimensions/provenance/timing/profile identity, and atomically writes commands. |
+| `solnav/perception/stereo_depth.py` | G2 | Fixed-reference SGBM, left-right consistency, validity mask, propagated depth sigma, and explicit covariance-calibration status. |
+| `solnav/perception/shadow_extract.py` | G2 | Image-plane shadow extraction plus associated segment ray mapping into the rover ground frame; 180-degree ambiguity remains explicit. |
 
 ## Next milestones (not stubbed; require deps not yet installed)
 - `estimator/` (A5 unified GTSAM factor graph) -- needs `gtsam` (`pip install .[estimator]`).
@@ -30,6 +32,16 @@ python3 -m pytest tests -q
 ```
 External rendered-fixture tests skip cleanly when their declared assets are absent.
 
+Reproduce the current G1/G2 evidence:
+
+```bash
+python3 scripts/validate_g1_g2.py
+```
+
+The committed June 7 report records both release gates as `NOT_PASSED`. The contract/frame and
+fixed-reference implementation checks pass; timestamped IMU/wheel ingress, an untouched validation
+split, independent depth truth, and development/held-out covariance calibration remain required.
+
 ## System profiles
 
 `DUSTGYM_IPEX_V1` is the verified default. Select a profile once, before importing geometry or
@@ -43,8 +55,8 @@ SOLNAV_PROFILE=OFFICIAL_LAC_2025_UNVERIFIED python3 -c \
 
 The official profile is intentionally `UNVERIFIED`; `load_profile(..., require_verified=True)`
 rejects it until an installed-kit checksum and calibration bundle replace the staged facts.
-`CameraRig.from_sensors(...)` validates runtime camera names, dimensions, focal length, baseline,
-and fixed extrinsics against the selected profile before accepting the frame.
+`CameraRig.from_sensors(...)` validates runtime schema, provenance, timestamps, profile checksum,
+camera files, dimensions, focal length, baseline, and fixed extrinsics before accepting the frame.
 
 ## Principles
 No fabricated results and no unlabeled evidence modes. Geometry tests use known-answer analytic

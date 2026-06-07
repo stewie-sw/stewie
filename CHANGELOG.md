@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Added strict `sensor_bridge_runtime/1.0` and physically separate
+  `sensor_bridge_evaluation_truth/1.0` ingestion. Legacy combined `sensors.json` is rejected by the
+  estimator bridge, including the former truth leak through `SensorFrame.raw`.
+- Replaced the downsampled/mismatched camera fixture with a complete real 1024x768 Dustgym
+  eight-camera capture and validates every declared image dimension.
+- Added fixed-reference `DepthFrame`, left-right consistency, validity masks, propagated depth
+  sigma, and a guard that prevents claiming calibrated covariance without development and held-out
+  evidence.
+- Added shadow segment image-to-ground/body mapping with explicit 180/360-degree periodicity and
+  an explicit ephemeris-only solar fallback contract.
+- Added immutable scene hashes and `scripts/validate_g1_g2.py`. The June 7 evidence passes
+  implementation checks but correctly leaves G1/G2 release gates open for missing IMU/wheel
+  ingress and independent held-out covariance validation.
 - Added packaged `DUSTGYM_IPEX_V1` and `OFFICIAL_LAC_2025_UNVERIFIED` system profiles.
 - Added schema, checksum, FOV/intrinsics, stereo-baseline, and runtime compatibility validation.
 - Camera rig, IPEx specifications, posture geometry, and lunar terramechanics now use the selected
