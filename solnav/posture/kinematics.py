@@ -14,23 +14,34 @@ from dataclasses import dataclass
 
 import numpy as np
 
-# [CONFIRM] geometry, scaled ~0.7x from RASSOR 2 (Schuler 2024 scale factor).
-ARM_LENGTH_M = 0.35
-PIVOT_HEIGHT_M = 0.25
-WHEEL_RADIUS_M = 0.15
-WHEELBASE_M = 0.60
-TRACK_M = 0.50
+# Geometry. The NASA RASSOR GLB (demo/assets/rassor.glb, KSC-TOPS-7) gives a REAL
+# overall envelope X*Y*Z = 0.848 x 0.938 x 1.657 m (single merged mesh -> envelope
+# only, not per-limb segmentation). IPEx ~ 0.7x RASSOR (Schuler 2024) -> ~0.59 x
+# 0.66 x 1.16 m. Arm reach below is inferred from (length - body)/2; pivot/limits
+# remain [CONFIRM] vs the LAC geometry page. Angle LIMITS are real [SPEC].
+RASSOR_ENVELOPE_M = (0.848, 0.938, 1.657)        # REAL, from the GLB POSITION accessor min/max
+IPEX_ENVELOPE_M = tuple(round(0.7 * d, 3) for d in RASSOR_ENVELOPE_M)  # ~0.59 x 0.66 x 1.16 m
+ARM_LENGTH_M = 0.30        # [CONFIRM] ~ (IPEx length - body)/2 from the GLB envelope
+PIVOT_HEIGHT_M = 0.25      # [CONFIRM]
+WHEEL_RADIUS_M = 0.15      # [CONFIRM]
+WHEELBASE_M = 0.60         # [CONFIRM]
+TRACK_M = 0.50             # [CONFIRM] (IPEx X-envelope ~0.59 m)
 GROUND_GAP_M = PIVOT_HEIGHT_M - WHEEL_RADIUS_M   # drum must reach ground before it lifts
 # masses [CONFIRM] (30 kg class): chassis + 4 drums
 CHASSIS_MASS_KG = 22.0
 DRUM_MASS_KG = 2.0
 
 # Posture library: (arm_front_deg, arm_rear_deg). Angles are [SPEC] from the paper.
+# One-sided (asymmetric) raises pitch the body and give a slanted, lower lookout with
+# a tighter support polygon; two-sided (symmetric) raises stay level, lift higher, and
+# put the cameras on a wider, taller baseline (but lift the wheels clear).
 POSTURES = {
-    "TRANSIT":    (0.0, 0.0),     # arms neutral, low CG, full wheelbase
-    "COBRA":      (55.0, 0.0),    # front raised/pitched (nominal max 55 deg)
-    "MEERKAT":    (70.0, 70.0),   # both arms below chassis -> raised lookout (extreme mode)
-    "IRON_CROSS": (90.0, 90.0),   # arms parallel to ground -> max chassis raise
+    "TRANSIT":     (0.0, 0.0),    # arms neutral, low CG, full wheelbase
+    "COBRA":       (55.0, 0.0),   # one-sided front raise/pitch (nominal max 55 deg)
+    "PUSHUP":      (45.0, 45.0),  # two-sided moderate press-up (level, partial lift)
+    "MEERKAT_1S":  (70.0, 0.0),   # ONE-SIDED meerkat: one end up -> pitched lookout
+    "MEERKAT":     (70.0, 70.0),  # TWO-SIDED meerkat: level raised lookout (extreme mode)
+    "IRON_CROSS":  (90.0, 90.0),  # arms parallel to ground -> max symmetric chassis raise
 }
 ARM_NOMINAL_MAX_DEG = 55.0
 ARM_MECH_MAX_DEG = 135.0          # ~2.36 rad absolute mechanical limit
@@ -106,3 +117,24 @@ def is_feasible(ps: PostureState, fill_front_kg: float = 0.0, fill_rear_kg: floa
 def parallax_baseline_m(p_low: PostureState, p_high: PostureState) -> float:
     """Vertical parallax gained between two postures (camera height difference)."""
     return abs(p_high.chassis_lift_m - p_low.chassis_lift_m)
+
+
+def camera_height_with_sinkage(base_cam_height_m: float, ps: PostureState,
+                               total_mass_kg: float, on_drums: bool = False,
+                               density_factor: float = 1.0):
+    """Effective camera height accounting for Bekker load-bearing sinkage.
+
+    On wheels (driving) the contacts sink a little; bearing on the drums (meerkat /
+    iron-cross) the narrow drum contact sinks more. Returns (height_m, pitch_deg,
+    sinkage_m). Sinkage shifts the extrinsics the SLAM graph relies on, so it is
+    folded into the camera height here. [CONFIRM dims]."""
+    from solnav.terramechanics import sinkage as sk
+    h, pitch = camera_height_pitch(base_cam_height_m, 0.0, ps)
+    if on_drums:
+        n = 2 if ps.name == "IRON_CROSS" else 4
+        load = sk.static_load_per_contact(total_mass_kg, n)
+        z = sk.drum_sinkage(load, density_factor=density_factor)
+    else:
+        load = sk.static_load_per_contact(total_mass_kg, 4)
+        z = sk.wheel_sinkage(load, density_factor=density_factor)
+    return sk.effective_height_drop(h, z), pitch, z

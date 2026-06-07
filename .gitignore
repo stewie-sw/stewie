@@ -8,6 +8,6 @@ dist/
 .ruff_cache/
 .coverage
 htmlcov/
-demo/out/*.png
+demo/out/
 .venv/
 venv/
