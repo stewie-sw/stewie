@@ -1,4 +1,4 @@
-from scripts.validate_g1_g2 import validate
+from solnav.eval.gates import validate
 
 
 def test_gate_validation_is_reproducible_and_honest():
