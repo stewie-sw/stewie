@@ -50,3 +50,33 @@ def test_p7_passes_gate_in_clutter_where_boundary_fails():
     # the per-pixel boundary method is (correctly) rejected on the same cluttered scene
     with pytest.raises(ValueError):
         se.extract_shadow_azimuth(img)
+
+
+@pytest.mark.skipif(not os.path.exists(CLEAN), reason="shadow fixture absent")
+def test_image_derived_factor_bounds_gyro_drift_end_to_end():
+    """First end-to-end sensor->factor: an IMAGE-DERIVED shadow heading bounds a real gyro drift."""
+    from imageio.v3 import imread
+
+    from solnav.eval import metrics
+    from solnav.geometry import shadow
+    from solnav.slam import posegraph as pg
+    true = pg.integrate_odometry([0, 0, 0.0], [[0.6, 0.0, 0.0]] * 30)
+    bias = np.radians(0.4)
+    odo = [z + np.array([0, 0, bias]) for z in pg.relative_odometry(true)]
+    dr = pg.integrate_odometry(true[0], odo)
+    obs = se.extract_shadow_azimuth(np.asarray(imread(CLEAN)))      # from pixels, no truth
+    yaw_raw = shadow.heading_from_shadow(obs.z_shadow_body_deg, 30.0)
+    yaw_abs = np.radians(yaw_raw + (np.degrees(true[0, 2]) - yaw_raw))   # one-time start calibration
+    info = 1.0 / np.radians(obs.sigma_deg) ** 2
+
+    def slv(use):
+        g = pg.PoseGraph(); g.add_prior(0, true[0])
+        for i, z in enumerate(odo):
+            g.add_odom(i, i + 1, z)
+        if use:
+            for i in range(0, 31, 3):
+                g.add_heading(i, yaw_abs, info=info)
+        return g.solve(np.array(dr))
+    ate_odom = metrics.ate_rmse_raw(slv(False), true)
+    ate_sensor = metrics.ate_rmse_raw(slv(True), true)
+    assert ate_sensor < 0.2 * ate_odom        # the image-derived factor bounds the gyro drift
