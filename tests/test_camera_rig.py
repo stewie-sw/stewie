@@ -36,3 +36,13 @@ def test_wider_baseline_tightens():
 def test_parallel_bearings_raise():
     with pytest.raises(ValueError):
         cr.horizontal_parallax_triangulate([0, 0], 0.0, [2, 0], 0.0)
+
+
+def test_f0_optical_axes_in_body_rep103():
+    # Algorithm F0: the Godot->ROS basis change is applied to ORIENTATION too, so optical axes
+    # are body REP-103 (forward +X, left +Y, right -Y, rear -X), not raw Godot -Z (HIGH-01/02).
+    d = cr.CameraRig()
+    assert np.allclose(d.get("front_left").optical_axis(), [1, 0, 0], atol=1e-9)
+    assert np.allclose(d.get("left_mono").optical_axis(), [0, 1, 0], atol=1e-9)
+    assert np.allclose(d.get("right_mono").optical_axis(), [0, -1, 0], atol=1e-9)
+    assert np.allclose(d.get("rear_left").optical_axis(), [-1, 0, 0], atol=1e-9)

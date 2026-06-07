@@ -10,6 +10,7 @@ measurement-model simulations. Evidence modes must not be conflated:
 |---|---|---|
 | `solnav/geometry/solar.py` | A1 | Lunar Sun elevation/azimuth, sub-solar point, synodic day length, daylight fraction. Real spherical astronomy; the south-pole persistent grazing Sun falls out and is tested. |
 | `solnav/geometry/shadow.py` | A2 | Cast-shadow height (`H = L tan e`), shadow-azimuth heading, uncertainty propagation. |
+| `solnav/geometry/shadow_metric.py` | P5 | Perspective ray/ground geometry plus a controlled orthographic rendered-sensor fixture; general caster-base/tip detection remains open. |
 | `solnav/geometry/stereo.py` | A4/A5 | Disparity to depth, back-projection, midpoint triangulation, posture vertical-parallax baseline. |
 | `solnav/perception/masking.py` | A2/A5 | Semantic-mask feature filtering (keep ground/rock; drop sky/lander/fiducial/shadow), self-supervised shadow mask for eval mode, overlay. |
 | `solnav/ipex/specs.py` | - | Provenance-tagged IPEx constants ([SPEC]/[CONFIRM]); real intrinsics/baseline/sun from a LAC-twin sensors.json. |
@@ -24,9 +25,9 @@ These are real future work per the PRD build plan (M3-M6), deliberately not crea
 ## Run
 ```
 pip install -e .            # numpy/scipy/imageio/opencv
-python -m pytest tests -q   # 41 tests; real-fixture tests use dustgym renders + sensors.json
+python3 -m pytest tests -q
 ```
-Real-fixture tests skip cleanly if the dustgym renders are absent (honest env-gate, not a fake pass).
+External rendered-fixture tests skip cleanly when their declared assets are absent.
 
 ## Principles
 No fabricated results and no unlabeled evidence modes. Geometry tests use known-answer analytic

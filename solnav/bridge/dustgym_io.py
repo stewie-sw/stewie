@@ -34,15 +34,15 @@ class Camera:
 
 @dataclass
 class SensorFrame:
+    """Estimator-facing sensor packet. Invariant I3 (spec line 326): rover/lander TRUTH poses are
+    NOT fields here -- they live on a separate EvaluationTruthPacket read off an eval-only channel,
+    so truth-ingress into the graph is a type error, not an accident (HIGH-08)."""
     frame_index: int
     cameras: list                          # list[Camera]
     stereo_baseline_m: Optional[float]
     stereo_pair: Optional[tuple]           # (left_name, right_name)
-    sun_elevation_deg: Optional[float]
+    sun_elevation_deg: Optional[float]     # ephemeris/scene parameter, not rover truth
     sun_azimuth_deg: Optional[float]
-    rover_pos_m: np.ndarray
-    rover_quat_xyzw: np.ndarray
-    lander_pos_m: np.ndarray
     raw: dict = field(default_factory=dict)
 
     def camera(self, name: str) -> Optional[Camera]:
@@ -52,8 +52,19 @@ class SensorFrame:
         return None
 
 
+@dataclass
+class EvaluationTruthPacket:
+    """Ground-truth poses for EVALUATION ONLY (ATE/RPE vs truth). Carries provenance so any code
+    that lets this reach the estimator boundary can be rejected (the I3 leakage gate)."""
+    frame_index: int
+    rover_pos_m: np.ndarray
+    rover_quat_xyzw: np.ndarray
+    lander_pos_m: np.ndarray
+    provenance: str = "GROUND_TRUTH_EVAL"
+
+
 def read_sensors(sensors_json_path: str) -> SensorFrame:
-    """Parse a real dustgym/LAC Seam-2 sensors.json into a typed SensorFrame."""
+    """Parse a real dustgym/LAC Seam-2 sensors.json into a typed (truth-free) SensorFrame."""
     with open(sensors_json_path) as f:
         d = json.load(f)
     cams = []
@@ -73,8 +84,6 @@ def read_sensors(sensors_json_path: str) -> SensorFrame:
         ))
     st = d.get("stereo", {}) or {}
     sun = d.get("sun", {}) or {}
-    rover = d.get("rover", {}) or {}
-    lander = d.get("lander", {}) or {}
     return SensorFrame(
         frame_index=int(d.get("frame_index", 0)),
         cameras=cams,
@@ -82,10 +91,21 @@ def read_sensors(sensors_json_path: str) -> SensorFrame:
         stereo_pair=((st.get("left"), st.get("right")) if st else None),
         sun_elevation_deg=(float(sun["elevation_deg"]) if "elevation_deg" in sun else None),
         sun_azimuth_deg=(float(sun["azimuth_deg"]) if "azimuth_deg" in sun else None),
+        raw=d,
+    )
+
+
+def read_evaluation_truth(sensors_json_path: str) -> EvaluationTruthPacket:
+    """Parse ONLY the ground-truth rover/lander poses, on the eval channel (never the estimator)."""
+    with open(sensors_json_path) as f:
+        d = json.load(f)
+    rover = d.get("rover", {}) or {}
+    lander = d.get("lander", {}) or {}
+    return EvaluationTruthPacket(
+        frame_index=int(d.get("frame_index", 0)),
         rover_pos_m=np.array(rover.get("position_m", [0, 0, 0]), float),
         rover_quat_xyzw=np.array(rover.get("quaternion_xyzw", [0, 0, 0, 1]), float),
         lander_pos_m=np.array(lander.get("position_m", [0, 0, 0]), float),
-        raw=d,
     )
 
 

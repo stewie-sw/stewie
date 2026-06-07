@@ -24,6 +24,16 @@ def test_front_and_rear_axes_oppose():
     assert rig.axis_angle_deg("front_left", "rear_left") > 150.0
 
 
+def test_f0_default_and_loaded_rigs_agree_on_frame():
+    # after F0, the default and loaded rigs return the SAME body axis for the same physical
+    # camera (previously they lived in different frames -- HIGH-02).
+    d = cr.CameraRig()
+    loaded = cr.CameraRig.from_sensors(FIX)
+    assert np.allclose(d.get("front_left").optical_axis(),
+                       loaded.get("front_left").optical_axis(), atol=1e-6)
+    assert np.allclose(loaded.get("front_left").optical_axis(), [1, 0, 0], atol=1e-3)
+
+
 def test_camera_world_xy_with_rover_pose():
     rig = cr.CameraRig.from_sensors(FIX)
     fl = rig.get("front_left").pos_m

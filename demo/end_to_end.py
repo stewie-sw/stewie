@@ -111,7 +111,10 @@ def main():
     ax[1, 1].set_title("6. Posture: lift + stability ([CONFIRM] dims)")
 
     # --- 7. spin relative to lander: AprilTag visibility vs yaw (REAL geometry) ---
-    rel = frame.lander_pos_m - frame.rover_pos_m
+    # EVAL-ONLY display geometry: lander/rover poses come from the truth channel
+    # (EvaluationTruthPacket), never the estimator-facing SensorFrame (invariant I3).
+    truth = dustgym_io.read_evaluation_truth(SENSORS)
+    rel = truth.lander_pos_m - truth.rover_pos_m
     lander_bearing = (np.degrees(np.arctan2(rel[1], rel[0]))) % 360.0
     lander_dist = float(np.linalg.norm(rel[:2])) or 5.0
     hfov = fov.hfov_deg_from_intrinsics(frame.camera("front_left").width, fxL)

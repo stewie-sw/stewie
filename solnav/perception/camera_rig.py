@@ -40,9 +40,10 @@ def godot_to_ros(p) -> np.ndarray:
 
 
 def _quat_yaw(deg) -> np.ndarray:
-    """Quaternion (xyzw) for a yaw about the Godot up-axis (Y), so the default rig's optical
-    axes are CONSISTENT with the yaw offsets (no identity-quat-vs-yaw contradiction)."""
-    t = np.radians(deg) / 2.0
+    """Default-rig orientation for a camera with body yaw `deg`: a Godot-Y rotation by (deg - 90),
+    so that AFTER the F0 basis change in optical_axis the body view axis is [cos(deg), sin(deg), 0]
+    (forward -> +X, left -> +Y, right -> -Y, rear -> -X). Matches cameras_seeing's yaw offsets."""
+    t = np.radians(deg - 90.0) / 2.0
     return np.array([0.0, np.sin(t), 0.0, np.cos(t)])
 
 
@@ -70,9 +71,12 @@ class Cam:
     width: int = 1024
 
     def optical_axis(self) -> np.ndarray:
-        """Camera viewing direction in base_link, from the exact orientation. Godot cameras
-        look down local -Z (sensor-bridge contract), so the view axis is R @ [0,0,-1]."""
-        return quat_to_R(self.quat_xyzw) @ np.array([0.0, 0.0, -1.0])
+        """Camera viewing direction in BODY (REP-103) frame. Algorithm F0 (spec sec3 lines 95-109):
+        the source quaternion is Godot-world (camera looks local -Z); the Godot->ROS basis change is
+        applied to the ORIENTATION as well as the position, so the body axis is
+        godot_to_ros(R_godot @ [0,0,-1]). A forward camera yields ~[1,0,0] (REP-103 +X). Earlier this
+        returned the raw Godot axis (HIGH-01/02: positions converted, orientations not)."""
+        return godot_to_ros(quat_to_R(self.quat_xyzw) @ np.array([0.0, 0.0, -1.0]))
 
 
 class CameraRig:

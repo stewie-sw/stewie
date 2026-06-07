@@ -2,7 +2,7 @@
 
 On real low-sun, low-texture lunar imagery the valid-disparity fraction is honestly
 low: this is the texture-starvation the dissertation's solar/shadow/landmark cues
-exist to compensate for. No synthetic data; operates on real rendered pairs.
+exist to compensate for. Operates on declared rendered-sensor pairs.
 """
 from __future__ import annotations
 

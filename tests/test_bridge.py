@@ -25,6 +25,19 @@ def test_read_real_sensors_frame():
 
 
 @pytest.mark.skipif(not _has, reason="dustgym sensors.json fixture not present")
+def test_truth_firewall_sensorframe_carries_no_truth():
+    """I3 leakage gate (HIGH-08): the estimator-facing SensorFrame must NOT expose rover/lander
+    truth; that lives only on the eval-channel EvaluationTruthPacket with GROUND_TRUTH_EVAL
+    provenance."""
+    f = dustgym_io.read_sensors(REAL_SENSORS)
+    for forbidden in ("rover_pos_m", "rover_quat_xyzw", "lander_pos_m"):
+        assert not hasattr(f, forbidden), f"SensorFrame leaks truth field {forbidden}"
+    truth = dustgym_io.read_evaluation_truth(REAL_SENSORS)
+    assert truth.provenance == "GROUND_TRUTH_EVAL"
+    assert truth.rover_pos_m.shape == (3,) and truth.lander_pos_m.shape == (3,)
+
+
+@pytest.mark.skipif(not _has, reason="dustgym sensors.json fixture not present")
 def test_load_real_camera_image():
     img = dustgym_io.load_camera_image(REAL_SENSORS, "front_left")
     assert img.ndim in (2, 3) and img.shape[0] > 0

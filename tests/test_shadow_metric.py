@@ -1,8 +1,8 @@
-"""P5 cast-shadow metric geometry (spec sec 16): validated by geometric identity.
+"""P5 cast-shadow metric geometry tests.
 
 The cube render's exact camera (eye (4,3,4) -> target (0,0.3,0), fov 60, 1024x768). We place known
 ground points, project them forward, then run the P5 back-projection + H=L*tan(e) and require exact
-recovery. (A real-IMAGE P5 number is blocked on assets -- see shadow_metric module docstring.)
+recovery. A controlled rendered-sensor fixture separately checks pixel-derived tip extraction.
 """
 import numpy as np
 import pytest
@@ -51,8 +51,8 @@ P5IMG = os.path.join(os.path.dirname(__file__), "fixtures", "p5_post_e30.png")
 
 
 @pytest.mark.skipif(not os.path.exists(P5IMG), reason="P5 render fixture absent")
-def test_p5_recovers_real_rendered_post_height():
-    """Recover a known 1.0 m post height from a REAL rendered cast shadow (ortho, m/px exact)."""
+def test_p5_recovers_controlled_rendered_post_height():
+    """Recover a known post height when scene calibration and caster base are supplied."""
     from imageio.v3 import imread
     g = np.asarray(imread(P5IMG)).astype(float)
     if g.ndim == 3:
@@ -73,6 +73,13 @@ def test_degenerate_camera_geometry_rejected():
         sm.look_at_basis((0, 0, 0), (0, 1, 0), up=(0, 1, 0))
     with pytest.raises(ValueError, match="FOV"):
         sm.project((0, 0, 0), EYE, BASIS, W, H, 180.0)
+
+
+def test_orthographic_shadow_rejects_invalid_inputs():
+    with pytest.raises(ValueError, match="2-vectors"):
+        sm.shadow_height_ortho((0.0,), (1.0, 1.0), 0.01, 30.0)
+    with pytest.raises(ValueError, match="finite"):
+        sm.shadow_height_ortho((0.0, 0.0), (np.nan, 1.0), 0.01, 30.0)
 
 
 @pytest.mark.parametrize(

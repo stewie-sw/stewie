@@ -3,9 +3,9 @@
 
 Renders the real dustgym lunar scene from a sequence of rover STATIONS (and two camera
 heights = TRANSIT vs MEERKAT posture) on the RTX 3090 via the Godot sidecar, then runs the
-solnav shadow mask on each REAL rendered frame. Demonstrates that cast shadows respond to
+solnav shadow mask on each rendered-sensor frame. Demonstrates that cast shadows respond to
 rover positioning and posture height, and that the masking front-end runs on rendered
-imagery. Real renders (no synthetic data); needs Godot 4.6.3 (installed at dustgym/.tools).
+imagery. This is rendered-sensor simulation; it needs the declared Godot runtime.
 """
 import json
 import os

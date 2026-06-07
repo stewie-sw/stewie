@@ -3,10 +3,10 @@ ground-plane length of its cast shadow, H = L * tan(e).
 
 This module is the GEOMETRY (pinhole ray -> ground-plane intersection -> length -> height, plus the
 first-order uncertainty), with an orthographic top-down helper. Validated two ways: (1) geometric
-identity (project known ground points through a perspective camera, recover them exactly); (2) a REAL
-rendered cast shadow -- solnav's own self-contained Godot scene (`render/p5proj/`, NOT John's
-read-only sidecar) puts a known 1.0 m post on a plane with directional shadows on, top-down ortho;
-P5 recovers H = 0.95 m (~5% error) and the length ratio across Sun elevations matches tan(e2)/tan(e1).
+identity (project known ground points through a perspective camera, recover them exactly); (2) a
+controlled rendered-sensor fixture in `render/p5proj/`. The latter supplies camera scale, Sun
+elevation, and caster base from scene configuration, extracts the shadow tip from pixels, and
+recovers H = 0.95 m (~5% error).
 """
 from __future__ import annotations
 
@@ -116,9 +116,15 @@ def shadow_height_sigma(L_m, sun_elev_deg, sigma_L_m, sigma_e_deg):
 def shadow_height_ortho(base_px, tip_px, m_per_px, sun_elev_deg):
     """P5 for a TOP-DOWN ORTHOGRAPHIC frame: image distance maps directly to ground distance, so
     L = |tip - base| * m_per_px and H = L * tan(e). Returns (H_m, L_m)."""
-    if not np.isfinite([m_per_px, sun_elev_deg]).all() or m_per_px <= 0:
+    base = np.asarray(base_px, float)
+    tip = np.asarray(tip_px, float)
+    if base.shape != (2,) or tip.shape != (2,):
+        raise ValueError("base_px and tip_px must be 2-vectors")
+    if not np.isfinite(np.concatenate((base, tip, [m_per_px, sun_elev_deg]))).all():
+        raise ValueError("orthographic shadow inputs must be finite")
+    if m_per_px <= 0:
         raise ValueError("m_per_px must be finite and positive")
     if not 0.0 < sun_elev_deg < 90.0:
         raise ValueError("Sun elevation must be in (0, 90) deg")
-    L = float(np.linalg.norm(np.asarray(tip_px, float) - np.asarray(base_px, float)) * m_per_px)
+    L = float(np.linalg.norm(tip - base) * m_per_px)
     return float(L * np.tan(np.radians(sun_elev_deg))), L

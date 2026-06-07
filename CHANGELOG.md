@@ -5,6 +5,9 @@ First scaffold with analytic, rendered-fixture, and substrate-backed primitives.
 
 - `geometry/solar.py` (A1): lunar Sun elevation/azimuth, sub-solar point, synodic day length, daylight fraction; south-pole grazing-Sun verified.
 - `geometry/shadow.py` (A2): cast-shadow height H = L*tan(e), shadow-azimuth heading, uncertainty.
+- `geometry/shadow_metric.py` (P5): calibrated ray/ground geometry and a controlled
+  `RENDERED_SENSOR_SIM` fixture recovering a configured post height; caster-base detection remains
+  supplied by scene configuration.
 - `geometry/stereo.py` + `perception/stereo_depth.py` (A4/A5): disparity->depth, triangulation, posture parallax, real cv2 SGBM depth.
 - `perception/masking.py`: semantic feature filtering + self-supervised shadow mask.
 - `geometry/dem.py`: real Haworth DEM I/O + scan-to-DEM registration.
