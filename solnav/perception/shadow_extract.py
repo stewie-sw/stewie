@@ -1,16 +1,12 @@
-"""Image-derived shadow azimuth (Algorithm P4 sec 15.2) -- the first genuine sensor->factor.
+"""Image-derived shadow direction candidates for Algorithm P4 section 15.2.
 
-Per FORMAL_ALGORITHM_SYSTEM_SPEC.md: the image extractor MUST produce `z_shadow_body`
-(ephemeris alone is not a measurement; provenance = IMAGE_DERIVED, NOT truth -> invariant
-I3 No Truth Ingress). At a shadow boundary the intensity gradient points dark->light, i.e.
-toward the Sun-lit side; the shadow direction is that plus 180 deg. We take the
-magnitude-weighted circular mean of boundary-gradient directions; the resultant length R is
-the multi-edge concentration confidence (the spec's gate). Real CV on rendered pixels; the
-result carries a covariance (invariant I4).
+These functions operate in image coordinates (x right, y down). They do not produce a
+body-frame heading measurement: calibrated camera geometry plus a ground/surface model is
+still required to map an image direction into the rover body frame. The returned angular
+spread is a heuristic concentration statistic, not a calibrated factor covariance.
 
-For a top-down (orthographic-ish) frame the image direction maps to the ground azimuth up to
-a fixed image-to-world offset, so the SUN-RESPONSE is validated by the change in extracted
-direction across known Sun azimuths (no truth pose needed).
+The blob method recovers an axis modulo 180 degrees. Its direction must be resolved by caster
+association or another cue before it can become an absolute-heading factor.
 """
 from __future__ import annotations
 
@@ -22,11 +18,15 @@ import numpy as np
 
 @dataclass
 class ShadowHeadingObs:
-    z_shadow_body_deg: float        # extracted shadow azimuth in the image/body frame [MEASUREMENT]
-    confidence: float               # circular concentration R in [0,1] (multi-edge gate)
-    n_edge_px: int
-    sigma_deg: float                # covariance accompanies the measurement (I4)
-    provenance: str = "IMAGE_DERIVED"
+    z_shadow_image_deg: float
+    confidence: float
+    n_support: int
+    dispersion_deg: float
+    periodicity_deg: int
+    direction_resolved: bool
+    coordinate_frame: str = "IMAGE_X_RIGHT_Y_DOWN"
+    covariance_calibrated: bool = False
+    provenance: str = "RUNTIME_DERIVED"
 
 
 def _to_gray(img):
@@ -38,10 +38,11 @@ def _to_gray(img):
 
 def extract_shadow_azimuth_p7(image, blur: int = 3, min_area: int = 12,
                               min_conf: float = 0.30, gate: bool = True) -> ShadowHeadingObs:
-    """P7 segmentation front-end (spec sec 18): segment INDIVIDUAL cast-shadow blobs and take one
-    DIRECTED vote per blob (major axis, oriented away from the brighter/caster end), then circular-
-    mean over blobs. One clean vote per shadow rejects the boulder-rim clutter that defeats the
-    per-pixel boundary method, so confidence stays high in dense scenes. Provenance IMAGE_DERIVED."""
+    """Segment cast-shadow blobs and recover their dominant image-plane axis.
+
+    The major-axis concentration is robust in clutter, but the caster-end heuristic is not
+    sufficient to establish a calibrated 360-degree direction. The result is therefore axial
+    (period 180 degrees) and cannot directly feed an absolute-heading Gaussian factor."""
     g = _to_gray(image)
     if blur and blur >= 3:
         g = cv2.GaussianBlur(g, (blur | 1, blur | 1), 0)
@@ -77,13 +78,23 @@ def extract_shadow_azimuth_p7(image, blur: int = 3, min_area: int = 12,
     # AXIS concentration (mod 180, doubled angle) is the robust signal in clutter; the gate uses it.
     C2 = float(np.sum(w * np.cos(2 * a))); S2 = float(np.sum(w * np.sin(2 * a)))
     R_axis = float(np.hypot(C2, S2) / np.sum(w))
-    # directed azimuth from the (noisier) per-blob caster votes -- 180-deg resolution is the open part.
+    # The directed vote is retained as a representative axis orientation. Its opposite is
+    # equally valid until a separate caster-association stage resolves the ambiguity.
     C = float(np.sum(w * np.cos(a))); S = float(np.sum(w * np.sin(a)))
     if gate and R_axis < min_conf:
         raise ValueError(f"P7 axis concentration {R_axis:.3f} below gate {min_conf}")
     az = (np.degrees(np.arctan2(S, C))) % 360.0
-    sigma_deg = float(np.degrees(np.sqrt(max(-2.0 * np.log(max(R_axis, 1e-6)), 1e-6)) / max(np.sqrt(n_blobs), 1)))
-    return ShadowHeadingObs(z_shadow_body_deg=az, confidence=R_axis, n_edge_px=n_blobs, sigma_deg=sigma_deg)
+    dispersion_deg = float(
+        0.5 * np.degrees(np.sqrt(max(-2.0 * np.log(max(R_axis, 1e-6)), 1e-6)))
+    )
+    return ShadowHeadingObs(
+        z_shadow_image_deg=az,
+        confidence=R_axis,
+        n_support=n_blobs,
+        dispersion_deg=dispersion_deg,
+        periodicity_deg=180,
+        direction_resolved=False,
+    )
 
 
 def extract_shadow_azimuth(image, blur: int = 5, min_conf: float = 0.30,
@@ -114,6 +125,12 @@ def extract_shadow_azimuth(image, blur: int = 5, min_conf: float = 0.30,
                          "(cluttered scene; needs a segmentation front-end)")
     toward_light = np.arctan2(S, C)
     shadow_dir = (np.degrees(toward_light) + 180.0) % 360.0
-    sigma_deg = float(np.degrees(np.sqrt(max(-2.0 * np.log(max(R, 1e-6)), 1e-6))))
-    return ShadowHeadingObs(z_shadow_body_deg=shadow_dir, confidence=R,
-                            n_edge_px=int(boundary.sum()), sigma_deg=sigma_deg)
+    dispersion_deg = float(np.degrees(np.sqrt(max(-2.0 * np.log(max(R, 1e-6)), 1e-6))))
+    return ShadowHeadingObs(
+        z_shadow_image_deg=shadow_dir,
+        confidence=R,
+        n_support=int(boundary.sum()),
+        dispersion_deg=dispersion_deg,
+        periodicity_deg=360,
+        direction_resolved=True,
+    )

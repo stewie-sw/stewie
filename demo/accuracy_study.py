@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Hypothesize + test 10 ways to improve localization accuracy [SIM, real physics + noise].
 
-Real Haworth path with real dustgym slip; ALIGNED ATE (Umeyama), seeded sensor-noise model,
-5-seed means, observations gated by camera FOV (no oracle availability), Huber where stated.
-Each hypothesis is a prediction tested against the baseline. Honest: some help, some do not,
-some cost battery. Writes accuracy_study_metrics.json.
+Haworth measurement-model simulation with dustgym slip; aligned 2-D ATE, seeded noise,
+5-seed means, and ideal geometric FOV gating. Hidden truth generates visibility, heading, and
+bearing measurements; the estimator receives only those measurements. This is an estimator
+sensitivity study, not image-derived sensing. Writes accuracy_study_metrics.json.
 """
 import json
 import os
@@ -70,12 +70,15 @@ def main():
         for i, z in enumerate(odo):
             g.add_odom(i, i+1, z, info=odom_info)
         if solar:
-            for i in range(0, len(true), 5): g.add_heading(i, true[i,2]+rng.normal(0,sh), info=1/sh**2)
+            for i in range(0, len(true), 5):
+                g.add_heading(i, true[i, 2] + rng.normal(0, sh), info=1 / sh**2)
         for i in range(0, len(true), every):
             for L in landmarks:
-                if gate and not visible(L, true[i]): continue
+                if gate and not visible(L, true[i]):
+                    continue
                 b = np.arctan2(L[1]-true[i,1], L[0]-true[i,0]) - true[i,2] + rng.normal(0, sb)
-                if outlier_frac and rng.random() < outlier_frac: b += np.radians(20.0)
+                if outlier_frac and rng.random() < outlier_frac:
+                    b += np.radians(20.0)
                 g.add_landmark(i, L, b, info=1/sb**2)
         return metrics.ate_rmse(g.solve(np.array(dr), huber_delta=huber), true)
 
@@ -96,15 +99,17 @@ def main():
     H["H8a 5% outliers, NO robust"] = mean5(**{**base, "every": 2, "outlier_frac": 0.05})
     H["H8b 5% outliers, Huber"] = mean5(**{**base, "every": 2, "outlier_frac": 0.05, "huber": 2.0})
     H["H9 ungated (oracle availability)"] = mean5(**{**base, "every": 2, "gate": False})
-    H["H10 best honest (9 lm, every 2, 0.25 deg, Huber, gated)"] = mean5(
+    H["H10 best modeled (9 lm, every 2, 0.25 deg, Huber, gated)"] = mean5(
         landmarks=lm9, every=2, sb_deg=0.25, odom_info=(1000.,1000.,1000.),
         solar=True, gate=True, huber=2.0, outlier_frac=0.0)
-    res = {"metric": "aligned ATE (m), mean of 5 seeds", "path_m": 87.7,
-           "results": H, "best_honest_m": H["H10 best honest (9 lm, every 2, 0.25 deg, Huber, gated)"],
+    res = {"metric": "aligned 2-D ATE (m), mean of 5 seeds",
+           "evidence_mode": "MEASUREMENT_MODEL_SIM", "path_m": 87.7,
+           "results": H, "best_modeled_m": H["H10 best modeled (9 lm, every 2, 0.25 deg, Huber, gated)"],
            "navlab_bar_m": 0.067}
     json.dump(res, open(os.path.join(OUT, "accuracy_study_metrics.json"), "w"), indent=2)
-    for k, v in H.items(): print(f"  {k}: {v} m")
-    print(f"  best honest: {res['best_honest_m']} m  vs NavLab bar 0.067 m")
+    for k, v in H.items():
+        print(f"  {k}: {v} m")
+    print(f"  best modeled: {res['best_modeled_m']} m; NavLab value is contextual, not comparable")
 
 
 if __name__ == "__main__":
