@@ -315,6 +315,11 @@ static func run_depart_spiral(sidecar) -> void:
 			return
 		jf.store_string(JSON.stringify(doc, "  "))
 		jf.close()
+		var split_err: int = sidecar.SensorsEmitScript.write_split_packets(out_dir, doc)
+		if split_err != OK:
+			push_error("depart_spiral: failed to write split sensor packets (%d)" % split_err)
+			sidecar.get_tree().quit(6)
+			return
 
 		# Honesty log: report the per-frame rover FLOAT pose + the constant lander pose +
 		# the rover->lander range (the spiral's monotonically increasing departure range,

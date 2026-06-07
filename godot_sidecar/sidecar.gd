@@ -816,6 +816,10 @@ func _cameras_capture() -> void:
 		return
 	jf.store_string(JSON.stringify(doc, "  "))
 	jf.close()
+	var split_err: int = SensorsEmitScript.write_split_packets(out_dir, doc)
+	if split_err != OK:
+		push_error("sidecar: failed to write split sensor packets (%d)" % split_err)
+		return
 	print("sidecar: --cameras wrote %s (baseline_m=%.4f)" % [
 		ProjectSettings.globalize_path(json_path), doc["stereo"]["baseline_m"]])
 

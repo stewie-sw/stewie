@@ -461,6 +461,11 @@ static func build_lander_faces(sidecar) -> void:
 		return
 	jf.store_string(JSON.stringify(doc, "  "))
 	jf.close()
+	var split_err: int = sidecar.SensorsEmitScript.write_split_packets(out_dir, doc)
+	if split_err != OK:
+		push_error("lander_bundle: failed to write split sensor packets (%d)" % split_err)
+		sidecar.get_tree().quit(6)
+		return
 	print("lander_bundle: wrote %s (apriltags=%d faces, baseline_m=%.4f)" % [
 		ProjectSettings.globalize_path(json_path), (doc["lander"]["apriltags"] as Array).size(),
 		doc["stereo"]["baseline_m"]])

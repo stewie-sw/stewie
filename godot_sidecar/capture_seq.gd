@@ -193,6 +193,11 @@ static func run_capture_seq(sidecar) -> void:
 			return
 		jf.store_string(JSON.stringify(doc, "  "))
 		jf.close()
+		var split_err: int = SensorsEmitScript_ref(sidecar).write_split_packets(out_dir, doc)
+		if split_err != OK:
+			push_error("capture_seq: failed to write split sensor packets (%d)" % split_err)
+			sidecar.get_tree().quit(6)
+			return
 		var rp: Array = doc["rover"]["position_m"]
 		print("capture_seq: frame %s wrote %s frame_index=%d rover_pos=(%.3f,%.3f,%.3f) baseline_m=%.4f" % [
 			nnn, ProjectSettings.globalize_path(json_path), int(doc["frame_index"]),

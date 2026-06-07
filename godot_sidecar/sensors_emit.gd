@@ -24,6 +24,14 @@ class_name SensorsEmit
 
 # --- v1.1 frozen constants -------------------------------------------------------
 const SCHEMA_VERSION := "sensor_bridge/1.1"
+const RUNTIME_SCHEMA_VERSION := "sensor_bridge_runtime/1.0"
+const TRUTH_SCHEMA_VERSION := "sensor_bridge_evaluation_truth/1.0"
+const PROFILE_ID := "DUSTGYM_IPEX_V1"
+# SHA-256 of solnav/config/data/dustgym_ipex_v1.json. A profile change must update
+# this value and the calibration bundle together; strict consumers reject drift.
+const PROFILE_SHA256 := "b5015a4613025f05a89e03142f6435f3b1c8e3efeaefcacea1cb0a89f0d04796"
+const CALIBRATION_ID := "DUSTGYM_GODOT_CAMERA_RIG_V1"
+const CAMERA_PERIOD_S := 0.1
 # AprilTag id-0 size (contract §1; the side length of the tag's black-border square).
 # Mirrors sidecar.gd::APRILTAG_SIZE_M; kept here so the lander build owns its tag spec.
 const APRILTAG_SIZE_M := 0.150
@@ -259,3 +267,90 @@ static func sun_block(elevation_deg: float, azimuth_deg: float, time_delta_s: fl
 		"azimuth_deg": azimuth_deg,
 		"time_delta_s": time_delta_s,
 	}
+
+# Canonical estimator-facing packet. It deliberately omits world truth, including
+# camera pose_in_world. Unavailable channels are explicit instead of fabricated.
+static func runtime_packet(doc: Dictionary) -> Dictionary:
+	var frame_index := int(doc["frame_index"])
+	var timestamp_s := float(frame_index) * CAMERA_PERIOD_S
+	var runtime_cameras: Array = []
+	for source_camera in doc["cameras"]:
+		var camera: Dictionary = (source_camera as Dictionary).duplicate(true)
+		camera.erase("pose_in_world")
+		camera["sample_id"] = "%06d:%s" % [frame_index, String(camera["name"])]
+		camera["timestamp_s"] = timestamp_s
+		camera["status"] = "ACTIVE"
+		runtime_cameras.append(camera)
+
+	var runtime := {
+		"schema_version": RUNTIME_SCHEMA_VERSION,
+		"producer_schema_version": String(doc["schema_version"]),
+		"profile_id": PROFILE_ID,
+		"profile_sha256": PROFILE_SHA256,
+		"calibration_id": CALIBRATION_ID,
+		"provenance": "RUNTIME_SENSOR",
+		"scene": String(doc["scene"]),
+		"frame_index": frame_index,
+		"timestamp_s": timestamp_s,
+		"frame_convention": String(doc["frame_convention"]),
+		"sun": (doc.get("sun", {}) as Dictionary).duplicate(true),
+		"cameras": runtime_cameras,
+		"stereo": (doc["stereo"] as Dictionary).duplicate(true),
+		"availability": {
+			"imu": {"status": "UNAVAILABLE", "reason": "Godot camera egress has no IMU model"},
+			"wheel": {"status": "UNAVAILABLE", "reason": "Godot camera egress has no wheel encoder model"},
+			"joints": {"status": "UNAVAILABLE", "reason": "joint telemetry is not emitted by this render path"},
+			"power": {"status": "UNAVAILABLE", "reason": "render path has no battery telemetry"},
+		},
+		"health": {
+			"status": "OK",
+			"camera_count": runtime_cameras.size(),
+			"stale": false,
+			"dropped": false,
+		},
+	}
+	if doc.has("stereo_rear"):
+		runtime["stereo_rear"] = (doc["stereo_rear"] as Dictionary).duplicate(true)
+	return runtime
+
+# Evaluation-only packet. Runtime code must never load this object.
+static func evaluation_truth_packet(doc: Dictionary) -> Dictionary:
+	var camera_poses: Array = []
+	for source_camera in doc["cameras"]:
+		var camera := source_camera as Dictionary
+		camera_poses.append({
+			"name": String(camera["name"]),
+			"pose_in_world": (camera["pose_in_world"] as Dictionary).duplicate(true),
+		})
+	return {
+		"schema_version": TRUTH_SCHEMA_VERSION,
+		"producer_schema_version": String(doc["schema_version"]),
+		"profile_id": PROFILE_ID,
+		"profile_sha256": PROFILE_SHA256,
+		"calibration_id": CALIBRATION_ID,
+		"provenance": "GROUND_TRUTH_EVAL",
+		"scene": String(doc["scene"]),
+		"frame_index": int(doc["frame_index"]),
+		"timestamp_s": float(int(doc["frame_index"])) * CAMERA_PERIOD_S,
+		"frame_convention": String(doc["frame_convention"]),
+		"rover": (doc["rover"] as Dictionary).duplicate(true),
+		"lander": (doc["lander"] as Dictionary).duplicate(true),
+		"camera_poses_in_world": camera_poses,
+	}
+
+# Additive G1 output: keep sensors.json for frozen v1.1 consumers and write the
+# physically separate runtime/evaluation channels alongside it.
+static func write_split_packets(out_dir: String, doc: Dictionary) -> int:
+	var packets := {
+		"runtime_sensors.json": runtime_packet(doc),
+		"evaluation_truth.json": evaluation_truth_packet(doc),
+	}
+	for filename in packets:
+		var path := "%s/%s" % [out_dir, filename]
+		var file := FileAccess.open(path, FileAccess.WRITE)
+		if file == null:
+			push_error("sensors_emit: cannot open %s for write" % path)
+			return FileAccess.get_open_error()
+		file.store_string(JSON.stringify(packets[filename], "  "))
+		file.close()
+	return OK
