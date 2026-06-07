@@ -19,6 +19,17 @@ def _wrap(a):
     return (np.asarray(a) + np.pi) % (2 * np.pi) - np.pi
 
 
+def _check_pair(est, gt, min_len=1):
+    e = np.asarray(est, float); g = np.asarray(gt, float)
+    if e.ndim != 2 or g.ndim != 2:
+        raise ValueError("trajectories must be 2-D arrays (N, >=2)")
+    if len(e) != len(g):
+        raise ValueError(f"length mismatch: est {len(e)} vs gt {len(g)}")
+    if len(e) < min_len:
+        raise ValueError(f"need at least {min_len} poses (got {len(e)})")
+    return e, g
+
+
 def umeyama_align_2d(src_xy: np.ndarray, dst_xy: np.ndarray, with_scale: bool = False):
     """Rigid (optionally similarity) SE(2) alignment of src onto dst (Umeyama 1991).
     Returns (R 2x2, t 2, s). Maps src -> s R src + t."""
@@ -42,7 +53,8 @@ def _apply(R, t, s, xy):
 def ate_rmse(est_xy: np.ndarray, gt_xy: np.ndarray, align: bool = True) -> float:
     """Absolute trajectory error (position RMSE). With align=True (default) a rigid SE(2)
     Umeyama alignment is applied first, so a global gauge difference scores ~0."""
-    est = np.asarray(est_xy, float)[:, :2]; gt = np.asarray(gt_xy, float)[:, :2]
+    est, gt = _check_pair(est_xy, gt_xy, min_len=2 if align else 1)
+    est = est[:, :2]; gt = gt[:, :2]
     if align:
         R, t, s = umeyama_align_2d(est, gt)
         est = _apply(R, t, s, est)
@@ -76,7 +88,9 @@ def _inv(T):
 def rpe_rmse(est_poses: np.ndarray, gt_poses: np.ndarray, delta: int = 1) -> float:
     """RMS translation of the relative-pose error E_i = (T_gt_i^-1 T_gt_{i+d})^-1 (T_est_i^-1 T_est_{i+d}).
     Gauge-invariant: any global SE(2) on est or gt leaves it unchanged."""
-    est = np.asarray(est_poses, float); gt = np.asarray(gt_poses, float)
+    est, gt = _check_pair(est_poses, gt_poses, min_len=2)
+    if delta < 1 or delta >= len(est):
+        raise ValueError(f"delta must be in [1, len-1]; got {delta} for length {len(est)}")
     errs = []
     for i in range(len(est) - delta):
         rel_gt = _inv(_T(gt[i])) @ _T(gt[i + delta])

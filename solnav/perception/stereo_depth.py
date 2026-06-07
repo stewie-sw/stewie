@@ -26,20 +26,26 @@ def _sgbm(L, R, num_disparities, block_size):
 
 def compute_disparity(left: np.ndarray, right: np.ndarray,
                       num_disparities: int = 128, block_size: int = 7,
-                      auto_order: bool = True) -> np.ndarray:
+                      auto_order: bool = True, return_order: bool = False):
     """SGBM disparity (px), float32; <=0 = invalid. SGBM requires positive disparity, i.e.
     `left` truly image-left. The dustgym Godot rig is left-handed in Z, so the committed
     (front_left, front_right) naming is image-REVERSED; passing it raw collapses validity to
-    ~7%. With auto_order=True we compute both orderings and keep the one with the higher valid
-    fraction (the physically correct handedness). For production, rectify from the exact
-    extrinsics and verify the disparity sign against a known 3-D point instead."""
+    ~7%. With auto_order=True we try both orderings and keep the denser one.
+
+    REFERENCE-FRAME CAVEAT (audit R4): if the swap wins, the disparity is referenced to the
+    OTHER camera. So depth/back-projection must use the matching reference. Pass
+    return_order=True to get (disparity, order) where order is 'normal' or 'swapped'; do not
+    feed an auto-ordered disparity into a fixed-left back-projection without checking `order`.
+    Production: rectify from the exact extrinsics and verify the disparity sign on a known
+    3-D point, then fix the order from calibration (auto_order=False)."""
     L, R = to_gray(left), to_gray(right)
     d = _sgbm(L, R, num_disparities, block_size)
+    order = "normal"
     if auto_order:
         d_swapped = _sgbm(R, L, num_disparities, block_size)
         if valid_fraction(d_swapped) > valid_fraction(d):
-            return d_swapped
-    return d
+            d, order = d_swapped, "swapped"
+    return (d, order) if return_order else d
 
 
 def valid_fraction(disparity: np.ndarray) -> float:

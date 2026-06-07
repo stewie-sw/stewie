@@ -85,7 +85,8 @@ class PoseGraph:
         r = np.concatenate(rows_r)
         J = np.vstack(rows_J)
         W = np.concatenate(w)
-        return r, J, W
+        sizes = [len(x) for x in rows_r]   # residual-block size per factor (for per-factor robust loss)
+        return r, J, W, sizes
 
     def solve(self, X0, iters=30, tol=1e-9, huber_delta=None):
         """Gauss-Newton (IRLS with an optional Huber robust loss).
@@ -96,14 +97,19 @@ class PoseGraph:
         X = np.array(X0, float)
         N = X.shape[0]
         for _ in range(iters):
-            r, J, W = self._linearize(X)
+            r, J, W, sizes = self._linearize(X)
             sw = np.sqrt(W)
             Jw = J * sw[:, None]
             rw = r * sw
             if huber_delta is not None:
-                a = np.abs(rw)
-                wh = np.where(a <= huber_delta, 1.0, huber_delta / np.maximum(a, 1e-12))
-                shw = np.sqrt(wh)
+                # per-FACTOR Huber: weight by the factor's whitened-residual NORM (keeps the
+                # factor's vector structure), not per scalar row (audit R8).
+                shw = np.ones(len(rw)); idx = 0
+                for sz in sizes:
+                    nf = float(np.linalg.norm(rw[idx:idx + sz]))
+                    if nf > huber_delta:
+                        shw[idx:idx + sz] = np.sqrt(huber_delta / nf)
+                    idx += sz
                 Jw = Jw * shw[:, None]
                 rw = rw * shw
             H = Jw.T @ Jw + 1e-9 * np.eye(3 * N)
@@ -116,8 +122,10 @@ class PoseGraph:
         return X
 
     def information_matrix(self, X):
-        """H = J^T W J at X (the Fisher information of the pose estimate)."""
-        _, J, W = self._linearize(np.asarray(X, float))
+        """H = J^T W J at X (the Fisher information of the pose estimate). NOTE (audit R8):
+        this uses the non-robust weights; under a Huber solve the effective information is
+        lower for down-weighted factors, so reported covariance here is optimistic."""
+        _, J, W, _ = self._linearize(np.asarray(X, float))
         Jw = J * np.sqrt(W)[:, None]
         return Jw.T @ Jw + 1e-9 * np.eye(3 * np.asarray(X).shape[0])
 

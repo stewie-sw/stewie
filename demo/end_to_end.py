@@ -13,16 +13,18 @@ Honest demonstration (every output labeled REAL / [SPEC] / [CONFIRM] / DIFFERENT
 Produces demo/out/end_to_end.png and a printed honesty ledger.
 """
 import os
-import numpy as np
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from solnav.bridge import dustgym_io
-from solnav.perception import stereo_depth, masking
-from solnav.geometry import shadow, dem, fov
-from solnav.posture import kinematics as kin
+from solnav.geometry import dem, fov, shadow
 from solnav.ipex.specs import IPEX
+from solnav.perception import masking, stereo_depth
+from solnav.posture import kinematics as kin
 
 FOSS = "/mnt/projects/foss_ipex"
 SENSORS = FOSS + "/roversim/godot_sidecar/out/cam/crater_boulders/000/sensors.json"

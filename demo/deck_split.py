@@ -4,16 +4,18 @@
   end_to_end_map.png        : Haworth DEM crop | posture lift+stability | lander framing vs yaw
 """
 import os
-import numpy as np
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from solnav.bridge import dustgym_io
-from solnav.perception import stereo_depth, masking
 from solnav.geometry import dem, fov
-from solnav.posture import kinematics as kin
 from solnav.ipex.specs import IPEX
+from solnav.perception import masking, stereo_depth
+from solnav.posture import kinematics as kin
 
 FOSS = "/mnt/projects/foss_ipex"
 SENSORS = FOSS + "/roversim/godot_sidecar/out/cam/crater_boulders/000/sensors.json"

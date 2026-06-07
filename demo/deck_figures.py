@@ -5,14 +5,17 @@
 All driven by the real solnav models.
 """
 import os
-import numpy as np
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from solnav.posture import wireframe, kinematics as kin
-from solnav.terramechanics import sinkage as sk
 from solnav.geometry import fov
+from solnav.posture import kinematics as kin
+from solnav.posture import wireframe
+from solnav.terramechanics import sinkage as sk
 
 OUT = os.path.join(os.path.dirname(__file__), "out")
 os.makedirs(OUT, exist_ok=True)

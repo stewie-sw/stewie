@@ -6,16 +6,21 @@ Real Haworth path with real dustgym slip; ALIGNED ATE (Umeyama), seeded sensor-n
 Each hypothesis is a prediction tested against the baseline. Honest: some help, some do not,
 some cost battery. Writes accuracy_study_metrics.json.
 """
-import os, json, sys
+import json
+import os
+import sys
+
 import numpy as np
+
 sys.path.insert(0, "/mnt/projects/foss_ipex/dustgym")
-from terrain_authority import slip as slipmod, rover
+from terrain_authority import rover
+from terrain_authority import slip as slipmod
 from terrain_authority import terramechanics as tm
 
-from solnav.slam import posegraph as pg
 from solnav.eval import metrics
 from solnav.geometry import fov
 from solnav.perception import camera_rig as cr
+from solnav.slam import posegraph as pg
 
 DEM = "/mnt/projects/foss_ipex/dustgym/samples/lunar_dem/haworth_10km_5m"
 OUT = os.path.join(os.path.dirname(__file__), "out"); os.makedirs(OUT, exist_ok=True)

@@ -7,13 +7,17 @@ solnav shadow mask on each REAL rendered frame. Demonstrates that cast shadows r
 rover positioning and posture height, and that the masking front-end runs on rendered
 imagery. Real renders (no synthetic data); needs Godot 4.6.3 (installed at dustgym/.tools).
 """
-import os, json, subprocess
-import numpy as np
+import json
+import os
+import subprocess
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
+import imageio.v2 as imageiov2
 import matplotlib.pyplot as plt
 from imageio.v3 import imread
-import imageio.v2 as imageiov2
 
 from solnav.perception import masking, stereo_depth
 from solnav.posture import kinematics as kin

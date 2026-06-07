@@ -7,8 +7,10 @@
                           and a 3D wireframe heightmap (right) -- the 2D->3D map tier.
 """
 import os
-import numpy as np
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LightSource

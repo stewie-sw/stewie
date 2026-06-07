@@ -9,22 +9,26 @@ Odometry = the commanded (encoder) motion, which over-estimates progress under s
 real position drift. Solar factors use the true heading (the rover observes the real Sun);
 landmark factors use bearings to known DEM landmarks. ATE measures recovery vs truth.
 """
-import os, json
-import numpy as np
+import json
+import os
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
+import sys
+
+import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 from matplotlib.colors import LightSource
-import imageio.v2 as imageio
 
-import sys
 sys.path.insert(0, "/mnt/projects/foss_ipex/dustgym")
-from terrain_authority import slip as slipmod, rover
+from terrain_authority import rover
+from terrain_authority import slip as slipmod
 from terrain_authority import terramechanics as tm
 
-from solnav.slam import posegraph as pg
 from solnav.eval import metrics
-from solnav.ipex.specs import IPEX
+from solnav.slam import posegraph as pg
 
 DEM = "/mnt/projects/foss_ipex/dustgym/samples/lunar_dem/haworth_10km_5m"
 OUT = os.path.join(os.path.dirname(__file__), "out"); os.makedirs(OUT, exist_ok=True)
@@ -56,7 +60,7 @@ def main():
         om = omegas[k]
         # direction in cells for this yaw (use step_pose's own convention via a unit peek)
         pr, _ = rover.step_pose(rc, yaw, 1.0, 0.0, 1.0, cell_m=CELL_M)
-        hd = np.array([pr[0]-rc[0], pr[1]-rc[1]]);
+        hd = np.array([pr[0]-rc[0], pr[1]-rc[1]])
         hd = hd/ (np.linalg.norm(hd)+1e-9)
         slope = forward_slope(H, gr, gc, rc, hd)
         eq = slipmod.slip_sinkage_equilibrium(MASS*G, slope, params=params)

@@ -9,20 +9,24 @@ A feature of known height is observed from a near-pole site as the Sun advances 
 rover changes posture. Each cue's point estimate + its differential 1-sigma is plotted and
 compared (real geometry; no fabricated data).
 """
-import os, json
-import numpy as np
+import json
+import os
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from solnav.geometry import solar, shadow, height_ref as hr, stereo
-from solnav.posture import kinematics as kin
+from solnav.geometry import height_ref as hr
+from solnav.geometry import shadow, solar, stereo
 from solnav.ipex.specs import IPEX
+from solnav.posture import kinematics as kin
 
 OUT = os.path.join(os.path.dirname(__file__), "out"); os.makedirs(OUT, exist_ok=True)
 H_TRUE = 0.5          # feature height (m)
 D_TRUE = 8.0          # horizontal distance to feature (m)
-LAT, DELTA_S = -85.0, -8.0   # near-pole site; Sun in southern hemisphere (favorable season)
+LAT, DELTA_S = -85.0, -1.4   # near-pole site; |delta_s| <= 1.54 deg (lunar obliquity bound)
 
 
 def main():
@@ -44,7 +48,9 @@ def main():
         d_low = hr.depression_to_landmark(h_low, H_TRUE, D_TRUE)
         d_high = hr.depression_to_landmark(h_high, H_TRUE, D_TRUE)
         H_lm, D_lm = hr.triangulate_landmark_height(h_high, d_high, h_low, d_low)
-        s_lm = hr.triangulation_height_sigma_m(h_high, h_low, D_TRUE, d_high, sigma_deg=0.5)
+        s_lm = hr.triangulation_height_sigma_m(cam_h1_m=h_high, cam_h2_m=h_low,
+                                               depression1_deg=d_high, depression2_deg=d_low,
+                                               sigma_deg=0.5)
         # stereo cue: height from disparity at the feature range
         disp = stereo.disparity_from_depth(D_TRUE, IPEX.fx_px, IPEX.stereo_baseline_m)
         s_st = stereo.height_uncertainty_from_disparity(IPEX.fx_px*0+512, 384, disp, IPEX.fx_px,

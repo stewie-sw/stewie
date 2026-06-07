@@ -7,19 +7,24 @@ cues to the unified pose graph -- odometry -> +solar heading -> +1 landmark -> +
 distance offset (ATE) can be driven down. The 8-camera rig reports how many cameras frame
 each landmark per station. Real geometry + real slip; no fabricated data.
 """
-import os, json, sys
-import numpy as np
+import json
+import os
+import sys
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 sys.path.insert(0, "/mnt/projects/foss_ipex/dustgym")
-from terrain_authority import slip as slipmod, rover
+from terrain_authority import rover
+from terrain_authority import slip as slipmod
 from terrain_authority import terramechanics as tm
 
-from solnav.slam import posegraph as pg
 from solnav.eval import metrics
 from solnav.perception import camera_rig as cr
+from solnav.slam import posegraph as pg
 
 DEM = "/mnt/projects/foss_ipex/dustgym/samples/lunar_dem/haworth_10km_5m"
 OUT = os.path.join(os.path.dirname(__file__), "out"); os.makedirs(OUT, exist_ok=True)

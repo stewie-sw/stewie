@@ -23,8 +23,8 @@ IPEX_LAYOUT = [
     ("front_right", 0.0, "stereo_front", (0.30, -0.10, -0.035)),
     ("rear_left", 180.0, "stereo_rear", (-0.30, -0.10, 0.035)),
     ("rear_right", 180.0, "stereo_rear", (-0.30, -0.10, -0.035)),
-    ("left_mono", 90.0, "side", (0.0, 0.25, 0.05)),
-    ("right_mono", -90.0, "side", (0.0, -0.25, 0.05)),
+    ("left_mono", 90.0, "side", (0.0, 0.05, 0.25)),     # +Z (left) -> ground (0, -0.25)
+    ("right_mono", -90.0, "side", (0.0, 0.05, -0.25)),  # -Z (right) -> ground (0, +0.25)
     ("drum_front_cam", 0.0, "drum", (0.35, 0.0, -0.10)),
     ("drum_back_cam", 180.0, "drum", (-0.35, 0.0, -0.10)),
 ]
@@ -37,6 +37,13 @@ def godot_to_ros(p) -> np.ndarray:
     (x, y, z) -> (x, -z, y). The ground plane is then (x, -z)."""
     p = np.asarray(p, float)
     return np.array([p[0], -p[2], p[1]])
+
+
+def _quat_yaw(deg) -> np.ndarray:
+    """Quaternion (xyzw) for a yaw about the Godot up-axis (Y), so the default rig's optical
+    axes are CONSISTENT with the yaw offsets (no identity-quat-vs-yaw contradiction)."""
+    t = np.radians(deg) / 2.0
+    return np.array([0.0, np.sin(t), 0.0, np.cos(t)])
 
 
 def quat_to_R(q_xyzw) -> np.ndarray:
@@ -70,7 +77,11 @@ class Cam:
 
 class CameraRig:
     def __init__(self, cams=None):
-        self.cams = cams or [Cam(n, y, r, np.array(p)) for (n, y, r, p) in IPEX_LAYOUT]
+        # default rig: quats derived from the yaw offsets so optical_axis + axis_angle_deg
+        # are consistent with cameras_seeing (one model, not two).
+        if cams is None:
+            cams = [Cam(n, y, r, np.array(p), _quat_yaw(y)) for (n, y, r, p) in IPEX_LAYOUT]
+        self.cams = cams
         self._by = {c.name: c for c in self.cams}
 
     @classmethod

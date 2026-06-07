@@ -9,14 +9,17 @@
 Schematic dimensions are the [CONFIRM] GLB-envelope estimates in kinematics.py.
 """
 import os
-import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import imageio.v2 as imageio
 
-from solnav.posture import wireframe, kinematics as kin
+import matplotlib
+import numpy as np
+
+matplotlib.use("Agg")
+import imageio.v2 as imageio
+import matplotlib.pyplot as plt
+
 from solnav.geometry import fov
+from solnav.posture import kinematics as kin
+from solnav.posture import wireframe
 
 OUT = os.path.join(os.path.dirname(__file__), "out")
 os.makedirs(OUT, exist_ok=True)
