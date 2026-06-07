@@ -35,3 +35,18 @@ def test_gate_threshold_enforced():
     # gate=False returns the (low-confidence-allowed) measurement
     o = se.extract_shadow_azimuth(img, min_conf=0.999, gate=False)
     assert o.confidence > 0.5
+
+
+CLUTTER = os.path.join(os.path.dirname(__file__), "fixtures", "shadow_clutter.png")
+
+
+@pytest.mark.skipif(not os.path.exists(CLUTTER), reason="clutter fixture absent")
+def test_p7_passes_gate_in_clutter_where_boundary_fails():
+    from imageio.v3 import imread
+    img = np.asarray(imread(CLUTTER))
+    # P7 blob segmentation recovers the shadow AXIS in dense clutter -> passes the gate
+    o = se.extract_shadow_azimuth_p7(img)
+    assert o.confidence > 0.30 and o.n_edge_px >= 3 and o.provenance == "IMAGE_DERIVED"
+    # the per-pixel boundary method is (correctly) rejected on the same cluttered scene
+    with pytest.raises(ValueError):
+        se.extract_shadow_azimuth(img)
