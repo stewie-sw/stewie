@@ -70,19 +70,20 @@ def extract_shadow_azimuth_p7(image, blur: int = 3, min_area: int = 12,
         dirv = (e2 - e1) if bright(e1, u) >= bright(e2, -u) else (e1 - e2)
         angs.append(np.arctan2(dirv[1], dirv[0]))
         wts.append(np.sqrt(len(pts)))
-    if len(angs) < 3:
+    n_blobs = len(angs)
+    if n_blobs < 3:
         raise ValueError("too few shadow blobs for a P7 vote")
-    angs = np.array(angs); wts = np.array(wts)
+    a = np.asarray(angs); w = np.asarray(wts)
     # AXIS concentration (mod 180, doubled angle) is the robust signal in clutter; the gate uses it.
-    C2 = float(np.sum(wts * np.cos(2 * angs))); S2 = float(np.sum(wts * np.sin(2 * angs)))
-    R_axis = float(np.hypot(C2, S2) / np.sum(wts))
+    C2 = float(np.sum(w * np.cos(2 * a))); S2 = float(np.sum(w * np.sin(2 * a)))
+    R_axis = float(np.hypot(C2, S2) / np.sum(w))
     # directed azimuth from the (noisier) per-blob caster votes -- 180-deg resolution is the open part.
-    C = float(np.sum(wts * np.cos(angs))); S = float(np.sum(wts * np.sin(angs)))
+    C = float(np.sum(w * np.cos(a))); S = float(np.sum(w * np.sin(a)))
     if gate and R_axis < min_conf:
         raise ValueError(f"P7 axis concentration {R_axis:.3f} below gate {min_conf}")
     az = (np.degrees(np.arctan2(S, C))) % 360.0
-    sigma_deg = float(np.degrees(np.sqrt(max(-2.0 * np.log(max(R_axis, 1e-6)), 1e-6)) / max(np.sqrt(len(angs)), 1)))
-    return ShadowHeadingObs(z_shadow_body_deg=az, confidence=R_axis, n_edge_px=len(angs), sigma_deg=sigma_deg)
+    sigma_deg = float(np.degrees(np.sqrt(max(-2.0 * np.log(max(R_axis, 1e-6)), 1e-6)) / max(np.sqrt(n_blobs), 1)))
+    return ShadowHeadingObs(z_shadow_body_deg=az, confidence=R_axis, n_edge_px=n_blobs, sigma_deg=sigma_deg)
 
 
 def extract_shadow_azimuth(image, blur: int = 5, min_conf: float = 0.30,
