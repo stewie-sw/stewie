@@ -35,14 +35,20 @@ DRUM_MASS_KG = 2.0
 # One-sided (asymmetric) raises pitch the body and give a slanted, lower lookout with
 # a tighter support polygon; two-sided (symmetric) raises stay level, lift higher, and
 # put the cameras on a wider, taller baseline (but lift the wheels clear).
+# Eight named positions (static perception geometries) and maneuvers.
 POSTURES = {
-    "TRANSIT":     (0.0, 0.0),    # arms neutral, low CG, full wheelbase
-    "COBRA":       (55.0, 0.0),   # one-sided front raise/pitch (nominal max 55 deg)
-    "PUSHUP":      (45.0, 45.0),  # two-sided moderate press-up (level, partial lift)
-    "MEERKAT_1S":  (70.0, 0.0),   # ONE-SIDED meerkat: one end up -> pitched lookout
-    "MEERKAT":     (70.0, 70.0),  # TWO-SIDED meerkat: level raised lookout (extreme mode)
-    "IRON_CROSS":  (90.0, 90.0),  # arms parallel to ground -> max symmetric chassis raise
+    "TRANSIT":      (0.0, 0.0),    # arms neutral, low CG, full wheelbase (drive)
+    "PUSHUP":       (45.0, 45.0),  # two-sided moderate press-up (level, partial lift)
+    "COBRA":        (55.0, 0.0),   # one-sided front raise/pitch (nominal max 55 deg)
+    "REVERSE_COBRA":(0.0, 55.0),   # one-sided rear raise/pitch (look up/back)
+    "MEERKAT_1S":   (70.0, 0.0),   # ONE-SIDED meerkat: one end up -> pitched lookout
+    "MEERKAT":      (70.0, 70.0),  # TWO-SIDED meerkat: level raised lookout (extreme mode)
+    "DRUM_WALK":    (75.0, 75.0),  # raised on drums; slow locomotion maneuver while up
+    "IRON_CROSS":   (90.0, 90.0),  # arms parallel to ground -> max symmetric chassis raise
 }
+# Maneuvers (transitions/locomotion) vs static positions: DRUM_WALK is a locomotion
+# maneuver (creep while raised); the rest are static perception geometries. RASSOR/IPEx
+# also document Z-dump and self-right as non-perception maneuvers (out of the nav library).
 ARM_NOMINAL_MAX_DEG = 55.0
 ARM_MECH_MAX_DEG = 135.0          # ~2.36 rad absolute mechanical limit
 

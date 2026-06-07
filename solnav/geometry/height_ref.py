@@ -40,3 +40,32 @@ def height_residual_m(kinematic_height_m: float, referenced_height_m: float) -> 
     """Observability check: kinematic (model) height minus DEM/landmark-referenced height.
     A large residual flags a wrong limb dimension or an unmodeled sinkage."""
     return kinematic_height_m - referenced_height_m
+
+
+def triangulate_landmark_height(cam_h1_m: float, depression1_deg: float,
+                                cam_h2_m: float, depression2_deg: float):
+    """Vertical-parallax triangulation of a landmark from two camera HEIGHTS (two postures)
+    at the same ground station. tan(delta_i) = (cam_h_i - H_lm) / D, so:
+        D = (h1 - h2) / (tan d1 - tan d2);  H_lm = h1 - D*tan(d1).
+    Returns (landmark_height_m, horizontal_distance_m). Raising the camera (meerkat) widens
+    the height baseline (h1 - h2) and tightens the estimate."""
+    t1, t2 = np.tan(np.radians(depression1_deg)), np.tan(np.radians(depression2_deg))
+    if abs(t1 - t2) < 1e-9:
+        raise ValueError("equal depressions (no vertical parallax); cannot triangulate")
+    D = (cam_h1_m - cam_h2_m) / (t1 - t2)
+    H = cam_h1_m - D * t1
+    return float(H), float(D)
+
+
+def triangulation_height_sigma_m(cam_h1_m: float, cam_h2_m: float, distance_m: float,
+                                 depression1_deg: float, sigma_deg: float) -> float:
+    """1-sigma on the triangulated landmark height from per-angle noise sigma_deg.
+
+    With tan(d_i)=(h_i-H)/D and height baseline b=|h1-h2|, a first-order propagation gives
+    sigma_H ~ (D^2 / b) * sec^2(delta) * sigma_rad: a bigger posture lift (larger b) tightens
+    the estimate; a farther landmark (larger D) loosens it. Real differential."""
+    b = abs(cam_h1_m - cam_h2_m)
+    if b < 1e-9:
+        return float("inf")
+    sec2 = 1.0 / (np.cos(np.radians(depression1_deg)) ** 2)
+    return float((distance_m ** 2 / b) * sec2 * np.radians(sigma_deg))

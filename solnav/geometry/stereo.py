@@ -65,3 +65,30 @@ def triangulate_bearings(p1: np.ndarray, d1: np.ndarray,
     q1 = p1 + t1 * d1
     q2 = p2 + t2 * d2
     return 0.5 * (q1 + q2)
+
+
+def world_point_from_stereo(u_px, v_px, disparity_px, fx, fy, cx, cy, baseline_m,
+                            R_wc: np.ndarray, t_wc: np.ndarray) -> np.ndarray:
+    """Stereo pixel -> world 3D point: back-project with depth Z=fx*B/d, then apply the
+    (posture-dependent) camera-to-world pose. R_wc (3x3), t_wc (3,)."""
+    Z = depth_from_disparity(disparity_px, fx, baseline_m)
+    p_cam = backproject(u_px, v_px, Z, fx, fy, cx, cy)
+    return R_wc @ p_cam + np.asarray(t_wc, float)
+
+
+def ground_height_from_stereo(u_px, v_px, disparity_px, fx, fy, cx, cy, baseline_m,
+                              R_wc: np.ndarray, t_wc: np.ndarray) -> float:
+    """World height (z) of a stereo-observed ground point = z-component of the world point."""
+    return float(world_point_from_stereo(u_px, v_px, disparity_px, fx, fy, cx, cy,
+                                         baseline_m, R_wc, t_wc)[2])
+
+
+def height_uncertainty_from_disparity(u_px, v_px, disparity_px, fx, fy, cx, cy,
+                                      baseline_m, R_wc: np.ndarray, sigma_d_px: float) -> float:
+    """1-sigma height error propagated from disparity noise through the projection and the
+    camera pose: dheight/dd = R_wc[2,:] . (d p_cam/dZ) . (dZ/dd). Real differential."""
+    Z = depth_from_disparity(disparity_px, fx, baseline_m)
+    dZ_dd = -fx * baseline_m / (disparity_px ** 2)             # dZ/dd
+    dpcam_dZ = np.array([(u_px - cx) / fx, (v_px - cy) / fy, 1.0])
+    dheight_dd = float(np.asarray(R_wc)[2, :] @ dpcam_dZ * dZ_dd)
+    return abs(dheight_dd * sigma_d_px)
