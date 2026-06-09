@@ -157,7 +157,9 @@ def lunar_drive_power_w(*, slope_deg: float = 0.0, crr: float = ROLLING_RESISTAN
                         v_ms: float = DRIVE_SPEED_MS, efficiency: float = DRIVETRAIN_EFFICIENCY) -> float:
     """Physical steady-drive electrical power at a given gravity/slope: tractive force
     F = m*g*(crr*cos th + sin th); P_elec = F*v / efficiency. At lunar g + flat this is ~6x below the
-    Earth-test Table-3 drive_power_w(). [PHYSICS] for the force; crr + efficiency are tagged estimates."""
+    Earth-test Table-3 drive_power_w(). [PHYSICS] for the force; crr + efficiency are tagged estimates.
+    This is the LIGHTWEIGHT estimate (constant crr); slip.bekker_drive_power_w is the rigorous version
+    that replaces crr with the Bekker compaction resistance + slip-sinkage equilibrium (soil-aware)."""
     th = math.radians(slope_deg)
     f_tractive_n = mass_kg * g_ms2 * (crr * math.cos(th) + math.sin(th))
     return f_tractive_n * v_ms / efficiency

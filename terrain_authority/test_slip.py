@@ -116,3 +116,15 @@ def _run_all():
 
 if __name__ == "__main__":
     _run_all()
+
+
+def test_bekker_drive_power_is_gravity_slope_and_regime_aware():
+    from terrain_authority import slip
+    flat = slip.bekker_drive_power_w(mass_kg=30, g_ms2=1.62, slope_deg=0.0)
+    assert flat["drive_power_w"] >= 0 and not flat["entrapped"] and flat["slip"] < 0.05  # firm flat -> low
+    slope = slip.bekker_drive_power_w(mass_kg=30, g_ms2=1.62, slope_deg=20.0)
+    assert slope["drive_power_w"] > flat["drive_power_w"] and slope["slip"] > flat["slip"]   # grade raises it
+    earth = slip.bekker_drive_power_w(mass_kg=30, g_ms2=9.81, slope_deg=0.0)
+    assert earth["drive_power_w"] > flat["drive_power_w"]                  # heavier (Earth g) -> more resistance
+    steep = slip.bekker_drive_power_w(mass_kg=30, g_ms2=1.62, slope_deg=55.0)
+    assert steep["entrapped"]                                             # past the slip ladder -> entrapment

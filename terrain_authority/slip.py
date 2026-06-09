@@ -78,6 +78,29 @@ def compaction_resistance(sinkage_m: float, *, contact_width_m: float,
     return (b / (n + 1.0)) * (k_c / b + k_phi) * sinkage_m ** (n + 1.0)
 
 
+def bekker_drive_power_w(*, mass_kg: float, g_ms2: float, slope_deg: float = 0.0, v_ms: float = 0.30,
+                         efficiency: float = 0.5, params: "tm.TerramechanicsParams | None" = None,
+                         n_wheels: int = K.N_WHEELS, contact_len_m: float = 0.10,
+                         contact_width_m: float = 0.18) -> dict:
+    """Fully-physical steady-drive electrical power from the Bekker motion resistance -- the rigorous
+    replacement for ipex_specs.lunar_drive_power_w's constant Crr. Solves the per-wheel slip-sinkage
+    equilibrium for the tractive DEMAND (along-slope gravity + Bekker compaction resistance R_c), then
+    P_elec = (n_wheels * demand_per_wheel) * v / efficiency. Gravity-aware (via weight), soil-aware (via
+    ``params``), slope-aware. Returns {drive_power_w, tractive_n, slip, sinkage_m, entrapped} so the
+    caller sees the regime: if entrapped, steady drive cannot proceed (the power figure is not meaningful).
+    CAVEAT: this is the soil COMPACTION resistance (Bekker R_c) + grade only -- a physical LOWER BOUND on
+    motion resistance; real rolling resistance adds bulldozing + hysteresis terms. So on firm flat regolith
+    it reads very low (~0.1 W); the truth is bracketed by this and ipex_specs.lunar_drive_power_w's
+    conservative constant-Crr estimate. Its real value is the slope/slip/entrapment dependence + soil/g
+    awareness that a constant Crr cannot express."""
+    weight_n = mass_kg * g_ms2
+    eq = slip_sinkage_equilibrium(weight_n, math.radians(slope_deg), n_wheels=n_wheels,
+                                  contact_len_m=contact_len_m, contact_width_m=contact_width_m, params=params)
+    tractive_n = eq["demand_n"] * n_wheels
+    return {"drive_power_w": tractive_n * v_ms / efficiency, "tractive_n": tractive_n,
+            "slip": eq["slip"], "sinkage_m": eq["sinkage_m"], "entrapped": eq["entrapped"]}
+
+
 def slip_sinkage_equilibrium(total_weight_n: float, slope_rad: float, *,
                              n_wheels: int = K.N_WHEELS,
                              contact_len_m: float = 0.10, contact_width_m: float = 0.18,
