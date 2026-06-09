@@ -62,7 +62,8 @@ def produce(capture_dir: str, out_dir: str):
 def estimate(runtime_dir: str, out_dir: str):
     """Dead-reckon from the runtime channels only (I3), then freeze + hash the estimate (I7)."""
     for fn in os.listdir(runtime_dir):                            # I3: no truth file in the input
-        if any(m in fn.lower() for m in ("ground_truth", "truth")):
+        if any(m in fn.lower() for m in ("ground_truth", "truth", "slip", "true_pose")):
+            # audit L41: the filename gate omitted the slip/pose markers the COLUMN gate enforces
             raise ValueError(f"truth file '{fn}' present in runtime input (I3 violation)")
     cfg = json.load(open(os.path.join(runtime_dir, "config.json")))
     n_imu, n_wheel, N = int(cfg["imu_hz"] * cfg["dt"]), int(cfg["wheel_hz"] * cfg["dt"]), int(cfg["n_steps"])
