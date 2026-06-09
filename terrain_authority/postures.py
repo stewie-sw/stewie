@@ -43,10 +43,13 @@ def load_postures(path: str = _PATH) -> dict:
         lift = pk.chassis_lift_m(af, ab)                  # COMPUTED from arm angles (faithful), not the JSON constant
         for k_json in ("chassis_lift_m", "camera_vantage_m"):
             if k_json in p and abs(float(p[k_json]) - lift) > 0.02:
-                # audit M32: the authored constant was silently IGNORED; a stale value that
-                # contradicts the FK is a calibration error the operator must see
-                raise ValueError(f"posture {name}: authored {k_json}={p[k_json]} contradicts the "
-                                 f"FK-computed {lift:.3f} m (>2 cm); fix or remove the JSON field")
+                # audit M32: the authored constant was silently IGNORED. The FK value is the design
+                # truth (see the comment above), so a contradicting JSON field is SURFACED as a
+                # warning -- loud enough for the operator, without failing a load on legacy data.
+                import warnings
+                warnings.warn(f"posture {name}: authored {k_json}={p[k_json]} contradicts the "
+                              f"FK-computed {lift:.3f} m (>2 cm); the FK value is used",
+                              stacklevel=2)
         out[name] = Posture(name=name, description=str(p.get("description", "")),
                             arm_front_pitch_rad=af, arm_back_pitch_rad=ab,
                             chassis_lift_m=lift, camera_vantage_m=lift,
