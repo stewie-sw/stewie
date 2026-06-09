@@ -31,6 +31,8 @@ _WHEEL_SAMPLE_KEYS = {"t", "encoder_delta_rad", "encoder_count_delta", "covarian
 # Required SI unit identities per channel (A5 req 2: validate units; reject unit-mismatched fixtures).
 _IMU_UNITS = {"gyro_z": "rad/s", "accel_xy": "m/s^2"}
 _WHEEL_UNITS = {"encoder_delta": "rad", "encoder_count_delta": "count", "covariance": "rad^2"}
+_JOINT_SAMPLE_KEYS = {"t", "arm_front_pitch_rad", "arm_back_pitch_rad", "chassis_lift_m", "camera_heights_m"}
+_JOINT_UNITS = {"arm_pitch": "rad", "chassis_lift": "m", "camera_height": "m"}
 
 
 def _monotonic(ts, name):
@@ -74,7 +76,7 @@ def parse_proprioception(packet: dict, *, sync_tolerance_s: float = 1.0,
     chans = packet["channels"]
     _allowed(chans, _CHAN_NAMES, "channels")
     out = {"sequence_id": packet["sequence_id"], "clock": packet["clock"],
-           "imu": [], "wheel": [], "unavailable": []}
+           "imu": [], "wheel": [], "joints": [], "unavailable": []}
 
     ci = chans.get("imu", {})
     _allowed(ci, _CHAN_KEYS, "imu channel")
@@ -140,28 +142,52 @@ def parse_proprioception(packet: dict, *, sync_tolerance_s: float = 1.0,
             raise ValueError("wheel UNAVAILABLE but carries samples")
         out["unavailable"].append("wheel")
 
-    for name in ("joints", "power"):
-        c = chans.get(name, {})
-        _allowed(c, _CHAN_KEYS, f"{name} channel")
-        if c.get("status") == "OK":
-            js = c.get("samples") or []
-            if not js:
-                raise ValueError(f"{name} status OK without payload")
-            # generic envelope validation (the specific field schema arrives with the A4 producer):
-            # finite strictly-monotonic timestamp on every sample + finite numeric leaves.
-            if not all("t" in x for x in js):
-                raise ValueError(f"{name} sample missing timestamp")
-            _monotonic([x["t"] for x in js], name)
-            for x in js:
-                for k, v in x.items():
-                    if isinstance(v, bool):
-                        continue
-                    if isinstance(v, (int, float)) or (
-                            isinstance(v, (list, tuple)) and v
-                            and all(isinstance(e, (int, float)) and not isinstance(e, bool) for e in v)):
-                        _finite(v, f"{name}.{k}")
-        else:
-            out["unavailable"].append(name)
+    # joints: measured arm-joint channel (drum-arm pitches + posture-conditioned per-camera heights).
+    cj = chans.get("joints", {})
+    _allowed(cj, _CHAN_KEYS, "joints channel")
+    if cj.get("status") == "OK":
+        js = cj.get("samples") or []
+        if not js:
+            raise ValueError("joints status OK without payload")
+        for x in js:
+            _allowed(x, _JOINT_SAMPLE_KEYS, "joints sample")
+        _monotonic([x["t"] for x in js], "joints")
+        _check_units(cj.get("units"), _JOINT_UNITS, "joints")
+        for x in js:
+            _finite(x["t"], "joints.t")
+            _finite(x["arm_front_pitch_rad"], "joints.arm_front_pitch_rad")
+            _finite(x["arm_back_pitch_rad"], "joints.arm_back_pitch_rad")
+            _finite(x.get("chassis_lift_m", 0.0), "joints.chassis_lift_m")
+            ch = x.get("camera_heights_m", {})
+            if not isinstance(ch, dict):
+                raise ValueError("joints camera_heights_m must be a per-camera height map")
+            for cam, h in ch.items():
+                _finite(h, f"joints.camera_heights_m.{cam}")
+            out["joints"].append(x)
+    else:
+        out["unavailable"].append("joints")
+
+    # power: no battery-telemetry schema yet (producer emits UNAVAILABLE). Validate the generic envelope
+    # if a payload ever arrives (finite, monotonic) rather than fabricating a per-field schema.
+    cp = chans.get("power", {})
+    _allowed(cp, _CHAN_KEYS, "power channel")
+    if cp.get("status") == "OK":
+        ps = cp.get("samples") or []
+        if not ps:
+            raise ValueError("power status OK without payload")
+        if not all("t" in x for x in ps):
+            raise ValueError("power sample missing timestamp")
+        _monotonic([x["t"] for x in ps], "power")
+        for x in ps:
+            for k, v in x.items():
+                if isinstance(v, bool):
+                    continue
+                if isinstance(v, (int, float)) or (
+                        isinstance(v, (list, tuple)) and v
+                        and all(isinstance(e, (int, float)) and not isinstance(e, bool) for e in v)):
+                    _finite(v, f"power.{k}")
+    else:
+        out["unavailable"].append("power")
 
     # cross-channel synchronization tolerance (A5 req 4: enforce, do not silently resample). Samples are
     # monotonic, so first/last are the window bounds; reject if the imu and wheel windows are disjoint

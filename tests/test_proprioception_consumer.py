@@ -186,13 +186,44 @@ def test_calibration_profile_identity_match_and_mismatch():
         pio.parse_proprioception(_wheel_ok_packet("rev7"), expected_profile="rev9")  # mismatch -> reject
 
 
+_JU = {"arm_pitch": "rad", "chassis_lift": "m", "camera_height": "m"}
+
+
 def test_rejects_joint_payload_non_finite():
-    # joints OK with a non-finite leaf -> reject (generic envelope validation; specific schema awaits A4)
+    # joints OK, valid schema, but a non-finite arm pitch -> reject
     pkt = {"schema_version": "proprioception/1.1", "clock": "x", "sequence_id": 0,
            "channels": {"imu": {"status": "UNAVAILABLE"}, "wheel": {"status": "UNAVAILABLE"},
-                        "joints": {"status": "OK", "samples": [{"t": 0.0, "angle_rad": float("inf")}]}}}
+                        "joints": {"status": "OK", "units": _JU, "samples": [
+                            {"t": 0.0, "arm_front_pitch_rad": float("inf"), "arm_back_pitch_rad": 0.0,
+                             "chassis_lift_m": 0.0, "camera_heights_m": {}}]}}}
     with pytest.raises(ValueError, match="non-finite"):
         pio.parse_proprioception(pkt)
+
+
+def test_rejects_unknown_joint_field():
+    pkt = {"schema_version": "proprioception/1.1", "clock": "x", "sequence_id": 0,
+           "channels": {"imu": {"status": "UNAVAILABLE"}, "wheel": {"status": "UNAVAILABLE"},
+                        "joints": {"status": "OK", "units": _JU, "samples": [
+                            {"t": 0.0, "arm_front_pitch_rad": 0.1, "arm_back_pitch_rad": -0.1,
+                             "chassis_lift_m": 0.0, "camera_heights_m": {}, "secret": 1.0}]}}}
+    with pytest.raises(ValueError, match="allow-list"):
+        pio.parse_proprioception(pkt)
+
+
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+def test_round_trip_with_measured_joints():
+    sys.path.insert(0, _DUST)
+    from terrain_authority import proprioception as pp
+    from terrain_authority import runtime_packet as rp
+    m = pp.ImuWheelModel(seed=0)
+    imu = [m.step_imu(i * 0.01, 0.0) for i in range(5)]
+    wheel = [m.step_wheel_encoders(i * 0.1, 0.30, 0.0, (0, 0, 0, 0), dt=0.1) for i in range(3)]
+    joints = rp.joint_channel(0.1, -0.1, t=0.0)                    # real FK measured-joint channel (A4)
+    pkt = pp.runtime_proprioception_packet(imu, wheel, sequence_id=7, imu_rate_hz=100, wheel_rate_hz=10,
+                                           joints=joints)
+    parsed = pio.parse_proprioception(pkt)                          # A5 validates + returns the joints
+    assert parsed["joints"] and "joints" not in parsed["unavailable"]
+    assert "camera_heights_m" in parsed["joints"][0] and "power" in parsed["unavailable"]
 
 
 def test_rejects_stale_channel_against_clock():
