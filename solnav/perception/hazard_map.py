@@ -39,7 +39,7 @@ class HazardMap:
         return np.isfinite(self.cost)
 
 
-def build_hazard_map(dem, dem_origin=(0.0, 0.0), *, rocks_world=(), rock_mask=None,
+def build_hazard_map(dem, dem_origin=(0.0, 0.0), *, rocks_world=(), rock_mask=None, zones=None,
                      max_slope_deg: float = 25.0, slope_hazard_deg: float = 15.0,
                      roughness_hazard_m: float = 0.10, hard_rock_inflate_cells: int = 1) -> HazardMap:
     """Build the navigation cost grid. cost = 1 (base) + slope penalty + roughness penalty + rock penalty;
@@ -71,8 +71,18 @@ def build_hazard_map(dem, dem_origin=(0.0, 0.0), *, rocks_world=(), rock_mask=No
     if rock_mask is not None:                                          # dense semantic occupancy (Stanford)
         rock_cost = np.where(np.asarray(rock_mask) > 0, np.maximum(rock_cost, 3.0), rock_cost)
     cost = np.where(np.isinf(rock_cost), _HARD, cost + rock_cost)
+    n_zone = 0
+    if zones is not None:                                              # HARD, non-overridable no-go zones
+        rr = np.arange(h)[:, None]
+        cc = np.arange(w)[None, :]
+        for z in zones.zones:
+            if not z.forbids_traverse:
+                continue
+            zr, zc = (z.y - oy) / cell, (z.x - ox) / cell
+            cost[(rr - zr) ** 2 + (cc - zc) ** 2 <= (z.radius_m / cell) ** 2] = _HARD
+            n_zone += 1
     return HazardMap(cost=cost, slope_deg=slope, rock_cost=rock_cost, cell_m=cell, origin=(ox, oy),
-                     meta={"max_slope_deg": max_slope_deg, "n_rocks": len(rocks_world)})
+                     meta={"max_slope_deg": max_slope_deg, "n_rocks": len(rocks_world), "n_nogo_zones": n_zone})
 
 
 def plan_route(hmap: HazardMap, start_xy, goal_xy):
