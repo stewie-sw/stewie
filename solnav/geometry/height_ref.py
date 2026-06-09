@@ -27,7 +27,11 @@ def camera_elev_from_landmark(landmark_elev_m: float, depression_deg: float,
 
 def depression_to_landmark(camera_elev_m: float, landmark_elev_m: float,
                            horizontal_dist_m: float) -> float:
-    """Predicted depression angle (deg) to a landmark, given heights and range."""
+    """Predicted depression angle (deg) to a landmark, given heights and range. Range must be > 0
+    so the angle stays in the camera's physical (-90, 90) band -- arctan2 with a non-positive range
+    leaves that band and breaks the inverse pair with camera_elev_from_landmark (audit L51)."""
+    if horizontal_dist_m <= 0:
+        raise ValueError(f"horizontal_dist_m must be > 0 (got {horizontal_dist_m}) (audit L51)")
     return float(np.degrees(np.arctan2(camera_elev_m - landmark_elev_m, horizontal_dist_m)))
 
 

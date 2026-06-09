@@ -89,7 +89,8 @@ class DetectionReport:
     n_truth_scorable: int
     precision: float
     recall: float
-    match_radius_px: float
+    match_scale: float                 # DIMENSIONLESS multiplier of each truth radius (audit L50:
+    # the old name match_radius_px misrepresented it as a fixed pixel distance, violating I8)
     matched_pairs: tuple[tuple[int, int], ...]  # (detection_index, clast_id)
     provenance: str = "GROUND_TRUTH_EVAL"
 
@@ -271,7 +272,7 @@ def score_detections(detections: list[RockDetection], projected: list[ProjectedC
         true_positives=tp, false_positives=fp, false_negatives=fn,
         n_detections=len(dets), n_truth_scorable=len(scorable),
         precision=precision, recall=recall,
-        match_radius_px=float(match_scale), matched_pairs=tuple(matched_pairs),
+        match_scale=float(match_scale), matched_pairs=tuple(matched_pairs),
     )
 
 
