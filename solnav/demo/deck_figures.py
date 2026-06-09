@@ -33,7 +33,7 @@ def postures_montage(path):
         ax.set_box_aspect((1, 1, 0.7)); ax.view_init(elev=16, azim=-62)
         ax.set_title(f"{nm}\nlift {meta['lift_m']:.2f} m, pitch {meta['pitch_deg']:.0f}°", fontsize=9)
         ax.set_xticks([]); ax.set_yticks([]); ax.set_zticks([])
-    fig.suptitle("Eight-position posture library (kinematic wireframe; dims [CONFIRM] from RASSOR GLB envelope)", fontsize=12)
+    fig.suptitle("Eight-position posture library (kinematic wireframe; preset dimensions estimated from the RASSOR GLB envelope, not measured rover facts)", fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.94]); fig.savefig(path, dpi=140); plt.close(fig)
 
 

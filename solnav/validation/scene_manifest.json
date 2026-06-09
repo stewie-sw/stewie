@@ -4,7 +4,9 @@
   "policy": {
     "development_assets_may_be_tuned": true,
     "locked_validation_assets_may_be_tuned": false,
-    "locked_validation_status": "NOT_ACQUIRED"
+    "locked_validation_status": "NOT_ACQUIRED",
+    "simulated_locked_assets_may_be_tuned": false,
+    "simulated_locked_note": "Frozen-by-hash SIMULATED G1 baseline (real LOLA Haworth DEM + real dustgym slip + grounded IMU/wheel model). Reproducible and locked, but NOT a real-world capture; the real-world locked_validation (Katwijk) remains NOT_ACQUIRED."
   },
   "development": [
     {
@@ -34,6 +36,24 @@
     }
   ],
   "locked_validation": [],
+  "simulated_locked": [
+    {
+      "id": "g1_imu_wheel_baseline_haworth",
+      "role": "G1 passive wheel+IMU baseline capture (timestamped IMU 100 Hz + wheel odom 10 Hz + eval truth); the dead-reckoning ATE that solar/shadow/landmark cues must beat",
+      "provenance": "MEASUREMENT_MODEL_SIM: real LOLA Haworth DEM + real dustgym slip; IMU/wheel = grounded sensor model (g1_imu_wheel_params.json)",
+      "producer": "validation/g1_capture.py (seed=0, reproducible)",
+      "baseline_ate_raw_m": 4.632,
+      "baseline_ate_aligned_m": 2.015,
+      "channels": {"imu_hz": 100, "wheel_hz": 10, "stereo": "NOT_INCLUDED"},
+      "stereo_note": "synchronized stereo keyframes are NOT yet in this capture: the dustgym sidecar renders local ~5 m patches (far plane 100 m), not the ~88 m traverse, so per-pose stereo along the path needs sidecar scale work + the render loop. This remains a G1 gap.",
+      "result_report": "validation/g1_capture/g1_capture_result.json (derived; carries volatile build provenance -> NOT hash-locked; only the immutable sensor/truth data below is locked)",
+      "files": {
+        "validation/g1_capture/imu.csv": "0fca76625c8cc15e544f4cdf91f46357725cbfb5123acaa8bb4fe39575f3123c",
+        "validation/g1_capture/wheel_odom.csv": "2dcf192636ff2827dd3b34c8062a48eac4baaa345d3dd8d6c7e5d933931e2395",
+        "validation/g1_capture/truth.csv": "222a8287470d121f8fd3ad9cbda4f49f07da49b4428e8d8a4cfe26c4ac627e8b"
+      }
+    }
+  ],
   "stress": [
     {
       "id": "shadow_clutter_stress",

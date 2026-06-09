@@ -1,6 +1,6 @@
 # solnav
 
-Solar/shadow/posture lunar navigation. The dissertation's navigation package (Aaron W. Storey). A **standalone** package that consumes `dustgym` read-only across its frozen seams; it does not modify dustgym. See `../SOFTWARE_PRD.md` for the full architecture and `../ALGORITHMS.md` for the formal algorithms (A1-A8).
+Solar/shadow/posture lunar navigation. The dissertation's navigation package (Aaron W. Storey, John P. McCardle). A **standalone** package that consumes `dustgym` read-only across its frozen seams; it does not modify dustgym. See `../SOFTWARE_PRD.md` for the full architecture and `../ALGORITHMS.md` for the formal algorithms (A1-A8).
 
 ## Status
 Implemented primitives are covered by analytic fixtures, rendered-image fixtures, and

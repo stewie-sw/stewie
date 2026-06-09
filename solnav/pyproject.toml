@@ -9,7 +9,10 @@ description = "Solar/shadow/posture lunar navigation: dissertation navigation pa
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
-authors = [{ name = "Aaron W. Storey" }]
+authors = [
+  { name = "Aaron W. Storey" },
+  { name = "John P. McCardle", email = "mccardle.john@gmail.com" },
+]
 keywords = ["lunar", "slam", "navigation", "ipex", "rover", "stereo", "shadow", "ephemeris"]
 classifiers = [
   "Development Status :: 3 - Alpha",

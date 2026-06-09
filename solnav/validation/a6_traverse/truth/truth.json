@@ -1,0 +1,41 @@
+{
+  "poses": [
+    {
+      "seq": 0,
+      "t": 0.0,
+      "x": 1.0,
+      "z": 2.56,
+      "yaw": 0.0,
+      "slip": 0.050338605234927766,
+      "provenance": "GROUND_TRUTH_EVAL"
+    },
+    {
+      "seq": 1,
+      "t": 1.0,
+      "x": 1.2848984184295216,
+      "z": 2.56,
+      "yaw": 0.0,
+      "slip": 0.07591124543065686,
+      "provenance": "GROUND_TRUTH_EVAL"
+    },
+    {
+      "seq": 2,
+      "t": 2.0,
+      "x": 1.5621250448003248,
+      "z": 2.56,
+      "yaw": 0.0,
+      "slip": 0.0,
+      "provenance": "GROUND_TRUTH_EVAL"
+    },
+    {
+      "seq": 3,
+      "t": 3.0,
+      "x": 1.8621250448003246,
+      "z": 2.56,
+      "yaw": 0.0,
+      "slip": 0.001443706688504908,
+      "provenance": "GROUND_TRUTH_EVAL"
+    }
+  ],
+  "provenance": "GROUND_TRUTH_EVAL"
+}

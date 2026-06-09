@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Wire the cues into the pose graph and study how far the distance offset (ATE) can drop.
 
-[MEASUREMENT_MODEL_SIM] The path + slip are dustgym's REAL physics on the real Haworth DEM, but
-the heading/landmark factors are a SIMULATED_SENSOR model: truth + seeded Gaussian noise, weighted
-info=1/sigma^2 (NOT image-derived; this is an estimator/observation-geometry study, not sensed SLAM).
-Reports BOTH the same-frame absolute 2-D RMSE (the known-map localization headline, HIGH-07) and the
-Umeyama aligned ATE (gauge-free trajectory shape). The 8-camera rig reports landmark coverage per
-station. Not a "full SLAM" result and not directly comparable to NavLab's same-frame 3-D RMSE.
+[MEASUREMENT_MODEL_SIM] The baseline is the CANONICAL, hash-locked G1 sub-baseline read from
+`validation/g1_capture/` (passive wheel+IMU dead reckoning = 4.632 m raw same-frame / 2.015 m
+aligned 2-D ATE over 87.74 m on the real LOLA Haworth DEM with real dustgym slip). The
+heading/landmark cues added on top are a SIMULATED_SENSOR model: truth + seeded Gaussian noise,
+weighted info=1/sigma^2 (NOT image-derived; this is an estimator/observation-geometry study, not
+sensed SLAM). Reports BOTH the same-frame absolute 2-D RMSE (the known-map localization headline,
+HIGH-07) and the Umeyama aligned ATE (gauge-free trajectory shape). The 8-camera rig reports
+landmark coverage per station. Not a "full SLAM" result and not directly comparable to NavLab.
 """
+import csv
 import json
 import os
-import sys
 
 import matplotlib
 import numpy as np
@@ -18,45 +20,50 @@ import numpy as np
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-sys.path.insert(0, "/mnt/projects/foss_ipex/dustgym")
-from terrain_authority import rover
-from terrain_authority import slip as slipmod
-from terrain_authority import terramechanics as tm
-
 from solnav.eval import metrics
 from solnav.perception import camera_rig as cr
 from solnav.slam import posegraph as pg
 
-DEM = "/mnt/projects/foss_ipex/dustgym/samples/lunar_dem/haworth_10km_5m"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # projects/solnav/solnav
+CAP = os.path.join(REPO, "validation", "g1_capture")
 OUT = os.path.join(os.path.dirname(__file__), "out"); os.makedirs(OUT, exist_ok=True)
-G, CELL_M, DT, MASS = 1.62, 5.0, 2.0, 30.0
+DT, IMU_HZ, WHEEL_HZ = 2.0, 100.0, 10.0
+N_IMU, N_WHEEL = int(IMU_HZ * DT), int(WHEEL_HZ * DT)
 
 
-def drive():
-    h = np.fromfile(os.path.join(DEM, "heightmap.rf32"), dtype="<f4"); n = int(round(len(h)**0.5))
-    H = h.reshape(n, n); gr, gc = np.gradient(H)
-    params = tm.TerramechanicsParams.from_constants()
-    rc = (n//2 - 30.0, n//2 - 30.0); yaw = 0.6
-    omegas = [0.0]*40 + [0.012]*40 + [-0.012]*40 + [0.0]*40
-    true, cmd = [], []
-    for k in range(160):
-        pr, _ = rover.step_pose(rc, yaw, 1.0, 0.0, 1.0, cell_m=CELL_M)
-        hd = np.array([pr[0]-rc[0], pr[1]-rc[1]]); hd = hd/(np.linalg.norm(hd)+1e-9)
-        r = int(np.clip(rc[0],0,n-1)); c = int(np.clip(rc[1],0,n-1))
-        slope = np.arctan2(gr[r,c]*hd[0] + gc[r,c]*hd[1], CELL_M)
-        s = float(slipmod.slip_sinkage_equilibrium(MASS*G, slope, params=params)["slip"])
-        new_rc, new_yaw = rover.step_pose(rc, yaw, (1-s)*0.30, omegas[k], DT, cell_m=CELL_M)
-        true.append([rc[1]*CELL_M, rc[0]*CELL_M, yaw]); cmd.append([0.30*DT, 0.0, omegas[k]*DT])
-        rc, yaw = new_rc, new_yaw
-    true.append([rc[1]*CELL_M, rc[0]*CELL_M, yaw]); true = np.array(true)
-    th = [np.arctan2(true[i+1,1]-true[i,1], true[i+1,0]-true[i,0]) for i in range(len(true)-1)]; th.append(th[-1])
-    true[:,2] = th
-    return true, cmd
+def _col(path, col):
+    out = []
+    with open(path, newline="") as f:
+        for row in csv.DictReader(f):
+            out.append(float(row[col]))
+    return np.array(out)
+
+
+def load_canonical():
+    """Read the locked G1 capture (truth.csv + the passive wheel+IMU dead reckoning).
+
+    This is the SAME baseline `validation/g1_capture.py` records (4.632 m raw / 2.015 m aligned over
+    87.74 m); anchoring the cue-wiring study on it keeps every deck number consistent rather than
+    re-deriving a near-but-different odometry baseline.
+    """
+    xs, ys, yaws = [], [], []
+    with open(os.path.join(CAP, "truth.csv"), newline="") as f:
+        for row in csv.DictReader(f):
+            xs.append(float(row["x"])); ys.append(float(row["y"])); yaws.append(float(row["yaw"]))
+    true = np.column_stack([xs, ys, yaws])
+    n_steps = len(true) - 1
+    gyro = _col(os.path.join(CAP, "imu.csv"), "gyro_z").reshape(n_steps, N_IMU).mean(axis=1)
+    v = _col(os.path.join(CAP, "wheel_odom.csv"), "v").reshape(n_steps, N_WHEEL).mean(axis=1)
+    dr = [true[0].copy()]; yaw = float(true[0, 2])
+    for k in range(n_steps):
+        yaw = yaw + gyro[k] * DT
+        dr.append([dr[-1][0] + v[k] * DT * np.cos(yaw),
+                   dr[-1][1] + v[k] * DT * np.sin(yaw), yaw])
+    return true, np.array(dr)
 
 
 def main():
-    true, cmd = drive()
-    dr = pg.integrate_odometry(true[0], cmd)
+    true, dr = load_canonical()
     odo = pg.relative_odometry(dr)
     cx, cy = true[:,0].mean(), true[:,1].mean()
     # six distributed landmarks (good multipoint geometry)
@@ -81,7 +88,7 @@ def main():
         return g.solve(np.array(dr))
 
     stages = [
-        ("odometry only", build(False, 0, 999)),
+        ("wheel+IMU dead reckoning", build(False, 0, 999)),
         ("+ solar heading", build(True, 0, 999)),
         ("+ 1 landmark", build(True, 1, 8)),
         ("+ 6 landmarks (multipoint)", build(True, 6, 8)),
@@ -123,7 +130,12 @@ def main():
     ax[1].plot(best[:,0], best[:,1], ":", color="#005587", lw=2, label=f"best (sim sensors, {ates[-1][1]} m raw)")
     ax[1].scatter([L[0] for L in lm], [L[1] for L in lm], marker="*", s=120, color="#ffcd00", edgecolor="k", label="landmarks")
     ax[1].legend(fontsize=8); ax[1].set_aspect("equal"); ax[1].set_title("Best wiring vs truth")
-    fig.tight_layout(); fig.savefig(os.path.join(OUT, "wire_all.png"), dpi=150); plt.close(fig)
+    fig.suptitle("Estimator cue-wiring sensitivity on the canonical G1 sub-baseline "
+                 f"({ates[0][1]} m raw / {ates_aln[0][1]} m aligned over 87.74 m); "
+                 "added cues are seeded sensor models, not image-derived",
+                 fontsize=10)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.savefig(os.path.join(OUT, "wire_all.png"), dpi=150); plt.close(fig)
     print("wrote wire_all.png + wire_all_metrics.json")
 
 

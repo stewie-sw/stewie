@@ -1,0 +1,183 @@
+"""Slip-sinkage ladder — the path-dependent "slippy dirt" (Phase 2, 2026-06-01).
+
+Builds on the load-bearing Bekker layer (terramechanics.py) and the per-wheel normal
+loads emitted by rover.conform_pose. Models the failure class a closed loop exists for
+(spec §6 "two distinct sinkage modes"; the Spirit-rover slip-sinkage runaway):
+
+  traction_budget       H_max = c*A + N*tan(phi)                  Coulomb-Mohr ceiling
+  developed_thrust      H(s)  = H_max*(1 - (1-e^-x)/x), x=s*L/K    Janosi-Hanamoto
+  slip_for_demand       invert H(s)=demand; demand >= H_max -> ENTRAPMENT
+  compaction_resistance R_c grows with sinkage                    Bekker motion resistance
+  slip_sinkage_equilibrium  fixed point: slope gravity + R_c -> demand -> slip ->
+                            deeper sinkage (terramechanics.slip_sinkage_multiplier) ->
+                            more R_c -> ...  converges (stable) or diverges (runaway).
+
+Entrapment occurs (physically) when the demanded thrust exceeds the traction budget —
+for this light 30 kg-class rover that happens on slopes past ~the friction angle, where
+the cohesion term no longer covers the along-slope gravity. Recovery = back off the
+commanded thrust (``demand_frac`` < 1) or take a gentler slope.
+
+MAGNITUDES: SLIP_C1/SLIP_C2 are [UNKNOWN] (constants §5.2); the slip-sinkage law is a
+defensible parameterized Tier-2 form validated on QUALITATIVE behaviour (monotone, the
+runaway feedback, recovery). Quantitative fit is deferred to the oracle (DEFERRED_FIXES.md).
+"""
+from __future__ import annotations
+
+import math
+
+from stewie.specs import constants as K
+from stewie.physics import terramechanics as tm
+
+
+def traction_budget(normal_load_n: float, *, cohesion: float = K.COHESION,
+                    phi_rad: float = K.PHI, contact_area_m2: float) -> float:
+    """Max developable thrust [N] = c*A + N*tan(phi) (Coulomb-Mohr ceiling)."""
+    return cohesion * contact_area_m2 + normal_load_n * math.tan(phi_rad)
+
+
+def developed_thrust(slip: float, h_max: float, *, contact_len_m: float,
+                     k_shear: float = K.K_SHEAR) -> float:
+    """Janosi-Hanamoto thrust [N] developed at slip ratio s. 0 at s<=0; rises
+    monotonically toward h_max as s -> inf. H(s) = h_max*(1 - (1-e^-x)/x), x=s*L/K."""
+    if slip <= 0.0:
+        return 0.0
+    x = slip * contact_len_m / k_shear
+    # -expm1(-x) = 1 - e^-x computed without cancellation (audit L38: the naive form went negative /
+    # non-monotone for x ~ 1e-12)
+    return h_max * (1.0 - (-math.expm1(-x)) / x)
+
+
+def slip_for_demand(demand_n: float, h_max: float, *, contact_len_m: float,
+                    k_shear: float = K.K_SHEAR, s_max: float = 0.99) -> tuple[float, bool]:
+    """Slip ratio s such that developed_thrust(s) == demand. Returns (s, entrapped).
+
+    demand <= 0 -> (0, False). demand >= h_max -> the thrust ceiling is unreachable ->
+    (s_max, True): the wheel spins, cannot develop the demand, and digs in (runaway).
+    Otherwise bisection on the monotone developed_thrust curve.
+    """
+    if demand_n <= 0.0:
+        return 0.0, False
+    if demand_n >= h_max:
+        return s_max, True
+    if demand_n >= developed_thrust(s_max, h_max, contact_len_m=contact_len_m, k_shear=k_shear):
+        # demand sits in (H(s_max), h_max): the Janosi curve cannot develop it at any allowed slip --
+        # the wheel saturates at s_max and digs in, same physical outcome as demand >= h_max
+        # (audit M09: this band previously reported entrapped=False)
+        return s_max, True
+    lo, hi = 1e-6, s_max
+    for _ in range(60):
+        mid = 0.5 * (lo + hi)
+        if developed_thrust(mid, h_max, contact_len_m=contact_len_m, k_shear=k_shear) < demand_n:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi), False
+
+
+def compaction_resistance(sinkage_m: float, *, contact_width_m: float,
+                          k_c: float = K.K_C, k_phi: float = K.K_PHI,
+                          n: float = K.N_SINKAGE) -> float:
+    """Bekker compaction (motion) resistance [N] for a wheel sunk by ``sinkage_m``:
+    R_c = (b/(n+1)) * (k_c/b + k_phi) * z^(n+1). Grows with sinkage -> feeds the runaway."""
+    if sinkage_m <= 0.0:
+        return 0.0
+    b = contact_width_m
+    return (b / (n + 1.0)) * (k_c / b + k_phi) * sinkage_m ** (n + 1.0)
+
+
+def bekker_drive_power_w(*, mass_kg: float, g_ms2: float, slope_deg: float = 0.0, v_ms: float = 0.30,
+                         efficiency: float = 0.5, params: "tm.TerramechanicsParams | None" = None,
+                         n_wheels: int = K.N_WHEELS, contact_len_m: float = 0.10,
+                         contact_width_m: float = 0.18) -> dict:
+    """Fully-physical steady-drive electrical power from the Bekker motion resistance -- the rigorous
+    replacement for ipex_specs.lunar_drive_power_w's constant Crr. Solves the per-wheel slip-sinkage
+    equilibrium for the tractive DEMAND (along-slope gravity + Bekker compaction resistance R_c), then
+    P_elec = (n_wheels * demand_per_wheel) * v / efficiency. Gravity-aware (via weight), soil-aware (via
+    ``params``), slope-aware. Returns {drive_power_w, tractive_n, slip, sinkage_m, entrapped} so the
+    caller sees the regime: if entrapped, steady drive cannot proceed (the power figure is not meaningful).
+    CAVEAT: this is the soil COMPACTION resistance (Bekker R_c) + grade only -- a physical LOWER BOUND on
+    motion resistance; real rolling resistance adds bulldozing + hysteresis terms. So on firm flat regolith
+    it reads very low (~0.1 W); the truth is bracketed by this and ipex_specs.lunar_drive_power_w's
+    conservative constant-Crr estimate. Its real value is the slope/slip/entrapment dependence + soil/g
+    awareness that a constant Crr cannot express."""
+    weight_n = mass_kg * g_ms2
+    # |slope|: descent demands BRAKING traction of the same magnitude (audit L16: signed slope made
+    # downhill power negative)
+    eq = slip_sinkage_equilibrium(weight_n, math.radians(abs(slope_deg)), n_wheels=n_wheels,
+                                  contact_len_m=contact_len_m, contact_width_m=contact_width_m, params=params)
+    tractive_n = eq["demand_n"] * n_wheels
+    s = min(eq["slip"], 0.99)
+    # kinematic slip loss (audit M10): holding ground speed v at slip s spins the wheels 1/(1-s)
+    # faster, so the electrical draw scales by the same factor
+    return {"drive_power_w": tractive_n * v_ms / ((1.0 - s) * efficiency), "tractive_n": tractive_n,
+            "slip": eq["slip"], "sinkage_m": eq["sinkage_m"], "entrapped": eq["entrapped"]}
+
+
+def slip_sinkage_equilibrium(total_weight_n: float, slope_rad: float, *,
+                             n_wheels: int = K.N_WHEELS,
+                             contact_len_m: float = 0.10, contact_width_m: float = 0.18,
+                             params: "tm.TerramechanicsParams | None" = None,
+                             demand_frac: float = 1.0,
+                             s_entrap: float = 0.95, z_entrap_m: float | None = None,
+                             max_iter: int = 200, tol: float = 1e-7) -> dict:
+    """Per-wheel fixed-point slip-sinkage solve on a slope.
+
+    Iterates: demand = demand_frac*(along-slope gravity) + compaction_resistance(sinkage)
+    -> slip = slip_for_demand(demand, budget) -> sinkage = static * slip_multiplier(slip)
+    -> recompute resistance ... until the sinkage converges, or the loop diverges
+    (slip >= s_entrap, sinkage >= z_entrap, or demand >= budget) = the Spirit-mode runaway.
+
+    ``demand_frac`` < 1 models the operator backing off the commanded climb thrust
+    (the recovery lever). Returns {slip, sinkage_m, resistance_n, demand_n, budget_n,
+    entrapped, iters, static_sinkage_m}.
+    """
+    p = params or tm.TerramechanicsParams.from_constants()
+    normal = total_weight_n * math.cos(slope_rad) / n_wheels       # per-wheel normal load
+    along = total_weight_n * math.sin(slope_rad) / n_wheels        # per-wheel along-slope gravity
+    area = contact_len_m * contact_width_m
+    # [PROXY] default entrapment depth ~ a wheel diameter; 0.18 is the legacy contact-width-derived
+    # stand-in, decoupled from the flight wheel geometry (ipex_specs.WHEEL_DIAMETER_M = 0.305) --
+    # callers wanting flight geometry should pass z_entrap_m explicitly (audit L17, documented)
+    z_entrap = z_entrap_m if z_entrap_m is not None else 2.0 * 0.18
+    h_max = traction_budget(normal, cohesion=p.cohesion, phi_rad=p.phi_rad,
+                            contact_area_m2=area)
+    z_static = tm.wheel_static_sinkage(normal, params=p, contact_len_m=contact_len_m,
+                                       contact_width_m=contact_width_m)
+    sink = z_static
+    slip = 0.0
+    resistance = 0.0
+    demand = demand_frac * along
+    entrapped = False
+    iters = 0
+    for i in range(max_iter):
+        iters = i + 1
+        resistance = compaction_resistance(sink, contact_width_m=contact_width_m,
+                                           k_c=p.k_c, k_phi=p.k_phi, n=p.n_sinkage)
+        demand = demand_frac * along + resistance
+        slip, ent = slip_for_demand(demand, h_max, contact_len_m=contact_len_m,
+                                    k_shear=p.k_shear)
+        if ent:
+            entrapped = True
+            # report the RUNAWAY sinkage (the module's premise: entrapment = deeper sinkage); breaking
+            # with the near-static value under-reported the burial by ~14x (audit 2026-06-09)
+            sink = z_static * tm.slip_sinkage_multiplier(max(slip, s_entrap), c1=p.slip_c1, c2=p.slip_c2)
+            break
+        new_sink = z_static * tm.slip_sinkage_multiplier(slip, c1=p.slip_c1, c2=p.slip_c2)
+        if new_sink >= z_entrap or slip >= s_entrap:
+            entrapped = True
+            sink = new_sink
+            break
+        if abs(new_sink - sink) < tol:
+            sink = new_sink
+            break
+        sink = new_sink
+    return {
+        "slip": slip,
+        "sinkage_m": sink,
+        "static_sinkage_m": z_static,
+        "resistance_n": resistance,
+        "demand_n": demand,
+        "budget_n": h_max,
+        "entrapped": entrapped,
+        "iters": iters,
+    }

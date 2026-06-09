@@ -1,0 +1,36 @@
+{
+  "provenance": "MEASUREMENT_MODEL_SIM (real LOLA Haworth DEM + real dustgym slip; IMU/wheel = grounded sensor model)",
+  "imu_rate_hz": 100.0,
+  "wheel_rate_hz": 10.0,
+  "n_steps": 160,
+  "n_imu_samples": 32000,
+  "n_wheel_samples": 3200,
+  "path_length_m": 87.74,
+  "mean_slip": 0.0861,
+  "max_slip": 0.1227,
+  "baseline_wheel_imu_dead_reckoning": {
+    "ate_raw_same_frame_m": 4.632,
+    "ate_aligned_m": 2.015,
+    "final_pos_error_raw_m": 8.271,
+    "heading_err_deg": 0.32
+  },
+  "pose_graph_odom_only": {
+    "ate_raw_same_frame_m": 4.632,
+    "ate_aligned_m": 2.015,
+    "note": "no absolute cue -> smooths but does not reduce drift; P2/P4 cues are evaluated separately"
+  },
+  "reproducibility": {
+    "dustgym_commit": "22aaf15",
+    "solnav_commit": "420bbc9",
+    "param_sha256": "096da4dae83edfb68c504f48b4a969630be72972ee9e7f6bf69f42d794de9a71",
+    "dem_sha256": "7d13e9c376da950e230564b1f51a73f9f74069af3c1655b0e02ce612f10519d0",
+    "seed": 0,
+    "python": "3.11.2",
+    "numpy": "2.4.3"
+  },
+  "files": {
+    "imu.csv": "0fca76625c8cc15e544f4cdf91f46357725cbfb5123acaa8bb4fe39575f3123c",
+    "wheel_odom.csv": "2dcf192636ff2827dd3b34c8062a48eac4baaa345d3dd8d6c7e5d933931e2395",
+    "truth.csv": "222a8287470d121f8fd3ad9cbda4f49f07da49b4428e8d8a4cfe26c4ac627e8b"
+  }
+}

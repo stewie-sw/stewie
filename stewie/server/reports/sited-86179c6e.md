@@ -1,0 +1,25 @@
+# Lunar Build Mission Plan — sited
+
+**Body:** Moon · **Date:** 2026-06-03 · cut-fill balanced · sequence **nearest** optimizing **time**
+
+## Sequence
+| # | Trip | kind | Site (x,y) | Mass t | Duration | Energy (chg) |
+|---|------|------|-----------|--------|----------|--------------|
+| 1 | Excavate spoil: cut | dig | (0,0) | 0.69 | 16.5 h | 0.6 |
+
+## Material balance
+- cut **0.7 t** → fill **0.0 t** · surplus(spoil) 0.7 t · deficit(import) 0.0 t · sinter 0.00 t
+
+## Totals
+- Project time **16.5 h** (16 h) · moved **0.7 t** (23 drum loads)
+- Energy **2.9 MJ** = 0.6 charges (0 recharge stops) · drive 0.00 km
+- Survival/idle power **not modelled** (active legs only; set IDLE_POWER_W to include the continuous heater/avionics load, the likely-dominant multi-day term) **[ASSUMPTION]**
+- **0 drum cycles** (offload events); drum fill SENSED from motor current (no load cell, ICE-RASSOR NTRS 20210022781) -- known to ±2.6% when >half full, ±7.4% below; rover offloads at the upper confidence bound
+- Hauls **routed around hazards** on the real Haworth slope costmap (traverse cap 25°): **+0.0% detour** over straight lines
+- **Per-sortie range:** 32.1 km flat to reserve (35.6 km full pack, 30 h driving at 0.30 m/s); **23.9 km** slope+slip-adjusted at the work-area median 20° slope
+- One-charge reach on this DEM: **entire 7.1 km work area** within reach (~28% of the pack to the farthest point)
+- Power: **psr tower** — anytime (lander/tower budget; a PSR has no sun); charge 700 W (effective 700 W @ duty 1.00)
+- Timescale (Moon): **1 lunar day ≈ 29.5 Earth-days** (~354 h daylight) — a full-range 30 h sortie fits ~7× in the ~216–264 h sunlit window; range is not window-bound.
+- ConOps [SCHULER24, lunar IPEx]: **70 km traverse + 5–10 t excavated over 11 days** → driving ~9.4 MJ (~2.0 packs) vs digging ~21–42 MJ (~4–9 packs): **the drums dominate the energy budget** (recharged daily).
+
+_Grounded (bodies.json + ipex_specs + rassor_mass_model); sinter 0.92 MJ/kg; recharge 700 W + sinter-head 1000 W are [CALIB]._

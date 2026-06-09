@@ -4,11 +4,11 @@
   "evidence_mode": "RENDERED_SENSOR_SIM",
   "manifest": {
     "status": "PASS",
-    "checked_files": 8,
+    "checked_files": 11,
     "locked_validation_status": "NOT_ACQUIRED"
   },
   "g1": {
-    "status": "IMPLEMENTATION_PASS_RELEASE_BLOCKED",
+    "status": "SIM_BASELINE_LOCKED_REALWORLD_BLOCKED",
     "contract_checks": {
       "strict_runtime_schema": "PASS",
       "profile_checksum": "PASS",
@@ -18,9 +18,18 @@
       "camera_file_dimensions": "PASS",
       "frame_and_profile_validation": "PASS"
     },
+    "simulated_closure": {
+      "channels_via": "validation/g1_capture.py (grounded IMU/wheel model on real Haworth DEM + real dustgym slip)",
+      "imu_rate_hz": 100.0,
+      "wheel_rate_hz": 10.0,
+      "stereo": "NOT_INCLUDED",
+      "baseline_wheel_imu_ate_raw_m": 4.632,
+      "baseline_wheel_imu_ate_aligned_m": 2.015
+    },
     "blockers": [
-      "Dustgym camera egress explicitly reports IMU/wheel/joint/power channels UNAVAILABLE; the passive wheel/IMU/stereo baseline required by G1 is not reproducible yet.",
-      "No locked validation capture has been acquired; the manifest is frozen but empty."
+      "Native dustgym camera-egress publication of IMU/wheel/joint channels is still pending (solnav g1_capture.py supplies them for the SIMULATED case).",
+      "No REAL-WORLD locked capture (Katwijk download network-blocked here); G1 release stays blocked until a real run is scored vs DGPS (see katwijk_io.py + g1_imu_wheel_data_sources.md).",
+      "Synchronized stereo keyframes are not yet in the capture (sidecar renders local patches, not the traverse)."
     ]
   },
   "g2": {
@@ -46,8 +55,8 @@
     ]
   },
   "release_gate_summary": {
-    "G1": "NOT_PASSED",
+    "G1": "NOT_PASSED (SIMULATED baseline locked; real-world capture + stereo pending)",
     "G2": "NOT_PASSED",
-    "next_gate": "Acquire timestamped IMU/wheel data and untouched depth/shadow truth captures"
+    "next_gate": "Ingest a real Katwijk run (wheel+IMU+DGPS) via katwijk_io.py, add synchronized stereo, score solnav SLAM vs DGPS; acquire untouched depth/shadow truth"
   }
 }
