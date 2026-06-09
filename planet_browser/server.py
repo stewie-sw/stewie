@@ -38,6 +38,7 @@ from terrain_authority import config as CFG               # PO-02: configurable 
 from terrain_authority.io_fields import atomic_write_bytes  # PO-02/CT-04: atomic writes for profiles
 from . import adaptive_planner as ADP
 from . import autonomy as AUT
+from . import map_layers as MLY
 from . import mission_planner as MP
 from . import structures as ST
 
@@ -395,11 +396,41 @@ def get_figure(key: str):
     return FileResponse(p, media_type="image/png")
 
 
+def _sample_missions() -> dict:
+    """{name -> path} for the bundled intern sample missions (planet_browser/sample_missions/*.json)."""
+    import glob
+    d = os.path.join(HERE, "sample_missions")
+    return {os.path.splitext(os.path.basename(p))[0]: p for p in sorted(glob.glob(os.path.join(d, "*.json")))}
+
+
+@app.get("/sample_missions")
+def get_sample_missions():
+    """List the bundled intern sample missions; load one (into the build queue) via /sample_mission/{name}."""
+    return {"ok": True, "samples": [{"name": n, "url": "/sample_mission/" + n} for n in _sample_missions()]}
+
+
+@app.get("/sample_mission/{name}")
+def get_sample_mission(name: str):
+    """Serve a bundled sample mission by allowlisted name (only the names /sample_missions lists)."""
+    p = _sample_missions().get(name)
+    if not p:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no sample mission {name}"})
+    with open(p) as f:
+        return json.load(f)
+
+
 @app.get("/config")
 def get_config():
     """Runtime config overlay state (intern/dev pane): config_file + overrides + applied (PRD N15)."""
     from terrain_authority import config as _cfg
     return {"ok": True, **_cfg.describe()}
+
+
+@app.get("/layers")
+def get_layers():
+    """Selectable map layers for the navigation UI (load/unload): imagery, dem, topology, hazard,
+    excavation, lander. Vector layers (excavation, lander, zones) are filled per-mission by the client."""
+    return {"ok": True, "layers": MLY.layer_defs()}
 
 
 @app.get("/healthz")
@@ -486,6 +517,10 @@ def post_plan(req: PlanRequest, _auth: None = Depends(require_auth)):
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     return {
         "ok": True,
+        "mode": "DEM_KNOWN_POSE_MISSION_SIM",           # product boundary (known-pose mission sim, not SLAM)
+        # item 4: NEVER silently degrade to flat -- surface which terrain the plan actually used so the UI/report
+        # can warn when the real DEM is missing (routes/hazards are not trustworthy on the flat fallback).
+        "terrain_source": "haworth_dem" if dem is not None else "flat_fallback",
         "pdf": "/reports/" + os.path.basename(pdf),
         "md": "/reports/" + os.path.basename(md),
         "totals": _totals_json(totals),

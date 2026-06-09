@@ -207,6 +207,9 @@
         r<input id="kor" type="number" value="8" step="1" />m
         <button id="koadd" class="site">+ Obstacle</button></div>
       <ol id="kolist"></ol>
+      <div class="ctl" title="load a bundled intern tutorial mission into the queue">
+        Sample <select id="qsample"><option value="">— tutorial mission —</option></select>
+        <button id="qloadsample" class="site">Load</button></div>
       <button id="qplan" class="plan">Plan mission → open report</button>
       <button id="qexec" class="go" disabled>▶ Execute + watch</button>
       <div class="ctl" style="margin-top:7px">
@@ -223,6 +226,7 @@
       </div>
       <button id="qcompare" class="go">Compare algorithms ⇅</button>
       <div class="cap" style="margin-top:8px">PLAN VIEW <small>(local site frame, top-down) · click to set x,y</small></div>
+      <div id="layerpanel" class="cap" style="margin:4px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center">LAYERS</div>
       <canvas id="plancanvas" width="324" height="220" title="click to set the build x,y"></canvas>
       <div id="qstatus">queue empty</div>
       <table id="cmptable" style="display:none;width:100%;font-size:11px;border-collapse:collapse;margin-top:6px"></table>
@@ -601,6 +605,29 @@ function renderQueue() {
 }
 function addOrder(o) { ORDERS.push(o); renderQueue(); }
 
+// ---- LAYER SYSTEM: select / load / unload map overlays (imagery, dem, topology, hazard, excavation, lander) ----
+const LAYER_ON = { imagery: true, dem: true, topology: false, hazard: true, excavation: true, lander: true };
+let LANDER = { name: "Nova-C", x: 0, y: 0, footprint_m: 4.6, n_legs: 6 };   // delivery lander at the charger, drawn to-scale
+async function loadLayers() {
+  try {
+    const d = await (await fetch("/layers")).json();
+    const panel = qel("layerpanel"); if (!panel) return;
+    panel.innerHTML = "<b style=\"margin-right:4px\">LAYERS</b>";
+    d.layers.forEach((L) => {
+      LAYER_ON[L.id] = L.default;
+      const lab = document.createElement("label"); lab.style.cssText = "display:inline-flex;gap:3px;align-items:center;cursor:pointer";
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = L.default;
+      cb.onchange = () => { LAYER_ON[L.id] = cb.checked; applyLayerToggle(L.id, cb.checked); drawPlan(); };
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(L.name)); panel.appendChild(lab);
+    });
+  } catch (e) { /* serverless preview keeps the defaults */ }
+}
+function applyLayerToggle(id, on) {                          // load/unload the raster layers (vector layers redraw)
+  if (id === "dem") { const wa = qel("workarea"); if (wa) wa.style.display = on ? "" : "none"; }
+  if (id === "imagery" && window.viewer && viewer.imageryLayers && viewer.imageryLayers.length) viewer.imageryLayers.get(0).show = on;
+}
+loadLayers();
+
 // ---- PLAN VIEW: a top-down local-frame view of the queue (orders + keep-outs + charger) + click-to-place ----
 let _placeXY = null;                                       // last click-to-place marker (local metres)
 function _planExtent() {
@@ -619,16 +646,30 @@ function _planXform(cv, ext) {
   const ox = (W - s * (ext.x1 - ext.x0)) / 2, oy = (H - s * (ext.y1 - ext.y0)) / 2;
   return { s, ox, oy, X: (wx) => ox + (wx - ext.x0) * s, Y: (wy) => H - (oy + (wy - ext.y0) * s) };
 }
+let LAST_ROUTES = [];                                      // item 3: routes from the last /plan response, drawn on the 2D canvas
 function drawPlan() {
   const cv = qel("plancanvas"); if (!cv) return;
   const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
   ctx.clearRect(0, 0, W, H); ctx.fillStyle = "#05060c"; ctx.fillRect(0, 0, W, H);
   const ext = _planExtent(), tf = _planXform(cv, ext), X = tf.X, Y = tf.Y, s = tf.s;
-  KEEPOUTS.forEach((k) => {                                // keep-outs = red discs
+  if (LAYER_ON.hazard) KEEPOUTS.forEach((k) => {           // hazard layer: keep-outs = red discs
     ctx.fillStyle = "rgba(224,86,75,.22)"; ctx.strokeStyle = "#e0564b"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(X(k.x), Y(k.y), Math.max(2, k.r * s), 0, 7); ctx.fill(); ctx.stroke();
   });
-  ORDERS.forEach((o, i) => {                               // orders = cut (blue) / fill (orange) squares by footprint
+  LAST_ROUTES.forEach((rt) => {                            // item 3: planned terrain-following haul routes
+    const wp = rt.waypoints || [];
+    if (rt.reached && wp.length >= 2) {                    // routed leg -> green polyline through the waypoints
+      ctx.strokeStyle = "#3fa34d"; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(X(wp[0][0]), Y(wp[0][1]));
+      for (let i = 1; i < wp.length; i++) ctx.lineTo(X(wp[i][0]), Y(wp[i][1]));
+      ctx.stroke();
+    } else if (rt.from_xy && rt.to_xy) {                   // blocked leg -> red dashed (route NOT driven)
+      ctx.strokeStyle = "#e0564b"; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(X(rt.from_xy[0]), Y(rt.from_xy[1]));
+      ctx.lineTo(X(rt.to_xy[0]), Y(rt.to_xy[1])); ctx.stroke(); ctx.setLineDash([]);
+    }
+  });
+  if (LAYER_ON.excavation) ORDERS.forEach((o, i) => {      // excavation layer: cut (blue) / fill (orange) squares
     const half = Math.max(2, Math.sqrt(o.footprint_m2) / 2 * s);
     ctx.fillStyle = o.kind === "cut" ? "rgba(79,156,255,.30)" : "rgba(224,123,57,.30)";
     ctx.strokeStyle = o.kind === "cut" ? "#4f9cff" : "#e07b39"; ctx.lineWidth = 1;
@@ -638,6 +679,19 @@ function drawPlan() {
     ctx.fillText(String(i + 1), X(o.x), Y(o.y) + 3);
   });
   ctx.fillStyle = "#3fa34d"; ctx.fillRect(X(0) - 3, Y(0) - 3, 6, 6);   // charger
+  if (LAYER_ON.lander) {                                   // lander layer: TO-SCALE hexagon+legs at its location
+    const fr = Math.max(3, LANDER.footprint_m / 2 * s), lx = X(LANDER.x), ly = Y(LANDER.y);
+    ctx.strokeStyle = "#ffd166"; ctx.fillStyle = "rgba(255,209,102,.16)"; ctx.lineWidth = 1.4;
+    for (let k = 0; k < LANDER.n_legs; k++) {              // legs (slightly beyond the body footprint)
+      const a = Math.PI / 6 + k * 2 * Math.PI / LANDER.n_legs;
+      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + Math.cos(a) * fr * 1.3, ly + Math.sin(a) * fr * 1.3); ctx.stroke();
+    }
+    ctx.beginPath();                                        // hexagonal body, to true footprint
+    for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3, xx = lx + Math.cos(a) * fr, yy = ly + Math.sin(a) * fr; k ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#ffd166"; ctx.font = "8px system-ui"; ctx.textAlign = "center";
+    ctx.fillText(LANDER.name + " (" + LANDER.footprint_m + " m)", lx, ly - fr - 3);
+  }
   if (_placeXY) {                                          // the click-to-place crosshair
     ctx.strokeStyle = "#4f9cff"; ctx.lineWidth = 1; const cx = X(_placeXY.x), cy = Y(_placeXY.y);
     ctx.beginPath(); ctx.arc(cx, cy, 5, 0, 7); ctx.moveTo(cx - 8, cy); ctx.lineTo(cx + 8, cy);
@@ -695,6 +749,7 @@ qel("qplan").onclick = async () => {
     const j = await res.json();
     if (!j.ok) { setQ("error: " + j.error); return; }
     const t = j.totals;
+    LAST_ROUTES = t.routes || []; drawPlan();              // item 3: overlay the planned routes on the 2D canvas
     const v = j.validation || {};
     const vtag = (v.feasible ? " · ✓ authority-validated" : (v.mass_conserved !== undefined ? " · ⚠ infeasible" : ""))
       // P0 as-built acceptance: flatness of the executed surface measured on the REAL terrain (not a flat mantle)
@@ -850,6 +905,22 @@ function execDraw(tl, orders, ext, cv, simT) {
     ctx.fillRect(X(o.x) - half, Y(o.y) - half, half * 2, half * 2);
     ctx.strokeRect(X(o.x) - half, Y(o.y) - half, half * 2, half * 2);
   });
+  // item 3d: the planned terrain-following route(s), same geometry the 2D plan canvas shows (links the
+  // route into the playback view; routed = dashed green, blocked = dashed red). The rover marker below
+  // follows the time/energy timeline forecast.
+  LAST_ROUTES.forEach(rt => {
+    const wp = rt.waypoints || [];
+    if (rt.reached && wp.length >= 2) {
+      ctx.strokeStyle = "rgba(63,163,77,.5)"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(X(wp[0][0]), Y(wp[0][1]));
+      for (let i = 1; i < wp.length; i++) ctx.lineTo(X(wp[i][0]), Y(wp[i][1]));
+      ctx.stroke(); ctx.setLineDash([]);
+    } else if (rt.from_xy && rt.to_xy) {
+      ctx.strokeStyle = "rgba(224,86,75,.6)"; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(X(rt.from_xy[0]), Y(rt.from_xy[1])); ctx.lineTo(X(rt.to_xy[0]), Y(rt.to_xy[1]));
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+  });
   // driven route so far (solid) + remaining (faint)
   ctx.lineWidth = 1.5;
   tl.frames.forEach(f => {
@@ -993,6 +1064,25 @@ refreshProfiles();                                            // populate the sa
 senseDrum();
 
 window.addEventListener("resize", () => { if (viewer) viewer.resize(); });  // globe follows window size
+
+// item 5: populate the sample-mission dropdown + load a bundled tutorial mission into the queue
+fetch("/sample_missions").then(r => r.json()).then(j => {
+  if (!j || !j.ok) return;
+  const ss = qel("qsample");
+  j.samples.forEach(s => { const o = document.createElement("option"); o.value = s.name; o.textContent = s.name; ss.appendChild(o); });
+}).catch(() => {});
+qel("qloadsample").onclick = async () => {
+  const name = qel("qsample").value; if (!name) return;
+  try {
+    const m = await (await fetch("/sample_mission/" + name)).json();
+    ORDERS.length = 0; (m.orders || []).forEach(o => ORDERS.push(o));
+    KEEPOUTS.length = 0; (m.keepouts || []).forEach(k => KEEPOUTS.push(k));
+    LAST_ROUTES = [];
+    if (m.body) sel.value = m.body;
+    renderQueue(); renderKeepouts(); drawPlan();
+    setQ("loaded tutorial mission: " + name + " — press Plan mission");
+  } catch (e) { setQ("sample load failed: " + e); }
+};
 
 loadBody("moon"); estimate(); renderQueue(); renderKeepouts(); setView("plan");
 </script>
