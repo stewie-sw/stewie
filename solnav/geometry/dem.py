@@ -77,4 +77,7 @@ def register_to_dem(local_patch: np.ndarray, dem_patch: np.ndarray,
             rmse = float(np.sqrt(np.mean((dv - dv.mean()) ** 2)))
             if rmse < best[2]:
                 best = (dr, dc, rmse)
+    if not np.isfinite(best[2]):
+        raise ValueError("no registration candidate fit inside the DEM patch (patch too small for the "
+                         "search radius?) -- a silent (0,0) fix would be fabricated (audit M17)")
     return best

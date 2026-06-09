@@ -61,6 +61,9 @@ class ZoneRegistry:
         self._zones: list[DesignatedZone] = []
 
     def designate(self, x, y, radius_m, zone_type, label="", by="operator") -> DesignatedZone:
+        if not all(math.isfinite(float(v)) for v in (x, y, radius_m)) or float(radius_m) <= 0.0:
+            raise ValueError(f"zone needs finite x/y and radius_m > 0 (got {x},{y},r={radius_m}): a "
+                             "non-positive radius silently forbids nothing (audit M05)")
         z = DesignatedZone(float(x), float(y), float(radius_m), ZoneType(zone_type), label, by)
         self._zones.append(z)
         return z

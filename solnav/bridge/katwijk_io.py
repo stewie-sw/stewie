@@ -110,8 +110,10 @@ def load_katwijk_truth_xy(path: str, colmap: dict | None = None) -> np.ndarray:
         raise ValueError("empty DGPS file")
     header = rows[0][0]
     low = [h.strip().lower() for h in header]
-    has_en = any("easting" in h or h in ("x", "e") for h in low) and \
-        any("northing" in h or h in ("y", "n") for h in low)
+    # exact-match alias sets, SAME as _resolve (audit M13): the old substring predicate missed a
+    # valid 'east'/'north' header, mis-routing the file to the lat/lon branch -> spurious failure
+    has_en = any(h in ("easting", "east", "x", "e") for h in low) and \
+        any(h in ("northing", "north", "y", "n") for h in low)
     if has_en:
         idx = _resolve(header, ["easting", "northing"], colmap)
         return np.array([[float(r[idx["easting"]]), float(r[idx["northing"]])] for _, r in rows])

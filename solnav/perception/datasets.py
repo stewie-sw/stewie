@@ -118,7 +118,15 @@ def load_ai4mars_frame(root: str, base: str, *, split: str = "train", subsystem:
     DEM cross-analysis ride a stereo set (MER/MSL PDS). Real Mars imagery; labels are EVAL-only (I3)."""
     import cv2
     img = cv2.imread(os.path.join(root, subsystem, "images", "edr", base + ".JPG"))
-    lbl = cv2.imread(os.path.join(root, subsystem, "labels", split, base + ".png"), cv2.IMREAD_UNCHANGED)
+    if split == "test":
+        # the REAL dataset layout (verified): test gold labels live under
+        # labels/test/masked-gold-min3-100agree/<base>_merged.png -- labels/test/<base>.png never
+        # exists, so the test split was silently unreachable (audit L33)
+        lbl_path = os.path.join(root, subsystem, "labels", "test",
+                                "masked-gold-min3-100agree", base + "_merged.png")
+    else:
+        lbl_path = os.path.join(root, subsystem, "labels", split, base + ".png")
+    lbl = cv2.imread(lbl_path, cv2.IMREAD_UNCHANGED)
     if img is None or lbl is None:
         raise FileNotFoundError(f"AI4Mars frame {base!r} not found under {root}/{subsystem} (split={split})")
     labels = _mask_to_labels(lbl == 3, min_area_px=min_label_area_px)        # NAV class 3 = big rock

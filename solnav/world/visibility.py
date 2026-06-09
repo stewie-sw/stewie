@@ -39,7 +39,8 @@ def is_visible(dem, dem_origin, observer_xy, target_xy, *, observer_height_m: fl
     dist = math.hypot(tx - ox, ty - oy)
     if dist < cell:
         return True
-    n = max(2, int(dist / cell))
+    n = max(2, int(math.ceil(dist / cell)) + 1)   # step < cell so a thin (1-cell) occluder cannot be
+    # stepped over by the floor division (audit L22)
     for i in range(1, n):
         f = i / n
         xx, yy = ox + (tx - ox) * f, oy + (ty - oy) * f

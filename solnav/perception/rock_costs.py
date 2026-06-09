@@ -40,12 +40,14 @@ def rock_keepouts(rocks_world, *, hard_classes=HARD_CLASSES, margin_m: float = 0
     return out
 
 
-def traverse_cost(rocks_world, x: float, y: float, *, radius_m: float = 1.0) -> float:
+def traverse_cost(rocks_world, x: float, y: float, *, radius_m: float = 1.0,
+                  hard_classes=HARD_CLASSES) -> float:
     """Soft rock cost a planner adds for a cell at (x, y): sum of nav penalties of nearby non-hard rocks
-    (A/B/C). D/E are handled as keep-outs, not soft cost, so they're excluded here."""
+    (A/B/C). Hard classes are handled as keep-outs, not soft cost, so they're excluded here --
+    ``hard_classes`` must match the set passed to rock_keepouts or rocks double-count/vanish (audit M37)."""
     total = 0.0
     for rx, ry, rk in rocks_world:
-        if rk.nav_class in HARD_CLASSES:
+        if rk.nav_class in hard_classes:
             continue
         if (rx - x) ** 2 + (ry - y) ** 2 <= radius_m ** 2:
             total += nav_cost(rk.nav_class)

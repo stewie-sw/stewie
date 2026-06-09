@@ -51,8 +51,12 @@ class StereoVOConfig:
     min_disparity_px: float = 1.0
     reprojection_px: float = 2.0
     min_pnp_inliers: int = 12
+    reference_camera: str = "front_left"   # the frozen reference (I2); was read via __dict__ and
+    # silently defaulted because the field did not exist (audit L56)
 
     def __post_init__(self) -> None:
+        if self.reprojection_px <= 0 or self.min_pnp_inliers < 3:
+            raise ValueError("reprojection_px must be > 0 and min_pnp_inliers >= 3 (audit L54)")
         scale = np.asarray([self.fx_px, self.fy_px, self.baseline_m], dtype=float)
         if not np.all(np.isfinite(scale)) or np.any(scale <= 0.0):
             raise ValueError("fx, fy, and baseline must be finite and positive")
@@ -130,7 +134,7 @@ class StereoCloud:
 @dataclass(frozen=True)
 class VOResult:
     """Visual-odometry result over a frame sequence. ``relative_translations_m`` is a list of (3,)
-    inter-frame camera translations (metres, in the moving camera frame); ``relative_rotations`` the
+    inter-frame camera translations (metres, in the previous camera frame (audit L55: doc previously said 'moving')); ``relative_rotations`` the
     matching (3,3) rotations; ``trajectory_xyz_m`` (F,3) the accumulated camera centres starting at
     the origin; ``pnp_inliers`` the RANSAC inlier count per solve; ``stereo_point_counts`` the
     triangulated-point count per frame."""
@@ -218,7 +222,7 @@ def triangulate_stereo(
         keypoints_px=pl,
         descriptors=desL[qkeep],
         disparity_px=disparity,
-        reference_camera=config.__dict__.get("reference_camera", "front_left"),
+        reference_camera=config.reference_camera,
     )
 
 

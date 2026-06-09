@@ -45,6 +45,9 @@ def _controlled_p5_height(path: Path, sun_elevation_deg: float) -> float:
         gray = gray[..., :3].mean(axis=2)
     dark = gray < 0.5 * np.median(gray)
     rows, columns = np.where(dark)
+    if rows.size == 0:
+        raise ValueError("no shadow-dark pixels in the controlled frame; cannot measure the P5 height "
+                         "(audit M38: was an argmax-of-empty crash)")
     center = np.array([gray.shape[1] / 2.0, gray.shape[0] / 2.0])
     distances = np.hypot(columns - center[0], rows - center[1])
     tip = np.array([columns[int(np.argmax(distances))], rows[int(np.argmax(distances))]])
@@ -159,8 +162,11 @@ def validate() -> dict:
             "match_camera": depth.match_camera,
             "lr_consistent_fraction": float(depth.valid_mask.mean()),
             "lr_consistent_pixels": int(depth.valid_mask.sum()),
-            "median_depth_m": float(np.nanmedian(depth.depth_m)),
-            "median_sigma_depth_m": float(np.nanmedian(depth.sigma_depth_m)),
+            "median_depth_m": (float(np.nanmedian(depth.depth_m))
+                               if int(depth.valid_mask.sum()) else None),
+            "median_sigma_depth_m": (float(np.nanmedian(depth.sigma_depth_m))
+                                     if int(depth.valid_mask.sum()) else None),
+            # audit M39: with zero LR-consistent pixels nanmedian is bare NaN -> invalid JSON
             "covariance_calibrated": depth.covariance_calibrated,
             "shadow_image_frame": clean_shadow.coordinate_frame,
             "shadow_direction_periodicity_deg": clean_shadow.periodicity_deg,

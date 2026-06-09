@@ -32,7 +32,9 @@ def horizon_profile(dem, dem_origin, x, y, *, observer_height_m: float = 1.5, n_
     profile is NOT excavation-immune, which is its whole point (audit 2026-06-09)."""
     z = np.asarray(dem[0], dtype=float)
     cell = float(dem[1])
-    step = step_m if step_m else cell
+    step = cell if step_m is None else float(step_m)
+    if step <= 0:
+        raise ValueError(f"step_m must be > 0 (got {step_m}) (audit L31)")
     z0 = _height_at(z, cell, dem_origin, x, y)
     if z0 is None:
         return np.full(n_az, -math.pi / 2)

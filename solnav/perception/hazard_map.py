@@ -55,6 +55,9 @@ def build_hazard_map(dem, dem_origin=(0.0, 0.0), *, rocks_world=(), rock_mask=No
     cost += np.clip((slope - slope_hazard_deg) / 10.0, 0, None)        # steeper -> costlier
     cost += np.clip((rough - roughness_hazard_m) / 0.1, 0, None) * 0.5
     cost[slope >= max_slope_deg] = _HARD                                # no-go: too steep
+    cost[~np.isfinite(slope) | ~np.isfinite(rough)] = _HARD             # nodata = UNKNOWN -> no-go
+    # (NaN comparisons are all False, so nodata cells previously scored as FLAT/traversable -- a
+    # missed-obstacle false negative; audit M20)
     rock_cost = np.zeros((h, w), dtype=float)
     cell = layers["cell_m"]
     ox, oy = layers["origin"]

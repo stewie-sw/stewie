@@ -24,7 +24,11 @@ def estimate_rock(diameter_m: float, score: float, *, height_m: float | None = N
     src = "aspect_default"
     if height_m is not None:
         src = "stereo_or_dem"
-    if (gray is not None and m_per_px and sun_elevation_deg and 0 < sun_elevation_deg <= grazing_max_deg
+    # shadow sizing only FILLS A GAP: it is the documented honest-negative channel on renders, so it
+    # must never overwrite a VALIDATED stereo/DEM height (audit M33). Explicit None tests so 0.0
+    # values are not silently treated as missing (audit L37).
+    if (height_m is None and gray is not None and m_per_px is not None and m_per_px > 0
+            and sun_elevation_deg is not None and 0 < sun_elevation_deg <= grazing_max_deg
             and sun_azimuth_deg is not None and u is not None and v is not None):
         h, _ = shadow_height.estimate_height_m(gray, u, v, sun_azimuth_deg=sun_azimuth_deg,
                                                sun_elevation_deg=sun_elevation_deg, m_per_px=m_per_px)

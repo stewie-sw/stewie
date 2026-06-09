@@ -54,6 +54,10 @@ def trilaterate(known_points, ranges):
 def triangulation_residual_m(estimate_xy, centers, bearings_deg):
     """RMS perpendicular distance of the estimate to the N rays (a consistency residual)."""
     centers = np.asarray(centers, float); x = np.asarray(estimate_xy, float)
+    if len(centers) == 0:
+        raise ValueError("residual of an empty ray set is undefined (was a silent NaN; audit L39)")
+    if len(centers) != len(np.atleast_1d(bearings_deg)):
+        raise ValueError("centers and bearings must pair 1:1 (audit L39)")
     d2 = []
     for p, bd in zip(centers, np.radians(bearings_deg)):
         d = np.array([np.cos(bd), np.sin(bd)])

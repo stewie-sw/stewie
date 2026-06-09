@@ -40,7 +40,10 @@ def test_drape_to_3d_on_real_dem():
         return
     from planet_browser import mission_planner as MP
     dem = MP.load_haworth_dem()
-    p3 = PT.drape_path([(0, 0), (50, 10), (100, 20)], dem, MP.flattest_anchor(dem))
+    # corrected convention (audit M11): dem_origin is the WORLD coordinate of cell (0,0) and the
+    # path is in world metres -- the old +origin code treated origin as an additive offset
+    ox, oy = MP.flattest_anchor(dem)
+    p3 = PT.drape_path([(ox, oy), (ox + 50, oy + 10), (ox + 100, oy + 20)], dem, (0.0, 0.0))
     assert p3.shape == (3, 3) and np.all(np.isfinite(p3[:, 2]))   # 2D->3D: heights appended
 
 

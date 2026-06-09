@@ -19,6 +19,8 @@ def dem_layers(dem, dem_origin=(0.0, 0.0), *, rough_window: int = 5) -> dict:
     """Derive geometric layers from a prior DEM (Z [m], cell_m): per-cell slope (deg) and local roughness
     (windowed height std, high over blocky/rocky terrain). Real DEM derivatives."""
     z, cell = np.asarray(dem[0], dtype=float), float(dem[1])
+    if z.ndim != 2 or min(z.shape) < 2:
+        raise ValueError(f"DEM must be 2-D with >= 2 cells per axis (got {z.shape}) (audit L26)")
     gy, gx = np.gradient(z, cell)
     slope_deg = np.degrees(np.arctan(np.hypot(gx, gy)))
     mean = uniform_filter(z, rough_window)
@@ -42,6 +44,9 @@ def cross_analyze(obstacles_xy, layers: dict, *, observed_heights=None, slope_ha
     residual (the rover's observed surface protrudes above the prior by > the IPEx clearance). Returns
     one record per obstacle. Cross-validation = imagery detection x DEM geometry -> cut FPs, keep TPs."""
     cell, origin = layers["cell_m"], layers["origin"]
+    if observed_heights is not None and len(observed_heights) != len(obstacles_xy):
+        raise ValueError(f"observed_heights ({len(observed_heights)}) must pair 1:1 with obstacles "
+                         f"({len(obstacles_xy)}) (audit L27)")
     out = []
     for i, ob in enumerate(obstacles_xy):
         x, y = float(ob[0]), float(ob[1])

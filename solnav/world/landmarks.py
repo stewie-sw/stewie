@@ -44,6 +44,9 @@ def extract_persistent_landmarks(dem, dem_origin=(0.0, 0.0), *, neighborhood_m: 
     # peak); prominence measured at the larger neighborhood scale (the immutability scale).
     peak_win = max(3, int(round(min(neighborhood_m / 4.0, 75.0) / cell)) | 1)
     big_win = max(3, int(round(neighborhood_m / cell)) | 1)
+    if peak_win >= big_win:
+        raise ValueError(f"neighborhood_m={neighborhood_m} too small for cell={cell} m: the peak window "
+                         f"({peak_win}) must be smaller than the prominence window ({big_win}) (audit L05)")
     locmax = (z == maximum_filter(z, size=peak_win))
     prominence = z - minimum_filter(z, size=big_win)
     # a real crest must also RISE above its surroundings -- otherwise FLAT ground beside a deep pit
@@ -53,11 +56,20 @@ def extract_persistent_landmarks(dem, dem_origin=(0.0, 0.0), *, neighborhood_m: 
     rises = z >= median_filter(z, size=peak_win) + 0.1 * min_prominence_m
     rs, cs = np.where(locmax & (prominence >= min_prominence_m) & rises)
     cand = sorted(((float(prominence[r, c]), int(r), int(c)) for r, c in zip(rs, cs)), reverse=True)
-    out = []
+    out: list[Landmark] = []
+    kept_rc: list = []
     immut = neighborhood_m >= immutable_scale_m
-    for i, (prom, r, c) in enumerate(cand[:max_landmarks]):
-        out.append(Landmark(id=i, x=c * cell + ox, y=r * cell + oy, z=float(z[r, c]),
+    half = max(1, peak_win // 2)
+    for prom, r, c in cand:
+        # plateau/ridge de-dup (audit M02): a flat-topped crest ties many cells; keep one landmark
+        # per peak window (greedy non-max suppression in prominence order)
+        if any(abs(r - kr) <= half and abs(c - kc) <= half for kr, kc in kept_rc):
+            continue
+        kept_rc.append((r, c))
+        out.append(Landmark(id=len(out), x=c * cell + ox, y=r * cell + oy, z=float(z[r, c]),
                             kind="rim/peak", immutable=immut, prominence_m=prom, scale_m=neighborhood_m))
+        if len(out) >= max_landmarks:
+            break
     return out
 
 

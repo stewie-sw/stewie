@@ -30,6 +30,13 @@ try:                                                    # the size gate is the p
 except Exception:                                       # noqa: BLE001 -- dustgym absent
     IPEX_CLEARANCE_M = 0.075                             # [SCHULER24] IPEx clears 7.5 cm obstacles
 
+# OPERATIONAL avoid line = 7 cm (0.5 cm margin under the physical 7.5 cm clearance), matching
+# rock_taxonomy.AVOID_THRESHOLD_M -- the raw clearance as the default gate had ZERO margin and
+# desynchronized the two avoid decisions (audit L60). NOTE (audit L59): the gate compares the blob
+# DIAMETER against a HEIGHT clearance -- CONSERVATIVE for typical half-buried boulders (h ~ 0.6 d,
+# so diameter > height): it flags more, never less.
+AVOID_GATE_M = 0.07
+
 
 @dataclass(frozen=True)
 class SizedObstacle:
@@ -61,7 +68,7 @@ def _depth_at(cloud, u: float, v: float, radius_px: float):
     return (zn, 0) if zn > 0 else (None, 0)
 
 
-def size_obstacles(detections, cloud, fx_px: float, *, clearance_m: float = IPEX_CLEARANCE_M,
+def size_obstacles(detections, cloud, fx_px: float, *, clearance_m: float = AVOID_GATE_M,
                    min_stereo_support: int = 0) -> list:
     """Per-detection metric size (diameter = 2 * r_px * Z / fx) + the traversability gate. With
     min_stereo_support > 0, drop detections without that many matched 3D points on them (cuts flat
@@ -78,7 +85,7 @@ def size_obstacles(detections, cloud, fx_px: float, *, clearance_m: float = IPEX
 
 
 def classify(image_left: np.ndarray, image_right: np.ndarray, *, hfov_deg: float = 73.99,
-             baseline_m: float = 0.07, clearance_m: float = IPEX_CLEARANCE_M,
+             baseline_m: float = 0.07, clearance_m: float = AVOID_GATE_M,
              min_stereo_support: int = 0) -> list:
     """Detect -> stereo-size -> size-gate, on a REAL stereo pair. Returns [SizedObstacle]. Set
     min_stereo_support > 0 to require stereo evidence (cuts flat false positives)."""

@@ -20,6 +20,19 @@ from dataclasses import dataclass
 from ..config import SystemProfile, load_profile
 
 
+def _opt_rate(value):
+    """None/absent stays None -- EXPLICITLY unavailable (audit M51/M52): the old `or 0.0`/.get(...,0.0)
+    coerced missing physical rates to an impossible 0.0 that silently poisoned downstream consumers.
+    Consumers must check for None before using these fields."""
+    if value is None:
+        return None
+    v = float(value)
+    if v <= 0.0:
+        raise ValueError(f"physical rate must be > 0 if declared (got {value!r})")
+    return v
+
+
+
 @dataclass(frozen=True)
 class IPExSpecs:
     profile_id: str = "DUSTGYM_IPEX_V1"
@@ -56,13 +69,14 @@ class IPExSpecs:
     led_beam_fwhm_deg: float = 42.0       # [SPEC]
     baseline_original_m: float = 0.165    # split-shoulder design before combining [SPEC]
 
-    # Cameras / IMU  [SPEC]
+    # Cameras / IMU  [SPEC]  (bare-default rates below are the LAC-twin render profile; the canonical
+    # loader OVERRIDES them from the profile -- audit L68: do not read bare defaults as authoritative)
     n_cameras: int = 8
     max_live_cameras: int = 4
     cam_max_res_wh: tuple = (2448, 2048)
     render_hz: float = 10.0
     sim_hz: float = 20.0
-    imu_hz: float = 20.0
+    imu_hz: float | None = 20.0
 
     # Stereo / intrinsics  [SPEC: from a real LAC-twin sensors.json render]
     stereo_baseline_m: float = 0.07       # front stereo, measured 0.0700 m
@@ -74,8 +88,8 @@ class IPExSpecs:
     fiducial_free_bonus_pts: int = 150
 
     # Energy  [SPEC: dustgym ipex_specs from SCHULER24 + 12S/44V/30Ah pack]
-    drive_j_per_m: float = 135.0
-    dig_j_per_kg: float = 4151.0
+    drive_j_per_m: float | None = 135.0
+    dig_j_per_kg: float | None = 4151.0
     pack_wh: float = 1332.0
 
     # Mapping / scoring envelope  [SPEC: LAC]
@@ -115,11 +129,11 @@ class IPExSpecs:
             cam_max_res_wh=tuple(optics["maximum_resolution_px"]),
             render_hz=float(selected.data["timing"]["camera_hz"]),
             sim_hz=1.0 / float(selected.data["timing"]["drive_dt_s"]),
-            imu_hz=float(selected.data["timing"]["imu_hz"] or 0.0),
+            imu_hz=_opt_rate(selected.data["timing"].get("imu_hz")),
             stereo_baseline_m=float(selected.data["stereo"]["front"]["baseline_m"]),
             fx_px=float(optics["fx_px"]),
-            drive_j_per_m=float(energy.get("drive_j_per_m", 0.0)),
-            dig_j_per_kg=float(energy.get("dig_j_per_kg", 0.0)),
+            drive_j_per_m=_opt_rate(energy.get("drive_j_per_m")),
+            dig_j_per_kg=_opt_rate(energy.get("dig_j_per_kg")),
             pack_wh=float(energy["capacity_wh"]),
             map_area_m=float(mapping["area_m"]),
             map_grid_cells=int(mapping["grid_cells"]),

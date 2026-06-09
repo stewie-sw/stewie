@@ -17,9 +17,12 @@ def drape_path(path_xy, dem, dem_origin=(0.0, 0.0)) -> np.ndarray:
     ox, oy = dem_origin
     out = []
     for x, y in path_xy:
-        r = int(np.clip((y + oy) / cell, 0, z.shape[0] - 1))
-        c = int(np.clip((x + ox) / cell, 0, z.shape[1] - 1))
-        out.append((float(x), float(y), float(z[r, c])))
+        # world->cell uses MINUS origin (the +origin here was the same latent sign bug fixed in
+        # hazard_map); off-DEM points get NaN height instead of a clamped-edge LIE (audit M11)
+        r = int(round((y - oy) / cell))
+        c = int(round((x - ox) / cell))
+        hgt = float(z[r, c]) if (0 <= r < z.shape[0] and 0 <= c < z.shape[1]) else float("nan")
+        out.append((float(x), float(y), hgt))
     return np.array(out)
 
 

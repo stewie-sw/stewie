@@ -63,6 +63,9 @@ def body_odometry_from_encoders(sample, track_m: float, dt: float):
 
 
 def dead_reckon_error_fraction(wheel: list, true_xy) -> float:
+    if len(wheel) < 2 or len(np.atleast_2d(true_xy)) < 2:
+        raise ValueError("dead-reckon error needs >= 2 samples (a fabricated 100% on empty input "
+                         "would poison any aggregate; audit M16)")
     """|odom_distance - true_distance| / true_distance from a list of WheelOdomSamples. The MER
     design-goal band puts loose-soil dead reckoning near 0.10 (a contextual check, not a soil law)."""
     true_xy = np.asarray(true_xy, float)

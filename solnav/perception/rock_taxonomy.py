@@ -103,8 +103,14 @@ def from_detection_px(box_xyxy, score: float, m_per_px: float, *, shadow_length_
     """Build a Rock from a detector box on a calibrated image. Diameter = larger box side * m_per_px;
     height from the shadow (if a shadow length + solar elevation are given) else aspect-default."""
     x0, y0, x1, y1 = box_xyxy
+    if x1 <= x0 or y1 <= y0 or m_per_px <= 0:
+        raise ValueError(f"degenerate detection box {box_xyxy} / m_per_px={m_per_px} -- a reversed box "
+                         "would silently bin as a tiny traversable rock (audit L24)")
     diameter_m = max(x1 - x0, y1 - y0) * m_per_px
     h_m, src = None, "aspect_default"
-    if shadow_length_px is not None and sun_elevation_deg:
+    # explicit None/positivity tests (audit L23) + a ZERO-length shadow means NO shadow was found --
+    # falling through to the aspect default instead of a meaningless 0 m "shadow" height (audit M18)
+    if shadow_length_px is not None and shadow_length_px > 0 and \
+            sun_elevation_deg is not None and sun_elevation_deg > 0:
         h_m = shadow_height_m(shadow_length_px * m_per_px, sun_elevation_deg); src = "shadow"
     return classify(diameter_m, height_m=h_m, confidence=score, height_source=src)

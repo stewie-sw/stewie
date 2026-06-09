@@ -138,6 +138,19 @@ def read_sensors(sensors_json_path: str, *, validate_images: bool = True) -> Sen
     leaked = sorted(_FORBIDDEN_RUNTIME_KEYS.intersection(data))
     if leaked:
         raise PacketValidationError(f"runtime packet contains evaluation-only keys: {leaked}")
+
+    def _scan(node, path=""):
+        # NESTED exact-key truth scan (audit L70): the top-level-only check let a truth key ride in any
+        # sub-dict. Exact key names (not substrings) so legitimate values are never false-rejected.
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k in _FORBIDDEN_RUNTIME_KEYS:
+                    raise PacketValidationError(f"evaluation-only key {k!r} nested at {path or '<root>'}")
+                _scan(v, f"{path}.{k}" if path else k)
+        elif isinstance(node, list):
+            for j, v in enumerate(node):
+                _scan(v, f"{path}[{j}]")
+    _scan(data)
     if data.get("provenance") != "RUNTIME_SENSOR":
         raise PacketValidationError("runtime packet provenance must be RUNTIME_SENSOR")
     if data.get("frame_convention") != "godot":
@@ -183,7 +196,7 @@ def read_sensors(sensors_json_path: str, *, validate_images: bool = True) -> Sen
         fy = _positive(_required(intrinsics, "fy", name), f"{name}.fy")
         cx = _finite(_required(intrinsics, "cx", name), f"{name}.cx")
         cy = _finite(_required(intrinsics, "cy", name), f"{name}.cy")
-        if width <= 0 or height <= 0 or not (0.0 <= cx <= width) or not (0.0 <= cy <= height):
+        if width <= 0 or height <= 0 or not (0.0 <= cx < width) or not (0.0 <= cy < height):
             raise PacketValidationError(f"{name} has invalid image dimensions or principal point")
         camera_timestamp = _finite(_required(source, "timestamp_s", name), f"{name}.timestamp_s")
         if not math.isclose(camera_timestamp, timestamp_s, abs_tol=1e-9):

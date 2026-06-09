@@ -61,6 +61,8 @@ def parse_canonical(packet: dict) -> dict:
             raise ValueError("camera status OK but no frames")
         for f in frames:                      # strict frame allow-list: a novel (truth) key cannot ride in
             _allowed(f, _FRAME_KEYS, "camera frame")
+            if "t" not in f or "name" not in f:
+                raise ValueError("camera frame missing required 't'/'name' (audit L02)")
         # PER-CAMERA strict monotonicity: a stereo pair shares a keyframe timestamp (NOT a duplicate),
         # but a single camera must not repeat or go backwards.
         by_cam: dict = {}

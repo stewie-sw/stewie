@@ -50,9 +50,14 @@ def triangulate_landmark_height(cam_h1_m: float, depression1_deg: float,
     Returns (landmark_height_m, horizontal_distance_m). Raising the camera (meerkat) widens
     the height baseline (h1 - h2) and tightens the estimate."""
     t1, t2 = np.tan(np.radians(depression1_deg)), np.tan(np.radians(depression2_deg))
-    if abs(t1 - t2) < 1e-9:
-        raise ValueError("equal depressions (no vertical parallax); cannot triangulate")
+    if abs(t1 - t2) < 1e-3:
+        # aligned with triangulation_height_sigma_m's guard (audit M43): below this the sigma is
+        # unbounded, so a "solution" would be numerically meaningless
+        raise ValueError("near-equal depressions (no vertical parallax); cannot triangulate")
     D = (cam_h1_m - cam_h2_m) / (t1 - t2)
+    if D <= 0.0:
+        raise ValueError(f"inconsistent observation pair (negative range {D:.2f} m): the higher camera "
+                         "must see the landmark at the steeper depression (audit M42)")
     H = cam_h1_m - D * t1
     return float(H), float(D)
 
