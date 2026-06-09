@@ -1,0 +1,22 @@
+# STEWIE backend — FastAPI mission planner + physics authority (atomic plan B1.1)
+FROM python:3.12-slim AS base
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
+    DUSTGYM_DATA_DIR=/data
+WORKDIR /app
+# import-time deps for the server graph (RB-06): fastapi/uvicorn/matplotlib/pyproj via the extra
+COPY pyproject.toml README.md ./
+COPY stewie ./stewie
+COPY dart ./dart
+COPY lode ./lode
+COPY leap ./leap
+COPY forge ./forge
+COPY dustgym ./dustgym
+COPY samples ./samples
+COPY validation ./validation
+RUN pip install --no-cache-dir ".[server]" && useradd -r -u 10001 stewie \
+ && mkdir -p /data && chown -R stewie /data
+USER stewie
+EXPOSE 8770
+HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=4 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8770/healthz', timeout=2).status==200 else 1)"
+CMD ["python", "-m", "uvicorn", "stewie.server.server:app", "--host", "0.0.0.0", "--port", "8770", "--workers", "1"]

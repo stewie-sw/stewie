@@ -1,0 +1,20 @@
+# STEWIE production deployment — `docker compose -f deploy/compose.yml up -d`
+# Frontend on :8000 (UI + proxy), backend internal. Reports persist in the stewie-data volume.
+name: stewie
+services:
+  backend:
+    build: { context: .., dockerfile: deploy/Dockerfile.backend, network: host }
+    environment:
+      DUSTGYM_API_KEY: ${DUSTGYM_API_KEY:-}          # set to require auth on mutating routes
+      DUSTGYM_CORS_ORIGINS: ${DUSTGYM_CORS_ORIGINS:-}
+      DUSTGYM_REPORTS_TTL_S: ${DUSTGYM_REPORTS_TTL_S:-604800}
+    volumes: [ "stewie-data:/data" ]
+    restart: unless-stopped
+  frontend:
+    build: { context: .., dockerfile: deploy/Dockerfile.frontend, network: host }
+    ports: [ "8000:80" ]
+    depends_on:
+      backend: { condition: service_healthy }
+    restart: unless-stopped
+volumes:
+  stewie-data:
