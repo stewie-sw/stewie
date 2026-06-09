@@ -62,7 +62,8 @@ def _check_units(declared, expected, ctx):
 
 
 def parse_proprioception(packet: dict, *, sync_tolerance_s: float = 1.0,
-                         now_s: float | None = None, max_age_s: float = 1.0) -> dict:
+                         now_s: float | None = None, max_age_s: float = 1.0,
+                         expected_profile: str | None = None) -> dict:
     if not str(packet.get("schema_version", "")).startswith("proprioception/"):
         raise ValueError("not a proprioception packet")
     _allowed(packet, _TOP, "packet")
@@ -129,6 +130,11 @@ def parse_proprioception(packet: dict, *, sync_tolerance_s: float = 1.0,
                 sample_ids=tuple(x.get("sample_ids", ())),
                 config_revision=str(cw.get("config_revision", ""))))
         _check_units(cw.get("units"), _WHEEL_UNITS, "wheel")
+        rev = str(cw.get("config_revision", ""))                  # profile/calibration identity (A5 req 2)
+        if not rev:
+            raise ValueError("wheel channel (status OK) missing config_revision (calibration identity)")
+        if expected_profile is not None and rev != expected_profile:
+            raise ValueError(f"wheel calibration profile mismatch: expected '{expected_profile}', got '{rev}'")
     else:
         if cw.get("samples"):
             raise ValueError("wheel UNAVAILABLE but carries samples")
@@ -137,9 +143,24 @@ def parse_proprioception(packet: dict, *, sync_tolerance_s: float = 1.0,
     for name in ("joints", "power"):
         c = chans.get(name, {})
         _allowed(c, _CHAN_KEYS, f"{name} channel")
-        if c.get("status") == "OK" and not c.get("samples"):
-            raise ValueError(f"{name} status OK without payload")
-        if c.get("status") != "OK":
+        if c.get("status") == "OK":
+            js = c.get("samples") or []
+            if not js:
+                raise ValueError(f"{name} status OK without payload")
+            # generic envelope validation (the specific field schema arrives with the A4 producer):
+            # finite strictly-monotonic timestamp on every sample + finite numeric leaves.
+            if not all("t" in x for x in js):
+                raise ValueError(f"{name} sample missing timestamp")
+            _monotonic([x["t"] for x in js], name)
+            for x in js:
+                for k, v in x.items():
+                    if isinstance(v, bool):
+                        continue
+                    if isinstance(v, (int, float)) or (
+                            isinstance(v, (list, tuple)) and v
+                            and all(isinstance(e, (int, float)) and not isinstance(e, bool) for e in v)):
+                        _finite(v, f"{name}.{k}")
+        else:
             out["unavailable"].append(name)
 
     # cross-channel synchronization tolerance (A5 req 4: enforce, do not silently resample). Samples are

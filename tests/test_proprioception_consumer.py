@@ -152,12 +152,46 @@ def test_rejects_desynchronized_channels():
                    {"t": 0.0, "gyro_z": 0.0, "accel_xy": [0, 0]},
                    {"t": 0.04, "gyro_z": 0.0, "accel_xy": [0, 0]}]},
                "wheel": {"status": "OK", "units": wu, "order": ["LF", "RF", "LR", "RR"],
-                         "wheel_radius_m": 0.15, "encoder_counts_per_rev": 4096, "samples": [
+                         "wheel_radius_m": 0.15, "encoder_counts_per_rev": 4096, "config_revision": "rev0",
+                         "samples": [
                              {"t": 100.0, "encoder_delta_rad": [0, 0, 0, 0],
                               "encoder_count_delta": [0, 0, 0, 0], "covariance": cov},
                              {"t": 100.2, "encoder_delta_rad": [0, 0, 0, 0],
                               "encoder_count_delta": [0, 0, 0, 0], "covariance": cov}]}}}
     with pytest.raises(ValueError, match="unsynchronized"):
+        pio.parse_proprioception(pkt)
+
+
+def _wheel_ok_packet(config_revision="rev0"):
+    wu = {"encoder_delta": "rad", "encoder_count_delta": "count", "covariance": "rad^2"}
+    cov = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+    ch = {"status": "OK", "units": wu, "order": ["LF", "RF", "LR", "RR"], "wheel_radius_m": 0.15,
+          "encoder_counts_per_rev": 4096, "samples": [
+              {"t": 0.0, "encoder_delta_rad": [0, 0, 0, 0], "encoder_count_delta": [0, 0, 0, 0],
+               "covariance": cov}]}
+    if config_revision is not None:
+        ch["config_revision"] = config_revision
+    return {"schema_version": "proprioception/1.1", "clock": "x", "sequence_id": 0,
+            "channels": {"imu": {"status": "UNAVAILABLE"}, "wheel": ch}}
+
+
+def test_rejects_wheel_missing_config_revision():
+    with pytest.raises(ValueError, match="config_revision"):
+        pio.parse_proprioception(_wheel_ok_packet(config_revision=None))
+
+
+def test_calibration_profile_identity_match_and_mismatch():
+    pio.parse_proprioception(_wheel_ok_packet("rev7"), expected_profile="rev7")     # match -> OK
+    with pytest.raises(ValueError, match="calibration profile mismatch"):
+        pio.parse_proprioception(_wheel_ok_packet("rev7"), expected_profile="rev9")  # mismatch -> reject
+
+
+def test_rejects_joint_payload_non_finite():
+    # joints OK with a non-finite leaf -> reject (generic envelope validation; specific schema awaits A4)
+    pkt = {"schema_version": "proprioception/1.1", "clock": "x", "sequence_id": 0,
+           "channels": {"imu": {"status": "UNAVAILABLE"}, "wheel": {"status": "UNAVAILABLE"},
+                        "joints": {"status": "OK", "samples": [{"t": 0.0, "angle_rad": float("inf")}]}}}
+    with pytest.raises(ValueError, match="non-finite"):
         pio.parse_proprioception(pkt)
 
 
