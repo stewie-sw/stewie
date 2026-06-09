@@ -276,6 +276,7 @@ def fbm_global(world_x0: float, world_y0: float, n: int, cell_m: float, *,
 
     total = np.zeros((n, n), dtype=np.float64)
     amp = 1.0
+    amp2_sum = 0.0
     wavelength = float(base_wavelength_m)
     for o in range(int(octaves)):
         if callable(H):
@@ -287,14 +288,23 @@ def fbm_global(world_x0: float, world_y0: float, n: int, cell_m: float, *,
                                     octave=o, base_cell_class=base_cell_class,
                                     world_seed=world_seed)
         # Center each octave's value noise (value noise is in [0,1); subtract its node-fair
-        # midpoint 0.5 so octaves are zero-mean before the variance anchor) -> mean-stable.
+        # midpoint 0.5 so octaves are zero-mean ANALYTICALLY) -> mean-stable.
         total += amp * (noise - 0.5)
+        amp2_sum += amp * amp
         amp *= gain
         wavelength /= lacunarity
 
-    # Variance anchor (NOT min-max renorm): remove the sample mean and scale to target std.
-    total -= total.mean()
-    std = float(total.std())
-    if std > 0.0:
-        total *= (np.sqrt(nu0) / std)
+    # Variance anchor with WINDOW-INDEPENDENT statistics (audit 2026-06-09, CRIT): the previous
+    # per-window sample mean/std made the SAME world point take DIFFERENT values in different
+    # windows, breaking the load-bearing seam + cross-resolution determinism contract (visible
+    # tile-boundary seams in dem_overlay). The field is analytically zero-mean (octaves are
+    # centred), and its expected variance is amp2_sum * KAPPA where KAPPA is a constant of the
+    # smoothstep-bilinear value-noise kernel: per-axis E[s^2 + (1-s)^2] = 26/35 for
+    # s(u) = 3u^2 - 2u^3 over uniform u, axes separable, node variance 1/12 ->
+    # KAPPA = (26/35)^2 / 12. The anchor now holds IN EXPECTATION (E[std] = sqrt(nu0)) --
+    # exact per-window std anchoring is fundamentally incompatible with window-independence.
+    kappa = (26.0 / 35.0) ** 2 / 12.0
+    var_total = amp2_sum * kappa
+    if var_total > 0.0:
+        total *= np.sqrt(nu0 / var_total)
     return total

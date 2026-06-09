@@ -308,8 +308,10 @@ class TileMosaic:
                 tile = self._generate_fine_tile(tr, tc)
             self._touch(tr, tc, tile)
 
-        # Bound the resident set to the budget (LRU drop of the oldest beyond the budget).
-        self._enforce_budget()
+        # Bound the resident set to the budget (LRU drop of the oldest beyond the budget) --
+        # PROTECTING the wanted disc: the just-materialized under-rover tiles were the FIRST
+        # evicted when wanted > budget, silently returning a partial disc (audit 2026-06-09).
+        self._enforce_budget(protect=set(wanted))
 
         # Build the ascending-id Tile list for the tiles under the rover (scan order).
         present = sorted([t for t in wanted if t in self._resident])
@@ -317,11 +319,21 @@ class TileMosaic:
 
     # -- bounded / evictable resident set (L0 §0.3) ------------------------
 
-    def _enforce_budget(self) -> None:
-        """Drop least-recently-used resident tiles until within ``max_resident_tiles``."""
+    def _enforce_budget(self, protect: set | None = None) -> None:
+        """Drop least-recently-used resident tiles until within ``max_resident_tiles``, never
+        evicting ``protect`` (the live wanted disc). If the protected set alone exceeds the
+        budget, raise -- a budget too small for the requested radius is a configuration error,
+        not licence to silently drop tiles under the rover (audit 2026-06-09)."""
+        protect = protect or set()
+        if len(protect) > self.max_resident_tiles:
+            raise ValueError(f"max_resident_tiles={self.max_resident_tiles} cannot hold the "
+                             f"{len(protect)}-tile wanted disc; raise the budget or shrink radius_m")
         while len(self._resident) > self.max_resident_tiles:
-            old_key, old_tile = self._resident.popitem(last=False)  # LRU front
-            self._page_out(old_key, old_tile)
+            victim = next((k for k in self._resident if k not in protect), None)
+            if victim is None:
+                break
+            old_tile = self._resident.pop(victim)
+            self._page_out(victim, old_tile)
 
     def _page_out(self, key: tuple[int, int], tile: FineTile) -> None:
         """Page a fine tile to disk (if page_dir set) so a re-entry can load it; else drop."""

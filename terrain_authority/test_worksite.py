@@ -52,7 +52,10 @@ def test_residual_sensitive_in_first_window():
     s = _site()
     s.recenter(_xy(s, 1101, 1101))
     assert s.worked_store == {}                              # first window: store still empty
-    assert s.conservation_residual() == 0.0                  # no work yet -> genuinely zero
+    # ULP tolerance (audit 2026-06-09): the baseline is accumulated per-tile while total_mass()
+    # sums the copied window, so they can differ by one float ULP (~2e-16 relative) -- the module's
+    # own conservation gate is < 1e-6 * baseline, not exact equality.
+    assert s.conservation_residual() < 1e-9 * s._baseline_virgin_kg
     s.fine.mass_areal[0, 0] += 9999.0 / s.fine.cell_area     # inject a known 9999 kg leak
     assert abs(s.conservation_residual() - 9999.0) < 1e-3    # detected, not masked
 

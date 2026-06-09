@@ -152,3 +152,15 @@ def test_emplaced_density_obeys_equilibrium_cap():
         # Poisson overshoot tolerance: 1 crater quantum over the area + 25% (the module's own tol).
         tol = cap * 0.25 + 1.0 / area
         assert emplaced_cum <= cap + tol
+
+
+def test_fbm_global_overlap_windows_agree_exactly():
+    # audit 2026-06-09 (CRIT): per-window mean/std normalization gave the SAME world point DIFFERENT
+    # values in different windows (tile seams). Two offset windows must now agree bit-exactly on
+    # their overlap, and the variance anchor holds in expectation.
+    import numpy as np
+    from terrain_authority import procgen_seed as ps
+    a = ps.fbm_global(0.0, 0.0, 64, 0.5, nu0=0.04, world_seed=7)
+    b = ps.fbm_global(16.0, 8.0, 64, 0.5, nu0=0.04, world_seed=7)   # +32 cols, +16 rows
+    np.testing.assert_array_equal(a[16:, 32:], b[:-16, :-32])        # bit-exact on the overlap
+    assert 0.5 * np.sqrt(0.04) < a.std() < 2.0 * np.sqrt(0.04)       # anchor in expectation

@@ -180,7 +180,15 @@ class WorkSite:
         into our own ``ColumnState`` (so mutations are isolated — the returned ``Tile.cs`` may
         alias or copy depending on dtype/contiguity). SLICE: one contiguous tile that fully
         contains the work envelope, so the cross-seam relaxation gap (G1) never fires.
+
+        ENTRY-PATH GUARD (audit 2026-06-09): open_window is the SINGLE-WINDOW entry; once the
+        streaming path (recenter) has anchored ``_baseline_virgin_kg``, replacing the window
+        here desynchronizes that cumulative baseline and conservation_residual reports a huge
+        phantom drift -- so mixing the paths is refused.
         """
+        if getattr(self, "_baseline_virgin_kg", 0.0):
+            raise RuntimeError("open_window() after recenter(): the streaming conservation "
+                               "baseline is active; keep using recenter() (audit 2026-06-09)")
         rover_xy = self.base_rc_to_xy(base_rc)
         tiles = self.mosaic.ensure_fine(rover_xy, radius_m)
         if not tiles:

@@ -104,7 +104,12 @@ class Sandpile:
         max_ang = 0.0
         for (dr, dc), run in zip(self.neighbors, self._runs):
             h2 = np.roll(np.roll(height, -dr, axis=0), -dc, axis=1)
-            valid = self._shift_valid(dr, dc) & mask
+            mask2 = np.roll(np.roll(mask, -dr, axis=0), -dc, axis=1)
+            # consistent with relax_step (loose SOURCE -> loose DESTINATION): the rest check
+            # previously counted loose->non-loose drops the toppling rule cannot act on, so
+            # relax_to_rest either spun or "rested" violating its own post-condition (audit
+            # 2026-06-09). Loose->non-loose toppling is NOT modeled (documented limitation).
+            valid = self._shift_valid(dr, dc) & mask & mask2
             drop = np.where(valid, height - h2, 0.0)
             ang = np.arctan2(np.maximum(drop, 0.0), run)
             m = float(ang.max()) if ang.size else 0.0
