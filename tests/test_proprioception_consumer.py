@@ -110,3 +110,64 @@ def test_rejects_unknown_key_allowlist():
                "wheel": {"status": "UNAVAILABLE"}}}
     with pytest.raises(ValueError, match="allow-list"):
         pio.parse_proprioception(pkt)
+
+
+def test_rejects_unit_mismatch():
+    # valid samples but WRONG declared units -> reject (A5 acceptance: unit-mismatched fixture fails)
+    pkt = {"schema_version": "proprioception/1.0", "clock": "x", "sequence_id": 0,
+           "channels": {"imu": {"status": "OK", "units": {"gyro_z": "deg/s", "accel_xy": "m/s^2"},
+                                 "samples": [{"t": 0.0, "gyro_z": 0.0, "accel_xy": [0, 0]}]},
+                        "wheel": {"status": "UNAVAILABLE"}}}
+    with pytest.raises(ValueError, match="unit mismatch"):
+        pio.parse_proprioception(pkt)
+
+
+def test_rejects_missing_units_when_ok():
+    pkt = {"schema_version": "proprioception/1.0", "clock": "x", "sequence_id": 0,
+           "channels": {"imu": {"status": "OK",
+                                 "samples": [{"t": 0.0, "gyro_z": 0.0, "accel_xy": [0, 0]}]},
+                        "wheel": {"status": "UNAVAILABLE"}}}
+    with pytest.raises(ValueError, match="missing the required units"):
+        pio.parse_proprioception(pkt)
+
+
+def test_rejects_out_of_order_timestamps():
+    pkt = {"schema_version": "proprioception/1.0", "clock": "x", "sequence_id": 0,
+           "channels": {"imu": {"status": "OK", "units": {"gyro_z": "rad/s", "accel_xy": "m/s^2"},
+                                 "samples": [{"t": 1.0, "gyro_z": 0.0, "accel_xy": [0, 0]},
+                                             {"t": 0.5, "gyro_z": 0.0, "accel_xy": [0, 0]}]},
+                        "wheel": {"status": "UNAVAILABLE"}}}
+    with pytest.raises(ValueError, match="monotonic"):
+        pio.parse_proprioception(pkt)
+
+
+def test_rejects_desynchronized_channels():
+    # imu window [0,0.04], wheel window [100,100.2] -> disjoint beyond tolerance (no silent resampling)
+    iu = {"gyro_z": "rad/s", "accel_xy": "m/s^2"}
+    wu = {"encoder_delta": "rad", "encoder_count_delta": "count", "covariance": "rad^2"}
+    cov = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+    pkt = {"schema_version": "proprioception/1.1", "clock": "x", "sequence_id": 0,
+           "channels": {
+               "imu": {"status": "OK", "units": iu, "samples": [
+                   {"t": 0.0, "gyro_z": 0.0, "accel_xy": [0, 0]},
+                   {"t": 0.04, "gyro_z": 0.0, "accel_xy": [0, 0]}]},
+               "wheel": {"status": "OK", "units": wu, "order": ["LF", "RF", "LR", "RR"],
+                         "wheel_radius_m": 0.15, "encoder_counts_per_rev": 4096, "samples": [
+                             {"t": 100.0, "encoder_delta_rad": [0, 0, 0, 0],
+                              "encoder_count_delta": [0, 0, 0, 0], "covariance": cov},
+                             {"t": 100.2, "encoder_delta_rad": [0, 0, 0, 0],
+                              "encoder_count_delta": [0, 0, 0, 0], "covariance": cov}]}}}
+    with pytest.raises(ValueError, match="unsynchronized"):
+        pio.parse_proprioception(pkt)
+
+
+def test_rejects_stale_channel_against_clock():
+    # freshest imu sample at t=0.04 but the consumer clock is at t=100 -> stale, reject (no extrapolation)
+    pkt = {"schema_version": "proprioception/1.0", "clock": "x", "sequence_id": 0,
+           "channels": {"imu": {"status": "OK", "units": {"gyro_z": "rad/s", "accel_xy": "m/s^2"},
+                                 "samples": [{"t": 0.0, "gyro_z": 0.0, "accel_xy": [0, 0]},
+                                             {"t": 0.04, "gyro_z": 0.0, "accel_xy": [0, 0]}]},
+                        "wheel": {"status": "UNAVAILABLE"}}}
+    pio.parse_proprioception(pkt)                                   # no now_s -> staleness not enforced
+    with pytest.raises(ValueError, match="stale"):
+        pio.parse_proprioception(pkt, now_s=100.0, max_age_s=1.0)   # consumer clock far ahead -> reject

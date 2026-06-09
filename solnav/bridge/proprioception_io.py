@@ -28,6 +28,10 @@ _CHAN_KEYS = {"status", "reason", "rate_hz", "units", "samples", "order", "prove
 _IMU_SAMPLE_KEYS = {"t", "gyro_z", "accel_xy", "gyro_var", "accel_var"}
 _WHEEL_SAMPLE_KEYS = {"t", "encoder_delta_rad", "encoder_count_delta", "covariance", "sample_ids"}
 
+# Required SI unit identities per channel (A5 req 2: validate units; reject unit-mismatched fixtures).
+_IMU_UNITS = {"gyro_z": "rad/s", "accel_xy": "m/s^2"}
+_WHEEL_UNITS = {"encoder_delta": "rad", "encoder_count_delta": "count", "covariance": "rad^2"}
+
 
 def _monotonic(ts, name):
     a = np.asarray(ts, float)
@@ -48,7 +52,17 @@ def _allowed(keys, allow, ctx):
         raise ValueError(f"unexpected key(s) {sorted(extra)} in {ctx} (allow-list/I3 violation)")
 
 
-def parse_proprioception(packet: dict) -> dict:
+def _check_units(declared, expected, ctx):
+    if not declared:
+        raise ValueError(f"{ctx} channel (status OK) is missing the required units declaration")
+    for k, want in expected.items():
+        got = declared.get(k)
+        if got != want:
+            raise ValueError(f"{ctx} unit mismatch for '{k}': expected '{want}', got {got!r}")
+
+
+def parse_proprioception(packet: dict, *, sync_tolerance_s: float = 1.0,
+                         now_s: float | None = None, max_age_s: float = 1.0) -> dict:
     if not str(packet.get("schema_version", "")).startswith("proprioception/"):
         raise ValueError("not a proprioception packet")
     _allowed(packet, _TOP, "packet")
@@ -75,6 +89,7 @@ def parse_proprioception(packet: dict) -> dict:
             accel_xy_mps2=_finite(x["accel_xy"], "imu.accel_xy"),
             gyro_var=_finite(x.get("gyro_var", 0.0), "imu.gyro_var").item(),
             accel_var=_finite(x.get("accel_var", 0.0), "imu.accel_var").item()) for x in s]
+        _check_units(ci.get("units"), _IMU_UNITS, "imu")
     else:
         if ci.get("samples"):
             raise ValueError("imu UNAVAILABLE but carries samples")
@@ -113,6 +128,7 @@ def parse_proprioception(packet: dict) -> dict:
                 wheel_radius_m=float(wr), encoder_counts_per_rev=int(cpr),
                 sample_ids=tuple(x.get("sample_ids", ())),
                 config_revision=str(cw.get("config_revision", ""))))
+        _check_units(cw.get("units"), _WHEEL_UNITS, "wheel")
     else:
         if cw.get("samples"):
             raise ValueError("wheel UNAVAILABLE but carries samples")
@@ -125,4 +141,25 @@ def parse_proprioception(packet: dict) -> dict:
             raise ValueError(f"{name} status OK without payload")
         if c.get("status") != "OK":
             out["unavailable"].append(name)
+
+    # cross-channel synchronization tolerance (A5 req 4: enforce, do not silently resample). Samples are
+    # monotonic, so first/last are the window bounds; reject if the imu and wheel windows are disjoint
+    # beyond tolerance.
+    if out["imu"] and out["wheel"]:
+        i0, i1 = out["imu"][0].t, out["imu"][-1].t
+        w0, w1 = out["wheel"][0].t, out["wheel"][-1].t
+        gap = max(0.0, max(i0, w0) - min(i1, w1))
+        if gap > sync_tolerance_s:
+            raise ValueError(f"imu/wheel windows unsynchronized: {gap:.3f}s gap exceeds "
+                             f"{sync_tolerance_s}s tolerance (no silent resampling)")
+
+    # staleness: against the consumer's runtime clock, the freshest sample must be recent enough
+    # (reject rather than extrapolate stale data). Only enforced when the caller supplies now_s.
+    if now_s is not None:
+        for chan in ("imu", "wheel"):
+            if out[chan]:
+                age = now_s - out[chan][-1].t
+                if age > max_age_s:
+                    raise ValueError(f"{chan} channel is stale: freshest sample is {age:.3f}s old "
+                                     f"(> {max_age_s}s); reject (no extrapolation)")
     return out
