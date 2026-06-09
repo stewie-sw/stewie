@@ -42,3 +42,12 @@ def test_drape_to_3d_on_real_dem():
     dem = MP.load_haworth_dem()
     p3 = PT.drape_path([(0, 0), (50, 10), (100, 20)], dem, MP.flattest_anchor(dem))
     assert p3.shape == (3, 3) and np.all(np.isfinite(p3[:, 2]))   # 2D->3D: heights appended
+
+
+def test_cross_track_deviation_empty_inputs_no_crash():
+    # audit 2026-06-09: empty actual crashed with IndexError on [:, :2]
+    from solnav.perception.path_track import cross_track_deviation
+    dev, mean, mx = cross_track_deviation([(0, 0), (1, 0)], [])
+    assert len(dev) == 0 and mean == 0.0 and mx == 0.0
+    dev2, _, _ = cross_track_deviation([], [(0, 0)])
+    assert len(dev2) == 0

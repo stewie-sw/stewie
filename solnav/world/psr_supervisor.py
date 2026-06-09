@@ -32,7 +32,9 @@ ACTIVE_FACTORS = {
 def sun_above_local_horizon(dem, dem_origin, observer_xy, sun_az_deg: float, sun_el_deg: float,
                             **kw) -> bool:
     """Is the Sun above the terrain crest in its azimuth at this pose? Uses the horizon profile -- inside
-    a deep PSR the crater wall crest is high, so the Sun (grazing) is occluded."""
+    a deep PSR the crater wall crest is high, so the Sun (grazing) is occluded. AZIMUTH DATUM: math
+    convention, CCW from +x/world-East -- identical to horizon_profile's marching convention (verified
+    consistent, audit 2026-06-09). Convert compass azimuth (CW from North) before calling."""
     if sun_el_deg <= 0:
         return False
     prof = horizon.horizon_profile(dem, dem_origin, observer_xy[0], observer_xy[1], **kw)

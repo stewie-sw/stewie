@@ -7,14 +7,16 @@ and image GSD. Where the sun is known and grazing this can beat stereo (it works
 no disparity). Developed against the faithful dustgym grazing-sun renders (known sun + known clast height);
 applies to real NAC/descent imagery where the solar geometry is in the metadata. No synthetic data.
 
-VALIDATION STATUS (honest, definitive): the formula H = L*tan(e) is correct geometry, but the 1-D ray-walk
-MEASUREMENT does NOT recover per-rock height. Per-clast checks on faithful renders (projection verified
-correct): Pearson r(est, true) ~ -0.13 (sun 6 deg), -0.22 (isolated), -0.01 (sun 25 deg) -- NO correlation
-at any sun angle, so it is NOT a grazing-sun shadow-merging artifact; the ray simply does not isolate a
-rock's cast shadow (it counts ambient/terrain darkness). The real fix is a 2-D SHADOW SEGMENTATION
-sub-project (segment rock + its shadow blob, measure the blob's anti-solar extent), and likely better
-shadow contrast in the render. Until then estimate_height_m is a REGIME cue only, NOT a calibrated height;
-the VALIDATED size sources are stereo (obstacle_map) and DEM residual (dem_cross).
+VALIDATION STATUS (honest, definitive): the formula H = L*tan(e) is correct geometry, but per-rock height
+could NOT be validated on the dustgym renders by ANY measurement tried -- 1-D ray-walk, 2-D mask
+segmentation (masking.detect_shadow_mask), clear-shadow-path filtering, at sun 6 deg AND 25 deg: Pearson
+r(est, true) stays ~ -0.1..-0.2 (no correlation), and the empirically recovered shadow azimuth is UNSTABLE
+across methods (220/270/310 deg). That instability is the tell: the rendered shadow signal is too weak /
+inconsistent relative to terrain darkness for per-rock recovery -- a RENDER/DATA limitation, not just the
+algorithm. Conclusion: the method needs imagery with strong, clean grazing-sun shadow contrast (real
+ShadowCam PSR / NAC at known low sun), not these renders. Until validated on such data, estimate_height_m
+is a REGIME cue only, NOT a calibrated height; the VALIDATED size sources are stereo (obstacle_map) and
+DEM residual (dem_cross).
 """
 from __future__ import annotations
 

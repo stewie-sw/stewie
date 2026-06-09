@@ -44,13 +44,16 @@ def class_pixel_fraction(label_mask: np.ndarray, class_id: int) -> float:
 def detect_shadow_mask(gray_image: np.ndarray, rel_threshold: float = 0.35) -> np.ndarray:
     """Self-supervised shadow mask for eval mode (no semantic labels).
 
-    Marks pixels darker than rel_threshold * (robust max intensity) as shadow.
-    Uses the 99th percentile as the robust bright reference to resist hot pixels.
+    Marks pixels darker than rel_threshold * (robust bright reference) as shadow. The bright reference
+    is the mean of the top-0.1% intensity tail: it resists isolated hot pixels AND stays anchored on the
+    sunlit pixels even when sunlit coverage is <1% (the grazing-sun polar regime this detector exists
+    for) -- the previous 99th-percentile reference sat on a SHADOW pixel there and inverted the mask
+    (audit 2026-06-09). Regime limit: below ~0.1% sunlit coverage the reference is dark again.
     Returns a boolean (H,W) mask. Real CV; threshold is a documented parameter."""
     g = gray_image.astype(np.float32)
     if g.ndim == 3:
         g = g[..., :3].mean(axis=2)   # drop alpha if present
-    bright = np.percentile(g, 99.0)
+    bright = float(g[g >= np.percentile(g, 99.9)].mean())
     if bright <= 0:
         return np.zeros(g.shape, dtype=bool)
     return g < (rel_threshold * bright)

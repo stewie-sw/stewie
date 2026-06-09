@@ -32,6 +32,9 @@ def _point_segment_dist(pt, a, b) -> float:
 def cross_track_deviation(planned, actual):
     """Per-actual-point perpendicular distance to the planned POLYLINE (point-to-segment cross-track
     error, not point-to-vertex). Returns (dev, mean, max)."""
+    if len(planned) == 0 or len(actual) == 0:        # empty traverse -> no deviation (no crash)
+        z = np.zeros(0)
+        return z, 0.0, 0.0
     p = np.asarray(planned, dtype=float)[:, :2]
     a = np.asarray(actual, dtype=float)[:, :2]
     if len(p) >= 2:

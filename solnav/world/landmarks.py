@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.ndimage import maximum_filter, minimum_filter
+from scipy.ndimage import maximum_filter, median_filter, minimum_filter
 
 
 @dataclass(frozen=True)
@@ -46,7 +46,12 @@ def extract_persistent_landmarks(dem, dem_origin=(0.0, 0.0), *, neighborhood_m: 
     big_win = max(3, int(round(neighborhood_m / cell)) | 1)
     locmax = (z == maximum_filter(z, size=peak_win))
     prominence = z - minimum_filter(z, size=big_win)
-    rs, cs = np.where(locmax & (prominence >= min_prominence_m))
+    # a real crest must also RISE above its surroundings -- otherwise FLAT ground beside a deep pit
+    # ties maximum_filter and "prominence" merely measures the pit's depth, minting a bogus anchor on
+    # featureless terrain (audit 2026-06-09). The MEDIAN is robust to the pit pulling the window down:
+    # flat pit-edge cells sit AT their window median (excluded); true crests rise above it.
+    rises = z >= median_filter(z, size=peak_win) + 0.1 * min_prominence_m
+    rs, cs = np.where(locmax & (prominence >= min_prominence_m) & rises)
     cand = sorted(((float(prominence[r, c]), int(r), int(c)) for r, c in zip(rs, cs)), reverse=True)
     out = []
     immut = neighborhood_m >= immutable_scale_m

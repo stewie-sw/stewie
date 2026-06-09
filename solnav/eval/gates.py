@@ -25,8 +25,8 @@ def _sha256(path: Path) -> str:
 def _verify_manifest() -> dict:
     manifest = json.loads(MANIFEST.read_text())
     checked = 0
-    for split in ("development", "locked_validation", "stress"):
-        for scene in manifest[split]:
+    for split in ("development", "locked_validation", "simulated_locked", "stress"):
+        for scene in manifest.get(split, []):
             for relative, expected in scene["files"].items():
                 actual = _sha256(ROOT / relative)
                 if actual != expected:
@@ -97,11 +97,36 @@ def validate() -> dict:
     p5_e30 = _controlled_p5_height(FIXTURE / "p5_post_e30.png", 30.0)
     p5_e50 = _controlled_p5_height(FIXTURE / "p5_post_e50.png", 50.0)
 
-    g1_blockers = [
-        "Dustgym camera egress explicitly reports IMU/wheel/joint/power channels UNAVAILABLE; "
-        "the passive wheel/IMU/stereo baseline required by G1 is not reproducible yet.",
-        "No locked validation capture has been acquired; the manifest is frozen but empty.",
-    ]
+    # G1: incorporate the simulated locked baseline capture if it has been produced.
+    g1_capture = ROOT / "validation" / "g1_capture" / "g1_capture_result.json"
+    g1_status = "IMPLEMENTATION_PASS_RELEASE_BLOCKED"
+    g1_simulated_closure = None
+    if g1_capture.exists():
+        cap = json.loads(g1_capture.read_text())
+        base = cap["baseline_wheel_imu_dead_reckoning"]
+        g1_status = "SIM_BASELINE_LOCKED_REALWORLD_BLOCKED"
+        g1_simulated_closure = {
+            "channels_via": "validation/g1_capture.py (grounded IMU/wheel model on real Haworth DEM + real dustgym slip)",
+            "imu_rate_hz": cap["imu_rate_hz"],
+            "wheel_rate_hz": cap["wheel_rate_hz"],
+            "stereo": "NOT_INCLUDED",
+            "baseline_wheel_imu_ate_raw_m": base["ate_raw_same_frame_m"],
+            "baseline_wheel_imu_ate_aligned_m": base["ate_aligned_m"],
+        }
+        g1_blockers = [
+            "Native dustgym camera-egress publication of IMU/wheel/joint channels is still pending "
+            "(solnav g1_capture.py supplies them for the SIMULATED case).",
+            "No REAL-WORLD locked capture (Katwijk download network-blocked here); G1 release stays "
+            "blocked until a real run is scored vs DGPS (see katwijk_io.py + g1_imu_wheel_data_sources.md).",
+            "Synchronized stereo keyframes are not yet in the capture (sidecar renders local patches, "
+            "not the traverse).",
+        ]
+    else:
+        g1_blockers = [
+            "Dustgym camera egress explicitly reports IMU/wheel/joint/power channels UNAVAILABLE; "
+            "the passive wheel/IMU/stereo baseline required by G1 is not reproducible yet.",
+            "No locked validation capture has been acquired; the manifest is frozen but empty.",
+        ]
     g2_blockers = [
         "No independent per-pixel depth truth exists for the committed stereo capture.",
         "Disparity/shadow/solar covariance has not been calibrated on development scenes and "
@@ -115,7 +140,7 @@ def validate() -> dict:
         "evidence_mode": "RENDERED_SENSOR_SIM",
         "manifest": manifest,
         "g1": {
-            "status": "IMPLEMENTATION_PASS_RELEASE_BLOCKED",
+            "status": g1_status,
             "contract_checks": {
                 "strict_runtime_schema": "PASS",
                 "profile_checksum": "PASS",
@@ -125,6 +150,7 @@ def validate() -> dict:
                 "camera_file_dimensions": "PASS",
                 "frame_and_profile_validation": "PASS",
             },
+            "simulated_closure": g1_simulated_closure,
             "blockers": g1_blockers,
         },
         "g2": {
@@ -143,8 +169,10 @@ def validate() -> dict:
             "blockers": g2_blockers,
         },
         "release_gate_summary": {
-            "G1": "NOT_PASSED",
+            "G1": ("NOT_PASSED (SIMULATED baseline locked; real-world capture + stereo pending)"
+                   if g1_simulated_closure else "NOT_PASSED"),
             "G2": "NOT_PASSED",
-            "next_gate": "Acquire timestamped IMU/wheel data and untouched depth/shadow truth captures",
+            "next_gate": "Ingest a real Katwijk run (wheel+IMU+DGPS) via katwijk_io.py, add synchronized "
+                         "stereo, score solnav SLAM vs DGPS; acquire untouched depth/shadow truth",
         },
     }

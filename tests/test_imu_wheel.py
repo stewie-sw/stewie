@@ -31,3 +31,18 @@ def test_dead_reckon_error_fraction_overread():
 def test_parsed_types_have_no_slip_field_I3():
     assert "slip" not in vars(_wheel([1, 1, 1, 1]))
     assert "slip" not in vars(iw.WheelOdomSample(t=0.0, v_mps=0.3, omega_rps=0.0))
+
+
+def test_body_odometry_rejects_zero_dt_and_track():
+    # audit 2026-06-09: unguarded division emitted Inf/NaN into the estimator input
+    import numpy as _np
+    import pytest as _pt
+
+    from solnav.sensors.imu_wheel import WheelSample, body_odometry_from_encoders
+    w = WheelSample(t=0.0, encoder_delta_rad=_np.zeros(4), encoder_count_delta=_np.zeros(4, int),
+                    covariance=_np.eye(4), wheel_radius_m=0.15, encoder_counts_per_rev=4096,
+                    sample_ids=(), config_revision="rev0")
+    with _pt.raises(ValueError, match="refusing"):
+        body_odometry_from_encoders(w, 0.5207, 0.0)
+    with _pt.raises(ValueError, match="refusing"):
+        body_odometry_from_encoders(w, 0.0, 0.1)

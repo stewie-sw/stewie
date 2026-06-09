@@ -7,7 +7,8 @@
             fabricated; [CONFIRM] values are sourced estimates pending the
             authoritative geometry page.
 
-Sources: ~/Downloads/IPEx_Rover_Architecture_DigitalTwin_Reference.md;
+Sources: ../../../references/technical/IPEx_Rover_Architecture_DigitalTwin_Reference.md
+(relative to the SolNav repository root in the canonical research workspace);
 NTRS 20240008162 (TRL-5), 20210025846 (bucket-drum scaling); dustgym ipex_specs.py
 (energy); and a real LAC-twin sensors.json (intrinsics, stereo baseline, sun).
 At integration, reconcile with dustgym.ipex_specs rather than duplicating.

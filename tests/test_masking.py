@@ -57,3 +57,16 @@ def test_overlay_returns_rgb():
     m = np.zeros((8, 8), dtype=bool); m[0, 0] = True
     out = masking.overlay(img, m)
     assert out.shape == (8, 8, 3) and out.dtype == np.uint8
+
+
+def test_detect_shadow_mask_mostly_shadowed_scene():
+    # audit 2026-06-09: with <1% sunlit pixels the p99 bright reference sat ON a shadow pixel and
+    # inverted the mask -- exactly the grazing-sun polar regime this detector exists for
+    import numpy as np
+
+    from solnav.perception import masking as MK
+    img = np.full((100, 100), 10.0, dtype=np.float32)           # 99.5% deep shadow
+    img[:5, :10] = 200.0                                        # 0.5% sunlit strip
+    m = MK.detect_shadow_mask(img, rel_threshold=0.35)
+    assert m.mean() > 0.9                                       # the shadowed majority IS marked shadow
+    assert not m[:5, :10].any()                                 # the sunlit strip is NOT

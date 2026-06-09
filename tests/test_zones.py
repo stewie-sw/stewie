@@ -55,3 +55,13 @@ def test_zones_force_nogo_in_hazard_map():
     hm = HM.build_hazard_map(sub, (0.0, 0.0), zones=reg)
     assert hm.meta["n_nogo_zones"] == 1
     assert not np.isfinite(hm.cost[hm.world_to_rc(450, 250)])   # the zone is a hard no-go in the map
+
+
+def test_zone_gates_fail_closed_on_nan():
+    # audit 2026-06-09: hypot(NaN) compared False against every radius -> gates failed OPEN
+    reg = Z.ZoneRegistry()
+    reg.designate(0, 0, 5, "no_go", "crevasse")
+    with pytest.raises(Z.ZoneViolation, match="non-finite"):
+        reg.check_traverse(float("nan"), 0.0)
+    with pytest.raises(Z.ZoneViolation, match="non-finite"):
+        reg.check_excavation(0.0, float("inf"), 1.0)

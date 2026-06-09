@@ -89,8 +89,11 @@ class WorldModel:
         cc = np.arange(w)[None, :]
         for e in self.events:
             r0, c0 = self.world_to_rc(e.x, e.y)
-            rad_c = max(1, e.radius_m / self.cell)
-            mask = (rr - r0) ** 2 + (cc - c0) ** 2 <= rad_c ** 2
+            # exact radius in cells -- the old max(1, ...) floor painted a sub-cell event over a 5-cell
+            # plus-shape, so reconcile_observation never converged (each pass re-painted neighbours and
+            # spawned compensating events; audit 2026-06-09). radius < ~0.7 cell -> the centre cell only.
+            rad_c = e.radius_m / self.cell
+            mask = (rr - r0) ** 2 + (cc - c0) ** 2 <= max(rad_c, 0.5) ** 2
             d[mask] += e.dheight_m
         return d
 
@@ -114,12 +117,15 @@ class WorldModel:
         sig = np.abs(resid) >= min_dheight_m
         if sig.any():
             rs, cs = np.where(sig)
-            # coarse: one event per significant cell (a real pipeline clusters; kept simple + honest)
+            # one event per significant cell, with an AREA-EQUIVALENT radius (pi*r^2 = cell^2 ->
+            # r = cell/sqrt(pi) ~ 0.56 cell) so delta_field paints exactly that one cell and the volume
+            # is cell^2*|dh| -- making reconcile IDEMPOTENT (a second pass logs nothing; audit 2026-06-09)
+            r_event = self.cell / math.sqrt(math.pi)
             for r, c in zip(rs[::1], cs[::1]):
                 x = c * self.cell + self.origin[0]
                 y = r * self.cell + self.origin[1]
                 dh = float(resid[r, c])
-                new.append(self.add_event(x, y, self.cell, dh, t_s=t_s, robot_id=robot_id,
+                new.append(self.add_event(x, y, r_event, dh, t_s=t_s, robot_id=robot_id,
                                           kind="fill" if dh > 0 else "cut"))
         return new
 

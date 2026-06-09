@@ -79,14 +79,16 @@ class BreadcrumbTrail:
         i = int(np.argmax(sims))
         return i, float(sims[i])
 
-    def reverse_dock_step(self, live_sig, *, dock_index: int = 0):
+    def reverse_dock_step(self, live_sig, *, dock_index: int = 0, min_similarity: float = 0.2):
         """Reverse-traverse toward the dock: localize on the trail (match), then target the NEXT-EARLIER
         keyframe (one step back toward index 0). Returns (target_keyframe, current_index, similarity).
-        The caller steers the rover toward target.pose; when current_index reaches dock_index, hand off to
-        the AprilTag posture-tracked dock for the final mate."""
+        A match below ``min_similarity`` (e.g. a degenerate all-zero signature, or off-trail terrain)
+        returns (None, None, sim) -- the caller must STOP/search, not steer toward an arbitrary keyframe
+        (audit 2026-06-09). The caller steers the rover toward target.pose; when current_index reaches
+        dock_index, hand off to the AprilTag posture-tracked dock for the final mate."""
         cur, sim = self.match(live_sig)
-        if cur is None:
-            return None, None, 0.0
+        if cur is None or sim < min_similarity:
+            return None, None, float(sim)
         target = self.keyframes[max(dock_index, cur - 1)]
         return target, cur, sim
 

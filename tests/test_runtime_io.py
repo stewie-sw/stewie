@@ -91,3 +91,12 @@ def test_input_dir_truth_isolation(tmp_path):
     (tmp_path / "ground_truth_pose.csv").write_text("x")
     with pytest.raises(ValueError, match="truth file"):
         rio.assert_input_dir_clean(str(tmp_path))           # a truth file present -> reject (I3)
+
+
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+def test_rejects_novel_camera_frame_key():
+    # audit 2026-06-09: frames were denylist-only -- a NOVEL hidden-state key could ride through
+    p = _canonical()
+    p["channels"]["camera"]["frames"][0]["covert_state"] = 1.0
+    with pytest.raises(ValueError, match="allow-list"):
+        rio.parse_canonical(p)

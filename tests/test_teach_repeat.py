@@ -37,3 +37,17 @@ def test_record_trail_and_reverse_match():
         assert cur == 2 and target.index == 1
     # at the dock (index 0) the return hands off
     assert trail.at_dock(sigs[0])
+
+
+def test_degenerate_signature_does_not_steer():
+    # audit 2026-06-09: an all-zero live signature matched index 0 ("the dock") with sim 0
+    import numpy as np
+
+    from solnav.world import dock_pose as DP2
+    from solnav.world import teach_repeat as TR2
+    trail = TR2.BreadcrumbTrail()
+    for k in range(3):
+        sig = np.zeros(16); sig[k] = 1.0
+        trail.record(DP2.Pose2(float(k), 0.0, 0.0), {}, sig)
+    target, cur, sim = trail.reverse_dock_step(np.zeros(16))
+    assert target is None and cur is None and sim < 0.2         # caller must stop/search, not steer

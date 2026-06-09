@@ -31,8 +31,8 @@ class HazardMap:
     meta: dict = field(default_factory=dict)
 
     def world_to_rc(self, x, y):
-        return (int(round((y + self.origin[1]) / self.cell_m)),
-                int(round((x + self.origin[0]) / self.cell_m)))
+        return (int(round((y - self.origin[1]) / self.cell_m)),
+                int(round((x - self.origin[0]) / self.cell_m)))
 
     @property
     def traversable(self):
@@ -120,4 +120,4 @@ def plan_route(hmap: HazardMap, start_xy, goal_xy):
     while path[-1] != s:
         path.append(prev[path[-1]])
     path.reverse()
-    return [((c * hmap.cell_m) - hmap.origin[0], (r * hmap.cell_m) - hmap.origin[1]) for r, c in path]
+    return [((c * hmap.cell_m) + hmap.origin[0], (r * hmap.cell_m) + hmap.origin[1]) for r, c in path]

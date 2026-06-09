@@ -11,7 +11,11 @@ import os
 
 import numpy as np
 
-from .proprioception_io import _FORBIDDEN, parse_proprioception
+from .proprioception_io import _FORBIDDEN, _JOINT_SAMPLE_KEYS, _allowed, parse_proprioception
+
+_CAMERA_CHAN_KEYS = {"status", "frames", "reference_camera", "baseline_m", "intrinsics",
+                     "rate_hz", "units", "provenance", "reason"}
+_FRAME_KEYS = {"name", "t", "path"}
 
 # A6/A7 acceptance: the estimator input directory must contain NO truth/ground-truth files (I3).
 _TRUTH_FILE_PATTERNS = ("truth", "ground_truth", "_gt", "pose_true", "true_pose", "slip", "terrain_truth")
@@ -50,10 +54,13 @@ def parse_canonical(packet: dict) -> dict:
            "camera_frames": [], "joints": None, "unavailable": []}
 
     cam = chans.get("camera", {})
+    _allowed(cam, _CAMERA_CHAN_KEYS, "camera channel")
     if cam.get("status") == "OK":
         frames = cam.get("frames") or []
         if not frames:
             raise ValueError("camera status OK but no frames")
+        for f in frames:                      # strict frame allow-list: a novel (truth) key cannot ride in
+            _allowed(f, _FRAME_KEYS, "camera frame")
         # PER-CAMERA strict monotonicity: a stereo pair shares a keyframe timestamp (NOT a duplicate),
         # but a single camera must not repeat or go backwards.
         by_cam: dict = {}
@@ -87,6 +94,8 @@ def parse_canonical(packet: dict) -> dict:
         s = j.get("samples") or []
         if not s:
             raise ValueError("joints status OK but no payload")
+        for x in s:
+            _allowed(x, _JOINT_SAMPLE_KEYS, "joints sample")
         out["joints"] = s[0]                          # arm angles + posture-conditioned per-camera heights
     else:
         out["unavailable"].append("joints")

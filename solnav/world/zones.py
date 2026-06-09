@@ -76,14 +76,23 @@ class ZoneRegistry:
     def forbids_excavation(self, x, y, r=0.0) -> bool:
         return any(z.forbids_excavation and z.overlaps(x, y, r) for z in self._zones)
 
-    # --- HARD enforcement gates (raise; cannot be overridden) --------------
+    # --- HARD enforcement gates (raise; cannot be overridden; fail CLOSED) --
+    @staticmethod
+    def _require_finite(*vals) -> None:
+        """A NaN/Inf position must REFUSE, not silently pass: hypot(NaN) compares False against every
+        radius, which would fail the gate OPEN (audit 2026-06-09)."""
+        if not all(math.isfinite(float(v)) for v in vals):
+            raise ZoneViolation(f"non-finite position {vals} -- refusing (zone gates fail closed)")
+
     def check_traverse(self, x, y) -> None:
+        self._require_finite(x, y)
         for z in self._zones:
             if z.forbids_traverse and z.contains(x, y):
                 raise ZoneViolation(f"traverse blocked: ({x:.1f},{y:.1f}) is in {z.zone_type.value} "
                                     f"zone {z.label!r}")
 
     def check_excavation(self, x, y, r=0.0) -> None:
+        self._require_finite(x, y, r)
         for z in self._zones:
             if z.forbids_excavation and z.overlaps(x, y, r):
                 raise ZoneViolation(f"excavation blocked: ({x:.1f},{y:.1f},r={r:.1f}) touches "

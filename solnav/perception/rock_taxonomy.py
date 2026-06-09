@@ -85,12 +85,15 @@ def ellipsoid_volume_m3(diameter_m: float, height_m: float) -> float:
 def classify(diameter_m: float, *, height_m: float | None = None, confidence: float = 1.0,
              height_source: str = "aspect_default") -> Rock:
     """Bin a sized rock into its navigation / localization / excavation classes simultaneously. If height
-    is unknown, assume a typical lunar boulder aspect (h ~ 0.6 d) for the volume only -- the classes key
-    on diameter (what the planners need)."""
+    is unknown, assume a typical lunar boulder aspect (h ~ 0.6 d). The NAVIGATION bin keys on the
+    GOVERNING obstacle dimension max(diameter, height): step-over clearance is a HEIGHT constraint, so a
+    known-tall narrow rock (h > 7.5 cm, d < 7 cm) must NOT bin as drive-over class A (audit 2026-06-09).
+    Localization/excavation stay diameter-keyed (visibility / spoil volume are width-driven)."""
     h = height_m if height_m is not None else 0.6 * diameter_m
+    nav_dim = max(diameter_m, h)
     return Rock(diameter_m=float(diameter_m), height_m=float(h),
                 volume_m3=ellipsoid_volume_m3(diameter_m, h), confidence=float(confidence),
-                nav_class=_bin(diameter_m, NAV_BINS), loc_class=_bin(diameter_m, LOC_BINS),
+                nav_class=_bin(nav_dim, NAV_BINS), loc_class=_bin(diameter_m, LOC_BINS),
                 excav_class=_bin(diameter_m, EXC_BINS),
                 height_source=(height_source if height_m is not None else "aspect_default"))
 

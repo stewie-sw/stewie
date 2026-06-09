@@ -40,3 +40,12 @@ def test_from_detection_with_shadow():
     r = RT.from_detection_px((10, 10, 40, 40), 0.9, 0.005, shadow_length_px=40, sun_elevation_deg=5)
     assert abs(r.diameter_m - 0.15) < 1e-6 and r.height_source == "shadow" and r.height_m > 0
     assert r.nav_class == "C" and r.volume_m3 > 0 and r.confidence == 0.9   # 0.15 m -> C (B/C edge excl.)
+
+
+def test_tall_narrow_rock_is_an_obstacle():
+    # audit 2026-06-09: nav class was diameter-only -- a known-tall narrow rock binned drive-over
+    from solnav.perception import rock_taxonomy as RT
+    r = RT.classify(0.05, height_m=0.10, height_source="stereo")   # d=5cm but h=10cm > 7.5cm clearance
+    assert r.nav_class != "A" and r.is_obstacle
+    r2 = RT.classify(0.05, height_m=0.03, height_source="stereo")  # genuinely small in BOTH dims
+    assert r2.nav_class == "A" and not r2.is_obstacle

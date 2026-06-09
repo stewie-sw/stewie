@@ -54,6 +54,9 @@ def body_odometry_from_encoders(sample, track_m: float, dt: float):
     spin equals ground distance (encoder_delta_rad * r), so it over-reads under slip exactly as a real
     odometry front end would. Returns (v_mps, omega_rps). Duck-typed on the sample (works for solnav's
     parsed WheelSample or the dustgym producer's)."""
+    if dt <= 0.0 or track_m <= 0.0:
+        raise ValueError(f"dt and track_m must be > 0 (got dt={dt}, track_m={track_m}); "
+                         "refusing to emit Inf/NaN odometry")
     d = np.asarray(sample.encoder_delta_rad, float) * sample.wheel_radius_m
     left = 0.5 * (d[0] + d[2]); right = 0.5 * (d[1] + d[3])
     return float((left + right) / (2.0 * dt)), float((right - left) / (track_m * dt))

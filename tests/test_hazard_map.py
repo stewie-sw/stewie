@@ -40,3 +40,18 @@ def test_plan_route_avoids_hazards():
     assert route and len(route) > 2                              # found a corridor around the wall
     # the route must not pass through a no-go cell
     assert all(np.isfinite(hm.cost[hm.world_to_rc(x, y)]) for x, y in route)
+
+
+def test_world_to_rc_nonzero_origin_consistency():
+    # audit 2026-06-09: world_to_rc used +origin while rock placement used -origin (latent at origin 0)
+    import numpy as np
+
+    from solnav.perception import hazard_map as HM
+    from solnav.perception import rock_taxonomy as RT
+    dem = (np.zeros((40, 40)), 5.0)
+    hm = HM.build_hazard_map(dem, (100.0, 50.0), rocks_world=[(150.0, 100.0, RT.classify(0.9))])
+    r, c = hm.world_to_rc(150.0, 100.0)
+    assert (r, c) == (10, 10)                                   # (y-oy)/cell, (x-ox)/cell
+    assert not np.isfinite(hm.cost[r, c])                       # the E rock no-go lands at THAT cell
+    route = HM.plan_route(hm, (105.0, 55.0), (190.0, 140.0))
+    assert route and abs(route[0][0] - 105.0) < 5.0 and abs(route[0][1] - 55.0) < 5.0   # inverse maps back

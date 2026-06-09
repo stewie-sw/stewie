@@ -89,6 +89,9 @@ def parse_proprioception(packet: dict, *, sync_tolerance_s: float = 1.0,
         for x in s:
             _allowed(x, _IMU_SAMPLE_KEYS, "imu sample")
         _monotonic([x["t"] for x in s], "imu")
+        for x in s:                                   # I4: variances are covariances -> must be >= 0
+            if float(x.get("gyro_var", 0.0)) < 0.0 or float(x.get("accel_var", 0.0)) < 0.0:
+                raise ValueError("imu variance is negative (not a valid covariance)")
         out["imu"] = [ImuSample(
             t=_finite(x["t"], "imu.t").item(), gyro_z_rps=_finite(x["gyro_z"], "imu.gyro_z").item(),
             accel_xy_mps2=_finite(x["accel_xy"], "imu.accel_xy"),

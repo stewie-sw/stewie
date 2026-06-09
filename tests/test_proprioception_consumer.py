@@ -264,3 +264,14 @@ def test_rejects_power_soc_out_of_range():
                              "soc_frac": 1.5}]}}}
     with pytest.raises(ValueError, match="soc_frac out of"):
         pio.parse_proprioception(pkt)
+
+
+def test_rejects_negative_imu_variance():
+    # audit 2026-06-09: variances are covariances (I4) -> must be >= 0
+    pkt = {"schema_version": "proprioception/1.0", "clock": "x", "sequence_id": 0,
+           "channels": {"imu": {"status": "OK", "units": {"gyro_z": "rad/s", "accel_xy": "m/s^2"},
+                                 "samples": [{"t": 0.0, "gyro_z": 0.0, "accel_xy": [0, 0],
+                                              "gyro_var": -1e-6}]},
+                        "wheel": {"status": "UNAVAILABLE"}}}
+    with pytest.raises(ValueError, match="variance is negative"):
+        pio.parse_proprioception(pkt)

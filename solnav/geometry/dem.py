@@ -67,11 +67,14 @@ def register_to_dem(local_patch: np.ndarray, dem_patch: np.ndarray,
             if r0 < 0 or c0 < 0 or r0 + lh > dp.shape[0] or c0 + lw > dp.shape[1]:
                 continue
             sub = dp[r0:r0 + lh, c0:c0 + lw]
-            diff = (lp - np.nanmean(lp)) - (sub - np.nanmean(sub))
-            valid = np.isfinite(diff)
+            # height offset estimated on the COMMON finite overlap (per-array nanmeans over different
+            # NaN sets bias the residual and can select a wrong shift -- audit 2026-06-09)
+            d = lp - sub
+            valid = np.isfinite(d)
             if valid.mean() < min_valid_frac:
                 continue
-            rmse = float(np.sqrt(np.mean(diff[valid] ** 2)))
+            dv = d[valid]
+            rmse = float(np.sqrt(np.mean((dv - dv.mean()) ** 2)))
             if rmse < best[2]:
                 best = (dr, dc, rmse)
     return best

@@ -44,3 +44,14 @@ def test_protected_charger_zone():
     assert wm.is_protected(305.0, 300.0) and not wm.is_protected(350.0, 300.0)
     assert wm.violates_protection(308.0, 300.0, 5.0)           # digging near the charger is flagged
     assert not wm.violates_protection(330.0, 300.0, 5.0)
+
+
+def test_reconcile_is_idempotent():
+    # audit 2026-06-09: sub-cell events painted a 5-cell plus -> compensating events forever
+    if not _HAVE:
+        return
+    wm = WM.WorldModel(_crop())
+    obs, _ = wm.current_terrain(); obs = obs.copy(); obs[40:45, 40:45] += 0.3
+    first = wm.reconcile_observation(obs, min_dheight_m=0.1)
+    second = wm.reconcile_observation(obs, min_dheight_m=0.1)
+    assert first and second == []                               # converged after one pass

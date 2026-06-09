@@ -23,3 +23,17 @@ def test_horizon_profile_and_self_match():
     best, resid, allres = H.match_horizon(prof, dem, (0, 0), cands, n_az=36, max_range_m=3000)
     assert best == (cx, cy) and resid < 1e-9
     assert allres[0][0] < allres[-1][0]                 # sorted; true beats the worst offset
+
+
+def test_nearfield_berm_excluded_by_standoff():
+    # audit 2026-06-09: without a min-range standoff a fresh berm 10 m away entered the "excavation-
+    # immune" skyline
+    import numpy as np
+
+    from solnav.world import horizon as H2
+    z = np.zeros((80, 80)); cell = 5.0
+    obs = (200.0, 200.0)
+    base = H2.horizon_profile((z, cell), (0, 0), *obs, n_az=8, max_range_m=150)
+    zb = z.copy(); zb[40, 42] = 3.0                              # a 3 m berm ~10 m east of the observer
+    after = H2.horizon_profile((zb, cell), (0, 0), *obs, n_az=8, max_range_m=150)
+    assert np.allclose(base, after)                              # the near-field berm cannot enter the skyline
