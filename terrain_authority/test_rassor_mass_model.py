@@ -24,8 +24,16 @@ def test_published_metrics_verbatim():
 
 def test_drum_mass_uncertainty_bands_match_paper():
     assert RM.drum_mass_uncertainty_frac(25.0) == RM.FDC_MPE_HALF_FULL      # >half full -> 2.56%
-    assert RM.drum_mass_uncertainty_frac(10.0) == RM.FDC_MPE_ALL            # below -> 7.40%
-    assert RM.drum_mass_uncertainty_frac(10.0, include_outliers=True) == RM.FDC_MPE_WITH_OUTLIERS
+    # continuous band (audit 2026-06-09): anchors hold at 0 and HALF_FULL; in between it blends so
+    # the conservative upper bound m*(1+unc) is MONOTONE (the old step let a fuller reading skip an
+    # offload a slightly emptier one fired)
+    assert RM.drum_mass_uncertainty_frac(0.0) == RM.FDC_MPE_ALL
+    assert RM.FDC_MPE_HALF_FULL < RM.drum_mass_uncertainty_frac(10.0) < RM.FDC_MPE_ALL
+    ub = [m * (1.0 + RM.drum_mass_uncertainty_frac(m)) for m in (18.0, 19.0, 19.9, 20.0, 20.5, 21.0)]
+    assert all(b > a for a, b in zip(ub, ub[1:]))            # monotone through the old step point
+    assert RM.drum_mass_uncertainty_frac(0.0, include_outliers=True) == RM.FDC_MPE_WITH_OUTLIERS
+    assert (RM.FDC_MPE_HALF_FULL < RM.drum_mass_uncertainty_frac(10.0, include_outliers=True)
+            < RM.FDC_MPE_WITH_OUTLIERS)   # blended below half-full (continuous band)
     assert RM.drum_mass_uncertainty_frac(25.0) < RM.drum_mass_uncertainty_frac(10.0)  # fuller = better known
 
 

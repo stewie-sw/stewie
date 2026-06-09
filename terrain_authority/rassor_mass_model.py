@@ -69,9 +69,15 @@ def drum_mass_uncertainty_frac(mass_kg, *, include_outliers=False):
     linear FDC hardware result (NTRS 20210022781): ~2.56% when the drum is more than half full
     (> HALF_FULL_KG), else the over-range mean percent error (7.40%, or 11.84% with the two outlier dig
     cycles). Lets the autonomy layer reason about IMPERFECT drum-fill knowledge, not exact mass."""
-    if mass_kg > HALF_FULL_KG:
+    lo = FDC_MPE_WITH_OUTLIERS if include_outliers else FDC_MPE_ALL
+    if mass_kg >= HALF_FULL_KG:
         return FDC_MPE_HALF_FULL
-    return FDC_MPE_WITH_OUTLIERS if include_outliers else FDC_MPE_ALL
+    # CONTINUOUS interpolation between the two published regime errors (audit 2026-06-09): the hard
+    # step at HALF_FULL_KG made the conservative upper bound NON-monotonic (a fuller reading could
+    # decide NOT to offload while a slightly emptier one did). Linear blend keeps both anchors and a
+    # monotone upper bound m*(1+unc(m)).
+    f = max(0.0, mass_kg) / HALF_FULL_KG
+    return lo + f * (FDC_MPE_HALF_FULL - lo)
 
 
 def arm_raise_lift_energy_j(mass_kg, g, *, lift_height_m=ARM_LIFT_HEIGHT_M, efficiency=ARM_LIFT_EFFICIENCY):
