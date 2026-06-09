@@ -139,6 +139,58 @@ def dig_energy_per_kg() -> float:
     return dig_power_w() / rate_kg_s
 
 
+# ---- LUNAR-GRAVITY drive power [PHYSICS] ---------------------------------------------------
+# drive_power_w() above is the Table-3 ConOps motor load (4 * 0.063 Nm * omega@1530rpm = ~40 W) -- the
+# DESIGN / worst-case actuator draw, on the GMRO/BP-1 Earth-g testbed. It is NOT the lunar STEADY-drive
+# power: steady-drive resistance (rolling + grade) is gravity-dependent (~ m*g), so on the Moon (1/6 g)
+# the flat-drive draw is ~6x lower. Using the 40 W figure as the operational lunar draw SEVERELY
+# OVERESTIMATES drive energy. lunar_drive_power_w computes the physical tractive-force draw instead.
+# (Table 7's 18.5 Nm dig load IS published as "predicted on the moon", so dig_power_w is already lunar.)
+LUNAR_G_MS2 = 1.62                 # Moon surface gravity (parameterizable; bodies.py is the body registry)
+DRIVETRAIN_EFFICIENCY = 0.5        # [CALIB] electrical->tractive (motor+gearbox+slip); not in [SCHULER24]
+ROLLING_RESISTANCE_COEFF = 0.15    # [ASSUMPTION] rigid wheel on loose regolith (~0.1-0.4); the rigorous
+                                   # value is the terramechanics Bekker motion resistance, not a constant
+
+
+def lunar_drive_power_w(*, slope_deg: float = 0.0, crr: float = ROLLING_RESISTANCE_COEFF,
+                        mass_kg: float = ROVER_MASS_CLASS_KG, g_ms2: float = LUNAR_G_MS2,
+                        v_ms: float = DRIVE_SPEED_MS, efficiency: float = DRIVETRAIN_EFFICIENCY) -> float:
+    """Physical steady-drive electrical power at a given gravity/slope: tractive force
+    F = m*g*(crr*cos th + sin th); P_elec = F*v / efficiency. At lunar g + flat this is ~6x below the
+    Earth-test Table-3 drive_power_w(). [PHYSICS] for the force; crr + efficiency are tagged estimates."""
+    th = math.radians(slope_deg)
+    f_tractive_n = mass_kg * g_ms2 * (crr * math.cos(th) + math.sin(th))
+    return f_tractive_n * v_ms / efficiency
+
+
+# ---- Housekeeping / parasitic loads [ASSUMPTION] -------------------------------------------
+# Continuous loads ABSENT from the published mobility/excavation tables but which DOMINATE a real lunar
+# energy budget over an 11-day mission (housekeeping integrated over days >> intermittent drive/dig). The
+# per-subsystem watts are NOT public for IPEx, so these are engineering estimates -- DO NOT treat as
+# sourced. Rationale: VIPER runs solar-only heaters to survive shadow; CADRE's autonomy COMPUTE produces
+# enough heat to force 30-min cooldown shutdowns; X-band DTE comms draw transmit power.
+AVIONICS_POWER_W = 15.0            # [ASSUMPTION] flight computer + autonomy compute (SLAM/perception)
+COMMS_TX_POWER_W = 15.0            # [ASSUMPTION] X-band direct-to-Earth transmit (duty-cycled)
+THERMAL_SURVIVAL_POWER_W = 30.0    # [ASSUMPTION] heater load; tens-to-hundreds W (PSR / lunar night higher)
+
+
+def system_power_w(*, driving: bool = True, digging: bool = False, transmitting: bool = False,
+                   thermal_w: float | None = None, slope_deg: float = 0.0) -> float:
+    """Total instantaneous electrical draw = lunar drive (if driving) + dig (if digging) + avionics +
+    comms (if transmitting) + thermal. Sums the gravity-correct [PHYSICS] mobility with the [ASSUMPTION]
+    housekeeping loads the published tables omit. The housekeeping terms (thermal especially) typically
+    dominate the mission energy; treat the total as an order-of-magnitude budget, not a sourced figure."""
+    p = AVIONICS_POWER_W
+    p += thermal_w if thermal_w is not None else THERMAL_SURVIVAL_POWER_W
+    if driving:
+        p += lunar_drive_power_w(slope_deg=slope_deg)
+    if digging:
+        p += dig_power_w()
+    if transmitting:
+        p += COMMS_TX_POWER_W
+    return p
+
+
 # ---- Planner operational parameters (mission_planner build-sequencer) ----------------------
 # NOT in [SCHULER24]: planner-level assumptions for the energy/battery build sequencer. The single
 # source of truth for these knobs (mission_planner imports them; nothing is duplicated downstream).

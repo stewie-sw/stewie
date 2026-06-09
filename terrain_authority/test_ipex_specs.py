@@ -111,3 +111,20 @@ def _run_all():
 
 if __name__ == "__main__":
     _run_all()
+
+
+def test_lunar_drive_power_far_below_earth_test_figure():
+    from terrain_authority import ipex_specs as s
+    flat = s.lunar_drive_power_w()
+    assert 1.0 < flat < 10.0                                  # physical lunar flat-drive ~few W
+    assert s.drive_power_w() > 5 * flat                       # Earth-test Table-3 figure is ~6-9x higher
+    assert s.lunar_drive_power_w(slope_deg=15) > flat         # grade resistance raises it
+
+
+def test_system_power_includes_housekeeping_and_it_dominates_drive():
+    from terrain_authority import ipex_specs as s
+    sysp = s.system_power_w()                                 # driving flat, idle housekeeping
+    housekeeping = s.AVIONICS_POWER_W + s.THERMAL_SURVIVAL_POWER_W
+    assert sysp > housekeeping                                # total includes the missing loads
+    assert housekeeping > s.lunar_drive_power_w()             # housekeeping > lunar drive (the key finding)
+    assert s.system_power_w(digging=True, transmitting=True) > sysp   # dig + comms add on top
