@@ -1,5 +1,11 @@
 # Procedural Lunar-Construction Challenge Platform — architecture
 
+> **⚠ SUPERSEDED NAME (2026-06-09): this platform is now STEWIE** — Surface Terrain Engineering &
+> World-model Integration Environment (McCardle & Storey), with responsibility-driven subsystems
+> DART (perception) / LODE (operations) / LEAP (earthmoving) / FORGE (infrastructure) under the
+> STEWIE platform layer. See `PRD.md §16` for the mapping + Phase-1 gate (ROS2 bridge P20-P23).
+> The layer analysis below remains valid as the substrate reference under the new names.
+
 **Status:** design / north-star (2026-06-02). The umbrella over `rl_construction_design.md` (which is
 the *agents* layer). Grounded in the actual foss_ipex sim. Marks what exists vs gap vs research-bet, and
 holds the honesty rails so this stays a *validated benchmark*, not a tech demo.

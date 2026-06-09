@@ -590,3 +590,71 @@ A requirement is done only when:
 
 The PRD is the current requirement source. Historical test counts, screenshots, and stage narratives
 must live in release/evidence records rather than being duplicated as present-tense product status.
+
+## Posture system + real-time drive view (2026-06-08)
+
+- **IPEx postures (data-driven).** `terrain_authority/data/ipex_postures.json` (TRANSIT/DIG/DUMP_Z/
+  MEERKAT/DRUM_WALK/IRON_CROSS/SELF_RIGHT/BRAKED_HOLD/COBRA; arm angles editable, [ASSUMPTION] geometric
+  targets) + `postures.py` loader + `posture_kinematics.py` forward kinematics (chassis lift; posture
+  pitch from asymmetric arms; per-camera slope-aware height: each of the 8 LAC cams = terrain +
+  base_link(arms) - sinkage + attitude-rotated mount). 17 tests. Godot rig posed via the additive
+  `--arm-front-pitch/--arm-back-pitch/--chassis-lift` (Python owns the data; the renderer takes angles).
+- **Real-time drive view (`--drive`).** `godot_sidecar/drive_controller.gd`: live 8-SubViewport grid,
+  WASD/auto drive (GDScript port of rover.step_pose; the conserved Python authority stays the analysis/
+  export tier), terrain conform (sf.height_uv), posture buttons (faithful rig rebuild), per-pane camera-
+  height labels. The terrain-modeller's mapping/planning drive view: the intern drives and watches what
+  the rover sees through all 8 cameras at 60 fps. Headless `--drive-auto N` saves the 8 live feeds for
+  verification (all 8 confirmed rendering real onboard views). Browser-cockpit stream = the (B) follow-on.
+- **Offline faithful export tier (unchanged):** the full grazing-sun Hapke render + 8-pane montage/GIF.
+
+## 16. STEWIE alignment (2026-06-09)
+
+**STEWIE** (Surface Terrain Engineering & World-model Integration Environment, McCardle & Storey,
+June 2026) is the adopted platform name + responsibility architecture over this codebase. IPEx is the
+hardware program ("IPEx builds the Moon; STEWIE plans the build"; *in silico → in situ*). Subsystems
+own OUTCOMES, not algorithms. Authoritative architecture/roadmap docs are maintained privately;
+this section is the public mapping of record.
+
+### 16.1 Subsystem ↔ codebase mapping
+| STEWIE subsystem | Question it answers | Existing code (this repo) | Primary gap |
+|---|---|---|---|
+| **STEWIE platform** | What is happening on the Moon right now? | dustgym physics authority, planet_browser server/UI, io_fields twin seams, world-model/forward-sim engines (`autonomy`, beam search) | live ROS2 bridge; telemetry injection; director/operator split |
+| **DART** (perception) | What does the world look like? | Godot sensor render, YOLOv8/U-Net++ detectors, `dem_import` (LOLA + GeoTIFF), `map_channel`, `localization` | typed interface contract; COLMAP→resync pipeline |
+| **LODE** (operations) | What should happen next? | `mission_planner` (7-alg optimizer, multi-vehicle, precedence, plan IR, PDF report), scheduler | acquisition inventory; bandwidth-aware downlink queue |
+| **LEAP** (earthmoving) | How should we move the regolith? | conserved cut/fill/dump physics, `structures`, skill/worksite envs, build-order queue | per-structure policy; multi-vehicle routing |
+| **FORGE** (infrastructure) | What are we building? | sinter authority (gated, `SINTER_ENABLED=False`), `validate_plan`/I11 as-built acceptance | typed interface; certified-record provenance store |
+
+### 16.2 Phase-1 gate — the new top of the forward queue
+The ROS2 bridge is the first gate on operational usefulness (the sim must speak the real robot's
+language). These stages PRECEDE the previously queued P-stages:
+
+| Stage | Deliverable | Acceptance |
+|---|---|---|
+| **P20 ROS2 bridge** | bidirectional bridge: sim state → standard sensor/geometry topics; `/cmd_vel` → the physics drive loop; REP-103 ↔ sim frame mapping implemented ONCE at the bridge | container starts, `/healthz` 200, ROS2 node joins the graph, external teleop moves the simulated rover |
+| **P21 Telemetry injection** | configurable bandwidth/latency/drop/frame-rate layer from a mission-profile JSON ("ideal" profile = constraints off) | operator node receives downsampled/delayed data; drops counted + reported; director sees full-rate |
+| **P22 Director/operator split** | session-mode toggle: operator view = telemetry-constrained only; director view = full state + auth + replay/debrief (fast-forward without breaking link time accounting) | two browser sessions, one simulation; side-by-side replay of seen-vs-actual trajectory |
+| **P23 Intern beta (Day 28)** | Docker container packaging physics + server + bridge; end-to-end training run with real remote-control software | operator completes a simulated Haworth traverse in <30 min with no technical assistance |
+
+Note: the container exposes host port 8000 per the STEWIE docs; the app's internal default (8770)
+is unchanged — the container maps the port.
+
+### 16.3 Year-1 phase ↔ P-stage crosswalk
+- **Ph.1 (Mo 1–3) Training sim** = P20–P23 + full motion-planner topic set + scenario library +
+  pluggable external-planner interface + DEM site expansion (wires the existing `dem_import`).
+- **Ph.2 (Mo 4–6) World model + charging gap** = COLMAP→GeoTIFF→**resync POST API** (versioned twin)
+  + forward-sim ensemble service/panel (existing headless engines) + **DART typed contract locked**
+  (extends P6/P15).
+- **Ph.3 (Mo 7–9) Data management** = acquisition inventory (per-cell imagery/sun-angle/downlink) +
+  world-model uncertainty map + bandwidth-aware downlink queue + science-targeting overlay (extends
+  `map_channel`).
+- **Ph.4 (Mo 10–12) Construction integration + Year-1 release** = LODE+LEAP end-to-end scenario +
+  FORGE certified records + the packaged benchmark (extends the M1 challenge platform: authored
+  scenarios + rubric + baseline; reviewer runs on a clean machine in <1 hr).
+- **Year 2** = mission assistant (suggestion queue), multi-sol planning, DART live feedback loop —
+  the operator approves; they no longer initiate.
+
+### 16.4 Boundary note
+The SolNav dissertation planning set (G1–G9 gates, separate honesty firewall) is NOT renamed or
+re-scoped by STEWIE. Convergence: STEWIE P20 (ROS2 bridge + live drive loop) is the same engineering
+object as the dissertation's persistent-runtime gap (G1.A4/A6) — one build advances both tracks;
+the dissertation's evidence-mode rules still apply on its side.
