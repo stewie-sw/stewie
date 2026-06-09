@@ -1,0 +1,10 @@
+{
+  "name": "Tutorial 3 — INFEASIBLE: fill site has no safe corridor",
+  "body": "moon",
+  "charger": [0, 0],
+  "orders": [
+    {"action": "borrow pit", "kind": "cut", "x": 0, "y": 0, "footprint_m2": 36, "depth_m": 0.2},
+    {"action": "stranded fill", "kind": "fill", "x": 40, "y": 0, "footprint_m2": 36, "depth_m": 0.2}
+  ],
+  "keepouts": [{"x": 40, "y": 0, "r": 18}]
+}

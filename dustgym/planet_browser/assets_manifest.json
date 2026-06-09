@@ -1,0 +1,24 @@
+{
+  "_doc": "Fetch manifest for the real LOLA Haworth DEM (NOT bundled in the wheel; fetched + checksum-verified post-install).",
+  "source": "PGDA Product 78 \u2014 LOLA 5 m/px south-pole DEM, Haworth_final_adj_5mpp_surf.tif (https://pgda.gsfc.nasa.gov/products/78)",
+  "ingest": "scripts/build_from_dem.py crops a 10 km @ 5 m window (IAU_2015:30135) -> heightmap.rf32 (pure PIL+numpy, no GDAL)",
+  "citation": "Barker et al. 2021 (PSS 203, 105119); Mazarico et al. 2011 (Icarus 211). PGDA README: no license string (US-Gov works).",
+  "dest_rel": "samples/lunar_dem/haworth_10km_5m",
+  "assets": [
+    {
+      "name": "heightmap.rf32",
+      "bytes": 16000000,
+      "sha256": "7d13e9c376da950e230564b1f51a73f9f74069af3c1655b0e02ce612f10519d0"
+    },
+    {
+      "name": "metadata.json",
+      "bytes": 2993,
+      "sha256": "e292f82f14a64e87d38f565e27dde43e7e6a1213d933cd73f01dad1b2c54976e"
+    },
+    {
+      "name": "slope_anchor.json",
+      "bytes": 1871,
+      "sha256": "578c3540de60dc90e875e5cd641b5edd259a1138571324757d718a2a20b64571"
+    }
+  ]
+}

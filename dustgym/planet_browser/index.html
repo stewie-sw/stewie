@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Planet Browser — select a body, pan/zoom/tilt, pick a build site</title>
+<link href="https://unpkg.com/cesium@1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+<script src="https://unpkg.com/cesium@1.119/Build/Cesium/Cesium.js"></script>
+<style>
+  /* Professional palette: neutral slate + ONE blue accent; color reserved for semantic meaning. */
+  :root {
+    --bg:#0a0e16; --panel:#0d1320; --head:#121a2b; --line:#1e2738; --field:#141c2b; --field-bd:#2a3650;
+    --txt:#c7d2e3; --muted:#79839a; --dim:#5a6478; --accent:#4f9cff; --fill:#2563eb; --fill-h:#1d4ed8;
+  }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+  body { font: 13px/1.45 system-ui, sans-serif; background: var(--bg); color: var(--txt); }
+  /* one coherent left control sidebar + a tabbed view stage filling the rest */
+  #app { display: flex; width: 100%; height: 100%; position: relative; }
+  #stage { flex: 1 1 auto; min-width: 0; height: 100%; display: flex; flex-direction: column; }
+  #viewtabs { flex: 0 0 auto; display: flex; gap: 2px; padding: 6px 8px 0; background: var(--head);
+    border-bottom: 1px solid var(--line); }
+  .vtab { background: var(--field); color: var(--muted); border: 1px solid var(--line); border-bottom: none;
+    border-radius: 7px 7px 0 0; padding: 7px 15px; font-size: 12px; font-weight: 600; letter-spacing: .03em; }
+  .vtab:hover { color: var(--txt); }
+  .vtab.active { background: var(--bg); color: var(--accent); border-color: var(--field-bd); }
+  .vtab .dot { color: var(--dim); font-size: 10px; margin-left: 5px; }          /* per-pane readiness hint */
+  #viewarea { position: relative; flex: 1 1 auto; min-height: 0; background: var(--bg); }
+  #cesium { position: absolute; inset: 0; z-index: 1; }
+  /* the non-Plan views are full-area panes that cover the globe; the active tab shows exactly one */
+  .pane { position: absolute; inset: 0; z-index: 5; display: none; flex-direction: column;
+    background: #05060c; padding: 12px 16px; box-sizing: border-box; overflow: auto; }
+  .pane.active { display: flex; }
+  .pane > .cap { color: var(--muted); font-size: 11px; letter-spacing: .03em; margin-bottom: 8px; flex: 0 0 auto;
+    display: flex; justify-content: space-between; align-items: center; }
+  .pane > .cap b { color: var(--txt); letter-spacing: 0; }
+  .pane .empty { color: var(--dim); font-size: 12px; margin: auto; text-align: center; max-width: 32em; line-height: 1.6; }
+  #panel { flex: 0 0 auto; width: min(360px, 94vw); height: 100%; overflow-y: auto;
+    background: var(--panel); border-right: 1px solid var(--line); box-sizing: border-box; }
+  #phead { position: sticky; top: 0; z-index: 2; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+    padding: 13px 16px; background: var(--head); border-bottom: 1px solid var(--line); }
+  #phead b { color: #e6edfb; letter-spacing: .08em; font-size: 13px; font-weight: 600; }
+  #phead #out { margin-left: auto; color: var(--accent); font-size: 12px; font-variant-numeric: tabular-nums; }
+  #panel section { padding: 13px 16px; border-bottom: 1px solid var(--line); }
+  #panel h3 { margin: 0 0 10px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+  #panel h3 small { color: var(--dim); font-size: 10px; letter-spacing: 0; text-transform: none; font-weight: 400; }
+  .ctl { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 7px; }
+  .ctl label { display: flex; align-items: center; gap: 3px; color: var(--muted); }
+  select, input, button {
+    background: var(--field); color: var(--txt); border: 1px solid var(--field-bd); border-radius: 6px; padding: 6px 8px; font: inherit; }
+  input:focus, select:focus { border-color: var(--accent); outline: none; }
+  input[type=number] { width: 56px; } input.lbl { width: 100%; } #lat, #lon { width: 64px; }
+  select { max-width: 170px; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.site { color: var(--accent); border-color: #2f4a78; }
+  button.info { width: 28px; padding: 4px 0; border-radius: 50%; color: var(--accent); font-style: italic; font-weight: 700; }
+  button.plan { background: var(--fill); border-color: var(--fill); color: #fff; width: 100%; margin-top: 8px; font-weight: 600; }
+  button.plan:hover { background: var(--fill-h); border-color: var(--fill-h); }
+  #terra { display: none; margin-top: 8px; padding: 8px 10px; background: var(--field); border: 1px solid var(--line);
+    border-radius: 6px; color: var(--txt); font-size: 12px; line-height: 1.5; }
+  #terra.show { display: block; }
+  #hint { color: var(--dim); font-size: 11px; margin-top: 6px; }
+  #est { color: var(--txt); font-size: 12px; font-variant-numeric: tabular-nums; line-height: 1.5; }
+  #qlist { list-style: none; margin: 8px 0; padding: 0; }
+  #qlist li { display: flex; gap: 6px; align-items: center; padding: 5px 7px; margin-bottom: 4px;
+    background: var(--field); border: 1px solid var(--field-bd); border-radius: 6px; font-size: 12px; }
+  #qlist li .g { flex: 1; font-variant-numeric: tabular-nums; }
+  #qlist li button { padding: 1px 6px; }
+  #qstatus { color: var(--muted); font-size: 12px; min-height: 16px; margin-top: 6px; }
+  #plancanvas { width: 100%; height: auto; aspect-ratio: 324 / 220; display: block; cursor: crosshair;
+    border: 1px solid var(--field-bd); border-radius: 6px; background: #05060c; margin-top: 4px; }
+  .cap small { color: var(--dim); font-weight: 400; }
+  #drumout { color: var(--txt); font-variant-numeric: tabular-nums; font-size: 13px; min-height: 17px; margin-top: 4px; }
+  /* PLAN pane: real LOLA work-area DEM inset (Haworth 5 m); auto-shown on Moon, over the globe */
+  #workarea { position: absolute; z-index: 9; right: 12px; bottom: 12px; width: 240px; display: none;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  #workarea.show { display: block; }
+  #workarea .cap { color: var(--muted); font-size: 10px; letter-spacing: .03em; margin-bottom: 6px; }
+  #workarea img { width: 100%; display: block; border-radius: 4px; background: #05060c; }
+  #workareaimg { cursor: crosshair; }
+  /* PERCEPTION pane: Godot PLAN -> RENDER before/after frame (sensor model). Live SLAM map = open work. */
+  #renderpanel img { max-width: 100%; display: block; border-radius: 4px; background: #05060c; align-self: center; }
+  #rpstatus { color: var(--muted); font-size: 12px; padding: 6px 2px; }
+  #rpclose, #execclose { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; }
+  /* METRICS pane: top-down execution playback (route + rover marker) + telemetry HUD */
+  #execcanvas { width: 100%; max-width: 560px; height: auto; aspect-ratio: 320 / 220; display: block;
+    border-radius: 4px; background: #05060c; align-self: center; }
+  #exchud { color: var(--txt); font-variant-numeric: tabular-nums; font-size: 13px; margin-top: 10px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 3px 14px; width: 100%; max-width: 560px; align-self: center; }
+  #exchud .k { color: var(--muted); }
+  #excbatt { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: #1a2030; margin-top: 4px; overflow: hidden; }
+  #excbattfill { height: 100%; width: 100%; background: var(--accent); transition: width .08s linear; }
+  /* REPORT pane: the generated mission-control PDF, embedded */
+  #reportframe { flex: 1 1 auto; width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; display: none; }
+  #reportframe.show { display: block; }
+  #pane-report .cap a, .pane .cap a { color: var(--accent); text-decoration: none; }
+  /* engineer / developer / intern panes */
+  .vtsep { color: var(--dim); align-self: center; padding: 0 5px; user-select: none; }
+  #valimg { max-width: 100%; display: block; border-radius: 4px; background: #05060c; align-self: center; }
+  #valselect { max-width: 300px; }
+  #apiframe, #docsframe { flex: 1 1 auto; width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  .mono { color: var(--txt); background: #05060c; border: 1px solid var(--line); border-radius: 6px;
+    padding: 10px 12px; font: 12px/1.55 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre-wrap;
+    overflow: auto; flex: 0 0 auto; }
+  #pane-config .mono { max-height: 38%; margin-bottom: 8px; }
+  #srvout { flex: 1 1 auto; }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="panel">
+    <header id="phead"><b>LUNAR BUILD PLANNER</b><span id="out">—</span></header>
+
+    <section>
+      <h3>Body &amp; imagery</h3>
+      <div class="ctl">
+        <label>Body <select id="body"></select></label>
+        <label>Layer <select id="layer"></select></label>
+        <button class="info" id="terrainfo" title="terramechanics for the selected body">i</button>
+      </div>
+      <div class="ctl">
+        <label>lat <input id="lat" type="number" step="0.1" placeholder="-89.0" /></label>
+        <label>lon <input id="lon" type="number" step="0.1" placeholder="0.0" /></label>
+        <button class="go" id="go">Go</button>
+        <button class="site" id="site">Set site</button>
+      </div>
+      <div id="terra">terramechanics —</div>
+      <div id="hint">drag = pan · wheel = zoom · ctrl-drag = tilt · click = pick a site</div>
+    </section>
+
+    <section>
+      <h3>Fleet</h3>
+      <div class="ctl"><label>Vehicle <select id="vehicle"></select></label>
+        <label title="regolith model — defaults to the body's own; override to e.g. run Earth soil on a lunar map">Soil <select id="soil"></select></label></div>
+      <div class="ctl"><label title="fleet size — >1 plans a multi-vehicle mission (site-exclusive allocation, parallel makespan, deconfliction)">Rovers <input id="vehcount" type="number" value="1" min="1" max="16" step="1" /></label></div>
+      <div class="ctl" id="tools">tools —</div>
+      <div id="fleetcaps">capabilities —</div>
+    </section>
+
+    <section>
+      <h3>Build estimate</h3>
+      <div class="ctl"><label>pad <input id="padW" type="number" value="20" step="1" />×<input id="padL" type="number" value="20" step="1" /> m</label></div>
+      <div class="ctl">
+        <label>cut <input id="cut" type="number" value="0.10" step="0.01" /> m</label>
+        <label>berm <input id="bermH" type="number" value="0.30" step="0.05" /> m</label>
+      </div>
+      <div id="est">—</div>
+    </section>
+
+    <section>
+      <h3>Build queue → report</h3>
+      <div class="ctl">
+        <select id="qkind"><option value="cut">cut</option><option value="fill">fill</option></select>
+        <label>x<input id="qx" type="number" value="0" step="1" /></label>
+        <label>y<input id="qy" type="number" value="0" step="1" /></label>
+      </div>
+      <div class="ctl">
+        <label>area<input id="qfoot" type="number" value="36" step="1" />m²</label>
+        <label>depth<input id="qdepth" type="number" value="0.04" step="0.01" />m</label>
+      </div>
+      <div class="ctl"><input id="qlabel" class="lbl" placeholder="label (e.g. Level landing pad)" /></div>
+      <div class="ctl">
+        <button id="qadd" class="site">+ Add</button>
+        <button id="qfrompad" class="go">+ from pad/berm</button>
+      </div>
+      <div class="ctl">
+        <select id="struct">
+          <option value="landing_pad">Landing Pad</option>
+          <option value="solar_pad">Solar Pad</option>
+          <option value="habitat_foundation">Habitat Foundation</option>
+          <option value="haul_road">Haul Road</option>
+          <option value="blast_berm">Blast Berm</option>
+          <option value="borrow_pit">Borrow Pit</option>
+          <option value="crater_fill">Crater Fill</option>
+          <option value="trench">Trench</option>
+        </select>
+        <button id="qstruct" class="go">+ Structure @ x,y</button>
+      </div>
+      <ol id="qlist"></ol>
+      <div class="ctl">
+        <label>algorithm
+          <select id="qalgo">
+            <option value="auto">auto (best for size)</option>
+            <option value="nearest">nearest (fast)</option>
+            <option value="greedy">greedy</option>
+            <option value="two_opt">2-opt</option>
+            <option value="or_opt">Or-opt</option>
+            <option value="lk">LK-style</option>
+            <option value="brute">brute (optimal ≤7)</option>
+            <option value="held_karp">Held-Karp (exact ≤16)</option>
+          </select></label>
+        <label>optimize
+          <select id="qobj">
+            <option value="time">duration</option>
+            <option value="energy">energy</option>
+            <option value="power">avg power</option>
+            <option value="distance">distance</option>
+            <option value="charges">recharges</option>
+            <option value="mass">mass moved</option>
+            <option value="time:0.5,energy:0.5">balanced (time+energy)</option>
+          </select></label>
+      </div>
+      <div class="ctl"><input id="qprec" class="lbl" placeholder="precedence (e.g. Grade road &gt; Build berm, ...)" /></div>
+      <div class="ctl" title="discrete obstacles (boulders / no-go zones); hauls route around them">
+        keep-out x<input id="kox" type="number" value="25" step="1" />
+        y<input id="koy" type="number" value="0" step="1" />
+        r<input id="kor" type="number" value="8" step="1" />m
+        <button id="koadd" class="site">+ Obstacle</button></div>
+      <ol id="kolist"></ol>
+      <div class="ctl" title="load a bundled intern tutorial mission into the queue">
+        Sample <select id="qsample"><option value="">— tutorial mission —</option></select>
+        <button id="qloadsample" class="site">Load</button></div>
+      <button id="qplan" class="plan">Plan mission → open report</button>
+      <button id="qexec" class="go" disabled>▶ Execute + watch</button>
+      <div class="ctl" style="margin-top:7px">
+        <button id="qexport" class="go">⤓ Export plan</button>
+        <button id="qplanir" class="go" title="download the machine-executable plan IR (typed actions + DAG)">⤓ Plan IR</button>
+        <button id="qimport" class="go">⤒ Import plan</button>
+        <input id="qfile" type="file" accept=".json,application/json" style="display:none" />
+      </div>
+      <div class="ctl" style="margin-top:5px">
+        <input id="profname" class="lbl" placeholder="profile name" style="max-width:11em" />
+        <button id="profsave" class="go">💾 Save</button>
+        <select id="profload"></select>
+        <button id="profloadbtn" class="go">↻ Load</button>
+      </div>
+      <button id="qcompare" class="go">Compare algorithms ⇅</button>
+      <div class="cap" style="margin-top:8px">PLAN VIEW <small>(local site frame, top-down) · click to set x,y</small></div>
+      <div id="layerpanel" class="cap" style="margin:4px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center">LAYERS</div>
+      <canvas id="plancanvas" width="324" height="220" title="click to set the build x,y"></canvas>
+      <div id="qstatus">queue empty</div>
+      <table id="cmptable" style="display:none;width:100%;font-size:11px;border-collapse:collapse;margin-top:6px"></table>
+    </section>
+
+    <section>
+      <h3>Drum sensor <small>motor current, no load cell (ICE-RASSOR)</small></h3>
+      <div class="ctl">fill <input id="drumkg" type="number" value="20" step="1" /> kg
+        <label><input id="drumnoise" type="checkbox" /> noise</label></div>
+      <div id="drumout">— (run server.py to sense)</div>
+    </section>
+  </aside>
+  <div id="stage">
+    <nav id="viewtabs">
+      <button class="vtab active" data-view="plan">Plan</button>
+      <button class="vtab" data-view="perception">Perception</button>
+      <button class="vtab" data-view="metrics">Metrics</button>
+      <button class="vtab" data-view="report">Report</button>
+      <span class="vtsep" title="engineer / developer / intern views">·</span>
+      <button class="vtab" data-view="validation">Validation</button>
+      <button class="vtab" data-view="api">API</button>
+      <button class="vtab" data-view="server">Server</button>
+      <button class="vtab" data-view="config">Config</button>
+    </nav>
+    <div id="viewarea">
+      <div id="cesium"></div>
+      <div id="workarea">
+        <div class="cap">WORK AREA — Haworth, 10 km @ 5 m (LOLA polar DEM) · click to plan + render</div>
+        <img id="workareaimg" alt="Haworth DEM hillshade"
+             onerror="this.closest('#workarea').classList.remove('show')" />
+      </div>
+      <div id="renderpanel" class="pane">
+        <div class="cap"><span>PERCEPTION — Godot PLAN → RENDER<b id="rpvol"></b></span>
+          <button id="rpclose" title="back to Plan">✕</button></div>
+        <img id="rpimg" alt="plan render" style="display:none" />
+        <div id="rpstatus"></div>
+        <div id="rpempty" class="empty">No render yet. On the <b>Plan</b> tab, click the work-area DEM
+          (Moon) to render a Godot before/after sensor frame here. A live SLAM map (observed-vs-truth as
+          the rover drives) is the open map-channel work, not a faked feed.</div>
+      </div>
+      <div id="execview" class="pane">
+        <div class="cap"><span>METRICS — execution top-down<b id="execspeed"> 60×</b></span>
+          <button id="execclose" title="back to Plan">✕</button></div>
+        <canvas id="execcanvas" width="320" height="220"></canvas>
+        <div id="exchud">
+          <span class="k">phase</span><span id="excphase">—</span>
+          <span class="k">elapsed</span><span id="exctime">—</span>
+          <span class="k">position</span><span id="excpos">—</span>
+          <span class="k">moved</span><span id="excmass">—</span>
+          <div id="excbatt"><div id="excbattfill"></div></div>
+          <span class="k">battery</span><span id="excbattlbl">—</span>
+        </div>
+        <div id="execempty" class="empty">No run yet. Plan a mission, then press
+          <b>▶ Execute + watch</b> (Plan tab) to replay the planned timeline here (a deterministic
+          forecast of the plan, not live rover telemetry).</div>
+      </div>
+      <div id="pane-report" class="pane">
+        <div class="cap"><span>MISSION-CONTROL REPORT</span>
+          <a id="reportopen" href="#" target="_blank" rel="noopener">open in tab ↗</a></div>
+        <iframe id="reportframe" title="mission-control report"></iframe>
+        <div id="reportempty" class="empty">No report yet. Build a queue and press
+          <b>Plan mission → open report</b> (Plan tab); the PDF appears here.</div>
+      </div>
+      <div id="pane-validation" class="pane">
+        <div class="cap"><span>VALIDATION — figures from <b>validation/</b> (conserved-truth measurements)</span>
+          <select id="valselect" title="pick a figure"></select></div>
+        <img id="valimg" alt="validation figure" style="display:none" />
+        <div id="valempty" class="empty">No figures served. Run from the source tree (the
+          <b>validation/</b> directory is not shipped in the wheel).</div>
+      </div>
+      <div id="pane-api" class="pane">
+        <div class="cap"><span>API — FastAPI interactive docs (Swagger), every endpoint</span>
+          <a id="apiopen" href="/docs" target="_blank" rel="noopener">open in tab ↗</a></div>
+        <iframe id="apiframe" title="API docs"></iframe>
+      </div>
+      <div id="pane-server" class="pane">
+        <div class="cap"><span>SERVER — health + metrics</span>
+          <button id="srvrefresh" class="go">↻ refresh</button></div>
+        <pre id="srvout" class="mono">—</pre>
+      </div>
+      <div id="pane-config" class="pane">
+        <div class="cap"><span>CONFIG — runtime overlay (PRD N15) + docs</span>
+          <a id="docsopen" href="https://dustgym.github.io/dustgym/" target="_blank" rel="noopener">docs site ↗</a></div>
+        <pre id="cfgout" class="mono">—</pre>
+        <iframe id="docsframe" title="docs" src="https://dustgym.github.io/dustgym/"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- bodies + base imagery -------------------------------------------------------------------
+// density [kg/m^3] + g [m/s^2] are a file:// fallback; the served browser reads the sysrev values from
+// bodies.json (terrain_authority/bodies.py, single source). Moon/Mars stream from NASA Solar System Treks;
+// Earth has no Trek tiles, so it uses NASA GIBS Blue Marble (EPSG4326, no token, same 2x1 geographic
+// tiling). All imagery endpoints curl-verified HTTP 200.
+const trekUrl = (body, layer) =>
+  `https://trek.nasa.gov/tiles/${body}/EQ/${layer}/1.0.0/default/default028mm/{z}/{y}/{x}.jpg`;
+// Each body: physics fallback (g/density; served browser uses bodies.json) + a list of imagery LAYERS the
+// Layer dropdown switches between. Moon/Mars = NASA Trek (equirectangular 2x1); Earth = Esri World Imagery
+// (WebMercator; GIBS EPSG4326 fails Cesium's geographic pyramid). All endpoints curl-verified HTTP 200.
+const BODIES = {
+  moon: { name: "Moon", radius: 1737400, start: [-89.0, 0], density: 1300, g: 1.62, layers: [
+    { name: "LRO WAC (visual)", geographic: true, tile: 256, maxLevel: 8,   // z8 is the native ceiling (z9 -> 404)
+      url: trekUrl("Moon", "LRO_WAC_Mosaic_Global_303ppd_v02"), credit: "NASA Trek (LRO WAC, 303 ppd)" },
+  ] },
+  mars: { name: "Mars", radius: 3396200, start: [0, 0], density: 1500, g: 3.71, layers: [
+    { name: "Viking color (visual)", geographic: true, tile: 256, maxLevel: 7,
+      url: trekUrl("Mars", "Mars_Viking_MDIM21_ClrMosaic_global_232m"), credit: "NASA Trek (Viking MDIM2.1)" },
+    { name: "MOLA color shaded-relief", geographic: true, tile: 256, maxLevel: 7,
+      url: trekUrl("Mars", "Mars_MGS_MOLA_ClrShade_merge_global_463m"), credit: "NASA Trek (MOLA elevation)" },
+  ] },
+  earth: { name: "Earth", radius: 6371000, start: [20.0, 0], density: 1600, g: 9.81, layers: [
+    { name: "Esri World Imagery", geographic: false, tile: 256, maxLevel: 18,
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      credit: "Esri World Imagery" },
+  ] },
+};
+// grounded IPEx / battery constants: loaded from bodies.json (_ipex, generated from ipex_specs.py ->
+// single source of truth). The embedded object is a file:// fallback only (when bodies.json can't be
+// fetched); the served browser uses the py-generated values. ipex() resolves preferred-then-fallback.
+const IPEX_FALLBACK = { drum_kg: 30, dig_j_per_kg: 4151, battery_j: 4.79e6, dig_rate_kg_hr: 42 };
+function ipex() { return (PHY && PHY._ipex) ? PHY._ipex : IPEX_FALLBACK; }
+let viewer = null, ellipsoid = null, marker = null, picked = null;
+
+function loadBody(key) {
+  const b = BODIES[key];
+  if (viewer) { viewer.destroy(); viewer = null; }
+  // v1 uses the default geographic globe: imagery + lat/lon + pan/zoom/tilt are all correct; only the
+  // sphere RADIUS is Earth-sized (cosmetic). A true per-body ellipsoid is a refinement (Cesium's custom
+  // globe path errors in 1.119). The body radius is kept in BODIES for the future ellipsoid swap.
+  ellipsoid = Cesium.Ellipsoid.WGS84;
+  viewer = new Cesium.Viewer("cesium", {
+    baseLayer: false, baseLayerPicker: false, geocoder: false, timeline: false,
+    animation: false, sceneModePicker: false, homeButton: false, navigationHelpButton: false,
+    fullscreenButton: false, infoBox: false, selectionIndicator: false,
+  });
+  viewer.scene.skyAtmosphere.show = false;       // hide Earth atmosphere (do NOT set =false: Cesium's
+                                                 // render loop calls skyAtmosphere.setDynamicLighting()
+                                                 // and `false` is "defined" -> TypeError. Keep the object.)
+  viewer.scene.globe.showGroundAtmosphere = false;
+  viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#1a1a1a");
+  const lsel = document.getElementById("layer");          // populate the Layer dropdown for this body
+  lsel.innerHTML = "";
+  b.layers.forEach((L, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = L.name; lsel.appendChild(o); });
+  lsel.value = "0";
+  applyLayer(key, 0);
+  picked = null; marker = null;
+  flyTo(b.start[0], b.start[1], ellipsoid.maximumRadius * 1.65);   // frame the body larger (less empty black)
+
+  // click to pick a surface coordinate
+  const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+  handler.setInputAction((e) => {
+    const c = viewer.camera.pickEllipsoid(e.position, ellipsoid);
+    if (!c) return;
+    const carto = Cesium.Cartographic.fromCartesian(c, ellipsoid);
+    setPicked(Cesium.Math.toDegrees(carto.latitude), Cesium.Math.toDegrees(carto.longitude));
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+}
+
+function applyLayer(key, idx) {                            // swap the base imagery to the selected layer
+  const L = BODIES[key].layers[idx];
+  viewer.imageryLayers.removeAll();
+  const o = { url: L.url, maximumLevel: L.maxLevel, tileWidth: L.tile, tileHeight: L.tile, credit: L.credit };
+  if (L.geographic)   // Trek = equirectangular 2x1; Esri (Earth) uses the default WebMercator scheme
+    o.tilingScheme = new Cesium.GeographicTilingScheme({ numberOfLevelZeroTilesX: 2, numberOfLevelZeroTilesY: 1 });
+  viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider(o));
+}
+
+function flyTo(lat, lon, height) {
+  const h = height || ellipsoid.maximumRadius * 0.4;
+  viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(lon, lat, h, ellipsoid), duration: 1.2 });
+}
+
+function setPicked(lat, lon) {
+  picked = { lat, lon };
+  document.getElementById("out").textContent = `picked  lat ${lat.toFixed(3)}°  lon ${lon.toFixed(3)}°`;
+  if (marker) viewer.entities.remove(marker);
+  marker = viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(lon, lat, 0, ellipsoid),
+    point: { pixelSize: 11, color: Cesium.Color.CYAN, outlineColor: Cesium.Color.BLACK, outlineWidth: 2 },
+  });
+}
+
+// --- UI wiring -------------------------------------------------------------------------------
+const sel = document.getElementById("body");
+for (const [k, v] of Object.entries(BODIES)) {
+  const o = document.createElement("option"); o.value = k; o.textContent = v.name; sel.appendChild(o);
+}
+const $ = (id) => document.getElementById(id);
+
+// --- view tabs: swap the stage between Plan (globe) / Perception (render) / Metrics (telemetry) / Report.
+// The globe (#cesium) stays mounted under the panes (no Cesium re-init); the active pane covers it.
+let VIEW = "plan";
+const VIEW_PANE = { perception: "renderpanel", metrics: "execview", report: "pane-report",
+                    validation: "pane-validation", api: "pane-api", server: "pane-server", config: "pane-config" };
+const _PANE_LOADED = {};
+function setView(name) {
+  VIEW = name;
+  document.querySelectorAll(".vtab").forEach((b) => b.classList.toggle("active", b.dataset.view === name));
+  for (const [v, id] of Object.entries(VIEW_PANE)) $(id).classList.toggle("active", v === name);
+  if (name === "plan") { showSiteDem(); if (viewer) viewer.resize(); }   // restore the Plan inset + keep globe crisp
+  else $("workarea").classList.remove("show");                            // the inset belongs to the Plan tab
+  loadPane(name);
+}
+document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
+
+// lazy-load the engineer/dev/intern panes the first time shown (Server refreshes live each open). All read
+// real server endpoints; on file:// or a down server they keep their empty state (no fabricated content).
+async function loadPane(name) {
+  try {
+    if (name === "api") {
+      if (!_PANE_LOADED.api) { $("apiframe").src = "/docs"; _PANE_LOADED.api = true; }   // FastAPI Swagger
+    } else if (name === "validation" && !_PANE_LOADED.validation) {
+      _PANE_LOADED.validation = true;
+      const d = await (await fetch("/figures")).json();
+      const vs = $("valselect");
+      if (d.ok && d.figures.length) {
+        vs.innerHTML = d.figures.map((f) => `<option value="${f.url}">${f.key}</option>`).join("");
+        $("valempty").style.display = "none";
+        const show = () => { $("valimg").src = vs.value; $("valimg").style.display = "block"; };
+        vs.onchange = show; show();
+      }
+    } else if (name === "server") {                                       // live ops view: refresh every open
+      const [h, m] = await Promise.all([fetch("/healthz").then((r) => r.json()),
+                                        fetch("/metrics").then((r) => r.json())]);
+      $("srvout").textContent = "health\n" + JSON.stringify(h, null, 2)
+                              + "\n\nmetrics\n" + JSON.stringify(m, null, 2);
+    } else if (name === "config" && !_PANE_LOADED.config) {
+      _PANE_LOADED.config = true;
+      const c = await (await fetch("/config")).json();
+      $("cfgout").textContent = "runtime config overlay (PRD N15)\n" + JSON.stringify(c, null, 2);
+    }
+  } catch (e) { /* server not reachable (file://) -> panes keep their placeholder/empty state */ }
+}
+$("srvrefresh").onclick = () => loadPane("server");
+
+// PHYSICS loaded from bodies.json (the sim's sysrev-sourced terrain_authority/bodies.py) -> single source
+// of truth. phys() prefers the loaded body terramechanics; falls back to embedded BODIES if the file
+// isn't served (e.g. file://). So choosing a body LOADS that body's correct terramechanics.
+let PHY = null;
+function phys(key) {
+  const p = PHY && PHY[key], b = BODIES[key];
+  return {
+    label: b.name,
+    g: p ? p.g : b.g,
+    density: p ? p.bulk_density : b.density,
+    cohesion_pa: p ? p.cohesion_pa : null,
+    friction_deg: p ? p.friction_deg : null,
+    bekker: p ? p.bekker : null,
+    regime: p ? p.bekker_regime : null,
+    confidence: p ? p.confidence : null,
+  };
+}
+function showTerra() {
+  const p = phys(sel.value);
+  const bk = p.bekker ? `Bekker kφ ${(p.bekker.k_phi / 1000).toFixed(0)}k·kc ${p.bekker.k_c}·n ${p.bekker.n}` : "Bekker —";
+  const pw = PHY && PHY[sel.value] && PHY[sel.value].ipex_power;   // gravity-SWAPPED IPEx power for this body
+  $("terra").textContent =
+    `terramechanics  g ${p.g} m/s² · ρ ${p.density} kg/m³`
+    + (p.cohesion_pa != null ? ` · c ${p.cohesion_pa} Pa` : "")
+    + (p.friction_deg != null ? ` · φ ${p.friction_deg}°` : "")
+    + ` · ${bk}` + (p.regime ? ` · ${p.regime}` : "")
+    + (pw ? `  ·  IPEx power (g-scaled) drive ${pw.drive_power_w} W (15° ${pw.drive_power_15deg_w} W) · `
+            + `system ${pw.system_power_w} W [thermal-survival ${pw.thermal_survival_w}+avionics ${pw.avionics_w}+comms ${pw.comms_w} W]`
+            + (pw.thermal_by_env_w && Object.keys(pw.thermal_by_env_w).length
+               ? `  ·  heater/env: ${Object.entries(pw.thermal_by_env_w).map(([e, w]) => `${e.replace(/^(lunar|mars)_/, "")} ${w}W`).join(", ")}` : "") : "")
+    + (PHY ? "" : "  (fallback — serve bodies.json)");
+}
+
+// estimate the regolith a build order moves, using the SELECTED BODY's loaded terramechanics:
+// volume = footprint*depth; mass = volume*density; weight = mass*g; drum loads @30 kg;
+// excavation energy @4151 J/kg vs a 4.79 MJ battery charge; dig time @42 kg/hr.
+function estimate() {
+  const p = phys(sel.value);
+  const padW = +$("padW").value, padL = +$("padL").value, cut = +$("cut").value, bermH = +$("bermH").value;
+  const ix = ipex();                                       // IPEx constants (bodies.json _ipex, py source)
+  const cutVol = padW * padL * cut;                         // m^3
+  const cutMass = cutVol * p.density;                       // kg
+  const weightN = cutMass * p.g;                            // N (weight on THIS body)
+  const bermArea = bermH > 0 ? cutMass / (bermH * p.density) : 0;   // mass-balanced berm footprint [m^2]
+  const drumLoads = Math.ceil(cutMass / ix.drum_kg);
+  const energyJ = cutMass * ix.dig_j_per_kg;               // excavation energy (dominant term)
+  const charges = energyJ / ix.battery_j, hrs = cutMass / ix.dig_rate_kg_hr;
+  $("est").textContent =
+    `${cutVol.toFixed(0)} m³ = ${(cutMass / 1000).toFixed(1)} t (${(weightN / 1000).toFixed(0)} kN @ ${p.g}g) · ` +
+    `${drumLoads.toLocaleString()} drum loads · → ${bermArea.toFixed(0)} m² berm @ ${bermH} m · ` +
+    `${(energyJ / 1e6).toFixed(1)} MJ = ${charges.toFixed(1)} charges · ~${Math.round(hrs).toLocaleString()} h dig`;
+  return { body: sel.value, padW, padL, cut_m: cut, bermH_m: bermH, cutVol_m3: cutVol, cutMass_kg: cutMass,
+           weight_N: weightN, bermArea_m2: bermArea, drumLoads, energy_MJ: energyJ / 1e6,
+           batteryCharges: charges, digHours: hrs, terramechanics: p };
+}
+
+function showSiteDem() {                                   // auto-show the real Haworth 5 m work-area DEM on Moon
+  const wa = document.getElementById("workarea");
+  if (VIEW === "plan" && sel.value === "moon") {
+    document.getElementById("workareaimg").src = "/dem/hillshade.png"; wa.classList.add("show");
+  } else { wa.classList.remove("show"); }                 // the inset belongs to the Plan tab only
+}
+sel.onchange = () => { loadBody(sel.value); showTerra(); estimate(); showSiteDem(); };
+$("layer").onchange = () => applyLayer(sel.value, +$("layer").value);   // swap imagery without reloading the body
+$("terrainfo").onclick = () => $("terra").classList.toggle("show");     // terramechanics on demand (updates per body)
+
+// click the Haworth DEM inset to plan + render that area (the select-area -> render loop)
+$("workareaimg").onclick = async (e) => {
+  const r = e.target.getBoundingClientRect();
+  const u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
+  setView("perception");                                   // swap to the Perception pane to show the render
+  $("rpempty").style.display = "none";
+  $("rpstatus").textContent = "rendering BEFORE / AFTER in Godot (~40 s)…";
+  $("rpimg").style.display = "none"; $("rpvol").textContent = "";
+  try {
+    const res = await fetch("/render", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ u, v, pad_frac: 0.5 }) });
+    const j = await res.json();
+    if (!j.ok) { $("rpstatus").textContent = "render unavailable: " + (j.error || res.status); return; }
+    $("rpvol").textContent = ` — cut ${j.cut_vol_m3} m³ / fill ${j.fill_vol_m3} m³ (${j.extent_m} m window)`;
+    $("rpimg").src = j.figure + "?t=" + Date.now(); $("rpimg").style.display = "block"; $("rpstatus").textContent = "";
+  } catch (err) { $("rpstatus").textContent = "render error: " + err; }
+};
+$("rpclose").onclick = () => setView("plan");
+["padW", "padL", "cut", "bermH"].forEach((id) => $(id).addEventListener("input", estimate));
+$("go").onclick = () => {
+  const lat = parseFloat($("lat").value), lon = parseFloat($("lon").value);
+  if (!isNaN(lat) && !isNaN(lon)) { setPicked(lat, lon); flyTo(lat, lon); }
+};
+$("site").onclick = () => {
+  if (!picked) { $("out").textContent = "click the surface or enter a coord first"; return; }
+  const order = estimate();
+  // build-site spec handed to the sim's DEM loader / WorkSite realizer (next integration).
+  const spec = { body: sel.value, lat: picked.lat, lon: picked.lon, half_extent_km: 5, order };
+  $("out").textContent =
+    `BUILD SITE  ${BODIES[sel.value].name}  ${picked.lat.toFixed(3)}, ${picked.lon.toFixed(3)}  ` +
+    `→ ${(order.cutMass_kg / 1000).toFixed(1)} t, ${order.batteryCharges.toFixed(1)} charges`;
+  console.log("build_order", JSON.stringify(spec));
+  window.dispatchEvent(new CustomEvent("buildsite", { detail: spec }));
+};
+
+// ---- build queue -> POST /plan -> open the mission-control report -----------------------------
+// Orders are in the planner's LOCAL SITE FRAME (meters, charger at 0,0); the globe pick selects the
+// site, the queue places orders around it in meters (no fake lat/lon->meter projection). Planning
+// needs the server (fetch /plan): run `python3 server.py` and open the printed URL.
+const ORDERS = [];
+const KEEPOUTS = [];                                          // discrete obstacles {x,y,r} (local m); hauls route around
+const qel = (id) => document.getElementById(id);
+const setQ = (m) => { qel("qstatus").textContent = m; };
+function mkbtn(t, fn) { const b = document.createElement("button"); b.textContent = t; b.onclick = fn; return b; }
+function renderKeepouts() {
+  const ol = qel("kolist"); ol.innerHTML = "";
+  KEEPOUTS.forEach((k, i) => {
+    const li = document.createElement("li");
+    const g = document.createElement("span"); g.className = "g";
+    g.textContent = `obstacle @ ${k.x},${k.y} · r ${k.r} m`;
+    li.appendChild(g);
+    li.appendChild(mkbtn("✕", () => { KEEPOUTS.splice(i, 1); renderKeepouts(); }));
+    ol.appendChild(li);
+  });
+  drawPlan();
+}
+qel("koadd").onclick = () => {
+  const x = +qel("kox").value, y = +qel("koy").value, r = +qel("kor").value;
+  if (!(r > 0)) { setQ("keep-out radius must be > 0"); return; }
+  KEEPOUTS.push({ x, y, r }); renderKeepouts();
+  setQ(`${KEEPOUTS.length} keep-out obstacle(s); hauls will route around them`);
+};
+function moveOrder(i, d) {
+  const j = i + d; if (j < 0 || j >= ORDERS.length) return;
+  [ORDERS[i], ORDERS[j]] = [ORDERS[j], ORDERS[i]]; renderQueue();
+}
+function renderQueue() {
+  const ol = qel("qlist"); ol.innerHTML = "";
+  ORDERS.forEach((o, i) => {
+    const li = document.createElement("li");
+    const g = document.createElement("span"); g.className = "g";
+    g.textContent = `${o.kind} ${o.action || ""} (${o.x},${o.y}) ${o.footprint_m2}m²×${o.depth_m}m`;
+    li.append(`${i + 1}.`, g, mkbtn("▲", () => moveOrder(i, -1)), mkbtn("▼", () => moveOrder(i, 1)),
+              mkbtn("✕", () => { ORDERS.splice(i, 1); renderQueue(); }));
+    ol.appendChild(li);
+  });
+  setQ(ORDERS.length ? `${ORDERS.length} order(s) queued` : "queue empty");
+  drawPlan();
+}
+function addOrder(o) { ORDERS.push(o); renderQueue(); }
+
+// ---- LAYER SYSTEM: select / load / unload map overlays (imagery, dem, topology, hazard, excavation, lander) ----
+const LAYER_ON = { imagery: true, dem: true, topology: false, hazard: true, excavation: true, lander: true };
+let LANDER = { name: "Nova-C", x: 0, y: 0, footprint_m: 4.6, n_legs: 6 };   // delivery lander at the charger, drawn to-scale
+async function loadLayers() {
+  try {
+    const d = await (await fetch("/layers")).json();
+    const panel = qel("layerpanel"); if (!panel) return;
+    panel.innerHTML = "<b style=\"margin-right:4px\">LAYERS</b>";
+    d.layers.forEach((L) => {
+      LAYER_ON[L.id] = L.default;
+      const lab = document.createElement("label"); lab.style.cssText = "display:inline-flex;gap:3px;align-items:center;cursor:pointer";
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = L.default;
+      cb.onchange = () => { LAYER_ON[L.id] = cb.checked; applyLayerToggle(L.id, cb.checked); drawPlan(); };
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(L.name)); panel.appendChild(lab);
+    });
+  } catch (e) { /* serverless preview keeps the defaults */ }
+}
+function applyLayerToggle(id, on) {                          // load/unload the raster layers (vector layers redraw)
+  if (id === "dem") { const wa = qel("workarea"); if (wa) wa.style.display = on ? "" : "none"; }
+  if (id === "imagery" && window.viewer && viewer.imageryLayers && viewer.imageryLayers.length) viewer.imageryLayers.get(0).show = on;
+}
+loadLayers();
+
+// ---- PLAN VIEW: a top-down local-frame view of the queue (orders + keep-outs + charger) + click-to-place ----
+let _placeXY = null;                                       // last click-to-place marker (local metres)
+function _planExtent() {
+  const xs = [0], ys = [0];                                // include the charger at (0,0)
+  ORDERS.forEach((o) => { const h = Math.sqrt(o.footprint_m2) / 2; xs.push(o.x - h, o.x + h); ys.push(o.y - h, o.y + h); });
+  KEEPOUTS.forEach((k) => { xs.push(k.x - k.r, k.x + k.r); ys.push(k.y - k.r, k.y + k.r); });
+  if (_placeXY) { xs.push(_placeXY.x); ys.push(_placeXY.y); }
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  if (x1 - x0 < 1) { x0 -= 10; x1 += 10; } if (y1 - y0 < 1) { y0 -= 10; y1 += 10; }
+  const px = Math.max(5, (x1 - x0) * 0.15), py = Math.max(5, (y1 - y0) * 0.15);
+  return { x0: x0 - px, x1: x1 + px, y0: y0 - py, y1: y1 + py };
+}
+function _planXform(cv, ext) {
+  const W = cv.width, H = cv.height;
+  const s = Math.min(W / (ext.x1 - ext.x0), H / (ext.y1 - ext.y0));
+  const ox = (W - s * (ext.x1 - ext.x0)) / 2, oy = (H - s * (ext.y1 - ext.y0)) / 2;
+  return { s, ox, oy, X: (wx) => ox + (wx - ext.x0) * s, Y: (wy) => H - (oy + (wy - ext.y0) * s) };
+}
+let LAST_ROUTES = [];                                      // item 3: routes from the last /plan response, drawn on the 2D canvas
+function drawPlan() {
+  const cv = qel("plancanvas"); if (!cv) return;
+  const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H); ctx.fillStyle = "#05060c"; ctx.fillRect(0, 0, W, H);
+  const ext = _planExtent(), tf = _planXform(cv, ext), X = tf.X, Y = tf.Y, s = tf.s;
+  if (LAYER_ON.hazard) KEEPOUTS.forEach((k) => {           // hazard layer: keep-outs = red discs
+    ctx.fillStyle = "rgba(224,86,75,.22)"; ctx.strokeStyle = "#e0564b"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(X(k.x), Y(k.y), Math.max(2, k.r * s), 0, 7); ctx.fill(); ctx.stroke();
+  });
+  LAST_ROUTES.forEach((rt) => {                            // item 3: planned terrain-following haul routes
+    const wp = rt.waypoints || [];
+    if (rt.reached && wp.length >= 2) {                    // routed leg -> green polyline through the waypoints
+      ctx.strokeStyle = "#3fa34d"; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(X(wp[0][0]), Y(wp[0][1]));
+      for (let i = 1; i < wp.length; i++) ctx.lineTo(X(wp[i][0]), Y(wp[i][1]));
+      ctx.stroke();
+    } else if (rt.from_xy && rt.to_xy) {                   // blocked leg -> red dashed (route NOT driven)
+      ctx.strokeStyle = "#e0564b"; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(X(rt.from_xy[0]), Y(rt.from_xy[1]));
+      ctx.lineTo(X(rt.to_xy[0]), Y(rt.to_xy[1])); ctx.stroke(); ctx.setLineDash([]);
+    }
+  });
+  if (LAYER_ON.excavation) ORDERS.forEach((o, i) => {      // excavation layer: cut (blue) / fill (orange) squares
+    const half = Math.max(2, Math.sqrt(o.footprint_m2) / 2 * s);
+    ctx.fillStyle = o.kind === "cut" ? "rgba(79,156,255,.30)" : "rgba(224,123,57,.30)";
+    ctx.strokeStyle = o.kind === "cut" ? "#4f9cff" : "#e07b39"; ctx.lineWidth = 1;
+    ctx.fillRect(X(o.x) - half, Y(o.y) - half, half * 2, half * 2);
+    ctx.strokeRect(X(o.x) - half, Y(o.y) - half, half * 2, half * 2);
+    ctx.fillStyle = "#c7d2e3"; ctx.font = "9px system-ui"; ctx.textAlign = "center";
+    ctx.fillText(String(i + 1), X(o.x), Y(o.y) + 3);
+  });
+  ctx.fillStyle = "#3fa34d"; ctx.fillRect(X(0) - 3, Y(0) - 3, 6, 6);   // charger
+  if (LAYER_ON.lander) {                                   // lander layer: TO-SCALE hexagon+legs at its location
+    const fr = Math.max(3, LANDER.footprint_m / 2 * s), lx = X(LANDER.x), ly = Y(LANDER.y);
+    ctx.strokeStyle = "#ffd166"; ctx.fillStyle = "rgba(255,209,102,.16)"; ctx.lineWidth = 1.4;
+    for (let k = 0; k < LANDER.n_legs; k++) {              // legs (slightly beyond the body footprint)
+      const a = Math.PI / 6 + k * 2 * Math.PI / LANDER.n_legs;
+      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + Math.cos(a) * fr * 1.3, ly + Math.sin(a) * fr * 1.3); ctx.stroke();
+    }
+    ctx.beginPath();                                        // hexagonal body, to true footprint
+    for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3, xx = lx + Math.cos(a) * fr, yy = ly + Math.sin(a) * fr; k ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#ffd166"; ctx.font = "8px system-ui"; ctx.textAlign = "center";
+    ctx.fillText(LANDER.name + " (" + LANDER.footprint_m + " m)", lx, ly - fr - 3);
+  }
+  if (_placeXY) {                                          // the click-to-place crosshair
+    ctx.strokeStyle = "#4f9cff"; ctx.lineWidth = 1; const cx = X(_placeXY.x), cy = Y(_placeXY.y);
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, 7); ctx.moveTo(cx - 8, cy); ctx.lineTo(cx + 8, cy);
+    ctx.moveTo(cx, cy - 8); ctx.lineTo(cx, cy + 8); ctx.stroke();
+  }
+}
+qel("plancanvas").onclick = (e) => {                       // canvas px -> local metres -> the x,y inputs
+  const cv = qel("plancanvas"), r = cv.getBoundingClientRect();
+  const px = (e.clientX - r.left) / r.width * cv.width, py = (e.clientY - r.top) / r.height * cv.height;
+  const ext = _planExtent(), tf = _planXform(cv, ext);
+  const wx = ext.x0 + (px - tf.ox) / tf.s, wy = ext.y0 + ((cv.height - py) - tf.oy) / tf.s;
+  _placeXY = { x: Math.round(wx), y: Math.round(wy) };
+  qel("qx").value = _placeXY.x; qel("qy").value = _placeXY.y;
+  setQ(`placed ${_placeXY.x}, ${_placeXY.y} m — pick a kind/structure + Add to queue it`);
+  drawPlan();
+};
+qel("qadd").onclick = () => addOrder({
+  action: qel("qlabel").value || (qel("qkind").value === "cut" ? "Cut" : "Fill"),
+  kind: qel("qkind").value, x: +qel("qx").value, y: +qel("qy").value,
+  footprint_m2: +qel("qfoot").value, depth_m: +qel("qdepth").value,
+});
+qel("qfrompad").onclick = () => {                          // convenience: pad estimator -> a cut + a balanced fill
+  const padW = +$("padW").value, padL = +$("padL").value, cut = +$("cut").value, bermH = +$("bermH").value;
+  const x = +qel("qx").value, y = +qel("qy").value, p = phys(sel.value);
+  addOrder({ action: "Pad cut", kind: "cut", x, y, footprint_m2: padW * padL, depth_m: cut });
+  if (bermH > 0) {
+    const mass = padW * padL * cut * p.density;
+    addOrder({ action: "Berm fill", kind: "fill", x: x + 10, y: y + 10,
+               footprint_m2: +(mass / (bermH * p.density)).toFixed(1), depth_m: bermH });
+  }
+};
+qel("qstruct").onclick = async () => {                     // place a named structure -> mass-balanced orders (P2)
+  try {
+    const res = await fetch("/structure", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: qel("struct").value, x: +qel("qx").value, y: +qel("qy").value }) });
+    const j = await res.json();
+    if (!j.ok) { setQ("structure error: " + j.error); return; }
+    j.orders.forEach(addOrder);
+    setQ(`added ${j.orders.length} order(s) from ${qel("struct").value}`);
+  } catch (e) { setQ("structure failed — run server.py (" + e + ")"); }
+};
+// precedence text "Grade road > Build berm, Dig pit > Fill" -> [[before, after], ...] (I9)
+function parsePrec() {
+  return (qel("qprec").value || "").split(",").map(s => s.trim()).filter(Boolean)
+    .map(s => s.split(">").map(x => x.trim())).filter(p => p.length === 2 && p[0] && p[1]);
+}
+qel("qplan").onclick = async () => {
+  if (!ORDERS.length) { setQ("add at least one order first"); return; }
+  setQ("planning…");
+  try {
+    const res = await fetch("/plan", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: `${BODIES[sel.value].name} build`, body: sel.value, charger: [0, 0],
+        orders: ORDERS, algorithm: qel("qalgo").value, objective: qel("qobj").value, precedence: parsePrec(),
+        keepouts: KEEPOUTS, ...fleet(), ...site() }) });
+    const j = await res.json();
+    if (!j.ok) { setQ("error: " + j.error); return; }
+    const t = j.totals;
+    LAST_ROUTES = t.routes || []; drawPlan();              // item 3: overlay the planned routes on the 2D canvas
+    const v = j.validation || {};
+    const vtag = (v.feasible ? " · ✓ authority-validated" : (v.mass_conserved !== undefined ? " · ⚠ infeasible" : ""))
+      // P0 as-built acceptance: flatness of the executed surface measured on the REAL terrain (not a flat mantle)
+      + (v.as_built_on_real_dem ? ` · as-built ${(v.as_built_flatness_rmse_m * 100).toFixed(1)} cm `
+          + `${v.as_built_pass ? "✓" : `✗ (>${(v.as_built_tol_m * 100).toFixed(0)} cm)`}` : "");
+    // I10: hauls routed around real-DEM hazards — show detour over straight lines + any blocked legs
+    const rtag = t.routed_haul ? ` · haul +${(t.haul_detour_frac * 100).toFixed(1)}% around hazards`
+                 + (t.blocked_legs ? ` (⚠ ${t.blocked_legs} blocked)` : "") : "";
+    // show the chosen algorithm (resolved, if 'auto') + objective + any precedence honored
+    const atag = ` · ${t.algorithm === t.resolved_algorithm ? t.algorithm : t.algorithm + "→" + t.resolved_algorithm}`
+      + `/${t.objective}` + (t.n_precedence ? ` · ${t.n_precedence} precedence` : "");
+    // single-charge range ("true distance before recharge"): slope+slip-adjusted if a DEM was used
+    const e = j.endurance || {};
+    const erng = e.range_slopeslip_km != null ? e.range_slopeslip_km : e.range_flat_reserve_km;
+    const etag = erng != null ? ` · range ${erng.toFixed(0)} km/charge` : "";
+    // closed-loop autonomy + the AutoNav onboard estimate (perception) uncertainty, folded into /plan
+    const au = j.autonomy || {};
+    const autag = au.completed !== undefined
+      ? ` · autonomy ${au.completed ? "✓" : "⚠"} ${au.recharges}rch/${au.replans}rpl, SoC ${(au.final_soc * 100).toFixed(0)}%, slip ${au.max_slip}` : "";
+    const pc = j.perception || {};
+    const ptag = pc.pose_sigma_m != null
+      ? ` · est ±${pc.pose_sigma_m} m pose (${pc.map_fixes} map fixes`
+        + (pc.observe_more_before_dig ? `, ${pc.observe_more_before_dig} observe-more` : "")
+        + `), drum ±${pc.drum_fill_uncertainty_pct}%` : "";
+    // P6 map channel (LAC §10): worksite coverage the executed route observed (onboard-observability tier)
+    const mtag = pc.map_coverage != null
+      ? ` · map ${(pc.map_coverage * 100).toFixed(0)}% covered`
+        + (pc.map_observe_more_before_dig ? ` (${pc.map_observe_more_before_dig} survey-first)` : "") : "";
+    // discrete keep-out obstacles: hauls routed around them; flag any build placed inside one
+    const ktag = t.n_keepouts ? ` · ${t.n_keepouts} keep-out${t.keepout_conflicts ? ` (⚠ ${t.keepout_conflicts} build on obstacle)` : ""}` : "";
+    // K11c: continuous survival/idle power (an [ASSUMPTION] term) when modelled
+    const stag = t.survival_energy_J > 0 ? ` · +${(t.survival_energy_J / 1e6).toFixed(1)} MJ survival [assumption]` : "";
+    // MV: multi-vehicle fleet -> parallel makespan + space-time deconfliction
+    const ftag = t.vehicles > 1
+      ? ` · ${t.vehicles} rovers, makespan ${(t.makespan_s / 3600).toFixed(1)} h, ${t.vehicle_conflicts} conflicts` : "";
+    setQ(`report ready · cut ${(t.cut_kg / 1000).toFixed(1)}t → fill ${(t.fill_kg / 1000).toFixed(1)}t · `
+         + `${(t.energy_J / 1e6).toFixed(1)} MJ · ${t.charges} recharges${ftag}${etag}${atag}${rtag}${ktag}${stag}${vtag}${autag}${ptag}${mtag}`);
+    LAST_TIMELINE = j.timeline || null;                    // P5: enable execute + watch
+    LAST_PLAN_IR = j.plan_ir || null;                      // the executable plan IR (download via ⤓ Plan IR)
+    LAST_ORDERS = ORDERS.slice(); LAST_KEEPOUTS = KEEPOUTS.slice();
+    qel("qexec").disabled = !LAST_TIMELINE;
+    qel("reportframe").src = j.pdf;                        // embed the mission-control PDF in the Report pane
+    qel("reportframe").classList.add("show");
+    qel("reportopen").href = j.pdf;                        // ...with an "open in tab" escape hatch
+    qel("reportempty").style.display = "none";
+    setView("report");
+  } catch (e) { setQ("plan failed. start the server: python3 server.py  (" + e + ")"); }
+};
+
+// ---- import / export plans (round-trippable designer files) ------------------------------------
+// a PROFILE = the full planning config snapshot (body, soil, fleet, orders, site, optimization).
+function currentPlan() {
+  return { body: sel.value, orders: ORDERS, keepouts: KEEPOUTS, precedence: qel("qprec").value,
+           algorithm: qel("qalgo").value, objective: qel("qobj").value, ...fleet(), ...site() };
+}
+function restoreProfile(p) {                                // set the WHOLE UI from a profile object
+  if (!Array.isArray(p.orders)) throw new Error("no orders[] in profile");
+  ORDERS.length = 0; p.orders.forEach((o) => ORDERS.push(o));
+  KEEPOUTS.length = 0; if (Array.isArray(p.keepouts)) p.keepouts.forEach((k) => KEEPOUTS.push(k));
+  renderKeepouts();
+  if (p.body && BODIES[p.body]) { sel.value = p.body; sel.dispatchEvent(new Event("change")); }
+  if (p.precedence != null) qel("qprec").value = p.precedence;
+  if (p.algorithm) qel("qalgo").value = p.algorithm;
+  if (p.objective) qel("qobj").value = p.objective;
+  if (p.vehicle && qel("vehicle")) qel("vehicle").value = p.vehicle;
+  if (qel("vehcount") && p.vehicles) qel("vehcount").value = p.vehicles;
+  if (qel("soil")) qel("soil").value = p.soil || "";
+  if (qel("lat") && p.lat != null) qel("lat").value = p.lat;
+  if (qel("lon") && p.lon != null) qel("lon").value = p.lon;
+  if (Array.isArray(p.tools))
+    document.querySelectorAll("#tools input").forEach((c) => { c.checked = p.tools.includes(c.value); });
+  if (typeof syncKinds === "function") syncKinds();
+  renderQueue();
+}
+qel("qexport").onclick = () => {
+  const blob = new Blob([JSON.stringify(currentPlan(), null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${sel.value}_plan_${ORDERS.length}orders.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  setQ(`exported ${ORDERS.length} orders`);
+};
+qel("qplanir").onclick = () => {                         // download the machine-executable plan IR
+  if (!LAST_PLAN_IR) { setQ("plan a mission first — the Plan IR comes from /plan"); return; }
+  const blob = new Blob([JSON.stringify(LAST_PLAN_IR, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `plan_${LAST_PLAN_IR.plan_id || "ir"}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  setQ(`exported plan IR ${LAST_PLAN_IR.plan_id} (${LAST_PLAN_IR.actions.length} actions)`);
+};
+qel("qimport").onclick = () => qel("qfile").click();
+qel("qfile").onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try { restoreProfile(JSON.parse(await f.text())); setQ(`imported ${ORDERS.length} orders from ${f.name}`); }
+  catch (err) { setQ("import failed: " + err.message); }
+  e.target.value = "";
+};
+// server-side profiles: save the current config, list + load saved ones
+async function refreshProfiles() {
+  try {
+    const d = await (await fetch("/profiles")).json();
+    if (d && d.ok) qel("profload").innerHTML = d.profiles.map((n) => `<option>${n}</option>`).join("");
+  } catch (err) { /* server not up */ }
+}
+qel("profsave").onclick = async () => {
+  const name = (qel("profname").value || "").trim();
+  if (!name) { setQ("name the profile first"); return; }
+  try {
+    const j = await (await fetch("/profile", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, profile: currentPlan() }) })).json();
+    if (j.ok) { setQ(`saved profile '${j.name}'`); refreshProfiles(); } else { setQ("save failed: " + j.error); }
+  } catch (err) { setQ("save failed (start the server): " + err); }
+};
+qel("profloadbtn").onclick = async () => {
+  const slug = qel("profload").value; if (!slug) { setQ("no saved profiles"); return; }
+  try {
+    const j = await (await fetch("/profile/" + encodeURIComponent(slug))).json();
+    if (j.profile) { restoreProfile(j.profile); setQ(`loaded profile '${j.name}'`); }
+    else { setQ("load failed: " + (j.error || "")); }
+  } catch (err) { setQ("load failed: " + err); }
+};
+
+// ---- P5: execute + watch — animate the planned timeline top-down with a telemetry HUD ----------
+let LAST_TIMELINE = null, LAST_ORDERS = [], LAST_KEEPOUTS = [], LAST_PLAN_IR = null, EXEC_RAF = 0;
+const EXEC_SPEEDUP = 60;                                   // sim seconds per wall-clock second (shown in cap)
+function execExtent(tl, orders) {
+  // world bounds covering the charger, every order site, and every route waypoint -> canvas transform
+  const xs = [tl.charger[0]], ys = [tl.charger[1]];
+  orders.forEach(o => { xs.push(o.x); ys.push(o.y); });
+  tl.frames.forEach(f => { xs.push(f.x0, f.x1); ys.push(f.y0, f.y1); });
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const padx = Math.max(5, (x1 - x0) * 0.12), pady = Math.max(5, (y1 - y0) * 0.12);
+  return { x0: x0 - padx, x1: x1 + padx, y0: y0 - pady, y1: y1 + pady };
+}
+function execDraw(tl, orders, ext, cv, simT) {
+  const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+  const sx = W / (ext.x1 - ext.x0), sy = H / (ext.y1 - ext.y0), s = Math.min(sx, sy);
+  const ox = (W - s * (ext.x1 - ext.x0)) / 2, oy = (H - s * (ext.y1 - ext.y0)) / 2;
+  const X = wx => ox + (wx - ext.x0) * s, Y = wy => H - (oy + (wy - ext.y0) * s);   // y up
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "#05060c"; ctx.fillRect(0, 0, W, H);
+  // keep-out obstacles (the route bends around these): hatched red discs in the local frame
+  LAST_KEEPOUTS.forEach(k => {
+    ctx.fillStyle = "rgba(224,86,75,.22)"; ctx.strokeStyle = "#e0564b"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(X(k.x), Y(k.y), k.r * s, 0, 7); ctx.fill(); ctx.stroke();
+  });
+  // order footprints (cut = blue, fill = orange) as squares sized by area
+  orders.forEach(o => {
+    const half = Math.sqrt(o.footprint_m2) / 2 * s;
+    ctx.fillStyle = o.kind === "cut" ? "rgba(79,156,255,.28)" : "rgba(224,123,57,.28)";
+    ctx.strokeStyle = o.kind === "cut" ? "#4f9cff" : "#e07b39"; ctx.lineWidth = 1;
+    ctx.fillRect(X(o.x) - half, Y(o.y) - half, half * 2, half * 2);
+    ctx.strokeRect(X(o.x) - half, Y(o.y) - half, half * 2, half * 2);
+  });
+  // item 3d: the planned terrain-following route(s), same geometry the 2D plan canvas shows (links the
+  // route into the playback view; routed = dashed green, blocked = dashed red). The rover marker below
+  // follows the time/energy timeline forecast.
+  LAST_ROUTES.forEach(rt => {
+    const wp = rt.waypoints || [];
+    if (rt.reached && wp.length >= 2) {
+      ctx.strokeStyle = "rgba(63,163,77,.5)"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(X(wp[0][0]), Y(wp[0][1]));
+      for (let i = 1; i < wp.length; i++) ctx.lineTo(X(wp[i][0]), Y(wp[i][1]));
+      ctx.stroke(); ctx.setLineDash([]);
+    } else if (rt.from_xy && rt.to_xy) {
+      ctx.strokeStyle = "rgba(224,86,75,.6)"; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(X(rt.from_xy[0]), Y(rt.from_xy[1])); ctx.lineTo(X(rt.to_xy[0]), Y(rt.to_xy[1]));
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+  });
+  // driven route so far (solid) + remaining (faint)
+  ctx.lineWidth = 1.5;
+  tl.frames.forEach(f => {
+    if (f.phase !== "drive") return;
+    const done = simT >= f.t1;
+    ctx.strokeStyle = done ? "#6ee7a8" : "rgba(110,231,168,.25)";
+    ctx.beginPath(); ctx.moveTo(X(f.x0), Y(f.y0)); ctx.lineTo(X(f.x1), Y(f.y1)); ctx.stroke();
+  });
+  // charger
+  ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.arc(X(tl.charger[0]), Y(tl.charger[1]), 4, 0, 7); ctx.fill();
+  // rover marker at the interpolated position for simT
+  const fr = tl.frames.find(f => simT >= f.t0 && simT <= f.t1) || tl.frames[tl.frames.length - 1];
+  const u = fr.t1 > fr.t0 ? (simT - fr.t0) / (fr.t1 - fr.t0) : 1;
+  const rx = fr.x0 + (fr.x1 - fr.x0) * u, ry = fr.y0 + (fr.y1 - fr.y0) * u;
+  ctx.fillStyle = fr.phase === "charge" ? "#ffd166" : fr.phase === "dig" ? "#e07b39" : "#fff";
+  ctx.beginPath(); ctx.arc(X(rx), Y(ry), 5, 0, 7); ctx.fill();
+  ctx.strokeStyle = "#0b0e17"; ctx.lineWidth = 1.5; ctx.stroke();
+  return fr;
+}
+function runExecution() {
+  const tl = LAST_TIMELINE; if (!tl || !tl.frames.length) return;
+  cancelAnimationFrame(EXEC_RAF);
+  setView("metrics");                                       // swap to the Metrics pane for the telemetry playback
+  qel("execempty").style.display = "none";
+  qel("execspeed").textContent = ` ${EXEC_SPEEDUP}×`;
+  const cv = qel("execcanvas"), ext = execExtent(tl, LAST_ORDERS);
+  const dur = tl.duration_s; let simT = 0, prevWall = null;
+  const fmtT = s => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return `${h}h ${m}m`; };
+  function frame(now) {
+    if (prevWall === null) prevWall = now;
+    simT += (now - prevWall) / 1000 * EXEC_SPEEDUP; prevWall = now;
+    if (simT > dur) simT = dur;
+    const fr = execDraw(tl, LAST_ORDERS, ext, cv, simT);
+    qel("excphase").textContent = fr.phase;
+    qel("exctime").textContent = `${fmtT(simT)} / ${fmtT(dur)}`;
+    const u = fr.t1 > fr.t0 ? (simT - fr.t0) / (fr.t1 - fr.t0) : 1;
+    qel("excpos").textContent = `${(fr.x0 + (fr.x1 - fr.x0) * u).toFixed(0)}, ${(fr.y0 + (fr.y1 - fr.y0) * u).toFixed(0)} m`;
+    qel("excmass").textContent = `${(fr.cum_mass_kg / 1000).toFixed(2)} t`;
+    const bf = fr.batt0_frac + (fr.batt1_frac - fr.batt0_frac) * u;
+    qel("excbattfill").style.width = `${Math.max(0, bf * 100).toFixed(0)}%`;
+    qel("excbattfill").style.background = bf < 0.2 ? "#e0564b" : "var(--accent)";
+    qel("excbattlbl").textContent = `${(bf * 100).toFixed(0)}%`;
+    if (simT < dur) EXEC_RAF = requestAnimationFrame(frame);
+    else qel("excphase").textContent = "complete";
+  }
+  EXEC_RAF = requestAnimationFrame(frame);
+}
+qel("qexec").onclick = runExecution;
+qel("execclose").onclick = () => { cancelAnimationFrame(EXEC_RAF); setView("plan"); };
+
+// ---- compare algorithms: POST /compare -> a table sorted by the chosen objective --------------
+qel("qcompare").onclick = async () => {
+  if (!ORDERS.length) { setQ("add at least one order first"); return; }
+  const obj = qel("qobj").value;
+  setQ(`comparing algorithms by ${obj}…`);
+  try {
+    const res = await fetch("/compare", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "compare", body: sel.value, charger: [0, 0], orders: ORDERS, objective: obj, precedence: parsePrec(), ...fleet() }) });
+    const j = await res.json();
+    if (!j.ok) { setQ("compare error: " + j.error); return; }
+    const fmt = { time_s: v => (v / 3600).toFixed(1) + " h", energy_J: v => (v / 1e6).toFixed(1) + " MJ",
+      avg_power_w: v => v.toFixed(0) + " W", distance_m: v => (v / 1000).toFixed(2) + " km",
+      charges: v => v.toFixed(0), mass_kg: v => (v / 1000).toFixed(1) + " t" };
+    const cols = ["algorithm", "time_s", "energy_J", "avg_power_w", "distance_m", "charges", "mass_kg"];
+    const head = "<tr>" + cols.map(c => `<th style="text-align:left;color:var(--muted)">${c.replace('_s','').replace('_J','').replace('_w','').replace('_m','').replace('_kg','')}</th>`).join("") + "</tr>";
+    const rows = j.rows.map((r, i) => "<tr>" + cols.map(c => {
+      if (c === "algorithm") return `<td><b>${r.algorithm}${i === 0 ? " ★" : ""}${r.pareto ? " ⬩" : ""}</b></td>`;
+      return `<td>${r.error ? "—" : fmt[c](r[c])}</td>`;
+    }).join("") + "</tr>").join("");
+    const t = qel("cmptable"); t.innerHTML = head + rows; t.style.display = "table";
+    setQ(`compared ${j.rows.length} algorithms by ${obj} (★ best, ⬩ Pareto-optimal); pick one in the dropdown to plan it`);
+  } catch (e) { setQ("compare failed — run server.py (" + e + ")"); }
+};
+
+// ---- drum-fill sensing: POST /sense (motor-current observable -> inferred mass + offload) ------
+// The "sensor noise" checkbox is the noise toggle: unchecked = OFF (deterministic), checked = seeded.
+async function senseDrum() {
+  const kg = +qel("drumkg").value, noise = qel("drumnoise").checked ? 0.15 : 0.0;
+  try {
+    const res = await fetch("/sense", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ true_mass_kg: kg, noise_frac: noise, seed: 1 }) });
+    const j = await res.json();
+    if (!j.ok) { qel("drumout").textContent = "error: " + j.error; return; }
+    qel("drumout").textContent =
+      `${j.current_a.toFixed(2)} A → inferred ${j.inferred_kg.toFixed(1)} kg `
+      + `±${(j.uncertainty_frac * 100).toFixed(1)}% (${j.lower_kg.toFixed(1)}–${j.upper_kg.toFixed(1)}) `
+      + (j.offload ? "· OFFLOAD → process" : "· keep digging");
+  } catch (e) { qel("drumout").textContent = "— start the server: python3 server.py"; }
+}
+["drumkg", "drumnoise"].forEach((id) => qel(id).addEventListener("input", senseDrum));
+
+// Fleet: vehicle + mounted tools (from bodies.json _vehicles/_tools, the py source). The effective
+// capabilities (base vehicle + mounted tools) gate which order kinds are offered -- e.g. sinter only
+// appears when a sinter tool is mounted (it is a separate entity, not on the IPEx excavator).
+function fleet() {
+  const tools = [...document.querySelectorAll("#tools input:checked")].map((c) => c.value);
+  const soil = qel("soil") ? qel("soil").value : "";        // "" -> the body's own regolith
+  const vehicles = Math.max(1, parseInt(qel("vehcount").value, 10) || 1);   // MV: fleet size (>1 = multi)
+  return { vehicle: (qel("vehicle").value || "ipex"), tools, vehicles, ...(soil ? { soil } : {}) };
+}
+// M11: when a site lat/lon is set (typed or picked), send it so the plan anchors there (else the
+// planner uses the auto flattest site). Only Moon's Haworth DEM is georeferenced for this today.
+function site() {
+  const lat = parseFloat(qel("lat").value), lon = parseFloat(qel("lon").value);
+  return (Number.isFinite(lat) && Number.isFinite(lon)) ? { lat, lon } : {};
+}
+function fleetCaps() {
+  const v = (PHY && PHY._vehicles) ? PHY._vehicles[qel("vehicle").value] : null;
+  const caps = new Set((v && v.capabilities) ? v.capabilities : ["drive", "excavate", "haul", "dump", "compact"]);
+  if (PHY && PHY._tools) for (const t of fleet().tools) { const td = PHY._tools[t]; if (td) caps.add(td.capability); }
+  return caps;
+}
+function syncKinds() {
+  const caps = fleetCaps(), kind = qel("qkind"), cur = kind.value;
+  const opts = [["cut", "excavate"], ["fill", "dump"], ["sinter", "sinter"]].filter(([, c]) => caps.has(c));
+  kind.innerHTML = opts.map(([k]) => `<option value="${k}">${k}</option>`).join("");
+  if (opts.some(([k]) => k === cur)) kind.value = cur;
+  qel("fleetcaps").textContent = "capabilities: " + [...caps].sort().join(", ");
+}
+function populateFleet() {
+  if (!PHY || !PHY._vehicles) return;
+  qel("vehicle").innerHTML = Object.entries(PHY._vehicles)
+    .map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
+  qel("tools").innerHTML = "tools: " + (PHY._tools ? Object.entries(PHY._tools)
+    .map(([k, t]) => `<label><input type="checkbox" value="${k}"> ${t.label}</label>`).join(" ") : "none");
+  if (qel("soil")) {                                          // soil model = any body's regolith (default: this body's)
+    const bodies = Object.keys(PHY).filter((k) => !k.startsWith("_"));
+    qel("soil").innerHTML = '<option value="">(body default)</option>'
+      + bodies.map((k) => `<option value="${k}">${(PHY[k].label || k)} soil</option>`).join("");
+  }
+  [...document.querySelectorAll("#tools input")].forEach((c) => c.addEventListener("change", syncKinds));
+  qel("vehicle").addEventListener("change", syncKinds);
+  syncKinds();
+}
+
+// load the py-generated terramechanics + IPEx constants (single source); graceful on file://
+fetch("bodies.json").then((r) => (r.ok ? r.json() : null)).then((d) => {
+  if (d) { PHY = d; showTerra(); estimate(); populateFleet(); }
+}).catch(() => {});
+refreshProfiles();                                            // populate the saved-profiles dropdown
+senseDrum();
+
+window.addEventListener("resize", () => { if (viewer) viewer.resize(); });  // globe follows window size
+
+// item 5: populate the sample-mission dropdown + load a bundled tutorial mission into the queue
+fetch("/sample_missions").then(r => r.json()).then(j => {
+  if (!j || !j.ok) return;
+  const ss = qel("qsample");
+  j.samples.forEach(s => { const o = document.createElement("option"); o.value = s.name; o.textContent = s.name; ss.appendChild(o); });
+}).catch(() => {});
+qel("qloadsample").onclick = async () => {
+  const name = qel("qsample").value; if (!name) return;
+  try {
+    const m = await (await fetch("/sample_mission/" + name)).json();
+    ORDERS.length = 0; (m.orders || []).forEach(o => ORDERS.push(o));
+    KEEPOUTS.length = 0; (m.keepouts || []).forEach(k => KEEPOUTS.push(k));
+    LAST_ROUTES = [];
+    if (m.body) sel.value = m.body;
+    renderQueue(); renderKeepouts(); drawPlan();
+    setQ("loaded tutorial mission: " + name + " — press Plan mission");
+  } catch (e) { setQ("sample load failed: " + e); }
+};
+
+loadBody("moon"); estimate(); renderQueue(); renderKeepouts(); setView("plan");
+</script>
+</body>
+</html>

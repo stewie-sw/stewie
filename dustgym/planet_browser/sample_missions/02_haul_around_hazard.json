@@ -1,0 +1,10 @@
+{
+  "name": "Tutorial 2 — haul around a crater keep-out",
+  "body": "moon",
+  "charger": [0, 0],
+  "orders": [
+    {"action": "borrow pit", "kind": "cut", "x": 0, "y": 0, "footprint_m2": 36, "depth_m": 0.2},
+    {"action": "build berm", "kind": "fill", "x": 50, "y": 0, "footprint_m2": 36, "depth_m": 0.2}
+  ],
+  "keepouts": [{"x": 25, "y": 0, "r": 10}]
+}

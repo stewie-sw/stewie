@@ -1,0 +1,74 @@
+{
+  "schema_version": "ipex_postures/1.0",
+  "_doc": "IPEx/RASSOR reconfigurable-morphology POSTURES, data-driven for easy editing. Each posture sets the two drum-arm pitches (and the resulting chassis lift + camera vantage) so the Godot 8-camera rig and the kinematics/stability layer can render and reason about posture-conditioned observation geometry (the dissertation P2 novelty: posture changes observation geometry/observability). The posture SET is sourced from PRD 7.4 AM-01 (TRANSIT/DIG/DUMP_Z/MEERKAT/DRUM_WALK/IRON_CROSS/SELF_RIGHT/BRAKED_HOLD) plus COBRA, and from documented RASSOR/IPEx maneuvers (NTRS 20210021455 action vocabulary; NASA RASSOR mobility demonstrations).",
+  "provenance": "Posture SET: SOURCED (PRD 7.4 AM-01 + RASSOR/IPEx maneuvers). Joint ANGLES + chassis_lift: [ASSUMPTION] geometric targets for calibration, NOT measured flight values -- edit per measured IPEx kinematics. Stability gating is real (terrain_authority/stability.py SSA tip-over).",
+  "vehicle": "ipex",
+  "units": {"arm_pitch": "rad", "chassis_lift": "m", "camera_vantage": "m above the nominal TRANSIT camera height"},
+  "convention": "arm pitch is about the rover-local joint axis (sidecar ROVER_JOINT_AXIS = local -Z, Y-up), matching sidecar.gd ARM_FRONT_PITCH/ARM_BACK_PITCH. Larger positive = drum lifted clear of the surface; near 0.20 = drum near surface (the DIG default); negative = drum rotated DOWN below the wheels (used to plant the arms and push the chassis up, e.g. MEERKAT).",
+  "nominal": {"arm_front_pitch_rad": 0.20, "arm_back_pitch_rad": 0.65, "camera_height_m": 0.80, "comment": "the sidecar's current hardcoded stance (DIG-ish front, raised back); TRANSIT below lifts both clear."},
+  "postures": {
+    "TRANSIT": {
+      "description": "Driving. Both drum arms raised clear of the front-stereo FOV (mirrors sidecar _drums_up).",
+      "arm_front_pitch_rad": 0.65, "arm_back_pitch_rad": 0.65,
+      "chassis_lift_m": 0.0, "camera_vantage_m": 0.0,
+      "stability": "nominal",
+      "provenance": "[ASSUMPTION] matches the sidecar drums-up clear-FOV stance"
+    },
+    "DIG": {
+      "description": "Front drum lowered to the surface to excavate; back arm raised clear.",
+      "arm_front_pitch_rad": 0.20, "arm_back_pitch_rad": 0.65,
+      "chassis_lift_m": 0.0, "camera_vantage_m": 0.0,
+      "stability": "nominal; counter-rotating drums cancel horizontal dig reaction (KSC-TOPS-7)",
+      "provenance": "[ASSUMPTION] matches sidecar ARM_FRONT_PITCH/ARM_BACK_PITCH (drum near surface)"
+    },
+    "DUMP_Z": {
+      "description": "Front arm rotated up high to dump spoil over a berm (drum lifted and tipped).",
+      "arm_front_pitch_rad": 1.20, "arm_back_pitch_rad": 0.65,
+      "chassis_lift_m": 0.0, "camera_vantage_m": 0.0,
+      "stability": "check fore/aft margin under the raised drum mass",
+      "provenance": "[ASSUMPTION] raised-drum dump geometry"
+    },
+    "MEERKAT": {
+      "description": "Arms rotated down under the chassis to PUSH THE BODY UP, raising the camera vantage for multi-height parallax and shadow/rock disambiguation (PRD AM-03 / SN-09).",
+      "arm_front_pitch_rad": -1.00, "arm_back_pitch_rad": -1.00,
+      "chassis_lift_m": 0.25, "camera_vantage_m": 0.25,
+      "stability": "speed-limited; REJECT if SSA stability margin inadequate (AM-03)",
+      "provenance": "[ASSUMPTION] arms-down body-lift; lift magnitude is a calibration target, not measured"
+    },
+    "DRUM_WALK": {
+      "description": "Arms used as legs in an alternating gait to walk over/through terrain the wheels cannot.",
+      "arm_front_pitch_rad": -0.80, "arm_back_pitch_rad": 0.30,
+      "chassis_lift_m": 0.10, "camera_vantage_m": 0.10,
+      "stability": "dynamic; alternating support polygon -- gated by stability.py per phase",
+      "provenance": "[ASSUMPTION] alternating arm-gait snapshot (one phase); full gait is a sequence"
+    },
+    "IRON_CROSS": {
+      "description": "Both arms extended out horizontally (cross shape) for wheel-cleaning / recovery under raised-posture safety limits (PRD AM-06).",
+      "arm_front_pitch_rad": 0.0, "arm_back_pitch_rad": 0.0,
+      "chassis_lift_m": 0.05, "camera_vantage_m": 0.05,
+      "stability": "raised-posture safety limits REQUIRED; recovery-only (AM-06)",
+      "provenance": "[ASSUMPTION] horizontal arm extension"
+    },
+    "SELF_RIGHT": {
+      "description": "Arms swung to flip the rover back upright after a tip-over.",
+      "arm_front_pitch_rad": -1.40, "arm_back_pitch_rad": 1.40,
+      "chassis_lift_m": 0.0, "camera_vantage_m": 0.0,
+      "stability": "recovery maneuver; not a steady stance",
+      "provenance": "[ASSUMPTION] opposed-arm righting geometry"
+    },
+    "BRAKED_HOLD": {
+      "description": "Arms planted for a stable static hold (e.g., during a long observation dwell or charge).",
+      "arm_front_pitch_rad": -0.30, "arm_back_pitch_rad": -0.30,
+      "chassis_lift_m": 0.03, "camera_vantage_m": 0.03,
+      "stability": "maximally stable static stance; widest support polygon",
+      "provenance": "[ASSUMPTION] planted-arm hold"
+    },
+    "COBRA": {
+      "description": "One arm raised high (reach / close inspection of a feature ahead), the other lowered for support.",
+      "arm_front_pitch_rad": -1.20, "arm_back_pitch_rad": 0.30,
+      "chassis_lift_m": 0.0, "camera_vantage_m": 0.0,
+      "stability": "check fore/aft margin under the high reaching arm",
+      "provenance": "[ASSUMPTION] single raised-arm reach (RASSOR cobra maneuver)"
+    }
+  }
+}
