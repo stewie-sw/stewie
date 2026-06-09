@@ -1,8 +1,11 @@
-# PRD: DustGym Lunar Construction and Solar-Terrain Autonomy
+# STEWIE PRD: DustGym Lunar Construction and Solar-Terrain Autonomy
 
-**Version:** 6.0
-**Date:** 2026-06-06
-**Status:** Current product and architecture baseline
+**Version:** 7.0
+**Date:** 2026-06-09
+**Status:** CANONICAL — the single source of truth for project design + reference. All other design
+documents are archived (`docs/archive/`) or are upstream STEWIE architecture/roadmap sources
+(maintained privately; public mapping in §16). The granular execution breakdown lives in the private
+workspace: `design/STEWIE_ATOMIC_EXECUTION_PLAN_2026-06-09.md`.
 **Baseline commit:** `047331250cf443498c25b5bead4bed167668752c`
 
 ## 1. Purpose

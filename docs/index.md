@@ -61,7 +61,7 @@ PYTHONPATH=. python -m planet_browser.server      # the SimCity-style mission pl
 Repository-root references (rendered on GitHub):
 [Product requirements (`PRD.md`)](https://github.com/dustgym/dustgym/blob/main/PRD.md) ·
 [Master technical spec](https://github.com/dustgym/dustgym/blob/main/ipex-terrain-sim-spec.md) ·
-[Building taxonomy](https://github.com/dustgym/dustgym/blob/main/building_taxonomy.md) ·
+[Building taxonomy](https://github.com/dustgym/dustgym/blob/main/docs/archive/building_taxonomy.md) ·
 [Contributing](https://github.com/dustgym/dustgym/blob/main/CONTRIBUTING.md) ·
 [Security policy](https://github.com/dustgym/dustgym/blob/main/SECURITY.md)
 

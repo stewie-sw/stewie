@@ -45,7 +45,7 @@ The physics file is the simulator configuration, and it lives as Python single-s
 
 ### Skill library
 
-The taxonomy in `building_taxonomy.md` is the reusable skill library, and tasks compose from it:
+The taxonomy in `docs/archive/building_taxonomy.md` (archived) is the reusable skill library, and tasks compose from it:
 
 - `drive_to_pose` -> `step_pose` / `drive.py`; `estimate_regolith` -> `rassor_mass_model` (drum-current
   mass inference, R^2 ~= 0.99); `cut_pass` -> `drum_pass`; `transport_spoil` and `dump_spoil` -> haul plus
@@ -175,4 +175,5 @@ not a conserved-physics construction world model; flight rover autonomy is predi
 but measures slip post-hoc. The hybrid call above (conserve the dynamics, learn only perception) is
 therefore a principled inversion of a field converging on learned-everything, fleet-scale,
 photometrically-supervised systems. Full positioning + the gap matrix: `related_work.md`; the full
-review (gitignored, with downloaded sources): `../publication/systematic_review.md`.
+review and its local source corpus:
+`/mnt/projects/dustgym-research/papers/dustgym/construction_systematic_review/systematic_review.md`.
