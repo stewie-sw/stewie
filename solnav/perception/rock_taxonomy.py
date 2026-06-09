@@ -17,7 +17,7 @@ from dataclasses import dataclass
 IPEX_STEP_OVER_M = 0.075    # physical clearance: IPEx clears obstacles up to 7.5 cm [SCHULER24]
 AVOID_THRESHOLD_M = 0.07    # OPERATIONAL avoid line: avoid anything above 7 cm (0.5 cm margin under clearance)
 
-# --- operational bins (MoonCraft), diameter in metres; upper edge exclusive -----------------------
+# --- operational bins (STEWIE rock taxonomy), diameter in metres; upper edge exclusive -----------------------
 # Navigation: can I drive over it?  A=traversable (<= 7 cm) ... E=no-go. Anything above 7 cm => avoid.
 NAV_BINS = ((AVOID_THRESHOLD_M, "A"), (0.15, "B"), (0.30, "C"), (0.50, "D"), (math.inf, "E"))
 # Localization: is it a usable landmark?  L0=ignore, L1=candidate, L2=persistent
