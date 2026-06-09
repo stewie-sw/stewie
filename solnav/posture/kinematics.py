@@ -142,8 +142,10 @@ def camera_height_with_sinkage(base_cam_height_m: float, ps: PostureState,
     from solnav.terramechanics import sinkage as sk
     h, pitch = camera_height_pitch(base_cam_height_m, 0.0, ps)
     if on_drums:
-        n = 2 if ps.name == "IRON_CROSS" else 4
-        load = sk.static_load_per_contact(total_mass_kg, n)
+        # IRON_CROSS (90,90) raises BOTH arm pairs -> all 4 drums bear, exactly like MEERKAT (70,70).
+        # The old n=2 special case halved the contacts and DOUBLED the per-contact load and sinkage,
+        # corrupting the camera-height extrinsic (audit 2026-06-09).
+        load = sk.static_load_per_contact(total_mass_kg, 4)
         z = sk.drum_sinkage(load, density_factor=density_factor)
     else:
         load = sk.static_load_per_contact(total_mass_kg, 4)

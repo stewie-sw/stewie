@@ -13,6 +13,9 @@ def multipoint_triangulate(centers, bearings_deg):
     Minimizes total squared perpendicular distance: (sum (I - d d^T)) x = sum (I - d d^T) p.
     Needs >= 2 non-parallel rays."""
     centers = np.asarray(centers, float)
+    if len(centers) != len(np.atleast_1d(bearings_deg)):
+        raise ValueError(f"centers ({len(centers)}) and bearings ({len(np.atleast_1d(bearings_deg))}) "
+                         "must pair 1:1 -- refusing to silently drop measurements")
     A = np.zeros((2, 2)); b = np.zeros(2)
     for p, bd in zip(centers, np.radians(bearings_deg)):
         d = np.array([np.cos(bd), np.sin(bd)])

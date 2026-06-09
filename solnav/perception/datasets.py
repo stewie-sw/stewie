@@ -61,7 +61,13 @@ def score(frame: PerceptionFrame, detections) -> dict:
             for d in detections]
     proj = [rock_detect.ProjectedClast(clast_id=i, u=lb.u, v=lb.v, radius_px=lb.radius_px,
                                        radius_m=lb.radius_m, distance_m=0.0) for i, lb in enumerate(frame.labels)]
-    rep = rock_detect.score_detections(dets, proj)
+    try:
+        rep = rock_detect.score_detections(dets, proj)
+    except ValueError:
+        # labels exist but ALL are sub-resolution (radius_px < the scorability gate): same graceful
+        # qualitative fallback as the no-labels case, per this function's contract (audit 2026-06-09)
+        return {"n_detections": len(detections), "precision": None, "recall": None, "f1": None,
+                "note": "labels present but none scorable (sub-resolution) -> qualitative only"}
     p, r = rep.precision, rep.recall
     f1 = (2 * p * r / (p + r)) if (p + r) > 0 else 0.0
     return {"n_detections": len(detections), "precision": p, "recall": r, "f1": f1,

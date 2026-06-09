@@ -120,8 +120,11 @@ def anchor_offset(observed: np.ndarray, dem_patch: np.ndarray, *, method: str = 
     confidence = float(np.clip(peak - _second_peak(surface, pr, pc), 0.0, 1.0))
     offset_m = (rr * posting_m, cc * posting_m) if posting_m is not None else None
 
+    # integer offset from the sub-pixel estimate with ROUND-HALF-UP: an even surface dimension makes the
+    # centre half-integer, so dr/dc are always +/-0.5-fractional and banker's rounding (round(0.5)=0,
+    # round(1.5)=2) mis-rounded them inconsistently by a full cell (audit 2026-06-09)
     return AnchorResult(
-        offset_cells=(int(round(dr)), int(round(dc))),
+        offset_cells=(int(np.floor(rr + 0.5)), int(np.floor(cc + 0.5))),
         offset_subcell=(float(rr), float(cc)),
         offset_m=offset_m,
         peak=peak,

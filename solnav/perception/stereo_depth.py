@@ -164,6 +164,10 @@ def compute_depth_frame(
     disparity_rl = _sgbm(
         right, left, num_disparities, block_size, min_disparity=-num_disparities
     )
+    # OpenCV marks INVALID as (minDisparity-1) = -(num_disparities+1): NEGATIVE, so it slipped the
+    # (sampled < 0) consistency gate whenever |d_lr + sentinel| <= max_diff (audit 2026-06-09).
+    # Mask the sentinel to NaN -> NaN comparisons are False -> reverse-INVALID pixels are rejected.
+    disparity_rl[disparity_rl < -float(num_disparities)] = np.nan
     valid = left_right_consistency(disparity_lr, disparity_rl, lr_max_diff_px)
     if exclusion_mask is not None:
         mask = np.asarray(exclusion_mask, dtype=bool)

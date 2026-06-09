@@ -47,7 +47,9 @@ def rover_skeleton(arm_front_deg: float, arm_rear_deg: float):
     """Return (polylines, meta). polylines = list of (N,3) arrays in world coords."""
     ps = kin.forward_kinematics(arm_front_deg, arm_rear_deg)
     chassis_z = kin.WHEEL_RADIUS_M + ps.chassis_lift_m
-    R = _rot_y(ps.pitch_deg)
+    # FK pitch is nose-UP positive (kinematics.py), but R_y(+theta) rotates +x toward -z (nose DOWN)
+    # in this x-fore/y-left/z-up frame -> negate so the render matches the FK (audit 2026-06-09)
+    R = _rot_y(-ps.pitch_deg)
     polys = []
 
     # ground

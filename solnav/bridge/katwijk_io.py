@@ -43,8 +43,8 @@ def _resolve(header: list, fields: list, colmap: dict | None) -> dict:
         found = None
         for a in aliases:
             for j, h in enumerate(low):
-                if h == a or a in h:
-                    found = j; break
+                if h == a:        # EXACT match only: substring + single-letter aliases ('n' in "snr")
+                    found = j; break   # silently bound WRONG columns (audit 2026-06-09)
             if found is not None:
                 break
         if found is None:

@@ -86,7 +86,9 @@ def test_visible_truth_count_is_recovered_exactly():
     img = np.asarray(imread(FRAME0_L))
     proj = rd.project_clast_truth(clasts, pose, img.shape[1], img.shape[0])
     visible = [p for p in proj if p.radius_px >= 4.0]
-    assert len(visible) == 18  # measured against the real metadata + true pose
+    # 22 with the corrected 1/cz pinhole scaling (audit 2026-06-09): the old slant-range radius
+    # under-sized 4 off-axis boulders below the 4 px gate (the previous pinned count was 18)
+    assert len(visible) == 22
 
 
 # ------------------------------------------------------------------------ scoring (EVAL)

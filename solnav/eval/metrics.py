@@ -44,12 +44,14 @@ def umeyama_align_2d(src_xy: np.ndarray, dst_xy: np.ndarray, with_scale: bool = 
     H = S.T @ D / len(src)
     U, sig, Vt = np.linalg.svd(H)
     Rm = (Vt.T @ U.T)
+    d_sign = np.ones_like(sig)
     if np.linalg.det(Rm) < 0:                  # reflection guard
         Vt[-1] *= -1; Rm = Vt.T @ U.T
-    source_variance = float(np.mean(np.sum(S * S, axis=1)))
-    if with_scale and source_variance <= np.finfo(float).eps:
-        raise ValueError("similarity alignment requires nonzero source variance")
-    s = float(sig.sum() / source_variance) if with_scale else 1.0
+        d_sign[-1] = -1.0                      # Umeyama 1991: scale = tr(D Sigma)/sigma_src^2 with
+    source_variance = float(np.mean(np.sum(S * S, axis=1)))   # D = diag(1, det) -- the LAST singular
+    if with_scale and source_variance <= np.finfo(float).eps:  # value is NEGATED when the reflection
+        raise ValueError("similarity alignment requires nonzero source variance")  # correction fires
+    s = float((sig * d_sign).sum() / source_variance) if with_scale else 1.0       # (audit 2026-06-09)
     t = mu_d - s * Rm @ mu_s
     return Rm, t, s
 

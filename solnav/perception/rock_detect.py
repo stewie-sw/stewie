@@ -207,7 +207,11 @@ def project_clast_truth(clasts: list[dict], pose: CameraPose, width: int, height
         if not (0.0 <= u < width and 0.0 <= v < height):
             continue
         distance = float(np.linalg.norm(cap - pose.eye_m))
-        radius_px = float(c["radius_m"]) / distance * (height / 2.0) / tan_v
+        # pinhole size scales by 1/cz (OPTICAL-AXIS depth), not 1/slant: using the Euclidean slant
+        # under-sized off-axis boulders by slant/cz (up to ~22% at the frame edge), dropping real
+        # boulders below the scorability gate and shrinking match radii (audit 2026-06-09)
+        cz = float((cap - pose.eye_m) @ np.asarray(basis[2], float))
+        radius_px = float(c["radius_m"]) / cz * (height / 2.0) / tan_v
         out.append(ProjectedClast(clast_id=int(c["id"]), u=u, v=v, radius_px=radius_px,
                                   radius_m=float(c["radius_m"]), distance_m=distance))
     return out

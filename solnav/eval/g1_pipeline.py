@@ -43,7 +43,18 @@ def produce(capture_dir: str, out_dir: str):
     shutil.copy(os.path.join(capture_dir, "truth.csv"), os.path.join(truth, "truth.csv"))   # eval only
     _, tr = _read_csv(os.path.join(capture_dir, "truth.csv"))
     x0, y0, yaw0 = float(tr[0][1]), float(tr[0][2]), float(tr[0][3])   # declared deployment origin
-    json.dump({"imu_hz": 100.0, "wheel_hz": 10.0, "dt": 2.0, "n_steps": len(tr) - 1,
+    # cadence + dt DERIVED from the capture's own metadata -- hardcoding {100 Hz, 10 Hz, dt 2.0}
+    # silently rescaled the whole trajectory for any capture at a different cadence (audit 2026-06-09)
+    meta = json.load(open(os.path.join(capture_dir, "g1_capture_result.json")))
+    imu_hz, wheel_hz = float(meta["imu_rate_hz"]), float(meta["wheel_rate_hz"])
+    n_steps = int(meta["n_steps"])
+    if n_steps != len(tr) - 1:
+        raise ValueError(f"capture metadata n_steps={n_steps} != truth rows-1={len(tr) - 1}")
+    dt = float(meta["n_imu_samples"]) / (n_steps * imu_hz)
+    dt_wheel = float(meta["n_wheel_samples"]) / (n_steps * wheel_hz)
+    if abs(dt - dt_wheel) > 1e-9:
+        raise ValueError(f"imu/wheel cadences disagree on dt ({dt} vs {dt_wheel}); refusing to resample")
+    json.dump({"imu_hz": imu_hz, "wheel_hz": wheel_hz, "dt": dt, "n_steps": n_steps,
                "start_pose": [x0, y0, yaw0]}, open(os.path.join(runtime, "config.json"), "w"))
     return runtime, truth
 

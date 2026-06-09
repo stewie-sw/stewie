@@ -180,6 +180,10 @@ def horizontal_parallax_triangulate(pA_xy, bearingA_world_deg, pB_xy, bearingB_w
     if abs(np.linalg.det(M)) < 1e-9:
         raise ValueError("near-parallel bearings; no horizontal triangulation")
     t = np.linalg.solve(M, pB - pA)
+    if t[0] < 0.0 or t[1] < 0.0:
+        # the LINES cross behind a camera: a bearing observes FORWARD along its ray, so a negative
+        # parameter is a phantom, not a landmark (audit 2026-06-09)
+        raise ValueError("bearings diverge; intersection is behind a camera (no forward triangulation)")
     return pA + t[0] * dA
 
 

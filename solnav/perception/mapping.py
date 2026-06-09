@@ -412,9 +412,11 @@ def correlate_to_dem(
     ph, pw = patch.shape
     kdr, kdc = int(known_offset_cells[0]), int(known_offset_cells[1])
     pad = int(search_pad_cells)
-    # DEM window centred on the observed patch's footprint, shifted by the injected known offset, padded
-    wr0 = (cr - half_cells) + kdr - pad
-    wc0 = (cc - half_cells) + kdc - pad
+    # DEM window centred on the observed patch's footprint, shifted by the injected known offset, padded.
+    # The window moves by MINUS the offset: content then sits at +offset from the window centre, so the
+    # recovered peak REPORTS the injected shift (it previously reported its negation; audit 2026-06-09).
+    wr0 = (cr - half_cells) - kdr - pad
+    wc0 = (cc - half_cells) - kdc - pad
     wr1 = wr0 + ph + 2 * pad
     wc1 = wc0 + pw + 2 * pad
     H, W = ref.shape
