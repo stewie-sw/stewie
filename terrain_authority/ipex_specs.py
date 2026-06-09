@@ -175,15 +175,17 @@ THERMAL_SURVIVAL_POWER_W = 30.0    # [ASSUMPTION] heater load; tens-to-hundreds 
 
 
 def system_power_w(*, driving: bool = True, digging: bool = False, transmitting: bool = False,
-                   thermal_w: float | None = None, slope_deg: float = 0.0) -> float:
-    """Total instantaneous electrical draw = lunar drive (if driving) + dig (if digging) + avionics +
-    comms (if transmitting) + thermal. Sums the gravity-correct [PHYSICS] mobility with the [ASSUMPTION]
-    housekeeping loads the published tables omit. The housekeeping terms (thermal especially) typically
-    dominate the mission energy; treat the total as an order-of-magnitude budget, not a sourced figure."""
+                   thermal_w: float | None = None, slope_deg: float = 0.0,
+                   g_ms2: float = LUNAR_G_MS2) -> float:
+    """Total instantaneous electrical draw = surface drive (if driving) + dig (if digging) + avionics +
+    comms (if transmitting) + thermal. Sums the gravity-correct [PHYSICS] mobility (swappable by g_ms2 ->
+    Earth/Moon/Mars) with the [ASSUMPTION] housekeeping loads the published tables omit. The housekeeping
+    terms (thermal especially) typically dominate the mission energy; treat the total as an
+    order-of-magnitude budget, not a sourced figure."""
     p = AVIONICS_POWER_W
     p += thermal_w if thermal_w is not None else THERMAL_SURVIVAL_POWER_W
     if driving:
-        p += lunar_drive_power_w(slope_deg=slope_deg)
+        p += lunar_drive_power_w(slope_deg=slope_deg, g_ms2=g_ms2)
     if digging:
         p += dig_power_w()
     if transmitting:

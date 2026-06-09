@@ -484,11 +484,15 @@ function phys(key) {
 function showTerra() {
   const p = phys(sel.value);
   const bk = p.bekker ? `Bekker kφ ${(p.bekker.k_phi / 1000).toFixed(0)}k·kc ${p.bekker.k_c}·n ${p.bekker.n}` : "Bekker —";
+  const pw = PHY && PHY[sel.value] && PHY[sel.value].ipex_power;   // gravity-SWAPPED IPEx power for this body
   $("terra").textContent =
     `terramechanics  g ${p.g} m/s² · ρ ${p.density} kg/m³`
     + (p.cohesion_pa != null ? ` · c ${p.cohesion_pa} Pa` : "")
     + (p.friction_deg != null ? ` · φ ${p.friction_deg}°` : "")
-    + ` · ${bk}` + (p.regime ? ` · ${p.regime}` : "") + (PHY ? "" : "  (fallback — serve bodies.json)");
+    + ` · ${bk}` + (p.regime ? ` · ${p.regime}` : "")
+    + (pw ? `  ·  IPEx power (g-scaled) drive ${pw.drive_power_w} W (15° ${pw.drive_power_15deg_w} W) · `
+            + `+housekeeping → system ${pw.system_power_w} W  [thermal ${pw.thermal_w}+avionics ${pw.avionics_w}+comms ${pw.comms_w} W]` : "")
+    + (PHY ? "" : "  (fallback — serve bodies.json)");
 }
 
 // estimate the regolith a build order moves, using the SELECTED BODY's loaded terramechanics:

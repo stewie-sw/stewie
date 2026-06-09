@@ -20,6 +20,17 @@ out: dict = {}
 for key, b in B.BODIES.items():
     d = dataclasses.asdict(b)
     d["bekker"] = ({"k_c": b.bekker[0], "k_phi": b.bekker[1], "n": b.bekker[2]} if b.bekker else None)
+    # gravity-SWAPPED IPEx power for THIS body: steady-drive resistance ~ m*g, so drive power scales with
+    # the body's surface gravity (Earth ~6x the Moon). Housekeeping (avionics/comms/thermal) is body-
+    # independent [ASSUMPTION] (thermal in particular is environment-dependent -- a future per-body refine).
+    d["ipex_power"] = {
+        "drive_power_w": round(S.lunar_drive_power_w(g_ms2=b.g), 2),
+        "drive_j_per_m": round(S.lunar_drive_power_w(g_ms2=b.g) / S.DRIVE_SPEED_MS, 2),
+        "drive_power_15deg_w": round(S.lunar_drive_power_w(g_ms2=b.g, slope_deg=15.0), 2),
+        "system_power_w": round(S.system_power_w(g_ms2=b.g), 2),
+        "avionics_w": S.AVIONICS_POWER_W, "comms_w": S.COMMS_TX_POWER_W,
+        "thermal_w": S.THERMAL_SURVIVAL_POWER_W,
+    }
     out[key] = d
 
 # IPEx/energy constants for the browser's build estimate. JS can't import .py, so mirror them here
