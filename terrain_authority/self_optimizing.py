@@ -64,7 +64,11 @@ class InflationModel:
             self.coef = np.polyfit(self.X, self.Y, 2)
 
     def predict(self, slope_deg: float) -> float:
-        return float(np.polyval(self.coef, slope_deg)) if len(set(self.X)) >= 3 else 1.0
+        if len(set(self.X)) < 3:
+            return 1.0
+        # inflation = true/flat energy is physically >= 1 (slip + grade only ADD); an unclamped
+        # quadratic dipped below 1 (even negative) off-support, inverting the cost (audit 2026-06-09)
+        return max(1.0, float(np.polyval(self.coef, slope_deg)))
 
     @property
     def n(self) -> int:

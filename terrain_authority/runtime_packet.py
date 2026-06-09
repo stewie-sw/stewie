@@ -67,6 +67,9 @@ def canonical_runtime_packet(proprio_packet: dict, camera_channel: dict, *,
     if cam_clock != clock:
         raise ValueError(f"camera clock {cam_clock!r} != proprioception clock {clock!r} -- not one canonical clock")
     seq = int(sequence_id if sequence_id is not None else proprio_packet["sequence_id"])
+    if int(proprio_packet["sequence_id"]) != seq:
+        raise ValueError(f"proprioception sequence_id {proprio_packet['sequence_id']} != {seq} -- "
+                         "sequences disagree (audit 2026-06-09: the override skipped this check)")
     cam_seq = camera_channel.get("sequence_id", seq)
     if int(cam_seq) != seq:
         raise ValueError(f"camera sequence_id {cam_seq} != proprioception {seq} -- sequences disagree")

@@ -68,9 +68,14 @@ def reproject_cylindrical(heights_m, *, lat_top, lat_bottom, lon_left, lon_right
     nx = max(2, int(round((x1 - x0) / target_cell_m)) + 1)
     ny = max(2, int(round((y1 - y0) / target_cell_m)) + 1)
     gx = x0 + np.arange(nx) * target_cell_m
-    gy = y0 + np.arange(ny) * target_cell_m
+    # row 0 = NORTH (bundle convention): AEQD y grows northward, so descend from y1 -- ascending from
+    # y0 emitted a north/south-FLIPPED raster (audit 2026-06-09)
+    gy = y1 - np.arange(ny) * target_cell_m
     GX, GY = np.meshgrid(gx, gy)
     LON, LAT = inv.transform(GX, GY)                       # each local cell -> source lon/lat
+    # wrap each longitude into the source window's branch (PDS 0-360 E sources / windows straddling
+    # +/-180 produced garbage columns; audit 2026-06-09)
+    LON = lon_left + np.mod(LON - lon_left, 360.0)
     fcol = (LON - lon_left) / (lon_right - lon_left) * (W - 1)
     frow = (lat_top - LAT) / (lat_top - lat_bottom) * (H - 1)
     return _bilinear(heights_m, frow, fcol), float(target_cell_m)

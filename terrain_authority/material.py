@@ -67,13 +67,20 @@ def material_fields(density, *, normal_load_n: float = 200.0, contact_area_m2: f
     cohesion_pa = COHESION_LOOSE_PA + dr * (COHESION_DENSE_PA - COHESION_LOOSE_PA)
     # developed-thrust traction capacity (slip.py form): c * A + N * tan(phi)
     traction_n = cohesion_pa * contact_area_m2 + normal_load_n * np.tan(np.deg2rad(friction_deg))
+    t_loose = COHESION_LOOSE_PA * contact_area_m2 + normal_load_n * np.tan(np.deg2rad(PHI_LOOSE_DEG))
+    t_dense = COHESION_DENSE_PA * contact_area_m2 + normal_load_n * np.tan(np.deg2rad(PHI_DENSE_DEG))
     return {
         "relative_density": dr,
         "friction_deg": friction_deg,
         "cohesion_pa": cohesion_pa,
         "traction_capacity_n": traction_n,
-        "slip_susceptibility": 1.0 - _norm01(traction_n),  # loose -> low traction -> high slip
-        "cut_difficulty": _norm01(cohesion_pa),            # cohesion is the interlocking cut resistance
+        # ABSOLUTE physical anchoring (audit 2026-06-09): data-range _norm01 inverted the meaning on a
+        # uniform field (a fully-compacted scene scored slip=1.0 / cut=0.0). Anchor to the loose/dense
+        # endpoint values instead, so dense -> low slip susceptibility / high cut difficulty everywhere.
+        "slip_susceptibility": np.clip(
+            (t_dense - traction_n) / max(t_dense - t_loose, 1e-9), 0.0, 1.0),
+        "cut_difficulty": np.clip(
+            (cohesion_pa - COHESION_LOOSE_PA) / (COHESION_DENSE_PA - COHESION_LOOSE_PA), 0.0, 1.0),
     }
 
 

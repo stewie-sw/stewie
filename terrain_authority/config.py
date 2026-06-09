@@ -101,7 +101,11 @@ def apply(ns: dict) -> dict:
             # bool is an int subclass -> keep bool override as bool; keep float as float
             if isinstance(old, bool):
                 new = bool(val)
-            elif isinstance(old, float) and not isinstance(val, bool):
+            elif isinstance(old, float):
+                if isinstance(val, bool):
+                    # "true"/"false" against a float constant would corrupt the physics value; the
+                    # documented contract is "an overridden float stays a float" -> refuse (audit)
+                    continue
                 new = float(val)
             else:
                 new = val

@@ -78,6 +78,14 @@ def save_scene(scene_dir: str, fields: dict[str, np.ndarray], metadata: dict[str
             continue  # ignore non-contract extras
         dtype, fname = _FIELD_SPEC[name]
         atomic_write_bytes(os.path.join(scene_dir, fname), arr.astype(dtype).tobytes())
+    # drop STALE contract rasters from a previous publish: metadata.json promises every raster beside
+    # it belongs to THIS scene state, but optional fields omitted on re-publish survived on disk and
+    # load_scene returned a wrong mixed state (audit 2026-06-09)
+    for name, (_dtype, fname) in _FIELD_SPEC.items():
+        if name not in fields:
+            stale = os.path.join(scene_dir, fname)
+            if os.path.exists(stale):
+                os.remove(stale)
     atomic_write_bytes(os.path.join(scene_dir, "metadata.json"),
                         json.dumps(metadata, indent=2).encode("utf-8"))
 

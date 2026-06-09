@@ -55,7 +55,8 @@ from .column_state import ColumnState, StateLabel
 # block by argmax over the rank and map back, so the operation is a pure array op (no mode).
 # ---------------------------------------------------------------------------
 _STATE_PRIORITY: dict[int, int] = {
-    int(StateLabel.EXCAVATED): 4,
+    int(StateLabel.SINTERED): 5,   # built infrastructure outranks all (was MISSING -> IndexError on
+    int(StateLabel.EXCAVATED): 4,  # coarsening any sintered cell; audit 2026-06-09)
     int(StateLabel.SPOIL): 3,
     int(StateLabel.COMPACTED_BERM): 2,
     int(StateLabel.TREAD): 1,

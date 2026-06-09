@@ -71,7 +71,10 @@ def drive_step(cs: ColumnState, rc: tuple[float, float], yaw: float,
     weight_n = (K.ROVER_MASS_DRY_KG + max(0.0, payload_kg)) * float(g)
     h = cs.derive_height()
     cf = rover.conform_pose(h, rc, yaw, cell_m=cs.cell_m, payload_kg=payload_kg, clasts=clasts, g=g)
-    slope_rad = cf["pitch_rad"]                           # forward grade the wheels fight
+    # the traction DEMAND is the magnitude of the along-slope gravity: descending a grade requires
+    # braking traction equal to climbing it -- the signed pitch made every descent a perfect-grip
+    # zero-slip case (a 55-deg drop descended at exactly v_cmd; audit 2026-06-09)
+    slope_rad = abs(cf["pitch_rad"])
     eq = slipmod.slip_sinkage_equilibrium(weight_n, slope_rad, params=p,
                                           contact_len_m=contact_len_m,
                                           contact_width_m=wheel_width_m)

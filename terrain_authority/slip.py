@@ -143,6 +143,9 @@ def slip_sinkage_equilibrium(total_weight_n: float, slope_rad: float, *,
                                     k_shear=p.k_shear)
         if ent:
             entrapped = True
+            # report the RUNAWAY sinkage (the module's premise: entrapment = deeper sinkage); breaking
+            # with the near-static value under-reported the burial by ~14x (audit 2026-06-09)
+            sink = z_static * tm.slip_sinkage_multiplier(max(slip, s_entrap), c1=p.slip_c1, c2=p.slip_c2)
             break
         new_sink = z_static * tm.slip_sinkage_multiplier(slip, c1=p.slip_c1, c2=p.slip_c2)
         if new_sink >= z_entrap or slip >= s_entrap:

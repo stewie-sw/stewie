@@ -122,6 +122,10 @@ def horizon_clip(heightmap: np.ndarray, cell_m: float,
         blocked = in_bounds & (h[sr_c, sc_c] > los_height)
         illuminated &= ~blocked
 
+    # non-finite (nodata) cells: NaN comparisons are all False, so they neither occlude nor get
+    # shadowed -- silently "fully lit". Conservative: unknown height -> NOT claimed illuminated
+    # (audit 2026-06-09)
+    illuminated &= np.isfinite(h)
     return illuminated
 
 
