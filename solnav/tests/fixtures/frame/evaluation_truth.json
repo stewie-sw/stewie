@@ -1,0 +1,188 @@
+{
+  "calibration_id": "DUSTGYM_GODOT_CAMERA_RIG_V1",
+  "camera_poses_in_world": [
+    {
+      "name": "front_left",
+      "pose_in_world": {
+        "position_m": [
+          3.95222067832947,
+          0.152775853872299,
+          3.03099727630615
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          -0.461748600006104,
+          0.0,
+          0.887010812759399
+        ]
+      }
+    },
+    {
+      "name": "front_right",
+      "pose_in_world": {
+        "position_m": [
+          3.91207027435303,
+          0.152775853872299,
+          2.97365665435791
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          -0.461748600006104,
+          0.0,
+          0.887010812759399
+        ]
+      }
+    },
+    {
+      "name": "rear_left",
+      "pose_in_world": {
+        "position_m": [
+          3.46072959899902,
+          0.152775853872299,
+          3.37514305114746
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.887010812759399,
+          0.0,
+          0.461748600006104
+        ]
+      }
+    },
+    {
+      "name": "rear_right",
+      "pose_in_world": {
+        "position_m": [
+          3.42057919502258,
+          0.152775853872299,
+          3.31780242919922
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.887010812759399,
+          0.0,
+          0.461748600006104
+        ]
+      }
+    },
+    {
+      "name": "left_mono",
+      "pose_in_world": {
+        "position_m": [
+          3.84986925125122,
+          0.202775850892067,
+          3.40785813331604
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.953716993331909,
+          0.0,
+          -0.300705790519714
+        ]
+      }
+    },
+    {
+      "name": "right_mono",
+      "pose_in_world": {
+        "position_m": [
+          3.52293062210083,
+          0.202775850892067,
+          2.94094157218933
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.300705790519714,
+          0.0,
+          0.953716993331909
+        ]
+      }
+    },
+    {
+      "name": "drum_front_cam",
+      "pose_in_world": {
+        "position_m": [
+          3.768315076828,
+          0.432775855064392,
+          3.11704230308533
+        ],
+        "quaternion_xyzw": [
+          -0.449827462434769,
+          -0.397967725992203,
+          -0.234165295958519,
+          0.764489114284515
+        ]
+      }
+    },
+    {
+      "name": "drum_back_cam",
+      "pose_in_world": {
+        "position_m": [
+          3.60448479652405,
+          0.432775855064392,
+          3.23175740242004
+        ],
+        "quaternion_xyzw": [
+          -0.234165295958519,
+          0.764489114284515,
+          0.449827462434769,
+          0.397967725992203
+        ]
+      }
+    }
+  ],
+  "frame_convention": "godot",
+  "frame_index": 0,
+  "lander": {
+    "apriltag": {
+      "family": "tag36h11",
+      "id": 0,
+      "pose_in_lander": {
+        "position_m": [
+          0,
+          0,
+          0
+        ],
+        "quaternion_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "size_m": 0.15
+    },
+    "frame_id": "lander",
+    "position_m": [
+      5.73428010940552,
+      0.461304426193237,
+      1.74045872688293
+    ],
+    "quaternion_xyzw": [
+      0.0,
+      0.953716993331909,
+      0.0,
+      -0.300705790519714
+    ]
+  },
+  "producer_schema_version": "sensor_bridge/1.1",
+  "profile_id": "DUSTGYM_IPEX_V1",
+  "profile_sha256": "b5015a4613025f05a89e03142f6435f3b1c8e3efeaefcacea1cb0a89f0d04796",
+  "provenance": "GROUND_TRUTH_EVAL",
+  "rover": {
+    "frame_id": "base_link",
+    "position_m": [
+      3.68639993667603,
+      0.252775847911835,
+      3.17439985275269
+    ],
+    "quaternion_xyzw": [
+      0.0,
+      0.300705790519714,
+      0.0,
+      0.953716993331909
+    ]
+  },
+  "scene": "crater_boulders",
+  "schema_version": "sensor_bridge_evaluation_truth/1.0",
+  "timestamp_s": 0.0
+}

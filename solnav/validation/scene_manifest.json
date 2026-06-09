@@ -1,0 +1,46 @@
+{
+  "schema_version": "solnav_scene_manifest/1.0",
+  "created_utc": "2026-06-07",
+  "policy": {
+    "development_assets_may_be_tuned": true,
+    "locked_validation_assets_may_be_tuned": false,
+    "locked_validation_status": "NOT_ACQUIRED"
+  },
+  "development": [
+    {
+      "id": "dustgym_crater_boulders_frame_000",
+      "role": "runtime contract and fixed-reference stereo implementation",
+      "files": {
+        "tests/fixtures/frame/runtime_sensors.json": "c0e776bbe8b4bf426a71d4e3fd47491d99c29d6f67c46238ce905de368f665df",
+        "tests/fixtures/frame/evaluation_truth.json": "c0843a295048ed8c9976c7bde418213a62a091b1c95abfa5d3756926a493df78",
+        "tests/fixtures/frame/front_left.png": "5c84050971c773c3b64672aa41558d54a480141bf525c7ed3ea3c160b15baa1b",
+        "tests/fixtures/frame/front_right.png": "fbaf7801389566f49fcd46ba81c6a2348d007232a25937f0606fbb4688e32dab"
+      }
+    },
+    {
+      "id": "shadow_clean_development",
+      "role": "image-plane shadow extraction development",
+      "files": {
+        "tests/fixtures/shadow_clean.png": "f22ab138cc78d343fcc3e4b56dceae621caf3c7096b5554fd66148938147ce9c"
+      }
+    },
+    {
+      "id": "p5_controlled_component",
+      "role": "controlled component fixture, not release validation",
+      "files": {
+        "tests/fixtures/p5_post_e30.png": "e1802690d3815e0d49c2540a6c05cef6ea38b59d8507312c7365185de9c258d7",
+        "tests/fixtures/p5_post_e50.png": "3f5c17ef05cb2eefd4b92943f7308eadc87296d883548b3fdfd8043e14aec5b2"
+      }
+    }
+  ],
+  "locked_validation": [],
+  "stress": [
+    {
+      "id": "shadow_clutter_stress",
+      "role": "shadow ambiguity and rejection behavior",
+      "files": {
+        "tests/fixtures/shadow_clutter.png": "b9e05d1d64c292c61d6cfb36ef12395cfcd3701d30c2c19985944931a1d44d70"
+      }
+    }
+  ]
+}

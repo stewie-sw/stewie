@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "solnav"
+version = "0.1.0"
+description = "Solar/shadow/posture lunar navigation: dissertation navigation package (consumes dustgym across its seams)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Aaron W. Storey" }]
+keywords = ["lunar", "slam", "navigation", "ipex", "rover", "stereo", "shadow", "ephemeris"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering",
+  "Private :: Do Not Upload",
+]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "imageio>=2.30",
+  "opencv-python>=4.8",
+  "matplotlib>=3.6",
+]
+
+# Heavy/optional deps are pulled in at later milestones (estimator/policy), not now:
+[project.optional-dependencies]
+estimator = ["gtsam>=4.2"]      # M3 unified factor graph
+policy = ["gymnasium>=0.29", "stable-baselines3>=2.0", "torch>=2.0"]  # M4 active policy
+substrate = ["dustgym"]         # read-only substrate (Godot render, physics, IPEx grounding)
+dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.5", "mypy>=1.6"]
+
+[project.urls]
+Repository = "https://github.com/astoreyai/solnav"
+
+[tool.setuptools.packages.find]
+include = ["solnav*"]
+
+[tool.setuptools.package-data]
+"solnav.config" = ["data/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501", "E741", "E702"]  # loose line length; l/I/O math names; compact one-liners ok
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true   # cv2/imageio/scipy ship partial or no stubs
+warn_unused_ignores = false
+
+[tool.coverage.run]
+source = ["solnav"]
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true

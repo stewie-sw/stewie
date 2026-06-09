@@ -1,0 +1,93 @@
+{
+  "schema_version": "solnav_system_profile/1.0",
+  "profile_id": "OFFICIAL_LAC_2025_UNVERIFIED",
+  "status": "UNVERIFIED",
+  "substrate": "official_lac",
+  "source": "Published LAC geometry normalized in lac_setup; verify installed package checksum",
+  "frames": {"source": "body", "body": "REP103"},
+  "timing": {"drive_dt_s": 0.05, "camera_hz": 10.0, "imu_hz": 20.0},
+  "vehicle": {
+    "dry_mass_kg": 30.0,
+    "n_wheels": 4,
+    "wheelbase_m": 0.444,
+    "track_gauge_m": 0.406,
+    "wheel_radius_m": 0.160,
+    "wheel_width_m": 0.127,
+    "contact_length_m": 0.10,
+    "cg_height_m": 0.21,
+    "nominal_speed_mps": 0.30,
+    "maximum_speed_mps": 0.48,
+    "maximum_yaw_rate_radps": 4.13,
+    "nominal_slope_deg": 15.0,
+    "obstacle_height_m": 0.075
+  },
+  "cameras": {
+    "max_live": 4,
+    "optics": {
+      "width_px": 2448,
+      "height_px": 2048,
+      "maximum_resolution_px": [2448, 2048],
+      "resolution_policy": "configurable",
+      "hfov_deg": 70.0,
+      "fx_px": 1748.0534096049433,
+      "fy_px": 1748.0534096049433,
+      "cx_px": 1224.0,
+      "cy_px": 1024.0,
+      "distortion": [0, 0, 0, 0, 0],
+      "near_m": 0.02,
+      "far_m": 100.0
+    },
+    "entries": [
+      {"name": "front_left", "role": "stereo_front", "yaw_offset_deg": 0.0, "position_frame": "body", "position_m": [0.280, 0.081, 0.131], "optical_axis_body": [1, 0, 0]},
+      {"name": "front_right", "role": "stereo_front", "yaw_offset_deg": 0.0, "position_frame": "body", "position_m": [0.280, -0.081, 0.131], "optical_axis_body": [1, 0, 0]},
+      {"name": "rear_left", "role": "stereo_rear", "yaw_offset_deg": 180.0, "position_frame": "body", "position_m": [-0.280, -0.081, 0.131], "optical_axis_body": [-1, 0, 0]},
+      {"name": "rear_right", "role": "stereo_rear", "yaw_offset_deg": 180.0, "position_frame": "body", "position_m": [-0.280, 0.081, 0.131], "optical_axis_body": [-1, 0, 0]},
+      {"name": "left", "role": "side", "yaw_offset_deg": 90.0, "position_frame": "body", "position_m": [0.015, 0.252, 0.132], "optical_axis_body": [0, 1, 0]},
+      {"name": "right", "role": "side", "yaw_offset_deg": -90.0, "position_frame": "body", "position_m": [-0.015, -0.252, 0.132], "optical_axis_body": [0, -1, 0]},
+      {"name": "front_arm", "role": "drum", "yaw_offset_deg": 0.0, "position_frame": "body", "position_m": [0.414, 0.015, -0.038], "optical_axis_body": [0, 0, -1], "transform_mode": "articulated"},
+      {"name": "rear_arm", "role": "drum", "yaw_offset_deg": 30.0, "position_frame": "body", "position_m": [-0.339, 0.017, 0.083], "optical_axis_body": [0.8660254, 0, 0.5], "transform_mode": "articulated"}
+    ]
+  },
+  "stereo": {
+    "front": {"left": "front_left", "right": "front_right", "baseline_m": 0.162},
+    "rear": {"left": "rear_left", "right": "rear_right", "baseline_m": 0.162}
+  },
+  "posture": {
+    "front_joint_position_m": [0.222, 0, 0.061],
+    "rear_joint_position_m": [-0.223, 0, 0.061],
+    "arm_length_m": 0.30,
+    "pivot_height_m": 0.18,
+    "nominal_limit_deg": 55.0,
+    "mechanical_limit_rad": 2.36,
+    "model_status": "unverified posture-model priors; replace with runtime joint transforms"
+  },
+  "terrain": {
+    "gravity_mps2": 1.622,
+    "rho_surface_kgm3": 1300.0,
+    "rho_deep_kgm3": 1920.0,
+    "transition_depth_m": 0.12,
+    "cohesion_pa": 170.0,
+    "friction_angle_deg": 37.0,
+    "bekker_kc": 1400.0,
+    "bekker_kphi": 820000.0,
+    "sinkage_n": 1.0,
+    "shear_k_m": 0.018,
+    "slip_c1": 0.4,
+    "slip_c2": 0.3,
+    "model_status": "domain priors, not measured official-simulator response"
+  },
+  "energy": {
+    "capacity_wh": 283.0,
+    "camera_w_each": 3.0,
+    "light_w_each_full": 9.8,
+    "compute_w": 8.0,
+    "imu_w": 0.15
+  },
+  "mapping": {
+    "area_m": 27.0,
+    "grid_cells": 180,
+    "cell_m": 0.15,
+    "height_tolerance_m": 0.05,
+    "productivity_target_cells_hr": 1350
+  }
+}
