@@ -491,7 +491,9 @@ function showTerra() {
     + (p.friction_deg != null ? ` · φ ${p.friction_deg}°` : "")
     + ` · ${bk}` + (p.regime ? ` · ${p.regime}` : "")
     + (pw ? `  ·  IPEx power (g-scaled) drive ${pw.drive_power_w} W (15° ${pw.drive_power_15deg_w} W) · `
-            + `+housekeeping → system ${pw.system_power_w} W  [thermal ${pw.thermal_w}+avionics ${pw.avionics_w}+comms ${pw.comms_w} W]` : "")
+            + `system ${pw.system_power_w} W [thermal-survival ${pw.thermal_survival_w}+avionics ${pw.avionics_w}+comms ${pw.comms_w} W]`
+            + (pw.thermal_by_env_w && Object.keys(pw.thermal_by_env_w).length
+               ? `  ·  heater/env: ${Object.entries(pw.thermal_by_env_w).map(([e, w]) => `${e.replace(/^(lunar|mars)_/, "")} ${w}W`).join(", ")}` : "") : "")
     + (PHY ? "" : "  (fallback — serve bodies.json)");
 }
 

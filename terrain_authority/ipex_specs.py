@@ -173,19 +173,66 @@ def lunar_drive_power_w(*, slope_deg: float = 0.0, crr: float = ROLLING_RESISTAN
 # enough heat to force 30-min cooldown shutdowns; X-band DTE comms draw transmit power.
 AVIONICS_POWER_W = 15.0            # [ASSUMPTION] flight computer + autonomy compute (SLAM/perception)
 COMMS_TX_POWER_W = 15.0            # [ASSUMPTION] X-band direct-to-Earth transmit (duty-cycled)
-THERMAL_SURVIVAL_POWER_W = 30.0    # [ASSUMPTION] heater load; tens-to-hundreds W (PSR / lunar night higher)
+THERMAL_SURVIVAL_POWER_W = 30.0    # [ASSUMPTION] flat fallback heater load; superseded by the model below
+
+
+# ---- Environment-aware thermal heater model [PHYSICS + ASSUMPTION] -------------------------
+# THERMAL_SURVIVAL_POWER_W is a flat body-blind placeholder. The real heater load is a HEAT BALANCE: the
+# rover holds its electronics at a setpoint against the environment's cold sink, losing heat by radiation
+# (Stefan-Boltzmann ~T^4) + conduction. It is environment-dependent (lunar day vs night vs PSR differ ~10x)
+# and swaps by body. Real environment sink temperatures; the IPEx box geometry/insulation are [ASSUMPTION]
+# (MLI emissivity + area dominate the magnitude -> treat the figure as order-of-magnitude, not sourced).
+STEFAN_BOLTZMANN = 5.670374e-8     # W/m^2/K^4
+ELECTRONICS_SETPOINT_C = -20.0     # [ASSUMPTION] minimum electronics survival temperature
+RADIATOR_EMISSIVITY = 0.10         # [ASSUMPTION] MLI-wrapped low-emissivity enclosure
+RADIATOR_AREA_M2 = 0.30            # [ASSUMPTION] effective radiating area for a ~30 kg rover box
+THERMAL_CONDUCTANCE_W_PER_K = 0.05  # [ASSUMPTION] lumped conductive loss (structure/wheels to surface)
+
+# Representative environment SINK temperatures (deg C): lunar surface day ~+110, night ~-180 (~90 K),
+# PSR ~-233 (~40 K); Mars day ~-20, night ~-90; Earth lab +15. [SOURCED-ENV]
+ENV_SINK_TEMP_C = {
+    "lunar_day": 110.0, "lunar_night": -180.0, "lunar_psr": -233.0,
+    "mars_day": -20.0, "mars_night": -90.0, "earth": 15.0,
+}
+BODY_COLD_ENV = {"moon": "lunar_psr", "mars": "mars_night", "earth": "earth"}   # coldest survival case/body
+
+
+def thermal_heater_power_w(sink_temp_c: float, *, setpoint_c: float = ELECTRONICS_SETPOINT_C,
+                           emissivity: float = RADIATOR_EMISSIVITY, area_m2: float = RADIATOR_AREA_M2,
+                           conductance_w_per_k: float = THERMAL_CONDUCTANCE_W_PER_K) -> float:
+    """Heater power to hold the electronics at ``setpoint_c`` against an environment sink, by radiative
+    (Stefan-Boltzmann ~T^4) + conductive heat balance. Returns 0 when the sink is warmer than the setpoint
+    (cooling, not heating, is then needed -- a separate radiator problem). [PHYSICS] balance + real sink
+    temps; emissivity/area/conductance are [ASSUMPTION] (insulation dominates the magnitude)."""
+    t_set, t_sink = setpoint_c + 273.15, sink_temp_c + 273.15
+    if t_sink >= t_set:
+        return 0.0
+    radiative = emissivity * STEFAN_BOLTZMANN * area_m2 * (t_set ** 4 - t_sink ** 4)
+    conductive = conductance_w_per_k * (t_set - t_sink)
+    return radiative + conductive
+
+
+def survival_heater_power_w(body: str = "moon") -> float:
+    """Worst-case (coldest environment) survival-heater power for a body, from ENV_SINK_TEMP_C."""
+    return thermal_heater_power_w(ENV_SINK_TEMP_C[BODY_COLD_ENV.get(body, "lunar_night")])
 
 
 def system_power_w(*, driving: bool = True, digging: bool = False, transmitting: bool = False,
-                   thermal_w: float | None = None, slope_deg: float = 0.0,
-                   g_ms2: float = LUNAR_G_MS2) -> float:
+                   thermal_w: float | None = None, sink_temp_c: float | None = None,
+                   slope_deg: float = 0.0, g_ms2: float = LUNAR_G_MS2) -> float:
     """Total instantaneous electrical draw = surface drive (if driving) + dig (if digging) + avionics +
     comms (if transmitting) + thermal. Sums the gravity-correct [PHYSICS] mobility (swappable by g_ms2 ->
-    Earth/Moon/Mars) with the [ASSUMPTION] housekeeping loads the published tables omit. The housekeeping
-    terms (thermal especially) typically dominate the mission energy; treat the total as an
-    order-of-magnitude budget, not a sourced figure."""
+    Earth/Moon/Mars) with the [ASSUMPTION] housekeeping loads the published tables omit. Thermal is the
+    environment heat-balance heater (``sink_temp_c``) if given, else an explicit ``thermal_w``, else the
+    flat fallback. The housekeeping terms (thermal especially) typically dominate the mission energy; treat
+    the total as an order-of-magnitude budget, not a sourced figure."""
     p = AVIONICS_POWER_W
-    p += thermal_w if thermal_w is not None else THERMAL_SURVIVAL_POWER_W
+    if thermal_w is not None:
+        p += thermal_w
+    elif sink_temp_c is not None:
+        p += thermal_heater_power_w(sink_temp_c)
+    else:
+        p += THERMAL_SURVIVAL_POWER_W
     if driving:
         p += lunar_drive_power_w(slope_deg=slope_deg, g_ms2=g_ms2)
     if digging:

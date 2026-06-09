@@ -21,10 +21,15 @@
       "drive_power_w": 4.37,
       "drive_j_per_m": 14.58,
       "drive_power_15deg_w": 11.77,
-      "system_power_w": 49.37,
+      "system_power_w": 37.01,
       "avionics_w": 15.0,
       "comms_w": 15.0,
-      "thermal_w": 30.0
+      "thermal_survival_w": 17.63,
+      "thermal_by_env_w": {
+        "lunar_day": 0.0,
+        "lunar_night": 14.86,
+        "lunar_psr": 17.63
+      }
     }
   },
   "mars": {
@@ -49,10 +54,14 @@
       "drive_power_w": 10.02,
       "drive_j_per_m": 33.39,
       "drive_power_15deg_w": 26.96,
-      "system_power_w": 55.02,
+      "system_power_w": 33.59,
       "avionics_w": 15.0,
       "comms_w": 15.0,
-      "thermal_w": 30.0
+      "thermal_survival_w": 8.57,
+      "thermal_by_env_w": {
+        "mars_day": 0.0,
+        "mars_night": 8.57
+      }
     }
   },
   "ceres": {
@@ -76,7 +85,8 @@
       "system_power_w": 45.77,
       "avionics_w": 15.0,
       "comms_w": 15.0,
-      "thermal_w": 30.0
+      "thermal_survival_w": 30.0,
+      "thermal_by_env_w": {}
     }
   },
   "bennu": {
@@ -100,7 +110,8 @@
       "system_power_w": 45.0,
       "avionics_w": 15.0,
       "comms_w": 15.0,
-      "thermal_w": 30.0
+      "thermal_survival_w": 30.0,
+      "thermal_by_env_w": {}
     }
   },
   "phobos": {
@@ -124,7 +135,8 @@
       "system_power_w": 45.02,
       "avionics_w": 15.0,
       "comms_w": 15.0,
-      "thermal_w": 30.0
+      "thermal_survival_w": 30.0,
+      "thermal_by_env_w": {}
     }
   },
   "earth": {
@@ -149,10 +161,13 @@
       "drive_power_w": 26.49,
       "drive_j_per_m": 88.29,
       "drive_power_15deg_w": 71.29,
-      "system_power_w": 71.49,
+      "system_power_w": 41.49,
       "avionics_w": 15.0,
       "comms_w": 15.0,
-      "thermal_w": 30.0
+      "thermal_survival_w": 0.0,
+      "thermal_by_env_w": {
+        "earth": 0.0
+      }
     }
   },
   "_ipex": {

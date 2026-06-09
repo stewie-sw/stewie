@@ -128,3 +128,15 @@ def test_system_power_includes_housekeeping_and_it_dominates_drive():
     assert sysp > housekeeping                                # total includes the missing loads
     assert housekeeping > s.lunar_drive_power_w()             # housekeeping > lunar drive (the key finding)
     assert s.system_power_w(digging=True, transmitting=True) > sysp   # dig + comms add on top
+
+
+def test_thermal_heater_is_environment_aware():
+    from terrain_authority import ipex_specs as s
+    psr = s.thermal_heater_power_w(s.ENV_SINK_TEMP_C["lunar_psr"])
+    night = s.thermal_heater_power_w(s.ENV_SINK_TEMP_C["lunar_night"])
+    day = s.thermal_heater_power_w(s.ENV_SINK_TEMP_C["lunar_day"])
+    earth = s.thermal_heater_power_w(s.ENV_SINK_TEMP_C["earth"])
+    assert psr > night > 0          # colder sink -> more heater power
+    assert day == 0.0 and earth == 0.0    # sink warmer than setpoint -> no heating (cooling regime)
+    assert s.survival_heater_power_w("moon") == psr        # worst-case = PSR for the Moon
+    assert s.survival_heater_power_w("earth") == 0.0

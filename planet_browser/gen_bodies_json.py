@@ -23,13 +23,20 @@ for key, b in B.BODIES.items():
     # gravity-SWAPPED IPEx power for THIS body: steady-drive resistance ~ m*g, so drive power scales with
     # the body's surface gravity (Earth ~6x the Moon). Housekeeping (avionics/comms/thermal) is body-
     # independent [ASSUMPTION] (thermal in particular is environment-dependent -- a future per-body refine).
+    _pfx = {"moon": "lunar", "mars": "mars", "earth": "earth"}.get(key)
+    envs = ({e: round(S.thermal_heater_power_w(t), 2) for e, t in S.ENV_SINK_TEMP_C.items()
+             if e.startswith(_pfx)} if _pfx else {})
+    cold_c = S.ENV_SINK_TEMP_C[S.BODY_COLD_ENV[key]] if key in S.BODY_COLD_ENV else None
     d["ipex_power"] = {
         "drive_power_w": round(S.lunar_drive_power_w(g_ms2=b.g), 2),
         "drive_j_per_m": round(S.lunar_drive_power_w(g_ms2=b.g) / S.DRIVE_SPEED_MS, 2),
         "drive_power_15deg_w": round(S.lunar_drive_power_w(g_ms2=b.g, slope_deg=15.0), 2),
-        "system_power_w": round(S.system_power_w(g_ms2=b.g), 2),
+        # system at the body's COLDEST survival environment (worst-case thermal); thermal now per-environment
+        "system_power_w": round(S.system_power_w(g_ms2=b.g, sink_temp_c=cold_c), 2),
         "avionics_w": S.AVIONICS_POWER_W, "comms_w": S.COMMS_TX_POWER_W,
-        "thermal_w": S.THERMAL_SURVIVAL_POWER_W,
+        "thermal_survival_w": round(S.survival_heater_power_w(key), 2) if key in S.BODY_COLD_ENV
+        else round(S.THERMAL_SURVIVAL_POWER_W, 2),
+        "thermal_by_env_w": envs,
     }
     out[key] = d
 
