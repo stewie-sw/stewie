@@ -31,3 +31,18 @@ def test_measure_on_real_render():
     height, lpx = SH.estimate_height_m(g, w // 2, h // 2, sun_azimuth_deg=200.0,
                                        sun_elevation_deg=8.0, m_per_px=0.01)
     assert height is None or height > 0.0
+
+
+def test_distant_dark_feature_is_not_a_shadow():
+    # audit 2026-06-09: the walk latched onto a dark feature 150 px away with LIT ground between
+    import numpy as np
+
+    from solnav.perception.shadow_height import measure_shadow_length_px
+    img = np.full((200, 400), 200.0, dtype=float)
+    img[100, 250:280] = 5.0                                     # dark feature far east of the rock
+    L = measure_shadow_length_px(img, 100.0, 100.0, sun_azimuth_deg=180.0)   # anti-solar = +x east
+    assert L == 0.0                                             # no shadow ATTACHED to the rock
+    img2 = np.full((200, 400), 200.0, dtype=float)
+    img2[100, 103:140] = 5.0                                    # a real attached shadow
+    L2 = measure_shadow_length_px(img2, 100.0, 100.0, sun_azimuth_deg=180.0)
+    assert L2 > 30                                              # measured as before

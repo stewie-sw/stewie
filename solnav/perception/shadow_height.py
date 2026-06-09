@@ -47,8 +47,9 @@ def measure_shadow_length_px(gray, u: float, v: float, sun_azimuth_deg: float, *
     thr = dark_frac * ref
     length = 0
     gap = 0
-    for s in range(start_px, max_len_px):
-        x = int(round(u + dx * s)); y = int(round(v + dy * s))
+    attach_px = 4                             # the shadow must START at the rock: without this, a walk
+    for s in range(start_px, max_len_px):     # over lit ground latched onto any distant dark feature and
+        x = int(round(u + dx * s)); y = int(round(v + dy * s))    # called it a "shadow" (audit 2026-06-09)
         if not (0 <= x < w and 0 <= y < h):
             break
         if gray[y, x] < thr:
@@ -57,6 +58,8 @@ def measure_shadow_length_px(gray, u: float, v: float, sun_azimuth_deg: float, *
             gap += 1
             if gap > 2:                       # exited the shadow
                 break
+        elif s > start_px + attach_px:        # never entered a shadow near the rock -> there is none
+            break
     return float(length)
 
 
