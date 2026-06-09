@@ -236,3 +236,31 @@ def test_rejects_stale_channel_against_clock():
     pio.parse_proprioception(pkt)                                   # no now_s -> staleness not enforced
     with pytest.raises(ValueError, match="stale"):
         pio.parse_proprioception(pkt, now_s=100.0, max_age_s=1.0)   # consumer clock far ahead -> reject
+
+
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+def test_round_trip_with_power_telemetry():
+    sys.path.insert(0, _DUST)
+    from terrain_authority import ipex_specs as sp
+    from terrain_authority import proprioception as pp
+    from terrain_authority import runtime_packet as rp
+    m = pp.ImuWheelModel(seed=0)
+    imu = [m.step_imu(i * 0.01, 0.0) for i in range(5)]
+    wheel = [m.step_wheel_encoders(i * 0.1, 0.30, 0.0, (0, 0, 0, 0), dt=0.1) for i in range(3)]
+    power = rp.power_channel(sp.drive_power_w(), 0.85, t=0.0)       # real draw + SoC belief (A4)
+    pkt = pp.runtime_proprioception_packet(imu, wheel, sequence_id=7, imu_rate_hz=100, wheel_rate_hz=10,
+                                           power=power)
+    parsed = pio.parse_proprioception(pkt)                          # A5 per-field validates power
+    assert parsed["power"] and "power" not in parsed["unavailable"]
+    assert parsed["power"][0]["voltage_v"] > 0 and 0 <= parsed["power"][0]["soc_frac"] <= 1
+
+
+def test_rejects_power_soc_out_of_range():
+    pu = {"voltage": "V", "current": "A", "power": "W", "soc": "frac"}
+    pkt = {"schema_version": "proprioception/1.1", "clock": "x", "sequence_id": 0,
+           "channels": {"imu": {"status": "UNAVAILABLE"}, "wheel": {"status": "UNAVAILABLE"},
+                        "power": {"status": "OK", "units": pu, "samples": [
+                            {"t": 0.0, "voltage_v": 44.4, "current_a": 1.0, "power_w": 44.4,
+                             "soc_frac": 1.5}]}}}
+    with pytest.raises(ValueError, match="soc_frac out of"):
+        pio.parse_proprioception(pkt)

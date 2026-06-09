@@ -33,6 +33,8 @@ _IMU_UNITS = {"gyro_z": "rad/s", "accel_xy": "m/s^2"}
 _WHEEL_UNITS = {"encoder_delta": "rad", "encoder_count_delta": "count", "covariance": "rad^2"}
 _JOINT_SAMPLE_KEYS = {"t", "arm_front_pitch_rad", "arm_back_pitch_rad", "chassis_lift_m", "camera_heights_m"}
 _JOINT_UNITS = {"arm_pitch": "rad", "chassis_lift": "m", "camera_height": "m"}
+_POWER_SAMPLE_KEYS = {"t", "voltage_v", "current_a", "power_w", "soc_frac"}
+_POWER_UNITS = {"voltage": "V", "current": "A", "power": "W", "soc": "frac"}
 
 
 def _monotonic(ts, name):
@@ -76,7 +78,7 @@ def parse_proprioception(packet: dict, *, sync_tolerance_s: float = 1.0,
     chans = packet["channels"]
     _allowed(chans, _CHAN_NAMES, "channels")
     out = {"sequence_id": packet["sequence_id"], "clock": packet["clock"],
-           "imu": [], "wheel": [], "joints": [], "unavailable": []}
+           "imu": [], "wheel": [], "joints": [], "power": [], "unavailable": []}
 
     ci = chans.get("imu", {})
     _allowed(ci, _CHAN_KEYS, "imu channel")
@@ -167,25 +169,25 @@ def parse_proprioception(packet: dict, *, sync_tolerance_s: float = 1.0,
     else:
         out["unavailable"].append("joints")
 
-    # power: no battery-telemetry schema yet (producer emits UNAVAILABLE). Validate the generic envelope
-    # if a payload ever arrives (finite, monotonic) rather than fabricating a per-field schema.
+    # power: measured BMS telemetry (pack voltage/current/draw/SoC).
     cp = chans.get("power", {})
     _allowed(cp, _CHAN_KEYS, "power channel")
     if cp.get("status") == "OK":
         ps = cp.get("samples") or []
         if not ps:
             raise ValueError("power status OK without payload")
-        if not all("t" in x for x in ps):
-            raise ValueError("power sample missing timestamp")
-        _monotonic([x["t"] for x in ps], "power")
         for x in ps:
-            for k, v in x.items():
-                if isinstance(v, bool):
-                    continue
-                if isinstance(v, (int, float)) or (
-                        isinstance(v, (list, tuple)) and v
-                        and all(isinstance(e, (int, float)) and not isinstance(e, bool) for e in v)):
-                    _finite(v, f"power.{k}")
+            _allowed(x, _POWER_SAMPLE_KEYS, "power sample")
+        _monotonic([x["t"] for x in ps], "power")
+        _check_units(cp.get("units"), _POWER_UNITS, "power")
+        for x in ps:
+            for k in ("t", "voltage_v", "current_a", "power_w", "soc_frac"):
+                _finite(x[k], f"power.{k}")
+            if not 0.0 <= float(x["soc_frac"]) <= 1.0:
+                raise ValueError(f"power soc_frac out of [0,1]: {x['soc_frac']}")
+            if float(x["voltage_v"]) < 0.0:
+                raise ValueError("power voltage_v must be non-negative")
+            out["power"].append(x)
     else:
         out["unavailable"].append("power")
 
