@@ -132,7 +132,8 @@ class ImuWheelModel:
 
 def runtime_proprioception_packet(imu: list, wheel_enc: list, *, sequence_id: int,
                                   imu_rate_hz: float, wheel_rate_hz: float,
-                                  clock: str = "sim_monotonic", joints: dict | None = None) -> dict:
+                                  clock: str = "sim_monotonic", joints: dict | None = None,
+                                  power: dict | None = None) -> dict:
     """Build the additive, serializable runtime proprioception packet (schema proprioception/1.1).
 
     Channels carry samples + covariance + units + provenance on ONE monotonic clock + sequence id.
@@ -140,8 +141,9 @@ def runtime_proprioception_packet(imu: list, wheel_enc: list, *, sequence_id: in
     solnav derives body odometry). NO pose / slip / terrain / evaluation truth (I3); availability is OK
     only with a payload. ``joints`` (optional) is a measured arm-joint channel from
     ``runtime_packet.joint_channel`` (real FK -- drum-arm pitches + posture-conditioned camera heights);
-    when absent the joints channel is honestly UNAVAILABLE. power has no battery-telemetry model -> always
-    UNAVAILABLE (not faked).
+    when absent the joints channel is honestly UNAVAILABLE. ``power`` (optional) is a measured BMS channel
+    from ``runtime_packet.power_channel`` (real ipex_specs pack model + a supplied draw/SoC); UNAVAILABLE
+    when absent.
     """
     def _imu_ch():
         return {
@@ -177,6 +179,7 @@ def runtime_proprioception_packet(imu: list, wheel_enc: list, *, sequence_id: in
             "wheel": _wheel_ch(),
             "joints": joints if joints is not None else {
                 "status": "UNAVAILABLE", "reason": "no measured joint channel supplied to this packet"},
-            "power": {"status": "UNAVAILABLE", "reason": "no battery-telemetry model in this producer yet"},
+            "power": power if power is not None else {
+                "status": "UNAVAILABLE", "reason": "no measured power channel supplied to this packet"},
         },
     }
