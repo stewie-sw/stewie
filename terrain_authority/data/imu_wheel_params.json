@@ -1,0 +1,58 @@
+{
+  "_doc": "Grounded IMU/wheel sensor parameters for the IPEx rover, extrapolated from real open planetary-rover data. PACKAGED (solnav.config/data) so the installed wheel can locate it. No fabricated values; provenance per field. See validation/g1_imu_wheel_data_sources.md.",
+  "date": "2026-06-07",
+  "platform": {
+    "name": "IPEx (ISRU Pilot Excavator) class",
+    "mass_kg": 30.0,
+    "drive": "four-wheel skid-steer",
+    "track_m": 0.5207,
+    "wheel_radius_m": 0.1524,
+    "gravity_mps2": 1.62,
+    "provenance": "NTRS 20240008162 (Schuler et al., IPEx TRL-5) via ipex_specs"
+  },
+  "imu": {
+    "model_analog": "XSENS MTi-10",
+    "provenance": "MADMAX rover IMU (Meyer et al. 2021); MTi 10-series output specs (mtidocs.xsens.com/output-specifications). MEMS noise is sensor-class-bound -> transfers to IPEx directly.",
+    "magnetometer": false,
+    "rate_hz": 100.0,
+    "white_noise_provenance": "[ASSUMPTION] per-sample white-noise sigma = noise_density * sqrt(rate) treats the sample rate as the effective noise bandwidth; the real anti-alias bandwidth differs, so this is a modeling assumption, not a datasheet value.",
+    "gyro": {
+      "noise_density_dps_per_sqrtHz": 0.03,
+      "angle_random_walk_deg_per_sqrth": 1.8,
+      "in_run_bias_stability_dph": 18.0,
+      "in_run_bias_stability_dps": 0.005,
+      "range_dps": 450.0
+    },
+    "accel": {
+      "noise_density_ug_per_sqrtHz": 60.0,
+      "in_run_bias_stability_ug": 15.0,
+      "in_run_bias_stability_mps2": 1.47e-4,
+      "range_mps2": 200.0,
+      "range_provenance": "MTi-10 high-range full-range option (~20 g = 200 m/s^2; mtidocs.xsens.com/output-specifications); corrected from the 50 m/s^2 default."
+    },
+    "bias_model": {
+      "type": "first_order_gauss_markov",
+      "correlation_time_s": 1000.0,
+      "correlation_time_provenance": "[ASSUMPTION] not in the MTi-10 spec; 1e3 s is a conventional MEMS in-run value.",
+      "stationary_sigma_provenance": "[ASSUMPTION] the in-run bias stability (Allan-deviation floor) is mapped to the Gauss-Markov stationary sigma; this equivalence is a modeling assumption, not a spec value. Replaces a pure random walk (which over-drifts).",
+      "note": "white-noise sigma per sample = noise_density * sqrt(rate) (see white_noise_provenance); bias is GM with stationary sigma = in_run_bias_stability (see stationary_sigma_provenance)"
+    }
+  },
+  "wheel_odometry": {
+    "encoder_rate_hz": 10.0,
+    "encoder_read_noise_frac": 0.01,
+    "encoder_counts_per_rev": 4096,
+    "encoder_counts_per_rev_provenance": "[ASSUMPTION] typical 12-bit wheel-encoder resolution; no IPEx encoder spec is published.",
+    "wheel_order": ["LF", "RF", "LR", "RR"],
+    "yaw_source": "differential wheel speeds (skid-steer), derived from noisy per-wheel encoders (NOT true yaw rate)",
+    "error_model": "each wheel encoder reads wheel speed = ground/(1-slip); forward speed and yaw rate over-read by slip. slip is the dustgym terramechanics solve (NOT exposed on the sensor sample).",
+    "acceptance_envelope": {
+      "label": "MER autonomous-navigation design goal / contextual check (NOT a universal measured soil-error law)",
+      "dead_reckoning_error_frac_of_distance": 0.10,
+      "slip_regimes": {"low": "<0.30", "intermediate": "0.30-0.60", "high": ">0.60"},
+      "max_observed_slip": 1.25,
+      "max_slope_deg": 31,
+      "provenance": "MER autonomous-navigation design goal / contextual check (Maimone, Cheng, Matthies 2007, MER visual odometry). The ~10% figure is a design goal and a contextual sanity check for model faithfulness, NOT a universal measured soil-error law."
+    }
+  }
+}

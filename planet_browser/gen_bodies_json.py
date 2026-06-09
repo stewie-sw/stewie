@@ -28,7 +28,8 @@ for key, b in B.BODIES.items():
              if e.startswith(_pfx)} if _pfx else {})
     cold_c = S.ENV_SINK_TEMP_C[S.BODY_COLD_ENV[key]] if key in S.BODY_COLD_ENV else None
     d["ipex_power"] = {
-        "drive_power_w": round(S.lunar_drive_power_w(g_ms2=b.g), 2),
+        # 6 sig figs, not fixed decimals (audit L19: round(...,2) collapsed Bennu's 1e-4 W to 0.0)
+        "drive_power_w": float(f"{S.lunar_drive_power_w(g_ms2=b.g):.6g}"),
         "drive_j_per_m": round(S.lunar_drive_power_w(g_ms2=b.g) / S.DRIVE_SPEED_MS, 2),
         "drive_power_15deg_w": round(S.lunar_drive_power_w(g_ms2=b.g, slope_deg=15.0), 2),
         # system at the body's COLDEST survival environment (worst-case thermal); thermal now per-environment
@@ -83,4 +84,6 @@ out["_actions"] = sorted(V.ACTIONS)   # the full action vocabulary, for the plan
 path = os.path.join(HERE, "bodies.json")
 with open(path, "w") as f:
     json.dump(out, f, indent=2)
-print(f"wrote {len(out)} bodies -> {path}: {', '.join(b.label for b in B.BODIES.values())}")
+n_bodies = sum(1 for k in out if not k.startswith("_"))
+print(f"wrote {n_bodies} bodies (+{len(out) - n_bodies} meta blocks) -> {path}: "
+      f"{', '.join(b.label for b in B.BODIES.values())}")

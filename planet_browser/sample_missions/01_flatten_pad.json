@@ -1,0 +1,10 @@
+{
+  "name": "Tutorial 1 — flatten a landing pad",
+  "body": "moon",
+  "charger": [0, 0],
+  "orders": [
+    {"action": "cut high spot", "kind": "cut", "x": 10, "y": 10, "footprint_m2": 36, "depth_m": 0.15},
+    {"action": "fill pad", "kind": "fill", "x": 40, "y": 10, "footprint_m2": 36, "depth_m": 0.15}
+  ],
+  "keepouts": []
+}

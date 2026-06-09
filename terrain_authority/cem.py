@@ -50,6 +50,9 @@ def rollout(env: RoverSimEnv, policy: LinearPolicy, theta: np.ndarray, seed: int
 def evaluate(env: RoverSimEnv, policy: LinearPolicy, theta: np.ndarray, seeds) -> dict:
     """Mean return / reached-rate over a fixed set of episode seeds (same terrains
     for every candidate, so scores are comparable)."""
+    seeds = list(seeds)   # a one-shot iterable would silently empty after the first candidate (M23)
+    if not seeds:
+        raise ValueError("evaluate() needs at least one seed")
     outs = [rollout(env, policy, theta, s) for s in seeds]
     return {"mean_return": float(np.mean([o["return"] for o in outs])),
             "reached_rate": float(np.mean([o["reached"] for o in outs]))}

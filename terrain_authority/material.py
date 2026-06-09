@@ -88,7 +88,8 @@ def load_density(scene_dir: str):
     """Read a scene's density.rf32 (row-major C float32) [kg/m^3]."""
     import json
     import os
-    m = json.load(open(os.path.join(scene_dir, "metadata.json")))
+    with open(os.path.join(scene_dir, "metadata.json")) as fh:   # audit L36: leaked handle
+        m = json.load(fh)
     g = m["grid"]
     d = np.fromfile(os.path.join(scene_dir, "density.rf32"), dtype="<f4")
     return d.reshape(int(g["height"]), int(g["width"])).astype(float)

@@ -31,7 +31,9 @@ def test_blanketing_the_worksite_reaches_full_coverage():
     x0, y0, x1, y1 = MC.worksite_bbox(m)
     grid = [(x, y) for x in range(int(x0), int(x1) + 1, 4) for y in range(int(y0), int(y1) + 1, 4)]
     full = MC.map_channel_score(m, grid)
-    assert full["coverage"] > 0.99 and full["mean_uncertainty_m"] == MC.ONBOARD_STEREO_SIGMA_M
+    # approx, not float ==: the footprint-extent bbox (audit M28) changes the grid, and np.mean of
+    # identical sigmas rounds in the last ulp
+    assert full["coverage"] > 0.99 and abs(full["mean_uncertainty_m"] - MC.ONBOARD_STEREO_SIGMA_M) < 1e-9
 
 
 def test_local_coverage_gate_signal():

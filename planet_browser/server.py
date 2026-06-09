@@ -515,6 +515,9 @@ def post_plan(req: PlanRequest, _auth: None = Depends(require_auth)):
                              vehicles=req.vehicles, result=result)
     except (ValueError, RuntimeError) as e:             # bad input / sinter-gated -> honest 400
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    except (KeyError, TypeError) as e:                  # missing/odd-typed field -> ALSO the contracted
+        # 400 {ok:false,error} (audit M40: these surfaced as uncaught 500s)
+        return JSONResponse(status_code=400, content={"ok": False, "error": f"bad request field: {e!r}"})
     return {
         "ok": True,
         "mode": "DEM_KNOWN_POSE_MISSION_SIM",           # product boundary (known-pose mission sim, not SLAM)

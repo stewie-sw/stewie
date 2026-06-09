@@ -181,6 +181,11 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
         # pose estimate is too uncertain, dwell and take more observations until it is confident enough.
         if perception_sigma_m is not None and leg.get("dig_e", 0.0) > 0.0:
             while belief.pos_sigma_m > dig_sigma_gate_m:
+                # ABSTRACTION (audit M44, documented): each dwell models acquiring an INDEPENDENT
+                # map-relative fix of sigma=perception_sigma_m (localization.register_to_dem tier).
+                # The mean is deliberately unchanged (no better estimate exists in this tier; no truth
+                # may be used, I3); only the variance follows the KF fusion rate. It is a mission-time/
+                # uncertainty model, not a real measurement.
                 belief = update_pose(belief, (belief.x, belief.y), perception_sigma_m)
                 observe_more += 1
         # MAP-CHANNEL-IN-THE-LOOP gate (P6 / LAC section 10): a dig commits only on terrain the route has

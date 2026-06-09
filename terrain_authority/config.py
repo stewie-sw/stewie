@@ -101,6 +101,11 @@ def apply(ns: dict) -> dict:
             # bool is an int subclass -> keep bool override as bool; keep float as float
             if isinstance(old, bool):
                 new = bool(val)
+            elif isinstance(old, int) and not isinstance(old, bool):
+                if isinstance(val, bool) or float(val) != int(float(val)):
+                    # audit M29: "2.5" against N_WHEELS silently truncated/typed-flipped; refuse
+                    continue
+                new = int(float(val))
             elif isinstance(old, float):
                 if isinstance(val, bool):
                     # "true"/"false" against a float constant would corrupt the physics value; the

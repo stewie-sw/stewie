@@ -584,6 +584,11 @@ REGOLITH_THICKNESS_MAX_M = 15.0
 # ---------------------------------------------------------------------------
 from . import config as _config  # noqa: E402  (overlay must follow the primitive definitions)
 
-_config.apply(globals())
-RHO_GRAIN = G_s * RHO_WATER        # derived: solid grain density tracks G_s
-RHO_SPOIL = RHO_SURFACE / 1.0      # derived: loose spoil density tracks the surface layer
+_applied = _config.apply(globals())
+# derived values recompute from their primitives -- UNLESS the derived name itself was explicitly
+# overridden (audit M03: a direct DUSTGYM_RHO_SPOIL/RHO_GRAIN override was clobbered here while
+# config reported it applied)
+if "RHO_GRAIN" not in _applied:
+    RHO_GRAIN = G_s * RHO_WATER    # derived: solid grain density tracks G_s
+if "RHO_SPOIL" not in _applied:
+    RHO_SPOIL = RHO_SURFACE / 1.0  # derived: loose spoil density tracks the surface layer

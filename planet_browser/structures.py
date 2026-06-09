@@ -31,6 +31,13 @@ SWELL = RHO_BANK / RHO_LOOSE  # ~1.48 (lunar): loose fill bulks above the bank c
 #                               approximation; the conserved authority (P8/I8) gives the exact per-column mass.
 
 
+def _require_positive(**kw):
+    for name, v in kw.items():
+        if not (float(v) > 0.0):
+            raise ValueError(f"{name} must be > 0 (got {v}) (audit L21: zero divided; negative "
+                             "silently inverted the cut/fill volume balance)")
+
+
 def _o(action, kind, x, y, footprint_m2, depth_m, note=""):
     # keep full float precision (don't round footprint) so a fill consumes EXACTLY the paired cut volume
     return {"action": action, "kind": kind, "x": float(x), "y": float(y),
@@ -42,6 +49,7 @@ def _o(action, kind, x, y, footprint_m2, depth_m, note=""):
 # offsets made realistic-size fills overlap and re-disturb their own source cut (audit 2026-06-09).
 def landing_pad(x, y, *, side_m=6.0, cut_depth_m=0.05, berm_height_m=0.12):
     """Level a square pad (bank cut) and build a perimeter blast berm from that material (loose fill, bulked)."""
+    _require_positive(side_m=side_m, cut_depth_m=cut_depth_m, berm_height_m=berm_height_m)
     fill_vol = (side_m * side_m) * cut_depth_m * SWELL          # bank cut -> bulked loose fill (mass-conserved)
     return [
         _o("Level landing pad", "cut", x, y, side_m * side_m, cut_depth_m, f"{side_m:.0f}x{side_m:.0f} m"),
@@ -53,6 +61,7 @@ def landing_pad(x, y, *, side_m=6.0, cut_depth_m=0.05, berm_height_m=0.12):
 
 def habitat_foundation(x, y, *, side_m=5.0, cut_depth_m=0.06, fill_height_m=0.06):
     """Cut a level footing (bank) and place a compacted raised pad from the spoil (loose fill, bulked)."""
+    _require_positive(side_m=side_m, cut_depth_m=cut_depth_m, fill_height_m=fill_height_m)
     fill_vol = (side_m * side_m) * cut_depth_m * SWELL
     return [
         _o("Cut habitat footing", "cut", x, y, side_m * side_m, cut_depth_m),
@@ -64,6 +73,7 @@ def habitat_foundation(x, y, *, side_m=5.0, cut_depth_m=0.06, fill_height_m=0.06
 
 def blast_berm(x, y, *, length_m=15.0, width_m=3.0, height_m=0.5, borrow_depth_m=0.3):
     """A loose fill ridge supplied by a nearby borrow pit; the bank cut is sized so MASS balances."""
+    _require_positive(length_m=length_m, width_m=width_m, height_m=height_m, borrow_depth_m=borrow_depth_m)
     borrow_vol = ((length_m * width_m) * height_m) / SWELL     # bank cut to supply the loose berm (mass-conserved)
     return [
         _o("Borrow pit (berm)", "cut",
@@ -75,6 +85,7 @@ def blast_berm(x, y, *, length_m=15.0, width_m=3.0, height_m=0.5, borrow_depth_m
 
 def crater_fill(x, y, *, radius_m=8.0, depth_m=0.4, borrow_depth_m=0.3):
     """Fill a crater dip to grade from a nearby borrow pit; the bank cut is sized so MASS balances."""
+    _require_positive(radius_m=radius_m, depth_m=depth_m, borrow_depth_m=borrow_depth_m)
     fill_area = math.pi * radius_m * radius_m
     borrow_vol = (fill_area * depth_m) / SWELL                 # bank cut to supply the loose fill (mass-conserved)
     return [

@@ -32,11 +32,16 @@ OBSERVE_DWELL_S = 60.0         # [ASSUMPTION] survey-dwell the rover spends mapp
 
 def worksite_bbox(mission, *, margin_m=10.0):
     """The worksite we score map coverage over: the bounding box of all order footprints + a margin."""
-    xs = [o.x for o in mission.orders]
-    ys = [o.y for o in mission.orders]
-    if not xs:
+    if not mission.orders:
         return (0.0, 0.0, 1.0, 1.0)
-    return (min(xs) - margin_m, min(ys) - margin_m, max(xs) + margin_m, max(ys) + margin_m)
+    halves = [(getattr(o, "footprint_m2", 0.0) or 0.0) ** 0.5 / 2.0 for o in mission.orders]
+    xs0 = [o.x - h for o, h in zip(mission.orders, halves)]
+    xs1 = [o.x + h for o, h in zip(mission.orders, halves)]
+    ys0 = [o.y - h for o, h in zip(mission.orders, halves)]
+    ys1 = [o.y + h for o, h in zip(mission.orders, halves)]
+    # footprint extents, not just centres (audit M28): a large pad's edges were clipped out of the
+    # coverage objective whenever they exceeded the fixed margin
+    return (min(xs0) - margin_m, min(ys0) - margin_m, max(xs1) + margin_m, max(ys1) + margin_m)
 
 
 def _grid(bbox, cell_m):
@@ -81,6 +86,6 @@ def local_coverage(stations, site, *, radius_m=SENSOR_RADIUS_M, sensor_radius_m=
     XX, YY = _grid(bbox, cell_m)
     in_disk = ((XX - sx) ** 2 + (YY - sy) ** 2) <= radius_m ** 2
     if not in_disk.any():
-        return 1.0
+        return 0.0   # fail CLOSED (audit M27/L71): an un-evaluable site must NOT pass the dig gate
     obs = coverage_mask(bbox, cell_m, stations, sensor_radius_m)
     return float(obs[in_disk].mean())

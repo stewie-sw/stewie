@@ -77,5 +77,12 @@ def canonical_runtime_packet(proprio_packet: dict, camera_channel: dict, *,
     channels["camera"] = {"status": "OK",
                           **{k: v for k, v in camera_channel.items() if k not in ("clock", "sequence_id")}}
     if joints is not None:
+        jt = [smp.get("t") for smp in joints.get("samples", [])]
+        if jt and (min(jt) < 0.0):
+            raise ValueError("joints sample timestamps must be on the canonical non-negative clock")
+        j_clock = joints.get("clock", clock)
+        if j_clock != clock:
+            # audit M04: joints merged with ZERO clock validation, contradicting the one-clock contract
+            raise ValueError(f"joints clock {j_clock!r} != canonical clock {clock!r}")
         channels["joints"] = joints                              # measured joints now AVAILABLE
     return {"schema_version": "dustgym_runtime/1.0", "clock": clock, "sequence_id": seq, "channels": channels}

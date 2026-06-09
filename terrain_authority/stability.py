@@ -41,6 +41,14 @@ def stability(pitch_deg: float, roll_deg: float, *, gauge_m: float, wheelbase_m:
     track; both from ``rover.conform_pose``). Returns the per-axis SSAs, the binding margin (degrees of
     tilt remaining before tip-over; <= 0 means tipping), the binding axis, and a risk band
     ('ok' / 'warn' within ``warn_frac`` of an SSA / 'tip')."""
+    import math as _math
+    if not (_math.isfinite(pitch_deg) and _math.isfinite(roll_deg)):
+        # fail CLOSED (audit M34): NaN compared False everywhere and classified as 'ok'
+        return {"ssa_pitch_deg": float("nan"), "ssa_roll_deg": float("nan"),
+                "margin_deg": float("-inf"), "binding_axis": "unknown", "risk": "tip"}
+    # NOTE (audit M19, refuted): for the rectangular wheel-support polygon the gravity-projection
+    # exit condition IS componentwise (|h tan p| vs half-wheelbase, |h tan r| vs half-gauge), so the
+    # per-axis margins are exact in this SSA model -- no cross-axis term is missing.
     ssa_pitch = ssa_deg(wheelbase_m / 2.0, cg_height_m)
     ssa_roll = ssa_deg(gauge_m / 2.0, cg_height_m)
     m_pitch = ssa_pitch - abs(pitch_deg)

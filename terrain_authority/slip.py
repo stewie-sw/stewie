@@ -42,7 +42,9 @@ def developed_thrust(slip: float, h_max: float, *, contact_len_m: float,
     if slip <= 0.0:
         return 0.0
     x = slip * contact_len_m / k_shear
-    return h_max * (1.0 - (1.0 - math.exp(-x)) / x)
+    # -expm1(-x) = 1 - e^-x computed without cancellation (audit L38: the naive form went negative /
+    # non-monotone for x ~ 1e-12)
+    return h_max * (1.0 - (-math.expm1(-x)) / x)
 
 
 def slip_for_demand(demand_n: float, h_max: float, *, contact_len_m: float,
@@ -56,6 +58,11 @@ def slip_for_demand(demand_n: float, h_max: float, *, contact_len_m: float,
     if demand_n <= 0.0:
         return 0.0, False
     if demand_n >= h_max:
+        return s_max, True
+    if demand_n >= developed_thrust(s_max, h_max, contact_len_m=contact_len_m, k_shear=k_shear):
+        # demand sits in (H(s_max), h_max): the Janosi curve cannot develop it at any allowed slip --
+        # the wheel saturates at s_max and digs in, same physical outcome as demand >= h_max
+        # (audit M09: this band previously reported entrapped=False)
         return s_max, True
     lo, hi = 1e-6, s_max
     for _ in range(60):
@@ -94,10 +101,15 @@ def bekker_drive_power_w(*, mass_kg: float, g_ms2: float, slope_deg: float = 0.0
     conservative constant-Crr estimate. Its real value is the slope/slip/entrapment dependence + soil/g
     awareness that a constant Crr cannot express."""
     weight_n = mass_kg * g_ms2
-    eq = slip_sinkage_equilibrium(weight_n, math.radians(slope_deg), n_wheels=n_wheels,
+    # |slope|: descent demands BRAKING traction of the same magnitude (audit L16: signed slope made
+    # downhill power negative)
+    eq = slip_sinkage_equilibrium(weight_n, math.radians(abs(slope_deg)), n_wheels=n_wheels,
                                   contact_len_m=contact_len_m, contact_width_m=contact_width_m, params=params)
     tractive_n = eq["demand_n"] * n_wheels
-    return {"drive_power_w": tractive_n * v_ms / efficiency, "tractive_n": tractive_n,
+    s = min(eq["slip"], 0.99)
+    # kinematic slip loss (audit M10): holding ground speed v at slip s spins the wheels 1/(1-s)
+    # faster, so the electrical draw scales by the same factor
+    return {"drive_power_w": tractive_n * v_ms / ((1.0 - s) * efficiency), "tractive_n": tractive_n,
             "slip": eq["slip"], "sinkage_m": eq["sinkage_m"], "entrapped": eq["entrapped"]}
 
 

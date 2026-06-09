@@ -48,6 +48,9 @@ class SchedulerEnv(_BASE):
         self.grid = int(grid); self.cell_m = float(cell_m)
         self.borrows = [tuple(b) for b in borrows]
         self.builds = [tuple(b) for b in builds]
+        if not self.borrows or not self.builds:
+            raise ValueError("SchedulerEnv needs >= 1 borrow and >= 1 build region (audit L35: "
+                             "empty lists crashed reset() with an opaque IndexError)")
         self.regions = self.borrows + self.builds
         self.n_borrow = len(self.borrows); self.n_region = len(self.regions)
         self.randomize = bool(randomize)
@@ -180,9 +183,11 @@ class SchedulerEnv(_BASE):
                 before = self.cs.drum_inventory
                 self.cs.cut_to_inventory(mask, mpc)
                 moved = self.cs.drum_inventory - before
+            self._energy -= self.dig_cost_per_kg * moved   # dig energy charged ONCE, on excavation
         else:                                              # DUMP: fill_toward this site with the drum
             moved = self.cs.fill_toward(self._mask(rect), self.target)
-        self._energy -= self.dig_cost_per_kg * moved
+            # no dig charge on the dump (audit M46: both legs charged 4151 J/kg -> exactly 2x the
+            # grounded excavation cost per kg through the drum)
         self._legs += 1
         new_def = self._build_deficit_total()
         reward = (self._prev_def - new_def) / self._deficit0 * self.match_scale - self.leg_cost

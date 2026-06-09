@@ -18,7 +18,7 @@
     "role": "Artemis base camp + ISRU water ice (NASA Moon-to-Mars ADD Rev.B 2024).",
     "provenance": "NASA LTV terramechanics white paper NTRS 20220010732 (k_c=1400 N/m^2, k_phi=820000 N/m^3, n=1.0, c=170 Pa); Carrier/Mitchell Lunar Sourcebook 1991; ChaSTE 2025 (rho).",
     "ipex_power": {
-      "drive_power_w": 4.37,
+      "drive_power_w": 4.374,
       "drive_j_per_m": 14.58,
       "drive_power_15deg_w": 11.77,
       "system_power_w": 37.01,
@@ -51,7 +51,7 @@
     "role": "human habitats + ISRU; MOXIE produced O2 in-situ (Hecht 2022).",
     "provenance": "Oravec et al. 2020 NASA GRC (GRC-3 simulant: k_c=23.2 kN/m^2, k_phi=606.7 kN/m^3, n=1.0); Sullivan 2011 (c 0-2 kPa, phi 30-37); Spohn 2022 InSight (duricrust 5.8 kPa).",
     "ipex_power": {
-      "drive_power_w": 10.02,
+      "drive_power_w": 10.017,
       "drive_j_per_m": 33.39,
       "drive_power_15deg_w": 26.96,
       "system_power_w": 33.59,
@@ -79,7 +79,7 @@
     "role": "water/brine mining (Dawn brines) + Janhunen 2021 megasatellite-habitat proposal.",
     "provenance": "Park 2016 / Ermakov 2017 (g, density); Icarus 2024 (repose 34.5+/-2.8); cohesion UNKNOWN -> lunar Bekker analog used (flagged); friction = repose proxy.",
     "ipex_power": {
-      "drive_power_w": 0.77,
+      "drive_power_w": 0.7668,
       "drive_j_per_m": 2.56,
       "drive_power_15deg_w": 2.06,
       "system_power_w": 45.77,
@@ -104,7 +104,7 @@
     "role": "C-type asteroid water/volatile mining (Bennu first proposed target, Jin 2021).",
     "provenance": "Scheeres 2019 (g); Lauretta 2019 / Watanabe 2019 (rho 1190); Walsh 2022 (cohesion <=2 Pa, near-fluidized); Robin 2024 (phi ~33). Bekker INVALID -> use DEM/granular.",
     "ipex_power": {
-      "drive_power_w": 0.0,
+      "drive_power_w": 0.000108,
       "drive_j_per_m": 0.0,
       "drive_power_15deg_w": 0.0,
       "system_power_w": 45.0,
@@ -129,7 +129,7 @@
     "role": "Mars-system staging waypoint + possible ISRU (NASA NTRS 20160006319; JAXA MMX).",
     "provenance": "Ernst 2023 (rho ~1850); Hurford 2016 (cohesion ~500 Pa surface model, phi ~40); Murdoch 2025 IDEFIX (phi 33.5+/-6.1 analog). Bekker UNKNOWN -> lunar analog (flagged).",
     "ipex_power": {
-      "drive_power_w": 0.02,
+      "drive_power_w": 0.01539,
       "drive_j_per_m": 0.05,
       "drive_power_15deg_w": 0.04,
       "system_power_w": 45.02,
@@ -158,7 +158,7 @@
     "role": "validation/sanity body (terrestrial dry sand).",
     "provenance": "Wong, Theory of Ground Vehicles (dry sand: k_c=0.99 kN/m^(n+1), k_phi=1528.43 kN/m^(n+2), n=1.1, c=1.04 kPa, phi=28).",
     "ipex_power": {
-      "drive_power_w": 26.49,
+      "drive_power_w": 26.487,
       "drive_j_per_m": 88.29,
       "drive_power_15deg_w": 71.29,
       "system_power_w": 41.49,

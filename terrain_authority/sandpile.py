@@ -74,6 +74,9 @@ class Sandpile:
         """
         cs = self.cs
         if radius_cells <= 0:
+            if not (0 <= r < cs.height and 0 <= c < cs.width):
+                raise ValueError(f"deposit center ({r},{c}) off-grid (negative indices silently "
+                                 f"wrapped; audit M26)")
             cells = [(r, c)]
         else:
             cells = []
@@ -83,6 +86,8 @@ class Sandpile:
                         rr, cc = r + dr, c + dc
                         if 0 <= rr < cs.height and 0 <= cc < cs.width:
                             cells.append((rr, cc))
+        if not cells:
+            raise ValueError(f"deposit disc at ({r},{c}) lies entirely off-grid (audit M25)")
         per_cell_kg = mass_kg / len(cells)
         per_cell_areal = per_cell_kg / cs.cell_area
         for (rr, cc) in cells:

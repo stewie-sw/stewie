@@ -232,6 +232,8 @@ class RoverSimEnv(_BASE):
             reward += 1.0
             terminated = True
         truncated = self._steps >= self.max_steps
-        info = {"telem": telem, "dist_cells": dist_new, "reached_goal": dist_new <= self.goal_radius,
+        reached = (dist_new <= self.goal_radius and self._stab["risk"] != "tip"
+                   and not telem["entrapped"])   # a tip-over AT the goal is a failure (audit L12)
+        info = {"telem": telem, "dist_cells": dist_new, "reached_goal": reached,
                 "tip_risk": self._stab["risk"], "stability_margin_deg": self._stab["margin_deg"]}
         return self._obs(), float(reward), terminated, truncated, info

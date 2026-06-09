@@ -49,7 +49,9 @@ def register_to_dem(observed: np.ndarray, dem, guess_rc, *, search_radius_cells:
             res = (p - float(p.mean())) - obs0
             ssd = float(np.mean(res * res))
             ssds.append((ssd, dr, dc))
-            if ssd < best_ssd:
+            # strict < keeps the FIRST minimum in scan order, which biased ties toward the most-
+            # negative shift; prefer the smaller |shift| on equal ssd (audit M00)
+            if ssd < best_ssd or (ssd == best_ssd and abs(dr) + abs(dc) < abs(best[0]) + abs(best[1])):
                 best_ssd, best = ssd, (dr, dc)
     # ambiguity = the SECOND-best candidate outside the best's immediate (+-1 cell) neighbourhood: the
     # old median test only caught GLOBAL flatness -- a handful of aliased (translation-symmetric) minima

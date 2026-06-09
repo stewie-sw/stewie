@@ -57,6 +57,9 @@ def reproject_cylindrical(heights_m, *, lat_top, lat_bottom, lon_left, lon_right
     H, W = heights_m.shape
     lat0 = 0.5 * (lat_top + lat_bottom)
     lon0 = 0.5 * (lon_left + lon_right)
+    if lat_top <= lat_bottom or lon_right == lon_left:
+        raise ValueError(f"degenerate lat/lon patch (lat {lat_top}..{lat_bottom}, lon {lon_left}.."
+                         f"{lon_right}): zero extent divided to NaN indices (audit L06/L52)")
     fwd = Transformer.from_crs(_geographic_crs(radius_m), _local_aeqd_crs(lat0, lon0, radius_m), always_xy=True)
     inv = Transformer.from_crs(_local_aeqd_crs(lat0, lon0, radius_m), _geographic_crs(radius_m), always_xy=True)
     # local metric extent = the projected patch corners
