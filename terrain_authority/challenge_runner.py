@@ -42,11 +42,13 @@ def run(agent, challenge: chmod.Challenge, *, seed: int | None = None,
     """
     env = TerrainTargetEnv(challenge, **(env_kwargs or {}))
     obs, info = env.reset(seed=seed)
+    rmse0 = float(getattr(env, "_rmse", 0.0))   # initial residual (terrain objectives)
     total = 0.0
     steps = 0
     slip_events = 0
     success = False
-    final = info
+    final = info   # reset info; ALWAYS overwritten (max_steps >= 1) -- the loop below cannot be
+    # skipped, but a refactor that could skip it must re-derive the step keys (audit L15)
     while True:
         obs, r, terminated, truncated, info = env.step(agent(obs))
         total += r
@@ -64,7 +66,10 @@ def run(agent, challenge: chmod.Challenge, *, seed: int | None = None,
         quality_penalty = primary / challenge.map.grid       # normalized distance still to go
     else:
         primary = float(final["rmse"])
-        quality_penalty = primary                            # metres of residual H-error
+        # FRACTION of the initial residual still left, the same normalization as the traverse branch
+        # (fraction of the grid) -- raw metres made scores incomparable across objective types
+        # (audit M08); ordering within a type is preserved.
+        quality_penalty = primary / max(rmse0, 1e-9)
 
     s = challenge.scoring
     score = ((1.0 if success else 0.0)

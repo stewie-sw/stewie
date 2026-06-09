@@ -50,6 +50,9 @@ class ActivePerceptionEnv(_BASE):
     def __init__(self, *, grid: int = 24, cell_m: float = 2.0, sensor_radius_cells: float = 4.0,
                  relief_m: float = 3.0, charges: float = 0.25, seed: int = 0):
         super().__init__()
+        if charges <= 0:
+            raise ValueError(f"charges must be > 0 (got {charges}): a zero energy budget divides to "
+                             "a crash in the observation (audit L45)")
         self.grid = int(grid)
         self.cell_m = float(cell_m)
         self.sensor_r = float(sensor_radius_cells)
@@ -123,7 +126,10 @@ def greedy_action(env: ActivePerceptionEnv) -> int:
         in_view = dist <= env.sensor_r
         obs_sig = OBS_SIGMA_FLOOR_M * (1.0 + (dist / env.sensor_r) ** 2)
         var = env.sigma ** 2
-        gain = float((np.where(in_view, var - var * obs_sig ** 2 / (var + obs_sig ** 2), 0.0)).sum())
+        new_std = np.sqrt(var * obs_sig ** 2 / (var + obs_sig ** 2))
+        # STD reduction, the quantity the env reward actually pays -- variance reduction ranked
+        # moves differently and was not greedy w.r.t. THIS reward (audit L44)
+        gain = float((np.where(in_view, env.sigma - new_std, 0.0)).sum())
         moved_m = (abs(nr - env.pos[0]) + abs(nc - env.pos[1])) * env.cell_m
         per_j = gain / max(moved_m * env.drive_j_per_m, 1.0)
         if per_j > best:
@@ -150,4 +156,6 @@ def beam_action(env: ActivePerceptionEnv, *, lookahead: int = 4, beam_width: int
                 cand.append((score + gain / e, new_sigma, (nr, nc), a if first is None else first))
         cand.sort(key=lambda x: -x[0])
         beam = cand[:beam_width]
+    if not beam:
+        raise ValueError(f"beam_width must be >= 1 (got {beam_width}) (audit L46)")
     return beam[0][3]

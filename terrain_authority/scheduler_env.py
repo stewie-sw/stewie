@@ -241,7 +241,10 @@ def greedy_nearest_schedule(env: SchedulerEnv):
     wherever still needed / load wherever available. Batches loads + sources by proximity."""
     room = env.cs.drum_inventory < 0.95 * env.drum_capacity_kg
     pits = [(i, r) for i, r in enumerate(env.borrows) if env._borrow_excess_total(r) > 1e-9]
-    sites = [(env.n_borrow + j, r) for j, r in enumerate(env.builds) if env._build_deficit(r) > env.tol]
+    sites = [(env.n_borrow + j, r) for j, r in enumerate(env.builds)
+             if env._build_deficit(r) > env.tol * (r[2] - r[0]) * (r[3] - r[1])]
+    # per-cell tolerance scaled by the region's cell count, matching the env's own success check
+    # (audit L61: the summed deficit was compared to the bare per-cell tol)
     def nearest(cands):
         return min(cands, key=lambda ir: np.hypot(*(np.subtract(env._centroid(ir[1]), env.rc))))[0]
     if room and pits and (env.cs.drum_inventory <= 0 or sites):

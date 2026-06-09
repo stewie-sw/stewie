@@ -154,6 +154,17 @@ VEHICLES = {
                    "drives the planner numbers (its bigger per-cycle drum -> fewer drum cycles than IPEx)."),
 }
 
+# registry self-check (audit L29/L63): every declared capability must be a real action verb --
+# a typo'd Tool.capability or Vehicle.capability would silently widen the plannable action set.
+for _t in TOOLS.values():
+    if _t.capability not in ACTIONS:
+        raise ValueError(f"tool {_t.name!r} grants unknown action {_t.capability!r}; ACTIONS={sorted(ACTIONS)}")
+for _v in VEHICLES.values():
+    _bad = set(_v.capabilities) - ACTIONS
+    if _bad:
+        raise ValueError(f"vehicle {_v.name!r} declares unknown action(s) {sorted(_bad)}")
+
+
 DEFAULT_VEHICLE = "ipex"
 
 
@@ -215,8 +226,10 @@ def default_grid(vehicle_names) -> PowerGrid:
     """Wire each named vehicle to its onboard power source(s) — the single-vehicle/no-shared-power default."""
     links = []
     for name in vehicle_names:
-        for ps in get_vehicle(name).onboard_power:
-            links.append((ps, name))
+        v = get_vehicle(name)
+        for ps in v.onboard_power:
+            links.append((ps, v.name))   # the NAME -- a passed Vehicle object made the edge
+            # unqueryable by name (audit L62)
     return PowerGrid(links)
 
 
@@ -243,6 +256,11 @@ class Placement:
             get_tool(t)
         for p in self.power:
             get_power(p)
+        if self.g is not None:
+            import math as _math
+            if not _math.isfinite(float(self.g)) or float(self.g) <= 0.0:
+                raise ValueError(f"gravity override must be finite and > 0 (got {self.g}) -- a NaN/"
+                                 "negative g propagated straight into the physics (audit L30)")
 
 
 class Deployment:
@@ -252,6 +270,11 @@ class Deployment:
 
     def __init__(self, placements):
         self.placements = list(placements)
+        names = [p.instance for p in self.placements]
+        if len(set(names)) != len(names):
+            dupes = sorted({n for n in names if names.count(n) > 1})
+            raise ValueError(f"duplicate placement instance name(s) {dupes}: instances are fleet-unique "
+                             "(audit L28: the dict silently kept only the last)")
         self._by_instance = {p.instance: p for p in self.placements}
 
     def placement(self, instance) -> Placement:
@@ -289,5 +312,12 @@ class Deployment:
     def grid(self) -> PowerGrid:
         """The N:N power grid implied by the placements (a source named in several placements serves
         several instances)."""
-        links = [(ps, p.instance) for p in self.placements for ps in self.power_for(p.instance)]
+        links = []
+        for p in self.placements:
+            explicit = bool(p.power)
+            for ps in self.power_for(p.instance):
+                # audit M22: onboard-DEFAULT sources are per-vehicle physical units -- qualifying them
+                # as type@instance keeps two rovers' batteries distinct; EXPLICIT names in p.power are
+                # deliberate sharing (e.g. one lander_tower serving the fleet) and merge as-is.
+                links.append((ps if explicit else f"{ps}@{p.instance}", p.instance))
         return PowerGrid(links)

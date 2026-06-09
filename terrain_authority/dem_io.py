@@ -132,6 +132,12 @@ class MemmapBaseReader:
             path = self._path(n)
             if not os.path.exists(path):
                 raise FileNotFoundError(f"MemmapBaseReader: missing {path}")
+            expect = self.height * self.width * np.dtype(_BASE_DTYPE[n]).itemsize
+            actual = os.path.getsize(path)
+            if actual != expect:
+                raise ValueError(f"{path}: size {actual} B != declared {self.height}x{self.width} "
+                                 f"({expect} B) -- a mismatch row-shears every row after the first "
+                                 "(audit L66)")
             mm = np.memmap(path, dtype=_BASE_DTYPE[n], mode="r",
                            shape=(self.height, self.width))
             sub = mm[r0:r1, c0:c1]
@@ -164,4 +170,7 @@ def write_base_rasters(dir_: str, fields: dict[str, np.ndarray]) -> None:
         ext = "r8" if n == "state_label" else "rf32"
         arr = fields[n]
         dt = _BASE_DTYPE[n]
-        arr.astype(dt).tofile(os.path.join(dir_, f"{n}.{ext}"))
+        from .io_fields import atomic_write_bytes
+        # atomic publish (audit L67): the byte-format parity claim covered layout but not the
+        # never-partial guarantee
+        atomic_write_bytes(os.path.join(dir_, f"{n}.{ext}"), arr.astype(dt).tobytes())

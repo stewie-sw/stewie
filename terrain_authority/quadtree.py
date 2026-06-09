@@ -131,8 +131,10 @@ def _box_chebyshev_distance(r0: int, c0: int, r1: int, c1: int,
 
     0 if the point is inside the (half-open) box. The box upper edge is r1-1 / c1-1.
     """
-    dr = max(r0 - rr, rr - (r1 - 1), 0.0)
-    dc = max(c0 - rc, rc - (c1 - 1), 0.0)
+    # the CONTINUOUS half-open region extends to r1/c1: using r1-1 inflated the distance for points
+    # in the last cell (e.g. rr = r1-0.5 scored 0.5 though inside), starving it of fine LOD (audit M12)
+    dr = max(r0 - rr, rr - r1, 0.0)
+    dc = max(c0 - rc, rc - c1, 0.0)
     return max(dr, dc)
 
 

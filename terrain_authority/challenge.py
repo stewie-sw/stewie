@@ -111,11 +111,13 @@ class Challenge:
 
     @classmethod
     def from_json(cls, s_or_path: str) -> "Challenge":
-        try:
+        s = s_or_path.lstrip()
+        if s.startswith("{"):
+            # audit M35: the old try/except treated a VALID-JSON-but-bad-SCHEMA string as a file path,
+            # masking the real error with a FileNotFoundError
             return cls.from_dict(json.loads(s_or_path))
-        except (ValueError, TypeError):
-            with open(s_or_path) as fh:
-                return cls.from_dict(json.load(fh))
+        with open(s_or_path) as fh:
+            return cls.from_dict(json.load(fh))
 
 
 # ---------------------------------------------------------------------------
@@ -178,6 +180,9 @@ def realize(challenge: Challenge) -> ChallengeInstance:
 
     obj = challenge.objective
     r0, c0, r1, c1 = obj.region
+    if r1 <= r0 or c1 <= c0:
+        raise ValueError(f"degenerate objective region {obj.region}: an empty slice meant a NaN "
+                         "target and a never-succeeding, NaN-scored challenge (audit M36)")
     if obj.type == "traverse":
         target = None
     elif obj.type == "flatten_pad":
@@ -201,6 +206,9 @@ def realize(challenge: Challenge) -> ChallengeInstance:
 def terrain_rmse(achieved: np.ndarray, target: np.ndarray, region: tuple) -> float:
     """Root-mean-square height error [m] between achieved and target over the region bbox."""
     r0, c0, r1, c1 = region
+    if min(r0, c0, r1, c1) < 0 or r1 <= r0 or c1 <= c0:
+        raise ValueError(f"invalid scoring region {region} (negative coords silently scored "
+                         "from-the-end cells; audit L40)")
     d = np.asarray(achieved)[r0:r1, c0:c1] - np.asarray(target)[r0:r1, c0:c1]
     return float(np.sqrt(np.mean(d * d)))
 

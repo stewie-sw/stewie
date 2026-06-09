@@ -41,6 +41,12 @@ def load_postures(path: str = _PATH) -> dict:
             raise ValueError(f"posture {name} missing required fields {missing}")
         af, ab = float(p["arm_front_pitch_rad"]), float(p["arm_back_pitch_rad"])
         lift = pk.chassis_lift_m(af, ab)                  # COMPUTED from arm angles (faithful), not the JSON constant
+        for k_json in ("chassis_lift_m", "camera_vantage_m"):
+            if k_json in p and abs(float(p[k_json]) - lift) > 0.02:
+                # audit M32: the authored constant was silently IGNORED; a stale value that
+                # contradicts the FK is a calibration error the operator must see
+                raise ValueError(f"posture {name}: authored {k_json}={p[k_json]} contradicts the "
+                                 f"FK-computed {lift:.3f} m (>2 cm); fix or remove the JSON field")
         out[name] = Posture(name=name, description=str(p.get("description", "")),
                             arm_front_pitch_rad=af, arm_back_pitch_rad=ab,
                             chassis_lift_m=lift, camera_vantage_m=lift,

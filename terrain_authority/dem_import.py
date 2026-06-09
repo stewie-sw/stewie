@@ -245,6 +245,10 @@ def load_lola_geotiff(path) -> tuple[np.ndarray, Affine, dict]:
             f"{path}: PIL mode {im.mode!r} (expected 'F' single-band float32). This ingest "
             "is for the LOLA *_surf.tif float32 product (eval §4.2).")
     Z = np.asarray(im, dtype=np.float32)
+    if nodata is not None:
+        Z = np.where(Z == np.float32(nodata), np.float32("nan"), Z)
+        # audit M14: the sentinel was parsed but never APPLIED -- a NoData fill (e.g. -3.4e38)
+        # entered downstream as a catastrophically wrong height
 
     meta = {
         "px": px,

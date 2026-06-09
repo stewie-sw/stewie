@@ -38,6 +38,10 @@ for key, b in B.BODIES.items():
         "thermal_survival_w": round(S.survival_heater_power_w(key), 2) if key in S.BODY_COLD_ENV
         else round(S.THERMAL_SURVIVAL_POWER_W, 2),
         "thermal_by_env_w": envs,
+        # audit M15: declare what system_power_w INCLUDES so the UI cannot misread it as a
+        # comms-inclusive worst case
+        "system_power_includes": "drive_flat + avionics + thermal_survival (comms excluded; "
+                                 "add comms_w when transmitting)",
     }
     out[key] = d
 

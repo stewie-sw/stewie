@@ -123,6 +123,9 @@ def execute_leg(belief, leg, *, dem=None, dem_origin=(0.0, 0.0), g=None, body="m
     g = MP.body_gravity(body) if g is None else g
     pose = (belief.x, belief.y)
     site = leg["site"]
+    # NOTE (audit L58): leg distances/slopes derive from the BELIEVED pose (the executive plans on its
+    # estimate); the "true" energy is true w.r.t. the slip/grade PHYSICS of that leg, not a
+    # truth-pose-referenced quantity. Pose-truth referencing lives in the eval channel only (I3).
     drive_m = MP._d(pose, site)
     dh = MP.haul_elevation_gain_m(dem, dem_origin, pose, site) if dem is not None else 0.0
     slope_deg = math.degrees(math.atan2(abs(dh), drive_m)) if drive_m > 1e-9 else 0.0

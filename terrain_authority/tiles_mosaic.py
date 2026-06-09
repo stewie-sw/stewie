@@ -255,10 +255,18 @@ class TileMosaic:
                         fine_cell_m=self.fine_cell_m)
 
     def _page_path(self, tr: int, tc: int) -> str:
-        return os.path.join(self.page_dir, f"tile_{tr}_{tc}")
+        # fingerprint the generation parameters into the path (audit M06): a page_dir reused across
+        # a different seed/cell-size/tiling silently served STALE terrain
+        fp = f"s{getattr(self, 'world_seed', 0)}_c{self.fine_cell_m:g}_t{self.tile_base_cells}"
+        return os.path.join(self.page_dir, f"tile_{fp}_{tr}_{tc}")
 
     def _load_paged(self, tr: int, tc: int) -> FineTile | None:
-        """Load a previously paged-out fine tile from disk, if present (else None)."""
+        """Load a previously paged-out fine tile from disk, if present (else None).
+
+        PRECISION NOTE (audit L09): paging round-trips through the float32 on-disk raster format, so
+        a reloaded tile equals a regenerated one to float32 precision, NOT bit-exactly in float64.
+        The L0 byte-identical determinism claim holds for REGENERATION (a pure function of coordinate
+        + seed); paged reloads are float32-rounded by design (the frozen raster contract)."""
         if self.page_dir is None:
             return None
         d = self._page_path(tr, tc)

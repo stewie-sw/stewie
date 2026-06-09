@@ -591,4 +591,8 @@ _applied = _config.apply(globals())
 if "RHO_GRAIN" not in _applied:
     RHO_GRAIN = G_s * RHO_WATER    # derived: solid grain density tracks G_s
 if "RHO_SPOIL" not in _applied:
-    RHO_SPOIL = RHO_SURFACE / 1.0  # derived: loose spoil density tracks the surface layer
+    # derived: loose spoil density EQUALS the surface-layer density. Bulking/swell EMERGES from the
+    # RHO_DEEP -> RHO_SPOIL density gap when deep material is cut and re-deposited loose -- it is NOT
+    # the documented-elsewhere RHO_DEEP/SWELL_FACTOR formula (audit L07: doc/code disagreed; the code
+    # is the conserved behavior the suite validates).
+    RHO_SPOIL = RHO_SURFACE / 1.0

@@ -91,7 +91,7 @@ def load_cylindrical_fixture(npy_path, json_path):
     return dn * float(geom["scaling_m_per_dn"]), geom
 
 
-def ingest_to_bundle(heights_m, cell_m, out_dir, *, body="moon", source=""):
+def ingest_to_bundle(heights_m, cell_m, out_dir, *, body="moon", source="", georeference=None):
     """Write a sim bundle (metadata.json + heightmap.rf32) in the same format as the Haworth bundle, so
     `mission_planner.load_haworth_dem`-style readers / `read_dem_window` can consume the ingested map."""
     heights_m = np.asarray(heights_m, dtype=np.float64)
@@ -100,6 +100,9 @@ def ingest_to_bundle(heights_m, cell_m, out_dir, *, body="moon", source=""):
     heights_m.astype("<f4").tofile(os.path.join(out_dir, "heightmap.rf32"))
     meta = {"grid": {"width": int(W), "height": int(H), "cell_m": float(cell_m), "order": "row-major-C"},
             "source": source, "body": body}
+    if georeference:
+        meta["georeference"] = dict(georeference)   # audit L53: the Haworth-format claim lacked the
+        # geo block; callers with lat/lon provenance can now carry it
     with open(os.path.join(out_dir, "metadata.json"), "w") as f:
         json.dump(meta, f, indent=1)
     return out_dir

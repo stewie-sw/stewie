@@ -29,7 +29,8 @@
         "lunar_day": 0.0,
         "lunar_night": 14.86,
         "lunar_psr": 17.63
-      }
+      },
+      "system_power_includes": "drive_flat + avionics + thermal_survival (comms excluded; add comms_w when transmitting)"
     }
   },
   "mars": {
@@ -61,7 +62,8 @@
       "thermal_by_env_w": {
         "mars_day": 0.0,
         "mars_night": 8.57
-      }
+      },
+      "system_power_includes": "drive_flat + avionics + thermal_survival (comms excluded; add comms_w when transmitting)"
     }
   },
   "ceres": {
@@ -86,7 +88,8 @@
       "avionics_w": 15.0,
       "comms_w": 15.0,
       "thermal_survival_w": 30.0,
-      "thermal_by_env_w": {}
+      "thermal_by_env_w": {},
+      "system_power_includes": "drive_flat + avionics + thermal_survival (comms excluded; add comms_w when transmitting)"
     }
   },
   "bennu": {
@@ -111,7 +114,8 @@
       "avionics_w": 15.0,
       "comms_w": 15.0,
       "thermal_survival_w": 30.0,
-      "thermal_by_env_w": {}
+      "thermal_by_env_w": {},
+      "system_power_includes": "drive_flat + avionics + thermal_survival (comms excluded; add comms_w when transmitting)"
     }
   },
   "phobos": {
@@ -136,7 +140,8 @@
       "avionics_w": 15.0,
       "comms_w": 15.0,
       "thermal_survival_w": 30.0,
-      "thermal_by_env_w": {}
+      "thermal_by_env_w": {},
+      "system_power_includes": "drive_flat + avionics + thermal_survival (comms excluded; add comms_w when transmitting)"
     }
   },
   "earth": {
@@ -167,7 +172,8 @@
       "thermal_survival_w": 0.0,
       "thermal_by_env_w": {
         "earth": 0.0
-      }
+      },
+      "system_power_includes": "drive_flat + avionics + thermal_survival (comms excluded; add comms_w when transmitting)"
     }
   },
   "_ipex": {

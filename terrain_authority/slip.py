@@ -135,7 +135,10 @@ def slip_sinkage_equilibrium(total_weight_n: float, slope_rad: float, *,
     normal = total_weight_n * math.cos(slope_rad) / n_wheels       # per-wheel normal load
     along = total_weight_n * math.sin(slope_rad) / n_wheels        # per-wheel along-slope gravity
     area = contact_len_m * contact_width_m
-    z_entrap = z_entrap_m if z_entrap_m is not None else 2.0 * 0.18  # ~ wheel diameter
+    # [PROXY] default entrapment depth ~ a wheel diameter; 0.18 is the legacy contact-width-derived
+    # stand-in, decoupled from the flight wheel geometry (ipex_specs.WHEEL_DIAMETER_M = 0.305) --
+    # callers wanting flight geometry should pass z_entrap_m explicitly (audit L17, documented)
+    z_entrap = z_entrap_m if z_entrap_m is not None else 2.0 * 0.18
     h_max = traction_budget(normal, cohesion=p.cohesion, phi_rad=p.phi_rad,
                             contact_area_m2=area)
     z_static = tm.wheel_static_sinkage(normal, params=p, contact_len_m=contact_len_m,

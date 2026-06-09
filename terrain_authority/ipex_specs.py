@@ -352,7 +352,11 @@ def spec_record() -> dict:
 # functions that read the constants live, so a 14S override (etc.) recomputes automatically.
 from . import config as _config  # noqa: E402
 
-_config.apply(globals())
+_applied_overlay = _config.apply(globals())
+if "WHEEL_RADIUS_M" not in _applied_overlay:
+    WHEEL_RADIUS_M = WHEEL_DIAMETER_M / 2.0   # derived: recompute from a possibly-overridden diameter
+    # (audit M49: an overridden WHEEL_DIAMETER_M left the radius at the old value -> inconsistent
+    # wheel geometry between the skid-steer kinematics and the drive chain)
 
 
 if __name__ == "__main__":

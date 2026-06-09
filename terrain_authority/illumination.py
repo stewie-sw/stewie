@@ -129,6 +129,10 @@ def horizon_clip(heightmap: np.ndarray, cell_m: float,
     return illuminated
 
 
+_T_PSR_CEILING_K = 274.15   # just above freezing -- a PSR cold-trap threshold above this is
+# physically meaningless (audit L10: the old bound reused RHO_WATER/1000 as a dimensionless 1.0)
+
+
 def psr_gate(illuminated_mask: np.ndarray, *,
              t_psr_k: float = K.T_PSR_K) -> np.ndarray:
     """Terrain-derived cold-trap (PSR-candidate) mask from a local-horizon illuminated mask.
@@ -162,7 +166,7 @@ def psr_gate(illuminated_mask: np.ndarray, *,
         raise TypeError(f"illuminated_mask must be a bool array, got dtype {mask.dtype}")
     # Screen FOR a cryogenic threshold: a non-physical / non-cold t_psr_k would mean the
     # gate is not actually selecting a cold trap. (Reads K.T_PSR_K honestly; see docstring.)
-    if not (0.0 < t_psr_k < K.RHO_WATER / 1000.0 + 273.15):  # 0 K < t < ~water-freezing
+    if not (0.0 < t_psr_k < _T_PSR_CEILING_K):  # 0 K < t < just-above-freezing (audit L10)
         raise ValueError(
             f"t_psr_k={t_psr_k} K is not a cryogenic cold-trap threshold "
             f"(expected 0 < t < ~273 K); PSR gate would be meaningless")

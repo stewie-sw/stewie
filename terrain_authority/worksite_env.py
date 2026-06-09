@@ -139,7 +139,8 @@ class WorkSiteConstructEnv(_BASE):
         H, W = self.fine.height, self.fine.width
         if self.work_cells:                                # small centred work area (real DEM): pad above
             wc = min(self.work_cells, H // 2 - 1, W // 2 - 1)   # centre, berm below
-            self._cwin = (W // 2 - wc // 2, W // 2 + wc // 2)
+            self._cwin = (W // 2 - wc // 2, W // 2 - wc // 2 + wc)   # full wc width (audit L14:
+            # 2*(wc//2) dropped a column for odd wc)
             pad_band = (H // 2 - wc, H // 2); berm_band = (H // 2, H // 2 + wc)
         else:                                              # full-window bands (toy)
             self._cwin = (W // 4, 3 * W // 4)
@@ -168,6 +169,9 @@ class WorkSiteConstructEnv(_BASE):
         self._steps = 0
         self._pad0 = max(1e-9, self._pad_excess_kg())
         self._berm0 = max(1e-9, self._berm_deficit_kg())
+        # per-slice INITIAL deficits (audit M07): the done threshold compared each slice against the
+        # episode AVERAGE, over/under-marking uneven slices
+        self._berm_slice_init = [max(1e-9, self._berm_deficit_slice(k)) for k in range(self.n_slices)]
         self._prev = self._pad_excess_kg() / self._pad0 + self._berm_deficit_kg() / self._berm0
         self._m0 = self.ws.total_mass()                            # grid + ledger invariant
         self._energy = self.energy_budget_j                        # physics budget (J); inf when step-capped
@@ -176,14 +180,15 @@ class WorkSiteConstructEnv(_BASE):
 
     def _find_flat_windows(self):
         """Top-K flattest base-tile centres (lowest local relief) -> solvable, non-slip work sites."""
-        H = self.ws.base.derive_height(); tb = self.ws.tile_base_cells; nb = H.shape[0] // tb
-        rel = np.full((nb, nb), np.inf)
-        for i in range(2, nb - 2):
-            for j in range(2, nb - 2):
+        H = self.ws.base.derive_height(); tb = self.ws.tile_base_cells
+        nbr, nbc = H.shape[0] // tb, H.shape[1] // tb   # separate axis tile counts (audit L13: a
+        rel = np.full((nbr, nbc), np.inf)               # single nb conflated rows/cols on non-square)
+        for i in range(2, nbr - 2):
+            for j in range(2, nbc - 2):
                 blk = H[i * tb:(i + 1) * tb, j * tb:(j + 1) * tb]
                 rel[i, j] = blk.max() - blk.min()
         flat = np.argsort(rel.ravel())[:self.flat_topk]
-        return [(int(idx // nb) * tb + tb // 2, int(idx % nb) * tb + tb // 2) for idx in flat]
+        return [(int(idx // nbc) * tb + tb // 2, int(idx % nbc) * tb + tb // 2) for idx in flat]
 
     def _split(self, band, n):
         edges = np.linspace(band[0], band[1], n + 1).round().astype(int)
@@ -246,7 +251,7 @@ class WorkSiteConstructEnv(_BASE):
         return float(np.maximum(self.berm_target - h[r0:r1, self._cwin[0]:self._cwin[1]], 0.0).sum())
 
     def _berm_slice0(self, k):
-        return max(1e-9, self._berm0 / self.n_slices)
+        return self._berm_slice_init[k]
 
 
 def beam_worksite_plan(env: WorkSiteConstructEnv, width: int = 12):

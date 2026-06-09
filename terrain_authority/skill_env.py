@@ -138,6 +138,10 @@ class SkillMacroEnv(_BASE):
         if seed is not None:
             c = dataclasses.replace(c, map=dataclasses.replace(c.map, seed=seed))
         self.inst = chmod.realize(c)
+        if self.inst.target_height is None:
+            raise ValueError("SkillMacroEnv needs a terrain-matching objective (flatten/berm); this "
+                             "challenge is 'traverse' (no target_height) -- audit L49: it previously "
+                             "crashed later with an opaque IndexError")
         self.cs = self.inst.cs
         self._m0 = self.cs.total_mass()
         self._steps = 0
@@ -171,12 +175,14 @@ class SkillMacroEnv(_BASE):
                         mpc = mpc * (room / want)                          # scale to fit capacity
                     before = self.cs.drum_inventory
                     self.cs.cut_to_inventory(mask, mpc)
-                    self.cs.state_label[mask] = StateLabel.EXCAVATED
+                    # label ONLY cells that actually lost mass -- the whole-disc label corrupted the
+                    # Seam-1 ground-truth state field where excess was zero (audit L48)
+                    self.cs.state_label[mask & (mpc > 0.0)] = StateLabel.EXCAVATED
                     moved_kg = self.cs.drum_inventory - before
             elif mode < -1.0 / 3.0 and self.cs.drum_inventory > 0.0:       # Dump toward target (drum -> deficit)
-                deficit = np.minimum(np.maximum(tgt - h, 0.0), self.cut_per_macro_m)
-                want_kg = float((deficit * self.cs.density)[mask].sum()) * self.cs.cell_area
-                moved_kg = self.cs.dump_from_inventory(mask, min(want_kg, self.cs.drum_inventory))
+                # fill_toward (FIX-4) raises deficit cells toward target and NEVER above -- the old
+                # even-spread dump deposited onto at/above-target cells and overshot (audit M41)
+                moved_kg = self.cs.fill_toward(mask, tgt, max_lift_m=self.cut_per_macro_m)
         energy_spent += self.dig_cost_per_kg * moved_kg
         self._energy -= energy_spent
 
@@ -223,8 +229,13 @@ def _greedy_nearest_target(env: SkillMacroEnv):
     elif env.cs.drum_inventory > 0.0 and below.any():
         d = np.where(below, dist, np.inf); mode = -1.0
     elif above.any():
-        d = np.where(below, dist, np.inf) if below.any() else np.where(above, dist, np.inf)
-        mode = -1.0 if (below.any() and env.cs.drum_inventory > 0) else 1.0
+        # drum (nearly) full but high cells remain: dump first if anything is below target AND the
+        # drum has material; otherwise keep cutting the nearest high cell. The old branch could rank
+        # BELOW cells while committing to mode=CUT, digging a deficit cell deeper (audit L32).
+        if below.any() and env.cs.drum_inventory > 0.0:
+            d = np.where(below, dist, np.inf); mode = -1.0
+        else:
+            d = np.where(above, dist, np.inf); mode = 1.0
     else:
         d = np.where(below, dist, np.inf); mode = -1.0
     idx = np.unravel_index(np.argmin(d), d.shape)

@@ -294,8 +294,11 @@ def test_box_chebyshev_distance_zero_inside_box():
     assert _box_chebyshev_distance(10, 10, 18, 18, 17.0, 17.0) == 0.0
     # Two cells left of the box -> distance 2 (10 - 8).
     assert _box_chebyshev_distance(10, 10, 18, 18, 12.0, 8.0) == pytest.approx(2.0)
-    # Diagonally below-right -> max of the two gaps.
-    assert _box_chebyshev_distance(10, 10, 18, 18, 20.0, 25.0) == pytest.approx(8.0)
+    # a point inside the LAST cell of the half-open region is inside (audit M12: the old r1-1
+    # convention scored 17.5 as 0.5 outside, starving that cell of fine LOD)
+    assert _box_chebyshev_distance(10, 10, 18, 18, 17.5, 17.5) == 0.0
+    # Diagonally below-right -> max of the two gaps, measured to the CONTINUOUS region edge r1/c1.
+    assert _box_chebyshev_distance(10, 10, 18, 18, 20.0, 25.0) == pytest.approx(7.0)
 
 
 # ---------------------------------------------------------------------------

@@ -40,8 +40,12 @@ def execute_leg_energy(slope_deg: float, density: float = K.RHO_SURFACE, *,
     cs = _tilted_cs(slope_deg, density)
     mid = cs.mass_areal.shape[0] // 2
     _, _, telem = drive.drive_step(cs, (mid, mid), 0.0, 0.2, 0.0, material=True, g=g)
-    s = min(float(telem["slip"]), 0.95)
     flat_J = dist_m * J_PER_M
+    if bool(telem.get("entrapped")):
+        # an entrapped leg is INFEASIBLE -- a finite cost silently priced an impossible climb
+        # (audit M48); inf propagates honestly through route sums
+        return float(flat_J), float("inf")
+    s = min(float(telem["slip"]), 0.95)
     true_J = flat_J / (1.0 - s) + K.ROVER_MASS_DRY_KG * g * dist_m * np.sin(np.deg2rad(slope_deg))
     return float(flat_J), float(true_J)
 
@@ -56,6 +60,11 @@ class InflationModel:
         self.coef = np.array([0.0, 0.0, 1.0])              # polyval order: a*s^2 + b*s + c, init flat
 
     def observe(self, slope_deg: float, inflation: float) -> None:
+        if not np.isfinite(inflation):
+            # entrapment is a regime CHANGE, not a point on the smooth curve: one infeasible leg
+            # wrecked the global quadratic (audit M45). Track the infeasibility frontier instead.
+            self.entrap_slope = min(getattr(self, "entrap_slope", float("inf")), float(slope_deg))
+            return
         self.X.append(float(slope_deg))
         self.Y.append(float(inflation))
 
@@ -64,11 +73,14 @@ class InflationModel:
             self.coef = np.polyfit(self.X, self.Y, 2)
 
     def predict(self, slope_deg: float) -> float:
+        if getattr(self, "entrap_slope", None) is not None and slope_deg >= self.entrap_slope:
+            return float("inf")            # at/beyond the observed infeasibility frontier (audit M45)
         if len(set(self.X)) < 3:
             return 1.0
-        # inflation = true/flat energy is physically >= 1 (slip + grade only ADD); an unclamped
-        # quadratic dipped below 1 (even negative) off-support, inverting the cost (audit 2026-06-09)
-        return max(1.0, float(np.polyval(self.coef, slope_deg)))
+        # clamp to the TRAINED slope range (audit L65: quadratic extrapolation under-priced steep
+        # slopes far outside the support); inflation >= 1 physically (slip + grade only ADD)
+        s = float(np.clip(slope_deg, min(self.X), max(self.X)))
+        return max(1.0, float(np.polyval(self.coef, s)))
 
     @property
     def n(self) -> int:

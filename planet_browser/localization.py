@@ -37,6 +37,10 @@ def register_to_dem(observed: np.ndarray, dem, guess_rc, *, search_radius_cells:
       confidence     : 1 - best_ssd/median_ssd, clamped [0,1] (sharply peaked = high; flat/ambiguous = ~0)
     """
     Z, _cell = dem
+    if observed.ndim != 2 or observed.shape[0] != observed.shape[1] or observed.shape[0] % 2 == 0:
+        raise ValueError(f"observed patch must be square with odd size (got {observed.shape}): an "
+                         "even/non-square patch silently skipped every candidate and returned a "
+                         "fabricated zero-shift 'fix' (audit M47/L00)")
     half = observed.shape[0] // 2
     obs0 = observed - float(observed.mean())
     best_ssd, best = np.inf, (0, 0)
