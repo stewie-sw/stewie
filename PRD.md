@@ -816,3 +816,68 @@ PROGRESS; #32 no-terminal Server tab; #25 CG widget + docking + Mars sets; #38 p
 history (rides the #52 identity); #49 Artemis-site DEM bundles (all candidates south-polar);
 #50 wireframe sprint + 3D quantized-mesh terrain spike; #30 docs+primer fan-out; #26 remaining
 surfaces (capabilities/validation verdicts).
+
+## 18. Intent alignment — the scope ladder (John's framing via Aaron, 2026-06-10)
+
+**Who is this for?** Four rungs, from horizon to ground truth. The PRD's product modes (§5) and
+everything in §17 must serve these in priority order BOTTOM-UP — the concrete rung funds the
+ambitious ones, never the reverse.
+
+### Rung 4 (MOST CONCRETE — the product): the training environment / mission simulator
+The rover is ordered to waypoints. A Docker container runs the ACTUAL rover motion planning and
+simulated sensors. The TEAM observes only the data they would really receive — over the limited
+telemetry and the latency of the real mission. The SIMULATION OPERATOR gets the 3rd-person view
+and immediate state access. **Hard requirement: pluggable with the existing remote-control
+system that operates the actual robot in the dirt pit** — the sim differs only in its training
+affordances: fast-forward while driving, ignore battery, disable latency.
+
+What exists today → this rung:
+- the operator/sim-operator SPLIT is already real: training sessions (B3) run the closed loop
+  server-side with the operator link showing only telemetry-delivered legs; link models
+  (ideal / mission / comm_dropout) exist; the debrief view exists
+- the Docker container IS the deployment (compose, healthz, beta_accept)
+- RuntimeProcess is the frozen seam the motion planner + sensors speak through (Unix-socket
+  JSON-lines; checkpoint/restore bit-exact); the ROS 2 bridge (rover_executive /cmd_vel teleop)
+  is the dirt-pit-shaped interface
+- waypoint ordering is the S-3 path-first authoring; EXEC fast-forward exists (60×); the
+  third-person view is the Godot render path
+GAPS (the real backlog for this rung):
+1. **The pluggable RC contract** — a written interface spec matching the dirt-pit remote-control
+   system's actual protocol (need that protocol from John); the sim must present the SAME
+   surface, with the training toggles (fast-forward / battery-ignore / latency-off) as sim-side
+   flags the operator cannot see.
+2. Telemetry SHAPING to mission reality — bandwidth caps + latency injection per link model on
+   EVERY operator-visible channel (today the link models gate legs; cameras/telemetry need the
+   same budget).
+3. Operator/sim-op AUTH separation (the #52 identity work makes this assignable: operator role
+   vs director role).
+
+### Rung 3: COLMAP world-map updates + the bandwidth-triage science loop
+COLMAP (offline map generator) refines the rover's world map between sorties → better waypoint
+navigation. Charging = ZERO connectivity; the mission ends with data stranded on the rover.
+Opportunity: low-res first-pass data downlinked → suggest what to image at high-res next, or
+where exploratory excavation should go.
+Today's assets: the frame store + camera channels (8-cam rig with intrinsics) are COLMAP's
+input shape; the map-channel reward (P6) is the "what's been observed" machinery; the conserved
+twin holds as-built state. GAPS: the COLMAP ingest path (images → poses/points → DEM/feature
+update), a downlink BUDGET model (bytes per sol), and the triage recommender (rank unimaged /
+under-observed cells by science value — needs the team's actual objectives).
+
+### Rung 2: faster-than-realtime forward simulation, compared outcomes, frequent resync
+"COLMAP output + simulate movements faster than realtime with multiple possible inputs, compare
+outcomes, resync often" — the world-model-flavored rung, honestly implementable as input
+iteration over the existing terramechanics (the closed loop already runs candidate plans;
+optimize_sequence already compares algorithms). GAP: a resync protocol (real telemetry ingested
+→ state correction → re-simulate futures) — the dissertation-relevant piece.
+
+### Rung 1 (HORIZON): "Claude Rove" — click-accept mission autonomy
+A glimpse, not a deliverable: the rover will not run this code, and no one is running
+--dangerously-skip-permissions on flight hardware. Keep as the north-star demo only.
+
+### What today's 40+ tasks served (honest audit)
+The GIS cockpit + truth chain (reprojection, half-pixel fix, SPICE sun, site DEMs, grid,
+legends, edit mode, waypoint lifecycle) = the MISSION-AUTHORING FACE of rung 4 and the data
+truth every rung needs. The auth/whitelist + event history = rung 4's role separation. The
+telemetry rail + link sessions = rung 4's operator reality. Horizon-flavored excursions (Mars
+enhanced basemaps, multi-body worksets) were cheap and stay, but the priority from here is the
+rung-4 gap list above.
