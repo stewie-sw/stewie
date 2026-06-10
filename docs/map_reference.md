@@ -78,3 +78,21 @@ source and its own perception-gated action type.
   UI requirements.
 
 NTRS search (all NASA papers above are public): <https://ntrs.nasa.gov/>.
+
+## Stability-model fidelity (audited 2026-06-10, Aaron's question — task #59)
+
+| Quantity | Value in the model | Provenance | Verdict |
+|---|---|---|---|
+| SSA gauge | **0.5207 m** (was 0.57) | skid-steer kinematic track [WHEELTEST Eq.1] | FIXED — the tip margins ran on the EZ-RASSOR render stance |
+| SSA wheelbase | 0.40 m | [ASSUMPTION — no documented IPEx wheelbase; render-rig consistent] | tagged honest |
+| CG height | 0.30 m | modeled (constants.py; SSA ~33.7° pitch binds) | tagged; no doc value |
+| Arm length (pivot→drum axis) | 0.28 m | [ASSUMPTION: render-rig consistent] | tagged honest |
+| Arm arc | ±110° | [ASSUMPTION — RASSOR-lineage sweep; the IPEx value is figure-only] | tagged honest |
+| Arm+drum mass share | 0.15/arm | [ASSUMPTION] | tagged honest |
+| Drum dims | ⌀437.1 mm (large) | [BDS Table 1] | the CG widget now DRAWS the real radius (fill density ∝ load) |
+| Drum loads in CG | at the drum position | ArmState.cg_offset_m, test-pinned | correct |
+
+Honest summary: the LOAD physics (masses at drum positions, mass-weighted CG, SSA per-axis exact
+for the rectangular support) is sound and test-pinned; the GEOMETRY carries four tagged
+assumptions (wheelbase, CG height, arm length, arc) pending IPEx-doc values — the known stance
+gap from the two-vehicle spec. The gauge bias is fixed with the documented track.

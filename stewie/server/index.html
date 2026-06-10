@@ -1254,8 +1254,10 @@ async function cgUpdate() {
     const x0 = cx + sgn * wx, x1 = x0 + sgn * L * Math.cos(a), y1 = ay - L * Math.sin(a);
     ctx.strokeStyle = col; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.moveTo(x0, ay); ctx.lineTo(x1, y1); ctx.stroke(); ctx.lineWidth = 1;
-    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x1, y1, 4 + kg * 0.45, 0, 7); ctx.globalAlpha = .5; ctx.fill();
-    ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(x1, y1, 4 + kg * 0.45, 0, 7); ctx.stroke();
+    const drumR = 0.4371 / 2 * S;                          // the REAL large-drum radius [BDS Table 1]
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x1, y1, drumR, 0, 7);
+    ctx.globalAlpha = Math.min(0.85, 0.12 + kg / 30 * 0.6); ctx.fill();   // fill density ∝ load
+    ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(x1, y1, drumR, 0, 7); ctx.stroke();
   });
   // THE CG marker (red) at (dx, height)
   const cgx = cx + d.cg_dx_m * S, cgy = gy - d.cg_height_m * S;
