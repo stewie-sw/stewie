@@ -2176,7 +2176,26 @@ function syncKinds() {
   const opts = [["cut", "excavate"], ["fill", "dump"], ["sinter", "sinter"]].filter(([, c]) => caps.has(c));
   kind.innerHTML = opts.map(([k]) => `<option value="${k}">${k}</option>`).join("");
   if (opts.some(([k]) => k === cur)) kind.value = cur;
-  qel("fleetcaps").textContent = "capabilities: " + [...caps].sort().join(", ");
+  const fc = qel("fleetcaps");
+  fc.innerHTML = "";
+  const sumr = document.createElement("span");
+  sumr.textContent = `${caps.size} capabilities `;
+  const info = document.createElement("button");
+  info.textContent = "ⓘ vehicle"; info.style.cssText = "background:none;border:1px solid var(--line);border-radius:4px;color:var(--accent);cursor:pointer;font-size:10px;padding:1px 6px";
+  fc.append(sumr, info);
+  popover("fleet", info, () => {
+    const v = (PHY && PHY._vehicles) ? PHY._vehicles[qel("vehicle").value] : null;
+    if (!v) return "<i>registry unavailable</i>";
+    const row = (k, val) => `<tr><td style="color:var(--muted);padding-right:10px">${k}</td><td style="text-align:right">${val}</td></tr>`;
+    return `<b>${v.label}</b><table style="width:100%;border-collapse:collapse;margin-top:4px">` +
+      row("capabilities", [...caps].sort().join(", ")) +
+      row("dry mass", `${v.dry_mass_kg} kg`) + row("wheels", v.n_wheels) +
+      row("drum capacity", `${v.drum_capacity_kg} kg`) +
+      row("drive power", `${v.drive_power_w} W`) +
+      row("dig energy", `${v.dig_energy_j_per_kg} J/kg`) +
+      `</table><div style="opacity:.6;margin-top:4px">registry values (provenance-tagged in stewie/specs/vehicles.py)</div>`;
+  });
+  refreshPopovers();
 }
 function populateFleet() {
   if (!PHY || !PHY._vehicles) return;
