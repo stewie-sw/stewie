@@ -689,7 +689,32 @@ and detector-training augmentation only -- the same fencing as the perception re
 Their 2D-warp-error consistency metric is adopted for render/NVS QA regardless. Full note:
 `design/LUNAR_WORLD_MODEL_NOTE_2026-06-10.md` (private workspace).
 
-### 16.5 Boundary note
+### 16.5 Control-room human-factors analysis (Carstens & Schuler, IEMS 2025) — UI/UX requirements
+Source: Carstens, D.S. & Schuler, J.M. (2025), "Next Generation ISRU Pilot Excavator control room
+and facility design," Proc. 31st IEMS, 73-88, doi:10.62704/10057/31312 — interviews with the 8
+operators of the fall-2024 5-day mock IPEx mission (13-h shifts, 2-h rotations; roles: Primary/
+Secondary Operator, Telemetry Desk, Sim-C). 50 recommendations across 11 Spradley domains. The
+software-relevant findings map DIRECTLY onto STEWIE's operator UI:
+
+| Operator finding (domain) | STEWIE UI requirement |
+|---|---|
+| Fonts illegible / "small font defeats at-a-glance reading" (D1) | **UI-1 Settings tab: font-size control** (global scale, persisted) |
+| "Dark room kept people calm" + dim-lighting recommendation (D4/D8) | **UI-2 Settings tab: light/dark mode** (dark default for ops) |
+| "Push a lot of buttons to get information," drill-down slow, cognitive overload (D1) | UI-3 One-action depth for critical info; macros/scripts for repeatable tasks |
+| 6 camera grid "not pertinent" -> show 1-3 relevant; tedious full-screen/zoom/exposure (D1) | UI-4 Pertinent-camera selection + one-click fullscreen/zoom/exposure per feed |
+| Image freshness uncertainty -> "green border, ~20 s yellow, >1 min red" (D1, P4 verbatim) | **UI-5 Staleness borders on every camera/telemetry tile (green/yellow/red)** |
+| Warnings/errors/info messages wanted (D1) | UI-6 Alert rail (severity-typed, timestamped) |
+| "One big display to know what the robot is doing" (D1) | UI-7 Big-board mode (single situational view; operator desk composes it) |
+| Lap/cycle counter "easy to forget"; "status visual on where we are in the cycle" (D2) | UI-8 ConOps position widget (cycle/lap/phase, always visible) |
+| Handover: "show instead of tell," pull up past noteworthy events, checklists (D6) | UI-9 The session debrief/summary IS this -- add noteworthy-event bookmarks + handover checklist export |
+| "Structure on how to replay what just happened" when overloaded (D9) | UI-10 Replay scrubber over recorded legs (P22 visual replay; same data, operator-facing) |
+| Sim-C tracked believed-vs-actual state (methodology) | UI-11 The operator/director divergence view = exactly our truth-denylisted session design — keep it load-bearing |
+
+These are OPERATOR-DERIVED requirements from the real IPEx mock mission — the highest-authority
+UI/UX source we hold. UI-1/UI-2 ship first (the Settings tab); UI-5 and UI-8 are small and
+high-value; UI-4/UI-7/UI-10 fold into the operator-screen redesign (the role x workflow split).
+
+### 16.6 Boundary note
 The SolNav dissertation planning set (G1–G9 gates, separate honesty firewall) is NOT renamed or
 re-scoped by STEWIE. Convergence: STEWIE P20 (ROS2 bridge + live drive loop) is the same engineering
 object as the dissertation's persistent-runtime gap (G1.A4/A6) — one build advances both tracks;
