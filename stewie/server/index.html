@@ -455,6 +455,12 @@
             </select>
           </label>
           <label style="display:flex; align-items:center; gap:10px">
+            <b>Operator</b>
+            <input id="set-opemail" type="email" placeholder="whitelisted email" style="width:16em" />
+            <button id="set-signin" class="site">Sign in</button>
+            <span id="set-opstate" style="font-size:11px;opacity:.75"></span>
+          </label>
+          <label style="display:flex; align-items:center; gap:10px">
             <b>API key</b>
             <input id="set-apikey" type="password" placeholder="X-API-Key for planning/director calls"
                    style="width:18em" />
@@ -802,9 +808,10 @@ function applySettings(s) {
   if (f) f.value = s.fontpx;
   if (fv) fv.textContent = s.fontpx + " px";
 }
-function apiHeaders(extra) {                              // attach the operator's API key everywhere
+function apiHeaders(extra) {                              // identity token first, raw key fallback
   const h = Object.assign({ "Content-Type": "application/json" }, extra || {});
-  if (SETTINGS.apikey) h["X-API-Key"] = SETTINGS.apikey;
+  if (SETTINGS.optoken) h["Authorization"] = "Bearer " + SETTINGS.optoken;
+  else if (SETTINGS.apikey) h["X-API-Key"] = SETTINGS.apikey;
   return h;
 }
 function loadSettings() {
@@ -905,6 +912,21 @@ applySettings(SETTINGS);
 if ($("set-theme")) $("set-theme").onchange = () => {
   SETTINGS.theme = $("set-theme").value; saveSettings(SETTINGS); applySettings(SETTINGS);
 };
+if ($("set-signin")) {
+  $("set-opemail").value = SETTINGS.opemail || "";
+  if (SETTINGS.opemail && SETTINGS.optoken) $("set-opstate").textContent = "signed in: " + SETTINGS.opemail;
+  $("set-signin").onclick = async () => {
+    const email = $("set-opemail").value.trim();
+    if (!email || !SETTINGS.apikey) { $("set-opstate").textContent = "need email + API key below"; return; }
+    const r = await fetch("/auth/login", { method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": SETTINGS.apikey },
+      body: JSON.stringify({ email }) });
+    const j = await r.json();
+    if (j.ok) { SETTINGS.opemail = email; SETTINGS.optoken = j.token; saveSettings(SETTINGS);
+      $("set-opstate").textContent = "signed in: " + j.operator; }
+    else { $("set-opstate").textContent = j.error || ("refused (" + r.status + ")"); }
+  };
+}
 if ($("set-apikey")) {
   $("set-apikey").value = SETTINGS.apikey || "";
   $("set-apikey").onchange = () => { SETTINGS.apikey = $("set-apikey").value.trim(); saveSettings(SETTINGS); };

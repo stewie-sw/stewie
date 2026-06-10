@@ -265,15 +265,27 @@ class ProfileRequest(BaseModel):
 
 
 def require_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key"),
-                 authorization: str | None = Header(default=None)):
-    """N8: API-key auth on mutating routes. Enabled only when $DUSTGYM_API_KEY is set (open in dev).
-    Accepts `X-API-Key: <key>` or `Authorization: Bearer <key>`."""
+                 authorization: str | None = Header(default=None),
+                 tailscale_user_login: str | None = Header(default=None,
+                                                           alias="Tailscale-User-Login")) -> str:
+    """N8 + #52: identity-bearing auth on mutating routes (open in dev when no key is set).
+    Accepted, in order: a WHITELISTED Tailscale identity (opt-in via STEWIE_TRUST_TAILSCALE=1
+    behind `tailscale serve`), an HMAC session token from /auth/login (Bearer), or the raw API
+    key (automation; identity "api-key"). Returns the operator identity for the event history."""
+    from stewie.server import auth as AUTH
     key = _env("API_KEY")
     if not key:
-        return
+        return "dev-open"
+    ts = AUTH.tailscale_identity({"tailscale-user-login": tailscale_user_login or ""})
+    if ts:
+        return ts
     supplied = x_api_key or (authorization or "").removeprefix("Bearer ").strip()
-    if not hmac.compare_digest(supplied.encode(), key.encode()):   # constant-time -> no timing oracle
-        raise HTTPException(status_code=401, detail="invalid or missing API key")
+    op = AUTH.verify_token(supplied)
+    if op:
+        return op
+    if hmac.compare_digest(supplied.encode(), key.encode()):   # constant-time -> no timing oracle
+        return "api-key"
+    raise HTTPException(status_code=401, detail="invalid or missing API key")
 
 
 app = FastAPI(title="STEWIE — mission planner + planet browser API", version=_version())
@@ -339,6 +351,18 @@ def get_index():
 
 # ---- S-4: the object store (catalog) ---------------------------------------------------------
 from stewie.server import objects as OBJ               # noqa: E402
+
+
+@app.post("/auth/login")
+def auth_login(body: dict, _auth: str = Depends(require_auth)):
+    """#52: email + the API key -> a 12 h identity token. The email MUST be whitelisted."""
+    from stewie.server import auth as AUTH
+    email = str(body.get("email", "")).strip().lower()
+    if not AUTH.is_allowed(email):
+        return JSONResponse(status_code=403,
+                            content={"ok": False, "error": f"{email!r} is not a whitelisted operator"})
+    return {"ok": True, "operator": email, "token": AUTH.issue_token(email),
+            "ttl_s": AUTH.TOKEN_TTL_S}
 
 
 @app.post("/missions/{name}")
