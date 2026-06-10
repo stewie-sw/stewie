@@ -54,3 +54,21 @@ def test_world_to_rc_nonzero_origin_consistency():
     assert not np.isfinite(hm.cost[r, c])                       # the E rock no-go lands at THAT cell
     route = HM.plan_route(hm, (105.0, 55.0), (190.0, 140.0))
     assert route and abs(route[0][0] - 105.0) < 5.0 and abs(route[0][1] - 55.0) < 5.0   # inverse maps back
+
+
+def test_t13_obstacle_limit_makes_tall_rocks_hard():
+    """ARGUS T1.3 (TRL5): the 7.5 cm obstacle capability is the HARD limit -- a rock TALLER than
+    OBSTACLE_LIMIT_M is no-go regardless of its nav class; a shorter soft-class rock stays passable."""
+    import numpy as np
+
+    from dart.hazard_map import build_hazard_map
+    from dart.rock_taxonomy import Rock
+    dem = (np.zeros((40, 40)), 1.0)
+    def _rock(h):
+        return Rock(diameter_m=0.2, height_m=h, volume_m3=0.002, confidence=0.9,
+                    nav_class="B", loc_class="L0", excav_class="E0")
+    tall_soft = _rock(0.10)                               # B = soft class, but 10 cm tall
+    short_soft = _rock(0.05)                              # under the limit
+    hm = build_hazard_map(dem, rocks_world=[(10.0, 10.0, tall_soft), (30.0, 30.0, short_soft)])
+    assert not np.isfinite(hm.cost[10, 10])              # 10 cm > 7.5 cm -> hard no-go
+    assert np.isfinite(hm.cost[30, 30])                  # 5 cm: passable (penalty only)

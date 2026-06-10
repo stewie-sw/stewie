@@ -71,7 +71,11 @@ def build_hazard_map(dem, dem_origin=(0.0, 0.0), *, rocks_world=(), rock_mask=No
         c = int(round((x - ox) / cell)); r = int(round((y - oy) / cell))
         if 0 <= r < h and 0 <= c < w:
             pen = rock_costs.nav_cost(rk.nav_class)
-            if rk.nav_class in rock_costs.HARD_CLASSES:                 # D/E -> hard no-go (+ inflate)
+            # T1.3 (TRL5): the 7.5 cm obstacle capability is the HARD limit -- a rock TALLER than
+            # the documented envelope is no-go REGARDLESS of nav class (class covers shape/rideover;
+            # height is the vehicle's physical step limit).
+            from stewie.specs.ipex_specs import OBSTACLE_HEIGHT_M as _OBST
+            if rk.nav_class in rock_costs.HARD_CLASSES or float(rk.height_m) > _OBST:
                 r0, r1 = max(0, r - hard_rock_inflate_cells), min(h, r + hard_rock_inflate_cells + 1)
                 c0, c1 = max(0, c - hard_rock_inflate_cells), min(w, c + hard_rock_inflate_cells + 1)
                 rock_cost[r0:r1, c0:c1] = _HARD
