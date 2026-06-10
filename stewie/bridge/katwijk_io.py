@@ -121,3 +121,73 @@ def load_katwijk_truth_xy(path: str, colmap: dict | None = None) -> np.ndarray:
     idx = _resolve(header, ["lat", "lon"], colmap)
     latlon = np.array([[float(r[idx["lat"]]), float(r[idx["lon"]])] for _, r in rows])
     return gps_latlon_to_local_xy(latlon[:, 0], latlon[:, 1])
+
+
+# ---- REAL-file parsers (2026-06-10): the roboshare files are HEADERLESS ------------------------
+# Format authority: Hewitt et al. IJRR 2018 + de Jong (UvA, 2019) which documents the extra
+# per-joint columns: imu.txt = ts + acc[xyz] + gyro[xyz] + inclinometer-acc[xyz] (Stim300, no
+# magnetometer); odometry.txt = ts + 6 drive joints x (angular displacement, angular velocity,
+# analogue encoder) + 4 steering joints x (same triple) + rocker + bogie_left + bogie_right [rad];
+# gps-latlong.txt = ts + RTK status + lat + lon + alt + sd_north + sd_east + sd_up [m].
+# Linear wheel conversion needs the HDPR wheel radius (wheelTransformation.m) -- NOT guessed here.
+
+def parse_ts(s: str) -> float:
+    """'YYYY_MM_DD_HH_MM_SS_mmm' -> POSIX seconds (UTC assumed per the dataset docs)."""
+    import datetime as _dt
+    p = s.split("_")
+    if len(p) != 7:
+        raise ValueError(f"bad Katwijk timestamp {s!r}")
+    return _dt.datetime(int(p[0]), int(p[1]), int(p[2]), int(p[3]), int(p[4]), int(p[5]),
+                        int(p[6]) * 1000, tzinfo=_dt.timezone.utc).timestamp()
+
+
+def load_imu_real(path: str) -> list:
+    """[{t, acc[3], gyro[3], incl_acc[3]}] from the headerless roboshare imu.txt."""
+    out = []
+    for ln in open(path):
+        f = ln.split()
+        if len(f) != 10:
+            raise ValueError(f"imu.txt row has {len(f)} fields (want 10): {ln[:60]!r}")
+        v = [float(x) for x in f[1:]]
+        out.append({"t": parse_ts(f[0]), "acc": v[0:3], "gyro": v[3:6], "incl_acc": v[6:9]})
+    if not out:
+        raise ValueError("empty imu.txt")
+    return out
+
+
+def load_gps_real(path: str) -> list:
+    """[{t, status, lat, lon, alt, sd_n, sd_e, sd_u}] from gps-latlong.txt (RTK ground truth)."""
+    out = []
+    for ln in open(path):
+        f = ln.split()
+        if len(f) != 8:
+            raise ValueError(f"gps row has {len(f)} fields (want 8): {ln[:60]!r}")
+        out.append({"t": parse_ts(f[0]), "status": f[1], "lat": float(f[2]), "lon": float(f[3]),
+                    "alt": float(f[4]), "sd_n": float(f[5]), "sd_e": float(f[6]),
+                    "sd_u": float(f[7])})
+    if not out:
+        raise ValueError("empty gps file")
+    return out
+
+
+def load_odometry_real(path: str) -> list:
+    """[{t, drive_disp[6], drive_vel[6], steer_disp[4], rocker, bogie_l, bogie_r}] (angles, rad).
+
+    Column binding per de Jong 2019: each of the 6 drive + 4 steering joints carries the triple
+    (angular displacement, angular velocity, analogue encoder value); the analogue values are
+    documented as accidental and are DISCARDED. Linear conversion awaits the HDPR wheel radius."""
+    out = []
+    for ln in open(path):
+        f = ln.split()
+        if len(f) != 34:
+            raise ValueError(f"odometry row has {len(f)} fields (want 34): {ln[:60]!r}")
+        v = [float(x) for x in f[1:]]
+        triples = [v[i:i + 3] for i in range(0, 30, 3)]
+        out.append({"t": parse_ts(f[0]),
+                    "drive_disp": [tr[0] for tr in triples[:6]],
+                    "drive_vel": [tr[1] for tr in triples[:6]],
+                    "steer_disp": [tr[0] for tr in triples[6:10]],
+                    "rocker": v[30], "bogie_l": v[31], "bogie_r": v[32]})
+    if not out:
+        raise ValueError("empty odometry file")
+    return out
