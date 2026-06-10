@@ -137,8 +137,11 @@ def parse_ts(s: str) -> float:
     p = s.split("_")
     if len(p) != 7:
         raise ValueError(f"bad Katwijk timestamp {s!r}")
-    return _dt.datetime(int(p[0]), int(p[1]), int(p[2]), int(p[3]), int(p[4]), int(p[5]),
-                        int(p[6]) * 1000, tzinfo=_dt.timezone.utc).timestamp()
+    base = _dt.datetime(int(p[0]), int(p[1]), int(p[2]), int(p[3]), int(p[4]), int(p[5]),
+                        tzinfo=_dt.timezone.utc).timestamp()
+    # the real files carry ms values of 1000 on some rows (logger rollover quirk, e.g.
+    # 2015_11_26_12_54_30_1000 in Part1/imu.txt) -- add as seconds-fraction rather than reject
+    return base + int(p[6]) / 1000.0
 
 
 def load_imu_real(path: str) -> list:

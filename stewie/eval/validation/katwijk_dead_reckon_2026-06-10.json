@@ -1,0 +1,14 @@
+{
+ "schema_version": "solnav_katwijk_dead_reckon/1.0",
+ "dataset": "Katwijk Beach Traverse-1 Part1 (roboshare, RTK_FIXED truth)",
+ "wheel_radius_m": 0.123025,
+ "calibration": {
+  "segment": "first_third",
+  "gt_len_m": 43.955,
+  "disclosure": "wheel scale + boundary pose/heading from the calibration third; evaluation segment untouched"
+ },
+ "eval_track_length_m": 92.48,
+ "ate_aligned_m": 3.3465,
+ "max_err_m": 6.2893,
+ "n_eval_points": 2550
+}
