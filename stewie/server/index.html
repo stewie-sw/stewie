@@ -218,6 +218,12 @@
         <button id="qimport" class="go">⤒ Import plan</button>
         <input id="qfile" type="file" accept=".json,application/json" style="display:none" />
       </div>
+      <div class="ctl" style="margin-top:7px" title="run the queue as an operator-training session (B3): the closed loop executes server-side; the operator link shows only telemetry-delivered legs">
+        Session <select id="seslink"><option value="ideal">ideal link</option>
+          <option value="mission_default">mission link</option>
+          <option value="comm_dropout">comm dropout</option></select>
+        <button id="sesstart" class="go">🎓 Start session</button></div>
+      <div id="sesout" class="ctl" style="display:none; font-size:0.85em"></div>
       <div class="ctl" style="margin-top:5px">
         <input id="profname" class="lbl" placeholder="profile name" style="max-width:11em" />
         <button id="profsave" class="go">💾 Save</button>
@@ -759,6 +765,28 @@ function parsePrec() {
   return (qel("qprec").value || "").split(",").map(s => s.trim()).filter(Boolean)
     .map(s => s.split(">").map(x => x.trim())).filter(p => p.length === 2 && p[0] && p[1]);
 }
+qel("sesstart").onclick = async () => {                  // B3: operator/director training session
+  if (!ORDERS.length) { setQ("add at least one order first"); return; }
+  const b = qel("sesstart"); b.disabled = true; b.textContent = "⏳ running session…";
+  try {
+    const res = await fetch("/session/start", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: `${BODIES[sel.value].name} session`, body: sel.value,
+        charger: [0, 0], orders: ORDERS, keepouts: KEEPOUTS,
+        profile: qel("seslink").value }) });
+    const j = await res.json();
+    if (!j.ok) { setQ("session error: " + (j.error || res.status)); return; }
+    const o = qel("sesout"); o.style.display = "block";
+    o.innerHTML = `session <code>${j.session_id.slice(0, 8)}</code> · ${j.n_legs} legs · ` +
+      `<a href="${j.operator_url}" target="_blank">operator view</a> · ` +
+      `<a href="${j.debrief_url}" target="_blank">debrief</a> · ` +
+      `<a href="/session/${j.session_id}/summary" target="_blank">summary</a>` +
+      ` <span style="opacity:.7">(debrief + summary need the director key when auth is on)</span>`;
+    setQ("session ready — operator link is the trainee view");
+  } catch (e) { setQ("session error: " + e); }
+  finally { b.disabled = false; b.textContent = "🎓 Start session"; }
+};
+
 qel("qplan").onclick = async () => {
   if (!ORDERS.length) { setQ("add at least one order first"); return; }
   const pb = qel("qplan"); pb.disabled = true; pb.textContent = "⏳ planning + rendering report…";   // B0.4

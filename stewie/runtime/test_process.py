@@ -1,0 +1,99 @@
+"""G1 blocker #1 slice 1: the PERSISTENT SHARED runtime (STEWIE P20's process core).
+
+The criterion: world state outlives any single client. One long-lived RuntimeProcess owns the
+conserved ColumnState (+ the versioned twin); clients attach over a Unix socket (JSON lines),
+declare a ROLE, and operate through the seam -- drive mutates the world, produce emits the strict
+canonical packet, estimate/evaluate stay file-role-isolated (stewie.eval.roles). Two clients see
+ONE world; disconnecting changes nothing; checkpoint/restore round-trips bit-exact.
+
+The ROS bridge (B1) attaches later through this same seam -- one build, two tracks.
+"""
+import json
+import os
+import socket
+import threading
+import time
+
+import numpy as np
+import pytest
+
+from stewie.runtime import process as rp
+
+
+@pytest.fixture()
+def runtime(tmp_path):
+    sock = str(tmp_path / "rt.sock")
+    srv = rp.RuntimeProcess(grid=64, cell_m=0.02, body="moon", socket_path=sock, seed=3)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    for _ in range(100):
+        if os.path.exists(sock):
+            break
+        time.sleep(0.01)
+    yield sock, srv
+    srv.shutdown()
+
+
+def _rpc(sock_path, req):
+    c = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    c.connect(sock_path)
+    c.sendall((json.dumps(req) + "\n").encode())
+    buf = b""
+    while not buf.endswith(b"\n"):
+        chunk = c.recv(65536)
+        if not chunk:
+            break
+        buf += chunk
+    c.close()
+    return json.loads(buf.decode())
+
+
+def test_world_is_shared_and_outlives_clients(runtime):
+    sock, _ = runtime
+    p0 = _rpc(sock, {"role": "drive", "cmd": "pose"})
+    assert p0["ok"]
+    for _ in range(5):
+        r = _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 4})
+        assert r["ok"]
+    p1 = _rpc(sock, {"role": "produce", "cmd": "pose"})        # a DIFFERENT client connection
+    assert (p1["rc"] != p0["rc"]), "client B must see the world client A changed"
+
+
+def test_produce_emits_the_strict_canonical_packet(runtime):
+    sock, _ = runtime
+    _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.1, "steps": 10})
+    r = _rpc(sock, {"role": "produce", "cmd": "packet"})
+    assert r["ok"]
+    from stewie.bridge.runtime_io import parse_canonical
+    parsed = parse_canonical(r["packet"])                      # the strict parser ACCEPTS it
+    assert parsed["sequence_id"] == r["packet"]["sequence_id"]
+    r2 = _rpc(sock, {"role": "produce", "cmd": "packet"})
+    assert r2["packet"]["sequence_id"] > r["packet"]["sequence_id"]   # monotone across calls
+
+
+def test_mutation_requires_the_drive_role(runtime):
+    sock, _ = runtime
+    r = _rpc(sock, {"role": "estimate", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 1})
+    assert not r["ok"] and "role" in r["error"].lower()
+
+
+def test_world_conserves_mass_across_the_seam(runtime):
+    sock, srv = runtime
+    m0 = float(np.sum(srv.cs.mass_areal))
+    _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.25, "omega": 0.2, "steps": 30})
+    assert float(np.sum(srv.cs.mass_areal)) == pytest.approx(m0, rel=1e-12)
+
+
+def test_checkpoint_restore_roundtrips(runtime, tmp_path):
+    sock, srv = runtime
+    _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.3, "steps": 12})
+    ck = str(tmp_path / "ck.npz")
+    r = _rpc(sock, {"role": "drive", "cmd": "checkpoint", "path": ck})
+    assert r["ok"] and os.path.exists(ck)
+    pose_before = _rpc(sock, {"role": "drive", "cmd": "pose"})
+    _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.3, "omega": 0.0, "steps": 8})
+    r2 = _rpc(sock, {"role": "drive", "cmd": "restore", "path": ck})
+    assert r2["ok"]
+    pose_after = _rpc(sock, {"role": "drive", "cmd": "pose"})
+    assert pose_after["rc"] == pose_before["rc"]
+    assert pose_after["mass_sha"] == pose_before["mass_sha"]   # bit-exact world restore

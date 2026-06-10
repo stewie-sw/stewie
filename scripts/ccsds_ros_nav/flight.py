@@ -123,6 +123,12 @@ class FlightModel:
         ci = min(max(int(round(rc[1])), 0), self.cs.width - 1)
         return float(self.cs.datum[ri, ci] + self.cs.mass_areal[ri, ci] / self.cs.density[ri, ci])
 
+    def pose_now(self) -> "messages.Pose":
+        """The current pose as a downlink Pose (idle heartbeat; no physics step, no energy)."""
+        return messages.Pose(leg_id=-1, row=self.rc[0], col=self.rc[1], yaw_rad=self.yaw,
+                             v_achieved_mps=0.0, slip=0.0, sinkage_m=0.0, slope_rad=0.0,
+                             soc=self.soc, entrapped=False)
+
     def step_twist(self, v: float, omega: float) -> "messages.Pose":
         """One DIRECT-TELEOP tick (beta B1.6): drive the commanded twist through the conserved
         authority (slip-aware drive_step) with the same energy/odometry bookkeeping as

@@ -136,6 +136,13 @@ class RoverExecutive(Node):
         self.get_logger().warn("SAFE: leg aborted")
 
     def _tick(self) -> None:
+        # idle heartbeat (beta polish): teleop tools expect /odom before any motion; publish the
+        # current pose ~1 Hz while idle so `ros2 topic echo /odom --once` always answers.
+        self._hb = getattr(self, "_hb", 0) + 1
+        if self._goal is None and self._teleop is None:
+            if self._hb % max(1, int(1.0 / (self._dt / self._time_factor))) == 0:
+                self._publish_pose(self.fm.pose_now())
+            return
         if self._teleop is not None:                      # B1.6: direct drive through the authority
             v, om = self._teleop
             p = self.fm.step_twist(v, om)

@@ -87,7 +87,7 @@ markers = [
 
 # --- coverage (PRD N11): measure SOURCE only (test files excluded), CLI mains excluded ------------
 [tool.coverage.run]
-source = ["terrain_authority", "planet_browser"]
+source = ["stewie", "dart", "lode", "leap", "forge"]   # the monorepo packages (rename 2026-06-10)
 omit = [
     "*/test_*.py",
     "*/tests.py",

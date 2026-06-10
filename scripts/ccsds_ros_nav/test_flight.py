@@ -96,3 +96,12 @@ def test_step_twist_drives_through_the_authority():
     assert 0.0 < moved_m <= 0.25 * fm.dt + 1e-9          # slip can only LOSE distance
     fm.step_twist(0.0, 0.5)
     assert fm.yaw != yaw0                                # turned in place
+
+
+def test_pose_now_is_a_pure_readout():
+    crop, start, _ = _gentle_crop()
+    fm = FlightModel(crop=crop, start_rc=(float(start[0]), float(start[1])), body="moon", dt=0.2)
+    e0, met0 = fm.energy_j, fm.met
+    p = fm.pose_now()
+    assert (p.row, p.col) == fm.rc and p.leg_id == -1 and p.v_achieved_mps == 0.0
+    assert fm.energy_j == e0 and fm.met == met0          # no physics side effects
