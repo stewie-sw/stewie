@@ -15,8 +15,13 @@ from __future__ import annotations
 import dataclasses
 import os
 
-_HAWORTH_BUNDLE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "samples", "lunar_dem", "haworth_10km_5m")
+_SAMPLES = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))), "samples", "lunar_dem")
+
+
+def _bundle(name: str) -> str | None:
+    d = os.path.join(_SAMPLES, name)
+    return d if os.path.isdir(d) else None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -33,13 +38,16 @@ class Site:
 
 SITES: dict = {s.name: s for s in (
     Site("haworth", "Haworth (work site)", -86.33, -25.51, artemis_candidate=True,
-         bundle_dir=_HAWORTH_BUNDLE if os.path.isdir(_HAWORTH_BUNDLE) else None,
+         bundle_dir=_bundle("haworth_10km_5m"),
          note="the imported 10 km / 5 m LOLA bundle; the committed STEWIE work site"),
-    Site("shackleton_rim", "Shackleton rim / Connecting Ridge", -89.7, -137.0, artemis_candidate=True,
-         note="near-continuous illumination ridge between Shackleton and de Gerlache"),
+    # centers below are the BUNDLES' true tile centers (world_bounds inverse-projected)
+    Site("shackleton_rim", "Shackleton rim (Site04)", -89.823, 158.213, artemis_candidate=True,
+         bundle_dir=_bundle("shackleton_rim_10km_5m"),
+         note="PGDA Product 78 Site04; max-relief 10 km tile (4.4 km relief), imported 2026-06-10"),
     Site("de_gerlache_rim", "de Gerlache Rim 1/2", -88.5, -68.0, artemis_candidate=True),
-    Site("nobile_rim", "Nobile Rim 1/2", -85.2, 36.0, artemis_candidate=True,
-         note="the Artemis III VIPER-adjacent region"),
+    Site("nobile_rim", "Nobile Rim 1 (Site06)", -85.484, 39.965, artemis_candidate=True,
+         bundle_dir=_bundle("nobile_rim1_10km_5m"),
+         note="PGDA Product 78 Site06; max-relief 10 km tile, imported 2026-06-10"),
     Site("malapert_massif", "Malapert Massif", -85.9, -2.0, artemis_candidate=True),
     Site("leibnitz_beta", "Leibnitz Beta Plateau", -85.4, 31.0, artemis_candidate=True),
     Site("amundsen_rim", "Amundsen Rim", -84.4, 69.0, artemis_candidate=True),

@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "scene_name": "lunar_dem/haworth_10km_5m",
+  "producer": "scripts/build_from_dem.py (real LOLA DEM ingest, Lane A)",
+  "grid": {
+    "width": 2000,
+    "height": 2000,
+    "cell_m": 5.0,
+    "order": "row-major-C"
+  },
+  "world_bounds_m": {
+    "x0": 82997.5,
+    "y0": 100002.5,
+    "x1": 92997.5,
+    "y1": 110002.5
+  },
+  "gravity_m_s2": 1.62,
+  "fields": {
+    "heightmap": {
+      "file": "heightmap.rf32",
+      "dtype": "<f4",
+      "units": "m"
+    },
+    "mass_areal": {
+      "file": "mass_areal.rf32",
+      "dtype": "<f4",
+      "units": "kg/m^2"
+    },
+    "density": {
+      "file": "density.rf32",
+      "dtype": "<f4",
+      "units": "kg/m^3"
+    },
+    "disturbance": {
+      "file": "disturbance.rf32",
+      "dtype": "<f4",
+      "units": "1 (normalized)"
+    },
+    "state_label": {
+      "file": "state_label.r8",
+      "dtype": "u1",
+      "enum": [
+        "VIRGIN",
+        "TREAD",
+        "EXCAVATED",
+        "SPOIL",
+        "COMPACTED_BERM",
+        "SINTERED"
+      ]
+    }
+  },
+  "ice_present": false,
+  "height_range_m": [
+    877.7719,
+    6102.4688
+  ],
+  "clasts": [],
+  "active_zone": {
+    "min_rc": [
+      0,
+      0
+    ],
+    "max_rc": [
+      2000,
+      2000
+    ]
+  },
+  "quadtree": [
+    {
+      "level": 0,
+      "row0": 0,
+      "col0": 0,
+      "size": 2000,
+      "label": "ROOT"
+    }
+  ],
+  "base_cell_m": 5.0,
+  "fine_cell_m": 0.02,
+  "region": "Haworth",
+  "local_datum_offset_m": 3689.2173,
+  "regolith_model": {
+    "uniform_mantle": true,
+    "mantle_thickness_m": 0.12,
+    "mantle_density_kg_m3": 1455.8333,
+    "mantle_density_source": "ChaSTE depth-integrated (mass-weighted-mean) bulk density over [0, Z_T]; constant broadcast, NOT a spatial field [CALIB]",
+    "mantle_areal_kg_m2": 174.7,
+    "note": "DEM surface injected via the datum path: datum=Z-Z_T, mass_areal=Z_T*rho_bar, derive_height()==Z. Z_T is the cm-scale loose layer; the datum carries everything below it (eval \u00a75 step 1). rho_bar is the mass-weighted mean of the ChaSTE polar profile (constants.polar_density_profile: 750/1300/1940 over 0-3/3-6.5/>6.5 cm) integrated over [0, Z_T] via dem_import.polar_mantle_density_fn (Wave-2 W2-DENSITY) \u2014 REPLACES the prior equatorial-Apollo RHO_SURFACE stand-in. Density CANCELS in derive_height, so only the loose mantle's areal mass changes."
+  },
+  "dem_provenance": {
+    "source": "PGDA LOLA_5mpp Haworth_final_adj_5mpp_surf.tif (Product 78)",
+    "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+    "z_semantics": "height above sphere [m] (NOT absolute radius; no Z-R subtraction)",
+    "native_cell_m": 5.0,
+    "crop_window_row0_col0": [
+      2000,
+      1800
+    ],
+    "crop_extent_km": [
+      10.0,
+      10.0
+    ],
+    "relief_p98_p2_m": 4809.1276,
+    "sphere_radius_m": 1737400.0,
+    "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+    "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published \u2014 treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md)."
+  },
+  "features": [
+    "dem_backbone"
+  ],
+  "contract_revision": "1.0.2",
+  "notes": "Real LOLA south-polar DEM 10 km @ 5.0 m backbone (region Haworth, max-relief window). Same-frame pixel-window crop (no reprojection); surface mass-conserving via the datum path. world_bounds_m carry NON-ZERO global offsets (contract \u00a72)."
+}
