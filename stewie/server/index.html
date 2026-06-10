@@ -714,22 +714,34 @@ setInterval(() => {
   const panel = document.getElementById("panel"); if (!panel) return;
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem("stewie_sections") || "{}"); } catch (e) {}
+  // split on EVERY h3 (Aaron's catch: sections hold MULTIPLE h3 groups -- Site/Catalog/Telemetry
+  // were riding inside another group's collapsible instead of getting their own)
   panel.querySelectorAll("section").forEach((sec) => {
-    const h3 = sec.querySelector("h3"); if (!h3) return;
-    const key = h3.textContent.trim().slice(0, 28);
-    const det = document.createElement("details");
-    det.open = saved[key] !== undefined ? !!saved[key] : /queue|plan —/i.test(key);
-    const sum = document.createElement("summary");
-    sum.appendChild(h3);                                   // moves the live node
-    det.appendChild(sum);
-    const body = document.createElement("div");
-    while (sec.firstChild) body.appendChild(sec.firstChild);
-    det.appendChild(body);
-    det.addEventListener("toggle", () => {
-      saved[key] = det.open;
-      try { localStorage.setItem("stewie_sections", JSON.stringify(saved)); } catch (e) {}
+    if (!sec.querySelector("h3")) return;
+    const kids = Array.from(sec.childNodes);
+    sec.textContent = "";
+    let det = null, body = null;
+    kids.forEach((node) => {
+      if (node.tagName === "H3") {
+        det = document.createElement("details");
+        const key = node.textContent.trim().slice(0, 28);
+        det.open = saved[key] !== undefined ? !!saved[key] : /queue|plan —/i.test(key);
+        const sum = document.createElement("summary");
+        sum.appendChild(node);
+        det.appendChild(sum);
+        body = document.createElement("div");
+        det.appendChild(body);
+        det.addEventListener("toggle", () => {
+          saved[key] = det.open;
+          try { localStorage.setItem("stewie_sections", JSON.stringify(saved)); } catch (e) {}
+        });
+        sec.appendChild(det);
+      } else if (body) {
+        body.appendChild(node);
+      } else {
+        sec.appendChild(node);                             // pre-h3 content stays put
+      }
     });
-    sec.appendChild(det);
   });
 })();
 
