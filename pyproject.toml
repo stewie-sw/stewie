@@ -34,7 +34,9 @@ server = ["fastapi>=0.110,<1", "uvicorn>=0.20,<1", "matplotlib", "pyproj"]   # t
 render = ["trimesh>=4,<5"]                             # render-asset tooling (scripts/gen_ipex_mesh.py: the CC0 IPEx body)
 # CI installs .[dev]; it MUST cover every import-time dep of the CONFIGURED test suite (testpaths =
 # terrain_authority + planet_browser + scripts), hence trimesh (scripts/) + pyyaml (requirement manifest test).
-dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.6", "mypy>=1.8", "matplotlib", "pyproj", "fastapi>=0.110,<1", "uvicorn>=0.20,<1", "httpx>=0.24", "trimesh>=4,<5", "pyyaml>=6,<7"]
+dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.6", "mypy>=1.8", "matplotlib", "pyproj", "fastapi>=0.110,<1", "uvicorn>=0.20,<1", "httpx>=0.24", "trimesh>=4,<5", "pyyaml>=6,<7",
+       # the perception/eval test graph (dart + stewie.eval; M2 fold): stereo, image IO, timeouts
+       "opencv-python-headless>=4.8", "imageio>=2.31", "pytest-timeout>=2"]
 
 [project.urls]
 Homepage = "https://github.com/dustgym/dustgym"
