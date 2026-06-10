@@ -337,6 +337,15 @@ def get_index():
     return FileResponse(os.path.join(HERE, "index.html"), media_type=_CTYPE[".html"])
 
 
+@app.get("/dem/georef")
+def dem_georef():
+    """The Haworth tile's globe footprint (selenographic corners) for the cockpit overlay."""
+    try:
+        return {"ok": True, **MP.dem_georef_corners()}
+    except (ImportError, FileNotFoundError, ValueError) as e:
+        return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
+
+
 @app.get("/fonts/{name}")
 def get_font(name: str):
     """Vendored brand fonts (Orbitron, OFL -- license shipped alongside). No CDN at runtime."""

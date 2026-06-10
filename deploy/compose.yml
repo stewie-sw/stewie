@@ -4,6 +4,9 @@ name: stewie
 services:
   backend:
     build: { context: .., dockerfile: deploy/Dockerfile.backend, network: host }
+    env_file:
+      - path: ./.env
+        required: false                 # generated locally (gitignored); shell env still overrides
     environment:
       STEWIE_API_KEY: ${STEWIE_API_KEY:-${DUSTGYM_API_KEY:-}}          # set to require auth on mutating routes
       STEWIE_CORS_ORIGINS: ${STEWIE_CORS_ORIGINS:-}

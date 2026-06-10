@@ -1246,6 +1246,26 @@ def latlon_to_dem_origin(lat, lon, *, bundle_dir=None):
     return float(ci * cell), float(ri * cell)                            # matches flattest_anchor's frame
 
 
+def dem_georef_corners(bundle_dir=None) -> dict:
+    """The committed tile's GLOBE footprint: world_bounds_m corners (IAU_2015:30135 south-polar
+    stereographic) inverse-projected to selenographic lat/lon -- so the cockpit can OVERLAY the
+    Haworth work area on the Cesium globe at its true location (Aaron 2026-06-10: 'doesn't overlay
+    the haworth site, this is the primary location')."""
+    from pyproj import CRS, Transformer
+    meta = json.load(open(os.path.join(_haworth_bundle(bundle_dir), "metadata.json")))
+    b = meta["world_bounds_m"]
+    crs = CRS.from_user_input("IAU_2015:30135")
+    inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
+    corners = []
+    for xs, ys in ((b["x0"], b["y0"]), (b["x1"], b["y0"]), (b["x1"], b["y1"]), (b["x0"], b["y1"])):
+        lon, lat = inv.transform(float(xs), float(ys))
+        corners.append({"lat": float(lat), "lon": float(lon)})
+    cx, cy = (b["x0"] + b["x1"]) / 2.0, (b["y0"] + b["y1"]) / 2.0
+    lon, lat = inv.transform(cx, cy)
+    return {"corners": corners, "center": {"lat": float(lat), "lon": float(lon)},
+            "crs": "IAU_2015:30135", "tile_km": 10.0}
+
+
 # ---- I10: hazard + slope/slip-aware haul routing on a DEM costmap -------------------------------
 # A straight cut<->fill line ignores craters and steep walls. I10 routes hauls over a slope costmap:
 # steeper ground costs more (slip -> more energy/time per meter) and ground past the traverse limit is

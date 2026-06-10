@@ -58,6 +58,10 @@
   #phead b { color: #f2f2f4; font-family: "Orbitron", system-ui, sans-serif;
     font-size: 14px; font-weight: 700; }
   /* B-4: subsystem chips per the patch board (DART/LODE/LEAP/FORGE, red ring, small caps) */
+  #panel details > summary { cursor: pointer; list-style: none; }
+  #panel details > summary::before { content: "▸ "; color: var(--accent); font-size: 10px; }
+  #panel details[open] > summary::before { content: "▾ "; }
+  #panel summary h3 { display: inline; }
   .sysb { font-size: 8px; letter-spacing: .15em; color: var(--accent);
     border: 1px solid var(--accent); border-radius: 8px; padding: 0 5px; margin-left: 4px;
     opacity: .8; vertical-align: 1px; }
@@ -169,7 +173,7 @@
         <button class="site" id="site">Set site</button>
       </div>
       <div id="terra">terramechanics —</div>
-      <div id="hint">drag = pan · wheel = zoom · ctrl-drag = tilt · click = pick a site</div>
+      <div id="hint">drag = pan · wheel = zoom · ctrl-drag = tilt · click = pick a site · <b id="cursorcoord" style="color:var(--accent)"></b></div>
     </section>
 
     <section>
@@ -483,7 +487,43 @@ function loadBody(key) {
     const carto = Cesium.Cartographic.fromCartesian(c, ellipsoid);
     setPicked(Cesium.Math.toDegrees(carto.latitude), Cesium.Math.toDegrees(carto.longitude));
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+  // live cursor coordinates (Esri status-bar pattern; Aaron 2026-06-10)
+  handler.setInputAction((e) => {
+    const c = viewer.camera.pickEllipsoid(e.endPosition, ellipsoid);
+    const el = $("cursorcoord"); if (!el) return;
+    if (!c) { el.textContent = ""; return; }
+    const ca = Cesium.Cartographic.fromCartesian(c, ellipsoid);
+    el.textContent = `${Cesium.Math.toDegrees(ca.latitude).toFixed(4)}°, ` +
+                     `${Cesium.Math.toDegrees(ca.longitude).toFixed(4)}°`;
+  }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+  // THE PRIMARY SITE ON THE GLOBE: the committed Haworth tile at its true selenographic footprint
+  // (server-inverse-projected from the LOLA polar-stereographic bounds; Aaron: "doesn't overlay
+  // the haworth site -- this is the primary location").
+  fetch("/dem/georef").then((r) => r.json()).then((g) => {
+    if (!g.ok || !viewer) return;
+    const ll = [];
+    g.corners.forEach((p) => { ll.push(p.lon, p.lat); });
+    HAWORTH_CENTER = g.center;
+    viewer.entities.add({
+      name: "Haworth work area",
+      polygon: {
+        hierarchy: Cesium.Cartesian3.fromDegreesArray(ll, ellipsoid),
+        material: new Cesium.ImageMaterialProperty({ image: "/dem/hillshade.png", transparent: false }),
+        outline: true, outlineColor: Cesium.Color.fromCssColorString("#e8273f"),
+      },
+    });
+    viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(g.center.lon, g.center.lat, 0, ellipsoid),
+      label: { text: "HAWORTH WORK AREA", font: "11px Orbitron, sans-serif",
+               fillColor: Cesium.Color.fromCssColorString("#e8273f"),
+               pixelOffset: new Cesium.Cartesian2(0, -18), showBackground: true,
+               backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cdd") },
+    });
+  }).catch(() => {});
 }
+let HAWORTH_CENTER = null;
 
 function applyLayer(key, idx) {                            // swap the base imagery to the selected layer
   const L = BODIES[key].layers[idx];
@@ -557,6 +597,35 @@ setInterval(() => {
     el.dataset.fresh = age < 20 ? "ok" : (age < 60 ? "stale" : "dead");
   });
 }, 5000);
+
+// S-1 (GIS pathway): collapsible sidebar sections -- each h3 + its block becomes <details>,
+// default COLLAPSED except the active workflow step (Build queue); open-state persisted.
+(function collapseSidebar() {
+  const panel = document.getElementById("panel"); if (!panel) return;
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem("stewie_sections") || "{}"); } catch (e) {}
+  const kids = Array.from(panel.children);
+  let det = null, body = null;
+  kids.forEach((node) => {
+    if (node.tagName === "H3") {
+      det = document.createElement("details");
+      const key = node.textContent.trim().slice(0, 24);
+      det.open = saved[key] !== undefined ? !!saved[key] : /queue/i.test(key);
+      const sum = document.createElement("summary");
+      sum.appendChild(node.cloneNode(true));
+      det.appendChild(sum);
+      body = document.createElement("div");
+      det.appendChild(body);
+      det.addEventListener("toggle", () => {
+        saved[key] = det.open;
+        try { localStorage.setItem("stewie_sections", JSON.stringify(saved)); } catch (e) {}
+      });
+      panel.replaceChild(det, node);
+    } else if (det && body) {
+      body.appendChild(node);
+    }
+  });
+})();
 
 const SETTINGS = loadSettings();
 applySettings(SETTINGS);
