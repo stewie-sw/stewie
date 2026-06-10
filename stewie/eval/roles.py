@@ -21,7 +21,7 @@ import json
 import os
 import sys
 
-_ROLE_RULES = {
+_ROLE_RULES: dict[str, dict[str, tuple[str, ...]]] = {
     "produce": {"read": ("produced/",), "write": ("produced/",)},
     "estimate": {"read": ("produced/",), "write": ("estimates/",)},
     "evaluate": {"read": ("produced/", "estimates/", "evaluation/"),
