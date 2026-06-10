@@ -140,3 +140,24 @@ def test_thermal_heater_is_environment_aware():
     assert day == 0.0 and earth == 0.0    # sink warmer than setpoint -> no heating (cooling regime)
     assert s.survival_heater_power_w("moon") == psr        # worst-case = PSR for the Moon
     assert s.survival_heater_power_w("earth") == 0.0
+
+
+def test_camera_and_lighting_truth_from_trl5():
+    """The documented camera + lighting design (TRL5 'Sensor & Lens Class Selection' +
+    'Lighting Design' sections, extracted 2026-06-10): Sony IMX547, 2.74 um, 5 MP, S-mount f/4,
+    focal candidates 6.0/4.4 mm; LED units 3000 lm max, 42 deg FWHM, six units total."""
+    assert ix.CAMERA_SENSOR == "Sony IMX547"
+    assert ix.CAMERA_PIXEL_UM == 2.74
+    assert ix.CAMERA_SENSOR_MP == 5
+    assert ix.CAMERA_APERTURE_F == 4.0
+    assert ix.CAMERA_FOCAL_MM_CANDIDATES == (6.0, 4.4)
+    assert ix.STEREO_BASELINE_REJECTED_M == 0.165         # the only PUBLISHED baseline (rejected)
+    # derived flight intrinsics: fx [px] = focal / pixel size -- pure unit conversion
+    assert abs(ix.flight_fx_px(6.0) - 6.0e-3 / 2.74e-6) < 0.5
+    assert abs(ix.flight_fx_px(4.4) - 1605.8) < 1.0
+    # lighting (Lighting Design section)
+    assert ix.LED_MAX_LUMENS == 3000
+    assert ix.LED_BEAM_FWHM_DEG == 42.0
+    assert ix.LED_PER_UNIT == 3
+    assert ix.LED_UNITS_TOTAL == 6
+    assert ix.LED_UNITS_PER_MONO_CAMERA == 1 and ix.LED_UNITS_STEREO_BANK == 2

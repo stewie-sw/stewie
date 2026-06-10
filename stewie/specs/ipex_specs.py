@@ -389,3 +389,32 @@ if "WHEEL_RADIUS_M" not in _applied_overlay:
 if __name__ == "__main__":
     import json
     print(json.dumps(spec_record(), indent=2))
+
+
+# ---- Camera system truth [SCHULER24 "Sensor & Lens Class Selection" / "Baseline Selection" /
+#      "Lighting Design", pp.24-28; extracted verbatim 2026-06-10] ---------------------------
+CAMERA_SENSOR = "Sony IMX547"     # 5 MP, S-mount path (IMX264/3.45um C-mount REJECTED: vacuum/grease)
+CAMERA_PIXEL_UM = 2.74            # pixel pitch [um]
+CAMERA_SENSOR_MP = 5              # "A 5-megapixel (MP) camera sensor was chosen"
+CAMERA_APERTURE_F = 4.0           # "An aperture of f/4 has shown positive results"
+CAMERA_FOCAL_MM_CANDIDATES = (6.0, 4.4)   # "focal lengths of 6 mm and 4.4 mm are being evaluated"
+STEREO_BASELINE_REJECTED_M = 0.165        # the 16.5 cm split design -- PUBLISHED but REJECTED
+                                          # (calibration loss under load); the flown reduced
+                                          # baseline is figure-only -> the sim's 0.07 stays JOHN'S
+                                          # ESTIMATE, honestly tagged.
+
+
+def flight_fx_px(focal_mm: float) -> float:
+    """Documented-lens focal length [px]: pure unit conversion focal/pixel-pitch (pinhole fx)."""
+    return (focal_mm * 1e-3) / (CAMERA_PIXEL_UM * 1e-6)
+
+
+# Lighting Design: LED illumination integrated into the camera units.
+LED_MAX_LUMENS = 3000             # "maximum of 3,000 lumens per light", TIR optic
+LED_BEAM_FWHM_DEG = 42.0          # "approximately 42 deg (full width at half maximum)"
+LED_PER_UNIT = 3                  # "three LEDs mounted to a circuit board"
+LED_UNITS_TOTAL = 6               # "In total, there are six LED units on IPEx"
+LED_UNITS_PER_MONO_CAMERA = 1     # "Each monocular camera has a single LED unit"
+LED_UNITS_STEREO_BANK = 2         # "the stereo LED unit ... consists of two LED units" (chassis
+                                  # OPPOSITE side from the stereo module -- a KNOWN light-camera
+                                  # baseline: the active shadow-ranging geometry)
