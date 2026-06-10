@@ -435,7 +435,22 @@ def get_config():
 def get_layers():
     """Selectable map layers for the navigation UI (load/unload): imagery, dem, topology, hazard,
     excavation, lander. Vector layers (excavation, lander, zones) are filled per-mission by the client."""
-    return {"ok": True, "layers": MLY.layer_defs()}
+    from stewie.server.gis_layers import RASTER_DEFS
+    return {"ok": True, "layers": MLY.layer_defs() + RASTER_DEFS}
+
+
+@app.get("/layers/raster/{kind}.png")
+def get_raster_layer(kind: str, sun_el: float = 6.0, sun_az: float = 90.0):
+    """A computed GIS raster overlay (slope/hazard/illumination/psr) from the REAL Haworth DEM."""
+    from stewie.server.gis_layers import render
+    try:
+        png = render(kind, sun_el=sun_el, sun_az=sun_az)
+    except FileNotFoundError as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"DEM bundle absent: {e}"})
+    if png is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
+    from fastapi.responses import Response
+    return Response(content=png, media_type="image/png")
 
 
 # ---- B3: operator/director training sessions (the real closed loop, two views) ----------------

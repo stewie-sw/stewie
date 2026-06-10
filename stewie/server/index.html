@@ -77,7 +77,8 @@
   #workarea.show { display: block; }
   #workarea .cap { color: var(--muted); font-size: 10px; letter-spacing: .03em; margin-bottom: 6px; }
   #workarea img { width: 100%; display: block; border-radius: 4px; background: #05060c; }
-  #workareaimg { cursor: crosshair; }
+  .gisovl { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; display:none; image-rendering:pixelated }
+      #workareaimg { cursor: crosshair; }
   /* PERCEPTION pane: Godot PLAN -> RENDER before/after frame (sensor model). Live SLAM map = open work. */
   #renderpanel img { max-width: 100%; display: block; border-radius: 4px; background: #05060c; align-self: center; }
   #rpstatus { color: var(--muted); font-size: 12px; padding: 6px 2px; }
@@ -261,8 +262,18 @@
       <div id="cesium"></div>
       <div id="workarea">
         <div class="cap">WORK AREA — Haworth, 10 km @ 5 m (LOLA polar DEM) · click to plan + render</div>
-        <img id="workareaimg" alt="Haworth DEM hillshade"
-             onerror="this.closest('#workarea').classList.remove('show')" />
+        <div style="position:relative; display:inline-block">
+          <img id="workareaimg" alt="Haworth DEM hillshade"
+               onerror="this.closest('#workarea').classList.remove('show')" />
+          <img id="ovl_slope" class="gisovl" alt="" />
+          <img id="ovl_hazard" class="gisovl" alt="" />
+          <img id="ovl_illumination" class="gisovl" alt="" />
+          <img id="ovl_psr" class="gisovl" alt="" />
+        </div>
+        <div class="cap" id="suncap" title="south-pole sun geometry drives the shadow layer (horizon-clipped, the shadow-SLAM signal)">
+          ☀ el <input id="sunel" type="range" min="1" max="30" value="6" style="width:6em" />
+          <span id="sunelv">6°</span> · az <input id="sunaz" type="range" min="0" max="359" value="90" style="width:8em" />
+          <span id="sunazv">90°</span></div>
       </div>
       <div id="renderpanel" class="pane">
         <div class="cap"><span>PERCEPTION — Godot PLAN → RENDER<b id="rpvol"></b></span>
@@ -641,18 +652,31 @@ async function loadLayers() {
     const panel = qel("layerpanel"); if (!panel) return;
     panel.innerHTML = "<b style=\"margin-right:4px\">LAYERS</b>";
     d.layers.forEach((L) => {
-      LAYER_ON[L.id] = L.default;
+      const lid = L.id || L.key;                             // server rasters use `key`
+      LAYER_ON[lid] = !!L.default;
       const lab = document.createElement("label"); lab.style.cssText = "display:inline-flex;gap:3px;align-items:center;cursor:pointer";
-      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = L.default;
-      cb.onchange = () => { LAYER_ON[L.id] = cb.checked; applyLayerToggle(L.id, cb.checked); drawPlan(); };
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!L.default;
+      cb.onchange = () => { LAYER_ON[lid] = cb.checked; applyLayerToggle(lid, cb.checked); drawPlan(); };
       lab.appendChild(cb); lab.appendChild(document.createTextNode(L.name)); panel.appendChild(lab);
     });
   } catch (e) { /* serverless preview keeps the defaults */ }
 }
+const GIS_RASTERS = ["slope", "hazard", "illumination", "psr"];   // computed from the REAL Haworth DEM server-side
+function sunQS() { return `sun_el=${qel("sunel").value}&sun_az=${qel("sunaz").value}`; }
 function applyLayerToggle(id, on) {                          // load/unload the raster layers (vector layers redraw)
   if (id === "dem") { const wa = qel("workarea"); if (wa) wa.style.display = on ? "" : "none"; }
   if (id === "imagery" && window.viewer && viewer.imageryLayers && viewer.imageryLayers.length) viewer.imageryLayers.get(0).show = on;
+  if (GIS_RASTERS.includes(id)) {
+    const im = qel("ovl_" + id); if (!im) return;
+    if (on) { im.src = `/layers/raster/${id}.png?` + sunQS(); im.style.display = "block"; }
+    else { im.style.display = "none"; }
+  }
 }
+["sunel", "sunaz"].forEach((sid) => { const el = qel(sid); if (el) el.oninput = () => {
+  qel("sunelv").textContent = qel("sunel").value + "\u00b0";
+  qel("sunazv").textContent = qel("sunaz").value + "\u00b0";
+  GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); });   // re-fetch shadows live
+}; });
 loadLayers();
 
 // ---- PLAN VIEW: a top-down local-frame view of the queue (orders + keep-outs + charger) + click-to-place ----
