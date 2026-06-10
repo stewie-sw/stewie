@@ -43,3 +43,15 @@ def test_gate_validation_reports_byte_identity(client):
 def test_admin_ops_are_auth_gated(client):
     assert client.post("/admin/twin/snapshot").status_code == 401
     assert client.post("/admin/gates/validate").status_code == 401
+
+
+def test_twin_cg_endpoint_reports_loaded_cg_and_margin(client):
+    """#25: the live CG -- posture + drum loads -> CG offset + tip margin (physics-backed)."""
+    r = client.get("/twin/cg?front_deg=80&back_deg=0&front_kg=25&back_kg=0&pitch_deg=5&roll_deg=2")
+    d = r.json()
+    assert d["ok"]
+    assert d["cg_dz_m"] > 0.02                             # the raised loaded drum lifts the CG
+    assert d["margin_deg"] > 0 and d["risk"] in ("ok", "warn", "tip")
+    # the balanced symmetric load centers the CG
+    r2 = client.get("/twin/cg?front_deg=80&back_deg=80&front_kg=25&back_kg=25")
+    assert abs(r2.json()["cg_dx_m"]) < 0.01

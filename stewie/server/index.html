@@ -403,6 +403,18 @@
           the rover drives) is the open map-channel work, not a faked feed.</div>
       </div>
       <div id="execview" class="pane">
+        <div class="cap" style="margin-bottom:6px"><span>STABILITY — live CG &amp; tip margin <small>(posture + weighted drums; ArmState physics)</small></span></div>
+        <div class="ctl" style="font-size:11px">
+          front arm <input id="cgF" type="range" min="-110" max="110" value="0" style="width:7em" /><span id="cgFv">0°</span>
+          · back arm <input id="cgB" type="range" min="-110" max="110" value="0" style="width:7em" /><span id="cgBv">0°</span>
+        </div>
+        <div class="ctl" style="font-size:11px">
+          front drum <input id="cgFk" type="range" min="0" max="30" value="0" style="width:6em" /><span id="cgFkv">0 kg</span>
+          · back drum <input id="cgBk" type="range" min="0" max="30" value="0" style="width:6em" /><span id="cgBkv">0 kg</span>
+          · pitch <input id="cgP" type="number" value="0" step="1" style="width:3.5em" />°
+        </div>
+        <canvas id="cgcanvas" width="420" height="130" style="border:1px solid var(--line);border-radius:6px;width:100%;max-width:460px"></canvas>
+        <div id="cgout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:3px 0 10px"></div>
         <div class="cap"><span>METRICS — execution top-down<b id="execspeed"> 60×</b>
           <button id="execpause" title="pause/resume" style="margin-left:10px">⏸</button>
           <button id="execspd" title="cycle speed 10/60/600×">speed</button></span>
@@ -1187,6 +1199,49 @@ async function renderArea(u, v, opts) {
     b.disabled = false;
   };
 });
+// #25: the live CG / stability side-profile (server physics: /twin/cg)
+let CG_T = 0;
+function cgSchedule() { clearTimeout(CG_T); CG_T = setTimeout(cgUpdate, 200); }
+async function cgUpdate() {
+  const F = +$("cgF").value, B = +$("cgB").value, Fk = +$("cgFk").value, Bk = +$("cgBk").value, P = +$("cgP").value || 0;
+  $("cgFv").textContent = F + "°"; $("cgBv").textContent = B + "°";
+  $("cgFkv").textContent = Fk + " kg"; $("cgBkv").textContent = Bk + " kg";
+  let d = null;
+  try { d = await (await fetch(`/twin/cg?front_deg=${F}&back_deg=${B}&front_kg=${Fk}&back_kg=${Bk}&pitch_deg=${P}`)).json(); }
+  catch (e) { return; }
+  if (!d || !d.ok) return;
+  const cv = $("cgcanvas"), ctx = cv.getContext("2d");
+  ctx.fillStyle = "#0a0a0c"; ctx.fillRect(0, 0, cv.width, cv.height);
+  const cx = cv.width / 2, gy = cv.height - 22, S = 180;   // px per meter (side profile)
+  ctx.strokeStyle = "#3a3f4a"; ctx.beginPath(); ctx.moveTo(10, gy); ctx.lineTo(cv.width - 10, gy); ctx.stroke();
+  // wheels at ±wheelbase/2 (0.20 m), body, arms at their angles, drums as filled circles ∝ load
+  const wx = 0.20 * S, wr = 0.18 * S * 0.45;
+  [[-wx], [wx]].forEach(([x]) => { ctx.strokeStyle = "#9ab"; ctx.beginPath();
+    ctx.arc(cx + x, gy - wr, wr, 0, 7); ctx.stroke(); });
+  ctx.fillStyle = "#1a1e26"; ctx.strokeStyle = "#9ab";
+  ctx.fillRect(cx - wx, gy - wr * 2.4, wx * 2, wr * 1.2); ctx.strokeRect(cx - wx, gy - wr * 2.4, wx * 2, wr * 1.2);
+  const ay = gy - wr * 1.8;
+  [[1, F, Fk, "#4f9cff"], [-1, B, Bk, "#e07b39"]].forEach(([sgn, deg, kg, col]) => {
+    const a = deg * Math.PI / 180, L = 0.28 * S;
+    const x0 = cx + sgn * wx, x1 = x0 + sgn * L * Math.cos(a), y1 = ay - L * Math.sin(a);
+    ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(x0, ay); ctx.lineTo(x1, y1); ctx.stroke(); ctx.lineWidth = 1;
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x1, y1, 4 + kg * 0.45, 0, 7); ctx.globalAlpha = .5; ctx.fill();
+    ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(x1, y1, 4 + kg * 0.45, 0, 7); ctx.stroke();
+  });
+  // THE CG marker (red) at (dx, height)
+  const cgx = cx + d.cg_dx_m * S, cgy = gy - d.cg_height_m * S;
+  ctx.strokeStyle = "#e8273f"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cgx, cgy, 6, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cgx - 9, cgy); ctx.lineTo(cgx + 9, cgy); ctx.moveTo(cgx, cgy - 9); ctx.lineTo(cgx, cgy + 9); ctx.stroke();
+  ctx.lineWidth = 1;
+  const riskCol = d.risk === "ok" ? "#3fa34d" : (d.risk === "warn" ? "#e0b300" : "#e8273f");
+  $("cgout").innerHTML = `CG <b>${(d.cg_dx_m * 100).toFixed(1)} cm</b> fwd · height <b>${(d.cg_height_m * 100).toFixed(1)} cm</b> · ` +
+    `tip margin <b style="color:${riskCol}">${d.margin_deg.toFixed(1)}°</b> (${d.binding_axis}) · risk <b style="color:${riskCol}">${d.risk.toUpperCase()}</b>`;
+}
+["cgF", "cgB", "cgFk", "cgBk", "cgP"].forEach((id) => { const el = $(id); if (el) el.addEventListener("input", cgSchedule); });
+setTimeout(cgUpdate, 1500);
+
 async function refreshEvents() {
   try {
     const j = await (await fetch("/events?n=40")).json();

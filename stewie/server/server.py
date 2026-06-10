@@ -432,6 +432,26 @@ def admin_gates(_auth: str = Depends(require_auth)):
             "latest_artifact": dated[-1], "byte_identical_to_frozen": same}
 
 
+@app.get("/twin/cg")
+def twin_cg(front_deg: float = 0.0, back_deg: float = 0.0, front_kg: float = 0.0,
+            back_kg: float = 0.0, pitch_deg: float = 0.0, roll_deg: float = 0.0):
+    """#25: the live center-of-gravity + tip margin -- posture (arm angles) + drum LOADS through
+    ArmState.cg_offset_m (the loads enter AT the drums) and the SSA stability model."""
+    from stewie.physics.rover import WHEEL_BASE_M, WHEEL_GAUGE_M
+    from stewie.physics.stability import stability as STAB
+    from stewie.specs.arm_state import ArmState
+    from stewie.specs.constants import CG_HEIGHT_M
+    arm = ArmState()
+    arm.front_deg = max(-110.0, min(110.0, float(front_deg)))   # instantaneous pose (no rate sim here)
+    arm.back_deg = max(-110.0, min(110.0, float(back_deg)))
+    dx, dz = arm.cg_offset_m(front_drum_kg=max(0.0, front_kg), back_drum_kg=max(0.0, back_kg))
+    st = STAB(float(pitch_deg), float(roll_deg), gauge_m=WHEEL_GAUGE_M,
+              wheelbase_m=WHEEL_BASE_M, cg_height_m=CG_HEIGHT_M + dz)
+    return {"ok": True, "cg_dx_m": round(dx, 4), "cg_dz_m": round(dz, 4),
+            "cg_height_m": round(CG_HEIGHT_M + dz, 4), **{k: (round(v, 3) if isinstance(v, float) else v)
+                                                          for k, v in st.items()}}
+
+
 @app.post("/auth/login")
 def auth_login(body: dict, _auth: str = Depends(require_auth)):
     """#52: email + the API key -> a 12 h identity token. The email MUST be whitelisted."""
