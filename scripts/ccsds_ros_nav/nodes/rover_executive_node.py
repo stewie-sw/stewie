@@ -80,6 +80,13 @@ class RoverExecutive(Node):
         self._time_factor = max(1e-3, float(g("time_factor").value))
 
         self.create_subscription(String, "/cmd/nav_goal", self._on_goal, 10)
+        # B1.6 teleop: standard Twist teleop alongside the goal-level CCSDS path. A twist OVERRIDES
+        # any active goal (operator takes the stick); zero-twist for > teleop_timeout releases it.
+        from geometry_msgs.msg import Twist
+        from stewie.bridge.frames import twist_to_drive as _twist_to_drive
+        self._twist_to_drive = _twist_to_drive
+        self._teleop = None
+        self.create_subscription(Twist, "/cmd_vel", self._on_cmd_vel, 10)
         self.create_subscription(Empty, "/cmd/safe", self._on_safe, 10)
         self.create_subscription(Float64, "/sim/time_factor", self._on_time_factor, 10)
         self._pub_odom = self.create_publisher(Odometry, "/odom", 10)
@@ -111,6 +118,17 @@ class RoverExecutive(Node):
         self.get_logger().info(f"leg {self._leg_id}: GoTo ({self._goal[0]:.1f},{self._goal[1]:.1f}) "
                                f"r={self.radius}")
 
+    def _on_cmd_vel(self, msg) -> None:
+        try:
+            v, om = self._twist_to_drive(linear_x=msg.linear.x, angular_z=msg.angular.z)
+        except ValueError:
+            self.get_logger().warn("non-finite /cmd_vel ignored")
+            return
+        if self._goal is not None:
+            self.get_logger().info("teleop override: active goal suspended")
+            self._goal = None
+        self._teleop = (v, om)
+
     def _on_safe(self, _msg: Empty) -> None:
         if self._goal is not None:
             self._publish_leg(messages.LEG_SAFED)
@@ -118,6 +136,15 @@ class RoverExecutive(Node):
         self.get_logger().warn("SAFE: leg aborted")
 
     def _tick(self) -> None:
+        if self._teleop is not None:                      # B1.6: direct drive through the authority
+            v, om = self._teleop
+            p = self.fm.step_twist(v, om)
+            self._tick_count += 1
+            if self._tick_count % self._decim == 0:
+                self._publish_pose(p)
+            if v == 0.0 and om == 0.0:
+                self._teleop = None                       # released
+            return
         if self._goal is None:
             return
         p, done, status, sc, sa = self.fm.step_toward(self._goal, self.v_max, self.radius,

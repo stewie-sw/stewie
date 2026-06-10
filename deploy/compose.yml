@@ -25,5 +25,17 @@ services:
     depends_on:
       backend: { condition: service_healthy }
     restart: unless-stopped
+  # B1: the ROS2 teleop/nav service (John's CCSDS demo + the B1.6 Twist teleop). Heavy image
+  # (osrf/ros:jazzy-desktop) -> opt-in via the 'ros2' profile: docker compose --profile ros2 up -d
+  ros2:
+    profiles: [ "ros2" ]
+    build: { context: ../scripts/ccsds_ros_nav, dockerfile: Dockerfile, network: host }
+    network_mode: host                     # ROS2 DDS discovery wants host networking for teleop tools
+    volumes: [ "..:/work:ro", "stewie-data:/data" ]
+    environment:
+      MPLBACKEND: Agg
+    command: ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && python3 /work/scripts/ccsds_ros_nav/nodes/rover_executive_node.py"]
+    restart: unless-stopped
+
 volumes:
   stewie-data:

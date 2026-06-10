@@ -123,6 +123,29 @@ class FlightModel:
         ci = min(max(int(round(rc[1])), 0), self.cs.width - 1)
         return float(self.cs.datum[ri, ci] + self.cs.mass_areal[ri, ci] / self.cs.density[ri, ci])
 
+    def step_twist(self, v: float, omega: float) -> "messages.Pose":
+        """One DIRECT-TELEOP tick (beta B1.6): drive the commanded twist through the conserved
+        authority (slip-aware drive_step) with the same energy/odometry bookkeeping as
+        :meth:`step_toward`. leg_id = -1 marks the teleop pseudo-leg in downlinked poses."""
+        h0 = self._height_at(self.rc)
+        new_rc, new_yaw, telem = drive.drive_step(
+            self.cs, self.rc, self.yaw, v, omega, dt=self.dt,
+            params=self._params, payload_kg=self.payload_kg, g=self.g)
+        self.rc, self.yaw = new_rc, new_yaw
+        step_cmd = abs(v) * self.dt
+        de = self._drive_j_per_m * step_cmd
+        dh = self._height_at(self.rc) - h0
+        if dh > 0.0:
+            de += self._mass_kg * self.g * dh
+        self.energy_j += de
+        self.met += self.dt
+        p = messages.Pose(leg_id=-1, row=self.rc[0], col=self.rc[1], yaw_rad=self.yaw,
+                          v_achieved_mps=telem["v_achieved"], slip=telem["slip"],
+                          sinkage_m=telem["sinkage_m"], slope_rad=telem["slope_rad"],
+                          soc=self.soc, entrapped=bool(telem["entrapped"]))
+        self.history.append(p)
+        return p
+
     def step_toward(self, goal: tuple[float, float], v_max: float, radius: float, *, leg_id: int = 0
                     ) -> "tuple[messages.Pose | None, bool, int | None, float, float]":
         """One control tick of pure pursuit toward ``goal`` (row, col).

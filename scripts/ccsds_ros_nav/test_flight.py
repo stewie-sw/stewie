@@ -81,3 +81,18 @@ def test_safe_command_acknowledged():
     ground.send(messages.encode(messages.GoTo(leg_id=0, goal_row=float(start[0]),
                 goal_col=float(start[1]), v_max_mps=0.3, goal_radius_cells=2.0), met=0.0))
     t.join(timeout=5.0)
+
+
+def test_step_twist_drives_through_the_authority():
+    """B1.6: the direct-teleop primitive -- a commanded twist moves the rover via drive_step
+    (slip-aware), returns the same Pose shape the executive publishes, and never teleports."""
+    crop, start, _ = _gentle_crop()
+    fm = FlightModel(crop=crop, start_rc=(float(start[0]), float(start[1])), body="moon", dt=0.2)
+    rc0, yaw0 = fm.rc, fm.yaw
+    p = fm.step_twist(0.25, 0.0)
+    assert p.leg_id == -1                                # teleop pseudo-leg
+    assert (fm.rc != rc0) and abs(fm.yaw - yaw0) < 1e-9  # moved forward, no turn
+    moved_m = ((fm.rc[0]-rc0[0])**2 + (fm.rc[1]-rc0[1])**2) ** 0.5 * fm.crop.cell_m
+    assert 0.0 < moved_m <= 0.25 * fm.dt + 1e-9          # slip can only LOSE distance
+    p2 = fm.step_twist(0.0, 0.5)
+    assert fm.yaw != yaw0                                # turned in place
