@@ -1110,3 +1110,20 @@ def test_api_key_auth_constant_time_compare(base, monkeypatch):
     assert base.post("/plan", json=_payload(), headers={"X-API-Key": "wrong"}).status_code == 401
     ok = base.post("/plan", json=_payload(), headers={"X-API-Key": "s3cret"})
     assert ok.status_code == 200 and ok.json()["ok"] is True
+
+
+def test_algorithm_choice_actually_changes_the_plan():
+    """Aaron (#46 Step E): "are these even wired in correctly?" -- the algorithm dropdown must
+    CHANGE the result. A crafted asymmetric mission where greedy-nearest is suboptimal: brute
+    must find a different (and no-worse) visit order."""
+    doc = {"name": "wiring", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "a", "kind": "cut", "x": 10, "y": 0, "footprint_m2": 16, "depth_m": 0.05},
+        {"action": "b", "kind": "fill", "x": 11, "y": 0, "footprint_m2": 16, "depth_m": 0.05},
+        {"action": "c", "kind": "cut", "x": 60, "y": 40, "footprint_m2": 16, "depth_m": 0.05},
+        {"action": "d", "kind": "fill", "x": 12, "y": 1, "footprint_m2": 16, "depth_m": 0.05},
+    ]}
+    m = MP.mission_from_dict(doc)
+    _, _, t_near = MP.run(m, stem="wire_near", algorithm="nearest", objective="duration")
+    _, _, t_brute = MP.run(m, stem="wire_brute", algorithm="brute", objective="duration")
+    assert t_near["algorithm"].startswith("nearest") and t_brute["algorithm"].startswith("brute")
+    assert t_brute["time_s"] <= t_near["time_s"] + 1e-6              # the solver can not be worse

@@ -86,6 +86,9 @@
   /* the separator lives on the GROUP now (h3-split details), not the section wrapper --
      groups sharing a section had no break between them (Aaron: Contents->Site, Catalog->Telemetry) */
   #panel details { padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .step { font-size: 9px; font-family: "Orbitron", system-ui, sans-serif; letter-spacing: .12em;
+          color: var(--accent); margin: 9px 0 3px; text-transform: uppercase; }
+  .step small { color: var(--dim); letter-spacing: 0; text-transform: none; font-family: system-ui; }
   /* brand typography tier 2: section headers carry the display face (board: Orbitron for
      headers/display, system for body, tabular numerals for telemetry) */
   #panel h3 { margin: 0 0 10px; color: var(--muted); font-size: 10px; font-weight: 600;
@@ -198,7 +201,7 @@
     </section>
 
     <section>
-      <h3>3 · Author — build estimate</h3>
+      <h3>3 · Feasibility — quick estimate <small>(sandbox; per-order totals live in 4·Plan)</small></h3>
       <div class="ctl"><label>pad <input id="padW" type="number" value="20" step="1" />×<input id="padL" type="number" value="20" step="1" /> m</label></div>
       <div class="ctl">
         <label>cut <input id="cut" type="number" value="0.10" step="0.01" /> m</label>
@@ -208,7 +211,10 @@
     </section>
 
     <section>
-      <h3>4 · Plan — queue → report</h3>
+      <h3>4 · Plan — the mission, in order</h3>
+      <div class="step">A · Where are we <small>— site picked in 1·Site; charger + lander at (0,0)</small></div>
+      <div class="step">B · Traverse <small>— draw the path first (waypoints; ✏ below the map)</small></div>
+      <div class="step">C · Work <small>— orders + structures at locations (estimate updates on entry)</small></div>
       <div class="ctl">
         <select id="qkind"><option value="cut">cut</option><option value="fill">fill</option></select>
         <label>x<input id="qx" type="number" value="0" step="1" /></label>
@@ -237,6 +243,15 @@
         <button id="qstruct" class="go">+ Structure @ x,y</button>
       </div>
       <ol id="qlist"></ol>
+      <div class="step">D · Constraints <small>— order-of-work + no-go zones</small></div>
+      <div class="ctl"><input id="qprec" class="lbl" placeholder="precedence (e.g. Grade road &gt; Build berm, ...)" /></div>
+      <div class="ctl" title="discrete obstacles (boulders / no-go zones); hauls route around them">
+        keep-out x<input id="kox" type="number" value="25" step="1" />
+        y<input id="koy" type="number" value="0" step="1" />
+        r<input id="kor" type="number" value="8" step="1" />m
+        <button id="koadd" class="site">+ Obstacle</button></div>
+      <ol id="kolist"></ol>
+      <div class="step">E · Solve <small>— the optimizer (wiring TDD-pinned: brute ≤ nearest)</small></div>
       <div class="ctl">
         <label>algorithm
           <select id="qalgo">
@@ -260,13 +275,7 @@
             <option value="time:0.5,energy:0.5">balanced (time+energy)</option>
           </select></label>
       </div>
-      <div class="ctl"><input id="qprec" class="lbl" placeholder="precedence (e.g. Grade road &gt; Build berm, ...)" /></div>
-      <div class="ctl" title="discrete obstacles (boulders / no-go zones); hauls route around them">
-        keep-out x<input id="kox" type="number" value="25" step="1" />
-        y<input id="koy" type="number" value="0" step="1" />
-        r<input id="kor" type="number" value="8" step="1" />m
-        <button id="koadd" class="site">+ Obstacle</button></div>
-      <ol id="kolist"></ol>
+      <div class="step">F · Review <small>— plan → totals → report → execute</small></div>
       <div class="ctl" title="load a bundled intern tutorial mission into the queue">
         Sample <select id="qsample"><option value="">— tutorial mission —</option></select>
         <button id="qloadsample" class="site">Load</button></div>
