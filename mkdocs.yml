@@ -13,6 +13,7 @@ nav:
   - Home: index.md
   - Platform:
       - World model: world_model.md
+      - Map stack reference: map_reference.md
       - Related work: related_work.md
       - Robotics curriculum diff: robotics_curriculum_diff.md
       - Implementation plan (2026-06-06): implementation_plan_2026-06-06.md
