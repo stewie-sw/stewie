@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import math
 
+import pytest
+
 from stewie.specs import ipex_specs as ix
 
 
@@ -161,3 +163,11 @@ def test_camera_and_lighting_truth_from_trl5():
     assert ix.LED_PER_UNIT == 3
     assert ix.LED_UNITS_TOTAL == 6
     assert ix.LED_UNITS_PER_MONO_CAMERA == 1 and ix.LED_UNITS_STEREO_BANK == 2
+
+
+def test_drum_dimensions_and_cut_rule_from_bds_table1():
+    d = ix.DRUM_DIMENSIONS_M
+    assert d["large"]["diameter"] == 0.4371 and d["large"]["scoop_height"] == 0.0478
+    assert d["small"]["scoop_height"] == 0.0264 and d["medium"]["scoop_width"] == 0.0635
+    assert ix.max_cut_per_pass_m("large") == pytest.approx(0.0239)
+    assert ix.max_cut_per_pass_m("small") == pytest.approx(0.0132)

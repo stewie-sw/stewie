@@ -418,3 +418,18 @@ LED_UNITS_PER_MONO_CAMERA = 1     # "Each monocular camera has a single LED unit
 LED_UNITS_STEREO_BANK = 2         # "the stereo LED unit ... consists of two LED units" (chassis
                                   # OPPOSITE side from the stereo module -- a KNOWN light-camera
                                   # baseline: the active shadow-ranging geometry)
+
+
+# ---- Bucket drum dimensions [BDSCALE Table 1, verbatim 2026-06-10] -------------------------
+# (width, diameter, scoop_width, scoop_height) in metres per drum size class.
+DRUM_DIMENSIONS_M = {
+    "small":  {"width": 0.1989, "diameter": 0.2375, "scoop_width": 0.0516, "scoop_height": 0.0264},
+    "medium": {"width": 0.2461, "diameter": 0.2951, "scoop_width": 0.0635, "scoop_height": 0.0345},
+    "large":  {"width": 0.3526, "diameter": 0.4371, "scoop_width": 0.0904, "scoop_height": 0.0478},
+}
+
+
+def max_cut_per_pass_m(drum: str = "large") -> float:
+    """T2.3 (BDS p.7): cut depth per pass is limited to MAX_CUT_DEPTH_FRAC (50%) of the scoop
+    opening height -- anti-bridging. Large drum: 0.5 * 47.8 mm = 23.9 mm/pass."""
+    return MAX_CUT_DEPTH_FRAC * DRUM_DIMENSIONS_M[drum]["scoop_height"]

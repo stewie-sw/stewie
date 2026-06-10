@@ -707,6 +707,11 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
         surplus_kg=surplus_kg,
         deficit_kg=sum(m for c, f, m, d in flows if c is None),
         drum_cycles=sum(max(1, math.ceil(tr["mass"] / _drum_kg(mission))) for tr in trips if tr["kind"] == "cutfill"),
+        # T2.3 (BDS p.7): cut depth per pass <= 50% of the scoop opening -- a deep cut is MULTIPLE
+        # passes over the footprint; report the binding pass count (the 42 kg/hr demo dig rate is a
+        # steady-state figure that already embodies multi-pass operation, so duration stays rate-based).
+        cut_passes=max([1] + [math.ceil(float(o.depth_m) / S.max_cut_per_pass_m())
+                              for o in mission.orders if getattr(o, "kind", "") == "cut"]),
         lift_energy_J=float(sum(tr.get("lift_e", 0.0) for tr in trips)),
         routed_haul=meta["routed"], blocked_legs=meta["blocked_legs"], traverse_cap_deg=meta["traverse_cap_deg"],
         routes=meta.get("routes", []), feasible=meta.get("feasible", True),   # item 1 geometry + item 2 feasibility

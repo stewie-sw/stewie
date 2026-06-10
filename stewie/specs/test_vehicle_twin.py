@@ -73,3 +73,21 @@ def test_second_vehicle_plans_with_its_own_numbers():
     # and the twin record carries exactly the registry numbers the planner used
     tw = vtw.VehicleTwin.assemble("r2", vehicle="rassor2", body="moon")
     assert tw.energy["drum_capacity_kg"] == pytest.approx(80.0)   # R2D p.7 design hold
+
+
+def test_cut_depth_rule_flows_into_planning():
+    """T2.3: a cut DEEPER than 50% of the scoop opening needs multiple passes -- the plan's dig
+    duration must scale with the documented per-pass limit (BDS p.7), not assume one pass."""
+    from lode import mission_planner as MP
+    from stewie.specs import ipex_specs as ix
+    base = {"name": "cut", "body": "moon", "charger": [0, 0],
+            "orders": [{"action": "cut", "kind": "cut", "x": 8, "y": 6, "footprint_m2": 16,
+                        "depth_m": 0.02},
+                       {"action": "fill", "kind": "fill", "x": 24, "y": 12, "footprint_m2": 16,
+                        "depth_m": 0.02}]}
+    deep = {**base, "orders": [dict(base["orders"][0], depth_m=0.10),
+                               dict(base["orders"][1], depth_m=0.10)]}
+    _, _, t_shallow = MP.run(MP.mission_from_dict(base), stem="cut_shallow")
+    _, _, t_deep = MP.run(MP.mission_from_dict(deep), stem="cut_deep")
+    assert t_shallow.get("cut_passes", 1) == 1            # 0.02 m <= 0.0239 m/pass
+    assert t_deep["cut_passes"] >= 5                      # 0.10 / 0.0239 -> 5 passes
