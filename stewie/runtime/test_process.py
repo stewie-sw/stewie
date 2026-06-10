@@ -117,3 +117,29 @@ def test_packet_carries_real_imu_wheel_channels_after_motion(runtime):
     # a second packet drains the buffer: no double-reporting of the same samples
     r2 = _rpc(sock, {"role": "produce", "cmd": "packet"})
     assert r2["packet"]["channels"]["imu"]["status"] == "UNAVAILABLE"
+
+
+def test_packet_power_channel_is_real_accounting(runtime):
+    """Slice 3 / G1 #3: the power channel reports the twin's REAL energy accounting -- SoC falls
+    monotonically with commanded work, draw equals the twin's drive power, nothing fabricated."""
+    sock, srv = runtime
+    r0 = _rpc(sock, {"role": "produce", "cmd": "packet"})
+    _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.25, "omega": 0.0, "steps": 50})
+    r1 = _rpc(sock, {"role": "produce", "cmd": "packet"})
+    p1 = r1["packet"]["channels"]["power"]
+    assert p1["status"] == "OK"
+    s1 = p1["samples"][-1]
+    assert 0.0 < s1["soc_frac"] < 1.0
+    assert s1["power_w"] == pytest.approx(srv.twin.energy["drive_power_w"], rel=0.01)
+    _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.25, "omega": 0.0, "steps": 50})
+    r2 = _rpc(sock, {"role": "produce", "cmd": "packet"})
+    s2 = r2["packet"]["channels"]["power"]["samples"][-1]
+    assert s2["soc_frac"] < s1["soc_frac"]               # work drains the pack
+    # the strict parser accepts the full packet with the power channel OK
+    from stewie.bridge.runtime_io import parse_canonical
+    parse_canonical(r2["packet"])
+    # idle packet: power still reports (the BMS always answers), draw 0
+    r3 = _rpc(sock, {"role": "produce", "cmd": "packet"})
+    s3 = r3["packet"]["channels"]["power"]["samples"][-1]
+    assert s3["power_w"] == 0.0 and s3["soc_frac"] == pytest.approx(s2["soc_frac"])
+    assert r0["ok"]

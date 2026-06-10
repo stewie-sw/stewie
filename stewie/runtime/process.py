@@ -49,6 +49,12 @@ class RuntimeProcess:
         self._imu_model = pp.ImuWheelModel(seed=seed + 1)
         self._imu_buf: list = []
         self._wheel_buf: list = []
+        # slice 3 (G1 #3): REAL pack accounting -- drive power from the twin's grounded energy
+        # model integrates over commanded motion; the BMS channel reports SoC + instantaneous draw.
+        from stewie.specs import ipex_specs as _S
+        self.battery_capacity_j: float = float(_S.battery_energy_j())
+        self.energy_used_j: float = 0.0
+        self._draw_w: float = 0.0
 
     # ---- world operations (the seam's verbs) ---------------------------------------------
     def _pose(self) -> dict:
@@ -72,6 +78,9 @@ class RuntimeProcess:
             self._wheel_buf.append(self._imu_model.step_wheel_encoders(
                 self.t_sim, float(telem.get("v_achieved", v)), float(omega),
                 slip4=(slip, slip, slip, slip), dt=self.dt))
+            # pack accounting: the twin's grounded drive power while commanding motion
+            self._draw_w = float(self.twin.energy["drive_power_w"]) if (v or omega) else 0.0
+            self.energy_used_j += self._draw_w * self.dt
         out = self._pose()
         out["slip"] = float(telem.get("slip", 0.0))
         return out
@@ -89,7 +98,15 @@ class RuntimeProcess:
             channels = {"imu": {"status": "UNAVAILABLE"}, "wheel": {"status": "UNAVAILABLE"},
                         "joints": {"status": "UNAVAILABLE"}, "power": {"status": "UNAVAILABLE"}}
         channels.setdefault("joints", {"status": "UNAVAILABLE"})
-        channels.setdefault("power", {"status": "UNAVAILABLE"})
+        # the BMS always answers (real pack model; ipex 12S/30Ah): SoC from integrated draw,
+        # instantaneous power_w = the current draw (0 when idle). Nothing fabricated -- both
+        # values come from the twin's grounded energy model and the runtime's own accounting.
+        from stewie.twin.runtime_packet import power_channel
+        soc = max(0.0, 1.0 - self.energy_used_j / self.battery_capacity_j)
+        idle_draw = 0.0 if not (self._imu_buf or self._wheel_buf) and self._draw_w == 0.0 \
+            else self._draw_w
+        channels["power"] = power_channel(idle_draw, soc, t=self.t_sim)
+        self._draw_w = 0.0                                   # draw is per-emission instantaneous
         channels["camera"] = {"status": "UNAVAILABLE"}       # render attach is a later slice
         pkt = {"schema_version": "dustgym_runtime/1.0",
                "clock": "sim_monotonic",
