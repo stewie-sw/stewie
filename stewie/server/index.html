@@ -359,10 +359,7 @@
       <button class="vtab" data-view="metrics">Metrics <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
       <span class="vtsep" title="engineer / developer / intern views">·</span>
-      <button class="vtab" data-view="validation">Validation</button>
-      <button class="vtab" data-view="api">API</button>
-      <button class="vtab" data-view="server">Server</button>
-      <button class="vtab" data-view="config">Config</button>
+      <button class="vtab" data-view="system" title="#55: validation, API docs, server ops, config — the operate-the-software cluster">System</button>
       <button class="vtab" data-view="settings" title="operator display settings (Carstens & Schuler 2025: font size + lighting)">⚙ Settings</button>
     </nav>
     <div id="viewarea">
@@ -879,9 +876,33 @@ const VIEW_PANE = { perception: "renderpanel", metrics: "execview", report: "pan
                     validation: "pane-validation", api: "pane-api", server: "pane-server", config: "pane-config",
                     settings: "pane-settings" };
 const _PANE_LOADED = {};
+const SYSTEM_VIEWS = ["validation", "api", "server", "config"];
+let LAST_SYSTEM_VIEW = "server";
 function setView(name) {
+  if (name === "system") name = LAST_SYSTEM_VIEW;          // #55: the cluster remembers its sub-tab
+  if (SYSTEM_VIEWS.includes(name)) LAST_SYSTEM_VIEW = name;
   VIEW = name;
-  document.querySelectorAll(".vtab").forEach((b) => b.classList.toggle("active", b.dataset.view === name));
+  document.querySelectorAll(".vtab").forEach((b) => b.classList.toggle("active",
+    b.dataset.view === name || (b.dataset.view === "system" && SYSTEM_VIEWS.includes(name))));
+  let sysbar = document.getElementById("sysbar");
+  if (SYSTEM_VIEWS.includes(name)) {
+    if (!sysbar) {
+      sysbar = document.createElement("div");
+      sysbar.id = "sysbar";
+      sysbar.style.cssText = "position:absolute;top:6px;right:12px;z-index:40;display:flex;gap:4px";
+      SYSTEM_VIEWS.forEach((v) => {
+        const b = document.createElement("button");
+        b.className = "site"; b.style.fontSize = "10px";
+        b.textContent = v.toUpperCase(); b.dataset.sys = v;
+        b.onclick = () => setView(v);
+        sysbar.appendChild(b);
+      });
+      document.getElementById("viewarea").appendChild(sysbar);
+    }
+    sysbar.style.display = "flex";
+    sysbar.querySelectorAll("button").forEach((b) =>
+      b.style.borderColor = b.dataset.sys === name ? "var(--accent)" : "var(--line)");
+  } else if (sysbar) { sysbar.style.display = "none"; }
   for (const [v, id] of Object.entries(VIEW_PANE)) $(id).classList.toggle("active", v === name);
   if (name === "plan") { showSiteDem(); if (viewer) viewer.resize(); }   // restore the Plan inset + keep globe crisp
   else $("workarea").classList.remove("show");                            // the inset belongs to the Plan tab
