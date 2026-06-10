@@ -299,6 +299,7 @@
       <button id="qplan" class="plan">Plan mission → open report</button><!-- B0.4: busy state set in JS -->
       <div class="ctl" style="margin-top:6px">
         <button id="qexec" class="site" disabled>▶ Execute + watch</button>
+        <button id="qreset" class="site" title="clear the queue, keep-outs, path, and annotations">↺ Reset</button>
         <button id="qcompare" class="site">⇅ Compare algorithms</button>
       </div>
       <details class="substep" style="margin-top:6px"><summary><span class="step" style="display:inline">Plan files <small>— export / import / IR</small></span></summary><div>
@@ -478,7 +479,7 @@
           <label style="display:flex; align-items:center; gap:10px">
             <b>Theme</b>
             <select id="set-theme">
-              <option value="dark">Dark (ops default — "dark room kept people calm")</option>
+              <option value="dark">Dark (ops default)</option>
               <option value="light">Light</option>
             </select>
           </label>
@@ -762,6 +763,7 @@ function loadBody(key) {
 // #40/#41: the QGIS edit session -- camera frozen, clicks draw, explicit done restores.
 let EDIT = { on: false, tool: null };
 const ANNOTATIONS = [];                                    // note pins {x, y, text} (site frame)
+const EDIT_PINS = [];                                      // #61: VISIBLE markers for edit placements
 function setEdit(on) {
   EDIT.on = on; EDIT.tool = null;
   const c = viewer && viewer.scene.screenSpaceCameraController;
@@ -769,6 +771,17 @@ function setEdit(on) {
   $("edittools").style.display = on ? "" : "none";
   $("editmode").style.display = on ? "none" : "";
   if ($("editstate")) $("editstate").textContent = on ? "LOCKED · pick a tool" : "";
+}
+function dropPin(lat, lon, text, color) {                  // #61: the placement is VISIBLE on the map
+  EDIT_PINS.push(viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(lon, lat, 0, ellipsoid),
+    point: { pixelSize: 8, color: Cesium.Color.fromCssColorString(color),
+             outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+    label: { text, font: "10px Orbitron, sans-serif",
+             fillColor: Cesium.Color.fromCssColorString("#c7d2e3"),
+             pixelOffset: new Cesium.Cartesian2(0, -14), showBackground: true,
+             backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
+  }));
 }
 async function editPlace(lat, lon) {
   if (!EDIT.tool) { $("editstate").textContent = "LOCKED · pick a tool first"; return; }
@@ -778,14 +791,17 @@ async function editPlace(lat, lon) {
   if (EDIT.tool === "goto") {
     const n = ORDERS.filter((o) => o.kind === "goto").length + 1;
     ORDERS.push({ action: `wp${n}`, kind: "goto", x: d.x_m, y: d.y_m });
+    dropPin(lat, lon, `wp${n} (${d.x_m}, ${d.y_m})`, "#e8273f");
     renderQueue(); $("editstate").textContent = `wp${n} @ site ${d.x_m}, ${d.y_m} m`;
   } else if (EDIT.tool === "keepout") {
     KEEPOUTS.push({ x: d.x_m, y: d.y_m, r: 8 });
+    dropPin(lat, lon, `keep-out r8 (${d.x_m}, ${d.y_m})`, "#e0564b");
     if (typeof renderKeepouts === "function") renderKeepouts();
     drawPlan(); $("editstate").textContent = `keep-out @ ${d.x_m}, ${d.y_m} m (r 8)`;
   } else if (EDIT.tool === "note") {
     const text = prompt("note text:") || "";
     if (text) { ANNOTATIONS.push({ x: d.x_m, y: d.y_m, text });
+      dropPin(lat, lon, `📝 ${text.slice(0, 24)}`, "#e0b300");
       $("editstate").textContent = `note @ ${d.x_m}, ${d.y_m} m`; drawPlan(); }
   }
 }
@@ -907,6 +923,10 @@ function setView(name) {
   for (const [v, id] of Object.entries(VIEW_PANE)) $(id).classList.toggle("active", v === name);
   if (name === "plan") { showSiteDem(); if (viewer) viewer.resize(); }   // restore the Plan inset + keep globe crisp
   else $("workarea").classList.remove("show");                            // the inset belongs to the Plan tab
+  // the EDIT toolbar is a PLAN tool (Aaron's System screenshot: it stacked on the sub-bar)
+  const et = document.getElementById("edittoolbar");
+  if (et) et.style.display = (name === "plan") ? "flex" : "none";
+  if (name !== "plan" && EDIT.on) setEdit(false);          // leaving Plan ends the edit session
   loadPane(name);
 }
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
@@ -1340,6 +1360,13 @@ refreshEvents();
     };
   } catch (e) { /* offline */ }
 })();
+$("qreset").onclick = () => {
+  if (!confirm("Clear the queue, keep-outs, path, and annotations?")) return;
+  ORDERS.length = 0; KEEPOUTS.length = 0; ANNOTATIONS.length = 0;
+  SELECTED_ORDER = -1; LAST_ROUTES.length = 0;
+  EDIT_PINS.forEach((e) => viewer && viewer.entities.remove(e)); EDIT_PINS.length = 0;
+  renderQueue(); setQ("plan reset");
+};
 $("editmode").onclick = () => setEdit(true);
 $("editdone").onclick = () => setEdit(false);
 document.querySelectorAll(".etool").forEach((b) => {

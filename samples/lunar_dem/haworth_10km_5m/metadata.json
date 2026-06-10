@@ -9,10 +9,10 @@
     "order": "row-major-C"
   },
   "world_bounds_m": {
-    "x0": -52902.5,
-    "y0": 95402.5,
-    "x1": -42902.5,
-    "y1": 105402.5
+    "x0": -52900.0,
+    "y0": 95400.0,
+    "x1": -42900.0,
+    "y1": 105400.0
   },
   "gravity_m_s2": 1.62,
   "fields": {
@@ -44,7 +44,8 @@
         "TREAD",
         "EXCAVATED",
         "SPOIL",
-        "COMPACTED_BERM"
+        "COMPACTED_BERM",
+        "SINTERED"
       ]
     }
   },
@@ -80,9 +81,10 @@
   "regolith_model": {
     "uniform_mantle": true,
     "mantle_thickness_m": 0.12,
-    "surface_density": 1300.0,
-    "mantle_areal_kg_m2": 156.0,
-    "note": "DEM surface injected via the datum path: datum=Z-Z_T, mass_areal=Z_T*RHO_SURFACE, derive_height()==Z. Z_T is the cm-scale loose layer; the datum carries everything below it (eval \u00a75 step 1). UNIFORM density (Lane B's polar profile is wired in Wave-2)."
+    "mantle_density_kg_m3": 1455.8333,
+    "mantle_density_source": "ChaSTE depth-integrated (mass-weighted-mean) bulk density over [0, Z_T]; constant broadcast, NOT a spatial field [CALIB]",
+    "mantle_areal_kg_m2": 174.7,
+    "note": "DEM surface injected via the datum path: datum=Z-Z_T, mass_areal=Z_T*rho_bar, derive_height()==Z. Z_T is the cm-scale loose layer; the datum carries everything below it (eval \u00a75 step 1). rho_bar is the mass-weighted mean of the ChaSTE polar profile (constants.polar_density_profile: 750/1300/1940 over 0-3/3-6.5/>6.5 cm) integrated over [0, Z_T] via dem_import.polar_mantle_density_fn (Wave-2 W2-DENSITY) \u2014 REPLACES the prior equatorial-Apollo RHO_SURFACE stand-in. Density CANCELS in derive_height, so only the loose mantle's areal mass changes."
   },
   "dem_provenance": {
     "source": "PGDA LOLA_5mpp Haworth_final_adj_5mpp_surf.tif (Product 78)",

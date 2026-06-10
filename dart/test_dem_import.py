@@ -342,3 +342,19 @@ def test_geotiff_rational_tag_parses(tmp_path):
     tifffile.imwrite(p, Z, resolution=(200.0, 200.0))      # -> 282/283 XResolution/YResolution RATIONAL (type 5)
     tags, _bo = _read_tiff_ifd0(p)                          # must NOT raise (was struct.error on type-5)
     assert 282 in tags and tags[282][0] == pytest.approx(200.0)   # RATIONAL decoded num/den, not crashed
+
+
+_SITE04 = "/mnt/projects/datasets/lola_5mpp/Site04_final_adj_5mpp_surf.tif"
+
+
+@pytest.mark.skipif(not os.path.exists(_SITE04), reason="PGDA Site04 not fetched")
+def test_pixel_is_area_tiepoint_shifts_to_the_pixel_center():
+    """The 2.5 m placement bias (papers cross-ref 2026-06-11): PGDA GeoTIFFs declare
+    GTRasterType=1 (PixelIsArea -- the ModelTiepoint is the NW pixel CORNER), but the Affine
+    contract is FIRST-PIXEL CENTER. Site04's tiepoint is (-9000, 1000) at 5 m: the affine origin
+    must be (-8997.5, 997.5) -- corner + half a pixel inward."""
+    from dart import dem_import as di
+    _, affine, meta = di.load_lola_geotiff(_SITE04)
+    assert meta["raster_type"] == "PixelIsArea"
+    assert affine.x0 == pytest.approx(-9000.0 + 2.5)
+    assert affine.y0 == pytest.approx(1000.0 - 2.5)

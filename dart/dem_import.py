@@ -107,6 +107,7 @@ _GK_PROJ_STRAIGHT_VERT_LON = 3088
 _GK_PROJ_NAT_ORIGIN_LAT = 3081
 _GK_PROJ_SCALE_AT_NAT_ORIGIN = 3092
 _GK_GEOG_SEMI_MAJOR_AXIS = 2057
+_GK_RASTER_TYPE = 1025             # 1 = PixelIsArea (tiepoint = NW CORNER), 2 = PixelIsPoint
 
 
 def _read_tiff_ifd0(path) -> tuple[dict, str]:
@@ -226,9 +227,18 @@ def load_lola_geotiff(path) -> tuple[np.ndarray, Affine, dict]:
     # If the tiepoint references a non-(0,0) pixel, back it out to the (0,0) origin.
     x0 = tie_x - raster_j * px
     y0 = tie_y + raster_i * px  # Y decreases with row, so origin Y is tie_y + i*px
-    affine = Affine(x0=float(x0), y0=float(y0), px=px)
 
     geokeys = _parse_geokeys(tags.get(_TAG_GEO_KEY_DIRECTORY), tags.get(_TAG_GEO_DOUBLE_PARAMS))
+    # THE HALF-PIXEL FIX (papers cross-ref 2026-06-11): the PGDA products declare
+    # GTRasterType=1 (PixelIsArea) -- the ModelTiepoint is the NW pixel CORNER, while this
+    # Affine's contract is FIRST-PIXEL CENTER. Shift half a pixel inward; PixelIsPoint (2)
+    # products already reference the center. Every bundle built before this fix sat 2.5 m
+    # west + 2.5 m north of truth ("positioning is the hard truth").
+    raster_type = int(geokeys.get(_GK_RASTER_TYPE, 2) or 2)
+    if raster_type == 1:
+        x0 += px / 2.0
+        y0 -= px / 2.0
+    affine = Affine(x0=float(x0), y0=float(y0), px=px)
     R = geokeys.get(_GK_GEOG_SEMI_MAJOR_AXIS)
 
     nodata = None
@@ -253,6 +263,7 @@ def load_lola_geotiff(path) -> tuple[np.ndarray, Affine, dict]:
     meta = {
         "px": px,
         "tiepoint": [float(x0), float(y0)],
+        "raster_type": "PixelIsArea" if raster_type == 1 else "PixelIsPoint",
         "R": float(R) if R is not None else None,
         "nodata": nodata,
         "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
