@@ -289,27 +289,33 @@
       <div class="ctl" title="load a bundled intern tutorial mission into the queue">
         Sample <select id="qsample"><option value="">— tutorial mission —</option></select>
         <button id="qloadsample" class="site">Load</button></div>
+      <!-- #53 declutter: ONE primary, one secondary, everything else in tiers/disclosures -->
       <button id="qplan" class="plan">Plan mission → open report</button><!-- B0.4: busy state set in JS -->
-      <button id="qexec" class="go" disabled>▶ Execute + watch</button>
-      <div class="ctl" style="margin-top:7px">
-        <button id="qexport" class="go">⤓ Export plan</button>
-        <button id="qplanir" class="go" title="download the machine-executable plan IR (typed actions + DAG)">⤓ Plan IR</button>
-        <button id="qimport" class="go">⤒ Import plan</button>
-        <input id="qfile" type="file" accept=".json,application/json" style="display:none" />
+      <div class="ctl" style="margin-top:6px">
+        <button id="qexec" class="site" disabled>▶ Execute + watch</button>
+        <button id="qcompare" class="site">⇅ Compare algorithms</button>
       </div>
-      <div class="ctl" style="margin-top:7px" title="run the queue as an operator-training session (B3): the closed loop executes server-side; the operator link shows only telemetry-delivered legs">
+      <details class="substep" style="margin-top:6px"><summary><span class="step" style="display:inline">Plan files <small>— export / import / IR</small></span></summary><div>
+      <div class="ctl" style="margin-top:5px">
+        <button id="qexport" class="site">⤓ Export plan</button>
+        <button id="qplanir" class="site" title="download the machine-executable plan IR (typed actions + DAG)">⤓ Plan IR</button>
+        <button id="qimport" class="site">⤒ Import plan</button>
+        <input id="qfile" type="file" accept=".json,application/json" style="display:none" />
+      </div></div></details>
+      <details class="substep"><summary><span class="step" style="display:inline">Training session <small>— operator link</small></span></summary><div>
+      <div class="ctl" style="margin-top:5px" title="run the queue as an operator-training session (B3): the closed loop executes server-side; the operator link shows only telemetry-delivered legs">
         Session <select id="seslink"><option value="ideal">ideal link</option>
           <option value="mission_default">mission link</option>
           <option value="comm_dropout">comm dropout</option></select>
-        <button id="sesstart" class="go">🎓 Start session</button></div>
-      <div id="sesout" class="ctl" style="display:none; font-size:0.85em"></div>
+        <button id="sesstart" class="site">🎓 Start session</button></div>
+      <div id="sesout" class="ctl" style="display:none; font-size:0.85em"></div></div></details>
+      <details class="substep"><summary><span class="step" style="display:inline">Solver profiles <small>— save / load configs</small></span></summary><div>
       <div class="ctl" style="margin-top:5px">
         <input id="profname" class="lbl" placeholder="profile name" style="max-width:11em" />
-        <button id="profsave" class="go">💾 Save</button>
+        <button id="profsave" class="site">💾 Save</button>
         <select id="profload"></select>
-        <button id="profloadbtn" class="go">↻ Load</button>
-      </div>
-      <button id="qcompare" class="go">Compare algorithms ⇅</button>
+        <button id="profloadbtn" class="site">↻ Load</button>
+      </div></div></details>
       <div class="cap" style="margin-top:8px">PLAN VIEW <small>(local site frame, top-down) · click to set x,y</small></div>
       <div id="layerpanel" class="cap" style="margin:4px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center">LAYERS</div>
       <div class="ctl" style="margin:2px 0">
