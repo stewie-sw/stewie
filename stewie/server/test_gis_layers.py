@@ -8,7 +8,6 @@ a query parameter -- shadows are the navigation signal here, not decoration.
 import importlib
 import io
 
-import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
