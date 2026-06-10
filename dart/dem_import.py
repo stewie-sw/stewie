@@ -606,6 +606,9 @@ def reproject_cylindrical(heights_m, *, lat_top, lat_bottom, lon_left, lon_right
     H, W = heights_m.shape
     lat0 = 0.5 * (lat_top + lat_bottom)
     lon0 = 0.5 * (lon_left + lon_right)
+    if lat_top <= lat_bottom or lon_right == lon_left:
+        raise ValueError(f"degenerate lat/lon patch (lat {lat_top}..{lat_bottom}, lon {lon_left}.."
+                         f"{lon_right}): zero extent divided to NaN indices (audit L06/L52)")
     fwd = Transformer.from_crs(_geographic_crs(radius_m), _local_aeqd_crs(lat0, lon0, radius_m), always_xy=True)
     inv = Transformer.from_crs(_local_aeqd_crs(lat0, lon0, radius_m), _geographic_crs(radius_m), always_xy=True)
     # local metric extent = the projected patch corners
@@ -617,9 +620,14 @@ def reproject_cylindrical(heights_m, *, lat_top, lat_bottom, lon_left, lon_right
     nx = max(2, int(round((x1 - x0) / target_cell_m)) + 1)
     ny = max(2, int(round((y1 - y0) / target_cell_m)) + 1)
     gx = x0 + np.arange(nx) * target_cell_m
-    gy = y0 + np.arange(ny) * target_cell_m
+    # row 0 = NORTH (bundle convention): AEQD y grows northward, so descend from y1 -- ascending from
+    # y0 emitted a north/south-FLIPPED raster (audit 2026-06-09)
+    gy = y1 - np.arange(ny) * target_cell_m
     GX, GY = np.meshgrid(gx, gy)
     LON, LAT = inv.transform(GX, GY)                       # each local cell -> source lon/lat
+    # wrap each longitude into the source window's branch (PDS 0-360 E sources / windows straddling
+    # +/-180 produced garbage columns; audit 2026-06-09)
+    LON = lon_left + np.mod(LON - lon_left, 360.0)
     fcol = (LON - lon_left) / (lon_right - lon_left) * (W - 1)
     frow = (lat_top - LAT) / (lat_top - lat_bottom) * (H - 1)
     return _bilinear(heights_m, frow, fcol), float(target_cell_m)
@@ -632,7 +640,7 @@ def load_cylindrical_fixture(npy_path, json_path):
     return dn * float(geom["scaling_m_per_dn"]), geom
 
 
-def ingest_to_bundle(heights_m, cell_m, out_dir, *, body="moon", source=""):
+def ingest_to_bundle(heights_m, cell_m, out_dir, *, body="moon", source="", georeference=None):
     """Write a sim bundle (metadata.json + heightmap.rf32) in the same format as the Haworth bundle, so
     `mission_planner.load_haworth_dem`-style readers / `read_dem_window` can consume the ingested map."""
     heights_m = np.asarray(heights_m, dtype=np.float64)
@@ -641,6 +649,9 @@ def ingest_to_bundle(heights_m, cell_m, out_dir, *, body="moon", source=""):
     heights_m.astype("<f4").tofile(os.path.join(out_dir, "heightmap.rf32"))
     meta = {"grid": {"width": int(W), "height": int(H), "cell_m": float(cell_m), "order": "row-major-C"},
             "source": source, "body": body}
+    if georeference:
+        meta["georeference"] = dict(georeference)   # audit L53: the Haworth-format claim lacked the
+        # geo block; callers with lat/lon provenance can now carry it
     with open(os.path.join(out_dir, "metadata.json"), "w") as f:
         json.dump(meta, f, indent=1)
     return out_dir

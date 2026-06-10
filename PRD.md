@@ -656,7 +656,31 @@ is unchanged — the container maps the port.
 - **Year 2** = mission assistant (suggestion queue), multi-sol planning, DART live feedback loop —
   the operator approves; they no longer initiate.
 
-### 16.4 Boundary note
+### 16.4 World-model strategy vs reconstruction-based world models (added 2026-06-10)
+Assessment of the Martian World Model line of work (M3arsSynth + MarsGen, arXiv:2507.07978):
+**we already own their OUTPUT side, with something stronger underneath.** Their world model is
+reconstructed APPEARANCE (3DGS scenes, static); ours is a conserved PHYSICAL STATE -- terrain that
+actually changes under excavation, with producer-exact poses and per-pixel geometric depth truth
+(stewie/eval/depth_truth). What we lack is their INPUT side: real-mission stereo -> metric 3D
+scenes. Their recipe for that is genuinely good (VGGT intrinsics + Metric3D depth + PnP; COLMAP
+fails ~30% on planetary stereo, theirs hits 100% at 0.77 px reprojection).
+
+Adoption, three phases in value order:
+1. **LunarSynth data engine (first; modest cost):** curate real lunar stereo -- CE-3/CE-4 PCAM
+   (CE-3 already in our detector training), Apollo surface pairs, LRO NAC -- through metric-aware
+   reconstruction into REAL-imagery scenes imported via the existing dem_import path. Yields
+   real-lunar DART evaluation scenes + planner demos on real terrain + a dataset paper. All real
+   data.
+2. **3DGS NVS layer** for the training sim (photoreal operator views) -- rides Year-1 Ph.2.
+3. **Generative video ("MoonGen") -- DEFERRED** until 1-2 prove out + GPU access (their fine-tune
+   used 8xA100).
+
+**Non-negotiable rail: diffusion-generated frames are NEVER evidence.** Rehearsal, visualization,
+and detector-training augmentation only -- the same fencing as the perception research track.
+Their 2D-warp-error consistency metric is adopted for render/NVS QA regardless. Full note:
+`design/LUNAR_WORLD_MODEL_NOTE_2026-06-10.md` (private workspace).
+
+### 16.5 Boundary note
 The SolNav dissertation planning set (G1–G9 gates, separate honesty firewall) is NOT renamed or
 re-scoped by STEWIE. Convergence: STEWIE P20 (ROS2 bridge + live drive loop) is the same engineering
 object as the dissertation's persistent-runtime gap (G1.A4/A6) — one build advances both tracks;

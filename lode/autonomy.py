@@ -123,12 +123,18 @@ def execute_leg(belief, leg, *, dem=None, dem_origin=(0.0, 0.0), g=None, body="m
     g = MP.body_gravity(body) if g is None else g
     pose = (belief.x, belief.y)
     site = leg["site"]
+    # NOTE (audit L58): leg distances/slopes derive from the BELIEVED pose (the executive plans on its
+    # estimate); the "true" energy is true w.r.t. the slip/grade PHYSICS of that leg, not a
+    # truth-pose-referenced quantity. Pose-truth referencing lives in the eval channel only (I3).
     drive_m = MP._d(pose, site)
     dh = MP.haul_elevation_gain_m(dem, dem_origin, pose, site) if dem is not None else 0.0
     slope_deg = math.degrees(math.atan2(abs(dh), drive_m)) if drive_m > 1e-9 else 0.0
-    # the regolith in the drum on this leg drives BOTH the slip (heavier -> more slip) and the gravity
-    # climb (the load's m*g*h): hauling a full drum up a grade costs more than the dry rover (weight-coupled).
-    haul_mass_kg = max(0.0, float(leg.get("mass", 0.0)))
+    # weight coupling (K10) at DRUM scale: the regolith carried on this drive drives both the slip and
+    # the gravity climb -- but the rover can physically carry at most one drum (~MP.DRUM_KG). The
+    # uncapped leg mass (a whole job, potentially tonnes) saturated slip and charged a phantom m*g*h
+    # for mass never on the wheels in a single drive (audit 2026-06-09); the extra shuttles' costs are
+    # priced in the leg's slip-aware haul_e.
+    haul_mass_kg = min(max(0.0, float(leg.get("mass", 0.0))), float(MP.DRUM_KG))
     slip = MP.slip_alpha_to_slip(slope_deg, payload_kg=haul_mass_kg, g=g, params=params)
     true_drive_J = (drive_m * MP.DRIVE_J_PER_M / (1.0 - slip)
                     + (MP.ROVER_MASS_KG + haul_mass_kg) * g * max(0.0, dh))
@@ -178,6 +184,11 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
         # pose estimate is too uncertain, dwell and take more observations until it is confident enough.
         if perception_sigma_m is not None and leg.get("dig_e", 0.0) > 0.0:
             while belief.pos_sigma_m > dig_sigma_gate_m:
+                # ABSTRACTION (audit M44, documented): each dwell models acquiring an INDEPENDENT
+                # map-relative fix of sigma=perception_sigma_m (localization.register_to_dem tier).
+                # The mean is deliberately unchanged (no better estimate exists in this tier; no truth
+                # may be used, I3); only the variance follows the KF fusion rate. It is a mission-time/
+                # uncertainty model, not a real measurement.
                 belief = update_pose(belief, (belief.x, belief.y), perception_sigma_m)
                 observe_more += 1
         # MAP-CHANNEL-IN-THE-LOOP gate (P6 / LAC section 10): a dig commits only on terrain the route has
@@ -216,7 +227,13 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
                 belief = _recharge(belief); recharges += 1
                 if remaining:                                  # REPLAN remaining order from the charger
                     sub = [trips[k] for k in remaining]
-                    so = MP.optimize_sequence(sub, mission, algorithm="nearest", objective=objective)
+                    # remap the mission precedence onto the remaining trips: the replan silently
+                    # dropped it, re-ordering legs the plan path had refused to (audit 2026-06-09)
+                    full_prec = MP.trip_precedence(trips, mission)
+                    sub_prec = [(remaining.index(i), remaining.index(j)) for i, j in full_prec
+                                if i in remaining and j in remaining]
+                    so = MP.optimize_sequence(sub, mission, algorithm="nearest", objective=objective,
+                                              precedence=sub_prec or None)
                     remaining = [remaining[k] for k in so]
                     replans += 1
                 usable = belief.energy_J - reserve

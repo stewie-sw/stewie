@@ -321,7 +321,7 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
             "(drum excavator, no sinter tool; sinter energy ~14-20x the pack per kg). Enable a "
             "sinter-equipped variant via terrain_authority.constants.SINTER_ENABLED.")
     trips = []
-    straight_haul_m = 0.0; routed_haul_m = 0.0; blocked_legs = 0
+    straight_haul_m = 0.0; routed_haul_m = 0.0; blocked_legs = 0; leg_routes = []
     for co, fo, mass, dist in flows:
         if co is None:
             trips.append(dict(kind="import", site=(fo.x, fo.y), label=f"Import fill: {fo.action}",
@@ -339,12 +339,16 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
         else:
             loads = max(1, math.ceil(mass / drum_kg))
             leg = base = dist                           # one-way cut<->fill distance (straight line)
+            waypoints = [(co.x, co.y), (fo.x, fo.y)]; reached = True   # no-DEM: straight line, no hazard model
             if dem is not None:
-                leg, base, reached = routed_distance(dem, dem_origin, (co.x, co.y), (fo.x, fo.y),
-                                                     max_slope_deg=max_traverse_slope_deg,
-                                                     keepouts=mission.keepouts)
+                leg, base, reached, waypoints = route_leg(dem, dem_origin, (co.x, co.y), (fo.x, fo.y),
+                                                          max_slope_deg=max_traverse_slope_deg,
+                                                          keepouts=mission.keepouts)
                 if not reached:
-                    blocked_legs += 1                   # no safe corridor -> fell back to the line; flagged
+                    blocked_legs += 1                   # no safe corridor -> plan INFEASIBLE (item 2)
+                    waypoints = []                      # do NOT fabricate a straight line through the hazard
+            leg_routes.append(dict(from_xy=(co.x, co.y), to_xy=(fo.x, fo.y),
+                                   waypoints=[list(p) for p in waypoints], reached=reached))
             straight_haul_m += base; routed_haul_m += leg
             haul_m = 2 * leg * loads                    # shuttle: cut<->fill, one round trip per drum load
             dh = haul_elevation_gain_m(dem, dem_origin, (co.x, co.y), (fo.x, fo.y))
@@ -368,7 +372,8 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
                           sinter_e=m*SINTER_J_PER_KG, sinter_t=m*SINTER_J_PER_KG/SINTER_POWER_W,
                           dest=(o.x, o.y), actions=frozenset({o.action})))
     meta = dict(straight_haul_m=straight_haul_m, routed_haul_m=routed_haul_m, blocked_legs=blocked_legs,
-                routed=dem is not None, traverse_cap_deg=float(max_traverse_slope_deg))
+                routed=dem is not None, traverse_cap_deg=float(max_traverse_slope_deg),
+                routes=leg_routes, feasible=(blocked_legs == 0))   # item 1: route geometry; item 2: feasibility
     return trips, flows, surplus_kg, meta
 
 
@@ -704,6 +709,7 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
         drum_cycles=sum(max(1, math.ceil(tr["mass"] / _drum_kg(mission))) for tr in trips if tr["kind"] == "cutfill"),
         lift_energy_J=float(sum(tr.get("lift_e", 0.0) for tr in trips)),
         routed_haul=meta["routed"], blocked_legs=meta["blocked_legs"], traverse_cap_deg=meta["traverse_cap_deg"],
+        routes=meta.get("routes", []), feasible=meta.get("feasible", True),   # item 1 geometry + item 2 feasibility
         haul_detour_frac=(meta["routed_haul_m"] / meta["straight_haul_m"] - 1.0)
         if meta["straight_haul_m"] > 1e-9 else 0.0,
         n_keepouts=len(mission.keepouts),
@@ -954,13 +960,28 @@ def plan_ir(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_s
     prev_by_vehicle: dict = {}
     charger = tuple(mission.charger)
     aid = 0
+    ir_feasible = bool(totals.get("feasible", True))   # item 2: starts from the haul-routing feasibility
     for ti, tr in enumerate(trips):
         site = tuple(tr["site"])
         veh = int(tr.get("vehicle", 0))
         prev = prev_by_vehicle.get(veh, charger)
         d = _d(prev, site)
+        # item 1: a terrain-following GoTo waypoint polyline (not just endpoints). item 2: a blocked
+        # GoTo marks the plan infeasible -- never a straight line through the hazard.
+        go_wp = [[round(prev[0], 3), round(prev[1], 3)], [round(site[0], 3), round(site[1], 3)]]
+        go_reached = True
+        if dem is not None:
+            rm, _gs, go_reached, wp = route_leg(dem, dem_origin, prev, site,
+                                                max_slope_deg=max_traverse_slope_deg, keepouts=mission.keepouts)
+            if go_reached:
+                d = rm
+                go_wp = [[round(x, 3), round(y, 3)] for x, y in wp]
+            else:
+                go_wp = []
+        ir_feasible = ir_feasible and go_reached
         actions.append({
             "id": aid, "op": "GoTo", "vehicle": veh, "to": [round(site[0], 3), round(site[1], 3)],
+            "waypoints": go_wp, "reached": go_reached,
             "expect": {"distance_m": round(d, 2), "duration_s": round(d / DRIVE_SPEED_MS, 1),
                        "energy_J": round(d * DRIVE_J_PER_M, 1)},
             "tol": {"energy_frac": _IR_MODEL_ERR_FRAC}, "pre": {"battery_J_min": reserve_J}})
@@ -998,6 +1019,9 @@ def plan_ir(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_s
     crs = "IAU_2015:30135" if (dem is not None and mission.body == "moon") else "local"
     return {
         "schema_version": PLAN_IR_VERSION, "plan_id": plan_id, "body": mission.body,
+        "mode": "DEM_KNOWN_POSE_MISSION_SIM",           # product boundary: known-pose mission sim, NOT SLAM
+        "feasible": bool(ir_feasible),                   # item 2: blocked route -> infeasible (not a straight line)
+        "blocked_legs": int(totals.get("blocked_legs", 0)),
         "vehicles": int(totals.get("vehicles", 1)), "objective": str(objective),
         "algorithm": totals.get("resolved_algorithm", algorithm),
         "frame": {"origin_m": [round(dem_origin[0], 3), round(dem_origin[1], 3)],
@@ -1101,6 +1125,11 @@ def _haworth_bundle(bundle_dir=None):
 def load_haworth_dem():
     """Load the real LOLA Haworth 5 m DEM from the sim bundle: returns (heightmap [m], cell_m)."""
     bundle = _haworth_bundle()
+    if not os.path.exists(os.path.join(bundle, "heightmap.rf32")):
+        raise FileNotFoundError(
+            f"Haworth DEM not found at {bundle}. It is NOT bundled in the wheel -- fetch it "
+            "(PGDA Product 78): run `dustgym-fetch-dem --source <mirror>` or set DUSTGYM_DEM_URL "
+            "(see planet_browser/assets_manifest.json).")
     g = json.load(open(os.path.join(bundle, "metadata.json")))["grid"]
     Z = np.fromfile(os.path.join(bundle, "heightmap.rf32"), dtype="<f4").reshape(g["height"], g["width"])
     return Z.astype(np.float64), float(g["cell_m"])
@@ -1310,14 +1339,15 @@ def route_least_cost(cost, passable, cell_m, start_rc, goal_rc):
     return path, float(glen[gr, gc]), True
 
 
-def routed_distance(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0, margin_m=20.0,
-                    keepouts=()):
-    """I10: terrain-aware haul distance between two LOCAL sites on the real DEM (anchored via dem_origin,
-    M11). Crops the DEM to the two sites' bounding box + margin, builds a slope costmap, and routes a
-    least-cost hazard-avoiding path. Returns (routed_m, grid_straight_m, reached): routed_m is the path
-    length and grid_straight_m the straight-line distance between the same DEM cells (so detour =
-    routed/grid_straight - 1 >= 0, measured consistently on the grid, not vs the finer local coords).
-    reached=False if no safe corridor exists -> caller falls back to the straight line and flags the leg."""
+def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0, margin_m=20.0,
+              keepouts=()):
+    """I10: terrain-aware route between two LOCAL sites on the real DEM (anchored via dem_origin, M11).
+    Crops the DEM to the two sites' bounding box + margin, builds a slope costmap, and routes a
+    least-cost hazard-avoiding Dijkstra path. Returns (routed_m, grid_straight_m, reached, waypoints):
+    routed_m is the path length, grid_straight_m the straight-line distance between the same DEM cells,
+    and WAYPOINTS the terrain-following polyline as LOCAL (x, y) coords (preserved for Plan IR / 2D / 3D
+    / playback -- NOT discarded). reached=False (waypoints []) when no safe corridor exists; the caller
+    marks the plan infeasible rather than driving a straight line through the hazard."""
     Z, cell = dem
     ox, oy = dem_origin
     ax, ay = ox + a_xy[0], oy + a_xy[1]
@@ -1329,7 +1359,7 @@ def routed_distance(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alp
     r1 = min(H, int((max(ay, by) + margin_m) / cell) + 1)
     straight = math.hypot(bx - ax, by - ay)
     if c1 - c0 < 2 or r1 - r0 < 2:                       # sites off the DEM -> can't route
-        return straight, straight, False
+        return straight, straight, False, []
     crop = Z[r0:r1, c0:c1]
     cost, passable = slope_costmap(crop, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
                                    max_drop_m=MAX_DROP_M)   # routes also keep off drop-offs (don't fall in a hole)
@@ -1338,8 +1368,21 @@ def routed_distance(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alp
     start = (min(max(int(ay / cell) - r0, 0), hc - 1), min(max(int(ax / cell) - c0, 0), wc - 1))
     goal = (min(max(int(by / cell) - r0, 0), hc - 1), min(max(int(bx / cell) - c0, 0), wc - 1))
     grid_straight = math.hypot((goal[1] - start[1]) * cell, (goal[0] - start[0]) * cell)
-    _, length_m, reached = route_least_cost(cost, passable, cell, start, goal)
-    return (length_m, grid_straight, True) if reached else (straight, straight, False)
+    path, length_m, reached = route_least_cost(cost, passable, cell, start, goal)
+    if not reached:
+        return straight, straight, False, []
+    # crop cell (r, c) -> world metres -> LOCAL (x, y) waypoint (local = world - origin)
+    waypoints = [(((c0 + c) * cell) - ox, ((r0 + r) * cell) - oy) for (r, c) in path]
+    return length_m, grid_straight, True, waypoints
+
+
+def routed_distance(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0, margin_m=20.0,
+                    keepouts=()):
+    """Backward-compatible distance-only view of route_leg (returns (routed_m, grid_straight_m, reached))."""
+    routed_m, grid_straight_m, reached, _ = route_leg(
+        dem, dem_origin, a_xy, b_xy, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
+        margin_m=margin_m, keepouts=keepouts)
+    return routed_m, grid_straight_m, reached
 
 
 def haul_elevation_gain_m(dem, dem_origin, a_xy, b_xy):
@@ -1747,6 +1790,10 @@ def report(mission, trips, flows, per_trip, tl, totals, out_pdf, out_md, endu=No
     md = [f"# Lunar Build Mission Plan — {mission.name}", "",
           f"**Body:** {mission.body.title()} · **Date:** {mission.date} · cut-fill balanced · "
           f"sequence **{totals.get('algorithm', 'nearest')}** optimizing **{totals.get('objective', 'time')}**", "",
+          "**Mode:** `DEM_KNOWN_POSE_MISSION_SIM` (known-pose mission simulation; not SLAM / not real-rover "
+          "autonomy) · **Plan feasibility:** "
+          + ("**FEASIBLE**" if totals.get("feasible", True)
+             else f"⚠ **INFEASIBLE** — {totals.get('blocked_legs', 0)} route leg(s) have no safe corridor"), "",
           "## Sequence",
           "| # | Trip | kind | Site (x,y) | Mass t | Duration | Energy (chg) |",
           "|---|------|------|-----------|--------|----------|--------------|"]
@@ -1777,8 +1824,8 @@ def report(mission, trips, flows, per_trip, tl, totals, out_pdf, out_md, endu=No
         md.append(
             f"- Hauls **routed around hazards** on the real Haworth slope costmap (traverse cap "
             f"{totals['traverse_cap_deg']:.0f}°): **+{totals['haul_detour_frac']*100:.1f}% detour** over straight "
-            f"lines" + (f"; ⚠ **{totals['blocked_legs']} leg(s) had no safe corridor** (straight-line fallback, "
-                        "flagged)" if totals['blocked_legs'] else ""))
+            f"lines" + (f"; ⚠ **{totals['blocked_legs']} leg(s) had NO safe corridor → plan INFEASIBLE** "
+                        "(route not driven; no straight-line through the hazard)" if totals['blocked_legs'] else ""))
     if endu:                                            # single-charge SORTIE range (not a mission limit)
         line = (f"- **Per-sortie range:** {endu['range_flat_reserve_km']:.1f} km flat to reserve "
                 f"({endu['range_flat_full_km']:.1f} km full pack, {endu['duration_flat_h']:.0f} h driving at "
