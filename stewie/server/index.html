@@ -962,6 +962,45 @@ function showTerra() {
 // estimate the regolith a build order moves, using the SELECTED BODY's loaded terramechanics:
 // volume = footprint*depth; mass = volume*density; weight = mass*g; drum loads @30 kg;
 // excavation energy @4151 J/kg vs a 4.79 MJ battery charge; dig time @42 kg/hr.
+// #26: the reusable info popover -- ⓘ toggles a positioned card whose content a render
+// function refreshes ON CHANGE (Aaron: "should the 40 m³ be in an info bubble that updates?").
+const POPOVERS = {};
+function popover(id, anchorEl, renderFn) {
+  POPOVERS[id] = renderFn;
+  let pop = document.getElementById("pop-" + id);
+  if (!pop) {
+    pop = document.createElement("div");
+    pop.id = "pop-" + id;
+    pop.style.cssText = "display:none;position:absolute;z-index:60;background:rgba(10,10,12,.97);" +
+      "border:1px solid var(--accent);border-radius:8px;padding:10px 12px;font-size:11px;" +
+      "line-height:1.6;max-width:300px;box-shadow:0 6px 24px rgba(0,0,0,.5)";
+    document.body.appendChild(pop);
+  }
+  anchorEl.onclick = (e) => {
+    e.stopPropagation();
+    const showing = pop.style.display !== "none";
+    document.querySelectorAll('[id^="pop-"]').forEach((p2) => { p2.style.display = "none"; });
+    if (!showing) {
+      pop.innerHTML = renderFn();
+      const r = anchorEl.getBoundingClientRect();
+      pop.style.left = Math.min(r.left, innerWidth - 320) + "px";
+      pop.style.top = (r.bottom + 6 + scrollY) + "px";
+      pop.style.display = "block";
+    }
+  };
+}
+function refreshPopovers() {                               // open popovers refresh on change
+  document.querySelectorAll('[id^="pop-"]').forEach((p2) => {
+    if (p2.style.display !== "none") {
+      const id = p2.id.slice(4);
+      if (POPOVERS[id]) p2.innerHTML = POPOVERS[id]();
+    }
+  });
+}
+document.addEventListener("click", () => {
+  document.querySelectorAll('[id^="pop-"]').forEach((p2) => { p2.style.display = "none"; });
+});
+let LAST_EST = null;
 function estimate() {
   const p = phys(sel.value);
   const padW = +$("padW").value, padL = +$("padL").value, cut = +$("cut").value, bermH = +$("bermH").value;
@@ -973,10 +1012,30 @@ function estimate() {
   const drumLoads = Math.ceil(cutMass / ix.drum_kg);
   const energyJ = cutMass * ix.dig_j_per_kg;               // excavation energy (dominant term)
   const charges = energyJ / ix.battery_j, hrs = cutMass / ix.dig_rate_kg_hr;
-  $("est").textContent =
-    `${cutVol.toFixed(0)} m³ = ${(cutMass / 1000).toFixed(1)} t (${(weightN / 1000).toFixed(0)} kN @ ${p.g}g) · ` +
-    `${drumLoads.toLocaleString()} drum loads · → ${bermArea.toFixed(0)} m² berm @ ${bermH} m · ` +
-    `${(energyJ / 1e6).toFixed(1)} MJ = ${charges.toFixed(1)} charges · ~${Math.round(hrs).toLocaleString()} h dig`;
+  // the KEY line + the structured breakdown behind a live ⓘ (Aaron's feasibility-layout note)
+  LAST_EST = { cutVol, cutMass, weightN, bermArea, drumLoads, energyJ, charges, hrs, bermH, p };
+  $("est").innerHTML = "";
+  const summary = document.createElement("span");
+  summary.textContent = `${(cutMass / 1000).toFixed(1)} t to move · ${charges.toFixed(1)} charges · ~${Math.round(hrs).toLocaleString()} h `;
+  const info = document.createElement("button");
+  info.textContent = "ⓘ details";
+  info.style.cssText = "background:none;border:1px solid var(--line);border-radius:4px;color:var(--accent);cursor:pointer;font-size:10px;padding:1px 6px";
+  $("est").append(summary, info);
+  popover("est", info, () => {
+    const e2 = LAST_EST;
+    const row = (k, v) => `<tr><td style="color:var(--muted);padding-right:10px">${k}</td><td style="text-align:right">${v}</td></tr>`;
+    return `<b>Feasibility breakdown</b><table style="width:100%;border-collapse:collapse;margin-top:4px">` +
+      row("excavated volume", `${e2.cutVol.toFixed(0)} m³`) +
+      row(`mass (ρ = ${e2.p.density} kg/m³)`, `${(e2.cutMass / 1000).toFixed(1)} t`) +
+      row(`weight @ ${e2.p.g} m/s²`, `${(e2.weightN / 1000).toFixed(0)} kN`) +
+      row("drum loads", e2.drumLoads.toLocaleString()) +
+      row(`berm footprint @ ${e2.bermH} m`, `${e2.bermArea.toFixed(0)} m²`) +
+      row("dig energy", `${(e2.energyJ / 1e6).toFixed(1)} MJ`) +
+      row("battery charges", e2.charges.toFixed(1)) +
+      row("dig time", `~${Math.round(e2.hrs).toLocaleString()} h`) +
+      `</table><div style="opacity:.6;margin-top:4px">updates live as you edit the pad/cut/berm inputs</div>`;
+  });
+  refreshPopovers();
   return { body: sel.value, padW, padL, cut_m: cut, bermH_m: bermH, cutVol_m3: cutVol, cutMass_kg: cutMass,
            weight_N: weightN, bermArea_m2: bermArea, drumLoads, energy_MJ: energyJ / 1e6,
            batteryCharges: charges, digHours: hrs, terramechanics: p };
@@ -1000,6 +1059,8 @@ $("terrainfo").onclick = () => $("terra").classList.toggle("show");     // terra
 let LAST_RENDER_UV = null, RERENDER_T = 0;
 function scheduleAutoRender() {                            // #33: planning edits re-render the LAST area
   if (!LAST_RENDER_UV) return;
+  if (!SETTINGS.apikey) return;                            // keyless: skip quietly (Aaron's debug --
+                                                           // the auto path spammed the 401 message)
   const cb = $("autorender"); if (cb && !cb.checked) return;
   clearTimeout(RERENDER_T);
   RERENDER_T = setTimeout(() => renderArea(LAST_RENDER_UV.u, LAST_RENDER_UV.v, { quiet: true }), 1500);
@@ -1022,6 +1083,11 @@ async function renderArea(u, v, opts) {
     const res = await fetch("/render", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify(rbody) });
     const j = await res.json();
+    if (res.status === 401) {                              // actionable, like every other 401 path
+      $("rpstatus").innerHTML = "⚠ API key required for rendering — paste it in <b>⚙ Settings</b> (the server key lives in deploy/.env)";
+      if (!opts.quiet) setView("settings");
+      return;
+    }
     if (!j.ok) { $("rpstatus").textContent = "render unavailable: " + (j.error || res.status); return; }
     $("rpvol").textContent = ` — cut ${j.cut_vol_m3} m³ / fill ${j.fill_vol_m3} m³ (${j.extent_m} m window)`;
     $("rpimg").src = j.figure + "?t=" + Date.now(); $("rpimg").style.display = "block"; $("rpstatus").textContent = "";
