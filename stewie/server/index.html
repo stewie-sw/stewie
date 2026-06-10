@@ -975,10 +975,11 @@ async function globeLayer(key, _url, on) {
         tileWidth: 1024, tileHeight: 1024 }));
   } catch (e) { /* layer service unavailable */ }
 }
+const BOOT_V = Date.now();                                 // per-pageload cache-bust for layer images
 function sunQS() {
   if (qel("sunauto") && qel("sunauto").checked)            // AUTO: mission time -> real solar geometry server-side
-    return `mission_t_s=${Math.round(parseFloat(qel("suntime").value) * 86400)}`;
-  return `sun_el=${qel("sunel").value}&sun_az=${qel("sunaz").value}`;
+    return `mission_t_s=${Math.round(parseFloat(qel("suntime").value) * 86400)}&b=${BOOT_V}`;
+  return `sun_el=${qel("sunel").value}&sun_az=${qel("sunaz").value}&b=${BOOT_V}`;
 }
 function applyLayerToggle(id, on) {                          // load/unload the raster layers (vector layers redraw)
   if (id === "dem") { const wa = qel("workarea"); if (wa) wa.style.display = on ? "" : "none"; }
