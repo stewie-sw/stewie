@@ -160,7 +160,9 @@
     <header id="phead"><b style="letter-spacing:.45em;font-weight:800">STEWIE</b><span style="opacity:.55;font-size:10px;margin-left:10px;letter-spacing:.18em">DIGITAL TWIN &amp; PLANNING PLATFORM</span><span style="font-size:10px;margin-left:10px;color:var(--accent);letter-spacing:.12em">IN SILICO → IN SITU</span><span id="stver" style="opacity:.45;font-size:10px;margin-left:8px"></span><span id="conops" title="ConOps position (operator finding 2.8: a status visual for where we are in the cycle)" style="font-size:10px;margin-left:12px;letter-spacing:.08em;color:var(--muted)">CONOPS —</span><span id="out">—</span></header>
 
     <section>
-      <h3>Body &amp; imagery</h3>
+      <h3>Contents — map layers &amp; sun</h3>
+      <div id="contents-pane"></div>
+      <h3>1 · Site — body &amp; imagery</h3>
       <div class="ctl">
         <label>Body <select id="body"></select></label>
         <label>Layer <select id="layer"></select></label>
@@ -177,7 +179,7 @@
     </section>
 
     <section>
-      <h3>Fleet</h3>
+      <h3>2 · Fleet</h3>
       <div class="ctl"><label>Vehicle <select id="vehicle"></select></label>
         <label title="regolith model — defaults to the body's own; override to e.g. run Earth soil on a lunar map">Soil <select id="soil"></select></label></div>
       <div class="ctl"><label title="fleet size — >1 plans a multi-vehicle mission (site-exclusive allocation, parallel makespan, deconfliction)">Rovers <input id="vehcount" type="number" value="1" min="1" max="16" step="1" /></label></div>
@@ -186,7 +188,7 @@
     </section>
 
     <section>
-      <h3>Build estimate</h3>
+      <h3>3 · Author — build estimate</h3>
       <div class="ctl"><label>pad <input id="padW" type="number" value="20" step="1" />×<input id="padL" type="number" value="20" step="1" /> m</label></div>
       <div class="ctl">
         <label>cut <input id="cut" type="number" value="0.10" step="0.01" /> m</label>
@@ -196,7 +198,7 @@
     </section>
 
     <section>
-      <h3>Build queue → report</h3>
+      <h3>4 · Plan — queue → report</h3>
       <div class="ctl">
         <select id="qkind"><option value="cut">cut</option><option value="fill">fill</option></select>
         <label>x<input id="qx" type="number" value="0" step="1" /></label>
@@ -654,6 +656,14 @@ setInterval(() => {
 
 // S-1 (GIS pathway): collapsible sidebar sections -- each h3 + its block becomes <details>,
 // default COLLAPSED except the active workflow step (Build queue); open-state persisted.
+(function buildContents() {                                // S-2: the ArcGIS Contents pane
+  const tgt = document.getElementById("contents-pane"); if (!tgt) return;
+  const lp = document.getElementById("layerpanel");
+  const sc = document.getElementById("suncap");
+  if (lp) tgt.appendChild(lp);                             // live nodes move WITH their handlers
+  if (sc) tgt.appendChild(sc);
+})();
+
 (function collapseSidebar() {
   const panel = document.getElementById("panel"); if (!panel) return;
   let saved = {};
@@ -843,6 +853,7 @@ const KEEPOUTS = [];                                          // discrete obstac
 // moon?"): orders/keep-outs/routes are a per-body document; switching body saves the current set
 // and loads the target's. (S-4 generalizes this into named mission documents.)
 const WORKSETS = {};
+let SELECTED_ORDER = -1;                                   // S-2: the selected feature (highlighted)
 function switchWorkset(fromBody, toBody) {
   if (fromBody === toBody) return;
   WORKSETS[fromBody] = { orders: ORDERS.slice(), keepouts: KEEPOUTS.slice(),
@@ -888,8 +899,14 @@ function renderQueue() {
     const g = document.createElement("span"); g.className = "g";
     const fx = v => Number(v).toFixed(1).replace(/\.0$/, "");   // B0.4: human coords, 0.1 m
     g.textContent = `${o.kind} ${o.action || ""} (${fx(o.x)}, ${fx(o.y)}) ${o.footprint_m2}m²×${o.depth_m}m`;
-    li.append(`${i + 1}.`, g, mkbtn("▲", () => moveOrder(i, -1)), mkbtn("▼", () => moveOrder(i, 1)),
-              mkbtn("✕", () => { ORDERS.splice(i, 1); renderQueue(); }));
+    li.append(`${i + 1}.`, g,
+              mkbtn("⌖", () => {                            // S-2: zoom-to the feature (Esri pattern)
+                $("qx").value = o.x; $("qy").value = o.y;
+                SELECTED_ORDER = i; drawPlan();
+                setQ(`zoomed to order ${i + 1}: ${o.kind} @ (${o.x}, ${o.y})`);
+              }),
+              mkbtn("▲", () => moveOrder(i, -1)), mkbtn("▼", () => moveOrder(i, 1)),
+              mkbtn("✕", () => { ORDERS.splice(i, 1); SELECTED_ORDER = -1; renderQueue(); }));
     ol.appendChild(li);
   });
   setQ(ORDERS.length ? `${ORDERS.length} order(s) queued` : "queue empty");
@@ -1007,6 +1024,10 @@ function drawPlan() {
     ctx.strokeStyle = o.kind === "cut" ? "#4f9cff" : "#e07b39"; ctx.lineWidth = 1;
     ctx.fillRect(X(o.x) - half, Y(o.y) - half, half * 2, half * 2);
     ctx.strokeRect(X(o.x) - half, Y(o.y) - half, half * 2, half * 2);
+    if (i === SELECTED_ORDER) {                            // S-2: selection highlight (brand red)
+      ctx.strokeStyle = "#e8273f"; ctx.lineWidth = 2;
+      ctx.strokeRect(X(o.x) - half - 3, Y(o.y) - half - 3, half * 2 + 6, half * 2 + 6);
+    }
     ctx.fillStyle = "#c7d2e3"; ctx.font = "9px system-ui"; ctx.textAlign = "center";
     ctx.fillText(String(i + 1), X(o.x), Y(o.y) + 3);
   });
