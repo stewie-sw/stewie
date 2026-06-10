@@ -10,7 +10,7 @@ workspace: `design/STEWIE_ATOMIC_EXECUTION_PLAN_2026-06-09.md`.
 
 ## 1. Purpose
 
-DustGym is a lunar construction-planning and digital-twin product for an IPEx/RASSOR-lineage
+STEWIE is a lunar construction-planning and digital-twin platform for an IPEx/RASSOR-lineage
 excavator. It must:
 
 1. load real or generated terrain;
@@ -31,7 +31,7 @@ history. Current status is based on:
 - [`docs/prd_gap_analysis_2026-06-06.md`](docs/prd_gap_analysis_2026-06-06.md)
 - the current repository and locally executed verification described by those reviews.
 
-The conserved terramechanics authority retains John McCardle's CC0 provenance. DustGym's product,
+The conserved terramechanics authority retains John McCardle's CC0 provenance. STEWIE's product,
 planner, Gymnasium, vehicle, perception, and visualization layers build on that authority.
 
 ## 2. Source Discipline
@@ -41,7 +41,7 @@ Every physical or operational claim must carry one of these evidence classes:
 | Tag | Meaning |
 |---|---|
 | `[SPEC]` | Directly stated by an authoritative NASA, LAC, standards, or peer-reviewed source. |
-| `[MEASURED]` | Measured by DustGym or a cited experiment with reproducible conditions. |
+| `[MEASURED]` | Measured by STEWIE or a cited experiment with reproducible conditions. |
 | `[CALIB]` | Calibrated model value with a documented data source and fitting procedure. |
 | `[ASSUMPTION]` | Deliberate engineering assumption exposed through configuration. |
 | `[PROPOSED]` | New behavior or algorithm that must be validated before capability claims. |
@@ -66,7 +66,7 @@ This paper provides a validated LAC simulator reference architecture:
 - reverse-and-replan recovery when progress collapses.
 
 Its reported localization RMSE was approximately `0.038-0.067 m` across documented presets and
-seeds. Those results are a benchmark, not evidence that DustGym currently achieves them.
+seeds. Those results are a benchmark, not evidence that STEWIE currently achieves them.
 
 **[IPEx-DT-REF]** *IPEx Rover: Architectural Review & Digital-Twin / World-Model Reference*.
 Local working reference:
@@ -80,7 +80,7 @@ are treated as `[PROPOSED]` or `[ASSUMPTION]` here.
 
 The NavLab paper establishes robust navigation under variable lunar lighting. It does **not**
 establish shadow-azimuth heading, arm-controlled solar observation, or Meerkat solar navigation.
-Those are proposed DustGym research/product requirements derived from the IPEx/LAC platform
+Those are proposed STEWIE research/product requirements derived from the IPEx/LAC platform
 capabilities and south-pole lighting environment.
 
 ## 3. Status Model
@@ -133,14 +133,16 @@ No production-grade release may be declared while any `RB-*` item is open.
 
 ## 5. Product Modes
 
-DustGym supports four explicitly distinct modes:
+STEWIE supports five explicitly distinct modes (revised 2026-06-10 -- the earlier four-verb table
+undersold what each mode now is):
 
-| Mode | Purpose | Truth boundary |
-|---|---|---|
-| `PLAN` | Author and optimize a construction mission. | Model-based forecast over validated terrain and vehicle data. |
-| `SIMULATE` | Execute against the conserved authority and synthetic/rendered sensors. | Simulation only; no live-hardware claim. |
-| `EVALUATE` | Score maps, localization, plans, and acceptance against known truth. | Test/benchmark mode; truth access allowed. |
-| `OPERATE` | Consume real telemetry and issue commands. | Future mode; unavailable until command, timing, safety, and fault requirements pass. |
+| Mode | What it actually is | Reads / writes | Truth boundary |
+|---|---|---|---|
+| `GIS-PLAN` | 2D layered planning on the real Haworth DEM: slope / hazard-no-go / horizon-clipped shadow / PSR rasters under an auto sun driven by mission time; build-queue authoring, keep-outs, fleet + vehicle selection; output = routed, energy-budgeted Plan IR + the 2-page mission-control report. | reads WorldState + VehicleModel; writes PlanResult | model-based forecast over VALIDATED terrain/vehicle data; every figure traces to a tagged constant |
+| `TRAIN` | Operator/director sessions over the real closed loop: the operator sees only telemetry-DELIVERED, truth-denylisted legs under a mission link profile (bandwidth/latency/drop); the director gets full state, seen-vs-actual divergence, debrief + summary artifacts; authored scenario library with tested teaching points. | reads PlanResult + WorldState; writes SessionRecord | the operator path is STRUCTURALLY truth-isolated (file-layer + field denylist); fast-forward never alters link accounting |
+| `SIM-OPERATE` | The live loop on the conserved authority: the persistent runtime owns ONE world that outlives clients; ROS2 teleop (/cmd_vel through slip-aware physics) and goal-level CCSDS tasks; strict canonical packets carry real IMU/wheel/power channels, the 8-camera rig, work-light state + exact poses; checkpoint/restore bit-exact. | mutates WorldState via physics verbs ONLY; writes RuntimePackets + ExecutionEvents | simulation only -- no live-hardware claim; producer packets carry NO truth fields (strict-parser enforced) |
+| `EVALUATE` | The honesty machinery: hash-anchored evidence corpora, role-isolated produce->estimate->evaluate (the estimator is structurally DENIED truth), geometric depth truth, gate checks that flip ONLY via dated code-enforced artifacts; real-sensor scoring (Katwijk vs RTK). | reads everything incl. truth; writes dated validation artifacts | the ONLY mode with truth access; its artifacts are append-only and byte-pinned |
+| `OPERATE` | Consume real telemetry and issue commands to hardware. | -- | FUTURE; unavailable until command, timing, safety, and fault requirements pass |
 
 The API and reports must label the active mode. Simulated truth must never be presented as a live
 measurement.
@@ -160,8 +162,8 @@ L5  Navigation and execution
 L4  Perception and localization
     camera policy / segmentation / stereo VO / SLAM / map / solar factors
 
-L3  Vehicle and posture digital twin
-    VehicleModel / arms / drums / per-drum load / CG / support polygon / Meerkat
+L3  ARGUS -- articulated vehicle digital twin (PRD 16.3b)
+    VehicleTwin / ArmState / drums / per-drum load / CG / support polygon / work lights / camera rig
 
 L2  Terrain, illumination, and world state
     conserved terrain / rocks / uncertainty / sun vector / shadows / mutable illumination
@@ -184,8 +186,43 @@ The architecture must have these single-source runtime artifacts:
 5. `PlanResult`: fleet allocation, routes, actions, timeline, resources, acceptance, and provenance.
 6. `ExecutionEvent`: command, observation, acknowledgement, fault, replan, and state-transition record.
 
+7. `TwinStore` (NEW 2026-06-10): the versioned OBSERVED-terrain layer log -- immutable base +
+   append-only, hash-chained, provenance-mandatory edit events; the current map is derived by
+   replay; undo is itself an event. The perception/resync channel writes HERE, never to the
+   conserved authority.
+8. `RuntimePacket`: the strict canonical sensor packet (one clock, closed channel set, truth-scan
+   enforced) -- the ONLY surface estimators see.
+9. `SessionRecord`: a training session's recorded legs + link accounting + debrief/divergence.
+
 Reports, Plan IR, playback, validation, and autonomy must be views over these artifacts, not
 independent recomputations.
+
+### 6.2 World-state layering, storage, and backups (added 2026-06-10)
+
+**The rule: every change made on the Moon is a LAYER in world state, never an overwrite.** Two
+change channels, both already event-layered:
+
+| Channel | What changes it | Storage today (implemented) |
+|---|---|---|
+| CONSERVED authority (the physical Moon) | physics verbs only -- dig, dump, drive ruts, compaction | "store history, not terrain": L0 orbital base + the L4 excavation-event log -> terrain DERIVED by replay (stewie/twin world model); mass conservation asserted at 1e-12 |
+| OBSERVED twin (what we believe the surface is) | perception resync patches (POST /twin/resync), operator edits | TwinStore: append-only sha256 hash-chained events, provenance REQUIRED, undo-as-event, byte-exact rebuild proven by test |
+
+Snapshots that exist today: runtime checkpoint/restore (npz, bit-exact by mass-sha test);
+io_fields scene snapshots (atomic); Seam-1 rasters (frozen contract); the hash-anchored evidence
+manifests (evaluation side).
+
+**HONEST GAPS (the answer to "have we figured out storage? backups?" is: layering yes, durability
+partially, backups NO):**
+
+| Req | Gap | Requirement |
+|---|---|---|
+| W-1 | TwinStore's event log lives IN-PROCESS; a crash between checkpoints loses observed-twin edits | per-edit durable append (journal file, fsync-on-event) under data_dir/twin/ |
+| W-2 | checkpoints are manual/on-demand; no cadence, no retention | scheduled snapshots (per sol + per N events) with a retention ladder (hourly->daily->weekly) |
+| W-3 | everything lives on ONE host/volume | off-host replication of journals + snapshots (second host or remote store); RPO documented |
+| W-4 | restore has never been drilled end-to-end from cold | a recovery test in CI: rebuild from journal+snapshot reproduces the world sha bit-exact |
+
+W-1..W-4 are the data-management spine of Year-1 Ph.3 (the acquisition-inventory phase already
+planned there); W-1 and W-4 are small and should land with the next runtime slice.
 
 ## 7. Requirements
 
@@ -351,7 +388,7 @@ solar power scheduling.
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
-| PO-01 | P0 | `dustgym-serve` works after a fresh wheel install with one documented product extra. | P | P | N | N |
+| PO-01 | P0 | `stewie-serve` (alias `dustgym-serve`, deprecated) works after a fresh wheel install with one documented product extra. | P | P | N | N |
 | PO-02 | P0 | Reports, profiles, caches, and renders use configurable application-data directories and atomic writes. | N | N | N | NA |
 | PO-03 | P0 | CI installs declared dependencies and runs the configured suite across supported Python versions. | P | P | N | NA |
 | PO-04 | P0 | CI separately gates Python core, scripts, Godot, browser, package smoke, and hardware-gated tiers. | P | N | P | NA |
@@ -621,7 +658,7 @@ this section is the public mapping of record.
 ### 16.1 Subsystem ↔ codebase mapping
 | STEWIE subsystem | Question it answers | Existing code (this repo) | Primary gap |
 |---|---|---|---|
-| **STEWIE platform** | What is happening on the Moon right now? | dustgym physics authority, planet_browser server/UI, io_fields twin seams, world-model/forward-sim engines (`autonomy`, beam search) | live ROS2 bridge; telemetry injection; director/operator split |
+| **STEWIE platform** | What is happening on the Moon right now? | stewie physics authority, the server/UI, io_fields twin seams, world-model/forward-sim engines (`autonomy`, beam search) | live ROS2 bridge; telemetry injection; director/operator split |
 | **DART** (perception) | What does the world look like? | Godot sensor render, YOLOv8/U-Net++ detectors, `dem_import` (LOLA + GeoTIFF), `map_channel`, `localization` | typed interface contract; COLMAP→resync pipeline |
 | **LODE** (operations) | What should happen next? | `mission_planner` (7-alg optimizer, multi-vehicle, precedence, plan IR, PDF report), scheduler | acquisition inventory; bandwidth-aware downlink queue |
 | **LEAP** (earthmoving) | How should we move the regolith? | conserved cut/fill/dump physics, `structures`, skill/worksite envs, build-order queue | per-structure policy; multi-vehicle routing |
