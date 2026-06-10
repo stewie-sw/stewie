@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Planet Browser — select a body, pan/zoom/tilt, pick a build site</title>
+<title>STEWIE — IPEx builds the Moon. STEWIE plans the build.</title>
 <link href="https://unpkg.com/cesium@1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
 <script src="https://unpkg.com/cesium@1.119/Build/Cesium/Cesium.js"></script>
 <style>
@@ -109,7 +109,7 @@
 <body>
 <div id="app">
   <aside id="panel">
-    <header id="phead"><b>LUNAR BUILD PLANNER</b><span id="out">—</span></header>
+    <header id="phead"><b>STEWIE</b><span style="opacity:.55;font-size:11px;margin-left:8px">IPEx builds the Moon. STEWIE plans the build.</span><span id="stver" style="opacity:.45;font-size:10px;margin-left:8px"></span><span id="out">—</span></header>
 
     <section>
       <h3>Body &amp; imagery</h3>
@@ -210,7 +210,7 @@
       <div class="ctl" title="load a bundled intern tutorial mission into the queue">
         Sample <select id="qsample"><option value="">— tutorial mission —</option></select>
         <button id="qloadsample" class="site">Load</button></div>
-      <button id="qplan" class="plan">Plan mission → open report</button>
+      <button id="qplan" class="plan">Plan mission → open report</button><!-- B0.4: busy state set in JS -->
       <button id="qexec" class="go" disabled>▶ Execute + watch</button>
       <div class="ctl" style="margin-top:7px">
         <button id="qexport" class="go">⤓ Export plan</button>
@@ -268,7 +268,9 @@
           the rover drives) is the open map-channel work, not a faked feed.</div>
       </div>
       <div id="execview" class="pane">
-        <div class="cap"><span>METRICS — execution top-down<b id="execspeed"> 60×</b></span>
+        <div class="cap"><span>METRICS — execution top-down<b id="execspeed"> 60×</b>
+          <button id="execpause" title="pause/resume" style="margin-left:10px">⏸</button>
+          <button id="execspd" title="cycle speed 10/60/600×">speed</button></span>
           <button id="execclose" title="back to Plan">✕</button></div>
         <canvas id="execcanvas" width="320" height="220"></canvas>
         <div id="exchud">
@@ -352,6 +354,8 @@ const IPEX_FALLBACK = { drum_kg: 30, dig_j_per_kg: 4151, battery_j: 4.79e6, dig_
 function ipex() { return (PHY && PHY._ipex) ? PHY._ipex : IPEX_FALLBACK; }
 let viewer = null, ellipsoid = null, marker = null, picked = null;
 
+fetch("/healthz").then(r => r.json()).then(h => { const v = document.getElementById("stver");
+  if (v) v.textContent = "v" + h.version; }).catch(() => {});   // B0.2 version stamp
 function loadBody(key) {
   const b = BODIES[key];
   if (viewer) { viewer.destroy(); viewer = null; }
@@ -359,11 +363,21 @@ function loadBody(key) {
   // sphere RADIUS is Earth-sized (cosmetic). A true per-body ellipsoid is a refinement (Cesium's custom
   // globe path errors in 1.119). The body radius is kept in BODIES for the future ellipsoid swap.
   ellipsoid = Cesium.Ellipsoid.WGS84;
+  try {                                       // B0.1: GPU-less machines must get a usable site map
   viewer = new Cesium.Viewer("cesium", {
     baseLayer: false, baseLayerPicker: false, geocoder: false, timeline: false,
     animation: false, sceneModePicker: false, homeButton: false, navigationHelpButton: false,
     fullscreenButton: false, infoBox: false, selectionIndicator: false,
   });
+  } catch (e) {
+    const c = document.getElementById("cesium");
+    c.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:#9ab">' +
+      '<div style="font-size:13px;opacity:.8">3-D globe unavailable on this machine (no WebGL) — using the 2-D site tools.</div>' +
+      '<div style="font-size:12px;opacity:.6">The WORK AREA map (bottom right) and the PLAN VIEW canvas (sidebar) are fully functional: ' +
+      'click them to set coordinates, queue orders, and plan the mission.</div></div>';
+    viewer = null;
+    return;                                   // sidebar + plan view + planning all work without the globe
+  }
   viewer.scene.skyAtmosphere.show = false;       // hide Earth atmosphere (do NOT set =false: Cesium's
                                                  // render loop calls skyAtmosphere.setDynamicLighting()
                                                  // and `false` is "defined" -> TypeError. Keep the object.)
@@ -601,7 +615,8 @@ function renderQueue() {
   ORDERS.forEach((o, i) => {
     const li = document.createElement("li");
     const g = document.createElement("span"); g.className = "g";
-    g.textContent = `${o.kind} ${o.action || ""} (${o.x},${o.y}) ${o.footprint_m2}m²×${o.depth_m}m`;
+    const fx = v => Number(v).toFixed(1).replace(/\.0$/, "");   // B0.4: human coords, 0.1 m
+    g.textContent = `${o.kind} ${o.action || ""} (${fx(o.x)}, ${fx(o.y)}) ${o.footprint_m2}m²×${o.depth_m}m`;
     li.append(`${i + 1}.`, g, mkbtn("▲", () => moveOrder(i, -1)), mkbtn("▼", () => moveOrder(i, 1)),
               mkbtn("✕", () => { ORDERS.splice(i, 1); renderQueue(); }));
     ol.appendChild(li);
@@ -746,6 +761,7 @@ function parsePrec() {
 }
 qel("qplan").onclick = async () => {
   if (!ORDERS.length) { setQ("add at least one order first"); return; }
+  const pb = qel("qplan"); pb.disabled = true; pb.textContent = "⏳ planning + rendering report…";   // B0.4
   setQ("planning…");
   try {
     const res = await fetch("/plan", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -803,6 +819,7 @@ qel("qplan").onclick = async () => {
     qel("reportempty").style.display = "none";
     setView("report");
   } catch (e) { setQ("plan failed. start the server: python3 server.py  (" + e + ")"); }
+  finally { const pb = qel("qplan"); pb.disabled = false; pb.textContent = "Plan mission → open report"; }
 };
 
 // ---- import / export plans (round-trippable designer files) ------------------------------------
@@ -881,7 +898,8 @@ qel("profloadbtn").onclick = async () => {
 
 // ---- P5: execute + watch — animate the planned timeline top-down with a telemetry HUD ----------
 let LAST_TIMELINE = null, LAST_ORDERS = [], LAST_KEEPOUTS = [], LAST_PLAN_IR = null, EXEC_RAF = 0;
-const EXEC_SPEEDUP = 60;                                   // sim seconds per wall-clock second (shown in cap)
+let EXEC_SPEEDUP = 60;                                     // sim seconds per wall-clock second (B0.3: mutable)
+let EXEC_PAUSED = false;
 function execExtent(tl, orders) {
   // world bounds covering the charger, every order site, and every route waypoint -> canvas transform
   const xs = [tl.charger[0]], ys = [tl.charger[1]];
@@ -904,12 +922,14 @@ function execDraw(tl, orders, ext, cv, simT) {
     ctx.beginPath(); ctx.arc(X(k.x), Y(k.y), k.r * s, 0, 7); ctx.fill(); ctx.stroke();
   });
   // order footprints (cut = blue, fill = orange) as squares sized by area
-  orders.forEach(o => {
+  orders.forEach((o, i) => {
     const half = Math.sqrt(o.footprint_m2) / 2 * s;
     ctx.fillStyle = o.kind === "cut" ? "rgba(79,156,255,.28)" : "rgba(224,123,57,.28)";
     ctx.strokeStyle = o.kind === "cut" ? "#4f9cff" : "#e07b39"; ctx.lineWidth = 1;
     ctx.fillRect(X(o.x) - half, Y(o.y) - half, half * 2, half * 2);
     ctx.strokeRect(X(o.x) - half, Y(o.y) - half, half * 2, half * 2);
+    ctx.fillStyle = "#cfd8e3"; ctx.font = "11px system-ui";              // B0.4 order labels
+    ctx.fillText(`${i + 1}. ${o.kind}`, X(o.x) - half + 4, Y(o.y) - half + 14);
   });
   // item 3d: the planned terrain-following route(s), same geometry the 2D plan canvas shows (links the
   // route into the playback view; routed = dashed green, blocked = dashed red). The rover marker below
@@ -957,7 +977,8 @@ function runExecution() {
   const fmtT = s => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return `${h}h ${m}m`; };
   function frame(now) {
     if (prevWall === null) prevWall = now;
-    simT += (now - prevWall) / 1000 * EXEC_SPEEDUP; prevWall = now;
+    if (!EXEC_PAUSED) simT += (now - prevWall) / 1000 * EXEC_SPEEDUP;   // B0.3 pause
+    prevWall = now;
     if (simT > dur) simT = dur;
     const fr = execDraw(tl, LAST_ORDERS, ext, cv, simT);
     qel("excphase").textContent = fr.phase;
@@ -975,6 +996,9 @@ function runExecution() {
   EXEC_RAF = requestAnimationFrame(frame);
 }
 qel("qexec").onclick = runExecution;
+qel("execpause").onclick = () => { EXEC_PAUSED = !EXEC_PAUSED; qel("execpause").textContent = EXEC_PAUSED ? "▶" : "⏸"; };
+qel("execspd").onclick = () => { EXEC_SPEEDUP = EXEC_SPEEDUP === 10 ? 60 : EXEC_SPEEDUP === 60 ? 600 : 10;
+  qel("execspeed").textContent = ` ${EXEC_SPEEDUP}×`; };
 qel("execclose").onclick = () => { cancelAnimationFrame(EXEC_RAF); setView("plan"); };
 
 // ---- compare algorithms: POST /compare -> a table sorted by the chosen objective --------------

@@ -270,7 +270,7 @@ def require_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")
         raise HTTPException(status_code=401, detail="invalid or missing API key")
 
 
-app = FastAPI(title="dustgym planet browser + mission planner", version=_version())
+app = FastAPI(title="STEWIE — mission planner + planet browser API", version=_version())
 
 _cors = os.environ.get("DUSTGYM_CORS_ORIGINS", "*").strip()
 app.add_middleware(
