@@ -96,7 +96,7 @@ RASTER_DEFS = [
     {"key": "hazard", "name": "Hazard / no-go (nav cost)", "kind": "raster", "group": "safety",
      "default": True},   # T6.1: the routing round-trip -- routes detour on the SAME layer the user sees
     {"key": "illumination", "name": "Shadow (horizon-clipped sun)", "kind": "raster", "group": "sun"},
-    {"key": "psr", "name": "PSR candidates (never lit)", "kind": "raster", "group": "sun"},
+    {"key": "psr", "name": "Permanently shadowed regions (PSR, never lit)", "kind": "raster", "group": "sun"},
 ]
 
 

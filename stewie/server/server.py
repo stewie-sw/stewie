@@ -431,7 +431,8 @@ def layers_legend():
         "illumination": {"sun": "horizon-clipped shadow at the mission-time sun (SPICE)",
                          "text": "blue = shadowed at the selected time"},
         "psr": {"sweep": "never lit across a 0–330° azimuth sweep at 3° elevation",
-                "text": "violet = PSR candidate"},
+                "text": "violet = permanently shadowed region (PSR) candidate -- never sunlit; "
+                        "the cold traps where water ice survives"},
         "dem": {"text": "cartographic hillshade (315°/45°) from the raw 5 m heightmap"},
     }
 
