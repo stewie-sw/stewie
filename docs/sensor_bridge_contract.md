@@ -3,7 +3,7 @@ title: "Sensor-bridge contract"
 nav_order: 8
 ---
 
-# Sensor-bridge contract — Godot camera egress ↔ ROS2 fiducial/SLAM (v1.2)
+# Sensor-bridge contract — Godot camera egress ↔ ROS2 fiducial/SLAM (v1.1)
 
 *Status: FROZEN seam for the M1 "basic comms" milestone (2026-05-30). This is the dev-time analogue of
 [`../INTERFACE.md`](../INTERFACE.md): the Godot renderer (producer) and the ROS2 container (consumer)
@@ -36,23 +36,6 @@ section noted, are:
 7. **Multi-frame egress directory convention** frozen as a contract artifact (§2.5).
 
 Items 8 (`frame_convention='godot'`) and the §3 REP-103 maps are explicitly UNCHANGED.
-
-### v1.2 truth-firewall addition
-
-Every capture directory now contains three JSON artifacts:
-
-- `sensors.json`: unchanged v1.1 combined packet for existing ROS/demo consumers.
-- `runtime_sensors.json`: canonical estimator-facing `sensor_bridge_runtime/1.0` packet.
-- `evaluation_truth.json`: `sensor_bridge_evaluation_truth/1.0`, evaluation only.
-
-`runtime_sensors.json` carries profile ID/checksum, calibration ID, timestamp, sample IDs, camera
-intrinsics/extrinsics, stereo identity, Sun metadata, channel availability, and health. It omits
-`rover`, `lander`, and every camera `pose_in_world`. Channels not modeled by the Godot render path
-are marked `UNAVAILABLE`; no numerical IMU, wheel, joint, or power samples are invented.
-
-`evaluation_truth.json` carries rover, lander, and camera world poses with
-`provenance=GROUND_TRUTH_EVAL`. Estimator/runtime code must not open this file. The additive legacy
-file remains only to avoid breaking the frozen ROS bridge while consumers migrate.
 
 Three tracks consume this:
 - **G1 (camera rig)** — Godot side: produces `out/cam/.../sensors.json` + the camera PNGs, and the
@@ -143,9 +126,7 @@ and M3-bundle (ROS, `_compute_truth`) agree** without sharing code:
 out/cam/<scene>/<NNN>/          # NNN = zero-padded frame index; M1 ships frame 000 only
    front_left.png               # rectified-pinhole RGB (distortion OFF for M1)
    front_right.png
-   sensors.json                 # legacy combined v1.1
-   runtime_sensors.json         # canonical truth-free runtime channel
-   evaluation_truth.json        # evaluation-only truth channel
+   sensors.json
 ```
 
 ### 2.2 `sensors.json` (normative; all poses in the GODOT world frame — see §3 for the conversion)
