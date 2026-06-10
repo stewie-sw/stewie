@@ -436,6 +436,7 @@
           forecast of the plan, not live rover telemetry).</div>
       </div>
       <div id="pane-report" class="pane">
+        <div id="dashstrip" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
         <div class="cap"><span>MISSION-CONTROL REPORT</span>
           <a id="reportopen" href="#" target="_blank" rel="noopener">open in tab ↗</a></div>
         <iframe id="reportframe" title="mission-control report"></iframe>
@@ -1905,6 +1906,20 @@ qel("qplan").onclick = async () => {
       `CONOPS PLANNED · ${t.trips ?? "—"} trips · ${t.drum_cycles ?? 0} drum cycles · ` +
       `${t.cut_passes ?? 1} cut pass${(t.cut_passes ?? 1) > 1 ? "es" : ""}`;
     LAST_ROUTES = t.routes || []; drawPlan();              // item 3: overlay the planned routes on the 2D canvas
+    // #56: the dashboard strip -- the last plan's headline numbers, chips on the Report pane
+    const ds = $("dashstrip");
+    if (ds) {
+      const chip = (k, v) => `<span style="border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:11px"><span style="color:var(--muted)">${k}</span> <b style="font-variant-numeric:tabular-nums">${v}</b></span>`;
+      const hz = (t.hazard_violations || []).length;
+      ds.innerHTML =
+        chip("moved", `${((t.cut_kg + (t.fill_kg || 0)) / 1000).toFixed(1)} t`) +
+        chip("energy", `${(t.energy_J / 1e6).toFixed(1)} MJ`) +
+        chip("recharges", t.recharges ?? "—") +
+        chip("duration", `${(t.time_s / 3600).toFixed(1)} h`) +
+        chip("hazard flags", hz ? `⚠ ${hz}` : "0") +
+        chip("solver", t.resolved_algorithm || t.algorithm || "—");
+      ds.style.display = "flex";
+    }
     const v = j.validation || {};
     const vtag = (v.feasible ? " · ✓ authority-validated" : (v.mass_conserved !== undefined ? " · ⚠ infeasible" : ""))
       // P0 as-built acceptance: flatness of the executed surface measured on the REAL terrain (not a flat mantle)
