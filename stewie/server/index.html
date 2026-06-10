@@ -970,13 +970,14 @@ async function globeLayer(key, _url, on) {
   const qs = sunQS();
   try {
     const bb = await (await fetch(`/layers/globe/${key}/bbox?` + qs)).json();
-    if (!bb.ok) return;
-    GLOBE_LAYERS[key] = viewer.imageryLayers.addImageryProvider(
-      new Cesium.SingleTileImageryProvider({
-        url: `/layers/globe/${key}.png?` + qs,
-        rectangle: Cesium.Rectangle.fromDegrees(bb.west, bb.south, bb.east, bb.north),
-        tileWidth: 1024, tileHeight: 1024 }));
-  } catch (e) { /* layer service unavailable */ }
+    if (!bb.ok) { console.error("layer bbox failed:", key, bb); return; }
+    // fromUrl = the supported modern-Cesium path (the constructor-with-url form is deprecated);
+    // errors surface to the console instead of a silent swallow (the old catch hid failures).
+    const prov = await Cesium.SingleTileImageryProvider.fromUrl(
+      `/layers/globe/${key}.png?` + qs,
+      { rectangle: Cesium.Rectangle.fromDegrees(bb.west, bb.south, bb.east, bb.north) });
+    GLOBE_LAYERS[key] = viewer.imageryLayers.addImageryProvider(prov);
+  } catch (e) { console.error("globe layer failed:", key, e); }
 }
 const BOOT_V = Date.now();                                 // per-pageload cache-bust for layer images
 function sunQS() {
