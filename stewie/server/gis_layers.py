@@ -97,7 +97,7 @@ RASTER_DEFS = [
      "default": True},   # T6.1: the routing round-trip -- routes detour on the SAME layer the user sees
     {"key": "illumination", "name": "Shadow (horizon-clipped sun)", "kind": "raster", "group": "sun"},
     {"key": "psr", "name": "Permanently shadowed regions (PSR, never lit)", "kind": "raster", "group": "sun"},
-    {"key": "grid", "name": "Site grid (100 m / 500 m)", "kind": "raster", "group": "reference"},
+    {"key": "grid", "name": "Site grid (100 m / 500 m)", "kind": "raster", "group": "reference", "default": True},
 ]
 
 
@@ -167,12 +167,14 @@ def _reproject(source_rgba, b, fwd, *, out_px: int = 1024, sub=None):
     return out.astype("uint8"), bbox
 
 
-def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=None):
+def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=None,
+                 grid_color: str = "39ff14"):
     """The geographic drape for the globe: 'dem' = the full-tile hillshade; the GIS rasters
     reproject over the WORK AREA's own extent. Returns (rgba uint8, bbox)."""
     if mp is None:
         from lode import mission_planner as mp
-    key = ("globe", kind, round(float(sun_el), 2), round(float(sun_az), 2))
+    key = ("globe", kind, round(float(sun_el), 2), round(float(sun_az), 2),
+           grid_color if kind == "grid" else "")
     if key in _GLOBE_CACHE:
         return _GLOBE_CACHE[key]
     # disk cache: survive restarts; PSR/illumination cost seconds-to-minutes to compute
@@ -181,7 +183,7 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
     from stewie.specs import config as _CFG
     cdir = _oss.path.join(_CFG.data_dir(), "globe_cache")
     _oss.makedirs(cdir, exist_ok=True)
-    stem = _oss.path.join(cdir, f"{kind}_{key[2]}_{key[3]}")
+    stem = _oss.path.join(cdir, f"{kind}_{key[2]}_{key[3]}" + (f"_{grid_color}" if kind == "grid" else ""))
     if _oss.path.exists(stem + ".npy") and _oss.path.exists(stem + ".json"):
         out = (_np_load_rgba(stem + ".npy"), _json.load(open(stem + ".json")))
         _GLOBE_CACHE[key] = out
@@ -217,13 +219,22 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
             # northings every 100 m (minor) and 500 m (major). Labels live in the inset axes +
             # the cursor's site-meters readout; the drape carries the LINES.
             n = 1000                                       # 10 m/px over the 10 km tile
+            # color chosen by the operator (Aaron: white is unreadable over hazard/slope;
+            # default = neon wiremesh green)
+            h = grid_color.lstrip("#")
+            try:
+                cr, cg, cb = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+            except (ValueError, IndexError):
+                cr, cg, cb = 0x39, 0xFF, 0x14
             rgba = _np.zeros((n, n, 4), dtype="uint8")
             for m in range(0, 10001, 100):
                 i = min(n - 1, int(m / 10000 * n))
                 major = (m % 500 == 0)
-                a = 150 if major else 60
-                rgba[i, :, :3] = 232; rgba[i, :, 3] = _np.maximum(rgba[i, :, 3], a)
-                rgba[:, i, :3] = 232; rgba[:, i, 3] = _np.maximum(rgba[:, i, 3], a)
+                a = 170 if major else 80
+                for ch, v in ((0, cr), (1, cg), (2, cb)):
+                    rgba[i, :, ch] = v; rgba[:, i, ch] = v
+                rgba[i, :, 3] = _np.maximum(rgba[i, :, 3], a)
+                rgba[:, i, 3] = _np.maximum(rgba[:, i, 3], a)
             out = _reproject(rgba, b, fwd, out_px=1024)
             _GLOBE_CACHE[key] = out
             return out

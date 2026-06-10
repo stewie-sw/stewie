@@ -706,6 +706,7 @@ function loadBody(key) {
     }));
     setMoonOverlaysVisible(sel.value === "moon");
   }).catch(() => {});
+  drawGraticule();                                         // default-on, every body
 }
 // #40/#41: the QGIS edit session -- camera frozen, clicks draw, explicit done restores.
 let EDIT = { on: false, tool: null };
@@ -735,6 +736,30 @@ async function editPlace(lat, lon) {
     const text = prompt("note text:") || "";
     if (text) { ANNOTATIONS.push({ x: d.x_m, y: d.y_m, text });
       $("editstate").textContent = `note @ ${d.x_m}, ${d.y_m} m`; drawPlan(); }
+  }
+}
+// #54 follow-up (Aaron: "default to on -- no matter where we are looking on bodies"): a global
+// 10-degree graticule on EVERY body, same color setting as the site grid.
+let GRATICULE = [];
+function drawGraticule() {
+  if (!viewer) return;
+  GRATICULE.forEach((e) => viewer.entities.remove(e));
+  GRATICULE = [];
+  if (LAYER_ON.grid === false) return;
+  const col = Cesium.Color.fromCssColorString(SETTINGS.gridcolor || "#39ff14").withAlpha(0.25);
+  for (let lat = -80; lat <= 80; lat += 10) {
+    const pts = [];
+    for (let lon = -180; lon <= 180; lon += 5) pts.push(lon, lat);
+    GRATICULE.push(viewer.entities.add({ polyline: {
+      positions: Cesium.Cartesian3.fromDegreesArray(pts, ellipsoid),
+      width: 1, material: col } }));
+  }
+  for (let lon = -180; lon < 180; lon += 10) {
+    const pts = [];
+    for (let lat = -85; lat <= 85; lat += 5) pts.push(lon, lat);
+    GRATICULE.push(viewer.entities.add({ polyline: {
+      positions: Cesium.Cartesian3.fromDegreesArray(pts, ellipsoid),
+      width: 1, material: col } }));
   }
 }
 let HAWORTH_CENTER = null;
@@ -1176,9 +1201,11 @@ $("site").onclick = () => {
   const order = estimate();
   // build-site spec handed to the sim's DEM loader / WorkSite realizer (next integration).
   const spec = { body: sel.value, lat: picked.lat, lon: picked.lon, half_extent_km: 5, order };
+  // self-describing (Aaron: "what is this up here") -- the picked site + the FEASIBILITY
+  // SANDBOX echo (section 4's pad/cut/berm numbers at that site)
   $("out").textContent =
-    `BUILD SITE  ${BODIES[sel.value].name}  ${picked.lat.toFixed(3)}, ${picked.lon.toFixed(3)}  ` +
-    `→ ${(order.cutMass_kg / 1000).toFixed(1)} t, ${order.batteryCharges.toFixed(1)} charges`;
+    `site ${picked.lat.toFixed(3)}°, ${picked.lon.toFixed(3)}° (${BODIES[sel.value].name}) · ` +
+    `sandbox est: ${(order.cutMass_kg / 1000).toFixed(1)} t / ${order.batteryCharges.toFixed(1)} charges`;
   console.log("build_order", JSON.stringify(spec));
   window.dispatchEvent(new CustomEvent("buildsite", { detail: spec }));
 };
@@ -1305,9 +1332,10 @@ async function globeLayer(key, _url, on) {
 }
 const BOOT_V = Date.now();                                 // per-pageload cache-bust for layer images
 function sunQS() {
+  const gc = "&color=" + encodeURIComponent((SETTINGS.gridcolor || "#39ff14").replace("#", ""));
   if (qel("sunauto") && qel("sunauto").checked)            // AUTO: mission time -> real solar geometry server-side
-    return `mission_t_s=${Math.round(parseFloat(qel("suntime").value) * 86400)}&b=${BOOT_V}`;
-  return `sun_el=${qel("sunel").value}&sun_az=${qel("sunaz").value}&b=${BOOT_V}`;
+    return `mission_t_s=${Math.round(parseFloat(qel("suntime").value) * 86400)}&b=${BOOT_V}` + gc;
+  return `sun_el=${qel("sunel").value}&sun_az=${qel("sunaz").value}&b=${BOOT_V}` + gc;
 }
 function flyToWorkArea() {                                 // audit P1: toggles give FEEDBACK -- fly to where the layer lives
   if (!viewer || !HAWORTH_CENTER) return;
@@ -1326,6 +1354,7 @@ function applyLayerToggle(id, on) {                          // load/unload the 
     if (on) flyToWorkArea();
   }
   if (id === "imagery" && viewer && viewer.imageryLayers && viewer.imageryLayers.length) viewer.imageryLayers.get(0).show = on;
+  if (id === "grid") drawGraticule();                      // the global graticule follows the toggle
   if (GIS_RASTERS.includes(id)) {
     renderLegend();
     const im = qel("ovl_" + id);
@@ -1349,7 +1378,7 @@ function renderWorkbench() {
     hazard: { name: "Hazard / no-go", text: LEGEND.hazard.text, sw: "#e8273f" },
     illumination: { name: "Shadow (mission-time sun)", text: LEGEND.illumination.text, sw: "#5577dd" },
     psr: { name: "Permanently shadowed regions", text: LEGEND.psr.text, sw: "#9966dd" },
-    grid: { name: "Site grid", text: "site-frame meters: 100 m minor / 500 m major (labels: inset axes + cursor readout)", sw: "#e8e8e8" },
+    grid: { name: "Site grid", text: "site-frame meters: 100 m minor / 500 m major (labels: inset axes + cursor readout)", sw: "#39ff14", colorpick: true },
   };
   BASEMAP_STACK.forEach((bm, bi) => {                      // #51: basemap cards (stack + opacity)
     const L = BODIES[sel.value].layers[bm.idx]; if (!L) return;
@@ -1404,6 +1433,14 @@ function renderWorkbench() {
     card.appendChild(head);
     const leg = document.createElement("div"); leg.style.opacity = ".75"; leg.textContent = c.text;
     card.appendChild(leg);
+    if (c.colorpick) {                                     // #54 follow-up: operator-chosen grid color
+      const cp = document.createElement("input");
+      cp.type = "color"; cp.value = SETTINGS.gridcolor || "#39ff14";
+      cp.title = "grid line color"; cp.style.cssText = "width:100%;height:18px;margin-top:3px;border:none;background:none;cursor:pointer";
+      cp.oninput = () => { SETTINGS.gridcolor = cp.value; saveSettings(SETTINGS);
+        applyLayerToggle("grid", true); };
+      card.appendChild(cp);
+    }
     if (k !== "dem") {                                     // opacity (the globe imagery layer)
       const op = document.createElement("input");
       op.type = "range"; op.min = "10"; op.max = "100"; op.value = String(LAYER_OPACITY[k] || 100);

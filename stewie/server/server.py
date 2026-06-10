@@ -509,14 +509,14 @@ def layers_legend():
 
 @app.get("/layers/globe/{kind}.png")
 def globe_layer_png(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
-                    mission_t_s: float | None = None):
+                    mission_t_s: float | None = None, color: str = "39ff14"):
     """The GEOGRAPHIC drape (server-reprojected; Aaron's rotated-tile screenshot fix)."""
     from stewie.server.gis_layers import _to_png, render_globe
     if mission_t_s is not None:
         from stewie.specs.solar import sun_az_el
         sun_az, sun_el = sun_az_el(-87.45, float(mission_t_s))
     try:
-        out = render_globe(kind, sun_el=sun_el, sun_az=sun_az)
+        out = render_globe(kind, sun_el=sun_el, sun_az=sun_az, grid_color=color[:7])
     except FileNotFoundError as e:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"DEM absent: {e}"})
     if out is None:
