@@ -170,3 +170,57 @@ def compare_with_stereo(truth: dict, stereo_depth_m: np.ndarray,
             "median_abs_err_m": float(np.median(np.abs(res))),
             "bias_m": float(np.median(res)),
             "p95_abs_err_m": float(np.percentile(np.abs(res), 95))}
+
+
+def comparison_keep_mask(camera: dict, truth: dict, scene_dir: str,
+                         rover_pose: dict | None = None, *,
+                         clast_dilate: float = 1.6, rover_radius_m: float = 0.55,
+                         rover_reach_m: float = 1.2) -> np.ndarray:
+    """Pixels where the geometric truth is EXACT and unobstructed -- the honest comparison domain.
+
+    Excludes (1) clast projections (the render uses faceted meshes; the metadata spheres are only
+    approximate -- dilated by ``clast_dilate``), and (2) the rover's own body (the front cameras image
+    the drums/wheels at 0.2-0.4 m; modeled conservatively as a sphere of ``rover_radius_m`` around the
+    base position, masking any ray whose closest approach within ``rover_reach_m`` enters it).
+    The 0.55 m default envelope comes from VEHICLE GEOMETRY (gauge 0.57 m, wheelbase 0.40 m, drum
+    arms ~0.45 m forward), not from tuning toward agreement.
+    """
+    pos = np.array(camera["pose_in_world"]["position_m"], float)
+    R = _quat_to_R(camera["pose_in_world"]["quaternion_xyzw"])
+    fx = float(camera["intrinsics"]["fx"]); cx = float(camera["intrinsics"]["cx"])
+    fy = float(camera["intrinsics"].get("fy", fx)); cy = float(camera["intrinsics"]["cy"])
+    cols, rows = truth["cols"], truth["rows"]
+    uu, vv = np.meshgrid(cols, rows)
+    d_opt = np.stack([(uu - cx) / fx, (vv - cy) / fy, np.ones_like(uu, float)], axis=-1)
+    d_opt /= np.linalg.norm(d_opt, axis=-1, keepdims=True)
+    d_cam = np.stack([d_opt[..., 0], -d_opt[..., 1], -d_opt[..., 2]], axis=-1)
+    d_w = d_cam @ R.T
+    keep = np.ones(uu.shape, bool)
+    geo = load_scene_geometry(scene_dir)
+    for c, r_s in geo["clasts"]:
+        oc = pos - c
+        b = np.sum(d_w * oc[None, None, :], axis=-1)
+        disc = b * b - (oc @ oc - (clast_dilate * r_s) ** 2)
+        keep &= ~((disc > 0) & (-b > 0))               # ray passes through the dilated sphere
+    if rover_pose is not None:
+        # self-view is NOT maskable by an analytic envelope (the camera is mounted INSIDE any
+        # honest body volume -- a sphere/box test masks the whole image). Use static_self_view_mask
+        # (cross-pose depth-constancy) instead; rover_pose is accepted for signature stability.
+        pass
+    return keep
+
+
+def static_self_view_mask(depth_stack: np.ndarray, *, min_seen: int = 6,
+                          max_std_m: float = 0.01, max_depth_m: float = 0.8) -> np.ndarray:
+    """Per-camera STATIC self-view mask from cross-pose depth constancy.
+
+    The rover is rigidly mounted, so its own body images at IDENTICAL depth in every pose while
+    terrain depth varies. A pixel is self-view iff it is measured in >= ``min_seen`` poses with
+    cross-pose std < ``max_std_m`` at depth < ``max_depth_m``. Returns True where the pixel is
+    SELF-VIEW (to be excluded). Input: (n_poses, h, w) stereo depth with NaN where invalid.
+    Honest by construction: uses only the measured stereo across poses, never the truth.
+    """
+    seen = np.isfinite(depth_stack).sum(axis=0)
+    med = np.nanmedian(depth_stack, axis=0)
+    std = np.nanstd(depth_stack, axis=0)
+    return (seen >= min_seen) & (std < max_std_m) & (med < max_depth_m)

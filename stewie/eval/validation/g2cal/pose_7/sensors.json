@@ -1,0 +1,453 @@
+{
+  "cameras": [
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          0.299999952316284,
+          -0.100000001490116,
+          0.0350000858306885
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          -0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "frame_id": "front_left_optical",
+      "height": 768,
+      "image": "front_left.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "front_left",
+      "pose_in_world": {
+        "position_m": [
+          3.09999990463257,
+          -0.0760093703866005,
+          3.2350001335144
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          -0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          0.299999952316284,
+          -0.100000001490116,
+          -0.0350000858306885
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          -0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "frame_id": "front_right_optical",
+      "height": 768,
+      "image": "front_right.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "front_right",
+      "pose_in_world": {
+        "position_m": [
+          3.09999990463257,
+          -0.0760093703866005,
+          3.16499996185303
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          -0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          -0.299999952316284,
+          -0.100000001490116,
+          0.0350000858306885
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "frame_id": "rear_left_optical",
+      "height": 768,
+      "image": "rear_left.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "rear_left",
+      "pose_in_world": {
+        "position_m": [
+          2.5,
+          -0.0760093703866005,
+          3.2350001335144
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          -0.299999952316284,
+          -0.100000001490116,
+          -0.0350000858306885
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "frame_id": "rear_right_optical",
+      "height": 768,
+      "image": "rear_right.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "rear_right",
+      "pose_in_world": {
+        "position_m": [
+          2.5,
+          -0.0760093703866005,
+          3.16499996185303
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          0.0,
+          -0.0500000007450581,
+          0.285000085830688
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "frame_id": "left_mono_optical",
+      "height": 768,
+      "image": "left_mono.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "left_mono",
+      "pose_in_world": {
+        "position_m": [
+          2.79999995231628,
+          -0.0260093696415424,
+          3.4850001335144
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          0.0,
+          -0.0500000007450581,
+          -0.285000085830688
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "frame_id": "right_mono_optical",
+      "height": 768,
+      "image": "right_mono.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "right_mono",
+      "pose_in_world": {
+        "position_m": [
+          2.79999995231628,
+          -0.0260093696415424,
+          2.91499996185303
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          0.0999999046325684,
+          0.180000007152557,
+          0.0
+        ],
+        "quaternion_xyzw": [
+          -0.358593314886093,
+          -0.609434843063354,
+          -0.358593314886093,
+          0.609434843063354
+        ]
+      },
+      "frame_id": "drum_front_cam_optical",
+      "height": 768,
+      "image": "drum_front_cam.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "drum_front_cam",
+      "pose_in_world": {
+        "position_m": [
+          2.89999985694885,
+          0.203990638256073,
+          3.20000004768372
+        ],
+        "quaternion_xyzw": [
+          -0.358593314886093,
+          -0.609434843063354,
+          -0.358593314886093,
+          0.609434843063354
+        ]
+      },
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          -0.0999999046325684,
+          0.180000007152557,
+          0.0
+        ],
+        "quaternion_xyzw": [
+          -0.358593314886093,
+          0.609434843063354,
+          0.358593314886093,
+          0.609434843063354
+        ]
+      },
+      "frame_id": "drum_back_cam_optical",
+      "height": 768,
+      "image": "drum_back_cam.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "drum_back_cam",
+      "pose_in_world": {
+        "position_m": [
+          2.70000004768372,
+          0.203990638256073,
+          3.20000004768372
+        ],
+        "quaternion_xyzw": [
+          -0.358593314886093,
+          0.609434843063354,
+          0.358593314886093,
+          0.609434843063354
+        ]
+      },
+      "width": 1024
+    }
+  ],
+  "frame_convention": "godot",
+  "frame_index": 0,
+  "lander": {
+    "apriltag": {
+      "family": "tag36h11",
+      "id": 0,
+      "pose_in_lander": {
+        "position_m": [
+          0,
+          0,
+          0
+        ],
+        "quaternion_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "size_m": 0.15
+    },
+    "frame_id": "lander",
+    "position_m": [
+      5.30000019073486,
+      0.463975578546524,
+      3.20000004768372
+    ],
+    "quaternion_xyzw": [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ]
+  },
+  "rover": {
+    "frame_id": "base_link",
+    "position_m": [
+      2.79999995231628,
+      0.0239906311035156,
+      3.20000004768372
+    ],
+    "quaternion_xyzw": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  },
+  "scene": "crater_boulders",
+  "schema_version": "sensor_bridge/1.1",
+  "stereo": {
+    "baseline_m": 0.070000171661377,
+    "left": "front_left",
+    "right": "front_right"
+  },
+  "stereo_rear": {
+    "baseline_m": 0.070000171661377,
+    "left": "rear_left",
+    "right": "rear_right"
+  },
+  "sun": {
+    "azimuth_deg": 180.0,
+    "elevation_deg": 28.0,
+    "time_delta_s": 0.0
+  }
+}

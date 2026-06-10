@@ -143,6 +143,7 @@ def compute_depth_frame(
     *,
     num_disparities: int = 128,
     block_size: int = 7,
+    saturation_invalid: bool = False,
     lr_max_diff_px: float = 1.0,
     exclusion_mask: np.ndarray | None = None,
     require_calibrated_covariance: bool = False,
@@ -170,6 +171,15 @@ def compute_depth_frame(
     # Mask the sentinel to NaN -> NaN comparisons are False -> reverse-INVALID pixels are rejected.
     disparity_rl[disparity_rl < -float(num_disparities)] = np.nan
     valid = left_right_consistency(disparity_lr, disparity_rl, lr_max_diff_px)
+    if saturation_invalid:
+        # a disparity pinned at the search cap is NOT a measurement: deep-shadow/over-near pixels
+        # saturate SYMMETRICALLY in both directions, so LR-consistency alone passes them (found by
+        # the G2 geometric truth, 2026-06-10: a shadow blob "measured" at exactly fx*b/(N-1)).
+        # OPT-IN to preserve the frozen 2026-06-07 gate behavior; the next gate revision should
+        # enable it.
+        valid &= (disparity_lr < 0.95 * float(num_disparities)) & (disparity_lr > 1.0)
+        # the lower bound: d <= 0 is not a measurement either (negative depth); d in (0,1] px is
+        # beyond-range ambiguity at >fx*b metres
     if exclusion_mask is not None:
         mask = np.asarray(exclusion_mask, dtype=bool)
         if mask.shape != valid.shape:
