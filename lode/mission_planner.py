@@ -151,7 +151,7 @@ def mission_soil_params(mission):
     return params_for_body(mission.soil or mission.body)
 
 
-_ORDER_KINDS = ("cut", "fill", "sinter")
+_ORDER_KINDS = ("cut", "fill", "sinter", "goto")   # goto = S-3 path waypoint (zero mass, sequenced)
 _ORDER_FIELDS = ("action", "kind", "x", "y", "footprint_m2", "depth_m")
 #: order kind -> the vehicle capability it requires (vehicles.ACTIONS). The fleet (selected vehicle +
 #: mounted tools) must have it or the order is refused -- e.g. sinter needs the separate sinter Tool.
@@ -191,7 +191,9 @@ def mission_from_dict(payload):
     for i, o in enumerate(raw):
         if not isinstance(o, dict):
             raise ValueError(f"order {i} must be an object")
-        missing = [k for k in _ORDER_FIELDS if k not in o]
+        # S-3: goto waypoints carry only a position -- no footprint/depth (zero-mass visits)
+        req = ("action", "kind", "x", "y") if o.get("kind") == "goto" else _ORDER_FIELDS
+        missing = [k for k in req if k not in o]
         if missing:
             raise ValueError(f"order {i} missing field(s): {missing}")
         if o["kind"] not in _ORDER_KINDS:
@@ -211,8 +213,10 @@ def mission_from_dict(payload):
             action=str(o["action"]), kind=str(o["kind"]),
             x=VAL.ensure_finite_scalar(o["x"], f"order {i} x"),
             y=VAL.ensure_finite_scalar(o["y"], f"order {i} y"),
-            footprint_m2=VAL.ensure_positive_scalar(o["footprint_m2"], f"order {i} footprint_m2"),
-            depth_m=VAL.ensure_positive_scalar(o["depth_m"], f"order {i} depth_m"),
+            footprint_m2=(0.0 if o.get("kind") == "goto" else
+                          VAL.ensure_positive_scalar(o["footprint_m2"], f"order {i} footprint_m2")),
+            depth_m=(0.0 if o.get("kind") == "goto" else
+                     VAL.ensure_positive_scalar(o["depth_m"], f"order {i} depth_m")),
             note=str(o.get("note", ""))))
     c = payload.get("charger", (0.0, 0.0))
     kwargs = dict(name=str(payload.get("name", "Build Mission")), body=body, orders=orders,
@@ -221,7 +225,11 @@ def mission_from_dict(payload):
                   vehicle=veh, tools=tools, soil=soil)
     if "date" in payload:
         kwargs["date"] = str(payload["date"])
-    prec = payload.get("precedence")                       # I9: [[before_action, after_action], ...]
+    # S-3: consecutive goto waypoints chain automatically -- a PATH is ordered by authorship
+    gotos = [o.action for o in orders if o.kind == "goto"]
+    auto_prec = [[a, b] for a, b in zip(gotos, gotos[1:])]
+    prec = (payload.get("precedence") or []) + auto_prec if (payload.get("precedence") or auto_prec) else None
+    prec = prec if prec else payload.get("precedence")     # I9: [[before_action, after_action], ...]
     if prec is not None:
         actions = {o.action for o in orders}
         pairs = []
@@ -321,6 +329,13 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
             "(drum excavator, no sinter tool; sinter energy ~14-20x the pack per kg). Enable a "
             "sinter-equipped variant via terrain_authority.constants.SINTER_ENABLED.")
     trips = []
+    # S-3 path-first: goto waypoints become zero-mass VISIT trips; the auto-precedence chain
+    # (mission_from_dict) keeps them in authored sequence through the sequencer.
+    for o in mission.orders:
+        if o.kind == "goto":
+            trips.append(dict(kind="goto", site=(o.x, o.y), label=f"Waypoint: {o.action}",
+                              mass=0.0, dig_e=0.0, dig_t=0.0, haul_m=0.0, haul_e=0.0,
+                              lift_e=0.0, dest=(o.x, o.y), actions=frozenset({o.action})))
     straight_haul_m = 0.0; routed_haul_m = 0.0; blocked_legs = 0; leg_routes = []
     for co, fo, mass, dist in flows:
         if co is None:
@@ -705,6 +720,7 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
         fill_kg=sum(o.mass_kg(mission.density) for o in mission.orders if o.kind == "fill"),
         sinter_kg=sum(o.mass_kg(mission.density) for o in mission.orders if o.kind == "sinter"),
         surplus_kg=surplus_kg,
+        waypoint_sequence=[next(iter(t["actions"])) for t in trips if t["kind"] == "goto"],
         deficit_kg=sum(m for c, f, m, d in flows if c is None),
         drum_cycles=sum(max(1, math.ceil(tr["mass"] / _drum_kg(mission))) for tr in trips if tr["kind"] == "cutfill"),
         # T2.3 (BDS p.7): cut depth per pass <= 50% of the scoop opening -- a deep cut is MULTIPLE

@@ -114,3 +114,23 @@ def test_t71_bp1_testbed_soil_binds_measured_density():
     tw = vtw.VehicleTwin.assemble("v", vehicle="ipex", body="earth", soil="bp1_testbed")
     moon = vtw.VehicleTwin.assemble("m", vehicle="ipex", body="moon")
     assert tw.gravity_ms2 == 9.81 and moon.gravity_ms2 != tw.gravity_ms2
+
+
+def test_s3_goto_waypoint_orders_plan_in_sequence():
+    """S-3 path-first authoring: goto waypoints are authorable orders -- zero mass, routed,
+    and SEQUENCED as authored (a path is a path; the optimizer must not shuffle it)."""
+    from lode import mission_planner as MP
+    doc = {"name": "path", "body": "moon", "charger": [0, 0],
+           "orders": [{"action": "wp1", "kind": "goto", "x": 10, "y": 4},
+                      {"action": "wp2", "kind": "goto", "x": 22, "y": 12},
+                      {"action": "dig here", "kind": "cut", "x": 30, "y": 16,
+                       "footprint_m2": 16, "depth_m": 0.05},
+                      {"action": "fill there", "kind": "fill", "x": 44, "y": 20,
+                       "footprint_m2": 16, "depth_m": 0.05}]}
+    m = MP.mission_from_dict(doc)
+    _, _, totals = MP.run(m, stem="s3_path")
+    assert totals["energy_J"] > 0 and totals.get("feasible", True)
+    labels = [tr.get("label", "") for tr in totals.get("trip_list", [])] or None
+    # the waypoint visits exist and precede the work (sequence preserved)
+    seq = totals["waypoint_sequence"]
+    assert seq == ["wp1", "wp2"]

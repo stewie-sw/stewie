@@ -283,7 +283,11 @@
       <button id="qcompare" class="go">Compare algorithms ⇅</button>
       <div class="cap" style="margin-top:8px">PLAN VIEW <small>(local site frame, top-down) · click to set x,y</small></div>
       <div id="layerpanel" class="cap" style="margin:4px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center">LAYERS</div>
-      <canvas id="plancanvas" width="324" height="220" title="click to set the build x,y"></canvas>
+      <div class="ctl" style="margin:2px 0">
+        <button id="pathmode" class="site" title="S-3 path-first authoring: click waypoints in order; each becomes a sequenced goto; attach work orders at any point">✏ Draw path</button>
+        <button id="pathdone" class="site" style="display:none">✓ Finish path</button>
+        <span id="pathinfo" style="font-size:10px;opacity:.7"></span></div>
+      <canvas id="plancanvas" width="324" height="220" title="click to set the build x,y (path mode: click adds waypoints)"></canvas>
       <div id="qstatus">queue empty</div>
       <table id="cmptable" style="display:none;width:100%;font-size:11px;border-collapse:collapse;margin-top:6px"></table>
     </section>
@@ -898,7 +902,9 @@ function renderQueue() {
     const li = document.createElement("li");
     const g = document.createElement("span"); g.className = "g";
     const fx = v => Number(v).toFixed(1).replace(/\.0$/, "");   // B0.4: human coords, 0.1 m
-    g.textContent = `${o.kind} ${o.action || ""} (${fx(o.x)}, ${fx(o.y)}) ${o.footprint_m2}m²×${o.depth_m}m`;
+    g.textContent = o.kind === "goto"
+      ? `⌖ ${o.action} (${fx(o.x)}, ${fx(o.y)}) waypoint`
+      : `${o.kind} ${o.action || ""} (${fx(o.x)}, ${fx(o.y)}) ${o.footprint_m2}m²×${o.depth_m}m`;
     li.append(`${i + 1}.`, g,
               mkbtn("⌖", () => {                            // S-2: zoom-to the feature (Esri pattern)
                 $("qx").value = o.x; $("qy").value = o.y;
@@ -1018,6 +1024,19 @@ function drawPlan() {
       ctx.lineTo(X(rt.to_xy[0]), Y(rt.to_xy[1])); ctx.stroke(); ctx.setLineDash([]);
     }
   });
+  // S-3: the authored PATH (goto waypoints as a red polyline with numbered nodes)
+  const wps = ORDERS.filter((o) => o.kind === "goto");
+  if (wps.length) {
+    ctx.strokeStyle = "#e8273f"; ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]);
+    ctx.beginPath();
+    wps.forEach((w, k) => { const x = X(w.x), y = Y(w.y); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    ctx.stroke(); ctx.setLineDash([]);
+    wps.forEach((w, k) => {
+      ctx.fillStyle = "#e8273f"; ctx.beginPath(); ctx.arc(X(w.x), Y(w.y), 4, 0, 7); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.font = "8px system-ui"; ctx.textAlign = "center";
+      ctx.fillText(String(k + 1), X(w.x), Y(w.y) + 2.5);
+    });
+  }
   if (LAYER_ON.excavation) ORDERS.forEach((o, i) => {      // excavation layer: cut (blue) / fill (orange) squares
     const half = Math.max(2, Math.sqrt(o.footprint_m2) / 2 * s);
     ctx.fillStyle = o.kind === "cut" ? "rgba(79,156,255,.30)" : "rgba(224,123,57,.30)";
@@ -1051,11 +1070,28 @@ function drawPlan() {
     ctx.moveTo(cx, cy - 8); ctx.lineTo(cx, cy + 8); ctx.stroke();
   }
 }
+let PATH_MODE = false, PATH_N = 0;
+qel("pathmode").onclick = () => {
+  PATH_MODE = true; PATH_N = ORDERS.filter((o) => o.kind === "goto").length;
+  qel("pathmode").style.display = "none"; qel("pathdone").style.display = "";
+  qel("pathinfo").textContent = "click waypoints in order";
+};
+qel("pathdone").onclick = () => {
+  PATH_MODE = false;
+  qel("pathmode").style.display = ""; qel("pathdone").style.display = "none";
+  qel("pathinfo").textContent = "";
+};
 qel("plancanvas").onclick = (e) => {                       // canvas px -> local metres -> the x,y inputs
   const cv = qel("plancanvas"), r = cv.getBoundingClientRect();
   const px = (e.clientX - r.left) / r.width * cv.width, py = (e.clientY - r.top) / r.height * cv.height;
   const ext = _planExtent(), tf = _planXform(cv, ext);
   const wx = ext.x0 + (px - tf.ox) / tf.s, wy = ext.y0 + ((cv.height - py) - tf.oy) / tf.s;
+  if (PATH_MODE) {                                         // S-3: each click = a sequenced waypoint
+    PATH_N += 1;
+    ORDERS.push({ action: `wp${PATH_N}`, kind: "goto", x: Math.round(wx), y: Math.round(wy) });
+    qel("pathinfo").textContent = `${PATH_N} waypoint(s)`;
+    renderQueue(); return;
+  }
   _placeXY = { x: Math.round(wx), y: Math.round(wy) };
   qel("qx").value = _placeXY.x; qel("qy").value = _placeXY.y;
   setQ(`placed ${_placeXY.x}, ${_placeXY.y} m — pick a kind/structure + Add to queue it`);
