@@ -72,4 +72,4 @@ def test_second_vehicle_plans_with_its_own_numbers():
         "the sourced drum-capacity difference must flow through the plan"
     # and the twin record carries exactly the registry numbers the planner used
     tw = vtw.VehicleTwin.assemble("r2", vehicle="rassor2", body="moon")
-    assert tw.energy["drum_capacity_kg"] == pytest.approx(49.96)
+    assert tw.energy["drum_capacity_kg"] == pytest.approx(80.0)   # R2D p.7 design hold

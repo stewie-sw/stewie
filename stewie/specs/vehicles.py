@@ -139,9 +139,11 @@ VEHICLES = {
         "rassor2", "RASSOR 2.0 (TRL-4 breadboard precursor)",
         dry_mass_kg=65.0, n_wheels=4,                       # 65 kg dry mass [SCHULER22 BD-scaling]
         wheel_width_m=0.18, contact_len_m=0.10,
-        # 2 counter-rotating LARGE bucket drums x 24.98 kg/drum (BD-scaling Table 3, the "RASSOR 2.0 drum")
-        # = ~50 kg/cycle, larger per-cycle than IPEx's 30 -> a genuinely SOURCED cross-vehicle difference.
-        drum_capacity_kg=round(2 * 24.98, 2),
+        # RASSOR 2.0 documented DESIGN HOLD: 80 kg of regolith (R2D p.7; TRL5 conformance review
+        # 2026-06-10 corrected the earlier 2x24.98 two-drum assumption -- the platform carries four
+        # drum halves; BDS Table 3's own 4-drum figure is 99.94 kg, the design hold is the binding
+        # number). Still the genuinely SOURCED cross-vehicle difference vs IPEx's 30 kg.
+        drum_capacity_kg=80.0,
         drive_power_w=S.drive_power_w(), dig_energy_j_per_kg=S.dig_energy_per_kg(),   # energy reuses IPEx model
         capabilities=frozenset({"drive", "excavate", "haul", "dump", "compact"}),
         # 43 cm wheels (r 0.215) + 0.5207 m skid-steer track (Zhang wheel testing); wheelbase/CG [CALIB].

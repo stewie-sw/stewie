@@ -35,10 +35,18 @@ import math
 TWO_PI = 2.0 * math.pi
 
 
+# Camera operational floor: TRL5 TVAC qualification runs the cameras 0..50 C (p.28-29) -- the
+# binding LOW limit for perception availability planning (the avionics qual is wider, -35/+40).
+CAMERA_MIN_OPERATIONAL_C = 0.0    # [SCHULER24 p.28-29 TVAC]
+
 # ---- Published IPEx ConOps / sizing numbers [SCHULER24] -----------------------------------
 ROVER_MASS_CLASS_KG = 30.0        # "30 kg-class excavator"
 DRIVE_SPEED_MS = 0.30             # nominal driving speed 30 cm/s
-DRUM_SPEED_RPM = 25.0             # bucket-drum operational rotation rate
+DRUM_SPEED_RPM = 25.0             # bucket-drum rotation rate [R2D: RASSOR-2.0 drum-actuator MAX
+                                  # ~25 RPM (rated ~18); TRL5 conformance review 2026-06-10 --
+                                  # SCHULER24's only "25" is a wheel-actuator docking speed, NOT
+                                  # this. Feeds dig_power_w -> 4151 J/kg; rated-18 would scale it
+                                  # 0.72x. [ASSUMPTION] until an IPEx-specific drum rate publishes.
 REGOLITH_PER_CYCLE_KG = 30.0      # collect/store/deposit up to 30 kg/cycle (15 kg min threshold)
 DIG_RATE_KG_PER_HR = 42.0         # demonstration excavation rate
 TOTAL_REGOLITH_KG = (5000.0, 10000.0)   # moved over the mission
@@ -49,7 +57,8 @@ BUS_VOLTAGE_TESTED_V = (47.6, 53.2, 58.8)
 
 # Table 3 (Loads experienced during ConOps), wheel actuator, 80:1 gearbox.
 WHEEL_GEAR_RATIO = 80.0
-DRIVE_MOTOR_TORQUE_NM = 0.063     # mean motor-side load of the four driving cases (3a/3b/4a/4b)
+DRIVE_MOTOR_TORQUE_NM = 0.063     # Table 3 case 3b motor-side load (the 4-case mean is 0.0635;
+                                  # review 2026-06-10 corrected the derivation note)
 DRIVE_MOTOR_SPEED_RPM = 1530.0    # motor speed for those driving cases
 N_WHEELS = 4
 
