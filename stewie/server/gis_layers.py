@@ -188,17 +188,44 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         rgba = _np.dstack([g8, g8, g8, _np.full(g8.shape, 255, dtype="uint8")])
         out = _reproject(rgba, b, fwd, out_px=1024)
     else:
-        png = render(kind, sun_el=sun_el, sun_az=sun_az, mp=mp)
-        if png is None:
+        # FULL-TILE analysis rasters for the globe (Aaron 2026-06-10: "when hazard is clicked the
+        # full tile isn't loaded") -- computed from the whole heightmap at a working downsample;
+        # the work-area crop remains the inset's product. Disclosure: ROCK hazards exist only
+        # where mapped (the surveyed crop); the full-tile hazard is slope-derived.
+        stride = max(1, dem_full.shape[0] // 768)
+        dem = _np.asarray(dem_full, dtype=float)[::stride, ::stride]
+        cm = cell_m * stride
+        if kind == "slope":
+            gy, gx = _np.gradient(dem, cm)
+            slope = _np.degrees(_np.arctan(_np.hypot(gx, gy)))
+            t = _np.clip(slope / 30.0, 0, 1)
+            rgba = _np.zeros((*slope.shape, 4))
+            rgba[..., 0] = 60 + 195 * t; rgba[..., 1] = 200 * (1 - t); rgba[..., 2] = 40
+            rgba[..., 3] = 90 + 120 * t
+        elif kind == "hazard":
+            gy, gx = _np.gradient(dem, cm)
+            slope = _np.degrees(_np.arctan(_np.hypot(gx, gy)))
+            nogo = slope > 20.0                            # the TESTED envelope [WHEELTEST]
+            graded = _np.clip((slope - 15.0) / 5.0, 0, 1)  # nominal->tested band
+            rgba = _np.zeros((*slope.shape, 4))
+            rgba[..., 0] = 255; rgba[..., 1] = 140 * (1 - graded)
+            rgba[..., 3] = _np.where(nogo, 230, 170 * graded)
+            rgba[nogo, 1] = 0
+        elif kind == "illumination":
+            from dart.illumination import horizon_clip
+            lit = horizon_clip(dem, cm, float(sun_az), float(sun_el))
+            rgba = _np.zeros((*lit.shape, 4))
+            rgba[..., 2] = 180; rgba[..., 3] = _np.where(lit, 0, 165)
+        elif kind == "psr":
+            from dart.illumination import horizon_clip
+            ever_lit = _np.zeros(dem.shape, dtype=bool)
+            for az in range(0, 360, 30):
+                ever_lit |= horizon_clip(dem, cm, float(az), 3.0)
+            rgba = _np.zeros((*dem.shape, 4))
+            rgba[..., 0] = 90; rgba[..., 2] = 200
+            rgba[..., 3] = _np.where(ever_lit, 0, 200)
+        else:
             return None
-        import io as _io
-        rgba = imread(_io.BytesIO(png))
-        # the work-area window inside the tile (the SAME crop _work_area uses)
-        _, (r0, c0), _ = _work_area(mp)
-        side = 128
-        sub = (b["x0"] + c0 * cell_m, b["y1"] - (r0 + side) * cell_m,
-               b["x0"] + (c0 + side) * cell_m, b["y1"] - r0 * cell_m)
-        out = _reproject(rgba, {"x0": sub[0], "y0": sub[1], "x1": sub[2], "y1": sub[3]},
-                         fwd, out_px=512, sub=None)
+        out = _reproject(rgba.astype("uint8"), b, fwd, out_px=1024)
     _GLOBE_CACHE[key] = out
     return out

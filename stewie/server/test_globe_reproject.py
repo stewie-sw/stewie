@@ -41,8 +41,22 @@ def test_reprojection_centers_align():
 
 
 def test_work_area_rasters_get_their_own_bbox():
+    """SUPERSEDED 2026-06-10 by Aaron's full-tile directive: globe rasters now cover the WHOLE
+    tile (the small-bbox behavior was the bug he screenshotted); kept as the bbox-consistency pin."""
     rgba, bbox = G.render_globe("slope")
     rgba2, bbox2 = G.render_globe("dem")
-    # the work area (640 m) is a SMALL box inside the tile's bbox (10 km)
-    assert bbox["north"] - bbox["south"] < (bbox2["north"] - bbox2["south"]) / 3
-    assert bbox2["south"] - 1e-6 <= bbox["south"] and bbox["north"] <= bbox2["north"] + 1e-6
+    assert abs((bbox["north"] - bbox["south"]) - (bbox2["north"] - bbox2["south"])) < 0.02
+
+
+def test_globe_rasters_cover_the_full_tile():
+    """Aaron (desktop image): clicking hazard loaded only the 640 m work-area patch -- analysis
+    layers on the GLOBE must cover the FULL 10 km tile (the inset keeps the work-area crop)."""
+    rgba_s, bb_s = G.render_globe("slope")
+    rgba_d, bb_d = G.render_globe("dem")
+    span = lambda b: b["north"] - b["south"]
+    assert abs(span(bb_s) - span(bb_d)) < 0.02             # slope bbox == the tile bbox
+    rgba_h, bb_h = G.render_globe("hazard")
+    assert abs(span(bb_h) - span(bb_d)) < 0.02
+    # full-tile slope must contain steep content (Haworth's walls), not just the flat work area
+    lit = rgba_s[rgba_s[..., 3] > 0]
+    assert lit.size and float(rgba_s[..., 3].max()) > 150
