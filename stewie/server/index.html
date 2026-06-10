@@ -1280,7 +1280,7 @@ async function loadLayers() {
     });
   } catch (e) { /* serverless preview keeps the defaults */ }
 }
-const GIS_RASTERS = ["slope", "hazard", "illumination", "psr"];   // computed from the REAL Haworth DEM server-side
+const GIS_RASTERS = ["slope", "hazard", "illumination", "psr", "grid"];   // computed from the REAL Haworth DEM server-side
 // the BIG-MAP layer path (Aaron: "layers only load in the pip window -- need it on the large
 // screen"): each raster becomes a Cesium imagery layer clipped to the true Haworth footprint.
 async function globeLayer(key, _url, on) {
@@ -1347,6 +1347,7 @@ function renderWorkbench() {
     hazard: { name: "Hazard / no-go", text: LEGEND.hazard.text, sw: "#e8273f" },
     illumination: { name: "Shadow (mission-time sun)", text: LEGEND.illumination.text, sw: "#5577dd" },
     psr: { name: "Permanently shadowed regions", text: LEGEND.psr.text, sw: "#9966dd" },
+    grid: { name: "Site grid", text: "site-frame meters: 100 m minor / 500 m major (labels: inset axes + cursor readout)", sw: "#e8e8e8" },
   };
   BASEMAP_STACK.forEach((bm, bi) => {                      // #51: basemap cards (stack + opacity)
     const L = BODIES[sel.value].layers[bm.idx]; if (!L) return;

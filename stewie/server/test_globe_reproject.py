@@ -60,3 +60,12 @@ def test_globe_rasters_cover_the_full_tile():
     # full-tile slope must contain steep content (Haworth's walls), not just the flat work area
     lit = rgba_s[rgba_s[..., 3] > 0]
     assert lit.size and float(rgba_s[..., 3].max()) > 150
+
+
+def test_site_grid_drapes_the_full_tile():
+    """#54: the MGRS-analog site grid -- 100 m minor / 500 m major site-frame lines as a drape."""
+    rgba, bbox = G.render_globe("grid")
+    rgba_d, bbox_d = G.render_globe("dem")
+    assert abs((bbox["north"] - bbox["south"]) - (bbox_d["north"] - bbox_d["south"])) < 0.02
+    frac = float((rgba[..., 3] > 0).mean())
+    assert 0.005 < frac < 0.30                             # lines, not fill; not empty

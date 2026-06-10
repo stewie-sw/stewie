@@ -97,6 +97,7 @@ RASTER_DEFS = [
      "default": True},   # T6.1: the routing round-trip -- routes detour on the SAME layer the user sees
     {"key": "illumination", "name": "Shadow (horizon-clipped sun)", "kind": "raster", "group": "sun"},
     {"key": "psr", "name": "Permanently shadowed regions (PSR, never lit)", "kind": "raster", "group": "sun"},
+    {"key": "grid", "name": "Site grid (100 m / 500 m)", "kind": "raster", "group": "reference"},
 ]
 
 
@@ -211,6 +212,21 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         # PSR's 12-azimuth horizon sweep measured 44 s at 768px (Aaron: "psr does not load in
         # main screen") -- the sweep runs at 384px (~4x faster, same 30-deg azimuth step); other
         # kinds keep 768. Products disk-cache under data_dir so each computes ONCE per sun key.
+        if kind == "grid":
+            # #54: the site reference grid (the lunar-ops analog of MGRS): site-frame eastings/
+            # northings every 100 m (minor) and 500 m (major). Labels live in the inset axes +
+            # the cursor's site-meters readout; the drape carries the LINES.
+            n = 1000                                       # 10 m/px over the 10 km tile
+            rgba = _np.zeros((n, n, 4), dtype="uint8")
+            for m in range(0, 10001, 100):
+                i = min(n - 1, int(m / 10000 * n))
+                major = (m % 500 == 0)
+                a = 150 if major else 60
+                rgba[i, :, :3] = 232; rgba[i, :, 3] = _np.maximum(rgba[i, :, 3], a)
+                rgba[:, i, :3] = 232; rgba[:, i, 3] = _np.maximum(rgba[:, i, 3], a)
+            out = _reproject(rgba, b, fwd, out_px=1024)
+            _GLOBE_CACHE[key] = out
+            return out
         px = 384 if kind == "psr" else 768
         stride = max(1, dem_full.shape[0] // px)
         dem = _np.asarray(dem_full, dtype=float)[::stride, ::stride]
