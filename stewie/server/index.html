@@ -733,6 +733,23 @@ function loadBody(key) {
     setMoonOverlaysVisible(sel.value === "moon");
   }).catch(() => {});
   drawGraticule();                                         // default-on, every body
+  // #58: EVERY registry site linked on the globe like Haworth (marker + label; click = jump)
+  fetch("/sites").then((r) => r.json()).then((j) => {
+    if (!j.ok || !viewer) return;
+    j.sites.forEach((s) => {
+      if (s.name === "haworth") return;                    // Haworth has the footprint already
+      HAWORTH_ENTITIES.push(viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 0, ellipsoid),
+        point: { pixelSize: 7, color: Cesium.Color.fromCssColorString(s.imported ? "#3fa34d" : "#e0b300"),
+                 outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+        label: { text: s.label + (s.imported ? "" : " (no DEM)"), font: "10px Orbitron, sans-serif",
+                 fillColor: Cesium.Color.fromCssColorString("#c7d2e3"),
+                 pixelOffset: new Cesium.Cartesian2(0, -14), showBackground: true,
+                 backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb"),
+                 distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2.0e6) },
+      }));
+    });
+  }).catch(() => {});
 }
 // #40/#41: the QGIS edit session -- camera frozen, clicks draw, explicit done restores.
 let EDIT = { on: false, tool: null };
@@ -1430,6 +1447,8 @@ async function globeLayer(key, _url, on) {
       { rectangle: Cesium.Rectangle.fromDegrees(bb.west, bb.south, bb.east, bb.north) });
     GLOBE_LAYERS[key] = viewer.imageryLayers.addImageryProvider(prov);
     if (LAYER_OPACITY[key]) GLOBE_LAYERS[key].alpha = LAYER_OPACITY[key] / 100;   // slider persists
+    // Aaron: the reference grid must sit ON TOP of every DEM/analysis drape
+    if (GLOBE_LAYERS.grid) viewer.imageryLayers.raiseToTop(GLOBE_LAYERS.grid);
   } catch (e) { console.error("globe layer failed:", key, e); }
 }
 const BOOT_V = Date.now();                                 // per-pageload cache-bust for layer images
