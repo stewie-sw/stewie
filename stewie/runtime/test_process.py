@@ -97,3 +97,23 @@ def test_checkpoint_restore_roundtrips(runtime, tmp_path):
     pose_after = _rpc(sock, {"role": "drive", "cmd": "pose"})
     assert pose_after["rc"] == pose_before["rc"]
     assert pose_after["mass_sha"] == pose_before["mass_sha"]   # bit-exact world restore
+
+
+def test_packet_carries_real_imu_wheel_channels_after_motion(runtime):
+    """Slice 2: motion feeds the REAL producer models; the packet's imu/wheel are OK and parse."""
+    sock, _ = runtime
+    _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.1, "steps": 12})
+    r = _rpc(sock, {"role": "produce", "cmd": "packet"})
+    assert r["ok"]
+    pkt = r["packet"]
+    assert pkt["channels"]["imu"]["status"] == "OK"
+    assert pkt["channels"]["wheel"]["status"] == "OK"
+    from stewie.bridge.runtime_io import parse_canonical
+    parsed = parse_canonical(pkt)                          # strict parse, truth-scan included
+    assert len(parsed["imu"]) >= 12 and len(parsed["wheel"]) >= 12
+    # encoder deltas reflect REAL motion (nonzero counts) and slip stays hidden
+    assert any(any(c != 0 for c in s_["encoder_count_delta"])
+               for s_ in pkt["channels"]["wheel"]["samples"])
+    # a second packet drains the buffer: no double-reporting of the same samples
+    r2 = _rpc(sock, {"role": "produce", "cmd": "packet"})
+    assert r2["packet"]["channels"]["imu"]["status"] == "UNAVAILABLE"

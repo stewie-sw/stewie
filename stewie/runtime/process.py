@@ -24,6 +24,7 @@ import numpy as np
 from stewie.physics import drive
 from stewie.physics.column_state import ColumnState
 from stewie.specs import vehicle_twin as vtw
+from stewie.twin import proprioception as pp
 
 _MUTATING = {"twist", "checkpoint", "restore"}
 
@@ -42,6 +43,12 @@ class RuntimeProcess:
         self.sequence: int = 0
         self.socket_path = socket_path
         self._server: socketserver.UnixStreamServer | None = None
+        # slice 2: the REAL proprioception producer models, driven by the runtime's actual motion;
+        # samples buffer between packets and DRAIN on emit (no double-reporting).
+        self.t_sim: float = 0.0
+        self._imu_model = pp.ImuWheelModel(seed=seed + 1)
+        self._imu_buf: list = []
+        self._wheel_buf: list = []
 
     # ---- world operations (the seam's verbs) ---------------------------------------------
     def _pose(self) -> dict:
@@ -53,22 +60,41 @@ class RuntimeProcess:
         ctx = self.twin.drive_context()
         telem: dict = {}
         for _ in range(max(1, int(steps))):
+            yaw0 = self.yaw
             self.rc, self.yaw, telem = drive.drive_step(
                 self.cs, self.rc, self.yaw, float(v), float(omega), dt=self.dt, **ctx)
+            self.t_sim += self.dt
+            # feed the REAL producer models from the achieved motion (slip stays hidden by the
+            # encoder model itself; the IMU sees the true yaw rate, not the commanded one)
+            true_yaw_rate = (self.yaw - yaw0) / self.dt
+            slip = float(telem.get("slip", 0.0))
+            self._imu_buf.append(self._imu_model.step_imu(self.t_sim, true_yaw_rate))
+            self._wheel_buf.append(self._imu_model.step_wheel_encoders(
+                self.t_sim, float(telem.get("v_achieved", v)), float(omega),
+                slip4=(slip, slip, slip, slip), dt=self.dt))
         out = self._pose()
         out["slip"] = float(telem.get("slip", 0.0))
         return out
 
     def _packet(self) -> dict:
         self.sequence += 1
+        if self._imu_buf or self._wheel_buf:
+            rate = 1.0 / self.dt
+            proprio = pp.runtime_proprioception_packet(
+                self._imu_buf, self._wheel_buf, sequence_id=self.sequence,
+                imu_rate_hz=rate, wheel_rate_hz=rate)
+            channels = dict(proprio["channels"])
+            self._imu_buf, self._wheel_buf = [], []          # drain on emit
+        else:
+            channels = {"imu": {"status": "UNAVAILABLE"}, "wheel": {"status": "UNAVAILABLE"},
+                        "joints": {"status": "UNAVAILABLE"}, "power": {"status": "UNAVAILABLE"}}
+        channels.setdefault("joints", {"status": "UNAVAILABLE"})
+        channels.setdefault("power", {"status": "UNAVAILABLE"})
+        channels["camera"] = {"status": "UNAVAILABLE"}       # render attach is a later slice
         pkt = {"schema_version": "dustgym_runtime/1.0",
                "clock": "sim_monotonic",
                "sequence_id": self.sequence,
-               "channels": {"camera": {"status": "UNAVAILABLE"},
-                            "imu": {"status": "UNAVAILABLE"},
-                            "wheel": {"status": "UNAVAILABLE"},
-                            "joints": {"status": "UNAVAILABLE"},
-                            "power": {"status": "UNAVAILABLE"}}}
+               "channels": channels}
         return {"ok": True, "packet": pkt}
 
     def _checkpoint(self, path: str) -> dict:
