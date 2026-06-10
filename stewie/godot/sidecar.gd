@@ -181,7 +181,7 @@ var _rover_wheelbase := 0.40          # fore/aft wheelbase [m] (--rover-wheelbas
 # Lander placement ahead of the rover along its forward (+X yawed) direction, so
 # BOTH front cameras see the rover-facing tag face (contract §1/§5). [CALIB].
 const LANDER_STANDOFF_M := 2.5         # metres in front of the rover
-const APRILTAG_SIZE_M := 0.150         # §1 size_m (8x8 black-border square side)
+const APRILTAG_SIZE_M := 0.1524        # §1 size_m -- the documented IPEx test-site tag (SITE p.7, 15.24 cm)
 
 var sf                       # StateFields instance (preloaded script)
 var _cam: Camera3D

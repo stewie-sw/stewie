@@ -77,8 +77,10 @@ def _lander_hits(pos, d_w, lander: dict, t_max: float):
         t0 = np.where(par, np.where(inside, t0, np.inf), np.fmax(t0, tmin))
         t1 = np.where(par, np.where(inside, t1, -np.inf), np.fmin(t1, tmax_))
     t_box = np.where((t1 >= t0) & (t0 < t_max), t0, np.nan)
-    # tag quad at x=0, extent 0.15*10/8 square centred on origin
-    half = 0.15 * (10.0 / 8.0) / 2.0
+    # tag quad at x=0: size FROM THE SCENE'S OWN TRUTH (size_m; the pinned g2cal corpus says
+    # 0.150, new scenes carry the test-site 0.1524 -- TRL5 review T3.5: never assume, always read)
+    tag_size = float(lander.get("apriltag", {}).get("size_m", 0.150))
+    half = tag_size * (10.0 / 8.0) / 2.0
     with np.errstate(divide="ignore", invalid="ignore"):
         t_q = -o[0] / d[..., 0]
     py = o[1] + d[..., 1] * t_q; pz = o[2] + d[..., 2] * t_q

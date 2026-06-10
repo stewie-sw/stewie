@@ -25,8 +25,11 @@ class_name SensorsEmit
 # --- v1.1 frozen constants -------------------------------------------------------
 const SCHEMA_VERSION := "sensor_bridge/1.1"
 # AprilTag id-0 size (contract §1; the side length of the tag's black-border square).
-# Mirrors sidecar.gd::APRILTAG_SIZE_M; kept here so the lander build owns its tag spec.
-const APRILTAG_SIZE_M := 0.150
+# Mirrors sidecar.gd tag spec; kept here so the lander build owns its tag spec.
+# 0.1524 m = the DOCUMENTED IPEx autonomy test-site tag size (SITE p.7, 15.24 cm; TRL5 review
+# 2026-06-10). The pinned g2cal corpus was rendered at the prior 0.150 and records size_m in its
+# truth files -- evaluators READ the per-scene size, so the corpus stays valid.
+const APRILTAG_SIZE_M := 0.1524
 # Lander placement ahead of the rover (contract §1/§5). Mirrors sidecar.gd default.
 const LANDER_STANDOFF_M := 2.5
 
