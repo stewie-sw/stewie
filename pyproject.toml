@@ -54,7 +54,8 @@ dustgym-fetch-dem = "planet_browser.fetch_assets:main"
 
 [tool.setuptools]
 packages = ["stewie", "stewie.physics", "stewie.terrain", "stewie.twin", "stewie.specs",
-            "stewie.envs", "stewie.server", "dart", "lode", "leap", "forge", "dustgym"]
+            "stewie.envs", "stewie.server", "stewie.eval", "stewie.bridge", "stewie.sensors",
+            "dart", "dart.geometry", "lode", "leap", "forge", "dustgym"]
 
 [tool.setuptools.package-data]
 # ship the planner's web UI + per-body config + the real-DEM ingest fixtures + intern sample missions

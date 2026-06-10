@@ -21,7 +21,7 @@ import shutil
 
 import numpy as np
 
-from dissertation.eval import metrics
+from stewie.eval import metrics
 
 _TRUTH_MARKERS = ("ground_truth", "true_slip", "truth", "slip")
 

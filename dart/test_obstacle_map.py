@@ -8,7 +8,7 @@ import pytest
 
 from dart import obstacle_map as OM
 
-_F = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dissertation", "validation", "a6_traverse", "cam", "frame_000")
+_F = os.path.join(os.path.dirname(os.path.dirname(__file__)), "stewie", "eval", "validation", "a6_traverse", "cam", "frame_000")
 _HAVE = os.path.exists(os.path.join(_F, "front_left.png"))
 
 

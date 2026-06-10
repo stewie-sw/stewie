@@ -6,7 +6,7 @@ import pytest
 
 from stewie.bridge import proprioception_io as pio
 
-_DUST = os.environ.get("DUSTGYM_ROOT", "/mnt/projects/foss_ipex/dustgym")
+_DUST = os.environ.get("DUSTGYM_ROOT", "/mnt/projects/stewie/code")
 
 
 def _packet():

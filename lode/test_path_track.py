@@ -6,7 +6,7 @@ import numpy as np
 from lode import path_track as PT
 from dart import rock_taxonomy as RT
 
-_HAVE = os.path.exists("/mnt/projects/foss_ipex/dustgym/samples/lunar_dem/haworth_10km_5m/heightmap.rf32")
+_HAVE = os.path.exists("/mnt/projects/stewie/code/samples/lunar_dem/haworth_10km_5m/heightmap.rf32")
 
 
 def test_cross_track_deviation():

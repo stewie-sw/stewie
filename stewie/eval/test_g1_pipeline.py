@@ -4,9 +4,9 @@ import shutil
 
 import pytest
 
-from dissertation.eval import g1_pipeline as P
+from stewie.eval import g1_pipeline as P
 
-ROOT = os.path.dirname(os.path.dirname(__file__))   # dissertation/ (eval/.. ; holds validation/)
+ROOT = os.path.dirname(__file__)   # stewie/eval holds validation/
 CAP = os.path.join(ROOT, "validation", "g1_capture")     # the locked simulated capture
 _HAVE = os.path.exists(os.path.join(CAP, "truth.csv"))
 

@@ -7,7 +7,7 @@ import pytest
 
 from dart import datasets as DS
 
-_TR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dissertation", "validation", "a6_traverse")
+_TR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "stewie", "eval", "validation", "a6_traverse")
 _HAVE = os.path.exists(os.path.join(_TR, "cam", "frame_000", "front_left.png"))
 
 

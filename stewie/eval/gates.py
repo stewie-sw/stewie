@@ -14,7 +14,7 @@ from stewie.specs.profiles import load_profile, validate_sensor_frame
 from dart.geometry import shadow_metric
 from dart import shadow_extract, stereo_depth
 
-ROOT = Path(__file__).resolve().parents[1]   # dissertation/ holds validation/ (M2)
+ROOT = Path(__file__).resolve().parents[0]   # stewie/eval holds validation/ + tests/fixtures
 FIXTURE = ROOT / "tests" / "fixtures"   # layout matches the hash-anchored scene_manifest (M2)
 MANIFEST = ROOT / "validation" / "scene_manifest.json"
 

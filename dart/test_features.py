@@ -14,13 +14,13 @@ from dart import features
 
 HERE = os.path.dirname(__file__)
 # REAL rendered lunar stereo pair (Godot sensor model on the crater_boulders scene).
-PAIR = os.path.join(HERE, "..", "dissertation", "validation", "a6_traverse", "cam", "frame_000")
+PAIR = os.path.join(HERE, "..", "stewie", "eval", "validation", "a6_traverse", "cam", "frame_000")
 _LEFT = os.path.join(PAIR, "front_left.png")
 _RIGHT = os.path.join(PAIR, "front_right.png")
 _pair = os.path.exists(_LEFT) and os.path.exists(_RIGHT)
 
 # EVAL-ONLY truth source (clast positions); must never reach a perception input.
-CLAST_TRUTH = "/mnt/projects/foss_ipex/dustgym/samples/crater_boulders/metadata.json"
+CLAST_TRUTH = "/mnt/projects/stewie/code/samples/crater_boulders/metadata.json"
 _truth = os.path.exists(CLAST_TRUTH)
 
 

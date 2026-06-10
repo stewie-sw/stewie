@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from dart.geometry import dem
-from dissertation import posegraph as pg
+from dart import posegraph as pg
 from dart import positioning as pos
 from stewie.physics import sinkage as sk
 

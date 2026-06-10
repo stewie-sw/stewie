@@ -75,7 +75,7 @@ def register_envs():
     except Exception:
         return
     dc = _default_challenge()
-    rover_ep = "terrain_authority.rover_env:RoverSimEnv"
+    rover_ep = "stewie.envs.rover_env:RoverSimEnv"
     specs = [
         # DRIVE: default (Moon) + per-body. (id, "module:Class", kwargs, max_episode_steps)
         ("Dust/RoverDrive-v0", rover_ep, {"body": "moon"}, 2000),
@@ -84,16 +84,16 @@ def register_envs():
               for b in ROVER_BODIES]
     # CONSTRUCTION: body-neutral (mass-conserving -> gravity-invariant)
     specs += [
-        ("Dust/Construct-v0", "terrain_authority.terrain_target_env:TerrainTargetEnv",
+        ("Dust/Construct-v0", "leap.terrain_target_env:TerrainTargetEnv",
          {"challenge": dc}, None),
-        ("Dust/SkillMacro-v0", "terrain_authority.skill_env:SkillMacroEnv",
+        ("Dust/SkillMacro-v0", "leap.skill_env:SkillMacroEnv",
          {"challenge": dc, "discrete_cells": 8}, None),
-        ("Dust/Scheduler-v0", "terrain_authority.scheduler_env:SchedulerEnv",
+        ("Dust/Scheduler-v0", "lode.scheduler_env:SchedulerEnv",
          _scheduler_kwargs(), None),
         # RL controller over John's WorkSite execution seam (flatten/dump + drum ledger)
-        ("Dust/WorkSite-v0", "terrain_authority.worksite_env:WorkSiteConstructEnv", {}, None),
+        ("Dust/WorkSite-v0", "leap.worksite_env:WorkSiteConstructEnv", {}, None),
         # PERCEPTION: active next-best-view mapping (the map channel / Uncertainty layer as the reward)
-        ("Dust/ActivePerception-v0", "terrain_authority.active_perception_env:ActivePerceptionEnv", {}, 400),
+        ("Dust/ActivePerception-v0", "stewie.envs.active_perception_env:ActivePerceptionEnv", {}, 400),
     ]
     for env_id, entry_point, kwargs, max_steps in specs:
         if env_id in registry:

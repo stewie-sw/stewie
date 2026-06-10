@@ -18,10 +18,10 @@ from dart import rock_detect as rd
 
 HERE = os.path.dirname(__file__)
 ROOT = os.path.dirname(HERE)
-FRAME0_L = os.path.join(ROOT, "dissertation", "validation", "a6_traverse", "cam", "frame_000", "front_left.png")
-TRUTH_POSES = os.path.join(ROOT, "dissertation", "validation", "a6_traverse", "truth", "truth.json")
-SEQUENCE = os.path.join(ROOT, "dissertation", "validation", "a6_traverse", "sequence.json")
-CRATER_META = "/mnt/projects/foss_ipex/dustgym/samples/crater_boulders/metadata.json"
+FRAME0_L = os.path.join(ROOT, "stewie", "eval", "validation", "a6_traverse", "cam", "frame_000", "front_left.png")
+TRUTH_POSES = os.path.join(ROOT, "stewie", "eval", "validation", "a6_traverse", "truth", "truth.json")
+SEQUENCE = os.path.join(ROOT, "stewie", "eval", "validation", "a6_traverse", "sequence.json")
+CRATER_META = "/mnt/projects/stewie/code/samples/crater_boulders/metadata.json"
 
 _have_inputs = all(os.path.exists(p) for p in (FRAME0_L, TRUTH_POSES, CRATER_META))
 needs_inputs = pytest.mark.skipif(not _have_inputs, reason="real render/truth inputs absent")

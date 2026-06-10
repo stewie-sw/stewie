@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from dissertation.eval import metrics
+from stewie.eval import metrics
 
 
 def test_ate_raw_known():

@@ -18,8 +18,8 @@ from dart import dem_anchor
 
 # REAL DEMs (dustgym samples). crater_boulders has genuine 2-D relief (a crater + boulders) so the
 # correlation peak is unambiguous; the Haworth tile is the operational south-polar prior map.
-_CRATER = "/mnt/projects/foss_ipex/dustgym/samples/crater_boulders/heightmap.rf32"
-_HAWORTH = "/mnt/projects/foss_ipex/dustgym/samples/lunar_dem/haworth_10km_5m/heightmap.rf32"
+_CRATER = "/mnt/projects/stewie/code/samples/crater_boulders/heightmap.rf32"
+_HAWORTH = "/mnt/projects/stewie/code/samples/lunar_dem/haworth_10km_5m/heightmap.rf32"
 _crater = os.path.exists(_CRATER)
 _haworth = os.path.exists(_HAWORTH)
 

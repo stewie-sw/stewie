@@ -6,7 +6,7 @@ import pytest
 
 from stewie.bridge import runtime_io as rio
 
-_DUST = os.environ.get("DUSTGYM_ROOT", "/mnt/projects/foss_ipex/dustgym")
+_DUST = os.environ.get("DUSTGYM_ROOT", "/mnt/projects/stewie/code")
 
 
 def _canonical(clock="sim_monotonic", seq=5, cam_seq=None):

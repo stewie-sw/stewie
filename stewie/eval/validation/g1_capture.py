@@ -20,8 +20,8 @@ import sys
 
 import numpy as np
 
-from dissertation.eval import metrics
-from dissertation import posegraph as pg
+from stewie.eval import metrics
+from dart import posegraph as pg
 
 G, CELL_M, DT, MASS = 1.62, 5.0, 2.0, 30.0
 IMU_HZ, WHEEL_HZ, V_CMD = 100.0, 10.0, 0.30
@@ -135,7 +135,7 @@ def run(dustgym_root, dem_path, out_dir, seed):
         "reproducibility": {
             "dustgym_commit": _git_commit(dustgym_root),
             "solnav_commit": _git_commit(_REPO),
-            "param_sha256": _sha256(os.path.join(dustgym_root, "terrain_authority", "data", "imu_wheel_params.json")),
+            "param_sha256": _sha256(os.path.join(dustgym_root, "stewie", "physics", "data", "imu_wheel_params.json")),
             "dem_sha256": _sha256(dem_path),
             "seed": seed,
             "python": sys.version.split()[0],

@@ -39,7 +39,7 @@ SEQUENCE = os.path.join(ROOT, "validation", "a6_traverse", "sequence.json")
 # EVAL/localization fix: the START (x, z) only -- read once, never per frame (invariant I3).
 TRUTH = os.path.join(ROOT, "validation", "a6_traverse", "truth", "truth.json")
 
-DEFAULT_DEM = "/mnt/projects/foss_ipex/dustgym/samples/crater_boulders/heightmap.rf32"
+DEFAULT_DEM = "/mnt/projects/stewie/code/samples/crater_boulders/heightmap.rf32"
 DEM_N = 256
 DEM_CELL_M = 0.02
 HFOV_DEG = 73.99

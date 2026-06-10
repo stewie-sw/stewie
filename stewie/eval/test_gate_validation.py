@@ -1,4 +1,4 @@
-from dissertation.eval.gates import validate
+from stewie.eval.gates import validate
 
 
 def test_gate_validation_is_reproducible_and_honest():

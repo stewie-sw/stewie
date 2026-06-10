@@ -44,7 +44,7 @@ from leap import structures as ST
 
 # PRD N10: structured logging + observability. Used for access logs, startup, and the additive
 # failure paths. Level via $DUSTGYM_LOG_LEVEL.
-log = logging.getLogger("planet_browser.server")
+log = logging.getLogger("stewie.server")
 
 _START = time.monotonic()
 _REPORT_LOCK = threading.Lock()                 # matplotlib pyplot is process-global + thread-unsafe

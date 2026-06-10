@@ -9,7 +9,7 @@ import pytest
 ROOT = os.path.dirname(__file__)                                  # dissertation/ (M2)
 MANIFEST = os.path.join(ROOT, "validation", "scene_manifest.json")
 G1CAP = os.path.join(ROOT, "validation", "g1_capture.py")
-_DUST = os.environ.get("DUSTGYM_ROOT", "/mnt/projects/foss_ipex/dustgym")
+_DUST = os.environ.get("DUSTGYM_ROOT", "/mnt/projects/stewie/code")
 _DEM = os.path.join(_DUST, "samples", "lunar_dem", "haworth_10km_5m", "heightmap.rf32")
 
 
@@ -26,7 +26,7 @@ def test_g1a3_capture_portable_and_reproducible(tmp_path):
     def run(out):
         subprocess.run([sys.executable, G1CAP, "--dustgym-root", _DUST, "--dem", _DEM,
                         "--output", str(out), "--seed", "0"], cwd=ROOT, check=True,
-                       env={**os.environ, "PYTHONPATH": os.path.dirname(ROOT)})   # monorepo root (M2)
+                       env={**os.environ, "PYTHONPATH": os.path.dirname(os.path.dirname(ROOT))})   # monorepo root
     a, b = tmp_path / "a", tmp_path / "b"
     run(a); run(b)
 

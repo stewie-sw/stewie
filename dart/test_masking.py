@@ -6,7 +6,7 @@ import pytest
 from dart import masking
 
 # Real dustgym Godot render used as a fixture (no synthetic image data).
-REAL_FRAME = "/mnt/projects/foss_ipex/dustgym/godot_sidecar/out/crater_boulders.png"
+REAL_FRAME = "/mnt/projects/stewie/code/stewie/godot/out/crater_boulders.png"
 
 
 def test_filter_keypoints_keeps_only_ground_and_rock():

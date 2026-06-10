@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
-from dissertation.eval.gates import ROOT, validate
+from stewie.eval.gates import ROOT, validate
 
 DEFAULT_OUTPUT = ROOT / "validation" / "g1_g2_validation_2026-06-07.json"
 

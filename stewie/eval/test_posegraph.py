@@ -1,7 +1,7 @@
 import numpy as np
 
-from dissertation.eval import metrics
-from dissertation import posegraph as pg
+from stewie.eval import metrics
+from dart import posegraph as pg
 
 
 def test_two_pose_odometry_recovers():

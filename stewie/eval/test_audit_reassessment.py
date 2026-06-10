@@ -4,11 +4,11 @@ import os
 import numpy as np
 import pytest
 
-from dissertation.eval import metrics
+from stewie.eval import metrics
 from dart.geometry import height_ref as hr
 from dart import camera_rig as cr
 from dart import stereo_depth
-from dissertation import posegraph as pg
+from dart import posegraph as pg
 
 FIX = os.path.join(os.path.dirname(__file__), "fixtures", "frame")
 

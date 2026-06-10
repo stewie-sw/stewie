@@ -1,7 +1,7 @@
 import numpy as np
 
 from dart.geometry import stereo
-from dissertation import posegraph as pg
+from dart import posegraph as pg
 
 
 # ---- pose-estimate differentials: covariance from the information matrix ----

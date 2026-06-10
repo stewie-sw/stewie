@@ -3,7 +3,7 @@ import os
 
 from lode import psr_supervisor as PS
 
-_HAVE = os.path.exists("/mnt/projects/foss_ipex/dustgym/samples/lunar_dem/haworth_10km_5m/heightmap.rf32")
+_HAVE = os.path.exists("/mnt/projects/stewie/code/samples/lunar_dem/haworth_10km_5m/heightmap.rf32")
 
 
 def test_mode_selection_and_factor_gating():

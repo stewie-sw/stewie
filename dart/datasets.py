@@ -89,7 +89,7 @@ def load_sim_frame(traverse_dir: str, frame: int = 0, *, with_labels: bool = Fal
     labels: list = []
     if with_labels:
         import json
-        meta = clast_metadata or "/mnt/projects/foss_ipex/dustgym/samples/crater_boulders/metadata.json"
+        meta = clast_metadata or "/mnt/projects/stewie/code/samples/crater_boulders/metadata.json"
         clasts = json.load(open(meta))["clasts"]
         pose = rock_detect.load_frame_pose(os.path.join(traverse_dir, "sequence.json"),
                                            os.path.join(traverse_dir, "truth", "truth.json"), frame, "front_left")

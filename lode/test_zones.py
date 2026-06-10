@@ -6,7 +6,7 @@ import pytest
 
 from lode import zones as Z
 
-_HAVE = os.path.exists("/mnt/projects/foss_ipex/dustgym/samples/lunar_dem/haworth_10km_5m/heightmap.rf32")
+_HAVE = os.path.exists("/mnt/projects/stewie/code/samples/lunar_dem/haworth_10km_5m/heightmap.rf32")
 
 
 def test_no_excavation_zone_blocks_digging_not_traverse():

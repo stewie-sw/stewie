@@ -25,18 +25,18 @@ def test_configure_logging_respects_env(monkeypatch):
 
 
 def test_request_is_access_logged(client, caplog):
-    with caplog.at_level(logging.INFO, logger="planet_browser.server"):
+    with caplog.at_level(logging.INFO, logger="stewie.server"):
         r = client.get("/healthz")
         assert r.status_code == 200
-    recs = [rec for rec in caplog.records if rec.name == "planet_browser.server"]
+    recs = [rec for rec in caplog.records if rec.name == "stewie.server"]
     assert recs, "the request produced no access-log record"
     blob = " ".join(rec.getMessage() for rec in recs)
     assert "GET /healthz" in blob and "200" in blob
 
 
 def test_bad_route_is_logged_with_status(client, caplog):
-    with caplog.at_level(logging.INFO, logger="planet_browser.server"):
+    with caplog.at_level(logging.INFO, logger="stewie.server"):
         r = client.get("/no-such-route")
         assert r.status_code == 404
-    blob = " ".join(rec.getMessage() for rec in caplog.records if rec.name == "planet_browser.server")
+    blob = " ".join(rec.getMessage() for rec in caplog.records if rec.name == "stewie.server")
     assert "404" in blob

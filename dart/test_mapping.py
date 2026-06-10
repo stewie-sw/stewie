@@ -31,12 +31,12 @@ import pytest
 from dart import mapping, stereo_vo
 
 HERE = os.path.dirname(__file__)
-CAM = os.path.join(HERE, "..", "dissertation", "validation", "a6_traverse", "cam")
-SEQUENCE = os.path.join(HERE, "..", "dissertation", "validation", "a6_traverse", "sequence.json")
+CAM = os.path.join(HERE, "..", "stewie", "eval", "validation", "a6_traverse", "cam")
+SEQUENCE = os.path.join(HERE, "..", "stewie", "eval", "validation", "a6_traverse", "sequence.json")
 # EVAL-ONLY truth (GROUND_TRUTH_EVAL poses); read only in the scoring/anchoring path below.
-TRUTH = os.path.join(HERE, "..", "dissertation", "validation", "a6_traverse", "truth", "truth.json")
+TRUTH = os.path.join(HERE, "..", "stewie", "eval", "validation", "a6_traverse", "truth", "truth.json")
 
-_DEM = "/mnt/projects/foss_ipex/dustgym/samples/crater_boulders/heightmap.rf32"
+_DEM = "/mnt/projects/stewie/code/samples/crater_boulders/heightmap.rf32"
 _DEM_N = 256
 _DEM_CELL_M = 0.02
 

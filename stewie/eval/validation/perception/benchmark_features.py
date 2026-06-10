@@ -20,7 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))          # .../solnav (package root dir)
 FRAME = os.path.join(ROOT, "validation", "a6_traverse", "cam", "frame_000")
 # EVAL-ONLY truth (scene difficulty annotation; never fed to the matcher).
-CLAST_TRUTH = "/mnt/projects/foss_ipex/dustgym/samples/crater_boulders/metadata.json"
+CLAST_TRUTH = "/mnt/projects/stewie/code/samples/crater_boulders/metadata.json"
 
 
 def main() -> None:

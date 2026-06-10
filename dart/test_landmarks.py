@@ -3,7 +3,7 @@ import os
 
 from dart import landmarks as LM
 
-_HAVE = os.path.exists("/mnt/projects/foss_ipex/dustgym/samples/lunar_dem/haworth_10km_5m/heightmap.rf32")
+_HAVE = os.path.exists("/mnt/projects/stewie/code/samples/lunar_dem/haworth_10km_5m/heightmap.rf32")
 
 
 def test_extract_immutable_anchors_from_real_dem():

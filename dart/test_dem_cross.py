@@ -14,7 +14,7 @@ def _real_dem():
     return MP.load_haworth_dem()                         # (Z[m], cell_m) -- real LOLA Product 78
 
 
-@pytest.mark.skipif(not os.path.exists("/mnt/projects/foss_ipex/dustgym/samples/lunar_dem/haworth_10km_5m/heightmap.rf32"),
+@pytest.mark.skipif(not os.path.exists("/mnt/projects/stewie/code/samples/lunar_dem/haworth_10km_5m/heightmap.rf32"),
                     reason="real DEM absent")
 def test_layers_are_real_and_finite():
     L = DC.dem_layers(_real_dem())
@@ -23,7 +23,7 @@ def test_layers_are_real_and_finite():
     assert np.all(L["roughness_m"] >= 0) and L["slope_deg"].max() > 10.0   # the Haworth rim is genuinely steep
 
 
-@pytest.mark.skipif(not os.path.exists("/mnt/projects/foss_ipex/dustgym/samples/lunar_dem/haworth_10km_5m/heightmap.rf32"),
+@pytest.mark.skipif(not os.path.exists("/mnt/projects/stewie/code/samples/lunar_dem/haworth_10km_5m/heightmap.rf32"),
                     reason="real DEM absent")
 def test_cross_analyze_confirms_steep_and_protrusion():
     # SCALE FINDING: on the 5 m-posting LOLA prior, terrain is rough everywhere vs a 7.5 cm obstacle ->

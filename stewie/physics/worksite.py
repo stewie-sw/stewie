@@ -306,7 +306,7 @@ class WorkSite:
             raise RuntimeError(
                 "WorkSite.sinter is GATED OFF: its energy/density are [CALIB], not IPEx-grounded "
                 "(IPEx has no sinter tool). Ground the model against a real source, then set "
-                "terrain_authority.constants.SINTER_ENABLED = True to enable.")
+                "stewie.specs.constants.SINTER_ENABLED = True to enable.")
         return self._require_fine().sinter(mask, sintered_density=sintered_density)
 
     # -- streaming active window (multi-window roam; G2 worked-tile paging) --------

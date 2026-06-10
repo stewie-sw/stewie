@@ -25,10 +25,10 @@ import pytest
 from dart import stereo_vo
 
 HERE = os.path.dirname(__file__)
-CAM = os.path.join(HERE, "..", "dissertation", "validation", "a6_traverse", "cam")
-SEQUENCE = os.path.join(HERE, "..", "dissertation", "validation", "a6_traverse", "sequence.json")
+CAM = os.path.join(HERE, "..", "stewie", "eval", "validation", "a6_traverse", "cam")
+SEQUENCE = os.path.join(HERE, "..", "stewie", "eval", "validation", "a6_traverse", "sequence.json")
 # EVAL-ONLY truth (GROUND_TRUTH_EVAL poses); read only in the scoring assertions below, never passed in.
-TRUTH = os.path.join(HERE, "..", "dissertation", "validation", "a6_traverse", "truth", "truth.json")
+TRUTH = os.path.join(HERE, "..", "stewie", "eval", "validation", "a6_traverse", "truth", "truth.json")
 
 _FRAMES = [os.path.join(CAM, f"frame_{k:03d}") for k in range(4)]
 _have_frames = all(
