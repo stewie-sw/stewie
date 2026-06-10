@@ -168,7 +168,8 @@
     <section>
       <h3>Contents — map layers &amp; sun</h3>
       <div id="contents-pane"></div>
-      <div id="legendbox" style="font-size:10px; line-height:1.5; margin-top:4px"></div>
+      <div id="workbench" style="margin-top:6px"></div>
+      <div id="legendbox" style="font-size:10px; line-height:1.5; margin-top:4px; display:none"></div>
       <h3>1 · Site — body &amp; imagery</h3>
       <div class="ctl">
         <label>Body <select id="body"></select></label>
@@ -1089,6 +1090,67 @@ function applyLayerToggle(id, on) {                          // load/unload the 
     if (on) flyToWorkArea();                                 // a work-area layer you can't see = a dead checkbox
   }
 }
+// TerriaJS workbench pattern (OSS survey): every ACTIVE layer = a card with its legend,
+// opacity, zoom-to, and remove -- the controls live WITH the layer, not in a global box.
+const LAYER_OPACITY = {};
+function renderWorkbench() {
+  const wb = $("workbench"); if (!wb || !LEGEND) return;
+  wb.innerHTML = "";
+  const CARDS = {
+    dem:  { name: "Haworth 5 m DEM", text: (LEGEND.dem || {}).text || "" },
+    slope: { name: "Slope", text: LEGEND.slope.ramp, sw: "#7bd07b→#ff5544" },
+    hazard: { name: "Hazard / no-go", text: LEGEND.hazard.text, sw: "#e8273f" },
+    illumination: { name: "Shadow (mission-time sun)", text: LEGEND.illumination.text, sw: "#5577dd" },
+    psr: { name: "PSR candidates", text: LEGEND.psr.text, sw: "#9966dd" },
+  };
+  Object.keys(CARDS).forEach((k) => {
+    if (!LAYER_ON[k]) return;
+    const c = CARDS[k];
+    const card = document.createElement("div");
+    card.style.cssText = "border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin:4px 0;font-size:10px;line-height:1.45";
+    const head = document.createElement("div");
+    head.style.cssText = "display:flex;align-items:center;gap:6px";
+    if (c.sw && !c.sw.includes("→")) {
+      const dot = document.createElement("span");
+      dot.style.cssText = `width:8px;height:8px;border-radius:2px;background:${c.sw};display:inline-block`;
+      head.appendChild(dot);
+    }
+    const ttl = document.createElement("b"); ttl.textContent = c.name; head.appendChild(ttl);
+    const zoom = document.createElement("button"); zoom.textContent = "⌖"; zoom.title = "zoom to the work area";
+    zoom.style.cssText = "margin-left:auto;background:none;border:1px solid var(--line);border-radius:4px;color:var(--txt);cursor:pointer;font-size:10px";
+    zoom.onclick = () => flyToWorkArea();
+    const rm = document.createElement("button"); rm.textContent = "✕"; rm.title = "remove the layer";
+    rm.style.cssText = zoom.style.cssText;
+    rm.onclick = () => {
+      LAYER_ON[k] = false; applyLayerToggle(k, false);
+      const lp = qel("layerpanel");
+      if (lp) lp.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+        const t = cb.parentElement.textContent || "";
+        if ((k === "dem" && t.includes("DEM")) || (k === "slope" && t.startsWith("Slope")) ||
+            (k === "hazard" && t.includes("no-go")) || (k === "illumination" && t.includes("Shadow")) ||
+            (k === "psr" && t.includes("PSR"))) cb.checked = false;
+      });
+      renderWorkbench();
+    };
+    head.appendChild(zoom); head.appendChild(rm);
+    card.appendChild(head);
+    const leg = document.createElement("div"); leg.style.opacity = ".75"; leg.textContent = c.text;
+    card.appendChild(leg);
+    if (k !== "dem") {                                     // opacity (the globe imagery layer)
+      const op = document.createElement("input");
+      op.type = "range"; op.min = "10"; op.max = "100"; op.value = String(LAYER_OPACITY[k] || 100);
+      op.style.cssText = "width:100%;margin-top:3px";
+      op.title = "layer opacity";
+      op.oninput = () => {
+        LAYER_OPACITY[k] = +op.value;
+        if (GLOBE_LAYERS[k]) GLOBE_LAYERS[k].alpha = op.value / 100;
+        const im = qel("ovl_" + k); if (im) im.style.opacity = String(op.value / 100);
+      };
+      card.appendChild(op);
+    }
+    wb.appendChild(card);
+  });
+}
 let LEGEND = null;
 async function renderLegend() {                            // audit P1: physics-fed legends per active layer
   const box = $("legendbox"); if (!box) return;
@@ -1099,6 +1161,7 @@ async function renderLegend() {                            // audit P1: physics-
   if (LAYER_ON.illumination) rows.push(`<span style="color:#5577dd">■</span> ${LEGEND.illumination.text}`);
   if (LAYER_ON.psr) rows.push(`<span style="color:#9966dd">■</span> ${LEGEND.psr.text}`);
   box.innerHTML = rows.join("<br>");
+  renderWorkbench();                                       // the cards carry the legends now
 }
 function refetchSun() { GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); }); renderLegend(); }
 ["sunel", "sunaz"].forEach((sid) => { const el = qel(sid); if (el) el.oninput = () => {
