@@ -162,6 +162,7 @@
     <section>
       <h3>Contents — map layers &amp; sun</h3>
       <div id="contents-pane"></div>
+      <div id="legendbox" style="font-size:10px; line-height:1.5; margin-top:4px"></div>
       <h3>1 · Site — body &amp; imagery</h3>
       <div class="ctl">
         <label>Body <select id="body"></select></label>
@@ -175,7 +176,9 @@
         <button class="site" id="site">Set site</button>
       </div>
       <div id="terra">terramechanics —</div>
-      <div id="hint">drag = pan · wheel = zoom · ctrl-drag = tilt · click = pick a site · <b id="cursorcoord" style="color:var(--accent)"></b></div>
+      <div id="hint">drag = pan · wheel = zoom · ctrl-drag = tilt · click = pick a site · <b id="cursorcoord" style="color:var(--accent)"></b>
+  <span id="scalebar" style="margin-left:14px; border-bottom:2px solid #fff; border-left:2px solid #fff; border-right:2px solid #fff; padding:0 6px; height:7px; display:inline-block"></span>
+  <span id="scaleval" style="margin-left:4px"></span></div>
     </section>
 
     <section>
@@ -301,10 +304,10 @@
         <button id="stsave" class="site" title="saves the CURRENT queue (relative to its first order) as a reusable structure template">＋ Template</button></div>
       <ol id="stlist" style="font-size:11px;margin:4px 0;padding-left:18px"></ol>
 
-      <h3>Drum sensor <small>motor current, no load cell (ICE-RASSOR)</small></h3>
+      <h3>6 · Telemetry — drum-fill sensing <small>motor current, no load cell (ICE-RASSOR)</small></h3>
       <div class="ctl">fill <input id="drumkg" type="number" value="20" step="1" /> kg
         <label><input id="drumnoise" type="checkbox" /> noise</label></div>
-      <div id="drumout">— (run server.py to sense)</div>
+      <div id="drumout" style="opacity:.7">click the fill field to read the simulated drum-current sensor</div>
     </section>
   </aside>
   <div id="stage">
@@ -549,6 +552,22 @@ function loadBody(key) {
     }
   }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
+  // audit P1: the SCALE BAR -- meters-per-pixel sampled at screen center, niced to 1/2/5 steps
+  viewer.camera.changed.addEventListener(() => {
+    const sb = $("scalebar"), sv = $("scaleval"); if (!sb) return;
+    const w = viewer.scene.canvas.clientWidth, h = viewer.scene.canvas.clientHeight;
+    const a = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(w / 2 - 50, h / 2), ellipsoid);
+    const b = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(w / 2 + 50, h / 2), ellipsoid);
+    if (!a || !b) { sb.style.display = "none"; sv.textContent = ""; return; }
+    const mpp = Cesium.Cartesian3.distance(a, b) / 100.0;
+    const target = mpp * 90;                               // ~90 px of bar
+    const pow10 = Math.pow(10, Math.floor(Math.log10(target)));
+    const nice = [1, 2, 5, 10].map((k) => k * pow10).find((v) => v >= target) || target;
+    sb.style.display = "inline-block"; sb.style.width = `${nice / mpp}px`;
+    sv.textContent = nice >= 1000 ? `${(nice / 1000).toFixed(nice >= 10000 ? 0 : 1)} km` : `${nice.toFixed(0)} m`;
+  });
+  viewer.camera.percentageChanged = 0.01;
+
   // THE PRIMARY SITE ON THE GLOBE: the committed Haworth tile at its true selenographic footprint
   // (server-inverse-projected from the LOLA polar-stereographic bounds; Aaron: "doesn't overlay
   // the haworth site -- this is the primary location").
@@ -690,29 +709,27 @@ setInterval(() => {
 })();
 
 (function collapseSidebar() {
+  // BUGFIX (Aaron, twice): the sections are wrapped in <section> tags -- the old walker looked
+  // for bare H3 children of the panel, found none, and silently did NOTHING. Walk the sections.
   const panel = document.getElementById("panel"); if (!panel) return;
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem("stewie_sections") || "{}"); } catch (e) {}
-  const kids = Array.from(panel.children);
-  let det = null, body = null;
-  kids.forEach((node) => {
-    if (node.tagName === "H3") {
-      det = document.createElement("details");
-      const key = node.textContent.trim().slice(0, 24);
-      det.open = saved[key] !== undefined ? !!saved[key] : /queue/i.test(key);
-      const sum = document.createElement("summary");
-      sum.appendChild(node.cloneNode(true));
-      det.appendChild(sum);
-      body = document.createElement("div");
-      det.appendChild(body);
-      det.addEventListener("toggle", () => {
-        saved[key] = det.open;
-        try { localStorage.setItem("stewie_sections", JSON.stringify(saved)); } catch (e) {}
-      });
-      panel.replaceChild(det, node);
-    } else if (det && body) {
-      body.appendChild(node);
-    }
+  panel.querySelectorAll("section").forEach((sec) => {
+    const h3 = sec.querySelector("h3"); if (!h3) return;
+    const key = h3.textContent.trim().slice(0, 28);
+    const det = document.createElement("details");
+    det.open = saved[key] !== undefined ? !!saved[key] : /queue|plan —/i.test(key);
+    const sum = document.createElement("summary");
+    sum.appendChild(h3);                                   // moves the live node
+    det.appendChild(sum);
+    const body = document.createElement("div");
+    while (sec.firstChild) body.appendChild(sec.firstChild);
+    det.appendChild(body);
+    det.addEventListener("toggle", () => {
+      saved[key] = det.open;
+      try { localStorage.setItem("stewie_sections", JSON.stringify(saved)); } catch (e) {}
+    });
+    sec.appendChild(det);
   });
 })();
 
@@ -989,6 +1006,7 @@ function applyLayerToggle(id, on) {                          // load/unload the 
   if (id === "dem") { const wa = qel("workarea"); if (wa) wa.style.display = on ? "" : "none"; }
   if (id === "imagery" && window.viewer && viewer.imageryLayers && viewer.imageryLayers.length) viewer.imageryLayers.get(0).show = on;
   if (GIS_RASTERS.includes(id)) {
+    renderLegend();
     const im = qel("ovl_" + id);
     if (im) {
       if (on) { im.src = `/layers/raster/${id}.png?` + sunQS(); im.style.display = "block"; }
@@ -997,7 +1015,18 @@ function applyLayerToggle(id, on) {                          // load/unload the 
     globeLayer(id, `/layers/raster/${id}.png?` + sunQS(), on);   // AND on the big map
   }
 }
-function refetchSun() { GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); }); }
+let LEGEND = null;
+async function renderLegend() {                            // audit P1: physics-fed legends per active layer
+  const box = $("legendbox"); if (!box) return;
+  if (!LEGEND) { try { LEGEND = await (await fetch("/layers/legend")).json(); } catch (e) { return; } }
+  const rows = [];
+  if (LAYER_ON.slope) rows.push(`<span style="color:#7bd07b">■</span>→<span style="color:#ff5544">■</span> slope: ${LEGEND.slope.ramp}`);
+  if (LAYER_ON.hazard) rows.push(`<span style="color:#e8273f">■</span> hazard: no-go &gt;${LEGEND.hazard.nogo_deg}° (tested) · <span style="color:#e0b300">■</span> penalty &gt;${LEGEND.hazard.penalty_deg}° · rocks &gt;${(LEGEND.hazard.obstacle_m*100).toFixed(1)} cm`);
+  if (LAYER_ON.illumination) rows.push(`<span style="color:#5577dd">■</span> ${LEGEND.illumination.text}`);
+  if (LAYER_ON.psr) rows.push(`<span style="color:#9966dd">■</span> ${LEGEND.psr.text}`);
+  box.innerHTML = rows.join("<br>");
+}
+function refetchSun() { GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); }); renderLegend(); }
 ["sunel", "sunaz"].forEach((sid) => { const el = qel(sid); if (el) el.oninput = () => {
   qel("sunelv").textContent = qel("sunel").value + "\u00b0";
   qel("sunazv").textContent = qel("sunaz").value + "\u00b0";

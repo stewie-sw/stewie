@@ -61,3 +61,18 @@ def test_layers_index_lists_rasters(client):
     docs = client.get("/layers").json()
     kinds = {d.get("key", d.get("id")) for d in docs["layers"]}
     assert {"slope", "hazard", "illumination"} <= kinds
+
+
+def test_legend_endpoint_carries_the_real_physics(client):
+    """Audit P1 + Aaron: legends tie to ACTUAL physics -- thresholds come from the hazard-map
+    defaults and the documented envelope, never hardcoded in the UI."""
+    import inspect
+
+    from dart.hazard_map import build_hazard_map
+    d = client.get("/layers/legend").json()
+    sig = inspect.signature(build_hazard_map)
+    assert d["hazard"]["nogo_deg"] == sig.parameters["max_slope_deg"].default       # 20, doc-true
+    assert d["hazard"]["penalty_deg"] == sig.parameters["slope_hazard_deg"].default # 15 nominal
+    assert d["hazard"]["obstacle_m"] == 0.075                                       # the envelope
+    assert d["slope"]["max_deg"] == 30.0 and "ramp" in d["slope"]
+    assert "sun" in d["illumination"] and "sweep" in d["psr"]
