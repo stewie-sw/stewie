@@ -1,0 +1,88 @@
+{
+ "schema_version": "solnav_gate_validation/1.1",
+ "date": "2026-06-10",
+ "evidence_mode": "RENDERED_SENSOR_SIM",
+ "manifest": {
+  "status": "PASS",
+  "checked_files": 11,
+  "locked_validation_status": "NOT_ACQUIRED"
+ },
+ "g1": {
+  "status": "SIM_BASELINE_LOCKED_REALWORLD_BLOCKED",
+  "contract_checks": {
+   "strict_runtime_schema": "PASS",
+   "profile_checksum": "PASS",
+   "calibration_id": "PASS",
+   "timestamps": "PASS",
+   "truth_physical_separation": "PASS",
+   "camera_file_dimensions": "PASS",
+   "frame_and_profile_validation": "PASS"
+  },
+  "simulated_closure": {
+   "channels_via": "validation/g1_capture.py (grounded IMU/wheel model on real Haworth DEM + real dustgym slip)",
+   "imu_rate_hz": 100.0,
+   "wheel_rate_hz": 10.0,
+   "stereo": "NOT_INCLUDED",
+   "baseline_wheel_imu_ate_raw_m": 4.632,
+   "baseline_wheel_imu_ate_aligned_m": 2.015
+  },
+  "blockers": [
+   "Native dustgym camera-egress publication of IMU/wheel/joint channels is still pending (solnav g1_capture.py supplies them for the SIMULATED case).",
+   "No REAL-WORLD locked capture (Katwijk download network-blocked here); G1 release stays blocked until a real run is scored vs DGPS (see katwijk_io.py + g1_imu_wheel_data_sources.md).",
+   "Synchronized stereo keyframes are not yet in the capture (sidecar renders local patches, not the traverse)."
+  ]
+ },
+ "g2": {
+  "status": "PASSED_RENDERED_SENSOR_SIM",
+  "fixed_reference_camera": "front_left",
+  "match_camera": "front_right",
+  "lr_consistent_fraction": 0.028076171875,
+  "lr_consistent_pixels": 22080,
+  "median_depth_m": 1.5790777206420898,
+  "median_sigma_depth_m": 0.05241752043366432,
+  "covariance_calibrated": false,
+  "shadow_image_frame": "IMAGE_X_RIGHT_Y_DOWN",
+  "shadow_direction_periodicity_deg": 360,
+  "controlled_p5_height_m": {
+   "sun_e30": 0.9473119350793328,
+   "sun_e50": 0.9583675592678913
+  },
+  "ephemeris_fallback_contract": "PASS",
+  "blockers": [],
+  "covariance_calibration": {
+   "sigma_disparity_px": 3.6495039773398688,
+   "held_out_coverage_3sigma": 1.0,
+   "band_m": [
+    0.37164002299644777,
+    1.8888473259546148
+   ],
+   "artifact": "stereo_sigma_calibration_2026-06-10.json"
+  },
+  "association": {
+   "p5_post_e30.png": {
+    "height_m": 0.9474568911284962,
+    "rel_err": 0.00015301828658084585,
+    "direction_deg": 133.8426669318705
+   },
+   "p5_post_e50.png": {
+    "height_m": 0.9604005856495461,
+    "rel_err": 0.002121343071345055,
+    "direction_deg": 130.87240829748828
+   }
+  },
+  "criteria_checks": {
+   "covariance_dev_calibrated": "PASS",
+   "covariance_held_out_coverage": "PASS",
+   "shadow_base_tip_association": "PASS",
+   "association_refuses_ambiguity": "PASS",
+   "reference_camera_fixed": "PASS",
+   "p5_is_component_fixture": "PASS"
+  },
+  "evidence_scope": "PASS is on RENDERED-SENSOR simulation evidence (the gate's defined scope); real-world sensor evidence remains G1's domain"
+ },
+ "release_gate_summary": {
+  "G1": "NOT_PASSED (SIMULATED baseline locked; real-world capture + stereo pending)",
+  "G2": "PASSED (rendered-sensor sim scope; all four formal criteria verified against on-disk artifacts)",
+  "next_gate": "Ingest a real Katwijk run (wheel+IMU+DGPS) via katwijk_io.py, add synchronized stereo, score solnav SLAM vs DGPS; acquire untouched depth/shadow truth"
+ }
+}

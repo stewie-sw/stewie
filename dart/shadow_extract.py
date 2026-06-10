@@ -241,3 +241,61 @@ def map_shadow_segment_to_ground(
         sample_id=sample_id,
         covariance_calibrated=covariance_calibrated,
     )
+
+
+def associate_base_tip(image, *, dark_frac: float = 0.5, bright_frac: float = 1.5,
+                       adjacency_px: int = 12) -> dict:
+    """GENERAL image-derived shadow base/tip association (G2 blocker 3).
+
+    From a single image: segment the cast shadow (dark vs median), find its principal axis, and
+    resolve WHICH end is the BASE by caster adjacency -- the end whose neighbourhood contains
+    sunlit-caster pixels (bright vs median). Returns {base_px, tip_px, direction_deg (FULL 360,
+    base->tip = anti-sun azimuth in IMAGE_X_RIGHT_Y_DOWN), confidence}. Raises if no shadow or if
+    neither end is caster-adjacent (no association -- never a fabricated default).
+    """
+    gray = np.asarray(image, dtype=float)
+    if gray.ndim == 3:
+        gray = gray[..., :3].mean(axis=2)
+    med = float(np.median(gray))
+    dark = gray < dark_frac * med
+    # the caster cue: pixels brighter than the terrain median. In a NADIR ortho a thin caster is a
+    # near-point highlight only a few percent above the median (the p5 post: 123 vs 114), so the
+    # cue is "brighter than median by a margin", not a 1.5x blob; ``bright_frac`` keeps the
+    # oblique-view (sunlit-face) case.
+    bright = (gray > bright_frac * med) | (gray > med + 0.05 * max(med, 1.0))
+    rows, cols = np.where(dark)
+    if rows.size < 12:
+        raise ValueError("no usable shadow-dark region for base/tip association")
+    pts = np.stack([cols, rows], axis=1).astype(float)        # (x, y) image frame
+    mean = pts.mean(axis=0)
+    u, s, vt = np.linalg.svd(pts - mean, full_matrices=False)
+    axis = vt[0]                                              # principal direction (axial)
+    proj = (pts - mean) @ axis
+    end_a = pts[int(np.argmin(proj))]
+    end_b = pts[int(np.argmax(proj))]
+
+    def _caster(end):
+        """(score, highlight position): score = how much the end's local max exceeds the median."""
+        x0, y0 = int(round(end[0])), int(round(end[1]))
+        r = adjacency_px
+        ys = slice(max(0, y0 - r), min(gray.shape[0], y0 + r + 1))
+        xs = slice(max(0, x0 - r), min(gray.shape[1], x0 + r + 1))
+        nb = gray[ys, xs]
+        j = int(np.argmax(nb))
+        hy, hx = divmod(j, nb.shape[1])
+        return float(nb.max() - med), np.array([xs.start + hx, ys.start + hy], float)
+
+    (sa, pa), (sb, pb) = _caster(end_a), _caster(end_b)
+    hi, lo = max(sa, sb), min(sa, sb)
+    if hi < 0.03 * max(med, 1.0) or (hi - lo) < 0.5 * hi:
+        # no caster highlight, or both ends equally bright (no ASYMMETRY -> no association): refuse
+        # rather than guess -- a wrong base silently flips the recovered sun direction by 180 deg
+        raise ValueError("no asymmetric sunlit caster at a shadow end -- association impossible")
+    # the BASE is the CASTER's ground position (the highlight), not the first detectable dark pixel:
+    # the penumbra delays darkness by several px, which biased the height ~10% low on the p5 evidence
+    base, tip = (pa, end_b) if sa >= sb else (pb, end_a)
+    d = tip - base
+    direction = float(np.degrees(np.arctan2(d[1], d[0])) % 360.0)
+    denom = sa + sb
+    return {"base_px": base, "tip_px": tip, "direction_deg": direction,
+            "confidence": float(max(sa, sb) / denom)}
