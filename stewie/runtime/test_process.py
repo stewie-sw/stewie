@@ -193,3 +193,29 @@ def test_all_eight_cameras_in_the_packet(tmp_path):
     assert set(intr) == names and all(intr[n]["fx"] > 0 for n in names)
     from stewie.bridge.runtime_io import parse_canonical
     assert parse_canonical(pkt)["camera_frames"]
+
+
+def test_t34_camera_thermal_gating(tmp_path):
+    """ARGUS T3.4: below the DOCUMENTED camera floor (0 C TVAC, SCHULER24 pp.28-29) the camera
+    channel reports UNAVAILABLE reason=thermal -- polar-night perception planning becomes honest.
+    The avionics keep running (imu/wheel/power unaffected)."""
+    import os
+    store = os.path.join(os.path.dirname(rp.__file__), "..", "eval", "validation",
+                         "g2cal", "pose_0")
+    if not os.path.isdir(store):
+        pytest.skip("g2cal evidence not present")
+    srv = rp.RuntimeProcess(grid=48, cell_m=0.02, body="moon",
+                            socket_path=str(tmp_path / "s.sock"), seed=5,
+                            frame_store=os.path.abspath(store))
+    srv.handle({"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 3})
+    warm = srv.handle({"role": "produce", "cmd": "packet"})["packet"]
+    assert warm["channels"]["camera"]["status"] == "OK"   # default temp: operational
+    r = srv.handle({"role": "drive", "cmd": "set_thermal", "camera_temp_c": -15.0})
+    assert r["ok"]
+    srv.handle({"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 3})
+    cold = srv.handle({"role": "produce", "cmd": "packet"})["packet"]
+    cam = cold["channels"]["camera"]
+    assert cam["status"] == "UNAVAILABLE" and "thermal" in cam.get("reason", "")
+    assert cold["channels"]["imu"]["status"] == "OK"      # avionics unaffected (wider qual)
+    from stewie.bridge.runtime_io import parse_canonical
+    parse_canonical(cold)                                 # still a strictly valid packet

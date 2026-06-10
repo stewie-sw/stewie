@@ -26,7 +26,7 @@ from stewie.physics.column_state import ColumnState
 from stewie.specs import vehicle_twin as vtw
 from stewie.twin import proprioception as pp
 
-_MUTATING = {"twist", "checkpoint", "restore"}
+_MUTATING = {"twist", "checkpoint", "restore", "set_thermal"}
 
 
 class RuntimeProcess:
@@ -59,6 +59,10 @@ class RuntimeProcess:
         # final slice: an attached frame store -- a REAL captured pose directory (producer
         # sensors.json + rendered PNGs). When present, packets carry the camera channel.
         self.frame_store = frame_store
+        # T3.4: camera thermal state -- the DOCUMENTED floor is 0 C (TVAC qual, SCHULER24
+        # pp.28-29; ipex_specs.CAMERA_MIN_OPERATIONAL_C). Settable via the seam now; the
+        # sun-driven thermal model (T5.1) will own it later.
+        self.camera_temp_c: float = 20.0
 
     # ---- world operations (the seam's verbs) ---------------------------------------------
     def _pose(self) -> dict:
@@ -119,6 +123,11 @@ class RuntimeProcess:
         return {"ok": True, "packet": pkt}
 
     def _camera_channel(self) -> dict:
+        from stewie.specs.ipex_specs import CAMERA_MIN_OPERATIONAL_C
+        if self.camera_temp_c < CAMERA_MIN_OPERATIONAL_C:
+            return {"status": "UNAVAILABLE",
+                    "reason": f"thermal: camera {self.camera_temp_c:.1f} C below the "
+                              f"{CAMERA_MIN_OPERATIONAL_C:.0f} C TVAC floor"}
         """The camera channel from the attached frame store: REAL rendered frames, runtime clock.
 
         The stereo pair shares one keyframe timestamp (the strict parser's per-camera monotonicity
@@ -173,6 +182,9 @@ class RuntimeProcess:
             if role != "produce":
                 return {"ok": False, "error": "packets are the producer role's verb"}
             return self._packet()
+        if cmd == "set_thermal":
+            self.camera_temp_c = float(req["camera_temp_c"])
+            return {"ok": True, "camera_temp_c": self.camera_temp_c}
         if cmd == "checkpoint":
             return self._checkpoint(req["path"])
         if cmd == "restore":
