@@ -204,6 +204,8 @@ var _lander_rc := Vector2i(-1, -1)
 # --work-lights (single-frame --cameras): build the documented LED units (camera_rig.LIGHT_UNITS,
 # TRL5 Lighting Design) ON; their EXACT world poses + state are emitted in sensors.json "lights".
 var _work_lights_on := false
+# --camera-profile flight: the documented IMX547 + 6 mm optics (camera_rig FLIGHT_*); <=0 = rig default.
+var _camera_fov_override := 0.0
 # --chase-cam (single-frame --cameras): instead of the 8-camera rover rig, render ONE trailing
 # third-person ("coach") view of the rover from behind+above+side and save chase.png. This is the
 # external sim-manager vantage (the rover's own cameras cannot see themselves), so it shows the rover
@@ -513,6 +515,11 @@ func _parse_args() -> void:
 				for L in String(args[i]).split(","):
 					var t := L.strip_edges()
 					if t != "": _layers.append(t)
+			"--camera-profile":
+				i += 1
+				if String(args[i]) == "flight":
+					_viewport_size = CameraRigScript.FLIGHT_SENSOR_PX
+					_camera_fov_override = CameraRigScript.FLIGHT_FOV_X_DEG
 			"--size":
 				i += 1
 				var wh := String(args[i]).split("x")
@@ -848,7 +855,8 @@ func _cameras_capture() -> void:
 		return
 
 	# Build the front-stereo cameras (shared World3D SubViewports riding the rover).
-	var cams: Array = CameraRigScript.build(self, rover_root, world, _viewport_size, _cam_pitch_deg)
+	var cams: Array = CameraRigScript.build(self, rover_root, world, _viewport_size, _cam_pitch_deg,
+		_camera_fov_override)
 	var work_lights: Array = CameraRigScript.build_work_lights(rover_root, _work_lights_on)
 
 	# Let the subviewports render a few times (first frame can sample a stale buffer).
@@ -878,7 +886,8 @@ func _cameras_capture() -> void:
 	var sun := SensorsEmitScript.sun_block(_sun_elev_deg, _sun_azim_deg, 0.0)
 	var doc := SensorsEmitScript.build_sensors_json(
 		scene, 0, _viewport_size, rover_root, lander_root, cams,
-		Callable(CameraRigScript, "intrinsics"), CameraRigScript.FOV_X_DEG,
+		Callable(CameraRigScript, "intrinsics"),
+		(_camera_fov_override if _camera_fov_override > 0.0 else CameraRigScript.FOV_X_DEG),
 		sun, null, CameraRigScript.rear_pair_descriptor(cams, rover_root))
 	# v1.1 additive "lights" block: per documented LED unit -- EXACT world pose + state (the
 	# known-position light is the active shadow-ranging observable; TRL5 Lighting Design).

@@ -71,7 +71,12 @@ const DRUM_BACK_NODE := "arm_back"     # back  drum-arm pivot (carries "drum_bac
 
 # Horizontal FOV from the URDF depth camera (1.29154 rad). fov IS the horizontal fov when
 # keep_aspect = KEEP_WIDTH (set per cam below); drives intrinsics fx=fy=(w/2)/tan(fov_x/2).
-const FOV_X_DEG := 73.99               # URDF 1.29154 rad (was a [CALIB] 70 guess)
+const FOV_X_DEG := 73.99               # URDF 1.29154 rad (was a [CALIB] 70 guess) -- the CALIB profile
+# FLIGHT camera profile [SCHULER24 pp.24-26, TRL5 review T3.0]: Sony IMX547 (5 MP, 2.74 um pixel,
+# ~2472x2064) + the 6 mm S-mount candidate at f/4 -> fx = 6e-3/2.74e-6 = 2189.78 px ->
+# FOV_X = 2*atan(W/2/fx) = 58.88 deg. Pure unit conversion from documented values (no tuning).
+const FLIGHT_SENSOR_PX := Vector2i(2472, 2064)
+const FLIGHT_FOV_X_DEG := 58.88
 const NEAR_M := 0.02
 const FAR_M := 100.0
 
@@ -240,8 +245,8 @@ static func intrinsics(fov_x_deg: float, w: int, h: int) -> Dictionary:
 #
 # Returns an Array of Dictionaries: {name, frame_id, image, sv, cam} so the caller can read
 # each camera's global_transform for sensors.json and grab the rendered texture per view.
-static func build(parent: Node, mount: Node3D, world: World3D,
-		view_size: Vector2i, pitch_deg: float = 0.0) -> Array:
+static func build(parent: Node, mount: Node3D, world: World3D,  # fov_x_override<=0 -> FOV_X_DEG
+		view_size: Vector2i, pitch_deg: float = 0.0, fov_x_override: float = 0.0) -> Array:
 	var mount_xf: Transform3D = mount.global_transform
 	var out: Array = []
 	for spec in CAMERAS:
@@ -253,7 +258,7 @@ static func build(parent: Node, mount: Node3D, world: World3D,
 		parent.add_child(sv)
 
 		var cam := Camera3D.new()
-		cam.fov = FOV_X_DEG
+		cam.fov = (fov_x_override if fov_x_override > 0.0 else FOV_X_DEG)
 		cam.keep_aspect = Camera3D.KEEP_WIDTH   # fov IS the horizontal fov -> intrinsics match
 		cam.near = NEAR_M
 		cam.far = FAR_M
