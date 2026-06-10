@@ -20,3 +20,8 @@ import json,sys; d=json.load(sys.stdin)
 print('debrief OK: divergence %.0f J · missed %s' % (d['energy_divergence_J'], d['operator_missed_legs']))"
 curl -sf $BASE/session/$SID/summary -H "X-API-Key: $KEY" | head -4
 echo "BETA ACCEPT (machine path) PASSED in $(( $(date +%s) - T0 ))s"
+
+# ---- ROS leg (opt-in; needs the stewie-ros2 image + --profile ros2) ---------------------------
+# Verified 2026-06-10: rover_executive in-container; publishing /cmd_vel (Twist) moves the rover;
+# /odom coordinates match the stewie.bridge.frames contract (x = col*cell, y = -row*cell).
+# Run: docker compose -f deploy/compose.yml --profile ros2 up -d && <teleop publishes /cmd_vel>
