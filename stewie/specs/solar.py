@@ -50,3 +50,97 @@ def sun_az_el(site_lat_deg: float, mission_time_s: float, *, site_lon_deg: float
         -math.cos(delta) * math.sin(H),
         math.cos(phi) * math.sin(delta) - math.sin(phi) * math.cos(delta) * math.cos(H)))
     return az % 360.0, el
+
+
+# ---- SPICE backend (the correct wheel; Aaron 2026-06-10: "NASA has already built it") -----------
+# SpiceyPy + the NAIF generic kernels: de440s (planetary ephemeris), moon_pa_de440 +
+# moon_de440 frames kernel (MOON_ME body-fixed), naif0012 leapseconds, pck00011. Kernels live
+# OUTSIDE the repo ($STEWIE_SPICE_KERNELS, default /mnt/projects/datasets/spice_kernels); the
+# mean-motion model above stays as the documented kernel-free fallback, its accuracy REPORTED by
+# crosscheck_meanmotion(). MISSION_EPOCH_UTC anchors mission_time_s=0 to a real date.
+import os as _os
+
+MISSION_EPOCH_UTC = "2026-11-15T00:00:00"   # [ASSUMPTION] notional IPEx demo epoch; settable
+_KERNEL_DIR = _os.environ.get("STEWIE_SPICE_KERNELS", "/mnt/projects/datasets/spice_kernels")
+_KERNELS = ("naif0012.tls", "pck00011.tpc", "de440s.bsp",
+            "moon_pa_de440_200625.bpc", "moon_de440_250416.tf")
+_loaded = False
+
+
+def spice_available() -> bool:
+    try:
+        import spiceypy  # noqa: F401
+    except ImportError:
+        return False
+    return all(_os.path.exists(_os.path.join(_KERNEL_DIR, k)) for k in _KERNELS)
+
+
+def _ensure_kernels() -> None:
+    global _loaded
+    if _loaded:
+        return
+    import spiceypy as sp
+    for k in _KERNELS:
+        sp.furnsh(_os.path.join(_KERNEL_DIR, k))
+    _loaded = True
+
+
+def sun_az_el_spice(site_lat_deg: float, mission_time_s: float, *, site_lon_deg: float = 0.0,
+                    epoch_utc: str | None = None) -> tuple:
+    """Sun (azimuth from local north [deg, eastward], elevation [deg]) via SPICE: the Sun state
+    from the Moon center in the MOON_ME body-fixed frame (LT+S aberration), transformed to the
+    site's topocentric ENU on the IAU sphere."""
+    import spiceypy as sp
+    _ensure_kernels()
+    et = sp.str2et(epoch_utc or MISSION_EPOCH_UTC) + float(mission_time_s)
+    sun_pos, _lt = sp.spkpos("SUN", et, "MOON_ME", "LT+S", "MOON")
+    lat, lon = math.radians(site_lat_deg), math.radians(site_lon_deg)
+    r_moon = 1737.4
+    site = sp.latrec(r_moon, lon, lat)
+    v = [sun_pos[i] - site[i] for i in range(3)]
+    # local ENU basis at the site on the sphere
+    up = [math.cos(lat) * math.cos(lon), math.cos(lat) * math.sin(lon), math.sin(lat)]
+    east = [-math.sin(lon), math.cos(lon), 0.0]
+    north = [-math.sin(lat) * math.cos(lon), -math.sin(lat) * math.sin(lon), math.cos(lat)]
+    d = math.sqrt(sum(x * x for x in v))
+    e = sum(v[i] * east[i] for i in range(3)) / d
+    n = sum(v[i] * north[i] for i in range(3)) / d
+    u = sum(v[i] * up[i] for i in range(3)) / d
+    el = math.degrees(math.asin(max(-1.0, min(1.0, u))))
+    az = math.degrees(math.atan2(e, n)) % 360.0
+    return az, el
+
+
+_MEANMOTION = sun_az_el
+
+
+def sun_az_el_dispatch(site_lat_deg: float, mission_time_s: float, *, backend: str = "auto",
+                       **kw) -> tuple:
+    """SPICE when available (the correct wheel), mean-motion otherwise (disclosed fallback)."""
+    if backend == "spice" or (backend == "auto" and spice_available()):
+        return sun_az_el_spice(site_lat_deg, mission_time_s,
+                               site_lon_deg=kw.get("site_lon_deg", 0.0))
+    return _MEANMOTION(site_lat_deg, mission_time_s, **kw)
+
+
+def crosscheck_meanmotion(site_lat_deg: float, *, n_epochs: int = 12) -> dict:
+    """The accuracy artifact: spice-vs-meanmotion deltas across a synodic month (the honest
+    statement of what the kernel-free fallback costs)."""
+    daz = del_ = 0.0
+    rows = []
+    for i in range(n_epochs):
+        t = i * SYNODIC_MONTH_S / n_epochs
+        az_s, el_s = sun_az_el_spice(site_lat_deg, t)
+        az_m, el_m = _MEANMOTION(site_lat_deg, t)
+        da = abs((az_s - az_m + 180.0) % 360.0 - 180.0)
+        de = abs(el_s - el_m)
+        daz, del_ = max(daz, da), max(del_, de)
+        rows.append({"t_s": t, "spice": [az_s, el_s], "meanmotion": [az_m, el_m]})
+    return {"schema": "solar_crosscheck/1.0", "epoch_utc": MISSION_EPOCH_UTC,
+            "site_lat_deg": site_lat_deg, "n_epochs": n_epochs,
+            "max_abs_az_delta_deg": round(daz, 3), "max_abs_el_delta_deg": round(del_, 3),
+            "rows": rows}
+
+
+# the public name keeps the original signature PLUS the backend switch
+sun_az_el = sun_az_el_dispatch  # noqa: F811 -- deliberate: SPICE-preferring dispatcher

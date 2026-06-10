@@ -48,8 +48,12 @@ def sun_az_el(mission_time_s: float, *, az0_deg: float = 0.0, el_deg: float | No
     ``el_deg`` keeps the manual-override path for inspection renders; ``az0_deg`` phases t=0."""
     try:
         from stewie.specs import solar
-        # at the south-polar site, azimuth tracks the sub-solar longitude under this convention
-        az, el = solar.sun_az_el(-87.45, float(mission_time_s), lon0_deg=az0_deg % 360.0)
+        # at the south-polar site, azimuth tracks the sub-solar longitude under this convention.
+        # backend=meanmotion DELIBERATELY: the clock's az0 is a TRAINING-SCENARIO phase (the
+        # lit-start pick), which needs the PHASEABLE model -- dated/real missions use the SPICE
+        # backend through solar.sun_az_el(...) with a real epoch instead (2026-06-10).
+        az, el = solar.sun_az_el(-87.45, float(mission_time_s), backend="meanmotion",
+                                 lon0_deg=az0_deg % 360.0)
         return az, (float(el_deg) if el_deg is not None else el)
     except ImportError:                                   # standalone checkout fallback
         az = (az0_deg + 360.0 * (mission_time_s / period_s)) % 360.0
