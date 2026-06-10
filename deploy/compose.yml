@@ -5,9 +5,9 @@ services:
   backend:
     build: { context: .., dockerfile: deploy/Dockerfile.backend, network: host }
     environment:
-      DUSTGYM_API_KEY: ${DUSTGYM_API_KEY:-}          # set to require auth on mutating routes
-      DUSTGYM_CORS_ORIGINS: ${DUSTGYM_CORS_ORIGINS:-}
-      DUSTGYM_REPORTS_TTL_S: ${DUSTGYM_REPORTS_TTL_S:-604800}
+      STEWIE_API_KEY: ${STEWIE_API_KEY:-${DUSTGYM_API_KEY:-}}          # set to require auth on mutating routes
+      STEWIE_CORS_ORIGINS: ${STEWIE_CORS_ORIGINS:-}
+      STEWIE_REPORTS_TTL_S: ${STEWIE_REPORTS_TTL_S:-604800}
       MPLCONFIGDIR: /tmp/mpl
     volumes: [ "stewie-data:/data" ]
     restart: unless-stopped

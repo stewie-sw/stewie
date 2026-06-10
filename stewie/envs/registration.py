@@ -96,7 +96,10 @@ def register_envs():
         ("Dust/ActivePerception-v0", "stewie.envs.active_perception_env:ActivePerceptionEnv", {}, 400),
     ]
     for env_id, entry_point, kwargs, max_steps in specs:
-        if env_id in registry:
-            continue
-        register(id=env_id, entry_point=entry_point, kwargs=kwargs, max_episode_steps=max_steps)
+        # canonical namespace is Stewie/ (rename 2026-06-10, "dustgym" retired); the legacy Dust/
+        # IDs stay registered as aliases for one transition cycle
+        for eid in (env_id.replace("Dust/", "Stewie/"), env_id):
+            if eid in registry:
+                continue
+            register(id=eid, entry_point=entry_point, kwargs=kwargs, max_episode_steps=max_steps)
     _REGISTERED = True

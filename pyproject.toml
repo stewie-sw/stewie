@@ -3,7 +3,7 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dustgym"
+name = "stewie"
 version = "0.1.0"
 description = "Gymnasium environments for off-world surface vehicles and autonomous construction, on a mass-conserving terramechanics authority parameterized per planetary body (Moon/Mars/Earth/...). IPEx / Lunar Autonomy Challenge lineage."
 readme = "README.md"
@@ -50,7 +50,8 @@ Dust = "dustgym:register_envs"
 
 # The mission-planner product server (PRD N13): `dustgym-serve` -> the planner + mission-control report API.
 [project.scripts]
-dustgym-serve = "stewie.server.server:main"
+stewie-serve = "stewie.server.server:main"
+dustgym-serve = "stewie.server.server:main"   # deprecated alias
 # fetch + checksum-verify the real LOLA Haworth DEM (PGDA Product 78); not bundled in the wheel
 dustgym-fetch-dem = "planet_browser.fetch_assets:main"
 

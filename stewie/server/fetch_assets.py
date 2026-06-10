@@ -80,7 +80,7 @@ def fetch(source_base: str, *, manifest: dict | None = None, repo_root: str = _R
 def main(argv=None) -> int:
     m = load_manifest()
     ap = argparse.ArgumentParser(description="Fetch + checksum-verify the real LOLA Haworth DEM (PGDA Product 78).")
-    ap.add_argument("--source", default=os.environ.get("DUSTGYM_DEM_URL"),
+    ap.add_argument("--source", default=os.environ.get("STEWIE_DEM_URL", os.environ.get("DUSTGYM_DEM_URL")),
                     help="base URL/dir mirroring the asset files (http(s):// or file://); see assets_manifest.json")
     ap.add_argument("--force", action="store_true", help="re-download even if present")
     a = ap.parse_args(argv)

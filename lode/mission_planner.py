@@ -1118,7 +1118,7 @@ def _haworth_bundle(bundle_dir=None):
     # RB-06 explicit asset mode: the (large, unpackaged) Haworth DEM bundle is located explicitly via
     # $DUSTGYM_DEM_DIR for a deployment, else the in-repo samples path for dev. Absence degrades to a
     # flat slope-check in the server (_moon_dem), it does not crash the request.
-    return (bundle_dir or os.environ.get("DUSTGYM_DEM_DIR")
+    return (bundle_dir or os.environ.get("STEWIE_DEM_DIR", os.environ.get("DUSTGYM_DEM_DIR"))
             or os.path.join(_REPO_ROOT, "samples", "lunar_dem", "haworth_10km_5m"))
 
 

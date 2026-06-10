@@ -1,8 +1,19 @@
 # STEWIE — Surface Terrain Engineering & World-model Integration Environment
 
-Monorepo (M0, 2026-06-09): full histories of `dustgym` (McCardle + Storey) and `solnav` (Storey)
-imported via subtree under `dustgym/` and `solnav/`. The DART/LODE/LEAP/FORGE restructure happens in
-M1+ (see `../design/SUBSYSTEM_REORG_PLAN_2026-06-09.md`). PRIVATE while PN1/PN2 are unpublished.
+**IPEx builds the Moon. STEWIE plans the build.** *(in silico → in situ)*
+
+One stack: conserved-physics lunar terrain authority, mission planner + mission-control reports,
+Gymnasium environments, Godot render/sensor sidecar, and the evaluation gates — organized by
+responsibility: `stewie/` (platform: physics, terrain, twin, specs, envs, server, bridge, sensors,
+godot, eval) · `dart/` (perception) · `lode/` (operations) · `leap/` (earthmoving) · `forge/`
+(infrastructure).
+
+- Canonical design source: **`PRD.md`** (STEWIE PRD; §16 = subsystem map + phase gates)
+- Install: `pip install -e .[dev]` · serve: `stewie-serve` · deploy: `docker compose -f deploy/compose.yml up -d`
+- Gym envs: `import stewie` → `gym.make("Stewie/RoverDrive-v0")` (legacy `Dust/*` IDs + `import
+  dustgym` + `DUSTGYM_*` env vars remain as deprecated aliases for one transition cycle)
+- History: this monorepo carries the full histories of the `dustgym` simulator (McCardle + Storey)
+  and the navigation research formerly named solnav (Storey); both names are retired (2026-06-10).
 
 ## M0 state (2026-06-09)
 - Committed: both subtree imports (180 commits total; dustgym HEAD `5c986fb`, solnav HEAD `305a632`).

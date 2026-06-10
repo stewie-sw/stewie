@@ -46,6 +46,11 @@ from leap import structures as ST
 # failure paths. Level via $DUSTGYM_LOG_LEVEL.
 log = logging.getLogger("stewie.server")
 
+def _env(name: str, default=None):
+    """STEWIE_<name> with DUSTGYM_<name> fallback (rename 2026-06-10; legacy accepted one cycle)."""
+    return os.environ.get(f"STEWIE_{name}", os.environ.get(f"DUSTGYM_{name}", default))
+
+
 _START = time.monotonic()
 _REPORT_LOCK = threading.Lock()                 # matplotlib pyplot is process-global + thread-unsafe
 _METRICS: dict = {"requests_total": 0, "by_status": {}, "by_route": {}}
@@ -53,7 +58,7 @@ _METRICS: dict = {"requests_total": 0, "by_status": {}, "by_route": {}}
 
 def _configure_logging(level: str | None = None) -> None:
     """Configure logging for the server (PRD N10): level from arg, else $DUSTGYM_LOG_LEVEL, else INFO."""
-    lvl = (level or os.environ.get("DUSTGYM_LOG_LEVEL", "INFO")).upper()
+    lvl = (level or _env("LOG_LEVEL", "INFO")).upper()
     logging.basicConfig(level=getattr(logging, lvl, logging.INFO),
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s", force=True)
 
@@ -80,7 +85,7 @@ _CTYPE = {".html": "text/html; charset=utf-8", ".json": "application/json",
           ".js": "text/javascript", ".css": "text/css", ".png": "image/png"}
 
 _MAX_ORDERS = 1000   # N8 input limit: refuse absurd build queues before they reach the planner
-_MAX_BODY_BYTES = int(os.environ.get("DUSTGYM_MAX_BODY_BYTES", 4 * 1024 * 1024))   # N8: request-body size cap (4 MiB)
+_MAX_BODY_BYTES = int(_env("MAX_BODY_BYTES", 4 * 1024 * 1024))   # N8: request-body size cap (4 MiB)
 
 
 def _version() -> str:
@@ -93,7 +98,7 @@ def _version() -> str:
 
 def _prune_reports(ttl_s: float | None = None) -> int:
     """Delete report files older than the TTL (default $DUSTGYM_REPORTS_TTL_S or 86400 s). Returns count."""
-    ttl = float(ttl_s if ttl_s is not None else os.environ.get("DUSTGYM_REPORTS_TTL_S", 86400))
+    ttl = float(ttl_s if ttl_s is not None else _env("REPORTS_TTL_S", 86400))
     if ttl <= 0 or not os.path.isdir(REPORTS):
         return 0
     now, removed = time.time(), 0
@@ -262,7 +267,7 @@ def require_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")
                  authorization: str | None = Header(default=None)):
     """N8: API-key auth on mutating routes. Enabled only when $DUSTGYM_API_KEY is set (open in dev).
     Accepts `X-API-Key: <key>` or `Authorization: Bearer <key>`."""
-    key = os.environ.get("DUSTGYM_API_KEY")
+    key = _env("API_KEY")
     if not key:
         return
     supplied = x_api_key or (authorization or "").removeprefix("Bearer ").strip()
@@ -272,7 +277,7 @@ def require_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")
 
 app = FastAPI(title="STEWIE — mission planner + planet browser API", version=_version())
 
-_cors = os.environ.get("DUSTGYM_CORS_ORIGINS", "*").strip()
+_cors = _env("CORS_ORIGINS", "*").strip()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if _cors == "*" else [o.strip() for o in _cors.split(",") if o.strip()],

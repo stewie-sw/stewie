@@ -26,7 +26,8 @@ from __future__ import annotations
 
 import os
 
-_ENV_PREFIX = "DUSTGYM_"
+_ENV_PREFIX = "STEWIE_"          # canonical (rename 2026-06-10)
+_ENV_PREFIX_LEGACY = "DUSTGYM_"  # accepted fallback for one transition cycle
 _CONFIG_ENV = "DUSTGYM_CONFIG"
 
 
@@ -78,6 +79,8 @@ def get_overrides() -> dict:
     for k, v in os.environ.items():
         if k.startswith(_ENV_PREFIX) and k != _CONFIG_ENV:
             out[k[len(_ENV_PREFIX):]] = _coerce(v)
+        elif k.startswith(_ENV_PREFIX_LEGACY) and k != _CONFIG_ENV:
+            out.setdefault(k[len(_ENV_PREFIX_LEGACY):], _coerce(v))   # STEWIE_ wins on conflict
     return out
 
 
@@ -140,11 +143,14 @@ def describe() -> dict:
 def data_dir() -> str:
     """The writable application-data root: ``$DUSTGYM_DATA_DIR``, else the XDG user-data dir
     (``$XDG_DATA_HOME/dustgym`` or ``~/.local/share/dustgym``)."""
-    d = os.environ.get("DUSTGYM_DATA_DIR")
+    d = os.environ.get("STEWIE_DATA_DIR", os.environ.get("DUSTGYM_DATA_DIR"))
     if d:
         return d
     base = os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
-    return os.path.join(base, "dustgym")
+    new = os.path.join(base, "stewie")
+    legacy = os.path.join(base, "dustgym")
+    # rename 2026-06-10: prefer the new dir, but keep serving an existing legacy install's data
+    return legacy if (os.path.isdir(legacy) and not os.path.isdir(new)) else new
 
 
 def reports_dir() -> str:

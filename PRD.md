@@ -1,4 +1,4 @@
-# STEWIE PRD: DustGym Lunar Construction and Solar-Terrain Autonomy
+# STEWIE PRD: Lunar Construction and Solar-Terrain Autonomy
 
 **Version:** 7.0
 **Date:** 2026-06-09

@@ -1,25 +1,12 @@
-"""dustgym — a Gymnasium suite for off-world surface vehicles + autonomous construction.
+"""DEPRECATED import name. The package is ``stewie`` (renamed 2026-06-10; "dustgym" retired).
 
-Reinforcement-learning environments on a mass-conserving terramechanics authority, parameterized
-per planetary body (gravity + regolith): the Moon, Mars, Earth, and more. "Dust" = the regolith
-that every airless/rocky surface shares (IPEx / Lunar Autonomy Challenge lineage).
-
-Importing this package REGISTERS the ``Dust/*`` environments with Gymnasium (the documented
-third-party pattern), so::
-
-    import dustgym                                  # registers Dust/* on import
-    import gymnasium as gym
-    env = gym.make("Dust/RoverDrive-Mars-v0")       # per-body physics (gravity + regolith)
-    env = gym.make("Dust/Scheduler-v0")             # body-neutral (mass-conserving construction)
-
-The environments and the physics authority live in ``terrain_authority``; this package is the thin
-Gymnasium-facing layer. Per-body constants live in ``terrain_authority.bodies``.
+``import dustgym`` keeps working for one transition cycle: it forwards to the same registration
+(the Gymnasium env IDs are now ``Stewie/*``; the legacy ``Dust/*`` IDs are registered as aliases).
 """
-from __future__ import annotations
+import warnings
 
-from stewie.specs.bodies import BODIES
-from stewie.envs.registration import ENV_IDS, register_envs
+warnings.warn("'dustgym' is renamed 'stewie' (2026-06-10); update imports", DeprecationWarning,
+              stacklevel=2)
+from stewie.envs.registration import register_envs as _register_envs   # noqa: E402
 
-register_envs()
-
-__all__ = ["register_envs", "ENV_IDS", "BODIES"]
+_register_envs()

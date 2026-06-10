@@ -1,0 +1,66 @@
+name: Publish stewie to PyPI
+
+# Trusted Publishing (OIDC) — no API token. Fires on a published GitHub Release (tag the version
+# first, e.g. v0.1.0, then publish the release) or manually via workflow_dispatch.
+# PyPI "pending publisher" form maps to this file (lives in the stewie/stewie repo):
+#   Owner: stewie | Repository: stewie | Workflow: publish-stewie.yml | Environment: pypi
+# The OIDC subject uses ${{ github.repository }} at runtime — nothing here hardcodes the repo,
+# so this file works once it lives on stewie/stewie's default branch with a `pypi` environment.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  gate:
+    name: Quality gate (lint + type + test/coverage) — must pass before publishing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install (core + dev)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+      - name: Lint (ruff, pyflakes gate)
+        run: ruff check --select F stewie dart lode leap forge stewie scripts viz
+      - name: Type check (mypy)
+        run: mypy
+      - name: Test + coverage gate (the CONFIGURED suite; testpaths = core + planner + scripts)
+        run: pytest --cov --cov-report=term-missing
+
+  build:
+    name: Build sdist + wheel
+    needs: gate                    # never publish a release that fails lint / types / tests / coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Build distributions
+        run: |
+          python -m pip install --upgrade build
+          python -m build            # -> dist/stewie-*.tar.gz + dist/stewie-*.whl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI (trusted publishing)
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi              # must match the Environment name in the PyPI publisher config
+    permissions:
+      id-token: write             # REQUIRED for OIDC trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
