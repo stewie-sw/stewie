@@ -440,9 +440,16 @@ def get_layers():
 
 
 @app.get("/layers/raster/{kind}.png")
-def get_raster_layer(kind: str, sun_el: float = 6.0, sun_az: float = 90.0):
-    """A computed GIS raster overlay (slope/hazard/illumination/psr) from the REAL Haworth DEM."""
+def get_raster_layer(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
+                     mission_t_s: float | None = None):
+    """A computed GIS raster overlay from the REAL Haworth DEM. When mission_t_s is given the sun
+    is AUTOMATIC: real spherical geometry at the Haworth latitude (stewie.specs.solar) -- azimuth
+    circles per lunar day, elevation breathes inside colatitude+obliquity. el/az are the manual
+    override path."""
     from stewie.server.gis_layers import render
+    if mission_t_s is not None:
+        from stewie.specs.solar import sun_az_el
+        sun_az, sun_el = sun_az_el(-87.45, float(mission_t_s))   # Haworth site latitude
     try:
         png = render(kind, sun_el=sun_el, sun_az=sun_az)
     except FileNotFoundError as e:

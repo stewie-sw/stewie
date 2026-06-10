@@ -270,9 +270,12 @@
           <img id="ovl_illumination" class="gisovl" alt="" />
           <img id="ovl_psr" class="gisovl" alt="" />
         </div>
-        <div class="cap" id="suncap" title="south-pole sun geometry drives the shadow layer (horizon-clipped, the shadow-SLAM signal)">
-          ☀ el <input id="sunel" type="range" min="1" max="30" value="6" style="width:6em" />
-          <span id="sunelv">6°</span> · az <input id="sunaz" type="range" min="0" max="359" value="90" style="width:8em" />
+        <div class="cap" id="suncap" title="south-pole sun geometry drives the shadow layer (horizon-clipped, the shadow-SLAM signal). AUTO = real spherical geometry at the Haworth latitude from mission time; manual sliders override.">
+          <label style="cursor:pointer">☀ auto <input id="sunauto" type="checkbox" checked /></label>
+          t <input id="suntime" type="range" min="0" max="29.5" step="0.1" value="6" style="width:9em" />
+          <span id="suntimev">day 6.0</span> ·
+          el <input id="sunel" type="range" min="-5" max="30" value="6" style="width:5em" disabled />
+          <span id="sunelv">6°</span> · az <input id="sunaz" type="range" min="0" max="359" value="90" style="width:6em" disabled />
           <span id="sunazv">90°</span></div>
       </div>
       <div id="renderpanel" class="pane">
@@ -662,7 +665,11 @@ async function loadLayers() {
   } catch (e) { /* serverless preview keeps the defaults */ }
 }
 const GIS_RASTERS = ["slope", "hazard", "illumination", "psr"];   // computed from the REAL Haworth DEM server-side
-function sunQS() { return `sun_el=${qel("sunel").value}&sun_az=${qel("sunaz").value}`; }
+function sunQS() {
+  if (qel("sunauto") && qel("sunauto").checked)            // AUTO: mission time -> real solar geometry server-side
+    return `mission_t_s=${Math.round(parseFloat(qel("suntime").value) * 86400)}`;
+  return `sun_el=${qel("sunel").value}&sun_az=${qel("sunaz").value}`;
+}
 function applyLayerToggle(id, on) {                          // load/unload the raster layers (vector layers redraw)
   if (id === "dem") { const wa = qel("workarea"); if (wa) wa.style.display = on ? "" : "none"; }
   if (id === "imagery" && window.viewer && viewer.imageryLayers && viewer.imageryLayers.length) viewer.imageryLayers.get(0).show = on;
@@ -672,11 +679,21 @@ function applyLayerToggle(id, on) {                          // load/unload the 
     else { im.style.display = "none"; }
   }
 }
+function refetchSun() { GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); }); }
 ["sunel", "sunaz"].forEach((sid) => { const el = qel(sid); if (el) el.oninput = () => {
   qel("sunelv").textContent = qel("sunel").value + "\u00b0";
   qel("sunazv").textContent = qel("sunaz").value + "\u00b0";
-  GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); });   // re-fetch shadows live
+  refetchSun();
 }; });
+if (qel("suntime")) qel("suntime").oninput = () => {
+  qel("suntimev").textContent = "day " + parseFloat(qel("suntime").value).toFixed(1);
+  refetchSun();
+};
+if (qel("sunauto")) qel("sunauto").onchange = () => {
+  const auto = qel("sunauto").checked;
+  qel("sunel").disabled = auto; qel("sunaz").disabled = auto; qel("suntime").disabled = !auto;
+  refetchSun();
+};
 loadLayers();
 
 // ---- PLAN VIEW: a top-down local-frame view of the queue (orders + keep-outs + charger) + click-to-place ----
