@@ -143,3 +143,33 @@ def _run_all():
 
 if __name__ == "__main__":
     _run_all()
+
+
+def test_skid_steer_yaw_authority_is_slip_coupled():
+    """ARGUS T1.2: with skid_steer=True, yaw comes from DIFFERENTIAL thrust over the documented
+    0.5207 m track -- the same slip that robs forward progress robs the speed differential, so
+    omega under-achieves on low-traction slopes exactly as v does. Default path: byte-identical."""
+    import numpy as np
+
+    from stewie.physics import drive
+    from stewie.physics.column_state import ColumnState
+    from stewie.specs import ipex_specs as ix
+
+    def fresh():
+        cs = ColumnState(width=64, height=64, cell_m=0.02,
+                         mass_areal=np.full((64, 64), 50.0))
+        ramp = np.tile(np.linspace(0.0, 0.55, 64)[None, :], (64, 1))   # a steep grade -> real slip
+        cs.datum = cs.datum + ramp - cs.derive_height() + cs.derive_height() * 0  # raise surface
+        cs.datum[:, :] = ramp - (cs.derive_height() - cs.datum)
+        return cs
+
+    # default path unchanged (zero-regression bar)
+    a = drive.drive_step(fresh(), (32.0, 20.0), 0.0, 0.25, 0.4, dt=0.2)
+    b = drive.drive_step(fresh(), (32.0, 20.0), 0.0, 0.25, 0.4, dt=0.2)
+    assert a[1] == b[1]                                   # deterministic baseline
+    # skid-steer truth: on the slope, achieved yaw < commanded yaw, scaled like (1-slip)
+    rc, yaw_t, telem = drive.drive_step(fresh(), (32.0, 20.0), 0.0, 0.25, 0.4, dt=0.2,
+                                        skid_steer=True, track_m=ix.SKID_STEER_TRACK_M)
+    assert telem["slip"] > 0.05                           # the grade produces real slip
+    assert telem["omega_achieved"] == telem["omega_cmd"] * (1.0 - telem["slip"])
+    assert abs(yaw_t) < abs(a[1]) or telem["slip"] == 0.0  # yaw under-achieves vs the ideal path

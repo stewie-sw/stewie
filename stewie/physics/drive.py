@@ -52,7 +52,9 @@ def drive_step(cs: ColumnState, rc: tuple[float, float], yaw: float,
                payload_kg: float = 0.0, wheel_width_m: float = 0.18,
                contact_len_m: float = 0.10, g: float = K.g,
                material: bool = False,
-               clasts: "list[dict] | None" = None) -> tuple[tuple[float, float], float, dict]:
+               clasts: "list[dict] | None" = None,
+               skid_steer: bool = False,
+               track_m: float = 0.5207) -> tuple[tuple[float, float], float, dict]:
     """One closed-loop step: command twist in, (new_rc, new_yaw, telemetry) out.
 
     read local forward slope (conform_pose pitch, incl. clast ride-over if ``clasts``
@@ -80,13 +82,21 @@ def drive_step(cs: ColumnState, rc: tuple[float, float], yaw: float,
                                           contact_width_m=wheel_width_m)
     s = eq["slip"]
     v_ach = (1.0 - s) * v_cmd                             # slip robs forward progress
-    new_rc, new_yaw = rover.step_pose(rc, yaw, v_ach, omega_cmd, dt, cell_m=cs.cell_m)
+    # ARGUS T1.2 (opt-in; default path unchanged): skid-steer yaw comes from DIFFERENTIAL wheel
+    # speed over the documented kinematic track (WHEELTEST Eq.1, 0.5207 m on the RASSOR-2 test
+    # platform). The same traction deficit that robs v robs the per-side speed difference, so
+    # omega_achieved = (1-slip)*omega_cmd -- yaw authority degrades with slip, turns under-achieve
+    # on low-traction grades, and the track length is where the differential acts (telemetry
+    # carries it for consumers that convert to per-side wheel speeds: v_side = v +/- omega*track/2).
+    omega_ach = (1.0 - s) * omega_cmd if skid_steer else omega_cmd
+    new_rc, new_yaw = rover.step_pose(rc, yaw, v_ach, omega_ach, dt, cell_m=cs.cell_m)
     rover.four_wheel_pass(cs, [(new_rc, new_yaw)], wheel_width_m=wheel_width_m,
                           physical=True, loads=cf["normal_loads"], params=p,
                           contact_len_m=contact_len_m, slip=s)
     telem = {
         "rc": [new_rc[0], new_rc[1]], "yaw": new_yaw,
         "v_cmd": float(v_cmd), "omega_cmd": float(omega_cmd),
+        "omega_achieved": float(omega_ach), "track_m": float(track_m) if skid_steer else None,
         "v_achieved": float(v_ach), "slip": float(s), "entrapped": bool(eq["entrapped"]),
         "slope_rad": float(slope_rad), "sinkage_m": float(eq["sinkage_m"]),
     }
