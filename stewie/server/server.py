@@ -346,6 +346,18 @@ def dem_georef():
         return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
 
 
+@app.get("/dem/site_xy")
+def dem_site_xy(lat: float, lon: float):
+    """Selenographic lat/lon -> the Haworth site frame (x, y) [m] (the cursor-meters readout)."""
+    try:
+        x, y = MP.latlon_to_dem_origin(lat, lon)
+    except ValueError as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    except ImportError as e:
+        return JSONResponse(status_code=503, content={"ok": False, "error": f"pyproj absent: {e}"})
+    return {"ok": True, "x_m": round(x, 1), "y_m": round(y, 1)}
+
+
 @app.get("/fonts/{name}")
 def get_font(name: str):
     """Vendored brand fonts (Orbitron, OFL -- license shipped alongside). No CDN at runtime."""

@@ -429,8 +429,21 @@ const BODIES = {
     { name: "LRO WAC (visual)", geographic: true, tile: 256, maxLevel: 8,   // z8 is the native ceiling (z9 -> 404)
       url: trekUrl("Moon", "LRO_WAC_Mosaic_Global_303ppd_v02"), credit: "NASA Trek (LRO WAC, 303 ppd)" },
     // whole-planet alternates (Aaron 2026-06-10: "link in other layers for the entire planet"):
-    { name: "LOLA color shaded-relief", geographic: true, tile: 256, maxLevel: 7,
-      url: trekUrl("Moon", "LRO_LOLA_ClrShade_Global_128ppd_v04", "png"), credit: "NASA Trek (LOLA 128 ppd)" },
+    // ENHANCED TOPOGRAPHIC SET (Aaron 2026-06-10: "ArcGIS fully functional -- enhanced datasets,
+    // topographical overlays of the moon first"). Every product TILE-VERIFIED from the real Trek
+    // catalog before listing (no guessed IDs).
+    { name: "Kaguya TC ortho (high-res visual)", geographic: true, tile: 256, maxLevel: 9,
+      url: trekUrl("Moon", "Kaguya_TCortho_Mosaic_Global_4096ppd", "png"), credit: "NASA Trek (Kaguya TC 4096 ppd)" },
+    { name: "LOLA color shaded-relief (256 ppd)", geographic: true, tile: 256, maxLevel: 8,
+      url: trekUrl("Moon", "LRO_LOLA_ClrShade_Global_256ppd_v06", "png"), credit: "NASA Trek (LOLA 256 ppd)" },
+    { name: "LOLA elevation (DEM color)", geographic: true, tile: 256, maxLevel: 7,
+      url: trekUrl("Moon", "LRO_LOLA_DEM_Global_128ppd_v04", "png"), credit: "NASA Trek (LOLA DEM)" },
+    { name: "LOLA slope (global)", geographic: true, tile: 256, maxLevel: 5,
+      url: trekUrl("Moon", "LRO_LOLA_ClrSlope_Global_16ppd", "png"), credit: "NASA Trek (LOLA slope)" },
+    { name: "LOLA roughness (global)", geographic: true, tile: 256, maxLevel: 5,
+      url: trekUrl("Moon", "LRO_LOLA_ClrRoughness_Global_16ppd", "png"), credit: "NASA Trek (LOLA roughness)" },
+    { name: "Diviner avg surface temp", geographic: true, tile: 256, maxLevel: 6,
+      url: trekUrl("Moon", "LRO_Diviner_ST_Avg_Clr_Global_32ppd", "png"), credit: "NASA Trek (Diviner)" },
     { name: "LOLA grayscale hillshade", geographic: true, tile: 256, maxLevel: 7,
       url: trekUrl("Moon", "LRO_LOLA_Shade_Global_128ppd_v04", "png"), credit: "NASA Trek (LOLA shade)" },
   ] },
@@ -504,13 +517,22 @@ function loadBody(key) {
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
   // live cursor coordinates (Esri status-bar pattern; Aaron 2026-06-10)
+  let _xyTimer = 0;
   handler.setInputAction((e) => {
     const c = viewer.camera.pickEllipsoid(e.endPosition, ellipsoid);
     const el = $("cursorcoord"); if (!el) return;
     if (!c) { el.textContent = ""; return; }
     const ca = Cesium.Cartographic.fromCartesian(c, ellipsoid);
-    el.textContent = `${Cesium.Math.toDegrees(ca.latitude).toFixed(4)}°, ` +
-                     `${Cesium.Math.toDegrees(ca.longitude).toFixed(4)}°`;
+    const lat = Cesium.Math.toDegrees(ca.latitude), lon = Cesium.Math.toDegrees(ca.longitude);
+    el.textContent = `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
+    // site-frame meters when inside the Haworth footprint (throttled; Esri status-bar style)
+    if (sel.value === "moon" && HAWORTH_RECT &&
+        Cesium.Rectangle.contains(HAWORTH_RECT, ca) && !_xyTimer) {
+      _xyTimer = setTimeout(() => { _xyTimer = 0; }, 250);
+      fetch(`/dem/site_xy?lat=${lat}&lon=${lon}`).then((r) => r.json()).then((d) => {
+        if (d.ok) el.textContent += `  ·  site ${d.x_m} m, ${d.y_m} m`;
+      }).catch(() => {});
+    }
   }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
   // THE PRIMARY SITE ON THE GLOBE: the committed Haworth tile at its true selenographic footprint

@@ -19,3 +19,21 @@ def test_dem_georef_roundtrips_with_the_forward_transform():
     c = dem_georef_corners()
     x, y = latlon_to_dem_origin(c["center"]["lat"], c["center"]["lon"])
     assert 0.0 <= x <= 10000.0 and 0.0 <= y <= 10000.0     # the center lands inside the 10 km tile
+
+
+def test_site_xy_endpoint_roundtrips():
+    pytest.importorskip("pyproj")
+    import importlib
+
+    from fastapi.testclient import TestClient
+    import stewie.server.server as srv
+    importlib.reload(srv)
+    c = TestClient(srv.app)
+    from lode.mission_planner import dem_georef_corners
+    ctr = dem_georef_corners()["center"]
+    r = c.get(f"/dem/site_xy?lat={ctr['lat']}&lon={ctr['lon']}")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["ok"] and 0 <= d["x_m"] <= 10000 and 0 <= d["y_m"] <= 10000
+    out = c.get("/dem/site_xy?lat=0&lon=0")                # equator: outside the tile -> honest 422
+    assert out.status_code == 422
