@@ -86,6 +86,14 @@
   /* the separator lives on the GROUP now (h3-split details), not the section wrapper --
      groups sharing a section had no break between them (Aaron: Contents->Site, Catalog->Telemetry) */
   #panel details { padding: 11px 0; border-bottom: 1px solid var(--line); }
+  #edittoolbar { position: absolute; top: 8px; right: 12px; z-index: 30;
+    background: rgba(10,10,12,.85); border: 1px solid var(--line); border-radius: 6px;
+    padding: 5px 8px; display: flex; gap: 6px; align-items: center; }
+  details.substep { padding: 2px 0 2px 8px; border-bottom: none; border-left: 2px solid var(--line); margin: 3px 0; }
+  details.substep > summary { cursor: pointer; list-style: none; }
+  details.substep > summary::before { content: "▸ "; color: var(--accent); font-size: 8px; }
+  details.substep[open] > summary::before { content: "▾ "; }
+  details.substep .step { display: inline; margin: 0; }
   .step { font-size: 9px; font-family: "Orbitron", system-ui, sans-serif; letter-spacing: .12em;
           color: var(--accent); margin: 9px 0 3px; text-transform: uppercase; }
   .step small { color: var(--dim); letter-spacing: 0; text-transform: none; font-family: system-ui; }
@@ -188,7 +196,9 @@
       <div id="terra">terramechanics —</div>
       <div id="hint">drag = pan · wheel = zoom · ctrl-drag = tilt · click = pick a site · <b id="cursorcoord" style="color:var(--accent)"></b>
   <span id="scalebar" style="margin-left:14px; border-bottom:2px solid #fff; border-left:2px solid #fff; border-right:2px solid #fff; padding:0 6px; height:7px; display:inline-block"></span>
-  <span id="scaleval" style="margin-left:4px"></span></div>
+  <span id="scaleval" style="margin-left:4px"></span>
+  </div>
+
     </section>
 
     <section>
@@ -345,6 +355,16 @@
     </nav>
     <div id="viewarea">
       <div id="cesium"></div>
+      <div id="edittoolbar">
+    <button id="editmode" class="site" style="font-size:10px" title="QGIS-style edit session: freezes the camera so clicks DRAW instead of pan (#40/#41)">✎ Edit</button>
+    <span id="edittools" style="display:none">
+      <button class="site etool" data-tool="goto" style="font-size:10px">⌖ waypoint</button>
+      <button class="site etool" data-tool="keepout" style="font-size:10px">◯ keep-out</button>
+      <button class="site etool" data-tool="note" style="font-size:10px">✎ note</button>
+      <button id="editdone" class="go" style="font-size:10px">✓ Done</button>
+      <b id="editstate" style="font-size:10px;color:var(--accent)">LOCKED · pick a tool</b>
+    </span>
+  </div>
       <div id="workarea">
         <div class="cap">WORK AREA — Haworth, 10 km @ 5 m (LOLA polar DEM) · click to plan + render</div>
         <div style="position:relative; display:inline-block">
@@ -548,9 +568,19 @@ function loadBody(key) {
   // click to pick a surface coordinate
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction((e) => {
+    if (EDIT.on) {                                         // edit session: clicks DRAW (#40/#41)
+      const c0 = viewer.camera.pickEllipsoid(e.position, ellipsoid);
+      if (c0) { const ca0 = Cesium.Cartographic.fromCartesian(c0, ellipsoid);
+        editPlace(Cesium.Math.toDegrees(ca0.latitude), Cesium.Math.toDegrees(ca0.longitude)); }
+      return;
+    }
     // #37 (Aaron): clicking the HAWORTH WORK AREA loads the real granular maps into the BIG window
     const picked = viewer.scene.pick(e.position);
-    if (picked && picked.id && HAWORTH_ENTITIES.includes(picked.id)) {
+    // the auto-load is a GO-TO-SITE gesture from afar; once you're zoomed in, clicks ON the
+    // square must pass through to normal picking (Aaron: "can select around the haworth square
+    // -- just not on top of it").
+    const _h = viewer.camera.positionCartographic.height;
+    if (picked && picked.id && HAWORTH_ENTITIES.includes(picked.id) && _h > 60000) {
       viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(
         HAWORTH_CENTER.lon, HAWORTH_CENTER.lat, 18000, viewer.scene.globe.ellipsoid) });
       ["dem"].concat(GIS_RASTERS.filter((k) => ["slope", "hazard"].includes(k))).forEach((k) => {
@@ -644,6 +674,36 @@ function loadBody(key) {
     }));
     setMoonOverlaysVisible(sel.value === "moon");
   }).catch(() => {});
+}
+// #40/#41: the QGIS edit session -- camera frozen, clicks draw, explicit done restores.
+let EDIT = { on: false, tool: null };
+const ANNOTATIONS = [];                                    // note pins {x, y, text} (site frame)
+function setEdit(on) {
+  EDIT.on = on; EDIT.tool = null;
+  const c = viewer && viewer.scene.screenSpaceCameraController;
+  if (c) { c.enableRotate = c.enableTranslate = c.enableZoom = c.enableTilt = c.enableLook = !on; }
+  $("edittools").style.display = on ? "" : "none";
+  $("editmode").style.display = on ? "none" : "";
+  if ($("editstate")) $("editstate").textContent = on ? "LOCKED · pick a tool" : "";
+}
+async function editPlace(lat, lon) {
+  if (!EDIT.tool) { $("editstate").textContent = "LOCKED · pick a tool first"; return; }
+  const r = await fetch(`/dem/site_xy?lat=${lat}&lon=${lon}`);
+  const d = await r.json();
+  if (!d.ok) { $("editstate").textContent = "outside the mapped tile"; return; }
+  if (EDIT.tool === "goto") {
+    const n = ORDERS.filter((o) => o.kind === "goto").length + 1;
+    ORDERS.push({ action: `wp${n}`, kind: "goto", x: d.x_m, y: d.y_m });
+    renderQueue(); $("editstate").textContent = `wp${n} @ site ${d.x_m}, ${d.y_m} m`;
+  } else if (EDIT.tool === "keepout") {
+    KEEPOUTS.push({ x: d.x_m, y: d.y_m, r: 8 });
+    if (typeof renderKeepouts === "function") renderKeepouts();
+    drawPlan(); $("editstate").textContent = `keep-out @ ${d.x_m}, ${d.y_m} m (r 8)`;
+  } else if (EDIT.tool === "note") {
+    const text = prompt("note text:") || "";
+    if (text) { ANNOTATIONS.push({ x: d.x_m, y: d.y_m, text });
+      $("editstate").textContent = `note @ ${d.x_m}, ${d.y_m} m`; drawPlan(); }
+  }
 }
 let HAWORTH_CENTER = null;
 let HAWORTH_RECT = null;                                   // Cesium.Rectangle of the tile footprint
@@ -780,6 +840,36 @@ setInterval(() => {
         body.appendChild(node);
       } else {
         sec.appendChild(node);                             // pre-h3 content stays put
+      }
+    });
+  });
+  // SUB-collapsibles (Aaron): the .step labels inside a group (4-Plan's A..F) become nested
+  // <details>; authoring steps B/C open by default, the rest closed; state persisted.
+  panel.querySelectorAll("details > div").forEach((groupBody) => {
+    if (!groupBody.querySelector(".step")) return;
+    const kids = Array.from(groupBody.childNodes);
+    groupBody.textContent = "";
+    let det = null, body = null;
+    kids.forEach((node) => {
+      if (node.classList && node.classList.contains("step")) {
+        det = document.createElement("details");
+        det.className = "substep";
+        const key = "sub:" + node.textContent.trim().slice(0, 18);
+        det.open = saved[key] !== undefined ? !!saved[key] : /^(B|C)/.test(node.textContent.trim());
+        const sum = document.createElement("summary");
+        sum.appendChild(node);
+        det.appendChild(sum);
+        body = document.createElement("div");
+        det.appendChild(body);
+        det.addEventListener("toggle", () => {
+          saved[key] = det.open;
+          try { localStorage.setItem("stewie_sections", JSON.stringify(saved)); } catch (e) {}
+        });
+        groupBody.appendChild(det);
+      } else if (body) {
+        body.appendChild(node);
+      } else {
+        groupBody.appendChild(node);
       }
     });
   });
@@ -930,6 +1020,12 @@ async function renderArea(u, v, opts) {
     markFresh($("rpimg"));                                 // UI-5: the camera tile gets a freshness border
   } catch (err) { $("rpstatus").textContent = "render error: " + err; }
 }
+$("editmode").onclick = () => setEdit(true);
+$("editdone").onclick = () => setEdit(false);
+document.querySelectorAll(".etool").forEach((b) => {
+  b.onclick = () => { EDIT.tool = b.dataset.tool;
+    $("editstate").textContent = `LOCKED · ${b.dataset.tool} armed — click the map`; };
+});
 $("rpclose").onclick = () => setView("plan");
 ["padW", "padL", "cut", "bermH"].forEach((id) => $(id).addEventListener("input", estimate));
 $("go").onclick = () => {
@@ -1241,6 +1337,15 @@ function drawPlan() {
   const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
   ctx.clearRect(0, 0, W, H); ctx.fillStyle = "#05060c"; ctx.fillRect(0, 0, W, H);
   const ext = _planExtent(), tf = _planXform(cv, ext), X = tf.X, Y = tf.Y, s = tf.s;
+  // #48 (Aaron): TERRAIN UNDER THE FEATURES -- the work-area hillshade (site frame 0..640 m)
+  // drawn beneath the vectors so authoring has real context.
+  const wai = qel("workareaimg");
+  if (LAYER_ON.dem !== false && wai && wai.complete && wai.naturalWidth) {
+    const x0 = X(0), y0 = Y(640), x1 = X(640), y1 = Y(0);  // site Y is up; canvas Y is down
+    ctx.save(); ctx.globalAlpha = 0.55;
+    ctx.drawImage(wai, x0, y0, x1 - x0, y1 - y0);
+    ctx.restore();
+  }
   if (LAYER_ON.hazard) KEEPOUTS.forEach((k) => {           // hazard layer: keep-outs = red discs
     ctx.fillStyle = "rgba(224,86,75,.22)"; ctx.strokeStyle = "#e0564b"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(X(k.x), Y(k.y), Math.max(2, k.r * s), 0, 7); ctx.fill(); ctx.stroke();
