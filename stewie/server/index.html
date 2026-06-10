@@ -313,7 +313,9 @@
         <button id="stsave" class="site" title="saves the CURRENT queue (relative to its first order) as a reusable structure template">＋ Template</button></div>
       <ol id="stlist" style="font-size:11px;margin:4px 0;padding-left:18px"></ol>
 
-      <h3>6 · Telemetry — drum-fill sensing <small>motor current, no load cell (ICE-RASSOR)</small></h3>
+      <h3>6 · Telemetry — channels &amp; drum sensing <small>(ICE-RASSOR drum; exec feed)</small></h3>
+      <div id="telerail" style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0"></div>
+      <canvas id="telespark" width="300" height="56" title="sparklines: battery (red), mass moved (amber), slip (blue) — fed by the execution feed" style="width:100%;border:1px solid var(--line);border-radius:4px"></canvas>
       <div class="ctl">fill <input id="drumkg" type="number" value="20" step="1" /> kg
         <label><input id="drumnoise" type="checkbox" /> noise</label></div>
       <div id="drumout" style="opacity:.7">click the fill field to read the simulated drum-current sensor</div>
@@ -1559,6 +1561,46 @@ qel("profloadbtn").onclick = async () => {
 };
 
 // ---- P5: execute + watch — animate the planned timeline top-down with a telemetry HUD ----------
+// #31: the control-room status rail -- per-channel chips + sparklines (exec-fed; chips carry
+// the packet-channel names the runtime emits: imu/wheel/power/camera/thermal/pose).
+const TELE_CH = ["pose", "wheel", "power", "drum", "camera", "thermal"];
+const TELE_BUF = { batt: [], mass: [], slip: [] };
+function teleChip(ch, text, ok) {
+  const rail = qel("telerail"); if (!rail) return;
+  let el = rail.querySelector(`[data-ch="${ch}"]`);
+  if (!el) {
+    el = document.createElement("span");
+    el.dataset.ch = ch;
+    el.style.cssText = "font-size:9px;font-family:Orbitron,system-ui;letter-spacing:.06em;padding:2px 6px;border:1px solid var(--line);border-radius:4px";
+    rail.appendChild(el);
+  }
+  el.textContent = `${ch.toUpperCase()} ${text}`;
+  el.style.color = ok ? "var(--txt)" : "#e0564b";
+  el.style.borderColor = ok ? "var(--line)" : "#e0564b";
+  if (typeof markFresh === "function") markFresh(el);
+}
+function teleSpark() {
+  const cv = qel("telespark"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#0a0a0c"; ctx.fillRect(0, 0, cv.width, cv.height);
+  const series = [["batt", "#e8273f"], ["mass", "#e07b39"], ["slip", "#4f9cff"]];
+  series.forEach(([k, col]) => {
+    const buf = TELE_BUF[k]; if (buf.length < 2) return;
+    const mx = Math.max(...buf, 1e-9);
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath();
+    buf.forEach((v, i) => {
+      const x = i / (buf.length - 1) * (cv.width - 4) + 2;
+      const y = cv.height - 3 - (v / mx) * (cv.height - 8);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    });
+    ctx.stroke();
+  });
+}
+function telePush(batt, mass, slip) {
+  TELE_BUF.batt.push(batt); TELE_BUF.mass.push(mass); TELE_BUF.slip.push(slip);
+  Object.values(TELE_BUF).forEach((b) => { if (b.length > 240) b.shift(); });
+  teleSpark();
+}
 let LAST_TIMELINE = null, LAST_ORDERS = [], LAST_KEEPOUTS = [], LAST_PLAN_IR = null, EXEC_RAF = 0;
 let EXEC_SPEEDUP = 60;                                     // sim seconds per wall-clock second (B0.3: mutable)
 let EXEC_PAUSED = false;
@@ -1658,6 +1700,13 @@ function runExecution() {
     qel("excbattfill").style.width = `${Math.max(0, bf * 100).toFixed(0)}%`;
     qel("excbattfill").style.background = bf < 0.2 ? "#e0564b" : "var(--accent)";
     qel("excbattlbl").textContent = `${(bf * 100).toFixed(0)}%`;
+    if ((frame._n = (frame._n || 0) + 1) % 15 === 0) {     // #31: feed the rail ~4x/s
+      telePush(bf, fr.cum_mass_kg, fr.slip || 0);
+      teleChip("pose", `${(fr.x0 + (fr.x1 - fr.x0) * u).toFixed(0)},${(fr.y0 + (fr.y1 - fr.y0) * u).toFixed(0)}`, true);
+      teleChip("power", `${(bf * 100).toFixed(0)}%`, bf > 0.2);
+      teleChip("wheel", fr.phase, true);
+      teleChip("drum", `${(fr.cum_mass_kg / 1000).toFixed(2)}t`, true);
+    }
     if (simT < dur) EXEC_RAF = requestAnimationFrame(frame);
     else qel("excphase").textContent = "complete";
   }
@@ -1706,6 +1755,7 @@ async function senseDrum() {
       `${j.current_a.toFixed(2)} A → inferred ${j.inferred_kg.toFixed(1)} kg `
       + `±${(j.uncertainty_frac * 100).toFixed(1)}% (${j.lower_kg.toFixed(1)}–${j.upper_kg.toFixed(1)}) `
       + (j.offload ? "· OFFLOAD → process" : "· keep digging");
+    teleChip("drum", `${j.inferred_kg.toFixed(1)} kg`, true);
   } catch (e) { qel("drumout").textContent = "— start the server: python3 server.py"; }
 }
 ["drumkg", "drumnoise"].forEach((id) => qel(id).addEventListener("input", senseDrum));
