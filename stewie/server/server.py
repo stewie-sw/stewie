@@ -438,6 +438,48 @@ def get_layers():
     return {"ok": True, "layers": MLY.layer_defs()}
 
 
+# ---- B3: operator/director training sessions (the real closed loop, two views) ----------------
+from stewie.server import session as SES               # noqa: E402
+
+
+class SessionRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")           # mission dict + optional profile
+    name: str = "session"
+    profile: str = "ideal"
+
+
+@app.post("/session/start")
+def session_start(req: SessionRequest, _auth: None = Depends(require_auth)):
+    body = req.model_dump()
+    profile = body.pop("profile", "ideal")
+    try:
+        mission = MP.mission_from_dict(body)
+        dem, origin = _moon_dem() if body.get("body", "moon") == "moon" else (None, (0.0, 0.0))
+        s = SES.start(mission, profile=profile, dem=dem, dem_origin=origin)
+    except (ValueError, RuntimeError, KeyError, FileNotFoundError) as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    return {"ok": True, "session_id": s.session_id, "n_legs": len(s.record["legs"]),
+            "operator_url": f"/session/{s.session_id}/operator",
+            "debrief_url": f"/session/{s.session_id}/debrief"}
+
+
+@app.get("/session/{sid}/operator")
+def session_operator(sid: str):
+    """OPEN by contract (B3): the operator-trainee sees only telemetry-delivered, truth-denylisted data."""
+    s = SES.get(sid)
+    if s is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "unknown session"})
+    return s.operator_view()
+
+
+@app.get("/session/{sid}/debrief")
+def session_debrief(sid: str, fast_forward: float = 1.0, _auth: None = Depends(require_auth)):
+    s = SES.get(sid)
+    if s is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "unknown session"})
+    return s.debrief_view(fast_forward=fast_forward)
+
+
 @app.get("/healthz")
 def healthz():
     return {"status": "ok", "version": _version(), "uptime_s": round(time.monotonic() - _START, 1)}

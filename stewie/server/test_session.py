@@ -1,0 +1,77 @@
+"""B3: operator/director split sessions over the real closed-loop executive.
+
+One server-side session = one run_closed_loop execution recorded leg-by-leg. The OPERATOR view is
+telemetry-constrained (through stewie.bridge.telemetry) and truth-denylisted; the DIRECTOR view
+(API-key gated) carries the full record + the seen-vs-actual debrief. Fast-forward never alters the
+link accounting (B3.4).
+"""
+import importlib
+
+import pytest
+from fastapi.testclient import TestClient
+
+TRUTH_DENY = {"true_J", "slip", "slope_deg", "true_energy_J"}
+
+
+@pytest.fixture()
+def client(monkeypatch, tmp_path):
+    monkeypatch.setenv("STEWIE_API_KEY", "director-key")
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    import stewie.server.server as srv
+    importlib.reload(srv)
+    return TestClient(srv.app)
+
+
+def _mission():
+    return {"name": "b3 session", "body": "moon", "charger": [0, 0],
+            "orders": [{"action": "cut", "kind": "cut", "x": 8, "y": 6, "footprint_m2": 16,
+                        "depth_m": 0.05, "label": "pad"},
+                       {"action": "fill", "kind": "fill", "x": 16, "y": 10, "footprint_m2": 12,
+                        "depth_m": 0.2, "label": "berm"}],
+            "profile": "mission_default"}
+
+
+def test_session_start_runs_the_real_loop(client):
+    r = client.post("/session/start", json=_mission(), headers={"X-API-Key": "director-key"})
+    assert r.status_code == 200, r.text
+    s = r.json()
+    assert s["ok"] and s["n_legs"] > 0 and "session_id" in s
+
+
+def test_operator_view_is_truth_denylisted_and_link_constrained(client):
+    sid = client.post("/session/start", json=_mission(),
+                      headers={"X-API-Key": "director-key"}).json()["session_id"]
+    op = client.get(f"/session/{sid}/operator")            # operator URL is OPEN (B3 contract)
+    assert op.status_code == 200
+    doc = op.json()
+    for leg in doc["legs"]:
+        assert not (TRUTH_DENY & set(leg)), f"truth leaked to the operator: {TRUTH_DENY & set(leg)}"
+    assert doc["link"]["profile"] == "mission_default"
+    assert doc["link"]["stats"]["sent"] + doc["link"]["stats"]["dropped"] >= doc["n_legs_total"] - 1
+
+
+def test_debrief_requires_director_key_and_shows_divergence(client):
+    sid = client.post("/session/start", json=_mission(),
+                      headers={"X-API-Key": "director-key"}).json()["session_id"]
+    assert client.get(f"/session/{sid}/debrief").status_code == 401
+    d = client.get(f"/session/{sid}/debrief", headers={"X-API-Key": "director-key"})
+    assert d.status_code == 200
+    doc = d.json()
+    assert len(doc["legs"]) == doc["n_legs_total"]
+    leg = doc["legs"][0]
+    assert "true_J" in leg and "nominal_J" in leg          # both tracks present
+    assert "energy_divergence_J" in doc and doc["energy_divergence_J"] >= 0.0
+
+
+def test_fast_forward_does_not_touch_link_accounting(client):
+    sid = client.post("/session/start", json=_mission(),
+                      headers={"X-API-Key": "director-key"}).json()["session_id"]
+    before = client.get(f"/session/{sid}/operator").json()["link"]["stats"]
+    client.get(f"/session/{sid}/debrief", params={"fast_forward": 10},
+               headers={"X-API-Key": "director-key"})
+    after = client.get(f"/session/{sid}/operator").json()["link"]["stats"]
+    assert before == after
+
+
+def test_unknown_session_404(client):
+    assert client.get("/session/nope/operator").status_code == 404
