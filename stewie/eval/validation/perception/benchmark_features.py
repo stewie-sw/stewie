@@ -15,12 +15,13 @@ import numpy as np
 from imageio.v3 import imread
 
 from dart import features
+_REPO_SAMPLES = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "samples"))
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))          # .../solnav (package root dir)
 FRAME = os.path.join(ROOT, "validation", "a6_traverse", "cam", "frame_000")
 # EVAL-ONLY truth (scene difficulty annotation; never fed to the matcher).
-CLAST_TRUTH = "/mnt/projects/stewie/code/samples/crater_boulders/metadata.json"
+CLAST_TRUTH = os.path.join(_REPO_SAMPLES, "crater_boulders/metadata.json")
 
 
 def main() -> None:

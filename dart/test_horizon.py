@@ -4,8 +4,9 @@ import os
 import numpy as np
 
 from dart import horizon as H
+_REPO_SAMPLES = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "samples"))
 
-_HAVE = os.path.exists("/mnt/projects/stewie/code/samples/lunar_dem/haworth_10km_5m/heightmap.rf32")
+_HAVE = os.path.exists(os.path.join(_REPO_SAMPLES, "lunar_dem/haworth_10km_5m/heightmap.rf32"))
 
 
 def test_horizon_profile_and_self_match():

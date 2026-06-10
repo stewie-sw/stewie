@@ -32,7 +32,7 @@ def test_data_dir_default_is_outside_the_package():
         if monkeypatch_env is not None:
             os.environ["DUSTGYM_DATA_DIR"] = monkeypatch_env
     pkg = os.path.dirname(os.path.abspath(SRV.__file__))
-    assert "dustgym" in d and not d.startswith(pkg)
+    assert ("stewie" in d or "dustgym" in d) and not d.startswith(pkg)   # rename 2026-06-10
 
 
 def test_report_is_written_to_the_configured_data_dir(monkeypatch, tmp_path):

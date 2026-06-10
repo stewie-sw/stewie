@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from dart import features
+_REPO_SAMPLES = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "samples"))
 
 HERE = os.path.dirname(__file__)
 # REAL rendered lunar stereo pair (Godot sensor model on the crater_boulders scene).
@@ -20,7 +21,7 @@ _RIGHT = os.path.join(PAIR, "front_right.png")
 _pair = os.path.exists(_LEFT) and os.path.exists(_RIGHT)
 
 # EVAL-ONLY truth source (clast positions); must never reach a perception input.
-CLAST_TRUTH = "/mnt/projects/stewie/code/samples/crater_boulders/metadata.json"
+CLAST_TRUTH = os.path.join(_REPO_SAMPLES, "crater_boulders/metadata.json")
 _truth = os.path.exists(CLAST_TRUTH)
 
 
@@ -93,6 +94,7 @@ def test_classical_method_on_real_stereo(method):
 
 @pytest.mark.skipif(not _pair, reason="rendered stereo pair not present")
 def test_learned_method_on_real_stereo():
+    pytest.importorskip("torch")
     left, right = _load_pair()
     res = features.benchmark_method(left, right, "disk_lightglue")
     assert res.method == "disk_lightglue"
@@ -106,6 +108,7 @@ def test_learned_method_on_real_stereo():
 
 @pytest.mark.skipif(not _pair, reason="rendered stereo pair not present")
 def test_math_check_at_least_one_method_exceeds_inlier_floor():
+    pytest.importorskip("torch")
     """MATH: on the REAL stereo, at least one method has a fundamental-RANSAC inlier ratio in
     [0,1] AND > 0.3, with small median Sampson (epipolar) error on its inliers."""
     left, right = _load_pair()

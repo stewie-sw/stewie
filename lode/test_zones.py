@@ -5,8 +5,9 @@ import numpy as np
 import pytest
 
 from lode import zones as Z
+_REPO_SAMPLES = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "samples"))
 
-_HAVE = os.path.exists("/mnt/projects/stewie/code/samples/lunar_dem/haworth_10km_5m/heightmap.rf32")
+_HAVE = os.path.exists(os.path.join(_REPO_SAMPLES, "lunar_dem/haworth_10km_5m/heightmap.rf32"))
 
 
 def test_no_excavation_zone_blocks_digging_not_traverse():

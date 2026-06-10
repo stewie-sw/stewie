@@ -31,6 +31,7 @@ from imageio.v3 import imread
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from dart import mapping, stereo_vo  # noqa: E402
+_REPO_SAMPLES = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "samples"))
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))                 # .../solnav (package root dir)
@@ -39,7 +40,7 @@ SEQUENCE = os.path.join(ROOT, "validation", "a6_traverse", "sequence.json")
 # EVAL/localization fix: the START (x, z) only -- read once, never per frame (invariant I3).
 TRUTH = os.path.join(ROOT, "validation", "a6_traverse", "truth", "truth.json")
 
-DEFAULT_DEM = "/mnt/projects/stewie/code/samples/crater_boulders/heightmap.rf32"
+DEFAULT_DEM = os.path.join(_REPO_SAMPLES, "crater_boulders/heightmap.rf32")
 DEM_N = 256
 DEM_CELL_M = 0.02
 HFOV_DEG = 73.99

@@ -15,11 +15,12 @@ import numpy as np
 import pytest
 
 from dart import dem_anchor
+_REPO_SAMPLES = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "samples"))
 
 # REAL DEMs (dustgym samples). crater_boulders has genuine 2-D relief (a crater + boulders) so the
 # correlation peak is unambiguous; the Haworth tile is the operational south-polar prior map.
-_CRATER = "/mnt/projects/stewie/code/samples/crater_boulders/heightmap.rf32"
-_HAWORTH = "/mnt/projects/stewie/code/samples/lunar_dem/haworth_10km_5m/heightmap.rf32"
+_CRATER = os.path.join(_REPO_SAMPLES, "crater_boulders/heightmap.rf32")
+_HAWORTH = os.path.join(_REPO_SAMPLES, "lunar_dem/haworth_10km_5m/heightmap.rf32")
 _crater = os.path.exists(_CRATER)
 _haworth = os.path.exists(_HAWORTH)
 

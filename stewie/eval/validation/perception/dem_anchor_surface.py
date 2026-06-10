@@ -22,8 +22,9 @@ import numpy as np  # noqa: E402
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from dart import dem_anchor  # noqa: E402
+_REPO_SAMPLES = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "samples"))
 
-DEFAULT_DEM = "/mnt/projects/stewie/code/samples/crater_boulders/heightmap.rf32"
+DEFAULT_DEM = os.path.join(_REPO_SAMPLES, "crater_boulders/heightmap.rf32")
 DEFAULT_N = 256
 DEFAULT_POSTING_M = 0.02
 
