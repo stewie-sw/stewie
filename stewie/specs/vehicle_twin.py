@@ -51,7 +51,8 @@ class VehicleTwin:
         gravity = dep.gravity_for(instance)
         geometry = {"gauge_m": veh.gauge_m, "wheelbase_m": veh.wheelbase_m,
                     "wheel_radius_m": veh.wheel_radius_m, "cg_height_m": veh.cg_height_m,
-                    "n_wheels": veh.n_wheels}
+                    "n_wheels": veh.n_wheels,
+                    "wheel_width_m": veh.wheel_width_m, "contact_len_m": veh.contact_len_m}
         if any(v is None or (isinstance(v, (int, float)) and v <= 0)
                for v in geometry.values()):
             raise ValueError(f"vehicle {vehicle!r} has incomplete geometry: {geometry}")
@@ -66,9 +67,13 @@ class VehicleTwin:
                    tools=tuple(tools))
 
     def drive_context(self) -> dict:
-        """Exactly the per-vehicle kwargs the conserved drive loop consumes."""
+        """Exactly the per-vehicle kwargs the conserved drive loop consumes. T1.1: the contact
+        patch is the REGISTRY's values verbatim (wheel_width_m/contact_len_m, [ASSUMPTION]-tagged
+        there until the WHEEL doc's figure dimensions are read) -- the earlier 0.6*radius heuristic
+        invented geometry and is gone."""
         return {"g": self.gravity_ms2, "params": self.params,
-                "wheel_width_m": max(0.05, self.geometry["wheel_radius_m"] * 0.6)}
+                "wheel_width_m": self.geometry["wheel_width_m"],
+                "contact_len_m": self.geometry["contact_len_m"]}
 
     def plan_context(self) -> dict:
         """The per-vehicle numbers the mission planner consumes."""

@@ -90,3 +90,15 @@ def test_cut_depth_rule_flows_into_planning():
     _, _, t_deep = MP.run(MP.mission_from_dict(deep), stem="cut_deep")
     assert t_shallow.get("cut_passes", 1) == 1            # 0.02 m <= 0.0239 m/pass
     assert t_deep["cut_passes"] >= 5                      # 0.10 / 0.0239 -> 5 passes
+
+
+def test_t11_drive_context_binds_the_registry_contact_geometry():
+    """ARGUS T1.1: the contact patch comes VERBATIM from the vehicle registry (wheel_width_m,
+    contact_len_m -- [ASSUMPTION]-tagged there until the WHEEL doc's figure dims are read), not
+    from a derived heuristic. Vehicle choice must change the contact patch."""
+    tw = vtw.VehicleTwin.assemble("a", vehicle="ipex", body="moon")
+    from stewie.specs import vehicles as V
+    v = V.get_vehicle("ipex")
+    ctx = tw.drive_context()
+    assert ctx["wheel_width_m"] == v.wheel_width_m        # registry verbatim, no 0.6*radius heuristic
+    assert ctx["contact_len_m"] == v.contact_len_m
