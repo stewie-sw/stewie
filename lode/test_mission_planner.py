@@ -233,7 +233,7 @@ def test_optimality_flag_reported_and_exact_for_small_plan():
 def test_ingest_nonpolar_cylindrical_dem_relief_round_trips(tmp_path):
     import os
     import numpy as np
-    from dart import dem_ingest as di
+    from dart import dem_import as di
     _fx = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        "stewie", "server", "fixtures")   # fixtures ride with the server pkg (M1)
     heights, geom = di.load_cylindrical_fixture(

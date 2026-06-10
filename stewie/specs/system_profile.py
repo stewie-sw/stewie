@@ -14,6 +14,9 @@ NTRS 20240008162 (TRL-5), 20210025846 (bucket-drum scaling); dustgym ipex_specs.
 At integration, reconcile with dustgym.ipex_specs rather than duplicating.
 """
 # PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/ipex/specs.py, 2026-06-09 (M2)
+# M3 DISPOSITION (MERGE-2, resolved as complementary): ipex_specs.py = the sourced CONSTANT base
+# (SCHULER24 et al.); this module = versioned PROFILE selection + declared-rate validation on top.
+# No duplicated constants found; profile values carry their own provenance tags.
 from __future__ import annotations
 
 from dataclasses import dataclass

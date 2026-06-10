@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from dart import positioning as pos
+from dart import localization as pos
 
 
 def test_multipoint_triangulate_three_rays():

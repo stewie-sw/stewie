@@ -9,6 +9,12 @@ RELATIVE behavior (raising lifts cameras and widens parallax) and the ANGLE
 LIMITS are real [SPEC]. Outputs that depend on [CONFIRM] dims are flagged.
 """
 # PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/posture/kinematics.py, 2026-06-09 (M2)
+# M3 DISPOSITION (MERGE-5, de-flagged with evidence): NOT a duplicate of posture_kinematics.py.
+# This module answers POSTURE FEASIBILITY (nominal/mechanical gates, parallax baseline, PostureState;
+# degree-based API); posture_kinematics answers RUNTIME CAMERA EXTRINSICS for the sensor packet
+# (radian-based, per-camera heights). Conventions and consumers differ; forcing one model without a
+# sourced reconciliation of the lift kinematics would fabricate agreement. Cross-check tracked in
+# stewie/design/SOLNAV_PROVENANCE_MANIFEST.md.
 from __future__ import annotations
 
 from dataclasses import dataclass

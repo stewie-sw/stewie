@@ -4,7 +4,7 @@ import pytest
 
 from dart.geometry import dem
 from dart import posegraph as pg
-from dart import positioning as pos
+from dart import localization as pos
 from stewie.physics import sinkage as sk
 
 

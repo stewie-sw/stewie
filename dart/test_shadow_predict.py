@@ -2,7 +2,7 @@
 import os
 
 from dart import shadow_predict as SP
-from stewie.twin import world_model_events as WM
+from stewie.twin import world_model as WM
 
 _HAVE = os.path.exists("/mnt/projects/stewie/code/samples/lunar_dem/haworth_10km_5m/heightmap.rf32")
 
