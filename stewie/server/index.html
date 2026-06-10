@@ -430,7 +430,9 @@
       <div id="pane-validation" class="pane">
         <div class="cap"><span>VALIDATION — figures from <b>validation/</b> (conserved-truth measurements)</span>
           <select id="valselect" title="pick a figure"></select></div>
-        <img id="valimg" alt="validation figure" style="display:none" />
+        <div style="overflow:auto;max-height:calc(100% - 40px)">
+          <img id="valimg" alt="validation figure" style="display:none;max-width:100%;height:auto;border:1px solid var(--line);border-radius:6px" />
+        </div>
         <div id="valempty" class="empty">No figures served. Run from the source tree (the
           <b>validation/</b> directory is not shipped in the wheel).</div>
       </div>
