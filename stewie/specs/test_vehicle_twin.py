@@ -102,3 +102,15 @@ def test_t11_drive_context_binds_the_registry_contact_geometry():
     ctx = tw.drive_context()
     assert ctx["wheel_width_m"] == v.wheel_width_m        # registry verbatim, no 0.6*radius heuristic
     assert ctx["contact_len_m"] == v.contact_len_m
+
+
+def test_t71_bp1_testbed_soil_binds_measured_density():
+    """ARGUS T7.1: the GMRO BP-1 bed is selectable; density is the MEASURED 1750, moduli are the
+    DISCLOSED Wong analog (a BP-1 Bekker fit is unpublished -- never fabricated)."""
+    from stewie.specs import bodies as B
+    bp1 = B.get_body("bp1_testbed")
+    assert bp1.bulk_density == 1750.0 and bp1.g == 9.81
+    assert "ANALOG" in bp1.confidence and "NOT fabricated" in bp1.confidence
+    tw = vtw.VehicleTwin.assemble("v", vehicle="ipex", body="earth", soil="bp1_testbed")
+    moon = vtw.VehicleTwin.assemble("m", vehicle="ipex", body="moon")
+    assert tw.gravity_ms2 == 9.81 and moon.gravity_ms2 != tw.gravity_ms2

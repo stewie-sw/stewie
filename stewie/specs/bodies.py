@@ -108,6 +108,22 @@ BODIES = {
         provenance="Wong, Theory of Ground Vehicles (dry sand: k_c=0.99 kN/m^(n+1), k_phi=1528.43 "
                    "kN/m^(n+2), n=1.1, c=1.04 kPa, phi=28).",
     ),
+    # ARGUS T7.1: the GMRO Regolith Test Bed soil (compacted BP-1) -- the bin IPEx/RASSOR are
+    # TESTED in. Density/shear/penetration are MEASURED (WHEELTEST/BDSCALE, in ipex_specs);
+    # Bekker moduli for BP-1 are NOT published, so the Wong dry-sand baseline stands in,
+    # DISCLOSED as [ANALOG] (same pattern as Ceres' lunar-analog soil). Earth-validation
+    # missions select soil="bp1_testbed" to plan against the bed the hardware actually drives.
+    "bp1_testbed": Body(
+        "bp1_testbed", "BP-1 (GMRO test bed)", 9.81, "gravity-loaded",
+        bulk_density=1750.0, cohesion_pa=1040.0, friction_deg=28.0, repose_deg=34.0,
+        bekker=(990.0, 1528430.0, 1.1),
+        confidence="density MEASURED (BP-1 compacted, WHEELTEST); shear 27-32 kPa + penetration "
+                   "206-226 kPa MEASURED (BDSCALE) as provenance; Bekker [ANALOG: Wong dry sand -- "
+                   "a BP-1 Bekker fit is unpublished and deliberately NOT fabricated].",
+        role="Earth-validation soil: the GMRO bed the real hardware is tested in.",
+        provenance="BP-1: 1.75 g/cm^3 compacted [WHEELTEST p.4]; Humboldt shear-vane 27-32 kPa, "
+                   "penetrometer 206-226 kPa [BDSCALE]; moduli = Wong dry-sand baseline [ANALOG].",
+    ),
 }
 
 DEFAULT_BODY = "moon"
