@@ -792,3 +792,27 @@ enhanced datasets); #38 resizable panes; #39 event history (who/what/when audit 
 FULL docs rewrite + astrophysics primer (agent fan-out, constants verified against code).
 Hard-won lessons in force: guard on bare let bindings; verify USER click paths; setView not
 flyTo; tile-verify every imagery product; a keyless browser's 401 confirms auth wiring.
+
+### 17.1 Hot-loop addendum (2026-06-10 evening, f669336..e58686e + queue)
+
+Shipped in the production-readiness rendering loop (each USER-path capture-proven):
+- **#45 full-tile analysis layers** (slope/hazard/shadow/permanently-shadowed over the whole
+  10 km tile; rock-hazard disclosure: surveyed crop only)
+- **#46+#47 linear Plan methodology** (A where-are-we → B traverse → C work → D constraints →
+  E solve → F review; solver wiring TDD-pinned nearest-vs-brute; Feasibility = sandbox)
+- **#40/#41 edit mode** (camera-locked QGIS-style session; waypoint/keep-out/note via
+  /dem/site_xy; footprint click = far-out gesture only) + **#48 plan-canvas hillshade underlay**
+- **sub-collapsible A..F steps**; **#51 basemap stacking** (multi-imagery + per-layer opacity
+  cards) + Site-before-Contents reorder (groups 1..7)
+- **PSR root-cause** (44 s sweep → 384 px + disk cache + startup warm = 2.6 s; opacity persists)
+  + acronym rule (Permanently Shadowed Region spelled out)
+- **#26 popover pattern debut** on Feasibility (one key line + live ⓘ breakdown; open popovers
+  refresh on change) + render-401 actionable + keyless auto-render skip
+- **#31 telemetry rail** (channel chips + sparklines, exec-fed)
+
+Open queue (tracked tasks): **#52 auth + operator whitelist** (mccardle.john@gmail.com,
+aaron.w.storey80@gmail.com, storeyaw@clarkson.edu; Tailscale-header and email+key paths) — IN
+PROGRESS; #32 no-terminal Server tab; #25 CG widget + docking + Mars sets; #38 panes; #39 event
+history (rides the #52 identity); #49 Artemis-site DEM bundles (all candidates south-polar);
+#50 wireframe sprint + 3D quantized-mesh terrain spike; #30 docs+primer fan-out; #26 remaining
+surfaces (capabilities/validation verdicts).
