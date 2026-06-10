@@ -46,16 +46,25 @@ class ArmState:
             setattr(self, attr, cur + max(-lim, min(lim, d)))
 
     # ---- consumers ------------------------------------------------------------------------
-    def cg_offset_m(self) -> tuple:
-        """(dx, dz) CG shift from stowed, from the two arm-mass links (T2.1b -> stability)."""
-        dx = dz = 0.0
-        for (ox, _oz), deg in ((ARM_ORIGIN_FRONT, self.front_deg),
-                               (ARM_ORIGIN_BACK, self.back_deg)):
+    def cg_offset_m(self, front_drum_kg: float = 0.0, back_drum_kg: float = 0.0,
+                    dry_mass_kg: float = 30.0) -> tuple:
+        """(dx, dz) CG shift from stowed. TWO mass terms per arm: the link's own share
+        (ARM_MASS_FRAC of dry mass) AND the drum LOAD riding at the drum position -- the weighted
+        drums ARE the balance ballast maneuvers posture with (Aaron 2026-06-10; RASSOR's signature
+        capability). Mass-weighted about the total (dry + loads)."""
+        total = max(1e-9, dry_mass_kg + front_drum_kg + back_drum_kg)
+        mx = mz = 0.0
+        for (ox, _oz), deg, load in ((ARM_ORIGIN_FRONT, self.front_deg, front_drum_kg),
+                                     (ARM_ORIGIN_BACK, self.back_deg, back_drum_kg)):
             a = math.radians(deg)
             sgn = 1.0 if ox > 0 else -1.0
-            dx += ARM_MASS_FRAC * (ox + sgn * ARM_LENGTH_M * math.cos(a) - ox)
-            dz += ARM_MASS_FRAC * (ARM_LENGTH_M * math.sin(a))
-        return dx, dz
+            link_m = ARM_MASS_FRAC * dry_mass_kg
+            px = ox + sgn * ARM_LENGTH_M * math.cos(a)
+            pz = ARM_LENGTH_M * math.sin(a)
+            stow_x, stow_z = ox + sgn * ARM_LENGTH_M, 0.0
+            mx += link_m * (px - stow_x) + load * px      # load enters at the drum, not at stow
+            mz += link_m * (pz - stow_z) + load * pz
+        return mx / total, mz / total
 
     def drum_cam_offset_m(self, which: str = "front") -> tuple:
         """(x, z) of the drum-arm camera in base_link (rigid link off the pivot) -- the

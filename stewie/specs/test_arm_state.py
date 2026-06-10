@@ -68,3 +68,27 @@ def test_dig_reaction_cancellation():
     assert abs(net) < 1e-9                               # equal+opposite by construction
     single = A.net_dig_reaction_n(torque_nm=18.5, drum_radius_m=0.15, drums=("front",))
     assert abs(single) > 100.0                           # one drum alone DOES push -- the design point
+
+
+def test_loaded_drums_shift_the_cg_for_maneuver_design():
+    """Aaron 2026-06-10: maneuvers use POSTURES with WEIGHTED drums for balance -- the CG must
+    include the drum LOAD at the drum position, not just link mass. A 25 kg front drum raised
+    high pulls the CG up and toward the front pivot; the same drum empty barely moves it."""
+    arm = A.ArmState()
+    arm.command(front_deg=80.0)
+    for _ in range(400):
+        arm.step(dt=0.1)
+    dx_e, dz_e = arm.cg_offset_m(front_drum_kg=0.0, back_drum_kg=0.0, dry_mass_kg=30.0)
+    dx_l, dz_l = arm.cg_offset_m(front_drum_kg=25.0, back_drum_kg=0.0, dry_mass_kg=30.0)
+    assert dz_l > dz_e + 0.02                             # the loaded raised drum lifts the CG
+    assert abs(dx_l) != abs(dx_e)                         # and shifts it longitudinally
+    # THE REAL MANEUVER PHYSICS (the first draft's intuition was wrong and the model caught it):
+    # raising the EMPTY back arm curls its link mass FORWARD -> makes a front-heavy CG WORSE.
+    arm.command(back_deg=80.0)
+    for _ in range(400):
+        arm.step(dt=0.1)
+    dx_worse, _ = arm.cg_offset_m(front_drum_kg=25.0, back_drum_kg=0.0, dry_mass_kg=30.0)
+    assert abs(dx_worse) > abs(dx_l)                      # naive counter-pose backfires
+    # the TRUE ballast is mass-symmetric: equal loads at symmetric posture balance the CG
+    dx_sym, _ = arm.cg_offset_m(front_drum_kg=25.0, back_drum_kg=25.0, dry_mass_kg=30.0)
+    assert abs(dx_sym) < 0.01                             # balanced -- the designed-maneuver target

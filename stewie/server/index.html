@@ -388,6 +388,12 @@
             </select>
           </label>
           <label style="display:flex; align-items:center; gap:10px">
+            <b>API key</b>
+            <input id="set-apikey" type="password" placeholder="X-API-Key for planning/director calls"
+                   style="width:18em" />
+            <span style="opacity:.6;font-size:11px">stored in this browser; deploy/.env holds the server's</span>
+          </label>
+          <label style="display:flex; align-items:center; gap:10px">
             <b>Font size</b>
             <input id="set-font" type="range" min="11" max="20" step="1" value="13" style="width:12em" />
             <span id="set-fontv">13 px</span>
@@ -506,6 +512,10 @@ function loadBody(key) {
     const ll = [];
     g.corners.forEach((p) => { ll.push(p.lon, p.lat); });
     HAWORTH_CENTER = g.center;
+    const lats = g.corners.map((p) => p.lat), lons = g.corners.map((p) => p.lon);
+    HAWORTH_RECT = Cesium.Rectangle.fromDegrees(Math.min(...lons), Math.min(...lats),
+                                                Math.max(...lons), Math.max(...lats));
+    globeLayer("dem", "/dem/hillshade.png", true);         // the DEM itself, ON THE LARGE SCREEN
     viewer.entities.add({
       name: "Haworth work area",
       polygon: {
@@ -524,6 +534,8 @@ function loadBody(key) {
   }).catch(() => {});
 }
 let HAWORTH_CENTER = null;
+let HAWORTH_RECT = null;                                   // Cesium.Rectangle of the tile footprint
+const GLOBE_LAYERS = {};                                   // key -> Cesium ImageryLayer on the BIG map
 
 function applyLayer(key, idx) {                            // swap the base imagery to the selected layer
   const L = BODIES[key].layers[idx];
@@ -582,8 +594,13 @@ function applySettings(s) {
   if (f) f.value = s.fontpx;
   if (fv) fv.textContent = s.fontpx + " px";
 }
+function apiHeaders(extra) {                              // attach the operator's API key everywhere
+  const h = Object.assign({ "Content-Type": "application/json" }, extra || {});
+  if (SETTINGS.apikey) h["X-API-Key"] = SETTINGS.apikey;
+  return h;
+}
 function loadSettings() {
-  let s = { theme: "dark", fontpx: 13 };
+  let s = { theme: "dark", fontpx: 13, apikey: "" };
   try { s = { ...s, ...(JSON.parse(localStorage.getItem("stewie_settings") || "{}")) }; } catch (e) {}
   return s;
 }
@@ -632,6 +649,10 @@ applySettings(SETTINGS);
 if ($("set-theme")) $("set-theme").onchange = () => {
   SETTINGS.theme = $("set-theme").value; saveSettings(SETTINGS); applySettings(SETTINGS);
 };
+if ($("set-apikey")) {
+  $("set-apikey").value = SETTINGS.apikey || "";
+  $("set-apikey").onchange = () => { SETTINGS.apikey = $("set-apikey").value.trim(); saveSettings(SETTINGS); };
+}
 if ($("set-font")) $("set-font").oninput = () => {
   SETTINGS.fontpx = parseInt($("set-font").value, 10); saveSettings(SETTINGS); applySettings(SETTINGS);
 };
@@ -744,7 +765,7 @@ $("workareaimg").onclick = async (e) => {
     const rbody = { u, v, pad_frac: 0.5 };                 // T6.3: same sun as the GIS shadow layer
     if ($("sunauto") && $("sunauto").checked && $("suntime"))
       rbody.mission_t_s = Math.round(parseFloat($("suntime").value) * 86400);
-    const res = await fetch("/render", { method: "POST", headers: { "Content-Type": "application/json" },
+    const res = await fetch("/render", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify(rbody) });
     const j = await res.json();
     if (!j.ok) { $("rpstatus").textContent = "render unavailable: " + (j.error || res.status); return; }
@@ -837,6 +858,16 @@ async function loadLayers() {
   } catch (e) { /* serverless preview keeps the defaults */ }
 }
 const GIS_RASTERS = ["slope", "hazard", "illumination", "psr"];   // computed from the REAL Haworth DEM server-side
+// the BIG-MAP layer path (Aaron: "layers only load in the pip window -- need it on the large
+// screen"): each raster becomes a Cesium imagery layer clipped to the true Haworth footprint.
+function globeLayer(key, url, on) {
+  if (!window.viewer || !HAWORTH_RECT) return;
+  if (GLOBE_LAYERS[key]) { viewer.imageryLayers.remove(GLOBE_LAYERS[key], true); delete GLOBE_LAYERS[key]; }
+  if (!on) return;
+  GLOBE_LAYERS[key] = viewer.imageryLayers.addImageryProvider(
+    new Cesium.SingleTileImageryProvider({ url, rectangle: HAWORTH_RECT,
+      tileWidth: 512, tileHeight: 512 }));
+}
 function sunQS() {
   if (qel("sunauto") && qel("sunauto").checked)            // AUTO: mission time -> real solar geometry server-side
     return `mission_t_s=${Math.round(parseFloat(qel("suntime").value) * 86400)}`;
@@ -846,9 +877,12 @@ function applyLayerToggle(id, on) {                          // load/unload the 
   if (id === "dem") { const wa = qel("workarea"); if (wa) wa.style.display = on ? "" : "none"; }
   if (id === "imagery" && window.viewer && viewer.imageryLayers && viewer.imageryLayers.length) viewer.imageryLayers.get(0).show = on;
   if (GIS_RASTERS.includes(id)) {
-    const im = qel("ovl_" + id); if (!im) return;
-    if (on) { im.src = `/layers/raster/${id}.png?` + sunQS(); im.style.display = "block"; }
-    else { im.style.display = "none"; }
+    const im = qel("ovl_" + id);
+    if (im) {
+      if (on) { im.src = `/layers/raster/${id}.png?` + sunQS(); im.style.display = "block"; }
+      else { im.style.display = "none"; }
+    }
+    globeLayer(id, `/layers/raster/${id}.png?` + sunQS(), on);   // AND on the big map
   }
 }
 function refetchSun() { GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); }); }
@@ -965,7 +999,7 @@ qel("qfrompad").onclick = () => {                          // convenience: pad e
 };
 qel("qstruct").onclick = async () => {                     // place a named structure -> mass-balanced orders (P2)
   try {
-    const res = await fetch("/structure", { method: "POST", headers: { "Content-Type": "application/json" },
+    const res = await fetch("/structure", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify({ name: qel("struct").value, x: +qel("qx").value, y: +qel("qy").value }) });
     const j = await res.json();
     if (!j.ok) { setQ("structure error: " + j.error); return; }
@@ -983,7 +1017,7 @@ qel("sesstart").onclick = async () => {                  // B3: operator/directo
   const b = qel("sesstart"); b.disabled = true; b.textContent = "⏳ running session…";
   try {
     const res = await fetch("/session/start", { method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: apiHeaders(),
       body: JSON.stringify({ name: `${BODIES[sel.value].name} session`, body: sel.value,
         charger: [0, 0], orders: ORDERS, keepouts: KEEPOUTS,
         profile: qel("seslink").value }) });
@@ -1005,7 +1039,7 @@ qel("qplan").onclick = async () => {
   const pb = qel("qplan"); pb.disabled = true; pb.textContent = "⏳ planning + rendering report…";   // B0.4
   setQ("planning…");
   try {
-    const res = await fetch("/plan", { method: "POST", headers: { "Content-Type": "application/json" },
+    const res = await fetch("/plan", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify({ name: `${BODIES[sel.value].name} build`, body: sel.value, charger: [0, 0],
         orders: ORDERS, algorithm: qel("qalgo").value, objective: qel("qobj").value, precedence: parsePrec(),
         keepouts: KEEPOUTS, ...fleet(), ...site() }) });
@@ -1126,7 +1160,7 @@ qel("profsave").onclick = async () => {
   const name = (qel("profname").value || "").trim();
   if (!name) { setQ("name the profile first"); return; }
   try {
-    const j = await (await fetch("/profile", { method: "POST", headers: { "Content-Type": "application/json" },
+    const j = await (await fetch("/profile", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify({ name, profile: currentPlan() }) })).json();
     if (j.ok) { setQ(`saved profile '${j.name}'`); refreshProfiles(); } else { setQ("save failed: " + j.error); }
   } catch (err) { setQ("save failed (start the server): " + err); }
@@ -1257,7 +1291,7 @@ qel("qcompare").onclick = async () => {
   const obj = qel("qobj").value;
   setQ(`comparing algorithms by ${obj}…`);
   try {
-    const res = await fetch("/compare", { method: "POST", headers: { "Content-Type": "application/json" },
+    const res = await fetch("/compare", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify({ name: "compare", body: sel.value, charger: [0, 0], orders: ORDERS, objective: obj, precedence: parsePrec(), ...fleet() }) });
     const j = await res.json();
     if (!j.ok) { setQ("compare error: " + j.error); return; }
@@ -1280,7 +1314,7 @@ qel("qcompare").onclick = async () => {
 async function senseDrum() {
   const kg = +qel("drumkg").value, noise = qel("drumnoise").checked ? 0.15 : 0.0;
   try {
-    const res = await fetch("/sense", { method: "POST", headers: { "Content-Type": "application/json" },
+    const res = await fetch("/sense", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify({ true_mass_kg: kg, noise_frac: noise, seed: 1 }) });
     const j = await res.json();
     if (!j.ok) { qel("drumout").textContent = "error: " + j.error; return; }

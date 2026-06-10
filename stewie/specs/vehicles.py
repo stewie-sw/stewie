@@ -79,6 +79,9 @@ class Vehicle:
     render_assets: str = ""
     onboard_power: tuple = ()          # default PowerSource name(s) carried onboard
     provenance: str = ""
+    #: Aaron 2026-06-10: ONLY complete vehicles surface in the UI (IPEx); rassor2/ez_rassor stay
+    #: as data-provenance entries until their per-vehicle stance/mesh records are complete.
+    ui_visible: bool = True
 
 
 # ---- the registries (the .py source of truth) ---------------------------------------------------
@@ -122,7 +125,7 @@ VEHICLES = {
                    "track = 0.7 x RASSOR-2 0.5207 m; wheelbase/CG [CALIB]. Render body = CC0 self-authored "
                    "(scripts/gen_ipex_mesh.py)."),
     "ez_rassor": Vehicle(
-        "ez_rassor", "EZ-RASSOR-geometry rover (render body)",
+        "ez_rassor", "EZ-RASSOR-geometry rover (render body)", ui_visible=False,
         dry_mass_kg=S.ROVER_MASS_CLASS_KG, n_wheels=S.N_WHEELS,
         wheel_width_m=0.18, contact_len_m=0.10,
         drum_capacity_kg=S.REGOLITH_PER_CYCLE_KG,
@@ -136,7 +139,7 @@ VEHICLES = {
                    "IPEx-grounded model -- EZ-RASSOR's own mass/power are not separately sourced and are NOT "
                    "fabricated here. Mirrors rover.WHEEL_GAUGE_M/WHEEL_BASE_M/WHEEL_RADIUS_M + CG_HEIGHT_M."),
     "rassor2": Vehicle(
-        "rassor2", "RASSOR 2.0 (TRL-4 breadboard precursor)",
+        "rassor2", "RASSOR 2.0 (TRL-4 breadboard precursor)", ui_visible=False,
         dry_mass_kg=65.0, n_wheels=4,                       # 65 kg dry mass [SCHULER22 BD-scaling]
         wheel_width_m=0.18, contact_len_m=0.10,
         # RASSOR 2.0 documented DESIGN HOLD: 80 kg of regolith (R2D p.7; TRL5 conformance review

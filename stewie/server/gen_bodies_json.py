@@ -61,7 +61,8 @@ out["_ipex"] = {
 # power sources, tools (the capability each grants), and the full action vocabulary -- so the UI can
 # populate vehicle/power/tool pickers and gate the plannable actions per the selected vehicle+tools.
 # Generated from the .py source of truth (no hand-authored copy); re-run after editing vehicles.py.
-out["_vehicles"] = {
+out["_vehicles"] = {           # UI-visible vehicles only (Aaron 2026-06-10: IPEx until others complete)
+
     name: {
         "label": v.label, "dry_mass_kg": v.dry_mass_kg, "n_wheels": v.n_wheels,
         "drum_capacity_kg": v.drum_capacity_kg, "drive_power_w": round(v.drive_power_w, 2),
@@ -71,7 +72,7 @@ out["_vehicles"] = {
         "gauge_m": v.gauge_m, "wheelbase_m": v.wheelbase_m, "wheel_radius_m": v.wheel_radius_m,
         "cg_height_m": v.cg_height_m, "render_assets": v.render_assets,
     }
-    for name, v in V.VEHICLES.items()
+    for name, v in V.VEHICLES.items() if v.ui_visible
 }
 out["_power"] = {
     name: {"label": p.label, "kind": p.kind, "capacity_j": round(p.capacity_j, 1),
