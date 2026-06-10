@@ -94,5 +94,5 @@ def test_step_twist_drives_through_the_authority():
     assert (fm.rc != rc0) and abs(fm.yaw - yaw0) < 1e-9  # moved forward, no turn
     moved_m = ((fm.rc[0]-rc0[0])**2 + (fm.rc[1]-rc0[1])**2) ** 0.5 * fm.crop.cell_m
     assert 0.0 < moved_m <= 0.25 * fm.dt + 1e-9          # slip can only LOSE distance
-    p2 = fm.step_twist(0.0, 0.5)
+    fm.step_twist(0.0, 0.5)
     assert fm.yaw != yaw0                                # turned in place
