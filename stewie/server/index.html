@@ -352,7 +352,8 @@
           <span id="sunazv">90°</span></div>
       </div>
       <div id="renderpanel" class="pane">
-        <div class="cap"><span>PERCEPTION — Godot PLAN → RENDER<b id="rpvol"></b></span>
+        <div class="cap"><span>PERCEPTION — Godot PLAN → RENDER<b id="rpvol"></b>
+          <label style="margin-left:10px;font-size:10px;cursor:pointer"><input id="autorender" type="checkbox" checked /> auto re-render on plan edits</label></span>
           <button id="rpclose" title="back to Plan">✕</button></div>
         <img id="rpimg" alt="plan render" style="display:none" />
         <div id="rpstatus"></div>
@@ -886,10 +887,21 @@ $("layer").onchange = () => applyLayer(sel.value, +$("layer").value);   // swap 
 $("terrainfo").onclick = () => $("terra").classList.toggle("show");     // terramechanics on demand (updates per body)
 
 // click the Haworth DEM inset to plan + render that area (the select-area -> render loop)
-$("workareaimg").onclick = async (e) => {
+let LAST_RENDER_UV = null, RERENDER_T = 0;
+function scheduleAutoRender() {                            // #33: planning edits re-render the LAST area
+  if (!LAST_RENDER_UV) return;
+  const cb = $("autorender"); if (cb && !cb.checked) return;
+  clearTimeout(RERENDER_T);
+  RERENDER_T = setTimeout(() => renderArea(LAST_RENDER_UV.u, LAST_RENDER_UV.v, { quiet: true }), 1500);
+}
+$("workareaimg").onclick = (e) => {
   const r = e.target.getBoundingClientRect();
   const u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
-  setView("perception");                                   // swap to the Perception pane to show the render
+  renderArea(u, v, {});
+};
+async function renderArea(u, v, opts) {
+  LAST_RENDER_UV = { u, v };
+  if (!opts.quiet) setView("perception");                  // swap to the Perception pane to show the render
   $("rpempty").style.display = "none";
   $("rpstatus").textContent = "rendering BEFORE / AFTER in Godot (~40 s)…";
   $("rpimg").style.display = "none"; $("rpvol").textContent = "";
@@ -905,7 +917,7 @@ $("workareaimg").onclick = async (e) => {
     $("rpimg").src = j.figure + "?t=" + Date.now(); $("rpimg").style.display = "block"; $("rpstatus").textContent = "";
     markFresh($("rpimg"));                                 // UI-5: the camera tile gets a freshness border
   } catch (err) { $("rpstatus").textContent = "render error: " + err; }
-};
+}
 $("rpclose").onclick = () => setView("plan");
 ["padW", "padL", "cut", "bermH"].forEach((id) => $(id).addEventListener("input", estimate));
 $("go").onclick = () => {
@@ -994,6 +1006,7 @@ function renderQueue() {
   });
   setQ(ORDERS.length ? `${ORDERS.length} order(s) queued` : "queue empty");
   drawPlan();
+  scheduleAutoRender();                                    // #33: edits flow to the Godot render
 }
 function addOrder(o) { ORDERS.push(o); renderQueue(); }
 
