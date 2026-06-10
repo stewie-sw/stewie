@@ -419,8 +419,8 @@
 // bodies.json (terrain_authority/bodies.py, single source). Moon/Mars stream from NASA Solar System Treks;
 // Earth has no Trek tiles, so it uses NASA GIBS Blue Marble (EPSG4326, no token, same 2x1 geographic
 // tiling). All imagery endpoints curl-verified HTTP 200.
-const trekUrl = (body, layer) =>
-  `https://trek.nasa.gov/tiles/${body}/EQ/${layer}/1.0.0/default/default028mm/{z}/{y}/{x}.jpg`;
+const trekUrl = (body, layer, ext = "jpg") =>
+  `https://trek.nasa.gov/tiles/${body}/EQ/${layer}/1.0.0/default/default028mm/{z}/{y}/{x}.${ext}`;
 // Each body: physics fallback (g/density; served browser uses bodies.json) + a list of imagery LAYERS the
 // Layer dropdown switches between. Moon/Mars = NASA Trek (equirectangular 2x1); Earth = Esri World Imagery
 // (WebMercator; GIBS EPSG4326 fails Cesium's geographic pyramid). All endpoints curl-verified HTTP 200.
@@ -428,6 +428,11 @@ const BODIES = {
   moon: { name: "Moon", radius: 1737400, start: [-89.0, 0], density: 1300, g: 1.62, layers: [
     { name: "LRO WAC (visual)", geographic: true, tile: 256, maxLevel: 8,   // z8 is the native ceiling (z9 -> 404)
       url: trekUrl("Moon", "LRO_WAC_Mosaic_Global_303ppd_v02"), credit: "NASA Trek (LRO WAC, 303 ppd)" },
+    // whole-planet alternates (Aaron 2026-06-10: "link in other layers for the entire planet"):
+    { name: "LOLA color shaded-relief", geographic: true, tile: 256, maxLevel: 7,
+      url: trekUrl("Moon", "LRO_LOLA_ClrShade_Global_128ppd_v04", "png"), credit: "NASA Trek (LOLA 128 ppd)" },
+    { name: "LOLA grayscale hillshade", geographic: true, tile: 256, maxLevel: 7,
+      url: trekUrl("Moon", "LRO_LOLA_Shade_Global_128ppd_v04", "png"), credit: "NASA Trek (LOLA shade)" },
   ] },
   mars: { name: "Mars", radius: 3396200, start: [0, 0], density: 1500, g: 3.71, layers: [
     { name: "Viking color (visual)", geographic: true, tile: 256, maxLevel: 7,
@@ -1044,6 +1049,7 @@ qel("qplan").onclick = async () => {
         orders: ORDERS, algorithm: qel("qalgo").value, objective: qel("qobj").value, precedence: parsePrec(),
         keepouts: KEEPOUTS, ...fleet(), ...site() }) });
     const j = await res.json();
+    if (res.status === 401) { setQ("⚠ API key required: paste it in ⚙ Settings (server key lives in deploy/.env)"); setView("settings"); return; }
     if (!j.ok) { setQ("error: " + j.error); return; }
     const t = j.totals;
     if ($("conops")) $("conops").textContent =
