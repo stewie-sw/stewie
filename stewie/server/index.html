@@ -584,7 +584,9 @@ function loadBody(key) {
     const a = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(w / 2 - 50, h / 2), ellipsoid);
     const b = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(w / 2 + 50, h / 2), ellipsoid);
     if (!a || !b) { sb.style.display = "none"; sv.textContent = ""; return; }
-    const mpp = Cesium.Cartesian3.distance(a, b) / 100.0;
+    // #42: the globe is WGS84-shaped (documented cosmetic shortcut) -- Cartesian distances are
+    // Earth-scaled. TRUE meters scale by the body's real radius (lat/lon angles are unaffected).
+    const mpp = Cesium.Cartesian3.distance(a, b) / 100.0 * (BODIES[sel.value].radius / 6371008.8);
     const target = mpp * 90;                               // ~90 px of bar
     const pow10 = Math.pow(10, Math.floor(Math.log10(target)));
     const nice = [1, 2, 5, 10].map((k) => k * pow10).find((v) => v >= target) || target;
