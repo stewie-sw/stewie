@@ -567,9 +567,12 @@ function loadBody(key) {
     GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); });
     HAWORTH_ENTITIES.push(viewer.entities.add({
       name: "Haworth work area",
+      // OUTLINE ONLY -- the imagery drape (server-reprojected clean hillshade) carries the
+      // picture; this polygon was still painting the OLD matplotlib preview figure on top
+      // (the rotated axes Aaron kept seeing -- found via his 2nd screenshot).
       polygon: {
         hierarchy: Cesium.Cartesian3.fromDegreesArray(ll, ellipsoid),
-        material: new Cesium.ImageMaterialProperty({ image: "/dem/hillshade.png", transparent: false }),
+        material: Cesium.Color.fromCssColorString("#e8273f").withAlpha(0.04),
         outline: true, outlineColor: Cesium.Color.fromCssColorString("#e8273f"),
       },
     }));
