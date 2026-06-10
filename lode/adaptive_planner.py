@@ -25,13 +25,9 @@ def price_mission(legs, model=None) -> dict:
     (slope-corrected by the model), and actual (the executed slip-inflated truth). The learned price
     tracks the actual; the naive under-prices the sloped legs."""
     naive = sum(L["nominal_J"] for L in legs)
-    # inflate ONLY the plain drive portion: dig is mass-fixed slip-blind, lift (m*g*h) is gravity not
-    # slip, and haul_e is ALREADY slip-adjusted by the plan -- inflating those over-priced sloped legs
-    # (audit 2026-06-09)
-    def _learned(L):
-        fixed = L.get("dig_e", 0.0) + L.get("lift_e", 0.0) + L.get("haul_e", 0.0)
-        drive = max(0.0, L["nominal_J"] - fixed)
-        return fixed + drive * (model.predict(L["slope_deg"]) if model is not None else 1.0)
-    learned = sum(_learned(L) for L in legs)
+    # the slip model inflates only the DRIVE portion (nominal - dig); dig energy is mass-fixed, slip-blind.
+    learned = sum(L.get("dig_e", 0.0)
+                  + (L["nominal_J"] - L.get("dig_e", 0.0)) * (model.predict(L["slope_deg"]) if model is not None else 1.0)
+                  for L in legs)
     actual = sum(L["true_J"] for L in legs)
     return {"naive_J": float(naive), "learned_J": float(learned), "actual_J": float(actual)}

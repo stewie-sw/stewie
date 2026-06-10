@@ -258,11 +258,7 @@ def associate_base_tip(image, *, dark_frac: float = 0.5, bright_frac: float = 1.
         gray = gray[..., :3].mean(axis=2)
     med = float(np.median(gray))
     dark = gray < dark_frac * med
-    # the caster cue: pixels brighter than the terrain median. In a NADIR ortho a thin caster is a
-    # near-point highlight only a few percent above the median (the p5 post: 123 vs 114), so the
-    # cue is "brighter than median by a margin", not a 1.5x blob; ``bright_frac`` keeps the
-    # oblique-view (sunlit-face) case.
-    bright = (gray > bright_frac * med) | (gray > med + 0.05 * max(med, 1.0))
+    # caster cue lives in _caster (local max vs median); see the asymmetry refusal below
     rows, cols = np.where(dark)
     if rows.size < 12:
         raise ValueError("no usable shadow-dark region for base/tip association")

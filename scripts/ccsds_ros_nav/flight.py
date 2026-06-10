@@ -24,8 +24,10 @@ _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from terrain_authority import bodies, constants as K, drive, io_fields, ipex_specs
-from terrain_authority.column_state import ColumnState
+from stewie.physics import drive
+from stewie.specs import bodies, constants as K, ipex_specs
+from stewie.twin import io_fields
+from stewie.physics.column_state import ColumnState
 
 import messages
 

@@ -24,7 +24,7 @@ for _p in (_PKG, _REPO):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from terrain_authority import io_fields
+from stewie.twin import io_fields
 
 
 def publish_scene(crop, scene_dir: str, scene_name: str, rover_rc: tuple[int, int],

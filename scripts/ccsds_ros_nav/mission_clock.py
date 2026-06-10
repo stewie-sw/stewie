@@ -28,7 +28,7 @@ _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from terrain_authority import illumination
+from dart import illumination
 
 #: Synodic (Sun-relative) lunar day. [SOURCED] 29.530589 mean solar days.
 SYNODIC_MONTH_S = 29.530589 * 86400.0

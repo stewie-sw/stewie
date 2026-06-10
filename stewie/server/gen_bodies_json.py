@@ -20,29 +20,6 @@ out: dict = {}
 for key, b in B.BODIES.items():
     d = dataclasses.asdict(b)
     d["bekker"] = ({"k_c": b.bekker[0], "k_phi": b.bekker[1], "n": b.bekker[2]} if b.bekker else None)
-    # gravity-SWAPPED IPEx power for THIS body: steady-drive resistance ~ m*g, so drive power scales with
-    # the body's surface gravity (Earth ~6x the Moon). Housekeeping (avionics/comms/thermal) is body-
-    # independent [ASSUMPTION] (thermal in particular is environment-dependent -- a future per-body refine).
-    _pfx = {"moon": "lunar", "mars": "mars", "earth": "earth"}.get(key)
-    envs = ({e: round(S.thermal_heater_power_w(t), 2) for e, t in S.ENV_SINK_TEMP_C.items()
-             if e.startswith(_pfx)} if _pfx else {})
-    cold_c = S.ENV_SINK_TEMP_C[S.BODY_COLD_ENV[key]] if key in S.BODY_COLD_ENV else None
-    d["ipex_power"] = {
-        # 6 sig figs, not fixed decimals (audit L19: round(...,2) collapsed Bennu's 1e-4 W to 0.0)
-        "drive_power_w": float(f"{S.lunar_drive_power_w(g_ms2=b.g):.6g}"),
-        "drive_j_per_m": round(S.lunar_drive_power_w(g_ms2=b.g) / S.DRIVE_SPEED_MS, 2),
-        "drive_power_15deg_w": round(S.lunar_drive_power_w(g_ms2=b.g, slope_deg=15.0), 2),
-        # system at the body's COLDEST survival environment (worst-case thermal); thermal now per-environment
-        "system_power_w": round(S.system_power_w(g_ms2=b.g, sink_temp_c=cold_c), 2),
-        "avionics_w": S.AVIONICS_POWER_W, "comms_w": S.COMMS_TX_POWER_W,
-        "thermal_survival_w": round(S.survival_heater_power_w(key), 2) if key in S.BODY_COLD_ENV
-        else round(S.THERMAL_SURVIVAL_POWER_W, 2),
-        "thermal_by_env_w": envs,
-        # audit M15: declare what system_power_w INCLUDES so the UI cannot misread it as a
-        # comms-inclusive worst case
-        "system_power_includes": "drive_flat + avionics + thermal_survival (comms excluded; "
-                                 "add comms_w when transmitting)",
-    }
     out[key] = d
 
 # IPEx/energy constants for the browser's build estimate. JS can't import .py, so mirror them here
@@ -88,6 +65,4 @@ out["_actions"] = sorted(V.ACTIONS)   # the full action vocabulary, for the plan
 path = os.path.join(HERE, "bodies.json")
 with open(path, "w") as f:
     json.dump(out, f, indent=2)
-n_bodies = sum(1 for k in out if not k.startswith("_"))
-print(f"wrote {n_bodies} bodies (+{len(out) - n_bodies} meta blocks) -> {path}: "
-      f"{', '.join(b.label for b in B.BODIES.values())}")
+print(f"wrote {len(out)} bodies -> {path}: {', '.join(b.label for b in B.BODIES.values())}")

@@ -37,10 +37,6 @@ def register_to_dem(observed: np.ndarray, dem, guess_rc, *, search_radius_cells:
       confidence     : 1 - best_ssd/median_ssd, clamped [0,1] (sharply peaked = high; flat/ambiguous = ~0)
     """
     Z, _cell = dem
-    if observed.ndim != 2 or observed.shape[0] != observed.shape[1] or observed.shape[0] % 2 == 0:
-        raise ValueError(f"observed patch must be square with odd size (got {observed.shape}): an "
-                         "even/non-square patch silently skipped every candidate and returned a "
-                         "fabricated zero-shift 'fix' (audit M47/L00)")
     half = observed.shape[0] // 2
     obs0 = observed - float(observed.mean())
     best_ssd, best = np.inf, (0, 0)
@@ -52,17 +48,11 @@ def register_to_dem(observed: np.ndarray, dem, guess_rc, *, search_radius_cells:
                 continue
             res = (p - float(p.mean())) - obs0
             ssd = float(np.mean(res * res))
-            ssds.append((ssd, dr, dc))
-            # strict < keeps the FIRST minimum in scan order, which biased ties toward the most-
-            # negative shift; prefer the smaller |shift| on equal ssd (audit M00)
-            if ssd < best_ssd or (ssd == best_ssd and abs(dr) + abs(dc) < abs(best[0]) + abs(best[1])):
+            ssds.append(ssd)
+            if ssd < best_ssd:
                 best_ssd, best = ssd, (dr, dc)
-    # ambiguity = the SECOND-best candidate outside the best's immediate (+-1 cell) neighbourhood: the
-    # old median test only caught GLOBAL flatness -- a handful of aliased (translation-symmetric) minima
-    # among 100+ shifts still scored confidence ~1.0 (audit 2026-06-09)
-    rivals = [v for v, dr, dc in ssds if max(abs(dr - best[0]), abs(dc - best[1])) > 1]
-    second = min(rivals) if rivals else 0.0
-    confidence = (1.0 - best_ssd / second) if second > 1e-12 else 0.0
+    med = float(np.median(ssds)) if ssds else 0.0
+    confidence = (1.0 - best_ssd / med) if med > 1e-12 else 0.0
     return {
         "corrected_rc": (guess_rc[0] + best[0], guess_rc[1] + best[1]),
         "shift_cells": best,
