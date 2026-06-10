@@ -433,3 +433,14 @@ def max_cut_per_pass_m(drum: str = "large") -> float:
     """T2.3 (BDS p.7): cut depth per pass is limited to MAX_CUT_DEPTH_FRAC (50%) of the scoop
     opening height -- anti-bridging. Large drum: 0.5 * 47.8 mm = 23.9 mm/pass."""
     return MAX_CUT_DEPTH_FRAC * DRUM_DIMENSIONS_M[drum]["scoop_height"]
+
+
+DRUM_SPEED_RATED_RPM = 18.0       # RASSOR-2.0 drum-actuator RATED rate [R2D p.7]; 25 = its MAX
+
+
+def dig_energy_bounds_j_per_kg() -> tuple:
+    """T2.4: (rated, max) dig energy per kg. The drum rate is the chain's one [ASSUMPTION]
+    (25 = the R2D actuator MAX; 18 = its RATED rate) and power is linear in omega, so the honest
+    figure is a BAND: planners see (0.72x, 1.0x) of the headline 4151 J/kg, not false precision."""
+    hi = dig_energy_per_kg()
+    return (hi * DRUM_SPEED_RATED_RPM / DRUM_SPEED_RPM, hi)

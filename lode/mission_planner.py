@@ -712,6 +712,9 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
         # steady-state figure that already embodies multi-pass operation, so duration stays rate-based).
         cut_passes=max([1] + [math.ceil(float(o.depth_m) / S.max_cut_per_pass_m())
                               for o in mission.orders if getattr(o, "kind", "") == "cut"]),
+        # T2.4: the drum-rate sensitivity band -- dig energy at rated-18 vs max-25 RPM
+        dig_energy_bounds_MJ=tuple(round(b * sum(tr["mass"] for tr in trips if tr["kind"] != "goto")
+                                          / 1e6, 1) for b in S.dig_energy_bounds_j_per_kg()),
         lift_energy_J=float(sum(tr.get("lift_e", 0.0) for tr in trips)),
         routed_haul=meta["routed"], blocked_legs=meta["blocked_legs"], traverse_cap_deg=meta["traverse_cap_deg"],
         routes=meta.get("routes", []), feasible=meta.get("feasible", True),   # item 1 geometry + item 2 feasibility
@@ -1748,7 +1751,8 @@ def report(mission, trips, flows, per_trip, tl, totals, out_pdf, out_md, endu=No
         fig.text(0.04, 0.07,
                  "Cut-fill balanced (excavated material routed to nearest fill; surplus→spoil, deficit→import). "
                  "Grounded: per-body density/gravity (bodies.json); IPEx — 0.30 m/s, 42 kg/hr dig, 4151 J/kg, "
-                 "135 J/m (slip-adjusted on a DEM), 4.79 MJ battery, 30 kg/drum; SINTER 0.92 MJ/kg [CALIB] "
+                 "135 J/m (slip-adjusted on a DEM), 4.79 MJ battery, 30 kg/drum. Dig-rate band: x0.72 at the "
+                 "rated-18-RPM drum (25=actuator max; T2.4). SINTER 0.92 MJ/kg [CALIB] "
                  "(~220× dig). Recharge 700 W + sinter-head 1000 W are [CALIB]. Pluggable sequencer × objective; "
                  "battery-aware mid-task recharge.", fontsize=7, color="#445", wrap=True)
         pdf.savefig(fig); plt.close(fig)

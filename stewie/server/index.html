@@ -57,6 +57,10 @@
     padding: 13px 16px; background: var(--head); border-bottom: 1px solid var(--line); }
   #phead b { color: #f2f2f4; font-family: "Orbitron", system-ui, sans-serif;
     font-size: 14px; font-weight: 700; }
+  /* B-4: subsystem chips per the patch board (DART/LODE/LEAP/FORGE, red ring, small caps) */
+  .sysb { font-size: 8px; letter-spacing: .15em; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 8px; padding: 0 5px; margin-left: 4px;
+    opacity: .8; vertical-align: 1px; }
   .vtab { font-family: "Orbitron", system-ui, sans-serif; letter-spacing: .08em;
     text-transform: uppercase; font-size: 10.5px; }
   .cap, .cap span, h3, label > b, .sidehead { letter-spacing: .1em; }
@@ -69,7 +73,10 @@
   button.site:hover { border-color: var(--accent); color: var(--accent); }
   button:focus-visible, input:focus-visible, select:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 1px; }
-  .pane, #workarea, #renderpanel { background: linear-gradient(180deg, #131316, var(--panel)); }
+  .pane, #workarea, #renderpanel { background: linear-gradient(180deg, var(--head-flat, #131316), var(--panel)); }
+  body.light .pane, body.light #workarea, body.light #renderpanel {
+    background: linear-gradient(180deg, #e8edf5, var(--panel)); }
+  body.light #viewarea { background: #dfe5ef; }
   #phead #out { margin-left: auto; color: var(--accent); font-size: 12px; font-variant-numeric: tabular-nums; }
   #panel section { padding: 13px 16px; border-bottom: 1px solid var(--line); }
   #panel h3 { margin: 0 0 10px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
@@ -146,7 +153,7 @@
 <body>
 <div id="app">
   <aside id="panel">
-    <header id="phead"><b style="letter-spacing:.45em;font-weight:800">STEWIE</b><span style="opacity:.55;font-size:10px;margin-left:10px;letter-spacing:.18em">DIGITAL TWIN &amp; PLANNING PLATFORM</span><span style="font-size:10px;margin-left:10px;color:var(--accent);letter-spacing:.12em">IN SILICO → IN SITU</span><span id="stver" style="opacity:.45;font-size:10px;margin-left:8px"></span><span id="out">—</span></header>
+    <header id="phead"><b style="letter-spacing:.45em;font-weight:800">STEWIE</b><span style="opacity:.55;font-size:10px;margin-left:10px;letter-spacing:.18em">DIGITAL TWIN &amp; PLANNING PLATFORM</span><span style="font-size:10px;margin-left:10px;color:var(--accent);letter-spacing:.12em">IN SILICO → IN SITU</span><span id="stver" style="opacity:.45;font-size:10px;margin-left:8px"></span><span id="conops" title="ConOps position (operator finding 2.8: a status visual for where we are in the cycle)" style="font-size:10px;margin-left:12px;letter-spacing:.08em;color:var(--muted)">CONOPS —</span><span id="out">—</span></header>
 
     <section>
       <h3>Body &amp; imagery</h3>
@@ -284,10 +291,10 @@
   </aside>
   <div id="stage">
     <nav id="viewtabs">
-      <button class="vtab active" data-view="plan">Plan</button>
-      <button class="vtab" data-view="perception">Perception</button>
-      <button class="vtab" data-view="metrics">Metrics</button>
-      <button class="vtab" data-view="report">Report</button>
+      <button class="vtab active" data-view="plan">Plan <span class="sysb">LODE</span></button>
+      <button class="vtab" data-view="perception">Perception <span class="sysb">DART</span></button>
+      <button class="vtab" data-view="metrics">Metrics <span class="sysb">LEAP</span></button>
+      <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
       <span class="vtsep" title="engineer / developer / intern views">·</span>
       <button class="vtab" data-view="validation">Validation</button>
       <button class="vtab" data-view="api">API</button>
@@ -936,6 +943,9 @@ qel("qplan").onclick = async () => {
     const j = await res.json();
     if (!j.ok) { setQ("error: " + j.error); return; }
     const t = j.totals;
+    if ($("conops")) $("conops").textContent =
+      `CONOPS PLANNED · ${t.trips ?? "—"} trips · ${t.drum_cycles ?? 0} drum cycles · ` +
+      `${t.cut_passes ?? 1} cut pass${(t.cut_passes ?? 1) > 1 ? "es" : ""}`;
     LAST_ROUTES = t.routes || []; drawPlan();              // item 3: overlay the planned routes on the 2D canvas
     const v = j.validation || {};
     const vtag = (v.feasible ? " · ✓ authority-validated" : (v.mass_conserved !== undefined ? " · ⚠ infeasible" : ""))
@@ -1076,6 +1086,11 @@ function execExtent(tl, orders) {
 }
 function execDraw(tl, orders, ext, cv, simT) {
   markFresh(cv);                                           // UI-5: the telemetry canvas freshness
+  if ($("conops") && tl && tl.length) {                    // UI-8: live cycle position during playback
+    let done = 0;
+    for (const e of tl) if ((e.t ?? 0) <= simT) done++;
+    $("conops").textContent = `CONOPS EXEC · event ${Math.min(done, tl.length)}/${tl.length}`;
+  }
   const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
   const sx = W / (ext.x1 - ext.x0), sy = H / (ext.y1 - ext.y0), s = Math.min(sx, sy);
   const ox = (W - s * (ext.x1 - ext.x0)) / 2, oy = (H - s * (ext.y1 - ext.y0)) / 2;

@@ -171,3 +171,11 @@ def test_drum_dimensions_and_cut_rule_from_bds_table1():
     assert d["small"]["scoop_height"] == 0.0264 and d["medium"]["scoop_width"] == 0.0635
     assert ix.max_cut_per_pass_m("large") == pytest.approx(0.0239)
     assert ix.max_cut_per_pass_m("small") == pytest.approx(0.0132)
+
+
+def test_t24_dig_energy_bounds_from_drum_rate_uncertainty():
+    """T2.4: the drum rate is [ASSUMPTION] max-25 vs rated-18 RPM (R2D) -- the dig energy carries
+    BOTH bounds so planners see the sensitivity, not a single false-precision number."""
+    lo, hi = ix.dig_energy_bounds_j_per_kg()
+    assert hi == pytest.approx(ix.dig_energy_per_kg())
+    assert lo == pytest.approx(hi * 18.0 / 25.0)          # rated/max RPM ratio, linear in omega
