@@ -91,6 +91,24 @@ BP1_BULK_DENSITY_KG_M3 = 1750.0    # "~1.75 g/cm^3 after compaction" [WHEELTEST]
 BP1_SHEAR_STRENGTH_KPA = (27.0, 32.0)   # Humboldt pocket shear-vane range [BDSCALE]
 BP1_PENETRATION_KPA = (206.0, 226.0)    # Humboldt soil penetrometer range [BDSCALE]
 
+# ---- Stereo working envelope [DERIVED] -------------------------------------------------------
+# The TRL5 docs publish NO camera ranges; the rig is the LAC-twin 8-camera set. The OBJECTIVE band
+# derives from sourced requirements + rig parameters (b = 0.07 m, fx = 679.57 @ 1024 px):
+#   near: the SGBM search range, z_min = fx*b/numDisparities  (0.372 m at the default N=128)
+#   far : obstacle resolvability, sigma_z = z^2*sigma_d/(fx*b) <= OBSTACLE_HEIGHT_M
+#         -> z_max = sqrt(OBSTACLE_HEIGHT_M * fx*b / sigma_d) ~ 1.9 m at sigma_d = 1 px
+# Measurements outside the band are not evidence (G2 calibration, 2026-06-10: sub-0.25 m grazing
+# views carry a systematic matcher bias from anisotropic texture smear).
+STEREO_FX_PX = 679.570327764933       # rig intrinsic at 1024x768 (Godot camera_rig)
+STEREO_BASELINE_M = 0.07
+def stereo_range_m(num_disparities: int = 128, sigma_d_px: float = 1.0,
+                   obstacle_m: float = OBSTACLE_HEIGHT_M) -> tuple:
+    """(z_min, z_max) of the objective stereo working band for the IPEx-class rig."""
+    fxb = STEREO_FX_PX * STEREO_BASELINE_M
+    import math as _m
+    return (fxb / float(num_disparities), _m.sqrt(obstacle_m * fxb / sigma_d_px))
+
+
 # ---- Battery [BATTERY] --------------------------------------------------------------------
 BATTERY_SERIES_CELLS = 12         # 12S -> ~44 V pack
 BATTERY_CAPACITY_AH = 30.0        # ~30 Ah

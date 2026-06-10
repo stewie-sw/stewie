@@ -1,0 +1,24 @@
+{
+ "schema_version": "solnav_stereo_sigma_calibration/1.0",
+ "date": "2026-06-10",
+ "method": "geometric ray-cast truth vs SGBM(512, saturation+floor gates), disparity-domain robust MAD; clast-masked; restricted to the TRL5-derived objective band; dev = poses 0-5, held-out = poses 6-11 (untouched)",
+ "band_m": [
+  0.37164002299644777,
+  1.8888473259546148
+ ],
+ "dev": {
+  "n": 1947,
+  "bias_px": 4.5695986545819025,
+  "sigma_disparity_px": 3.6495039773398688
+ },
+ "held_out": {
+  "n": 3327,
+  "coverage_3sigma": 1.0
+ },
+ "caveats": [
+  "per-pose bias dispersion (+0.5..+10 px, sun-geometry dependent) is folded into sigma rather than modeled; conservative",
+  "front pairs contribute no in-band pixels in this corpus (lander-facing/dark)",
+  "FEEDBACK: at the measured sigma the 7.5 cm-obstacle range tightens to ~0.99 m (from the 1-px assumption's 1.89 m)"
+ ],
+ "evidence": "stewie/eval/validation/g2cal/pose_0..11 (producer truth, sun 25-38 deg)"
+}
