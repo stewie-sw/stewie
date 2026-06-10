@@ -88,3 +88,34 @@ def start(mission, **kw) -> Session:
 
 def get(session_id: str) -> Session | None:
     return _SESSIONS.get(session_id)
+
+
+def summary_markdown(s: Session) -> str:
+    """The per-run mission summary (beta B4.2): route, energy, link behaviour, divergence."""
+    d = s.debrief_view()
+    lines = [f"# Mission summary — session {s.session_id}",
+             "",
+             f"- completed: {d['completed']} · legs: {d['n_legs_total']} "
+             f"(operator received {d['operator_received']})",
+             f"- recharges: {s.record['recharges']} · replans: {s.record['replans']}",
+             f"- energy divergence (true vs nominal): {d['energy_divergence_J']:.1f} J",
+             f"- link profile: {s.profile_name} · stats: {dict(s.link.stats)}",
+             f"- operator missed legs: {d['operator_missed_legs'] or 'none'}",
+             "", "| leg | nominal J | true J | SoC |", "|---|---|---|---|"]
+    for leg in s.record["legs"]:
+        lines.append(f"| {leg['leg']} | {leg['nominal_J']:.0f} | {leg['true_J']:.0f} "
+                     f"| {leg['soc']:.2f} |")
+    mc = d.get("map_channel")
+    if mc:
+        lines += ["", f"map channel: coverage {mc.get('coverage', 0):.2f}, "
+                       f"mean uncertainty {mc.get('mean_uncertainty_m', 0):.2f} m"]
+    return "\n".join(lines)
+
+
+def persist_summary(s: Session) -> str:
+    from stewie.specs import config as CFG
+    d = os.path.join(CFG.data_dir(), "sessions")
+    os.makedirs(d, exist_ok=True)
+    path = os.path.join(d, f"summary_{s.session_id}.md")
+    open(path, "w").write(summary_markdown(s))
+    return path

@@ -1,0 +1,50 @@
+{
+ "name": "Scenario 3 \u2014 comm dropout recovery",
+ "body": "moon",
+ "charger": [
+  0,
+  0
+ ],
+ "profile": "comm_dropout",
+ "teaching_point": "the operator loses telemetry legs mid-traverse and must reason from the last known state; debrief shows what the link hid",
+ "provenance": "authored; link profile [ASSUMPTION] 35% drop emulating an occluded relay window",
+ "orders": [
+  {
+   "action": "cut",
+   "kind": "cut",
+   "x": 10,
+   "y": 6,
+   "footprint_m2": 16,
+   "depth_m": 0.08,
+   "label": "site A"
+  },
+  {
+   "action": "fill",
+   "kind": "fill",
+   "x": 26,
+   "y": 12,
+   "footprint_m2": 16,
+   "depth_m": 0.08,
+   "label": "site B"
+  },
+  {
+   "action": "cut",
+   "kind": "cut",
+   "x": 40,
+   "y": 20,
+   "footprint_m2": 16,
+   "depth_m": 0.08,
+   "label": "site C"
+  },
+  {
+   "action": "fill",
+   "kind": "fill",
+   "x": 54,
+   "y": 8,
+   "footprint_m2": 16,
+   "depth_m": 0.08,
+   "label": "site D"
+  }
+ ],
+ "keepouts": []
+}

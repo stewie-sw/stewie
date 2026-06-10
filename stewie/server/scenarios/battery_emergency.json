@@ -1,0 +1,32 @@
+{
+ "name": "Scenario 2 \u2014 battery emergency",
+ "body": "moon",
+ "charger": [
+  0,
+  0
+ ],
+ "profile": "mission_default",
+ "teaching_point": "deep dig demand vs pack capacity: the executive must recharge mid-mission; the operator watches SoC and learns the reserve discipline",
+ "provenance": "authored: dig mass sized so true energy exceeds one 12S/30Ah pack ([ASSUMPTION]-free: ipex_specs grounded 4151 J/kg dig)",
+ "orders": [
+  {
+   "action": "cut",
+   "kind": "cut",
+   "x": 18,
+   "y": 10,
+   "footprint_m2": 64,
+   "depth_m": 0.35,
+   "label": "deep borrow"
+  },
+  {
+   "action": "fill",
+   "kind": "fill",
+   "x": 48,
+   "y": 24,
+   "footprint_m2": 48,
+   "depth_m": 0.4,
+   "label": "big berm"
+  }
+ ],
+ "keepouts": []
+}

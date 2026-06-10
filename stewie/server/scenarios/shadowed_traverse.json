@@ -1,0 +1,43 @@
+{
+ "name": "Scenario 4 \u2014 shadowed terrain detour",
+ "body": "moon",
+ "charger": [
+  0,
+  0
+ ],
+ "profile": "mission_default",
+ "teaching_point": "keep-outs stand in for unlit/uncharacterized terrain: the route must detour and the energy budget pays for it",
+ "provenance": "authored; keep-out ring across the direct corridor (the perception track's shadow regime motivates the no-go)",
+ "orders": [
+  {
+   "action": "cut",
+   "kind": "cut",
+   "x": 8,
+   "y": 8,
+   "footprint_m2": 20,
+   "depth_m": 0.07,
+   "label": "near site"
+  },
+  {
+   "action": "fill",
+   "kind": "fill",
+   "x": 60,
+   "y": 30,
+   "footprint_m2": 20,
+   "depth_m": 0.12,
+   "label": "far site"
+  }
+ ],
+ "keepouts": [
+  {
+   "x": 34,
+   "y": 18,
+   "r": 12
+  },
+  {
+   "x": 30,
+   "y": 34,
+   "r": 8
+  }
+ ]
+}

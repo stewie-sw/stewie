@@ -1,0 +1,7 @@
+{
+  "downlink_kbps": 64.0,
+  "uplink_latency_ms": 1300.0,
+  "drop_prob": 0.35,
+  "camera_max_bytes": 15000,
+  "provenance": "[ASSUMPTION] training profile: an occluded-relay window emulated as 35% packet drop at a quarter of the default bandwidth"
+}

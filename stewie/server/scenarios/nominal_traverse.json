@@ -1,0 +1,32 @@
+{
+ "name": "Scenario 1 \u2014 nominal traverse + pad",
+ "body": "moon",
+ "charger": [
+  0,
+  0
+ ],
+ "profile": "ideal",
+ "teaching_point": "baseline operations: plan, drive, dig, return; clean link, no surprises",
+ "provenance": "authored training scenario on the real Haworth DEM (flattest-anchor site frame)",
+ "orders": [
+  {
+   "action": "cut",
+   "kind": "cut",
+   "x": 12,
+   "y": 8,
+   "footprint_m2": 25,
+   "depth_m": 0.06,
+   "label": "pad cut"
+  },
+  {
+   "action": "fill",
+   "kind": "fill",
+   "x": 30,
+   "y": 14,
+   "footprint_m2": 20,
+   "depth_m": 0.1,
+   "label": "pad fill"
+  }
+ ],
+ "keepouts": []
+}

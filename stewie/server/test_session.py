@@ -75,3 +75,17 @@ def test_fast_forward_does_not_touch_link_accounting(client):
 
 def test_unknown_session_404(client):
     assert client.get("/session/nope/operator").status_code == 404
+
+
+def test_mission_summary_artifact(client):
+    sid = client.post("/session/start", json=_mission(),
+                      headers={"X-API-Key": "director-key"}).json()["session_id"]
+    r = client.get(f"/session/{sid}/summary", headers={"X-API-Key": "director-key"})
+    assert r.status_code == 200
+    md = r.text
+    for token in ("# Mission summary", "legs", "energy", "link", "divergence"):
+        assert token in md, f"summary missing {token!r}"
+    # the artifact persists for the debrief record
+    import stewie.specs.config as CFG, os
+    files = os.listdir(os.path.join(CFG.data_dir(), "sessions"))
+    assert any(sid in f for f in files)

@@ -480,6 +480,16 @@ def session_debrief(sid: str, fast_forward: float = 1.0, _auth: None = Depends(r
     return s.debrief_view(fast_forward=fast_forward)
 
 
+@app.get("/session/{sid}/summary")
+def session_summary(sid: str, _auth: None = Depends(require_auth)):
+    s = SES.get(sid)
+    if s is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "unknown session"})
+    SES.persist_summary(s)
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(SES.summary_markdown(s), media_type="text/markdown")
+
+
 @app.get("/healthz")
 def healthz():
     return {"status": "ok", "version": _version(), "uptime_s": round(time.monotonic() - _START, 1)}
