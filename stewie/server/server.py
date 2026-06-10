@@ -599,6 +599,13 @@ def globe_layer_bbox(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
     return {"ok": True, **out[1]}
 
 
+@app.get("/sites")
+def sites_list():
+    """#49: the site registry (Haworth imported; Artemis III candidates honest about data state)."""
+    from stewie.specs.sites import site_rows
+    return {"ok": True, "sites": site_rows()}
+
+
 @app.get("/dem/georef")
 def dem_georef():
     """The Haworth tile's globe footprint (selenographic corners) for the cockpit overlay."""

@@ -199,6 +199,8 @@
   <span id="scaleval" style="margin-left:4px"></span>
   </div>
 
+      <div class="ctl" style="font-size:11px">Artemis sites
+        <select id="sitesel" title="#49: the site registry -- jump to any Artemis III candidate region; only imported sites carry a DEM bundle"></select></div>
       <h3>2 · Contents — map layers &amp; sun</h3>
       <div id="contents-pane"></div>
       <div id="workbench" style="margin-top:6px"></div>
@@ -1266,6 +1268,24 @@ async function refreshEvents() {
 }
 if ($("evrefresh")) $("evrefresh").onclick = refreshEvents;
 refreshEvents();
+(async function loadSites() {
+  try {
+    const j = await (await fetch("/sites")).json();
+    const sl = $("sitesel"); if (!sl || !j.ok) return;
+    sl.innerHTML = j.sites.map((s) =>
+      `<option value="${s.lat},${s.lon}" ${s.name === "haworth" ? "selected" : ""}>` +
+      `${s.label}${s.imported ? " ✓DEM" : " (no DEM yet)"}</option>`).join("");
+    sl.onchange = () => {
+      const [la, lo] = sl.value.split(",").map(Number);
+      if (sel.value !== "moon") { sel.value = "moon"; sel.onchange(); }
+      setTimeout(() => { if (viewer) viewer.camera.setView({ destination:
+        Cesium.Cartesian3.fromDegrees(lo, la, 90000, viewer.scene.globe.ellipsoid) }); }, 800);
+      setQ(sl.options[sl.selectedIndex].text.includes("✓DEM")
+        ? "site has an imported DEM bundle -- full planning available"
+        : "no DEM bundle imported for this site yet (registry: stewie/specs/sites.py; import via the dem_import pipeline)");
+    };
+  } catch (e) { /* offline */ }
+})();
 $("editmode").onclick = () => setEdit(true);
 $("editdone").onclick = () => setEdit(false);
 document.querySelectorAll(".etool").forEach((b) => {
