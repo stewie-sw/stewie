@@ -553,6 +553,10 @@ function loadBody(key) {
     HAWORTH_RECT = Cesium.Rectangle.fromDegrees(Math.min(...lons), Math.min(...lats),
                                                 Math.max(...lons), Math.max(...lats));
     globeLayer("dem", "/dem/hillshade.png", true);         // the DEM itself, ON THE LARGE SCREEN
+    // BUGFIX (Aaron: "why won't the layers load over the body?"): default-on layers were never
+    // APPLIED at startup -- the checkboxes showed checked but no fetch had happened. Apply every
+    // active raster now that the footprint rectangle exists.
+    GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); });
     HAWORTH_ENTITIES.push(viewer.entities.add({
       name: "Haworth work area",
       polygon: {
@@ -583,10 +587,16 @@ function setMoonOverlaysVisible(on) {                      // body-scope: Hawort
 function applyLayer(key, idx) {                            // swap the base imagery to the selected layer
   const L = BODIES[key].layers[idx];
   viewer.imageryLayers.removeAll();
+  Object.keys(GLOBE_LAYERS).forEach((k) => delete GLOBE_LAYERS[k]);   // removeAll killed them
   const o = { url: L.url, maximumLevel: L.maxLevel, tileWidth: L.tile, tileHeight: L.tile, credit: L.credit };
   if (L.geographic)   // Trek = equirectangular 2x1; Esri (Earth) uses the default WebMercator scheme
     o.tilingScheme = new Cesium.GeographicTilingScheme({ numberOfLevelZeroTilesX: 2, numberOfLevelZeroTilesY: 1 });
   viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider(o));
+  // BUGFIX: swapping the basemap wiped the Haworth DEM + active GIS overlays -- restore them
+  if (key === "moon" && HAWORTH_RECT) {
+    globeLayer("dem", "/dem/hillshade.png", LAYER_ON.dem !== false);
+    GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); });
+  }
 }
 
 function flyTo(lat, lon, height) {
@@ -1491,7 +1501,8 @@ fetch("bodies.json").then((r) => (r.ok ? r.json() : null)).then((d) => {
   if (d) { PHY = d; showTerra(); estimate(); populateFleet(); }
 }).catch(() => {});
 refreshProfiles();                                            // populate the saved-profiles dropdown
-senseDrum();
+// lazy: /sense is auth-gated -- fire on first user interaction, not page load (401-on-load fix)
+qel("drumkg").addEventListener("focus", () => senseDrum(), { once: true });
 
 window.addEventListener("resize", () => { if (viewer) viewer.resize(); });  // globe follows window size
 
