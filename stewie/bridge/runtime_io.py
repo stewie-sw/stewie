@@ -36,14 +36,34 @@ def assert_input_dir_clean(input_dir: str) -> bool:
     return True
 
 
+_TOP_KEYS = {"schema_version", "clock", "sequence_id", "channels"}
+_CHANNEL_NAMES = {"camera", "imu", "wheel", "joints", "power"}
+
+
 def parse_canonical(packet: dict) -> dict:
     if not str(packet.get("schema_version", "")).startswith("dustgym_runtime/"):
         raise ValueError("not a canonical dustgym_runtime packet")
+    # closing pass (G1 #2): strict TOP-LEVEL acceptance -- novel keys/channels cannot ride in,
+    # the clock must be a named timebase, sequence_id a non-negative integer. Reject, never coerce.
+    extra = set(packet) - _TOP_KEYS
+    if extra:
+        raise ValueError(f"unknown top-level packet keys {sorted(extra)}")
+    missing = _TOP_KEYS - set(packet)
+    if missing:
+        raise ValueError(f"missing top-level packet keys {sorted(missing)}")
     blob = json.dumps(packet).lower()
     for k in _FORBIDDEN:
         if k in blob:
             raise ValueError(f"truth key '{k}' present in canonical packet (I3 violation)")
     clock, seq, chans = packet["clock"], packet["sequence_id"], packet["channels"]
+    if not isinstance(clock, str) or not clock.strip():
+        raise ValueError("clock must be a non-empty timebase NAME (the producer contract, "
+                         "e.g. 'sim_monotonic')")
+    if not isinstance(seq, int) or isinstance(seq, bool) or seq < 0:
+        raise ValueError("sequence_id must be a non-negative integer")
+    novel = set(chans) - _CHANNEL_NAMES
+    if novel:
+        raise ValueError(f"unknown channel(s) {sorted(novel)} -- the channel set is closed")
 
     # imu + wheel via the proprioception parser (joints/power handled below so we don't double-parse)
     proprio = {"schema_version": "proprioception/1.1", "clock": clock, "sequence_id": seq,
