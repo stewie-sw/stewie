@@ -7,9 +7,7 @@ site latitude. Disclosed approximation: mean motion, no ephemeris perturbations/
 upgrade path is SPICE, the structure does not change. Physics pins below are exact consequences of
 the geometry, not tuned numbers.
 """
-import math
 
-import pytest
 
 from stewie.specs import solar
 
