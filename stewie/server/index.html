@@ -440,6 +440,13 @@
         <iframe id="apiframe" title="API docs"></iframe>
       </div>
       <div id="pane-server" class="pane">
+        <div class="ctl" style="margin:8px 0">
+          <button id="admsnap" class="site">📸 Twin snapshot</button>
+          <button id="admret" class="site">🧹 Retention</button>
+          <button id="admrep" class="site">⇆ Replicate backup</button>
+          <button id="admgate" class="site">🛡 Validate gates</button>
+          <span id="admout" style="font-size:11px;opacity:.8"></span>
+        </div>
         <div class="cap"><span>SERVER — health + metrics</span>
           <button id="srvrefresh" class="go">↻ refresh</button></div>
         <pre id="srvout" class="mono">—</pre>
@@ -1133,6 +1140,23 @@ async function renderArea(u, v, opts) {
     markFresh($("rpimg"));                                 // UI-5: the camera tile gets a freshness border
   } catch (err) { $("rpstatus").textContent = "render error: " + err; }
 }
+[["admsnap", "/admin/twin/snapshot", (j) => "snapshot: " + j.snapshot.split("/").pop()],
+ ["admret", "/admin/twin/retention", (j) => `retention: ${j.removed.length} removed`],
+ ["admrep", "/admin/backup/replicate", (j) => "replicated ✓"],
+ ["admgate", "/admin/gates/validate", (j) =>
+   `G1 ${j.g1.split(" ")[0]} · G2 ${j.g2.split(" ")[0]} · frozen ${j.byte_identical_to_frozen ? "byte-identical ✓" : "DIVERGED ✗"}`],
+].forEach(([id, url, fmt]) => {
+  const b = $(id); if (!b) return;
+  b.onclick = async () => {
+    b.disabled = true; $("admout").textContent = "…";
+    try {
+      const r = await fetch(url, { method: "POST", headers: apiHeaders() });
+      const j = await r.json();
+      $("admout").textContent = r.status === 401 ? "⚠ sign in (⚙ Settings)" : (j.ok ? fmt(j) : (j.error || r.status));
+    } catch (e) { $("admout").textContent = "failed: " + e; }
+    b.disabled = false;
+  };
+});
 $("editmode").onclick = () => setEdit(true);
 $("editdone").onclick = () => setEdit(false);
 document.querySelectorAll(".etool").forEach((b) => {
