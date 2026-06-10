@@ -9,8 +9,11 @@
 <style>
   /* Professional palette: neutral slate + ONE blue accent; color reserved for semantic meaning. */
   :root {
-    --bg:#0a0e16; --panel:#0d1320; --head:#121a2b; --line:#1e2738; --field:#141c2b; --field-bd:#2a3650;
-    --txt:#c7d2e3; --muted:#79839a; --dim:#5a6478; --accent:#4f9cff; --fill:#2563eb; --fill-h:#1d4ed8;
+    /* STEWIE brand board (design/BRAND_UI_ANALYSIS_2026-06-10.md): lunar black + graphite ramp,
+       ONE hot accent = drum red; blue retired 2026-06-10 */
+    --bg:#0a0a0c; --panel:#101013; --head:linear-gradient(180deg,#1b1b1f,#101013); --line:#26262c;
+    --field:#141417; --field-bd:#34343c;
+    --txt:#d6d6da; --muted:#8a8a93; --dim:#5e5e66; --accent:#e8273f; --fill:#c8102e; --fill-h:#a30d26;
     --fontpx:13px;   /* UI-1 (Carstens & Schuler 2025 D1): operator-adjustable, persisted */
   }
   /* UI-2: light theme (dark stays default -- "dark room kept people calm", D8) */
@@ -116,7 +119,7 @@
 <body>
 <div id="app">
   <aside id="panel">
-    <header id="phead"><b>STEWIE</b><span style="opacity:.55;font-size:11px;margin-left:8px">IPEx builds the Moon. STEWIE plans the build.</span><span id="stver" style="opacity:.45;font-size:10px;margin-left:8px"></span><span id="out">—</span></header>
+    <header id="phead"><b style="letter-spacing:.45em;font-weight:800">STEWIE</b><span style="opacity:.55;font-size:10px;margin-left:10px;letter-spacing:.18em">DIGITAL TWIN &amp; PLANNING PLATFORM</span><span style="font-size:10px;margin-left:10px;color:var(--accent);letter-spacing:.12em">IN SILICO → IN SITU</span><span id="stver" style="opacity:.45;font-size:10px;margin-left:8px"></span><span id="out">—</span></header>
 
     <section>
       <h3>Body &amp; imagery</h3>
