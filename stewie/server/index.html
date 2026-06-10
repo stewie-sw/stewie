@@ -959,13 +959,21 @@ async function loadLayers() {
 const GIS_RASTERS = ["slope", "hazard", "illumination", "psr"];   // computed from the REAL Haworth DEM server-side
 // the BIG-MAP layer path (Aaron: "layers only load in the pip window -- need it on the large
 // screen"): each raster becomes a Cesium imagery layer clipped to the true Haworth footprint.
-function globeLayer(key, url, on) {
+async function globeLayer(key, _url, on) {
   if (!window.viewer || !HAWORTH_RECT) return;
   if (GLOBE_LAYERS[key]) { viewer.imageryLayers.remove(GLOBE_LAYERS[key], true); delete GLOBE_LAYERS[key]; }
   if (!on) return;
-  GLOBE_LAYERS[key] = viewer.imageryLayers.addImageryProvider(
-    new Cesium.SingleTileImageryProvider({ url, rectangle: HAWORTH_RECT,
-      tileWidth: 512, tileHeight: 512 }));
+  // server-REPROJECTED geographic drape in the layer's OWN bbox (the rotated-tile fix)
+  const qs = sunQS();
+  try {
+    const bb = await (await fetch(`/layers/globe/${key}/bbox?` + qs)).json();
+    if (!bb.ok) return;
+    GLOBE_LAYERS[key] = viewer.imageryLayers.addImageryProvider(
+      new Cesium.SingleTileImageryProvider({
+        url: `/layers/globe/${key}.png?` + qs,
+        rectangle: Cesium.Rectangle.fromDegrees(bb.west, bb.south, bb.east, bb.north),
+        tileWidth: 1024, tileHeight: 1024 }));
+  } catch (e) { /* layer service unavailable */ }
 }
 function sunQS() {
   if (qel("sunauto") && qel("sunauto").checked)            // AUTO: mission time -> real solar geometry server-side

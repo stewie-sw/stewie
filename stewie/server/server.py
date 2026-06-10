@@ -393,6 +393,37 @@ def structure_delete(name: str, _auth: None = Depends(require_auth)):
     return {"ok": OBJ.delete_structure(name)}
 
 
+@app.get("/layers/globe/{kind}.png")
+def globe_layer_png(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
+                    mission_t_s: float | None = None):
+    """The GEOGRAPHIC drape (server-reprojected; Aaron's rotated-tile screenshot fix)."""
+    from stewie.server.gis_layers import _to_png, render_globe
+    if mission_t_s is not None:
+        from stewie.specs.solar import sun_az_el
+        sun_az, sun_el = sun_az_el(-87.45, float(mission_t_s))
+    try:
+        out = render_globe(kind, sun_el=sun_el, sun_az=sun_az)
+    except FileNotFoundError as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"DEM absent: {e}"})
+    if out is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
+    from fastapi.responses import Response
+    return Response(content=_to_png(out[0]), media_type="image/png")
+
+
+@app.get("/layers/globe/{kind}/bbox")
+def globe_layer_bbox(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
+                     mission_t_s: float | None = None):
+    from stewie.server.gis_layers import render_globe
+    if mission_t_s is not None:
+        from stewie.specs.solar import sun_az_el
+        sun_az, sun_el = sun_az_el(-87.45, float(mission_t_s))
+    out = render_globe(kind, sun_el=sun_el, sun_az=sun_az)
+    if out is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
+    return {"ok": True, **out[1]}
+
+
 @app.get("/dem/georef")
 def dem_georef():
     """The Haworth tile's globe footprint (selenographic corners) for the cockpit overlay."""

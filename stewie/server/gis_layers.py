@@ -98,3 +98,100 @@ RASTER_DEFS = [
     {"key": "illumination", "name": "Shadow (horizon-clipped sun)", "kind": "raster", "group": "sun"},
     {"key": "psr", "name": "PSR candidates (never lit)", "kind": "raster", "group": "sun"},
 ]
+
+
+# ---- the GLOBE drape: reproject polar-stereo rasters to GEOGRAPHIC grids -----------------------
+# Aaron's screenshot (2026-06-10): a stereographic image draped into a lat/lon rectangle renders
+# ROTATED/misaligned. The standard GIS fix: resample onto a lat/lon grid server-side; every layer
+# carries ITS OWN bbox. Implementation: build the output lat/lon grid, forward-project each output
+# pixel into the polar-stereo frame (pyproj, IAU_2015:30135 -- the SAME CRS as the tile bounds),
+# and sample the source raster. Vectorized numpy; cached by (kind, sun params).
+
+_GLOBE_CACHE: dict = {}
+
+
+def _tile_geo(mp):
+    """(heightmap, cell_m, world_bounds dict, the pyproj fwd transformer)."""
+    import json as _json
+    import os as _os
+
+    from pyproj import CRS, Transformer
+    pair = mp.load_haworth_dem()
+    meta = _json.load(open(_os.path.join(mp._haworth_bundle(None), "metadata.json")))
+    crs = CRS.from_user_input("IAU_2015:30135")
+    fwd = Transformer.from_crs(crs.geodetic_crs, crs, always_xy=True)
+    return pair[0], float(pair[1]), meta["world_bounds_m"], fwd
+
+
+def _reproject(source_rgba, b, fwd, *, out_px: int = 1024, sub=None):
+    """Resample an RGBA raster (north-up in the stereo frame, extent = b or the sub-window) onto a
+    geographic grid. Returns (rgba_geo uint8, bbox{south,north,west,east})."""
+    import numpy as _np
+    if sub is not None:
+        x0, y0, x1, y1 = sub
+    else:
+        x0, y0, x1, y1 = b["x0"], b["y0"], b["x1"], b["y1"]
+    # the geographic bbox: project a dense ring of the extent's boundary to lat/lon
+    t = _np.linspace(0.0, 1.0, 64)
+    ring_x = _np.concatenate([x0 + (x1 - x0) * t, _np.full(64, x1), x1 - (x1 - x0) * t, _np.full(64, x0)])
+    ring_y = _np.concatenate([_np.full(64, y0), y0 + (y1 - y0) * t, _np.full(64, y1), y1 - (y1 - y0) * t])
+    from pyproj import CRS, Transformer
+    crs = CRS.from_user_input("IAU_2015:30135")
+    inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
+    lons, lats = inv.transform(ring_x, ring_y)
+    bbox = {"south": float(lats.min()), "north": float(lats.max()),
+            "west": float(lons.min()), "east": float(lons.max())}
+    # the output grid -> stereo coords -> source pixel indices
+    H = out_px
+    W = max(64, int(out_px * (bbox["east"] - bbox["west"])
+                    / max(1e-9, (bbox["north"] - bbox["south"])) *
+                    _np.cos(_np.radians((bbox["south"] + bbox["north"]) / 2.0))))
+    W = min(W, 4096)
+    lon_g, lat_g = _np.meshgrid(_np.linspace(bbox["west"], bbox["east"], W),
+                                _np.linspace(bbox["north"], bbox["south"], H))
+    xs, ys = fwd.transform(lon_g, lat_g)
+    sh, sw = source_rgba.shape[:2]
+    col = (xs - x0) / (x1 - x0) * (sw - 1)
+    row = (y1 - ys) / (y1 - y0) * (sh - 1)              # north-up raster: row 0 = y1
+    valid = (col >= 0) & (col <= sw - 1) & (row >= 0) & (row <= sh - 1)
+    ci = _np.clip(col.round().astype(int), 0, sw - 1)
+    ri = _np.clip(row.round().astype(int), 0, sh - 1)
+    out = source_rgba[ri, ci]
+    out[~valid] = 0                                      # transparent outside the true footprint
+    return out.astype("uint8"), bbox
+
+
+def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=None):
+    """The geographic drape for the globe: 'dem' = the full-tile hillshade; the GIS rasters
+    reproject over the WORK AREA's own extent. Returns (rgba uint8, bbox)."""
+    if mp is None:
+        from lode import mission_planner as mp
+    key = ("globe", kind, round(float(sun_el), 2), round(float(sun_az), 2))
+    if key in _GLOBE_CACHE:
+        return _GLOBE_CACHE[key]
+    import os as _os
+
+    import numpy as _np
+    from imageio.v3 import imread
+    dem_full, cell_m, b, fwd = _tile_geo(mp)
+    if kind == "dem":
+        shade = imread(_os.path.join(mp._haworth_bundle(None), "preview_hillshade.png"))
+        if shade.ndim == 2:
+            shade = _np.stack([shade] * 3, axis=2)
+        rgba = _np.dstack([shade[..., :3], _np.full(shade.shape[:2], 255, dtype="uint8")])
+        out = _reproject(rgba, b, fwd, out_px=1024)
+    else:
+        png = render(kind, sun_el=sun_el, sun_az=sun_az, mp=mp)
+        if png is None:
+            return None
+        import io as _io
+        rgba = imread(_io.BytesIO(png))
+        # the work-area window inside the tile (the SAME crop _work_area uses)
+        _, (r0, c0), _ = _work_area(mp)
+        side = 128
+        sub = (b["x0"] + c0 * cell_m, b["y1"] - (r0 + side) * cell_m,
+               b["x0"] + (c0 + side) * cell_m, b["y1"] - r0 * cell_m)
+        out = _reproject(rgba, {"x0": sub[0], "y0": sub[1], "x1": sub[2], "y1": sub[3]},
+                         fwd, out_px=512, sub=None)
+    _GLOBE_CACHE[key] = out
+    return out
