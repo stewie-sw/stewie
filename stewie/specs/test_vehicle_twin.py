@@ -130,7 +130,6 @@ def test_s3_goto_waypoint_orders_plan_in_sequence():
     m = MP.mission_from_dict(doc)
     _, _, totals = MP.run(m, stem="s3_path")
     assert totals["energy_J"] > 0 and totals.get("feasible", True)
-    labels = [tr.get("label", "") for tr in totals.get("trip_list", [])] or None
     # the waypoint visits exist and precede the work (sequence preserved)
     seq = totals["waypoint_sequence"]
     assert seq == ["wp1", "wp2"]

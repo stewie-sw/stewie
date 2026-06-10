@@ -6,7 +6,7 @@ def test_dem_georef_corners_are_at_the_lunar_south_pole():
     pytest.importorskip("pyproj")
     from lode.mission_planner import dem_georef_corners
     c = dem_georef_corners()
-    lats = [p["lat"] for p in c["corners"]]; lons = [p["lon"] for p in c["corners"]]
+    lats = [p["lat"] for p in c["corners"]]
     assert all(-90.0 <= la <= -85.0 for la in lats)        # a south-polar tile
     assert max(lats) - min(lats) > 0.1                     # a real footprint, not a point
     assert c["center"]["lat"] == pytest.approx(sum(lats) / 4, abs=0.2)
