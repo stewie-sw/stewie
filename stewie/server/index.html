@@ -521,26 +521,32 @@ function loadBody(key) {
     HAWORTH_RECT = Cesium.Rectangle.fromDegrees(Math.min(...lons), Math.min(...lats),
                                                 Math.max(...lons), Math.max(...lats));
     globeLayer("dem", "/dem/hillshade.png", true);         // the DEM itself, ON THE LARGE SCREEN
-    viewer.entities.add({
+    HAWORTH_ENTITIES.push(viewer.entities.add({
       name: "Haworth work area",
       polygon: {
         hierarchy: Cesium.Cartesian3.fromDegreesArray(ll, ellipsoid),
         material: new Cesium.ImageMaterialProperty({ image: "/dem/hillshade.png", transparent: false }),
         outline: true, outlineColor: Cesium.Color.fromCssColorString("#e8273f"),
       },
-    });
-    viewer.entities.add({
+    }));
+    HAWORTH_ENTITIES.push(viewer.entities.add({
       position: Cesium.Cartesian3.fromDegrees(g.center.lon, g.center.lat, 0, ellipsoid),
       label: { text: "HAWORTH WORK AREA", font: "11px Orbitron, sans-serif",
                fillColor: Cesium.Color.fromCssColorString("#e8273f"),
                pixelOffset: new Cesium.Cartesian2(0, -18), showBackground: true,
                backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cdd") },
-    });
+    }));
+    setMoonOverlaysVisible(sel.value === "moon");
   }).catch(() => {});
 }
 let HAWORTH_CENTER = null;
 let HAWORTH_RECT = null;                                   // Cesium.Rectangle of the tile footprint
 const GLOBE_LAYERS = {};                                   // key -> Cesium ImageryLayer on the BIG map
+const HAWORTH_ENTITIES = [];                               // the footprint polygon + label (MOON-ONLY)
+function setMoonOverlaysVisible(on) {                      // body-scope: Haworth exists on the Moon
+  HAWORTH_ENTITIES.forEach((e) => { e.show = on; });
+  if (!on) Object.keys(GLOBE_LAYERS).forEach((k) => globeLayer(k, "", false));
+}
 
 function applyLayer(key, idx) {                            // swap the base imagery to the selected layer
   const L = BODIES[key].layers[idx];
@@ -754,7 +760,9 @@ function showSiteDem() {                                   // auto-show the real
     document.getElementById("workareaimg").src = "/dem/hillshade.png"; wa.classList.add("show");
   } else { wa.classList.remove("show"); }                 // the inset belongs to the Plan tab only
 }
-sel.onchange = () => { loadBody(sel.value); showTerra(); estimate(); showSiteDem(); };
+sel.onchange = () => { loadBody(sel.value); showTerra(); estimate(); showSiteDem();
+  setMoonOverlaysVisible(sel.value === "moon");            // Haworth is a MOON feature (bugfix 2026-06-10)
+};
 $("layer").onchange = () => applyLayer(sel.value, +$("layer").value);   // swap imagery without reloading the body
 $("terrainfo").onclick = () => $("terra").classList.toggle("show");     // terramechanics on demand (updates per body)
 
