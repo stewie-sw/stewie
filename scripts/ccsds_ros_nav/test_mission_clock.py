@@ -14,9 +14,12 @@ def test_azimuth_sweeps_full_circle_per_synodic_month():
     az0, _ = mc.sun_az_el(0.0, az0_deg=10.0)
     az_half, _ = mc.sun_az_el(mc.SYNODIC_MONTH_S / 2, az0_deg=10.0)
     az_full, _ = mc.sun_az_el(mc.SYNODIC_MONTH_S, az0_deg=10.0)
-    assert az0 == pytest.approx(10.0)
-    assert az_half == pytest.approx(190.0)        # +180 deg at half a lunar day
-    assert az_full == pytest.approx(10.0)         # back to start after one synodic month
+    # T4.1: the clock now delegates to the REAL spherical solar geometry (stewie.specs.solar);
+    # at the Haworth site (2.55 deg off the pole) the obliquity declination deflects azimuth from
+    # the sub-solar longitude by up to ~0.7 deg -- physical truth, not slop, hence the tolerance.
+    assert az0 == pytest.approx(10.0, abs=0.75)
+    assert az_half == pytest.approx(190.0, abs=0.75)   # +180 deg at half a lunar day
+    assert az_full == pytest.approx(10.0, abs=0.75)    # back to start after one synodic month
 
 
 def test_clock_advances_and_rebases_on_factor_change():

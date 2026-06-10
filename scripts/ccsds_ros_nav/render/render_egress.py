@@ -69,9 +69,14 @@ def main() -> int:
 
     manifest: list[dict] = []
     img_packets = 0
+    leg_t = {int(p["leg_id"]): float(p.get("t", 0.0)) for p in telemetry["poses"]}
     for leg_id, anchor in anchors:
         scene_name = f"ccsds_nav_leg{leg_id:02d}"
-        cap = camera_render.render_capture(_REPO, crop, anchor, sun_az=sun_az, sun_el=args.sun_el,
+        # T4.2: the sun MOVES during the traverse -- re-sample az/el at this leg's mission time
+        # (the t=0 azimuth stays the lit-start pick; elevation follows the solar authority).
+        leg_az, leg_el = mc.sun_az_el(leg_t.get(leg_id, 0.0), az0_deg=sun_az)
+        cap = camera_render.render_capture(_REPO, crop, anchor, sun_az=leg_az,
+                                           sun_el=(args.sun_el if args.sun_el != 8.0 else leg_el),
                                            scene_name=scene_name, haworth_dir=haworth,
                                            frames=args.frames_per_leg, size=args.size, timeout=args.timeout)
         if not cap["ok"]:

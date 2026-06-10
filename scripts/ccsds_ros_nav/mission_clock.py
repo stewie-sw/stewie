@@ -38,11 +38,22 @@ LUNAR_OBLIQUITY_DEG = 1.54
 DEFAULT_SUN_EL_DEG = 1.5
 
 
-def sun_az_el(mission_time_s: float, *, az0_deg: float = 0.0, el_deg: float = DEFAULT_SUN_EL_DEG,
+def sun_az_el(mission_time_s: float, *, az0_deg: float = 0.0, el_deg: float | None = None,
               period_s: float = SYNODIC_MONTH_S) -> tuple[float, float]:
-    """Sun (azimuth [deg, from north], elevation [deg]) at mission time. Azimuth = az0 at t=0."""
-    az = (az0_deg + 360.0 * (mission_time_s / period_s)) % 360.0
-    return az, float(el_deg)
+    """Sun (azimuth [deg, from north], elevation [deg]) at mission time.
+
+    T4.1 (2026-06-10): delegates to the ONE solar authority -- stewie.specs.solar's real spherical
+    geometry at the Haworth latitude (azimuth circles per synodic month, elevation BREATHES inside
+    colatitude+obliquity; the module docstring's "elevation libration is a follow-up" is now done).
+    ``el_deg`` keeps the manual-override path for inspection renders; ``az0_deg`` phases t=0."""
+    try:
+        from stewie.specs import solar
+        # at the south-polar site, azimuth tracks the sub-solar longitude under this convention
+        az, el = solar.sun_az_el(-87.45, float(mission_time_s), lon0_deg=az0_deg % 360.0)
+        return az, (float(el_deg) if el_deg is not None else el)
+    except ImportError:                                   # standalone checkout fallback
+        az = (az0_deg + 360.0 * (mission_time_s / period_s)) % 360.0
+        return az, float(el_deg if el_deg is not None else DEFAULT_SUN_EL_DEG)
 
 
 def lit_fraction(heightmap: np.ndarray, cell_m: float, az_deg: float, el_deg: float) -> float:
