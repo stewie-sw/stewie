@@ -716,11 +716,7 @@ function loadBody(key) {
     const lats = g.corners.map((p) => p.lat), lons = g.corners.map((p) => p.lon);
     HAWORTH_RECT = Cesium.Rectangle.fromDegrees(Math.min(...lons), Math.min(...lats),
                                                 Math.max(...lons), Math.max(...lats));
-    globeLayer("dem", "/dem/hillshade.png", true);         // the DEM itself, ON THE LARGE SCREEN
-    // BUGFIX (Aaron: "why won't the layers load over the body?"): default-on layers were never
-    // APPLIED at startup -- the checkboxes showed checked but no fetch had happened. Apply every
-    // active raster now that the footprint rectangle exists.
-    GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); });
+    applyDefaultsOnceReady();                              // #63: fires once BOTH sides are ready
     HAWORTH_ENTITIES.push(viewer.entities.add({
       name: "Haworth work area",
       // OUTLINE ONLY -- the imagery drape (server-reprojected clean hillshade) carries the
@@ -1482,6 +1478,7 @@ async function loadLayers() {
       const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!L.default;
       cb.onchange = () => { LAYER_ON[lid] = cb.checked; applyLayerToggle(lid, cb.checked); drawPlan(); };
       lab.appendChild(cb); lab.appendChild(document.createTextNode(L.name));
+      LAYERS_LOADED = true;                                  // (set per row; cheap + monotonic)
       if (["topology", "excavation", "lander"].includes(lid)) {
         const tag = document.createElement("span");
         tag.textContent = "plan"; tag.title = "draws on the PLAN canvas (section 4) and the work-area inset";
@@ -1491,8 +1488,19 @@ async function loadLayers() {
       panel.appendChild(lab);
     });
   } catch (e) { /* serverless preview keeps the defaults */ }
+  applyDefaultsOnceReady();                                // #63: the other ready side
 }
-const GIS_RASTERS = ["slope", "hazard", "illumination", "psr", "grid"];   // computed from the REAL Haworth DEM server-side
+const GIS_RASTERS = ["slope", "hazard", "illumination", "psr", "grid"];
+// #63 (Aaron's bug: layers need an off/on cycle): the default-layer application raced --
+// the georef .then() read LAYER_ON before loadLayers() had populated it (or vice versa).
+// Both sides now call this gate; it fires once when BOTH are ready.
+let LAYERS_LOADED = false, DEFAULTS_APPLIED = false;
+function applyDefaultsOnceReady() {
+  if (DEFAULTS_APPLIED || !LAYERS_LOADED || !HAWORTH_RECT) return;
+  DEFAULTS_APPLIED = true;
+  globeLayer("dem", "", LAYER_ON.dem !== false);
+  GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); });
+}   // computed from the REAL Haworth DEM server-side
 // the BIG-MAP layer path (Aaron: "layers only load in the pip window -- need it on the large
 // screen"): each raster becomes a Cesium imagery layer clipped to the true Haworth footprint.
 async function globeLayer(key, _url, on) {
