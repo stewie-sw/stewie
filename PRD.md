@@ -656,6 +656,15 @@ is unchanged — the container maps the port.
 - **Year 2** = mission assistant (suggestion queue), multi-sol planning, DART live feedback loop —
   the operator approves; they no longer initiate.
 
+### 16.3b ARGUS — Articulated Rover Geometry for Unified State Estimation (added 2026-06-10)
+The articulated vehicle-twin subsystem: documented rover geometry (chassis/wheels, bucket drums,
+arm swing, the 8-camera rig, the LED work-light units) carried as ONE state consumed by every
+estimator and the renderer alike. Implementation spine: stewie/specs/vehicle_twin.py +
+ipex_specs.py camera/lighting truth + camera_rig.gd LIGHT_UNITS + the ArmState joint model (plan
+T2.1). Plan of record: design/IPEX_TRUTH_INTEGRATION_PLAN_2026-06-10.md. Named in tribute to
+Jadon Schuler, IPEx Project Manager and Principal Investigator, whose TRL-5 documentation
+[SCHULER24] is the ground truth the subsystem traces to.
+
 ### 16.4 World-model strategy vs reconstruction-based world models (added 2026-06-10)
 Assessment of the Martian World Model line of work (M3arsSynth + MarsGen, arXiv:2507.07978):
 **we already own their OUTPUT side, with something stronger underneath.** Their world model is
