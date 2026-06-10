@@ -756,3 +756,39 @@ The SolNav dissertation planning set (G1–G9 gates, separate honesty firewall) 
 re-scoped by STEWIE. Convergence: STEWIE P20 (ROS2 bridge + live drive loop) is the same engineering
 object as the dissertation's persistent-runtime gap (G1.A4/A6) — one build advances both tracks;
 the dissertation's evidence-mode rules still apply on its side.
+
+## 17. Cockpit state + pending work (2026-06-10 session close)
+
+A full live-debug day with Aaron driving. SHIPPED and verified (each capture-proofed,
+commits adff7b6..e59cbde):
+
+**Map truth chain**: SPICE is the default sun (NAIF kernels at $STEWIE_SPICE_KERNELS;
+mean-motion fallback's 5.6° elevation error MEASURED into a dated artifact — it can mis-state
+polar day/night); the Haworth tile drapes the globe via server-side reprojection to geographic
+(IAU_2015:30135; the matplotlib-figure-as-drape and footprint-polygon-paint bugs found and
+killed); coordinate truth verified (WGS84-shaped globe documented; scale bar now true body
+meters); slope hierarchy verified (15° ConOps / 20° TESTED no-go / ~30° Gen-1 failure — 40°
+indefensible); docs/map_reference.md carries the pipeline + in-stack source links.
+
+**Cockpit**: workflow sidebar (7 independently collapsible groups, separators, drum-mark header,
+Orbitron headers); Contents pane with TerriaJS-style WORKBENCH CARDS (in-card physics-fed
+legends, opacity, zoom-to, remove); layer toggles ACTUALLY work (root cause: `let viewer` is not
+`window.viewer` — every globe-path guard silently early-returned since written); toggles fly to
+the work area; footprint click loads the granular set; cursor lat/lon + site-frame meters +
+scale bar; per-body WORKSETS (no cross-body leakage); S-3 path-first authoring (goto orders,
+auto-precedence, draw-path mode, drag-to-move, branded glyphs); S-4 object store (missions +
+custom structures CRUD, mission notes); live plan→render reactivity (#33); API key via Settings
+with actionable 401s; nginx no-cache (the stale-UI culprit).
+
+**Physics**: berm re-hazard rule (later legs crossing executed cut/fill flag at the body's
+repose angle); CG with loaded drums (mass-symmetric ballast is the maneuver target — the naive
+counter-pose REFUTED by the model and test-pinned).
+
+**Pending (the task queue, in priority order)**: #31 telemetry rail (channel chips +
+sparklines); #40/#41 QGIS-style edit mode (camera lock + globe drawing tools through
+/dem/site_xy); #32 no-terminal (Server-tab buttons for snapshot/backup/replicate/gate-run);
+#26 info popovers; #25 remainder (live CG widget, perception-gated DockWithLander, Mars
+enhanced datasets); #38 resizable panes; #39 event history (who/what/when audit trail); #30 the
+FULL docs rewrite + astrophysics primer (agent fan-out, constants verified against code).
+Hard-won lessons in force: guard on bare let bindings; verify USER click paths; setView not
+flyTo; tile-verify every imagery product; a keyless browser's 401 confirms auth wiring.
