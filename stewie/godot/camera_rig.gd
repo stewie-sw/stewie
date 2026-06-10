@@ -357,3 +357,45 @@ static func _extr_pos_of(cams: Array, name: String, mount: Node3D):
 				return mount.global_transform.affine_inverse() * world_pos
 			return world_pos
 	return null
+
+
+# ---- WORK LIGHTS (TRL5 "Lighting Design", pp.27-28; constants in stewie/specs/ipex_specs.py) ----
+# Documented: LED units integrated into the camera units -- 3000 lm max, TIR optic, 42 deg FWHM,
+# one unit per MONOCULAR camera, plus a TWO-unit stereo bank on the chassis side OPPOSITE the
+# stereo module (the flight count of six includes the redundant camera set; this twin carries the
+# four units its single camera set warrants -- divergence disclosed). Offsets reuse the camera
+# mounts (the doc integrates lights INTO the camera units); the stereo-bank standoff is
+# [ASSUMPTION] pending the Fig.31/32 dimensions. EXACT per-unit pose is emitted in sensors.json --
+# a light at a KNOWN position casting a measurable shadow is the active shadow-ranging observable.
+const LIGHT_UNITS := [
+	{"name": "left_mono_led", "offset": Vector3(0.0, SIDE_MONO_VERT_M, SIDE_MONO_LAT_M),
+	 "aim": Vector3(0, -0.3, 1)},
+	{"name": "right_mono_led", "offset": Vector3(0.0, SIDE_MONO_VERT_M, -SIDE_MONO_LAT_M),
+	 "aim": Vector3(0, -0.3, -1)},
+	{"name": "stereo_bank_a", "offset": Vector3(CAM_FORWARD_M, CAM_VERT_M + 0.10, 0.12),
+	 "aim": Vector3(1, -0.35, 0)},
+	{"name": "stereo_bank_b", "offset": Vector3(CAM_FORWARD_M, CAM_VERT_M + 0.10, -0.12),
+	 "aim": Vector3(1, -0.35, 0)},
+]
+const LIGHT_BEAM_FWHM_DEG := 42.0      # TIR optic, full width at half maximum [SCHULER24]
+const LIGHT_MAX_LUMENS := 3000.0       # per light [SCHULER24]
+
+
+static func build_work_lights(mount: Node3D, on: bool) -> Array:
+	"""SpotLight3D per documented unit on the rover mount; returns the nodes (poses are then
+	world-exact for the sensors block). Photometric mapping lumens->Godot energy is [CALIB]."""
+	var out: Array = []
+	for u in LIGHT_UNITS:
+		var l := SpotLight3D.new()
+		l.name = String(u["name"])
+		l.position = u["offset"]
+		l.spot_angle = LIGHT_BEAM_FWHM_DEG / 2.0        # Godot spot_angle = half-angle
+		l.spot_range = 12.0                              # [CALIB] render falloff range
+		l.light_energy = (8.0 if on else 0.0)            # [CALIB] lumens->energy mapping
+		l.visible = on
+		l.shadow_enabled = true
+		mount.add_child(l)
+		var aim: Vector3 = (u["aim"] as Vector3).normalized()
+		l.look_at(mount.global_transform * (u["offset"] + aim), Vector3.UP)
+		out.append(l)
+	return out

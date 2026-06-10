@@ -201,6 +201,9 @@ var _rover_yaw := 0.0
 # --lander-rc r,c (single-frame --cameras): place the AprilTag lander at a FIXED grid cell (a stationary
 # world landmark the rover drives away from) instead of glued standoff-ahead of the rover. (-1,-1) = off.
 var _lander_rc := Vector2i(-1, -1)
+# --work-lights (single-frame --cameras): build the documented LED units (camera_rig.LIGHT_UNITS,
+# TRL5 Lighting Design) ON; their EXACT world poses + state are emitted in sensors.json "lights".
+var _work_lights_on := false
 # --chase-cam (single-frame --cameras): instead of the 8-camera rover rig, render ONE trailing
 # third-person ("coach") view of the rover from behind+above+side and save chase.png. This is the
 # external sim-manager vantage (the rover's own cameras cannot see themselves), so it shows the rover
@@ -598,6 +601,8 @@ func _parse_args() -> void:
 				i += 1; _rover_yaw = float(args[i])
 			"--chase-cam":
 				_chase_cam = true
+			"--work-lights":
+				_work_lights_on = true
 			"--lander-rc":
 				i += 1
 				var lrc := String(args[i]).split(",")
@@ -844,6 +849,7 @@ func _cameras_capture() -> void:
 
 	# Build the front-stereo cameras (shared World3D SubViewports riding the rover).
 	var cams: Array = CameraRigScript.build(self, rover_root, world, _viewport_size, _cam_pitch_deg)
+	var work_lights: Array = CameraRigScript.build_work_lights(rover_root, _work_lights_on)
 
 	# Let the subviewports render a few times (first frame can sample a stale buffer).
 	for _w in range(3):
@@ -874,6 +880,18 @@ func _cameras_capture() -> void:
 		scene, 0, _viewport_size, rover_root, lander_root, cams,
 		Callable(CameraRigScript, "intrinsics"), CameraRigScript.FOV_X_DEG,
 		sun, null, CameraRigScript.rear_pair_descriptor(cams, rover_root))
+	# v1.1 additive "lights" block: per documented LED unit -- EXACT world pose + state (the
+	# known-position light is the active shadow-ranging observable; TRL5 Lighting Design).
+	var lights_block: Array = []
+	for wl in work_lights:
+		var xf: Transform3D = (wl as Node3D).global_transform
+		var entry := SensorsEmitScript.pose_dict(xf)
+		entry["name"] = (wl as Node).name
+		entry["on"] = _work_lights_on
+		entry["max_lumens"] = CameraRigScript.LIGHT_MAX_LUMENS
+		entry["beam_fwhm_deg"] = CameraRigScript.LIGHT_BEAM_FWHM_DEG
+		lights_block.append(entry)
+	doc["lights"] = lights_block
 	var json_path := "%s/sensors.json" % out_dir
 	var jf := FileAccess.open(json_path, FileAccess.WRITE)
 	if jf == null:
