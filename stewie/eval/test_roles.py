@@ -72,3 +72,16 @@ def test_pipeline_on_real_g2cal_artifacts(tmp_path):
     # the estimator's output exists and contains NO truth-derived fields
     e = json.load(open(os.path.join(str(tmp_path), "estimates", "stereo.json")))
     assert "true" not in json.dumps(e).lower()
+
+
+@pytest.mark.skipif(not os.path.isdir(G2CAL), reason="g2cal evidence not present")
+def test_pipeline_via_runtime_reproduces_direct(tmp_path):
+    """THE G1 closure: the locked-capture evaluation run THROUGH the persistent runtime seam
+    (produce attaches to the live process; the packet's camera channel references the real
+    frames) reproduces the direct pipeline's verdict exactly (same images, same estimator)."""
+    direct = R.run_pipeline(G2CAL, str(tmp_path / "direct"))
+    via = R.run_pipeline_via_runtime(G2CAL, str(tmp_path / "via"))
+    assert via["expected_within_p10_p90"] is True
+    for k in ("n_disparities", "median_disparity_px", "expected_disparity_px"):
+        assert via[k] == direct[k], f"runtime-fed {k} diverged from the direct evidence"
+    assert via["via_persistent_runtime"] is True

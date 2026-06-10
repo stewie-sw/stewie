@@ -158,3 +158,39 @@ def main(argv=None):
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def run_pipeline_via_runtime(pose_dir: str, workspace: str) -> dict:
+    """The locked-capture evaluation THROUGH the persistent runtime (the G1 closure path).
+
+    A live RuntimeProcess owns the world with the pose directory attached as its frame store; the
+    PRODUCER role asks the RUNTIME for the canonical packet (strictly parsed), stages the frames
+    the packet references plus the pose's truth file; estimate/evaluate then run exactly as in the
+    direct pipeline. The verdict must reproduce the direct evidence -- same frames, same estimator.
+    """
+    from stewie.bridge.runtime_io import parse_canonical
+    from stewie.runtime.process import RuntimeProcess
+    rt = RuntimeProcess(grid=48, cell_m=0.02, body="moon",
+                        socket_path=os.path.join(workspace, "rt.sock"), seed=17,
+                        frame_store=os.path.abspath(pose_dir))
+    rt.handle({"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.05, "steps": 5})
+    resp = rt.handle({"role": "produce", "cmd": "packet"})
+    if not resp.get("ok"):
+        raise RuntimeError(f"runtime produce failed: {resp}")
+    pkt = resp["packet"]
+    parse_canonical(pkt)                                   # strict acceptance BEFORE staging
+    fs = RoleFS("produce", workspace)
+    fs.write_json("produced/runtime_packet.json", pkt)
+    cam = pkt["channels"]["camera"]
+    if cam.get("status") != "OK":
+        raise RuntimeError("runtime packet carries no camera channel -- no frames to evaluate")
+    for f in cam["frames"]:
+        fs.write_bytes(f"produced/{f['name']}.png", open(f["path"], "rb").read())
+    for name in ("sensors.json", "evaluation_truth.json"):
+        fs.write_bytes(f"produced/{name}", open(os.path.join(pose_dir, name), "rb").read())
+    cmd_estimate(workspace)
+    verdict = cmd_evaluate(workspace)
+    verdict["via_persistent_runtime"] = True
+    fs2 = RoleFS("evaluate", workspace)
+    fs2.write_json("evaluation/verdict.json", verdict)
+    return verdict

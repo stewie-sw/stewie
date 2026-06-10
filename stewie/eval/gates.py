@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -310,9 +311,26 @@ def validate_current() -> dict:
                   and len(parsed_rt["imu"]) >= 10
                   and 0.0 < pkt["channels"]["power"]["samples"][-1]["soc_frac"] < 1.0)
     g1c["persistent_runtime_core"] = "PASS" if runtime_ok else "FAIL"
-    # the residue that keeps G1 closed: the LOCKED validation evidence has not been re-captured
-    # THROUGH this runtime (camera channel attach + a runtime-fed locked capture are pending)
-    g1c["locked_capture_via_runtime"] = "PENDING"
+    # the closure check (2026-06-10): the locked-capture evaluation RUN THROUGH the persistent
+    # runtime seam must REPRODUCE the direct evidence -- live execution, not a citation.
+    g1_pose = ROOT / "validation" / "g2cal" / "pose_0"
+    if g1_pose.is_dir():
+        import tempfile as _tf
+
+        from stewie.eval.roles import run_pipeline, run_pipeline_via_runtime
+        with _tf.TemporaryDirectory() as _td:
+            direct_v = run_pipeline(str(g1_pose), os.path.join(_td, "direct"))
+            via_v = run_pipeline_via_runtime(str(g1_pose), os.path.join(_td, "via"))
+        reproduced = (via_v.get("via_persistent_runtime") is True
+                      and via_v.get("expected_within_p10_p90") is True
+                      and all(via_v[k] == direct_v[k] for k in
+                              ("n_disparities", "median_disparity_px", "expected_disparity_px")))
+        g1c["locked_capture_via_runtime"] = "PASS" if reproduced else "FAIL"
+        g1["runtime_fed_capture"] = {"n_disparities": via_v["n_disparities"],
+                                     "median_disparity_px": via_v["median_disparity_px"],
+                                     "reproduces_direct": reproduced}
+    else:
+        g1c["locked_capture_via_runtime"] = "MISSING"
 
     # blocker 5: the real-capture evaluation executed (Katwijk vs RTK truth)
     kw_path = ROOT / "validation" / "katwijk_dead_reckon_2026-06-10.json"

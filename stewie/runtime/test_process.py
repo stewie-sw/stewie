@@ -143,3 +143,28 @@ def test_packet_power_channel_is_real_accounting(runtime):
     s3 = r3["packet"]["channels"]["power"]["samples"][-1]
     assert s3["power_w"] == 0.0 and s3["soc_frac"] == pytest.approx(s2["soc_frac"])
     assert r0["ok"]
+
+
+def test_camera_channel_attaches_real_frames(tmp_path):
+    """Final G1 slice: with a frame store, the packet's camera channel references REAL rendered
+    frames (the g2cal pose artifacts) and the whole packet passes the strict parser."""
+    import os
+    store = os.path.join(os.path.dirname(rp.__file__), "..", "eval", "validation",
+                         "g2cal", "pose_0")
+    if not os.path.isdir(store):
+        pytest.skip("g2cal evidence not present")
+    srv = rp.RuntimeProcess(grid=48, cell_m=0.02, body="moon",
+                            socket_path=str(tmp_path / "s.sock"), seed=5,
+                            frame_store=os.path.abspath(store))
+    srv.handle({"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 5})
+    pkt = srv.handle({"role": "produce", "cmd": "packet"})["packet"]
+    cam = pkt["channels"]["camera"]
+    assert cam["status"] == "OK" and cam["reference_camera"] == "front_left"
+    assert cam["baseline_m"] > 0
+    names = {f["name"] for f in cam["frames"]}
+    assert {"front_left", "front_right"} <= names
+    for f in cam["frames"]:
+        assert os.path.exists(f["path"]), f["path"]        # the frames are REAL files
+    from stewie.bridge.runtime_io import parse_canonical
+    parsed = parse_canonical(pkt)
+    assert parsed["camera_frames"]

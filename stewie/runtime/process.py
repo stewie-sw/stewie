@@ -31,7 +31,8 @@ _MUTATING = {"twist", "checkpoint", "restore"}
 
 class RuntimeProcess:
     def __init__(self, *, grid: int = 64, cell_m: float = 0.02, body: str = "moon",
-                 vehicle: str = "ipex", socket_path: str, seed: int = 0):
+                 vehicle: str = "ipex", socket_path: str, seed: int = 0,
+                 frame_store: str | None = None):
         rng = np.random.default_rng(seed)
         base = 50.0 + rng.normal(0.0, 0.5, (grid, grid))
         self.cs = ColumnState(width=grid, height=grid, cell_m=cell_m,
@@ -55,6 +56,9 @@ class RuntimeProcess:
         self.battery_capacity_j: float = float(_S.battery_energy_j())
         self.energy_used_j: float = 0.0
         self._draw_w: float = 0.0
+        # final slice: an attached frame store -- a REAL captured pose directory (producer
+        # sensors.json + rendered PNGs). When present, packets carry the camera channel.
+        self.frame_store = frame_store
 
     # ---- world operations (the seam's verbs) ---------------------------------------------
     def _pose(self) -> dict:
@@ -107,12 +111,34 @@ class RuntimeProcess:
             else self._draw_w
         channels["power"] = power_channel(idle_draw, soc, t=self.t_sim)
         self._draw_w = 0.0                                   # draw is per-emission instantaneous
-        channels["camera"] = {"status": "UNAVAILABLE"}       # render attach is a later slice
+        channels["camera"] = self._camera_channel()
         pkt = {"schema_version": "dustgym_runtime/1.0",
                "clock": "sim_monotonic",
                "sequence_id": self.sequence,
                "channels": channels}
         return {"ok": True, "packet": pkt}
+
+    def _camera_channel(self) -> dict:
+        """The camera channel from the attached frame store: REAL rendered frames, runtime clock.
+
+        The stereo pair shares one keyframe timestamp (the strict parser's per-camera monotonicity
+        allows that); intrinsics/baseline come from the store's own producer sensors.json -- the
+        runtime never invents calibration."""
+        if self.frame_store is None:
+            return {"status": "UNAVAILABLE"}
+        import json as _json
+        sens = _json.load(open(os.path.join(self.frame_store, "sensors.json")))
+        stereo = sens["stereo"]
+        cam0 = next(c for c in sens["cameras"] if c["name"] == stereo["left"])
+        frames = []
+        for name in (stereo["left"], stereo["right"]):
+            png = os.path.join(self.frame_store, f"{name}.png")
+            if not os.path.exists(png):
+                return {"status": "UNAVAILABLE", "reason": f"frame missing: {png}"}
+            frames.append({"name": name, "t": float(self.t_sim), "path": png})
+        return {"status": "OK", "frames": frames,
+                "reference_camera": stereo["left"], "baseline_m": float(stereo["baseline_m"]),
+                "intrinsics": cam0["intrinsics"]}
 
     def _checkpoint(self, path: str) -> dict:
         np.savez(path, mass_areal=self.cs.mass_areal, rc=np.array(self.rc),

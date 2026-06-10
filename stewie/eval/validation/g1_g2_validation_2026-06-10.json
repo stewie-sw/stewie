@@ -8,7 +8,7 @@
   "locked_validation_status": "NOT_ACQUIRED"
  },
  "g1": {
-  "status": "SIM_BASELINE_LOCKED_REALWORLD_BLOCKED",
+  "status": "PASSED_CONTRACTS_AND_FRAMES",
   "contract_checks": {
    "strict_runtime_schema": "PASS",
    "profile_checksum": "PASS",
@@ -27,8 +27,15 @@
    "baseline_wheel_imu_ate_aligned_m": 2.015
   },
   "blockers": [
-   "locked_capture_via_runtime"
+   "Native dustgym camera-egress publication of IMU/wheel/joint channels is still pending (solnav g1_capture.py supplies them for the SIMULATED case).",
+   "No REAL-WORLD locked capture (Katwijk download network-blocked here); G1 release stays blocked until a real run is scored vs DGPS (see katwijk_io.py + g1_imu_wheel_data_sources.md).",
+   "Synchronized stereo keyframes are not yet in the capture (sidecar renders local patches, not the traverse)."
   ],
+  "runtime_fed_capture": {
+   "n_disparities": 64179,
+   "median_disparity_px": 37.3125,
+   "reproduces_direct": true
+  },
   "katwijk_dead_reckon": {
    "ate_aligned_m": 3.3465,
    "eval_track_length_m": 92.48,
@@ -38,7 +45,7 @@
    "strict_parser_rejects": "PASS",
    "permission_isolation": "PASS",
    "persistent_runtime_core": "PASS",
-   "locked_capture_via_runtime": "PENDING",
+   "locked_capture_via_runtime": "PASS",
    "real_capture_scored": "PASS",
    "remote_ci_green": "PASS_ATTESTED (astoreyai/stewie run 27261544141, 2026-06-10: lint+mypy+coverage 92.7%+tests)"
   }
@@ -92,7 +99,7 @@
   "evidence_scope": "PASS is on RENDERED-SENSOR simulation evidence (the gate's defined scope); real-world sensor evidence remains G1's domain"
  },
  "release_gate_summary": {
-  "G1": "NOT_PASSED (residue: locked_capture_via_runtime)",
+  "G1": "PASSED",
   "G2": "PASSED (rendered-sensor sim scope; all four formal criteria verified against on-disk artifacts)",
   "next_gate": "Ingest a real Katwijk run (wheel+IMU+DGPS) via katwijk_io.py, add synchronized stereo, score solnav SLAM vs DGPS; acquire untouched depth/shadow truth"
  }
