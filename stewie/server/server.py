@@ -393,6 +393,23 @@ def structure_delete(name: str, _auth: None = Depends(require_auth)):
     return {"ok": OBJ.delete_structure(name)}
 
 
+@app.on_event("startup")
+def _warm_globe_cache():
+    """Background-warm the heavy globe products (PSR's sweep measured 44 s cold) so the first
+    user click finds them ready; errors are non-fatal (no DEM in some deployments)."""
+    import threading
+
+    def warm():
+        try:
+            from stewie.server.gis_layers import render_globe
+            for kind in ("dem", "slope", "hazard", "illumination", "psr"):
+                render_globe(kind)
+        except Exception:
+            pass
+
+    threading.Thread(target=warm, daemon=True).start()
+
+
 @app.get("/layers/legend")
 def layers_legend():
     """Legend values FROM THE PHYSICS (audit P1): hazard thresholds are the hazard-map defaults

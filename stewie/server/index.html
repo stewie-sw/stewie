@@ -1161,6 +1161,7 @@ async function globeLayer(key, _url, on) {
       `/layers/globe/${key}.png?` + qs,
       { rectangle: Cesium.Rectangle.fromDegrees(bb.west, bb.south, bb.east, bb.north) });
     GLOBE_LAYERS[key] = viewer.imageryLayers.addImageryProvider(prov);
+    if (LAYER_OPACITY[key]) GLOBE_LAYERS[key].alpha = LAYER_OPACITY[key] / 100;   // slider persists
   } catch (e) { console.error("globe layer failed:", key, e); }
 }
 const BOOT_V = Date.now();                                 // per-pageload cache-bust for layer images

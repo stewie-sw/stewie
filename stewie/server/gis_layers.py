@@ -109,6 +109,11 @@ RASTER_DEFS = [
 
 _GLOBE_CACHE: dict = {}
 
+def _np_load_rgba(path):
+    import numpy as _np
+    return _np.load(path)
+
+
 
 def _tile_geo(mp):
     """(heightmap, cell_m, world_bounds dict, the pyproj fwd transformer)."""
@@ -169,6 +174,17 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
     key = ("globe", kind, round(float(sun_el), 2), round(float(sun_az), 2))
     if key in _GLOBE_CACHE:
         return _GLOBE_CACHE[key]
+    # disk cache: survive restarts; PSR/illumination cost seconds-to-minutes to compute
+    import json as _json
+    import os as _oss
+    from stewie.specs import config as _CFG
+    cdir = _oss.path.join(_CFG.data_dir(), "globe_cache")
+    _oss.makedirs(cdir, exist_ok=True)
+    stem = _oss.path.join(cdir, f"{kind}_{key[2]}_{key[3]}")
+    if _oss.path.exists(stem + ".npy") and _oss.path.exists(stem + ".json"):
+        out = (_np_load_rgba(stem + ".npy"), _json.load(open(stem + ".json")))
+        _GLOBE_CACHE[key] = out
+        return out
     import os as _os
 
     import numpy as _np
@@ -192,7 +208,11 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         # full tile isn't loaded") -- computed from the whole heightmap at a working downsample;
         # the work-area crop remains the inset's product. Disclosure: ROCK hazards exist only
         # where mapped (the surveyed crop); the full-tile hazard is slope-derived.
-        stride = max(1, dem_full.shape[0] // 768)
+        # PSR's 12-azimuth horizon sweep measured 44 s at 768px (Aaron: "psr does not load in
+        # main screen") -- the sweep runs at 384px (~4x faster, same 30-deg azimuth step); other
+        # kinds keep 768. Products disk-cache under data_dir so each computes ONCE per sun key.
+        px = 384 if kind == "psr" else 768
+        stride = max(1, dem_full.shape[0] // px)
         dem = _np.asarray(dem_full, dtype=float)[::stride, ::stride]
         cm = cell_m * stride
         if kind == "slope":
@@ -228,4 +248,11 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
             return None
         out = _reproject(rgba.astype("uint8"), b, fwd, out_px=1024)
     _GLOBE_CACHE[key] = out
+    try:
+        import json as _json
+        import numpy as _np2
+        _np2.save(stem + ".npy", out[0])
+        _json.dump(out[1], open(stem + ".json", "w"))
+    except OSError:
+        pass
     return out
