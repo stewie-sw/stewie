@@ -177,11 +177,7 @@
     <header id="phead"><img src="/icons/icon-32.png" alt="" style="width:18px;height:18px;vertical-align:-4px;margin-right:9px" /><b style="letter-spacing:.45em;font-weight:800">STEWIE</b><span style="opacity:.55;font-size:10px;margin-left:10px;letter-spacing:.18em">DIGITAL TWIN &amp; PLANNING PLATFORM</span><span style="font-size:10px;margin-left:10px;color:var(--accent);letter-spacing:.12em">IN SILICO → IN SITU</span><span id="stver" style="opacity:.45;font-size:10px;margin-left:8px"></span><span id="conops" title="ConOps position (operator finding 2.8: a status visual for where we are in the cycle)" style="font-size:10px;margin-left:12px;letter-spacing:.08em;color:var(--muted)">CONOPS —</span><span id="out">—</span></header>
 
     <section>
-      <h3>Contents — map layers &amp; sun</h3>
-      <div id="contents-pane"></div>
-      <div id="workbench" style="margin-top:6px"></div>
-      <div id="legendbox" style="font-size:10px; line-height:1.5; margin-top:4px; display:none"></div>
-      <h3>1 · Site — body &amp; imagery</h3>
+      <h3>1 · Site — where are we</h3>
       <div class="ctl">
         <label>Body <select id="body"></select></label>
         <label>Layer <select id="layer"></select></label>
@@ -199,10 +195,14 @@
   <span id="scaleval" style="margin-left:4px"></span>
   </div>
 
+      <h3>2 · Contents — map layers &amp; sun</h3>
+      <div id="contents-pane"></div>
+      <div id="workbench" style="margin-top:6px"></div>
+      <div id="legendbox" style="font-size:10px; line-height:1.5; margin-top:4px; display:none"></div>
     </section>
 
     <section>
-      <h3>2 · Fleet</h3>
+      <h3>3 · Fleet</h3>
       <div class="ctl"><label>Vehicle <select id="vehicle"></select></label>
         <label title="regolith model — defaults to the body's own; override to e.g. run Earth soil on a lunar map">Soil <select id="soil"></select></label></div>
       <div class="ctl"><label title="fleet size — >1 plans a multi-vehicle mission (site-exclusive allocation, parallel makespan, deconfliction)">Rovers <input id="vehcount" type="number" value="1" min="1" max="16" step="1" /></label></div>
@@ -211,7 +211,7 @@
     </section>
 
     <section>
-      <h3>3 · Feasibility — quick estimate <small>(sandbox; per-order totals live in 4·Plan)</small></h3>
+      <h3>4 · Feasibility — quick estimate <small>(sandbox; per-order totals live in 4·Plan)</small></h3>
       <div class="ctl"><label>pad <input id="padW" type="number" value="20" step="1" />×<input id="padL" type="number" value="20" step="1" /> m</label></div>
       <div class="ctl">
         <label>cut <input id="cut" type="number" value="0.10" step="0.01" /> m</label>
@@ -221,7 +221,7 @@
     </section>
 
     <section>
-      <h3>4 · Plan — the mission, in order</h3>
+      <h3>5 · Plan — the mission, in order</h3>
       <div class="step">A · Where are we <small>— site picked in 1·Site; charger + lander at (0,0)</small></div>
       <div class="step">B · Traverse <small>— draw the path first (waypoints; ✏ below the map)</small></div>
       <div class="step">C · Work <small>— orders + structures at locations (estimate updates on entry)</small></div>
@@ -322,7 +322,7 @@
     </section>
 
     <section>
-      <h3>5 · Catalog — saved missions &amp; structures</h3>
+      <h3>6 · Catalog — saved missions &amp; structures</h3>
       <div class="ctl"><input id="msname" class="lbl" placeholder="mission name" style="max-width:11em" />
         <button id="mssave" class="site">💾 Save mission</button></div>
       <textarea id="msnotes" placeholder="mission notes (saved with the document)"
@@ -332,7 +332,7 @@
         <button id="stsave" class="site" title="saves the CURRENT queue (relative to its first order) as a reusable structure template">＋ Template</button></div>
       <ol id="stlist" style="font-size:11px;margin:4px 0;padding-left:18px"></ol>
 
-      <h3>6 · Telemetry — channels &amp; drum sensing <small>(ICE-RASSOR drum; exec feed)</small></h3>
+      <h3>7 · Telemetry — channels &amp; drum sensing <small>(ICE-RASSOR drum; exec feed)</small></h3>
       <div id="telerail" style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0"></div>
       <canvas id="telespark" width="300" height="56" title="sparklines: battery (red), mass moved (amber), slip (blue) — fed by the execution feed" style="width:100%;border:1px solid var(--line);border-radius:4px"></canvas>
       <div class="ctl">fill <input id="drumkg" type="number" value="20" step="1" /> kg
@@ -714,19 +714,27 @@ function setMoonOverlaysVisible(on) {                      // body-scope: Hawort
   if (!on) Object.keys(GLOBE_LAYERS).forEach((k) => globeLayer(k, "", false));
 }
 
-function applyLayer(key, idx) {                            // swap the base imagery to the selected layer
+// #51 (Aaron): basemaps STACK -- multiple simultaneous imagery layers with per-layer opacity,
+// independent of the analysis layers. The dropdown ADDS; cards manage the stack.
+const BASEMAP_STACK = [];                                  // [{idx, layer}]
+function applyLayer(key, idx, stack) {
   const L = BODIES[key].layers[idx];
-  viewer.imageryLayers.removeAll();
-  Object.keys(GLOBE_LAYERS).forEach((k) => delete GLOBE_LAYERS[k]);   // removeAll killed them
+  if (!stack) {                                            // body (re)load: reset to this base
+    viewer.imageryLayers.removeAll();
+    BASEMAP_STACK.length = 0;
+    Object.keys(GLOBE_LAYERS).forEach((k) => delete GLOBE_LAYERS[k]);
+  }
+  if (BASEMAP_STACK.some((b) => b.idx === idx)) return;    // already stacked
   const o = { url: L.url, maximumLevel: L.maxLevel, tileWidth: L.tile, tileHeight: L.tile, credit: L.credit };
-  if (L.geographic)   // Trek = equirectangular 2x1; Esri (Earth) uses the default WebMercator scheme
+  if (L.geographic)
     o.tilingScheme = new Cesium.GeographicTilingScheme({ numberOfLevelZeroTilesX: 2, numberOfLevelZeroTilesY: 1 });
-  viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider(o));
-  // BUGFIX: swapping the basemap wiped the Haworth DEM + active GIS overlays -- restore them
-  if (key === "moon" && HAWORTH_RECT) {
+  const lyr = viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider(o));
+  BASEMAP_STACK.push({ idx, layer: lyr });
+  if (!stack && BODIES[key] === BODIES.moon && HAWORTH_RECT) {
     globeLayer("dem", "/dem/hillshade.png", LAYER_ON.dem !== false);
     GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); });
   }
+  renderWorkbench();
 }
 
 function flyTo(lat, lon, height) {
@@ -985,7 +993,7 @@ sel.onchange = () => {
   loadBody(sel.value); showTerra(); estimate(); showSiteDem();
   setMoonOverlaysVisible(sel.value === "moon");            // Haworth is a MOON feature (bugfix 2026-06-10)
 };
-$("layer").onchange = () => applyLayer(sel.value, +$("layer").value);   // swap imagery without reloading the body
+$("layer").onchange = () => applyLayer(sel.value, +$("layer").value, true);   // ADD to the basemap stack (#51)
 $("terrainfo").onclick = () => $("terra").classList.toggle("show");     // terramechanics on demand (updates per body)
 
 // click the Haworth DEM inset to plan + render that area (the select-area -> render loop)
@@ -1211,6 +1219,26 @@ function renderWorkbench() {
     illumination: { name: "Shadow (mission-time sun)", text: LEGEND.illumination.text, sw: "#5577dd" },
     psr: { name: "Permanently shadowed regions", text: LEGEND.psr.text, sw: "#9966dd" },
   };
+  BASEMAP_STACK.forEach((bm, bi) => {                      // #51: basemap cards (stack + opacity)
+    const L = BODIES[sel.value].layers[bm.idx]; if (!L) return;
+    const card = document.createElement("div");
+    card.style.cssText = "border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin:4px 0;font-size:10px;line-height:1.45";
+    const head = document.createElement("div"); head.style.cssText = "display:flex;align-items:center;gap:6px";
+    const ttl = document.createElement("b"); ttl.textContent = "🗺 " + L.name; head.appendChild(ttl);
+    if (BASEMAP_STACK.length > 1) {
+      const rm = document.createElement("button"); rm.textContent = "✕"; rm.title = "remove basemap";
+      rm.style.cssText = "margin-left:auto;background:none;border:1px solid var(--line);border-radius:4px;color:var(--txt);cursor:pointer;font-size:10px";
+      rm.onclick = () => { viewer.imageryLayers.remove(bm.layer, true); BASEMAP_STACK.splice(bi, 1); renderWorkbench(); };
+      head.appendChild(rm);
+    }
+    card.appendChild(head);
+    const op = document.createElement("input");
+    op.type = "range"; op.min = "10"; op.max = "100"; op.value = String(Math.round((bm.layer.alpha ?? 1) * 100));
+    op.style.cssText = "display:block;box-sizing:border-box;width:100%;margin:3px 0 0"; op.title = "basemap opacity";
+    op.oninput = () => { bm.layer.alpha = +op.value / 100; };
+    card.appendChild(op);
+    wb.appendChild(card);
+  });
   Object.keys(CARDS).forEach((k) => {
     if (!LAYER_ON[k]) return;
     const c = CARDS[k];
@@ -1247,7 +1275,7 @@ function renderWorkbench() {
     if (k !== "dem") {                                     // opacity (the globe imagery layer)
       const op = document.createElement("input");
       op.type = "range"; op.min = "10"; op.max = "100"; op.value = String(LAYER_OPACITY[k] || 100);
-      op.style.cssText = "width:100%;margin-top:3px";
+      op.style.cssText = "display:block;box-sizing:border-box;width:100%;margin:3px 0 0";
       op.title = "layer opacity";
       op.oninput = () => {
         LAYER_OPACITY[k] = +op.value;
