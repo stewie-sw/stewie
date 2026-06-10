@@ -337,6 +337,62 @@ def get_index():
     return FileResponse(os.path.join(HERE, "index.html"), media_type=_CTYPE[".html"])
 
 
+# ---- S-4: the object store (catalog) ---------------------------------------------------------
+from stewie.server import objects as OBJ               # noqa: E402
+
+
+@app.post("/missions/{name}")
+def mission_save(name: str, doc: dict, _auth: None = Depends(require_auth)):
+    try:
+        return {"ok": True, **OBJ.save_mission(name, doc)}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+
+
+@app.get("/missions")
+def mission_list():
+    return {"ok": True, "missions": OBJ.list_missions()}
+
+
+@app.get("/missions/{name}")
+def mission_load(name: str):
+    d = OBJ.load_mission(name)
+    if d is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no mission {name!r}"})
+    return {"ok": True, "doc": d}
+
+
+@app.delete("/missions/{name}")
+def mission_delete(name: str, _auth: None = Depends(require_auth)):
+    return {"ok": OBJ.delete_mission(name)}
+
+
+@app.post("/structures/custom/{name}")
+def structure_save(name: str, doc: dict, _auth: None = Depends(require_auth)):
+    try:
+        return {"ok": True, **OBJ.save_structure(name, doc)}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+
+
+@app.get("/structures/custom")
+def structure_list():
+    return {"ok": True, "structures": OBJ.list_structures()}
+
+
+@app.get("/structures/custom/{name}/expand")
+def structure_expand(name: str, x: float, y: float):
+    orders = OBJ.expand_structure(name, x, y)
+    if orders is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no structure {name!r}"})
+    return {"ok": True, "orders": orders}
+
+
+@app.delete("/structures/custom/{name}")
+def structure_delete(name: str, _auth: None = Depends(require_auth)):
+    return {"ok": OBJ.delete_structure(name)}
+
+
 @app.get("/dem/georef")
 def dem_georef():
     """The Haworth tile's globe footprint (selenographic corners) for the cockpit overlay."""

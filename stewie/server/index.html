@@ -293,6 +293,14 @@
     </section>
 
     <section>
+      <h3>5 · Catalog — saved missions &amp; structures</h3>
+      <div class="ctl"><input id="msname" class="lbl" placeholder="mission name" style="max-width:11em" />
+        <button id="mssave" class="site">💾 Save mission</button></div>
+      <ol id="mslist" style="font-size:11px;margin:4px 0;padding-left:18px"></ol>
+      <div class="ctl" style="margin-top:6px"><input id="stname" class="lbl" placeholder="new structure from queue" style="max-width:13em" />
+        <button id="stsave" class="site" title="saves the CURRENT queue (relative to its first order) as a reusable structure template">＋ Template</button></div>
+      <ol id="stlist" style="font-size:11px;margin:4px 0;padding-left:18px"></ol>
+
       <h3>Drum sensor <small>motor current, no load cell (ICE-RASSOR)</small></h3>
       <div class="ctl">fill <input id="drumkg" type="number" value="20" step="1" /> kg
         <label><input id="drumnoise" type="checkbox" /> noise</label></div>
@@ -1501,6 +1509,69 @@ fetch("bodies.json").then((r) => (r.ok ? r.json() : null)).then((d) => {
   if (d) { PHY = d; showTerra(); estimate(); populateFleet(); }
 }).catch(() => {});
 refreshProfiles();                                            // populate the saved-profiles dropdown
+// ---- S-4: the Catalog (saved missions + custom structure templates) ---------------------------
+async function refreshCatalog() {
+  try {
+    const ms = await (await fetch("/missions")).json();
+    const ol = $("mslist"); ol.innerHTML = "";
+    (ms.missions || []).forEach((m) => {
+      const li = document.createElement("li");
+      li.append(`${m.title || m.name} · ${m.body} · ${m.n_orders} orders `,
+        mkbtn("⤓ load", async () => {
+          const d = (await (await fetch(`/missions/${m.name}`)).json()).doc;
+          if (!d) return;
+          if (d.body && d.body !== sel.value) { sel.value = d.body; sel.onchange(); }
+          ORDERS.length = 0; (d.orders || []).forEach((o) => ORDERS.push(o));
+          KEEPOUTS.length = 0; (d.keepouts || []).forEach((k) => KEEPOUTS.push(k));
+          renderQueue(); setQ(`loaded mission "${m.title || m.name}"`);
+        }),
+        mkbtn("✕", async () => {
+          await fetch(`/missions/${m.name}`, { method: "DELETE", headers: apiHeaders() });
+          refreshCatalog();
+        }));
+      ol.appendChild(li);
+    });
+    const st = await (await fetch("/structures/custom")).json();
+    const sl = $("stlist"); sl.innerHTML = "";
+    (st.structures || []).forEach((s) => {
+      const li = document.createElement("li");
+      li.append(`${s.title || s.name} · ${s.n_entries} parts `,
+        mkbtn("⤓ place", async () => {
+          const x = +$("qx").value || 0, y = +$("qy").value || 0;
+          const ex = await (await fetch(`/structures/custom/${s.name}/expand?x=${x}&y=${y}`)).json();
+          if (ex.ok) { ex.orders.forEach((o) => ORDERS.push(o)); renderQueue();
+            setQ(`placed "${s.name}" at (${x}, ${y})`); }
+        }),
+        mkbtn("✕", async () => {
+          await fetch(`/structures/custom/${s.name}`, { method: "DELETE", headers: apiHeaders() });
+          refreshCatalog();
+        }));
+      sl.appendChild(li);
+    });
+  } catch (e) { /* offline preview */ }
+}
+$("mssave").onclick = async () => {
+  const name = $("msname").value.trim(); if (!name) { setQ("name the mission first"); return; }
+  const r = await fetch(`/missions/${encodeURIComponent(name)}`, { method: "POST",
+    headers: apiHeaders(), body: JSON.stringify({ body: sel.value, orders: ORDERS,
+      keepouts: KEEPOUTS, precedence: parsePrec() }) });
+  if (r.status === 401) { setQ("⚠ API key required: ⚙ Settings"); setView("settings"); return; }
+  setQ((await r.json()).ok ? `saved mission "${name}"` : "save failed"); refreshCatalog();
+};
+$("stsave").onclick = async () => {
+  const name = $("stname").value.trim(); if (!name) { setQ("name the template first"); return; }
+  const work = ORDERS.filter((o) => o.kind !== "goto");
+  if (!work.length) { setQ("queue some orders first -- the template captures them relative to the first"); return; }
+  const ox = work[0].x, oy = work[0].y;
+  const kind_list = work.map((o) => ({ kind: o.kind, dx: o.x - ox, dy: o.y - oy,
+    footprint_m2: o.footprint_m2, depth_m: o.depth_m }));
+  const r = await fetch(`/structures/custom/${encodeURIComponent(name)}`, { method: "POST",
+    headers: apiHeaders(), body: JSON.stringify({ kind_list }) });
+  if (r.status === 401) { setQ("⚠ API key required: ⚙ Settings"); setView("settings"); return; }
+  setQ((await r.json()).ok ? `template "${name}" saved` : "template save failed"); refreshCatalog();
+};
+refreshCatalog();
+
 // lazy: /sense is auth-gated -- fire on first user interaction, not page load (401-on-load fix)
 qel("drumkg").addEventListener("focus", () => senseDrum(), { once: true });
 
