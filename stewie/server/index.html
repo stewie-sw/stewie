@@ -617,6 +617,31 @@ function loadBody(key) {
   // click to pick a surface coordinate
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction((e) => {
+    const pickedPin = viewer.scene.pick(e.position);
+    if (pickedPin && pickedPin.id && PIN_REFS.has(pickedPin.id)) {   // #64: select a pin
+      if (SELECTED_PIN) SELECTED_PIN.point.outlineColor = Cesium.Color.BLACK;
+      SELECTED_PIN = pickedPin.id;
+      SELECTED_PIN.point.outlineColor = Cesium.Color.fromCssColorString("#39ff14");
+      setQ("feature selected — press Delete to remove; in ✎ Edit, click a new spot to MOVE it");
+      return;
+    }
+    if (EDIT.on && SELECTED_PIN) {                          // #64: edit-mode click MOVES the selection
+      const cm = viewer.camera.pickEllipsoid(e.position, ellipsoid);
+      if (cm) {
+        const ca2 = Cesium.Cartographic.fromCartesian(cm, ellipsoid);
+        const la2 = Cesium.Math.toDegrees(ca2.latitude), lo2 = Cesium.Math.toDegrees(ca2.longitude);
+        fetch(`/dem/site_xy?lat=${la2}&lon=${lo2}`).then((r) => r.json()).then((d2) => {
+          if (!d2.ok) { setQ("outside the mapped tile"); return; }
+          const ref = PIN_REFS.get(SELECTED_PIN);
+          if (ref) { ref.obj.x = d2.x_m; ref.obj.y = d2.y_m; }
+          SELECTED_PIN.position = Cesium.Cartesian3.fromDegrees(lo2, la2, 0, ellipsoid);
+          if (SELECTED_PIN.label) SELECTED_PIN.label.text =
+            (ref && ref.kind === "order" ? `${ref.obj.action} ` : "") + `(${d2.x_m}, ${d2.y_m})`;
+          renderQueue(); setQ(`moved to site ${d2.x_m}, ${d2.y_m} m`);
+        });
+        return;
+      }
+    }
     if (EDIT.on) {                                         // edit session: clicks DRAW (#40/#41)
       const c0 = viewer.camera.pickEllipsoid(e.position, ellipsoid);
       if (c0) { const ca0 = Cesium.Cartographic.fromCartesian(c0, ellipsoid);
@@ -768,8 +793,8 @@ function setEdit(on) {
   $("editmode").style.display = on ? "none" : "";
   if ($("editstate")) $("editstate").textContent = on ? "LOCKED · pick a tool" : "";
 }
-function dropPin(lat, lon, text, color) {                  // #61: the placement is VISIBLE on the map
-  EDIT_PINS.push(viewer.entities.add({
+function dropPin(lat, lon, text, color, ref) {             // #64: pins carry their FEATURE ref
+  const pin = viewer.entities.add({
     position: Cesium.Cartesian3.fromDegrees(lon, lat, 0, ellipsoid),
     point: { pixelSize: 8, color: Cesium.Color.fromCssColorString(color),
              outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
@@ -777,8 +802,32 @@ function dropPin(lat, lon, text, color) {                  // #61: the placement
              fillColor: Cesium.Color.fromCssColorString("#c7d2e3"),
              pixelOffset: new Cesium.Cartesian2(0, -14), showBackground: true,
              backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
-  }));
+  });
+  EDIT_PINS.push(pin);
+  if (ref) PIN_REFS.set(pin, ref);
+  return pin;
 }
+const PIN_REFS = new Map();                                // pin entity -> {kind, obj}
+let SELECTED_PIN = null;
+function deleteSelectedPin() {                             // #64: Delete removes feature + pin
+  if (!SELECTED_PIN) return;
+  const ref = PIN_REFS.get(SELECTED_PIN);
+  if (ref) {
+    if (ref.kind === "order") { const i = ORDERS.indexOf(ref.obj); if (i >= 0) ORDERS.splice(i, 1); }
+    if (ref.kind === "keepout") { const i = KEEPOUTS.indexOf(ref.obj); if (i >= 0) KEEPOUTS.splice(i, 1); }
+    if (ref.kind === "note") { const i = ANNOTATIONS.indexOf(ref.obj); if (i >= 0) ANNOTATIONS.splice(i, 1); }
+  }
+  viewer.entities.remove(SELECTED_PIN);
+  const k = EDIT_PINS.indexOf(SELECTED_PIN); if (k >= 0) EDIT_PINS.splice(k, 1);
+  PIN_REFS.delete(SELECTED_PIN); SELECTED_PIN = null;
+  renderQueue(); setQ("feature deleted");
+}
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "Delete" || e.key === "Backspace") && SELECTED_PIN &&
+      !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) {
+    e.preventDefault(); deleteSelectedPin();
+  }
+});
 async function editPlace(lat, lon) {
   if (!EDIT.tool) { $("editstate").textContent = "LOCKED · pick a tool first"; return; }
   const r = await fetch(`/dem/site_xy?lat=${lat}&lon=${lon}`);
@@ -786,18 +835,21 @@ async function editPlace(lat, lon) {
   if (!d.ok) { $("editstate").textContent = "outside the mapped tile"; return; }
   if (EDIT.tool === "goto") {
     const n = ORDERS.filter((o) => o.kind === "goto").length + 1;
-    ORDERS.push({ action: `wp${n}`, kind: "goto", x: d.x_m, y: d.y_m });
-    dropPin(lat, lon, `wp${n} (${d.x_m}, ${d.y_m})`, "#e8273f");
+    const wp = { action: `wp${n}`, kind: "goto", x: d.x_m, y: d.y_m };
+    ORDERS.push(wp);
+    dropPin(lat, lon, `wp${n} (${d.x_m}, ${d.y_m})`, "#e8273f", { kind: "order", obj: wp });
     renderQueue(); $("editstate").textContent = `wp${n} @ site ${d.x_m}, ${d.y_m} m`;
   } else if (EDIT.tool === "keepout") {
-    KEEPOUTS.push({ x: d.x_m, y: d.y_m, r: 8 });
-    dropPin(lat, lon, `keep-out r8 (${d.x_m}, ${d.y_m})`, "#e0564b");
+    const ko = { x: d.x_m, y: d.y_m, r: 8 };
+    KEEPOUTS.push(ko);
+    dropPin(lat, lon, `keep-out r8 (${d.x_m}, ${d.y_m})`, "#e0564b", { kind: "keepout", obj: ko });
     if (typeof renderKeepouts === "function") renderKeepouts();
     drawPlan(); $("editstate").textContent = `keep-out @ ${d.x_m}, ${d.y_m} m (r 8)`;
   } else if (EDIT.tool === "note") {
     const text = prompt("note text:") || "";
-    if (text) { ANNOTATIONS.push({ x: d.x_m, y: d.y_m, text });
-      dropPin(lat, lon, `📝 ${text.slice(0, 24)}`, "#e0b300");
+    if (text) { const an = { x: d.x_m, y: d.y_m, text };
+      ANNOTATIONS.push(an);
+      dropPin(lat, lon, `📝 ${text.slice(0, 24)}`, "#e0b300", { kind: "note", obj: an });
       $("editstate").textContent = `note @ ${d.x_m}, ${d.y_m} m`; drawPlan(); }
   }
 }
@@ -1041,6 +1093,9 @@ if ($("set-theme")) $("set-theme").onchange = () => {
   SETTINGS.theme = $("set-theme").value; saveSettings(SETTINGS); applySettings(SETTINGS);
 };
 if ($("set-signin")) {
+  fetch("/auth/config").then((r) => r.json()).then((c) => {   // hide the row when disabled
+    if (!c.operator_login) $("set-opemail").closest("label").style.display = "none";
+  }).catch(() => {});
   $("set-opemail").value = SETTINGS.opemail || "";
   if (SETTINGS.opemail && SETTINGS.optoken) $("set-opstate").textContent = "signed in: " + SETTINGS.opemail;
   $("set-signin").onclick = async () => {

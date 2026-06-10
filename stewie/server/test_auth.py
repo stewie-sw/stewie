@@ -69,3 +69,11 @@ def test_tailscale_header_honored_only_when_trusted(client, monkeypatch):
     r3 = client.post("/missions/ts2", headers={"Tailscale-User-Login": "evil@gmail.com"},
                      json={"body": "moon", "orders": []})
     assert r3.status_code == 401
+
+
+def test_operator_login_kill_switch(client, monkeypatch):
+    monkeypatch.setenv("STEWIE_OPERATOR_LOGIN", "0")
+    r = client.post("/auth/login", json={"email": "aaron.w.storey80@gmail.com"},
+                    headers={"X-API-Key": "test-key"})
+    assert r.status_code == 403 and "disabled" in r.json()["error"]
+    assert client.get("/auth/config").json()["operator_login"] is False
