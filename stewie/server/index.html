@@ -82,7 +82,10 @@
     background: linear-gradient(180deg, #e8edf5, var(--panel)); }
   body.light #viewarea { background: #dfe5ef; }
   #phead #out { margin-left: auto; color: var(--accent); font-size: 12px; font-variant-numeric: tabular-nums; }
-  #panel section { padding: 13px 16px; border-bottom: 1px solid var(--line); }
+  #panel section { padding: 0 16px; }
+  /* the separator lives on the GROUP now (h3-split details), not the section wrapper --
+     groups sharing a section had no break between them (Aaron: Contents->Site, Catalog->Telemetry) */
+  #panel details { padding: 11px 0; border-bottom: 1px solid var(--line); }
   #panel h3 { margin: 0 0 10px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
   #panel h3 small { color: var(--dim); font-size: 10px; letter-spacing: 0; text-transform: none; font-weight: 400; }
   .ctl { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 7px; }
