@@ -626,6 +626,16 @@ function loadBody(key) {
     }
     // #37 (Aaron): clicking the HAWORTH WORK AREA loads the real granular maps into the BIG window
     const picked = viewer.scene.pick(e.position);
+    if (picked && picked.id) {                             // a SITE marker jumps to ITS OWN site
+      const m = SITE_MARKERS.find((x) => x.ent === picked.id);
+      if (m) {
+        viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(
+          m.site.lon, m.site.lat, 40000, viewer.scene.globe.ellipsoid) });
+        setQ(m.site.imported ? `${m.site.label}: DEM imported` :
+          `${m.site.label}: no DEM bundle yet (import via the PGDA pipeline)`);
+        return;
+      }
+    }
     // the auto-load is a GO-TO-SITE gesture from afar; once you're zoomed in, clicks ON the
     // square must pass through to normal picking (Aaron: "can select around the haworth square
     // -- just not on top of it").
@@ -738,7 +748,7 @@ function loadBody(key) {
     if (!j.ok || !viewer) return;
     j.sites.forEach((s) => {
       if (s.name === "haworth") return;                    // Haworth has the footprint already
-      HAWORTH_ENTITIES.push(viewer.entities.add({
+      SITE_MARKERS.push({ site: s, ent: viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 0, ellipsoid),
         point: { pixelSize: 7, color: Cesium.Color.fromCssColorString(s.imported ? "#3fa34d" : "#e0b300"),
                  outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
@@ -747,7 +757,7 @@ function loadBody(key) {
                  pixelOffset: new Cesium.Cartesian2(0, -14), showBackground: true,
                  backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb"),
                  distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2.0e6) },
-      }));
+      }) });
     });
   }).catch(() => {});
 }
@@ -784,6 +794,9 @@ async function editPlace(lat, lon) {
 // #54 follow-up (Aaron: "default to on -- no matter where we are looking on bodies"): a global
 // 10-degree graticule on EVERY body, same color setting as the site grid.
 let GRATICULE = [];
+const SITE_MARKERS = [];                                   // {site, ent} -- NOT Haworth entities
+                                                           // (the bug: markers in HAWORTH_ENTITIES
+                                                           // made every site click jump to Haworth)
 function drawGraticule() {
   if (!viewer) return;
   GRATICULE.forEach((e) => viewer.entities.remove(e));
