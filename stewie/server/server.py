@@ -337,6 +337,26 @@ def get_index():
     return FileResponse(os.path.join(HERE, "index.html"), media_type=_CTYPE[".html"])
 
 
+@app.get("/fonts/{name}")
+def get_font(name: str):
+    """Vendored brand fonts (Orbitron, OFL -- license shipped alongside). No CDN at runtime."""
+    safe = os.path.basename(name)
+    path = os.path.join(HERE, "fonts", safe)
+    if not os.path.isfile(path):
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no font {safe}"})
+    return FileResponse(path, media_type="font/ttf" if safe.endswith(".ttf") else "text/plain")
+
+
+@app.get("/icons/{name}")
+def get_icon(name: str):
+    """The app-icon set (cropped from the brand board's 1024 tile)."""
+    safe = os.path.basename(name)
+    path = os.path.join(HERE, "icons", safe)
+    if not os.path.isfile(path):
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no icon {safe}"})
+    return FileResponse(path, media_type="image/png")
+
+
 @app.get("/bodies.json")
 def get_bodies():
     p = os.path.join(HERE, "bodies.json")

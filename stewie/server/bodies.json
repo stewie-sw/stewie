@@ -176,6 +176,36 @@
       "system_power_includes": "drive_flat + avionics + thermal_survival (comms excluded; add comms_w when transmitting)"
     }
   },
+  "bp1_testbed": {
+    "name": "bp1_testbed",
+    "label": "BP-1 (GMRO test bed)",
+    "g": 9.81,
+    "bekker_regime": "gravity-loaded",
+    "bulk_density": 1750.0,
+    "cohesion_pa": 1040.0,
+    "friction_deg": 28.0,
+    "repose_deg": 34.0,
+    "bekker": {
+      "k_c": 990.0,
+      "k_phi": 1528430.0,
+      "n": 1.1
+    },
+    "confidence": "density MEASURED (BP-1 compacted, WHEELTEST); shear 27-32 kPa + penetration 206-226 kPa MEASURED (BDSCALE) as provenance; Bekker [ANALOG: Wong dry sand -- a BP-1 Bekker fit is unpublished and deliberately NOT fabricated].",
+    "g_note": "",
+    "role": "Earth-validation soil: the GMRO bed the real hardware is tested in.",
+    "provenance": "BP-1: 1.75 g/cm^3 compacted [WHEELTEST p.4]; Humboldt shear-vane 27-32 kPa, penetrometer 206-226 kPa [BDSCALE]; moduli = Wong dry-sand baseline [ANALOG].",
+    "ipex_power": {
+      "drive_power_w": 26.487,
+      "drive_j_per_m": 88.29,
+      "drive_power_15deg_w": 71.29,
+      "system_power_w": 71.49,
+      "avionics_w": 15.0,
+      "comms_w": 15.0,
+      "thermal_survival_w": 30.0,
+      "thermal_by_env_w": {},
+      "system_power_includes": "drive_flat + avionics + thermal_survival (comms excluded; add comms_w when transmitting)"
+    }
+  },
   "_ipex": {
     "drum_kg": 30.0,
     "dig_j_per_kg": 4151.4,
@@ -235,7 +265,7 @@
       "label": "RASSOR 2.0 (TRL-4 breadboard precursor)",
       "dry_mass_kg": 65.0,
       "n_wheels": 4,
-      "drum_capacity_kg": 49.96,
+      "drum_capacity_kg": 80.0,
       "drive_power_w": 40.38,
       "dig_energy_j_per_kg": 4151.4,
       "capabilities": [

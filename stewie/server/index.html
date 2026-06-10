@@ -3,11 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>STEWIE — IPEx builds the Moon. STEWIE plans the build.</title>
+<title>STEWIE — Digital Twin &amp; Planning Platform</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+<link rel="apple-touch-icon" href="/icons/icon-192.png" />
 <link href="https://unpkg.com/cesium@1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
 <script src="https://unpkg.com/cesium@1.119/Build/Cesium/Cesium.js"></script>
 <style>
   /* Professional palette: neutral slate + ONE blue accent; color reserved for semantic meaning. */
+  @font-face {
+    font-family: "Orbitron";                       /* vendored, OFL (fonts/OFL.txt); no CDN */
+    src: url("/fonts/Orbitron.ttf") format("truetype");
+    font-weight: 400 900; font-display: swap;
+  }
   :root {
     /* STEWIE brand board (design/BRAND_UI_ANALYSIS_2026-06-10.md): lunar black + graphite ramp,
        ONE hot accent = drum red; blue retired 2026-06-10 */
@@ -47,7 +55,21 @@
     background: var(--panel); border-right: 1px solid var(--line); box-sizing: border-box; }
   #phead { position: sticky; top: 0; z-index: 2; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
     padding: 13px 16px; background: var(--head); border-bottom: 1px solid var(--line); }
-  #phead b { color: #e6edfb; letter-spacing: .08em; font-size: 13px; font-weight: 600; }
+  #phead b { color: #f2f2f4; font-family: "Orbitron", system-ui, sans-serif;
+    font-size: 14px; font-weight: 700; }
+  .vtab { font-family: "Orbitron", system-ui, sans-serif; letter-spacing: .08em;
+    text-transform: uppercase; font-size: 10.5px; }
+  .cap, .cap span, h3, label > b, .sidehead { letter-spacing: .1em; }
+  /* the brand board's 3-tier buttons: primary solid red / secondary outlined / ghost text */
+  button { border-radius: 6px; transition: background .12s, border-color .12s, color .12s; }
+  button.plan, button.go { background: linear-gradient(180deg, var(--accent), var(--fill));
+    border: 1px solid var(--fill-h); color: #fff; font-weight: 600; }
+  button.plan:hover, button.go:hover { background: var(--fill-h); }
+  button.site { background: transparent; border: 1px solid var(--field-bd); color: var(--txt); }
+  button.site:hover { border-color: var(--accent); color: var(--accent); }
+  button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pane, #workarea, #renderpanel { background: linear-gradient(180deg, #131316, var(--panel)); }
   #phead #out { margin-left: auto; color: var(--accent); font-size: 12px; font-variant-numeric: tabular-nums; }
   #panel section { padding: 13px 16px; border-bottom: 1px solid var(--line); }
   #panel h3 { margin: 0 0 10px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
