@@ -11,9 +11,15 @@
   :root {
     --bg:#0a0e16; --panel:#0d1320; --head:#121a2b; --line:#1e2738; --field:#141c2b; --field-bd:#2a3650;
     --txt:#c7d2e3; --muted:#79839a; --dim:#5a6478; --accent:#4f9cff; --fill:#2563eb; --fill-h:#1d4ed8;
+    --fontpx:13px;   /* UI-1 (Carstens & Schuler 2025 D1): operator-adjustable, persisted */
+  }
+  /* UI-2: light theme (dark stays default -- "dark room kept people calm", D8) */
+  body.light {
+    --bg:#f4f6fa; --panel:#ffffff; --head:#e8edf5; --line:#c9d4e4; --field:#eef2f8; --field-bd:#b8c6dc;
+    --txt:#16202e; --muted:#51607a; --dim:#74829c; --accent:#1d6ae5; --fill:#2563eb; --fill-h:#1d4ed8;
   }
   html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
-  body { font: 13px/1.45 system-ui, sans-serif; background: var(--bg); color: var(--txt); }
+  body { font: var(--fontpx)/1.45 system-ui, sans-serif; background: var(--bg); color: var(--txt); }
   /* one coherent left control sidebar + a tabbed view stage filling the rest */
   #app { display: flex; width: 100%; height: 100%; position: relative; }
   #stage { flex: 1 1 auto; min-width: 0; height: 100%; display: flex; flex-direction: column; }
@@ -257,6 +263,7 @@
       <button class="vtab" data-view="api">API</button>
       <button class="vtab" data-view="server">Server</button>
       <button class="vtab" data-view="config">Config</button>
+      <button class="vtab" data-view="settings" title="operator display settings (Carstens & Schuler 2025: font size + lighting)">⚙ Settings</button>
     </nav>
     <div id="viewarea">
       <div id="cesium"></div>
@@ -328,6 +335,26 @@
         <div class="cap"><span>SERVER — health + metrics</span>
           <button id="srvrefresh" class="go">↻ refresh</button></div>
         <pre id="srvout" class="mono">—</pre>
+      </div>
+      <div id="pane-settings" class="pane">
+        <div class="cap"><span>SETTINGS — operator display (Carstens &amp; Schuler, IEMS 2025: D1 font / D4+D8 lighting)</span></div>
+        <div style="padding:14px; display:flex; flex-direction:column; gap:14px; max-width:34em">
+          <label style="display:flex; align-items:center; gap:10px">
+            <b>Theme</b>
+            <select id="set-theme">
+              <option value="dark">Dark (ops default — "dark room kept people calm")</option>
+              <option value="light">Light</option>
+            </select>
+          </label>
+          <label style="display:flex; align-items:center; gap:10px">
+            <b>Font size</b>
+            <input id="set-font" type="range" min="11" max="20" step="1" value="13" style="width:12em" />
+            <span id="set-fontv">13 px</span>
+          </label>
+          <div style="opacity:.75">Settings persist in this browser (localStorage). Source: the IPEx
+            mock-mission operator interviews — "font size small makes it hard to look at a glance"
+            (P8), "displays could have larger font" (P4); dim/dark lighting D4/D8. PRD §16.5.</div>
+        </div>
       </div>
       <div id="pane-config" class="pane">
         <div class="cap"><span>CONFIG — runtime overlay (PRD N15) + docs</span>
@@ -456,7 +483,8 @@ const $ = (id) => document.getElementById(id);
 // The globe (#cesium) stays mounted under the panes (no Cesium re-init); the active pane covers it.
 let VIEW = "plan";
 const VIEW_PANE = { perception: "renderpanel", metrics: "execview", report: "pane-report",
-                    validation: "pane-validation", api: "pane-api", server: "pane-server", config: "pane-config" };
+                    validation: "pane-validation", api: "pane-api", server: "pane-server", config: "pane-config",
+                    settings: "pane-settings" };
 const _PANE_LOADED = {};
 function setView(name) {
   VIEW = name;
@@ -467,6 +495,30 @@ function setView(name) {
   loadPane(name);
 }
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
+
+// ---- UI-1/UI-2 (PRD 16.5): operator display settings, persisted ------------------------------
+function applySettings(s) {
+  document.body.classList.toggle("light", s.theme === "light");
+  document.documentElement.style.setProperty("--fontpx", s.fontpx + "px");
+  const t = $("set-theme"), f = $("set-font"), fv = $("set-fontv");
+  if (t) t.value = s.theme;
+  if (f) f.value = s.fontpx;
+  if (fv) fv.textContent = s.fontpx + " px";
+}
+function loadSettings() {
+  let s = { theme: "dark", fontpx: 13 };
+  try { s = { ...s, ...(JSON.parse(localStorage.getItem("stewie_settings") || "{}")) }; } catch (e) {}
+  return s;
+}
+function saveSettings(s) { try { localStorage.setItem("stewie_settings", JSON.stringify(s)); } catch (e) {} }
+const SETTINGS = loadSettings();
+applySettings(SETTINGS);
+if ($("set-theme")) $("set-theme").onchange = () => {
+  SETTINGS.theme = $("set-theme").value; saveSettings(SETTINGS); applySettings(SETTINGS);
+};
+if ($("set-font")) $("set-font").oninput = () => {
+  SETTINGS.fontpx = parseInt($("set-font").value, 10); saveSettings(SETTINGS); applySettings(SETTINGS);
+};
 
 // lazy-load the engineer/dev/intern panes the first time shown (Server refreshes live each open). All read
 // real server endpoints; on file:// or a down server they keep their empty state (no fabricated content).
