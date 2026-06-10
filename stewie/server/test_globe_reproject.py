@@ -21,6 +21,10 @@ def test_reprojected_tile_has_geographic_bbox_and_content():
     interior = rgba[rgba.shape[0]//3:-rgba.shape[0]//3, rgba.shape[1]//3:-rgba.shape[1]//3]
     assert (interior[..., 3] > 0).mean() > 0.9             # the tile's middle is real content
     assert interior[..., 0].std() > 4.0                    # real relief, not flat fill
+    # Aaron's 2nd screenshot: the drape was the matplotlib PREVIEW FIGURE (axis labels + white
+    # margins on the Moon). The drape must be a CLEAN raster over the WHOLE footprint.
+    lit = rgba[rgba[..., 3] > 0]
+    assert (lit[..., 0] >= 250).mean() < 0.02              # <2% near-white: no figure margins
 
 
 def test_reprojection_centers_align():

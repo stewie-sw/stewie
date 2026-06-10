@@ -175,10 +175,17 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
     from imageio.v3 import imread
     dem_full, cell_m, b, fwd = _tile_geo(mp)
     if kind == "dem":
-        shade = imread(_os.path.join(mp._haworth_bundle(None), "preview_hillshade.png"))
-        if shade.ndim == 2:
-            shade = _np.stack([shade] * 3, axis=2)
-        rgba = _np.dstack([shade[..., :3], _np.full(shade.shape[:2], 255, dtype="uint8")])
+        # CLEAN cartographic hillshade computed from the RAW heightmap (Aaron's 2nd screenshot:
+        # preview_hillshade.png is a matplotlib FIGURE -- axis labels + white margins were being
+        # draped onto the Moon). Standard 315/45 lambertian; the real-sun SHADOW layer is separate.
+        gy, gx = _np.gradient(_np.asarray(dem_full, dtype=float), cell_m)
+        az, el = _np.radians(315.0), _np.radians(45.0)
+        nx, ny, nz = -gx, -gy, _np.ones_like(gx)
+        norm = _np.sqrt(nx * nx + ny * ny + nz * nz)
+        lx = _np.cos(el) * _np.sin(az); ly = _np.cos(el) * _np.cos(az); lz = _np.sin(el)
+        shade01 = _np.clip((nx * lx + ny * ly + nz * lz) / norm, 0.0, 1.0)
+        g8 = (40 + shade01 * 200).astype("uint8")        # lift the floor so shadows stay readable
+        rgba = _np.dstack([g8, g8, g8, _np.full(g8.shape, 255, dtype="uint8")])
         out = _reproject(rgba, b, fwd, out_px=1024)
     else:
         png = render(kind, sun_el=sun_el, sun_az=sun_az, mp=mp)
