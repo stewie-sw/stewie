@@ -490,6 +490,49 @@ def session_summary(sid: str, _auth: None = Depends(require_auth)):
     return PlainTextResponse(SES.summary_markdown(s), media_type="text/markdown")
 
 
+# ---- P2.2: the versioned observed-terrain twin (resync = the reconstruction update channel) ---
+from stewie.twin import versioned as VT                # noqa: E402
+
+_TWIN: "VT.TwinStore | None" = None
+
+
+def _twin() -> "VT.TwinStore":
+    """Lazy twin over the Haworth observed map (the planner's site); base = the loaded DEM."""
+    global _TWIN
+    if _TWIN is None:
+        dem, _anchor = _moon_dem()
+        base = dem[0] if isinstance(dem, tuple) else dem
+        import numpy as _np
+        if base is None:
+            base = _np.zeros((64, 64))                  # degraded mode mirrors _moon_dem's fallback
+        _TWIN = VT.TwinStore(_np.asarray(base, dtype=float), cell_m=5.0)
+    return _TWIN
+
+
+class ResyncRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    heights_m: list
+    origin_rc: list
+    provenance: str
+
+
+@app.post("/twin/resync")
+def twin_resync(req: ResyncRequest, _auth: None = Depends(require_auth)):
+    import numpy as _np
+    try:
+        v = _twin().apply_patch(_np.array(req.heights_m, dtype=float),
+                                origin_rc=tuple(req.origin_rc), provenance=req.provenance)
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    return {"ok": True, "twin_version": v}
+
+
+@app.get("/twin/version")
+def twin_version():
+    t = _twin()
+    return {"twin_version": t.version, "chain_valid": t.verify_chain(), "events": t.history()}
+
+
 @app.get("/healthz")
 def healthz():
     return {"status": "ok", "version": _version(), "uptime_s": round(time.monotonic() - _START, 1)}
