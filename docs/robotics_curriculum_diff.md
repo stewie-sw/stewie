@@ -1,6 +1,6 @@
-# dustgym vs the robotics curriculum — topic-coverage diff (2026-06-05)
+# STEWIE vs the robotics curriculum — topic-coverage diff (2026-06-05)
 
-A diff of what the standard robotics references teach against what dustgym's PRD + software actually
+A diff of what the standard robotics references teach against what STEWIE's PRD + software actually
 implements, and **what's missing**. Corpus = the MIT *Robotic Manipulation* course (Tedrake, fetched ToC)
 + the `kang702/robotic-books` set: Siegwart *Introduction to Autonomous Mobile Robots* (the most relevant),
 Lynch & Park *Modern Robotics*, Siciliano *Robotics: Modelling, Planning and Control*, Siciliano & Khatib
@@ -9,14 +9,14 @@ Craig *Introduction to Robotics*, Spong *Robot Dynamics and Control*, Corke *Rob
 Kajita/Nenchev (humanoids), and the linear-algebra foundations (Strang/Axler/Lay).
 
 Mapped against the canonical topic structure of those texts (these are standard curricula) + the fetched
-manipulation ToC. dustgym status is grounded in real modules. Legend: ✅ covered · 🟡 partial · ⬜ missing
+manipulation ToC. STEWIE status is grounded in real modules. Legend: ✅ covered · 🟡 partial · ⬜ missing
 · ⛔ host/data-gated · N/A (manipulation/humanoid-specific, out of scope for a wheeled construction rover).
 
 ---
 
 ## 1. Coverage matrix
 
-| Topic area | Corpus source | dustgym status | Where / the gap |
+| Topic area | Corpus source | STEWIE status | Where / the gap |
 |---|---|---|---|
 | **Linear algebra / optimization** | Strang, Axler, Lay; all texts | ✅ | numpy linalg, least-squares fits (`rassol_mass_model`, `self_optimizing`), Dijkstra, TSP/DP, PPO/CEM |
 | **Rigid-body transforms SE(3)/SO(3), screw theory, twists** | Modern Robotics, MLS, Craig | 🟡 | planar pose + unicycle (`rover.step_pose`); REP-103 frames in the sensor bridge (`frames.py`); no full SE(3)/screw kinematics (we are heightfield + planar) |
@@ -46,7 +46,7 @@ manipulation ToC. dustgym status is grounded in real modules. Legend: ✅ covere
 | **Task-and-motion planning (TAMP), behavior trees** | manip Ch5, Springer Handbook | 🟡 | the **Plan IR** (typed-action list + DAG) is the substrate; no BT executive / integrated TAMP |
 | **Reinforcement learning (policy-grad, value, model-based)** | manip Ch11, Springer Handbook | ✅+ | PPO (SB3) + CEM + **model-based beam-search on the exact authority** + search-distillation, with the honest "learning earns its keep only in multi-objective scheduling" finding |
 | **Imitation / behavior cloning / diffusion policy** | manip Ch10/11 | 🟡 | search-distillation is BC-like; no diffusion policy |
-| **Simulation / physics engines / Gym** | manip appendix (Drake), Springer Handbook | ✅ | conserved authority (sub-ms) + Chrono (⛔) + Godot render; the `dustgym` Gymnasium suite |
+| **Simulation / physics engines / Gym** | manip appendix (Drake), Springer Handbook | ✅ | conserved authority (sub-ms) + Chrono (⛔) + Godot render; the Gymnasium suite (pip-historical `dustgym`, now `stewie`) |
 | **ROS / middleware / real-time I/O** | Corke, Springer Handbook | 🟡⛔ | ROS2 Jazzy bridge (gated); FastAPI server batch-only (the streaming/cmd_vel seam is the open item) |
 | **Humanoid / legged modelling & control (ZMP, gait)** | Kajita, Nenchev, Springer Handbook | N/A | wheeled rover |
 | **Tactile / proprioceptive sensing** | manip Ch12, Springer Handbook | 🟡 | proprioceptive drum-current mass inference (`rassor_mass_model`, ICE-RASSOR); no contact/tactile at the dig interface |
@@ -85,19 +85,19 @@ Prioritized by leverage for "vehicles on Earth, plan→verify→execute→reasse
 ## 3. Out of scope (manipulation/humanoid-specific — correctly absent)
 
 Grasp synthesis, dexterous/soft hands, antipodal grasps & contact-wrench cones, peg-in-hole assembly, tactile
-*gripping*, visual servoing of an end-effector, manipulator dynamics, humanoid/legged ZMP/gait. dustgym is a
+*gripping*, visual servoing of an end-effector, manipulator dynamics, humanoid/legged ZMP/gait. STEWIE is a
 wheeled mass-conserving earthmover, not an arm — these are not gaps, they are a different machine.
 
-## 4. What dustgym has that the corpus largely does NOT (our contribution)
+## 4. What STEWIE has that the corpus largely does NOT (our contribution)
 
 Deep **terramechanics** (Bekker/Janosi-Hanamoto/Lyasko, per planetary body); **mass-conserved earthmoving**
 as the state transition (cut/haul/dump/grade/sinter, unhackable terrain-matching reward); **IPEx-grounded
 energy/battery/endurance**; **planetary regolith physics + illumination/PSR + Hapke photometry**; the
 **conserved-vs-learned** design split (exact dynamics, learn only the expensive perception/scheduling); and
 **multi-vehicle construction scheduling**. The standard texts are arm/humanoid/generic-mobile; the
-construction-earthmoving-on-regolith vertical is dustgym's own.
+construction-earthmoving-on-regolith vertical is STEWIE's own.
 
-**Bottom line:** dustgym is strong exactly where a *construction earthmover* must be (terramechanics,
+**Bottom line:** STEWIE is strong exactly where a *construction earthmover* must be (terramechanics,
 mass-conserved earthmoving, energy, mobile kinematics, RL-where-it-helps, the elevation map) and is missing
 the *general mobile-autonomy stack* the corpus teaches — SLAM/localization, sampling/continuous motion
 planning, reactive obstacle avoidance, and sensor-based perception — which is the same execution-and-perception

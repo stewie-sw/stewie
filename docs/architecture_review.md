@@ -3,9 +3,9 @@ title: "Architecture review"
 nav_order: 6
 ---
 
-# dustgym architectural review — production-readiness (2026-06-04)
+# STEWIE architectural review — production-readiness (2026-06-04)
 
-A six-agent architectural review of the single dustgym software (the conserved-physics core, the RL/Gymnasium
+A six-agent architectural review of the single STEWIE software (the conserved-physics core, the RL/Gymnasium
 suite + packaging, the planner + web/API, the perception/render seams, the cross-cutting production
 engineering, and the docs/PRD). Every finding is evidence-backed at `file:line`; the suites were run and the
 hot paths benchmarked. There is only this software now; `roversim` is deprecated.

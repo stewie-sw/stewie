@@ -1,8 +1,8 @@
-# SLAM pipeline analysis — dustgym vs *SLAM in Autonomous Driving* (Gao Xiang) → refines PRD P15
+# SLAM pipeline analysis — STEWIE vs *SLAM in Autonomous Driving* (Gao Xiang) → refines PRD P15
 
 Source: gisbi-kim/slam_in_autonomous_driving_en (the English *SLAM in Autonomous Driving*). It is the most
-directly-applicable reference for dustgym's #1 live-loop gap (P15 / R6 — localization + SLAM). This maps its
-pipeline ("process / overlays") onto what dustgym has and what P15 must build.
+directly-applicable reference for STEWIE's #1 live-loop gap (P15 / R6 — localization + SLAM). This maps its
+pipeline ("process / overlays") onto what STEWIE has and what P15 must build.
 
 ## The book's pipeline (process), chapter by chapter
 
@@ -23,7 +23,7 @@ relative motion) → **state estimator** (ESKF/IESKF fusing IMU + odometry + GNS
 graph) → **loop closure** → **map**, and (Ch10) **localization against a prior map** by registering the live
 scan onto the stored map and EKF-fusing the result.
 
-## What dustgym already has (the half the book assumes you must build)
+## What STEWIE already has (the half the book assumes you must build)
 
 - **A PRIOR MAP, already** — the real LOLA Haworth DEM (`samples/lunar_dem/haworth_10km_5m`), an elevation
   map with a frozen state-field contract (`io_fields`). The book's Ch9 (build the map) is largely *done* for
@@ -36,9 +36,9 @@ scan onto the stored map and EKF-fusing the result.
 - **A point-cloud producer** — `obs_map_producer` (stereo-rectify → SGBM → world-frame grid), render-gated.
 - **Proprioception** — drum-mass FDC; the unicycle integrator is dead-reckoning odometry.
 
-## What P15 must build (the gap, in the book's terms) — and the cheaper path for dustgym
+## What P15 must build (the gap, in the book's terms) — and the cheaper path for STEWIE
 
-dustgym does **NOT** need full SLAM-from-scratch (it already has the map). The right pipeline is the book's
+STEWIE does **NOT** need full SLAM-from-scratch (it already has the map). The right pipeline is the book's
 **Ch10 fusion-positioning ("overlay") path**, which is simpler and more robust:
 
 1. **Front-end registration = scan/point-cloud → PRIOR DEM** (the "overlay"). Register the live observed

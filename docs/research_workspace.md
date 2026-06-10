@@ -5,21 +5,22 @@ nav_order: 10
 
 # Research and publication workspace
 
-DustGym runtime code and tests live in this repository. Manuscripts, literature
+STEWIE runtime code and tests live in this repository. Manuscripts, literature
 reviews, grants, dissertation material, GMRO briefings, and shared references
 live in the canonical research workspace:
 
-`/mnt/projects/dustgym-research`
+`/mnt/projects/stewie/research`
 
-Key locations:
+Key locations (directory names under `papers/` and `reviews/` retain the
+historical `dustgym` name):
 
-- DustGym papers: `/mnt/projects/dustgym-research/papers/dustgym/`
-- lunar SLAM review: `/mnt/projects/dustgym-research/reviews/lunar-slam/`
-- SolNav dissertation and PRD: `/mnt/projects/dustgym-research/projects/solnav/`
-- shared references: `/mnt/projects/dustgym-research/references/`
-- grants: `/mnt/projects/dustgym-research/grants/`
-- GMRO briefings: `/mnt/projects/dustgym-research/briefings/gmro/`
+- STEWIE papers: `/mnt/projects/stewie/research/papers/dustgym/`
+- lunar SLAM review: `/mnt/projects/stewie/research/reviews/lunar-slam/`
+- SolNav dissertation and PRD: `/mnt/projects/stewie/research/projects/solnav/`
+- shared references: `/mnt/projects/stewie/research/references/`
+- grants: `/mnt/projects/stewie/research/grants/`
+- GMRO briefings: `/mnt/projects/stewie/research/briefings/gmro/`
 
 Do not create a new `publication/`, grant, or review tree in this runtime
-repository. Record the DustGym commit hash in research artifacts that depend on
+repository. Record the STEWIE commit hash in research artifacts that depend on
 an implementation baseline.

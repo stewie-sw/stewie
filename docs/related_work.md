@@ -3,17 +3,17 @@ title: "Related work"
 nav_order: 3
 ---
 
-# Related work — where dustgym lands in the field
+# Related work — where STEWIE lands in the field
 
 This is the shareable synthesis of a five-field systematic review (NASA planetary rover autonomy,
 lunar mining / ISRU robotics, world models, learned autonomous driving, and SLAM / 3D perception)
-conducted to position dustgym against the literature. It cites published work
+conducted to position STEWIE against the literature. It cites published work
 only; the full review and local, Git-ignored source corpus live in
-`/mnt/projects/dustgym-research/`. No copyrighted text is reproduced here.
+`/mnt/projects/stewie/research/`. No copyrighted text is reproduced here.
 
 ## The one-sentence position
 
-dustgym occupies a sparsely-populated quadrant: **conserved-physics dynamics with a learned model
+STEWIE occupies a sparsely-populated quadrant: **conserved-physics dynamics with a learned model
 reserved only for perception, for terrain *transformation* (excavation / construction) rather than
 navigation, scored against conserved truth (height / volume / mass) rather than photometric fidelity.**
 The fields around it are converging the other way — learned dynamics, fleet-scale data, photometric
@@ -42,7 +42,7 @@ Dreamer v1–v3; MuZero), generative-video (GAIA-1, Genie, Cosmos, Vista), and n
 representation-prediction (JEPA / V-JEPA-2) families, with a thin **hybrid exact-dynamics +
 learned-component** quadrant. The nearest construction analogue uses DreamerV3 to *learn* lunar
 excavation dynamics — the principled inversion of our design; another line (exact-physics excavation
-RL) supplies conserved dynamics but adds no learned perception/info-gain model on top. dustgym is the
+RL) supplies conserved dynamics but adds no learned perception/info-gain model on top. STEWIE is the
 combination of both: conserved dynamics, learned perception.
 
 **Learned autonomous driving** spans modular-with-safety-case (Waymo), end-to-end jointly optimized
@@ -65,7 +65,7 @@ GNSS-denied) and optimizes photometric fidelity, not conserved metric truth.
 
 ## The gap matrix
 
-| Dimension | Field's center of mass | dustgym |
+| Dimension | Field's center of mass | STEWIE |
 |---|---|---|
 | Dynamics | learned, or coarse-empirical measured post-hoc | conserved, mass-exact, sub-ms, unhackable |
 | Learning budget | everything, fleet-scale | only the expensive perception / render branch |
@@ -76,14 +76,14 @@ GNSS-denied) and optimizes photometric fidelity, not conserved metric truth.
 | Sim coupling | photoreal render *or* simplified dynamics | conserved dynamics + faithful render in one loop |
 | Active perception | learned / heuristic | greedy near-optimal (submodular; measured) |
 
-## Where dustgym lands
+## Where STEWIE lands
 
-Every closest analogue holds one of dustgym's pieces but not the coupling: the DreamerV3 lunar
+Every closest analogue holds one of STEWIE's pieces but not the coupling: the DreamerV3 lunar
 excavation work *learns* the dynamics we conserve; the exact-physics excavation RL line has no learned
 perception; the Lunar Autonomy Challenge winning stack is strong perception/mapping on a CARLA/Unreal
 twin, not a conserved-physics construction world model; the Project-Chrono lunar-construction co-sim is
 the nearest published *system* but without a conserved-truth-scored map channel or a learned perception
-branch; flight rover autonomy is predictive about geometry but measures slip post-hoc. dustgym is the
+branch; flight rover autonomy is predictive about geometry but measures slip post-hoc. STEWIE is the
 stack that **conserves the dynamics, learns only the perception, transforms rather than traverses, and
 scores against conserved truth** — a low-data, verifiable point in a field sprinting toward
 learned-everything.
@@ -113,6 +113,6 @@ What this implies, concretely:
   while the learned model's value is the expensive-observation regime.
 
 *Full per-field key-works tables, SWOT, gap analyses, and the local downloaded
-sources are in `/mnt/projects/dustgym-research/references/library/`. The
+sources are in `/mnt/projects/stewie/research/references/library/`. The
 cross-field positioning above is mirrored, in long form, in
-`/mnt/projects/dustgym-research/papers/dustgym/construction_systematic_review/systematic_review.md`.*
+`/mnt/projects/stewie/research/papers/dustgym/construction_systematic_review/systematic_review.md`.*

@@ -8,5 +8,40 @@ theme:
     primary: red
     accent: red
 docs_dir: docs
+site_url: https://stewie-sw.github.io/stewie/
 nav:
   - Home: index.md
+  - Platform:
+      - World model: world_model.md
+      - Related work: related_work.md
+      - Robotics curriculum diff: robotics_curriculum_diff.md
+      - Implementation plan (2026-06-06): implementation_plan_2026-06-06.md
+      - Research workspace: research_workspace.md
+  - Contracts:
+      - Sensor-bridge contract: sensor_bridge_contract.md
+      - DEM terrain contract: dem_terrain_contract.md
+      - WorkSite contract: worksite_contract.md
+      - Demo spiral contract: demo_spiral_contract.md
+      - Render fidelity spec: render_fidelity_spec.md
+      - Sun-sweep manifest: sun_sweep_manifest.md
+      - Spec coverage scorecard: spec_coverage.md
+  - Subsystems:
+      - "ARGUS — the modelled vehicle (IPEx)": vehicle_ipex.md
+      - "DART — SLAM pipeline analysis": slam_pipeline_analysis.md
+      - "DART — 10 km lunar DEM evaluation": lunar_dem_10km_eval.md
+      - "FORGE — per-planet constants": bodies_sysrev.md
+      - "FORGE — Chrono integration": chrono_integration.md
+      - "FORGE — Chrono bring-up log": chrono_bringup_log.md
+      - "LODE — power calibration (2026-06-09)": power_calibration_2026-06-09.md
+      - "LEAP — EZ-RASSOR assets": ezrassor_assets.md
+      - "LAC reimplementation evaluation": lac_reimplementation_eval.md
+  - Reviews:
+      - Architecture review (2026-06-04): architecture_review.md
+      - Deep code review (2026-06-05): architecture_review_2026-06-05.md
+      - Real-world-mission review (2026-06-05): architecture_review_2026-06-05_realworld.md
+      - Full architectural review (2026-06-06): architecture_review_2026-06-06_full.md
+      - PRD gap analysis (2026-06-06): prd_gap_analysis_2026-06-06.md
+      - Autonomous planning review: autonomous_planning_review.md
+      - UI cockpit eval (2026-06-06): ui_eval_2026-06-06.md
+      - UI/UX assessment (2026-06-06): ui_ux_assessment_2026-06-06.md
+      - UI/UX audit (2026-06-09): uiux_audit_2026-06-09.md

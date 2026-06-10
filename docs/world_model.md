@@ -8,7 +8,7 @@ nav_order: 2
 For a robot that *reshapes* terrain rather than driving through it, the world model is the central
 representation tying perception, physics, planning, and control together. The robot is not reaching a
 waypoint; it is transforming the surface from a current state into a desired state. This document maps
-that five-layer world-model idea onto what foss_ipex / dustgym already implements, and states the one
+that five-layer world-model idea onto what STEWIE already implements, and states the one
 real architectural decision: which parts to compute exactly and which to learn.
 
 ## The shift this project is built around
@@ -121,13 +121,15 @@ folded into the closed loop** (`autonomy.run_closed_loop(perception_sigma_m=...)
 per leg (and on charger docking) bounds the dead-reckoning drift, and a dig-ready gate observes more before
 digging when the pose estimate is uncertain; `/plan` now returns the bounded pose sigma + map fixes.
 
-Package surface: the conserved physics-side layers ship in the installed **dustgym** package; one import,
+Package surface: the conserved physics-side layers ship in the installed **stewie** package
+(pip-historical name `dustgym`); one import,
 `from terrain_authority import world_model`, ties them together (`describe()` -> the five-layer map;
 `geometry`/`material_layer`/`earthwork` accessors). `mission_planner` now resolves `terrain_authority` +
 `samples` from either the standalone `roversim/` sibling or the monorepo root, so the app runs from the
 installed package in both trees.
 
-The active-perception REWARD is now an env: **`Dust/ActivePerception-v0`** (`active_perception_env.py`) is
+The active-perception REWARD is now an env: **`Stewie/ActivePerception-v0`** (legacy alias
+`Dust/ActivePerception-v0`; `active_perception_env.py`) is
 next-best-view mapping where the agent drives to reduce per-cell uncertainty per joule -- the map channel /
 Uncertainty layer as the RL reward, grounded in the measured stereo sigma (range-dependent, Z^2 falloff)
 and the ipex drive energy, over real authority fbm terrain. Greedy and a 5-step beam both map to

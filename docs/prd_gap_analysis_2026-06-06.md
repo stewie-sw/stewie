@@ -1,4 +1,4 @@
-# DustGym PRD Gap Analysis
+# STEWIE PRD Gap Analysis
 
 **Audit date:** 2026-06-06
 **PRD:** `PRD.md`, dated 2026-06-04, living v5

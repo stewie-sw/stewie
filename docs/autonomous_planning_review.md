@@ -5,7 +5,7 @@ nav_order: 7
 
 # Autonomous-planning review — capabilities, limits, and the multi-vehicle design (2026-06-04)
 
-A focused four-agent review of the autonomous-planning subsystem of the single dustgym software, on the
+A focused four-agent review of the autonomous-planning subsystem of the single STEWIE software, on the
 question the PRD states capabilities for but not ceilings: **what can the planner actually do, where are its
 hard limits, and what would single- vs multi-vehicle production planning require, across different
 instructions, designs, and site layouts.** Every finding is evidence-backed at `file:line` and run-verified.

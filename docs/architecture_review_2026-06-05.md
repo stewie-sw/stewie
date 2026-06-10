@@ -1,4 +1,4 @@
-# dustgym — full architectural deep-code review (2026-06-05)
+# STEWIE — full architectural deep-code review (2026-06-05)
 
 Method: 8 parallel review agents, each deep-reading every class/def in its subsystem and **run-verifying**
 findings (executing tests, the live server, mypy) rather than asserting. Scope: all of `terrain_authority/`

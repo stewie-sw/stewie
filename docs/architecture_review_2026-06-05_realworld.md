@@ -1,4 +1,4 @@
-# dustgym — full architectural deep review + real-world-mission gap analysis (2026-06-05)
+# STEWIE — full architectural deep review + real-world-mission gap analysis (2026-06-05)
 
 Method: 7 parallel reviewers, each deep-reading every class/def in its subsystem and **run-verifying**
 (executing tests, the live server, timing the hot loop) — conserved core, terrain/DEM, RL/learning,
@@ -168,7 +168,7 @@ CUDA-gated); the Chrono SCM force oracle (PyChrono-with-vehicle host); goal/tole
 op-window/deadline/risk constraints in the objective grammar; checkpoint export/versioning for the learned
 policy; drivetrain η.
 
-**Bottom line:** dustgym is a genuinely trustworthy, conserved, sub-ms **offline batch construction planner**
+**Bottom line:** STEWIE is a genuinely trustworthy, conserved, sub-ms **offline batch construction planner**
 with an honest closed loop that runs **in self-simulation**, a rich machine-readable JSON output built to be
 *read*, and well-engineered but **gated** SLAM/render/ROS contracts. To "conduct a real mission like vehicles
 on Earth" it needs three things, in order: (1) an executable **Plan IR** + ROS lowering (how plans are

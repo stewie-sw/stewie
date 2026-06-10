@@ -1,11 +1,14 @@
 # The modelled vehicle: IPEx (RASSOR is the precursor)
 
-dustgym models the **ISRU Pilot Excavator (IPEx)** — NASA's 30 kg-class lunar
+STEWIE models the **ISRU Pilot Excavator (IPEx)** — NASA's 30 kg-class lunar
 regolith excavator. The **Regolith Advanced Surface Systems Operations Robot
 (RASSOR)** is its **precursor/pilot**: the TRL-4 counter-rotating bucket-drum
 proof of concept that IPEx evolved from. Where this repo says "the rover", it
 means IPEx; RASSOR appears only as the lineage and as the physical test platform
-the IPEx team used for wheel/drum/auto-dig characterisation.
+the IPEx team used for wheel/drum/auto-dig characterisation. Within STEWIE the
+vehicle digital twin is the **ARGUS** subsystem (Articulated Rover Geometry for
+Unified State Estimation), named in tribute to Jadon Schuler, IPEx Project
+Manager and Principal Investigator.
 
 All numbers below are sourced. The provenance tags map to the modules that hold
 them: `terrain_authority/ipex_specs.py` (energy/battery/geometry/mobility/drum
@@ -15,7 +18,7 @@ constants, each carrying its tag) and `terrain_authority/test_ipex_specs.py`
 ## Primary sources
 
 The local source corpus is in
-`/mnt/projects/dustgym-research/references/library/nasa_lunabotics/` and is
+`/mnt/projects/stewie/research/references/library/nasa_lunabotics/` and is
 Git-ignored by the research workspace.
 
 | Tag | Paper |
@@ -57,7 +60,7 @@ Git-ignored by the research workspace.
 | Localisation | stereo visual odometry + lander-fiducial pose; **no GPS** | `[SCHULER24]`,`[CLOUD]` |
 | Scale factor RASSOR 2 → IPEx | ~0.7 (1-D) | `[SCHULER24]` |
 
-## Why dustgym's terramechanics matters: the excavation gap
+## Why STEWIE's terramechanics matters: the excavation gap
 
 The **official** IPEx digital twin `[MAGIC24]` decomposes as:
 
@@ -69,15 +72,15 @@ The **official** IPEx digital twin `[MAGIC24]` decomposes as:
 - **Autonomy + sensors — CARLA** (Unreal): 8 cameras + LED, IMU, south-pole
   lighting, craters/rocks.
 
-dustgym is an **independent Godot + Chrono twin** (NOT the official CARLA/Unreal
-LAC entry). Its differentiator is precisely the gap `[MAGIC24]` names: dustgym's
+STEWIE is an **independent Godot + Chrono twin** (NOT the official CARLA/Unreal
+LAC entry). Its differentiator is precisely the gap `[MAGIC24]` names: STEWIE's
 core is a **mass-exact excavation terramechanics** — Bekker pressure-sinkage,
 the Janosi–Hanamoto slip ladder, Lyasko low-g, and the weight-coupling K10 chain
 (drum mass → sinkage/slip/energy). It models the cut/haul/fill that SCM cannot.
 
 ## Auto-dig grounds the weight-coupling (K10)
 
-`[BUCKLES]` describes IPEx's "auto-dig" control loop, which dustgym's drum-mass
+`[BUCKLES]` describes IPEx's "auto-dig" control loop, which STEWIE's drum-mass
 sensing mirrors:
 
 - **Control loop**: drum torque is the *process variable*, arm position the
@@ -88,21 +91,21 @@ sensing mirrors:
   intermittent lifts (commanded a mass, stops when reached).
 - **Rock hazard / stall**: rocks ≥ 10 cm threaten autonomy — the digger reaches a
   **stall state** (fails to advance, needs intervention), or a drum grabs a
-  buried rock and pulls it out. This grounds dustgym's slip-entrapment "stall"
+  buried rock and pulls it out. This grounds STEWIE's slip-entrapment "stall"
   model and the negative-obstacle / rock-hazard masks.
 
 ## Mobility / wheel grounding, and the sim-geometry reconciliation
 
 `[WHEELTEST]` ran 10 wheel geometries on the **RASSOR 2** platform (66 kg) fitted
 with IPEx-sized 30.5 cm wheels, in the KSC Regolith Test Bed (120 t of BP-1, 8×8
-×1.1 m), tracked by OptiTrack. Findings dustgym relies on:
+×1.1 m), tracked by OptiTrack. Findings STEWIE relies on:
 
 - A **slip vs power** trade: taller/square grousers slip less but draw more power;
   cleat pattern barely matters. The chosen baseline (wheel #5) has short rounded
   grousers — "good holistically, best at nothing."
 - **Slip-entrapment is real**: drawbar-pull "full slip" is when *"the robot is not
   moving forwards and instead the rotation of the wheels causes it to dig itself
-  deeper in the regolith."* This is dustgym's `slip_alpha_to_slip` ladder
+  deeper in the regolith."* This is STEWIE's `slip_alpha_to_slip` ladder
   entrapping near ~45°.
 - RASSOR Gen-1 `[RASSOR13]` climbed a 20° slope but **failed a 30° loose mound**
   (sheared/avalanched). The planner's `max_traverse_slope_deg` default (25°) sits
@@ -141,7 +144,7 @@ IPEx primitive at its smaller flight scale (AABB 1.26×0.58×0.99 m). Evidence:
 
 BP-1 (Black Point 1, basalt-derived mare analog) is the **Earth-g GMRO Regolith
 Test Bed** simulant: bulk density ~1.75 g/cm³ compacted, shear-vane 27–32 kPa,
-penetrometer 206–226 kPa (`[WHEELTEST]`,`[BDSCALE]`). dustgym's terramechanics
+penetrometer 206–226 kPa (`[WHEELTEST]`,`[BDSCALE]`). STEWIE's terramechanics
 core models the **lunar surface** (real LOLA DEMs) with the Lunar Sourcebook
 density profile (`constants.RHO_SURFACE` 1250 → `RHO_DEEP` 1920 kg/m³), so BP-1's
 numbers are kept in `ipex_specs.py` (`BP1_*`) as sourced provenance for the test
@@ -158,16 +161,16 @@ autonomous docking and localisation, and IPEx ran a multi-day continuous TRL-5
 ground demonstration, downlinking telemetry to **generate a map of the worksite**
 under representative comms delay/bandwidth. This grounds:
 
-- dustgym's **worksite** scope and its **AprilTag-on-lander pose-vs-truth** check
+- STEWIE's **worksite** scope and its **AprilTag-on-lander pose-vs-truth** check
   (12.7 mm / 7.15°, container-gated).
-- dustgym's **map-relative localisation** (`localization.register_to_dem`,
+- STEWIE's **map-relative localisation** (`localization.register_to_dem`,
   scan-to-DEM registration) — IPEx has no GPS and localises against landmarks +
-  a prior map, exactly the "overlay" regime dustgym implements.
+  a prior map, exactly the "overlay" regime STEWIE implements.
 
 The **Lunar Autonomy Challenge** `[MAGIC24]` (JHU/APL, Caterpillar, Embodied AI)
 tasks university teams to, using IPEx's digital twin: *"Map a simulated lunar
 surface… develop terrain height maps and identify rocks given power and data
-budgets."* That objective **is** dustgym's P6 map-channel reward (survey/build a
+budgets."* That objective **is** STEWIE's P6 map-channel reward (survey/build a
 height + hazard map under power+data budgets) — the largest deferred PRD item,
 now explicitly anchored to the official challenge spec rather than invented.
 

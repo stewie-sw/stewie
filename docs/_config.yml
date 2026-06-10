@@ -1,20 +1,22 @@
-title: dustgym
+title: STEWIE
 description: >-
-  Conserved-physics world model, autonomous planner, and Gymnasium suite for
-  off-world surface construction. NASA IPEx / Lunar Autonomy Challenge lineage.
+  Surface Terrain Engineering & World-model Integration Environment. Conserved-physics
+  world model, autonomous planner, and Gymnasium suite for off-world surface
+  construction. NASA IPEx / Lunar Autonomy Challenge lineage. IPEx builds the Moon;
+  STEWIE plans the build.
 remote_theme: just-the-docs/just-the-docs
-url: "https://dustgym.github.io"
-baseurl: "/dustgym"
+url: "https://stewie-sw.github.io"
+baseurl: "/stewie"
 color_scheme: dark
 search_enabled: true
 heading_anchors: true
 aux_links:
   "View on GitHub":
-    - "https://github.com/dustgym/dustgym"
+    - "https://github.com/stewie-sw/stewie"
 aux_links_new_tab: true
 footer_content: >-
-  Released into the public domain under CC0 1.0. Lineage: NASA IPEx (ISRU Pilot
-  Excavator) and the Lunar Autonomy Challenge.
+  STEWIE — McCardle & Storey. Lineage: NASA IPEx (ISRU Pilot Excavator) and the Lunar
+  Autonomy Challenge. License selection pending; see the repository for current terms.
 plugins:
   - jekyll-remote-theme
   - jekyll-seo-tag

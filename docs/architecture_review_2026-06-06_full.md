@@ -1,4 +1,4 @@
-# DustGym Full Architectural Review
+# STEWIE Full Architectural Review
 
 **Review date:** 2026-06-06
 **Reviewed commit:** `047331250cf443498c25b5bead4bed167668752c`
@@ -6,7 +6,7 @@
 
 ## Executive verdict
 
-DustGym has a credible simulation core, unusually strong source-level test coverage, a
+STEWIE has a credible simulation core, unusually strong source-level test coverage, a
 real Godot rendering path, and several useful explicit contracts. It is not yet a
 coherent end-to-end rover execution system. The main architectural problem is that
 planning, simulation, validation, autonomy, rendering, and API response generation
@@ -338,7 +338,7 @@ non-root runtime user.
 
 A trustworthy project vulnerability inventory cannot be produced without a resolved
 project environment. A scan of the shared workstation found vulnerable packages, but
-that result cannot be attributed to DustGym and is not a substitute for an audited
+that result cannot be attributed to STEWIE and is not a substitute for an audited
 lock.
 
 **Recommendation:** Generate platform-specific locked environments, pin container base
@@ -562,7 +562,7 @@ broken. They must remain labeled unverified until exercised in controlled enviro
 
 ## Final assessment
 
-DustGym is currently best classified as a strong research simulation and planning
+STEWIE is currently best classified as a strong research simulation and planning
 prototype with a partially integrated visualization and API product. It is not ready
 to be treated as a physically authoritative, fleet-capable, installable rover execution
 stack.
