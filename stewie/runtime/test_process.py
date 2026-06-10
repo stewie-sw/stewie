@@ -168,3 +168,28 @@ def test_camera_channel_attaches_real_frames(tmp_path):
     from stewie.bridge.runtime_io import parse_canonical
     parsed = parse_canonical(pkt)
     assert parsed["camera_frames"]
+
+
+def test_all_eight_cameras_in_the_packet(tmp_path):
+    """T3.1 (ARGUS): the full documented rig flows -- all 8 cameras with per-camera intrinsics
+    from the frame store's own producer file; the packet still passes the strict parser."""
+    import os
+    store = os.path.join(os.path.dirname(rp.__file__), "..", "eval", "validation",
+                         "g2cal", "pose_0")
+    if not os.path.isdir(store):
+        pytest.skip("g2cal evidence not present")
+    srv = rp.RuntimeProcess(grid=48, cell_m=0.02, body="moon",
+                            socket_path=str(tmp_path / "s.sock"), seed=5,
+                            frame_store=os.path.abspath(store))
+    srv.handle({"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 3})
+    pkt = srv.handle({"role": "produce", "cmd": "packet"})["packet"]
+    cam = pkt["channels"]["camera"]
+    names = {f["name"] for f in cam["frames"]}
+    assert names == {"front_left", "front_right", "rear_left", "rear_right",
+                     "left_mono", "right_mono", "drum_front_cam", "drum_back_cam"}
+    for f in cam["frames"]:
+        assert os.path.exists(f["path"])                  # every frame is a REAL file
+    intr = cam["intrinsics_by_camera"]
+    assert set(intr) == names and all(intr[n]["fx"] > 0 for n in names)
+    from stewie.bridge.runtime_io import parse_canonical
+    assert parse_canonical(pkt)["camera_frames"]

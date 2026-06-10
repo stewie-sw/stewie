@@ -130,15 +130,20 @@ class RuntimeProcess:
         sens = _json.load(open(os.path.join(self.frame_store, "sensors.json")))
         stereo = sens["stereo"]
         cam0 = next(c for c in sens["cameras"] if c["name"] == stereo["left"])
-        frames = []
-        for name in (stereo["left"], stereo["right"]):
-            png = os.path.join(self.frame_store, f"{name}.png")
+        # ARGUS T3.1: the FULL documented rig -- every camera the store's producer file declares,
+        # each with ITS OWN intrinsics (per-camera fx/cx/cy from the producer, never assumed).
+        frames, intr = [], {}
+        for c in sens["cameras"]:
+            png = os.path.join(self.frame_store, f"{c['name']}.png")
             if not os.path.exists(png):
-                return {"status": "UNAVAILABLE", "reason": f"frame missing: {png}"}
-            frames.append({"name": name, "t": float(self.t_sim), "path": png})
+                continue                                  # a missing redundant view degrades, not fails
+            frames.append({"name": c["name"], "t": float(self.t_sim), "path": png})
+            intr[c["name"]] = c["intrinsics"]
+        if not any(f["name"] == stereo["left"] for f in frames):
+            return {"status": "UNAVAILABLE", "reason": "reference stereo frame missing"}
         return {"status": "OK", "frames": frames,
                 "reference_camera": stereo["left"], "baseline_m": float(stereo["baseline_m"]),
-                "intrinsics": cam0["intrinsics"]}
+                "intrinsics": cam0["intrinsics"], "intrinsics_by_camera": intr}
 
     def _checkpoint(self, path: str) -> dict:
         np.savez(path, mass_areal=self.cs.mass_areal, rc=np.array(self.rc),

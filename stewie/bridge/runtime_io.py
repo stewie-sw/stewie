@@ -15,6 +15,7 @@ import numpy as np
 from .proprioception_io import _FORBIDDEN, _JOINT_SAMPLE_KEYS, _allowed, parse_proprioception
 
 _CAMERA_CHAN_KEYS = {"status", "frames", "reference_camera", "baseline_m", "intrinsics",
+                     "intrinsics_by_camera",   # ARGUS T3.1: the full 8-camera rig, per-camera fx/cx/cy
                      "rate_hz", "units", "provenance", "reason"}
 _FRAME_KEYS = {"name", "t", "path"}
 
