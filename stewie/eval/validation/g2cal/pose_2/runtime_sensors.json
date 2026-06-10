@@ -1,0 +1,357 @@
+{
+  "availability": {
+    "imu": {
+      "reason": "Godot camera egress has no IMU model",
+      "status": "UNAVAILABLE"
+    },
+    "joints": {
+      "reason": "joint telemetry is not emitted by this render path",
+      "status": "UNAVAILABLE"
+    },
+    "power": {
+      "reason": "render path has no battery telemetry",
+      "status": "UNAVAILABLE"
+    },
+    "wheel": {
+      "reason": "Godot camera egress has no wheel encoder model",
+      "status": "UNAVAILABLE"
+    }
+  },
+  "calibration_id": "DUSTGYM_GODOT_CAMERA_RIG_V1",
+  "cameras": [
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          0.299999952316284,
+          -0.100000001490116,
+          0.0350000858306885
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          -0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "frame_id": "front_left_optical",
+      "height": 768,
+      "image": "front_left.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "front_left",
+      "sample_id": "000000:front_left",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          0.299999952316284,
+          -0.100000001490116,
+          -0.0349999666213989
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          -0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "frame_id": "front_right_optical",
+      "height": 768,
+      "image": "front_right.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "front_right",
+      "sample_id": "000000:front_right",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          -0.299999952316284,
+          -0.100000001490116,
+          0.0350000858306885
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "frame_id": "rear_left_optical",
+      "height": 768,
+      "image": "rear_left.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "rear_left",
+      "sample_id": "000000:rear_left",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          -0.299999952316284,
+          -0.100000001490116,
+          -0.0349999666213989
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "frame_id": "rear_right_optical",
+      "height": 768,
+      "image": "rear_right.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "rear_right",
+      "sample_id": "000000:rear_right",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          0.0,
+          -0.0500000007450581,
+          0.285000085830688
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "frame_id": "left_mono_optical",
+      "height": 768,
+      "image": "left_mono.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "left_mono",
+      "sample_id": "000000:left_mono",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          0.0,
+          -0.0500000007450581,
+          -0.284999966621399
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "frame_id": "right_mono_optical",
+      "height": 768,
+      "image": "right_mono.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "right_mono",
+      "sample_id": "000000:right_mono",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          0.0999999046325684,
+          0.180000007152557,
+          0.0
+        ],
+        "quaternion_xyzw": [
+          -0.358593314886093,
+          -0.609434843063354,
+          -0.358593314886093,
+          0.609434843063354
+        ]
+      },
+      "frame_id": "drum_front_cam_optical",
+      "height": 768,
+      "image": "drum_front_cam.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "drum_front_cam",
+      "sample_id": "000000:drum_front_cam",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
+      "width": 1024
+    },
+    {
+      "extrinsic_in_base_link": {
+        "position_m": [
+          -0.0999999046325684,
+          0.180000007152557,
+          0.0
+        ],
+        "quaternion_xyzw": [
+          -0.358593314886093,
+          0.609434843063354,
+          0.358593314886093,
+          0.609434843063354
+        ]
+      },
+      "frame_id": "drum_back_cam_optical",
+      "height": 768,
+      "image": "drum_back_cam.png",
+      "intrinsics": {
+        "D": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "cx": 512.0,
+        "cy": 384.0,
+        "distortion_model": "plumb_bob",
+        "fx": 679.570327764933,
+        "fy": 679.570327764933,
+        "model": "pinhole"
+      },
+      "name": "drum_back_cam",
+      "sample_id": "000000:drum_back_cam",
+      "status": "ACTIVE",
+      "timestamp_s": 0.0,
+      "width": 1024
+    }
+  ],
+  "frame_convention": "godot",
+  "frame_index": 0,
+  "health": {
+    "camera_count": 8,
+    "dropped": false,
+    "stale": false,
+    "status": "OK"
+  },
+  "producer_schema_version": "sensor_bridge/1.1",
+  "profile_id": "DUSTGYM_IPEX_V1",
+  "profile_sha256": "b5015a4613025f05a89e03142f6435f3b1c8e3efeaefcacea1cb0a89f0d04796",
+  "provenance": "RUNTIME_SENSOR",
+  "scene": "crater_boulders",
+  "schema_version": "sensor_bridge_runtime/1.0",
+  "stereo": {
+    "baseline_m": 0.0700000524520874,
+    "left": "front_left",
+    "right": "front_right"
+  },
+  "stereo_rear": {
+    "baseline_m": 0.0700000524520874,
+    "left": "rear_left",
+    "right": "rear_right"
+  },
+  "sun": {
+    "azimuth_deg": 200.0,
+    "elevation_deg": 30.0,
+    "time_delta_s": 0.0
+  },
+  "timestamp_s": 0.0
+}

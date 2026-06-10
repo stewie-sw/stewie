@@ -54,8 +54,41 @@ def _terrain_height(geo, x, z):
     return np.where(ok, h, np.nan)
 
 
+def _lander_hits(pos, d_w, lander: dict, t_max: float):
+    """Nearest ray hit on the procedural tag-stand lander (sensors_emit.build_lander recipe):
+    body box size (0.55, 0.6, 0.9) centred at local (-0.295, 0.15, 0) behind the tag plane,
+    plus the tag quad (0.15 m * 10/8 quiet ring) at local x=0 facing +X. Legs (r<=4 cm) are
+    omitted -- below the comparison stride. Lander frame: origin = tag centre, +X toward rover."""
+    Lp = np.array(lander["position_m"], float)
+    R_l = _quat_to_R(lander["quaternion_xyzw"])
+    o = (pos - Lp) @ R_l                       # ray origin in lander frame (R_l columns = axes)
+    d = d_w @ R_l
+    # slab test on the body box
+    lo = np.array([-0.295 - 0.275, 0.15 - 0.30, -0.45])
+    hi = np.array([-0.295 + 0.275, 0.15 + 0.30, 0.45])
+    t0 = np.full(d.shape[:2], 1e-9); t1 = np.full(d.shape[:2], t_max)
+    for ax in range(3):
+        da = d[..., ax]; oa = o[ax]
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ta = (lo[ax] - oa) / da; tb = (hi[ax] - oa) / da
+        tmin = np.fmin(ta, tb); tmax_ = np.fmax(ta, tb)
+        par = np.abs(da) < 1e-12               # parallel ray: inside slab or miss
+        inside = (oa >= lo[ax]) & (oa <= hi[ax])
+        t0 = np.where(par, np.where(inside, t0, np.inf), np.fmax(t0, tmin))
+        t1 = np.where(par, np.where(inside, t1, -np.inf), np.fmin(t1, tmax_))
+    t_box = np.where((t1 >= t0) & (t0 < t_max), t0, np.nan)
+    # tag quad at x=0, extent 0.15*10/8 square centred on origin
+    half = 0.15 * (10.0 / 8.0) / 2.0
+    with np.errstate(divide="ignore", invalid="ignore"):
+        t_q = -o[0] / d[..., 0]
+    py = o[1] + d[..., 1] * t_q; pz = o[2] + d[..., 2] * t_q
+    qhit = (t_q > 0) & (np.abs(py) <= half) & (np.abs(pz) <= half)
+    t_quad = np.where(qhit, t_q, np.nan)
+    return np.fmin(t_box, t_quad)
+
+
 def ray_cast_depth(camera: dict, scene_dir: str, *, stride: int = 4,
-                   t_max: float = 12.0, dt: float = 0.01) -> dict:
+                   t_max: float = 12.0, dt: float = 0.01, lander: dict | None = None) -> dict:
     """Per-pixel truth depth for one camera (strided pixel grid).
 
     camera: an evaluation_truth camera entry merged with the runtime intrinsics --
@@ -90,7 +123,18 @@ def ray_cast_depth(camera: dict, scene_dir: str, *, stride: int = 4,
         h = _terrain_height(geo, p[..., 0], p[..., 2])
         above = (p[..., 1] > h) | np.isnan(h)
         crossed = alive & prev_above & ~above & ~np.isnan(h)
-        t_hit = np.where(crossed & np.isnan(t_hit), t, t_hit)
+        if np.any(crossed):
+            # bisection refine the crossing to ~dt/256 (mm-level): the raw step quantises the
+            # near field by dt, which is tens of disparity px at z ~ 0.1 m
+            lo = np.where(crossed, t - dt, 0.0); hi = np.where(crossed, t, 0.0)
+            for _ in range(8):
+                mid = 0.5 * (lo + hi)
+                pm = pos[None, None, :] + d_w * mid[..., None]
+                hm = _terrain_height(geo, pm[..., 0], pm[..., 2])
+                below = pm[..., 1] <= hm
+                hi = np.where(crossed & below, mid, hi)
+                lo = np.where(crossed & ~below, mid, lo)
+            t_hit = np.where(crossed & np.isnan(t_hit), 0.5 * (lo + hi), t_hit)
         alive &= ~crossed
         prev_above = above
         t = t + dt
@@ -106,6 +150,8 @@ def ray_cast_depth(camera: dict, scene_dir: str, *, stride: int = 4,
         oc_all = t_s if oc_all is None else np.fmin(oc_all, t_s)
     if oc_all is not None:
         t_hit = np.fmin(t_hit, oc_all)
+    if lander is not None:
+        t_hit = np.fmin(t_hit, _lander_hits(pos, d_w, lander, t_max))
     # range along the ray -> optical-frame DEPTH (Z component)
     depth = t_hit * d_opt[..., 2]
     return {"depth_m": depth, "rows": rows, "cols": cols}
