@@ -76,11 +76,13 @@ def _load_toml() -> dict:
 def get_overrides() -> dict:
     """The merged override map: TOML file first, then ``DUSTGYM_<NAME>`` env vars (env wins)."""
     out = {k: _coerce(v) for k, v in _load_toml().items()}
-    for k, v in os.environ.items():
+    env: dict = {}
+    for k, v in os.environ.items():            # env beats the FILE; STEWIE_ beats DUSTGYM_ in env
         if k.startswith(_ENV_PREFIX) and k != _CONFIG_ENV:
-            out[k[len(_ENV_PREFIX):]] = _coerce(v)
+            env[k[len(_ENV_PREFIX):]] = _coerce(v)
         elif k.startswith(_ENV_PREFIX_LEGACY) and k != _CONFIG_ENV:
-            out.setdefault(k[len(_ENV_PREFIX_LEGACY):], _coerce(v))   # STEWIE_ wins on conflict
+            env.setdefault(k[len(_ENV_PREFIX_LEGACY):], _coerce(v))
+    out.update(env)
     return out
 
 
