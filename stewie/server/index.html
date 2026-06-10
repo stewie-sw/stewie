@@ -443,7 +443,11 @@ const BODIES = {
   earth: { name: "Earth", radius: 6371000, start: [20.0, 0], density: 1600, g: 9.81, layers: [
     { name: "Esri World Imagery", geographic: false, tile: 256, maxLevel: 18,
       url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      credit: "Esri World Imagery" },
+      credit: "Esri World Imagery (WebMercator: pinches at the poles past 85°)" },
+    // polar-capable geographic layer (the Esri mercator cutoff smears the exact pole):
+    { name: "NASA Blue Marble (polar-capable)", geographic: true, tile: 512, maxLevel: 8,
+      url: "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/BlueMarble_ShadedRelief_Bathymetry/default/500m/{z}/{y}/{x}.jpeg",
+      credit: "NASA GIBS Blue Marble" },
   ] },
 };
 // grounded IPEx / battery constants: loaded from bodies.json (_ipex, generated from ipex_specs.py ->
@@ -760,7 +764,9 @@ function showSiteDem() {                                   // auto-show the real
     document.getElementById("workareaimg").src = "/dem/hillshade.png"; wa.classList.add("show");
   } else { wa.classList.remove("show"); }                 // the inset belongs to the Plan tab only
 }
-sel.onchange = () => { loadBody(sel.value); showTerra(); estimate(); showSiteDem();
+sel.onchange = () => {
+  switchWorkset(CURRENT_BODY, sel.value); CURRENT_BODY = sel.value;   // per-body documents
+  loadBody(sel.value); showTerra(); estimate(); showSiteDem();
   setMoonOverlaysVisible(sel.value === "moon");            // Haworth is a MOON feature (bugfix 2026-06-10)
 };
 $("layer").onchange = () => applyLayer(sel.value, +$("layer").value);   // swap imagery without reloading the body
@@ -811,6 +817,23 @@ $("site").onclick = () => {
 // needs the server (fetch /plan): run `python3 server.py` and open the printed URL.
 const ORDERS = [];
 const KEEPOUTS = [];                                          // discrete obstacles {x,y,r} (local m); hauls route around
+// PER-BODY WORKING SETS (Aaron 2026-06-10: "if I build something on earth it doesn't plot on the
+// moon?"): orders/keep-outs/routes are a per-body document; switching body saves the current set
+// and loads the target's. (S-4 generalizes this into named mission documents.)
+const WORKSETS = {};
+function switchWorkset(fromBody, toBody) {
+  if (fromBody === toBody) return;
+  WORKSETS[fromBody] = { orders: ORDERS.slice(), keepouts: KEEPOUTS.slice(),
+                         routes: (typeof LAST_ROUTES !== "undefined" ? LAST_ROUTES.slice() : []) };
+  const w = WORKSETS[toBody] || { orders: [], keepouts: [], routes: [] };
+  ORDERS.length = 0; w.orders.forEach((o) => ORDERS.push(o));
+  KEEPOUTS.length = 0; w.keepouts.forEach((k) => KEEPOUTS.push(k));
+  if (typeof LAST_ROUTES !== "undefined") { LAST_ROUTES.length = 0; w.routes.forEach((r) => LAST_ROUTES.push(r)); }
+  if (typeof renderQueue === "function") renderQueue();
+  if (typeof drawPlan === "function") drawPlan();
+  if (typeof marker !== "undefined" && marker && window.viewer) { viewer.entities.remove(marker); marker = null; }
+}
+let CURRENT_BODY = "moon";
 const qel = (id) => document.getElementById(id);
 const setQ = (m) => { qel("qstatus").textContent = m; };
 function mkbtn(t, fn) { const b = document.createElement("button"); b.textContent = t; b.onclick = fn; return b; }
