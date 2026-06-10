@@ -33,16 +33,25 @@ class Session:
     record: dict                      # the full closed-loop output (director truth)
     link: tl.TelemetryLink
     operator_legs: list = field(default_factory=list)
+    mission_t0_s: float = 0.0         # T4.2: the session's mission epoch -- ONE sun for all views
+
+    def sun_state(self) -> dict:
+        from stewie.specs.solar import sun_az_el
+        az, el = sun_az_el(-87.45, float(self.mission_t0_s))
+        return {"mission_t0_s": self.mission_t0_s, "az_deg": az, "el_deg": el,
+                "authority": "stewie.specs.solar @ Haworth -87.45"}
 
     @classmethod
     def run(cls, mission, *, profile: str = "ideal", dem=None, dem_origin=(0.0, 0.0),
-            algorithm: str = "auto", objective: str = "time", seed: int = 0) -> "Session":
+            algorithm: str = "auto", objective: str = "time", seed: int = 0,
+            mission_t0_s: float = 0.0) -> "Session":
         from lode import autonomy as AUT
         prof = tl.load_profile(os.path.join(_PROFILES, f"{profile}.json"))
         out = AUT.run_closed_loop(mission, dem=dem, dem_origin=dem_origin,
                                   algorithm=algorithm, objective=objective)
         link = tl.TelemetryLink(prof, seed=seed)
-        sess = cls(session_id=secrets.token_hex(8), profile_name=profile, record=out, link=link)
+        sess = cls(session_id=secrets.token_hex(8), profile_name=profile, record=out, link=link,
+                   mission_t0_s=float(mission_t0_s))
         for i, leg in enumerate(out["legs"]):
             delivered = link.try_send(_LEG_PACKET_BYTES, t_s=i * _LEG_PERIOD_S)
             if delivered:
@@ -58,6 +67,7 @@ class Session:
             "completed": self.record["completed"],
             "recharges": self.record["recharges"],
             "link": {"profile": self.profile_name, "stats": dict(self.link.stats)},
+            "sun": self.sun_state(),
         }
 
     def debrief_view(self, fast_forward: float = 1.0) -> dict:
@@ -74,6 +84,7 @@ class Session:
             "energy_divergence_J": float(divergence),
             "completed": self.record["completed"],
             "map_channel": self.record.get("map_channel"),
+            "sun": self.sun_state(),
         }
 
 

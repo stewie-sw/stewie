@@ -32,7 +32,8 @@ _MUTATING = {"twist", "checkpoint", "restore", "set_thermal"}
 class RuntimeProcess:
     def __init__(self, *, grid: int = 64, cell_m: float = 0.02, body: str = "moon",
                  vehicle: str = "ipex", socket_path: str, seed: int = 0,
-                 frame_store: str | None = None):
+                 frame_store: str | None = None,
+                 mission_t0_s: float = 0.0, sun_thermal: bool = False):
         rng = np.random.default_rng(seed)
         base = 50.0 + rng.normal(0.0, 0.5, (grid, grid))
         self.cs = ColumnState(width=grid, height=grid, cell_m=cell_m,
@@ -63,8 +64,36 @@ class RuntimeProcess:
         # pp.28-29; ipex_specs.CAMERA_MIN_OPERATIONAL_C). Settable via the seam now; the
         # sun-driven thermal model (T5.1) will own it later.
         self.camera_temp_c: float = 20.0
+        # T5.1 (first slice): the sun OWNS the camera temperature when sun_thermal is on --
+        # instantaneous radiative equilibrium between solar input (~ max(sin el, 0)) and the cold
+        # sky: T = T_NIGHT + (T_DAY - T_NIGHT) * sin(el)+ . Both endpoints [ASSUMPTION] (camera-
+        # housing equilibria; the documented bound is the 0..50 C operational window the GATE uses);
+        # no thermal mass/lag yet -- the upgrade slot is a first-order lag behind the same call.
+        self.mission_t0_s = float(mission_t0_s)
+        self.sun_thermal = bool(sun_thermal)
+        self._manual_thermal = False
+        if self.sun_thermal:
+            self._update_thermal_from_sun()
 
     # ---- world operations (the seam's verbs) ---------------------------------------------
+    THERMAL_T_COLD_C = -60.0    # [ASSUMPTION] unheated housing equilibrium (grazing polar sun:
+                                # max el ~1.6 deg at Haworth -> sin(el) <= 0.03 -- passive solar
+                                # CANNOT hold the 0..50 C window; building the naive sun-equilibrium
+                                # model PROVED that, so the heaters own the window, per the TRL5
+                                # TVAC/heater design)
+    THERMAL_T_HEATED_C = 10.0   # [ASSUMPTION] heater setpoint inside the documented window
+    HEATER_RESERVE_FRAC = 0.10  # [ASSUMPTION] below this SoC the heaters shed (survival power)
+
+    def _update_thermal_from_sun(self) -> None:
+        """T5.1 corrected: camera availability at a polar site is HEATER-driven -- the window
+        holds while the pack can power the heaters; pack below the shed reserve -> the housing
+        falls to the cold equilibrium and the TVAC gate fires."""
+        if not self.sun_thermal or self._manual_thermal:
+            return
+        soc = max(0.0, 1.0 - self.energy_used_j / self.battery_capacity_j)
+        self.camera_temp_c = (self.THERMAL_T_HEATED_C if soc > self.HEATER_RESERVE_FRAC
+                              else self.THERMAL_T_COLD_C)
+
     def _pose(self) -> dict:
         sha = hashlib.sha256(self.cs.mass_areal.tobytes()).hexdigest()[:16]
         return {"ok": True, "rc": [float(self.rc[0]), float(self.rc[1])],
@@ -89,6 +118,7 @@ class RuntimeProcess:
             # pack accounting: the twin's grounded drive power while commanding motion
             self._draw_w = float(self.twin.energy["drive_power_w"]) if (v or omega) else 0.0
             self.energy_used_j += self._draw_w * self.dt
+        self._update_thermal_from_sun()                  # T5.1: time advanced -> sun -> temperature
         out = self._pose()
         out["slip"] = float(telem.get("slip", 0.0))
         return out
@@ -184,6 +214,7 @@ class RuntimeProcess:
             return self._packet()
         if cmd == "set_thermal":
             self.camera_temp_c = float(req["camera_temp_c"])
+            self._manual_thermal = True                  # the inspection override beats the model
             return {"ok": True, "camera_temp_c": self.camera_temp_c}
         if cmd == "checkpoint":
             return self._checkpoint(req["path"])

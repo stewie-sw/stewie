@@ -89,3 +89,19 @@ def test_mission_summary_artifact(client):
     import stewie.specs.config as CFG, os
     files = os.listdir(os.path.join(CFG.data_dir(), "sessions"))
     assert any(sid in f for f in files)
+
+
+def test_t42_sessions_stamp_one_sun_state(client):
+    """ARGUS T4.2: a session carries mission_t0; operator AND director views stamp the SAME sun
+    (az/el from the one solar authority at that time) -- camera frames, shadow layers, and the
+    debrief all agree on lighting."""
+    r = client.post("/session/start", json={**_mission(), "mission_t0_s": 600000},
+                    headers={"X-API-Key": "director-key"})
+    sid = r.json()["session_id"]
+    op = client.get(f"/session/{sid}/operator").json()
+    db = client.get(f"/session/{sid}/debrief", headers={"X-API-Key": "director-key"}).json()
+    assert op["sun"] == db["sun"]                         # one sun state, both views
+    assert op["sun"]["mission_t0_s"] == 600000
+    from stewie.specs.solar import sun_az_el
+    az, el = sun_az_el(-87.45, 600000.0)
+    assert op["sun"]["az_deg"] == pytest.approx(az) and op["sun"]["el_deg"] == pytest.approx(el)

@@ -219,3 +219,31 @@ def test_t34_camera_thermal_gating(tmp_path):
     assert cold["channels"]["imu"]["status"] == "OK"      # avionics unaffected (wider qual)
     from stewie.bridge.runtime_io import parse_canonical
     parse_canonical(cold)                                 # still a strictly valid packet
+
+
+def test_t51_heaters_own_the_camera_window(tmp_path):
+    """ARGUS T5.1 (corrected en route): the naive sun-equilibrium model PROVED that grazing polar
+    sun (max el ~1.6 deg at Haworth) can never passively hold the 0..50 C window -- so, per the
+    TRL5 TVAC/heater design, the HEATERS own it while the pack can power them. Powered: camera OK
+    at any sun. Pack below the shed reserve: housing falls cold, the TVAC gate fires. Manual
+    set_thermal still overrides."""
+    import os
+    store = os.path.join(os.path.dirname(rp.__file__), "..", "eval", "validation",
+                         "g2cal", "pose_0")
+    if not os.path.isdir(store):
+        pytest.skip("g2cal evidence not present")
+    srv = rp.RuntimeProcess(grid=48, cell_m=0.02, body="moon",
+                            socket_path=str(tmp_path / "s.sock"), seed=5,
+                            frame_store=os.path.abspath(store), sun_thermal=True)
+    assert srv.camera_temp_c == srv.THERMAL_T_HEATED_C    # powered: in the window, any sun
+    srv.handle({"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 3})
+    assert srv.handle({"role": "produce", "cmd": "packet"})["packet"]["channels"]["camera"][
+        "status"] == "OK"
+    srv.energy_used_j = srv.battery_capacity_j * 0.95     # drain past the heater-shed reserve
+    srv.handle({"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 1})
+    cam = srv.handle({"role": "produce", "cmd": "packet"})["packet"]["channels"]["camera"]
+    assert cam["status"] == "UNAVAILABLE" and "thermal" in cam["reason"]
+    srv.handle({"role": "drive", "cmd": "set_thermal", "camera_temp_c": 15.0})
+    srv.handle({"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 1})
+    assert srv.handle({"role": "produce", "cmd": "packet"})["packet"]["channels"]["camera"][
+        "status"] == "OK"

@@ -475,10 +475,11 @@ class SessionRequest(BaseModel):
 def session_start(req: SessionRequest, _auth: None = Depends(require_auth)):
     body = req.model_dump()
     profile = body.pop("profile", "ideal")
+    mission_t0_s = float(body.pop("mission_t0_s", 0.0) or 0.0)
     try:
         mission = MP.mission_from_dict(body)
         dem, origin = _moon_dem() if body.get("body", "moon") == "moon" else (None, (0.0, 0.0))
-        s = SES.start(mission, profile=profile, dem=dem, dem_origin=origin)
+        s = SES.start(mission, profile=profile, dem=dem, dem_origin=origin, mission_t0_s=mission_t0_s)
     except (ValueError, RuntimeError, KeyError, FileNotFoundError) as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     return {"ok": True, "session_id": s.session_id, "n_legs": len(s.record["legs"]),
