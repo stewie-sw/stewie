@@ -19,7 +19,12 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
     import stewie.server.server as srv
     importlib.reload(srv)
-    return TestClient(srv.app)
+    yield TestClient(srv.app)
+    # the reload baked the monkeypatched env (REPORTS under tmp_path, auth key) into the CACHED
+    # module -- later tests then 404 on reports (caught 2026-06-10: a cross-file ordering leak).
+    # Undo the env FIRST, then restore a clean module for whoever imports it next.
+    monkeypatch.undo()
+    importlib.reload(srv)
 
 
 def _mission():
