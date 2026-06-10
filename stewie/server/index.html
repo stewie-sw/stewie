@@ -924,7 +924,7 @@ function switchWorkset(fromBody, toBody) {
   if (typeof LAST_ROUTES !== "undefined") { LAST_ROUTES.length = 0; w.routes.forEach((r) => LAST_ROUTES.push(r)); }
   if (typeof renderQueue === "function") renderQueue();
   if (typeof drawPlan === "function") drawPlan();
-  if (typeof marker !== "undefined" && marker && window.viewer) { viewer.entities.remove(marker); marker = null; }
+  if (typeof marker !== "undefined" && marker && viewer) { viewer.entities.remove(marker); marker = null; }
 }
 let CURRENT_BODY = "moon";
 const qel = (id) => document.getElementById(id);
@@ -990,7 +990,14 @@ async function loadLayers() {
       const lab = document.createElement("label"); lab.style.cssText = "display:inline-flex;gap:3px;align-items:center;cursor:pointer";
       const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!L.default;
       cb.onchange = () => { LAYER_ON[lid] = cb.checked; applyLayerToggle(lid, cb.checked); drawPlan(); };
-      lab.appendChild(cb); lab.appendChild(document.createTextNode(L.name)); panel.appendChild(lab);
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(L.name));
+      if (["topology", "excavation", "lander"].includes(lid)) {
+        const tag = document.createElement("span");
+        tag.textContent = "plan"; tag.title = "draws on the PLAN canvas (section 4) and the work-area inset";
+        tag.style.cssText = "font-size:8px;color:var(--dim);border:1px solid var(--line);border-radius:3px;padding:0 3px";
+        lab.appendChild(tag);
+      }
+      panel.appendChild(lab);
     });
   } catch (e) { /* serverless preview keeps the defaults */ }
 }
@@ -998,7 +1005,7 @@ const GIS_RASTERS = ["slope", "hazard", "illumination", "psr"];   // computed fr
 // the BIG-MAP layer path (Aaron: "layers only load in the pip window -- need it on the large
 // screen"): each raster becomes a Cesium imagery layer clipped to the true Haworth footprint.
 async function globeLayer(key, _url, on) {
-  if (!window.viewer || !HAWORTH_RECT) return;
+  if (!viewer || !HAWORTH_RECT) return;
   if (GLOBE_LAYERS[key]) { viewer.imageryLayers.remove(GLOBE_LAYERS[key], true); delete GLOBE_LAYERS[key]; }
   if (!on) return;
   // server-REPROJECTED geographic drape in the layer's OWN bbox (the rotated-tile fix)
@@ -1020,9 +1027,23 @@ function sunQS() {
     return `mission_t_s=${Math.round(parseFloat(qel("suntime").value) * 86400)}&b=${BOOT_V}`;
   return `sun_el=${qel("sunel").value}&sun_az=${qel("sunaz").value}&b=${BOOT_V}`;
 }
+function flyToWorkArea() {                                 // audit P1: toggles give FEEDBACK -- fly to where the layer lives
+  if (!viewer || !HAWORTH_CENTER) return;
+  const h = viewer.camera.positionCartographic.height;
+  const c = Cesium.Cartographic.fromCartesian(viewer.camera.position, viewer.scene.globe.ellipsoid);
+  const far = h > 120000 ||
+    Math.abs(Cesium.Math.toDegrees(c.latitude) - HAWORTH_CENTER.lat) > 1.5;
+  // setView (instant): animated flyTo tweens never progress in this viewer config
+  if (far) viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(
+    HAWORTH_CENTER.lon, HAWORTH_CENTER.lat, 30000, viewer.scene.globe.ellipsoid) });
+}
 function applyLayerToggle(id, on) {                          // load/unload the raster layers (vector layers redraw)
-  if (id === "dem") { const wa = qel("workarea"); if (wa) wa.style.display = on ? "" : "none"; }
-  if (id === "imagery" && window.viewer && viewer.imageryLayers && viewer.imageryLayers.length) viewer.imageryLayers.get(0).show = on;
+  if (id === "dem") {
+    const wa = qel("workarea"); if (wa) wa.style.display = on ? "" : "none";
+    globeLayer("dem", "", on);                               // the GLOBE drape obeys the checkbox too
+    if (on) flyToWorkArea();
+  }
+  if (id === "imagery" && viewer && viewer.imageryLayers && viewer.imageryLayers.length) viewer.imageryLayers.get(0).show = on;
   if (GIS_RASTERS.includes(id)) {
     renderLegend();
     const im = qel("ovl_" + id);
@@ -1031,6 +1052,7 @@ function applyLayerToggle(id, on) {                          // load/unload the 
       else { im.style.display = "none"; }
     }
     globeLayer(id, `/layers/raster/${id}.png?` + sunQS(), on);   // AND on the big map
+    if (on) flyToWorkArea();                                 // a work-area layer you can't see = a dead checkbox
   }
 }
 let LEGEND = null;
