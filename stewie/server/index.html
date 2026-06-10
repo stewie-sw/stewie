@@ -449,6 +449,9 @@
           <button id="admgate" class="site">🛡 Validate gates</button>
           <span id="admout" style="font-size:11px;opacity:.8"></span>
         </div>
+        <div class="cap" style="margin-top:6px"><span>EVENT HISTORY — who did what, when</span>
+          <button id="evrefresh" class="site" style="font-size:10px">↻</button></div>
+        <ol id="evlist" style="font-size:11px;font-variant-numeric:tabular-nums;max-height:160px;overflow:auto;margin:4px 0;padding-left:18px"></ol>
         <div class="cap"><span>SERVER — health + metrics</span>
           <button id="srvrefresh" class="go">↻ refresh</button></div>
         <pre id="srvout" class="mono">—</pre>
@@ -1184,6 +1187,21 @@ async function renderArea(u, v, opts) {
     b.disabled = false;
   };
 });
+async function refreshEvents() {
+  try {
+    const j = await (await fetch("/events?n=40")).json();
+    const ol = $("evlist"); if (!ol) return;
+    ol.innerHTML = "";
+    (j.events || []).forEach((e) => {
+      const li = document.createElement("li");
+      const t = new Date(e.ts * 1000).toLocaleTimeString();
+      li.textContent = `${t} · ${e.actor} · ${e.action} ${e.target}`;
+      ol.appendChild(li);
+    });
+  } catch (err) { /* offline */ }
+}
+if ($("evrefresh")) $("evrefresh").onclick = refreshEvents;
+refreshEvents();
 $("editmode").onclick = () => setEdit(true);
 $("editdone").onclick = () => setEdit(false);
 document.querySelectorAll(".etool").forEach((b) => {

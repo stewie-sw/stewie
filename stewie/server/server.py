@@ -353,6 +353,39 @@ def get_index():
 from stewie.server import objects as OBJ               # noqa: E402
 
 
+# ---- #39: the event history (who did what when; actor = the #52 auth identity) ----------------
+def log_event(actor: str, action: str, target: str = "") -> None:
+    """Append-only audit line under data_dir (the replicate path covers it). Never raises."""
+    import json as _json
+    import time as _time
+
+    from stewie.specs import config as CFG
+    try:
+        with open(os.path.join(CFG.data_dir(), "events.jsonl"), "a") as f:
+            f.write(_json.dumps({"ts": round(_time.time(), 3), "actor": actor,
+                                 "action": action, "target": target}) + "\n")
+    except OSError:
+        pass
+
+
+@app.get("/events")
+def get_events(n: int = 50):
+    """The newest-first event history (who did what when)."""
+    import json as _json
+
+    from stewie.specs import config as CFG
+    path = os.path.join(CFG.data_dir(), "events.jsonl")
+    out: list = []
+    if os.path.exists(path):
+        lines = open(path).read().splitlines()[-max(1, min(int(n), 500)):]
+        for ln in reversed(lines):
+            try:
+                out.append(_json.loads(ln))
+            except ValueError:
+                continue
+    return {"ok": True, "events": out}
+
+
 # ---- #32: no-terminal admin ops (the W-2/W-3 CLIs + gate validation as buttons) ---------------
 @app.post("/admin/twin/snapshot")
 def admin_snapshot(_auth: str = Depends(require_auth)):
@@ -412,9 +445,11 @@ def auth_login(body: dict, _auth: str = Depends(require_auth)):
 
 
 @app.post("/missions/{name}")
-def mission_save(name: str, doc: dict, _auth: None = Depends(require_auth)):
+def mission_save(name: str, doc: dict, _auth: str = Depends(require_auth)):
     try:
-        return {"ok": True, **OBJ.save_mission(name, doc)}
+        out = OBJ.save_mission(name, doc)
+        log_event(_auth, "mission.save", out["name"])
+        return {"ok": True, **out}
     except ValueError as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
 
@@ -433,14 +468,18 @@ def mission_load(name: str):
 
 
 @app.delete("/missions/{name}")
-def mission_delete(name: str, _auth: None = Depends(require_auth)):
-    return {"ok": OBJ.delete_mission(name)}
+def mission_delete(name: str, _auth: str = Depends(require_auth)):
+    ok = OBJ.delete_mission(name)
+    log_event(_auth, "mission.delete", name)
+    return {"ok": ok}
 
 
 @app.post("/structures/custom/{name}")
-def structure_save(name: str, doc: dict, _auth: None = Depends(require_auth)):
+def structure_save(name: str, doc: dict, _auth: str = Depends(require_auth)):
     try:
-        return {"ok": True, **OBJ.save_structure(name, doc)}
+        out = OBJ.save_structure(name, doc)
+        log_event(_auth, "structure.save", out["name"])
+        return {"ok": True, **out}
     except ValueError as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
 
@@ -459,8 +498,10 @@ def structure_expand(name: str, x: float, y: float):
 
 
 @app.delete("/structures/custom/{name}")
-def structure_delete(name: str, _auth: None = Depends(require_auth)):
-    return {"ok": OBJ.delete_structure(name)}
+def structure_delete(name: str, _auth: str = Depends(require_auth)):
+    ok = OBJ.delete_structure(name)
+    log_event(_auth, "structure.delete", name)
+    return {"ok": ok}
 
 
 @app.on_event("startup")
