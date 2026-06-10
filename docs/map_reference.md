@@ -105,3 +105,17 @@ gap from the two-vehicle spec. The gauge bias is fixed with the documented track
 | PGDA Products 81/90 (Barker 2023) | 5–30 m/pix, polewards of 80°S | regional context between sites |
 | **LuNaMaps SfS strip** (Bertone 2023, doi:10.5281/zenodo.10258683) | 30 m/pix, the 60°–80°S **approach corridor** (18,000 km², 1.1 GB TAR) | **optical-navigation / approach-phase evaluation** (SolNav dissertation) — not site-scale |
 | SLDEM2015 | 60 m/pix global | basemap-scale only |
+
+## The 30 kg question (Aaron, 2026-06-10): per drum or total?
+
+**TOTAL per excavation cycle — the vehicle's delivery quantum, not a per-drum hold.** The RDS
+spec reads "collect/store/deposit up to 30 kg/cycle (15 kg minimum success threshold)"
+[SCHULER24] — the collect→haul→deposit loop. The per-drum INSTANTANEOUS holds are a different,
+measured number [BDS Table 3]: small 3.80 kg / medium 7.30 kg per drum (IPEx carries the
+small–medium scale; the 24.98 kg "large" is RASSOR 2.0's drum). With two drums at medium scale
+(~14.6 kg held at once), a 30 kg cycle therefore spans MULTIPLE drum fills per delivery —
+consistent, not contradictory, but worth stating plainly: `drum_capacity_kg=30` in the registry
+is the per-CYCLE delivery spec the planner's drum-loads math uses, and the BDS per-drum values
+bound what is on the arms at any instant (which is what the CG/stability widget takes as its
+per-drum load inputs, max 30 kg slider deliberately above the medium hold for RASSOR-2-class
+what-ifs).
