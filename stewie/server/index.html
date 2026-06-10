@@ -305,6 +305,8 @@
       <h3>5 · Catalog — saved missions &amp; structures</h3>
       <div class="ctl"><input id="msname" class="lbl" placeholder="mission name" style="max-width:11em" />
         <button id="mssave" class="site">💾 Save mission</button></div>
+      <textarea id="msnotes" placeholder="mission notes (saved with the document)"
+        style="width:100%;min-height:52px;background:var(--bg2,#111318);color:var(--txt);border:1px solid var(--line);border-radius:6px;font-size:11px;padding:6px;resize:vertical"></textarea>
       <ol id="mslist" style="font-size:11px;margin:4px 0;padding-left:18px"></ol>
       <div class="ctl" style="margin-top:6px"><input id="stname" class="lbl" placeholder="new structure from queue" style="max-width:13em" />
         <button id="stsave" class="site" title="saves the CURRENT queue (relative to its first order) as a reusable structure template">＋ Template</button></div>
@@ -533,6 +535,23 @@ function loadBody(key) {
   // click to pick a surface coordinate
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction((e) => {
+    // #37 (Aaron): clicking the HAWORTH WORK AREA loads the real granular maps into the BIG window
+    const picked = viewer.scene.pick(e.position);
+    if (picked && picked.id && HAWORTH_ENTITIES.includes(picked.id)) {
+      viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(
+        HAWORTH_CENTER.lon, HAWORTH_CENTER.lat, 18000, viewer.scene.globe.ellipsoid) });
+      ["dem"].concat(GIS_RASTERS.filter((k) => ["slope", "hazard"].includes(k))).forEach((k) => {
+        LAYER_ON[k] = true; applyLayerToggle(k, true);
+        const lp = qel("layerpanel");
+        if (lp) lp.querySelectorAll("label").forEach((lab) => {
+          const t = lab.textContent || "";
+          if ((k === "slope" && t.startsWith("Slope")) || (k === "hazard" && t.includes("no-go")) ||
+              (k === "dem" && t.includes("DEM"))) lab.querySelector("input").checked = true;
+        });
+      });
+      setQ("HAWORTH WORK AREA loaded: 5 m DEM + slope + hazard on the main map");
+      return;
+    }
     const c = viewer.camera.pickEllipsoid(e.position, ellipsoid);
     if (!c) return;
     const carto = Cesium.Cartographic.fromCartesian(c, ellipsoid);
@@ -1676,6 +1695,7 @@ async function refreshCatalog() {
           if (d.body && d.body !== sel.value) { sel.value = d.body; sel.onchange(); }
           ORDERS.length = 0; (d.orders || []).forEach((o) => ORDERS.push(o));
           KEEPOUTS.length = 0; (d.keepouts || []).forEach((k) => KEEPOUTS.push(k));
+          if ($("msnotes")) $("msnotes").value = d.note || "";
           renderQueue(); setQ(`loaded mission "${m.title || m.name}"`);
         }),
         mkbtn("✕", async () => {
@@ -1707,7 +1727,7 @@ $("mssave").onclick = async () => {
   const name = $("msname").value.trim(); if (!name) { setQ("name the mission first"); return; }
   const r = await fetch(`/missions/${encodeURIComponent(name)}`, { method: "POST",
     headers: apiHeaders(), body: JSON.stringify({ body: sel.value, orders: ORDERS,
-      keepouts: KEEPOUTS, precedence: parsePrec() }) });
+      keepouts: KEEPOUTS, precedence: parsePrec(), note: $("msnotes") ? $("msnotes").value : "" }) });
   if (r.status === 401) { setQ("⚠ API key required: ⚙ Settings"); setView("settings"); return; }
   setQ((await r.json()).ok ? `saved mission "${name}"` : "save failed"); refreshCatalog();
 };
