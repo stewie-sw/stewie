@@ -93,7 +93,8 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
 
 RASTER_DEFS = [
     {"key": "slope", "name": "Slope (deg, from the real DEM)", "kind": "raster", "group": "terrain"},
-    {"key": "hazard", "name": "Hazard / no-go (nav cost)", "kind": "raster", "group": "safety"},
+    {"key": "hazard", "name": "Hazard / no-go (nav cost)", "kind": "raster", "group": "safety",
+     "default": True},   # T6.1: the routing round-trip -- routes detour on the SAME layer the user sees
     {"key": "illumination", "name": "Shadow (horizon-clipped sun)", "kind": "raster", "group": "sun"},
     {"key": "psr", "name": "PSR candidates (never lit)", "kind": "raster", "group": "sun"},
 ]

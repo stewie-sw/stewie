@@ -76,14 +76,11 @@ def write_bundle(cs, meta: dict, out_dir: str) -> str:
     return out_dir
 
 
-def render(scene_dir: str, out_name: str, layers: str = "terrain",
-           sun_elev_deg: float | None = None, pose: str | None = None) -> str:
-    """Render a scene bundle to godot_sidecar/out/<out_name> via the headless Godot sidecar.
-
-    `sun_elev_deg` raises the sun for a lit planning/inspection view (the default 5 deg grazing sun
-    leaves sloped terrain mostly shadowed); leave None for the sensor-faithful grazing render. `pose`
-    is an explicit camera 'px,py,pz,tx,ty,tz' (the default auto-frame is tuned for ~5 m patches)."""
-    os.makedirs(os.path.dirname(os.path.join(_SIDE, "out", out_name)), exist_ok=True)
+def render_cmd(scene_dir: str, out_name: str, layers: str = "terrain",
+               sun_elev_deg: float | None = None, sun_az_deg: float | None = None,
+               pose: str | None = None) -> list:
+    """The sidecar invocation (pure builder -- unit-testable; T6.3 threads the SAME sun the
+    planner's GIS shadow layer shows, az + el, so 2D and 3D agree on lighting)."""
     cmd = [_RENDER, os.path.join(_SIDE, "sidecar.tscn"), "--",
            "--scene", os.path.abspath(scene_dir), "--layers", layers,
            "--size", "1024x768", "--out", out_name]
@@ -91,6 +88,21 @@ def render(scene_dir: str, out_name: str, layers: str = "terrain",
         cmd += ["--pose", pose]
     if sun_elev_deg is not None:
         cmd += ["--sun-elev", str(float(sun_elev_deg))]
+    if sun_az_deg is not None:
+        cmd += ["--sun-azim", str(float(sun_az_deg))]
+    return cmd
+
+
+def render(scene_dir: str, out_name: str, layers: str = "terrain",
+           sun_elev_deg: float | None = None, sun_az_deg: float | None = None,
+           pose: str | None = None) -> str:
+    """Render a scene bundle to godot_sidecar/out/<out_name> via the headless Godot sidecar.
+
+    `sun_elev_deg` raises the sun for a lit planning/inspection view (the default 5 deg grazing sun
+    leaves sloped terrain mostly shadowed); leave None for the sensor-faithful grazing render. `pose`
+    is an explicit camera 'px,py,pz,tx,ty,tz' (the default auto-frame is tuned for ~5 m patches)."""
+    os.makedirs(os.path.dirname(os.path.join(_SIDE, "out", out_name)), exist_ok=True)
+    cmd = render_cmd(scene_dir, out_name, layers, sun_elev_deg, sun_az_deg, pose)
     subprocess.run(cmd, capture_output=True, text=True, timeout=240)
     return os.path.join(_SIDE, "out", out_name)
 
@@ -147,7 +159,8 @@ def crop_window_columnstate(cs_full, u: float, v: float, win_cells: int, zoom: i
 
 
 def render_map_area(bundle_dir: str, u: float, v: float, out_dir: str,
-                    *, win_cells: int = 10, zoom: int = 10, pad_frac: float = 0.5) -> dict:
+                    *, win_cells: int = 10, zoom: int = 10, pad_frac: float = 0.5,
+                    mission_t_s: float | None = None) -> dict:
     """Crop a window from a committed DEM bundle at the (u,v) fraction, plan a flatten, render
     BEFORE/AFTER in Godot, and return the image paths + earthwork volumes. The select-area -> render
     workhorse a browser /render endpoint drives. Cropping a small window also sidesteps the sidecar's
@@ -166,8 +179,18 @@ def render_map_area(bundle_dir: str, u: float, v: float, out_dir: str,
     ext = W * cs.cell_m
     c = ext / 2.0
     pose = f"{c:.2f},{ext * 0.85:.2f},{c + ext * 0.6:.2f},{c:.2f},0,{c:.2f}"   # oblique bird's-eye
-    before_png = render(before_dir, "plan_render/win_before.png", sun_elev_deg=25.0, pose=pose)
-    after_png = render(after_dir, "plan_render/win_after.png", sun_elev_deg=25.0, pose=pose)
+    # T6.3: at a mission time, render under THE SAME SUN the planner's GIS shadow layer shows
+    # (one solar authority); without one, keep the lit 25-deg inspection view.
+    if mission_t_s is not None:
+        from stewie.specs.solar import sun_az_el
+        s_az, s_el = sun_az_el(-87.45, float(mission_t_s))
+        s_el = max(s_el, 3.0)        # keep the inspection render visible at polar grazing/negative el
+    else:
+        s_az, s_el = None, 25.0
+    before_png = render(before_dir, "plan_render/win_before.png", sun_elev_deg=s_el,
+                        sun_az_deg=s_az, pose=pose)
+    after_png = render(after_dir, "plan_render/win_after.png", sun_elev_deg=s_el,
+                       sun_az_deg=s_az, pose=pose)
     fig = _make_figure(plan, before_png, after_png, os.path.join(out_dir, "plan_render.png"),
                        f"Select-area -> render: flatten at (u={u:.2f}, v={v:.2f}) on the real Haworth DEM")
     return {"before_png": before_png, "after_png": after_png, "figure": fig,

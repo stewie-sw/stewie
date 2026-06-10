@@ -256,6 +256,7 @@ class RenderRequest(BaseModel):
     u: float = Field(default=0.5, ge=0.0, le=1.0)
     v: float = Field(default=0.5, ge=0.0, le=1.0)
     pad_frac: float = Field(default=0.5, gt=0.0, le=1.0)
+    mission_t_s: float | None = None   # T6.3: render under the planner's mission-time sun
 
 
 class ProfileRequest(BaseModel):
@@ -718,7 +719,8 @@ def post_render(req: RenderRequest, _auth: None = Depends(require_auth)):
     stem = "render_" + hashlib.sha1(f"{req.u:.4f}_{req.v:.4f}_{req.pad_frac:.2f}".encode()).hexdigest()[:10]
     try:
         with _REPORT_LOCK:
-            r = PRP.render_map_area(_HAWORTH, req.u, req.v, os.path.join(REPORTS, stem), pad_frac=req.pad_frac)
+            r = PRP.render_map_area(_HAWORTH, req.u, req.v, os.path.join(REPORTS, stem),
+                                    pad_frac=req.pad_frac, mission_t_s=req.mission_t_s)
     except Exception as e:                              # noqa: BLE001 -- render failure -> honest 500
         log.exception("render failed for (u=%s, v=%s)", req.u, req.v)
         return JSONResponse(status_code=500, content={"ok": False, "error": f"render failed: {e}"})

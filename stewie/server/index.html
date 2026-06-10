@@ -86,6 +86,11 @@
   #workarea.show { display: block; }
   #workarea .cap { color: var(--muted); font-size: 10px; letter-spacing: .03em; margin-bottom: 6px; }
   #workarea img { width: 100%; display: block; border-radius: 4px; background: #05060c; }
+  /* UI-5 (PRD 16.5, P4 verbatim): data-freshness borders -- green when fresh, yellow past 20 s,
+     red past 60 s. Applied to any element carrying data-fresh; ages re-evaluated every 5 s. */
+  [data-fresh] { border: 2px solid #19c37d !important; }
+  [data-fresh="stale"] { border-color: #e0b300 !important; }
+  [data-fresh="dead"] { border-color: #e8273f !important; }
   .gisovl { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; display:none; image-rendering:pixelated }
       #workareaimg { cursor: crosshair; }
   /* PERCEPTION pane: Godot PLAN -> RENDER before/after frame (sensor model). Live SLAM map = open work. */
@@ -514,6 +519,16 @@ function loadSettings() {
   return s;
 }
 function saveSettings(s) { try { localStorage.setItem("stewie_settings", JSON.stringify(s)); } catch (e) {} }
+// UI-5: stamp an element as freshly-updated; the 5 s sweeper walks every stamped element and
+// applies the P4 thresholds (fresh < 20 s, stale < 60 s, dead beyond).
+function markFresh(el) { if (el) { el.dataset.fresh = "ok"; el.dataset.freshTs = String(Date.now()); } }
+setInterval(() => {
+  document.querySelectorAll("[data-fresh]").forEach((el) => {
+    const age = (Date.now() - parseInt(el.dataset.freshTs || "0", 10)) / 1000;
+    el.dataset.fresh = age < 20 ? "ok" : (age < 60 ? "stale" : "dead");
+  });
+}, 5000);
+
 const SETTINGS = loadSettings();
 applySettings(SETTINGS);
 if ($("set-theme")) $("set-theme").onchange = () => {
@@ -628,12 +643,16 @@ $("workareaimg").onclick = async (e) => {
   $("rpstatus").textContent = "rendering BEFORE / AFTER in Godot (~40 s)…";
   $("rpimg").style.display = "none"; $("rpvol").textContent = "";
   try {
+    const rbody = { u, v, pad_frac: 0.5 };                 // T6.3: same sun as the GIS shadow layer
+    if ($("sunauto") && $("sunauto").checked && $("suntime"))
+      rbody.mission_t_s = Math.round(parseFloat($("suntime").value) * 86400);
     const res = await fetch("/render", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ u, v, pad_frac: 0.5 }) });
+      body: JSON.stringify(rbody) });
     const j = await res.json();
     if (!j.ok) { $("rpstatus").textContent = "render unavailable: " + (j.error || res.status); return; }
     $("rpvol").textContent = ` — cut ${j.cut_vol_m3} m³ / fill ${j.fill_vol_m3} m³ (${j.extent_m} m window)`;
     $("rpimg").src = j.figure + "?t=" + Date.now(); $("rpimg").style.display = "block"; $("rpstatus").textContent = "";
+    markFresh($("rpimg"));                                 // UI-5: the camera tile gets a freshness border
   } catch (err) { $("rpstatus").textContent = "render error: " + err; }
 };
 $("rpclose").onclick = () => setView("plan");
@@ -1034,6 +1053,7 @@ function execExtent(tl, orders) {
   return { x0: x0 - padx, x1: x1 + padx, y0: y0 - pady, y1: y1 + pady };
 }
 function execDraw(tl, orders, ext, cv, simT) {
+  markFresh(cv);                                           // UI-5: the telemetry canvas freshness
   const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
   const sx = W / (ext.x1 - ext.x0), sy = H / (ext.y1 - ext.y0), s = Math.min(sx, sy);
   const ox = (W - s * (ext.x1 - ext.x0)) / 2, oy = (H - s * (ext.y1 - ext.y0)) / 2;
