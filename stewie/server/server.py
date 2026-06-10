@@ -527,7 +527,13 @@ def _twin() -> "VT.TwinStore":
         import numpy as _np
         if base is None:
             base = _np.zeros((64, 64))                  # degraded mode mirrors _moon_dem's fallback
-        _TWIN = VT.TwinStore(_np.asarray(base, dtype=float), cell_m=5.0)
+        from stewie.specs import config as _CFG
+        _jdir = os.path.join(_CFG.data_dir(), "twin")
+        os.makedirs(_jdir, exist_ok=True)
+        _jp = os.path.join(_jdir, "haworth.journal")
+        # W-1 (PRD 6.2): the server twin is DURABLE -- cold restore from the journal, then journal on
+        _TWIN = VT.TwinStore.from_journal(_np.asarray(base, dtype=float), cell_m=5.0,
+                                          journal_path=_jp)
     return _TWIN
 
 

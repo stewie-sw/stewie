@@ -81,3 +81,21 @@ def test_resync_endpoint_roundtrip():
     v = c.get("/twin/version").json()
     assert v["twin_version"] == r.json()["twin_version"]
     assert v["events"][-1]["provenance"] == "test reconstruction patch"
+
+
+def test_w1_durable_journal_survives_process_loss(tmp_path):
+    """PRD 6.2 W-1/W-4: every edit appends durably (fsync) to a journal; a COLD restart -- no
+    checkpoint, no in-process state -- rebuilds the twin bit-exact from base + journal alone."""
+    j = str(tmp_path / "twin.journal")
+    tw = vt.TwinStore(_base(), cell_m=0.5, journal_path=j)
+    tw.apply_patch(np.full((4, 4), 0.1), origin_rc=(5, 5), provenance="sol-1 resync")
+    tw.apply_patch(np.full((6, 6), -0.2), origin_rc=(20, 30), provenance="sol-2 resync")
+    tw.undo()
+    want = tw.current().tobytes(); want_v = tw.version
+    del tw                                                # the process "dies"
+    cold = vt.TwinStore.from_journal(_base(), cell_m=0.5, journal_path=j)
+    assert cold.current().tobytes() == want               # bit-exact world after cold restore
+    assert cold.version == want_v and cold.verify_chain()
+    cold.apply_patch(np.full((2, 2), 9.0), origin_rc=(0, 0), provenance="post-recovery edit")
+    cold2 = vt.TwinStore.from_journal(_base(), cell_m=0.5, journal_path=j)
+    assert cold2.version == cold.version                  # recovery is repeatable after new edits

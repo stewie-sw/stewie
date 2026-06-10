@@ -25,10 +25,26 @@ class TwinStore:
     cell_m: float
     events: list = field(default_factory=list)
     version: int = 0
+    journal_path: str | None = None     # W-1 (PRD 6.2): per-edit durable append; None = volatile
 
     def __post_init__(self):
         self.base = np.asarray(self.base, dtype=np.float64).copy()
         self.base.setflags(write=False)                  # the base layer is immutable
+
+    @classmethod
+    def from_journal(cls, base, cell_m: float, journal_path: str) -> "TwinStore":
+        """W-4 cold restore: rebuild the twin from base + the durable journal ALONE. Events replay
+        through apply_event (hash-verified line by line); the rebuilt store keeps journaling."""
+        import os as _os
+        tw = cls(base, cell_m=cell_m)                    # replay WITHOUT journaling (no re-append)
+        if _os.path.exists(journal_path):
+            with open(journal_path) as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line:
+                        tw.apply_event(json.loads(line))
+        tw.journal_path = journal_path                   # future edits journal again
+        return tw
 
     # ---- event plumbing ------------------------------------------------------------------
     def _chain_hash(self, body: dict, patch_bytes: bytes) -> str:
@@ -45,6 +61,12 @@ class TwinStore:
         body["hash"] = self._chain_hash(body, patch_bytes)
         self.events.append(body)
         self.version += 1
+        if self.journal_path:                            # W-1: durable BEFORE we report success
+            import os as _os
+            with open(self.journal_path, "a") as fh:
+                fh.write(json.dumps(body, sort_keys=True) + "\n")
+                fh.flush()
+                _os.fsync(fh.fileno())
         return self.version
 
     # ---- edits ---------------------------------------------------------------------------
