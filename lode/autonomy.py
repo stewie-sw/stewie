@@ -168,6 +168,25 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
     survey_time_s = 0.0                                    # P6: real time the survey-before-dig gate costs
     stations = [tuple(mission.charger)]                   # P6: where the rover has observed the worksite from
     legs = []
+    # Task #25 (Aaron: "everything is precision ops -- a high berm will flip the rover"): terrain
+    # BUILT mid-mission was invisible to later legs (slopes derive from the PRIOR DEM). A fresh
+    # loose-regolith edge stands at the REPOSE angle -- above the 20-deg tested envelope -- so any
+    # later leg whose straight path crosses an EXECUTED cut/fill footprint gets flagged.
+    built: list = []                                       # (cx, cy, half_m, label, kind)
+    hazard_violations: list = []
+    from stewie.specs.bodies import get_body
+    _rep = get_body(mission.body).repose_deg
+    repose_deg = float(_rep) if _rep else 35.0             # measured per body; 35 = lunar default
+
+    def _seg_hits_box(p0, p1, cx, cy, half):
+        import numpy as _np
+        d = _np.array([p1[0] - p0[0], p1[1] - p0[1]], float)
+        n = max(8, int(_np.hypot(*d) / max(half, 1.0)) * 4)
+        for t in _np.linspace(0.0, 1.0, n):
+            x, y = p0[0] + d[0] * t, p0[1] + d[1] * t
+            if abs(x - cx) <= half and abs(y - cy) <= half:
+                return True
+        return False
 
     def _recharge(b):
         d_back = MP._d((b.x, b.y), mission.charger)
@@ -202,6 +221,7 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
             map_observe_more += 1
         stations.append(site)                             # the rover observes the worksite from each station
         nominal_J = nominal_leg_energy_J((belief.x, belief.y), leg)
+        prev_pose = (belief.x, belief.y)                   # #25: the leg's start, for the path check
         telem = execute_leg(belief, leg, dem=dem, dem_origin=dem_origin, g=g, body=mission.body,
                             params=MP.mission_soil_params(mission))
         # ESTIMATE -- DEAD-RECKON: the believed pose accumulates a deterministic along-track odometry drift
@@ -241,6 +261,23 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
             belief = dataclasses.replace(belief, energy_J=belief.energy_J - chunk)
             left -= chunk
         belief = dataclasses.replace(belief, tasks_done=belief.tasks_done + 1)
+        # #25: does this leg's path cross terrain BUILT earlier in the mission?
+        for (bx, by, bh, blabel, bkind) in built:
+            if _seg_hits_box((prev_pose[0], prev_pose[1]), leg["site"], bx, by, bh):
+                hazard_violations.append({
+                    "leg": leg["label"], "crosses": blabel, "kind": bkind,
+                    "slope_deg": repose_deg,
+                    "rule": "fresh repose-angle edge exceeds the 20-deg tested traverse envelope"})
+        if leg.get("kind") in ("cutfill", "import", "dig") or leg.get("dig_e", 0.0) > 0.0:
+            import math as _math
+            for (sx, sy), slabel in ((leg.get("dest"), leg["label"]),):
+                if sx is not None:
+                    # footprint half-extent from the order the site belongs to (sqrt area / 2)
+                    half = 3.0
+                    for o in mission.orders:
+                        if abs(o.x - sx) < 1e-6 and abs(o.y - sy) < 1e-6 and o.footprint_m2 > 0:
+                            half = _math.sqrt(o.footprint_m2) / 2.0
+                    built.append((float(sx), float(sy), half, slabel, leg.get("kind", "work")))
         legs.append({"leg": leg["label"], "nominal_J": nominal_J, "true_J": telem["true_energy_J"],
                      "dig_e": float(leg.get("dig_e", 0.0)),     # dig doesn't slip; only the drive portion inflates
                      "soc": belief.soc_frac(), "slope_deg": telem["slope_deg"], "slip": telem["slip"],
@@ -249,6 +286,7 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
     # residual map uncertainty), the LAC section 10 mapping objective fed back, not just pose/energy.
     map_channel = MC.map_channel_score(mission, stations)
     return {"belief": belief, "completed": belief.tasks_done == len(trips), "n_trips": len(trips),
+            "hazard_violations": hazard_violations,
             "recharges": recharges, "replans": replans, "legs": legs,
             "perception_fixes": perception_fixes, "observe_more": observe_more,
             "map_observe_more": map_observe_more, "survey_time_s": survey_time_s, "map_channel": map_channel}
