@@ -549,6 +549,11 @@ const BODIES = {
       url: trekUrl("Mars", "Mars_Viking_MDIM21_ClrMosaic_global_232m"), credit: "NASA Trek (Viking MDIM2.1)" },
     { name: "MOLA color shaded-relief", geographic: true, tile: 256, maxLevel: 7,
       url: trekUrl("Mars", "Mars_MGS_MOLA_ClrShade_merge_global_463m"), credit: "NASA Trek (MOLA elevation)" },
+    // ENHANCED MARS SET (tile-verified from the real Trek catalog, same rule as the Moon's):
+    { name: "THEMIS day IR (100 m, controlled)", geographic: true, tile: 256, maxLevel: 9,
+      url: trekUrl("Mars", "THEMIS_DayIR_ControlledMosaics_100m_v2_oct2018", "png"), credit: "NASA Trek (THEMIS day IR)" },
+    { name: "TES albedo (global)", geographic: true, tile: 256, maxLevel: 5,
+      url: trekUrl("Mars", "Mars_MGS_TES_Albedo_mosaic_global_7410m", "png"), credit: "NASA Trek (TES albedo)" },
   ] },
   earth: { name: "Earth", radius: 6371000, start: [20.0, 0], density: 1600, g: 9.81, layers: [
     { name: "Esri World Imagery", geographic: false, tile: 256, maxLevel: 18,
