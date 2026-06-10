@@ -1,5 +1,4 @@
 """PRD 6.2 W-2/W-3: snapshot retention ladder + off-host replication (real files, real rsync)."""
-import json
 import os
 import subprocess
 

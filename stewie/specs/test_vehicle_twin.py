@@ -79,7 +79,6 @@ def test_cut_depth_rule_flows_into_planning():
     """T2.3: a cut DEEPER than 50% of the scoop opening needs multiple passes -- the plan's dig
     duration must scale with the documented per-pass limit (BDS p.7), not assume one pass."""
     from lode import mission_planner as MP
-    from stewie.specs import ipex_specs as ix
     base = {"name": "cut", "body": "moon", "charger": [0, 0],
             "orders": [{"action": "cut", "kind": "cut", "x": 8, "y": 6, "footprint_m2": 16,
                         "depth_m": 0.02},
