@@ -1062,6 +1062,32 @@ function _planXform(cv, ext) {
   return { s, ox, oy, X: (wx) => ox + (wx - ext.x0) * s, Y: (wy) => H - (oy + (wy - ext.y0) * s) };
 }
 let LAST_ROUTES = [];                                      // item 3: routes from the last /plan response, drawn on the 2D canvas
+// #29: the branded feature glyphs -- ONE drawing function so map, queue, and legend agree.
+function drawGlyph(ctx, kind, x, y, r) {
+  r = r || 5;
+  ctx.save();
+  if (kind === "cut") {                                    // drum-down chevron (excavate)
+    ctx.strokeStyle = "#4f9cff"; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(x - r, y - r * 0.5); ctx.lineTo(x, y + r * 0.7);
+    ctx.lineTo(x + r, y - r * 0.5); ctx.stroke();
+  } else if (kind === "fill") {                            // berm mound
+    ctx.strokeStyle = "#e07b39"; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(x, y + r * 0.4, r, Math.PI, 0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - r, y + r * 0.4); ctx.lineTo(x + r, y + r * 0.4); ctx.stroke();
+  } else if (kind === "goto") {                            // waypoint node
+    ctx.fillStyle = "#e8273f"; ctx.beginPath(); ctx.arc(x, y, r * 0.8, 0, 7); ctx.fill();
+  } else if (kind === "keepout") {                         // exclusion ring
+    ctx.strokeStyle = "#e8273f"; ctx.lineWidth = 1.6; ctx.setLineDash([3, 2]);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+  } else if (kind === "charger") {                         // power bolt (square + tick)
+    ctx.fillStyle = "#3fa34d"; ctx.fillRect(x - r * 0.6, y - r * 0.6, r * 1.2, r * 1.2);
+    ctx.strokeStyle = "#0a0a0c"; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(x + r * 0.3, y - r * 0.5); ctx.lineTo(x - r * 0.2, y + r * 0.1);
+    ctx.lineTo(x + r * 0.2, y + r * 0.1); ctx.lineTo(x - r * 0.3, y + r * 0.6); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawPlan() {
   const cv = qel("plancanvas"); if (!cv) return;
   const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
@@ -1107,10 +1133,11 @@ function drawPlan() {
       ctx.strokeStyle = "#e8273f"; ctx.lineWidth = 2;
       ctx.strokeRect(X(o.x) - half - 3, Y(o.y) - half - 3, half * 2 + 6, half * 2 + 6);
     }
+    drawGlyph(ctx, o.kind, X(o.x), Y(o.y) - half - 6, 5);  // the kind glyph above the square
     ctx.fillStyle = "#c7d2e3"; ctx.font = "9px system-ui"; ctx.textAlign = "center";
     ctx.fillText(String(i + 1), X(o.x), Y(o.y) + 3);
   });
-  ctx.fillStyle = "#3fa34d"; ctx.fillRect(X(0) - 3, Y(0) - 3, 6, 6);   // charger
+  drawGlyph(ctx, "charger", X(0), Y(0), 6);                // charger (branded glyph)
   if (LAYER_ON.lander) {                                   // lander layer: TO-SCALE hexagon+legs at its location
     const fr = Math.max(3, LANDER.footprint_m / 2 * s), lx = X(LANDER.x), ly = Y(LANDER.y);
     ctx.strokeStyle = "#ffd166"; ctx.fillStyle = "rgba(255,209,102,.16)"; ctx.lineWidth = 1.4;
@@ -1141,7 +1168,51 @@ qel("pathdone").onclick = () => {
   qel("pathmode").style.display = ""; qel("pathdone").style.display = "none";
   qel("pathinfo").textContent = "";
 };
+// #29: drag-to-move -- grab any authored feature and re-place it (the audit's P2)
+let DRAG = null;
+function _canvasToWorld(e) {
+  const cv = qel("plancanvas"), r = cv.getBoundingClientRect();
+  const px = (e.clientX - r.left) / r.width * cv.width, py = (e.clientY - r.top) / r.height * cv.height;
+  const ext = _planExtent(), tf = _planXform(cv, ext);
+  return { wx: ext.x0 + (px - tf.ox) / tf.s, wy: ext.y0 + ((cv.height - py) - tf.oy) / tf.s,
+           tol: 8 / tf.s };
+}
+qel("plancanvas").addEventListener("pointerdown", (e) => {
+  const { wx, wy, tol } = _canvasToWorld(e);
+  let best = -1, bd = tol;
+  ORDERS.forEach((o, i) => {
+    const d = Math.hypot(o.x - wx, o.y - wy);
+    if (d < bd) { bd = d; best = i; }
+  });
+  if (best >= 0) {
+    DRAG = { i: best, moved: false };
+    SELECTED_ORDER = best;
+    qel("plancanvas").setPointerCapture(e.pointerId);
+  }
+});
+qel("plancanvas").addEventListener("pointermove", (e) => {
+  if (!DRAG) return;
+  const { wx, wy } = _canvasToWorld(e);
+  const o = ORDERS[DRAG.i];
+  o.x = Math.round(wx * 10) / 10; o.y = Math.round(wy * 10) / 10;
+  DRAG.moved = true;
+  drawPlan();
+});
+qel("plancanvas").addEventListener("pointerup", (e) => {
+  if (DRAG && DRAG.moved) {
+    const o = ORDERS[DRAG.i];
+    setQ(`moved ${o.kind} "${o.action}" to (${o.x}, ${o.y})`);
+    renderQueue();
+    DRAG = null;
+    e.stopImmediatePropagation?.();
+    SUPPRESS_CLICK = true;
+    return;
+  }
+  DRAG = null;
+});
+let SUPPRESS_CLICK = false;
 qel("plancanvas").onclick = (e) => {                       // canvas px -> local metres -> the x,y inputs
+  if (SUPPRESS_CLICK) { SUPPRESS_CLICK = false; return; }  // a drag just ended -- not a click
   const cv = qel("plancanvas"), r = cv.getBoundingClientRect();
   const px = (e.clientX - r.left) / r.width * cv.width, py = (e.clientY - r.top) / r.height * cv.height;
   const ext = _planExtent(), tf = _planXform(cv, ext);
