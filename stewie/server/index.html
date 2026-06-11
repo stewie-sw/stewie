@@ -394,8 +394,8 @@
     </nav>
     <div id="viewarea">
       <button id="drawerbtn" title="planning sidebar">☰</button>
-      <button id="alertbtn" title="alert rail (UI-6): warnings, errors, info — timestamped" style="position:absolute;right:12px;bottom:34px;z-index:30;background:rgba(10,10,12,.85);border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:14px;padding:6px 10px;cursor:pointer">🔔<span id="alertbadge" style="display:none;background:#e8273f;color:#fff;border-radius:8px;font-size:9px;padding:1px 5px;margin-left:4px"></span></button>
-      <div id="alertrail" style="display:none;position:absolute;right:12px;bottom:78px;z-index:35;width:min(380px,80vw);max-height:46vh;overflow:auto;background:rgba(10,10,12,.95);border:1px solid var(--line);border-radius:8px;padding:8px 10px">
+      <button id="alertbtn" title="alert rail (UI-6): warnings, errors, info — timestamped" style="position:absolute;right:12px;top:54px;z-index:30;background:rgba(10,10,12,.85);border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:14px;padding:6px 10px;cursor:pointer">🔔<span id="alertbadge" style="display:none;background:#e8273f;color:#fff;border-radius:8px;font-size:9px;padding:1px 5px;margin-left:4px"></span></button>
+      <div id="alertrail" style="display:none;position:absolute;right:12px;top:100px;z-index:35;width:min(380px,80vw);max-height:46vh;overflow:auto;background:rgba(10,10,12,.95);border:1px solid var(--line);border-radius:8px;padding:8px 10px">
         <b style="font-family:Orbitron,system-ui;font-size:10px;letter-spacing:.1em">ALERTS</b>
         <ol style="list-style:none;margin:4px 0 0;padding:0"></ol></div>
       <div id="cesium"></div>
@@ -413,10 +413,12 @@
     </span>
   </div>
       <div id="workarea">
-        <div class="cap">WORK AREA — Haworth, 10 km @ 5 m (LOLA polar DEM) · click to plan + render</div>
+        <div class="cap">WORK AREA — overview locator · drag the rectangle to pan · double-click to render</div>
         <div style="position:relative; display:inline-block">
           <img id="workareaimg" alt="Haworth DEM hillshade"
                onerror="this.closest('#workarea').classList.remove('show')" />
+          <canvas id="piploc" title="UI-15 overview-locator: the neon rectangle is the main camera's view — drag it to pan the main map"
+                  style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:auto;cursor:grab"></canvas>
           <img id="ovl_slope" class="gisovl" alt="" />
           <img id="ovl_hazard" class="gisovl" alt="" />
           <img id="ovl_illumination" class="gisovl" alt="" />
@@ -762,6 +764,51 @@ function loadBody(key) {
       val.textContent = label;
     });
   }
+  // UI-15: the overview-locator -- draw the camera's view rectangle on the pip; drag pans.
+  function pipDraw() {
+    const cv = $("piploc"), img = $("workareaimg");
+    if (!cv || !img || !img.complete || !HAWORTH_RECT || sel.value !== "moon") return;
+    cv.width = img.clientWidth || 1; cv.height = img.clientHeight || 1;
+    const ctx = cv.getContext("2d"); ctx.clearRect(0, 0, cv.width, cv.height);
+    const vr = viewer.camera.computeViewRectangle(ellipsoid);
+    if (!vr) return;
+    // Cesium Rectangle fields are RADIANS -- consistent here (vr is radians too)
+    const W = HAWORTH_RECT.west, E = HAWORTH_RECT.east, S = HAWORTH_RECT.south, N = HAWORTH_RECT.north;
+    const u = (lon) => (lon - W) / (E - W), v = (lat) => (N - lat) / (N - S);
+    // the matplotlib preview has margins: the PLOT box is approx the central 78% (axes labels
+    // around it) -- calibrated against the figure's known layout, disclosed approximation
+    const M = { l: 0.125, r: 0.04, t: 0.06, b: 0.11 };
+    const px = (uu) => (M.l + uu * (1 - M.l - M.r)) * cv.width;
+    const py = (vv) => (M.t + vv * (1 - M.t - M.b)) * cv.height;
+    const x0 = px(Math.max(0, u(vr.west))), x1 = px(Math.min(1, u(vr.east)));
+    const y0 = py(Math.max(0, v(vr.north))), y1 = py(Math.min(1, v(vr.south)));
+    if (x1 - x0 >= cv.width * 0.95 && y1 - y0 >= cv.height * 0.95) return;   // zoomed out: no rect
+    ctx.strokeStyle = SETTINGS.gridcolor || "#39ff14"; ctx.lineWidth = 2;
+    ctx.strokeRect(x0, y0, Math.max(6, x1 - x0), Math.max(6, y1 - y0));
+  }
+  let PIP_DRAG = false;
+  function pipPan(e) {
+    const cv = $("piploc"), r = cv.getBoundingClientRect();
+    const M = { l: 0.125, r: 0.04, t: 0.06, b: 0.11 };
+    let uu = ((e.clientX - r.left) / r.width - M.l) / (1 - M.l - M.r);
+    let vv = ((e.clientY - r.top) / r.height - M.t) / (1 - M.t - M.b);
+    uu = Math.min(1, Math.max(0, uu)); vv = Math.min(1, Math.max(0, vv));
+    // RADIANS -> degrees before fromDegrees (the first cut fed radians in -- camera flew to ~0°)
+    const W = Cesium.Math.toDegrees(HAWORTH_RECT.west), E = Cesium.Math.toDegrees(HAWORTH_RECT.east);
+    const S = Cesium.Math.toDegrees(HAWORTH_RECT.south), N = Cesium.Math.toDegrees(HAWORTH_RECT.north);
+    const lon = W + uu * (E - W), lat = N - vv * (N - S);
+    const h = Math.max(4000, viewer.camera.positionCartographic.height);
+    viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(lon, lat, h, ellipsoid) });
+  }
+  const pipCv = $("piploc");
+  if (pipCv) {
+    pipCv.addEventListener("pointerdown", (e) => { PIP_DRAG = true; pipCv.setPointerCapture(e.pointerId);
+      pipCv.style.cursor = "grabbing"; pipPan(e); });
+    pipCv.addEventListener("pointermove", (e) => { if (PIP_DRAG) pipPan(e); });
+    pipCv.addEventListener("pointerup", () => { PIP_DRAG = false; pipCv.style.cursor = "grab"; });
+  }
+  viewer.camera.changed.addEventListener(pipDraw);
+  setInterval(pipDraw, 1500);                              // catches img-load + resize
   viewer.camera.changed.addEventListener(updateScale);
   viewer.camera.percentageChanged = 0.01;
   setTimeout(updateScale, 1200);                           // initial paint (camera.changed needs motion)
@@ -1370,6 +1417,12 @@ function scheduleAutoRender() {                            // #33: planning edit
   clearTimeout(RERENDER_T);
   RERENDER_T = setTimeout(() => renderArea(LAST_RENDER_UV.u, LAST_RENDER_UV.v, { quiet: true }), 1500);
 }
+// UI-15: single-drag = locator pan (the canvas above captures it); DOUBLE-click = render area
+$("piploc") && ($("piploc").ondblclick = (e) => {
+  const r = e.target.getBoundingClientRect();
+  const u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
+  renderArea(u, v, {});
+});
 $("workareaimg").onclick = (e) => {
   const r = e.target.getBoundingClientRect();
   const u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
