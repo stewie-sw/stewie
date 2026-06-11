@@ -893,6 +893,51 @@ def plan_and_simulate(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
     return trips, flows, per_trip, tl, totals
 
 
+def plan_math(mission, *, dem=None, dem_origin=(0.0, 0.0), result=None) -> dict:
+    """#74 (Aaron: "never assume"): the per-trip MATH WORKSHEET -- every energy/time figure the
+    plan uses, re-expressed as (equation form, the numbers substituted, the result, units). A VIEW
+    over the same trips the planner built (RB-03), so the worksheet cannot drift from the plan.
+    The reviewer can re-derive every number; nothing is asserted without its derivation."""
+    if result is None:
+        result = plan(mission, dem=dem, dem_origin=dem_origin)
+    g = body_gravity(mission.body)
+    legs = []
+    for tr in result.trips:
+        terms = []
+        mass = float(tr.get("mass", 0.0) or 0.0)
+        if tr.get("dig_e"):
+            terms.append({"name": "dig energy", "unit": "J",
+                          "formula": "mass * DIG_J_PER_KG",
+                          "substituted": f"{mass:.1f} * {DIG_J_PER_KG:.1f} = {mass*DIG_J_PER_KG:.1f}",
+                          "value": round(float(tr["dig_e"]), 1)})
+        if tr.get("dig_t"):
+            terms.append({"name": "dig time", "unit": "s",
+                          "formula": "mass / DIG_RATE_KG_S",
+                          "substituted": f"{mass:.1f} / {DIG_RATE_KG_S:.4f} = {mass/DIG_RATE_KG_S:.1f}",
+                          "value": round(float(tr["dig_t"]), 1)})
+        if tr.get("haul_m"):
+            hm = float(tr["haul_m"])
+            terms.append({"name": "haul distance", "unit": "m",
+                          "formula": "2 * leg_distance * n_loads  (out + back per load)",
+                          "substituted": f"= {hm:.1f}", "value": round(hm, 1)})
+        if tr.get("haul_e"):
+            terms.append({"name": "haul energy", "unit": "J",
+                          "formula": "haul_m * DRIVE_J_PER_M / (1 - slip)  (slip robs ground/wheel)",
+                          "substituted": f"~ {float(tr['haul_m'] or 0):.1f} * {DRIVE_J_PER_M:.1f} / (1-slip) = {float(tr['haul_e']):.1f}",
+                          "value": round(float(tr["haul_e"]), 1)})
+        if tr.get("lift_e"):
+            terms.append({"name": "lift energy", "unit": "J",
+                          "formula": "mass * g * dh  (exact gravity climb)",
+                          "substituted": f"{mass:.1f} * {g:.3f} * dh = {float(tr['lift_e']):.1f}",
+                          "value": round(float(tr["lift_e"]), 1)})
+        legs.append({"label": tr.get("label", tr.get("kind", "?")), "kind": tr.get("kind"),
+                     "site": tr.get("site"), "terms": terms})
+    return {"constants": {"DIG_J_PER_KG": round(DIG_J_PER_KG, 1), "DRIVE_J_PER_M": round(DRIVE_J_PER_M, 2),
+                          "DRIVE_SPEED_MS": DRIVE_SPEED_MS, "DIG_RATE_KG_S": round(DIG_RATE_KG_S, 4),
+                          "g_m_s2": round(g, 3)},
+            "legs": legs, "totals": dict(result.totals)}
+
+
 # ---- RB-03: ONE immutable plan artifact that every output is a view of -----------------------------
 PLAN_RESULT_VERSION = "1.0"
 

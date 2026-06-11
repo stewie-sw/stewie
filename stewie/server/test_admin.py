@@ -78,3 +78,13 @@ def test_resync_compare_endpoint_ranks_futures(client):
     d = r.json()
     assert d["ok"] and len(d["futures"]) == 2 and d["recommended"] in ("nearest", "two_opt")
     assert client.post("/resync/compare", json=body).status_code == 401
+
+
+def test_plan_math_endpoint_returns_equations(client):
+    """#74: /plan/math exposes the per-trip worksheet with substituted numbers (open)."""
+    r = client.post("/plan/math", json={"name": "m", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "a", "kind": "cut", "x": 20, "y": 0, "footprint_m2": 16, "depth_m": 0.05},
+        {"action": "b", "kind": "fill", "x": 40, "y": 10, "footprint_m2": 16, "depth_m": 0.05}]})
+    d = r.json()
+    assert d["ok"] and d["legs"] and d["constants"]["DIG_J_PER_KG"] > 0
+    assert any(t["name"] == "dig energy" for lg in d["legs"] for t in lg["terms"])

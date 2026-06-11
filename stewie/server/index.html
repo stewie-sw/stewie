@@ -474,6 +474,8 @@
       </div>
       <div id="pane-report" class="pane">
         <div id="dashstrip" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
+        <details id="mathsheet" style="display:none;margin-bottom:10px"><summary style="cursor:pointer;font-family:Orbitron,system-ui;font-size:11px;letter-spacing:.08em;color:var(--accent)">▸ PATH-PLANNING MATH — every equation, every number (never assume)</summary>
+          <div id="mathbody" style="font-size:11px;font-variant-numeric:tabular-nums;margin-top:6px"></div></details>
         <div id="dashboards" style="display:none;gap:12px;flex-wrap:wrap;margin-bottom:10px">
           <div><div class="cap" style="margin-bottom:4px">ROUTE — site frame</div>
             <canvas id="routehero" width="520" height="340" style="border:1px solid var(--line);border-radius:8px"></canvas></div>
@@ -2257,6 +2259,24 @@ qel("qplan").onclick = async () => {
         if (src) hc.drawImage(src, 0, 0, hero.width, hero.height);
         drawGantt((j.timeline && j.timeline.frames) || []);   // timeline = {frames, duration_s, ...}
       }
+      // #74: the per-trip math worksheet (Aaron: "never assume")
+      fetch("/plan/math", { method: "POST", headers: apiHeaders(),
+        body: JSON.stringify({ name: "math", body: sel.value, charger: [0, 0],
+          orders: ORDERS, algorithm: qel("qalgo").value, objective: qel("qobj").value,
+          precedence: parsePrec(), keepouts: KEEPOUTS, ...fleet(), ...site() }) })
+        .then((r) => r.json()).then((mj) => {
+          if (!mj.ok) return;
+          const ms = $("mathsheet"), mb = $("mathbody"); if (!mb) return;
+          const c = mj.constants;
+          let html = `<div style="opacity:.7;margin-bottom:6px">constants: DIG ${c.DIG_J_PER_KG} J/kg · DRIVE ${c.DRIVE_J_PER_M} J/m · speed ${c.DRIVE_SPEED_MS} m/s · dig-rate ${c.DIG_RATE_KG_S} kg/s · g ${c.g_m_s2} m/s²</div>`;
+          mj.legs.forEach((lg) => {
+            if (!lg.terms.length) return;
+            html += `<div style="border-left:3px solid var(--line);padding:3px 8px;margin:4px 0"><b>${lg.kind} · ${lg.label}</b><table style="width:100%;border-collapse:collapse;margin-top:2px">` +
+              lg.terms.map((t) => `<tr><td style="color:var(--muted);padding-right:8px">${t.name}</td><td style="font-family:monospace">${t.substituted} ${t.unit}</td></tr>`).join("") +
+              `</table></div>`;
+          });
+          mb.innerHTML = html; ms.style.display = "block";
+        }).catch(() => {});
     }
     const v = j.validation || {};
     const vtag = (v.feasible ? " · ✓ authority-validated" : (v.mass_conserved !== undefined ? " · ⚠ infeasible" : ""))

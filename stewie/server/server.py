@@ -471,6 +471,16 @@ def auth_config():
     return {"ok": True, "operator_login": os.environ.get("STEWIE_OPERATOR_LOGIN", "1") != "0"}
 
 
+@app.post("/plan/math")
+def plan_math_endpoint(req: PlanRequest):
+    """#74: the per-trip MATH WORKSHEET for review (every equation + substituted numbers). Open
+    (read-only derivation of a plan the caller already authored)."""
+    payload = req.model_dump()
+    mission = MP.mission_from_dict(payload)
+    dem, origin = _moon_dem() if mission.body == "moon" else (None, (0.0, 0.0))
+    return {"ok": True, **MP.plan_math(mission, dem=dem, dem_origin=origin)}
+
+
 @app.post("/resync/compare")
 def resync_compare(body: dict, _auth: str = Depends(require_director)):
     """#70: faster-than-realtime forward comparison -- candidate solver inputs re-simulated from

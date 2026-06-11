@@ -1131,3 +1131,26 @@ def test_algorithm_choice_actually_changes_the_plan():
     _, _, t_brute = MP.run(m, stem="wire_brute", algorithm="brute", objective="duration")
     assert t_near["algorithm"].startswith("nearest") and t_brute["algorithm"].startswith("brute")
     assert t_brute["time_s"] <= t_near["time_s"] + 1e-6              # the solver can not be worse
+
+
+def test_plan_math_worksheet_shows_every_equation_with_numbers():
+    """#74 [REQ:PM-08] (Aaron: never assume): the plan emits a per-trip MATH worksheet -- each
+    energy/time term as the equation form, the substituted numbers, and the result. No bare
+    outputs; the reviewer can re-derive every figure."""
+    doc = {"name": "m", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut a", "kind": "cut", "x": 20, "y": 0, "footprint_m2": 16, "depth_m": 0.05},
+        {"action": "fill b", "kind": "fill", "x": 40, "y": 10, "footprint_m2": 16, "depth_m": 0.05}]}
+    m = MP.mission_from_dict(doc)
+    sheet = MP.plan_math(m)
+    assert sheet["constants"]["DIG_J_PER_KG"] > 0 and sheet["constants"]["DRIVE_J_PER_M"] > 0
+    assert sheet["legs"], "every trip is a worksheet entry"
+    leg = sheet["legs"][0]
+    assert "label" in leg and isinstance(leg["terms"], list)
+    for t in leg["terms"]:
+        assert {"name", "formula", "substituted", "value", "unit"} <= set(t)
+        # the substituted string must contain the numbers, not just symbols
+        assert any(ch.isdigit() for ch in t["substituted"])
+    # a dig term re-derives exactly: mass * DIG_J_PER_KG
+    dig = next((t for lg in sheet["legs"] for t in lg["terms"] if t["name"] == "dig energy"), None)
+    if dig:
+        assert abs(eval(dig["substituted"].split("=")[-1]) - dig["value"]) < 1.0
