@@ -751,6 +751,45 @@ These are OPERATOR-DERIVED requirements from the real IPEx mock mission — the 
 UI/UX source we hold. UI-1/UI-2 ship first (the Settings tab); UI-5 and UI-8 are small and
 high-value; UI-4/UI-7/UI-10 fold into the operator-screen redesign (the role x workflow split).
 
+### 16.5b UI/UX status pass + the 2026-06-10 audit folded in (the planner-voice audit,
+### pane boundaries, OSS survey, and wireframe sprint — design/MISSION_PLANNER_UIUX_AUDIT,
+### OSS_GIS_SURVEY, WIREFRAME_SPRINT)
+
+Status of UI-1..11 (evidence = shipped commits + captures, per the V&V discipline):
+
+| Req | Status 2026-06-10 |
+|---|---|
+| UI-1 font control | ✅ SHIPPED (Settings, persisted) |
+| UI-2 light/dark | ✅ SHIPPED (dark ops default) |
+| UI-3 one-action depth | 🟡 partial (popovers + workbench cards; macros ⬜) |
+| UI-4 pertinent cameras | ⬜ (rides the operator-screen split, #68) |
+| UI-5 staleness borders | ✅ SHIPPED (green/20s-yellow/60s-red sweeper) |
+| UI-6 alert rail | ⬜ |
+| UI-7 big-board mode | 🟡 (the control-room patterns adopted: status rail + sparklines; the single composed view ⬜) |
+| UI-8 ConOps widget | ✅ SHIPPED (header chip) |
+| UI-9 debrief + bookmarks | 🟡 (debrief ships; bookmarks/checklist export ⬜) |
+| UI-10 replay scrubber | 🟡 (exec playback at 60×; an operator-facing scrubber ⬜) |
+| UI-11 divergence view | ✅ load-bearing (truth-denylisted sessions) |
+
+New requirements from the 2026-06-10 audit/wireframe (the audit's priority order):
+
+| Req | Source | Requirement | Status |
+|---|---|---|---|
+| UI-12 | audit P1 | physics-fed layer legends + an on-map true-scale bar | ✅ SHIPPED (TDD: legend == code defaults) |
+| UI-13 | audit P2 | drag-to-move features + the branded glyph set, one drawing language | ✅ SHIPPED |
+| UI-14 | audit P3 | the queue as an attribute table + authoring undo | ⬜ |
+| UI-15 | audit P4 | the pip as a true overview-locator (draggable view rectangle) — or removed | ⬜ |
+| UI-16 | survey | TerriaJS workbench cards (per-layer legend/opacity/zoom/remove) + basemap stacking | ✅ SHIPPED |
+| UI-17 | wireframe | REPORT = the mission dashboard (totals strip ✅; route hero + Gantt ⬜) | 🟡 |
+| UI-18 | wireframe | the pane manager (user-created, resizable, persisted layouts) | ⬜ (resizable inset shipped as the slice) |
+| UI-19 | pane spec | SYSTEM tab consolidation + pane boundaries (the one-line tests) | ✅ SHIPPED |
+| UI-20 | Aaron | mobile: drawer cockpit, touch targets, phone-viewport verified | ✅ SHIPPED |
+| UI-21 | edit mode | QGIS-style edit sessions: camera lock, draw tools, select/move/delete features | ✅ SHIPPED |
+
+Open UI surface, in priority order: UI-14 (attribute table + undo), UI-6 (alert rail), UI-15
+(overview-locator), UI-17 remainder (route hero + Gantt), UI-4/UI-7 (the operator-screen split,
+rides #68), UI-18 (pane manager), UI-9/10 remainders.
+
 ### 16.6 Boundary note
 The SolNav dissertation planning set (G1–G9 gates, separate honesty firewall) is NOT renamed or
 re-scoped by STEWIE. Convergence: STEWIE P20 (ROS2 bridge + live drive loop) is the same engineering
