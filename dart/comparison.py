@@ -24,6 +24,54 @@ import numpy as np
 
 from dart import articulated_parallax as AP
 from dart.localization import register_to_dem
+from stewie.physics import rassor_mass_model as RM
+from stewie.specs import ipex_specs as S
+
+#: lunar surface gravity [m/s^2] (Moon) -- for the gravity-aware lift/drive energy.
+G_MOON = 1.62
+
+
+def lunar_drive_energy_per_m(g: float = G_MOON, slope_deg: float = 0.0) -> float:
+    """Physical lunar drive energy [J/m] = lunar_drive_power_w / drive speed (the honest tractive
+    draw, not the Table-3 ConOps motor load)."""
+    return S.lunar_drive_power_w(slope_deg=slope_deg) / S.DRIVE_SPEED_MS
+
+
+def operational_cost(*, n_fixes: int = 10, traverse_m: float = 100.0, dh_m: float = 0.1743,
+                     vehicle_mass_kg: float = 30.0, g: float = G_MOON, argus_maneuver_s: float = 8.0,
+                     shadownav_led_w: float = 20.0, dark: bool = True) -> dict:
+    """Operational cost (time, distance, energy) of one localization FIX and of a TRAVERSE with
+    ``n_fixes`` fixes, on the IPEx energy budget. GROUNDED: the ARGUS standstill-fix energy is the
+    chassis-lift work (arm_raise_lift_energy_j, sourced masses + lunar g) and the drive energy is the
+    physical lunar tractive draw. [ASSUMPTION] (flagged): the arm-maneuver time (arm slew not
+    published) and the ShadowNav illumination wattage (headlight not published)."""
+    drive_epm = lunar_drive_energy_per_m(g)
+    drive_s = traverse_m / S.DRIVE_SPEED_MS
+    drive_J = traverse_m * drive_epm
+    argus_fix_J = RM.arm_raise_lift_energy_j(vehicle_mass_kg, g, lift_height_m=dh_m)  # raise; lowering is gravity
+    led_J = (shadownav_led_w * drive_s) if dark else 0.0
+    return {
+        "Stanford NAV Lab (LAC)": {
+            "per_fix_time_s": 0.0, "per_fix_distance_m": 0.0, "per_fix_energy_J": 0.0,
+            "extra_mission_energy_J": 0.0, "regime": "sunlit only",
+            "note": "passive, rides the drive; no dedicated cost but drifts + sunlit-only"},
+        "ShadowNav (JPL)": {
+            "per_fix_time_s": 0.0, "per_fix_distance_m": 0.0,
+            "per_fix_energy_J": round(led_J / max(1, n_fixes), 1),
+            "extra_mission_energy_J": round(led_J, 1), "regime": "darkness",
+            "note": f"[ASSUMPTION] {shadownav_led_w} W own illumination over the dark drive "
+                    f"({drive_s:.0f} s); needs the orbital prior"},
+        "ARGUS": {
+            "per_fix_time_s": float(argus_maneuver_s), "per_fix_distance_m": 0.0,
+            "per_fix_energy_J": round(argus_fix_J, 2),
+            "equiv_drive_m": round(argus_fix_J / drive_epm, 3),
+            "extra_mission_energy_J": round(n_fixes * argus_fix_J, 1),
+            "extra_mission_time_s": round(n_fixes * argus_maneuver_s, 1), "regime": "low sun",
+            "note": "[ASSUMPTION] arm-maneuver time; GROUNDED lift energy (m*g*dh/eff). Zero distance; "
+                    "ambient shadows -> no own illumination"},
+        "_context": {"drive_energy_J_for_traverse": round(drive_J, 1), "drive_energy_per_m": round(drive_epm, 2),
+                     "pack_Wh": 1332, "traverse_m": traverse_m, "n_fixes": n_fixes},
+    }
 
 
 def nav_capability_matrix() -> dict:

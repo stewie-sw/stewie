@@ -38,3 +38,19 @@ def test_head_to_head_position_fix_on_real_dem():
     assert res["ARGUS (articulation parallax)"] < 0.5          # sub-meter standstill fix
     assert res["ShadowNav-class (map-match)"] is not None       # the map-match returns a fix
     assert res["Stanford-class (passive VO)"] is None           # relative VO -> no standalone abs fix
+
+
+def test_operational_cost_grounded_and_regime_distinct():
+    """Operational comparison: the ARGUS standstill fix is energetically cheap + zero-distance
+    (grounded lift work); ShadowNav burns continuous illumination in darkness; Stanford is passive."""
+    from dart import comparison as CMP
+    c = CMP.operational_cost(n_fixes=10, traverse_m=100.0, dark=True)
+    a = c["ARGUS"]
+    assert a["per_fix_distance_m"] == 0.0                       # standstill
+    assert 5.0 < a["per_fix_energy_J"] < 40.0                   # ~17 J chassis lift (grounded)
+    assert a["equiv_drive_m"] < 3.0                             # ~the energy of driving ~1 m
+    assert a["per_fix_time_s"] > 0                              # but it costs a stop
+    # in darkness ShadowNav's own-illumination dwarfs the ARGUS fixes
+    assert c["ShadowNav (JPL)"]["extra_mission_energy_J"] > a["extra_mission_energy_J"]
+    # Stanford passive -> no dedicated energy
+    assert c["Stanford NAV Lab (LAC)"]["per_fix_energy_J"] == 0.0
