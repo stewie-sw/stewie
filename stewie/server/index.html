@@ -95,6 +95,23 @@
   details.substep > summary::before { content: "▸ "; color: var(--accent); font-size: 8px; }
   details.substep[open] > summary::before { content: "▾ "; }
   details.substep .step { display: inline; margin: 0; }
+  /* #71 (Aaron): MOBILE -- the sidebar becomes a slide-over drawer; tabs scroll; touch targets */
+  #drawerbtn { display: none; }
+  @media (max-width: 860px) {
+    #panel { position: absolute; left: 0; top: 0; bottom: 0; z-index: 70;
+             transform: translateX(-100%); transition: transform .22s ease;
+             box-shadow: 4px 0 24px rgba(0,0,0,.6); background: var(--bg, #0a0a0c); }
+    #panel.open { transform: translateX(0); }
+    #drawerbtn { display: block; position: absolute; left: 10px; top: 8px; z-index: 80;
+                 background: rgba(10,10,12,.9); border: 1px solid var(--line); border-radius: 6px;
+                 color: var(--txt); font-size: 17px; padding: 8px 12px; cursor: pointer; }
+    #vtabs, .vtabbar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .vtab { padding: 9px 12px; }
+    button, .site, .go { min-height: 40px; }
+    #edittoolbar { top: 8px; right: 8px; flex-wrap: wrap; max-width: 70vw; }
+    #workarea { width: 46vw; }
+    #scalebox { bottom: 12px; }
+  }
   .step { font-size: 9px; font-family: "Orbitron", system-ui, sans-serif; letter-spacing: .12em;
           color: var(--accent); margin: 9px 0 3px; text-transform: uppercase; }
   .step small { color: var(--dim); letter-spacing: 0; text-transform: none; font-family: system-ui; }
@@ -373,6 +390,7 @@
       <button class="vtab" data-view="settings" title="operator display settings (Carstens & Schuler 2025: font size + lighting)">⚙ Settings</button>
     </nav>
     <div id="viewarea">
+      <button id="drawerbtn" title="planning sidebar">☰</button>
       <div id="cesium"></div>
       <div id="scalebox" style="position:absolute;left:12px;bottom:34px;z-index:25;background:rgba(10,10,12,.8);border:1px solid var(--line);border-radius:5px;padding:4px 9px;font-size:11px;font-variant-numeric:tabular-nums">
         <span id="scalebar2" style="border-bottom:2px solid #fff;border-left:2px solid #fff;border-right:2px solid #fff;height:7px;display:inline-block"></span>
@@ -1484,6 +1502,14 @@ $("qreset").onclick = () => {
   EDIT_PINS.forEach((e) => viewer && viewer.entities.remove(e)); EDIT_PINS.length = 0;
   renderQueue(); setQ("plan reset");
 };
+if ($("drawerbtn")) {
+  $("drawerbtn").onclick = () => document.getElementById("panel").classList.toggle("open");
+  // tapping the map closes the drawer (mobile pattern)
+  document.getElementById("cesium").addEventListener("pointerdown", () => {
+    const p2 = document.getElementById("panel");
+    if (innerWidth <= 860 && p2.classList.contains("open")) p2.classList.remove("open");
+  });
+}
 $("editmode").onclick = () => setEdit(true);
 $("editdone").onclick = () => setEdit(false);
 document.querySelectorAll(".etool").forEach((b) => {
