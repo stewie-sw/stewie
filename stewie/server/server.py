@@ -756,6 +756,47 @@ def get_config():
     return {"ok": True, **_cfg.describe()}
 
 
+@app.get("/config/full")
+def get_config_full():
+    """#61 (Aaron: "config needs to be totally rewritten"): the organized one-call state for the
+    Config pane -- server, auth FLAGS (never the key), data holdings, and the N15 overlay."""
+    from stewie.specs import config as _cfg
+    from stewie.specs.sites import site_rows
+    try:
+        from stewie.specs.solar import spice_available
+        spice = bool(spice_available())
+    except Exception:
+        spice = False
+    rows = site_rows()
+    snaps_dir = os.path.join(_cfg.data_dir(), "snapshots")
+    n_snaps = len([f for f in os.listdir(snaps_dir) if f.endswith(".npz")]) if os.path.isdir(snaps_dir) else 0
+    return {
+        "ok": True,
+        "server": {"version": _version(), "data_dir": _cfg.data_dir(),
+                   "backup_dir": os.environ.get("STEWIE_BACKUP_DIR", "(data_dir)/replica")},
+        "auth": {"api_key_set": bool(_env("API_KEY")),
+                 "operator_login": os.environ.get("STEWIE_OPERATOR_LOGIN", "1") != "0",
+                 "trust_tailscale": os.environ.get("STEWIE_TRUST_TAILSCALE", "") == "1"},
+        "data": {"sites_total": len(rows), "sites_imported": sum(1 for r in rows if r["imported"]),
+                 "spice_available": spice, "twin_snapshots": n_snaps},
+        "overlay": _redact_secrets(_cfg.describe()),
+    }
+
+
+def _redact_secrets(node):
+    """Scrub key/token/secret VALUES from the overlay dump (the N15 describe() includes env
+    values -- the API key must never reach the browser)."""
+    secret = (os.environ.get("STEWIE_API_KEY", "") or os.environ.get("DUSTGYM_API_KEY", ""))
+    if isinstance(node, dict):
+        return {k: ("[REDACTED]" if any(t in str(k).upper() for t in ("KEY", "TOKEN", "SECRET"))
+                    else _redact_secrets(v)) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_redact_secrets(v) for v in node]
+    if isinstance(node, str) and secret and secret in node:
+        return "[REDACTED]"
+    return node
+
+
 @app.get("/layers")
 def get_layers():
     """Selectable map layers for the navigation UI (load/unload): imagery, dem, topology, hazard,

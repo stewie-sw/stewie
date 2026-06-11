@@ -55,3 +55,14 @@ def test_twin_cg_endpoint_reports_loaded_cg_and_margin(client):
     # the balanced symmetric load centers the CG
     r2 = client.get("/twin/cg?front_deg=80&back_deg=80&front_kg=25&back_kg=25")
     assert abs(r2.json()["cg_dx_m"]) < 0.01
+
+
+def test_config_full_aggregates_safely(client):
+    """#61: the Config pane's one-call state -- NO secrets (the key itself must never appear)."""
+    d = client.get("/config/full").json()
+    assert d["ok"]
+    assert d["auth"]["api_key_set"] is True and "test-key" not in str(d)
+    assert "operator_login" in d["auth"] and "trust_tailscale" in d["auth"]
+    assert d["data"]["sites_imported"] >= 1 and "spice_available" in d["data"]
+    assert "version" in d["server"] and "data_dir" in d["server"]
+    assert "overlay" in d                                   # the N15 block, intact

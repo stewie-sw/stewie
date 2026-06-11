@@ -515,10 +515,12 @@
         </div>
       </div>
       <div id="pane-config" class="pane">
-        <div class="cap"><span>CONFIG — runtime overlay (PRD N15) + docs</span>
-          <a id="docsopen" href="https://dustgym.github.io/dustgym/" target="_blank" rel="noopener">docs site ↗</a></div>
-        <pre id="cfgout" class="mono">—</pre>
-        <iframe id="docsframe" title="docs" src="https://dustgym.github.io/dustgym/"></iframe>
+        <div class="cap"><span>CONFIG — server · auth · data · overlay</span>
+          <a id="docsopen" href="https://stewie-sw.github.io/stewie/" target="_blank" rel="noopener">docs site ↗</a></div>
+        <div id="cfgcards" style="display:flex;flex-wrap:wrap;gap:10px;margin:8px 0"></div>
+        <details><summary style="cursor:pointer;font-size:11px;color:var(--muted)">raw overlay (PRD N15, secrets redacted)</summary>
+          <pre id="cfgout" class="mono">—</pre></details>
+        <iframe id="docsframe" title="docs" src="https://stewie-sw.github.io/stewie/"></iframe>
       </div>
     </div>
   </div>
@@ -983,6 +985,8 @@ function setView(name) {
   // the EDIT toolbar is a PLAN tool (Aaron's System screenshot: it stacked on the sub-bar)
   const et = document.getElementById("edittoolbar");
   if (et) et.style.display = (name === "plan") ? "flex" : "none";
+  const sb = document.getElementById("scalebox");          // the scale belongs to the map
+  if (sb) sb.style.display = (name === "plan") ? "block" : "none";
   if (name !== "plan" && EDIT.on) setEdit(false);          // leaving Plan ends the edit session
   loadPane(name);
 }
@@ -1169,8 +1173,25 @@ async function loadPane(name) {
                               + "\n\nmetrics\n" + JSON.stringify(m, null, 2);
     } else if (name === "config" && !_PANE_LOADED.config) {
       _PANE_LOADED.config = true;
-      const c = await (await fetch("/config")).json();
-      $("cfgout").textContent = "runtime config overlay (PRD N15)\n" + JSON.stringify(c, null, 2);
+      const c = await (await fetch("/config/full")).json();   // #61: the organized one-call state
+      const cards = $("cfgcards"); cards.innerHTML = "";
+      const card = (title, rows) => {
+        const d = document.createElement("div");
+        d.style.cssText = "border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-width:200px;font-size:11px;line-height:1.7";
+        d.innerHTML = `<b style="font-family:Orbitron,system-ui;font-size:10px;letter-spacing:.1em">${title}</b><br>` +
+          rows.map(([k, v]) => `<span style="color:var(--muted)">${k}</span> ${v}`).join("<br>");
+        cards.appendChild(d);
+      };
+      const yn = (b) => b ? "✅" : "—";
+      card("SERVER", [["version", c.server.version], ["data dir", c.server.data_dir],
+                      ["backup dir", c.server.backup_dir]]);
+      card("AUTH", [["API key", yn(c.auth.api_key_set)], ["operator login", yn(c.auth.operator_login)],
+                    ["Tailscale trust", yn(c.auth.trust_tailscale)],
+                    ["", '<span style="opacity:.6">flags only — secrets never leave the server</span>']]);
+      card("DATA", [["sites", `${c.data.sites_imported}/${c.data.sites_total} imported`],
+                    ["SPICE kernels", yn(c.data.spice_available)],
+                    ["twin snapshots", c.data.twin_snapshots]]);
+      $("cfgout").textContent = JSON.stringify(c.overlay, null, 2);
     }
   } catch (e) { /* server not reachable (file://) -> panes keep their placeholder/empty state */ }
 }
