@@ -34,6 +34,20 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 **Production readiness:** ~75% as the trainer/simulator (gated on the pit wire binding); the
 flight-autonomy autonomy stack is earlier and grows along the ARGUS track.
 
+**NEXT SESSION — locked plan (2026-06-11): the SN / ARGUS evidence path.** The trainer product is
+done + gated on John's wire transport, so solo effort goes to the dissertation contribution (the SN
+family, 13 rows mostly open). Sequenced, bounded TDD slices (tasks #83-86), each gate-byte-identical
+with a `[REQ:]` marker:
+1. **CP-01 flip** (warm-up) — write the citing test for the produced-once `PlanResult`; clear the stale N.
+2. **SN-03** — the shadow *yaw* factor in `PoseGraphSE2` (this session's shadow factor is positional;
+   SN-03 is the heading-from-shadow-azimuth factor, weak + covariance-weighted from the shadow-sigma
+   envelope). The dissertation core, made operational.
+3. **SN-02** — the shadow-vector detection front-end (reject rover/LED/saturation/penumbra) that feeds SN-03.
+4. **SN-05** — illumination-aware route cost (separable visibility/shadow-hazard/map-uncertainty terms).
+The arc: detect shadow -> fuse as a yaw factor -> route by illumination, turning the shadow-sigma
+calibration into a *used* channel end to end. Considered + deferred: the #79 SuperGlue front-end
+(heavier, fresh-session scale) and a PitBackend skeleton (can't verify without John's protocol).
+
 ## 1. Purpose
 
 STEWIE is a lunar construction-planning and digital-twin platform for an IPEx/RASSOR-lineage
