@@ -978,3 +978,57 @@ TDD; gap 1 (the pluggable RC contract + SF-01 watchdog) remains BLOCKED on the d
 (the ask is staged). Rung 3: designed (COLMAP_TRIAGE_DESIGN); the budget ledger shipped; ingest
 awaits the director-side COLMAP container; triage weights await science objectives. Rung 2: in
 progress (#70). UI: 16.5b updated through UI-15; UI-17 remainder + UI-18 open.
+
+## 20. Full-stack audit + production-readiness (2026-06-11)
+
+An 8-dimension line-by-line audit (security, concurrency, twin integrity, vehicle twin, physics,
+registries, frontend↔backend wiring, comments), every high-severity finding adversarially
+verified (0 refuted of 5). 44 confirmed findings. Disposition:
+
+### 20.1 Fixed (this session)
+| ID | Sev | Finding | Family | Fix (commit) |
+|---|---|---|---|---|
+| SEC-1 | CRIT | GET /config leaked the plaintext API key (reproduced live) | CT/PO | source-redacted describe()+endpoint, TDD (414df2e) |
+| RC-01 | CRIT | TwinStore journal append unlocked race -> chain corruption | CT-03 | per-store RLock + torn-line recovery, 24-thread TDD (414df2e) |
+| RC-02 | HIGH | _TWIN lazy singleton double-init race | CT | double-checked lock (414df2e) |
+| RC-03 | HIGH | globe cache non-atomic .npy+.json write | PO | .part -> os.replace, JSON commit-marker last (414df2e) |
+| TWIN-01 | MED | torn FINAL journal line aborted the whole restore | CT-03 | recover-past-tail (414df2e) |
+| SEC-2 | MED | GET /events disclosed the operator audit trail | PO | director-gated (c819b40) |
+
+### 20.2 Verified FALSE POSITIVE
+| ID | Finding | Why it's not real |
+|---|---|---|
+| PHYS-01 | "shipped slip uses Earth-fit Bekker on the Moon" | each body's Bekker is its SOURCED value; the Moon's k_phi 820000 IS the NASA LTV lunar measurement (already low-g). A runtime lyasko reduction would DOUBLE-count (the known FIX-6). Caught by test_bodies; reverted. Low-g physics is correct in the shipped path. |
+
+### 20.3 Confirmed open (tasked / tracked) — maps to the §7 matrix gaps
+| ID | Sev | Finding | Family | Disposition |
+|---|---|---|---|---|
+| VT4-01 | MED | /twin/cg discards the fore/aft CG shift (dx) | VT-05/06 | the posture model is 3D-in-Z, 2D-fixed-rect in XY; posture_a3.py has the fore/aft + shrinking polygon but isn't wired. Real physics-incompleteness in an ADVISORY widget. -> a vehicle-twin task |
+| PHYS-02 | MED | cg_offset_m drum-load term absolute, not relative-to-stow | VT-05 | refine with VT4-01 |
+| REG-01 | MED | imported sites (Shackleton, Nobile) unreachable from the PLANNER | PM/TW | the globe shows them; the planner still hard-targets Haworth. Real functional gap -> task |
+| REG-02 | MED | vehicle choice only changes drum capacity in the plan | VT-02 | drive/dig/battery/mass not threaded through the planner per-vehicle |
+| TWIN-02 | MED | io_fields float32 save not mass-exact + omits drum_inventory | CT-03 | the RUNTIME checkpoint IS exact; only the scene-export path drifts ~6e-10 -> document/fix |
+| SEC-3 | MED | body-size cap trusts client Content-Length | CT | hardening |
+| RC-04/05 | MED | _METRICS + object-store writes non-atomic | PO | observability/store hardening |
+| D8-01 | LOW | stale `terrain_authority.*` run-instructions in ~7 docstrings | PO | comment sweep |
+
+### 20.4 Production-readiness assessment (honest)
+STEWIE has TWO production targets with very different bars (PRD §18 ladder):
+
+- **As the TRAINING ENVIRONMENT / MISSION SIMULATOR (rung 4, the product):** **~75%.** The
+  authoring cockpit, conserved twin, link/latency shaping, operator/director roles, audit trail,
+  and no-terminal ops are real and tested; the two security criticals are now closed. The
+  remaining 25% is almost entirely the **#66 pluggable RC contract + SF-01 watchdog** (blocked on
+  John's protocol) plus the medium hardening list above. NOT a research demo — a usable trainer
+  once the RC seam lands.
+- **As FLIGHT-RELEVANT autonomy / the ARGUS estimator (the dissertation):** **~30%, by design.**
+  The SN solar-terrain-navigation family is 13/13 open; the pose-graph that fuses sun/shadow/DEM
+  factors over mutating terrain is scaffolded (shadow_predict, register_to_dem, the re-hazard,
+  the conserved mutable twin) but NOT integrated. This is the protected contribution, correctly
+  unbuilt at proposal stage.
+
+**Quantitatively against the §7 matrix:** 112 requirements, 0 were release-ready (all-D) at the
+§19.1 census; after the audit fixes + the traceability seeding, the CT (contracts) family is the
+closest to release and the security posture moved from "one remote-compromise critical" to
+"no known criticals." The honest headline: **the simulator product is ~75% and gated on one
+external dependency (the RC protocol); the flight-autonomy story is early and protected.**
