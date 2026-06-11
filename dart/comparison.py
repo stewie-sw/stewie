@@ -37,6 +37,22 @@ def lunar_drive_energy_per_m(g: float = G_MOON, slope_deg: float = 0.0) -> float
     return S.lunar_drive_power_w(slope_deg=slope_deg) / S.DRIVE_SPEED_MS
 
 
+def coverage_pattern_cost(*, region_m: float = 27.0, swath_m: float = 5.0, g: float = G_MOON,
+                          loop_closure_overhead: float = 0.15) -> dict:
+    """Stanford's accuracy is EARNED by driving a coverage + loop-closure pattern (the LAC paper: a
+    spiral tracing nested-grid perimeters, waypoints chosen to 'maximize mapping coverage while
+    encouraging frequent loop closures'; localization error 'periodically drops due to loop closures').
+    A boustrophedon/spiral over a region_m square at line spacing ~swath_m has length ~= area/swath,
+    plus a loop-closure revisit overhead. Returns the distance/time/energy that accuracy costs.
+    [ASSUMPTION] swath (the mapping footprint is not published); the area/swath law + loop overhead
+    are the model."""
+    base = (region_m * region_m) / max(1e-6, swath_m)
+    distance = base * (1.0 + loop_closure_overhead)             # + revisits that bound the VO drift
+    epm = lunar_drive_energy_per_m(g)
+    return {"distance_m": round(distance, 1), "energy_J": round(distance * epm, 1),
+            "time_s": round(distance / S.DRIVE_SPEED_MS, 1)}
+
+
 def operational_cost(*, n_fixes: int = 10, traverse_m: float = 100.0, dh_m: float = 0.1743,
                      vehicle_mass_kg: float = 30.0, g: float = G_MOON, argus_maneuver_s: float = 8.0,
                      shadownav_led_w: float = 20.0, dark: bool = True) -> dict:
@@ -46,15 +62,20 @@ def operational_cost(*, n_fixes: int = 10, traverse_m: float = 100.0, dh_m: floa
     physical lunar tractive draw. [ASSUMPTION] (flagged): the arm-maneuver time (arm slew not
     published) and the ShadowNav illumination wattage (headlight not published)."""
     drive_epm = lunar_drive_energy_per_m(g)
+    cov = coverage_pattern_cost(g=g)                            # Stanford's accuracy-by-driving cost
     drive_s = traverse_m / S.DRIVE_SPEED_MS
     drive_J = traverse_m * drive_epm
     argus_fix_J = RM.arm_raise_lift_energy_j(vehicle_mass_kg, g, lift_height_m=dh_m)  # raise; lowering is gravity
     led_J = (shadownav_led_w * drive_s) if dark else 0.0
     return {
         "Stanford NAV Lab (LAC)": {
-            "per_fix_time_s": 0.0, "per_fix_distance_m": 0.0, "per_fix_energy_J": 0.0,
-            "extra_mission_energy_J": 0.0, "regime": "sunlit only",
-            "note": "passive, rides the drive; no dedicated cost but drifts + sunlit-only"},
+            # accuracy is NOT free: it is earned by driving a coverage + loop-closure PATTERN
+            "per_fix_time_s": None, "per_fix_distance_m": None, "per_fix_energy_J": None,
+            "pattern_distance_m": cov["distance_m"], "pattern_energy_J": cov["energy_J"],
+            "pattern_time_s": cov["time_s"], "extra_mission_energy_J": cov["energy_J"],
+            "regime": "sunlit only",
+            "note": "accuracy via a spiral coverage + loop-closure pattern (revisits bound the VO "
+                    "drift); the pattern also builds the LAC map. Sunlit-only. [ASSUMPTION] swath"},
         "ShadowNav (JPL)": {
             "per_fix_time_s": 0.0, "per_fix_distance_m": 0.0,
             "per_fix_energy_J": round(led_J / max(1, n_fixes), 1),

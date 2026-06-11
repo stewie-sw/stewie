@@ -52,5 +52,7 @@ def test_operational_cost_grounded_and_regime_distinct():
     assert a["per_fix_time_s"] > 0                              # but it costs a stop
     # in darkness ShadowNav's own-illumination dwarfs the ARGUS fixes
     assert c["ShadowNav (JPL)"]["extra_mission_energy_J"] > a["extra_mission_energy_J"]
-    # Stanford passive -> no dedicated energy
-    assert c["Stanford NAV Lab (LAC)"]["per_fix_energy_J"] == 0.0
+    # Stanford accuracy is EARNED by a coverage + loop-closure driving PATTERN (not free)
+    st = c["Stanford NAV Lab (LAC)"]
+    assert st["pattern_distance_m"] > 100.0                     # spiral over the 27x27 m region
+    assert st["pattern_energy_J"] > a["extra_mission_energy_J"]  # the pattern dwarfs ARGUS's standstill fixes
