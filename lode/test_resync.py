@@ -55,3 +55,15 @@ def test_resync_graph_fuses_multiple_factors():
                               {"x": 10.2, "y": -0.1, "pos_sigma_m": 0.20}])
     assert out.pos_sigma_m < 0.15                       # two fixes beat the best single one
     assert 10.0 < out.x < 10.5                          # pulled into the fix cluster
+
+
+def test_resync_se2_fuses_odometry_imu_and_fix():
+    """#78: the SE(2) resync wrapper fuses body-frame odo + a gyro yaw factor + an absolute fix,
+    returning a heading-aware corrected pose with shrunk sigma."""
+    from lode.autonomy import initial_belief
+    from lode import resync as RS
+    b = initial_belief(_mission(), 4)
+    out = RS.resync_se2(b, between=((1.0, 0.0, 0.2), 0.1, 0.3), imu_yaw=(0.1, 0.02),
+                        observations=[{"x": 1.0, "y": 0.05, "pos_sigma_m": 0.05}])
+    assert "yaw" in out and abs(out["yaw"] - 0.1) < 0.15      # gyro pulled the heading
+    assert out["xy_sigma"] < 0.5                             # the fix tightened position

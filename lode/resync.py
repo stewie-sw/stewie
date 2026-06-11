@@ -20,6 +20,29 @@ import time
 from lode import mission_planner as MP
 
 
+def resync_se2(belief, *, between=None, imu_yaw=None, observations=None, yaw0: float = 0.0):
+    """#78: the SE(2) resync path -- fuse body-frame odometry (between), a gyro-preintegrated yaw
+    factor (imu_yaw=(dyaw, sigma)), and absolute (x,y) fixes into one heading-aware estimate. Returns
+    (x, y, yaw, xy_sigma, yaw_sigma) for the latest node. The orientation-aware successor to
+    resync_graph; full SE(3) (z/roll/pitch) is only needed off the ground plane."""
+    from dart.pose_graph_se2 import PoseGraphSE2
+    g = PoseGraphSE2()
+    g.add_prior(0, (belief.x, belief.y, yaw0), sigma_xy=max(1e-6, belief.pos_sigma_m), sigma_yaw=0.3)
+    if between is not None:
+        g.add_between(0, 1, between[0], sigma_xy=between[1], sigma_yaw=between[2])
+        last = 1
+    else:
+        last = 0
+    if imu_yaw is not None and last == 1:
+        g.add_imu_yaw(0, 1, imu_yaw[0], sigma=imu_yaw[1])
+    for o in (observations or []):
+        g.add_absolute(last, (float(o["x"]), float(o["y"])), sigma=float(o.get("pos_sigma_m", 0.5)))
+    out = g.optimize_with_cov()
+    p = out["pose"][last]
+    return {"x": p[0], "y": p[1], "yaw": p[2], "xy_sigma": out["xy_sigma"][last],
+            "yaw_sigma": out["yaw_sigma"][last]}
+
+
 def resync_graph(belief, observations: list):
     """#78: the GRAPH path -- fuse MULTIPLE absolute factors (DEM-registration + shadow-outline
     fixes) against the odometry prior in one windowed least-squares solve (dart.pose_graph),
