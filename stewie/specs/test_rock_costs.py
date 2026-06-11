@@ -1,7 +1,7 @@
 """Unified planner cost from classified rocks: D/E -> keep-outs, A/B/C traversable; loc-class bonus."""
 import math
 
-from lode import rock_costs as RC
+from stewie.specs import rock_costs as RC
 from dart import rock_taxonomy as RT
 
 

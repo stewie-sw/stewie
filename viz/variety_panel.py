@@ -2,7 +2,7 @@
 """Deliverable D3 — procgen variety panel + the cave-in showpiece (headless matplotlib).
 
 This is a *consumer* of the FROZEN state-field contract (INTERFACE.md §1/§5/§7): it imports
-``terrain_authority.io_fields.load_scene`` and never touches raw raster bytes itself. It
+``stewie.physics.io_fields.load_scene`` and never touches raw raster bytes itself. It
 produces slide-ready figures for a domain reviewer (NASA KSC GMRO), answering the GMRO
 challenge directly — "show craters + caving-in + boulder fields + flat-compact vs
 rolling-fluffy" — using the Phase-1 sample scenes under ``samples/``.
@@ -40,7 +40,7 @@ from matplotlib.colors import LightSource
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
-from terrain_authority.io_fields import load_scene  # noqa: E402
+from stewie.physics.io_fields import load_scene  # noqa: E402
 
 SAMPLES = os.path.join(_REPO_ROOT, "samples")
 OUT = os.path.join(_REPO_ROOT, "viz", "out")

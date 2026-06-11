@@ -50,14 +50,14 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
-# Import the package the supported way (shared SHARED CONTEXT note: `import terrain_authority`).
+# Import the package the supported way (shared SHARED CONTEXT note: `import the conserved authority`).
 # Make the repo root importable whether this is run as a script or a module.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from terrain_authority.io_fields import load_scene  # noqa: E402
-from terrain_authority import constants as K  # noqa: E402
+from stewie.physics.io_fields import load_scene  # noqa: E402
+from the conserved authority import constants as K  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # State-label -> color palette (INTERFACE.md §4 enum; spec §6 transitions).

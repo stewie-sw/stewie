@@ -19,7 +19,7 @@ import numpy as np
 
 from dart import dem_cross
 
-from lode import rock_costs
+from stewie.specs import rock_costs
 
 _HARD = math.inf
 

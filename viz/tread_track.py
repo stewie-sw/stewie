@@ -4,7 +4,7 @@
 The analogue of the cave-in showpiece (viz/variety_panel.py build_caveins_*), for the
 headline "path-dependent terrain change" capability (README §4 row #3, §5 bullet 2): a
 rover drives a 2-segment path across the field and lays down a compaction tread trail over
-time. The producer (terrain_authority.scenes.build_tread_track) saves the trail being laid
+time. The producer (stewie.physics.scenes.build_tread_track) saves the trail being laid
 as a TIME SERIES of full contract scenes under samples/tread_track/tNNN/; this script is a
 pure consumer of the FROZEN state-field contract (INTERFACE.md §1/§5/§7) — all raster I/O
 goes through io_fields.load_scene, never raw bytes.
@@ -37,8 +37,8 @@ import numpy as np
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
-from terrain_authority.io_fields import load_scene  # noqa: E402
-from terrain_authority import constants as K  # noqa: E402
+from stewie.physics.io_fields import load_scene  # noqa: E402
+from the conserved authority import constants as K  # noqa: E402
 
 # Reuse the EXACT grazing-sun hillshade used by the cave-in showpiece so the two
 # portfolio pieces are visually consistent (spec §5.1/§8).

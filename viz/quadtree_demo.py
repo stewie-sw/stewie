@@ -8,7 +8,7 @@ drives: leaves near the rover PROMOTE to the finest level (fine/active) while di
 regions stay COARSE, and the fine cluster MOVES with the rover frame by frame.
 
 Pure CONSUMER of the FROZEN state-field contract (INTERFACE.md §1/§5/§5.1/§7): every raster
-read goes through ``terrain_authority.io_fields.load_scene`` (never raw bytes), and the
+read goes through ``stewie.physics.io_fields.load_scene`` (never raw bytes), and the
 per-frame quadtree is read from the OPTIONAL additive metadata keys (INTERFACE.md §5.1:
 ``active_leaves`` / ``quadtree_nodes`` / ``touched_leaves`` / ``rover_rc``). It reuses the
 ``tread_track`` driven-rover series, so the quadtree follows the SAME rover that lays the
@@ -45,8 +45,8 @@ from matplotlib.patches import Patch
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
-from terrain_authority.io_fields import load_scene  # noqa: E402
-from terrain_authority import constants as K  # noqa: E402
+from stewie.physics.io_fields import load_scene  # noqa: E402
+from the conserved authority import constants as K  # noqa: E402
 
 # Reuse the EXACT grazing-sun hillshade + series helpers used by the cave-in / tread-track
 # showpieces so all portfolio pieces are visually consistent (spec §5.1/§8).
