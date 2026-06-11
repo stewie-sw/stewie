@@ -66,3 +66,15 @@ def test_config_full_aggregates_safely(client):
     assert d["data"]["sites_imported"] >= 1 and "spice_available" in d["data"]
     assert "version" in d["server"] and "data_dir" in d["server"]
     assert "overlay" in d                                   # the N15 block, intact
+
+
+def test_resync_compare_endpoint_ranks_futures(client):
+    """#70 [REQ:CP-05]: the forward-comparison surface (director-only)."""
+    body = {"mission": {"name": "fc", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "a", "kind": "cut", "x": 12, "y": 0, "footprint_m2": 16, "depth_m": 0.05},
+        {"action": "b", "kind": "fill", "x": 30, "y": 8, "footprint_m2": 16, "depth_m": 0.05}]},
+        "candidates": ["nearest", "two_opt"]}
+    r = client.post("/resync/compare", headers=H, json=body)
+    d = r.json()
+    assert d["ok"] and len(d["futures"]) == 2 and d["recommended"] in ("nearest", "two_opt")
+    assert client.post("/resync/compare", json=body).status_code == 401

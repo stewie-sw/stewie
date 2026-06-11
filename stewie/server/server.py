@@ -470,6 +470,22 @@ def auth_config():
     return {"ok": True, "operator_login": os.environ.get("STEWIE_OPERATOR_LOGIN", "1") != "0"}
 
 
+@app.post("/resync/compare")
+def resync_compare(body: dict, _auth: str = Depends(require_director)):
+    """#70: faster-than-realtime forward comparison -- candidate solver inputs re-simulated from
+    the CURRENT mission; ranked outcomes with measured wall times. Director-side (it sees truth)."""
+    from lode.resync import forward_compare
+    try:
+        mission = MP.mission_from_dict(body.get("mission", body))
+    except (ValueError, KeyError) as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    cands = tuple(body.get("candidates", ("auto", "nearest")))[:5]
+    obj = str(body.get("objective", "duration"))
+    out = forward_compare(mission, candidates=cands, objective=obj)
+    log_event(_auth, "resync.compare", f"{len(cands)} futures")
+    return {"ok": True, **out}
+
+
 @app.post("/auth/login")
 def auth_login(body: dict, _auth: str = Depends(require_auth)):
     """#52: email + the API key -> a 12 h identity token. The email MUST be whitelisted.
