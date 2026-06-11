@@ -1,0 +1,57 @@
+{
+ "schema_version": "stewie_shadow_sigma_calibration/1.0",
+ "channel": "shadow",
+ "sun_az_deg": 90.0,
+ "sigma_edge_px": 1.0,
+ "m_per_px": 5.0,
+ "sigma_L_m": 5.0,
+ "per_elevation": [
+  {
+   "elev_deg": 3.0,
+   "shadow_len_m": 155.0,
+   "sigma_H_m": 0.3772
+  },
+  {
+   "elev_deg": 5.0,
+   "shadow_len_m": 70.0,
+   "sigma_H_m": 0.4544
+  },
+  {
+   "elev_deg": 8.0,
+   "shadow_len_m": 40.0,
+   "sigma_H_m": 0.7063
+  },
+  {
+   "elev_deg": 12.0,
+   "shadow_len_m": 25.0,
+   "sigma_H_m": 1.0638
+  },
+  {
+   "elev_deg": 18.0,
+   "shadow_len_m": 15.0,
+   "sigma_H_m": 1.6249
+  },
+  {
+   "elev_deg": 25.0,
+   "shadow_len_m": 10.0,
+   "sigma_H_m": 2.3316
+  },
+  {
+   "elev_deg": 35.0,
+   "shadow_len_m": 5.0,
+   "sigma_H_m": 3.5011
+  }
+ ],
+ "n": 7,
+ "dev_sigma_H_m": 1.1656,
+ "holdout_coverage": 0.667,
+ "operating_envelope_elev_deg": [
+  3.0,
+  5.0
+ ],
+ "useful_sigma_h_m": 0.5,
+ "provenance": "real DEM cast-shadow geometry; sub-pixel edge noise the only modelled input; shadow_height_sigma first-order propagation (spec sec 16). [CALIB] magnitude pending a measured-edge dataset.",
+ "site": "haworth",
+ "dem_window": "rows900-1100,cols900-1100 (1km)",
+ "date": "2026-06-11"
+}
