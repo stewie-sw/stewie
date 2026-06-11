@@ -104,6 +104,30 @@ def range_sigma_from_pixel_noise(range_m: float, dh_m: float, fx_px: float, sigm
     return float(range_m ** 2 / max(1e-9, fx_px * dh_m) * sigma_px)
 
 
+def articulation_localize(graph, node_id, landmarks_xy, pixel_shifts, *, dh_m, fx_px, sigma_px=0.3):
+    """Tie SN-10 into the estimator: from the shadow-tip PIXEL shifts observed under a commanded lift
+    dh, triangulate landmark ranges, fix the rover (x,y), and inject it into the live PoseGraphSE2 as
+    an ABSOLUTE factor with the geometry-DERIVED covariance (not assumed). Returns the re-optimized
+    estimate. This is how a standstill parallax maneuver becomes a live localization update."""
+    cur = graph.optimize()
+    guess = cur[node_id][:2] if node_id in cur else (0.0, 0.0)
+    ranges = [range_from_pixel_parallax(dh_m, s, fx_px) for s in pixel_shifts]
+    fix_xy = position_fix_from_ranges(landmarks_xy, ranges, guess=guess)
+    sig = [range_sigma_from_pixel_noise(r, dh_m, fx_px, sigma_px) for r in ranges]
+    cov = position_fix_covariance(landmarks_xy, fix_xy, sig)
+    pos_sigma = float(np.sqrt(0.5 * np.trace(cov)))
+    graph.add_absolute(node_id, fix_xy, sigma=max(pos_sigma, 1e-3))
+    out = graph.optimize_with_cov()
+    return {"fix_xy": fix_xy, "fix_sigma_m": pos_sigma, **out}
+
+
+def should_relocalize(xy_sigma_m, *, threshold_m=2.0, moving=False) -> bool:
+    """The active-sensing trigger: spend an articulation parallax maneuver only when the estimator's
+    position uncertainty exceeds the tolerance AND the rover is stopped (the maneuver needs a
+    standstill). Keeps the cue evidence-gated -- no maneuver when localization is already good."""
+    return (not moving) and float(xy_sigma_m) > float(threshold_m)
+
+
 def position_fix_from_ranges(landmarks_xy, ranges_m, *, guess=(0.0, 0.0), iters: int = 50) -> tuple:
     """Trilaterate the rover (x, y) from ranges to known landmarks (Gauss-Newton). Heading-free:
     ranges alone fix position, no orientation needed. Needs >= 2 landmarks (3 disambiguates)."""

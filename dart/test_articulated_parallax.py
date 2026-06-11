@@ -95,3 +95,38 @@ def test_pixel_parallax_round_trip_and_camera_capability():
     assert AP.camera_resolvable_range_m(dh, fx, min_pixel_shift=1.0) > 200.0          # within capability
     # sub-pixel edge localization (0.3 px) sharpens range error well below the angle assumption
     assert AP.range_sigma_from_pixel_noise(10.0, dh, fx, sigma_px=0.3) < 0.1
+
+
+def test_articulation_localize_corrects_a_drifted_pose_graph_node():
+    """SN-10 [REQ:SN-10] estimator tie-in: a standstill parallax maneuver injected into the live pose
+    graph pulls a drifted node toward truth and shrinks its xy sigma -- the instrument becomes a
+    localization update."""
+    import numpy as np
+    from dart.pose_graph_se2 import PoseGraphSE2
+    from dart import articulated_parallax as AP
+    from stewie.specs import ipex_specs as S
+    fx = S.flight_fx_px(6.0); dh = 0.202
+
+    truth = np.array([4.0, -2.0])
+    L = np.array([[6.0, 0.0], [0.0, 5.0], [-3.0, -4.0]])         # near shadow-tip landmarks
+    shifts = [AP.pixel_shift_for_range(dh, float(np.hypot(*(truth - Li))), fx) for Li in L]
+
+    g = PoseGraphSE2()
+    g.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)
+    g.add_between(0, 1, (5.0, -3.0, 0.0), sigma_xy=1.5, sigma_yaw=1.5)   # drifted odometry to node 1
+    before = g.optimize_with_cov()
+    err_before = np.hypot(before["pose"][1][0] - truth[0], before["pose"][1][1] - truth[1])
+
+    res = AP.articulation_localize(g, 1, L, shifts, dh_m=dh, fx_px=fx)
+    err_after = np.hypot(res["pose"][1][0] - truth[0], res["pose"][1][1] - truth[1])
+
+    assert err_after < err_before                                # pulled toward truth
+    assert res["xy_sigma"][1] < before["xy_sigma"][1]            # the fix shrinks uncertainty
+    assert res["fix_sigma_m"] < 0.5                              # near landmarks -> sub-meter fix
+
+
+def test_should_relocalize_trigger():
+    from dart import articulated_parallax as AP
+    assert AP.should_relocalize(3.0, threshold_m=2.0, moving=False) is True    # uncertain + stopped
+    assert AP.should_relocalize(3.0, threshold_m=2.0, moving=True) is False     # cannot maneuver while moving
+    assert AP.should_relocalize(0.5, threshold_m=2.0, moving=False) is False    # already well-localized
