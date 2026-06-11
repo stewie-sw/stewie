@@ -42,3 +42,16 @@ def test_forward_compare_ranks_candidate_futures():
     # ranked best-first on the objective
     assert out["futures"][0]["time_s"] <= out["futures"][-1]["time_s"] + 1e-9
     assert out["recommended"] == out["futures"][0]["algorithm"]
+
+
+def test_resync_graph_fuses_multiple_factors():
+    """#78 [REQ:CP-06]: the graph resync fuses DEM + shadow fixes jointly; sigma shrinks below
+    either single fix and the estimate sits between the factors, prior-weighted."""
+    from lode.autonomy import initial_belief, predict
+    from lode import resync as RS
+    b = initial_belief(_mission(), 4)
+    b = predict(b, moved_to=(10.0, 0.0), drive_m=10.0, odom_drift_frac=0.2, energy_spent_J=0.0)
+    out = RS.resync_graph(b, [{"x": 10.4, "y": 0.1, "pos_sigma_m": 0.15},
+                              {"x": 10.2, "y": -0.1, "pos_sigma_m": 0.20}])
+    assert out.pos_sigma_m < 0.15                       # two fixes beat the best single one
+    assert 10.0 < out.x < 10.5                          # pulled into the fix cluster

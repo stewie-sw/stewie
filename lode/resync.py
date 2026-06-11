@@ -20,10 +20,26 @@ import time
 from lode import mission_planner as MP
 
 
+def resync_graph(belief, observations: list):
+    """#78: the GRAPH path -- fuse MULTIPLE absolute factors (DEM-registration + shadow-outline
+    fixes) against the odometry prior in one windowed least-squares solve (dart.pose_graph),
+    returning the corrected belief + shrunk sigma. This supersedes the 1-D resync() below for
+    the multi-factor case; resync() stays as the single-observation fast path. ``observations``:
+    [{x, y, pos_sigma_m}, ...]."""
+    from dart.pose_graph import PoseGraph
+    g = PoseGraph()
+    g.add_prior(0, (belief.x, belief.y), sigma=max(1e-6, belief.pos_sigma_m))
+    for o in observations:
+        g.add_absolute(0, (float(o["x"]), float(o["y"])), sigma=float(o.get("pos_sigma_m", 0.5)))
+    out = g.optimize_with_cov()
+    return dataclasses.replace(belief, x=out["pose"][0][0], y=out["pose"][0][1],
+                               pos_sigma_m=out["sigma"][0])
+
+
 def resync(belief, observation: dict):
     """Fuse an independent pose observation into the believed state (precision-weighted, the
-    standard 1-D fuse per axis -- honest about what it is; a full ESKF is the P15 track).
-    ``observation``: {x, y, pos_sigma_m}."""
+    standard 1-D fuse per axis -- honest about what it is; the windowed multi-factor version is
+    resync_graph; full SE(3) + IMU preintegration is the next slice)."""
     ox, oy = float(observation["x"]), float(observation["y"])
     osig = max(1e-6, float(observation.get("pos_sigma_m", 0.5)))
     bsig = max(1e-6, float(belief.pos_sigma_m))
