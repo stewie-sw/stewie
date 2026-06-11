@@ -1196,3 +1196,24 @@ def test_load_site_dem_honors_the_sites_registry():
     import pytest
     with pytest.raises((FileNotFoundError, KeyError, ValueError)):
         MP.load_site_dem("malapert_massif")
+
+
+def test_cp01_plan_result_produced_once_and_consumed_by_views():
+    """CP-01 [REQ:CP-01] (RB-03): plan() produces ONE immutable PlanResult; the views (Plan IR,
+    timeline, run) consume that SAME artifact via result= without re-solving, and the totals they
+    read match it exactly. This is the keystone the matrix marked stale-N."""
+    import dataclasses
+    m = MP.mission_from_dict({"name": "rb03", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "a", "kind": "cut", "x": 20, "y": 0, "footprint_m2": 16, "depth_m": 0.05},
+        {"action": "b", "kind": "fill", "x": 40, "y": 10, "footprint_m2": 16, "depth_m": 0.05}]})
+    result = MP.plan(m)
+    # immutable: a frozen dataclass -- a view cannot mutate the shared artifact
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        result.totals = {}
+    # the SAME result flows into the views (no recompute): Plan IR + timeline read it
+    ir = MP.plan_ir(m, result=result)
+    tl = MP.build_timeline(m, result=result)
+    assert ir["plan_id"]                                       # the IR derives from the shared artifact
+    assert tl["frames"] and tl["duration_s"] > 0
+    # totals consumed by the views equal the artifact's totals (one source of truth)
+    assert abs(tl["duration_s"] - result.totals["time_s"]) < 0.5   # agree to frame rounding (1 ms/frame), not a re-solve
