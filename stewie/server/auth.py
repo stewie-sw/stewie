@@ -67,6 +67,19 @@ def verify_token(token: str, *, now: float | None = None) -> str | None:
         return None
 
 
+def role_of(identity: str) -> str:
+    """#68: 'director' (full state: truth views, training toggles, admin) or 'operator' (shaped
+    telemetry only). Directors default to the WHOLE whitelist (today's three are all staff);
+    STEWIE_DIRECTORS narrows it when trainees join the whitelist. 'api-key' = automation =
+    director-equivalent. 'dev-open' (no key configured) = director."""
+    if identity in ("api-key", "dev-open"):
+        return "director"
+    env = os.environ.get("STEWIE_DIRECTORS", "")
+    directors = (tuple(e.strip().lower() for e in env.split(",") if e.strip())
+                 if env.strip() else allowlist())
+    return "director" if identity.strip().lower() in directors else "operator"
+
+
 def tailscale_identity(headers) -> str | None:
     """The whitelisted Tailscale identity, ONLY when the deployment opts in."""
     if os.environ.get("STEWIE_TRUST_TAILSCALE", "") != "1":

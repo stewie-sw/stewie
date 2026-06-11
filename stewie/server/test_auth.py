@@ -77,3 +77,31 @@ def test_operator_login_kill_switch(client, monkeypatch):
                     headers={"X-API-Key": "test-key"})
     assert r.status_code == 403 and "disabled" in r.json()["error"]
     assert client.get("/auth/config").json()["operator_login"] is False
+
+
+def test_role_separation_director_vs_operator(client, monkeypatch):
+    """#68 [REQ:PO-04]: truth views (debrief) are DIRECTOR-only; the shaped operator view is for
+    everyone authenticated. Directors default to the full whitelist; STEWIE_DIRECTORS narrows."""
+    monkeypatch.setenv("STEWIE_ALLOWED_OPERATORS",
+                       "aaron.w.storey80@gmail.com, trainee@gmail.com")
+    monkeypatch.setenv("STEWIE_DIRECTORS", "aaron.w.storey80@gmail.com")
+    from stewie.server import auth as AUTH
+    assert AUTH.role_of("aaron.w.storey80@gmail.com") == "director"
+    assert AUTH.role_of("trainee@gmail.com") == "operator"
+    assert AUTH.role_of("api-key") == "director"           # automation keeps full power
+    # an operator token is refused on the debrief truth view
+    tok = client.post("/auth/login", json={"email": "trainee@gmail.com"},
+                      headers={"X-API-Key": "test-key"}).json()["token"]
+    r = client.post("/session/start", headers={"X-API-Key": "test-key"},
+                    json={"name": "rs", "body": "moon", "charger": [0, 0],
+                          "orders": [{"action": "a", "kind": "cut", "x": 10, "y": 0,
+                                      "footprint_m2": 16, "depth_m": 0.05},
+                                     {"action": "b", "kind": "fill", "x": 20, "y": 0,
+                                      "footprint_m2": 16, "depth_m": 0.05}]})
+    sid = r.json()["session_id"]
+    assert client.get(f"/session/{sid}/operator",
+                      headers={"Authorization": f"Bearer {tok}"}).status_code == 200
+    deb = client.get(f"/session/{sid}/debrief", headers={"Authorization": f"Bearer {tok}"})
+    assert deb.status_code == 403 and "director" in deb.json()["error"].lower()
+    assert client.get(f"/session/{sid}/debrief",
+                      headers={"X-API-Key": "test-key"}).status_code == 200

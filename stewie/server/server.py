@@ -288,6 +288,15 @@ def require_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")
     raise HTTPException(status_code=401, detail="invalid or missing API key")
 
 
+def require_director(identity: str = Depends(require_auth)) -> str:
+    """#68 [REQ:PO-04]: the truth/training surface is director-only."""
+    from stewie.server import auth as AUTH
+    if AUTH.role_of(identity) != "director":
+        raise HTTPException(status_code=403,
+                            detail=f"director role required (signed in as operator {identity!r})")
+    return identity
+
+
 app = FastAPI(title="STEWIE — mission planner + planet browser API", version=_version())
 
 _cors = _env("CORS_ORIGINS", "*").strip()
@@ -388,7 +397,7 @@ def get_events(n: int = 50):
 
 # ---- #32: no-terminal admin ops (the W-2/W-3 CLIs + gate validation as buttons) ---------------
 @app.post("/admin/twin/snapshot")
-def admin_snapshot(_auth: str = Depends(require_auth)):
+def admin_snapshot(_auth: str = Depends(require_director)):
     from stewie.specs import config as CFG
     from stewie.twin import backup as BK
     path = BK.snapshot(_twin(), os.path.join(CFG.data_dir(), "snapshots"))
@@ -396,7 +405,7 @@ def admin_snapshot(_auth: str = Depends(require_auth)):
 
 
 @app.post("/admin/twin/retention")
-def admin_retention(_auth: str = Depends(require_auth)):
+def admin_retention(_auth: str = Depends(require_director)):
     from stewie.specs import config as CFG
     from stewie.twin import backup as BK
     removed = BK.apply_retention(os.path.join(CFG.data_dir(), "snapshots"))
@@ -404,7 +413,7 @@ def admin_retention(_auth: str = Depends(require_auth)):
 
 
 @app.post("/admin/backup/replicate")
-def admin_replicate(_auth: str = Depends(require_auth)):
+def admin_replicate(_auth: str = Depends(require_director)):
     from stewie.specs import config as CFG
     from stewie.twin import backup as BK
     dest = os.environ.get("STEWIE_BACKUP_DIR", os.path.join(CFG.data_dir(), "replica"))
@@ -413,7 +422,7 @@ def admin_replicate(_auth: str = Depends(require_auth)):
 
 
 @app.post("/admin/gates/validate")
-def admin_gates(_auth: str = Depends(require_auth)):
+def admin_gates(_auth: str = Depends(require_director)):
     """The standing invariant as a BUTTON: re-run the dated G1/G2 validation and compare against
     the frozen 2026-06-07 artifact byte-for-byte."""
     import json as _json
@@ -862,7 +871,7 @@ def session_operator(sid: str):
 
 
 @app.get("/session/{sid}/debrief")
-def session_debrief(sid: str, fast_forward: float = 1.0, _auth: None = Depends(require_auth)):
+def session_debrief(sid: str, fast_forward: float = 1.0, _auth: str = Depends(require_director)):
     s = SES.get(sid)
     if s is None:
         return JSONResponse(status_code=404, content={"ok": False, "error": "unknown session"})
