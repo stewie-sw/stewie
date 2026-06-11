@@ -27,7 +27,6 @@ from __future__ import annotations
 import math
 import os
 
-import numpy as np
 
 from dart import articulated_parallax as AP
 from dart.shadow_height import anti_solar_dir, measure_shadow_length_px
