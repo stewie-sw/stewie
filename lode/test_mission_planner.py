@@ -61,6 +61,7 @@ def test_mission_from_dict_requires_orders():
 
 
 def test_mission_from_dict_rejects_bad_physical_domains():
+    # [REQ:CT-01] public numeric inputs enforce finiteness + physical domains
     # RB-01: this public input boundary rejects NaN/Inf coords and non-positive footprint/depth
     # (float() alone accepts NaN/Inf; a negative depth or zero area is physically meaningless).
     def _o(**kw):
@@ -77,6 +78,7 @@ def test_mission_from_dict_rejects_bad_physical_domains():
 
 # ---- run() on a queued mission writes a REAL pdf + md, balanced ----------------------------------
 def test_queued_mission_balances_and_writes_pdf():
+    # [REQ:CP-02] cut/fill balanced by mass under drum/capacity constraints
     m = MP.mission_from_dict(_payload())
     pdf, md, totals = MP.run(m, stem="pytest-roundtrip")
     assert os.path.isfile(pdf) and os.path.isfile(md)
@@ -94,6 +96,7 @@ def test_run_unique_stem_no_overwrite():
 
 # ---- sinter stays gated through the adapter ------------------------------------------------------
 def test_sinter_order_still_refused():
+    # [REQ:CP-10] sinter unavailable for baseline IPEx (gated, capability-qualified only)
     sinter_order = [{"action": "Sinter apron", "kind": "sinter", "x": 10, "y": 10,
                      "footprint_m2": 9, "depth_m": 0.01}]
     # capability gate: the default IPEx drum excavator has no sinter tool -> refused at mission_from_dict
@@ -836,6 +839,7 @@ def test_endurance_slope_slip_and_dem_reach():
 
 
 def test_power_regime_psr_tower_vs_sunlit_solar():
+    # [REQ:EP-03] PSR lander/tower power distinguished from sunlit solar
     # #2 power model: a PSR (e.g. Haworth) has NO sun -> lander/tower power, available anytime, duty 1.0.
     # A sunlit site recharges from solar, duty-limited to the body's daylight fraction (< 1).
     m = _tiny_mission()

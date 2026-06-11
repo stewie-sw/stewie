@@ -119,6 +119,7 @@ def test_affine_with_origin_translates_but_keeps_pixel_size():
 # --- The real surface itself --------------------------------------------------------------
 
 def test_real_dem_shape_finite_and_relief_in_documented_range():
+    # [REQ:TW-01] real polar LOLA terrain loads; explicit failure when absent
     Z, _, meta = _load_real_dem()
     assert Z.shape == (_GRID_H, _GRID_W)
     assert Z.dtype == np.float32

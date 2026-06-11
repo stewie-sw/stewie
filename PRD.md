@@ -881,3 +881,53 @@ truth every rung needs. The auth/whitelist + event history = rung 4's role separ
 telemetry rail + link sessions = rung 4's operator reality. Horizon-flavored excursions (Mars
 enhanced basemaps, multi-body worksets) were cheap and stay, but the priority from here is the
 rung-4 gap list above.
+
+## 19. NASA-standards build-out (2026-06-10, Aaron: "build this out to NASA standards")
+
+### 19.1 Where the §7 matrix actually stands (census, 2026-06-10)
+112 identified requirements; **0 release-ready (all-required-columns D), 19 partial, 93 not
+started.** By family (worst-column):
+
+| Family | Scope | P | N | Note |
+|---|---|---|---|---|
+| CT 7.1 | contracts/conserved authority | 3 | 4 | the strongest family — the core IS the product |
+| TW 7.2 | terrain/material/illumination | 4 | 6 | TW-06 ephemeris sun = DONE in code (SPICE) — matrix stale, flip on evidence |
+| VT 7.3 | vehicle/arms/drums/stability | 1 | 9 | the two-vehicle stance gap lives here (VT-01/02/05) |
+| AM 7.4 | posture maneuvers (MEERKAT…) | 0 | 9 | all gated on authoritative IPEx geometry |
+| CP 7.5 | perception/mapping/localization | 5 | 5 | the G1/G2 evidence feeds this |
+| SN 7.6 | solar-terrain navigation | 0 | 13 | **the dissertation family** (ARGUS) — by design still open |
+| NV 7.7 | navigation/planning/recovery | 1 | 11 | berm re-hazard + routing exist; recovery behaviors don't |
+| PM 7.8 | construction mission planning | 1 | 11 | the planner is rich but matrix-unverified |
+| EP 7.9 | energy/thermal/power/ops | 2 | 6 | battery-honest timeline shipped; thermal ops partial |
+| FL 7.10 | fleet | 0 | 7 | MV1-7 exists; fleet reqs unverified |
+| PO 7.11 | product/packaging/ops | 2 | 12 | docs trilogy + fetcher land here; flip on evidence |
+
+### 19.2 The standards frame (honest scoping)
+- **Classification (NPR 7150.2 software classes):** STEWIE-as-simulator/training-tool is research/
+  Class-E-like; the moment the pluggable RC contract (#66) lets it COMMAND the dirt-pit robot, the
+  command path crosses into safety-relevant territory → that path (and only that path) needs
+  Class-D-style rigor: independent review, hazard analysis, the SAFING/WATCHDOG requirement the
+  architecture notes already flag as REQUIRED-and-missing (command-timeout halt). The watchdog is
+  hereby **SF-01**, P0, owner = the #66 contract work.
+- **Requirements traceability:** the §7 ID matrix becomes ENFORCED, not aspirational —
+  `scripts/req_trace.py` (added with this section) parses every §7 requirement ID and scans the
+  test suite for `[REQ:<ID>]` markers; a requirement may only hold `V=D` if at least one test
+  cites it. CI runs the tracer; the report is the traceability matrix.
+- **V&V evidence discipline:** the I/X/V/Q columns only move on artifacts (tests, dated
+  validation JSONs, captures) — the same rule the G1/G2 gates already enforce. No column flips by
+  prose.
+- **Coding standard:** the conserved core already lives Power-of-10-adjacent (no recursion-heavy
+  paths, bounded loops, asserts banned in production contracts per CT-06); adopt explicitly for
+  stewie/physics + stewie/twin: add ruff rules + a documented exception list rather than a
+  rewrite.
+- **Configuration management:** already strong (frozen byte-identical baseline, dated artifacts,
+  CI gates, the event audit trail, journaled twin) — document it as the CM plan rather than
+  rebuild it.
+
+### 19.3 The build-out order (what "to NASA standards" means next)
+1. **SF-01 safing/watchdog** + the #66 RC contract (the class boundary).
+2. `req_trace.py` in CI + seed `[REQ:]` markers on the requirements that ALREADY have tests
+   (CT/TW/CP families first) — turn the 19 P's into evidence-backed D's or honest N's.
+3. Flip stale matrix rows on existing evidence (TW-06 SPICE; PO docs/fetcher; EP battery).
+4. Then the families in mission order: VT/AM (needs IPEx geometry from John), NV recovery,
+   SN as the dissertation track.

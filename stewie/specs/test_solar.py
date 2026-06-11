@@ -60,6 +60,7 @@ def test_layer_endpoint_accepts_mission_time(tmp_path):
 
 
 def test_spice_backend_loads_and_agrees_on_structure():
+    # [REQ:TW-06] site/time sun vector via a documented ephemeris interface (SPICE)
     """The CORRECT wheel (Aaron 2026-06-10): SPICE (SpiceyPy + NAIF kernels) behind the SAME
     signature. Physics pins: elevation bounded by colatitude+obliquity-class limits; azimuth
     circles; and the two backends agree on the POLAR-DAY/NIGHT phase to within the mean-motion

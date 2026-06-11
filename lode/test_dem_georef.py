@@ -14,6 +14,7 @@ def test_dem_georef_corners_are_at_the_lunar_south_pole():
 
 
 def test_dem_georef_roundtrips_with_the_forward_transform():
+    # [REQ:TW-02] reprojection into the documented local metric frame (IAU_2015:30135 round-trip)
     pytest.importorskip("pyproj")
     from lode.mission_planner import dem_georef_corners, latlon_to_dem_origin
     c = dem_georef_corners()
