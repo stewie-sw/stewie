@@ -10,8 +10,10 @@ LIMITS are real [SPEC]. Outputs that depend on [CONFIRM] dims are flagged.
 """
 # PROVENANCE: STEWIE DART subsystem (A. Storey)
 # M3 DISPOSITION (MERGE-5, de-flagged with evidence): NOT a duplicate of posture_kinematics.py.
-# This module answers POSTURE FEASIBILITY (nominal/mechanical gates, parallax baseline, PostureState;
-# degree-based API); posture_kinematics answers RUNTIME CAMERA EXTRINSICS for the sensor packet
+# This module answers POSTURE FEASIBILITY (nominal/mechanical gates, stability, PostureState;
+# degree-based API, [CONFIRM] dims); posture_kinematics answers RUNTIME CAMERA EXTRINSICS (SOURCED
+# dims). RECONCILE (2026-06-11): the SN-09/10 articulation parallax BASELINE dh is render-observed,
+# so it sources from posture_kinematics, NOT this module -- see articulated_shadow.dh_from_posture
 # (radian-based, per-camera heights). Conventions and consumers differ; forcing one model without a
 # sourced reconciliation of the lift kinematics would fabricate agreement. Cross-check tracked in
 # the STEWIE DART subsystem.

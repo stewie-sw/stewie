@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import math
 
-from stewie.physics import posture_a3 as P
 
 
 def self_shadow_length_m(feature_height_m: float, sun_el_deg: float, ground_slope_deg: float = 0.0) -> float:
