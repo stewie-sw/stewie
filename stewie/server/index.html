@@ -284,7 +284,10 @@
         </select>
         <button id="qstruct" class="go">+ Structure @ x,y</button>
       </div>
-      <ol id="qlist"></ol>
+      <div class="ctl" style="margin:4px 0">
+        <button id="qundo" class="site" title="undo the last authoring change (Ctrl+Z)">↶ Undo</button>
+        <span id="qhist" style="font-size:10px;opacity:.6"></span></div>
+      <table id="qtable" style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums"></table>
       <div class="step">D · Constraints <small>— order-of-work + no-go zones</small></div>
       <div class="ctl"><input id="qprec" class="lbl" placeholder="precedence (e.g. Grade road &gt; Build berm, ...)" /></div>
       <div class="ctl" title="discrete obstacles (boulders / no-go zones); hauls route around them">
@@ -863,12 +866,14 @@ async function editPlace(lat, lon) {
   const d = await r.json();
   if (!d.ok) { $("editstate").textContent = "outside the mapped tile"; return; }
   if (EDIT.tool === "goto") {
+    snapshotAuthoring();
     const n = ORDERS.filter((o) => o.kind === "goto").length + 1;
     const wp = { action: `wp${n}`, kind: "goto", x: d.x_m, y: d.y_m };
     ORDERS.push(wp);
     dropPin(lat, lon, `wp${n} (${d.x_m}, ${d.y_m})`, "#e8273f", { kind: "order", obj: wp });
     renderQueue(); $("editstate").textContent = `wp${n} @ site ${d.x_m}, ${d.y_m} m`;
   } else if (EDIT.tool === "keepout") {
+    snapshotAuthoring();
     const ko = { x: d.x_m, y: d.y_m, r: 8 };
     KEEPOUTS.push(ko);
     dropPin(lat, lon, `keep-out r8 (${d.x_m}, ${d.y_m})`, "#e0564b", { kind: "keepout", obj: ko });
@@ -1489,6 +1494,7 @@ $("landset").onclick = () => { setLander(+$("landx").value || 0, +$("landy").val
   setQ(`lander placed at (${LANDER_P.x}, ${LANDER_P.y}) — persists + saves with the mission`); };
 if ($("landx")) { $("landx").value = LANDER_P.x; $("landy").value = LANDER_P.y; }
 $("wpadd").onclick = () => {
+  snapshotAuthoring();
   const n = ORDERS.filter((o) => o.kind === "goto").length + 1;
   const wp = { action: `wp${n}`, kind: "goto", x: +$("wpx").value || 0, y: +$("wpy").value || 0 };
   ORDERS.push(wp); renderQueue();
@@ -1585,30 +1591,73 @@ function moveOrder(i, d) {
   const j = i + d; if (j < 0 || j >= ORDERS.length) return;
   [ORDERS[i], ORDERS[j]] = [ORDERS[j], ORDERS[i]]; renderQueue();
 }
+// UI-14: authoring history -- snapshot BEFORE each mutation; Ctrl+Z / ↶ restores.
+const HISTORY = [];
+function snapshotAuthoring() {
+  HISTORY.push(JSON.stringify({ o: ORDERS, k: KEEPOUTS, a: ANNOTATIONS }));
+  if (HISTORY.length > 60) HISTORY.shift();
+  const h = $("qhist"); if (h) h.textContent = HISTORY.length ? `${HISTORY.length} undo` : "";
+}
+function undoAuthoring() {
+  const last = HISTORY.pop(); if (!last) { setQ("nothing to undo"); return; }
+  const d = JSON.parse(last);
+  ORDERS.length = 0; d.o.forEach((x) => ORDERS.push(x));
+  KEEPOUTS.length = 0; d.k.forEach((x) => KEEPOUTS.push(x));
+  ANNOTATIONS.length = 0; (d.a || []).forEach((x) => ANNOTATIONS.push(x));
+  SELECTED_ORDER = -1;
+  renderQueue(); setQ("undone");
+  const h = $("qhist"); if (h) h.textContent = HISTORY.length ? `${HISTORY.length} undo` : "";
+}
+let QSORT = { key: null, dir: 1 };                          // UI-14: column sort (display-only)
 function renderQueue() {
-  const ol = qel("qlist"); ol.innerHTML = "";
-  ORDERS.forEach((o, i) => {
-    const li = document.createElement("li");
-    const g = document.createElement("span"); g.className = "g";
-    const fx = v => Number(v).toFixed(1).replace(/\.0$/, "");   // B0.4: human coords, 0.1 m
-    g.textContent = o.kind === "goto"
-      ? `⌖ ${o.action} (${fx(o.x)}, ${fx(o.y)}) waypoint`
-      : `${o.kind} ${o.action || ""} (${fx(o.x)}, ${fx(o.y)}) ${o.footprint_m2}m²×${o.depth_m}m`;
-    li.append(`${i + 1}.`, g,
-              mkbtn("⌖", () => {                            // S-2: zoom-to the feature (Esri pattern)
-                $("qx").value = o.x; $("qy").value = o.y;
-                SELECTED_ORDER = i; drawPlan();
-                setQ(`zoomed to order ${i + 1}: ${o.kind} @ (${o.x}, ${o.y})`);
-              }),
-              mkbtn("▲", () => moveOrder(i, -1)), mkbtn("▼", () => moveOrder(i, 1)),
-              mkbtn("✕", () => { ORDERS.splice(i, 1); SELECTED_ORDER = -1; renderQueue(); }));
-    ol.appendChild(li);
+  const tb = qel("qtable"); tb.innerHTML = "";
+  const cols = [["#", null], ["kind", "kind"], ["action", "action"], ["x", "x"], ["y", "y"],
+                ["m²", "footprint_m2"], ["depth", "depth_m"], ["", null]];
+  const tr = document.createElement("tr");
+  cols.forEach(([label, key]) => {
+    const th = document.createElement("th");
+    th.textContent = label + (QSORT.key === key && key ? (QSORT.dir > 0 ? " ▲" : " ▼") : "");
+    th.style.cssText = "text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:2px 5px" + (key ? ";cursor:pointer" : "");
+    if (key) th.onclick = () => { QSORT = { key, dir: QSORT.key === key ? -QSORT.dir : 1 }; renderQueue(); };
+    tr.appendChild(th);
+  });
+  tb.appendChild(tr);
+  const view = ORDERS.map((o, i) => [o, i]);
+  if (QSORT.key) view.sort(([a], [b]) => {
+    const av = a[QSORT.key] ?? "", bv = b[QSORT.key] ?? "";
+    return (av < bv ? -1 : av > bv ? 1 : 0) * QSORT.dir;
+  });
+  const fx = (v) => v === undefined ? "—" : Number(v).toFixed(1).replace(/\.0$/, "");
+  view.forEach(([o, i]) => {
+    const row = document.createElement("tr");
+    row.style.cssText = "border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer" +
+      (i === SELECTED_ORDER ? ";outline:1px solid var(--accent)" : "");
+    const cells = [String(i + 1), o.kind, o.action || "", fx(o.x), fx(o.y),
+                   o.kind === "goto" ? "—" : fx(o.footprint_m2), o.kind === "goto" ? "—" : fx(o.depth_m)];
+    cells.forEach((c) => { const td = document.createElement("td");
+      td.textContent = c; td.style.padding = "2px 5px"; row.appendChild(td); });
+    const ctl = document.createElement("td"); ctl.style.whiteSpace = "nowrap";
+    ctl.append(mkbtn("⌖", () => { $("qx").value = o.x; $("qy").value = o.y;
+        SELECTED_ORDER = i; drawPlan(); renderQueue(); }),
+      mkbtn("▲", () => { snapshotAuthoring(); moveOrder(i, -1); }),
+      mkbtn("▼", () => { snapshotAuthoring(); moveOrder(i, 1); }),
+      mkbtn("✕", () => { snapshotAuthoring(); ORDERS.splice(i, 1); SELECTED_ORDER = -1; renderQueue(); }));
+    row.appendChild(ctl);
+    row.onclick = (e) => { if (e.target.tagName !== "BUTTON") { SELECTED_ORDER = i; drawPlan(); renderQueue(); } };
+    tb.appendChild(row);
   });
   setQ(ORDERS.length ? `${ORDERS.length} order(s) queued` : "queue empty");
   drawPlan();
   scheduleAutoRender();                                    // #33: edits flow to the Godot render
 }
-function addOrder(o) { ORDERS.push(o); renderQueue(); }
+function addOrder(o) { snapshotAuthoring(); ORDERS.push(o); renderQueue(); }
+if ($("qundo")) $("qundo").onclick = undoAuthoring;
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" &&
+      !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) {
+    e.preventDefault(); undoAuthoring();
+  }
+});
 
 // ---- LAYER SYSTEM: select / load / unload map overlays (imagery, dem, topology, hazard, excavation, lander) ----
 const LAYER_ON = { imagery: true, dem: true, topology: false, hazard: true, excavation: true, lander: true };
@@ -2009,6 +2058,7 @@ qel("plancanvas").onclick = (e) => {                       // canvas px -> local
   const ext = _planExtent(), tf = _planXform(cv, ext);
   const wx = ext.x0 + (px - tf.ox) / tf.s, wy = ext.y0 + ((cv.height - py) - tf.oy) / tf.s;
   if (PATH_MODE) {                                         // S-3: each click = a sequenced waypoint
+    snapshotAuthoring();
     PATH_N += 1;
     ORDERS.push({ action: `wp${PATH_N}`, kind: "goto", x: Math.round(wx), y: Math.round(wy) });
     qel("pathinfo").textContent = `${PATH_N} waypoint(s)`;
