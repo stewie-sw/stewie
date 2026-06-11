@@ -83,6 +83,7 @@ def test_lit_fraction_in_unit_interval_real_scenes(name):
 
 @pytest.mark.parametrize("name", _SCENES)
 def test_lit_and_shadow_partition_exactly(name):
+    # [REQ:TW-07] horizon + cast-shadow mask from terrain + s(t): lit/shadow partition exactly
     """lit + shadow == every pixel, with no overlap (a clean binary partition)."""
     h, cell = _scene(name)
     lit = horizon_clip(h, cell, sun_az_deg=90.0, sun_el_deg=10.0)

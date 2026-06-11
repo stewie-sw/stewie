@@ -95,6 +95,7 @@ def test_array_reader_post_init_dims_and_missing_field():
 
 
 def test_array_reader_window_is_exact_subrectangle_and_a_copy():
+    # [REQ:TW-03] windowed terrain access (no full-map loads on product paths)
     fields, _ = _real_base_fields(80)
     rdr = ArrayBaseReader(fields=fields, base_cell_m=_CELL_M)
     bbox = (10, 20, 40, 55)  # half-open

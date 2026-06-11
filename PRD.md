@@ -247,9 +247,9 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 | TW-03 | P1 | Product paths use windowed/tiled terrain access rather than loading the full map by default. | D | N | P | NA |
 | TW-04 | P1 | One seeded composite generator combines craters, rocks, material, and illumination parameters. | P | P | P | NA |
 | TW-05 | P1 | `WorldState` carries per-cell material, traversability, observed/unobserved state, and calibrated uncertainty. | P | P | P | P |
-| TW-06 | P1 | Add a site/time sun vector `s(t)` in the local world frame using a documented ephemeris interface. | N | N | N | N |
+| TW-06 | P1 | Add a site/time sun vector `s(t)` in the local world frame using a documented ephemeris interface. | D | D | D | P |
 | TW-07 | P1 | Compute terrain horizon, direct illumination, cast-shadow mask, incidence angle, and overexposure risk from terrain plus `s(t)`. | P | N | P | P |
-| TW-08 | P1 | Recompute affected illumination and navigation layers after excavation changes terrain. No stale pre-build shadow map may remain authoritative. | N | N | N | NA |
+| TW-08 | P1 | Recompute affected illumination and navigation layers after excavation changes terrain. No stale pre-build shadow map may remain authoritative. | P | P | N | NA |
 | TW-09 | P2 | Model camera LED contribution separately from solar illumination, including configurable intensity and pose. | P | N | N | N |
 | TW-10 | P2 | Track dust/optical degradation as a state affecting image quality and maintenance decisions. `[PROPOSED]` | N | N | N | N |
 

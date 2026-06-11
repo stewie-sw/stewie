@@ -10,6 +10,7 @@ from stewie.physics.column_state import ColumnState
 
 
 def test_constructor_rejects_nonpositive_dims_and_cell():
+    # [REQ:CT-02] ColumnState validates dims/shapes/domains at construction
     with pytest.raises(ValueError):
         ColumnState(0, 0, 0.02)          # zero-size grid
     with pytest.raises(ValueError):
@@ -28,6 +29,7 @@ def test_check_invariants_passes_on_fresh_state():
 
 
 def test_check_invariants_catches_density_mass_and_nonfinite():
+    # [REQ:CT-03] mutations leave all invariants valid (mass/density/finiteness guards)
     cs = ColumnState(8, 8, 0.02)
     cs.density[0, 0] = 0.0
     with pytest.raises(ValueError, match="density"):

@@ -25,6 +25,8 @@ jobs:
           pip install -e .[dev]
       - name: Requirements traceability (PRD 19.2 -- V=D must be test-cited)
         run: python scripts/req_trace.py
+      - name: Power-of-10 profile on the conserved core (PRD 19.2; complexity<=10, bounded branching)
+        run: ruff check --select C901,PLR0912,PLR0915 stewie/physics stewie/twin --config 'lint.mccabe.max-complexity=10'
       - name: Lint (ruff, pyflakes gate)
         run: ruff check --select F stewie dart lode leap forge dustgym scripts viz
       - name: Type check (mypy; mission-planner + core enforced, sim modules ratcheted in pyproject)
