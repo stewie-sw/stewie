@@ -1154,3 +1154,31 @@ def test_plan_math_worksheet_shows_every_equation_with_numbers():
     dig = next((t for lg in sheet["legs"] for t in lg["terms"] if t["name"] == "dig energy"), None)
     if dig:
         assert abs(eval(dig["substituted"].split("=")[-1]) - dig["value"]) < 1.0
+
+
+def test_assumptions_register_surfaces_real_tagged_values():
+    """#75 (mission brief packet): the register is built from the ACTUAL [CALIB]/[ASSUMPTION] tags
+    in the specs source -- every assumption surfaced, none fabricated, each with its note."""
+    reg = MP.assumptions_register()
+    assert len(reg) >= 8, "the specs carry many tagged assumptions"
+    names = {r["name"] for r in reg}
+    assert "RECHARGE_POWER_W" in names and "DRIVETRAIN_EFFICIENCY" in names
+    for r in reg:
+        assert r["tag"] in ("[CALIB]", "[ASSUMPTION]")
+        assert r["value"] and r["note"]                    # value + provenance note present
+    rech = next(r for r in reg if r["name"] == "RECHARGE_POWER_W")
+    assert rech["tag"] == "[CALIB]" and "700" in str(rech["value"])
+
+
+def test_mission_brief_packet_has_cover_register_and_vehicle(tmp_path):
+    """#75: the report is now a packet -- cover + 3 plan pages + assumptions register (>=5 PDF
+    pages), and the markdown carries the Assumptions Register + Vehicle Configuration sections."""
+    m = MP.mission_from_dict({"name": "Brief Test", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "pad", "kind": "cut", "x": 20, "y": 0, "footprint_m2": 16, "depth_m": 0.05},
+        {"action": "berm", "kind": "fill", "x": 40, "y": 10, "footprint_m2": 16, "depth_m": 0.05}]})
+    pdf, md, _ = MP.run(m, stem=str(tmp_path / "brief"))
+    n_pages = open(pdf, "rb").read().count(b"/Type /Page")  # PdfPages writes one /Type /Page per page
+    assert n_pages >= 5, f"the packet should have cover + plan pages + register (got {n_pages})"
+    text = open(md).read()
+    assert "## Assumptions Register" in text and "## Vehicle Configuration" in text
+    assert "[CALIB]" in text and "RECHARGE_POWER_W" in text

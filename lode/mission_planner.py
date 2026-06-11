@@ -1783,9 +1783,60 @@ def _dur(s):
     return f"{h:.1f} h" if h < 48 else f"{h/24:.1f} d"
 
 
+def assumptions_register() -> list:
+    """#75 (mission brief packet): every [CALIB]/[ASSUMPTION] value the plan rests on, parsed
+    straight from the specs source so the register can never drift from the code or fabricate a
+    value. Each entry: {name, value, tag, note} -- the NASA-brief honesty surface (nothing the
+    plan assumes is hidden from the reviewer)."""
+    import os as _os
+    import re as _re
+    reg: list = []
+    here = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    pat = _re.compile(r"^([A-Z_][A-Z0-9_]+)\s*=\s*([^#\n]+?)\s*#\s*(\[(?:CALIB|ASSUMPTION)\])\s*(.*)$")
+    for rel in ("stewie/specs/ipex_specs.py", "stewie/specs/constants.py"):
+        path = _os.path.join(here, rel)
+        if not _os.path.exists(path):
+            continue
+        for ln in open(path, encoding="utf-8"):
+            m = pat.match(ln.rstrip())
+            if m:
+                reg.append({"name": m.group(1), "value": m.group(2).strip(),
+                            "tag": m.group(3), "note": m.group(4).strip()[:120],
+                            "source": rel.split("/")[-1]})
+    return reg
+
+
 def report(mission, trips, flows, per_trip, tl, totals, out_pdf, out_md, endu=None):
     th = totals["time_s"] / 3600
     with PdfPages(out_pdf) as pdf:
+        # COVER — the mission brief packet front matter (#75)
+        cov = plt.figure(figsize=(8.5, 11)); cov.patch.set_facecolor("#0a0e1a")
+        cov.text(0.5, 0.80, "STEWIE", ha="center", fontsize=44, fontweight="bold", color="#39ff14",
+                 family="monospace")
+        cov.text(0.5, 0.745, "MISSION BRIEF PACKET", ha="center", fontsize=15, color="#c7d2e3",
+                 family="monospace")
+        cov.text(0.5, 0.70, f"{mission.name}", ha="center", fontsize=20, fontweight="bold", color="w")
+        feas = "FEASIBLE" if totals.get("feasible", True) else "INFEASIBLE — review"
+        meta = (f"Body            {mission.body.title()}\n"
+                f"Date            {mission.date}\n"
+                f"Sequencer       {totals.get('algorithm', 'nearest')} -> {totals.get('objective', 'time')}\n"
+                f"Plan ID         {totals.get('plan_id', '(computed)')}\n"
+                f"Feasibility     {feas}\n"
+                f"Duration        {_dur(totals['time_s'])} ({th:.0f} h)\n"
+                f"Mass moved      {totals['mass_kg']/1000:.1f} t\n"
+                f"Energy          {totals['energy_J']/1e6:.1f} MJ  ({totals['charges']} recharges)\n"
+                f"Drive           {totals['distance_m']/1000:.2f} km")
+        cov.text(0.13, 0.45, meta, fontsize=12, color="#dfe7f2", family="monospace", va="top",
+                 linespacing=1.9)
+        cov.text(0.5, 0.12, "Conserved-physics mission plan over real lunar terrain. Review the\n"
+                 "Assumptions Register (final page) before acting on any figure.",
+                 ha="center", fontsize=8.5, color="#7f8ea3", family="monospace")
+        cov.text(0.5, 0.05, "REVIEW-PENDING — not approved for execution until signed off",
+                 ha="center", fontsize=8, color="#e0b300", family="monospace")
+        for ax_pos in ([0.1, 0.60, 0.8, 0.002], [0.1, 0.10, 0.8, 0.002]):
+            a = cov.add_axes(ax_pos); a.axis("off"); a.axhline(0, color="#39ff14", lw=1)
+        pdf.savefig(cov, facecolor=cov.get_facecolor()); plt.close(cov)
+
         # PAGE 1 — plan table + material balance + totals
         fig = plt.figure(figsize=(8.5, 11))
         fig.suptitle(f"LUNAR BUILD MISSION PLAN — {mission.name}\n{mission.body.title()} · {mission.date} · "
@@ -1876,6 +1927,26 @@ def report(mission, trips, flows, per_trip, tl, totals, out_pdf, out_md, endu=No
         axc2.set_ylabel("MJ", color="#3b82c4"); axc.grid(alpha=.3)
         pdf.savefig(fig); plt.close(fig)
 
+        # ASSUMPTIONS REGISTER — every [CALIB]/[ASSUMPTION] the plan rests on (#75, NASA-brief honesty)
+        reg = assumptions_register()
+        figr = plt.figure(figsize=(8.5, 11))
+        figr.suptitle("ASSUMPTIONS REGISTER\nevery calibrated / assumed value this plan rests on",
+                      fontsize=13, fontweight="bold")
+        axr = figr.add_axes([0.04, 0.05, 0.92, 0.84]); axr.axis("off")
+        rrows = [["Parameter", "Value", "Tag", "Basis"]]
+        for r in reg[:34]:
+            rrows.append([r["name"][:24], str(r["value"])[:16], r["tag"], r["note"][:52]])
+        tr = axr.table(cellText=rrows, loc="upper center", cellLoc="left",
+                       colWidths=[0.24, 0.16, 0.12, 0.48])
+        tr.auto_set_font_size(False); tr.set_fontsize(6.5); tr.scale(1, 1.35)
+        for c in range(4): tr[0, c].set_facecolor("#7a1020"); tr[0, c].set_text_props(color="w")
+        for ri, r in enumerate(reg[:34], 1):
+            fc = "#fff0f0" if r["tag"] == "[ASSUMPTION]" else "#fff8e6"
+            for c in range(4): tr[ri, c].set_facecolor(fc)
+        figr.text(0.04, 0.93, f"{len(reg)} tagged values · [CALIB]=calibrated-not-yet-fit · "
+                  "[ASSUMPTION]=engineering estimate pending source", fontsize=7.5, color="#445")
+        pdf.savefig(figr); plt.close(figr)
+
     # markdown
     md = [f"# Lunar Build Mission Plan — {mission.name}", "",
           f"**Body:** {mission.body.title()} · **Date:** {mission.date} · cut-fill balanced · "
@@ -1956,9 +2027,21 @@ def report(mission, trips, flows, per_trip, tl, totals, out_pdf, out_md, endu=No
                 f"~{c['drive_energy_MJ']:.1f} MJ (~{c['drive_packs']:.1f} packs) vs digging "
                 f"~{c['dig_energy_MJ'][0]:.0f}–{c['dig_energy_MJ'][1]:.0f} MJ (~{c['dig_packs'][0]:.0f}–"
                 f"{c['dig_packs'][1]:.0f} packs): **the drums dominate the energy budget** (recharged daily).")
-    md += ["",
+    # #75: the ASSUMPTIONS REGISTER section (the NASA-brief honesty surface, every tagged value)
+    reg = assumptions_register()
+    md += ["", "## Assumptions Register",
+           f"Every calibrated/assumed value this plan rests on ({len(reg)} tagged). Review before acting.",
+           "", "| Parameter | Value | Tag | Basis |", "|---|---|---|---|"]
+    for r in reg:
+        md.append(f"| `{r['name']}` | {r['value']} | {r['tag']} | {r['note']} |")
+    md += ["", "## Vehicle Configuration",
+           f"- Vehicle: **IPEx** (ISRU Pilot Excavator) · gauge {V.geometry_of('ipex')['gauge_m']:.4f} m · "
+           f"wheelbase {V.geometry_of('ipex')['wheelbase_m']:.2f} m · CG height {V.geometry_of('ipex')['cg_height_m']:.2f} m",
+           f"- Energy: dig {DIG_J_PER_KG:.0f} J/kg · drive {DRIVE_J_PER_M:.1f} J/m · battery {BATTERY_J/1e6:.2f} MJ · "
+           f"recharge {S.RECHARGE_POWER_W:.0f} W [CALIB]",
+           "",
            "_Grounded (bodies.json + ipex_specs + rassor_mass_model); sinter 0.92 MJ/kg; recharge 700 W + "
-           "sinter-head 1000 W are [CALIB]._"]
+           "sinter-head 1000 W are [CALIB]. REVIEW-PENDING — not approved for execution until signed off._"]
     with open(out_md, "w") as f:
         f.write("\n".join(md))
 
