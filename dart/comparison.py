@@ -45,7 +45,6 @@ def accuracy_precision_comparison(*, near_range_m=6.0, dh_m: float = 0.1743) -> 
     ShadowNav is m-level GLOBAL (absolute lunar position), ARGUS is cm-to-dm LOCAL (a map-free fix);
     they are not measured on a shared testbed yet (that is the §6 protocol). Stanford + ShadowNav
     numbers are quoted from the cited papers; ARGUS precision is the parallax covariance model."""
-    from stewie.specs import ipex_specs as S
     sp = math.radians(0.05)
     L = np.array([[near_range_m, 0.0], [0.0, near_range_m], [-near_range_m + 1, -near_range_m + 2]])
     argus_sigma = AP.position_fix_sigma(L, np.array([0.0, 0.0]), dh_m=dh_m, sigma_theta_rad=sp)
