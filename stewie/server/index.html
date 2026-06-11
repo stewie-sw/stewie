@@ -474,6 +474,12 @@
       </div>
       <div id="pane-report" class="pane">
         <div id="dashstrip" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
+        <div id="dashboards" style="display:none;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+          <div><div class="cap" style="margin-bottom:4px">ROUTE — site frame</div>
+            <canvas id="routehero" width="520" height="340" style="border:1px solid var(--line);border-radius:8px"></canvas></div>
+          <div style="flex:1;min-width:320px"><div class="cap" style="margin-bottom:4px">ACTIVITY — mission time</div>
+            <canvas id="gantt" width="560" height="340" style="border:1px solid var(--line);border-radius:8px;width:100%;max-width:640px"></canvas></div>
+        </div>
         <div class="cap"><span>MISSION-CONTROL REPORT</span>
           <a id="reportopen" href="#" target="_blank" rel="noopener">open in tab ↗</a></div>
         <iframe id="reportframe" title="mission-control report"></iframe>
@@ -2241,6 +2247,16 @@ qel("qplan").onclick = async () => {
         chip("hazard flags", hz ? `⚠ ${hz}` : "0") +
         chip("solver", t.resolved_algorithm || t.algorithm || "—");
       ds.style.display = "flex";
+      // UI-17: the ROUTE HERO (the authored plan view, enlarged) + the ACTIVITY GANTT
+      const db = $("dashboards");
+      if (db) {
+        db.style.display = "flex";
+        const hero = $("routehero"), hc = hero.getContext("2d");
+        hc.fillStyle = "#05060c"; hc.fillRect(0, 0, hero.width, hero.height);
+        const src = qel("plancanvas");
+        if (src) hc.drawImage(src, 0, 0, hero.width, hero.height);
+        drawGantt((j.timeline && j.timeline.frames) || []);   // timeline = {frames, duration_s, ...}
+      }
     }
     const v = j.validation || {};
     const vtag = (v.feasible ? " · ✓ authority-validated" : (v.mass_conserved !== undefined ? " · ⚠ infeasible" : ""))
@@ -2406,6 +2422,55 @@ function telePush(batt, mass, slip) {
   TELE_BUF.batt.push(batt); TELE_BUF.mass.push(mass); TELE_BUF.slip.push(slip);
   Object.values(TELE_BUF).forEach((b) => { if (b.length > 240) b.shift(); });
   teleSpark();
+}
+// UI-17: the activity Gantt -- one lane per phase kind, bars at [t0, t1], battery curve under.
+function drawGantt(tl) {
+  const cv = $("gantt"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#05060c"; ctx.fillRect(0, 0, cv.width, cv.height);
+  if (!tl.length) {
+    ctx.fillStyle = "#9ab"; ctx.font = "12px system-ui";
+    ctx.fillText("plan a mission to populate the activity timeline", 16, 28);
+    return;
+  }
+  const kinds = [...new Set(tl.map((p) => p.phase))];
+  const COLORS = { drive: "#4f9cff", dig: "#e8273f", cut: "#e8273f", dump: "#e07b39",
+                   fill: "#e07b39", haul: "#9966dd", recharge: "#3fa34d", goto: "#7bd0d0" };
+  const T = Math.max(...tl.map((p) => p.t1)), L = 86, R = 12, TOP = 16;
+  const laneH = Math.min(34, (cv.height - 110) / Math.max(1, kinds.length));
+  const X = (t) => L + (t / T) * (cv.width - L - R);
+  ctx.font = "10px Orbitron, system-ui"; ctx.textBaseline = "middle";
+  kinds.forEach((k, i) => {
+    const y = TOP + i * laneH;
+    ctx.fillStyle = "#9ab"; ctx.textAlign = "right";
+    ctx.fillText(k.toUpperCase().slice(0, 9), L - 8, y + laneH / 2);
+    ctx.strokeStyle = "rgba(255,255,255,.05)";
+    ctx.beginPath(); ctx.moveTo(L, y + laneH); ctx.lineTo(cv.width - R, y + laneH); ctx.stroke();
+    tl.filter((p) => p.phase === k).forEach((p) => {
+      ctx.fillStyle = COLORS[k] || "#c7d2e3";
+      ctx.globalAlpha = .85;
+      ctx.fillRect(X(p.t0), y + 4, Math.max(2, X(p.t1) - X(p.t0)), laneH - 8);
+      ctx.globalAlpha = 1;
+    });
+  });
+  // the battery curve under the lanes
+  const by0 = TOP + kinds.length * laneH + 14, bh = cv.height - by0 - 26;
+  ctx.strokeStyle = "#3a3f4a";
+  ctx.strokeRect(L, by0, cv.width - L - R, bh);
+  ctx.strokeStyle = "#e8273f"; ctx.lineWidth = 1.5; ctx.beginPath();
+  tl.forEach((p, i) => {
+    const y0 = by0 + (1 - p.batt0_frac) * bh, y1 = by0 + (1 - p.batt1_frac) * bh;
+    if (i === 0) ctx.moveTo(X(p.t0), y0); else ctx.lineTo(X(p.t0), y0);
+    ctx.lineTo(X(p.t1), y1);
+  });
+  ctx.stroke(); ctx.lineWidth = 1;
+  ctx.fillStyle = "#9ab"; ctx.textAlign = "right";
+  ctx.fillText("BATT", L - 8, by0 + bh / 2);
+  // the time axis
+  ctx.textAlign = "center";
+  for (let h = 0; h <= T / 3600; h += Math.max(1, Math.round(T / 3600 / 6))) {
+    ctx.fillText(`${h}h`, X(h * 3600), cv.height - 12);
+  }
 }
 let LAST_TIMELINE = null, LAST_ORDERS = [], LAST_KEEPOUTS = [], LAST_PLAN_IR = null, EXEC_RAF = 0;
 let EXEC_SPEEDUP = 60;                                     // sim seconds per wall-clock second (B0.3: mutable)
