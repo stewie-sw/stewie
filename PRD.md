@@ -34,7 +34,15 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 **Production readiness:** ~75% as the trainer/simulator (gated on the pit wire binding); the
 flight-autonomy autonomy stack is earlier and grows along the ARGUS track.
 
-**NEXT SESSION — locked plan (2026-06-11): the SN / ARGUS evidence path.** The trainer product is
+**SN / ARGUS evidence path — DONE (2026-06-11):** CP-01 (release-ready), SN-03 shadow yaw factor,
+SN-02 detection front-end, SN-05 illumination route cost all shipped TDD + flipped on citing tests;
+the SN family is no longer 13-N (SN-01 P, SN-02 D, SN-03 D, SN-04 P, SN-05 P). The arc runs end to
+end on real Haworth (notebook 07). NEXT: SN-06/07 (camera direction/exposure, LED budget) +
+SN-01/04 promotion to D (test the untested OR-clauses), then the #79 frontier (8-cam SuperGlue
+front-end -> richer shadow/feature observations into the graph). The locked plan that produced the
+above, for reference:
+
+**Completed plan (2026-06-11): the SN / ARGUS evidence path.** The trainer product is
 done + gated on John's wire transport, so solo effort goes to the dissertation contribution (the SN
 family, 13 rows mostly open). Sequenced, bounded TDD slices (tasks #83-86), each gate-byte-identical
 with a `[REQ:]` marker:
