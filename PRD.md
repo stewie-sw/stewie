@@ -37,8 +37,9 @@ flight-autonomy autonomy stack is earlier and grows along the ARGUS track.
 **SN / ARGUS evidence path — DONE (2026-06-11):** CP-01 (release-ready), SN-02 detection front-end,
 SN-03 shadow yaw factor, SN-05 illumination route cost, SN-06 camera selection, SN-08 active-morphology
 posture + SN-08b full posture×load coverage, all shipped TDD + flipped on citing tests. SN family now
-SN-01 P, SN-02 D, SN-03 D, SN-04 P, SN-05 P, SN-06 D, SN-08 D; only SN-07 (LED budget, hardware-gated
-Q=G) remains N. Improvement attributed vs baseline on five axes (12 executed notebooks, real data,
+SN-01 P, SN-02 D, SN-03 D, SN-04 P, SN-05 P, SN-06 D, SN-08 D, SN-09 D (the articulated
+self-shadow instrument: a commanded posture change cancels the unknown casting height -> exact
+sun-elevation/slope, the ARGUS-title idea); only SN-07 (LED budget, hardware-gated Q=G) remains N. Improvement attributed vs baseline on five axes (12 executed notebooks, real data,
 Colab-friendly): position 28× (real Katwijk 160→5.7 m), heading 6.2× with an honest crossover, camera
 availability 100% vs 71% at low sun, viewpoint 0.20 m vs 0, and the posture×load cross-load-tip safety
 matrix. Findings write-up: `FINDINGS_2026-06-11_SN_evidence_path.md`.
