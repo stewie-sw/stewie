@@ -74,6 +74,36 @@ def position_fix_sigma(landmarks_xy, rover_xy, *, dh_m, sigma_theta_rad) -> floa
     return float(np.sqrt(0.5 * np.trace(cov)))
 
 
+# --- pixel-domain parallax (what the camera actually measures) -----------------------------------
+# A pinhole projects a ground point at depression theta to image row v = fx * tan(theta) = fx * h / R.
+# A commanded camera lift dh therefore shifts that row by EXACTLY  dv = fx * dh / R  (the baseline h
+# cancels), so the range is R = fx * dh / dv. fx is the documented lens focal length in pixels
+# (ipex_specs.flight_fx_px). This is the camera-true form: we measure a PIXEL shift and convert.
+
+def pixel_shift_for_range(dh_m: float, range_m: float, fx_px: float) -> float:
+    """Forward model: the shadow-tip row shift [px] a landmark at range R undergoes for a camera lift dh."""
+    return float(fx_px) * float(dh_m) / max(1e-9, float(range_m))
+
+
+def range_from_pixel_parallax(dh_m: float, pixel_shift: float, fx_px: float) -> float:
+    """Range [m] from a measured shadow-tip PIXEL shift and the known camera lift dh (pinhole-exact)."""
+    if pixel_shift <= 0.0:
+        return math.inf
+    return float(fx_px) * float(dh_m) / float(pixel_shift)
+
+
+def camera_resolvable_range_m(dh_m: float, fx_px: float, min_pixel_shift: float = 1.0) -> float:
+    """The maximum landmark range whose shadow-tip shift still exceeds ``min_pixel_shift`` for a lift
+    dh -- the camera-capability envelope (use min_pixel_shift<1 for sub-pixel edge localization)."""
+    return float(fx_px) * float(dh_m) / max(1e-9, float(min_pixel_shift))
+
+
+def range_sigma_from_pixel_noise(range_m: float, dh_m: float, fx_px: float, sigma_px: float) -> float:
+    """Range uncertainty from shadow-tip localization noise [px]: sigma_R = R^2 / (fx * dh) * sigma_px
+    (the pixel-domain form of parallax_range_sigma, with sigma_theta = sigma_px / fx)."""
+    return float(range_m ** 2 / max(1e-9, fx_px * dh_m) * sigma_px)
+
+
 def position_fix_from_ranges(landmarks_xy, ranges_m, *, guess=(0.0, 0.0), iters: int = 50) -> tuple:
     """Trilaterate the rover (x, y) from ranges to known landmarks (Gauss-Newton). Heading-free:
     ranges alone fix position, no orientation needed. Needs >= 2 landmarks (3 disambiguates)."""

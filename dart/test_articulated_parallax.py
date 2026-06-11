@@ -78,3 +78,20 @@ def test_position_sigma_improves_with_more_and_closer_landmarks():
     three = np.array([[6.0, 0.0], [0.0, 6.0], [-5.0, -5.0]])
     two = np.array([[6.0, 0.0], [0.0, 6.0]])
     assert AP.position_fix_sigma(three, rover, dh_m=0.2, sigma_theta_rad=s) <=            AP.position_fix_sigma(two, rover, dh_m=0.2, sigma_theta_rad=s) + 1e-9
+
+
+def test_pixel_parallax_round_trip_and_camera_capability():
+    """SN-10 [REQ:SN-10] pixel-domain: we MEASURE a shadow-tip pixel shift and convert via fx. The
+    pinhole identity dv = fx*dh/R round-trips, and a 0.2 m lift is comfortably resolvable on the real
+    IMX547 + 6 mm lens (tens of px near, >1 px to hundreds of m)."""
+    from dart import articulated_parallax as AP
+    from stewie.specs import ipex_specs as S
+    fx = S.flight_fx_px(6.0)                               # physical lens fx in px (~2190)
+    dh = 0.202                                             # max camera lift (IRON_CROSS)
+    dv = AP.pixel_shift_for_range(dh, 5.0, fx)
+    assert dv > 50.0                                       # ~88 px at 5 m -> easily measured
+    assert AP.range_from_pixel_parallax(dh, dv, fx) == pytest.approx(5.0, rel=1e-9)   # round-trip
+    assert AP.pixel_shift_for_range(dh, 30.0, fx) > 1.0    # still multi-px at 30 m
+    assert AP.camera_resolvable_range_m(dh, fx, min_pixel_shift=1.0) > 200.0          # within capability
+    # sub-pixel edge localization (0.3 px) sharpens range error well below the angle assumption
+    assert AP.range_sigma_from_pixel_noise(10.0, dh, fx, sigma_px=0.3) < 0.1
