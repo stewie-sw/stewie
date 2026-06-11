@@ -212,6 +212,7 @@
     "drive_j_per_m": 134.59,
     "battery_j": 4795200.0,
     "dig_rate_kg_hr": 42.0,
+    "recharge_w": 700.0,
     "sinter_enabled": false
   },
   "_vehicles": {

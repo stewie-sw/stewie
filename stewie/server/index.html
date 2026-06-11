@@ -582,7 +582,7 @@ const BODIES = {
 // grounded IPEx / battery constants: loaded from bodies.json (_ipex, generated from ipex_specs.py ->
 // single source of truth). The embedded object is a file:// fallback only (when bodies.json can't be
 // fetched); the served browser uses the py-generated values. ipex() resolves preferred-then-fallback.
-const IPEX_FALLBACK = { drum_kg: 30, dig_j_per_kg: 4151, battery_j: 4.79e6, dig_rate_kg_hr: 42 };
+const IPEX_FALLBACK = { drum_kg: 30, dig_j_per_kg: 4151, battery_j: 4.79e6, dig_rate_kg_hr: 42, recharge_w: 700 };
 function ipex() { return (PHY && PHY._ipex) ? PHY._ipex : IPEX_FALLBACK; }
 let viewer = null, ellipsoid = null, marker = null, picked = null;
 
@@ -1263,10 +1263,13 @@ function estimate() {
   const energyJ = cutMass * ix.dig_j_per_kg;               // excavation energy (dominant term)
   const charges = energyJ / ix.battery_j, hrs = cutMass / ix.dig_rate_kg_hr;
   // the KEY line + the structured breakdown behind a live ⓘ (Aaron's feasibility-layout note)
-  LAST_EST = { cutVol, cutMass, weightN, bermArea, drumLoads, energyJ, charges, hrs, bermH, p };
+  const rw = (ix.recharge_w || 700), perChargeH = ix.battery_j / rw / 3600;
+  const rechargeH = charges * perChargeH;
+  LAST_EST = { cutVol, cutMass, weightN, bermArea, drumLoads, energyJ, charges, hrs, bermH, p,
+               rw, perChargeH, rechargeH };
   $("est").innerHTML = "";
   const summary = document.createElement("span");
-  summary.textContent = `${(cutMass / 1000).toFixed(1)} t to move · ${charges.toFixed(1)} charges · ~${Math.round(hrs).toLocaleString()} h `;
+  summary.textContent = `${(cutMass / 1000).toFixed(1)} t · ${charges.toFixed(1)} charges · ~${Math.round(hrs + rechargeH).toLocaleString()} h incl. recharge `;
   const info = document.createElement("button");
   info.textContent = "ⓘ details";
   info.style.cssText = "background:none;border:1px solid var(--line);border-radius:4px;color:var(--accent);cursor:pointer;font-size:10px;padding:1px 6px";
@@ -1283,7 +1286,11 @@ function estimate() {
       row("dig energy", `${(e2.energyJ / 1e6).toFixed(1)} MJ`) +
       row("battery charges", e2.charges.toFixed(1)) +
       row("dig time", `~${Math.round(e2.hrs).toLocaleString()} h`) +
-      `</table><div style="opacity:.6;margin-top:4px">updates live as you edit the pad/cut/berm inputs</div>`;
+      row("recharge time", `~${Math.round(e2.rechargeH).toLocaleString()} h (${e2.charges.toFixed(0)} × ${e2.perChargeH.toFixed(1)} h @ ${e2.rw} W [CALIB])`) +
+      row("<b>mission timeline</b>", `<b>~${Math.round(e2.hrs + e2.rechargeH).toLocaleString()} h</b>`) +
+      `</table><div style="opacity:.6;margin-top:4px">dig-energy basis: ${LAST_EST ? "4151" : ""} J/kg (excavation mechanics
+      — cutting + drum + losses; ~8,600× the pure m·g·h lift floor). The sandbox is DIG-dominant by
+      design; the solver in 5·Plan adds travel + slip + recharge routing per leg. Updates live.</div>`;
   });
   refreshPopovers();
   return { body: sel.value, padW, padL, cut_m: cut, bermH_m: bermH, cutVol_m3: cutVol, cutMass_kg: cutMass,

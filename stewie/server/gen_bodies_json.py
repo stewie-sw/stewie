@@ -54,6 +54,7 @@ out["_ipex"] = {
     "drive_j_per_m": round(S.drive_energy_per_m(), 2),
     "battery_j": round(S.battery_energy_j(), 1),
     "dig_rate_kg_hr": S.DIG_RATE_KG_PER_HR,
+    "recharge_w": S.RECHARGE_POWER_W,                       # [CALIB] -- #62 battery-honest timeline
     "sinter_enabled": K.SINTER_ENABLED,
 }
 
