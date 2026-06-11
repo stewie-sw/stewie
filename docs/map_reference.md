@@ -83,7 +83,7 @@ NTRS search (all NASA papers above are public): <https://ntrs.nasa.gov/>.
 
 | Quantity | Value in the model | Provenance | Verdict |
 |---|---|---|---|
-| SSA gauge | **0.5207 m** (was 0.57) | skid-steer kinematic track [WHEELTEST Eq.1] | FIXED — the tip margins ran on the EZ-RASSOR render stance |
+| SSA gauge | **0.3645 m** (registry `geometry_of("ipex")`) | 0.5207 m = the RASSOR-2 TEST-PLATFORM track [WHEELTEST Eq.1], ×0.7 IPEx scale per the registry | CORRECTED 2026-06-10 twice: 0.57 (EZ render stance) → 0.5207 (#59, an over-read of WHEELTEST) → the per-vehicle registry value (data-book audit F2). ONE source now. |
 | SSA wheelbase | 0.40 m | [ASSUMPTION — no documented IPEx wheelbase; render-rig consistent] | tagged honest |
 | CG height | 0.30 m | modeled (constants.py; SSA ~33.7° pitch binds) | tagged; no doc value |
 | Arm length (pivot→drum axis) | 0.28 m | [ASSUMPTION: render-rig consistent] | tagged honest |

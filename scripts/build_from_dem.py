@@ -44,13 +44,19 @@ from scripts.crop_lola_tile import find_max_relief_window  # noqa: E402
 DEFAULT_SRC = ".vendor/lola_raw/Haworth_final_adj_5mpp_surf.tif"
 DEFAULT_OUT = "samples/lunar_dem/haworth_10km_5m"
 FINE_CELL_M = 0.02  # the sim's 2 cm fine cell (corridor refinement target; eval §2)
-REGION = "Haworth"
+# F1 (data-book audit): the region/scene/source strings were HARDCODED to Haworth -- the
+# Shackleton + Nobile bundles shipped with FALSE provenance. Derived from --src/--out now.
+def _region_from(src: str, out_dir: str) -> str:
+    import os as _os
+    stem = _os.path.basename(out_dir).replace("_10km_5m", "").replace("_", " ")
+    return stem.title() if stem else _os.path.basename(src).split("_")[0]
 CITATION = ("Barker et al. 2021 (Planet. Space Sci. 203:105119); "
             "Mazarico et al. 2011 (Icarus 211:1066)")
 
 
 def build(src: str, out_dir: str, *, extent_m: float = 10000.0,
           base_cell_m: float = 5.0, stride: int = 200) -> dict:
+    REGION = _region_from(src, out_dir)                    # F1: per-site provenance
     """Crop -> dem_to_base -> save_scene + hillshade. Returns the written metadata."""
     # --- 1. load + max-relief crop (same-frame pixel-window slice) ---------
     Z, affine, src_meta = di.load_lola_geotiff(src)
@@ -96,7 +102,7 @@ def build(src: str, out_dir: str, *, extent_m: float = 10000.0,
     hmin, hmax = float(surf.min()), float(surf.max())
     meta = {
         "schema_version": "1.0",
-        "scene_name": "lunar_dem/haworth_10km_5m",
+        "scene_name": f"lunar_dem/{__import__('os').path.basename(out_dir)}",
         "producer": "scripts/build_from_dem.py (real LOLA DEM ingest, Lane A)",
         "grid": {"width": cs.width, "height": cs.height, "cell_m": base_cell_m,
                  "order": "row-major-C"},
@@ -140,7 +146,7 @@ def build(src: str, out_dir: str, *, extent_m: float = 10000.0,
                     "derive_height, so only the loose mantle's areal mass changes.",
         },
         "dem_provenance": {
-            "source": "PGDA LOLA_5mpp Haworth_final_adj_5mpp_surf.tif (Product 78)",
+            "source": f"PGDA LOLA_5mpp {__import__('os').path.basename(src)} (Product 78)",
             "frame": src_meta["frame"],
             "z_semantics": src_meta["z_semantics"],
             "native_cell_m": px,

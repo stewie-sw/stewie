@@ -19,7 +19,8 @@ ARM_LENGTH_M = 0.28                # pivot -> drum axis [ASSUMPTION: render-rig 
 ARM_ORIGIN_FRONT = (0.20, 0.0)     # base_link x,z [sidecar ARM_FRONT_ORIGIN]
 ARM_ORIGIN_BACK = (-0.20, 0.0)     # base_link x,z [sidecar ARM_BACK_ORIGIN]
 ARM_MASS_FRAC = 0.15               # arm+drum share of dry mass per arm [ASSUMPTION]
-ARM_LIFT_EFFICIENCY = 0.60         # [CALIB] (rassor_mass_model.ARM_LIFT_EFFICIENCY)
+from stewie.physics.rassor_mass_model import ARM_LIFT_EFFICIENCY  # 0.5 [CALIB] -- ONE source
+                                                                   # (was a drifted local 0.60; F3)
 
 
 @dataclass
