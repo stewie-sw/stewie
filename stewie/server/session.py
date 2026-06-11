@@ -54,8 +54,7 @@ class Session:
                    mission_t0_s=float(mission_t0_s))
         for i, leg in enumerate(out["legs"]):
             visible_at = link.deliver_at(_LEG_PACKET_BYTES, t_s=i * _LEG_PERIOD_S)
-            delivered = visible_at is not None
-            if delivered:
+            if visible_at is not None:                     # mypy-narrowed (the bool indirection wasn't)
                 shaped = {k: v for k, v in leg.items() if k not in TRUTH_FIELDS}
                 shaped["sent_at_s"] = round(i * _LEG_PERIOD_S, 3)
                 shaped["visible_at_s"] = round(visible_at, 3)   # #67 [REQ:PO-03]: sent + downlink latency
