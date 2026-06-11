@@ -5,7 +5,6 @@ renders ROTATED and misaligned, and the work-area rasters stretch over the wrong
 is the standard GIS one -- resample the raster onto a geographic (lat/lon) grid server-side, and
 give every layer ITS OWN bbox.
 """
-import numpy as np
 import pytest
 
 pyproj = pytest.importorskip("pyproj")
@@ -31,7 +30,7 @@ def test_reprojection_centers_align():
     """The geographic image's CENTER pixel must correspond to the tile's center lat/lon -- the
     alignment property the naive bbox-drape violated (the rotation Aaron saw)."""
     rgba, bbox = G.render_globe("dem")
-    from lode.mission_planner import dem_georef_corners, latlon_to_dem_origin
+    from lode.mission_planner import dem_georef_corners
     ctr = dem_georef_corners()["center"]
     # the bbox midpoint should be within a fraction of the tile of the true center
     assert abs((bbox["south"] + bbox["north"]) / 2 - ctr["lat"]) < 0.25

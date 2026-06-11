@@ -22,7 +22,6 @@ Then:   python3 scripts/build_from_dem.py --src <dest>/lola_5mpp/<file> --out sa
 from __future__ import annotations
 
 import argparse
-import hashlib
 import os
 import sys
 import urllib.request

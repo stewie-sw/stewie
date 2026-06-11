@@ -188,10 +188,8 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         out = (_np_load_rgba(stem + ".npy"), _json.load(open(stem + ".json")))
         _GLOBE_CACHE[key] = out
         return out
-    import os as _os
 
     import numpy as _np
-    from imageio.v3 import imread
     dem_full, cell_m, b, fwd = _tile_geo(mp)
     if kind == "dem":
         # CLEAN cartographic hillshade computed from the RAW heightmap (Aaron's 2nd screenshot:
