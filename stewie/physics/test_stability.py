@@ -48,3 +48,17 @@ def test_stability_margin_and_risk_bands():
     # a pitch in the warn band (>= 0.7*SSA, < SSA)
     warn = ST.stability(0.8 * flat["ssa_pitch_deg"], 0.0, **geo)
     assert warn["risk"] == "warn" and warn["margin_deg"] > 0.0
+
+
+def test_fore_aft_cg_shift_reduces_the_pitch_margin():
+    """#77 VT4-01: a fore/aft CG offset (a loaded forward arm) shrinks the effective pitch lever,
+    so the tip margin DROPS vs the centered CG. The /twin/cg dx was being computed then discarded;
+    now it bites. Conservative: the binding lever uses (wheelbase/2 - |dx|)."""
+    from stewie.physics.stability import stability
+    base = stability(5.0, 0.0, gauge_m=0.3645, wheelbase_m=0.30, cg_height_m=0.21)
+    shifted = stability(5.0, 0.0, gauge_m=0.3645, wheelbase_m=0.30, cg_height_m=0.21, cg_dx_m=0.08)
+    assert shifted["ssa_pitch_deg"] < base["ssa_pitch_deg"]   # the forward lever shrank
+    assert shifted["margin_deg"] < base["margin_deg"]         # less margin before tipping
+    # dx=0 is the unchanged centered case (backward-compatible)
+    same = stability(5.0, 0.0, gauge_m=0.3645, wheelbase_m=0.30, cg_height_m=0.21, cg_dx_m=0.0)
+    assert same["ssa_pitch_deg"] == base["ssa_pitch_deg"]

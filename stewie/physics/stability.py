@@ -36,7 +36,7 @@ def tip_tilt_limit_deg(*, gauge_m: float, wheelbase_m: float, cg_height_m: float
 
 
 def stability(pitch_deg: float, roll_deg: float, *, gauge_m: float, wheelbase_m: float,
-              cg_height_m: float, warn_frac: float = 0.7) -> dict:
+              cg_height_m: float, cg_dx_m: float = 0.0, warn_frac: float = 0.7) -> dict:
     """Tip-over assessment from the rover's terrain attitude (pitch about the wheelbase, roll about the
     track; both from ``rover.conform_pose``). Returns the per-axis SSAs, the binding margin (degrees of
     tilt remaining before tip-over; <= 0 means tipping), the binding axis, and a risk band
@@ -49,7 +49,12 @@ def stability(pitch_deg: float, roll_deg: float, *, gauge_m: float, wheelbase_m:
     # NOTE (audit M19, refuted): for the rectangular wheel-support polygon the gravity-projection
     # exit condition IS componentwise (|h tan p| vs half-wheelbase, |h tan r| vs half-gauge), so the
     # per-axis margins are exact in this SSA model -- no cross-axis term is missing.
-    ssa_pitch = ssa_deg(wheelbase_m / 2.0, cg_height_m)
+    # VT4-01 (audit): a fore/aft CG offset (loaded forward/back drum, posture lean) shrinks the
+    # effective PITCH lever -- the CG starts already toward one wheel pair, so it exits the support
+    # polygon at a smaller tilt. Conservative (worst-case, safety-correct): the binding pitch lever
+    # is (wheelbase/2 - |cg_dx_m|), clamped non-negative. cg_dx_m=0 reproduces the centered SSA.
+    pitch_lever = max(0.0, wheelbase_m / 2.0 - abs(float(cg_dx_m)))
+    ssa_pitch = ssa_deg(pitch_lever, cg_height_m)
     ssa_roll = ssa_deg(gauge_m / 2.0, cg_height_m)
     m_pitch = ssa_pitch - abs(pitch_deg)
     m_roll = ssa_roll - abs(roll_deg)

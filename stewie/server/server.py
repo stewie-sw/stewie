@@ -468,7 +468,7 @@ def twin_cg(front_deg: float = 0.0, back_deg: float = 0.0, front_kg: float = 0.0
     dx, dz = arm.cg_offset_m(front_drum_kg=max(0.0, front_kg), back_drum_kg=max(0.0, back_kg))
     geo = geometry_of("ipex")
     st = STAB(float(pitch_deg), float(roll_deg), gauge_m=geo["gauge_m"],
-              wheelbase_m=geo["wheelbase_m"], cg_height_m=geo["cg_height_m"] + dz)
+              wheelbase_m=geo["wheelbase_m"], cg_height_m=geo["cg_height_m"] + dz, cg_dx_m=dx)  # VT4-01: dx now bites
     return {"ok": True, "cg_dx_m": round(dx, 4), "cg_dz_m": round(dz, 4),
             "cg_height_m": round(geo["cg_height_m"] + dz, 4), **{k: (round(v, 3) if isinstance(v, float) else v)
                                                           for k, v in st.items()}}
