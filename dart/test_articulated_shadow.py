@@ -57,3 +57,15 @@ def test_recovers_local_ground_slope_from_the_mismatch():
 def test_dh_from_real_posture_change():
     dh = AS.dh_from_posture("TRANSIT", "COBRA")
     assert dh > 0.05                                      # COBRA raises the body/camera vs TRANSIT
+
+
+def test_dh_is_reconciled_with_the_render_posture_model():
+    """RECONCILE (2026-06-11): the articulation dh is render-observed, so dh_from_posture must agree
+    with the Godot bridge / posture_kinematics (the sourced render FK), NOT diverge from it as the two
+    posture models once did. This consistency test pins the reconciliation."""
+    from dart import articulated_shadow as AS
+    from stewie.godot import articulation_bridge as AB
+    dh_shadow = AS.dh_from_posture("TRANSIT", "MEERKAT")
+    dh_bridge = AB.parallax_capture_plan("scene", sun_az_deg=0.0, sun_el_deg=5.0)["dh_m"]
+    assert abs(dh_shadow - dh_bridge) < 1e-6, f"dh must be reconciled: shadow {dh_shadow} vs bridge {dh_bridge}"
+    assert dh_shadow > 0.05

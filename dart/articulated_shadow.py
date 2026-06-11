@@ -59,7 +59,15 @@ def ground_slope_from_articulated_change(dh_m: float, dL_observed_m: float, sun_
 
 
 def dh_from_posture(p_low_name: str, p_high_name: str, base_cam_height_m: float = 0.40) -> float:
-    """The known camera/feature height change between two named postures (forward kinematics)."""
-    h_low, _ = P.camera_height_pitch(base_cam_height_m, 0.0, P.posture(p_low_name))
-    h_high, _ = P.camera_height_pitch(base_cam_height_m, 0.0, P.posture(p_high_name))
-    return float(h_high - h_low)
+    """The known camera-height change between two named postures. RECONCILED (2026-06-11) to source
+    from posture_kinematics -- the render-grounded, sourced FK (ARM_LENGTH 0.388 m from the sidecar,
+    wheel radius from ipex_specs) that the Godot render and the parallax bridge use -- so the
+    commanded dh the instrument relies on is exactly what the camera renders. (dart.posture_a3 is the
+    estimator-side posture + stability model with a different arm-angle convention and arm length; it
+    is NOT the parallax-baseline source.)"""
+    from stewie.physics import posture_kinematics as pk
+    from stewie.physics.postures import get_posture
+    lo, hi = get_posture(p_low_name), get_posture(p_high_name)
+    h_lo = pk.chassis_lift_m(lo.arm_front_pitch_rad, lo.arm_back_pitch_rad)
+    h_hi = pk.chassis_lift_m(hi.arm_front_pitch_rad, hi.arm_back_pitch_rad)
+    return float(h_hi - h_lo)
