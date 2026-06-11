@@ -11,7 +11,6 @@ from dart.shadow_vectors import detect_shadow_vector
 
 
 def _ridge_mask(h=40, w=40, ridge_rows=(18, 22)):
-    import math
     from dart.shadow_predict import cast_shadow_mask
     z = np.zeros((h, w)); z[ridge_rows[0]:ridge_rows[1], :] = 6.0
     return cast_shadow_mask((z, 5.0), sun_az_deg=90.0, sun_el_deg=8.0), z
