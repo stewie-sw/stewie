@@ -7,6 +7,7 @@ the shadow/stereo factors are heading-dependent. Factor types:
   prior(i, (x,y,yaw), sigma_xy, sigma_yaw)   anchor a full pose
   between(i, j, (dx,dy,dyaw), ...)           a relative SE(2) motion in i's BODY frame (wheel odo)
   imu_yaw(i, j, dyaw, sigma)                 a gyro-PREINTEGRATED relative heading change (IMU)
+  shadow_yaw(i, measured_yaw, sigma)         SN-03: a weak absolute-yaw factor from an accepted shadow
   absolute(i, (x,y), sigma)                  a map-relative position fix (DEM scan / shadow outline)
 
 Planar by design: pitch/roll are terrain-conformance outputs (rover.conform_pose), not free
@@ -28,6 +29,13 @@ def _wrap(a: float) -> float:
     return (float(a) + math.pi) % (2.0 * math.pi) - math.pi
 
 
+def yaw_from_shadow(shadow_world_az: float, observed_body_bearing: float) -> float:
+    """SN-03: the rover heading implied by an accepted shadow. The anti-solar shadow has a known
+    WORLD azimuth; its bearing in the rover BODY frame fixes the heading:
+    yaw = shadow_world_az - observed_body_bearing (wrapped). Feed the result to add_shadow_yaw."""
+    return _wrap(float(shadow_world_az) - float(observed_body_bearing))
+
+
 def _relative(pi: np.ndarray, pj: np.ndarray) -> np.ndarray:
     """The SE(2) relative pose T_i^-1 ⊗ T_j as (dx, dy, dyaw) in i's body frame."""
     c, s = math.cos(pi[2]), math.sin(pi[2])
@@ -42,6 +50,7 @@ class PoseGraphSE2:
         self._priors: list = []      # (i, pose[3], W[3])
         self._between: list = []     # (i, j, meas[3], W[3])
         self._imu: list = []         # (i, j, dyaw, w)
+        self._shadow_yaw: list = []  # SN-03 (i, measured_yaw, w): weak absolute-yaw factor from shadow
         self._abs: list = []         # (i, xy[2], w)
         self._ids: set = set()
 
@@ -63,6 +72,14 @@ class PoseGraphSE2:
         self._imu.append((int(i), int(j), float(dyaw), self._w(sigma)))
         self._ids.update((int(i), int(j)))
 
+    def add_shadow_yaw(self, i: int, measured_yaw: float, sigma: float) -> None:
+        """SN-03: fuse an accepted shadow as a WEAK absolute-yaw factor with covariance (sigma from
+        the shadow-sigma operating envelope: sharp low-sun shadow = small sigma, fuzzy high-sun =
+        large). Never an unqualified heading -- one more covariance-weighted factor, so a confident
+        prior/IMU can outweigh a fuzzy shadow."""
+        self._shadow_yaw.append((int(i), float(measured_yaw), self._w(sigma)))
+        self._ids.add(int(i))
+
     def add_absolute(self, i: int, xy, sigma: float) -> None:
         self._abs.append((int(i), np.asarray(xy, float), self._w(sigma)))
         self._ids.add(int(i))
@@ -78,6 +95,8 @@ class PoseGraphSE2:
             r.extend(np.sqrt(W) * e)
         for i, j, dyaw, w in self._imu:
             r.append(math.sqrt(w) * _wrap((X[idx[j]][2] - X[idx[i]][2]) - dyaw))
+        for i, myaw, w in self._shadow_yaw:                  # SN-03: absolute-yaw residual
+            r.append(math.sqrt(w) * _wrap(X[idx[i]][2] - myaw))
         for i, xy, w in self._abs:
             r.extend(math.sqrt(w) * (X[idx[i]][:2] - xy))
         return np.asarray(r, float)

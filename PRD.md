@@ -356,7 +356,7 @@ solar power scheduling.
 |---|---|---|---|---|---|---|
 | SN-01 | P1 | Derive expected shadow azimuth from `s(t)` and local terrain/objects. `[PROPOSED]` | D | D | P | N |
 | SN-02 | P1 | Detect reliable shadow vectors while rejecting rover/LED shadows, saturation, ambiguous penumbra, and texture edges. `[PROPOSED]` | N | N | N | N |
-| SN-03 | P1 | Fuse accepted shadow evidence as a weak yaw factor with covariance; never as an unqualified absolute heading. `[PROPOSED]` | N | N | N | N |
+| SN-03 | P1 | Fuse accepted shadow evidence as a weak yaw factor with covariance; never as an unqualified absolute heading. `[PROPOSED]` | D | D | D | N |
 | SN-04 | P1 | Re-evaluate shadow factors when terrain is excavated, the sun vector changes, or the observation viewpoint changes. | D | D | P | NA |
 | SN-05 | P1 | Add illumination-aware route cost: visibility, saturation, shadow hazard, map uncertainty, energy, slope, and construction constraints remain separate inspectable terms. | N | N | N | N |
 | SN-06 | P1 | Choose camera direction and exposure to avoid low-sun washout while preserving useful stereo overlap. | N | N | N | N |

@@ -62,3 +62,31 @@ def test_turning_chain_places_nodes_with_heading_coupling():
     g.add_between(0, 1, (1.0, 0.0, 0.0), sigma_xy=0.05, sigma_yaw=0.05)      # 1 m "forward" = +y
     est = g.optimize()
     assert est[1][0] == pytest.approx(0.0, abs=1e-3) and est[1][1] == pytest.approx(1.0, abs=1e-3)
+
+
+def test_shadow_yaw_factor_corrects_heading_weakly():
+    # [REQ:SN-03] shadow fused as a weak covariance-weighted yaw factor, never an unqualified heading
+    """SN-03 [REQ:SN-03]: an accepted shadow gives a WEAK absolute-yaw factor (covariance-weighted),
+    never an unqualified heading. A sharp (low-sun) shadow pulls a drifted heading toward the
+    shadow-derived yaw and shrinks yaw sigma; a fuzzy (high-sun, large-sigma) shadow does NOT
+    dominate a confident prior."""
+    import math
+    # yaw_from_shadow: the rover heading implied by where the (anti-solar) shadow sits in body frame
+    measured = PG2.yaw_from_shadow(shadow_world_az=0.0, observed_body_bearing=-0.10)
+    assert abs(measured - 0.10) < 1e-9                        # yaw = world_az - body_bearing
+
+    # a SHARP shadow (small sigma) corrects a drifted prior + shrinks sigma
+    g = PG2.PoseGraphSE2()
+    g.add_prior(0, (0.0, 0.0, 0.30), sigma_xy=0.01, sigma_yaw=0.50)   # drifted heading, uncertain
+    base = g.optimize_with_cov()
+    g.add_shadow_yaw(0, measured_yaw=0.10, sigma=0.05)               # sharp shadow says yaw ~0.10
+    fused = g.optimize_with_cov()
+    assert abs(fused["pose"][0][2] - 0.10) < abs(base["pose"][0][2] - 0.10)   # pulled toward the shadow
+    assert fused["yaw_sigma"][0] < base["yaw_sigma"][0]                       # weak fix still shrinks sigma
+
+    # a FUZZY shadow (large sigma) must NOT override a CONFIDENT prior (the 'weak, never unqualified' rule)
+    g2 = PG2.PoseGraphSE2()
+    g2.add_prior(0, (0.0, 0.0, 0.05), sigma_xy=0.01, sigma_yaw=0.02)  # confident heading 0.05
+    g2.add_shadow_yaw(0, measured_yaw=0.80, sigma=1.5)               # a fuzzy, far-off shadow
+    out = g2.optimize()
+    assert abs(out[0][2] - 0.05) < 0.10                              # prior holds; shadow doesn't dominate
