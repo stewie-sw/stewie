@@ -70,7 +70,6 @@ def test_shadow_yaw_factor_corrects_heading_weakly():
     never an unqualified heading. A sharp (low-sun) shadow pulls a drifted heading toward the
     shadow-derived yaw and shrinks yaw sigma; a fuzzy (high-sun, large-sigma) shadow does NOT
     dominate a confident prior."""
-    import math
     # yaw_from_shadow: the rover heading implied by where the (anti-solar) shadow sits in body frame
     measured = PG2.yaw_from_shadow(shadow_world_az=0.0, observed_body_bearing=-0.10)
     assert abs(measured - 0.10) < 1e-9                        # yaw = world_az - body_bearing
