@@ -83,7 +83,11 @@ def get_overrides() -> dict:
         elif k.startswith(_ENV_PREFIX_LEGACY) and k != _CONFIG_ENV:
             env.setdefault(k[len(_ENV_PREFIX_LEGACY):], _coerce(v))
     out.update(env)
-    return out
+    # SEC-1 (audit 2026-06-11): NEVER surface secret VALUES through the overlay -- /config and the
+    # N15 describe() reach this. The key NAME may show (so an operator sees a key is configured),
+    # but the value is redacted at the SOURCE so no endpoint can leak it.
+    return {k: ("[REDACTED]" if any(t in str(k).upper() for t in ("KEY", "TOKEN", "SECRET", "PASSWORD"))
+                else v) for k, v in out.items()}
 
 
 # Record of what apply() changed, keyed by the namespace module name -> {NAME: (old, new)}.

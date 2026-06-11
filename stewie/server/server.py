@@ -776,9 +776,11 @@ def get_sample_mission(name: str):
 
 @app.get("/config")
 def get_config():
-    """Runtime config overlay state (intern/dev pane): config_file + overrides + applied (PRD N15)."""
+    """Runtime config overlay state (intern/dev pane): config_file + overrides + applied (PRD N15).
+    SEC-1: describe() redacts secret values at the source; this also passes through _redact_secrets
+    (defense in depth) so a future describe() field cannot leak a key."""
     from stewie.specs import config as _cfg
-    return {"ok": True, **_cfg.describe()}
+    return {"ok": True, **_redact_secrets(_cfg.describe())}
 
 
 @app.get("/config/full")
@@ -908,24 +910,29 @@ def session_summary(sid: str, _auth: None = Depends(require_auth)):
 from stewie.twin import versioned as VT                # noqa: E402
 
 _TWIN: "VT.TwinStore | None" = None
+import threading as _threading                            # noqa: E402
+_TWIN_LOCK = _threading.Lock()                            # RC-02: serialize the lazy cold-restore
 
 
 def _twin() -> "VT.TwinStore":
     """Lazy twin over the Haworth observed map (the planner's site); base = the loaded DEM."""
     global _TWIN
-    if _TWIN is None:
-        dem, _anchor = _moon_dem()
-        base = dem[0] if isinstance(dem, tuple) else dem
-        import numpy as _np
-        if base is None:
-            base = _np.zeros((64, 64))                  # degraded mode mirrors _moon_dem's fallback
-        from stewie.specs import config as _CFG
-        _jdir = os.path.join(_CFG.data_dir(), "twin")
-        os.makedirs(_jdir, exist_ok=True)
-        _jp = os.path.join(_jdir, "haworth.journal")
-        # W-1 (PRD 6.2): the server twin is DURABLE -- cold restore from the journal, then journal on
-        _TWIN = VT.TwinStore.from_journal(_np.asarray(base, dtype=float), cell_m=5.0,
-                                          journal_path=_jp)
+    if _TWIN is not None:                                 # fast path (no lock once built)
+        return _TWIN
+    with _TWIN_LOCK:                                      # RC-02: only ONE thread runs from_journal
+        if _TWIN is None:
+            dem, _anchor = _moon_dem()
+            base = dem[0] if isinstance(dem, tuple) else dem
+            import numpy as _np
+            if base is None:
+                base = _np.zeros((64, 64))              # degraded mode mirrors _moon_dem's fallback
+            from stewie.specs import config as _CFG
+            _jdir = os.path.join(_CFG.data_dir(), "twin")
+            os.makedirs(_jdir, exist_ok=True)
+            _jp = os.path.join(_jdir, "haworth.journal")
+            # W-1 (PRD 6.2): the server twin is DURABLE -- cold restore from the journal, then journal on
+            _TWIN = VT.TwinStore.from_journal(_np.asarray(base, dtype=float), cell_m=5.0,
+                                              journal_path=_jp)
     return _TWIN
 
 

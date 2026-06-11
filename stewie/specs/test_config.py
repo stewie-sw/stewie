@@ -107,3 +107,14 @@ def test_describe_clears_when_default(clean_reload, monkeypatch):
     importlib.reload(constants)
     # a clean reload must clear the stale applied record (no leak into describe)
     assert "stewie.specs.constants" not in config.describe()["applied"]
+
+
+def test_describe_redacts_secret_env_values(monkeypatch):
+    """SEC-1 [REQ:PO-04]: describe() (and thus /config) must NEVER return key/token/secret VALUES."""
+    monkeypatch.setenv("STEWIE_API_KEY", "supersecret-master-key")
+    monkeypatch.setenv("STEWIE_DIRECTOR_KEY", "another-secret")
+    d = config.describe()
+    blob = str(d)
+    assert "supersecret-master-key" not in blob and "another-secret" not in blob
+    # the KEYS may appear (so an operator sees a key IS set) but redacted
+    assert d["overrides"].get("API_KEY") == "[REDACTED]"

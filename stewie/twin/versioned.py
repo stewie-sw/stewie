@@ -30,6 +30,12 @@ class TwinStore:
     def __post_init__(self):
         self.base = np.asarray(self.base, dtype=np.float64).copy()
         self.base.setflags(write=False)                  # the base layer is immutable
+        # RC-01 (audit 2026-06-11): the FastAPI threadpool runs sync handlers in parallel, so
+        # concurrent /twin/resync would interleave the seq/hash/append read-modify-write and
+        # corrupt the chain. RLock makes every mutation atomic (re-entrant: apply_event -> undo
+        # -> _append all hold it). Not in dataclass fields (not part of equality/serialization).
+        import threading
+        object.__setattr__(self, "_lock", threading.RLock())
 
     @classmethod
     def from_journal(cls, base, cell_m: float, journal_path: str) -> "TwinStore":
@@ -38,11 +44,19 @@ class TwinStore:
         import os as _os
         tw = cls(base, cell_m=cell_m)                    # replay WITHOUT journaling (no re-append)
         if _os.path.exists(journal_path):
-            with open(journal_path) as fh:
-                for line in fh:
-                    line = line.strip()
-                    if line:
-                        tw.apply_event(json.loads(line))
+            lines = [ln.strip() for ln in open(journal_path) if ln.strip()]
+            for i, line in enumerate(lines):
+                try:
+                    ev = json.loads(line)
+                except json.JSONDecodeError:
+                    # twin-gap-1 (audit 2026-06-11): a crash mid-fsync tears the FINAL line only.
+                    # Recover every complete prior event; abort ONLY if the corruption is interior
+                    # (a torn line that is NOT the last is real history loss, surface it).
+                    if i == len(lines) - 1:
+                        break
+                    raise ValueError(f"twin journal corrupt at interior line {i} (not the tail) "
+                                     "-- refusing a partial silent restore")
+                tw.apply_event(ev)
         tw.journal_path = journal_path                   # future edits journal again
         return tw
 
@@ -55,6 +69,14 @@ class TwinStore:
                             sort_keys=True).encode())
         h.update(patch_bytes)
         return h.hexdigest()
+
+    @property
+    def _mutex(self):
+        lk = getattr(self, "_lock", None)
+        if lk is None:                                   # from_journal / pickled stores: lazy-make
+            import threading
+            lk = threading.RLock(); object.__setattr__(self, "_lock", lk)
+        return lk
 
     def _append(self, body: dict, patch_bytes: bytes) -> int:
         body["seq"] = len(self.events)
@@ -72,6 +94,10 @@ class TwinStore:
     # ---- edits ---------------------------------------------------------------------------
     def apply_patch(self, heights_m: np.ndarray, *, origin_rc: tuple, provenance: str) -> int:
         """Replace the observed heights of a rectangular region. Returns the new version."""
+        with self._mutex:                                # RC-01: atomic seq+hash+append+version
+            return self._apply_patch_locked(heights_m, origin_rc=origin_rc, provenance=provenance)
+
+    def _apply_patch_locked(self, heights_m, *, origin_rc, provenance) -> int:
         if not provenance or not str(provenance).strip():
             raise ValueError("every twin edit requires non-empty provenance")
         p = np.asarray(heights_m, dtype=np.float64)
@@ -88,11 +114,15 @@ class TwinStore:
 
     def apply_event(self, ev: dict) -> int:
         """Replay a recorded event verbatim (rebuild path). Verifies the chain as it goes."""
+        with self._mutex:
+            return self._apply_event_locked(ev)
+
+    def _apply_event_locked(self, ev: dict) -> int:
         if ev["kind"] == "patch":
-            v = self.apply_patch(np.array(ev["patch"]), origin_rc=tuple(ev["origin_rc"]),
-                                 provenance=ev["provenance"])
+            v = self._apply_patch_locked(np.array(ev["patch"]), origin_rc=tuple(ev["origin_rc"]),
+                                         provenance=ev["provenance"])
         elif ev["kind"] == "undo":
-            v = self.undo()
+            v = self._undo_locked()
         else:
             raise ValueError(f"unknown twin event kind {ev['kind']!r}")
         if self.events[-1]["hash"] != ev["hash"]:
@@ -101,6 +131,10 @@ class TwinStore:
 
     def undo(self) -> int:
         """Append an undo event for the most recent un-undone patch. History is never deleted."""
+        with self._mutex:
+            return self._undo_locked()
+
+    def _undo_locked(self) -> int:
         undone = {e["seq"] for e in self.events if e["kind"] == "undo"}
         live = [e for e in self.events if e["kind"] == "patch"
                 and e["seq"] not in {u["target"] for u in self.events if u["kind"] == "undo"}]

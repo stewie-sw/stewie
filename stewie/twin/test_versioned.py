@@ -99,3 +99,35 @@ def test_w1_durable_journal_survives_process_loss(tmp_path):
     cold.apply_patch(np.full((2, 2), 9.0), origin_rc=(0, 0), provenance="post-recovery edit")
     cold2 = vt.TwinStore.from_journal(_base(), cell_m=0.5, journal_path=j)
     assert cold2.version == cold.version                  # recovery is repeatable after new edits
+
+
+def test_concurrent_patches_keep_the_chain_consistent(tmp_path):
+    """RC-01 [REQ:CT-03]: parallel apply_patch must not corrupt seq/hash/version."""
+    import threading
+
+    import numpy as np
+    from stewie.twin.versioned import TwinStore
+    tw = TwinStore(np.zeros((40, 40)), cell_m=5.0, journal_path=str(tmp_path / "j.jsonl"))
+    def worker(i):
+        tw.apply_patch(np.full((4, 4), float(i)), origin_rc=(i % 30, i % 30), provenance=f"w{i}")
+    ths = [threading.Thread(target=worker, args=(i,)) for i in range(24)]
+    for t in ths: t.start()
+    for t in ths: t.join()
+    seqs = [e["seq"] for e in tw.events]
+    assert seqs == list(range(24)) and tw.version == 24      # no lost/duplicate version
+    tw.verify_chain()                                        # the hash chain is intact
+
+
+def test_from_journal_recovers_all_complete_lines_past_a_torn_tail(tmp_path):
+    """Twin-gap-1 [REQ:CT-03]: a crash mid-fsync leaves a torn FINAL line; cold restore must
+    recover every COMPLETE prior event, not abort the whole replay."""
+    import numpy as np
+    from stewie.twin.versioned import TwinStore
+    jp = str(tmp_path / "j.jsonl")
+    tw = TwinStore(np.zeros((20, 20)), cell_m=5.0, journal_path=jp)
+    tw.apply_patch(np.ones((3, 3)), origin_rc=(0, 0), provenance="a")
+    tw.apply_patch(np.full((3, 3), 2.0), origin_rc=(5, 5), provenance="b")
+    with open(jp, "a") as f:
+        f.write('{"kind": "patch", "origin_rc": [1, 1], "sha')      # a torn final line
+    rebuilt = TwinStore.from_journal(np.zeros((20, 20)), cell_m=5.0, journal_path=jp)
+    assert rebuilt.version == 2                                # both complete events recovered

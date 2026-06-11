@@ -273,11 +273,19 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
             return None
         out = _reproject(rgba.astype("uint8"), b, fwd, out_px=1024)
     _GLOBE_CACHE[key] = out
+    # RC-03 (audit 2026-06-11): write ATOMICALLY (.part -> os.replace) so a concurrent reader /
+    # the startup warm thread never sees a torn .npy; the JSON sidecar lands LAST as the commit
+    # marker (a reader checks .npy AND .json, so a half-written pair is never both-present).
     try:
         import json as _json
+        import os as _os3
         import numpy as _np2
-        _np2.save(stem + ".npy", out[0])
-        _json.dump(out[1], open(stem + ".json", "w"))
+        npt, jt = stem + ".npy.part", stem + ".json.part"
+        _np2.save(npt, out[0])
+        with open(jt, "w") as _jf:
+            _json.dump(out[1], _jf)
+        _os3.replace(npt, stem + ".npy")                 # the data
+        _os3.replace(jt, stem + ".json")                 # the commit marker, last
     except OSError:
         pass
     return out

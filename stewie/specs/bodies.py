@@ -159,4 +159,13 @@ def params_for_body(name) -> TerramechanicsParams:
         kw["phi_rad"] = math.radians(float(b.friction_deg))
     if b.bulk_density is not None:
         kw["rho_surface"] = float(b.bulk_density)
+    # PHYS-01 RESOLVED (audit 2026-06-11, verified against test_bodies + the bodies_sysrev): do
+    # NOT lyasko-reduce here. The audit flagged the shipped path as "Earth-fit", but each body's
+    # Bekker is ALREADY the body-appropriate SOURCED value -- the Moon's (k_phi 820000) is the
+    # NASA LTV LUNAR measurement, which already encodes the 1/6-g condition. Applying lyasko_reduce
+    # on top would DOUBLE-reduce (the FIX-6 double-Lyasko bug the sysrev already identified and
+    # deliberately avoids by using sourced values directly). The low-g physics IS represented --
+    # via measured-on-Moon constants, not a runtime reduction. The only Earth-fit path is the bare
+    # from_constants() fallback (_TM_PARAMS), used when no mission soil resolves; that is the real
+    # (lesser) gap, documented in the audit writeup.
     return dataclasses.replace(base, **kw)
