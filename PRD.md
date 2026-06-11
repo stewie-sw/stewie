@@ -923,6 +923,13 @@ rung-4 gap list above.
 
 ## 19. NASA-standards build-out (2026-06-10, Aaron: "build this out to NASA standards")
 
+### 19.0 SF-01 safing/watchdog — DONE (2026-06-11)
+The P0 safety requirement declared in §19.2 is BUILT: `stewie/bridge/rc_contract.py`
+`SafingWatchdog` — a command-timeout dead-man switch that auto-issues SAFE to whatever backend is
+plugged in (sim or real pit) when valid commands stop arriving, latching on the trip and resetting
+on each heartbeat. [REQ:SF-01] test-cited; wired at /rc/telemetry (ticks on every poll). This
+closes the architecture's "flagged-REQUIRED-and-missing, Phase-0/Week-4" node.
+
 ### 19.1 Where the §7 matrix actually stands (census, 2026-06-10)
 112 identified requirements; **0 release-ready (all-required-columns D), 19 partial, 93 not
 started.** By family (worst-column):
@@ -972,10 +979,16 @@ started.** By family (worst-column):
    SN as the dissertation track.
 
 ### 18.1 Rung status (2026-06-11)
-Rung 4: gaps 2 (telemetry shaping — downlink latency first-class, per-sol ledger + stranded
-accounting) and 3 (director/operator roles; truth views + admin director-gated) are CLOSED with
-TDD; gap 1 (the pluggable RC contract + SF-01 watchdog) remains BLOCKED on the dirt-pit protocol
-(the ask is staged). Rung 3: designed (COLMAP_TRIAGE_DESIGN); the budget ledger shipped; ingest
+Rung 4: ALL THREE software gaps CLOSED. Gap 2 (telemetry shaping — downlink latency first-class,
+per-sol ledger + stranded accounting) and gap 3 (director/operator roles; truth views + admin
+director-gated) shipped earlier. **Gap 1 (the pluggable RC contract + SF-01 watchdog) is now DONE
+too** — it was never actually blocked: John's frozen `ccsds_ros_nav/CONTRACT.md` §2/§3 already
+specifies the dirt-pit interface (GoTo/Safe/SetSim + Pose/Leg/Img over CCSDS). `stewie/bridge/
+rc_contract.py` is the STEWIE adapter: the RCBackend ABC (pluggable sim/pit), `commands_from_plan`
+(a plan → a reusable GoTo command tape, "plan once command many" — /plan/commands + a cockpit
+download), and **SF-01 the SafingWatchdog** (command-timeout dead-man auto-SAFE). What remains for
+a REAL pit is the wire-level UDP/ROS binding to John's package + a PitBackend when the pit's link
+details land — an integration, not a design unknown. Rung 3: designed (COLMAP_TRIAGE_DESIGN); the budget ledger shipped; ingest
 awaits the director-side COLMAP container; triage weights await science objectives. Rung 2: in
 progress (#70). UI: 16.5b updated through UI-15; UI-17 remainder + UI-18 open.
 
