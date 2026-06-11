@@ -26,7 +26,7 @@ def _dir(kind: str) -> str:
 
 
 # ---- missions -----------------------------------------------------------------------------
-_MISSION_KEYS = {"body", "orders", "keepouts", "precedence", "vehicle", "tools", "soil",
+_MISSION_KEYS = {"body", "orders", "keepouts", "precedence", "vehicle", "tools", "soil", "lander",
                  "mission_t0_s", "note"}
 
 

@@ -228,8 +228,17 @@
 
     <section>
       <h3>5 · Plan — the mission, in order</h3>
-      <div class="step">A · Where are we <small>— site picked in 1·Site; charger + lander at (0,0)</small></div>
-      <div class="step">B · Traverse <small>— draw the path first (waypoints; ✏ below the map)</small></div>
+      <div class="step">A · Where are we <small>— site, charger, lander, the rover's last pose</small></div>
+      <div class="ctl" style="font-size:11px">
+        lander x<input id="landx" type="number" value="0" step="1" style="width:4em" />
+        y<input id="landy" type="number" value="0" step="1" style="width:4em" />
+        <button id="landset" class="site">place</button>
+        <span id="lastpose" style="opacity:.75"></span></div>
+      <div class="step">B · Traverse <small>— draw the path (✏ on the map) or type coordinates</small></div>
+      <div class="ctl" style="font-size:11px">
+        wp x<input id="wpx" type="number" value="0" step="1" style="width:4em" />
+        y<input id="wpy" type="number" value="0" step="1" style="width:4em" />
+        <button id="wpadd" class="site">+ waypoint @ x,y</button></div>
       <div class="step">C · Work <small>— orders + structures at locations (estimate updates on entry)</small></div>
       <div class="ctl">
         <select id="qkind"><option value="cut">cut</option><option value="fill">fill</option></select>
@@ -1088,6 +1097,25 @@ setInterval(() => {
 })();
 
 const SETTINGS = loadSettings();
+
+// #65 (Aaron): the lander stays placed (per-browser + rides the mission document) and the
+// rover's last executed pose is remembered. Declared EARLY -- wiring below reads these at load.
+let LANDER_P = { x: 0, y: 0 };
+try { Object.assign(LANDER_P, JSON.parse(localStorage.getItem("stewie_lander") || "{}")); } catch (e) {}
+let LAST_POSE = null;
+try { LAST_POSE = JSON.parse(localStorage.getItem("stewie_last_pose") || "null"); } catch (e) {}
+function setLander(x, y) {
+  LANDER_P.x = Math.round(x * 10) / 10; LANDER_P.y = Math.round(y * 10) / 10;
+  if (typeof LANDER !== "undefined") { LANDER.x = LANDER_P.x; LANDER.y = LANDER_P.y; }
+  try { localStorage.setItem("stewie_lander", JSON.stringify(LANDER_P)); } catch (e) {}
+  if (typeof drawPlan === "function") drawPlan();
+}
+function recordPose(x, y) {
+  LAST_POSE = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, ts: Date.now() };
+  try { localStorage.setItem("stewie_last_pose", JSON.stringify(LAST_POSE)); } catch (e) {}
+  const el = $("lastpose");
+  if (el) el.textContent = `rover last known: ${LAST_POSE.x}, ${LAST_POSE.y} m`;
+}
 applySettings(SETTINGS);
 if ($("set-theme")) $("set-theme").onchange = () => {
   SETTINGS.theme = $("set-theme").value; saveSettings(SETTINGS); applySettings(SETTINGS);
@@ -1411,6 +1439,16 @@ refreshEvents();
     };
   } catch (e) { /* offline */ }
 })();
+$("landset").onclick = () => { setLander(+$("landx").value || 0, +$("landy").value || 0);
+  setQ(`lander placed at (${LANDER_P.x}, ${LANDER_P.y}) — persists + saves with the mission`); };
+if ($("landx")) { $("landx").value = LANDER_P.x; $("landy").value = LANDER_P.y; }
+$("wpadd").onclick = () => {
+  const n = ORDERS.filter((o) => o.kind === "goto").length + 1;
+  const wp = { action: `wp${n}`, kind: "goto", x: +$("wpx").value || 0, y: +$("wpy").value || 0 };
+  ORDERS.push(wp); renderQueue();
+  setQ(`wp${n} @ (${wp.x}, ${wp.y}) m (typed)`);
+};
+if (LAST_POSE && $("lastpose")) $("lastpose").textContent = `rover last known: ${LAST_POSE.x}, ${LAST_POSE.y} m`;
 $("qreset").onclick = () => {
   if (!confirm("Clear the queue, keep-outs, path, and annotations?")) return;
   ORDERS.length = 0; KEEPOUTS.length = 0; ANNOTATIONS.length = 0;
@@ -1520,7 +1558,7 @@ function addOrder(o) { ORDERS.push(o); renderQueue(); }
 
 // ---- LAYER SYSTEM: select / load / unload map overlays (imagery, dem, topology, hazard, excavation, lander) ----
 const LAYER_ON = { imagery: true, dem: true, topology: false, hazard: true, excavation: true, lander: true };
-let LANDER = { name: "Nova-C", x: 0, y: 0, footprint_m: 4.6, n_legs: 6 };   // delivery lander at the charger, drawn to-scale
+let LANDER = { name: "Nova-C", x: LANDER_P.x, y: LANDER_P.y, footprint_m: 4.6, n_legs: 6 };   // delivery lander (persisted position, #65)
 async function loadLayers() {
   try {
     const d = await (await fetch("/layers")).json();
@@ -2282,7 +2320,10 @@ function runExecution() {
       teleChip("drum", `${(fr.cum_mass_kg / 1000).toFixed(2)}t`, true);
     }
     if (simT < dur) EXEC_RAF = requestAnimationFrame(frame);
-    else qel("excphase").textContent = "complete";
+    else {
+      qel("excphase").textContent = "complete";
+      recordPose(fr.x1, fr.y1);                            // #65: where the rover ENDED
+    }
   }
   EXEC_RAF = requestAnimationFrame(frame);
 }
@@ -2417,6 +2458,8 @@ async function refreshCatalog() {
           ORDERS.length = 0; (d.orders || []).forEach((o) => ORDERS.push(o));
           KEEPOUTS.length = 0; (d.keepouts || []).forEach((k) => KEEPOUTS.push(k));
           if ($("msnotes")) $("msnotes").value = d.note || "";
+          if (d.lander) { setLander(d.lander.x || 0, d.lander.y || 0);
+            if ($("landx")) { $("landx").value = LANDER_P.x; $("landy").value = LANDER_P.y; } }
           renderQueue(); setQ(`loaded mission "${m.title || m.name}"`);
         }),
         mkbtn("✕", async () => {
@@ -2448,7 +2491,8 @@ $("mssave").onclick = async () => {
   const name = $("msname").value.trim(); if (!name) { setQ("name the mission first"); return; }
   const r = await fetch(`/missions/${encodeURIComponent(name)}`, { method: "POST",
     headers: apiHeaders(), body: JSON.stringify({ body: sel.value, orders: ORDERS,
-      keepouts: KEEPOUTS, precedence: parsePrec(), note: $("msnotes") ? $("msnotes").value : "" }) });
+      keepouts: KEEPOUTS, precedence: parsePrec(), note: $("msnotes") ? $("msnotes").value : "",
+      lander: { x: LANDER_P.x, y: LANDER_P.y } }) });
   if (r.status === 401) { setQ("⚠ API key required: ⚙ Settings"); setView("settings"); return; }
   setQ((await r.json()).ok ? `saved mission "${name}"` : "save failed"); refreshCatalog();
 };
