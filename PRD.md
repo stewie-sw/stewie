@@ -960,19 +960,31 @@ closes the architecture's "flagged-REQUIRED-and-missing, Phase-0/Week-4" node.
 112 identified requirements; **0 release-ready (all-required-columns D), 19 partial, 93 not
 started.** By family (worst-column):
 
-| Family | Scope | P | N | Note |
-|---|---|---|---|---|
-| CT 7.1 | contracts/conserved authority | 3 | 4 | the strongest family — the core IS the product |
-| TW 7.2 | terrain/material/illumination | 4 | 6 | TW-06 ephemeris sun = DONE in code (SPICE) — matrix stale, flip on evidence |
-| VT 7.3 | vehicle/arms/drums/stability | 1 | 9 | the two-vehicle stance gap lives here (VT-01/02/05) |
-| AM 7.4 | posture maneuvers (MEERKAT…) | 0 | 9 | all gated on authoritative IPEx geometry |
-| CP 7.5 | perception/mapping/localization | 5 | 5 | the G1/G2 evidence feeds this |
-| SN 7.6 | solar-terrain navigation | 0 | 13 | **the research track family** (ARGUS) — by design still open |
-| NV 7.7 | navigation/planning/recovery | 1 | 11 | berm re-hazard + routing exist; recovery behaviors don't |
-| PM 7.8 | construction mission planning | 1 | 11 | the planner is rich but matrix-unverified |
-| EP 7.9 | energy/thermal/power/ops | 2 | 6 | battery-honest timeline shipped; thermal ops partial |
-| FL 7.10 | fleet | 0 | 7 | MV1-7 exists; fleet reqs unverified |
-| PO 7.11 | product/packaging/ops | 2 | 12 | docs trilogy + fetcher land here; flip on evidence |
+**Track tagging (architecture review rec 3, 2026-06-11):** the "0 release-ready" headline is read
+correctly only WITH the track each family is on. **PRODUCT** families are on the rung-4 trainer
+critical path (their gap is real product work); **DEFERRED** families are research-frontier or
+externally-gated by design (their "N" rows are the roadmap, not debt) — do not read their N count
+as product debt. **GATED** = blocked on an external input (IPEx geometry, John's pit protocol).
+
+| Family | Scope | P | N | Track | Note |
+|---|---|---|---|---|---|
+| CT 7.1 | contracts/conserved authority | 3 | 4 | PRODUCT | the strongest family — the core IS the product |
+| TW 7.2 | terrain/material/illumination | 4 | 6 | PRODUCT | TW-06 ephemeris sun = DONE in code (SPICE) — matrix stale, flip on evidence |
+| VT 7.3 | vehicle/arms/drums/stability | 1 | 9 | GATED | the two-vehicle stance gap (VT-01/02/05); exact geometry awaits authoritative IPEx data |
+| AM 7.4 | posture maneuvers (MEERKAT…) | 0 | 9 | GATED | all gated on authoritative IPEx geometry |
+| CP 7.5 | perception/mapping/localization | 5 | 5 | PRODUCT | the G1/G2 evidence feeds this |
+| SN 7.6 | solar-terrain navigation | 0 | 13 | DEFERRED | **the ARGUS research frontier** — open by design (the dissertation contribution) |
+| NV 7.7 | navigation/planning/recovery | 1 | 11 | PRODUCT | berm re-hazard + routing + docking/berm FSMs exist; recovery behaviors don't |
+| PM 7.8 | construction mission planning | 1 | 11 | PRODUCT | the planner is rich but matrix-unverified (mostly flip-on-evidence) |
+| EP 7.9 | energy/thermal/power/ops | 2 | 6 | PRODUCT | battery-honest timeline shipped; thermal ops partial |
+| FL 7.10 | fleet | 0 | 7 | DEFERRED | MV1-7 exists; the RL multi-vehicle frontier + fleet reqs are research-scale |
+| PO 7.11 | product/packaging/ops | 2 | 12 | PRODUCT | docs trilogy + fetcher land here; flip on evidence |
+
+**Reading the census honestly:** the rung-4 trainer product (the §0 / §18 intent) is software-COMPLETE;
+the matrix's 92 "N" rows are dominated by the DEFERRED frontier (SN 13, FL 7) + the GATED families
+(VT/AM 18, awaiting IPEx geometry / John's protocol) + PRODUCT rows that are flip-on-evidence (the
+capability exists, the matrix column hasn't been moved on a citing test yet). "0 release-ready" means
+no family has every column at D, NOT that the product doesn't work.
 
 ### 19.2 The standards frame (honest scoping)
 - **Classification (NPR 7150.2 software classes):** STEWIE-as-simulator/training-tool is research/
@@ -1071,3 +1083,35 @@ STEWIE has TWO production targets with very different bars (PRD §18 ladder):
 closest to release and the security posture moved from "one remote-compromise critical" to
 "no known criticals." The honest headline: **the simulator product is ~75% and gated on one
 external dependency (the RC protocol); the flight-autonomy story is early and protected.**
+
+## 21. Architecture review + structural remediation (2026-06-11)
+
+A full architecture review (pattern, layering, coupling/complexity hotspots, PRD-vs-intent) ran
+against the live tree (~62k LOC, 153 core modules, 169 test files, 61 endpoints). Verdict: the
+system is in unusually good shape for a research-stage codebase — a PURE conserved kernel
+(`stewie/physics` + `stewie/twin` have zero upward imports; mass-exactness + the hash-chained
+journal are production guards, not asserts), four enforced CI gates (pyflakes, mypy,
+requirements-traceability, Power-of-10), and documented contract seams. Against INTENT (the rung-4
+trainer product) the system is software-complete; against the full §7 matrix it is ~18%
+partial/done, but that delta is the DEFERRED/GATED frontier (§19.1 track tags), not architectural
+debt. Findings + remediation (ranked):
+
+### 21.1 Structural defects to remediate (tracked)
+| ID | Sev | Finding (file:line) | Remediation |
+|---|---|---|---|
+| ARCH-1 | MED | **`lode`↔`dart` circular dependency**: `dart/hazard_map.py:22` `from lode import rock_costs`, while `lode/actions.py` + `lode/resync.py` import `dart`. Perception (lower layer) reaches up into planning. | Move `rock_costs` to `stewie/specs` (the shared kernel both already depend on) — it is cost DATA, not planning logic. One move removes the only layering violation. |
+| ARCH-2 | MED | **`lode/mission_planner.py` god-module** (2110 lines / 78 functions): solver + report + Plan-IR + math worksheet + command-tape + site loading all in one file; the `lode` coupling magnet. | Split into `planner_core` (the `plan`/`_build_trips`/`PlanResult` solver) and `planner_views` (report/PDF, `plan_math`, `commands_from_plan`) — formalizes the RB-03 "every output is a VIEW over the one artifact" principle the PRD already states. Well-tested, so this is decomposition, not a rewrite. |
+| ARCH-3 | LOW | **`server.py` handler sprawl**: 61 endpoints in 1261 lines — the safety-relevant auth + RC command path sits beside everything else. | Split into routers by concern (auth/session/plan/twin/rc/admin); isolate the RC command path (the Class-boundary surface, §19.2) for focused review. |
+| ARCH-4 | LOW | **Cockpit is a single 2855-line inline `index.html`** — no module boundary; the largest single-file complexity in the repo. | Extract the cockpit JS into modules behind a small build/bundling step; keep the `node --check` gate. Lower priority — it is verified per-change and outward behavior is covered by the live UI evals. |
+
+### 21.2 Non-issues confirmed (do NOT "fix")
+- The high fan-in of `stewie/specs` (×96) and `stewie/physics` (×74) is a shared KERNEL, not a god
+  object — expected and healthy for a conserved-core design.
+- "0 release-ready" in §7 is NOT product debt — see the §19.1 track tags. The rung-4 product is
+  complete; the open rows are the deferred research frontier + externally-gated families.
+
+### 21.3 Sequencing
+ARCH-1 first (smallest, removes the cycle), then ARCH-2 (the RB-03-aligned split), then ARCH-3
+(routers — do this WITH the SF-01/#66 hardening since it touches the same command path), ARCH-4 last
+(or never, if the build step is judged not worth it). None block the product; all improve
+reviewability ahead of a NASA-standards external review.
