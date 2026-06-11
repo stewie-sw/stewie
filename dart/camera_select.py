@@ -36,11 +36,11 @@ def washout_risk(cam_az_deg: float, sun_az_body_deg: float, sun_el_deg: float) -
 def select_view(sun_az_body_deg: float, sun_el_deg: float, *, washout_thresh: float = 0.5) -> dict:
     """Pick the stereo pair with the lowest worst-camera washout + an exposure hint. Returns
     {pair, max_washout, usable, exposure}."""
-    best = None
+    best: tuple[str, float] = (STEREO_PAIRS[0], 1e9)     # always overwritten on the first pair
     for pair in STEREO_PAIRS:
         cams = [az for az, p in CAMERA_RIG.values() if p == pair]
         worst = max(washout_risk(az, sun_az_body_deg, sun_el_deg) for az in cams)
-        if best is None or worst < best[1]:
+        if worst < best[1]:
             best = (pair, worst)
     pair, worst = best
     # exposure: shorten when any usable view is bright-ish (washout proxy); a coarse 2-level hint
