@@ -970,3 +970,11 @@ started.** By family (worst-column):
 3. Flip stale matrix rows on existing evidence (TW-06 SPICE; PO docs/fetcher; EP battery).
 4. Then the families in mission order: VT/AM (needs IPEx geometry from John), NV recovery,
    SN as the dissertation track.
+
+### 18.1 Rung status (2026-06-11)
+Rung 4: gaps 2 (telemetry shaping — downlink latency first-class, per-sol ledger + stranded
+accounting) and 3 (director/operator roles; truth views + admin director-gated) are CLOSED with
+TDD; gap 1 (the pluggable RC contract + SF-01 watchdog) remains BLOCKED on the dirt-pit protocol
+(the ask is staged). Rung 3: designed (COLMAP_TRIAGE_DESIGN); the budget ledger shipped; ingest
+awaits the director-side COLMAP container; triage weights await science objectives. Rung 2: in
+progress (#70). UI: 16.5b updated through UI-15; UI-17 remainder + UI-18 open.
