@@ -23,7 +23,7 @@ def test_mutations_are_logged_with_the_operator_identity(client):
     client.post("/missions/audit-me", headers={"Authorization": f"Bearer {tok}"},
                 json={"body": "moon", "orders": []})
     client.delete("/missions/audit-me", headers={"X-API-Key": "test-key"})
-    ev = client.get("/events").json()["events"]
+    ev = client.get("/events", headers={"X-API-Key": "test-key"}).json()["events"]
     assert ev[0]["action"] == "mission.delete" and ev[0]["actor"] == "api-key"
     assert ev[1]["action"] == "mission.save" and ev[1]["actor"] == "aaron.w.storey80@gmail.com"
     assert ev[1]["target"] == "audit-me" and ev[1]["ts"] > 0
@@ -33,5 +33,10 @@ def test_events_endpoint_caps_and_orders(client):
     for i in range(7):
         client.post(f"/missions/m{i}", headers={"X-API-Key": "test-key"},
                     json={"body": "moon", "orders": []})
-    ev = client.get("/events?n=3").json()["events"]
+    ev = client.get("/events?n=3", headers={"X-API-Key": "test-key"}).json()["events"]
     assert len(ev) == 3 and ev[0]["target"] == "m6"          # newest first
+
+
+def test_events_is_director_gated(client):
+    """SEC-2: the audit trail (operator identities) is NOT public."""
+    assert client.get("/events").status_code == 401

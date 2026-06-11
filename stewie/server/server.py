@@ -378,8 +378,9 @@ def log_event(actor: str, action: str, target: str = "") -> None:
 
 
 @app.get("/events")
-def get_events(n: int = 50):
-    """The newest-first event history (who did what when)."""
+def get_events(n: int = 50, _auth: str = Depends(require_director)):
+    """The newest-first event history (who did what when). SEC-2: director-only -- it carries
+    operator identities + the full mutation trail (an audit surface, not public)."""
     import json as _json
 
     from stewie.specs import config as CFG
