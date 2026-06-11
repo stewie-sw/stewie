@@ -57,3 +57,24 @@ def test_articulation_range_beats_bearing_only_under_heading_drift():
     assert err_range < 1e-3                                # range fix is exact (heading-free)
     assert err_bearing > 0.3                               # bearing-only is biased by the heading error
     assert err_range < err_bearing                         # the improvement
+
+
+def test_range_sigma_grows_with_range_shrinks_with_baseline():
+    import math
+    from dart import articulated_parallax as AP
+    s = math.radians(0.05)                                 # 0.05 deg angular noise
+    assert AP.parallax_range_sigma(10.0, 0.2, s) > AP.parallax_range_sigma(5.0, 0.2, s)   # ~R^2
+    assert AP.parallax_range_sigma(10.0, 0.4, s) < AP.parallax_range_sigma(10.0, 0.2, s)  # bigger dh -> tighter
+
+
+def test_position_sigma_improves_with_more_and_closer_landmarks():
+    import math
+    import numpy as np
+    from dart import articulated_parallax as AP
+    s = math.radians(0.05); rover = np.array([0.0, 0.0])
+    far = np.array([[20.0, 0.0], [0.0, 20.0]])
+    near = np.array([[6.0, 0.0], [0.0, 6.0]])
+    assert AP.position_fix_sigma(near, rover, dh_m=0.2, sigma_theta_rad=s) <            AP.position_fix_sigma(far, rover, dh_m=0.2, sigma_theta_rad=s)
+    three = np.array([[6.0, 0.0], [0.0, 6.0], [-5.0, -5.0]])
+    two = np.array([[6.0, 0.0], [0.0, 6.0]])
+    assert AP.position_fix_sigma(three, rover, dh_m=0.2, sigma_theta_rad=s) <=            AP.position_fix_sigma(two, rover, dh_m=0.2, sigma_theta_rad=s) + 1e-9
