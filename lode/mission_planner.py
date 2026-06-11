@@ -1199,6 +1199,8 @@ def load_site_dem(site: str = "haworth"):
     s = SITES.get(site)
     if s is None:
         raise KeyError(f"unknown site {site!r} (known: {sorted(SITES)})")
+    if site == "haworth":
+        return load_haworth_dem()                 # the work site honors $STEWIE_DEM_DIR (deployment override)
     if not s.bundle_dir:
         raise FileNotFoundError(f"site {site!r} is not imported (no DEM bundle); fetch it first")
     return load_haworth_dem(bundle_dir=s.bundle_dir)
