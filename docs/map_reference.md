@@ -119,3 +119,21 @@ is the per-CYCLE delivery spec the planner's drum-loads math uses, and the BDS p
 bound what is on the arms at any instant (which is what the CG/stability widget takes as its
 per-drum load inputs, max 30 kg slider deliberately above the medium hold for RASSOR-2-class
 what-ifs).
+
+## Coordinate-system verification (task #76, 2026-06-11) — VERIFIED CORRECT
+
+Live-proven end to end:
+1. **CRS**: `IAU_2015:30135` (Moon 2015 Sphere, R=1737400 m, south polar stereographic) — the same
+   projection the PGDA products ship in (no reprojection on ingest). lat/lon→xy→lat/lon round-trip
+   is machine-exact (4e-14°).
+2. **Pixel registration** — the apparent README-vs-GeoTIFF conflict is NOT one: the GeoTIFF declares
+   `GTRasterType=PixelIsArea` (tiepoint = pixel CORNER, e.g. Site04 −9000, a round edge value), and
+   the importer's half-pixel shift puts the Affine origin at the pixel CENTER (−8997.5, a `.5`
+   value) — which IS the GMT "pixel-registered (centers of pixels)" convention the README states.
+   Both agree; the 2026-06-10 half-pixel fix was correct.
+3. **Frame**: the DEMs are MOON_ME of ephemeris DE421; `solar.py`'s SPICE backend uses the MOON_ME
+   body-fixed frame (moon_pa_de440 + moon_de440 frames kernel). DEM frame == sun-geometry frame —
+   no cross-frame transform, consistent.
+4. **Inherent limit (documented, not a bug)**: the MOON_ME-of-DE421 realization carries "a few
+   meters" absolute selenodetic uncertainty (Barker 2021/2023) — do not expect better than few-m
+   ABSOLUTE placement; relative geometry within a tile is exact.
