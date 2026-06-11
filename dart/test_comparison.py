@@ -56,3 +56,18 @@ def test_operational_cost_grounded_and_regime_distinct():
     st = c["Stanford NAV Lab (LAC)"]
     assert st["pattern_distance_m"] > 100.0                     # spiral over the 27x27 m region
     assert st["pattern_energy_J"] > a["extra_mission_energy_J"]  # the pattern dwarfs ARGUS's standstill fixes
+
+
+def test_accuracy_precision_grounded_different_scales():
+    """Accuracy/precision across all three, at their (different) problem scales -- Stanford cm-relative,
+    ShadowNav m-global, ARGUS cm/dm-local; ARGUS precision from the parallax covariance model."""
+    from dart import comparison as CMP
+    ap = CMP.accuracy_precision_comparison(near_range_m=6.0)
+    st, sn, ar = ap["Stanford NAV Lab (LAC)"], ap["ShadowNav (JPL)"], ap["ARGUS"]
+    assert st["accuracy_m"][1] < 0.1                  # cm-level relative SLAM
+    assert sn["accuracy_m"][0] >= 2.0                 # m-level GLOBAL
+    assert ar["accuracy_m"] < 0.5                     # sub-meter local fix for near landmarks
+    # ARGUS local precision beats ShadowNav's global for near landmarks, looser than Stanford's SLAM
+    assert ar["precision_m"] < sn["precision_m"][0]
+    assert ar["precision_m"] > st["precision_m"]
+    assert "arXiv:2603.17232" in st["source"] and "arXiv:2405.01673" in sn["source"]

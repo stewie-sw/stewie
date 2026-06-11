@@ -20,6 +20,8 @@ geometric + direct heading. Real DEM + real geometry; no fabricated comparison.
 """
 from __future__ import annotations
 
+import math
+
 import numpy as np
 
 from dart import articulated_parallax as AP
@@ -35,6 +37,35 @@ def lunar_drive_energy_per_m(g: float = G_MOON, slope_deg: float = 0.0) -> float
     """Physical lunar drive energy [J/m] = lunar_drive_power_w / drive speed (the honest tractive
     draw, not the Table-3 ConOps motor load)."""
     return S.lunar_drive_power_w(slope_deg=slope_deg) / S.DRIVE_SPEED_MS
+
+
+def accuracy_precision_comparison(*, near_range_m=6.0, dh_m: float = 0.1743) -> dict:
+    """Accuracy (error vs truth) and precision (spread/sigma) for the three systems. CRITICAL honesty:
+    they operate at DIFFERENT problem scales -- Stanford is cm-level RELATIVE (SLAM consistency),
+    ShadowNav is m-level GLOBAL (absolute lunar position), ARGUS is cm-to-dm LOCAL (a map-free fix);
+    they are not measured on a shared testbed yet (that is the §6 protocol). Stanford + ShadowNav
+    numbers are quoted from the cited papers; ARGUS precision is the parallax covariance model."""
+    from stewie.specs import ipex_specs as S
+    sp = math.radians(0.05)
+    L = np.array([[near_range_m, 0.0], [0.0, near_range_m], [-near_range_m + 1, -near_range_m + 2]])
+    argus_sigma = AP.position_fix_sigma(L, np.array([0.0, 0.0]), dh_m=dh_m, sigma_theta_rad=sp)
+    return {
+        "Stanford NAV Lab (LAC)": {
+            "accuracy_m": (0.038, 0.067), "precision_m": 0.015, "frame": "relative (SLAM)",
+            "heading": "from VO + pose graph", "source": "arXiv:2603.17232 (reported)",
+            "conditions": "sunlit; spiral + loop-closure pattern; 27x27 m"},
+        "ShadowNav (JPL)": {
+            "accuracy_m": (2.0, 4.3), "precision_m": (0.9, 2.1), "frame": "global (orbital map)",
+            "heading": "from global match", "source": "arXiv:2405.01673 (reported)",
+            "conditions": "darkness + own light; craters ~300 m apart"},
+        "ARGUS": {
+            "accuracy_m": round(argus_sigma, 3), "precision_m": round(argus_sigma, 3),
+            "frame": "local (map-free)", "heading": "shadow azimuth (direct)",
+            "source": "this work (parallax covariance, measured)",
+            "conditions": f"low sun; near shadow-tip landmarks (~{near_range_m:.0f} m); standstill"},
+        "_note": "different problem scales (relative / global / local); a shared-testbed head-to-head "
+                 "is the §6 protocol, not yet run -- these are each system's reported/measured regime",
+    }
 
 
 def coverage_pattern_cost(*, region_m: float = 27.0, swath_m: float = 5.0, g: float = G_MOON,
