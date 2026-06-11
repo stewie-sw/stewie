@@ -34,13 +34,29 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 **Production readiness:** ~75% as the trainer/simulator (gated on the pit wire binding); the
 flight-autonomy autonomy stack is earlier and grows along the ARGUS track.
 
-**SN / ARGUS evidence path — DONE (2026-06-11):** CP-01 (release-ready), SN-03 shadow yaw factor,
-SN-02 detection front-end, SN-05 illumination route cost all shipped TDD + flipped on citing tests;
-the SN family is no longer 13-N (SN-01 P, SN-02 D, SN-03 D, SN-04 P, SN-05 P). The arc runs end to
-end on real Haworth (notebook 07). NEXT: SN-06/07 (camera direction/exposure, LED budget) +
-SN-01/04 promotion to D (test the untested OR-clauses), then the #79 frontier (8-cam SuperGlue
-front-end -> richer shadow/feature observations into the graph). The locked plan that produced the
-above, for reference:
+**SN / ARGUS evidence path — DONE (2026-06-11):** CP-01 (release-ready), SN-02 detection front-end,
+SN-03 shadow yaw factor, SN-05 illumination route cost, SN-06 camera selection, SN-08 active-morphology
+posture + SN-08b full posture×load coverage, all shipped TDD + flipped on citing tests. SN family now
+SN-01 P, SN-02 D, SN-03 D, SN-04 P, SN-05 P, SN-06 D, SN-08 D; only SN-07 (LED budget, hardware-gated
+Q=G) remains N. Improvement attributed vs baseline on five axes (12 executed notebooks, real data,
+Colab-friendly): position 28× (real Katwijk 160→5.7 m), heading 6.2× with an honest crossover, camera
+availability 100% vs 71% at low sun, viewpoint 0.20 m vs 0, and the posture×load cross-load-tip safety
+matrix. Findings write-up: `FINDINGS_2026-06-11_SN_evidence_path.md`.
+
+**NEXT SESSION — plan (2026-06-11):** bounded TDD slices, each gate-byte-identical with a `[REQ:]`
+marker and a baseline-comparing notebook (we keep seeing improvement):
+1. **SN-07 LED-budget selection policy** — choose camera subset + LED intensity to illuminate the most
+   hard-shadow within the active-camera + power budget; a budgeted-selection algorithm like SN-06
+   (the policy is buildable now; only the real-LED qualification is hardware-gated). Notebook: coverage
+   per watt vs an all-on / naive baseline.
+2. **Load-aware viewpoint selector** — fold SN-08b's finding into `select_viewpoint_posture`: explore
+   asymmetric postures too and pick the best feasible viewpoint under the CURRENT drum load (the
+   symmetric-only sweep misses COBRA-class options that are best when one drum is light). Notebook:
+   viewpoint gain vs the load-blind selector.
+3. **SN-01/04 promotion to D** — test the untested OR-clauses so the conservative P rows become D.
+Then the bigger #79 frontier: the 8-cam SuperGlue front-end to convert the modelled fixes in the
+ablations into MEASURED ones (the move from characterized to qualified, fresh-session scale).
+The completed plan that produced this session, for reference:
 
 **Completed plan (2026-06-11): the SN / ARGUS evidence path.** The trainer product is
 done + gated on John's wire transport, so solo effort goes to the dissertation contribution (the SN
