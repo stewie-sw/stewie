@@ -1,0 +1,72 @@
+{
+ "channel": "shadow",
+ "date": "2026-06-11",
+ "dev_sigma_H_m": 0.7997,
+ "holdout_coverage": 0.667,
+ "m_per_px": 5.0,
+ "n": 7,
+ "operating_envelope_elev_deg": [
+  3.0,
+  5.0,
+  8.0
+ ],
+ "per_elevation": [
+  {
+   "elev_deg": 3.0,
+   "shadow_len_m": 155.0,
+   "sigma_H_m": 0.3253
+  },
+  {
+   "elev_deg": 5.0,
+   "shadow_len_m": 70.0,
+   "sigma_H_m": 0.3239
+  },
+  {
+   "elev_deg": 8.0,
+   "shadow_len_m": 40.0,
+   "sigma_H_m": 0.4865
+  },
+  {
+   "elev_deg": 12.0,
+   "shadow_len_m": 25.0,
+   "sigma_H_m": 0.7293
+  },
+  {
+   "elev_deg": 18.0,
+   "shadow_len_m": 15.0,
+   "sigma_H_m": 1.113
+  },
+  {
+   "elev_deg": 25.0,
+   "shadow_len_m": 10.0,
+   "sigma_H_m": 1.597
+  },
+  {
+   "elev_deg": 35.0,
+   "shadow_len_m": 5.0,
+   "sigma_H_m": 2.3978
+  }
+ ],
+ "provenance": "real DEM cast-shadow geometry + MEASURED edge sigma from real CE-3 lunar imagery (no longer a [CALIB] assumption)",
+ "schema_version": "stewie_shadow_sigma_calibration/1.0",
+ "sigma_L_m": 3.4244,
+ "sigma_edge_provenance": {
+  "ce3_real_lunar": {
+   "n_images": 88,
+   "p25": 0.348,
+   "p75": 1.658,
+   "sigma_edge_px": 0.685,
+   "source": "Chang'e-3 surface imagery (datasets/lunar_ce3)"
+  },
+  "godot_render_xcheck": {
+   "n_images": 7,
+   "sigma_edge_px": 0.601
+  },
+  "method": "erf transition-width (penumbra+PSF) of real lit->shadow edges",
+  "note": "measured 0.68px < the 1.0px envelope assumption -> the envelope was CONSERVATIVE ~1.5x; real lunar (CE-3) and the Godot render agree (~0.6-0.7px), a sim-to-real consistency.",
+  "type": "MEASURED (was modelled 1.0 envelope)"
+ },
+ "sigma_edge_px": 0.685,
+ "sun_az_deg": 90.0,
+ "useful_sigma_h_m": 0.5
+}
