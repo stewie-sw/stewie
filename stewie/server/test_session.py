@@ -125,3 +125,30 @@ def test_operator_legs_carry_downlink_latency(client):
     assert op["legs"], "the link should deliver at least one leg"
     for leg in op["legs"]:
         assert leg["visible_at_s"] >= leg["sent_at_s"] + 2.6 - 1e-9   # the 2600 ms downlink
+
+
+def test_session_scorecard_a_board(client, monkeypatch):
+    """#80: the trainer A-board -- autonomy-run KPIs from the session record. Operators see the
+    public board; the divergence (truth) is director-only (separated for gating)."""
+    K = {"X-API-Key": "director-key"}                      # the fixture's key
+    monkeypatch.setenv("STEWIE_ALLOWED_OPERATORS", "aaron.w.storey80@gmail.com, trainee@gmail.com")
+    monkeypatch.setenv("STEWIE_DIRECTORS", "aaron.w.storey80@gmail.com")
+    r = client.post("/session/start", headers=K,
+                    json={"name": "sc", "body": "moon", "charger": [0, 0], "profile": "comm_dropout",
+                          "orders": [{"action": "a", "kind": "cut", "x": 12, "y": 0,
+                                      "footprint_m2": 16, "depth_m": 0.05},
+                                     {"action": "b", "kind": "fill", "x": 28, "y": 6,
+                                      "footprint_m2": 16, "depth_m": 0.05}]})
+    sid = r.json()["session_id"]
+    # DIRECTOR (api-key) sees the full board incl. truth divergence
+    dboard = client.get(f"/session/{sid}/scorecard", headers=K).json()["scorecard"]
+    for k in ("completed", "objectives_total", "recharges", "replans", "legs_delivered",
+              "legs_missed", "comm_delivered_frac", "energy_MJ"):
+        assert k in dboard, f"missing scorecard KPI {k}"
+    assert 0.0 <= dboard["comm_delivered_frac"] <= 1.0
+    assert "energy_divergence_J" in dboard                 # director sees truth
+    # OPERATOR (trainee token) sees only the public board -- truth is gated out
+    tok = client.post("/auth/login", json={"email": "trainee@gmail.com"}, headers=K).json()["token"]
+    oboard = client.get(f"/session/{sid}/scorecard",
+                        headers={"Authorization": f"Bearer {tok}"}).json()["scorecard"]
+    assert "comm_delivered_frac" in oboard and "energy_divergence_J" not in oboard

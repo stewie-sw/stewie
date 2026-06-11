@@ -975,6 +975,21 @@ def session_operator(sid: str):
     return s.operator_view()
 
 
+@app.get("/session/{sid}/scorecard")
+def session_scorecard(sid: str, identity: str = Depends(require_auth)):
+    """#80: the trainer A-board KPIs. Operators see the public board; directors also get the
+    truth board (believed-vs-actual divergence)."""
+    from stewie.server import auth as AUTH
+    s = SES.get(sid)
+    if s is None:
+        raise HTTPException(status_code=404, detail="no such session")
+    sc = s.scorecard()
+    board = dict(sc["public"])
+    if AUTH.role_of(identity) == "director":
+        board.update(sc["truth"])
+    return {"ok": True, "scorecard": board}
+
+
 @app.get("/session/{sid}/debrief")
 def session_debrief(sid: str, fast_forward: float = 1.0, _auth: str = Depends(require_director)):
     s = SES.get(sid)

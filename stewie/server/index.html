@@ -2215,7 +2215,23 @@ qel("sesstart").onclick = async () => {                  // B3: operator/directo
       `<a href="${j.debrief_url}" target="_blank">debrief</a> · ` +
       `<a href="/session/${j.session_id}/summary" target="_blank">summary</a>` +
       ` <span style="opacity:.7">(debrief + summary need the director key when auth is on)</span>`;
-    setQ("session ready — operator link is the trainee view");
+    // #80: the trainer SCORECARD (A-board KPIs) rendered inline -- director also sees truth divergence
+    try {
+      const sb = await (await fetch(`/session/${j.session_id}/scorecard`, { headers: apiHeaders() })).json();
+      if (sb.ok) {
+        const b = sb.scorecard;
+        const chip = (k, v) => `<span style="border:1px solid var(--line);border-radius:6px;padding:3px 8px;margin:2px;display:inline-block;font-size:11px"><span style="color:var(--muted)">${k}</span> <b style="font-variant-numeric:tabular-nums">${v}</b></span>`;
+        o.innerHTML += `<div style="margin-top:8px"><b style="font-family:Orbitron,system-ui;font-size:10px;letter-spacing:.08em">TRAINER SCORECARD</b><br>` +
+          chip("objectives", `${b.completed ? "✓" : "✗"} ${b.objectives_total}`) +
+          chip("legs delivered", `${b.legs_delivered}/${b.legs_total}`) +
+          chip("comm delivered", `${(b.comm_delivered_frac * 100).toFixed(0)}%`) +
+          chip("recharges", b.recharges) + chip("replans", b.replans) +
+          chip("stranded", b.stranded_packets) + chip("energy", `${b.energy_MJ} MJ`) +
+          (b.energy_divergence_J !== undefined ? chip("⚠ divergence (truth)", `${b.energy_divergence_J} J`) : "") +
+          `</div>`;
+      }
+    } catch (e) { /* scorecard optional */ }
+    setQ("session ready — operator link is the trainee view; scorecard below");
   } catch (e) { setQ("session error: " + e); }
   finally { b.disabled = false; b.textContent = "🎓 Start session"; }
 };
