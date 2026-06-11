@@ -335,6 +335,7 @@
       <div class="ctl" style="margin-top:5px">
         <button id="qexport" class="site">⤓ Export plan</button>
         <button id="qplanir" class="site" title="download the machine-executable plan IR (typed actions + DAG)">⤓ Plan IR</button>
+        <button id="qcmds" class="site" title="download the reusable RC command tape (GoTo sequence the sim/pit executes)">⤓ Commands</button>
         <button id="qimport" class="site">⤒ Import plan</button>
         <input id="qfile" type="file" accept=".json,application/json" style="display:none" />
       </div></div></details>
@@ -2369,6 +2370,20 @@ qel("qplanir").onclick = () => {                         // download the machine
   a.download = `plan_${LAST_PLAN_IR.plan_id || "ir"}.json`;
   a.click(); URL.revokeObjectURL(a.href);
   setQ(`exported plan IR ${LAST_PLAN_IR.plan_id} (${LAST_PLAN_IR.actions.length} actions)`);
+};
+qel("qcmds").onclick = async () => {                      // #66: the plan as a reusable RC command tape
+  if (!ORDERS.length) { setQ("add orders first — commands come from the plan"); return; }
+  try {
+    const r = await fetch("/plan/commands", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ name: "cmds", body: sel.value, charger: [0, 0], orders: ORDERS,
+        algorithm: qel("qalgo").value, objective: qel("qobj").value, ...fleet(), ...site() }) });
+    const d = await r.json();
+    if (!d.ok) { setQ("commands: " + (d.error || d.detail)); return; }
+    const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = "rc_commands.json"; a.click(); URL.revokeObjectURL(a.href);
+    setQ(`exported ${d.commands.length} RC commands (reusable GoTo tape)`);
+  } catch (e) { setQ("commands failed: " + e); }
 };
 qel("qimport").onclick = () => qel("qfile").click();
 qel("qfile").onchange = async (e) => {

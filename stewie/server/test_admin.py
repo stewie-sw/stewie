@@ -88,3 +88,27 @@ def test_plan_math_endpoint_returns_equations(client):
     d = r.json()
     assert d["ok"] and d["legs"] and d["constants"]["DIG_J_PER_KG"] > 0
     assert any(t["name"] == "dig energy" for lg in d["legs"] for t in lg["terms"])
+
+
+def test_rc_command_and_watchdog(client, monkeypatch):
+    """#66/SF-01: GoTo is accepted; SetSim is director-gated; telemetry drains; the watchdog ticks."""
+    r = client.post("/rc/command", headers=H, json={"kind": "goto", "leg_id": 1,
+                    "goal_row": 0.0, "goal_col": 8.0, "v_max_mps": 0.3})
+    assert r.json()["ok"] and r.json()["accepted"] == "goto"
+    # an operator token cannot SetSim (training time-warp is director-only)
+    monkeypatch.setenv("STEWIE_DIRECTORS", "aaron.w.storey80@gmail.com")
+    tok = client.post("/auth/login", json={"email": "mccardle.john@gmail.com"},
+                      headers=H).json()["token"]
+    rs = client.post("/rc/command", headers={"Authorization": f"Bearer {tok}"},
+                     json={"kind": "setsim", "time_factor": 10.0})
+    assert rs.status_code == 403
+    tlm = client.get("/rc/telemetry", headers=H).json()
+    assert tlm["ok"] and "watchdog" in tlm
+
+
+def test_plan_commands_endpoint_is_reusable_tape(client):
+    """#66: /plan/commands returns a replayable GoTo sequence."""
+    r = client.post("/plan/commands", json={"name": "c", "body": "moon", "charger": [0, 0],
+        "orders": [{"action": "a", "kind": "cut", "x": 20, "y": 0, "footprint_m2": 16, "depth_m": 0.05}]})
+    d = r.json()
+    assert d["ok"] and d["commands"] and d["commands"][0]["kind"] == "goto"
