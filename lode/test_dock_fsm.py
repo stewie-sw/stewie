@@ -24,6 +24,7 @@ def test_shadow_blocks_leaving_approach():
 
 
 def test_tag_loss_mid_align_aborts():
+    # [REQ:NV-09] the executive monitors preconditions (tag-lock) and fails safe (ABORT)
     """tag-lock is the only pose truth; losing it mid-dock backs off (ABORT), never blind-pushes."""
     s1, _ = step("APPROACH", _lit(20, 5.0))
     assert s1 == "ALIGN"

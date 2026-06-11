@@ -11,6 +11,7 @@ def _dem():
 
 
 def test_calibration_produces_a_dated_artifact_shape():
+    # [REQ:SN-01] expected shadow geometry derived from s(t) (sun az/el) + local terrain
     """#81 [REQ:SN]: the shadow-sigma calibration emits the artifact -- per-elevation sigma_H, a
     dev sigma, held-out coverage, and the operating envelope."""
     art = calibrate_shadow_sigma(_dem(), sun_az_deg=90.0, sigma_edge_px=1.0)

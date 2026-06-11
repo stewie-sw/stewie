@@ -263,6 +263,7 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 | CT-05 | P0 | Python, Godot, and ROS share a versioned schema with strict required-field, frame, dtype, and range validation. | P | P | P | NA |
 | CT-06 | P0 | Production contract checks use explicit exceptions, never removable `assert` statements. | P | P | N | NA |
 | CT-07 | P1 | Every artifact records source commit, configuration, mode, seed, schema version, and input hashes. | P | P | N | NA |
+| SF-01 | P0 | A command-timeout safing watchdog auto-issues SAFE to any RC backend (sim or real pit) when valid commands stop arriving; resets on each heartbeat. The dead-man interlock on the command path (the §19.0 safety requirement; the moment STEWIE commands hardware, this is its interlock). | D | D | D | N |
 
 ### 7.2 Terrain, Material, and Illumination
 
@@ -339,10 +340,10 @@ solar power scheduling.
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
-| SN-01 | P1 | Derive expected shadow azimuth from `s(t)` and local terrain/objects. `[PROPOSED]` | N | N | N | N |
+| SN-01 | P1 | Derive expected shadow azimuth from `s(t)` and local terrain/objects. `[PROPOSED]` | D | D | P | N |
 | SN-02 | P1 | Detect reliable shadow vectors while rejecting rover/LED shadows, saturation, ambiguous penumbra, and texture edges. `[PROPOSED]` | N | N | N | N |
 | SN-03 | P1 | Fuse accepted shadow evidence as a weak yaw factor with covariance; never as an unqualified absolute heading. `[PROPOSED]` | N | N | N | N |
-| SN-04 | P1 | Re-evaluate shadow factors when terrain is excavated, the sun vector changes, or the observation viewpoint changes. | N | N | N | NA |
+| SN-04 | P1 | Re-evaluate shadow factors when terrain is excavated, the sun vector changes, or the observation viewpoint changes. | D | D | P | NA |
 | SN-05 | P1 | Add illumination-aware route cost: visibility, saturation, shadow hazard, map uncertainty, energy, slope, and construction constraints remain separate inspectable terms. | N | N | N | N |
 | SN-06 | P1 | Choose camera direction and exposure to avoid low-sun washout while preserving useful stereo overlap. | N | N | N | N |
 | SN-07 | P1 | Choose camera subset and LED intensity to illuminate hard shadows within the active-camera and power budgets. | N | N | N | G |
@@ -365,7 +366,7 @@ solar power scheduling.
 | NV-06 | P1 | Backup recovery triggers on progress ratio, duration, and planner failure; initial benchmark uses the `[NAVLAB26]` less-than-25%-for-2-to-3-second rule as a configurable reference. | N | N | N | N |
 | NV-07 | P1 | Recovery distinguishes collision/obstacle blockage from expected slope/slip slowdown to avoid false reverse maneuvers. | N | N | N | N |
 | NV-08 | P1 | Tip, entrapment, localization divergence, low energy, thermal violation, and actuator faults are explicit fault classes. | P | N | P | N |
-| NV-09 | P1 | An executive monitors action preconditions, command acknowledgements, belief covariance, and acceptance state, then pauses/replans/fails safely. | N | N | N | N |
+| NV-09 | P1 | An executive monitors action preconditions, command acknowledgements, belief covariance, and acceptance state, then pauses/replans/fails safely. | P | N | P | N |
 | NV-10 | P0 | Plan IR maintains independent position, energy, time, and action state per vehicle. | P | P | N | NA |
 | NV-11 | P1 | ROS lowering emits paths, motion commands, arm/drum goals, observation actions, and replan events from Plan IR. | N | N | N | N |
 | NV-12 | P1 | Live command/telemetry uses a versioned streaming API with timestamps, sequence numbers, backpressure, and safe-stop semantics. | N | N | N | N |

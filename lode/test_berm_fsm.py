@@ -21,6 +21,7 @@ def test_under_target_loops_back_to_load():
 
 
 def test_instability_aborts_before_dump():
+    # [REQ:NV-09] precondition monitor (stability) -> fail safe; never act on a violated gate
     """[#59 gate] a tip-over risk aborts -- never dump while unstable."""
     s, reason = step("HAUL", BermObs(drum_kg=28, at_site=True, placed_kg=0, target_kg=25, stable=False))
     assert s == "ABORT" and "unstable" in reason

@@ -25,6 +25,7 @@ def test_sun_down_all_shadow_high_sun_mostly_lit():
 
 
 def test_excavation_creates_new_shadow():
+    # [REQ:SN-04] shadow re-evaluated when terrain is excavated (excavation-aware prediction)
     if not _HAVE:
         return
     wm = WM.WorldModel(_crop())
