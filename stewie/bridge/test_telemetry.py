@@ -96,3 +96,17 @@ def test_deliver_at_respects_the_byte_budget():
     assert ln.deliver_at(payload_bytes=100, t_s=0.0) is not None
     assert ln.deliver_at(payload_bytes=10000, t_s=0.0) is None      # over budget -> not delivered
     assert ln.stats["rate_limited"] >= 1
+
+
+def test_per_sol_budget_ledger_and_stranded_accounting():
+    """#69-B [REQ:PO-03]: bytes are the scarcest consumable -- a per-sol ledger draws down on
+    every delivery, and what does not fit is STRANDED (counted + named, never silently lost)."""
+    from stewie.bridge.telemetry import LinkProfile, TelemetryLink
+    p = LinkProfile(downlink_kbps=1000.0, budget_bytes_per_sol=1000, provenance="test")
+    ln = TelemetryLink(p, seed=1)
+    assert ln.deliver_at(payload_bytes=600, t_s=0.0, name="legA") is not None
+    assert ln.budget_remaining() == 400
+    assert ln.deliver_at(payload_bytes=600, t_s=1.0, name="camB") is None      # over the sol budget
+    assert ln.stats["stranded"] == 1 and ln.stranded[0]["name"] == "camB"
+    ln.reset_sol()                                          # the new sol resets the ledger
+    assert ln.budget_remaining() == 1000 and ln.deliver_at(payload_bytes=600, t_s=2.0) is not None
