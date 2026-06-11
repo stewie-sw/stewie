@@ -1182,3 +1182,17 @@ def test_mission_brief_packet_has_cover_register_and_vehicle(tmp_path):
     text = open(md).read()
     assert "## Assumptions Register" in text and "## Vehicle Configuration" in text
     assert "[CALIB]" in text and "RECHARGE_POWER_W" in text
+
+
+def test_load_site_dem_honors_the_sites_registry():
+    """#77 REG-01: the planner can load ANY imported site, not just Haworth -- Shackleton/Nobile
+    are reachable (they were unplannable: _moon_dem hard-targeted Haworth)."""
+    haw = MP.load_site_dem("haworth")
+    sha = MP.load_site_dem("shackleton_rim")
+    assert haw[1] == 5.0 and sha[1] == 5.0                 # both 5 m bundles
+    import numpy as np
+    assert not np.allclose(haw[0][:50, :50], sha[0][:50, :50])   # genuinely different terrain
+    # an un-imported site fails honestly (no fabricated DEM)
+    import pytest
+    with pytest.raises((FileNotFoundError, KeyError, ValueError)):
+        MP.load_site_dem("malapert_massif")

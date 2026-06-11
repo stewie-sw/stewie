@@ -125,19 +125,26 @@ def _totals_json(totals):
 _MOON_DEM = None   # (dem, flattest-anchor); loaded once, reused across /plan requests
 
 
-def _moon_dem():
-    """Load the real Haworth DEM + its auto-selected flattest buildable anchor once and cache it, so
-    Moon plans get live I6/M11 slope-gating. Degrades to (None, (0,0)) -> flat check if the bundle is
-    absent, rather than failing the request."""
+_SITE_DEMS: dict = {}
+
+
+def _moon_dem(site: str = "haworth"):
+    """Load the real DEM for ``site`` (REG-01: any imported site, not just Haworth) + its
+    auto-selected flattest buildable anchor, cached PER SITE so Moon plans get live slope-gating on
+    the chosen terrain. Degrades to (None, (0,0)) -> flat check if the bundle is absent."""
     global _MOON_DEM
-    if _MOON_DEM is None:
-        try:
-            dem = MP.load_haworth_dem()
-            _MOON_DEM = (dem, MP.flattest_anchor(dem))
-        except Exception as e:   # noqa: BLE001 -- degrade to flat-check, but surface it
-            log.warning("Haworth DEM unavailable; Moon plans fall back to flat slope-check: %r", e)
-            _MOON_DEM = (None, (0.0, 0.0))
-    return _MOON_DEM
+    if site in _SITE_DEMS:
+        return _SITE_DEMS[site]
+    try:
+        dem = MP.load_site_dem(site)
+        out = (dem, MP.flattest_anchor(dem))
+    except Exception as e:   # noqa: BLE001 -- degrade to flat-check, but surface it
+        log.warning("DEM for site %r unavailable; falling back to flat slope-check: %r", site, e)
+        out = (None, (0.0, 0.0))
+    _SITE_DEMS[site] = out
+    if site == "haworth":
+        _MOON_DEM = out
+    return out
 
 
 def _autonomy_perception(mission, dem, origin, algorithm, objective):
@@ -227,6 +234,7 @@ class PlanRequest(BaseModel):
     lat: float | None = Field(default=None, ge=-90.0, le=90.0)   # M11: globe site-pick -> order-frame anchor
     lon: float | None = Field(default=None, ge=-360.0, le=360.0)
     vehicles: int = Field(default=1, ge=1, le=16)               # MV: fleet size (>1 -> multi-vehicle plan)
+    site: str = Field(default="haworth", max_length=40)        # REG-01: which imported site DEM to plan on
 
 
 class CompareRequest(BaseModel):
@@ -486,7 +494,8 @@ def plan_commands(req: PlanRequest):
     a GoTo sequence (the same contract the sim/pit backend executes). Plan once, command many."""
     mission = MP.mission_from_dict(req.model_dump())
     cell = 5.0 if mission.body == "moon" else 1.0
-    cmds = RC.commands_from_plan(mission, cell_m=cell)
+    dem, origin = _moon_dem(getattr(req, "site", "haworth")) if mission.body == "moon" else (None, (0.0, 0.0))
+    cmds = RC.commands_from_plan(mission, cell_m=cell, dem=dem, dem_origin=origin)
     return {"ok": True, "cell_m": cell, "commands": [
         {"kind": c.kind, "leg_id": c.leg_id, "goal_row": c.goal_row, "goal_col": c.goal_col,
          "v_max_mps": c.v_max_mps, "goal_radius_cells": c.goal_radius_cells} for c in cmds]}
@@ -536,7 +545,7 @@ def plan_math_endpoint(req: PlanRequest):
     (read-only derivation of a plan the caller already authored)."""
     payload = req.model_dump()
     mission = MP.mission_from_dict(payload)
-    dem, origin = _moon_dem() if mission.body == "moon" else (None, (0.0, 0.0))
+    dem, origin = _moon_dem(getattr(req, "site", "haworth")) if mission.body == "moon" else (None, (0.0, 0.0))
     return {"ok": True, **MP.plan_math(mission, dem=dem, dem_origin=origin)}
 
 
@@ -940,7 +949,7 @@ def session_start(req: SessionRequest, _auth: None = Depends(require_auth)):
     mission_t0_s = float(body.pop("mission_t0_s", 0.0) or 0.0)
     try:
         mission = MP.mission_from_dict(body)
-        dem, origin = _moon_dem() if body.get("body", "moon") == "moon" else (None, (0.0, 0.0))
+        dem, origin = _moon_dem(body.get("site", "haworth")) if body.get("body", "moon") == "moon" else (None, (0.0, 0.0))
         s = SES.start(mission, profile=profile, dem=dem, dem_origin=origin, mission_t0_s=mission_t0_s)
     except (ValueError, RuntimeError, KeyError, FileNotFoundError) as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
@@ -1083,7 +1092,7 @@ def post_plan(req: PlanRequest, _auth: None = Depends(require_auth)):
     try:
         mission = MP.mission_from_dict(payload)
         if mission.body == "moon":
-            dem, origin = _moon_dem()                  # (dem, auto flattest anchor)
+            dem, origin = _moon_dem(getattr(req, "site", "haworth"))  # REG-01: the chosen site DEM
             if req.lat is not None and req.lon is not None:   # M11: a globe site-pick overrides the anchor
                 try:
                     origin = MP.latlon_to_dem_origin(req.lat, req.lon)

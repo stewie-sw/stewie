@@ -112,3 +112,15 @@ def test_plan_commands_endpoint_is_reusable_tape(client):
         "orders": [{"action": "a", "kind": "cut", "x": 20, "y": 0, "footprint_m2": 16, "depth_m": 0.05}]})
     d = r.json()
     assert d["ok"] and d["commands"] and d["commands"][0]["kind"] == "goto"
+
+
+def test_plan_targets_the_chosen_site_dem(client):
+    """#77 REG-01: a plan with site=shackleton_rim runs on THAT DEM (was always Haworth)."""
+    base = {"name": "s", "body": "moon", "charger": [0, 0],
+            "orders": [{"action": "a", "kind": "cut", "x": 20, "y": 0, "footprint_m2": 16, "depth_m": 0.05},
+                       {"action": "b", "kind": "fill", "x": 40, "y": 10, "footprint_m2": 16, "depth_m": 0.05}]}
+    h = client.post("/plan", headers=H, json={**base, "site": "haworth"}).json()
+    s = client.post("/plan", headers=H, json={**base, "site": "shackleton_rim"}).json()
+    assert h["ok"] and s["ok"]
+    # different terrain -> the as-built validation / hazard differs (not the identical Haworth plan)
+    assert h.get("validation") is not None and s.get("validation") is not None

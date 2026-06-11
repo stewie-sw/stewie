@@ -1191,9 +1191,23 @@ def _haworth_bundle(bundle_dir=None):
             or os.path.join(_REPO_ROOT, "samples", "lunar_dem", "haworth_10km_5m"))
 
 
-def load_haworth_dem():
-    """Load the real LOLA Haworth 5 m DEM from the sim bundle: returns (heightmap [m], cell_m)."""
-    bundle = _haworth_bundle()
+def load_site_dem(site: str = "haworth"):
+    """#77 REG-01: load the real LOLA 5 m DEM for ANY imported site (not just Haworth). Resolves the
+    bundle via the SITES registry (stewie.specs.sites); returns (heightmap [m], cell_m). Raises if the
+    site is unknown or not imported -- no fabricated terrain."""
+    from stewie.specs.sites import SITES
+    s = SITES.get(site)
+    if s is None:
+        raise KeyError(f"unknown site {site!r} (known: {sorted(SITES)})")
+    if not s.bundle_dir:
+        raise FileNotFoundError(f"site {site!r} is not imported (no DEM bundle); fetch it first")
+    return load_haworth_dem(bundle_dir=s.bundle_dir)
+
+
+def load_haworth_dem(bundle_dir=None):
+    """Load a real LOLA 5 m DEM from a sim bundle: returns (heightmap [m], cell_m). Defaults to the
+    Haworth work-site bundle; ``bundle_dir`` selects another imported site (REG-01)."""
+    bundle = _haworth_bundle(bundle_dir)
     if not os.path.exists(os.path.join(bundle, "heightmap.rf32")):
         raise FileNotFoundError(
             f"Haworth DEM not found at {bundle}. It is NOT bundled in the wheel -- fetch it "
