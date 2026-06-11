@@ -3,14 +3,14 @@
 Makes the envs discoverable through ``gymnasium.make("Dust/<Env>-v0")``. Importing the package
 registers them (the documented Gymnasium third-party pattern)::
 
-    import dustgym                  # or: import terrain_authority  -- either registers Dust/*
+    import dustgym                  # or: import the conserved authority  -- either registers Dust/*
     import gymnasium as gym
     env = gym.make("Dust/RoverDrive-Mars-v0")     # per-body physics (gravity + regolith)
     env = gym.make("Dust/Scheduler-v0")           # body-neutral (mass-conserving construction)
 
 Per-body IDs: the DRIVE env depends on gravity (weight = m*g) and the Lyasko-corrected regolith, so it
 is registered per body (``RoverDrive-{Moon,Mars,Earth}-v0``) and accepts ``gym.make(..., body="ceres")``
-for any body in ``terrain_authority.bodies.BODIES``. The CONSTRUCTION/scheduling envs are mass-conserving
+for any body in ``stewie.physics.bodies.BODIES``. The CONSTRUCTION/scheduling envs are mass-conserving
 (cut/fill is gravity-invariant in this model), so they are registered body-neutral -- a "Mars Scheduler"
 would be identical, so it is not faked.
 

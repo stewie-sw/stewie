@@ -1,4 +1,4 @@
-"""Characterization tests for ``terrain_authority.dem_io`` (windowed/memmap base reader).
+"""Characterization tests for ``stewie.physics.dem_io`` (windowed/memmap base reader).
 
 The base field dict driving these tests is built from the REAL LOLA Haworth backbone:
 ``dem_import.dem_to_base`` injects a crop of the committed real surface

@@ -6,7 +6,7 @@ estimation. This module is the GENERATION side: given the true body twist + hidd
 the conserved physics, it emits noisy/quantized sensor samples. Truth (pose/slip/terrain) is NEVER on a
 sample (invariant I3); every sample carries covariance (I4).
 
-Parameters are SOURCED, not invented (terrain_authority/data/imu_wheel_params.json): XSENS MTi-10 output
+Parameters are SOURCED, not invented (the conserved authority/data/imu_wheel_params.json): XSENS MTi-10 output
 specs for IMU noise; 12-bit encoder counts/rev [ASSUMPTION]; MER design-goal slip band. Moved here from
 dart (the producer owns the sensor model); dart now consumes the published samples.
 """

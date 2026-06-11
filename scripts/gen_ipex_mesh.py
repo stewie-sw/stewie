@@ -14,7 +14,7 @@ wheelbase, wheel width and arm length carry NO published IPEx number and are tag
 (plausible 30 kg-class values, refined when IPEx CAD becomes available). Nothing here is passed off
 as flight geometry.
 
-  Sourced: terrain_authority.ipex_specs (Schuler ASCEND 2024 / Zhang wheel testing / Schuler BD scaling).
+  Sourced: stewie.physics.ipex_specs (Schuler ASCEND 2024 / Zhang wheel testing / Schuler BD scaling).
   Run: python -m scripts.gen_ipex_mesh   ->  writes godot_sidecar/assets/ipex/*.glb
 """
 from __future__ import annotations

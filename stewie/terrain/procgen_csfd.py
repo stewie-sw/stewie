@@ -136,7 +136,7 @@ def populate_craters(cs: ColumnState, dem_effective_resolution_m: float, *,
 
 # ---------------------------------------------------------------------------
 # Self-test (spec §10 determinism + the §7 falsifiable acceptance properties).
-#   python -m terrain_authority.procgen_csfd
+#   python -m stewie.physics.procgen_csfd
 # Checks, on a self-contained synthetic ColumnState:
 #   1. reproducibility — same seed -> identical placed-crater records;
 #   2. equilibrium cap — emplaced cumulative density per log-D bin <= eq_sfd cap;

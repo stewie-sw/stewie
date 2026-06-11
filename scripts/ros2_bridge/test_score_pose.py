@@ -65,7 +65,7 @@ def test_scorecard_is_valid_and_nframes_matches():
             v = getattr(card, field)
             assert v >= 0.0 and v == v, f"{name}: {field} not finite/non-negative ({v})"
 
-    assert checked > 0, "no trajectory scene populated; regenerate via terrain_authority.scenes"
+    assert checked > 0, "no trajectory scene populated; regenerate via stewie.physics.scenes"
 
 
 def test_zero_noise_is_zero_error():

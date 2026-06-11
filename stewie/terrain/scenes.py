@@ -1,6 +1,6 @@
 """Sample-scene builder/exporter.
 
-    python -m terrain_authority.scenes
+    python -m stewie.physics.scenes
 
 Builds and exports the weekend-slice sample scenes into <root>/samples/ on a 256x256 grid
 at cell_m=0.02 (~5.12 m square patch, spec §4 active-zone 1-3 cm anchor). Every scene gets
@@ -65,7 +65,7 @@ def _base_metadata(scene_name: str, *, clasts=None, active_zone=None, quadtree=N
     meta = {
         "schema_version": "1.0",
         "scene_name": scene_name,
-        "producer": "terrain_authority (NumPy Tier-2 surrogate)",
+        "producer": "the conserved authority (NumPy Tier-2 surrogate)",
         "grid": {"width": WIDTH, "height": HEIGHT, "cell_m": CELL_M, "order": "row-major-C"},
         "world_bounds_m": {"x0": 0.0, "y0": 0.0, "x1": round(x1, 4), "y1": round(y1, 4)},
         "gravity_m_s2": K.g,
@@ -673,7 +673,7 @@ def _write_4wheel_tiles(frame_dir: str, frame_cs: ColumnState,
         tile_meta = {
             "schema_version": "1.0",
             "scene_name": f"tread_track_4wheel/tile_{t.id:04d}",
-            "producer": "terrain_authority (NumPy Tier-2 surrogate)",
+            "producer": "the conserved authority (NumPy Tier-2 surrogate)",
             "grid": {"width": tw, "height": th, "cell_m": t.cell_m, "order": "row-major-C"},
             "world_bounds_m": {"x0": round(x0, 4), "y0": round(z0, 4),
                                "x1": round(x0 + tw * t.cell_m, 4),
@@ -1142,7 +1142,7 @@ def build_dem_scene() -> None:
     A missing committed DEM scene (e.g. a fresh checkout without samples/lunar_dem/) is logged
     and skipped, NOT fatal — the nine legacy builders above are unaffected. We do NOT re-write
     the committed DEM rasters here (the build is in-RAM); we only report the wired stack so the
-    serial-join is visible when running ``python -m terrain_authority.scenes``.
+    serial-join is visible when running ``python -m stewie.physics.scenes``.
     """
     scene_dir = os.path.join(ROOT, "samples", "lunar_dem", "haworth_10km_5m")
     if not os.path.exists(os.path.join(scene_dir, "metadata.json")):

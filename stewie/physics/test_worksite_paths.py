@@ -1,6 +1,6 @@
 """WorkSite controller-seam coverage — the open_window single-window path + save/snapshot/sinter.
 
-Complements terrain_authority/test_worksite.py (which covers the streaming recenter path). This file
+Complements the conserved authority/test_worksite.py (which covers the streaming recenter path). This file
 exercises the OTHER entry path (open_window over the committed Haworth coarse base) and the controller
 seam an RL policy / the scripted demo drives, asserting the mass invariant throughout:
 
@@ -13,7 +13,7 @@ seam an RL policy / the scripted demo drives, asserting the mass invariant throu
   * assemble_region / visited bbox helpers; _require_fine guard before open_window.
 
 Fast: tiny windows over the committed Haworth bundle. Run from the repo root:
-    PYTHONPATH=. <venv>/bin/python -m pytest terrain_authority/test_worksite_paths.py -q
+    PYTHONPATH=. <venv>/bin/python -m pytest the conserved authority/test_worksite_paths.py -q
 """
 from __future__ import annotations
 

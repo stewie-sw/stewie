@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Train a LEARNED controller on John McCardle's WorkSite seam (Dust/WorkSite-v0).
 
-WorkSite (terrain_authority/worksite.py, PR #5) is the streaming execution engine and explicitly leaves
+WorkSite (the conserved authority/worksite.py, PR #5) is the streaming execution engine and explicitly leaves
 "the controller as the only stub" -- its .flatten()/.dump() + global drum ledger are shaped for an RL
 policy. WorkSiteConstructEnv is that controller: Discrete(2) actions ARE WorkSite verbs (flatten a pad
 slice -> ledger, dump a berm slice <- ledger), so PPO learns the cut-haul-fill batching (WHEN to switch

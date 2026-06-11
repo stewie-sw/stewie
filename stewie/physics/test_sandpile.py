@@ -1,4 +1,4 @@
-"""Characterization tests for terrain_authority.sandpile.Sandpile (spec §7).
+"""Characterization tests for stewie.physics.sandpile.Sandpile (spec §7).
 
 The sandpile cellular automaton relaxes loose slopes toward the angle of repose by
 toppling EXCESS MASS downhill. Two invariants are load-bearing (spec §7, §10):

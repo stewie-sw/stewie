@@ -54,6 +54,7 @@ def _env(name: str, default=None):
 _START = time.monotonic()
 _REPORT_LOCK = threading.Lock()                 # matplotlib pyplot is process-global + thread-unsafe
 _METRICS: dict = {"requests_total": 0, "by_status": {}, "by_route": {}}
+_METRICS_LOCK = threading.Lock()   # RC-04: serialize the metrics read-modify-write
 
 
 def _configure_logging(level: str | None = None) -> None:
@@ -327,6 +328,12 @@ async def _access_log(request: Request, call_next):
         if clen > _MAX_BODY_BYTES:
             return JSONResponse(status_code=413,
                                 content={"ok": False, "error": f"request body too large (> {_MAX_BODY_BYTES} bytes)"})
+        # SEC-3: the header is client-supplied; enforce the ACTUAL byte count too (Starlette caches
+        # the body, so the handler re-reads this same copy -- no double-read).
+        body = await request.body()
+        if len(body) > _MAX_BODY_BYTES:
+            return JSONResponse(status_code=413,
+                                content={"ok": False, "error": f"request body too large (> {_MAX_BODY_BYTES} bytes)"})
     response = await call_next(request)
     dt = (time.monotonic() - t0) * 1000.0
     raw = request.url.path
@@ -334,10 +341,11 @@ async def _access_log(request: Request, call_next):
     # the raw path is attacker-controlled, so an unbounded dict would be a memory-DoS. Templates are finite.
     matched = request.scope.get("route")
     route_key = getattr(matched, "path", "unmatched")
-    _METRICS["requests_total"] += 1
     sk = str(response.status_code)
-    _METRICS["by_status"][sk] = _METRICS["by_status"].get(sk, 0) + 1
-    _METRICS["by_route"][route_key] = _METRICS["by_route"].get(route_key, 0) + 1
+    with _METRICS_LOCK:                                  # RC-04: atomic counter update under the threadpool
+        _METRICS["requests_total"] += 1
+        _METRICS["by_status"][sk] = _METRICS["by_status"].get(sk, 0) + 1
+        _METRICS["by_route"][route_key] = _METRICS["by_route"].get(route_key, 0) + 1
     log.info('%s "%s %s" %s %.1fms',
              request.client.host if request.client else "-", request.method, raw, response.status_code, dt)
     return response

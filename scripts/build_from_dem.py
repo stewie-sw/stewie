@@ -1,4 +1,4 @@
-"""End-to-end: real LOLA DEM -> a committable terrain_authority scene + hillshade.
+"""End-to-end: real LOLA DEM -> a committable the conserved authority scene + hillshade.
 
 Lane A deliverable (docs/dem_terrain_contract.md §1-2; eval §4-5, §9 Lane A). Turns
 "no DEM path exists" into a REAL-MAP scene:

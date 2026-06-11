@@ -1,4 +1,4 @@
-"""Characterization tests for ``terrain_authority.io_fields`` — the FROZEN on-disk seam.
+"""Characterization tests for ``stewie.physics.io_fields`` — the FROZEN on-disk seam.
 
 These exercise the real public API (``save_scene`` / ``load_scene`` and the optional
 ``write_preview_png`` / ``write_hillshade_png`` previews) against a REAL committed sample

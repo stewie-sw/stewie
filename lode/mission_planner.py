@@ -12,8 +12,8 @@ Order kinds:
   sinter — fuse a surface into hard pad/road (the lunar concrete analog) IN PLACE -> energy 0.92 MJ/kg
            (~220x dig; the energy bottleneck), no material moved.
 
-Grounded: per-body density/gravity from bodies.json (sysrev terrain_authority/bodies.py); IPEx +
-sinter constants from terrain_authority (ipex_specs, constants). The recharge power and sinter-head
+Grounded: per-body density/gravity from bodies.json (sysrev the conserved authority/bodies.py); IPEx +
+sinter constants from the conserved authority (ipex_specs, constants). The recharge power and sinter-head
 power are [CALIB] (no IPEx solar/sinter spec).
 Run:  python3 mission_planner.py
 """
@@ -35,10 +35,10 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# ---- grounded constants: imported from the .py source of truth (terrain_authority), not duplicated.
+# ---- grounded constants: imported from the .py source of truth (the conserved authority), not duplicated.
 # The monorepo root (lode's parent) holds stewie/, dart/, samples/, scripts/; ensure it is
 # importable. _REPO_ROOT also anchors the sample/script paths. (When dustgym is pip-installed,
-# terrain_authority imports directly; this insert is the run-from-source fallback.)
+# the conserved authority imports directly; this insert is the run-from-source fallback.)
 import sys
 _REPO_ROOT = os.path.dirname(HERE)
 if _REPO_ROOT not in sys.path:
@@ -95,7 +95,7 @@ def body_timescale(body):
     """Operating timescale for `body` (per BODY_TIMESCALE); a generic ~24 h fallback for unlisted bodies."""
     return dict(BODY_TIMESCALE.get(body, {"solar_day_h": 24.0, "daylight_h": 12.0,
                                           "op_window_h": (6.0, 8.0), "day_label": "day"}), body=body)
-# Sinter gate is C.SINTER_ENABLED (single source, in terrain_authority.constants); read live below.
+# Sinter gate is C.SINTER_ENABLED (single source, in stewie.physics.constants); read live below.
 
 
 def body_density(body):
@@ -327,7 +327,7 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
         raise RuntimeError(
             f"{len(sinters)} sinter order(s) present but sinter is GATED OFF for the IPEx baseline "
             "(drum excavator, no sinter tool; sinter energy ~14-20x the pack per kg). Enable a "
-            "sinter-equipped variant via terrain_authority.constants.SINTER_ENABLED.")
+            "sinter-equipped variant via stewie.physics.constants.SINTER_ENABLED.")
     trips = []
     # S-3 path-first: goto waypoints become zero-mass VISIT trips; the auto-precedence chain
     # (mission_from_dict) keeps them in authored sequence through the sequencer.

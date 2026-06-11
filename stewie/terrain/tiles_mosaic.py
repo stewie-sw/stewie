@@ -400,8 +400,8 @@ class TileMosaic:
 
 # ---------------------------------------------------------------------------
 # Lane-C VERIFY-SELF acceptance harness (the contract's self-checks). Lives in an OWNED
-# module (tests.py is frozen, not Lane C's). Run: ``python -m terrain_authority.tiles_mosaic``.
-# Asserts the four contract acceptance criteria + leaves the repo ``terrain_authority.tests``
+# module (tests.py is frozen, not Lane C's). Run: ``python -m stewie.physics.tiles_mosaic``.
+# Asserts the four contract acceptance criteria + leaves the repo ``stewie.physics.tests``
 # suite untouched (run that separately to confirm GREEN).
 # ---------------------------------------------------------------------------
 

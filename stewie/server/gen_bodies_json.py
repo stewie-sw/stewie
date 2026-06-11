@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export the sysrev-sourced per-planet terramechanics (terrain_authority/bodies.py) to bodies.json,
+"""Export the sysrev-sourced per-planet terramechanics (the conserved authority/bodies.py) to bodies.json,
 so the planet browser LOADS the SAME constants the sim uses (single source of truth) when a body is
 chosen -- no hardcoded/divergent copy. Re-run after editing bodies.py.
 """
@@ -58,7 +58,7 @@ out["_ipex"] = {
     "sinter_enabled": K.SINTER_ENABLED,
 }
 
-# Fleet registries for the browser (terrain_authority/vehicles.py): vehicles with their CAPABILITIES,
+# Fleet registries for the browser (the conserved authority/vehicles.py): vehicles with their CAPABILITIES,
 # power sources, tools (the capability each grants), and the full action vocabulary -- so the UI can
 # populate vehicle/power/tool pickers and gate the plannable actions per the selected vehicle+tools.
 # Generated from the .py source of truth (no hand-authored copy); re-run after editing vehicles.py.

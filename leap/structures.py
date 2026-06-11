@@ -17,7 +17,7 @@ import math
 import os
 import sys
 
-# single source for the regolith densities (terrain_authority at the monorepo root, planet_browser's parent)
+# single source for the regolith densities (the conserved authority at the monorepo root, planet_browser's parent)
 _REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)

@@ -1,6 +1,6 @@
 """Tests for the slip-sinkage ladder (slip.py) — Phase 2.
 
-Host-runnable (``python -m terrain_authority.test_slip``) + pytest-discoverable.
+Host-runnable (``python -m stewie.physics.test_slip``) + pytest-discoverable.
 Validates the QUALITATIVE physics (quantitative magnitudes are oracle-deferred,
 DEFERRED_FIXES.md): the traction ceiling, Janosi-Hanamoto monotonicity, slip
 inversion + entrapment, compaction-resistance growth, and the runaway / recovery

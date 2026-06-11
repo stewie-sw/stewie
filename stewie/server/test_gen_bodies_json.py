@@ -1,11 +1,11 @@
 """gen_bodies_json.py coverage — run the generator, verify bodies.json matches the .py source.
 
-gen_bodies_json.py exports terrain_authority/bodies.py + ipex_specs.py to planet_browser/bodies.json so
+gen_bodies_json.py exports the conserved authority/bodies.py + ipex_specs.py to planet_browser/bodies.json so
 the browser loads the SAME constants the sim uses (single source of truth). The script runs at module
 import (no __main__ guard), so we execute it IN-PROCESS via runpy against a tmp copy (committed
 bodies.json untouched, and coverage sees the lines) and assert:
 
-  * every terrain_authority.bodies.BODIES body (incl. all ROVER_BODIES) is present, with its real
+  * every stewie.physics.bodies.BODIES body (incl. all ROVER_BODIES) is present, with its real
     gravity / label / bekker block carried through unchanged from the .py source;
   * the generated _ipex energy block matches ipex_specs.py exactly (drum kg, dig J/kg, drive J/m,
     battery J, dig rate, sinter gate).

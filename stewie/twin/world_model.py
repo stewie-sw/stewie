@@ -1,4 +1,4 @@
-"""terrain_authority.world_model: the dustgym package's coherent world-model surface.
+"""stewie.physics.world_model: the dustgym package's coherent world-model surface.
 
 Ties the five world-model layers (see docs/world_model.md) to their package modules, so one import
 gives you the whole model for terrain *transformation*. The physics-side layers (Geometry, Material,

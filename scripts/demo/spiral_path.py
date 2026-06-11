@@ -26,7 +26,7 @@ YAW CONVENTION (load-bearing -- READ from source, not invented):
       return atan2(-dz, dx)   # point rover forward (+X) along travel
   godot_sidecar/capture_seq.gd:83-94 uses the identical (dx=col, dz=row,
       yaw=atan2(-dz, dx)) form, citing sidecar._heading_yaw as the convention.
-  terrain_authority/scenes.py:473-480 ``_heading_from_segment`` is a DIFFERENT
+  the conserved authority/scenes.py:473-480 ``_heading_from_segment`` is a DIFFERENT
       convention -- atan2(drow, dcol), the INTERFACE.md §5.2 travel-heading used
       to orient wheel cleats, NOT the Godot rover yaw. The contract §1 names
       ``atan2(-dz, dx)`` (the Godot rover yaw), so ``look_at_yaw`` matches the

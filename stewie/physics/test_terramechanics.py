@@ -1,6 +1,6 @@
 """Tests for load-bearing Bekker pressure-sinkage (terramechanics.py).
 
-Host-runnable (``python -m terrain_authority.test_terramechanics``) AND
+Host-runnable (``python -m stewie.physics.test_terramechanics``) AND
 pytest-discoverable, matching the repo's tests.py convention. Real-physics
 assertions + an order-of-magnitude anchor to the committed Chrono SCM numbers
 (docs/chrono_bringup_log.md). No synthetic data: the "oracle" values are the

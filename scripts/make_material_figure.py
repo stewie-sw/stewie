@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Material-layer figure: per-cell regolith strength + trafficability from a scene's real density field.
 
-Density | friction angle | cohesion | slip susceptibility, derived by terrain_authority.material from the
+Density | friction angle | cohesion | slip susceptibility, derived by stewie.physics.material from the
 conserved density.rf32 (worked scenes vary, so the fields vary). No synthetic data.
 
 Usage:

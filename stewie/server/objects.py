@@ -36,7 +36,9 @@ def save_mission(name: str, doc: dict) -> dict:
         raise ValueError(f"unknown mission fields {sorted(unknown)}")
     slug = _slug(name)
     path = os.path.join(_dir("missions"), f"{slug}.json")
-    json.dump({"name": slug, "title": name, **doc}, open(path, "w"), indent=1, sort_keys=True)
+    from stewie.twin.io_fields import atomic_write_bytes
+    atomic_write_bytes(path, json.dumps({"name": slug, "title": name, **doc},
+                                        indent=1, sort_keys=True).encode())   # RC-05: atomic (.part->replace)
     return {"name": slug}
 
 
@@ -82,8 +84,9 @@ def save_structure(name: str, doc: dict) -> dict:
             raise ValueError(f"entry {i} kind {e['kind']!r} not in cut/fill/goto")
     slug = _slug(name)
     path = os.path.join(_dir("structures"), f"{slug}.json")
-    json.dump({"name": slug, "title": name, "kind_list": entries,
-               "note": str(doc.get("note", ""))}, open(path, "w"), indent=1, sort_keys=True)
+    from stewie.twin.io_fields import atomic_write_bytes
+    atomic_write_bytes(path, json.dumps({"name": slug, "title": name, "kind_list": entries,
+               "note": str(doc.get("note", ""))}, indent=1, sort_keys=True).encode())   # RC-05: atomic
     return {"name": slug}
 
 

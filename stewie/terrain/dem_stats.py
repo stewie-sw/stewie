@@ -142,7 +142,7 @@ def rms_slope_vs_baseline(field: np.ndarray, cell_m: float, baselines_m) -> dict
 
 # ---------------------------------------------------------------------------
 # Self-test (analytic-truth sanity, not a trivially-true assertion).
-#   python -m terrain_authority.dem_stats
+#   python -m stewie.physics.dem_stats
 # Checks against fields whose roughness statistics are known in closed form:
 #   1. PURE PLANE  -> deviogram is LINEAR in L (D(L)=slope*L on the tilted axis) and
 #      rms_slope is CONSTANT in L (== the plane's own slope, isotropically pooled).

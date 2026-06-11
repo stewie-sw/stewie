@@ -1,4 +1,4 @@
-"""Characterization tests for ``terrain_authority.hexviz`` — the terminal hex visualizer.
+"""Characterization tests for ``stewie.physics.hexviz`` — the terminal hex visualizer.
 
 These render a REAL committed sample scene (``samples/rolling_hills``, which has real height
 relief so the hex levels are not a flat plateau) through the module's real public surface:

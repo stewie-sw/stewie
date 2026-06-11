@@ -459,7 +459,7 @@ def make_crater_feature_fn(*, dem_effres_m: float, d_min_m: float = 1.0,
 
 
 # ---------------------------------------------------------------------------
-# Self-test (run: python -m terrain_authority.dem_overlay).
+# Self-test (run: python -m stewie.physics.dem_overlay).
 #   (a) the crater feature_fn matches the frozen hook signature and returns an array of
 #       residual_h's shape;
 #   (b) DETERMINISM: same (world_x0, world_y0, world_seed) -> byte-identical output; a

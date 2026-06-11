@@ -1,4 +1,4 @@
-"""Characterization tests for terrain_authority.quadtree (spec §4 thesis demo).
+"""Characterization tests for stewie.physics.quadtree (spec §4 thesis demo).
 
 The interaction-keyed quadtree manages SPACE: as the rover drives, leaves near it promote
 to the finest level (active/fine LOD) while distant regions stay coarse. It is pure spatial

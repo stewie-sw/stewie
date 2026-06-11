@@ -9,7 +9,7 @@ detail-actually-added). No synthetic measurement data — the harnesses generate
 deterministic fixtures from the modules' own math.
 
 Run from the repo root:
-    PYTHONPATH=. <venv>/bin/python -m pytest terrain_authority/test_viz_selftests.py -q
+    PYTHONPATH=. <venv>/bin/python -m pytest the conserved authority/test_viz_selftests.py -q
 """
 from __future__ import annotations
 

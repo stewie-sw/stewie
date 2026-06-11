@@ -1,4 +1,4 @@
-"""Characterization tests for terrain_authority.dem_stats.
+"""Characterization tests for stewie.physics.dem_stats.
 
 Real data only: every roughness number is measured on a committed sample-scene
 heightmap (``samples/<name>/heightmap.rf32`` via ``io_fields.load_scene``) or on

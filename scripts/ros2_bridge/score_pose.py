@@ -32,7 +32,7 @@ indices); a clean hook for that is left in `match_by_frame_index` / `_nearest_t_
 live path is intentionally NOT implemented here.
 
 QUANTIZATION FLOOR: truth is lifted from integer rover_rc cells at cell_m == 0.02 m
-(terrain_authority/constants.py CELL_M), so trans/ATE cannot resolve below ~20 mm.  This is
+(the conserved authority/constants.py CELL_M), so trans/ATE cannot resolve below ~20 mm.  This is
 surfaced by the harness, not asserted (report-only).
 
 Pure stdlib + numpy.  No ROS/rclpy import; safe on the bare host .venv.
@@ -96,7 +96,7 @@ def _import_compare_pose_rotation():
 rotation_error_deg = _import_compare_pose_rotation()
 
 # rover_rc grid resolution -> hard synthetic resolution floor (mm).  Sourced from
-# terrain_authority/constants.py CELL_M == 0.02 m; surfaced (not asserted) because report-only.
+# the conserved authority/constants.py CELL_M == 0.02 m; surfaced (not asserted) because report-only.
 CELL_M = 0.02
 QUANTIZATION_FLOOR_MM = CELL_M * 1000.0  # 20.0 mm
 

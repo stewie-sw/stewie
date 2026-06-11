@@ -12,7 +12,6 @@ Real factors only; no fabricated measurements.
 """
 import math
 
-import numpy as np
 import pytest
 
 from dart import pose_graph_se2 as PG2

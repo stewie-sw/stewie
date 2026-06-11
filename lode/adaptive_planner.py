@@ -1,6 +1,6 @@
 """adaptive_planner.py: deploy the self-learned slip energy model to price real missions.
 
-Trains the `inflation(slope)` model once from controlled drives (terrain_authority.self_optimizing) and
+Trains the `inflation(slope)` model once from controlled drives (stewie.physics.self_optimizing) and
 uses it to RE-PRICE a planned mission's legs -- so the planner predicts the TRUE slip-inflated energy
 (correct provisioning) instead of the naive flat estimate. The model is trained on controlled grades and
 GENERALIZES to the mission's actual leg slopes; this is the self-learning loop closing on the real planner.

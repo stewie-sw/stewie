@@ -1,7 +1,7 @@
 """Consumer-side proprioception types + slip-blind derived odometry for dart.
 
 The sensor GENERATION (the IMU/wheel noise model + the sourced params) now lives in the dustgym
-PRODUCER (`terrain_authority/proprioception.py`), per the ownership split
+PRODUCER (`the conserved authority/proprioception.py`), per the ownership split
 (STANFORD_LITERATURE_ARCHITECTURE_DIFF_2026-06-08: dustgym owns sensor generation/publication; dart
 owns parsing, time-sync, derived odometry, estimation). dart defines its OWN parsed types here -- a
 DECOUPLED seam, no shared Python classes across the dustgym->dart boundary -- plus the slip-blind

@@ -1,6 +1,6 @@
 """D1a terminal hex visualizer for state-field scenes.
 
-    python -m terrain_authority.hexviz <scene_dir> [--field heightmap|state_label|disturbance]
+    python -m stewie.physics.hexviz <scene_dir> [--field heightmap|state_label|disturbance]
 
 Loads a scene via io_fields, downsamples the chosen field to ~64x32, and prints one hex
 digit 0-f per cell mapped from the field's relative value, with a min/max legend. This is

@@ -8,7 +8,7 @@ Bekker:        p = (k_c / b + k_phi * s) * z^n
   n   sinkage exponent
 inverted:      z = ( p / (k_c/b + k_phi*s) )^(1/n)
 
-This matches the dustgym terramechanics formulation (terrain_authority/terramechanics.py).
+This matches the dustgym terramechanics formulation (the conserved authority/terramechanics.py).
 Moon moduli are the MEASURED values from the NASA LTV terramechanics white paper
 (NTRS 20220010732): k_c=1400 N/m^2, k_phi=820000 N/m^3, n=1.0. Lunar gravity 1.62 m/s^2.
 

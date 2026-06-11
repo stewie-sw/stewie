@@ -1,4 +1,4 @@
-"""Characterization tests for ``terrain_authority.dem_import`` against the REAL LOLA tile.
+"""Characterization tests for ``stewie.physics.dem_import`` against the REAL LOLA tile.
 
 The ingest's public surface (frozen by the L0 contract) is exercised on the committed
 real PGDA LOLA Haworth backbone at ``samples/lunar_dem/haworth_10km_5m`` — 2000x2000 @

@@ -90,7 +90,7 @@ def main() -> None:
     meta = {
         "schema_version": "1.0",
         "scene_name": "drive_cmd",
-        "producer": "terrain_authority drive_cmd (closed loop, slip feedback)",
+        "producer": "the conserved authority drive_cmd (closed loop, slip feedback)",
         "grid": {"width": args.grid, "height": args.grid, "cell_m": args.cell_m,
                  "order": "row-major-C"},
         "gravity_m_s2": 1.62,

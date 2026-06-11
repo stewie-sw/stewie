@@ -1,6 +1,6 @@
 """Conservation-invariant assert-runner (spec §10). No pytest dependency.
 
-    python -m terrain_authority.tests
+    python -m stewie.physics.tests
 
 Checks (spec §10):
   1. Total mass Σ(mass_areal·cell_area) + drum_inventory is constant across a full

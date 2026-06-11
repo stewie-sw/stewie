@@ -1,4 +1,4 @@
-"""Characterization tests for ``terrain_authority.tiles_mosaic`` — the demand-driven, bounded,
+"""Characterization tests for ``stewie.physics.tiles_mosaic`` — the demand-driven, bounded,
 evictable corridor LOD mosaic over a global-frame tiled base (L0 §0/§5).
 
 The base reader is an ``ArrayBaseReader`` over a REAL LOLA Haworth base block built via

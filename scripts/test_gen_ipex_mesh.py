@@ -2,7 +2,7 @@
 sourced IPEx dimensions (wheel 30.5 cm, medium bucket drum 295 mm) and exports valid glTF parts
 the Godot sidecar can assemble. CC0: we author these primitives (no EZ-RASSOR / third-party mesh).
 
-Real-data check: the dimensions come from terrain_authority.ipex_specs (Schuler/Zhang sourced) +
+Real-data check: the dimensions come from stewie.physics.ipex_specs (Schuler/Zhang sourced) +
 the generator's disclosed [CALIB] chassis numbers; no fabricated geometry passed off as flight CAD.
 """
 from __future__ import annotations

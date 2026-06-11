@@ -1,6 +1,6 @@
 """worksite_env.py — RL controller over John McCardle's WorkSite seam (reconciliation, 2026-06-03).
 
-WorkSite (terrain_authority/worksite.py, PR #5) is the streaming execution engine: a coarse base +
+WorkSite (the conserved authority/worksite.py, PR #5) is the streaming execution engine: a coarse base +
 rover-following fine window with a GLOBAL drum ledger, exposing `.flatten()/.dump()/.drive()/.relax()`
 "shaped so an RL policy can drive the SAME seam later -- the controller is the only stub." This is that
 controller: a Gymnasium env whose actions are WorkSite construction verbs, executed on the real window.

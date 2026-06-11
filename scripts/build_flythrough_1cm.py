@@ -1,7 +1,7 @@
 """Generate the 1 cm global-resolution 4-wheel fly-through SHOWCASE scene (512x512 @ 0.01 m).
 
 This is a *showcase deliverable* generator, not a canonical contract scene (those live in
-``terrain_authority/scenes.py`` at 256x256 @ 0.02 m and are covered by the test suite). It
+``the conserved authority/scenes.py`` at 256x256 @ 0.02 m and are covered by the test suite). It
 builds a driven IPEx four-wheel tread track over the full 5.12 m patch at GLOBAL 1 cm
 resolution (Mode A, ``docs/render_fidelity_spec.md`` §2.1) so the Godot ``--sequence``
 fly-through (``godot_sidecar/sidecar.gd``) renders genuinely 1 cm terrain with the render-

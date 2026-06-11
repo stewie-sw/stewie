@@ -1,5 +1,5 @@
 """Consumer-side proprioception: parsed types + slip-blind derived odometry.
-(Sensor GENERATION moved to dustgym; its tests live in terrain_authority/test_proprioception.py.)"""
+(Sensor GENERATION moved to dustgym; its tests live in the conserved authority/test_proprioception.py.)"""
 import numpy as np
 
 from stewie.sensors import imu_wheel as iw

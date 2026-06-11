@@ -1,4 +1,4 @@
-"""Characterization tests for terrain_authority/procgen_csfd.py — the sub-DEM crater
+"""Characterization tests for the conserved authority/procgen_csfd.py — the sub-DEM crater
 size-frequency-distribution population generator (Lane B, spec §7).
 
 The generator carves a real crater population via the real ``carve_crater``; a seeded run is

@@ -2,7 +2,7 @@
 
 Shows the full Path A seam: a PyChrono SCMTerrain spike (chrono_scm_rover.py shape) is stepped
 at lunar gravity, then chrono_scm_export.export() reads GetModifiedNodes / GetNodeInfo and writes
-a contract-VALID scene dir via the frozen terrain_authority.io_fields.save_scene; we then read it
+a contract-VALID scene dir via the frozen stewie.physics.io_fields.save_scene; we then read it
 back with load_scene and assert the INTERFACE.md invariant (height == mass_areal/density - datum),
 disturbance in [0,1], and state_label in {0..4}.
 

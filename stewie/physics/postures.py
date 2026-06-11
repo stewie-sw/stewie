@@ -1,4 +1,4 @@
-"""IPEx/RASSOR reconfigurable-morphology postures (data-driven; terrain_authority/data/ipex_postures.json).
+"""IPEx/RASSOR reconfigurable-morphology postures (data-driven; the conserved authority/data/ipex_postures.json).
 
 The producer owns the vehicle model; the Godot 8-camera rig and the kinematics/stability layer read
 these so a posture transform (MEERKAT/IRON_CROSS/COBRA/...) faithfully changes the rendered observation

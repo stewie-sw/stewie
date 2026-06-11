@@ -4,7 +4,7 @@
 The honest "rover pose PRODUCER" step of the spiral demo, sitting between
 ``build_spiral_scene.py`` (the terrain) and the Godot render. It is the surrogate a real
 Chrono::Vehicle + SCM solver would later replace behind the frozen INTERFACE seam (README
-§4 #2-3); here it is GEOMETRY/STATE-ACCURATE, NOT FORCE-ACCURATE (terrain_authority/rover.py
+§4 #2-3); here it is GEOMETRY/STATE-ACCURATE, NOT FORCE-ACCURATE (the conserved authority/rover.py
 header; spec §9) — no contact forces, no slip-sinkage (that is the deferred Chrono job).
 
 For each frame of the SAME Archimedean spiral depart_spiral.gd / instrument_spiral.py walk

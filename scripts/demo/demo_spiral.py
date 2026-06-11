@@ -34,7 +34,7 @@ HONESTY RAILS (contract §6, carried verbatim into the report header):
     degeneracy), expected to PERSIST/WORSEN as the rover departs along a line toward/away from a
     face; it is not a frame bug.
 
-SHADOW ATTRIBUTION is provided by `terrain_authority.illumination.horizon_clip` (W2-ILLUM).  That
+SHADOW ATTRIBUTION is provided by `stewie.physics.illumination.horizon_clip` (W2-ILLUM).  That
 lane may not be merged yet, so it is imported behind a try/except: when absent, per-face
 illumination falls back to `"unknown"` and no frame is classified `"shadowed"` on that basis
 (the host self-test runs WITHOUT W2-ILLUM).
@@ -73,7 +73,7 @@ rotation_error_deg = score_pose.rotation_error_deg
 
 # --- W2-ILLUM shadow attribution: optional, fall back to "unknown" if un-merged -----------
 #
-# terrain_authority/illumination.py (W2-ILLUM) supplies `horizon_clip(heightmap, cell_m,
+# the conserved authority/illumination.py (W2-ILLUM) supplies `horizon_clip(heightmap, cell_m,
 # sun_az_deg, sun_el_deg) -> bool-mask` (per-pixel local-horizon ray-march).  It may not have
 # merged yet; import behind try/except so this lane self-tests on the bare host WITHOUT it.  When
 # absent, every face's illumination is reported "unknown" and NO frame is attributed "shadowed".
@@ -196,7 +196,7 @@ def attribute_face_illum(
 ) -> dict:
     """Classify each candidate face "lit" / "shadow" / "unknown" via W2-ILLUM.
 
-    When `terrain_authority.illumination.horizon_clip` is unavailable (W2-ILLUM un-merged) OR the
+    When `stewie.physics.illumination.horizon_clip` is unavailable (W2-ILLUM un-merged) OR the
     inputs needed to call it (heightmap, cell size, per-face cell, sun angles) are missing, EVERY
     face is "unknown" -- and the caller then never classifies a frame "shadowed" on that basis.
     When available, `horizon_clip(heightmap, cell_m, sun_az_deg, sun_el_deg)` returns a per-pixel
@@ -442,7 +442,7 @@ def summarize(records: Sequence[FrameRecord], trajectory: Optional[dict]) -> dic
             "max": float(max(ranges)) if ranges else None,
         },
         "illumination_source": (
-            "terrain_authority.illumination.horizon_clip (W2-ILLUM)"
+            "stewie.physics.illumination.horizon_clip (W2-ILLUM)"
             if _HAVE_ILLUM else "UNAVAILABLE (W2-ILLUM un-merged) -> face_illum='unknown'"
         ),
         "apriltag_channel_A": {

@@ -1,4 +1,4 @@
-"""Characterization tests for terrain_authority/scenes.py — the sample-scene builder/exporter.
+"""Characterization tests for the conserved authority/scenes.py — the sample-scene builder/exporter.
 
 These run the REAL builders against a redirected ``SAMPLES_DIR`` (a pytest tmp dir) so the
 committed ``samples/`` rasters are NEVER touched, then load the written scenes back through the

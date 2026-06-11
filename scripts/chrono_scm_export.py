@@ -42,7 +42,7 @@ import sys
 
 import numpy as np
 
-# Make terrain_authority importable (the project package lives one level up).
+# Make the conserved authority importable (the project package lives one level up).
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 from stewie.twin.io_fields import save_scene  # noqa: E402  (frozen contract writer)

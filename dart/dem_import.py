@@ -494,7 +494,7 @@ def polar_mantle_density_fn(mantle_m: float = K.Z_T
 
 # ---------------------------------------------------------------------------
 # Self-test (W2-DENSITY) — exercises polar_mantle_density_fn end to end.
-#   python -m terrain_authority.dem_import
+#   python -m stewie.physics.dem_import
 # ---------------------------------------------------------------------------
 
 def _self_test() -> int:

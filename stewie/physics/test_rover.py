@@ -12,7 +12,7 @@ sample scenes (samples/flat_compact, samples/crater_boulders), never synthetic f
   * drum_pass / build_drum_marks_meta: excavate (+optional dump) conserves mass through the drum
     inventory; the §5.2 drum_marks shape.
 
-Run: cd .. && PYTHONPATH=. <venv>/bin/python -m pytest terrain_authority/test_rover.py -q
+Run: cd .. && PYTHONPATH=. <venv>/bin/python -m pytest the conserved authority/test_rover.py -q
 """
 from __future__ import annotations
 

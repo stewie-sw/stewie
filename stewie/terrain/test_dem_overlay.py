@@ -1,4 +1,4 @@
-"""Characterization tests for ``terrain_authority.dem_overlay`` — the conservation-critical
+"""Characterization tests for ``stewie.physics.dem_overlay`` — the conservation-critical
 smooth-interp + zero-mean-per-base-cell procgen overlay (L0 §4 / INTERFACE.md §5.3).
 
 The base block driving these tests is built from the REAL LOLA Haworth backbone

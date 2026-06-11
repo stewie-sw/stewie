@@ -596,7 +596,7 @@ def _fine_bundle_metadata(scene_name: str, W: int, H: int, cell_m: float,
     meta = {
         "schema_version": "1.0",
         "scene_name": scene_name,
-        "producer": "terrain_authority WorkSite (streaming fine window)",
+        "producer": "the conserved authority WorkSite (streaming fine window)",
         "grid": {"width": int(W), "height": int(H), "cell_m": float(cell_m), "order": "row-major-C"},
         "world_bounds_m": {"x0": round(world_x0, 4), "y0": round(world_z0, 4), "x1": x1, "y1": z1},
         "gravity_m_s2": K.g,

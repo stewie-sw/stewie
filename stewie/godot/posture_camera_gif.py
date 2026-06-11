@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """8-pane faithful posture-transition GIF: animate what the 8 LAC cameras see as the rover transitions
 between two postures (e.g. TRANSIT -> MEERKAT). Each pane is one camera, labelled with its name and its
-COMPUTED world height (terrain_authority.posture_kinematics: arm angles + slope + posture pitch + mount).
+COMPUTED world height (stewie.physics.posture_kinematics: arm angles + slope + posture pitch + mount).
 Cameras stay faithfully oriented (the Godot rig applies each extrinsic; drum cams track the live arms).
 
 Reusable sim view:
@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_HERE))   # dustgym root for terrain_authority
+sys.path.insert(0, os.path.dirname(_HERE))   # dustgym root for the conserved authority
 from stewie.physics import posture_kinematics as pk          # noqa: E402
 from stewie.physics.postures import get_posture              # noqa: E402
 

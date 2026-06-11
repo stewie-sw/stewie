@@ -1,4 +1,4 @@
-"""Characterization tests for terrain_authority.illumination.
+"""Characterization tests for stewie.physics.illumination.
 
 Real data only: every heightmap is loaded from the committed sample scenes
 (``samples/<name>/heightmap.rf32`` via ``io_fields.load_scene``) or the real

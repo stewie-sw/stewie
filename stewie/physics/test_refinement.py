@@ -1,4 +1,4 @@
-"""Characterization tests for terrain_authority/refinement.py — mass-exact variable-resolution
+"""Characterization tests for the conserved authority/refinement.py — mass-exact variable-resolution
 operators + tile extraction (spec §2.4, INTERFACE.md §5.3).
 
 The base field under test is a REAL committed sample scene (samples/rolling_hills, a procgen

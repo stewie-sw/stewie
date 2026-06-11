@@ -15,7 +15,7 @@ UNITS: metres in (TrajectorySample.position_m), metres of noise injected here; t
 convert to mm for the Scorecard (mm out).  Noise sigmas/bias are therefore specified in metres
 and radians on the CLI.
 
-QUANTIZATION FLOOR (see eval_schema module docstring + terrain_authority/constants.py CELL_M):
+QUANTIZATION FLOOR (see eval_schema module docstring + the conserved authority/constants.py CELL_M):
 the truth positions are lifted from integer `rover_rc` grid cells at cell_m == 0.02 m, so the
 truth itself is quantized to ~20 mm.  Injecting sub-20 mm noise is fine for exercising the
 pipeline, but the *reported* trans/ATE figures cannot be interpreted below that floor -- it is
@@ -47,7 +47,7 @@ DEFAULT_SEED = 0
 
 # Small NON-ZERO default perturbations so a non-degenerate Scorecard is produced without a
 # CLI flag.  Chosen at roughly half the rover_rc quantization cell (cell_m == 0.02 m == 20 mm;
-# terrain_authority/constants.py CELL_M) so the synthetic estimate sits on the order of the
+# the conserved authority/constants.py CELL_M) so the synthetic estimate sits on the order of the
 # data's own resolution floor -- a realistic, not-flattering, exercise of the metrics.
 DEFAULT_SIGMA_TRANS_M = 0.010   # 10 mm per-axis translation sigma (~half a 20 mm cell)
 DEFAULT_SIGMA_YAW_RAD = 0.0175  # ~1.0 deg yaw sigma
@@ -91,7 +91,7 @@ def load_truth(scene_dir: str) -> list[es.TrajectorySample]:
     if not paths:
         raise FileNotFoundError(
             f"no per-frame metadata.json under {scene_dir}/t*/ -- regenerate the scene "
-            f"(python -m terrain_authority.scenes) or point --scene at a populated samples dir"
+            f"(python -m stewie.physics.scenes) or point --scene at a populated samples dir"
         )
     frames = es.load_scene_frames(paths)
     return es.lift_trajectory(frames)

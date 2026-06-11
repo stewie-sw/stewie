@@ -14,7 +14,7 @@ This harness reports numbers; it does NOT emit pass/fail and does NOT assert any
 threshold.  None exist in the repo, and inventing one would be portfolio-fraudulent.
 
 QUANTIZATION FLOOR is surfaced (not asserted): truth is lifted from integer rover_rc cells at
-cell_m == 0.02 m (terrain_authority/constants.py CELL_M), so the reported trans/ATE figures
+cell_m == 0.02 m (the conserved authority/constants.py CELL_M), so the reported trans/ATE figures
 cannot resolve below ~20 mm.  The report carries that floor so the reader interprets the
 numbers correctly.
 

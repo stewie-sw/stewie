@@ -1,4 +1,4 @@
-"""Characterization tests for terrain_authority/procgen.py (spec §4/§5/§9).
+"""Characterization tests for the conserved authority/procgen.py (spec §4/§5/§9).
 
 These exercise the REAL pure-NumPy procedural generators (fbm value noise, the rolling_hills
 / flat_compact archetypes, carve_crater, and the Golombek boulder sampler) at fixed seeds. A
