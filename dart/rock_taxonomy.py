@@ -9,7 +9,7 @@ stereo; the DEM residual (dem_cross: local-minus-orbital) gives protrusion + a l
 the size->semantics layer of the physics-informed estimator that feeds the planner (terrain + rock +
 localization + energy cost). No geology classes, no synthetic data.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/rock_taxonomy.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math

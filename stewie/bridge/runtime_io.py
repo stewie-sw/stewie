@@ -4,7 +4,7 @@ Unifies the producer-side channels (camera + IMU + raw four-wheel + measured joi
 Reuses proprioception_io for the imu/wheel channels, adds camera + joints parsing, and enforces the
 truth firewall (I3). The camera frame timestamps must be monotonic and carry no true pose.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/bridge/runtime_io.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import json

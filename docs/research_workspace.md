@@ -6,7 +6,7 @@ nav_order: 10
 # Research and publication workspace
 
 STEWIE runtime code and tests live in this repository. Manuscripts, literature
-reviews, grants, dissertation material, GMRO briefings, and shared references
+reviews, grants, research track material, GMRO briefings, and shared references
 live in the canonical research workspace:
 
 `/mnt/projects/stewie/research`
@@ -16,7 +16,7 @@ historical `dustgym` name):
 
 - STEWIE papers: `/mnt/projects/stewie/research/papers/dustgym/`
 - lunar SLAM review: `/mnt/projects/stewie/research/reviews/lunar-slam/`
-- SolNav dissertation and PRD: `/mnt/projects/stewie/research/projects/solnav/`
+- DART research track and PRD: `/mnt/projects/stewie/research/projects/dart/`
 - shared references: `/mnt/projects/stewie/research/references/`
 - grants: `/mnt/projects/stewie/research/grants/`
 - GMRO briefings: `/mnt/projects/stewie/research/briefings/gmro/`

@@ -14,7 +14,7 @@ itself depends on [CONFIRM] limb dims and on Bekker sinkage):
 The residual between the kinematic height and the landmark/DEM-referenced height is a
 real observability check on the posture model and the sinkage estimate. Real trig.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/geometry/height_ref.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import numpy as np

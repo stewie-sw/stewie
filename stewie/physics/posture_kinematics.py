@@ -1,6 +1,6 @@
 """Posture forward kinematics: arm slider angles -> chassis height -> camera vantage.
 
-Wires HEIGHT ESTIMATION via pose + drum-arm angles (the dissertation P2 posture-dependent camera
+Wires HEIGHT ESTIMATION via pose + drum-arm angles (the research track P2 posture-dependent camera
 extrinsics). The chassis lift is NO LONGER a magic per-posture constant: it is COMPUTED from the arm
 pitch so the sim angle faithfully drives the rendered height AND the estimator can recover camera
 vantage from measured joint angles (proprioception -> extrinsics).

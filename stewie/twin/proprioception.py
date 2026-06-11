@@ -1,14 +1,14 @@
 """Proprioception sensor GENERATION (IMU + four-wheel encoders) for the dustgym physics authority.
 
-Per the solnav/dustgym ownership split (STANFORD_LITERATURE_ARCHITECTURE_DIFF_2026-06-08): DUSTGYM owns
-sensor generation and synchronized publication; solnav owns parsing, time-sync, derived odometry, and
+Per the dart/dustgym ownership split (STANFORD_LITERATURE_ARCHITECTURE_DIFF_2026-06-08): DUSTGYM owns
+sensor generation and synchronized publication; dart owns parsing, time-sync, derived odometry, and
 estimation. This module is the GENERATION side: given the true body twist + hidden per-wheel slip from
 the conserved physics, it emits noisy/quantized sensor samples. Truth (pose/slip/terrain) is NEVER on a
 sample (invariant I3); every sample carries covariance (I4).
 
 Parameters are SOURCED, not invented (terrain_authority/data/imu_wheel_params.json): XSENS MTi-10 output
 specs for IMU noise; 12-bit encoder counts/rev [ASSUMPTION]; MER design-goal slip band. Moved here from
-solnav (the producer owns the sensor model); solnav now consumes the published samples.
+dart (the producer owns the sensor model); dart now consumes the published samples.
 """
 from __future__ import annotations
 
@@ -139,7 +139,7 @@ def runtime_proprioception_packet(imu: list, wheel_enc: list, *, sequence_id: in
 
     Channels carry samples + covariance + units + provenance on ONE monotonic clock + sequence id.
     The wheel channel publishes the RAW FOUR-WHEEL ENCODER samples (the producer owns the raw sensor;
-    solnav derives body odometry). NO pose / slip / terrain / evaluation truth (I3); availability is OK
+    dart derives body odometry). NO pose / slip / terrain / evaluation truth (I3); availability is OK
     only with a payload. ``joints`` (optional) is a measured arm-joint channel from
     ``runtime_packet.joint_channel`` (real FK -- drum-arm pitches + posture-conditioned camera heights);
     when absent the joints channel is honestly UNAVAILABLE. ``power`` (optional) is a measured BMS channel

@@ -1,8 +1,8 @@
-"""Ingest the Katwijk Beach Planetary Rover Dataset (ESA, Hewitt et al. 2018) -> solnav structures.
+"""Ingest the Katwijk Beach Planetary Rover Dataset (ESA, Hewitt et al. 2018) -> dart structures.
 
 This provides the LOCKED VALIDATION CAPTURE that Gate G1 requires: a REAL run with timestamped wheel
 odometry + IMU + DGPS ground truth on natural, GNSS-denied terrain (the closest public analog to an
-IPEx surface traverse; no public IPEx flight telemetry exists). Run solnav's SE(2) pose graph on the
+IPEx surface traverse; no public IPEx flight telemetry exists). Run dart's SE(2) pose graph on the
 wheel/IMU stream and score ATE/RPE vs the DGPS track.
 
 Parsing is HEADER-DRIVEN: columns are matched by NAME, never by guessed position, so the exact column
@@ -10,7 +10,7 @@ order in the dataset's Table 5 cannot silently break it; pass `colmap` to overri
 loaders are REAL-DATA-GATED -- each takes a path into the downloaded dataset; NO Katwijk bytes are
 bundled (ESA license + size). Download: https://robotics.estec.esa.int/datasets/katwijk-beach-11-2015/
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/bridge/katwijk_io.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import csv

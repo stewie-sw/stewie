@@ -75,7 +75,7 @@ def register_to_dem(observed: np.ndarray, dem, guess_rc, *, search_radius_cells:
 # MERGE-4: bearing/range positioning (triangulate / resect / trilaterate)
 # (absorbed from dart/positioning.py in M3; original docstring follows)
 # 
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/slam/positioning.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 
 
 

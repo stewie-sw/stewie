@@ -13,7 +13,7 @@ placement), not object recognizers -- recognition is rock_detect; avoidance is t
 routing. Online obstacle discovery is OUT of the intern DEM_KNOWN_POSE product and NOT wired into G1.
 Clast TRUTH (positions/sizes) enters only the eval/scoring path (I3); detection takes images only.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/obstacle_map.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math

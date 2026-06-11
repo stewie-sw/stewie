@@ -1,5 +1,5 @@
 {
-  "_doc": "Grounded IMU/wheel sensor parameters for the IPEx rover, extrapolated from real open planetary-rover data. PACKAGED (solnav.config/data) so the installed wheel can locate it. No fabricated values; provenance per field. See validation/g1_imu_wheel_data_sources.md.",
+  "_doc": "Grounded IMU/wheel sensor parameters for the IPEx rover, extrapolated from real open planetary-rover data. PACKAGED (stewie.specs/data) so the installed wheel can locate it. No fabricated values; provenance per field. See validation/g1_imu_wheel_data_sources.md.",
   "date": "2026-06-07",
   "platform": {
     "name": "IPEx (ISRU Pilot Excavator) class",

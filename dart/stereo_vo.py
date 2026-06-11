@@ -3,7 +3,7 @@
 Pipeline (all on REAL rendered Godot frames; part of the VO/landmark backbone):
 
   1. detect + mutual-NN match keypoints in the stereo pair (reuses the ORB front end and the
-     :func:`solnav.perception.features.to_gray_u8` converter from the feature module);
+     :func:`dart.features.to_gray_u8` converter from the feature module);
   2. keep row-aligned (rectified) correspondences, fix the consensus disparity sign, and
      triangulate to a metric point cloud in the reference (left) camera optical frame using the rig
      intrinsics -- fx from the camera HFOV, baseline from the calibrated stereo mount (0.07 m);
@@ -19,7 +19,7 @@ images and a :class:`StereoVOConfig` only -- no pose, slip, or other ground-trut
 argument. Ground truth lives strictly in the eval/scoring path (tests + validation scoring), never in
 the estimator input.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/stereo_vo.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math
@@ -164,7 +164,7 @@ def _detect(gray: np.ndarray, n_features: int):
 def _mutual_match(des1: np.ndarray, des2: np.ndarray):
     """Mutual nearest-neighbour (cross-checked) Hamming matches between two ORB descriptor sets.
     Returns (query_idx, train_idx) integer arrays. Mirrors the matcher in
-    :mod:`solnav.perception.features` (BFMatcher, NORM_HAMMING, crossCheck)."""
+    :mod:`dart.features` (BFMatcher, NORM_HAMMING, crossCheck)."""
     if len(des1) == 0 or len(des2) == 0:
         return np.empty(0, dtype=int), np.empty(0, dtype=int)
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)

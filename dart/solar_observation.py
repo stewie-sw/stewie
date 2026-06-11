@@ -1,5 +1,5 @@
 """Direct-Sun/ephemeris fallback observation contract for G2."""
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/solar_observation.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math

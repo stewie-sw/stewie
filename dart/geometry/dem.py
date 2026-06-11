@@ -5,7 +5,7 @@ Loads a dustgym/LOLA `.rf32` heightmap + metadata, crops a metric window (e.g.,
 by a brute-force shift search (the localization mechanism in algorithm A4/A5). Real
 data; no fabricated terrain.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/geometry/dem.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import json

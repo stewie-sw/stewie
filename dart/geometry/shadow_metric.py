@@ -8,7 +8,7 @@ controlled rendered-sensor fixture in `render/p5proj/`. The latter supplies came
 elevation, and caster base from scene configuration, extracts the shadow tip from pixels, and
 recovers H = 0.95 m (~5% error).
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/geometry/shadow_metric.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import numpy as np

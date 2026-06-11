@@ -3,7 +3,7 @@
 The estimator reads ``runtime_sensors.json`` only. World truth is physically
 separate in ``evaluation_truth.json`` and cannot appear in ``SensorFrame.raw``.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/bridge/dustgym_io.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import json
@@ -308,7 +308,7 @@ def load_camera_image(sensors_json_path: str, camera_name: str) -> np.ndarray:
 def _atomic_json_write(path: str, data: Mapping[str, Any]) -> str:
     directory = os.path.dirname(path)
     os.makedirs(directory, exist_ok=True)
-    fd, temporary = tempfile.mkstemp(prefix=".solnav-", suffix=".json", dir=directory)
+    fd, temporary = tempfile.mkstemp(prefix=".dart-", suffix=".json", dir=directory)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
             json.dump(data, stream)

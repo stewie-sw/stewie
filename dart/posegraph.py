@@ -1,7 +1,7 @@
 """SE(2) pose-graph SLAM (Gauss-Newton), the estimator backbone (algorithm A5/A7).
 
 Real least-squares pose-graph optimization in pure NumPy (no gtsam dependency). It
-fuses the factors the dissertation needs:
+fuses the factors the research track needs:
   - prior      : anchor a pose (gauge + the meerkat lookout anchor for A7)
   - odom       : relative SE(2) between two poses (wheel odometry backbone)
   - heading    : absolute yaw at a pose (the solar-heading factor, A1)
@@ -11,7 +11,7 @@ trajectories packed into one pose array. Analytic Jacobians; diagonal informatio
 
 Pose state: an (N,3) array of [x, y, theta]. Angles wrapped to (-pi, pi].
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/slam/posegraph.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import numpy as np

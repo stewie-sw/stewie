@@ -1,10 +1,10 @@
 """Real stereo depth from a rectified pair (cv2 SGBM). Part of the VO/landmark backbone.
 
 On real low-sun, low-texture lunar imagery the valid-disparity fraction is honestly
-low: this is the texture-starvation the dissertation's solar/shadow/landmark cues
+low: this is the texture-starvation the research track's solar/shadow/landmark cues
 exist to compensate for. Operates on declared rendered-sensor pairs.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/stereo_depth.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 from dataclasses import dataclass

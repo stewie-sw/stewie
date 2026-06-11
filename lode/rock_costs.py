@@ -9,7 +9,7 @@ a persistent landmark (L2) kept in view lowers localization uncertainty.
 The keep-outs this emits feed mission_planner.route_leg directly, so a boulder the playthrough classifies
 as D/E automatically becomes an obstacle the route avoids -- closing detect -> size -> classify -> AVOID.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/rock_costs.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math

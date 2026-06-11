@@ -8,7 +8,7 @@ posture GIFs for presentations.
 
 Body frame: x fore, y left, z up. Lengths in meters.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/posture/wireframe.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import numpy as np

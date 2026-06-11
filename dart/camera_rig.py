@@ -7,7 +7,7 @@ compute the baseline (distance) between any two cameras and the angle between th
 axes -- the geometry that sets every multi-camera triangulation's parallax. Real geometry;
 no fabricated values.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/camera_rig.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 from dataclasses import dataclass, field

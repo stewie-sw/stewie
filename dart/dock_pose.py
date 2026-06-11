@@ -13,7 +13,7 @@ Consequences (the docking question, solved):
   every frame, so compacted/excavated terrain only changes how much closed-loop correction is commanded,
   not the final accuracy. The fiducial lock decouples docking from odometry.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/world/dock_pose.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math

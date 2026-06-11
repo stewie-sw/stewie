@@ -8,7 +8,7 @@ have: the prior DEM (height + slope/roughness via dem_cross) fused with the perc
 it (the dense version of the discrete keep-outs in rock_costs). For navigation we want a rock MAP, not
 per-boulder instance counts -- semantic occupancy is the right (LAC-validated) representation.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/hazard_map.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import heapq

@@ -1,4 +1,4 @@
-"""#78 (ARGUS dissertation core): the windowed pose-graph estimator.
+"""#78 (ARGUS subsystem): the windowed pose-graph estimator.
 
 The thesis claim is a UNIFIED articulated state every estimator reads. This is the spine: a
 windowed 2-D pose graph that fuses odometry priors (the drift model) with absolute factors

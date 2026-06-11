@@ -10,7 +10,7 @@ is an APPROXIMATE ~4.6 m -- the tall, comparatively narrow stance). A larger Gri
 provided for an IPEx-scale delivery scenario; its footprint is approximate pending a documented figure.
 Sources: en.wikipedia.org/wiki/Intuitive_Machines_Nova-C; intuitivemachines.com/nova-c.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/world/lander.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,4 +1,4 @@
-"""IPEx platform constants used by solnav, with provenance tags.
+"""IPEx platform constants used by dart, with provenance tags.
 
 [SPEC]    = stated in the public record (NASA/KSC papers, LAC docs/API, the
             architecture reference, or read from a real LAC/dustgym sensors.json).
@@ -8,12 +8,12 @@
             authoritative geometry page.
 
 Sources: ../../../references/technical/IPEx_Rover_Architecture_DigitalTwin_Reference.md
-(relative to the SolNav repository root in the canonical research workspace);
+(relative to the DART repository root in the canonical research workspace);
 NTRS 20240008162 (TRL-5), 20210025846 (bucket-drum scaling); dustgym ipex_specs.py
 (energy); and a real LAC-twin sensors.json (intrinsics, stereo baseline, sun).
 At integration, reconcile with dustgym.ipex_specs rather than duplicating.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/ipex/specs.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 # M3 DISPOSITION (MERGE-2, resolved as complementary): ipex_specs.py = the sourced CONSTANT base
 # (SCHULER24 et al.); this module = versioned PROFILE selection + declared-rate validation on top.
 # No duplicated constants found; profile values carry their own provenance tags.

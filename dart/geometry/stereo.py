@@ -5,7 +5,7 @@ baseline in meters, d the disparity in pixels. Posture changes (A3) give an extr
 vertical baseline between a low (driving) and a raised (meerkat) view, widening
 parallax for landmark triangulation. Real geometry, no fabricated values.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/geometry/stereo.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import numpy as np

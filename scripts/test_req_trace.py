@@ -8,7 +8,7 @@ def test_parses_the_prd_matrix():
     reqs = parse_requirements("PRD.md")
     assert len(reqs) >= 110                                # the 2026-06-10 census found 112
     assert "CT-01" in reqs and reqs["CT-01"]["pri"] == "P0"
-    assert "SN-01" in reqs                                 # the dissertation family
+    assert "SN-01" in reqs                                 # the research track family
 
 
 def test_markers_are_found_and_traced():

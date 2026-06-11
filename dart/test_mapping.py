@@ -1,7 +1,7 @@
-"""TDD for solnav.perception.mapping: accumulate calibrated stereo depth (from
-solnav.perception.stereo_vo triangulation) along the REAL rendered lunar traverse into a 2.5D
+"""TDD for dart.mapping: accumulate calibrated stereo depth (from
+dart.stereo_vo triangulation) along the REAL rendered lunar traverse into a 2.5D
 world-frame elevation + rock-count map, and correlate the built map to the prior REAL DEM via
-solnav.perception.dem_anchor.
+dart.dem_anchor.
 
 Real inputs only (crater_boulders scene, Godot sensor model, frames 000..003 + the real LOLA
 crater_boulders DEM). The map is built from per-frame stereo point clouds placed in the Godot ground
@@ -221,7 +221,7 @@ def test_registration_recovers_known_offset_within_built_map(known):
 def test_correlate_to_dem_returns_honest_low_confidence_result():
     """HONEST cross-registration on REAL data: the built 4-frame sparse map is correlated against the
     prior DEM. The anchor returns a well-formed result, but on this low-texture, sparsely-covered
-    traverse the cross-correlation to the prior DEM is weak (the dissertation's texture-starvation
+    traverse the cross-correlation to the prior DEM is weak (the research track's texture-starvation
     limit) -- the recovered NCC peak is small and the confidence is near zero. We assert the result is
     well-formed and report the honest (low) peak/confidence rather than claim a sub-cell DEM lock the
     data does not support. Eval/scoring path: the DEM is the prior map, not hidden truth."""

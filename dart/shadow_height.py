@@ -18,7 +18,7 @@ ShadowCam PSR / NAC at known low sun), not these renders. Until validated on suc
 is a REGIME cue only, NOT a calibrated height; the VALIDATED size sources are stereo (obstacle_map) and
 DEM residual (dem_cross).
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/shadow_height.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math

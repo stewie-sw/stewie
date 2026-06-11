@@ -5,7 +5,7 @@ Pipeline (all on REAL rendered Godot frames + the prior REAL LOLA DEM; the globa
 perception stack):
 
   1. per frame, triangulate the rectified stereo pair into a metric point cloud in the reference
-     (left) camera optical frame (reuses :func:`solnav.perception.stereo_vo.triangulate_stereo`);
+     (left) camera optical frame (reuses :func:`dart.stereo_vo.triangulate_stereo`);
   2. place each cloud in the Godot ground frame (x = col*cell, z = row*cell, elevation = world Y)
      with the camera centre for that frame and the FIXED camera-mount rotation -- a rig calibration
      constant (the camera looks +X, tilted down by atan(look_down_ratio), up = world +Y), the same
@@ -14,12 +14,12 @@ perception stack):
      the per-cell spread of sparse low-texture matches) and a per-cell observation count (a coarse
      "rock"/structure-density proxy: cells that collect many returns are textured boulders/relief);
   4. correlate the built elevation patch to the prior DEM via
-     :func:`solnav.perception.dem_anchor.anchor_offset` (NCC peak) to recover the horizontal map->DEM
+     :func:`dart.dem_anchor.anchor_offset` (NCC peak) to recover the horizontal map->DEM
      registration.
 
 Pose source (invariant I3, truth firewall): :func:`build_elevation_map` takes the per-frame camera
 CENTRES as an argument -- a PERCEPTION product (e.g. the VO trajectory from
-:func:`solnav.perception.stereo_vo.estimate_vo` anchored at a single start localization fix). It has
+:func:`dart.stereo_vo.estimate_vo` anchored at a single start localization fix). It has
 NO pose/slip/truth/clast parameter; no per-frame ground-truth pose ever enters the builder. The prior
 DEM is a legitimate prior map (a perception/eval input), not hidden state; comparing the built map to
 the DEM (:func:`elevation_rmse_vs_dem`) is the eval/scoring path.
@@ -30,7 +30,7 @@ the raw RMSE but carries no terrain-shape error. The mean-removed RMSE -- exactl
 mean-removed NCC anchor is invariant to -- isolates the recovered relief error, and the correlation
 coefficient reports how much of the real DEM shape the built map recovered.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/mapping.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math
@@ -401,7 +401,7 @@ def correlate_to_dem(
     Takes a fixed dense observed window (:func:`dense_window`) from the built map's dense core, crops
     the matching DEM window padded by ``search_pad_cells`` and shifted by ``known_offset_cells``, and
     reads the offset off the NCC surface. The returned
-    :class:`~solnav.perception.dem_anchor.AnchorResult` ``offset_cells`` is the recovered (dr, dc) of
+    :class:`~dart.dem_anchor.AnchorResult` ``offset_cells`` is the recovered (dr, dc) of
     the built patch relative to the DEM-window centre.
 
     ``known_offset_cells`` lets the global-map tier verify the registration by injecting a controlled

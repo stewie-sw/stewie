@@ -10,7 +10,7 @@ Sun is above the LOCAL terrain horizon at the rover's pose:
 This keeps the estimator from trusting shadow/appearance cues that do not exist inside a PSR, while
 retaining the geometric DEM/horizon/range cues that still work. Real DEM only.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/world/psr_supervisor.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math

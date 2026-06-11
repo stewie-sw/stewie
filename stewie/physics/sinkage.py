@@ -22,7 +22,7 @@ Why navigation cares: even mm-scale sinkage shifts the chassis (and therefore th
 camera extrinsics the SLAM graph depends on), and the drums settle BELOW their
 commanded cut depth under load, which the dig-depth control must compensate.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/terramechanics/sinkage.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 # M3 DISPOSITION (MERGE-6, de-flagged with evidence): NOT a duplicate of terramechanics.py.
 # This is the PROFILE-parameterized spec-check layer (Bekker z from the versioned SystemProfile's
 # sourced moduli); terramechanics.py is the load-bearing drive-loop solver (constants.py moduli).

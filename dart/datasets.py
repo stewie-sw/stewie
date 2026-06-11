@@ -8,7 +8,7 @@ fetched. Real adapters are NOT faked: each is a real loader that reads its nativ
 clear "not fetched" error until the data exists (cf. load_haworth_dem). Labels live ONLY on the
 eval-scoring path (I3); the detector is handed images only.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/datasets.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import os

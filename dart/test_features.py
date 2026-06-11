@@ -1,4 +1,4 @@
-"""TDD for solnav.perception.features: a unified CLASSICAL (cv2 ORB/SIFT) and LEARNED
+"""TDD for dart.features: a unified CLASSICAL (cv2 ORB/SIFT) and LEARNED
 (kornia DISK + LightGlue) feature front end benchmarked on the REAL rendered lunar stereo pair.
 
 Real inputs only. The fundamental-matrix RANSAC and Sampson-distance checks recover a genuine

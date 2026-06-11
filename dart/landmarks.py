@@ -6,7 +6,7 @@ MUTABLE features -- small rocks, spoil piles, trenches, berms -- are local-plann
 be used as global anchors. Extracted from the orbital DEM (L0): topographic local maxima (peaks/rims) with
 prominence, size-gated so only kilometer-/large-scale features are tagged immutable. Real DEM only.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/world/landmarks.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 from dataclasses import dataclass

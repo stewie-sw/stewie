@@ -8,7 +8,7 @@ spread is a heuristic concentration statistic, not a calibrated factor covarianc
 The blob method recovers an axis modulo 180 degrees. Its direction must be resolved by caster
 association or another cue before it can become an absolute-heading factor.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/shadow_extract.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -8,6 +8,32 @@ documents are archived (`docs/archive/`) or are upstream STEWIE architecture/roa
 workspace: `design/STEWIE_ATOMIC_EXECUTION_PLAN_2026-06-09.md`.
 **Baseline commit:** `047331250cf443498c25b5bead4bed167668752c`
 
+## 0. Where we are / what's next (2026-06-11 — read this first)
+
+**Status:** the research track is FOLDED IN as a live production system — STEWIE is one platform,
+not a platform-plus-thesis. The trainer/simulator product (PRD §18 rung 4) is **software-complete**.
+
+**Done (this build cycle):** all three rung-4 gaps — the pluggable RC contract + SF-01 safing
+watchdog (#66, deduced from the frozen CONTRACT.md; a plan exports a reusable GoTo command tape),
+telemetry shaping (#67, downlink latency + per-sol stranded-byte ledger), operator/director roles
+(#68); the COLMAP/triage design + budget ledger (#69); the resync forward-sim (#70); the
+NASA-standards mechanism (§19: requirements-traceability + Power-of-10 gates live in CI; SF-01
+built); the 8-agent full-stack audit (§20: 2 criticals + 2 highs fixed, no known criticals
+remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); the cockpit
+(authoring, math worksheet, dashboards, mobile); Moon coordinate chain verified end-to-end.
+
+**Ordered next, to proceed:**
+1. The real-pit wire binding — a `PitBackend` over the UDP/ROS transport (the only thing between
+   the trainer and driving hardware; awaiting the pit link details from McCardle).
+2. The mission-brief packet (§8 deliverable) + the audit mediums (§20.3 — REG-01 first: make the
+   imported Shackleton/Nobile sites plannable).
+3. The ARGUS estimator's SE(3)+IMU upgrade; the construction-autonomy + perception roadmap
+   (docking/berm autonomy, RL on the multi-objective/multi-vehicle frontier, 8-cam feature
+   front-end, shadow-outline landmark learning).
+
+**Production readiness:** ~75% as the trainer/simulator (gated on the pit wire binding); the
+flight-autonomy autonomy stack is earlier and grows along the ARGUS track.
+
 ## 1. Purpose
 
 STEWIE is a lunar construction-planning and digital-twin platform for an IPEx/RASSOR-lineage
@@ -791,10 +817,10 @@ Open UI surface, in priority order: UI-14 (attribute table + undo), UI-6 (alert 
 rides #68), UI-18 (pane manager), UI-9/10 remainders.
 
 ### 16.6 Boundary note
-The SolNav dissertation planning set (G1–G9 gates, separate honesty firewall) is NOT renamed or
+The DART research track planning set (G1–G9 gates, separate honesty firewall) is NOT renamed or
 re-scoped by STEWIE. Convergence: STEWIE P20 (ROS2 bridge + live drive loop) is the same engineering
-object as the dissertation's persistent-runtime gap (G1.A4/A6) — one build advances both tracks;
-the dissertation's evidence-mode rules still apply on its side.
+object as the research track's persistent-runtime gap (G1.A4/A6) — one build advances both tracks;
+the research track's evidence-mode rules still apply on its side.
 
 ## 17. Cockpit state + pending work (2026-06-10 session close)
 
@@ -907,7 +933,7 @@ under-observed cells by science value — needs the team's actual objectives).
 outcomes, resync often" — the world-model-flavored rung, honestly implementable as input
 iteration over the existing terramechanics (the closed loop already runs candidate plans;
 optimize_sequence already compares algorithms). GAP: a resync protocol (real telemetry ingested
-→ state correction → re-simulate futures) — the dissertation-relevant piece.
+→ state correction → re-simulate futures) — the research track-relevant piece.
 
 ### Rung 1 (HORIZON): "Claude Rove" — click-accept mission autonomy
 A glimpse, not a deliverable: the rover will not run this code, and no one is running
@@ -941,7 +967,7 @@ started.** By family (worst-column):
 | VT 7.3 | vehicle/arms/drums/stability | 1 | 9 | the two-vehicle stance gap lives here (VT-01/02/05) |
 | AM 7.4 | posture maneuvers (MEERKAT…) | 0 | 9 | all gated on authoritative IPEx geometry |
 | CP 7.5 | perception/mapping/localization | 5 | 5 | the G1/G2 evidence feeds this |
-| SN 7.6 | solar-terrain navigation | 0 | 13 | **the dissertation family** (ARGUS) — by design still open |
+| SN 7.6 | solar-terrain navigation | 0 | 13 | **the research track family** (ARGUS) — by design still open |
 | NV 7.7 | navigation/planning/recovery | 1 | 11 | berm re-hazard + routing exist; recovery behaviors don't |
 | PM 7.8 | construction mission planning | 1 | 11 | the planner is rich but matrix-unverified |
 | EP 7.9 | energy/thermal/power/ops | 2 | 6 | battery-honest timeline shipped; thermal ops partial |
@@ -976,7 +1002,7 @@ started.** By family (worst-column):
    (CT/TW/CP families first) — turn the 19 P's into evidence-backed D's or honest N's.
 3. Flip stale matrix rows on existing evidence (TW-06 SPICE; PO docs/fetcher; EP battery).
 4. Then the families in mission order: VT/AM (needs IPEx geometry from John), NV recovery,
-   SN as the dissertation track.
+   SN as the research track track.
 
 ### 18.1 Rung status (2026-06-11)
 Rung 4: ALL THREE software gaps CLOSED. Gap 2 (telemetry shaping — downlink latency first-class,
@@ -1034,7 +1060,7 @@ STEWIE has TWO production targets with very different bars (PRD §18 ladder):
   remaining 25% is almost entirely the **#66 pluggable RC contract + SF-01 watchdog** (blocked on
   John's protocol) plus the medium hardening list above. NOT a research demo — a usable trainer
   once the RC seam lands.
-- **As FLIGHT-RELEVANT autonomy / the ARGUS estimator (the dissertation):** **~30%, by design.**
+- **As FLIGHT-RELEVANT autonomy / the ARGUS estimator (the research track):** **~30%, by design.**
   The SN solar-terrain-navigation family is 13/13 open; the pose-graph that fuses sun/shadow/DEM
   factors over mutating terrain is scaffolded (shadow_predict, register_to_dem, the re-hazard,
   the conserved mutable twin) but NOT integrated. This is the protected contribution, correctly

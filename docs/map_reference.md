@@ -99,11 +99,11 @@ gap from the two-vehicle spec. The gauge bias is fixed with the documented track
 
 ## DEM product map (which file for which job — Aaron's question, 2026-06-10)
 
-| Product | Resolution / coverage | Use in STEWIE/SolNav |
+| Product | Resolution / coverage | Use in STEWIE/DART |
 |---|---|---|
 | **PGDA Product 78** (Barker 2021) | **5 m/pix**, per-site (SiteNN dirs: 04=Shackleton rim, 06=Nobile rim 1, 01=Connecting ridge, 07=Peak-near-Shackleton, 11=de Gerlache, 20=Leibnitz β, 23=Malapert, + Haworth, Shoemaker, DM2=Nobile rim 2) | **site-scale planning/excavation** — the Haworth bundle's own lineage; Site04+Site06 downloaded to `datasets/lola_5mpp/` |
 | PGDA Products 81/90 (Barker 2023) | 5–30 m/pix, polewards of 80°S | regional context between sites |
-| **LuNaMaps SfS strip** (Bertone 2023, doi:10.5281/zenodo.10258683) | 30 m/pix, the 60°–80°S **approach corridor** (18,000 km², 1.1 GB TAR) | **optical-navigation / approach-phase evaluation** (SolNav dissertation) — not site-scale |
+| **LuNaMaps SfS strip** (Bertone 2023, doi:10.5281/zenodo.10258683) | 30 m/pix, the 60°–80°S **approach corridor** (18,000 km², 1.1 GB TAR) | **optical-navigation / approach-phase evaluation** (DART research track) — not site-scale |
 | SLDEM2015 | 60 m/pix global | basemap-scale only |
 
 ## The 30 kg question (Aaron, 2026-06-10): per drum or total?

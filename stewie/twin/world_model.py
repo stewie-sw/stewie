@@ -58,7 +58,7 @@ def describe() -> dict:
 # MERGE-1: event-sourced layered twin (L0 orbital base + L4 events -> derived terrain)
 # (absorbed from stewie/twin/world_model_events.py in M3; original docstring follows)
 # 
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/world/world_model.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 
 import math
 from dataclasses import dataclass

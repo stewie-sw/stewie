@@ -1,14 +1,14 @@
 """A5: parse + validate the dustgym runtime proprioception packet (schema proprioception/1.x) into
-solnav typed objects.
+dart typed objects.
 
-solnav owns parsing + time-sync + validation (the producer owns generation). Validation enforces:
+dart owns parsing + time-sync + validation (the producer owns generation). Validation enforces:
 strictly-monotonic per-channel timestamps; status<->payload consistency (OK requires a payload;
 UNAVAILABLE must not carry samples); FINITENESS of every numeric field; covariance 4x4 SYMMETRY (no
 silent symmetrization) and PSD; and a TRUTH FIREWALL (invariant I3) by BOTH a forbidden-key denylist and
 a strict per-level ALLOW-LIST -- any key outside the declared schema (or any rover/lander/slip/ground-
-truth key) is rejected, so a novel truth field cannot ride in. Returns solnav ImuSample/WheelSample lists.
+truth key) is rejected, so a novel truth field cannot ride in. Returns dart ImuSample/WheelSample lists.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/bridge/proprioception_io.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import json

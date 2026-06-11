@@ -1,7 +1,7 @@
 """Correlation-based DEM anchoring: recover the horizontal offset between an observed local
 elevation patch and the prior REAL DEM via a correlation peak (NCC and/or phase correlation).
 
-This is the correlation analog of the integer-shift SSD search in `solnav.geometry.dem`. Where that
+This is the correlation analog of the integer-shift SSD search in `dart.geometry.dem`. Where that
 module minimizes mean-removed SSD by an explicit shift loop, this one reads the offset off a single
 normalized cross-correlation surface (`cv2.matchTemplate` `TM_CCOEFF_NORMED`, which is the cosine of
 the mean-removed patches), and adds a parabolic sub-cell refinement around the peak plus a Fourier
@@ -17,7 +17,7 @@ The mean-removed correlation makes an absolute datum / height offset irrelevant 
 drives the match -- so a constant elevation bias between the observed patch and the DEM cannot bias
 the recovered horizontal offset.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/dem_anchor.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 from dataclasses import dataclass

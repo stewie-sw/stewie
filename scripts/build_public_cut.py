@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Assemble the sanitized PUBLIC cut of the STEWIE monorepo.
 
-PUBLICATION BOUNDARY: everything listed in the SolNav provenance manifest (the dissertation fold),
-the evaluation gates + evidence (stewie/eval), and files that ABSORBED dissertation code in the M3
+PUBLICATION BOUNDARY: everything listed in the DART provenance manifest (the research track fold),
+the evaluation gates + evidence (stewie/eval), and files that ABSORBED research track code in the M3
 merges are EXCLUDED. The output tree is the dustgym-heritage platform + John's demo + deploy/docs.
 Run: python scripts/build_public_cut.py [dest]   (default ../public_cut, OUTSIDE the repo)
 """
@@ -15,15 +15,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEST = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "..", "public_cut")
 MANIFEST = os.path.join(ROOT, "..", "design", "SOLNAV_PROVENANCE_MANIFEST.md")
 
-# dissertation-derived module paths (new-side column of the manifest table)
+# research track-derived module paths (new-side column of the manifest table)
 excluded = set()
 for line in open(MANIFEST):
     m = re.match(r"\| \S+ \| (\S+\.py) \|", line)
     if m:
         excluded.add(m.group(1))
-# files that ABSORBED dissertation code in M3 (split pending; excluded wholesale for v1)
+# files that ABSORBED research track code in M3 (split pending; excluded wholesale for v1)
 excluded |= {"dart/localization.py", "stewie/twin/world_model.py"}
-# their colocated tests + everything under stewie/eval + the dissertation-data dirs
+# their colocated tests + everything under stewie/eval + the research track-data dirs
 EXCLUDE_DIRS = ("stewie/eval", "stewie/bridge", "stewie/sensors", ".git", "__pycache__",
                 "papers", "viz/private")
 
@@ -80,4 +80,4 @@ for top in INCLUDE_TOP:
                 skipped += 1
 print(f"public cut -> {os.path.abspath(DEST)}: {copied} files copied, {skipped} excluded")
 print("EXCLUDED CLASSES: provenance-manifest modules + tests, stewie/eval (gates+evidence),")
-print("stewie/bridge + stewie/sensors (dissertation IO), M3-merged files (localization, world_model)")
+print("stewie/bridge + stewie/sensors (research track IO), M3-merged files (localization, world_model)")

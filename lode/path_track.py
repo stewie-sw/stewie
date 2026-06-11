@@ -6,7 +6,7 @@ classified D/E hazard was discovered within sensor range). Pure geometry: the pl
 drive (slip physics) are INJECTED by the caller, so this stays dependency-light and testable. Closes
 detect -> classify -> cost -> plan -> drive -> deviate -> replan on the actual map.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/path_track.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import numpy as np

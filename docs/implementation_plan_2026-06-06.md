@@ -49,7 +49,7 @@ existing known-map capabilities and makes no sensor-derived SLAM claim.
 **Mode:** `DEM_KNOWN_POSE_MISSION_SIM`
 **Target:** Week-4 beta, Week-6 hardened intern release
 **Canonical cross-repository plan:**
-`/mnt/projects/stewie/research/projects/solnav/INTERN_MVP_4_6_WEEK_PLAN.md`
+`/mnt/projects/stewie/research/projects/dart/INTERN_MVP_4_6_WEEK_PLAN.md`
 
 Critical product work:
 

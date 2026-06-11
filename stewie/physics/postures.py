@@ -2,7 +2,7 @@
 
 The producer owns the vehicle model; the Godot 8-camera rig and the kinematics/stability layer read
 these so a posture transform (MEERKAT/IRON_CROSS/COBRA/...) faithfully changes the rendered observation
-geometry -- the dissertation P2 hypothesis (posture changes observability). Joint angles + chassis lift
+geometry -- the research track P2 hypothesis (posture changes observability). Joint angles + chassis lift
 are [ASSUMPTION] geometric calibration targets, NOT measured flight values: edit the JSON to update.
 """
 from __future__ import annotations

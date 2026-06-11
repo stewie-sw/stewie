@@ -4,7 +4,7 @@ Profiles are the authority for values shared by camera geometry, IPEx specificat
 runtime compatibility checks, and experiment provenance. Runtime sensor metadata remains
 the authority for a particular frame, but it must be compatible with the selected profile.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/config/profiles.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import hashlib

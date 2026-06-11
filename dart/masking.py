@@ -8,7 +8,7 @@ unavailable (evaluation mode), a self-supervised intensity-threshold shadow
 detector provides a usable shadow mask. Real array/CV operations, no fabricated
 data; tests run on a known mask fixture and a real dustgym render.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/masking.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import numpy as np

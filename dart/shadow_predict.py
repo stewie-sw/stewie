@@ -6,7 +6,7 @@ is recognized as TERRAIN CHANGE, not a localization error. This resolves the sha
 ambiguity that breaks naive shadow cues at the poles. Cast-shadow ray-march over the (possibly excavated)
 terrain from the WorldModel's derived current_terrain. Real DEM only.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/world/shadow_predict.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math

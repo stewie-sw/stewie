@@ -13,7 +13,7 @@ Truth firewall (invariant I3): the perception entry points (:func:`benchmark_met
 field is ever an argument. The clast count is exposed strictly as an EVAL-path helper
 (:func:`count_clasts_in_truth`) for scoring scene difficulty and never feeds the matcher.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/features.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import json

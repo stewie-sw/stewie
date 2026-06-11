@@ -5,7 +5,7 @@ stereo handles near hazards. For each rover heading we compute which cameras hav
 the lander tag inside their FOV and whether the tag is large enough (in pixels) to
 detect. Real pinhole geometry; no fabricated detections.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/geometry/fov.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import numpy as np

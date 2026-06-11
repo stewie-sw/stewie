@@ -22,7 +22,7 @@ lands their caps on the sunlit pixels of the real render (``test_rock_detect.py`
 count of camera-visible truth boulders is a fixed integer recovered from the real metadata.
 Real CV/array operations only; no synthetic data, no stubs.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/rock_detect.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import json

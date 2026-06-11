@@ -1,13 +1,13 @@
-"""Consumer-side proprioception types + slip-blind derived odometry for solnav.
+"""Consumer-side proprioception types + slip-blind derived odometry for dart.
 
 The sensor GENERATION (the IMU/wheel noise model + the sourced params) now lives in the dustgym
 PRODUCER (`terrain_authority/proprioception.py`), per the ownership split
-(STANFORD_LITERATURE_ARCHITECTURE_DIFF_2026-06-08: dustgym owns sensor generation/publication; solnav
-owns parsing, time-sync, derived odometry, estimation). solnav defines its OWN parsed types here -- a
-DECOUPLED seam, no shared Python classes across the dustgym->solnav boundary -- plus the slip-blind
+(STANFORD_LITERATURE_ARCHITECTURE_DIFF_2026-06-08: dustgym owns sensor generation/publication; dart
+owns parsing, time-sync, derived odometry, estimation). dart defines its OWN parsed types here -- a
+DECOUPLED seam, no shared Python classes across the dustgym->dart boundary -- plus the slip-blind
 body odometry it derives from published wheel samples (I3: no slip/truth on the consumer side either).
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/sensors/imu_wheel.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -53,7 +53,7 @@ class WheelOdomSample:
 def body_odometry_from_encoders(sample, track_m: float, dt: float):
     """Slip-BLIND body odometry from a four-wheel encoder sample (order LF, RF, LR, RR): assumes wheel
     spin equals ground distance (encoder_delta_rad * r), so it over-reads under slip exactly as a real
-    odometry front end would. Returns (v_mps, omega_rps). Duck-typed on the sample (works for solnav's
+    odometry front end would. Returns (v_mps, omega_rps). Duck-typed on the sample (works for dart's
     parsed WheelSample or the dustgym producer's)."""
     if dt <= 0.0 or track_m <= 0.0:
         raise ValueError(f"dt and track_m must be > 0 (got dt={dt}, track_m={track_m}); "

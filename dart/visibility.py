@@ -6,7 +6,7 @@ terrain-occluded. "From here I should see crater A and NOT ridge B" is itself a 
 rover is reshaping. Compare the predicted visibility to the rover's actual detections -> a binary/where
 localization factor that pins position even when shadows and local terrain have changed. Real DEM only.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/world/visibility.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math

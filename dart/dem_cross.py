@@ -9,7 +9,7 @@ takes ANY prior DEM (LOLA / MOLA / HiRISE / sim) + the perception's obstacle wor
 observed heights (from the rover's stereo) give the residual layer when supplied. Real DEM derivatives
 only -- no synthetic terrain.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/dem_cross.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import numpy as np

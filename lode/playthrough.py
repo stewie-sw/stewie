@@ -5,7 +5,7 @@ classes (rock_taxonomy), giving the semantic Rock world model the navigation/exc
 over. Height is fused from the best available source: stereo for the rover's oblique view, the cast shadow
 (H = L*tan(e)) when the sun is grazing and the GSD is known (nadir/descent). Real renders only.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/perception/playthrough.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import os

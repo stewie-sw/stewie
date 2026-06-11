@@ -5,7 +5,7 @@ L with H = L * tan(e). The shadow points away from the Sun, so the shadow azimut
 is the Sun azimuth + 180 deg; reading the shadow azimuth therefore yields an
 absolute heading cue. All real trigonometry, no fabricated values.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/geometry/shadow.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import numpy as np

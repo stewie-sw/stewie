@@ -6,7 +6,7 @@ ridges, rims, and massifs, so it is IMMUNE to local excavation: even after the r
 around it, the horizon profile still pins its global position. Pairs with landmarks.py (the immutable
 anchors). Real DEM only.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/world/horizon.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math

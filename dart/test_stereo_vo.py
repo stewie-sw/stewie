@@ -1,7 +1,7 @@
-"""TDD for solnav.perception.stereo_vo: calibrated stereo triangulation + PnP visual odometry on the
+"""TDD for dart.stereo_vo: calibrated stereo triangulation + PnP visual odometry on the
 REAL rendered lunar stereo traverse (Godot sensor model, crater_boulders scene, frames 000..003).
 
-Real inputs only. The pipeline reuses solnav.perception.features for keypoints/matching, triangulates
+Real inputs only. The pipeline reuses dart.features for keypoints/matching, triangulates
 matched stereo keypoints with the rig intrinsics (fx from the 73.99 deg HFOV, baseline 0.07 m), and
 solves PnP between consecutive frames for inter-frame motion.
 

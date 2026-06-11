@@ -1,4 +1,4 @@
-"""#78 (ARGUS dissertation core): a windowed 2-D pose-graph estimator.
+"""#78 (ARGUS subsystem): a windowed 2-D pose-graph estimator.
 
 The unified-state contract the thesis protects, made concrete: a sparse least-squares graph over
 2-D positions x_i, with three factor types, all sourced from the existing primitives --
@@ -15,7 +15,7 @@ information matrix. This is the structure resync.py's per-axis fuse was the 1-D 
 and the seam where the shadow channel becomes an instrument rather than a nuisance.
 
 Honest scope: position-only (x, y) today; full SE(3) with orientation + IMU preintegration is the
-next slice (the dissertation's pose graph proper). Real factors only -- no fabricated measurements.
+next slice (the research track's pose graph proper). Real factors only -- no fabricated measurements.
 """
 from __future__ import annotations
 

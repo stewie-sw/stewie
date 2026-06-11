@@ -17,7 +17,7 @@ Constants (published, real):
 Azimuth convention: degrees from North, increasing clockwise (N=0, E=90, S=180,
 W=270), consistent with the IPEx "positive angular = clockwise" convention.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/geometry/solar.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import numpy as np

@@ -6,7 +6,7 @@ gates (raise on violation), never as soft cost that a planner could trade away. 
 disable, or override a designated zone, and the zone records are immutable (frozen) -- non-overridable by
 construction. The planner consumes them as hard keep-outs; the excavator refuses any dig that touches one.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/world/zones.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 import math

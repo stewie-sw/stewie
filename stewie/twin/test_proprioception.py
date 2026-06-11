@@ -1,4 +1,4 @@
-"""Proprioception sensor-generation tests (moved from solnav; the producer owns the sensor model)."""
+"""Proprioception sensor-generation tests (moved from dart; the producer owns the sensor model)."""
 import numpy as np
 
 from stewie.twin import proprioception as pp

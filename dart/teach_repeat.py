@@ -11,7 +11,7 @@ won't match later. The stereo-derived local terrain shape (binned point cloud) i
 so the reverse match still works even though the lighting changed since the teach pass. No truth, no
 synthetic data -- the signature comes from the rover's own stereo.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/world/teach_repeat.py, 2026-06-09 (M2)
+# PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations
 
 from dataclasses import dataclass, field

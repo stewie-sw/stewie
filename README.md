@@ -13,17 +13,17 @@ godot, eval) · `dart/` (perception) · `lode/` (operations) · `leap/` (earthmo
 - Gym envs: `import stewie` → `gym.make("Stewie/RoverDrive-v0")` (legacy `Dust/*` IDs + `import
   dustgym` + `DUSTGYM_*` env vars remain as deprecated aliases for one transition cycle)
 - History: this monorepo carries the full histories of the `dustgym` simulator (McCardle + Storey)
-  and the navigation research formerly named solnav (Storey); both names are retired (2026-06-10).
+  and the navigation research formerly named dart (Storey); both names are retired (2026-06-10).
 
 ## M0 state (2026-06-09)
-- Committed: both subtree imports (180 commits total; dustgym HEAD `5c986fb`, solnav HEAD `305a632`).
+- Committed: both subtree imports (180 commits total; dustgym HEAD `5c986fb`, dart HEAD `305a632`).
 - UNCOMMITTED BY DESIGN: the working-tree overlay deltas — the source repos carried uncommitted
-  state (incl. the REAL gate JSON + G1 capture data, untracked in solnav; John's doc edits in
+  state (incl. the REAL gate JSON + G1 capture data, untracked in dart; John's doc edits in
   dustgym). The monorepo working tree is byte-identical to the source trees (diff -r verified);
   those deltas stay uncommitted here exactly as they are uncommitted there. They are not ours to
   commit silently; M1 will commit them only where the restructure must touch them (flagged then).
-- Verified in-monorepo: solnav 348 passed + gate JSON byte-identical (md5 bd8bdada…) + ruff/mypy
+- Verified in-monorepo: dart 348 passed + gate JSON byte-identical (md5 bd8bdada…) + ruff/mypy
   clean; dustgym suite result appended below on completion.
 - Working-location rule: M1+ restructuring happens HERE. The old trees (`../dustgym`,
-  `../research/projects/solnav/solnav`) are FROZEN as fallback sources until M4 passes, then retire
+  `../research/projects/dart/dart`) are FROZEN as fallback sources until M4 passes, then retire
   per M5 (John's + Aaron's sign-offs).
