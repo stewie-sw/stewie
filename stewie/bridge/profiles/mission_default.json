@@ -1,8 +1,9 @@
 {
-  "downlink_kbps": 256.0,
-  "uplink_latency_ms": 1300.0,
-  "drop_prob": 0.005,
-  "camera_fps": 1.0,
-  "camera_max_bytes": 30000,
-  "provenance": "[ASSUMPTION] placeholder link budget pending the rover team's real numbers (B2.1 [DECISION]): 256 kbps downlink ~ small-lander S-band class; 1.3 s one-way ~ Earth-Moon light time + ground processing; 0.5% drop; 1 fps camera at ~30 KB/frame"
+ "downlink_kbps": 256.0,
+ "uplink_latency_ms": 1300.0,
+ "drop_prob": 0.005,
+ "camera_fps": 1.0,
+ "camera_max_bytes": 30000,
+ "provenance": "[ASSUMPTION] placeholder link budget pending the rover team's real numbers (B2.1 [DECISION]): 256 kbps downlink ~ small-lander S-band class; 1.3 s one-way ~ Earth-Moon light time + ground processing; 0.5% drop; 1 fps camera at ~30 KB/frame + downlink 2600 ms (move-and-wait baseline, 2.6 s Earth-Moon RTT; #67)",
+ "downlink_latency_ms": 2600.0
 }

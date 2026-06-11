@@ -110,3 +110,18 @@ def test_t42_sessions_stamp_one_sun_state(client):
     from stewie.specs.solar import sun_az_el
     az, el = sun_az_el(-87.45, 600000.0)
     assert op["sun"]["az_deg"] == pytest.approx(az) and op["sun"]["el_deg"] == pytest.approx(el)
+
+
+def test_operator_legs_carry_downlink_latency(client):
+    """#67 [REQ:PO-03]: the operator sees telemetry at sent + downlink latency, never sooner."""
+    r = client.post("/session/start", headers={"X-API-Key": "director-key"},
+                    json={"name": "lat", "body": "moon", "charger": [0, 0], "profile": "mission_default",
+                          "orders": [{"action": "a", "kind": "cut", "x": 10, "y": 0,
+                                      "footprint_m2": 16, "depth_m": 0.05},
+                                     {"action": "b", "kind": "fill", "x": 20, "y": 0,
+                                      "footprint_m2": 16, "depth_m": 0.05}]})
+    sid = r.json()["session_id"]
+    op = client.get(f"/session/{sid}/operator").json()
+    assert op["legs"], "the link should deliver at least one leg"
+    for leg in op["legs"]:
+        assert leg["visible_at_s"] >= leg["sent_at_s"] + 2.6 - 1e-9   # the 2600 ms downlink

@@ -74,3 +74,25 @@ def test_ideal_profile_is_transparent():
     assert all(link.try_send(10**6, t_s=0.0) for _ in range(5))
     link.send_command({"x": 1}, t_s=0.0)
     assert link.poll_commands(t_s=0.0) == [{"x": 1}]     # zero latency
+
+
+def test_downlink_latency_shapes_operator_visibility():
+    """#67 [REQ:PO-03]: telemetry the rover SENDS at t becomes operator-VISIBLE at t + downlink
+    latency -- light + relay + ground processing; the operator never sees the present."""
+    from stewie.bridge.telemetry import LinkProfile, TelemetryLink
+    p = LinkProfile(downlink_kbps=100.0, downlink_latency_ms=2600.0, provenance="test")
+    ln = TelemetryLink(p, seed=1)
+    vis = ln.deliver_at(payload_bytes=500, t_s=10.0)
+    assert vis == pytest.approx(12.6)                       # 10 s + 2.6 s
+    # ideal: zero latency, unconstrained
+    ideal = TelemetryLink(LinkProfile(), seed=1)
+    assert ideal.deliver_at(payload_bytes=10**9, t_s=5.0) == pytest.approx(5.0)
+
+
+def test_deliver_at_respects_the_byte_budget():
+    from stewie.bridge.telemetry import LinkProfile, TelemetryLink
+    p = LinkProfile(downlink_kbps=1.0, downlink_latency_ms=0.0, provenance="test")  # 125 B/s
+    ln = TelemetryLink(p, seed=1)
+    assert ln.deliver_at(payload_bytes=100, t_s=0.0) is not None
+    assert ln.deliver_at(payload_bytes=10000, t_s=0.0) is None      # over budget -> not delivered
+    assert ln.stats["rate_limited"] >= 1

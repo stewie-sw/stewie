@@ -18,8 +18,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-_ALLOWED = {"downlink_kbps", "uplink_latency_ms", "drop_prob", "camera_fps",
-            "camera_max_bytes", "provenance"}
+_ALLOWED = {"downlink_kbps", "uplink_latency_ms", "downlink_latency_ms", "drop_prob",
+            "camera_fps", "camera_max_bytes", "provenance"}
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,9 @@ class LinkProfile:
     """One mission link budget. ``None``/0 fields mean UNCONSTRAINED (the ideal profile)."""
     downlink_kbps: float | None = None
     uplink_latency_ms: float = 0.0
+    #: #67: light + relay + ground processing on the DOWNLINK -- telemetry sent at t is
+    #: operator-visible at t + this (move-and-wait baseline 2600 ms for the mission profile)
+    downlink_latency_ms: float = 0.0
     drop_prob: float = 0.0
     camera_fps: float | None = None
     camera_max_bytes: int | None = None
@@ -79,6 +82,14 @@ class TelemetryLink:
         if self._last_t is not None and t_s > self._last_t:
             self._tokens = min(cap, self._tokens + (t_s - self._last_t) * cap)
         self._last_t = t_s if self._last_t is None else max(self._last_t, t_s)
+
+    def deliver_at(self, payload_bytes: int, t_s: float) -> float | None:
+        """#67: the operator-visibility time for a packet SENT at ``t_s`` -- ``t_s`` + downlink
+        latency when the budget admits it, ``None`` when dropped/rate-limited (the packet simply
+        never reaches the ground)."""
+        if not self.try_send(payload_bytes, t_s):
+            return None
+        return float(t_s) + self.profile.downlink_latency_ms / 1000.0
 
     def try_send(self, payload_bytes: int, t_s: float) -> bool:
         self._refill(t_s)
