@@ -209,3 +209,22 @@ def test_write_hillshade_png(tmp_path, real_scene):
     assert os.path.getsize(path) > 0
     with open(path, "rb") as fh:
         assert fh.read(8) == b"\x89PNG\r\n\x1a\n"
+
+
+def test_drum_inventory_survives_scene_roundtrip(tmp_path):
+    """#77 TWIN-02: the off-grid drum_inventory (part of the conserved total) must survive a scene
+    save/load via metadata -- the float32 rasters can't carry a scalar, so io_fields persists it in
+    metadata. (The float32 height drift is inherent to the render format; the mass-EXACT path is the
+    float64 runtime checkpoint.)"""
+    import numpy as np
+    from stewie.twin import io_fields as IO
+    h = w = 8
+    fields = {"heightmap": np.zeros((h, w), "<f4"), "mass_areal": np.full((h, w), 100.0, "<f4"),
+              "density": np.full((h, w), 1500.0, "<f4"), "disturbance": np.zeros((h, w), "<f4"),
+              "state_label": np.zeros((h, w), "<u1")}
+    meta = {"grid": {"width": w, "height": h, "cell_m": 5.0, "order": "row-major-C"},
+            "drum_inventory_kg": 7.30}                  # the BDS-spec drum hold
+    d = str(tmp_path / "scene")
+    IO.save_scene(d, fields, meta)
+    _f, m2 = IO.load_scene(d)
+    assert m2.get("drum_inventory_kg") == 7.30          # survived -> conserved total recoverable

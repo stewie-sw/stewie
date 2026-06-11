@@ -54,6 +54,12 @@ def save_scene(scene_dir: str, fields: dict[str, np.ndarray], metadata: dict[str
     Each raster is written first (atomically), then metadata.json LAST as the commit marker, so its
     presence guarantees every raster is complete. REQUIRED fields (INTERFACE.md §1): heightmap,
     mass_areal, density, disturbance, state_label.
+
+    TWIN-02 (audit): this is the float32 RENDER/scene export (Godot reads <f4 textures). The off-grid
+    scalar ``drum_inventory`` (part of the conserved total = grid_mass + drum_inventory) cannot ride a
+    raster, so callers persist it in ``metadata["drum_inventory_kg"]`` (load_scene returns the full
+    metadata) -- else a scene round-trip silently drops it. The mass-EXACT conservation path is the
+    float64 runtime checkpoint, NOT this lossy float32 export.
     """
     os.makedirs(scene_dir, exist_ok=True)
 
