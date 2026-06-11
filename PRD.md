@@ -37,24 +37,32 @@ flight-autonomy autonomy stack is earlier and grows along the ARGUS track.
 **SN / ARGUS evidence path — DONE (2026-06-11):** CP-01 (release-ready), SN-02 detection front-end,
 SN-03 shadow yaw factor, SN-05 illumination route cost, SN-06 camera selection, SN-08 active-morphology
 posture + SN-08b full posture×load coverage, all shipped TDD + flipped on citing tests. SN family now
-SN-01 P, SN-02 D, SN-03 D, SN-04 P, SN-05 P, SN-06 D, SN-08 D, SN-09 D (the articulated
-self-shadow instrument: a commanded posture change cancels the unknown casting height -> exact
-sun-elevation/slope, the ARGUS-title idea); only SN-07 (LED budget, hardware-gated Q=G) remains N. Improvement attributed vs baseline on five axes (12 executed notebooks, real data,
-Colab-friendly): position 28× (real Katwijk 160→5.7 m), heading 6.2× with an honest crossover, camera
-availability 100% vs 71% at low sun, viewpoint 0.20 m vs 0, and the posture×load cross-load-tip safety
-matrix. Findings write-up: `FINDINGS_2026-06-11_SN_evidence_path.md`.
+SN-01 P, SN-02 D, SN-03 D, SN-04 P, SN-05 P, SN-06 D, SN-08 D, SN-09 D (articulated self-shadow:
+a commanded posture change cancels the unknown casting height -> exact sun-elevation/slope), SN-10 D
+(articulation-parallax triangulation: a known pose-change baseline -> heading-free standstill position
+fix); only SN-07 (LED budget, hardware-gated Q=G) remains N. Improvement attributed vs baseline across
+**16 executed notebooks** (real data, Colab-friendly): position 28× (real Katwijk 160→5.7 m), heading
+6.2× with an honest crossover, camera 100% vs 71% at low sun, viewpoint 0.20 m vs 0, posture×load
+cross-load-tip safety, articulation sun-elevation exact vs 0.55–3.2° static bias, and a heading-free
+position fix 0.0 vs 1.64 m under 8° drift (bounds real DR drift 160→1.3 m). **Camera-feasible**: the
+pixel shift dv=fx·dh/R on the real IMX547+6 mm gives 88 px @5 m, >1 px to ~440 m; the ~0.20 m
+pose-driven elevation gain is the baseline. **ARTICULATION INSTRUMENT TIE-IN**: estimator
+(`articulation_localize` -> live PoseGraphSE2) and **Godot render/sensor** (`stewie/godot/articulation_bridge`
+render-at-posture capture -> pixel measurement -> estimator) both wired + TDD. **Posture models
+RECONCILED**: the parallax dh now sources from `posture_kinematics` (sourced render FK) everywhere, with
+a cross-module consistency test. Findings: `FINDINGS_2026-06-11_SN_evidence_path.md` (+ `.pdf`).
 
-**NEXT SESSION — plan (2026-06-11):** bounded TDD slices, each gate-byte-identical with a `[REQ:]`
-marker and a baseline-comparing notebook (we keep seeing improvement):
-1. **SN-07 LED-budget selection policy** — choose camera subset + LED intensity to illuminate the most
-   hard-shadow within the active-camera + power budget; a budgeted-selection algorithm like SN-06
-   (the policy is buildable now; only the real-LED qualification is hardware-gated). Notebook: coverage
-   per watt vs an all-on / naive baseline.
-2. **Load-aware viewpoint selector** — fold SN-08b's finding into `select_viewpoint_posture`: explore
-   asymmetric postures too and pick the best feasible viewpoint under the CURRENT drum load (the
-   symmetric-only sweep misses COBRA-class options that are best when one drum is light). Notebook:
-   viewpoint gain vs the load-blind selector.
-3. **SN-01/04 promotion to D** — test the untested OR-clauses so the conservative P rows become D.
+**NEXT SESSION — plan (2026-06-11):** finish the articulation-instrument tie-in chain, then the queued
+SN slices. Bounded TDD, each gate-byte-identical with a `[REQ:]` marker + a baseline-comparing notebook:
+1. **Planner relocalization stops (#96)** — the autonomy consumer: predict DR drift along a traverse and
+   insert standstill parallax-fix stops where predicted uncertainty exceeds tolerance (like recharge
+   stops), costed in time/energy. Notebook: drift with-vs-without scheduled relocalization.
+2. **Server + cockpit action/display (#97)** — operator-triggered relocalization (perception-gated, like
+   DockWithLander) + a covariance ellipse that shrinks after the fix; trainer metrics (localization σ,
+   relocalization count). Live-verify in headless Chrome.
+3. **SN-07 LED-budget policy (#91)**, **load-aware viewpoint selector (#92)**, **SN-01/04 promotion (#93)**.
+Optional cleanup: fully unify `posture_a3`'s lift basis with `posture_kinematics` (only the parallax dh
+is reconciled so far; the stability model still uses the estimated [CONFIRM] dims).
 Then the bigger #79 frontier: the 8-cam SuperGlue front-end to convert the modelled fixes in the
 ablations into MEASURED ones (the move from characterized to qualified, fresh-session scale).
 The completed plan that produced this session, for reference:
