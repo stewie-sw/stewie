@@ -53,7 +53,7 @@ Dust = "dustgym:register_envs"
 stewie-serve = "stewie.server.server:main"
 dustgym-serve = "stewie.server.server:main"   # deprecated alias
 # fetch + checksum-verify the real LOLA Haworth DEM (PGDA Product 78); not bundled in the wheel
-dustgym-fetch-dem = "planet_browser.fetch_assets:main"
+stewie-fetch-dem = "stewie.server.fetch_assets:main"   # was a BROKEN entry point (planet_browser is gone)
 
 [tool.setuptools]
 packages = ["stewie", "stewie.physics", "stewie.terrain", "stewie.twin", "stewie.specs",

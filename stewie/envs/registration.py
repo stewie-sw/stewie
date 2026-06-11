@@ -1,4 +1,4 @@
-"""registration.py — register the dustgym envs as a Gymnasium suite (namespace ``Dust``).
+"""registration.py — register the STEWIE envs as a Gymnasium suite (canonical namespace ``Stewie``; legacy ``Dust/*`` aliases kept).
 
 Makes the envs discoverable through ``gymnasium.make("Dust/<Env>-v0")``. Importing the package
 registers them (the documented Gymnasium third-party pattern)::

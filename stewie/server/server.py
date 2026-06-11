@@ -91,7 +91,7 @@ _MAX_BODY_BYTES = int(_env("MAX_BODY_BYTES", 4 * 1024 * 1024))   # N8: request-b
 def _version() -> str:
     try:
         from importlib.metadata import version
-        return version("dustgym")
+        return version("stewie")    # the dist renamed (was dustgym; the old lookup always fell back to 0.1.0)
     except Exception:   # noqa: BLE001 -- not installed (editable/source run)
         return "0.1.0"
 

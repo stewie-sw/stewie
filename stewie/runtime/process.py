@@ -158,11 +158,11 @@ class RuntimeProcess:
             return {"status": "UNAVAILABLE",
                     "reason": f"thermal: camera {self.camera_temp_c:.1f} C below the "
                               f"{CAMERA_MIN_OPERATIONAL_C:.0f} C TVAC floor"}
-        """The camera channel from the attached frame store: REAL rendered frames, runtime clock.
-
-        The stereo pair shares one keyframe timestamp (the strict parser's per-camera monotonicity
-        allows that); intrinsics/baseline come from the store's own producer sensors.json -- the
-        runtime never invents calibration."""
+        # The camera channel from the attached frame store: REAL rendered frames, runtime clock.
+        # The stereo pair shares one keyframe timestamp (the strict parser's per-camera
+        # monotonicity allows that); intrinsics/baseline come from the store's own producer
+        # sensors.json -- the runtime never invents calibration. (Was a mid-function no-op
+        # string -- the docs agent caught it.)
         if self.frame_store is None:
             return {"status": "UNAVAILABLE"}
         import json as _json
