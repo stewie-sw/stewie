@@ -39,7 +39,7 @@ def lunar_drive_energy_per_m(g: float = G_MOON, slope_deg: float = 0.0) -> float
     return S.lunar_drive_power_w(slope_deg=slope_deg) / S.DRIVE_SPEED_MS
 
 
-def parallax_ground_truth_error(true_ranges_m, *, dh_m: float = 0.1743, fx_px: float = None,
+def parallax_ground_truth_error(true_ranges_m, *, dh_m: float = 0.1743, fx_px: float | None = None,
                                 sigma_edge_px: float = 0.685, seed: int = 0) -> dict:
     """GROUND-TRUTH validation of the parallax range math: for landmarks at KNOWN true ranges, the true
     shadow-tip shift is dv = fx*dh/R (exact geometry); a MEASURED dv adds the real edge noise
@@ -63,8 +63,8 @@ def parallax_ground_truth_error(true_ranges_m, *, dh_m: float = 0.1743, fx_px: f
                     "render-pair is the next fidelity step (binary not present here; bridge wired)"}
 
 
-def modality_range_sigma(range_m: float, *, fx_px: float = None, sigma_edge_px: float = 0.685,
-                         dh_m: float = 0.1743, stereo_baseline_m: float = None) -> dict:
+def modality_range_sigma(range_m: float, *, fx_px: float | None = None, sigma_edge_px: float = 0.685,
+                         dh_m: float = 0.1743, stereo_baseline_m: float | None = None) -> dict:
     """Range precision by MODALITY at a given range: both triangulate, so sigma_R = R^2 * sigma_px /
     (fx * baseline). Articulation parallax uses the pose-change baseline dh (0.174 m); physical stereo
     uses the rig baseline (0.07 m). The bigger articulation baseline -> finer range."""
