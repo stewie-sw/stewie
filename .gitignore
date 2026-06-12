@@ -150,3 +150,4 @@ validation/ui/
 # IPEx body preview (regenerable via scripts/gen_ipex_mesh.py)
 validation/ipex/
 deploy/.env
+stewie/godot/.tools/
