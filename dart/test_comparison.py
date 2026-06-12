@@ -71,3 +71,24 @@ def test_accuracy_precision_grounded_different_scales():
     assert ar["precision_m"] < sn["precision_m"][0]
     assert ar["precision_m"] > st["precision_m"]
     assert "arXiv:2603.17232" in st["source"] and "arXiv:2405.01673" in sn["source"]
+
+
+def test_parallax_ground_truth_error_grows_with_range_bounded_by_measured_edge():
+    """GROUND-TRUTH: measured range tracks truth, error grows ~R^2 (the parallax law), driven by the
+    REAL measured edge sigma (0.685 px) -- no assumed scale."""
+    from dart import comparison as CMP
+    gt = CMP.parallax_ground_truth_error([3, 5, 8, 12, 18, 25, 30], seed=0)
+    rows = gt["per_landmark"]
+    assert abs(rows[0]["error_m"]) < abs(rows[-1]["error_m"]) + 1e-9   # error grows with range
+    assert abs(rows[0]["error_m"]) < 0.2                              # near landmark: cm-level
+    assert gt["rmse_m"] > 0 and gt["sigma_edge_px"] == 0.685
+
+
+def test_articulation_parallax_beats_stereo_by_baseline_ratio():
+    """MODALITY: articulation parallax has a 2.49x larger baseline than the rig stereo, so its range
+    sigma is ~2.49x finer at the same range."""
+    from dart import comparison as CMP
+    m = CMP.modality_range_sigma(10.0)
+    assert m["articulation_parallax_sigma_m"] < m["stereo_sigma_m"]
+    assert abs(m["articulation_advantage_x"] - m["baseline_ratio_dh_over_b"]) < 1e-6
+    assert m["articulation_advantage_x"] > 2.0

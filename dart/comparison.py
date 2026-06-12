@@ -39,6 +39,46 @@ def lunar_drive_energy_per_m(g: float = G_MOON, slope_deg: float = 0.0) -> float
     return S.lunar_drive_power_w(slope_deg=slope_deg) / S.DRIVE_SPEED_MS
 
 
+def parallax_ground_truth_error(true_ranges_m, *, dh_m: float = 0.1743, fx_px: float = None,
+                                sigma_edge_px: float = 0.685, seed: int = 0) -> dict:
+    """GROUND-TRUTH validation of the parallax range math: for landmarks at KNOWN true ranges, the true
+    shadow-tip shift is dv = fx*dh/R (exact geometry); a MEASURED dv adds the real edge noise
+    (sigma_edge_px = 0.685, measured from CE-3 in stage 20); the recovered range R = fx*dh/dv is then
+    compared to truth. Exact truth + real intrinsics + the measured edge noise -- no assumed scale."""
+    if fx_px is None:
+        fx_px = S.flight_fx_px(6.0)
+    rng = np.random.default_rng(seed)
+    rows = []
+    for R in true_ranges_m:
+        true_dv = fx_px * dh_m / R
+        meas_dv = true_dv + rng.normal(0.0, sigma_edge_px)
+        R_meas = (fx_px * dh_m / meas_dv) if meas_dv > 1e-9 else float("inf")
+        rows.append({"true_range_m": float(R), "true_dv_px": round(true_dv, 2),
+                     "meas_dv_px": round(meas_dv, 2), "meas_range_m": round(R_meas, 3),
+                     "error_m": round(R_meas - R, 3)})
+    errs = [r["error_m"] for r in rows if math.isfinite(r["error_m"])]
+    return {"per_landmark": rows, "rmse_m": round(float(np.sqrt(np.mean(np.square(errs)))), 3),
+            "sigma_edge_px": sigma_edge_px, "dh_m": dh_m, "fx_px": round(fx_px, 1),
+            "note": "truth EXACT (geometry); noise = MEASURED CE-3 edge sigma; photometric Godot "
+                    "render-pair is the next fidelity step (binary not present here; bridge wired)"}
+
+
+def modality_range_sigma(range_m: float, *, fx_px: float = None, sigma_edge_px: float = 0.685,
+                         dh_m: float = 0.1743, stereo_baseline_m: float = None) -> dict:
+    """Range precision by MODALITY at a given range: both triangulate, so sigma_R = R^2 * sigma_px /
+    (fx * baseline). Articulation parallax uses the pose-change baseline dh (0.174 m); physical stereo
+    uses the rig baseline (0.07 m). The bigger articulation baseline -> finer range."""
+    if fx_px is None:
+        fx_px = S.flight_fx_px(6.0)
+    if stereo_baseline_m is None:
+        stereo_baseline_m = S.STEREO_BASELINE_M
+    art = range_m ** 2 * sigma_edge_px / (fx_px * dh_m)
+    ste = range_m ** 2 * sigma_edge_px / (fx_px * stereo_baseline_m)
+    return {"articulation_parallax_sigma_m": round(art, 4), "stereo_sigma_m": round(ste, 4),
+            "baseline_ratio_dh_over_b": round(dh_m / stereo_baseline_m, 2),
+            "articulation_advantage_x": round(ste / art, 2)}
+
+
 def accuracy_precision_comparison(*, near_range_m=6.0, dh_m: float = 0.1743) -> dict:
     """Accuracy (error vs truth) and precision (spread/sigma) for the three systems. CRITICAL honesty:
     they operate at DIFFERENT problem scales -- Stanford is cm-level RELATIVE (SLAM consistency),
