@@ -13,11 +13,14 @@ def _dem():
 def test_calibration_produces_a_dated_artifact_shape():
     # [REQ:SN-01] expected shadow geometry derived from s(t) (sun az/el) + local terrain
     """#81 [REQ:SN]: the shadow-sigma calibration emits the artifact -- per-elevation sigma_H, a
-    dev sigma, held-out coverage, and the operating envelope."""
+    dev sigma, the interleaved sweep-consistency check (honestly named: NOT residual coverage),
+    and the operating envelope."""
     art = calibrate_shadow_sigma(_dem(), sun_az_deg=90.0, sigma_edge_px=1.0)
     assert art["schema_version"].startswith("stewie_shadow_sigma_calibration")
     assert art["n"] >= 4 and art["per_elevation"]
-    assert 0.0 <= art["holdout_coverage"] <= 1.0
+    assert 0.0 <= art["sweep_consistency_check"] <= 1.0
+    assert "NOT the two-split residual coverage" in art["sweep_consistency_note"]
+    assert "holdout_coverage" not in art
     for r in art["per_elevation"]:
         assert r["sigma_H_m"] > 0 and r["shadow_len_m"] > 0
 

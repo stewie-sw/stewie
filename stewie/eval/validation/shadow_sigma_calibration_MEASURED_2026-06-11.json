@@ -1,8 +1,8 @@
 {
  "channel": "shadow",
  "date": "2026-06-11",
+ "dem_window": "rows900-1100,cols900-1100 (1km)",
  "dev_sigma_H_m": 0.7997,
- "holdout_coverage": 0.667,
  "m_per_px": 5.0,
  "n": 7,
  "operating_envelope_elev_deg": [
@@ -47,8 +47,8 @@
    "sigma_H_m": 2.3978
   }
  ],
- "provenance": "real DEM cast-shadow geometry + MEASURED edge sigma from real CE-3 lunar imagery (no longer a [CALIB] assumption)",
- "schema_version": "stewie_shadow_sigma_calibration/1.0",
+ "provenance": "real DEM cast-shadow geometry + MEASURED edge sigma from real Chang'e-3 descent-camera imagery (no longer a [CALIB] assumption)",
+ "schema_version": "stewie_shadow_sigma_calibration/1.1",
  "sigma_L_m": 3.4244,
  "sigma_edge_provenance": {
   "ce3_real_lunar": {
@@ -56,17 +56,20 @@
    "p25": 0.348,
    "p75": 1.658,
    "sigma_edge_px": 0.685,
-   "source": "Chang'e-3 surface imagery (datasets/lunar_ce3)"
+   "source": "Chang'e-3 descent-camera mosaic tiles, Zenodo 1203295 (datasets/lunar_ce3)"
   },
   "godot_render_xcheck": {
    "n_images": 7,
    "sigma_edge_px": 0.601
   },
   "method": "erf transition-width (penumbra+PSF) of real lit->shadow edges",
-  "note": "measured 0.68px < the 1.0px envelope assumption -> the envelope was CONSERVATIVE ~1.5x; real lunar (CE-3) and the Godot render agree (~0.6-0.7px), a sim-to-real consistency.",
+  "note": "measured edge width < the 1.0 px envelope assumption -> the envelope was CONSERVATIVE; the distribution is bimodal (sharp ~0.35 px population, soft tail to ~3 px; see p25/p75), so consumers gate on or carry the per-edge fitted width (dart.shadow_edge_sigma.per_edge_sigma) rather than apply the median globally.",
   "type": "MEASURED (was modelled 1.0 envelope)"
  },
  "sigma_edge_px": 0.685,
+ "site": "haworth",
  "sun_az_deg": 90.0,
+ "sweep_consistency_check": 0.667,
+ "sweep_consistency_note": "interleaved elevation-sweep check; NOT the two-split residual coverage of the WP2 protocol",
  "useful_sigma_h_m": 0.5
 }

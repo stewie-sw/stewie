@@ -1,10 +1,14 @@
 {
- "schema_version": "stewie_shadow_sigma_calibration/1.0",
  "channel": "shadow",
- "sun_az_deg": 90.0,
- "sigma_edge_px": 1.0,
+ "date": "2026-06-11",
+ "dem_window": "rows900-1100,cols900-1100 (1km)",
+ "dev_sigma_H_m": 1.1656,
  "m_per_px": 5.0,
- "sigma_L_m": 5.0,
+ "n": 7,
+ "operating_envelope_elev_deg": [
+  3.0,
+  5.0
+ ],
  "per_elevation": [
   {
    "elev_deg": 3.0,
@@ -42,16 +46,13 @@
    "sigma_H_m": 3.5011
   }
  ],
- "n": 7,
- "dev_sigma_H_m": 1.1656,
- "holdout_coverage": 0.667,
- "operating_envelope_elev_deg": [
-  3.0,
-  5.0
- ],
- "useful_sigma_h_m": 0.5,
  "provenance": "real DEM cast-shadow geometry; sub-pixel edge noise the only modelled input; shadow_height_sigma first-order propagation (spec sec 16). [CALIB] magnitude pending a measured-edge dataset.",
+ "schema_version": "stewie_shadow_sigma_calibration/1.1",
+ "sigma_L_m": 5.0,
+ "sigma_edge_px": 1.0,
  "site": "haworth",
- "dem_window": "rows900-1100,cols900-1100 (1km)",
- "date": "2026-06-11"
+ "sun_az_deg": 90.0,
+ "sweep_consistency_check": 0.667,
+ "sweep_consistency_note": "interleaved elevation-sweep check; NOT the two-split residual coverage of the WP2 protocol",
+ "useful_sigma_h_m": 0.5
 }

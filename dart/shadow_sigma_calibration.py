@@ -41,8 +41,12 @@ def _max_shadow_run_m(mask, cell_m, sun_az_deg):
 def calibrate_shadow_sigma(dem, *, sun_az_deg=90.0, elev_sweep=None, sigma_edge_px=1.0,
                            m_per_px=None, holdout_frac=0.4, useful_sigma_h_m=0.5):
     """Calibrate sigma_H across an elevation sweep on a real DEM. Returns the artifact dict:
-    per-elevation (L, sigma_H), the calibrated dev sigma, the held-out coverage, and the operating
-    envelope (elevations where sigma_H <= useful_sigma_h_m)."""
+    per-elevation (L, sigma_H), the dev-median sigma, the interleaved sweep-consistency check, and
+    the operating envelope (elevations where sigma_H <= useful_sigma_h_m).
+
+    The sweep_consistency_check is an interleaved elevation-split sanity check (held rows within
+    1.5x the dev median or under the usefulness floor). It is NOT the two-split residual coverage
+    of the WP2 protocol (the stereo channel's standard); do not present it as such."""
     Z, cell_m = dem[0], float(dem[1])
     m_per_px = float(m_per_px or cell_m)
     elevs = list(elev_sweep or [5, 10, 15, 20, 30, 45, 60, 75])
@@ -64,11 +68,13 @@ def calibrate_shadow_sigma(dem, *, sun_az_deg=90.0, elev_sweep=None, sigma_edge_
     coverage = covered / len(held) if held else 0.0
     envelope = [r["elev_deg"] for r in rows if r["sigma_H_m"] <= useful_sigma_h_m]
     return {
-        "schema_version": "stewie_shadow_sigma_calibration/1.0",
+        "schema_version": "stewie_shadow_sigma_calibration/1.1",
         "channel": "shadow", "sun_az_deg": float(sun_az_deg),
         "sigma_edge_px": float(sigma_edge_px), "m_per_px": m_per_px, "sigma_L_m": round(sigma_L, 4),
         "per_elevation": rows, "n": len(rows),
-        "dev_sigma_H_m": round(dev_sigma, 4), "holdout_coverage": round(coverage, 3),
+        "dev_sigma_H_m": round(dev_sigma, 4), "sweep_consistency_check": round(coverage, 3),
+        "sweep_consistency_note": "interleaved elevation-sweep check; NOT the two-split residual "
+                                  "coverage of the WP2 protocol",
         "operating_envelope_elev_deg": envelope, "useful_sigma_h_m": useful_sigma_h_m,
         "provenance": "real DEM cast-shadow geometry; sub-pixel edge noise the only modelled input; "
                       "shadow_height_sigma first-order propagation (spec sec 16). [CALIB] magnitude "
