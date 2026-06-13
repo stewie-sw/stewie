@@ -346,6 +346,25 @@ def test_route_least_cost_blocked_when_endpoint_impassable():
     assert reached is False and math.isinf(length_m) and path == []
 
 
+def test_h04_route_does_not_corner_cut_between_blocked_orthogonals():
+    """Audit H-04 (2026-06-13): an 8-connected route must not squeeze diagonally between two
+    orthogonally-blocked cells. On a 2x2 where the only step (0,0)->(1,1) corner-cuts both blocked
+    orthogonals it must be refused; a fully-open diagonal is still allowed."""
+    import numpy as np
+    cell = 1.0
+    # both orthogonals around the (0,0)->(1,1) diagonal blocked -> the corner-cut is the ONLY step -> refuse
+    passable = np.ones((2, 2), bool); passable[0, 1] = False; passable[1, 0] = False
+    _, length_m, reached = MP.route_least_cost(np.ones((2, 2)), passable, cell, (0, 0), (1, 1))
+    assert reached is False and math.isinf(length_m)
+    # control: a fully-open diagonal IS legal (we block corner-cuts, not all diagonals)
+    _, _, reached_open = MP.route_least_cost(np.ones((2, 2)), np.ones((2, 2), bool), cell, (0, 0), (1, 1))
+    assert reached_open is True
+    # control: with the center blocked, an orthogonal detour still reaches the far corner
+    p3 = np.ones((3, 3), bool); p3[1, 1] = False
+    _, _, reached_detour = MP.route_least_cost(np.ones((3, 3)), p3, cell, (0, 0), (2, 2))
+    assert reached_detour is True
+
+
 def test_routed_distance_detours_around_a_crater_on_real_haworth():
     # I10 end to end: between two buildable LOCAL sites on opposite sides of a hazardous window, the routed
     # haul distance exceeds the Euclidean line (it goes around the steep ground). Anchored to a DEM origin

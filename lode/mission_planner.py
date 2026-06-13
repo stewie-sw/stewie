@@ -1425,6 +1425,8 @@ def route_least_cost(cost, passable, cell_m, start_rc, goal_rc):
         for dr, dc, seg in _ROUTE_NB:
             nr, nc = r + dr, c + dc
             if 0 <= nr < H and 0 <= nc < W and passable[nr, nc]:
+                if dr != 0 and dc != 0 and not (passable[r + dr, c] and passable[r, c + dc]):
+                    continue                              # H-04: no diagonal corner-cut between blocked orthogonals
                 nd = d + seg * cell_m * 0.5 * (cost[r, c] + cost[nr, nc])
                 if nd < dist[nr, nc]:
                     dist[nr, nc] = nd
