@@ -1760,6 +1760,7 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
     # -- a pad whose centre is flat but whose edge straddles a steep rim must still fail (worst slope over the
     # footprint + the fraction of footprint cells over the threshold are reported as the acceptance check).
     slope_violations = []
+    off_dem_orders = []
     if dem is not None:
         Z, dem_cell = dem
         smap = slope_deg_map(Z, dem_cell)
@@ -1768,20 +1769,24 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
         for o in mission.orders:
             half = (math.sqrt(o.footprint_m2) / 2.0) / dem_cell
             cx, cy = (ox + o.x) / dem_cell, (oy + o.y) / dem_cell
-            r0, r1 = max(0, int(round(cy - half))), min(Hd, int(round(cy + half)) + 1)
-            c0, c1 = max(0, int(round(cx - half))), min(Wd, int(round(cx + half)) + 1)
-            if r1 <= r0 or c1 <= c0:
+            ur0, ur1 = int(round(cy - half)), int(round(cy + half)) + 1   # UNclamped footprint cell box
+            uc0, uc1 = int(round(cx - half)), int(round(cx + half)) + 1
+            if ur0 < 0 or uc0 < 0 or ur1 > Hd or uc1 > Wd:     # H-08: footprint leaves the DEM -> can't be
+                off_dem_orders.append({"action": o.action, "x": o.x, "y": o.y})   # validated -> reject (no edge-clip)
                 continue
-            patch = smap[r0:r1, c0:c1]
+            patch = smap[ur0:ur1, uc0:uc1]
+            if not patch.size:
+                continue
             worst = float(patch.max())
             if worst > max_slope_deg:                          # any cell in the footprint too steep -> reject
                 slope_violations.append({"action": o.action, "slope_deg": round(worst, 1),
                                          "frac_over": round(float((patch > max_slope_deg).mean()), 2),
                                          "x": o.x, "y": o.y})
     return {
-        "feasible": bool(feasible and mass_conserved and not slope_violations),
+        "feasible": bool(feasible and mass_conserved and not slope_violations and not off_dem_orders),
         "mass_conserved": bool(mass_conserved),
         "slope_violations": slope_violations,
+        "off_dem_orders": off_dem_orders,                      # H-08: orders whose footprint left the DEM bounds
         "max_slope_deg": float(max_slope_deg),
         "mass_drift_kg": float(drift),
         "planned_cut_kg": float(sum(o.footprint_m2 * o.depth_m * rho_bank for o in cuts)),

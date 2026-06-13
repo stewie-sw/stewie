@@ -199,6 +199,21 @@ def test_validate_plan_anchored_to_dem_origin():
     assert vs["feasible"] is False and vs["slope_violations"]
 
 
+def test_h08_off_dem_order_footprint_fails_acceptance():
+    """Audit H-08 (2026-06-13): an order whose footprint leaves the DEM bounds must be REJECTED (validate
+    the full footprint against DEM bounds), not silently clipped to edge cells / skipped. On a flat DEM
+    (so slope is never the cause), an off-tile order reads infeasible with an explicit off_dem reason; an
+    in-bounds order on the same DEM is not flagged off_dem."""
+    import numpy as np
+    dem = (np.zeros((40, 40)), 5.0); origin = (0.0, 0.0)   # flat 200 m tile
+    off = MP.Mission("off", "moon", [MP.BuildOrder("offmap pad", "cut", 100000.0, 100000.0, 36.0, 0.05)])
+    res = MP.validate_plan(off, dem=dem, dem_origin=origin)
+    assert res["feasible"] is False and res["off_dem_orders"]      # rejected with an explicit reason
+    inb = MP.Mission("in", "moon", [MP.BuildOrder("inmap pad", "cut", 100.0, 100.0, 36.0, 0.05)])
+    res2 = MP.validate_plan(inb, dem=dem, dem_origin=origin)
+    assert not res2["off_dem_orders"]                              # an in-bounds footprint is not flagged
+
+
 # ---- AL2: infeasible precedence fails loud, not a silent 0-trip "success" -------------------------
 def test_precedence_feasibility_unit():
     assert MP._precedence_is_feasible(3, [(0, 1), (1, 2)]) is True       # a chain: feasible
