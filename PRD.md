@@ -1277,3 +1277,48 @@ surface but adds no capability, so it can interleave with P1.4. P2 is a mix of s
 closes and honestly-gated externals; it blocks neither P1 nor P3. The frozen 2026-06-07 gate JSON is
 untouched by all of this: every slice reproduces it byte-identically, and a gate flips only via a
 new dated artifact.
+
+## 23. Architectural/security/numerical audit (2026-06-13) — production-readiness remediation
+
+A read-only architectural + security + numerical + terramechanics audit (4 critical, 20 high, 24
+medium, 10 low; against commit `9a592cc`) found the core theme: several product paths bypass or
+disagree with the authoritative models they claim to represent ("recomputing alternate versions of
+reality"). It re-prioritizes the production-readiness work AHEAD of new capability. Tracked as tasks
+**#110-#116**; one finding (M-34, a SPICE call left outside the serialization lock) is already fixed.
+
+**Phase 0 — stop unsafe operation (production blockers, do first):**
+- **C-01 (#110)** the published Compose deployment is auth-fail-open by default (`require_auth`
+  returns director-equivalent `dev-open` when no key is set; `deploy/compose.yml` defaults it empty
+  on port 8000). Production must fail closed.
+- **C-02 (#111)** conserved-state mutations (`cut_to_inventory`/`dump_from_inventory`/
+  `set_height_via_mass`/`drum_pass`) accept negative/non-finite values and reverse mass flow. Validate
+  every authority-mutation boundary.
+- **C-03 (#112)** the two shadow engines use incompatible azimuth→grid mappings (90° rotation between
+  `shadow_predict.horizon_clip` and `illumination.cast_shadow_mask`). **Gates the SN/nav track** —
+  shadow-derived localization may be rotated. One frame contract + cross-module tests first.
+- **C-04 (#113)** mission transit can drive battery SoC negative and still return an executable plan.
+  Reserve-aware edges; suppress Plan IR on infeasibility.
+
+**Phase 1 — one source of truth (#114):** one `PlanningContext` from the selected `VehicleTwin`
+threaded through all energy/mass/range/slip/report/acceptance (vehicle is otherwise ignored — all
+IPEx globals); route once and share geometry across optimizer/timeline/report/Plan IR; acceptance
+executes the exact Plan IR; compaction timestep/pass-invariant; skid-steer propagation; out-of-regime
+body gate; fail-closed routing (off-DEM, unreachable, diagonal corner-cut, bbox margin, cumulative
+ascent).
+
+**Phase 2 — harden estimation + persistence (#115). Touches the §22 nav track:** reject impossible
+parallax (H-13, the `/localize` + render-fix primitives), require ≥3 landmarks or flag the 2-landmark
+mirror ambiguity (H-14, `/localize` allows 2), pose-graph observability/anchor check (H-15, no ridge
+covariance), real shadow map-match not centroid (H-16), per-frame camera pose in mapping (H-17),
+keep anisotropic parallax covariance (H-30), one solar authority (H-18). Atomic + integrity-checked
+journal/snapshot; Unix-socket + session hardening.
+
+**Phase 3 — scale + maintain (#116):** sparse graph factorization, swept/compiled illumination,
+materialized twin state, split the server/planner god modules, pin deps + CI action SHAs, green the
+lint gate (L-01 broken `viz/*` imports), reduce mypy exclusions, quarantine archive/public copies +
+the committed Godot binary.
+
+Sequencing for the next session: **Phase 0 criticals lead** (they are genuine blockers), the Phase 2
+nav-primitive hardening rides alongside the option-1 rendered-DEM traverse (it makes the measured
+nav fixes honest under bad geometry), then Phase 1, then Phase 3. The honesty rules are unchanged:
+every fix lands TDD, gate byte-identical, no synthetic data.
