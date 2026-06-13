@@ -473,9 +473,11 @@
             <button id="navreloc" class="go" style="font-size:11px;margin-top:4px">⌖ Relocalize</button>
             <canvas id="navcov" width="300" height="210" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;margin-top:6px;max-width:100%"></canvas>
             <div id="navcovstat" style="font-size:11px;line-height:1.7;margin-top:4px;color:var(--muted)">
-              A standstill parallax fix injects an absolute factor with the geometry-derived covariance;
-              the ellipse shows the estimate σ tightening (prior → fixed). Perception-gated: armed only
-              when σ exceeds tolerance and the rover is stopped.</div>
+              <b>Worked demonstration</b> of the fix math, not a live measurement: it runs <code>/localize</code>
+              on a fixed standstill geometry (shifts derived from the parallax law), so it recovers that
+              geometry — proving the endpoint + the covariance shrink. A real fix needs measured shadow-tip
+              pixel shifts from a render/lunar capture. Perception-gated: armed only when σ exceeds tolerance
+              and the rover is stopped.</div>
           </div>
         </div>
       </div>
@@ -1373,8 +1375,10 @@ function navDrawCov(before, after) {
 async function navReloc() {
   if (!navGate()) return;
   const dh = +$("navdh").value || 0.174, sig = +$("navsig").value, fx = 679.57;
-  const landmarks = [[6, 0], [0, 8], [-7.8, 7.8]];          // standstill shadow-tip observation geometry
-  const shifts = landmarks.map((p) => fx * dh / Math.hypot(p[0], p[1]));   // real parallax law dv = fx·dh/R
+  // WORKED DEMONSTRATION (not a measurement): a fixed standstill geometry whose pixel shifts are derived
+  // from the parallax law, so /localize recovers it. A real fix uses MEASURED shadow-tip shifts.
+  const landmarks = [[6, 0], [0, 8], [-7.8, 7.8]];
+  const shifts = landmarks.map((p) => fx * dh / Math.hypot(p[0], p[1]));   // dv = fx·dh/R (forward law, then inverted server-side)
   $("navreloc").disabled = true;
   try {
     const r = await fetch("/localize", { method: "POST", headers: apiHeaders(),
@@ -1384,8 +1388,9 @@ async function navReloc() {
     if (!b.ok) { $("navcovstat").innerHTML = `<span style="color:#e8273f">${b.error}</span>`; return; }
     const after = b.xy_sigma["0"];
     navDrawCov(sig, after);
-    $("navcovstat").innerHTML = `fix (${b.fix_xy[0].toFixed(2)}, ${b.fix_xy[1].toFixed(2)}) m · `
-      + `σ <b>${sig.toFixed(1)} → ${after.toFixed(2)} m</b> (${(sig / Math.max(after, 1e-6)).toFixed(0)}× tighter)`;
+    $("navcovstat").innerHTML = `<b>demo</b> · fix (${b.fix_xy[0].toFixed(2)}, ${b.fix_xy[1].toFixed(2)}) m · `
+      + `σ <b>${sig.toFixed(1)} → ${after.toFixed(2)} m</b> (${(sig / Math.max(after, 1e-6)).toFixed(0)}× tighter) `
+      + `— recovers the worked geometry; not a measured fix`;
   } catch (e) { $("navcovstat").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
   finally { navGate(); }
 }
