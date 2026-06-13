@@ -90,8 +90,8 @@ def _ensure_kernels() -> None:
     with _SPICE_LOCK:
         if _loaded:
             return
-        sp.erract("SET", "RETURN")     # a SPICE error RETURNS (raises in spiceypy), never ABORTs the process
-        sp.errprt("SET", "NONE")       # suppress the toolkit's own stderr traceback
+        sp.erract("SET", 10, "RETURN")   # a SPICE error RETURNS (raises in spiceypy), never ABORTs the process
+        sp.errprt("SET", 10, "NONE")     # suppress the toolkit's own stderr traceback
         for k in _KERNELS:
             sp.furnsh(_os.path.join(_KERNEL_DIR, k))
         _loaded = True
