@@ -109,10 +109,12 @@ def sun_az_el_spice(site_lat_deg: float, mission_time_s: float, *, site_lon_deg:
         sun_pos, _lt = sp.spkpos("SUN", et, "MOON_ME", "LT+S", "MOON")
     lat, lon = math.radians(site_lat_deg), math.radians(site_lon_deg)
     r_moon = 1737.4
-    site = sp.latrec(r_moon, lon, lat)
+    # site rectangular position = latrec(r, lon, lat) = r * radial-unit; computed inline (pure
+    # spherical->rectangular, no SPICE call) so it needn't hold _SPICE_LOCK (audit M-34)
+    up = [math.cos(lat) * math.cos(lon), math.cos(lat) * math.sin(lon), math.sin(lat)]
+    site = [r_moon * u for u in up]
     v = [sun_pos[i] - site[i] for i in range(3)]
     # local ENU basis at the site on the sphere
-    up = [math.cos(lat) * math.cos(lon), math.cos(lat) * math.sin(lon), math.sin(lat)]
     east = [-math.sin(lon), math.cos(lon), 0.0]
     north = [-math.sin(lat) * math.cos(lon), -math.sin(lat) * math.sin(lon), math.cos(lat)]
     d = math.sqrt(sum(x * x for x in v))
