@@ -303,3 +303,31 @@ def test_render_parallax_rejects_unknown_posture(client):
     r = client.post("/render/parallax", json={
         "scene": "crater_boulders", "sun_az_deg": 135.0, "sun_el_deg": 8.0, "posture_to": "NOTAPOSTURE"})
     assert r.status_code == 400 and r.json()["ok"] is False
+
+
+# ---- POST /slam/compare : P3.1 -- the shared-testbed head-to-head, surfaced -----------------------
+@pytest.mark.skipif(not os.path.isdir(os.path.join(_KATWIJK, "Part1")),
+                    reason="raw Katwijk dataset not on this host (ESA license + size, not bundled)")
+def test_slam_compare_three_approach_classes(client, monkeypatch):
+    """[REQ:SN-12] /slam/compare runs the shared-testbed head-to-head over a REAL segment: the same
+    pose graph under three approach classes, each modeled at its reported sigma. ARGUS bounds the
+    absolute drift the passive single-pass cannot."""
+    monkeypatch.setenv("STEWIE_KATWIJK_DIR", _KATWIJK)
+    SRV._KATWIJK_CACHE.clear()
+    r = client.post("/slam/compare", json={"segment": "Part1", "n_keyframes": 20, "n_seeds": 5})
+    assert r.status_code == 200, r.text
+    c = r.json()["comparison"]
+    keys = list(c)
+    assert len(keys) == 3 and all("mean_m" in c[k] and "note" in c[k] for k in keys)
+    argus = [k for k in keys if "ARGUS" in k][0]
+    passive = [k for k in keys if "passive" in k or "Stanford" in k][0]
+    assert c[argus]["mean_m"] < c[passive]["mean_m"]            # active fixes bound what passive cannot
+
+
+def test_slam_compare_503_when_dataset_absent(client, monkeypatch):
+    """[REQ:SN-12] no dataset configured -> clean 503, never a fabricated comparison."""
+    monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
+    monkeypatch.delenv("DUSTGYM_KATWIJK_DIR", raising=False)
+    SRV._KATWIJK_CACHE.clear()
+    r = client.post("/slam/compare", json={"segment": "Part1"})
+    assert r.status_code == 503 and r.json()["ok"] is False

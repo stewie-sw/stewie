@@ -299,6 +299,13 @@ class SlamRequest(BaseModel):
     seed: int = Field(default=0, ge=0, le=10000)
 
 
+class SlamCompareRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    segment: str = Field(default="Part1", pattern=r"^Part[1-9][0-9]?$", max_length=12)
+    n_keyframes: int = Field(default=30, ge=5, le=200)
+    n_seeds: int = Field(default=12, ge=1, le=100)
+
+
 class ParallaxPlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scene: str = Field(default="crater_boulders", pattern=r"^[A-Za-z0-9_\-]+$", max_length=64)
@@ -1300,6 +1307,29 @@ def post_slam(req: SlamRequest, _auth: None = Depends(require_auth)):
         "baseline_xy": [[float(x), float(y)] for x, y in base["est_xy"]],   # odom-only path -> est-vs-DR plot
         "leave_one_out": loo["leave_one_out"],
     }
+
+
+@app.post("/slam/compare")
+def post_slam_compare(req: SlamCompareRequest, _auth: None = Depends(require_auth)):
+    """[REQ:SN-12] The shared-testbed head-to-head, surfaced. The SAME pose graph over the SAME real
+    Katwijk trajectory under three approach classes, each at its characteristic absolute-fix sigma:
+    passive single-pass (no fix), ShadowNav-class global map-match (~3 m), ARGUS articulation parallax
+    (~0.5 m). Each class is MODELED at its reported accuracy against the real drift -- the proprietary
+    stacks are not executed (honest comparison-of-classes, not of stacks). 503 when the dataset is
+    absent (PRD §22 P3)."""
+    arrays = _katwijk_arrays(req.segment)
+    if arrays is None:
+        return JSONResponse(status_code=503, content={
+            "ok": False, "error": f"Katwijk segment {req.segment!r} unavailable (set STEWIE_KATWIJK_DIR; "
+            "not bundled -- ESA license + size)"})
+    truth, dr, tyaw, gyro = arrays
+    try:
+        cmp = ISLAM.shared_testbed_comparison(truth, dr, tyaw, gyro,
+                                              n_seeds=req.n_seeds, n_keyframes=req.n_keyframes)
+    except (ValueError, RuntimeError) as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    return {"ok": True, "segment": req.segment, "n_seeds": req.n_seeds,
+            "modeled": "each class at its reported sigma vs the real drift; stacks not executed", "comparison": cmp}
 
 
 @app.post("/render/parallax")

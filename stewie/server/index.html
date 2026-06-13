@@ -452,10 +452,12 @@
               segment <select id="navseg"><option>Part1</option><option>Part2</option><option>Part3</option></select>
               · keyframes <input id="navkf" type="number" value="30" min="5" max="200" style="width:4em" />
               <button id="navrun" class="go" style="font-size:11px">▶ Run estimator</button>
+              <button id="navcmp" class="site" style="font-size:11px" title="shared-testbed head-to-head: the same trajectory under passive / ShadowNav-class / ARGUS, each modeled at its reported sigma">⚖ Compare approaches</button>
             </div>
             <canvas id="navplot" width="460" height="330" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;max-width:100%;margin-top:6px"></canvas>
             <div id="navstats" style="font-size:11px;line-height:1.7;margin-top:6px"></div>
             <div id="navloo" style="font-size:11px;margin-top:2px;color:var(--muted)"></div>
+            <div id="navcmpout" style="font-size:11px;margin-top:8px"></div>
             <div id="navempty" class="empty">No estimator run yet. Pick a real Katwijk segment and press
               <b>Run estimator</b>: the integrated pose graph fuses odometry + IMU + shadow-yaw +
               articulation-parallax + DEM, plotting the fused trajectory (cyan) against dead reckoning
@@ -1355,6 +1357,28 @@ async function navRun() {
   } catch (e) { $("navstats").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
   finally { $("navrun").disabled = false; $("navrun").textContent = "▶ Run estimator"; }
 }
+async function navCompare() {                          // P3.1: shared-testbed head-to-head (modeled at reported σ)
+  const seg = $("navseg").value, kf = +$("navkf").value || 30;
+  $("navcmp").disabled = true; $("navcmp").textContent = "… comparing";
+  try {
+    const r = await fetch("/slam/compare", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ segment: seg, n_keyframes: kf, n_seeds: 8 }) });
+    const b = await r.json();
+    if (!b.ok) { $("navcmpout").innerHTML = `<span style="color:#e8273f">${b.error || "comparison unavailable"}</span>`; return; }
+    const rows = Object.entries(b.comparison);
+    const worst = Math.max(...rows.map(([, v]) => v.mean_m));
+    $("navcmpout").innerHTML = "<b>shared-testbed head-to-head</b> — absolute drift, one trajectory, one metric:<br>"
+      + rows.map(([k, v]) => {
+          const w = Math.max(2, Math.round(180 * v.mean_m / worst));
+          const cls = k.includes("ARGUS") ? "#36d1dc" : k.includes("ShadowNav") ? "#e0a23a" : "#888";
+          return `<div style="margin:3px 0"><span style="display:inline-block;width:230px">${k}</span>`
+            + `<span style="display:inline-block;height:9px;width:${w}px;background:${cls};vertical-align:middle"></span> `
+            + `<b>${v.mean_m} m</b> ±${v.ci95_m}</div>`;
+        }).join("")
+      + `<div style="color:var(--muted);margin-top:3px">${b.modeled} · n=${b.n_seeds} seeds</div>`;
+  } catch (e) { $("navcmpout").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
+  finally { $("navcmp").disabled = false; $("navcmp").textContent = "⚖ Compare approaches"; }
+}
 function navGate() {                                  // #97 perception gate: should_relocalize(sigma, moving)
   const sig = +$("navsig").value, stand = $("navstand").checked, armed = sig > 2.0 && stand;
   $("navgate").innerHTML = armed
@@ -1396,6 +1420,7 @@ async function navReloc() {
 }
 if ($("navrun")) {
   $("navrun").onclick = navRun;
+  $("navcmp").onclick = navCompare;
   $("navreloc").onclick = navReloc;
   ["navsig", "navstand"].forEach((id) => { const el = $(id); if (el) { el.oninput = navGate; el.onchange = navGate; } });
   navGate();
