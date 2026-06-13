@@ -139,15 +139,32 @@ def get_body(name) -> Body:
     return BODIES[key]
 
 
-def params_for_body(name) -> TerramechanicsParams:
+def body_in_regime(name) -> bool:
+    """H-12: True when the body's gravity supports the gravity-loaded Bekker pressure-sinkage model
+    (gravity-loaded). False for microgravity bodies (Bennu/Phobos) where quantitative traction/sinkage
+    is OUT OF REGIME and the lunar Bekker numbers are only a flagged analog, not predictive."""
+    return get_body(name).bekker_regime != "microgravity"
+
+
+def params_for_body(name, *, allow_analog: bool = False) -> TerramechanicsParams:
     """TerramechanicsParams for a body from its SOURCED constants (bodies_sysrev.md).
 
     Overrides the repo baseline with the body's sourced cohesion / friction / density / Bekker moduli
-    where the literature provides them. For bodies whose Bekker moduli are UNKNOWN (Ceres) or the model
-    is out of regime (Bennu/Phobos, microgravity), the lunar Bekker moduli stand in as an explicit,
-    flagged analog (see Body.bekker_regime / .provenance); the body-sourced cohesion/friction/density
-    are still applied. Gravity itself is carried separately into the load (see RoverSimEnv(body=...))."""
+    where the literature provides them. For bodies whose Bekker moduli are UNKNOWN (Ceres) the lunar
+    moduli stand in as a flagged analog; the body-sourced cohesion/friction/density are still applied.
+    Gravity itself is carried separately into the load (see RoverSimEnv(body=...)).
+
+    H-12: for a MICROGRAVITY body (Bennu/Phobos) the gravity-loaded Bekker model is OUT OF REGIME, so
+    this REFUSES to return quantitative traction/sinkage params unless allow_analog=True is passed
+    explicitly -- in which case the lunar Bekker numbers stand in as a flagged analog and any output MUST
+    be labelled analog, NOT predictive. The default fails closed so the planner cannot silently present
+    microgravity results as predictions."""
     b = get_body(name)
+    if b.bekker_regime == "microgravity" and not allow_analog:
+        raise ValueError(
+            f"{b.name}: the gravity-loaded Bekker pressure-sinkage model is OUT OF REGIME for this "
+            f"microgravity body (g={b.g:.1e} m/s^2); quantitative traction/sinkage planning is refused. "
+            f"Pass allow_analog=True to use the flagged lunar analog (label outputs analog, NOT predictive).")
     base = TerramechanicsParams.from_constants()
     kw: dict = {}
     if b.bekker is not None:

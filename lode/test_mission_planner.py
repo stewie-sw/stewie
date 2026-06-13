@@ -199,6 +199,20 @@ def test_validate_plan_anchored_to_dem_origin():
     assert vs["feasible"] is False and vs["slope_violations"]
 
 
+def test_h12_planner_refuses_microgravity_soil_override():
+    """Audit H-12 (2026-06-13): the planner's quantitative soil path must REFUSE a microgravity soil
+    override (Bennu/Phobos) -- it would otherwise silently use lunar analog Bekker moduli as if they were
+    predictive. A gravity-loaded soil resolves normally."""
+    import pytest
+    m = MP.mission_from_dict({"name": "m", "body": "moon", "soil": "bennu", "charger": [0, 0],
+        "orders": [{"action": "cut", "kind": "cut", "x": 10, "y": 10, "footprint_m2": 9, "depth_m": 0.02}]})
+    with pytest.raises(ValueError, match="OUT OF REGIME"):
+        MP.mission_soil_params(m)
+    ok = MP.mission_from_dict({"name": "m", "body": "moon", "soil": "mars", "charger": [0, 0],
+        "orders": [{"action": "cut", "kind": "cut", "x": 10, "y": 10, "footprint_m2": 9, "depth_m": 0.02}]})
+    assert MP.mission_soil_params(ok) is not None                   # gravity-loaded soil resolves
+
+
 def test_h08_off_dem_order_footprint_fails_acceptance():
     """Audit H-08 (2026-06-13): an order whose footprint leaves the DEM bounds must be REJECTED (validate
     the full footprint against DEM bounds), not silently clipped to edge cells / skipped. On a flat DEM

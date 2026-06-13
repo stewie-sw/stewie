@@ -90,7 +90,9 @@ class RoverSimEnv(_BASE):
             # soil override: swap the regolith model (e.g. Earth soil on a lunar map) while keeping the
             # body's gravity. `soil` is a body name; None -> the body's own regolith.
             soil_src = _bodies.get_body(soil) if soil is not None else _b
-            self.params_base = params if params is not None else _bodies.params_for_body(soil_src)
+            # H-12: the RL env runs microgravity bodies as an EXPLICIT, warned analog (the warning below),
+            # so it opts in to the analog params; the planner path keeps the fail-closed default.
+            self.params_base = params if params is not None else _bodies.params_for_body(soil_src, allow_analog=True)
             if _b.bekker_regime == "microgravity":         # honest: Bekker model is out of regime
                 import warnings
                 warnings.warn(

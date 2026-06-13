@@ -64,11 +64,29 @@ def test_microgravity_regime_flags():
 
 
 def test_unknown_bekker_falls_back_to_lunar_analog():
-    # Ceres/Bennu/Phobos have no sourced Bekker -> repo lunar baseline stands in (flagged in provenance)
+    # Ceres/Bennu/Phobos have no sourced Bekker -> repo lunar baseline stands in (flagged in provenance).
+    # Ceres is gravity-loaded (no gate); Bennu/Phobos are microgravity OUT OF REGIME, so the analog is only
+    # returned under the explicit allow_analog opt-in (H-12).
     base = tm.TerramechanicsParams.from_constants()
-    for n in ["ceres", "bennu", "phobos"]:
+    assert B.BODIES["ceres"].bekker is None
+    assert B.params_for_body("ceres").k_phi == base.k_phi          # gravity-loaded analog, no gate
+    for n in ["bennu", "phobos"]:
         assert B.BODIES[n].bekker is None
-        assert B.params_for_body(n).k_phi == base.k_phi   # analog, not a fabricated body value
+        assert B.params_for_body(n, allow_analog=True).k_phi == base.k_phi   # analog, explicit opt-in
+
+
+def test_h12_microgravity_body_refused_unless_analog():
+    """Audit H-12 (2026-06-13): the gravity-loaded Bekker model is OUT OF REGIME for microgravity bodies.
+    params_for_body must REFUSE quantitative traction/sinkage params for Bennu/Phobos unless allow_analog
+    is explicitly set; gravity-loaded bodies are unaffected."""
+    for micro in ("bennu", "phobos"):
+        assert B.body_in_regime(micro) is False
+        with pytest.raises(ValueError, match="OUT OF REGIME"):
+            B.params_for_body(micro)                                # fail closed by default
+        assert B.params_for_body(micro, allow_analog=True) is not None   # explicit analog opt-in works
+    for grav in ("moon", "mars", "ceres", "earth"):
+        assert B.body_in_regime(grav) is True
+        assert B.params_for_body(grav) is not None                  # gravity-loaded -> no gate
 
 
 def test_cohesion_spans_orders_of_magnitude():
