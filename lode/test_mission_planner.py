@@ -894,6 +894,27 @@ def test_single_charge_range_monotone_in_slope_and_slip():
     assert MP.single_charge_range_m(g, full_pack=True) > flat              # full pack > to-reserve
 
 
+def test_c04_no_negative_soc_and_far_site_flagged_infeasible():
+    """Audit C-04 (2026-06-13): a route leg the pack cannot make must be FLAGGED infeasible, never driven
+    on negative state-of-charge. (The bug: transit ran the battery to ~-14 MJ and still 'completed'.)
+    Reachable mission -> feasible AND the timeline never dips SoC below 0; a site beyond a single charge's
+    reach -> feasible=False with an explicit reason, and STILL never goes negative."""
+    g = MP.body_gravity("moon")
+    reach = MP.single_charge_range_m(g)                        # to-reserve one-way range = drive()'s threshold
+    # (1) a reachable two-site mission (the known-feasible fixture): feasible, batt1 never negative anywhere
+    near = _pairs_mission([(40, 0), (-40, 3)])
+    _, _, _, tl, totals = MP.plan_and_simulate(near)
+    assert totals["feasible"] is True and not totals["infeasible_reasons"]
+    assert any(f["kind"] == "charge" for f in tl)              # the dig forces real mid-mission recharges
+    assert min(f["batt1"] for f in tl) >= -1e-6               # C-04 invariant: SoC floored at 0
+    # (2) a site well beyond a full charge's reach: cannot be driven to -> infeasible, explicit reason, >= 0
+    far = _pairs_mission([(reach * 1.5, 0.0)])
+    _, _, _, tlf, tf = MP.plan_and_simulate(far)
+    assert tf["feasible"] is False
+    assert tf["infeasible_reasons"] and any("reach" in r or "stranded" in r for r in tf["infeasible_reasons"])
+    assert min(f["batt1"] for f in tlf) >= -1e-6              # never the -14 MJ the audit found
+
+
 # ---- P5: execute + watch — animatable timeline -------------------------------------------------
 def test_build_timeline_is_animatable():
     m = MP.demo_mission()

@@ -431,9 +431,11 @@ def _simulate(mission, trips):
     can score any candidate order. Returns (tl, per_trip, core) -- core = the order-dependent metrics."""
     pos = list(mission.charger); batt = BATTERY_J; t = 0.0
     cum_mass = 0.0; cum_energy = 0.0; charges = 0; reserve = RESERVE_FRAC * BATTERY_J
-    tl = []; per_trip = []
+    tl = []; per_trip = []; infeasible = []           # C-04: collected reachability / SoC-floor failures
 
-    def drive(to):
+    def _leg(to):
+        """Raw drive leg: append the timeline + draw energy. The caller (drive/charge) has ensured the
+        leg fits above reserve, so this never drives SoC below zero."""
         nonlocal pos, batt, t, cum_energy
         d = _d(pos, to)
         if d <= 1e-9: return
@@ -443,11 +445,43 @@ def _simulate(mission, trips):
         pos = list(to); batt -= e; t += dur; cum_energy += e
 
     def charge():
+        """Return to the charger and refill. C-04: guard the return leg -- the reserve EXISTS so the rover
+        can always reach the charger, so the return leg may draw into reserve; it must only never go
+        NEGATIVE. If even the full remaining charge can't reach the charger the rover is STRANDED; record
+        it and return False (don't drive SoC negative, the caller stops drawing work it can never finish)."""
         nonlocal batt, t, charges
-        drive(mission.charger); need = BATTERY_J - batt; dur = need / CHARGE_W
+        if _d(pos, mission.charger) > 1e-9 and _d(pos, mission.charger) * DRIVE_J_PER_M > batt + 1e-6:
+            infeasible.append(f"stranded at ({pos[0]:.0f},{pos[1]:.0f}): cannot reach the charger to "
+                              "recharge on the remaining charge")
+            return False
+        _leg(mission.charger); need = BATTERY_J - batt; dur = need / CHARGE_W
         tl.append(dict(t0=t, t1=t+dur, kind="charge", batt0=batt, batt1=BATTERY_J, mass=0.0, speed=0.0,
                        x0=pos[0], y0=pos[1], x1=pos[0], y1=pos[1]))  # parked at charger
         batt = BATTERY_J; t += dur; charges += 1
+        return True
+
+    def drive(to):
+        """C-04: reserve-aware drive. Driving to a WORK site keeps the reserve margin -- if the leg would
+        dip SoC below reserve, recharge first (and if even a full charge can't reach it above reserve, the
+        plan is infeasible). Driving HOME may draw into reserve (that is what reserve is for) but must never
+        go NEGATIVE -- if the full remaining charge can't reach `to`, the rover is stranded. Either way the
+        leg is skipped and flagged rather than run on negative SoC (a prior bug ran the pack to ~-14 MJ)."""
+        d = _d(pos, to)
+        if d <= 1e-9: return
+        e = d * DRIVE_J_PER_M; usable = BATTERY_J - reserve
+        going_home = _d(to, mission.charger) <= 1e-9
+        if not going_home and e > batt - reserve:     # to a work site: keep the reserve margin -> recharge
+            if _d(mission.charger, to) * DRIVE_J_PER_M > usable:
+                infeasible.append(f"leg to ({to[0]:.0f},{to[1]:.0f}) needs {e / 1e3:.0f} kJ; a full charge "
+                                  f"reaches only {usable / 1e3:.0f} kJ above reserve")
+                return
+            if not charge():                          # round-trip to the charger, then proceed from full
+                return                                # stranded (infeasible recorded); never drive SoC negative
+        if e > batt + 1e-6:                           # can't physically reach `to` even on the full remaining
+            infeasible.append(f"stranded at ({pos[0]:.0f},{pos[1]:.0f}): cannot reach ({to[0]:.0f},"
+                              f"{to[1]:.0f}) on the remaining {batt / 1e3:.0f} kJ")
+            return
+        _leg(to)
 
     def spend(kind, total_e, total_dur, work_pos, mass=0.0, speed=0.0, haul_m=0.0, haul_e=None, lift_e=0.0):
         # draw total_e at work_pos, splitting across recharges; haul_e is the haul drive ENERGY (#1
@@ -461,7 +495,9 @@ def _simulate(mission, trips):
         while spent < e - 1e-6:
             usable = batt - reserve
             if usable <= 1e-3:
-                charge(); drive(work_pos); continue
+                if not charge():
+                    break                             # C-04: stranded mid-work; stop (infeasible recorded)
+                drive(work_pos); continue
             chunk = min(e - spent, usable)
             cd = dur * (chunk / e) if e > 0 else 0.0
             tl.append(dict(t0=t, t1=t+cd, kind=kind, batt0=batt, batt1=batt-chunk,
@@ -486,7 +522,8 @@ def _simulate(mission, trips):
     haul_m = sum(tr.get("haul_m", 0.0) for tr in trips)
     distance_m = drive_m + haul_m
     core = dict(time_s=t, mass_kg=cum_mass, energy_J=cum_energy, charges=charges, distance_m=distance_m,
-                avg_power_w=(cum_energy / t if t > 1e-9 else 0.0))
+                avg_power_w=(cum_energy / t if t > 1e-9 else 0.0),
+                feasible=(not infeasible), infeasible_reasons=list(infeasible))   # C-04
     return tl, per_trip, core
 
 
@@ -731,7 +768,12 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
                                           / 1e6, 1) for b in S.dig_energy_bounds_j_per_kg()),
         lift_energy_J=float(sum(tr.get("lift_e", 0.0) for tr in trips)),
         routed_haul=meta["routed"], blocked_legs=meta["blocked_legs"], traverse_cap_deg=meta["traverse_cap_deg"],
-        routes=meta.get("routes", []), feasible=meta.get("feasible", True),   # item 1 geometry + item 2 feasibility
+        routes=meta.get("routes", []),
+        # C-04: a plan is feasible only if BOTH the route has a safe corridor AND the battery can do it
+        # (reserve-aware drive). Carry the combined reasons so the product boundary can fail closed.
+        feasible=bool(meta.get("feasible", True) and core.get("feasible", True)),
+        infeasible_reasons=(([f"{meta['blocked_legs']} route leg(s) have no safe corridor"]
+                             if meta.get("blocked_legs") else []) + list(core.get("infeasible_reasons", []))),
         haul_detour_frac=(meta["routed_haul_m"] / meta["straight_haul_m"] - 1.0)
         if meta["straight_haul_m"] > 1e-9 else 0.0,
         n_keepouts=len(mission.keepouts),
