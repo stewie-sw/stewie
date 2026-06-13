@@ -43,8 +43,8 @@ def test_shadow_residual_is_a_real_absolute_factor():
     from dart.shadow_predict import cast_shadow_mask
     # a small real-terrain patch with a ridge -> a cast shadow whose edge is a landmark
     z = np.zeros((24, 24))
-    z[10:14, :] = 3.0                                       # a ridge casts a shadow downslope
-    mask = cast_shadow_mask((z, 5.0), sun_az_deg=90.0, sun_el_deg=10.0)   # sun perpendicular to the horizontal ridge
+    z[10:14, :] = 3.0                                       # an E-W ridge casts a shadow across the row axis
+    mask = cast_shadow_mask((z, 5.0), sun_az_deg=0.0, sun_el_deg=10.0)   # N-S sun, perpendicular to the E-W ridge (C-03)
     assert mask.any() and not mask.all()                   # a real partial shadow exists
     obs_xy, sigma = PG.shadow_fix_from_outline(mask, cell_m=5.0, prior_xy=(60.0, 55.0))
     g = PG.PoseGraph()

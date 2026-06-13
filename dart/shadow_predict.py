@@ -13,6 +13,8 @@ import math
 
 import numpy as np
 
+from dart.illumination import sun_march_dir_rowcol   # C-03: the single shared azimuth convention
+
 
 def cast_shadow_mask(terrain, sun_az_deg: float, sun_el_deg: float, *, max_range_m: float = 500.0):
     """Boolean cast-shadow mask: a cell is shadowed if, marching toward the Sun (azimuth az), any terrain
@@ -22,8 +24,7 @@ def cast_shadow_mask(terrain, sun_az_deg: float, sun_el_deg: float, *, max_range
     h, w = z.shape
     if sun_el_deg <= 0:
         return np.ones((h, w), dtype=bool)
-    az = math.radians(sun_az_deg)
-    dx, dy = math.cos(az), math.sin(az)
+    d_row, d_col = sun_march_dir_rowcol(sun_az_deg)   # C-03: was (col,row)=(cos,sin), a 90deg swap vs horizon_clip
     tan_el = math.tan(math.radians(sun_el_deg))
     n = max(1, int(max_range_m / cell))
     shadow = np.zeros((h, w), dtype=bool)
@@ -31,8 +32,8 @@ def cast_shadow_mask(terrain, sun_az_deg: float, sun_el_deg: float, *, max_range
         for c in range(w):
             z0 = z[r, c]
             for k in range(1, n + 1):
-                ci = int(round(c + dx * k))
-                ri = int(round(r + dy * k))
+                ci = int(round(c + d_col * k))
+                ri = int(round(r + d_row * k))
                 if not (0 <= ri < h and 0 <= ci < w):
                     break
                 if z[ri, ci] > z0 + (k * cell) * tan_el:

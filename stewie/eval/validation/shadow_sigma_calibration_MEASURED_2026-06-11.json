@@ -2,49 +2,45 @@
  "channel": "shadow",
  "date": "2026-06-11",
  "dem_window": "rows900-1100,cols900-1100 (1km)",
- "dev_sigma_H_m": 0.7997,
+ "dev_sigma_H_m": 2.0355,
  "m_per_px": 5.0,
  "n": 7,
- "operating_envelope_elev_deg": [
-  3.0,
-  5.0,
-  8.0
- ],
+ "operating_envelope_elev_deg": [],
  "per_elevation": [
   {
    "elev_deg": 3.0,
-   "shadow_len_m": 155.0,
-   "sigma_H_m": 0.3253
+   "shadow_len_m": 1000.0,
+   "sigma_H_m": 1.7593
   },
   {
    "elev_deg": 5.0,
-   "shadow_len_m": 70.0,
-   "sigma_H_m": 0.3239
+   "shadow_len_m": 1000.0,
+   "sigma_H_m": 1.784
   },
   {
    "elev_deg": 8.0,
-   "shadow_len_m": 40.0,
-   "sigma_H_m": 0.4865
+   "shadow_len_m": 1000.0,
+   "sigma_H_m": 1.8437
   },
   {
    "elev_deg": 12.0,
-   "shadow_len_m": 25.0,
-   "sigma_H_m": 0.7293
+   "shadow_len_m": 1000.0,
+   "sigma_H_m": 1.964
   },
   {
    "elev_deg": 18.0,
-   "shadow_len_m": 15.0,
-   "sigma_H_m": 1.113
+   "shadow_len_m": 1000.0,
+   "sigma_H_m": 2.2274
   },
   {
    "elev_deg": 25.0,
-   "shadow_len_m": 10.0,
-   "sigma_H_m": 1.597
+   "shadow_len_m": 40.0,
+   "sigma_H_m": 1.5991
   },
   {
    "elev_deg": 35.0,
-   "shadow_len_m": 5.0,
-   "sigma_H_m": 2.3978
+   "shadow_len_m": 10.0,
+   "sigma_H_m": 2.3979
   }
  ],
  "provenance": "real DEM cast-shadow geometry + MEASURED edge sigma from real Chang'e-3 descent-camera imagery (no longer a [CALIB] assumption)",
@@ -69,7 +65,7 @@
  "sigma_edge_px": 0.685,
  "site": "haworth",
  "sun_az_deg": 90.0,
- "sweep_consistency_check": 0.667,
+ "sweep_consistency_check": 1.0,
  "sweep_consistency_note": "interleaved elevation-sweep check; NOT the two-split residual coverage of the WP2 protocol",
  "useful_sigma_h_m": 0.5
 }

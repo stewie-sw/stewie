@@ -39,6 +39,16 @@ import numpy as np
 from stewie.specs import constants as K
 
 
+def sun_march_dir_rowcol(sun_az_deg: float) -> tuple:
+    """THE one up-sun march direction in grid coordinates (d_row, d_col) -- the single shared azimuth
+    convention (audit C-03). North-clockwise azimuth, world frame row=+Z, col=+X (cartographic; 90 deg
+    = +X = image right, matching the hillshade). So az=0 -> +Z(+row), az=90 -> +X(+col), and a step of
+    (d_row, d_col) points TOWARD the sun. cast_shadow_mask and horizon_clip both march toward the sun,
+    so they MUST use this -- previously they disagreed by a row/col swap (a 90 deg rotation)."""
+    a = np.deg2rad(sun_az_deg)
+    return float(np.cos(a)), float(np.sin(a))
+
+
 def horizon_clip(heightmap: np.ndarray, cell_m: float,
                  sun_az_deg: float, sun_el_deg: float) -> np.ndarray:
     """Per-pixel local-horizon illuminated mask under one sun position.
@@ -88,9 +98,7 @@ def horizon_clip(heightmap: np.ndarray, cell_m: float,
     # Up-sun unit step in (row=+Z, col=+X). az measured clockwise from +Z: the component
     # along +Z is cos(az), along +X is sin(az). We march TOWARD the source (up-sun), so the
     # row/col increments point in the +(toward-sun) direction.
-    az = np.deg2rad(sun_az_deg)
-    d_row = np.cos(az)   # +Z component of the up-sun direction
-    d_col = np.sin(az)   # +X component
+    d_row, d_col = sun_march_dir_rowcol(sun_az_deg)   # C-03: the single shared azimuth convention
 
     # March far enough to clear the whole tile along the dominant axis; a single heightmap
     # has no horizon information past its own edge (Product-69 caveat).

@@ -17,7 +17,7 @@ def _scene(h=40, w=40):
 
 def test_cost_is_separable_inspectable_terms():
     z, cell = _scene()
-    c = illumination_cost(z, cell_m=cell, sun_az_deg=90.0, sun_el_deg=8.0)
+    c = illumination_cost(z, cell_m=cell, sun_az_deg=0.0, sun_el_deg=8.0)
     for term in ("shadow_hazard", "saturation", "map_uncertainty", "total"):
         assert term in c and c[term].shape == z.shape    # each term is its own retrievable field
     # total is a weighted sum of the named terms -- not a black box
@@ -26,16 +26,16 @@ def test_cost_is_separable_inspectable_terms():
 
 def test_shadowed_cells_cost_more_than_lit():
     z, cell = _scene()
-    c = illumination_cost(z, cell_m=cell, sun_az_deg=90.0, sun_el_deg=8.0)
+    c = illumination_cost(z, cell_m=cell, sun_az_deg=0.0, sun_el_deg=8.0)
     from dart.shadow_predict import cast_shadow_mask
-    shadowed = cast_shadow_mask((z, cell), sun_az_deg=90.0, sun_el_deg=8.0)
+    shadowed = cast_shadow_mask((z, cell), sun_az_deg=0.0, sun_el_deg=8.0)
     assert shadowed.any() and (~shadowed).any(), "scene must have both lit + shadowed cells"
     assert c["shadow_hazard"][shadowed].mean() > c["shadow_hazard"][~shadowed].mean()  # shadow = higher risk
 
 
 def test_a_route_through_shadow_costs_more_than_the_lit_detour():
     z, cell = _scene()
-    c = illumination_cost(z, cell_m=cell, sun_az_deg=90.0, sun_el_deg=8.0)
+    c = illumination_cost(z, cell_m=cell, sun_az_deg=0.0, sun_el_deg=8.0)
     cross = c["total"][:, 20].sum()                       # a column crossing the shadow band
     assert cross >= 0                                     # the shadow band adds real cost along that column
     assert c["total"].sum() > 0                           # the illumination cost is non-trivial on a shadowed scene

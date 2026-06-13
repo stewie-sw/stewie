@@ -10,17 +10,24 @@ import numpy as np
 from dart.shadow_vectors import detect_shadow_vector
 
 
+# An E-W ridge (spanning all cols, occupying rows) casts its shadow across the ROW axis, so it must
+# be lit by a N-S sun (az=0, the up-sun march is +row under the C-03 canonical convention). The old
+# az=90 here only "worked" because of the swapped mapping C-03 fixed (an E-W sun grazes along an E-W
+# ridge and casts no shadow).
+_RIDGE_SUN_AZ = 0.0
+
+
 def _ridge_mask(h=40, w=40, ridge_rows=(18, 22)):
     from dart.shadow_predict import cast_shadow_mask
     z = np.zeros((h, w)); z[ridge_rows[0]:ridge_rows[1], :] = 6.0
-    return cast_shadow_mask((z, 5.0), sun_az_deg=90.0, sun_el_deg=8.0), z
+    return cast_shadow_mask((z, 5.0), sun_az_deg=_RIDGE_SUN_AZ, sun_el_deg=8.0), z
 
 
 def test_accepts_a_clean_low_sun_shadow_and_reports_azimuth():
     mask, _ = _ridge_mask()
-    v = detect_shadow_vector(mask, cell_m=5.0, sun_az_deg=90.0, sun_el_deg=8.0)
+    v = detect_shadow_vector(mask, cell_m=5.0, sun_az_deg=_RIDGE_SUN_AZ, sun_el_deg=8.0)
     assert v["accepted"] is True
-    assert abs(v["azimuth_deg"] - 90.0) < 25.0          # the cast direction (anti-solar), within tol
+    assert abs(v["azimuth_deg"] - _RIDGE_SUN_AZ) < 25.0  # the cast direction (anti-solar), within tol
     assert v["sigma_m"] > 0
 
 
@@ -33,14 +40,14 @@ def test_rejects_when_no_shadow_present():
 def test_rejects_rover_self_shadow_near_footprint():
     mask, _ = _ridge_mask()
     # a shadow blob right at the rover footprint = self-cast -> reject
-    v = detect_shadow_vector(mask, cell_m=5.0, sun_az_deg=90.0, sun_el_deg=8.0,
+    v = detect_shadow_vector(mask, cell_m=5.0, sun_az_deg=_RIDGE_SUN_AZ, sun_el_deg=8.0,
                              rover_rc=(20, 20), rover_radius_cells=12)
     assert v["accepted"] is False and "rover" in v["reason"].lower()
 
 
 def test_rejects_when_leds_on():
     mask, _ = _ridge_mask()
-    v = detect_shadow_vector(mask, cell_m=5.0, sun_az_deg=90.0, sun_el_deg=8.0, leds_on=True)
+    v = detect_shadow_vector(mask, cell_m=5.0, sun_az_deg=_RIDGE_SUN_AZ, sun_el_deg=8.0, leds_on=True)
     assert v["accepted"] is False and "led" in v["reason"].lower()
 
 
