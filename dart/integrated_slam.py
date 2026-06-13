@@ -65,6 +65,33 @@ def run_integrated_slam(truth_xy, dr_xy, truth_yaw, gyro_yaw, *, factors=ALL_FAC
             "est_xy": E, "n_fix": n_fix}
 
 
+def load_katwijk_arrays(part_dir):
+    """(truth_xy, dr_xy, truth_yaw, gyro_yaw) for a Katwijk part, resampled to a common length."""
+    from stewie.eval import katwijk_baseline as KB
+    _t, truth = KB.load_rtk_track(part_dir)
+    _td, dr, gyro = KB._dead_reckon(part_dir, r_wheel=0.123025)
+    dr = dr[np.linspace(0, len(dr) - 1, len(truth)).astype(int)]
+    gyro = gyro[np.linspace(0, len(gyro) - 1, len(truth)).astype(int)]
+    seg = np.diff(truth, axis=0)
+    tyaw = np.concatenate([np.arctan2(seg[:, 1], seg[:, 0]), [0.0]])
+    return truth, dr, tyaw, gyro
+
+
+def slam_statistics(truth_xy, dr_xy, truth_yaw, gyro_yaw, *, n_seeds=20, **kw):
+    """Run the full fusion over n_seeds (the modeled-factor noise) -> the DISTRIBUTION of the fused
+    absolute drift with a 95% CI, against the deterministic odometry-only baseline. Turns the single
+    demonstration into a distribution."""
+    base = run_integrated_slam(truth_xy, dr_xy, truth_yaw, gyro_yaw, factors=("odom",), seed=0, **kw)["abs_max_err_m"]
+    fused = np.array([run_integrated_slam(truth_xy, dr_xy, truth_yaw, gyro_yaw, seed=s, **kw)["abs_max_err_m"]
+                      for s in range(n_seeds)])
+    mean, std = float(fused.mean()), float(fused.std(ddof=1)) if n_seeds > 1 else 0.0
+    ci = 1.96 * std / math.sqrt(n_seeds)
+    return {"baseline_abs_m": round(base, 3), "fused_mean_m": round(mean, 3), "fused_std_m": round(std, 3),
+            "fused_ci95_m": round(ci, 3), "fused_min_m": round(float(fused.min()), 3),
+            "fused_max_m": round(float(fused.max()), 3), "reduction_x_mean": round(base / mean, 1),
+            "n_seeds": n_seeds}
+
+
 def leave_one_out(truth_xy, dr_xy, truth_yaw, gyro_yaw, **kw):
     """Baseline (odometry only), full fusion, and full-minus-each-factor. Returns the ATE table +
     each optional factor's marginal contribution (the abs-error increase when it is removed)."""
