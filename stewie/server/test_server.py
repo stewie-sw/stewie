@@ -106,6 +106,29 @@ def test_plan_too_many_orders_rejected(client):
     assert r.status_code == 400 and r.json()["ok"] is False
 
 
+def test_h03_infeasible_plan_fails_closed_no_executable_ir(client):
+    """Audit H-03 (2026-06-13): the product boundary must fail CLOSED on an infeasible plan -- surface
+    feasibility at the top level (not buried in totals) and emit NO executable Plan IR. A site far beyond
+    a single charge's reach (flat body, no DEM) is battery-infeasible (C-04)."""
+    r = client.post("/plan", json={"name": "infeasible", "body": "mars", "charger": [0, 0],
+                    "orders": [{"action": "far cut", "kind": "cut", "x": 60000.0, "y": 0.0,
+                                "footprint_m2": 36.0, "depth_m": 0.05}]})
+    assert r.status_code == 200
+    j = r.json()
+    assert j["ok"] is True and j["feasible"] is False and j["infeasible_reasons"]   # surfaced at the top
+    assert j["plan_ir"]["executable"] is False and j["plan_ir"]["actions"] == []     # no execution IR emitted
+
+
+def test_plan_feasible_plan_emits_executable_ir(client):
+    """Control for H-03: a normal reachable mission is feasible and DOES emit an executable Plan IR."""
+    r = client.post("/plan", json={"name": "ok", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut", "kind": "cut", "x": 40, "y": 30, "footprint_m2": 36, "depth_m": 0.04},
+        {"action": "fill", "kind": "fill", "x": 44, "y": 44, "footprint_m2": 14, "depth_m": 0.10}]})
+    assert r.status_code == 200
+    j = r.json()
+    assert j["feasible"] is True and j["plan_ir"]["actions"]                          # real executable actions
+
+
 # ---- /sense (drum-fill sensing) error + success -------------------------------------------------
 def test_sense_missing_true_mass_400(client):
     r = client.post("/sense", json={"capacity_kg": 30.0})

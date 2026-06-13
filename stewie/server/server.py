@@ -1227,8 +1227,19 @@ def post_plan(req: PlanRequest, _auth: None = Depends(require_auth)):
     except (KeyError, TypeError) as e:                  # missing/odd-typed field -> ALSO the contracted
         # 400 {ok:false,error} (audit M40: these surfaced as uncaught 500s)
         return JSONResponse(status_code=400, content={"ok": False, "error": f"bad request field: {e!r}"})
+    # H-03: fail CLOSED at the product boundary. A plan with an unreachable mandatory leg (no safe routing
+    # corridor) or a battery-infeasible transit must NOT hand a rover/ROS executive an executable action
+    # list. Surface feasibility prominently (not buried in totals) and SUPPRESS the executable Plan IR.
+    feasible = bool(totals.get("feasible", True))
+    infeasible_reasons = list(totals.get("infeasible_reasons", []))
+    if not feasible:
+        plan_ir = {"executable": False, "feasible": False, "infeasible_reasons": infeasible_reasons,
+                   "actions": [], "note": "execution IR suppressed (H-03): the plan has an infeasible "
+                   "leg -- unreachable corridor or battery-infeasible transit"}
     return {
         "ok": True,
+        "feasible": feasible,                           # H-03: surfaced at the top, not buried in totals
+        "infeasible_reasons": infeasible_reasons,
         "mode": "DEM_KNOWN_POSE_MISSION_SIM",           # product boundary (known-pose mission sim, not SLAM)
         # item 4: NEVER silently degrade to flat -- surface which terrain the plan actually used so the UI/report
         # can warn when the real DEM is missing (routes/hazards are not trustworthy on the flat fallback).
