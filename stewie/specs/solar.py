@@ -59,6 +59,13 @@ def sun_az_el(site_lat_deg: float, mission_time_s: float, *, site_lon_deg: float
 # mean-motion model above stays as the documented kernel-free fallback, its accuracy REPORTED by
 # crosscheck_meanmotion(). MISSION_EPOCH_UTC anchors mission_time_s=0 to a real date.
 import os as _os
+import threading as _threading
+
+# SPICE (SPICELIB) keeps global state and is NOT thread-safe; uvicorn runs sync endpoints in a
+# threadpool, so concurrent furnsh/spkpos calls corrupt its state and the toolkit hard-ABORTs the
+# whole process (SIGABRT). Serialize every SPICE call behind this lock (reentrant: sun_az_el_spice
+# holds it across its own _ensure_kernels call).
+_SPICE_LOCK = _threading.RLock()
 
 MISSION_EPOCH_UTC = "2026-11-15T00:00:00"   # [ASSUMPTION] notional IPEx demo epoch; settable
 _KERNEL_DIR = _os.environ.get("STEWIE_SPICE_KERNELS", "/mnt/projects/datasets/spice_kernels")
@@ -80,9 +87,14 @@ def _ensure_kernels() -> None:
     if _loaded:
         return
     import spiceypy as sp
-    for k in _KERNELS:
-        sp.furnsh(_os.path.join(_KERNEL_DIR, k))
-    _loaded = True
+    with _SPICE_LOCK:
+        if _loaded:
+            return
+        sp.erract("SET", "RETURN")     # a SPICE error RETURNS (raises in spiceypy), never ABORTs the process
+        sp.errprt("SET", "NONE")       # suppress the toolkit's own stderr traceback
+        for k in _KERNELS:
+            sp.furnsh(_os.path.join(_KERNEL_DIR, k))
+        _loaded = True
 
 
 def sun_az_el_spice(site_lat_deg: float, mission_time_s: float, *, site_lon_deg: float = 0.0,
@@ -91,9 +103,10 @@ def sun_az_el_spice(site_lat_deg: float, mission_time_s: float, *, site_lon_deg:
     from the Moon center in the MOON_ME body-fixed frame (LT+S aberration), transformed to the
     site's topocentric ENU on the IAU sphere."""
     import spiceypy as sp
-    _ensure_kernels()
-    et = sp.str2et(epoch_utc or MISSION_EPOCH_UTC) + float(mission_time_s)
-    sun_pos, _lt = sp.spkpos("SUN", et, "MOON_ME", "LT+S", "MOON")
+    with _SPICE_LOCK:                  # serialize: SPICE is not thread-safe
+        _ensure_kernels()
+        et = sp.str2et(epoch_utc or MISSION_EPOCH_UTC) + float(mission_time_s)
+        sun_pos, _lt = sp.spkpos("SUN", et, "MOON_ME", "LT+S", "MOON")
     lat, lon = math.radians(site_lat_deg), math.radians(site_lon_deg)
     r_moon = 1737.4
     site = sp.latrec(r_moon, lon, lat)
@@ -116,10 +129,23 @@ _MEANMOTION = sun_az_el
 
 def sun_az_el_dispatch(site_lat_deg: float, mission_time_s: float, *, backend: str = "auto",
                        **kw) -> tuple:
-    """SPICE when available (the correct wheel), mean-motion otherwise (disclosed fallback)."""
+    """SPICE when available (the correct wheel), mean-motion otherwise (disclosed fallback). A SPICE
+    failure (bad kernel, etc.) now RAISES (erract=RETURN) instead of aborting the process; in `auto`
+    it is caught and degrades to mean-motion so one bad ephemeris request can never take down the
+    server. `backend="spice"` re-raises (the caller explicitly demanded SPICE)."""
     if backend == "spice" or (backend == "auto" and spice_available()):
-        return sun_az_el_spice(site_lat_deg, mission_time_s,
-                               site_lon_deg=kw.get("site_lon_deg", 0.0))
+        try:
+            return sun_az_el_spice(site_lat_deg, mission_time_s,
+                                   site_lon_deg=kw.get("site_lon_deg", 0.0))
+        except Exception:              # noqa: BLE001 -- SPICE error -> reset state, then fall back / re-raise
+            try:
+                import spiceypy as sp
+                with _SPICE_LOCK:
+                    sp.reset()
+            except Exception:          # noqa: BLE001
+                pass
+            if backend == "spice":
+                raise
     return _MEANMOTION(site_lat_deg, mission_time_s, **kw)
 
 

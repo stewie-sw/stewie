@@ -96,3 +96,36 @@ def test_spice_vs_meanmotion_delta_artifact(tmp_path):
     assert 0.0 < out["max_abs_el_delta_deg"] < 10.0       # finite, measured, honest
     assert 0.0 <= out["max_abs_az_delta_deg"] <= 180.0
     json.dump(out, open(tmp_path / "x.json", "w"))
+
+
+def test_spice_failure_in_auto_degrades_to_meanmotion(monkeypatch):
+    """#109: a SPICE error must never abort the process. erract=RETURN makes it raise, and in `auto`
+    the dispatch catches it and degrades to the mean-motion fallback -- one bad ephemeris request can
+    no longer SIGABRT the whole server."""
+    def _boom(*a, **k):
+        raise RuntimeError("simulated SPICE(BADSUBSCRIPT)")
+    monkeypatch.setattr(solar, "spice_available", lambda: True)
+    monkeypatch.setattr(solar, "sun_az_el_spice", _boom)
+    az, el = solar.sun_az_el_dispatch(HAWORTH_LAT, 0.0, backend="auto")     # must NOT raise
+    assert (az, el) == solar._MEANMOTION(HAWORTH_LAT, 0.0)                  # fell back, no crash
+
+
+def test_concurrent_dispatch_does_not_crash():
+    """#109: SPICE is not thread-safe; concurrent dispatch (the uvicorn threadpool case) must be
+    serialized by the lock, not race inside furnsh/spkpos. Smoke: many threads, no crash, all valid."""
+    import threading
+
+    out, errs = [], []
+
+    def run():
+        try:
+            out.append(solar.sun_az_el_dispatch(HAWORTH_LAT, 0.0, backend="auto"))
+        except Exception as e:                                             # noqa: BLE001
+            errs.append(repr(e))
+    ts = [threading.Thread(target=run) for _ in range(12)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    assert not errs, errs
+    assert len(out) == 12 and all(0.0 <= az < 360.0 and -90.0 <= el <= 90.0 for az, el in out)
