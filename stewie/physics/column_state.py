@@ -176,6 +176,22 @@ class ColumnState:
         """Loose-column thickness [m] = mass_areal / density (height above datum)."""
         return self.mass_areal / self.density
 
+    @staticmethod
+    def _require_finite_nonneg(name: str, value) -> None:
+        """C-02: a conserved-state transfer quantity must be finite and >= 0. A negative value reverses
+        mass flow (cut adds mass, dump removes it, drum inventory goes negative); a NaN/Inf poisons the
+        field. Validate BEFORE any array mutation at every authority-state mutation boundary."""
+        a = np.asarray(value, dtype=float)
+        if not np.all(np.isfinite(a)):
+            raise ValueError(f"{name} must be finite (got NaN/Inf)")
+        if np.any(a < 0.0):
+            raise ValueError(f"{name} must be non-negative (got a value < 0)")
+
+    def _require_mask(self, mask: np.ndarray) -> None:
+        m = np.asarray(mask)
+        if m.shape != self.mass_areal.shape:
+            raise ValueError(f"mask shape {m.shape} != grid {self.mass_areal.shape}")
+
     def set_height_via_mass(self, target_height: np.ndarray) -> None:
         """Set mass_areal so derive_height() == target_height at current density/datum.
 
@@ -183,6 +199,11 @@ class ColumnState:
         out to the conserved mass field. After this, mass_areal is the source of truth
         and height is re-derived (never re-stored). mass_areal stays >= 0.
         """
+        th = np.asarray(target_height, dtype=float)
+        if th.shape not in ((), self.mass_areal.shape):
+            raise ValueError(f"target_height shape {th.shape} != grid {self.mass_areal.shape}")
+        if not np.all(np.isfinite(th)):                      # C-02: a non-finite target poisons mass_areal
+            raise ValueError("target_height must be finite (got NaN/Inf)")
         thick = np.maximum(target_height - self.datum, 0.0)
         self.mass_areal = thick * self.density
 
@@ -194,6 +215,8 @@ class ColumnState:
         Conserves: mass leaving the grid is added to drum_inventory (in absolute kg).
         Returns the absolute kg moved. Clamps so mass_areal stays >= 0.
         """
+        self._require_mask(mask)
+        self._require_finite_nonneg("mass_per_cell", mass_per_cell)   # C-02: no negative/NaN cut
         m = np.zeros_like(self.mass_areal)
         m[mask] = np.minimum(self.mass_areal[mask], np.broadcast_to(mass_per_cell, self.mass_areal.shape)[mask])
         self.mass_areal[mask] -= m[mask]
@@ -208,6 +231,10 @@ class ColumnState:
         occupies more height than it did in-situ. Spread evenly over the masked cells.
         Returns the absolute kg actually deposited (limited by drum inventory).
         """
+        self._require_mask(mask)
+        self._require_finite_nonneg("total_kg", total_kg)             # C-02: no negative/NaN dump
+        if not (np.isfinite(spoil_density) and spoil_density > 0.0):
+            raise ValueError("spoil_density must be finite and > 0")
         n = int(mask.sum())
         if n == 0:
             return 0.0
@@ -242,6 +269,11 @@ class ColumnState:
         already there. Conserves mass: the field is scaled down to fit available drum inventory
         if it would exceed it. Returns the absolute kg placed.
         """
+        self._require_mask(mask)
+        if not np.all(np.isfinite(np.asarray(mass_per_cell, dtype=float))):   # C-02: NaN/Inf poisons the field
+            raise ValueError("mass_per_cell must be finite (got NaN/Inf)")
+        if not (np.isfinite(spoil_density) and spoil_density > 0.0):
+            raise ValueError("spoil_density must be finite and > 0")
         field = np.zeros_like(self.mass_areal)
         field[mask] = np.maximum(np.broadcast_to(mass_per_cell, self.mass_areal.shape)[mask], 0.0)
         want_kg = float(field.sum()) * self.cell_area

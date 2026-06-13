@@ -480,6 +480,10 @@ def drum_pass(cs: ColumnState, swath_rc: list[tuple[float, float]], *,
     Counter-rotating RASSOR drum cancels horizontal reaction (spec §9; 2021-ASCEND-Mass-
     Inference-RASSOR.pdf) — we model the OBSERVABLE excavated swath, not the cut mechanics.
     """
+    if not (np.isfinite(depth_m) and depth_m >= 0.0):               # C-02: negative depth -> negative cut
+        raise ValueError(f"drum_pass depth_m must be finite and >= 0 (got {depth_m})")
+    if not (np.isfinite(width_m) and width_m > 0.0):
+        raise ValueError(f"drum_pass width_m must be finite and > 0 (got {width_m})")
     half_w = max(0.5, 0.5 * width_m / cs.cell_m)
     cut = _swath_mask(cs, swath_rc, half_w)
     if not cut.any():

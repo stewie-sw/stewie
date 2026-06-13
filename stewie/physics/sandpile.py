@@ -72,6 +72,10 @@ class Sandpile:
         (caller's bookkeeping) — this raises grid mass by mass_kg, so callers wanting a
         closed budget should pull it from drum_inventory (see ColumnState.dump_*).
         """
+        if not (np.isfinite(mass_kg) and mass_kg >= 0.0):            # C-02: no negative/NaN deposit
+            raise ValueError(f"deposit mass_kg must be finite and >= 0 (got {mass_kg})")
+        if not (np.isfinite(spoil_density) and spoil_density > 0.0):
+            raise ValueError("spoil_density must be finite and > 0")
         cs = self.cs
         if radius_cells <= 0:
             if not (0 <= r < cs.height and 0 <= c < cs.width):
