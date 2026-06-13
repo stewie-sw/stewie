@@ -83,7 +83,7 @@ def cross_dataset_edge_sigma(named_paths: dict, *, n_per: int = 40) -> dict:
     n_total}}. The same airless-tuned edge gate is applied to every dataset, so the spread reflects
     real cross-body / cross-sensor variation, not per-dataset tuning."""
     from PIL import Image
-    out = {}
+    out: dict = {}
     for label, paths in named_paths.items():
         sigs = []
         sub = list(paths)[:n_per]
