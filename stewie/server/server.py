@@ -299,6 +299,16 @@ class SlamRequest(BaseModel):
     seed: int = Field(default=0, ge=0, le=10000)
 
 
+class ParallaxPlanRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    scene: str = Field(default="crater_boulders", pattern=r"^[A-Za-z0-9_\-]+$", max_length=64)
+    sun_az_deg: float = Field(ge=0.0, le=360.0)
+    sun_el_deg: float = Field(ge=0.0, le=90.0)
+    posture_from: str = Field(default="TRANSIT", pattern=r"^[A-Z_]+$", max_length=32)
+    posture_to: str = Field(default="MEERKAT", pattern=r"^[A-Z_]+$", max_length=32)
+    size: str = Field(default="1024x768", pattern=r"^\d{2,5}x\d{2,5}$", max_length=12)
+
+
 def require_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key"),
                  authorization: str | None = Header(default=None),
                  tailscale_user_login: str | None = Header(default=None,
@@ -1289,6 +1299,23 @@ def post_slam(req: SlamRequest, _auth: None = Depends(require_auth)):
         "trajectory_xy": [[float(x), float(y)] for x, y in full["est_xy"]],
         "leave_one_out": loo["leave_one_out"],
     }
+
+
+@app.post("/render/parallax")
+def post_render_parallax(req: ParallaxPlanRequest, _auth: None = Depends(require_auth)):
+    """[REQ:SN-10] Wire the articulation-parallax capture onto the render surface. Return the
+    two-posture standstill capture plan: the known baseline dh = lift_B - lift_A and the two Godot
+    render commands (posture A + posture B, same scene + sun, the 8-camera rig) a GPU host runs to
+    capture the parallax pair. The plan + the exact dh are deterministic; executing the renders and
+    reading the shadow-tip pixel SHIFT is the gated GPU/photometric layer (PRD §22 P1.3)."""
+    from stewie.godot import articulation_bridge as AB
+    try:
+        plan = AB.parallax_capture_plan(
+            req.scene, sun_az_deg=req.sun_az_deg, sun_el_deg=req.sun_el_deg,
+            posture_from=req.posture_from, posture_to=req.posture_to, size=req.size)
+    except (KeyError, ValueError) as e:                 # unknown posture name -> get_posture raises KeyError
+        return JSONResponse(status_code=400, content={"ok": False, "error": f"unknown posture: {e}"})
+    return {"ok": True, "scene": req.scene, **plan}
 
 
 @app.post("/structure")

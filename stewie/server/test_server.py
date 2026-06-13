@@ -279,3 +279,26 @@ def test_slam_rejects_bad_segment(client):
     """[REQ:PM-06] the segment is pattern-validated -> no path traversal into the dataset root."""
     r = client.post("/slam", json={"segment": "../../etc"})
     assert r.status_code == 400 and r.json()["ok"] is False
+
+
+# ---- POST /render/parallax : P1.3 -- articulation_bridge wired onto the render surface ------------
+def test_render_parallax_plan_two_postures(client):
+    """[REQ:SN-10] /render/parallax wires the articulation-parallax capture onto the render surface:
+    the two-posture standstill plan with the known baseline dh and the two Godot render commands (the
+    plan is deterministic; executing the renders + reading the shadow-tip pixels is the gated GPU layer)."""
+    r = client.post("/render/parallax", json={"scene": "crater_boulders", "sun_az_deg": 135.0, "sun_el_deg": 8.0})
+    assert r.status_code == 200, r.text
+    b = r.json()
+    assert b["ok"] is True
+    assert b["dh_m"] > 0.0                                       # MEERKAT lifts above TRANSIT -> +baseline
+    assert [f["posture"] for f in b["frames"]] == ["TRANSIT", "MEERKAT"]
+    assert b["frames"][1]["chassis_lift_m"] > b["frames"][0]["chassis_lift_m"]
+    for f in b["frames"]:                                        # each frame carries a real render command
+        assert any("--chassis-lift" in a for a in f["argv"]) and "--sun-elev" in f["argv"]
+
+
+def test_render_parallax_rejects_unknown_posture(client):
+    """[REQ:SN-10] an unknown posture name is a clean 400, not a 500."""
+    r = client.post("/render/parallax", json={
+        "scene": "crater_boulders", "sun_az_deg": 135.0, "sun_el_deg": 8.0, "posture_to": "NOTAPOSTURE"})
+    assert r.status_code == 400 and r.json()["ok"] is False
