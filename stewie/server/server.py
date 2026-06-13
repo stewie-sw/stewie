@@ -306,6 +306,12 @@ class SlamCompareRequest(BaseModel):
     n_seeds: int = Field(default=12, ge=1, le=100)
 
 
+class LocalizeRenderRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    camera: str = Field(default="front_left", pattern=r"^[a-z_]+$", max_length=32)
+    drift_m: float = Field(default=1.41, gt=0.0, le=50.0)
+
+
 class ParallaxPlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scene: str = Field(default="crater_boulders", pattern=r"^[A-Za-z0-9_\-]+$", max_length=64)
@@ -1347,6 +1353,31 @@ def post_render_parallax(req: ParallaxPlanRequest, _auth: None = Depends(require
     except (KeyError, ValueError) as e:                 # unknown posture name -> get_posture raises KeyError
         return JSONResponse(status_code=400, content={"ok": False, "error": f"unknown posture: {e}"})
     return {"ok": True, "scene": req.scene, **plan}
+
+
+_PARALLAX_RENDER_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "godot", "out", "parallax"))
+_PARALLAX_SCENE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "samples", "crater_boulders"))
+
+
+@app.post("/localize/render")
+def post_localize_render(req: LocalizeRenderRequest, _auth: None = Depends(require_auth)):
+    """[REQ:SN-10] REAL measured articulation-parallax fix from the committed two-posture render-pair.
+    A truth-free confidence gate + RANSAC over the measured shadow/clast vertical parallax recovers the
+    rover ground position in the DEM-local frame (where it sits on the 3D DEM). TRL-5-faithful: the
+    matched features lie inside the IPEx rig's sourced 0.37-1.9 m resolvable range. 503 when the
+    render-pair is absent -- never a fabricated fix (PRD §22 P3)."""
+    if not os.path.exists(os.path.join(_PARALLAX_RENDER_DIR, "A", req.camera + ".png")):
+        return JSONResponse(status_code=503, content={
+            "ok": False, "error": "two-posture render-pair unavailable "
+            "(stewie/godot/out/parallax); render it with the Godot sidecar first"})
+    from stewie.godot import articulation_bridge as AB
+    try:
+        res = AB.localize_on_render_pair(_PARALLAX_RENDER_DIR, _PARALLAX_SCENE_DIR,
+                                         camera=req.camera, drift_m=req.drift_m)
+    except (ValueError, RuntimeError, KeyError) as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    log_event("api", "localize/render", f"{req.camera}: fix err {res['error_m']} m, {res['n_inliers']} inliers")
+    return {"ok": True, **res}
 
 
 @app.post("/structure")

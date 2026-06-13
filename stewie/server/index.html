@@ -468,18 +468,17 @@
             <div class="cap" style="font-size:10px">RELOCALIZE — articulation parallax (standstill)</div>
             <div id="navgate" style="font-size:11px;margin:5px 0"></div>
             <div class="ctl" style="font-size:11px">
-              est σ <input id="navsig" type="number" value="6.0" step="0.5" min="0" style="width:4.2em" /> m
-              · dh <input id="navdh" type="number" value="0.174" step="0.01" style="width:4.2em" /> m
+              est σ (drift) <input id="navsig" type="number" value="6.0" step="0.5" min="0" style="width:4.2em" /> m
               <label style="cursor:pointer">· <input id="navstand" type="checkbox" checked /> standstill</label>
             </div>
             <button id="navreloc" class="go" style="font-size:11px;margin-top:4px">⌖ Relocalize</button>
             <canvas id="navcov" width="300" height="210" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;margin-top:6px;max-width:100%"></canvas>
             <div id="navcovstat" style="font-size:11px;line-height:1.7;margin-top:4px;color:var(--muted)">
-              <b>Worked demonstration</b> of the fix math, not a live measurement: it runs <code>/localize</code>
-              on a fixed standstill geometry (shifts derived from the parallax law), so it recovers that
-              geometry — proving the endpoint + the covariance shrink. A real fix needs measured shadow-tip
-              pixel shifts from a render/lunar capture. Perception-gated: armed only when σ exceeds tolerance
-              and the rover is stopped.</div>
+              Runs <code>/localize/render</code> on the committed two-posture render-pair: a truth-free
+              confidence gate + RANSAC over the MEASURED shadow/clast parallax recovers the rover position
+              in the DEM frame (the plot shows landmarks, the drifted prior, the recovered fix, and truth).
+              Features lie inside the TRL-5 rig's 0.37–1.9 m resolvable range. Perception-gated: armed only
+              when σ exceeds tolerance and the rover is stopped.</div>
           </div>
         </div>
       </div>
@@ -1387,36 +1386,40 @@ function navGate() {                                  // #97 perception gate: sh
   $("navreloc").disabled = !armed;
   return armed;
 }
-function navDrawCov(before, after) {
-  const cv = $("navcov"), g = cv.getContext("2d"), cx = cv.width / 2, cy = cv.height / 2;
-  const scale = (cv.height / 2 - 18) / Math.max(before, 1e-6);
-  g.clearRect(0, 0, cv.width, cv.height);
-  g.strokeStyle = "#e0a23a"; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, before * scale, 0, 2 * Math.PI); g.stroke();
-  g.strokeStyle = "#36d1dc"; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, Math.max(2, after * scale), 0, 2 * Math.PI); g.stroke();
-  g.fillStyle = "#36d1dc"; g.beginPath(); g.arc(cx, cy, 3, 0, 2 * Math.PI); g.fill();
-  g.fillStyle = "#9aa"; g.font = "10px system-ui"; g.fillText("prior σ (amber) → fixed σ (cyan)", 8, 14);
+function navDrawFix(res) {                             // top-down DEM-frame plot of the real fix
+  const cv = $("navcov"), g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
+  const pts = res.landmarks_xy.concat([res.fix_xy, res.true_xy, res.seed_xy]);
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+  const pad = 26, s = Math.min((cv.width - 2 * pad) / Math.max(0.5, maxx - minx),
+                               (cv.height - 2 * pad) / Math.max(0.5, maxy - miny));
+  const X = (x) => pad + (x - minx) * s, Y = (y) => cv.height - pad - (y - miny) * s;
+  g.fillStyle = "#667";                                // matched landmarks (DEM coordinates)
+  res.landmarks_xy.forEach((p) => { g.beginPath(); g.arc(X(p[0]), Y(p[1]), 2, 0, 2 * Math.PI); g.fill(); });
+  g.strokeStyle = "#36d1dc"; g.lineWidth = 1.5;        // covariance around the fix
+  g.beginPath(); g.arc(X(res.fix_xy[0]), Y(res.fix_xy[1]), Math.max(3, res.fix_sigma_m * s), 0, 2 * Math.PI); g.stroke();
+  const dot = (p, c) => { g.fillStyle = c; g.beginPath(); g.arc(X(p[0]), Y(p[1]), 4, 0, 2 * Math.PI); g.fill(); };
+  dot(res.seed_xy, "#e0a23a"); dot(res.fix_xy, "#36d1dc");      // drifted prior (amber), recovered fix (cyan)
+  g.strokeStyle = "#3ad17a"; g.lineWidth = 2;          // truth (green cross)
+  const tx = X(res.true_xy[0]), ty = Y(res.true_xy[1]);
+  g.beginPath(); g.moveTo(tx - 5, ty); g.lineTo(tx + 5, ty); g.moveTo(tx, ty - 5); g.lineTo(tx, ty + 5); g.stroke();
+  g.fillStyle = "#9aa"; g.font = "10px system-ui"; g.fillText("● landmarks  ● drift  ● fix  ✛ true  (DEM frame, m)", 6, 14);
 }
-async function navReloc() {
+async function navReloc() {                            // REAL measured fix on the committed render-pair
   if (!navGate()) return;
-  const dh = +$("navdh").value || 0.174, sig = +$("navsig").value, fx = 679.57;
-  // WORKED DEMONSTRATION (not a measurement): a fixed standstill geometry whose pixel shifts are derived
-  // from the parallax law, so /localize recovers it. A real fix uses MEASURED shadow-tip shifts.
-  const landmarks = [[6, 0], [0, 8], [-7.8, 7.8]];
-  const shifts = landmarks.map((p) => fx * dh / Math.hypot(p[0], p[1]));   // dv = fx·dh/R (forward law, then inverted server-side)
-  $("navreloc").disabled = true;
+  const sig = +$("navsig").value;
+  $("navreloc").disabled = true; $("navreloc").textContent = "… capturing";
   try {
-    const r = await fetch("/localize", { method: "POST", headers: apiHeaders(),
-      body: JSON.stringify({ landmarks_xy: landmarks, pixel_shifts: shifts, dh_m: dh, fx_px: fx,
-        prior_xy: [1.5, -1.0], prior_sigma_xy: sig }) });
+    const r = await fetch("/localize/render", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ camera: "front_left", drift_m: sig }) });
     const b = await r.json();
     if (!b.ok) { $("navcovstat").innerHTML = `<span style="color:#e8273f">${b.error}</span>`; return; }
-    const after = b.xy_sigma["0"];
-    navDrawCov(sig, after);
-    $("navcovstat").innerHTML = `<b>demo</b> · fix (${b.fix_xy[0].toFixed(2)}, ${b.fix_xy[1].toFixed(2)}) m · `
-      + `σ <b>${sig.toFixed(1)} → ${after.toFixed(2)} m</b> (${(sig / Math.max(after, 1e-6)).toFixed(0)}× tighter) `
-      + `— recovers the worked geometry; not a measured fix`;
+    navDrawFix(b);
+    $("navcovstat").innerHTML = `<b>real fix</b> (render-pair) · error <b>${b.error_m} m</b> from ${b.drift_m} m drift`
+      + ` · σ ${b.fix_sigma_m} m · ${b.n_inliers}/${b.n_features} inliers · features `
+      + `${b.range_span_m[0]}–${b.range_span_m[1]} m (inside the TRL-5 rig range) · coordinates in the DEM frame`;
   } catch (e) { $("navcovstat").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
-  finally { navGate(); }
+  finally { $("navreloc").disabled = false; $("navreloc").textContent = "⌖ Relocalize"; navGate(); }
 }
 if ($("navrun")) {
   $("navrun").onclick = navRun;

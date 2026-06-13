@@ -331,3 +331,18 @@ def test_slam_compare_503_when_dataset_absent(client, monkeypatch):
     SRV._KATWIJK_CACHE.clear()
     r = client.post("/slam/compare", json={"segment": "Part1"})
     assert r.status_code == 503 and r.json()["ok"] is False
+
+
+def test_localize_render_real_fix_or_503(client):
+    """[REQ:SN-10] /localize/render returns a REAL measured articulation-parallax fix (when the
+    committed render-pair is present) or a clean 503 (absent) -- never a fabricated fix."""
+    r = client.post("/localize/render", json={})
+    if r.status_code == 503:
+        assert r.json()["ok"] is False
+    else:
+        assert r.status_code == 200, r.text
+        b = r.json()
+        assert b["ok"] is True
+        assert b["error_m"] < 0.6 and b["error_m"] < b["drift_m"]     # real fix recovers truth
+        assert b["n_inliers"] >= 3 and len(b["fix_xy"]) == 2 and len(b["true_xy"]) == 2
+        assert 0.3 < b["range_span_m"][0] and b["range_span_m"][1] < 2.0   # TRL-5 rig range

@@ -1,9 +1,14 @@
 """SN-10 Godot bridge: render-at-posture capture + frame->pixel measurement -> estimator."""
 import math
+import os
 
 import numpy as np
+import pytest
 
 from stewie.godot import articulation_bridge as AB
+
+_RENDER_PAIR = os.path.join(os.path.dirname(__file__), "out", "parallax")
+_REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def _frame_with_shadow(h, w, anchor_uv, sun_az_deg, length_px, *, bright=210.0, dark=40.0):
@@ -65,3 +70,18 @@ def test_localize_from_frames_corrects_a_drifted_node():
     err1 = math.hypot(res["pose"][1][0] - truth[0], res["pose"][1][1] - truth[1])
     assert err1 < err0                                          # render-measured fix corrects the node
     assert res["xy_sigma"][1] < before["xy_sigma"][1]
+
+
+@pytest.mark.skipif(not os.path.exists(os.path.join(_RENDER_PAIR, "A", "front_left.png")),
+                    reason="committed two-posture render-pair absent")
+def test_localize_on_render_pair_recovers_pose_truth_free():
+    """[REQ:SN-10] REAL measured articulation-parallax fix on the committed render-pair: a truth-free
+    confidence gate + RANSAC recovers the rover ground pose to well under a metre from a ~1.4 m drift,
+    using features INSIDE the TRL-5 rig's sourced 0.37-1.9 m resolvable range (no far-field render)."""
+    res = AB.localize_on_render_pair(_RENDER_PAIR, os.path.join(_REPO, "samples", "crater_boulders"))
+    assert res["n_inliers"] >= 3
+    assert res["error_m"] < 0.6                                 # recovers truth -> a real measured fix
+    assert res["error_m"] < res["drift_m"]                      # improves on the drifted prior
+    lo, hi = res["range_span_m"]
+    assert 0.3 < lo and hi < 2.0                                # features within the resolvable rig range
+    assert res["fix_sigma_m"] > 0.0                             # geometry-derived covariance
