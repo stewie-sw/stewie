@@ -1297,6 +1297,7 @@ def post_slam(req: SlamRequest, _auth: None = Depends(require_auth)):
         "reduction_x": round(base["abs_max_err_m"] / max(full["abs_max_err_m"], 1e-9), 1),
         "n_fix": full["n_fix"],
         "trajectory_xy": [[float(x), float(y)] for x, y in full["est_xy"]],
+        "baseline_xy": [[float(x), float(y)] for x, y in base["est_xy"]],   # odom-only path -> est-vs-DR plot
         "leave_one_out": loo["leave_one_out"],
     }
 

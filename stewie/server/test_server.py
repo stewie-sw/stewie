@@ -262,6 +262,7 @@ def test_slam_fuses_real_katwijk_and_bounds_drift(client, monkeypatch):
     assert b["ok"] is True
     assert b["abs_max_err_m"] < b["baseline_abs_max_err_m"]     # fusion beats odometry-only drift
     assert len(b["trajectory_xy"]) == 20 and len(b["trajectory_xy"][0]) == 2
+    assert len(b["baseline_xy"]) == 20                          # odom-only path -> estimate-vs-DR plot
     assert set(b["leave_one_out"]) == {"imu", "shadow", "parallax", "dem"}
 
 

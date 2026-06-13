@@ -388,6 +388,7 @@
       <button class="vtab active" data-view="plan">Plan <span class="sysb">LODE</span></button>
       <button class="vtab" data-view="perception">Perception <span class="sysb">DART</span></button>
       <button class="vtab" data-view="metrics">Metrics <span class="sysb">LEAP</span></button>
+      <button class="vtab" data-view="nav" title="navigation + state estimation: the ARGUS pose-graph estimate vs dead reckoning, leave-one-out attribution, and the perception-gated articulation-parallax relocalization">Navigation <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
       <span class="vtsep" title="engineer / developer / intern views">·</span>
       <button class="vtab" data-view="system" title="#55: validation, API docs, server ops, config — the operate-the-software cluster">System</button>
@@ -442,6 +443,41 @@
         <div id="rpempty" class="empty">No render yet. On the <b>Plan</b> tab, click the work-area DEM
           (Moon) to render a Godot before/after sensor frame here. A live SLAM map (observed-vs-truth as
           the rover drives) is the open map-channel work, not a faked feed.</div>
+      </div>
+      <div id="navview" class="pane">
+        <div class="cap"><span>NAVIGATION — ARGUS state estimation <small>(pose-graph estimate vs dead reckoning; articulation-parallax relocalization)</small></span></div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;padding:4px 2px">
+          <div style="flex:1 1 460px;min-width:340px">
+            <div class="ctl" style="font-size:11px">
+              segment <select id="navseg"><option>Part1</option><option>Part2</option><option>Part3</option></select>
+              · keyframes <input id="navkf" type="number" value="30" min="5" max="200" style="width:4em" />
+              <button id="navrun" class="go" style="font-size:11px">▶ Run estimator</button>
+            </div>
+            <canvas id="navplot" width="460" height="330" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;max-width:100%;margin-top:6px"></canvas>
+            <div id="navstats" style="font-size:11px;line-height:1.7;margin-top:6px"></div>
+            <div id="navloo" style="font-size:11px;margin-top:2px;color:var(--muted)"></div>
+            <div id="navempty" class="empty">No estimator run yet. Pick a real Katwijk segment and press
+              <b>Run estimator</b>: the integrated pose graph fuses odometry + IMU + shadow-yaw +
+              articulation-parallax + DEM, plotting the fused trajectory (cyan) against dead reckoning
+              (amber) with the leave-one-out factor attribution. Needs the Katwijk dataset on the host
+              (a clean 503 otherwise — never a faked trajectory).</div>
+          </div>
+          <div style="flex:1 1 320px;min-width:280px">
+            <div class="cap" style="font-size:10px">RELOCALIZE — articulation parallax (standstill)</div>
+            <div id="navgate" style="font-size:11px;margin:5px 0"></div>
+            <div class="ctl" style="font-size:11px">
+              est σ <input id="navsig" type="number" value="6.0" step="0.5" min="0" style="width:4.2em" /> m
+              · dh <input id="navdh" type="number" value="0.174" step="0.01" style="width:4.2em" /> m
+              <label style="cursor:pointer">· <input id="navstand" type="checkbox" checked /> standstill</label>
+            </div>
+            <button id="navreloc" class="go" style="font-size:11px;margin-top:4px">⌖ Relocalize</button>
+            <canvas id="navcov" width="300" height="210" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;margin-top:6px;max-width:100%"></canvas>
+            <div id="navcovstat" style="font-size:11px;line-height:1.7;margin-top:4px;color:var(--muted)">
+              A standstill parallax fix injects an absolute factor with the geometry-derived covariance;
+              the ellipse shows the estimate σ tightening (prior → fixed). Perception-gated: armed only
+              when σ exceeds tolerance and the rover is stopped.</div>
+          </div>
+        </div>
       </div>
       <div id="execview" class="pane">
         <div class="cap" style="margin-bottom:6px"><span>STABILITY — live CG &amp; tip margin <small>(posture + weighted drums; ArmState physics)</small></span></div>
@@ -1031,7 +1067,7 @@ const $ = (id) => document.getElementById(id);
 // --- view tabs: swap the stage between Plan (globe) / Perception (render) / Metrics (telemetry) / Report.
 // The globe (#cesium) stays mounted under the panes (no Cesium re-init); the active pane covers it.
 let VIEW = "plan";
-const VIEW_PANE = { perception: "renderpanel", metrics: "execview", report: "pane-report",
+const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navview", report: "pane-report",
                     validation: "pane-validation", api: "pane-api", server: "pane-server", config: "pane-config",
                     settings: "pane-settings" };
 const _PANE_LOADED = {};
@@ -1279,6 +1315,86 @@ async function loadPane(name) {
   } catch (e) { /* server not reachable (file://) -> panes keep their placeholder/empty state */ }
 }
 $("srvrefresh").onclick = () => loadPane("server");
+
+// ---- Navigation view (P1.4): ARGUS estimator surface + articulation-parallax relocalization -----
+function navDrawTrajectory(est, base) {
+  const cv = $("navplot"), g = cv.getContext("2d");
+  g.clearRect(0, 0, cv.width, cv.height);
+  const all = est.concat(base), xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
+  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+  const pad = 26, s = Math.min((cv.width - 2 * pad) / Math.max(1e-6, maxx - minx),
+                               (cv.height - 2 * pad) / Math.max(1e-6, maxy - miny));
+  const X = (x) => pad + (x - minx) * s, Y = (y) => cv.height - pad - (y - miny) * s;
+  const line = (path, color, w) => {
+    g.strokeStyle = color; g.lineWidth = w; g.beginPath();
+    path.forEach((p, i) => (i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))));
+    g.stroke();
+  };
+  line(base, "#e0a23a", 2); line(est, "#36d1dc", 2);
+  g.font = "10px system-ui"; g.fillStyle = "#36d1dc"; g.fillText("— fused estimate", pad, 14);
+  g.fillStyle = "#e0a23a"; g.fillText("— dead reckoning", pad + 104, 14);
+}
+async function navRun() {
+  const seg = $("navseg").value, kf = +$("navkf").value || 30;
+  $("navrun").disabled = true; $("navrun").textContent = "… running";
+  try {
+    const r = await fetch("/slam", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ segment: seg, n_keyframes: kf }) });
+    const b = await r.json();
+    if (!b.ok) { $("navempty").style.display = "none";
+      $("navstats").innerHTML = `<span style="color:#e8273f">${b.error || "estimator unavailable"}</span>`;
+      $("navloo").textContent = ""; return; }
+    $("navempty").style.display = "none";
+    navDrawTrajectory(b.trajectory_xy, b.baseline_xy);
+    $("navstats").innerHTML = `fused ATE <b>${b.ate_aligned_m} m</b> · abs drift <b>${b.abs_max_err_m} m</b>`
+      + ` vs baseline <b>${b.baseline_abs_max_err_m} m</b> · <b style="color:var(--accent)">${b.reduction_x}× tighter</b>`;
+    $("navloo").innerHTML = "leave-one-out (drift increase when removed): "
+      + Object.entries(b.leave_one_out).map(([k, v]) => `${k} <b>+${v.contribution_m} m</b>`).join(" · ");
+  } catch (e) { $("navstats").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
+  finally { $("navrun").disabled = false; $("navrun").textContent = "▶ Run estimator"; }
+}
+function navGate() {                                  // #97 perception gate: should_relocalize(sigma, moving)
+  const sig = +$("navsig").value, stand = $("navstand").checked, armed = sig > 2.0 && stand;
+  $("navgate").innerHTML = armed
+    ? `<span style="color:#36d1dc">● ARMED</span> — σ ${sig.toFixed(1)} m > 2.0 m tolerance, standstill`
+    : `<span style="color:var(--muted)">○ not armed</span> — ${stand ? "σ within tolerance (no fix needed)" : "needs a standstill maneuver"}`;
+  $("navreloc").disabled = !armed;
+  return armed;
+}
+function navDrawCov(before, after) {
+  const cv = $("navcov"), g = cv.getContext("2d"), cx = cv.width / 2, cy = cv.height / 2;
+  const scale = (cv.height / 2 - 18) / Math.max(before, 1e-6);
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.strokeStyle = "#e0a23a"; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, before * scale, 0, 2 * Math.PI); g.stroke();
+  g.strokeStyle = "#36d1dc"; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, Math.max(2, after * scale), 0, 2 * Math.PI); g.stroke();
+  g.fillStyle = "#36d1dc"; g.beginPath(); g.arc(cx, cy, 3, 0, 2 * Math.PI); g.fill();
+  g.fillStyle = "#9aa"; g.font = "10px system-ui"; g.fillText("prior σ (amber) → fixed σ (cyan)", 8, 14);
+}
+async function navReloc() {
+  if (!navGate()) return;
+  const dh = +$("navdh").value || 0.174, sig = +$("navsig").value, fx = 679.57;
+  const landmarks = [[6, 0], [0, 8], [-7.8, 7.8]];          // standstill shadow-tip observation geometry
+  const shifts = landmarks.map((p) => fx * dh / Math.hypot(p[0], p[1]));   // real parallax law dv = fx·dh/R
+  $("navreloc").disabled = true;
+  try {
+    const r = await fetch("/localize", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ landmarks_xy: landmarks, pixel_shifts: shifts, dh_m: dh, fx_px: fx,
+        prior_xy: [1.5, -1.0], prior_sigma_xy: sig }) });
+    const b = await r.json();
+    if (!b.ok) { $("navcovstat").innerHTML = `<span style="color:#e8273f">${b.error}</span>`; return; }
+    const after = b.xy_sigma["0"];
+    navDrawCov(sig, after);
+    $("navcovstat").innerHTML = `fix (${b.fix_xy[0].toFixed(2)}, ${b.fix_xy[1].toFixed(2)}) m · `
+      + `σ <b>${sig.toFixed(1)} → ${after.toFixed(2)} m</b> (${(sig / Math.max(after, 1e-6)).toFixed(0)}× tighter)`;
+  } catch (e) { $("navcovstat").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
+  finally { navGate(); }
+}
+if ($("navrun")) {
+  $("navrun").onclick = navRun;
+  $("navreloc").onclick = navReloc;
+  ["navsig", "navstand"].forEach((id) => { const el = $(id); if (el) { el.oninput = navGate; el.onchange = navGate; } });
+  navGate();
+}
 
 // PHYSICS loaded from bodies.json (the sim's sysrev-sourced terrain_authority/bodies.py) -> single source
 // of truth. phys() prefers the loaded body terramechanics; falls back to embedded BODIES if the file
