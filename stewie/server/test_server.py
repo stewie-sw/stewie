@@ -243,3 +243,39 @@ def test_localize_forbids_truth_fields(client):
         "dh_m": 0.174, "fx_px": 679.57, "true_pose_xy": [0.0, 0.0]})
     assert r.status_code == 400 and r.json()["ok"] is False    # rejected by the typed contract (app maps 422->400)
     assert "true_pose_xy" in r.json()["error"]                 # the forbidden field is named, never consumed
+
+
+# ---- POST /slam : P1.2 -- the integrated multi-factor SLAM run, exposed over a real segment --------
+_KATWIJK = os.environ.get("STEWIE_KATWIJK_DIR", "/mnt/projects/datasets/katwijk")
+
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(_KATWIJK, "Part1")),
+                    reason="raw Katwijk dataset not on this host (ESA license + size, not bundled)")
+def test_slam_fuses_real_katwijk_and_bounds_drift(client, monkeypatch):
+    """[REQ:PM-06] /slam runs the integrated SLAM over a REAL Katwijk segment and returns trajectory +
+    ATE + leave-one-out; the fused absolute drift is far below the odometry-only baseline."""
+    monkeypatch.setenv("STEWIE_KATWIJK_DIR", _KATWIJK)
+    SRV._KATWIJK_CACHE.clear()
+    r = client.post("/slam", json={"segment": "Part1", "n_keyframes": 20})
+    assert r.status_code == 200, r.text
+    b = r.json()
+    assert b["ok"] is True
+    assert b["abs_max_err_m"] < b["baseline_abs_max_err_m"]     # fusion beats odometry-only drift
+    assert len(b["trajectory_xy"]) == 20 and len(b["trajectory_xy"][0]) == 2
+    assert set(b["leave_one_out"]) == {"imu", "shadow", "parallax", "dem"}
+
+
+def test_slam_503_when_dataset_absent(client, monkeypatch):
+    """[REQ:PM-06] no machine paths in source -- with no dataset configured, /slam answers a clean 503,
+    it never fabricates a trajectory."""
+    monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
+    monkeypatch.delenv("DUSTGYM_KATWIJK_DIR", raising=False)
+    SRV._KATWIJK_CACHE.clear()
+    r = client.post("/slam", json={"segment": "Part1"})
+    assert r.status_code == 503 and r.json()["ok"] is False
+
+
+def test_slam_rejects_bad_segment(client):
+    """[REQ:PM-06] the segment is pattern-validated -> no path traversal into the dataset root."""
+    r = client.post("/slam", json={"segment": "../../etc"})
+    assert r.status_code == 400 and r.json()["ok"] is False

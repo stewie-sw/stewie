@@ -43,6 +43,7 @@ from lode import mission_planner as MP
 from leap import structures as ST
 from dart import articulated_parallax as AP   # P1.1: SN-10 articulation-parallax relocalization
 from dart import pose_graph_se2 as PG         # the live SE(2) estimator the fix is injected into
+from dart import integrated_slam as ISLAM     # P1.2: the integrated multi-factor SLAM run + LOO
 
 # PRD N10: structured logging + observability. Used for access logs, startup, and the additive
 # failure paths. Level via $DUSTGYM_LOG_LEVEL.
@@ -288,6 +289,14 @@ class LocalizeRequest(BaseModel):
     prior_yaw: float = Field(default=0.0, ge=-7.0, le=7.0)
     prior_sigma_xy: float = Field(default=50.0, gt=0.0, le=1e6)      # weak by default -> the fix dominates
     prior_sigma_yaw: float = Field(default=1.0, gt=0.0, le=1e3)
+
+
+class SlamRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")          # I3: observation/config only -- no truth injection
+    # pattern-validated -> the segment name cannot path-traverse out of the dataset root
+    segment: str = Field(default="Part1", pattern=r"^Part[1-9][0-9]?$", max_length=12)
+    n_keyframes: int = Field(default=30, ge=5, le=200)
+    seed: int = Field(default=0, ge=0, le=10000)
 
 
 def require_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key"),
@@ -1228,6 +1237,57 @@ def post_localize(req: LocalizeRequest, _auth: None = Depends(require_auth)):
         "pose": {str(k): [float(c) for c in v] for k, v in out["pose"].items()},
         "xy_sigma": {str(k): float(v) for k, v in out["xy_sigma"].items()},
         "yaw_sigma": {str(k): float(v) for k, v in out["yaw_sigma"].items()},
+    }
+
+
+_KATWIJK_CACHE: dict = {}   # part name -> loaded real arrays (parse once, reuse across requests)
+
+
+def _katwijk_arrays(segment: str):
+    """Resolve + cache the REAL Katwijk arrays for a segment. Returns None if the dataset is not on this
+    host (not bundled -- ESA license + size); the /slam endpoint then answers 503, never fabricates.
+    No machine-specific path in source: the root is $STEWIE_KATWIJK_DIR (DUSTGYM_ fallback)."""
+    if segment in _KATWIJK_CACHE:
+        return _KATWIJK_CACHE[segment]
+    root = _env("KATWIJK_DIR")
+    if not root:
+        return None
+    part_dir = os.path.join(root, segment)
+    if not os.path.isdir(part_dir):
+        return None
+    arrays = ISLAM.load_katwijk_arrays(part_dir)
+    _KATWIJK_CACHE[segment] = arrays
+    return arrays
+
+
+@app.post("/slam")
+def post_slam(req: SlamRequest, _auth: None = Depends(require_auth)):
+    """[REQ:PM-06] The integrated multi-factor SLAM run, exposed. Fuse odometry + IMU-yaw + shadow-yaw
+    + articulation-parallax + DEM-registration over a real Katwijk segment and return the trajectory,
+    the aligned + absolute trajectory error, the odometry-only baseline, and the leave-one-out factor
+    attribution. The raw Katwijk traverse is not bundled (ESA license + size); when it is not on this
+    host the endpoint answers 503 -- it never fabricates a trajectory (PRD §22 P1.2)."""
+    arrays = _katwijk_arrays(req.segment)
+    if arrays is None:
+        return JSONResponse(status_code=503, content={
+            "ok": False, "error": f"Katwijk segment {req.segment!r} unavailable (set STEWIE_KATWIJK_DIR "
+            "to the dataset root; not bundled -- ESA license + size)"})
+    truth, dr, tyaw, gyro = arrays
+    try:
+        loo = ISLAM.leave_one_out(truth, dr, tyaw, gyro, n_keyframes=req.n_keyframes, seed=req.seed)
+    except (ValueError, RuntimeError) as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    full, base = loo["full"], loo["baseline_odom"]
+    log_event("api", "slam",
+              f"{req.segment}: fused {full['abs_max_err_m']:.2f}m vs baseline {base['abs_max_err_m']:.2f}m")
+    return {
+        "ok": True, "segment": req.segment, "n_keyframes": req.n_keyframes,
+        "ate_aligned_m": full["ate_aligned_m"], "abs_max_err_m": full["abs_max_err_m"],
+        "baseline_abs_max_err_m": base["abs_max_err_m"],
+        "reduction_x": round(base["abs_max_err_m"] / max(full["abs_max_err_m"], 1e-9), 1),
+        "n_fix": full["n_fix"],
+        "trajectory_xy": [[float(x), float(y)] for x, y in full["est_xy"]],
+        "leave_one_out": loo["leave_one_out"],
     }
 
 
