@@ -179,10 +179,20 @@ def test_cors_header_present(client):
     assert r.status_code == 200 and "access-control-allow-origin" in {k.lower() for k in r.headers}
 
 
-def test_auth_enforced_only_when_key_set(client, monkeypatch):
-    # open by default
+def test_auth_fail_closed_without_key(client, monkeypatch):
+    """[C-01] a keyless server FAILS CLOSED on mutating routes (503), NOT director-open. dev-open is
+    permitted only behind an explicit STEWIE_DEV_OPEN flag for a loopback/in-process client; with a
+    key set, the raw key or an HMAC bearer is required."""
+    monkeypatch.delenv("STEWIE_API_KEY", raising=False)
+    monkeypatch.delenv("DUSTGYM_API_KEY", raising=False)
+    # no key + no dev-open -> LOCKED (was silently director-open before C-01)
+    monkeypatch.delenv("STEWIE_DEV_OPEN", raising=False)
+    monkeypatch.delenv("DUSTGYM_DEV_OPEN", raising=False)
+    assert client.post("/sense", json={"true_mass_kg": 5.0}).status_code == 503
+    # explicit dev-open flag, loopback/in-process client -> allowed
+    monkeypatch.setenv("STEWIE_DEV_OPEN", "1")
     assert client.post("/sense", json={"true_mass_kg": 5.0}).status_code == 200
-    # with a key set, mutating routes require it
+    # with a key set, mutating routes require it (dev-open no longer applies)
     monkeypatch.setenv("DUSTGYM_API_KEY", "s3cret")
     assert client.post("/sense", json={"true_mass_kg": 5.0}).status_code == 401
     ok = client.post("/sense", json={"true_mass_kg": 5.0}, headers={"X-API-Key": "s3cret"})

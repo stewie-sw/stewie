@@ -322,18 +322,39 @@ class ParallaxPlanRequest(BaseModel):
     size: str = Field(default="1024x768", pattern=r"^\d{2,5}x\d{2,5}$", max_length=12)
 
 
-def require_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+def _truthy(v) -> bool:
+    return bool(v) and str(v).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _is_loopback(request: Request) -> bool:
+    """True for an in-process (ASGI TestClient) or loopback client. dev-open is permitted only here,
+    so a STEWIE_DEV_OPEN flag accidentally left on in a (proxied) deployment still cannot be used by a
+    remote client -- the backend behind nginx sees the proxy's container IP, not loopback."""
+    c = getattr(request, "client", None)
+    if c is None:
+        return True
+    return c.host in ("127.0.0.1", "::1", "localhost", "testclient")
+
+
+def require_auth(request: Request,
+                 x_api_key: str | None = Header(default=None, alias="X-API-Key"),
                  authorization: str | None = Header(default=None),
                  tailscale_user_login: str | None = Header(default=None,
                                                            alias="Tailscale-User-Login")) -> str:
-    """N8 + #52: identity-bearing auth on mutating routes (open in dev when no key is set).
+    """N8 + #52 + audit C-01: identity-bearing auth on mutating routes, FAIL CLOSED.
     Accepted, in order: a WHITELISTED Tailscale identity (opt-in via STEWIE_TRUST_TAILSCALE=1
     behind `tailscale serve`), an HMAC session token from /auth/login (Bearer), or the raw API
-    key (automation; identity "api-key"). Returns the operator identity for the event history."""
+    key (automation; identity "api-key"). When NO key is configured the route is LOCKED (503)
+    unless STEWIE_DEV_OPEN is explicitly set AND the client is loopback/in-process -- a keyless
+    deployment is no longer silently director-open. Returns the operator identity."""
     from stewie.server import auth as AUTH
     key = _env("API_KEY")
     if not key:
-        return "dev-open"
+        if _truthy(_env("DEV_OPEN")) and _is_loopback(request):
+            return "dev-open"
+        raise HTTPException(status_code=503, detail=(
+            "auth not configured: set STEWIE_API_KEY for authenticated access, or STEWIE_DEV_OPEN=1 "
+            "on a loopback-only dev server. Privileged routes are locked (fail-closed)."))
     ts = AUTH.tailscale_identity({"tailscale-user-login": tailscale_user_login or ""})
     if ts:
         return ts
@@ -704,6 +725,16 @@ def _warm_globe_cache():
     """Background-warm the heavy globe products (PSR's sweep measured 44 s cold) so the first
     user click finds them ready; errors are non-fatal (no DEM in some deployments)."""
     import threading
+
+    # C-01: announce the auth posture at boot so a fail-open deployment can't pass unnoticed.
+    if _env("API_KEY"):
+        log.info("auth: API key configured -- privileged routes require it")
+    elif _truthy(_env("DEV_OPEN")):
+        log.warning("auth: NO API key; STEWIE_DEV_OPEN set -> dev-open for LOOPBACK clients only "
+                    "(never set this in a deployment)")
+    else:
+        log.critical("auth: NO API key and STEWIE_DEV_OPEN unset -> privileged routes are LOCKED "
+                     "(fail-closed). Set STEWIE_API_KEY to enable authenticated access.")
 
     def warm():
         try:

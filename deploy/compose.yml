@@ -8,7 +8,10 @@ services:
       - path: ./.env
         required: false                 # generated locally (gitignored); shell env still overrides
     environment:
-      STEWIE_API_KEY: ${STEWIE_API_KEY:-${DUSTGYM_API_KEY:-}}          # set to require auth on mutating routes
+      # C-01: REQUIRED. The server fails closed without it, so the deploy must fail loudly rather than
+      # boot silently director-open. Set STEWIE_API_KEY (or DUSTGYM_API_KEY) in deploy/.env or the shell.
+      # (Local dev without a key uses `dustgym-serve` + STEWIE_DEV_OPEN=1 on loopback, NOT this compose.)
+      STEWIE_API_KEY: ${STEWIE_API_KEY:-${DUSTGYM_API_KEY:?set STEWIE_API_KEY or DUSTGYM_API_KEY; the server fails closed without it (audit C-01)}}
       STEWIE_CORS_ORIGINS: ${STEWIE_CORS_ORIGINS:-}
       STEWIE_REPORTS_TTL_S: ${STEWIE_REPORTS_TTL_S:-604800}
       MPLCONFIGDIR: /tmp/mpl

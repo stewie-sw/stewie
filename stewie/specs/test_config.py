@@ -15,8 +15,12 @@ from stewie.specs import config, constants, ipex_specs
 
 @pytest.fixture
 def clean_reload():
-    """After each test, strip DUSTGYM_* env and reload the constant modules to defaults
-    so an override cannot leak into the rest of the suite."""
+    """After each test, strip DUSTGYM_* env and reload the constant modules to defaults so an override
+    cannot leak into the rest of the suite. Up front, strip the suite-wide STEWIE_DEV_OPEN /
+    DUSTGYM_DEV_OPEN auth flag (set by the repo conftest) -- it is an auth control, not a config
+    override, so the 'no env -> identity' overlay test must not see it."""
+    for var in ("STEWIE_DEV_OPEN", "DUSTGYM_DEV_OPEN"):
+        os.environ.pop(var, None)
     yield
     for var in [v for v in os.environ if v.startswith("DUSTGYM_")]:
         del os.environ[var]
