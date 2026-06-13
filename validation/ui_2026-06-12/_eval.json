@@ -1,0 +1,20 @@
+{
+ "tabs": {
+  "Plan LODE": "ok",
+  "Perception DART": "ok",
+  "Metrics LEAP": "ok",
+  "Report FORGE": "ok",
+  "System": "ok",
+  "\u2699 Settings": "ok"
+ },
+ "errors": [],
+ "plan_status": "plan-skip: Page.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locato",
+ "tabs_found": [
+  "Plan LODE",
+  "Perception DART",
+  "Metrics LEAP",
+  "Report FORGE",
+  "System",
+  "\u2699 Settings"
+ ]
+}

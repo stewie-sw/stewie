@@ -11,7 +11,7 @@ workspace: `design/STEWIE_ATOMIC_EXECUTION_PLAN_2026-06-09.md`.
 ## 0. Where we are / what's next (2026-06-11 — read this first)
 
 **Status:** the research track is FOLDED IN as a live production system — STEWIE is one platform,
-not a platform-plus-thesis. The trainer/simulator product (PRD §18 rung 4) is **software-complete**.
+not a platform plus a separate research track. The trainer/simulator product (PRD §18 rung 4) is **software-complete**.
 
 **Done (this build cycle):** all three rung-4 gaps — the pluggable RC contract + SF-01 safing
 watchdog (#66, deduced from the frozen CONTRACT.md; a plan exports a reusable GoTo command tape),
@@ -22,14 +22,25 @@ built); the 8-agent full-stack audit (§20: 2 criticals + 2 highs fixed, no know
 remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); the cockpit
 (authoring, math worksheet, dashboards, mobile); Moon coordinate chain verified end-to-end.
 
-**Ordered next, to proceed:**
-1. The real-pit wire binding — a `PitBackend` over the UDP/ROS transport (the only thing between
-   the trainer and driving hardware; awaiting the pit link details from McCardle).
-2. The mission-brief packet (§8 deliverable) + the audit mediums (§20.3 — REG-01 first: make the
-   imported Shackleton/Nobile sites plannable).
-3. The ARGUS estimator's SE(3)+IMU upgrade; the construction-autonomy + perception roadmap
-   (docking/berm autonomy, RL on the multi-objective/multi-vehicle frontier, 8-cam feature
-   front-end, shadow-outline landmark learning).
+**Ordered next, to proceed (the 2026-06-12 completion audit reset this — see §22 for the full
+sequence, UI/UX screenshot analysis, and TDD slices):**
+1. **P1 — wire the navigation half (§22.3, #106/#96/#97).** The estimator is eighteen validated
+   library modules with no endpoint and no cockpit presence; this is the only open item that changes
+   what the system IS. `/localize` + `/slam` endpoints, `articulation_bridge` on `/render`, and a
+   cockpit Navigation/Estimation view (pose-graph estimate vs dead reckoning, shrinking covariance
+   ellipse, perception-gated relocalize). Promotes PM-06, PO-10, PO-12.
+2. **P3 — surface the evidence (§22.3, #108).** Comparison head-to-head, cross-dataset
+   generalization, photometric render-pair + depth pass into System/Perception; a G1/G2 readout on
+   the validate button. Cheap, high-value for the review surface; interleaves with P1.4.
+3. **P2 — finish the backend build items (§22.3, #107).** Now-buildable: REG-01 DEM site imports,
+   FORGE populate/remove, berm firming, map-uncertainty coefficient, MV cross-precedence.
+   Honestly-gated: the worksite controller seam (John's pit wire), the Lyasko correction (euclid
+   oracle).
+
+The pre-audit queue (still valid, lower priority): the real-pit `PitBackend` over the UDP/ROS
+transport (awaiting McCardle's link details); the mission-brief packet (§8); the ARGUS SE(3)+IMU
+upgrade and the construction-autonomy + perception roadmap (#79: docking/berm autonomy, RL on the
+multi-objective/multi-vehicle frontier, 8-cam feature front-end, shadow-outline landmark learning).
 
 **Production readiness:** ~75% as the trainer/simulator (gated on the pit wire binding); the
 flight-autonomy autonomy stack is earlier and grows along the ARGUS track.
@@ -68,13 +79,13 @@ ablations into MEASURED ones (the move from characterized to qualified, fresh-se
 The completed plan that produced this session, for reference:
 
 **Completed plan (2026-06-11): the SN / ARGUS evidence path.** The trainer product is
-done + gated on John's wire transport, so solo effort goes to the dissertation contribution (the SN
+done + gated on John's wire transport, so solo effort goes to the navigation-research contribution (the SN
 family, 13 rows mostly open). Sequenced, bounded TDD slices (tasks #83-86), each gate-byte-identical
 with a `[REQ:]` marker:
 1. **CP-01 flip** (warm-up) — write the citing test for the produced-once `PlanResult`; clear the stale N.
 2. **SN-03** — the shadow *yaw* factor in `PoseGraphSE2` (this session's shadow factor is positional;
    SN-03 is the heading-from-shadow-azimuth factor, weak + covariance-weighted from the shadow-sigma
-   envelope). The dissertation core, made operational.
+   envelope). The core research instrument, made operational.
 3. **SN-02** — the shadow-vector detection front-end (reject rover/LED/saturation/penumbra) that feeds SN-03.
 4. **SN-05** — illumination-aware route cost (separable visibility/shadow-hazard/map-uncertainty terms).
 The arc: detect shadow -> fuse as a yaw factor -> route by illumination, turning the shadow-sigma
@@ -1023,7 +1034,7 @@ as product debt. **GATED** = blocked on an external input (IPEx geometry, John's
 | VT 7.3 | vehicle/arms/drums/stability | 1 | 9 | GATED | the two-vehicle stance gap (VT-01/02/05); exact geometry awaits authoritative IPEx data |
 | AM 7.4 | posture maneuvers (MEERKAT…) | 0 | 9 | GATED | all gated on authoritative IPEx geometry |
 | CP 7.5 | perception/mapping/localization | 5 | 5 | PRODUCT | the G1/G2 evidence feeds this |
-| SN 7.6 | solar-terrain navigation | 0 | 13 | DEFERRED | **the ARGUS research frontier** — open by design (the dissertation contribution) |
+| SN 7.6 | solar-terrain navigation | 0 | 13 | DEFERRED | **the ARGUS research frontier** — open by design (the navigation-research contribution) |
 | NV 7.7 | navigation/planning/recovery | 1 | 11 | PRODUCT | berm re-hazard + routing + docking/berm FSMs exist; recovery behaviors don't |
 | PM 7.8 | construction mission planning | 1 | 11 | PRODUCT | the planner is rich but matrix-unverified (mostly flip-on-evidence) |
 | EP 7.9 | energy/thermal/power/ops | 2 | 6 | PRODUCT | battery-honest timeline shipped; thermal ops partial |
@@ -1165,3 +1176,104 @@ ARCH-1 first (smallest, removes the cycle), then ARCH-2 (the RB-03-aligned split
 (routers — do this WITH the SF-01/#66 hardening since it touches the same command path), ARCH-4 last
 (or never, if the build step is judged not worth it). None block the product; all improve
 reviewability ahead of a NASA-standards external review.
+
+## 22. Completion audit + the navigation-track bridge (2026-06-12 — read with §0)
+
+A four-agent fan-out (server API, estimator reachability, frontend cockpit, unfinished-marker
+sweep) mapped the whole monorepo against intent; findings verified and folded in below. The shape:
+STEWIE is two tracks.
+The excavation planner and trainer (LODE planning, the conserved physics, the operator/trainer
+sessions) is wired end to end, backend to a 71-endpoint API to a full cockpit. The navigation
+research, the ARGUS estimator that is the navigation-research core, is built and validated as a library
+of eighteen modules but has no HTTP endpoint and no cockpit presence. Completing the system is
+mostly bridging the second track into the live one.
+
+### 22.1 The three findings
+
+**(1) Not in the frontend (backend exists, no UI).** The cockpit (`stewie/server/index.html`) is
+entirely the planning product. Absent: the whole localization stack (no pose-graph estimate, no
+trajectory-versus-truth, no drift bounding, no shadow-yaw or articulation-parallax fix, no
+relocalization action, no covariance ellipse); the integrated SLAM result, the leave-one-out
+attribution, the shared-testbed head-to-head; the measured-edge sigma and cross-dataset
+generalization; the depth pass and photometric render-pair (the Perception tab shows only the
+planner before/after, not the parallax measurement); the eval-gate results (a validate button with
+no readout) and the evidence-notebook set.
+
+**(2) Not wired on the backend.** Eighteen estimator modules have no HTTP endpoint (integrated_slam,
+articulated_parallax, articulated_shadow, pose_graph_se2, shadow_vectors, shadow_edge_sigma,
+localization, mapping, camera_select, comparison, depth_truth, annotate, posture_select,
+posture_coverage): reachable only from tests and notebooks. `articulation_bridge` is not on the
+`/render` path (it produces the planner before/after, not the two-posture parallax capture).
+Genuinely unimplemented: the worksite controller seam (the one stub, the RL/autonomy that drives
+the build is deferred); multi-vehicle cross-precedence (v1, not yet coordinated); berm-holds-slope
+firming (the G5 gap); the Lyasko one-g to one-sixth-g sinkage correction (deferred to the euclid
+oracle); DEM imports for several Artemis sites (`bundle_dir` is None); the map-uncertainty cost
+coefficient (placeholder until the coverage field feeds it). FORGE is an empty package (its physics
+code lives in `stewie/physics`). Gated by design, not a gap: sinter (IPEx carries no sinter tool).
+
+**(3) What is left.** P1 wire the navigation half into the system; P2 finish the backend build
+items; P3 surface the evidence. External, not buildable here: a lunar-surface rover traverse with
+shadows and pose truth; the SN-07 LED-illumination hardware.
+
+### 22.2 UI/UX status — live cockpit visibility pass (screenshots, 2026-06-12)
+
+Captured headless on the live server (`validation/ui_2026-06-12/`, playwright + chromium, no page
+errors). Each view read against intent:
+
+| View (tab) | Screenshot | What it shows today | Gap vs the ARGUS nav track |
+|---|---|---|---|
+| Plan (LODE) | `00_initial.png`, `01_plan.png` | Cesium Haworth globe; sidebar 1 Site / 2 Contents / 3 Fleet / 4 Feasibility / 5 Plan A-F / 6 Catalog / 7 Telemetry. The full authoring product. | None — the complete planning surface. |
+| Perception (DART) | `02_perception.png` | "Godot PLAN → RENDER", before/after sensor frame. Empty-state copy: a live SLAM map is "the open map-channel work, not a faked feed." | No parallax measurement, no depth pass, no photometric render-pair, no shadow-vector overlay. P1 (parallax capture) + P3 (evidence). |
+| Metrics (LEAP) | `03_metrics.png` | Live CG and tip-margin stability widget; an execution top-down replay ("a deterministic forecast of the plan, not live rover telemetry"). | By its name (Localization, Estimation and Analysis) it should host the estimator; it shows none — no pose-graph, no trajectory-versus-truth, no covariance. P1. |
+| Report (FORGE) | `04_report.png` | Mission-control PDF surface (empty until a plan runs). The planner product. | None for the planner; the comparison/evidence packet (P3) can surface here. |
+| System | `05_system.png` | VALIDATION / API / SERVER / CONFIG sub-panes; Twin snapshot, Retention, Replicate-backup, and a "Validate gates" button with no readout; health + metrics JSON. The `by_route` census confirms the cockpit never calls `/localize`, `/slam`, `/sense`, or `/compare`. | Gate results have no readout (P3); the estimator endpoints do not exist (P1). |
+| Settings | `06_⚙.png` | Configuration pane. | None. |
+
+The finding the screenshots make concrete: every empty-state placeholder narrates a planner
+function, and none of the six tabs references the navigation/estimation track. The cockpit is the
+planning-and-trainer product, complete; the ARGUS estimator is invisible to it. The work
+tied into UI/UX is therefore P1 (a Navigation/Estimation view plus the endpoints behind it) and P3
+(the evidence figures into Perception, System, and Report).
+
+### 22.3 TDD-sequenced forward plan
+
+Each slice is bounded, gate-byte-identical, and lands with a citing `[REQ:]` test plus (where it is
+navigation-research evidence) a baseline-comparing notebook. The matrix rows each slice promotes are named.
+
+**P1 — wire the navigation half (#106, #96, #97). The missing operator surface.**
+
+| # | Slice | Citing test (`[REQ:]`) | Promotes |
+|---|---|---|---|
+| P1.1 | `/localize` endpoint: `articulation_localize` returns a heading-free fix + covariance from a posture-pair shadow-tip parallax. | `test_server_localize` (socket POST → fix + covariance; truth-field denylist holds) | PM-06 I, PO-10 |
+| P1.2 | `/slam` endpoint: `run_integrated_slam` returns trajectory, absolute trajectory error, and the leave-one-out attribution over a named real segment. | `test_server_slam` (POST → trajectory + ATE + LOO; matches the frozen keystone artifact) | PM-06 V, NV-10 |
+| P1.3 | `articulation_bridge` on `/render`: a two-posture parallax capture (not the planner before/after), returning the per-frame shadow-tip pixels + the exact `dh`. | `test_render_parallax_capture` | SN-10 wiring (I→V) |
+| P1.4 | Cockpit Navigation/Estimation view: pose-graph estimate versus dead reckoning, the shrinking covariance ellipse, a perception-gated relocalize action (#97), and planner relocalization stops (#96). Live-verify headless Chrome + a `ui_eval` screenshot. | `test_ui_eval_nav_view` (the view renders the estimate + ellipse; relocalize is perception-gated) | PO-12, PO-10, SN-10 tie-ins B/C |
+
+**P2 — finish the genuinely-unimplemented backend items (#107).** Buildable now: REG-01 DEM site
+imports (make the Shackleton/Nobile bundles plannable), FORGE (point its `__init__` at
+`stewie/physics` or remove the empty package), berm-holds-slope firming (CP-06 acceptance), the
+map-uncertainty cost coefficient (feed it from the coverage field), multi-vehicle cross-precedence
+(FL-02/FL-04). Externally gated, kept honest: the worksite controller seam (needs John's pit wire /
+the RC transport), the Lyasko one-sixth-g correction (the euclid PyChrono oracle, FIX-2). Each
+buildable item is one bounded slice with a citing test; the gated items stay N until their external
+dependency arrives.
+
+**P3 — surface the evidence (#108).** Put the comparison head-to-head (notebook stages 17-19, 28),
+the cross-dataset generalization (stage 26), and the photometric render-pair + depth pass (stages
+23-24) into the System and Perception tabs; give the "Validate gates" button a G1/G2 readout; link
+the evidence-notebook set. A `/compare` endpoint serves the shared-testbed result the System tab
+renders. These are product-story and review-surface items, not new measurement.
+
+**External, not buildable here.** A lunar-surface rover traverse carrying both shadows and pose
+truth (no such public dataset exists); the SN-07 LED-illumination hardware (the one row that stays N
+honestly).
+
+### 22.4 Sequence rationale
+
+P1 first and most: it is the only item that changes what the system IS rather than what it shows,
+and it is the two tie-ins already on the board (#96, #97) plus the two endpoints that make the
+eighteen library modules reachable from the live system. P3 is cheap and high-value for the review
+surface but adds no capability, so it can interleave with P1.4. P2 is a mix of small now-buildable
+closes and honestly-gated externals; it blocks neither P1 nor P3. The frozen 2026-06-07 gate JSON is
+untouched by all of this: every slice reproduces it byte-identically, and a gate flips only via a
+new dated artifact.
