@@ -41,3 +41,20 @@ def test_per_edge_sigma_gate_refuses_soft_edges():
     assert per_edge_sigma(2.8) is None                        # soft tail -> refuse
     assert per_edge_sigma(2.8, gate_px=3.0) == 2.8            # explicit wider gate carries it
     assert per_edge_sigma(0.0) is None                        # degenerate width is not a sigma
+
+
+def test_edge_sigma_generalizes_across_datasets():
+    """The shadow-edge-localization sigma generalizes across real planetary datasets (sub-pixel-to-~2px
+    on every one), under the SAME airless-tuned gate -- not per-dataset tuning."""
+    import glob
+    from dart.shadow_edge_sigma import cross_dataset_edge_sigma
+    nd = {
+        "CE-3": sorted(glob.glob("/mnt/projects/datasets/lunar_ce3/yolo/images/**/*.png", recursive=True)),
+        "LRO_NAC": [p for p in sorted(glob.glob("/mnt/projects/datasets/bouldering/**/*image*.png", recursive=True)) if "mask" not in p],
+    }
+    if min(len(v) for v in nd.values()) < 10:
+        pytest.skip("datasets not present")
+    r = cross_dataset_edge_sigma(nd, n_per=20)
+    for label, m in r.items():
+        assert m["median_px"] is not None and 0.2 < m["median_px"] < 2.5   # generalizes
+        assert m["yield"] > 0.5

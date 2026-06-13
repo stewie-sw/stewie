@@ -77,6 +77,33 @@ def measure_edge_sigma_px(gray, *, n_edges: int = 120, half: int = 6, min_contra
             "widths": [float(v) for v in a], "n_rejected": rejected}
 
 
+def cross_dataset_edge_sigma(named_paths: dict, *, n_per: int = 40) -> dict:
+    """Measure the shadow-edge-localization sigma across DATASETS to test generalization. named_paths
+    maps a label -> list of image paths; returns {label: {median_px, p25, p75, yield, n_with_edges,
+    n_total}}. The same airless-tuned edge gate is applied to every dataset, so the spread reflects
+    real cross-body / cross-sensor variation, not per-dataset tuning."""
+    from PIL import Image
+    out = {}
+    for label, paths in named_paths.items():
+        sigs = []
+        sub = list(paths)[:n_per]
+        for p in sub:
+            try:
+                r = measure_edge_sigma_px(np.asarray(Image.open(p).convert("L"), float))
+            except Exception:
+                r = None
+            if r:
+                sigs.append(r["sigma_edge_px"])
+        if sigs:
+            a = np.array(sigs)
+            out[label] = {"median_px": round(float(np.median(a)), 3), "p25": round(float(np.percentile(a, 25)), 3),
+                          "p75": round(float(np.percentile(a, 75)), 3), "yield": round(len(sigs) / max(1, len(sub)), 2),
+                          "n_with_edges": len(sigs), "n_total": len(sub)}
+        else:
+            out[label] = {"median_px": None, "yield": 0.0, "n_with_edges": 0, "n_total": len(sub)}
+    return out
+
+
 def calibrate_measured_edge_sigma(image_paths) -> dict:
     """Aggregate the measured edge sigma over a set of REAL images -> the measured sigma_edge_px that
     replaces the modelled 1.0 px envelope assumption."""
