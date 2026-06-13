@@ -41,6 +41,8 @@ from lode import autonomy as AUT
 from stewie.server import map_layers as MLY
 from lode import mission_planner as MP
 from leap import structures as ST
+from dart import articulated_parallax as AP   # P1.1: SN-10 articulation-parallax relocalization
+from dart import pose_graph_se2 as PG         # the live SE(2) estimator the fix is injected into
 
 # PRD N10: structured logging + observability. Used for access logs, startup, and the additive
 # failure paths. Level via $DUSTGYM_LOG_LEVEL.
@@ -271,6 +273,21 @@ class RenderRequest(BaseModel):
 class ProfileRequest(BaseModel):
     name: str = Field(min_length=1, max_length=80)      # saved under a slug of this name
     profile: dict = Field(default_factory=dict)         # the full config snapshot (body/soil/fleet/orders/...)
+
+
+class LocalizeRequest(BaseModel):
+    # I3: the estimator surface is observation-only -- forbid extra keys so no truth/hidden-state field
+    # (true_pose, slip, terrain truth) can ride in on the request and silently enter the estimator.
+    model_config = ConfigDict(extra="forbid")
+    landmarks_xy: list[tuple[float, float]] = Field(max_length=256)   # known shadow-tip landmark (x,y)
+    pixel_shifts: list[float] = Field(max_length=256)                # vertical parallax shift per landmark (px)
+    dh_m: float = Field(gt=0.0, le=10.0)                # commanded chassis lift (m) -- the parallax baseline
+    fx_px: float = Field(gt=0.0, le=1e5)                # camera focal length (px)
+    sigma_px: float = Field(default=0.3, gt=0.0, le=100.0)           # measured shadow-edge pixel noise
+    prior_xy: tuple[float, float] = (0.0, 0.0)          # current dead-reckoned pose guess
+    prior_yaw: float = Field(default=0.0, ge=-7.0, le=7.0)
+    prior_sigma_xy: float = Field(default=50.0, gt=0.0, le=1e6)      # weak by default -> the fix dominates
+    prior_sigma_yaw: float = Field(default=1.0, gt=0.0, le=1e3)
 
 
 def require_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key"),
@@ -1176,6 +1193,42 @@ def post_compare(req: CompareRequest, _auth: None = Depends(require_auth)):
     except (ValueError, RuntimeError) as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     return {"ok": True, **result}
+
+
+@app.post("/localize")
+def post_localize(req: LocalizeRequest, _auth: None = Depends(require_auth)):
+    """[REQ:PM-06] SN-10 articulation-parallax relocalization, wired into the estimator. From the
+    shadow-tip PIXEL shifts observed under a commanded chassis lift dh, triangulate landmark ranges,
+    fix the rover (x,y) heading-free, inject it into a one-node PoseGraphSE2 as an ABSOLUTE factor with
+    the geometry-DERIVED covariance, and return the re-optimized fix + 1-sigma. This is the missing
+    endpoint that makes the validated estimator reachable from the live system (PRD §22 P1.1)."""
+    n = len(req.landmarks_xy)
+    if n < 2:
+        return JSONResponse(status_code=400,
+                            content={"ok": False, "error": "need >= 2 landmarks for a heading-free fix"})
+    if len(req.pixel_shifts) != n:
+        return JSONResponse(status_code=400,
+                            content={"ok": False, "error": "pixel_shifts must match landmarks_xy in length"})
+    try:
+        graph = PG.PoseGraphSE2()
+        graph.add_prior(0, (float(req.prior_xy[0]), float(req.prior_xy[1]), float(req.prior_yaw)),
+                        float(req.prior_sigma_xy), float(req.prior_sigma_yaw))
+        out = AP.articulation_localize(
+            graph, 0, [(float(x), float(y)) for x, y in req.landmarks_xy],
+            [float(s) for s in req.pixel_shifts],
+            dh_m=float(req.dh_m), fx_px=float(req.fx_px), sigma_px=float(req.sigma_px))
+    except (ValueError, RuntimeError) as e:                 # degenerate geometry -> honest 400, not a 500
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    fix = out["fix_xy"]
+    log_event("api", "localize", f"{n} landmarks -> fix ({fix[0]:.2f},{fix[1]:.2f}) sigma {out['fix_sigma_m']:.3f}m")
+    return {
+        "ok": True,
+        "fix_xy": [float(fix[0]), float(fix[1])],
+        "fix_sigma_m": float(out["fix_sigma_m"]),
+        "pose": {str(k): [float(c) for c in v] for k, v in out["pose"].items()},
+        "xy_sigma": {str(k): float(v) for k, v in out["xy_sigma"].items()},
+        "yaw_sigma": {str(k): float(v) for k, v in out["yaw_sigma"].items()},
+    }
 
 
 @app.post("/structure")

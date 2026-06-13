@@ -200,3 +200,46 @@ def test_prune_reports_removes_old_files(tmp_path, monkeypatch):
     fresh.write_bytes(b"%PDF-new")
     removed = SRV._prune_reports(ttl_s=3600)                        # 1 h TTL
     assert removed == 1 and not old.exists() and fresh.exists()
+
+
+# ---- POST /localize : P1.1 -- the ARGUS articulation-parallax fix, wired into the estimator -------
+def test_localize_recovers_known_position_with_covariance(client):
+    """[REQ:PM-06] /localize ties articulation_localize into a live PoseGraphSE2: from the shadow-tip
+    PIXEL shifts under a commanded lift dh it triangulates ranges, fixes (x,y) heading-free, injects an
+    ABSOLUTE factor, and returns the re-optimized fix + geometry-derived 1-sigma (the missing endpoint
+    that makes the estimator reachable from the live system)."""
+    import math
+
+    from dart import articulated_parallax as AP
+    landmarks = [(6.0, 0.0), (0.0, 8.0), (-5.0, -5.0)]     # three known shadow-tip landmarks
+    dh_m, fx_px = 0.174, 679.57                            # real IPEx lift + IMX547/6 mm focal length
+    ranges = [math.hypot(x, y) for x, y in landmarks]      # rover truly at the origin
+    shifts = [AP.pixel_shift_for_range(dh_m, r, fx_px) for r in ranges]  # exact parallax pixel shifts
+    r = client.post("/localize", json={
+        "landmarks_xy": landmarks, "pixel_shifts": shifts, "dh_m": dh_m, "fx_px": fx_px,
+        "prior_xy": [1.5, -1.0], "prior_sigma_xy": 50.0,   # a deliberately wrong, WEAK prior
+    })
+    assert r.status_code == 200, r.text
+    b = r.json()
+    assert b["ok"] is True
+    fix = b["fix_xy"]
+    assert math.hypot(fix[0], fix[1]) < 0.05               # recovers the origin to < 5 cm
+    assert b["fix_sigma_m"] > 0.0                          # covariance is geometry-derived, not zero
+    assert b["xy_sigma"]["0"] < 50.0                       # the absolute fix tightened the weak prior
+
+
+def test_localize_rejects_too_few_landmarks(client):
+    """[REQ:PM-06] a heading-free fix needs >= 2 landmarks; one is a clean 400, not a crash."""
+    r = client.post("/localize", json={
+        "landmarks_xy": [[6.0, 0.0]], "pixel_shifts": [50.0], "dh_m": 0.174, "fx_px": 679.57})
+    assert r.status_code == 400 and r.json()["ok"] is False
+
+
+def test_localize_forbids_truth_fields(client):
+    """[REQ:PM-06] I3: the estimator surface is observation-only -- a truth pose in the body is rejected
+    by the typed contract (extra='forbid'), never silently consumed."""
+    r = client.post("/localize", json={
+        "landmarks_xy": [[6.0, 0.0], [0.0, 8.0]], "pixel_shifts": [20.0, 15.0],
+        "dh_m": 0.174, "fx_px": 679.57, "true_pose_xy": [0.0, 0.0]})
+    assert r.status_code == 400 and r.json()["ok"] is False    # rejected by the typed contract (app maps 422->400)
+    assert "true_pose_xy" in r.json()["error"]                 # the forbidden field is named, never consumed
