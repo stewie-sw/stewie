@@ -1318,7 +1318,9 @@ materialized twin state, split the server/planner god modules, pin deps + CI act
 lint gate (L-01 broken `viz/*` imports), reduce mypy exclusions, quarantine archive/public copies +
 the committed Godot binary.
 
-Sequencing for the next session: **Phase 0 criticals lead** (they are genuine blockers), the Phase 2
-nav-primitive hardening rides alongside the option-1 rendered-DEM traverse (it makes the measured
-nav fixes honest under bad geometry), then Phase 1, then Phase 3. The honesty rules are unchanged:
-every fix lands TDD, gate byte-identical, no synthetic data.
+Sequencing (Aaron, 2026-06-13): **the next session STARTS with audit Phase 0** — the four criticals
+**#110 C-01 → #111 C-02 → #112 C-03 → #113 C-04**, in order, before option 1/2b or any new
+capability. C-03 (the 90° shadow-azimuth disagreement) is a hard prerequisite for further nav work.
+Then the Phase 2 nav-primitive hardening rides alongside the option-1 rendered-DEM traverse (it makes
+the measured nav fixes honest under bad geometry), then Phase 1, then Phase 3. The honesty rules are
+unchanged: every fix lands TDD, gate byte-identical, no synthetic data.
