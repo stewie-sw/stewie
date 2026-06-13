@@ -835,6 +835,20 @@ def test_dem_plan_energy_at_least_the_flat_plan():
     assert t_dem["energy_J"] >= t_flat["energy_J"] - 1e-6
 
 
+def test_h06_haul_lift_uses_cumulative_ascent_not_net_endpoints():
+    """Audit H-06 (2026-06-13): haul lift energy must integrate POSITIVE elevation gain along the routed
+    polyline (cumulative ascent), not the net endpoint difference. A polyline that dips into a trench and
+    climbs back to the same elevation has net gain ~0 but real cumulative ascent (> 0)."""
+    import numpy as np
+    cell = 5.0; n = 20
+    Z = np.zeros((n, n)); Z[10, 6:12] = -6.0               # a trench crossing one row
+    dem = (Z, cell); origin = (0.0, 0.0)
+    a = (10.0, 50.0); b = (90.0, 50.0)                     # both endpoints at z = 0 (cols 2 and 18, row 10)
+    assert abs(MP.haul_elevation_gain_m(dem, origin, a, b)) < 1e-9   # net endpoint gain is ~0
+    wpts = [(float(c) * cell, 50.0) for c in range(2, 19)]          # straight across: 0 -> -6 -> 0
+    assert MP.haul_cumulative_ascent_m(dem, origin, wpts) >= 6.0 - 1e-9   # climbed +6 m out of the trench
+
+
 def test_uphill_haul_adds_exact_gravity_lift_energy():
     import numpy as np
     dem = MP.load_haworth_dem()
@@ -855,12 +869,15 @@ def test_uphill_haul_adds_exact_gravity_lift_energy():
     flows, _ = MP.balance(m_up)
     hauled = sum(mass for co, fo, mass, d in flows if co is not None and fo is not None)  # true cut->fill hauls
     assert t_up["lift_energy_J"] > 0.0
-    assert abs(t_up["lift_energy_J"] - hauled * g * dh) < 1.0
-    # downhill (swap): hauling cut(high) -> fill(low) does no positive lift
+    # H-06: lift integrates CUMULATIVE positive ascent along the routed polyline, so it is AT LEAST the
+    # net-endpoint-gain lift (m*g*dh); a route that also dips and re-climbs adds strictly more.
+    assert t_up["lift_energy_J"] >= hauled * g * dh - 1.0
+    # downhill (swap): a net-descent haul lifts LESS than the net-ascent haul over the same relief. It is
+    # no longer forced to zero -- the routed path can still climb intermediate rises (the H-06 correction).
     m_dn = MP.mission_from_dict({"name": "dn", "body": "moon", "charger": [0, 0], "orders": [
         {**cut_lo, "x": hi[1] * cell, "y": hi[0] * cell}, {**fill_hi, "x": lo[1] * cell, "y": lo[0] * cell}]})
     _, _, _, _, t_dn = MP.plan_and_simulate(m_dn, dem=dem)
-    assert t_dn["lift_energy_J"] == 0.0
+    assert 0.0 <= t_dn["lift_energy_J"] < t_up["lift_energy_J"]
 
 
 # ---- endurance / single-charge range ("true distance before recharge") -------------------------

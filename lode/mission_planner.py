@@ -365,6 +365,11 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
             straight_haul_m += base; routed_haul_m += leg
             haul_m = 2 * leg * loads                    # shuttle: cut<->fill, one round trip per drum load
             dh = haul_elevation_gain_m(dem, dem_origin, (co.x, co.y), (fo.x, fo.y))
+            # H-06: lift energy is the CUMULATIVE positive ascent along the ROUTED polyline, not the net
+            # endpoint gain -- a route that dips and climbs back still does gravity work on every climb. For
+            # a straight/monotonic leg (incl. the no-DEM case) this equals max(0, dh), so behavior is unchanged.
+            ascent = (haul_cumulative_ascent_m(dem, dem_origin, waypoints)
+                      if (dem is not None and reached and len(waypoints) >= 2) else max(0.0, dh))
             # #1 slip-loss: the wheel travels 1/(1-slip) per metre of ground on a slope, so the haul costs
             # more than flat 135 J/m. slip from the cut<->fill slope; no DEM/flat -> slip 0 -> haul_e = flat.
             slope_haul = math.degrees(math.atan2(abs(dh), leg)) if leg > 1e-9 else 0.0
@@ -377,7 +382,7 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
                       + back_m * DRIVE_J_PER_M / (1.0 - slip_empty))
             trips.append(dict(kind="cutfill", site=(co.x, co.y), label=f"{co.action} → {fo.action}",
                               mass=mass, dig_e=mass*DIG_J_PER_KG, dig_t=mass/DIG_RATE_KG_S,
-                              haul_m=haul_m, haul_e=haul_e, lift_e=mass * g * max(0.0, dh), dest=(fo.x, fo.y),
+                              haul_m=haul_m, haul_e=haul_e, lift_e=mass * g * ascent, dest=(fo.x, fo.y),
                               actions=frozenset({co.action, fo.action})))
     for o in sinters:
         m = o.mass_kg(rho)
@@ -1512,6 +1517,28 @@ def haul_elevation_gain_m(dem, dem_origin, a_xy, b_xy):
 
     za, zb = _z(*a_xy), _z(*b_xy)
     return 0.0 if (za is None or zb is None) else (zb - za)
+
+
+def haul_cumulative_ascent_m(dem, dem_origin, waypoints):
+    """H-06: total POSITIVE elevation gain [m] summed along a routed haul polyline (LOCAL (x, y)
+    waypoints), read from the real DEM (anchored via dem_origin, M11). A route that descends into a dip
+    and climbs back to the same elevation still does gravity work on every climb -- m*g times THIS
+    cumulative ascent -- where the net endpoint gain (haul_elevation_gain_m) would read 0. Descents do not
+    regenerate (per the haul model). For a straight/monotonic leg this equals max(0, net gain). Returns
+    0.0 with no DEM or fewer than two on-grid samples."""
+    if dem is None or waypoints is None or len(waypoints) < 2:
+        return 0.0
+    Z, cell = dem
+    ox, oy = dem_origin
+    H, W = Z.shape
+    zs = []
+    for (x, y) in waypoints:
+        c, r = int(round((ox + x) / cell)), int(round((oy + y) / cell))
+        if 0 <= r < H and 0 <= c < W:
+            zs.append(float(Z[r, c]))
+    if len(zs) < 2:
+        return 0.0
+    return float(sum(max(0.0, zs[i + 1] - zs[i]) for i in range(len(zs) - 1)))
 
 
 # ---- endurance / single-charge range (the "true distance before recharge", grounded) ------------
