@@ -1456,27 +1456,35 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
     ax, ay = ox + a_xy[0], oy + a_xy[1]
     bx, by = ox + b_xy[0], oy + b_xy[1]
     H, W = Z.shape
-    c0 = max(0, int((min(ax, bx) - margin_m) / cell))
-    c1 = min(W, int((max(ax, bx) + margin_m) / cell) + 1)
-    r0 = max(0, int((min(ay, by) - margin_m) / cell))
-    r1 = min(H, int((max(ay, by) + margin_m) / cell) + 1)
     straight = math.hypot(bx - ax, by - ay)
-    if c1 - c0 < 2 or r1 - r0 < 2:                       # sites off the DEM -> can't route
-        return straight, straight, False, []
-    crop = Z[r0:r1, c0:c1]
-    cost, passable = slope_costmap(crop, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
-                                   max_drop_m=MAX_DROP_M)   # routes also keep off drop-offs (don't fall in a hole)
-    _apply_keepouts(passable, cell, r0, c0, dem_origin, keepouts)   # discrete obstacles -> impassable cells
-    hc, wc = crop.shape
-    start = (min(max(int(ay / cell) - r0, 0), hc - 1), min(max(int(ax / cell) - c0, 0), wc - 1))
-    goal = (min(max(int(by / cell) - r0, 0), hc - 1), min(max(int(bx / cell) - c0, 0), wc - 1))
-    grid_straight = math.hypot((goal[1] - start[1]) * cell, (goal[0] - start[0]) * cell)
-    path, length_m, reached = route_least_cost(cost, passable, cell, start, goal)
-    if not reached:
-        return straight, straight, False, []
-    # crop cell (r, c) -> world metres -> LOCAL (x, y) waypoint (local = world - origin)
-    waypoints = [(((c0 + c) * cell) - ox, ((r0 + r) * cell) - oy) for (r, c) in path]
-    return length_m, grid_straight, True, waypoints
+    # H-05: adaptive search window. A valid corridor can leave the endpoint bounding box by far more
+    # than the initial margin, so when no route is found we DOUBLE the crop margin and retry, up to the
+    # full DEM. Only when the window already spans the whole DEM and still finds nothing is the leg
+    # unreachable -- the old fixed 20 m margin wrongly declared such detours unreachable.
+    m = float(margin_m)
+    while True:
+        c0 = max(0, int((min(ax, bx) - m) / cell))
+        c1 = min(W, int((max(ax, bx) + m) / cell) + 1)
+        r0 = max(0, int((min(ay, by) - m) / cell))
+        r1 = min(H, int((max(ay, by) + m) / cell) + 1)
+        if c1 - c0 < 2 or r1 - r0 < 2:                   # sites off the DEM -> can't route
+            return straight, straight, False, []
+        crop = Z[r0:r1, c0:c1]
+        cost, passable = slope_costmap(crop, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
+                                       max_drop_m=MAX_DROP_M)   # routes also keep off drop-offs (don't fall in a hole)
+        _apply_keepouts(passable, cell, r0, c0, dem_origin, keepouts)   # discrete obstacles -> impassable cells
+        hc, wc = crop.shape
+        start = (min(max(int(ay / cell) - r0, 0), hc - 1), min(max(int(ax / cell) - c0, 0), wc - 1))
+        goal = (min(max(int(by / cell) - r0, 0), hc - 1), min(max(int(bx / cell) - c0, 0), wc - 1))
+        grid_straight = math.hypot((goal[1] - start[1]) * cell, (goal[0] - start[0]) * cell)
+        path, length_m, reached = route_least_cost(cost, passable, cell, start, goal)
+        if reached:
+            # crop cell (r, c) -> world metres -> LOCAL (x, y) waypoint (local = world - origin)
+            waypoints = [(((c0 + c) * cell) - ox, ((r0 + r) * cell) - oy) for (r, c) in path]
+            return length_m, grid_straight, True, waypoints
+        if c0 == 0 and c1 == W and r0 == 0 and r1 == H:  # already searched the whole DEM -> truly unreachable
+            return straight, straight, False, []
+        m *= 2.0                                          # widen the window and retry (H-05 adaptive expansion)
 
 
 def routed_distance(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0, margin_m=20.0,

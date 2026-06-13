@@ -365,6 +365,21 @@ def test_h04_route_does_not_corner_cut_between_blocked_orthogonals():
     assert reached_detour is True
 
 
+def test_h05_route_leg_finds_a_detour_beyond_the_initial_bbox_margin():
+    """Audit H-05 (2026-06-13): a valid corridor that leaves the endpoint bounding box by far more
+    than the initial 20 m margin must still be found via adaptive window expansion, not declared
+    unreachable. A keep-out wall blocks the direct corridor and the only gap is ~80 m north of the
+    endpoints -- well outside the 20 m crop the old fixed margin searched."""
+    import numpy as np
+    cell = 5.0; n = 80
+    dem = (np.zeros((n, n)), cell); origin = (0.0, 0.0)
+    a = (100.0, 200.0); b = (160.0, 200.0)               # endpoints at row 40, cols 20 and 32
+    wall = [{"x": 130.0, "y": float(yy), "r": 12.0} for yy in range(120, 400, 16)]  # blocks col 26 for rows ~22..79
+    routed, _, reached, wpts = MP.route_leg(dem, origin, a, b, keepouts=wall)
+    assert reached is True and wpts and math.isfinite(routed)
+    assert min(y for _, y in wpts) < 140.0               # the corridor detours north past the wall, beyond 20 m
+
+
 def test_routed_distance_detours_around_a_crater_on_real_haworth():
     # I10 end to end: between two buildable LOCAL sites on opposite sides of a hazardous window, the routed
     # haul distance exceeds the Euclidean line (it goes around the steep ground). Anchored to a DEM origin
