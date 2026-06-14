@@ -1293,12 +1293,15 @@ def test_oversized_body_is_rejected_413(base):
 
 def test_metrics_by_route_is_bounded_by_templates_not_raw_paths(base):
     # hammering distinct attacker-controlled paths must NOT grow the by_route dict unboundedly:
-    # they all collapse to the catch-all template, so the key set stays tiny.
+    # the 40 raw paths collapse to the catch-all TEMPLATE, so they add at most that one key. The
+    # counter lives in server.services and persists for the process, so assert the DELTA the raw
+    # hits cause -- robust to whatever the shared session counter already holds (ARCH-3).
+    before = set(base.get("/metrics").json()["by_route"])
     for i in range(40):
         base.get(f"/nonexistent/path/{i}")
     by_route = base.get("/metrics").json()["by_route"]
-    assert len(by_route) < 25                                   # bounded by registered routes, not by hits
-    assert not any(f"/nonexistent/path/{i}" in by_route for i in range(40))   # raw paths not keyed
+    assert set(by_route) - before <= {"/{path:path}", "/metrics"}   # 40 raw paths -> ONE catch-all template
+    assert not any(f"/nonexistent/path/{i}" in by_route for i in range(40))   # raw paths never keyed
 
 
 def test_structure_rejects_too_many_params(base):
