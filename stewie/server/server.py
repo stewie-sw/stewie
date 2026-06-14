@@ -326,6 +326,7 @@ app.add_middleware(
 # the shared auth deps (server.deps) / audit log (server.services) -- no import of this app module.
 from stewie.server.routers import assets as _assets_router  # noqa: E402
 from stewie.server.routers import auth as _auth_router  # noqa: E402
+from stewie.server.routers import config as _config_router  # noqa: E402
 from stewie.server.routers import layers as _layers_router  # noqa: E402
 from stewie.server.routers import missions as _missions_router  # noqa: E402
 from stewie.server.routers import operators_admin as _operators_admin_router  # noqa: E402
@@ -342,6 +343,7 @@ app.include_router(_profiles_router.router)
 app.include_router(_sample_missions_router.router)
 app.include_router(_assets_router.router)
 app.include_router(_layers_router.router)
+app.include_router(_config_router.router)
 
 
 @app.middleware("http")
@@ -550,13 +552,6 @@ def _warm_globe_cache():
     threading.Thread(target=warm, daemon=True).start()
 
 
-@app.get("/sites")
-def sites_list():
-    """#49: the site registry (Haworth imported; Artemis III candidates honest about data state)."""
-    from stewie.specs.sites import site_rows
-    return {"ok": True, "sites": site_rows()}
-
-
 @app.get("/dem/georef")
 def dem_georef():
     """The Haworth tile's globe footprint (selenographic corners) for the cockpit overlay."""
@@ -623,56 +618,6 @@ def get_figure(key: str):
     if not p:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no figure {key}"})
     return FileResponse(p, media_type="image/png")
-
-
-@app.get("/config")
-def get_config():
-    """Runtime config overlay state (intern/dev pane): config_file + overrides + applied (PRD N15).
-    SEC-1: describe() redacts secret values at the source; this also passes through _redact_secrets
-    (defense in depth) so a future describe() field cannot leak a key."""
-    from stewie.specs import config as _cfg
-    return {"ok": True, **_redact_secrets(_cfg.describe())}
-
-
-@app.get("/config/full")
-def get_config_full():
-    """#61 (Aaron: "config needs to be totally rewritten"): the organized one-call state for the
-    Config pane -- server, auth FLAGS (never the key), data holdings, and the N15 overlay."""
-    from stewie.specs import config as _cfg
-    from stewie.specs.sites import site_rows
-    try:
-        from stewie.specs.solar import spice_available
-        spice = bool(spice_available())
-    except Exception:
-        spice = False
-    rows = site_rows()
-    snaps_dir = os.path.join(_cfg.data_dir(), "snapshots")
-    n_snaps = len([f for f in os.listdir(snaps_dir) if f.endswith(".npz")]) if os.path.isdir(snaps_dir) else 0
-    return {
-        "ok": True,
-        "server": {"version": _version(), "data_dir": _cfg.data_dir(),
-                   "backup_dir": os.environ.get("STEWIE_BACKUP_DIR", "(data_dir)/replica")},
-        "auth": {"api_key_set": bool(_env("API_KEY")),
-                 "operator_login": os.environ.get("STEWIE_OPERATOR_LOGIN", "1") != "0",
-                 "trust_tailscale": os.environ.get("STEWIE_TRUST_TAILSCALE", "") == "1"},
-        "data": {"sites_total": len(rows), "sites_imported": sum(1 for r in rows if r["imported"]),
-                 "spice_available": spice, "twin_snapshots": n_snaps},
-        "overlay": _redact_secrets(_cfg.describe()),
-    }
-
-
-def _redact_secrets(node):
-    """Scrub key/token/secret VALUES from the overlay dump (the N15 describe() includes env
-    values -- the API key must never reach the browser)."""
-    secret = os.environ.get("STEWIE_API_KEY", "")
-    if isinstance(node, dict):
-        return {k: ("[REDACTED]" if any(t in str(k).upper() for t in ("KEY", "TOKEN", "SECRET"))
-                    else _redact_secrets(v)) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_redact_secrets(v) for v in node]
-    if isinstance(node, str) and secret and secret in node:
-        return "[REDACTED]"
-    return node
 
 
 @app.get("/layers")
