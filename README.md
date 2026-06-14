@@ -1,29 +1,109 @@
-# STEWIE — Surface Terrain Engineering & World-model Integration Environment
+<div align="center">
 
-**IPEx builds the Moon. STEWIE plans the build.** *(in silico → in situ)*
+# STEWIE
 
-One stack: conserved-physics lunar terrain authority, mission planner + mission-control reports,
-Gymnasium environments, Godot render/sensor sidecar, and the evaluation gates — organized by
-responsibility: `stewie/` (platform: physics, terrain, twin, specs, envs, server, bridge, sensors,
-godot, eval) · `dart/` (perception) · `lode/` (operations) · `leap/` (earthmoving) · `forge/`
-(infrastructure).
+### Surface Terrain Engineering & World-model Integration Environment
 
-- Canonical design source: **`PRD.md`** (STEWIE PRD; §16 = subsystem map + phase gates)
-- Install: `pip install -e .[dev]` · serve: `stewie-serve` · deploy: `docker compose -f deploy/compose.yml up -d`
-- Gym envs: `import stewie` → `gym.make("Stewie/RoverDrive-v0")` (legacy `Dust/*` IDs + `import
-  dustgym` + `DUSTGYM_*` env vars remain as deprecated aliases for one transition cycle)
-- History: this monorepo carries the full histories of the `dustgym` simulator (McCardle + Storey)
-  and the navigation research formerly named dart (Storey); both names are retired (2026-06-10).
+*IPEx builds the Moon. STEWIE plans the build.* &nbsp;·&nbsp; *in silico → in situ*
 
-## M0 state (2026-06-09)
-- Committed: both subtree imports (180 commits total; dustgym HEAD `5c986fb`, dart HEAD `305a632`).
-- UNCOMMITTED BY DESIGN: the working-tree overlay deltas — the source repos carried uncommitted
-  state (incl. the REAL gate JSON + G1 capture data, untracked in dart; John's doc edits in
-  dustgym). The monorepo working tree is byte-identical to the source trees (diff -r verified);
-  those deltas stay uncommitted here exactly as they are uncommitted there. They are not ours to
-  commit silently; M1 will commit them only where the restructure must touch them (flagged then).
-- Verified in-monorepo: dart 348 passed + gate JSON byte-identical (md5 bd8bdada…) + ruff/mypy
-  clean; dustgym suite result appended below on completion.
-- Working-location rule: M1+ restructuring happens HERE. The old trees (`../dustgym`,
-  `../research/projects/dart/dart`) are FROZEN as fallback sources until M4 passes, then retire
-  per M5 (John's + Aaron's sign-offs).
+[![CI](https://github.com/stewie-sw/stewie/actions/workflows/ci.yml/badge.svg)](https://github.com/stewie-sw/stewie/actions/workflows/ci.yml)
+[![Docs](https://github.com/stewie-sw/stewie/actions/workflows/pages.yml/badge.svg)](https://stewie-sw.github.io/stewie/)
+[![Python](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12%20|%203.13-blue.svg)](pyproject.toml)
+[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A585%25-brightgreen.svg)](pyproject.toml)
+[![Types: mypy](https://img.shields.io/badge/types-mypy-blue.svg)](pyproject.toml)
+[![Lint: ruff](https://img.shields.io/badge/lint-ruff-orange.svg)](pyproject.toml)
+[![License](https://img.shields.io/badge/license-all%20rights%20reserved-lightgrey.svg)](LICENSE)
+
+</div>
+
+---
+
+## Overview
+
+STEWIE is a digital-twin and mission-planning platform for off-world surface construction, built on a
+**mass-conserving terramechanics authority** parameterized per planetary body (Moon, Mars, Earth, and
+more). It loads real lunar terrain, authors construction goals, produces physically valid and
+energy-aware plans, simulates and renders execution, and emits a mission-control report plus a
+machine-consumable plan. Its lineage is NASA's **IPEx** (ISRU Pilot Excavator) and the JHU APL
+**Lunar Autonomy Challenge**; it is an independent Godot + Project Chrono + ROS2 stack, not the
+official challenge entry.
+
+One core paradigm runs through it — **terrain memory**: the excavator physically changes the surface,
+and STEWIE maintains the authoritative world model rather than a rover-centric SLAM view.
+
+## Subsystems
+
+| Package | Role |
+|---|---|
+| **`stewie/`** | Platform core — conserved physics, terrain, the versioned twin, specs, Gymnasium envs, the FastAPI cockpit, the sensor/runtime bridges, the Godot render sidecar, and the evaluation gates. |
+| **`dart/`** | Perception, estimation, and SLAM — shadow geometry, articulation parallax, the SE(2) pose graph, mapping. |
+| **`lode/`** | Operations and planning — the mission planner, terrain-aware routing, autonomy, and acceptance. |
+| **`leap/`** | Earthmoving — construction skills and scheduling environments. |
+| **`forge/`** | Infrastructure and physics services. |
+
+## Install
+
+```bash
+git clone https://github.com/stewie-sw/stewie.git && cd stewie
+pip install -e .[dev]      # full toolchain (tests, lint, types, server, planner)
+# or a lighter target:
+pip install -e .[server]   # the mission-planning cockpit only
+```
+
+Requires Python ≥ 3.10.
+
+## Quickstart
+
+```bash
+# Launch the mission-planning cockpit (FastAPI + Cesium globe)
+stewie-serve                                            # http://localhost:8000
+# or containerized:
+docker compose -f deploy/compose.yml up -d
+```
+
+```python
+# Drive a Gymnasium environment on the conserved physics authority
+import stewie, gymnasium as gym        # importing stewie registers the envs
+env = gym.make("Dust/RoverDrive-v0")
+obs, _ = env.reset(seed=0)
+obs, reward, term, trunc, info = env.step(env.action_space.sample())
+```
+
+**Gymnasium environments** (all `gym.make`-able after `import stewie`):
+`Dust/RoverDrive-v0` (per-body variants `-Moon` / `-Mars` / `-Earth` / `-Ceres`), `Dust/Construct-v0`,
+`Dust/SkillMacro-v0`, `Dust/Scheduler-v0`, `Dust/WorkSite-v0`, `Dust/ActivePerception-v0`.
+
+## Documentation
+
+- **`PRD.md`** — the canonical design source (the STEWIE PRD; §16 is the subsystem map + phase gates).
+- **Docs site** — <https://stewie-sw.github.io/stewie/>
+
+## Quality gates
+
+Every push runs the CI gate ([`ci.yml`](.github/workflows/ci.yml)):
+
+- **Lint** — `ruff` pyflakes (F) across all packages.
+- **Power-of-10** — bounded cyclomatic complexity (≤ 10) on the conserved core (`stewie/physics`, `stewie/twin`).
+- **Types** — `mypy` over the core and planner (a documented ratchet narrows the remaining exclusions).
+- **Requirements traceability** — every `V=D` requirement must be cited by a test.
+- **Tests + coverage** — `pytest` with a coverage floor of **85%**, across Python 3.10–3.13.
+- **G1/G2 validation** — a frozen, byte-reproducible dissertation-evidence gate.
+
+```bash
+pytest                    # the configured suite
+ruff check --select F .   # lint
+mypy                      # types
+```
+
+## License & provenance
+
+**All rights reserved.** The prior CC0 dedication was withdrawn for this repository on 2026-06-10; a
+permissive or commercial license is pending. Until one is committed here, no rights to copy, modify,
+or redistribute are granted beyond those in GitHub's Terms of Service. See [`LICENSE`](LICENSE).
+
+Portions of the physics core originated in `jmccardle/roversim` and the `dustgym` project under their
+terms at the time of publication.
+
+## Authors
+
+**John McCardle** & **Aaron Storey** — STEWIE Software (`stewie-sw`).
