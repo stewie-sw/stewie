@@ -334,9 +334,13 @@ app.add_middleware(
 # ARCH-3: per-concern routers (the RC command path first, per §21). Each owns its own state + imports
 # the shared auth deps (server.deps) / audit log (server.services) -- no import of this app module.
 from stewie.server.routers import auth as _auth_router  # noqa: E402
+from stewie.server.routers import missions as _missions_router  # noqa: E402
 from stewie.server.routers import rc as _rc_router  # noqa: E402
+from stewie.server.routers import structures as _structures_router  # noqa: E402
 app.include_router(_rc_router.router)
 app.include_router(_auth_router.router)
+app.include_router(_missions_router.router)
+app.include_router(_structures_router.router)
 
 
 @app.middleware("http")
@@ -396,9 +400,6 @@ async def _on_http_exc(request: Request, exc: StarletteHTTPException):
 def get_index():
     return FileResponse(os.path.join(HERE, "index.html"), media_type=_CTYPE[".html"])
 
-
-# ---- S-4: the object store (catalog) ---------------------------------------------------------
-from stewie.server import objects as OBJ               # noqa: E402
 
 
 # ---- #39: the event history (who did what when; actor = the #52 auth identity) ----------------
@@ -538,66 +539,6 @@ def resync_compare(body: dict, _auth: str = Depends(require_director)):
     out = forward_compare(mission, candidates=cands, objective=obj)
     log_event(_auth, "resync.compare", f"{len(cands)} futures")
     return {"ok": True, **out}
-
-
-@app.post("/missions/{name}")
-def mission_save(name: str, doc: dict, _auth: str = Depends(require_auth)):
-    try:
-        out = OBJ.save_mission(name, doc)
-        log_event(_auth, "mission.save", out["name"])
-        return {"ok": True, **out}
-    except ValueError as e:
-        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
-
-
-@app.get("/missions")
-def mission_list():
-    return {"ok": True, "missions": OBJ.list_missions()}
-
-
-@app.get("/missions/{name}")
-def mission_load(name: str):
-    d = OBJ.load_mission(name)
-    if d is None:
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"no mission {name!r}"})
-    return {"ok": True, "doc": d}
-
-
-@app.delete("/missions/{name}")
-def mission_delete(name: str, _auth: str = Depends(require_auth)):
-    ok = OBJ.delete_mission(name)
-    log_event(_auth, "mission.delete", name)
-    return {"ok": ok}
-
-
-@app.post("/structures/custom/{name}")
-def structure_save(name: str, doc: dict, _auth: str = Depends(require_auth)):
-    try:
-        out = OBJ.save_structure(name, doc)
-        log_event(_auth, "structure.save", out["name"])
-        return {"ok": True, **out}
-    except ValueError as e:
-        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
-
-
-@app.get("/structures/custom")
-def structure_list():
-    return {"ok": True, "structures": OBJ.list_structures()}
-
-
-@app.get("/structures/custom/{name}/expand")
-def structure_expand(name: str, x: float, y: float):
-    orders = OBJ.expand_structure(name, x, y)
-    if orders is None:
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"no structure {name!r}"})
-    return {"ok": True, "orders": orders}
-
-
-@app.delete("/structures/custom/{name}")
-def structure_delete(name: str, _auth: str = Depends(require_auth)):
-    ok = OBJ.delete_structure(name)
-    log_event(_auth, "structure.delete", name)
-    return {"ok": ok}
 
 
 @app.on_event("startup")
