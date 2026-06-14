@@ -119,29 +119,8 @@ def _totals_json(totals):
     return out
 
 
-_MOON_DEM = None   # (dem, flattest-anchor); loaded once, reused across /plan requests
-
-
-_SITE_DEMS: dict = {}
-
-
-def _moon_dem(site: str = "haworth"):
-    """Load the real DEM for ``site`` (REG-01: any imported site, not just Haworth) + its
-    auto-selected flattest buildable anchor, cached PER SITE so Moon plans get live slope-gating on
-    the chosen terrain. Degrades to (None, (0,0)) -> flat check if the bundle is absent."""
-    global _MOON_DEM
-    if site in _SITE_DEMS:
-        return _SITE_DEMS[site]
-    try:
-        dem = MP.load_site_dem(site)
-        out = (dem, MP.flattest_anchor(dem))
-    except Exception as e:   # noqa: BLE001 -- degrade to flat-check, but surface it
-        log.warning("DEM for site %r unavailable; falling back to flat slope-check: %r", site, e)
-        out = (None, (0.0, 0.0))
-    _SITE_DEMS[site] = out
-    if site == "haworth":
-        _MOON_DEM = out
-    return out
+# ARCH-3: the per-site DEM cache lives in stewie.server.state (shared with the planner/twin routers)
+from stewie.server.state import moon_dem as _moon_dem  # noqa: E402
 
 
 def _autonomy_perception(mission, dem, origin, algorithm, objective):
@@ -650,33 +629,8 @@ def session_summary(sid: str, _auth: None = Depends(require_auth)):
 
 
 # ---- P2.2: the versioned observed-terrain twin (resync = the reconstruction update channel) ---
-from stewie.twin import versioned as VT                # noqa: E402
-
-_TWIN: "VT.TwinStore | None" = None
-import threading as _threading                            # noqa: E402
-_TWIN_LOCK = _threading.Lock()                            # RC-02: serialize the lazy cold-restore
-
-
-def _twin() -> "VT.TwinStore":
-    """Lazy twin over the Haworth observed map (the planner's site); base = the loaded DEM."""
-    global _TWIN
-    if _TWIN is not None:                                 # fast path (no lock once built)
-        return _TWIN
-    with _TWIN_LOCK:                                      # RC-02: only ONE thread runs from_journal
-        if _TWIN is None:
-            dem, _anchor = _moon_dem()
-            base = dem[0] if isinstance(dem, tuple) else dem
-            import numpy as _np
-            if base is None:
-                base = _np.zeros((64, 64))              # degraded mode mirrors _moon_dem's fallback
-            from stewie.specs import config as _CFG
-            _jdir = os.path.join(_CFG.data_dir(), "twin")
-            os.makedirs(_jdir, exist_ok=True)
-            _jp = os.path.join(_jdir, "haworth.journal")
-            # W-1 (PRD 6.2): the server twin is DURABLE -- cold restore from the journal, then journal on
-            _TWIN = VT.TwinStore.from_journal(_np.asarray(base, dtype=float), cell_m=5.0,
-                                              journal_path=_jp)
-    return _TWIN
+# ARCH-3: the lazy durable twin lives in stewie.server.state (shared with the twin/resync routes)
+from stewie.server.state import twin as _twin          # noqa: E402
 
 
 class ResyncRequest(BaseModel):

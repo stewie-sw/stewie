@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from lode import mission_planner as MP
 from stewie.server import server as SRV
+from stewie.server import state as STATE
 from stewie.specs import config
 
 
@@ -70,7 +71,8 @@ def test_dem_dir_env_locates_the_asset_explicitly(monkeypatch, tmp_path):
 def test_moon_dem_degrades_cleanly_when_asset_absent(monkeypatch):
     # a fresh wheel has no DEM bundle: _moon_dem degrades to a flat slope-check, it does NOT crash.
     monkeypatch.setenv("STEWIE_DEM_DIR", "/nonexistent/dem/bundle")
-    monkeypatch.setattr(SRV, "_MOON_DEM", None); monkeypatch.setattr(SRV, "_SITE_DEMS", {})  # reset per-site cache (REG-01)
+    # ARCH-3: the per-site DEM cache now lives in stewie.server.state; reset it there (REG-01)
+    monkeypatch.setattr(STATE, "_MOON_DEM", None); monkeypatch.setattr(STATE, "_SITE_DEMS", {})
     dem, origin = SRV._moon_dem()
     assert dem is None and origin == (0.0, 0.0)
 
