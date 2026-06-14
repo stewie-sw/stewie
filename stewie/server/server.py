@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import hmac
 import json
 import logging
 import os
@@ -27,7 +26,7 @@ import threading
 import time
 
 import uvicorn
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -49,9 +48,9 @@ from dart import integrated_slam as ISLAM     # P1.2: the integrated multi-facto
 # failure paths. Level via $STEWIE_LOG_LEVEL.
 log = logging.getLogger("stewie.server")
 
-def _env(name: str, default=None):
-    """Read the STEWIE_<name> environment variable."""
-    return os.environ.get(f"STEWIE_{name}", default)
+# ARCH-3: the shared auth dependencies + env helpers live in stewie.server.deps so the per-concern
+# routers can import them without cycling through this app module.
+from stewie.server.deps import _env, _truthy, require_auth, require_director  # noqa: E402
 
 
 _START = time.monotonic()
@@ -320,60 +319,6 @@ class ParallaxPlanRequest(BaseModel):
     posture_from: str = Field(default="TRANSIT", pattern=r"^[A-Z_]+$", max_length=32)
     posture_to: str = Field(default="MEERKAT", pattern=r"^[A-Z_]+$", max_length=32)
     size: str = Field(default="1024x768", pattern=r"^\d{2,5}x\d{2,5}$", max_length=12)
-
-
-def _truthy(v) -> bool:
-    return bool(v) and str(v).strip().lower() in ("1", "true", "yes", "on")
-
-
-def _is_loopback(request: Request) -> bool:
-    """True for an in-process (ASGI TestClient) or loopback client. dev-open is permitted only here,
-    so a STEWIE_DEV_OPEN flag accidentally left on in a (proxied) deployment still cannot be used by a
-    remote client -- the backend behind nginx sees the proxy's container IP, not loopback."""
-    c = getattr(request, "client", None)
-    if c is None:
-        return True
-    return c.host in ("127.0.0.1", "::1", "localhost", "testclient")
-
-
-def require_auth(request: Request,
-                 x_api_key: str | None = Header(default=None, alias="X-API-Key"),
-                 authorization: str | None = Header(default=None),
-                 tailscale_user_login: str | None = Header(default=None,
-                                                           alias="Tailscale-User-Login")) -> str:
-    """N8 + #52 + audit C-01: identity-bearing auth on mutating routes, FAIL CLOSED.
-    Accepted, in order: a WHITELISTED Tailscale identity (opt-in via STEWIE_TRUST_TAILSCALE=1
-    behind `tailscale serve`), an HMAC session token from /auth/login (Bearer), or the raw API
-    key (automation; identity "api-key"). When NO key is configured the route is LOCKED (503)
-    unless STEWIE_DEV_OPEN is explicitly set AND the client is loopback/in-process -- a keyless
-    deployment is no longer silently director-open. Returns the operator identity."""
-    from stewie.server import auth as AUTH
-    key = _env("API_KEY")
-    if not key:
-        if _truthy(_env("DEV_OPEN")) and _is_loopback(request):
-            return "dev-open"
-        raise HTTPException(status_code=503, detail=(
-            "auth not configured: set STEWIE_API_KEY for authenticated access, or STEWIE_DEV_OPEN=1 "
-            "on a loopback-only dev server. Privileged routes are locked (fail-closed)."))
-    ts = AUTH.tailscale_identity({"tailscale-user-login": tailscale_user_login or ""})
-    if ts:
-        return ts
-    supplied = x_api_key or (authorization or "").removeprefix("Bearer ").strip()
-    op = AUTH.verify_token(supplied)
-    if op:
-        return op
-    if hmac.compare_digest(supplied.encode(), key.encode()):   # constant-time -> no timing oracle
-        return "api-key"
-    raise HTTPException(status_code=401, detail="invalid or missing API key")
-
-
-def require_director(identity: str = Depends(require_auth)) -> str:
-    """#68 [REQ:PO-04]: the truth/training surface is director-only."""
-    from stewie.server import auth as AUTH
-    if AUTH.role_of(identity) != "director":
-        raise HTTPException(status_code=403,
-                            detail=f"director role required (signed in as operator {identity!r})")
-    return identity
 
 
 app = FastAPI(title="STEWIE — mission planner + planet browser API", version=_version())
