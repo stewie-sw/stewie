@@ -392,6 +392,7 @@
       <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
       <span class="vtsep" title="engineer / developer / intern views">·</span>
       <button class="vtab" data-view="system" title="#55: validation, API docs, server ops, config — the operate-the-software cluster">System</button>
+      <button class="vtab" id="vtab-admin" data-view="admin" style="display:none" title="#117: operator accounts — approve / role / revoke / reset (director-only)">Admin</button>
       <button class="vtab" data-view="settings" title="operator display settings (Carstens & Schuler 2025: font size + lighting)">⚙ Settings</button>
     </nav>
     <div id="viewarea">
@@ -568,17 +569,19 @@
             </select>
           </label>
           <label style="display:flex; align-items:center; gap:10px">
-            <b>Operator</b>
-            <input id="set-opemail" type="email" placeholder="whitelisted email" style="width:16em" />
-            <button id="set-signin" class="site">Sign in</button>
-            <span id="set-opstate" style="font-size:11px;opacity:.75"></span>
+            <b>Account</b>
+            <button id="set-account" class="site">Sign in / manage</button>
+            <span id="set-opstate" style="font-size:11px;opacity:.75">not signed in</span>
           </label>
-          <label style="display:flex; align-items:center; gap:10px">
-            <b>API key</b>
-            <input id="set-apikey" type="password" placeholder="X-API-Key for planning/director calls"
-                   style="width:18em" />
-            <span style="opacity:.6;font-size:11px">stored in this browser; deploy/.env holds the server's</span>
-          </label>
+          <details style="font-size:12px">
+            <summary style="cursor:pointer;color:var(--muted)">Advanced — automation API key</summary>
+            <label style="display:flex; align-items:center; gap:10px; margin-top:8px">
+              <input id="set-apikey" type="password" placeholder="X-API-Key (CI / scripts only)"
+                     style="width:18em" />
+              <span style="opacity:.6;font-size:11px">operators sign in above; the shared key (deploy/.env)
+                is for automation only and never required in the browser</span>
+            </label>
+          </details>
           <label style="display:flex; align-items:center; gap:10px">
             <b>Font size</b>
             <input id="set-font" type="range" min="11" max="20" step="1" value="13" style="width:12em" />
@@ -597,6 +600,72 @@
           <pre id="cfgout" class="mono">—</pre></details>
         <iframe id="docsframe" title="docs" src="https://stewie-sw.github.io/stewie/"></iframe>
       </div>
+      <div id="pane-admin" class="pane">
+        <div class="cap"><span>ADMIN — operator accounts (#117: approve · role · revoke · reset password · delete)</span>
+          <button class="site" id="admin-refresh" style="font-size:10px">refresh</button></div>
+        <div style="padding:10px 4px">
+          <table id="adminroster">
+            <thead><tr><th>email</th><th>role</th><th>status</th><th>last login</th><th>actions</th></tr></thead>
+            <tbody id="adminrows"><tr><td colspan="5" style="opacity:.6">—</td></tr></tbody>
+          </table>
+          <div class="cap" style="margin-top:16px"><span>AUDIT — recent events (/events, director-only)</span></div>
+          <pre id="adminaudit" class="mono" style="max-height:240px;overflow:auto">—</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- #117: operator access modal (sign in / request access / set password) -->
+<style>
+  #authmodal input { background:var(--field,#141a22); color:var(--txt,#dfe7ef); border:1px solid var(--line,#2a3340);
+    border-radius:6px; padding:8px 10px; font-size:13px; width:100%; box-sizing:border-box; }
+  #auth-tabs .site.active { border-color:var(--accent); color:var(--accent); }
+  #adminroster { width:100%; border-collapse:collapse; font-size:12px; }
+  #adminroster th, #adminroster td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line,#222a35); }
+  #adminroster .badge { font-size:10px; padding:1px 6px; border-radius:8px; border:1px solid var(--line,#2a3340); }
+</style>
+<div id="authmodal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.72);
+     align-items:center;justify-content:center">
+  <div style="background:var(--bg,#0b0e13);border:1px solid var(--field-bd,#2a3340);border-radius:10px;
+       width:min(94vw,400px);padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.6)">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
+      <img src="/icons/icon-32.png" alt="" style="width:20px;height:20px" />
+      <b style="letter-spacing:.3em;font-weight:800">STEWIE</b>
+      <span style="opacity:.5;font-size:10px;letter-spacing:.14em">OPERATOR ACCESS</span>
+    </div>
+    <div id="auth-tabs" style="display:flex;gap:6px;margin:12px 0 14px">
+      <button class="site active" id="auth-tab-login" style="flex:1">Sign in</button>
+      <button class="site" id="auth-tab-register" style="flex:1">Request access</button>
+    </div>
+    <div id="auth-login" style="display:flex;flex-direction:column;gap:9px">
+      <input id="auth-email" type="email" placeholder="email" autocomplete="username" />
+      <input id="auth-pass" type="password" placeholder="password" autocomplete="current-password" />
+      <button class="site" id="auth-do-login" style="padding:8px">Sign in</button>
+    </div>
+    <div id="auth-register" style="display:none;flex-direction:column;gap:9px">
+      <input id="auth-remail" type="email" placeholder="email" autocomplete="username" />
+      <input id="auth-rpass" type="password" placeholder="password (min 10 chars)" autocomplete="new-password" />
+      <input id="auth-rpass2" type="password" placeholder="confirm password" autocomplete="new-password" />
+      <button class="site" id="auth-do-register" style="padding:8px">Request access</button>
+      <div style="font-size:11px;opacity:.6">A director must approve your account before you can sign in.</div>
+    </div>
+    <div id="auth-setpw" style="display:none;flex-direction:column;gap:9px">
+      <div style="font-size:12px;color:var(--accent)">Set a password for <b id="auth-setpw-who"></b></div>
+      <input id="auth-newpass" type="password" placeholder="new password (min 10 chars)" autocomplete="new-password" />
+      <input id="auth-newpass2" type="password" placeholder="confirm password" autocomplete="new-password" />
+      <button class="site" id="auth-do-setpw" style="padding:8px">Set password</button>
+    </div>
+    <div id="auth-msg" style="min-height:1.1em;font-size:12px;margin-top:10px;color:var(--bad,#ff6b6b)"></div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px;font-size:11px;gap:10px">
+      <a href="#" id="auth-dismiss" style="color:var(--muted)">continue without signing in</a>
+      <details style="font-size:11px">
+        <summary style="cursor:pointer;color:var(--muted)">automation key</summary>
+        <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;width:15em">
+          <input id="auth-apikey" type="password" placeholder="X-API-Key (CI / scripts only)" />
+          <button class="site" id="auth-save-key" style="padding:5px">Save key in this browser</button>
+        </div>
+      </details>
     </div>
   </div>
 </div>
@@ -1072,7 +1141,7 @@ const $ = (id) => document.getElementById(id);
 let VIEW = "plan";
 const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navview", report: "pane-report",
                     validation: "pane-validation", api: "pane-api", server: "pane-server", config: "pane-config",
-                    settings: "pane-settings" };
+                    admin: "pane-admin", settings: "pane-settings" };
 const _PANE_LOADED = {};
 const SYSTEM_VIEWS = ["validation", "api", "server", "config"];
 let LAST_SYSTEM_VIEW = "server";
@@ -1246,28 +1315,150 @@ applySettings(SETTINGS);
 if ($("set-theme")) $("set-theme").onchange = () => {
   SETTINGS.theme = $("set-theme").value; saveSettings(SETTINGS); applySettings(SETTINGS);
 };
-if ($("set-signin")) {
-  fetch("/auth/config").then((r) => r.json()).then((c) => {   // hide the row when disabled
-    if (!c.operator_login) $("set-opemail").closest("label").style.display = "none";
-  }).catch(() => {});
-  $("set-opemail").value = SETTINGS.opemail || "";
-  if (SETTINGS.opemail && SETTINGS.optoken) $("set-opstate").textContent = "signed in: " + SETTINGS.opemail;
-  $("set-signin").onclick = async () => {
-    const email = $("set-opemail").value.trim();
-    if (!email || !SETTINGS.apikey) { $("set-opstate").textContent = "need email + API key below"; return; }
-    const r = await fetch("/auth/login", { method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-Key": SETTINGS.apikey },
-      body: JSON.stringify({ email }) });
-    const j = await r.json();
-    if (j.ok) { SETTINGS.opemail = email; SETTINGS.optoken = j.token; saveSettings(SETTINGS);
-      $("set-opstate").textContent = "signed in: " + j.operator; }
-    else { $("set-opstate").textContent = j.error || ("refused (" + r.status + ")"); }
-  };
-}
 if ($("set-apikey")) {
   $("set-apikey").value = SETTINGS.apikey || "";
   $("set-apikey").onchange = () => { SETTINGS.apikey = $("set-apikey").value.trim(); saveSettings(SETTINGS); };
 }
+
+// ---- #117: operator access (sign in / request access / set password) + the director admin panel ----
+const AUTH = { role: null, identity: null };
+function authMsg(t, ok) { const m = $("auth-msg"); if (m) { m.textContent = t || "";
+  m.style.color = ok ? "var(--accent)" : "var(--bad,#ff6b6b)"; } }
+function authMode(mode) {
+  ["login", "register", "setpw"].forEach((k) => { const el = $("auth-" + k);
+    if (el) el.style.display = (k === mode) ? "flex" : "none"; });
+  const lt = $("auth-tab-login"), rt = $("auth-tab-register"), tabs = $("auth-tabs");
+  if (lt && rt) { lt.classList.toggle("active", mode === "login"); rt.classList.toggle("active", mode === "register"); }
+  if (tabs) tabs.style.display = (mode === "setpw") ? "none" : "flex";
+  authMsg("");
+}
+function openAuth(mode) { const m = $("authmodal"); if (!m) return; m.style.display = "flex"; authMode(mode || "login"); }
+function closeAuth() { const m = $("authmodal"); if (m) m.style.display = "none"; }
+let _authPromptTs = 0;
+function flashSignInNeeded() {                            // a 401 surfaced -> nudge sign-in (debounced)
+  if (SETTINGS.optoken || SETTINGS.apikey) return;        // already have creds -> the 401 is something else
+  const now = Date.now(); if (now - _authPromptTs < 8000) return; _authPromptTs = now;
+  openAuth("login"); authMsg("Sign in to perform this action.", true);
+}
+(function wrapFetch() {                                    // observe 401s on same-origin API calls; no behavior change
+  const of = window.fetch;
+  window.fetch = async function (...a) {
+    const res = await of.apply(this, a);
+    try { const u = typeof a[0] === "string" ? a[0] : ((a[0] && a[0].url) || "");
+      if (res.status === 401 && u.charAt(0) === "/") flashSignInNeeded(); } catch (e) {}
+    return res;
+  };
+})();
+async function refreshAuthState() {
+  const st = $("set-opstate");
+  if (!SETTINGS.optoken) { AUTH.role = null; AUTH.identity = null;
+    if (st) st.textContent = "not signed in";
+    const av = $("vtab-admin"); if (av) av.style.display = "none"; return; }
+  try {
+    const r = await fetch("/auth/me", { headers: apiHeaders() });
+    if (!r.ok) throw 0;
+    const j = await r.json(); AUTH.role = j.role; AUTH.identity = j.identity;
+    if (st) st.textContent = "signed in: " + j.identity + " (" + j.role + ")";
+    const av = $("vtab-admin"); if (av) av.style.display = (j.role === "director") ? "inline-block" : "none";
+  } catch (e) { SETTINGS.optoken = ""; saveSettings(SETTINGS);
+    if (st) st.textContent = "session expired — sign in again";
+    const av = $("vtab-admin"); if (av) av.style.display = "none"; }
+}
+async function doLogin() {
+  const email = $("auth-email").value.trim(), pass = $("auth-pass").value;
+  if (!email || !pass) { authMsg("email and password required"); return; }
+  const r = await fetch("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password: pass }) });
+  const j = await r.json().catch(() => ({}));
+  if (r.ok && j.ok) {
+    SETTINGS.opemail = email; SETTINGS.optoken = j.token; saveSettings(SETTINGS); AUTH.role = j.role;
+    if (j.must_set_password) { $("auth-setpw-who").textContent = j.operator; openAuth("setpw");
+      authMsg("Signed in — set a password to finish.", true); }
+    else { authMsg("Signed in.", true); await refreshAuthState(); setTimeout(closeAuth, 500); }
+  } else { authMsg(j.error || ("sign-in refused (" + r.status + ")")); }
+}
+async function doRegister() {
+  const email = $("auth-remail").value.trim(), p = $("auth-rpass").value, p2 = $("auth-rpass2").value;
+  if (p !== p2) { authMsg("passwords do not match"); return; }
+  const r = await fetch("/auth/register", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password: p }) });
+  const j = await r.json().catch(() => ({}));
+  if (r.ok && j.ok) authMsg("Request received — a director will approve your account.", true);
+  else authMsg(j.error || ("registration refused (" + r.status + ")"));
+}
+async function doSetPassword() {
+  const p = $("auth-newpass").value, p2 = $("auth-newpass2").value;
+  if (p !== p2) { authMsg("passwords do not match"); return; }
+  const r = await fetch("/auth/password", { method: "POST", headers: apiHeaders(),
+    body: JSON.stringify({ new_password: p }) });
+  const j = await r.json().catch(() => ({}));
+  if (r.ok && j.ok) { authMsg("Password set.", true); await refreshAuthState(); setTimeout(closeAuth, 600); }
+  else authMsg(j.error || ("could not set password (" + r.status + ")"));
+}
+(function wireAuth() {
+  const bind = (id, fn) => { const e = $(id); if (e) e.onclick = fn; };
+  bind("auth-tab-login", () => authMode("login"));
+  bind("auth-tab-register", () => authMode("register"));
+  bind("auth-do-login", doLogin);
+  bind("auth-do-register", doRegister);
+  bind("auth-do-setpw", doSetPassword);
+  bind("auth-dismiss", (ev) => { ev.preventDefault(); closeAuth(); });
+  bind("auth-save-key", () => { SETTINGS.apikey = $("auth-apikey").value.trim(); saveSettings(SETTINGS);
+    if ($("set-apikey")) $("set-apikey").value = SETTINGS.apikey; authMsg("Automation key saved in this browser.", true); });
+  bind("set-account", () => openAuth("login"));
+  fetch("/auth/config").then((r) => r.json()).then((c) => {
+    if (!c.operator_login) { const b = $("set-account"); if (b) b.disabled = true; }
+    if (!c.registration_open) { const t = $("auth-tab-register"); if (t) t.style.display = "none"; }
+  }).catch(() => {});
+})();
+async function renderAdmin() {
+  const rows = $("adminrows"); if (!rows) return;
+  try {
+    const r = await fetch("/admin/operators", { headers: apiHeaders() });
+    if (!r.ok) { rows.innerHTML = '<tr><td colspan="5" style="opacity:.6">director sign-in required</td></tr>'; return; }
+    const ops = (await r.json()).operators || [];
+    if (!ops.length) rows.innerHTML = '<tr><td colspan="5" style="opacity:.6">no accounts yet</td></tr>';
+    else rows.innerHTML = ops.map((o) => {
+      const ll = o.last_login ? new Date(o.last_login * 1000).toLocaleString() : "—";
+      const flip = o.role === "director" ? "operator" : "director";
+      const act = [];
+      if (o.status === "pending") act.push('<button class="site" data-act="approve" data-email="' + o.email + '">approve</button>');
+      act.push('<button class="site" data-act="role" data-email="' + o.email + '" data-role="' + flip + '">→' + flip + '</button>');
+      if (o.status !== "revoked") act.push('<button class="site" data-act="revoke" data-email="' + o.email + '">revoke</button>');
+      act.push('<button class="site" data-act="reset" data-email="' + o.email + '">reset pw</button>');
+      act.push('<button class="site" data-act="delete" data-email="' + o.email + '">delete</button>');
+      const sc = o.status === "active" ? "var(--accent)" : (o.status === "pending" ? "#e0a800" : "var(--muted)");
+      return '<tr><td>' + o.email + '</td><td>' + o.role + '</td><td><span class="badge" style="color:' + sc + '">' +
+        o.status + '</span></td><td>' + ll + '</td><td style="display:flex;gap:4px;flex-wrap:wrap">' + act.join("") + '</td></tr>';
+    }).join("");
+    rows.querySelectorAll("button[data-act]").forEach((b) =>
+      b.onclick = () => adminAction(b.dataset.act, b.dataset.email, b.dataset.role));
+  } catch (e) { rows.innerHTML = '<tr><td colspan="5" style="opacity:.6">unavailable</td></tr>'; }
+  try {
+    const e = await fetch("/events?n=40", { headers: apiHeaders() });
+    if (e.ok) { const evs = (await e.json()).events || [];
+      $("adminaudit").textContent = evs.map((x) => new Date(x.ts * 1000).toLocaleTimeString() +
+        "  " + x.actor + "  " + x.action + "  " + (x.target || "")).join("\n") || "—"; }
+  } catch (e) {}
+}
+async function adminAction(act, email, role) {
+  let url, body = null, method = "POST";
+  if (act === "approve") { url = "/admin/operators/approve"; body = { email, role: "operator" }; }
+  else if (act === "role") { url = "/admin/operators/role"; body = { email, role }; }
+  else if (act === "revoke") { if (!confirm("Revoke " + email + "?")) return; url = "/admin/operators/revoke"; body = { email }; }
+  else if (act === "reset") { const np = prompt("New password for " + email + " (min 10 chars):"); if (!np) return;
+    url = "/admin/operators/reset"; body = { email, new_password: np }; }
+  else if (act === "delete") { if (!confirm("Delete " + email + "? This cannot be undone.")) return;
+    url = "/admin/operators/" + encodeURIComponent(email); method = "DELETE"; }
+  else return;
+  const opt = { method, headers: apiHeaders() }; if (body) opt.body = JSON.stringify(body);
+  const r = await fetch(url, opt); const j = await r.json().catch(() => ({}));
+  if (!r.ok) alert(j.detail || j.error || ("failed (" + r.status + ")"));
+  renderAdmin();
+}
+if ($("admin-refresh")) $("admin-refresh").onclick = renderAdmin;
+{ const av = $("vtab-admin"); if (av) av.addEventListener("click", () => setTimeout(renderAdmin, 0)); }
+refreshAuthState();
 if ($("set-font")) $("set-font").oninput = () => {
   SETTINGS.fontpx = parseInt($("set-font").value, 10); saveSettings(SETTINGS); applySettings(SETTINGS);
 };

@@ -33,7 +33,14 @@ def allowlist() -> tuple:
 
 
 def is_allowed(email: str) -> bool:
-    return email.strip().lower() in allowlist()
+    """Whitelisted? (#117) The operator store is authoritative for emails it holds -- active is
+    allowed, pending/revoked are denied. An email with no store record falls back to the
+    env/default allowlist, so an empty store behaves exactly as the pre-#117 deployment."""
+    from stewie.server import operators as OPS
+    e = email.strip().lower()
+    if OPS.exists(e):
+        return OPS.is_active(e)
+    return e in allowlist()
 
 
 def _key() -> bytes:
@@ -74,6 +81,10 @@ def role_of(identity: str) -> str:
     director-equivalent. 'dev-open' (no key configured) = director."""
     if identity in ("api-key", "dev-open"):
         return "director"
+    from stewie.server import operators as OPS
+    sr = OPS.store_role(identity)        # #117: a registered active account governs its own role
+    if sr is not None:
+        return sr
     env = os.environ.get("STEWIE_DIRECTORS", "")
     directors = (tuple(e.strip().lower() for e in env.split(",") if e.strip())
                  if env.strip() else allowlist())
