@@ -1310,12 +1310,17 @@ microgravity body gate (H-12); fail-closed routing — off-DEM footprint reject 
 fail-closed at /plan (H-03), no diagonal corner-cut (H-04), adaptive window vs the 20 m bbox margin
 (H-05), cumulative-ascent haul lift (H-06).
 
-**Phase 2 — harden estimation + persistence (#115). Touches the §22 nav track:** reject impossible
-parallax (H-13, the `/localize` + render-fix primitives), require ≥3 landmarks or flag the 2-landmark
-mirror ambiguity (H-14, `/localize` allows 2), pose-graph observability/anchor check (H-15, no ridge
-covariance), real shadow map-match not centroid (H-16), per-frame camera pose in mapping (H-17),
-keep anisotropic parallax covariance (H-30), one solar authority (H-18). Atomic + integrity-checked
-journal/snapshot; Unix-socket + session hardening.
+**Phase 2 — harden estimation + persistence (#115) — ✅ DONE 2026-06-13 (every slice TDD, gate
+byte-identical). Touched the §22 nav track:** estimation — reject impossible parallax (H-13, the
+`/localize` + render-fix primitives), require ≥3 landmarks or flag the 2-landmark mirror ambiguity
+(H-14, `/localize` allows 2), pose-graph observability/anchor check (H-15, no ridge covariance), real
+shadow map-match not centroid (H-16), per-frame camera pose in mapping (H-17), keep anisotropic
+parallax covariance (H-30), one solar authority (H-18). Persistence/socket — durable-before-commit +
+atomic verify-before-mutate twin journal (H-20/M-12, `bb6aa94`), atomic + content-checksummed twin
+snapshots (M-11, `1bac883`), Unix-socket hardening = bounded readline + finite/bounded twist +
+0o600 socket + finite set_thermal (M-03/04/05, `f471648`), session TTL + bounded store (M-09,
+`60f0406`). Adjacent finding tracked for its own slice: arbitrary-path checkpoint/restore traversal
+(#120).
 
 **Phase 3 — scale + maintain (#116):** sparse graph factorization, swept/compiled illumination,
 materialized twin state, split the server/planner god modules, pin deps + CI action SHAs, green the
