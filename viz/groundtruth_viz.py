@@ -57,7 +57,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from stewie.physics.io_fields import load_scene  # noqa: E402
-from the conserved authority import constants as K  # noqa: E402
+from stewie.specs import constants as K  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # State-label -> color palette (INTERFACE.md §4 enum; spec §6 transitions).

@@ -34,7 +34,6 @@ def test_shadow_length_height_annotation_math():
 def test_edge_fit_annotation_on_real_ce3():
     """On a real Chang'e-3 image, the erf fit returns a sub-pixel edge + a plausible width + the math."""
     from PIL import Image
-    from dart.shadow_edge_sigma import measure_edge_sigma_px
     g = np.asarray(Image.open(CE3[0]).convert("L"), float)
     # find a strong edge to annotate (same selection the measurement uses)
     gx = np.abs(g[:, 1:] - g[:, :-1]); ys, xs = np.where(gx > 40)

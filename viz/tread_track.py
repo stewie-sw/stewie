@@ -38,7 +38,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 from stewie.physics.io_fields import load_scene  # noqa: E402
-from the conserved authority import constants as K  # noqa: E402
+from stewie.specs import constants as K  # noqa: E402
 
 # Reuse the EXACT grazing-sun hillshade used by the cave-in showpiece so the two
 # portfolio pieces are visually consistent (spec §5.1/§8).
