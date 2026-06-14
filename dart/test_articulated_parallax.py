@@ -146,6 +146,54 @@ def test_h13_parallax_rejects_impossible_measurements_instead_of_fabricating_a_r
         AP.articulation_localize(g, 0, [(6.0, 0.0), (0.0, 5.0)], [10.0, -3.0], dh_m=0.2, fx_px=1000.0)
 
 
+def test_m02_ambiguous_parallax_fix_is_not_fused_into_the_graph():
+    """Audit M-02 (2026-06-14): an AMBIGUOUS parallax fix (< 3 non-collinear landmarks -> a mirror pair)
+    must NOT be committed to the pose graph. Returning ambiguous=True does not undo an already-added
+    factor, so the estimator could be confidently wrong on the selected mirror. Verification: a
+    two-landmark maneuver must leave the graph's estimate UNCHANGED (no absolute factor added); a
+    third non-collinear landmark resolves the ambiguity and THEN fuses, moving the node."""
+    import numpy as np
+    from dart.pose_graph_se2 import PoseGraphSE2
+    from stewie.specs import ipex_specs as S
+    fx = S.flight_fx_px(6.0); dh = 0.202
+
+    truth = np.array([4.0, -2.0])
+    # TWO landmarks -> mirror-ambiguous
+    L2 = np.array([[6.0, 0.0], [0.0, 5.0]])
+    sh2 = [AP.pixel_shift_for_range(dh, float(np.hypot(*(truth - Li))), fx) for Li in L2]
+
+    g = PoseGraphSE2()
+    g.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)
+    g.add_between(0, 1, (5.0, -3.0, 0.0), sigma_xy=1.5, sigma_yaw=1.5)   # drifted node 1
+    before = g.optimize_with_cov()
+    n_abs_before = len(g._abs_cov) + len(g._abs)
+
+    res = AP.articulation_localize(g, 1, L2, sh2, dh_m=dh, fx_px=fx)
+    after = g.optimize_with_cov()
+    n_abs_after = len(g._abs_cov) + len(g._abs)
+
+    assert res["ambiguous"] is True
+    assert res["fused"] is False                                    # the ambiguous fix was refused
+    assert n_abs_after == n_abs_before                              # NO absolute factor was committed
+    # the graph estimate is unchanged (the ambiguous maneuver did not move node 1)
+    assert after["pose"][1] == pytest.approx(before["pose"][1], abs=1e-9)
+    assert after["xy_sigma"][1] == pytest.approx(before["xy_sigma"][1], abs=1e-9)
+
+    # a THIRD non-collinear landmark resolves the ambiguity -> NOW it fuses and moves the node
+    L3 = np.array([[6.0, 0.0], [0.0, 5.0], [-3.0, -4.0]])
+    sh3 = [AP.pixel_shift_for_range(dh, float(np.hypot(*(truth - Li))), fx) for Li in L3]
+    g3 = PoseGraphSE2()
+    g3.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)
+    g3.add_between(0, 1, (5.0, -3.0, 0.0), sigma_xy=1.5, sigma_yaw=1.5)
+    before3 = g3.optimize_with_cov()
+    res3 = AP.articulation_localize(g3, 1, L3, sh3, dh_m=dh, fx_px=fx)
+    assert res3["ambiguous"] is False
+    assert res3["fused"] is True                                    # the unambiguous fix was committed
+    err_before = np.hypot(before3["pose"][1][0] - truth[0], before3["pose"][1][1] - truth[1])
+    err_after = np.hypot(res3["pose"][1][0] - truth[0], res3["pose"][1][1] - truth[1])
+    assert err_after < err_before                                  # the resolved fix pulls node 1 to truth
+
+
 def test_h14_two_landmark_fix_flagged_ambiguous_with_both_hypotheses():
     """Audit H-14 (2026-06-13): a < 3-non-collinear-landmark trilateration is mirror-ambiguous. The fix
     must be FLAGGED ambiguous and return BOTH hypotheses (reflected across the landmark baseline), not a

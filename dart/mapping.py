@@ -211,6 +211,7 @@ def build_elevation_map(
     config: MappingConfig,
     *,
     camera_orientations: "np.ndarray | None" = None,
+    static_mount: bool = False,
 ) -> ElevationMap:
     """Accumulate triangulated stereo depth along the traverse into a 2.5D elevation + count map.
 
@@ -222,8 +223,14 @@ def build_elevation_map(
 
     H-17: ``camera_orientations`` is an optional (F, 3, 3) per-frame optical->world rotation, so the
     rover's per-frame yaw/pitch/roll/articulated posture is represented instead of one fixed mount for
-    the whole traverse. When None (the default) every frame uses the fixed mount rotation
-    (``config.optical_to_world_rotation()``), i.e. behaviour is unchanged.
+    the whole traverse.
+
+    M-05 (2026-06-14): a MOVING-platform map MUST supply ``camera_orientations``. Silently defaulting to
+    one fixed mount for a whole traverse rotates every cloud by the start attitude, so any turn, pitch,
+    roll, or articulation maps terrain into the wrong world cells. The fixed-mount shortcut is therefore
+    allowed ONLY when the caller EXPLICITLY declares ``static_mount=True`` (a genuinely fixed-attitude
+    static test on a yaw-0 traverse). Omitting orientations without that declaration is an error, and
+    declaring ``static_mount=True`` together with explicit orientations is contradictory and rejected.
 
     Truth firewall (invariant I3): images + camera centres + per-frame ORIENTATION (a perception/pose
     product) + calibration only. No slip/truth/clast field is an argument; no ground-truth position enters.
@@ -235,8 +242,17 @@ def build_elevation_map(
         raise ValueError("need one camera centre per stereo pair")
     if not stereo_pairs:
         raise ValueError("need at least one stereo pair to build a map")
+    if static_mount and camera_orientations is not None:
+        raise ValueError("static_mount=True is contradictory with explicit camera_orientations; pass "
+                         "one or the other (M-05)")
+    if camera_orientations is None and not static_mount:
+        raise ValueError(
+            "build_elevation_map requires per-frame camera_orientations for a moving-platform map "
+            "(M-05): a single fixed mount rotates every cloud by the start attitude and mis-maps any "
+            "turn/pitch/roll. Pass camera_orientations=(F,3,3), or static_mount=True to explicitly "
+            "declare a genuinely fixed-attitude (yaw-0) static traverse.")
     rots = None
-    if camera_orientations is not None:                # H-17: per-frame orientation (else the fixed mount)
+    if camera_orientations is not None:                # H-17: per-frame orientation (else the explicit fixed mount)
         rots = np.asarray(camera_orientations, dtype=float)
         if rots.shape != (centres.shape[0], 3, 3):
             raise ValueError("camera_orientations must be (F, 3, 3), one optical->world rotation per frame")

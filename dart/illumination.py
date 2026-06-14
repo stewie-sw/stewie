@@ -72,14 +72,19 @@ def horizon_clip(heightmap: np.ndarray, cell_m: float,
     -------
     (H, W) bool array, True where the pixel sees the sun.
 
-    Method: a single sweep of ``max_steps`` integer cell-steps along the up-sun unit vector
-    (bilinear-free nearest-cell sampling, like the hillshade's nearest-neighbour shading).
-    For step k at horizontal distance d_k = k*cell_m*|step|, a sun-ward cell of height h_s
-    blocks a pixel of height h_p iff h_s - h_p > d_k * tan(el): the rising line of sight is
-    overtopped. We accumulate the per-pixel maximum required clearance and shadow any pixel
-    that is ever overtopped. O(H*W*max_steps); max_steps bounds the horizon search to the
-    tile (a single heightmap cannot see a horizon beyond its own extent anyway, hence the
-    Product-69 caveat in the module docstring).
+    Method (M-07, 2026-06-14): a single sweep of ``max_steps`` unit-distance steps along the up-sun
+    unit vector, sampling the heightfield by BILINEAR interpolation at each continuous sample point.
+    For step k at horizontal distance d_k = k*cell_m, the up-sun terrain height h_s (interpolated)
+    blocks a pixel of height h_p iff h_s - h_p > d_k * tan(el): the rising line of sight is overtopped.
+    Any pixel ever overtopped is shadowed. O(H*W*max_steps); max_steps bounds the horizon search to the
+    tile (a single heightmap cannot see a horizon beyond its own extent anyway, hence the Product-69
+    caveat in the module docstring).
+
+    Why bilinear, not nearest-cell: the previous nearest-index sampling (``rint`` of k*dir) re-sampled
+    some cells and SKIPPED others on a shallow diagonal azimuth, so a tall thin occluder the continuous
+    line of sight crosses was silently jumped over and the pixel behind it was wrongly lit (audit M-07).
+    Sampling the true ray position at unit-distance steps removes that directional aliasing: no cell the
+    ray crosses is skipped, and the step length is the same in every azimuth (no repeated samples).
     """
     h = np.asarray(heightmap, dtype=np.float64)
     if h.ndim != 2:
@@ -107,32 +112,53 @@ def horizon_clip(heightmap: np.ndarray, cell_m: float,
     rows = np.arange(n_rows)[:, None]
     cols = np.arange(n_cols)[None, :]
 
+    # M-07: a non-finite (nodata) up-sun sample must neither occlude nor silently pass. We replace NaN
+    # with -inf for the bilinear OCCLUDER height (a nodata cell cannot be an occluder), and separately
+    # mark the source pixels' own validity at the end. The step is a unit vector, so |step|==1 and each
+    # k advances exactly one cell of distance in every azimuth (no repeated/skipped samples).
+    h_occ = np.where(np.isfinite(h), h, -np.inf)
+
     illuminated = np.ones_like(h, dtype=bool)
+    last_in_bounds = max_steps        # cap k so the BILINEAR stencil (needs +1 cell) stays in-bounds
 
     for k in range(1, max_steps + 1):
-        # Nearest sun-ward cell at integer step k along the up-sun unit vector.
-        sr = np.rint(rows + k * d_row).astype(np.intp)
-        sc = np.rint(cols + k * d_col).astype(np.intp)
+        # Continuous sun-ward sample position at distance k (cells) along the up-sun unit vector.
+        sr = rows + k * d_row
+        sc = cols + k * d_col
 
-        in_bounds = (sr >= 0) & (sr < n_rows) & (sc >= 0) & (sc < n_cols)
+        # Bilinear stencil bounds: a sample needs cells (r0,c0)..(r0+1,c0+1). Keep the lower corner in
+        # [0, n-2] and mask any sample whose true position is outside the tile.
+        r0 = np.floor(sr).astype(np.intp)
+        c0 = np.floor(sc).astype(np.intp)
+        in_bounds = (sr >= 0) & (sr <= n_rows - 1) & (sc >= 0) & (sc <= n_cols - 1)
         if not in_bounds.any():
             break  # every ray has walked off the tile; no farther horizon to test.
 
-        # Clamp out-of-bounds lookups to a valid index, then mask them out below.
-        sr_c = np.clip(sr, 0, n_rows - 1)
-        sc_c = np.clip(sc, 0, n_cols - 1)
+        r0c = np.clip(r0, 0, n_rows - 2)
+        c0c = np.clip(c0, 0, n_cols - 2)
+        fr = np.clip(sr - r0c, 0.0, 1.0)
+        fc = np.clip(sc - c0c, 0.0, 1.0)
 
-        # Horizontal run to the sampled cell [m] and the line-of-sight height there.
-        dist_m = k * cell_m * np.hypot(d_row, d_col)  # |step|==1, kept explicit for audit.
+        # Bilinear up-sun terrain height at the continuous sample (the real line the ray crosses).
+        h00 = h_occ[r0c, c0c]
+        h01 = h_occ[r0c, c0c + 1]
+        h10 = h_occ[r0c + 1, c0c]
+        h11 = h_occ[r0c + 1, c0c + 1]
+        h_sample = ((1 - fr) * (1 - fc) * h00 + (1 - fr) * fc * h01
+                    + fr * (1 - fc) * h10 + fr * fc * h11)
+
+        # Horizontal run to the sampled point [m] and the line-of-sight height there (|step|==1).
+        dist_m = k * cell_m
         los_height = h + dist_m * tan_el
 
-        # A sun-ward cell taller than the line of sight casts this pixel into shadow.
-        blocked = in_bounds & (h[sr_c, sc_c] > los_height)
+        # An up-sun sample taller than the line of sight casts this pixel into shadow.
+        blocked = in_bounds & (h_sample > los_height)
         illuminated &= ~blocked
 
-    # non-finite (nodata) cells: NaN comparisons are all False, so they neither occlude nor get
-    # shadowed -- silently "fully lit". Conservative: unknown height -> NOT claimed illuminated
-    # (audit 2026-06-09)
+    _ = last_in_bounds  # documented cap; loop already breaks once every ray is off-tile.
+
+    # non-finite (nodata) SOURCE cells: unknown height -> NOT claimed illuminated (conservative;
+    # audit 2026-06-09). Occluder nodata was handled as -inf above.
     illuminated &= np.isfinite(h)
     return illuminated
 

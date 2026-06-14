@@ -44,9 +44,17 @@ def _relative(pi: np.ndarray, pj: np.ndarray) -> np.ndarray:
 
 
 class PoseGraphSE2:
-    """A sparse SE(2) pose graph. Add factors, then optimize() -> {id: (x, y, yaw)}."""
+    """A sparse SE(2) pose graph. Add factors, then optimize() -> {id: (x, y, yaw)}.
 
-    def __init__(self) -> None:
+    M-01 (2026-06-14): the solve is a robust, damped (Levenberg-Marquardt) Gauss-Newton with a Huber
+    kernel on the data factors (between / IMU / shadow-yaw / absolute), iterative reweighting (IRLS),
+    explicit convergence + conditioning diagnostics (``solve_status``), and a trust-region step that
+    rejects cost-increasing updates. ``robust=False`` reverts to a plain squared loss (kept so the
+    outlier-robustness improvement is testable head-to-head). The prior factor is the gauge anchor and
+    is never down-weighted.
+    """
+
+    def __init__(self, *, robust: bool = True, huber_delta: float = 1.345) -> None:
         self._priors: list = []      # (i, pose[3], W[3])
         self._between: list = []     # (i, j, meas[3], W[3])
         self._imu: list = []         # (i, j, dyaw, w)
@@ -54,10 +62,23 @@ class PoseGraphSE2:
         self._abs: list = []         # (i, xy[2], w)            -- isotropic absolute (x,y)
         self._abs_cov: list = []     # (i, xy[2], sqrt_info[2,2]) -- H-30 anisotropic absolute (x,y), keeps GDOP
         self._ids: set = set()
+        self._robust = bool(robust)
+        # Huber threshold on the whitened residual; 1.345 is the 95%-efficiency constant for unit-sigma
+        # Gaussian noise (residuals are already information-weighted, so the scale is in sigma units).
+        self._huber_delta = float(huber_delta)
+        # populated by _solve(): convergence + conditioning diagnostics for solve_status()
+        self._status: dict = {}
 
     @staticmethod
     def _w(sigma: float) -> float:
-        return 1.0 / max(1e-12, float(sigma) ** 2)
+        """Information weight 1/sigma^2 for a measurement sigma. M-04 (2026-06-14): a sigma must be a
+        finite, strictly-positive uncertainty. The old code clamped sigma<=0 to 1e-12, fabricating an
+        ~1e24 information weight (over-confident, near-singular); reject the bad input instead."""
+        s = float(sigma)
+        if not math.isfinite(s) or s <= 0.0:
+            raise ValueError(f"sigma must be finite and > 0 (got {sigma!r}); a non-positive/non-finite "
+                             "sigma is not a valid measurement uncertainty")
+        return 1.0 / (s * s)
 
     def add_prior(self, i: int, pose, sigma_xy: float, sigma_yaw: float) -> None:
         self._priors.append((int(i), np.asarray(pose, float),
@@ -89,8 +110,22 @@ class PoseGraphSE2:
         """H-30: an ANISOTROPIC absolute (x,y) factor that keeps the full 2x2 measurement COVARIANCE (the
         GDOP direction), not a collapsed scalar sigma. Stored as the sqrt-information matrix S (S^T S = the
         information matrix) so the stacked residual S @ (x - z) makes J^T J the information matrix exactly.
-        A small sigma_floor (default 1 mm on each axis) guards against an over-confident near-singular cov."""
-        cov = np.asarray(cov, float).reshape(2, 2) + (float(sigma_floor_m) ** 2) * np.eye(2)
+        A small sigma_floor (default 1 mm on each axis) guards against an over-confident near-singular cov.
+
+        M-04 (2026-06-14): the input covariance must be finite and positive-(semi)definite. A NaN/Inf
+        entry, a negative variance, or an indefinite/non-symmetric matrix is not a covariance and is
+        rejected here rather than Cholesky-factored into a garbage information matrix."""
+        cov = np.asarray(cov, float).reshape(2, 2)
+        if not np.all(np.isfinite(cov)):
+            raise ValueError("absolute-fix covariance must be finite (no NaN/Inf entries)")
+        sym = 0.5 * (cov + cov.T)
+        if float(np.max(np.abs(cov - sym))) > 1e-9 * (1.0 + float(np.max(np.abs(cov)))):
+            raise ValueError("absolute-fix covariance must be symmetric")
+        eig = np.linalg.eigvalsh(sym)
+        if float(eig.min()) <= 0.0:
+            raise ValueError(f"absolute-fix covariance must be positive-definite (min eigenvalue "
+                             f"{float(eig.min()):.3e} <= 0)")
+        cov = sym + (float(sigma_floor_m) ** 2) * np.eye(2)
         info = np.linalg.inv(cov)
         info = 0.5 * (info + info.T)                       # symmetrize against round-off
         sqrt_info = np.linalg.cholesky(info).T            # upper factor: sqrt_info^T sqrt_info = info
@@ -98,29 +133,62 @@ class PoseGraphSE2:
         self._ids.add(int(i))
 
     # -- residuals (stacked, information-weighted as sqrt(w)*r so J^T J = the normal matrix) --------
-    def _residuals(self, X: np.ndarray, idx: dict) -> np.ndarray:
+    # Each entry carries a robust-block id: residual scalars from the SAME data factor share a block id
+    # so the Huber kernel is applied on the factor's whitened residual NORM (not per scalar component).
+    # The prior is the gauge anchor and is tagged non-robust (block id -1).
+    def _residuals_blocked(self, X: np.ndarray, idx: dict):
         r: list = []
+        block: list = []      # robust-block id per residual scalar; -1 = never down-weighted (prior)
+        b = 0
         for i, p0, W in self._priors:
             d = X[idx[i]] - p0; d[2] = _wrap(d[2])
-            r.extend(np.sqrt(W) * d)
+            vals = np.sqrt(W) * d
+            r.extend(vals); block.extend([-1] * len(vals))     # prior: gauge anchor, non-robust
         for i, j, meas, W in self._between:
             e = _relative(X[idx[i]], X[idx[j]]) - meas; e[2] = _wrap(e[2])
-            r.extend(np.sqrt(W) * e)
+            vals = np.sqrt(W) * e
+            r.extend(vals); block.extend([b] * len(vals)); b += 1
         for i, j, dyaw, w in self._imu:
             r.append(math.sqrt(w) * _wrap((X[idx[j]][2] - X[idx[i]][2]) - dyaw))
+            block.append(b); b += 1
         for i, myaw, w in self._shadow_yaw:                  # SN-03: absolute-yaw residual
             r.append(math.sqrt(w) * _wrap(X[idx[i]][2] - myaw))
+            block.append(b); b += 1
         for i, xy, w in self._abs:
-            r.extend(math.sqrt(w) * (X[idx[i]][:2] - xy))
+            vals = math.sqrt(w) * (X[idx[i]][:2] - xy)
+            r.extend(vals); block.extend([b] * len(vals)); b += 1
         for i, xy, S in self._abs_cov:                       # H-30: anisotropic absolute (x,y) -- S @ (x - z)
-            r.extend(S @ (X[idx[i]][:2] - xy))
-        return np.asarray(r, float)
+            vals = S @ (X[idx[i]][:2] - xy)
+            r.extend(vals); block.extend([b] * len(vals)); b += 1
+        return np.asarray(r, float), np.asarray(block, int)
 
-    def _solve(self, iters: int = 25):
+    def _residuals(self, X: np.ndarray, idx: dict) -> np.ndarray:
+        return self._residuals_blocked(X, idx)[0]
+
+    def _robust_weights(self, r: np.ndarray, block: np.ndarray) -> np.ndarray:
+        """Per-residual sqrt(IRLS weight). Huber: w(s)=1 for |s|<=delta, else delta/|s|, computed on
+        each robust block's whitened residual NORM (so a multi-DOF factor is down-weighted as a unit).
+        Non-robust residuals (prior, block -1) and the plain-squared mode get weight 1."""
+        w = np.ones_like(r)
+        if not self._robust:
+            return w
+        delta = self._huber_delta
+        for bid in np.unique(block):
+            if bid < 0:
+                continue                                     # prior: never down-weighted
+            sel = block == bid
+            norm = float(np.sqrt(np.sum(r[sel] ** 2)))       # whitened residual magnitude of the factor
+            if norm > delta:
+                w[sel] = math.sqrt(delta / norm)             # sqrt-weight so (sqrt_w*r) gives Huber cost
+        return w
+
+    def _solve(self, iters: int = 50):
         order = sorted(self._ids)
         idx = {nid: k for k, nid in enumerate(order)}
         n = len(order)
         if n == 0:
+            self._status = {"converged": True, "iterations": 0, "condition_number": 1.0,
+                            "well_conditioned": True, "final_gradient_norm": 0.0, "final_cost": 0.0}
             return order, np.zeros((0, 3)), np.zeros((0, 0))
         X = np.zeros((n, 3))
         # initialise from the prior + chained between-factors so GN starts near the basin
@@ -132,23 +200,98 @@ class PoseGraphSE2:
             X[b] = [X[a][0] + c * meas[0] - s * meas[1],
                     X[a][1] + s * meas[0] + c * meas[1], _wrap(X[a][2] + meas[2])]
         eps = 1e-6
+
+        def robust_cost(X_):
+            r_, blk_ = self._residuals_blocked(X_, idx)
+            if not self._robust:
+                return 0.5 * float(r_ @ r_)
+            total = 0.0
+            for bid in np.unique(blk_):
+                sel = blk_ == bid
+                norm = float(np.sqrt(np.sum(r_[sel] ** 2)))
+                if bid < 0 or norm <= self._huber_delta:
+                    total += 0.5 * norm * norm                       # quadratic region (and prior)
+                else:
+                    total += self._huber_delta * (norm - 0.5 * self._huber_delta)  # linear tail
+            return total
+
+        lam = 1e-3                                           # LM damping (trust region)
         H = None
-        for _ in range(iters):
-            r0 = self._residuals(X, idx)
+        converged = False
+        it = 0
+        grad_norm = math.inf
+        cost = robust_cost(X)
+        for it in range(1, iters + 1):
+            r0, block = self._residuals_blocked(X, idx)
             m = r0.size
             J = np.zeros((m, 3 * n))
             for v in range(3 * n):                       # numerical Jacobian (small graphs)
                 node, comp = divmod(v, 3)
                 Xp = X.copy(); Xp[node, comp] += eps
                 J[:, v] = (self._residuals(Xp, idx) - r0) / eps
-            H = J.T @ J + 1e-9 * np.eye(3 * n)
-            g = J.T @ r0
-            dx = np.linalg.solve(H, -g).reshape(n, 3)
-            X = X + dx
-            X[:, 2] = np.array([_wrap(a) for a in X[:, 2]])
-            if np.linalg.norm(dx) < 1e-10:
+            sw = self._robust_weights(r0, block)         # IRLS sqrt-weights (Huber)
+            Jw = J * sw[:, None]
+            rw = r0 * sw
+            JTJ = Jw.T @ Jw
+            g = Jw.T @ rw
+            grad_norm = float(np.linalg.norm(g))
+            # Levenberg-Marquardt: damped step, accept only if the robust cost decreases.
+            accepted = False
+            for _ in range(12):
+                H = JTJ + (lam + 1e-12) * np.eye(3 * n)
+                try:
+                    dx = np.linalg.solve(H, -g).reshape(n, 3)
+                except np.linalg.LinAlgError:
+                    lam *= 10.0
+                    continue
+                Xn = X + dx
+                Xn[:, 2] = np.array([_wrap(a) for a in Xn[:, 2]])
+                new_cost = robust_cost(Xn)
+                if new_cost < cost:
+                    X = Xn; cost = new_cost; lam = max(lam * 0.5, 1e-9); accepted = True
+                    break
+                lam *= 10.0
+            if not accepted:
+                # cannot make progress (at a minimum or stuck) -> stop; H from the last weighted normal eqs
+                converged = grad_norm < 1e-4
                 break
+            if grad_norm < 1e-4 or float(np.linalg.norm(dx)) < 1e-9:
+                converged = True
+                break
+        # final weighted information matrix (un-damped) for covariance + conditioning
+        r0, block = self._residuals_blocked(X, idx)
+        m = r0.size
+        J = np.zeros((m, 3 * n))
+        for v in range(3 * n):
+            node, comp = divmod(v, 3)
+            Xp = X.copy(); Xp[node, comp] += eps
+            J[:, v] = (self._residuals(Xp, idx) - r0) / eps
+        sw = self._robust_weights(r0, block)
+        Jw = J * sw[:, None]
+        info = Jw.T @ Jw
+        H = info + 1e-9 * np.eye(3 * n)
+        # conditioning: ratio of largest to smallest eigenvalue of the (un-damped) information matrix.
+        evals = np.linalg.eigvalsh(0.5 * (info + info.T))
+        lo = float(evals.min()); hi = float(evals.max())
+        if lo <= 1e-12 or not math.isfinite(lo):
+            cond = math.inf
+        else:
+            cond = hi / lo
+        self._status = {
+            "converged": bool(converged),
+            "iterations": int(it),
+            "condition_number": float(cond),
+            "well_conditioned": bool(math.isfinite(cond) and cond < 1e6),
+            "final_gradient_norm": float(grad_norm),
+            "final_cost": float(cost),
+        }
         return order, X, H
+
+    def solve_status(self) -> dict:
+        """M-01: run the solve and return its convergence + conditioning diagnostics (no pose). Keys:
+        converged, iterations, condition_number, well_conditioned, final_gradient_norm, final_cost."""
+        self._solve()
+        return dict(self._status)
 
     def optimize(self) -> dict:
         order, X, _H = self._solve()

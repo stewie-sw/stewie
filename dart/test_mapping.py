@@ -179,7 +179,8 @@ def test_built_map_correlates_with_real_dem():
     pairs = _stereo_pairs()
     centres = _camera_centres_world()
     cfg = _config()
-    emap = mapping.build_elevation_map(pairs, centres, cfg)
+    # the a6 traverse is a genuine yaw-0 fixed-attitude drive -> declare static_mount explicitly (M-05)
+    emap = mapping.build_elevation_map(pairs, centres, cfg, static_mount=True)
 
     assert emap.elevation.shape == (cfg.grid_rows, cfg.grid_cols)
     covered = np.isfinite(emap.elevation)
@@ -207,7 +208,7 @@ def test_registration_recovers_known_offset_within_built_map(known):
     pairs = _stereo_pairs()
     centres = _camera_centres_world()
     cfg = _config()
-    emap = mapping.build_elevation_map(pairs, centres, cfg)
+    emap = mapping.build_elevation_map(pairs, centres, cfg, static_mount=True)  # yaw-0 a6 traverse (M-05)
 
     kdr, kdc = known
     res = mapping.register_within_map(emap, known_offset_cells=known, half_cells=12, window_cells=20)
@@ -228,7 +229,7 @@ def test_correlate_to_dem_returns_honest_low_confidence_result():
     pairs = _stereo_pairs()
     centres = _camera_centres_world()
     cfg = _config()
-    emap = mapping.build_elevation_map(pairs, centres, cfg)
+    emap = mapping.build_elevation_map(pairs, centres, cfg, static_mount=True)  # yaw-0 a6 traverse (M-05)
     dem = _dem()
 
     res = mapping.correlate_to_dem(emap, dem, known_offset_cells=(0, 0), half_cells=24)
@@ -245,12 +246,49 @@ def test_map_vs_dem_png_written(tmp_path):
     pairs = _stereo_pairs()
     centres = _camera_centres_world()
     cfg = _config()
-    emap = mapping.build_elevation_map(pairs, centres, cfg)
+    emap = mapping.build_elevation_map(pairs, centres, cfg, static_mount=True)  # yaw-0 a6 traverse (M-05)
     dem = _dem()
     out = tmp_path / "built_elevation_vs_dem.png"
     path = mapping.save_map_vs_dem_png(emap, dem, str(out), cfg=cfg)
     assert os.path.exists(path)
     assert os.path.getsize(path) > 2000                   # a real raster, not an empty file
+
+
+def test_m05_moving_platform_map_requires_per_frame_orientation():
+    """Audit M-05 (2026-06-14): the production (moving-platform) elevation-map path must REQUIRE
+    per-frame camera orientation. Silently defaulting to one fixed mount for a whole traverse rotates
+    every cloud by the start attitude, so turns/pitch/roll map terrain into the wrong world cells. The
+    builder must refuse to run a moving-platform map without orientations unless the caller EXPLICITLY
+    declares a static mount (the narrow escape for a genuinely fixed-attitude static test)."""
+    import numpy as np
+    import pytest
+    from dart import mapping
+    H, W = 8, 8
+    pairs = [(np.zeros((H, W), np.uint8), np.zeros((H, W), np.uint8)) for _ in range(3)]
+    cfg = mapping.MappingConfig.from_fov(
+        width_px=W, height_px=H, hfov_deg=73.99, baseline_m=0.07,
+        cell_m=0.02, grid_rows=16, grid_cols=16)
+    centres = np.zeros((3, 3), dtype=float)
+
+    # omitting orientation on the moving-platform path is REFUSED (the silent fixed-mount default is gone)
+    with pytest.raises(ValueError, match="orientation"):
+        mapping.build_elevation_map(pairs, centres, cfg)
+
+    # an EXPLICIT static-mount declaration is the only way to use one fixed mount (the static-test escape)
+    em_static = mapping.build_elevation_map(pairs, centres, cfg, static_mount=True)
+    assert em_static.n_frames == 3
+
+    # supplying per-frame orientation is the production path and is accepted
+    rot = cfg.optical_to_world_rotation()
+    em_oriented = mapping.build_elevation_map(
+        pairs, centres, cfg, camera_orientations=np.broadcast_to(rot, (3, 3, 3)).copy())
+    assert em_oriented.n_frames == 3
+
+    # static_mount + explicit orientations is contradictory -> rejected (no silent precedence)
+    with pytest.raises(ValueError):
+        mapping.build_elevation_map(
+            pairs, centres, cfg, static_mount=True,
+            camera_orientations=np.broadcast_to(rot, (3, 3, 3)).copy())
 
 
 def test_from_fov_recovers_known_fx():
@@ -267,18 +305,18 @@ def test_from_fov_recovers_known_fx():
 @pytest.mark.skipif(not (_have_frames and _have_dem), reason="traverse frames or DEM missing")
 def test_h17_build_map_consumes_per_frame_camera_orientation():
     """Audit H-17 (2026-06-13): build_elevation_map must consume a per-frame camera ORIENTATION, not one
-    fixed mount rotation for the whole traverse. Default (None) equals the fixed mount replicated per frame
-    (backward-compatible), and a per-frame yaw rotation produces a DIFFERENT map -- so the rover's
-    per-frame attitude is actually represented."""
+    fixed mount rotation for the whole traverse. The explicit static mount equals the fixed mount
+    replicated per frame (M-05: the static escape is opt-in, not a silent default), and a per-frame yaw
+    rotation produces a DIFFERENT map -- so the rover's per-frame attitude is actually represented."""
     import math
 
     pairs = _stereo_pairs(); centres = _camera_centres_world(); cfg = _config()
     F = len(pairs)
     rot = cfg.optical_to_world_rotation()
-    m_default = mapping.build_elevation_map(pairs, centres, cfg)
+    m_default = mapping.build_elevation_map(pairs, centres, cfg, static_mount=True)  # M-05 explicit static
     m_fixed = mapping.build_elevation_map(
         pairs, centres, cfg, camera_orientations=np.broadcast_to(rot, (F, 3, 3)).copy())
-    assert np.array_equal(np.nan_to_num(m_default.elevation), np.nan_to_num(m_fixed.elevation))  # None == fixed mount
+    assert np.array_equal(np.nan_to_num(m_default.elevation), np.nan_to_num(m_fixed.elevation))  # static == fixed mount
     th = math.radians(20.0); cy, sy = math.cos(th), math.sin(th)        # a 20 deg yaw about world-up (+Y)
     r_yaw = np.array([[cy, 0.0, sy], [0.0, 1.0, 0.0], [-sy, 0.0, cy]])
     m_yaw = mapping.build_elevation_map(

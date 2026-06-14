@@ -99,6 +99,66 @@ def test_perception_api_accepts_no_truth_fields():
             assert not any(forbidden in p for p in params), f"{fn.__name__} leaks truth via '{forbidden}'"
 
 
+# ---- M-03: failed VO is an INVALID/missing step, not a zero-motion measurement ----
+def test_m03_failed_vo_step_is_invalid_not_zero_motion():
+    """Audit M-03 (2026-06-14): when a PnP solve fails (texture loss between frames), the relative
+    transform must be represented as INVALID/MISSING with an inflated covariance -- NEVER identity
+    rotation + zero translation. A downstream mapper would otherwise read 'no motion' as a real
+    stationary measurement and place the next cloud at the wrong (held) pose.
+
+    Real texture-loss injection: a featureless (uniform) middle frame yields no ORB matches, so the
+    middle->? PnP step fails. We assert the failed step is flagged invalid, its translation is NaN
+    (missing, not 0.0), and its covariance is inflated; a non-failed step stays valid + finite."""
+    H, W = 288, 384
+    # two real-ish textured frames bracketing one featureless (uniform) frame -> the steps touching
+    # the blank frame must fail. Use deterministic structured noise for the textured frames (real
+    # pixel content, not a truth field) so ORB finds keypoints there.
+    rng = np.random.default_rng(0)
+    textured = (rng.integers(0, 256, size=(H, W), dtype=np.uint8))
+    blank = np.full((H, W), 127, dtype=np.uint8)            # featureless: no ORB keypoints
+    pairs = [(textured.copy(), textured.copy()),
+             (blank.copy(), blank.copy()),
+             (textured.copy(), textured.copy())]
+    cfg = stereo_vo.StereoVOConfig.from_fov(width_px=W, height_px=H, hfov_deg=73.99, baseline_m=0.07)
+    result = stereo_vo.estimate_vo(pairs, cfg)
+
+    # the result exposes per-step validity + per-step covariance (M-03 contract)
+    assert hasattr(result, "step_valid")
+    assert hasattr(result, "relative_covariances")
+    assert len(result.step_valid) == 2                     # 3 frames -> 2 inter-frame steps
+    assert len(result.relative_covariances) == 2
+
+    # at least one step (touching the blank frame) FAILED and must be invalid -- NOT zero motion
+    assert not all(result.step_valid)
+    for k, valid in enumerate(result.step_valid):
+        t = result.relative_translations_m[k]
+        cov = np.asarray(result.relative_covariances[k], dtype=float)
+        if not valid:
+            # missing, NOT the old fabricated zero-motion vector: NaN is distinct from a real 0.0 step
+            assert np.all(np.isnan(t))
+            assert not np.all(t == 0.0)                      # explicitly not the old zero-motion stand-in
+            assert np.all(np.diag(cov) > 1e6)               # inflated covariance flags the gap
+        else:
+            assert np.all(np.isfinite(t))
+            assert np.all(np.isfinite(cov))
+            assert np.all(np.diag(cov) < 1e6)               # a trusted step keeps a finite, modest cov
+
+
+def test_m03_valid_traverse_keeps_all_steps_valid_and_finite():
+    """Audit M-03: on a clean traverse where every PnP solve succeeds, every step is valid, finite, and
+    carries a finite covariance -- the honest-failure machinery does not corrupt the good path."""
+    if not _have_frames:
+        pytest.skip("rendered traverse frames not present")
+    pairs = _load_stereo_pairs()
+    cfg = stereo_vo.StereoVOConfig.from_fov(width_px=384, height_px=288, hfov_deg=73.99, baseline_m=0.07)
+    result = stereo_vo.estimate_vo(pairs, cfg)
+    assert all(result.step_valid)
+    assert np.all(np.isfinite(result.relative_translations_m))
+    for cov in result.relative_covariances:
+        c = np.asarray(cov, dtype=float)
+        assert np.all(np.isfinite(c)) and np.all(np.diag(c) > 0.0)
+
+
 # ---- real rendered lunar stereo: triangulation ----
 @pytest.mark.skipif(not _have_frames, reason="rendered traverse frames not present")
 def test_triangulated_depths_positive_and_plausible():

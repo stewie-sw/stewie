@@ -134,7 +134,9 @@ def articulation_localize(graph, node_id, landmarks_xy, pixel_shifts, *, dh_m, f
     an ABSOLUTE factor with the geometry-DERIVED covariance (not assumed). Returns the re-optimized
     estimate. This is how a standstill parallax maneuver becomes a live localization update. H-14: the
     result carries `ambiguous` + both `hypotheses` when < 3 non-collinear landmarks survive (a mirror
-    pair); a >= 3 non-collinear fix is unique (ambiguous False)."""
+    pair); a >= 3 non-collinear fix is unique (ambiguous False). M-02: an ambiguous fix is NOT committed
+    to the graph (`fused` False, graph unchanged) -- a third non-collinear observation must disambiguate
+    first; only an unambiguous fix is fused (`fused` True)."""
     cur = graph.optimize()
     guess = cur[node_id][:2] if node_id in cur else (0.0, 0.0)
     ranges = [range_from_pixel_parallax(dh_m, s, fx_px) for s in pixel_shifts]
@@ -156,13 +158,19 @@ def articulation_localize(graph, node_id, landmarks_xy, pixel_shifts, *, dh_m, f
     sig = [range_sigma_from_pixel_noise(r, dh_m, fx_px, sigma_px) for r in ranges]
     cov = position_fix_covariance(vL, fix_xy, sig)
     pos_sigma = float(np.sqrt(0.5 * np.trace(cov)))
-    # H-30: inject the FULL 2x2 covariance (keeping the GDOP direction), not a collapsed scalar sigma -- an
-    # elongated fix (far/poorly-spread landmarks) is uncertain ALONG the weak axis, not equally in all
-    # directions. The graph weights the fix by the anisotropic information matrix.
-    graph.add_absolute_cov(node_id, fix_xy, cov)
+    # M-02 (2026-06-14): DO NOT fuse an AMBIGUOUS fix. With < 3 non-collinear landmarks the two range
+    # circles give a mirror pair and a near-prior Gauss-Newton silently commits to one; once added, the
+    # factor cannot be un-done by reporting ambiguous=True, so the estimator can become CONFIDENTLY wrong
+    # on the selected mirror. Surface both hypotheses and leave the graph untouched until a third
+    # non-collinear observation disambiguates. Only an unambiguous (>= 3 non-collinear) fix is committed.
+    # H-30: a committed fix injects its FULL 2x2 covariance (keeping the GDOP direction), not a collapsed
+    # scalar sigma -- an elongated fix is uncertain ALONG the weak axis, not equally in all directions.
+    fused = not ambiguous
+    if fused:
+        graph.add_absolute_cov(node_id, fix_xy, cov)
     out = graph.optimize_with_cov()
     return {"fix_xy": fix_xy, "fix_sigma_m": pos_sigma, "ambiguous": bool(ambiguous),
-            "hypotheses": hypotheses, **out}
+            "fused": bool(fused), "hypotheses": hypotheses, **out}
 
 
 def should_relocalize(xy_sigma_m, *, threshold_m=2.0, moving=False) -> bool:

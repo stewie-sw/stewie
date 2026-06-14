@@ -138,13 +138,42 @@ class VOResult:
     inter-frame camera translations (metres, in the previous camera frame (audit L55: doc previously said 'moving')); ``relative_rotations`` the
     matching (3,3) rotations; ``trajectory_xyz_m`` (F,3) the accumulated camera centres starting at
     the origin; ``pnp_inliers`` the RANSAC inlier count per solve; ``stereo_point_counts`` the
-    triangulated-point count per frame."""
+    triangulated-point count per frame.
+
+    M-03 (2026-06-14): a FAILED PnP step is represented honestly as INVALID/MISSING, not zero motion.
+    ``step_valid[k]`` is False for a step whose solve could not be trusted; for such a step
+    ``relative_translations_m[k]`` is all-NaN (missing, not a fabricated zero vector), the
+    corresponding rotation is NaN, and ``relative_covariances[k]`` is a hugely inflated 6x6 so any
+    downstream fusion/mapping must skip it rather than place a cloud at the held pose. For a valid step
+    the covariance is finite and scaled by the PnP inlier count (more inliers -> tighter). The
+    accumulated ``trajectory_xyz_m`` HOLDS the last trusted pose across a gap (it cannot invent the
+    missing motion), and ``trajectory_valid[k]`` marks which centres are anchored by an unbroken chain
+    of trusted steps."""
 
     relative_translations_m: np.ndarray = field(default_factory=lambda: np.empty((0, 3)))
     relative_rotations: list[np.ndarray] = field(default_factory=list)
     trajectory_xyz_m: np.ndarray = field(default_factory=lambda: np.zeros((1, 3)))
     pnp_inliers: list[int] = field(default_factory=list)
     stereo_point_counts: list[int] = field(default_factory=list)
+    step_valid: list[bool] = field(default_factory=list)
+    relative_covariances: list[np.ndarray] = field(default_factory=list)
+    trajectory_valid: list[bool] = field(default_factory=lambda: [True])
+
+
+# A failed step's covariance: a near-singular-information (hugely inflated) 6x6 so any consumer that
+# weights by information gives it ~zero weight and must skip it. Translation in m^2, rotation in rad^2.
+_INVALID_STEP_COV = np.diag([1e12, 1e12, 1e12, 1e12, 1e12, 1e12]).astype(float)
+
+
+def _valid_step_covariance(n_inliers: int) -> np.ndarray:
+    """A finite 6x6 covariance for a trusted PnP step, scaled by the inlier count (more inliers ->
+    tighter). Not a calibrated value: a monotone, finite, positive proxy so the relative weighting of
+    a strong vs marginal solve is honest and a valid step is clearly distinguishable (diag << 1e6)
+    from a failed one (diag >> 1e6). Floor at the min-inlier gate to keep it positive-definite."""
+    n = max(int(n_inliers), 3)
+    trans_var = 1.0 / n            # m^2, shrinks with inliers (e.g. 30 inliers -> ~0.033)
+    rot_var = 0.25 / n             # rad^2
+    return np.diag([trans_var, trans_var, trans_var, rot_var, rot_var, rot_var]).astype(float)
 
 
 def _orb(n_features: int):
@@ -267,10 +296,14 @@ def estimate_vo(
     rel_t: list[np.ndarray] = []
     rel_R: list[np.ndarray] = []
     inliers: list[int] = []
+    step_valid: list[bool] = []
+    rel_cov: list[np.ndarray] = []
     # accumulated camera pose in the world (first camera = world origin, identity orientation)
     R_wc = np.eye(3)
     t_wc = np.zeros(3)
     traj = [t_wc.copy()]
+    traj_valid = [True]          # frame 0 is the trusted anchor
+    chain_trusted = True         # becomes False once a step fails (downstream centres are not anchored)
 
     for k in range(1, len(stereo_pairs)):
         prev = clouds[k - 1]
@@ -283,19 +316,29 @@ def estimate_vo(
             R_rel, t_rel, n_inl = _solve_pnp(prev.points_3d[q], cur_pts[t], K, config)
         inliers.append(n_inl)
         if R_rel is None or t_rel is None:
-            # no reliable solve: hold pose, record a zero step (caller sees the low inlier count)
-            rel_R.append(np.eye(3))
-            rel_t.append(np.zeros(3))
-            traj.append(t_wc.copy())
+            # M-03: NO reliable solve. The relative transform is INVALID/MISSING -- NOT identity +
+            # zero translation (a false 'stationary' measurement). Record NaN motion + NaN rotation +
+            # an inflated covariance; the world pose HOLDS the last trusted centre (the missing motion
+            # cannot be invented) and every centre from here on is flagged un-anchored.
+            step_valid.append(False)
+            rel_R.append(np.full((3, 3), np.nan))
+            rel_t.append(np.full(3, np.nan))
+            rel_cov.append(_INVALID_STEP_COV.copy())
+            chain_trusted = False
+            traj.append(t_wc.copy())          # hold the last trusted pose across the gap
+            traj_valid.append(False)
             continue
         # camera motion in the previous camera frame: c = -R_rel^T t_rel
         motion_prev = -R_rel.T @ t_rel
+        step_valid.append(True)
         rel_R.append(R_rel)
         rel_t.append(motion_prev)
+        rel_cov.append(_valid_step_covariance(n_inl))
         # compose into the world: new orientation R_wc' = R_wc @ R_rel^T; centre advances by R_wc @ motion
         t_wc = t_wc + R_wc @ motion_prev
         R_wc = R_wc @ R_rel.T
         traj.append(t_wc.copy())
+        traj_valid.append(chain_trusted)      # anchored only if no earlier step in the chain failed
 
     return VOResult(
         relative_translations_m=np.array(rel_t) if rel_t else np.empty((0, 3)),
@@ -303,6 +346,9 @@ def estimate_vo(
         trajectory_xyz_m=np.array(traj),
         pnp_inliers=inliers,
         stereo_point_counts=point_counts,
+        step_valid=step_valid,
+        relative_covariances=rel_cov,
+        trajectory_valid=traj_valid,
     )
 
 

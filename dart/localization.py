@@ -16,11 +16,25 @@ from __future__ import annotations
 import numpy as np
 
 
-def patch_at(Z: np.ndarray, rc, half: int) -> np.ndarray:
-    """Extract a (2*half+1)^2 elevation patch centred at cell rc, edge-clamped. Always returns the full
-    shape (clamped at the map border)."""
+def patch_at(Z: np.ndarray, rc, half: int, *, require_in_bounds: bool = False):
+    """Extract a (2*half+1)^2 elevation patch centred at cell rc.
+
+    Default (``require_in_bounds=False``): edge-clamped -- always returns the full shape, repeating the
+    border rows/cols for any index that runs off the map (the legacy behaviour, kept for callers that
+    deliberately want a clamped sample).
+
+    M-06 (2026-06-14): with ``require_in_bounds=True`` the patch is returned ONLY if its full extent
+    lies inside the map; otherwise it returns ``None``. Edge-clamping fabricates repeated border cells,
+    and a candidate built from those repeats can score a low SSD (high confidence) against any patch
+    that shares the edge value -- a false fix off the map. A bounds-aware caller must reject such
+    candidates rather than match against manufactured data.
+    """
     r0, c0 = int(round(rc[0])), int(round(rc[1]))
     H, W = Z.shape
+    if require_in_bounds:
+        if r0 - half < 0 or r0 + half >= H or c0 - half < 0 or c0 + half >= W:
+            return None                                   # the full patch runs off the map -> reject
+        return Z[r0 - half:r0 + half + 1, c0 - half:c0 + half + 1]
     rows = np.clip(np.arange(r0 - half, r0 + half + 1), 0, H - 1)
     cols = np.clip(np.arange(c0 - half, c0 + half + 1), 0, W - 1)
     return Z[np.ix_(rows, cols)]
@@ -43,20 +57,30 @@ def register_to_dem(observed: np.ndarray, dem, guess_rc, *, search_radius_cells:
                          "fabricated zero-shift 'fix' (audit M47/L00)")
     half = observed.shape[0] // 2
     obs0 = observed - float(observed.mean())
-    best_ssd, best = np.inf, (0, 0)
+    best_ssd, best = np.inf, None
     ssds = []
     for dr in range(-search_radius_cells, search_radius_cells + 1):
         for dc in range(-search_radius_cells, search_radius_cells + 1):
-            p = patch_at(Z, (guess_rc[0] + dr, guess_rc[1] + dc), half)
-            if p.shape != observed.shape:
+            # M-06: reject candidates whose full patch falls outside the map. Edge-clamping would
+            # repeat border cells and manufacture a false low-SSD (high-confidence) match off the map.
+            p = patch_at(Z, (guess_rc[0] + dr, guess_rc[1] + dc), half, require_in_bounds=True)
+            if p is None or p.shape != observed.shape:
                 continue
             res = (p - float(p.mean())) - obs0
             ssd = float(np.mean(res * res))
             ssds.append((ssd, dr, dc))
             # strict < keeps the FIRST minimum in scan order, which biased ties toward the most-
             # negative shift; prefer the smaller |shift| on equal ssd (audit M00)
-            if ssd < best_ssd or (ssd == best_ssd and abs(dr) + abs(dc) < abs(best[0]) + abs(best[1])):
+            if (best is None or ssd < best_ssd
+                    or (ssd == best_ssd and abs(dr) + abs(dc) < abs(best[0]) + abs(best[1]))):
                 best_ssd, best = ssd, (dr, dc)
+    # M-06: if EVERY candidate fell off the map (guess too close to a corner for the search radius),
+    # there is no in-bounds match to report -- refuse rather than invent a clamped fix.
+    if best is None:
+        raise ValueError(
+            "register_to_dem: no in-bounds candidate patch within the search radius (the guess pose is "
+            "too close to a map border for any full patch to lie inside); cannot register without "
+            "edge-clamping (M-06)")
     # ambiguity = the SECOND-best candidate outside the best's immediate (+-1 cell) neighbourhood: the
     # old median test only caught GLOBAL flatness -- a handful of aliased (translation-symmetric) minima
     # among 100+ shifts still scored confidence ~1.0 (audit 2026-06-09)

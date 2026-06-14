@@ -190,6 +190,84 @@ def test_grazing_sun_shadows_real_crater_floor():
     assert bool((~lit).any())          # the crater relief casts a real shadow
 
 
+def test_m07_diagonal_ray_does_not_skip_a_thin_occluder():
+    """Audit M-07 (2026-06-14): the per-pixel horizon march must not SKIP an occluder along a diagonal
+    ray. Nearest-cell integer sampling (rint of k*dir) re-samples some cells and skips others on a
+    shallow diagonal azimuth, so a tall thin (one-cell) occluder the continuous line of sight crosses
+    is silently jumped over and the pixel behind it is WRONGLY lit. A ray-consistent march (bilinear
+    sampling at unit-distance steps) catches the occluder.
+
+    Analytic terrain (a single tall cell on a 1:2 diagonal); no fabricated measurement -- a height set
+    on a known cell and a known sun geometry. This is the falsifiable discretization-correctness case.
+    """
+    import numpy as np
+    from dart.illumination import horizon_clip
+
+    n, cell, el = 40, 1.0, 20.0
+    az = float(np.degrees(np.arctan2(0.8944271909999159, 0.4472135954999580)))  # ~63.43 deg, a 1:2 ray
+    hm = np.zeros((n, n), dtype=np.float64)
+    hm[22, 25] = 50.0                  # one tall thin occluder the nearest-cell march steps over
+
+    lit = horizon_clip(hm, cell, az, el)
+    # the continuous line of sight from (20, 20) toward the sun passes within ~0.1 cell of (22, 25);
+    # at distance ~5.5 m the LOS height is ~2 m, far below the 50 m wall, so the pixel MUST be shadowed.
+    assert bool(lit[22, 25])           # the occluder cell itself is sun-facing -> lit (sanity)
+    assert not bool(lit[20, 20])       # the pixel behind the thin occluder is correctly DARK (not skipped)
+
+
+def test_m07_ray_march_matches_brute_force_horizon_on_analytic_ridge():
+    """Audit M-07: the fast per-pixel march must agree with an independent brute-force horizon check on
+    an analytic ridge. The brute force tests EVERY up-sun cell's elevation angle against the sun (the
+    exact local-horizon definition); the production march must reproduce it within a small tolerance,
+    proving the discretization does not systematically miss or invent occluders."""
+    import numpy as np
+    from dart.illumination import horizon_clip, sun_march_dir_rowcol
+
+    n, cell, el = 50, 1.0, 12.0
+    az = 30.0
+    # a smooth analytic ridge field (a couple of Gaussian bumps) -- deterministic, not a measurement
+    yy, xx = np.mgrid[0:n, 0:n].astype(float)
+    hm = (18.0 * np.exp(-(((xx - 18) ** 2 + (yy - 22) ** 2) / 40.0))
+          + 12.0 * np.exp(-(((xx - 33) ** 2 + (yy - 30) ** 2) / 30.0)))
+    fast = horizon_clip(hm, cell, az, el)
+
+    # independent brute-force local-horizon: for each pixel, march the TRUE continuous ray in fine
+    # sub-cell steps (bilinear height) and shadow it if any sample overtops the line of sight.
+    d_row, d_col = sun_march_dir_rowcol(az)
+    tan_el = np.tan(np.deg2rad(el))
+
+    def bilinear(r, c):
+        r0, c0 = int(np.floor(r)), int(np.floor(c))
+        if r0 < 0 or c0 < 0 or r0 + 1 >= n or c0 + 1 >= n:
+            return None
+        fr, fc = r - r0, c - c0
+        return float((1 - fr) * (1 - fc) * hm[r0, c0] + (1 - fr) * fc * hm[r0, c0 + 1]
+                     + fr * (1 - fc) * hm[r0 + 1, c0] + fr * fc * hm[r0 + 1, c0 + 1])
+
+    brute = np.ones((n, n), dtype=bool)
+    max_d = int(np.hypot(n, n)) + 1
+    for r in range(n):
+        for c in range(n):
+            h_p = hm[r, c]
+            blocked = False
+            d = 0.25
+            while d <= max_d:
+                rr, cc = r + d_row * d, c + d_col * d
+                hs = bilinear(rr, cc)
+                if hs is None:
+                    break
+                if hs - h_p > d * cell * tan_el:
+                    blocked = True
+                    break
+                d += 0.25
+            brute[r, c] = not blocked
+
+    # the fast march must agree with the brute-force horizon on the overwhelming majority of pixels;
+    # nearest-cell aliasing in the OLD code disagrees on the diagonal-skip cells.
+    agreement = float((fast == brute).mean())
+    assert agreement > 0.98
+
+
 # ---------------------------------------------------------------------------
 # psr_gate: exact shadow complement, monotone in sun elevation, threshold guard.
 # ---------------------------------------------------------------------------

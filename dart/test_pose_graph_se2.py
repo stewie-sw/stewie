@@ -121,3 +121,141 @@ def test_h30_anisotropic_absolute_factor_keeps_the_gdop_direction():
     assert abs(est[0][0]) < 0.3                                         # x pulled almost to 0 (tight axis)
     assert abs(est[0][1] - 2.0) < 0.7                                   # y stays near the prior (loose axis)
     assert g.optimize_with_cov()["observable"] is True                 # the cov factor anchors translation
+
+
+def test_m01_robust_loss_rejects_a_gross_outlier_absolute_fix():
+    """Audit M-01 (2026-06-14): one gross outlier absolute (x,y) fix on a node that ALSO has good
+    redundant fixes must NOT drag that node off truth. With a robust kernel (Huber) the lone outlier is
+    down-weighted to a fraction of its squared influence and the good consensus wins; a non-robust
+    Gauss-Newton (the old code) averages the outlier in and is pulled metres off. We compare
+    robust-vs-naive head-to-head on the SAME graph so a plausible-but-non-robust implementation fails."""
+    import numpy as np
+    from dart.pose_graph_se2 import PoseGraphSE2
+
+    def build(robust):
+        g = PoseGraphSE2(robust=robust)
+        g.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.05, sigma_yaw=0.05)
+        # a straight 5-node odometry chain, 1 m steps along +x
+        for k in range(1, 6):
+            g.add_between(k - 1, k, (1.0, 0.0, 0.0), sigma_xy=0.30, sigma_yaw=0.30)
+        # good absolute fixes near truth on EVERY node (the consensus)
+        for k, x in ((1, 1.0), (2, 2.0), (3, 3.0), (4, 4.0), (5, 5.0)):
+            g.add_absolute(k, (x, 0.0), sigma=0.10)
+        # ONE gross outlier added to node 3 (same sigma as the good fixes, so only the robust kernel
+        # -- not a looser sigma -- can reject it): truth is (3, 0) but this fix says (3, 12)
+        g.add_absolute(3, (3.0, 12.0), sigma=0.10)
+        return g.optimize()
+
+    robust = build(robust=True)
+    naive = build(robust=False)
+    truth3 = np.array([3.0, 0.0])
+    err_robust = np.hypot(robust[3][0] - truth3[0], robust[3][1] - truth3[1])
+    err_naive = np.hypot(naive[3][0] - truth3[0], naive[3][1] - truth3[1])
+    assert err_robust < 1.0                       # robust kernel keeps node 3 on the good consensus
+    assert err_naive > 4.0                         # the squared-loss solve averages the outlier in
+    assert err_robust < err_naive                  # the robust kernel is the improvement
+
+
+def test_m01_reports_convergence_and_conditioning_status():
+    """Audit M-01: the solver must expose explicit convergence + conditioning diagnostics, not silently
+    return a pose from an unconverged/ill-conditioned solve. A well-anchored graph converges and is
+    well-conditioned; the status fields are present and truthful."""
+    import math
+    from dart.pose_graph_se2 import PoseGraphSE2
+    g = PoseGraphSE2()
+    g.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.05, sigma_yaw=0.05)
+    g.add_between(0, 1, (1.0, 0.0, math.pi / 4), sigma_xy=0.1, sigma_yaw=0.1)
+    g.add_between(1, 2, (1.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)
+    status = g.solve_status()
+    assert status["converged"] is True
+    assert status["iterations"] >= 1
+    assert math.isfinite(status["condition_number"]) and status["condition_number"] > 0.0
+    assert status["final_gradient_norm"] < 1e-4    # a real stationary point, not an early stop
+
+
+def test_m01_singular_unanchored_graph_is_flagged_ill_conditioned_not_silently_returned():
+    """Audit M-01: a gauge-free (prior-less) graph is rank-deficient in the global pose. The damped solve
+    stays numerically solvable, but the status must FLAG it (well_conditioned False / huge condition
+    number), so a caller does not trust a pose the data cannot determine."""
+    from dart.pose_graph_se2 import PoseGraphSE2
+    g = PoseGraphSE2()
+    g.add_between(0, 1, (1.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)   # only relative -> gauge-free
+    status = g.solve_status()
+    assert status["well_conditioned"] is False                          # the rank deficiency is reported
+    assert status["condition_number"] > 1e6                             # near-singular information matrix
+
+
+def test_m04_rejects_non_finite_and_non_positive_sigma_inputs():
+    """Audit M-04 (2026-06-14): a non-finite or non-positive sigma is NOT a valid measurement
+    uncertainty. The old code silently clamped sigma<=0 to 1e-12 (an enormous, fabricated information
+    weight); now every factor that takes a sigma must REJECT a non-finite or non-positive value rather
+    than fabricate confidence."""
+    import math
+    import pytest
+    from dart.pose_graph_se2 import PoseGraphSE2
+    g = PoseGraphSE2()
+    for bad in (0.0, -1.0, math.inf, math.nan):
+        with pytest.raises(ValueError):
+            g.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=bad, sigma_yaw=0.1)
+        with pytest.raises(ValueError):
+            g.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=bad)
+        with pytest.raises(ValueError):
+            g.add_between(0, 1, (1.0, 0.0, 0.0), sigma_xy=bad, sigma_yaw=0.1)
+        with pytest.raises(ValueError):
+            g.add_imu_yaw(0, 1, 0.0, sigma=bad)
+        with pytest.raises(ValueError):
+            g.add_shadow_yaw(0, 0.0, sigma=bad)
+        with pytest.raises(ValueError):
+            g.add_absolute(0, (0.0, 0.0), sigma=bad)
+
+
+def test_m04_rejects_invalid_absolute_covariance_inputs():
+    """Audit M-04: an anisotropic absolute-fix covariance must be finite and positive-definite. A
+    NaN/Inf entry, a negative variance, or a non-symmetric/indefinite matrix is not a covariance and
+    must be rejected, not Cholesky-factored into garbage information."""
+    import numpy as np
+    import pytest
+    from dart.pose_graph_se2 import PoseGraphSE2
+    g = PoseGraphSE2()
+    with pytest.raises(ValueError):
+        g.add_absolute_cov(0, (0.0, 0.0), np.array([[np.nan, 0.0], [0.0, 1.0]]))
+    with pytest.raises(ValueError):
+        g.add_absolute_cov(0, (0.0, 0.0), np.array([[np.inf, 0.0], [0.0, 1.0]]))
+    with pytest.raises(ValueError):
+        g.add_absolute_cov(0, (0.0, 0.0), np.array([[-1.0, 0.0], [0.0, 1.0]]))   # negative variance
+    with pytest.raises(ValueError):
+        g.add_absolute_cov(0, (0.0, 0.0), np.array([[1.0, 5.0], [5.0, 1.0]]))    # indefinite
+    # a valid PD covariance is accepted
+    g.add_absolute_cov(0, (0.0, 0.0), np.diag([0.04, 0.09]))
+    assert len(g._abs_cov) == 1
+
+
+def test_m01_outlier_does_not_corrupt_a_long_loop_closure():
+    """Audit M-01: on a longer trajectory with a loop closure, a single bad between-factor must not
+    blow up the global solution under the robust kernel. The robust estimate's worst-node error stays
+    bounded while the naive solve smears the outlier around the loop."""
+    import numpy as np
+    from dart.pose_graph_se2 import PoseGraphSE2
+
+    def build(robust):
+        g = PoseGraphSE2(robust=robust)
+        g.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.02, sigma_yaw=0.02)
+        # a square loop: 4 corners, 2 m sides, 90 deg turns -> returns to start
+        steps = [(2.0, 0.0, math.pi / 2)] * 4
+        for k, (dx, dy, dth) in enumerate(steps):
+            g.add_between(k, k + 1, (dx, dy, dth), sigma_xy=0.1, sigma_yaw=0.1)
+        # loop closure: node 4 should coincide with node 0
+        g.add_between(4, 0, (0.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)
+        # a GROSS outlier on one mid-loop edge (claims a 5 m jump that did not happen)
+        g.add_between(1, 2, (2.0, 5.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)
+        return g.optimize()
+
+    truth = {0: (0.0, 0.0), 1: (2.0, 0.0), 2: (2.0, 2.0), 3: (0.0, 2.0)}
+    robust = build(robust=True)
+    naive = build(robust=False)
+    worst_robust = max(np.hypot(robust[k][0] - tx, robust[k][1] - ty)
+                       for k, (tx, ty) in truth.items())
+    worst_naive = max(np.hypot(naive[k][0] - tx, naive[k][1] - ty)
+                      for k, (tx, ty) in truth.items())
+    assert worst_robust < 1.5                      # robust: the outlier edge is down-weighted
+    assert worst_robust < worst_naive              # strictly better than squared-loss
