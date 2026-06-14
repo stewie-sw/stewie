@@ -35,7 +35,7 @@ SITE = "haworth"
 
 def haworth_window() -> tuple:
     """The real LOLA Haworth sub-window the calibration runs on (1 km at 5 m per px)."""
-    from lode.mission_planner import load_site_dem
+    from stewie.terrain.site_dem import load_site_dem    # ARCH-1/2: terrain layer, not lode (no cycle)
     Z, cell = load_site_dem(SITE)
     (r0, r1), (c0, c1) = DEM_WINDOW
     return (Z[r0:r1, c0:c1], cell)
