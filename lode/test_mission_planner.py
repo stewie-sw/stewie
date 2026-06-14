@@ -552,6 +552,27 @@ def test_held_karp_finds_the_optimal_driving_tour():
     assert abs(tour(hk) - tour(true_min)) < 1e-6                            # exact optimal driving tour
 
 
+def test_h02_held_karp_seed_minimizes_the_routed_tour_not_straight_line():
+    """H-02 follow-up (2026-06-13): the held-karp seed minimizes the ROUTED tour (the geometry the plan
+    drives), not the straight-line tour -- it consumes the shared _make_routes cache. Against a custom
+    non-Euclidean routed metric the held-karp order equals the brute-force routed minimum; routes=None is
+    the straight-line default (byte-identical)."""
+    import itertools
+    m = _pairs_mission([(40, 0), (-40, 3), (80, 0), (-80, 3)])              # 4 trips
+    trips, _, _, _ = MP._build_trips(m, None, (0.0, 0.0), 25.0)
+    n = len(trips)
+    pred = MP._prec_masks(n, None)
+    routes = lambda a, b: abs(a[0] - b[0]) + 3.0 * abs(a[1] - b[1])         # a valid non-Euclidean detour metric
+    order = MP._held_karp(trips, m, pred, routes)
+    pts = [tuple(m.charger)] + [tuple(t["site"]) for t in trips]
+    tour = lambda o: (routes(pts[0], pts[o[0] + 1])
+                      + sum(routes(pts[o[k] + 1], pts[o[k + 1] + 1]) for k in range(n - 1))
+                      + routes(pts[o[-1] + 1], pts[0]))
+    best = min(itertools.permutations(range(n)), key=tour)
+    assert abs(tour(order) - tour(best)) < 1e-9                             # seed is the exact ROUTED minimum
+    assert MP._held_karp(trips, m, pred, None) == MP._held_karp(trips, m, pred)   # routes=None == default
+
+
 def test_held_karp_scales_past_brute_and_auto_dispatches():
     sites = [(40 * i - 220, (i % 3) * 55) for i in range(10)]               # 10 trips (> brute's 7 cap)
     m = _pairs_mission(sites)

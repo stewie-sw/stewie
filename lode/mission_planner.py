@@ -699,14 +699,18 @@ def _respects(order, pred):
     return True
 
 
-def _held_karp(trips, mission, pred):
+def _held_karp(trips, mission, pred, routes=None):
     """Exact min-DRIVING-DISTANCE Hamiltonian tour (charger -> all sites -> charger) by Held-Karp DP,
     honoring precedence (a Sequential Ordering Problem). O(2^n * n^2). Returns the trip order; the planner
     then simulates it for the chosen objective's true battery-aware totals (distance is the exact lever;
-    it is a near-perfect proxy for time/energy here because dig energy dominates and is order-independent)."""
+    it is a near-perfect proxy for time/energy here because dig energy dominates and is order-independent).
+    H-02: the seed distance matrix uses the ROUTED inter-site distance (`routes`, the shared _make_routes
+    cache) so the exact tour is min-ROUTED-distance -- the geometry the plan actually drives -- not min
+    straight-line. No DEM (routes=None) -> straight-line _d, byte-identical; the cache is already built."""
     n = len(trips)
     pts = [tuple(mission.charger)] + [tuple(t["site"]) for t in trips]
-    dmat = [[_d(pts[a], pts[b]) for b in range(n + 1)] for a in range(n + 1)]
+    _md = (lambda a, b: routes(a, b)) if routes is not None else _d
+    dmat = [[_md(pts[a], pts[b]) for b in range(n + 1)] for a in range(n + 1)]
     full = (1 << n) - 1
     dp = [[math.inf] * n for _ in range(1 << n)]
     par = [[-1] * n for _ in range(1 << n)]
@@ -783,7 +787,7 @@ def optimize_sequence(trips, mission, *, algorithm="auto", objective="time", pre
         return _nn_order(trips, mission, eligible_fn=eligible if has_prec else None)
 
     if algorithm == "held_karp" and n <= HELD_KARP_MAX_TRIPS:
-        return _held_karp(trips, mission, pred)            # PURE exact driving tour (no real-objective polish)
+        return _held_karp(trips, mission, pred, routes)    # PURE exact driving tour (no real-objective polish)
 
     if algorithm == "greedy":
         order = []; unv = list(range(n))
@@ -833,7 +837,7 @@ def optimize_sequence(trips, mission, *, algorithm="auto", objective="time", pre
     if algorithm == "or_opt":
         return local_search(nn_seed, use_two_opt=False)
     if algorithm == "held_karp_lk":                        # auto's 8-16 path: HK seed + LK polish
-        return local_search(_held_karp(trips, mission, pred))
+        return local_search(_held_karp(trips, mission, pred, routes))
     if algorithm in ("lk", "brute", "held_karp"):          # lk; also the >cap fallback for brute/held_karp
         return local_search(nn_seed)
     raise ValueError(f"unknown algorithm {algorithm!r}; known: {SEQUENCERS}")
