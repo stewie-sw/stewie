@@ -244,6 +244,24 @@ def test_h07_acceptance_scope_is_honest_not_full_validation():
     assert v["shuttle_cycles_est"] >= 1                            # ceil(cut_mass / drum_cap), summed over cuts
 
 
+def test_h07_ordered_executor_captures_order_dependent_as_built():
+    """H-07 follow-up (2026-06-13): the ordered IR-replay executor's as-built reflects EXECUTION ORDER. A
+    fill scheduled BEFORE its supplying cut draws an empty drum and places nothing, so the surface differs
+    from cut-then-fill -- the order-dependent result the pooled validate_plan (all cuts THEN all fills)
+    structurally cannot represent."""
+    import numpy as np
+    fillR = {"action": "fillR", "kind": "fill", "x": 0.0, "y": 0.0, "footprint_m2": 36.0, "depth_m": 0.20}
+    cutR = {"action": "cutR", "kind": "cut", "x": 0.0, "y": 0.0, "footprint_m2": 36.0, "depth_m": 0.20}
+    m = MP.mission_from_dict({"name": "ovl", "body": "moon", "charger": [0, 0], "orders": [fillR, cutR]})
+    t_fill = {"kind": "import", "site": (0.0, 0.0), "dest": (0.0, 0.0), "mass": 0.0, "actions": frozenset({"fillR"})}
+    t_cut = {"kind": "dig", "site": (0.0, 0.0), "dest": (0.0, 0.0), "mass": 0.0, "actions": frozenset({"cutR"})}
+    fc = MP.execute_plan_acceptance(m, [t_fill, t_cut])            # fill BEFORE its supplying cut
+    cf = MP.execute_plan_acceptance(m, [t_cut, t_fill])            # cut THEN fill
+    assert fc["executes_ordered_ir"] is True and cf["mass_conserved"] and fc["mass_conserved"]
+    assert not np.allclose(fc["as_built"], cf["as_built"])         # ORDER changes the surface (pooled misses it)
+    assert float(cf["as_built"].mean()) > float(fc["as_built"].mean())   # cut-then-fill nets back up; fill-first only cuts
+
+
 # ---- AL2: infeasible precedence fails loud, not a silent 0-trip "success" -------------------------
 def test_precedence_feasibility_unit():
     assert MP._precedence_is_feasible(3, [(0, 1), (1, 2)]) is True       # a chain: feasible

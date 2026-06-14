@@ -1222,6 +1222,12 @@ def post_plan(req: PlanRequest, _auth: None = Depends(require_auth)):
         plan_ir = MP.plan_ir(mission, dem=dem, dem_origin=origin,                # the machine-executable plan
                              algorithm=req.algorithm, objective=req.objective,
                              vehicles=req.vehicles, result=result)
+        # H-07 follow-up: ORDERED IR-replay acceptance -- walk the trips in plan order through a bounded
+        # drum so the order-dependent surface + drum-supply sequencing the pooled validate_plan flattens
+        # are surfaced. Drop the per-cell as_built array from the API (keep the scalar verdict).
+        ordered_acc = {k: v for k, v in
+                       MP.execute_plan_acceptance(mission, result.trips, dem=dem, dem_origin=origin).items()
+                       if k != "as_built"}
     except (ValueError, RuntimeError) as e:             # bad input / sinter-gated -> honest 400
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     except (KeyError, TypeError) as e:                  # missing/odd-typed field -> ALSO the contracted
@@ -1253,6 +1259,7 @@ def post_plan(req: PlanRequest, _auth: None = Depends(require_auth)):
         "autonomy": autonomy,
         "perception": perception,
         "plan_ir": plan_ir,                             # versioned typed-action plan a rover/ROS executive runs
+        "ordered_acceptance": ordered_acc,              # H-07: ordered IR-replay verdict (drum sequencing + as-built)
         "provenance": result.provenance,                # RB-03/CT-07: schema, mode, config, input hash of THE plan
     }
 

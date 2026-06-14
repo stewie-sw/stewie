@@ -127,6 +127,9 @@ def test_plan_feasible_plan_emits_executable_ir(client):
     assert r.status_code == 200
     j = r.json()
     assert j["feasible"] is True and j["plan_ir"]["actions"]                          # real executable actions
+    oa = j["ordered_acceptance"]                                                      # H-07 follow-up: ordered replay
+    assert oa["executes_ordered_ir"] is True and oa["mass_conserved"] is True
+    assert "drum_capacity_kg" in oa and "shuttle_cycles" in oa and "as_built" not in oa   # scalar verdict, no grid
 
 
 # ---- /sense (drum-fill sensing) error + success -------------------------------------------------

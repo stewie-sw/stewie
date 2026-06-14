@@ -1985,6 +1985,84 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
     }
 
 
+def execute_plan_acceptance(mission, trips, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500,
+                            dem=None, dem_origin=(0.0, 0.0)):
+    """H-07 follow-up: ORDERED IR-replay acceptance (the literal "execute the exact Plan IR" path).
+
+    Unlike validate_plan's pooled all-cuts-then-all-fills material check, this walks the TRIPS IN PLAN
+    ORDER through a CAPACITY-BOUNDED drum -- each trip cuts its cut footprint INTO the drum, then fills its
+    fill footprint FROM the drum -- so two order-dependent effects the pooled check flattens are caught:
+      (1) drum-supply sequencing: a fill scheduled before its supplying cut draws from an EMPTY drum and
+          places nothing (the pooled check always has every cut's material on hand, masking this);
+      (2) overlapping cut/fill footprints across trips (berm on a just-cut pad, a re-grade) -- the as-built
+          surface depends on the order, which all-cuts-then-fills cannot represent.
+    Returns the ORDERED as-built surface + mass conservation + the running drum balance (the min inventory
+    over the walk; < 0 means a fill out-ran its supply) + the max simultaneous drum load vs capacity +
+    shuttle-cycle count. Mass is a density-only edit so it is conserved exactly. Self-contained (mirrors
+    validate_plan's grid so the two as-built surfaces are directly comparable)."""
+    rho_bank, rho_loose = mission.density * SWELL, mission.density
+    cap = _drum_kg(mission)
+    order_by_action = {o.action: o for o in mission.orders}
+    sides = [math.sqrt(o.footprint_m2) for o in mission.orders]
+    margin = 2.0 + (max(sides) / 2 if sides else 0.0)
+    x0 = min(o.x - s / 2 for o, s in zip(mission.orders, sides)) - margin
+    y0 = min(o.y - s / 2 for o, s in zip(mission.orders, sides)) - margin
+    x1 = max(o.x + s / 2 for o, s in zip(mission.orders, sides)) + margin
+    y1 = max(o.y + s / 2 for o, s in zip(mission.orders, sides)) + margin
+    if max(x1 - x0, y1 - y0) / cell_m > max_cells:
+        cell_m = max(x1 - x0, y1 - y0) / max_cells
+    W = max(1, int(math.ceil((x1 - x0) / cell_m)))
+    H = max(1, int(math.ceil((y1 - y0) / cell_m)))
+    cs = ColumnState(width=W, height=H, cell_m=cell_m,
+                     mass_areal=np.full((H, W), rho_bank * regolith_depth_m, dtype=np.float64))
+    if dem is not None:
+        Z, _dem_cell = dem
+        ox, oy = dem_origin
+        ci = np.clip(((x0 + (np.arange(W) + 0.5) * cell_m + ox) / _dem_cell).astype(int), 0, Z.shape[1] - 1)
+        ri = np.clip(((y0 + (np.arange(H) + 0.5) * cell_m + oy) / _dem_cell).astype(int), 0, Z.shape[0] - 1)
+        cs.datum = Z[np.ix_(ri, ci)] - regolith_depth_m
+    m0 = cs.total_mass()
+    rr, cc = np.meshgrid(np.arange(H), np.arange(W), indexing="ij")
+
+    def _mask(o):
+        s = math.sqrt(o.footprint_m2); half = (s / 2) / cell_m
+        cx, cy = (o.x - x0) / cell_m, (o.y - y0) / cell_m
+        return (np.abs(cc + 0.5 - cx) <= half) & (np.abs(rr + 0.5 - cy) <= half)
+
+    def _orders(tr, kind):
+        return [order_by_action[a] for a in tr.get("actions", ())
+                if a in order_by_action and order_by_action[a].kind == kind]
+
+    feasible = True; drum_max = 0.0; running_min = 0.0; shuttle_cycles = 0
+    for tr in trips:                                       # PLAN ORDER -- the executable sequence
+        for o in _orders(tr, "cut"):
+            mask = _mask(o)
+            if not mask.any(): feasible = False; continue
+            moved = cs.cut_to_inventory(mask, o.depth_m * rho_bank)
+            drum_max = max(drum_max, cs.drum_inventory)
+            shuttle_cycles += (max(1, math.ceil(moved / cap)) if cap > 0 else 1)
+        for o in _orders(tr, "fill"):
+            mask = _mask(o)
+            if not mask.any(): feasible = False; continue
+            target = cs.derive_height().copy(); target[mask] += o.depth_m
+            cs.fill_toward(mask, target, max_lift_m=o.depth_m, spoil_density=rho_loose)
+            running_min = min(running_min, cs.drum_inventory)
+    drift = abs(cs.total_mass() - m0)
+    mass_conserved = drift <= 1e-6 * max(1.0, m0)
+    return {
+        "executes_ordered_ir": True,
+        "feasible": bool(feasible and mass_conserved),
+        "mass_conserved": bool(mass_conserved),
+        "mass_drift_kg": float(drift),
+        "drum_capacity_kg": float(cap),
+        "max_simultaneous_drum_kg": float(drum_max),       # the peak inventory the bounded drum had to hold
+        "running_drum_min_kg": float(running_min),         # < 0 would mean a fill out-ran its supply in sequence
+        "shuttle_cycles": int(shuttle_cycles),
+        "as_built": cs.derive_height(),                    # the ORDER-dependent surface the pooled check flattens
+        "grid": {"rows": H, "cols": W, "cell_m": cell_m},
+    }
+
+
 def _dur(s):
     h = s / 3600
     return f"{h:.1f} h" if h < 48 else f"{h/24:.1f} d"
