@@ -247,3 +247,67 @@ def test_t51_heaters_own_the_camera_window(tmp_path):
     srv.handle({"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 1})
     assert srv.handle({"role": "produce", "cmd": "packet"})["packet"]["channels"]["camera"][
         "status"] == "OK"
+
+
+def _raw_rpc(sock_path, raw_bytes):
+    """Send raw (possibly malformed/over-cap) bytes that _rpc's json.dumps could never produce, and
+    read whatever response comes back. Tolerant of the server rejecting + closing mid-send."""
+    c = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    c.settimeout(5.0)                                  # an UNBOUNDED server readline must fail, not hang
+    c.connect(sock_path)
+    try:
+        c.sendall(raw_bytes)
+    except (BrokenPipeError, ConnectionResetError, OSError):
+        pass                                          # server may reject + close before the send finishes
+    buf = b""
+    try:
+        while not buf.endswith(b"\n"):
+            chunk = c.recv(65536)
+            if not chunk:
+                break
+            buf += chunk
+    except (ConnectionResetError, OSError):
+        pass
+    c.close()
+    return buf
+
+
+def test_m03_overlong_line_is_rejected_not_oomed(runtime):
+    """M-03: a multi-hundred-KB unterminated line is rejected with a clean error, not buffered to OOM."""
+    sock, _ = runtime
+    over = b"{" + b"a" * (256 * 1024)                 # 256 KiB, no newline -> over the 64 KiB cap
+    resp = _raw_rpc(sock, over)
+    assert resp.endswith(b"\n")
+    parsed = json.loads(resp.decode())
+    assert parsed["ok"] is False and "line" in parsed["error"].lower()
+
+
+def test_m04_nonfinite_twist_is_rejected_and_world_untouched(runtime):
+    """M-04: NaN/inf v must be refused and must NOT corrupt the shared persistent pose."""
+    sock, srv = runtime
+    p0 = _rpc(sock, {"role": "drive", "cmd": "pose"})
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        r = _rpc(sock, {"role": "drive", "cmd": "twist", "v": bad, "omega": 0.0, "steps": 1})
+        assert r["ok"] is False and "finite" in r["error"].lower()
+    p1 = _rpc(sock, {"role": "drive", "cmd": "pose"})
+    assert p1["rc"] == p0["rc"]                                   # world pose unchanged
+    assert all(np.isfinite(x) for x in srv.rc) and np.isfinite(srv.yaw)
+
+
+def test_m04_oversized_or_nonfinite_steps_is_rejected(runtime):
+    """M-04: steps above the cap (and non-finite steps) are refused before the drive loop spins."""
+    sock, _ = runtime
+    r = _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 10**12})
+    assert r["ok"] is False and "steps" in r["error"].lower()
+    r2 = _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": float("inf")})
+    assert r2["ok"] is False and "steps" in r2["error"].lower()
+
+
+def test_m05_socket_is_owner_only(runtime):
+    """M-05: the world-mutating socket is created 0o600 (no group/other access)."""
+    import stat
+    sock, _ = runtime
+    mode = stat.S_IMODE(os.stat(sock).st_mode)
+    assert mode == 0o600, oct(mode)
+    r = _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 1})
+    assert r["ok"]                                                # same-user client still works

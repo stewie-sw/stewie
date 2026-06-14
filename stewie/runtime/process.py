@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import socketserver
 
@@ -27,6 +28,13 @@ from stewie.specs import vehicle_twin as vtw
 from stewie.twin import proprioception as pp
 
 _MUTATING = {"twist", "checkpoint", "restore", "set_thermal"}
+# M-03/M-04: input bounds on the world-mutating Unix-socket seam. A real request line is < 30 bytes
+# and the largest 'steps' used anywhere in the repo/gate is 50, so these caps are ~2000x and ~20000x
+# real traffic -- generous for legitimate clients, fatal to the OOM (unbounded readline) and the
+# CPU-spin (steps=10**12) bombs. Non-finite v/omega/steps are rejected outright: a NaN twist would
+# silently poison the SHARED persistent world pose for every later client.
+MAX_LINE_BYTES = 65536          # 64 KiB request-line ceiling (readline is bounded to this)
+MAX_TWIST_STEPS = 1_000_000     # at dt=0.1 s this is 1e5 sim-seconds in one request
 
 
 class RuntimeProcess:
@@ -207,13 +215,29 @@ class RuntimeProcess:
         if cmd == "pose":
             return self._pose()
         if cmd == "twist":
-            return self._twist(req.get("v", 0.0), req.get("omega", 0.0), req.get("steps", 1))
+            v, omega, steps = req.get("v", 0.0), req.get("omega", 0.0), req.get("steps", 1)
+            # M-04: a mutating command must be finite + bounded. Non-finite v/omega would corrupt the
+            # SHARED persistent pose; steps=10**12 would spin the single-threaded authority. (v=0 or a
+            # reverse v<0 stay legal -- only non-finite is rejected.)
+            if not (isinstance(v, (int, float)) and math.isfinite(v)
+                    and isinstance(omega, (int, float)) and math.isfinite(omega)):
+                return {"ok": False, "error": "twist v/omega must be finite"}
+            try:
+                steps = int(steps)
+            except (TypeError, ValueError, OverflowError):
+                return {"ok": False, "error": "twist steps must be a positive integer"}
+            if steps < 1 or steps > MAX_TWIST_STEPS:
+                return {"ok": False, "error": f"twist steps must be in 1..{MAX_TWIST_STEPS}"}
+            return self._twist(v, omega, steps)
         if cmd == "packet":
             if role != "produce":
                 return {"ok": False, "error": "packets are the producer role's verb"}
             return self._packet()
         if cmd == "set_thermal":
-            self.camera_temp_c = float(req["camera_temp_c"])
+            t = float(req["camera_temp_c"])
+            if not math.isfinite(t):                     # M-04: a NaN temp defeats the TVAC gate
+                return {"ok": False, "error": "camera_temp_c must be finite"}
+            self.camera_temp_c = t
             self._manual_thermal = True                  # the inspection override beats the model
             return {"ok": True, "camera_temp_c": self.camera_temp_c}
         if cmd == "checkpoint":
@@ -228,8 +252,15 @@ class RuntimeProcess:
 
         class Handler(socketserver.StreamRequestHandler):
             def handle(self) -> None:
-                line = self.rfile.readline()
+                # M-03: bound the read. readline(MAX+1) returns at most MAX+1 bytes, so an unterminated
+                # multi-GB stream is rejected, never buffered to OOM.
+                line = self.rfile.readline(MAX_LINE_BYTES + 1)
                 if not line:
+                    return
+                if len(line) > MAX_LINE_BYTES or not line.endswith(b"\n"):
+                    self.wfile.write((json.dumps({"ok": False,
+                        "error": f"request line exceeds {MAX_LINE_BYTES} bytes or is unterminated"})
+                        + "\n").encode())
                     return
                 try:
                     resp = outer.handle(json.loads(line.decode()))
@@ -240,6 +271,7 @@ class RuntimeProcess:
         if os.path.exists(self.socket_path):
             os.unlink(self.socket_path)
         self._server = socketserver.UnixStreamServer(self.socket_path, Handler)
+        os.chmod(self.socket_path, 0o600)                # M-05: owner-only; same-user clients unaffected
         self._server.serve_forever(poll_interval=0.05)
 
     def shutdown(self) -> None:
