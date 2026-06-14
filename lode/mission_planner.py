@@ -75,6 +75,18 @@ DRIVE_POWER_W   = S.drive_power_w()                      # ~40 W (Table 3 drivin
 IDLE_POWER_W    = S.IDLE_POWER_W                         # [ASSUMPTION] continuous survival draw (default 0 = off)
 SLIP_ALPHA      = 2.0                                    # [CALIB] slip energy multiplier vs tan(slope) (I10 costmap)
 _TM_PARAMS      = TM.TerramechanicsParams.from_constants()   # lunar defaults for the weight-aware leg-slip solve
+# P-04: OFFLOAD/placement model for IMPORTED fill. Imported regolith arrives from an external supply
+# (a separate logistics chain, not modelled here as a coordinate); the rover only DEPOSITS it. Depositing
+# discharges the drum at its material-handling throughput (DIG_RATE_KG_S, the same drum rate used to
+# collect/deposit), and the placement ENERGY is the drum-discharge handling at the drive/handling power --
+# NOT the in-situ DIG energy (~4151 J/kg), because no bank material is cut. This keeps import comparable
+# to in-situ construction with the RIGHT physical process. [DERIVED from grounded drive power + dig rate.]
+OFFLOAD_RATE_KG_S = DIG_RATE_KG_S                        # drum deposit throughput == its collect throughput
+# P-06: positional uncertainty added to the vehicle's physical swept radius when inflating routing hazards.
+# A skid-steer rover localizes imperfectly (odometry drift ~ODOM_DRIFT_FRAC/m); a corridor only as wide as
+# the bare body is not safe under pose error. [ASSUMPTION] -- a fixed margin floor; the per-leg drift-scaled
+# term is future work. Keeps routing conservative: hazards are inflated by swept footprint PLUS this margin.
+LOCALIZATION_MARGIN_M = 0.15
 
 
 @dataclasses.dataclass(frozen=True)
@@ -123,6 +135,18 @@ def plan_context(mission) -> PlanningContext:
         drum_kg=float(veh.drum_capacity_kg),
         rover_mass_kg=float(veh.dry_mass_kg),
         drive_power_w=float(veh.drive_power_w))
+
+
+def vehicle_footprint_radius_m(mission, *, localization_margin_m=LOCALIZATION_MARGIN_M):
+    """P-06: the SWEPT footprint radius [m] of the mission's selected vehicle, used to inflate routing
+    hazards so the rover is not modelled as a point. A skid-steer rover turns in place, so its swept
+    obstacle radius is half the diagonal of the body bounding box (track gauge + wheel width laterally,
+    wheelbase + wheel fore/aft extent longitudinally) PLUS a positional-uncertainty margin. Grounded in
+    the registry geometry (gauge_m / wheelbase_m / wheel_width_m / wheel_radius_m); no fabricated size."""
+    veh = V.get_vehicle(mission.vehicle)
+    half_lat = (float(veh.gauge_m) + float(veh.wheel_width_m)) / 2.0
+    half_lon = (float(veh.wheelbase_m) + 2.0 * float(veh.wheel_radius_m)) / 2.0
+    return math.hypot(half_lat, half_lon) + float(localization_margin_m)
 
 # Per-body OPERATING TIMESCALE (astronomical solar-day lengths; Earth-hours) — so the endurance/report
 # prints the correct day/night + sunlit work-window scale for the selected body. solar_day_h = synodic
@@ -311,10 +335,68 @@ def _d(a, b): return math.hypot(a[0] - b[0], a[1] - b[1])
 SWELL = C.RHO_DEEP / C.RHO_SPOIL
 
 
-def balance(mission: Mission):
+def _mincost_transport(supplies, demands, cost):
+    """P-03: min-cost transportation over a bipartite cut->fill graph by successive-cheapest-augmenting
+    (SSP). `supplies[i]` = cut i bank mass, `demands[j]` = fill j loose mass, `cost[i][j]` = the per-unit
+    haul cost (math.inf = UNREACHABLE, no arc). Returns flow[i][j] (mass cut i -> fill j) minimizing total
+    cost while never routing over an unreachable arc. Demand left unmet (no feasible reachable supply) is
+    returned as `unmet[j]`; supply left over as `leftover[i]`. Globally min-cost over the FEASIBLE arcs --
+    it never prefers a cheaper-but-blocked donor (inf cost) over a feasible one, the P-03 fix."""
+    nI, nJ = len(supplies), len(demands)
+    flow = [[0.0] * nJ for _ in range(nI)]
+    sup = list(supplies)
+    dem = list(demands)
+    # candidate arcs by increasing cost; SSP for a transportation problem with no negative costs reduces
+    # to repeatedly pushing as much as possible along the globally cheapest residual arc (a min-cost flow
+    # is optimal when augmenting along shortest residual paths; with a single bipartite layer + nonneg
+    # costs the shortest residual path is the single cheapest remaining direct arc).
+    arcs = sorted(((cost[i][j], i, j) for i in range(nI) for j in range(nJ)
+                   if math.isfinite(cost[i][j])), key=lambda a: a[0])
+    for c, i, j in arcs:
+        if sup[i] <= 1e-9 or dem[j] <= 1e-9:
+            continue
+        push = min(sup[i], dem[j])
+        flow[i][j] += push
+        sup[i] -= push
+        dem[j] -= push
+    unmet = [d if d > 1e-9 else 0.0 for d in dem]
+    leftover = [s if s > 1e-9 else 0.0 for s in sup]
+    return flow, unmet, leftover
+
+
+def balance(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_slope_deg=25.0):
+    """Cut-fill material balance: route excavated regolith to fills, minimizing haul cost.
+
+    P-03: with a DEM, allocation solves a min-cost TRANSPORTATION problem over a ROUTED, FEASIBILITY-aware
+    cost matrix (route_leg gives routed distance; an unreachable cut->fill pair is an infinite-cost arc with
+    NO flow), so the planner never assigns a Euclidean-nearest donor that is actually blocked while a
+    feasible donor exists. Without a DEM there is no terrain to route over, so it falls back to the
+    straight-line nearest-first allocation (byte-identical to the prior behavior)."""
     rho_bank, rho_loose = mission.density * SWELL, mission.density
     cuts = [(o, o.mass_kg(rho_bank)) for o in mission.orders if o.kind == "cut"]
     fills = [(o, o.mass_kg(rho_loose)) for o in mission.orders if o.kind == "fill"]
+
+    if dem is not None and cuts and fills:
+        # P-03: routed, feasibility-aware min-cost allocation.
+        rd = _make_routes(mission, dem, dem_origin, max_traverse_slope_deg)   # memoized routed inter-site dist
+        cost = [[rd((co.x, co.y), (fo.x, fo.y)) for fo, _ in fills] for co, _ in cuts]
+        flowm, unmet, leftover = _mincost_transport([m for _, m in cuts], [m for _, m in fills], cost)
+        flows = []
+        for i, (co, _) in enumerate(cuts):
+            for j, (fo, _) in enumerate(fills):
+                m = flowm[i][j]
+                if m > 1e-6:
+                    flows.append((co, fo, m, _d((co.x, co.y), (fo.x, fo.y))))
+        for j, (fo, _) in enumerate(fills):
+            if unmet[j] > 1e-6:
+                flows.append((None, fo, unmet[j], 0.0))          # deficit: imported material (flagged)
+        for i, (co, _) in enumerate(cuts):
+            if leftover[i] > 1e-6:
+                flows.append((co, None, leftover[i], 0.0))       # surplus spoil
+        surplus_kg = sum(m for c, f, m, _ in flows if c is not None and f is None)
+        return flows, surplus_kg
+
+    # no DEM (or no cut/fill pair): straight-line nearest-first allocation (unchanged).
     supply = {id(o): m for o, m in cuts}
     flows = []                                          # (cut, fill, mass, dist)
     for fo, need in fills:
@@ -346,17 +428,70 @@ OBJECTIVES = {
     "time":     ("min", lambda T: T["time_s"]),
     "duration": ("min", lambda T: T["time_s"]),            # alias for "overall duration"
     "energy":   ("min", lambda T: T["energy_J"]),
-    "power":    ("min", lambda T: T["avg_power_w"]),        # average power output
+    # P-10: this is AVERAGE power = total energy / duration, NOT peak/rated electrical demand. Minimizing
+    # it can reward SLOWER execution (more time in the denominator), so it is named `average_power` to
+    # stop users reading it as a peak-power constraint. `power` is kept as a legacy alias (the browser UI
+    # still sends objective=power) and resolves to the same average-power metric.
+    "average_power": ("min", lambda T: T["avg_power_w"]),  # average electrical power = energy / duration
+    "power":    ("min", lambda T: T["avg_power_w"]),        # [LEGACY ALIAS of average_power -- UI compat]
     "distance": ("min", lambda T: T["distance_m"]),
     "charges":  ("min", lambda T: T["charges"]),
     "mass":     ("max", lambda T: T["mass_kg"]),            # amount moved
 }
+# P-10: the metric Held-Karp's exact DP actually minimizes (routed DRIVING DISTANCE). Any other objective
+# is only HEURISTIC under held_karp (the LK polish improves it but gives no optimality bound), so the
+# optimality label must be objective-specific -- "exact" only when the solved metric IS the objective.
+HELD_KARP_EXACT_METRIC = "distance"
 # Sequencer algorithms. nearest/greedy/two_opt/or_opt/lk are heuristics (objective-scored by simulation);
 # brute + held_karp are EXACT (brute over permutations <=7; Held-Karp DP exact-on-driving-distance <=16);
 # auto dispatches to the strongest solver the problem size + precedence allow ("solved in sequence").
 SEQUENCERS = ("auto", "nearest", "greedy", "two_opt", "or_opt", "lk", "brute", "held_karp")
 BRUTE_MAX_TRIPS = 7          # exhaustive permutation search only up to 7! = 5040
 HELD_KARP_MAX_TRIPS = 16     # Held-Karp DP is O(2^n * n^2); ~16 trips is the practical ceiling
+
+
+def _segmented_haul_energy(dem, dem_origin, waypoints, *, loads, drum_kg, g, soil, drive_j_per_m,
+                           rover_mass_kg):
+    """P-05: drive ENERGY of a shuttle haul, integrated SEGMENT-BY-SEGMENT along the routed polyline,
+    separately for the LOADED outbound leg (cut->fill, carrying ~drum_kg) and the EMPTY return
+    (fill->cut). Each segment pays seg_len * drive_j_per_m / (1 - slip), where slip is solved from THAT
+    segment's grade and the rover's weight on that leg (loaded vs empty). A route that climbs a ridge and
+    descends back to the same elevation therefore costs real per-segment grade work -- the prior code used
+    only the endpoint slope abs(dh)/leg and read ~0 grade for such a roller-coaster. Returns the total
+    round-trip haul energy [J] over all `loads` shuttle cycles."""
+    Z, cell = dem
+    ox, oy = dem_origin
+    H, W = Z.shape
+
+    def _z(x, y):
+        c, r = int(round((ox + x) / cell)), int(round((oy + y) / cell))
+        return float(Z[r, c]) if (0 <= r < H and 0 <= c < W) else None
+
+    # sample elevation at each waypoint; drop off-grid points (keep order).
+    pts = []
+    for (x, y) in waypoints:
+        z = _z(x, y)
+        if z is not None:
+            pts.append((x, y, z))
+    if len(pts) < 2:
+        return None                                   # not enough on-grid samples -> caller falls back
+
+    def _dir_energy(seq, payload_kg):
+        """Energy [J] for ONE traversal of the polyline `seq` carrying `payload_kg` (per-segment slip)."""
+        e = 0.0
+        for (x0, y0, z0), (x1, y1, z1) in zip(seq, seq[1:]):
+            seg_len = math.hypot(x1 - x0, y1 - y0)
+            if seg_len <= 1e-9:
+                continue
+            slope_deg = math.degrees(math.atan2(abs(z1 - z0), seg_len))
+            slip = slip_alpha_to_slip(slope_deg, payload_kg=payload_kg, g=g, params=soil,
+                                      rover_mass_kg=rover_mass_kg)
+            e += seg_len * drive_j_per_m / (1.0 - slip)
+        return e
+
+    out_e = _dir_energy(pts, drum_kg)                 # loaded outbound (cut -> fill)
+    back_e = _dir_energy(list(reversed(pts)), 0.0)    # empty return (fill -> cut)
+    return (out_e + back_e) * loads
 
 
 def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
@@ -368,7 +503,10 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
     _soil = mission_soil_params(mission)                    # soil model for the haul slip (soil override)
     ctx = plan_context(mission)                             # H-01: the SELECTED vehicle's energy/mass/drum
     drum_kg = ctx.drum_kg                                   # RB-05: the selected vehicle's per-cycle drum
-    flows, surplus_kg = balance(mission)
+    # P-03: routed, feasibility-aware allocation when a DEM is present (min-cost transport over the routed
+    # cost matrix); straight-line nearest-first with no DEM (byte-identical to the prior behavior).
+    flows, surplus_kg = balance(mission, dem=dem, dem_origin=dem_origin,
+                                max_traverse_slope_deg=max_traverse_slope_deg)
     sinters = [o for o in mission.orders if o.kind == "sinter"]
     if sinters and not C.SINTER_ENABLED:
         raise RuntimeError(
@@ -384,10 +522,32 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
                               mass=0.0, dig_e=0.0, dig_t=0.0, haul_m=0.0, haul_e=0.0,
                               lift_e=0.0, dest=(o.x, o.y), actions=frozenset({o.action})))
     straight_haul_m = 0.0; routed_haul_m = 0.0; blocked_legs = 0; leg_routes = []
+    # P-04: per-kg offload (deposit) energy/time for imported fill -- drum-discharge handling at the
+    # drive/handling power and the drum's deposit throughput, NOT the in-situ dig energy.
+    offload_e_per_kg = ctx.drive_power_w / OFFLOAD_RATE_KG_S
+    charger_xy = (float(mission.charger[0]), float(mission.charger[1]))
     for co, fo, mass, dist in flows:
         if co is None:
+            # P-04: IMPORTED fill -- NO local excavation. dig_e/dig_t are ZERO (no in-situ cut). The only
+            # local cost is depositing the delivered material (offload), tracked as offload_e/offload_t so
+            # the import strategy is compared with the right physical process. import_kg is accounted
+            # separately (deficit_kg) and never folded into the excavated cut_kg.
+            # FEASIBILITY: an import must still be DELIVERED to the fill, which requires REACHING it. The
+            # P-03 min-cost transport reclassifies an UNREACHABLE (enclosed) fill as unmet demand -> import;
+            # without this delivery check that import silently masked an enclosed fill as feasible, so the
+            # totals path disagreed with plan_ir (which catches it via the GoTo route). Route the delivery
+            # from the base (charger): an unreachable fill is a blocked leg, exactly like a blocked cut->fill.
+            if dem is not None:
+                _il, _ib, reached_imp, _iw = route_leg(
+                    dem, dem_origin, charger_xy, (fo.x, fo.y),
+                    max_slope_deg=max_traverse_slope_deg, keepouts=mission.keepouts)
+                if not reached_imp:
+                    blocked_legs += 1                   # enclosed/stranded fill -> plan INFEASIBLE
+                    leg_routes.append(dict(from_xy=charger_xy, to_xy=(fo.x, fo.y),
+                                           waypoints=[], reached=False))
             trips.append(dict(kind="import", site=(fo.x, fo.y), label=f"Import fill: {fo.action}",
-                              mass=mass, dig_e=mass*ctx.dig_j_per_kg, dig_t=mass/DIG_RATE_KG_S,
+                              mass=mass, dig_e=0.0, dig_t=0.0,
+                              offload_e=mass*offload_e_per_kg, offload_t=mass/OFFLOAD_RATE_KG_S,
                               haul_m=0.0, haul_e=0.0, lift_e=0.0, dest=(fo.x, fo.y),
                               actions=frozenset({fo.action})))
         elif fo is None:
@@ -420,17 +580,28 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
             ascent = (haul_cumulative_ascent_m(dem, dem_origin, waypoints)
                       if (dem is not None and reached and len(waypoints) >= 2) else max(0.0, dh))
             # #1 slip-loss: the wheel travels 1/(1-slip) per metre of ground on a slope, so the haul costs
-            # more than flat 135 J/m. slip from the cut<->fill slope; no DEM/flat -> slip 0 -> haul_e = flat.
-            slope_haul = math.degrees(math.atan2(abs(dh), leg)) if leg > 1e-9 else 0.0
-            # weight-coupled: the loaded outbound leg (carrying ~DRUM_KG) slips more than the empty
-            # return; each pays 1/(1-slip) per ground metre. (haul_m = out + back = 2*leg*loads.)
-            out_m = back_m = leg * loads
-            slip_loaded = slip_alpha_to_slip(slope_haul, payload_kg=drum_kg, g=g, params=_soil,
-                                             rover_mass_kg=ctx.rover_mass_kg)   # H-01: the selected vehicle's mass
-            slip_empty = slip_alpha_to_slip(slope_haul, payload_kg=0.0, g=g, params=_soil,
-                                            rover_mass_kg=ctx.rover_mass_kg)
-            haul_e = (out_m * ctx.drive_j_per_m / (1.0 - slip_loaded)
-                      + back_m * ctx.drive_j_per_m / (1.0 - slip_empty))
+            # more than flat 135 J/m. P-05: integrate slip SEGMENT-BY-SEGMENT along the routed polyline,
+            # separately for the loaded outbound and the empty return -- a route that climbs and descends
+            # back to the same elevation still pays per-segment grade (the prior endpoint-slope estimate read
+            # ~0 grade for such a roller-coaster). Fall back to the endpoint estimate only with no routed
+            # polyline (no-DEM straight line / blocked leg).
+            seg_e = None
+            if dem is not None and reached and len(waypoints) >= 2:
+                seg_e = _segmented_haul_energy(dem, dem_origin, waypoints, loads=loads, drum_kg=drum_kg,
+                                               g=g, soil=_soil, drive_j_per_m=ctx.drive_j_per_m,
+                                               rover_mass_kg=ctx.rover_mass_kg)
+            if seg_e is not None:
+                haul_e = seg_e
+            else:
+                # endpoint-slope fallback (no-DEM straight line, or too few on-grid samples).
+                slope_haul = math.degrees(math.atan2(abs(dh), leg)) if leg > 1e-9 else 0.0
+                out_m = back_m = leg * loads          # loaded out + empty back (haul_m = 2*leg*loads)
+                slip_loaded = slip_alpha_to_slip(slope_haul, payload_kg=drum_kg, g=g, params=_soil,
+                                                 rover_mass_kg=ctx.rover_mass_kg)
+                slip_empty = slip_alpha_to_slip(slope_haul, payload_kg=0.0, g=g, params=_soil,
+                                                rover_mass_kg=ctx.rover_mass_kg)
+                haul_e = (out_m * ctx.drive_j_per_m / (1.0 - slip_loaded)
+                          + back_m * ctx.drive_j_per_m / (1.0 - slip_empty))
             trips.append(dict(kind="cutfill", site=(co.x, co.y), label=f"{co.action} → {fo.action}",
                               mass=mass, dig_e=mass*ctx.dig_j_per_kg, dig_t=mass/DIG_RATE_KG_S,
                               haul_m=haul_m, haul_e=haul_e, lift_e=mass * g * ascent, dest=(fo.x, fo.y),
@@ -621,6 +792,11 @@ def _simulate(mission, trips, routes=None):
         if drive(tr["site"]):
             if tr["kind"] == "sinter":
                 spend("sinter", tr["sinter_e"], tr["sinter_t"], tr["site"], mass=0.0)
+            elif tr["kind"] == "import":
+                # P-04: imported fill spends only the OFFLOAD (deposit) energy/time -- NO local dig energy.
+                spend("offload", tr.get("offload_e", 0.0), tr.get("offload_t", 0.0), tr["site"],
+                      mass=tr["mass"], haul_m=tr.get("haul_m", 0.0), haul_e=tr.get("haul_e"),
+                      lift_e=tr.get("lift_e", 0.0))
             else:
                 spend("dig", tr["dig_e"], tr["dig_t"], tr["site"], mass=tr["mass"],
                       haul_m=tr.get("haul_m", 0.0), haul_e=tr.get("haul_e"), lift_e=tr.get("lift_e", 0.0))
@@ -682,6 +858,40 @@ def parse_objective(objective):
     return {k: float(v) / tot for k, v in objective.items()}
 
 
+def _objective_is_only(objective, metric):
+    """True iff `objective` (single name / 'name:w,...' string / weight dict) is EXACTLY the one `metric`
+    (a single-objective spec on that metric), accounting for aliases (time/duration, power/average_power)."""
+    aliases = {"time": {"time", "duration"}, "duration": {"time", "duration"},
+               "average_power": {"average_power", "power"}, "power": {"average_power", "power"}}
+    target = aliases.get(metric, {metric})
+    try:
+        weights = parse_objective(objective)
+    except ValueError:
+        return False
+    return len(weights) == 1 and next(iter(weights)) in target
+
+
+def _objective_optimality(resolved, objective):
+    """P-10: objective-SPECIFIC optimality label + an `objective_exact` flag.
+
+    - brute simulates every permutation -> EXACT on whatever objective was chosen (objective_exact=True).
+    - held_karp / held_karp_lk are exact only on routed DRIVING DISTANCE (then LK-polished). The label
+      NAMES the exact metric ("distance-exact (heuristic for this objective)+polish"), and the result is
+      objective_exact ONLY when the chosen objective IS distance.
+    - everything else is heuristic.
+
+    Returns (label, objective_exact)."""
+    if resolved == "brute":
+        return "exact", True
+    if resolved in ("held_karp", "held_karp_lk"):
+        is_distance = _objective_is_only(objective, HELD_KARP_EXACT_METRIC)
+        if is_distance:
+            return ("distance-exact" if resolved == "held_karp" else "distance-exact+polish"), True
+        # exact on distance only -> name the metric and flag the chosen objective as NOT exact.
+        return f"distance-exact (heuristic for this objective){'+polish' if resolved == 'held_karp_lk' else ''}", False
+    return "heuristic", False
+
+
 def _make_core_scorer(mission, trips, objective, routes=None):
     """Return a function core -> sortable scalar (lower = better). For a single objective this is the raw
     metric (max objectives negated). For a WEIGHTED multi-objective it is the weighted sum of each metric
@@ -698,7 +908,16 @@ def _make_core_scorer(mission, trips, objective, routes=None):
         for name, w in weights.items():
             direction, fn = OBJECTIVES[name]
             raw, r = fn(core), fn(ref)
-            norm = (raw / r) if direction == "min" else (r / max(raw, 1e-9))
+            # P-09: stable normalization that handles a ZERO or constant reference. The reference comes
+            # from a FIXED plan (nearest-neighbour), so scoring is candidate-set independent; floor the
+            # denominator with a tiny positive scale so a zero reference (e.g. zero recharges/distance)
+            # cannot divide by zero or produce NaN/Inf. When BOTH raw and reference are ~0 the metric is
+            # degenerate (no signal) -> a constant unit contribution, so it never inverts the ranking by
+            # the other objectives.
+            if direction == "min":
+                norm = 1.0 if (abs(raw) <= 1e-9 and abs(r) <= 1e-9) else raw / max(r, 1e-9)
+            else:
+                norm = 1.0 if (abs(raw) <= 1e-9 and abs(r) <= 1e-9) else max(r, 0.0) / max(raw, 1e-9)
             s += w * norm
         return s
     return scorer
@@ -890,6 +1109,11 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
         surplus_kg=surplus_kg,
         waypoint_sequence=[next(iter(t["actions"])) for t in trips if t["kind"] == "goto"],
         deficit_kg=sum(m for c, f, m, d in flows if c is None),
+        # P-04: imported fill mass, accounted SEPARATELY from excavated cut_kg (no local excavation
+        # occurred). Equals deficit_kg; surfaced as import_kg so reports/comparisons can attribute it
+        # to the procurement/logistics chain rather than to in-situ digging.
+        import_kg=sum(m for c, f, m, d in flows if c is None),
+        offload_energy_J=float(sum(tr.get("offload_e", 0.0) for tr in trips)),
         drum_cycles=sum(max(1, math.ceil(tr["mass"] / _drum_kg(mission))) for tr in trips if tr["kind"] == "cutfill"),
         # T2.3 (BDS p.7): cut depth per pass <= 50% of the scoop opening -- a deep cut is MULTIPLE
         # passes over the footprint; report the binding pass count (the 42 kg/hr demo dig rate is a
@@ -957,6 +1181,25 @@ def _vehicle_conflicts(per_vehicle):
     return conflicts
 
 
+def _charger_conflicts(per_vehicle, mission):
+    """P-06: count SHARED-CHARGER conflicts -- two DIFFERENT vehicles whose recharge (kind='charge')
+    timeline windows overlap at the single shared charger. v1 plans each vehicle independently from the
+    same charger, so a real fleet would queue at one charger; this detector SURFACES the contention the
+    v1 schedule ignores (the audit's 'omits shared-resource constraints'). Each overlapping pair of charge
+    windows is one conflict. Returns the integer count (0 when no two vehicles charge at the same time)."""
+    charges = [(v, seg["t0"], seg["t1"])
+               for v, pv in enumerate(per_vehicle)
+               for seg in pv.get("tl", []) if seg.get("kind") == "charge"]
+    conflicts = 0
+    for a in range(len(charges)):
+        va, a0, a1 = charges[a]
+        for b in range(a + 1, len(charges)):
+            vb, b0, b1 = charges[b]
+            if va != vb and a0 < b1 and b0 < a1:                  # different vehicles, overlapping charge windows
+                conflicts += 1
+    return conflicts
+
+
 def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_slope_deg=25.0,
                algorithm="nearest", objective="time", vehicles=2):
     """MV1-7: plan a multi-vehicle build mission. Build trips once, allocate them site-exclusively across V
@@ -1011,8 +1254,10 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
                "charges": pv["core"]["charges"]} for pv in per_vehicle]
     totals.update(survival_energy_J=float(survival_J), idle_power_w=float(IDLE_POWER_W),
                   algorithm=algorithm, resolved_algorithm=algorithm, optimality="heuristic",
+                  objective_exact=False, solved_metric="none",   # P-10: per-vehicle heuristic sequencing
                   n_precedence=0, objective=str(objective), vehicles=int(vehicles),
-                  makespan_s=float(makespan), vehicle_conflicts=int(conflicts), vehicles_detail=detail)
+                  makespan_s=float(makespan), vehicle_conflicts=int(conflicts), vehicles_detail=detail,
+                  charger_conflicts=int(_charger_conflicts(per_vehicle, mission)))
     return all_trips, flows, all_per_trip, all_tl, totals
 
 
@@ -1043,11 +1288,11 @@ def plan_and_simulate(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
     if algorithm == "auto":
         resolved = "brute" if len(trips) <= BRUTE_MAX_TRIPS else (
             "held_karp_lk" if len(trips) <= HELD_KARP_MAX_TRIPS else "lk")
-    # AL1: be explicit about optimality. brute = exact on the objective; held_karp(_lk) = exact on driving
-    # distance then polished; anything else (lk past HELD_KARP_MAX_TRIPS) is unbounded local search -- warn.
-    optimality = ("exact" if resolved == "brute"
-                  else "distance-exact+polish" if resolved in ("held_karp", "held_karp_lk")
-                  else "heuristic")
+    # AL1 + P-10: be explicit AND objective-specific about optimality. `brute` simulates every permutation
+    # so it is EXACT on the chosen objective. `held_karp(_lk)` is exact only on routed DRIVING DISTANCE,
+    # then LK-polished -- so its label must NAME that metric and it is objective_exact ONLY when the
+    # objective IS distance. Anything else (lk past the cap) is unbounded local search.
+    optimality, objective_exact = _objective_optimality(resolved, objective)
     if optimality == "heuristic" and len(trips) > HELD_KARP_MAX_TRIPS:
         warnings.warn(
             f"plan visit order is heuristic: {len(trips)} trips exceed the exact cap "
@@ -1063,9 +1308,14 @@ def plan_and_simulate(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
         totals["avg_power_w"] = totals["energy_J"] / core["time_s"] if core["time_s"] > 1e-9 else 0.0
     totals.update(
         survival_energy_J=float(survival_J), idle_power_w=float(IDLE_POWER_W),
-        algorithm=algorithm, resolved_algorithm=resolved, optimality=optimality, n_precedence=len(prec),
+        algorithm=algorithm, resolved_algorithm=resolved, optimality=optimality,
+        objective_exact=bool(objective_exact),                # P-10: is the result EXACT for the chosen objective?
+        solved_metric=(HELD_KARP_EXACT_METRIC if resolved in ("held_karp", "held_karp_lk") else
+                       ("objective" if resolved == "brute" else "none")),
+        n_precedence=len(prec),
         objective=str(objective), vehicles=1,
-        makespan_s=float(core["time_s"]), vehicle_conflicts=0, vehicles_detail=[])   # uniform fleet schema
+        makespan_s=float(core["time_s"]), vehicle_conflicts=0, charger_conflicts=0,   # 1 vehicle -> no fleet contention
+        vehicles_detail=[])   # uniform fleet schema
     return trips, flows, per_trip, tl, totals
 
 
@@ -1188,9 +1438,30 @@ def plan_ir(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_s
             "tol": {"energy_frac": _IR_MODEL_ERR_FRAC}, "pre": {"battery_J_min": reserve_J}})
         aid += 1
         op = _IR_OP.get(tr["kind"], "Work")
-        work_e = (tr.get("dig_e", 0.0) + tr.get("sinter_e", 0.0) + tr.get("haul_e", 0.0) + tr.get("lift_e", 0.0))
-        work_t = (tr.get("dig_t", 0.0) + tr.get("sinter_t", 0.0) + tr.get("haul_m", 0.0) / DRIVE_SPEED_MS)
-        pre = {"battery_J_min": reserve_J}
+        # P-04: import work energy is the OFFLOAD (deposit) term, not dig; dig_e/dig_t are 0 for import.
+        work_e = (tr.get("dig_e", 0.0) + tr.get("sinter_e", 0.0) + tr.get("offload_e", 0.0)
+                  + tr.get("haul_e", 0.0) + tr.get("lift_e", 0.0))
+        work_t = (tr.get("dig_t", 0.0) + tr.get("sinter_t", 0.0) + tr.get("offload_t", 0.0)
+                  + tr.get("haul_m", 0.0) / DRIVE_SPEED_MS)
+        # P-07: the precondition must guarantee enough energy to COMPLETE the action AND route to a safe
+        # state (here: return to the charger), not merely sit above the bare reserve floor. battery_J_min
+        # = reserve + action energy + route-to-safe drive energy. The route-to-safe energy is the routed
+        # (DEM-aware) drive from the action's END position (dest) back to the charger.
+        dest = tuple(tr.get("dest", site))
+        safe_d = _d(dest, charger)
+        if dem is not None and _d(dest, charger) > 1e-9:
+            rm_s, _gs_s, reached_s, _wp_s = route_leg(dem, dem_origin, dest, charger,
+                                                      max_slope_deg=max_traverse_slope_deg,
+                                                      keepouts=mission.keepouts)
+            if reached_s:
+                safe_d = rm_s
+            else:
+                ir_feasible = False                          # no safe route home from the action end -> infeasible
+        route_to_safe_J = round(safe_d * DRIVE_J_PER_M, 1)
+        pre = {"battery_J_min": round(reserve_J + work_e + route_to_safe_J, 1),
+               "reserve_J": reserve_J,                       # the bare survival floor, kept for reference
+               "action_energy_J": round(work_e, 1),         # energy to COMPLETE this action
+               "route_to_safe_J": route_to_safe_J}          # energy to reach a safe state (charger) afterward
         if op in _IR_DIG_OPS:
             pre["drum_kg_max"] = round(_drum_kg(mission), 1)
             pre["map_coverage_min"] = COVERAGE_DIG_GATE      # the survey-before-dig gate, as a precondition
@@ -1274,7 +1545,14 @@ def compare_algorithms(mission: Mission, *, objective="time", algorithms=None, d
             for n, w in weights.items():
                 direction, fn = OBJECTIVES[n]
                 v = fn(r)
-                s += w * ((v / best[n]) if direction == "min" else (bestmax[n] / max(v, 1e-9)))
+                # P-09: floor the normalizing denominator so a zero best/bestmax (e.g. every algorithm
+                # makes 0 recharges, or zero distance) cannot divide by zero or produce NaN/Inf. A
+                # degenerate metric (best and v both ~0) contributes a constant unit, not an undefined ratio.
+                if direction == "min":
+                    s += w * (1.0 if (abs(v) <= 1e-9 and abs(best[n]) <= 1e-9) else v / max(best[n], 1e-9))
+                else:
+                    s += w * (1.0 if (abs(v) <= 1e-9 and abs(bestmax[n]) <= 1e-9)
+                              else max(bestmax[n], 0.0) / max(v, 1e-9))
             r["objective_value"] = s
     # Pareto: a plan is non-dominated if no other plan is <= on all metrics and < on at least one
     for r in ok:
@@ -1327,8 +1605,77 @@ from stewie.terrain.site_dem import (  # noqa: F401
 # MP.route_leg / MP.slope_costmap / ... and the solver's internal calls are unchanged.
 from lode.planner_routing import (  # noqa: F401
     _ROUTE_NB, MAX_DROP_M, _apply_keepouts, haul_cumulative_ascent_m, haul_elevation_gain_m,
-    negative_obstacle_mask, route_least_cost, route_leg, routed_distance, slope_costmap,
+    negative_obstacle_mask, route_least_cost, routed_distance, slope_costmap,
 )
+from lode.planner_routing import route_leg as _route_leg_point   # P-06: the point-rover router (no inflation)
+
+
+def _erode_passable(passable, cell_m, radius_m):
+    """P-06: erode the passable mask by the rover's swept footprint -- a cell is passable for a finite-size
+    rover only if EVERY cell within `radius_m` of it is passable (so the body never clips a hazard). This is
+    a binary erosion by a disk of radius_m, the standard configuration-space inflation of obstacles by the
+    robot radius. Returns the eroded boolean mask."""
+    if radius_m is None or radius_m <= 0:
+        return passable
+    from scipy.ndimage import minimum_filter
+    rad_cells = int(math.ceil(float(radius_m) / float(cell_m)))
+    if rad_cells <= 0:
+        return passable
+    n = 2 * rad_cells + 1
+    yy, xx = np.ogrid[-rad_cells:rad_cells + 1, -rad_cells:rad_cells + 1]
+    disk = (yy * yy + xx * xx) <= (radius_m / cell_m) ** 2     # circular structuring element
+    # minimum_filter over the disk: a cell stays True only if all True within the disk (erosion).
+    return minimum_filter(passable.astype(np.uint8), footprint=disk, mode="constant", cval=0).astype(bool) \
+        if n > 1 else passable
+
+
+def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0, margin_m=20.0,
+              keepouts=(), footprint_radius_m=0.0):
+    """P-06: terrain-aware route between two LOCAL sites, with the rover treated as a FINITE-SIZE body.
+
+    When `footprint_radius_m` > 0 the impassable hazards (slope cap, drop-offs, keep-outs) are inflated by
+    the rover's swept radius -- a corridor narrower than the rover is impassable even though a point rover
+    could thread it (the audit's 'routing treats the vehicle as a point' defect). `footprint_radius_m=0`
+    reproduces the point-rover route_leg exactly (byte-identical). Returns (routed_m, grid_straight_m,
+    reached, waypoints) with the same contract as the point router. The endpoints themselves are not
+    eroded (a site placed on a valid pad is reachable even if its immediate cell touches the inflation)."""
+    if not footprint_radius_m or footprint_radius_m <= 0:
+        return _route_leg_point(dem, dem_origin, a_xy, b_xy, max_slope_deg=max_slope_deg,
+                                slip_alpha=slip_alpha, margin_m=margin_m, keepouts=keepouts)
+    Z, cell = dem
+    ox, oy = dem_origin
+    ax, ay = ox + a_xy[0], oy + a_xy[1]
+    bx, by = ox + b_xy[0], oy + b_xy[1]
+    H, W = Z.shape
+    straight = math.hypot(bx - ax, by - ay)
+    m = float(margin_m)
+    while True:
+        c0 = max(0, int((min(ax, bx) - m) / cell))
+        c1 = min(W, int((max(ax, bx) + m) / cell) + 1)
+        r0 = max(0, int((min(ay, by) - m) / cell))
+        r1 = min(H, int((max(ay, by) + m) / cell) + 1)
+        if c1 - c0 < 2 or r1 - r0 < 2:
+            return straight, straight, False, []
+        crop = Z[r0:r1, c0:c1]
+        cost, passable = slope_costmap(crop, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
+                                       max_drop_m=MAX_DROP_M)
+        _apply_keepouts(passable, cell, r0, c0, dem_origin, keepouts)
+        hc, wc = crop.shape
+        start = (min(max(int(ay / cell) - r0, 0), hc - 1), min(max(int(ax / cell) - c0, 0), wc - 1))
+        goal = (min(max(int(by / cell) - r0, 0), hc - 1), min(max(int(bx / cell) - c0, 0), wc - 1))
+        # P-06: inflate hazards by the swept footprint (erode passable), but keep the start/goal cells
+        # themselves traversable so a validly-sited endpoint is not declared unreachable by its own pad edge.
+        eroded = _erode_passable(passable, cell, footprint_radius_m)
+        eroded[start] = passable[start]
+        eroded[goal] = passable[goal]
+        grid_straight = math.hypot((goal[1] - start[1]) * cell, (goal[0] - start[0]) * cell)
+        path, length_m, reached = route_least_cost(cost, eroded, cell, start, goal)
+        if reached:
+            waypoints = [(((c0 + c) * cell) - ox, ((r0 + r) * cell) - oy) for (r, c) in path]
+            return length_m, grid_straight, True, waypoints
+        if c0 == 0 and c1 == W and r0 == 0 and r1 == H:
+            return straight, straight, False, []
+        m *= 2.0
 # ---- endurance / single-charge range (the "true distance before recharge", grounded) ------------
 def single_charge_range_m(g, *, slope_deg=0.0, slip=0.0, full_pack=False,
                           battery_j=None, drive_j_per_m=None, rover_mass_kg=None, reserve_frac=None):

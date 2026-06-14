@@ -22,9 +22,11 @@ def test_learned_pricing_tracks_executed_and_does_not_over_inflate():
 
 
 def test_dig_energy_does_not_inflate():
-    # a pure-dig leg (no drive) must NOT be inflated by the slip model; a pure-drive leg inflates by inflation(slope)
+    # a pure-dig leg (no drive) must NOT be inflated by the slip model; a pure-drive leg inflates by inflation(slope).
+    # 12 deg is within the feasible band for loose RHO_SURFACE (entrapment onset ~16 deg); 20 deg is now
+    # correctly infeasible there (priced inf), so the illustrative drive slope sits in the drivable regime.
     model = ADP.learned_model()
-    legs = [{"nominal_J": 1000.0, "dig_e": 1000.0, "slope_deg": 20.0, "true_J": 1000.0},
-            {"nominal_J": 1000.0, "dig_e": 0.0, "slope_deg": 20.0, "true_J": 1300.0}]
+    legs = [{"nominal_J": 1000.0, "dig_e": 1000.0, "slope_deg": 12.0, "true_J": 1000.0},
+            {"nominal_J": 1000.0, "dig_e": 0.0, "slope_deg": 12.0, "true_J": 1300.0}]
     p = ADP.price_mission(legs, model)
-    assert abs(p["learned_J"] - (1000.0 + 1000.0 * model.predict(20.0))) < 1.0   # dig flat, drive inflated
+    assert abs(p["learned_J"] - (1000.0 + 1000.0 * model.predict(12.0))) < 1.0   # dig flat, drive inflated

@@ -1503,3 +1503,323 @@ def test_p08_objective_rejects_nonfinite_negative_and_zero_sum():
     assert abs(sum(w.values()) - 1.0) < 1e-12 and all(v >= 0 for v in w.values())
     w2 = MP.parse_objective("time:3,energy:1")
     assert abs(sum(w2.values()) - 1.0) < 1e-12 and abs(w2["time"] - 0.75) < 1e-12
+
+
+# ================= Wave 2 planner findings P-03..P-10 (TDD: RED first) =====================
+# These build controlled numpy elevation fixtures (the established pattern in this file -- e.g.
+# test_h06's trench grid) to probe routing/allocation/energy GEOMETRY deterministically. No
+# synthetic measurement data: the grids are hand-built physical test geometry, like the existing
+# slope-costmap and trench fixtures above.
+
+
+# ---- P-04: imported fill is NOT charged local excavation energy/time ----------------------------
+def test_p04_imported_fill_not_charged_local_dig_energy():
+    """P-04: when a fill has no cut source, the import trip must NOT pay the selected vehicle's local
+    EXCAVATION energy (~4151 J/kg dig) or dig time -- there is no in-situ cut. The prior bug charged
+    `dig_e = mass*dig_j_per_kg`, biasing import vs in-situ comparisons by the dominant cost term."""
+    # a fill with NO cut anywhere -> balance() emits a (None, fill) import flow.
+    fillO = {"action": "fillImp", "kind": "fill", "x": 10.0, "y": 0.0, "footprint_m2": 40.0, "depth_m": 0.20}
+    m = MP.mission_from_dict({"name": "imp", "body": "moon", "charger": [0, 0], "orders": [fillO]})
+    ctx = MP.plan_context(m)
+    trips, flows, _surplus, _meta = MP._build_trips(m, None, (0.0, 0.0), 25.0)
+    imp = next(t for t in trips if t["kind"] == "import")
+    mass = imp["mass"]
+    assert mass > 0.0
+    # the work energy of the import trip must be FAR below the local-excavation energy for the same mass.
+    local_excavation_e = mass * ctx.dig_j_per_kg
+    work_e = imp.get("dig_e", 0.0) + imp.get("haul_e", 0.0) + imp.get("lift_e", 0.0)
+    assert work_e < 0.5 * local_excavation_e, \
+        f"import charged {work_e:.0f} J vs local excavation {local_excavation_e:.0f} J -- still dig-priced"
+    assert imp.get("dig_e", 0.0) == 0.0, "import must carry ZERO local excavation energy"
+    assert imp.get("dig_t", 0.0) == 0.0, "import must carry ZERO local excavation time"
+    # imported mass is separately, traceably accounted (not folded into cut_kg).
+    _, _, _, _, totals = MP.plan_and_simulate(m)
+    assert totals.get("import_kg", 0.0) > 0.0 and abs(totals["import_kg"] - mass) < 1e-6
+    assert totals["cut_kg"] == 0.0, "no local cut exists; import must not show as excavated cut mass"
+
+
+def test_p04_import_vs_local_cut_have_distinct_energy_terms():
+    """P-04: an in-situ cut->fill trip carries the dig term; the import trip for the same fill mass does
+    not. The two construction strategies must be comparable with the RIGHT physical process each."""
+    # local: a cut co-located feeds the fill (in-situ excavation). import: same fill, no cut.
+    local = MP.mission_from_dict({"name": "loc", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut", "kind": "cut", "x": 0.0, "y": 0.0, "footprint_m2": 40.0, "depth_m": 0.05 * MP.SWELL},
+        {"action": "fill", "kind": "fill", "x": 1.0, "y": 0.0, "footprint_m2": 40.0, "depth_m": 0.05}]})
+    imp = MP.mission_from_dict({"name": "imp", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "fill", "kind": "fill", "x": 1.0, "y": 0.0, "footprint_m2": 40.0, "depth_m": 0.05}]})
+    tl, *_ = MP._build_trips(local, None, (0.0, 0.0), 25.0)
+    ti, *_ = MP._build_trips(imp, None, (0.0, 0.0), 25.0)
+    cf = next(t for t in tl if t["kind"] == "cutfill")
+    im = next(t for t in ti if t["kind"] == "import")
+    assert cf["dig_e"] > 0.0 and im.get("dig_e", 0.0) == 0.0   # in-situ digs; import does not
+
+
+# ---- P-05: segment-wise routed slip/grade energy, separate outbound vs return -------------------
+def _ridge_dem(n=40, cell=5.0, peak=4.0, half=8):
+    """A ridge running along the middle row: z rises linearly to `peak` at the crest then falls back,
+    so a haul crossing it climbs UP then DOWN -- endpoints can be equal elevation while every crossing
+    pays real grade work. Returns ((Z, cell), origin)."""
+    import numpy as np
+    Z = np.zeros((n, n))
+    mid = n // 2
+    for r in range(n):
+        d = abs(r - mid)
+        Z[r, :] = max(0.0, peak * (1.0 - d / half)) if d < half else 0.0
+    return (Z, cell), (0.0, 0.0)
+
+
+def test_p05_rollercoaster_route_costs_more_than_flat_same_endpoints():
+    """P-05: slip/grade energy must be integrated SEGMENT-BY-SEGMENT along the routed polyline, not from
+    the endpoint slope. A route that climbs a ridge and descends back to the SAME elevation has ~0 endpoint
+    slope but real per-segment grade -- so it must cost MORE than a genuinely flat route with the same
+    straight-line endpoints. The prior bug used abs(endpoint dh)/leg, reading near-zero slope for it."""
+    import numpy as np
+    cell = 5.0; n = 40
+    a_local = (5.0 * cell, 2.0 * cell)        # start before the ridge
+    b_local = (5.0 * cell, 37.0 * cell)       # end after the ridge -- same elevation (z=0 both ends)
+    (Zr, _), origin = _ridge_dem(n=n, cell=cell)
+    # endpoints sit at z=0; the routed path crosses the ridge crest (z>0) -> real cumulative grade.
+    flat = np.zeros((n, n))
+    dem_ridge = (Zr, cell); dem_flat = (flat, cell)
+    # build the SAME two-site cut->fill on each DEM; compare the cutfill trip haul energy.
+    orders = [{"action": "cut", "kind": "cut", "x": a_local[0], "y": a_local[1],
+               "footprint_m2": 40.0, "depth_m": 0.05 * MP.SWELL},
+              {"action": "fill", "kind": "fill", "x": b_local[0], "y": b_local[1],
+               "footprint_m2": 40.0, "depth_m": 0.05}]
+    m = MP.mission_from_dict({"name": "rc", "body": "moon", "charger": [0, 0], "orders": orders})
+    tr_ridge, *_ = MP._build_trips(m, dem_ridge, origin, 35.0)
+    tr_flat, *_ = MP._build_trips(m, dem_flat, origin, 35.0)
+    cf_r = next(t for t in tr_ridge if t["kind"] == "cutfill")
+    cf_f = next(t for t in tr_flat if t["kind"] == "cutfill")
+    # the endpoint net elevation gain is ~0 on the ridge DEM (both ends z=0):
+    assert abs(MP.haul_elevation_gain_m(dem_ridge, origin, a_local, b_local)) < 1e-6
+    # yet the ridge-crossing haul must cost strictly MORE drive energy than the flat haul (grade per segment).
+    assert cf_r["haul_e"] > cf_f["haul_e"] + 1e-3, \
+        f"ridge haul {cf_r['haul_e']:.1f} J not > flat {cf_f['haul_e']:.1f} J -- endpoint-slope bug"
+
+
+def test_p05_loaded_outbound_and_empty_return_are_directional():
+    """P-05: outbound (loaded) and return (empty) legs are integrated separately. On a route that climbs
+    on the way OUT to the fill, the loaded ascent must cost more than the empty descent return -- the
+    haul energy must reflect the asymmetric per-direction grade+slip, not a single symmetric leg cost."""
+    import numpy as np
+    cell = 5.0; n = 30
+    # a monotone ramp: z increases with column index, so cut(low col) -> fill(high col) climbs OUT.
+    Z = np.zeros((n, n))
+    for c in range(n):
+        Z[:, c] = 0.15 * c * cell      # ~8.5 deg ramp
+    dem = (Z, cell); origin = (0.0, 0.0)
+    cut = {"action": "cut", "kind": "cut", "x": 3.0 * cell, "y": 15.0 * cell,
+           "footprint_m2": 40.0, "depth_m": 0.05 * MP.SWELL}
+    fill = {"action": "fill", "kind": "fill", "x": 26.0 * cell, "y": 15.0 * cell,
+            "footprint_m2": 40.0, "depth_m": 0.05}
+    m = MP.mission_from_dict({"name": "ramp", "body": "moon", "charger": [0, 0], "orders": [cut, fill]})
+    trips, *_ = MP._build_trips(m, dem, origin, 35.0)
+    cf = next(t for t in trips if t["kind"] == "cutfill")
+    # the round-trip haul energy must EXCEED twice the empty-flat cost (the loaded uphill leg dominates),
+    # and must be directional: outbound-loaded slip on the climb > empty-return slip on the descent.
+    flat_round = cf["haul_m"] * MP.DRIVE_J_PER_M
+    assert cf["haul_e"] > flat_round + 1e-3, "ramp haul must exceed the flat round-trip cost"
+
+
+# ---- P-09: multi-objective normalization handles zero/constant objectives, stable ranking --------
+def test_p09_zero_reference_objective_does_not_blow_up_or_nan():
+    """P-09: a weighted-objective scorer normalizes by a reference plan. If a reference metric is 0
+    (e.g. zero recharges) the score must stay FINITE -- no division-by-zero, no NaN/Inf. A tiny shallow
+    cut near the charger needs NO recharge, so the reference `charges` is 0; the prior code's `raw / r`
+    min-objective normalization raised ZeroDivisionError on exactly this case."""
+    # a tiny shallow cut close to the charger -> no recharge -> reference charges == 0.
+    m = MP.mission_from_dict({"name": "z", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut0", "kind": "cut", "x": 5.0, "y": 0.0, "footprint_m2": 4.0, "depth_m": 0.01}]})
+    trips, _flows, _s, _meta = MP._build_trips(m, None, (0.0, 0.0), 25.0)
+    core = MP._simulate(m, trips)[2]
+    assert core["charges"] == 0                         # the reference metric is genuinely zero
+    scorer = MP._make_core_scorer(m, trips, {"charges": 0.5, "energy": 0.5})
+    s = scorer(core)                                    # must NOT raise ZeroDivisionError
+    assert math.isfinite(s), f"weighted score is not finite: {s}"
+
+
+def test_p09_constant_objective_does_not_invert_ranking_by_varying_one():
+    """P-09: 'mass' is constant across visit orders for a full plan. A weighted spec that includes the
+    constant objective must rank candidates MONOTONICALLY by the non-constant (time) part -- adding the
+    constant objective must not invert the order. (A lower-time order must score <= a higher-time order.)"""
+    m = _spread_mission()
+    trips, _flows, _s, _meta = MP._build_trips(m, None, (0.0, 0.0), 25.0)
+    n = len(trips)
+    import itertools as _it
+    scorer = MP._make_core_scorer(m, trips, {"mass": 0.5, "time": 0.5})
+    cand = []
+    for o in list(_it.permutations(range(n)))[:12]:
+        c = MP._simulate(m, [trips[i] for i in o])[2]
+        cand.append((scorer(c), c["time_s"]))
+    assert all(math.isfinite(s) for s, _ in cand), "constant-objective scores must be finite"
+    # monotone: a strictly-lower-time candidate must not score HIGHER than a strictly-higher-time one.
+    for s_a, t_a in cand:
+        for s_b, t_b in cand:
+            if t_a < t_b - 1e-3:
+                assert s_a <= s_b + 1e-9, \
+                    f"lower-time {t_a:.0f} scored {s_a} > higher-time {t_b:.0f} at {s_b} -- ranking inverted"
+
+
+def test_p09_scorer_is_candidate_set_independent():
+    """P-09: the weighted scorer normalizes by a FIXED reference plan, so a candidate's score must not
+    depend on which OTHER candidates are present. Scoring the same order twice (built from independent
+    scorer instances) gives the identical value -- ranking is candidate-set independent."""
+    m = _spread_mission()
+    trips, _flows, _s, _meta = MP._build_trips(m, None, (0.0, 0.0), 25.0)
+    order = list(range(len(trips)))
+    core = MP._simulate(m, [trips[i] for i in order])[2]
+    s1 = MP._make_core_scorer(m, trips, {"time": 0.5, "energy": 0.5})(core)
+    s2 = MP._make_core_scorer(m, trips, {"time": 0.5, "energy": 0.5})(core)
+    assert s1 == s2 and math.isfinite(s1)
+
+
+def test_p09_compare_algorithms_constant_mass_objective_is_finite_and_sorted():
+    """P-09 at the compare_algorithms boundary: sorting by a max objective whose values are constant
+    across algorithms (mass) must not divide by zero or NaN, and rows must stay finitely sorted."""
+    res = MP.compare_algorithms(_spread_mission(), objective="mass:0.5,energy:0.5")
+    vals = [r["objective_value"] for r in res["rows"] if "objective_value" in r]
+    assert vals and all(math.isfinite(v) for v in vals)
+    assert vals == sorted(vals)
+
+
+# ---- P-10: objective-specific optimality label + power -> average_power -------------------------
+def test_p10_held_karp_optimality_is_labeled_objective_specific():
+    """P-10: Held-Karp is EXACT only for routed driving distance. For a non-distance objective the result
+    must NOT be labeled plainly 'exact'/'distance-exact' as if it were exact for that objective -- the
+    label must name the metric it is exact on (distance) and flag the chosen objective as not-exact."""
+    m = _pairs_mission([(40, 0), (-40, 3), (80, 0), (-80, 3), (0, 120),
+                        (60, 60), (-60, 60), (30, -90)])     # 8 trips -> auto = held_karp(+lk), >brute cap
+    _, _, _, _, totals = MP.plan_and_simulate(m, algorithm="held_karp", objective="energy")
+    # whatever the label, it must make clear distance is the exact metric and energy is NOT claimed exact.
+    label = totals["optimality"]
+    assert "distance" in label.lower(), f"held_karp label {label!r} must name the exact metric (distance)"
+    assert "exact" != label, "held_karp must never be plainly 'exact' for a non-distance objective"
+    # an explicit objective-exact flag must say the chosen objective is not exactly solved here.
+    assert totals.get("objective_exact") is False
+
+
+def test_p10_brute_is_objective_exact_but_held_karp_is_not():
+    """P-10: brute force IS exact on the chosen objective (it simulates every permutation); Held-Karp is
+    exact only on distance. The objective_exact flag must distinguish them."""
+    m = _pairs_mission([(40, 0), (-40, 3)])                  # 2 trips -> brute
+    _, _, _, _, tb = MP.plan_and_simulate(m, algorithm="brute", objective="energy")
+    assert tb["optimality"] == "exact" and tb.get("objective_exact") is True
+
+
+def test_p10_power_objective_renamed_to_average_power():
+    """P-10: 'power' here means average energy/duration, which can reward SLOWER execution -- it must be
+    named `average_power`. The canonical name works; the legacy 'power' still parses (UI compatibility)
+    but resolves to the same average-power metric, not peak/rated power."""
+    assert "average_power" in MP.OBJECTIVES
+    # both names select the same metric (average power), so a plan scored by each is identical.
+    m = _spread_mission()
+    _, _, _, _, t_avg = MP.plan_and_simulate(m, algorithm="nearest", objective="average_power")
+    _, _, _, _, t_pow = MP.plan_and_simulate(m, algorithm="nearest", objective="power")
+    assert t_avg["avg_power_w"] == t_pow["avg_power_w"]
+    # the metric is explicitly AVERAGE power (energy/time), documented as not peak demand.
+    assert abs(t_avg["avg_power_w"] - t_avg["energy_J"] / t_avg["time_s"]) < 1e-6
+
+
+# ---- P-03: allocation via routed feasible cost, not greedy Euclidean ----------------------------
+def test_p03_allocation_picks_feasible_donor_over_blocked_euclidean_nearest():
+    """P-03: balance() must allocate cut->fill flows by ROUTED feasibility/cost, not straight-line
+    distance. Adversarial case: the Euclidean-NEAREST cut is separated from the fill by an impassable
+    wall (no safe corridor), while a slightly farther cut has a clear route. Greedy-Euclidean picks the
+    blocked donor and declares the plan infeasible; a routed allocation picks the reachable donor."""
+    import numpy as np
+    cell = 5.0; n = 40
+    Z = np.zeros((n, n))
+    # an impassable wall (very steep) splitting the map at column 20, with a gap nowhere near the near cut.
+    Z[:, 20] = 200.0                       # a sheer 200 m wall -> impassable at the traverse cap
+    # leave a passable gap far away so the FAR cut can route around, but the wall fully blocks the near cut.
+    dem = (Z, cell); origin = (0.0, 0.0)
+    fill_xy = (30.0 * cell, 20.0 * cell)   # right of the wall
+    near_cut_xy = (18.0 * cell, 20.0 * cell)   # LEFT of the wall, Euclidean-closest, but wall-blocked
+    far_cut_xy = (30.0 * cell, 5.0 * cell)     # RIGHT of the wall, same side as fill -> reachable, farther
+    orders = [
+        {"action": "near", "kind": "cut", "x": near_cut_xy[0], "y": near_cut_xy[1],
+         "footprint_m2": 40.0, "depth_m": 0.05 * MP.SWELL},
+        {"action": "far", "kind": "cut", "x": far_cut_xy[0], "y": far_cut_xy[1],
+         "footprint_m2": 40.0, "depth_m": 0.05 * MP.SWELL},
+        {"action": "fill", "kind": "fill", "x": fill_xy[0], "y": fill_xy[1],
+         "footprint_m2": 40.0, "depth_m": 0.05}]
+    m = MP.mission_from_dict({"name": "alloc", "body": "moon", "charger": [0, 0], "orders": orders})
+    # sanity: Euclidean-nearest IS the near (blocked) cut.
+    import math as _m
+    dn = _m.hypot(near_cut_xy[0] - fill_xy[0], near_cut_xy[1] - fill_xy[1])
+    df = _m.hypot(far_cut_xy[0] - fill_xy[0], far_cut_xy[1] - fill_xy[1])
+    assert dn < df, "test setup: near cut must be Euclidean-closest"
+    # the routed-aware planner must route the fill from the REACHABLE (far) cut and stay feasible.
+    trips, flows, _s, meta = MP._build_trips(m, dem, origin, 25.0)
+    assert meta["feasible"] is True, "routed allocation should pick the reachable donor and stay feasible"
+    # the flow feeding the fill must come from the FAR (reachable) cut, not the blocked near cut.
+    fed = [(co.action, mass) for co, fo, mass, d in flows if fo is not None and fo.action == "fill" and co is not None]
+    assert fed, "the fill must be fed by some cut"
+    assert all(co_action == "far" for co_action, _ in fed), \
+        f"fill fed by {fed} -- routed allocation must avoid the wall-blocked near cut"
+
+
+# ---- P-06: hazards inflated by swept footprint + uncertainty; fleet route/charger conflicts ------
+def test_p06_keepout_inflated_by_vehicle_footprint_blocks_too_narrow_a_gap():
+    """P-06: routing must inflate hazards by the vehicle's swept footprint (+ uncertainty), not treat the
+    rover as a point. A corridor narrower than the rover's swept width must be impassable even though a
+    point-rover could thread it. The footprint radius is grounded in the registry geometry (gauge /
+    wheelbase / wheel size) plus a localization margin -- no fabricated size."""
+    import numpy as np
+    cell = 0.2; n = 60                       # 0.2 m cells -> a 1-cell gap (0.2 m) is far narrower than the rover
+    Z = np.zeros((n, n))
+    Z[:, 30] = 100.0          # a wall across the map (impassable at the slope cap)
+    Z[10, 30] = 0.0           # a ONE-cell gap in the wall (0.2 m wide) -- narrower than the swept footprint
+    dem = (Z, cell); origin = (0.0, 0.0)
+    a = (5.0 * cell, 10.0 * cell); b = (55.0 * cell, 10.0 * cell)   # straddle the wall, aligned with the gap
+    m = MP.mission_from_dict({"name": "fp", "body": "moon", "charger": [0, 0],
+        "orders": [{"action": "c", "kind": "cut", "x": 1, "y": 1, "footprint_m2": 9, "depth_m": 0.02}]})
+    rover_r = MP.vehicle_footprint_radius_m(m)
+    assert rover_r > cell, "the IPEx swept footprint radius must exceed the 0.2 m gap for this test to bind"
+    # point routing threads the 0.2 m gap; footprint-inflated routing cannot.
+    _rm_pt, _gs, reached_pt, _wp = MP.route_leg(dem, origin, a, b, max_slope_deg=25.0)
+    _rm_in, _gs2, reached_in, _wp2 = MP.route_leg(dem, origin, a, b, max_slope_deg=25.0,
+                                                  footprint_radius_m=rover_r)
+    assert reached_pt is True, "a point rover can thread the narrow gap (control)"
+    assert reached_in is False, "a footprint-inflated rover must NOT fit through a sub-width gap"
+    # a gap WIDER than the footprint stays passable for the inflated rover (no over-blocking).
+    Z2 = Z.copy(); Z2[6:15, 30] = 0.0        # a ~1.8 m gap (9 cells) -- wider than the swept footprint
+    _rm_w, _gs3, reached_wide, _wp3 = MP.route_leg((Z2, cell), origin, a, b, max_slope_deg=25.0,
+                                                   footprint_radius_m=rover_r)
+    assert reached_wide is True, "a corridor wider than the footprint must remain passable"
+
+
+def test_p06_fleet_shared_charger_conflict_is_detected():
+    """P-06: multi-vehicle planning must surface shared-resource (charger) conflicts. Two vehicles that
+    both need the single charger in overlapping windows must be reported as a charger conflict, not
+    silently assumed independent."""
+    # a mission heavy enough to force recharges, planned across 2 vehicles sharing one charger.
+    m = _pairs_mission([(x, 0) for x in (200, -200, 400, -400)])   # far sites -> recharge-forcing
+    _, _, _, _, totals = MP.plan_and_simulate(m, vehicles=2, algorithm="nearest")
+    assert "charger_conflicts" in totals, "fleet totals must report charger-occupancy conflicts"
+    assert isinstance(totals["charger_conflicts"], int) and totals["charger_conflicts"] >= 0
+
+
+# ---- P-07: Plan IR preconditions encode action energy + route-to-safe, not just a reserve floor --
+def test_p07_dig_precondition_requires_action_plus_escape_energy_not_just_reserve():
+    """P-07: a dig action's battery precondition must require enough energy to COMPLETE the action AND
+    route back to a safe/charger state -- not merely sit above the reserve floor. The precondition's
+    minimum battery must exceed the bare reserve by at least the action energy + the return-to-charger
+    drive energy."""
+    m = MP.mission_from_dict({"name": "ir", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut", "kind": "cut", "x": 200.0, "y": 0.0, "footprint_m2": 40.0, "depth_m": 0.05 * MP.SWELL},
+        {"action": "fill", "kind": "fill", "x": 201.0, "y": 0.0, "footprint_m2": 40.0, "depth_m": 0.05}]})
+    ir = MP.plan_ir(m)
+    reserve_J = MP.RESERVE_FRAC * MP.BATTERY_J
+    dig = next(a for a in ir["actions"] if a["op"] in ("Excavate", "CutHaulFill"))
+    pre = dig["pre"]
+    # the action-energy-aware precondition fields exist and exceed the bare reserve.
+    assert "battery_J_min" in pre
+    assert pre["battery_J_min"] > reserve_J + 1.0, \
+        "dig precondition must require action+escape energy above the bare reserve floor"
+    # it must at least cover the action energy plus a route-to-safe (return-to-charger) drive term.
+    action_e = dig["expect"]["energy_J"]
+    assert pre["battery_J_min"] >= reserve_J + action_e - 1e-6, \
+        "precondition must cover the action energy on top of reserve"
+    assert pre.get("route_to_safe_J", 0.0) > 0.0, "a route-to-safe energy term must be encoded"

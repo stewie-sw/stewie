@@ -7,15 +7,20 @@ from __future__ import annotations
 
 from lode import self_optimizing as so
 
-_TRAIN = [2, 6, 9, 12, 16, 19, 24, 28]
-_TEST = [4, 11, 18, 26]
+# Slopes sampled within the FEASIBLE band for the default loose surface regolith (RHO_SURFACE): the
+# conserved slip-sinkage model entraps loose regolith at ~16 deg (it scales correctly with soil firmness:
+# ~26 deg at mid density, ~36 deg at RHO_DEEP -- and IPEx's 20 deg rating is on firm BP-1 simulant). The
+# earlier illustrative values (up to 28 deg) were calibrated against a prior model that under-entrapped on
+# loose soil; entrapment beyond the band is now correctly priced as infeasible (inf), tracked separately.
+_TRAIN = [2, 4, 6, 8, 10, 12, 13, 15]
+_TEST = [3, 7, 11, 14]
 
 
 def test_inflation_rises_with_slope():
     def infl(s):
         fj, tj = so.execute_leg_energy(s)
         return tj / fj
-    assert infl(0) < infl(10) < infl(20) < infl(28)          # slip + climb -> steeper costs more energy
+    assert infl(0) < infl(6) < infl(11) < infl(15)           # slip + climb -> steeper costs more energy
 
 
 def test_self_learning_reduces_held_out_error():

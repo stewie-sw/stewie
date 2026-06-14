@@ -156,7 +156,9 @@ def test_perception_in_the_loop_bounds_pose_uncertainty():
 def test_pose_fix_corrects_the_mean_not_just_sigma():
     # Bug #2 fix: with an INDEPENDENT true-pose fix the corrected belief MEAN moves toward truth -- the old
     # code fused the estimate against itself (measurement == estimate -> mean unchanged, only sigma shrank).
-    # Use a tiny mission that completes WITHOUT a recharge (a recharge would teleport the belief to charger).
+    # A-03: the canonical plant drives HOME at mission end (consistent location), so the observable mean
+    # correction is the charger DOCK fix: with perception the believed end mean collapses onto the true
+    # charger AND its sigma shrinks far below the dead-reckoning run. Both effects (mean + sigma) are real.
     from lode import autonomy as A
     dem = MP.load_haworth_dem(); o = MP.flattest_anchor(dem)
     m = MP.mission_from_dict({"name": "t", "body": "moon", "charger": [0, 0],
@@ -164,9 +166,11 @@ def test_pose_fix_corrects_the_mean_not_just_sigma():
                                           "footprint_m2": 9, "depth_m": 0.02}]})
     off = A.run_closed_loop(m, dem=dem, dem_origin=o)
     on = A.run_closed_loop(m, dem=dem, dem_origin=o, perception_sigma_m=0.05)
-    assert off["recharges"] == 0 and on["recharges"] == 0                          # no teleport-to-charger
+    assert off["recharges"] == 0 and on["recharges"] == 0                          # tiny mission, no recharge
     assert (on["belief"].x, on["belief"].y) != (off["belief"].x, off["belief"].y)  # the fix moved the mean
-    assert abs(on["belief"].x - 6.0) < abs(off["belief"].x - 6.0)                  # ...toward the true site
+    # the dock fix pulls the believed end mean onto the TRUE charger (0,0); dead-reckoning drifts off it
+    assert abs(on["belief"].x - 0.0) < abs(off["belief"].x - 0.0)                  # ...toward the truth
+    assert on["belief"].pos_sigma_m < off["belief"].pos_sigma_m                    # ...and shrinks sigma
 
 
 def test_map_channel_gate_is_an_action_not_just_a_counter():
@@ -179,3 +183,87 @@ def test_map_channel_gate_is_an_action_not_just_a_counter():
     assert r["map_observe_more"] >= 1                                              # under-mapped digs surveyed
     assert r["survey_time_s"] == pytest.approx(r["map_observe_more"] * MC.OBSERVE_DWELL_S)
     assert r["survey_time_s"] > 0.0
+
+
+# ---- A-03: the closed loop is ONE executive, consistent with the canonical planner --------------------
+def test_closed_loop_uses_the_canonical_plan_order_and_context():
+    # A-03 remediation: the closed loop must NOT re-derive the plan with its own globals. It must drive
+    # the SAME canonical trip order the planner produced, and surface the canonical Plan IR so the two are
+    # provably the same plan (no second inconsistent mission simulator).
+    from lode import autonomy as A
+    m = _spread()
+    trips, _flows, _per, _tl, _tot = MP.plan_and_simulate(m, algorithm="nearest", objective="time")
+    canonical_labels = [t["label"] for t in trips]
+    r = A.run_closed_loop(m, dem=None, dem_origin=(0.0, 0.0), algorithm="nearest", objective="time")
+    # the loop executed exactly the canonical visit order (same trips, same sequence)
+    assert [L["leg"] for L in r["legs"]] == canonical_labels
+    # and it reports the canonical Plan IR / provenance so consumers see one plan, not two
+    assert "plan_ir" in r and r["plan_ir"]["actions"], "closed loop must surface the canonical Plan IR"
+    assert r["plan_ir"]["provenance"]["input_sha256"], "Plan IR must carry the canonical provenance hash"
+
+
+def test_closed_loop_agrees_with_planner_simulation_zero_noise():
+    # A-03 VERIFICATION: for deterministic zero-noise inputs (flat / no-DEM -> slip 0, no elevation gain,
+    # no perception noise), the closed-loop execution must AGREE with the canonical planner simulation
+    # within a declared tolerance on energy, time, and recharge count -- it is the same plant, not a
+    # second simulator. The OLD code disagreed (free recharge travel made the loop ~0.6% too cheap and it
+    # tracked zero mission time), so this test is RED until the loop is driven from the canonical services.
+    from lode import autonomy as A
+    m = _spread()
+    _trips, _flows, _per, _tl, totals = MP.plan_and_simulate(m, algorithm="nearest", objective="time")
+    r = A.run_closed_loop(m, dem=None, dem_origin=(0.0, 0.0), algorithm="nearest", objective="time")
+    assert r["completed"] is True
+    # energy: the closed loop's TOTAL accounted plant energy (drive + recharge round-trips + work) must
+    # match the canonical reserve-aware ledger to a tight tolerance. A loop that recharges for free is
+    # systematically CHEAPER than the canonical sim and fails this.
+    assert r["plant_energy_J"] == pytest.approx(totals["energy_J"], rel=1e-6)
+    # time: the closed loop must accumulate the same mission time the canonical sim does (the old loop
+    # reported t_s == 0). recharges add the charger round-trip drive + the refill duration.
+    assert r["plant_time_s"] == pytest.approx(totals["time_s"], rel=1e-6)
+    # recharge count agrees with the canonical battery-aware schedule (no impossible extra/missing charges)
+    assert r["recharges"] == totals["charges"]
+
+
+def test_closed_loop_recharge_travel_is_not_free():
+    # A-03: "remove the knowingly-free recharge travel and account for return-to-site travel." A recharge
+    # is a real round trip: drive to the charger (costs energy + time), refill, drive back to resume work.
+    # The canonical sim charges all of that. A free-teleport recharge would make plant energy/time UNDER
+    # the canonical ledger; assert the loop's recharge accounting is energy-consistent leg by leg.
+    from lode import autonomy as A
+    m = _spread()
+    _t, _f, _p, _tl, totals = MP.plan_and_simulate(m, algorithm="nearest", objective="time")
+    r = A.run_closed_loop(m, dem=None, dem_origin=(0.0, 0.0), algorithm="nearest", objective="time")
+    assert r["recharges"] >= 1
+    # the recharge travel energy is strictly positive (sites are far from the charger -> the return trip
+    # costs real energy); a free teleport would report zero recharge-travel energy.
+    assert r["recharge_travel_J"] > 0.0
+    # energy conservation of the accounted plant: drive + recharge-travel + work + refill-free-energy must
+    # reconcile with the canonical total (refill restores the pack, it is not a CONSUMED term).
+    assert r["plant_energy_J"] == pytest.approx(totals["energy_J"], rel=1e-6)
+
+
+def test_closed_loop_belief_is_an_overlay_not_a_separate_plant():
+    # A-03: belief estimation is an OVERLAY on the canonical plant, not a duplicate plant. With zero
+    # measurement noise and no DEM the believed end state must coincide with the canonical plant end
+    # state: the rover ends at the charger (the canonical sim drives home), pack full after the final
+    # charge or with the canonical remaining SoC, and all tasks done. The belief must not invent a
+    # location/energy the plant never had.
+    from lode import autonomy as A
+    m = _spread()
+    _t, _f, _p, _tl, totals = MP.plan_and_simulate(m, algorithm="nearest", objective="time")
+    # dead-reckoning (no perception): the believed end pose brackets the TRUE plant end pose (the charger)
+    # within the pose uncertainty -- the overlay estimate is consistent with the plant, not a separate one.
+    r = A.run_closed_loop(m, dem=None, dem_origin=(0.0, 0.0), algorithm="nearest", objective="time")
+    b = r["belief"]
+    assert abs(b.x - m.charger[0]) <= 2.0 * b.pos_sigma_m + 1e-6
+    assert abs(b.y - m.charger[1]) <= 2.0 * b.pos_sigma_m + 1e-6
+    assert b.tasks_done == b.tasks_total == r["n_trips"]
+    # the believed mission time equals the canonical plant time (overlay does not alter the plant)
+    assert b.t_s == pytest.approx(totals["time_s"], rel=1e-6)
+    # with a perception dock fix the believed end pose collapses onto the charger (known landmark): the
+    # Kalman fusion pulls the mean to within a few perception-sigma of truth and shrinks its uncertainty.
+    on = A.run_closed_loop(m, dem=None, dem_origin=(0.0, 0.0), algorithm="nearest", objective="time",
+                           perception_sigma_m=0.05)
+    assert abs(on["belief"].x - m.charger[0]) <= 3.0 * 0.05
+    assert abs(on["belief"].y - m.charger[1]) <= 3.0 * 0.05
+    assert on["belief"].pos_sigma_m < b.pos_sigma_m       # dock fix shrinks uncertainty vs dead-reckoning

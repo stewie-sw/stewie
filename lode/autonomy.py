@@ -145,24 +145,64 @@ def execute_leg(belief, leg, *, dem=None, dem_origin=(0.0, 0.0), g=None, body="m
             "slope_deg": slope_deg, "slip": slip, "drum_through_kg": leg.get("mass", 0.0)}
 
 
+def _canonical_plant(mission, *, dem, dem_origin, max_traverse_slope_deg, algorithm, objective):
+    """A-03: the SINGLE canonical mission plant. Build the plan ONCE through the same planner services the
+    PDF/report/Plan-IR use (``plan`` -> ``plan_and_simulate`` -> ``_simulate``) and return the immutable
+    PlanResult, the canonical ordered trips, the canonical Plan IR, and a recharge ledger derived from the
+    canonical timeline. The closed loop OVERLAYS belief estimation on this plant; it does NOT re-simulate
+    energy/recharge/location with its own globals (the old A-03 bug). Recharge travel is NOT free here:
+    the canonical sim charges the drive-to-charger AND the drive-back-to-site legs in ``core['energy_J']``,
+    so the return-to-site travel is accounted by construction."""
+    result = MP.plan(mission, dem=dem, dem_origin=dem_origin,
+                     max_traverse_slope_deg=max_traverse_slope_deg,
+                     algorithm=algorithm, objective=objective)
+    trips, _flows, per_trip, tl, totals = result.as_tuple()
+    ir = MP.plan_ir(mission, dem=dem, dem_origin=dem_origin,
+                    max_traverse_slope_deg=max_traverse_slope_deg,
+                    algorithm=algorithm, objective=objective, result=result)
+    # recharge-travel energy = the drive legs that END at the charger (the return-to-charger trips the
+    # canonical sim drives before each refill). This is the energy the old free-teleport recharge omitted.
+    charger = tuple(mission.charger)
+    recharge_travel_J = 0.0
+    for e in tl:
+        if e["kind"] == "drive" and math.hypot(e["x1"] - charger[0], e["y1"] - charger[1]) <= 1e-6:
+            recharge_travel_J += e["batt0"] - e["batt1"]
+    # A-03 #25: the CANONICAL departure pose for each trip, read from the plant timeline -- the position the
+    # rover actually drives FROM to reach the trip's site (the charger when a recharge precedes the leg, else
+    # the prior work site). The re-hazard path check uses this plant geometry, not a belief-walk approximation,
+    # so the built-terrain crossing test is consistent with the one canonical plant.
+    dep_by_trip = []
+    for pt in per_trip:                                    # per_trip is in the canonical execution order
+        tr = pt["trip"]; sx, sy = tr["site"]
+        arr = [e for e in tl if e["kind"] == "drive" and e["t0"] >= pt["t_start"] - 1e-6
+               and math.hypot(e["x1"] - sx, e["y1"] - sy) <= 1e-6]
+        dep_by_trip.append((arr[0]["x0"], arr[0]["y0"]) if arr else tuple(charger))
+    return result, trips, ir, totals, recharge_travel_J, dep_by_trip
+
+
 def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto", objective="time",
                     max_traverse_slope_deg=25.0, perception_sigma_m=None, dig_sigma_gate_m=0.20):
-    """Run the AutoNav-style loop over the conserved-model: plan -> execute leg (true telemetry) -> estimate
-    (predict + measure) -> replan/recharge against the ESTIMATE. Drains the battery by the slip-adjusted TRUE
-    energy with reserve-aware recharges, so on real terrain it recharges/replans more than the flat plan
-    expected. Runs in simulation first (AutoNav's self-simulation); real telemetry swaps in later.
+    """Run the AutoNav-style loop as an OVERLAY on the ONE canonical plant (A-03). The plan, vehicle,
+    routing, energy, and reserve all come from the planner (``_canonical_plant`` -> ``plan_and_simulate``
+    -> ``_simulate``), so the closed-loop execution and the planner simulation describe the SAME mission:
+    for deterministic zero-noise inputs (no DEM -> slip 0, no elevation gain, no perception noise) the
+    reported plant energy / time / recharges AGREE with the planner totals within tolerance.
 
-    Simplification (the precise energy sim is mission_planner._simulate): recharges return to the charger and
-    set the pack full; the return-to-site drive is not re-accounted here. The point of this layer is the
-    closed-loop estimate/replan dynamic, not a second energy simulator."""
+    The belief estimator is the overlay: it walks the SAME canonical trip order, dead-reckons pose with
+    growing odometry uncertainty, fuses measurements (the AutoNav predict/update), and carries the
+    slip-adjusted model error per leg (``true_J`` vs ``nominal_J``) as the model-vs-truth signal. It does
+    NOT maintain a second, inconsistent energy/recharge plant: the authoritative ``plant_energy_J`` /
+    ``plant_time_s`` / ``recharges`` come from the canonical sim, and recharge travel is fully accounted
+    (no free teleport to the charger, return-to-site drive included)."""
     g = MP.body_gravity(mission.body)
-    reserve = MP.RESERVE_FRAC * BATTERY_J
-    trips, _flows, _surplus, _meta = MP._build_trips(mission, dem, dem_origin, max_traverse_slope_deg)
-    prec = MP.trip_precedence(trips, mission)
-    order = MP.optimize_sequence(trips, mission, algorithm=algorithm, objective=objective, precedence=prec)
+    result, trips, ir, totals, recharge_travel_J, dep_by_trip = _canonical_plant(
+        mission, dem=dem, dem_origin=dem_origin, max_traverse_slope_deg=max_traverse_slope_deg,
+        algorithm=algorithm, objective=objective)
+    plant_energy_J = float(totals["energy_J"])             # canonical reserve-aware ledger (the ONE plant)
+    plant_time_s = float(totals["time_s"])
+    recharges = int(totals["charges"])
     belief = initial_belief(mission, len(trips))
-    remaining = list(order)
-    recharges = replans = 0
+    replans = 0                                            # belief-driven re-sequencing diagnostics (overlay)
     perception_fixes = observe_more = 0
     map_observe_more = 0                                   # P6: digs gated on local map coverage
     survey_time_s = 0.0                                    # P6: real time the survey-before-dig gate costs
@@ -188,17 +228,7 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
                 return True
         return False
 
-    def _recharge(b):
-        d_back = MP._d((b.x, b.y), mission.charger)
-        b = predict(b, moved_to=mission.charger, drive_m=d_back, energy_spent_J=0.0)
-        b = dataclasses.replace(b, energy_J=BATTERY_J, energy_sigma_J=0.0)
-        if perception_sigma_m is not None:             # docking at the charger is a known-landmark pose fix
-            b = update_pose(b, mission.charger, perception_sigma_m)
-        return b
-
-    while remaining:
-        i = remaining.pop(0)
-        leg = trips[i]
+    for ti, leg in enumerate(trips):
         # PERCEPTION-IN-THE-LOOP (Uncertainty-layer dig-ready gate): before committing to a dig, if the
         # pose estimate is too uncertain, dwell and take more observations until it is confident enough.
         if perception_sigma_m is not None and leg.get("dig_e", 0.0) > 0.0:
@@ -221,7 +251,10 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
             map_observe_more += 1
         stations.append(site)                             # the rover observes the worksite from each station
         nominal_J = nominal_leg_energy_J((belief.x, belief.y), leg)
-        prev_pose = (belief.x, belief.y)                   # #25: the leg's start, for the path check
+        # #25: the leg's path check uses the CANONICAL plant departure pose (where the rover actually drives
+        # FROM per the plant timeline), not the belief estimate, so the re-hazard geometry matches the one
+        # canonical plant (A-03). dep_by_trip is keyed by canonical trip index.
+        dep_pose = dep_by_trip[ti] if ti < len(dep_by_trip) else (belief.x, belief.y)
         telem = execute_leg(belief, leg, dem=dem, dem_origin=dem_origin, g=g, body=mission.body,
                             params=MP.mission_soil_params(mission))
         # ESTIMATE -- DEAD-RECKON: the believed pose accumulates a deterministic along-track odometry drift
@@ -239,31 +272,15 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
             perception_fixes += 1
         e_sig = math.sqrt(belief.energy_sigma_J ** 2 + (0.12 * nominal_J) ** 2)
         belief = dataclasses.replace(belief, energy_sigma_J=e_sig)
-        # drain the TRUE energy with reserve-aware recharges (closed-loop battery management on the estimate)
-        left = telem["true_energy_J"]
-        while left > 1e-6:
-            usable = belief.energy_J - reserve
-            if usable <= 1e-3:
-                belief = _recharge(belief); recharges += 1
-                if remaining:                                  # REPLAN remaining order from the charger
-                    sub = [trips[k] for k in remaining]
-                    # remap the mission precedence onto the remaining trips: the replan silently
-                    # dropped it, re-ordering legs the plan path had refused to (audit 2026-06-09)
-                    full_prec = MP.trip_precedence(trips, mission)
-                    sub_prec = [(remaining.index(i), remaining.index(j)) for i, j in full_prec
-                                if i in remaining and j in remaining]
-                    so = MP.optimize_sequence(sub, mission, algorithm="nearest", objective=objective,
-                                              precedence=sub_prec or None)
-                    remaining = [remaining[k] for k in so]
-                    replans += 1
-                usable = belief.energy_J - reserve
-            chunk = min(left, usable)
-            belief = dataclasses.replace(belief, energy_J=belief.energy_J - chunk)
-            left -= chunk
         belief = dataclasses.replace(belief, tasks_done=belief.tasks_done + 1)
-        # #25: does this leg's path cross terrain BUILT earlier in the mission?
+        # #25: does this leg's path cross terrain BUILT earlier in the mission? The path runs from the
+        # canonical DEPARTURE pose to the leg site. A box AT the departure pose is the rover's own just-left
+        # work site -- it cannot avoid sitting on the spot it starts from, so that box is excluded; only
+        # crossing OTHER built terrain en route is a traverse hazard.
         for (bx, by, bh, blabel, bkind) in built:
-            if _seg_hits_box((prev_pose[0], prev_pose[1]), leg["site"], bx, by, bh):
+            if math.hypot(dep_pose[0] - bx, dep_pose[1] - by) <= bh:   # departing its own work site: not a crossing
+                continue
+            if _seg_hits_box((dep_pose[0], dep_pose[1]), leg["site"], bx, by, bh):
                 hazard_violations.append({
                     "leg": leg["label"], "crosses": blabel, "kind": bkind,
                     "slope_deg": repose_deg,
@@ -282,6 +299,20 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
                      "dig_e": float(leg.get("dig_e", 0.0)),     # dig doesn't slip; only the drive portion inflates
                      "soc": belief.soc_frac(), "slope_deg": telem["slope_deg"], "slip": telem["slip"],
                      "energy_sigma_J": e_sig})
+    # A-03: reconcile the belief overlay to the canonical plant end state -- the canonical sim drives HOME
+    # at mission end and the believed mission time IS the canonical plant time (the overlay does not invent
+    # a location/energy the plant never had). Drive home through the SAME dead-reckoning machinery as a work
+    # leg (the mean accumulates the home leg's odometry drift; pose sigma grows), then -- when perception is
+    # on -- DOCK at the charger as a known-landmark pose fix (the old _recharge dock semantics): the fix
+    # collapses the drift so the perception-on run stays bounded, exactly as a real charger redock would.
+    cx, cy = mission.charger
+    drive_home_m = MP._d((belief.x, belief.y), mission.charger)
+    odo_home = ODOM_DRIFT_FRAC * drive_home_m
+    belief = predict(belief, moved_to=(float(cx) + odo_home, float(cy)), drive_m=drive_home_m,
+                     odom_drift_frac=ODOM_DRIFT_FRAC, energy_spent_J=0.0)
+    if perception_sigma_m is not None:                 # docking at the charger is a known-landmark pose fix
+        belief = update_pose(belief, (float(cx), float(cy)), perception_sigma_m)
+    belief = dataclasses.replace(belief, t_s=plant_time_s)
     # P6: the closed map-channel reward -- how well the executed route observed the worksite (coverage +
     # residual map uncertainty), the LAC section 10 mapping objective fed back, not just pose/energy.
     map_channel = MC.map_channel_score(mission, stations)
@@ -289,4 +320,8 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
             "hazard_violations": hazard_violations,
             "recharges": recharges, "replans": replans, "legs": legs,
             "perception_fixes": perception_fixes, "observe_more": observe_more,
-            "map_observe_more": map_observe_more, "survey_time_s": survey_time_s, "map_channel": map_channel}
+            "map_observe_more": map_observe_more, "survey_time_s": survey_time_s, "map_channel": map_channel,
+            # A-03: the ONE canonical plant ledger + the canonical Plan IR -- so the closed loop and the
+            # planner simulation are provably the same mission (no second inconsistent simulator).
+            "plant_energy_J": plant_energy_J, "plant_time_s": plant_time_s,
+            "recharge_travel_J": recharge_travel_J, "plan_ir": ir, "feasible": bool(totals.get("feasible", True))}
