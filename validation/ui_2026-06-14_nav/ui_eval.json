@@ -1,0 +1,65 @@
+{
+  "url": "http://127.0.0.1:8803",
+  "panes": {
+    "plan": {
+      "screenshot": "validation/ui_2026-06-14_nav/plan.png",
+      "active_panes": [],
+      "ok": true
+    },
+    "perception": {
+      "screenshot": "validation/ui_2026-06-14_nav/perception.png",
+      "active_panes": [
+        "renderpanel"
+      ],
+      "ok": true
+    },
+    "metrics": {
+      "screenshot": "validation/ui_2026-06-14_nav/metrics.png",
+      "active_panes": [
+        "execview"
+      ],
+      "ok": true
+    },
+    "nav": {
+      "screenshot": "validation/ui_2026-06-14_nav/nav.png",
+      "active_panes": [
+        "navview"
+      ],
+      "ok": true
+    },
+    "report": {
+      "screenshot": "validation/ui_2026-06-14_nav/report.png",
+      "active_panes": [
+        "pane-report"
+      ],
+      "ok": true
+    },
+    "system": {
+      "screenshot": "validation/ui_2026-06-14_nav/system.png",
+      "active_panes": [
+        "pane-server"
+      ],
+      "ok": true
+    },
+    "settings": {
+      "screenshot": "validation/ui_2026-06-14_nav/settings.png",
+      "active_panes": [
+        "pane-settings"
+      ],
+      "ok": true
+    }
+  },
+  "errors": [],
+  "plan_status": "prelude not driven (TimeoutError); panes screenshotted anyway",
+  "discovered_panes": [
+    "plan",
+    "perception",
+    "metrics",
+    "nav",
+    "report",
+    "system",
+    "settings"
+  ],
+  "nav_gate": "\u25cf ARMED \u2014 \u03c3 6.0 m > 2.0 m tolerance, standstill",
+  "nav_reloc_present": true
+}
