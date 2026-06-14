@@ -990,6 +990,27 @@ def test_single_charge_range_monotone_in_slope_and_slip():
     assert MP.single_charge_range_m(g, full_pack=True) > flat              # full pack > to-reserve
 
 
+def test_h01_planning_context_propagates_selected_vehicle():
+    """Audit H-01 (2026-06-13): the planner resolves ONE PlanningContext from the SELECTED vehicle, so a
+    non-IPEx vehicle's mass / drum / energy actually drive the plan instead of the IPEx globals. ipex
+    resolves to EXACTLY the module globals (byte-identical); rassor2 (65 kg, 80 kg drum) differs and its
+    heavier mass shortens range on a grade and surfaces in the endurance report."""
+    order = {"action": "c", "kind": "cut", "x": 1, "y": 1, "footprint_m2": 9, "depth_m": 0.02}
+    ipex = MP.plan_context(MP.mission_from_dict(
+        {"name": "i", "body": "moon", "vehicle": "ipex", "charger": [0, 0], "orders": [order]}))
+    assert (ipex.dig_j_per_kg, ipex.drive_j_per_m, ipex.battery_j, ipex.rover_mass_kg, ipex.drum_kg) == \
+           (MP.DIG_J_PER_KG, MP.DRIVE_J_PER_M, MP.BATTERY_J, MP.ROVER_MASS_KG, MP.DRUM_KG)   # ipex == globals
+    r2_mission = MP.mission_from_dict(
+        {"name": "r", "body": "moon", "vehicle": "rassor2", "charger": [0, 0], "orders": [order]})
+    r2 = MP.plan_context(r2_mission)
+    assert r2.rover_mass_kg == 65.0 and r2.drum_kg == 80.0          # the heavier RASSOR-2, bigger drum
+    assert r2.rover_mass_kg != ipex.rover_mass_kg                   # the vehicle is propagated, not an IPEx global
+    g = MP.body_gravity("moon")                                    # the heavier rover ranges less on a grade
+    assert MP.single_charge_range_m(g, slope_deg=15.0, rover_mass_kg=r2.rover_mass_kg) < \
+           MP.single_charge_range_m(g, slope_deg=15.0, rover_mass_kg=ipex.rover_mass_kg)
+    assert MP.endurance(r2_mission)["rover_mass_kg"] == 65.0        # endurance reads the selected vehicle's mass
+
+
 def test_c04_no_negative_soc_and_far_site_flagged_infeasible():
     """Audit C-04 (2026-06-13): a route leg the pack cannot make must be FLAGGED infeasible, never driven
     on negative state-of-charge. (The bug: transit ran the battery to ~-14 MJ and still 'completed'.)

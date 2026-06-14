@@ -76,6 +76,54 @@ IDLE_POWER_W    = S.IDLE_POWER_W                         # [ASSUMPTION] continuo
 SLIP_ALPHA      = 2.0                                    # [CALIB] slip energy multiplier vs tan(slope) (I10 costmap)
 _TM_PARAMS      = TM.TerramechanicsParams.from_constants()   # lunar defaults for the weight-aware leg-slip solve
 
+
+@dataclasses.dataclass(frozen=True)
+class PlanningContext:
+    """H-01: ONE immutable per-mission planning context resolved from the SELECTED vehicle, threaded
+    through the energy / mass / range / slip / report / acceptance paths so the planner stops using the
+    IPEx module globals for every vehicle. The default vehicle 'ipex' resolves to EXACTLY the module
+    globals (verified: dig/drive energy, battery, mass, power, drum), so an ipex mission is byte-identical;
+    rassor2 (65 kg, 80 kg drum) now drives the plan with its own mass. drive_speed / reserve_frac / charge_w
+    are platform-neutral (not per-vehicle in the registry) and carry the module defaults."""
+    dig_j_per_kg: float
+    drive_j_per_m: float
+    battery_j: float
+    drum_kg: float
+    rover_mass_kg: float
+    drive_power_w: float
+    drive_speed_ms: float = DRIVE_SPEED_MS
+    reserve_frac: float = RESERVE_FRAC
+    charge_w: float = CHARGE_W
+
+    @property
+    def reserve_j(self) -> float:
+        return self.reserve_frac * self.battery_j
+
+    @property
+    def usable_j(self) -> float:
+        return self.battery_j * (1.0 - self.reserve_frac)
+
+
+def _vehicle_battery_j(veh) -> float:
+    """Stored energy [J] a vehicle carries = the sum of its onboard battery PowerSources' capacity; falls
+    back to the IPEx pack when the vehicle declares no onboard storage (a tower-fed/continuous vehicle)."""
+    cap = sum(V.POWER_SOURCES[p].capacity_j for p in getattr(veh, "onboard_power", ())
+              if p in V.POWER_SOURCES and V.POWER_SOURCES[p].capacity_j > 0)
+    return float(cap) if cap > 0 else float(BATTERY_J)
+
+
+def plan_context(mission) -> PlanningContext:
+    """H-01: resolve the immutable PlanningContext for the mission's SELECTED vehicle. ipex -> the module
+    globals (byte-identical); another vehicle -> its registry energy / mass / drum / power + onboard battery."""
+    veh = V.get_vehicle(mission.vehicle)
+    return PlanningContext(
+        dig_j_per_kg=float(veh.dig_energy_j_per_kg),
+        drive_j_per_m=float(veh.drive_power_w) / DRIVE_SPEED_MS,
+        battery_j=_vehicle_battery_j(veh),
+        drum_kg=float(veh.drum_capacity_kg),
+        rover_mass_kg=float(veh.dry_mass_kg),
+        drive_power_w=float(veh.drive_power_w))
+
 # Per-body OPERATING TIMESCALE (astronomical solar-day lengths; Earth-hours) — so the endurance/report
 # prints the correct day/night + sunlit work-window scale for the selected body. solar_day_h = synodic
 # (sun-to-sun) day; daylight_h ~= half; op_window_h = the usable high-sun window for solar power.
@@ -318,7 +366,8 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
     rho = mission.density
     g = body_gravity(mission.body)                          # for haul lift energy (exact m*g*dh)
     _soil = mission_soil_params(mission)                    # soil model for the haul slip (soil override)
-    drum_kg = _drum_kg(mission)                             # RB-05: the selected vehicle's per-cycle drum
+    ctx = plan_context(mission)                             # H-01: the SELECTED vehicle's energy/mass/drum
+    drum_kg = ctx.drum_kg                                   # RB-05: the selected vehicle's per-cycle drum
     flows, surplus_kg = balance(mission)
     sinters = [o for o in mission.orders if o.kind == "sinter"]
     if sinters and not C.SINTER_ENABLED:
@@ -338,7 +387,7 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
     for co, fo, mass, dist in flows:
         if co is None:
             trips.append(dict(kind="import", site=(fo.x, fo.y), label=f"Import fill: {fo.action}",
-                              mass=mass, dig_e=mass*DIG_J_PER_KG, dig_t=mass/DIG_RATE_KG_S,
+                              mass=mass, dig_e=mass*ctx.dig_j_per_kg, dig_t=mass/DIG_RATE_KG_S,
                               haul_m=0.0, haul_e=0.0, lift_e=0.0, dest=(fo.x, fo.y),
                               actions=frozenset({fo.action})))
         elif fo is None:
@@ -346,7 +395,7 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
             # enter the plan. Dig in place; the spoil-disposal haul to a dump is a separate unmodeled term
             # (no spoil-site coordinate to fabricate one), so haul/lift = 0 here.
             trips.append(dict(kind="dig", site=(co.x, co.y), label=f"Excavate spoil: {co.action}",
-                              mass=mass, dig_e=mass*DIG_J_PER_KG, dig_t=mass/DIG_RATE_KG_S,
+                              mass=mass, dig_e=mass*ctx.dig_j_per_kg, dig_t=mass/DIG_RATE_KG_S,
                               haul_m=0.0, haul_e=0.0, lift_e=0.0, dest=(co.x, co.y),
                               actions=frozenset({co.action})))
         else:
@@ -376,12 +425,14 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
             # weight-coupled: the loaded outbound leg (carrying ~DRUM_KG) slips more than the empty
             # return; each pays 1/(1-slip) per ground metre. (haul_m = out + back = 2*leg*loads.)
             out_m = back_m = leg * loads
-            slip_loaded = slip_alpha_to_slip(slope_haul, payload_kg=drum_kg, g=g, params=_soil)
-            slip_empty = slip_alpha_to_slip(slope_haul, payload_kg=0.0, g=g, params=_soil)
-            haul_e = (out_m * DRIVE_J_PER_M / (1.0 - slip_loaded)
-                      + back_m * DRIVE_J_PER_M / (1.0 - slip_empty))
+            slip_loaded = slip_alpha_to_slip(slope_haul, payload_kg=drum_kg, g=g, params=_soil,
+                                             rover_mass_kg=ctx.rover_mass_kg)   # H-01: the selected vehicle's mass
+            slip_empty = slip_alpha_to_slip(slope_haul, payload_kg=0.0, g=g, params=_soil,
+                                            rover_mass_kg=ctx.rover_mass_kg)
+            haul_e = (out_m * ctx.drive_j_per_m / (1.0 - slip_loaded)
+                      + back_m * ctx.drive_j_per_m / (1.0 - slip_empty))
             trips.append(dict(kind="cutfill", site=(co.x, co.y), label=f"{co.action} → {fo.action}",
-                              mass=mass, dig_e=mass*DIG_J_PER_KG, dig_t=mass/DIG_RATE_KG_S,
+                              mass=mass, dig_e=mass*ctx.dig_j_per_kg, dig_t=mass/DIG_RATE_KG_S,
                               haul_m=haul_m, haul_e=haul_e, lift_e=mass * g * ascent, dest=(fo.x, fo.y),
                               actions=frozenset({co.action, fo.action})))
     for o in sinters:
@@ -434,6 +485,15 @@ def _simulate(mission, trips):
     """Battery-aware simulation of an ORDERED trip list (phase-split recharging; drive between sites by
     straight line; intra-trip haul/lift baked into each trip). Pure in (mission, trips) so the optimizer
     can score any candidate order. Returns (tl, per_trip, core) -- core = the order-dependent metrics."""
+    # H-01: rebind the vehicle-dependent energy/speed names to the SELECTED vehicle's context as locals,
+    # so every reference below (and in the nested _leg/charge/drive/spend closures) reads the vehicle's
+    # values, not the IPEx module globals. ipex resolves to exactly the globals -> byte-identical.
+    ctx = plan_context(mission)
+    BATTERY_J = ctx.battery_j
+    DRIVE_J_PER_M = ctx.drive_j_per_m
+    DRIVE_SPEED_MS = ctx.drive_speed_ms
+    CHARGE_W = ctx.charge_w
+    RESERVE_FRAC = ctx.reserve_frac
     pos = list(mission.charger); batt = BATTERY_J; t = 0.0
     cum_mass = 0.0; cum_energy = 0.0; charges = 0; reserve = RESERVE_FRAC * BATTERY_J
     tl = []; per_trip = []; infeasible = []           # C-04: collected reachability / SoC-floor failures
@@ -1542,21 +1602,32 @@ def haul_cumulative_ascent_m(dem, dem_origin, waypoints):
 
 
 # ---- endurance / single-charge range (the "true distance before recharge", grounded) ------------
-def single_charge_range_m(g, *, slope_deg=0.0, slip=0.0, full_pack=False):
+def single_charge_range_m(g, *, slope_deg=0.0, slip=0.0, full_pack=False,
+                          battery_j=None, drive_j_per_m=None, rover_mass_kg=None, reserve_frac=None):
     """One-way driving distance on a single charge [m]. Usable energy / effective drive cost, where the
     effective cost = the flat 135 J/m amplified by wheel slip (1/(1-slip), the wheel travels further than
     the ground) plus the exact gravity-climb term rover_mass*g*sin(slope) on the uphill. `full_pack` uses
-    the whole pack; otherwise it stops at the operational reserve."""
-    usable = BATTERY_J * (1.0 if full_pack else (1.0 - RESERVE_FRAC))
-    jpm = DRIVE_J_PER_M / max(1e-6, 1.0 - slip) + ROVER_MASS_KG * g * math.sin(math.radians(max(0.0, slope_deg)))
+    the whole pack; otherwise it stops at the operational reserve. H-01: the energy/mass terms default to
+    the IPEx module globals; pass a PlanningContext's battery_j/drive_j_per_m/rover_mass_kg/reserve_frac to
+    range a different vehicle (heavier mass / smaller pack -> shorter range)."""
+    battery_j = BATTERY_J if battery_j is None else battery_j
+    drive_j_per_m = DRIVE_J_PER_M if drive_j_per_m is None else drive_j_per_m
+    rover_mass_kg = ROVER_MASS_KG if rover_mass_kg is None else rover_mass_kg
+    reserve_frac = RESERVE_FRAC if reserve_frac is None else reserve_frac
+    usable = battery_j * (1.0 if full_pack else (1.0 - reserve_frac))
+    jpm = drive_j_per_m / max(1e-6, 1.0 - slip) + rover_mass_kg * g * math.sin(math.radians(max(0.0, slope_deg)))
     return usable / jpm
 
 
-def reachable_radius_on_dem(dem, dem_origin, usable_j, g, *, stride=10, slip_alpha=SLIP_ALPHA):
+def reachable_radius_on_dem(dem, dem_origin, usable_j, g, *, stride=10, slip_alpha=SLIP_ALPHA,
+                            drive_j_per_m=None, rover_mass_kg=None):
     """DEM-grounded one-charge reach: a Dijkstra DRIVE-ENERGY field from the anchor over a (coarsened)
     slope+slip costmap -- each edge costs seg*135*(1+slip_alpha*tan(theta)) + rover_mass*g*max(0, climb).
     Returns the iso-energy reachable set: radius_m (farthest reachable cell), area_m2, whether the whole
-    tile is within one charge, and the worst-cell energy (the hardest point to reach)."""
+    tile is within one charge, and the worst-cell energy (the hardest point to reach). H-01: drive cost +
+    rover mass default to the IPEx globals; pass the selected vehicle's values to reach a different vehicle."""
+    drive_j_per_m = DRIVE_J_PER_M if drive_j_per_m is None else drive_j_per_m
+    rover_mass_kg = ROVER_MASS_KG if rover_mass_kg is None else rover_mass_kg
     Z, cell = dem
     Zc = np.asarray(Z, dtype=np.float64)[::stride, ::stride]    # coarsen for a fast field; honest estimate
     cc = cell * stride
@@ -1577,7 +1648,7 @@ def reachable_radius_on_dem(dem, dem_origin, usable_j, g, *, stride=10, slip_alp
             if 0 <= nr < H and 0 <= nc < W:
                 dh = Zc[nr, nc] - Zc[r, c]
                 slope = math.atan2(abs(dh), seg * cc)
-                step = seg * cc * DRIVE_J_PER_M * (1.0 + slip_alpha * math.tan(slope)) + ROVER_MASS_KG * g * max(0.0, dh)
+                step = seg * cc * drive_j_per_m * (1.0 + slip_alpha * math.tan(slope)) + rover_mass_kg * g * max(0.0, dh)
                 ne = e + step
                 if ne < energy[nr, nc]:
                     energy[nr, nc] = ne
@@ -1636,12 +1707,25 @@ def endurance(mission, *, dem=None, dem_origin=(0.0, 0.0), power_site="psr_tower
     Returns the flat range (full pack + to reserve), the slope+slip-adjusted range at the work-area's
     representative slope (if a DEM is given), and the DEM-grounded reachable radius from the charger."""
     g = body_gravity(mission.body)
+    # H-01: the endurance/range math is the SELECTED vehicle's, not the IPEx globals. Rebind the names as
+    # locals (so the inline ConOps/report references use the vehicle), and pass the same values explicitly
+    # into single_charge_range_m / reachable_radius_on_dem (which read their own module-global defaults).
+    ctx = plan_context(mission)
+    BATTERY_J = ctx.battery_j
+    DRIVE_J_PER_M = ctx.drive_j_per_m
+    DRIVE_SPEED_MS = ctx.drive_speed_ms
+    DRIVE_POWER_W = ctx.drive_power_w
+    ROVER_MASS_KG = ctx.rover_mass_kg
+    RESERVE_FRAC = ctx.reserve_frac
+    DIG_J_PER_KG = ctx.dig_j_per_kg
+    _rk = dict(battery_j=BATTERY_J, drive_j_per_m=DRIVE_J_PER_M, rover_mass_kg=ROVER_MASS_KG,
+               reserve_frac=RESERVE_FRAC)                  # the vehicle's range kwargs
     out = {
         "pack_energy_MJ": BATTERY_J / 1e6, "drive_power_w": DRIVE_POWER_W, "flat_j_per_m": DRIVE_J_PER_M,
         "speed_ms": DRIVE_SPEED_MS, "rover_mass_kg": ROVER_MASS_KG, "g": g, "reserve_frac": RESERVE_FRAC,
-        "range_flat_full_km": single_charge_range_m(g, full_pack=True) / 1000.0,
-        "range_flat_reserve_km": single_charge_range_m(g) / 1000.0,
-        "duration_flat_h": single_charge_range_m(g) / DRIVE_SPEED_MS / 3600.0,
+        "range_flat_full_km": single_charge_range_m(g, full_pack=True, **_rk) / 1000.0,
+        "range_flat_reserve_km": single_charge_range_m(g, **_rk) / 1000.0,
+        "duration_flat_h": single_charge_range_m(g, **_rk) / DRIVE_SPEED_MS / 3600.0,
     }
     out["power"] = power_regime(mission, kind=power_site, temp_c=temp_c)   # #2 per-site power source
     # ConOps reconciliation [SCHULER24]: the per-charge range is a per-SORTIE bound, not a mission limit.
@@ -1674,23 +1758,27 @@ def endurance(mission, *, dem=None, dem_origin=(0.0, 0.0), power_site="psr_tower
         r0 = min(max(0, rc - 200), max(0, H - 400)); c0 = min(max(0, cc0 - 200), max(0, W - 400))
         win = np.asarray(Z)[r0:r0 + 400, c0:c0 + 400]
         med_slope = float(np.median(slope_deg_map(win, cell))) if win.size else 0.0
-        slip = min(0.95, slip_alpha_to_slip(med_slope, params=mission_soil_params(mission)))   # soil-aware
+        slip = min(0.95, slip_alpha_to_slip(med_slope, params=mission_soil_params(mission),
+                                            rover_mass_kg=ROVER_MASS_KG))   # soil-aware + H-01 vehicle mass
         out["work_area_median_slope_deg"] = med_slope
-        out["range_slopeslip_km"] = single_charge_range_m(g, slope_deg=med_slope, slip=slip) / 1000.0
-        out["reach"] = reachable_radius_on_dem(dem, dem_origin, BATTERY_J * (1 - RESERVE_FRAC), g)
+        out["range_slopeslip_km"] = single_charge_range_m(g, slope_deg=med_slope, slip=slip, **_rk) / 1000.0
+        out["reach"] = reachable_radius_on_dem(dem, dem_origin, BATTERY_J * (1 - RESERVE_FRAC), g,
+                                               rover_mass_kg=ROVER_MASS_KG)   # H-01: vehicle usable + mass
     return out
 
 
-def slip_alpha_to_slip(slope_deg, payload_kg=0.0, g=None, params=None):
+def slip_alpha_to_slip(slope_deg, payload_kg=0.0, g=None, params=None, rover_mass_kg=None):
     """Wheel slip from terrain slope AND the rover's laden weight, via the CONSERVED slip ladder
     (slip.slip_sinkage_equilibrium): a steeper grade OR a heavier rover (full drum) -> more slip,
     entrapping near ~45 deg. ``payload_kg`` is the regolith in the drum on this leg (0 = empty); ``g``
     defaults to lunar. This replaces the old slope-only [CALIB] curve so the planner's per-leg slip (and
     the 1/(1-slip) drive-energy inflation) is weight-coupled, consistent with the simulator authority.
-    (The per-cell routing costmap keeps the cheap SLIP_ALPHA*tan(slope) ranking heuristic.)"""
+    H-01: ``rover_mass_kg`` defaults to the IPEx global; pass the selected vehicle's mass so a heavier
+    platform (rassor2, 65 kg) slips more. (The per-cell routing costmap keeps the SLIP_ALPHA*tan heuristic.)"""
     gg = C.g if g is None else float(g)
     p = params if params is not None else _TM_PARAMS     # soil model (params_for_body(soil)); default lunar
-    weight_n = (ROVER_MASS_KG + max(0.0, payload_kg)) * gg
+    m = ROVER_MASS_KG if rover_mass_kg is None else float(rover_mass_kg)
+    weight_n = (m + max(0.0, payload_kg)) * gg
     eq = TMS.slip_sinkage_equilibrium(weight_n, math.radians(max(0.0, slope_deg)),
                                       params=p, contact_len_m=0.10, contact_width_m=0.18)
     return max(0.0, min(0.95, float(eq["slip"])))
@@ -1822,7 +1910,8 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
     # H-07: this is MATERIAL realizability + siting + as-built, NOT full plan validation. Make the scope
     # machine-readable (covers vs defers) and surface the drum capacity + shuttle-cycle count the pooled
     # single-drum execution abstracts away, so a consumer can't mistake it for a capacity-bounded shuttle.
-    drum_cap = _drum_kg(mission)
+    ctx = plan_context(mission)                            # H-01: the selected vehicle's drum + dig energy
+    drum_cap = ctx.drum_kg
     shuttle_cycles_est = int(sum(max(1, math.ceil((o.footprint_m2 * o.depth_m * rho_bank) / drum_cap))
                                  for o in cuts)) if drum_cap > 0 else 0
     return {
@@ -1848,7 +1937,7 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
         "planned_fill_kg": float(sum(o.footprint_m2 * o.depth_m * rho_loose for o in fills)),
         "executed_fill_kg": float(exec_fill),
         "drum_remaining_kg": float(cs.drum_inventory),
-        "executed_dig_J": float(exec_cut * DIG_J_PER_KG),
+        "executed_dig_J": float(exec_cut * ctx.dig_j_per_kg),
         "grid": {"rows": H, "cols": W, "cell_m": cell_m},
         # P0 as-built acceptance (level-surface check on the executed surface):
         "as_built_on_real_dem": bool(on_real_dem),         # False -> measured on a flat mantle (trivially flat)
