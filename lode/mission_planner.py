@@ -481,10 +481,38 @@ def _precedence_is_feasible(n, pairs):
     return emitted == n
 
 
-def _simulate(mission, trips):
-    """Battery-aware simulation of an ORDERED trip list (phase-split recharging; drive between sites by
-    straight line; intra-trip haul/lift baked into each trip). Pure in (mission, trips) so the optimizer
-    can score any candidate order. Returns (tl, per_trip, core) -- core = the order-dependent metrics."""
+def _make_routes(mission, dem, dem_origin, max_traverse_slope_deg):
+    """H-02: ONE memoized routed inter-site distance over the DEM. route_leg is called once per unique
+    (unordered) leg and reused by every candidate order the optimizer scores, the timeline, and the report,
+    so sequencing is optimized against the SAME geometry the executable Plan IR drives -- not straight
+    lines. No DEM -> None (the simulator falls back to straight-line _d, byte-identical). An unreachable
+    leg caches inf so the reserve-aware sim flags it infeasible, consistent with the routed Plan IR."""
+    if dem is None:
+        return None
+    cache: dict = {}
+
+    def rd(a, b):
+        a = (round(float(a[0]), 6), round(float(a[1]), 6))
+        b = (round(float(b[0]), 6), round(float(b[1]), 6))
+        if a == b:
+            return 0.0
+        key = (a, b) if a <= b else (b, a)                  # symmetric (Dijkstra over an undirected costmap)
+        if key not in cache:
+            rm, _gs, reached, _wp = route_leg(dem, dem_origin, a, b,
+                                              max_slope_deg=max_traverse_slope_deg, keepouts=mission.keepouts)
+            cache[key] = rm if reached else math.inf
+        return cache[key]
+    return rd
+
+
+def _simulate(mission, trips, routes=None):
+    """Battery-aware simulation of an ORDERED trip list (phase-split recharging; intra-trip haul/lift baked
+    into each trip). Pure in (mission, trips, routes) so the optimizer can score any candidate order. H-02:
+    when `routes` (from _make_routes) is given the inter-site drive legs use the ROUTED DEM distance -- the
+    same geometry the Plan IR executes -- instead of a straight line; None -> straight-line _d (no-DEM).
+    Returns (tl, per_trip, core) -- core = the order-dependent metrics."""
+    def _rd(a, b):
+        return routes(a, b) if routes is not None else _d(a, b)   # H-02: routed inter-site distance
     # H-01: rebind the vehicle-dependent energy/speed names to the SELECTED vehicle's context as locals,
     # so every reference below (and in the nested _leg/charge/drive/spend closures) reads the vehicle's
     # values, not the IPEx module globals. ipex resolves to exactly the globals -> byte-identical.
@@ -502,7 +530,7 @@ def _simulate(mission, trips):
         """Raw drive leg: append the timeline + draw energy. The caller (drive/charge) has ensured the
         leg fits above reserve, so this never drives SoC below zero."""
         nonlocal pos, batt, t, cum_energy
-        d = _d(pos, to)
+        d = _rd(pos, to)                                   # H-02: routed inter-site distance (matches Plan IR)
         if d <= 1e-9: return
         e = d * DRIVE_J_PER_M; dur = d / DRIVE_SPEED_MS
         tl.append(dict(t0=t, t1=t+dur, kind="drive", batt0=batt, batt1=batt-e, mass=0.0, speed=DRIVE_SPEED_MS,
@@ -515,7 +543,7 @@ def _simulate(mission, trips):
         NEGATIVE. If even the full remaining charge can't reach the charger the rover is STRANDED; record
         it and return False (don't drive SoC negative, the caller stops drawing work it can never finish)."""
         nonlocal batt, t, charges
-        if _d(pos, mission.charger) > 1e-9 and _d(pos, mission.charger) * DRIVE_J_PER_M > batt + 1e-6:
+        if _d(pos, mission.charger) > 1e-9 and _rd(pos, mission.charger) * DRIVE_J_PER_M > batt + 1e-6:
             infeasible.append(f"stranded at ({pos[0]:.0f},{pos[1]:.0f}): cannot reach the charger to "
                               "recharge on the remaining charge")
             return False
@@ -531,12 +559,12 @@ def _simulate(mission, trips):
         plan is infeasible). Driving HOME may draw into reserve (that is what reserve is for) but must never
         go NEGATIVE -- if the full remaining charge can't reach `to`, the rover is stranded. Either way the
         leg is skipped and flagged rather than run on negative SoC (a prior bug ran the pack to ~-14 MJ)."""
-        d = _d(pos, to)
+        d = _rd(pos, to)                                  # H-02: routed inter-site distance (matches Plan IR)
         if d <= 1e-9: return
         e = d * DRIVE_J_PER_M; usable = BATTERY_J - reserve
         going_home = _d(to, mission.charger) <= 1e-9
         if not going_home and e > batt - reserve:     # to a work site: keep the reserve margin -> recharge
-            if _d(mission.charger, to) * DRIVE_J_PER_M > usable:
+            if _rd(mission.charger, to) * DRIVE_J_PER_M > usable:
                 infeasible.append(f"leg to ({to[0]:.0f},{to[1]:.0f}) needs {e / 1e3:.0f} kJ; a full charge "
                                   f"reaches only {usable / 1e3:.0f} kJ above reserve")
                 return
@@ -620,15 +648,16 @@ def parse_objective(objective):
     return {k: v / tot for k, v in objective.items()}
 
 
-def _make_core_scorer(mission, trips, objective):
+def _make_core_scorer(mission, trips, objective, routes=None):
     """Return a function core -> sortable scalar (lower = better). For a single objective this is the raw
     metric (max objectives negated). For a WEIGHTED multi-objective it is the weighted sum of each metric
-    normalized by a reference plan (the nearest-neighbour order), so differently-scaled metrics combine."""
+    normalized by a reference plan (the nearest-neighbour order), so differently-scaled metrics combine.
+    H-02: `routes` is threaded into the reference simulation so the normalization uses routed geometry too."""
     weights = parse_objective(objective)
     if len(weights) == 1:
         (name,) = weights
         return lambda core: _score(core, name)[0]
-    ref = _simulate(mission, [trips[i] for i in _nn_order(trips, mission)])[2]   # reference scales
+    ref = _simulate(mission, [trips[i] for i in _nn_order(trips, mission)], routes)[2]   # reference scales
 
     def scorer(core):
         s = 0.0
@@ -711,7 +740,7 @@ def _held_karp(trips, mission, pred):
     return order
 
 
-def optimize_sequence(trips, mission, *, algorithm="auto", objective="time", precedence=None):
+def optimize_sequence(trips, mission, *, algorithm="auto", objective="time", precedence=None, routes=None):
     """Return a visit order (trip indices) chosen by `algorithm` to optimize `objective` (a name, a
     'name:w,...' string, or a weight dict), honoring `precedence` (list of (i, j): trip i before trip j).
 
@@ -737,14 +766,15 @@ def optimize_sequence(trips, mission, *, algorithm="auto", objective="time", pre
             seen |= (1 << p)
         return (pred[i] & ~seen) == 0
 
-    score_core = _make_core_scorer(mission, trips, objective)
+    score_core = _make_core_scorer(mission, trips, objective, routes)
 
     def score(order):
-        return score_core(_simulate(mission, [trips[i] for i in order])[2])
+        return score_core(_simulate(mission, [trips[i] for i in order], routes)[2])   # H-02: routed scoring
 
     if algorithm == "auto":
         if n <= BRUTE_MAX_TRIPS:
-            return optimize_sequence(trips, mission, algorithm="brute", objective=objective, precedence=precedence)
+            return optimize_sequence(trips, mission, algorithm="brute", objective=objective,
+                                     precedence=precedence, routes=routes)
         # 8..16: exact driving tour (Held-Karp) as a strong SEED, then LK-polish on the REAL (recharge-
         # coupled) objective -- "solved in sequence". >16: LK from the nearest seed.
         algorithm = "held_karp_lk" if n <= HELD_KARP_MAX_TRIPS else "lk"
@@ -908,16 +938,17 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
             "multi-vehicle + precedence is not yet coordinated (v1): cross-vehicle precedence ordering is "
             "future MV work. Plan single-vehicle, or remove the precedence constraints.")
     trips, flows, surplus_kg, meta = _build_trips(mission, dem, dem_origin, max_traverse_slope_deg)
+    routes = _make_routes(mission, dem, dem_origin, max_traverse_slope_deg)   # H-02: route inter-site legs ONCE (shared)
     alloc = _allocate_trips(trips, vehicles)
     per_vehicle = []
     for v, idxs in enumerate(alloc):
         vtrips = [trips[i] for i in idxs]
         if vtrips:
-            order = optimize_sequence(vtrips, mission, algorithm=algorithm, objective=objective)
+            order = optimize_sequence(vtrips, mission, algorithm=algorithm, objective=objective, routes=routes)
             vtrips = [vtrips[k] for k in order]
         for tr in vtrips:
             tr["vehicle"] = v
-        tl, per_trip, core = _simulate(mission, vtrips)
+        tl, per_trip, core = _simulate(mission, vtrips, routes)
         per_vehicle.append({"vehicle": v, "trips": vtrips, "tl": tl, "per_trip": per_trip, "core": core})
     conflicts = _vehicle_conflicts(per_vehicle)
     makespan = max((pv["core"]["time_s"] for pv in per_vehicle), default=0.0)
@@ -960,14 +991,16 @@ def plan_and_simulate(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
                           max_traverse_slope_deg=max_traverse_slope_deg,
                           algorithm=algorithm, objective=objective, vehicles=vehicles)
     trips, flows, surplus_kg, meta = _build_trips(mission, dem, dem_origin, max_traverse_slope_deg)
+    routes = _make_routes(mission, dem, dem_origin, max_traverse_slope_deg)   # H-02: route inter-site legs ONCE
     prec = trip_precedence(trips, mission)                  # I9: order-level precedence -> trip constraints
     if not _precedence_is_feasible(len(trips), prec):       # AL2: fail loud, never a silent 0-trip "success"
         raise RuntimeError(
             "infeasible precedence: the mission's precedence constraints form a cycle, so no build "
             "sequence can satisfy them. Check `mission.precedence` for a loop (e.g. A->B and B->A).")
-    order = optimize_sequence(trips, mission, algorithm=algorithm, objective=objective, precedence=prec)
+    order = optimize_sequence(trips, mission, algorithm=algorithm, objective=objective, precedence=prec,
+                              routes=routes)                 # optimizer scores the SAME routed geometry as the IR
     trips = [trips[i] for i in order]
-    tl, per_trip, core = _simulate(mission, trips)
+    tl, per_trip, core = _simulate(mission, trips, routes)
     resolved = algorithm                                    # what 'auto' actually dispatched to
     if algorithm == "auto":
         resolved = "brute" if len(trips) <= BRUTE_MAX_TRIPS else (

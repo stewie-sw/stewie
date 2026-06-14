@@ -1011,6 +1011,28 @@ def test_h01_planning_context_propagates_selected_vehicle():
     assert MP.endurance(r2_mission)["rover_mass_kg"] == 65.0        # endurance reads the selected vehicle's mass
 
 
+def test_h02_simulate_scores_routed_inter_site_geometry_not_straight_line():
+    """Audit H-02 (2026-06-13): the optimizer/timeline simulation scores the ROUTED inter-site geometry --
+    the SAME legs the executable Plan IR drives -- via one cache routed ONCE (_make_routes), not a straight
+    line. On the real Haworth DEM the routed inter-site drive exceeds the straight-line drive."""
+    dem = MP.load_haworth_dem(); origin = MP.flattest_anchor(dem)
+    m = MP.mission_from_dict({"name": "h", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut", "kind": "cut", "x": -120, "y": -90, "footprint_m2": 60, "depth_m": 0.08},
+        {"action": "fill", "kind": "fill", "x": 140, "y": 110, "footprint_m2": 40, "depth_m": 0.10}]})
+    trips, _, _, _ = MP._build_trips(m, dem, origin, 25.0)
+    rd = MP._make_routes(m, dem, origin, 25.0)
+    a, b = (-120.0, -90.0), (140.0, 110.0)
+    assert rd(a, b) >= math.hypot(b[0] - a[0], b[1] - a[1]) - 1e-6  # routed never shorter than the line
+    assert rd(a, b) == rd(b, a) and rd(a, a) == 0.0                 # routed ONCE: symmetric + same-point
+    tl_r, _, _ = MP._simulate(m, trips, rd)                         # sim WITH the routed cache
+    tl_f, _, _ = MP._simulate(m, trips, None)                       # sim with straight-line legs
+    drive_r = sum((p["t1"] - p["t0"]) * p["speed"] for p in tl_r if p["kind"] == "drive")
+    drive_f = sum((p["t1"] - p["t0"]) * p["speed"] for p in tl_f if p["kind"] == "drive")
+    assert drive_r >= drive_f - 1e-6 and drive_r > drive_f          # the sim consumes the routed (longer) legs
+    # no-DEM mission: routes is None -> straight-line, byte-identical
+    assert MP._make_routes(m, None, (0.0, 0.0), 25.0) is None
+
+
 def test_c04_no_negative_soc_and_far_site_flagged_infeasible():
     """Audit C-04 (2026-06-13): a route leg the pack cannot make must be FLAGGED infeasible, never driven
     on negative state-of-charge. (The bug: transit ran the battery to ~-14 MJ and still 'completed'.)
