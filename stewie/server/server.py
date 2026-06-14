@@ -51,10 +51,7 @@ log = logging.getLogger("stewie.server")
 from stewie.server.deps import _env, _truthy, require_auth, require_director  # noqa: E402
 
 
-_START = time.monotonic()
 _REPORT_LOCK = threading.Lock()                 # matplotlib pyplot is process-global + thread-unsafe
-_METRICS: dict = {"requests_total": 0, "by_status": {}, "by_route": {}}
-_METRICS_LOCK = threading.Lock()   # RC-04: serialize the metrics read-modify-write
 
 
 def _configure_logging(level: str | None = None) -> None:
@@ -327,6 +324,7 @@ app.add_middleware(
 from stewie.server.routers import assets as _assets_router  # noqa: E402
 from stewie.server.routers import auth as _auth_router  # noqa: E402
 from stewie.server.routers import config as _config_router  # noqa: E402
+from stewie.server.routers import health as _health_router  # noqa: E402
 from stewie.server.routers import layers as _layers_router  # noqa: E402
 from stewie.server.routers import missions as _missions_router  # noqa: E402
 from stewie.server.routers import operators_admin as _operators_admin_router  # noqa: E402
@@ -344,6 +342,7 @@ app.include_router(_sample_missions_router.router)
 app.include_router(_assets_router.router)
 app.include_router(_layers_router.router)
 app.include_router(_config_router.router)
+app.include_router(_health_router.router)
 
 
 @app.middleware("http")
@@ -372,10 +371,7 @@ async def _access_log(request: Request, call_next):
     matched = request.scope.get("route")
     route_key = getattr(matched, "path", "unmatched")
     sk = str(response.status_code)
-    with _METRICS_LOCK:                                  # RC-04: atomic counter update under the threadpool
-        _METRICS["requests_total"] += 1
-        _METRICS["by_status"][sk] = _METRICS["by_status"].get(sk, 0) + 1
-        _METRICS["by_route"][route_key] = _METRICS["by_route"].get(route_key, 0) + 1
+    record_request(sk, route_key)                        # RC-04: atomic counter update (server.services)
     log.info('%s "%s %s" %s %.1fms',
              request.client.host if request.client else "-", request.method, raw, response.status_code, dt)
     return response
@@ -407,7 +403,7 @@ def get_index():
 
 # ---- #39: the event history (who did what when; actor = the #52 auth identity) ----------------
 # ARCH-3: the audit ledger lives in stewie.server.services so routers can log without importing this app.
-from stewie.server.services import log_event  # noqa: E402
+from stewie.server.services import log_event, record_request  # noqa: E402
 
 
 # ---- #32: no-terminal admin ops (the W-2/W-3 CLIs + gate validation as buttons) ---------------
@@ -769,16 +765,6 @@ def twin_resync(req: ResyncRequest, _auth: None = Depends(require_auth)):
 def twin_version():
     t = _twin()
     return {"twin_version": t.version, "chain_valid": t.verify_chain(), "events": t.history()}
-
-
-@app.get("/healthz")
-def healthz():
-    return {"status": "ok", "version": _version(), "uptime_s": round(time.monotonic() - _START, 1)}
-
-
-@app.get("/metrics")
-def metrics():
-    return {"uptime_s": round(time.monotonic() - _START, 1), **_METRICS}
 
 
 # ---- POST: the planner API (auth-gated when $STEWIE_API_KEY is set) -----------------------------
