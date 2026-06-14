@@ -56,6 +56,7 @@ class VehicleTwin:
         if any(v is None or (isinstance(v, (int, float)) and v <= 0)
                for v in geometry.values()):
             raise ValueError(f"vehicle {vehicle!r} has incomplete geometry: {geometry}")
+        geometry["skid_steer"] = bool(veh.skid_steer)    # H-10: bool, added AFTER the positivity check
         energy = {"drive_power_w": veh.drive_power_w,
                   "drive_j_per_m": veh.drive_power_w / 0.30,     # at the nominal 0.30 m/s
                   "dig_j_per_kg": veh.dig_energy_j_per_kg,
@@ -73,7 +74,10 @@ class VehicleTwin:
         invented geometry and is gone."""
         return {"g": self.gravity_ms2, "params": self.params,
                 "wheel_width_m": self.geometry["wheel_width_m"],
-                "contact_len_m": self.geometry["contact_len_m"]}
+                "contact_len_m": self.geometry["contact_len_m"],
+                # H-10: propagate the drivetrain model so the runtime drive loop slip-couples yaw instead
+                # of keeping full commanded yaw authority. The differential track is the lateral gauge.
+                "skid_steer": self.geometry["skid_steer"], "track_m": self.geometry["gauge_m"]}
 
     def plan_context(self) -> dict:
         """The per-vehicle numbers the mission planner consumes."""

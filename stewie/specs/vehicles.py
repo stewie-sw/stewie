@@ -76,6 +76,10 @@ class Vehicle:
     wheelbase_m: float = 0.0
     wheel_radius_m: float = 0.0
     cg_height_m: float = 0.0
+    #: H-10: 4-wheel differential (skid) steer -- yaw comes from the per-side wheel-speed difference over
+    #: the lateral track (gauge_m), so the SAME slip that robs forward progress robs the turn. The drive
+    #: loop reads this (via VehicleTwin.drive_context) to slip-couple yaw; every registry rover is skid-steer.
+    skid_steer: bool = True
     render_assets: str = ""
     onboard_power: tuple = ()          # default PowerSource name(s) carried onboard
     provenance: str = ""

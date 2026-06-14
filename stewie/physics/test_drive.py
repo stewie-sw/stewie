@@ -173,3 +173,24 @@ def test_skid_steer_yaw_authority_is_slip_coupled():
     assert telem["slip"] > 0.05                           # the grade produces real slip
     assert telem["omega_achieved"] == telem["omega_cmd"] * (1.0 - telem["slip"])
     assert abs(yaw_t) < abs(a[1]) or telem["slip"] == 0.0  # yaw under-achieves vs the ideal path
+
+
+def test_h10_drive_context_propagates_skid_steer_to_runtime():
+    """Audit H-10 (2026-06-13): VehicleTwin.drive_context() must carry the skid-steer drivetrain model
+    (flag + lateral track) so the RUNTIME drive loop (process._twist -> drive_step(**ctx)) slip-couples
+    yaw instead of keeping full commanded yaw authority. IPEx is a 4-wheel skid-steer; on a high-slip
+    grade the achieved yaw under-achieves like (1-slip)."""
+    import numpy as np
+
+    from stewie.physics import drive
+    from stewie.physics.column_state import ColumnState
+    from stewie.specs.vehicle_twin import VehicleTwin
+
+    ctx = VehicleTwin.assemble("t", vehicle="ipex", body="moon").drive_context()
+    assert ctx["skid_steer"] is True and ctx["track_m"] > 0.0        # the drivetrain model is propagated
+    cs = ColumnState(width=64, height=64, cell_m=0.02, mass_areal=np.full((64, 64), 50.0))
+    cs.datum[:, :] = np.tile(np.linspace(0.0, 0.55, 64)[None, :], (64, 1)) - (cs.derive_height() - cs.datum)
+    _, _, telem = drive.drive_step(cs, (32.0, 20.0), 0.0, 0.25, 0.4, dt=0.2, **ctx)   # exactly the runtime call
+    assert telem["slip"] > 0.05                                      # the grade produces real slip
+    assert telem["track_m"] is not None                             # skid-steer telemetry active (propagated)
+    assert telem["omega_achieved"] < telem["omega_cmd"]             # yaw degraded by the traction deficit
