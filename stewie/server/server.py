@@ -300,6 +300,7 @@ app.add_middleware(
 
 # ARCH-3: per-concern routers (the RC command path first, per §21). Each owns its own state + imports
 # the shared auth deps (server.deps) / audit log (server.services) -- no import of this app module.
+from stewie.server.routers import admin_ops as _admin_ops_router  # noqa: E402
 from stewie.server.routers import assets as _assets_router  # noqa: E402
 from stewie.server.routers import auth as _auth_router  # noqa: E402
 from stewie.server.routers import config as _config_router  # noqa: E402
@@ -328,6 +329,7 @@ app.include_router(_health_router.router)
 app.include_router(_dem_router.router)
 app.include_router(_figures_router.router)
 app.include_router(_twin_router.router)
+app.include_router(_admin_ops_router.router)
 
 
 @app.middleware("http")
@@ -392,51 +394,6 @@ from stewie.server.services import log_event, record_request  # noqa: E402
 
 
 # ---- #32: no-terminal admin ops (the W-2/W-3 CLIs + gate validation as buttons) ---------------
-@app.post("/admin/twin/snapshot")
-def admin_snapshot(_auth: str = Depends(require_director)):
-    from stewie.specs import config as CFG
-    from stewie.twin import backup as BK
-    path = BK.snapshot(_twin(), os.path.join(CFG.data_dir(), "snapshots"))
-    return {"ok": True, "snapshot": path}
-
-
-@app.post("/admin/twin/retention")
-def admin_retention(_auth: str = Depends(require_director)):
-    from stewie.specs import config as CFG
-    from stewie.twin import backup as BK
-    removed = BK.apply_retention(os.path.join(CFG.data_dir(), "snapshots"))
-    return {"ok": True, "removed": removed}
-
-
-@app.post("/admin/backup/replicate")
-def admin_replicate(_auth: str = Depends(require_director)):
-    from stewie.specs import config as CFG
-    from stewie.twin import backup as BK
-    dest = os.environ.get("STEWIE_BACKUP_DIR", os.path.join(CFG.data_dir(), "replica"))
-    out = BK.replicate(CFG.data_dir(), dest)
-    return {"ok": True, **out}
-
-
-@app.post("/admin/gates/validate")
-def admin_gates(_auth: str = Depends(require_director)):
-    """The standing invariant as a BUTTON: re-run the dated G1/G2 validation and compare against
-    the frozen 2026-06-07 artifact byte-for-byte."""
-    import json as _json
-
-    from stewie.eval import gates as GA
-    vdir = os.path.join(os.path.dirname(os.path.abspath(GA.__file__)), "validation")
-    # the INVARIANT: re-running the frozen 2026-06-07 baseline must reproduce it byte-for-byte
-    cur = GA.validate()
-    frozen = open(os.path.join(vdir, "g1_g2_validation_2026-06-07.json"), "rb").read()
-    same = frozen == _json.dumps(cur, indent=2).encode() + b"\n"
-    # the CURRENT gate states live in the LATEST dated artifact (gates flip only via new artifacts)
-    dated = sorted(f for f in os.listdir(vdir) if f.startswith("g1_g2_validation_"))
-    latest = _json.load(open(os.path.join(vdir, dated[-1])))
-    summary = latest.get("release_gate_summary", {})
-    return {"ok": True, "g1": str(summary.get("G1", "?")), "g2": str(summary.get("G2", "?")),
-            "latest_artifact": dated[-1], "byte_identical_to_frozen": same}
-
-
 # --- #66 + SF-01: the pluggable RC seam now lives in stewie.server.routers.rc (included below) -----
 
 
@@ -605,10 +562,6 @@ def session_summary(sid: str, _auth: None = Depends(require_auth)):
     from fastapi.responses import PlainTextResponse
     return PlainTextResponse(SES.summary_markdown(s), media_type="text/markdown")
 
-
-# ---- P2.2: the versioned observed-terrain twin (resync = the reconstruction update channel) ---
-# ARCH-3: the lazy durable twin lives in stewie.server.state (shared with the twin/resync routes)
-from stewie.server.state import twin as _twin          # noqa: E402
 
 
 # ---- POST: the planner API (auth-gated when $STEWIE_API_KEY is set) -----------------------------
