@@ -475,7 +475,7 @@ solar power scheduling.
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
-| PO-01 | P0 | `stewie-serve` (alias `dustgym-serve`, deprecated) works after a fresh wheel install with one documented product extra. | P | P | N | N |
+| PO-01 | P0 | `stewie-serve` (alias `stewie-serve`, deprecated) works after a fresh wheel install with one documented product extra. | P | P | N | N |
 | PO-02 | P0 | Reports, profiles, caches, and renders use configurable application-data directories and atomic writes. | N | N | N | NA |
 | PO-03 | P0 | CI installs declared dependencies and runs the configured suite across supported Python versions. | P | P | N | NA |
 | PO-04 | P0 | CI separately gates Python core, scripts, Godot, browser, package smoke, and hardware-gated tiers. | P | N | P | NA |

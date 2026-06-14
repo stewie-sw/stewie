@@ -17,7 +17,7 @@ import numpy as np
 from stewie.specs.profiles import SystemProfile, load_profile, validate_sensor_frame
 from dart.geometry import fov
 
-_DEFAULT_PROFILE = load_profile("DUSTGYM_IPEX_V1")
+_DEFAULT_PROFILE = load_profile("STEWIE_IPEX_V1")
 IPEX_LAYOUT = [
     (c["name"], c["yaw_offset_deg"], c["role"], tuple(c["position_m"]))
     for c in _DEFAULT_PROFILE.cameras["entries"]
@@ -111,9 +111,9 @@ class CameraRig:
         validate_profile: bool = True,
     ):
         """Build from runtime extrinsics after checking they belong to the selected profile."""
-        from stewie.bridge import dustgym_io
+        from stewie.bridge import sensor_io
         selected = profile if isinstance(profile, SystemProfile) else load_profile(profile)
-        frame = dustgym_io.read_sensors(sensors_json_path)
+        frame = sensor_io.read_sensors(sensors_json_path)
         if validate_profile:
             validate_sensor_frame(selected, frame)
         layout = {

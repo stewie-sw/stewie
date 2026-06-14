@@ -44,7 +44,7 @@ Screenshots: `validation/ui_audit_2026-06-09/`. Audited against the STEWIE goals
 ### P2 — polish / coherence
 | # | Finding | Recommendation |
 |---|---|---|
-| P2-1 | **Stale branding**: header "LUNAR BUILD PLANNER" (Mars exists in Body picker!), Swagger title "dustgym planet browser", docs iframe dustgym-branded | Rename surface strings to **STEWIE** ("IPEx builds the Moon. STEWIE plans the build" as the header tagline); FastAPI `title=`; keep `dustgym` only as the physics-package name |
+| P2-1 | **Stale branding**: header "LUNAR BUILD PLANNER" (Mars exists in Body picker!), Swagger title "stewie planet browser", docs iframe stewie-branded | Rename surface strings to **STEWIE** ("IPEx builds the Moon. STEWIE plans the build" as the header tagline); FastAPI `title=`; keep `stewie` only as the physics-package name |
 | P2-2 | Raw float coordinates in the queue ("(-7.063048203434806,0)") | format to 0.1 m: "(-7.1, 0.0)" |
 | P2-3 | Tabs are flat + persona-less; Validation/API/Server/Config are engineer-only noise for operators | group tabs by persona: OPERATE (Plan·Metrics·Report) / PERCEIVE (Perception) / ENGINEER (Validation·API·Server·Config, collapsed behind one "Eng" tab); ties into P0-2 modes |
 | P2-4 | Metrics rectangles unlabeled (which is pad vs berm?), battery bar unlabeled, elapsed "0h 3m / 762h 49m" unexplained | order labels on shapes, axis/legend, "elapsed / estimated total" caption |

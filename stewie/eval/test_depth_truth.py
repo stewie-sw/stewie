@@ -33,7 +33,7 @@ def _pair_residuals(pose_dir, pair_key, l, r, zlo, zhi):
     cam = {**cam_r[l], "pose_in_world": cam_t[l]["pose_in_world"]}
     L = np.asarray(imread(os.path.join(pose_dir, cam_r[l]["image"])))
     R = np.asarray(imread(os.path.join(pose_dir, cam_r[r]["image"])))
-    cal = sd.StereoCalibration(calibration_id="DUSTGYM_GODOT_CAMERA_RIG_V1", reference_camera=l,
+    cal = sd.StereoCalibration(calibration_id="STEWIE_GODOT_CAMERA_RIG_V1", reference_camera=l,
                                match_camera=r, fx_px=cam["intrinsics"]["fx"],
                                baseline_m=run[pair_key]["baseline_m"], disparity_sigma_px=1.0,
                                covariance_calibrated=False, development_evidence=("g2cal",))

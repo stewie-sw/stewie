@@ -43,7 +43,7 @@ def test_depth_frame_keeps_fixed_reference_and_propagates_sigma():
     L = np.asarray(imread(PAIR + "/front_left.png"))
     R = np.asarray(imread(PAIR + "/front_right.png"))
     calibration = stereo_depth.StereoCalibration(
-        calibration_id="DUSTGYM_GODOT_CAMERA_RIG_V1",
+        calibration_id="STEWIE_GODOT_CAMERA_RIG_V1",
         reference_camera="front_left",
         match_camera="front_right",
         fx_px=679.570327764933,

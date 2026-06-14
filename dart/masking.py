@@ -6,7 +6,7 @@ useful, while sky, lander, fiducial, and shadow features must be removed (they a
 either non-static, off-board, or not real surface). When semantic masks are
 unavailable (evaluation mode), a self-supervised intensity-threshold shadow
 detector provides a usable shadow mask. Real array/CV operations, no fabricated
-data; tests run on a known mask fixture and a real dustgym render.
+data; tests run on a known mask fixture and a real stewie render.
 """
 # PROVENANCE: STEWIE DART subsystem (A. Storey)
 from __future__ import annotations

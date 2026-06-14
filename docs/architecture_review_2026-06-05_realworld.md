@@ -49,7 +49,7 @@ constant input → plan → verify → execute → reassess loop, and how do we 
 - **`slip_sinkage_equilibrium` reports non-monotone `sinkage_m`** across the two entrapment branches
   (`slip.py:121-128`): a steeper entrapped slope can report shallower sinkage (the `entrapped` flag + slip
   are correct; only the sinkage telemetry is an artifact).
-- **`Dust/WorkSite-v0` default is synthetic terrain.** `registration.py:94` registers it with `{}` →
+- **`Stewie/WorkSite-v0` default is synthetic terrain.** `registration.py:94` registers it with `{}` →
   `worksite_env.py:34` `_bumpy_base = rng.random()*roughness`; the real-Haworth path works but needs
   `bundle_dir=` (only the demo scripts pass it). A legitimate procedural generator, but the out-of-the-box
   gym env is toy terrain, not real LOLA.

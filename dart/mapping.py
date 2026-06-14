@@ -50,7 +50,7 @@ class MappingConfig:
     ``fx_px``/``fy_px``/``cx_px``/``cy_px`` are the pinhole intrinsics, ``baseline_m`` the stereo
     baseline (m). ``cell_m`` is the world grid posting (m); ``grid_rows``/``grid_cols`` its size, with
     cell (row, col) centred at Godot world (x = col*cell, z = row*cell) and elevation = world Y --
-    the convention the dustgym heightmap.rf32 is stored in. ``camera_height_m`` is the camera mount
+    the convention the stewie heightmap.rf32 is stored in. ``camera_height_m`` is the camera mount
     height above the ground datum; ``look_down_ratio`` the rig look-at drop per metre forward (the
     a6 rig drops 0.4 m over 1 m -> ~21.8 deg downtilt). ``max_range_m`` range-gates triangulated
     points (far-range stereo error grows as range^2). All scales must be finite and positive.

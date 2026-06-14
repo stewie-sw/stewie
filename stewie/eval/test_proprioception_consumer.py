@@ -1,4 +1,4 @@
-"""A5 consumer: parse + validate the dustgym runtime proprioception packet (round trip + firewalls)."""
+"""A5 consumer: parse + validate the stewie runtime proprioception packet (round trip + firewalls)."""
 import os
 import sys
 
@@ -6,7 +6,7 @@ import pytest
 
 from stewie.bridge import proprioception_io as pio
 
-_DUST = os.environ.get("DUSTGYM_ROOT", "/mnt/projects/stewie/code")
+_DUST = os.environ.get("STEWIE_ROOT", "/mnt/projects/stewie/code")
 
 
 def _packet():
@@ -18,7 +18,7 @@ def _packet():
     return pp.runtime_proprioception_packet(imu, wheel, sequence_id=7, imu_rate_hz=100, wheel_rate_hz=10)
 
 
-@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="stewie not available")
 def test_round_trip_producer_to_consumer():
     parsed = pio.parse_proprioception(_packet())
     assert parsed["sequence_id"] == 7 and parsed["clock"] == "sim_monotonic"
@@ -30,7 +30,7 @@ def test_round_trip_producer_to_consumer():
     assert "slip" not in vars(w)                               # no truth on the raw sample (I3)
 
 
-@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="stewie not available")
 def test_consumer_derives_odometry_from_raw_four_wheel():
     from stewie.sensors.imu_wheel import body_odometry_from_encoders
     w = pio.parse_proprioception(_packet())["wheel"][0]
@@ -210,7 +210,7 @@ def test_rejects_unknown_joint_field():
         pio.parse_proprioception(pkt)
 
 
-@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="stewie not available")
 def test_round_trip_with_measured_joints():
     sys.path.insert(0, _DUST)
     from stewie.twin import proprioception as pp
@@ -238,7 +238,7 @@ def test_rejects_stale_channel_against_clock():
         pio.parse_proprioception(pkt, now_s=100.0, max_age_s=1.0)   # consumer clock far ahead -> reject
 
 
-@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="stewie not available")
 def test_round_trip_with_power_telemetry():
     sys.path.insert(0, _DUST)
     from stewie.specs import ipex_specs as sp

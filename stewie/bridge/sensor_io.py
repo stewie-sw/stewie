@@ -1,4 +1,4 @@
-"""Strict Dustgym runtime/evaluation packet bridge.
+"""Strict Stewie runtime/evaluation packet bridge.
 
 The estimator reads ``runtime_sensors.json`` only. World truth is physically
 separate in ``evaluation_truth.json`` and cannot appear in ``SensorFrame.raw``.
@@ -129,7 +129,7 @@ def _validate_image(path: str, width: int, height: int) -> None:
 
 
 def read_sensors(sensors_json_path: str, *, validate_images: bool = True) -> SensorFrame:
-    """Read and validate a canonical truth-free Dustgym runtime packet."""
+    """Read and validate a canonical truth-free Stewie runtime packet."""
 
     data = _read_json(sensors_json_path)
     if data.get("schema_version") != RUNTIME_SCHEMA:
@@ -325,7 +325,7 @@ def _atomic_json_write(path: str, data: Mapping[str, Any]) -> str:
 
 
 def write_cmd_vel(out_dir: str, v_ms: float, omega_rads: float, frame_index: int) -> str:
-    """Atomically write a Dustgym velocity command; angular velocity uses Dustgym's CW sign."""
+    """Atomically write a Stewie velocity command; angular velocity uses Stewie's CW sign."""
 
     return _atomic_json_write(
         os.path.join(out_dir, "cmd_vel.json"),

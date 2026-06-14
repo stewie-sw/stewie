@@ -26,7 +26,7 @@ program.
 ## Findings by severity (consolidated)
 
 ### CRITICAL
-- **No test/lint/type CI.** The only workflow (`.github/workflows/publish-dustgym.yml`) builds and publishes
+- **No test/lint/type CI.** The only workflow (`.github/workflows/publish-stewie.yml`) builds and publishes
   to PyPI without ever running `pytest`/`ruff`. A release can ship red. The numpy core + cv2 producer + schema
   validators all run GPU-free on an Ubuntu runner; the Godot/COLMAP/Chrono legs already skip-if-no-artifact.
   → a `ci.yml` running pytest (3.10-3.12 matrix) + ruff + env_checker, with publish gated on green.
@@ -45,7 +45,7 @@ program.
   literals + 43 argparse CLIs. → an env-overridable config layer (host/port/report-dir/DEM-bundle/CALIB knobs).
 - **Dependency pinning is floor-only, no lockfile, no ceilings.** `gymnasium>=0.29` (the most breakage-prone
   dep) has no upper bound; `torch` unpinned. → a committed lockfile + version ceilings + a tested gymnasium range.
-- **Packaging: the planner/server product is not in the wheel.** `packages = ["terrain_authority","dustgym"]`
+- **Packaging: the planner/server product is not in the wheel.** `packages = ["terrain_authority","stewie"]`
   excludes `planet_browser/` (the mission-control product), which is also why there are 51 `sys.path.insert`
   hacks. → add `planet_browser` + a server console entry point, or scope the wheel to the gym suite and say so.
 - **No auth on the server**, `0.0.0.0` bind is a first-class option, and `/render` shells out to Godot twice
@@ -53,7 +53,7 @@ program.
 - **Conservation + invariants are enforced only in tests, never at runtime.** The headline guarantee has zero
   runtime guard (the only non-test `assert`s are stripped under `python -O`). → a `check_invariants()` /
   `conserves_mass()` guard (not bare `assert`), CI-gated.
-- **`Dust/WorkSite-v0` ships synthetic terrain in its registered default.** It is the only registered env
+- **`Stewie/WorkSite-v0` ships synthetic terrain in its registered default.** It is the only registered env
   whose default terrain is `rng.random` bumps (the documented results use a real Haworth bundle `pip install`
   cannot supply). → register it on procgen/real terrain or gate the synthetic path behind a non-default kwarg.
 - **Seam validation is asymmetric** — the consumer of the sensor-bridge seam validates `schema_version` +
@@ -84,7 +84,7 @@ program.
 
 ## Production-readiness roadmap (ordered)
 
-1. **CI gate (P0).** `ci.yml`: ruff + pytest matrix (3.10-3.12) + strict env_checker on all 10 `Dust/*` IDs;
+1. **CI gate (P0).** `ci.yml`: ruff + pytest matrix (3.10-3.12) + strict env_checker on all 10 `Stewie/*` IDs;
    register pytest markers for the gated tiers (`gpu`/`godot`/`colmap`/`chrono`); branch protection; publish
    `needs:` green CI.
 2. **Quality config (P0).** Commit `[tool.ruff]` + `[tool.mypy]` + `[tool.pytest.ini_options]`, `.pre-commit`,

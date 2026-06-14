@@ -20,9 +20,9 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 
 def _haworth_bundle(bundle_dir=None):
     # RB-06 explicit asset mode: the (large, unpackaged) Haworth DEM bundle is located explicitly via
-    # $DUSTGYM_DEM_DIR for a deployment, else the in-repo samples path for dev. Absence degrades to a
+    # $STEWIE_DEM_DIR for a deployment, else the in-repo samples path for dev. Absence degrades to a
     # flat slope-check in the server (_moon_dem), it does not crash the request.
-    return (bundle_dir or os.environ.get("STEWIE_DEM_DIR", os.environ.get("DUSTGYM_DEM_DIR"))
+    return (bundle_dir or os.environ.get("STEWIE_DEM_DIR", os.environ.get("STEWIE_DEM_DIR"))
             or os.path.join(_REPO_ROOT, "samples", "lunar_dem", "haworth_10km_5m"))
 
 
@@ -48,7 +48,7 @@ def load_haworth_dem(bundle_dir=None):
     if not os.path.exists(os.path.join(bundle, "heightmap.rf32")):
         raise FileNotFoundError(
             f"Haworth DEM not found at {bundle}. It is NOT bundled in the wheel -- fetch it "
-            "(PGDA Product 78): run `dustgym-fetch-dem --source <mirror>` or set DUSTGYM_DEM_URL "
+            "(PGDA Product 78): run `stewie-fetch-dem --source <mirror>` or set STEWIE_DEM_URL "
             "(see planet_browser/assets_manifest.json).")
     g = json.load(open(os.path.join(bundle, "metadata.json")))["grid"]
     Z = np.fromfile(os.path.join(bundle, "heightmap.rf32"), dtype="<f4").reshape(g["height"], g["width"])

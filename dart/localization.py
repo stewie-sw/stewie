@@ -1,7 +1,7 @@
 """Map-relative localization — register an observed local elevation patch onto the PRIOR DEM (the SLAM
 "overlay" / Gao Xiang *SLAM in Autonomous Driving* Ch10 fusion-positioning). docs/slam_pipeline_analysis.md.
 
-dustgym already HAS the prior map (the LOLA DEM), so the rover localizes by matching what it senses to the
+stewie already HAS the prior map (the LOLA DEM), so the rover localizes by matching what it senses to the
 stored map -- not by building a map from scratch. This is the heightfield analog of ICP/NDT scan-to-map
 registration: an integer-cell shift search that minimizes the MEAN-REMOVED SSD between the observed patch and
 the DEM (mean-removed so an absolute datum/height offset doesn't bias it -- only terrain SHAPE matters).

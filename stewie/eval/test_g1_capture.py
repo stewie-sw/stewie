@@ -9,22 +9,22 @@ import pytest
 ROOT = os.path.dirname(__file__)                                  # dissertation/ (M2)
 MANIFEST = os.path.join(ROOT, "validation", "scene_manifest.json")
 G1CAP = os.path.join(ROOT, "validation", "g1_capture.py")
-_DUST = os.environ.get("DUSTGYM_ROOT", "/mnt/projects/stewie/code")
+_DUST = os.environ.get("STEWIE_ROOT", "/mnt/projects/stewie/code")
 _DEM = os.path.join(_DUST, "samples", "lunar_dem", "haworth_10km_5m", "heightmap.rf32")
 
 
 def test_g1a3_capture_has_no_hardcoded_machine_paths():
     src = open(G1CAP).read()
-    assert "/mnt/projects" not in src       # portable: dustgym/DEM/output resolved via CLI/env
+    assert "/mnt/projects" not in src       # portable: stewie/DEM/output resolved via CLI/env
 
 
-@pytest.mark.skipif(not os.path.exists(_DEM), reason="dustgym DEM not available")
+@pytest.mark.skipif(not os.path.exists(_DEM), reason="stewie DEM not available")
 def test_g1a3_capture_portable_and_reproducible(tmp_path):
     import subprocess
     import sys
 
     def run(out):
-        subprocess.run([sys.executable, G1CAP, "--dustgym-root", _DUST, "--dem", _DEM,
+        subprocess.run([sys.executable, G1CAP, "--stewie-root", _DUST, "--dem", _DEM,
                         "--output", str(out), "--seed", "0"], cwd=ROOT, check=True,
                        env={**os.environ, "PYTHONPATH": os.path.dirname(os.path.dirname(ROOT))})   # monorepo root
     a, b = tmp_path / "a", tmp_path / "b"
@@ -35,7 +35,7 @@ def test_g1a3_capture_portable_and_reproducible(tmp_path):
     for f in ("imu.csv", "wheel_odom.csv", "truth.csv"):
         assert h(a / f) == h(b / f)          # reproducible across separate output dirs
     prov = json.load(open(a / "g1_capture_result.json"))["reproducibility"]
-    for k in ("dustgym_commit", "solnav_commit", "param_sha256", "dem_sha256", "seed", "python", "numpy"):
+    for k in ("stewie_commit", "solnav_commit", "param_sha256", "dem_sha256", "seed", "python", "numpy"):
         assert k in prov
 
 

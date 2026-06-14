@@ -3,7 +3,7 @@
 Each Rock contributes a NAVIGATION cost by its operational nav class -- A/B are traversable (enter the
 regolith model, ~free), C is a soft penalty (prefer to route around), D/E are hard keep-outs the route
 must bend around. This is the rock term of the planner's cost (terrain/slope cost already lives in the
-dustgym route_leg; energy in the planner). Localization value (loc class) is a routing BONUS, not a cost:
+stewie route_leg; energy in the planner). Localization value (loc class) is a routing BONUS, not a cost:
 a persistent landmark (L2) kept in view lowers localization uncertainty.
 
 The keep-outs this emits feed mission_planner.route_leg directly, so a boulder the playthrough classifies

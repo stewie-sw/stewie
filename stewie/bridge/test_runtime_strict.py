@@ -10,7 +10,7 @@ from stewie.bridge import runtime_io as rio
 
 
 def _minimal():
-    return {"schema_version": "dustgym_runtime/1.0",
+    return {"schema_version": "stewie_runtime/1.0",
             "clock": "sim_monotonic",
             "sequence_id": 7,
             "channels": {"camera": {"status": "UNAVAILABLE"},

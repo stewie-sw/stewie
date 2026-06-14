@@ -8,9 +8,9 @@ nav_order: 4
 The systematic review that grounds `terrain_authority/bodies.py` is maintained
 in the canonical research workspace:
 
-`/mnt/projects/stewie/research/reviews/dustgym/per-planet-terramechanics/review.md`
+`/mnt/projects/stewie/research/reviews/stewie/per-planet-terramechanics/review.md`
 
-(The `reviews/dustgym/` directory name is historical.) This runtime repository
+(The `reviews/stewie/` directory name is historical.) This runtime repository
 retains the implementation, tests, and concise citations in code. Update the
 canonical review first when changing the evidence base, then update the
 implementation and record the STEWIE revision used.

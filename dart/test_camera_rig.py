@@ -39,7 +39,7 @@ def test_parallel_bearings_raise():
 
 
 def test_f0_optical_axes_in_body_rep103():
-    # The profile reproduces captured Dustgym metadata. Its side-camera *names* are opposite their
+    # The profile reproduces captured Stewie metadata. Its side-camera *names* are opposite their
     # REP-103 lateral directions: left_mono -> -Y and right_mono -> +Y. Runtime geometry wins.
     d = cr.CameraRig()
     assert np.allclose(d.get("front_left").optical_axis(), [1, 0, 0], atol=1e-9)

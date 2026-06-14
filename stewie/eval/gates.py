@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 from imageio.v3 import imread
 
-from stewie.bridge import dustgym_io
+from stewie.bridge import sensor_io
 from stewie.specs.profiles import load_profile, validate_sensor_frame
 from dart.geometry import shadow_metric
 from dart import shadow_extract, stereo_depth
@@ -62,9 +62,9 @@ def _controlled_p5_height(path: Path, sun_elevation_deg: float) -> float:
 def validate() -> dict:
     manifest = _verify_manifest()
     frame_dir = FIXTURE / "frame"
-    frame = dustgym_io.read_sensors(str(frame_dir / "runtime_sensors.json"))
-    truth = dustgym_io.read_evaluation_truth(str(frame_dir / "evaluation_truth.json"))
-    profile = load_profile("dustgym", require_verified=True)
+    frame = sensor_io.read_sensors(str(frame_dir / "runtime_sensors.json"))
+    truth = sensor_io.read_evaluation_truth(str(frame_dir / "evaluation_truth.json"))
+    profile = load_profile("stewie", require_verified=True)
     validate_sensor_frame(profile, frame)
 
     forbidden = {"rover", "lander", "camera_poses_in_world"}
@@ -92,7 +92,7 @@ def validate() -> dict:
         baseline_m=frame.stereo_baseline_m,
         disparity_sigma_px=1.0,
         covariance_calibrated=False,
-        development_evidence=("dustgym_crater_boulders_frame_000",),
+        development_evidence=("stewie_crater_boulders_frame_000",),
     )
     depth = stereo_depth.compute_depth_frame(left, right, calibration)
 
@@ -111,7 +111,7 @@ def validate() -> dict:
         base = cap["baseline_wheel_imu_dead_reckoning"]
         g1_status = "SIM_BASELINE_LOCKED_REALWORLD_BLOCKED"
         g1_simulated_closure = {
-            "channels_via": "validation/g1_capture.py (grounded IMU/wheel model on real Haworth DEM + real dustgym slip)",
+            "channels_via": "validation/g1_capture.py (grounded IMU/wheel model on real Haworth DEM + real stewie slip)",
             "imu_rate_hz": cap["imu_rate_hz"],
             "wheel_rate_hz": cap["wheel_rate_hz"],
             "stereo": "NOT_INCLUDED",
@@ -119,7 +119,7 @@ def validate() -> dict:
             "baseline_wheel_imu_ate_aligned_m": base["ate_aligned_m"],
         }
         g1_blockers = [
-            "Native dustgym camera-egress publication of IMU/wheel/joint channels is still pending "
+            "Native stewie camera-egress publication of IMU/wheel/joint channels is still pending "
             "(solnav g1_capture.py supplies them for the SIMULATED case).",
             "No REAL-WORLD locked capture (Katwijk download network-blocked here); G1 release stays "
             "blocked until a real run is scored vs DGPS (see katwijk_io.py + g1_imu_wheel_data_sources.md).",
@@ -128,7 +128,7 @@ def validate() -> dict:
         ]
     else:
         g1_blockers = [
-            "Dustgym camera egress explicitly reports IMU/wheel/joint/power channels UNAVAILABLE; "
+            "Stewie camera egress explicitly reports IMU/wheel/joint/power channels UNAVAILABLE; "
             "the passive wheel/IMU/stereo baseline required by G1 is not reproducible yet.",
             "No locked validation capture has been acquired; the manifest is frozen but empty.",
         ]
@@ -265,7 +265,7 @@ def validate_current() -> dict:
     # blocker 2: strict parser -- live rejection probes, not a test-suite citation
     from stewie.bridge.runtime_io import parse_canonical as _pc
     def _rejects(mutate) -> bool:
-        pkt = {"schema_version": "dustgym_runtime/1.0", "clock": "sim_monotonic",
+        pkt = {"schema_version": "stewie_runtime/1.0", "clock": "sim_monotonic",
                "sequence_id": 1, "channels": {"camera": {"status": "UNAVAILABLE"},
                                               "imu": {"status": "UNAVAILABLE"},
                                               "wheel": {"status": "UNAVAILABLE"},

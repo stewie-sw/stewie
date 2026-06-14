@@ -1,4 +1,4 @@
-"""Tests for the Dust/* Gymnasium suite registration + per-body physics.
+"""Tests for the Stewie/* Gymnasium suite registration + per-body physics.
 
 Verifies every registered ID is gym.make-able with no args, round-trips reset/step under the
 gym.make wrappers (OrderEnforcing / PassiveEnvChecker / TimeLimit), passes the official env_checker,
@@ -11,7 +11,7 @@ import pytest
 
 gym = pytest.importorskip("gymnasium")
 
-import dustgym  # noqa: E402,F401  -- importing the suite registers Dust/* on import
+import stewie  # noqa: E402,F401  -- importing the suite registers Stewie/* on import
 from stewie.specs.bodies import BODIES  # noqa: E402
 from stewie.envs.registration import ENV_IDS  # noqa: E402
 
@@ -40,16 +40,16 @@ def test_check_env(env_id):
 
 def test_override_kwargs():
     # any constructor arg can still be overridden through gym.make
-    env = gym.make("Dust/Scheduler-v0", max_legs=25)
+    env = gym.make("Stewie/Scheduler-v0", max_legs=25)
     assert env.unwrapped.max_legs == 25
     env.close()
 
 
 def test_per_body_gravity_differs():
     # the per-body drive env carries the body's surface gravity into the physics
-    moon = gym.make("Dust/RoverDrive-Moon-v0").unwrapped
-    mars = gym.make("Dust/RoverDrive-Mars-v0").unwrapped
-    earth = gym.make("Dust/RoverDrive-Earth-v0").unwrapped
+    moon = gym.make("Stewie/RoverDrive-Moon-v0").unwrapped
+    mars = gym.make("Stewie/RoverDrive-Mars-v0").unwrapped
+    earth = gym.make("Stewie/RoverDrive-Earth-v0").unwrapped
     assert moon.g == BODIES["moon"].g < mars.g == BODIES["mars"].g < earth.g == BODIES["earth"].g
     # and the regolith params are gravity-corrected (Earth = identity baseline; Moon = reduced)
     assert moon.params_base.k_phi < earth.params_base.k_phi
@@ -57,20 +57,14 @@ def test_per_body_gravity_differs():
 
 def test_body_kwarg_any_body():
     # any body in the registry is reachable through the body= kwarg (even unregistered IDs)
-    env = gym.make("Dust/RoverDrive-v0", body="ceres").unwrapped
+    env = gym.make("Stewie/RoverDrive-v0", body="ceres").unwrapped
     assert env.g == BODIES["ceres"].g
     env.close()
 
 
-@pytest.mark.parametrize("env_id", ENV_IDS)
-def test_canonical_stewie_namespace_registered_and_makeable(env_id):
-    """The canonical namespace is Stewie/* (rename 2026-06-10); every legacy Dust/* ID has a Stewie/*
-    twin that is registered AND gym.make-able with no args. Locks the canonical claim documented in
-    README.md + docs/index.md so the aliasing in registration.py cannot silently regress."""
+def test_no_legacy_dust_namespace():
+    """The legacy Dust/* namespace was fully removed in the 2026-06-14 dustgym purge; only the
+    canonical Stewie/* IDs exist. Guards against a regression that re-introduces the alias."""
     from gymnasium.envs.registration import registry
-    stewie_id = env_id.replace("Dust/", "Stewie/")
-    assert stewie_id.startswith("Stewie/")
-    assert stewie_id in registry, f"{stewie_id} (canonical) not registered"
-    env = gym.make(stewie_id)                          # canonical ID constructs with no args
-    env.reset(seed=0)
-    env.close()
+    assert not [e for e in registry if e.startswith("Dust/")], "legacy Dust/* IDs still registered"
+    assert all(eid.startswith("Stewie/") for eid in ENV_IDS)

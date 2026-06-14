@@ -1,5 +1,5 @@
 {
-  "schema_version": "dustgym_runtime/1.0",
+  "schema_version": "stewie_runtime/1.0",
   "clock": "sim_monotonic",
   "sequence_id": 0,
   "channels": {

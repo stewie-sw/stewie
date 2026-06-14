@@ -64,8 +64,8 @@ config overlay), `profiles.py`/`system_profile.py` (sensor-profile validation).
 **`stewie/envs`** — the RL suite. `rover_env.py` (`RoverSimEnv`, drive-to-goal over the
 slip-aware authority), `active_perception_env.py` (next-best-view mapping: information gained
 per joule), `cem.py` (pure-numpy cross-entropy-method trainer, no RL library),
-`registration.py` (registers the envs with Gymnasium under the `Dust/` namespace — e.g.
-`gym.make("Dust/RoverDrive-Moon-v0")`; idempotent, no-op without gymnasium). Importing `stewie`
+`registration.py` (registers the envs with Gymnasium under the `Stewie/` namespace — e.g.
+`gym.make("Stewie/RoverDrive-Moon-v0")`; idempotent, no-op without gymnasium). Importing `stewie`
 triggers registration.
 
 **`stewie/server`** — the HTTP layer (section 2). `server.py` (the FastAPI app), `auth.py`
@@ -88,7 +88,7 @@ produce/estimate/evaluate), `g1_pipeline.py` (isolated evidence pipeline),
 `depth_truth.py` (independent ray-cast per-pixel depth truth), and the dated artifacts under
 `stewie/eval/validation/`.
 
-**`stewie/bridge`** — the contracts between producer, estimator, and operator. `dustgym_io.py`
+**`stewie/bridge`** — the contracts between producer, estimator, and operator. `sensor_io.py`
 (strict runtime/evaluation packet bridge: truth physically separate from `runtime_sensors.json`),
 `runtime_io.py` (`parse_canonical`, the strict single-clock packet consumer + truth firewall),
 `proprioception_io.py` (schema `proprioception/1.x` parsing/validation), `frames.py` (THE sim ↔
@@ -137,8 +137,8 @@ Nova-C documented body 1.57 m × ~4.0 m, footprint ~4.6 m approximate).
 
 ## 2. The HTTP API (`stewie/server/server.py`)
 
-FastAPI/uvicorn app, default bind `127.0.0.1:8770` (`stewie-serve`; deprecated alias
-`dustgym-serve`). The Docker deployment exposes the UI on host `:8000` via nginx →
+FastAPI/uvicorn app, default bind `127.0.0.1:8770` (`stewie-serve`). The Docker deployment exposes
+the UI on host `:8000` via nginx →
 `backend:8770` (`deploy/compose.yml`). Error envelope is `{ok: false, error: ...}` everywhere
 (validation errors are returned as 400, not FastAPI's 422); two catch-all routes keep unknown
 GET/POST paths in the same envelope at 404. POST/PUT/PATCH bodies are capped at 4 MiB
@@ -146,7 +146,7 @@ GET/POST paths in the same envelope at 404. POST/PUT/PATCH bodies are capped at 
 `/metrics` counters key on matched route templates (bounded, not attacker-controlled paths).
 
 **Auth column**: `key` = `Depends(require_auth)` (section 6) — enforced only when
-`STEWIE_API_KEY`/`DUSTGYM_API_KEY` is set, otherwise the identity is `"dev-open"`. `open` = no
+`STEWIE_API_KEY`/`STEWIE_API_KEY` is set, otherwise the identity is `"dev-open"`. `open` = no
 dependency. 52 functional endpoints (counting `GET /` + `GET /index.html` as one) + 2 catch-alls.
 
 ### Planning
@@ -283,7 +283,7 @@ the serialization point. The ROS bridge (B1) attaches later through this same se
 | Role | Verbs | Notes |
 |---|---|---|
 | `drive` | `twist`, `pose`, `checkpoint`, `restore`, `set_thermal` | the ONLY role allowed the mutating verbs (`_MUTATING = {twist, checkpoint, restore, set_thermal}`) |
-| `produce` | `pose`, `packet` | `packet` emits the STRICT canonical runtime packet (`dustgym_runtime/1.0`, single `sim_monotonic` clock), accepted by `stewie.bridge.runtime_io.parse_canonical` |
+| `produce` | `pose`, `packet` | `packet` emits the STRICT canonical runtime packet (`stewie_runtime/1.0`, single `sim_monotonic` clock), accepted by `stewie.bridge.runtime_io.parse_canonical` |
 | `estimate` / `evaluate` | `pose` only here | their file work stays in `stewie.eval.roles` (permission-isolated produce → estimate → evaluate) |
 
 **What `twist` does**: steps the slip-aware drive loop (`physics.drive.drive_step`), advances
@@ -363,7 +363,7 @@ in the event history (#39):
 
 | # | Path | Mechanism | Identity |
 |---|---|---|---|
-| 0 | no key configured | `STEWIE_API_KEY`/`DUSTGYM_API_KEY` unset → auth disabled | `"dev-open"` |
+| 0 | no key configured | `STEWIE_API_KEY`/`STEWIE_API_KEY` unset → auth disabled | `"dev-open"` |
 | 1 | Tailscale | `STEWIE_TRUST_TAILSCALE=1` (deployment behind `tailscale serve`, which injects `Tailscale-User-Login`) AND the login is whitelisted | the Tailscale login |
 | 2 | operator token | `POST /auth/login` (email + API key) → HMAC-SHA256 token signed with the API key, 12 h TTL (`TOKEN_TTL_S = 12*3600`), sent as `Authorization: Bearer <token>`; payload carries `op` + `exp`; verification is constant-time, expiry-checked, and re-checks the whitelist | the operator email |
 | 3 | raw API key | `X-API-Key` (or Bearer) equal to the configured key, compared with `hmac.compare_digest` (no timing oracle) | `"api-key"` (the automation identity for CI/scripts) |
@@ -374,7 +374,7 @@ in the event history (#39):
 - **Operator-login kill switch**: `STEWIE_OPERATOR_LOGIN=0` disables the email/token flow
   entirely (`POST /auth/login` → 403; key-only deployments). `GET /auth/config` exposes the flag
   to the UI.
-- Env knobs accept `STEWIE_<NAME>` with a `DUSTGYM_<NAME>` fallback (rename 2026-06-10; legacy
+- Env knobs accept `STEWIE_<NAME>` with a `STEWIE_<NAME>` fallback (rename 2026-06-10; legacy
   accepted one cycle).
 - `GET /session/{sid}/operator` is deliberately open (B3 contract: the trainee sees only
   telemetry-delivered, truth-denylisted data); read-only GETs are deliberately open by design
@@ -384,14 +384,14 @@ in the event history (#39):
 
 ## Appendix: naming legacies (verified 2026-06-10)
 
-The 2026-06-09/10 dustgym → STEWIE restructure left a few legacy strings in docstrings and
+The 2026-06-09/10 stewie → STEWIE restructure left a few legacy strings in docstrings and
 metadata. Recorded here so readers are not misled; the code behavior is as documented above.
 
 | Location | Legacy | Actual |
 |---|---|---|
-| `server.py` module docstring | `python -m planet_browser.server` | the module is `stewie.server.server`; entry points `stewie-serve` / `dustgym-serve` (deprecated alias) |
-| `server.py::_version()` | `importlib.metadata.version("dustgym")` | the distribution is named `stewie` → the lookup falls back to `"0.1.0"` |
+| `server.py` module docstring | `python -m planet_browser.server` | the module is `stewie.server.server`; the entry point is `stewie-serve` |
+| `server.py::_version()` | `importlib.metadata.version("stewie")` | the distribution is named `stewie` → the lookup falls back to `"0.1.0"` |
 | `server.py::_sample_missions` docstring | `planet_browser/sample_missions/` | `stewie/server/sample_missions/` |
-| `pyproject.toml` script `dustgym-fetch-dem` | target `planet_browser.fetch_assets:main` | no `planet_browser` package exists in this tree; the module is `stewie/server/fetch_assets.py` (entry point currently broken) |
-| `stewie/__init__.py` docstring | "registers the Stewie/* Gymnasium envs" | `registration.py` registers the `Dust/*` namespace |
-| `stewie/twin/world_model.py`, `stewie/envs/registration.py`, bridge modules | `terrain_authority.*` / "dustgym package" phrasing | the packages are `stewie.*`; the on-wire schema id `dustgym_runtime/1.0` is intentional and unchanged |
+| `pyproject.toml` script `stewie-fetch-dem` | target `planet_browser.fetch_assets:main` | no `planet_browser` package exists in this tree; the module is `stewie/server/fetch_assets.py` (entry point currently broken) |
+| `stewie/__init__.py` docstring | "registers the Stewie/* Gymnasium envs" | `registration.py` registers the `Stewie/*` namespace |
+| `stewie/twin/world_model.py`, `stewie/envs/registration.py`, bridge modules | `terrain_authority.*` / "stewie package" phrasing | the packages are `stewie.*`; the on-wire schema id `stewie_runtime/1.0` is intentional and unchanged |

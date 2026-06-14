@@ -122,14 +122,14 @@ per leg (and on charger docking) bounds the dead-reckoning drift, and a dig-read
 digging when the pose estimate is uncertain; `/plan` now returns the bounded pose sigma + map fixes.
 
 Package surface: the conserved physics-side layers ship in the installed **stewie** package
-(pip-historical name `dustgym`); one import,
+(pip-historical name `stewie`); one import,
 `from terrain_authority import world_model`, ties them together (`describe()` -> the five-layer map;
 `geometry`/`material_layer`/`earthwork` accessors). `mission_planner` now resolves `terrain_authority` +
 `samples` from either the standalone `roversim/` sibling or the monorepo root, so the app runs from the
 installed package in both trees.
 
 The active-perception REWARD is now an env: **`Stewie/ActivePerception-v0`** (legacy alias
-`Dust/ActivePerception-v0`; `active_perception_env.py`) is
+`Stewie/ActivePerception-v0`; `active_perception_env.py`) is
 next-best-view mapping where the agent drives to reduce per-cell uncertainty per joule -- the map channel /
 Uncertainty layer as the RL reward, grounded in the measured stereo sigma (range-dependent, Z^2 falloff)
 and the ipex drive energy, over real authority fbm terrain. Greedy and a 5-step beam both map to

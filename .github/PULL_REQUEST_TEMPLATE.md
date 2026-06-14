@@ -1,4 +1,4 @@
-<!-- Thanks for contributing to dustgym. Please confirm the checklist below. -->
+<!-- Thanks for contributing to stewie. Please confirm the checklist below. -->
 
 ## What & why
 

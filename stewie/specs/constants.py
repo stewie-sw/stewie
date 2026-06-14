@@ -577,8 +577,8 @@ REGOLITH_THICKNESS_MIN_M = 10.0
 REGOLITH_THICKNESS_MAX_M = 15.0
 
 # ---------------------------------------------------------------------------
-# Externalized config overlay (PRD N15 / area O). Apply DUSTGYM_<NAME> env vars and the
-# DUSTGYM_CONFIG TOML file to the module-level primitives above, THEN recompute the derived
+# Externalized config overlay (PRD N15 / area O). Apply STEWIE_<NAME> env vars and the
+# STEWIE_CONFIG TOML file to the module-level primitives above, THEN recompute the derived
 # constants from the (possibly overridden) primitives. With no overrides this is a no-op and
 # every value is byte-identical to the literals above. See config.py + CONFIG.md.
 # ---------------------------------------------------------------------------
@@ -586,7 +586,7 @@ from stewie.specs import config as _config  # noqa: E402  (overlay must follow t
 
 _applied = _config.apply(globals())
 # derived values recompute from their primitives -- UNLESS the derived name itself was explicitly
-# overridden (audit M03: a direct DUSTGYM_RHO_SPOIL/RHO_GRAIN override was clobbered here while
+# overridden (audit M03: a direct STEWIE_RHO_SPOIL/RHO_GRAIN override was clobbered here while
 # config reported it applied)
 if "RHO_GRAIN" not in _applied:
     RHO_GRAIN = G_s * RHO_WATER    # derived: solid grain density tracks G_s

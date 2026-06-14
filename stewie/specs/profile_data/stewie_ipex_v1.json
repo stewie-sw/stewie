@@ -1,9 +1,9 @@
 {
   "schema_version": "solnav_system_profile/1.0",
-  "profile_id": "DUSTGYM_IPEX_V1",
+  "profile_id": "STEWIE_IPEX_V1",
   "status": "VERIFIED",
-  "substrate": "dustgym",
-  "source": "Dustgym executable constants and captured sensors.json",
+  "substrate": "stewie",
+  "source": "Stewie executable constants and captured sensors.json",
   "frames": {
     "source": "godot",
     "body": "REP103",

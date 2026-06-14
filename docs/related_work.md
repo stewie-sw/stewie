@@ -115,4 +115,4 @@ What this implies, concretely:
 *Full per-field key-works tables, SWOT, gap analyses, and the local downloaded
 sources are in `/mnt/projects/stewie/research/references/library/`. The
 cross-field positioning above is mirrored, in long form, in
-`/mnt/projects/stewie/research/papers/dustgym/construction_systematic_review/systematic_review.md`.*
+`/mnt/projects/stewie/research/papers/stewie/construction_systematic_review/systematic_review.md`.*

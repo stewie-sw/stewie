@@ -1,4 +1,4 @@
-"""Load and validate complete Dustgym/official system profiles.
+"""Load and validate complete Stewie/official system profiles.
 
 Profiles are the authority for values shared by camera geometry, IPEx specifications,
 runtime compatibility checks, and experiment provenance. Runtime sensor metadata remains
@@ -18,14 +18,14 @@ from typing import Any, Mapping, Optional
 
 import numpy as np
 
-DEFAULT_PROFILE_ID = "DUSTGYM_IPEX_V1"
+DEFAULT_PROFILE_ID = "STEWIE_IPEX_V1"
 PROFILE_ENV = "SOLNAV_PROFILE"
 _ALIASES = {
-    "dustgym": DEFAULT_PROFILE_ID,
+    "stewie": DEFAULT_PROFILE_ID,
     "official": "OFFICIAL_LAC_2025_UNVERIFIED",
 }
 _FILES = {
-    DEFAULT_PROFILE_ID: "dustgym_ipex_v1.json",
+    DEFAULT_PROFILE_ID: "stewie_ipex_v1.json",
     "OFFICIAL_LAC_2025_UNVERIFIED": "official_lac_2025_unverified.json",
 }
 
@@ -200,7 +200,7 @@ def load_profile(identifier: Optional[str] = None, *, require_verified: bool = F
 
 
 def get_profile() -> SystemProfile:
-    """Load the profile selected by ``SOLNAV_PROFILE`` (Dustgym by default)."""
+    """Load the profile selected by ``SOLNAV_PROFILE`` (Stewie by default)."""
     return load_profile()
 
 

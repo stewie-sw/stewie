@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train a LEARNED controller on John McCardle's WorkSite seam (Dust/WorkSite-v0).
+"""Train a LEARNED controller on John McCardle's WorkSite seam (Stewie/WorkSite-v0).
 
 WorkSite (the conserved authority/worksite.py, PR #5) is the streaming execution engine and explicitly leaves
 "the controller as the only stub" -- its .flatten()/.dump() + global drum ledger are shaped for an RL
@@ -17,7 +17,7 @@ Honest finding: with the corrected mechanics (per-cell fill_toward, no-overshoot
 batching heuristic is near-optimal and a model-based beam plan is exact, both solving 100% on John's seam;
 random 53% shows the cut/dump ordering still matters. Model-free PPO does NOT add value here -- under the
 tight budget it has no room for suboptimality, so the heuristic/search dominate (same conclusion as the
-Dust/Scheduler study: model-based search >= model-free). The controller integration is the point: actions
+Stewie/Scheduler study: model-based search >= model-free). The controller integration is the point: actions
 ARE WorkSite verbs, mass is conserved through the drum ledger.
 
 Run with the runtime venv (gymnasium + torch + SB3):
@@ -82,7 +82,7 @@ def main():
           f"through the drum ledger). greedy {gs:.0%} and beam {bs:.0%} solve it; random {rs:.0%} shows the "
           f"cut/dump ORDERING matters.")
     print(f"Model-free PPO {ps:.0%}: under the tight budget there is no slack for its suboptimality, so the "
-          f"heuristic/search dominate (model-based search >= model-free, as on Dust/Scheduler).")
+          f"heuristic/search dominate (model-based search >= model-free, as on Stewie/Scheduler).")
 
 
 def _beam_rate(n=30, seed0=9000):

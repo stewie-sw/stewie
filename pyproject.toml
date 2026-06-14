@@ -11,7 +11,7 @@ license = { file = "LICENSE" }
 requires-python = ">=3.10"
 authors = [
     { name = "John McCardle" },   # terrain_authority terramechanics + WorkSite (CC0 core)
-    { name = "Aaron Storey" },    # dustgym Gymnasium suite, per-planet bodies, RL/scheduling
+    { name = "Aaron Storey" },    # stewie Gymnasium suite, per-planet bodies, RL/scheduling
 ]
 keywords = ["gymnasium", "reinforcement-learning", "planetary", "lunar", "mars", "rover", "terramechanics", "regolith", "isru", "robotics"]
 classifiers = [
@@ -24,13 +24,13 @@ dependencies = [
     "numpy>=1.21,<3",
     "scipy>=1.7,<2",
     "gymnasium>=0.29,<2",
-    "tomli>=1.1.0; python_version < '3.11'",   # DUSTGYM_CONFIG TOML overlay (stdlib tomllib on >=3.11)
+    "tomli>=1.1.0; python_version < '3.11'",   # STEWIE_CONFIG TOML overlay (stdlib tomllib on >=3.11)
 ]
 
 [project.optional-dependencies]
 rl = ["torch<3", "stable-baselines3>=2.0,<3"]          # PPO / model-free baselines
 planner = ["matplotlib", "pyproj"]                     # the mission-planner product: report figures + non-polar DEM reproject
-server = ["fastapi>=0.110,<1", "uvicorn>=0.20,<1", "matplotlib", "pyproj", "imageio>=2.31", "scipy>=1.10", "opencv-python-headless>=4.8"]   # cv2: the no-terminal gate-validation button runs the full eval graph (#32)   # the ASGI planner server (dustgym-serve; PRD N7/N8). MUST carry the planner's import-time deps (mission_planner imports matplotlib at module load; latlon site-pick uses pyproj) so `pip install dustgym[server]` yields a working server (RB-06).
+server = ["fastapi>=0.110,<1", "uvicorn>=0.20,<1", "matplotlib", "pyproj", "imageio>=2.31", "scipy>=1.10", "opencv-python-headless>=4.8"]   # cv2: the no-terminal gate-validation button runs the full eval graph (#32)   # the ASGI planner server (stewie-serve; PRD N7/N8). MUST carry the planner's import-time deps (mission_planner imports matplotlib at module load; latlon site-pick uses pyproj) so `pip install stewie[server]` yields a working server (RB-06).
 render = ["trimesh>=4,<5"]                             # render-asset tooling (scripts/gen_ipex_mesh.py: the CC0 IPEx body)
 # CI installs .[dev]; it MUST cover every import-time dep of the CONFIGURED test suite (testpaths =
 # terrain_authority + planet_browser + scripts), hence trimesh (scripts/) + pyyaml (requirement manifest test).
@@ -39,26 +39,25 @@ dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.6", "mypy>=1.8", "matplotlib", "py
        "opencv-python-headless>=4.8", "imageio>=2.31", "pytest-timeout>=2"]
 
 [project.urls]
-Homepage = "https://github.com/dustgym/dustgym"
-Source = "https://github.com/dustgym/dustgym"
+Homepage = "https://github.com/stewie-sw/stewie"
+Source = "https://github.com/stewie-sw/stewie"
 "Core physics provenance" = "https://github.com/jmccardle/roversim"
 
 # Forward-compatible Gymnasium plugin hook (for versions that auto-load entry points). Current
-# Gymnasium needs `import dustgym` (registers on import) before `gymnasium.make("Dust/...")`.
+# Gymnasium needs `import stewie` (registers on import) before `gymnasium.make("Stewie/...")`.
 [project.entry-points."gymnasium.envs"]
-Dust = "dustgym:register_envs"
+Stewie = "stewie.envs.registration:register_envs"
 
-# The mission-planner product server (PRD N13): `dustgym-serve` -> the planner + mission-control report API.
+# The mission-planner product server (PRD N13): `stewie-serve` -> the planner + mission-control report API.
 [project.scripts]
 stewie-serve = "stewie.server.server:main"
-dustgym-serve = "stewie.server.server:main"   # deprecated alias
 # fetch + checksum-verify the real LOLA Haworth DEM (PGDA Product 78); not bundled in the wheel
-stewie-fetch-dem = "stewie.server.fetch_assets:main"   # was a BROKEN entry point (planet_browser is gone)
+stewie-fetch-dem = "stewie.server.fetch_assets:main"
 
 [tool.setuptools]
 packages = ["stewie", "stewie.physics", "stewie.terrain", "stewie.twin", "stewie.specs",
             "stewie.envs", "stewie.server", "stewie.eval", "stewie.bridge", "stewie.sensors",
-            "dart", "dart.geometry", "lode", "leap", "forge", "dustgym"]
+            "dart", "dart.geometry", "lode", "leap", "forge"]
 
 [tool.setuptools.package-data]
 # ship the planner's web UI + per-body config + the real-DEM ingest fixtures + intern sample missions
@@ -115,7 +114,7 @@ fail_under = 85
 # on a documented RATCHET (ignore_errors below) to be typed incrementally -- shrink that list over time.
 [tool.mypy]
 python_version = "3.10"
-files = ["stewie", "dart", "lode", "leap", "forge", "dustgym"]
+files = ["stewie", "dart", "lode", "leap", "forge"]
 exclude = '(test_.*\.py|tests\.py)$'
 ignore_missing_imports = true          # gymnasium/torch/pyproj/fastapi/matplotlib ship no/partial stubs here
 no_implicit_optional = true

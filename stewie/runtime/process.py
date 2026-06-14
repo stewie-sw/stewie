@@ -154,7 +154,7 @@ class RuntimeProcess:
         channels["power"] = power_channel(idle_draw, soc, t=self.t_sim)
         self._draw_w = 0.0                                   # draw is per-emission instantaneous
         channels["camera"] = self._camera_channel()
-        pkt = {"schema_version": "dustgym_runtime/1.0",
+        pkt = {"schema_version": "stewie_runtime/1.0",
                "clock": "sim_monotonic",
                "sequence_id": self.sequence,
                "channels": channels}

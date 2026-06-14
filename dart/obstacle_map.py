@@ -25,7 +25,7 @@ from dart import rock_detect, stereo_vo
 
 try:                                                    # the size gate is the producer's sourced spec
         from stewie.specs.ipex_specs import OBSTACLE_HEIGHT_M as IPEX_CLEARANCE_M
-except Exception:                                       # noqa: BLE001 -- dustgym absent
+except Exception:                                       # noqa: BLE001 -- stewie absent
     IPEX_CLEARANCE_M = 0.075                             # [SCHULER24] IPEx clears 7.5 cm obstacles
 
 # OPERATIONAL avoid line = 7 cm (0.5 cm margin under the physical 7.5 cm clearance), matching

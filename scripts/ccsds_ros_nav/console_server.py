@@ -267,7 +267,7 @@ class Console:
 from fastapi import FastAPI, Request                                          # noqa: E402
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response  # noqa: E402
 
-app = FastAPI(title="dustgym HITL console")
+app = FastAPI(title="stewie HITL console")
 CONSOLE: "Console | None" = None
 
 

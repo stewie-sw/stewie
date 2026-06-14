@@ -1,12 +1,12 @@
-"""registration.py — register the STEWIE envs as a Gymnasium suite (canonical namespace ``Stewie``; legacy ``Dust/*`` aliases kept).
+"""registration.py — register the STEWIE envs as a Gymnasium suite (canonical namespace ``Stewie``; legacy ``Stewie/*`` aliases kept).
 
-Makes the envs discoverable through ``gymnasium.make("Dust/<Env>-v0")``. Importing the package
+Makes the envs discoverable through ``gymnasium.make("Stewie/<Env>-v0")``. Importing the package
 registers them (the documented Gymnasium third-party pattern)::
 
-    import dustgym                  # or: import the conserved authority  -- either registers Dust/*
+    import stewie                  # or: import the conserved authority  -- either registers Stewie/*
     import gymnasium as gym
-    env = gym.make("Dust/RoverDrive-Mars-v0")     # per-body physics (gravity + regolith)
-    env = gym.make("Dust/Scheduler-v0")           # body-neutral (mass-conserving construction)
+    env = gym.make("Stewie/RoverDrive-Mars-v0")     # per-body physics (gravity + regolith)
+    env = gym.make("Stewie/Scheduler-v0")           # body-neutral (mass-conserving construction)
 
 Per-body IDs: the DRIVE env depends on gravity (weight = m*g) and the Lyasko-corrected regolith, so it
 is registered per body (``RoverDrive-{Moon,Mars,Earth}-v0``) and accepts ``gym.make(..., body="ceres")``
@@ -15,7 +15,7 @@ for any body in ``stewie.physics.bodies.BODIES``. The CONSTRUCTION/scheduling en
 would be identical, so it is not faked.
 
 (The ``[project.entry-points."gymnasium.envs"]`` hook in pyproject.toml is a forward-compatible plugin
-entry; current Gymnasium needs the import above. ``gymnasium.register_envs(dustgym)`` is the explicit,
+entry; current Gymnasium needs the import above. ``gymnasium.register_envs(stewie)`` is the explicit,
 lint-friendly equivalent.) Each ID is constructible with NO user arguments; any constructor arg can be
 overridden via ``gym.make(id, **kw)``. register_envs() is a no-op without gymnasium (bare-numpy core
 stays importable).
@@ -24,18 +24,18 @@ from __future__ import annotations
 
 # DRIVE env registered per body for the GRAVITY-LOADED bodies (Bekker model valid). Bennu/Phobos are
 # microgravity (Bekker out of regime) -> NOT pre-registered as drive IDs; reachable via
-# gym.make("Dust/RoverDrive-v0", body="bennu") which emits an out-of-regime warning. (bodies_sysrev.md)
+# gym.make("Stewie/RoverDrive-v0", body="bennu") which emits an out-of-regime warning. (bodies_sysrev.md)
 # DERIVED from the registry so adding one gravity-loaded Body (the one-entry extensibility promise) auto-
-# creates its Dust/RoverDrive-<Body>-v0 ID; microgravity bodies are excluded by construction.
+# creates its Stewie/RoverDrive-<Body>-v0 ID; microgravity bodies are excluded by construction.
 from stewie.specs.bodies import BODIES  # noqa: E402
 
 ROVER_BODIES = [k for k, b in BODIES.items() if b.bekker_regime == "gravity-loaded"]
 
 ENV_IDS = (
-    ["Dust/RoverDrive-v0"]
-    + [f"Dust/RoverDrive-{b.capitalize()}-v0" for b in ROVER_BODIES]
-    + ["Dust/Construct-v0", "Dust/SkillMacro-v0", "Dust/Scheduler-v0", "Dust/WorkSite-v0",
-       "Dust/ActivePerception-v0"]
+    ["Stewie/RoverDrive-v0"]
+    + [f"Stewie/RoverDrive-{b.capitalize()}-v0" for b in ROVER_BODIES]
+    + ["Stewie/Construct-v0", "Stewie/SkillMacro-v0", "Stewie/Scheduler-v0", "Stewie/WorkSite-v0",
+       "Stewie/ActivePerception-v0"]
 )
 
 _REGISTERED = False
@@ -66,7 +66,7 @@ def _scheduler_kwargs():
 
 
 def register_envs():
-    """Register the Dust/* environments with Gymnasium. Idempotent; no-op without gymnasium."""
+    """Register the Stewie/* environments with Gymnasium. Idempotent; no-op without gymnasium."""
     global _REGISTERED
     if _REGISTERED:
         return
@@ -78,28 +78,24 @@ def register_envs():
     rover_ep = "stewie.envs.rover_env:RoverSimEnv"
     specs = [
         # DRIVE: default (Moon) + per-body. (id, "module:Class", kwargs, max_episode_steps)
-        ("Dust/RoverDrive-v0", rover_ep, {"body": "moon"}, 2000),
+        ("Stewie/RoverDrive-v0", rover_ep, {"body": "moon"}, 2000),
     ]
-    specs += [(f"Dust/RoverDrive-{b.capitalize()}-v0", rover_ep, {"body": b}, 2000)
+    specs += [(f"Stewie/RoverDrive-{b.capitalize()}-v0", rover_ep, {"body": b}, 2000)
               for b in ROVER_BODIES]
     # CONSTRUCTION: body-neutral (mass-conserving -> gravity-invariant)
     specs += [
-        ("Dust/Construct-v0", "leap.terrain_target_env:TerrainTargetEnv",
+        ("Stewie/Construct-v0", "leap.terrain_target_env:TerrainTargetEnv",
          {"challenge": dc}, None),
-        ("Dust/SkillMacro-v0", "leap.skill_env:SkillMacroEnv",
+        ("Stewie/SkillMacro-v0", "leap.skill_env:SkillMacroEnv",
          {"challenge": dc, "discrete_cells": 8}, None),
-        ("Dust/Scheduler-v0", "lode.scheduler_env:SchedulerEnv",
+        ("Stewie/Scheduler-v0", "lode.scheduler_env:SchedulerEnv",
          _scheduler_kwargs(), None),
         # RL controller over John's WorkSite execution seam (flatten/dump + drum ledger)
-        ("Dust/WorkSite-v0", "leap.worksite_env:WorkSiteConstructEnv", {}, None),
+        ("Stewie/WorkSite-v0", "leap.worksite_env:WorkSiteConstructEnv", {}, None),
         # PERCEPTION: active next-best-view mapping (the map channel / Uncertainty layer as the reward)
-        ("Dust/ActivePerception-v0", "stewie.envs.active_perception_env:ActivePerceptionEnv", {}, 400),
+        ("Stewie/ActivePerception-v0", "stewie.envs.active_perception_env:ActivePerceptionEnv", {}, 400),
     ]
     for env_id, entry_point, kwargs, max_steps in specs:
-        # canonical namespace is Stewie/ (rename 2026-06-10, "dustgym" retired); the legacy Dust/
-        # IDs stay registered as aliases for one transition cycle
-        for eid in (env_id.replace("Dust/", "Stewie/"), env_id):
-            if eid in registry:
-                continue
-            register(id=eid, entry_point=entry_point, kwargs=kwargs, max_episode_steps=max_steps)
+        if env_id not in registry:
+            register(id=env_id, entry_point=entry_point, kwargs=kwargs, max_episode_steps=max_steps)
     _REGISTERED = True

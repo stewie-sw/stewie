@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-07
 **Purpose:** unblock Gate **G1** ("Acquire timestamped IMU/wheel data and a locked validation capture").
-dustgym camera egress reports IMU/wheel/joint channels UNAVAILABLE, so G1 has no proprioceptive
+stewie camera egress reports IMU/wheel/joint channels UNAVAILABLE, so G1 has no proprioceptive
 baseline. There is no public IPEx flight IMU/wheel telemetry, so the honest path is to ground a
 faithful IMU/wheel model and a locked validation capture in REAL open planetary-rover data and
 extrapolate to the IPEx platform (30 kg-class, four-wheel skid-steer, lunar g 1.62 m/s^2).
@@ -23,7 +23,7 @@ capture" (real timestamped wheel odometry + IMU + DGPS truth on natural terrain)
 pose graph on its wheel/IMU stream and validate ATE/RPE against the DGPS track. This is an honest
 real-sensor end-to-end localization result (the gap the architectural review flagged as "surface
 lunar localization with real ground truth is essentially absent"), with the lunar-g terramechanics
-delta supplied by the dustgym slip model (Section 3).
+delta supplied by the stewie slip model (Section 3).
 
 ## 2. Grounded IMU parameters (extrapolatable directly)
 
@@ -53,7 +53,7 @@ sourced in-run bias of 0.005 deg/s and the white-noise terms above.
 
 ## 3. Grounded wheel-odometry / slip model (extrapolatable via terramechanics)
 
-Wheel odometry error is terramechanics-bound, so it is extrapolated through the dustgym slip model
+Wheel odometry error is terramechanics-bound, so it is extrapolated through the stewie slip model
 at lunar g rather than copied as a fixed number. The reference figures below are a **MER autonomous-
 navigation design goal / contextual check, NOT a universal measured soil-error law**:
 
@@ -63,7 +63,7 @@ navigation design goal / contextual check, NOT a universal measured soil-error l
   sinkage dominated) (MER wheel-mobility studies).
 - **Slip up to 125%** measured by VO on 25-31 deg slopes (Spirit, Sol 206); VO convergence 97%/95%.
 
-**Extrapolation to IPEx:** dustgym's `slip_sinkage_equilibrium` (Bekker + Janosi-Hanamoto, Moon
+**Extrapolation to IPEx:** stewie's `slip_sinkage_equilibrium` (Bekker + Janosi-Hanamoto, Moon
 moduli k_c=1400, k_phi=820000, n=1.0 at g=1.62) already produces per-step slip in these regimes;
 the wheel-odometry channel over-reads forward progress by exactly that slip fraction (this is the
 real drift already exercised in `demo/path_nav.py`). The MER design-goal band (10%-of-distance,
@@ -75,8 +75,8 @@ the gyro. Encoder rate 10-50 Hz typical.
 ## 4. What this unblocks / still needs
 
 - **Unblocks:** a sourced IMU/wheel sensor model (Section 2-3) and a named real capture to lock
-  (Katwijk, Section 1) so the dustgym egress can publish a passive wheel/IMU/stereo baseline.
-- **Still needed for G1 PASS:** (a) wire the IMU/wheel/joint channels into the dustgym egress (they
+  (Katwijk, Section 1) so the stewie egress can publish a passive wheel/IMU/stereo baseline.
+- **Still needed for G1 PASS:** (a) wire the IMU/wheel/joint channels into the stewie egress (they
   currently report UNAVAILABLE); (b) ingest the Katwijk capture and freeze it into the (currently
   empty) `scene_manifest.json`; (c) run solnav SLAM on the real stream and record ATE/RPE vs DGPS.
   Sourcing the data (this document) is step 0; the channel wiring and the locked capture remain.

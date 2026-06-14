@@ -88,7 +88,7 @@ not re-do, but **none are closed**:
 | **0.3** ★ | **`PlanResult` authoritative artifact** — one immutable, fleet-aware result (allocation, routes, per-vehicle timelines, energy ledger, validation state, acceptance, provenance). Totals, report, Plan IR, autonomy inputs, browser playback become **views** over it. | RB-03, CP-01, FL-01 | T1: totals/report/timeline/IR/playback are byte-consistent with one `PlanResult`; no independent recompute path remains. | 0.1 | L |
 | **0.4** ★ | **Per-vehicle Plan IR ledger** — `prev_by_vehicle` position/energy/time/action state; no cross-vehicle position leak. | RB-04, NV-10 | T1: route/energy/time conservation asserted per vehicle on a 2-rover plan; leak test fails on the old path. | 0.3 | M |
 | **0.5** ★ | **Typed `VehicleModel` threaded end-to-end** — one model drives contact geometry, mass, battery, drum capacity, drive, terramechanics, planner simulation, Plan IR, endurance, reports (not just env+render). | RB-05, VT-01, VT-02, EP-08 | T1 cross-vehicle diff: `ez_rassor` vs `ipex` produce **different** mass/contact/energy/capacity/plan numbers with asserted expected deltas. | 0.3 | L |
-| **0.6** ★ | **Installed-product reality** — coherent `planner`/`server`/`render`/`dev` extras (server extra includes *all* import-time planner deps); reports/profiles/cache to a configurable app-data dir with atomic writes; package or version-download terrain/render assets; fresh-wheel smoke for `dustgym-serve` + every registered env + planner import. | RB-06, PO-01, PO-02 | T2: fresh wheel in a clean venv → `dustgym-serve` starts, plans, writes to the app-data dir. | 0.0 | L |
+| **0.6** ★ | **Installed-product reality** — coherent `planner`/`server`/`render`/`dev` extras (server extra includes *all* import-time planner deps); reports/profiles/cache to a configurable app-data dir with atomic writes; package or version-download terrain/render assets; fresh-wheel smoke for `stewie-serve` + every registered env + planner import. | RB-06, PO-01, PO-02 | T2: fresh wheel in a clean venv → `stewie-serve` starts, plans, writes to the app-data dir. | 0.0 | L |
 | **0.7** | **PRD-truth cleanup** — remove the 51 `sys.path` insertions + stale roversim/source-layout text; route unreachable terrain to *infeasible* (no silent straight-line/flat fallback, NV-01). | NV-01, (PRD §14 hygiene) | T1: unreachable goal → explicit infeasible; grep shows no stale layout guidance. | 0.3 | M |
 
 **Phase 0 exit criteria:** RB-01..06 all `D`; CI green on the configured suite across supported Python;
@@ -182,7 +182,7 @@ No solar-nav capability claim until all seven PRD §9.3 conditions pass.
 3. **WP0.3** — introduce a read-only `PlanResult`; make `_mission_totals` + the report consume it
    (first two views). *(RB-03, start)*
 4. **WP0.4** — `prev_by_vehicle` in `plan_ir` + per-vehicle conservation tests. *(RB-04)*
-5. **WP0.6** — fresh-wheel `dustgym-serve` smoke test + the `server` extra dependency audit. *(RB-06, start)*
+5. **WP0.6** — fresh-wheel `stewie-serve` smoke test + the `server` extra dependency audit. *(RB-06, start)*
 
 Each PR: TDD, one requirement-manifest row flips with an evidence commit, no contradictory status left
 behind (PRD §15).

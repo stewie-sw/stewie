@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-# Run-from-source fallback (same pattern as planet_browser/mission_planner): when dustgym is not
+# Run-from-source fallback (same pattern as planet_browser/mission_planner): when stewie is not
 # pip-installed, make the monorepo root importable so ``terrain_authority`` resolves.
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if _REPO_ROOT not in sys.path:

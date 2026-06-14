@@ -1,4 +1,4 @@
-# Dustgym Mission Planner — Intern Tutorial (beta)
+# Stewie Mission Planner — Intern Tutorial (beta)
 
 **Product mode:** `DEM_KNOWN_POSE_MISSION_SIM` — a known-pose mission simulation on a real lunar DEM.
 It is **not** SLAM and **not** real-rover autonomy (no sensor-derived localization, no hardware control).
@@ -14,7 +14,7 @@ The server loads the real LOLA Haworth DEM. If the DEM bundle is missing, `/plan
 
 **The DEM is not bundled in the wheel** (it's 16 MB) — it is **fetched + checksum-verified** post-install:
 ```bash
-dustgym-fetch-dem --source <mirror-url-or-file://dir>    # or set DUSTGYM_DEM_URL
+stewie-fetch-dem --source <mirror-url-or-file://dir>    # or set STEWIE_DEM_URL
 ```
 Source of truth is **PGDA Product 78** (`Haworth_final_adj_5mpp_surf.tif`; Barker et al. 2021). The fetch
 verifies each asset's SHA256 against `planet_browser/assets_manifest.json` and **refuses on mismatch** (no

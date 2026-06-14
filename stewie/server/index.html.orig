@@ -311,9 +311,9 @@
       </div>
       <div id="pane-config" class="pane">
         <div class="cap"><span>CONFIG — runtime overlay (PRD N15) + docs</span>
-          <a id="docsopen" href="https://dustgym.github.io/dustgym/" target="_blank" rel="noopener">docs site ↗</a></div>
+          <a id="docsopen" href="https://stewie.github.io/stewie/" target="_blank" rel="noopener">docs site ↗</a></div>
         <pre id="cfgout" class="mono">—</pre>
-        <iframe id="docsframe" title="docs" src="https://dustgym.github.io/dustgym/"></iframe>
+        <iframe id="docsframe" title="docs" src="https://stewie.github.io/stewie/"></iframe>
       </div>
     </div>
   </div>

@@ -8,11 +8,11 @@ Bekker:        p = (k_c / b + k_phi * s) * z^n
   n   sinkage exponent
 inverted:      z = ( p / (k_c/b + k_phi*s) )^(1/n)
 
-This matches the dustgym terramechanics formulation (the conserved authority/terramechanics.py).
+This matches the stewie terramechanics formulation (the conserved authority/terramechanics.py).
 Moon moduli are the MEASURED values from the NASA LTV terramechanics white paper
 (NTRS 20220010732): k_c=1400 N/m^2, k_phi=820000 N/m^3, n=1.0. Lunar gravity 1.62 m/s^2.
 
-SCOPE (honest, matches dustgym): this is the LOAD-BEARING static sinkage only. The
+SCOPE (honest, matches stewie): this is the LOAD-BEARING static sinkage only. The
 path-dependent SLIP-SINKAGE / runaway-entrapment mode (a much larger, dynamic sink
 under spinning wheels) is NOT modeled here; it needs a slip-coupled solver
 (PyChrono host). It is the dominant risk on steep/loose slopes and is listed as a
@@ -53,7 +53,7 @@ MOON = BekkerParams(
     float(_TERRAIN["bekker_kc"]),
     float(_TERRAIN["bekker_kphi"]),
     float(_TERRAIN["sinkage_n"]),
-    str(_TERRAIN.get("model_status", "Dustgym lunar-domain model")),
+    str(_TERRAIN.get("model_status", "Stewie lunar-domain model")),
 )
 # Mars GRC-3 simulant (Oravec et al. 2020 NASA GRC), for cross-body checks.
 MARS_GRC3 = BekkerParams(23200.0, 606700.0, 1.0, "Oravec et al. 2020 NASA GRC GRC-3")

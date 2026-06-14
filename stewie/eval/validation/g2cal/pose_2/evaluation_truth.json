@@ -1,5 +1,5 @@
 {
-  "calibration_id": "DUSTGYM_GODOT_CAMERA_RIG_V1",
+  "calibration_id": "STEWIE_GODOT_CAMERA_RIG_V1",
   "camera_poses_in_world": [
     {
       "name": "front_left",
@@ -165,8 +165,8 @@
     ]
   },
   "producer_schema_version": "sensor_bridge/1.1",
-  "profile_id": "DUSTGYM_IPEX_V1",
-  "profile_sha256": "b5015a4613025f05a89e03142f6435f3b1c8e3efeaefcacea1cb0a89f0d04796",
+  "profile_id": "STEWIE_IPEX_V1",
+  "profile_sha256": "0002e4c56bc96d82e730b5357c91b7c34776d02c6b9dfd5192f8883deb8953d8",
   "provenance": "GROUND_TRUTH_EVAL",
   "rover": {
     "frame_id": "base_link",

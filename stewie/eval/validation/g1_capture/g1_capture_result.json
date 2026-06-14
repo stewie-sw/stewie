@@ -1,5 +1,5 @@
 {
-  "provenance": "MEASUREMENT_MODEL_SIM (real LOLA Haworth DEM + real dustgym slip; IMU/wheel = grounded sensor model)",
+  "provenance": "MEASUREMENT_MODEL_SIM (real LOLA Haworth DEM + real stewie slip; IMU/wheel = grounded sensor model)",
   "imu_rate_hz": 100.0,
   "wheel_rate_hz": 10.0,
   "n_steps": 160,
@@ -20,7 +20,7 @@
     "note": "no absolute cue -> smooths but does not reduce drift; P2/P4 cues are evaluated separately"
   },
   "reproducibility": {
-    "dustgym_commit": "22aaf15",
+    "stewie_commit": "22aaf15",
     "solnav_commit": "420bbc9",
     "param_sha256": "096da4dae83edfb68c504f48b4a969630be72972ee9e7f6bf69f42d794de9a71",
     "dem_sha256": "7d13e9c376da950e230564b1f51a73f9f74069af3c1655b0e02ce612f10519d0",

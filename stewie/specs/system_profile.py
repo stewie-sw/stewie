@@ -1,7 +1,7 @@
 """IPEx platform constants used by dart, with provenance tags.
 
 [SPEC]    = stated in the public record (NASA/KSC papers, LAC docs/API, the
-            architecture reference, or read from a real LAC/dustgym sensors.json).
+            architecture reference, or read from a real LAC/stewie sensors.json).
 [CONFIRM] = read the exact value from the LAC geometry page / runtime API before
             locking (see ALGORITHMS.md "parameters to confirm"). Nothing here is
             fabricated; [CONFIRM] values are sourced estimates pending the
@@ -9,9 +9,9 @@
 
 Sources: ../../../references/technical/IPEx_Rover_Architecture_DigitalTwin_Reference.md
 (relative to the DART repository root in the canonical research workspace);
-NTRS 20240008162 (TRL-5), 20210025846 (bucket-drum scaling); dustgym ipex_specs.py
+NTRS 20240008162 (TRL-5), 20210025846 (bucket-drum scaling); stewie ipex_specs.py
 (energy); and a real LAC-twin sensors.json (intrinsics, stereo baseline, sun).
-At integration, reconcile with dustgym.ipex_specs rather than duplicating.
+At integration, reconcile with stewie.ipex_specs rather than duplicating.
 """
 # PROVENANCE: STEWIE DART subsystem (A. Storey)
 # M3 DISPOSITION (MERGE-2, resolved as complementary): ipex_specs.py = the sourced CONSTANT base
@@ -39,7 +39,7 @@ def _opt_rate(value):
 
 @dataclass(frozen=True)
 class IPExSpecs:
-    profile_id: str = "DUSTGYM_IPEX_V1"
+    profile_id: str = "STEWIE_IPEX_V1"
     profile_sha256: str = ""
 
     # Mass / mobility  [SPEC]
@@ -91,7 +91,7 @@ class IPExSpecs:
     apriltag_size_m: float = 0.15
     fiducial_free_bonus_pts: int = 150
 
-    # Energy  [SPEC: dustgym ipex_specs from SCHULER24 + 12S/44V/30Ah pack]
+    # Energy  [SPEC: stewie ipex_specs from SCHULER24 + 12S/44V/30Ah pack]
     drive_j_per_m: float | None = 135.0
     dig_j_per_kg: float | None = 4151.0
     pack_wh: float = 1332.0

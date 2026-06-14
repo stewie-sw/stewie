@@ -1,4 +1,4 @@
-"""A6 consumer: parse + validate the canonical single-clock dustgym_runtime packet."""
+"""A6 consumer: parse + validate the canonical single-clock stewie_runtime packet."""
 import os
 import sys
 
@@ -6,7 +6,7 @@ import pytest
 
 from stewie.bridge import runtime_io as rio
 
-_DUST = os.environ.get("DUSTGYM_ROOT", "/mnt/projects/stewie/code")
+_DUST = os.environ.get("STEWIE_ROOT", "/mnt/projects/stewie/code")
 
 
 def _canonical(clock="sim_monotonic", seq=5, cam_seq=None):
@@ -24,7 +24,7 @@ def _canonical(clock="sim_monotonic", seq=5, cam_seq=None):
     return rp.canonical_runtime_packet(proprio, cam, joints=rp.joint_channel(-1.0, -1.0, t=0.0), sequence_id=seq)
 
 
-@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="stewie not available")
 def test_round_trip_canonical_one_clock():
     p = rio.parse_canonical(_canonical())
     assert p["clock"] == "sim_monotonic" and p["sequence_id"] == 5
@@ -35,7 +35,7 @@ def test_round_trip_canonical_one_clock():
     assert p["unavailable"] == ["power"]                         # only power honestly unavailable
 
 
-@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="stewie not available")
 def test_canonical_rejects_truth_key():
     p = _canonical()
     p["channels"]["camera"]["frames"][0]["rover_pos_m"] = [1, 2, 3]   # inject truth
@@ -43,7 +43,7 @@ def test_canonical_rejects_truth_key():
         rio.parse_canonical(p)
 
 
-@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="stewie not available")
 def test_canonical_rejects_camera_ok_without_frames():
     p = _canonical()
     p["channels"]["camera"]["frames"] = []
@@ -56,7 +56,7 @@ def test_rejects_non_canonical_schema():
         rio.parse_canonical({"schema_version": "proprioception/1.1", "clock": "x", "sequence_id": 0, "channels": {}})
 
 
-@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="stewie not available")
 def test_camera_timing_metrics_per_keyframe():
     p = _canonical()
     p["channels"]["camera"]["frames"] += [                  # a 2nd keyframe (stereo pair) -> a cadence
@@ -67,7 +67,7 @@ def test_camera_timing_metrics_per_keyframe():
     assert ct["duplicates"] == 0 and abs(ct["interval_mean_s"] - 0.1) < 1e-9   # req 4 timing recorded
 
 
-@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="stewie not available")
 def test_stereo_pair_shares_timestamp_ok_but_single_camera_duplicate_rejected():
     p = _canonical()
     rio.parse_canonical(p)                                  # stereo pair at t=0 (FL+FR) -> OK, not a dup
@@ -76,7 +76,7 @@ def test_stereo_pair_shares_timestamp_ok_but_single_camera_duplicate_rejected():
         rio.parse_canonical(p)                              # front_left repeats t -> a real duplicate
 
 
-@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="stewie not available")
 def test_rejects_camera_outside_proprioception_window():
     p = _canonical()
     for f in p["channels"]["camera"]["frames"]:
@@ -93,7 +93,7 @@ def test_input_dir_truth_isolation(tmp_path):
         rio.assert_input_dir_clean(str(tmp_path))           # a truth file present -> reject (I3)
 
 
-@pytest.mark.skipif(not os.path.isdir(_DUST), reason="dustgym not available")
+@pytest.mark.skipif(not os.path.isdir(_DUST), reason="stewie not available")
 def test_rejects_novel_camera_frame_key():
     # audit 2026-06-09: frames were denylist-only -- a NOVEL hidden-state key could ride through
     p = _canonical()

@@ -1,11 +1,11 @@
 """Fetch the real LOLA Haworth DEM, which is NOT bundled in the wheel -- it is downloaded and
 CHECKSUM-VERIFIED post-install (keeps the wheel light). Source of truth: PGDA Product 78
-(see assets_manifest.json). Downloads each asset from a configurable base (env DUSTGYM_DEM_URL or
+(see assets_manifest.json). Downloads each asset from a configurable base (env STEWIE_DEM_URL or
 --source; supports http(s):// and file:// mirrors), verifies its SHA256 against the manifest, and
 REFUSES on mismatch -- the DEM must be the genuine PGDA ingest, never fabricated/corrupt terrain.
 Idempotent: an asset already present with the right checksum is skipped.
 
-  dustgym-fetch-dem --source https://<mirror>/haworth_10km_5m   # or file:///abs/dir, or $DUSTGYM_DEM_URL
+  stewie-fetch-dem --source https://<mirror>/haworth_10km_5m   # or file:///abs/dir, or $STEWIE_DEM_URL
 """
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ def fetch(source_base: str, *, manifest: dict | None = None, repo_root: str = _R
 def main(argv=None) -> int:
     m = load_manifest()
     ap = argparse.ArgumentParser(description="Fetch + checksum-verify the real LOLA Haworth DEM (PGDA Product 78).")
-    ap.add_argument("--source", default=os.environ.get("STEWIE_DEM_URL", os.environ.get("DUSTGYM_DEM_URL")),
+    ap.add_argument("--source", default=os.environ.get("STEWIE_DEM_URL", os.environ.get("STEWIE_DEM_URL")),
                     help="base URL/dir mirroring the asset files (http(s):// or file://); see assets_manifest.json")
     ap.add_argument("--force", action="store_true", help="re-download even if present")
     a = ap.parse_args(argv)
@@ -89,7 +89,7 @@ def main(argv=None) -> int:
         return 0
     if not a.source:
         print("DEM not present. Provide --source <url | file://dir> mirroring the assets, or set "
-              "DUSTGYM_DEM_URL.\nSource of truth:", m["source"])
+              "STEWIE_DEM_URL.\nSource of truth:", m["source"])
         return 2
     got = fetch(a.source, manifest=m, force=a.force)
     print("fetched + verified:", got or "(all already present)")

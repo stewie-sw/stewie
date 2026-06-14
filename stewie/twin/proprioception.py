@@ -1,6 +1,6 @@
-"""Proprioception sensor GENERATION (IMU + four-wheel encoders) for the dustgym physics authority.
+"""Proprioception sensor GENERATION (IMU + four-wheel encoders) for the stewie physics authority.
 
-Per the dart/dustgym ownership split (STANFORD_LITERATURE_ARCHITECTURE_DIFF_2026-06-08): DUSTGYM owns
+Per the dart/stewie ownership split (STANFORD_LITERATURE_ARCHITECTURE_DIFF_2026-06-08): STEWIE owns
 sensor generation and synchronized publication; dart owns parsing, time-sync, derived odometry, and
 estimation. This module is the GENERATION side: given the true body twist + hidden per-wheel slip from
 the conserved physics, it emits noisy/quantized sensor samples. Truth (pose/slip/terrain) is NEVER on a

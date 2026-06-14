@@ -1,7 +1,7 @@
-"""N15 externalized config overlay (area O): env / DUSTGYM_CONFIG override module constants.
+"""N15 externalized config overlay (area O): env / STEWIE_CONFIG override module constants.
 
 Every module-level scalar in constants.py / ipex_specs.py is overridable without editing
-source, via DUSTGYM_<NAME> env vars or a DUSTGYM_CONFIG TOML file (env wins). Derived values
+source, via STEWIE_<NAME> env vars or a STEWIE_CONFIG TOML file (env wins). Derived values
 recompute from their (possibly overridden) inputs.
 """
 import importlib
@@ -15,14 +15,14 @@ from stewie.specs import config, constants, ipex_specs
 
 @pytest.fixture
 def clean_reload():
-    """After each test, strip DUSTGYM_* env and reload the constant modules to defaults so an override
+    """After each test, strip STEWIE_* env and reload the constant modules to defaults so an override
     cannot leak into the rest of the suite. Up front, strip the suite-wide STEWIE_DEV_OPEN /
-    DUSTGYM_DEV_OPEN auth flag (set by the repo conftest) -- it is an auth control, not a config
+    STEWIE_DEV_OPEN auth flag (set by the repo conftest) -- it is an auth control, not a config
     override, so the 'no env -> identity' overlay test must not see it."""
-    for var in ("STEWIE_DEV_OPEN", "DUSTGYM_DEV_OPEN"):
+    for var in ("STEWIE_DEV_OPEN", "STEWIE_DEV_OPEN"):
         os.environ.pop(var, None)
     yield
-    for var in [v for v in os.environ if v.startswith("DUSTGYM_")]:
+    for var in [v for v in os.environ if v.startswith("STEWIE_")]:
         del os.environ[var]
     importlib.reload(constants)
     importlib.reload(ipex_specs)
@@ -37,14 +37,14 @@ def test_no_env_is_identity(clean_reload):
 
 
 def test_env_override_scalar_recomputes_derived(clean_reload, monkeypatch):
-    monkeypatch.setenv("DUSTGYM_RHO_SURFACE", "1250")
+    monkeypatch.setenv("STEWIE_RHO_SURFACE", "1250")
     importlib.reload(constants)
     assert constants.RHO_SURFACE == 1250.0
     assert constants.RHO_SPOIL == 1250.0           # RHO_SPOIL tracks the loose surface -> recomputed
 
 
 def test_env_override_grain_inputs_recompute(clean_reload, monkeypatch):
-    monkeypatch.setenv("DUSTGYM_G_s", "3.0")
+    monkeypatch.setenv("STEWIE_G_s", "3.0")
     importlib.reload(constants)
     assert constants.G_s == 3.0
     assert constants.RHO_GRAIN == 3.0 * constants.RHO_WATER   # 3000, recomputed
@@ -56,7 +56,7 @@ def test_toml_file_override(clean_reload, monkeypatch, tmp_path):
         RHO_SURFACE = 1200.0
         ROVER_MASS_DRY_KG = 25.0
     """))
-    monkeypatch.setenv("DUSTGYM_CONFIG", str(cfg))
+    monkeypatch.setenv("STEWIE_CONFIG", str(cfg))
     importlib.reload(constants)
     assert constants.RHO_SURFACE == 1200.0
     assert constants.ROVER_MASS_DRY_KG == 25.0
@@ -65,7 +65,7 @@ def test_toml_file_override(clean_reload, monkeypatch, tmp_path):
 def test_toml_section_table(clean_reload, monkeypatch, tmp_path):
     cfg = tmp_path / "dust.toml"
     cfg.write_text("[constants]\nCOHESION = 200.0\n")
-    monkeypatch.setenv("DUSTGYM_CONFIG", str(cfg))
+    monkeypatch.setenv("STEWIE_CONFIG", str(cfg))
     importlib.reload(constants)
     assert constants.COHESION == 200.0
 
@@ -73,21 +73,21 @@ def test_toml_section_table(clean_reload, monkeypatch, tmp_path):
 def test_env_wins_over_file(clean_reload, monkeypatch, tmp_path):
     cfg = tmp_path / "dust.toml"
     cfg.write_text("RHO_SURFACE = 1200.0\n")
-    monkeypatch.setenv("DUSTGYM_CONFIG", str(cfg))
-    monkeypatch.setenv("DUSTGYM_RHO_SURFACE", "1100")
+    monkeypatch.setenv("STEWIE_CONFIG", str(cfg))
+    monkeypatch.setenv("STEWIE_RHO_SURFACE", "1100")
     importlib.reload(constants)
     assert constants.RHO_SURFACE == 1100.0
 
 
 def test_unknown_key_not_injected(clean_reload, monkeypatch):
-    monkeypatch.setenv("DUSTGYM_NOT_A_REAL_CONSTANT", "5")
+    monkeypatch.setenv("STEWIE_NOT_A_REAL_CONSTANT", "5")
     importlib.reload(constants)
     assert not hasattr(constants, "NOT_A_REAL_CONSTANT")    # a typo cannot create a global
 
 
 def test_ipex_specs_override_recomputes_functions(clean_reload, monkeypatch):
     base = ipex_specs.battery_energy_j()
-    monkeypatch.setenv("DUSTGYM_BATTERY_SERIES_CELLS", "14")
+    monkeypatch.setenv("STEWIE_BATTERY_SERIES_CELLS", "14")
     importlib.reload(ipex_specs)
     assert ipex_specs.BATTERY_SERIES_CELLS == 14
     # battery_energy_j reads the constant live -> a 14S pack stores more than 12S
@@ -96,7 +96,7 @@ def test_ipex_specs_override_recomputes_functions(clean_reload, monkeypatch):
 
 
 def test_describe_reports_applied(clean_reload, monkeypatch):
-    monkeypatch.setenv("DUSTGYM_RHO_SURFACE", "1234")
+    monkeypatch.setenv("STEWIE_RHO_SURFACE", "1234")
     importlib.reload(constants)
     d = config.describe()
     assert d["overrides"]["RHO_SURFACE"] == 1234.0
@@ -104,10 +104,10 @@ def test_describe_reports_applied(clean_reload, monkeypatch):
 
 
 def test_describe_clears_when_default(clean_reload, monkeypatch):
-    monkeypatch.setenv("DUSTGYM_RHO_SURFACE", "1234")
+    monkeypatch.setenv("STEWIE_RHO_SURFACE", "1234")
     importlib.reload(constants)
     assert "stewie.specs.constants" in config.describe()["applied"]
-    monkeypatch.delenv("DUSTGYM_RHO_SURFACE")
+    monkeypatch.delenv("STEWIE_RHO_SURFACE")
     importlib.reload(constants)
     # a clean reload must clear the stale applied record (no leak into describe)
     assert "stewie.specs.constants" not in config.describe()["applied"]

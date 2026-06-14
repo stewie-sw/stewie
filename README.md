@@ -71,8 +71,7 @@ obs, reward, term, trunc, info = env.step(env.action_space.sample())
 
 **Gymnasium environments** (all `gym.make`-able after `import stewie`):
 `Stewie/RoverDrive-v0` (per-body variants `-Moon` / `-Mars` / `-Earth` / `-Ceres`), `Stewie/Construct-v0`,
-`Stewie/SkillMacro-v0`, `Stewie/Scheduler-v0`, `Stewie/WorkSite-v0`, `Stewie/ActivePerception-v0`. The
-legacy `Dust/*` IDs remain registered as deprecated aliases for one transition cycle.
+`Stewie/SkillMacro-v0`, `Stewie/Scheduler-v0`, `Stewie/WorkSite-v0`, `Stewie/ActivePerception-v0`.
 
 ## Documentation
 
@@ -117,8 +116,8 @@ If you use STEWIE in your work, please cite it. GitHub renders a "Cite this repo
 permissive or commercial license is pending. Until one is committed here, no rights to copy, modify,
 or redistribute are granted beyond those in GitHub's Terms of Service. See [`LICENSE`](LICENSE).
 
-Portions of the physics core originated in `jmccardle/roversim` and the `dustgym` project under their
-terms at the time of publication.
+Portions of the physics core originated in `jmccardle/roversim` under its terms at the time of
+publication.
 
 ## Authors
 

@@ -7,7 +7,7 @@ size: 16:9
 
 <!-- _paginate: false -->
 
-# foss_ipex / dustgym
+# foss_ipex / stewie
 ### Sensor-faithful lunar terramechanics and autonomy
 **Update for NASA KSC GMRO, 2026-06-04**
 

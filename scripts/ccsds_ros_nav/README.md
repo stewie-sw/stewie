@@ -1,6 +1,6 @@
 # ccsds_ros_nav — CCSDS/ROS 2 rover navigation on the Haworth DEM
 
-Demonstrates **actual rover navigation** in the dustgym terramechanics sim, driven through a
+Demonstrates **actual rover navigation** in the stewie terramechanics sim, driven through a
 **CCSDS Space Packet** command/telemetry link and a **ROS 2** message bus, with a **minimal-but-real
 ground station** (move-and-wait). The rover follows planned waypoints across the real LOLA **Haworth**
 lunar DEM using an onboard pure-pursuit controller over the conserved `terrain_authority` authority;

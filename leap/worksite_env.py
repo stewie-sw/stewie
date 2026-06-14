@@ -261,7 +261,7 @@ def beam_worksite_plan(env: WorkSiteConstructEnv, width: int = 12):
     The conserved WorkSite engine is exact + cheap (deepcopy ~0.2 ms), so search runs at inference. With
     the corrected mechanics + the tight default budget, beam and the greedy heuristic both solve ~100% on
     held-out instances while random ~53% and model-free PPO ~0% (no slack under the tight budget): the
-    heuristic/search dominate (cf. the Dust/Scheduler finding that model-based search >= model-free). Pure
+    heuristic/search dominate (cf. the Stewie/Scheduler finding that model-based search >= model-free). Pure
     numpy; eval/planning only (deep-copies env states)."""
     import copy
     beam = [(copy.deepcopy(env), False, False, [])]    # (env, done, success, path)

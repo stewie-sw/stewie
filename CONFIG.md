@@ -1,6 +1,6 @@
 # Configuration reference
 
-Every tunable in dustgym is adjustable **without editing source**. There are three layers, from
+Every tunable in stewie is adjustable **without editing source**. There are three layers, from
 most to least dynamic.
 
 ## 1. Per-call / runtime objects (already dynamic)
@@ -20,11 +20,11 @@ battery, planner knobs) are overridable at import time by an overlay. **Environm
 
 ### Environment variables
 
-Set `DUSTGYM_<NAME>` where `<NAME>` is the exact constant name:
+Set `STEWIE_<NAME>` where `<NAME>` is the exact constant name:
 
 ```bash
-DUSTGYM_RHO_SURFACE=1250 DUSTGYM_ROVER_MASS_DRY_KG=25 python -m planet_browser.server
-DUSTGYM_BATTERY_SERIES_CELLS=14 python -c "from terrain_authority import ipex_specs; print(ipex_specs.battery_energy_wh())"
+STEWIE_RHO_SURFACE=1250 STEWIE_ROVER_MASS_DRY_KG=25 python -m planet_browser.server
+STEWIE_BATTERY_SERIES_CELLS=14 python -c "from terrain_authority import ipex_specs; print(ipex_specs.battery_energy_wh())"
 ```
 
 Values are coerced to `bool` (`true`/`false`), then `int`, then `float`, else left as text. A name that
@@ -32,7 +32,7 @@ is not already a numeric constant is **ignored** (a typo cannot inject a new glo
 
 ### TOML file
 
-Point `DUSTGYM_CONFIG` at a TOML file. Top-level keys are constant names; optional `[constants]` and
+Point `STEWIE_CONFIG` at a TOML file. Top-level keys are constant names; optional `[constants]` and
 `[ipex_specs]` tables are also read:
 
 ```toml
@@ -46,11 +46,11 @@ RECHARGE_POWER_W = 900.0
 ```
 
 ```bash
-DUSTGYM_CONFIG=my_site.toml python -m planet_browser.server
+STEWIE_CONFIG=my_site.toml python -m planet_browser.server
 ```
 
 (TOML parsing uses the stdlib `tomllib` on Python ≥ 3.11; on 3.10 `tomli` is installed automatically as
-a declared dependency. If `DUSTGYM_CONFIG` is set with no parser available, it raises rather than silently skip.)
+a declared dependency. If `STEWIE_CONFIG` is set with no parser available, it raises rather than silently skip.)
 
 ### Derived values recompute
 

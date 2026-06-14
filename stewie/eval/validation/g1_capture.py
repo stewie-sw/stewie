@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""G1 capture + baseline: produce the timestamped IMU/wheel channels that dustgym egress reported
+"""G1 capture + baseline: produce the timestamped IMU/wheel channels that stewie egress reported
 UNAVAILABLE, lock them, and record the passive wheel+IMU dead-reckoning baseline ATE.
 
-Provenance = MEASUREMENT_MODEL_SIM. The trajectory + per-step slip are dustgym's REAL physics on a
+Provenance = MEASUREMENT_MODEL_SIM. The trajectory + per-step slip are stewie's REAL physics on a
 REAL LOLA Haworth DEM; the IMU/wheel channels are the grounded sensor model. Truth poses are kept on
-a SEPARATE eval channel (I3). PORTABLE (G1.A3): dustgym, DEM, and output are resolved from CLI/env;
-no machine path is hardcoded; the run records dustgym/solnav commits, parameter + DEM hashes, seed,
+a SEPARATE eval channel (I3). PORTABLE (G1.A3): stewie, DEM, and output are resolved from CLI/env;
+no machine path is hardcoded; the run records stewie/solnav commits, parameter + DEM hashes, seed,
 and Python/NumPy versions; no directories are created at import.
 
-  python3 validation/g1_capture.py --dustgym-root <dir> --dem <heightmap.rf32> --output <dir> --seed 0
+  python3 validation/g1_capture.py --stewie-root <dir> --dem <heightmap.rf32> --output <dir> --seed 0
 """
 import argparse
 import csv
@@ -62,8 +62,8 @@ def drive(dem_path, rover, slipmod, tm):
     return np.array(true), steps
 
 
-def run(dustgym_root, dem_path, out_dir, seed):
-    sys.path.insert(0, dustgym_root)
+def run(stewie_root, dem_path, out_dir, seed):
+    sys.path.insert(0, stewie_root)
     from stewie.physics import rover
     from stewie.physics import slip as slipmod
     from stewie.physics import terramechanics as tm
@@ -115,7 +115,7 @@ def run(dustgym_root, dem_path, out_dir, seed):
     X = g.solve(np.array(dr))
 
     res = {
-        "provenance": "MEASUREMENT_MODEL_SIM (real LOLA Haworth DEM + real dustgym slip; IMU/wheel = grounded sensor model)",
+        "provenance": "MEASUREMENT_MODEL_SIM (real LOLA Haworth DEM + real stewie slip; IMU/wheel = grounded sensor model)",
         "imu_rate_hz": IMU_HZ, "wheel_rate_hz": WHEEL_HZ, "n_steps": len(steps),
         "n_imu_samples": len(imu), "n_wheel_samples": len(wheel),
         "path_length_m": round(float(np.sum(np.linalg.norm(np.diff(true[:, :2], axis=0), axis=1))), 2),
@@ -133,9 +133,9 @@ def run(dustgym_root, dem_path, out_dir, seed):
             "note": "no absolute cue -> smooths but does not reduce drift; P2/P4 cues are evaluated separately",
         },
         "reproducibility": {
-            "dustgym_commit": _git_commit(dustgym_root),
+            "stewie_commit": _git_commit(stewie_root),
             "solnav_commit": _git_commit(_REPO),
-            "param_sha256": _sha256(os.path.join(dustgym_root, "stewie", "physics", "data", "imu_wheel_params.json")),
+            "param_sha256": _sha256(os.path.join(stewie_root, "stewie", "physics", "data", "imu_wheel_params.json")),
             "dem_sha256": _sha256(dem_path),
             "seed": seed,
             "python": sys.version.split()[0],
@@ -149,15 +149,15 @@ def run(dustgym_root, dem_path, out_dir, seed):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="G1 wheel/IMU capture + baseline (portable).")
-    ap.add_argument("--dustgym-root", default=os.environ.get("DUSTGYM_ROOT"),
-                    help="path to the dustgym checkout (or set DUSTGYM_ROOT)")
+    ap.add_argument("--stewie-root", default=os.environ.get("STEWIE_ROOT"),
+                    help="path to the stewie checkout (or set STEWIE_ROOT)")
     ap.add_argument("--dem", required=True, help="path to a LOLA heightmap.rf32")
     ap.add_argument("--output", required=True, help="output directory for the capture")
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args(argv)
-    if not args.dustgym_root:
-        ap.error("--dustgym-root or DUSTGYM_ROOT is required")
-    res = run(args.dustgym_root, args.dem, args.output, args.seed)
+    if not args.stewie_root:
+        ap.error("--stewie-root or STEWIE_ROOT is required")
+    res = run(args.stewie_root, args.dem, args.output, args.seed)
     print(json.dumps({k: v for k, v in res.items() if k != "files"}, indent=2))
     print("files:", {k: v[:12] for k, v in res["files"].items()})
     return 0

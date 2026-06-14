@@ -1,4 +1,4 @@
-# Speaker notes: foss_ipex / dustgym GMRO update (2026-06-04)
+# Speaker notes: foss_ipex / stewie GMRO update (2026-06-04)
 
 Notes for the 12-slide deck (`deck.md` / the rendered PDF). First person, John's voice. These enhance
 the slides; they do not read the bullets aloud. Target time about 8 to 10 minutes.

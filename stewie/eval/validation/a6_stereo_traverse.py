@@ -6,7 +6,7 @@ proprioception. Not disconnected-scene stitching: every frame comes from the sam
 Truth (poses) is written to a SEPARATE truth/ dir, never into the estimator input (cam/ + proprioception).
 Records render latency, drops, and duplicate sequence ids. Portable (CLI/env); no hardcoded paths.
 
-  python3 validation/a6_stereo_traverse.py --dustgym-root <dir> --output <dir> --seed 0 --stations 6
+  python3 validation/a6_stereo_traverse.py --stewie-root <dir> --output <dir> --seed 0 --stations 6
 """
 import argparse
 import json
@@ -39,16 +39,16 @@ def _render(sidecar, scene, pose, out_png, size="384x288", elev=8, azim=200):
     return time.time() - t0
 
 
-def run(dustgym_root, out_dir, seed, stations):
-    sys.path.insert(0, dustgym_root)
+def run(stewie_root, out_dir, seed, stations):
+    sys.path.insert(0, stewie_root)
     from stewie.twin import proprioception as pp
     from stewie.physics import rover
     from stewie.twin import runtime_packet as rp
     from stewie.physics import slip as slipmod
     from stewie.physics import terramechanics as tm
-    sidecar = os.path.join(dustgym_root, "godot_sidecar")
+    sidecar = os.path.join(stewie_root, "godot_sidecar")
     scene = "../samples/crater_boulders"
-    dem = os.path.join(dustgym_root, "samples", "crater_boulders", "heightmap.rf32")
+    dem = os.path.join(stewie_root, "samples", "crater_boulders", "heightmap.rf32")
     h = np.fromfile(dem, dtype="<f4"); n = int(round(len(h) ** 0.5)); H = h.reshape(n, n)
     gr, gc = np.gradient(H)
     params = tm.TerramechanicsParams.from_constants()
@@ -115,14 +115,14 @@ def run(dustgym_root, out_dir, seed, stations):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="G1.A6 synchronized stereo traverse (portable).")
-    ap.add_argument("--dustgym-root", default=os.environ.get("DUSTGYM_ROOT"))
+    ap.add_argument("--stewie-root", default=os.environ.get("STEWIE_ROOT"))
     ap.add_argument("--output", required=True)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--stations", type=int, default=6)
     a = ap.parse_args(argv)
-    if not a.dustgym_root:
-        ap.error("--dustgym-root or DUSTGYM_ROOT required")
-    seq = run(a.dustgym_root, a.output, a.seed, a.stations)
+    if not a.stewie_root:
+        ap.error("--stewie-root or STEWIE_ROOT required")
+    seq = run(a.stewie_root, a.output, a.seed, a.stations)
     print(json.dumps({k: v for k, v in seq.items() if k != "frames"}, indent=2))
     return 0
 

@@ -1,4 +1,4 @@
-"""Canonical single-clock Dustgym runtime packet (P0-3 / G1.A6).
+"""Canonical single-clock Stewie runtime packet (P0-3 / G1.A6).
 
 Unifies the REAL sub-producers onto ONE monotonic clock + sequence id:
   - camera     : the Godot camera egress (frames + poses/intrinsics) -- passed in as a channel dict
@@ -85,4 +85,4 @@ def canonical_runtime_packet(proprio_packet: dict, camera_channel: dict, *,
             # audit M04: joints merged with ZERO clock validation, contradicting the one-clock contract
             raise ValueError(f"joints clock {j_clock!r} != canonical clock {clock!r}")
         channels["joints"] = joints                              # measured joints now AVAILABLE
-    return {"schema_version": "dustgym_runtime/1.0", "clock": clock, "sequence_id": seq, "channels": channels}
+    return {"schema_version": "stewie_runtime/1.0", "clock": clock, "sequence_id": seq, "channels": channels}

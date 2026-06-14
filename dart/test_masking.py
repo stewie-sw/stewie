@@ -5,7 +5,7 @@ import pytest
 
 from dart import masking
 
-# Real dustgym Godot render used as a fixture (no synthetic image data).
+# Real stewie Godot render used as a fixture (no synthetic image data).
 REAL_FRAME = "/mnt/projects/stewie/code/stewie/godot/out/crater_boulders.png"
 
 
@@ -42,7 +42,7 @@ def test_detect_shadow_mask_known_array():
     assert m[:3, :3].all() and not m[5:, 5:].any()
 
 
-@pytest.mark.skipif(not os.path.exists(REAL_FRAME), reason="dustgym render not present")
+@pytest.mark.skipif(not os.path.exists(REAL_FRAME), reason="stewie render not present")
 def test_detect_shadow_mask_on_real_low_sun_render():
     from imageio.v3 import imread
     img = np.asarray(imread(REAL_FRAME))

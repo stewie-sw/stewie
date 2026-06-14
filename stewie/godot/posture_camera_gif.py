@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_HERE))   # dustgym root for the conserved authority
+sys.path.insert(0, os.path.dirname(_HERE))   # stewie root for the conserved authority
 from stewie.physics import posture_kinematics as pk          # noqa: E402
 from stewie.physics.postures import get_posture              # noqa: E402
 

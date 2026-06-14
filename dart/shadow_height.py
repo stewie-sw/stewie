@@ -4,11 +4,11 @@ At the lunar south pole the sun grazes at e ~ 0-5 deg, so every rock casts a lon
 encodes its height: H = L * tan(e). This measures L by walking the ANTI-SOLAR ray from a detected rock
 and counting the contiguous shadowed (dark) pixels, then converts to metres via the known solar elevation
 and image GSD. Where the sun is known and grazing this can beat stereo (it works in deep shadow and needs
-no disparity). Developed against the faithful dustgym grazing-sun renders (known sun + known clast height);
+no disparity). Developed against the faithful stewie grazing-sun renders (known sun + known clast height);
 applies to real NAC/descent imagery where the solar geometry is in the metadata. No synthetic data.
 
 VALIDATION STATUS (honest, definitive): the formula H = L*tan(e) is correct geometry, but per-rock height
-could NOT be validated on the dustgym renders by ANY measurement tried -- 1-D ray-walk, 2-D mask
+could NOT be validated on the stewie renders by ANY measurement tried -- 1-D ray-walk, 2-D mask
 segmentation (masking.detect_shadow_mask), clear-shadow-path filtering, at sun 6 deg AND 25 deg: Pearson
 r(est, true) stays ~ -0.1..-0.2 (no correlation), and the empirically recovered shadow azimuth is UNSTABLE
 across methods (220/270/310 deg). That instability is the tell: the rendered shadow signal is too weak /

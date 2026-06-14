@@ -26,7 +26,7 @@ def test_registry_has_targets_plus_earth():
 
 def test_rover_bodies_are_derived_from_the_registry_not_hardcoded():
     # MAJOR (architecture review): the per-body DRIVE IDs must be DERIVED from BODIES by bekker_regime,
-    # so adding one gravity-loaded Body auto-creates its Dust/RoverDrive-<Body>-v0 ID. A hardcoded list
+    # so adding one gravity-loaded Body auto-creates its Stewie/RoverDrive-<Body>-v0 ID. A hardcoded list
     # silently drops new bodies, and microgravity bodies (Bekker out of regime) must be excluded.
     from stewie.envs.registration import ROVER_BODIES   # importable without gymnasium
     expected = [k for k, b in B.BODIES.items() if b.bekker_regime == "gravity-loaded"]

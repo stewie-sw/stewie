@@ -35,7 +35,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 # ---- grounded constants: imported from the .py source of truth (the conserved authority), not duplicated.
 # The monorepo root (lode's parent) holds stewie/, dart/, samples/, scripts/; ensure it is
-# importable. _REPO_ROOT also anchors the sample/script paths. (When dustgym is pip-installed,
+# importable. _REPO_ROOT also anchors the sample/script paths. (When stewie is pip-installed,
 # the conserved authority imports directly; this insert is the run-from-source fallback.)
 import sys
 _REPO_ROOT = os.path.dirname(HERE)

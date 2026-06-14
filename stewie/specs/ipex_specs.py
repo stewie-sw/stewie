@@ -280,7 +280,7 @@ BATTERY_RESERVE_FRAC = 0.10       # operational: hold >=10% pack reserve before 
 # [ASSUMPTION] continuous idle / heater / avionics survival draw, NOT in [SCHULER24] and genuinely
 # data-gated. Over a multi-day sortie this term is plausibly the DOMINANT energy cost, so the planner
 # surfaces it as its OWN line, tagged [ASSUMPTION]. Default 0 W = "not modelled" (no silent inflation of
-# the headline figures); set DUSTGYM_IDLE_POWER_W (or the constant) to fold in a survival load you can
+# the headline figures); set STEWIE_IDLE_POWER_W (or the constant) to fold in a survival load you can
 # defend. Lunar-night heater loads for a small rover are tens-to-hundreds of W -- do NOT treat any value
 # here as sourced. (mission_planner: survival_energy_J = IDLE_POWER_W * mission duration.)
 IDLE_POWER_W = 0.0
@@ -374,8 +374,8 @@ def spec_record() -> dict:
     }
 
 
-# Externalized config overlay (PRD N15 / area O): apply DUSTGYM_<NAME> env vars + the
-# DUSTGYM_CONFIG TOML to these published/planner constants. The energy/battery quantities are
+# Externalized config overlay (PRD N15 / area O): apply STEWIE_<NAME> env vars + the
+# STEWIE_CONFIG TOML to these published/planner constants. The energy/battery quantities are
 # functions that read the constants live, so a 14S override (etc.) recomputes automatically.
 from stewie.specs import config as _config  # noqa: E402
 

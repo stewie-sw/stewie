@@ -1,7 +1,7 @@
 """N10 structured logging / observability on the ASGI planner server.
 
 The access-log middleware routes every request (method/path/status/duration) through the
-`planet_browser.server` logger, configurable via $DUSTGYM_LOG_LEVEL.
+`planet_browser.server` logger, configurable via $STEWIE_LOG_LEVEL.
 """
 import logging
 
@@ -17,7 +17,7 @@ def client():
 
 
 def test_configure_logging_respects_env(monkeypatch):
-    monkeypatch.setenv("DUSTGYM_LOG_LEVEL", "DEBUG")
+    monkeypatch.setenv("STEWIE_LOG_LEVEL", "DEBUG")
     SRV._configure_logging()
     assert logging.getLogger().level == logging.DEBUG
     SRV._configure_logging("INFO")                                  # restore a sane default

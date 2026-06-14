@@ -1309,7 +1309,7 @@ def test_structure_rejects_too_many_params(base):
 
 def test_api_key_auth_constant_time_compare(base, monkeypatch):
     # with a key set, a wrong key is 401 and the right key passes (compare is hmac.compare_digest)
-    monkeypatch.setenv("DUSTGYM_API_KEY", "s3cret")
+    monkeypatch.setenv("STEWIE_API_KEY", "s3cret")
     assert base.post("/plan", json=_payload(), headers={"X-API-Key": "wrong"}).status_code == 401
     ok = base.post("/plan", json=_payload(), headers={"X-API-Key": "s3cret"})
     assert ok.status_code == 200 and ok.json()["ok"] is True

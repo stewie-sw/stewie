@@ -1,9 +1,9 @@
 """WP0.6 (RB-06) — the GOLD acceptance: a fresh wheel installs and the server product runs.
 
-Builds the wheel, installs `dustgym[server]` into a CLEAN venv (proving the server extra carries every
+Builds the wheel, installs `stewie[server]` into a CLEAN venv (proving the server extra carries every
 import-time dependency), and in that venv imports the server + runs a real Mars plan (no DEM asset
-needed) writing its report to a configurable $DUSTGYM_DATA_DIR. This is slow (a wheel build + a clean
-network install ~2-3 min), so it is OPT-IN: set DUSTGYM_WHEEL_SMOKE=1 to run it (release/scheduled gate).
+needed) writing its report to a configurable $STEWIE_DATA_DIR. This is slow (a wheel build + a clean
+network install ~2-3 min), so it is OPT-IN: set STEWIE_WHEEL_SMOKE=1 to run it (release/scheduled gate).
 The fast import-graph proxy in test_server_install.py runs in standard CI every time.
 """
 from __future__ import annotations
@@ -16,21 +16,21 @@ import venv
 
 import pytest
 
-if os.environ.get("DUSTGYM_WHEEL_SMOKE") != "1":
-    pytest.skip("fresh-wheel smoke is opt-in (slow + network); set DUSTGYM_WHEEL_SMOKE=1",
+if os.environ.get("STEWIE_WHEEL_SMOKE") != "1":
+    pytest.skip("fresh-wheel smoke is opt-in (slow + network); set STEWIE_WHEEL_SMOKE=1",
                 allow_module_level=True)
 
 _REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Run inside the clean venv: server imports (fastapi), planner runs a Mars plan (matplotlib report),
-# the report lands in the configured data dir, and the dustgym-serve entrypoint resolves. No DEM, no httpx.
+# the report lands in the configured data dir, and the stewie-serve entrypoint resolves. No DEM, no httpx.
 _SMOKE = r"""
 import os
-os.environ["DUSTGYM_DATA_DIR"] = os.environ["SMOKE_DATA"]
+os.environ["STEWIE_DATA_DIR"] = os.environ["SMOKE_DATA"]
 import stewie.server.server                       # FastAPI app builds -> server extra deps present
-from stewie.server.server import main             # console_scripts: dustgym-serve = server:main
+from stewie.server.server import main             # console_scripts: stewie-serve = server:main
 assert callable(main)
-import dustgym                                      # registers the gym envs
+import stewie                                      # registers the gym envs
 from lode import mission_planner as MP
 m = MP.mission_from_dict({"name": "wheel", "body": "mars", "charger": [0, 0],
                           "orders": [{"action": "pad", "kind": "cut", "x": 10, "y": 10,
@@ -43,10 +43,10 @@ print("FRESH WHEEL OK")
 
 def test_fresh_wheel_server_runs(tmp_path):
     dist = tmp_path / "dist"
-    # build just the dustgym wheel via pip's own backend (no `build`/pyproject_hooks toolchain dep).
+    # build just the stewie wheel via pip's own backend (no `build`/pyproject_hooks toolchain dep).
     subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "-w", str(dist), _REPO],
                    check=True, capture_output=True, text=True)
-    wheels = glob.glob(str(dist / "dustgym-*.whl"))
+    wheels = glob.glob(str(dist / "stewie-*.whl"))
     assert wheels, "wheel build produced no .whl"
 
     venv_dir = tmp_path / "venv"
@@ -70,6 +70,6 @@ def test_fresh_wheel_server_runs(tmp_path):
 if __name__ == "__main__":
     import tempfile
     with tempfile.TemporaryDirectory() as d:
-        os.environ["DUSTGYM_WHEEL_SMOKE"] = "1"
+        os.environ["STEWIE_WHEEL_SMOKE"] = "1"
         test_fresh_wheel_server_runs(__import__("pathlib").Path(d))
         print("ok")

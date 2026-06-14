@@ -1,4 +1,4 @@
-"""bodies.py — per-planet terramechanics constants for the dustgym environments.
+"""bodies.py — per-planet terramechanics constants for the stewie environments.
 
 Each ``Body`` carries SOURCED surface/regolith mechanics for a planetary body that is a real
 habitat and/or ISRU-mining target (systematic review: docs/bodies_sysrev.md). Values are tagged

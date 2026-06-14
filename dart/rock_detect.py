@@ -11,7 +11,7 @@ Two strictly separated paths (invariant I3 -- truth firewall):
 
 * EVALUATION (``project_clast_truth`` / ``score_detections`` / ``save_detection_overlay``):
   the crater_boulders clast TRUTH (metadata ``clasts``) and the true camera pose enter here
-  and ONLY here. Truth is projected into the image with the dustgym sidecar camera model
+  and ONLY here. Truth is projected into the image with the stewie sidecar camera model
   (a pinhole with vertical FOV, matching ``godot_sidecar/sidecar.gd`` ``_setup_camera``: fov
   55 deg, Godot default KEEP_HEIGHT, look-at), restricted to camera-visible boulders, then
   greedily matched to the detections to compute precision/recall. The report is tagged

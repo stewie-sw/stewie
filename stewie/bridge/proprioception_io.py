@@ -1,4 +1,4 @@
-"""A5: parse + validate the dustgym runtime proprioception packet (schema proprioception/1.x) into
+"""A5: parse + validate the stewie runtime proprioception packet (schema proprioception/1.x) into
 dart typed objects.
 
 dart owns parsing + time-sync + validation (the producer owns generation). Validation enforces:

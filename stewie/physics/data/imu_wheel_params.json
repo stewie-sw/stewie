@@ -45,7 +45,7 @@
     "encoder_counts_per_rev_provenance": "[ASSUMPTION] typical 12-bit wheel-encoder resolution; no IPEx encoder spec is published.",
     "wheel_order": ["LF", "RF", "LR", "RR"],
     "yaw_source": "differential wheel speeds (skid-steer), derived from noisy per-wheel encoders (NOT true yaw rate)",
-    "error_model": "each wheel encoder reads wheel speed = ground/(1-slip); forward speed and yaw rate over-read by slip. slip is the dustgym terramechanics solve (NOT exposed on the sensor sample).",
+    "error_model": "each wheel encoder reads wheel speed = ground/(1-slip); forward speed and yaw rate over-read by slip. slip is the stewie terramechanics solve (NOT exposed on the sensor sample).",
     "acceptance_envelope": {
       "label": "MER autonomous-navigation design goal / contextual check (NOT a universal measured soil-error law)",
       "dead_reckoning_error_frac_of_distance": 0.10,

@@ -19,7 +19,7 @@
    "frame_and_profile_validation": "PASS"
   },
   "simulated_closure": {
-   "channels_via": "validation/g1_capture.py (grounded IMU/wheel model on real Haworth DEM + real dustgym slip)",
+   "channels_via": "validation/g1_capture.py (grounded IMU/wheel model on real Haworth DEM + real stewie slip)",
    "imu_rate_hz": 100.0,
    "wheel_rate_hz": 10.0,
    "stereo": "NOT_INCLUDED",
@@ -27,7 +27,7 @@
    "baseline_wheel_imu_ate_aligned_m": 2.015
   },
   "blockers": [
-   "Native dustgym camera-egress publication of IMU/wheel/joint channels is still pending (solnav g1_capture.py supplies them for the SIMULATED case).",
+   "Native stewie camera-egress publication of IMU/wheel/joint channels is still pending (solnav g1_capture.py supplies them for the SIMULATED case).",
    "No REAL-WORLD locked capture (Katwijk download network-blocked here); G1 release stays blocked until a real run is scored vs DGPS (see katwijk_io.py + g1_imu_wheel_data_sources.md).",
    "Synchronized stereo keyframes are not yet in the capture (sidecar renders local patches, not the traverse)."
   ],

@@ -210,16 +210,16 @@ def test_auth_fail_closed_without_key(client, monkeypatch):
     permitted only behind an explicit STEWIE_DEV_OPEN flag for a loopback/in-process client; with a
     key set, the raw key or an HMAC bearer is required."""
     monkeypatch.delenv("STEWIE_API_KEY", raising=False)
-    monkeypatch.delenv("DUSTGYM_API_KEY", raising=False)
+    monkeypatch.delenv("STEWIE_API_KEY", raising=False)
     # no key + no dev-open -> LOCKED (was silently director-open before C-01)
     monkeypatch.delenv("STEWIE_DEV_OPEN", raising=False)
-    monkeypatch.delenv("DUSTGYM_DEV_OPEN", raising=False)
+    monkeypatch.delenv("STEWIE_DEV_OPEN", raising=False)
     assert client.post("/sense", json={"true_mass_kg": 5.0}).status_code == 503
     # explicit dev-open flag, loopback/in-process client -> allowed
     monkeypatch.setenv("STEWIE_DEV_OPEN", "1")
     assert client.post("/sense", json={"true_mass_kg": 5.0}).status_code == 200
     # with a key set, mutating routes require it (dev-open no longer applies)
-    monkeypatch.setenv("DUSTGYM_API_KEY", "s3cret")
+    monkeypatch.setenv("STEWIE_API_KEY", "s3cret")
     assert client.post("/sense", json={"true_mass_kg": 5.0}).status_code == 401
     ok = client.post("/sense", json={"true_mass_kg": 5.0}, headers={"X-API-Key": "s3cret"})
     assert ok.status_code == 200 and ok.json()["ok"] is True
@@ -324,7 +324,7 @@ def test_slam_503_when_dataset_absent(client, monkeypatch):
     """[REQ:PM-06] no machine paths in source -- with no dataset configured, /slam answers a clean 503,
     it never fabricates a trajectory."""
     monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
-    monkeypatch.delenv("DUSTGYM_KATWIJK_DIR", raising=False)
+    monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
     SRV._KATWIJK_CACHE.clear()
     r = client.post("/slam", json={"segment": "Part1"})
     assert r.status_code == 503 and r.json()["ok"] is False
@@ -381,7 +381,7 @@ def test_slam_compare_three_approach_classes(client, monkeypatch):
 def test_slam_compare_503_when_dataset_absent(client, monkeypatch):
     """[REQ:SN-12] no dataset configured -> clean 503, never a fabricated comparison."""
     monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
-    monkeypatch.delenv("DUSTGYM_KATWIJK_DIR", raising=False)
+    monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
     SRV._KATWIJK_CACHE.clear()
     r = client.post("/slam/compare", json={"segment": "Part1"})
     assert r.status_code == 503 and r.json()["ok"] is False

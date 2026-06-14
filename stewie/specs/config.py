@@ -3,7 +3,7 @@
 Every module-level scalar constant in ``constants.py`` and ``ipex_specs.py`` is overridable
 WITHOUT editing source, via two layers (environment wins over file):
 
-  1. A TOML file pointed to by ``$DUSTGYM_CONFIG``. Top-level keys are constant names, and an
+  1. A TOML file pointed to by ``$STEWIE_CONFIG``. Top-level keys are constant names, and an
      optional ``[constants]`` / ``[ipex_specs]`` table is also read::
 
          RHO_SURFACE = 1250.0
@@ -11,7 +11,7 @@ WITHOUT editing source, via two layers (environment wins over file):
          [ipex_specs]
          BATTERY_SERIES_CELLS = 14
 
-  2. Environment variables ``DUSTGYM_<NAME>``, e.g. ``DUSTGYM_RHO_SURFACE=1250``.
+  2. Environment variables ``STEWIE_<NAME>``, e.g. ``STEWIE_RHO_SURFACE=1250``.
 
 Derived constants (``RHO_GRAIN``, ``RHO_SPOIL``, ...) are RECOMPUTED by the defining module
 from their (possibly overridden) inputs after :func:`apply`, so override the PRIMITIVE
@@ -26,9 +26,8 @@ from __future__ import annotations
 
 import os
 
-_ENV_PREFIX = "STEWIE_"          # canonical (rename 2026-06-10)
-_ENV_PREFIX_LEGACY = "DUSTGYM_"  # accepted fallback for one transition cycle
-_CONFIG_ENV = "DUSTGYM_CONFIG"
+_ENV_PREFIX = "STEWIE_"
+_CONFIG_ENV = "STEWIE_CONFIG"
 
 
 def _coerce(v):
@@ -50,7 +49,7 @@ def _coerce(v):
 
 
 def _load_toml() -> dict:
-    """Parse the $DUSTGYM_CONFIG TOML file (top-level + [constants]/[ipex_specs] tables)."""
+    """Parse the $STEWIE_CONFIG TOML file (top-level + [constants]/[ipex_specs] tables)."""
     path = os.environ.get(_CONFIG_ENV)
     if not path:
         return {}
@@ -74,14 +73,12 @@ def _load_toml() -> dict:
 
 
 def get_overrides() -> dict:
-    """The merged override map: TOML file first, then ``DUSTGYM_<NAME>`` env vars (env wins)."""
+    """The merged override map: TOML file first, then ``STEWIE_<NAME>`` env vars (env wins)."""
     out = {k: _coerce(v) for k, v in _load_toml().items()}
     env: dict = {}
-    for k, v in os.environ.items():            # env beats the FILE; STEWIE_ beats DUSTGYM_ in env
+    for k, v in os.environ.items():            # env beats the FILE
         if k.startswith(_ENV_PREFIX) and k != _CONFIG_ENV:
             env[k[len(_ENV_PREFIX):]] = _coerce(v)
-        elif k.startswith(_ENV_PREFIX_LEGACY) and k != _CONFIG_ENV:
-            env.setdefault(k[len(_ENV_PREFIX_LEGACY):], _coerce(v))
     out.update(env)
     # SEC-1 (audit 2026-06-11): NEVER surface secret VALUES through the overlay -- /config and the
     # N15 describe() reach this. The key NAME may show (so an operator sees a key is configured),
@@ -145,16 +142,16 @@ def describe() -> dict:
 # ---- application-data directories (PRD PO-02 / RB-06) --------------------------------------
 # Reports, profiles, caches, and renders MUST live in a writable, configurable location -- NOT
 # inside the installed package (a wheel in site-packages is typically read-only). Resolved at call
-# time so a test (or deployment) can point $DUSTGYM_DATA_DIR at a scratch directory.
+# time so a test (or deployment) can point $STEWIE_DATA_DIR at a scratch directory.
 def data_dir() -> str:
-    """The writable application-data root: ``$DUSTGYM_DATA_DIR``, else the XDG user-data dir
-    (``$XDG_DATA_HOME/dustgym`` or ``~/.local/share/dustgym``)."""
-    d = os.environ.get("STEWIE_DATA_DIR", os.environ.get("DUSTGYM_DATA_DIR"))
+    """The writable application-data root: ``$STEWIE_DATA_DIR``, else the XDG user-data dir
+    (``$XDG_DATA_HOME/stewie`` or ``~/.local/share/stewie``)."""
+    d = os.environ.get("STEWIE_DATA_DIR", os.environ.get("STEWIE_DATA_DIR"))
     if d:
         return d
     base = os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
     new = os.path.join(base, "stewie")
-    legacy = os.path.join(base, "dustgym")
+    legacy = os.path.join(base, "stewie")
     # rename 2026-06-10: prefer the new dir, but keep serving an existing legacy install's data
     return legacy if (os.path.isdir(legacy) and not os.path.isdir(new)) else new
 

@@ -379,7 +379,7 @@ being manually duplicated across Sections 5, 8, 9, 14, and 15.
 1. Reject non-finite/negative physical inputs and enforce complete `ColumnState`
    construction/mutation invariants.
 2. Declare `trimesh` appropriately and make CI run the configured suite.
-3. Add a fresh-wheel smoke test for `dustgym-serve`, all registered envs, and planner
+3. Add a fresh-wheel smoke test for `stewie-serve`, all registered envs, and planner
    imports.
 4. Correct N3/N6/N9/N13 and the stale release/test claims in the PRD immediately.
 

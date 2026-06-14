@@ -1,6 +1,6 @@
 """Real lunar DEM I/O + scan-to-DEM registration (the global map tier).
 
-Loads a dustgym/LOLA `.rf32` heightmap + metadata, crops a metric window (e.g.,
+Loads a stewie/LOLA `.rf32` heightmap + metadata, crops a metric window (e.g.,
 100 x 100 m on the south pole), and registers a local height patch against the DEM
 by a brute-force shift search (the localization mechanism in algorithm A4/A5). Real
 data; no fabricated terrain.

@@ -2,7 +2,7 @@
 
 **Review date:** 2026-06-06
 **Reviewed commit:** `047331250cf443498c25b5bead4bed167668752c`
-**Repository:** `/mnt/projects/foss_ipex/dustgym`
+**Repository:** `/mnt/projects/foss_ipex/stewie`
 
 ## Executive verdict
 
@@ -98,7 +98,7 @@ declared in `pyproject.toml`.
 `ModuleNotFoundError: No module named 'trimesh'`.
 
 Both `.github/workflows/ci.yml:31-32` and
-`.github/workflows/publish-dustgym.yml:32-33` explicitly run only
+`.github/workflows/publish-stewie.yml:32-33` explicitly run only
 `pytest terrain_authority planet_browser`, bypassing the configured `scripts` test
 path. A release can therefore pass and publish while the repository’s declared test
 suite cannot collect.
@@ -184,7 +184,7 @@ tests that assert expected numerical differences.
 **Severity:** High
 **Area:** packaging, deployment
 
-`pyproject.toml:46-48` always installs the `dustgym-serve` console entry point, while
+`pyproject.toml:46-48` always installs the `stewie-serve` console entry point, while
 FastAPI/uvicorn and planner dependencies are optional at `pyproject.toml:31-34`.
 `planet_browser/mission_planner.py:31-34` imports matplotlib at module import time, so
 the server extra alone is also insufficient.
@@ -313,7 +313,7 @@ browser artifact with a source hash/version.
 
 **Severity:** Medium
 
-Authentication is disabled when `DUSTGYM_API_KEY` is absent
+Authentication is disabled when `STEWIE_API_KEY` is absent
 (`planet_browser/server.py:255-263`) and CORS defaults to `*` at `:269-274`. This is
 reasonable for loopback development but unsafe if launched on `0.0.0.0`, as suggested
 by `AGENTS.md:24-27`.
@@ -414,8 +414,8 @@ not accumulated in the primary source history.
 
 **Severity:** Medium
 
-The surrounding workspace contains active copies named `dustgym`, `roversim`,
-`dustgym_repo`, and a root `planet_browser`, at different commits. This is outside the
+The surrounding workspace contains active copies named `stewie`, `roversim`,
+`stewie_repo`, and a root `planet_browser`, at different commits. This is outside the
 reviewed repository’s code but is an operational architecture risk: fixes and evidence
 can easily target the wrong tree.
 

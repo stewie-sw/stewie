@@ -1,5 +1,5 @@
 """Package smoke test for the world-model surface: the five layers are importable from the installed
-dustgym package and compute on a real scene. No synthetic data (real crater_boulders bundle)."""
+stewie package and compute on a real scene. No synthetic data (real crater_boulders bundle)."""
 from __future__ import annotations
 
 import os

@@ -23,7 +23,7 @@ def _camera(clock="sim_monotonic", seq=5):
 def test_canonical_unifies_all_channels_on_one_clock():
     j = rp.joint_channel(0.65, 0.65, t=0.0)
     pkt = rp.canonical_runtime_packet(_proprio(), _camera(), joints=j)
-    assert pkt["schema_version"] == "dustgym_runtime/1.0" and pkt["clock"] == "sim_monotonic"
+    assert pkt["schema_version"] == "stewie_runtime/1.0" and pkt["clock"] == "sim_monotonic"
     ch = pkt["channels"]
     assert ch["imu"]["status"] == "OK" and ch["wheel"]["status"] == "OK"
     assert ch["camera"]["status"] == "OK" and len(ch["camera"]["frames"]) == 2

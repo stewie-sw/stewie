@@ -76,7 +76,7 @@ def test_passes_gym_env_checker_and_registers():
     check_env(ap.ActivePerceptionEnv(grid=12, seed=0), skip_render_check=True)
     from stewie.envs import registration
     registration.register_envs()
-    env = gym.make("Dust/ActivePerception-v0")
+    env = gym.make("Stewie/ActivePerception-v0")
     obs, _ = env.reset(seed=0)
     assert obs.shape == env.observation_space.shape
     env.step(env.action_space.sample())

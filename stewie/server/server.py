@@ -7,10 +7,10 @@ Pydantic request models (typed contract + input limits), optional API-key auth o
 CORS, a thread-safe (locked) matplotlib report path, a reports/ TTL sweep, structured access logging
 (PRD N10), and /healthz + /metrics.
 
-    python -m planet_browser.server [--port 8770] [--host 0.0.0.0]    # or the `dustgym-serve` entry point
+    python -m stewie.server.server [--port 8770] [--host 0.0.0.0]    # or the `stewie-serve` entry point
 
-Env knobs (PRD N15 overlay style): DUSTGYM_API_KEY (auth on POST when set), DUSTGYM_CORS_ORIGINS
-(comma-list or *), DUSTGYM_REPORTS_TTL_S (report retention, default 86400), DUSTGYM_LOG_LEVEL.
+Env knobs (PRD N15 overlay style): STEWIE_API_KEY (auth on POST when set), STEWIE_CORS_ORIGINS
+(comma-list or *), STEWIE_REPORTS_TTL_S (report retention, default 86400), STEWIE_LOG_LEVEL.
 """
 from __future__ import annotations
 
@@ -46,12 +46,12 @@ from dart import pose_graph_se2 as PG         # the live SE(2) estimator the fix
 from dart import integrated_slam as ISLAM     # P1.2: the integrated multi-factor SLAM run + LOO
 
 # PRD N10: structured logging + observability. Used for access logs, startup, and the additive
-# failure paths. Level via $DUSTGYM_LOG_LEVEL.
+# failure paths. Level via $STEWIE_LOG_LEVEL.
 log = logging.getLogger("stewie.server")
 
 def _env(name: str, default=None):
-    """STEWIE_<name> with DUSTGYM_<name> fallback (rename 2026-06-10; legacy accepted one cycle)."""
-    return os.environ.get(f"STEWIE_{name}", os.environ.get(f"DUSTGYM_{name}", default))
+    """Read the STEWIE_<name> environment variable."""
+    return os.environ.get(f"STEWIE_{name}", default)
 
 
 _START = time.monotonic()
@@ -61,7 +61,7 @@ _METRICS_LOCK = threading.Lock()   # RC-04: serialize the metrics read-modify-wr
 
 
 def _configure_logging(level: str | None = None) -> None:
-    """Configure logging for the server (PRD N10): level from arg, else $DUSTGYM_LOG_LEVEL, else INFO."""
+    """Configure logging for the server (PRD N10): level from arg, else $STEWIE_LOG_LEVEL, else INFO."""
     lvl = (level or _env("LOG_LEVEL", "INFO")).upper()
     logging.basicConfig(level=getattr(logging, lvl, logging.INFO),
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s", force=True)
@@ -78,8 +78,8 @@ except Exception as _prp_exc:   # noqa: BLE001 -- /render just becomes unavailab
 _HAWORTH = os.path.join(MP._REPO_ROOT, "samples", "lunar_dem", "haworth_10km_5m")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# PO-02/RB-06: reports + profiles live in the configurable application-data dir ($DUSTGYM_DATA_DIR,
-# else ~/.local/share/dustgym) -- NOT inside the (possibly read-only) installed package. Tests
+# PO-02/RB-06: reports + profiles live in the configurable application-data dir ($STEWIE_DATA_DIR,
+# else ~/.local/share/stewie) -- NOT inside the (possibly read-only) installed package. Tests
 # monkeypatch these module-level vars to a tmp dir; run() writes reports to the same CFG.reports_dir().
 REPORTS = CFG.reports_dir()
 PROFILES = CFG.profiles_dir()                      # saved planning profiles (config snapshots), like reports/
@@ -95,13 +95,13 @@ _MAX_BODY_BYTES = int(_env("MAX_BODY_BYTES", 4 * 1024 * 1024))   # N8: request-b
 def _version() -> str:
     try:
         from importlib.metadata import version
-        return version("stewie")    # the dist renamed (was dustgym; the old lookup always fell back to 0.1.0)
+        return version("stewie")    # the dist renamed (was stewie; the old lookup always fell back to 0.1.0)
     except Exception:   # noqa: BLE001 -- not installed (editable/source run)
         return "0.1.0"
 
 
 def _prune_reports(ttl_s: float | None = None) -> int:
-    """Delete report files older than the TTL (default $DUSTGYM_REPORTS_TTL_S or 86400 s). Returns count."""
+    """Delete report files older than the TTL (default $STEWIE_REPORTS_TTL_S or 86400 s). Returns count."""
     ttl = float(ttl_s if ttl_s is not None else _env("REPORTS_TTL_S", 86400))
     if ttl <= 0 or not os.path.isdir(REPORTS):
         return 0
@@ -980,7 +980,7 @@ def get_config_full():
 def _redact_secrets(node):
     """Scrub key/token/secret VALUES from the overlay dump (the N15 describe() includes env
     values -- the API key must never reach the browser)."""
-    secret = (os.environ.get("STEWIE_API_KEY", "") or os.environ.get("DUSTGYM_API_KEY", ""))
+    secret = os.environ.get("STEWIE_API_KEY", "")
     if isinstance(node, dict):
         return {k: ("[REDACTED]" if any(t in str(k).upper() for t in ("KEY", "TOKEN", "SECRET"))
                     else _redact_secrets(v)) for k, v in node.items()}
@@ -1187,7 +1187,7 @@ def get_profile(name: str):
         return json.load(fh)
 
 
-# ---- POST: the planner API (auth-gated when $DUSTGYM_API_KEY is set) -----------------------------
+# ---- POST: the planner API (auth-gated when $STEWIE_API_KEY is set) -----------------------------
 @app.post("/plan")
 def post_plan(req: PlanRequest, _auth: None = Depends(require_auth)):
     _prune_reports()
@@ -1322,7 +1322,7 @@ _KATWIJK_CACHE: dict = {}   # part name -> loaded real arrays (parse once, reuse
 def _katwijk_arrays(segment: str):
     """Resolve + cache the REAL Katwijk arrays for a segment. Returns None if the dataset is not on this
     host (not bundled -- ESA license + size); the /slam endpoint then answers 503, never fabricates.
-    No machine-specific path in source: the root is $STEWIE_KATWIJK_DIR (DUSTGYM_ fallback)."""
+    No machine-specific path in source: the root is $STEWIE_KATWIJK_DIR (STEWIE_ fallback)."""
     if segment in _KATWIJK_CACHE:
         return _KATWIJK_CACHE[segment]
     root = _env("KATWIJK_DIR")

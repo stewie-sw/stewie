@@ -1,6 +1,6 @@
 """Correlation-based DEM anchoring (NCC / phase-correlation peak).
 
-MATH check (self-consistency on REAL DEM data): crop a patch from a REAL dustgym/LOLA DEM, shift it
+MATH check (self-consistency on REAL DEM data): crop a patch from a REAL stewie/LOLA DEM, shift it
 by a KNOWN offset, and confirm the correlator recovers that offset within one cell. No synthetic
 terrain: the elevation field is a real DEM (crater_boulders @ 0.02 m, and the LOLA Haworth tile @
 5 m), only the shift is the known numeric quantity being recovered.
@@ -17,7 +17,7 @@ import pytest
 from dart import dem_anchor
 _REPO_SAMPLES = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "samples"))
 
-# REAL DEMs (dustgym samples). crater_boulders has genuine 2-D relief (a crater + boulders) so the
+# REAL DEMs (stewie samples). crater_boulders has genuine 2-D relief (a crater + boulders) so the
 # correlation peak is unambiguous; the Haworth tile is the operational south-polar prior map.
 _CRATER = os.path.join(_REPO_SAMPLES, "crater_boulders/heightmap.rf32")
 _HAWORTH = os.path.join(_REPO_SAMPLES, "lunar_dem/haworth_10km_5m/heightmap.rf32")

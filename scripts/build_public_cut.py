@@ -3,7 +3,7 @@
 
 PUBLICATION BOUNDARY: everything listed in the DART provenance manifest (the research track fold),
 the evaluation gates + evidence (stewie/eval), and files that ABSORBED research track code in the M3
-merges are EXCLUDED. The output tree is the dustgym-heritage platform + John's demo + deploy/docs.
+merges are EXCLUDED. The output tree is the platform + John's demo + deploy/docs.
 Run: python scripts/build_public_cut.py [dest]   (default ../public_cut, OUTSIDE the repo)
 """
 import os
@@ -27,7 +27,7 @@ excluded |= {"dart/localization.py", "stewie/twin/world_model.py"}
 EXCLUDE_DIRS = ("stewie/eval", "stewie/bridge", "stewie/sensors", ".git", "__pycache__",
                 "papers", "viz/private")
 
-INCLUDE_TOP = ["stewie", "dart", "lode", "leap", "forge", "dustgym", "scripts", "samples",
+INCLUDE_TOP = ["stewie", "dart", "lode", "leap", "forge", "scripts", "samples",
                "deploy", "docs", ".github", "PRD.md", "README.md", "LICENSE", "CITATION.cff",
                "pyproject.toml", "INTERFACE.md", "CONFIG.md", "CONTRIBUTING.md", "SECURITY.md",
                "AGENTS.md", "ARTIFACTS.md", "THIRD_PARTY.md", "ipex-terrain-sim-spec.md",

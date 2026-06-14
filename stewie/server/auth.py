@@ -37,7 +37,7 @@ def is_allowed(email: str) -> bool:
 
 
 def _key() -> bytes:
-    k = os.environ.get("STEWIE_API_KEY", "") or os.environ.get("DUSTGYM_API_KEY", "")
+    k = os.environ.get("STEWIE_API_KEY", "") or os.environ.get("STEWIE_API_KEY", "")
     return k.encode()
 
 

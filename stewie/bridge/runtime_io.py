@@ -1,4 +1,4 @@
-"""A6 consumer: parse + validate the canonical single-clock dustgym_runtime packet (P0-3).
+"""A6 consumer: parse + validate the canonical single-clock stewie_runtime packet (P0-3).
 
 Unifies the producer-side channels (camera + IMU + raw four-wheel + measured joints) on ONE clock.
 Reuses proprioception_io for the imu/wheel channels, adds camera + joints parsing, and enforces the
@@ -42,8 +42,8 @@ _CHANNEL_NAMES = {"camera", "imu", "wheel", "joints", "power"}
 
 
 def parse_canonical(packet: dict) -> dict:
-    if not str(packet.get("schema_version", "")).startswith("dustgym_runtime/"):
-        raise ValueError("not a canonical dustgym_runtime packet")
+    if not str(packet.get("schema_version", "")).startswith("stewie_runtime/"):
+        raise ValueError("not a canonical stewie_runtime packet")
     # closing pass (G1 #2): strict TOP-LEVEL acceptance -- novel keys/channels cannot ride in,
     # the clock must be a named timebase, sequence_id a non-negative integer. Reject, never coerce.
     extra = set(packet) - _TOP_KEYS

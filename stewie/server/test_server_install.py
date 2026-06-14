@@ -1,7 +1,7 @@
-"""WP0.6 (RB-06) — the installed `dustgym[server]` must actually run.
+"""WP0.6 (RB-06) — the installed `stewie[server]` must actually run.
 
 The server imports the mission planner, which imports matplotlib AT MODULE LOAD, and the latlon
-site-pick uses pyproj. So `pip install dustgym[server]` only works if the server extra declares those.
+site-pick uses pyproj. So `pip install stewie[server]` only works if the server extra declares those.
 This guards that the extra covers the server's import graph, and that the app + console entrypoint +
 registered envs import cleanly. (The full fresh-wheel clean-venv build smoke is a heavier follow-on.)
 """
@@ -23,7 +23,7 @@ def _extras():
 
 
 def test_server_extra_covers_the_server_import_graph():
-    # RB-06: a fresh `pip install dustgym[server]` ImportErrors on `import stewie.server.server`
+    # RB-06: a fresh `pip install stewie[server]` ImportErrors on `import stewie.server.server`
     # unless the extra carries the planner's import-time deps. matplotlib is required at module load.
     server = " ".join(_extras()["server"]).lower()
     for dep in ("fastapi", "uvicorn", "matplotlib", "pyproj"):
@@ -31,18 +31,18 @@ def test_server_extra_covers_the_server_import_graph():
 
 
 def test_server_app_and_entrypoint_import():
-    # the FastAPI app constructs and the console_scripts target (dustgym-serve = server:main) resolves.
+    # the FastAPI app constructs and the console_scripts target (stewie-serve = server:main) resolves.
     from stewie.server import server as srv
     assert srv.app is not None
-    assert callable(srv.main)                            # pyproject [project.scripts] dustgym-serve -> server:main
+    assert callable(srv.main)                            # pyproject [project.scripts] stewie-serve -> server:main
 
 
 def test_registered_envs_import_and_make():
-    # importing dustgym registers the gym envs; the import graph for every registered Dust/* env is intact.
+    # importing stewie registers the gym envs; the import graph for every registered Stewie/* env is intact.
     gym = __import__("gymnasium")
-    import dustgym  # noqa: F401  (registers on import)
-    dust_ids = [k for k in gym.envs.registry if str(k).startswith("Dust/")]
-    assert dust_ids, "no Dust/* environments registered on `import dustgym`"
+    import stewie  # noqa: F401  (registers on import)
+    dust_ids = [k for k in gym.envs.registry if str(k).startswith("Stewie/")]
+    assert dust_ids, "no Stewie/* environments registered on `import stewie`"
     env = gym.make(dust_ids[0])                          # the first registered env constructs
     env.reset(seed=0)
     env.close()

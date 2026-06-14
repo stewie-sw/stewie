@@ -46,7 +46,7 @@ manipulation ToC. STEWIE status is grounded in real modules. Legend: ✅ covered
 | **Task-and-motion planning (TAMP), behavior trees** | manip Ch5, Springer Handbook | 🟡 | the **Plan IR** (typed-action list + DAG) is the substrate; no BT executive / integrated TAMP |
 | **Reinforcement learning (policy-grad, value, model-based)** | manip Ch11, Springer Handbook | ✅+ | PPO (SB3) + CEM + **model-based beam-search on the exact authority** + search-distillation, with the honest "learning earns its keep only in multi-objective scheduling" finding |
 | **Imitation / behavior cloning / diffusion policy** | manip Ch10/11 | 🟡 | search-distillation is BC-like; no diffusion policy |
-| **Simulation / physics engines / Gym** | manip appendix (Drake), Springer Handbook | ✅ | conserved authority (sub-ms) + Chrono (⛔) + Godot render; the Gymnasium suite (pip-historical `dustgym`, now `stewie`) |
+| **Simulation / physics engines / Gym** | manip appendix (Drake), Springer Handbook | ✅ | conserved authority (sub-ms) + Chrono (⛔) + Godot render; the Gymnasium suite (pip-historical `stewie`, now `stewie`) |
 | **ROS / middleware / real-time I/O** | Corke, Springer Handbook | 🟡⛔ | ROS2 Jazzy bridge (gated); FastAPI server batch-only (the streaming/cmd_vel seam is the open item) |
 | **Humanoid / legged modelling & control (ZMP, gait)** | Kajita, Nenchev, Springer Handbook | N/A | wheeled rover |
 | **Tactile / proprioceptive sensing** | manip Ch12, Springer Handbook | 🟡 | proprioceptive drum-current mass inference (`rassor_mass_model`, ICE-RASSOR); no contact/tactile at the dig interface |

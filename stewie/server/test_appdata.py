@@ -1,7 +1,7 @@
 """WP0.6 (PO-02 / RB-06) — reports + profiles live in a CONFIGURABLE application-data directory.
 
 A wheel install puts the package in (often read-only) site-packages, so reports/profiles must NOT be
-written beside the source. $DUSTGYM_DATA_DIR (else ~/.local/share/dustgym) is the writable root; this
+written beside the source. $STEWIE_DATA_DIR (else ~/.local/share/stewie) is the writable root; this
 verifies the resolver honors the env var, that mission reports land there, and that profile writes are
 atomic. Real planner run on a real moon mission; no synthetic data.
 """
@@ -17,7 +17,7 @@ from stewie.specs import config
 
 
 def test_data_dir_honors_env(monkeypatch, tmp_path):
-    monkeypatch.setenv("DUSTGYM_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
     assert config.data_dir() == str(tmp_path)
     assert config.reports_dir() == os.path.join(str(tmp_path), "reports")
     assert config.profiles_dir() == os.path.join(str(tmp_path), "profiles")
@@ -25,18 +25,18 @@ def test_data_dir_honors_env(monkeypatch, tmp_path):
 
 def test_data_dir_default_is_outside_the_package():
     # default (no env) must NOT be inside the installed package dir (read-only on a wheel install)
-    monkeypatch_env = os.environ.pop("DUSTGYM_DATA_DIR", None)
+    monkeypatch_env = os.environ.pop("STEWIE_DATA_DIR", None)
     try:
         d = config.data_dir()
     finally:
         if monkeypatch_env is not None:
-            os.environ["DUSTGYM_DATA_DIR"] = monkeypatch_env
+            os.environ["STEWIE_DATA_DIR"] = monkeypatch_env
     pkg = os.path.dirname(os.path.abspath(SRV.__file__))
-    assert ("stewie" in d or "dustgym" in d) and not d.startswith(pkg)   # rename 2026-06-10
+    assert ("stewie" in d or "stewie" in d) and not d.startswith(pkg)   # rename 2026-06-10
 
 
 def test_report_is_written_to_the_configured_data_dir(monkeypatch, tmp_path):
-    monkeypatch.setenv("DUSTGYM_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
     m = MP.mission_from_dict({
         "name": "appdata", "body": "moon", "charger": [0, 0],
         "orders": [{"action": "pad", "kind": "cut", "x": 30, "y": 20, "footprint_m2": 25, "depth_m": 0.04}],
@@ -60,15 +60,15 @@ def test_profile_save_is_atomic_and_uses_the_data_dir(monkeypatch, tmp_path):
 
 def test_dem_dir_env_locates_the_asset_explicitly(monkeypatch, tmp_path):
     # RB-06 explicit asset mode: the (unpackaged) DEM bundle location is configurable.
-    monkeypatch.setenv("DUSTGYM_DEM_DIR", str(tmp_path / "haworth"))
+    monkeypatch.setenv("STEWIE_DEM_DIR", str(tmp_path / "haworth"))
     assert MP._haworth_bundle() == str(tmp_path / "haworth")
-    monkeypatch.delenv("DUSTGYM_DEM_DIR", raising=False)
+    monkeypatch.delenv("STEWIE_DEM_DIR", raising=False)
     assert MP._haworth_bundle().endswith(os.path.join("samples", "lunar_dem", "haworth_10km_5m"))
 
 
 def test_moon_dem_degrades_cleanly_when_asset_absent(monkeypatch):
     # a fresh wheel has no DEM bundle: _moon_dem degrades to a flat slope-check, it does NOT crash.
-    monkeypatch.setenv("DUSTGYM_DEM_DIR", "/nonexistent/dem/bundle")
+    monkeypatch.setenv("STEWIE_DEM_DIR", "/nonexistent/dem/bundle")
     monkeypatch.setattr(SRV, "_MOON_DEM", None); monkeypatch.setattr(SRV, "_SITE_DEMS", {})  # reset per-site cache (REG-01)
     dem, origin = SRV._moon_dem()
     assert dem is None and origin == (0.0, 0.0)

@@ -42,7 +42,7 @@ trustworthy + honestly tagged. The real findings are below, severity-ranked, wit
   which OR floated loose). Docstring corrected. Test `test_loose_mask_compacted_cells_hold_even_when_low_density`.
 - **`registration.ROVER_BODIES` is a hardcoded list** (:28), not derived from `BODIES` by
   `bekker_regime`. Adding a gravity-loaded body per the one-entry-extensibility promise silently creates
-  no `Dust/RoverDrive-<Body>-v0` ID, and the parametrized test derives *from* `ROVER_BODIES` so it can't
+  no `Stewie/RoverDrive-<Body>-v0` ID, and the parametrized test derives *from* `ROVER_BODIES` so it can't
   catch it. ✅ **FIXED:** `ROVER_BODIES = [k for k,b in BODIES.items() if b.bekker_regime == "gravity-loaded"]`
   (derives to moon/mars/ceres/earth; bennu/phobos excluded). Test
   `test_rover_bodies_are_derived_from_the_registry_not_hardcoded`.
@@ -62,7 +62,7 @@ trustworthy + honestly tagged. The real findings are below, severity-ranked, wit
 - Server hardening (a `0.0.0.0`-capable service): `/dem` lacks an `isfile` guard (500 not 404 in a wheel);
   `_access_log` `by_route` metric is keyed on the attacker-controlled raw path (unbounded-dict DoS); no
   request-body size cap; API-key compare isn't constant-time; `GET /reports|/profiles` are unauthenticated
-  even when `DUSTGYM_API_KEY` is set; `/structure` params are unvalidated. Path-traversal IS closed on all
+  even when `STEWIE_API_KEY` is set; `/structure` params are unvalidated. Path-traversal IS closed on all
   three file routes; CORS default is safe. None are critical; all are second-tier hardening.
 - Dead/cosmetic: `SWELL_FACTOR` is dead (self-disclosed); stale docstrings (`material.py`, `carve_crater`
   "MASS-CONSISTENT" → "height-identity-consistent"); duplicate planner section header; `_plan_stem` local
@@ -73,7 +73,7 @@ trustworthy + honestly tagged. The real findings are below, severity-ranked, wit
 ## PRD vs code — the drift is stale-PESSIMISTIC (code is ahead of the PRD; no true overclaims)
 - **N9 (CI gate)** marked ⬜ but `.github/workflows/ci.yml` runs ruff-F + mypy + pytest/coverage on a
   3.10-3.13 matrix; publish is gated on it. → done.
-- **N13 (wheel packaging)** marked ⬜ but the wheel ships `planet_browser` + the `dustgym-serve` entry
+- **N13 (wheel packaging)** marked ⬜ but the wheel ships `planet_browser` + the `stewie-serve` entry
   point. → done (residual: ~45 `sys.path` inserts).
 - **AL1 / AL2** listed as open Phase-0 fixes but both are in code (`mission_planner.py:669` degradation
   `warnings.warn`; `:653` `_precedence_is_feasible` cyclic precheck raises). → done.

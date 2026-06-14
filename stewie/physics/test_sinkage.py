@@ -2,12 +2,12 @@
 
 These tests encode the closed-form Bekker math INDEPENDENTLY of the implementation
 (known-answer), so they validate the equations, not just the code. Real lunar
-moduli (NTRS 20220010732). Slip-sinkage/entrapment is out of scope (matches dustgym).
+moduli (NTRS 20220010732). Slip-sinkage/entrapment is out of scope (matches stewie).
 """
 from stewie.physics import sinkage as sk
 
 
-def test_moon_moduli_match_dustgym_nasa_ltv():
+def test_moon_moduli_match_stewie_nasa_ltv():
     # k_c=1400 N/m^2, k_phi=820000 N/m^3, n=1.0 (NASA LTV white paper NTRS 20220010732)
     assert sk.MOON.k_c == 1400.0 and sk.MOON.k_phi == 820000.0 and sk.MOON.n == 1.0
 
@@ -46,7 +46,7 @@ def test_softer_soil_sinks_more():
 
 
 def test_static_load_per_contact_lunar():
-    # dry 30 kg, lunar g, 4 wheels -> ~12.15 N/wheel (matches dustgym)
+    # dry 30 kg, lunar g, 4 wheels -> ~12.15 N/wheel (matches stewie)
     assert abs(sk.static_load_per_contact(30.0, n_contacts=4) - 30.0 * 1.62 / 4) < 1e-6
 
 

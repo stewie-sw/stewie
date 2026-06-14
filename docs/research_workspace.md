@@ -12,9 +12,9 @@ live in the canonical research workspace:
 `/mnt/projects/stewie/research`
 
 Key locations (directory names under `papers/` and `reviews/` retain the
-historical `dustgym` name):
+historical `stewie` name):
 
-- STEWIE papers: `/mnt/projects/stewie/research/papers/dustgym/`
+- STEWIE papers: `/mnt/projects/stewie/research/papers/stewie/`
 - lunar SLAM review: `/mnt/projects/stewie/research/reviews/lunar-slam/`
 - DART research track and PRD: `/mnt/projects/stewie/research/projects/dart/`
 - shared references: `/mnt/projects/stewie/research/references/`
