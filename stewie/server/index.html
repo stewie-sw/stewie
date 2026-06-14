@@ -158,7 +158,17 @@
     resize: both; overflow: auto; min-width: 180px; max-width: 60vw; min-height: 120px;
     background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
   #workarea.show { display: block; }
-  #workarea .cap { color: var(--muted); font-size: 10px; letter-spacing: .03em; margin-bottom: 6px; }
+  /* collapsible (mobile-friendly): collapsed -> a compact cap chip, so it never blocks the view.
+     body #workarea.collapsed outranks the mobile body #workarea{width:32vw} rule so it shrinks to fit. */
+  body #workarea.collapsed { width: auto; max-width: 170px; min-width: 0; height: auto;
+                             min-height: 0; resize: none; overflow: visible; }
+  /* !important: the inner wrapper carries an inline display:inline-block that a stylesheet rule can't beat */
+  #workarea.collapsed > *:not(.cap) { display: none !important; }
+  #workarea.collapsed .cap { margin-bottom: 0; }
+  #workarea.collapsed .wa-hint { display: none; }
+  #workarea .cap { color: var(--muted); font-size: 10px; letter-spacing: .03em; margin-bottom: 6px;
+                   cursor: pointer; user-select: none; }
+  #wa-caret { display: inline-block; width: 1em; }
   #workarea img { width: 100%; display: block; border-radius: 4px; background: #05060c; }
   /* UI-5 (PRD 16.5, P4 verbatim): data-freshness borders -- green when fresh, yellow past 20 s,
      red past 60 s. Applied to any element carrying data-fresh; ages re-evaluated every 5 s. */
@@ -419,7 +429,7 @@
     </span>
   </div>
       <div id="workarea">
-        <div class="cap">WORK AREA — overview locator · drag the rectangle to pan · double-click to render</div>
+        <div class="cap" id="wa-cap" title="tap to collapse / expand"><span id="wa-caret">▾</span> WORK AREA<span class="wa-hint"> — overview locator · drag the rectangle to pan · double-click to render</span></div>
         <div style="position:relative; display:inline-block">
           <img id="workareaimg" alt="Haworth DEM hillshade"
                onerror="this.closest('#workarea').classList.remove('show')" />
@@ -1754,6 +1764,18 @@ function showSiteDem() {                                   // auto-show the real
     document.getElementById("workareaimg").src = "/dem/hillshade.png"; wa.classList.add("show");
   } else { wa.classList.remove("show"); }                 // the inset belongs to the Plan tab only
 }
+// the work-area inset is collapsible -- a thin tap bar so it never blocks a phone screen. Default
+// collapsed on mobile (no saved preference); the choice persists per browser.
+(function waCollapse() {
+  const wa = $("workarea"), cap = $("wa-cap"), caret = $("wa-caret");
+  if (!wa || !cap) return;
+  let saved = null; try { saved = localStorage.getItem("stewie_wa_collapsed"); } catch (e) {}
+  const start = saved !== null ? saved === "1" : (window.innerWidth <= 860);
+  const paint = (c) => { wa.classList.toggle("collapsed", c); if (caret) caret.textContent = c ? "▸" : "▾"; };
+  paint(start);
+  cap.onclick = () => { const c = !wa.classList.contains("collapsed"); paint(c);
+    try { localStorage.setItem("stewie_wa_collapsed", c ? "1" : "0"); } catch (e) {} };
+})();
 sel.onchange = () => {
   switchWorkset(CURRENT_BODY, sel.value); CURRENT_BODY = sel.value;   // per-body documents
   loadBody(sel.value); showTerra(); estimate(); showSiteDem();
