@@ -35,6 +35,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from stewie.specs import config as CFG               # PO-02: configurable application-data dirs
 from stewie.twin.io_fields import atomic_write_bytes  # PO-02/CT-04: atomic writes for profiles
+from stewie.bridge import rc_contract as RC           # RC.commands_from_plan for the /plan/commands view
 from lode import adaptive_planner as ADP
 from lode import autonomy as AUT
 from stewie.server import map_layers as MLY
@@ -330,6 +331,11 @@ app.add_middleware(
     allow_methods=["*"], allow_headers=["*"],
 )
 
+# ARCH-3: per-concern routers (the RC command path first, per §21). Each owns its own state + imports
+# the shared auth deps (server.deps) / audit log (server.services) -- no import of this app module.
+from stewie.server.routers import rc as _rc_router  # noqa: E402
+app.include_router(_rc_router.router)
+
 
 @app.middleware("http")
 async def _access_log(request: Request, call_next):
@@ -394,18 +400,8 @@ from stewie.server import objects as OBJ               # noqa: E402
 
 
 # ---- #39: the event history (who did what when; actor = the #52 auth identity) ----------------
-def log_event(actor: str, action: str, target: str = "") -> None:
-    """Append-only audit line under data_dir (the replicate path covers it). Never raises."""
-    import json as _json
-    import time as _time
-
-    from stewie.specs import config as CFG
-    try:
-        with open(os.path.join(CFG.data_dir(), "events.jsonl"), "a") as f:
-            f.write(_json.dumps({"ts": round(_time.time(), 3), "actor": actor,
-                                 "action": action, "target": target}) + "\n")
-    except OSError:
-        pass
+# ARCH-3: the audit ledger lives in stewie.server.services so routers can log without importing this app.
+from stewie.server.services import log_event  # noqa: E402
 
 
 @app.get("/events")
@@ -502,13 +498,7 @@ def auth_config():
     return {"ok": True, "operator_login": os.environ.get("STEWIE_OPERATOR_LOGIN", "1") != "0"}
 
 
-# --- #66 + SF-01: the pluggable RC seam (one process-wide sim backend + its watchdog) -----------
-from stewie.bridge import rc_contract as RC          # noqa: E402
-_RC_BACKEND = RC.SimBackend(start_rc=(0.0, 0.0))
-_RC_WATCHDOG = RC.SafingWatchdog(_RC_BACKEND, deadline_s=float(os.environ.get("STEWIE_RC_DEADLINE_S", "5")))
-import threading as _rcthreading                     # noqa: E402
-import time as _time                                  # noqa: E402
-_RC_LOCK = _rcthreading.Lock()
+# --- #66 + SF-01: the pluggable RC seam now lives in stewie.server.routers.rc (included below) -----
 
 
 @app.post("/plan/commands")
@@ -524,42 +514,7 @@ def plan_commands(req: PlanRequest):
          "v_max_mps": c.v_max_mps, "goal_radius_cells": c.goal_radius_cells} for c in cmds]}
 
 
-@app.post("/rc/command")
-def rc_command(body: dict, identity: str = Depends(require_auth)):
-    """#66: submit an RC command (GoTo/Safe/SetSim) to the active backend through the SF-01
-    watchdog. SetSim (a training time-warp) is DIRECTOR-only; GoTo/Safe are open to any operator."""
-    from stewie.server import auth as AUTH
-    kind = str(body.get("kind", "")).lower()
-    now = _time.monotonic()
-    with _RC_LOCK:
-        cmd: object
-        if kind == "goto":
-            cmd = RC.GoTo(leg_id=int(body.get("leg_id", 0)), goal_row=float(body["goal_row"]),
-                          goal_col=float(body["goal_col"]), v_max_mps=float(body.get("v_max_mps", 0.3)),
-                          goal_radius_cells=float(body.get("goal_radius_cells", 1.0)))
-        elif kind == "safe":
-            cmd = RC.Safe(reason=RC.SAFE_REASON_OPERATOR)
-        elif kind == "setsim":
-            if AUTH.role_of(identity) != "director":
-                raise HTTPException(status_code=403, detail="SetSim (time-warp) is director-only")
-            cmd = RC.SetSim(time_factor=float(body.get("time_factor", 1.0)))
-        else:
-            raise HTTPException(status_code=400, detail=f"unknown RC command kind {kind!r}")
-        _RC_WATCHDOG.submit(cmd, now=now)
-        log_event(identity, f"rc.{kind}", str(body.get("leg_id", "")))
-    return {"ok": True, "accepted": kind, "watchdog_tripped": _RC_WATCHDOG.tripped}
-
-
-@app.get("/rc/telemetry")
-def rc_telemetry(_auth: None = Depends(require_auth)):
-    """#66: drain the backend telemetry (Pose/Leg) + the SF-01 watchdog state. The watchdog ticks
-    on every poll, so a stalled operator (no commands) auto-SAFEs within the deadline."""
-    now = _time.monotonic()
-    with _RC_LOCK:
-        tripped = _RC_WATCHDOG.tick(now=now)
-        tlm = [t.__dict__ | {"kind": t.kind} for t in _RC_BACKEND.poll()]
-    return {"ok": True, "telemetry": tlm, "watchdog": {"tripped": tripped,
-            "deadline_s": _RC_WATCHDOG.deadline_s}}
+# the RC command + telemetry endpoints live in stewie.server.routers.rc (included via app.include_router)
 
 
 @app.post("/plan/math")
