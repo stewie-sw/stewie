@@ -49,6 +49,7 @@ log = logging.getLogger("stewie.server")
 # ARCH-3: the shared auth dependencies + env helpers live in stewie.server.deps so the per-concern
 # routers can import them without cycling through this app module.
 from stewie.server.deps import _env, _truthy, require_auth, require_director  # noqa: E402
+from stewie.server.schemas import Order, _MAX_ORDERS  # noqa: E402  (ARCH-3: shared request primitives)
 
 
 _REPORT_LOCK = threading.Lock()                 # matplotlib pyplot is process-global + thread-unsafe
@@ -81,7 +82,6 @@ _CTYPE = {".html": "text/html; charset=utf-8", ".json": "application/json",
           ".pdf": "application/pdf", ".md": "text/markdown; charset=utf-8",
           ".js": "text/javascript", ".css": "text/css", ".png": "image/png"}
 
-_MAX_ORDERS = 1000   # N8 input limit: refuse absurd build queues before they reach the planner
 _MAX_BODY_BYTES = int(_env("MAX_BODY_BYTES", 4 * 1024 * 1024))   # N8: request-body size cap (4 MiB)
 
 
@@ -91,23 +91,6 @@ def _version() -> str:
         return version("stewie")    # the dist renamed (was stewie; the old lookup always fell back to 0.1.0)
     except Exception:   # noqa: BLE001 -- not installed (editable/source run)
         return "0.1.0"
-
-
-def _prune_reports(ttl_s: float | None = None) -> int:
-    """Delete report files older than the TTL (default $STEWIE_REPORTS_TTL_S or 86400 s). Returns count."""
-    ttl = float(ttl_s if ttl_s is not None else _env("REPORTS_TTL_S", 86400))
-    if ttl <= 0 or not os.path.isdir(REPORTS):
-        return 0
-    now, removed = time.time(), 0
-    for n in os.listdir(REPORTS):
-        p = os.path.join(REPORTS, n)
-        try:
-            if os.path.isfile(p) and now - os.path.getmtime(p) > ttl:
-                os.remove(p)
-                removed += 1
-        except OSError:
-            pass
-    return removed
 
 
 def _totals_json(totals):
@@ -190,16 +173,6 @@ def _plan_stem(payload):
 # Request models (PRD N8: the typed API contract + input limits). extra="allow" passes through the
 # optional per-kind order fields the planner reads; the limits below cap obviously-abusive inputs.
 # --------------------------------------------------------------------------------------------------
-class Order(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    action: str | None = Field(default=None, max_length=120)
-    kind: str | None = Field(default=None, max_length=40)
-    x: float = 0.0
-    y: float = 0.0
-    footprint_m2: float = Field(default=1.0, gt=0, le=1e8)
-    depth_m: float = Field(default=0.0, ge=-100.0, le=100.0)
-
-
 class PlanRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
     name: str = Field(default="mission", max_length=200)
@@ -392,7 +365,7 @@ def get_index():
 
 # ---- #39: the event history (who did what when; actor = the #52 auth identity) ----------------
 # ARCH-3: the audit ledger lives in stewie.server.services so routers can log without importing this app.
-from stewie.server.services import log_event, record_request  # noqa: E402
+from stewie.server.services import log_event, prune_reports as _prune_reports, record_request  # noqa: E402
 
 
 # ---- #32: no-terminal admin ops (the W-2/W-3 CLIs + gate validation as buttons) ---------------

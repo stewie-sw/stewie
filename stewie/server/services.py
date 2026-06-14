@@ -53,3 +53,23 @@ def metrics_snapshot() -> dict:
 def uptime_s() -> float:
     """Seconds since the server process started (1 decimal)."""
     return round(time.monotonic() - _START, 1)
+
+
+def prune_reports(ttl_s: float | None = None) -> int:
+    """Delete report files older than the TTL (default $STEWIE_REPORTS_TTL_S or 86400 s). Returns the
+    count removed. The reports dir is resolved at call time (PO-02), so a relocated data_dir works."""
+    from stewie.specs import config as CFG
+    reports = CFG.reports_dir()
+    ttl = float(ttl_s if ttl_s is not None else os.environ.get("STEWIE_REPORTS_TTL_S", 86400))
+    if ttl <= 0 or not os.path.isdir(reports):
+        return 0
+    now, removed = time.time(), 0
+    for n in os.listdir(reports):
+        p = os.path.join(reports, n)
+        try:
+            if os.path.isfile(p) and now - os.path.getmtime(p) > ttl:
+                os.remove(p)
+                removed += 1
+        except OSError:
+            pass
+    return removed

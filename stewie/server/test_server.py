@@ -228,14 +228,19 @@ def test_auth_fail_closed_without_key(client, monkeypatch):
 
 
 def test_prune_reports_removes_old_files(tmp_path, monkeypatch):
-    monkeypatch.setattr(SRV, "REPORTS", str(tmp_path))
-    old = tmp_path / "stale-report.pdf"
-    old.write_bytes(b"%PDF-old")
+    # ARCH-3: _prune_reports now lives in server.services and resolves the reports dir at call time
+    # from the data dir; isolate via STEWIE_DATA_DIR and write into the real reports/ subdir.
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    from stewie.specs import config as CFG
+    reports = CFG.reports_dir()
+    os.makedirs(reports, exist_ok=True)
+    old = os.path.join(reports, "stale-report.pdf")
+    open(old, "wb").write(b"%PDF-old")
     os.utime(old, (time.time() - 7200, time.time() - 7200))         # 2 h old
-    fresh = tmp_path / "fresh-report.pdf"
-    fresh.write_bytes(b"%PDF-new")
+    fresh = os.path.join(reports, "fresh-report.pdf")
+    open(fresh, "wb").write(b"%PDF-new")
     removed = SRV._prune_reports(ttl_s=3600)                        # 1 h TTL
-    assert removed == 1 and not old.exists() and fresh.exists()
+    assert removed == 1 and not os.path.exists(old) and os.path.exists(fresh)
 
 
 # ---- POST /localize : P1.1 -- the ARGUS articulation-parallax fix, wired into the estimator -------
