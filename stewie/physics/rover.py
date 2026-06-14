@@ -179,6 +179,22 @@ def four_wheel_pass(cs: ColumnState, poses: list[tuple[tuple[float, float], floa
     TerramechanicsParams set (None -> constants.py defaults; .lunar()/.scm_oracle() also
     valid). Still a density-only edit -> mass conserved exactly. ``physical=False``
     (default) is byte-identical to the prior constant-compaction behaviour.
+
+    COMPACTION MODEL (T-02, chosen + documented). The physical path is a LOAD-DETERMINED
+    ASYMPTOTIC STATE law, NOT a per-call multiplicative bump:
+      * Each pass compacts the cell TOWARD the equilibrium density that the applied wheel
+        PRESSURE produces in one Bekker pass (physical_compaction_target_density), capped at
+        the deep-compaction ceiling RHO_DEEP. The map load->asymptote is a smooth progressive
+        band (e.g. ~12 N -> ~1328, ~150 N -> ~1756, >=~200 N -> RHO_DEEP=1920 kg/m^3).
+      * PROGRESSION is by INCREASING LOAD: a heavier subsequent pass (more weight-on-wheels /
+        a fuller drum) firms further toward the ceiling. Repeated IDENTICAL passes at the SAME
+        load are correctly IDEMPOTENT — a constant pressure cannot compact soil past the
+        equilibrium it already reached — which is also what makes a drive step invariant to how
+        many sub-stamps it is split into (no dt / call-count dependence; audit H-09).
+      * UNLOADING is irreversible: a lighter follow-up pass never loosens an already-firmer cell
+        (the max() floor), matching real regolith hysteresis (it does not spring back).
+    This deliberately supersedes a pass-COUNT progressive law (which reintroduces the H-09
+    dt-dependence); "paving" here is the load/coverage history, not a per-roll ratchet.
     """
     half_w = max(0.5, 0.5 * wheel_width_m / cs.cell_m)  # half-width in cells
 
@@ -345,6 +361,51 @@ def _clast_contact_height(clasts: list[dict], x: float, z: float, dem_h: float,
 WHEEL_RADIUS_M = 0.18
 
 
+def _wheel_normal_reactions(total_weight_n: float, cos_tilt: float,
+                            pitch_rad: float, roll_rad: float, *,
+                            wheelbase_m: float, gauge_m: float, cg_height_m: float) -> dict:
+    """Per-wheel normal reactions {LF,RF,LB,RB} from a quasi-static rigid-body force/moment balance.
+
+    T-04: a 4-wheel rover on a slope is statically indeterminate in the vertical reactions, but the
+    standard quasi-static decomposition (used in vehicle dynamics) splits the load transfer into an
+    independent FORE/AFT (pitch) part and LATERAL (roll) part about the CG:
+
+      N_total = W * cos(tilt)                          (weight along the surface normal)
+      pitch transfer  dN_x = W * sin(pitch) * h_cg / wheelbase   (along-slope gravity * CG lever / base)
+      roll  transfer  dN_y = W * sin(roll)  * h_cg / gauge
+
+    The along-slope gravity component acts at the CG height h_cg; its moment about the contact line
+    shifts load to the DOWNHILL wheels and off the UPHILL wheels. Front wheels are at +wheelbase/2
+    along the body forward (+col at heading 0); a positive ``pitch_rad`` (climbing +col) pushes the
+    nose up, so weight transfers REARWARD (off the front). LEFT wheels are at +gauge/2 along the body
+    left; a positive ``roll_rad`` (left side higher) transfers weight to the RIGHT.
+
+    Reactions are clamped at >= 0 (a wheel cannot pull the rover down — it simply unloads / lifts off),
+    then renormalized so the four still sum to N_total exactly (the lifted wheel's share redistributes,
+    conserving the net normal force). Returns the four reactions [N]."""
+    n_total = total_weight_n * float(cos_tilt)
+    base = n_total / 4.0
+    # transferred load magnitudes (per the standard CG-lever model); 0.5 because the transfer splits
+    # symmetrically across the two wheels of each pair about the contact line.
+    dN_pitch = total_weight_n * float(np.sin(pitch_rad)) * cg_height_m / max(wheelbase_m, 1e-6) / 2.0
+    dN_roll = total_weight_n * float(np.sin(roll_rad)) * cg_height_m / max(gauge_m, 1e-6) / 2.0
+    # front (F) = +wheelbase/2: climbing (+pitch) UNLOADS the front; left (L) = +gauge/2: +roll UNLOADS left.
+    react = {
+        "LF": base - dN_pitch - dN_roll,
+        "RF": base - dN_pitch + dN_roll,
+        "LB": base + dN_pitch - dN_roll,
+        "RB": base + dN_pitch + dN_roll,
+    }
+    # A wheel cannot develop negative normal force; clamp to 0 (unloaded/lifted), then renormalize the
+    # remaining positive reactions so the total normal force is preserved exactly.
+    react = {k: max(0.0, v) for k, v in react.items()}
+    s = sum(react.values())
+    if s > 0.0:
+        scale = n_total / s
+        react = {k: v * scale for k, v in react.items()}
+    return react
+
+
 def conform_pose(heightmap: np.ndarray, center_rc: tuple[float, float], heading_rad: float, *,
                  cell_m: float, world_x0: float = 0.0, world_y0: float = 0.0,
                  clasts: list[dict] | None = None, climb_limit_m: float = WHEEL_RADIUS_M,
@@ -352,6 +413,7 @@ def conform_pose(heightmap: np.ndarray, center_rc: tuple[float, float], heading_
                  gauge_m: float = WHEEL_GAUGE_M, wheelbase_m: float = WHEEL_BASE_M,
                  payload_kg: float = 0.0,
                  rover_mass_dry_kg: float = K.ROVER_MASS_DRY_KG,
+                 cg_height_m: float = K.CG_HEIGHT_M,
                  g: float = K.g) -> dict:
     """Kinematic rest pose of the 4-wheel rover on the terrain at one spiral pose.
 
@@ -422,21 +484,23 @@ def conform_pose(heightmap: np.ndarray, center_rc: tuple[float, float], heading_
     nrm /= np.linalg.norm(nrm)
     slope_fwd = a * ch + b * sh           # forward world (x,z)=(cos h, sin h)
     slope_lat = a * (-sh) + b * ch        # left world=(-sin h, cos h)
-    # Per-wheel NORMAL load (for load-bearing sinkage): the weight
-    # component along the surface normal, split equally over the 4 contacts. nrm[1] is
-    # cos(tilt) (flat -> full weight; steeper -> less normal load -> the slip driver).
-    # Equal split; CG-based fore/aft transfer is a refinement (CG height not
-    # in the public TRL-5 overview). Feeds four_wheel_pass(physical=True, loads=...).
+    pitch_rad = float(np.arctan(slope_fwd))
+    roll_rad = float(np.arctan(slope_lat))
+    # T-04: per-wheel NORMAL reactions from a rigid-body force/moment balance about the CG, NOT an equal
+    # split. The total normal force is weight*cos(tilt) (nrm[1]); the along-slope gravity acting at the
+    # CG height transfers load to the downhill wheels and off (possibly unloading) the uphill wheels.
     total_weight_n = (rover_mass_dry_kg + max(0.0, payload_kg)) * float(g)
     normal_total_n = total_weight_n * float(nrm[1])
-    per_wheel_n = normal_total_n / 4.0
+    normal_loads = _wheel_normal_reactions(
+        total_weight_n, float(nrm[1]), pitch_rad, roll_rad,
+        wheelbase_m=wheelbase_m, gauge_m=gauge_m, cg_height_m=float(cg_height_m))
     return {
         "up": [float(nrm[0]), float(nrm[1]), float(nrm[2])],
         "z_m": z_center,
-        "pitch_rad": float(np.arctan(slope_fwd)),
-        "roll_rad": float(np.arctan(slope_lat)),
+        "pitch_rad": pitch_rad,
+        "roll_rad": roll_rad,
         "contacts": {k: [float(pts[k][0]), float(pts[k][1])] for k in rows},
-        "normal_loads": {k: per_wheel_n for k in rows},
+        "normal_loads": normal_loads,
         "normal_load_total_n": normal_total_n,
     }
 

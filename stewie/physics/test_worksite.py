@@ -69,6 +69,26 @@ def test_open_window_then_recenter_is_guarded():
         s.recenter(_xy(s, 1101, 1101))
 
 
+def test_t08_continuous_datum_is_the_default():
+    """T-08: continuous (bilinear) datum sampling must be the DEFAULT. The old default (np.repeat
+    piecewise-constant datum) produced ~88-degree artificial terrace cliffs at every base-cell boundary
+    that saturate drive slip and pollute repose/rendering. A default-constructed WorkSite must therefore
+    (a) carry smooth_datum=True, (b) have BOUNDED cross-base-cell datum gradients (no terrace cliffs),
+    and (c) keep grid mass conserved (the smoothing rewrites only datum, which carries no mass)."""
+    s = _site()                                              # NO smooth_datum kwarg -> the default
+    assert s.smooth_datum is True                            # continuous sampling is the default now
+    s.recenter(_xy(s, 1101, 1101))
+    h = s.fine.derive_height()
+    # cross-cell gradient bounded: the worst adjacent-fine-cell datum step is far below a terrace cliff.
+    # (the base cell is 5 m; a piecewise-constant datum jumps the whole relief in ONE fine cell -> ~88deg)
+    mid = s.fine.height // 2
+    step = np.abs(np.diff(h[mid]))
+    assert step.max() < 0.1                                  # bounded gradient, no ~88deg sub-cell cliff
+    # conservation is exact: the default smoothing is mass-neutral (datum carries no mass)
+    bit = _site(smooth_datum=False); bit.recenter(_xy(bit, 1101, 1101))
+    assert s.fine.grid_mass() == bit.fine.grid_mass()        # exact, not approx
+
+
 def test_smooth_datum_is_conservation_neutral():
     """G7: bilinear datum smoothing rewrites only datum (no mass) -> grid_mass identical to the bit."""
     a = _site(smooth_datum=False); a.recenter(_xy(a, 1101, 1101))

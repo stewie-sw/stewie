@@ -172,6 +172,74 @@ def test_single_step_conserves_mass():
     assert cs.total_mass() == pytest.approx(m0, abs=1e-9)
 
 
+def test_t06_transfer_updates_receiver_density_by_mixture_law():
+    """T-06: when loose donor material topples onto a receiver of DIFFERENT density, the receiver's
+    density must update by a volume-conserving mixture rule rho_new = (m_old + dm)/(m_old/rho_old +
+    dm/rho_donor), not stay unchanged. Build a loose donor (rho_surface) over-steepened above a denser
+    receiver, relax one sweep, and require the receiver density to move toward the donor (loose) density
+    in the mass-conserving mixture direction. Before the fix mass arrived but density was untouched, so
+    the height gained used the receiver's density instead of the moved material's."""
+    cs = ColumnState(width=9, height=9, cell_m=0.05)
+    # make the whole field denser than the loose surface, then build a loose tall donor at one cell
+    cs.density[:, :] = 1700.0                           # denser receiver substrate
+    cs.state_label[:, :] = StateLabel.SPOIL            # loose label so cells are eligible to relax
+    # donor cell: loose (rho_surface) and tall enough to exceed repose to its neighbour
+    donor = (4, 4)
+    recv = (4, 5)
+    cs.density[donor] = K.RHO_SURFACE
+    # raise the donor column high above the receiver to force a topple
+    cs.mass_areal[donor] = K.RHO_SURFACE * 0.60        # 0.60 m loose column
+    rho_recv_before = float(cs.density[recv])
+    m_recv_before = float(cs.mass_areal[recv])
+    m0 = cs.total_mass()
+    sp = Sandpile(cs, connectivity=4, transfer_fraction=0.5)
+    sp.relax_step()
+    assert cs.total_mass() == pytest.approx(m0, abs=1e-9)   # mass still conserved
+    m_recv_after = float(cs.mass_areal[recv])
+    assert m_recv_after > m_recv_before                 # the receiver did gain mass
+    dm = m_recv_after - m_recv_before
+    # the volume-conserving mixture density of the receiver after gaining dm at the donor's density:
+    rho_donor = K.RHO_SURFACE
+    expected = (m_recv_before + dm) / (m_recv_before / rho_recv_before + dm / rho_donor)
+    assert cs.density[recv] == pytest.approx(expected, rel=1e-6)
+    # and that is strictly LESS dense than the untouched receiver (it received looser material)
+    assert cs.density[recv] < rho_recv_before - 1e-6
+
+
+def test_t07_loose_material_deposits_onto_non_loose_receiver():
+    """T-07: loose spoil must be able to RELAX ONTO a lower NON-loose (compacted) receiver without
+    mobilizing that floor — separate donor mobility from receiver admissibility. Build a loose pile
+    beside a lower COMPACTED_BERM floor; the loose material should spread onto the floor (the floor cell
+    GAINS mass) while the floor's own substrate is not toppled away. Before the fix toppling required
+    BOTH source and destination to be loose, so a compacted lower neighbour formed an artificial cliff."""
+    cs = ColumnState(width=9, height=9, cell_m=0.05)
+    # a low compacted floor everywhere
+    cs.density[:, :] = K.RHO_DEEP
+    cs.mass_areal[:, :] = K.RHO_DEEP * 0.02            # thin firm floor
+    cs.state_label[:, :] = StateLabel.COMPACTED_BERM   # non-loose receiver
+    # a loose tall pile at one cell (SPOIL, loose density) towering over the firm floor
+    pile = (4, 4)
+    cs.density[pile] = K.RHO_SURFACE
+    cs.mass_areal[pile] = K.RHO_SURFACE * 0.50
+    cs.state_label[pile] = StateLabel.SPOIL
+    floor_neighbour = (4, 5)
+    m_floor_before = float(cs.mass_areal[floor_neighbour])
+    m_pile_before = float(cs.mass_areal[pile])
+    m0 = cs.total_mass()
+    sp = Sandpile(cs, connectivity=4, transfer_fraction=0.5)
+    moved = sp.relax_step()
+    assert moved                                       # the loose pile is over-repose -> it topples
+    assert cs.total_mass() == pytest.approx(m0, abs=1e-9)
+    # loose material reached the compacted floor neighbour (no artificial cliff)
+    assert cs.mass_areal[floor_neighbour] > m_floor_before + 1e-9
+    # the pile shed mass (it was the donor)
+    assert cs.mass_areal[pile] < m_pile_before - 1e-9
+    # the firm floor's substrate is NOT mobilized: a floor cell with no loose pile above it does not
+    # spontaneously topple its own compacted mass away.
+    far_floor = (0, 0)
+    assert cs.mass_areal[far_floor] == pytest.approx(K.RHO_DEEP * 0.02, abs=1e-9)
+
+
 def test_relax_never_makes_mass_negative():
     """The per-cell outflow cap guarantees no column is over-drained (mass_areal >= 0)."""
     cs = ColumnState(width=30, height=30, cell_m=0.02)

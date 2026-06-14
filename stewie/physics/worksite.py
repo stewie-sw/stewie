@@ -93,22 +93,22 @@ class WorkSite:
     def __init__(self, base: ColumnState, *, world_x0: float, world_y0: float,
                  fine_cell_m: float = 0.05, tile_base_cells: int = 4,
                  world_seed: int = 0, page_dir: str | None = None,
-                 smooth_datum: bool = False):
+                 smooth_datum: bool = True):
         self.base = base
         self.base_cell_m = float(base.cell_m)
         self.fine_cell_m = float(fine_cell_m)
         self.world_x0 = float(world_x0)
         self.world_y0 = float(world_y0)
-        # G7 fix (gated, default OFF): replace the piecewise-constant np.repeat DEM datum (5 m
-        # terraces with ~88 deg sub-cell cliffs) with a BILINEAR resample of the coarse base datum
-        # at fine resolution. Datum carries NO mass (height = datum + mass_areal/density), so this is
-        # conservation-NEUTRAL by construction — grid_mass() is identical to the bit with the flag on
-        # or off (verified by direct equality), NOT because any test exercises this flag (the 60-test
-        # suite touches neither WorkSite nor smooth_datum). It only removes the fake terrace cliffs
-        # that saturate drive slip / pollute repose / stair-step the render. The procgen overlay lives
-        # in mass_areal (set_height_via_mass), so it is preserved untouched. Bilinear sampling is a
-        # pure function of GLOBAL fine-cell position -> seam-free across window crops. Default OFF
-        # leaves the mosaic refine/coarsen roundtrip (open_window/slice path) bit-exact.
+        # T-08 (default ON since 2026-06-14): continuous (BILINEAR) resample of the coarse base datum at
+        # fine resolution, replacing the piecewise-constant np.repeat DEM datum (5 m terraces with ~88 deg
+        # sub-cell cliffs that saturate drive slip and pollute repose/rendering). Datum carries NO mass
+        # (height = datum + mass_areal/density), so this is conservation-NEUTRAL by construction —
+        # grid_mass() is identical to the bit with the flag on or off (verified by direct equality). The
+        # procgen overlay lives in mass_areal (set_height_via_mass), so it is preserved untouched, and
+        # bilinear sampling is a pure function of GLOBAL fine-cell position -> seam-free across window
+        # crops. Round-trip identity is carried by the conserved mass/state fields, NOT by requiring a
+        # piecewise-constant elevation. Pass ``smooth_datum=False`` only to exercise the legacy
+        # refine/coarsen bit-exact-datum check.
         self.smooth_datum = bool(smooth_datum)
 
         # The streaming VIRGIN fine source: a read-only reader over the coarse base
@@ -155,10 +155,11 @@ class WorkSite:
     def from_haworth_bundle(cls, bundle_dir: str, *, fine_cell_m: float = 0.05,
                             tile_base_cells: int = 4, world_seed: int = 0,
                             page_dir: str | None = None,
-                            smooth_datum: bool = False) -> "WorkSite":
+                            smooth_datum: bool = True) -> "WorkSite":
         """Load the committed coarse Haworth base and build the streaming mosaic over it.
         ``world_x0/world_y0`` come from the bundle ``world_bounds_m`` (global placement).
-        ``smooth_datum`` enables the G7 bilinear-datum fix (see :meth:`__init__`)."""
+        ``smooth_datum`` (T-08: DEFAULT True) selects continuous bilinear datum sampling; pass
+        ``False`` only for the legacy piecewise-constant refine/coarsen bit-exactness check."""
         base, meta = coarse_base_from_bundle(bundle_dir)
         wb = meta.get("world_bounds_m", {"x0": 0.0, "y0": 0.0})
         return cls(base, world_x0=float(wb["x0"]), world_y0=float(wb["y0"]),

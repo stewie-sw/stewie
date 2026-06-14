@@ -213,6 +213,104 @@ def test_conform_pose_is_deterministic():
     assert a["up"] == b["up"] and a["z_m"] == b["z_m"]
 
 
+def _tilted_plane(slope_deg, *, grid=64, cell=0.05, axis="col"):
+    """A real tilted plane heightmap (deterministic terrain config, not fabricated data): height rises
+    linearly with col (axis='col' -> a pitch along the forward/+col axis at heading 0)."""
+    coord = (np.arange(grid)[None, :].repeat(grid, axis=0) if axis == "col"
+             else np.arange(grid)[:, None].repeat(grid, axis=1)).astype(np.float64)
+    return math.tan(math.radians(slope_deg)) * coord * cell
+
+
+def test_t02_compaction_is_load_asymptotic_progressive_irreversible():
+    """T-02: the chosen compaction model is a LOAD-DETERMINED ASYMPTOTIC state law. Pin its four
+    documented invariants so a regression to a per-call multiplicative ratchet (which reintroduces the
+    H-09 dt-dependence) is caught:
+      (1) PROGRESSIVE under increasing load: a heavier pass firms further toward the ceiling;
+      (2) ASYMPTOTIC: bounded by RHO_DEEP, with a smooth load->density band below it;
+      (3) IDEMPOTENT at constant load: a repeat pass at the same load is a no-op (dt-invariance);
+      (4) IRREVERSIBLE under unloading: a lighter follow-up never loosens an already-firmer cell."""
+    def fresh():
+        return ColumnState(width=16, height=16, cell_m=0.05, mass_areal=np.full((16, 16), 50.0))
+    poses = [((8.0, 8.0), 0.0)]
+
+    # (2) asymptotic band: density rises smoothly with load and is bounded by RHO_DEEP
+    seq = []
+    for load in (12.0, 50.0, 150.0, 250.0):
+        cs = fresh()
+        R.four_wheel_pass(cs, poses, physical=True, loads=load)
+        seq.append(cs.density.max())
+        assert cs.density.max() <= K.RHO_DEEP + 1e-9
+    # (1) progressive under increasing load: strictly non-decreasing, with real intermediate values
+    assert seq[0] < seq[1] < seq[2]                          # below saturation the band is strict
+    assert seq[3] == pytest.approx(K.RHO_DEEP)               # high load reaches the ceiling
+    assert K.RHO_SURFACE < seq[1] < K.RHO_DEEP               # an intermediate (not just floor/ceiling)
+
+    # (3) idempotent at constant load: a repeat pass at the SAME load does not compact further
+    cs = fresh()
+    R.four_wheel_pass(cs, poses, physical=True, loads=50.0)
+    d1 = cs.density.copy()
+    R.four_wheel_pass(cs, poses, physical=True, loads=50.0)
+    assert np.allclose(cs.density, d1)                       # constant pressure -> no further compaction
+
+    # (4) irreversible under unloading: a lighter pass after a heavy one never loosens the cell
+    cs = fresh()
+    R.four_wheel_pass(cs, poses, physical=True, loads=250.0)
+    d_heavy = cs.density.copy()
+    R.four_wheel_pass(cs, poses, physical=True, loads=12.0)
+    assert np.all(cs.density >= d_heavy - 1e-9)              # compaction does not spring back
+
+
+def test_t04_uphill_transfers_load_to_downhill_wheels():
+    """T-04: on an uphill pitch the per-wheel normal reactions must NOT be equal — load transfers to the
+    DOWNHILL (rear/B) wheels and off the UPHILL (front/F) wheels, from a rigid-body moment balance about
+    the CG. Before the fix conform_pose split normal_total_n equally over all four contacts, so the front
+    and rear wheels carried identical load on any slope."""
+    cell = 0.05
+    h = _tilted_plane(20.0, cell=cell)          # +col uphill -> at heading 0 the rover climbs +col
+    out = R.conform_pose(h, (32.0, 32.0), 0.0, cell_m=cell, payload_kg=0.0)
+    loads = out["normal_loads"]
+    front = loads["LF"] + loads["RF"]           # uphill pair (forward = +col, +wheelbase/2)
+    rear = loads["LB"] + loads["RB"]            # downhill pair (-wheelbase/2)
+    assert rear > front + 1e-3                  # weight shifts onto the downhill wheels
+    # total normal force is conserved (still = weight * cos(tilt))
+    weight = K.ROVER_MASS_DRY_KG * K.g
+    assert math.isclose(sum(loads.values()), weight * out["up"][1], rel_tol=1e-6)
+    # left/right symmetric on a pure pitch (no roll)
+    assert math.isclose(loads["LF"], loads["RF"], rel_tol=1e-6)
+    assert math.isclose(loads["LB"], loads["RB"], rel_tol=1e-6)
+
+
+def test_t04_cross_slope_transfers_load_laterally():
+    """T-04: a cross-slope (roll) must transfer load LATERALLY — the downhill side carries more than the
+    uphill side — while fore/aft stays balanced. Equal-split could never show this."""
+    cell = 0.05
+    h = _tilted_plane(20.0, cell=cell, axis="row")   # height rises with row -> a roll at heading 0
+    out = R.conform_pose(h, (32.0, 32.0), 0.0, cell_m=cell, payload_kg=0.0)
+    loads = out["normal_loads"]
+    # at heading 0, LEFT world = (-sin0, cos0) = (0,+1) in (x,z) i.e. +row; left wheels (L) are on the
+    # +row (higher) side, right wheels (R) on the -row (lower/downhill) side -> R carries more.
+    left = loads["LF"] + loads["LB"]
+    right = loads["RF"] + loads["RB"]
+    assert abs(left - right) > 1e-3             # lateral transfer happened
+    assert math.isclose(loads["LF"], loads["LB"], rel_tol=1e-6)   # fore/aft balanced on pure roll
+    assert math.isclose(loads["RF"], loads["RB"], rel_tol=1e-6)
+
+
+def test_t04_steep_slope_unloads_uphill_wheel():
+    """T-04: on a steep enough slope (with the real CG height) an uphill wheel can UNLOAD toward zero.
+    Equal-split pins every wheel at a quarter of the normal load and can never unload one."""
+    cell = 0.05
+    h = _tilted_plane(40.0, cell=cell)
+    out = R.conform_pose(h, (32.0, 32.0), 0.0, cell_m=cell, payload_kg=0.0,
+                         rover_mass_dry_kg=30.0)
+    loads = out["normal_loads"]
+    # no negative reactions (wheels can't pull down), and the uphill (front) wheels are markedly lighter
+    assert all(v >= 0.0 for v in loads.values())
+    front_min = min(loads["LF"], loads["RF"])
+    rear_max = max(loads["LB"], loads["RB"])
+    assert front_min < 0.5 * rear_max          # the uphill wheel is substantially unloaded
+
+
 def test_clast_contact_height_skips_degenerate_clasts():
     # a clast with no center or non-positive radius is skipped (rover.py:317,321 guards)
     h = R._clast_contact_height([{"radius_m": 0.1}, {"center_m": [0, 0, 0], "radius_m": 0.0}],

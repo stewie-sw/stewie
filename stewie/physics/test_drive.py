@@ -158,7 +158,9 @@ def test_skid_steer_yaw_authority_is_slip_coupled():
     def fresh():
         cs = ColumnState(width=64, height=64, cell_m=0.02,
                          mass_areal=np.full((64, 64), 50.0))
-        ramp = np.tile(np.linspace(0.0, 0.55, 64)[None, :], (64, 1))   # a steep grade -> real slip
+        # a real grade -> real slip, but below the T-03 sinkage-resolved entrapment threshold so the
+        # slip-coupled yaw degradation (not full entrapment) is what the test exercises.
+        ramp = np.tile(np.linspace(0.0, 0.30, 64)[None, :], (64, 1))
         cs.datum = cs.datum + ramp - cs.derive_height() + cs.derive_height() * 0  # raise surface
         cs.datum[:, :] = ramp - (cs.derive_height() - cs.datum)
         return cs
@@ -167,12 +169,130 @@ def test_skid_steer_yaw_authority_is_slip_coupled():
     a = drive.drive_step(fresh(), (32.0, 20.0), 0.0, 0.25, 0.4, dt=0.2)
     b = drive.drive_step(fresh(), (32.0, 20.0), 0.0, 0.25, 0.4, dt=0.2)
     assert a[1] == b[1]                                   # deterministic baseline
-    # skid-steer truth: on the slope, achieved yaw < commanded yaw, scaled like (1-slip)
+    # skid-steer truth (T-05 per-side terramechanics, supersedes the old scalar omega=(1-slip)*omega_cmd):
+    # on the slope, achieved yaw under-achieves the commanded yaw — yaw authority degrades with traction.
     rc, yaw_t, telem = drive.drive_step(fresh(), (32.0, 20.0), 0.0, 0.25, 0.4, dt=0.2,
                                         skid_steer=True, track_m=ix.SKID_STEER_TRACK_M)
     assert telem["slip"] > 0.05                           # the grade produces real slip
-    assert telem["omega_achieved"] == telem["omega_cmd"] * (1.0 - telem["slip"])
+    assert telem["omega_achieved"] < telem["omega_cmd"]   # yaw under-achieves under traction loss
+    assert "slip_left" in telem and "slip_right" in telem  # per-side breakdown present (T-05)
     assert abs(yaw_t) < abs(a[1]) or telem["slip"] == 0.0  # yaw under-achieves vs the ideal path
+
+
+def test_t03_contact_length_grows_with_sinkage_and_wheel_radius():
+    """T-03: the contact-patch length must be DERIVED from wheel radius and sinkage, not a fixed 0.10 m
+    rectangle. For a rigid wheel sunk by z, the contact chord length L = 2*sqrt(r*z - z^2/4) grows with
+    both sinkage and wheel radius. Assert the helper is monotone in each, bounded by the chord, and
+    matches the closed form."""
+    r = 0.18
+    # monotone in sinkage
+    L_shallow = drive.contact_length_from_sinkage(r, 0.005)
+    L_deep = drive.contact_length_from_sinkage(r, 0.05)
+    assert L_deep > L_shallow > 0.0
+    # monotone in wheel radius at fixed sinkage
+    L_small = drive.contact_length_from_sinkage(0.10, 0.02)
+    L_big = drive.contact_length_from_sinkage(0.30, 0.02)
+    assert L_big > L_small
+    # matches the rigid-wheel chord closed form
+    z = 0.02
+    expected = 2.0 * math.sqrt(r * z - 0.25 * z * z)
+    assert math.isclose(drive.contact_length_from_sinkage(r, z), expected, rel_tol=1e-9)
+
+
+def test_t03_larger_wheel_reduces_sinkage_via_contact_patch():
+    """T-03: a wheel with a LARGER radius spreads the same normal load over a longer sinkage-dependent
+    contact patch, so it sinks LESS (lower Bekker pressure). With the old fixed rectangle the wheel
+    radius never entered the contact area, so two wheels of different radius sank identically. The
+    resolved contact length is reported in telemetry."""
+    cs = _ramp(20.0)
+    _, _, t_small = drive.drive_step(cs, (48.0, 20.0), 0.0, 0.2, 0.0, dt=0.1, wheel_radius_m=0.10)
+    cs2 = _ramp(20.0)
+    _, _, t_big = drive.drive_step(cs2, (48.0, 20.0), 0.0, 0.2, 0.0, dt=0.1, wheel_radius_m=0.30)
+    assert "contact_len_m" in t_small                     # resolved patch reported
+    assert t_big["contact_len_m"] > t_small["contact_len_m"]   # bigger wheel -> longer patch
+    assert t_big["sinkage_m"] < t_small["sinkage_m"]      # bigger wheel sinks less
+
+
+def test_t01_entrapment_zeros_forward_and_yaw_motion():
+    """T-01: when the slip-sinkage equilibrium reports ENTRAPPED, a step must produce ZERO forward
+    translation and ZERO yaw change (a discrete stuck state), not creep forward at (1-s_max)*v_cmd
+    and slowly spin. Before the fix v_ach = (1-0.99)*v_cmd moved the rover ~0.01*v_cmd/step and
+    omega_ach likewise, so repeated commands under unchanged conditions translated and rotated it."""
+    cs = _ramp(58.0)                                    # steep enough to entrap a 30 kg rover
+    rc0, yaw0 = (48.0, 20.0), 0.3
+    rc, yaw, telem = drive.drive_step(cs, rc0, yaw0, 0.2, 0.4, dt=0.2)
+    assert telem["entrapped"] is True                   # the precondition: we are stuck
+    assert telem["v_achieved"] == 0.0                   # no forward creep while entrapped
+    assert telem["omega_achieved"] == 0.0               # no yaw authority while entrapped
+    assert rc == rc0                                     # pose did not translate
+    assert yaw == yaw0                                   # pose did not rotate
+
+
+def test_t01_entrapment_no_terrain_self_improvement_no_escape():
+    """T-01: repeated identical commands under an unchanged entrapped condition must not let the rover
+    translate or self-improve terrain into an escape. The mass field (which carving ruts would change)
+    must be byte-identical across repeated stuck steps, and the rover must stay put."""
+    cs = _ramp(58.0)
+    rc, yaw = (48.0, 20.0), 0.0
+    rc, yaw, t0 = drive.drive_step(cs, rc, yaw, 0.2, 0.0, dt=0.2)
+    assert t0["entrapped"] is True
+    mass_after_first = cs.mass_areal.copy()
+    density_after_first = cs.density.copy()
+    rc_stuck = rc
+    for _ in range(20):                                 # hammer the same command 20 more times
+        rc, yaw, t = drive.drive_step(cs, rc, yaw, 0.2, 0.0, dt=0.2)
+        assert t["entrapped"] is True
+    assert rc == rc_stuck                               # never escaped by numerical creep
+    # terrain did not self-improve: no rut carving advanced the escape
+    assert np.array_equal(cs.mass_areal, mass_after_first)
+    assert np.array_equal(cs.density, density_after_first)
+
+
+def test_t05_lateral_scrub_grows_effective_turn_radius():
+    """T-05: a real skid-steer turn must SCRUB laterally — the wheels slide sideways, lateral terramechanics
+    resists the yaw moment, so the ACHIEVED turn radius is LARGER than the ideal kinematic v/omega. The old
+    scalar model (omega_ach = (1-slip)*omega_cmd) scaled v and omega by the SAME factor, leaving the radius
+    r = v/omega exactly the commanded kinematic radius regardless of soil. With per-side lateral scrub the
+    yaw under-achieves MORE than the forward speed, so the effective radius grows on weak soil."""
+    cs = _flat()
+    v_cmd, omega_cmd = 0.2, 0.6
+    r_kin = v_cmd / omega_cmd                              # ideal kinematic turn radius
+    _, _, t = drive.drive_step(cs, (48.0, 48.0), 0.0, v_cmd, omega_cmd, dt=0.1, skid_steer=True)
+    # achieved instantaneous radius from achieved v / achieved omega
+    assert t["omega_achieved"] != 0.0
+    r_eff = abs(t["v_achieved"] / t["omega_achieved"])
+    assert r_eff > r_kin * (1.0 + 1e-6)                    # lateral scrub widens the turn
+    # and the yaw is degraded MORE than the forward speed (scrub is an extra yaw-specific loss)
+    yaw_frac = abs(t["omega_achieved"]) / abs(omega_cmd)
+    v_frac = abs(t["v_achieved"]) / abs(v_cmd)
+    assert yaw_frac < v_frac - 1e-6
+
+
+def test_t05_differential_loading_on_cross_slope_changes_yaw():
+    """T-05: on a CROSS-SLOPE the two sides carry different normal load (T-04 lateral transfer), so they
+    develop different per-side thrust — a straight command (omega=0) should NOT yaw symmetrically, and a
+    turn outcome must differ from the same turn on flat ground. A single scalar longitudinal slip cannot
+    express per-side differential loading. Here: the achieved yaw of a turn on a cross-slope differs from
+    the achieved yaw of the identical command on flat ground."""
+    flat = _flat()
+    cross = _ramp(18.0, grid=96, cell=0.02)               # +col grade; at yaw=pi/2 forward is +row -> cross-slope
+    cmd = (0.2, 0.5)
+    _, yaw_flat, tf = drive.drive_step(flat, (48.0, 48.0), math.pi / 2, *cmd, dt=0.1, skid_steer=True)
+    _, yaw_cross, tc = drive.drive_step(cross, (48.0, 48.0), math.pi / 2, *cmd, dt=0.1, skid_steer=True)
+    # the per-side differential loading on the cross-slope changes the achieved yaw rate vs flat
+    assert not math.isclose(tc["omega_achieved"], tf["omega_achieved"], rel_tol=1e-6, abs_tol=1e-9)
+
+
+def test_t05_per_side_speeds_reported_in_telemetry():
+    """T-05: the telemetry must expose the per-side commanded/achieved speeds and per-side slip so a
+    consumer can convert to wheel commands and see the differential. The old model carried only a single
+    scalar slip and no per-side breakdown."""
+    cs = _flat()
+    _, _, t = drive.drive_step(cs, (48.0, 48.0), 0.0, 0.2, 0.5, dt=0.1, skid_steer=True)
+    assert "v_left_cmd" in t and "v_right_cmd" in t       # per-side commanded speeds
+    assert "v_left_ach" in t and "v_right_ach" in t       # per-side achieved speeds
+    # the turn commands the two sides at different speeds (the differential that makes a skid-steer turn)
+    assert t["v_left_cmd"] != t["v_right_cmd"]
 
 
 def test_a02_vehicle_mass_geometry_propagates_into_drive():
@@ -195,17 +315,23 @@ def test_a02_vehicle_mass_geometry_propagates_into_drive():
 
     def fresh():
         cs = ColumnState(width=64, height=64, cell_m=0.02, mass_areal=np.full((64, 64), 50.0))
-        cs.datum[:, :] = np.tile(np.linspace(0.0, 0.55, 64)[None, :], (64, 1)) - (cs.derive_height() - cs.datum)
+        # a moderate grade (~9 deg) so both vehicles develop real, distinct slip without either
+        # saturating into entrapment (the T-03 sinkage-resolved contact patch makes the heavier
+        # vehicle's deeper rut a LONGER patch, so slip ordering is now load-and-soil nuanced).
+        cs.datum[:, :] = np.tile(np.linspace(0.0, 0.20, 64)[None, :], (64, 1)) - (cs.derive_height() - cs.datum)
         return cs
 
     _, _, t_light = drive.drive_step(fresh(), (32.0, 20.0), 0.0, 0.25, 0.0, dt=0.2,
                                      **ipex.drive_context())
     _, _, t_heavy = drive.drive_step(fresh(), (32.0, 20.0), 0.0, 0.25, 0.0, dt=0.2,
                                      **rassor2.drive_context())
-    # the heavier vehicle sinks deeper and slips more on the identical grade
+    # the heavier vehicle puts more load per wheel -> it sinks DEEPER on the identical grade
+    # (the robust, analytically-expected ordering that proves mass propagated end to end).
     assert t_heavy["sinkage_m"] > t_light["sinkage_m"]
-    assert t_heavy["slip"] > t_light["slip"]
-    # and the divergence in slip means the achieved position diverges too
+    # the resolved per-vehicle contact geometry differs (different wheel radius + sinkage -> patch)
+    assert t_heavy["contact_len_m"] != t_light["contact_len_m"]
+    # the two vehicles produce DISTINCT slip and therefore DISTINCT achieved motion (propagation works)
+    assert t_heavy["slip"] != t_light["slip"]
     assert t_heavy["v_achieved"] != t_light["v_achieved"]
 
 
@@ -223,7 +349,8 @@ def test_h10_drive_context_propagates_skid_steer_to_runtime():
     ctx = VehicleTwin.assemble("t", vehicle="ipex", body="moon").drive_context()
     assert ctx["skid_steer"] is True and ctx["track_m"] > 0.0        # the drivetrain model is propagated
     cs = ColumnState(width=64, height=64, cell_m=0.02, mass_areal=np.full((64, 64), 50.0))
-    cs.datum[:, :] = np.tile(np.linspace(0.0, 0.55, 64)[None, :], (64, 1)) - (cs.derive_height() - cs.datum)
+    # a real grade below the T-03 entrapment threshold so yaw is degraded (not fully stalled).
+    cs.datum[:, :] = np.tile(np.linspace(0.0, 0.30, 64)[None, :], (64, 1)) - (cs.derive_height() - cs.datum)
     _, _, telem = drive.drive_step(cs, (32.0, 20.0), 0.0, 0.25, 0.4, dt=0.2, **ctx)   # exactly the runtime call
     assert telem["slip"] > 0.05                                      # the grade produces real slip
     assert telem["track_m"] is not None                             # skid-steer telemetry active (propagated)

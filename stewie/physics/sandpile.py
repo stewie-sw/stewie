@@ -113,19 +113,19 @@ class Sandpile:
     # -- relaxation --------------------------------------------------------
 
     def _max_loose_slope(self) -> float:
-        """Largest downhill slope angle [rad] among loose cells (for stopping)."""
+        """Largest downhill slope angle [rad] from a LOOSE source cell (for stopping)."""
         cs = self.cs
         height = cs.derive_height()
         mask = loose_mask(cs)
         max_ang = 0.0
         for (dr, dc), run in zip(self.neighbors, self._runs):
             h2 = np.roll(np.roll(height, -dr, axis=0), -dc, axis=1)
-            mask2 = np.roll(np.roll(mask, -dr, axis=0), -dc, axis=1)
-            # consistent with relax_step (loose SOURCE -> loose DESTINATION): the rest check
-            # previously counted loose->non-loose drops the toppling rule cannot act on, so
-            # relax_to_rest either spun or "rested" violating its own post-condition (audit
-            # 2026-06-09). Loose->non-loose toppling is NOT modeled (documented limitation).
-            valid = self._shift_valid(dr, dc) & mask & mask2
+            # consistent with relax_step (T-07): the toppling rule now acts on any loose SOURCE
+            # draining downhill to ANY in-bounds receiver (loose OR compacted floor), so the rest
+            # criterion likewise counts loose-source drops to any neighbour — a loose pile sitting
+            # over-repose above a firm floor is NOT at rest. (The old loose->loose-only rest check
+            # would have declared that artificial cliff "rested" while relax_step could now move it.)
+            valid = self._shift_valid(dr, dc) & mask
             drop = np.where(valid, height - h2, 0.0)
             ang = np.arctan2(np.maximum(drop, 0.0), run)
             m = float(ang.max()) if ang.size else 0.0
@@ -164,6 +164,14 @@ class Sandpile:
         the DONOR's density (dm = rho_donor * dh) and the SAME mass is added to each
         receiver. Because every gram removed from a donor is added to exactly one receiver,
         Σ mass is invariant to floating-point round-off — no renormalization needed.
+
+        T-06 (mixture law): the moved material carries the DONOR's density. The receiver's
+        density is updated by a volume-conserving mixture rho_new = (m_old + dm)/(m_old/rho_old
+        + dm/rho_donor) so the height gained reflects the LOOSE moved material, not the
+        receiver's prior density. T-07 (receiver admissibility): the DONOR must be loose to
+        mobilize, but the RECEIVER may be any in-bounds cell — loose spoil can deposit onto a
+        lower compacted/sintered floor (no artificial cliff), and only the donor's own column
+        is drained, so the firm floor's substrate is never mobilized.
         """
         cs = self.cs
         threshold = self.theta_r + self.cohesion_steepening
@@ -171,21 +179,21 @@ class Sandpile:
 
         height = cs.derive_height()
         donor_density = cs.density
-        mask = loose_mask(cs)
+        mask = loose_mask(cs)                        # DONOR mobility gate (source must be loose)
 
-        # Pass A: per direction, the excess height of the donor above the repose plane of
-        # its (dr,dc) neighbor (only when the donor is the HIGHER of the pair and loose).
-        # ``excess_h`` is how far the donor sits above where repose would put it relative
-        # to THAT neighbor. We use it both as the per-neighbor weight and to size the
-        # donor's single allowed outflow so it cannot overshoot the gentlest active pair.
+        # Pass A: per direction, the excess height of the LOOSE donor above the repose plane of
+        # its (dr,dc) neighbor (donor is the HIGHER, loose cell; the receiver may be ANY cell so
+        # loose spoil can spread onto a lower non-loose floor — T-07). ``excess_h`` is how far
+        # the donor sits above where repose would put it relative to THAT neighbor. We use it
+        # both as the per-neighbor weight and to size the donor's single allowed outflow so it
+        # cannot overshoot the gentlest active pair.
         per_dir_excess = []
         total_excess = np.zeros_like(height)        # Σ excess over active neighbors (weights)
         max_excess = np.zeros_like(height)          # largest single-neighbor excess
         moved = False
         for (dr, dc), run in zip(self.neighbors, self._runs):
             h2 = np.roll(np.roll(height, -dr, axis=0), -dc, axis=1)
-            mask2 = np.roll(np.roll(mask, -dr, axis=0), -dc, axis=1)
-            valid = self._shift_valid(dr, dc) & mask & mask2
+            valid = self._shift_valid(dr, dc) & mask    # source loose; receiver admissibility is open
             drop = height - h2
             excess_h = np.where(valid & (drop - run * tan_thr > 0),
                                 drop - run * tan_thr, 0.0)
@@ -213,19 +221,48 @@ class Sandpile:
         col_thick = cs.mass_areal / cs.density
         out_budget_h = np.minimum(out_budget_h, self.transfer_fraction * col_thick)
 
-        # Per-neighbor share of the budget, weighted by that neighbor's excess.
+        # Per-neighbor share of the budget, weighted by that neighbor's excess. We accumulate, per
+        # receiver, both the incoming MASS (delta_mass) and its VOLUME at the donor's density
+        # (incoming_vol = dm / rho_donor) so the receiver density can be re-mixed (T-06).
         delta_mass = np.zeros_like(cs.mass_areal)
+        outgoing_mass = np.zeros_like(cs.mass_areal)   # mass each donor sheds (at its OWN density)
+        outgoing_vol = np.zeros_like(cs.mass_areal)
+        incoming_mass = np.zeros_like(cs.mass_areal)   # mass each receiver gains (at the DONOR density)
+        incoming_vol = np.zeros_like(cs.mass_areal)
         for (dr, dc), ex in zip(self.neighbors, per_dir_excess):
             with np.errstate(invalid="ignore", divide="ignore"):
                 frac = np.where(total_excess > 0, ex / total_excess, 0.0)
             move_h = out_budget_h * frac           # height leaving donor this direction
             dm = move_h * donor_density            # mass leaving donor (donor's density)
+            dvol = move_h                          # volume leaving donor = mass/rho_donor = move_h
             delta_mass -= dm
-            delta_mass += np.roll(np.roll(dm, dr, axis=0), dc, axis=1)  # to receiver cell
+            outgoing_mass += dm
+            outgoing_vol += dvol
+            shifted_dm = np.roll(np.roll(dm, dr, axis=0), dc, axis=1)
+            shifted_vol = np.roll(np.roll(dvol, dr, axis=0), dc, axis=1)
+            delta_mass += shifted_dm               # mass to receiver cell
+            incoming_mass += shifted_dm            # bookkeeping for the receiver density mix
+            incoming_vol += shifted_vol
 
+        old_mass = cs.mass_areal.copy()
         cs.mass_areal += delta_mass
         # Belt-and-suspenders against sub-epsilon negatives from float round-off.
         np.maximum(cs.mass_areal, 0.0, out=cs.mass_areal)
+
+        # T-06: re-mix the density of every receiver that gained material. Removing mass at the cell's
+        # OWN density leaves density unchanged; the arriving (donor-density) material then mixes in,
+        # volume-conserving: rho_new = (m_kept + dm_in) / (vol_kept + dm_in/rho_donor), where the kept
+        # part is (old_mass - outgoing_mass) at the cell's original density. Pure donors (no inflow)
+        # keep their density. Guard the divide where total volume is ~0.
+        gained = incoming_mass > 0.0
+        if gained.any():
+            kept_mass = old_mass - outgoing_mass            # what stays at the cell's original density
+            kept_vol = kept_mass / cs.density               # its volume per area (original density)
+            new_vol = kept_vol + incoming_vol               # + the moved material's (donor-density) volume
+            new_mass = kept_mass + incoming_mass
+            with np.errstate(invalid="ignore", divide="ignore"):
+                mixed = np.where(new_vol > 1e-12, new_mass / new_vol, cs.density)
+            cs.density[gained] = mixed[gained]
         return moved
 
     def relax_to_rest(self, max_steps: int = 500, *, capture: bool = False,
