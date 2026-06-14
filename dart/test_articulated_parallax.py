@@ -144,3 +144,24 @@ def test_h13_parallax_rejects_impossible_measurements_instead_of_fabricating_a_r
     g = PoseGraphSE2(); g.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)
     with pytest.raises(ValueError, match="finite range"):
         AP.articulation_localize(g, 0, [(6.0, 0.0), (0.0, 5.0)], [10.0, -3.0], dh_m=0.2, fx_px=1000.0)
+
+
+def test_h14_two_landmark_fix_flagged_ambiguous_with_both_hypotheses():
+    """Audit H-14 (2026-06-13): a < 3-non-collinear-landmark trilateration is mirror-ambiguous. The fix
+    must be FLAGGED ambiguous and return BOTH hypotheses (reflected across the landmark baseline), not a
+    single 'unique' fix; >= 3 non-collinear landmarks give a unique (non-ambiguous) fix."""
+    from dart.pose_graph_se2 import PoseGraphSE2
+    from stewie.specs import ipex_specs as S
+    fx = S.flight_fx_px(6.0); dh = 0.202
+    truth = np.array([4.0, -2.0])
+    L2 = np.array([[6.0, 0.0], [0.0, 5.0]])                          # TWO landmarks -> mirror-ambiguous
+    sh2 = [AP.pixel_shift_for_range(dh, float(np.hypot(*(truth - Li))), fx) for Li in L2]
+    g = PoseGraphSE2(); g.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)
+    r2 = AP.articulation_localize(g, 0, L2, sh2, dh_m=dh, fx_px=fx)
+    assert r2["ambiguous"] is True and len(r2["hypotheses"]) == 2
+    assert tuple(r2["hypotheses"][0]) != tuple(r2["hypotheses"][1])  # a distinct mirror pair
+    L3 = np.array([[6.0, 0.0], [0.0, 5.0], [-3.0, -4.0]])            # THREE non-collinear -> unique
+    sh3 = [AP.pixel_shift_for_range(dh, float(np.hypot(*(truth - Li))), fx) for Li in L3]
+    g3 = PoseGraphSE2(); g3.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)
+    r3 = AP.articulation_localize(g3, 0, L3, sh3, dh_m=dh, fx_px=fx)
+    assert r3["ambiguous"] is False and len(r3["hypotheses"]) == 1

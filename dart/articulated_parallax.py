@@ -106,11 +106,35 @@ def range_sigma_from_pixel_noise(range_m: float, dh_m: float, fx_px: float, sigm
     return float(range_m ** 2 / max(1e-9, fx_px * dh_m) * sigma_px)
 
 
+def _landmarks_are_collinear(pts, tol: float = 1e-6) -> bool:
+    """H-14: True if the landmarks span (essentially) a line -- their range trilateration is mirror-
+    ambiguous (two reflected solutions). Fewer than 3 landmarks is inherently ambiguous."""
+    P = np.asarray(pts, float)
+    if len(P) < 3:
+        return True
+    C = P - P.mean(axis=0)
+    return float(np.linalg.svd(C, compute_uv=False)[-1]) < tol   # smallest singular value ~ 0 -> on a line
+
+
+def _reflect_across_baseline(p, a, b) -> tuple:
+    """H-14: reflect point p across the line through landmarks a, b -- the SECOND (mirror) trilateration
+    root that a near-prior Gauss-Newton solve silently discards."""
+    a = np.asarray(a, float); b = np.asarray(b, float); p = np.asarray(p, float)
+    d = b - a; dd = float(d @ d)
+    if dd < 1e-18:
+        return (float(p[0]), float(p[1]))
+    foot = a + (float((p - a) @ d) / dd) * d
+    r = 2.0 * foot - p
+    return (float(r[0]), float(r[1]))
+
+
 def articulation_localize(graph, node_id, landmarks_xy, pixel_shifts, *, dh_m, fx_px, sigma_px=0.3):
     """Tie SN-10 into the estimator: from the shadow-tip PIXEL shifts observed under a commanded lift
     dh, triangulate landmark ranges, fix the rover (x,y), and inject it into the live PoseGraphSE2 as
     an ABSOLUTE factor with the geometry-DERIVED covariance (not assumed). Returns the re-optimized
-    estimate. This is how a standstill parallax maneuver becomes a live localization update."""
+    estimate. This is how a standstill parallax maneuver becomes a live localization update. H-14: the
+    result carries `ambiguous` + both `hypotheses` when < 3 non-collinear landmarks survive (a mirror
+    pair); a >= 3 non-collinear fix is unique (ambiguous False)."""
     cur = graph.optimize()
     guess = cur[node_id][:2] if node_id in cur else (0.0, 0.0)
     ranges = [range_from_pixel_parallax(dh_m, s, fx_px) for s in pixel_shifts]
@@ -124,12 +148,18 @@ def articulation_localize(graph, node_id, landmarks_xy, pixel_shifts, *, dh_m, f
     vL = [Lxy for Lxy, _ in keep]
     ranges = [r for _, r in keep]
     fix_xy = position_fix_from_ranges(vL, ranges, guess=guess)
+    # H-14: with < 3 non-collinear landmarks the two range circles give TWO mirror solutions and the
+    # near-prior Gauss-Newton silently returns one. Flag the ambiguity and surface BOTH hypotheses
+    # (reflected across the landmark baseline) instead of presenting a unique fix; >= 3 non-collinear -> unique.
+    ambiguous = _landmarks_are_collinear(vL)
+    hypotheses = [fix_xy, _reflect_across_baseline(fix_xy, vL[0], vL[1])] if ambiguous else [fix_xy]
     sig = [range_sigma_from_pixel_noise(r, dh_m, fx_px, sigma_px) for r in ranges]
     cov = position_fix_covariance(vL, fix_xy, sig)
     pos_sigma = float(np.sqrt(0.5 * np.trace(cov)))
     graph.add_absolute(node_id, fix_xy, sigma=max(pos_sigma, 1e-3))
     out = graph.optimize_with_cov()
-    return {"fix_xy": fix_xy, "fix_sigma_m": pos_sigma, **out}
+    return {"fix_xy": fix_xy, "fix_sigma_m": pos_sigma, "ambiguous": bool(ambiguous),
+            "hypotheses": hypotheses, **out}
 
 
 def should_relocalize(xy_sigma_m, *, threshold_m=2.0, moving=False) -> bool:

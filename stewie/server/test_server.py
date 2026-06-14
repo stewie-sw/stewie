@@ -262,6 +262,24 @@ def test_localize_recovers_known_position_with_covariance(client):
     assert math.hypot(fix[0], fix[1]) < 0.05               # recovers the origin to < 5 cm
     assert b["fix_sigma_m"] > 0.0                          # covariance is geometry-derived, not zero
     assert b["xy_sigma"]["0"] < 50.0                       # the absolute fix tightened the weak prior
+    assert b["ambiguous"] is False                         # H-14: 3 non-collinear landmarks -> unique fix
+
+
+def test_h14_localize_two_landmarks_flagged_ambiguous(client):
+    """Audit H-14 (2026-06-13): a two-landmark /localize fix is mirror-ambiguous -- the response flags it
+    and returns BOTH hypotheses, instead of presenting the near-prior basin as a unique heading-free fix."""
+    import math
+
+    from dart import articulated_parallax as AP
+    landmarks = [(6.0, 0.0), (0.0, 8.0)]                   # TWO landmarks -> two mirror solutions
+    dh_m, fx_px = 0.174, 679.57
+    shifts = [AP.pixel_shift_for_range(dh_m, math.hypot(x, y), fx_px) for x, y in landmarks]
+    r = client.post("/localize", json={
+        "landmarks_xy": landmarks, "pixel_shifts": shifts, "dh_m": dh_m, "fx_px": fx_px,
+        "prior_xy": [1.5, -1.0], "prior_sigma_xy": 50.0})
+    assert r.status_code == 200
+    b = r.json()
+    assert b["ambiguous"] is True and len(b["hypotheses"]) == 2 and b["hypotheses"][0] != b["hypotheses"][1]
 
 
 def test_localize_rejects_too_few_landmarks(client):

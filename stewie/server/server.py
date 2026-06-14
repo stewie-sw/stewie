@@ -1306,6 +1306,10 @@ def post_localize(req: LocalizeRequest, _auth: None = Depends(require_auth)):
         "ok": True,
         "fix_xy": [float(fix[0]), float(fix[1])],
         "fix_sigma_m": float(out["fix_sigma_m"]),
+        # H-14: a < 3-non-collinear-landmark fix is mirror-ambiguous -- surface the flag + both hypotheses
+        # so the operator/executive does not treat the near-prior basin as a unique heading-free fix.
+        "ambiguous": bool(out.get("ambiguous", False)),
+        "hypotheses": [[float(x), float(y)] for (x, y) in out.get("hypotheses", [fix])],
         "pose": {str(k): [float(c) for c in v] for k, v in out["pose"].items()},
         "xy_sigma": {str(k): float(v) for k, v in out["xy_sigma"].items()},
         "yaw_sigma": {str(k): float(v) for k, v in out["yaw_sigma"].items()},
