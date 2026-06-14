@@ -22,6 +22,12 @@ built); the 8-agent full-stack audit (§20: 2 criticals + 2 highs fixed, no know
 remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); the cockpit
 (authoring, math worksheet, dashboards, mobile); Moon coordinate chain verified end-to-end.
 
+> **UPDATE 2026-06-14:** item 1 below (**P1 — the navigation bridge**) is **DONE** (§22.3): /localize +
+> /slam endpoints, articulation_bridge on /render, and the cockpit Navigation/Estimation view, all
+> live-verified. The §23 production-readiness audit Phases 0–2 are also complete and Phase 3 (scale +
+> maintain) is in progress. Next: **P3** (surface the evidence) then **P2** (backend closes), alongside
+> the Phase-3 audit remainder.
+
 **Ordered next, to proceed (the 2026-06-12 completion audit reset this — see §22 for the full
 sequence, UI/UX screenshot analysis, and TDD slices):**
 1. **P1 — wire the navigation half (§22.3, #106/#96/#97).** The estimator is eighteen validated
@@ -1240,7 +1246,16 @@ tied into UI/UX is therefore P1 (a Navigation/Estimation view plus the endpoints
 Each slice is bounded, gate-byte-identical, and lands with a citing `[REQ:]` test plus (where it is
 navigation-research evidence) a baseline-comparing notebook. The matrix rows each slice promotes are named.
 
-**P1 — wire the navigation half (#106, #96, #97). The missing operator surface.**
+**P1 — wire the navigation half (#106, #96, #97) — ✅ DONE 2026-06-14.** The ARGUS estimator is now
+reachable from the live system and visible in the cockpit: P1.1 `/localize` (heading-free fix +
+covariance; truth-field denylist; 5 citing tests), P1.2 `/slam` + `/slam/compare` (trajectory + ATE +
+LOO over a named real segment; 503 when the dataset is absent; 5 tests), P1.3 `/render/parallax` +
+`stewie/godot/articulation_bridge.py` (two-posture parallax capture → shadow-tip pixels + exact dh),
+P1.4 the cockpit Navigation/Estimation view (pose-graph estimate vs dead reckoning, covariance,
+perception-gated relocalize #96/#97) — live-verified headless-Chrome (`scripts/ui_eval.py`,
+`validation/ui_2026-06-14_nav/`: navview renders, gate `ARMED` when σ>tolerance, no page errors). The
+table below is the original slice plan.
+
 
 | # | Slice | Citing test (`[REQ:]`) | Promotes |
 |---|---|---|---|
