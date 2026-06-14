@@ -152,3 +152,50 @@ def test_session_scorecard_a_board(client, monkeypatch):
     oboard = client.get(f"/session/{sid}/scorecard",
                         headers={"Authorization": f"Bearer {tok}"}).json()["scorecard"]
     assert "comm_delivered_frac" in oboard and "energy_divergence_J" not in oboard
+
+
+import stewie.server.session as SESMOD  # noqa: E402  (mechanism tests on the module-global store)
+
+
+def _mk_session(sid):
+    """A minimal real Session (structural fixture: _evict/get read only id + the created stamp)."""
+    import os as _os
+
+    from stewie.bridge import telemetry as _tl
+    prof = _tl.load_profile(_os.path.join(SESMOD._PROFILES, "ideal.json"))
+    return SESMOD.Session(session_id=sid, profile_name="ideal",
+                          record={"legs": [], "completed": True, "recharges": 0, "replans": 0},
+                          link=_tl.TelemetryLink(prof, seed=0))
+
+
+def test_m09_expired_session_is_evicted(monkeypatch):
+    """Audit M-09: a session older than the TTL is dropped on the next eviction pass; get() -> None."""
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(SESMOD, "_now", lambda: clock["t"])
+    monkeypatch.setattr(SESMOD, "_SESSIONS", {})
+    old = _mk_session("oldsid")
+    old.created_monotonic_s = clock["t"]
+    SESMOD._SESSIONS["oldsid"] = old
+    assert SESMOD.get("oldsid") is old                       # present while fresh
+    clock["t"] = 1000.0 + SESMOD._SESSION_TTL_S + 1.0        # advance past the TTL
+    SESMOD._evict(clock["t"])
+    assert SESMOD.get("oldsid") is None                      # expired -> evicted -> 404 path
+
+
+def test_m09_active_session_survives_and_cap_holds(monkeypatch):
+    """Audit M-09: the store is capped oldest-first while an in-TTL active session is never evicted."""
+    clock = {"t": 0.0}
+    monkeypatch.setattr(SESMOD, "_now", lambda: clock["t"])
+    monkeypatch.setattr(SESMOD, "_SESSIONS", {})
+    monkeypatch.setattr(SESMOD, "_SESSION_MAX", 4)           # small cap for the test
+    for i in range(SESMOD._SESSION_MAX + 3):                 # insert CAP+3, each 1 s apart, all in TTL
+        clock["t"] = float(i)
+        s = _mk_session(f"s{i}")
+        SESMOD._evict(clock["t"])
+        s.created_monotonic_s = clock["t"]
+        SESMOD._SESSIONS[s.session_id] = s
+        if len(SESMOD._SESSIONS) > SESMOD._SESSION_MAX:
+            SESMOD._evict(clock["t"])
+    assert len(SESMOD._SESSIONS) <= SESMOD._SESSION_MAX
+    assert SESMOD.get(f"s{SESMOD._SESSION_MAX + 2}") is not None   # newest (active) survived
+    assert SESMOD.get("s0") is None                               # oldest dropped first

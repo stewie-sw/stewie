@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import time
 from dataclasses import dataclass, field
 
 from stewie.bridge import telemetry as tl
@@ -34,6 +35,7 @@ class Session:
     link: tl.TelemetryLink
     operator_legs: list = field(default_factory=list)
     mission_t0_s: float = 0.0         # T4.2: the session's mission epoch -- ONE sun for all views
+    created_monotonic_s: float = 0.0  # M-09: store-eviction stamp; set by start() at insert time
 
     def sun_state(self) -> dict:
         from stewie.specs.solar import sun_az_el
@@ -122,11 +124,30 @@ class Session:
 
 
 _SESSIONS: dict[str, Session] = {}
+_SESSION_TTL_S = 6 * 3600.0          # M-09: live-session TTL (~one training shift)
+_SESSION_MAX = 256                   # M-09: hard cap on concurrently-held sessions
+_now = time.monotonic                # injectable elapsed-time source (test-pinnable)
+
+
+def _evict(now: float) -> None:
+    """M-09: drop expired sessions, then enforce the cap oldest-first (clock-driven). The durable
+    record is the on-demand debrief/summary markdown, so eviction never loses the trainer's record."""
+    for sid in [k for k, v in _SESSIONS.items()
+                if now - v.created_monotonic_s > _SESSION_TTL_S]:
+        _SESSIONS.pop(sid, None)
+    while len(_SESSIONS) > _SESSION_MAX:
+        oldest = min(_SESSIONS, key=lambda k: _SESSIONS[k].created_monotonic_s)
+        _SESSIONS.pop(oldest, None)
 
 
 def start(mission, **kw) -> Session:
     s = Session.run(mission, **kw)
+    now = _now()
+    _evict(now)                      # clear the expired/over-cap backlog before inserting
+    s.created_monotonic_s = now
     _SESSIONS[s.session_id] = s
+    if len(_SESSIONS) > _SESSION_MAX:   # the just-inserted session itself may put us at cap+1
+        _evict(now)
     return s
 
 
