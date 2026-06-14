@@ -36,8 +36,10 @@ def main() -> int:
     results: dict = {"url": args.url, "panes": {}, "errors": []}
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(channel=args.channel, headless=True,
-                                    args=["--use-gl=swiftshader", "--no-sandbox"])
+        launch_kw: dict = {"headless": True, "args": ["--use-gl=swiftshader", "--no-sandbox"]}
+        if args.channel and args.channel not in ("none", "bundled"):
+            launch_kw["channel"] = args.channel       # a branded build (chrome/msedge); else the bundled chromium
+        browser = p.chromium.launch(**launch_kw)
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         page.on("pageerror", lambda e: results["errors"].append(str(e)))
         page.goto(args.url, wait_until="networkidle", timeout=40000)

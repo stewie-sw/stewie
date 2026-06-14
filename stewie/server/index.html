@@ -1366,9 +1366,12 @@ async function refreshAuthState() {
 }
 async function doLogin() {
   const email = $("auth-email").value.trim(), pass = $("auth-pass").value;
-  if (!email || !pass) { authMsg("email and password required"); return; }
-  const r = await fetch("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password: pass }) });
+  if (!email) { authMsg("email required"); return; }
+  const headers = { "Content-Type": "application/json" }, body = { email };
+  if (pass) { body.password = pass; }
+  else if (SETTINGS.apikey) { headers["X-API-Key"] = SETTINGS.apikey; }   // bootstrap: deploy key, no password yet
+  else { authMsg("enter your password — or, for first-time setup, save the deploy key under 'automation key' below"); return; }
+  const r = await fetch("/auth/login", { method: "POST", headers, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
   if (r.ok && j.ok) {
     SETTINGS.opemail = email; SETTINGS.optoken = j.token; saveSettings(SETTINGS); AUTH.role = j.role;
