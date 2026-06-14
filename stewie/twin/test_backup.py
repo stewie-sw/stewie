@@ -1,4 +1,5 @@
 """PRD 6.2 W-2/W-3: snapshot retention ladder + off-host replication (real files, real rsync)."""
+import json
 import os
 import subprocess
 
@@ -56,3 +57,52 @@ def test_replication_mirrors_journal_and_snapshots(tmp_path):
     cold = vt.TwinStore.from_journal(_base(), cell_m=0.5,
                                      journal_path=os.path.join(dest, "twin.journal"))
     assert cold.version == tw.version
+
+
+def test_m11_snapshot_stores_content_checksum_and_restore_verifies(tmp_path):
+    """Audit M-11: snapshot() writes a content sha256 over base+cell_m+events and restore() verifies it."""
+    tw = vt.TwinStore(np.zeros((8, 8)), cell_m=0.5, journal_path=str(tmp_path / "twin.journal"))
+    tw.apply_patch(np.full((2, 2), 0.3), origin_rc=(1, 1), provenance="edit")
+    p = B.snapshot(tw, str(tmp_path / "snaps"))
+    z = np.load(p)
+    assert "checksum" in z.files                            # FAILS on current code (no checksum array)
+    cold = B.restore(p)
+    assert cold.current().tobytes() == tw.current().tobytes()
+    assert cold.version == tw.version and cold.verify_chain()
+
+
+def test_m11_restore_rejects_corrupted_base(tmp_path):
+    """Audit M-11: the base array is not hash-chained like the event log; a tampered base is caught."""
+    tw = vt.TwinStore(np.zeros((8, 8)), cell_m=0.5, journal_path=str(tmp_path / "twin.journal"))
+    tw.apply_patch(np.full((2, 2), 0.3), origin_rc=(0, 0), provenance="edit")
+    p = B.snapshot(tw, str(tmp_path / "snaps"))
+    z = dict(np.load(p))
+    corrupt = z["base"].copy()
+    corrupt[0, 0] += 1.0                                    # silent bit-rot of the base array
+    np.savez_compressed(p, base=corrupt, cell_m=z["cell_m"], events=z["events"], checksum=z["checksum"])
+    with pytest.raises(ValueError, match="integrity check failed"):   # FAILS now: base is unchecked
+        B.restore(p)
+
+
+def test_m11_restore_backward_compatible_with_unchecksummed_snapshot(tmp_path):
+    """Audit M-11: a pre-M-11 snapshot on disk has no 'checksum' key; restore() must still work."""
+    snaps = tmp_path / "snaps"
+    snaps.mkdir()
+    base = np.zeros((8, 8))
+    legacy = str(snaps / "twin_v000000.npz")
+    np.savez_compressed(legacy, base=base, cell_m=np.array([0.5]),
+                        events=np.frombuffer(json.dumps([]).encode(), dtype=np.uint8))
+    cold = B.restore(legacy)
+    assert cold.version == 0 and cold.cell_m == 0.5
+    assert cold.current().tobytes() == base.tobytes()
+
+
+def test_m11_snapshot_leaves_no_tmp_visible_to_retention(tmp_path):
+    """Audit M-11: the atomic-write temp is dot-prefixed and invisible to apply_retention's twin_v glob."""
+    tw = vt.TwinStore(np.zeros((8, 8)), cell_m=0.5, journal_path=str(tmp_path / "twin.journal"))
+    tw.apply_patch(np.full((2, 2), 0.3), origin_rc=(0, 0), provenance="edit")
+    snaps = str(tmp_path / "snaps")
+    B.snapshot(tw, snaps)
+    names = os.listdir(snaps)
+    assert not any(n.endswith(".tmp") for n in names)
+    assert [n for n in names if n.startswith("twin_v")] == ["twin_v000001.npz"]
