@@ -19,7 +19,6 @@ import hashlib
 import json
 import logging
 import os
-import re
 import shutil
 import sys
 import threading
@@ -34,7 +33,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from stewie.specs import config as CFG               # PO-02: configurable application-data dirs
-from stewie.twin.io_fields import atomic_write_bytes  # PO-02/CT-04: atomic writes for profiles
 from stewie.bridge import rc_contract as RC           # RC.commands_from_plan for the /plan/commands view
 from lode import adaptive_planner as ADP
 from lode import autonomy as AUT
@@ -82,7 +80,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # else ~/.local/share/stewie) -- NOT inside the (possibly read-only) installed package. Tests
 # monkeypatch these module-level vars to a tmp dir; run() writes reports to the same CFG.reports_dir().
 REPORTS = CFG.reports_dir()
-PROFILES = CFG.profiles_dir()                      # saved planning profiles (config snapshots), like reports/
 
 _CTYPE = {".html": "text/html; charset=utf-8", ".json": "application/json",
           ".pdf": "application/pdf", ".md": "text/markdown; charset=utf-8",
@@ -271,11 +268,6 @@ class RenderRequest(BaseModel):
     mission_t_s: float | None = None   # T6.3: render under the planner's mission-time sun
 
 
-class ProfileRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=80)      # saved under a slug of this name
-    profile: dict = Field(default_factory=dict)         # the full config snapshot (body/soil/fleet/orders/...)
-
-
 class LocalizeRequest(BaseModel):
     # I3: the estimator surface is observation-only -- forbid extra keys so no truth/hidden-state field
     # (true_pose, slip, terrain truth) can ride in on the request and silently enter the estimator.
@@ -336,6 +328,7 @@ app.add_middleware(
 from stewie.server.routers import auth as _auth_router  # noqa: E402
 from stewie.server.routers import missions as _missions_router  # noqa: E402
 from stewie.server.routers import operators_admin as _operators_admin_router  # noqa: E402
+from stewie.server.routers import profiles as _profiles_router  # noqa: E402
 from stewie.server.routers import rc as _rc_router  # noqa: E402
 from stewie.server.routers import structures as _structures_router  # noqa: E402
 app.include_router(_rc_router.router)
@@ -343,6 +336,7 @@ app.include_router(_auth_router.router)
 app.include_router(_missions_router.router)
 app.include_router(_structures_router.router)
 app.include_router(_operators_admin_router.router)
+app.include_router(_profiles_router.router)
 
 
 @app.middleware("http")
@@ -973,41 +967,6 @@ def healthz():
 @app.get("/metrics")
 def metrics():
     return {"uptime_s": round(time.monotonic() - _START, 1), **_METRICS}
-
-
-# ---- profiles: save / list / load a planning config snapshot ------------------------------------
-def _profile_slug(name: str) -> str:
-    return re.sub(r"[^a-z0-9_-]+", "-", str(name).lower()).strip("-") or "profile"
-
-
-@app.post("/profile")
-def post_profile(req: ProfileRequest, _auth: None = Depends(require_auth)):
-    """Save a planning profile (the full config snapshot) under a slug of its name, to profiles/."""
-    os.makedirs(PROFILES, exist_ok=True)
-    slug = _profile_slug(req.name)
-    atomic_write_bytes(os.path.join(PROFILES, slug + ".json"),            # PO-02: atomic, no partial profile
-                       json.dumps({"name": req.name, "profile": req.profile}, indent=2).encode("utf-8"))
-    return {"ok": True, "name": slug}
-
-
-@app.get("/profiles")
-def get_profiles():
-    """List the saved profile slugs."""
-    if not os.path.isdir(PROFILES):
-        return {"ok": True, "profiles": []}
-    return {"ok": True, "profiles": sorted(os.path.splitext(f)[0]
-                                           for f in os.listdir(PROFILES) if f.endswith(".json"))}
-
-
-@app.get("/profile/{name}")
-def get_profile(name: str):
-    """Load a saved profile by slug -> {name, profile}."""
-    slug = _profile_slug(name)
-    p = os.path.join(PROFILES, slug + ".json")
-    if not os.path.isfile(p):
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"no profile {slug!r}"})
-    with open(p) as fh:
-        return json.load(fh)
 
 
 # ---- POST: the planner API (auth-gated when $STEWIE_API_KEY is set) -----------------------------

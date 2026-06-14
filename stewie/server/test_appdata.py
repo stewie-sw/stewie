@@ -47,14 +47,15 @@ def test_report_is_written_to_the_configured_data_dir(monkeypatch, tmp_path):
 
 
 def test_profile_save_is_atomic_and_uses_the_data_dir(monkeypatch, tmp_path):
-    # point the server's module-level dirs at the scratch root (the route uses PROFILES)
-    monkeypatch.setattr(SRV, "PROFILES", str(tmp_path / "profiles"))
+    # the /profile route (ARCH-3 routers.profiles) resolves the profiles dir at call time from the data dir
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
     c = TestClient(SRV.app)
     r = c.post("/profile", json={"name": "Haworth Pad 1", "profile": {"body": "moon", "orders": []}})
     assert r.status_code == 200
-    saved = os.path.join(str(tmp_path / "profiles"), "haworth-pad-1.json")
+    pdir = str(tmp_path / "profiles")
+    saved = os.path.join(pdir, "haworth-pad-1.json")
     assert os.path.exists(saved)
-    leftovers = [f for f in os.listdir(str(tmp_path / "profiles")) if f.endswith(".tmp")]
+    leftovers = [f for f in os.listdir(pdir) if f.endswith(".tmp")]
     assert leftovers == [], f"profile write left temp files: {leftovers}"   # atomic
 
 

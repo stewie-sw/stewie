@@ -5,7 +5,7 @@ from stewie.server import server as SRV
 
 
 def _client(tmp_path, monkeypatch):
-    monkeypatch.setattr(SRV, "PROFILES", str(tmp_path))   # isolate from the real profiles/ dir
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))  # isolate: profiles land in tmp_path/profiles
     return TestClient(SRV.app)
 
 
