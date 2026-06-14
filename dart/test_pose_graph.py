@@ -36,17 +36,18 @@ def test_an_absolute_factor_pulls_the_drifted_chain_back():
     assert fused["sigma"][2] < odo_only["sigma"][2]        # the fix shrinks the node's uncertainty
 
 
-def test_shadow_residual_is_a_real_absolute_factor():
-    """[REQ:SN] the shadow-outline match enters the graph as an absolute factor: a predicted
-    shadow boundary (from the conserved terrain + sun) matched to an observed one yields a
-    position fix the graph fuses -- the ARGUS shadow-as-instrument contribution, structurally."""
+def test_shadow_outline_descriptor_seeds_an_absolute_factor_structurally():
+    """[REQ:SN] H-16: shadow_outline_descriptor is a FEATURE DESCRIPTOR (the observed shadow-edge centroid
+    in the local frame), NOT a registered observed-vs-predicted map match. Its centroid can SEED an
+    absolute factor as the structural form of the ARGUS shadow-as-instrument claim -- the graph fuses it
+    like any absolute term -- but the real map registration + rover-camera transform is the #79 slice."""
     from dart.shadow_predict import cast_shadow_mask
-    # a small real-terrain patch with a ridge -> a cast shadow whose edge is a landmark
+    # a small real-terrain patch with a ridge -> a cast shadow whose edge is the descriptor source
     z = np.zeros((24, 24))
     z[10:14, :] = 3.0                                       # an E-W ridge casts a shadow across the row axis
     mask = cast_shadow_mask((z, 5.0), sun_az_deg=0.0, sun_el_deg=10.0)   # N-S sun, perpendicular to the E-W ridge (C-03)
     assert mask.any() and not mask.all()                   # a real partial shadow exists
-    obs_xy, sigma = PG.shadow_fix_from_outline(mask, cell_m=5.0, prior_xy=(60.0, 55.0))
+    obs_xy, sigma = PG.shadow_outline_descriptor(mask, cell_m=5.0, prior_xy=(60.0, 55.0))
     g = PG.PoseGraph()
     g.add_prior(0, (62.0, 58.0), sigma=8.0)                # a DRIFTED dead-reckoning guess (uncertain)
     g.add_absolute(0, obs_xy, sigma=sigma)

@@ -6,7 +6,8 @@ The unified-state contract the thesis protects, made concrete: a sparse least-sq
   prior(i, x0, sigma)            -- the start fix / map anchor
   odometry(i, j, dx, sigma)      -- the drift model (relative motion between nodes)
   absolute(i, z, sigma)          -- a map-relative fix: DEM scan-registration (dart.localization
-                                    register_to_dem) OR a SHADOW-outline match (shadow_fix_from_outline)
+                                    register_to_dem). A shadow-outline CENTROID (shadow_outline_descriptor)
+                                    is a feature DESCRIPTOR only (H-16), not a registered fix; #79 is the match.
 
 Each factor is a Gaussian residual; the MAP estimate minimizes the sum of squared
 information-weighted residuals. For 2-D position-only factors the problem is LINEAR, so one
@@ -100,15 +101,17 @@ class PoseGraph:
         return {"pose": pose, "sigma": sigma, "observable": observable}
 
 
-def shadow_fix_from_outline(shadow_mask, *, cell_m: float, prior_xy, sigma_floor_m: float = 0.5):
-    """#78/[REQ:SN]: turn a cast-shadow outline into an absolute position fix for the graph.
+def shadow_outline_descriptor(shadow_mask, *, cell_m: float, prior_xy, sigma_floor_m: float = 0.5):
+    """#78/[REQ:SN]: a FEATURE DESCRIPTOR from a cast-shadow outline -- NOT a registered absolute map fix
+    (audit H-16).
 
-    The shadow boundary (lit<->dark transition) is a terrain-anchored landmark: its CENTROID in
-    the local map frame is a position observable the rover can match against the predicted shadow
-    from the conserved terrain + sun. Returns (xy_m, sigma_m). Confidence (-> sigma) scales with
-    how SHARP the outline is -- a long, well-defined shadow edge localizes better than a fuzzy one.
-    This is the structural form of the ARGUS shadow-as-instrument claim; the dense edge-matching
-    front-end (SuperGlue-class) is the perception slice (#79).
+    It returns the CENTROID of the observed shadow-EDGE cells in the LOCAL frame (cell index * cell_m) plus
+    a sharpness-scaled sigma (a long, well-defined edge localizes better than a fuzzy one). It does NOT
+    register the observed outline against a PREDICTED outline (cast_shadow_mask on the conserved terrain +
+    sun at a candidate pose) and does NOT apply the rover-camera transform, so the centroid is a LOCAL
+    feature, not a world-frame position. A TRUE absolute factor requires that observed-vs-predicted
+    registration + a measurement covariance -- the dense edge-matching front-end (SuperGlue-class) is the
+    perception slice (#79). Use this descriptor to SEED such a factor, not as the fix itself.
     """
     m = np.asarray(shadow_mask, dtype=bool)
     rows, cols = np.where(m)
