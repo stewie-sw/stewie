@@ -130,7 +130,6 @@ module = [
     "leap.terrain_target_env",
     "leap.worksite_env",
     "lode.scheduler_env",
-    "lode.self_optimizing",
     "stewie.envs.active_perception_env",
     "stewie.envs.rover_env",
     "stewie.physics.column_state",
