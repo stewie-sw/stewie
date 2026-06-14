@@ -75,6 +75,13 @@ class VehicleTwin:
         return {"g": self.gravity_ms2, "params": self.params,
                 "wheel_width_m": self.geometry["wheel_width_m"],
                 "contact_len_m": self.geometry["contact_len_m"],
+                # A-02: propagate the RESOLVED vehicle mass + complete contact geometry so the conserved
+                # drive loop loads, sinks, and slips against THIS vehicle (a 65 kg RASSOR-2 sinks/slips more
+                # than a 30 kg IPEx) instead of the K.* module globals. mass_kg + n_wheels set the per-wheel
+                # normal load; gauge/wheelbase/wheel_radius place the four contacts and bound clast ride-over.
+                "mass_kg": self.mass_kg, "n_wheels": self.geometry["n_wheels"],
+                "gauge_m": self.geometry["gauge_m"], "wheelbase_m": self.geometry["wheelbase_m"],
+                "wheel_radius_m": self.geometry["wheel_radius_m"],
                 # H-10: propagate the drivetrain model so the runtime drive loop slip-couples yaw instead
                 # of keeping full commanded yaw authority. The differential track is the lateral gauge.
                 "skid_steer": self.geometry["skid_steer"], "track_m": self.geometry["gauge_m"]}

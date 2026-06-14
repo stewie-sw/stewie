@@ -175,6 +175,40 @@ def test_skid_steer_yaw_authority_is_slip_coupled():
     assert abs(yaw_t) < abs(a[1]) or telem["slip"] == 0.0  # yaw under-achieves vs the ideal path
 
 
+def test_a02_vehicle_mass_geometry_propagates_into_drive():
+    """A-02: a 30 kg IPEx and a 65 kg RASSOR-2, driven IDENTICALLY through the exact runtime
+    call (drive_step(**twin.drive_context())), must produce DIFFERENT slip/sinkage/position.
+
+    The drive model must consume the RESOLVED vehicle mass + wheel count (not the K.* module
+    globals), so the heavier vehicle puts more load per wheel and therefore slips/sinks more on
+    the same grade. Before the fix drive_context() omitted mass/n_wheels and drive.py used
+    K.ROVER_MASS_DRY_KG, so the two were byte-identical."""
+    import numpy as np
+
+    from stewie.physics import drive
+    from stewie.physics.column_state import ColumnState
+    from stewie.specs.vehicle_twin import VehicleTwin
+
+    ipex = VehicleTwin.assemble("ip", vehicle="ipex", body="moon")
+    rassor2 = VehicleTwin.assemble("r2", vehicle="rassor2", body="moon")
+    assert ipex.mass_kg < rassor2.mass_kg          # 30 kg vs 65 kg -- the sourced difference
+
+    def fresh():
+        cs = ColumnState(width=64, height=64, cell_m=0.02, mass_areal=np.full((64, 64), 50.0))
+        cs.datum[:, :] = np.tile(np.linspace(0.0, 0.55, 64)[None, :], (64, 1)) - (cs.derive_height() - cs.datum)
+        return cs
+
+    _, _, t_light = drive.drive_step(fresh(), (32.0, 20.0), 0.0, 0.25, 0.0, dt=0.2,
+                                     **ipex.drive_context())
+    _, _, t_heavy = drive.drive_step(fresh(), (32.0, 20.0), 0.0, 0.25, 0.0, dt=0.2,
+                                     **rassor2.drive_context())
+    # the heavier vehicle sinks deeper and slips more on the identical grade
+    assert t_heavy["sinkage_m"] > t_light["sinkage_m"]
+    assert t_heavy["slip"] > t_light["slip"]
+    # and the divergence in slip means the achieved position diverges too
+    assert t_heavy["v_achieved"] != t_light["v_achieved"]
+
+
 def test_h10_drive_context_propagates_skid_steer_to_runtime():
     """Audit H-10 (2026-06-13): VehicleTwin.drive_context() must carry the skid-steer drivetrain model
     (flag + lateral track) so the RUNTIME drive loop (process._twist -> drive_step(**ctx)) slip-couples

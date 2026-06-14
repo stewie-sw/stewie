@@ -73,7 +73,7 @@ def test_moon_dem_degrades_cleanly_when_asset_absent(monkeypatch):
     monkeypatch.setenv("STEWIE_DEM_DIR", "/nonexistent/dem/bundle")
     # ARCH-3: the per-site DEM cache now lives in stewie.server.state; reset it there (REG-01)
     monkeypatch.setattr(STATE, "_MOON_DEM", None); monkeypatch.setattr(STATE, "_SITE_DEMS", {})
-    dem, origin = SRV._moon_dem()
+    dem, origin = STATE.moon_dem()
     assert dem is None and origin == (0.0, 0.0)
 
 

@@ -1149,6 +1149,30 @@ for (const [k, v] of Object.entries(BODIES)) {
 }
 const $ = (id) => document.getElementById(id);
 
+// S-02: safe DOM builder. Server data (operator emails, roles, mission math labels) is NEVER
+// concatenated into innerHTML/attributes -- it goes in via textContent / setAttribute, so an
+// `<img onerror>`-style value renders as inert text. el(tag, {props/attrs}, ...children).
+function el(tag, attrs, ...children) {
+  const n = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) {
+    if (v == null) continue;
+    if (k === "text") n.textContent = v;
+    else if (k === "style") n.setAttribute("style", v);
+    else if (k === "class") n.className = v;
+    else if (k === "html") throw new Error("el(): innerHTML is forbidden (S-02)");
+    else if (k.startsWith("on") && typeof v === "function") n[k] = v;
+    else if (k.startsWith("data-") || k === "colspan" || k === "title" || k === "disabled")
+      n.setAttribute(k, v);
+    else n.setAttribute(k, v);            // value/type/etc. -- still via setAttribute, never HTML
+  }
+  for (const c of children) {
+    if (c == null) continue;
+    n.appendChild(typeof c === "string" || typeof c === "number"
+      ? document.createTextNode(String(c)) : c);
+  }
+  return n;
+}
+
 // --- view tabs: swap the stage between Plan (globe) / Perception (render) / Metrics (telemetry) / Report.
 // The globe (#cesium) stays mounted under the panes (no Cesium re-init); the active pane covers it.
 let VIEW = "plan";
@@ -1431,25 +1455,39 @@ async function renderAdmin() {
   const rows = $("adminrows"); if (!rows) return;
   try {
     const r = await fetch("/admin/operators", { headers: apiHeaders() });
-    if (!r.ok) { rows.innerHTML = '<tr><td colspan="5" style="opacity:.6">director sign-in required</td></tr>'; return; }
+    if (!r.ok) { rows.replaceChildren(el("tr", null, el("td", { colspan: "5", style: "opacity:.6" }, "director sign-in required"))); return; }
     const ops = (await r.json()).operators || [];
-    if (!ops.length) rows.innerHTML = '<tr><td colspan="5" style="opacity:.6">no accounts yet</td></tr>';
-    else rows.innerHTML = ops.map((o) => {
-      const ll = o.last_login ? new Date(o.last_login * 1000).toLocaleString() : "—";
-      const flip = o.role === "director" ? "operator" : "director";
-      const act = [];
-      if (o.status === "pending") act.push('<button class="site" data-act="approve" data-email="' + o.email + '">approve</button>');
-      act.push('<button class="site" data-act="role" data-email="' + o.email + '" data-role="' + flip + '">→' + flip + '</button>');
-      if (o.status !== "revoked") act.push('<button class="site" data-act="revoke" data-email="' + o.email + '">revoke</button>');
-      act.push('<button class="site" data-act="reset" data-email="' + o.email + '">reset pw</button>');
-      act.push('<button class="site" data-act="delete" data-email="' + o.email + '">delete</button>');
-      const sc = o.status === "active" ? "var(--accent)" : (o.status === "pending" ? "#e0a800" : "var(--muted)");
-      return '<tr><td>' + o.email + '</td><td>' + o.role + '</td><td><span class="badge" style="color:' + sc + '">' +
-        o.status + '</span></td><td>' + ll + '</td><td style="display:flex;gap:4px;flex-wrap:wrap">' + act.join("") + '</td></tr>';
-    }).join("");
+    rows.replaceChildren();
+    if (!ops.length) {
+      rows.appendChild(el("tr", null, el("td", { colspan: "5", style: "opacity:.6" }, "no accounts yet")));
+    } else {
+      // S-02: build each row from DOM nodes; the server-supplied email/role/status enter only via
+      // textContent and data-* attributes (el()), so an `<img onerror>` email is rendered as text.
+      for (const o of ops) {
+        const ll = o.last_login ? new Date(o.last_login * 1000).toLocaleString() : "—";
+        const flip = o.role === "director" ? "operator" : "director";
+        const mkbtn = (act, label, extra) =>
+          el("button", { "class": "site", "data-act": act, "data-email": o.email, ...(extra || {}) }, label);
+        const actCell = el("td", { style: "display:flex;gap:4px;flex-wrap:wrap" });
+        if (o.status === "pending") actCell.appendChild(mkbtn("approve", "approve"));
+        actCell.appendChild(mkbtn("role", "→" + flip, { "data-role": flip }));
+        if (o.status !== "revoked") actCell.appendChild(mkbtn("revoke", "revoke"));
+        actCell.appendChild(mkbtn("reset", "reset pw"));
+        actCell.appendChild(mkbtn("delete", "delete"));
+        const sc = o.status === "active" ? "var(--accent)" : (o.status === "pending" ? "#e0a800" : "var(--muted)");
+        rows.appendChild(el("tr", null,
+          el("td", null, o.email),
+          el("td", null, o.role),
+          el("td", null, el("span", { "class": "badge", style: "color:" + sc }, o.status)),
+          el("td", null, ll),
+          actCell));
+      }
+    }
     rows.querySelectorAll("button[data-act]").forEach((b) =>
       b.onclick = () => adminAction(b.dataset.act, b.dataset.email, b.dataset.role));
-  } catch (e) { rows.innerHTML = '<tr><td colspan="5" style="opacity:.6">unavailable</td></tr>'; }
+  } catch (e) {
+    rows.replaceChildren(el("tr", null, el("td", { colspan: "5", style: "opacity:.6" }, "unavailable")));
+  }
   try {
     const e = await fetch("/events?n=40", { headers: apiHeaders() });
     if (e.ok) { const evs = (await e.json()).events || [];
@@ -2655,14 +2693,23 @@ qel("qplan").onclick = async () => {
           if (!mj.ok) return;
           const ms = $("mathsheet"), mb = $("mathbody"); if (!mb) return;
           const c = mj.constants;
-          let html = `<div style="opacity:.7;margin-bottom:6px">constants: DIG ${c.DIG_J_PER_KG} J/kg · DRIVE ${c.DRIVE_J_PER_M} J/m · speed ${c.DRIVE_SPEED_MS} m/s · dig-rate ${c.DIG_RATE_KG_S} kg/s · g ${c.g_m_s2} m/s²</div>`;
+          // S-02: build the worksheet from DOM nodes -- the leg kind/label and per-term name/value
+          // (which can derive from user-supplied order labels) enter only via textContent.
+          mb.replaceChildren();
+          mb.appendChild(el("div", { style: "opacity:.7;margin-bottom:6px" },
+            `constants: DIG ${c.DIG_J_PER_KG} J/kg · DRIVE ${c.DRIVE_J_PER_M} J/m · speed ${c.DRIVE_SPEED_MS} m/s · dig-rate ${c.DIG_RATE_KG_S} kg/s · g ${c.g_m_s2} m/s²`));
           mj.legs.forEach((lg) => {
             if (!lg.terms.length) return;
-            html += `<div style="border-left:3px solid var(--line);padding:3px 8px;margin:4px 0"><b>${lg.kind} · ${lg.label}</b><table style="width:100%;border-collapse:collapse;margin-top:2px">` +
-              lg.terms.map((t) => `<tr><td style="color:var(--muted);padding-right:8px">${t.name}</td><td style="font-family:monospace">${t.substituted} ${t.unit}</td></tr>`).join("") +
-              `</table></div>`;
+            const tbody = el("table", { style: "width:100%;border-collapse:collapse;margin-top:2px" });
+            lg.terms.forEach((t) => {
+              tbody.appendChild(el("tr", null,
+                el("td", { style: "color:var(--muted);padding-right:8px" }, t.name),
+                el("td", { style: "font-family:monospace" }, `${t.substituted} ${t.unit}`)));
+            });
+            mb.appendChild(el("div", { style: "border-left:3px solid var(--line);padding:3px 8px;margin:4px 0" },
+              el("b", null, `${lg.kind} · ${lg.label}`), tbody));
           });
-          mb.innerHTML = html; ms.style.display = "block";
+          ms.style.display = "block";
         }).catch(() => {});
     }
     const v = j.validation || {};

@@ -12,8 +12,14 @@ services:
       # boot silently director-open. Set STEWIE_API_KEY (or STEWIE_API_KEY) in deploy/.env or the shell.
       # (Local dev without a key uses `stewie-serve` + STEWIE_DEV_OPEN=1 on loopback, NOT this compose.)
       STEWIE_API_KEY: ${STEWIE_API_KEY:-${STEWIE_API_KEY:?set STEWIE_API_KEY or STEWIE_API_KEY; the server fails closed without it (audit C-01)}}
+      # S-11: CORS is same-origin by default (empty list). Set this only if a real cross-origin client
+      # needs it; a bare '*' re-opens the authenticated API to any website (avoid in production).
       STEWIE_CORS_ORIGINS: ${STEWIE_CORS_ORIGINS:-}
       STEWIE_REPORTS_TTL_S: ${STEWIE_REPORTS_TTL_S:-604800}
+      # S-04: TLS is terminated at the edge (frontend nginx / cloudflared), so the backend's public-bind
+      # guard is satisfied here. The backend is NOT published on a host port -- only the frontend reaches
+      # it over the internal compose network. Keep this true only while a real HTTPS terminator fronts it.
+      STEWIE_TLS_TERMINATED: ${STEWIE_TLS_TERMINATED:-1}
       MPLCONFIGDIR: /tmp/mpl
     volumes: [ "stewie-data:/data" ]
     restart: unless-stopped
@@ -24,7 +30,10 @@ services:
     tmpfs: [ "/tmp" ]
   frontend:
     build: { context: .., dockerfile: deploy/Dockerfile.frontend, network: host }
-    ports: [ "8000:80" ]
+    # Hardening (2026-06-14): bound off the open WiFi LAN. Loopback = cloudflared tunnel origin;
+    # Tailscale IP = private access from your tailnet (phone/laptop) until the tunnel is live.
+    # Was "8000:80" (0.0.0.0, reachable by anyone on the LAN). See HOSTING_stewie.space.md B1.
+    ports: [ "127.0.0.1:8000:80", "100.75.128.41:8000:80" ]
     cap_drop: [ "ALL" ]
     cap_add: [ "CHOWN", "SETGID", "SETUID", "NET_BIND_SERVICE" ]   # nginx master needs these
     security_opt: [ "no-new-privileges:true" ]

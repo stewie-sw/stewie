@@ -104,19 +104,39 @@ class ColumnState:
             self._validate_fields()
 
     def _validate_fields(self) -> None:
-        """CT-02: every field has the (height, width) shape, the right dtype kind, and a valid physical
-        domain — checked at construction so a caller cannot inject NaN/Inf/negative state. Raises
-        ``validation.DomainError`` (a ``ValueError``)."""
+        """CT-02: every field has the (height, width) shape, the right dtype kind, and its COMPLETE declared
+        physical domain — checked at construction so a caller cannot inject NaN/Inf/out-of-range state.
+        Raises ``validation.DomainError`` (a ``ValueError``). Domains (T-09): mass_areal >= 0; density in
+        (0, RHO_GRAIN] (bulk density cannot exceed the zero-void solid grain density, constants RHO_GRAIN);
+        disturbance in [0, 1]; datum finite (may be negative — elevation); state_label a StateLabel member;
+        ice in [0, W_ICE_MAX] (the §8 volatile-fraction ceiling)."""
         shape = (self.height, self.width)
         V.ensure_positive_scalar(self.cell_m, "cell_m")
         V.ensure_nonneg(V.ensure_kind(V.ensure_shape(self.mass_areal, shape, "mass_areal"), "f", "mass_areal"), "mass_areal")
-        V.ensure_positive(V.ensure_kind(V.ensure_shape(self.density, shape, "density"), "f", "density"), "density")
-        V.ensure_nonneg(V.ensure_kind(V.ensure_shape(self.disturbance, shape, "disturbance"), "f", "disturbance"), "disturbance")
+        # density: finite, > 0 (height defined) AND <= the grain density (a bulk density above the zero-void
+        # solid grain density is unphysical -- you cannot pack regolith denser than its own grains).
+        V.ensure_range(V.ensure_kind(V.ensure_shape(self.density, shape, "density"), "f", "density"),
+                       np.nextafter(0.0, 1.0), K.RHO_GRAIN, "density")
+        V.ensure_range(V.ensure_kind(V.ensure_shape(self.disturbance, shape, "disturbance"), "f", "disturbance"),
+                       0.0, 1.0, "disturbance")
         V.ensure_finite(V.ensure_kind(V.ensure_shape(self.datum, shape, "datum"), "f", "datum"), "datum")   # datum may be negative (elevation)
-        V.ensure_kind(V.ensure_shape(self.state_label, shape, "state_label"), "iu", "state_label")
+        self._ensure_state_label(V.ensure_kind(V.ensure_shape(self.state_label, shape, "state_label"), "iu", "state_label"))
         if self.ice is not None:
-            V.ensure_nonneg(V.ensure_kind(V.ensure_shape(self.ice, shape, "ice"), "f", "ice"), "ice")
+            V.ensure_range(V.ensure_kind(V.ensure_shape(self.ice, shape, "ice"), "f", "ice"),
+                           0.0, K.W_ICE_MAX, "ice")
         V.ensure_nonneg_scalar(self.drum_inventory, "drum_inventory")
+
+    @staticmethod
+    def _ensure_state_label(arr: np.ndarray) -> np.ndarray:
+        """Every state_label is a declared StateLabel enum member (spec §6). An out-of-enum code would
+        silently widen the discrete terrain class set (and break any consumer that switches on it)."""
+        valid = {int(s) for s in StateLabel}
+        present = np.unique(np.asarray(arr))
+        bad = [int(v) for v in present if int(v) not in valid]
+        if bad:
+            raise V.DomainError(
+                f"state_label: code(s) {bad} not in StateLabel {sorted(valid)}")
+        return arr
 
     # -- geometry ----------------------------------------------------------
 

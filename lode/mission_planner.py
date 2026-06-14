@@ -554,27 +554,31 @@ def _simulate(mission, trips, routes=None):
         return True
 
     def drive(to):
-        """C-04: reserve-aware drive. Driving to a WORK site keeps the reserve margin -- if the leg would
-        dip SoC below reserve, recharge first (and if even a full charge can't reach it above reserve, the
-        plan is infeasible). Driving HOME may draw into reserve (that is what reserve is for) but must never
-        go NEGATIVE -- if the full remaining charge can't reach `to`, the rover is stranded. Either way the
-        leg is skipped and flagged rather than run on negative SoC (a prior bug ran the pack to ~-14 MJ)."""
+        """C-04: reserve-aware drive. Returns True when the rover actually reaches `to`, False when the
+        leg is infeasible (and skipped + flagged). Driving to a WORK site keeps the reserve margin -- if
+        the leg would dip SoC below reserve, recharge first (and if even a full charge can't reach it above
+        reserve, the plan is infeasible). Driving HOME may draw into reserve (that is what reserve is for)
+        but must never go NEGATIVE -- if the full remaining charge can't reach `to`, the rover is stranded.
+        Either way the leg is skipped and flagged rather than run on negative SoC (a prior bug ran the pack
+        to ~-14 MJ). P-01: the caller MUST check the return -- a failed transit means NO work happened at
+        `to`, so the trip's dig/haul/fill is not credited (the prior bug ran spend() unconditionally)."""
         d = _rd(pos, to)                                  # H-02: routed inter-site distance (matches Plan IR)
-        if d <= 1e-9: return
+        if d <= 1e-9: return True                         # already there (within tol): nothing to drive
         e = d * DRIVE_J_PER_M; usable = BATTERY_J - reserve
         going_home = _d(to, mission.charger) <= 1e-9
         if not going_home and e > batt - reserve:     # to a work site: keep the reserve margin -> recharge
             if _rd(mission.charger, to) * DRIVE_J_PER_M > usable:
                 infeasible.append(f"leg to ({to[0]:.0f},{to[1]:.0f}) needs {e / 1e3:.0f} kJ; a full charge "
                                   f"reaches only {usable / 1e3:.0f} kJ above reserve")
-                return
+                return False
             if not charge():                          # round-trip to the charger, then proceed from full
-                return                                # stranded (infeasible recorded); never drive SoC negative
+                return False                          # stranded (infeasible recorded); never drive SoC negative
         if e > batt + 1e-6:                           # can't physically reach `to` even on the full remaining
             infeasible.append(f"stranded at ({pos[0]:.0f},{pos[1]:.0f}): cannot reach ({to[0]:.0f},"
                               f"{to[1]:.0f}) on the remaining {batt / 1e3:.0f} kJ")
-            return
+            return False
         _leg(to)
+        return True
 
     def spend(kind, total_e, total_dur, work_pos, mass=0.0, speed=0.0, haul_m=0.0, haul_e=None, lift_e=0.0):
         # draw total_e at work_pos, splitting across recharges; haul_e is the haul drive ENERGY (#1
@@ -584,28 +588,42 @@ def _simulate(mission, trips, routes=None):
             haul_e = haul_m * DRIVE_J_PER_M
         e = total_e + haul_e + lift_e
         dur = total_dur + (haul_m / DRIVE_SPEED_MS)
-        spent = 0.0
+        spent = 0.0; completed = True
         while spent < e - 1e-6:
             usable = batt - reserve
             if usable <= 1e-3:
                 if not charge():
-                    break                             # C-04: stranded mid-work; stop (infeasible recorded)
-                drive(work_pos); continue
+                    completed = False; break          # C-04: stranded mid-work; stop (infeasible recorded)
+                if not drive(work_pos):
+                    completed = False; break          # P-01: can't return to the work site -> stop crediting
+                continue
             chunk = min(e - spent, usable)
             cd = dur * (chunk / e) if e > 0 else 0.0
             tl.append(dict(t0=t, t1=t+cd, kind=kind, batt0=batt, batt1=batt-chunk,
                            mass=mass*(chunk/e) if e > 0 else 0.0, speed=speed,
                            x0=work_pos[0], y0=work_pos[1], x1=work_pos[0], y1=work_pos[1]))  # working at site
             batt -= chunk; t += cd; spent += chunk
-        cum_mass += mass; cum_energy += e
+        # P-01: credit only the COMPLETED work fraction. A normally-finished task credits its FULL mass/
+        # energy (exact); a task the rover stranded mid-way through (broke out above) credits only the
+        # fraction it actually performed -- crediting the full work would over-report what never finished.
+        if completed:
+            cum_mass += mass; cum_energy += e
+        else:
+            cum_mass += mass * (spent / e) if e > 1e-9 else 0.0
+            cum_energy += spent
 
     for tr in trips:
-        t0 = t; drive(tr["site"])
-        if tr["kind"] == "sinter":
-            spend("sinter", tr["sinter_e"], tr["sinter_t"], tr["site"], mass=0.0)
-        else:
-            spend("dig", tr["dig_e"], tr["dig_t"], tr["site"], mass=tr["mass"],
-                  haul_m=tr.get("haul_m", 0.0), haul_e=tr.get("haul_e"), lift_e=tr.get("lift_e", 0.0))
+        t0 = t
+        # P-01: only credit a trip's work if the rover actually REACHED its site. A failed transit
+        # (unreachable / stranded; recorded in `infeasible` by drive()) means no work was performed
+        # there -- skip spend() entirely so no mass / energy / duration / dig entry is credited for a
+        # site never visited (the prior bug ran spend() unconditionally after an infeasible drive).
+        if drive(tr["site"]):
+            if tr["kind"] == "sinter":
+                spend("sinter", tr["sinter_e"], tr["sinter_t"], tr["site"], mass=0.0)
+            else:
+                spend("dig", tr["dig_e"], tr["dig_t"], tr["site"], mass=tr["mass"],
+                      haul_m=tr.get("haul_m", 0.0), haul_e=tr.get("haul_e"), lift_e=tr.get("lift_e", 0.0))
         per_trip.append(dict(trip=tr, t_start=t0, t_end=t))
     drive(mission.charger)
     # distance_m = inter-site drive legs (timeline speed*dt) + the intra-trip haul shuttle (cut<->fill, baked
@@ -630,22 +648,38 @@ def _score(core, objective):
 def parse_objective(objective):
     """Normalize an objective spec to a weight dict. Accepts a single name ('time'), a dict
     ({'time': 0.6, 'energy': 0.4}), or a 'name:w,name:w' string. A single name -> {name: 1.0}. Every
-    component must be a known objective. Weights are renormalized to sum to 1."""
+    component must be a known objective. Weights are renormalized to sum to 1.
+
+    P-08: the weight DOMAIN is validated, not just the names. A multi-objective spec is a convex
+    combination, so every weight must be a FINITE, NON-NEGATIVE real number and the weights must sum to
+    a STRICTLY POSITIVE finite total; NaN/Inf/negative weights, a zero (or non-positive) sum, duplicate
+    components, and malformed (non-numeric) weight strings are all rejected with ValueError."""
     if isinstance(objective, str) and objective in OBJECTIVES:
         return {objective: 1.0}
     if isinstance(objective, str):                          # "time:0.6,energy:0.4"
         spec = {}
         for part in objective.split(","):
             name, _, w = part.partition(":")
-            spec[name.strip()] = float(w) if w.strip() else 1.0
+            name = name.strip()
+            if name in spec:                                # P-08: a repeated component is ambiguous
+                raise ValueError(f"duplicate objective component {name!r} in {objective!r}")
+            try:
+                spec[name] = float(w) if w.strip() else 1.0   # P-08: a non-numeric weight (e.g. 'time:time')
+            except ValueError:
+                raise ValueError(f"malformed objective weight {w.strip()!r} for {name!r} in {objective!r}")
         objective = spec
     if not isinstance(objective, dict) or not objective:
         raise ValueError(f"unparseable objective {objective!r}")
-    for k in objective:
+    for k, v in objective.items():
         if k not in OBJECTIVES:
             raise ValueError(f"unknown objective {k!r}; known: {sorted(OBJECTIVES)}")
-    tot = sum(objective.values()) or 1.0
-    return {k: v / tot for k, v in objective.items()}
+        fv = float(v)
+        if not math.isfinite(fv) or fv < 0.0:               # P-08: weights are finite and non-negative
+            raise ValueError(f"objective weight for {k!r} must be finite and >= 0 (got {v!r})")
+    tot = sum(float(v) for v in objective.values())
+    if not (math.isfinite(tot) and tot > 0.0):              # P-08: a convex combination needs a positive sum
+        raise ValueError(f"objective weights must sum to a finite positive value (got {tot!r})")
+    return {k: float(v) / tot for k, v in objective.items()}
 
 
 def _make_core_scorer(mission, trips, objective, routes=None):
@@ -1690,19 +1724,44 @@ def execute_plan_acceptance(mission, trips, *, cell_m=0.5, regolith_depth_m=10.0
         return [order_by_action[a] for a in tr.get("actions", ())
                 if a in order_by_action and order_by_action[a].kind == kind]
 
+    # P-02: capacity-bounded shuttle. The drum is a PHYSICAL container of `cap` kg; cuts feed it in
+    # cycles bounded by its FREE capacity and by each cut order's remaining footprint supply (tracked
+    # in `supply_left` so re-referencing a cut across flows never over-extracts), and fills drain it. The
+    # drum thus NEVER holds more than `cap` and a fill never out-runs the supply currently on board. The
+    # peak load and the running minimum are observed across the bounded walk, not estimated from a cycle
+    # count. (The prior bug cut whole order footprints into an unbounded drum -- 7680 kg in a 30 kg drum.)
+    step = cap if cap > 0 else float("inf")               # max kg moved per shuttle cycle (drum capacity)
+    supply_left = {id(o): o.footprint_m2 * o.depth_m * rho_bank for o in mission.orders if o.kind == "cut"}
     feasible = True; drum_max = 0.0; running_min = 0.0; shuttle_cycles = 0
     for tr in trips:                                       # PLAN ORDER -- the executable sequence
         for o in _orders(tr, "cut"):
             mask = _mask(o)
             if not mask.any(): feasible = False; continue
-            moved = cs.cut_to_inventory(mask, o.depth_m * rho_bank)
-            drum_max = max(drum_max, cs.drum_inventory)
-            shuttle_cycles += (max(1, math.ceil(moved / cap)) if cap > 0 else 1)
+            n = int(mask.sum()); cell_area = cs.cell_area
+            want = supply_left.get(id(o), o.footprint_m2 * o.depth_m * rho_bank)
+            while want > 1e-6:                             # cut this order's remaining supply in bounded loads
+                free = step - cs.drum_inventory           # P-02: only what the bounded drum can still hold
+                if free <= 1e-6:                           # drum full and nothing has drained it -> overflow
+                    feasible = False; break                # (a cut with no fill to drain it can't be held)
+                take = min(want, free)
+                moved = cs.cut_to_inventory(mask, take / (n * cell_area))   # cut exactly `take` kg as areal
+                drum_max = max(drum_max, cs.drum_inventory)
+                shuttle_cycles += 1
+                if moved <= 1e-6:                          # footprint exhausted (datum floor) -> short supply
+                    feasible = False; break
+                want -= moved
+            supply_left[id(o)] = want                      # carry the unspent supply forward (no double-cut)
         for o in _orders(tr, "fill"):
             mask = _mask(o)
             if not mask.any(): feasible = False; continue
             target = cs.derive_height().copy(); target[mask] += o.depth_m
-            cs.fill_toward(mask, target, max_lift_m=o.depth_m, spoil_density=rho_loose)
+            # drain the drum into this fill in bounded loads so it dips through, never below, zero.
+            placed = 1.0
+            while cs.drum_inventory > 1e-6 and placed > 1e-6:
+                before = cs.drum_inventory
+                cs.fill_toward(mask, target, max_lift_m=o.depth_m, spoil_density=rho_loose)
+                placed = before - cs.drum_inventory
+                running_min = min(running_min, cs.drum_inventory)
             running_min = min(running_min, cs.drum_inventory)
     drift = abs(cs.total_mass() - m0)
     mass_conserved = drift <= 1e-6 * max(1.0, m0)

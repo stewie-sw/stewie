@@ -13,7 +13,9 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+from stewie.server import schemas as SCHEMAS
 from stewie.server import server as SRV
+from stewie.server.routers import perception as PERC
 
 
 @pytest.fixture()
@@ -101,7 +103,7 @@ def test_plan_unknown_body_400(client):
 
 def test_plan_too_many_orders_rejected(client):
     # N8 input limit: a queue beyond _MAX_ORDERS is refused at the contract, before the planner runs.
-    big = [{"action": "cut", "kind": "cut", "x": 0, "y": 0, "footprint_m2": 1, "depth_m": 0.01}] * (SRV._MAX_ORDERS + 1)
+    big = [{"action": "cut", "kind": "cut", "x": 0, "y": 0, "footprint_m2": 1, "depth_m": 0.01}] * (SCHEMAS._MAX_ORDERS + 1)
     r = client.post("/plan", json={"name": "huge", "body": "moon", "charger": [0, 0], "orders": big})
     assert r.status_code == 400 and r.json()["ok"] is False
 
@@ -173,7 +175,8 @@ def test_structure_landing_pad_success(client):
 
 # ---- /render : 503 when the Godot pipeline is absent, 400 on bad params --------------------------
 def test_render_503_when_pipeline_absent(client, monkeypatch):
-    monkeypatch.setattr(SRV, "PRP", None)                           # real degrade path, not a stub of logic
+    # ARCH-3: the render pipeline now memoizes in routers.perception; force the absent path there
+    monkeypatch.setattr(PERC, "_PRP", None); monkeypatch.setattr(PERC, "_PRP_LOADED", True)
     r = client.post("/render", json={"u": 0.5, "v": 0.5})
     assert r.status_code == 503 and r.json()["ok"] is False and "render pipeline unavailable" in r.json()["error"]
 
@@ -200,9 +203,16 @@ def test_metrics_counts_requests(client):
     assert r.status_code == 200 and body["requests_total"] >= 1 and "by_status" in body and "by_route" in body
 
 
-def test_cors_header_present(client):
+def test_cors_default_is_same_origin(client):
+    # S-11: with no explicit STEWIE_CORS_ORIGINS, a cross-origin request gets NO wildcard ACAO header
+    # (same-origin by default). The endpoint still serves the request; only the CORS grant is withheld.
+    # (Configuring an explicit origin list / '*' is covered in test_security.py.)
     r = client.get("/healthz", headers={"origin": "http://example.com"})
-    assert r.status_code == 200 and "access-control-allow-origin" in {k.lower() for k in r.headers}
+    assert r.status_code == 200
+    assert r.headers.get("access-control-allow-origin") != "*"
+    assert r.headers.get("access-control-allow-origin") != "http://example.com"
+    # the app-level hardening headers travel with every response (S-11)
+    assert r.headers.get("x-content-type-options") == "nosniff"
 
 
 def test_auth_fail_closed_without_key(client, monkeypatch):
@@ -314,7 +324,7 @@ def test_slam_fuses_real_katwijk_and_bounds_drift(client, monkeypatch):
     """[REQ:PM-06] /slam runs the integrated SLAM over a REAL Katwijk segment and returns trajectory +
     ATE + leave-one-out; the fused absolute drift is far below the odometry-only baseline."""
     monkeypatch.setenv("STEWIE_KATWIJK_DIR", _KATWIJK)
-    SRV._KATWIJK_CACHE.clear()
+    PERC._KATWIJK_CACHE.clear()
     r = client.post("/slam", json={"segment": "Part1", "n_keyframes": 20})
     assert r.status_code == 200, r.text
     b = r.json()
@@ -330,7 +340,7 @@ def test_slam_503_when_dataset_absent(client, monkeypatch):
     it never fabricates a trajectory."""
     monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
     monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
-    SRV._KATWIJK_CACHE.clear()
+    PERC._KATWIJK_CACHE.clear()
     r = client.post("/slam", json={"segment": "Part1"})
     assert r.status_code == 503 and r.json()["ok"] is False
 
@@ -372,7 +382,7 @@ def test_slam_compare_three_approach_classes(client, monkeypatch):
     pose graph under three approach classes, each modeled at its reported sigma. ARGUS bounds the
     absolute drift the passive single-pass cannot."""
     monkeypatch.setenv("STEWIE_KATWIJK_DIR", _KATWIJK)
-    SRV._KATWIJK_CACHE.clear()
+    PERC._KATWIJK_CACHE.clear()
     r = client.post("/slam/compare", json={"segment": "Part1", "n_keyframes": 20, "n_seeds": 5})
     assert r.status_code == 200, r.text
     c = r.json()["comparison"]
@@ -387,7 +397,7 @@ def test_slam_compare_503_when_dataset_absent(client, monkeypatch):
     """[REQ:SN-12] no dataset configured -> clean 503, never a fabricated comparison."""
     monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
     monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
-    SRV._KATWIJK_CACHE.clear()
+    PERC._KATWIJK_CACHE.clear()
     r = client.post("/slam/compare", json={"segment": "Part1"})
     assert r.status_code == 503 and r.json()["ok"] is False
 

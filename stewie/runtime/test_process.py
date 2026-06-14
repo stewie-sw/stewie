@@ -8,11 +8,11 @@ ONE world; disconnecting changes nothing; checkpoint/restore round-trips bit-exa
 
 The ROS bridge (B1) attaches later through this same seam -- one build, two tracks.
 """
+import hashlib
 import json
 import os
 import socket
 import threading
-import time
 
 import numpy as np
 import pytest
@@ -27,10 +27,10 @@ def runtime(tmp_path):
                             checkpoint_dir=str(tmp_path / "ckpt"))
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
-    for _ in range(100):
-        if os.path.exists(sock):
-            break
-        time.sleep(0.01)
+    # S-09: wait on the explicit readiness handshake -- the socket is bound, LISTENING, and chmod'd
+    # 0600 before _ready fires, so no client below races the bound-but-not-yet-listening ECONNREFUSED
+    # window (the prior os.path.exists(sock) poll could see the bind()-created node before listen()).
+    assert srv.wait_ready(10.0), "runtime socket never became ready"
     yield sock, srv
     srv.shutdown()
 
@@ -325,3 +325,122 @@ def test_checkpoint_rejects_path_traversal(runtime, tmp_path):
         r2 = _rpc(sock, {"role": "drive", "cmd": "restore", "path": bad})
         assert r2["ok"] is False, bad
     assert not os.path.exists(probe)                 # nothing written outside the checkpoint dir
+
+
+def test_s09_first_observable_socket_mode_is_0600(tmp_path, monkeypatch):
+    """S-09: the FIRST observable mode of the socket is 0600 -- the node is BORN owner-only (bound
+    under a restrictive umask), not created world/group-accessible and tightened afterward. We
+    capture the mode at the very first os.chmod call (i.e. the bind-created mode, before any
+    tightening). Pre-fix, bind ran under the process umask (0o022 here -> 0o755 node), so this mode
+    is 0o755 = RED. Also: the FIRST accepted connection (gated on the ready handshake) succeeds."""
+    import stat
+    sock = str(tmp_path / "first.sock")
+    os.umask(0o022)                                  # a permissive process umask, the realistic case
+    observed = {}
+    real_chmod = os.chmod
+
+    def _spy_chmod(path, mode, *a, **k):
+        # the mode of the node AS BORN BY bind(), recorded before the runtime tightens it
+        if str(path) == sock and "born" not in observed:
+            observed["born"] = stat.S_IMODE(os.stat(path).st_mode)
+        return real_chmod(path, mode, *a, **k)
+
+    monkeypatch.setattr(os, "chmod", _spy_chmod)
+    srv = rp.RuntimeProcess(grid=32, cell_m=0.02, body="moon", socket_path=sock, seed=1,
+                            checkpoint_dir=str(tmp_path / "ckpt"))
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        assert srv.wait_ready(10.0), "socket never became ready"
+        assert observed.get("born") == 0o600, oct(observed.get("born", -1))  # born 0600, not tightened
+        assert stat.S_IMODE(os.stat(sock).st_mode) == 0o600                  # and stays 0600
+        # the FIRST accepted connection succeeds (no bound-but-not-listening race once ready)
+        r = _rpc(sock, {"role": "drive", "cmd": "pose"})
+        assert r["ok"]
+    finally:
+        srv.shutdown()
+
+
+def test_a01_checkpoint_restore_is_bit_exact_and_complete(runtime):
+    """A-01: a COMPLETE checkpoint. Advance EVERY subsystem (pose, clock, energy, thermal flag, the
+    buffered proprioception samples, the IMU/wheel RNG+biases), checkpoint, then mutate every one of
+    those, then restore -- and require the runtime is bit-identical: not just rc/mass but t_sim and
+    energy_used_j AND the NEXT command output AND the NEXT packet output (which drains the buffered
+    samples through the restored RNG state). Pre-fix the checkpoint stored only mass/pose/yaw/seq, so
+    t_sim/energy/buffers/RNG diverged and the next packet differed."""
+    sock, srv = runtime
+    # advance: drive (pose+clock+energy+slip), buffer samples, set a manual thermal override
+    _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.25, "omega": 0.2, "steps": 17})
+    _rpc(sock, {"role": "drive", "cmd": "set_thermal", "camera_temp_c": 12.5})
+    _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.1, "omega": -0.05, "steps": 6})
+
+    # snapshot the full live state for a field-by-field comparison after restore
+    def snap():
+        return dict(
+            rc=tuple(srv.rc), yaw=float(srv.yaw), t_sim=float(srv.t_sim),
+            sequence=int(srv.sequence), energy_used_j=float(srv.energy_used_j),
+            draw_w=float(srv._draw_w), camera_temp_c=float(srv.camera_temp_c),
+            manual_thermal=bool(srv._manual_thermal),
+            drum_inventory=float(srv.cs.drum_inventory),
+            mass_sum=float(np.sum(srv.cs.mass_areal)),
+            mass_sha=hashlib.sha256(srv.cs.mass_areal.tobytes()).hexdigest(),
+            n_imu_buf=len(srv._imu_buf), n_wheel_buf=len(srv._wheel_buf),
+            gyro_bias=float(srv._imu_model._gyro_bias),
+            wheel_seq=int(srv._imu_model._wheel_seq),
+            rng=srv._imu_model.rng.bit_generator.state["state"]["state"],
+        )
+
+    before = snap()
+    # extensionless name must round-trip (save/restore agree on one on-disk path)
+    r = _rpc(sock, {"role": "drive", "cmd": "checkpoint", "path": "snapshot"})
+    assert r["ok"] and r["path"].endswith("snapshot.npz") and os.path.exists(r["path"])
+
+    # mutate EVERY advanced subsystem so a partial restore would be caught
+    _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.3, "omega": 0.4, "steps": 9})
+    _rpc(sock, {"role": "drive", "cmd": "set_thermal", "camera_temp_c": -40.0})
+    _rpc(sock, {"role": "produce", "cmd": "packet"})   # drains buffers, bumps sequence, advances draw
+    after_mut = snap()
+    assert after_mut != before                          # the mutation really moved the state
+
+    # restore by the SAME extensionless name -- must report a checkpoint (not "no checkpoint")
+    r2 = _rpc(sock, {"role": "drive", "cmd": "restore", "path": "snapshot"})
+    assert r2["ok"], r2
+
+    restored = snap()
+    assert restored == before, (
+        "restore is not bit-exact/complete; diff: "
+        + str({k: (before[k], restored[k]) for k in before if before[k] != restored[k]}))
+
+    # the NEXT packet must be byte-identical to what it would have been from `before` -- this exercises
+    # the restored buffered samples drained through the restored RNG/bias state.
+    pkt_restored = _rpc(sock, {"role": "produce", "cmd": "packet"})["packet"]
+    # independently reproduce: a SECOND runtime restored from the same file emits the same next packet
+    twin_srv = rp.RuntimeProcess(grid=64, cell_m=0.02, body="moon",
+                                 socket_path=str(srv.socket_path) + ".twin", seed=99,
+                                 checkpoint_dir=srv.checkpoint_dir)
+    assert twin_srv.handle({"role": "drive", "cmd": "restore", "path": "snapshot"})["ok"]
+    pkt_twin = twin_srv.handle({"role": "produce", "cmd": "packet"})["packet"]
+    assert json.dumps(pkt_restored, sort_keys=True) == json.dumps(pkt_twin, sort_keys=True)
+
+
+def test_a01_restore_is_transactional_on_corruption(runtime):
+    """A-01: a corrupt snapshot is rejected by the checksum and the LIVE world is left untouched
+    (transactional restore -- no half-mutated state)."""
+    sock, srv = runtime
+    _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.1, "steps": 8})
+    r = _rpc(sock, {"role": "drive", "cmd": "checkpoint", "path": "ck.npz"})
+    assert r["ok"]
+    # advance the live world AFTER the checkpoint, snapshot it
+    _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.3, "omega": 0.0, "steps": 5})
+    live_rc = tuple(srv.rc); live_t = float(srv.t_sim); live_e = float(srv.energy_used_j)
+    # corrupt the checkpoint file's bytes (flip the tail) -> checksum must fail
+    with open(r["path"], "r+b") as fh:
+        fh.seek(-16, os.SEEK_END)
+        tail = fh.read(16)
+        fh.seek(-16, os.SEEK_END)
+        fh.write(bytes((b ^ 0xFF) for b in tail))
+    r2 = _rpc(sock, {"role": "drive", "cmd": "restore", "path": "ck.npz"})
+    assert r2["ok"] is False and ("checksum" in r2["error"] or "failed" in r2["error"])
+    # the live world is UNCHANGED (no partial restore)
+    assert tuple(srv.rc) == live_rc and float(srv.t_sim) == live_t
+    assert float(srv.energy_used_j) == live_e

@@ -25,19 +25,36 @@ def _registration_open() -> bool:
     return os.environ.get("STEWIE_REGISTRATION", "1") != "0"
 
 
-def _legacy_authed(x_api_key: str | None, authorization: str | None,
+def _legacy_authed(email: str, x_api_key: str | None, authorization: str | None,
                    tailscale: str | None) -> bool:
-    """The pre-#117 acceptance for the bootstrap path: a valid shared API key, an existing valid
-    session token, or a trusted Tailscale identity. Constant-time key compare -> no timing oracle."""
+    """S-01: the password-less legacy bootstrap, IDENTITY-BOUND. The bootstrap may mint a token only
+    for `email`, and it is authorized exactly two ways:
+
+      1. The raw shared API key. The key carries no subject of its own, so the holder may claim any
+         ALLOWLISTED email (this is the founding-director / automation bring-up path). Constant-time
+         compare -> no timing oracle.
+      2. A trusted-proxy identity (Tailscale) that EQUALS the requested email. A proxy identity for
+         A may bootstrap only A's own account.
+
+    A valid SESSION TOKEN is accepted ONLY when its subject EQUALS `email` (self-enrollment). Before
+    S-01 any operator's token was taken as proof for an INDEPENDENTLY-supplied allowlisted email, so
+    an operator could mint a DIRECTOR token; now a token for A can bootstrap only A's own account."""
     from stewie.server import auth as AUTH
-    if AUTH.tailscale_identity({"tailscale-user-login": tailscale or ""}):
+    e = (email or "").strip().lower()
+    # trusted-proxy identity must MATCH the requested email (no cross-identity)
+    ts = AUTH.tailscale_identity({"tailscale-user-login": tailscale or ""})
+    if ts and ts == e:
         return True
+    supplied = x_api_key or (authorization or "").removeprefix("Bearer ").strip()
+    # a session token bootstraps ONLY its own subject (no cross-identity escalation)
+    if supplied:
+        subj = AUTH.verify_token(supplied)
+        if subj and subj == e:
+            return True
     key = _env("API_KEY")
     if not key:
         return False
-    supplied = x_api_key or (authorization or "").removeprefix("Bearer ").strip()
-    if AUTH.verify_token(supplied):
-        return True
+    # the RAW shared key carries no subject -> the holder may claim any allowlisted email
     return hmac.compare_digest(supplied.encode(), key.encode())
 
 
@@ -82,8 +99,10 @@ def auth_login(body: dict,
         log_event(op, "auth.login", "password")
         return _token_response(op, must_set_password=False)
 
-    # ---- legacy bootstrap: an allowlisted, password-less account proving the shared key ----
-    if not _legacy_authed(x_api_key, authorization, tailscale_user_login):
+    # ---- legacy bootstrap: an allowlisted, password-less account proving the shared key (or its
+    # OWN trusted-proxy identity). S-01: the bootstrap is bound to `email`; a session token cannot
+    # mint a token for a different identity. ----
+    if not _legacy_authed(email, x_api_key, authorization, tailscale_user_login):
         raise HTTPException(status_code=401, detail="invalid or missing API key")
     if not AUTH.is_allowed(email):
         return JSONResponse(status_code=403,

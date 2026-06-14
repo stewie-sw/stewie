@@ -1090,7 +1090,11 @@ def test_c04_no_negative_soc_and_far_site_flagged_infeasible():
     _, _, _, tlf, tf = MP.plan_and_simulate(far)
     assert tf["feasible"] is False
     assert tf["infeasible_reasons"] and any("reach" in r or "stranded" in r for r in tf["infeasible_reasons"])
-    assert min(f["batt1"] for f in tlf) >= -1e-6              # never the -14 MJ the audit found
+    # P-01: the unreachable site is never visited, so NO work is credited and NO drive/dig leg is run
+    # (the rover stays parked at the charger). The SoC-never-negative invariant holds vacuously on the
+    # empty timeline -- there is no -14 MJ leg because there is no leg at all.
+    assert all(f["batt1"] >= -1e-6 for f in tlf)             # never the -14 MJ the audit found (vacuous if empty)
+    assert tf["mass_kg"] == 0.0 and tf["energy_J"] == 0.0    # P-01: zero work credited at the unreachable site
 
 
 # ---- P5: execute + watch — animatable timeline -------------------------------------------------
@@ -1419,3 +1423,83 @@ def test_cp01_plan_result_produced_once_and_consumed_by_views():
     assert tl["frames"] and tl["duration_s"] > 0
     # totals consumed by the views equal the artifact's totals (one source of truth)
     assert abs(tl["duration_s"] - result.totals["time_s"]) < 0.5   # agree to frame rounding (1 ms/frame), not a re-solve
+
+
+# ---- P-01: unreachable work produces ZERO work + no completion credit ----------------------------
+def test_p01_unreachable_work_site_credits_zero_work():
+    """P-01: a work site the rover can never reach (a full charge can't get there above reserve) must
+    contribute ZERO mass / energy / duration and NO timeline dig entry -- the prior bug recorded the leg
+    as infeasible but still ran spend() and credited the full dig at the never-visited site."""
+    # ipex: battery ~4.79 MJ, drive ~135 J/m, reserve 0.10 -> usable ~4.31 MJ reaches ~31.9 km above reserve.
+    # Put a dig 80 km from the charger: no full charge reaches it -> drive() records infeasible.
+    far = (80000.0, 0.0)
+    trip = dict(kind="dig", site=far, label="far excavate", mass=10.0,
+                dig_e=10.0 * MP.DIG_J_PER_KG, dig_t=10.0 / MP.DIG_RATE_KG_S,
+                haul_m=0.0, haul_e=0.0, lift_e=0.0, dest=far, actions=frozenset({"far"}))
+    m = MP.Mission("unreach", "moon", [MP.BuildOrder("far", "cut", far[0], far[1], 36.0, 0.05)])
+    tl, per_trip, core = MP._simulate(m, [trip])
+    assert core["feasible"] is False                                 # the unreachable leg is flagged
+    assert any("80000" in r or "stranded" in r or "reaches only" in r for r in core["infeasible_reasons"])
+    # ZERO credit for work never performed at the unreachable site:
+    assert core["mass_kg"] == 0.0, f"credited {core['mass_kg']} kg at an unreachable site"
+    assert core["energy_J"] == 0.0, f"credited {core['energy_J']} J at an unreachable site"
+    # no dig timeline entry at the never-visited site:
+    assert not any(ev["kind"] == "dig" for ev in tl), "a dig entry was recorded at an unreachable site"
+
+
+def test_p01_reachable_work_still_fully_credited():
+    """P-01 guard: a reachable work site still gets its full work credited (the fix must not over-prune)."""
+    near = (20.0, 0.0)
+    trip = dict(kind="dig", site=near, label="near excavate", mass=10.0,
+                dig_e=10.0 * MP.DIG_J_PER_KG, dig_t=10.0 / MP.DIG_RATE_KG_S,
+                haul_m=0.0, haul_e=0.0, lift_e=0.0, dest=near, actions=frozenset({"near"}))
+    m = MP.Mission("reach", "moon", [MP.BuildOrder("near", "cut", near[0], near[1], 36.0, 0.05)])
+    _, _, core = MP._simulate(m, [trip])
+    assert core["feasible"] is True
+    assert abs(core["mass_kg"] - 10.0) < 1e-9                        # full mass credited
+    assert core["energy_J"] > 10.0 * MP.DIG_J_PER_KG                 # dig + the drive to/from the site
+
+
+# ---- P-02: ordered acceptance is capacity-bounded and conserves per-flow mass --------------------
+def test_p02_drum_inventory_capacity_bounded_per_flow():
+    """P-02: execute_plan_acceptance must walk flow-level load records through a CAPACITY-BOUNDED drum --
+    inventory always in [0, capacity], each source cut takes at most its requested mass, and each fill
+    places exactly its assigned mass. The prior bug cut whole order footprints into an unbounded drum
+    (a 30 kg-capacity probe held 7680 kg simultaneously and reported feasible)."""
+    # one cut order supplying one fill order; the cut mass (bank) far exceeds the 30 kg drum capacity.
+    cutO = {"action": "cutS", "kind": "cut", "x": 0.0, "y": 0.0, "footprint_m2": 36.0, "depth_m": 0.30}
+    fillO = {"action": "fillS", "kind": "fill", "x": 0.0, "y": 0.0, "footprint_m2": 36.0, "depth_m": 0.20}
+    m = MP.mission_from_dict({"name": "cap", "body": "moon", "charger": [0, 0], "orders": [cutO, fillO]})
+    cap = MP._drum_kg(m)
+    # build the real plan trips so the flow assignment (balance) is the genuine cut->fill routing.
+    trips, flows, _surplus, _meta = MP._build_trips(m, None, (0.0, 0.0), 25.0)
+    res = MP.execute_plan_acceptance(m, trips)
+    # the bounded drum NEVER holds more than its capacity (the bug: 7680 kg in a 30 kg drum):
+    assert res["max_simultaneous_drum_kg"] <= cap + 1e-6, \
+        f"drum held {res['max_simultaneous_drum_kg']} kg > capacity {cap} kg"
+    assert res["running_drum_min_kg"] >= -1e-6                       # never goes negative (fill never out-runs supply)
+    assert res["mass_conserved"] is True
+
+
+# ---- P-08: objective weight domain is validated (finite, nonnegative, positive sum, no dups) ------
+def test_p08_objective_rejects_nonfinite_negative_and_zero_sum():
+    """P-08: parse_objective must reject NaN/Inf/negative weights and a zero (or non-positive) weight
+    sum, plus duplicate / malformed component names -- not just unknown names. A valid convex
+    combination is still accepted and renormalized to sum 1."""
+    for bad in [
+        {"time": float("nan"), "energy": 1.0},
+        {"time": float("inf"), "energy": 1.0},
+        {"time": -1.0, "energy": 2.0},
+        {"time": 0.0, "energy": 0.0},        # zero sum
+        "time:nan,energy:1.0",
+        "time:-1,energy:2",
+        "time:time",                         # malformed weight (non-numeric)
+        "time:0.5,time:0.5",                 # duplicate component
+    ]:
+        with pytest.raises(ValueError):
+            MP.parse_objective(bad)
+    # a valid convex combination is accepted and renormalized to sum 1
+    w = MP.parse_objective({"time": 0.6, "energy": 0.4})
+    assert abs(sum(w.values()) - 1.0) < 1e-12 and all(v >= 0 for v in w.values())
+    w2 = MP.parse_objective("time:3,energy:1")
+    assert abs(sum(w2.values()) - 1.0) < 1e-12 and abs(w2["time"] - 0.75) < 1e-12

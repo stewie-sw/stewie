@@ -54,7 +54,13 @@ def drive_step(cs: ColumnState, rc: tuple[float, float], yaw: float,
                material: bool = False,
                clasts: "list[dict] | None" = None,
                skid_steer: bool = False,
-               track_m: float = 0.5207) -> tuple[tuple[float, float], float, dict]:
+               track_m: float = 0.5207,
+               mass_kg: float = K.ROVER_MASS_DRY_KG,
+               n_wheels: int = K.N_WHEELS,
+               gauge_m: float = rover.WHEEL_GAUGE_M,
+               wheelbase_m: float = rover.WHEEL_BASE_M,
+               wheel_radius_m: float = rover.WHEEL_RADIUS_M,
+               ) -> tuple[tuple[float, float], float, dict]:
     """One closed-loop step: command twist in, (new_rc, new_yaw, telemetry) out.
 
     read local forward slope (conform_pose pitch, incl. clast ride-over if ``clasts``
@@ -70,14 +76,21 @@ def drive_step(cs: ColumnState, rc: tuple[float, float], yaw: float,
         col = min(max(int(round(rc[1])), 0), cs.density.shape[1] - 1)
         phi_r, coh = materialmod.cell_strength(float(cs.density[row, col]))
         p = dataclasses.replace(p, cohesion=coh, phi_rad=phi_r)   # loose cell -> less traction -> more slip
-    weight_n = (K.ROVER_MASS_DRY_KG + max(0.0, payload_kg)) * float(g)
+    # A-02: load is the RESOLVED vehicle mass (dry + drum fill), not the K.ROVER_MASS_DRY_KG global, so a
+    # 65 kg RASSOR-2 puts ~2.2x the per-wheel normal load of a 30 kg IPEx and therefore sinks/slips more.
+    weight_n = (float(mass_kg) + max(0.0, payload_kg)) * float(g)
     h = cs.derive_height()
-    cf = rover.conform_pose(h, rc, yaw, cell_m=cs.cell_m, payload_kg=payload_kg, clasts=clasts, g=g)
+    # the conform reads the slope over THIS vehicle's stance (gauge/wheelbase) and rides clasts up to one
+    # of ITS wheel radii -- the geometry that sets the pitch the slip-sinkage solve sees.
+    cf = rover.conform_pose(h, rc, yaw, cell_m=cs.cell_m, payload_kg=payload_kg, clasts=clasts, g=g,
+                            gauge_m=gauge_m, wheelbase_m=wheelbase_m, climb_limit_m=wheel_radius_m,
+                            rover_mass_dry_kg=float(mass_kg))
     # the traction DEMAND is the magnitude of the along-slope gravity: descending a grade requires
     # braking traction equal to climbing it -- the signed pitch made every descent a perfect-grip
     # zero-slip case (a 55-deg drop descended at exactly v_cmd; audit 2026-06-09)
     slope_rad = abs(cf["pitch_rad"])
     eq = slipmod.slip_sinkage_equilibrium(weight_n, slope_rad, params=p,
+                                          n_wheels=int(n_wheels),
                                           contact_len_m=contact_len_m,
                                           contact_width_m=wheel_width_m)
     s = eq["slip"]
@@ -108,7 +121,12 @@ def closed_loop_drive(cs: ColumnState, start_rc: tuple[float, float], start_yaw:
                       params: "tm.TerramechanicsParams | None" = None,
                       payload_kg: float = 0.0, wheel_width_m: float = 0.18,
                       contact_len_m: float = 0.10, g: float = K.g,
-                      clasts: "list[dict] | None" = None) -> dict:
+                      clasts: "list[dict] | None" = None,
+                      mass_kg: float = K.ROVER_MASS_DRY_KG,
+                      n_wheels: int = K.N_WHEELS,
+                      gauge_m: float = rover.WHEEL_GAUGE_M,
+                      wheelbase_m: float = rover.WHEEL_BASE_M,
+                      wheel_radius_m: float = rover.WHEEL_RADIUS_M) -> dict:
     """Drive ``cs`` through a sequence of ``twists`` ((v_mps, omega_radps) pairs),
     one drive_step each. Deterministic. ``clasts`` (optional) enables boulder
     ride-over in the per-step conform. ``g`` sets body gravity (default lunar; bodies.py).
@@ -123,7 +141,9 @@ def closed_loop_drive(cs: ColumnState, start_rc: tuple[float, float], start_yaw:
     for i, (v_cmd, omega_cmd) in enumerate(twists):
         rc, yaw, telem = drive_step(cs, rc, yaw, v_cmd, omega_cmd, dt=dt, params=p,
                                     payload_kg=payload_kg, wheel_width_m=wheel_width_m,
-                                    contact_len_m=contact_len_m, g=g, clasts=clasts)
+                                    contact_len_m=contact_len_m, g=g, clasts=clasts,
+                                    mass_kg=mass_kg, n_wheels=n_wheels, gauge_m=gauge_m,
+                                    wheelbase_m=wheelbase_m, wheel_radius_m=wheel_radius_m)
         telem["frame"] = i
         commanded_dist += abs(v_cmd) * dt
         achieved_dist += abs(telem["v_achieved"]) * dt

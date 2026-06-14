@@ -30,7 +30,20 @@ _MAX_FAILED = 5            # consecutive failed logins before lockout
 _LOCKOUT_S = 15 * 60      # lockout window after _MAX_FAILED failures
 _ROLES = ("director", "operator")
 _STATUSES = ("active", "pending", "revoked")
-_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+# S-02: a standards-ish but DELIBERATELY CONSERVATIVE address. The local part is a dot-atom over a
+# safe subset (alnum + the common interchange specials . _ % + -), no leading/trailing/double dot;
+# the domain is letter/digit/hyphen labels separated by dots with a >=2-char alpha TLD. This admits
+# NONE of the HTML/control/shell metacharacters (< > " ' & ; / \ space NUL tab ...) the old
+# `[^@\s]+` pattern let through (it accepted "<img/src=x/onerror=alert(1)>@x.co"). RFC 5321 permits a
+# wider local set, but a planner whitelist has no need of "/&'!#" addresses and rejecting them shrinks
+# the XSS/injection surface; ordinary addresses (user.name+tag@host.tld) still validate.
+_EMAIL_LOCAL = r"[A-Za-z0-9_%+-]+(?:\.[A-Za-z0-9_%+-]+)*"
+_EMAIL_DOMAIN = r"(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}"
+_EMAIL_RE = re.compile(rf"^{_EMAIL_LOCAL}@{_EMAIL_DOMAIN}$")
+_MAX_EMAIL_LEN = 254        # RFC 5321 4.5.3.1.3: the full address path cannot exceed 254 octets
+_MAX_LOCAL_LEN = 64         # RFC 5321 4.5.3.1.1: the local part cannot exceed 64 octets
+# Defense in depth: even if a future regex edit slips, refuse these outright (XSS/HTML/control).
+_EMAIL_FORBIDDEN = set('<>"\'&;/\\ `') | {chr(c) for c in range(0x00, 0x20)}
 
 _LOCK = threading.RLock()
 
@@ -120,10 +133,25 @@ def list_all() -> list:
 
 
 # ---- mutations -----------------------------------------------------------------------------
-def _validate_new(email: str, password: str) -> str:
+def _validate_email(email: str) -> str:
+    """S-02: normalize + strictly validate an operator email. Rejects over-long input, control/HTML
+    metacharacters, and anything outside a conservative dot-atom@domain grammar (so a value reaching
+    the UI or a log can never carry an `<img onerror>`-style payload). Raises ValueError on a bad
+    address; returns the normalized (lower-cased, stripped) form."""
     e = _norm(email)
+    if not e or len(e) > _MAX_EMAIL_LEN:
+        raise ValueError(f"{email!r} is not a valid email address (length)")
+    if _EMAIL_FORBIDDEN & set(e):
+        raise ValueError(f"{email!r} is not a valid email address (forbidden character)")
+    if len(e.split("@", 1)[0]) > _MAX_LOCAL_LEN:
+        raise ValueError(f"{email!r} is not a valid email address (local part too long)")
     if not _EMAIL_RE.match(e):
         raise ValueError(f"{email!r} is not a valid email address")
+    return e
+
+
+def _validate_new(email: str, password: str) -> str:
+    e = _validate_email(email)
     if len(password) < _MIN_PASSWORD_LEN:
         raise ValueError(f"password must be at least {_MIN_PASSWORD_LEN} characters")
     return e
