@@ -262,3 +262,27 @@ def test_from_fov_recovers_known_fx():
     # square-pixel sanity against the closed-form
     fx = (384 * 0.5) / math.tan(math.radians(73.99) * 0.5)
     assert cfg.fx_px == pytest.approx(fx, rel=1e-9)
+
+
+@pytest.mark.skipif(not (_have_frames and _have_dem), reason="traverse frames or DEM missing")
+def test_h17_build_map_consumes_per_frame_camera_orientation():
+    """Audit H-17 (2026-06-13): build_elevation_map must consume a per-frame camera ORIENTATION, not one
+    fixed mount rotation for the whole traverse. Default (None) equals the fixed mount replicated per frame
+    (backward-compatible), and a per-frame yaw rotation produces a DIFFERENT map -- so the rover's
+    per-frame attitude is actually represented."""
+    import math
+
+    pairs = _stereo_pairs(); centres = _camera_centres_world(); cfg = _config()
+    F = len(pairs)
+    rot = cfg.optical_to_world_rotation()
+    m_default = mapping.build_elevation_map(pairs, centres, cfg)
+    m_fixed = mapping.build_elevation_map(
+        pairs, centres, cfg, camera_orientations=np.broadcast_to(rot, (F, 3, 3)).copy())
+    assert np.array_equal(np.nan_to_num(m_default.elevation), np.nan_to_num(m_fixed.elevation))  # None == fixed mount
+    th = math.radians(20.0); cy, sy = math.cos(th), math.sin(th)        # a 20 deg yaw about world-up (+Y)
+    r_yaw = np.array([[cy, 0.0, sy], [0.0, 1.0, 0.0], [-sy, 0.0, cy]])
+    m_yaw = mapping.build_elevation_map(
+        pairs, centres, cfg, camera_orientations=np.broadcast_to(r_yaw @ rot, (F, 3, 3)).copy())
+    assert not np.array_equal(np.nan_to_num(m_default.elevation), np.nan_to_num(m_yaw.elevation))  # attitude matters
+    with pytest.raises(ValueError, match=r"F, 3, 3"):                  # wrong shape -> honest error
+        mapping.build_elevation_map(pairs, centres, cfg, camera_orientations=np.zeros((F, 2, 2)))

@@ -209,17 +209,24 @@ def build_elevation_map(
     stereo_pairs: list[tuple[np.ndarray, np.ndarray]],
     camera_centres_world: np.ndarray,
     config: MappingConfig,
+    *,
+    camera_orientations: "np.ndarray | None" = None,
 ) -> ElevationMap:
     """Accumulate triangulated stereo depth along the traverse into a 2.5D elevation + count map.
 
     For each stereo pair the reference frame is triangulated to a metric cloud in the left optical
-    frame; points within ``max_range_m`` are rotated by the fixed camera mount, translated to the
-    frame's world camera centre, and binned into the ground grid (row from z, col from x). The
-    per-cell elevation is the median of all world-Y returns landing in that cell (robust to the
-    spread of sparse low-texture matches), and the per-cell count is the number of returns.
+    frame; points within ``max_range_m`` are rotated to world, translated to the frame's world camera
+    centre, and binned into the ground grid (row from z, col from x). The per-cell elevation is the
+    median of all world-Y returns landing in that cell (robust to the spread of sparse low-texture
+    matches), and the per-cell count is the number of returns.
 
-    Truth firewall (invariant I3): images + camera centres (a perception product) + calibration only.
-    No pose/slip/truth/clast field is an argument; no per-frame ground-truth pose enters here.
+    H-17: ``camera_orientations`` is an optional (F, 3, 3) per-frame optical->world rotation, so the
+    rover's per-frame yaw/pitch/roll/articulated posture is represented instead of one fixed mount for
+    the whole traverse. When None (the default) every frame uses the fixed mount rotation
+    (``config.optical_to_world_rotation()``), i.e. behaviour is unchanged.
+
+    Truth firewall (invariant I3): images + camera centres + per-frame ORIENTATION (a perception/pose
+    product) + calibration only. No slip/truth/clast field is an argument; no ground-truth position enters.
     """
     centres = np.asarray(camera_centres_world, dtype=float)
     if centres.ndim != 2 or centres.shape[1] != 3:
@@ -228,6 +235,11 @@ def build_elevation_map(
         raise ValueError("need one camera centre per stereo pair")
     if not stereo_pairs:
         raise ValueError("need at least one stereo pair to build a map")
+    rots = None
+    if camera_orientations is not None:                # H-17: per-frame orientation (else the fixed mount)
+        rots = np.asarray(camera_orientations, dtype=float)
+        if rots.shape != (centres.shape[0], 3, 3):
+            raise ValueError("camera_orientations must be (F, 3, 3), one optical->world rotation per frame")
 
     R, C = config.grid_rows, config.grid_cols
     rot = config.optical_to_world_rotation()
@@ -236,7 +248,7 @@ def build_elevation_map(
     buckets: dict[tuple[int, int], list[float]] = {}
     n_points = 0
 
-    for (left, right), centre in zip(stereo_pairs, centres):
+    for k, ((left, right), centre) in enumerate(zip(stereo_pairs, centres)):
         cloud = triangulate_stereo(left, right, scfg)
         pts = cloud.points_3d
         if pts.shape[0] == 0:
@@ -245,7 +257,8 @@ def build_elevation_map(
         pts = pts[keep]
         if pts.shape[0] == 0:
             continue
-        world = (rot @ pts.T).T + centre              # Godot world (x, y, z)
+        rot_k = rots[k] if rots is not None else rot  # H-17: this frame's orientation (else the fixed mount)
+        world = (rot_k @ pts.T).T + centre            # Godot world (x, y, z)
         cols = np.rint(world[:, 0] / config.cell_m).astype(int)
         rows = np.rint(world[:, 2] / config.cell_m).astype(int)
         in_grid = (rows >= 0) & (rows < R) & (cols >= 0) & (cols < C)
