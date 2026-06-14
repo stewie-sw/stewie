@@ -131,3 +131,38 @@ def test_from_journal_recovers_all_complete_lines_past_a_torn_tail(tmp_path):
         f.write('{"kind": "patch", "origin_rc": [1, 1], "sha')      # a torn final line
     rebuilt = TwinStore.from_journal(np.zeros((20, 20)), cell_m=5.0, journal_path=jp)
     assert rebuilt.version == 2                                # both complete events recovered
+
+
+def test_h20_journal_write_failure_leaves_memory_equal_to_disk(tmp_path):
+    """Audit H-20 (2026-06-13): the in-memory event/version is committed ONLY after the durable
+    journal append (write+flush+fsync) succeeds. If the append fails, memory must stay == disk
+    (version unchanged, no phantom event), never memory-ahead-of-journal -- the prior order bumped
+    version/events BEFORE the fsync, so a write failure left memory ahead of the durable log."""
+    badjournal = tmp_path / "is_a_directory"
+    badjournal.mkdir()                                       # open(path, "a") on a dir -> IsADirectoryError
+    tw = vt.TwinStore(np.zeros((16, 16)), cell_m=0.5, journal_path=str(badjournal))
+    v0, n0 = tw.version, len(tw.events)
+    with pytest.raises(OSError):                             # IsADirectoryError <: OSError
+        tw.apply_patch(np.full((2, 2), 1.0), origin_rc=(0, 0), provenance="durability probe")
+    assert tw.version == v0 and len(tw.events) == n0         # memory not advanced past the durable state
+
+
+def test_m12_tampered_replay_is_atomic_no_mutation_no_persist(tmp_path):
+    """Audit M-12 (2026-06-13): on the replay/rebuild path, an event whose recorded body was altered
+    (its chain hash no longer matches) is rejected BEFORE any mutation or re-persist -- version
+    unchanged and the bad event is neither appended in memory nor written to the journal. The prior
+    apply-then-check mutated (and re-journalled) the event, THEN detected the mismatch and raised."""
+    src = vt.TwinStore(np.zeros((16, 16)), cell_m=0.5)
+    src.apply_patch(np.full((2, 2), 1.0), origin_rc=(0, 0), provenance="a")
+    src.apply_patch(np.full((2, 2), 2.0), origin_rc=(4, 4), provenance="b")
+    events = [dict(e) for e in src.events]
+    jp = str(tmp_path / "rebuild.journal")
+    dst = vt.TwinStore(np.zeros((16, 16)), cell_m=0.5, journal_path=jp)
+    dst.apply_event(events[0])                               # clean replay: seq/hash line up with rebuild
+    assert dst.version == 1
+    j_before = open(jp).read()
+    forged = dict(events[1]); forged["provenance"] = "FORGED"   # same recorded hash, altered body
+    with pytest.raises(ValueError, match="hash mismatch"):
+        dst.apply_event(forged)
+    assert dst.version == 1 and len(dst.events) == 1         # no in-memory mutation
+    assert open(jp).read() == j_before                       # bad event NOT re-persisted

@@ -78,17 +78,24 @@ class TwinStore:
             lk = threading.RLock(); object.__setattr__(self, "_lock", lk)
         return lk
 
-    def _append(self, body: dict, patch_bytes: bytes) -> int:
+    def _append(self, body: dict, patch_bytes: bytes, *, expected_hash: "str | None" = None) -> int:
         body["seq"] = len(self.events)
         body["hash"] = self._chain_hash(body, patch_bytes)
-        self.events.append(body)
-        self.version += 1
-        if self.journal_path:                            # W-1: durable BEFORE we report success
+        # M-12: on REPLAY, verify the chain hash BEFORE any mutation or durable write -- a tampered log
+        # raises with NO state change and is NOT extended with the bad event (atomic failure), instead of
+        # the old apply-then-check which mutated (and re-persisted) before detecting the mismatch.
+        if expected_hash is not None and body["hash"] != expected_hash:
+            raise ValueError("replay hash mismatch -- the event log was altered")
+        # H-20: durably append BEFORE committing the in-memory event/version, so a write/fsync failure
+        # leaves memory == disk (not ahead). W-1: durable before we report success.
+        if self.journal_path:
             import os as _os
             with open(self.journal_path, "a") as fh:
                 fh.write(json.dumps(body, sort_keys=True) + "\n")
                 fh.flush()
                 _os.fsync(fh.fileno())
+        self.events.append(body)                         # commit in-memory ONLY after the durable append
+        self.version += 1
         return self.version
 
     # ---- edits ---------------------------------------------------------------------------
@@ -97,7 +104,7 @@ class TwinStore:
         with self._mutex:                                # RC-01: atomic seq+hash+append+version
             return self._apply_patch_locked(heights_m, origin_rc=origin_rc, provenance=provenance)
 
-    def _apply_patch_locked(self, heights_m, *, origin_rc, provenance) -> int:
+    def _apply_patch_locked(self, heights_m, *, origin_rc, provenance, expected_hash=None) -> int:
         if not provenance or not str(provenance).strip():
             raise ValueError("every twin edit requires non-empty provenance")
         p = np.asarray(heights_m, dtype=np.float64)
@@ -110,7 +117,7 @@ class TwinStore:
                              f"{self.base.shape}")
         ev = {"kind": "patch", "origin_rc": [r0, c0], "shape": list(p.shape),
               "provenance": str(provenance), "patch": p.tolist()}
-        return self._append(ev, p.tobytes())
+        return self._append(ev, p.tobytes(), expected_hash=expected_hash)
 
     def apply_event(self, ev: dict) -> int:
         """Replay a recorded event verbatim (rebuild path). Verifies the chain as it goes."""
@@ -118,23 +125,21 @@ class TwinStore:
             return self._apply_event_locked(ev)
 
     def _apply_event_locked(self, ev: dict) -> int:
+        # M-12: the chain hash is verified INSIDE _append, BEFORE the mutation + durable write, so a
+        # tampered log raises atomically (no state change, no bad event persisted).
         if ev["kind"] == "patch":
-            v = self._apply_patch_locked(np.array(ev["patch"]), origin_rc=tuple(ev["origin_rc"]),
-                                         provenance=ev["provenance"])
-        elif ev["kind"] == "undo":
-            v = self._undo_locked()
-        else:
-            raise ValueError(f"unknown twin event kind {ev['kind']!r}")
-        if self.events[-1]["hash"] != ev["hash"]:
-            raise ValueError("replay hash mismatch -- the event log was altered")
-        return v
+            return self._apply_patch_locked(np.array(ev["patch"]), origin_rc=tuple(ev["origin_rc"]),
+                                            provenance=ev["provenance"], expected_hash=ev["hash"])
+        if ev["kind"] == "undo":
+            return self._undo_locked(expected_hash=ev["hash"])
+        raise ValueError(f"unknown twin event kind {ev['kind']!r}")
 
     def undo(self) -> int:
         """Append an undo event for the most recent un-undone patch. History is never deleted."""
         with self._mutex:
             return self._undo_locked()
 
-    def _undo_locked(self) -> int:
+    def _undo_locked(self, expected_hash=None) -> int:
         undone = {e["seq"] for e in self.events if e["kind"] == "undo"}
         live = [e for e in self.events if e["kind"] == "patch"
                 and e["seq"] not in {u["target"] for u in self.events if u["kind"] == "undo"}]
@@ -143,7 +148,7 @@ class TwinStore:
             raise ValueError("nothing to undo")
         target = live[-1]["seq"]
         return self._append({"kind": "undo", "target": target,
-                             "provenance": f"undo of seq {target}"}, b"")
+                             "provenance": f"undo of seq {target}"}, b"", expected_hash=expected_hash)
 
     # ---- derived state -------------------------------------------------------------------
     def current(self) -> np.ndarray:
