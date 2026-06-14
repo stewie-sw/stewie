@@ -32,7 +32,10 @@ def sub_solar_point(mission_time_s: float, *, lon0_deg: float = 0.0,
     """(latitude, longitude) of the sub-solar point at mission time [deg]."""
     lat = LUNAR_OBLIQUITY_DEG * math.sin(
         2.0 * math.pi * mission_time_s / SIDEREAL_MONTH_S + season_phase_rad)
-    lon = (lon0_deg + 360.0 * mission_time_s / SYNODIC_MONTH_S) % 360.0
+    # H-18: the sub-solar longitude moves WESTWARD (decreasing, east-positive convention) -- the Moon
+    # rotates prograde so the Sun tracks east->west. SPICE-validated (subslr/reclat: -89.96 deg per
+    # quarter synodic month). This is the ONE solar authority; dart.geometry.solar delegates here.
+    lon = (lon0_deg - 360.0 * mission_time_s / SYNODIC_MONTH_S) % 360.0
     return lat, lon
 
 

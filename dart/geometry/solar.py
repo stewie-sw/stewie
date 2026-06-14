@@ -62,11 +62,12 @@ def sun_elevation_azimuth(phi_deg: float, lam_deg: float,
 
 
 def subsolar_longitude_deg(t_s: float, lam0_deg: float = 0.0, t0_s: float = 0.0) -> float:
-    """Sub-solar selenographic longitude at time t_s (seconds). The sub-solar
-    point sweeps westward (longitude decreases) at 360 deg per synodic month;
-    lam0 is the sub-solar longitude at t0. Returns degrees in [-180, 180)."""
-    frac = (t_s - t0_s) / SYNODIC_MONTH_S
-    lon = lam0_deg - 360.0 * frac
+    """Sub-solar selenographic longitude at time t_s (seconds), in [-180, 180). The sub-solar point sweeps
+    WESTWARD (longitude decreases) at 360 deg per synodic month; lam0 is the sub-solar longitude at t0.
+    H-18: this DELEGATES to the single solar authority (stewie.specs.solar.sub_solar_point), which is
+    SPICE-validated -- the two implementations no longer disagree on the advance direction."""
+    from stewie.specs.solar import sub_solar_point
+    _lat, lon = sub_solar_point(float(t_s) - float(t0_s), lon0_deg=float(lam0_deg))
     return (lon + 180.0) % 360.0 - 180.0
 
 
