@@ -333,8 +333,10 @@ app.add_middleware(
 
 # ARCH-3: per-concern routers (the RC command path first, per §21). Each owns its own state + imports
 # the shared auth deps (server.deps) / audit log (server.services) -- no import of this app module.
+from stewie.server.routers import auth as _auth_router  # noqa: E402
 from stewie.server.routers import rc as _rc_router  # noqa: E402
 app.include_router(_rc_router.router)
+app.include_router(_auth_router.router)
 
 
 @app.middleware("http")
@@ -493,11 +495,6 @@ def twin_cg(front_deg: float = 0.0, back_deg: float = 0.0, front_kg: float = 0.0
                                                           for k, v in st.items()}}
 
 
-@app.get("/auth/config")
-def auth_config():
-    return {"ok": True, "operator_login": os.environ.get("STEWIE_OPERATOR_LOGIN", "1") != "0"}
-
-
 # --- #66 + SF-01: the pluggable RC seam now lives in stewie.server.routers.rc (included below) -----
 
 
@@ -541,23 +538,6 @@ def resync_compare(body: dict, _auth: str = Depends(require_director)):
     out = forward_compare(mission, candidates=cands, objective=obj)
     log_event(_auth, "resync.compare", f"{len(cands)} futures")
     return {"ok": True, **out}
-
-
-@app.post("/auth/login")
-def auth_login(body: dict, _auth: str = Depends(require_auth)):
-    """#52: email + the API key -> a 12 h identity token. The email MUST be whitelisted.
-    STEWIE_OPERATOR_LOGIN=0 disables the flow (key-only deployments; Aaron 2026-06-10)."""
-    from stewie.server import auth as AUTH
-    if os.environ.get("STEWIE_OPERATOR_LOGIN", "1") == "0":
-        return JSONResponse(status_code=403,
-                            content={"ok": False, "error": "operator login is disabled "
-                                     "(STEWIE_OPERATOR_LOGIN=0); use the API key"})
-    email = str(body.get("email", "")).strip().lower()
-    if not AUTH.is_allowed(email):
-        return JSONResponse(status_code=403,
-                            content={"ok": False, "error": f"{email!r} is not a whitelisted operator"})
-    return {"ok": True, "operator": email, "token": AUTH.issue_token(email),
-            "ttl_s": AUTH.TOKEN_TTL_S}
 
 
 @app.post("/missions/{name}")
