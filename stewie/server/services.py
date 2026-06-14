@@ -25,6 +25,11 @@ def log_event(actor: str, action: str, target: str = "") -> None:
         pass
 
 
+# matplotlib/pyplot is process-global + thread-unsafe; every report-rendering route serializes on this
+# ONE lock (shared by the plan + perception routers -- it must be a single process-wide instance).
+report_lock = threading.Lock()
+
+
 # ---- request metrics (RC-04) -- the middleware records every request; /metrics reads a snapshot ----
 _START = time.monotonic()
 _METRICS: dict = {"requests_total": 0, "by_status": {}, "by_route": {}}

@@ -20,7 +20,6 @@ import logging
 import os
 import shutil
 import sys
-import threading
 import time
 
 import uvicorn
@@ -32,10 +31,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from stewie.specs import config as CFG               # PO-02: configurable application-data dirs
-from stewie.bridge import rc_contract as RC           # RC.commands_from_plan for the /plan/commands view
-from lode import adaptive_planner as ADP
-from lode import autonomy as AUT
-from stewie.server import map_layers as MLY
 from lode import mission_planner as MP
 from leap import structures as ST
 from dart import articulated_parallax as AP   # P1.1: SN-10 articulation-parallax relocalization
@@ -48,11 +43,10 @@ log = logging.getLogger("stewie.server")
 
 # ARCH-3: the shared auth dependencies + env helpers live in stewie.server.deps so the per-concern
 # routers can import them without cycling through this app module.
-from stewie.server.deps import _env, _truthy, require_auth, require_director  # noqa: E402
+from stewie.server.deps import _env, _truthy, require_auth  # noqa: E402
 from stewie.server.schemas import Order, _MAX_ORDERS  # noqa: E402  (ARCH-3: shared request primitives)
 
 
-_REPORT_LOCK = threading.Lock()                 # matplotlib pyplot is process-global + thread-unsafe
 
 
 def _configure_logging(level: str | None = None) -> None:
@@ -93,99 +87,14 @@ def _version() -> str:
         return "0.1.0"
 
 
-def _totals_json(totals):
-    """JSON-safe totals: numbers -> float, but pass through bools/strings (algorithm/objective) and already
-    JSON-safe containers (e.g. vehicles_detail = a list of per-vehicle dicts) + None unchanged."""
-    out = {}
-    for k, v in totals.items():
-        out[k] = float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else v
-    return out
-
-
 # ARCH-3: the per-site DEM cache lives in stewie.server.state (shared with the planner/twin routers)
 from stewie.server.state import moon_dem as _moon_dem  # noqa: E402
-
-
-def _autonomy_perception(mission, dem, origin, algorithm, objective):
-    """Fold the closed-loop autonomy + the AutoNav estimation (perception) uncertainty into /plan.
-
-    Runs the conserved-model closed loop (plan -> execute -> estimate -> replan) once. The `autonomy`
-    block summarizes the controller (recharges/replans/completion + the true-vs-budgeted energy the slip
-    truth forces); the `perception` block is the rover's onboard ESTIMATE confidence (pose sigma grows by
-    dead-reckoning, drum-fill sigma from the FDC mass-inference model, energy sigma from model error).
-    Additive: any failure returns (None, None) so the report still goes out."""
-    try:                                               # perception-in-the-loop ON: a SLAM/map pose fix per leg
-        cl = AUT.run_closed_loop(mission, dem=dem, dem_origin=origin, algorithm=algorithm,
-                                 objective=objective, perception_sigma_m=0.10)
-    except Exception as e:                             # noqa: BLE001 -- autonomy is additive, never break /plan
-        log.warning("autonomy/perception block folded out (additive; /plan still served): %r", e)
-        return None, None
-    b, legs = cl["belief"], cl["legs"]
-    nominal = sum(leg["nominal_J"] for leg in legs)
-    true = sum(leg["true_J"] for leg in legs)
-    energy = ADP.price_mission(legs, ADP.learned_model())   # self-learned slip energy applied to this plan
-    autonomy = {
-        "completed": cl["completed"], "n_trips": cl["n_trips"], "n_legs": len(legs),
-        "recharges": cl["recharges"], "replans": cl["replans"],
-        "perception_fixes": cl["perception_fixes"], "observe_more": cl["observe_more"],
-        "final_soc": round(b.soc_frac(), 3),
-        "max_slip": round(max((leg["slip"] for leg in legs), default=0.0), 3),
-        "true_vs_nominal_energy": round(true / nominal, 3) if nominal else None,
-        # self-optimizing: the LEARNED slip-energy model re-prices the plan toward the executed truth
-        "energy_naive_kj": round(energy["naive_J"] / 1e3, 1),
-        "energy_learned_kj": round(energy["learned_J"] / 1e3, 1),
-        "energy_actual_kj": round(energy["actual_J"] / 1e3, 1),
-    }
-    leg_e_sig = max((leg["energy_sigma_J"] for leg in legs), default=0.0)
-    mc = cl.get("map_channel", {})
-    perception = {
-        "pose_sigma_m": round(b.pos_sigma_m, 2),               # BOUNDED by the per-leg map/landmark fixes
-        "map_fixes": cl["perception_fixes"],                   # pose corrections fused into the belief
-        "observe_more_before_dig": cl["observe_more"],         # Uncertainty-layer dig-ready gate firings
-        "fix_sigma_m": 0.10,                                   # SLAM/map-match fix precision (AprilTag 12.7 mm best-case)
-        "energy_model_sigma_J": round(leg_e_sig, 1),           # slip model-error 1-sigma carried per leg
-        "drum_fill_uncertainty_pct": 7.4,                      # FDC mass-inference MPE (2.56% >half full, 7.40% over range)
-        # P6 / LAC section 10 map channel, closed into the loop: the executed route's worksite COVERAGE +
-        # residual map uncertainty (onboard-observability tier), and the digs gated on local map coverage.
-        "map_coverage": round(mc.get("coverage", 0.0), 3),
-        "map_uncertainty_m": round(mc.get("mean_uncertainty_m", 0.0), 2),
-        "map_observe_more_before_dig": cl.get("map_observe_more", 0),
-        "map_survey_time_s": round(cl.get("survey_time_s", 0.0), 1),   # the survey-before-dig gate's real time cost
-        "note": ("perception-in-the-loop: a map/landmark pose fix per leg bounds dead-reckoning drift; the "
-                 "dig-ready gate observes more before digging when the pose is uncertain OR the dig site's "
-                 "local map coverage is low. map_coverage is the onboard-observability tier (what the route "
-                 "sees) -- the dense observed-map RMSE is the gated render/COLMAP tier (see /render)."),
-    }
-    return autonomy, perception
-
-
-def _plan_stem(payload):
-    """Stable, collision-free report stem from the mission (name slug + content hash) -- repeatable,
-    no wall-clock, so the same queue regenerates the same file instead of piling up duplicates."""
-    import json
-    import re
-    name = re.sub(r"[^a-z0-9]+", "-", str(payload.get("name", "mission")).lower()).strip("-") or "mission"
-    digest = hashlib.sha1(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:8]
-    return f"{name}-{digest}"
 
 
 # --------------------------------------------------------------------------------------------------
 # Request models (PRD N8: the typed API contract + input limits). extra="allow" passes through the
 # optional per-kind order fields the planner reads; the limits below cap obviously-abusive inputs.
 # --------------------------------------------------------------------------------------------------
-class PlanRequest(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    name: str = Field(default="mission", max_length=200)
-    body: str = Field(default="moon", max_length=40)
-    orders: list[Order] = Field(default_factory=list, max_length=_MAX_ORDERS)
-    algorithm: str = Field(default="nearest", max_length=40)
-    objective: str = Field(default="time", max_length=40)
-    lat: float | None = Field(default=None, ge=-90.0, le=90.0)   # M11: globe site-pick -> order-frame anchor
-    lon: float | None = Field(default=None, ge=-360.0, le=360.0)
-    vehicles: int = Field(default=1, ge=1, le=16)               # MV: fleet size (>1 -> multi-vehicle plan)
-    site: str = Field(default="haworth", max_length=40)        # REG-01: which imported site DEM to plan on
-
-
 class CompareRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
     name: str = Field(default="mission", max_length=200)
@@ -283,6 +192,7 @@ from stewie.server.routers import health as _health_router  # noqa: E402
 from stewie.server.routers import layers as _layers_router  # noqa: E402
 from stewie.server.routers import missions as _missions_router  # noqa: E402
 from stewie.server.routers import operators_admin as _operators_admin_router  # noqa: E402
+from stewie.server.routers import plan as _plan_router  # noqa: E402
 from stewie.server.routers import profiles as _profiles_router  # noqa: E402
 from stewie.server.routers import rc as _rc_router  # noqa: E402
 from stewie.server.routers import sample_missions as _sample_missions_router  # noqa: E402
@@ -305,6 +215,7 @@ app.include_router(_figures_router.router)
 app.include_router(_twin_router.router)
 app.include_router(_admin_ops_router.router)
 app.include_router(_session_router.router)
+app.include_router(_plan_router.router)
 
 
 @app.middleware("http")
@@ -365,53 +276,11 @@ def get_index():
 
 # ---- #39: the event history (who did what when; actor = the #52 auth identity) ----------------
 # ARCH-3: the audit ledger lives in stewie.server.services so routers can log without importing this app.
-from stewie.server.services import log_event, prune_reports as _prune_reports, record_request  # noqa: E402
+from stewie.server.services import log_event, prune_reports as _prune_reports, record_request, report_lock as _REPORT_LOCK  # noqa: E402
 
 
 # ---- #32: no-terminal admin ops (the W-2/W-3 CLIs + gate validation as buttons) ---------------
 # --- #66 + SF-01: the pluggable RC seam now lives in stewie.server.routers.rc (included below) -----
-
-
-@app.post("/plan/commands")
-def plan_commands(req: PlanRequest):
-    """#66 (Aaron: "plan should output cmds for reuse"): the plan as a REUSABLE RC command tape --
-    a GoTo sequence (the same contract the sim/pit backend executes). Plan once, command many."""
-    mission = MP.mission_from_dict(req.model_dump())
-    cell = 5.0 if mission.body == "moon" else 1.0
-    dem, origin = _moon_dem(getattr(req, "site", "haworth")) if mission.body == "moon" else (None, (0.0, 0.0))
-    cmds = RC.commands_from_plan(mission, cell_m=cell, dem=dem, dem_origin=origin)
-    return {"ok": True, "cell_m": cell, "commands": [
-        {"kind": c.kind, "leg_id": c.leg_id, "goal_row": c.goal_row, "goal_col": c.goal_col,
-         "v_max_mps": c.v_max_mps, "goal_radius_cells": c.goal_radius_cells} for c in cmds]}
-
-
-# the RC command + telemetry endpoints live in stewie.server.routers.rc (included via app.include_router)
-
-
-@app.post("/plan/math")
-def plan_math_endpoint(req: PlanRequest):
-    """#74: the per-trip MATH WORKSHEET for review (every equation + substituted numbers). Open
-    (read-only derivation of a plan the caller already authored)."""
-    payload = req.model_dump()
-    mission = MP.mission_from_dict(payload)
-    dem, origin = _moon_dem(getattr(req, "site", "haworth")) if mission.body == "moon" else (None, (0.0, 0.0))
-    return {"ok": True, **MP.plan_math(mission, dem=dem, dem_origin=origin)}
-
-
-@app.post("/resync/compare")
-def resync_compare(body: dict, _auth: str = Depends(require_director)):
-    """#70: faster-than-realtime forward comparison -- candidate solver inputs re-simulated from
-    the CURRENT mission; ranked outcomes with measured wall times. Director-side (it sees truth)."""
-    from lode.resync import forward_compare
-    try:
-        mission = MP.mission_from_dict(body.get("mission", body))
-    except (ValueError, KeyError) as e:
-        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
-    cands = tuple(body.get("candidates", ("auto", "nearest")))[:5]
-    obj = str(body.get("objective", "duration"))
-    out = forward_compare(mission, candidates=cands, objective=obj)
-    log_event(_auth, "resync.compare", f"{len(cands)} futures")
-    return {"ok": True, **out}
 
 
 @app.on_event("startup")
@@ -442,113 +311,8 @@ def _warm_globe_cache():
     threading.Thread(target=warm, daemon=True).start()
 
 
-@app.get("/layers")
-def get_layers():
-    """Selectable map layers for the navigation UI (load/unload): imagery, dem, topology, hazard,
-    excavation, lander. Vector layers (excavation, lander, zones) are filled per-mission by the client."""
-    from stewie.server.gis_layers import RASTER_DEFS
-    return {"ok": True, "layers": MLY.layer_defs() + RASTER_DEFS}
-
-
-@app.get("/layers/raster/{kind}.png")
-def get_raster_layer(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
-                     mission_t_s: float | None = None):
-    """A computed GIS raster overlay from the REAL Haworth DEM. When mission_t_s is given the sun
-    is AUTOMATIC: real spherical geometry at the Haworth latitude (stewie.specs.solar) -- azimuth
-    circles per lunar day, elevation breathes inside colatitude+obliquity. el/az are the manual
-    override path."""
-    from stewie.server.gis_layers import render
-    if mission_t_s is not None:
-        from stewie.specs.solar import sun_az_el
-        sun_az, sun_el = sun_az_el(-87.45, float(mission_t_s))   # Haworth site latitude
-    try:
-        png = render(kind, sun_el=sun_el, sun_az=sun_az)
-    except FileNotFoundError as e:
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"DEM bundle absent: {e}"})
-    if png is None:
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
-    from fastapi.responses import Response
-    return Response(content=png, media_type="image/png")
-
-
 # ---- B3: operator/director training sessions (the real closed loop, two views) ----------------
 # ---- POST: the planner API (auth-gated when $STEWIE_API_KEY is set) -----------------------------
-@app.post("/plan")
-def post_plan(req: PlanRequest, _auth: None = Depends(require_auth)):
-    _prune_reports()
-    payload = req.model_dump(exclude_unset=True)
-    try:
-        mission = MP.mission_from_dict(payload)
-        if mission.body == "moon":
-            dem, origin = _moon_dem(getattr(req, "site", "haworth"))  # REG-01: the chosen site DEM
-            if req.lat is not None and req.lon is not None:   # M11: a globe site-pick overrides the anchor
-                try:
-                    origin = MP.latlon_to_dem_origin(req.lat, req.lon)
-                except ImportError:
-                    log.warning("pyproj absent ([planner] extra); site lat/lon ignored, using flattest anchor")
-                except ValueError as e:
-                    return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
-        else:
-            dem, origin = None, (0.0, 0.0)
-        # RB-03: compute the plan ONCE (incl. as-built validation + endurance); report/timeline/IR and the
-        # validation/endurance fields are all VIEWS of this single result (no independent recompute).
-        result = MP.plan(mission, dem=dem, dem_origin=origin, algorithm=req.algorithm,
-                         objective=req.objective, vehicles=req.vehicles, with_acceptance=True)
-        # I10: hauls routed around hazards on the real DEM; I8 + I6/M11 slope-feasible siting.
-        with _REPORT_LOCK:                              # serialize the thread-unsafe matplotlib report path
-            pdf, md, totals = MP.run(mission, stem=_plan_stem(payload), dem=dem, dem_origin=origin,
-                                     algorithm=req.algorithm, objective=req.objective,
-                                     vehicles=req.vehicles, result=result)
-        validation = result.validation                  # RB-03: from the one result, not a recompute
-        timeline = MP.build_timeline(mission, dem=dem, dem_origin=origin,
-                                     algorithm=req.algorithm, objective=req.objective, result=result)
-        endurance = result.endurance
-        autonomy, perception = _autonomy_perception(mission, dem, origin, req.algorithm, req.objective)
-        plan_ir = MP.plan_ir(mission, dem=dem, dem_origin=origin,                # the machine-executable plan
-                             algorithm=req.algorithm, objective=req.objective,
-                             vehicles=req.vehicles, result=result)
-        # H-07 follow-up: ORDERED IR-replay acceptance -- walk the trips in plan order through a bounded
-        # drum so the order-dependent surface + drum-supply sequencing the pooled validate_plan flattens
-        # are surfaced. Drop the per-cell as_built array from the API (keep the scalar verdict).
-        ordered_acc = {k: v for k, v in
-                       MP.execute_plan_acceptance(mission, result.trips, dem=dem, dem_origin=origin).items()
-                       if k != "as_built"}
-    except (ValueError, RuntimeError) as e:             # bad input / sinter-gated -> honest 400
-        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
-    except (KeyError, TypeError) as e:                  # missing/odd-typed field -> ALSO the contracted
-        # 400 {ok:false,error} (audit M40: these surfaced as uncaught 500s)
-        return JSONResponse(status_code=400, content={"ok": False, "error": f"bad request field: {e!r}"})
-    # H-03: fail CLOSED at the product boundary. A plan with an unreachable mandatory leg (no safe routing
-    # corridor) or a battery-infeasible transit must NOT hand a rover/ROS executive an executable action
-    # list. Surface feasibility prominently (not buried in totals) and SUPPRESS the executable Plan IR.
-    feasible = bool(totals.get("feasible", True))
-    infeasible_reasons = list(totals.get("infeasible_reasons", []))
-    if not feasible:
-        plan_ir = {"executable": False, "feasible": False, "infeasible_reasons": infeasible_reasons,
-                   "actions": [], "note": "execution IR suppressed (H-03): the plan has an infeasible "
-                   "leg -- unreachable corridor or battery-infeasible transit"}
-    return {
-        "ok": True,
-        "feasible": feasible,                           # H-03: surfaced at the top, not buried in totals
-        "infeasible_reasons": infeasible_reasons,
-        "mode": "DEM_KNOWN_POSE_MISSION_SIM",           # product boundary (known-pose mission sim, not SLAM)
-        # item 4: NEVER silently degrade to flat -- surface which terrain the plan actually used so the UI/report
-        # can warn when the real DEM is missing (routes/hazards are not trustworthy on the flat fallback).
-        "terrain_source": "haworth_dem" if dem is not None else "flat_fallback",
-        "pdf": "/reports/" + os.path.basename(pdf),
-        "md": "/reports/" + os.path.basename(md),
-        "totals": _totals_json(totals),
-        "validation": validation,
-        "timeline": timeline,
-        "endurance": endurance,
-        "autonomy": autonomy,
-        "perception": perception,
-        "plan_ir": plan_ir,                             # versioned typed-action plan a rover/ROS executive runs
-        "ordered_acceptance": ordered_acc,              # H-07: ordered IR-replay verdict (drum sequencing + as-built)
-        "provenance": result.provenance,                # RB-03/CT-07: schema, mode, config, input hash of THE plan
-    }
-
-
 @app.post("/compare")
 def post_compare(req: CompareRequest, _auth: None = Depends(require_auth)):
     payload = req.model_dump(exclude_unset=True)
