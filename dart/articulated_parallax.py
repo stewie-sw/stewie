@@ -32,8 +32,10 @@ def range_from_vertical_parallax(h_m: float, dh_m: float, d_depression_rad: floa
         return math.inf                                  # no parallax -> unbounded range
     a = h_m * (h_m + dh_m)
     disc = dh_m * dh_m - 4.0 * t * t * a
-    if disc < 0.0:
-        disc = 0.0                                       # grazing numerical edge
+    if disc < -1e-9:
+        return math.nan                                  # H-13: inconsistent geometry (d_theta too large for h,dh)
+        #                                                  -> NOT a range; do not clamp to 0 and fabricate a root
+    disc = max(0.0, disc)                                # a tiny grazing numerical edge clamps to 0
     return float((dh_m + math.sqrt(disc)) / (2.0 * t))   # the far (physical) root
 
 
@@ -112,9 +114,18 @@ def articulation_localize(graph, node_id, landmarks_xy, pixel_shifts, *, dh_m, f
     cur = graph.optimize()
     guess = cur[node_id][:2] if node_id in cur else (0.0, 0.0)
     ranges = [range_from_pixel_parallax(dh_m, s, fx_px) for s in pixel_shifts]
-    fix_xy = position_fix_from_ranges(landmarks_xy, ranges, guess=guess)
+    # H-13: a non-positive pixel shift (inf range) or inconsistent geometry (nan) is NOT a measurement --
+    # reject it and its landmark; never inject a fabricated/non-finite range into the graph.
+    keep = [(Lxy, r) for Lxy, r in zip(landmarks_xy, ranges) if math.isfinite(r) and r > 0.0]
+    if len(keep) < 2:
+        raise ValueError(
+            f"articulation parallax: only {len(keep)} finite range(s) from {len(ranges)} landmark(s) "
+            "(non-positive pixel shift or inconsistent geometry); need >= 2 for a heading-free fix")
+    vL = [Lxy for Lxy, _ in keep]
+    ranges = [r for _, r in keep]
+    fix_xy = position_fix_from_ranges(vL, ranges, guess=guess)
     sig = [range_sigma_from_pixel_noise(r, dh_m, fx_px, sigma_px) for r in ranges]
-    cov = position_fix_covariance(landmarks_xy, fix_xy, sig)
+    cov = position_fix_covariance(vL, fix_xy, sig)
     pos_sigma = float(np.sqrt(0.5 * np.trace(cov)))
     graph.add_absolute(node_id, fix_xy, sigma=max(pos_sigma, 1e-3))
     out = graph.optimize_with_cov()

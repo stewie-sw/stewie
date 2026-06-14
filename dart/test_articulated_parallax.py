@@ -130,3 +130,17 @@ def test_should_relocalize_trigger():
     assert AP.should_relocalize(3.0, threshold_m=2.0, moving=False) is True    # uncertain + stopped
     assert AP.should_relocalize(3.0, threshold_m=2.0, moving=True) is False     # cannot maneuver while moving
     assert AP.should_relocalize(0.5, threshold_m=2.0, moving=False) is False    # already well-localized
+
+
+def test_h13_parallax_rejects_impossible_measurements_instead_of_fabricating_a_range():
+    """Audit H-13 (2026-06-13): impossible parallax geometry must be REJECTED, not turned into a plausible
+    finite range. An inconsistent depression-angle change (negative closed-form discriminant) returns NaN
+    (the audit probe got a fabricated 0.0915 m); and articulation_localize raises rather than inject a
+    non-finite range into the graph when fewer than two landmarks survive the finite-data gate."""
+    from dart.pose_graph_se2 import PoseGraphSE2
+    # d_theta = 0.5 rad is far too large for h=2 m, dh=0.2 m -> negative discriminant -> not a range
+    assert math.isnan(AP.range_from_vertical_parallax(2.0, 0.2, 0.5))
+    # a non-positive pixel shift -> inf range -> rejected; with only one finite range left, NO fix is injected
+    g = PoseGraphSE2(); g.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)
+    with pytest.raises(ValueError, match="finite range"):
+        AP.articulation_localize(g, 0, [(6.0, 0.0), (0.0, 5.0)], [10.0, -3.0], dh_m=0.2, fx_px=1000.0)
