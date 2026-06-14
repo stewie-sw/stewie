@@ -324,6 +324,8 @@ app.add_middleware(
 from stewie.server.routers import assets as _assets_router  # noqa: E402
 from stewie.server.routers import auth as _auth_router  # noqa: E402
 from stewie.server.routers import config as _config_router  # noqa: E402
+from stewie.server.routers import dem as _dem_router  # noqa: E402
+from stewie.server.routers import figures as _figures_router  # noqa: E402
 from stewie.server.routers import health as _health_router  # noqa: E402
 from stewie.server.routers import layers as _layers_router  # noqa: E402
 from stewie.server.routers import missions as _missions_router  # noqa: E402
@@ -343,6 +345,8 @@ app.include_router(_assets_router.router)
 app.include_router(_layers_router.router)
 app.include_router(_config_router.router)
 app.include_router(_health_router.router)
+app.include_router(_dem_router.router)
+app.include_router(_figures_router.router)
 
 
 @app.middleware("http")
@@ -546,74 +550,6 @@ def _warm_globe_cache():
             pass
 
     threading.Thread(target=warm, daemon=True).start()
-
-
-@app.get("/dem/georef")
-def dem_georef():
-    """The Haworth tile's globe footprint (selenographic corners) for the cockpit overlay."""
-    try:
-        return {"ok": True, **MP.dem_georef_corners()}
-    except (ImportError, FileNotFoundError, ValueError) as e:
-        return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
-
-
-@app.get("/dem/site_xy")
-def dem_site_xy(lat: float, lon: float):
-    """Selenographic lat/lon -> the Haworth site frame (x, y) [m] (the cursor-meters readout)."""
-    try:
-        x, y = MP.latlon_to_dem_origin(lat, lon)
-    except ValueError as e:
-        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
-    except ImportError as e:
-        return JSONResponse(status_code=503, content={"ok": False, "error": f"pyproj absent: {e}"})
-    return {"ok": True, "x_m": round(x, 1), "y_m": round(y, 1)}
-
-
-@app.get("/dem/{name}")
-def get_dem(name: str):                                 # the real LOLA work-area DEM previews (Haworth)
-    bundle = os.path.join(HERE, "..", "..", "samples", "lunar_dem", "haworth_10km_5m")
-    f = {"hillshade.png": "preview_hillshade.png", "height.png": "preview_height.png"}.get(os.path.basename(name))
-    if not f:
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"no dem {os.path.basename(name)}"})
-    path = os.path.join(bundle, f)
-    if not os.path.isfile(path):                        # bundle absent (e.g. a wheel install) -> 404, not a 500
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"dem preview not available: {f}"})
-    return FileResponse(path, media_type="image/png")
-
-
-# ---- engineer/developer/intern panes: validation figures + runtime config (served from source) ---
-_VALIDATION = os.path.join(MP._REPO_ROOT, "validation")
-
-
-def _validation_figures() -> dict:
-    """Map 'category/file.png' -> absolute path for every PNG under validation/. Served from the source
-    tree (empty if absent, e.g. a wheel install). The returned keys are the allowlist -> traversal-proof."""
-    out: dict = {}
-    if not os.path.isdir(_VALIDATION):
-        return out
-    for root, _dirs, files in os.walk(_VALIDATION):
-        for fn in sorted(files):
-            if fn.endswith(".png"):
-                rel = os.path.relpath(os.path.join(root, fn), _VALIDATION).replace(os.sep, "/")
-                out[rel] = os.path.join(root, fn)
-    return out
-
-
-@app.get("/figures")
-def get_figures():
-    """List the validation figures (engineer pane). key = 'category/file.png'; fetch via /figure/{key}."""
-    figs = _validation_figures()
-    return {"ok": True, "figures": [{"key": k, "category": k.split("/")[0], "url": "/figure/" + k}
-                                    for k in sorted(figs)]}
-
-
-@app.get("/figure/{key:path}")
-def get_figure(key: str):
-    """Serve a validation PNG by allowlisted key (only the keys /figures lists -> no path traversal)."""
-    p = _validation_figures().get(key)
-    if not p:
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"no figure {key}"})
-    return FileResponse(p, media_type="image/png")
 
 
 @app.get("/layers")
