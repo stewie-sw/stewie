@@ -64,14 +64,15 @@ docker compose -f deploy/compose.yml up -d
 ```python
 # Drive a Gymnasium environment on the conserved physics authority
 import stewie, gymnasium as gym        # importing stewie registers the envs
-env = gym.make("Dust/RoverDrive-v0")
+env = gym.make("Stewie/RoverDrive-v0")
 obs, _ = env.reset(seed=0)
 obs, reward, term, trunc, info = env.step(env.action_space.sample())
 ```
 
 **Gymnasium environments** (all `gym.make`-able after `import stewie`):
-`Dust/RoverDrive-v0` (per-body variants `-Moon` / `-Mars` / `-Earth` / `-Ceres`), `Dust/Construct-v0`,
-`Dust/SkillMacro-v0`, `Dust/Scheduler-v0`, `Dust/WorkSite-v0`, `Dust/ActivePerception-v0`.
+`Stewie/RoverDrive-v0` (per-body variants `-Moon` / `-Mars` / `-Earth` / `-Ceres`), `Stewie/Construct-v0`,
+`Stewie/SkillMacro-v0`, `Stewie/Scheduler-v0`, `Stewie/WorkSite-v0`, `Stewie/ActivePerception-v0`. The
+legacy `Dust/*` IDs remain registered as deprecated aliases for one transition cycle.
 
 ## Documentation
 

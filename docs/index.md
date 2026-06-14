@@ -53,17 +53,17 @@ docker compose -f deploy/compose.yml up -d     # or: the containerized stack
 ```
 
 ```python
-import stewie                  # registers the Dust/* envs on import
+import stewie                  # registers the Stewie/* envs on import
 import gymnasium as gym
-env = gym.make("Dust/RoverDrive-Mars-v0")      # per-body physics (gravity + Lyasko-corrected regolith)
+env = gym.make("Stewie/RoverDrive-Mars-v0")    # per-body physics (gravity + Lyasko-corrected regolith)
 obs, info = env.reset(seed=0)
 obs, reward, terminated, truncated, info = env.step(env.action_space.sample())
 ```
 
 Naming and compatibility: the pip package is `stewie` (renamed 2026-06-10 from `dustgym`).
-`dustgym-serve` and `import dustgym` remain as deprecated aliases for one transition cycle. The
-Gymnasium env IDs currently use the `Dust/*` namespace (a `Stewie/*` rename is planned, not yet
-registered). Environment
+`dustgym-serve` and `import dustgym` remain as deprecated aliases for one transition cycle; the
+canonical Gymnasium env IDs are `Stewie/*`, with the legacy `Dust/*` IDs registered as deprecated
+aliases. Environment
 variables are `STEWIE_*` with `DUSTGYM_*` accepted as a fallback. On-disk schema strings (e.g.
 `dustgym_runtime/1.0`) are frozen contracts and are unchanged by the rename.
 

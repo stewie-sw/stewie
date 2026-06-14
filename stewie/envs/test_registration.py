@@ -60,3 +60,17 @@ def test_body_kwarg_any_body():
     env = gym.make("Dust/RoverDrive-v0", body="ceres").unwrapped
     assert env.g == BODIES["ceres"].g
     env.close()
+
+
+@pytest.mark.parametrize("env_id", ENV_IDS)
+def test_canonical_stewie_namespace_registered_and_makeable(env_id):
+    """The canonical namespace is Stewie/* (rename 2026-06-10); every legacy Dust/* ID has a Stewie/*
+    twin that is registered AND gym.make-able with no args. Locks the canonical claim documented in
+    README.md + docs/index.md so the aliasing in registration.py cannot silently regress."""
+    from gymnasium.envs.registration import registry
+    stewie_id = env_id.replace("Dust/", "Stewie/")
+    assert stewie_id.startswith("Stewie/")
+    assert stewie_id in registry, f"{stewie_id} (canonical) not registered"
+    env = gym.make(stewie_id)                          # canonical ID constructs with no args
+    env.reset(seed=0)
+    env.close()
