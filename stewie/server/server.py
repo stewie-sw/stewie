@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import logging
 import os
 import shutil
@@ -330,6 +329,7 @@ from stewie.server.routers import missions as _missions_router  # noqa: E402
 from stewie.server.routers import operators_admin as _operators_admin_router  # noqa: E402
 from stewie.server.routers import profiles as _profiles_router  # noqa: E402
 from stewie.server.routers import rc as _rc_router  # noqa: E402
+from stewie.server.routers import sample_missions as _sample_missions_router  # noqa: E402
 from stewie.server.routers import structures as _structures_router  # noqa: E402
 app.include_router(_rc_router.router)
 app.include_router(_auth_router.router)
@@ -337,6 +337,7 @@ app.include_router(_missions_router.router)
 app.include_router(_structures_router.router)
 app.include_router(_operators_admin_router.router)
 app.include_router(_profiles_router.router)
+app.include_router(_sample_missions_router.router)
 
 
 @app.middleware("http")
@@ -733,29 +734,6 @@ def get_figure(key: str):
     if not p:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no figure {key}"})
     return FileResponse(p, media_type="image/png")
-
-
-def _sample_missions() -> dict:
-    """{name -> path} for the bundled intern sample missions (planet_browser/sample_missions/*.json)."""
-    import glob
-    d = os.path.join(HERE, "sample_missions")
-    return {os.path.splitext(os.path.basename(p))[0]: p for p in sorted(glob.glob(os.path.join(d, "*.json")))}
-
-
-@app.get("/sample_missions")
-def get_sample_missions():
-    """List the bundled intern sample missions; load one (into the build queue) via /sample_mission/{name}."""
-    return {"ok": True, "samples": [{"name": n, "url": "/sample_mission/" + n} for n in _sample_missions()]}
-
-
-@app.get("/sample_mission/{name}")
-def get_sample_mission(name: str):
-    """Serve a bundled sample mission by allowlisted name (only the names /sample_missions lists)."""
-    p = _sample_missions().get(name)
-    if not p:
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"no sample mission {name}"})
-    with open(p) as f:
-        return json.load(f)
 
 
 @app.get("/config")
