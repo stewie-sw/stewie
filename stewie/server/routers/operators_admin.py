@@ -7,6 +7,8 @@ A last-active-director guard refuses any change that would drop the active-direc
 """
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -103,3 +105,22 @@ def operators_delete(email: str, director: str = Depends(require_director)):
     ok = OPS.delete(e)
     log_event(director, "admin.operator.delete", e)
     return {"ok": ok}
+
+
+@router.get("/events")
+def get_events(n: int = 50, _auth: str = Depends(require_director)):
+    """The newest-first event history (who did what when). SEC-2: director-only -- it carries
+    operator identities + the full mutation trail (an audit surface, not public)."""
+    import json as _json
+
+    from stewie.specs import config as CFG
+    path = os.path.join(CFG.data_dir(), "events.jsonl")
+    out: list = []
+    if os.path.exists(path):
+        lines = open(path).read().splitlines()[-max(1, min(int(n), 500)):]
+        for ln in reversed(lines):
+            try:
+                out.append(_json.loads(ln))
+            except ValueError:
+                continue
+    return {"ok": True, "events": out}

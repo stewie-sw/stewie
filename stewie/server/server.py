@@ -408,25 +408,6 @@ def get_index():
 from stewie.server.services import log_event  # noqa: E402
 
 
-@app.get("/events")
-def get_events(n: int = 50, _auth: str = Depends(require_director)):
-    """The newest-first event history (who did what when). SEC-2: director-only -- it carries
-    operator identities + the full mutation trail (an audit surface, not public)."""
-    import json as _json
-
-    from stewie.specs import config as CFG
-    path = os.path.join(CFG.data_dir(), "events.jsonl")
-    out: list = []
-    if os.path.exists(path):
-        lines = open(path).read().splitlines()[-max(1, min(int(n), 500)):]
-        for ln in reversed(lines):
-            try:
-                out.append(_json.loads(ln))
-            except ValueError:
-                continue
-    return {"ok": True, "events": out}
-
-
 # ---- #32: no-terminal admin ops (the W-2/W-3 CLIs + gate validation as buttons) ---------------
 @app.post("/admin/twin/snapshot")
 def admin_snapshot(_auth: str = Depends(require_director)):
