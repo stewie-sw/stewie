@@ -23,7 +23,8 @@ from stewie.runtime import process as rp
 @pytest.fixture()
 def runtime(tmp_path):
     sock = str(tmp_path / "rt.sock")
-    srv = rp.RuntimeProcess(grid=64, cell_m=0.02, body="moon", socket_path=sock, seed=3)
+    srv = rp.RuntimeProcess(grid=64, cell_m=0.02, body="moon", socket_path=sock, seed=3,
+                            checkpoint_dir=str(tmp_path / "ckpt"))
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
     for _ in range(100):
@@ -87,12 +88,11 @@ def test_world_conserves_mass_across_the_seam(runtime):
 def test_checkpoint_restore_roundtrips(runtime, tmp_path):
     sock, srv = runtime
     _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.3, "steps": 12})
-    ck = str(tmp_path / "ck.npz")
-    r = _rpc(sock, {"role": "drive", "cmd": "checkpoint", "path": ck})
-    assert r["ok"] and os.path.exists(ck)
+    r = _rpc(sock, {"role": "drive", "cmd": "checkpoint", "path": "ck.npz"})   # #120: bare name only
+    assert r["ok"] and os.path.exists(r["path"])
     pose_before = _rpc(sock, {"role": "drive", "cmd": "pose"})
     _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.3, "omega": 0.0, "steps": 8})
-    r2 = _rpc(sock, {"role": "drive", "cmd": "restore", "path": ck})
+    r2 = _rpc(sock, {"role": "drive", "cmd": "restore", "path": "ck.npz"})
     assert r2["ok"]
     pose_after = _rpc(sock, {"role": "drive", "cmd": "pose"})
     assert pose_after["rc"] == pose_before["rc"]
@@ -311,3 +311,17 @@ def test_m05_socket_is_owner_only(runtime):
     assert mode == 0o600, oct(mode)
     r = _rpc(sock, {"role": "drive", "cmd": "twist", "v": 0.2, "omega": 0.0, "steps": 1})
     assert r["ok"]                                                # same-user client still works
+
+
+def test_checkpoint_rejects_path_traversal(runtime, tmp_path):
+    """#120: checkpoint/restore are confined to the runtime checkpoint dir; an absolute path, a parent
+    escape, or a subdir is rejected -- a socket client cannot write/read an arbitrary file. (Pre-fix the
+    runtime did np.savez/np.load on the raw client path = arbitrary file write/read.)"""
+    sock, _ = runtime
+    probe = str(tmp_path / "escape_probe.npz")
+    for bad in (probe, "../escape.npz", "/tmp/escape.npz", "sub/dir.npz"):
+        r = _rpc(sock, {"role": "drive", "cmd": "checkpoint", "path": bad})
+        assert r["ok"] is False, bad
+        r2 = _rpc(sock, {"role": "drive", "cmd": "restore", "path": bad})
+        assert r2["ok"] is False, bad
+    assert not os.path.exists(probe)                 # nothing written outside the checkpoint dir

@@ -19,6 +19,7 @@ import json
 import math
 import os
 import socketserver
+import tempfile
 
 import numpy as np
 
@@ -40,8 +41,12 @@ MAX_TWIST_STEPS = 1_000_000     # at dt=0.1 s this is 1e5 sim-seconds in one req
 class RuntimeProcess:
     def __init__(self, *, grid: int = 64, cell_m: float = 0.02, body: str = "moon",
                  vehicle: str = "ipex", socket_path: str, seed: int = 0,
-                 frame_store: str | None = None,
+                 frame_store: str | None = None, checkpoint_dir: str | None = None,
                  mission_t0_s: float = 0.0, sun_thermal: bool = False):
+        # M-?? / #120: checkpoint/restore confine to this runtime-OWNED directory; a socket client
+        # supplies only a bare filename, never an arbitrary path (no traversal / no arbitrary file IO).
+        self.checkpoint_dir = checkpoint_dir or os.path.join(
+            os.environ.get("STEWIE_DATA_DIR", tempfile.gettempdir()), "stewie_runtime_checkpoints")
         rng = np.random.default_rng(seed)
         base = 50.0 + rng.normal(0.0, 0.5, (grid, grid))
         self.cs = ColumnState(width=grid, height=grid, cell_m=cell_m,
@@ -192,13 +197,32 @@ class RuntimeProcess:
                 "reference_camera": stereo["left"], "baseline_m": float(stereo["baseline_m"]),
                 "intrinsics": cam0["intrinsics"], "intrinsics_by_camera": intr}
 
-    def _checkpoint(self, path: str) -> dict:
-        np.savez(path, mass_areal=self.cs.mass_areal, rc=np.array(self.rc),
-                 yaw=np.array([self.yaw]), sequence=np.array([self.sequence]))
-        return {"ok": True, "path": path}
+    def _resolve_checkpoint(self, name: str) -> str:
+        """#120: confine a client-supplied checkpoint NAME to the runtime-owned checkpoint dir. A bare
+        filename only -- reject absolute paths, path separators, and .. -- so a socket client cannot
+        write or read an arbitrary file via checkpoint/restore (was an arbitrary-path traversal)."""
+        name = str(name)
+        if not name or os.path.isabs(name) or os.sep in name \
+                or (os.altsep and os.altsep in name) or name in (".", ".."):
+            raise ValueError(f"checkpoint name must be a bare filename, got {name!r}")
+        base = os.path.realpath(self.checkpoint_dir)
+        os.makedirs(base, exist_ok=True)
+        full = os.path.realpath(os.path.join(base, name))
+        if os.path.commonpath([base, full]) != base:        # defense-in-depth against escape
+            raise ValueError("checkpoint name escapes the checkpoint directory")
+        return full
 
-    def _restore(self, path: str) -> dict:
-        z = np.load(path)
+    def _checkpoint(self, name: str) -> dict:
+        full = self._resolve_checkpoint(name)
+        np.savez(full, mass_areal=self.cs.mass_areal, rc=np.array(self.rc),
+                 yaw=np.array([self.yaw]), sequence=np.array([self.sequence]))
+        return {"ok": True, "path": full}
+
+    def _restore(self, name: str) -> dict:
+        full = self._resolve_checkpoint(name)
+        if not os.path.exists(full):
+            return {"ok": False, "error": f"no checkpoint {name!r}"}
+        z = np.load(full)
         self.cs.mass_areal[:, :] = z["mass_areal"]
         self.rc = (float(z["rc"][0]), float(z["rc"][1]))
         self.yaw = float(z["yaw"][0])
