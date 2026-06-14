@@ -156,7 +156,10 @@ def articulation_localize(graph, node_id, landmarks_xy, pixel_shifts, *, dh_m, f
     sig = [range_sigma_from_pixel_noise(r, dh_m, fx_px, sigma_px) for r in ranges]
     cov = position_fix_covariance(vL, fix_xy, sig)
     pos_sigma = float(np.sqrt(0.5 * np.trace(cov)))
-    graph.add_absolute(node_id, fix_xy, sigma=max(pos_sigma, 1e-3))
+    # H-30: inject the FULL 2x2 covariance (keeping the GDOP direction), not a collapsed scalar sigma -- an
+    # elongated fix (far/poorly-spread landmarks) is uncertain ALONG the weak axis, not equally in all
+    # directions. The graph weights the fix by the anisotropic information matrix.
+    graph.add_absolute_cov(node_id, fix_xy, cov)
     out = graph.optimize_with_cov()
     return {"fix_xy": fix_xy, "fix_sigma_m": pos_sigma, "ambiguous": bool(ambiguous),
             "hypotheses": hypotheses, **out}

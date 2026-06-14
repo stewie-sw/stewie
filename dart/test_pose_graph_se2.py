@@ -106,3 +106,18 @@ def test_h15_gauge_free_se2_graph_reports_unobservable_not_finite_sigma():
     g.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)        # anchor -> observable
     out2 = g.optimize_with_cov()
     assert out2["observable"] is True and math.isfinite(out2["xy_sigma"][1])
+
+
+def test_h30_anisotropic_absolute_factor_keeps_the_gdop_direction():
+    """Audit H-30 (2026-06-13): an absolute (x,y) factor must keep its ANISOTROPIC covariance (the GDOP
+    direction), not collapse to one scalar sigma. A factor tight in x but loose in y pulls the x error in
+    hard while leaving y near the prior -- the directional information a scalar factor would average away."""
+    import numpy as np
+    from dart.pose_graph_se2 import PoseGraphSE2
+    g = PoseGraphSE2()
+    g.add_prior(0, (2.0, 2.0, 0.0), sigma_xy=5.0, sigma_yaw=5.0)        # a weak, drifted prior at (2, 2)
+    g.add_absolute_cov(0, (0.0, 0.0), np.diag([0.01, 100.0]))           # observe origin: tight x, loose y
+    est = g.optimize()
+    assert abs(est[0][0]) < 0.3                                         # x pulled almost to 0 (tight axis)
+    assert abs(est[0][1] - 2.0) < 0.7                                   # y stays near the prior (loose axis)
+    assert g.optimize_with_cov()["observable"] is True                 # the cov factor anchors translation

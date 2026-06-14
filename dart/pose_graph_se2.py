@@ -51,7 +51,8 @@ class PoseGraphSE2:
         self._between: list = []     # (i, j, meas[3], W[3])
         self._imu: list = []         # (i, j, dyaw, w)
         self._shadow_yaw: list = []  # SN-03 (i, measured_yaw, w): weak absolute-yaw factor from shadow
-        self._abs: list = []         # (i, xy[2], w)
+        self._abs: list = []         # (i, xy[2], w)            -- isotropic absolute (x,y)
+        self._abs_cov: list = []     # (i, xy[2], sqrt_info[2,2]) -- H-30 anisotropic absolute (x,y), keeps GDOP
         self._ids: set = set()
 
     @staticmethod
@@ -84,6 +85,18 @@ class PoseGraphSE2:
         self._abs.append((int(i), np.asarray(xy, float), self._w(sigma)))
         self._ids.add(int(i))
 
+    def add_absolute_cov(self, i: int, xy, cov, *, sigma_floor_m: float = 1e-3) -> None:
+        """H-30: an ANISOTROPIC absolute (x,y) factor that keeps the full 2x2 measurement COVARIANCE (the
+        GDOP direction), not a collapsed scalar sigma. Stored as the sqrt-information matrix S (S^T S = the
+        information matrix) so the stacked residual S @ (x - z) makes J^T J the information matrix exactly.
+        A small sigma_floor (default 1 mm on each axis) guards against an over-confident near-singular cov."""
+        cov = np.asarray(cov, float).reshape(2, 2) + (float(sigma_floor_m) ** 2) * np.eye(2)
+        info = np.linalg.inv(cov)
+        info = 0.5 * (info + info.T)                       # symmetrize against round-off
+        sqrt_info = np.linalg.cholesky(info).T            # upper factor: sqrt_info^T sqrt_info = info
+        self._abs_cov.append((int(i), np.asarray(xy, float)[:2], sqrt_info))
+        self._ids.add(int(i))
+
     # -- residuals (stacked, information-weighted as sqrt(w)*r so J^T J = the normal matrix) --------
     def _residuals(self, X: np.ndarray, idx: dict) -> np.ndarray:
         r: list = []
@@ -99,6 +112,8 @@ class PoseGraphSE2:
             r.append(math.sqrt(w) * _wrap(X[idx[i]][2] - myaw))
         for i, xy, w in self._abs:
             r.extend(math.sqrt(w) * (X[idx[i]][:2] - xy))
+        for i, xy, S in self._abs_cov:                       # H-30: anisotropic absolute (x,y) -- S @ (x - z)
+            r.extend(S @ (X[idx[i]][:2] - xy))
         return np.asarray(r, float)
 
     def _solve(self, iters: int = 25):
@@ -147,7 +162,7 @@ class PoseGraphSE2:
         # yaw only with a prior/shadow-yaw anchor. Without them the solver ridge yields a finite-but-non-
         # physical sigma (the audit probe got ~23.5 km). Report observability and give an unobservable
         # component its honest INFINITE sigma instead of a misleading finite number.
-        translation_anchored = bool(self._priors or self._abs)
+        translation_anchored = bool(self._priors or self._abs or self._abs_cov)
         yaw_anchored = bool(self._priors or self._shadow_yaw)
         xy_sigma, yaw_sigma = {}, {}
         if len(order):
