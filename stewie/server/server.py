@@ -24,7 +24,7 @@ import threading
 import time
 
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -313,6 +313,7 @@ from stewie.server.routers import operators_admin as _operators_admin_router  # 
 from stewie.server.routers import profiles as _profiles_router  # noqa: E402
 from stewie.server.routers import rc as _rc_router  # noqa: E402
 from stewie.server.routers import sample_missions as _sample_missions_router  # noqa: E402
+from stewie.server.routers import session as _session_router  # noqa: E402
 from stewie.server.routers import structures as _structures_router  # noqa: E402
 from stewie.server.routers import twin as _twin_router  # noqa: E402
 app.include_router(_rc_router.router)
@@ -330,6 +331,7 @@ app.include_router(_dem_router.router)
 app.include_router(_figures_router.router)
 app.include_router(_twin_router.router)
 app.include_router(_admin_ops_router.router)
+app.include_router(_session_router.router)
 
 
 @app.middleware("http")
@@ -496,74 +498,6 @@ def get_raster_layer(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
 
 
 # ---- B3: operator/director training sessions (the real closed loop, two views) ----------------
-from stewie.server import session as SES               # noqa: E402
-
-
-class SessionRequest(BaseModel):
-    model_config = ConfigDict(extra="allow")           # mission dict + optional profile
-    name: str = "session"
-    profile: str = "ideal"
-
-
-@app.post("/session/start")
-def session_start(req: SessionRequest, _auth: None = Depends(require_auth)):
-    body = req.model_dump()
-    profile = body.pop("profile", "ideal")
-    mission_t0_s = float(body.pop("mission_t0_s", 0.0) or 0.0)
-    try:
-        mission = MP.mission_from_dict(body)
-        dem, origin = _moon_dem(body.get("site", "haworth")) if body.get("body", "moon") == "moon" else (None, (0.0, 0.0))
-        s = SES.start(mission, profile=profile, dem=dem, dem_origin=origin, mission_t0_s=mission_t0_s)
-    except (ValueError, RuntimeError, KeyError, FileNotFoundError) as e:
-        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
-    return {"ok": True, "session_id": s.session_id, "n_legs": len(s.record["legs"]),
-            "operator_url": f"/session/{s.session_id}/operator",
-            "debrief_url": f"/session/{s.session_id}/debrief"}
-
-
-@app.get("/session/{sid}/operator")
-def session_operator(sid: str):
-    """OPEN by contract (B3): the operator-trainee sees only telemetry-delivered, truth-denylisted data."""
-    s = SES.get(sid)
-    if s is None:
-        return JSONResponse(status_code=404, content={"ok": False, "error": "unknown session"})
-    return s.operator_view()
-
-
-@app.get("/session/{sid}/scorecard")
-def session_scorecard(sid: str, identity: str = Depends(require_auth)):
-    """#80: the trainer A-board KPIs. Operators see the public board; directors also get the
-    truth board (believed-vs-actual divergence)."""
-    from stewie.server import auth as AUTH
-    s = SES.get(sid)
-    if s is None:
-        raise HTTPException(status_code=404, detail="no such session")
-    sc = s.scorecard()
-    board = dict(sc["public"])
-    if AUTH.role_of(identity) == "director":
-        board.update(sc["truth"])
-    return {"ok": True, "scorecard": board}
-
-
-@app.get("/session/{sid}/debrief")
-def session_debrief(sid: str, fast_forward: float = 1.0, _auth: str = Depends(require_director)):
-    s = SES.get(sid)
-    if s is None:
-        return JSONResponse(status_code=404, content={"ok": False, "error": "unknown session"})
-    return s.debrief_view(fast_forward=fast_forward)
-
-
-@app.get("/session/{sid}/summary")
-def session_summary(sid: str, _auth: None = Depends(require_auth)):
-    s = SES.get(sid)
-    if s is None:
-        return JSONResponse(status_code=404, content={"ok": False, "error": "unknown session"})
-    SES.persist_summary(s)
-    from fastapi.responses import PlainTextResponse
-    return PlainTextResponse(SES.summary_markdown(s), media_type="text/markdown")
-
-
-
 # ---- POST: the planner API (auth-gated when $STEWIE_API_KEY is set) -----------------------------
 @app.post("/plan")
 def post_plan(req: PlanRequest, _auth: None = Depends(require_auth)):
