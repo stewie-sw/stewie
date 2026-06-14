@@ -6,23 +6,87 @@ records every request here; the /metrics + /healthz routes read a snapshot).
 """
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
 
+log = logging.getLogger("stewie.server")
+
+# ---- the audit ledger (S-10): locked durable append + rotation + VISIBLE failure ----------------
+_AUDIT_LOCK = threading.Lock()
+_AUDIT_HEALTH = {"degraded": False, "failures": 0, "last_error": None}
+_AUDIT_HEALTH_LOCK = threading.Lock()
+_AUDIT_DEFAULT_MAX_BYTES = 16 * 1024 * 1024     # rotate the live ledger past 16 MiB
+
+
+def _events_path() -> str:
+    from stewie.specs import config as CFG
+    return os.path.join(CFG.data_dir(), "events.jsonl")
+
+
+def _audit_max_bytes() -> int:
+    try:
+        return int(os.environ.get("STEWIE_AUDIT_MAX_BYTES", _AUDIT_DEFAULT_MAX_BYTES))
+    except ValueError:
+        return _AUDIT_DEFAULT_MAX_BYTES
+
+
+def _rotate_if_needed(path: str) -> None:
+    """Roll events.jsonl -> events.jsonl.<ts> once it exceeds the size cap (called under the lock)."""
+    try:
+        if os.path.exists(path) and os.path.getsize(path) >= _audit_max_bytes():
+            os.replace(path, f"{path}.{int(time.time() * 1000)}")
+    except OSError as e:                              # rotation failure is itself a degraded condition
+        log.error("S-10: audit ledger rotation failed for %r: %r", path, e)
+        raise
+
+
+def _audit_append_raw(line: str) -> None:
+    """The actual durable append: rotate-if-needed, append, flush + fsync so a crash cannot lose the
+    record. Separated so tests can inject a failure. Raises on any I/O error (caller records degraded)."""
+    path = _events_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    _rotate_if_needed(path)
+    with open(path, "a") as f:
+        f.write(line)
+        f.flush()
+        os.fsync(f.fileno())
+
+
+def _record_audit_failure(err: Exception) -> None:
+    with _AUDIT_HEALTH_LOCK:
+        _AUDIT_HEALTH["degraded"] = True
+        _AUDIT_HEALTH["failures"] += 1
+        _AUDIT_HEALTH["last_error"] = repr(err)
+    # S-10: a lost security event must be VISIBLE, not swallowed -- log at CRITICAL.
+    log.critical("S-10 ALERT: audit ledger write FAILED (security events are not being recorded): %r", err)
+
+
+def audit_health() -> dict:
+    """The audit ledger's health for /healthz (S-10): degraded flag + cumulative failure count."""
+    with _AUDIT_HEALTH_LOCK:
+        return dict(_AUDIT_HEALTH)
+
+
+def reset_audit_health() -> None:
+    with _AUDIT_HEALTH_LOCK:
+        _AUDIT_HEALTH.update({"degraded": False, "failures": 0, "last_error": None})
+
 
 def log_event(actor: str, action: str, target: str = "") -> None:
-    """Append-only audit line under data_dir (the replicate path covers it). Never raises."""
+    """Append a durable, ordered audit line under data_dir (S-10). Serialized on a process lock so
+    concurrent events cannot interleave; fsync'd so a crash cannot lose it; rotated past the size cap.
+    A write failure is recorded as a VISIBLE degraded state (audit_health) and logged at CRITICAL --
+    never silently swallowed. Still never raises into the request path."""
     import json as _json
-    import time as _time
-
-    from stewie.specs import config as CFG
+    line = _json.dumps({"ts": round(time.time(), 3), "actor": actor,
+                        "action": action, "target": target}) + "\n"
     try:
-        with open(os.path.join(CFG.data_dir(), "events.jsonl"), "a") as f:
-            f.write(_json.dumps({"ts": round(_time.time(), 3), "actor": actor,
-                                 "action": action, "target": target}) + "\n")
-    except OSError:
-        pass
+        with _AUDIT_LOCK:
+            _audit_append_raw(line)
+    except OSError as e:
+        _record_audit_failure(e)
 
 
 # matplotlib/pyplot is process-global + thread-unsafe; every report-rendering route serializes on this

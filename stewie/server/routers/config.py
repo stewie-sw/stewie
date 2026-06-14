@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from stewie.server.deps import _env
+from stewie.server.deps import _env, require_auth
 
 router = APIRouter()
 
@@ -35,25 +35,27 @@ def _redact_secrets(node):
 
 
 @router.get("/sites")
-def sites_list():
-    """#49: the site registry (Haworth imported; Artemis III candidates honest about data state)."""
+def sites_list(_auth: str = Depends(require_auth)):
+    """#49: the site registry (Haworth imported; Artemis III candidates honest about data state).
+    S-06: operational reads require auth (the site registry is operational configuration)."""
     from stewie.specs.sites import site_rows
     return {"ok": True, "sites": site_rows()}
 
 
 @router.get("/config")
-def get_config():
+def get_config(_auth: str = Depends(require_auth)):
     """Runtime config overlay state (intern/dev pane): config_file + overrides + applied (PRD N15).
     SEC-1: describe() redacts secret values at the source; this also passes through _redact_secrets
-    (defense in depth) so a future describe() field cannot leak a key."""
+    (defense in depth) so a future describe() field cannot leak a key. S-06: auth required."""
     from stewie.specs import config as _cfg
     return {"ok": True, **_redact_secrets(_cfg.describe())}
 
 
 @router.get("/config/full")
-def get_config_full():
+def get_config_full(_auth: str = Depends(require_auth)):
     """#61 (Aaron: "config needs to be totally rewritten"): the organized one-call state for the
-    Config pane -- server, auth FLAGS (never the key), data holdings, and the N15 overlay."""
+    Config pane -- server, auth FLAGS (never the key), data holdings, and the N15 overlay.
+    S-06: auth required (config exposes data_dir paths + auth posture)."""
     from stewie.specs import config as _cfg
     from stewie.specs.sites import site_rows
     try:

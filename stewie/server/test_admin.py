@@ -58,8 +58,10 @@ def test_twin_cg_endpoint_reports_loaded_cg_and_margin(client):
 
 
 def test_config_full_aggregates_safely(client):
-    """#61: the Config pane's one-call state -- NO secrets (the key itself must never appear)."""
-    d = client.get("/config/full").json()
+    """#61: the Config pane's one-call state -- NO secrets (the key itself must never appear).
+    S-06: /config/full is now an authenticated operational read (it exposes data_dir paths + auth
+    posture), so the request carries the API key."""
+    d = client.get("/config/full", headers={"X-API-Key": "test-key"}).json()
     assert d["ok"]
     assert d["auth"]["api_key_set"] is True and "test-key" not in str(d)
     assert "operator_login" in d["auth"] and "trust_tailscale" in d["auth"]
@@ -81,8 +83,9 @@ def test_resync_compare_endpoint_ranks_futures(client):
 
 
 def test_plan_math_endpoint_returns_equations(client):
-    """#74: /plan/math exposes the per-trip worksheet with substituted numbers (open)."""
-    r = client.post("/plan/math", json={"name": "m", "body": "moon", "charger": [0, 0], "orders": [
+    """#74: /plan/math exposes the per-trip worksheet with substituted numbers. S-08: now an
+    authenticated heavy route (it re-derives the routed plan), so the key is supplied."""
+    r = client.post("/plan/math", headers=H, json={"name": "m", "body": "moon", "charger": [0, 0], "orders": [
         {"action": "a", "kind": "cut", "x": 20, "y": 0, "footprint_m2": 16, "depth_m": 0.05},
         {"action": "b", "kind": "fill", "x": 40, "y": 10, "footprint_m2": 16, "depth_m": 0.05}]})
     d = r.json()
@@ -107,8 +110,8 @@ def test_rc_command_and_watchdog(client, monkeypatch):
 
 
 def test_plan_commands_endpoint_is_reusable_tape(client):
-    """#66: /plan/commands returns a replayable GoTo sequence."""
-    r = client.post("/plan/commands", json={"name": "c", "body": "moon", "charger": [0, 0],
+    """#66: /plan/commands returns a replayable GoTo sequence. S-08: authenticated heavy route."""
+    r = client.post("/plan/commands", headers=H, json={"name": "c", "body": "moon", "charger": [0, 0],
         "orders": [{"action": "a", "kind": "cut", "x": 20, "y": 0, "footprint_m2": 16, "depth_m": 0.05}]})
     d = r.json()
     assert d["ok"] and d["commands"] and d["commands"][0]["kind"] == "goto"

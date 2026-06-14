@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with: { python-version: "3.12" }
-      - run: pip install mkdocs-material
+      - run: pip install "mkdocs-material==9.7.6"   # S-13: pinned (was an unpinned `pip install`)
       - run: mkdocs build --site-dir _site
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa  # v3
   deploy:

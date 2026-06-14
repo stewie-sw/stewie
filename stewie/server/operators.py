@@ -18,10 +18,19 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import os
 import re
 import threading
 import time
+
+log = logging.getLogger("stewie.server")
+
+
+class AccountStoreError(RuntimeError):
+    """S-05 / A-05: the account store is corrupt, unreadable, or schema-invalid. Raised so the caller
+    FAILS CLOSED (no silent collapse to an empty store, which would re-enable fallback directors)."""
+
 
 _PBKDF2_ITERS = 200_000
 _SALT_BYTES = 16
@@ -58,23 +67,75 @@ def _path() -> str:
     return os.path.join(CFG.data_dir(), "operators.json")
 
 
+def _marker_path() -> str:
+    """S-05: the bootstrap-completed marker. Its existence means the store HAS held accounts, so a
+    later-missing store is a fault (deletion/partial restore), NOT a clean first run -> fail closed."""
+    return _path() + ".bootstrapped"
+
+
+def _bootstrap_done() -> bool:
+    return os.path.exists(_marker_path())
+
+
+def _mark_bootstrap_done() -> None:
+    try:
+        with open(_marker_path(), "w") as f:
+            f.write(json.dumps({"bootstrapped_at": round(time.time(), 3)}))
+    except OSError as e:
+        log.error("S-05: could not write the bootstrap-completed marker %r: %r", _marker_path(), e)
+
+
+def _quarantine(p: str, reason: str) -> None:
+    """Move a corrupt store aside (operators.json.corrupt.<ts>) so a later _save cannot overwrite an
+    incomplete account set, and the bad bytes are preserved for recovery. High-priority alert."""
+    dst = f"{p}.corrupt.{int(time.time())}"
+    try:
+        os.replace(p, dst)
+        log.critical("S-05 ALERT: account store %r is corrupt (%s); quarantined to %r. Authentication "
+                     "is FAILING CLOSED until an operator restores a valid store.", p, reason, dst)
+    except OSError as e:
+        log.critical("S-05 ALERT: account store %r is corrupt (%s) and could NOT be quarantined (%r); "
+                     "authentication is FAILING CLOSED.", p, reason, e)
+
+
 def _load() -> dict:
+    """Read the account store, FAILING CLOSED on corruption (S-05 / A-05).
+
+    - No file AND no bootstrap marker -> a clean first run: the empty store (back-compat).
+    - No file BUT a bootstrap marker exists -> the store was deleted/partly restored after enrollment:
+      AccountStoreError (so fallback directors cannot silently reappear).
+    - File present but unreadable / not JSON / wrong schema -> quarantine + AccountStoreError.
+    """
     p = _path()
     if not os.path.exists(p):
+        if _bootstrap_done():
+            raise AccountStoreError(
+                f"account store {p!r} is missing but enrollment was completed (marker present); "
+                "refusing to fall back to the env/default allowlist -- restore the store")
         return {"version": 1, "operators": {}}
     try:
-        d = json.load(open(p))
-        if not isinstance(d, dict) or "operators" not in d:
-            return {"version": 1, "operators": {}}
-        return d
-    except (json.JSONDecodeError, OSError):
-        return {"version": 1, "operators": {}}
+        with open(p) as fh:
+            raw = fh.read()
+    except OSError as e:
+        # unreadable (permission/IO) -> we cannot prove the account set; fail closed (do NOT quarantine
+        # a file we couldn't even read -- a transient permission fault should not destroy the store)
+        raise AccountStoreError(f"account store {p!r} is unreadable: {e!r}") from e
+    try:
+        d = json.loads(raw)
+    except json.JSONDecodeError as e:
+        _quarantine(p, f"invalid JSON: {e}")
+        raise AccountStoreError(f"account store {p!r} is corrupt (invalid JSON)") from e
+    if not isinstance(d, dict) or not isinstance(d.get("operators"), dict):
+        _quarantine(p, "schema mismatch (no 'operators' mapping)")
+        raise AccountStoreError(f"account store {p!r} has an invalid schema")
+    return d
 
 
 def _save(data: dict) -> None:
     from stewie.twin.io_fields import atomic_write_bytes
     os.makedirs(os.path.dirname(_path()), exist_ok=True)
     atomic_write_bytes(_path(), json.dumps(data, indent=1, sort_keys=True).encode())
+    _mark_bootstrap_done()      # S-05: enrollment happened -> a later-missing store is now a fault
 
 
 def _norm(email: str) -> str:

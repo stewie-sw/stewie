@@ -1,5 +1,7 @@
 # STEWIE frontend — nginx serving the planner UI, proxying the API to the backend
-FROM nginx:1.27-alpine
+# S-13: the base is pinned by DIGEST (not the mutable nginx:1.27-alpine tag). Digest = the
+# nginx:1.27-alpine multi-arch index (Docker Hub, 2026-06-14).
+FROM nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY stewie/server/index.html /usr/share/nginx/html/index.html
 COPY stewie/server/bodies.json /usr/share/nginx/html/bodies.json

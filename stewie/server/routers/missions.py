@@ -24,12 +24,13 @@ def mission_save(name: str, doc: dict, _auth: str = Depends(require_auth)):
 
 
 @router.get("/missions")
-def mission_list():
+def mission_list(_auth: str = Depends(require_auth)):
+    """S-06: operational reads require auth (a mission queue is not public)."""
     return {"ok": True, "missions": OBJ.list_missions()}
 
 
 @router.get("/missions/{name}")
-def mission_load(name: str):
+def mission_load(name: str, _auth: str = Depends(require_auth)):
     d = OBJ.load_mission(name)
     if d is None:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no mission {name!r}"})

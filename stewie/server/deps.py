@@ -50,7 +50,9 @@ def require_auth(request: Request,
         raise HTTPException(status_code=503, detail=(
             "auth not configured: set STEWIE_API_KEY for authenticated access, or STEWIE_DEV_OPEN=1 "
             "on a loopback-only dev server. Privileged routes are locked (fail-closed)."))
-    ts = AUTH.tailscale_identity({"tailscale-user-login": tailscale_user_login or ""})
+    # S-03: only honor the Tailscale identity header from a verified proxy peer.
+    _peer = request.client.host if request.client else None
+    ts = AUTH.tailscale_identity({"tailscale-user-login": tailscale_user_login or ""}, peer_ip=_peer)
     if ts:
         return ts
     supplied = x_api_key or (authorization or "").removeprefix("Bearer ").strip()

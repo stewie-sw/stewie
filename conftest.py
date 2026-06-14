@@ -12,3 +12,22 @@ import pytest
 @pytest.fixture(autouse=True)
 def _dev_open(monkeypatch):
     monkeypatch.setenv("STEWIE_DEV_OPEN", "1")
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limits():
+    """S-07: the auth rate limiters are process-global fixed-window counters. Reset them before each
+    test so a multi-login test (admin flows, fixtures) does not inherit another test's spent budget
+    and falsely 429. The production limiter is unaffected; this is test isolation for shared state."""
+    try:
+        from stewie.server.routers import auth as _authr
+        for lim in ("_login_ip_limiter", "_login_acct_limiter", "_register_ip_limiter"):
+            getattr(_authr, lim).reset()
+    except Exception:
+        pass
+    try:
+        from stewie.server.routers import plan as _planr
+        _planr._heavy_quota.reset()           # S-08: per-identity heavy-route quota (process-global)
+    except Exception:
+        pass
+    yield

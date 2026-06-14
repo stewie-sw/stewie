@@ -1,16 +1,18 @@
 # STEWIE backend — FastAPI mission planner + physics authority (atomic plan B1.1)
-FROM python:3.12-slim AS base
+# S-13: the base is pinned by DIGEST (not the mutable python:3.12-slim tag) so a rebuild from the same
+# revision uses identical bytes. Digest = the python:3.12-slim multi-arch index (Docker Hub, 2026-06-14).
+FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e4d27e78f1b0e9 AS base
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     STEWIE_DATA_DIR=/data
 WORKDIR /app
 # import-time deps for the server graph (RB-06): fastapi/uvicorn/matplotlib/pyproj via the extra
 COPY pyproject.toml README.md ./
+# O-04: copy each package ONCE (the duplicate `COPY stewie ./stewie` was a wasted layer).
 COPY stewie ./stewie
 COPY dart ./dart
 COPY lode ./lode
 COPY leap ./leap
 COPY forge ./forge
-COPY stewie ./stewie
 COPY samples ./samples
 COPY validation ./validation
 RUN pip install --no-cache-dir ".[server]" && useradd -r -u 10001 stewie \

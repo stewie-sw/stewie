@@ -44,8 +44,8 @@ def post_profile(req: ProfileRequest, _auth: None = Depends(require_auth)):
 
 
 @router.get("/profiles")
-def get_profiles():
-    """List the saved profile slugs."""
+def get_profiles(_auth: str = Depends(require_auth)):
+    """List the saved profile slugs. S-06: operational reads require auth."""
     d = _profiles_dir()
     if not os.path.isdir(d):
         return {"ok": True, "profiles": []}
@@ -54,8 +54,8 @@ def get_profiles():
 
 
 @router.get("/profile/{name}")
-def get_profile(name: str):
-    """Load a saved profile by slug -> {name, profile}."""
+def get_profile(name: str, _auth: str = Depends(require_auth)):
+    """Load a saved profile by slug -> {name, profile}. S-06: operational reads require auth."""
     slug = _profile_slug(name)
     p = os.path.join(_profiles_dir(), slug + ".json")
     if not os.path.isfile(p):

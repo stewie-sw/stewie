@@ -24,12 +24,13 @@ def structure_save(name: str, doc: dict, _auth: str = Depends(require_auth)):
 
 
 @router.get("/structures/custom")
-def structure_list():
+def structure_list(_auth: str = Depends(require_auth)):
+    """S-06: operational reads require auth (the custom-structure library is not public)."""
     return {"ok": True, "structures": OBJ.list_structures()}
 
 
 @router.get("/structures/custom/{name}/expand")
-def structure_expand(name: str, x: float, y: float):
+def structure_expand(name: str, x: float, y: float, _auth: str = Depends(require_auth)):
     orders = OBJ.expand_structure(name, x, y)
     if orders is None:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no structure {name!r}"})

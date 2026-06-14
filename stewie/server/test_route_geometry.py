@@ -102,5 +102,8 @@ def test_plan_response_surfaces_terrain_source_and_mode():
                        {"action": "fill", "kind": "fill", "x": 50, "y": 15, "footprint_m2": 36, "depth_m": 0.1}]}
     jm = c.post("/plan", json={"name": "m", "body": "moon", **base}).json()
     assert jm["mode"] == "DEM_KNOWN_POSE_MISSION_SIM" and jm["terrain_source"] == "haworth_dem"
+    assert jm["site"] == "haworth" and jm["body"] == "moon"     # A-06: site/body context echoed
     ja = c.post("/plan", json={"name": "a", "body": "mars", **base}).json()
-    assert ja["terrain_source"] == "flat_fallback"      # no DEM bundle for mars -> SURFACED, not silent
+    # A-06: a non-Moon body has no lunar DEM -> its flat basis is labeled by its OWN body (`mars_flat`),
+    # NOT the Moon-DEM-missing `flat_fallback` and certainly not `haworth_dem`.
+    assert ja["terrain_source"] == "mars_flat" and ja["body"] == "mars"

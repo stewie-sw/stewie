@@ -9,17 +9,41 @@ import hashlib
 import logging
 import os
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from stewie.server import state
 from stewie.server.deps import require_auth, require_director
+from stewie.server.ratelimit import RateLimiter
 from stewie.server.schemas import Order, _MAX_ORDERS
 from stewie.server.services import log_event, prune_reports, report_lock
 
 router = APIRouter()
 log = logging.getLogger("stewie.server")
+
+
+# S-08: a per-identity quota on the compute-heavy planner routes (routing + algorithm comparison +
+# acceptance + matplotlib PDF render run synchronously in the single worker). One identity cannot
+# monopolize the worker with repeated heavy planning; a normal single plan is unaffected.
+def _heavy_quota_max() -> int:
+    return int(os.environ.get("STEWIE_HEAVY_QUOTA_MAX", "30"))
+
+
+def _heavy_quota_window() -> float:
+    return float(os.environ.get("STEWIE_HEAVY_QUOTA_WINDOW_S", "60"))
+
+
+_heavy_quota = RateLimiter(_heavy_quota_max(), _heavy_quota_window())
+
+
+def heavy_quota(identity: str = Depends(require_auth)) -> str:
+    """Auth + a per-identity heavy-route quota (S-08). Returns the identity; raises 429 when the
+    identity exceeds its compute budget in the window."""
+    if not _heavy_quota.allow(identity):
+        raise HTTPException(status_code=429,
+                            detail="per-identity compute quota exceeded for heavy planning; slow down")
+    return identity
 
 
 class PlanRequest(BaseModel):
@@ -45,13 +69,19 @@ def _totals_json(totals):
 
 
 def _plan_stem(payload):
-    """Stable, collision-free report stem from the mission (name slug + content hash) -- repeatable,
-    no wall-clock, so the same queue regenerates the same file instead of piling up duplicates."""
+    """S-06: an OPAQUE, collision-free report stem. The id is HMAC(session-secret, payload) -- a
+    network user who knows the mission name/body cannot derive the filename (the old slug+sha1 stem
+    was fully derivable from public mission knowledge), so reports cannot be enumerated. It stays
+    DETERMINISTIC for the same payload (no wall-clock), so re-planning the same queue regenerates the
+    same file instead of piling up duplicates. No mission name leaks into the path."""
+    import hmac
     import json
-    import re
-    name = re.sub(r"[^a-z0-9]+", "-", str(payload.get("name", "mission")).lower()).strip("-") or "mission"
-    digest = hashlib.sha1(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:8]
-    return f"{name}-{digest}"
+
+    from stewie.server import auth as AUTH
+    digest = hmac.new(AUTH._signing_secret(),
+                      json.dumps(payload, sort_keys=True).encode(),
+                      hashlib.sha256).hexdigest()[:24]
+    return f"report-{digest}"
 
 
 def _autonomy_perception(mission, dem, origin, algorithm, objective):
@@ -110,9 +140,10 @@ def _autonomy_perception(mission, dem, origin, algorithm, objective):
 
 
 @router.post("/plan/commands")
-def plan_commands(req: PlanRequest):
+def plan_commands(req: PlanRequest, _auth: str = Depends(heavy_quota)):
     """#66 (Aaron: "plan should output cmds for reuse"): the plan as a REUSABLE RC command tape --
-    a GoTo sequence (the same contract the sim/pit backend executes). Plan once, command many."""
+    a GoTo sequence (the same contract the sim/pit backend executes). Plan once, command many.
+    S-08: auth + per-identity heavy-route quota (this runs routing on the real DEM)."""
     from lode import mission_planner as MP
     from stewie.bridge import rc_contract as RC
     mission = MP.mission_from_dict(req.model_dump())
@@ -125,9 +156,9 @@ def plan_commands(req: PlanRequest):
 
 
 @router.post("/plan/math")
-def plan_math_endpoint(req: PlanRequest):
-    """#74: the per-trip MATH WORKSHEET for review (every equation + substituted numbers). Open
-    (read-only derivation of a plan the caller already authored)."""
+def plan_math_endpoint(req: PlanRequest, _auth: str = Depends(heavy_quota)):
+    """#74: the per-trip MATH WORKSHEET for review (every equation + substituted numbers). S-08: auth
+    + per-identity heavy-route quota (it re-derives the routed plan on the real DEM)."""
     from lode import mission_planner as MP
     payload = req.model_dump()
     mission = MP.mission_from_dict(payload)
@@ -163,8 +194,9 @@ def get_layers():
 
 @router.get("/layers/raster/{kind}.png")
 def get_raster_layer(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
-                     mission_t_s: float | None = None):
-    """A computed GIS raster overlay from the REAL Haworth DEM. When mission_t_s is given the sun
+                     mission_t_s: float | None = None, _auth: str = Depends(heavy_quota)):
+    """A computed GIS raster overlay from the REAL Haworth DEM. S-08: auth + per-identity heavy-route
+    quota (each call renders a full raster). When mission_t_s is given the sun
     is AUTOMATIC: real spherical geometry at the Haworth latitude (stewie.specs.solar) -- azimuth
     circles per lunar day, elevation breathes inside colatitude+obliquity. el/az are the manual
     override path."""
@@ -182,7 +214,8 @@ def get_raster_layer(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
 
 
 @router.post("/plan")
-def post_plan(req: PlanRequest, _auth: None = Depends(require_auth)):
+def post_plan(req: PlanRequest, _auth: str = Depends(heavy_quota)):
+    # S-08: auth + per-identity compute quota (full plan = routing + comparison + acceptance + PDF).
     from lode import mission_planner as MP
     prune_reports()
     payload = req.model_dump(exclude_unset=True)
@@ -236,14 +269,28 @@ def post_plan(req: PlanRequest, _auth: None = Depends(require_auth)):
         plan_ir = {"executable": False, "feasible": False, "infeasible_reasons": infeasible_reasons,
                    "actions": [], "note": "execution IR suppressed (H-03): the plan has an infeasible "
                    "leg -- unreachable corridor or battery-infeasible transit"}
+    # A-06: site/body/time are REQUIRED context -- the terrain provenance must reflect the ACTUAL site
+    # and body the plan ran on, never a hardcoded `haworth_dem`. A non-Haworth lunar site reports its
+    # own `<site>_dem`; a non-Moon body reports `<body>_flat` (no lunar DEM exists), so a Nobile or Mars
+    # plan can never be displayed or reported with Haworth-derived provenance.
+    site = getattr(req, "site", "haworth")
+    body = mission.body
+    if dem is not None:
+        terrain_source = f"{site}_dem"                  # the real DEM the plan used (named by its site)
+    elif body == "moon":
+        terrain_source = "flat_fallback"                # Moon site DEM missing -> honest flat-check warning
+    else:
+        terrain_source = f"{body}_flat"                 # non-Moon body has no lunar DEM (flat by design)
     return {
         "ok": True,
         "feasible": feasible,                           # H-03: surfaced at the top, not buried in totals
         "infeasible_reasons": infeasible_reasons,
         "mode": "DEM_KNOWN_POSE_MISSION_SIM",           # product boundary (known-pose mission sim, not SLAM)
-        # item 4: NEVER silently degrade to flat -- surface which terrain the plan actually used so the UI/report
-        # can warn when the real DEM is missing (routes/hazards are not trustworthy on the flat fallback).
-        "terrain_source": "haworth_dem" if dem is not None else "flat_fallback",
+        # A-06: site/body context echoed so the UI/report can verify the terrain basis and warn on a
+        # mismatch. item 4: NEVER silently degrade to flat -- terrain_source names the ACTUAL terrain used.
+        "site": site,
+        "body": body,
+        "terrain_source": terrain_source,
         "pdf": "/reports/" + os.path.basename(pdf),
         "md": "/reports/" + os.path.basename(md),
         "totals": _totals_json(totals),

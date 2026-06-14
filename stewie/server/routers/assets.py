@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse, JSONResponse
+
+from stewie.server.deps import require_auth
 
 router = APIRouter()
 
@@ -56,7 +58,9 @@ def get_bodies():
 
 
 @router.get("/reports/{name}")
-def get_report(name: str):
+def get_report(name: str, _auth: str = Depends(require_auth)):
+    """S-06: generated mission-control reports are operational artifacts -> auth required, and the
+    report id is an OPAQUE token (see routers.plan._plan_stem), not a derivable name+hash."""
     safe = os.path.basename(name)                       # basename only -> no path traversal
     p = os.path.join(_reports_dir(), safe)
     if not os.path.isfile(p):
