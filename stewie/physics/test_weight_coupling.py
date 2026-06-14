@@ -41,6 +41,24 @@ def test_four_wheel_pass_payload_deepens_compaction_mass_conserved():
     assert laden.density.max() > empty.density.max()                 # heavier -> firmer
 
 
+def test_h09_repeated_physical_stamps_converge_no_dt_dependence():
+    """Audit H-09 (2026-06-13): compaction must follow a CONVERGENT state law -- repeated IDENTICAL physical
+    passes at the same pose/load must NOT keep firming the soil (the audit probe drove min height down on
+    every stamp, a dt / call-count dependence). After the first pass the cell is at the load's equilibrium
+    density, so further identical passes are no-ops (so a step subdivided into N stamps == one stamp)."""
+    import numpy as np
+    poses = [((32.0, 32.0), 0.0)]
+    cs = ColumnState(width=64, height=64, cell_m=0.02)
+    h0 = cs.derive_height().min()
+    R.four_wheel_pass(cs, poses, physical=True)                      # first stamp firms the rut
+    h1 = cs.derive_height().min(); d1 = cs.density.copy()
+    assert h1 < h0 - 1e-9                                            # the first pass really does compact
+    for _ in range(9):                                              # nine more IDENTICAL stamps
+        R.four_wheel_pass(cs, poses, physical=True)
+    assert abs(cs.derive_height().min() - h1) < 1e-9                # convergent: no further compaction
+    assert np.allclose(cs.density, d1)                              # density unchanged after the first pass
+
+
 def test_drive_step_deeper_sinkage_when_loaded():
     # the drive physics reads weight: a full drum sinks deeper than an empty one over the same step.
     empty = ColumnState(width=96, height=96, cell_m=0.05)

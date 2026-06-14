@@ -272,6 +272,32 @@ def physical_compaction_field(density, mass_areal, load_n: float, *,
                      where=(denom > 1e-12))
 
 
+def physical_compaction_target_density(mass_areal, load_n: float, *,
+                                       params: TerramechanicsParams | None = None,
+                                       contact_len_m: float | None = None,
+                                       contact_width_m: float | None = None,
+                                       slip: float = 0.0):
+    """H-09: the CONVERGENT equilibrium density a cell reaches under ``load_n``, independent of its current
+    (already-compacted) density. A pass compacts a cell TOWARD this load-determined target and no further,
+    so repeated stamps at the same pose/load are idempotent (no call-count / timestep-subdivision
+    dependence -- the dt-dependent multiplicative `density *= (1+f)` law compacted on every stamp).
+
+    The target is the density a VIRGIN cell (density = rho_surface) reaches after ONE Bekker pass at this
+    load, so a virgin cell's first-pass result is identical to the old multiplicative law; a cell already
+    denser than the target (compacted under a heavier earlier load) is left unchanged by the caller's
+    max(). Mass-conserving (callers edit density only; height re-derives). Returns the target density field
+    UNCAPPED (the caller clamps to RHO_DEEP). load_n <= 0 -> rho_surface (no compaction)."""
+    p = params or _DEFAULT_PARAMS
+    mass_areal = np.asarray(mass_areal, dtype=np.float64)
+    rho0 = float(p.rho_surface)
+    if load_n <= 0.0 or mass_areal.size == 0:
+        return np.full_like(mass_areal, rho0)
+    f0 = physical_compaction_field(np.full_like(mass_areal, rho0), mass_areal, load_n,
+                                   params=p, contact_len_m=contact_len_m,
+                                   contact_width_m=contact_width_m, slip=slip)
+    return rho0 * (1.0 + f0)
+
+
 # ---------------------------------------------------------------------------
 # Lyasko-2010 reduced-gravity correction (1g -> 1/6 g).
 # ---------------------------------------------------------------------------

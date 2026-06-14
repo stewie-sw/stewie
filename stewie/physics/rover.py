@@ -195,8 +195,9 @@ def four_wheel_pass(cs: ColumnState, poses: list[tuple[tuple[float, float], floa
     # four wheels' footprints. The state relabel is applied AFTER the loop against this pre-pass
     # snapshot — otherwise an earlier wheel's SPOIL->COMPACTED_BERM is seen as "not SPOIL" by a
     # later OVERLAPPING wheel and clobbered back to TREAD (front/rear wheels share a row line on
-    # a straight crest sweep), yielding zero standing berm. Density is still edited per wheel
-    # (monotone, capped — order-independent), so a cell under two wheels compacts twice.
+    # a straight crest sweep), yielding zero standing berm. Density is edited per wheel toward the
+    # load's equilibrium target (monotone, capped, order-independent); under the H-09 convergent law a
+    # cell under two wheels at the same load firms to that target ONCE (not twice -- the old compounding).
     spoil0 = cs.state_label == StateLabel.SPOIL
     any_touched = np.zeros((cs.height, cs.width), dtype=bool)
     for key in polylines:
@@ -212,11 +213,16 @@ def four_wheel_pass(cs: ColumnState, poses: list[tuple[tuple[float, float], floa
                 # (dry + payload_kg = the drum fill). Heavier rover -> firmer pass.
                 load_n = tm.static_wheel_load_n(payload_kg=payload_kg)
             s_wheel = slip.get(key) if isinstance(slip, dict) else slip
-            f = tm.physical_compaction_field(
-                cs.density[touched], cs.mass_areal[touched], load_n,
+            # H-09: compact TOWARD the load's equilibrium density and no further -- a convergent state law.
+            # The old `density *= (1 + f)` recomputed f from the CURRENT density every stamp, so repeated
+            # passes at the same pose/load kept firming (a dt / call-count dependence). The target is the
+            # density a virgin cell reaches in one pass at this load, so the first pass is unchanged; the
+            # max() leaves an already-firmer cell alone, and a repeat pass at the same load is a no-op.
+            target = tm.physical_compaction_target_density(
+                cs.mass_areal[touched], load_n,
                 params=params, contact_len_m=contact_len_m, contact_width_m=wheel_width_m,
                 slip=(s_wheel or 0.0))
-            cs.density[touched] = np.minimum(cs.density[touched] * (1.0 + f), K.RHO_DEEP)
+            cs.density[touched] = np.minimum(np.maximum(cs.density[touched], target), K.RHO_DEEP)
         else:
             cs.density[touched] = np.minimum(cs.density[touched] * (1.0 + compaction), K.RHO_DEEP)
         any_touched |= touched
