@@ -228,6 +228,22 @@ def test_h08_off_dem_order_footprint_fails_acceptance():
     assert not res2["off_dem_orders"]                              # an in-bounds footprint is not flagged
 
 
+def test_h07_acceptance_scope_is_honest_not_full_validation():
+    """Audit H-07 (2026-06-13): validate_plan is MATERIAL realizability + siting + as-built, NOT full plan
+    validation. The result must declare its honest scope (covers vs defers) and surface the drum capacity +
+    shuttle-cycle count its pooled single-drum execution abstracts -- so a consumer cannot read it as a
+    capacity-bounded, route/battery/sequence-aware validation (those axes are the totals / Plan IR path)."""
+    m = MP.mission_from_dict({"name": "p", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut", "kind": "cut", "x": 0.0, "y": 0.0, "footprint_m2": 36.0, "depth_m": 0.05},
+        {"action": "fill", "kind": "fill", "x": 10.0, "y": 10.0, "footprint_m2": 14.0, "depth_m": 0.10}]})
+    v = MP.validate_plan(m)
+    sc = v["acceptance_scope"]
+    assert "mass_conservation" in sc["covers"] and "as_built_flatness" in sc["covers"]
+    assert {"route_feasibility", "battery_reserve", "sequence_precedence"} <= set(sc["defers_to_totals"])
+    assert v["drum_capacity_kg"] > 0.0                             # the bounded-drum reality is surfaced
+    assert v["shuttle_cycles_est"] >= 1                            # ceil(cut_mass / drum_cap), summed over cuts
+
+
 # ---- AL2: infeasible precedence fails loud, not a silent 0-trip "success" -------------------------
 def test_precedence_feasibility_unit():
     assert MP._precedence_is_feasible(3, [(0, 1), (1, 2)]) is True       # a chain: feasible

@@ -1698,11 +1698,21 @@ def slip_alpha_to_slip(slope_deg, payload_kg=0.0, g=None, params=None):
 
 def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, dem=None,
                   dem_origin=(0.0, 0.0), max_slope_deg=15.0, accept_flatness_tol_m=0.02):
-    """I8: validate the plan on the CONSERVED authority. Rasterize each order's footprint onto a
-    `ColumnState`, execute the cuts (into the drum) then the fills (from the drum), and report mass
-    conservation + per-order feasibility + the executed (mass-exact) cut/fill vs the planner's abstract
-    estimate. This is the physical-realizability check the footprint estimator can't give: a cut deeper
-    than the regolith mantle floors at the datum (infeasible); a fill beyond the drum can't be placed."""
+    """I8: MATERIAL-realizability acceptance on the CONSERVED authority (NOT full plan validation -- audit
+    H-07). Rasterize each order's footprint onto a `ColumnState`, execute the cuts (into the drum) then the
+    fills (from the drum), and report mass conservation + per-order feasibility + the executed (mass-exact)
+    cut/fill vs the planner's abstract estimate, the slope/off-DEM siting gate, and the as-built flatness.
+    A cut deeper than the regolith mantle floors at the datum (infeasible); a fill the drum can't supply
+    is flagged; an order off the tile or on too steep a slope is rejected.
+
+    SCOPE (audit H-07): this checks MATERIAL realizability + siting + as-built only. It executes all cuts
+    then all fills through one pooled drum, so it deliberately does NOT re-derive sequence/precedence
+    ordering, the drum-CAPACITY shuttle-cycle count, or route/battery dynamics -- the plan is already
+    decomposed into self-balanced cut->fill trips, so an ordered re-execution is materially identical, and
+    those feasibility axes are owned by the simulated `totals` (reserve-aware drive C-04, blocked-route
+    feasibility) and surfaced/fail-closed at the /plan product boundary (H-03). The report carries
+    `acceptance_scope` (what it covers vs defers) + `drum_capacity_kg`/`shuttle_cycles_est` so the
+    single-pool execution is not mistaken for a capacity-bounded shuttle."""
     rho_bank, rho_loose = mission.density * SWELL, mission.density
     cuts = [o for o in mission.orders if o.kind == "cut"]
     fills = [o for o in mission.orders if o.kind == "fill"]
@@ -1809,11 +1819,28 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
                 slope_violations.append({"action": o.action, "slope_deg": round(worst, 1),
                                          "frac_over": round(float((patch > max_slope_deg).mean()), 2),
                                          "x": o.x, "y": o.y})
+    # H-07: this is MATERIAL realizability + siting + as-built, NOT full plan validation. Make the scope
+    # machine-readable (covers vs defers) and surface the drum capacity + shuttle-cycle count the pooled
+    # single-drum execution abstracts away, so a consumer can't mistake it for a capacity-bounded shuttle.
+    drum_cap = _drum_kg(mission)
+    shuttle_cycles_est = int(sum(max(1, math.ceil((o.footprint_m2 * o.depth_m * rho_bank) / drum_cap))
+                                 for o in cuts)) if drum_cap > 0 else 0
     return {
         "feasible": bool(feasible and mass_conserved and not slope_violations and not off_dem_orders),
         "mass_conserved": bool(mass_conserved),
         "slope_violations": slope_violations,
         "off_dem_orders": off_dem_orders,                      # H-08: orders whose footprint left the DEM bounds
+        # H-07: honest acceptance scope -- what this conserved-authority check covers vs what it defers to
+        # the simulated totals / Plan IR (route, battery, sequence/precedence, drum-cycle), which the /plan
+        # boundary fails closed on (H-03/C-04). The plan is self-balanced cut->fill trips, so an ordered IR
+        # re-execution is materially identical -- this is acceptance, not a redundant second simulator.
+        "acceptance_scope": {
+            "covers": ["mass_conservation", "datum_floor_feasibility", "drum_supply",
+                       "slope_siting", "off_dem_siting", "as_built_flatness"],
+            "defers_to_totals": ["route_feasibility", "battery_reserve", "sequence_precedence",
+                                 "drum_capacity_shuttle_cycles"]},
+        "drum_capacity_kg": float(drum_cap),
+        "shuttle_cycles_est": shuttle_cycles_est,              # ceil(cut_mass / drum_cap), summed over cuts
         "max_slope_deg": float(max_slope_deg),
         "mass_drift_kg": float(drift),
         "planned_cut_kg": float(sum(o.footprint_m2 * o.depth_m * rho_bank for o in cuts)),
