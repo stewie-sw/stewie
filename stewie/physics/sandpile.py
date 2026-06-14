@@ -76,22 +76,9 @@ class Sandpile:
             raise ValueError(f"deposit mass_kg must be finite and >= 0 (got {mass_kg})")
         if not (np.isfinite(spoil_density) and spoil_density > 0.0):
             raise ValueError("spoil_density must be finite and > 0")
+        from stewie.physics.column_state import StateLabel
         cs = self.cs
-        if radius_cells <= 0:
-            if not (0 <= r < cs.height and 0 <= c < cs.width):
-                raise ValueError(f"deposit center ({r},{c}) off-grid (negative indices silently "
-                                 f"wrapped; audit M26)")
-            cells = [(r, c)]
-        else:
-            cells = []
-            for dr in range(-radius_cells, radius_cells + 1):
-                for dc in range(-radius_cells, radius_cells + 1):
-                    if dr * dr + dc * dc <= radius_cells * radius_cells:
-                        rr, cc = r + dr, c + dc
-                        if 0 <= rr < cs.height and 0 <= cc < cs.width:
-                            cells.append((rr, cc))
-        if not cells:
-            raise ValueError(f"deposit disc at ({r},{c}) lies entirely off-grid (audit M25)")
+        cells = self._deposit_target_cells(r, c, radius_cells)
         per_cell_kg = mass_kg / len(cells)
         per_cell_areal = per_cell_kg / cs.cell_area
         for (rr, cc) in cells:
@@ -100,8 +87,28 @@ class Sandpile:
             denom = old / cs.density[rr, cc] + add / spoil_density
             cs.density[rr, cc] = (old + add) / denom if denom > 0 else spoil_density
             cs.mass_areal[rr, cc] = old + add
-            from stewie.physics.column_state import StateLabel
             cs.state_label[rr, cc] = StateLabel.SPOIL
+
+    def _deposit_target_cells(self, r: int, c: int, radius_cells: int) -> list:
+        """The in-grid cells a deposit at (r,c) covers: the single cell for radius<=0, else the disc.
+        Extracted from deposit() so the mutation stays under the Power-of-10 branching ceiling; the
+        off-grid raises (audit M25/M26) are preserved verbatim."""
+        cs = self.cs
+        if radius_cells <= 0:
+            if not (0 <= r < cs.height and 0 <= c < cs.width):
+                raise ValueError(f"deposit center ({r},{c}) off-grid (negative indices silently "
+                                 f"wrapped; audit M26)")
+            return [(r, c)]
+        cells = []
+        for dr in range(-radius_cells, radius_cells + 1):
+            for dc in range(-radius_cells, radius_cells + 1):
+                if dr * dr + dc * dc <= radius_cells * radius_cells:
+                    rr, cc = r + dr, c + dc
+                    if 0 <= rr < cs.height and 0 <= cc < cs.width:
+                        cells.append((rr, cc))
+        if not cells:
+            raise ValueError(f"deposit disc at ({r},{c}) lies entirely off-grid (audit M25)")
+        return cells
 
     # -- relaxation --------------------------------------------------------
 

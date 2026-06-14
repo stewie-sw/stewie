@@ -378,3 +378,14 @@ def test_all_real_scenes_conserve_mass_under_relaxation(name):
     sp.relax_to_rest(max_steps=100)
     assert cs.total_mass() == pytest.approx(m0, abs=1e-9)
     assert sp._max_loose_slope() <= s0 + 1e-12
+
+
+def test_deposit_off_grid_centers_raise():
+    """deposit() rejects an off-grid point center (M26) and an entirely-off-grid disc (M25); the
+    raises moved into _deposit_target_cells (Power-of-10 extraction) must still fire."""
+    cs = ColumnState(width=20, height=20, cell_m=0.02)
+    sp = Sandpile(cs)
+    with pytest.raises(ValueError, match="off-grid"):                 # radius 0, center off-grid (M26)
+        sp.deposit(-1, 5, mass_kg=10.0, radius_cells=0)
+    with pytest.raises(ValueError, match="lies entirely off-grid"):   # disc fully off-grid (M25)
+        sp.deposit(-100, -100, mass_kg=10.0, radius_cells=2)
