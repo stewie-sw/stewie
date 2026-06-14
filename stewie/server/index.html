@@ -109,7 +109,10 @@
     .vtab { padding: 9px 12px; }
     button, .site, .go { min-height: 40px; }
     #edittoolbar { top: 8px; right: 8px; flex-wrap: wrap; max-width: 70vw; }
-    #workarea { width: 46vw; }
+    /* the work-area DEM inset must not block a phone screen: shrink it + win over the base
+       #workarea rule (declared LATER, so plain #workarea here loses the cascade -- body #workarea
+       outranks it). MUST also drop the base min-width:180px, which otherwise beats max-width. */
+    body #workarea { width: 32vw; max-width: 120px; min-width: 0; }
     #scalebox { bottom: 12px; }
   }
   .step { font-size: 9px; font-family: "Orbitron", system-ui, sans-serif; letter-spacing: .12em;

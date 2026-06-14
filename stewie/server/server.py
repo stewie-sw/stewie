@@ -460,8 +460,9 @@ def _warm_globe_cache():
     def warm():
         try:
             from stewie.server.gis_layers import render_globe
-            for kind in ("dem", "slope", "hazard", "illumination", "psr"):
-                render_globe(kind)
+            for kind in ("dem", "slope", "hazard", "illumination", "psr", "grid"):
+                render_globe(kind)   # incl. grid: it was never pre-warmed, so a cold first fetch
+                                     # could stall + time out on a slow (mobile) link
         except Exception:
             pass
 
