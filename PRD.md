@@ -1299,12 +1299,16 @@ reality"). It re-prioritizes the production-readiness work AHEAD of new capabili
 - **C-04 (#113)** mission transit can drive battery SoC negative and still return an executable plan.
   Reserve-aware edges; suppress Plan IR on infeasibility.
 
-**Phase 1 — one source of truth (#114):** one `PlanningContext` from the selected `VehicleTwin`
-threaded through all energy/mass/range/slip/report/acceptance (vehicle is otherwise ignored — all
-IPEx globals); route once and share geometry across optimizer/timeline/report/Plan IR; acceptance
-executes the exact Plan IR; compaction timestep/pass-invariant; skid-steer propagation; out-of-regime
-body gate; fail-closed routing (off-DEM, unreachable, diagonal corner-cut, bbox margin, cumulative
-ascent).
+**Phase 1 — one source of truth (#114) — ✅ DONE 2026-06-13 (11/11 HIGH, all gated, gate byte-identical):**
+one `PlanningContext` from the selected vehicle threaded through energy/mass/range/slip/report/acceptance
+(H-01, `plan_context`; rassor2 mass/drum now drive the plan); route inter-site legs once and share the
+routed geometry across optimizer/timeline/report so sequencing scores what the Plan IR executes (H-02,
+`_make_routes`); acceptance honestly scoped, not over-claimed full validation (H-07, the self-balanced
+trip decomposition makes IR re-execution materially identical); compaction is timestep/pass-invariant
+(H-09, convergent target density); skid-steer propagated to the runtime drive loop (H-10); out-of-regime
+microgravity body gate (H-12); fail-closed routing — off-DEM footprint reject (H-08), unreachable-leg
+fail-closed at /plan (H-03), no diagonal corner-cut (H-04), adaptive window vs the 20 m bbox margin
+(H-05), cumulative-ascent haul lift (H-06).
 
 **Phase 2 — harden estimation + persistence (#115). Touches the §22 nav track:** reject impossible
 parallax (H-13, the `/localize` + render-fix primitives), require ≥3 landmarks or flag the 2-landmark
