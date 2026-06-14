@@ -324,6 +324,7 @@ app.add_middleware(
 
 # ARCH-3: per-concern routers (the RC command path first, per §21). Each owns its own state + imports
 # the shared auth deps (server.deps) / audit log (server.services) -- no import of this app module.
+from stewie.server.routers import assets as _assets_router  # noqa: E402
 from stewie.server.routers import auth as _auth_router  # noqa: E402
 from stewie.server.routers import missions as _missions_router  # noqa: E402
 from stewie.server.routers import operators_admin as _operators_admin_router  # noqa: E402
@@ -338,6 +339,7 @@ app.include_router(_structures_router.router)
 app.include_router(_operators_admin_router.router)
 app.include_router(_profiles_router.router)
 app.include_router(_sample_missions_router.router)
+app.include_router(_assets_router.router)
 
 
 @app.middleware("http")
@@ -649,44 +651,6 @@ def dem_site_xy(lat: float, lon: float):
     except ImportError as e:
         return JSONResponse(status_code=503, content={"ok": False, "error": f"pyproj absent: {e}"})
     return {"ok": True, "x_m": round(x, 1), "y_m": round(y, 1)}
-
-
-@app.get("/fonts/{name}")
-def get_font(name: str):
-    """Vendored brand fonts (Orbitron, OFL -- license shipped alongside). No CDN at runtime."""
-    safe = os.path.basename(name)
-    path = os.path.join(HERE, "fonts", safe)
-    if not os.path.isfile(path):
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"no font {safe}"})
-    return FileResponse(path, media_type="font/ttf" if safe.endswith(".ttf") else "text/plain")
-
-
-@app.get("/icons/{name}")
-def get_icon(name: str):
-    """The app-icon set (cropped from the brand board's 1024 tile)."""
-    safe = os.path.basename(name)
-    path = os.path.join(HERE, "icons", safe)
-    if not os.path.isfile(path):
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"no icon {safe}"})
-    return FileResponse(path, media_type="image/png")
-
-
-@app.get("/bodies.json")
-def get_bodies():
-    p = os.path.join(HERE, "bodies.json")
-    if not os.path.isfile(p):
-        return JSONResponse(status_code=404, content={"ok": False, "error": "not found: bodies.json"})
-    return FileResponse(p, media_type=_CTYPE[".json"])
-
-
-@app.get("/reports/{name}")
-def get_report(name: str):
-    safe = os.path.basename(name)                       # basename only -> no path traversal
-    p = os.path.join(REPORTS, safe)
-    if not os.path.isfile(p):
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"not found: {safe}"})
-    ext = os.path.splitext(safe)[1]
-    return FileResponse(p, media_type=_CTYPE.get(ext, "application/octet-stream"))
 
 
 @app.get("/dem/{name}")
