@@ -87,12 +87,17 @@ class PoseGraph:
         x/y marginal variances from H^-1) -- so an absolute fix visibly shrinks a node's sigma."""
         order, X, Hx, Hy = self._solve()
         pose = {nid: (float(X[k, 0]), float(X[k, 1])) for k, nid in enumerate(order)}
+        # H-15: a graph with only relative factors is GAUGE-FREE (the global translation is unobservable).
+        # The tiny solver ridge keeps it numerically solvable, but its covariance is RIDGE-induced (~1/sqrt
+        # (eps) ~ tens of km), NOT a physical estimate. Report observability and give the unobservable gauge
+        # its honest INFINITE sigma rather than a misleading finite number. Any prior/absolute anchors it.
+        observable = bool(self._priors or self._abs)
         sigma = {}
         if len(order):
             cx = np.linalg.inv(Hx); cy = np.linalg.inv(Hy)
             for k, nid in enumerate(order):
-                sigma[nid] = float(np.sqrt(0.5 * (cx[k, k] + cy[k, k])))
-        return {"pose": pose, "sigma": sigma}
+                sigma[nid] = (float(np.sqrt(0.5 * (cx[k, k] + cy[k, k]))) if observable else float("inf"))
+        return {"pose": pose, "sigma": sigma, "observable": observable}
 
 
 def shadow_fix_from_outline(shadow_mask, *, cell_m: float, prior_xy, sigma_floor_m: float = 0.5):

@@ -89,3 +89,20 @@ def test_shadow_yaw_factor_corrects_heading_weakly():
     g2.add_shadow_yaw(0, measured_yaw=0.80, sigma=1.5)               # a fuzzy, far-off shadow
     out = g2.optimize()
     assert abs(out[0][2] - 0.05) < 0.10                              # prior holds; shadow doesn't dominate
+
+
+def test_h15_gauge_free_se2_graph_reports_unobservable_not_finite_sigma():
+    """Audit H-15 (2026-06-13): an SE(2) graph with only relative (between) factors is GAUGE-FREE -- the
+    global (x,y,yaw) is unobservable. The solver ridge keeps it solvable but the covariance is ridge-induced
+    (the audit probe got ~23.5 km), NOT physical. optimize_with_cov must report observable=False with
+    INFINITE xy/yaw sigma; a prior anchors the gauge -> observable with finite sigma."""
+    import math
+    from dart.pose_graph_se2 import PoseGraphSE2
+    g = PoseGraphSE2()
+    g.add_between(0, 1, (1.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)   # only relative -> gauge-free
+    out = g.optimize_with_cov()
+    assert out["observable"] is False
+    assert math.isinf(out["xy_sigma"][0]) and math.isinf(out["yaw_sigma"][1])
+    g.add_prior(0, (0.0, 0.0, 0.0), sigma_xy=0.1, sigma_yaw=0.1)        # anchor -> observable
+    out2 = g.optimize_with_cov()
+    assert out2["observable"] is True and math.isfinite(out2["xy_sigma"][1])

@@ -56,3 +56,18 @@ def test_shadow_residual_is_a_real_absolute_factor():
     d_obs = np.hypot(est[0][0] - obs_xy[0], est[0][1] - obs_xy[1])
     d_prior = np.hypot(est[0][0] - 62.0, est[0][1] - 58.0)
     assert d_obs < d_prior                                  # the shadow factor wins over the drift
+
+
+def test_h15_gauge_free_pose_graph_reports_unobservable_not_finite_sigma():
+    """Audit H-15 (2026-06-13): a 2-D position graph with only relative (odometry) factors is GAUGE-FREE --
+    the global translation is unobservable. The solver's tiny ridge keeps it solvable but its covariance is
+    ridge-induced, NOT physical. optimize_with_cov must report observable=False and an INFINITE sigma; an
+    anchored graph is observable with finite sigma."""
+    import math
+    g = PG.PoseGraph()
+    g.add_odometry(0, 1, (1.0, 0.0), sigma=0.1)              # only a relative factor -> gauge-free
+    out = g.optimize_with_cov()
+    assert out["observable"] is False and math.isinf(out["sigma"][0]) and math.isinf(out["sigma"][1])
+    g.add_prior(0, (0.0, 0.0), sigma=0.1)                    # anchor the gauge -> observable, finite
+    out2 = g.optimize_with_cov()
+    assert out2["observable"] is True and math.isfinite(out2["sigma"][1])

@@ -143,10 +143,19 @@ class PoseGraphSE2:
         """Estimate + per-node xy / yaw 1-sigma from the inverse information matrix."""
         order, X, H = self._solve()
         pose = {nid: (float(X[k, 0]), float(X[k, 1]), float(X[k, 2])) for k, nid in enumerate(order)}
+        # H-15: SE(2) gauge = (x, y, yaw). Translation is observable only with a prior/absolute-xy anchor;
+        # yaw only with a prior/shadow-yaw anchor. Without them the solver ridge yields a finite-but-non-
+        # physical sigma (the audit probe got ~23.5 km). Report observability and give an unobservable
+        # component its honest INFINITE sigma instead of a misleading finite number.
+        translation_anchored = bool(self._priors or self._abs)
+        yaw_anchored = bool(self._priors or self._shadow_yaw)
         xy_sigma, yaw_sigma = {}, {}
         if len(order):
             cov = np.linalg.inv(H)
             for k, nid in enumerate(order):
-                xy_sigma[nid] = float(np.sqrt(0.5 * (cov[3 * k, 3 * k] + cov[3 * k + 1, 3 * k + 1])))
-                yaw_sigma[nid] = float(np.sqrt(max(0.0, cov[3 * k + 2, 3 * k + 2])))
-        return {"pose": pose, "xy_sigma": xy_sigma, "yaw_sigma": yaw_sigma}
+                xy_sigma[nid] = (float(np.sqrt(0.5 * (cov[3 * k, 3 * k] + cov[3 * k + 1, 3 * k + 1])))
+                                 if translation_anchored else math.inf)
+                yaw_sigma[nid] = (float(np.sqrt(max(0.0, cov[3 * k + 2, 3 * k + 2])))
+                                  if yaw_anchored else math.inf)
+        return {"pose": pose, "xy_sigma": xy_sigma, "yaw_sigma": yaw_sigma,
+                "observable": bool(translation_anchored and yaw_anchored)}
