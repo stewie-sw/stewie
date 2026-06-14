@@ -1322,10 +1322,22 @@ snapshots (M-11, `1bac883`), Unix-socket hardening = bounded readline + finite/b
 `60f0406`). Adjacent finding tracked for its own slice: arbitrary-path checkpoint/restore traversal
 (#120).
 
-**Phase 3 — scale + maintain (#116):** sparse graph factorization, swept/compiled illumination,
-materialized twin state, split the server/planner god modules, pin deps + CI action SHAs, green the
-lint gate (L-01 broken `viz/*` imports), reduce mypy exclusions, quarantine archive/public copies +
-the committed Godot binary.
+**Phase 3 — scale + maintain (#116) — IN PROGRESS:** sparse graph factorization, swept/compiled
+illumination, materialized twin state, split the server/planner god modules, pin deps + CI action
+SHAs, green the lint gate (L-01 broken `viz/*` imports), reduce mypy exclusions, quarantine
+archive/public copies + the committed Godot binary.
+
+*Low-blast cleanup DONE 2026-06-14 (each verified, frozen G1/G2 gate byte-identical, no Claude
+trailer): L-01 ruff-F lint gate greened — fixed 3 botched `viz/*` imports (`from the conserved
+authority import constants as K` -> `from stewie.specs import constants as K`) + a dead dart import
+(`8dce51d`); mypy ratchet tightened — un-excluded `lode.self_optimizing`, the remaining
+18-module/90-error typing debt tracked as #121 (`f8f0c8c`); CI action SHAs pinned across ci/pages/
+publish workflows + a publish-lint typo fixed (`2966da5`); Power-of-10 complexity gate greened —
+`sandpile.deposit` had been complexity 11 since the Phase-0 C-02 fix, extracted `_deposit_target_cells`
+(`f5baa06`). The full CI gate now passes locally end to end (req_trace + Power-of-10 + ruff-F + mypy +
+pytest/coverage). STILL OPEN (high-blast, each its own reviewed slice): the server/planner god-module
+split, materialized twin state, sparse graph factorization, swept/compiled illumination, and the
+archive/public-copy + committed-Godot-binary quarantine.*
 
 Sequencing (Aaron, 2026-06-13): **the next session STARTS with audit Phase 0** — the four criticals
 **#110 C-01 → #111 C-02 → #112 C-03 → #113 C-04**, in order, before option 1/2b or any new
