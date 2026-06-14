@@ -1,8 +1,14 @@
 # Third-Party Assets
 
-This repository's own code and content are dedicated to the public domain under
-**CC0-1.0** (see [`LICENSE`](LICENSE)). The vendored assets below are the exception:
-they retain their **own upstream status** and are called out here.
+> **License update (2026-06-10):** this repository's own code is now **all-rights-reserved** — the
+> prior CC0-1.0 dedication was withdrawn (it still applies to revisions published under it). The
+> "CC0-1.0 repo" framing in the per-asset notes below is **historical**, written when the repo was
+> CC0. The vendored assets' own upstream terms (MIT, U.S.-Government public domain, CC-BY) are
+> unchanged and remain compatible with a proprietary repository; a full re-review of the asset
+> rationale under the new license is tracked separately. See [`LICENSE`](LICENSE).
+
+This section documents the vendored assets, which retain their **own upstream status** and are called
+out here.
 
 ---
 

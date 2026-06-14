@@ -95,6 +95,21 @@ ruff check --select F .   # lint
 mypy                      # types
 ```
 
+## Citation
+
+If you use STEWIE in your work, please cite it. GitHub renders a "Cite this repository" button from
+[`CITATION.cff`](CITATION.cff); a BibTeX form:
+
+```bibtex
+@software{stewie,
+  title  = {STEWIE: Surface Terrain Engineering \& World-model Integration Environment},
+  author = {McCardle, John and Storey, Aaron W.},
+  year   = {2026},
+  url    = {https://github.com/stewie-sw/stewie},
+  note   = {Lineage: NASA IPEx (ISRU Pilot Excavator) and the JHU APL Lunar Autonomy Challenge}
+}
+```
+
 ## License & provenance
 
 **All rights reserved.** The prior CC0 dedication was withdrawn for this repository on 2026-06-10; a

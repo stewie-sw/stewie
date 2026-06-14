@@ -1,8 +1,10 @@
-# Contributing to dustgym
+# Contributing to STEWIE
 
-Thanks for your interest. dustgym is released into the public domain (CC0 1.0). Contributions are
-welcome, but the project holds a few **non-negotiable engineering conventions** that keep its results
-trustworthy. Please read these before opening a pull request.
+Thanks for your interest. STEWIE is a research platform by John McCardle and Aaron Storey; its license
+is currently all-rights-reserved (the prior CC0 dedication was withdrawn 2026-06-10; see
+[`LICENSE`](LICENSE)). Contributions from collaborators are welcome, but the project holds a few
+**non-negotiable engineering conventions** that keep its results trustworthy. Please read these before
+opening a pull request.
 
 ## The honesty conventions (binding)
 

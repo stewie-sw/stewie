@@ -1,9 +1,10 @@
 # Security Policy
 
-dustgym is a research simulator and planning tool released into the public domain (CC0). It does not
-process sensitive data or credentials. The one network-facing component is the optional mission-planner
-web UI (`planet_browser/server.py`), a FastAPI/uvicorn (ASGI) service intended for local or trusted-LAN
-use.
+STEWIE is a research simulator and mission-planning platform. It does not process sensitive data or
+credentials. The one network-facing component is the optional mission-planner web UI
+(`stewie/server/server.py`), a FastAPI/uvicorn (ASGI) service intended for local or trusted-LAN use.
+The repository's license is currently all-rights-reserved (the prior CC0 dedication was withdrawn
+2026-06-10; see [`LICENSE`](LICENSE)).
 
 ## Supported versions
 
@@ -26,7 +27,7 @@ Please report security issues **privately** rather than in a public issue:
 Include the affected file/endpoint, a reproduction, and the impact. We aim to acknowledge within a few
 days and to discuss a fix and disclosure timeline with you.
 
-## Operational notes (planet_browser web UI)
+## Operational notes (mission-planner web UI)
 
 - The server binds to whatever `--host`/`--port` you pass. `--host 0.0.0.0` exposes it on all
   interfaces — only do this on a trusted network. The default is loopback.
@@ -35,5 +36,4 @@ days and to discuss a fix and disclosure timeline with you.
 - `POST /plan` and `POST /sense` accept JSON build/sensor parameters and run the deterministic planner;
   they execute no client-supplied code.
 
-Because the project is CC0, you are free to fork, audit, and harden it for any deployment without
-permission.
+Coordinated security review is welcome; redistribution and reuse are governed by [`LICENSE`](LICENSE).

@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "dustgym: a conserved-physics world model, autonomous planner, and Gymnasium suite for off-world surface construction"
+title: "STEWIE: Surface Terrain Engineering & World-model Integration Environment"
 message: "If you use this software, please cite it using these metadata."
 type: software
 authors:
@@ -7,24 +7,27 @@ authors:
     family-names: McCardle
   - given-names: "Aaron W."
     family-names: Storey
-repository-code: "https://github.com/dustgym/dustgym"
-url: "https://github.com/dustgym/dustgym"
+repository-code: "https://github.com/stewie-sw/stewie"
+url: "https://github.com/stewie-sw/stewie"
 abstract: >-
-  dustgym is a mass-conserving terramechanics authority, five-layer world model,
-  autonomous construction planner, and Gymnasium environment suite for robots that
-  reshape regolith (excavate, grade, berm, fill) on airless rocky surfaces, parameterized
-  per planetary body (Moon, Mars, Ceres, Bennu, Phobos, Earth). The dynamics are conserved
-  by construction (exact, unhackable); learning is spent only on the expensive perception
-  branch. Lineage: NASA IPEx (ISRU Pilot Excavator) and the Lunar Autonomy Challenge.
+  STEWIE is a digital-twin and mission-planning platform for off-world surface
+  construction, built on a mass-conserving terramechanics authority parameterized
+  per planetary body (Moon, Mars, Earth, and more). It loads real lunar terrain,
+  authors construction goals, produces physically valid and energy-aware plans,
+  simulates and renders execution, and emits a mission-control report plus a
+  machine-consumable plan. The dynamics are conserved by construction (exact,
+  unhackable); learning is spent only on the expensive perception branch. Lineage:
+  NASA IPEx (ISRU Pilot Excavator) and the JHU APL Lunar Autonomy Challenge.
 keywords:
   - terramechanics
   - lunar robotics
   - regolith
   - in-situ resource utilization
+  - mission planning
+  - digital twin
   - reinforcement learning
   - Gymnasium
   - world model
   - NASA IPEx
   - Lunar Autonomy Challenge
-license: CC0-1.0
 version: 0.1.0
