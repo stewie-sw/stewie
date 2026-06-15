@@ -146,6 +146,26 @@ class Sandpile:
             valid[:, :(-dc)] = False
         return valid
 
+    def _per_direction_excess(self, height, mask, tan_thr):
+        """Pass A of relax_step (extracted for the Power-of-10 statement budget): for each (dr,dc)
+        direction, the height by which a LOOSE donor exceeds the repose plane of that neighbor --
+        the per-neighbor outflow weight. Returns (per_dir_excess, total_excess, moved). Pure code
+        movement; the arithmetic + ordering are unchanged, so conservation is unaffected."""
+        per_dir_excess = []
+        total_excess = np.zeros_like(height)        # Σ excess over active neighbors (weights)
+        moved = False
+        for (dr, dc), run in zip(self.neighbors, self._runs):
+            h2 = np.roll(np.roll(height, -dr, axis=0), -dc, axis=1)
+            valid = self._shift_valid(dr, dc) & mask    # source loose; receiver admissibility is open
+            drop = height - h2
+            excess_h = np.where(valid & (drop - run * tan_thr > 0),
+                                drop - run * tan_thr, 0.0)
+            per_dir_excess.append(excess_h)
+            total_excess += excess_h
+            if excess_h.any():
+                moved = True
+        return per_dir_excess, total_excess, moved
+
     def relax_step(self) -> bool:
         """One stabilizing sweep. Returns True if any mass moved (not yet at rest).
 
@@ -181,28 +201,10 @@ class Sandpile:
         donor_density = cs.density
         mask = loose_mask(cs)                        # DONOR mobility gate (source must be loose)
 
-        # Pass A: per direction, the excess height of the LOOSE donor above the repose plane of
-        # its (dr,dc) neighbor (donor is the HIGHER, loose cell; the receiver may be ANY cell so
-        # loose spoil can spread onto a lower non-loose floor — T-07). ``excess_h`` is how far
-        # the donor sits above where repose would put it relative to THAT neighbor. We use it
-        # both as the per-neighbor weight and to size the donor's single allowed outflow so it
-        # cannot overshoot the gentlest active pair.
-        per_dir_excess = []
-        total_excess = np.zeros_like(height)        # Σ excess over active neighbors (weights)
-        max_excess = np.zeros_like(height)          # largest single-neighbor excess
-        moved = False
-        for (dr, dc), run in zip(self.neighbors, self._runs):
-            h2 = np.roll(np.roll(height, -dr, axis=0), -dc, axis=1)
-            valid = self._shift_valid(dr, dc) & mask    # source loose; receiver admissibility is open
-            drop = height - h2
-            excess_h = np.where(valid & (drop - run * tan_thr > 0),
-                                drop - run * tan_thr, 0.0)
-            per_dir_excess.append(excess_h)
-            total_excess += excess_h
-            max_excess = np.maximum(max_excess, excess_h)
-            if excess_h.any():
-                moved = True
-
+        # Pass A: per direction, the excess height of the LOOSE donor above the repose plane of its
+        # (dr,dc) neighbor -- the per-neighbor outflow weight (donor is the HIGHER, loose cell; the
+        # receiver may be ANY cell so loose spoil can spread onto a lower non-loose floor -- T-07).
+        per_dir_excess, total_excess, moved = self._per_direction_excess(height, mask, tan_thr)
         if not moved:
             return False
 
