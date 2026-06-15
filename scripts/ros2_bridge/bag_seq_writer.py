@@ -131,7 +131,9 @@ def write_sequence(scene_dir: str, out_dir: str, rate_hz: float = 10.0,
     writer.open()
     try:
         # ONE connection set for the whole MCAP (contract / register_connections docstring).
-        conns = bag_writer.register_connections(writer, ts, left, right)
+        # SLAM-01: truth shares this bag but on the /truth namespace (never /tf); the two-bag
+        # split for sequences is a follow-on -- the leak (truth on the canonical channel) is closed.
+        conns, truth_conns = bag_writer.register_connections(writer, ts, left, right)
 
         prev_t = -1
         for i, (frame_index, in_dir) in enumerate(frames_found):
@@ -163,7 +165,7 @@ def write_sequence(scene_dir: str, out_dir: str, rate_hz: float = 10.0,
                   f"t={t_ns / 1e9:.3f}s", flush=True)
             bag_writer.write_frame(
                 writer, ts, conns, in_dir, sensors, f_left, f_right, f_baseline,
-                t_ns, int(sec), int(nanosec),
+                t_ns, int(sec), int(nanosec), truth_conns=truth_conns,
             )
     finally:
         writer.close()

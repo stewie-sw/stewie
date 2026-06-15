@@ -52,6 +52,26 @@ except Exception:  # noqa: BLE001
     _HAVE_ROSBAGS = False
 
 
+# --- SLAM-01 (truth-leak): truth must never ride the canonical SLAM channel -----------------
+# A SLAM / Nav2 node PUBLISHES its live estimate `map -> base_link` on /tf, so the simulator's TRUE
+# rover pose belongs on an EVALUATOR-ONLY topic (the /truth namespace), optionally in a separate bag
+# -- never on /tf, where it would be handed to the estimator and scored against itself. The computed
+# AprilTag pose is likewise ground truth here (it is not a live detector reading), so it is
+# evaluator-only too. The surveyed `map -> lander` stays on /tf_static: a known landmark prior, not
+# the rover's own pose.
+TRUTH_POSE_TOPIC = "/truth/map_base_link"        # the true map->base_link rover pose (was on /tf)
+APRILTAG_TRUTH_TOPIC = "/lander/apriltag_truth"  # computed camera->tag truth, evaluator-only
+EVALUATOR_ONLY_TOPICS = frozenset({TRUTH_POSE_TOPIC, APRILTAG_TRUTH_TOPIC})
+CANONICAL_ESTIMATE_TOPICS = frozenset({"/tf"})   # a SLAM node owns these; truth must never ride them
+
+
+def forbidden_truth_topics(topic_names):
+    """Release gate (SLAM-01): the truth topics that must NOT appear in a SLAM-input (perception)
+    bag. Returns the sorted offenders found in ``topic_names`` (empty list == clean). The release
+    artifact is the perception bag of the two-bag split; the evaluator bag holds these separately."""
+    return sorted(set(topic_names) & EVALUATOR_ONLY_TOPICS)
+
+
 # --- minimal PNG reader (stdlib): supports 8-bit grayscale (ct 0) & RGB/RGBA (ct 2/6) -------
 
 def _read_png(path: str):
@@ -277,31 +297,39 @@ def _msgtypes(ts):
     }
 
 
-def register_connections(writer, ts, left, right):
+def register_connections(writer, ts, left, right, *, truth_writer=None):
     """Register the §2.3 topic connections on an ALREADY-OPEN Writer -- call ONCE.
 
     A single MCAP carries ONE connection set; when the per-frame core is looped over many
-    frames on one open Writer (the future bag_seq_writer.py / M2-slam path) the topics are
-    registered here exactly once, NOT per frame.  Returns the ``conns`` dict (topic -> id)
-    that :func:`write_frame` then writes into.
+    frames on one open Writer (bag_seq_writer.py / M2-slam path) the topics are registered here
+    exactly once, NOT per frame.
+
+    SLAM-01: the PERCEPTION (SLAM-input) topics -- images, camera_info, /tf, /tf_static -- go on
+    ``writer``.  The EVALUATOR-ONLY truth topics (the true rover pose + the AprilTag truth) go on
+    ``truth_writer`` when given (the two-bag split, the release form) else on ``writer`` (single-bag
+    back-compat) -- but ALWAYS on the /truth namespace, NEVER as a /tf transform.  Returns
+    ``(conns, truth_conns)``: topic -> connection id, one dict per writer.
     """
     mt = _msgtypes(ts)
-    conns = {}
+    conns: dict = {}
+    truth_conns: dict = {}
 
-    def conn(topic, msgtype):
-        conns[topic] = writer.add_connection(topic, msgtype, typestore=ts)
+    def conn(w, d, topic, msgtype):
+        d[topic] = w.add_connection(topic, msgtype, typestore=ts)
 
     for c in (left, right):
-        conn(f"/{c['name']}/image_raw", mt["IMG"])
-        conn(f"/{c['name']}/camera_info", mt["CINFO"])
-    conn("/tf", mt["TFM"])
-    conn("/tf_static", mt["TFM"])
-    conn("/lander/apriltag_truth", mt["POSE"])
-    return conns
+        conn(writer, conns, f"/{c['name']}/image_raw", mt["IMG"])
+        conn(writer, conns, f"/{c['name']}/camera_info", mt["CINFO"])
+    conn(writer, conns, "/tf", mt["TFM"])         # SLAM owns map->base_link here; the bag adds no truth
+    conn(writer, conns, "/tf_static", mt["TFM"])  # rig extrinsics + the surveyed map->lander landmark prior
+    tw = truth_writer if truth_writer is not None else writer
+    conn(tw, truth_conns, TRUTH_POSE_TOPIC, mt["POSE"])
+    conn(tw, truth_conns, APRILTAG_TRUTH_TOPIC, mt["POSE"])
+    return conns, truth_conns
 
 
 def write_frame(writer, ts, conns, in_dir, sensors, left, right, baseline,
-                t_ns, sec, nanosec):
+                t_ns, sec, nanosec, *, truth_writer=None, truth_conns=None):
     """Write ONE frame's §2.3 topics onto an ALREADY-OPEN Writer at bag time ``t_ns``.
 
     REUSABLE CORE.  Does NOT open/close the Writer and does NOT register connections or
@@ -311,10 +339,16 @@ def write_frame(writer, ts, conns, in_dir, sensors, left, right, baseline,
     ``t_ns`` (and the matching stamp) monotonically across frames on one open Writer => one
     MCAP, one connection set.
 
+    SLAM-01: the TRUE rover pose + the AprilTag truth are written to the EVALUATOR-ONLY /truth
+    channels (``truth_conns`` from :func:`register_connections`), onto ``truth_writer`` when given
+    (the separate evaluator bag) else onto ``writer`` -- but NEVER as a /tf transform.
+
     The Godot(Y-up) -> ROS(Z-up, REP-103) conversion happens via ``frames`` exactly here.
     """
     mt = _msgtypes(ts)
     IMG, CINFO, TFM, POSE = mt["IMG"], mt["CINFO"], mt["TFM"], mt["POSE"]
+    tw = truth_writer if truth_writer is not None else writer
+    tc = truth_conns if truth_conns is not None else conns
 
     # --- images + camera_info (left P[3]=0, right P[3]=-fx*baseline) --------------------
     for c, is_right in ((left, False), (right, True)):
@@ -332,16 +366,11 @@ def write_frame(writer, ts, conns, in_dir, sensors, left, right, baseline,
         writer.write(conns[f"/{c['name']}/camera_info"], t_ns,
                      ts.serialize_cdr(info, CINFO))
 
-    # --- /tf : map -> base_link (rover pose, converted) ---------------------------------
     rover = sensors["rover"]
-    rpos, rquat = frames.godot_world_pose_to_ros(
-        rover["position_m"], rover["quaternion_xyzw"]
-    )
-    tf_dyn = _tf_msg(ts, [_transform_stamped(
-        ts, sec, nanosec, "map", rover["frame_id"], rpos, rquat)])
-    writer.write(conns["/tf"], t_ns, ts.serialize_cdr(tf_dyn, TFM))
 
-    # --- /tf_static : base_link -> *_optical, map -> lander -----------------------------
+    # --- /tf_static : base_link -> *_optical (rig), map -> lander (surveyed landmark prior) ----
+    # NOT the rover pose: the rig extrinsics + the known lander position are legitimate priors a
+    # robot ships with; SLAM-01 only moves the rover's OWN pose off the broadcast channels.
     static_tfs = []
     for c in (left, right):
         epos, equat = frames.godot_cam_extrinsic_to_ros_optical(
@@ -358,17 +387,40 @@ def write_frame(writer, ts, conns, in_dir, sensors, left, right, baseline,
     writer.write(conns["/tf_static"], t_ns,
                  ts.serialize_cdr(_tf_msg(ts, static_tfs), TFM))
 
-    # --- /lander/apriltag_truth : camera(left optical) -> tag, computed ----------------
+    # --- SLAM-01: the TRUE map->base_link rover pose -> EVALUATOR-ONLY /truth channel (NOT /tf) ---
+    rpos, rquat = frames.godot_world_pose_to_ros(
+        rover["position_m"], rover["quaternion_xyzw"]
+    )
+    rover_truth = _pose_stamped(ts, sec, nanosec, "map", rpos, rquat)
+    tw.write(tc[TRUTH_POSE_TOPIC], t_ns, ts.serialize_cdr(rover_truth, POSE))
+
+    # --- evaluator-only AprilTag truth : camera(left optical) -> tag, computed ----------------
     truth_pos, truth_quat = _compute_truth(sensors, left)
     truth = _pose_stamped(ts, sec, nanosec, left["frame_id"], truth_pos, truth_quat)
-    writer.write(conns["/lander/apriltag_truth"], t_ns,
-                 ts.serialize_cdr(truth, POSE))
+    tw.write(tc[APRILTAG_TRUTH_TOPIC], t_ns, ts.serialize_cdr(truth, POSE))
     print(f"apriltag_truth (left optical -> tag): pos={np.round(truth_pos, 4).tolist()} "
           f"quat_xyzw={np.round(truth_quat, 4).tolist()}")
 
 
+def _open_writer(out_dir: str):
+    """Open a fresh MCAP rosbag2 Writer at ``out_dir`` (must not exist)."""
+    os.makedirs(os.path.dirname(out_dir) or ".", exist_ok=True)
+    if os.path.exists(out_dir):
+        raise FileExistsError(f"{out_dir} exists; remove it or choose another --out")
+    kwargs = {"version": 9}
+    if StoragePlugin is not None:
+        kwargs["storage_plugin"] = StoragePlugin.MCAP
+    writer = Writer(out_dir, **kwargs)
+    writer.open()
+    return writer
+
+
 def write_bag(in_dir: str, out_dir: str, sec: int = 0, nanosec: int = 0,
-              store: str = "ros2_jazzy") -> str:
+              store: str = "ros2_jazzy", truth_out_dir: str | None = None) -> str:
+    """Write the perception (SLAM-input) bag at ``out_dir``.  SLAM-01: when ``truth_out_dir`` is
+    given the EVALUATOR-ONLY truth topics are written to that SEPARATE bag (so ``out_dir`` passes
+    :func:`forbidden_truth_topics`); otherwise truth shares the bag but stays on the /truth
+    namespace (never on /tf)."""
     if not _HAVE_ROSBAGS:
         raise RuntimeError(
             "rosbags not importable -- run bag_writer.py INSIDE the container "
@@ -384,24 +436,20 @@ def write_bag(in_dir: str, out_dir: str, sec: int = 0, nanosec: int = 0,
 
     left, right, baseline = _resolve_stereo(sensors)
 
-    os.makedirs(os.path.dirname(out_dir) or ".", exist_ok=True)
-    if os.path.exists(out_dir):
-        raise FileExistsError(f"{out_dir} exists; remove it or choose another --out")
-
-    kwargs = {"version": 9}
-    if StoragePlugin is not None:
-        kwargs["storage_plugin"] = StoragePlugin.MCAP
-    writer = Writer(out_dir, **kwargs)
-    writer.open()
+    writer = _open_writer(out_dir)
+    truth_writer = _open_writer(truth_out_dir) if truth_out_dir else None
     try:
-        conns = register_connections(writer, ts, left, right)
+        conns, truth_conns = register_connections(writer, ts, left, right, truth_writer=truth_writer)
         t_ns = sec * 1_000_000_000 + nanosec
         write_frame(writer, ts, conns, in_dir, sensors, left, right, baseline,
-                    t_ns, sec, nanosec)
+                    t_ns, sec, nanosec, truth_writer=truth_writer, truth_conns=truth_conns)
     finally:
         writer.close()
+        if truth_writer is not None:
+            truth_writer.close()
 
-    print(f"wrote rosbag2 (MCAP) -> {out_dir}")
+    print(f"wrote rosbag2 (MCAP) -> {out_dir}"
+          + (f"  (+ evaluator-only truth bag -> {truth_out_dir})" if truth_out_dir else ""))
     return out_dir
 
 
@@ -411,10 +459,13 @@ def main():
                     help="input capture dir (sensors.json + 2 PNGs)")
     ap.add_argument("--out", dest="out_dir", required=True,
                     help="output rosbag2 dir (must not exist)")
+    ap.add_argument("--truth-out", dest="truth_out_dir", default=None,
+                    help="SLAM-01: write the evaluator-only truth topics to this SEPARATE bag "
+                         "(must not exist), keeping the perception --out bag truth-free")
     ap.add_argument("--store", default="ros2_jazzy",
                     help="rosbags typestore: ros2_jazzy|latest (default ros2_jazzy)")
     args = ap.parse_args()
-    write_bag(args.in_dir, args.out_dir, store=args.store)
+    write_bag(args.in_dir, args.out_dir, store=args.store, truth_out_dir=args.truth_out_dir)
 
 
 if __name__ == "__main__":
