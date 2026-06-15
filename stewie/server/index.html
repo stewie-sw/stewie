@@ -62,7 +62,7 @@
   /* UX-05: the planning sidebar collapses off the Plan view (desktop); the stage takes the room. */
   #panel.collapsed { width: 0; min-width: 0; border-right: none; overflow: hidden; }
   #phead { position: sticky; top: 0; z-index: 2; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
-    padding: 13px 16px; background: var(--head); border-bottom: 1px solid var(--line); }
+    padding: 13px 20px; background: var(--head); border-bottom: 1px solid var(--line); }
   #phead b { color: #f2f2f4; font-family: "Orbitron", system-ui, sans-serif;
     font-size: 14px; font-weight: 700; }
   /* B-4: subsystem chips per the patch board (DART/LODE/LEAP/FORGE, red ring, small caps) */
@@ -90,7 +90,7 @@
     background: linear-gradient(180deg, #e8edf5, var(--panel)); }
   body.light #viewarea { background: #dfe5ef; }
   #phead #out { margin-left: auto; color: var(--accent); font-size: 12px; font-variant-numeric: tabular-nums; }
-  #panel section { padding: 0 16px; }
+  #panel section { padding: 0 20px; }
   /* the separator lives on the GROUP now (h3-split details), not the section wrapper --
      groups sharing a section had no break between them (Aaron: Contents->Site, Catalog->Telemetry) */
   #panel details { padding: 11px 0; border-bottom: 1px solid var(--line); }
