@@ -105,7 +105,13 @@
     #drawerbtn { display: block; position: absolute; left: 10px; top: 8px; z-index: 80;
                  background: rgba(10,10,12,.9); border: 1px solid var(--line); border-radius: 6px;
                  color: var(--txt); font-size: 17px; padding: 8px 12px; cursor: pointer; }
-    #vtabs, .vtabbar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    /* MOBILE-02: the real tab bar is #viewtabs (the old #vtabs/.vtabbar matched nothing, so on a phone
+       the tabs overflowed with no way to scroll). Make it horizontally scrollable and cue the overflow
+       with a soft right-edge fade so it reads as "more tabs this way". */
+    #viewtabs { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap;
+                -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+                        mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent); }
+    .vtab { flex: 0 0 auto; }                              /* never shrink a tab below its label width */
     .vtab { padding: 9px 12px; }
     button, .site, .go { min-height: 40px; }
     #edittoolbar { top: 8px; right: 8px; flex-wrap: wrap; max-width: 70vw; }
@@ -197,7 +203,7 @@
   .vtsep { color: var(--dim); align-self: center; padding: 0 5px; user-select: none; }
   #valimg { max-width: 100%; display: block; border-radius: 4px; background: #05060c; align-self: center; }
   #valselect { max-width: 300px; }
-  #apiframe, #docsframe { flex: 1 1 auto; width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  #apiframe { flex: 1 1 auto; width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
   .mono { color: var(--txt); background: #05060c; border: 1px solid var(--line); border-radius: 6px;
     padding: 10px 12px; font: 12px/1.55 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre-wrap;
     overflow: auto; flex: 0 0 auto; }
@@ -612,7 +618,14 @@
         <div id="cfgcards" style="display:flex;flex-wrap:wrap;gap:10px;margin:8px 0"></div>
         <details><summary style="cursor:pointer;font-size:11px;color:var(--muted)">raw overlay (PRD N15, secrets redacted)</summary>
           <pre id="cfgout" class="mono">—</pre></details>
-        <iframe id="docsframe" title="docs" src="https://stewie-sw.github.io/stewie/"></iframe>
+        <!-- UX-02: the docs iframe (src=https://stewie-sw.github.io/...) was blocked by the production
+             CSP (frame-src 'self'), so it rendered blank. Link out instead -- the page already carries a
+             "docs site ↗" link in the cap above; this restates it where the iframe used to be. -->
+        <div style="margin-top:8px;font-size:12px;color:var(--muted)">
+          The documentation site opens in a new tab; it cannot be embedded here because the production
+          content-security-policy blocks framing external origins.
+          <a href="https://stewie-sw.github.io/stewie/" target="_blank" rel="noopener">Open the docs site ↗</a>
+        </div>
       </div>
       <div id="pane-admin" class="pane">
         <div class="cap"><span>ADMIN — operator accounts (#117: approve · role · revoke · reset password · delete)</span>
