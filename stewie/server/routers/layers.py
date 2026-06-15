@@ -7,10 +7,44 @@ The raster layers (/layers, /layers/raster/{kind}.png) deliberately STAY in serv
 the live _MOON_DEM cache, which is server-owned app state."""
 from __future__ import annotations
 
-from fastapi import APIRouter
+import re
+
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, Response
 
+# GIS-03: the globe drape is an equally heavy server-side DEM reprojection as the raster layer, so it
+# gets the SAME auth + per-identity quota dependency the raster route (plan.get_raster_layer) uses.
+from stewie.server.routers.plan import heavy_quota
+
 router = APIRouter()
+
+# GIS-03: bound the params so an unbounded float/string stream cannot force unbounded renders + cache
+# growth (DoS). Sun angles quantize to integer degrees (sub-degree changes are not visible in the
+# drape and would otherwise multiply the cache key space); `color` becomes a cache-FILE component for
+# kind='grid', so it is restricted to 6 hex digits (rejecting length/path abuse); `kind` is allow-listed.
+_GLOBE_KINDS = ("dem", "slope", "hazard", "illumination", "psr", "grid")
+_HEX6 = re.compile(r"^[0-9a-fA-F]{6}$")
+_DEFAULT_GRID = "39ff14"
+_MISSION_T_MAX_S = 3.156e10            # +/- ~1000 yr: finite-bounds an arbitrary mission_t_s
+
+
+def _sanitize_color(color: str) -> str:
+    """Restrict the grid color to exactly 6 hex digits (else the default). It is a cache-file
+    component for kind='grid', so this bounds the cache key and forbids path/length abuse."""
+    c = (color or "")[:6]
+    return c if _HEX6.match(c) else _DEFAULT_GRID
+
+
+def _quantize_sun(sun_el: float, sun_az: float, mission_t_s: float | None):
+    """Clamp + quantize the sun geometry to integer degrees (el in [-90,90], az wrapped to [0,360)).
+    A mission time, when given, is finite-bounded then resolved to the polar sun geometry first."""
+    if mission_t_s is not None:
+        from stewie.specs.solar import sun_az_el
+        mt = max(-_MISSION_T_MAX_S, min(_MISSION_T_MAX_S, float(mission_t_s)))
+        sun_az, sun_el = sun_az_el(-87.45, mt)
+    el = float(max(-90.0, min(90.0, round(float(sun_el)))))
+    az = float(round(float(sun_az)) % 360)
+    return el, az
 
 
 @router.get("/layers/legend")
@@ -42,14 +76,16 @@ def layers_legend():
 
 @router.get("/layers/globe/{kind}.png")
 def globe_layer_png(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
-                    mission_t_s: float | None = None, color: str = "39ff14"):
-    """The GEOGRAPHIC drape (server-reprojected; Aaron's rotated-tile screenshot fix)."""
+                    mission_t_s: float | None = None, color: str = "39ff14",
+                    _auth: str = Depends(heavy_quota)):
+    """The GEOGRAPHIC drape (server-reprojected; Aaron's rotated-tile screenshot fix).
+    GIS-03: auth + per-identity quota; params clamped/quantized; color sanitized; kind allow-listed."""
+    if kind not in _GLOBE_KINDS:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
     from stewie.server.gis_layers import _to_png, render_globe
-    if mission_t_s is not None:
-        from stewie.specs.solar import sun_az_el
-        sun_az, sun_el = sun_az_el(-87.45, float(mission_t_s))
+    el, az = _quantize_sun(sun_el, sun_az, mission_t_s)
     try:
-        out = render_globe(kind, sun_el=sun_el, sun_az=sun_az, grid_color=color[:7])
+        out = render_globe(kind, sun_el=el, sun_az=az, grid_color=_sanitize_color(color))
     except FileNotFoundError as e:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"DEM absent: {e}"})
     if out is None:
@@ -59,12 +95,13 @@ def globe_layer_png(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
 
 @router.get("/layers/globe/{kind}/bbox")
 def globe_layer_bbox(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
-                     mission_t_s: float | None = None):
+                     mission_t_s: float | None = None, _auth: str = Depends(heavy_quota)):
+    """GIS-03: auth + per-identity quota; sun params clamped/quantized; kind allow-listed."""
+    if kind not in _GLOBE_KINDS:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
     from stewie.server.gis_layers import render_globe
-    if mission_t_s is not None:
-        from stewie.specs.solar import sun_az_el
-        sun_az, sun_el = sun_az_el(-87.45, float(mission_t_s))
-    out = render_globe(kind, sun_el=sun_el, sun_az=sun_az)
+    el, az = _quantize_sun(sun_el, sun_az, mission_t_s)
+    out = render_globe(kind, sun_el=el, sun_az=az)
     if out is None:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
     return {"ok": True, **out[1]}
