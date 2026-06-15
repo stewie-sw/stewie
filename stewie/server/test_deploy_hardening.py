@@ -140,6 +140,9 @@ def test_web01_nginx_csp_keeps_script_self_and_allowlists_tiles():
         "script-src must not name a CDN host -- the self-hosted bundle is the only remote script source"
     assert "'wasm-unsafe-eval'" in script_src, "Cesium WebAssembly needs 'wasm-unsafe-eval' in script-src"
     assert "blob:" in script_src, "Cesium workers importScripts(blob:) -> script-src must allow blob:"
+    # ARCH-02/SEC-04: the cockpit JS is external, so script-src must NOT allow inline scripts/handlers.
+    assert "'unsafe-inline'" not in script_src.split(), \
+        "script-src must NOT allow 'unsafe-inline' after ARCH-02 (the cockpit JS is external)"
     # the NARROW WASM token must NOT be the dangerous full 'unsafe-eval' (which 'wasm-unsafe-eval' contains)
     assert "'unsafe-eval'" not in script_src.split(), \
         "script-src must use 'wasm-unsafe-eval', not the broad 'unsafe-eval'"

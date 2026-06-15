@@ -1,3 +1,14 @@
+// ARCH-02: the work-area image's load-failure handler. Was an inline `onerror=` HTML attribute, which
+// the tightened CSP (script-src without 'unsafe-inline') forbids. Wired here via addEventListener; this
+// external script runs after the DOM is parsed, so the img element already exists.
+(function () {
+  const wai = document.getElementById("workareaimg");
+  if (wai) wai.addEventListener("error", () => {
+    const wa = wai.closest("#workarea");
+    if (wa) wa.classList.remove("show");
+  });
+})();
+
 // --- bodies + base imagery -------------------------------------------------------------------
 // density [kg/m^3] + g [m/s^2] are a file:// fallback; the served browser reads the sysrev values from
 // bodies.json (terrain_authority/bodies.py, single source). Moon/Mars stream from NASA Solar System Treks;

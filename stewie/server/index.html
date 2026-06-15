@@ -12,7 +12,7 @@
      cesium 1.119 to /cesium/ at build time (deploy/Dockerfile.frontend). CESIUM_BASE_URL must be set
      BEFORE Cesium.js so it locates its Workers/Assets same-origin. -->
 <link href="/cesium/Widgets/widgets.css" rel="stylesheet" />
-<script>window.CESIUM_BASE_URL = "/cesium/";</script>
+<script src="/assets/cesium-config.js"></script>
 <script src="/cesium/Cesium.js"></script>
 <style>
   /* Professional palette: neutral slate + ONE blue accent; color reserved for semantic meaning. */
@@ -442,8 +442,7 @@
       <div id="workarea">
         <div class="cap" id="wa-cap" title="tap to collapse / expand"><span id="wa-caret">▾</span> WORK AREA<span class="wa-hint"> — overview locator · drag the rectangle to pan · double-click to render</span></div>
         <div style="position:relative; display:inline-block">
-          <img id="workareaimg" alt="Haworth DEM hillshade"
-               onerror="this.closest('#workarea').classList.remove('show')" />
+          <img id="workareaimg" alt="Haworth DEM hillshade" />
           <canvas id="piploc" title="UI-15 overview-locator: the neon rectangle is the main camera's view — drag it to pan the main map"
                   style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:auto;cursor:grab"></canvas>
           <img id="ovl_slope" class="gisovl" alt="" />

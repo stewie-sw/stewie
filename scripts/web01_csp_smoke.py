@@ -64,6 +64,14 @@ def _make_handler(cesium_dir: str, csp: str):
                                "application/json", with_csp=True)
                 elif path == "/healthz":
                     self._send(b'{"status":"ok","version":"web01-smoke"}', "application/json", with_csp=True)
+                elif path.startswith("/assets/"):     # ARCH-02: the external cockpit + cesium-config scripts
+                    abase = os.path.join(web, "web", "assets")
+                    full = os.path.normpath(os.path.join(abase, path[len("/assets/"):]))
+                    if not full.startswith(os.path.normpath(abase)) or not os.path.isfile(full):
+                        self.send_error(404); return
+                    ext = os.path.splitext(full)[1].lower()
+                    ctype = {".js": "text/javascript", ".css": "text/css"}.get(ext, "application/octet-stream")
+                    self._send(open(full, "rb").read(), ctype, with_csp=False)
                 elif path.startswith("/cesium/"):
                     rel = path[len("/cesium/"):]
                     full = os.path.normpath(os.path.join(cesium_dir, rel))
