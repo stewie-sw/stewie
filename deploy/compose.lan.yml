@@ -1,0 +1,11 @@
+# ARCH-05 optional override: publish the frontend on ONE additional interface for direct tailnet/LAN
+# access (phone/laptop) without baking a host IP into the base compose. Requires STEWIE_FRONTEND_BIND
+# (e.g. your Tailscale 100.x.y.z, or a LAN IP) in deploy/.env. Usage:
+#   docker compose -f deploy/compose.yml -f deploy/compose.lan.yml up -d
+# The loopback bind from the base file is still published alongside this extra interface. Do NOT set
+# STEWIE_FRONTEND_BIND to 0.0.0.0 on an untrusted network -- that re-exposes the UI to the whole LAN.
+name: stewie
+services:
+  frontend:
+    ports:
+      - "${STEWIE_FRONTEND_BIND:?set STEWIE_FRONTEND_BIND to your tailnet/LAN IP for the compose.lan.yml override}:8000:80"
