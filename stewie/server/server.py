@@ -77,6 +77,11 @@ async def lifespan(_app: "FastAPI"):
     resolved at call time, so it may be defined later in the module."""
     from stewie.server import auth as _auth
     _auth.validate_proxy_trust_config()                   # SEC-03: refuse to boot fail-open (raises)
+    from stewie.server import operators as _ops          # first-director provisioning from deploy env
+    _seeded = _ops.bootstrap_director_from_env()          # so the deploy key never enters a browser
+    if _seeded:
+        log.info("bootstrap: seeded founding director %r from STEWIE_BOOTSTRAP_DIRECTOR "
+                 "(sign in with STEWIE_BOOTSTRAP_PASSWORD)", _seeded)
     _startup_warm_globe_cache()
     yield
 

@@ -250,6 +250,28 @@ def create_active(email: str, password: str, *, role: str = "operator",
     return register(email, password, role=role, status="active", by=by)
 
 
+def bootstrap_director_from_env() -> str | None:
+    """First-director provisioning from the DEPLOY ENV, so the shared deploy key never has to be
+    pasted into a browser (the old 'Settings -> Advanced -> automation API key' onboarding is removed).
+    If STEWIE_BOOTSTRAP_DIRECTOR (an email) + STEWIE_BOOTSTRAP_PASSWORD are set, the account does NOT
+    already exist, AND no active director exists yet, seed it as an active director. Idempotent + safe
+    to call on every boot; returns the seeded email or None. The founding director then signs in with
+    that password and the shared key stays server-side (X-API-Key remains for CI automation only)."""
+    email = (os.environ.get("STEWIE_BOOTSTRAP_DIRECTOR", "") or "").strip().lower()
+    password = os.environ.get("STEWIE_BOOTSTRAP_PASSWORD", "")
+    if not email or not password:
+        return None
+    if exists(email):
+        return None                                        # already provisioned -> no-op
+    if any(r["status"] == "active" and r["role"] == "director" for r in list_all()):
+        return None                                        # a fleet is already configured -> don't seed
+    try:
+        create_active(email, password, role="director", by="bootstrap-env")
+    except ValueError:
+        return None                                        # bad email / weak password -> skip (logged by caller)
+    return email
+
+
 def verify_credentials(email: str, password: str) -> str | None:
     """The normalized email iff the account is active, unlocked, and the password matches; else
     None (caller returns a GENERIC error -- no existence/lock leak). Failed attempts increment the

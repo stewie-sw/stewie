@@ -7,16 +7,29 @@ The raster layers (/layers, /layers/raster/{kind}.png) deliberately STAY in serv
 the live _MOON_DEM cache, which is server-owned app state."""
 from __future__ import annotations
 
+import os
 import re
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
-# GIS-03: the globe drape is an equally heavy server-side DEM reprojection as the raster layer, so it
-# gets the SAME auth + per-identity quota dependency the raster route (plan.get_raster_layer) uses.
-from stewie.server.routers.plan import heavy_quota
+from stewie.server.ratelimit import RateLimiter, client_ip
 
 router = APIRouter()
+
+# GIS-03 fix (live-site map-401): the globe drape is the cockpit's base terrain view -- a map you
+# cannot see is worse than the DoS the rate-limit already covers. So it is PUBLIC (no auth, unlike the
+# planner's heavy_quota which gated it and 401'd the map), but rate-limited PER CLIENT IP so the heavy
+# server-side reprojection still cannot be hammered. Tunable via STEWIE_GLOBE_QUOTA_MAX/_WINDOW_S.
+_globe_quota = RateLimiter(int(os.environ.get("STEWIE_GLOBE_QUOTA_MAX", "180")),
+                           float(os.environ.get("STEWIE_GLOBE_QUOTA_WINDOW_S", "60")))
+
+
+def globe_quota(request: Request) -> str:
+    ip = client_ip(request)
+    if not _globe_quota.allow(ip):
+        raise HTTPException(status_code=429, detail="globe-layer render quota exceeded; slow down")
+    return ip
 
 # GIS-03: bound the params so an unbounded float/string stream cannot force unbounded renders + cache
 # growth (DoS). Sun angles quantize to integer degrees (sub-degree changes are not visible in the
@@ -77,9 +90,9 @@ def layers_legend():
 @router.get("/layers/globe/{kind}.png")
 def globe_layer_png(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
                     mission_t_s: float | None = None, color: str = "39ff14",
-                    _auth: str = Depends(heavy_quota)):
+                    _auth: str = Depends(globe_quota)):
     """The GEOGRAPHIC drape (server-reprojected; Aaron's rotated-tile screenshot fix).
-    GIS-03: auth + per-identity quota; params clamped/quantized; color sanitized; kind allow-listed."""
+    GIS-03 (live-fix): PUBLIC base-map drape, per-IP rate-limited (no auth); params clamped/quantized; color sanitized; kind allow-listed."""
     if kind not in _GLOBE_KINDS:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
     from stewie.server.gis_layers import _to_png, render_globe
@@ -95,8 +108,8 @@ def globe_layer_png(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
 
 @router.get("/layers/globe/{kind}/bbox")
 def globe_layer_bbox(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
-                     mission_t_s: float | None = None, _auth: str = Depends(heavy_quota)):
-    """GIS-03: auth + per-identity quota; sun params clamped/quantized; kind allow-listed."""
+                     mission_t_s: float | None = None, _auth: str = Depends(globe_quota)):
+    """GIS-03 (live-fix): PUBLIC base-map drape, per-IP rate-limited (no auth); sun params clamped/quantized; kind allow-listed."""
     if kind not in _GLOBE_KINDS:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
     from stewie.server.gis_layers import render_globe

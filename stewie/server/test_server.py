@@ -435,7 +435,8 @@ def test_arch02_cockpit_script_is_external_and_served(client):
     scripts). index.html references /assets/cockpit.js (no big inline cockpit <script>), and the dev
     server serves it as javascript -- matching production nginx, which serves /assets/ from the image."""
     html = client.get("/").text
-    assert 'src="/assets/cockpit.js"' in html, "index.html does not load the external cockpit script"
+    # prefix match: the reference carries a cache-buster query (?v=N) so a JS edit forces a browser reload.
+    assert 'src="/assets/cockpit.js' in html, "index.html does not load the external cockpit script"
     # the only remaining bare inline <script> is the tiny CESIUM_BASE_URL line (externalized in step 2);
     # the 2600-line cockpit block is gone.
     assert html.count("<script>") <= 1, "the big cockpit inline <script> was not extracted"
