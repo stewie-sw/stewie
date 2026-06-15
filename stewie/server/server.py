@@ -122,6 +122,7 @@ from stewie.server.routers import config as _config_router  # noqa: E402
 from stewie.server.routers import dem as _dem_router  # noqa: E402
 from stewie.server.routers import figures as _figures_router  # noqa: E402
 from stewie.server.routers import health as _health_router  # noqa: E402
+from stewie.server.routers import invites as _invites_router  # noqa: E402
 from stewie.server.routers import layers as _layers_router  # noqa: E402
 from stewie.server.routers import missions as _missions_router  # noqa: E402
 from stewie.server.routers import operators_admin as _operators_admin_router  # noqa: E402
@@ -135,6 +136,7 @@ from stewie.server.routers import structures as _structures_router  # noqa: E402
 from stewie.server.routers import twin as _twin_router  # noqa: E402
 app.include_router(_rc_router.router)
 app.include_router(_auth_router.router)
+app.include_router(_invites_router.router)
 app.include_router(_missions_router.router)
 app.include_router(_structures_router.router)
 app.include_router(_operators_admin_router.router)

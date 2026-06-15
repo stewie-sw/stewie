@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import threading
 import time
 
@@ -281,6 +282,67 @@ def bootstrap_director_from_env() -> str | None:
     except ValueError:
         return None                                        # bad email / weak password -> skip (logged by caller)
     return email
+
+
+# ---- AG-03/04: one-time invite tokens ----------------------------------------------------------
+_INVITE_TOKEN_BYTES = 32          # secrets.token_urlsafe(32) -> 43-char token, 256 bits of entropy
+_MAX_INVITE_TTL_S = 90 * 86400    # cap a mint at 90 days
+_MAX_INVITE_USES = 1000
+
+
+def _token_hash(token: str) -> str:
+    """sha256 of an invite token. The token is 256-bit random, so a per-token salt buys nothing
+    against enumeration -- we store ONLY this hash, never the token itself."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_invite(by: str, *, role: str = "operator", ttl_s: float = 7 * 86400,
+                  max_uses: int = 1) -> str:
+    """AG-03 (PRD §7.12): mint a one-time invite. Returns the RAW token (shown once -> share as a
+    link); the store keeps only its sha256 hash plus role / issuer / expiry / use-count. The role
+    must be a known ladder role; ttl and use-count are bounded. Mint authority (director by default,
+    Open Decision 11) is enforced by the route, not here."""
+    if role not in _ROLES:
+        raise ValueError(f"role must be one of {_ROLES}")
+    ttl = min(max(float(ttl_s), 1.0), float(_MAX_INVITE_TTL_S))
+    uses = min(max(int(max_uses), 1), _MAX_INVITE_USES)
+    token = secrets.token_urlsafe(_INVITE_TOKEN_BYTES)
+    now = _clock()
+    with _LOCK:
+        data = _load()
+        data.setdefault("invites", {})[_token_hash(token)] = {
+            "role": role, "by": by, "created_at": now,
+            "expires_at": now + ttl, "max_uses": uses, "uses": 0,
+        }
+        _save(data)
+    return token
+
+
+def redeem_invite(token: str, email: str, password: str) -> dict:
+    """AG-04 (PRD §7.12): redeem a one-time invite -> create an ACTIVE account at the invite's role,
+    then burn the invite. The invitee sets their OWN password here; no secret is transmitted out of
+    band. Raises ValueError on an unknown / expired / spent token, or a bad email / weak password --
+    in the latter case the invite is NOT burned, so the invitee can retry. _LOCK is reentrant, so the
+    inner create_active is safe, and the invite is burned only AFTER the account is created."""
+    th = _token_hash(token)
+    now = _clock()
+    with _LOCK:
+        inv = _load().get("invites", {}).get(th)
+        if inv is None:
+            raise ValueError("invalid invite")
+        if now >= inv["expires_at"]:
+            raise ValueError("invite expired")
+        if inv["uses"] >= inv["max_uses"]:
+            raise ValueError("invite already used")
+        rec = create_active(email, password, role=inv["role"], by=f"invite:{inv.get('by', '?')}")
+        data = _load()                                       # re-read: create_active just persisted the account
+        slot = data.get("invites", {}).get(th)
+        if slot is not None:
+            slot["uses"] += 1
+            if slot["uses"] >= slot["max_uses"]:
+                del data["invites"][th]                      # exhausted -> drop it
+            _save(data)
+    return rec
 
 
 def verify_credentials(email: str, password: str) -> str | None:
