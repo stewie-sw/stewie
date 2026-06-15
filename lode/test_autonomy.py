@@ -300,3 +300,18 @@ def test_initial_belief_threads_the_vehicle_pack_into_soc():
         b = A.initial_belief(_veh_mission(name), 1)
         assert math.isclose(b.energy_J, ctx.battery_j)
         assert math.isclose(b.soc_frac(), 1.0)
+
+
+def test_perception_fix_injects_seeded_measurement_noise():
+    """MODEL-02: a real map/AprilTag pose fix is the true pose PLUS sensor noise (~perception_sigma_m),
+    not the EXACT truth. Two runs with different seeds give different corrected poses (the measurement
+    realization differs); the same seed reproduces. The deterministic-truth fix gave identical poses for
+    every seed (a perfect, optimistic fix)."""
+    from lode import autonomy as A
+    dem = MP.load_haworth_dem(); o = MP.flattest_anchor(dem)
+    m = _spread()
+    a = A.run_closed_loop(m, dem=dem, dem_origin=o, perception_sigma_m=0.10, seed=1)
+    b = A.run_closed_loop(m, dem=dem, dem_origin=o, perception_sigma_m=0.10, seed=2)
+    c = A.run_closed_loop(m, dem=dem, dem_origin=o, perception_sigma_m=0.10, seed=1)
+    assert (a["belief"].x, a["belief"].y) != (b["belief"].x, b["belief"].y)   # different noise realization
+    assert (a["belief"].x, a["belief"].y) == (c["belief"].x, c["belief"].y)   # same seed -> reproducible

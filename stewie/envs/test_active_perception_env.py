@@ -95,3 +95,29 @@ if __name__ == "__main__":
                 else:
                     raise
     print("active_perception_env: all checks passed")
+
+
+def test_observation_injects_seeded_measurement_noise():
+    """RL-02: the fused stereo estimate is the truth PLUS a sampled measurement realization (range-
+    dependent sensor noise), not the truth itself. With noise ON the estimate differs from the noise-free
+    (expected-value) update; the same seed reproduces; different seeds differ. The deterministic
+    `est += k*(truth-est)` update (noise OFF) is preserved as the expected-value mode."""
+    import numpy as np
+    n = ap.ActivePerceptionEnv(grid=16, seed=7)                  # noise ON (default)
+    ev = ap.ActivePerceptionEnv(grid=16, seed=7, measurement_noise=False)  # expected-value
+    for _ in range(6):
+        n._observe(); ev._observe()
+    assert not np.allclose(n.est, ev.est)                        # noise present -> differs from expected value
+    n2 = ap.ActivePerceptionEnv(grid=16, seed=7)
+    for _ in range(6):
+        n2._observe()
+    assert np.allclose(n.est, n2.est)                            # same seed -> reproducible noise
+    n3 = ap.ActivePerceptionEnv(grid=16, seed=8)
+    for _ in range(6):
+        n3._observe()
+    assert not np.allclose(n.est, n3.est)                        # different seed -> different realization
+    # the noise-free mode is the deterministic truth-update (back-compat / expected-value label)
+    ev2 = ap.ActivePerceptionEnv(grid=16, seed=7, measurement_noise=False)
+    for _ in range(6):
+        ev2._observe()
+    assert np.allclose(ev.est, ev2.est)

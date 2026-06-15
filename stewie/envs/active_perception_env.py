@@ -48,8 +48,13 @@ class ActivePerceptionEnv(_BASE):
     metadata = {"render_modes": []}
 
     def __init__(self, *, grid: int = 24, cell_m: float = 2.0, sensor_radius_cells: float = 4.0,
-                 relief_m: float = 3.0, charges: float = 0.25, seed: int = 0):
+                 relief_m: float = 3.0, charges: float = 0.25, seed: int = 0,
+                 measurement_noise: bool = True):
         super().__init__()
+        # RL-02: a real stereo fix carries a sampled measurement realization. measurement_noise=True
+        # (default) fuses truth + N(0, range-dependent sensor sigma); False is the deterministic
+        # EXPECTED-VALUE update (est tracks the posterior mean) for reproducible/analytic use.
+        self.measurement_noise = bool(measurement_noise)
         if charges <= 0:
             raise ValueError(f"charges must be > 0 (got {charges}): a zero energy budget divides to "
                              "a crash in the observation (audit L45)")
@@ -75,7 +80,16 @@ class ActivePerceptionEnv(_BASE):
         """Fuse a range-dependent stereo observation at the current pose; return summed sigma reduction."""
         before = float(self.sigma.sum())
         new_sigma, k = _fuse_sigma(self.sigma, self.pos, self._rr, self._cc, self.sensor_r)
-        self.est = self.est + k * (self.truth - self.est)         # estimate -> truth (measured w/ noise)
+        # RL-02: the measurement is the truth PLUS a sampled realization of the per-cell stereo noise
+        # (the same range-dependent obs_sigma the gain k is built from), not the exact truth. Without
+        # this the estimate converged to perfect truth -- an optimistic fix the comment falsely claimed.
+        if self.measurement_noise:
+            dist = np.hypot(self._rr - self.pos[0], self._cc - self.pos[1])
+            obs_sig = OBS_SIGMA_FLOOR_M * (1.0 + (dist / self.sensor_r) ** 2)
+            z = self.truth + self._rng.standard_normal(self.truth.shape) * obs_sig
+        else:
+            z = self.truth                                        # expected-value mode (posterior mean)
+        self.est = self.est + k * (z - self.est)
         self.sigma = new_sigma
         return before - float(self.sigma.sum())
 
@@ -88,6 +102,7 @@ class ActivePerceptionEnv(_BASE):
         if _HAS_GYM:
             super().reset(seed=seed)
         s = self._seed0 if seed is None else int(seed)
+        self._rng = np.random.default_rng(s)          # RL-02: seeded measurement-noise stream
         self.truth = self._gen_terrain(s)
         self.sigma = np.full((self.grid, self.grid), PRIOR_SIGMA_M)
         self.est = np.zeros((self.grid, self.grid))

@@ -199,7 +199,7 @@ def _canonical_plant(mission, *, dem, dem_origin, max_traverse_slope_deg, algori
 
 
 def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto", objective="time",
-                    max_traverse_slope_deg=25.0, perception_sigma_m=None, dig_sigma_gate_m=0.20):
+                    max_traverse_slope_deg=25.0, perception_sigma_m=None, dig_sigma_gate_m=0.20, seed=0):
     """Run the AutoNav-style loop as an OVERLAY on the ONE canonical plant (A-03). The plan, vehicle,
     routing, energy, and reserve all come from the planner (``_canonical_plant`` -> ``plan_and_simulate``
     -> ``_simulate``), so the closed-loop execution and the planner simulation describe the SAME mission:
@@ -212,8 +212,10 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
     NOT maintain a second, inconsistent energy/recharge plant: the authoritative ``plant_energy_J`` /
     ``plant_time_s`` / ``recharges`` come from the canonical sim, and recharge travel is fully accounted
     (no free teleport to the charger, return-to-site drive included)."""
+    import numpy as _np
     g = MP.body_gravity(mission.body)
     ctx = MP.plan_context(mission)                         # MODEL-01: the SELECTED vehicle's constants
+    _rng = _np.random.default_rng(seed)                    # MODEL-02: seeded perception-noise stream
     result, trips, ir, totals, recharge_travel_J, dep_by_trip = _canonical_plant(
         mission, dem=dem, dem_origin=dem_origin, max_traverse_slope_deg=max_traverse_slope_deg,
         algorithm=algorithm, objective=objective)
@@ -285,9 +287,14 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
                          odom_drift_frac=ODOM_DRIFT_FRAC, energy_spent_J=0.0)
         # PERCEPTION MEASUREMENT: fuse the INDEPENDENT true pose (the SLAM / AprilTag map fix). The
         # measurement is the truth, NOT the belief's own estimate, so the Kalman update CORRECTS the
-        # dead-reckoned drift (moves the mean back), not merely shrinks sigma.
+        # dead-reckoned drift (moves the mean back), not merely shrinks sigma. MODEL-02: a real fix is
+        # only as good as its declared sigma -- the measurement is true_pose + N(0, perception_sigma_m)
+        # (a seeded sensor-noise realization), NOT the exact truth, so the corrected mean lands NEAR
+        # truth within the fix's own uncertainty rather than perfectly on it.
         if perception_sigma_m is not None:
-            belief = update_pose(belief, true_pose, perception_sigma_m)
+            meas = (true_pose[0] + float(_rng.normal(0.0, perception_sigma_m)),
+                    true_pose[1] + float(_rng.normal(0.0, perception_sigma_m)))
+            belief = update_pose(belief, meas, perception_sigma_m)
             perception_fixes += 1
         e_sig = math.sqrt(belief.energy_sigma_J ** 2 + (0.12 * nominal_J) ** 2)
         belief = dataclasses.replace(belief, energy_sigma_J=e_sig)
