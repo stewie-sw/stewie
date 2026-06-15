@@ -428,6 +428,12 @@
       <button class="vtab" data-view="system" title="#55: validation, API docs, server ops, config — the operate-the-software cluster">System</button>
       <button class="vtab" id="vtab-admin" data-view="admin" style="display:none" title="#117: operator accounts — approve / role / revoke / reset (director-only)">Admin</button>
       <button class="vtab" data-view="settings" title="operator display settings (Carstens & Schuler 2025: font size + lighting)">⚙ Settings</button>
+      <!-- #117: the signed-in identity chip (who's logged in) + sign-out; right-aligned, hidden until signed in -->
+      <span id="whoami" title="signed-in operator" style="margin-left:auto;display:none;align-items:center;gap:7px;padding:0 4px 4px 0">
+        <span id="whoami-av" aria-hidden="true" style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'Orbitron',system-ui,sans-serif"></span>
+        <span id="whoami-label" style="font-size:11px;color:var(--muted);max-width:15em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        <button id="whoami-signout" class="site" style="font-size:10px;padding:3px 8px" title="sign out">Sign out</button>
+      </span>
     </nav>
     <div id="viewarea">
       <button id="drawerbtn" title="planning sidebar">☰</button>

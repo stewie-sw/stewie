@@ -161,6 +161,27 @@ def main() -> int:
             if not modal["closed"]:
                 fail.append("Escape did not close the auth dialog")
 
+            # #117: the signed-in identity chip is hidden when signed out, populated by renderWhoami,
+            # and cleared again (the 'who's logged in' corner indicator + sign-out)
+            who = pg.evaluate(r"""() => {
+                const vis = () => getComputedStyle(document.getElementById('whoami')).display !== 'none';
+                const before = vis();
+                renderWhoami('aaron.w.storey80@gmail.com', 'director');
+                const on = { vis: vis(), av: document.getElementById('whoami-av').textContent,
+                             label: document.getElementById('whoami-label').textContent };
+                renderWhoami(null);
+                return { before, on, afterClear: vis(),
+                         hasSignout: !!document.getElementById('whoami-signout') };
+            }""")
+            if who["before"]:
+                fail.append("the whoami chip is shown before sign-in (should be hidden)")
+            if not who["on"]["vis"] or who["on"]["av"] != "A" or "director" not in who["on"]["label"]:
+                fail.append(f"whoami chip did not render the signed-in identity ({who['on']})")
+            if who["afterClear"]:
+                fail.append("whoami chip not cleared on sign-out (renderWhoami(null))")
+            if not who["hasSignout"]:
+                fail.append("no #whoami-signout button")
+
             # mobile viewport: touch targets >= 44px
             pg.set_viewport_size({"width": 390, "height": 844})
             touch = pg.evaluate(r"""() => {

@@ -824,17 +824,40 @@ async function refreshAuthState() {
   if (!getCookie("stewie_csrf") && !AUTH.apikey) {
     AUTH.role = null; AUTH.identity = null;
     if (st) st.textContent = "not signed in";
+    renderWhoami(null);
     const av = $("vtab-admin"); if (av) av.style.display = "none"; return; }
   try {
     const r = await fetch("/auth/me", { headers: apiHeaders() });
     if (!r.ok) throw 0;
     const j = await r.json(); AUTH.role = j.role; AUTH.identity = j.identity;
     if (st) st.textContent = "signed in: " + j.identity + " (" + j.role + ")";
+    renderWhoami(j.identity, j.role);
     const av = $("vtab-admin"); if (av) av.style.display = (j.role === "director") ? "inline-block" : "none";
   } catch (e) { AUTH.role = null; AUTH.identity = null;
     if (st) st.textContent = "not signed in";
+    renderWhoami(null);
     const av = $("vtab-admin"); if (av) av.style.display = "none"; }
 }
+// #117: the signed-in identity chip (who's logged in) + sign-out. renderWhoami(null) hides it; a
+// director gets the accent avatar, an operator a muted one. Function declarations -> hoisted, so
+// refreshAuthState above can call renderWhoami regardless of source order.
+function renderWhoami(identity, role) {
+  const w = $("whoami"); if (!w) return;
+  if (!identity) { w.style.display = "none"; return; }
+  const av = $("whoami-av"), lab = $("whoami-label");
+  if (av) { av.textContent = (String(identity).trim()[0] || "?").toUpperCase();
+    av.style.background = (role === "director") ? "var(--accent)" : "var(--muted)"; }
+  if (lab) lab.textContent = identity + (role ? " (" + role + ")" : "");
+  w.style.display = "inline-flex";
+}
+async function doLogout() {
+  try { await fetch("/auth/logout", { method: "POST", headers: apiHeaders() }); } catch (e) {}
+  AUTH.role = null; AUTH.identity = null; AUTH.apikey = "";   // SEC-01: drop the in-memory key too
+  renderWhoami(null);
+  await refreshAuthState();
+  if (typeof setQ === "function") setQ("signed out");
+}
+if ($("whoami-signout")) $("whoami-signout").onclick = doLogout;
 async function doLogin() {
   const email = $("auth-email").value.trim(), pass = $("auth-pass").value;
   if (!email) { authMsg("email required"); return; }
