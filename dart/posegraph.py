@@ -139,10 +139,74 @@ class PoseGraph:
         """Full pose covariance = H^{-1} (the differential uncertainty of the estimate)."""
         return np.linalg.inv(self.information_matrix(X))
 
-    def pose_covariances(self, X):
-        """Per-pose marginal 3x3 covariances [x, y, theta]."""
-        cov = self.covariance(X); N = np.asarray(X).shape[0]
-        return [cov[3*i:3*i+3, 3*i:3*i+3] for i in range(N)]
+    def pose_covariances(self, X, sparse=False):
+        """Per-pose marginal 3x3 covariances [x, y, theta].
+
+        sparse=False (default, unchanged) slices the dense full inverse. sparse=True (OPT-01) computes the
+        SAME marginals WITHOUT forming the dense NxN inverse: factorize the information matrix once and
+        back-substitute only the 3 columns per pose, so memory stays O(N) instead of O(N^2). It equals the
+        dense slice (verified to 1e-9)."""
+        X = np.asarray(X, float); N = X.shape[0]
+        if not sparse:
+            cov = self.covariance(X)
+            return [cov[3*i:3*i+3, 3*i:3*i+3] for i in range(N)]
+        from scipy.sparse import csc_matrix
+        from scipy.sparse.linalg import splu
+        lu = splu(csc_matrix(self.information_matrix(X)))   # one sparse factorization
+        eye = np.eye(3 * N)
+        out = []
+        for i in range(N):
+            cols = lu.solve(eye[:, 3*i:3*i+3])              # H^{-1}[:, 3i:3i+3]  (3 columns, never the full inverse)
+            out.append(np.asarray(cols[3*i:3*i+3, :]))      # the pose's marginal block
+        return out
+
+    def _huber_row_weights(self, r, W, sizes, huber_delta):
+        """The per-row sqrt-Huber weight the solve applies (R8): a factor whose whitened-residual NORM
+        exceeds huber_delta is down-weighted by sqrt(delta/||rw||); all ones when huber_delta is None."""
+        shw = np.ones(len(r))
+        if huber_delta is None:
+            return shw
+        rw = r * np.sqrt(W)
+        idx = 0
+        for sz in sizes:
+            nf = float(np.linalg.norm(rw[idx:idx + sz]))
+            if nf > huber_delta:
+                shw[idx:idx + sz] = np.sqrt(huber_delta / nf)
+            idx += sz
+        return shw
+
+    def robust_covariance(self, X, huber_delta):
+        """MODEL-03 / audit R8: a SANDWICH covariance consistent with the Huber IRLS solve. The non-robust
+        covariance() credits every factor its FULL information even when the robust solve down-weighted it,
+        so a rejected outlier makes it optimistic. The sandwich A^{-1} B A^{-1} uses the Huber-weighted
+        bread A = Jr^T Jr (the information the solve actually used) and the empirical meat
+        B = sum_f g_f g_f^T of per-factor score contributions, so a down-weighted factor WIDENS (not
+        shrinks) the reported uncertainty. With huber_delta=None it reduces to the ordinary covariance."""
+        X = np.asarray(X, float); N = X.shape[0]
+        r, J, W, sizes = self._linearize(X)
+        sw = np.sqrt(W)
+        shw = self._huber_row_weights(r, W, sizes, huber_delta)
+        Jr = (J * sw[:, None]) * shw[:, None]               # robust-weighted whitened Jacobian
+        rr = (r * sw) * shw                                 # robust-weighted whitened residual
+        reg = 1e-9 * np.eye(3 * N)
+        A = Jr.T @ Jr + reg                                 # bread = the H the robust solve uses
+        B = np.zeros((3 * N, 3 * N))                        # meat = sum over FACTORS of g_f g_f^T
+        idx = 0
+        for sz in sizes:
+            g = Jr[idx:idx + sz].T @ rr[idx:idx + sz]       # per-factor score contribution (3N,)
+            B += np.outer(g, g)
+            idx += sz
+        Ainv = np.linalg.inv(A)
+        return Ainv @ B @ Ainv
+
+    def conditioning(self, X):
+        """MODEL-03: a numerical-health report on the information matrix H -- its condition number and
+        numerical rank. A near-singular / rank-deficient H means an unobservable direction (a gauge
+        freedom or too-weak a factor set): the covariance there is meaningless, not merely large."""
+        H = self.information_matrix(np.asarray(X, float))
+        return {"condition_number": float(np.linalg.cond(H)),
+                "rank": int(np.linalg.matrix_rank(H)),
+                "dim": int(H.shape[0])}
 
 
 def integrate_odometry(start_pose, odoms):

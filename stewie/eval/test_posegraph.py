@@ -70,3 +70,44 @@ def test_multirover_inter_rover_factor_links_frames():
     g.add_odom(0, 3, z)
     X = g.solve(np.zeros((6, 3)))
     assert metrics.ate_rmse(X, true) < 1e-4   # B's frame is pinned via A
+
+
+def test_robust_covariance_is_not_optimistic_under_a_huber_outlier():
+    # MODEL-03 / audit R8: a 3-pose chain + a GROSS-OUTLIER loop (0->2 claims pose2 is 5 m off in y).
+    # Under a Huber solve that factor is down-weighted, so crediting its FULL information (the non-robust
+    # covariance) over-states confidence. The robust sandwich must report LARGER (honest) uncertainty.
+    true = np.array([[0, 0, 0], [1, 0, 0], [2, 0, 0]], float)
+    g = pg.PoseGraph(); g.add_prior(0, true[0])
+    g.add_odom(0, 1, [1, 0, 0]); g.add_odom(1, 2, [1, 0, 0])
+    g.add_odom(0, 2, [2.0, 5.0, 0.0], info=(100, 100, 100))      # OUTLIER loop closure
+    X = g.solve(np.array(true), huber_delta=2.0)
+    naive = g.covariance(X)
+    robust = g.robust_covariance(X, huber_delta=2.0)
+    assert np.trace(robust) > np.trace(naive)                    # not optimistic about the rejected factor
+    assert robust.shape == naive.shape
+
+
+def test_conditioning_reports_condition_number_and_rank():
+    # MODEL-03: a numerical-health report on the information matrix (additive; does not change covariance).
+    g = pg.PoseGraph(); g.add_prior(0, [0, 0, 0]); g.add_odom(0, 1, [1, 0, 0])
+    rep = g.conditioning(np.zeros((2, 3)))
+    assert rep["rank"] == rep["dim"] == 6                        # prior + odom -> fully observable
+    assert np.isfinite(rep["condition_number"]) and rep["condition_number"] > 0
+    g2 = pg.PoseGraph(); g2.add_odom(0, 1, [1, 0, 0])            # NO prior -> global pose unobservable (gauge)
+    rep2 = g2.conditioning(np.zeros((2, 3)))
+    assert rep2["condition_number"] > rep["condition_number"] * 100   # far worse conditioned (unobservable)
+
+
+def test_sparse_marginal_equals_the_dense_slice():
+    # OPT-01: per-pose marginals computed WITHOUT the dense full inverse must equal the dense slice.
+    true = np.array([[0, 0, 0], [1, 0, 0.1], [2, 0.2, 0.2], [3, 0.5, 0.3]], float)
+    g = pg.PoseGraph(); g.add_prior(0, true[0])
+    for i, z in enumerate(pg.relative_odometry(true)):
+        g.add_odom(i, i + 1, z)
+    g.add_heading(2, true[2, 2], info=500.0)
+    X = g.solve(np.array(true))
+    dense = g.pose_covariances(X)
+    sparse = g.pose_covariances(X, sparse=True)
+    assert len(dense) == len(sparse) == 4
+    for d, s in zip(dense, sparse):
+        assert np.allclose(d, s, atol=1e-9)
