@@ -40,6 +40,22 @@ def test_gate_validation_reports_byte_identity(client):
     assert d["byte_identical_to_frozen"] is True           # the standing invariant, now a button
 
 
+def test_gate_validation_surfaces_evidence_numbers(client):
+    """P3 (PRD §22.3): the Validate button surfaces the actual gate EVIDENCE -- real-sensor dead-reckon
+    ATE, stereo covariance + held-out coverage + depth, and the honest evidence scope -- from the latest
+    dated artifact, not just PASS/PASS. Numbers are read from the on-disk artifact, never fabricated."""
+    e = client.post("/admin/gates/validate", headers=H).json()["evidence"]
+    # G1: real Katwijk dead-reckoning ATE over the eval track (the real-sensor evidence stream)
+    assert abs(e["g1_ate_m"] - 3.3465) < 1e-3 and abs(e["g1_eval_track_m"] - 92.48) < 1e-2
+    assert e["g1_baseline_raw_m"] > 0 and e["g1_baseline_aligned_m"] > 0
+    assert e["g1_contract_checks_pass"] == e["g1_contract_checks_total"] > 0   # every contract check PASS
+    # G2: rendered-sensor stereo covariance calibration + held-out coverage + depth
+    assert abs(e["g2_sigma_px"] - 3.6495) < 1e-2 and e["g2_coverage_3sigma"] == 1.0
+    assert e["g2_median_depth_m"] > 0
+    # honesty firewall: scope stated as rendered-sensor sim, and a next gate is named
+    assert "RENDERED-SENSOR" in e["g2_evidence_scope"] and len(e["next_gate"]) > 0
+
+
 def test_admin_ops_are_auth_gated(client):
     assert client.post("/admin/twin/snapshot").status_code == 401
     assert client.post("/admin/gates/validate").status_code == 401

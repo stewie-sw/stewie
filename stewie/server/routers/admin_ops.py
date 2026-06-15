@@ -55,5 +55,26 @@ def admin_gates(_auth: str = Depends(require_director)):
     dated = sorted(f for f in os.listdir(vdir) if f.startswith("g1_g2_validation_"))
     latest = _json.load(open(os.path.join(vdir, dated[-1])))
     summary = latest.get("release_gate_summary", {})
+    # P3 (PRD §22.3): surface the actual gate EVIDENCE numbers (not just PASS/PASS) for the review
+    # panel. Every value is read from the on-disk artifact; an absent key degrades to None (older
+    # artifacts may carry a different schema). No number is computed or fabricated here.
+    g1, g2 = latest.get("g1", {}), latest.get("g2", {})
+    kd, sc = g1.get("katwijk_dead_reckon", {}), g1.get("simulated_closure", {})
+    cc, cov = g1.get("contract_checks", {}), g2.get("covariance_calibration", {})
+    evidence = {
+        "evidence_mode": latest.get("evidence_mode"),
+        "g1_ate_m": kd.get("ate_aligned_m"),
+        "g1_eval_track_m": kd.get("eval_track_length_m"),
+        "g1_baseline_raw_m": sc.get("baseline_wheel_imu_ate_raw_m"),
+        "g1_baseline_aligned_m": sc.get("baseline_wheel_imu_ate_aligned_m"),
+        "g1_contract_checks_pass": sum(1 for v in cc.values() if v == "PASS"),
+        "g1_contract_checks_total": len(cc),
+        "g2_sigma_px": cov.get("sigma_disparity_px"),
+        "g2_coverage_3sigma": cov.get("held_out_coverage_3sigma"),
+        "g2_median_depth_m": g2.get("median_depth_m"),
+        "g2_sigma_depth_m": g2.get("median_sigma_depth_m"),
+        "g2_evidence_scope": g2.get("evidence_scope"),
+        "next_gate": summary.get("next_gate"),
+    }
     return {"ok": True, "g1": str(summary.get("G1", "?")), "g2": str(summary.get("G2", "?")),
-            "latest_artifact": dated[-1], "byte_identical_to_frozen": same}
+            "latest_artifact": dated[-1], "byte_identical_to_frozen": same, "evidence": evidence}

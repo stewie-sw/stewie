@@ -564,6 +564,7 @@
           <button id="admgate" class="site">🛡 Validate gates</button>
           <span id="admout" style="font-size:11px;opacity:.8"></span>
         </div>
+        <div id="gateevidence"></div>
         <div class="cap" style="margin-top:6px"><span>EVENT HISTORY — who did what, when</span>
           <button id="evrefresh" class="site" style="font-size:10px">↻</button></div>
         <ol id="evlist" style="font-size:11px;font-variant-numeric:tabular-nums;max-height:160px;overflow:auto;margin:4px 0;padding-left:18px"></ol>
@@ -1867,11 +1868,30 @@ async function renderArea(u, v, opts) {
     markFresh($("rpimg"));                                 // UI-5: the camera tile gets a freshness border
   } catch (err) { $("rpstatus").textContent = "render error: " + err; }
 }
+// P3: the Validate-gates button renders the full G1/G2 EVIDENCE (real-sensor ATE, stereo covariance
+// + held-out coverage + depth, the honest evidence scope, and the next gate) from the dated artifact.
+function renderGateEvidence(j) {
+  const e = j.evidence || {}, el = $("gateevidence"); if (!el) return;
+  const f = (x, u, d) => (x == null ? "—" : (+x).toFixed(d == null ? 2 : d) + (u || ""));
+  const ok = (s) => `<span style="color:#7CE0A6">${s}</span>`;
+  el.innerHTML =
+    `<div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px;font-size:11px;line-height:1.7;font-variant-numeric:tabular-nums">
+       <div style="font-family:Orbitron,system-ui;letter-spacing:.08em;font-size:10px;color:var(--accent);margin-bottom:6px">RELEASE GATES — EVIDENCE <small style="color:var(--muted)">(${e.evidence_mode || "?"})</small></div>
+       <div><b>G1</b> ${ok(j.g1)} · contracts ${e.g1_contract_checks_pass}/${e.g1_contract_checks_total} PASS · real Katwijk dead-reckon ATE <b>${f(e.g1_ate_m, " m")}</b> over ${f(e.g1_eval_track_m, " m", 1)} · sim baseline ${f(e.g1_baseline_raw_m, " m")} raw / ${f(e.g1_baseline_aligned_m, " m")} aligned</div>
+       <div><b>G2</b> ${ok(j.g2)} · stereo covariance σ <b>${f(e.g2_sigma_px, " px")}</b> · held-out 3σ coverage <b>${f(e.g2_coverage_3sigma, "", 3)}</b> · depth ${f(e.g2_median_depth_m, " m")} ± ${f(e.g2_sigma_depth_m, " m", 3)}</div>
+       <div style="color:var(--muted);margin-top:4px">${e.g2_evidence_scope || ""}</div>
+       <div style="margin-top:4px">frozen baseline ${j.byte_identical_to_frozen ? ok("byte-identical ✓") : '<span style="color:#e0556a">DIVERGED ✗</span>'} · artifact <code>${j.latest_artifact}</code></div>
+       <div style="color:var(--muted);margin-top:4px"><b>next gate:</b> ${e.next_gate || ""}</div>
+       <div style="margin-top:6px;color:var(--muted)">Full evidence (head-to-head, cross-dataset generalization, photometric depth pass, the executed notebooks): <a href="https://stewie-sw.github.io/stewie/" target="_blank" rel="noopener">documentation ↗</a></div>
+     </div>`;
+}
 [["admsnap", "/admin/twin/snapshot", (j) => "snapshot: " + j.snapshot.split("/").pop()],
  ["admret", "/admin/twin/retention", (j) => `retention: ${j.removed.length} removed`],
  ["admrep", "/admin/backup/replicate", (j) => "replicated ✓"],
- ["admgate", "/admin/gates/validate", (j) =>
-   `G1 ${j.g1.split(" ")[0]} · G2 ${j.g2.split(" ")[0]} · frozen ${j.byte_identical_to_frozen ? "byte-identical ✓" : "DIVERGED ✗"}`],
+ ["admgate", "/admin/gates/validate", (j) => {
+   renderGateEvidence(j);
+   return `G1 ${j.g1.split(" ")[0]} · G2 ${j.g2.split(" ")[0]} · frozen ${j.byte_identical_to_frozen ? "byte-identical ✓" : "DIVERGED ✗"}`;
+ }],
 ].forEach(([id, url, fmt]) => {
   const b = $(id); if (!b) return;
   b.onclick = async () => {
