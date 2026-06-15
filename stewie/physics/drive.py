@@ -154,11 +154,15 @@ def _skid_steer_motion(v_cmd: float, omega_cmd: float, *, track_m: float,
     # converted to a resisting shear via the friction ceiling. Larger |omega|*half -> larger scrub.
     scrub_speed = abs(omega_cmd) * half
     ref_speed = max(abs(v_cmd), 1e-3)
+    # TERRA-01 [ASSUMPTION]: this lateral-scrub interpolation FORM (and the scrub_factor throttling below)
+    # is a MODELING CHOICE -- dimensionally sane and bounded in (0,1], but NOT derived from Janosi-Hanamoto
+    # lateral shear-displacement, wheel/track contact-patch integration, or measured skid-steer turn data.
+    # Turn radius and energy on weak soil may be materially biased; calibrating it against IPEx/RASSOR (or
+    # representative skid-steer) data is deferred (DEFERRED_FIXES). The cross-slope gravity term IS sourced
+    # (same Coulomb-Mohr budget); the INTERPOLATION is the assumption. Evidence status exposed as scrub_evidence.
     scrub_demand = h_lat * scrub_speed / (scrub_speed + ref_speed)
-    # On a CROSS-SLOPE the lateral (roll) component of gravity, weight*sin(roll), must also be carried by
-    # the same lateral friction budget — it adds to the scrub demand, so a turn on a side-slope yaws
-    # differently than the identical turn on flat ground (T-04 differential loading expressed through the
-    # turn). This is the same Coulomb-Mohr budget, no invented coefficient.
+    # cross-slope: the lateral (roll) gravity component weight*sin(roll) is carried by the same lateral
+    # friction budget, so a turn on a side-slope yaws differently than the identical turn on flat ground.
     lateral_gravity = abs(weight_n) * abs(math.sin(roll_rad))
     scrub_demand = scrub_demand + lateral_gravity
     scrub_factor = h_lat / (h_lat + scrub_demand) if h_lat > 0.0 else 1.0
@@ -169,6 +173,7 @@ def _skid_steer_motion(v_cmd: float, omega_cmd: float, *, track_m: float,
         "v_left_ach": v_left_ach, "v_right_ach": v_right_ach,
         "slip_left": s_left, "slip_right": s_right,
         "scrub_factor": scrub_factor,
+        "scrub_evidence": "ASSUMPTION",                   # TERRA-01: the scrub interpolation is uncalibrated
     }
 
 
@@ -267,6 +272,7 @@ def drive_step(cs: ColumnState, rc: tuple[float, float], yaw: float,
                 "v_left_ach": float(ss["v_left_ach"]), "v_right_ach": float(ss["v_right_ach"]),
                 "slip_left": float(ss["slip_left"]), "slip_right": float(ss["slip_right"]),
                 "scrub_factor": float(ss["scrub_factor"]),
+                "scrub_evidence": str(ss["scrub_evidence"]),   # TERRA-01: scrub interpolation is uncalibrated
             }
         else:
             omega_ach = omega_cmd

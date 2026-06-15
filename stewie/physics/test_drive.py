@@ -295,6 +295,21 @@ def test_t05_per_side_speeds_reported_in_telemetry():
     assert t["v_left_cmd"] != t["v_right_cmd"]
 
 
+def test_terra01_scrub_telemetry_carries_its_evidence_status():
+    """TERRA-01: the lateral-scrub interpolation that throttles yaw (scrub_factor) is a MODELING CHOICE,
+    not a soil law derived from Janosi-Hanamoto lateral shear or calibrated against measured skid-steer
+    data. The code formerly commented 'no invented coefficient' / 'no fabricated coefficients', which
+    OVERCLAIMS its provenance. A consumer must be able to read the evidence status off the telemetry so a
+    downstream report never presents the modelled turn radius as a calibrated number."""
+    cs = _flat()
+    _, _, t = drive.drive_step(cs, (48.0, 48.0), 0.0, 0.2, 0.5, dt=0.1, skid_steer=True)
+    assert t.get("scrub_evidence") == "ASSUMPTION"        # honest provenance, exposed alongside scrub_factor
+    assert "scrub_factor" in t                             # the value it qualifies is present
+    # a straight-line drive (no skid-steer turn block) carries no scrub claim at all
+    _, _, t_straight = drive.drive_step(cs, (48.0, 48.0), 0.0, 0.2, 0.0, dt=0.1, skid_steer=False)
+    assert "scrub_evidence" not in t_straight
+
+
 def test_a02_vehicle_mass_geometry_propagates_into_drive():
     """A-02: a 30 kg IPEx and a 65 kg RASSOR-2, driven IDENTICALLY through the exact runtime
     call (drive_step(**twin.drive_context())), must produce DIFFERENT slip/sinkage/position.
