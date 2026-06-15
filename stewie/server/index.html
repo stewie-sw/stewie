@@ -1181,6 +1181,13 @@ for (const [k, v] of Object.entries(BODIES)) {
 }
 const $ = (id) => document.getElementById(id);
 
+// SEC-04: HTML-escape a server- or user-derived string before it is interpolated into an innerHTML
+// template (option lists, labels, error text). Escaping &<>"' neutralizes both element injection and
+// double/single-quoted attribute breakout, so an `<img onerror>`-style value renders as inert text.
+// (New DOM construction should still prefer the el() builder below; esc() hardens the existing sinks.)
+const _ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => _ESC[c]); }
+
 // S-02: safe DOM builder. Server data (operator emails, roles, mission math labels) is NEVER
 // concatenated into innerHTML/attributes -- it goes in via textContent / setAttribute, so an
 // `<img onerror>`-style value renders as inert text. el(tag, {props/attrs}, ...children).
@@ -1593,7 +1600,7 @@ async function loadPane(name) {
       const d = await (await fetch("/figures")).json();
       const vs = $("valselect");
       if (d.ok && d.figures.length) {
-        vs.innerHTML = d.figures.map((f) => `<option value="${f.url}">${f.key}</option>`).join("");
+        vs.innerHTML = d.figures.map((f) => `<option value="${esc(f.url)}">${esc(f.key)}</option>`).join("");  // SEC-04
         $("valempty").style.display = "none";
         const show = () => { $("valimg").src = vs.value; $("valimg").style.display = "block"; };
         vs.onchange = show; show();
@@ -1655,7 +1662,7 @@ async function navRun() {
       body: JSON.stringify({ segment: seg, n_keyframes: kf }) });
     const b = await r.json();
     if (!b.ok) { $("navempty").style.display = "none";
-      $("navstats").innerHTML = `<span style="color:#e8273f">${b.error || "estimator unavailable"}</span>`;
+      $("navstats").innerHTML = `<span style="color:#e8273f">${esc(b.error || "estimator unavailable")}</span>`;  // SEC-04
       $("navloo").textContent = ""; return; }
     $("navempty").style.display = "none";
     navDrawTrajectory(b.trajectory_xy, b.baseline_xy);
@@ -1673,7 +1680,7 @@ async function navCompare() {                          // P3.1: shared-testbed h
     const r = await fetch("/slam/compare", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify({ segment: seg, n_keyframes: kf, n_seeds: 8 }) });
     const b = await r.json();
-    if (!b.ok) { $("navcmpout").innerHTML = `<span style="color:#e8273f">${b.error || "comparison unavailable"}</span>`; return; }
+    if (!b.ok) { $("navcmpout").innerHTML = `<span style="color:#e8273f">${esc(b.error || "comparison unavailable")}</span>`; return; }  // SEC-04
     const rows = Object.entries(b.comparison);
     const worst = Math.max(...rows.map(([, v]) => v.mean_m));
     $("navcmpout").innerHTML = "<b>shared-testbed head-to-head</b> — absolute drift, one trajectory, one metric:<br>"
@@ -1723,7 +1730,7 @@ async function navReloc() {                            // REAL measured fix on t
     const r = await fetch("/localize/render", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify({ camera: "front_left", drift_m: sig }) });
     const b = await r.json();
-    if (!b.ok) { $("navcovstat").innerHTML = `<span style="color:#e8273f">${b.error}</span>`; return; }
+    if (!b.ok) { $("navcovstat").innerHTML = `<span style="color:#e8273f">${esc(b.error)}</span>`; return; }  // SEC-04
     navDrawFix(b);
     $("navcovstat").innerHTML = `<b>real fix</b> (render-pair) · error <b>${b.error_m} m</b> from ${b.drift_m} m drift`
       + ` · σ ${b.fix_sigma_m} m · ${b.n_inliers}/${b.n_features} inliers · features `
@@ -2033,9 +2040,9 @@ refreshEvents();
   try {
     const j = await (await fetch("/sites")).json();
     const sl = $("sitesel"); if (!sl || !j.ok) return;
-    sl.innerHTML = j.sites.map((s) =>
-      `<option value="${s.name}|${s.lat},${s.lon}" data-imported="${s.imported ? 1 : 0}" ${s.name === "haworth" ? "selected" : ""}>` +
-      `${s.label}${s.imported ? " ✓DEM" : " (no DEM yet)"}</option>`).join("");
+    sl.innerHTML = j.sites.map((s) =>                                                              // SEC-04
+      `<option value="${esc(s.name)}|${s.lat},${s.lon}" data-imported="${s.imported ? 1 : 0}" ${s.name === "haworth" ? "selected" : ""}>` +
+      `${esc(s.label)}${s.imported ? " ✓DEM" : " (no DEM yet)"}</option>`).join("");
     sl.onchange = () => {
       const opt = sl.options[sl.selectedIndex];
       const [nm, ll] = sl.value.split("|"); const [la, lo] = ll.split(",").map(Number);
@@ -2914,7 +2921,7 @@ qel("qfile").onchange = async (e) => {
 async function refreshProfiles() {
   try {
     const d = await (await fetch("/profiles")).json();
-    if (d && d.ok) qel("profload").innerHTML = d.profiles.map((n) => `<option>${n}</option>`).join("");
+    if (d && d.ok) qel("profload").innerHTML = d.profiles.map((n) => `<option>${esc(n)}</option>`).join("");
   } catch (err) { /* server not up */ }
 }
 qel("profsave").onclick = async () => {
@@ -3240,13 +3247,13 @@ function syncKinds() {
 function populateFleet() {
   if (!PHY || !PHY._vehicles) return;
   qel("vehicle").innerHTML = Object.entries(PHY._vehicles)
-    .map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
+    .map(([k, v]) => `<option value="${esc(k)}">${esc(v.label)}</option>`).join("");   // SEC-04
   qel("tools").innerHTML = "tools: " + (PHY._tools ? Object.entries(PHY._tools)
-    .map(([k, t]) => `<label><input type="checkbox" value="${k}"> ${t.label}</label>`).join(" ") : "none");
+    .map(([k, t]) => `<label><input type="checkbox" value="${esc(k)}"> ${esc(t.label)}</label>`).join(" ") : "none");
   if (qel("soil")) {                                          // soil model = any body's regolith (default: this body's)
     const bodies = Object.keys(PHY).filter((k) => !k.startsWith("_"));
     qel("soil").innerHTML = '<option value="">(body default)</option>'
-      + bodies.map((k) => `<option value="${k}">${(PHY[k].label || k)} soil</option>`).join("");
+      + bodies.map((k) => `<option value="${esc(k)}">${esc(PHY[k].label || k)} soil</option>`).join("");
   }
   [...document.querySelectorAll("#tools input")].forEach((c) => c.addEventListener("change", syncKinds));
   qel("vehicle").addEventListener("change", syncKinds);
