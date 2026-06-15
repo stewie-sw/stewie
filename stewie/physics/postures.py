@@ -17,6 +17,9 @@ _PATH = os.path.join(os.path.dirname(__file__), "data", "ipex_postures.json")
 # arm angles are the editable source of truth; chassis_lift/camera_vantage are COMPUTED from them by
 # posture_kinematics (so the sim angle faithfully drives the height -- they cannot diverge).
 _REQUIRED = ("arm_front_pitch_rad", "arm_back_pitch_rad", "stability", "provenance")
+# SLAM-04: the tolerance at which an authored geometry constant is treated as a stale second source
+# that contradicts the FK authority (and fails the load).
+_FK_AUTHORITY_TOL_M = 0.02
 
 
 @dataclass(frozen=True)
@@ -42,14 +45,15 @@ def load_postures(path: str = _PATH) -> dict:
         af, ab = float(p["arm_front_pitch_rad"]), float(p["arm_back_pitch_rad"])
         lift = pk.chassis_lift_m(af, ab)                  # COMPUTED from arm angles (faithful), not the JSON constant
         for k_json in ("chassis_lift_m", "camera_vantage_m"):
-            if k_json in p and abs(float(p[k_json]) - lift) > 0.02:
-                # audit M32: the authored constant was silently IGNORED. The FK value is the design
-                # truth (see the comment above), so a contradicting JSON field is SURFACED as a
-                # warning -- loud enough for the operator, without failing a load on legacy data.
-                import warnings
-                warnings.warn(f"posture {name}: authored {k_json}={p[k_json]} contradicts the "
-                              f"FK-computed {lift:.3f} m (>2 cm); the FK value is used",
-                              stacklevel=2)
+            if k_json in p and abs(float(p[k_json]) - lift) > _FK_AUTHORITY_TOL_M:
+                # SLAM-04: URDF/FK is the SOLE authority for posture geometry. An authored constant that
+                # contradicts the FK-computed lift by > tolerance is a STALE second source that can
+                # silently diverge (it was historically ignored behind a soft warning). Fail the load:
+                # remove the authored field (FK is the source) or fix the arm angles.
+                raise ValueError(
+                    f"posture {name}: authored {k_json}={p[k_json]} contradicts the FK-computed "
+                    f"{lift:.3f} m by >{_FK_AUTHORITY_TOL_M * 100:.0f} cm. URDF/FK is the sole authority "
+                    f"-- remove the authored {k_json} (it is FK-computed) or correct the arm angles.")
         out[name] = Posture(name=name, description=str(p.get("description", "")),
                             arm_front_pitch_rad=af, arm_back_pitch_rad=ab,
                             chassis_lift_m=lift, camera_vantage_m=lift,
