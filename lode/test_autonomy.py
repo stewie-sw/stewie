@@ -267,3 +267,36 @@ def test_closed_loop_belief_is_an_overlay_not_a_separate_plant():
     assert abs(on["belief"].x - m.charger[0]) <= 3.0 * 0.05
     assert abs(on["belief"].y - m.charger[1]) <= 3.0 * 0.05
     assert on["belief"].pos_sigma_m < b.pos_sigma_m       # dock fix shrinks uncertainty vs dead-reckoning
+
+
+def _veh_mission(name):
+    return MP.mission_from_dict({"name": "v", "body": "moon", "charger": [0, 0], "vehicle": name,
+                                 "orders": [{"action": "cut", "kind": "cut", "x": 20, "y": 0,
+                                             "footprint_m2": 20, "depth_m": 0.05}]})
+
+
+def test_execute_leg_caps_haul_at_the_selected_vehicles_drum():
+    """MODEL-01: a 60 kg haul is capped at the SELECTED vehicle's drum -- 30 kg on ipex, the full 60 kg
+    on rassor2 (80 kg drum). The closed-loop overlay must price the leg with the vehicle's
+    PlanningContext, not the global IPEx DRUM_KG (which would cap every vehicle at 30)."""
+    from lode import autonomy as A
+    dem = MP.load_haworth_dem(); o = MP.flattest_anchor(dem)
+    leg = {"site": (5.0, 0.0), "mass": 60.0, "kind": "cutfill"}
+    b = A.initial_belief(_veh_mission("ipex"), 1)
+    t_ipex = A.execute_leg(b, leg, dem=dem, dem_origin=o, body="moon",
+                           ctx=MP.plan_context(_veh_mission("ipex")))
+    t_rassor = A.execute_leg(b, leg, dem=dem, dem_origin=o, body="moon",
+                             ctx=MP.plan_context(_veh_mission("rassor2")))
+    assert math.isclose(t_ipex["haul_mass_capped_kg"], 30.0), t_ipex["haul_mass_capped_kg"]
+    assert math.isclose(t_rassor["haul_mass_capped_kg"], 60.0), t_rassor["haul_mass_capped_kg"]
+
+
+def test_initial_belief_threads_the_vehicle_pack_into_soc():
+    """MODEL-01: the SOC denominator is the SELECTED vehicle's pack (via PlanningContext), not the global
+    IPEx BATTERY_J. A fresh belief is full (soc 1.0) and its energy equals the vehicle's battery."""
+    from lode import autonomy as A
+    for name in ("ipex", "rassor2"):
+        ctx = MP.plan_context(_veh_mission(name))
+        b = A.initial_belief(_veh_mission(name), 1)
+        assert math.isclose(b.energy_J, ctx.battery_j)
+        assert math.isclose(b.soc_frac(), 1.0)

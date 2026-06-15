@@ -39,21 +39,31 @@ class Belief:
     tasks_done: int
     tasks_total: int
     t_s: float = 0.0
+    battery_j: float = BATTERY_J          # MODEL-01: the SELECTED vehicle's pack (SOC denominator)
 
     def soc_frac(self) -> float:
-        """Battery state-of-charge estimate (fraction of the pack)."""
-        return self.energy_J / BATTERY_J
+        """Battery state-of-charge estimate (fraction of the SELECTED vehicle's pack)."""
+        return self.energy_J / self.battery_j
 
     def to_dict(self) -> dict:
-        return {**dataclasses.asdict(self), "soc_frac": self.soc_frac()}
+        # battery_j is a per-vehicle constant, not an estimated state -> keep it out of the telemetry
+        # dict (the per-leg SOC already folds it in) so the serialized shape is unchanged.
+        d = dataclasses.asdict(self)
+        d.pop("battery_j", None)
+        return {**d, "soc_frac": self.soc_frac()}
 
 
-def initial_belief(mission, tasks_total, *, pos_sigma_m=0.5):
-    """A fresh belief at mission start: parked at the charger, full pack, empty drum — all well known."""
+def initial_belief(mission, tasks_total, *, pos_sigma_m=0.5, ctx=None):
+    """A fresh belief at mission start: parked at the charger, full pack, empty drum — all well known.
+    MODEL-01: the full-pack energy + the SOC denominator come from the SELECTED vehicle's PlanningContext
+    (ctx), not the global IPEx pack. The default vehicle 'ipex' resolves ctx.battery_j == BATTERY_J, so an
+    ipex mission is byte-identical."""
+    ctx = ctx if ctx is not None else MP.plan_context(mission)
     cx, cy = mission.charger
     return Belief(x=float(cx), y=float(cy), pos_sigma_m=float(pos_sigma_m),
-                  energy_J=float(BATTERY_J), energy_sigma_J=0.0,
-                  drum_kg=0.0, drum_sigma_kg=0.0, tasks_done=0, tasks_total=int(tasks_total))
+                  energy_J=float(ctx.battery_j), energy_sigma_J=0.0,
+                  drum_kg=0.0, drum_sigma_kg=0.0, tasks_done=0, tasks_total=int(tasks_total),
+                  battery_j=float(ctx.battery_j))
 
 
 def _kf_update(mu, var, z, r):
@@ -106,20 +116,27 @@ def update_energy(b, reading_J, reading_sigma_J):
 
 
 # ---- EXECUTOR + CONTROLLER: the closed loop (plan -> execute -> sense -> estimate -> replan) -----
-def nominal_leg_energy_J(pose, leg):
+def nominal_leg_energy_J(pose, leg, *, ctx=None):
     """The planner's MODEL estimate for a leg: flat 135 J/m drive (pose->site) + the leg's dig/haul/lift.
     This is what the plan BUDGETED; `execute_leg` returns the slip-adjusted truth, and the gap is the model
-    error the estimator carries and the controller replans against (the AutoNav model-vs-truth dynamic)."""
+    error the estimator carries and the controller replans against (the AutoNav model-vs-truth dynamic).
+    MODEL-01: the per-metre drive energy comes from the SELECTED vehicle's ctx (ipex == the global)."""
+    drive_j_per_m = ctx.drive_j_per_m if ctx is not None else MP.DRIVE_J_PER_M
     drive = MP._d(pose, leg["site"])
-    haul_e = leg.get("haul_e", leg.get("haul_m", 0.0) * MP.DRIVE_J_PER_M)   # #1 slip-aware haul (the plan's)
-    return (drive * MP.DRIVE_J_PER_M + leg.get("dig_e", 0.0) + leg.get("sinter_e", 0.0)
+    haul_e = leg.get("haul_e", leg.get("haul_m", 0.0) * drive_j_per_m)      # #1 slip-aware haul (the plan's)
+    return (drive * drive_j_per_m + leg.get("dig_e", 0.0) + leg.get("sinter_e", 0.0)
             + haul_e + leg.get("lift_e", 0.0))
 
 
-def execute_leg(belief, leg, *, dem=None, dem_origin=(0.0, 0.0), g=None, body="moon", params=None):
+def execute_leg(belief, leg, *, dem=None, dem_origin=(0.0, 0.0), g=None, body="moon", params=None, ctx=None):
     """Step the rover from its believed pose through one leg, returning the TRUE telemetry it experiences:
     the inter-leg drive costs `135/(1-slip) + rover_mass*g*Δh` (slope→slip from the real DEM + exact gravity
-    climb), plus the leg's dig/haul/lift. This is the physical truth that diverges from the flat nominal plan."""
+    climb), plus the leg's dig/haul/lift. This is the physical truth that diverges from the flat nominal plan.
+    MODEL-01: the drum capacity, rover mass and per-metre drive energy come from the SELECTED vehicle's
+    PlanningContext (ctx); ctx=None falls back to the module IPEx globals (byte-identical for the default)."""
+    drum_kg = ctx.drum_kg if ctx is not None else MP.DRUM_KG
+    rover_mass_kg = ctx.rover_mass_kg if ctx is not None else MP.ROVER_MASS_KG
+    drive_j_per_m = ctx.drive_j_per_m if ctx is not None else MP.DRIVE_J_PER_M
     g = MP.body_gravity(body) if g is None else g
     pose = (belief.x, belief.y)
     site = leg["site"]
@@ -134,15 +151,16 @@ def execute_leg(belief, leg, *, dem=None, dem_origin=(0.0, 0.0), g=None, body="m
     # uncapped leg mass (a whole job, potentially tonnes) saturated slip and charged a phantom m*g*h
     # for mass never on the wheels in a single drive (audit 2026-06-09); the extra shuttles' costs are
     # priced in the leg's slip-aware haul_e.
-    haul_mass_kg = min(max(0.0, float(leg.get("mass", 0.0))), float(MP.DRUM_KG))
+    haul_mass_kg = min(max(0.0, float(leg.get("mass", 0.0))), float(drum_kg))
     slip = MP.slip_alpha_to_slip(slope_deg, payload_kg=haul_mass_kg, g=g, params=params)
-    true_drive_J = (drive_m * MP.DRIVE_J_PER_M / (1.0 - slip)
-                    + (MP.ROVER_MASS_KG + haul_mass_kg) * g * max(0.0, dh))
-    haul_e = leg.get("haul_e", leg.get("haul_m", 0.0) * MP.DRIVE_J_PER_M)   # #1 slip-aware haul (the plan's)
+    true_drive_J = (drive_m * drive_j_per_m / (1.0 - slip)
+                    + (rover_mass_kg + haul_mass_kg) * g * max(0.0, dh))
+    haul_e = leg.get("haul_e", leg.get("haul_m", 0.0) * drive_j_per_m)      # #1 slip-aware haul (the plan's)
     true_J = (true_drive_J + leg.get("dig_e", 0.0) + leg.get("sinter_e", 0.0)
               + haul_e + leg.get("lift_e", 0.0))
     return {"drive_m": drive_m, "true_energy_J": true_J, "new_pose": site,
-            "slope_deg": slope_deg, "slip": slip, "drum_through_kg": leg.get("mass", 0.0)}
+            "slope_deg": slope_deg, "slip": slip, "drum_through_kg": leg.get("mass", 0.0),
+            "haul_mass_capped_kg": haul_mass_kg}   # MODEL-01: mass actually on the wheels (vehicle drum cap)
 
 
 def _canonical_plant(mission, *, dem, dem_origin, max_traverse_slope_deg, algorithm, objective):
@@ -195,13 +213,14 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
     ``plant_time_s`` / ``recharges`` come from the canonical sim, and recharge travel is fully accounted
     (no free teleport to the charger, return-to-site drive included)."""
     g = MP.body_gravity(mission.body)
+    ctx = MP.plan_context(mission)                         # MODEL-01: the SELECTED vehicle's constants
     result, trips, ir, totals, recharge_travel_J, dep_by_trip = _canonical_plant(
         mission, dem=dem, dem_origin=dem_origin, max_traverse_slope_deg=max_traverse_slope_deg,
         algorithm=algorithm, objective=objective)
     plant_energy_J = float(totals["energy_J"])             # canonical reserve-aware ledger (the ONE plant)
     plant_time_s = float(totals["time_s"])
     recharges = int(totals["charges"])
-    belief = initial_belief(mission, len(trips))
+    belief = initial_belief(mission, len(trips), ctx=ctx)
     replans = 0                                            # belief-driven re-sequencing diagnostics (overlay)
     perception_fixes = observe_more = 0
     map_observe_more = 0                                   # P6: digs gated on local map coverage
@@ -250,13 +269,13 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
             survey_time_s += MC.OBSERVE_DWELL_S
             map_observe_more += 1
         stations.append(site)                             # the rover observes the worksite from each station
-        nominal_J = nominal_leg_energy_J((belief.x, belief.y), leg)
+        nominal_J = nominal_leg_energy_J((belief.x, belief.y), leg, ctx=ctx)
         # #25: the leg's path check uses the CANONICAL plant departure pose (where the rover actually drives
         # FROM per the plant timeline), not the belief estimate, so the re-hazard geometry matches the one
         # canonical plant (A-03). dep_by_trip is keyed by canonical trip index.
         dep_pose = dep_by_trip[ti] if ti < len(dep_by_trip) else (belief.x, belief.y)
         telem = execute_leg(belief, leg, dem=dem, dem_origin=dem_origin, g=g, body=mission.body,
-                            params=MP.mission_soil_params(mission))
+                            params=MP.mission_soil_params(mission), ctx=ctx)
         # ESTIMATE -- DEAD-RECKON: the believed pose accumulates a deterministic along-track odometry drift
         # (ODOM_DRIFT_FRAC per metre); without an independent fix it compounds leg-over-leg. (pose sigma also
         # grows; energy sigma is grown below by the leg's a-priori model error.)
