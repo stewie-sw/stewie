@@ -9,6 +9,28 @@
   });
 })();
 
+// UX-04 (WAI-ARIA tabs): the view switcher is a tablist, the panes are tabpanels, and Left/Right/Home/
+// End move + activate between tabs (the active tab carries tabindex 0, the rest -1 -- set in setView).
+(function initTabsA11y() {
+  const tl = document.getElementById("viewtabs");
+  if (tl) {
+    tl.setAttribute("role", "tablist");
+    tl.setAttribute("aria-label", "Cockpit views");
+    tl.addEventListener("keydown", (e) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+      const tabs = [...tl.querySelectorAll(".vtab")].filter((b) => b.offsetParent !== null);
+      let i = tabs.indexOf(document.activeElement);
+      if (i < 0) i = 0;
+      e.preventDefault();
+      const j = e.key === "ArrowRight" ? (i + 1) % tabs.length
+        : e.key === "ArrowLeft" ? (i - 1 + tabs.length) % tabs.length
+        : e.key === "Home" ? 0 : tabs.length - 1;
+      tabs[j].focus(); tabs[j].click();                    // activate-on-focus (the cockpit's tabs are cheap)
+    });
+  }
+  document.querySelectorAll(".pane").forEach((p) => p.setAttribute("role", "tabpanel"));
+})();
+
 // --- bodies + base imagery -------------------------------------------------------------------
 // density [kg/m^3] + g [m/s^2] are a file:// fallback; the served browser reads the sysrev values from
 // bodies.json (terrain_authority/bodies.py, single source). Moon/Mars stream from NASA Solar System Treks;
@@ -373,6 +395,11 @@ function deleteSelectedPin() {                             // #64: Delete remove
   renderQueue(); setQ("feature deleted");
 }
 document.addEventListener("keydown", (e) => {
+  // UX-04: Escape closes the open auth dialog (the role=dialog aria-modal contract).
+  const am = document.getElementById("authmodal");
+  if (e.key === "Escape" && am && am.style.display !== "none" && am.style.display !== "") {
+    e.preventDefault(); closeAuth(); return;
+  }
   if ((e.key === "Delete" || e.key === "Backspace") && SELECTED_PIN &&
       !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) {
     e.preventDefault(); deleteSelectedPin();
@@ -530,8 +557,13 @@ function setView(name) {
   if (name === "system") name = LAST_SYSTEM_VIEW;          // #55: the cluster remembers its sub-tab
   if (SYSTEM_VIEWS.includes(name)) LAST_SYSTEM_VIEW = name;
   VIEW = name;
-  document.querySelectorAll(".vtab").forEach((b) => b.classList.toggle("active",
-    b.dataset.view === name || (b.dataset.view === "system" && SYSTEM_VIEWS.includes(name))));
+  document.querySelectorAll(".vtab").forEach((b) => {       // UX-04: tab semantics + selected state
+    const sel = b.dataset.view === name || (b.dataset.view === "system" && SYSTEM_VIEWS.includes(name));
+    b.classList.toggle("active", sel);
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", sel ? "true" : "false");
+    b.tabIndex = sel ? 0 : -1;                              // roving tabindex (WAI-ARIA tabs pattern)
+  });
   let sysbar = document.getElementById("sysbar");
   if (SYSTEM_VIEWS.includes(name)) {
     if (!sysbar) {
@@ -739,7 +771,14 @@ function authMode(mode) {
   if (tabs) tabs.style.display = (mode === "setpw") ? "none" : "flex";
   authMsg("");
 }
-function openAuth(mode) { const m = $("authmodal"); if (!m) return; m.style.display = "flex"; authMode(mode || "login"); }
+function openAuth(mode) {
+  const m = $("authmodal"); if (!m) return;
+  m.style.display = "flex"; authMode(mode || "login");
+  // UX-04: move focus into the dialog (the first visible field) so keyboard + screen-reader users land
+  // inside it. The dialog is now display:flex (visible), so the focus takes effect synchronously.
+  const first = m.querySelector("input, button");
+  if (first) first.focus();
+}
 function closeAuth() { const m = $("authmodal"); if (m) m.style.display = "none"; }
 let _authPromptTs = 0;
 function flashSignInNeeded() {                            // a 401 surfaced -> nudge sign-in (debounced)
