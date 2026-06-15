@@ -3169,7 +3169,7 @@ function populateFleet() {
 }
 
 // load the py-generated terramechanics + IPEx constants (single source); graceful on file://
-fetch("bodies.json").then((r) => (r.ok ? r.json() : null)).then((d) => {
+fetch("/bodies.json").then((r) => (r.ok ? r.json() : null)).then((d) => {
   if (d) { PHY = d; showTerra(); estimate(); populateFleet(); }
 }).catch(() => {});
 refreshProfiles();                                            // populate the saved-profiles dropdown

@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STEWIE — Surface Terrain Engineering &amp; World-Model Integration Environment</title>
+<meta name="description" content="A lunar construction-planning and digital-twin platform for IPEx/RASSOR-lineage excavators. Load real terrain, author construction goals, produce energy-aware plans, simulate execution, and emit mission-control reports. In silico to in situ.">
+<meta name="theme-color" content="#0D0F11">
+<link rel="icon" type="image/png" href="/assets/brand/favicon.png">
+<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="STEWIE — Surface Terrain Engineering &amp; World-Model Integration Environment">
+<meta property="og:description" content="A lunar construction-planning and digital-twin platform for IPEx/RASSOR-lineage excavators. In silico to in situ.">
+<meta property="og:image" content="/assets/brand/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  /* ---- self-hosted brand fonts (Orbitron display, Inter interface) ---- */
+  @font-face{font-family:Orbitron;font-weight:500;font-display:swap;src:url(/assets/fonts/orbitron-500.woff2) format("woff2")}
+  @font-face{font-family:Orbitron;font-weight:700;font-display:swap;src:url(/assets/fonts/orbitron-700.woff2) format("woff2")}
+  @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(/assets/fonts/inter-400.woff2) format("woff2")}
+  @font-face{font-family:Inter;font-weight:500;font-display:swap;src:url(/assets/fonts/inter-500.woff2) format("woff2")}
+  @font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(/assets/fonts/inter-600.woff2) format("woff2")}
+
+  /* ---- STEWIE Design System v1.1 tokens ---- */
+  :root{
+    --bg:#0D0F11; --surface:#14181C; --surface-2:#1A1D20; --border:#2B3137;
+    --text:#E6E8EA; --text-2:#8A9096; --regolith:#646A70;
+    --accent:#C8102E; --accent-bright:#FF1A3D; --silver:#C7CCD1; --gold:#C8A24A;
+    --r-sm:4px; --r-md:8px; --r-lg:16px; --r-xl:24px;
+    --sh-sm:0 1px 2px rgba(0,0,0,.4); --sh-md:0 4px 12px rgba(0,0,0,.5); --sh-lg:0 8px 24px rgba(0,0,0,.6);
+    --glow:0 0 16px rgba(200,16,46,.25);
+    --silver-grad:linear-gradient(180deg,#E6E8EA 0%,#8A9096 100%);
+    --accent-grad:linear-gradient(180deg,#FF1A3D 0%,#C8102E 100%);
+    --maxw:1120px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;line-height:1.55;
+    -webkit-font-smoothing:antialiased;font-size:16px;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  ::selection{background:rgba(200,16,46,.35)}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .display{font-family:Orbitron,sans-serif;text-transform:uppercase;letter-spacing:.12em}
+  .eyebrow{font-family:Orbitron,sans-serif;text-transform:uppercase;letter-spacing:.18em;
+    font-size:12px;font-weight:500;color:var(--accent)}
+  .silvertext{background:var(--silver-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  /* ---- top nav ---- */
+  header{position:fixed;top:0;left:0;right:0;z-index:50;
+    background:rgba(13,15,17,.72);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand img{width:32px;height:32px;display:block}
+  .brand .name{font-family:Orbitron,sans-serif;font-weight:700;letter-spacing:.14em;font-size:18px}
+  .navlinks{display:flex;align-items:center;gap:28px}
+  .navlinks a{font-size:13px;color:var(--text-2);letter-spacing:.02em;transition:color .15s}
+  .navlinks a:hover{color:var(--text)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:Inter;font-weight:600;
+    font-size:14px;height:40px;padding:0 18px;border-radius:var(--r-md);cursor:pointer;border:1px solid transparent;
+    transition:filter .15s,background .15s,border-color .15s,transform .05s;white-space:nowrap}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:var(--accent-grad);color:#fff;box-shadow:var(--glow)}
+  .btn-primary:hover{filter:brightness(1.08)}
+  .btn-secondary{background:transparent;color:var(--text);border-color:rgba(199,204,209,.35)}
+  .btn-secondary:hover{border-color:var(--silver);background:rgba(199,204,209,.06)}
+  .btn-ghost{background:transparent;color:var(--text-2)}
+  .btn-ghost:hover{color:var(--text)}
+  .navtoggle{display:none;background:none;border:0;color:var(--text);font-size:22px;cursor:pointer}
+
+  /* ---- hero ---- */
+  .hero{position:relative;padding:148px 0 96px;text-align:center;overflow:hidden}
+  .hero .terrain{position:absolute;left:0;right:0;bottom:0;height:46%;width:100%;z-index:0;opacity:.5;
+    -webkit-mask-image:linear-gradient(180deg,transparent,#000 55%);mask-image:linear-gradient(180deg,transparent,#000 55%)}
+  .hero .vignette{position:absolute;inset:0;z-index:0;
+    background:radial-gradient(120% 80% at 50% 8%,rgba(200,16,46,.08),transparent 60%)}
+  .hero-inner{position:relative;z-index:1}
+  .wheel{width:118px;height:118px;margin:0 auto 26px;display:block;filter:drop-shadow(0 8px 24px rgba(0,0,0,.7))}
+  .wordmark{font-family:Orbitron,sans-serif;font-weight:700;text-transform:uppercase;
+    font-size:clamp(48px,11vw,116px);letter-spacing:.16em;line-height:1;margin-left:.16em;
+    background:var(--silver-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tagline{margin:22px auto 0;max-width:680px;font-family:Orbitron,sans-serif;font-weight:500;
+    text-transform:uppercase;letter-spacing:.22em;font-size:clamp(10px,1.5vw,13px);color:var(--text-2)}
+  .silico{margin:26px 0 0;font-family:Orbitron,sans-serif;text-transform:uppercase;letter-spacing:.28em;
+    font-size:13px;color:var(--text-2)}
+  .silico .arrow,.silico b{color:var(--accent);font-weight:700}
+  .lede{margin:30px auto 0;max-width:660px;font-size:18px;color:var(--text-2)}
+  .lede b{color:var(--text);font-weight:600}
+  .hero-cta{margin-top:34px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+
+  /* ---- generic section ---- */
+  section{padding:84px 0;border-top:1px solid var(--border)}
+  .sec-head{max-width:720px;margin-bottom:44px}
+  .sec-head.center{margin-left:auto;margin-right:auto;text-align:center}
+  .sec-title{font-family:Orbitron,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+    font-size:clamp(24px,3.4vw,34px);margin-top:12px;line-height:1.15}
+  .sec-sub{margin-top:14px;color:var(--text-2);font-size:16px}
+
+  /* ---- product loop (purpose) ---- */
+  .loop{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .step{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;
+    position:relative;transition:border-color .15s,transform .15s,box-shadow .15s}
+  .step:hover{border-color:rgba(199,204,209,.18);transform:translateY(-2px);box-shadow:var(--sh-md)}
+  .step .num{font-family:Orbitron,sans-serif;font-weight:700;font-size:13px;color:var(--accent);letter-spacing:.1em}
+  .step h3{font-size:16px;font-weight:600;margin:12px 0 6px;color:var(--text)}
+  .step p{font-size:14px;color:var(--text-2)}
+
+  /* ---- mode cards ---- */
+  .modes{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .mode{background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--border);
+    border-radius:var(--r-lg);padding:24px;display:flex;flex-direction:column;gap:10px}
+  .mode-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .mode-name{font-family:Orbitron,sans-serif;font-weight:700;letter-spacing:.08em;font-size:15px;color:var(--silver)}
+  .mode p{font-size:14px;color:var(--text-2)}
+  .badge{font-family:Orbitron,sans-serif;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;
+    padding:4px 9px;border-radius:999px;border:1px solid var(--border);color:var(--text-2);white-space:nowrap}
+  .badge.live{color:#7CE0A6;border-color:rgba(124,224,166,.35)}
+  .badge.beta{color:var(--gold);border-color:rgba(200,162,74,.4)}
+  .badge.future{color:var(--regolith);border-color:var(--border)}
+
+  /* ---- subsystems ---- */
+  .subs{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .sub{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px}
+  .sub .tag{font-family:Orbitron,sans-serif;font-weight:700;letter-spacing:.1em;font-size:18px;color:var(--text)}
+  .sub .role{font-size:12px;color:var(--accent);font-weight:600;margin-top:2px;letter-spacing:.02em}
+  .sub p{font-size:13px;color:var(--text-2);margin-top:12px}
+  .authority{margin-top:18px;background:var(--surface);border:1px solid var(--border);border-left:2px solid var(--accent);
+    border-radius:var(--r-md);padding:18px 22px;font-size:14px;color:var(--text-2)}
+  .authority b{color:var(--text);font-weight:600}
+
+  /* ---- honesty / evidence ---- */
+  .honesty{background:linear-gradient(180deg,#121519,#0D0F11)}
+  .evid{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  .evid span{font-family:Orbitron,sans-serif;font-size:11px;letter-spacing:.06em;padding:6px 12px;
+    border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-2)}
+  .statline{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:8px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px}
+  .stat .k{font-family:Orbitron,sans-serif;font-weight:700;font-size:30px;color:var(--text)}
+  .stat .k small{font-size:15px;color:var(--text-2);font-weight:500}
+  .stat .v{font-size:13px;color:var(--text-2);margin-top:6px}
+
+  /* ---- cta band + footer ---- */
+  .cta-band{text-align:center}
+  .cta-band .sec-title{margin-bottom:8px}
+  footer{border-top:1px solid var(--border);padding:48px 0 56px;color:var(--text-2);font-size:13px}
+  .foot{display:flex;justify-content:space-between;align-items:flex-start;gap:32px;flex-wrap:wrap}
+  .foot .brand .name{font-size:16px}
+  .footcol h4{font-family:Orbitron,sans-serif;font-size:11px;letter-spacing:.12em;color:var(--text);margin-bottom:12px;text-transform:uppercase}
+  .footcol a{display:block;color:var(--text-2);margin-bottom:8px;transition:color .15s}
+  .footcol a:hover{color:var(--text)}
+  .footcols{display:flex;gap:56px;flex-wrap:wrap}
+  .legal{margin-top:36px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--regolith);font-size:12px}
+
+  @media(max-width:860px){
+    .navlinks{position:fixed;top:64px;left:0;right:0;flex-direction:column;align-items:stretch;gap:0;
+      background:var(--bg);border-bottom:1px solid var(--border);padding:8px 0;display:none}
+    .navlinks.open{display:flex}
+    .navlinks a{padding:14px 24px}
+    .navlinks .btn{margin:8px 24px}
+    .navtoggle{display:block}
+    .loop,.modes,.subs,.statline{grid-template-columns:1fr}
+  }
+  @media(max-width:560px){.foot{flex-direction:column}.footcols{gap:32px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/">
+      <img src="/assets/brand/wheel.png" alt="STEWIE wheel mark" width="32" height="32">
+      <span class="name">STEWIE</span>
+    </a>
+    <button class="navtoggle" aria-label="Menu" onclick="document.getElementById('nav').classList.toggle('open')">&#9776;</button>
+    <nav class="navlinks" id="nav">
+      <a href="#platform">Platform</a>
+      <a href="#modes">Modes</a>
+      <a href="#subsystems">Subsystems</a>
+      <a href="#status">Status</a>
+      <a href="https://stewie-sw.github.io/stewie/">Docs</a>
+      <a href="https://github.com/stewie-sw/stewie">GitHub</a>
+      <a class="btn btn-primary" href="/app">Launch Cockpit</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero" style="border-top:0">
+    <div class="vignette"></div>
+    <svg class="terrain" viewBox="0 0 1440 360" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2B3137"/><stop offset="1" stop-color="#0D0F11"/>
+        </linearGradient>
+      </defs>
+      <g fill="none" stroke="#2B3137" stroke-width="1">
+        <path d="M0 230 L120 250 L240 210 L360 246 L480 196 L600 238 L720 188 L840 232 L960 200 L1080 244 L1200 198 L1320 236 L1440 206"/>
+        <path d="M0 280 L120 296 L240 262 L360 300 L480 256 L600 292 L720 250 L840 288 L960 262 L1080 300 L1200 258 L1320 294 L1440 264" stroke="#222a30"/>
+        <path d="M0 330 L160 344 L320 312 L520 348 L760 308 L1000 346 L1240 312 L1440 340" stroke="#1b2228"/>
+        <path d="M120 250 L120 296 M360 246 L360 300 M600 238 L600 292 M840 232 L840 288 M1080 244 L1080 300 M1320 236 L1320 294" stroke="#1d242a"/>
+      </g>
+    </svg>
+    <div class="wrap hero-inner">
+      <img class="wheel" src="/assets/brand/wheel.png" alt="STEWIE iris-drum mark" width="118" height="118">
+      <h1 class="wordmark">STEWIE</h1>
+      <p class="tagline">Surface Terrain Engineering &amp; World-Model Integration Environment</p>
+      <p class="silico">In&nbsp;Silico <span class="arrow">&rarr;</span> <b>In&nbsp;Situ</b></p>
+      <p class="lede">A lunar <b>construction-planning and digital-twin platform</b> for IPEx / RASSOR-lineage excavators. Load real terrain, author construction goals, produce a physically valid energy-aware plan, simulate execution, and emit a mission-control report.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="/app">Launch Cockpit</a>
+        <a class="btn btn-secondary" href="https://stewie-sw.github.io/stewie/">Read the Docs</a>
+        <a class="btn btn-ghost" href="https://github.com/stewie-sw/stewie">View on GitHub &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLATFORM / PURPOSE -->
+  <section id="platform">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">The platform</div>
+        <h2 class="sec-title">One loop, from terrain to mission report</h2>
+        <p class="sec-sub">STEWIE turns real lunar terrain into a verifiable construction plan and a simulated execution, then progresses toward sensor-driven navigation. The conserved terramechanics authority does the physics; learned components only command.</p>
+      </div>
+      <div class="loop">
+        <div class="step"><div class="num">01</div><h3>Load terrain</h3><p>Real LOLA south-pole DEM bundles (Haworth, Shackleton rim, Nobile rim) on a true-projected globe, or generated terrain calibrated to measured statistics.</p></div>
+        <div class="step"><div class="num">02</div><h3>Author goals</h3><p>Place cut, fill, and structure orders with keep-outs, fleet and vehicle selection, on an ArcGIS-class planning canvas.</p></div>
+        <div class="step"><div class="num">03</div><h3>Plan</h3><p>A routed, energy-aware Plan IR: feasibility-checked allocation, per-segment slip and grade energy, reserve-aware preconditions.</p></div>
+        <div class="step"><div class="num">04</div><h3>Simulate</h3><p>Execution on a mass-conserving Bekker / slip / sinkage authority, rendered through a Godot sensor model with real camera, IMU, and power channels.</p></div>
+        <div class="step"><div class="num">05</div><h3>Report</h3><p>A mission-control report plus a machine-consumable command tape: plan once, command many, with full provenance.</p></div>
+        <div class="step"><div class="num">06</div><h3>Navigate</h3><p>The progression toward sensor-driven autonomy: terrain-shape, low-sun, and shadow-geometry cues for mapping, localization, and route safety.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODES -->
+  <section id="modes">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">Five operating modes</div>
+        <h2 class="sec-title">Each mode states its own truth boundary</h2>
+        <p class="sec-sub">The API and reports always label the active mode. Simulated truth is never presented as a live measurement.</p>
+      </div>
+      <div class="modes">
+        <div class="mode"><div class="mode-top"><span class="mode-name">GIS&#8209;PLAN</span><span class="badge live">Live</span></div><p>2D layered planning on the real DEM: slope, hazard, horizon-clipped shadow, and PSR rasters under a time-driven sun. Output is a routed, energy-budgeted Plan IR and a two-page report. Every figure traces to a tagged constant.</p></div>
+        <div class="mode"><div class="mode-top"><span class="mode-name">TRAIN</span><span class="badge live">Live</span></div><p>Operator and director sessions over the real closed loop. The operator sees only telemetry-delivered, truth-denylisted legs under a mission link profile; the director gets full state and a seen-versus-actual debrief.</p></div>
+        <div class="mode"><div class="mode-top"><span class="mode-name">SIM&#8209;OPERATE</span><span class="badge live">Live</span></div><p>The live loop on the conserved authority: one persistent world that outlives clients, ROS2 teleop through slip-aware physics, strict canonical packets with the 8-camera rig and exact poses, bit-exact checkpoint and restore.</p></div>
+        <div class="mode"><div class="mode-top"><span class="mode-name">EVALUATE</span><span class="badge live">Live</span></div><p>The honesty machinery: hash-anchored evidence, a role-isolated produce&#8209;estimate&#8209;evaluate split where the estimator is structurally denied truth, and gates that flip only via dated code-enforced artifacts.</p></div>
+        <div class="mode" style="grid-column:1/-1"><div class="mode-top"><span class="mode-name">OPERATE</span><span class="badge future">Future</span></div><p>Consume real telemetry and issue commands to hardware. Unavailable until the command, timing, safety, and fault requirements pass. STEWIE makes no live-hardware claim today.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUBSYSTEMS -->
+  <section id="subsystems">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">Architecture</div>
+        <h2 class="sec-title">A digital twin, built in named subsystems</h2>
+        <p class="sec-sub">Layered from contracts and the physical authority up to product and operations. The physical Moon is conserved; what we believe the surface is, is a separate, append-only world model.</p>
+      </div>
+      <div class="subs">
+        <div class="sub"><div class="tag">DART</div><div class="role">Decision &amp; Autonomy</div><p>Perception, the articulation-parallax and shadow estimator spine, the closed-loop executive, and relocalization stops.</p></div>
+        <div class="sub"><div class="tag">LODE</div><div class="role">Lunar Operations</div><p>Mission and fleet planning: routed allocation, sequence optimization, energy and reserve accounting, the executable Plan IR.</p></div>
+        <div class="sub"><div class="tag">LEAP</div><div class="role">Localization &amp; Estimation</div><p>Earthmoving and worksite: structure templates, cut and fill balancing, conserved skill environments, acceptance.</p></div>
+        <div class="sub"><div class="tag">FORGE</div><div class="role">Physics &amp; Terramechanics</div><p>The physical authority: Bekker mobility, slip and sinkage, mass-conserving excavation, energy, thermal, and power.</p></div>
+      </div>
+      <div class="authority"><b>Conserved physics for the dynamics, learned models only where they earn it.</b> The mass-conserving terramechanics authority retains John McCardle's CC0 provenance; STEWIE's planner, Gymnasium, vehicle, perception, and visualization layers build on it. Every change made on the Moon is a layer in world state, never an overwrite.</div>
+    </div>
+  </section>
+
+  <!-- STATUS / HONESTY -->
+  <section id="status" class="honesty">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">Source discipline</div>
+        <h2 class="sec-title">Honest about what is real</h2>
+        <p class="sec-sub">Every physical or operational claim carries an evidence class. A requirement is release-ready only when implementation, integration, automated verification, and qualification all hold. Research prototypes say so.</p>
+      </div>
+      <div class="statline">
+        <div class="stat"><div class="k">~75<small>%</small></div><div class="v">Production readiness as the trainer and simulator, gated on the real-pit wire binding.</div></div>
+        <div class="stat"><div class="k">3</div><div class="v">Real south-pole DEM site bundles, true provenance, plannable on the globe.</div></div>
+        <div class="stat"><div class="k">ARGUS</div><div class="v">The flight-autonomy navigation track: earlier, open by design, advancing along the pose-graph estimator.</div></div>
+      </div>
+      <div class="evid">
+        <span>SPEC</span><span>MEASURED</span><span>CALIB</span><span>ASSUMPTION</span><span>PROPOSED</span><span>UNKNOWN</span>
+      </div>
+      <p class="sec-sub" style="margin-top:18px;max-width:760px">Simulation only, no live-hardware claim. Benchmarks from the literature are targets, not evidence that STEWIE currently achieves them. The estimator is validated on real Katwijk sensor data with the shadow and articulation cues modeled at calibrated sigma; no finished lunar-shadow SLAM is claimed.</p>
+    </div>
+  </section>
+
+  <!-- CTA BAND -->
+  <section class="cta-band">
+    <div class="wrap">
+      <div class="eyebrow">In silico &rarr; In situ</div>
+      <h2 class="sec-title">IPEx builds the Moon. STEWIE plans the build.</h2>
+      <p class="sec-sub" style="max-width:600px;margin:14px auto 28px">Open the planning cockpit on the real Haworth terrain, or read how the platform is put together.</p>
+      <div class="hero-cta" style="margin-top:0">
+        <a class="btn btn-primary" href="/app">Launch Cockpit</a>
+        <a class="btn btn-secondary" href="https://stewie-sw.github.io/stewie/">Read the Docs</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div style="max-width:300px">
+        <div class="brand"><img src="/assets/brand/wheel.png" alt="" width="28" height="28"><span class="name display">STEWIE</span></div>
+        <p style="margin-top:14px">Surface Terrain Engineering &amp; World-Model Integration Environment. A lunar construction and solar-terrain autonomy platform.</p>
+      </div>
+      <div class="footcols">
+        <div class="footcol">
+          <h4>Platform</h4>
+          <a href="#platform">The loop</a>
+          <a href="#modes">Operating modes</a>
+          <a href="#subsystems">Subsystems</a>
+          <a href="#status">Status</a>
+        </div>
+        <div class="footcol">
+          <h4>Build</h4>
+          <a href="/app">Launch cockpit</a>
+          <a href="https://stewie-sw.github.io/stewie/">Documentation</a>
+          <a href="https://github.com/stewie-sw/stewie">Source on GitHub</a>
+        </div>
+      </div>
+    </div>
+    <div class="legal">
+      <span>McCardle &amp; Storey &middot; conserved terramechanics authority retains its CC0 provenance.</span>
+      <span>Built for the lunar south pole.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // close the mobile menu after a tap on a link
+  document.getElementById('nav').addEventListener('click',function(e){
+    if(e.target.tagName==='A'){this.classList.remove('open');}
+  });
+</script>
+</body>
+</html>
