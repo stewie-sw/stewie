@@ -18,6 +18,7 @@ import argparse
 import logging
 import os
 import time
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -68,7 +69,18 @@ def _version() -> str:
 # --------------------------------------------------------------------------------------------------
 
 
-app = FastAPI(title="STEWIE — mission planner + planet browser API", version=_version())
+@asynccontextmanager
+async def lifespan(_app: "FastAPI"):
+    """ARCH-06: boot wiring via the FastAPI lifespan context manager (the @app.on_event("startup")
+    API is deprecated and slated for removal in Starlette). Startup runs the auth-posture announcement
+    + the background globe-cache warm; there is no shutdown work. `_startup_warm_globe_cache` is
+    resolved at call time, so it may be defined later in the module."""
+    _startup_warm_globe_cache()
+    yield
+
+
+app = FastAPI(title="STEWIE — mission planner + planet browser API", version=_version(),
+              lifespan=lifespan)
 
 # S-11: CORS is SAME-ORIGIN by default. An unset (or empty) STEWIE_CORS_ORIGINS yields an EMPTY
 # allowlist -> no Access-Control-Allow-Origin is reflected for a cross-origin request (the browser's
@@ -199,10 +211,10 @@ from stewie.server.services import prune_reports as _prune_reports, record_reque
 # --- #66 + SF-01: the pluggable RC seam now lives in stewie.server.routers.rc (included below) -----
 
 
-@app.on_event("startup")
-def _warm_globe_cache():
+def _startup_warm_globe_cache():
     """Background-warm the heavy globe products (PSR's sweep measured 44 s cold) so the first
-    user click finds them ready; errors are non-fatal (no DEM in some deployments)."""
+    user click finds them ready; errors are non-fatal (no DEM in some deployments). Invoked from the
+    ARCH-06 lifespan at startup."""
     import threading
 
     # C-01: announce the auth posture at boot so a fail-open deployment can't pass unnoticed.

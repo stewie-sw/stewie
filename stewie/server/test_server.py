@@ -415,3 +415,16 @@ def test_localize_render_real_fix_or_503(client):
         assert b["error_m"] < 0.6 and b["error_m"] < b["drift_m"]     # real fix recovers truth
         assert b["n_inliers"] >= 3 and len(b["fix_xy"]) == 2 and len(b["true_xy"]) == 2
         assert 0.3 < b["range_span_m"][0] and b["range_span_m"][1] < 2.0   # TRL-5 rig range
+
+
+def test_arch06_uses_lifespan_not_deprecated_on_event(monkeypatch, tmp_path):
+    """ARCH-06: boot wiring uses the FastAPI lifespan context manager, not the deprecated
+    @app.on_event("startup") API (slated for removal in Starlette). No legacy startup/shutdown
+    handlers may remain registered, and the app must still boot cleanly THROUGH the lifespan (the
+    auth-posture announcement + the background globe-cache warm). A tmp data dir makes the warm a
+    fast no-op (no DEM present), so the test never renders the heavy globe products."""
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    assert not SRV.app.router.on_startup, "deprecated on_event startup handlers still registered (ARCH-06)"
+    assert not SRV.app.router.on_shutdown, "deprecated on_event shutdown handlers still registered (ARCH-06)"
+    with TestClient(SRV.app) as c:                       # entering the context runs the lifespan startup
+        assert c.get("/healthz").status_code == 200
