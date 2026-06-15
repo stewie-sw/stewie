@@ -1874,3 +1874,21 @@ def test_p07_dig_precondition_requires_action_plus_escape_energy_not_just_reserv
     assert pre["battery_J_min"] >= reserve_J + action_e - 1e-6, \
         "precondition must cover the action energy on top of reserve"
     assert pre.get("route_to_safe_J", 0.0) > 0.0, "a route-to-safe energy term must be encoded"
+
+
+def test_arch03_no_import_cycle_in_either_order():
+    """ARCH-03: lode.mission_planner and lode.planner_views must import in EITHER order with no circular-
+    import crash. Importing planner_views FIRST used to fail -- mission_planner's module-end re-export
+    grabbed the half-initialized planner_views (a real bidirectional cycle, not just a smell). The MP.*
+    re-exported view API must still resolve."""
+    import subprocess
+    import sys
+    for mod in ("lode.planner_views", "lode.mission_planner"):
+        r = subprocess.run([sys.executable, "-c", f"import {mod}"], capture_output=True, text=True)
+        assert r.returncode == 0, f"importing {mod} first crashed:\n{r.stderr[-900:]}"
+    r = subprocess.run(
+        [sys.executable, "-c", "import lode.mission_planner as M; "
+         "assert callable(M.plan_ir) and callable(M.report) and callable(M.plan_math); "
+         "assert M.PLAN_IR_VERSION and isinstance(M._IR_DIG_OPS, (set, frozenset, tuple, list))"],
+        capture_output=True, text=True)
+    assert r.returncode == 0, f"MP view re-export API broke:\n{r.stderr[-900:]}"

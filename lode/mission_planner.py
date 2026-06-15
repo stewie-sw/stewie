@@ -23,6 +23,7 @@ import dataclasses
 import hashlib
 import heapq
 import itertools
+from typing import TYPE_CHECKING
 import json
 import math
 import os
@@ -53,11 +54,13 @@ from stewie.specs import vehicles as V             # vehicle/tool capability reg
 from stewie.specs.bodies import get_body as _get_body, params_for_body  # soil model (soil override)
 from stewie.physics.column_state import ColumnState  # conserved authority — for I8 plan validation
 
-DRIVE_SPEED_MS  = S.DRIVE_SPEED_MS                       # 0.30 m/s
-DIG_RATE_KG_S   = S.DIG_RATE_KG_PER_HR / 3600.0         # 42 kg/hr
-DIG_J_PER_KG    = S.dig_energy_per_kg()                  # ~4151 J/kg (derived)
-DRIVE_J_PER_M   = S.drive_energy_per_m()                 # ~135 J/m (derived)
-BATTERY_J       = S.battery_energy_j()                   # ~4.79 MJ (12S/30Ah)
+# ARCH-03: the SHARED planner constants live in the dependency-neutral lode.planner_constants so
+# planner_views can import them WITHOUT importing this module (half of the cycle break). Re-imported
+# here so MP.<const> and the internal uses below are unchanged; values are byte-identical.
+from lode.planner_constants import (  # noqa: E402
+    BATTERY_J, DIG_RATE_KG_S, DRIVE_J_PER_M, DRIVE_SPEED_MS, RESERVE_FRAC,
+)
+DIG_J_PER_KG    = S.dig_energy_per_kg()                  # ~4151 J/kg; also in planner_constants (same source)
 DRUM_KG         = S.REGOLITH_PER_CYCLE_KG                # 30 kg/cycle (the ipex default; see _drum_kg)
 
 
@@ -69,7 +72,7 @@ def _drum_kg(mission):
 SINTER_J_PER_KG = C.SINTER_ENERGY_J_PER_KG              # 0.92 MJ/kg [CALIB]
 SINTER_POWER_W  = S.SINTER_HEAD_POWER_W                  # 1000 W [CALIB]
 CHARGE_W        = S.RECHARGE_POWER_W                     # 700 W [CALIB]
-RESERVE_FRAC    = S.BATTERY_RESERVE_FRAC                 # 0.10
+# RESERVE_FRAC is re-imported from lode.planner_constants above (ARCH-03)
 ROVER_MASS_KG   = S.ROVER_MASS_CLASS_KG                  # 30 kg-class (for gravity-climb drive energy)
 DRIVE_POWER_W   = S.drive_power_w()                      # ~40 W (Table 3 driving cases)
 IDLE_POWER_W    = S.IDLE_POWER_W                         # [ASSUMPTION] continuous survival draw (default 0 = off)
@@ -2120,7 +2123,8 @@ def run(mission: Mission, stem=None, *, dem=None, dem_origin=(0.0, 0.0), max_tra
     stem = stem or f"{mission.date}_mission_plan"
     pdf = os.path.join(rdir, f"{stem}.pdf")
     md = os.path.join(rdir, f"{stem}.md")
-    report(mission, trips, flows, per_trip, tl, totals, pdf, md,
+    from lode.planner_views import report     # ARCH-03: the view is pulled at the render boundary (both
+    report(mission, trips, flows, per_trip, tl, totals, pdf, md,   # modules are fully imported by now)
            endu=endurance(mission, dem=dem, dem_origin=dem_origin))
     return pdf, md, totals
 
@@ -2140,16 +2144,29 @@ if __name__ == "__main__":
     main()
 
 
-# ARCH-2: the planner VIEWS live in planner_views; re-exported here so MP.report / MP.plan_math /
-# MP.assumptions_register call sites are unchanged (imported at module END so the solver names the
-# views need are already defined -> no import cycle).
-from lode import planner_views as _views          # noqa: E402
-report = _views.report
-plan_math = _views.plan_math
-assumptions_register = _views.assumptions_register
-plan_ir = _views.plan_ir                          # ARCH-2: the machine-executable IR view
-# the IR constants are module VARIABLES: re-export via from-import so mypy resolves their type across the
-# planner_views<->mission_planner cycle (attribute access `_views._IR_OP` trips a has-type error).
-from lode.planner_views import (  # noqa: E402,F401
-    PLAN_IR_VERSION, _IR_DIG_OPS, _IR_MODEL_ERR_FRAC, _IR_OP,
-)
+# ARCH-03: the planner VIEWS live in planner_views; re-exported here so MP.report / MP.plan_math /
+# MP.plan_ir / MP.assumptions_register (+ the IR constants) call sites are unchanged. The re-export is
+# LAZY (PEP 562 module __getattr__) rather than a module-scope `import planner_views`, which REMOVES the
+# back-edge of the former bidirectional cycle: planner_views imports THIS module, and this module pulls
+# the views only on first attribute access (after both are fully initialized). So either module now
+# imports first without a circular-import crash (ARCH-03). The TYPE_CHECKING import gives mypy the static
+# names with no runtime edge.
+_VIEW_EXPORTS = frozenset({
+    "report", "plan_math", "assumptions_register", "plan_ir",
+    "PLAN_IR_VERSION", "_IR_OP", "_IR_DIG_OPS", "_IR_MODEL_ERR_FRAC",
+})
+
+if TYPE_CHECKING:                                 # static only -- never executed, so no runtime cycle
+    from lode.planner_views import (  # noqa: F401
+        PLAN_IR_VERSION, _IR_DIG_OPS, _IR_MODEL_ERR_FRAC, _IR_OP,
+        assumptions_register, plan_ir, plan_math, report,
+    )
+
+
+def __getattr__(name):
+    """PEP 562: resolve the re-exported planner views lazily so this module does not import
+    planner_views at scope (the cycle break, ARCH-03)."""
+    if name in _VIEW_EXPORTS:
+        from lode import planner_views as _views
+        return getattr(_views, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -21,8 +21,14 @@ from matplotlib.backends.backend_pdf import PdfPages
 from stewie.specs import ipex_specs as S
 from stewie.specs import vehicles as V
 from stewie.physics import rassor_mass_model as RM
+# ARCH-03: the shared constants come from the dependency-neutral module; only the SOLVER functions +
+# the Mission type come from mission_planner. mission_planner no longer imports THIS module at import
+# scope (it re-exports the views lazily via __getattr__), so the bidirectional cycle is broken and both
+# modules import in either order.
+from lode.planner_constants import (
+    BATTERY_J, DIG_J_PER_KG, DIG_RATE_KG_S, DRIVE_J_PER_M, DRIVE_SPEED_MS, RESERVE_FRAC,
+)
 from lode.mission_planner import (
-    BATTERY_J, DRIVE_J_PER_M, DIG_J_PER_KG, DIG_RATE_KG_S, DRIVE_SPEED_MS, RESERVE_FRAC,
     Mission, _d, _dur, _drum_kg, body_gravity, plan, route_leg, trip_precedence,
 )
 
