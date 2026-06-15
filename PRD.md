@@ -496,6 +496,28 @@ solar power scheduling.
 | PO-13 | P1 | Add `CHANGELOG.md`, exported `__version__`, SemVer policy, and release evidence manifest. | N | N | N | NA |
 | PO-14 | P1 | Provide deployment documentation and a supported server image; optional Godot/ROS capabilities are explicit profiles. | N | N | N | N |
 
+### 7.12 Access, Identity, and Governance (added 2026-06-15)
+
+The product is invitation-only and multi-operator, and it ultimately emits **real
+instructions to a rover** (NV-11 Plan-IR lowering / NV-12 live command channel, under the
+SF-01 dead-man interlock). Who may do that, on which artifacts, must be governed. These
+requirements are **sequenced so each unblocks the next**; the terminal requirement (AG-08)
+is the end goal — a live, role-gated, owned mission lowered to real rover commands.
+Implementation order (TDD, atomic): AG-01 → AG-02 → AG-03/04 → AG-05 → AG-06 → AG-07 → AG-08.
+The backend (operators store, deps, new invites router, role gating) is buildable now; the
+admin-panel and sandbox/redeem UI land with the cockpit-frontend coordination (task #134).
+
+| ID | P | Requirement and acceptance | I | X | V | Q |
+|---|---|---|---|---|---|---|
+| AG-01 | P0 | Role model is a four-tier ordered ladder: `guest` (read-only) < `trainee` (own-sandbox write) < `operator` (live write + command) < `director` (admin + approve + escalation). A single `role_rank()` is the source of capability ordering; the legacy two-role store (`director`/`operator`) migrates forward without data loss. | N | N | N | NA |
+| AG-02 | P0 | Capability gating keys every mutating/command route off `role_rank`, not merely authenticated-or-not. A `require_role(min)` dependency enforces it: reads open to `guest`+, live writes + real rover commands (rc_command, NV-11/NV-12 lowering) require `operator`+, admin/escalation require `director`. | N | N | N | NA |
+| AG-03 | P1 | One-time invite tokens: `create_invite(by, role, ttl, max_uses=1)` mints a crypto-random token stored **hashed** (never plaintext, like a password) with role, issuer, expiry, and use-count; expired/spent tokens are inert. Default mint authority = `director` (Open Decision 11). | N | N | N | NA |
+| AG-04 | P1 | Invite redemption: `POST /auth/invite/redeem {token,email,password}` activates the account at the token's role iff the token is valid/unexpired/unused, then burns it. The invitee sets their own password; no secret is transmitted out-of-band. | N | N | N | NA |
+| AG-05 | P1 | Artifact ownership: missions, structures, and reports stamp `created_by` + `created_at` at save; the public record exposes the owner. Existing unowned artifacts read as owner `unknown` (no silent backfill). | N | N | N | NA |
+| AG-06 | P1 | Delete is a recoverable soft-delete (trash + audit event). Self-service for your OWN sandbox artifact; deleting another operator's artifact OR any live-namespace artifact requires `director` (escalation). No hard purge without director confirmation. | N | N | N | NA |
+| AG-07 | P1 | Workspace separation: artifacts save to a per-owner `sandbox/<owner>/` namespace by default; a role-gated `publish` promotes a copy into the shared `live/` namespace. Sandbox state never feeds the real-command path. | N | N | N | NA |
+| AG-08 | P0 | **End-goal gate:** real rover instructions (NV-11/NV-12) are emitted ONLY from a `live`-namespace mission, by an `operator`+, under the SF-01 interlock. Sandbox/trainee/guest plans may simulate and output a Plan IR for review but cannot lower to hardware commands. | N | N | N | NA |
+
 ## 8. User Workflows
 
 ### 8.1 Construction planning
@@ -690,6 +712,9 @@ observation is in scope; unconstrained stunt-like motion is not.
 8. Whether NavLab components are adopted directly, reimplemented, or used only as benchmark baselines.
 9. Preregistered improvement threshold for solar-navigation and Meerkat ablations.
 10. First operational target: simulator-only LAC parity, terrestrial test site, or rover hardware.
+11. Invite mint authority (AG-03): directors-only (recommended default) vs any operator may mint an invite at-or-below their own role (peer/viral onboarding).
+12. Default role granted by a self-service access request / open invite (AG-04): `guest`, `trainee`, or `operator`.
+13. Delete governance strength (AG-06): soft-delete + ownership with self-service for your own (recommended default) vs full director-approval for every non-owner/live delete.
 
 No `[UNKNOWN]` item may be replaced by an undocumented guessed constant.
 
