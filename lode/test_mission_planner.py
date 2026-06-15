@@ -1513,6 +1513,25 @@ def test_p02_drum_inventory_capacity_bounded_per_flow():
     assert res["mass_conserved"] is True
 
 
+def test_acceptance_replays_a_balanced_multiload_cutfill_as_feasible():
+    """MATH-01: a normal BALANCED cut/fill whose flow exceeds one drum load executes as drum-sized
+    cut->transport->fill SHUTTLE cycles -- the ordered replay is FEASIBLE and the assigned flow is actually
+    PLACED, instead of being declared infeasible the instant the drum fills before any fill drains it (the
+    audited bug cut the whole cut footprint into the 30 kg drum first and overflowed)."""
+    m = _pairs_mission([(20.0, 15.0)])                              # one balanced cut+fill, no surplus spoil
+    trips, flows, _surplus, _meta = MP._build_trips(m, None, (0.0, 0.0), 25.0)
+    cap = MP._drum_kg(m)
+    flow_kg = sum(mass for co, fo, mass, _d in flows if co is not None and fo is not None)
+    assert flow_kg > cap                                            # genuinely multi-load (the audit's scenario)
+    acc = MP.execute_plan_acceptance(m, trips)
+    assert acc["feasible"] is True                                  # MATH-01: NOT falsely infeasible
+    assert acc["mass_conserved"] is True
+    assert acc["max_simultaneous_drum_kg"] <= cap + 1e-6            # drum never exceeds capacity
+    assert acc["running_drum_min_kg"] >= -1e-6                      # fill never out-runs the drum supply
+    assert acc["shuttle_cycles"] >= 2                               # many bounded loads, not one overflow
+    assert acc["placed_kg"] > 0.0                                   # the assigned flow is actually placed
+
+
 # ---- P-08: objective weight domain is validated (finite, nonnegative, positive sum, no dups) ------
 def test_p08_objective_rejects_nonfinite_negative_and_zero_sum():
     """P-08: parse_objective must reject NaN/Inf/negative weights and a zero (or non-positive) weight

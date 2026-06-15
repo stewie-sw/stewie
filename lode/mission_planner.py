@@ -2005,45 +2005,71 @@ def execute_plan_acceptance(mission, trips, *, cell_m=0.5, regolith_depth_m=10.0
         return [order_by_action[a] for a in tr.get("actions", ())
                 if a in order_by_action and order_by_action[a].kind == kind]
 
-    # P-02: capacity-bounded shuttle. The drum is a PHYSICAL container of `cap` kg; cuts feed it in
-    # cycles bounded by its FREE capacity and by each cut order's remaining footprint supply (tracked
-    # in `supply_left` so re-referencing a cut across flows never over-extracts), and fills drain it. The
-    # drum thus NEVER holds more than `cap` and a fill never out-runs the supply currently on board. The
-    # peak load and the running minimum are observed across the bounded walk, not estimated from a cycle
-    # count. (The prior bug cut whole order footprints into an unbounded drum -- 7680 kg in a 30 kg drum.)
-    step = cap if cap > 0 else float("inf")               # max kg moved per shuttle cycle (drum capacity)
+    # P-02 / MATH-01: capacity-bounded shuttle that replays each trip's ASSIGNED FLOW (tr["mass"]) -- NOT
+    # the whole source-order footprint -- in drum-sized loads. A cutfill trip ALTERNATES cut-a-load /
+    # transport / fill-from-the-load until its flow is moved, so a normal multi-load cut/fill EXECUTES
+    # instead of overflowing the drum on the first load and being wrongly rejected (the audited MATH-01
+    # bug cut the whole 9360 kg cut into a 30 kg drum first, then declared infeasible before any fill drained
+    # it). The drum never exceeds `cap`; `supply_left` caps how much a cut order can give across flows. A
+    # pure cut (spoil, no fill to drain it) still overflows -> correctly infeasible; a pure fill (import)
+    # drains the drum. `placed_kg` records the mass actually deposited into fills.
+    step = cap if cap > 0 else float("inf")               # max kg the drum can hold (== drum capacity)
     supply_left = {id(o): o.footprint_m2 * o.depth_m * rho_bank for o in mission.orders if o.kind == "cut"}
-    feasible = True; drum_max = 0.0; running_min = 0.0; shuttle_cycles = 0
-    for tr in trips:                                       # PLAN ORDER -- the executable sequence
-        for o in _orders(tr, "cut"):
-            mask = _mask(o)
-            if not mask.any(): feasible = False; continue
-            n = int(mask.sum()); cell_area = cs.cell_area
-            want = supply_left.get(id(o), o.footprint_m2 * o.depth_m * rho_bank)
-            while want > 1e-6:                             # cut this order's remaining supply in bounded loads
-                free = step - cs.drum_inventory           # P-02: only what the bounded drum can still hold
-                if free <= 1e-6:                           # drum full and nothing has drained it -> overflow
-                    feasible = False; break                # (a cut with no fill to drain it can't be held)
-                take = min(want, free)
-                moved = cs.cut_to_inventory(mask, take / (n * cell_area))   # cut exactly `take` kg as areal
-                drum_max = max(drum_max, cs.drum_inventory)
-                shuttle_cycles += 1
-                if moved <= 1e-6:                          # footprint exhausted (datum floor) -> short supply
-                    feasible = False; break
-                want -= moved
-            supply_left[id(o)] = want                      # carry the unspent supply forward (no double-cut)
-        for o in _orders(tr, "fill"):
-            mask = _mask(o)
-            if not mask.any(): feasible = False; continue
-            target = cs.derive_height().copy(); target[mask] += o.depth_m
-            # drain the drum into this fill in bounded loads so it dips through, never below, zero.
-            placed = 1.0
-            while cs.drum_inventory > 1e-6 and placed > 1e-6:
-                before = cs.drum_inventory
-                cs.fill_toward(mask, target, max_lift_m=o.depth_m, spoil_density=rho_loose)
-                placed = before - cs.drum_inventory
-                running_min = min(running_min, cs.drum_inventory)
+    feasible = True; drum_max = 0.0; running_min = 0.0; shuttle_cycles = 0; placed_kg = 0.0
+
+    def _drain(fmask, ftarget, depth):                    # drain the drum into a fill (bounded; dips to, never below, 0)
+        nonlocal placed_kg, running_min
+        placed = 1.0
+        while cs.drum_inventory > 1e-6 and placed > 1e-6:
+            before = cs.drum_inventory
+            cs.fill_toward(fmask, ftarget, max_lift_m=depth, spoil_density=rho_loose)
+            placed = before - cs.drum_inventory
+            placed_kg += placed
             running_min = min(running_min, cs.drum_inventory)
+        running_min = min(running_min, cs.drum_inventory)
+
+    for tr in trips:                                       # PLAN ORDER -- the executable sequence
+        cuts, fills = _orders(tr, "cut"), _orders(tr, "fill")
+        flow_mass = float(tr.get("mass", 0.0))
+        if cuts and fills and flow_mass > 1e-6:            # cutfill: SHUTTLE the assigned flow in drum-sized loads
+            co, fo = cuts[0], fills[0]                     # a cutfill trip pairs one cut + one fill
+            cmask, fmask = _mask(co), _mask(fo)
+            if not cmask.any() or not fmask.any():
+                feasible = False; continue
+            n = int(cmask.sum())
+            ftarget = cs.derive_height().copy(); ftarget[fmask] += fo.depth_m
+            remaining = min(flow_mass, supply_left.get(id(co), flow_mass))
+            while remaining > 1e-6:
+                take = min(remaining, step - cs.drum_inventory)
+                if take > 1e-6:
+                    moved = cs.cut_to_inventory(cmask, take / (n * cs.cell_area))
+                    drum_max = max(drum_max, cs.drum_inventory); shuttle_cycles += 1
+                    if moved <= 1e-6:                      # cut footprint exhausted (datum floor) -> short supply
+                        feasible = False; break
+                    remaining -= moved
+                    supply_left[id(co)] = supply_left.get(id(co), flow_mass) - moved
+                _drain(fmask, ftarget, fo.depth_m)         # transport + deposit this load before the next cut
+                if cs.drum_inventory > 1e-6 and take <= 1e-6:   # drum can't drain into a full fill -> stuck
+                    feasible = False; break
+        else:                                              # pure cut (spoil/dig) or pure fill (import)
+            for o in cuts:
+                mask = _mask(o)
+                if not mask.any(): feasible = False; continue
+                n = int(mask.sum()); want = supply_left.get(id(o), o.footprint_m2 * o.depth_m * rho_bank)
+                while want > 1e-6:
+                    free = step - cs.drum_inventory
+                    if free <= 1e-6: feasible = False; break   # a cut with no fill to drain it -> overflow
+                    take = min(want, free)
+                    moved = cs.cut_to_inventory(mask, take / (n * cs.cell_area))
+                    drum_max = max(drum_max, cs.drum_inventory); shuttle_cycles += 1
+                    if moved <= 1e-6: feasible = False; break
+                    want -= moved
+                supply_left[id(o)] = want
+            for o in fills:
+                mask = _mask(o)
+                if not mask.any(): feasible = False; continue
+                ftarget = cs.derive_height().copy(); ftarget[mask] += o.depth_m
+                _drain(mask, ftarget, o.depth_m)
     drift = abs(cs.total_mass() - m0)
     mass_conserved = drift <= 1e-6 * max(1.0, m0)
     return {
@@ -2055,6 +2081,7 @@ def execute_plan_acceptance(mission, trips, *, cell_m=0.5, regolith_depth_m=10.0
         "max_simultaneous_drum_kg": float(drum_max),       # the peak inventory the bounded drum had to hold
         "running_drum_min_kg": float(running_min),         # < 0 would mean a fill out-ran its supply in sequence
         "shuttle_cycles": int(shuttle_cycles),
+        "placed_kg": float(placed_kg),                     # MATH-01: mass actually deposited into fills
         "as_built": cs.derive_height(),                    # the ORDER-dependent surface the pooled check flattens
         "grid": {"rows": H, "cols": W, "cell_m": cell_m},
     }
