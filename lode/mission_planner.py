@@ -2121,7 +2121,8 @@ report = _views.report
 plan_math = _views.plan_math
 assumptions_register = _views.assumptions_register
 plan_ir = _views.plan_ir                          # ARCH-2: the machine-executable IR view
-PLAN_IR_VERSION = _views.PLAN_IR_VERSION
-_IR_OP = _views._IR_OP
-_IR_DIG_OPS = _views._IR_DIG_OPS
-_IR_MODEL_ERR_FRAC = _views._IR_MODEL_ERR_FRAC
+# the IR constants are module VARIABLES: re-export via from-import so mypy resolves their type across the
+# planner_views<->mission_planner cycle (attribute access `_views._IR_OP` trips a has-type error).
+from lode.planner_views import (  # noqa: E402,F401
+    PLAN_IR_VERSION, _IR_DIG_OPS, _IR_MODEL_ERR_FRAC, _IR_OP,
+)

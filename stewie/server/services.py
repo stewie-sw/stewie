@@ -10,12 +10,13 @@ import logging
 import os
 import threading
 import time
+from typing import Any
 
 log = logging.getLogger("stewie.server")
 
 # ---- the audit ledger (S-10): locked durable append + rotation + VISIBLE failure ----------------
 _AUDIT_LOCK = threading.Lock()
-_AUDIT_HEALTH = {"degraded": False, "failures": 0, "last_error": None}
+_AUDIT_HEALTH: dict[str, Any] = {"degraded": False, "failures": 0, "last_error": None}
 _AUDIT_HEALTH_LOCK = threading.Lock()
 _AUDIT_DEFAULT_MAX_BYTES = 16 * 1024 * 1024     # rotate the live ledger past 16 MiB
 
