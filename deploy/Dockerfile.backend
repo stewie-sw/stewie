@@ -5,8 +5,12 @@ FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     STEWIE_DATA_DIR=/data
 WORKDIR /app
-# import-time deps for the server graph (RB-06): fastapi/uvicorn/matplotlib/pyproj via the extra
-COPY pyproject.toml README.md ./
+# SEC-05: install the third-party deps from the HASHED lock FIRST (supply-chain integrity + a cached
+# layer), then the stewie package itself --no-deps. The lock pins exact versions + sha256 hashes;
+# --require-hashes refuses any wheel/sdist whose bytes do not match. Regenerate the lock with:
+#   uv pip compile pyproject.toml --extra server --generate-hashes --universal -o requirements-server.lock
+COPY pyproject.toml README.md requirements-server.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements-server.lock
 # O-04: copy each package ONCE (the duplicate `COPY stewie ./stewie` was a wasted layer).
 COPY stewie ./stewie
 COPY dart ./dart
@@ -15,7 +19,7 @@ COPY leap ./leap
 COPY forge ./forge
 COPY samples ./samples
 COPY validation ./validation
-RUN pip install --no-cache-dir ".[server]" && useradd -r -u 10001 stewie \
+RUN pip install --no-cache-dir --no-deps . && useradd -r -u 10001 stewie \
  && mkdir -p /data && chown -R stewie /data
 USER stewie
 EXPOSE 8770

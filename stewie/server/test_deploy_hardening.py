@@ -159,3 +159,35 @@ def test_web01_frontend_image_vendors_cesium():
     assert "cesium-1.119.0.tgz" in df, "Dockerfile.frontend does not vendor the pinned Cesium 1.119 build"
     assert "/usr/share/nginx/html/cesium" in df, "Cesium not copied into the served html dir"
     assert "apk del curl" in df, "the build tool (curl) is not removed from the final image layer"
+
+
+# ---- SEC-05: third-party deps installed from a HASHED lock (supply-chain integrity) ------------------
+
+def test_sec05_dependency_locks_are_hash_pinned():
+    """SEC-05: the server + dev dependency locks pin exact versions AND sha256 hashes, so a rebuild
+    from the same revision installs identical bytes and a tampered/yanked release cannot slip in."""
+    for lock in ("requirements-server.lock", "requirements-dev.lock"):
+        text = _read(lock)
+        assert "--hash=sha256:" in text, f"{lock} is not hash-pinned (SEC-05)"
+        pins = [ln for ln in text.splitlines() if re.match(r"^[A-Za-z0-9].+==", ln)]
+        assert len(pins) >= 5, f"{lock} has too few pinned requirements ({len(pins)})"
+        # every pinned requirement line is immediately followed by at least one --hash
+        for ln in text.splitlines():
+            if re.match(r"^[A-Za-z0-9].+==", ln):
+                assert ln.rstrip().endswith("\\"), f"{lock}: a pin without a trailing hash continuation: {ln!r}"
+
+
+def test_sec05_docker_installs_from_the_lock_with_require_hashes():
+    """SEC-05: the backend image installs deps from the hashed server lock (--require-hashes), then the
+    stewie package --no-deps -- not an unpinned `pip install .[server]`."""
+    df = _read("deploy/Dockerfile.backend")
+    assert "--require-hashes -r requirements-server.lock" in df, "Dockerfile does not install from the lock"
+    assert "--no-deps ." in df, "Dockerfile does not install the package --no-deps after the lock"
+    assert '".[server]"' not in df, "Dockerfile still has the unpinned `.[server]` install (SEC-05)"
+
+
+def test_sec05_ci_installs_from_the_lock():
+    """SEC-05: every CI install installs from the hashed dev lock, not an unpinned editable extra."""
+    ci = _read(".github/workflows/ci.yml")
+    assert "--require-hashes -r requirements-dev.lock" in ci, "CI does not install from the hashed lock"
+    assert "pip install -e .[dev]" not in ci, "CI still has an unpinned `pip install -e .[dev]` (SEC-05)"

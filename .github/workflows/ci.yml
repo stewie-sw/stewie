@@ -19,10 +19,11 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install (core + dev)
+      - name: Install (core + dev, from the hashed lock -- SEC-05)
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[dev]
+          pip install --require-hashes -r requirements-dev.lock
+          pip install -e . --no-deps
       - name: Requirements traceability (PRD 19.2 -- V=D must be test-cited)
         run: python scripts/req_trace.py
       - name: Power-of-10 profile on the conserved core (PRD 19.2; complexity<=10, bounded branching)
@@ -47,9 +48,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install (core + dev)
+      - name: Install (core + dev, from the hashed lock -- SEC-05)
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[dev]
+          pip install --require-hashes -r requirements-dev.lock
+          pip install -e . --no-deps
       - name: Test (the CONFIGURED suite; gated tiers skip)
         run: pytest -p no:cacheprovider
