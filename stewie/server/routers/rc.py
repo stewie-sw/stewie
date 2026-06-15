@@ -11,7 +11,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 
 from stewie.bridge import rc_contract as RC
-from stewie.server.deps import require_auth
+from stewie.server.deps import require_auth, require_role
 from stewie.server.services import log_event
 
 router = APIRouter()
@@ -22,9 +22,10 @@ _RC_LOCK = threading.Lock()
 
 
 @router.post("/rc/command")
-def rc_command(body: dict, identity: str = Depends(require_auth)):
-    """#66: submit an RC command (GoTo/Safe/SetSim) to the active backend through the SF-01
-    watchdog. SetSim (a training time-warp) is DIRECTOR-only; GoTo/Safe are open to any operator."""
+def rc_command(body: dict, identity: str = Depends(require_role("operator"))):
+    """#66 / AG-02: submit an RC command (GoTo/Safe/SetSim) to the active backend through the SF-01
+    watchdog. This is the real rover-command path -> operator+ required (a guest/trainee cannot drive
+    the rover). SetSim (a training time-warp) is further DIRECTOR-only; GoTo/Safe need any operator+."""
     from stewie.server import auth as AUTH
     kind = str(body.get("kind", "")).lower()
     now = time.monotonic()

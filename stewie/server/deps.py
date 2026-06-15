@@ -104,3 +104,28 @@ def require_director(identity: str = Depends(require_auth)) -> str:
         raise HTTPException(status_code=403,
                             detail=f"director role required (signed in as operator {identity!r})")
     return identity
+
+
+def require_role(min_role: str):
+    """AG-02 (PRD §7.12): a dependency FACTORY admitting an identity only if its role ranks at or
+    above `min_role` on the guest<trainee<operator<director ladder. Role resolution reuses
+    auth.role_of (so store accounts, env directors, and the api-key/dev-open automation identities
+    resolve exactly as require_director sees them); the comparison fails CLOSED for an unknown role.
+    Real rover-command + live-write routes gate on require_role("operator"); admin on
+    require_role("director"). A typo'd `min_role` raises at import (fail-fast, never fail-open)."""
+    from stewie.server import operators as OPS
+    floor = OPS.role_rank(min_role)
+    if floor < 0:
+        raise ValueError(f"require_role: unknown min_role {min_role!r}")
+
+    def _dep(identity: str = Depends(require_auth)) -> str:
+        from stewie.server import auth as AUTH
+        from stewie.server import operators as _OPS
+        role = AUTH.role_of(identity)
+        if _OPS.role_rank(role) < floor:
+            raise HTTPException(
+                status_code=403,
+                detail=f"{min_role}+ role required (signed in as {role} {identity!r})")
+        return identity
+
+    return _dep
