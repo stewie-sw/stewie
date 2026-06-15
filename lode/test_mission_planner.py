@@ -785,10 +785,19 @@ def test_multi_vehicle_parallelises_and_deconflicts():
     assert sum(d["n_trips"] for d in T2["vehicles_detail"]) == len(pt2)
 
 
-def test_multi_vehicle_refuses_precedence_v1():
+def test_multi_vehicle_precedence_chain_is_co_located_and_ordered():
+    """MV cross-precedence v2 (supersedes the v1 refusal): precedence + vehicles>1 now PLANS. A precedence
+    chain is kept WHOLE on one vehicle and its order honored (the 'before' build precedes the 'after')."""
     m = _pairs_mission([(40, 0), (-40, 5), (80, 0)], precedence=[["fill0", "fill1"]])
-    with pytest.raises(RuntimeError, match="precedence"):
-        MP.plan_and_simulate(m, vehicles=2)
+    trips, _, _, _, T = MP.plan_and_simulate(m, vehicles=2)
+    assert T["vehicles"] == 2 and T["n_precedence"] >= 1
+    b = next(i for i, t in enumerate(trips) if "fill0" in t["actions"])
+    a = next(i for i, t in enumerate(trips) if "fill1" in t["actions"])
+    assert trips[b].get("vehicle") == trips[a].get("vehicle") and b < a   # chain whole + ordered
+    # a cyclic cross-precedence still raises (never silently mis-ordered)
+    mc = _pairs_mission([(40, 0), (-40, 5)], precedence=[["fill0", "fill1"], ["fill1", "fill0"]])
+    with pytest.raises((ValueError, RuntimeError), match="precedence|cyclic|infeasible"):
+        MP.plan_and_simulate(mc, vehicles=2)
 
 
 def test_single_vehicle_still_has_uniform_fleet_schema():
@@ -1402,6 +1411,29 @@ def test_load_site_dem_honors_the_sites_registry():
     import pytest
     with pytest.raises((FileNotFoundError, KeyError, ValueError)):
         MP.load_site_dem("malapert_massif")
+
+
+def test_mv_cross_precedence_independent_chains_parallelize():
+    """P2 MV cross-precedence: a multi-vehicle mission WITH precedence no longer refuses (v1 raised). Two
+    INDEPENDENT precedence chains run in parallel on two vehicles; within the vehicle that owns a chain its
+    order is honored; the makespan beats the single-vehicle serial time."""
+    # 2 independent 2-build chains (cut/fill builds get NO auto-precedence, unlike gotos)
+    m = _pairs_mission([(40, 0), (80, 0), (0, 40), (0, 80)],
+                       precedence=[["fill0", "cut1"], ["fill2", "cut3"]])
+    trips, _, _, _, T = MP.plan_and_simulate(m, vehicles=2)   # used to RAISE; now plans
+    assert T["vehicles"] == 2 and T["feasible"] is not False and T["n_precedence"] >= 2
+
+    def trip_with(action):
+        i = next(k for k, t in enumerate(trips) if action in t["actions"])
+        return i, trips[i].get("vehicle")
+    a0, a1 = trip_with("fill0"), trip_with("cut1")          # chain A: build0 before build1
+    b0, b1 = trip_with("fill2"), trip_with("cut3")          # chain B: build2 before build3
+    assert a0[1] == a1[1] and a0[0] < a1[0]                 # chain A ordered on its vehicle
+    assert b0[1] == b1[1] and b0[0] < b1[0]                 # chain B ordered on its vehicle
+    assert a0[1] != b0[1]                                   # independent chains -> DIFFERENT vehicles
+    # parallelized, not serialized: the 2-vehicle makespan beats the 1-vehicle serial time
+    _, _, _, _, T1 = MP.plan_and_simulate(m, vehicles=1)
+    assert T["makespan_s"] < T1["time_s"]
 
 
 def test_cp01_plan_result_produced_once_and_consumed_by_views():

@@ -1164,6 +1164,53 @@ def _allocate_trips(trips, vehicles):
     return alloc
 
 
+def _allocate_components(trips, vehicles, precedence):
+    """MV cross-precedence allocation: like _allocate_trips, but the allocation UNIT also keeps
+    precedence-connected work together. Union trips that share a SITE (site-exclusivity, as before) OR a
+    precedence edge (so a whole precedence chain lands on ONE vehicle and the per-vehicle sequencer can
+    honor its order); then LPT-assign whole units to the least-loaded vehicle by work energy. INDEPENDENT
+    chains parallelize across the fleet; SPLITTING a single chain across vehicles with cross-vehicle
+    wait-coordination is future MV work (documented in plan_multi). Returns a list of V index-lists."""
+    n = len(trips)
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    site_first: dict = {}
+    for idx, tr in enumerate(trips):
+        s = tuple(tr["site"])
+        if s in site_first:
+            union(site_first[s], idx)         # same site -> same vehicle (site-exclusivity preserved)
+        else:
+            site_first[s] = idx
+    for i, j in (precedence or []):
+        union(i, j)                           # precedence-connected -> same vehicle (intra-vehicle ordering)
+
+    units: dict = {}
+    for k in range(n):
+        units.setdefault(find(k), []).append(k)
+
+    def ucost(idxs):
+        return sum(_trip_work_e(trips[i]) for i in idxs)
+
+    loads = [0.0] * vehicles
+    alloc: list = [[] for _ in range(vehicles)]
+    for idxs in sorted(units.values(), key=ucost, reverse=True):    # biggest unit first (LPT)
+        v = min(range(vehicles), key=lambda k: loads[k])
+        alloc[v].extend(idxs)
+        loads[v] += ucost(idxs)
+    return alloc
+
+
 def _vehicle_conflicts(per_vehicle):
     """MV5: count space-time conflicts -- two DIFFERENT vehicles whose per-trip time windows overlap at the
     SAME site. Site-exclusive allocation makes this 0 by construction; the detector verifies it (and would
@@ -1210,22 +1257,30 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
 
     v1 scope + honest gaps: site-exclusive allocation guarantees no two rovers co-occupy a site (verified by
     a space-time conflict detector); the SHARED CHARGER is not contention-modelled (each vehicle recharges
-    independently -- a stated simplification); continuous haul-PATH collision avoidance and cross-vehicle
-    PRECEDENCE are future MV work (precedence + vehicles>1 is refused, not silently mis-ordered)."""
+    independently -- a stated simplification); continuous haul-PATH collision avoidance is future MV work.
+    Cross-vehicle PRECEDENCE (v2): a precedence chain is kept WHOLE on one vehicle so its order is honored,
+    and INDEPENDENT chains parallelize; SPLITTING one chain across vehicles with cross-vehicle wait-
+    coordination is still future work. A cyclic precedence still raises (never silently mis-ordered)."""
     if vehicles < 1:
         raise ValueError(f"vehicles must be >= 1 (got {vehicles})")
-    if mission.precedence:
-        raise RuntimeError(
-            "multi-vehicle + precedence is not yet coordinated (v1): cross-vehicle precedence ordering is "
-            "future MV work. Plan single-vehicle, or remove the precedence constraints.")
     trips, flows, surplus_kg, meta = _build_trips(mission, dem, dem_origin, max_traverse_slope_deg)
     routes = _make_routes(mission, dem, dem_origin, max_traverse_slope_deg)   # H-02: route inter-site legs ONCE (shared)
-    alloc = _allocate_trips(trips, vehicles)
+    glob_prec = trip_precedence(trips, mission)            # MV cross-precedence: trip-index constraints
+    if glob_prec and not _precedence_is_feasible(len(trips), glob_prec):
+        raise ValueError("precedence is infeasible (cyclic / unsatisfiable): no valid build ordering exists")
+    # precedence present -> keep each chain whole on one vehicle (site- + chain-exclusive); else site-only.
+    alloc = _allocate_components(trips, vehicles, glob_prec) if glob_prec else _allocate_trips(trips, vehicles)
     per_vehicle = []
     for v, idxs in enumerate(alloc):
         vtrips = [trips[i] for i in idxs]
         if vtrips:
-            order = optimize_sequence(vtrips, mission, algorithm=algorithm, objective=objective, routes=routes)
+            # MV cross-precedence: remap the global precedence edges that fall within THIS vehicle's trips to
+            # local indices (chains are whole here, so every edge for these trips is present) and let the
+            # per-vehicle sequencer honor them. No precedence -> None -> byte-identical to the prior call.
+            _li = {g: k for k, g in enumerate(idxs)}
+            _lp = [(_li[i], _li[j]) for (i, j) in glob_prec if i in _li and j in _li]
+            order = optimize_sequence(vtrips, mission, algorithm=algorithm, objective=objective,
+                                      precedence=(_lp or None), routes=routes)
             vtrips = [vtrips[k] for k in order]
         for tr in vtrips:
             tr["vehicle"] = v
@@ -1255,7 +1310,7 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     totals.update(survival_energy_J=float(survival_J), idle_power_w=float(IDLE_POWER_W),
                   algorithm=algorithm, resolved_algorithm=algorithm, optimality="heuristic",
                   objective_exact=False, solved_metric="none",   # P-10: per-vehicle heuristic sequencing
-                  n_precedence=0, objective=str(objective), vehicles=int(vehicles),
+                  n_precedence=len(glob_prec), objective=str(objective), vehicles=int(vehicles),
                   makespan_s=float(makespan), vehicle_conflicts=int(conflicts), vehicles_detail=detail,
                   charger_conflicts=int(_charger_conflicts(per_vehicle, mission)))
     return all_trips, flows, all_per_trip, all_tl, totals
