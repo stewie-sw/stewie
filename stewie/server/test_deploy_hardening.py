@@ -115,8 +115,14 @@ def test_web01_index_self_hosts_cesium():
         "index.html still loads Cesium from a CDN (CSP script-src 'self' blocks it -> blank map)"
     assert 'src="/cesium/Cesium.js"' in html, "Cesium.js not loaded same-origin from /cesium/"
     assert "/cesium/Widgets/widgets.css" in html, "Cesium widgets.css not loaded same-origin"
-    assert 'window.CESIUM_BASE_URL = "/cesium/"' in html, "CESIUM_BASE_URL not set to the self-hosted path"
-    assert 'typeof window.Cesium === "undefined"' in html, "no window.Cesium guard before the Cesium.* calls"
+    # CESIUM_BASE_URL is set before Cesium.js (head); after ARCH-02 it is an external same-origin script.
+    head = html.split("/cesium/Cesium.js")[0]
+    assert ('window.CESIUM_BASE_URL = "/cesium/"' in head) or ("cesium-config.js" in head), \
+        "CESIUM_BASE_URL not set (inline or external) before Cesium.js"
+    # ARCH-02: the window.Cesium guard now lives in the external cockpit script, not inline in index.html
+    cockpit = _read("stewie/server/web/assets/cockpit.js")
+    assert 'typeof window.Cesium === "undefined"' in cockpit, \
+        "no window.Cesium guard before the Cesium.* calls (cockpit.js)"
 
 
 def test_web01_nginx_csp_keeps_script_self_and_allowlists_tiles():

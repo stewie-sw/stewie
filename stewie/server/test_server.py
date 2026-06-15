@@ -428,3 +428,24 @@ def test_arch06_uses_lifespan_not_deprecated_on_event(monkeypatch, tmp_path):
     assert not SRV.app.router.on_shutdown, "deprecated on_event shutdown handlers still registered (ARCH-06)"
     with TestClient(SRV.app) as c:                       # entering the context runs the lifespan startup
         assert c.get("/healthz").status_code == 200
+
+
+def test_arch02_cockpit_script_is_external_and_served(client):
+    """ARCH-02: the cockpit's JS is an EXTERNAL same-origin file (so the CSP need not allow inline
+    scripts). index.html references /assets/cockpit.js (no big inline cockpit <script>), and the dev
+    server serves it as javascript -- matching production nginx, which serves /assets/ from the image."""
+    html = client.get("/").text
+    assert 'src="/assets/cockpit.js"' in html, "index.html does not load the external cockpit script"
+    # the only remaining bare inline <script> is the tiny CESIUM_BASE_URL line (externalized in step 2);
+    # the 2600-line cockpit block is gone.
+    assert html.count("<script>") <= 1, "the big cockpit inline <script> was not extracted"
+    r = client.get("/assets/cockpit.js")
+    assert r.status_code == 200, r.text
+    assert "javascript" in r.headers["content-type"]
+    assert "function loadBody" in r.text and "function el(" in r.text   # the cockpit code is really there
+
+
+def test_arch02_assets_route_is_traversal_safe(client):
+    """ARCH-02: the dev /assets route is confined to web/assets (no path traversal to the package root)."""
+    assert client.get("/assets/../server.py").status_code in (404, 400)
+    assert client.get("/assets/nonesuch.js").status_code == 404

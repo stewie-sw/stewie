@@ -57,6 +57,20 @@ def get_bodies():
     return FileResponse(p, media_type=_CTYPE[".json"])
 
 
+@router.get("/assets/{path:path}")
+def get_asset(path: str):
+    """ARCH-02: read-only static assets bundled in the server package (web/assets/: the cockpit script
+    cockpit.js, brand images, fonts). Path-confined to web/assets/ (no traversal). Production nginx
+    serves /assets/ directly from the image; this is the dev-server (uvicorn) equivalent so the cockpit
+    loads its external script in BOTH environments."""
+    base = os.path.join(_PKG, "web", "assets")
+    full = os.path.normpath(os.path.join(base, path))
+    if not (full == base or full.startswith(base + os.sep)) or not os.path.isfile(full):
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no asset {path!r}"})
+    ext = os.path.splitext(full)[1]
+    return FileResponse(full, media_type=_CTYPE.get(ext, "application/octet-stream"))
+
+
 @router.get("/reports/{name}")
 def get_report(name: str, _auth: str = Depends(require_auth)):
     """S-06: generated mission-control reports are operational artifacts -> auth required, and the
