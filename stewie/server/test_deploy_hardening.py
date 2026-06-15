@@ -102,3 +102,60 @@ def test_sec07_frontend_is_read_only_with_tmpfs():
     tmpfs = fe.get("tmpfs") or []
     for needed in ("/var/cache/nginx", "/var/run", "/tmp"):
         assert needed in tmpfs, f"SEC-07: nginx writable path {needed!r} not backed by tmpfs (would EROFS)"
+
+
+# ---- WEB-01: Cesium self-hosted same-origin (was unpkg.com, blocked by CSP script-src 'self') --------
+
+def test_web01_index_self_hosts_cesium():
+    """WEB-01: the cockpit must load Cesium from the same origin (/cesium/...), never a CDN, set
+    CESIUM_BASE_URL before the bundle so it finds its Workers/Assets, and guard `window.Cesium` before
+    the first Cesium.* reference so a load failure degrades to the 2-D tools instead of throwing."""
+    html = _read("stewie/server/index.html")
+    assert "unpkg.com" not in html and "cesium.com/downloads" not in html, \
+        "index.html still loads Cesium from a CDN (CSP script-src 'self' blocks it -> blank map)"
+    assert 'src="/cesium/Cesium.js"' in html, "Cesium.js not loaded same-origin from /cesium/"
+    assert "/cesium/Widgets/widgets.css" in html, "Cesium widgets.css not loaded same-origin"
+    assert 'window.CESIUM_BASE_URL = "/cesium/"' in html, "CESIUM_BASE_URL not set to the self-hosted path"
+    assert 'typeof window.Cesium === "undefined"' in html, "no window.Cesium guard before the Cesium.* calls"
+
+
+def test_web01_nginx_csp_keeps_script_self_and_allowlists_tiles():
+    """WEB-01: script-src admits only the same origin + blob workers + WASM (the self-hosted Cesium needs
+    all three: same-origin bundle, importScripts(blob:) workers, WebAssembly), never a CDN host and never
+    the dangerous full 'unsafe-eval'; worker-src allows Cesium's same-origin/blob workers; img-src and
+    connect-src allowlist exactly the read-only NASA/Esri imagery tile CDNs (no wildcard). The CSP values
+    here are the ones scripts/web01_csp_smoke.py proved render the cockpit with 0 violations."""
+    conf = _read("deploy/nginx.conf")
+    csp = [ln for ln in conf.splitlines() if "add_header Content-Security-Policy" in ln]
+    assert csp, "no CSP header in nginx.conf"
+    csp = csp[0]
+    script_src = csp.split("script-src", 1)[1].split(";", 1)[0]
+    assert "'self'" in script_src and "unpkg" not in csp and "http" not in script_src, \
+        "script-src must not name a CDN host -- the self-hosted bundle is the only remote script source"
+    assert "'wasm-unsafe-eval'" in script_src, "Cesium WebAssembly needs 'wasm-unsafe-eval' in script-src"
+    assert "blob:" in script_src, "Cesium workers importScripts(blob:) -> script-src must allow blob:"
+    # the NARROW WASM token must NOT be the dangerous full 'unsafe-eval' (which 'wasm-unsafe-eval' contains)
+    assert "'unsafe-eval'" not in script_src.split(), \
+        "script-src must use 'wasm-unsafe-eval', not the broad 'unsafe-eval'"
+    assert "worker-src 'self' blob:" in csp, "Cesium Web Workers need worker-src 'self' blob:"
+    for host in ("https://trek.nasa.gov", "https://server.arcgisonline.com", "https://gibs.earthdata.nasa.gov"):
+        assert host in csp, f"imagery tile CDN {host} not allowlisted in the CSP (tiles would be blocked)"
+    assert "img-src" in csp and "* " not in csp.split("img-src")[1].split(";")[0], "img-src must not wildcard"
+
+
+def test_web01_nginx_serves_cesium_statically_before_the_proxy():
+    """WEB-01: a `location /cesium/` must serve the bundle statically and PRECEDE the catch-all
+    `location /` (which proxies to the backend), or /cesium/* would 404 at the API."""
+    conf = _read("deploy/nginx.conf")
+    assert "location /cesium/" in conf, "no static location for the self-hosted Cesium bundle"
+    assert conf.index("location /cesium/") < conf.index("location / {"), \
+        "location /cesium/ must come before the catch-all proxy location /"
+
+
+def test_web01_frontend_image_vendors_cesium():
+    """WEB-01: the frontend image vendors the PINNED Cesium build into the served html dir (it is too
+    large to commit and the CSP forbids a CDN), and removes the build tool in the same layer."""
+    df = _read("deploy/Dockerfile.frontend")
+    assert "cesium-1.119.0.tgz" in df, "Dockerfile.frontend does not vendor the pinned Cesium 1.119 build"
+    assert "/usr/share/nginx/html/cesium" in df, "Cesium not copied into the served html dir"
+    assert "apk del curl" in df, "the build tool (curl) is not removed from the final image layer"

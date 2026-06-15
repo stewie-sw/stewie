@@ -7,8 +7,13 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
 <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-<link href="https://unpkg.com/cesium@1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
-<script src="https://unpkg.com/cesium@1.119/Build/Cesium/Cesium.js"></script>
+<!-- WEB-01: Cesium is SELF-HOSTED same-origin (it was loaded from a third-party CDN, which the
+     production CSP `script-src 'self'` blocks -> the map rendered blank). The frontend image vendors
+     cesium 1.119 to /cesium/ at build time (deploy/Dockerfile.frontend). CESIUM_BASE_URL must be set
+     BEFORE Cesium.js so it locates its Workers/Assets same-origin. -->
+<link href="/cesium/Widgets/widgets.css" rel="stylesheet" />
+<script>window.CESIUM_BASE_URL = "/cesium/";</script>
+<script src="/cesium/Cesium.js"></script>
 <style>
   /* Professional palette: neutral slate + ONE blue accent; color reserved for semantic meaning. */
   @font-face {
@@ -764,6 +769,18 @@ fetch("/healthz").then(r => r.json()).then(h => { const v = document.getElementB
 function loadBody(key) {
   const b = BODIES[key];
   if (viewer) { viewer.destroy(); viewer = null; }
+  // WEB-01: guard BEFORE any Cesium.* reference. If the self-hosted bundle did not load (CSP block,
+  // offline, or a 404), `Cesium` is undefined and the line below would throw a ReferenceError OUTSIDE
+  // the try/catch. Degrade cleanly to the 2-D site tools instead (same fallback as the no-WebGL path).
+  if (typeof window.Cesium === "undefined") {
+    const c0 = document.getElementById("cesium");
+    if (c0) c0.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:#9ab">' +
+      '<div style="font-size:13px;opacity:.8">3-D globe unavailable (the map library did not load); using the 2-D site tools.</div>' +
+      '<div style="font-size:12px;opacity:.6">The WORK AREA map (bottom right) and the PLAN VIEW canvas (sidebar) are fully functional: ' +
+      'click them to set coordinates, queue orders, and plan the mission.</div></div>';
+    viewer = null;
+    return;
+  }
   // v1 uses the default geographic globe: imagery + lat/lon + pan/zoom/tilt are all correct; only the
   // sphere RADIUS is Earth-sized (cosmetic). A true per-body ellipsoid is a refinement (Cesium's custom
   // globe path errors in 1.119). The body radius is kept in BODIES for the future ellipsoid swap.

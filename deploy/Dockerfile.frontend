@@ -2,6 +2,17 @@
 # S-13: the base is pinned by DIGEST (not the mutable nginx:1.27-alpine tag). Digest = the
 # nginx:1.27-alpine multi-arch index (Docker Hub, 2026-06-14).
 FROM nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+# WEB-01: vendor CesiumJS 1.119 same-origin at build time. The bundle (~20 MB) is too large to commit,
+# and the production CSP `script-src 'self'` forbids loading it from a CDN -> it must be served by this
+# host (nginx serves /cesium/ statically; see deploy/nginx.conf). Pinned version from the npm registry;
+# the build tool (curl) is removed in the same layer so it never lands in the final image.
+RUN apk add --no-cache curl \
+ && curl -fsSL https://registry.npmjs.org/cesium/-/cesium-1.119.0.tgz -o /tmp/cesium.tgz \
+ && mkdir -p /usr/share/nginx/html/cesium \
+ && tar xzf /tmp/cesium.tgz -C /tmp package/Build/Cesium \
+ && cp -a /tmp/package/Build/Cesium/. /usr/share/nginx/html/cesium/ \
+ && rm -rf /tmp/cesium.tgz /tmp/package \
+ && apk del curl
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY stewie/server/web/landing.html /usr/share/nginx/html/landing.html
 COPY stewie/server/web/assets/ /usr/share/nginx/html/assets/
