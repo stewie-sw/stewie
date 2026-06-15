@@ -93,11 +93,8 @@ def main() -> int:
             if a["modalRole"] != "dialog" or a["modalAriaModal"] != "true":
                 fail.append(f"auth modal not a role=dialog aria-modal (got {a['modalRole']}/{a['modalAriaModal']})")
 
-            # UX-01/OPT-02: an unauthenticated boot must NOT auto-open the sign-in modal
-            boot_modal = pg.evaluate(
-                "() => getComputedStyle(document.getElementById('authmodal')).display")
-            if boot_modal != "none":
-                fail.append(f"auth modal is shown at boot (display={boot_modal}); must stay hidden (UX-01)")
+            # NOTE: the cockpit is now GATED (Aaron 2026-06-15) -- a no-session boot DOES show a blocking
+            # sign-in (asserted in the gate block below), superseding the earlier UX-01 "no modal at boot".
 
             # UX-05: the planning sidebar auto-collapses off the Plan view and restores on return (desktop,
             # no pin set). At 1440x900 (the page default) applySidebar acts (innerWidth > 860).
@@ -147,28 +144,35 @@ def main() -> int:
             if ratio < 4.5:
                 fail.append(f"--dim live contrast {ratio:.2f} < 4.5 (dark theme)")
 
-            # modal: open -> focus a FORM field; decluttered (no automation key); X + Escape both close
-            modal = pg.evaluate(r"""() => {
-                openAuth('login');
+            # GATED APP: a no-session boot shows a BLOCKING sign-in -- X hidden, Esc + closeAuth do NOT
+            # dismiss, focus lands on a form field, no automation-key field. A simulated sign-in lifts it.
+            gate = pg.evaluate(r"""() => {
+                openAuth('login');                          // re-assert the boot gate (refresh focus)
                 const m = document.getElementById('authmodal');
-                const focusedInside = m.contains(document.activeElement);
-                const focusedField = (document.activeElement.tagName === 'INPUT');
-                const noApiKey = !document.getElementById('auth-apikey');   // automation key removed from the modal
-                document.getElementById('auth-dismiss').click();            // header X closes
-                const closedByX = m.style.display === 'none';
-                openAuth('login');
+                const shownAtBoot = getComputedStyle(m).display !== 'none';
+                const xHidden = getComputedStyle(document.getElementById('auth-dismiss')).display === 'none';
+                const focusedField = m.contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
+                const noApiKey = !document.getElementById('auth-apikey');
                 document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
-                const closedByEsc = m.style.display === 'none';
-                return { focusedInside, focusedField, noApiKey, closedByX, closedByEsc };
+                const stillUpAfterEsc = getComputedStyle(m).display !== 'none';
+                closeAuth();
+                const stillUpAfterClose = getComputedStyle(m).display !== 'none';
+                AUTH.identity = 'ops@test'; AUTH.role = 'operator'; _gate = false; closeAuth();
+                const liftedAfterSignin = getComputedStyle(m).display === 'none';
+                return { shownAtBoot, xHidden, focusedField, noApiKey,
+                         stillUpAfterEsc, stillUpAfterClose, liftedAfterSignin };
             }""")
-            if not modal["focusedInside"] or not modal["focusedField"]:
-                fail.append("opening the auth dialog did not focus a form field (the X must not steal focus)")
-            if not modal["noApiKey"]:
-                fail.append("the automation-key field still clutters the sign-in modal")
-            if not modal["closedByX"]:
-                fail.append("the header X did not close the auth dialog")
-            if not modal["closedByEsc"]:
-                fail.append("Escape did not close the auth dialog")
+            for k, want, msg in [
+                ("shownAtBoot", True, "the auth gate is not shown on a no-session boot"),
+                ("xHidden", True, "the close X is visible while gated (gate must be mandatory)"),
+                ("focusedField", True, "the gate did not focus a form field"),
+                ("noApiKey", True, "the automation-key field still clutters the sign-in modal"),
+                ("stillUpAfterEsc", True, "Escape dismissed the gate (must be mandatory)"),
+                ("stillUpAfterClose", True, "closeAuth dismissed the gate while signed-out (must refuse)"),
+                ("liftedAfterSignin", True, "the gate did not lift after a successful sign-in"),
+            ]:
+                if gate.get(k) != want:
+                    fail.append(msg + f" ({k}={gate.get(k)})")
 
             # #117: the signed-in identity chip is hidden when signed out, populated by renderWhoami,
             # and cleared again (the 'who's logged in' corner indicator + sign-out)
@@ -206,9 +210,9 @@ def main() -> int:
             lp = b.new_page(viewport={"width": 390, "height": 844})
             lp.on("pageerror", lambda e: errs.append("[landing] " + str(e)))
             lp.goto(f"http://127.0.0.1:{args.port}/landing.html", wait_until="domcontentloaded", timeout=40000)
-            lp.wait_for_selector(".hero .hero-cta .btn-primary", timeout=10000)
+            lp.wait_for_selector(".hero .hero-cta .btn", timeout=10000)
             cta = lp.evaluate(r"""() => {
-                const el = document.querySelector('.hero .hero-cta .btn-primary');
+                const el = document.querySelector('.hero .hero-cta .btn');
                 const r = el.getBoundingClientRect();
                 return { bottom: Math.round(r.bottom), top: Math.round(r.top),
                          visible: el.offsetParent !== null, text: el.textContent.trim() };

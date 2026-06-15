@@ -419,10 +419,11 @@
   </aside>
   <div id="stage">
     <nav id="viewtabs">
+      <!-- ConOps flow: plan the mission -> drive/navigate -> perceive -> watch metrics -> report -->
       <button class="vtab active" data-view="plan">Plan <span class="sysb">LODE</span></button>
+      <button class="vtab" data-view="nav" title="navigation + state estimation: the ARGUS pose-graph estimate vs dead reckoning, leave-one-out attribution, and the perception-gated articulation-parallax relocalization">Navigation <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="perception">Perception <span class="sysb">DART</span></button>
       <button class="vtab" data-view="metrics">Metrics <span class="sysb">LEAP</span></button>
-      <button class="vtab" data-view="nav" title="navigation + state estimation: the ARGUS pose-graph estimate vs dead reckoning, leave-one-out attribution, and the perception-gated articulation-parallax relocalization">Navigation <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
       <span class="vtsep" title="engineer / developer / intern views">·</span>
       <button class="vtab" data-view="system" title="#55: validation, API docs, server ops, config — the operate-the-software cluster">System</button>

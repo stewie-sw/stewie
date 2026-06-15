@@ -786,16 +786,30 @@ function authMode(mode) {
   if (tabs) tabs.style.display = (mode === "setpw") ? "none" : "flex";
   authMsg("");
 }
+// GATED APP (Aaron 2026-06-15): the cockpit requires sign-in. _gate=true means a no-session boot ->
+// a BLOCKING sign-in (no X, no backdrop/Esc dismiss, opaque backdrop hiding the work area). It lifts
+// only once a session exists. applyGate() reconciles it after every refreshAuthState.
+let _gate = false;
 function openAuth(mode) {
   const m = $("authmodal"); if (!m) return;
   m.style.display = "flex"; authMode(mode || "login");
-  // UX-04: move focus to the ACTIVE form's first field (not the header close button) so keyboard +
-  // screen-reader users land on the email/password input. display:flex is set, so focus is synchronous.
+  // the header X + backdrop dismiss exist only when NOT gated (a signed-in user managing their
+  // account); the boot gate is mandatory, so hide the X + make the backdrop fully opaque.
+  const x = $("auth-dismiss"); if (x) x.style.display = _gate ? "none" : "";
+  m.style.background = _gate ? "var(--bg, #0a0a0c)" : "rgba(0,0,0,.72)";
+  // UX-04: focus the ACTIVE form's first field (not the X) so keyboard/SR users land on the input.
   const formId = (mode === "register") ? "auth-register" : (mode === "setpw") ? "auth-setpw" : "auth-login";
   const first = ($(formId) || m).querySelector("input");
   if (first) first.focus();
 }
-function closeAuth() { const m = $("authmodal"); if (m) m.style.display = "none"; }
+function closeAuth() {
+  if (_gate && !AUTH.identity) return;          // gated + no session -> sign-in is mandatory, no dismiss
+  const m = $("authmodal"); if (m) m.style.display = "none";
+}
+function applyGate() {
+  if (AUTH.identity) { _gate = false; closeAuth(); }    // signed in -> lift the gate
+  else { _gate = true; openAuth("login"); }             // no session -> block until signed in
+}
 let _authPromptTs = 0;
 let _bootComplete = false;                                // UX-01: set true once the initial load settles
 function flashSignInNeeded() {                            // a 401 surfaced -> nudge sign-in (debounced)
@@ -826,7 +840,8 @@ async function refreshAuthState() {
     AUTH.role = null; AUTH.identity = null;
     if (st) st.textContent = "not signed in";
     renderWhoami(null);
-    const av = $("vtab-admin"); if (av) av.style.display = "none"; return; }
+    const av = $("vtab-admin"); if (av) av.style.display = "none";
+    applyGate(); return; }
   try {
     const r = await fetch("/auth/me", { headers: apiHeaders() });
     if (!r.ok) throw 0;
@@ -838,6 +853,7 @@ async function refreshAuthState() {
     if (st) st.textContent = "not signed in";
     renderWhoami(null);
     const av = $("vtab-admin"); if (av) av.style.display = "none"; }
+  applyGate();   // gated app: reconcile the sign-in gate after every auth refresh (boot + session loss)
 }
 // #117: the signed-in identity chip (who's logged in) + sign-out. renderWhoami(null) hides it; a
 // director gets the accent avatar, an operator a muted one. Function declarations -> hoisted, so
@@ -935,6 +951,7 @@ async function renderAdmin() {
         actCell.appendChild(mkbtn("role", "→" + flip, { "data-role": flip }));
         if (o.status !== "revoked") actCell.appendChild(mkbtn("revoke", "revoke"));
         actCell.appendChild(mkbtn("reset", "reset pw"));
+        actCell.appendChild(mkbtn("logins", "logins"));     // per-user login history (audit)
         actCell.appendChild(mkbtn("delete", "delete"));
         const sc = o.status === "active" ? "var(--accent)" : (o.status === "pending" ? "#e0a800" : "var(--muted)");
         rows.appendChild(el("tr", null,
@@ -946,7 +963,9 @@ async function renderAdmin() {
       }
     }
     rows.querySelectorAll("button[data-act]").forEach((b) =>
-      b.onclick = () => adminAction(b.dataset.act, b.dataset.email, b.dataset.role));
+      b.onclick = () => (b.dataset.act === "logins"
+        ? showUserLogins(b.dataset.email)
+        : adminAction(b.dataset.act, b.dataset.email, b.dataset.role)));
   } catch (e) {
     rows.replaceChildren(el("tr", null, el("td", { colspan: "5", style: "opacity:.6" }, "unavailable")));
   }
@@ -956,6 +975,19 @@ async function renderAdmin() {
       $("adminaudit").textContent = evs.map((x) => new Date(x.ts * 1000).toLocaleTimeString() +
         "  " + x.actor + "  " + x.action + "  " + (x.target || "")).join("\n") || "—"; }
   } catch (e) {}
+}
+// #117 (admin): a per-user login history -- every recorded sign-in for one operator (the audit ledger
+// filtered by actor + action=auth.login), shown in the admin audit panel.
+async function showUserLogins(email) {
+  const box = $("adminaudit"); if (!box) return;
+  box.textContent = "loading logins for " + email + " ...";
+  try {
+    const r = await fetch("/events?action=auth.login&n=200&actor=" + encodeURIComponent(email),
+                          { headers: apiHeaders() });
+    const evs = (await r.json()).events || [];
+    const lines = evs.map((x) => new Date(x.ts * 1000).toLocaleString() + "  via " + (x.target || x.action));
+    box.textContent = "logins for " + email + " (" + evs.length + "):\n" + (lines.join("\n") || "— none recorded");
+  } catch (e) { box.textContent = "could not load logins for " + email; }
 }
 async function adminAction(act, email, role) {
   let url, body = null, method = "POST";
@@ -1702,9 +1734,13 @@ async function globeLayer(key, _url, on) {
   if (!on) return;
   // server-REPROJECTED geographic drape in the layer's OWN bbox (the rotated-tile fix)
   const qs = sunQS();
+  // loading feedback: the server-rendered drapes take real time (PSR's horizon sweep ~40s cold), so
+  // a toggle isn't instant -- tell the operator it's rendering instead of looking dead.
+  const _busy = (typeof setQ === "function");
+  if (_busy) setQ("rendering " + key.toUpperCase() + " layer…" + (key === "psr" ? " (PSR cold render up to ~40s)" : ""));
   try {
     const bb = await (await fetch(`/layers/globe/${key}/bbox?` + qs)).json();
-    if (!bb.ok) { console.error("layer bbox failed:", key, bb); return; }
+    if (!bb.ok) { console.error("layer bbox failed:", key, bb); if (_busy) setQ(key.toUpperCase() + " layer unavailable"); return; }
     // fromUrl = the supported modern-Cesium path (the constructor-with-url form is deprecated);
     // errors surface to the console instead of a silent swallow (the old catch hid failures).
     const prov = await Cesium.SingleTileImageryProvider.fromUrl(
@@ -1714,7 +1750,9 @@ async function globeLayer(key, _url, on) {
     if (LAYER_OPACITY[key]) GLOBE_LAYERS[key].alpha = LAYER_OPACITY[key] / 100;   // slider persists
     // Aaron: the reference grid must sit ON TOP of every DEM/analysis drape
     if (GLOBE_LAYERS.grid) viewer.imageryLayers.raiseToTop(GLOBE_LAYERS.grid);
-  } catch (e) { console.error("globe layer failed:", key, e); alertMsg("error", `layer ${key} failed: ${e}`); }
+    if (_busy) setQ(key.toUpperCase() + " layer ready");
+  } catch (e) { console.error("globe layer failed:", key, e); alertMsg("error", `layer ${key} failed: ${e}`);
+    if (_busy) setQ(key.toUpperCase() + " layer failed"); }
 }
 const BOOT_V = Date.now();                                 // per-pageload cache-bust for layer images
 function sunQS() {

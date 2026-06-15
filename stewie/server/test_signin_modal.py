@@ -45,3 +45,15 @@ def test_open_focuses_a_form_field_not_the_close_button():
     # land on the X)
     assert 'querySelector("input")' in body or "auth-email" in body, \
         "openAuth still focuses the first input-or-button (would grab the close X)"
+
+
+def test_app_is_gated_behind_signin():
+    # Aaron 2026-06-15: the cockpit requires sign-in. A no-session boot shows a BLOCKING sign-in:
+    # closeAuth refuses while gated + unauthenticated, and refreshAuthState reconciles the gate.
+    js = _read(_COCKPIT)
+    assert "function applyGate" in js, "no applyGate() gate reconciler"
+    assert "let _gate" in js, "no _gate flag"
+    close_body = js.split("function closeAuth")[1].split("function applyGate")[0]
+    assert "_gate" in close_body and "AUTH.identity" in close_body and "return" in close_body, \
+        "closeAuth does not refuse to dismiss while gated + signed-out"
+    assert js.count("applyGate()") >= 2, "refreshAuthState does not reconcile the gate on both paths"

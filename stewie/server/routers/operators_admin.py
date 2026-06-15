@@ -108,19 +108,36 @@ def operators_delete(email: str, director: str = Depends(require_director)):
 
 
 @router.get("/events")
-def get_events(n: int = 50, _auth: str = Depends(require_director)):
+def get_events(n: int = 50, actor: str | None = None, action: str | None = None,
+               _auth: str = Depends(require_director)):
     """The newest-first event history (who did what when). SEC-2: director-only -- it carries
-    operator identities + the full mutation trail (an audit surface, not public)."""
+    operator identities + the full mutation trail (an audit surface, not public).
+
+    Optional ``actor`` / ``action`` filters give an admin a PER-USER history (e.g. every login for one
+    operator: ``?actor=alice@x.com&action=auth.login``). When a filter is set the whole ledger is
+    scanned (output still capped) so sparse matches are not lost in the unfiltered tail."""
     import json as _json
 
     from stewie.specs import config as CFG
     path = os.path.join(CFG.data_dir(), "events.jsonl")
+    cap = max(1, min(int(n), 500))
+    filtering = bool(actor) or bool(action)
+    a = (actor or "").strip().lower()
     out: list = []
     if os.path.exists(path):
-        lines = open(path).read().splitlines()[-max(1, min(int(n), 500)):]
-        for ln in reversed(lines):
+        lines = open(path).read().splitlines()
+        if not filtering:
+            lines = lines[-cap:]
+        for ln in reversed(lines):                       # newest-first
             try:
-                out.append(_json.loads(ln))
+                ev = _json.loads(ln)
             except ValueError:
                 continue
+            if a and str(ev.get("actor", "")).strip().lower() != a:
+                continue
+            if action and str(ev.get("action", "")) != action:
+                continue
+            out.append(ev)
+            if len(out) >= cap:
+                break
     return {"ok": True, "events": out}
