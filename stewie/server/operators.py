@@ -37,8 +37,19 @@ _SALT_BYTES = 16
 _MIN_PASSWORD_LEN = 10
 _MAX_FAILED = 5            # consecutive failed logins before lockout
 _LOCKOUT_S = 15 * 60      # lockout window after _MAX_FAILED failures
-_ROLES = ("director", "operator")
+# AG-01 (PRD §7.12): the role ladder in ASCENDING capability order. The tuple index IS the rank,
+# so guest < trainee < operator < director. The legacy two roles (director/operator) are preserved,
+# so existing stores migrate forward without data loss; `guest` (read-only) and `trainee`
+# (own-sandbox write) are the new lower tiers for the invitation-only / training product.
+_ROLES = ("guest", "trainee", "operator", "director")
 _STATUSES = ("active", "pending", "revoked")
+
+
+def role_rank(role: str | None) -> int:
+    """Capability rank of a role for `require_role`-style gating. Higher = more capable.
+    An unknown / None / empty role ranks -1 (BELOW guest) so it can never satisfy a
+    `rank(user) >= rank(min)` gate -- the comparison fails closed."""
+    return _ROLES.index(role) if role in _ROLES else -1
 # S-02: a standards-ish but DELIBERATELY CONSERVATIVE address. The local part is a dot-atom over a
 # safe subset (alnum + the common interchange specials . _ % + -), no leading/trailing/double dot;
 # the domain is letter/digit/hyphen labels separated by dots with a >=2-char alpha TLD. This admits
