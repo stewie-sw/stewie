@@ -28,6 +28,9 @@ def client(monkeypatch, tmp_path):
     # keep the rate limits small + fast for the test
     monkeypatch.setenv("STEWIE_AUTH_RATE_MAX", "5")
     monkeypatch.setenv("STEWIE_AUTH_RATE_WINDOW_S", "60")
+    # SEC-06: registration now defaults CLOSED -- make the closed default deterministic for these tests
+    # (any inherited STEWIE_REGISTRATION is removed; tests that need it open set it explicitly)
+    monkeypatch.delenv("STEWIE_REGISTRATION", raising=False)
     import stewie.server.server as srv
     importlib.reload(srv)
     # reset the in-process limiter so other tests don't bleed counts in
@@ -61,13 +64,36 @@ def test_failed_login_burst_is_rate_limited(client):
     assert 429 in codes, f"no 429 after a sustained failed-login burst (S-07); saw {codes}"
 
 
-def test_registration_burst_is_rate_limited(client):
+def test_registration_burst_is_rate_limited(client, monkeypatch):
+    # the per-IP limiter only fires on the OPEN path; closed registration 403s before the limiter (SEC-06)
+    monkeypatch.setenv("STEWIE_REGISTRATION", "1")
     codes = []
     for i in range(12):
         r = client.post("/auth/register",
                         json={"email": f"user{i}@example.com", "password": "long-enough-password"})
         codes.append(r.status_code)
     assert 429 in codes, f"registration not rate-limited (S-07); saw {codes}"
+
+
+def test_registration_defaults_closed_in_production(client):
+    """SEC-06: an internet-facing deployment must NOT silently accept self-service registration. With
+    STEWIE_REGISTRATION unset, a well-formed /auth/register must be refused (403 'registration is closed'),
+    not create a pending account -- the prior `!= "0"` default left enrollment OPEN unless explicitly
+    disabled, the wrong fail-direction for a public host. Operators turn it on with STEWIE_REGISTRATION=1."""
+    r = client.post("/auth/register",
+                    json={"email": "stranger@example.com", "password": "long-enough-password"})
+    assert r.status_code == 403, f"registration open by default (SEC-06); got {r.status_code}: {r.text}"
+    assert "closed" in r.text.lower()
+
+
+def test_registration_opt_in_opens_it(client, monkeypatch):
+    """The opt-in must actually work: with STEWIE_REGISTRATION=1 a first well-formed request is accepted
+    (creates a director-approval-pending account), proving the gate is the only thing closing it."""
+    monkeypatch.setenv("STEWIE_REGISTRATION", "1")
+    r = client.post("/auth/register",
+                    json={"email": "newop@example.com", "password": "long-enough-password"})
+    assert r.status_code == 200, r.text
+    assert r.json().get("ok") is True
 
 
 def test_a_normal_login_attempt_still_works(client):

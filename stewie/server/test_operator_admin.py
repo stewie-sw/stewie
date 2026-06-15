@@ -15,6 +15,10 @@ from fastapi.testclient import TestClient
 def client(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWIE_API_KEY", "test-key")
     monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    # SEC-06: registration now defaults CLOSED; this end-to-end admin flow legitimately needs self-service
+    # enrollment ON to create the pending accounts it then approves. test_registration_can_be_closed below
+    # overrides this to "0" (read live) to pin the closed path.
+    monkeypatch.setenv("STEWIE_REGISTRATION", "1")
     import stewie.server.server as srv
     importlib.reload(srv)
     yield TestClient(srv.app)

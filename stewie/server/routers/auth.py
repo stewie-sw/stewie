@@ -60,7 +60,10 @@ _register_ip_limiter = RateLimiter(_rl_max(), _rl_window())
 
 
 def _registration_open() -> bool:
-    return os.environ.get("STEWIE_REGISTRATION", "1") != "0"
+    # SEC-06: fail CLOSED. An internet-facing deployment must not accept self-service enrollment unless an
+    # operator explicitly opts in (STEWIE_REGISTRATION=1). The prior `!= "0"` default left registration OPEN
+    # on any host that did not think to disable it -- the wrong fail-direction for a public service.
+    return os.environ.get("STEWIE_REGISTRATION", "0") == "1"
 
 
 def _legacy_authed(email: str, x_api_key: str | None, authorization: str | None,
