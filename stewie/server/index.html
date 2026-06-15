@@ -684,6 +684,8 @@
       <img src="/icons/icon-32.png" alt="" style="width:20px;height:20px" />
       <b style="letter-spacing:.3em;font-weight:800">STEWIE</b>
       <span style="opacity:.5;font-size:10px;letter-spacing:.14em">OPERATOR ACCESS</span>
+      <button id="auth-dismiss" class="site" title="close — continue without signing in" aria-label="close"
+              style="margin-left:auto;border:none;background:none;color:var(--muted);font-size:18px;line-height:1;padding:2px 6px;cursor:pointer">✕</button>
     </div>
     <div id="auth-tabs" style="display:flex;gap:6px;margin:12px 0 14px">
       <button class="site active" id="auth-tab-login" style="flex:1">Sign in</button>
@@ -708,16 +710,8 @@
       <button class="site" id="auth-do-setpw" style="padding:8px">Set password</button>
     </div>
     <div id="auth-msg" style="min-height:1.1em;font-size:12px;margin-top:10px;color:var(--bad,#ff6b6b)"></div>
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:10px;font-size:11px;gap:10px">
-      <a href="#" id="auth-dismiss" style="color:var(--muted)">continue without signing in</a>
-      <details style="font-size:11px">
-        <summary style="cursor:pointer;color:var(--muted)">automation key</summary>
-        <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;width:15em">
-          <input id="auth-apikey" type="password" placeholder="X-API-Key (CI / scripts only)" />
-          <button class="site" id="auth-save-key" style="padding:5px">Use key this session</button>
-        </div>
-      </details>
-    </div>
+    <div style="margin-top:8px;font-size:10.5px;color:var(--dim)">First-time director setup uses the deploy key under
+      Settings &rarr; Advanced &rarr; automation API key.</div>
   </div>
 </div>
 

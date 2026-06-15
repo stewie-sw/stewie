@@ -789,9 +789,10 @@ function authMode(mode) {
 function openAuth(mode) {
   const m = $("authmodal"); if (!m) return;
   m.style.display = "flex"; authMode(mode || "login");
-  // UX-04: move focus into the dialog (the first visible field) so keyboard + screen-reader users land
-  // inside it. The dialog is now display:flex (visible), so the focus takes effect synchronously.
-  const first = m.querySelector("input, button");
+  // UX-04: move focus to the ACTIVE form's first field (not the header close button) so keyboard +
+  // screen-reader users land on the email/password input. display:flex is set, so focus is synchronous.
+  const formId = (mode === "register") ? "auth-register" : (mode === "setpw") ? "auth-setpw" : "auth-login";
+  const first = ($(formId) || m).querySelector("input");
   if (first) first.focus();
 }
 function closeAuth() { const m = $("authmodal"); if (m) m.style.display = "none"; }
@@ -854,8 +855,8 @@ async function doLogout() {
   try { await fetch("/auth/logout", { method: "POST", headers: apiHeaders() }); } catch (e) {}
   AUTH.role = null; AUTH.identity = null; AUTH.apikey = "";   // SEC-01: drop the in-memory key too
   renderWhoami(null);
-  await refreshAuthState();
-  if (typeof setQ === "function") setQ("signed out");
+  // signing out should LEAVE the work area -> land back on the public page, not sit signed-out in the cockpit
+  window.location.assign("/");
 }
 if ($("whoami-signout")) $("whoami-signout").onclick = doLogout;
 async function doLogin() {
@@ -901,6 +902,8 @@ async function doSetPassword() {
   bind("auth-do-register", doRegister);
   bind("auth-do-setpw", doSetPassword);
   bind("auth-dismiss", (ev) => { ev.preventDefault(); closeAuth(); });
+  // click the dimmed backdrop (outside the card) to dismiss -- no inline handler (CSP forbids it)
+  const am = $("authmodal"); if (am) am.addEventListener("click", (e) => { if (e.target === am) closeAuth(); });
   // SEC-01: the automation key is held in memory for THIS session only (never written to localStorage).
   bind("auth-save-key", () => { AUTH.apikey = $("auth-apikey").value.trim();
     if ($("set-apikey")) $("set-apikey").value = AUTH.apikey; authMsg("Automation key set for this session.", true); });

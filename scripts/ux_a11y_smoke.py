@@ -147,18 +147,27 @@ def main() -> int:
             if ratio < 4.5:
                 fail.append(f"--dim live contrast {ratio:.2f} < 4.5 (dark theme)")
 
-            # modal: open -> focus inside; Escape -> closed
+            # modal: open -> focus a FORM field; decluttered (no automation key); X + Escape both close
             modal = pg.evaluate(r"""() => {
                 openAuth('login');
                 const m = document.getElementById('authmodal');
                 const focusedInside = m.contains(document.activeElement);
+                const focusedField = (document.activeElement.tagName === 'INPUT');
+                const noApiKey = !document.getElementById('auth-apikey');   // automation key removed from the modal
+                document.getElementById('auth-dismiss').click();            // header X closes
+                const closedByX = m.style.display === 'none';
+                openAuth('login');
                 document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
-                const closed = m.style.display === 'none';
-                return { focusedInside, closed };
+                const closedByEsc = m.style.display === 'none';
+                return { focusedInside, focusedField, noApiKey, closedByX, closedByEsc };
             }""")
-            if not modal["focusedInside"]:
-                fail.append("opening the auth dialog did not move focus inside it")
-            if not modal["closed"]:
+            if not modal["focusedInside"] or not modal["focusedField"]:
+                fail.append("opening the auth dialog did not focus a form field (the X must not steal focus)")
+            if not modal["noApiKey"]:
+                fail.append("the automation-key field still clutters the sign-in modal")
+            if not modal["closedByX"]:
+                fail.append("the header X did not close the auth dialog")
+            if not modal["closedByEsc"]:
                 fail.append("Escape did not close the auth dialog")
 
             # #117: the signed-in identity chip is hidden when signed out, populated by renderWhoami,
