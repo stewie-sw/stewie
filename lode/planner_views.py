@@ -9,6 +9,10 @@ mission_planner (defined before mission_planner imports this module at its end -
 """
 from __future__ import annotations
 
+import hashlib
+import json
+import math
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -19,7 +23,7 @@ from stewie.specs import vehicles as V
 from stewie.physics import rassor_mass_model as RM
 from lode.mission_planner import (
     BATTERY_J, DRIVE_J_PER_M, DIG_J_PER_KG, DIG_RATE_KG_S, DRIVE_SPEED_MS, RESERVE_FRAC,
-    _dur, _drum_kg, body_gravity, plan,
+    Mission, _d, _dur, _drum_kg, body_gravity, plan, route_leg, trip_precedence,
 )
 
 
@@ -332,5 +336,133 @@ def report(mission, trips, flows, per_trip, tl, totals, out_pdf, out_md, endu=No
            "sinter-head 1000 W are [CALIB]. REVIEW-PENDING — not approved for execution until signed off._"]
     with open(out_md, "w") as f:
         f.write("\n".join(md))
+
+
+# ---- the machine-EXECUTABLE plan IR view (ARCH-2: moved from mission_planner; the executive's
+# counterpart to the human PDF report; a read-only lowering of the one simulated plan) -----------------
+PLAN_IR_VERSION = "1.0"
+_IR_OP = {"cutfill": "CutHaulFill", "dig": "Excavate", "import": "Import", "sinter": "Sinter"}
+_IR_DIG_OPS = ("Excavate", "CutHaulFill")
+_IR_MODEL_ERR_FRAC = 0.12   # per-action energy/time tolerance band (the plan's a-priori model error, 1-sigma)
+
+
+def plan_ir(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_slope_deg=25.0,
+            algorithm="nearest", objective="time", vehicles=1, plan_id=None, result=None):
+    """Emit a versioned, machine-EXECUTABLE plan IR -- the artifact a rover / ROS executive consumes, as
+    opposed to the human PDF. An ordered list of typed actions (GoTo / Excavate / CutHaulFill / Import /
+    Sinter), each with expected duration/energy/distance, a model-error tolerance band, and preconditions
+    (battery reserve; for digs the drum cap + the map-coverage gate); plus the precedence DAG over action
+    ids, the headline expectations, and a DETERMINISTIC content-hash plan_id (no wall clock). Recharges are
+    not positional actions -- they are precondition-driven (an executive recharges when `battery_J_min` is
+    violated), so the IR stays valid under the real battery draw. Built by lowering the simulated plan."""
+    from dart.map_channel import COVERAGE_DIG_GATE
+    if result is None:                                  # RB-03: reuse the shared plan if given (no recompute)
+        result = plan(mission, dem=dem, dem_origin=dem_origin,
+                      max_traverse_slope_deg=max_traverse_slope_deg,
+                      algorithm=algorithm, objective=objective, vehicles=vehicles)
+    trips, _flows, _per_trip, _tl, totals = result.as_tuple()
+    reserve_J = round(RESERVE_FRAC * BATTERY_J, 1)
+    actions = []
+    trip_work_aid = {}                                 # trip index -> its work-action id (precedence lowering)
+    # RB-04: track the previous position PER VEHICLE. Each rover starts at the charger and advances along
+    # its OWN trips; a single shared `prev` would make a fleet rover's first GoTo measure from the previous
+    # rover's last position (a cross-vehicle position leak) and overstate its drive distance/energy.
+    prev_by_vehicle: dict = {}
+    charger = tuple(mission.charger)
+    aid = 0
+    ir_feasible = bool(totals.get("feasible", True))   # item 2: starts from the haul-routing feasibility
+    for ti, tr in enumerate(trips):
+        site = tuple(tr["site"])
+        veh = int(tr.get("vehicle", 0))
+        prev = prev_by_vehicle.get(veh, charger)
+        d = _d(prev, site)
+        # item 1: a terrain-following GoTo waypoint polyline (not just endpoints). item 2: a blocked
+        # GoTo marks the plan infeasible -- never a straight line through the hazard.
+        go_wp = [[round(prev[0], 3), round(prev[1], 3)], [round(site[0], 3), round(site[1], 3)]]
+        go_reached = True
+        if dem is not None:
+            rm, _gs, go_reached, wp = route_leg(dem, dem_origin, prev, site,
+                                                max_slope_deg=max_traverse_slope_deg, keepouts=mission.keepouts)
+            if go_reached:
+                d = rm
+                go_wp = [[round(x, 3), round(y, 3)] for x, y in wp]
+            else:
+                go_wp = []
+        ir_feasible = ir_feasible and go_reached
+        actions.append({
+            "id": aid, "op": "GoTo", "vehicle": veh, "to": [round(site[0], 3), round(site[1], 3)],
+            "waypoints": go_wp, "reached": go_reached,
+            "expect": {"distance_m": round(d, 2), "duration_s": round(d / DRIVE_SPEED_MS, 1),
+                       "energy_J": round(d * DRIVE_J_PER_M, 1)},
+            "tol": {"energy_frac": _IR_MODEL_ERR_FRAC}, "pre": {"battery_J_min": reserve_J}})
+        aid += 1
+        op = _IR_OP.get(tr["kind"], "Work")
+        # P-04: import work energy is the OFFLOAD (deposit) term, not dig; dig_e/dig_t are 0 for import.
+        work_e = (tr.get("dig_e", 0.0) + tr.get("sinter_e", 0.0) + tr.get("offload_e", 0.0)
+                  + tr.get("haul_e", 0.0) + tr.get("lift_e", 0.0))
+        work_t = (tr.get("dig_t", 0.0) + tr.get("sinter_t", 0.0) + tr.get("offload_t", 0.0)
+                  + tr.get("haul_m", 0.0) / DRIVE_SPEED_MS)
+        # P-07: the precondition must guarantee enough energy to COMPLETE the action AND route to a safe
+        # state (here: return to the charger), not merely sit above the bare reserve floor. battery_J_min
+        # = reserve + action energy + route-to-safe drive energy. The route-to-safe energy is the routed
+        # (DEM-aware) drive from the action's END position (dest) back to the charger.
+        dest = tuple(tr.get("dest", site))
+        safe_d = _d(dest, charger)
+        if dem is not None and _d(dest, charger) > 1e-9:
+            rm_s, _gs_s, reached_s, _wp_s = route_leg(dem, dem_origin, dest, charger,
+                                                      max_slope_deg=max_traverse_slope_deg,
+                                                      keepouts=mission.keepouts)
+            if reached_s:
+                safe_d = rm_s
+            else:
+                ir_feasible = False                          # no safe route home from the action end -> infeasible
+        route_to_safe_J = round(safe_d * DRIVE_J_PER_M, 1)
+        pre = {"battery_J_min": round(reserve_J + work_e + route_to_safe_J, 1),
+               "reserve_J": reserve_J,                       # the bare survival floor, kept for reference
+               "action_energy_J": round(work_e, 1),         # energy to COMPLETE this action
+               "route_to_safe_J": route_to_safe_J}          # energy to reach a safe state (charger) afterward
+        if op in _IR_DIG_OPS:
+            pre["drum_kg_max"] = round(_drum_kg(mission), 1)
+            pre["map_coverage_min"] = COVERAGE_DIG_GATE      # the survey-before-dig gate, as a precondition
+        act = {
+            "id": aid, "op": op, "vehicle": veh,
+            "site": [round(site[0], 3), round(site[1], 3)],
+            "dest": [round(tr["dest"][0], 3), round(tr["dest"][1], 3)],
+            "mass_kg": round(float(tr.get("mass", 0.0)), 1),
+            "loads": (max(1, math.ceil(tr.get("mass", 0.0) / _drum_kg(mission))) if op == "CutHaulFill" else 0),
+            "haul_m": round(tr.get("haul_m", 0.0), 1),
+            "actions": sorted(tr.get("actions", [])),
+            "expect": {"energy_J": round(work_e, 1), "duration_s": round(work_t, 1)},
+            "tol": {"energy_frac": _IR_MODEL_ERR_FRAC}, "pre": pre}
+        actions.append(act)
+        trip_work_aid[ti] = aid
+        aid += 1
+        prev_by_vehicle[veh] = tuple(tr.get("dest", site))   # RB-04: advance only THIS vehicle's position
+    precedence = sorted({(trip_work_aid[i], trip_work_aid[j])
+                         for i, j in trip_precedence(trips, mission)
+                         if i in trip_work_aid and j in trip_work_aid})
+    if plan_id is None:                                # deterministic content hash (no wall clock)
+        key = json.dumps({
+            "body": mission.body, "algorithm": algorithm, "objective": str(objective), "vehicles": vehicles,
+            "orders": [(o.action, o.kind, o.x, o.y, o.footprint_m2, o.depth_m) for o in mission.orders],
+            "ops": [(a["op"], a.get("site"), a.get("to")) for a in actions]}, sort_keys=True)
+        plan_id = hashlib.sha1(key.encode()).hexdigest()[:16]
+    crs = "IAU_2015:30135" if (dem is not None and mission.body == "moon") else "local"
+    return {
+        "schema_version": PLAN_IR_VERSION, "plan_id": plan_id, "body": mission.body,
+        "mode": "DEM_KNOWN_POSE_MISSION_SIM",           # product boundary: known-pose mission sim, NOT SLAM
+        "feasible": bool(ir_feasible),                   # item 2: blocked route -> infeasible (not a straight line)
+        "blocked_legs": int(totals.get("blocked_legs", 0)),
+        "vehicles": int(totals.get("vehicles", 1)), "objective": str(objective),
+        "algorithm": totals.get("resolved_algorithm", algorithm),
+        "frame": {"origin_m": [round(dem_origin[0], 3), round(dem_origin[1], 3)],
+                  "charger": [float(mission.charger[0]), float(mission.charger[1])], "crs": crs},
+        "actions": actions, "precedence": [list(p) for p in precedence],
+        "expect": {"duration_s": round(totals["time_s"], 1), "energy_J": round(totals["energy_J"], 1),
+                   "distance_m": round(totals["distance_m"], 1), "charges": int(totals["charges"]),
+                   "makespan_s": round(totals.get("makespan_s", totals["time_s"]), 1)},
+        "acceptance": {"as_built_tol_m": 0.02, "recharge_is_precondition_driven": True},
+        "provenance": result.provenance,                # CT-07: schema/mode/config + input hash of the one plan
+    }
 
 
