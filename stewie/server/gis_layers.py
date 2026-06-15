@@ -281,9 +281,10 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         import os as _os3
         import numpy as _np2
         npt, jt = stem + ".npy.part", stem + ".json.part"
-        _np2.save(npt, out[0])
+        with open(npt, "wb") as _nf:                     # GIS-04: save to the file OBJECT -> writes the EXACT
+            _np2.save(_nf, out[0]); _nf.flush(); _os3.fsync(_nf.fileno())   # .npy.part (np.save to a PATH appends '.npy')
         with open(jt, "w") as _jf:
-            _json.dump(out[1], _jf)
+            _json.dump(out[1], _jf); _jf.flush(); _os3.fsync(_jf.fileno())
         _os3.replace(npt, stem + ".npy")                 # the data
         _os3.replace(jt, stem + ".json")                 # the commit marker, last
     except OSError:
