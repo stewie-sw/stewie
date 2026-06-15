@@ -75,6 +75,36 @@ def reset_audit_health() -> None:
         _AUDIT_HEALTH.update({"degraded": False, "failures": 0, "last_error": None})
 
 
+# SEC-02: the session-revocation store's health. A read error on revoked_jti.json makes verify_token
+# FAIL CLOSED (deny the token); this surfaces that degradation so it is observable in /healthz, not silent.
+_REVOCATION_HEALTH: dict[str, Any] = {"degraded": False, "failures": 0, "last_error": None}
+_REVOCATION_HEALTH_LOCK = threading.Lock()
+
+
+def record_revocation_failure(err: Exception) -> None:
+    """SEC-02: the revocation store could not be read, so the auth layer is denying tokens (fail closed).
+    Make it VISIBLE -- a degraded health flag, a CRITICAL log line, and a durable audit event."""
+    with _REVOCATION_HEALTH_LOCK:
+        _REVOCATION_HEALTH["degraded"] = True
+        _REVOCATION_HEALTH["failures"] += 1
+        _REVOCATION_HEALTH["last_error"] = repr(err)
+    log.critical("SEC-02 ALERT: session revocation store UNREADABLE -- denying tokens (fail closed): %r", err)
+    try:
+        log_event("system", "revocation.read_failed", repr(err))
+    except Exception:   # noqa: BLE001 -- health recording must never raise into the auth path
+        pass
+
+
+def revocation_health() -> dict:
+    with _REVOCATION_HEALTH_LOCK:
+        return dict(_REVOCATION_HEALTH)
+
+
+def reset_revocation_health() -> None:
+    with _REVOCATION_HEALTH_LOCK:
+        _REVOCATION_HEALTH.update({"degraded": False, "failures": 0, "last_error": None})
+
+
 def log_event(actor: str, action: str, target: str = "") -> None:
     """Append a durable, ordered audit line under data_dir (S-10). Serialized on a process lock so
     concurrent events cannot interleave; fsync'd so a crash cannot lose it; rotated past the size cap.

@@ -62,6 +62,7 @@ def test_tailscale_header_honored_only_when_trusted(client, monkeypatch):
                     json={"body": "moon", "orders": []})
     assert r.status_code == 401
     monkeypatch.setenv("STEWIE_TRUST_TAILSCALE", "1")
+    monkeypatch.setenv("STEWIE_TRUSTED_PROXIES", "testclient")   # SEC-03: name the trusted proxy peer
     r2 = client.post("/missions/ts", headers={"Tailscale-User-Login": "mccardle.john@gmail.com"},
                      json={"body": "moon", "orders": []})
     assert r2.status_code == 200

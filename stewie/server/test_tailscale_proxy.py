@@ -63,10 +63,33 @@ def test_tailscale_header_honored_only_from_trusted_proxy(auth, monkeypatch):
         "the trusted proxy could not inject the backend-visible identity (S-03)")
 
 
-def test_no_trusted_proxy_configured_keeps_legacy_behavior(auth, monkeypatch):
-    """Back-compat: when STEWIE_TRUSTED_PROXIES is unset, the existing `tailscale serve` topology
-    (the proxy is the loopback origin) keeps working -- the header is honored (peer check is a no-op
-    only when no proxy allowlist is declared)."""
+def test_no_trusted_proxy_configured_fails_closed(auth, monkeypatch):
+    """SEC-03: with trust enabled but NO proxy allowlist declared, the header must be IGNORED (fail
+    closed). The previous behavior honored it from any peer -- a direct client could then spoof an
+    allowlisted identity. An operator must now name the trusted proxy peers explicitly."""
     monkeypatch.delenv("STEWIE_TRUSTED_PROXIES", raising=False)
     headers = {"tailscale-user-login": "mccardle.john@gmail.com"}
-    assert auth.tailscale_identity(headers) == "mccardle.john@gmail.com"
+    assert auth.tailscale_identity(headers, peer_ip="127.0.0.1") is None
+    assert auth.tailscale_identity(headers) is None
+
+
+def test_cidr_proxy_allowlist_is_honored(auth, monkeypatch):
+    """SEC-03: a STEWIE_TRUSTED_PROXIES entry may be a CIDR; a peer inside the network is trusted, one
+    outside it is not."""
+    monkeypatch.setenv("STEWIE_TRUSTED_PROXIES", "10.9.0.0/24")
+    headers = {"tailscale-user-login": "mccardle.john@gmail.com"}
+    assert auth.tailscale_identity(headers, peer_ip="10.9.0.42") == "mccardle.john@gmail.com"
+    assert auth.tailscale_identity(headers, peer_ip="10.9.1.42") is None
+
+
+def test_startup_rejects_trust_without_a_proxy_allowlist(auth, monkeypatch):
+    """SEC-03: the deployment must REFUSE to boot if it trusts the Tailscale header without naming the
+    proxy peers (an unbounded trust set is fail-open). With an allowlist (or with trust off), boot is OK."""
+    monkeypatch.delenv("STEWIE_TRUSTED_PROXIES", raising=False)
+    with pytest.raises(RuntimeError):
+        auth.validate_proxy_trust_config()
+    monkeypatch.setenv("STEWIE_TRUSTED_PROXIES", "10.9.0.1")
+    auth.validate_proxy_trust_config()                    # allowlist present -> OK
+    monkeypatch.setenv("STEWIE_TRUST_TAILSCALE", "0")
+    monkeypatch.delenv("STEWIE_TRUSTED_PROXIES", raising=False)
+    auth.validate_proxy_trust_config()                    # trust off -> OK

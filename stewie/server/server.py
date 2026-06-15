@@ -75,6 +75,8 @@ async def lifespan(_app: "FastAPI"):
     API is deprecated and slated for removal in Starlette). Startup runs the auth-posture announcement
     + the background globe-cache warm; there is no shutdown work. `_startup_warm_globe_cache` is
     resolved at call time, so it may be defined later in the module."""
+    from stewie.server import auth as _auth
+    _auth.validate_proxy_trust_config()                   # SEC-03: refuse to boot fail-open (raises)
     _startup_warm_globe_cache()
     yield
 

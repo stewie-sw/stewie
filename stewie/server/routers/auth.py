@@ -201,7 +201,10 @@ def auth_logout(request: Request, response: Response):
     if tok:
         claims = AUTH.decode_claims(tok)
         if claims and claims.get("jti"):
-            AUTH.revoke_jti(claims["jti"])
+            try:
+                AUTH.revoke_jti(claims["jti"])
+            except AUTH.RevocationStoreError:
+                pass   # SEC-02: a corrupt store already fails closed at verify; still clear the cookies
     response.delete_cookie(SESSION_COOKIE, path="/")
     response.delete_cookie(CSRF_COOKIE, path="/")
     return {"ok": True}

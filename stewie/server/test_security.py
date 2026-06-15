@@ -108,6 +108,7 @@ def test_bootstrap_shared_key_still_binds_only_to_the_requested_email(client):
 def test_bootstrap_tailscale_must_match_requested_email(client, monkeypatch):
     """A trusted Tailscale identity may only bootstrap ITS OWN email, not an arbitrary other one."""
     monkeypatch.setenv("STEWIE_TRUST_TAILSCALE", "1")
+    monkeypatch.setenv("STEWIE_TRUSTED_PROXIES", "testclient")   # SEC-03: name the trusted proxy peer
     # Tailscale identity B requests a DIFFERENT email A -> refused
     r = client.post("/auth/login", json={"email": "storeyaw@clarkson.edu"},
                     headers={"Tailscale-User-Login": "mccardle.john@gmail.com"})

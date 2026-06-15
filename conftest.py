@@ -15,6 +15,21 @@ def _dev_open(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _reset_security_health():
+    """S-10 / SEC-02: the audit-ledger and session-revocation health flags are process-global. A test
+    that deliberately induces a degraded state (a fail-closed probe) would otherwise leave /healthz
+    reading 'degraded' for every later test. Reset both before each test so the shared state is isolated.
+    Resetting at SETUP (not teardown) keeps a test's own induced degradation visible within that test."""
+    try:
+        from stewie.server import services as _svc
+        _svc.reset_audit_health()
+        _svc.reset_revocation_health()
+    except Exception:
+        pass
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _reset_auth_rate_limits():
     """S-07: the auth rate limiters are process-global fixed-window counters. Reset them before each
     test so a multi-login test (admin flows, fixtures) does not inherit another test's spent budget

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from stewie.server.services import audit_health, metrics_snapshot, uptime_s
+from stewie.server.services import audit_health, metrics_snapshot, revocation_health, uptime_s
 
 router = APIRouter()
 
@@ -20,11 +20,13 @@ def _version() -> str:
 
 @router.get("/healthz")
 def healthz():
-    # S-10: surface the audit-ledger health so a silently-stopped security trail is OBSERVABLE. The
-    # status flips to 'degraded' when audit writes have been failing (the trail is incomplete).
+    # S-10 / SEC-02: surface the audit-ledger AND session-revocation health so a silently-stopped
+    # security trail or a fail-closed (unreadable) revocation store is OBSERVABLE. The status flips to
+    # 'degraded' when either subsystem is degraded (audit writes failing, or revocation reads failing).
     ah = audit_health()
-    return {"status": "degraded" if ah["degraded"] else "ok", "version": _version(),
-            "uptime_s": uptime_s(), "audit": ah}
+    rh = revocation_health()
+    return {"status": "degraded" if (ah["degraded"] or rh["degraded"]) else "ok", "version": _version(),
+            "uptime_s": uptime_s(), "audit": ah, "revocation": rh}
 
 
 @router.get("/metrics")

@@ -75,12 +75,24 @@ def _revoked_path() -> str:
     return os.path.join(CFG.data_dir(), "revoked_jti.json")
 
 
+class RevocationStoreError(Exception):
+    """SEC-02: the session-revocation store exists but cannot be read/parsed. Callers must FAIL CLOSED
+    (deny the token) rather than treat the unreadable store as 'nothing is revoked'."""
+
+
 def revoke_jti(jti: str) -> None:
     """S-12: revoke a single session by its token id. Durable (data_dir) so a restart keeps the
-    revocation; other live sessions are unaffected."""
+    revocation; other live sessions are unaffected. SEC-02: if the existing store is unreadable this
+    RAISES instead of overwriting it -- silently replacing a corrupt store with a fresh single-entry
+    file would drop every prior revocation and re-open the fail-open hole."""
     import os as _os
     p = _revoked_path()
-    cur = _revoked_set()
+    try:
+        cur = _revoked_set()
+    except RevocationStoreError:
+        from stewie.server import services as SVC
+        SVC.record_revocation_failure(RevocationStoreError(f"revoke_jti aborted: {p} unreadable"))
+        raise
     cur.add(jti)
     _os.makedirs(_os.path.dirname(p), exist_ok=True)
     from stewie.twin.io_fields import atomic_write_bytes
@@ -88,14 +100,33 @@ def revoke_jti(jti: str) -> None:
 
 
 def _revoked_set() -> set:
+    """The revoked-jti set. An ABSENT file is the normal no-revocations state (empty). A present file
+    that cannot be read or is not a JSON list RAISES RevocationStoreError (SEC-02 fail-closed) -- it must
+    NOT collapse to an empty set, which would silently make every revoked token valid again."""
     p = _revoked_path()
     if not os.path.exists(p):
         return set()
     try:
         with open(p) as fh:
-            return set(json.load(fh))
-    except (json.JSONDecodeError, OSError, TypeError):
-        return set()
+            data = json.load(fh)
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
+        raise RevocationStoreError(repr(e)) from e
+    if not isinstance(data, list):
+        raise RevocationStoreError(f"revocation store is not a JSON list: {type(data).__name__}")
+    return set(data)
+
+
+def is_revoked(jti: str) -> bool:
+    """SEC-02: True iff the session jti is revoked. FAILS CLOSED -- if the store exists but cannot be
+    read we cannot prove the token is NOT revoked, so we DENY (return True), flip a visible degraded
+    health flag, and write an audit event. A corrupt store thus forces re-auth instead of silently
+    honouring revoked tokens."""
+    try:
+        return jti in _revoked_set()
+    except RevocationStoreError as e:
+        from stewie.server import services as SVC
+        SVC.record_revocation_failure(e)
+        return True
 
 
 def issue_token(email: str, *, now: float | None = None, ttl_s: float | None = None) -> str:
@@ -138,7 +169,7 @@ def verify_token(token: str, *, now: float | None = None) -> str | None:
             return None
         if d.get("iss") != _TOKEN_ISS or d.get("aud") != _token_aud():
             return None
-        if d.get("jti") and d["jti"] in _revoked_set():
+        if d.get("jti") and is_revoked(d["jti"]):          # SEC-02: fails CLOSED on a corrupt store
             return None
         return d["op"] if is_allowed(d["op"]) else None
     except (ValueError, KeyError, TypeError):
@@ -163,26 +194,58 @@ def role_of(identity: str) -> str:
 
 
 def trusted_proxies() -> tuple:
-    """S-03: the IP allowlist of proxies whose Tailscale identity assertion is trusted. Empty (unset)
-    keeps the legacy `tailscale serve` topology working (the proxy IS the loopback/tailnet origin)."""
+    """S-03 / SEC-03: the allowlist of proxy peers (IP or CIDR) whose Tailscale identity assertion is
+    trusted. REQUIRED (non-empty) whenever STEWIE_TRUST_TAILSCALE=1 -- see validate_proxy_trust_config."""
     env = os.environ.get("STEWIE_TRUSTED_PROXIES", "")
     return tuple(p.strip() for p in env.split(",") if p.strip())
 
 
-def tailscale_identity(headers, *, peer_ip: str | None = None) -> str | None:
-    """The whitelisted Tailscale identity, ONLY when the deployment opts in AND the assertion comes
-    from a trusted proxy (S-03).
+def _peer_trusted(peer_ip: str | None, proxies: tuple) -> bool:
+    """SEC-03: True iff `peer_ip` is inside the trusted-proxy allowlist. Each entry may be an exact
+    token (a literal IP, or a non-IP peer label such as a unix-socket/testclient host), or a CIDR
+    network. A None peer, or one matching no entry, is NOT trusted."""
+    import ipaddress
+    if peer_ip is None:
+        return False
+    if peer_ip in proxies:                       # exact token match (literal IP or non-IP peer label)
+        return True
+    try:
+        ip = ipaddress.ip_address(peer_ip)
+    except ValueError:
+        return False                             # a non-IP peer with no exact match is not trusted
+    for entry in proxies:
+        try:
+            if "/" in entry and ip in ipaddress.ip_network(entry, strict=False):
+                return True
+        except ValueError:
+            continue
+    return False
 
-    The header is trusted only when STEWIE_TRUST_TAILSCALE=1. When STEWIE_TRUSTED_PROXIES is set, the
-    request's immediate peer must be one of those addresses -- so a direct client cannot spoof the
-    header even if it reaches the backend. (The shipped nginx ALSO clears the inbound client header at
-    the edge, so the only Tailscale-User-Login the backend ever sees is the proxy's own.) When no
-    proxy allowlist is declared, the legacy single-origin behavior is preserved (peer check is a
-    no-op), so existing deployments keep working."""
+
+def validate_proxy_trust_config() -> None:
+    """SEC-03: refuse to boot a deployment that TRUSTS the Tailscale identity header without declaring
+    WHICH proxy peers may assert it. STEWIE_TRUST_TAILSCALE=1 with an empty STEWIE_TRUSTED_PROXIES would
+    honor `Tailscale-User-Login` from ANY peer, so a direct client could spoof an allowlisted (even
+    director) identity. Called at startup so the misconfiguration fails LOUD, not silently fail-open."""
+    if os.environ.get("STEWIE_TRUST_TAILSCALE", "") == "1" and not trusted_proxies():
+        raise RuntimeError(
+            "STEWIE_TRUST_TAILSCALE=1 requires a non-empty STEWIE_TRUSTED_PROXIES allowlist (the proxy "
+            "IP/CIDR whose Tailscale-User-Login header is trusted). Refusing to start fail-open (SEC-03).")
+
+
+def tailscale_identity(headers, *, peer_ip: str | None = None) -> str | None:
+    """The whitelisted Tailscale identity, ONLY when the deployment opts in AND the assertion comes from
+    a trusted proxy peer (S-03 / SEC-03).
+
+    The header is trusted only when STEWIE_TRUST_TAILSCALE=1 AND the immediate peer is in the
+    STEWIE_TRUSTED_PROXIES allowlist (IP or CIDR). SEC-03: an EMPTY proxy allowlist is fail-closed here
+    (the header is ignored) and is rejected outright at startup (validate_proxy_trust_config) -- trusting
+    the header from an unbounded peer set let a direct client spoof an identity. The shipped nginx also
+    clears the inbound client header at the edge, so the only value the backend sees is the proxy's own."""
     if os.environ.get("STEWIE_TRUST_TAILSCALE", "") != "1":
         return None
     proxies = trusted_proxies()
-    if proxies and (peer_ip is None or peer_ip not in proxies):
+    if not proxies or not _peer_trusted(peer_ip, proxies):
         return None
     login = headers.get("tailscale-user-login", "") or headers.get("Tailscale-User-Login", "")
     return login.strip().lower() if login and is_allowed(login) else None
