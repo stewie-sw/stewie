@@ -69,3 +69,17 @@ def test_dh_is_reconciled_with_the_render_posture_model():
     dh_bridge = AB.parallax_capture_plan("scene", sun_az_deg=0.0, sun_el_deg=5.0)["dh_m"]
     assert abs(dh_shadow - dh_bridge) < 1e-6, f"dh must be reconciled: shadow {dh_shadow} vs bridge {dh_bridge}"
     assert dh_shadow > 0.05
+
+
+def test_instrument_uses_only_height_change_not_camera_orientation_even_under_a_flip():
+    """The 'scorpion flip' concern: when the drum-arm camera articulates (even inverts), how do we still
+    measure the shadow? Answer: this SN-09 instrument recovers sun elevation from the self-shadow LENGTH
+    change driven by the commanded camera-HEIGHT change dh -- it NEVER uses the articulated camera's
+    azimuthal ORIENTATION, so it stays exact across articulation magnitudes from gentle to flip-scale. (The
+    orientation-SENSITIVE azimuth->heading channel uses the FIXED reference camera, not the drum cam, so it
+    never sees the flip either.) A method that depended on the flipping camera's absolute heading could not
+    do this; the differential can."""
+    e_true = 6.0
+    for dh in (0.05, 0.20, 0.55, 1.00):                    # gentle ... extreme (flip-scale) raise, all known exactly
+        dL = AS.shadow_length_change_m(dh, sun_el_deg=e_true)
+        assert AS.sun_elevation_from_articulated_change(dh, dL) == pytest.approx(e_true, abs=1e-6)
