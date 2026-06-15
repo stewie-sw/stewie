@@ -604,7 +604,8 @@
               <input id="set-apikey" type="password" placeholder="X-API-Key (CI / scripts only)"
                      style="width:18em" />
               <span style="opacity:.6;font-size:11px">operators sign in above; the shared key (deploy/.env)
-                is for automation only and never required in the browser</span>
+                is for automation only, never required in the browser, and held in memory for this session
+                only (never stored)</span>
             </label>
           </details>
           <label style="display:flex; align-items:center; gap:10px">
@@ -695,7 +696,7 @@
         <summary style="cursor:pointer;color:var(--muted)">automation key</summary>
         <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;width:15em">
           <input id="auth-apikey" type="password" placeholder="X-API-Key (CI / scripts only)" />
-          <button class="site" id="auth-save-key" style="padding:5px">Save key in this browser</button>
+          <button class="site" id="auth-save-key" style="padding:5px">Use key this session</button>
         </div>
       </details>
     </div>
@@ -1260,18 +1261,30 @@ function applySettings(s) {
   if (f) f.value = s.fontpx;
   if (fv) fv.textContent = s.fontpx + " px";
 }
-function apiHeaders(extra) {                              // identity token first, raw key fallback
+function getCookie(name) {                                // SEC-01: read a readable cookie (e.g. the CSRF token)
+  const m = document.cookie.match("(?:^|;)\\s*" + name + "\\s*=\\s*([^;]+)");
+  return m ? decodeURIComponent(m[1]) : "";
+}
+function apiHeaders(extra) {
+  // SEC-01: the operator session is an HttpOnly cookie (sent automatically, same-origin), NOT a token in
+  // localStorage. Mutating requests echo the readable CSRF cookie back as a double-submit header. An
+  // automation key, when present, is held IN MEMORY only (AUTH.apikey) and never persisted.
   const h = Object.assign({ "Content-Type": "application/json" }, extra || {});
-  if (SETTINGS.optoken) h["Authorization"] = "Bearer " + SETTINGS.optoken;
-  else if (SETTINGS.apikey) h["X-API-Key"] = SETTINGS.apikey;
+  const csrf = getCookie("stewie_csrf");
+  if (csrf) h["X-CSRF-Token"] = csrf;
+  if (AUTH.apikey) h["X-API-Key"] = AUTH.apikey;
   return h;
 }
 function loadSettings() {
-  let s = { theme: "dark", fontpx: 13, apikey: "" };
+  let s = { theme: "dark", fontpx: 13 };                  // SEC-01: no credential fields persisted
   try { s = { ...s, ...(JSON.parse(localStorage.getItem("stewie_settings") || "{}")) }; } catch (e) {}
   return s;
 }
-function saveSettings(s) { try { localStorage.setItem("stewie_settings", JSON.stringify(s)); } catch (e) {} }
+function saveSettings(s) {
+  // SEC-01: never persist credentials -- strip any token/key before writing to localStorage.
+  try { const { optoken, apikey, ...safe } = s || {};
+    localStorage.setItem("stewie_settings", JSON.stringify(safe)); } catch (e) {}
+}
 // UI-5: stamp an element as freshly-updated; the 5 s sweeper walks every stamped element and
 // applies the P4 thresholds (fresh < 20 s, stale < 60 s, dead beyond).
 function markFresh(el) { if (el) { el.dataset.fresh = "ok"; el.dataset.freshTs = String(Date.now()); } }
@@ -1360,6 +1373,18 @@ setInterval(() => {
 })();
 
 const SETTINGS = loadSettings();
+// SEC-01 migration: delete any legacy bearer token / raw API key an OLDER build persisted in
+// localStorage. The session is now an HttpOnly cookie; credentials never touch localStorage again.
+(function scrubLegacyCreds() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("stewie_settings") || "{}");
+    if ("optoken" in raw || "apikey" in raw) {
+      delete raw.optoken; delete raw.apikey;
+      localStorage.setItem("stewie_settings", JSON.stringify(raw));
+    }
+  } catch (e) {}
+  delete SETTINGS.optoken; delete SETTINGS.apikey;        // and from the in-memory copy
+})();
 
 // #65 (Aaron): the lander stays placed (per-browser + rides the mission document) and the
 // rover's last executed pose is remembered. Declared EARLY -- wiring below reads these at load.
@@ -1384,12 +1409,14 @@ if ($("set-theme")) $("set-theme").onchange = () => {
   SETTINGS.theme = $("set-theme").value; saveSettings(SETTINGS); applySettings(SETTINGS);
 };
 if ($("set-apikey")) {
-  $("set-apikey").value = SETTINGS.apikey || "";
-  $("set-apikey").onchange = () => { SETTINGS.apikey = $("set-apikey").value.trim(); saveSettings(SETTINGS); };
+  $("set-apikey").value = "";                             // SEC-01: never prefilled from storage
+  // SEC-01: the automation key lives IN MEMORY for this session only (never written to localStorage).
+  $("set-apikey").onchange = () => { AUTH.apikey = $("set-apikey").value.trim(); };
 }
 
 // ---- #117: operator access (sign in / request access / set password) + the director admin panel ----
-const AUTH = { role: null, identity: null };
+// SEC-01: apikey is an in-memory automation key (never persisted); the operator session is a cookie.
+const AUTH = { role: null, identity: null, apikey: "" };
 function authMsg(t, ok) { const m = $("auth-msg"); if (m) { m.textContent = t || "";
   m.style.color = ok ? "var(--accent)" : "var(--bad,#ff6b6b)"; } }
 function authMode(mode) {
@@ -1404,7 +1431,8 @@ function openAuth(mode) { const m = $("authmodal"); if (!m) return; m.style.disp
 function closeAuth() { const m = $("authmodal"); if (m) m.style.display = "none"; }
 let _authPromptTs = 0;
 function flashSignInNeeded() {                            // a 401 surfaced -> nudge sign-in (debounced)
-  if (SETTINGS.optoken || SETTINGS.apikey) return;        // already have creds -> the 401 is something else
+  // SEC-01: a live session shows as the readable CSRF cookie; an automation key lives in memory.
+  if (getCookie("stewie_csrf") || AUTH.apikey) return;    // already have creds -> the 401 is something else
   const now = Date.now(); if (now - _authPromptTs < 8000) return; _authPromptTs = now;
   openAuth("login"); authMsg("Sign in to perform this action.", true);
 }
@@ -1419,7 +1447,11 @@ function flashSignInNeeded() {                            // a 401 surfaced -> n
 })();
 async function refreshAuthState() {
   const st = $("set-opstate");
-  if (!SETTINGS.optoken) { AUTH.role = null; AUTH.identity = null;
+  // SEC-01: the session is an HttpOnly cookie -- we cannot read it, but the readable CSRF cookie (set
+  // and cleared alongside it) tells us a session likely exists. With neither that nor an in-memory key,
+  // skip /auth/me so an unauthenticated load does not pop the sign-in prompt via the 401 observer.
+  if (!getCookie("stewie_csrf") && !AUTH.apikey) {
+    AUTH.role = null; AUTH.identity = null;
     if (st) st.textContent = "not signed in";
     const av = $("vtab-admin"); if (av) av.style.display = "none"; return; }
   try {
@@ -1428,8 +1460,8 @@ async function refreshAuthState() {
     const j = await r.json(); AUTH.role = j.role; AUTH.identity = j.identity;
     if (st) st.textContent = "signed in: " + j.identity + " (" + j.role + ")";
     const av = $("vtab-admin"); if (av) av.style.display = (j.role === "director") ? "inline-block" : "none";
-  } catch (e) { SETTINGS.optoken = ""; saveSettings(SETTINGS);
-    if (st) st.textContent = "session expired — sign in again";
+  } catch (e) { AUTH.role = null; AUTH.identity = null;
+    if (st) st.textContent = "not signed in";
     const av = $("vtab-admin"); if (av) av.style.display = "none"; }
 }
 async function doLogin() {
@@ -1437,14 +1469,15 @@ async function doLogin() {
   if (!email) { authMsg("email required"); return; }
   const headers = { "Content-Type": "application/json" }, body = { email };
   if (pass) { body.password = pass; }
-  else if (SETTINGS.apikey) { headers["X-API-Key"] = SETTINGS.apikey; }   // bootstrap: deploy key, no password yet
-  else { authMsg("enter your password — or, for first-time setup, save the deploy key under 'automation key' below"); return; }
+  else if (AUTH.apikey) { headers["X-API-Key"] = AUTH.apikey; }   // bootstrap: in-memory deploy key, no password yet
+  else { authMsg("enter your password, or for first-time setup save the deploy key under 'automation key' below"); return; }
+  // SEC-01: the server sets the HttpOnly session + CSRF cookies on success; we DON'T store the token.
   const r = await fetch("/auth/login", { method: "POST", headers, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
   if (r.ok && j.ok) {
-    SETTINGS.opemail = email; SETTINGS.optoken = j.token; saveSettings(SETTINGS); AUTH.role = j.role;
+    SETTINGS.opemail = email; saveSettings(SETTINGS); AUTH.role = j.role;
     if (j.must_set_password) { $("auth-setpw-who").textContent = j.operator; openAuth("setpw");
-      authMsg("Signed in — set a password to finish.", true); }
+      authMsg("Signed in; set a password to finish.", true); }
     else { authMsg("Signed in.", true); await refreshAuthState(); setTimeout(closeAuth, 500); }
   } else { authMsg(j.error || ("sign-in refused (" + r.status + ")")); }
 }
@@ -1474,8 +1507,9 @@ async function doSetPassword() {
   bind("auth-do-register", doRegister);
   bind("auth-do-setpw", doSetPassword);
   bind("auth-dismiss", (ev) => { ev.preventDefault(); closeAuth(); });
-  bind("auth-save-key", () => { SETTINGS.apikey = $("auth-apikey").value.trim(); saveSettings(SETTINGS);
-    if ($("set-apikey")) $("set-apikey").value = SETTINGS.apikey; authMsg("Automation key saved in this browser.", true); });
+  // SEC-01: the automation key is held in memory for THIS session only (never written to localStorage).
+  bind("auth-save-key", () => { AUTH.apikey = $("auth-apikey").value.trim();
+    if ($("set-apikey")) $("set-apikey").value = AUTH.apikey; authMsg("Automation key set for this session.", true); });
   bind("set-account", () => openAuth("login"));
   fetch("/auth/config").then((r) => r.json()).then((c) => {
     if (!c.operator_login) { const b = $("set-account"); if (b) b.disabled = true; }
@@ -1857,8 +1891,9 @@ $("terrainfo").onclick = () => $("terra").classList.toggle("show");     // terra
 let LAST_RENDER_UV = null, RERENDER_T = 0;
 function scheduleAutoRender() {                            // #33: planning edits re-render the LAST area
   if (!LAST_RENDER_UV) return;
-  if (!SETTINGS.apikey) return;                            // keyless: skip quietly (Aaron's debug --
-                                                           // the auto path spammed the 401 message)
+  // SEC-01: skip quietly when not signed in (no session cookie + no in-memory key) so the auto path
+  // does not spam the 401 sign-in prompt.
+  if (!getCookie("stewie_csrf") && !AUTH.apikey) return;
   const cb = $("autorender"); if (cb && !cb.checked) return;
   clearTimeout(RERENDER_T);
   RERENDER_T = setTimeout(() => renderArea(LAST_RENDER_UV.u, LAST_RENDER_UV.v, { quiet: true }), 1500);

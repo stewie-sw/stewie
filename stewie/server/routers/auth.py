@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import hmac
 import os
+import secrets
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from stewie.server.deps import _env, require_auth
+from stewie.server.deps import CSRF_COOKIE, SESSION_COOKIE, _env, _truthy, require_auth
 from stewie.server.ratelimit import RateLimiter, client_ip
 from stewie.server.services import log_event
 
@@ -100,9 +101,34 @@ def _legacy_authed(email: str, x_api_key: str | None, authorization: str | None,
     return hmac.compare_digest(supplied.encode(), key.encode())
 
 
-def _token_response(email: str, *, must_set_password: bool):
+def _cookie_secure(request: Request) -> bool:
+    """SEC-01: mark the cookies Secure on a real (HTTPS-terminated) deployment, but NOT on a plain-http
+    loopback dev server / the in-process test client -- a Secure cookie would never be stored over http,
+    locking dev out of its own session."""
+    return _truthy(_env("TLS_TERMINATED")) or request.url.scheme == "https"
+
+
+def _set_session_cookies(response: Response, request: Request, token: str) -> None:
+    """SEC-01: issue the browser's credential as cookies, not a JSON body the page must persist.
+    stewie_session is HttpOnly (XSS cannot read it); stewie_csrf is readable so the page can echo it in
+    the X-CSRF-Token header (double-submit). Both SameSite=Strict + Secure (in production)."""
     from stewie.server import auth as AUTH
-    return {"ok": True, "operator": email, "token": AUTH.issue_token(email),
+    secure = _cookie_secure(request)
+    response.set_cookie(SESSION_COOKIE, token, max_age=int(AUTH.TOKEN_TTL_S), httponly=True,
+                        secure=secure, samesite="strict", path="/")
+    response.set_cookie(CSRF_COOKIE, secrets.token_urlsafe(32), max_age=int(AUTH.TOKEN_TTL_S),
+                        httponly=False, secure=secure, samesite="strict", path="/")
+
+
+def _token_response(email: str, *, must_set_password: bool,
+                    response: Response | None = None, request: Request | None = None):
+    from stewie.server import auth as AUTH
+    token = AUTH.issue_token(email)
+    # SEC-01: set the HttpOnly session + readable CSRF cookies for the browser path. The token is still
+    # returned in the body for header-auth automation (CLI/CI); the browser ignores it and uses the cookie.
+    if response is not None and request is not None:
+        _set_session_cookies(response, request, token)
+    return {"ok": True, "operator": email, "token": token,
             "ttl_s": AUTH.TOKEN_TTL_S, "role": AUTH.role_of(email),
             "must_set_password": must_set_password}
 
@@ -115,7 +141,7 @@ def auth_config():
 
 
 @router.post("/auth/login")
-def auth_login(body: LoginRequest, request: Request,
+def auth_login(body: LoginRequest, request: Request, response: Response,
                x_api_key: str | None = Header(default=None, alias="X-API-Key"),
                authorization: str | None = Header(default=None),
                tailscale_user_login: str | None = Header(default=None,
@@ -147,7 +173,7 @@ def auth_login(body: LoginRequest, request: Request,
             return JSONResponse(status_code=403,
                                 content={"ok": False, "error": "invalid credentials"})
         log_event(op, "auth.login", "password")
-        return _token_response(op, must_set_password=False)
+        return _token_response(op, must_set_password=False, response=response, request=request)
 
     # ---- legacy bootstrap: an allowlisted, password-less account proving the shared key (or its
     # OWN trusted-proxy identity). S-01: the bootstrap is bound to `email`; a session token cannot
@@ -162,7 +188,23 @@ def auth_login(body: LoginRequest, request: Request,
         return JSONResponse(status_code=403,
                             content={"ok": False, "error": "this account has a password -- sign in with it"})
     log_event(email, "auth.login", "bootstrap")
-    return _token_response(email, must_set_password=True)
+    return _token_response(email, must_set_password=True, response=response, request=request)
+
+
+@router.post("/auth/logout")
+def auth_logout(request: Request, response: Response):
+    """SEC-01: clear the browser's session + CSRF cookies. Idempotent and needs no prior auth (you can
+    always sign yourself out). Best-effort: revoke the presented session token's jti so a stolen copy of
+    the cookie value cannot be replayed after logout."""
+    from stewie.server import auth as AUTH
+    tok = request.cookies.get(SESSION_COOKIE)
+    if tok:
+        claims = AUTH.decode_claims(tok)
+        if claims and claims.get("jti"):
+            AUTH.revoke_jti(claims["jti"])
+    response.delete_cookie(SESSION_COOKIE, path="/")
+    response.delete_cookie(CSRF_COOKIE, path="/")
+    return {"ok": True}
 
 
 @router.post("/auth/register")

@@ -21,6 +21,26 @@ def _truthy(v) -> bool:
     return bool(v) and str(v).strip().lower() in ("1", "true", "yes", "on")
 
 
+# SEC-01: the browser's session credential lives in these cookies, never in localStorage. The session
+# cookie is HttpOnly (JS cannot read it); the CSRF cookie is readable so the page can echo it back in a
+# double-submit header on state-changing requests.
+SESSION_COOKIE = "stewie_session"
+CSRF_COOKIE = "stewie_csrf"
+_CSRF_SAFE_METHODS = ("GET", "HEAD", "OPTIONS", "TRACE")
+
+
+def _enforce_csrf(request: Request) -> None:
+    """SEC-01 double-submit CSRF. A state-changing request authenticated by the session COOKIE (the
+    browser path) must echo the readable stewie_csrf cookie in the X-CSRF-Token header. Read-only
+    methods are exempt; header-authenticated automation never reaches this check."""
+    if request.method in _CSRF_SAFE_METHODS:
+        return
+    sent = request.headers.get("X-CSRF-Token", "")
+    cookie = request.cookies.get(CSRF_COOKIE, "")
+    if not cookie or not sent or not hmac.compare_digest(sent.encode(), cookie.encode()):
+        raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
+
+
 def _is_loopback(request: Request) -> bool:
     """True for an in-process (ASGI TestClient) or loopback client. dev-open is permitted only here,
     so a STEWIE_DEV_OPEN flag accidentally left on in a (proxied) deployment still cannot be used by a
@@ -55,12 +75,25 @@ def require_auth(request: Request,
     ts = AUTH.tailscale_identity({"tailscale-user-login": tailscale_user_login or ""}, peer_ip=_peer)
     if ts:
         return ts
+    # SEC-01: an EXPLICIT header credential (Bearer session token / X-API-Key) is automation. It takes
+    # precedence over the browser session cookie and is CSRF-exempt -- an attacker cannot set these
+    # headers cross-site, and honouring an explicit header keeps every existing CLI/CI caller working.
     supplied = x_api_key or (authorization or "").removeprefix("Bearer ").strip()
-    op = AUTH.verify_token(supplied)
-    if op:
-        return op
-    if hmac.compare_digest(supplied.encode(), key.encode()):   # constant-time -> no timing oracle
-        return "api-key"
+    if supplied:
+        op = AUTH.verify_token(supplied)
+        if op:
+            return op
+        if hmac.compare_digest(supplied.encode(), key.encode()):   # constant-time -> no timing oracle
+            return "api-key"
+        raise HTTPException(status_code=401, detail="invalid or missing API key")
+    # SEC-01: no explicit header -> fall back to the HttpOnly session cookie (the browser path). A
+    # state-changing method authenticated this way must carry a matching double-submit CSRF token.
+    cookie_tok = request.cookies.get(SESSION_COOKIE)
+    if cookie_tok:
+        op = AUTH.verify_token(cookie_tok)
+        if op:
+            _enforce_csrf(request)
+            return op
     raise HTTPException(status_code=401, detail="invalid or missing API key")
 
 
