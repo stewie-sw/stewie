@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Gymnasium environments for off-world surface vehicles and autonomous construction, on a mass-conserving terramechanics authority parameterized per planetary body (Moon/Mars/Earth/...). IPEx / Lunar Autonomy Challenge lineage."
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [
     { name = "John McCardle" },   # terrain_authority terramechanics + WorkSite (CC0 core)
     { name = "Aaron Storey" },    # stewie Gymnasium suite, per-planet bodies, RL/scheduling
