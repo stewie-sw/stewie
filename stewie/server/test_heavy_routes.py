@@ -68,3 +68,39 @@ def test_a_single_authed_heavy_call_works(client):
     c, key = client
     r = c.post("/plan/math", json=_BODY, headers={"X-API-Key": key})
     assert r.status_code == 200, r.text
+
+
+# ---- ARCH-01/04: input-size + wall-clock caps so one heavy request cannot monopolize the worker ------
+
+def _ko(n):
+    return [{"x": float(i), "y": 0.0, "r": 5.0} for i in range(n)]
+
+
+def test_plan_rejects_too_many_keepouts(client, monkeypatch):
+    """ARCH-01/04 input-size cap: a mission with more keep-outs than the bound is rejected FAST (413)
+    before the heavy compute, so an oversized input cannot drive an unbounded plan on the single worker.
+    (orders + vehicles are already capped by the typed PlanRequest.)"""
+    c, key = client
+    monkeypatch.setenv("STEWIE_MAX_KEEPOUTS", "3")
+    r = c.post("/plan", json={**_BODY, "keepouts": _ko(10)}, headers={"X-API-Key": key})
+    assert r.status_code == 413, f"oversized keep-out list not rejected (ARCH-01/04): {r.status_code}"
+    assert "keep-out" in r.json()["error"].lower()
+
+
+def test_plan_within_caps_still_succeeds(client, monkeypatch):
+    """The cap must not false-positive: a mission within the keep-out bound still plans (200)."""
+    c, key = client
+    monkeypatch.setenv("STEWIE_MAX_KEEPOUTS", "50")
+    r = c.post("/plan", json={**_BODY, "keepouts": _ko(2)}, headers={"X-API-Key": key})
+    assert r.status_code == 200, r.text
+
+
+def test_plan_wall_clock_deadline_returns_bounded_error_not_a_hang(client, monkeypatch):
+    """ARCH-01/04 wall-clock cap: with a tiny per-request compute budget, a plan that exceeds it returns
+    a bounded 503 rather than hanging the client. (The deadline bounds the client wait; the input cap
+    bounds the actual compute -- Python cannot force-kill the worker thread.)"""
+    c, key = client
+    monkeypatch.setenv("STEWIE_PLAN_DEADLINE_S", "0.001")     # smaller than any real plan
+    r = c.post("/plan", json=_BODY, headers={"X-API-Key": key})
+    assert r.status_code == 503, f"deadline path did not return a bounded error: {r.status_code}"
+    assert "budget" in r.json()["error"].lower()

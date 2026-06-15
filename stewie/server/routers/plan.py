@@ -5,6 +5,7 @@ raster overlay /layers/raster). The site DEM comes from server.state; auth/audit
 server.deps + server.services; the heavy planner modules import lazily. No app-module import (no cycle)."""
 from __future__ import annotations
 
+import concurrent.futures
 import hashlib
 import logging
 import os
@@ -44,6 +45,38 @@ def heavy_quota(identity: str = Depends(require_auth)) -> str:
         raise HTTPException(status_code=429,
                             detail="per-identity compute quota exceeded for heavy planning; slow down")
     return identity
+
+
+# ARCH-01/04: the plan/report compute runs SYNCHRONOUSLY in the worker (the deploy is one uvicorn worker;
+# FastAPI runs sync routes in the anyio threadpool). Two caps keep one heavy request from monopolizing it:
+# (1) an INPUT-SIZE cap rejects an oversized mission before the compute (bounds the work); (2) a WALL-CLOCK
+# deadline bounds the client's wait. NOTE: Python cannot force-kill a worker thread, so a runaway compute
+# runs to completion in the background -- the deadline bounds the CLIENT and signals overload; the input
+# cap is what actually bounds the compute. (orders + vehicles are already capped by the typed PlanRequest.)
+def _max_keepouts() -> int:
+    return int(os.environ.get("STEWIE_MAX_KEEPOUTS", "200"))
+
+
+def _plan_deadline_s() -> float:
+    return float(os.environ.get("STEWIE_PLAN_DEADLINE_S", "120"))
+
+
+_PLAN_POOL = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="plan")
+
+
+def _oversized_plan(payload) -> JSONResponse | None:
+    """ARCH-01/04 input-size cap: reject (413) a mission whose keep-out count exceeds the bound, BEFORE
+    the heavy compute, so a pathological input cannot drive an unbounded plan."""
+    n_ko = len(payload.get("keepouts") or [])
+    if n_ko > _max_keepouts():
+        return JSONResponse(status_code=413, content={"ok": False, "error":
+                            f"too many keep-outs ({n_ko} > {_max_keepouts()}); split the mission"})
+    return None
+
+
+def _bounded(fn):
+    """ARCH-01/04 wall-clock cap: run `fn` under a per-request deadline; raises TimeoutError past it."""
+    return _PLAN_POOL.submit(fn).result(timeout=_plan_deadline_s())
 
 
 class PlanRequest(BaseModel):
@@ -146,7 +179,11 @@ def plan_commands(req: PlanRequest, _auth: str = Depends(heavy_quota)):
     S-08: auth + per-identity heavy-route quota (this runs routing on the real DEM)."""
     from lode import mission_planner as MP
     from stewie.bridge import rc_contract as RC
-    mission = MP.mission_from_dict(req.model_dump())
+    payload = req.model_dump()
+    over = _oversized_plan(payload)                  # ARCH-01/04 input-size cap (this routes on the DEM)
+    if over is not None:
+        return over
+    mission = MP.mission_from_dict(payload)
     cell = 5.0 if mission.body == "moon" else 1.0
     dem, origin = state.moon_dem(getattr(req, "site", "haworth")) if mission.body == "moon" else (None, (0.0, 0.0))
     cmds = RC.commands_from_plan(mission, cell_m=cell, dem=dem, dem_origin=origin)
@@ -161,6 +198,9 @@ def plan_math_endpoint(req: PlanRequest, _auth: str = Depends(heavy_quota)):
     + per-identity heavy-route quota (it re-derives the routed plan on the real DEM)."""
     from lode import mission_planner as MP
     payload = req.model_dump()
+    over = _oversized_plan(payload)                  # ARCH-01/04 input-size cap (re-derives the routed plan)
+    if over is not None:
+        return over
     mission = MP.mission_from_dict(payload)
     dem, origin = state.moon_dem(getattr(req, "site", "haworth")) if mission.body == "moon" else (None, (0.0, 0.0))
     return {"ok": True, **MP.plan_math(mission, dem=dem, dem_origin=origin)}
@@ -216,9 +256,23 @@ def get_raster_layer(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
 @router.post("/plan")
 def post_plan(req: PlanRequest, _auth: str = Depends(heavy_quota)):
     # S-08: auth + per-identity compute quota (full plan = routing + comparison + acceptance + PDF).
+    # ARCH-01/04: reject an oversized mission UP FRONT, then run the heavy compute under a wall-clock
+    # deadline so one request cannot monopolize the single worker (see the cap helpers above).
+    payload = req.model_dump(exclude_unset=True)
+    over = _oversized_plan(payload)
+    if over is not None:
+        return over
+    try:
+        return _bounded(lambda: _plan_impl(req, payload))
+    except concurrent.futures.TimeoutError:
+        return JSONResponse(status_code=503, content={"ok": False, "error":
+                            "plan exceeded the compute budget; reduce the mission size or retry"})
+
+
+def _plan_impl(req: PlanRequest, payload: dict):
+    """The synchronous plan + report + views compute, run under the ARCH-01/04 caps (post_plan)."""
     from lode import mission_planner as MP
     prune_reports()
-    payload = req.model_dump(exclude_unset=True)
     try:
         mission = MP.mission_from_dict(payload)
         if mission.body == "moon":
