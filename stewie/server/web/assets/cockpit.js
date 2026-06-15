@@ -553,6 +553,20 @@ const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navvie
 const _PANE_LOADED = {};
 const SYSTEM_VIEWS = ["validation", "api", "server", "config"];
 let LAST_SYSTEM_VIEW = "server";
+// UX-05: the planning sidebar (#panel) is a PLAN tool -- auto-collapse it off the Plan view (the stage
+// gets the room) and restore it on return. A manual toggle (the drawer button on desktop) PINS the
+// user's explicit choice in localStorage and overrides the auto behaviour. Mobile keeps the existing
+// slide-over drawer, so collapse is desktop-only.
+let SIDEBAR_PIN = null;                                   // null = auto; "open" / "collapsed" = pinned
+try { SIDEBAR_PIN = localStorage.getItem("stewie_sidebar_pin"); } catch (e) {}
+function applySidebar(view) {
+  const panel = document.getElementById("panel"); if (!panel) return;
+  if (innerWidth <= 860) { panel.classList.remove("collapsed"); return; }   // mobile = slide-over, not collapse
+  const collapsed = SIDEBAR_PIN === "open" ? false
+    : SIDEBAR_PIN === "collapsed" ? true
+      : (view !== "plan");                                // auto: open on Plan, collapsed elsewhere
+  panel.classList.toggle("collapsed", collapsed);
+}
 function setView(name) {
   if (name === "system") name = LAST_SYSTEM_VIEW;          // #55: the cluster remembers its sub-tab
   if (SYSTEM_VIEWS.includes(name)) LAST_SYSTEM_VIEW = name;
@@ -592,6 +606,7 @@ function setView(name) {
   const sb = document.getElementById("scalebox");          // the scale belongs to the map
   if (sb) sb.style.display = (name === "plan") ? "block" : "none";
   if (name !== "plan" && EDIT.on) setEdit(false);          // leaving Plan ends the edit session
+  applySidebar(name);                                      // UX-05: collapse off-Plan / restore on Plan
   loadPane(name);
 }
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
@@ -781,7 +796,12 @@ function openAuth(mode) {
 }
 function closeAuth() { const m = $("authmodal"); if (m) m.style.display = "none"; }
 let _authPromptTs = 0;
+let _bootComplete = false;                                // UX-01: set true once the initial load settles
 function flashSignInNeeded() {                            // a 401 surfaced -> nudge sign-in (debounced)
+  // UX-01/OPT-02: never auto-open the sign-in modal during the initial load. A casual visitor sees a
+  // calm signed-out state (the app is fully usable read-only); the modal pops only on an EXPLICIT
+  // action that a 401 refused after boot. Without this, any boot-time protected fetch popped a modal.
+  if (!_bootComplete) return;
   // SEC-01: a live session shows as the readable CSRF cookie; an automation key lives in memory.
   if (getCookie("stewie_csrf") || AUTH.apikey) return;    // already have creds -> the 401 is something else
   const now = Date.now(); if (now - _authPromptTs < 8000) return; _authPromptTs = now;
@@ -1419,12 +1439,22 @@ $("qreset").onclick = () => {
   renderQueue(); setQ("plan reset");
 };
 if ($("drawerbtn")) {
-  $("drawerbtn").onclick = () => document.getElementById("panel").classList.toggle("open");
+  $("drawerbtn").onclick = () => {
+    const panel = document.getElementById("panel");
+    if (innerWidth <= 860) { panel.classList.toggle("open"); return; }   // mobile: slide-over drawer
+    // UX-05 desktop: toggle the collapse AND pin the explicit choice so it survives view switches + reloads
+    const nowCollapsed = !panel.classList.contains("collapsed");
+    panel.classList.toggle("collapsed", nowCollapsed);
+    SIDEBAR_PIN = nowCollapsed ? "collapsed" : "open";
+    try { localStorage.setItem("stewie_sidebar_pin", SIDEBAR_PIN); } catch (e) {}
+  };
   // tapping the map closes the drawer (mobile pattern)
   document.getElementById("cesium").addEventListener("pointerdown", () => {
     const p2 = document.getElementById("panel");
     if (innerWidth <= 860 && p2.classList.contains("open")) p2.classList.remove("open");
   });
+  // crossing the mobile/desktop breakpoint: re-apply so a desktop collapse never lingers on a phone
+  addEventListener("resize", () => applySidebar(VIEW));
 }
 $("editmode").onclick = () => setEdit(true);
 $("editdone").onclick = () => setEdit(false);
@@ -2701,3 +2731,4 @@ qel("qloadsample").onclick = async () => {
 };
 
 loadBody("moon"); estimate(); renderQueue(); renderKeepouts(); setView("plan");
+_bootComplete = true;                                     // UX-01: boot done -> 401s may now nudge sign-in

@@ -59,6 +59,9 @@ def _make_handler(cesium_dir: str, csp: str):
                 if path in ("/", "/index.html", "/app"):
                     self._send(open(os.path.join(web, "index.html"), "rb").read(),
                                "text/html; charset=utf-8", with_csp=True)
+                elif path in ("/landing", "/landing.html"):     # the marketing landing page
+                    self._send(open(os.path.join(web, "web", "landing.html"), "rb").read(),
+                               "text/html; charset=utf-8", with_csp=True)
                 elif path == "/bodies.json":
                     self._send(open(os.path.join(web, "bodies.json"), "rb").read(),
                                "application/json", with_csp=True)

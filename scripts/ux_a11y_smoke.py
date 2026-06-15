@@ -93,6 +93,25 @@ def main() -> int:
             if a["modalRole"] != "dialog" or a["modalAriaModal"] != "true":
                 fail.append(f"auth modal not a role=dialog aria-modal (got {a['modalRole']}/{a['modalAriaModal']})")
 
+            # UX-01/OPT-02: an unauthenticated boot must NOT auto-open the sign-in modal
+            boot_modal = pg.evaluate(
+                "() => getComputedStyle(document.getElementById('authmodal')).display")
+            if boot_modal != "none":
+                fail.append(f"auth modal is shown at boot (display={boot_modal}); must stay hidden (UX-01)")
+
+            # UX-05: the planning sidebar auto-collapses off the Plan view and restores on return (desktop,
+            # no pin set). At 1440x900 (the page default) applySidebar acts (innerWidth > 860).
+            side = pg.evaluate(r"""() => {
+                const panel = document.getElementById('panel');
+                setView('report'); const offPlan = panel.classList.contains('collapsed');
+                setView('plan');   const onPlan  = panel.classList.contains('collapsed');
+                return { offPlan, onPlan };
+            }""")
+            if not side["offPlan"]:
+                fail.append("the planning sidebar did not auto-collapse off the Plan view (UX-05)")
+            if side["onPlan"]:
+                fail.append("the planning sidebar did not restore on returning to the Plan view (UX-05)")
+
             # clicking a non-active tab moves aria-selected
             sel = pg.evaluate(r"""() => {
                 const tabs = [...document.querySelectorAll('.vtab')].filter(t => t.offsetParent !== null);
@@ -152,6 +171,24 @@ def main() -> int:
             for name, dims in touch.items():
                 if dims and (dims[0] < 44 or dims[1] < 44):
                     fail.append(f"touch target {name} is {dims} px (< 44x44, MOBILE-01)")
+
+            # MOBILE-05/OPT-03: the landing primary CTA must sit ABOVE the 390x844 fold (no scroll)
+            lp = b.new_page(viewport={"width": 390, "height": 844})
+            lp.on("pageerror", lambda e: errs.append("[landing] " + str(e)))
+            lp.goto(f"http://127.0.0.1:{args.port}/landing.html", wait_until="domcontentloaded", timeout=40000)
+            lp.wait_for_selector(".hero .hero-cta .btn-primary", timeout=10000)
+            cta = lp.evaluate(r"""() => {
+                const el = document.querySelector('.hero .hero-cta .btn-primary');
+                const r = el.getBoundingClientRect();
+                return { bottom: Math.round(r.bottom), top: Math.round(r.top),
+                         visible: el.offsetParent !== null, text: el.textContent.trim() };
+            }""")
+            if not cta["visible"]:
+                fail.append("the landing primary CTA is not visible")
+            if cta["bottom"] > 844:
+                fail.append(f"landing CTA '{cta['text']}' bottom at {cta['bottom']}px is below the "
+                            f"390x844 fold (MOBILE-05/OPT-03)")
+            lp.close()
             b.close()
         if errs:
             fail.append(f"page errors: {errs[:3]}")

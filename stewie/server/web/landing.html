@@ -159,7 +159,18 @@
     .navtoggle{display:block}
     .loop,.modes,.subs,.statline{grid-template-columns:1fr}
   }
-  @media(max-width:560px){.foot{flex-direction:column}.footcols{gap:32px}}
+  @media(max-width:560px){
+    .foot{flex-direction:column}.footcols{gap:32px}
+    /* MOBILE-05/OPT-03: keep the primary CTA above the fold on a phone (e.g. 390x844). Compress the
+       hero -- shorter top padding (still clears the 64px fixed nav), smaller wheel, tighter rhythm --
+       so "Launch Cockpit" lands within the first viewport without scrolling. */
+    .hero{padding:92px 0 52px}
+    .wheel{width:72px;height:72px;margin:0 auto 16px}
+    .tagline{margin-top:14px}
+    .silico{margin-top:14px}
+    .lede{margin-top:16px;font-size:15px}
+    .hero-cta{margin-top:22px}
+  }
 </style>
 </head>
 <body>
