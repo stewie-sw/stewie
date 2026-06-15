@@ -10,3 +10,6 @@ docs
 **/.ruff_cache
 solnav
 *.png
+
+# keep the landing brand assets (the *.png rule above must not drop them)
+!stewie/server/web/**
