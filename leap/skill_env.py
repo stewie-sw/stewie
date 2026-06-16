@@ -25,7 +25,7 @@ import dataclasses
 import numpy as np
 
 from leap import challenge as chmod
-from stewie.physics.column_state import StateLabel
+from stewie.physics.column_state import ColumnState, StateLabel
 
 try:
     import gymnasium as _gym
@@ -33,7 +33,8 @@ try:
     _HAS_GYM = True
     _BASE = _gym.Env
 except Exception:                              # pragma: no cover
-    _gym = None; _spaces = None; _HAS_GYM = False; _BASE = object
+    # optional-import shim: not statically typeable (Module->None, type[Env] vs type[object]) -> ignore
+    _gym = None; _spaces = None; _HAS_GYM = False; _BASE = object  # type: ignore[assignment,misc]
 
 HAS_GYM = _HAS_GYM
 
@@ -75,8 +76,12 @@ class SkillMacroEnv(_BASE):
         self.obs_dim = self.obs_k * self.obs_k + 4     # err field + [drum, energy, rover_r, rover_c]
         self.action_dim = 3
 
-        self.inst = None; self.cs = None; self._steps = 0; self._rmse = 0.0; self._m0 = 0.0
-        self.rc = None; self._energy = 0.0
+        # runtime (set in reset())
+        self.inst: "chmod.ChallengeInstance | None" = None
+        self.cs: "ColumnState | None" = None
+        self._steps = 0; self._rmse = 0.0; self._m0 = 0.0
+        self.rc: "tuple[float, float] | None" = None
+        self._energy = 0.0
         if _HAS_GYM:
             if self.discrete_cells:
                 self.action_space = _spaces.Discrete(self.discrete_cells * self.discrete_cells * 2)
@@ -219,6 +224,7 @@ def greedy_action(env: SkillMacroEnv):
 def _greedy_nearest_target(env: SkillMacroEnv):
     """Core M3 planner: pick the NEAREST above-target cell to cut (if drum has room) else the
     nearest below-target cell to dump. Returns (rf, cf in [0,1], mode in {+1 cut, -1 dump})."""
+    assert env.cs is not None and env.rc is not None, "reset() must run before stepping the env"
     err = env._err()
     r0, c0, r1, c1 = env.region
     rr, cc = np.mgrid[r0:r1, c0:c1]
