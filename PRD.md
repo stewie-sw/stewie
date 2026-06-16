@@ -914,6 +914,39 @@ re-scoped by STEWIE. Convergence: STEWIE P20 (ROS2 bridge + live drive loop) is 
 object as the research track's persistent-runtime gap (G1.A4/A6) — one build advances both tracks;
 the research track's evidence-mode rules still apply on its side.
 
+### 16.7 On-rover autonomy stack — Autoware-derived architecture (added 2026-06-15)
+
+**Intent, not a committed full build.** The rover needs a modular on-board autonomy stack with the same
+*shape* Autoware established for terrestrial AVs (Sensing → Perception → Localization → Planning →
+Control → Vehicle interface, as ROS2 nodes with frozen message contracts). STEWIE's subsystems already
+mirror those layers, so the strategy is **adopt the architecture + the road-agnostic plumbing; reuse the
+off-road-applicable components; build the lunar-specific autonomy ourselves** — never fork the whole
+stack (Autoware's planning is road/lanelet2-centric; there are no lanes on the Moon, so that layer is
+dead weight). The lunar planning/perception layer is both the product differentiator and the
+dissertation-worthy novelty (ARGUS).
+
+| Layer | Autoware fit | STEWIE plan | Maps to |
+|---|---|---|---|
+| ROS2 framework, node lifecycle, QoS, TF, message discipline | Excellent | **Adopt** | the P20 ROS2 bridge |
+| Sensing drivers, time-sync | Good | **Adopt/adapt** | DART sensing |
+| Localization (NDT scan-match, EKF/ESKF fusion) | Reusable reference | **Adapt** (we already do map-relative `register_to_dem` + ESKF, P15) | LEAP |
+| Control (pure-pursuit / MPC tracking) | Mostly reusable | **Adapt** (skid-steer kinematics) | LEAP→vehicle |
+| **Planning / behavior** | **Poor fit (lanelet2/road)** | **Build our own** — terrain-costmap, slip/sinkage/tip-aware, illumination/PSR-aware, excavation-aware | DART + LODE |
+
+**The seam to STEWIE = AG-08.** The cockpit plans → rehearses → and at the Command stage lowers a verified
+Plan IR / commands across the ROS2 bridge (NV-11 lowering / NV-12 live channel) under the SF-01 dead-man
+interlock to this on-rover stack. STEWIE is the ground/planning/twin side; the autonomy stack is the
+on-rover consumer of AG-08's output. Most of the on-rover stack is the **gated hardware future** — the
+planning cockpit and sim drive-loop exist today; real on-rover perception/localization/control do not.
+
+**License.** Modern Autoware (autowarefoundation) is **Apache-2.0** (permissive, patent grant). Adopting
+the *architecture* (reimplementing layers) carries **no license obligation** (architecture/APIs are not
+copyrightable). Vendoring Apache-2.0 *code* into the all-rights-reserved STEWIE is permitted (Apache-2.0
+is not copyleft) provided we preserve license/copyright/`NOTICE`, state changes to modified files, and
+avoid the Autoware trademark. **Caveat:** Autoware's transitive dependencies are mixed-license (BSD/GPL/…)
+and must be swept before any code is vendored — tracked as task #124 (THIRD_PARTY.md). Reimplementation
+(no vendored code) sidesteps this entirely and is the recommended default.
+
 ## 17. Cockpit state + pending work (2026-06-10 session close)
 
 A full live-debug day with Aaron driving. SHIPPED and verified (each capture-proofed,
