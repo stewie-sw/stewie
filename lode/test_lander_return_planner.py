@@ -4,6 +4,7 @@ constants (BATTERY_J, RESERVE_FRAC, DRIVE_J_PER_M); no fabricated values."""
 import pytest
 
 from lode import mission_planner as MP
+from lode import relocalization as REL
 
 
 def _payload(lander=None, return_buffer_frac=None):
@@ -42,6 +43,17 @@ def test_plan_totals_include_return_to_lander():
     m = MP.mission_from_dict(_payload(lander=[10, 0]))
     *_rest, totals = MP.plan(m).as_tuple()
     assert "return_to_lander" in totals and "feasible" in totals["return_to_lander"]
+
+
+def test_plan_totals_include_relocalization_with_bounded_drift():
+    # #96: every plan reports scheduled SN-10 parallax relocalization stops; the schedule holds the
+    # dead-reckoned drift under the tolerance by construction, and each fix carries a grounded energy.
+    m = MP.mission_from_dict(_payload())
+    *_rest, totals = MP.plan(m).as_tuple()
+    rl = totals["relocalization"]
+    assert {"n_fixes", "fix_distances_m", "max_drift_m", "total_energy_J", "max_run_m"} <= set(rl)
+    assert rl["max_drift_m"] <= MP.RELOCALIZE_DRIFT_TOL_M + 1e-9
+    assert rl["max_run_m"] == pytest.approx(MP.RELOCALIZE_DRIFT_TOL_M / REL.DEFAULT_DRIFT_FRAC)
 
 
 def test_negative_buffer_rejected_at_parse():

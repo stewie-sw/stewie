@@ -61,6 +61,8 @@ from lode.planner_constants import (  # noqa: E402
     BATTERY_J, DIG_RATE_KG_S, DRIVE_J_PER_M, DRIVE_SPEED_MS, RESERVE_FRAC,
 )
 from lode import lander_return as LR  # noqa: E402  (#161; pure module, no cycle)
+from lode import relocalization as REL  # noqa: E402  (#96; pure module, no cycle)
+from stewie.physics import rassor_mass_model as RMM  # noqa: E402  (arm-raise fix energy; no lode import)
 DIG_J_PER_KG    = S.dig_energy_per_kg()                  # ~4151 J/kg; also in planner_constants (same source)
 DRUM_KG         = S.REGOLITH_PER_CYCLE_KG                # 30 kg/cycle (the ipex default; see _drum_kg)
 
@@ -75,6 +77,7 @@ SINTER_POWER_W  = S.SINTER_HEAD_POWER_W                  # 1000 W [CALIB]
 CHARGE_W        = S.RECHARGE_POWER_W                     # 700 W [CALIB]
 # RESERVE_FRAC is re-imported from lode.planner_constants above (ARCH-03)
 ROVER_MASS_KG   = S.ROVER_MASS_CLASS_KG                  # 30 kg-class (for gravity-climb drive energy)
+RELOCALIZE_DRIFT_TOL_M = 0.5                             # #96: max tolerated DR drift before a parallax fix
 DRIVE_POWER_W   = S.drive_power_w()                      # ~40 W (Table 3 driving cases)
 IDLE_POWER_W    = S.IDLE_POWER_W                         # [ASSUMPTION] continuous survival draw (default 0 = off)
 SLIP_ALPHA      = 2.0                                    # [CALIB] slip energy multiplier vs tan(slope) (I10 costmap)
@@ -1115,6 +1118,17 @@ def optimize_sequence(trips, mission, *, algorithm="auto", objective="time", pre
 
 
 # ---- sequence + simulate (battery-aware, sinter, haul shuttles) --------------------------------
+def _relocalization(mission, core) -> dict:
+    """#96 (SN-10 tie-in B): schedule articulation-parallax relocalization stops along the plan's drive
+    distance so the dead-reckoned pose drift never exceeds RELOCALIZE_DRIFT_TOL_M. Each fix is a standstill
+    chassis-raise maneuver -- its energy is the gravity-aware arm-raise work at the body's g; the drift
+    rate mirrors lode.autonomy.ODOM_DRIFT_FRAC (REL.DEFAULT_DRIFT_FRAC)."""
+    traverse_m = float(core.get("distance_m", 0.0))
+    fix_energy_j = RMM.arm_raise_lift_energy_j(ROVER_MASS_KG, body_gravity(mission.body))
+    return REL.schedule_relocalization_stops(traverse_m, drift_tol_m=RELOCALIZE_DRIFT_TOL_M,
+                                             per_fix_energy_j=fix_energy_j)
+
+
 def _return_to_lander(mission) -> dict:
     """#161: return-to-lander feasibility for the plan. The lander (mission.lander, else the charger) is
     the safe haven; at its furthest order the rover must retain enough USABLE charge (after the general
@@ -1171,7 +1185,8 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
         n_keepouts=len(mission.keepouts),
         keepout_conflicts=sum(1 for o in mission.orders for k in mission.keepouts
                               if (o.x - k["x"]) ** 2 + (o.y - k["y"]) ** 2 <= k["r"] ** 2),
-        return_to_lander=_return_to_lander(mission))   # #161 return-to-lander feasibility (adjustable buffer)
+        return_to_lander=_return_to_lander(mission),   # #161 return-to-lander feasibility (adjustable buffer)
+        relocalization=_relocalization(mission, core))  # #96 scheduled articulation-parallax relocalization stops
 
 
 def _trip_work_e(tr):
