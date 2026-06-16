@@ -1547,6 +1547,27 @@ refreshEvents();
     };
   } catch (e) { /* offline */ }
 })();
+// #150: surface the DEM base-layer catalog (GET /dem/sources) in the Contents section -- provenance +
+// readiness (which tiles ship bundled vs need a real download; display-only products flagged).
+(async function loadDemSources() {
+  const box = document.getElementById("demsources"); if (!box) return;
+  try {
+    const j = await (await fetch("/dem/sources")).json();
+    if (!j.ok || !Array.isArray(j.sources)) return;
+    const rows = j.sources.map((s) => {
+      const tag = s.bundled ? '<span style="color:var(--accent)">&#10003; bundled</span>'
+                            : '<span style="opacity:.6">download</span>';
+      const grade = s.planning_grade ? "" : ' &middot; <span style="opacity:.6" title="display only, not metric-controlled">view-only</span>';
+      return '<div style="padding:2px 0">' +
+        '<a href="' + esc(s.access_url) + '" target="_blank" rel="noopener" style="color:var(--txt,#dfe7ef)">' + esc(s.name) + '</a> ' +
+        '<span style="opacity:.6">' + esc(String(s.resolution_m)) + ' m</span> &mdash; ' + tag + grade + '</div>';
+    }).join("");
+    const bundled = j.sources.filter((s) => s.bundled).length;
+    box.innerHTML = '<details><summary style="cursor:pointer;color:var(--muted)">DEM base layers (' +
+      bundled + ' bundled / ' + j.sources.length + ' total)</summary>' +
+      '<div style="margin-top:4px">' + rows + '</div></details>';
+  } catch (e) { /* offline */ }
+})();
 $("landset").onclick = () => { setLander(+$("landx").value || 0, +$("landy").value || 0);
   setQ(`lander placed at (${LANDER_P.x}, ${LANDER_P.y}) — persists + saves with the mission`); };
 if ($("landx")) { $("landx").value = LANDER_P.x; $("landy").value = LANDER_P.y; }

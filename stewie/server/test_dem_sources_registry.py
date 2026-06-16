@@ -66,3 +66,11 @@ def test_dem_sources_catalog_route_lists_the_bundled_tiles(monkeypatch, tmp_path
         assert by_id[sid]["bundled"] and by_id[sid]["planning_grade"]
     # a render-only product must be present and correctly flagged non-planning-grade (honesty)
     assert any(not s["planning_grade"] for s in j["sources"]), "no non-planning-grade product flagged"
+
+
+def test_cockpit_surfaces_the_dem_source_catalog():
+    """#150 FS-18: the route connects to a pane -- the Contents section fetches + renders /dem/sources."""
+    html = open(os.path.join(_ROOT, "stewie", "server", "index.html")).read()
+    js = open(os.path.join(_ROOT, "stewie", "server", "web", "assets", "cockpit.js")).read()
+    assert 'id="demsources"' in html, "no #demsources container in the Contents section"
+    assert "loadDemSources" in js and "/dem/sources" in js, "the cockpit does not fetch the DEM catalog"
