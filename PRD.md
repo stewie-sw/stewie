@@ -68,7 +68,8 @@ posture + SN-08b full posture×load coverage, all shipped TDD + flipped on citin
 SN-01 D, SN-02 D, SN-03 D, SN-04 D, SN-05 P, SN-06 D, SN-08 D, SN-09 D (articulated self-shadow:
 a commanded posture change cancels the unknown casting height -> exact sun-elevation/slope), SN-10 D
 (articulation-parallax triangulation: a known pose-change baseline -> heading-free standstill position
-fix); only SN-07 (LED budget, hardware-gated Q=G) remains N. Improvement attributed vs baseline across
+fix); SN-07's LED-budget selection POLICY is now built + tested (I=X=D, #91); only its real-photometry
+validation (V) + the LED hardware (Q=G) remain. Improvement attributed vs baseline across
 **16 executed notebooks** (real data, Colab-friendly): position 28× (real Katwijk 160→5.7 m), heading
 6.2× with an honest crossover, camera 100% vs 71% at low sun, viewpoint 0.20 m vs 0, posture×load
 cross-load-tip safety, articulation sun-elevation exact vs 0.55–3.2° static bias, and a heading-free
@@ -427,7 +428,7 @@ solar power scheduling.
 | SN-04 | P1 | Re-evaluate shadow factors when terrain is excavated, the sun vector changes, or the observation viewpoint changes. | D | D | D | NA |
 | SN-05 | P1 | Add illumination-aware route cost: visibility, saturation, shadow hazard, map uncertainty, energy, slope, and construction constraints remain separate inspectable terms. | P | P | P | N |
 | SN-06 | P1 | Choose camera direction and exposure to avoid low-sun washout while preserving useful stereo overlap. | D | D | D | G |
-| SN-07 | P1 | Choose camera subset and LED intensity to illuminate hard shadows within the active-camera and power budgets. | N | N | N | G |
+| SN-07 | P1 | Choose camera subset and LED intensity to illuminate hard shadows within the active-camera and power budgets. | D | D | N | G |
 | SN-08 | P1 | Permit arm-angle selection for near-field downward mapping or horizon/sun-grazing views using posture-dependent extrinsics. `[PROPOSED]` | D | D | D | G |
 | SN-09 | P1 | Use the rover self-shadow LENGTH CHANGE under a COMMANDED articulated posture change as an instrument: the known `dh` cancels the unknown casting height, recovering sun elevation (or local slope) unbiased. `[PROPOSED]` | D | D | D | G |
 | SN-10 | P1 | Triangulate landmark range from the KNOWN articulation baseline `dh` (depression-angle parallax of shadow tips), and fix rover `(x,y)` by heading-free trilateration from a standstill. `[PROPOSED]` | D | D | D | G |
