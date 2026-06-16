@@ -1849,6 +1849,18 @@ document.addEventListener("keydown", (e) => {
 // ---- LAYER SYSTEM: select / load / unload map overlays (imagery, dem, topology, hazard, excavation, lander) ----
 const LAYER_ON = { imagery: true, dem: true, topology: false, hazard: true, excavation: true, lander: true };
 let LANDER = { name: "Nova-C", x: LANDER_P.x, y: LANDER_P.y, footprint_m: 4.6, n_legs: 6 };   // delivery lander (persisted position, #65)
+// #161: a toggleable 100 m reference ring around the lander (the safe-operating-radius cue; pairs with
+// the planner's return-to-lander feasibility). Persisted per-browser; default on.
+const LANDER_RING_M = 100;
+let LANDER_RING_ON = (localStorage.getItem("stewie_landring") !== "0");
+if ($("landring")) {
+  $("landring").checked = LANDER_RING_ON;
+  $("landring").onchange = () => {
+    LANDER_RING_ON = $("landring").checked;
+    try { localStorage.setItem("stewie_landring", LANDER_RING_ON ? "1" : "0"); } catch (e) {}
+    if (typeof drawPlan === "function") drawPlan();       // redraw the plan view with/without the ring
+  };
+}
 async function loadLayers() {
   try {
     const d = await (await fetch("/layers")).json();
@@ -2183,6 +2195,15 @@ function drawPlan() {
     ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = "#ffd166"; ctx.font = "8px system-ui"; ctx.textAlign = "center";
     ctx.fillText(LANDER.name + " (" + LANDER.footprint_m + " m)", lx, ly - fr - 3);
+  }
+  if (LANDER_RING_ON) {                                    // #161: toggleable 100 m ring around the lander
+    const lx = X(LANDER.x), ly = Y(LANDER.y), rr = LANDER_RING_M * s;
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,209,102,.7)"; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.arc(lx, ly, rr, 0, 2 * Math.PI); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle = "rgba(255,209,102,.85)"; ctx.font = "8px system-ui"; ctx.textAlign = "left";
+    ctx.fillText(LANDER_RING_M + " m", lx + rr * 0.7071 + 2, ly - rr * 0.7071);   // label on the NE arc
+    ctx.restore();
   }
   if (_placeXY) {                                          // the click-to-place crosshair
     ctx.strokeStyle = "#4f9cff"; ctx.lineWidth = 1; const cx = X(_placeXY.x), cy = Y(_placeXY.y);
