@@ -137,8 +137,13 @@ def test_web01_nginx_csp_keeps_script_self_and_allowlists_tiles():
     assert csp, "no CSP header in nginx.conf"
     csp = csp[0]
     script_src = csp.split("script-src", 1)[1].split(";", 1)[0]
-    assert "'self'" in script_src and "unpkg" not in csp and "http" not in script_src, \
-        "script-src must not name a CDN host -- the self-hosted bundle is the only remote script source"
+    # script-src self-hosts the bundle (no CDN DEP host). The ONE allowed remote host is Cloudflare's own
+    # zone-injected Web-Analytics beacon (static.cloudflareinsights.com): the edge already serves the whole
+    # site, so its beacon is not a new third-party trust -- and without it the CSP refuses the auto-injected
+    # beacon with a loud red console error. Arbitrary CDN hosts (unpkg, etc.) stay forbidden.
+    remote = [t for t in script_src.split() if t.startswith("http")]
+    assert "'self'" in script_src and "unpkg" not in csp and remote in ([], ["https://static.cloudflareinsights.com"]), \
+        "script-src may only name the Cloudflare Insights beacon as a remote host -- self-host every other script"
     assert "'wasm-unsafe-eval'" in script_src, "Cesium WebAssembly needs 'wasm-unsafe-eval' in script-src"
     assert "blob:" in script_src, "Cesium workers importScripts(blob:) -> script-src must allow blob:"
     # ARCH-02/SEC-04: the cockpit JS is external, so script-src must NOT allow inline scripts/handlers.
