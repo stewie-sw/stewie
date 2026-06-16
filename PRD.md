@@ -492,7 +492,7 @@ solar power scheduling.
 | FL-03 | P1 | Model charger, pit, dump, observation vantage, and constrained corridor as shared resources. Charger = one-server FCFS queue: overlapping recharges serialise, the loser's wait shifts its timeline, the headline makespan reflects it (`makespan_parallel_s` keeps the optimistic value, `charger_wait_s` the cost); pit/dump/vantage/corridor pending. | P | N | P | NA |
 | FL-04 | P1 | Maintain one belief/health/resource state per rover and coordinate replans. | N | N | N | N |
 | FL-05 | P2 | Support heterogeneous vehicle capability and physics vectors. | P | N | P | N |
-| FL-06 | P1 | Validate two-rover plans against an exact small-problem oracle before learned/heuristic superiority claims. | N | N | N | NA |
+| FL-06 | P1 | Validate two-rover plans against an exact small-problem oracle before learned/heuristic superiority claims. `plan_multi_oracle` brute-forces the true site-exclusive optimum (every group->vehicle assignment x every per-vehicle order, jointly, same simulator + charger queue) up to MV_ORACLE_MAX_TRIPS; oracle <= heuristic by construction. Verified: heuristic within 0.15% of optimum on the 3-site instance. | D | N | D | NA |
 | FL-07 | P1 | Solar/Meerkat observation sites are reservable fleet resources so rovers do not occlude or collide during raised observations. `[PROPOSED]` | N | N | N | N |
 
 ### 7.11 Product, Packaging, and Operations
@@ -1566,8 +1566,9 @@ physics, regolith flow, terramechanics, wheel-slip, illumination/shadow); AutoDi
   fleet coordination: shared chargers/pits/corridors as reservable resources, cross-vehicle precedence,
   per-rover belief/health, exact-oracle validation; Autoware multi-robot conventions inform interfaces.
   (FL-03..07.) Progress: the shared CHARGER is now a one-server FCFS queue (FL-03 partial) — overlapping
-  recharges serialise and the makespan reflects the contention; pit/dump/vantage/corridor + per-rover
-  belief (FL-04) + exact oracle (FL-06) remain.
+  recharges serialise and the makespan reflects the contention; the exact 2-rover oracle (FL-06,
+  `plan_multi_oracle`) now lower-bounds + validates the heuristic. pit/dump/vantage/corridor + per-rover
+  belief (FL-04) remain.
 - **D. Excavation depth** — Tier-3 force-accurate drum (Chrono GPU-DEM) + adaptive AutoDig control. (CP-03, P7.)
 - **E. ARGUS contribution** — close the Shadow-SLAM + articulation-parallax loop (scaffolds exist) →
   GPS-independent PSR localization + excavation-progress tracking; the publishable contribution. (SN-*.)

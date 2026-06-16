@@ -1887,6 +1887,30 @@ def test_fl03_shared_charger_contention_is_modelled_in_makespan():
     assert sum(d.get("charger_wait_s", 0.0) for d in T["vehicles_detail"]) == pytest.approx(T["charger_wait_s"])
 
 
+def test_fl06_exact_oracle_lower_bounds_the_heuristic():
+    """FL-06: the heuristic plan_multi can NEVER beat the exact site-exclusive oracle -- the oracle brute-
+    forces a superset (same site-exclusive policy, same simulator + charger queue), so its makespan is a
+    true lower bound. This is the validation gate that must pass before any 2-rover superiority claim."""
+    m = _pairs_mission([(40, 0), (-40, 5), (80, 0)])                # 3 trips -> exact search tractable
+    _, _, _, _, T = MP.plan_and_simulate(m, vehicles=2, algorithm="nearest")
+    oracle = MP.plan_multi_oracle(m, vehicles=2)
+    assert oracle["exact"] is True and oracle["vehicles"] == 2 and oracle["n_trips"] == 3
+    assert oracle["makespan_s"] > 0.0 and len(oracle["assignment"]) == oracle["n_groups"]
+    assert T["makespan_s"] >= oracle["makespan_s"] - 1e-6           # heuristic cannot beat the true optimum
+    assert T["makespan_s"] <= oracle["makespan_s"] * 1.5 + 1e-6     # and stays near it on a small instance
+
+
+def test_fl06_oracle_refuses_large_or_precedence_constrained_problems():
+    """The exact oracle is honest about its envelope: it raises (never silently approximates) past the
+    trip cap or when cross-vehicle precedence is present (that is the heuristic's component-allocation job)."""
+    big = _pairs_mission([(x, 0) for x in range(20, 100, 10)])      # 8 trips > MV_ORACLE_MAX_TRIPS
+    with pytest.raises(ValueError, match="trips|exact"):
+        MP.plan_multi_oracle(big, vehicles=2)
+    prec = _pairs_mission([(40, 0), (-40, 5)], precedence=[["fill0", "fill1"]])
+    with pytest.raises(ValueError, match="precedence"):
+        MP.plan_multi_oracle(prec, vehicles=2)
+
+
 # ---- P-07: Plan IR preconditions encode action energy + route-to-safe, not just a reserve floor --
 def test_p07_dig_precondition_requires_action_plus_escape_energy_not_just_reserve():
     """P-07: a dig action's battery precondition must require enough energy to COMPLETE the action AND

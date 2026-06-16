@@ -1414,6 +1414,56 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     return all_trips, flows, all_per_trip, all_tl, totals
 
 
+MV_ORACLE_MAX_TRIPS = 6      # FL-06: the exact MV oracle brute-forces assignments x per-vehicle orders
+
+
+def plan_multi_oracle(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_slope_deg=25.0,
+                      vehicles=2):
+    """FL-06: the EXACT small-problem multi-vehicle oracle that the heuristic `plan_multi` is validated
+    against. Brute-forces the TRUE site-exclusive optimum -- every assignment of whole site-groups to V
+    vehicles x every per-vehicle trip order -- each candidate simulated battery-aware and resolved through
+    the SAME one-server charger queue (FL-03), returning the minimum-makespan plan. The search is a
+    SUPERSET of what the heuristic can pick (identical site-exclusive policy + identical simulator), so
+    oracle makespan <= heuristic makespan always; a heuristic that 'beats' it is a bug. The per-vehicle
+    orders are bruted JOINTLY (the charger queue couples vehicles, so a vehicle cannot be optimised in
+    isolation). Gated to small problems (<= MV_ORACLE_MAX_TRIPS trips, no cross-vehicle precedence); it
+    RAISES rather than silently approximate a larger or precedence-constrained instance."""
+    if vehicles < 1:
+        raise ValueError(f"vehicles must be >= 1 (got {vehicles})")
+    if mission.precedence:
+        raise ValueError("plan_multi_oracle does not handle cross-vehicle precedence; it validates the "
+                         "base site-exclusive allocation problem only (use plan_multi for precedence)")
+    trips, _flows, _surplus, _meta = _build_trips(mission, dem, dem_origin, max_traverse_slope_deg)
+    routes = _make_routes(mission, dem, dem_origin, max_traverse_slope_deg)
+    if len(trips) > MV_ORACLE_MAX_TRIPS:
+        raise ValueError(f"plan_multi_oracle is exact only up to {MV_ORACLE_MAX_TRIPS} trips "
+                         f"(got {len(trips)}); use the heuristic plan_multi for larger fleets")
+    groups: dict = {}                                            # site-exclusive: trips at a site move together
+    for idx, tr in enumerate(trips):
+        groups.setdefault(tuple(tr["site"]), []).append(idx)
+    group_idxs = list(groups.values())
+    G = len(group_idxs)
+    best = None                                                  # (makespan, assignment)
+    for assign in itertools.product(range(vehicles), repeat=G):
+        veh_trip_idxs: list = [[] for _ in range(vehicles)]
+        for g, v in enumerate(assign):
+            veh_trip_idxs[v].extend(group_idxs[g])
+        order_choices = [list(itertools.permutations(idxs)) for idxs in veh_trip_idxs]  # [()] when empty
+        for orders in itertools.product(*order_choices):
+            per_vehicle = []
+            for v in range(vehicles):
+                vtrips = [trips[i] for i in orders[v]]
+                tl, _per_trip, core = _simulate(mission, vtrips, routes)
+                per_vehicle.append({"vehicle": v, "tl": tl, "core": core})
+            delays = _resolve_charger_queue(per_vehicle)
+            mk = max((pv["core"]["time_s"] + delays[i] for i, pv in enumerate(per_vehicle)), default=0.0)
+            if best is None or mk < best[0] - 1e-9:
+                best = (mk, list(assign))
+    mk, assign = best
+    return {"makespan_s": float(mk), "vehicles": int(vehicles), "n_trips": len(trips),
+            "n_groups": G, "assignment": assign, "exact": True}
+
+
 def plan_and_simulate(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_slope_deg=25.0,
                       algorithm="nearest", objective="time", vehicles=1):
     """Plan a single-vehicle build mission: build trips, choose a visit order (pluggable `algorithm` x
