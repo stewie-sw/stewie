@@ -22,7 +22,7 @@ import numpy as np
 from leap import challenge as chmod
 from stewie.physics import drive
 from stewie.physics import rover
-from stewie.physics.column_state import StateLabel
+from stewie.physics.column_state import ColumnState, StateLabel
 
 try:
     import gymnasium as _gym
@@ -30,10 +30,12 @@ try:
     _HAS_GYM = True
     _BASE = _gym.Env
 except Exception:                              # pragma: no cover
-    _gym = None
-    _spaces = None
+    # optional-import shim: gymnasium absent -> object base; the dynamic fallback is not statically
+    # typeable (Module->None, type[Env] vs type[object]) -> targeted ignores (standard idiom).
+    _gym = None        # type: ignore[assignment]
+    _spaces = None     # type: ignore[assignment]
     _HAS_GYM = False
-    _BASE = object
+    _BASE = object     # type: ignore[assignment,misc]
 
 HAS_GYM = _HAS_GYM
 
@@ -68,9 +70,9 @@ class TerrainTargetEnv(_BASE):
         self.obs_dim = 2 * self.patch * self.patch + 6
         self.action_dim = 3
 
-        # runtime
-        self.inst = None
-        self.cs = None
+        # runtime (set in reset())
+        self.inst: "chmod.ChallengeInstance | None" = None
+        self.cs: "ColumnState | None" = None
         self.rc = (self.grid / 2.0, 6.0)
         self.yaw = 0.0
         self._steps = 0

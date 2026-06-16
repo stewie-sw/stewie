@@ -125,10 +125,8 @@ warn_redundant_casts = true
 # terramechanics/slip/drive/rover/bodies/vehicles/material/challenge/registration/ipex_specs/constants/...
 module = [
     "leap.skill_env",
-    "leap.terrain_target_env",
     "stewie.envs.active_perception_env",
     "stewie.envs.rover_env",
     "stewie.terrain.scenes",
-    "stewie.terrain.tiles_mosaic",
 ]
 ignore_errors = true
