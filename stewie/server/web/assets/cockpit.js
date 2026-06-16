@@ -767,11 +767,6 @@ applySettings(SETTINGS);
 if ($("set-theme")) $("set-theme").onchange = () => {
   SETTINGS.theme = $("set-theme").value; saveSettings(SETTINGS); applySettings(SETTINGS);
 };
-if ($("set-apikey")) {
-  $("set-apikey").value = "";                             // SEC-01: never prefilled from storage
-  // SEC-01: the automation key lives IN MEMORY for this session only (never written to localStorage).
-  $("set-apikey").onchange = () => { AUTH.apikey = $("set-apikey").value.trim(); };
-}
 
 // ---- #117: operator access (sign in / request access / set password) + the director admin panel ----
 // SEC-01: apikey is an in-memory automation key (never persisted); the operator session is a cookie.
@@ -783,7 +778,10 @@ function authMode(mode) {
     if (el) el.style.display = (k === mode) ? "flex" : "none"; });
   const lt = $("auth-tab-login"), rt = $("auth-tab-register"), tabs = $("auth-tabs");
   if (lt && rt) { lt.classList.toggle("active", mode === "login"); rt.classList.toggle("active", mode === "register"); }
-  if (tabs) tabs.style.display = (mode === "setpw") ? "none" : "flex";
+  // registration closed -> the register tab is hidden, so a lone "Sign in" tab just duplicates the
+  // submit button. Hide the whole tab row in that case; it shows only when registration is open.
+  const _regClosed = rt && rt.style.display === "none";
+  if (tabs) tabs.style.display = (mode === "setpw" || _regClosed) ? "none" : "flex";
   authMsg("");
 }
 // GATED APP (Aaron 2026-06-15): the cockpit requires sign-in. _gate=true means a no-session boot ->
@@ -878,12 +876,13 @@ if ($("whoami-signout")) $("whoami-signout").onclick = doLogout;
 async function doLogin() {
   const email = $("auth-email").value.trim(), pass = $("auth-pass").value;
   if (!email) { authMsg("email required"); return; }
-  const headers = { "Content-Type": "application/json" }, body = { email };
-  if (pass) { body.password = pass; }
-  else if (AUTH.apikey) { headers["X-API-Key"] = AUTH.apikey; }   // bootstrap: in-memory deploy key, no password yet
-  else { authMsg("enter your password, or for first-time setup save the deploy key under 'automation key' below"); return; }
+  // The deploy key NEVER enters the browser: the founding director is provisioned server-side from
+  // STEWIE_BOOTSTRAP_DIRECTOR/_PASSWORD (operators.bootstrap_director_from_env), so login is always
+  // password-only here. X-API-Key stays a CI/automation header, not a browser onboarding path.
+  if (!pass) { authMsg("enter your password"); return; }
   // SEC-01: the server sets the HttpOnly session + CSRF cookies on success; we DON'T store the token.
-  const r = await fetch("/auth/login", { method: "POST", headers, body: JSON.stringify(body) });
+  const r = await fetch("/auth/login", { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password: pass }) });
   const j = await r.json().catch(() => ({}));
   if (r.ok && j.ok) {
     SETTINGS.opemail = email; saveSettings(SETTINGS); AUTH.role = j.role;
@@ -920,13 +919,11 @@ async function doSetPassword() {
   bind("auth-dismiss", (ev) => { ev.preventDefault(); closeAuth(); });
   // click the dimmed backdrop (outside the card) to dismiss -- no inline handler (CSP forbids it)
   const am = $("authmodal"); if (am) am.addEventListener("click", (e) => { if (e.target === am) closeAuth(); });
-  // SEC-01: the automation key is held in memory for THIS session only (never written to localStorage).
-  bind("auth-save-key", () => { AUTH.apikey = $("auth-apikey").value.trim();
-    if ($("set-apikey")) $("set-apikey").value = AUTH.apikey; authMsg("Automation key set for this session.", true); });
   bind("set-account", () => openAuth("login"));
   fetch("/auth/config").then((r) => r.json()).then((c) => {
     if (!c.operator_login) { const b = $("set-account"); if (b) b.disabled = true; }
-    if (!c.registration_open) { const t = $("auth-tab-register"); if (t) t.style.display = "none"; }
+    if (!c.registration_open) { const t = $("auth-tab-register"); if (t) t.style.display = "none";
+      const tr = $("auth-tabs"); if (tr) tr.style.display = "none"; }   // lone "Sign in" tab is redundant with the submit
   }).catch(() => {});
 })();
 async function renderAdmin() {

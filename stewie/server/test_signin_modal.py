@@ -1,10 +1,12 @@
 """The operator sign-in modal, decluttered.
 
 It carried the founding-director / CI 'automation key' field inline AND a bottom 'continue without
-signing in' link, which crowded the everyday sign-in box. The automation key is redundant (Settings ->
-'Advanced -- automation API key' has it for the one-time bootstrap), so it is removed from the modal;
-dismissal becomes a single header close (X). The everyday box is just: tabs (Sign in / Request access)
-+ email + password + Sign in.
+signing in' link, which crowded the everyday sign-in box. The deploy-key-in-the-browser path is gone
+entirely (live-site fix 2026-06-15): the founding director is provisioned server-side at deploy time
+(STEWIE_BOOTSTRAP_DIRECTOR / STEWIE_BOOTSTRAP_PASSWORD), so no automation-key UI exists in the modal OR
+in Settings -- a deploy key in the browser was both clutter and an avoidable secret-in-DOM. Dismissal
+becomes a single header close (X). The everyday box is just: tabs (Sign in / Request access) + email +
+password + Sign in.
 
 The dynamic behaviour (X closes, Esc closes, open focuses the email field, no automation field) is in
 scripts/ux_a11y_smoke.py. This is the fast static guard.
@@ -30,12 +32,14 @@ def test_signin_modal_keeps_the_core_fields():
         assert el in html, f"sign-in modal lost {el}"
 
 
-def test_automation_key_removed_from_the_modal():
+def test_automation_key_removed_everywhere():
     html = _read(_INDEX)
-    # the automation key lives ONLY in Settings now (id=set-apikey), not the sign-in modal
+    # live-site fix: NO deploy-key-in-the-browser path -- not in the modal, not in Settings. The founding
+    # director is seeded server-side from STEWIE_BOOTSTRAP_DIRECTOR; the key never enters the DOM.
     assert 'id="auth-apikey"' not in html, "automation-key field still clutters the sign-in modal"
     assert 'id="auth-save-key"' not in html, "automation-key 'use key' button still in the modal"
-    assert 'id="set-apikey"' in html, "the automation key must still exist in Settings (bootstrap path)"
+    assert 'id="set-apikey"' not in html, \
+        "the Settings 'Advanced -- automation API key' box is gone (bootstrap is server-side now)"
 
 
 def test_open_focuses_a_form_field_not_the_close_button():

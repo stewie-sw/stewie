@@ -4,9 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>STEWIE — Digital Twin &amp; Planning Platform</title>
-<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
-<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
-<link rel="apple-touch-icon" href="/icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/icon-32.png?v=2" />
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/brand/icon-192.png?v=3" />
+<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=3" />
 <!-- WEB-01: Cesium is SELF-HOSTED same-origin (it was loaded from a third-party CDN, which the
      production CSP `script-src 'self'` blocks -> the map rendered blank). The frontend image vendors
      cesium 1.119 to /cesium/ at build time (deploy/Dockerfile.frontend). CESIUM_BASE_URL must be set
@@ -229,7 +229,7 @@
 <body>
 <div id="app">
   <aside id="panel">
-    <header id="phead"><img src="/icons/icon-32.png" alt="" style="width:18px;height:18px;vertical-align:-4px;margin-right:9px" /><b style="letter-spacing:.45em;font-weight:800">STEWIE</b><span style="opacity:.55;font-size:10px;margin-left:10px;letter-spacing:.18em">DIGITAL TWIN &amp; PLANNING PLATFORM</span><span style="font-size:10px;margin-left:10px;color:var(--accent);letter-spacing:.12em">IN SILICO → IN SITU</span><span id="stver" style="opacity:.45;font-size:10px;margin-left:8px"></span><span id="conops" title="ConOps position (operator finding 2.8: a status visual for where we are in the cycle)" style="font-size:10px;margin-left:12px;letter-spacing:.08em;color:var(--muted)">CONOPS —</span><span id="out">—</span></header>
+    <header id="phead"><img src="/assets/brand/icon-32.png?v=2" alt="" style="width:18px;height:18px;vertical-align:-4px;margin-right:9px" /><b style="letter-spacing:.45em;font-weight:800">STEWIE</b><span style="opacity:.55;font-size:10px;margin-left:10px;letter-spacing:.18em">DIGITAL TWIN &amp; PLANNING PLATFORM</span><span style="font-size:10px;margin-left:10px;color:var(--accent);letter-spacing:.12em">IN SILICO → IN SITU</span><span id="stver" style="opacity:.45;font-size:10px;margin-left:8px"></span><span id="conops" title="ConOps position (operator finding 2.8: a status visual for where we are in the cycle)" style="font-size:10px;margin-left:12px;letter-spacing:.08em;color:var(--muted)">CONOPS —</span><span id="out">—</span></header>
 
     <section>
       <h3>1 · Site — where are we</h3>
@@ -614,16 +614,6 @@
             <button id="set-account" class="site">Sign in / manage</button>
             <span id="set-opstate" style="font-size:11px;opacity:.75">not signed in</span>
           </label>
-          <details style="font-size:12px">
-            <summary style="cursor:pointer;color:var(--muted)">Advanced — automation API key</summary>
-            <label style="display:flex; align-items:center; gap:10px; margin-top:8px">
-              <input id="set-apikey" type="password" placeholder="X-API-Key (CI / scripts only)"
-                     style="width:18em" />
-              <span style="opacity:.6;font-size:11px">operators sign in above; the shared key (deploy/.env)
-                is for automation only, never required in the browser, and held in memory for this session
-                only (never stored)</span>
-            </label>
-          </details>
           <label style="display:flex; align-items:center; gap:10px">
             <b>Font size</b>
             <input id="set-font" type="range" min="11" max="20" step="1" value="13" style="width:12em" />
@@ -682,7 +672,7 @@
        box-sizing:border-box;max-height:calc(100dvh - 28px);overflow:auto;
        margin:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))"><!-- MOBILE-04: fits a phone, no clip, safe-area -->
     <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
-      <img src="/icons/icon-32.png" alt="" style="width:20px;height:20px" />
+      <img src="/assets/brand/icon-32.png?v=2" alt="" style="width:20px;height:20px" />
       <b style="letter-spacing:.3em;font-weight:800">STEWIE</b>
       <span style="opacity:.5;font-size:10px;letter-spacing:.14em">OPERATOR ACCESS</span>
       <button id="auth-dismiss" class="site" title="close — continue without signing in" aria-label="close"
@@ -711,11 +701,9 @@
       <button class="site" id="auth-do-setpw" style="padding:8px">Set password</button>
     </div>
     <div id="auth-msg" style="min-height:1.1em;font-size:12px;margin-top:10px;color:var(--bad,#ff6b6b)"></div>
-    <div style="margin-top:8px;font-size:10.5px;color:var(--dim)">First-time director setup uses the deploy key under
-      Settings &rarr; Advanced &rarr; automation API key.</div>
   </div>
 </div>
 
-<script src="/assets/cockpit.js"></script>
+<script src="/assets/cockpit.js?v=2"></script>
 </body>
 </html>

@@ -126,11 +126,12 @@ def test_web01_index_self_hosts_cesium():
 
 
 def test_web01_nginx_csp_keeps_script_self_and_allowlists_tiles():
-    """WEB-01: script-src admits only the same origin + blob workers + WASM (the self-hosted Cesium needs
-    all three: same-origin bundle, importScripts(blob:) workers, WebAssembly), never a CDN host and never
-    the dangerous full 'unsafe-eval'; worker-src allows Cesium's same-origin/blob workers; img-src and
-    connect-src allowlist exactly the read-only NASA/Esri imagery tile CDNs (no wildcard). The CSP values
-    here are the ones scripts/web01_csp_smoke.py proved render the cockpit with 0 violations."""
+    """WEB-01 (revised, live-site fix): script-src admits the same origin + blob workers + eval (Cesium
+    1.119 calls plain runtime eval() -- 'wasm-unsafe-eval' alone is NOT enough and the strict CSP blanked
+    the live globe), but never a CDN host and never inline scripts/handlers; worker-src allows Cesium's
+    same-origin/blob workers; img-src and connect-src allowlist exactly the read-only NASA/Esri imagery
+    tile CDNs (no wildcard). 'unsafe-eval' is the one concession Cesium forces; it is scoped to scripts we
+    self-host same-origin (no CDN, no inline), so the XSS surface stays our own bundle."""
     conf = _read("deploy/nginx.conf")
     csp = [ln for ln in conf.splitlines() if "add_header Content-Security-Policy" in ln]
     assert csp, "no CSP header in nginx.conf"
@@ -143,9 +144,10 @@ def test_web01_nginx_csp_keeps_script_self_and_allowlists_tiles():
     # ARCH-02/SEC-04: the cockpit JS is external, so script-src must NOT allow inline scripts/handlers.
     assert "'unsafe-inline'" not in script_src.split(), \
         "script-src must NOT allow 'unsafe-inline' after ARCH-02 (the cockpit JS is external)"
-    # the NARROW WASM token must NOT be the dangerous full 'unsafe-eval' (which 'wasm-unsafe-eval' contains)
-    assert "'unsafe-eval'" not in script_src.split(), \
-        "script-src must use 'wasm-unsafe-eval', not the broad 'unsafe-eval'"
+    # Live-site fix: Cesium 1.119 does plain runtime eval() (not only WASM), so 'unsafe-eval' is required
+    # -- without it the globe rendered blank with a CSP "Missing 'unsafe-eval'" console error.
+    assert "'unsafe-eval'" in script_src.split(), \
+        "Cesium 1.119 calls runtime eval() -> script-src must include 'unsafe-eval' (else the globe blanks)"
     assert "worker-src 'self' blob:" in csp, "Cesium Web Workers need worker-src 'self' blob:"
     for host in ("https://trek.nasa.gov", "https://server.arcgisonline.com", "https://gibs.earthdata.nasa.gov"):
         assert host in csp, f"imagery tile CDN {host} not allowlisted in the CSP (tiles would be blocked)"
