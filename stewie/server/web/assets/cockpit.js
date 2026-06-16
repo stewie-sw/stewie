@@ -1429,9 +1429,17 @@ function estimate() {
 
 function showSiteDem() {                                   // auto-show the real Haworth 5 m work-area DEM on Moon
   const wa = document.getElementById("workarea");
-  if (VIEW === "plan" && sel.value === "moon") {
-    document.getElementById("workareaimg").src = "/dem/hillshade.png"; wa.classList.add("show");
-  } else { wa.classList.remove("show"); }                 // the inset belongs to the Plan tab only
+  if (VIEW !== "plan" || sel.value !== "moon") { wa.classList.remove("show"); return; }  // inset is Plan/Moon only
+  // #162 fix: REVEAL the locator only once its hillshade has actually decoded. #workarea is display:none
+  // until .show, but it carries a dark-panel min-box (180x120) -- adding .show BEFORE the image loads (or
+  // when it silently fails / a stale cache resolves empty) renders that dark box: the "black square" the
+  // operator reported. Gate .show on img.onload, and cache-bust per session so a bad cached image can't stick.
+  const i = document.getElementById("workareaimg");
+  if (!i.dataset.locv) i.dataset.locv = String(Date.now());
+  const want = "/dem/hillshade.png?v=" + i.dataset.locv;
+  i.onload = () => { if (VIEW === "plan" && sel.value === "moon") wa.classList.add("show"); };
+  if (i.complete && i.naturalWidth > 0 && i.getAttribute("src") === want) wa.classList.add("show");  // already decoded
+  else if (i.getAttribute("src") !== want) i.src = want;  // (re)load -> onload reveals it; error handler hides
 }
 // the work-area inset is collapsible -- a thin tap bar so it never blocks a phone screen. Default
 // collapsed on mobile (no saved preference); the choice persists per browser.
