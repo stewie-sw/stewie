@@ -17,6 +17,11 @@ LIMITS are real [SPEC]. Outputs that depend on [CONFIRM] dims are flagged.
 # (radian-based, per-camera heights). Conventions and consumers differ; forcing one model without a
 # sourced reconciliation of the lift kinematics would fabricate agreement. Cross-check tracked in
 # the STEWIE DART subsystem.
+# #99 (full-unify follow-up) RESOLVED 2026-06-16 as correctly-NOT-unified: the only sourceable basis --
+# the SN-09/10 parallax dh -- already sources from posture_kinematics (dh_from_posture). The lift/stability
+# dims here are honestly-flagged [CONFIRM] estimates with NO numerical source (the IPEx geometry page does
+# not give them), so reconciling them onto the sourced FK would FABRICATE a sourced basis that does not
+# exist (violates the no-synthetic/no-fabrication rule). The honest divergence stands by design.
 from __future__ import annotations
 
 from dataclasses import dataclass
