@@ -21,9 +21,9 @@ try:                                          # gymnasium is OPTIONAL (bare-nump
     _HAS_GYM = True
     _BASE = _gym.Env
 except Exception:                             # pragma: no cover - exercised only without gym
-    _gym = _spaces = None
+    _gym = _spaces = None    # type: ignore[assignment]   # optional-import shim (Module->None)
     _HAS_GYM = False
-    _BASE = object
+    _BASE = object           # type: ignore[assignment,misc]   # type[object] vs type[Env]
 
 HAS_GYM = _HAS_GYM
 OBS_SIGMA_FLOOR_M = 0.30                       # measured passive-stereo 1-sigma at the rover's grazing eye-height
@@ -46,6 +46,13 @@ class ActivePerceptionEnv(_BASE):
     obs = [flattened sigma field, pos_row/grid, pos_col/grid, energy_frac]. reward = info gain / joule."""
 
     metadata = {"render_modes": []}
+
+    # runtime state, set in reset() (declared so mypy can type the reads in _observe/_obs/step)
+    sigma: np.ndarray
+    est: np.ndarray
+    truth: np.ndarray
+    pos: tuple[int, int]
+    energy: float
 
     def __init__(self, *, grid: int = 24, cell_m: float = 2.0, sensor_radius_cells: float = 4.0,
                  relief_m: float = 3.0, charges: float = 0.25, seed: int = 0,
@@ -157,9 +164,10 @@ def beam_action(env: ActivePerceptionEnv, *, lookahead: int = 4, beam_width: int
     model), score by cumulative info-gain per joule, and return the FIRST action of the best sequence
     (receding horizon). lookahead=1 reduces to greedy; lookahead>1 routes ahead so it stops re-covering."""
     rr, cc, sr, grid, cm, jm = env._rr, env._cc, env.sensor_r, env.grid, env.cell_m, env.drive_j_per_m
-    beam = [(0.0, env.sigma, env.pos, None)]                      # (cum score, sigma, pos, first action)
+    # 4th element = the first action of the sequence (None in the seed; an int once a move is taken)
+    beam: list[tuple[float, np.ndarray, tuple[int, int], int | None]] = [(0.0, env.sigma, env.pos, None)]
     for _ in range(max(1, lookahead)):
-        cand = []
+        cand: list[tuple[float, np.ndarray, tuple[int, int], int | None]] = []
         for score, sigma, pos, first in beam:
             ssum = float(sigma.sum())
             for a, (dr, dc) in enumerate(_MOVES):
@@ -173,4 +181,6 @@ def beam_action(env: ActivePerceptionEnv, *, lookahead: int = 4, beam_width: int
         beam = cand[:beam_width]
     if not beam:
         raise ValueError(f"beam_width must be >= 1 (got {beam_width}) (audit L46)")
-    return beam[0][3]
+    first_action = beam[0][3]
+    assert first_action is not None    # the loop runs >=1 iteration, so the best beam carries a real action
+    return first_action
