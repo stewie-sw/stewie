@@ -489,7 +489,7 @@ solar power scheduling.
 |---|---|---|---|---|---|---|
 | FL-01 | P0 | Fleet allocation, simulation, validation, timeline, Plan IR, and playback share one `PlanResult`. | P | N | N | NA |
 | FL-02 | P1 | Detect and resolve route, site, and temporal conflicts rather than only same-site overlap. | P | N | P | NA |
-| FL-03 | P1 | Model charger, pit, dump, observation vantage, and constrained corridor as shared resources. | N | N | N | NA |
+| FL-03 | P1 | Model charger, pit, dump, observation vantage, and constrained corridor as shared resources. Charger = one-server FCFS queue: overlapping recharges serialise, the loser's wait shifts its timeline, the headline makespan reflects it (`makespan_parallel_s` keeps the optimistic value, `charger_wait_s` the cost); pit/dump/vantage/corridor pending. | P | N | P | NA |
 | FL-04 | P1 | Maintain one belief/health/resource state per rover and coordinate replans. | N | N | N | N |
 | FL-05 | P2 | Support heterogeneous vehicle capability and physics vectors. | P | N | P | N |
 | FL-06 | P1 | Validate two-rover plans against an exact small-problem oracle before learned/heuristic superiority claims. | N | N | N | NA |
@@ -1565,7 +1565,9 @@ physics, regolith flow, terramechanics, wheel-slip, illumination/shadow); AutoDi
 - **C. Multi-vehicle coordination** — extend `plan_multi` (allocation + space-time conflict, built) into
   fleet coordination: shared chargers/pits/corridors as reservable resources, cross-vehicle precedence,
   per-rover belief/health, exact-oracle validation; Autoware multi-robot conventions inform interfaces.
-  (FL-03..07.)
+  (FL-03..07.) Progress: the shared CHARGER is now a one-server FCFS queue (FL-03 partial) — overlapping
+  recharges serialise and the makespan reflects the contention; pit/dump/vantage/corridor + per-rover
+  belief (FL-04) + exact oracle (FL-06) remain.
 - **D. Excavation depth** — Tier-3 force-accurate drum (Chrono GPU-DEM) + adaptive AutoDig control. (CP-03, P7.)
 - **E. ARGUS contribution** — close the Shadow-SLAM + articulation-parallax loop (scaffolds exist) →
   GPS-independent PSR localization + excavation-progress tracking; the publishable contribution. (SN-*.)

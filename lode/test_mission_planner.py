@@ -1852,6 +1852,41 @@ def test_p06_fleet_shared_charger_conflict_is_detected():
     assert isinstance(totals["charger_conflicts"], int) and totals["charger_conflicts"] >= 0
 
 
+def test_fl03_resolve_charger_queue_serialises_overlapping_charges():
+    """FL-03 unit: the shared charger is ONE server. Two vehicles whose charge windows overlap are
+    serialised FCFS by arrival; the later arrival waits for the charger to free, and that wait is its
+    accrued delay (which shifts its later timeline). No overlap -> zero wait."""
+    # v0 holds the charger [10,20]; v1 wants [12,22] but must wait until 20 -> 8 s wait.
+    overlap = [
+        {"core": {"time_s": 25.0}, "tl": [{"kind": "charge", "t0": 10.0, "t1": 20.0}]},
+        {"core": {"time_s": 25.0}, "tl": [{"kind": "charge", "t0": 12.0, "t1": 22.0}]},
+    ]
+    assert MP._resolve_charger_queue(overlap) == pytest.approx([0.0, 8.0])
+    # disjoint windows -> nobody waits
+    disjoint = [
+        {"core": {"time_s": 25.0}, "tl": [{"kind": "charge", "t0": 0.0, "t1": 5.0}]},
+        {"core": {"time_s": 25.0}, "tl": [{"kind": "charge", "t0": 10.0, "t1": 15.0}]},
+    ]
+    assert MP._resolve_charger_queue(disjoint) == pytest.approx([0.0, 0.0])
+
+
+def test_fl03_shared_charger_contention_is_modelled_in_makespan():
+    """FL-03: the shared charger is MODELLED (not just detected). When two vehicles contend for the one
+    charger the headline makespan reflects the queue wait (>= the optimistic parallel makespan), the
+    fleet wait is reported and sums the per-vehicle waits, and the fleet still beats the single rover."""
+    m = _pairs_mission([(x, 0) for x in (200, -200, 400, -400)])   # far -> recharge-forcing (cf. P-06)
+    _, _, _, _, T1 = MP.plan_and_simulate(m, vehicles=1)
+    _, _, _, _, T = MP.plan_and_simulate(m, vehicles=2, algorithm="nearest")
+    assert "charger_wait_s" in T and "makespan_parallel_s" in T and T["charger_queue_modeled"] is True
+    assert T["makespan_s"] >= T["makespan_parallel_s"] - 1e-6       # contention can only ADD wait
+    assert T["charger_wait_s"] >= 0.0
+    if T["charger_conflicts"] > 0:                                  # overlap actually occurred
+        assert T["charger_wait_s"] > 0.0
+        assert T["makespan_s"] > T["makespan_parallel_s"]
+    assert T["makespan_s"] < T1["time_s"]                           # two rovers (even queued) still finish sooner
+    assert sum(d.get("charger_wait_s", 0.0) for d in T["vehicles_detail"]) == pytest.approx(T["charger_wait_s"])
+
+
 # ---- P-07: Plan IR preconditions encode action energy + route-to-safe, not just a reserve floor --
 def test_p07_dig_precondition_requires_action_plus_escape_energy_not_just_reserve():
     """P-07: a dig action's battery precondition must require enough energy to COMPLETE the action AND

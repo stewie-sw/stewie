@@ -1298,6 +1298,39 @@ def _charger_conflicts(per_vehicle, mission):
     return conflicts
 
 
+def _resolve_charger_queue(per_vehicle):
+    """FL-03: resolve the SHARED single charger as a one-server FCFS queue. v1 planned each vehicle's
+    recharges as if chargers were unlimited (optimistic); a real fleet has ONE charger, so charges must
+    serialise. Sweep every vehicle's charge windows in arrival order: a charge that arrives while the
+    charger is still busy WAITS until it frees, and that wait is added to the vehicle's accrued delay --
+    which shifts its later timeline (its later charges arrive later too, so they are re-queued at the
+    delayed time). Returns the per-vehicle accumulated wait [s]; a vehicle's real finish is its
+    independent time_s + delay[v]. Pure + deterministic (ties break to the lower vehicle index); the
+    delay is 0 for every vehicle when no two charge windows overlap."""
+    n = len(per_vehicle)
+    queues = [[(float(s["t0"]), float(s["t1"]) - float(s["t0"]))         # (arrival, duration) per charge
+               for s in pv.get("tl", []) if s.get("kind") == "charge"]
+              for pv in per_vehicle]
+    ptr = [0] * n
+    delay = [0.0] * n
+    charger_free = 0.0
+    while True:
+        nxt, nxt_arr = -1, None                                         # next charge to service, by EFFECTIVE arrival
+        for v in range(n):
+            if ptr[v] < len(queues[v]):
+                arr = queues[v][ptr[v]][0] + delay[v]                   # original start shifted by accrued delay
+                if nxt_arr is None or arr < nxt_arr:
+                    nxt, nxt_arr = v, arr
+        if nxt < 0:
+            break                                                       # all charges serviced
+        dur = queues[nxt][ptr[nxt]][1]
+        start = max(nxt_arr, charger_free)                              # wait if the charger is still busy
+        delay[nxt] += start - nxt_arr                                   # this wait shifts the vehicle's later timeline
+        charger_free = start + dur
+        ptr[nxt] += 1
+    return delay
+
+
 def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_slope_deg=25.0,
                algorithm="nearest", objective="time", vehicles=2):
     """MV1-7: plan a multi-vehicle build mission. Build trips once, allocate them site-exclusively across V
@@ -1307,8 +1340,10 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     shape as the single-vehicle planner, with per-trip `vehicle` tags + a vehicles_detail breakdown.
 
     v1 scope + honest gaps: site-exclusive allocation guarantees no two rovers co-occupy a site (verified by
-    a space-time conflict detector); the SHARED CHARGER is not contention-modelled (each vehicle recharges
-    independently -- a stated simplification); continuous haul-PATH collision avoidance is future MV work.
+    a space-time conflict detector); the SHARED CHARGER is modelled as a one-server FCFS queue (FL-03) --
+    overlapping recharges serialise, the loser waits, and the headline makespan reflects that wait
+    (makespan_parallel_s keeps the optimistic unlimited-charger value); continuous haul-PATH collision
+    avoidance and pit/dump/vantage/corridor as reservable resources are future MV work.
     Cross-vehicle PRECEDENCE (v2): a precedence chain is kept WHOLE on one vehicle so its order is honored,
     and INDEPENDENT chains parallelize; SPLITTING one chain across vehicles with cross-vehicle wait-
     coordination is still future work. A cyclic precedence still raises (never silently mis-ordered)."""
@@ -1338,7 +1373,15 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
         tl, per_trip, core = _simulate(mission, vtrips, routes)
         per_vehicle.append({"vehicle": v, "trips": vtrips, "tl": tl, "per_trip": per_trip, "core": core})
     conflicts = _vehicle_conflicts(per_vehicle)
-    makespan = max((pv["core"]["time_s"] for pv in per_vehicle), default=0.0)
+    parallel_makespan = max((pv["core"]["time_s"] for pv in per_vehicle), default=0.0)
+    # FL-03: the fleet shares ONE charger -> serialise overlapping recharges (FCFS single-server queue).
+    # Each vehicle's real finish is its independent time + the wait it accrues queueing for the charger;
+    # the headline makespan is the max of those. parallel_makespan keeps the optimistic (unlimited-charger)
+    # value for reference, and charger_conflicts still reports how many overlaps the queue had to resolve.
+    charger_delays = _resolve_charger_queue(per_vehicle)
+    charger_wait_s = float(sum(charger_delays))
+    makespan = max((pv["core"]["time_s"] + charger_delays[i] for i, pv in enumerate(per_vehicle)),
+                   default=0.0)
     agg = dict(
         time_s=float(makespan),
         mass_kg=sum(pv["core"]["mass_kg"] for pv in per_vehicle),
@@ -1347,7 +1390,8 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
         distance_m=sum(pv["core"]["distance_m"] for pv in per_vehicle),
         avg_power_w=0.0)
     agg["avg_power_w"] = agg["energy_J"] / makespan if makespan > 1e-9 else 0.0
-    survival_J = IDLE_POWER_W * sum(pv["core"]["time_s"] for pv in per_vehicle)   # idle per vehicle * its time
+    # idle/survival draw covers active per-vehicle time PLUS the time a rover sits idle in the charger queue
+    survival_J = IDLE_POWER_W * (sum(pv["core"]["time_s"] for pv in per_vehicle) + charger_wait_s)
     all_trips = [tr for pv in per_vehicle for tr in pv["trips"]]
     all_per_trip = [pt for pv in per_vehicle for pt in pv["per_trip"]]
     all_tl = [seg for pv in per_vehicle for seg in pv["tl"]]
@@ -1357,12 +1401,15 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
         totals["avg_power_w"] = totals["energy_J"] / makespan if makespan > 1e-9 else 0.0
     detail = [{"vehicle": pv["vehicle"], "n_trips": len(pv["trips"]), "time_s": pv["core"]["time_s"],
                "energy_J": pv["core"]["energy_J"], "distance_m": pv["core"]["distance_m"],
-               "charges": pv["core"]["charges"]} for pv in per_vehicle]
+               "charges": pv["core"]["charges"], "charger_wait_s": float(charger_delays[pv["vehicle"]])}
+              for pv in per_vehicle]
     totals.update(survival_energy_J=float(survival_J), idle_power_w=float(IDLE_POWER_W),
                   algorithm=algorithm, resolved_algorithm=algorithm, optimality="heuristic",
                   objective_exact=False, solved_metric="none",   # P-10: per-vehicle heuristic sequencing
                   n_precedence=len(glob_prec), objective=str(objective), vehicles=int(vehicles),
-                  makespan_s=float(makespan), vehicle_conflicts=int(conflicts), vehicles_detail=detail,
+                  makespan_s=float(makespan), makespan_parallel_s=float(parallel_makespan),
+                  charger_wait_s=charger_wait_s, charger_queue_modeled=True,
+                  vehicle_conflicts=int(conflicts), vehicles_detail=detail,
                   charger_conflicts=int(_charger_conflicts(per_vehicle, mission)))
     return all_trips, flows, all_per_trip, all_tl, totals
 
