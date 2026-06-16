@@ -43,8 +43,12 @@ class EphemerisObservation(Contract):
 
 
 class VehicleState(Contract):
-    """FS-04: one rover's live state -- the per-vehicle belief the Fleet pane and the coordinator
-    consume. Domains are bounded (soc/slip in [0,1]) so a bad estimate is rejected at the boundary."""
+    """FS-04: one rover's PHYSICAL state -- the actual pose + soc/slip/sinkage/status, i.e. simulation
+    TRUTH or live TELEMETRY. This is DISTINCT from BeliefState (the onboard estimator's belief about its
+    pose + uncertainty): the same rover from two stances -- what it IS vs what it THINKS it is, whose
+    difference is the drift the cockpit shows. PO-10 / §25.3 require labelling truth vs belief vs live;
+    this is the truth/telemetry side. Domains are bounded (soc/slip in [0,1]) so a bad value is rejected
+    at the boundary."""
     vehicle_id: str
     role: str = "ipex"
     row: float
