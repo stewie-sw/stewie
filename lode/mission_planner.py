@@ -60,6 +60,7 @@ from stewie.physics.column_state import ColumnState  # conserved authority — f
 from lode.planner_constants import (  # noqa: E402
     BATTERY_J, DIG_RATE_KG_S, DRIVE_J_PER_M, DRIVE_SPEED_MS, RESERVE_FRAC,
 )
+from lode import lander_return as LR  # noqa: E402  (#161; pure module, no cycle)
 DIG_J_PER_KG    = S.dig_energy_per_kg()                  # ~4151 J/kg; also in planner_constants (same source)
 DRUM_KG         = S.REGOLITH_PER_CYCLE_KG                # 30 kg/cycle (the ipex default; see _drum_kg)
 
@@ -203,6 +204,11 @@ class BuildOrder:
 class Mission:
     name: str; body: str; orders: list
     charger: tuple = (0.0, 0.0); date: str = "2026-06-03"
+    #: #161: the delivery lander = the rover's safe haven. None -> defaults to the charger. The return-to-
+    #: lander feasibility (totals["return_to_lander"]) keeps an operator-ADJUSTABLE buffer over the bare
+    #: return-drive energy so the rover can always get back before the battery dies.
+    lander: tuple | None = None
+    return_buffer_frac: float = LR.DEFAULT_RETURN_BUFFER_FRAC
     #: precedence as (before_action, after_action) pairs by order action-name (I9): the trip(s) touching
     #: `after` must be sequenced after the trip(s) touching `before` (e.g. grade road before hauling on it).
     precedence: list = dataclasses.field(default_factory=list)
@@ -298,6 +304,15 @@ def mission_from_dict(payload):
                   vehicle=veh, tools=tools, soil=soil)
     if "date" in payload:
         kwargs["date"] = str(payload["date"])
+    if payload.get("lander") is not None:                  # #161: the delivery lander (safe haven)
+        ld = payload["lander"]
+        kwargs["lander"] = (VAL.ensure_finite_scalar(ld[0], "lander x"),
+                            VAL.ensure_finite_scalar(ld[1], "lander y"))
+    if "return_buffer_frac" in payload:                    # #161: operator-adjustable return-to-lander buffer
+        rb = VAL.ensure_finite_scalar(payload["return_buffer_frac"], "return_buffer_frac")
+        if rb < 0:
+            raise ValueError(f"return_buffer_frac must be >= 0 (got {rb})")
+        kwargs["return_buffer_frac"] = rb
     # S-3: consecutive goto waypoints chain automatically -- a PATH is ordered by authorship
     gotos = [o.action for o in orders if o.kind == "goto"]
     auto_prec = [[a, b] for a, b in zip(gotos, gotos[1:])]
@@ -1100,6 +1115,23 @@ def optimize_sequence(trips, mission, *, algorithm="auto", objective="time", pre
 
 
 # ---- sequence + simulate (battery-aware, sinter, haul shuttles) --------------------------------
+def _return_to_lander(mission) -> dict:
+    """#161: return-to-lander feasibility for the plan. The lander (mission.lander, else the charger) is
+    the safe haven; at its furthest order the rover must retain enough USABLE charge (after the general
+    reserve) to drive back, keeping the operator-adjustable return_buffer_frac over the bare return drive
+    energy. Conservative safe-operating-radius check (worst-case return from the furthest waypoint)."""
+    lander = mission.lander or tuple(mission.charger)
+    lx, ly = float(lander[0]), float(lander[1])
+    pts = [(float(o.x), float(o.y)) for o in mission.orders] + [tuple(mission.charger)]
+    reach = LR.furthest_reach_from_lander_m((lx, ly), pts)
+    usable_j = BATTERY_J * (1.0 - RESERVE_FRAC)
+    blk = LR.return_to_lander_feasible(furthest_reach_m=reach, energy_spent_at_reach_j=0.0,
+                                       battery_j=usable_j, drive_j_per_m=DRIVE_J_PER_M,
+                                       return_buffer_frac=float(mission.return_buffer_frac))
+    blk["lander_xy"] = [round(lx, 1), round(ly, 1)]
+    return blk
+
+
 def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
     """The mission / material / routing / keep-out totals shared by the single- and multi-vehicle planners.
     `core` carries the simulated time/energy/distance/charges/mass; the caller applies survival + algorithm
@@ -1138,7 +1170,8 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
         if meta["straight_haul_m"] > 1e-9 else 0.0,
         n_keepouts=len(mission.keepouts),
         keepout_conflicts=sum(1 for o in mission.orders for k in mission.keepouts
-                              if (o.x - k["x"]) ** 2 + (o.y - k["y"]) ** 2 <= k["r"] ** 2))
+                              if (o.x - k["x"]) ** 2 + (o.y - k["y"]) ** 2 <= k["r"] ** 2),
+        return_to_lander=_return_to_lander(mission))   # #161 return-to-lander feasibility (adjustable buffer)
 
 
 def _trip_work_e(tr):
