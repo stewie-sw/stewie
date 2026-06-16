@@ -72,3 +72,55 @@ def test_fleet_state_nests_and_defaults():
 def test_fleet_state_conflicts_nonnegative():
     with pytest.raises(ValidationError):
         C.FleetState(conflicts=-1)
+
+
+# ---- the remaining Phase-0 spine schemas --------------------------------------------------------
+
+def test_world_state_descriptor():
+    w = C.WorldState(rows=2000, cols=2000, cell_m=5.0, dem_source="haworth_10km_5m", observed_fraction=0.3)
+    assert w.datum_radius_m == 1737400 and w.schema_version == C.SPINE_VERSION
+    with pytest.raises(ValidationError):
+        C.WorldState(rows=0, cols=10, cell_m=5.0)                  # rows must be > 0
+
+
+def test_belief_state():
+    b = C.BeliefState(vehicle_id="ipex", row=10.0, col=20.0, pos_sigma_m=0.5, localized=True)
+    assert b.localized and b.last_relocalization_t_s is None
+    with pytest.raises(ValidationError):
+        C.BeliefState(vehicle_id="x", row=0.0, col=0.0, pos_sigma_m=-1.0)    # sigma >= 0
+
+
+def test_plan_result():
+    p = C.PlanResult(plan_id="abc", feasible=True, n_orders=5, vehicles=2, makespan_s=100.0, energy_j=5e5)
+    assert p.feasible and p.vehicles == 2
+    with pytest.raises(ValidationError):
+        C.PlanResult(plan_id="x", feasible=True, n_orders=1, vehicles=0, makespan_s=1.0, energy_j=1.0)
+
+
+def test_execution_event_round_trips():
+    e = C.ExecutionEvent(t_s=1.0, vehicle_id="ipex", kind="leg", outcome="ok")
+    assert C.ExecutionEvent.model_validate(e.model_dump()) == e
+
+
+def test_argus_factor():
+    f = C.ARGUSFactor(factor_id="f1", kind="shadow", keyframe_i=0, keyframe_j=3, residual=0.02, accepted=True)
+    assert f.accepted and f.information >= 0
+    with pytest.raises(ValidationError):
+        C.ARGUSFactor(factor_id="f", kind="loop", keyframe_i=-1, keyframe_j=0, residual=0.0, accepted=False)
+
+
+def test_model_artifact_cannot_be_on_command_path():
+    m = C.ModelArtifact(model_id="m1", name="rocknet", version="1", task="rock_classify",
+                        dataset_lineage="nac-2024", eval_split="80/20")
+    assert m.command_path is False
+    with pytest.raises(ValidationError):                          # §25.3: no model on the command path
+        C.ModelArtifact(model_id="m2", name="x", version="1", task="llm_planner",
+                        dataset_lineage="d", eval_split="s", command_path=True)
+
+
+def test_construction_skill_must_be_closed_loop():
+    s = C.ConstructionSkill(skill_id="dock1", name="dock", kind="dock", version="1", n_steps=20)
+    assert s.closed_loop is True and s.approved is False
+    with pytest.raises(ValidationError):                          # §25.3: no open-loop replay
+        C.ConstructionSkill(skill_id="s2", name="x", kind="excavate", version="1", n_steps=5,
+                            closed_loop=False)

@@ -13,7 +13,7 @@ subsequent Phase-0 bricks, then Phase 1 wires route handlers to them.
 """
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 #: bump on any backwards-incompatible spine change (drives migration; surfaced in every schema).
 SPINE_VERSION = "1.0"
@@ -73,3 +73,112 @@ class FleetState(Contract):
     vehicles: list[VehicleState] = Field(default_factory=list)
     reservations: list[ResourceReservation] = Field(default_factory=list)
     conflicts: int = Field(default=0, ge=0)
+
+
+class WorldState(Contract):
+    """FS-02 (TW-05): the authoritative terrain/twin snapshot DESCRIPTOR -- grid geometry, datum,
+    provenance, observed coverage, and whether construction has mutated the terrain vs the prior DEM.
+    The raw rasters live in the twin store; the contract carries the metadata a consumer reasons over."""
+    body: str = "moon"
+    frame: str = "MOON_ME"
+    rows: int = Field(gt=0)
+    cols: int = Field(gt=0)
+    cell_m: float = Field(gt=0.0)
+    datum_radius_m: int = 1737400
+    observed_fraction: float = Field(default=0.0, ge=0.0, le=1.0)
+    dem_source: str = "haworth_10km_5m"            # a dart.dem_sources id
+    mutated: bool = False
+
+
+class BeliefState(Contract):
+    """FS-04/FS-07: one rover's estimator belief -- map-relative pose + uncertainty + localization
+    health. localized=False means the estimate has diverged and a relocalization stop is due (SN-10)."""
+    vehicle_id: str
+    row: float
+    col: float
+    yaw_rad: float = 0.0
+    pos_sigma_m: float = Field(default=0.0, ge=0.0)
+    yaw_sigma_rad: float = Field(default=0.0, ge=0.0)
+    localized: bool = True
+    last_relocalization_t_s: float | None = None
+
+
+class PlanResult(Contract):
+    """CP-01/FS-02: the immutable plan SUMMARY one plan produces and every consumer shares (totals,
+    feasibility, makespan). The full per-leg Plan IR lives in the planner; this is the typed headline."""
+    plan_id: str
+    feasible: bool
+    n_orders: int = Field(ge=0)
+    vehicles: int = Field(ge=1)
+    makespan_s: float = Field(ge=0.0)
+    energy_j: float = Field(ge=0.0)
+    mass_moved_kg: float = Field(default=0.0, ge=0.0)
+    blocked_legs: int = Field(default=0, ge=0)
+
+
+class ExecutionEvent(Contract):
+    """FS-04: one timestamped event on the execution timeline -- command issued, leg complete, conflict,
+    acceptance, safe, replan. The Fleet/Report panes render these; the mission executive emits them."""
+    t_s: float
+    vehicle_id: str
+    kind: str          # command | leg | conflict | acceptance | safe | replan
+    detail: str = ""
+    outcome: str = "ok"   # ok | blocked | entrapped | rejected | safed
+
+
+class ARGUSFactor(Contract):
+    """FS-07 (PM-07): one pose-graph factor from the ARGUS articulation/shadow/parallax loop. `accepted`
+    is the residual-gate verdict -- a rejected factor (false closure / bad shadow match) never enters the
+    graph. `information` (inverse-covariance scale) is non-negative."""
+    factor_id: str
+    kind: str          # shadow | parallax | loop | absolute
+    keyframe_i: int = Field(ge=0)
+    keyframe_j: int = Field(ge=0)
+    residual: float
+    information: float = Field(default=1.0, ge=0.0)
+    accepted: bool
+
+
+class ModelArtifact(Contract):
+    """FS-12 / §25.3: a registered learned model. Every field that gates safe deployment is explicit;
+    `command_path` MUST be False -- no learned model directly controls the rover (it emits typed
+    estimates; deterministic planners + safety + role gates + the executive decide command emission)."""
+    model_id: str
+    name: str
+    version: str
+    task: str          # terrain_assess | rock_classify | shadow_slam | excavation_state | volume | llm_planner | assistant
+    dataset_lineage: str
+    eval_split: str
+    calibrated: bool = False
+    ood_detector: bool = False
+    quantization: str = "fp32"
+    rollback_to: str | None = None
+    command_path: bool = False
+
+    @field_validator("command_path")
+    @classmethod
+    def _no_command_path(cls, v: bool) -> bool:
+        if v:
+            raise ValueError("§25.3: no learned model may be on the rover command path")
+        return v
+
+
+class ConstructionSkill(Contract):
+    """FS-13 / §25.3: a recorded construction/docking movement primitive. `closed_loop` MUST be True --
+    no primitive replays open-loop; estimator feedback + safing checks are part of it. Carries the step
+    count, the approval gate, and an acceptance note (uncertainty bands live with the acceptance event)."""
+    skill_id: str
+    name: str
+    kind: str          # excavate | dump | berm | traverse | dock
+    version: str
+    n_steps: int = Field(ge=1)
+    closed_loop: bool = True
+    approved: bool = False
+    acceptance_note: str = ""
+
+    @field_validator("closed_loop")
+    @classmethod
+    def _must_close_loop(cls, v: bool) -> bool:
+        if not v:
+            raise ValueError("§25.3: no construction/docking primitive may replay open-loop")
+        return v
