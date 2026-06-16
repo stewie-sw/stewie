@@ -76,7 +76,11 @@ select = ["F"]
 
 [tool.pytest.ini_options]
 testpaths = ["stewie", "dart", "lode", "leap", "forge", "scripts"]
-addopts = "-q"
+# #122: a generous per-test timeout (pytest-timeout) so a hung test FAILS fast (stack dumped) instead of
+# stalling the whole run forever -- 600s is far above any real test (slowest is ~2s), so it only ever
+# fires on a true hang/deadlock, never a false positive. (pytest-xdist `-n auto` is the bigger run-time
+# win but its plugin is not loading in this env -- tracked separately.)
+addopts = "-q --timeout=600"
 markers = [
     "gpu: needs a GPU (Vulkan/CUDA)",
     "godot: needs the Godot sidecar binary",
