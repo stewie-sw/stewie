@@ -12,6 +12,10 @@ import math
 
 import numpy as np
 
+from stewie.specs import ipex_specs as S
+
+DEFAULT_OMEGA_MAX = 0.20      # [ASSUMPTION] rad/s max yaw rate (skid-steer); admits the full NV-03 fan at nominal v
+
 
 def constant_curvature_arc(x0: float, y0: float, th0: float, kappa: float, length_m: float,
                            n_pts: int = 12) -> np.ndarray:
@@ -95,3 +99,47 @@ def plan_local(pose, heading_rad: float, goal, *, is_blocked=None, keepouts=(), 
             "endpoint": (float(arc[-1, 0]), float(arc[-1, 1])), "heading_end": float(arc[-1, 2]),
             "progress_m": math.hypot(gx - x0, gy - y0) - math.hypot(gx - arc[-1, 0], gy - arc[-1, 1]),
             "n_sampled": len(curvatures), "n_feasible": n_feasible}
+
+
+# --- NV-04: path tracker -- convert a trajectory into bounded commands + expected speed/progress ----
+def bounded_twist(curvature: float, *, v_max: float = S.DRIVE_SPEED_MS,
+                  omega_max: float = DEFAULT_OMEGA_MAX) -> tuple:
+    """Bound a constant-curvature command so neither the linear (v_max) nor the angular (omega_max) cap is
+    exceeded. For a unicycle omega = curvature*v, so v = min(v_max, omega_max/|curvature|) and omega =
+    curvature*v. A gentle arc is linear-capped; a sharp arc is yaw-rate-capped (slows to keep omega bounded).
+    Returns (v, omega)."""
+    if v_max <= 0 or omega_max <= 0:
+        raise ValueError("v_max and omega_max must be > 0")
+    k = abs(curvature)
+    v = v_max if k < 1e-9 else min(v_max, omega_max / k)
+    return v, curvature * v
+
+
+def track_arc(curvature: float, length_m: float, *, v_max: float = S.DRIVE_SPEED_MS,
+              omega_max: float = DEFAULT_OMEGA_MAX, speed_scale: float = 1.0) -> dict:
+    """Convert a constant-curvature arc into a bounded twist command + expected speed/progress. ``speed_scale``
+    in (0, 1] derates the ground speed for slope/slip -- the caller passes ``(1 - slip)`` from the planner's
+    slip ladder (1.0 = nominal flat; NO slip is fabricated here). Returns the command (``v_cmd``, ``omega_cmd``),
+    the derated ``expected_speed_ms``, the ``duration_s`` to traverse, and ``arc_length_m`` (progress along the
+    path)."""
+    if length_m < 0 or not (0.0 < speed_scale <= 1.0):
+        raise ValueError("length_m must be >= 0 and 0 < speed_scale <= 1")
+    v, omega = bounded_twist(curvature, v_max=v_max, omega_max=omega_max)
+    v_eff = v * speed_scale
+    dur = length_m / v_eff if v_eff > 1e-9 else math.inf
+    return {"v_cmd": v, "omega_cmd": omega, "expected_speed_ms": v_eff, "duration_s": dur,
+            "arc_length_m": float(length_m), "curvature": float(curvature)}
+
+
+def track_plan(plan: dict, *, v_max: float = S.DRIVE_SPEED_MS, omega_max: float = DEFAULT_OMEGA_MAX,
+               speed_scale: float = 1.0) -> dict:
+    """Track an NV-03 ``plan_local`` result: take the chosen arc's curvature + measured polyline length and
+    return the bounded twist command + expected speed/progress (``track_arc``), passing the plan's
+    goal-``progress_m`` through. Raises on an infeasible plan -- there is nothing safe to track (NV-01)."""
+    if not plan.get("feasible"):
+        raise ValueError("cannot track an infeasible plan (no safe arc was found)")
+    arc = plan["arc"]
+    length = float(np.sum(np.hypot(np.diff(arc[:, 0]), np.diff(arc[:, 1]))))   # measured polyline arc length
+    out = track_arc(float(plan["curvature"]), length, v_max=v_max, omega_max=omega_max, speed_scale=speed_scale)
+    out["progress_m"] = plan.get("progress_m")
+    return out

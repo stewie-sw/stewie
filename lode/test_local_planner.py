@@ -92,3 +92,46 @@ def test_runs_on_real_haworth_slope_as_the_obstacle_oracle():
     out = LP.plan_local(start, 0.0, goal, is_blocked=is_blocked, horizon_m=8.0, clearance_m=0.0)
     assert out["n_sampled"] == len(LP.curvature_fan())            # consumed the real predicate without error
     assert out["feasible"] is True                               # the flattest start admits at least one safe arc
+
+
+# --- NV-04: path tracker -------------------------------------------------------------------------
+def test_bounded_twist_is_linear_capped_on_a_gentle_arc():
+    v, w = LP.bounded_twist(0.05, v_max=0.30, omega_max=0.20)     # 0.05*0.30=0.015 < 0.20 -> v not yaw-bound
+    assert v == pytest.approx(0.30) and w == pytest.approx(0.05 * 0.30)
+
+
+def test_bounded_twist_is_yaw_capped_on_a_sharp_turn():
+    v, w = LP.bounded_twist(2.0, v_max=0.30, omega_max=0.20)      # 0.30*2=0.6 > 0.20 -> slows to v=0.20/2=0.10
+    assert v == pytest.approx(0.10) and abs(w) == pytest.approx(0.20)
+
+
+def test_track_arc_reports_bounded_command_speed_and_duration():
+    out = LP.track_arc(0.0, 6.0, v_max=0.30, omega_max=0.20)
+    assert out["v_cmd"] == pytest.approx(0.30) and out["omega_cmd"] == pytest.approx(0.0)
+    assert out["expected_speed_ms"] == pytest.approx(0.30) and out["duration_s"] == pytest.approx(20.0)
+    assert out["arc_length_m"] == pytest.approx(6.0)
+
+
+def test_track_arc_slip_derate_slows_and_lengthens():
+    nom = LP.track_arc(0.0, 6.0)
+    der = LP.track_arc(0.0, 6.0, speed_scale=0.5)                 # (1 - slip) = 0.5
+    assert der["expected_speed_ms"] == pytest.approx(nom["expected_speed_ms"] * 0.5)
+    assert der["duration_s"] == pytest.approx(nom["duration_s"] * 2.0)
+
+
+def test_track_plan_consumes_an_nv03_plan():
+    plan = LP.plan_local((0.0, 0.0), 0.0, (20.0, 0.0))
+    out = LP.track_plan(plan)
+    assert out["v_cmd"] > 0 and out["duration_s"] > 0 and out["arc_length_m"] > 0
+    assert "progress_m" in out
+
+
+def test_track_plan_refuses_an_infeasible_plan():
+    plan = LP.plan_local((0.0, 0.0), 0.0, (20.0, 0.0), is_blocked=lambda x, y: True)
+    with pytest.raises(ValueError, match="infeasible"):
+        LP.track_plan(plan)
+
+
+def test_track_arc_rejects_bad_speed_scale():
+    with pytest.raises(ValueError):
+        LP.track_arc(0.0, 6.0, speed_scale=1.5)
