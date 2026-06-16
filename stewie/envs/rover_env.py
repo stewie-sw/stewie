@@ -40,10 +40,11 @@ try:                                          # gymnasium is OPTIONAL
     _HAS_GYM = True
     _BASE = _gym.Env
 except Exception:                             # pragma: no cover - exercised only w/o gym
-    _gym = None
-    _spaces = None
+    # optional-import shim: not statically typeable (Module->None, type[Env] vs type[object])
+    _gym = None        # type: ignore[assignment]
+    _spaces = None     # type: ignore[assignment]
     _HAS_GYM = False
-    _BASE = object
+    _BASE = object     # type: ignore[assignment,misc]
 
 HAS_GYM = _HAS_GYM
 
@@ -85,7 +86,7 @@ class RoverSimEnv(_BASE):
         if body is not None:
             from stewie.specs import bodies as _bodies
             _b = _bodies.get_body(body)
-            self.body = _b.name
+            self.body: str | None = _b.name
             self.g = _b.g
             # soil override: swap the regolith model (e.g. Earth soil on a lunar map) while keeping the
             # body's gravity. `soil` is a body name; None -> the body's own regolith.
@@ -115,14 +116,14 @@ class RoverSimEnv(_BASE):
         # to select that body's physics model end to end.
         if vehicle is not None:
             from stewie.specs import vehicles as _vehicles
-            self.vehicle = _vehicles.get_vehicle(vehicle).name
+            self.vehicle: str | None = _vehicles.get_vehicle(vehicle).name
             self._geo = _vehicles.geometry_of(vehicle)
         else:
             self.vehicle = None
             self._geo = dict(gauge_m=rover.WHEEL_GAUGE_M, wheelbase_m=rover.WHEEL_BASE_M, cg_height_m=K.CG_HEIGHT_M)
         self._pitch_rad = 0.0
         self._roll_rad = 0.0
-        self._stab = {"margin_deg": 0.0, "risk": "ok"}
+        self._stab: dict[str, float | str] = {"margin_deg": 0.0, "risk": "ok"}
 
         # runtime state (set in reset)
         self.params = self.params_base
@@ -157,6 +158,7 @@ class RoverSimEnv(_BASE):
     def _update_attitude(self) -> None:
         """Recompute the rover's terrain attitude (pitch/roll via conform_pose) + the tip-over stability
         (margin + risk). Called once per reset/step; _obs + the tip terminal read the stored result."""
+        assert self.cs is not None, "reset() must run before _update_attitude"
         h = self.cs.derive_height()
         cf = rover.conform_pose(h, self.rc, self.yaw, cell_m=self.cell_m, payload_kg=self.payload_kg)
         self._pitch_rad = float(cf["pitch_rad"])
@@ -164,6 +166,7 @@ class RoverSimEnv(_BASE):
         self._stab = ST.stability(np.degrees(self._pitch_rad), np.degrees(self._roll_rad), **self._geo)
 
     def _obs(self) -> np.ndarray:
+        assert self.cs is not None, "reset() must run before _obs"
         h = self.cs.derive_height()
         r0 = int(round(self.rc[0]))
         c0 = int(round(self.rc[1]))
@@ -178,7 +181,7 @@ class RoverSimEnv(_BASE):
             self._pitch_rad, self._roll_rad,
             self._last_slip, self._last_sinkage,
             self._goal_dist_cells() / self.grid,
-            self._stab["margin_deg"] / 90.0,           # tip-over margin (deg-to-tip), normalized: <=0 => tipping
+            float(self._stab["margin_deg"]) / 90.0,    # tip-over margin (deg-to-tip), normalized: <=0 => tipping
         ], dtype=np.float64)
         return np.concatenate([rel, scal]).astype(np.float32)
 
