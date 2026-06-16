@@ -1331,6 +1331,24 @@ def _resolve_charger_queue(per_vehicle):
     return delay
 
 
+def _rover_health(pv) -> dict:
+    """FL-04: distill one rover's belief/health/resource state from its battery-aware sim -- feasibility,
+    the LOWEST battery SoC fraction it reaches (the resource margin), its recharge count, and a health
+    rollup (stranded / low_margin / nominal). The fleet 'coordinates replans' off this: a stranded rover
+    sets fleet_needs_replan so its remaining work can be reallocated (the reallocation itself is future MV
+    work; this is the per-rover state + the trigger)."""
+    core = pv.get("core", {})
+    tl = pv.get("tl", [])
+    batts = [s["batt1"] for s in tl if "batt1" in s]
+    full = max((s["batt0"] for s in tl if "batt0" in s), default=0.0)
+    min_frac = (min(batts) / full) if (batts and full > 1e-9) else 1.0
+    stranded = not core.get("feasible", True)
+    health = "stranded" if stranded else ("low_margin" if min_frac < 0.15 else "nominal")
+    return {"feasible": bool(core.get("feasible", True)), "min_batt_frac": round(float(min_frac), 3),
+            "charges": int(core.get("charges", 0)), "health": health,
+            "infeasible_reasons": list(core.get("infeasible_reasons", []))[:3]}
+
+
 def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_slope_deg=25.0,
                algorithm="nearest", objective="time", vehicles=2):
     """MV1-7: plan a multi-vehicle build mission. Build trips once, allocate them site-exclusively across V
@@ -1401,8 +1419,10 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
         totals["avg_power_w"] = totals["energy_J"] / makespan if makespan > 1e-9 else 0.0
     detail = [{"vehicle": pv["vehicle"], "n_trips": len(pv["trips"]), "time_s": pv["core"]["time_s"],
                "energy_J": pv["core"]["energy_J"], "distance_m": pv["core"]["distance_m"],
-               "charges": pv["core"]["charges"], "charger_wait_s": float(charger_delays[pv["vehicle"]])}
+               "charges": pv["core"]["charges"], "charger_wait_s": float(charger_delays[pv["vehicle"]]),
+               "health": _rover_health(pv)}                       # FL-04: per-rover belief/health/resource state
               for pv in per_vehicle]
+    fleet_needs_replan = any(d["health"]["health"] == "stranded" for d in detail)   # FL-04 replan trigger
     totals.update(survival_energy_J=float(survival_J), idle_power_w=float(IDLE_POWER_W),
                   algorithm=algorithm, resolved_algorithm=algorithm, optimality="heuristic",
                   objective_exact=False, solved_metric="none",   # P-10: per-vehicle heuristic sequencing
@@ -1410,6 +1430,7 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
                   makespan_s=float(makespan), makespan_parallel_s=float(parallel_makespan),
                   charger_wait_s=charger_wait_s, charger_queue_modeled=True,
                   vehicle_conflicts=int(conflicts), vehicles_detail=detail,
+                  fleet_needs_replan=bool(fleet_needs_replan),
                   charger_conflicts=int(_charger_conflicts(per_vehicle, mission)))
     return all_trips, flows, all_per_trip, all_tl, totals
 
@@ -1459,9 +1480,10 @@ def plan_multi_oracle(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
             mk = max((pv["core"]["time_s"] + delays[i] for i, pv in enumerate(per_vehicle)), default=0.0)
             if best is None or mk < best[0] - 1e-9:
                 best = (mk, list(assign))
-    mk, assign = best
+    assert best is not None              # the assignment x per-vehicle-order loop always runs >= once
+    mk, best_assign = best
     return {"makespan_s": float(mk), "vehicles": int(vehicles), "n_trips": len(trips),
-            "n_groups": G, "assignment": assign, "exact": True}
+            "n_groups": G, "assignment": best_assign, "exact": True}
 
 
 def plan_and_simulate(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_slope_deg=25.0,

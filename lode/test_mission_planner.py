@@ -1911,6 +1911,34 @@ def test_fl06_oracle_refuses_large_or_precedence_constrained_problems():
         MP.plan_multi_oracle(prec, vehicles=2)
 
 
+def test_fl04_per_rover_health_state_and_replan_trigger():
+    """FL-04: every fleet plan carries a per-rover belief/health/resource state (feasibility, lowest
+    battery margin, recharges, a health rollup), and a stranded rover sets the fleet replan trigger."""
+    m = _pairs_mission([(40, 0), (-40, 5), (80, 0)])
+    *_rest, totals = MP.plan_and_simulate(m, vehicles=2)
+    assert "fleet_needs_replan" in totals
+    for d in totals["vehicles_detail"]:
+        h = d["health"]
+        assert {"feasible", "min_batt_frac", "charges", "health"} <= set(h)
+        assert h["health"] in ("nominal", "low_margin", "stranded")
+        assert 0.0 <= h["min_batt_frac"] <= 1.0
+    # a nominal close-site fleet is feasible -> no replan needed
+    assert totals["fleet_needs_replan"] is False
+    assert all(d["health"]["feasible"] for d in totals["vehicles_detail"])
+
+
+def test_fl04_rover_health_helper_flags_stranded():
+    # a sim that recorded an infeasible (stranded) reason -> health 'stranded'
+    pv = {"core": {"feasible": False, "charges": 1, "infeasible_reasons": ["stranded at (9999,0)"]},
+          "tl": [{"batt0": 4.79e6, "batt1": 1.0e6}]}
+    h = MP._rover_health(pv)
+    assert h["health"] == "stranded" and h["feasible"] is False and h["infeasible_reasons"]
+    # a healthy sim that never dipped low -> nominal
+    pv2 = {"core": {"feasible": True, "charges": 0, "infeasible_reasons": []},
+           "tl": [{"batt0": 4.79e6, "batt1": 4.0e6}]}
+    assert MP._rover_health(pv2)["health"] == "nominal"
+
+
 def test_fl03_report_surfaces_the_fleet_and_charger_contention():
     """The mission-control report must SHOW a 2-rover plan's fleet breakdown + the shared-charger
     contention (FL-03), not hide it behind single-vehicle totals. A 1-rover plan has no Fleet section."""

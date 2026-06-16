@@ -287,12 +287,17 @@ def report(mission, trips, flows, per_trip, tl, totals, out_pdf, out_md, endu=No
                   if "makespan_parallel_s" in totals else ""),
                f"- Shared charger (one server): **{int(totals.get('charger_conflicts', 0))} overlap(s)** "
                f"serialised FCFS → **+{_dur(totals.get('charger_wait_s', 0.0))}** total queue wait folded "
-               f"into the makespan above",
-               "", "| Rover | Trips | Time | Energy MJ | Drive km | Recharges | Charger wait |",
-               "|---|---|---|---|---|---|---|"]
+               f"into the makespan above"
+               + ("  ·  ⚠ **fleet needs replan** (a rover stranded — reallocate its work)"
+                  if totals.get("fleet_needs_replan") else ""),
+               # FL-04: per-rover belief/health/resource state (health + lowest battery margin reached)
+               "", "| Rover | Trips | Time | Energy MJ | Drive km | Recharges | Charger wait | Health | Min batt |",
+               "|---|---|---|---|---|---|---|---|---|"]
         for d in totals.get("vehicles_detail", []):
+            h = d.get("health", {})
             md.append(f"| {d['vehicle']} | {d['n_trips']} | {_dur(d['time_s'])} | {d['energy_J']/1e6:.1f} | "
-                      f"{d['distance_m']/1000:.2f} | {d['charges']} | {_dur(d.get('charger_wait_s', 0.0))} |")
+                      f"{d['distance_m']/1000:.2f} | {d['charges']} | {_dur(d.get('charger_wait_s', 0.0))} | "
+                      f"{h.get('health', '?')} | {h.get('min_batt_frac', 1.0)*100:.0f}% |")
     if totals.get("routed_haul"):                       # I10: hauls routed around real-DEM hazards
         md.append(
             f"- Hauls **routed around hazards** on the real Haworth slope costmap (traverse cap "
