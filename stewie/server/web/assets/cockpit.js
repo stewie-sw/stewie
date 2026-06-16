@@ -841,6 +841,34 @@ if ($("set-theme")) $("set-theme").onchange = () => {
 const AUTH = { role: null, identity: null, apikey: "" };
 function authMsg(t, ok) { const m = $("auth-msg"); if (m) { m.textContent = t || "";
   m.style.color = ok ? "var(--accent)" : "var(--bad,#ff6b6b)"; } }
+// #133: idle auto-logout. A signed-in cockpit left unattended can still command a live rover, so after
+// IDLE_MIN minutes with no user activity we sign out and re-raise the blocking sign-in gate. This is a
+// client-side control; it composes with the server guarantees that hold regardless (the absolute
+// TOKEN_TTL_S cap + jti revocation on /auth/logout). Window configurable via SETTINGS.idle_min.
+const IDLE_MIN = window.STEWIE_IDLE ? window.STEWIE_IDLE.clampMinutes(SETTINGS && SETTINGS.idle_min) : 30;
+async function idleLogout() {
+  try { await fetch("/auth/logout", { method: "POST", headers: apiHeaders() }); } catch (e) {}
+  AUTH.role = null; AUTH.identity = null; AUTH.apikey = "";    // SEC-01: drop the in-memory key too
+  renderWhoami(null); gateChrome(null);
+  applyGate();                                                 // re-raise the gate IN PLACE (no nav away)
+  authMsg("Signed out after " + IDLE_MIN + " min of inactivity. Sign in to continue.", false);
+}
+const _idleMon = window.STEWIE_IDLE ? window.STEWIE_IDLE.IdleMonitor({
+  idleMinutes: IDLE_MIN, onIdle: idleLogout,
+  now: () => Date.now(), setInterval: (fn, ms) => setInterval(fn, ms), clearInterval: (h) => clearInterval(h),
+}) : null;
+// Activity resets the window (touch() is a no-op while signed out, so the listeners are harmless then).
+if (_idleMon) ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "wheel"].forEach(
+  (ev) => document.addEventListener(ev, () => _idleMon.touch(), { passive: true }));
+// Settings control: prefill with the active window + persist + apply live.
+if (_idleMon && $("set-idle")) {
+  $("set-idle").value = IDLE_MIN;
+  $("set-idle").onchange = () => {
+    const v = window.STEWIE_IDLE.clampMinutes($("set-idle").value);
+    $("set-idle").value = v; SETTINGS.idle_min = v; saveSettings(SETTINGS);
+    _idleMon.setIdleMinutes(v);
+  };
+}
 function authMode(mode) {
   ["login", "register", "setpw"].forEach((k) => { const el = $("auth-" + k);
     if (el) el.style.display = (k === mode) ? "flex" : "none"; });
@@ -873,8 +901,10 @@ function closeAuth() {
   const m = $("authmodal"); if (m) m.style.display = "none";
 }
 function applyGate() {
-  if (AUTH.identity) { _gate = false; closeAuth(); }    // signed in -> lift the gate
-  else { _gate = true; openAuth("login"); }             // no session -> block until signed in
+  // refreshAuthState (the only caller path) runs on boot + after login/set-password, NOT on a poll, so
+  // arming/disarming the idle monitor here tracks real sign-in/out transitions (no spurious resets).
+  if (AUTH.identity) { _gate = false; closeAuth(); if (_idleMon) _idleMon.start(); }   // signed in -> lift gate + arm idle logout
+  else { _gate = true; openAuth("login"); if (_idleMon) _idleMon.stop(); }             // no session -> block + disarm
 }
 let _authPromptTs = 0;
 let _bootComplete = false;                                // UX-01: set true once the initial load settles

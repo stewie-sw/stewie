@@ -637,6 +637,11 @@
             <button id="set-resetlayout" class="site">Reset pane order</button>
             <span style="font-size:11px;opacity:.7">restore the default sidebar pane order (FS-21)</span>
           </label>
+          <label style="display:flex; align-items:center; gap:10px">
+            <b>Auto sign-out</b>
+            <input id="set-idle" type="number" min="1" max="240" step="1" value="30" style="width:5em" />
+            <span style="font-size:11px;opacity:.7">sign out after this many minutes of inactivity (#133)</span>
+          </label>
           <div style="opacity:.75">Settings persist in this browser.</div>
         </div>
       </div>
@@ -721,6 +726,7 @@
 </div>
 
 <script src="/assets/panel_layout.js?v=1"></script>
+<script src="/assets/idle_logout.js?v=1"></script>
 <script src="/assets/cockpit.js?v=2"></script>
 </body>
 </html>
