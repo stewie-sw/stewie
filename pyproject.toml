@@ -124,7 +124,6 @@ warn_redundant_casts = true
 # RATCHET: modules pending full typing. NOT here (so they ARE checked): every planet_browser module +
 # terramechanics/slip/drive/rover/bodies/vehicles/material/challenge/registration/ipex_specs/constants/...
 module = [
-    "dart.dem_import",
     "leap.skill_env",
     "leap.terrain_target_env",
     "leap.worksite_env",
@@ -132,7 +131,6 @@ module = [
     "stewie.envs.active_perception_env",
     "stewie.envs.rover_env",
     "stewie.terrain.dem_overlay",
-    "stewie.terrain.procgen",
     "stewie.terrain.scenes",
     "stewie.terrain.tiles_mosaic",
 ]

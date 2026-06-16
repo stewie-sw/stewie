@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import struct
 from dataclasses import dataclass
-from typing import Callable
+from typing import Protocol, cast
 
 import numpy as np
 
@@ -165,7 +165,7 @@ def _decode(blob: bytes, typ: int, count: int, bo: str):
     return struct.unpack(bo + code * count, blob)
 
 
-def _parse_geokeys(directory: tuple, doubles: tuple) -> dict:
+def _parse_geokeys(directory: tuple | None, doubles: tuple | None) -> dict:
     """Parse the 34735 GeoKeyDirectory into {geo_key_id: value}.
 
     Layout (OGC GeoTIFF): the directory is a flat array of SHORTs in 4-tuples. The
@@ -429,8 +429,16 @@ def dem_to_base(Z_crop: np.ndarray, affine: Affine, base_cell_m: float, *,
 #    depth-integrated ChaSTE bulk density (Wave-2 W2-DENSITY).
 # ---------------------------------------------------------------------------
 
+class _DensityFn(Protocol):
+    """A density hook ``density_fn(X, Y) -> ndarray`` that also carries the scalar ``rho_bar`` /
+    ``mantle_m`` it was built from (honest metadata for logging; nothing depends on it structurally)."""
+    rho_bar: float
+    mantle_m: float
+    def __call__(self, X: np.ndarray, Y: np.ndarray) -> np.ndarray: ...
+
+
 def polar_mantle_density_fn(mantle_m: float = K.Z_T
-                            ) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
+                            ) -> _DensityFn:
     """Build the ``density_fn(X, Y)`` hook for ``dem_to_base`` from the ChaSTE profile.
 
     Resolves an AXIS MISMATCH (contract §8, W2-DENSITY): ``dem_to_base`` calls its
@@ -487,9 +495,9 @@ def polar_mantle_density_fn(mantle_m: float = K.Z_T
 
     # Expose the scalar for honest logging/metadata (callers may read it; closures
     # are otherwise opaque). A plain attribute; nothing depends on it structurally.
-    density_fn.rho_bar = rho_bar  # type: ignore[attr-defined]
+    density_fn.rho_bar = rho_bar  # type: ignore[attr-defined]  # attaching attrs to a function obj
     density_fn.mantle_m = mantle_m  # type: ignore[attr-defined]
-    return density_fn
+    return cast(_DensityFn, density_fn)
 
 
 # ---------------------------------------------------------------------------

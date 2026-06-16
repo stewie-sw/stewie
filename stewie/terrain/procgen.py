@@ -84,7 +84,7 @@ def fbm(height: int, width: int, octaves: int = 5, base_cells: int = 4,
     rng = np.random.default_rng(seed)
     total = np.zeros((height, width), dtype=np.float64)
     amp = 1.0
-    cells = base_cells
+    cells = float(base_cells)              # accumulates *= lacunarity (float); rounded to int per octave
     amp_sum = 0.0
     for _ in range(octaves):
         total += amp * _value_noise(height, width, int(round(cells)), rng)
