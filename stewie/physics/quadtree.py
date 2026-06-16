@@ -192,7 +192,7 @@ def build_quadtree(field_size: int, rover_rc: tuple[float, float] | None, *,
 
         # Decide whether to subdivide (PROMOTION RULE).
         subdivide = False
-        if size > min_leaf and rr is not None:
+        if size > min_leaf and rr is not None and rc is not None:   # rr/rc are the paired refine center
             dist = _box_chebyshev_distance(r0, c0, r1, c1, rr, rc) - footprint_radius_cells
             if dist < refine_factor * size:
                 subdivide = True

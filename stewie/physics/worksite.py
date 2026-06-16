@@ -434,6 +434,8 @@ class WorkSite:
     def active_rc_for_xy(self, xy: tuple[float, float]) -> tuple[float, float]:
         """Global metres -> (row,col) in the CURRENT active fine window (for driving/masks)."""
         x, y = xy
+        if self.window_world_origin is None:
+            raise RuntimeError("active_rc_for_xy() requires an open active window (call open_window first)")
         ox, oy = self.window_world_origin
         return ((y - oy) / self.fine_cell_m, (x - ox) / self.fine_cell_m)
 
@@ -494,6 +496,8 @@ class WorkSite:
     def _active_tile_fields(self, tr: int, tc: int) -> dict:
         """LIVE worked fields of base-tile (tr,tc) sliced out of the CURRENT active window
         (un-committed) — mirrors :meth:`_commit_active`'s indexing."""
+        if self.active_origin_base_rc is None:
+            raise RuntimeError("_active_tile_fields() requires an open active window")
         br0, bc0 = self.active_origin_base_rc
         k = self.k
         r0, c0, r1, c1 = self._tile_region(tr, tc)

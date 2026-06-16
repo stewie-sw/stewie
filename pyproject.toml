@@ -132,8 +132,6 @@ module = [
     "stewie.envs.active_perception_env",
     "stewie.envs.rover_env",
     "stewie.physics.column_state",
-    "stewie.physics.quadtree",
-    "stewie.physics.worksite",
     "stewie.terrain.dem_overlay",
     "stewie.terrain.procgen",
     "stewie.terrain.procgen_csfd",
