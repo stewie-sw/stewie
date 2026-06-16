@@ -1,0 +1,20 @@
+{
+  "url": "http://127.0.0.1:8803",
+  "shots": [
+    "validation/cockpit_fs20/00_gate.png",
+    "validation/cockpit_fs20/01_cockpit.png",
+    "validation/cockpit_fs20/02_profile_menu.png",
+    "validation/cockpit_fs20/pane_plan.png",
+    "validation/cockpit_fs20/pane_nav.png",
+    "validation/cockpit_fs20/pane_perception.png",
+    "validation/cockpit_fs20/pane_metrics.png",
+    "validation/cockpit_fs20/pane_report.png",
+    "validation/cockpit_fs20/pane_settings.png",
+    "validation/cockpit_fs20/pane_system.png",
+    "validation/cockpit_fs20/pane_admin.png",
+    "validation/cockpit_fs20/99_mobile.png"
+  ],
+  "errors": [],
+  "set_apikey_present": false,
+  "ok": true
+}

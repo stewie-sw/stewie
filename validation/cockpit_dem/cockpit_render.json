@@ -1,0 +1,20 @@
+{
+  "url": "http://127.0.0.1:8807",
+  "shots": [
+    "validation/cockpit_dem/00_gate.png",
+    "validation/cockpit_dem/01_cockpit.png",
+    "validation/cockpit_dem/02_profile_menu.png",
+    "validation/cockpit_dem/pane_plan.png",
+    "validation/cockpit_dem/pane_nav.png",
+    "validation/cockpit_dem/pane_perception.png",
+    "validation/cockpit_dem/pane_metrics.png",
+    "validation/cockpit_dem/pane_report.png",
+    "validation/cockpit_dem/pane_settings.png",
+    "validation/cockpit_dem/pane_system.png",
+    "validation/cockpit_dem/pane_admin.png",
+    "validation/cockpit_dem/99_mobile.png"
+  ],
+  "errors": [],
+  "set_apikey_present": false,
+  "ok": true
+}
