@@ -16,10 +16,11 @@ from stewie.specs import config, constants, ipex_specs
 @pytest.fixture
 def clean_reload():
     """After each test, strip STEWIE_* env and reload the constant modules to defaults so an override
-    cannot leak into the rest of the suite. Up front, strip the suite-wide STEWIE_DEV_OPEN /
-    STEWIE_DEV_OPEN auth flag (set by the repo conftest) -- it is an auth control, not a config
-    override, so the 'no env -> identity' overlay test must not see it."""
-    for var in ("STEWIE_DEV_OPEN", "STEWIE_DEV_OPEN"):
+    cannot leak into the rest of the suite. Up front, strip the suite-wide vars the repo conftest
+    injects -- STEWIE_DEV_OPEN (an auth control) and STEWIE_DATA_DIR (the #122 per-test data-dir
+    isolation) -- since get_overrides() scans all STEWIE_* vars, so the 'no env -> identity' overlay
+    test must not see either."""
+    for var in ("STEWIE_DEV_OPEN", "STEWIE_DATA_DIR"):
         os.environ.pop(var, None)
     yield
     for var in [v for v in os.environ if v.startswith("STEWIE_")]:

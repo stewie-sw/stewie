@@ -15,6 +15,19 @@ def _dev_open(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _isolate_data_dir(tmp_path_factory, monkeypatch):
+    """#122: every worker otherwise shares the default $STEWIE_DATA_DIR (~/.local/share/stewie), so under
+    `pytest -n auto` tests that write app-data there race -- mission report PDFs (the /plan stem is a
+    deterministic HMAC of the payload, so identical payloads collide on one {stem}.pdf across workers),
+    events.jsonl, profiles, the operators store. A reader then catches a half-written report (the
+    b'\\x00\\x00\\x00\\x00\\x00' != b'%PDF-' failure). Give every test its OWN scratch data dir so on-disk
+    app-data is isolated across workers. A test that wants a specific dir (the ~20 that set STEWIE_DATA_DIR
+    to their tmp_path) or the unset default (test_data_dir_default_is_outside_the_package pops the var)
+    overrides this afterward -- its monkeypatch/pop runs after this fixture and wins."""
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path_factory.mktemp("appdata")))
+
+
+@pytest.fixture(autouse=True)
 def _reset_security_health():
     """S-10 / SEC-02: the audit-ledger and session-revocation health flags are process-global. A test
     that deliberately induces a degraded state (a fail-closed probe) would otherwise leave /healthz
