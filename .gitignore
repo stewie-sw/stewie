@@ -151,3 +151,12 @@ validation/ui/
 validation/ipex/
 deploy/.env
 stewie/godot/.tools/
+
+# ── Local-only: agent-orientation docs + non-standard working notes (never pushed) ──
+CLAUDE.md
+AGENTS.md
+.internal/
+# Runtime-generated mission-control + pytest reports (CFG.reports_dir output)
+stewie/server/reports/
+# Dated UI-eval screenshots (regenerable via scripts/ui_eval.py; cf. validation/ui/)
+validation/ui_2026-*/
