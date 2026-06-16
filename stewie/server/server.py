@@ -134,6 +134,7 @@ from stewie.server.routers import rc as _rc_router  # noqa: E402
 from stewie.server.routers import sample_missions as _sample_missions_router  # noqa: E402
 from stewie.server.routers import session as _session_router  # noqa: E402
 from stewie.server.routers import structures as _structures_router  # noqa: E402
+from stewie.server.routers import schema as _schema_router  # noqa: E402
 from stewie.server.routers import twin as _twin_router  # noqa: E402
 from stewie.server.routers import world as _world_router  # noqa: E402
 app.include_router(_rc_router.router)
@@ -151,6 +152,7 @@ app.include_router(_health_router.router)
 app.include_router(_dem_router.router)
 app.include_router(_ephemeris_router.router)
 app.include_router(_world_router.router)
+app.include_router(_schema_router.router)
 app.include_router(_figures_router.router)
 app.include_router(_twin_router.router)
 app.include_router(_admin_ops_router.router)
