@@ -1,7 +1,8 @@
 """DEM source registry (TW-01/02/03, M11): the catalog of REAL public lunar DEM products selectable as
 base layers -- LRO LOLA global, LOLA south-pole, LROC NAC SfS, PDS radar, PGDA COGs, CGI Moon Kit. Only
-the small Haworth tile is bundled; every other source is real-data-gated (you supply a downloaded file,
-exactly like dem_import / Katwijk -- no synthetic terrain). Every source carries provenance + license so
+three real LOLA tiles are bundled (Haworth + the Nobile/Shackleton rim tiles, #150); every other source
+is real-data-gated (you supply a downloaded file, like dem_import / Katwijk -- no synthetic terrain).
+Every source carries provenance + license so
 the THIRD_PARTY audit (#124) and the cockpit layer selector have a single source of truth.
 
 Run: <venv>/bin/python -m pytest dart/test_dem_sources.py -q
@@ -18,10 +19,13 @@ def test_catalog_has_the_known_real_products():
         assert expected in ids, expected
 
 
-def test_only_haworth_is_bundled_rest_are_real_data_gated():
-    by = {s.id: s for s in S.list_dem_sources()}
-    assert by["haworth_10km_5m"].bundled is True
-    assert all(not s.bundled for s in S.list_dem_sources() if s.id != "haworth_10km_5m")
+def test_bundled_sources_match_the_three_on_disk_tiles_rest_gated():
+    # #150: three real LOLA tiles are carved into samples/lunar_dem (Haworth work site + the
+    # Artemis-candidate Nobile/Shackleton rim tiles); every other catalog entry is a real-data-gated
+    # download (you supply the product). The bundled set must match exactly the on-disk tiles.
+    bundled = {s.id for s in S.list_dem_sources() if s.bundled}
+    assert bundled == {"haworth_10km_5m", "nobile_rim1_10km_5m", "shackleton_rim_10km_5m"}, bundled
+    assert [s for s in S.list_dem_sources() if not s.bundled], "catalog should still list gated products"
 
 
 def test_every_source_is_lunar_framed_and_provenanced():
