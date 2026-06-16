@@ -395,6 +395,12 @@ allowed if they meet the acceptance criteria.
 | PM-10 | P1 | Benchmark on a fixed LAC-style suite: localization RMSE, 5 cm height-cell pass fraction, rock F1, coverage, runtime, and failure count across seeds/light/rocks. | P | N | P | N |
 | PM-11 | P1 | Target benchmark: demonstrate repeatable centimeter-scale localization comparable to the `0.038-0.067 m` `[NAVLAB26]` reference before claiming parity. | N | N | N | N |
 | PM-12 | P1 | Truth pose and semantic masks are development/evaluation-only and structurally unavailable to operational estimator code. | N | N | N | NA |
+| PM-13 | P1 | Stereo distance/range: rectified stereo pairs yield a calibrated disparity→depth estimate to a selected pixel/target, with per-estimate uncertainty from baseline + disparity noise. Acceptance scores the estimate against the conserved truth depth in sim (no synthetic depth). | N | N | N | N |
+| PM-14 | P1 | 3D depth point cloud + recognition: a dense/semi-dense point cloud is reconstructed from stereo, expressed in the world frame with per-point confidence; recognition (ground/rock/berm/pit/lander) operates on the cloud, never on truth masks. | N | N | N | N |
+| PM-15 | P1 | Regional target height: over an operator-selected footprint, estimate a height field / max-min relief (berm crest, pad flatness, obstacle height) from the stereo cloud, with uncertainty; acceptance compares to the conserved as-built truth (ties CP-06 flatness/profile and I11 as-built RMSE). | N | N | N | N |
+| PM-16 | P1 | Regional target volume: over a selected footprint, integrate cut/fill volume (excavated pit, spoil/berm) from the stereo height field vs a reference datum, with an uncertainty band; cross-checked against the conserved mass/volume the authority actually moved (CT-03 conservation). | N | N | N | N |
+
+PM-13–16 are the stereo-perception *measurement* family — they feed the construction-acceptance loop and the Perception ("what it sees") pane, and are validated against the conserved-physics truth rather than synthetic data. They are the perceived counterparts to the truth-field acceptance already in CP-06/I11; all are gated on the render→depth pipeline (the §16.7 perception layer).
 
 ### 7.6 Solar-Terrain Navigation
 
