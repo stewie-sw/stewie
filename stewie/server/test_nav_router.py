@@ -54,3 +54,33 @@ def test_local_plan_rejects_extra_fields(client):
                                              "true_slip": 0.9})   # extra key (extra='forbid')
     # the app maps Pydantic validation failures to 400 + {ok:false,error} (not FastAPI's 422 default)
     assert r.status_code == 400 and r.json()["ok"] is False
+
+
+# --- NV-08 faults + NV-09 executive over the API -------------------------------------------------
+def test_nav_faults_classifies_telemetry(client):
+    r = client.post("/nav/faults", json={"tip_margin_deg": -1.0, "battery_frac": 0.5})
+    assert r.status_code == 200
+    j = r.json()
+    assert j["ok"] and j["summary"]["safety_critical"] is True       # exhausted tip margin -> critical
+    assert any(f["fault"] == "tip" and f["severity"] == "critical" for f in j["faults"])
+
+
+def test_nav_executive_fail_safe_on_critical_fault(client):
+    r = client.post("/nav/executive", json={"slip": 0.97})           # entrapment -> critical
+    j = r.json()
+    assert r.status_code == 200 and j["action"] == "fail_safe" and j["safety_critical"] is True
+
+
+def test_nav_executive_routes_recovery_and_continues_when_nominal(client):
+    # a stalled, blocked rover (progress far below slip prediction) -> reverse
+    rev = client.post("/nav/executive", json={"progress_ratio": 0.05, "stall_duration_s": 3.0,
+                                              "expected_progress_ratio": 0.9}).json()
+    assert rev["action"] == "reverse"
+    # nominal telemetry -> continue
+    nom = client.post("/nav/executive", json={"battery_frac": 0.8}).json()
+    assert nom["action"] == "continue" and nom["safety_critical"] is False
+
+
+def test_nav_executive_pauses_on_unacked_command(client):
+    j = client.post("/nav/executive", json={"command_acked": False}).json()
+    assert j["action"] == "pause"

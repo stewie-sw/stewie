@@ -61,3 +61,58 @@ def post_local_plan(req: LocalPlanRequest, _auth: None = Depends(require_auth)):
             "command": {"v_cmd": round(cmd["v_cmd"], 5), "omega_cmd": round(cmd["omega_cmd"], 5),
                         "expected_speed_ms": round(cmd["expected_speed_ms"], 5),
                         "duration_s": round(cmd["duration_s"], 3), "arc_length_m": round(cmd["arc_length_m"], 4)}}
+
+
+class FaultRequest(BaseModel):
+    # NV-08: the telemetry signals the existing models produce; all optional (only what's supplied is checked)
+    model_config = ConfigDict(extra="forbid")
+    tip_margin_deg: float | None = Field(default=None, ge=-90.0, le=90.0)
+    slip: float | None = Field(default=None, ge=0.0, le=1.0)
+    loc_sigma_m: float | None = Field(default=None, ge=0.0, le=1e4)
+    battery_frac: float | None = Field(default=None, ge=0.0, le=1.0)
+    temp_c: float | None = Field(default=None, ge=-273.0, le=1000.0)
+    actuator_ok: bool | None = None
+
+
+class ExecutiveRequest(FaultRequest):
+    # NV-09: the fault signals (inherited) + the executive's other monitored inputs + optional recovery
+    # telemetry (NV-06/07) and a reactive replan scope (NV-05). extra='forbid' -> no hidden state rides in.
+    command_acked: bool = True
+    plan_accepted: bool = True
+    progress_ratio: float | None = Field(default=None, ge=0.0, le=10.0)
+    stall_duration_s: float | None = Field(default=None, ge=0.0, le=1e6)
+    expected_progress_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    planner_failed: bool = False
+    reactive_scope: str | None = Field(default=None, pattern=r"^(local|global)$")
+
+
+_FAULT_KEYS = ("tip_margin_deg", "slip", "loc_sigma_m", "battery_frac", "temp_c", "actuator_ok")
+
+
+@router.post("/nav/faults")
+def post_faults(req: FaultRequest, _auth: None = Depends(require_auth)):
+    """NV-08: classify the active fault state from the supplied telemetry (tip margin, slip, pose sigma,
+    battery fraction, temperature, actuator status) -> the fault records + a safety-critical rollup."""
+    from lode import faults as F
+    active = F.classify_faults(**{k: getattr(req, k) for k in _FAULT_KEYS if getattr(req, k) is not None})
+    return {"ok": True, "faults": active, "summary": F.fault_summary(active)}
+
+
+@router.post("/nav/executive")
+def post_executive(req: ExecutiveRequest, _auth: None = Depends(require_auth)):
+    """NV-09: one autonomy executive step. Classifies faults (NV-08), folds in a recovery recommendation
+    (NV-06/07, when the progress telemetry is supplied) and a reactive replan scope (NV-05), and returns
+    the safe next action in strict precedence (fail_safe wins): fail_safe / pause / replan_global /
+    reverse / persist / replan_local / continue -- the single decision the cockpit + autonomy loop call."""
+    from lode import executive as EX
+    from lode import faults as F
+    from lode import recovery as R
+    active = F.classify_faults(**{k: getattr(req, k) for k in _FAULT_KEYS if getattr(req, k) is not None})
+    recovery = None
+    pr, sd, ep = req.progress_ratio, req.stall_duration_s, req.expected_progress_ratio
+    if pr is not None and sd is not None and ep is not None:
+        recovery = R.recommend(float(pr), float(sd), float(ep), planner_failed=req.planner_failed)
+    reactive = {"scope": req.reactive_scope} if req.reactive_scope else None
+    out = EX.executive_step(faults=active, command_acked=req.command_acked, plan_accepted=req.plan_accepted,
+                            recovery=recovery, reactive=reactive)
+    return {"ok": True, **out, "faults": active, "fault_summary": F.fault_summary(active)}
