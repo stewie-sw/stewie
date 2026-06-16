@@ -16,7 +16,7 @@ router = APIRouter()
 @router.post("/structures/custom/{name}")
 def structure_save(name: str, doc: dict, _auth: str = Depends(require_auth)):
     try:
-        out = OBJ.save_structure(name, doc)
+        out = OBJ.save_structure(name, doc, owner=_auth)      # AG-05: stamp the creating operator
         log_event(_auth, "structure.save", out["name"])
         return {"ok": True, **out}
     except ValueError as e:

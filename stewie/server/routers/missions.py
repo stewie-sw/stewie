@@ -16,7 +16,7 @@ router = APIRouter()
 @router.post("/missions/{name}")
 def mission_save(name: str, doc: dict, _auth: str = Depends(require_auth)):
     try:
-        out = OBJ.save_mission(name, doc)
+        out = OBJ.save_mission(name, doc, owner=_auth)        # AG-05: stamp the creating operator
         log_event(_auth, "mission.save", out["name"])
         return {"ok": True, **out}
     except ValueError as e:
