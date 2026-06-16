@@ -415,8 +415,11 @@ async function editPlace(lat, lon) {
     const n = ORDERS.filter((o) => o.kind === "goto").length + 1;
     const wp = { action: `wp${n}`, kind: "goto", x: d.x_m, y: d.y_m };
     ORDERS.push(wp);
-    dropPin(lat, lon, `wp${n} (${d.x_m}, ${d.y_m})`, "#e8273f", { kind: "order", obj: wp });
-    renderQueue(); $("editstate").textContent = `wp${n} @ site ${d.x_m}, ${d.y_m} m`;
+    // #4 (Aaron: "wp1(2310,8165) doesn't correspond to coords"): label the pin with UNITS + frame + the
+    // real lat/lon so it's self-explanatory -- x/y are metres East/North in the site-local frame.
+    dropPin(lat, lon, `wp${n} · ${d.x_m} m E, ${d.y_m} m N (site) · ${Number(lat).toFixed(3)}°, ${Number(lon).toFixed(3)}°`,
+            "#e8273f", { kind: "order", obj: wp });
+    renderQueue(); $("editstate").textContent = `wp${n} @ site-frame ${d.x_m} m E, ${d.y_m} m N (${Number(lat).toFixed(3)}°, ${Number(lon).toFixed(3)}°)`;
   } else if (EDIT.tool === "keepout") {
     snapshotAuthoring();
     const ko = { x: d.x_m, y: d.y_m, r: 8 };
@@ -1404,6 +1407,18 @@ function estimate() {
   $("est").innerHTML = "";
   const summary = document.createElement("span");
   summary.textContent = `${(cutMass / 1000).toFixed(1)} t · ${charges.toFixed(1)} charges · ~${Math.round(hrs + rechargeH).toLocaleString()} h incl. recharge `;
+  // #7 (conservative feasibility, Aaron): a single battery charge is the conservative baseline. >1 charge
+  // = a multi-sortie mission -> FLAG it amber ("review"), never present it as feasible-green. Planning
+  // still allows >1 charge (not capped); the readout just stops calling it green.
+  const overCharge = charges > 1.0 + 1e-9;
+  if (overCharge) {
+    summary.style.color = "#e0b300";                         // amber = review-needed, not the green feasible state
+    const flag = document.createElement("b");
+    flag.textContent = `⚠ ${Math.ceil(charges - 1e-9)} sorties (>1 charge) — review  `;
+    flag.style.cssText = "color:#e0b300";
+    flag.title = "exceeds a single battery charge -> multi-sortie; the conservative default flags this for review rather than feasible-green";
+    $("est").append(flag);
+  }
   const info = document.createElement("button");
   info.textContent = "ⓘ details";
   info.style.cssText = "background:none;border:1px solid var(--line);border-radius:4px;color:var(--accent);cursor:pointer;font-size:10px;padding:1px 6px";
@@ -1806,7 +1821,9 @@ function undoAuthoring() {
 let QSORT = { key: null, dir: 1 };                          // UI-14: column sort (display-only)
 function renderQueue() {
   const tb = qel("qtable"); tb.innerHTML = "";
-  const cols = [["#", null], ["kind", "kind"], ["action", "action"], ["x", "x"], ["y", "y"],
+  // #4: x/y are site-local metres (East/North from the site origin) -- label the units so a queued
+  // "wp1  2310  8165" reads as 2310 m E, 8165 m N, not bare unexplained numbers.
+  const cols = [["#", null], ["kind", "kind"], ["action", "action"], ["x m·E", "x"], ["y m·N", "y"],
                 ["m²", "footprint_m2"], ["depth", "depth_m"], ["", null]];
   const tr = document.createElement("tr");
   cols.forEach(([label, key]) => {
