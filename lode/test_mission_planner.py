@@ -336,29 +336,43 @@ def test_read_dem_window_matches_full_load_crop():
     assert np.array_equal(far, Z[1980:2000, 1980:2000])
 
 
+def _isolated_peak_bytes(call_src: str) -> int:
+    """#159: PEAK process allocation of `call_src` measured in a FRESH interpreter. The ceiling tests must
+    be load-order independent, but tracemalloc is PROCESS-WIDE: under a server-first run order a co-loaded
+    TestClient's threads allocate tens of MB DURING the traced window (observed ~64 MB), tripping the
+    ceiling even though read_dem_window itself allocates ~window bytes. A clean subprocess has no such
+    threads, so the peak reflects ONLY this call -> robust regardless of what else the test process loaded."""
+    import os
+    import subprocess
+    import sys
+    prog = ("import tracemalloc\n"
+            "from lode import mission_planner as MP\n"
+            "tracemalloc.start()\n"
+            "_r = " + call_src + "\n"
+            "_cur, _peak = tracemalloc.get_traced_memory()\n"
+            "print(_peak)\n")
+    p = subprocess.run([sys.executable, "-c", prog], capture_output=True, text=True,
+                       env={**os.environ, "PYTHONNOUSERSITE": "1"})
+    assert p.returncode == 0, f"isolated measurement subprocess failed:\n{p.stderr[-500:]}"
+    return int(p.stdout.strip().splitlines()[-1])
+
+
 def test_read_dem_window_holds_a_memory_ceiling():
     # streaming: reading a window allocates ~window bytes, NOT the full 2000^2 (32 MB float64) map
-    import tracemalloc
     full_dem_bytes = 2000 * 2000 * 8
-    tracemalloc.start()
-    win, _ = MP.read_dem_window(500, 500, 128, 128)
-    _, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
+    peak = _isolated_peak_bytes("MP.read_dem_window(500, 500, 128, 128)")
     assert peak < full_dem_bytes // 8                                # comfortably under an eighth of the full map
 
 
 def test_flattest_anchor_streamed_finds_buildable_site_within_memory_ceiling():
     import numpy as np
-    import tracemalloc
     Z, cell = MP.load_haworth_dem()
     median_slope = float(np.median(MP.slope_deg_map(Z, cell)))
-    tracemalloc.start()
-    ax, ay = MP.flattest_anchor_streamed(window_m=20.0, tile=400)
-    _, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
+    ax, ay = MP.flattest_anchor_streamed(window_m=20.0, tile=400)    # in-process: the flat-site (correctness) check
     smap = MP.slope_deg_map(Z, cell)
     col, row = int(round(ax / cell)), int(round(ay / cell))
     assert smap[row, col] < median_slope                            # found a genuinely flat (buildable) site
+    peak = _isolated_peak_bytes("MP.flattest_anchor_streamed(window_m=20.0, tile=400)")   # clean process: the ceiling
     assert peak < 2000 * 2000 * 8                                   # never held the full DEM in RAM
 
 
