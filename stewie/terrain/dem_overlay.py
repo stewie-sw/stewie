@@ -534,7 +534,7 @@ def _self_test() -> int:
     rng = np.random.default_rng(5)
     H, W = 6, 7
     deep = K.RHO_SURFACE * K.REGOLITH_THICKNESS_M       # ~15600 kg/m^2 -> ~12 m thick column
-    base = {
+    base: dict[str, np.ndarray] = {
         "mass_areal": rng.uniform(deep * 0.8, deep * 1.2, (H, W)),
         "density": rng.uniform(1300, 1920, (H, W)),
         "datum": rng.uniform(-1.0, 1.0, (H, W)),

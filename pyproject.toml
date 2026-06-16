@@ -128,7 +128,6 @@ module = [
     "leap.terrain_target_env",
     "stewie.envs.active_perception_env",
     "stewie.envs.rover_env",
-    "stewie.terrain.dem_overlay",
     "stewie.terrain.scenes",
     "stewie.terrain.tiles_mosaic",
 ]

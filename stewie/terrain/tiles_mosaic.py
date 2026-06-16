@@ -420,7 +420,7 @@ def _selftest() -> int:
     #     bit-exact (mass conservation + zero-mean per base cell).
     rng = _np.random.default_rng(5)
     H, W = 6, 7
-    base = {
+    base: dict[str, _np.ndarray] = {
         "mass_areal": rng.uniform(50, 200, (H, W)),
         "density": rng.uniform(1300, 1920, (H, W)),
         "datum": rng.uniform(-1.0, 1.0, (H, W)),
