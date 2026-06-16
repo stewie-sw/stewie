@@ -610,6 +610,26 @@ function setView(name) {
   loadPane(name);
 }
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
+// FS-20: System / Settings / Admin live in the profile menu (off the work-area tab bar), role-gated:
+// Settings everyone, System operator+, Admin director. The items reuse setView -> same pane switch.
+function _rrank(r) { return ["guest", "trainee", "operator", "director"].indexOf(r); }
+function gateChrome(role) {
+  const sys = $("prof-system"), adm = $("prof-admin");
+  if (sys) sys.style.display = (_rrank(role) >= _rrank("operator")) ? "block" : "none";  // System: operator+
+  if (adm) adm.style.display = (role === "director") ? "block" : "none";                 // Admin: director
+}
+(function wireProfile() {
+  const btn = $("profbtn"), menu = $("profmenu"); if (!btn || !menu) return;
+  const close = () => { menu.style.display = "none"; btn.setAttribute("aria-expanded", "false"); };
+  btn.onclick = (e) => { e.stopPropagation();
+    const open = menu.style.display !== "none";
+    menu.style.display = open ? "none" : "block";
+    btn.setAttribute("aria-expanded", open ? "false" : "true"); };
+  menu.querySelectorAll(".profitem[data-view]").forEach((it) => {
+    it.onclick = () => { setView(it.dataset.view); close(); }; });
+  document.addEventListener("click", (e) => {
+    if (menu.style.display !== "none" && !menu.contains(e.target) && !btn.contains(e.target)) close(); });
+})();
 
 // ---- UI-1/UI-2 (PRD 16.5): operator display settings, persisted ------------------------------
 function applySettings(s) {
@@ -838,7 +858,7 @@ async function refreshAuthState() {
     AUTH.role = null; AUTH.identity = null;
     if (st) st.textContent = "not signed in";
     renderWhoami(null);
-    const av = $("vtab-admin"); if (av) av.style.display = "none";
+    gateChrome(null);
     applyGate(); return; }
   try {
     const r = await fetch("/auth/me", { headers: apiHeaders() });
@@ -846,11 +866,11 @@ async function refreshAuthState() {
     const j = await r.json(); AUTH.role = j.role; AUTH.identity = j.identity;
     if (st) st.textContent = "signed in: " + j.identity + " (" + j.role + ")";
     renderWhoami(j.identity, j.role);
-    const av = $("vtab-admin"); if (av) av.style.display = (j.role === "director") ? "inline-block" : "none";
+    gateChrome(j.role);
   } catch (e) { AUTH.role = null; AUTH.identity = null;
     if (st) st.textContent = "not signed in";
     renderWhoami(null);
-    const av = $("vtab-admin"); if (av) av.style.display = "none"; }
+    gateChrome(null); }
   applyGate();   // gated app: reconcile the sign-in gate after every auth refresh (boot + session loss)
 }
 // #117: the signed-in identity chip (who's logged in) + sign-out. renderWhoami(null) hides it; a
@@ -1002,7 +1022,7 @@ async function adminAction(act, email, role) {
   renderAdmin();
 }
 if ($("admin-refresh")) $("admin-refresh").onclick = renderAdmin;
-{ const av = $("vtab-admin"); if (av) av.addEventListener("click", () => setTimeout(renderAdmin, 0)); }
+{ const av = $("prof-admin"); if (av) av.addEventListener("click", () => setTimeout(renderAdmin, 0)); }
 refreshAuthState();
 if ($("set-font")) $("set-font").oninput = () => {
   SETTINGS.fontpx = parseInt($("set-font").value, 10); saveSettings(SETTINGS); applySettings(SETTINGS);

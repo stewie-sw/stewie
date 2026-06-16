@@ -25,7 +25,10 @@ import sys
 
 from playwright.sync_api import sync_playwright
 
-PANES = ["plan", "nav", "perception", "metrics", "report", "system", "settings"]
+# FS-20: the work-area tab bar carries only the mission views; System / Settings / Admin moved into
+# the profile menu (role-gated), so the harness reaches those by opening the menu first.
+WORK_PANES = ["plan", "nav", "perception", "metrics", "report"]
+PROFILE_PANES = ["settings", "system", "admin"]
 
 
 def main() -> int:
@@ -61,13 +64,37 @@ def main() -> int:
             except Exception as e:                       # noqa: BLE001 -- record, keep rendering
                 errors.append(f"login: {e!r}")
         shot("01_cockpit")
-        for pane in PANES:
+        try:                                             # FS-20: capture the account menu OPEN (moved items + role-gating)
+            page.click("#profbtn", timeout=3000)
+            page.wait_for_timeout(300)
+            shot("02_profile_menu")
+            page.click("#profbtn")                       # close it again before the pane loop reopens it
+            page.wait_for_timeout(150)
+        except Exception as e:                           # noqa: BLE001
+            errors.append(f"profile menu: {e!r}")
+        for pane in WORK_PANES:                          # mission views: a .vtab in the top bar
             try:
-                page.click(f"[data-view='{pane}']", timeout=3000)
+                page.click(f".vtab[data-view='{pane}']", timeout=3000)
                 page.wait_for_timeout(800)
                 shot(f"pane_{pane}")
             except Exception as e:                       # noqa: BLE001
                 errors.append(f"pane {pane}: {e!r}")
+        for pane in PROFILE_PANES:                       # FS-20: reached via the profile menu, not the tab bar
+            try:
+                page.click("#profbtn", timeout=3000)     # open the account menu
+                page.wait_for_timeout(200)
+                page.click(f"#profmenu [data-view='{pane}']", timeout=3000)
+                page.wait_for_timeout(800)
+                shot(f"pane_{pane}")
+            except Exception as e:                       # noqa: BLE001
+                errors.append(f"pane {pane}: {e!r}")
+        # FS-20 IA invariants: the moved views are OFF the work-area tab bar and present in the profile menu.
+        vtab_views = page.eval_on_selector_all(".vtab", "els => els.map(e => e.dataset.view)")
+        for moved in ("system", "settings", "admin"):
+            if moved in vtab_views:
+                errors.append(f"FS-20: '{moved}' still in the work-area tab bar {vtab_views}")
+            if not page.query_selector(f"#profmenu [data-view='{moved}']"):
+                errors.append(f"FS-20: '{moved}' missing from the profile menu")
         page.set_viewport_size({"width": 390, "height": 844})
         page.wait_for_timeout(800)
         shot("99_mobile")

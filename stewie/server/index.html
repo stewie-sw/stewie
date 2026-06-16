@@ -425,15 +425,22 @@
       <button class="vtab" data-view="perception">Perception <span class="sysb">DART</span></button>
       <button class="vtab" data-view="metrics">Metrics <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
-      <span class="vtsep" title="engineer / developer / intern views">·</span>
-      <button class="vtab" data-view="system" title="#55: validation, API docs, server ops, config — the operate-the-software cluster">System</button>
-      <button class="vtab" id="vtab-admin" data-view="admin" style="display:none" title="#117: operator accounts — approve / role / revoke / reset (director-only)">Admin</button>
-      <button class="vtab" data-view="settings" title="operator display settings (Carstens & Schuler 2025: font size + lighting)">⚙ Settings</button>
-      <!-- #117: the signed-in identity chip (who's logged in) + sign-out; right-aligned, hidden until signed in -->
-      <span id="whoami" title="signed-in operator" style="margin-left:auto;display:none;align-items:center;gap:7px;padding:0 4px 4px 0">
-        <span id="whoami-av" aria-hidden="true" style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'Orbitron',system-ui,sans-serif"></span>
-        <span id="whoami-label" style="font-size:11px;color:var(--muted);max-width:15em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-        <button id="whoami-signout" class="site" style="font-size:10px;padding:3px 8px" title="sign out">Sign out</button>
+      <!-- FS-20: System / Settings / Admin moved OFF the work-area tab bar into the profile menu (role-gated);
+           an operator sees only the mission work areas. -->
+      <style>.profitem{display:block;width:100%;text-align:left;background:none;border:none;color:var(--fg,#dcdce4);font-size:12px;padding:7px 10px;border-radius:5px;cursor:pointer}.profitem:hover{background:var(--accent);color:#fff}</style>
+      <span id="whoami" title="account" style="margin-left:auto;display:none;position:relative;align-items:center;padding:0 4px 4px 0">
+        <button id="profbtn" aria-haspopup="menu" aria-expanded="false" title="account menu" style="display:inline-flex;align-items:center;gap:7px;border:none;background:none;cursor:pointer;padding:2px">
+          <span id="whoami-av" aria-hidden="true" style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'Orbitron',system-ui,sans-serif"></span>
+          <span id="whoami-label" style="font-size:11px;color:var(--muted);max-width:13em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+          <span aria-hidden="true" style="font-size:9px;color:var(--muted)">&#9662;</span>
+        </button>
+        <div id="profmenu" role="menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:60;min-width:170px;background:var(--panel,#14141c);border:1px solid var(--line,#2a2a36);border-radius:8px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.5)">
+          <button class="profitem" data-view="settings" role="menuitem">&#9881; Settings</button>
+          <button class="profitem" id="prof-system" data-view="system" role="menuitem" style="display:none" title="validation / API / server / config">System</button>
+          <button class="profitem" id="prof-admin" data-view="admin" role="menuitem" style="display:none" title="operator accounts (director-only)">Admin</button>
+          <div style="border-top:1px solid var(--line,#2a2a36);margin:6px 0"></div>
+          <button id="whoami-signout" class="profitem" role="menuitem">Sign out</button>
+        </div>
       </span>
     </nav>
     <div id="viewarea">
