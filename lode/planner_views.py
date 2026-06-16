@@ -279,6 +279,20 @@ def report(mission, trips, flows, per_trip, tl, totals, out_pdf, out_md, endu=No
            f"- **{totals['drum_cycles']} drum cycles** (offload events); drum fill SENSED from motor current "
            f"(no load cell, ICE-RASSOR NTRS 20210022781) -- known to ±{RM.FDC_MPE_HALF_FULL*100:.1f}% when "
            f">half full, ±{RM.FDC_MPE_ALL*100:.1f}% below; rover offloads at the upper confidence bound"]
+    if int(totals.get("vehicles", 1)) > 1:              # FL-03/FL-06: fleet breakdown + shared-charger contention
+        md += ["", "## Fleet",
+               f"- **{int(totals['vehicles'])} rovers**, site-exclusive allocation · makespan "
+               f"**{_dur(totals['makespan_s'])}** (wall-clock the fleet finishes in)"
+               + (f", vs {_dur(totals['makespan_parallel_s'])} with unlimited chargers"
+                  if "makespan_parallel_s" in totals else ""),
+               f"- Shared charger (one server): **{int(totals.get('charger_conflicts', 0))} overlap(s)** "
+               f"serialised FCFS → **+{_dur(totals.get('charger_wait_s', 0.0))}** total queue wait folded "
+               f"into the makespan above",
+               "", "| Rover | Trips | Time | Energy MJ | Drive km | Recharges | Charger wait |",
+               "|---|---|---|---|---|---|---|"]
+        for d in totals.get("vehicles_detail", []):
+            md.append(f"| {d['vehicle']} | {d['n_trips']} | {_dur(d['time_s'])} | {d['energy_J']/1e6:.1f} | "
+                      f"{d['distance_m']/1000:.2f} | {d['charges']} | {_dur(d.get('charger_wait_s', 0.0))} |")
     if totals.get("routed_haul"):                       # I10: hauls routed around real-DEM hazards
         md.append(
             f"- Hauls **routed around hazards** on the real Haworth slope costmap (traverse cap "

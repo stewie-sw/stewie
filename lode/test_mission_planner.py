@@ -1911,6 +1911,20 @@ def test_fl06_oracle_refuses_large_or_precedence_constrained_problems():
         MP.plan_multi_oracle(prec, vehicles=2)
 
 
+def test_fl03_report_surfaces_the_fleet_and_charger_contention():
+    """The mission-control report must SHOW a 2-rover plan's fleet breakdown + the shared-charger
+    contention (FL-03), not hide it behind single-vehicle totals. A 1-rover plan has no Fleet section."""
+    m = _pairs_mission([(x, 0) for x in (200, -200, 400, -400)])      # recharge-forcing -> real contention
+    _pdf, md_path, _t = MP.run(m, stem="fl03_fleet", vehicles=2, algorithm="nearest")
+    with open(md_path) as fh:
+        md = fh.read()
+    assert "## Fleet" in md and "rovers" in md and "Charger wait" in md
+    assert "queue wait folded" in md                                 # the contention is explained, not silent
+    _pdf1, md1_path, _t1 = MP.run(m, stem="fl03_single", vehicles=1)
+    with open(md1_path) as fh:
+        assert "## Fleet" not in fh.read()                           # single-vehicle: no fleet section
+
+
 # ---- P-07: Plan IR preconditions encode action energy + route-to-safe, not just a reserve floor --
 def test_p07_dig_precondition_requires_action_plus_escape_energy_not_just_reserve():
     """P-07: a dig action's battery precondition must require enough energy to COMPLETE the action AND
