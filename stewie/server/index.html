@@ -27,7 +27,7 @@
     --bg:#0a0a0c; --panel:#101013; --head:linear-gradient(180deg,#1b1b1f,#101013); --line:#26262c;
     --field:#141417; --field-bd:#34343c;
     --txt:#d6d6da; --muted:#8a8a93; --dim:#86868f; --accent:#e8273f; --fill:#c8102e; --fill-h:#a30d26;  /* UX-03: --dim >=4.5:1 */
-    --fontpx:13px;   /* UI-1 (Carstens & Schuler 2025 D1): operator-adjustable, persisted */
+    --fontpx:13px;   /* UI-1: operator-adjustable font size, persisted */
   }
   /* UI-2: light theme (dark stays default -- "dark room kept people calm", D8) */
   body.light {
@@ -607,7 +607,7 @@
         <pre id="srvout" class="mono">—</pre>
       </div>
       <div id="pane-settings" class="pane">
-        <div class="cap"><span>SETTINGS — operator display (Carstens &amp; Schuler, IEMS 2025: D1 font / D4+D8 lighting)</span></div>
+        <div class="cap"><span>SETTINGS — operator display</span></div>
         <div style="padding:14px; display:flex; flex-direction:column; gap:14px; max-width:34em">
           <label style="display:flex; align-items:center; gap:10px">
             <b>Theme</b>
@@ -626,9 +626,7 @@
             <input id="set-font" type="range" min="11" max="20" step="1" value="13" style="width:12em" />
             <span id="set-fontv">13 px</span>
           </label>
-          <div style="opacity:.75">Settings persist in this browser (localStorage). Source: the IPEx
-            mock-mission operator interviews — "font size small makes it hard to look at a glance"
-            (P8), "displays could have larger font" (P4); dim/dark lighting D4/D8. PRD §16.5.</div>
+          <div style="opacity:.75">Settings persist in this browser.</div>
         </div>
       </div>
       <div id="pane-config" class="pane">
