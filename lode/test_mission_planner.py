@@ -1925,6 +1925,31 @@ def test_fl06_oracle_refuses_large_or_precedence_constrained_problems():
         MP.plan_multi_oracle(prec, vehicles=2)
 
 
+def test_fl02_temporal_conflicts_flags_nearby_simultaneous_work():
+    """FL-02: two vehicles working within the proximity radius at OVERLAPPING times is a space-time
+    conflict (beyond exact same-site); a charger overlap is NOT (handled by the FCFS queue), and distant
+    or non-overlapping work is clean."""
+    near = [{"tl": [{"kind": "cut", "x0": 0.0, "y0": 0.0, "x1": 0.0, "y1": 0.0, "t0": 0.0, "t1": 100.0}]},
+            {"tl": [{"kind": "cut", "x0": 5.0, "y0": 0.0, "x1": 5.0, "y1": 0.0, "t0": 50.0, "t1": 150.0}]}]
+    assert MP._temporal_conflicts(near, proximity_m=10.0) == 1      # 5 m apart, times overlap -> conflict
+    assert MP._temporal_conflicts(near, proximity_m=3.0) == 0       # tighter radius -> not a conflict
+    far = [{"tl": [{"kind": "cut", "x0": 0.0, "y0": 0.0, "x1": 0.0, "y1": 0.0, "t0": 0.0, "t1": 100.0}]},
+           {"tl": [{"kind": "cut", "x0": 200.0, "y0": 0.0, "x1": 200.0, "y1": 0.0, "t0": 50.0, "t1": 150.0}]}]
+    assert MP._temporal_conflicts(far) == 0                          # far apart -> clean
+    disjoint = [{"tl": [{"kind": "cut", "x0": 0.0, "y0": 0.0, "x1": 0.0, "y1": 0.0, "t0": 0.0, "t1": 40.0}]},
+                {"tl": [{"kind": "cut", "x0": 1.0, "y0": 0.0, "x1": 1.0, "y1": 0.0, "t0": 60.0, "t1": 100.0}]}]
+    assert MP._temporal_conflicts(disjoint) == 0                     # adjacent but non-overlapping in time -> clean
+    charger = [{"tl": [{"kind": "charge", "x0": 0.0, "y0": 0.0, "x1": 0.0, "y1": 0.0, "t0": 0.0, "t1": 100.0}]},
+               {"tl": [{"kind": "charge", "x0": 0.0, "y0": 0.0, "x1": 0.0, "y1": 0.0, "t0": 10.0, "t1": 50.0}]}]
+    assert MP._temporal_conflicts(charger) == 0                      # charger overlap excluded (FCFS-queue handled)
+
+
+def test_fl02_plan_totals_report_temporal_conflicts():
+    m = _pairs_mission([(40, 0), (-40, 5), (80, 0)])
+    *_rest, totals = MP.plan_and_simulate(m, vehicles=2)
+    assert "temporal_conflicts" in totals and isinstance(totals["temporal_conflicts"], int)
+
+
 def test_fl04_per_rover_health_state_and_replan_trigger():
     """FL-04: every fleet plan carries a per-rover belief/health/resource state (feasibility, lowest
     battery margin, recharges, a health rollup), and a stranded rover sets the fleet replan trigger."""

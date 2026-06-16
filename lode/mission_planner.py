@@ -1331,6 +1331,30 @@ def _resolve_charger_queue(per_vehicle):
     return delay
 
 
+def _temporal_conflicts(per_vehicle, *, proximity_m: float = 10.0) -> int:
+    """FL-02: SPACE-TIME conflicts beyond exact same-site overlap -- two DIFFERENT vehicles working within
+    proximity_m of each other at OVERLAPPING times (rovers crowding adjacent sites simultaneously). Uses
+    the timeline's STATIONARY work segments (x0==x1, y0==y1; charge excluded -- the charger is handled by
+    the FCFS queue + _charger_conflicts) and their [t0,t1] windows. Returns the count (0 = deconflicted).
+    proximity_m is an [ASSUMPTION] safe-separation radius. Continuous moving haul-PATH crossing is future
+    MV work; this catches the stationary crowding case the same way _charger_conflicts surfaces overlaps."""
+    stat = []                                              # (vehicle, x, y, t0, t1) for each stationary work span
+    for v, pv in enumerate(per_vehicle):
+        for s in pv.get("tl", []):
+            if s.get("kind") == "charge" or "x0" not in s:
+                continue
+            if abs(s["x0"] - s.get("x1", s["x0"])) < 1e-9 and abs(s["y0"] - s.get("y1", s["y0"])) < 1e-9:
+                stat.append((v, float(s["x0"]), float(s["y0"]), float(s["t0"]), float(s["t1"])))
+    n = 0
+    for i in range(len(stat)):
+        vi, xi, yi, a0, a1 = stat[i]
+        for j in range(i + 1, len(stat)):
+            vj, xj, yj, b0, b1 = stat[j]
+            if vi != vj and a0 < b1 and b0 < a1 and math.hypot(xi - xj, yi - yj) < proximity_m:
+                n += 1                                     # different vehicles, overlapping time, within radius
+    return n
+
+
 def _rover_health(pv) -> dict:
     """FL-04: distill one rover's belief/health/resource state from its battery-aware sim -- feasibility,
     the LOWEST battery SoC fraction it reaches (the resource margin), its recharge count, and a health
@@ -1431,6 +1455,7 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
                   charger_wait_s=charger_wait_s, charger_queue_modeled=True,
                   vehicle_conflicts=int(conflicts), vehicles_detail=detail,
                   fleet_needs_replan=bool(fleet_needs_replan),
+                  temporal_conflicts=int(_temporal_conflicts(per_vehicle)),   # FL-02: nearby-site space-time crowding
                   charger_conflicts=int(_charger_conflicts(per_vehicle, mission)))
     return all_trips, flows, all_per_trip, all_tl, totals
 

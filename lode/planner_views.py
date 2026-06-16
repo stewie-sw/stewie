@@ -288,6 +288,8 @@ def report(mission, trips, flows, per_trip, tl, totals, out_pdf, out_md, endu=No
                f"- Shared charger (one server): **{int(totals.get('charger_conflicts', 0))} overlap(s)** "
                f"serialised FCFS → **+{_dur(totals.get('charger_wait_s', 0.0))}** total queue wait folded "
                f"into the makespan above"
+               + (f"  ·  ⚠ **{int(totals['temporal_conflicts'])} space-time conflict(s)** "
+                  "(rovers crowding adjacent sites simultaneously)" if totals.get("temporal_conflicts") else "")
                + ("  ·  ⚠ **fleet needs replan** (a rover stranded — reallocate its work)"
                   if totals.get("fleet_needs_replan") else ""),
                # FL-04: per-rover belief/health/resource state (health + lowest battery margin reached)
