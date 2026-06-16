@@ -11,6 +11,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 
 from stewie.bridge import rc_contract as RC
+from stewie.server import objects as OBJ
 from stewie.server.deps import require_auth, require_role
 from stewie.server.services import log_event
 
@@ -27,6 +28,14 @@ def rc_command(body: dict, identity: str = Depends(require_role("operator"))):
     watchdog. This is the real rover-command path -> operator+ required (a guest/trainee cannot drive
     the rover). SetSim (a training time-warp) is further DIRECTOR-only; GoTo/Safe need any operator+."""
     from stewie.server import auth as AUTH
+    # AG-08 (PRD §7.12, END GOAL): a command issued FOR a mission may only target a PUBLISHED (live)
+    # mission. operator+ is already enforced by the route gate; the SF-01 watchdog wraps submission
+    # below; here we bar the sandbox -> a trainee's (or anyone's) sandbox draft can be simulated but is
+    # structurally unable to be lowered to a real rover command. Low-level teleop carries no mission ref.
+    mission = body.get("mission")
+    if mission is not None and OBJ.load_mission(str(mission), namespace="live") is None:
+        raise HTTPException(status_code=403, detail=f"mission {mission!r} is not published (live); only a "
+                            "live mission can be commanded to the rover")
     kind = str(body.get("kind", "")).lower()
     now = time.monotonic()
     with _RC_LOCK:
