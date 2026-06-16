@@ -77,8 +77,15 @@ def make_ros2_node(watchdog: RC.SafingWatchdog, *, cmd_vel_topic: str = "/cmd_ve
                    odom_topic: str = "/stewie/odom", horizon_s: float = 1.0, cell_m: float = 1.0):
     """Construct the LIVE rclpy Node (subscribes cmd_vel, ticks the SF-01 dead-man on a timer, publishes
     odom). Gated: raises RuntimeError if rclpy is absent -- the live node needs a ROS2 Jazzy host; the
-    translation + RcBridge above run and are tested without it. (Phase A delivers the seam + ingress;
-    standing up the live node on a ROS2 host is the gated remainder.)"""
+    translation + RcBridge above run and are tested without it. (Phase A delivers the seam + ingress.)
+
+    RUN-VERIFIED 2026-06-16 on the `stewie-ros2:latest` ROS2 Jazzy container: the node constructs and a
+    published /cmd_vel Twist (0.25 m/s, 0.1 rad/s) flows through to the SF-01 watchdog as the expected
+    GoTo (3 commands recorded, goal ~0.25 cells ahead = the 1 s-horizon projection). Reproduce:
+        docker run --rm -v "$PWD:/ws" -e PYTHONPATH=/ws stewie-ros2:latest python3 -c \\
+          "from stewie.bridge import ros2_bridge as B, rc_contract as RC; \\
+           B.make_ros2_node(RC.SafingWatchdog(RC.RecordingBackend()))"
+    (rclpy loads via the image entrypoint sourcing /opt/ros/jazzy/setup.bash -- do NOT `bash -lc`.)"""
     try:
         import rclpy  # type: ignore[import-not-found]
         from geometry_msgs.msg import Twist  # type: ignore[import-not-found]
