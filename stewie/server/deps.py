@@ -129,3 +129,17 @@ def require_role(min_role: str):
         return identity
 
     return _dep
+
+
+def namespace_for(identity: str, requested: str = "live") -> tuple[str, str | None]:
+    """AG-07 (PRD §7.12): resolve (namespace, sandbox_owner) for a request. A sub-operator
+    (trainee/guest) is CONFINED to their own sandbox -- they cannot read or write live regardless of
+    what they ask for. An operator+ defaults to live but may target their own sandbox with ?ns=sandbox.
+    The sandbox owner is always the caller (you only ever see your own sandbox)."""
+    from stewie.server import auth as AUTH
+    from stewie.server import operators as OPS
+    if OPS.role_rank(AUTH.role_of(identity)) < OPS.role_rank("operator"):
+        return "sandbox", identity
+    if requested == "sandbox":
+        return "sandbox", identity
+    return "live", None
