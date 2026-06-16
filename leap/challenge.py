@@ -229,3 +229,17 @@ def authored_challenges() -> list[Challenge]:
                   objective=Objective(type="build_berm", region=(28, 24, 36, 40),
                                       target_delta_m=0.08, tolerance_m=0.02)),
     ]
+
+
+def default_challenge() -> Challenge:
+    """The small, self-contained flatten-a-pad challenge the construction envs default to when none is
+    given (the Stewie/Construct + Stewie/SkillMacro gym registrations). It lives HERE, not in
+    stewie.envs.registration, so registering the envs does not import leap.challenge at stewie-import
+    time -- that cycle (leap.challenge -> stewie.physics -> stewie.__init__ -> register_envs ->
+    leap.challenge) broke `pytest leap/` collection (#157)."""
+    return Challenge(
+        id="dust_default", name="Flatten a construction pad", difficulty_tier=2,
+        map=MapSpec(seed=0, base="bumps", grid=48, roughness_m=0.004),
+        objective=Objective(type="flatten_pad", region=(16, 16, 32, 32), tolerance_m=0.01),
+        constraints=Constraints(max_time_steps=400),
+    )

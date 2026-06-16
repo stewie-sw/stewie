@@ -41,11 +41,13 @@ HAS_GYM = _HAS_GYM
 class TerrainTargetEnv(_BASE):
     metadata = {"render_modes": []}
 
-    def __init__(self, challenge: chmod.Challenge, *, patch: int = 7, dt: float = 0.1,
+    def __init__(self, challenge: "chmod.Challenge | None" = None, *, patch: int = 7, dt: float = 0.1,
                  v_max: float = 0.3, omega_max: float = 1.0,
                  cut_depth_m: float = 0.02, drum_half_cells: float = 5.0,
                  match_reward_scale: float = 20.0, goal_radius_cells: float = 2.0):
         super().__init__()
+        if challenge is None:                          # gym.make registers no challenge (avoids an import
+            challenge = chmod.default_challenge()       # cycle at stewie-import time, #157); build it lazily
         self.challenge = challenge
         self.obj_type = challenge.objective.type
         self.region = challenge.objective.region

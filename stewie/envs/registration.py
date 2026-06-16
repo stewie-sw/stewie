@@ -41,17 +41,6 @@ ENV_IDS = (
 _REGISTERED = False
 
 
-def _default_challenge():
-    """A small, self-contained flatten-a-pad challenge used as the default for the construction envs."""
-    from leap import challenge as ch
-    return ch.Challenge(
-        id="dust_default", name="Flatten a construction pad", difficulty_tier=2,
-        map=ch.MapSpec(seed=0, base="bumps", grid=48, roughness_m=0.004),
-        objective=ch.Objective(type="flatten_pad", region=(16, 16, 32, 32), tolerance_m=0.01),
-        constraints=ch.Constraints(max_time_steps=400),
-    )
-
-
 def _scheduler_kwargs():
     from stewie.specs import ipex_specs as ix
     return dict(
@@ -74,7 +63,10 @@ def register_envs():
         from gymnasium.envs.registration import register, registry
     except Exception:
         return
-    dc = _default_challenge()
+    # NOTE: the construction envs build their default challenge LAZILY in their own __init__
+    # (leap.challenge.default_challenge) -- registering must NOT import leap.challenge here, or it forms
+    # a cycle (leap.challenge -> stewie.physics -> stewie.__init__ -> register_envs) that breaks
+    # `pytest leap/` collection (#157).
     rover_ep = "stewie.envs.rover_env:RoverSimEnv"
     specs = [
         # DRIVE: default (Moon) + per-body. (id, "module:Class", kwargs, max_episode_steps)
@@ -85,9 +77,9 @@ def register_envs():
     # CONSTRUCTION: body-neutral (mass-conserving -> gravity-invariant)
     specs += [
         ("Stewie/Construct-v0", "leap.terrain_target_env:TerrainTargetEnv",
-         {"challenge": dc}, None),
+         {}, None),                                   # challenge defaults lazily in the env (#157)
         ("Stewie/SkillMacro-v0", "leap.skill_env:SkillMacroEnv",
-         {"challenge": dc, "discrete_cells": 8}, None),
+         {"discrete_cells": 8}, None),                # challenge defaults lazily in the env (#157)
         ("Stewie/Scheduler-v0", "lode.scheduler_env:SchedulerEnv",
          _scheduler_kwargs(), None),
         # RL controller over John's WorkSite execution seam (flatten/dump + drum ledger)

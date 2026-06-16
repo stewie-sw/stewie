@@ -41,7 +41,7 @@ HAS_GYM = _HAS_GYM
 class SkillMacroEnv(_BASE):
     metadata = {"render_modes": []}
 
-    def __init__(self, challenge, *, obs_k: int = 8, disc_cells: float = 2.0,
+    def __init__(self, challenge=None, *, obs_k: int = 8, disc_cells: float = 2.0,
                  cut_per_macro_m: float = 0.04, match_scale: float = 50.0,
                  macro_cost: float = 0.01,
                  # --- M3 resource model (default OFF = unconstrained) ---
@@ -52,6 +52,8 @@ class SkillMacroEnv(_BASE):
                  energy_penalty: float = 0.0,
                  discrete_cells: int = 0):     # 0=continuous Box; >0 = Discrete(dc*dc*2) cell+mode
         super().__init__()
+        if challenge is None:                          # gym.make registers no challenge (#157 cycle); build lazily
+            challenge = chmod.default_challenge()
         self.challenge = challenge
         self.obj = challenge.objective
         self.region = self.obj.region
