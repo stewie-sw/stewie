@@ -1027,6 +1027,21 @@ avoid the Autoware trademark. **Caveat:** Autoware's transitive dependencies are
 and must be swept before any code is vendored — tracked as task #124 (THIRD_PARTY.md). Reimplementation
 (no vendored code) sidesteps this entirely and is the recommended default.
 
+**ROS 2 distribution strategy (added 2026-06-15).** The ROS 2 framework layer targets two distinct
+distributions for two purposes:
+- **Ground / sim development → ROS 2 Jazzy** (the current P20 bridge target; the live `cmd_vel`→SF-01
+  seam lands here, `ros2_bridge.py`). **ROS 2 Iron (Iron Irwini)** is the intermediate release and is an
+  acceptable dev target where a tool requires it, but Jazzy is the default (newer, longer support than Iron,
+  which is EOL'd; Humble/Jazzy are the LTS-class anchors).
+- **Flight / on-rover → Space ROS.** [Space ROS](https://space.ros.org) is the NASA + Blue Origin + Open
+  Robotics **spaceflight-hardened ROS 2** distribution — deterministic execution, safety-process/V&V
+  rigor (toward NPR-7150-class software assurance), and a vetted subset — currently tracking ROS 2
+  **Humble (LTS)**. The on-rover autonomy stack's flight build targets Space ROS; STEWIE's contracts and
+  the bridge stay distribution-agnostic at the message/topic seam so the same Plan-IR lowering (NV-11/12,
+  under AG-08 + SF-01) drives a Jazzy ground/sim node OR a Space ROS flight node. Honest: this is the
+  **gated hardware future** — STEWIE develops against Jazzy today; Space ROS is the flight-grade migration
+  target, not a current dependency.
+
 ## 17. Cockpit state + pending work (2026-06-10 session close)
 
 A full live-debug day with Aaron driving. SHIPPED and verified (each capture-proofed,
