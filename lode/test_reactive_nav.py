@@ -21,6 +21,7 @@ def test_no_new_hazard_on_route_does_not_replan():
 
 
 def test_discovered_hazard_becomes_keepout_and_triggers_local_replan():
+    """[REQ:NV-05] an observed hazard becomes a dynamic keep-out and triggers a local replan around it."""
     rk = _rock(1.0)
     out = RN.react((0.0, 0.0), 0.0, (20.0, 0.0), planned_path=[(0.0, 0.0), (20.0, 0.0)],
                    hazards_world=[(8.0, 0.0, rk)], sensor_range_m=18.0, horizon_m=10.0, clearance_m=0.5)

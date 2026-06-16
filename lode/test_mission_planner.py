@@ -1888,7 +1888,7 @@ def test_fl03_shared_charger_contention_is_modelled_in_makespan():
 
 
 def test_fl06_exact_oracle_lower_bounds_the_heuristic():
-    """FL-06: the heuristic plan_multi can NEVER beat the exact site-exclusive oracle -- the oracle brute-
+    """[REQ:FL-06] the heuristic plan_multi can NEVER beat the exact site-exclusive oracle -- the oracle brute-
     forces a superset (same site-exclusive policy, same simulator + charger queue), so its makespan is a
     true lower bound. This is the validation gate that must pass before any 2-rover superiority claim."""
     m = _pairs_mission([(40, 0), (-40, 5), (80, 0)])                # 3 trips -> exact search tractable

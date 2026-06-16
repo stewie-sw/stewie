@@ -61,8 +61,8 @@ def test_rejects_nonphysical_inputs():
 
 
 def test_runs_on_real_haworth_slope_as_the_obstacle_oracle():
-    """Drive the planner with a terrain predicate built from the REAL LOLA Haworth slope map (no synthetic
-    DEM). From the FLATTEST cell the fan yields a feasible arc; the planner consumes real DEM data end-to-end."""
+    """[REQ:NV-03] Drive the planner with a terrain predicate built from the REAL LOLA Haworth slope map (no
+    synthetic DEM). From the FLATTEST cell the fan yields a feasible arc; the planner consumes real DEM data."""
     from stewie.terrain.site_dem import slope_deg_map
     dem_dir = os.path.join(os.path.dirname(__file__), os.pardir, "samples", "lunar_dem", "haworth_10km_5m")
     hm, meta = os.path.join(dem_dir, "heightmap.rf32"), os.path.join(dem_dir, "metadata.json")
@@ -106,6 +106,7 @@ def test_bounded_twist_is_yaw_capped_on_a_sharp_turn():
 
 
 def test_track_arc_reports_bounded_command_speed_and_duration():
+    """[REQ:NV-04] a trajectory -> a bounded twist command with expected speed + progress."""
     out = LP.track_arc(0.0, 6.0, v_max=0.30, omega_max=0.20)
     assert out["v_cmd"] == pytest.approx(0.30) and out["omega_cmd"] == pytest.approx(0.0)
     assert out["expected_speed_ms"] == pytest.approx(0.30) and out["duration_s"] == pytest.approx(20.0)
