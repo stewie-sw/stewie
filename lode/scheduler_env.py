@@ -31,7 +31,9 @@ try:
     _HAS_GYM = True
     _BASE = _gym.Env
 except Exception:                              # pragma: no cover
-    _gym = None; _spaces = None; _HAS_GYM = False; _BASE = object
+    # optional-import shim: gymnasium absent -> object base. The dynamic fallback is not statically
+    # typeable (Module->None, type[Env] vs type[object]); a line-level ignore is the standard idiom.
+    _gym = None; _spaces = None; _HAS_GYM = False; _BASE = object  # type: ignore[assignment,misc]
 
 HAS_GYM = _HAS_GYM
 
@@ -216,10 +218,10 @@ def beam_search_plan(env: SchedulerEnv, width: int = 20, max_depth: int | None =
     scripts/demo/distill_scheduler.py. Pure numpy; eval/planning only (deep-copies env states)."""
     import copy
     md = env.max_legs if max_depth is None else int(max_depth)
-    beam = [(copy.deepcopy(env), 0, False, False, [])]
+    beam: list[tuple] = [(copy.deepcopy(env), 0, False, False, [])]
     best = None; best_path = []
     for _ in range(md):
-        cand = []
+        cand: list[tuple] = []
         for e, legs, done, succ, path in beam:
             if done:
                 cand.append((e, legs, done, succ, path)); continue

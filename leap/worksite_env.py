@@ -26,7 +26,9 @@ try:
     _HAS_GYM = True
     _BASE = _gym.Env
 except Exception:                              # pragma: no cover
-    _gym = None; _spaces = None; _HAS_GYM = False; _BASE = object
+    # optional-import shim: gymnasium absent -> object base. The dynamic fallback is not statically
+    # typeable (Module->None, type[Env] vs type[object]); a line-level ignore is the standard idiom.
+    _gym = None; _spaces = None; _HAS_GYM = False; _BASE = object  # type: ignore[assignment,misc]
 
 HAS_GYM = _HAS_GYM
 
@@ -264,10 +266,10 @@ def beam_worksite_plan(env: WorkSiteConstructEnv, width: int = 12):
     heuristic/search dominate (cf. the Stewie/Scheduler finding that model-based search >= model-free). Pure
     numpy; eval/planning only (deep-copies env states)."""
     import copy
-    beam = [(copy.deepcopy(env), False, False, [])]    # (env, done, success, path)
+    beam: list[tuple] = [(copy.deepcopy(env), False, False, [])]    # (env, done, success, path)
     best = None; best_path = []
     for _ in range(env.max_steps):
-        cand = []
+        cand: list[tuple] = []
         for e, done, succ, path in beam:
             if done:
                 cand.append((e, done, succ, path)); continue

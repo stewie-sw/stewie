@@ -126,8 +126,6 @@ warn_redundant_casts = true
 module = [
     "leap.skill_env",
     "leap.terrain_target_env",
-    "leap.worksite_env",
-    "lode.scheduler_env",
     "stewie.envs.active_perception_env",
     "stewie.envs.rover_env",
     "stewie.terrain.dem_overlay",
