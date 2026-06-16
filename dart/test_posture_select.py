@@ -27,3 +27,32 @@ def test_selected_posture_is_always_feasible():
     for load in (0.0, 10.0, 30.0):
         a = PS.select_viewpoint_posture(fill_front_kg=load, min_margin_m=0.05)
         assert PS.viewpoint_gain(a)["stable"], f"selector must return a feasible posture at load {load}"
+
+
+def test_asymmetric_recovers_viewpoint_under_heavy_unbalanced_load():
+    """#92 [REQ:SN-08b]: under a heavily unbalanced drum load the SYMMETRIC selector finds NO feasible
+    raised posture (the off-centre CG tips it at every symmetric raised pitch), but exploring ASYMMETRIC
+    postures recovers a feasible raised viewpoint by balancing the fore/aft moment with asymmetric drum
+    reach (the heavy end planted deeper -> shorter reach -> smaller moment arm)."""
+    sym = PS.select_viewpoint_posture(fill_front_kg=30.0, fill_rear_kg=0.0, min_margin_m=0.05)
+    front, rear = PS.select_viewpoint_posture_asym(fill_front_kg=30.0, fill_rear_kg=0.0, min_margin_m=0.05)
+    assert PS.viewpoint_gain(sym)["active_lift_m"] == 0.0          # symmetric: no feasible raised posture
+    g = PS.viewpoint_gain_asym(front, rear, fill_front_kg=30.0, fill_rear_kg=0.0)
+    assert g["active_lift_m"] > 0.10 and g["stable"]              # asymmetric recovers a real raised viewpoint
+    assert front != rear                                          # genuinely asymmetric
+
+
+def test_asymmetric_reduces_to_symmetric_when_balanced():
+    """A balanced (or zero) load needs no asymmetry: the asymmetric optimum IS the symmetric MEERKAT."""
+    for ff, fr in [(0.0, 0.0), (15.0, 15.0)]:
+        front, rear = PS.select_viewpoint_posture_asym(fill_front_kg=ff, fill_rear_kg=fr, min_margin_m=0.05)
+        sym = PS.select_viewpoint_posture(fill_front_kg=ff, fill_rear_kg=fr, min_margin_m=0.05)
+        la = PS.viewpoint_gain_asym(front, rear, fill_front_kg=ff, fill_rear_kg=fr)["active_lift_m"]
+        assert abs(la - PS.viewpoint_gain(sym)["active_lift_m"]) < 1e-6
+
+
+def test_asymmetric_selected_posture_always_feasible():
+    for ff, fr in [(0.0, 0.0), (30.0, 0.0), (0.0, 30.0), (20.0, 5.0), (30.0, 30.0)]:
+        front, rear = PS.select_viewpoint_posture_asym(fill_front_kg=ff, fill_rear_kg=fr, min_margin_m=0.05)
+        assert PS.viewpoint_gain_asym(front, rear, fill_front_kg=ff, fill_rear_kg=fr)["stable"], \
+            f"asymmetric selector must return a feasible posture at load {ff},{fr}"
