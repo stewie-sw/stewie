@@ -450,3 +450,11 @@ def test_arch02_assets_route_is_traversal_safe(client):
     """ARCH-02: the dev /assets route is confined to web/assets (no path traversal to the package root)."""
     assert client.get("/assets/../server.py").status_code in (404, 400)
     assert client.get("/assets/nonesuch.js").status_code == 404
+
+
+def test_cesium_dev_route_is_traversal_safe_and_404s_when_absent(client):
+    """WEB-01: the dev /cesium route mirrors nginx serving the vendored bundle. It is path-confined to
+    server/cesium/ and 404s when the bundle isn't present locally (the CI case -- the ~20 MB bundle is
+    gitignored, downloaded only in the Docker frontend build). No traversal to the package root."""
+    assert client.get("/cesium/../server.py").status_code in (404, 400)
+    assert client.get("/cesium/nonesuch.js").status_code == 404

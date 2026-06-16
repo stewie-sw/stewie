@@ -945,6 +945,11 @@ async function refreshAuthState() {
     if (st) st.textContent = "signed in: " + j.identity + " (" + j.role + ")";
     renderWhoami(j.identity, j.role);
     gateChrome(j.role);
+    // #auth-reload: the gated data loaders 401 if fired pre-login on boot; re-run them now that a session
+    // exists so a fresh login populates without a manual refresh. loadSites re-fills the site selector;
+    // refetchSun re-applies the on server rasters (hazard/slope/illumination/psr/grid) -- the once-only
+    // applyDefaultsOnceReady gate won't re-fetch them, so the main-map hazard overlay needs this re-apply.
+    try { loadSites(); if (typeof refetchSun === "function") refetchSun(); } catch (e) { /* best-effort */ }
   } catch (e) { AUTH.role = null; AUTH.identity = null;
     if (st) st.textContent = "not signed in";
     renderWhoami(null);
@@ -1603,7 +1608,7 @@ async function refreshEvents() {
 }
 if ($("evrefresh")) $("evrefresh").onclick = refreshEvents;
 refreshEvents();
-(async function loadSites() {
+async function loadSites() {     // #auth-reload: named (not an IIFE) so refreshAuthState re-runs it after login
   try {
     const j = await (await fetch("/sites")).json();
     const sl = $("sitesel"); if (!sl || !j.ok) return;
@@ -1622,7 +1627,7 @@ refreshEvents();
         : "no DEM bundle imported for this site yet (registry: stewie/specs/sites.py; import via the dem_import pipeline)");
     };
   } catch (e) { /* offline */ }
-})();
+}
 // #150: surface the DEM base-layer catalog (GET /dem/sources) in the Contents section -- provenance +
 // readiness (which tiles ship bundled vs need a real download; display-only products flagged).
 (async function loadDemSources() {

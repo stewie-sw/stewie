@@ -21,7 +21,8 @@ router = APIRouter()
 _PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _CTYPE = {".json": "application/json", ".pdf": "application/pdf",
           ".md": "text/markdown; charset=utf-8", ".png": "image/png",
-          ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css"}
+          ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css",
+          ".wasm": "application/wasm"}   # Cesium ships draco/basis .wasm workers (WEB-01 /cesium dev route)
 
 
 def _reports_dir() -> str:
@@ -67,6 +68,22 @@ def get_asset(path: str):
     full = os.path.normpath(os.path.join(base, path))
     if not (full == base or full.startswith(base + os.sep)) or not os.path.isfile(full):
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no asset {path!r}"})
+    ext = os.path.splitext(full)[1]
+    return FileResponse(full, media_type=_CTYPE.get(ext, "application/octet-stream"))
+
+
+@router.get("/cesium/{path:path}")
+def get_cesium(path: str):
+    """Dev-server equivalent of nginx serving the vendored CesiumJS bundle at /cesium/ (WEB-01). In
+    production the frontend image downloads cesium 1.119 into /usr/share/nginx/html/cesium and nginx
+    serves it; on the uvicorn dev server the same bundle -- if present at server/cesium/ (e.g. docker-cp'd
+    from the frontend image for a local cockpit/UI harness) -- is served here so the globe loads in BOTH
+    environments. Path-confined to server/cesium/ (no traversal). 404 when the bundle isn't present
+    locally: the dev server simply has no globe then, exactly as before this route existed."""
+    base = os.path.join(_PKG, "cesium")
+    full = os.path.normpath(os.path.join(base, path))
+    if not (full == base or full.startswith(base + os.sep)) or not os.path.isfile(full):
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no cesium asset {path!r}"})
     ext = os.path.splitext(full)[1]
     return FileResponse(full, media_type=_CTYPE.get(ext, "application/octet-stream"))
 
