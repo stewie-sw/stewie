@@ -35,7 +35,11 @@ fresh), but the JS asset is cached — so **changing `cockpit.js` content withou
 nothing to users** (Cloudflare keeps serving the stale `?v=N` for up to its TTL; a 30-day entry was once
 pinned). A direct `curl 127.0.0.1:8000/assets/cockpit.js` looks correct while `app.stewie.space` is stale.
 
-**Rule: bump the `?v=N` in `stewie/server/index.html` on every `cockpit.js` change** (or hash it).
+**Rule (now automated + CI-enforced):** run **`python scripts/stamp_cockpit_version.py`** before a
+frontend deploy — it stamps the cockpit.js **content hash** into index.html's `?v=` (fresh URL iff the
+bytes changed). `stewie/server/test_asset_version_stamp.py` **fails CI** if the stamp is stale, so a
+changed `cockpit.js` can't ship behind a stale Cloudflare cache. (Manual `?v=N` bumping is the old, error-
+prone way this trap bit us.)
 
 ## Verify a deploy THROUGH Cloudflare (not just the origin)
 
