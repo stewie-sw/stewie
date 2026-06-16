@@ -129,6 +129,7 @@ from stewie.server.routers import layers as _layers_router  # noqa: E402
 from stewie.server.routers import missions as _missions_router  # noqa: E402
 from stewie.server.routers import operators_admin as _operators_admin_router  # noqa: E402
 from stewie.server.routers import perception as _perception_router  # noqa: E402
+from stewie.server.routers import nav as _nav_router  # noqa: E402
 from stewie.server.routers import plan as _plan_router  # noqa: E402
 from stewie.server.routers import profiles as _profiles_router  # noqa: E402
 from stewie.server.routers import rc as _rc_router  # noqa: E402
@@ -161,6 +162,7 @@ app.include_router(_admin_ops_router.router)
 app.include_router(_session_router.router)
 app.include_router(_plan_router.router)
 app.include_router(_perception_router.router)
+app.include_router(_nav_router.router)
 
 
 @app.middleware("http")
