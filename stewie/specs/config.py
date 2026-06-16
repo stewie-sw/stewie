@@ -146,13 +146,16 @@ def describe() -> dict:
 def data_dir() -> str:
     """The writable application-data root: ``$STEWIE_DATA_DIR``, else the XDG user-data dir
     (``$XDG_DATA_HOME/stewie`` or ``~/.local/share/stewie``)."""
-    d = os.environ.get("STEWIE_DATA_DIR", os.environ.get("STEWIE_DATA_DIR"))
+    d = os.environ.get("STEWIE_DATA_DIR", os.environ.get("DUSTGYM_DATA_DIR"))
     if d:
         return d
     base = os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
     new = os.path.join(base, "stewie")
-    legacy = os.path.join(base, "stewie")
-    # rename 2026-06-10: prefer the new dir, but keep serving an existing legacy install's data
+    legacy = os.path.join(base, "dustgym")
+    # rename 2026-06-10 (dustgym -> stewie): prefer the new dir, but keep serving an existing dustgym
+    # install's data when only the legacy dir exists. A later cleanup had clobbered both names to
+    # "stewie" (and the env fallback to STEWIE_DATA_DIR), making this branch dead -- restored, with a
+    # regression test so it cannot rot again (#125).
     return legacy if (os.path.isdir(legacy) and not os.path.isdir(new)) else new
 
 

@@ -113,6 +113,26 @@ def test_describe_clears_when_default(clean_reload, monkeypatch):
     assert "stewie.specs.constants" not in config.describe()["applied"]
 
 
+def test_data_dir_env_then_dustgym_fallback(monkeypatch, tmp_path):
+    """#125: STEWIE_DATA_DIR wins; the legacy DUSTGYM_DATA_DIR env is still honored (rename back-compat)."""
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path / "explicit"))
+    monkeypatch.setenv("DUSTGYM_DATA_DIR", str(tmp_path / "old_env"))
+    assert config.data_dir() == str(tmp_path / "explicit")
+    monkeypatch.delenv("STEWIE_DATA_DIR")
+    assert config.data_dir() == str(tmp_path / "old_env")   # back-compat env fallback (was dead)
+
+
+def test_data_dir_serves_legacy_dustgym_dir_only_when_new_absent(monkeypatch, tmp_path):
+    """#125: with no env, serve an existing ~/.local/share/dustgym (legacy) until the stewie dir exists."""
+    monkeypatch.delenv("STEWIE_DATA_DIR", raising=False)
+    monkeypatch.delenv("DUSTGYM_DATA_DIR", raising=False)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    (tmp_path / "dustgym").mkdir()
+    assert config.data_dir() == str(tmp_path / "dustgym"), "legacy dustgym data not served (dead branch)"
+    (tmp_path / "stewie").mkdir()
+    assert config.data_dir() == str(tmp_path / "stewie"), "should prefer the new dir once it exists"
+
+
 def test_describe_redacts_secret_env_values(monkeypatch):
     """SEC-1 [REQ:PO-04]: describe() (and thus /config) must NEVER return key/token/secret VALUES."""
     monkeypatch.setenv("STEWIE_API_KEY", "supersecret-master-key")
