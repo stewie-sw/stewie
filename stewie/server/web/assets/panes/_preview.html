@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ephemeris pane preview</title>
+<style>
+  :root { --bg:#0a0a0c; --fg:#d8d8e0; --muted:#7a7a88; --accent:#ff3b3b; --bad:#ff6b6b; }
+  body { background:var(--bg); color:var(--fg); font-family:'Segoe UI',system-ui,sans-serif; padding:24px; }
+  h3 { color:var(--muted); font-weight:400; font-size:12px; letter-spacing:.18em; margin:0 0 14px; }
+  .eph-pane { border:1px solid #23232a; border-radius:8px; padding:16px 18px; max-width:340px; background:#111118; }
+  .row { padding:5px 0; font-size:14px; } .row.head { font-size:13px; letter-spacing:.14em; }
+  .row b { color:#fff; } .muted { color:var(--muted); font-size:12px; } .bad { color:var(--bad); }
+  .conv { color:var(--muted); font-size:11px; }
+  .badge { font-size:10px; padding:2px 9px; border-radius:11px; margin-left:10px; letter-spacing:.12em; }
+  .badge.lit { background:#16351c; color:#9fe6a6; } .badge.dark { background:#1a2030; color:#9fb4e6; }
+</style>
+</head>
+<body>
+  <h3>SOLAR / EPHEMERIS PANE &mdash; adapter-driven (FS-15) &middot; live /ephemeris contract</h3>
+  <div id="app"></div>
+  <script src="../adapters.js"></script>
+  <script src="ephemeris_pane.js"></script>
+  <script>
+    // a real /ephemeris-shaped payload (the contract the route returns) -> adapter -> view model -> pane
+    var payload = { ok: true, ephemeris: { mission_t_s: 0, site_lat_deg: -87.45, site_lon_deg: 0,
+      frame: "MOON_ME", sun_az_deg: 90.4, sun_el_deg: 6.2, azimuth_convention: "from_north_eastward",
+      uncertainty_deg: 0.0, source: "analytic" } };
+    var vs = window.STEWIE_ADAPTERS.toViewState({ status: 200, json: payload,
+      normalize: window.STEWIE_ADAPTERS.normalizeEphemeris });
+    document.getElementById("app").innerHTML = window.STEWIE_PANE_EPHEMERIS.renderEphemerisPane(vs);
+  </script>
+</body>
+</html>
