@@ -751,6 +751,54 @@ setInterval(() => {
   });
 })();
 
+// FS-21: drag-to-reorder the sidebar panes; the order persists per operator (localStorage). Runs right
+// after collapseSidebar() built the <details> panes. VIEW preference ONLY -- the panes keep their ids +
+// handlers as they move, so reordering changes no control, contract, command authority, or role/AG gate.
+(function wirePanelLayout() {
+  const L = window.STEWIE_PANEL_LAYOUT; if (!L) return;
+  const panel = document.getElementById("panel"); if (!panel) return;
+  const panes = Array.prototype.slice.call(panel.querySelectorAll("section > details"));
+  if (panes.length < 2) return;
+  const host = panes[0].parentElement;                     // re-home every pane into the first section
+  const keyOf = (d) => { const s = d.querySelector("summary"); return s ? s.textContent.trim().slice(0, 28) : ""; };
+  panes.forEach((d) => { d.dataset.pane = keyOf(d); });
+  const current = panes.map((d) => d.dataset.pane);        // the default (build) order, for reset
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(L.KEY) || "[]"); } catch (e) {}
+  const apply = (order) => order.forEach((k) => {
+    const d = panes.find((x) => x.dataset.pane === k); if (d) host.appendChild(d); });   // appendChild = move
+  apply(L.mergeOrder(saved, current));
+  const persist = () => {
+    const ord = Array.prototype.slice.call(host.querySelectorAll(":scope > details")).map((d) => d.dataset.pane);
+    try { localStorage.setItem(L.KEY, JSON.stringify(ord)); } catch (e) {}
+  };
+  // canonical DnD reorder: the pane the dragged one should drop BEFORE (nearest below the cursor)
+  const dragAfter = (y) => {
+    const els = Array.prototype.slice.call(host.querySelectorAll(":scope > details:not(.dragging)"));
+    let best = { off: -Infinity, el: null };
+    els.forEach((c) => { const b = c.getBoundingClientRect(); const off = y - b.top - b.height / 2;
+      if (off < 0 && off > best.off) best = { off, el: c }; });
+    return best.el;
+  };
+  let dragEl = null;
+  panes.forEach((d) => {
+    const sum = d.querySelector("summary"); if (!sum) return;
+    const grip = document.createElement("span");
+    grip.className = "pane-grip"; grip.textContent = "⠿"; grip.title = "drag to reorder this pane";
+    grip.setAttribute("draggable", "true"); grip.setAttribute("aria-hidden", "true");
+    grip.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); });   // never toggle the pane
+    grip.addEventListener("dragstart", (e) => { dragEl = d; d.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", d.dataset.pane); } catch (x) {} });
+    grip.addEventListener("dragend", () => { if (dragEl) dragEl.classList.remove("dragging"); dragEl = null; persist(); });
+    sum.insertBefore(grip, sum.firstChild);
+  });
+  host.addEventListener("dragover", (e) => { if (!dragEl) return; e.preventDefault();
+    const after = dragAfter(e.clientY);
+    if (after == null) host.appendChild(dragEl); else host.insertBefore(dragEl, after); });
+  // reset-to-default (always available, surfaced in Settings): forget the saved order + restore build order
+  window.resetPanelLayout = () => { try { localStorage.removeItem(L.KEY); } catch (e) {} apply(current); };
+})();
+
 const SETTINGS = loadSettings();
 // SEC-01 migration: delete any legacy bearer token / raw API key an OLDER build persisted in
 // localStorage. The session is now an HttpOnly cookie; credentials never touch localStorage again.
@@ -1026,6 +1074,10 @@ if ($("admin-refresh")) $("admin-refresh").onclick = renderAdmin;
 refreshAuthState();
 if ($("set-font")) $("set-font").oninput = () => {
   SETTINGS.fontpx = parseInt($("set-font").value, 10); saveSettings(SETTINGS); applySettings(SETTINGS);
+};
+// FS-21: reset-to-default is always available -- restore the build order of the sidebar panes
+if ($("set-resetlayout")) $("set-resetlayout").onclick = () => {
+  if (window.resetPanelLayout) window.resetPanelLayout();
 };
 
 // lazy-load the engineer/dev/intern panes the first time shown (Server refreshes live each open). All read
