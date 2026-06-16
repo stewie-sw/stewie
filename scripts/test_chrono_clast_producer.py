@@ -4,9 +4,10 @@ Runs only where PyChrono is importable (the `/tmp/chrono-env` micromamba env, NO
 is SKIPPED on the bare suite. The producer's own `__main__` self-check is the run-verified validation;
 this makes the suite acknowledge the producer and re-checks the core physics where Chrono is present.
 
-Run under the Chrono env:
-    MAMBA_ROOT_PREFIX=/tmp/mamba LD_LIBRARY_PATH=/tmp/chrono-env/lib \
-        /tmp/chrono-env/bin/python -m pytest scripts/test_chrono_clast_producer.py -q
+Run under a conda env with conda-forge PyChrono (on archimedes: stewie/.toolchain/chrono-env). Clear the
+repo addopts -- that env has no pytest-timeout, so the suite-wide --timeout would error:
+    <micromamba> run -p <chrono-env> python -m pytest -o addopts= scripts/test_chrono_clast_producer.py -q
+Run-verified 2026-06-16 (2 passed) with conda-forge PyChrono core.
 
 CC0-1.0 (see ../LICENSE).
 """

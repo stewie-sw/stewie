@@ -15,9 +15,13 @@ that still needs a source build of Chrono with the vehicle module. So: rigid-bod
 live here; the soil-sinkage oracle = still gated on a vehicle-enabled Chrono. FIX-1 (K_PHI) is meanwhile
 resolved by the literature-sourced NASA LTV lunar Bekker values (bodies sysrev).
 
-Run in the Chrono env (NOT the runtime venv — that has no pychrono):
-    MAMBA_ROOT_PREFIX=/tmp/mamba LD_LIBRARY_PATH=/tmp/chrono-env/lib \
-        /tmp/chrono-env/bin/python scripts/chrono_clast_producer.py
+Run in a conda env with conda-forge PyChrono (NOT the runtime venv -- it has no pychrono). Set one up
+with `micromamba create -p <env> -c conda-forge pychrono`; on archimedes it lives at
+stewie/.toolchain/chrono-env. micromamba run sets LD_LIBRARY_PATH for you:
+    <micromamba> run -p <chrono-env> python scripts/chrono_clast_producer.py
+Run-verified 2026-06-16 with conda-forge PyChrono CORE: free-fall vs analytic <0.01% err at lunar+earth
+g, 5 clasts settle to rest at z~=radius. (conda-forge omits pychrono.vehicle -> the SCM soil oracle in
+chrono_scm_export.py still needs a vehicle-enabled Chrono build; rigid-body authority here is live.)
 
 CC0-1.0 (see ../LICENSE).
 """
