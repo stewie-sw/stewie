@@ -25,6 +25,7 @@ rest of the code reads as literals. See ``CONFIG.md``.
 from __future__ import annotations
 
 import os
+from typing import Any
 
 _ENV_PREFIX = "STEWIE_"
 _CONFIG_ENV = "STEWIE_CONFIG"
@@ -105,6 +106,7 @@ def apply(ns: dict) -> dict:
         if name in ns and isinstance(ns[name], (bool, int, float)):
             old = ns[name]
             # bool is an int subclass -> keep bool override as bool; keep float as float
+            new: Any                                  # a config value is heterogeneous (bool|int|float|str)
             if isinstance(old, bool):
                 new = bool(val)
             elif isinstance(old, int) and not isinstance(old, bool):

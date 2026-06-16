@@ -71,7 +71,7 @@ class ColumnState:
     density: np.ndarray = field(default=None)       # (height, width) kg/m^3
     state_label: np.ndarray = field(default=None)   # (height, width) uint8
     disturbance: np.ndarray = field(default=None)   # (height, width) [0,1]
-    ice: np.ndarray = field(default=None)           # (height, width) [0,~0.06] or None
+    ice: np.ndarray | None = field(default=None)    # (height, width) [0,~0.06] or None (dry)
     datum: np.ndarray = field(default=None)         # (height, width) m
 
     drum_inventory: float = 0.0  # kg held in drums (not on the grid)

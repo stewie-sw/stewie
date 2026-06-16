@@ -205,7 +205,7 @@ class DrumSensor:
     model: LinearMassModel
     baseline_a: float = FDC_BASELINE_A
     slope_a_per_kg: float = FDC_SLOPE_A_PER_KG
-    g: float = None
+    g: float | None = None                            # None -> freespin_drum_current_a uses its g default
     capacity_kg: float = REGOLITH_PER_CYCLE_KG
     noise_frac: float = 0.0            # 0 = noise OFF (deterministic); >0 = seeded current noise
     seed: int = 0

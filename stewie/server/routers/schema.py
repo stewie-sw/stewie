@@ -6,12 +6,13 @@ data), the typed fixture FS-08 requires. Public read (schemas are not secret). N
 from __future__ import annotations
 
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 from stewie import contracts as C
 
 router = APIRouter()
 
-_SPINE = {
+_SPINE: dict[str, type[BaseModel]] = {
     "EphemerisObservation": C.EphemerisObservation,
     "VehicleState": C.VehicleState,
     "FleetState": C.FleetState,
