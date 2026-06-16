@@ -65,7 +65,7 @@ truth-free SLAM/ARGUS path, operational digital twin, and field-calibrated terra
 **SN / ARGUS evidence path — DONE (2026-06-11):** CP-01 (release-ready), SN-02 detection front-end,
 SN-03 shadow yaw factor, SN-05 illumination route cost, SN-06 camera selection, SN-08 active-morphology
 posture + SN-08b full posture×load coverage, all shipped TDD + flipped on citing tests. SN family now
-SN-01 P, SN-02 D, SN-03 D, SN-04 P, SN-05 P, SN-06 D, SN-08 D, SN-09 D (articulated self-shadow:
+SN-01 D, SN-02 D, SN-03 D, SN-04 D, SN-05 P, SN-06 D, SN-08 D, SN-09 D (articulated self-shadow:
 a commanded posture change cancels the unknown casting height -> exact sun-elevation/slope), SN-10 D
 (articulation-parallax triangulation: a known pose-change baseline -> heading-free standstill position
 fix); only SN-07 (LED budget, hardware-gated Q=G) remains N. Improvement attributed vs baseline across
@@ -421,10 +421,10 @@ solar power scheduling.
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
-| SN-01 | P1 | Derive expected shadow azimuth from `s(t)` and local terrain/objects. `[PROPOSED]` | D | D | P | N |
+| SN-01 | P1 | Derive expected shadow azimuth from `s(t)` and local terrain/objects. `[PROPOSED]` | D | D | D | N |
 | SN-02 | P1 | Detect reliable shadow vectors while rejecting rover/LED shadows, saturation, ambiguous penumbra, and texture edges. `[PROPOSED]` | D | D | D | N |
 | SN-03 | P1 | Fuse accepted shadow evidence as a weak yaw factor with covariance; never as an unqualified absolute heading. `[PROPOSED]` | D | D | D | N |
-| SN-04 | P1 | Re-evaluate shadow factors when terrain is excavated, the sun vector changes, or the observation viewpoint changes. | D | D | P | NA |
+| SN-04 | P1 | Re-evaluate shadow factors when terrain is excavated, the sun vector changes, or the observation viewpoint changes. | D | D | D | NA |
 | SN-05 | P1 | Add illumination-aware route cost: visibility, saturation, shadow hazard, map uncertainty, energy, slope, and construction constraints remain separate inspectable terms. | P | P | P | N |
 | SN-06 | P1 | Choose camera direction and exposure to avoid low-sun washout while preserving useful stereo overlap. | D | D | D | G |
 | SN-07 | P1 | Choose camera subset and LED intensity to illuminate hard shadows within the active-camera and power budgets. | N | N | N | G |
