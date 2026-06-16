@@ -597,6 +597,13 @@ claims completion.
 | FS-12 | P1 | Model integration and fine-tuning hardening: every learned model has dataset lineage, train/eval split, artifact registry entry, model card, quantization/deployment profile, calibration report, OOD detector, safe fallback, and rollback plan before cockpit exposure. | P | N | N | N |
 | FS-13 | P1 | Recorded construction and self-docking skills: record, version, replay, compare, and approve movement primitives for excavation, dumping, berm shaping, and docking; replay must be corrected by belief feedback and bounded by safety checks. | P | N | N | N |
 | FS-14 | P0 | Atomic rollout rule: the roadmap is implemented in dependency order; a phase cannot be marked done until the previous phase's contracts, front-end affordance, backend route, tests, security review, and performance budget are complete or explicitly gated. | P | N | N | NA |
+| FS-15 | P0 | Front-end contract adapters: each cockpit work area owns a typed client adapter, request/response fixture, normalized view model, loading/error/empty mapping, and permission mapping. UI components consume view models, not raw backend JSON. | P | N | N | NA |
+| FS-16 | P0 | Cockpit state and routing: the app has one routeable state model for selected mission, site, vehicle, body, time, mode, role, work area, selected entity, and live/sim/eval source. Desktop and mobile navigation are alternate views of the same state, not separate logic. | P | N | N | NA |
+| FS-17 | P0 | Windowing policy: the production operator flow is one browser cockpit. Any second window is read-only engineering/debug context or a separate ROS/RViz/Gazebo tool; it cannot hold independent command authority, hidden state, or unique approval controls. | N | N | N | NA |
+| FS-18 | P0 | Frontend-backend contract gate: every new route-to-pane connection has a schema fixture, backend route test, frontend fixture render test, permission test, mobile-width smoke, and one failure-mode test before it is considered wired. | P | N | N | NA |
+| FS-19 | P0 | End-to-end observability ledger: log every mission decision, operator action, role/permission check, backend contract call, plan/replan, command emission, safing event, model inference summary, ARGUS factor accept/reject, fleet conflict, and state transition with correlation ID, mission/site/body/time, actor, input/output hashes, result, latency, and error code. Secrets, passwords, tokens, private keys, and operational truth-denied fields must never be logged. | P | N | N | NA |
+| FS-20 | P1 | Cockpit chrome IA: System, Settings, and Admin move OUT of the top-level work-area tab bar into a profile/account menu, role-gated (Settings per-user; System eng/director; Admin director-only) — an operator sees only the mission work areas. Directors get a read-only log/audit viewer surfacing the FS-19 observability ledger (logs visible to admins; secrets/tokens/truth-denied fields never shown). | N | N | N | NA |
+| FS-21 | P2 | Customizable workspace: within a work area, panes can be rearranged (drag-and-drop / dock) and the layout persists per operator (localStorage + optional server profile), with reset-to-default always available. Layout is a VIEW preference only — it never changes command authority, AG-08 gating, role gates, or which contract a pane consumes. | N | N | N | NA |
 
 ## 8. User Workflows
 
@@ -1604,19 +1611,24 @@ Current backend surface:
 **Phase 0 — inventory and freeze the contract boundary.**
 Exit: FS-01 and FS-02 are current. Produce a module map for touched frontend/backend/domain code,
 define the typed contract spine, and decide which current routes remain public, which become internal,
-and which need role-gated writes. Do not start new UI work before the contracts exist.
+and which need role-gated writes. Define the correlation-ID and event-ledger fields at this phase.
+Do not start new UI work before the contracts and logging envelope exist.
 
 **Phase 1 — backend contract APIs.**
 Exit: typed API fixtures exist for world, fleet, navigation, ephemerides, ARGUS, model artifacts, and
 construction skills. Add schema validation at route boundaries and expose examples that browser tests
 can load. Existing route handlers may delegate to current modules, but their payloads must match the
-contract spine.
+contract spine. Every route emits structured decision/error/latency logs with redaction and truth-firewall
+checks.
 
-**Phase 2 — front-end restructuring.**
+**Phase 2 — front-end contract layer and cockpit restructuring.**
 Exit: the cockpit has first-class work areas for Plan, Fleet, Navigation/ARGUS, Perception/Imagery,
-Construction, Models, Security/System, and Reports on desktop and mobile. The existing plan/GIS/nav
-features keep working while new panes are introduced behind typed API adapters. Every pane labels
-forecast, simulated truth, estimator belief, and live telemetry explicitly.
+Construction, Models, Security/System, and Reports on desktop and mobile. Build this in sublayers:
+first the route/state shell, then typed API adapters, then normalized view models, then shared
+visualization components, then command/approval affordances. The existing plan/GIS/nav features keep
+working while new panes are introduced behind typed API adapters. Every pane labels forecast,
+simulated truth, estimator belief, and live telemetry explicitly. No component may fetch raw backend
+JSON directly after its work area has a contract adapter.
 
 **Phase 3 — ephemerides, azimuth, imagery, and ARGUS authority.**
 Exit: one sun/ephemeris/azimuth service feeds shadows, imagery layers, navigation risk, camera policy,
@@ -1653,7 +1665,8 @@ fallback. No model gets a command path; the mission executive consumes typed out
 Exit: the slice has unit, contract, route, browser, mobile, integration, security, performance, and
 traceability coverage. Optimization budgets cover map rendering, tile/cache behavior, planning latency,
 fleet solve time, ARGUS factor latency, model inference, memory, and bandwidth. Security review covers
-auth/roles, CSP, secrets, SBOM/CVEs, backup/restore, exposed routes, and command interlocks.
+auth/roles, CSP, secrets, SBOM/CVEs, backup/restore, exposed routes, command interlocks, log retention,
+redaction, and replayability from event hashes.
 
 ### 25.3 Non-negotiable implementation rules
 
@@ -1667,5 +1680,68 @@ auth/roles, CSP, secrets, SBOM/CVEs, backup/restore, exposed routes, and command
   the backend result and the UI.
 - No self-docking or recorded construction movement may replay open loop; estimator feedback and safing
   checks are part of the primitive.
+- No slice is complete without structured logs for success, rejection, failure, timeout, fallback,
+  permission denial, and safing paths. Logs must be correlated across browser, backend, model runner,
+  ROS bridge, simulator, and report artifacts.
 - No release claim is allowed while front-end, backend, security, optimization, and test evidence are
   split across separate unverifiable narratives.
+
+### 25.4 Front-end contracts, wiring, and windowing
+
+The cockpit should be organized as one production application with routeable work areas, not as a set
+of independent pages that each invent their own fetch/state/error logic. The contract boundary is:
+
+```text
+Backend route
+  -> schema / fixture
+  -> typed frontend client adapter
+  -> normalized view model
+  -> work-area component
+  -> browser/mobile regression test
+```
+
+Required frontend contract adapters:
+- `world`: body/site/time, terrain layers, illumination, ephemerides, map provenance.
+- `mission`: PlanResult, command tape, feasibility, report, namespace/ownership.
+- `fleet`: vehicles, assignments, reservations, conflicts, health, waiting reasons.
+- `navigation`: route, local trajectory, tracker state, recovery state, keep-outs, cost layers.
+- `argus`: articulation pose, camera rig, shadow/parallax factors, covariance, residual gates.
+- `perception`: imagery, depth/point cloud summaries, rock/obstacle classes, height/volume estimates.
+- `construction`: cut/fill state, bucket/drum fill, volume moved, berm/pad acceptance, recorded skills.
+- `models`: model artifacts, datasets, eval reports, deployment profile, fallback/rollback status.
+- `security`: role, permissions, command eligibility, audit events, session/auth state.
+- `system`: health, metrics, storage, backups, validation gates, dependency/SBOM state.
+
+Required log/event channels:
+- `audit`: login, logout, invite, role change, permission decision, namespace publish/delete/restore.
+- `mission`: mission create/save/load, plan request, feasibility result, replan, report export.
+- `command`: command eligibility, approval, lowering, dispatch, acknowledgement, timeout, SAFE.
+- `world`: TwinStore/timeline event, terrain mutation, observed patch, backup, restore, provenance.
+- `navigation`: route request, local-plan update, tracker state, recovery action, blocked reason.
+- `argus`: sun/azimuth source, observation, residual, covariance, accepted/rejected factor.
+- `fleet`: reservation, conflict, wait reason, handoff, deconfliction, reassignment.
+- `model`: artifact selected, version, input/output hashes, confidence, OOD/fallback, latency.
+- `frontend`: pane route, contract adapter error, empty/loading/error state, command affordance shown.
+- `system`: startup, config, dependency, storage, health, metrics, security scan, backup drill.
+
+Wiring order for each work area:
+1. Add or freeze the backend response schema and example fixture.
+2. Add the frontend adapter and normalized view model.
+3. Render a fixture-only empty/loading/error/success pane.
+4. Connect the live route behind the adapter.
+5. Add route, permission, mobile, and failure-mode tests.
+6. Only then expose the pane in the primary cockpit navigation.
+
+Windowing decision:
+- **Production operations use one browser cockpit.** A commandable mission must not require two
+  browser windows, because duplicated command state, stale approvals, and split role context are safety
+  risks.
+- **A second browser window is allowed only as read-only support context**, for example a detached
+  telemetry/evidence display for a director or reviewer. It mirrors state from the primary cockpit and
+  has no unique command buttons, approvals, or hidden state.
+- **Engineering tools are separate by design.** RViz, Gazebo, ROS2 CLI, bag replay, and Godot render
+  diagnostics may run in separate windows during development, but they are not the operator interface
+  and must not bypass AG-08, SF-01, role gates, or the cockpit audit trail.
+- **Large screens use panes, not independent authority.** The preferred production layout is a single
+  routeable cockpit with optional split panes: map/world left, selected work area right, evidence drawer
+  bottom, command/approval rail explicit and role-gated.
