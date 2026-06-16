@@ -121,6 +121,7 @@ from stewie.server.routers import auth as _auth_router  # noqa: E402
 from stewie.server.routers import config as _config_router  # noqa: E402
 from stewie.server.routers import dem as _dem_router  # noqa: E402
 from stewie.server.routers import ephemeris as _ephemeris_router  # noqa: E402
+from stewie.server.routers import evidence as _evidence_router  # noqa: E402
 from stewie.server.routers import figures as _figures_router  # noqa: E402
 from stewie.server.routers import health as _health_router  # noqa: E402
 from stewie.server.routers import invites as _invites_router  # noqa: E402
@@ -154,6 +155,7 @@ app.include_router(_ephemeris_router.router)
 app.include_router(_world_router.router)
 app.include_router(_schema_router.router)
 app.include_router(_figures_router.router)
+app.include_router(_evidence_router.router)
 app.include_router(_twin_router.router)
 app.include_router(_admin_ops_router.router)
 app.include_router(_session_router.router)

@@ -549,9 +549,9 @@ function el(tag, attrs, ...children) {
 let VIEW = "plan";
 const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navview", report: "pane-report",
                     validation: "pane-validation", api: "pane-api", server: "pane-server", config: "pane-config",
-                    admin: "pane-admin", settings: "pane-settings" };
+                    evidence: "pane-evidence", admin: "pane-admin", settings: "pane-settings" };
 const _PANE_LOADED = {};
-const SYSTEM_VIEWS = ["validation", "api", "server", "config"];
+const SYSTEM_VIEWS = ["validation", "api", "server", "config", "evidence"];
 let LAST_SYSTEM_VIEW = "server";
 // UX-05: the planning sidebar (#panel) is a PLAN tool -- auto-collapse it off the Plan view (the stage
 // gets the room) and restore it on return. A manual toggle (the drawer button on desktop) PINS the
@@ -1152,8 +1152,46 @@ async function loadPane(name) {
                     ["SPICE kernels", yn(c.data.spice_available)],
                     ["twin snapshots", c.data.twin_snapshots]]);
       $("cfgout").textContent = JSON.stringify(c.overlay, null, 2);
+    } else if (name === "evidence" && !_PANE_LOADED.evidence) {          // #108: dissertation evidence
+      _PANE_LOADED.evidence = true;
+      const d = await (await fetch("/evidence")).json();
+      if (d && d.ok) $("evbox").innerHTML = renderEvidence(d);           // empty state kept if the fetch fails
     }
   } catch (e) { /* server not reachable (file://) -> panes keep their placeholder/empty state */ }
+}
+// #108: render the three dissertation-evidence sections from /evidence (grounded dart.comparison output).
+function renderEvidence(d) {
+  const e = (typeof esc === "function") ? esc : (s) => String(s);
+  const fmt = (v) => Array.isArray(v) ? v.join("–") : (v === true ? "✅" : v === false ? "—"
+                    : (v == null ? "—" : e(String(v))));
+  const SYS = ["Stanford NAV Lab (LAC)", "ShadowNav (JPL)", "ARGUS"];
+  const th = (t) => `<th style="text-align:left;padding:2px 8px">${e(t)}</th>`;
+  const td = (v, muted) => `<td style="padding:2px 8px${muted ? ';color:var(--muted)' : ''}">${fmt(v)}</td>`;
+  const h3 = (t) => `<h3 style="font-size:11px;letter-spacing:.1em;margin:12px 0 4px">${t}</h3>`;
+  // 1) GENERALIZATION -- the capability matrix (systems x attribute)
+  const cm = d.capability_matrix || {};
+  const rows = ["scope", "needs_orbital_prior", "builds_map_online", "motion", "heading_source",
+                "shadow_role", "active_reconfiguration"];
+  let html = h3("GENERALIZATION — capability matrix")
+    + `<table style="font-size:11px;border-collapse:collapse;width:100%"><tr>${th("")}${SYS.map(th).join("")}</tr>`
+    + rows.map((k) => `<tr><td style="color:var(--muted);padding:2px 8px">${k}</td>`
+        + SYS.map((s) => td((cm[s] || {})[k])).join("") + `</tr>`).join("") + `</table>`;
+  // 2) COMPARISON -- accuracy / precision per system (each in its reported regime)
+  const ap = d.accuracy_precision || {};
+  html += h3("COMPARISON — accuracy / precision (each system's reported regime)")
+    + `<table style="font-size:11px;border-collapse:collapse;width:100%"><tr>`
+    + ["system", "accuracy (m)", "precision (m)", "frame", "source"].map(th).join("") + `</tr>`
+    + SYS.map((s) => { const r = ap[s] || {};
+        return `<tr>${td(s)}${td(r.accuracy_m)}${td(r.precision_m)}${td(r.frame)}${td(r.source, true)}</tr>`;
+      }).join("") + `</table>`;
+  if (ap._note) html += `<div style="font-size:10px;color:var(--muted);margin-top:4px">${e(ap._note)}</div>`;
+  // 3) PHOTOMETRIC + DEPTH -- modality range precision
+  const ms = d.modality_sigma || {};
+  html += h3(`PHOTOMETRIC + DEPTH — range precision @ ${fmt(ms.range_m)} m`)
+    + `<div style="font-size:11px;line-height:1.8">articulation parallax σ <b>${fmt(ms.articulation_parallax_sigma_m)} m</b>`
+    + ` vs physical stereo σ <b>${fmt(ms.stereo_sigma_m)} m</b> → articulation advantage `
+    + `<b>${fmt(ms.articulation_advantage_x)}×</b> (the pose-change baseline exceeds the rig baseline)</div>`;
+  return html;
 }
 $("srvrefresh").onclick = () => loadPane("server");
 
