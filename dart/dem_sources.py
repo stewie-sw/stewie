@@ -55,6 +55,22 @@ _CATALOG: tuple[DemSource, ...] = (
         license="public domain (US Gov)", ingest="dem_import", bundled=True,
         notes="The shipped sample STEWIE loads by default (state.moon_dem). Real LOLA/NAC-derived."),
     DemSource(
+        id="nobile_rim1_10km_5m", name="Nobile Rim 1 (Site06) 10 km tile",
+        instrument="LOLA", resolution_m=5.0, coverage="Nobile Rim 1 (Artemis III candidate), ~10 km",
+        crs="south_polar_stereographic", fmt="geotiff_cog",
+        access_url="https://pgda.gsfc.nasa.gov/products/78",
+        license="public domain (US Gov)", ingest="dem_import", bundled=True,
+        notes="PGDA Product 78 Site06; real LOLA polar-stereographic 10 km / 5 m tile carved by "
+              "scripts/build_from_dem.py (Lane A), imported 2026-06-10. See stewie.specs.sites."),
+    DemSource(
+        id="shackleton_rim_10km_5m", name="Shackleton Rim (Site04) 10 km tile",
+        instrument="LOLA", resolution_m=5.0, coverage="Shackleton crater rim (Artemis III candidate), ~10 km",
+        crs="south_polar_stereographic", fmt="geotiff_cog",
+        access_url="https://pgda.gsfc.nasa.gov/products/78",
+        license="public domain (US Gov)", ingest="dem_import", bundled=True,
+        notes="PGDA Product 78 Site04; real LOLA polar-stereographic max-relief 10 km / 5 m tile "
+              "(~4.4 km relief) carved by scripts/build_from_dem.py (Lane A), imported 2026-06-10."),
+    DemSource(
         id="pgda_sp_cog", name="PGDA Lunar South Pole LOLA (COG)",
         instrument="LOLA", resolution_m=5.0, coverage="south pole, large-area",
         crs="south_polar_stereographic", fmt="geotiff_cog",

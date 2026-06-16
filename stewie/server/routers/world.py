@@ -5,16 +5,22 @@ metadata. observed_fraction/mutated keep their contract defaults here (enriched 
 brick). Public read. Delegates to server.state.moon_dem; no app-module import (no cycle)."""
 from __future__ import annotations
 
+import os
+
 import numpy as np
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from stewie.contracts import WorldState
 from stewie.server import state as S
+from stewie.specs.sites import SITES
 
 router = APIRouter()
 
-_SITE_SOURCE = {"haworth": "haworth_10km_5m"}      # site -> dem_sources id (extend as sites are imported)
+# site -> dart.dem_sources id, derived from the imported-bundle registry so EVERY imported site reports
+# its real bundle id as provenance (not just Haworth). The bundle dir basename IS the dem_sources id
+# (e.g. nobile_rim -> nobile_rim1_10km_5m), so a newly imported site is wired automatically.
+_SITE_SOURCE = {name: os.path.basename(s.bundle_dir) for name, s in SITES.items() if s.bundle_dir}
 
 
 @router.get("/world")

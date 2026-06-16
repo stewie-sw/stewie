@@ -39,6 +39,21 @@ def dem_site_xy(lat: float, lon: float):
     return {"ok": True, "x_m": round(x, 1), "y_m": round(y, 1)}
 
 
+@router.get("/dem/sources")
+def dem_sources_catalog():
+    """#150: the lunar DEM source catalog -- every selectable base layer with provenance, license, and
+    readiness. `bundled` tiles load offline (the 3 real LOLA tiles on disk); the rest are real-data-gated
+    (you supply the downloaded product). `planning_grade` is false for render-only visualization products.
+    Public read; the source of truth for the cockpit layer selector + the THIRD_PARTY provenance audit.
+    Declared BEFORE /dem/{name} so the literal path is not captured as a preview name."""
+    from dart.dem_sources import list_dem_sources
+    return {"ok": True, "sources": [
+        {"id": s.id, "name": s.name, "instrument": s.instrument, "resolution_m": s.resolution_m,
+         "coverage": s.coverage, "crs": s.crs, "fmt": s.fmt, "bundled": s.bundled,
+         "planning_grade": s.planning_grade, "ingest": s.ingest, "access_url": s.access_url,
+         "license": s.license, "notes": s.notes} for s in list_dem_sources()]}
+
+
 @router.get("/dem/{name}")
 def get_dem(name: str):                                 # the real LOLA work-area DEM previews (Haworth)
     bundle = os.path.join(_PKG, "..", "..", "samples", "lunar_dem", "haworth_10km_5m")
