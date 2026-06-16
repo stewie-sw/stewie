@@ -1424,3 +1424,57 @@ capability. C-03 (the 90° shadow-azimuth disagreement) is a hard prerequisite f
 Then the Phase 2 nav-primitive hardening rides alongside the option-1 rendered-DEM traverse (it makes
 the measured nav fixes honest under bad geometry), then Phase 1, then Phase 3. The honesty rules are
 unchanged: every fix lands TDD, gate byte-identical, no synthetic data.
+
+## 24. LanderPi / IPEx capability diff + convergence plan (2026-06-15)
+
+A terrestrial nav testbed (LanderPi-class: ROS2 + Nav2 + SLAM-Toolbox/RTAB-Map + AMCL + TEB/DWA on
+real hardware) covers ~70% of the autonomy *software* stack but only ~30% of the IPEx *mission* stack
+because it has zero excavation/terramechanics. **STEWIE is the inverse:** it owns the mission-physics
+"hard 30%" a terrestrial robot structurally cannot, and is weaker exactly where the testbed is strong
+(real-hardware ROS2/perception/SLAM). They are **complementary**, not competing — prototype the
+autonomy-software layer on the testbed, validate the excavation/terramechanics/illumination layer in
+STEWIE, converge on IPEx.
+
+### 24.1 Capability map — STEWIE actual (grounded)
+
+| Domain | testbed | STEWIE actual | Evidence / PRD |
+|---|---|---|---|
+| ROS2 infra | 100% | ~50% — RC contract + SF-01 watchdog + CCSDS PitBackend + telemetry; live rclpy node bridge gated | `bridge/rc_contract.py`, `pit_backend.py`; P20 |
+| Navigation | 90% | ~50% — routing, plan-view authoring, keep-outs, negative-obstacle, multi-goal; local trajectory planner N | NV-01 P, NV-03/04 N |
+| SLAM/localization | 90% | ~60% — map-relative register-to-DEM, SE(2) pose graph, loop closure, Shadow-SLAM shadow-σ calib, PSR supervisor; Katwijk ATE 3.35 m; full SLAM-from-scratch N | `dart/pose_graph_se2.py`, `loop_closure.py`, `shadow_sigma_calibration.py` |
+| Perception | 80% | ~40% — rock taxonomy, obstacle map, camera rig/select, dock pose; dense stereo→depth→cloud gated | PM-13..16 N |
+| Mission planning | 70% | ~85% — planner, Plan IR, scheduler, `plan_multi`, challenge platform | CP-01..10 |
+| **Excavation** | **5%** | **~70%** — mass-conserving cut/fill, deposit_field, drum-fill mass sensing (ICE-RASSOR FDC), IPEx dig energy; Tier-3 force-accurate drum gated | `physics/column_state.py`, `rassor_mass_model.py` |
+| **Terramechanics** | **0%** | **~85%** — Bekker pressure-sinkage, slip ladder (Janosi/drawbar/entrapment/runaway), Lyasko ⅙g, tip-over stability; quantitative oracle calib deferred | `physics/terramechanics.py`, `slip.py`, `stability.py` |
+| Lunar ops | 10% | ~40% — solar/shadow/PSR illumination; thermal partial; dust render-only; multi-day clock N | TW-06 D, EP-04/07 N |
+
+**STEWIE already holds 5 of the 6 "missing" areas** the analysis flags as the differentiator (excavation
+physics, regolith flow, terramechanics, wheel-slip, illumination/shadow); AutoDig is partial (dig physics
++ energy yes, adaptive control loop no), and Shadow-SLAM is real scaffolding, not just a concept.
+
+### 24.2 Diff — three buckets
+- **STEWIE owns (testbed can't):** Bekker terramechanics, slip/entrapment, mass-conserving excavation,
+  drum-fill sensing, IPEx dig energy, solar/shadow/PSR, the conserved digital twin, the planner +
+  multi-vehicle scheduler, Shadow-SLAM + ARGUS articulation localization (the dissertation novelty).
+- **Testbed complements (STEWIE's real gaps):** a physical robot running ROS2/Nav2/RTAB-Map/AMCL on real
+  sensors — the proving ground for the autonomy software STEWIE only simulates.
+- **Gaps in both (the build list):** live ROS2-Jazzy node bridge, dense stereo→depth producer, adaptive
+  AutoDig, Tier-3 force-accurate drum (Chrono GPU-DEM), full fleet coordination, dust/thermal/multi-day.
+
+### 24.3 Convergence plan (Phases A–E)
+- **A. Autonomy seam** — live ROS2-Jazzy bridge (RC contract + PitBackend speak rclpy/cmd_vel); adopt the
+  Autoware architecture (§16.7). Where testbed ROS2/Nav2/SLAM prototyping transfers in. (P20, AG-08 seam.)
+- **B. Perception producer** — render→depth→point-cloud, unblocking PM-13..16 + dense Shadow-SLAM.
+- **C. Multi-vehicle coordination** — extend `plan_multi` (allocation + space-time conflict, built) into
+  fleet coordination: shared chargers/pits/corridors as reservable resources, cross-vehicle precedence,
+  per-rover belief/health, exact-oracle validation; Autoware multi-robot conventions inform interfaces.
+  (FL-03..07.)
+- **D. Excavation depth** — Tier-3 force-accurate drum (Chrono GPU-DEM) + adaptive AutoDig control. (CP-03, P7.)
+- **E. ARGUS contribution** — close the Shadow-SLAM + articulation-parallax loop (scaffolds exist) →
+  GPS-independent PSR localization + excavation-progress tracking; the publishable contribution. (SN-*.)
+
+Honest restatement: the "~70% software / ~35% mission" figure is the *testbed's*. STEWIE is the mirror —
+~55% autonomy-software (ROS2/perception/real-SLAM is the gap), ~70% mission-physics (excavation/
+terramechanics/illumination is the strength). Fastest path to an IPEx-relevant twin = **Phase A** (connect
+the mission-physics twin to a testbed/Autoware-style ROS2 autonomy layer). All phases land TDD, gate
+byte-identical, no synthetic data.
