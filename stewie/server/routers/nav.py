@@ -116,3 +116,46 @@ def post_executive(req: ExecutiveRequest, _auth: None = Depends(require_auth)):
     out = EX.executive_step(faults=active, command_acked=req.command_acked, plan_accepted=req.plan_accepted,
                             recovery=recovery, reactive=reactive)
     return {"ok": True, **out, "faults": active, "fault_summary": F.fault_summary(active)}
+
+
+class ReactRequest(BaseModel):
+    # NV-05: observation-driven reactive replan; observation/geometry only (extra='forbid')
+    model_config = ConfigDict(extra="forbid")
+    pose: tuple[float, float]
+    heading_rad: float = Field(ge=-7.0, le=7.0)
+    goal: tuple[float, float]
+    planned_path: list[tuple[float, float]] = Field(default_factory=list, max_length=4096)
+    rocks: list[tuple[float, float, float]] = Field(default_factory=list, max_length=_MAX_OBSTACLES)  # observed (x,y,diameter_m)
+    known_hazards: list[tuple[float, float]] = Field(default_factory=list, max_length=_MAX_OBSTACLES)
+    keepouts: list[tuple[float, float, float]] = Field(default_factory=list, max_length=_MAX_OBSTACLES)
+    sensor_range_m: float = Field(default=18.0, gt=0.0, le=1e4)
+    deviation_max_m: float = Field(default=8.0, ge=0.0, le=1e4)
+    clearance_m: float = Field(default=1.0, ge=0.0, le=100.0)
+    horizon_m: float = Field(default=8.0, gt=0.0, le=1000.0)
+
+
+@router.post("/nav/react")
+def post_react(req: ReactRequest, _auth: None = Depends(require_auth)):
+    """NV-05: reactive replan. Observed rocks (x, y, diameter) are classified into nav hazards; the D/E
+    obstacles within sensor range become dynamic keep-outs and trigger a LOCAL replan (an NV-03 arc),
+    escalating to GLOBAL when every local arc is blocked. An off-route deviation also triggers. Returns the
+    decision (replan/scope), the updated keep-outs, the deviation, and the chosen local arc when feasible."""
+    from dart.rock_taxonomy import classify
+    from lode import reactive_nav as RN
+    hazards = [(float(x), float(y), classify(diameter_m=float(d))) for x, y, d in req.rocks]
+    known = [{"x": float(x), "y": float(y)} for x, y in req.known_hazards]
+    keepouts = [(float(a), float(b), float(c)) for a, b, c in req.keepouts]
+    path = [(float(x), float(y)) for x, y in req.planned_path]
+    out = RN.react((float(req.pose[0]), float(req.pose[1])), float(req.heading_rad),
+                   (float(req.goal[0]), float(req.goal[1])), planned_path=path, hazards_world=hazards,
+                   known_hazards=known, keepouts=keepouts, sensor_range_m=float(req.sensor_range_m),
+                   deviation_max_m=float(req.deviation_max_m), clearance_m=float(req.clearance_m),
+                   horizon_m=float(req.horizon_m))
+    plan = out.get("local_plan")
+    arc = None
+    if plan and plan.get("feasible"):
+        arc = [[round(float(x), 4), round(float(y), 4), round(float(t), 5)] for x, y, t in plan["arc"]]
+    return {"ok": True, "replan": out["replan"], "scope": out["scope"],
+            "n_new_hazards": len(out["new_hazards"]), "deviation_m": round(out["deviation_m"], 3),
+            "keepouts": [[round(k[0], 3), round(k[1], 3), round(k[2], 3)] for k in out["keepouts"]],
+            "local_arc": arc}

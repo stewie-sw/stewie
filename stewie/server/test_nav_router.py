@@ -84,3 +84,20 @@ def test_nav_executive_routes_recovery_and_continues_when_nominal(client):
 def test_nav_executive_pauses_on_unacked_command(client):
     j = client.post("/nav/executive", json={"command_acked": False}).json()
     assert j["action"] == "pause"
+
+
+def test_nav_react_steers_around_an_observed_rock(client):
+    # a 1 m rock dead ahead, in sensor range -> becomes a keep-out + a local detour
+    r = client.post("/nav/react", json={
+        "pose": [0, 0], "heading_rad": 0.0, "goal": [20, 0], "planned_path": [[0, 0], [20, 0]],
+        "rocks": [[8.0, 0.0, 1.0]], "sensor_range_m": 18.0, "horizon_m": 10.0, "clearance_m": 0.5})
+    assert r.status_code == 200
+    j = r.json()
+    assert j["replan"] is True and j["scope"] == "local" and j["n_new_hazards"] == 1
+    assert j["local_arc"] and len(j["local_arc"]) > 1                 # a steering arc was returned
+
+
+def test_nav_react_no_hazard_on_route_does_not_replan(client):
+    j = client.post("/nav/react", json={"pose": [0, 0], "heading_rad": 0.0, "goal": [20, 0],
+                                        "planned_path": [[0, 0], [20, 0]], "deviation_max_m": 2.0}).json()
+    assert j["replan"] is False and j["scope"] == "none" and j["n_new_hazards"] == 0
