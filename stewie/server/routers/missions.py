@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from stewie.server import objects as OBJ
-from stewie.server.deps import require_auth
+from stewie.server.deps import require_auth, require_role
 from stewie.server.services import log_event
 
 router = APIRouter()
@@ -38,7 +38,32 @@ def mission_load(name: str, _auth: str = Depends(require_auth)):
 
 
 @router.delete("/missions/{name}")
-def mission_delete(name: str, _auth: str = Depends(require_auth)):
+def mission_delete(name: str, identity: str = Depends(require_auth)):
+    """AG-06: recoverable soft-delete with ownership escalation -- you may delete your OWN mission;
+    another operator's (or an unowned) mission requires a director."""
+    from stewie.server import auth as AUTH
+    owner = OBJ.owner_of("missions", name)
+    if not OBJ.deletion_allowed(owner, identity, AUTH.role_of(identity) == "director"):
+        return JSONResponse(status_code=403, content={
+            "ok": False, "error": "deleting another operator's mission requires a director"})
     ok = OBJ.delete_mission(name)
-    log_event(_auth, "mission.delete", name)
-    return {"ok": ok}
+    log_event(identity, "mission.delete", name)
+    return {"ok": ok, "recoverable": True}
+
+
+@router.post("/missions/{name}/restore")
+def mission_restore(name: str, _auth: str = Depends(require_role("operator"))):
+    """AG-06: restore the most-recent trashed copy of a mission (operator+)."""
+    return {"ok": OBJ.restore("missions", name)}
+
+
+@router.get("/admin/trash/missions")
+def mission_trash(_auth: str = Depends(require_role("director"))):
+    """AG-06: list the mission trash (director-only) so a purge can name a file."""
+    return {"ok": True, "trash": OBJ.list_trash("missions")}
+
+
+@router.delete("/admin/trash/missions/{filename}")
+def mission_purge(filename: str, _auth: str = Depends(require_role("director"))):
+    """AG-06: permanent purge of one trashed mission -- director-only (no hard delete otherwise)."""
+    return {"ok": OBJ.purge_trash("missions", filename)}

@@ -38,7 +38,14 @@ def structure_expand(name: str, x: float, y: float, _auth: str = Depends(require
 
 
 @router.delete("/structures/custom/{name}")
-def structure_delete(name: str, _auth: str = Depends(require_auth)):
+def structure_delete(name: str, identity: str = Depends(require_auth)):
+    """AG-06: recoverable soft-delete with ownership escalation -- delete your OWN template;
+    another operator's (or an unowned) template requires a director."""
+    from stewie.server import auth as AUTH
+    owner = OBJ.owner_of("structures", name)
+    if not OBJ.deletion_allowed(owner, identity, AUTH.role_of(identity) == "director"):
+        return JSONResponse(status_code=403, content={
+            "ok": False, "error": "deleting another operator's structure requires a director"})
     ok = OBJ.delete_structure(name)
-    log_event(_auth, "structure.delete", name)
-    return {"ok": ok}
+    log_event(identity, "structure.delete", name)
+    return {"ok": ok, "recoverable": True}

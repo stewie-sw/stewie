@@ -41,6 +41,72 @@ def _dir(kind: str) -> str:
     return d
 
 
+# ---- AG-06: ownership-aware recoverable soft-delete -------------------------------------------
+def owner_of(kind: str, name: str) -> str | None:
+    """The created_by of a stored artifact, or None if it does not exist. A stored-but-unowned
+    (pre-AG-05) artifact reads as 'unknown'."""
+    path = os.path.join(_dir(kind), f"{_slug(name)}.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        return json.load(open(path)).get("created_by", "unknown")
+    except (json.JSONDecodeError, OSError):
+        return "unknown"
+
+
+def deletion_allowed(owner: str | None, identity: str, is_director: bool) -> bool:
+    """AG-06 escalation policy: you may delete your OWN artifact; another operator's -- or an
+    unowned/'unknown' -- artifact requires a director. A missing artifact (owner None) is a
+    harmless no-op (allowed). (AG-07 will additionally require director for live-namespace artifacts.)"""
+    if owner is None:
+        return True
+    return is_director or owner == identity
+
+
+def _trash_dir(kind: str) -> str:
+    d = os.path.join(_dir(kind), ".trash")          # not a *.json -> invisible to the live listing
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def soft_delete(kind: str, name: str) -> bool:
+    """Move an artifact into the per-kind .trash (recoverable) instead of unlinking it."""
+    slug = _slug(name)
+    src = os.path.join(_dir(kind), f"{slug}.json")
+    if not os.path.exists(src):
+        return False
+    os.replace(src, os.path.join(_trash_dir(kind), f"{slug}.{int(time.time() * 1000)}.json"))
+    return True
+
+
+def restore(kind: str, name: str) -> bool:
+    """Restore the most-recent trashed copy of `name` back into the live store (slugs carry no '.',
+    so the '.'-delimited timestamp suffix cannot collide a prefix slug)."""
+    slug = _slug(name)
+    hits = sorted(f for f in os.listdir(_trash_dir(kind))
+                  if f.startswith(f"{slug}.") and f.endswith(".json"))
+    if not hits:
+        return False
+    os.replace(os.path.join(_trash_dir(kind), hits[-1]),
+               os.path.join(_dir(kind), f"{slug}.json"))
+    return True
+
+
+def list_trash(kind: str) -> list:
+    return sorted(f for f in os.listdir(_trash_dir(kind)) if f.endswith(".json"))
+
+
+def purge_trash(kind: str, filename: str) -> bool:
+    """Permanently delete ONE trashed file (director-only, enforced by the route). Basename-confined:
+    no path traversal out of .trash."""
+    safe = os.path.basename(filename)
+    p = os.path.join(_trash_dir(kind), safe)
+    if safe.endswith(".json") and os.path.exists(p):
+        os.unlink(p)
+        return True
+    return False
+
+
 # ---- missions -----------------------------------------------------------------------------
 _MISSION_KEYS = {"body", "orders", "keepouts", "precedence", "vehicle", "tools", "soil", "lander",
                  "mission_t0_s", "note"}
@@ -79,11 +145,9 @@ def load_mission(name: str) -> dict | None:
 
 
 def delete_mission(name: str) -> bool:
-    path = os.path.join(_dir("missions"), f"{_slug(name)}.json")
-    if os.path.exists(path):
-        os.unlink(path)
-        return True
-    return False
+    """AG-06: recoverable soft-delete (moves to .trash, not unlink). The route enforces the
+    ownership-escalation policy (deletion_allowed) before calling this."""
+    return soft_delete("missions", name)
 
 
 # ---- custom structure templates ------------------------------------------------------------
@@ -140,8 +204,5 @@ def expand_structure(name: str, x: float, y: float) -> list | None:
 
 
 def delete_structure(name: str) -> bool:
-    path = os.path.join(_dir("structures"), f"{_slug(name)}.json")
-    if os.path.exists(path):
-        os.unlink(path)
-        return True
-    return False
+    """AG-06: recoverable soft-delete (moves to .trash). Route enforces deletion_allowed first."""
+    return soft_delete("structures", name)
