@@ -586,9 +586,9 @@ def build_tread_track_4wheel() -> None:
                               qt_touched_per_frame[i])
         # ADDITIVE (INTERFACE.md v1.0.2 §5.2): per-frame wheel_tracks (four contact polylines
         # + travel heading + contact width); built by rover so the shader can orient cleats.
-        if frame_polylines[i] is not None:
-            meta["wheel_tracks"] = build_wheel_tracks_meta(
-                frame_polylines[i], frame_headings[i], cell_m=CELL_M, width_m=0.18)
+        _pl, _hd = frame_polylines[i], frame_headings[i]
+        if _pl is not None and _hd is not None:        # both are per-frame Optional; narrow via locals
+            meta["wheel_tracks"] = build_wheel_tracks_meta(_pl, _hd, cell_m=CELL_M, width_m=0.18)
         # ADDITIVE (INTERFACE.md v1.0.2 §5.3): the Mode-B refinement policy block on EVERY
         # frame; the FINAL frame additionally emits tiles[] + writes the fine tile bundles
         # under this frame's own tiles/ dir (tdir already names it; created on demand).
@@ -1000,7 +1000,7 @@ def build_from_dem(scene_dir: str = "samples/lunar_dem/haworth_10km_5m", *,
             f"build_from_dem: re-derived datum path deviates from the committed heightmap by "
             f"{rt_err:.3e} m (> 1e-3); the datum re-supply is broken")
 
-    base_fields = {
+    base_fields: dict[str, np.ndarray] = {
         "mass_areal": mass_areal, "density": density, "datum": datum,
         "state_label": state_label, "disturbance": disturbance,
     }

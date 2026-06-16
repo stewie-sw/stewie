@@ -109,9 +109,9 @@ precision = 1
 fail_under = 85
 
 # --- type checking (PRD N11) ----------------------------------------------------------------------
-# The mission-planning layer (planet_browser/*) + the core physics (terramechanics/slip/drive/rover/
-# bodies/vehicles/...) are type-checked. The sim scene-builder, RL envs, DEM ingest, and viz modules are
-# on a documented RATCHET (ignore_errors below) to be typed incrementally -- shrink that list over time.
+# The WHOLE codebase is type-checked: stewie + dart + lode + leap + forge (tests excluded). The former
+# per-module ignore_errors RATCHET has been fully retired (#121) -- the sim scene-builder, RL envs, DEM
+# ingest, and viz modules were typed incrementally until the exclusion list reached zero. Keep it empty.
 [tool.mypy]
 python_version = "3.10"
 files = ["stewie", "dart", "lode", "leap", "forge"]
@@ -119,11 +119,3 @@ exclude = '(test_.*\.py|tests\.py)$'
 ignore_missing_imports = true          # gymnasium/torch/pyproj/fastapi/matplotlib ship no/partial stubs here
 no_implicit_optional = true
 warn_redundant_casts = true
-
-[[tool.mypy.overrides]]
-# RATCHET: modules pending full typing. NOT here (so they ARE checked): every planet_browser module +
-# terramechanics/slip/drive/rover/bodies/vehicles/material/challenge/registration/ipex_specs/constants/...
-module = [
-    "stewie.terrain.scenes",
-]
-ignore_errors = true

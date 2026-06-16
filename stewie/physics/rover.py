@@ -32,6 +32,8 @@ All four-wheel / drum ops keep mass_areal conserved (spec §10 invariant 1); hei
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import numpy as np
 
 from stewie.specs import constants as K
@@ -525,7 +527,7 @@ DRUM_TEETH_COUNT = 8
 DRUM_TEETH_PITCH_M = 0.025  # ~2.5 cm scoop pitch (RASSOR drum; shader-only detail)
 
 
-def _swath_mask(cs: ColumnState, swath_rc: list[tuple[float, float]], half_width_cells: float) -> np.ndarray:
+def _swath_mask(cs: ColumnState, swath_rc: Sequence[tuple[float, float]], half_width_cells: float) -> np.ndarray:
     """Union of disc footprints along a swath centerline (same idiom as _wheel_mask)."""
     mask = np.zeros((cs.height, cs.width), dtype=bool)
     for (r, c) in swath_rc:
@@ -533,9 +535,9 @@ def _swath_mask(cs: ColumnState, swath_rc: list[tuple[float, float]], half_width
     return mask
 
 
-def drum_pass(cs: ColumnState, swath_rc: list[tuple[float, float]], *,
+def drum_pass(cs: ColumnState, swath_rc: Sequence[tuple[float, float]], *,
               depth_m: float, width_m: float = 0.20,
-              dump_rc: list[tuple[float, float]] | None = None) -> float:
+              dump_rc: Sequence[tuple[float, float]] | None = None) -> float:
     """Dig a band to EXCAVATED (and optionally DUMP it as SPOIL), in-place. MASS PRESERVED.
 
     Cuts a swath ``width_m`` wide along ``swath_rc`` down to ``depth_m`` of column
@@ -575,7 +577,7 @@ def drum_pass(cs: ColumnState, swath_rc: list[tuple[float, float]], *,
     return moved_kg
 
 
-def build_drum_marks_meta(swath_rc: list[tuple[float, float]], heading_rad: float, *,
+def build_drum_marks_meta(swath_rc: Sequence[tuple[float, float]], heading_rad: float, *,
                           drum: str, depth_m: float, width_m: float = 0.20,
                           teeth_count: int = DRUM_TEETH_COUNT,
                           teeth_pitch_m: float = DRUM_TEETH_PITCH_M,
