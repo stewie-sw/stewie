@@ -23,6 +23,7 @@ from __future__ import annotations
 import contextlib
 from dataclasses import dataclass, field
 from enum import IntEnum
+from typing import cast
 
 import numpy as np
 
@@ -39,6 +40,12 @@ class StateLabel(IntEnum):
     SPOIL = K.STATE_SPOIL
     COMPACTED_BERM = K.STATE_COMPACTED_BERM
     SINTERED = K.STATE_SINTERED
+
+
+# The core raster fields below default to None at construction and are FILLED in __post_init__ (a
+# uniform layer / zeros). They are typed np.ndarray (not Optional) so the many array-math read sites
+# need no None-narrowing; _UNSET is None at runtime but typed ndarray for the field default.
+_UNSET: np.ndarray = cast(np.ndarray, None)
 
 
 @dataclass
@@ -67,12 +74,12 @@ class ColumnState:
     height: int
     cell_m: float
 
-    mass_areal: np.ndarray = field(default=None)   # (height, width) kg/m^2
-    density: np.ndarray = field(default=None)       # (height, width) kg/m^3
-    state_label: np.ndarray = field(default=None)   # (height, width) uint8
-    disturbance: np.ndarray = field(default=None)   # (height, width) [0,1]
-    ice: np.ndarray | None = field(default=None)    # (height, width) [0,~0.06] or None (dry)
-    datum: np.ndarray = field(default=None)         # (height, width) m
+    mass_areal: np.ndarray = field(default=_UNSET)   # (height, width) kg/m^2
+    density: np.ndarray = field(default=_UNSET)       # (height, width) kg/m^3
+    state_label: np.ndarray = field(default=_UNSET)   # (height, width) uint8
+    disturbance: np.ndarray = field(default=_UNSET)   # (height, width) [0,1]
+    ice: np.ndarray | None = field(default=None)     # (height, width) [0,~0.06] or None (dry)
+    datum: np.ndarray = field(default=_UNSET)         # (height, width) m
 
     drum_inventory: float = 0.0  # kg held in drums (not on the grid)
     # Physical-domain validation runs at construction by default (RB-01/CT-02). The ONE documented

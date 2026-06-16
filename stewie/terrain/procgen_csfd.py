@@ -31,6 +31,8 @@ clustering / overlap rejection / pre-existing-crater degradation); positions uni
 
 from __future__ import annotations
 
+from typing import Literal, overload
+
 import numpy as np
 
 from stewie.specs import constants as K
@@ -64,6 +66,20 @@ def expected_crater_counts(d_edges: np.ndarray, area_m2: float,
     per_bin_density = np.maximum(cum[:-1] - cum[1:], 0.0)   # /m^2 in [edge_i, edge_i+1]
     centers = np.sqrt(d_edges[:-1] * d_edges[1:])
     return centers, per_bin_density * float(area_m2)
+
+
+@overload
+def populate_craters(cs: ColumnState, dem_effective_resolution_m: float, *,
+                     d_min_m: float = ..., nyquist_mult: float = ..., age_gyr: float = ...,
+                     apply_equilibrium_cap: bool = ..., n_bins: int = ..., size_dependent_depth: bool = ...,
+                     ejecta_mode: str = ..., seed: int = ...,
+                     return_records: Literal[False] = ...) -> ColumnState: ...
+@overload
+def populate_craters(cs: ColumnState, dem_effective_resolution_m: float, *,
+                     d_min_m: float = ..., nyquist_mult: float = ..., age_gyr: float = ...,
+                     apply_equilibrium_cap: bool = ..., n_bins: int = ..., size_dependent_depth: bool = ...,
+                     ejecta_mode: str = ..., seed: int = ...,
+                     return_records: Literal[True]) -> tuple[ColumnState, list[dict]]: ...
 
 
 def populate_craters(cs: ColumnState, dem_effective_resolution_m: float, *,

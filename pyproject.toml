@@ -131,10 +131,8 @@ module = [
     "lode.scheduler_env",
     "stewie.envs.active_perception_env",
     "stewie.envs.rover_env",
-    "stewie.physics.column_state",
     "stewie.terrain.dem_overlay",
     "stewie.terrain.procgen",
-    "stewie.terrain.procgen_csfd",
     "stewie.terrain.scenes",
     "stewie.terrain.tiles_mosaic",
 ]
