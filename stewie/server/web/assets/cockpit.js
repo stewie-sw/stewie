@@ -433,6 +433,13 @@ async function editPlace(lat, lon) {
       ANNOTATIONS.push(an);
       dropPin(lat, lon, `📝 ${text.slice(0, 24)}`, "#e0b300", { kind: "note", obj: an });
       $("editstate").textContent = `note @ ${d.x_m}, ${d.y_m} m`; drawPlan(); }
+  } else if (EDIT.tool === "lander") {
+    // #3 (Aaron: "no way to place lander"): click-to-place the lander on the map (mirrors the typed
+    // landx/landy + Place control). setLander persists it + saves with the mission; the lander layer +
+    // its 100 m ring (#161) redraw via drawPlan, and the typed inputs stay in sync.
+    setLander(d.x_m, d.y_m);
+    if ($("landx")) { $("landx").value = LANDER_P.x; $("landy").value = LANDER_P.y; }
+    drawPlan(); $("editstate").textContent = `lander @ site ${d.x_m} m E, ${d.y_m} m N (persists + saves with the mission)`;
   }
 }
 // #54 follow-up (Aaron: "default to on -- no matter where we are looking on bodies"): a global
