@@ -6,13 +6,61 @@ records every request here; the /metrics + /healthz routes read a snapshot).
 """
 from __future__ import annotations
 
+import contextvars
+import hashlib
+import json as _json
 import logging
 import os
+import secrets
 import threading
 import time
 from typing import Any
 
 log = logging.getLogger("stewie.server")
+
+# ---- FS-19: observability ledger plumbing -------------------------------------------------------
+# A request-scoped correlation id so every semantic event logged INSIDE one request shares an id (you
+# can pull the whole story of one operator action from the ledger). The HTTP middleware sets it per
+# request; log_event auto-attaches it. ContextVars are per-task, so concurrent requests never collide.
+_CORRELATION: contextvars.ContextVar[str | None] = contextvars.ContextVar("stewie_correlation_id", default=None)
+# Field names whose VALUES must never reach the ledger (audit FS-19: no secrets/tokens/passwords/keys).
+_REDACT_KEYS = frozenset({
+    "password", "passwd", "pass", "token", "api_key", "apikey", "key", "secret",
+    "authorization", "auth", "csrf", "private_key", "privatekey", "cookie", "session",
+})
+
+
+def new_correlation_id() -> str:
+    """A fresh, unguessable correlation id for one request/decision chain."""
+    return secrets.token_hex(8)
+
+
+def set_correlation_id(cid: str | None) -> None:
+    _CORRELATION.set(cid)
+
+
+def get_correlation_id() -> str | None:
+    return _CORRELATION.get()
+
+
+def redact(obj: Any) -> Any:
+    """Recursively mask any value held under a secret-like key, so a caller can never leak a credential
+    into the audit ledger even by accident. Non-secret fields pass through unchanged."""
+    if isinstance(obj, dict):
+        return {k: ("[redacted]" if str(k).lower() in _REDACT_KEYS else redact(v)) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [redact(v) for v in obj]
+    return obj
+
+
+def hash_payload(data: Any) -> str:
+    """A short, stable content fingerprint (sha256 hex, truncated) of a request/response payload, so the
+    ledger can record WHAT flowed without storing the contents themselves. Order-insensitive for dicts."""
+    try:
+        canon = _json.dumps(data, sort_keys=True, default=str, separators=(",", ":"))
+    except (TypeError, ValueError):
+        canon = repr(data)
+    return hashlib.sha256(canon.encode("utf-8")).hexdigest()[:16]
 
 # ---- the audit ledger (S-10): locked durable append + rotation + VISIBLE failure ----------------
 _AUDIT_LOCK = threading.Lock()
@@ -105,14 +153,23 @@ def reset_revocation_health() -> None:
         _REVOCATION_HEALTH.update({"degraded": False, "failures": 0, "last_error": None})
 
 
-def log_event(actor: str, action: str, target: str = "") -> None:
+def log_event(actor: str, action: str, target: str = "", **fields: Any) -> None:
     """Append a durable, ordered audit line under data_dir (S-10). Serialized on a process lock so
     concurrent events cannot interleave; fsync'd so a crash cannot lose it; rotated past the size cap.
     A write failure is recorded as a VISIBLE degraded state (audit_health) and logged at CRITICAL --
-    never silently swallowed. Still never raises into the request path."""
-    import json as _json
-    line = _json.dumps({"ts": round(time.time(), 3), "actor": actor,
-                        "action": action, "target": target}) + "\n"
+    never silently swallowed. Still never raises into the request path.
+
+    FS-19: the record carries the active request correlation id (unless a caller overrides it) plus any
+    structured ``**fields`` (status, latency_ms, error_code, mission/site/body/time, input/output hashes).
+    Every field value is redacted through ``redact`` first, so a secret/token/password can never land in
+    the ledger even if a caller passes one by mistake."""
+    rec: dict[str, Any] = {"ts": round(time.time(), 3), "actor": actor, "action": action, "target": target}
+    cid = fields.pop("correlation_id", None) or get_correlation_id()
+    if cid is not None:
+        rec["correlation_id"] = cid
+    if fields:
+        rec.update(redact(fields))
+    line = _json.dumps(rec) + "\n"
     try:
         with _AUDIT_LOCK:
             _audit_append_raw(line)

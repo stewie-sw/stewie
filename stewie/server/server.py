@@ -164,6 +164,12 @@ app.include_router(_perception_router.router)
 @app.middleware("http")
 async def _access_log(request: Request, call_next):
     t0 = time.monotonic()
+    # FS-19: one correlation id per request -- honor an inbound id (an upstream/tunnel can set it) else
+    # mint one. Every semantic event log_event'd inside this request inherits it (services ContextVar),
+    # so the ledger lets an admin pull the whole story of one operator action by id.
+    cid = (request.headers.get("x-correlation-id") or request.headers.get("x-request-id")
+           or _new_correlation_id())
+    _set_correlation_id(cid)
     # N8: reject oversized bodies up front (Content-Length guard) before they reach a handler.
     if request.method in ("POST", "PUT", "PATCH"):
         try:
@@ -190,6 +196,13 @@ async def _access_log(request: Request, call_next):
     record_request(sk, route_key)                        # RC-04: atomic counter update (server.services)
     log.info('%s "%s %s" %s %.1fms',
              request.client.host if request.client else "-", request.method, raw, response.status_code, dt)
+    response.headers["X-Correlation-Id"] = cid           # FS-19: hand the id back so a client can cite it
+    # FS-19: record the contract call itself (mutating routes only -- GET health/metrics/static must not
+    # flood the ledger) with the correlation id, result status, latency, and an error code on failure.
+    if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        log_event("-", "http." + request.method.lower(), route_key, correlation_id=cid,
+                  status=response.status_code, latency_ms=round(dt, 1),
+                  error_code=(response.status_code if response.status_code >= 400 else None))
     return response
 
 
@@ -219,7 +232,13 @@ def get_index():
 
 # ---- #39: the event history (who did what when; actor = the #52 auth identity) ----------------
 # ARCH-3: the audit ledger lives in stewie.server.services so routers can log without importing this app.
-from stewie.server.services import prune_reports as _prune_reports, record_request  # noqa: E402
+from stewie.server.services import (  # noqa: E402
+    log_event,
+    new_correlation_id as _new_correlation_id,
+    prune_reports as _prune_reports,
+    record_request,
+    set_correlation_id as _set_correlation_id,
+)
 
 
 # ---- #32: no-terminal admin ops (the W-2/W-3 CLIs + gate validation as buttons) ---------------
