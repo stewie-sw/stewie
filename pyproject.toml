@@ -77,17 +77,20 @@ select = ["F"]
 
 [tool.pytest.ini_options]
 testpaths = ["stewie", "dart", "lode", "leap", "forge", "scripts"]
-# #122: `-n auto` (pytest-xdist) parallelizes across all cores -- the dominant run-time win (1074s
-# serial -> ~720s on a 32-core box). It is now the DEFAULT after the two read-during-write races it
-# first exposed were fixed at the source: (1) test_gen_bodies_json regenerated stewie/server/bodies.json
-# in place -> atomic temp+os.replace (stewie/server/atomicio); (2) the /plan report stem is a
-# deterministic HMAC, so workers running the same payload collided on one {stem}.pdf in a shared reports
-# dir -> conftest now gives every test its own STEWIE_DATA_DIR. Verified: three full parallel runs, the
-# last fully green. `--timeout=600` (pytest-timeout) FAILs a hung test fast (stack dumped) -- 600s is far
-# above any real test, so it fires only on a true hang/deadlock. Local runs need PYTHONNOUSERSITE=1 so
-# the repo `.venv` numpy wins over a user-site copy (the g1_capture subprocess inherits the flag); CI's
-# fresh `pip install -e .[dev]` has no user-site contamination, so `-n auto` is clean there.
-addopts = "-q -n auto --timeout=600"
+# #122: serial by default. pytest-xdist `-n auto` parallelizes across all cores (1074s -> ~720s on a
+# 32-core box) and is in the `dev` extra, so the clean .venv has it -- run it explicitly for the local
+# speedup:  PYTHONNOUSERSITE=1 python -m pytest -n auto  (PYTHONNOUSERSITE=1 so the repo `.venv` numpy
+# wins over a user-site copy, which the g1_capture subprocess inherits). It is NOT baked into addopts
+# because CI installs from a hash-pinned, security-reviewed lockfile (requirements-dev.lock, generated
+# by `uv pip compile`) that intentionally excludes xdist, so a default `-n auto` errors there
+# ("unrecognized arguments: -n"). Running `-n auto` in CI too means adding pytest-xdist+execnet to that
+# lockfile -- a separate, approve-first change (expands the pinned surface; needs coverage-combine
+# checked). The two read-during-write races `-n auto` exposed ARE fixed at the source, so the opt-in
+# parallel run is safe: (1) test_gen_bodies_json regenerated stewie/server/bodies.json in place -> atomic
+# temp+os.replace (stewie/server/atomicio); (2) the /plan report stem is a deterministic HMAC, so workers
+# running the same payload collided on one {stem}.pdf -> conftest gives every test its own STEWIE_DATA_DIR.
+# `--timeout=600` (pytest-timeout) FAILs a hung test fast (stack dumped) -- 600s is far above any real test.
+addopts = "-q --timeout=600"
 markers = [
     "gpu: needs a GPU (Vulkan/CUDA)",
     "godot: needs the Godot sidecar binary",
