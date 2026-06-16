@@ -14,6 +14,7 @@ import os
 import secrets
 import threading
 import time
+from collections import deque
 from typing import Any
 
 log = logging.getLogger("stewie.server")
@@ -205,6 +206,67 @@ def metrics_snapshot() -> dict:
         return {"requests_total": _METRICS["requests_total"],
                 "by_status": dict(_METRICS["by_status"]),
                 "by_route": dict(_METRICS["by_route"])}
+
+
+# ---- FS-10: latency budgets ---------------------------------------------------------------------
+# Per-route engineering budgets (ms). These are TARGETS, grounded in each route's nature (a synchronous
+# matplotlib PDF render is seconds; analytic sun geometry is sub-100 ms), not measured data. The
+# middleware records each request's real latency; latency_snapshot() reports p50/p95/max from a bounded
+# recent-sample window and flags a route whose p95 is over budget. Operators read it in /metrics; the
+# middleware also WARN-logs a real breach so a regression surfaces in the logs, not just the dashboard.
+_LAT_WINDOW = 256                                    # bounded ring buffer per route -> no unbounded growth
+_DEFAULT_BUDGET_MS = 1000.0
+_LATENCY_BUDGETS_MS: dict[str, float] = {
+    "/plan": 30000.0,            # synchronous PDF render -- seconds, not ms
+    "/figure/{key}": 8000.0,     # figure render
+    "/layers": 3000.0,           # globe-layer render
+    "/world": 1500.0,            # DEM load + reproject
+    "/structure": 1500.0,
+    "/contracts/schema": 300.0,
+    "/ephemeris": 200.0,         # analytic sun geometry -- fast
+    "/sense": 200.0,
+    "/healthz": 100.0,
+    "/metrics": 100.0,
+}
+_LAT_SAMPLES: dict[str, "deque[float]"] = {}
+
+
+def budget_for(route_key: str) -> float:
+    """The latency budget (ms) for a matched route template, else the default."""
+    return _LATENCY_BUDGETS_MS.get(route_key, _DEFAULT_BUDGET_MS)
+
+
+def record_latency(route_key: str, ms: float) -> None:
+    """Record one request's observed latency (ms) into the route's bounded recent-sample window."""
+    with _METRICS_LOCK:
+        buf = _LAT_SAMPLES.get(route_key)
+        if buf is None:
+            buf = deque(maxlen=_LAT_WINDOW)
+            _LAT_SAMPLES[route_key] = buf
+        buf.append(float(ms))
+
+
+def _pct(sorted_vals: list[float], q: float) -> float:
+    if not sorted_vals:
+        return 0.0
+    return sorted_vals[min(len(sorted_vals) - 1, int(q * len(sorted_vals)))]
+
+
+def latency_snapshot() -> dict:
+    """Per-route latency summary from the recent-sample window: count, p50, p95, max, budget, and an
+    over_budget flag (p95 over the route budget). A consistent copy taken under the metrics lock."""
+    with _METRICS_LOCK:
+        items = [(k, list(v)) for k, v in _LAT_SAMPLES.items()]
+    out: dict[str, dict] = {}
+    for route, samples in items:
+        if not samples:
+            continue
+        s = sorted(samples)
+        b = budget_for(route)
+        p95 = _pct(s, 0.95)
+        out[route] = {"count": len(s), "p50": round(_pct(s, 0.5), 1), "p95": round(p95, 1),
+                      "max": round(s[-1], 1), "budget_ms": b, "over_budget": p95 > b}
+    return out
 
 
 def uptime_s() -> float:

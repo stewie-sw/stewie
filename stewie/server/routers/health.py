@@ -5,7 +5,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from stewie.server.services import audit_health, metrics_snapshot, revocation_health, uptime_s
+from stewie.server.services import (
+    audit_health,
+    latency_snapshot,
+    metrics_snapshot,
+    revocation_health,
+    uptime_s,
+)
 
 router = APIRouter()
 
@@ -31,4 +37,5 @@ def healthz():
 
 @router.get("/metrics")
 def metrics():
-    return {"uptime_s": uptime_s(), **metrics_snapshot()}
+    # FS-10: the latency block reports p50/p95/max per route against its budget (over_budget flagged).
+    return {"uptime_s": uptime_s(), **metrics_snapshot(), "latency": latency_snapshot()}

@@ -194,6 +194,10 @@ async def _access_log(request: Request, call_next):
     route_key = getattr(matched, "path", "unmatched")
     sk = str(response.status_code)
     record_request(sk, route_key)                        # RC-04: atomic counter update (server.services)
+    record_latency(route_key, dt)                        # FS-10: per-route latency budget tracking
+    budget = budget_for(route_key)
+    if dt > budget:                                      # FS-10: a real breach surfaces in the logs, not just /metrics
+        log.warning("perf budget exceeded: %s %.1fms > %.0fms budget", route_key, dt, budget)
     log.info('%s "%s %s" %s %.1fms',
              request.client.host if request.client else "-", request.method, raw, response.status_code, dt)
     response.headers["X-Correlation-Id"] = cid           # FS-19: hand the id back so a client can cite it
@@ -233,9 +237,11 @@ def get_index():
 # ---- #39: the event history (who did what when; actor = the #52 auth identity) ----------------
 # ARCH-3: the audit ledger lives in stewie.server.services so routers can log without importing this app.
 from stewie.server.services import (  # noqa: E402
+    budget_for,
     log_event,
     new_correlation_id as _new_correlation_id,
     prune_reports as _prune_reports,
+    record_latency,
     record_request,
     set_correlation_id as _set_correlation_id,
 )
