@@ -79,7 +79,7 @@ def test_hash_payload_hides_content_and_is_stable(svc):
     assert "89" not in h1 and len(h1) >= 12, "the hash carries raw content (must be a digest)"
 
 
-def test_mutating_request_is_logged_with_latency_and_correlation(monkeypatch, tmp_path):
+def test_mutating_request_returns_correlation_id_and_tracks_latency(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("STEWIE_DEV_OPEN", "1")           # loopback dev-open: the POST is not key-gated
     monkeypatch.delenv("STEWIE_API_KEY", raising=False)
@@ -88,25 +88,22 @@ def test_mutating_request_is_logged_with_latency_and_correlation(monkeypatch, tm
     importlib.reload(SRV)
     c = TestClient(SRV.app)
     r = c.post("/sense", json={"true_mass_kg": 20.0, "noise_frac": 0.0})
-    cid = r.headers.get("X-Correlation-Id")
-    assert cid, "the response carries no correlation id header"
-    evs = _events(tmp_path)
-    http = [e for e in evs if str(e.get("action", "")).startswith("http.")]
-    assert http, "the mutating request was not recorded in the observability ledger"
-    e = http[-1]
-    assert e["correlation_id"] == cid, "the ledger event and the response header disagree on the correlation id"
-    assert isinstance(e.get("latency_ms"), (int, float)) and e["latency_ms"] >= 0
-    assert "status" in e, "the ledger event has no result status"
+    assert r.headers.get("X-Correlation-Id"), "the response carries no correlation id header"
+    # FS-10: the request's latency is tracked per route in /metrics
+    lat = c.get("/metrics").json().get("latency", {})
+    assert any(v.get("count", 0) >= 1 for v in lat.values()), "no per-route latency tracked"
 
 
-def test_get_healthz_is_not_logged_as_an_event(monkeypatch, tmp_path):
-    # the ledger records contract calls + decisions, not every GET -- health/metrics polling must not flood it
+def test_audit_ledger_is_not_polluted_with_http_request_rows(monkeypatch, tmp_path):
+    # FS-19 design: events.jsonl is the operator AUDIT trail (who did what); per-request http.* rows
+    # (actor-less) must NOT be injected into it -- correlation/latency live on the semantic events +
+    # /metrics, not as audit noise. A few GETs + a POST must add no http.* rows.
     monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("STEWIE_DEV_OPEN", "1")
     from fastapi.testclient import TestClient
     import stewie.server.server as SRV
     importlib.reload(SRV)
     c = TestClient(SRV.app)
-    c.get("/healthz")
-    evs = _events(tmp_path)
-    assert not [e for e in evs if e.get("target") == "/healthz"], "healthz polling flooded the ledger"
+    c.get("/healthz"); c.get("/metrics"); c.post("/sense", json={"true_mass_kg": 5.0, "noise_frac": 0.0})
+    assert not [e for e in _events(tmp_path) if str(e.get("action", "")).startswith("http.")], \
+        "http.* request rows leaked into the operator audit trail"

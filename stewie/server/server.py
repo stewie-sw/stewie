@@ -201,12 +201,11 @@ async def _access_log(request: Request, call_next):
     log.info('%s "%s %s" %s %.1fms',
              request.client.host if request.client else "-", request.method, raw, response.status_code, dt)
     response.headers["X-Correlation-Id"] = cid           # FS-19: hand the id back so a client can cite it
-    # FS-19: record the contract call itself (mutating routes only -- GET health/metrics/static must not
-    # flood the ledger) with the correlation id, result status, latency, and an error code on failure.
-    if request.method in ("POST", "PUT", "PATCH", "DELETE"):
-        log_event("-", "http." + request.method.lower(), route_key, correlation_id=cid,
-                  status=response.status_code, latency_ms=round(dt, 1),
-                  error_code=(response.status_code if response.status_code >= 400 else None))
+    # FS-19: the correlation id threads the SEMANTIC events log_event'd inside this request (services
+    # ContextVar), and per-route latency/result live in /metrics (FS-10) + the access line above. We do
+    # NOT inject a per-request http.* event into events.jsonl: that ledger is the operator AUDIT trail
+    # (who did what -- director-gated, the Admin viewer), and actor-less request rows would pollute it.
+    # A full per-contract-call observability ledger belongs in a separate stream (future work).
     return response
 
 
@@ -238,7 +237,6 @@ def get_index():
 # ARCH-3: the audit ledger lives in stewie.server.services so routers can log without importing this app.
 from stewie.server.services import (  # noqa: E402
     budget_for,
-    log_event,
     new_correlation_id as _new_correlation_id,
     prune_reports as _prune_reports,
     record_latency,
