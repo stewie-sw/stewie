@@ -1,7 +1,7 @@
 # STEWIE PRD: Lunar Construction and Solar-Terrain Autonomy
 
-**Version:** 7.0
-**Date:** 2026-06-09
+**Version:** 7.1
+**Date:** 2026-06-15
 **Status:** CANONICAL — the single source of truth for project design + reference. All other design
 documents are archived (`docs/archive/`) or are upstream STEWIE architecture/roadmap sources
 (maintained privately; public mapping in §16). The granular execution breakdown lives in the private
@@ -28,28 +28,39 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 > maintain) is in progress. Next: **P3** (surface the evidence) then **P2** (backend closes), alongside
 > the Phase-3 audit remainder.
 
-**Ordered next, to proceed (the 2026-06-12 completion audit reset this — see §22 for the full
-sequence, UI/UX screenshot analysis, and TDD slices):**
-1. **P1 — wire the navigation half (§22.3, #106/#96/#97).** The estimator is eighteen validated
-   library modules with no endpoint and no cockpit presence; this is the only open item that changes
-   what the system IS. `/localize` + `/slam` endpoints, `articulation_bridge` on `/render`, and a
-   cockpit Navigation/Estimation view (pose-graph estimate vs dead reckoning, shrinking covariance
-   ellipse, perception-gated relocalize). Promotes PM-06, PO-10, PO-12.
-2. **P3 — surface the evidence (§22.3, #108).** Comparison head-to-head, cross-dataset
-   generalization, photometric render-pair + depth pass into System/Perception; a G1/G2 readout on
-   the validate button. Cheap, high-value for the review surface; interleaves with P1.4.
-3. **P2 — finish the backend build items (§22.3, #107).** Now-buildable: REG-01 DEM site imports,
-   FORGE populate/remove, berm firming, map-uncertainty coefficient, MV cross-precedence.
-   Honestly-gated: the worksite controller seam (John's pit wire), the Lyasko correction (euclid
-   oracle).
+> **UPDATE 2026-06-15:** this PRD was re-checked against the current worktree at
+> `ea7574ec3875928075b11072cd32f0c25f3d079d` plus local uncommitted web/deploy hardening. The prior
+> P1 navigation bridge is no longer an open queue item; keeping it in the "next" list made the PRD
+> contradict itself. The source-of-truth queue below replaces that stale list.
+
+**Current forward order (2026-06-15, codebase-aligned):**
+1. **Stabilize the production web/GIS surface.** Keep WEB-01/SEC-01 live-site hardening load-bearing:
+   self-host Cesium, preserve no-inline-script CSP, remove deploy-key-in-browser paths, run a real
+   Nginx/Cesium/mobile smoke, and verify the declared `server` extra is actually installed in the
+   execution environment. Current local bare-interpreter checks still fail GIS globe/cache tests when
+   `pyproj` is absent, despite `pyproj` being declared in `pyproject.toml` and the server/dev locks.
+2. **Close the data-leak/read-auth tail.** Operational reads are gated, but `/twin/version` still exposes
+   observed-twin version/history without auth. Add a least-privilege version token for ordinary clients
+   and director-only history. Keep browser sessions cookie-based; no automation key may enter the DOM.
+3. **Finish P3 evidence surfacing.** Head-to-head comparison, cross-dataset generalization, photometric
+   render-pair, depth pass, and G1/G2 readout should be visible in System/Perception without implying
+   truth-free operational SLAM parity.
+4. **Finish P2 backend closure.** REG-01 DEM site imports, FORGE populate/remove, berm firming,
+   map-uncertainty coefficient, MV cross-precedence, and site/body/terrain provenance should become
+   normal product paths. The worksite controller seam remains hardware/protocol-gated; the Lyasko
+   correction remains oracle-gated.
+5. **Unify the operational world model.** The conserved authority, `TwinStore`, runtime packets,
+   PlanResult, vehicle twin, and belief state must become one transactionally linked world-state log
+   before the PRD may claim a production-complete digital twin.
 
 The pre-audit queue (still valid, lower priority): the real-pit `PitBackend` over the UDP/ROS
 transport (awaiting McCardle's link details); the mission-brief packet (§8); the ARGUS SE(3)+IMU
 upgrade and the construction-autonomy + perception roadmap (#79: docking/berm autonomy, RL on the
 multi-objective/multi-vehicle frontier, 8-cam feature front-end, shadow-outline landmark learning).
 
-**Production readiness:** ~75% as the trainer/simulator (gated on the pit wire binding); the
-flight-autonomy autonomy stack is earlier and grows along the ARGUS track.
+**Production readiness:** useful trainer/simulator prototype, but not a production release. The
+trainer/simulator surface has many completed slices; the flight-autonomy stack, security posture,
+truth-free SLAM/ARGUS path, operational digital twin, and field-calibrated terramechanics remain earlier.
 
 **SN / ARGUS evidence path — DONE (2026-06-11):** CP-01 (release-ready), SN-02 detection front-end,
 SN-03 shadow yaw factor, SN-05 illumination route cost, SN-06 camera selection, SN-08 active-morphology
@@ -420,11 +431,11 @@ solar power scheduling.
 | SN-08 | P1 | Permit arm-angle selection for near-field downward mapping or horizon/sun-grazing views using posture-dependent extrinsics. `[PROPOSED]` | D | D | D | G |
 | SN-09 | P1 | Use the rover self-shadow LENGTH CHANGE under a COMMANDED articulated posture change as an instrument: the known `dh` cancels the unknown casting height, recovering sun elevation (or local slope) unbiased. `[PROPOSED]` | D | D | D | G |
 | SN-10 | P1 | Triangulate landmark range from the KNOWN articulation baseline `dh` (depression-angle parallax of shadow tips), and fix rover `(x,y)` by heading-free trilateration from a standstill. `[PROPOSED]` | D | D | D | G |
-| SN-09 | P1 | Permit a Meerkat observation action for multi-height parallax and shadow/rock disambiguation when stability guards pass. `[PROPOSED]` | N | N | N | G |
-| SN-10 | P1 | The active-perception objective maximizes expected localization/map information per joule and second, with stability risk as a hard constraint. | P | N | P | N |
-| SN-11 | P1 | Low/high posture observations must be associated to the same world features through the current arm/camera transforms. | N | N | N | G |
+| SN-11 | P1 | Permit a Meerkat observation action for multi-height parallax and shadow/rock disambiguation when stability guards pass. `[PROPOSED]` | N | N | N | G |
 | SN-12 | P1 | Solar-navigation claims require ablations against VO/SLAM without solar factors across multiple sun angles, terrains, terrain-change states, and seeds. | N | N | N | N |
 | SN-13 | P1 | Acceptance target `[PROPOSED]`: improve median yaw/pose error or feature-track survival by a preregistered margin without increasing tip events; report energy/time overhead. | N | N | N | N |
+| SN-14 | P1 | The active-perception objective maximizes expected localization/map information per joule and second, with stability risk as a hard constraint. | P | N | P | N |
+| SN-15 | P1 | Low/high posture observations must be associated to the same world features through the current arm/camera transforms. | N | N | N | G |
 
 ### 7.7 Navigation, Planning, and Recovery
 
@@ -523,6 +534,24 @@ admin-panel and sandbox/redeem UI land with the cockpit-frontend coordination (t
 | AG-06 | P1 | Delete is a recoverable soft-delete (trash + audit event). Self-service for your OWN sandbox artifact; deleting another operator's artifact OR any live-namespace artifact requires `director` (escalation). No hard purge without director confirmation. | N | N | N | NA |
 | AG-07 | P1 | Workspace separation: artifacts save to a per-owner `sandbox/<owner>/` namespace by default; a role-gated `publish` promotes a copy into the shared `live/` namespace. Sandbox state never feeds the real-command path. | N | N | N | NA |
 | AG-08 | P0 | **End-goal gate:** real rover instructions (NV-11/NV-12) are emitted ONLY from a `live`-namespace mission, by an `operator`+, under the SF-01 interlock. Sandbox/trainee/guest plans may simulate and output a Plan IR for review but cannot lower to hardware commands. | N | N | N | NA |
+
+### 7.13 Cross-Cutting Production Requirements (added 2026-06-15)
+
+These rows close the gaps found by the 2026-06-15 PRD-to-code review. They are deliberately narrow:
+they do not turn STEWIE into ArcGIS, a flight-certified autonomy stack, or a high-fidelity granular
+DEM. They make the advertised product boundary enforceable.
+
+| ID | P | Requirement and acceptance | I | X | V | Q |
+|---|---|---|---|---|---|---|
+| GI-01 | P0 | Production GIS runtime gate: the built Nginx/front-end image loads Cesium, Moon/Mars/Earth imagery, worksite overlays, sign-in, and mobile navigation under the actual CSP with zero blocking console errors. Acceptance is a desktop + mobile browser smoke against the deployed headers, not a direct asset curl. | P | P | P | N |
+| GI-02 | P1 | Planetary map correctness: Moon/Mars views use body-correct ellipsoid/CRS metadata and real DEM terrain/elevation where a layer claims 3D terrain. A smooth WGS84 drape must be labeled as imagery-only, not terrain. | P | N | N | N |
+| GI-03 | P2 | GIS interoperability scope: define and implement the mission-required subset only -- GeoJSON/COG import, selected OGC/ArcGIS service consumption, feature attributes/query, measurement/profile tools, provenance, and offline mission package export. Do not claim ArcGIS parity. | N | N | N | NA |
+| DT-01 | P0 | Operational digital-twin unification: conserved authority, observed `TwinStore`, runtime packets, vehicle twin, PlanResult, belief state, and session events are linked by one versioned transaction envelope with mission/site/body/time/provenance/uncertainty. | P | N | N | N |
+| DT-02 | P0 | Twin audit read security: `/twin/version` exposes only a minimal authenticated version token to ordinary clients; full event history/provenance requires director/admin authorization and audit logging. | N | N | N | NA |
+| RL-01 | P1 | Deployed RL policy gate: no RL capability may be called operational until a versioned policy artifact, training/eval lineage, model card, safety shield, deterministic fallback, and out-of-distribution acceptance report exist. Training scripts/environments alone do not satisfy this row. | P | N | N | N |
+| SL-01 | P0 | Truth-isolated SLAM/ARGUS benchmark: runtime bags and estimator processes are physically denied truth topics/frames; the full render/sensor/RTAB-Map-or-equivalent/ARGUS/pose-graph pipeline is scored by an evaluator-only channel with pass/fail thresholds. | P | P | P | N |
+| SE-01 | P0 | Full security audit gate: release requires a completed host, container, app, DNS/site, secret, backup/restore, dependency/SBOM/CVE, and external exposure audit. The current non-invasive Archimedes/site review is not sufficient. | P | N | N | N |
+| TM-01 | P1 | Calibrated terramechanics/excavation gate: construction forecasts distinguish analytical surrogate, calibrated mission model, and offline oracle; excavation resistance, drum/arm torque, drivetrain/current limits, low-g parameters, and uncertainty are validated before field-confidence claims. | P | P | P | N |
 
 ## 8. User Workflows
 
@@ -1112,7 +1141,7 @@ as product debt. **GATED** = blocked on an external input (IPEx geometry, John's
 | PO 7.11 | product/packaging/ops | 2 | 12 | PRODUCT | docs trilogy + fetcher land here; flip on evidence |
 
 **Reading the census honestly:** the rung-4 trainer product (the §0 / §18 intent) is software-COMPLETE;
-the matrix's 92 "N" rows are dominated by the DEFERRED frontier (SN 13, FL 7) + the GATED families
+the matrix's "N" rows are dominated by the DEFERRED frontier (SN 15, FL 7) + the GATED families
 (VT/AM 18, awaiting IPEx geometry / John's protocol) + PRODUCT rows that are flip-on-evidence (the
 capability exists, the matrix column hasn't been moved on a citing test yet). "0 release-ready" means
 no family has every column at D, NOT that the product doesn't work.

@@ -35,7 +35,7 @@ def test_manifest_header_is_well_formed():
     assert m["schema_version"] == 1
     assert set(m["columns"]) == {"I", "X", "V", "Q"}
     assert set(m["status_values"]) == {"D", "P", "N", "G", "NA"}
-    assert m["prd_version"] == "6.0"
+    assert m["prd_version"] == "7.1"
     assert isinstance(m["requirements"], list) and m["requirements"]
 
 
