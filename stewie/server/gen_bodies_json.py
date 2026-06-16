@@ -4,13 +4,13 @@ so the planet browser LOADS the SAME constants the sim uses (single source of tr
 chosen -- no hardcoded/divergent copy. Re-run after editing bodies.py.
 """
 import dataclasses
-import json
 import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", ".."))   # the monorepo root holds stewie/ dart/ lode/ leap/
 
+from stewie.server.atomicio import write_json_atomic  # noqa: E402
 from stewie.specs import bodies as B  # noqa: E402
 from stewie.specs import constants as K  # noqa: E402
 from stewie.specs import ipex_specs as S  # noqa: E402
@@ -88,8 +88,11 @@ out["_tools"] = {
 out["_actions"] = sorted(V.ACTIONS)   # the full action vocabulary, for the planner UI
 
 path = os.path.join(HERE, "bodies.json")
-with open(path, "w") as f:
-    json.dump(out, f, indent=2)
+# Atomic write (see atomicio): a concurrent reader -- body_density()/body_gravity() and the GET
+# /bodies.json route, especially under `pytest -n auto` -- sees either the OLD or the NEW complete
+# file, never a half-written/empty one. Closes the read-during-write race (#122) that a truncating
+# open(path, "w") opens every time this generator (re-)runs at import.
+write_json_atomic(path, out, indent=2)
 n_bodies = sum(1 for k in out if not k.startswith("_"))
 print(f"wrote {n_bodies} bodies (+{len(out) - n_bodies} meta blocks) -> {path}: "
       f"{', '.join(b.label for b in B.BODIES.values())}")

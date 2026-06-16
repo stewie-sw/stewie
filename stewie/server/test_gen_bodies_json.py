@@ -21,6 +21,7 @@ import os
 
 import pytest
 
+from stewie.server.atomicio import write_bytes_atomic
 from stewie.specs import bodies as B
 from stewie.specs import constants as K
 from stewie.specs import ipex_specs as S
@@ -48,8 +49,9 @@ def generated():
             out = json.load(f)
     finally:
         if backup is not None:
-            with open(_COMMITTED, "wb") as f:
-                f.write(backup)                              # restore the committed artifact byte-exact
+            # Restore ATOMICALLY (see atomicio), same as the generator: under `-n auto` other workers
+            # read bodies.json concurrently, so the restore must never expose an empty file (#122).
+            write_bytes_atomic(_COMMITTED, backup)
     return out
 
 
