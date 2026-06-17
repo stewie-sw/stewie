@@ -3334,8 +3334,8 @@ function focusStep(step) {
   const want = STEP_SECTIONS[step]; if (!want) return;       // review/execute switch VIEWS, not sidebar focus
   for (const det of document.querySelectorAll("#panel details")) {
     const sum = det.querySelector("summary"); if (!sum) continue;
-    const m = sum.textContent.trim().match(/^(\d)/);          // a numbered pipeline section?
-    if (m) det.open = want.includes(m[1]);                    // open this step's sections, collapse the rest
+    const m = sum.textContent.replace(/^\W+/, "").match(/^(\d)/);   // numbered pipeline section (the FS-21 drag-grip ⠿ precedes the number)
+    if (m) det.open = want.includes(m[1]);                          // open this step's sections, collapse the rest
   }
 }
 function goStep(step) {
