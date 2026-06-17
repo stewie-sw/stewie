@@ -392,6 +392,7 @@ function deleteSelectedPin() {                             // #64: Delete remove
   }
   viewer.entities.remove(SELECTED_PIN);
   const k = EDIT_PINS.indexOf(SELECTED_PIN); if (k >= 0) EDIT_PINS.splice(k, 1);
+  if (SELECTED_PIN === LANDER_PIN) LANDER_PIN = null;      // #lander-pin: don't leave a dangling reference
   PIN_REFS.delete(SELECTED_PIN); SELECTED_PIN = null;
   renderQueue(); setQ("feature deleted");
 }
@@ -976,6 +977,9 @@ async function refreshAuthState() {
       if (typeof refreshCatalog === "function") refreshCatalog();
       if (typeof refreshProfiles === "function") refreshProfiles();
       if (typeof refreshEvents === "function") refreshEvents();
+      // recovery: if /bodies.json never landed (its retries exhausted during a deploy window), re-fetch it
+      // now so the fleet + soil dropdowns self-heal on login (Aaron: "why did fleet and soil break again?").
+      if (typeof loadBodies === "function" && (!PHY || !PHY._vehicles)) loadBodies();
     } catch (e) { /* best-effort */ }
   } catch (e) { AUTH.role = null; AUTH.identity = null;
     if (st) st.textContent = "not signed in";
@@ -1762,6 +1766,12 @@ document.querySelectorAll(".etool").forEach((b) => {
   b.onclick = () => { EDIT.tool = b.dataset.tool;
     $("editstate").textContent = `LOCKED · ${b.dataset.tool} armed — click the map`; };
 });
+// #mobile-delete (Aaron: "there is no delete on mobile"): the touch equivalent of the Delete key. Tap a
+// pin to select it (SELECTED_PIN, highlighted green), then tap this to remove the feature + its pin.
+if ($("editdel")) $("editdel").onclick = () => {
+  if (SELECTED_PIN) deleteSelectedPin();
+  else setQ("tap a pin on the map first (it turns green), then tap 🗑 delete");
+};
 $("rpclose").onclick = () => setView("plan");
 ["padW", "padL", "cut", "bermH"].forEach((id) => $(id).addEventListener("input", estimate));
 $("go").onclick = () => {
@@ -2963,10 +2973,19 @@ function populateFleet() {
   syncKinds();
 }
 
-// load the py-generated terramechanics + IPEx constants (single source); graceful on file://
-fetch("/bodies.json").then((r) => (r.ok ? r.json() : null)).then((d) => {
-  if (d) { PHY = d; showTerra(); estimate(); populateFleet(); }
-}).catch(() => {});
+// load the py-generated terramechanics + IPEx constants (single source); graceful on file://.
+// Aaron 2026-06-16 ("why did fleet and soil break again?"): the fleet + soil dropdowns populate ONLY from
+// this /bodies.json fetch. A SINGLE miss -- a flaky connection, or loading the page during a container
+// rebuild's brief restart window -- used to leave PHY null with NO retry, so the dropdowns stayed empty
+// until a manual reload. Make it self-healing: retry with backoff (and re-run on login, see refreshAuthState).
+function loadBodies(attempt) {
+  attempt = attempt || 0;
+  fetch("/bodies.json").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    if (d) { PHY = d; showTerra(); estimate(); populateFleet(); }
+    else if (attempt < 5) { setTimeout(() => loadBodies(attempt + 1), 700 * (attempt + 1)); }
+  }).catch(() => { if (attempt < 5) setTimeout(() => loadBodies(attempt + 1), 700 * (attempt + 1)); });
+}
+loadBodies();
 refreshProfiles();                                            // populate the saved-profiles dropdown
 // ---- S-4: the Catalog (saved missions + custom structure templates) ---------------------------
 async function refreshCatalog() {
