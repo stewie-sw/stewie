@@ -573,7 +573,8 @@
            active workspace. TRAINING (green) = safe sandbox; LIVE (red) = commands the real rover. operator+
            can click to switch (renderWorkspace wires the click + the ns= on every mission call); trainees are
            sandbox-pinned server-side, so their badge reads TRAINING and the toggle is inert. -->
-      <button id="wsbadge" type="button" title="active workspace" style="margin-left:auto;display:none;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.05em;border-radius:11px;padding:3px 11px;border:1px solid var(--line);background:none;font-family:'Orbitron',system-ui,sans-serif"></button>
+      <button id="alertbtn" title="alerts (UI-6): warnings, errors, info — timestamped" style="margin-left:auto;align-self:center;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:13px;padding:3px 9px;cursor:pointer">🔔<span id="alertbadge" style="display:none;background:#e8273f;color:#fff;border-radius:8px;font-size:9px;padding:1px 5px;margin-left:4px"></span></button>
+      <button id="wsbadge" type="button" title="active workspace" style="margin-left:8px;display:none;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.05em;border-radius:11px;padding:3px 11px;border:1px solid var(--line);background:none;font-family:'Orbitron',system-ui,sans-serif"></button>
       <span id="whoami" title="account" style="display:none;position:relative;align-items:center;padding:0 4px 4px 0;margin-left:8px">
         <button id="profbtn" aria-haspopup="menu" aria-expanded="false" title="account menu" style="display:inline-flex;align-items:center;gap:7px;border:none;background:none;cursor:pointer;padding:2px">
           <span id="whoami-av" aria-hidden="true" style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'Orbitron',system-ui,sans-serif"></span>
@@ -591,7 +592,6 @@
     </nav>
     <div id="viewarea">
       <button id="drawerbtn" title="planning sidebar">☰</button>
-      <button id="alertbtn" title="alert rail (UI-6): warnings, errors, info — timestamped" style="position:absolute;right:12px;top:8px;z-index:81;background:rgba(10,10,12,.85);border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:14px;padding:6px 10px;cursor:pointer">🔔<span id="alertbadge" style="display:none;background:#e8273f;color:#fff;border-radius:8px;font-size:9px;padding:1px 5px;margin-left:4px"></span></button>
       <div id="alertrail" style="display:none;position:absolute;right:12px;top:100px;z-index:35;width:min(380px,80vw);max-height:46vh;overflow:auto;background:rgba(10,10,12,.95);border:1px solid var(--line);border-radius:8px;padding:8px 10px">
         <b style="font-family:Orbitron,system-ui;font-size:10px;letter-spacing:.1em">ALERTS</b>
         <ol style="list-style:none;margin:4px 0 0;padding:0"></ol></div>
