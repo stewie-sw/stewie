@@ -54,6 +54,8 @@ Stewie = "stewie.envs.registration:register_envs"
 stewie-serve = "stewie.server.server:main"
 # fetch + checksum-verify the real LOLA Haworth DEM (PGDA Product 78); not bundled in the wheel
 stewie-fetch-dem = "stewie.server.fetch_assets:main"
+# the ROS2 autonomy-seam bridge (#144 / Phase A): /cmd_vel <-> /stewie/odom through the SF-01 watchdog; ROS2 host only
+stewie-ros2-bridge = "stewie.bridge.ros2_bridge:main"
 
 [tool.setuptools]
 packages = ["stewie", "stewie.physics", "stewie.terrain", "stewie.twin", "stewie.specs",

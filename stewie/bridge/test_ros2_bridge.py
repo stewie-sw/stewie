@@ -117,3 +117,15 @@ def test_live_node_is_gated_without_rclpy():
     except ImportError:
         with pytest.raises(RuntimeError, match="rclpy"):
             B.make_ros2_node(RC.SafingWatchdog(RC.RecordingBackend()))
+
+
+def test_bridge_service_entrypoint_help_and_gating():
+    # the console entry parses args and, without rclpy, surfaces the same ROS2-host gate (no silent no-op)
+    with pytest.raises(SystemExit) as e:
+        B.main(["--help"])                                  # argparse --help exits 0
+    assert e.value.code == 0
+    try:
+        import rclpy  # noqa: F401
+    except ImportError:
+        with pytest.raises(RuntimeError, match="rclpy"):
+            B.main([])                                       # reaches the gated make_ros2_node

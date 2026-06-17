@@ -188,3 +188,44 @@ def make_ros2_node(watchdog: RC.SafingWatchdog, *, cmd_vel_topic: str = "/cmd_ve
     if not rclpy.ok():
         rclpy.init()
     return _StewieRcNode()
+
+
+def main(argv=None) -> int:
+    """Console entry ``stewie-ros2-bridge``: LAUNCH the live autonomy-seam node and spin it as a service.
+    Subscribes /cmd_vel, ticks the SF-01 dead-man, publishes /stewie/odom from the conserved SimBackend
+    (a real terramechanics backend swaps in via the RCBackend seam without touching this). Gated: needs a
+    ROS2 Jazzy host (make_ros2_node raises RuntimeError otherwise). RUN-VERIFIED as a background process on
+    stewie-ros2:latest (2026-06-17): a probe published /cmd_vel and read the rover driving on /stewie/odom."""
+    import argparse
+
+    from stewie.bridge import rc_contract as RC
+
+    ap = argparse.ArgumentParser(prog="stewie-ros2-bridge",
+                                 description="STEWIE ROS2 autonomy-seam bridge (cmd_vel <-> /stewie/odom, SF-01).")
+    ap.add_argument("--cmd-vel-topic", default="/cmd_vel")
+    ap.add_argument("--odom-topic", default="/stewie/odom")
+    ap.add_argument("--deadline-s", type=float, default=5.0, help="SF-01 dead-man timeout")
+    ap.add_argument("--horizon-s", type=float, default=1.0, help="cmd_vel short-horizon projection")
+    ap.add_argument("--cell-m", type=float, default=1.0)
+    ap.add_argument("--odom-rate-hz", type=float, default=10.0)
+    args = ap.parse_args(argv)
+
+    be = RC.SimBackend(start_rc=(0.0, 0.0), cell_m=args.cell_m, dt_s=1.0 / args.odom_rate_hz)
+    wd = RC.SafingWatchdog(be, deadline_s=args.deadline_s)
+    node = make_ros2_node(wd, cmd_vel_topic=args.cmd_vel_topic, odom_topic=args.odom_topic,
+                          horizon_s=args.horizon_s, cell_m=args.cell_m,
+                          pose_source=sim_pose_source(be), odom_rate_hz=args.odom_rate_hz)
+    import rclpy  # present: make_ros2_node above already gated on it
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
