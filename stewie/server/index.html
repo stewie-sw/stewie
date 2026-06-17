@@ -91,6 +91,11 @@
   body.light #viewarea { background: #dfe5ef; }
   #phead #out { margin-left: auto; color: var(--accent); font-size: 12px; font-variant-numeric: tabular-nums; }
   #panel section { padding: 0 20px; }
+  /* tab-contextual left blocks (#131/#132): plain divs collapseSidebar/FS-21 leave alone */
+  .ctxblock[hidden] { display: none; }
+  .ctxsec { padding: 12px 20px; }
+  .ctxh { font-family: "Orbitron", system-ui, sans-serif; font-size: 12px; font-weight: 700;
+    letter-spacing: .1em; color: var(--txt); margin-bottom: 8px; }
   /* the separator lives on the GROUP now (h3-split details), not the section wrapper --
      groups sharing a section had no break between them (Aaron: Contents->Site, Catalog->Telemetry) */
   #panel details { padding: 11px 0; border-bottom: 1px solid var(--line); }
@@ -235,6 +240,9 @@
   <aside id="panel">
     <header id="phead"><img src="/assets/brand/icon-32.png?v=2" alt="" style="width:18px;height:18px;vertical-align:-4px;margin-right:9px" /><b style="letter-spacing:.45em;font-weight:800">STEWIE</b><span style="opacity:.55;font-size:10px;margin-left:10px;letter-spacing:.18em">DIGITAL TWIN &amp; PLANNING PLATFORM</span><span style="font-size:10px;margin-left:10px;color:var(--accent);letter-spacing:.12em">IN SILICO → IN SITU</span><span id="stver" style="opacity:.45;font-size:10px;margin-left:8px"></span><span id="conops" title="ConOps position (operator finding 2.8: a status visual for where we are in the cycle)" style="font-size:10px;margin-left:12px;letter-spacing:.08em;color:var(--muted)">CONOPS —</span><span id="out">—</span></header>
 
+    <!-- tab-contextual left workspace (#131/#132): the left panel stays open on every workspace tab and
+         swaps content per tab (#ctx-<view>); Plan keeps its full planning sidebar below. -->
+    <div id="ctx-plan" class="ctxblock">
     <section>
       <h3>1 · Site — where are we</h3>
       <div class="ctl">
@@ -426,6 +434,38 @@
         <label><input id="drumnoise" type="checkbox" /> noise</label></div>
       <div id="drumout" style="opacity:.7">click the fill field to read the simulated drum-current sensor</div>
     </section>
+    </div><!-- /ctx-plan -->
+    <!-- per-tab contextual left content. Deliberately NOT <section>/<h3>: the collapseSidebar IIFE rebuilds
+         every #panel <section> that has an <h3> into a collapsible <details> (and FS-21 reorders
+         section > details), which mangled these into zero-height closed panes. Plain .ctxsec divs are left
+         untouched by both. The full controls for each tab live in its pane to the right. -->
+    <div id="ctx-nav" class="ctxblock" hidden>
+      <div class="ctxsec">
+        <div class="ctxh">Navigation <span class="sysb">LEAP</span></div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.55">ARGUS state estimation — the rover's live pose estimate vs truth, the per-leg fixes (terrain scan-match / AprilTag beacon), and articulation-parallax relocalization. Full controls &amp; plots are in the pane →</div>
+        <div id="ctxnav-loc" style="font-size:11px;line-height:1.7;margin-top:10px;color:var(--muted)">Plan a mission (Plan tab) to see the live localization summary.</div>
+        <button id="ctxnav-run" class="go" style="font-size:11px;margin-top:10px;width:100%">▶ Run Katwijk estimator</button>
+      </div>
+    </div>
+    <div id="ctx-perception" class="ctxblock" hidden>
+      <div class="ctxsec">
+        <div class="ctxh">Perception <span class="sysb">DART</span></div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.55">Sensor render + depth/SLAM. On the Plan tab, click the work-area DEM (Moon) to render a Godot before/after sensor frame; the two-posture render-pair localizer runs in the pane →</div>
+      </div>
+    </div>
+    <div id="ctx-metrics" class="ctxblock" hidden>
+      <div class="ctxsec">
+        <div class="ctxh">Metrics <span class="sysb">LEAP</span></div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.55">Live CG &amp; tip-over margin and the deterministic execution replay of the planned mission.</div>
+        <div id="ctxmet-cg" style="font-size:11px;line-height:1.7;margin-top:10px;color:var(--muted)">CG / tip margin is shown in the pane →</div>
+      </div>
+    </div>
+    <div id="ctx-report" class="ctxblock" hidden>
+      <div class="ctxsec">
+        <div class="ctxh">Report <span class="sysb">FORGE</span></div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.55">The mission-control report. Plan a mission (Plan tab → Plan mission) to generate the PDF; it opens in the pane →</div>
+      </div>
+    </div>
   </aside>
   <div id="stage">
     <nav id="viewtabs">
@@ -759,6 +799,6 @@
 
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
-<script src="/assets/cockpit.js?v=2ab8c173ec30"></script>
+<script src="/assets/cockpit.js?v=872d114916ce"></script>
 </body>
 </html>

@@ -552,9 +552,12 @@ try { SIDEBAR_PIN = localStorage.getItem("stewie_sidebar_pin"); } catch (e) {}
 function applySidebar(view) {
   const panel = document.getElementById("panel"); if (!panel) return;
   if (innerWidth <= 860) { panel.classList.remove("collapsed"); return; }   // mobile = slide-over, not collapse
+  // tab-contextual (#131/#132): the left panel stays OPEN on every workspace tab (its content swaps per
+  // tab via #ctx-<view>); it only auto-collapses on a System sub-view that has no contextual block.
+  const HAS_CTX = ["plan", "nav", "perception", "metrics", "report"].includes(view);
   const collapsed = SIDEBAR_PIN === "open" ? false
     : SIDEBAR_PIN === "collapsed" ? true
-      : (view !== "plan");                                // auto: open on Plan, collapsed elsewhere
+      : !HAS_CTX;
   panel.classList.toggle("collapsed", collapsed);
 }
 function setView(name) {
@@ -591,6 +594,9 @@ function setView(name) {
   if (name === "plan") { showSiteDem(); if (viewer) viewer.resize(); }   // restore the Plan inset + keep globe crisp
   else $("workarea").classList.remove("show");                            // the inset belongs to the Plan tab
   if (name === "nav" && typeof navDrawMission === "function") navDrawMission(LAST_LOCALIZATION);  // #nav-mission: live est-vs-truth
+  // tab-contextual left workspace (#131/#132): show THIS tab's context block, hide the others
+  const CTX = { plan: "ctx-plan", nav: "ctx-nav", perception: "ctx-perception", metrics: "ctx-metrics", report: "ctx-report" };
+  document.querySelectorAll(".ctxblock").forEach((bk) => { bk.hidden = (bk.id !== CTX[name]); });
   // the EDIT toolbar is a PLAN tool (Aaron's System screenshot: it stacked on the sub-bar)
   const et = document.getElementById("edittoolbar");
   if (et) et.style.display = (name === "plan") ? "flex" : "none";
@@ -1282,9 +1288,10 @@ function navDrawMission(loc) {
   g.fillStyle = "#e8273f"; g.fillText("● none", pad + 226, 12);
   const fk = loc.fix_kinds || {}, lastSig = traj[traj.length - 1].sigma;
   const maxErr = Math.max(...traj.map((p) => Math.hypot(p.est[0] - p["true"][0], p.est[1] - p["true"][1])));
-  if (stat) stat.innerHTML =
-    `fixes: <b style="color:#3fa34d">${fk.dem || 0} DEM</b> · <b style="color:#e0b300">${fk.beacon || 0} beacon</b> · ` +
+  const summary = `fixes: <b style="color:#3fa34d">${fk.dem || 0} DEM</b> · <b style="color:#e0b300">${fk.beacon || 0} beacon</b> · ` +
     `<b style="color:#e8273f">${fk.none || 0} none</b> · end pose σ <b>${lastSig} m</b> · max est-vs-truth <b>${maxErr.toFixed(2)} m</b>`;
+  if (stat) stat.innerHTML = summary;
+  const cx = $("ctxnav-loc"); if (cx) cx.innerHTML = summary;   // tab-contextual left: mirror the live summary
 }
 async function navRun() {
   const seg = $("navseg").value, kf = +$("navkf").value || 30;
@@ -1374,6 +1381,7 @@ if ($("navrun")) {
   $("navrun").onclick = navRun;
   $("navcmp").onclick = navCompare;
   $("navreloc").onclick = navReloc;
+  if ($("ctxnav-run")) $("ctxnav-run").onclick = navRun;   // tab-contextual left: same estimator run
   ["navsig", "navstand"].forEach((id) => { const el = $(id); if (el) { el.oninput = navGate; el.onchange = navGate; } });
   navGate();
 }
