@@ -35,11 +35,32 @@
     --txt:#16202e; --muted:#51607a; --dim:#5a6680; --accent:#1d6ae5; --fill:#2563eb; --fill-h:#1d4ed8;  /* UX-03: --dim >=4.5:1 */
   }
   html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
-  body { font: var(--fontpx)/1.45 system-ui, sans-serif; background: var(--bg); color: var(--txt); }
+  body { font: var(--fontpx)/1.45 system-ui, sans-serif; background: var(--bg); color: var(--txt); display: flex; flex-direction: column; }
   /* one coherent left control sidebar + a tabbed view stage filling the rest */
-  #app { display: flex; width: 100%; height: 100%; position: relative; }
+  #app { display: flex; width: 100%; flex: 1 1 auto; min-height: 0; position: relative; }
+  /* UX: always-visible mission pipeline spine (Site -> Fleet -> Orders -> Solve -> Review -> Execute) above
+     the whole app, so the load->author->plan->simulate->review sequence is explicit and a user can't open
+     Review/Execute before a plan exists. Additive over the tabs; reuses #conops as the ConOps state. */
+  #stepper { flex: 0 0 auto; display: flex; align-items: center; height: 34px; background: var(--head);
+    border-bottom: 1px solid var(--line); padding: 0 10px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; }
+  #stepper::-webkit-scrollbar { display: none; }
+  #stepper .step { display: inline-flex; align-items: center; gap: 7px; background: none; border: none;
+    color: var(--dim); font-family: 'Orbitron', system-ui, sans-serif; font-size: 10px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase; padding: 5px 12px; cursor: pointer; white-space: nowrap; }
+  #stepper .step:not(:last-child)::after { content: "\2192"; margin-left: 16px; color: var(--line); font-weight: 400; }
+  #stepper .step .dot { width: 7px; height: 7px; border-radius: 50%; background: transparent;
+    border: 1px solid var(--line); flex: 0 0 auto; }
+  #stepper .step.done { color: var(--muted); }
+  #stepper .step.done .dot { background: var(--accent); border-color: var(--accent); }
+  #stepper .step.current { color: var(--txt); }
+  #stepper .step.current .dot { background: var(--txt); border-color: var(--txt); box-shadow: 0 0 0 3px rgba(232,39,63,.30); }
+  #stepper .step.locked { opacity: .38; cursor: not-allowed; }
+  #stepper .step.viewactive { color: var(--accent); }
+  .pulse { animation: pulsehl 1.6s ease-out 1; }
+  @keyframes pulsehl { 0% { box-shadow: 0 0 0 0 rgba(232,39,63,.6); } 100% { box-shadow: 0 0 0 16px rgba(232,39,63,0); } }
   #stage { flex: 1 1 auto; min-width: 0; height: 100%; display: flex; flex-direction: column; }
-  #viewtabs { flex: 0 0 auto; display: flex; gap: 2px; padding: 6px 8px 0; background: var(--head);
+  #viewtabs { position: relative; z-index: 90; flex: 0 0 auto; display: flex; gap: 2px; padding: 6px 8px 0; background: var(--head);
     border-bottom: 1px solid var(--line); }
   .vtab { background: var(--field); color: var(--muted); border: 1px solid var(--line); border-bottom: none;
     border-radius: 7px 7px 0 0; padding: 7px 15px; font-size: 12px; font-weight: 600; letter-spacing: .03em; }
@@ -241,6 +262,14 @@
 </style>
 </head>
 <body>
+<div id="stepper" role="navigation" aria-label="mission pipeline">
+  <button class="step" data-step="site"><span class="dot"></span>Site</button>
+  <button class="step" data-step="fleet"><span class="dot"></span>Fleet</button>
+  <button class="step" data-step="orders"><span class="dot"></span>Orders</button>
+  <button class="step" data-step="solve"><span class="dot"></span>Solve</button>
+  <button class="step" data-step="review"><span class="dot"></span>Review</button>
+  <button class="step" data-step="execute"><span class="dot"></span>Execute</button>
+</div>
 <div id="app">
   <aside id="panel">
     <header id="phead"><img src="/assets/brand/icon-32.png?v=2" alt="" style="width:18px;height:18px;vertical-align:-4px;margin-right:9px" /><b style="letter-spacing:.45em;font-weight:800">STEWIE</b><span style="opacity:.55;font-size:10px;margin-left:10px;letter-spacing:.18em">DIGITAL TWIN &amp; PLANNING PLATFORM</span><span style="font-size:10px;margin-left:10px;color:var(--accent);letter-spacing:.12em">IN SILICO → IN SITU</span><span id="stver" style="opacity:.45;font-size:10px;margin-left:8px"></span><span id="conops" title="ConOps position (operator finding 2.8: a status visual for where we are in the cycle)" style="font-size:10px;margin-left:12px;letter-spacing:.08em;color:var(--muted)">CONOPS —</span><span id="out">—</span></header>
@@ -804,6 +833,6 @@
 
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
-<script src="/assets/cockpit.js?v=872d114916ce"></script>
+<script src="/assets/cockpit.js?v=028156812135"></script>
 </body>
 </html>

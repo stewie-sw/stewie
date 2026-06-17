@@ -605,6 +605,7 @@ function setView(name) {
   if (name !== "plan" && EDIT.on) setEdit(false);          // leaving Plan ends the edit session
   applySidebar(name);                                      // UX-05: collapse off-Plan / restore on Plan
   loadPane(name);
+  if (typeof renderStepper === "function") renderStepper();  // pipeline spine: reflect the active view
 }
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
 // FS-20: System / Settings / Admin live in the profile menu (off the work-area tab bar), role-gated:
@@ -1946,6 +1947,7 @@ function renderQueue() {
   setQ(ORDERS.length ? `${ORDERS.length} order(s) queued` : "queue empty");
   drawPlan();
   scheduleAutoRender();                                    // #33: edits flow to the Godot render
+  if (typeof renderStepper === "function") renderStepper();  // pipeline spine: Orders done when queue non-empty
 }
 function addOrder(o) { snapshotAuthoring(); ORDERS.push(o); renderQueue(); }
 if ($("alertbtn")) $("alertbtn").onclick = () => {
@@ -2615,6 +2617,7 @@ qel("qplan").onclick = async () => {
     LAST_PLAN_IR = j.plan_ir || null;                      // the executable plan IR (download via ⤓ Plan IR)
     LAST_ORDERS = ORDERS.slice(); LAST_KEEPOUTS = KEEPOUTS.slice();
     qel("qexec").disabled = !LAST_TIMELINE;
+    if (typeof renderStepper === "function") renderStepper();  // pipeline spine: Solve done -> unlock Review/Execute
     qel("reportframe").src = j.pdf;                        // embed the mission-control PDF in the Report pane
     qel("reportframe").classList.add("show");
     qel("reportopen").href = j.pdf;                        // ...with an "open in tab" escape hatch
@@ -3140,6 +3143,69 @@ qel("qloadsample").onclick = async () => {
     setQ("loaded tutorial mission: " + name + " — press Plan mission");
   } catch (e) { setQ("sample load failed: " + e); }
 };
+
+// Mission pipeline spine (#131/#132): the always-visible Site->...->Execute stepper above the app.
+const STEP_TITLES = {
+  site: "Site - choose the landing / work site (Plan, 1·Site)",
+  fleet: "Fleet - set the rover count (Plan, 3·Fleet)",
+  orders: "Orders - author build orders + keep-outs (Plan, 5·Plan)",
+  solve: "Solve - plan the mission (Plan mission -> report)",
+  review: "Review - the mission-control report",
+  execute: "Execute - execution forecast, before uplink",
+};
+function stepScrollTo(prefix) {                            // scroll the sidebar to a numbered section, opening it
+  for (const h of document.querySelectorAll("#panel h3, #panel summary")) {
+    if (h.textContent.trim().startsWith(prefix)) {
+      const det = h.closest("details"); if (det) det.open = true;
+      h.scrollIntoView({ behavior: "smooth", block: "start" }); return true;
+    }
+  }
+  return false;
+}
+function _pulseQplan() {
+  const b = $("qplan"); if (!b) return;
+  b.classList.add("pulse"); setTimeout(() => b.classList.remove("pulse"), 1700);
+}
+function goStep(step) {
+  const planned = !!LAST_TIMELINE;
+  if ((step === "review" || step === "execute") && !planned) {   // can't review/execute before a plan exists
+    setView("plan"); if (innerWidth <= 860) $("panel").classList.add("open");
+    stepScrollTo("5 ·"); _pulseQplan();
+    setQ("plan a mission first - press “Plan mission → open report”"); return;
+  }
+  if (step === "review") { setView("report"); return; }
+  if (step === "execute") { setView("metrics"); return; }
+  setView("plan");                                          // site / fleet / orders / solve all live in the Plan sidebar
+  if (innerWidth <= 860) $("panel").classList.add("open");
+  stepScrollTo(step === "site" ? "1 ·" : step === "fleet" ? "3 ·" : "5 ·");
+  if (step === "solve") _pulseQplan();
+}
+function renderStepper() {
+  const wrap = $("stepper"); if (!wrap) return;
+  const hasOrders = typeof ORDERS !== "undefined" && ORDERS.length > 0;
+  const planned = !!LAST_TIMELINE;
+  const state = {
+    site: "done", fleet: "done",
+    orders: hasOrders ? "done" : "todo",
+    solve: planned ? "done" : "todo",
+    review: planned ? "todo" : "locked",
+    execute: planned ? "todo" : "locked",
+  };
+  const current = !hasOrders ? "orders" : !planned ? "solve" : "review";
+  const viewStep = { plan: "orders", report: "review", metrics: "execute", nav: "review", perception: "review" }[VIEW];
+  wrap.querySelectorAll(".step").forEach((b) => {
+    const s = b.dataset.step;
+    b.className = "step " + (state[s] || "todo");
+    if (s === current) b.classList.add("current");
+    if (s === viewStep) b.classList.add("viewactive");
+    b.title = STEP_TITLES[s] || s;
+  });
+  const co = $("conops"); if (co) co.textContent = "CONOPS — " + current.toUpperCase();
+}
+(function initStepper() {
+  const wrap = $("stepper"); if (!wrap) return;
+  wrap.querySelectorAll(".step").forEach((b) => { b.onclick = () => goStep(b.dataset.step); });
+})();
 
 loadBody("moon"); estimate(); renderQueue(); renderKeepouts(); setView("plan");
 _bootComplete = true;                                     // UX-01: boot done -> 401s may now nudge sign-in
