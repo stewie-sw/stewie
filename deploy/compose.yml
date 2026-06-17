@@ -21,7 +21,16 @@ services:
       # it over the internal compose network. Keep this true only while a real HTTPS terminator fronts it.
       STEWIE_TLS_TERMINATED: ${STEWIE_TLS_TERMINATED:-1}
       MPLCONFIGDIR: /tmp/mpl
-    volumes: [ "stewie-data:/data" ]
+      # Real-use wiring (Aaron 2026-06-16: "everything wired for actual use, nothing dissertation-only"):
+      # the Katwijk SLAM eval (/slam, /slam/compare) reads its real ESA rover telemetry from here. Without
+      # it the deployed endpoint 503s; with it the Navigation pane returns real ATE on the live host.
+      STEWIE_KATWIJK_DIR: ${STEWIE_KATWIJK_DIR:-/katwijk}
+    volumes:
+      - "stewie-data:/data"
+      # Mount the real ESA Katwijk dataset READ-ONLY so /slam returns real ATE on the deployed cockpit.
+      # Host path is overridable (no baked machine path, cf. ARCH-05); only ~8.6 MB of telemetry per
+      # segment is read, never the raw imagery, and the endpoint stays auth-gated.
+      - "${STEWIE_KATWIJK_HOST_DIR:-/mnt/projects/datasets/katwijk}:/katwijk:ro"
     restart: unless-stopped
     # hardening: minimal caps, no privilege escalation, immutable rootfs (writes only to /data + /tmp)
     cap_drop: [ "ALL" ]
