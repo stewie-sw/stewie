@@ -1,4 +1,4 @@
-"""AG-07 (PRD §7.12): sandbox vs live workspace separation. Artifacts save into a per-owner
+"""AG-07 [REQ:AG-07] (PRD §7.12): sandbox vs live workspace separation. Artifacts save into a per-owner
 sandbox/<owner>/ namespace; a role-gated publish promotes a COPY into the shared live namespace (the
 existing flat store -- back-compat). Sandbox names are per-owner isolated; the live listing never
 shows sandbox drafts; sandbox soft-delete/restore stay within the namespace. Real tmp store.

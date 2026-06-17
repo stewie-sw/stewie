@@ -1,4 +1,4 @@
-"""AG-05 (PRD §7.12): missions/structures stamp created_by + created_at at save; the public listing
+"""AG-05 [REQ:AG-05] (PRD §7.12): missions/structures stamp created_by + created_at at save; the public listing
 exposes the owner; pre-AG-05 (unowned) artifacts read as owner 'unknown' with NO silent backfill;
 re-saving an existing artifact preserves the ORIGINAL creator (no ownership theft); a client cannot
 forge the owner through the document body. Real on-disk store against a tmp data_dir.

@@ -1,4 +1,4 @@
-"""AG-02 (PRD §7.12): require_role(min) capability gating keyed off operators.role_rank, reusing
+"""AG-02 [REQ:AG-02] (PRD §7.12): require_role(min) capability gating keyed off operators.role_rank, reusing
 auth.role_of so every identity type (store account, env director, api-key/dev-open) resolves the
 same way require_director already does. Real PBKDF2 + on-disk store against a tmp data_dir; one
 account per role, nothing synthetic.

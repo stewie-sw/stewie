@@ -1,4 +1,4 @@
-"""AG-03/04 (PRD §7.12): one-time invite tokens. A director MINTS a role-scoped, single-use,
+"""AG-03/04 [REQ:AG-03][REQ:AG-04] (PRD §7.12): one-time invite tokens. A director MINTS a role-scoped, single-use,
 TTL-bounded token (the raw token is returned once; only its sha256 hash is stored); anyone holding
 the token REDEEMS it to create their own active account and set their own password. Real PBKDF2 +
 on-disk store + injected clock against a tmp data_dir; nothing synthetic.

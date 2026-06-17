@@ -1,4 +1,4 @@
-"""AG-06 (PRD §7.12): delete is a recoverable soft-delete (move to per-kind .trash, recoverable),
+"""AG-06 [REQ:AG-06] (PRD §7.12): delete is a recoverable soft-delete (move to per-kind .trash, recoverable),
 with OWNERSHIP escalation -- self-service for your OWN artifact; another operator's (or an unowned)
 artifact needs a director; permanent purge is director-only. Store mechanism + the pure escalation
 policy against a real tmp store. (The live-namespace half of the rule lands with AG-07.)

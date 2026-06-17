@@ -1,4 +1,4 @@
-"""AG-08 (PRD §7.12, END GOAL): real rover instructions are emitted only for a LIVE-namespace mission,
+"""AG-08 [REQ:AG-08] (PRD §7.12, END GOAL): real rover instructions are emitted only for a LIVE-namespace mission,
 by an operator+, under the SF-01 watchdog. A command that CITES a mission is rejected unless that
 mission is published (live); a sandbox draft can be simulated but is structurally barred from the real
 rover-command path. Low-level teleop (no mission ref) is unaffected. Real store + the SF-01 RC backend

@@ -1,4 +1,4 @@
-"""AG-01 (PRD §7.12): the four-tier role ladder guest < trainee < operator < director,
+"""AG-01 [REQ:AG-01] (PRD §7.12): the four-tier role ladder guest < trainee < operator < director,
 with role_rank() as the single capability-ordering source. Legacy director/operator records
 stay valid (forward migration, no data loss). Real PBKDF2 + on-disk round-trips against a tmp
 data_dir; the only accounts in the store are the ones under test (no synthetic fixtures).
