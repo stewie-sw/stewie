@@ -3115,6 +3115,40 @@ function syncKinds() {
       `</table><div style="opacity:.6;margin-top:4px">registry values (provenance-tagged in stewie/specs/vehicles.py)</div>`;
   });
   refreshPopovers();
+  renderFleet();                                            // Fleet: keep the add/delete roster in sync with the type
+}
+// Fleet roster (Aaron: "more vehicles / add like waypoints / delete"). Add/remove rovers; the roster
+// length IS the vehicle count plan_multi honors. HONEST: the fleet is HOMOGENEOUS (all the selected type)
+// -- per-vehicle DIFFERENT types + map-placed start positions need a plan_multi extension (it builds trips
+// once from one drum capacity, so heterogeneous specs are a backend rearchitecture, tracked separately).
+function setFleetCount(n) {
+  const c = qel("vehcount"); if (!c) return;
+  c.value = String(Math.max(1, Math.min(16, n)));
+  c.dispatchEvent(new Event("change"));
+  renderFleet();
+  if (typeof drawPlan === "function") drawPlan();
+}
+function renderFleet() {
+  const list = qel("fleetlist"); if (!list) return;
+  const n = Math.max(1, Math.min(16, parseInt((qel("vehcount") || {}).value, 10) || 1));
+  const v = (PHY && PHY._vehicles) ? PHY._vehicles[(qel("vehicle") || {}).value] : null;
+  const label = v ? v.label : ((qel("vehicle") || {}).value || "rover");
+  list.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11px";
+    const txt = document.createElement("span");
+    txt.innerHTML = `&#129302; <b>Rover ${i + 1}</b> <span style="color:var(--muted)">&middot; ${esc(label)}</span>`;
+    row.appendChild(txt);
+    if (n > 1) {
+      const del = document.createElement("button");
+      del.textContent = "🗑"; del.title = "remove a rover";
+      del.style.cssText = "margin-left:auto;background:none;border:1px solid var(--line);border-radius:4px;color:var(--muted);cursor:pointer;font-size:10px;padding:1px 6px";
+      del.onclick = () => setFleetCount(n - 1);
+      row.appendChild(del);
+    }
+    list.appendChild(row);
+  }
 }
 function populateFleet() {
   if (!PHY || !PHY._vehicles) return;
@@ -3129,6 +3163,8 @@ function populateFleet() {
   }
   [...document.querySelectorAll("#tools input")].forEach((c) => c.addEventListener("change", syncKinds));
   qel("vehicle").addEventListener("change", syncKinds);
+  if (qel("fleetadd")) qel("fleetadd").onclick = () => setFleetCount((parseInt(qel("vehcount").value, 10) || 1) + 1);
+  if (qel("vehcount")) qel("vehcount").addEventListener("input", renderFleet);
   syncKinds();
 }
 
