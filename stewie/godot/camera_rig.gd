@@ -38,14 +38,15 @@ const CAM_VERT_M := -0.10              # URDF camera_front Z(Z-up) -> Y-up: 0.10
 # Stereo baseline: ~70 mm — a realistic small-rover stereo separation (John). The pair sits at
 # +/- BASELINE_M/2 along the lateral (Z) axis centered on the URDF mount, so the world separation
 # == BASELINE_M exactly (sensors.json baseline_m MUST equal |extrinsic_left.pos - right.pos|).
-const BASELINE_M := 0.070              # realistic; was a [CALIB] 0.10 m guess
+const BASELINE_M := 0.050              # [SCHULER24 Fig.28/32] FINAL combined stereo housing (was 0.070)
+const INITIAL_BASELINE_M := 0.165      # [SCHULER24 Fig.28 left] split-shoulder initial design (lost calib under load)
 # REAR stereo baseline (contract §4 stereo_rear). A SEPARATE baseline from the front
 # pair (the rear pair is its own descriptor, never a replacement for the front
 # "stereo"). The rear module mirrors the front mount geometry, so we keep the same
 # realistic ~70 mm separation; it is a distinct const so the two can diverge without
 # touching the front pair. The rear pair sits at +/- REAR_BASELINE_M/2 along Z,
 # centered on the rear mount, so |extrinsic(rear_left).pos - rear_right.pos| == it.
-const REAR_BASELINE_M := 0.070         # rear-module stereo separation (§4 stereo_rear)
+const REAR_BASELINE_M := 0.050         # rear module mirrors the front: SCHULER24 final 0.05 m
 # Rear camera module mount: mirror the front mount to the BACK of base_link. The rear
 # arm joint sits at base_link X = -0.20 (sidecar.gd ARM_BACK_ORIGIN); the rear stereo
 # module rides just behind/above it at the symmetric -CAM_FORWARD_M, same height.
@@ -76,7 +77,8 @@ const FOV_X_DEG := 73.99               # URDF 1.29154 rad (was a [CALIB] 70 gues
 # ~2472x2064) + the 6 mm S-mount candidate at f/4 -> fx = 6e-3/2.74e-6 = 2189.78 px ->
 # FOV_X = 2*atan(W/2/fx) = 58.88 deg. Pure unit conversion from documented values (no tuning).
 const FLIGHT_SENSOR_PX := Vector2i(2472, 2064)
-const FLIGHT_FOV_X_DEG := 58.88
+const FLIGHT_FOV_X_DEG := 58.88        # 6 mm S-mount candidate @ IMX547 (fx=2189.8 px) -> HFOV 58.88 deg
+const LENS_4_4MM_FOV_X_DEG := 75.31    # [SCHULER24] alt S-mount candidate: 4.4 mm @ IMX547 (fx=1605.8) -> HFOV 75.3 deg
 const NEAR_M := 0.02
 const FAR_M := 100.0
 
@@ -367,16 +369,22 @@ static func _extr_pos_of(cams: Array, name: String, mount: Node3D):
 # ---- WORK LIGHTS (TRL5 "Lighting Design", pp.27-28; constants in stewie/specs/ipex_specs.py) ----
 # Documented: LED units integrated into the camera units -- 3000 lm max, TIR optic, 42 deg FWHM,
 # one unit per MONOCULAR camera, plus a TWO-unit stereo bank on the chassis side OPPOSITE the
-# stereo module (the flight count of six includes the redundant camera set; this twin carries the
-# four units its single camera set warrants -- divergence disclosed). Offsets reuse the camera
-# mounts (the doc integrates lights INTO the camera units); the stereo-bank standoff is
-# [ASSUMPTION] pending the Fig.31/32 dimensions. EXACT per-unit pose is emitted in sensors.json --
-# a light at a KNOWN position casting a measurable shadow is the active shadow-ranging observable.
+# stereo module (lights co-located with the EDS glass back-reflected, so the stereo lights moved to
+# the far shoulder -- SCHULER24 pp.27-28). This twin now models the FULL flight count of SIX units:
+# four monocular LEDs (left/right side monos + front/back drum cams, 1 each) + the 2-unit stereo
+# bank. Offsets reuse the camera mounts (the doc integrates lights INTO the camera units); the
+# stereo-bank standoff is [ASSUMPTION] pending the Fig.31/32 dimensions. EXACT per-unit pose is
+# emitted in sensors.json -- a light at a KNOWN position casting a measurable shadow is the active
+# shadow-ranging observable.
 const LIGHT_UNITS := [
 	{"name": "left_mono_led", "offset": Vector3(0.0, SIDE_MONO_VERT_M, SIDE_MONO_LAT_M),
 	 "aim": Vector3(0, -0.3, 1)},
 	{"name": "right_mono_led", "offset": Vector3(0.0, SIDE_MONO_VERT_M, -SIDE_MONO_LAT_M),
 	 "aim": Vector3(0, -0.3, -1)},
+	{"name": "drum_front_led", "offset": Vector3(DRUM_FRONT_CAM_FWD_M, DRUM_CAM_VERT_M, 0.0),
+	 "aim": Vector3(1, -1, 0)},          # co-located with drum_front_cam (1 LED per mono)
+	{"name": "drum_back_led", "offset": Vector3(DRUM_BACK_CAM_FWD_M, DRUM_CAM_VERT_M, 0.0),
+	 "aim": Vector3(-1, -1, 0)},         # co-located with drum_back_cam (1 LED per mono)
 	{"name": "stereo_bank_a", "offset": Vector3(CAM_FORWARD_M, CAM_VERT_M + 0.10, 0.12),
 	 "aim": Vector3(1, -0.35, 0)},
 	{"name": "stereo_bank_b", "offset": Vector3(CAM_FORWARD_M, CAM_VERT_M + 0.10, -0.12),

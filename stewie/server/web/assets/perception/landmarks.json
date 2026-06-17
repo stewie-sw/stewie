@@ -40,88 +40,88 @@
  ],
  "landmarks": [
   {
-   "x": 1569.09,
-   "y": 74.65,
-   "area": 709,
-   "contrast": 40.382564544677734,
-   "bearing_deg": 207.57
+   "x": 394.12,
+   "y": 107.28,
+   "area": 1180,
+   "contrast": 44.61862564086914,
+   "bearing_deg": 57.93
   },
   {
-   "x": 683.09,
-   "y": 115.22,
-   "area": 497,
-   "contrast": 29.230937957763672,
-   "bearing_deg": 67.45
+   "x": 648.51,
+   "y": 107.55,
+   "area": 1118,
+   "contrast": 44.77419662475586,
+   "bearing_deg": 57.46
   },
   {
-   "x": 1366.72,
-   "y": 50.73,
-   "area": 422,
-   "contrast": 41.15168380737305,
-   "bearing_deg": 223.07
+   "x": 1570.99,
+   "y": 72.11,
+   "area": 720,
+   "contrast": 40.24527359008789,
+   "bearing_deg": 208.12
   },
   {
-   "x": 628.61,
-   "y": 129.38,
-   "area": 392,
-   "contrast": 23.871320724487305,
-   "bearing_deg": 51.71
+   "x": 108.73,
+   "y": 81.1,
+   "area": 574,
+   "contrast": 34.24154281616211,
+   "bearing_deg": 49.43
   },
   {
-   "x": 373.03,
-   "y": 129.48,
-   "area": 372,
-   "contrast": 26.316720962524414,
-   "bearing_deg": 51.83
+   "x": 625.72,
+   "y": 171.41,
+   "area": 514,
+   "contrast": 32.4998779296875,
+   "bearing_deg": 50.87
   },
   {
-   "x": 1524.81,
-   "y": 149.37,
-   "area": 353,
-   "contrast": 37.80007553100586,
-   "bearing_deg": 268.76
+   "x": 1121.9,
+   "y": 79.69,
+   "area": 498,
+   "contrast": 33.87773132324219,
+   "bearing_deg": 226.3
   },
   {
-   "x": 1278.61,
-   "y": 133.27,
-   "area": 306,
-   "contrast": 34.371665954589844,
+   "x": 1359.4,
+   "y": 55.05,
+   "area": 470,
+   "contrast": 40.427757263183594,
+   "bearing_deg": 220.95
+  },
+  {
+   "x": 322.43,
+   "y": 169.08,
+   "area": 448,
+   "contrast": 31.784652709960938,
+   "bearing_deg": 37.21
+  },
+  {
+   "x": 1523.65,
+   "y": 153.07,
+   "area": 382,
+   "contrast": 37.87928771972656,
+   "bearing_deg": 268.43
+  },
+  {
+   "x": 889.72,
+   "y": 113.7,
+   "area": 351,
+   "contrast": 39.27675247192383,
+   "bearing_deg": 143.19
+  },
+  {
+   "x": 1278.59,
+   "y": 132.64,
+   "area": 311,
+   "contrast": 34.857421875,
    "bearing_deg": 271.59
   },
   {
-   "x": 373.72,
-   "y": 112.61,
-   "area": 294,
-   "contrast": 31.352514266967773,
-   "bearing_deg": 52.03
-  },
-  {
-   "x": 494.53,
-   "y": 115.29,
-   "area": 271,
-   "contrast": 31.538265228271484,
-   "bearing_deg": 86.95
-  },
-  {
-   "x": 1582.02,
-   "y": 138.1,
-   "area": 258,
-   "contrast": 34.73967742919922,
-   "bearing_deg": 211.31
-  },
-  {
-   "x": 1364.16,
-   "y": 152.03,
-   "area": 257,
-   "contrast": 30.754850387573242,
-   "bearing_deg": 222.33
-  },
-  {
-   "x": 350.06,
-   "y": 100.39,
-   "area": 232,
-   "contrast": 35.732582092285156,
-   "bearing_deg": 45.19
+   "x": 1583.26,
+   "y": 141.48,
+   "area": 281,
+   "contrast": 32.99272155761719,
+   "bearing_deg": 211.67
   }
  ],
  "note": "Real Godot 8-camera rig render -> heading-ordered panorama; shadow-nav landmarks are cast-shadow dark-contrast blobs, each tagged with its azimuth bearing (the ARGUS pose-graph measurement). No synthetic pixels."
