@@ -32,6 +32,38 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 > `ea7574ec3875928075b11072cd32f0c25f3d079d` plus local uncommitted web/deploy hardening. The prior
 > P1 navigation bridge is no longer an open queue item; keeping it in the "next" list made the PRD
 > contradict itself. The source-of-truth queue below replaces that stale list.
+>
+> **UPDATE 2026-06-17 (cockpit hardening + convergence frontier, all live on app.stewie.space):**
+> two tracks advanced past what this §0 recorded.
+> **(A) Trainer/sim surface (forward-item #1) — hardened.** A full cockpit live-debug pass shipped +
+> Playwright-verified + deployed: TRAINING-default + data-store wiring, the map coordinate UX (type-in
+> lat/long, a floating cursor lat/long readout, crosshair), the Site→…→Execute stepper gates, inline
+> vehicle/soil/charger info, the "where are we" locator with a NEW `/dem/site_lonlat` reverse transform
+> (site metres → selenographic lat/lon, TDD), the renamed/grouped **🧰 ToolBox**, the Swagger `/docs`
+> fix, the CRITICAL working-draft persistence fix, the full **ArcGIS editing toolbox** (distance
+> measure · feature notes · landmarks · **circle/box/polygon keep-out barriers with REAL planner
+> routing** — `point_in_keepout`/`_apply_keepouts` rasterize all three shapes, TDD 169 planner tests
+> green), panel completeness (Admin **invite mint** + the `#invite=` **redeem** flow, Settings
+> reset-workspace), and a signed-in mobile sweep (all 8 panes, zero overflow). THIRD_PARTY re-reviewed
+> under the all-rights-reserved license (Cesium/swagger/fonts/AprilTag added). Tasks #166–#179, #124,
+> #129/#160.
+> **(B) Convergence frontiers — now REAL + run-verified (ahead of the queue below).** The PRD's named
+> next-contribution items moved from modelled to measured:
+> • **ROS2 autonomy seam (the PitBackend transport's STEWIE side, §0 pre-audit queue):** `stewie/bridge`
+>   — `/cmd_vel` Twist → RC GoTo through the **SF-01 watchdog**, the `/stewie/odom` `nav_msgs/Odometry`
+>   egress, the closed `cmd_vel→sim→odom` loop, and a deployable `stewie-ros2-bridge` service, ALL
+>   run-verified on the `stewie-ros2:latest` Jazzy container. Nav2/Autoware plug straight in.
+> • **#79 8-cam front-end + shadow-outline landmarks:** the LAC **8-camera rig renders on the RTX 3090**
+>   (Godot 4.6.3, `render.sh sidecar.tscn --cameras`) → `panorama.py` 8192×768 heading-ordered surround
+>   → `shadow_landmarks.py` real cast-shadow landmarks + azimuth bearings (the ARGUS measurement). NOT
+>   render-gated on this host. Plus a `sensor_msgs/PointCloud2` perception egress. Tasks #144/#145/#183.
+> • **Convergence visualization (cockpit 3D view, live):** the depth/heightfield as a wire overlay,
+>   **ephemeris-driven sun + shadows** (`/ephemeris` solar authority + Three.js shadow casting), the
+>   **lander rendered with the real tag36h11 AprilTag**, and a **rover HUD** (battery · azimuth compass ·
+>   front/rear drum weight · live pose). Tasks #180–#184.
+> Still genuinely gated: #185 DA3 monocular producer (model install) and the live Autoware/Nav2 *planner*
+> driving through the seam (needs the costmap from the perception egress). Forward-queue items 2/4/5 below
+> remain the path to a production-complete twin.
 
 **Current forward order (2026-06-15, codebase-aligned):**
 1. **Stabilize the production web/GIS surface.** Keep WEB-01/SEC-01 live-site hardening load-bearing:

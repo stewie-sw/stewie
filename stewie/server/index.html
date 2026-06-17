@@ -686,6 +686,25 @@
         <div id="rpempty" class="empty">No render yet. On the <b>Plan</b> tab, click the work-area DEM
           (Moon) to render a Godot before/after sensor frame here. A live SLAM map (observed-vs-truth as
           the rover drives) is the open map-channel work, not a faked feed.</div>
+
+        <!-- #183/#79 8-camera rig -> heading-ordered panorama -> shadow-nav cast-shadow landmarks
+             (each tagged with the AZIMUTH bearing an ARGUS pose-graph factor consumes). The served
+             panorama.png + landmarks.json are REAL Godot render egress (crater_boulders), not synthetic. -->
+        <div id="panowrap" style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
+          <div class="cap"><span>SHADOW-NAV PANORAMA — 8-cam rig → 360° surround → cast-shadow landmarks
+            <b id="panometa"></b></span>
+            <label style="margin-left:10px;font-size:10px;cursor:pointer"><input id="panomarks" type="checkbox" checked /> bearings</label></div>
+          <div id="panostage" style="position:relative;width:100%;overflow:hidden;border:1px solid var(--line);background:#000;border-radius:4px">
+            <div id="panoticks" style="position:absolute;top:0;left:0;right:0;height:14px;pointer-events:none;z-index:2"></div>
+            <img id="panoimg" alt="8-camera shadow-nav panorama" style="display:block;width:100%;image-rendering:auto" />
+            <div id="panooverlay" style="position:absolute;inset:0;pointer-events:none;z-index:3"></div>
+          </div>
+          <div id="panolist" style="font-size:10px;line-height:1.6;margin-top:8px;color:var(--muted)"></div>
+          <div id="panoempty" class="empty" style="display:none">No panorama egress. Render the 8-camera rig
+            (<code>godot/render.sh sidecar.tscn -- --scene &lt;scene&gt; --cameras</code>) then
+            <code>shadow_landmarks.py --emit-served</code> — the deployed container has no GPU, so the
+            committed crater_boulders panorama is the served sample.</div>
+        </div>
       </div>
       <div id="navview" class="pane">
         <div class="cap"><span>NAVIGATION — ARGUS state estimation <small>(pose-graph estimate vs dead reckoning; articulation-parallax relocalization)</small></span></div>
@@ -969,6 +988,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=28f087c82438"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=f88df432f6c0"></script>
+<script src="/assets/cockpit.js?v=6663492df75e"></script>
 </body>
 </html>

@@ -784,9 +784,57 @@ function setView(name) {
   if (name !== "plan" && EDIT.on) setEdit(false);          // leaving Plan ends the edit session
   applySidebar(name);                                      // UX-05: collapse off-Plan / restore on Plan
   loadPane(name);
+  if (name === "perception" && typeof loadPanorama === "function") loadPanorama();  // #183 shadow-nav surround
   if (typeof renderStepper === "function") renderStepper();  // pipeline spine: reflect the active view
   if (typeof renderCtxSummaries === "function") renderCtxSummaries();  // live per-tab left-block content
 }
+
+// #183/#79 Perception pane: load the REAL served 8-cam panorama + overlay the shadow-nav landmarks
+// (each tagged with the azimuth bearing an ARGUS pose-graph factor consumes). Honest empty state when
+// no render egress is present (a GPU-less deploy ships the committed crater_boulders sample).
+let PANO_LOADED = false;
+function applyPanoMarks() {
+  const ov = $("panooverlay");
+  if (ov) ov.style.display = ($("panomarks") && $("panomarks").checked) ? "" : "none";
+}
+async function loadPanorama() {
+  const stage = $("panostage"), empty = $("panoempty");
+  if (!stage) return;
+  try {
+    const r = await fetch("assets/perception/landmarks.json", { cache: "no-cache" });
+    if (!r.ok) throw new Error("no manifest");
+    const m = await r.json();
+    const cams = m.cameras || [], lms = m.landmarks || [];
+    const nc = cams.length || 1, W = m.width || 2048, H = m.height || 192;
+    $("panoimg").src = "assets/perception/panorama.png?v=" + (m.full_width || 0);
+    // camera tile dividers + per-tile heading label (the panorama is 8 FOV tiles ordered by heading)
+    $("panoticks").innerHTML = cams.map((c, i) => {
+      const cx = ((i + 0.5) / nc * 100).toFixed(2), lx = (i / nc * 100).toFixed(2);
+      return `<div style="position:absolute;left:${lx}%;top:0;height:9999px;border-left:1px solid rgba(120,160,255,.22)"></div>`
+        + `<div style="position:absolute;left:${cx}%;top:1px;transform:translateX(-50%);font-size:8px;color:#7fa8ff;text-shadow:0 0 3px #000">${Math.round(c.heading_deg)}&deg;</div>`;
+    }).join("");
+    // shadow-nav landmark markers (dot + azimuth-bearing label) at their panorama pixel positions
+    $("panooverlay").innerHTML = lms.map((l) => {
+      const lf = (l.x / W * 100).toFixed(2), tp = (l.y / H * 100).toFixed(2);
+      return `<div style="position:absolute;left:${lf}%;top:${tp}%;transform:translate(-50%,-50%)">`
+        + `<div style="width:10px;height:10px;border:1.5px solid #ffd479;border-radius:50%;box-shadow:0 0 4px #000"></div>`
+        + `<div style="position:absolute;left:11px;top:-3px;white-space:nowrap;font-size:8px;color:#ffd479;text-shadow:0 0 3px #000">${l.bearing_deg}&deg;</div></div>`;
+    }).join("");
+    $("panometa").textContent = ` · ${nc} cams · ${lms.length} landmarks · ${m.full_width || "?"}×${m.full_height || "?"}px source`;
+    $("panolist").innerHTML = "<b>Shadow-nav bearings (ARGUS measurements):</b> "
+      + lms.slice(0, 12).map((l) => `<span style="color:#ffd479">${l.bearing_deg}&deg;</span><span style="opacity:.55">/c${Math.round(l.contrast)}</span>`).join(" · ")
+      + `<br><span style="opacity:.7">${m.note || ""}</span>`;
+    stage.style.display = ""; empty.style.display = "none";
+    applyPanoMarks();
+    PANO_LOADED = true;
+  } catch (e) {
+    stage.style.display = "none"; empty.style.display = "";
+  }
+}
+document.addEventListener("DOMContentLoaded", () => {
+  const cb = document.getElementById("panomarks");
+  if (cb) cb.addEventListener("change", applyPanoMarks);
+});
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
 // FS-20: System / Settings / Admin live in the profile menu (off the work-area tab bar), role-gated:
 // Settings everyone, System operator+, Admin director. The items reuse setView -> same pane switch.

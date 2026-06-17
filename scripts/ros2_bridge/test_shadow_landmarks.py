@@ -36,6 +36,16 @@ def test_column_to_bearing_maps_tile_centers_to_camera_headings():
     assert 0.0 <= b < 360.0
 
 
+def test_scale_landmarks_scales_xy_keeps_bearing():
+    # the served viewer shows a downscaled panorama; the overlay coords scale with it, the AZIMUTH
+    # bearing (computed from the full-res column) is geometry and must NOT change under resize.
+    lms = [{"x": 4096.0, "y": 384.0, "area": 800, "contrast": 30.0, "bearing_deg": 180.0}]
+    out = SL.scale_landmarks(lms, 0.25, 0.25)
+    assert out[0]["x"] == 1024.0 and out[0]["y"] == 96.0          # x,y scaled to the served width
+    assert out[0]["bearing_deg"] == 180.0                         # bearing is invariant under resize
+    assert out[0]["area"] == 50                                   # area scales by sx*sy (0.0625*800)
+
+
 def test_shadow_landmarks_on_real_panorama():
     if not os.path.exists(os.path.join(_EGRESS, "sensors.json")):
         pytest.skip("no render egress (render with sidecar.tscn --cameras first)")

@@ -1,0 +1,128 @@
+{
+ "scene": "crater_boulders",
+ "width": 2048,
+ "height": 192,
+ "full_width": 8192,
+ "full_height": 768,
+ "cameras": [
+  {
+   "name": "drum_front_cam",
+   "heading_deg": 55.0
+  },
+  {
+   "name": "front_left",
+   "heading_deg": 55.0
+  },
+  {
+   "name": "front_right",
+   "heading_deg": 55.0
+  },
+  {
+   "name": "left_mono",
+   "heading_deg": 145.0
+  },
+  {
+   "name": "drum_back_cam",
+   "heading_deg": 235.0
+  },
+  {
+   "name": "rear_left",
+   "heading_deg": 235.0
+  },
+  {
+   "name": "rear_right",
+   "heading_deg": 235.0
+  },
+  {
+   "name": "right_mono",
+   "heading_deg": 325.0
+  }
+ ],
+ "landmarks": [
+  {
+   "x": 1569.09,
+   "y": 74.65,
+   "area": 709,
+   "contrast": 40.382564544677734,
+   "bearing_deg": 207.57
+  },
+  {
+   "x": 683.09,
+   "y": 115.22,
+   "area": 497,
+   "contrast": 29.230937957763672,
+   "bearing_deg": 67.45
+  },
+  {
+   "x": 1366.72,
+   "y": 50.73,
+   "area": 422,
+   "contrast": 41.15168380737305,
+   "bearing_deg": 223.07
+  },
+  {
+   "x": 628.61,
+   "y": 129.38,
+   "area": 392,
+   "contrast": 23.871320724487305,
+   "bearing_deg": 51.71
+  },
+  {
+   "x": 373.03,
+   "y": 129.48,
+   "area": 372,
+   "contrast": 26.316720962524414,
+   "bearing_deg": 51.83
+  },
+  {
+   "x": 1524.81,
+   "y": 149.37,
+   "area": 353,
+   "contrast": 37.80007553100586,
+   "bearing_deg": 268.76
+  },
+  {
+   "x": 1278.61,
+   "y": 133.27,
+   "area": 306,
+   "contrast": 34.371665954589844,
+   "bearing_deg": 271.59
+  },
+  {
+   "x": 373.72,
+   "y": 112.61,
+   "area": 294,
+   "contrast": 31.352514266967773,
+   "bearing_deg": 52.03
+  },
+  {
+   "x": 494.53,
+   "y": 115.29,
+   "area": 271,
+   "contrast": 31.538265228271484,
+   "bearing_deg": 86.95
+  },
+  {
+   "x": 1582.02,
+   "y": 138.1,
+   "area": 258,
+   "contrast": 34.73967742919922,
+   "bearing_deg": 211.31
+  },
+  {
+   "x": 1364.16,
+   "y": 152.03,
+   "area": 257,
+   "contrast": 30.754850387573242,
+   "bearing_deg": 222.33
+  },
+  {
+   "x": 350.06,
+   "y": 100.39,
+   "area": 232,
+   "contrast": 35.732582092285156,
+   "bearing_deg": 45.19
+  }
+ ],
+ "note": "Real Godot 8-camera rig render -> heading-ordered panorama; shadow-nav landmarks are cast-shadow dark-contrast blobs, each tagged with its azimuth bearing (the ARGUS pose-graph measurement). No synthetic pixels."
+}

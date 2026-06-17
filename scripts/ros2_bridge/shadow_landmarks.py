@@ -62,6 +62,55 @@ def landmark_bearings(landmarks, cam_order, **kw):
     return out
 
 
+def scale_landmarks(landmarks, sx: float, sy: float):
+    """Rescale landmark image coords for a downscaled served panorama. x,y move with the resize;
+    AREA scales by sx*sy; the AZIMUTH bearing is geometry (computed from the full-res column) and is
+    invariant under resize, so it is carried through unchanged. Used to fit the full-res panorama's
+    landmarks onto the smaller PNG the cockpit Perception pane serves."""
+    out = []
+    for lm in landmarks:
+        out.append({**lm,
+                    "x": round(lm["x"] * sx, 2), "y": round(lm["y"] * sy, 2),
+                    "area": int(round(lm.get("area", 0) * sx * sy))})
+    return out
+
+
+def emit_served_artifacts(egress_dir: str, out_dir: str, *, width: int = 2048, top: int = 12,
+                          scene: str = ""):
+    """Render the cockpit Perception-pane assets from a REAL render egress: a downscaled panorama PNG
+    plus a landmarks.json manifest the front-end overlays. Landmarks are detected on the full-res
+    panorama (bearings true), then scaled to the served width. Returns the manifest dict."""
+    import json
+    import os
+
+    from PIL import Image
+    import panorama as P
+
+    full = P.build_panorama(egress_dir)
+    order = P.panorama_order(egress_dir)
+    lms = landmark_bearings(detect_shadow_landmarks(full), order)[:top]
+    fh, fw = full.shape
+    sx = width / fw
+    sh = max(1, int(round(fh * sx)))
+    served = np.asarray(Image.fromarray(full).resize((width, sh)))
+    scaled = scale_landmarks(lms, sx, sh / fh)
+    os.makedirs(out_dir, exist_ok=True)
+    Image.fromarray(served).save(os.path.join(out_dir, "panorama.png"))
+    manifest = {
+        "scene": scene or os.path.basename(os.path.dirname(os.path.normpath(egress_dir))),
+        "width": int(width), "height": int(sh),
+        "full_width": int(fw), "full_height": int(fh),
+        "cameras": [{"name": n, "heading_deg": round(az, 1)} for n, az, _ in order],
+        "landmarks": scaled,
+        "note": ("Real Godot 8-camera rig render -> heading-ordered panorama; shadow-nav landmarks are "
+                 "cast-shadow dark-contrast blobs, each tagged with its azimuth bearing (the ARGUS "
+                 "pose-graph measurement). No synthetic pixels."),
+    }
+    with open(os.path.join(out_dir, "landmarks.json"), "w") as f:
+        json.dump(manifest, f, indent=1)
+    return manifest
+
+
 if __name__ == "__main__":
     import argparse
     import json
@@ -72,10 +121,18 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--in", dest="egress", required=True, help="out/cam/<scene>/<NNN>/ dir")
     ap.add_argument("--top", type=int, default=12, help="report the N largest shadow landmarks")
+    ap.add_argument("--emit-served", dest="served", default="",
+                    help="also write a downscaled panorama.png + landmarks.json for the cockpit here")
+    ap.add_argument("--served-width", type=int, default=2048, help="served panorama width (px)")
     a = ap.parse_args()
     pano = P.build_panorama(a.egress)
     order = P.panorama_order(a.egress)
     lms = landmark_bearings(detect_shadow_landmarks(pano), order)[:a.top]
     Image.fromarray(pano).save(os.path.join(a.egress, "panorama.png"))
-    print(json.dumps({"n_landmarks": len(lms), "panorama": list(pano.shape),
-                      "landmarks": lms}, indent=1))
+    if a.served:
+        m = emit_served_artifacts(a.egress, a.served, width=a.served_width, top=a.top)
+        print(json.dumps({"served": a.served, "served_dims": [m["width"], m["height"]],
+                          "n_landmarks": len(m["landmarks"])}, indent=1))
+    else:
+        print(json.dumps({"n_landmarks": len(lms), "panorama": list(pano.shape),
+                          "landmarks": lms}, indent=1))
