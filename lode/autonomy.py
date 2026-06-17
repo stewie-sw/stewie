@@ -198,6 +198,28 @@ def _canonical_plant(mission, *, dem, dem_origin, max_traverse_slope_deg, algori
     return result, trips, ir, totals, recharge_travel_J, dep_by_trip
 
 
+def _dem_terrain_fix(dem, dem_origin, true_pose, guess_xy, base_sigma_m):
+    """REAL terrain-relative (DEM scan-match) position fix -- the honest replacement for the old
+    truth+noise perception stand-in. The sim's downward terrain sensor observes the DEM patch at the
+    rover's TRUE cell (a real TRN sensor images the ground it is over); register_to_dem (via
+    dem_position_fix) RECOVERS the world position by matching that observed patch against the prior DEM
+    in a +/-5-cell search around the dead-reckoned ``guess_xy``. Returns {'xy','sigma'} in the LOCAL
+    order frame, or None when the patch is too flat/aliased to register (odometry then carries -- a flat
+    region must not manufacture a fix). I3 firewall: the estimator receives the observed patch + the
+    DRIFTED guess, never the truth pose -- it recovers position, it is not told it."""
+    from dart.localization import patch_at
+    from dart.slam_seam import dem_position_fix
+    Z, cell = dem[0], float(dem[1])
+    ox, oy = dem_origin
+    tr, tc = int(round((oy + true_pose[1]) / cell)), int(round((ox + true_pose[0]) / cell))
+    if not (16 <= tr < Z.shape[0] - 16 and 16 <= tc < Z.shape[1] - 16):
+        return None                                        # observation off the mapped tile -> no fix
+    observed = patch_at(Z, (tr, tc), 16)                   # the rover's downward terrain observation (33x33)
+    gr, gc = int(round((oy + guess_xy[1]) / cell)), int(round((ox + guess_xy[0]) / cell))
+    ref_rc = (oy / cell, ox / cell)                        # so the recovered xy returns in the order frame
+    return dem_position_fix(observed, dem, (gr, gc), ref_rc=ref_rc, base_sigma_m=base_sigma_m)
+
+
 def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto", objective="time",
                     max_traverse_slope_deg=25.0, perception_sigma_m=None, dig_sigma_gate_m=0.20, seed=0):
     """Run the AutoNav-style loop as an OVERLAY on the ONE canonical plant (A-03). The plan, vehicle,
@@ -212,10 +234,10 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
     NOT maintain a second, inconsistent energy/recharge plant: the authoritative ``plant_energy_J`` /
     ``plant_time_s`` / ``recharges`` come from the canonical sim, and recharge travel is fully accounted
     (no free teleport to the charger, return-to-site drive included)."""
-    import numpy as _np
     g = MP.body_gravity(mission.body)
     ctx = MP.plan_context(mission)                         # MODEL-01: the SELECTED vehicle's constants
-    _rng = _np.random.default_rng(seed)                    # MODEL-02: seeded perception-noise stream
+    # (the old seeded perception-noise stream is gone: the perception fix is now a REAL deterministic
+    #  terrain-relative match, not true_pose + N(0,sigma). `seed` is kept for API stability.)
     result, trips, ir, totals, recharge_travel_J, dep_by_trip = _canonical_plant(
         mission, dem=dem, dem_origin=dem_origin, max_traverse_slope_deg=max_traverse_slope_deg,
         algorithm=algorithm, objective=objective)
@@ -285,17 +307,18 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
         odo = ODOM_DRIFT_FRAC * telem["drive_m"]
         belief = predict(belief, moved_to=(true_pose[0] + odo, true_pose[1]), drive_m=telem["drive_m"],
                          odom_drift_frac=ODOM_DRIFT_FRAC, energy_spent_J=0.0)
-        # PERCEPTION MEASUREMENT: fuse the INDEPENDENT true pose (the SLAM / AprilTag map fix). The
-        # measurement is the truth, NOT the belief's own estimate, so the Kalman update CORRECTS the
-        # dead-reckoned drift (moves the mean back), not merely shrinks sigma. MODEL-02: a real fix is
-        # only as good as its declared sigma -- the measurement is true_pose + N(0, perception_sigma_m)
-        # (a seeded sensor-noise realization), NOT the exact truth, so the corrected mean lands NEAR
-        # truth within the fix's own uncertainty rather than perfectly on it.
-        if perception_sigma_m is not None:
-            meas = (true_pose[0] + float(_rng.normal(0.0, perception_sigma_m)),
-                    true_pose[1] + float(_rng.normal(0.0, perception_sigma_m)))
-            belief = update_pose(belief, meas, perception_sigma_m)
-            perception_fixes += 1
+        # PERCEPTION MEASUREMENT -- REAL terrain-relative localization (no truth stand-in): the sim's
+        # downward sensor observes the DEM patch at the rover's true cell, and dem_position_fix RECOVERS
+        # the world position by registering that patch against the prior DEM near the dead-reckoned guess
+        # (I3: the estimator gets the observed patch + the drift guess, never the truth pose). A flat /
+        # aliased region returns no fix and odometry carries; a confident match corrects the drift. The
+        # guaranteed fix is the charger DOCK at mission end (a known-landmark fix). The old code fused
+        # true_pose + N(0,sigma) -- a truth stand-in -- which is removed.
+        if perception_sigma_m is not None and dem is not None:
+            fix = _dem_terrain_fix(dem, dem_origin, true_pose, (belief.x, belief.y), perception_sigma_m)
+            if fix is not None:
+                belief = update_pose(belief, fix["xy"], float(fix["sigma"]))
+                perception_fixes += 1
         e_sig = math.sqrt(belief.energy_sigma_J ** 2 + (0.12 * nominal_J) ** 2)
         belief = dataclasses.replace(belief, energy_sigma_J=e_sig)
         belief = dataclasses.replace(belief, tasks_done=belief.tasks_done + 1)
@@ -338,6 +361,8 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
                      odom_drift_frac=ODOM_DRIFT_FRAC, energy_spent_J=0.0)
     if perception_sigma_m is not None:                 # docking at the charger is a known-landmark pose fix
         belief = update_pose(belief, (float(cx), float(cy)), perception_sigma_m)
+        perception_fixes += 1                          # the dock IS a real fix -> count it (the guaranteed
+        #                                                fix when a flat work area yields no terrain match)
     belief = dataclasses.replace(belief, t_s=plant_time_s)
     # P6: the closed map-channel reward -- how well the executed route observed the worksite (coverage +
     # residual map uncertainty), the LAC section 10 mapping objective fed back, not just pose/energy.

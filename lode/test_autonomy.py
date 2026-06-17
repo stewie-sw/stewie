@@ -302,16 +302,40 @@ def test_initial_belief_threads_the_vehicle_pack_into_soc():
         assert math.isclose(b.soc_frac(), 1.0)
 
 
-def test_perception_fix_injects_seeded_measurement_noise():
-    """MODEL-02: a real map/AprilTag pose fix is the true pose PLUS sensor noise (~perception_sigma_m),
-    not the EXACT truth. Two runs with different seeds give different corrected poses (the measurement
-    realization differs); the same seed reproduces. The deterministic-truth fix gave identical poses for
-    every seed (a perfect, optimistic fix)."""
+def test_perception_fix_is_real_deterministic_terrain_match():
+    """The perception fix is now REAL terrain-relative localization (dem_position_fix scan-match) + the
+    charger-dock known-landmark fix -- NOT the old `true_pose + N(0,sigma)` seeded stand-in. So it is
+    DETERMINISTIC (no measurement-noise RNG): different seeds give the SAME corrected belief. And it is a
+    real fix: perception-on bounds the drift below the perception-off dead-reckoning run. (This replaces
+    test_perception_fix_injects_seeded_measurement_noise, which asserted the removed truth+noise fake.)"""
     from lode import autonomy as A
     dem = MP.load_haworth_dem(); o = MP.flattest_anchor(dem)
     m = _spread()
     a = A.run_closed_loop(m, dem=dem, dem_origin=o, perception_sigma_m=0.10, seed=1)
     b = A.run_closed_loop(m, dem=dem, dem_origin=o, perception_sigma_m=0.10, seed=2)
-    c = A.run_closed_loop(m, dem=dem, dem_origin=o, perception_sigma_m=0.10, seed=1)
-    assert (a["belief"].x, a["belief"].y) != (b["belief"].x, b["belief"].y)   # different noise realization
-    assert (a["belief"].x, a["belief"].y) == (c["belief"].x, c["belief"].y)   # same seed -> reproducible
+    off = A.run_closed_loop(m, dem=dem, dem_origin=o)                          # perception OFF
+    assert (a["belief"].x, a["belief"].y) == (b["belief"].x, b["belief"].y)   # deterministic real fix, not seeded noise
+    assert a["perception_fixes"] >= 1                                          # real dem-fix and/or the dock fix
+    assert a["belief"].pos_sigma_m < off["belief"].pos_sigma_m                 # the fix bounds the drift
+
+
+def test_dem_terrain_fix_recovers_drifted_pose_and_abstains_on_flat():
+    """The new _dem_terrain_fix: on the REAL Haworth DEM a drifted guess is pulled back toward the true
+    cell by matching the observed patch (terrain-relative localization, NOT being told the truth); a flat
+    synthetic patch returns None (a featureless region must not manufacture a fix -- odometry carries)."""
+    import numpy as np
+
+    from lode import autonomy as A
+    dem = MP.load_haworth_dem(); cell = dem[1]
+    o = MP.flattest_anchor(dem)                                # order-frame origin in DEM metres
+    # pick a true pose a few cells off the anchor in a feature-bearing direction; drift the guess by ~3 cells
+    true_xy = (40.0, 30.0)
+    guess_xy = (true_xy[0] + 3.0 * cell, true_xy[1] - 2.0 * cell)
+    fix = A._dem_terrain_fix(dem, o, true_xy, guess_xy, 2.0)
+    if fix is not None:                                        # confident match -> recovered nearer the truth
+        err_fix = np.hypot(fix["xy"][0] - true_xy[0], fix["xy"][1] - true_xy[1])
+        err_guess = np.hypot(guess_xy[0] - true_xy[0], guess_xy[1] - true_xy[1])
+        assert err_fix <= err_guess                            # the scan-match corrected the drift
+    # a perfectly flat DEM is unregisterable -> None (no manufactured fix)
+    flat = (np.zeros((400, 400)), float(cell))
+    assert A._dem_terrain_fix(flat, (0.0, 0.0), (100.0, 100.0), (100.0 + 2 * cell, 100.0), 2.0) is None
