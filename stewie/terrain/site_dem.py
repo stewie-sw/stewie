@@ -175,6 +175,30 @@ def latlon_to_dem_origin(lat, lon, *, bundle_dir=None):
     return float(ci * cell), float(ri * cell)                            # matches flattest_anchor's frame
 
 
+def dem_origin_to_latlon(x, y, *, bundle_dir=None):
+    """#174 (Aaron: "why are these in meters vs actual coordinates?"): the INVERSE of
+    latlon_to_dem_origin -- project an order-frame position (x, y) [m] back to a selenographic lat/lon
+    (deg), so the cockpit can show the actual coordinates next to the site metres for the lander, the
+    rover's pose, and the placed landmarks. Same IAU_2015:30135 south-polar stereographic frame +
+    pixel-center convention as the forward transform. Raises ValueError if (x, y) falls outside the
+    committed tile, ImportError if pyproj (the [planner] extra) is absent so the caller can degrade to
+    metres-only."""
+    from pyproj import CRS, Transformer
+    meta = json.load(open(os.path.join(_haworth_bundle(bundle_dir), "metadata.json")))
+    g, b = meta["grid"], meta["world_bounds_m"]
+    cell, W, H = float(g["cell_m"]), int(g["width"]), int(g["height"])
+    col, row = float(x) / cell, float(y) / cell
+    if not (-0.5 <= col <= W - 0.5 and -0.5 <= row <= H - 0.5):
+        raise ValueError(f"site (x, y) = ({x:.0f}, {y:.0f}) m is outside the mapped tile "
+                         f"({W}x{H} @ {cell:g} m, IAU_2015:30135)")
+    crs = CRS.from_user_input("IAU_2015:30135")
+    inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
+    ax0, ay0 = float(b["x0"]) + cell / 2.0, float(b["y1"]) - cell / 2.0  # pixel(0,0) CENTER (north-up raster)
+    xs, ys = ax0 + col * cell, ay0 - row * cell                          # order-frame metres -> polar-stereographic m
+    lon, lat = inv.transform(xs, ys)                                     # -> selenographic deg
+    return float(lat), float(lon)
+
+
 def dem_georef_corners(bundle_dir=None) -> dict:
     """The committed tile's GLOBE footprint: world_bounds_m corners (IAU_2015:30135 south-polar
     stereographic) inverse-projected to selenographic lat/lon -- so the cockpit can OVERLAY the

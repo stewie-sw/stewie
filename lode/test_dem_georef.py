@@ -38,3 +38,44 @@ def test_site_xy_endpoint_roundtrips():
     assert d["ok"] and 0 <= d["x_m"] <= 10000 and 0 <= d["y_m"] <= 10000
     out = c.get("/dem/site_xy?lat=0&lon=0")                # equator: outside the tile -> honest 422
     assert out.status_code == 422
+
+
+def test_dem_origin_to_latlon_inverts_the_forward_transform():
+    # #174 (Aaron: "why are these in meters vs actual coordinates?"): site metres -> lat/lon must invert
+    # latlon_to_dem_origin so the cockpit can show actual coordinates next to the order-frame metres.
+    pytest.importorskip("pyproj")
+    from lode.mission_planner import dem_georef_corners, dem_origin_to_latlon, latlon_to_dem_origin
+    ctr = dem_georef_corners()["center"]
+    x, y = latlon_to_dem_origin(ctr["lat"], ctr["lon"])
+    lat, lon = dem_origin_to_latlon(x, y)
+    # the forward SNAPS to the nearest 5 m pixel center, so the recovered lat/lon is that center's --
+    # re-running the forward on it must return the SAME metres exactly (the clean inverse invariant).
+    x2, y2 = latlon_to_dem_origin(lat, lon)
+    assert (x2, y2) == pytest.approx((x, y), abs=1e-6)
+    assert lat == pytest.approx(ctr["lat"], abs=0.01)      # within a half-cell of where we started
+
+
+def test_dem_origin_to_latlon_rejects_outside_the_tile():
+    pytest.importorskip("pyproj")
+    from lode.mission_planner import dem_origin_to_latlon
+    with pytest.raises(ValueError):
+        dem_origin_to_latlon(999999.0, 999999.0)           # far outside the 10 km tile
+
+
+def test_site_lonlat_endpoint_roundtrips():
+    pytest.importorskip("pyproj")
+    import importlib
+
+    from fastapi.testclient import TestClient
+    import stewie.server.server as srv
+    importlib.reload(srv)
+    c = TestClient(srv.app)
+    from lode.mission_planner import dem_georef_corners
+    ctr = dem_georef_corners()["center"]
+    fx = c.get(f"/dem/site_xy?lat={ctr['lat']}&lon={ctr['lon']}").json()   # forward through HTTP
+    r = c.get(f"/dem/site_lonlat?x={fx['x_m']}&y={fx['y_m']}")             # then inverse through HTTP
+    assert r.status_code == 200
+    d = r.json()
+    assert d["ok"] and d["lat"] == pytest.approx(ctr["lat"], abs=0.01)
+    out = c.get("/dem/site_lonlat?x=999999&y=999999")      # outside the tile -> honest 422
+    assert out.status_code == 422

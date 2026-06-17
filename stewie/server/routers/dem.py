@@ -45,6 +45,23 @@ def dem_site_xy(lat: float, lon: float, site: str = "haworth"):
     return {"ok": True, "site": site, "x_m": round(x, 1), "y_m": round(y, 1)}
 
 
+@router.get("/dem/site_lonlat")
+def dem_site_lonlat(x: float, y: float, site: str = "haworth"):
+    """#174: the chosen site's order-frame (x, y) [m] -> selenographic lat/lon (deg) -- the INVERSE of
+    /dem/site_xy, so the cockpit can show the actual coordinates next to the site metres for the lander,
+    the rover's pose, and placed landmarks (Aaron: "why are these in meters vs actual coordinates?")."""
+    from lode import mission_planner as MP
+    try:
+        lat, lon = MP.dem_origin_to_latlon(x, y, bundle_dir=MP.bundle_for_site(site))
+    except KeyError as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    except ValueError as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    except (ImportError, FileNotFoundError) as e:
+        return JSONResponse(status_code=503, content={"ok": False, "error": f"DEM/pyproj absent: {e}"})
+    return {"ok": True, "site": site, "lat": round(lat, 6), "lon": round(lon, 6)}
+
+
 @router.get("/dem/sources")
 def dem_sources_catalog():
     """#150: the lunar DEM source catalog -- every selectable base layer with provenance, license, and
