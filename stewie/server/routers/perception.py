@@ -99,6 +99,15 @@ class LocalizeRequest(BaseModel):
     prior_yaw: float = Field(default=0.0, ge=-7.0, le=7.0)
     prior_sigma_xy: float = Field(default=50.0, gt=0.0, le=1e6)      # weak by default -> the fix dominates
     prior_sigma_yaw: float = Field(default=1.0, gt=0.0, le=1e3)
+    # #148: OPTIONAL shadow-nav heading fusion -- close the shadow + parallax loop in one update. Per
+    # detected shadow landmark: the body-frame bearing of the anti-solar shadow ray + its contrast (the
+    # acceptance gate); plus the ephemeris anti-solar azimuth. When present, /localize adds a shadow_yaw
+    # heading factor (dart.shadow_factors) to the same graph as the parallax (x,y) fix.
+    shadow_bearings_deg: list[float] | None = Field(default=None, max_length=256)
+    shadow_contrasts: list[float] | None = Field(default=None, max_length=256)
+    anti_solar_az_deg: float | None = Field(default=None, ge=0.0, lt=360.0)
+    shadow_sigma_deg: float = Field(default=8.0, gt=0.0, le=90.0)
+    shadow_min_contrast: float = Field(default=20.0, ge=0.0, le=255.0)
 
 
 class SlamRequest(BaseModel):
@@ -162,10 +171,30 @@ def post_localize(req: LocalizeRequest, _auth: None = Depends(require_auth)):
     if len(req.pixel_shifts) != n:
         return JSONResponse(status_code=400,
                             content={"ok": False, "error": "pixel_shifts must match landmarks_xy in length"})
+    # #148: optional shadow-nav heading fusion -- needs the ephemeris anti-solar azimuth to turn a
+    # body-frame shadow bearing into a heading. Validate the pairing before touching the estimator.
+    shadow_added = 0
+    if req.shadow_bearings_deg:
+        if req.anti_solar_az_deg is None:
+            return JSONResponse(status_code=400, content={"ok": False, "error":
+                "shadow_bearings_deg requires anti_solar_az_deg (the ephemeris anti-solar azimuth)"})
+        if req.shadow_contrasts is not None and len(req.shadow_contrasts) != len(req.shadow_bearings_deg):
+            return JSONResponse(status_code=400, content={"ok": False, "error":
+                "shadow_contrasts must match shadow_bearings_deg in length"})
     try:
         graph = PG.PoseGraphSE2()
         graph.add_prior(0, (float(req.prior_xy[0]), float(req.prior_xy[1]), float(req.prior_yaw)),
                         float(req.prior_sigma_xy), float(req.prior_sigma_yaw))
+        if req.shadow_bearings_deg:                          # add shadow_yaw factors BEFORE the parallax
+            from dart import shadow_factors as SF            # solve so the final optimize fuses both
+            contrasts = (req.shadow_contrasts if req.shadow_contrasts is not None
+                         else [req.shadow_min_contrast] * len(req.shadow_bearings_deg))
+            facs = SF.shadow_yaw_factors([{"contrast": float(c)} for c in contrasts],
+                                         [float(b) for b in req.shadow_bearings_deg],
+                                         anti_solar_az_deg=float(req.anti_solar_az_deg),
+                                         sigma_deg=float(req.shadow_sigma_deg),
+                                         min_contrast=float(req.shadow_min_contrast))
+            shadow_added = SF.add_shadow_yaw_factors(graph, 0, facs)
         out = AP.articulation_localize(
             graph, 0, [(float(x), float(y)) for x, y in req.landmarks_xy],
             [float(s) for s in req.pixel_shifts],
@@ -173,11 +202,13 @@ def post_localize(req: LocalizeRequest, _auth: None = Depends(require_auth)):
     except (ValueError, RuntimeError) as e:                 # degenerate geometry -> honest 400, not a 500
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     fix = out["fix_xy"]
-    log_event("api", "localize", f"{n} landmarks -> fix ({fix[0]:.2f},{fix[1]:.2f}) sigma {out['fix_sigma_m']:.3f}m")
+    log_event("api", "localize", f"{n} landmarks -> fix ({fix[0]:.2f},{fix[1]:.2f}) sigma "
+              f"{out['fix_sigma_m']:.3f}m" + (f" + {shadow_added} shadow-yaw" if shadow_added else ""))
     return {
         "ok": True,
         "fix_xy": [float(fix[0]), float(fix[1])],
         "fix_sigma_m": float(out["fix_sigma_m"]),
+        "shadow_yaw_factors_added": int(shadow_added),   # #148: shadow-nav heading factors fused (0 if none)
         # H-14: a < 3-non-collinear-landmark fix is mirror-ambiguous -- surface the flag + both hypotheses
         # so the operator/executive does not treat the near-prior basin as a unique heading-free fix.
         "ambiguous": bool(out.get("ambiguous", False)),

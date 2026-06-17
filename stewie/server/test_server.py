@@ -296,6 +296,40 @@ def test_localize_recovers_known_position_with_covariance(client):
     assert b["ambiguous"] is False                         # H-14: 3 non-collinear landmarks -> unique fix
 
 
+def test_localize_fuses_shadow_heading(client):
+    """[REQ:PM-06] #148: /localize fuses the shadow-nav heading (dart.shadow_factors) ALONGSIDE the
+    articulation-parallax (x,y) fix, so one standstill maneuver recovers BOTH position and heading --
+    closing the shadow + parallax loop at the live endpoint. The shadow factor tightens the yaw a
+    weak-yaw-prior parallax-only fix leaves loose, and recovers the true heading."""
+    import math
+
+    from dart import articulated_parallax as AP
+    landmarks = [(6.0, 0.0), (0.0, 8.0), (-5.0, -5.0)]
+    dh_m, fx_px = 0.174, 679.57
+    shifts = [AP.pixel_shift_for_range(dh_m, math.hypot(x, y), fx_px) for x, y in landmarks]
+    common = dict(landmarks_xy=landmarks, pixel_shifts=shifts, dh_m=dh_m, fx_px=fx_px,
+                  prior_xy=[1.5, -1.0], prior_sigma_xy=50.0, prior_yaw=-0.5, prior_sigma_yaw=5.0)
+    b0 = client.post("/localize", json=common).json()            # parallax only -> yaw stays loose
+    # the rover truly faces yaw 40 deg: the anti-solar shadow ray (world az 215) is seen at body bearing 175
+    b1 = client.post("/localize", json={**common,
+        "shadow_bearings_deg": [173.0, 175.5, 176.5], "shadow_contrasts": [35.0, 33.0, 36.0],
+        "anti_solar_az_deg": 215.0, "shadow_sigma_deg": 6.0}).json()
+    assert b1["ok"] is True
+    assert b1["shadow_yaw_factors_added"] == 3
+    assert math.hypot(b1["fix_xy"][0], b1["fix_xy"][1]) < 0.05    # still recovers the (x,y) origin
+    yaw = b1["pose"]["0"][2]
+    assert abs(((yaw - math.radians(40.0) + math.pi) % (2 * math.pi)) - math.pi) < math.radians(4.0)
+    assert b1["yaw_sigma"]["0"] < b0["yaw_sigma"]["0"]            # shadow heading tightened the yaw
+
+
+def test_localize_shadow_bearings_require_anti_solar(client):
+    """#148: shadow bearings without the ephemeris anti-solar azimuth cannot fix a heading -> clean 400."""
+    r = client.post("/localize", json={
+        "landmarks_xy": [(6.0, 0.0), (0.0, 8.0)], "pixel_shifts": [50.0, 40.0], "dh_m": 0.174,
+        "fx_px": 679.57, "shadow_bearings_deg": [175.0, 176.0]})
+    assert r.status_code == 400 and "anti_solar" in r.json()["error"]
+
+
 def test_h14_localize_two_landmarks_flagged_ambiguous(client):
     """Audit H-14 (2026-06-13): a two-landmark /localize fix is mirror-ambiguous -- the response flags it
     and returns BOTH hypotheses, instead of presenting the near-prior basin as a unique heading-free fix."""
