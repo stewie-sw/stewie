@@ -29,6 +29,9 @@ def test_dense_depth_rmse_on_real_rendered_corpus():
     # SGBM depth at the 0.37-1.89 m objective band -> cm-to-decimetre accuracy; reject NaN / implausible
     assert 0.0 < rmse < 0.5, f"dense depth RMSE {rmse} m outside plausibility for the objective band"
     assert r["dense_depth_mae_m"] <= rmse + 1e-9, "MAE must not exceed RMSE"          # math invariant
+    # PM-15: the map-frame reconstruction (observed world-point height vs true terrain at its footprint)
+    hrmse = r["dense_height_rmse_m"]
+    assert r["n_height_total"] >= 1000 and 0.0 < hrmse < 0.5, f"dense height RMSE {hrmse} m implausible"
     # the per-pair band is the objective TRL5 band, not the full sensor range
     lo, hi = r["per_pair"][0]["band_m"]
     assert 0.0 < lo < hi < 12.0

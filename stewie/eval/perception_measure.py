@@ -54,12 +54,37 @@ def measure_pair(pose_dir: str, scene_dir: str, *, pair_key: str = "stereo_rear"
           & (zt > zlo) & (zt < zhi) & (zm > zlo) & (zm < zhi))
     err = (zm - zt)[vm]
     n = int(vm.sum())
+    # PM-15 (map-frame reconstruction): back-project the OBSERVED depth to world points and compare their
+    # HEIGHT to the true terrain height at their footprint. Reuses the tested camera->world transform from
+    # ray_cast_depth (Godot Y-up; optical +Z fwd / +Y down -> Godot-node (x,-y,-z); d_w = d_cam @ R^T) and
+    # the tested bilinear truth heightfield. This is the dense reconstruction error in the MAP frame --
+    # what map_channel's gated dense tier means -- vs the depth RMSE above (camera frame).
+    geo = dt.load_scene_geometry(scene_dir)
+    R = dt._quat_to_R(cam["pose_in_world"]["quaternion_xyzw"])
+    posw = np.array(cam["pose_in_world"]["position_m"], float)
+    uu, vv = np.meshgrid(T["cols"], T["rows"])                            # (h', w'), aligned with rr/cc
+    fxp, fyp = float(intr["fx"]), float(intr.get("fy", intr["fx"]))
+    d_opt = np.stack([(uu - intr["cx"]) / fxp, (vv - intr["cy"]) / fyp, np.ones_like(uu, float)], axis=-1)
+    d_opt /= np.linalg.norm(d_opt, axis=-1, keepdims=True)
+    d_cam = np.stack([d_opt[..., 0], -d_opt[..., 1], -d_opt[..., 2]], axis=-1)
+    d_w = d_cam @ R.T
+    with np.errstate(divide="ignore", invalid="ignore"):
+        t_obs = zm / d_opt[..., 2]                                        # range along the ray to the obs surface
+    Pw = posw[None, None, :] + d_w * t_obs[..., None]
+    with np.errstate(invalid="ignore"):                                  # NaN footprints (invalid depth) -> masked below
+        truth_h = dt._terrain_height(geo, Pw[..., 0], Pw[..., 2])
+    hmask = vm & np.isfinite(truth_h) & np.isfinite(Pw[..., 1])
+    herr = (Pw[..., 1] - truth_h)[hmask]
+    hn = int(herr.size)
     return {
         "n_valid": n,
         "valid_frac": float(np.mean(vm)) if vm.size else 0.0,
         "depth_rmse_m": float(np.sqrt(np.mean(err ** 2))) if n else float("nan"),
         "depth_mean_abs_err_m": float(np.mean(np.abs(err))) if n else float("nan"),
         "depth_bias_m": float(np.median(err)) if n else float("nan"),
+        "height_rmse_m": float(np.sqrt(np.mean(herr ** 2))) if hn else float("nan"),
+        "height_mean_abs_err_m": float(np.mean(np.abs(herr))) if hn else float("nan"),
+        "n_height": hn,
         "band_m": [float(zlo), float(zhi)],
     }
 
@@ -73,7 +98,7 @@ def measure_corpus(corpus_dir: str, scene_dir: str, *, pairs=(("stereo_rear", "r
     gated tier -- now a real, measured number from real rendered frames."""
     poses = sorted((p for p in os.listdir(corpus_dir) if p.startswith("pose_") and not p.endswith("noclasts")),
                    key=lambda p: int(p.split("_")[1]))
-    errs, rows = [], []
+    errs, herrs, rows = [], [], []
     for p in poses:
         pose_dir = os.path.join(corpus_dir, p)
         for pair_key, l, r in pairs:
@@ -83,11 +108,17 @@ def measure_corpus(corpus_dir: str, scene_dir: str, *, pairs=(("stereo_rear", "r
             except (FileNotFoundError, KeyError):
                 continue
             if m["n_valid"] >= min_n and np.isfinite(m["depth_rmse_m"]):
-                # re-derive the squared errors for an exact pool (rmse^2 * n)
+                # pool exactly: rmse^2 * n per pair, summed / total n
                 errs.append((m["n_valid"], m["depth_rmse_m"], m["depth_mean_abs_err_m"]))
+                if m["n_height"] and np.isfinite(m["height_rmse_m"]):
+                    herrs.append((m["n_height"], m["height_rmse_m"]))
                 rows.append({"pose": p, "pair": pair_key, **m})
     n_tot = sum(n for n, _, _ in errs)
+    hn_tot = sum(n for n, _ in herrs)
     pooled_rmse = (float(np.sqrt(sum(n * (rmse ** 2) for n, rmse, _ in errs) / n_tot)) if n_tot else float("nan"))
     pooled_mae = (float(sum(n * mae for n, _, mae in errs) / n_tot) if n_tot else float("nan"))
+    pooled_hrmse = (float(np.sqrt(sum(n * (r ** 2) for n, r in herrs) / hn_tot)) if hn_tot else float("nan"))
     return {"dense_depth_rmse_m": pooled_rmse, "dense_depth_mae_m": pooled_mae,
-            "n_valid_total": int(n_tot), "n_pairs": len(rows), "per_pair": rows}
+            "dense_height_rmse_m": pooled_hrmse,
+            "n_valid_total": int(n_tot), "n_height_total": int(hn_tot),
+            "n_pairs": len(rows), "per_pair": rows}
