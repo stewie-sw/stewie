@@ -1,4 +1,4 @@
-"""FS-20: the cockpit chrome IA. System / Settings / Admin no longer sit on the work-area tab bar
+"""FS-20 [REQ:FS-20]: the cockpit chrome IA. System / Settings / Admin no longer sit on the work-area tab bar
 alongside the five mission views -- they live in a role-gated profile menu anchored to the signed-in
 identity chip (Settings everyone, System operator+, Admin director). The director-only Admin pane is
 where the audit ledger (/events) is surfaced -- "log files visible for admins".
