@@ -44,6 +44,20 @@ class PowerSource:
 
 
 @dataclasses.dataclass(frozen=True)
+class Charger:
+    """#173: a surface recharge station. ``recharge_power_w`` = input power delivered to a docked rover;
+    ``concurrent`` = how many rovers it can charge at once (the planner's charger-capacity default);
+    ``serves`` names the vehicle types it can charge ('*' = any) -- the per-vehicle association kept for
+    future expandability (a different connector / voltage / dock per platform)."""
+    name: str
+    label: str
+    recharge_power_w: float
+    concurrent: int = 1
+    serves: tuple = ("*",)
+    provenance: str = ""
+
+
+@dataclasses.dataclass(frozen=True)
 class Tool:
     """A separate implement that GRANTS a capability when mounted on a vehicle (e.g., the sinter head).
     Carries the tool's own [CALIB] cost numbers so they are not baked into a vehicle that lacks it."""
@@ -205,6 +219,29 @@ def get_power(name) -> PowerSource:
 
 def get_tool(name) -> Tool:
     return name if isinstance(name, Tool) else _get(TOOLS, name, "tool")
+
+
+# ---- #173: the charger registry (surface recharge stations), associated with vehicle types -------
+CHARGERS = {
+    "surface_pad": Charger(
+        "surface_pad", "Surface charge pad", recharge_power_w=S.RECHARGE_POWER_W, concurrent=1, serves=("*",),
+        provenance="[CALIB] no published IPEx solar/charge spec; matches ipex_specs.RECHARGE_POWER_W (700 W)."),
+    "lander_tower": Charger(
+        "lander_tower", "Lander power tower", recharge_power_w=S.RECHARGE_POWER_W, concurrent=4, serves=("*",),
+        provenance="[ASSUMPTION] shared surface power station (K8 PSR tower) serving N rovers; reuses the "
+                   "[CALIB] recharge power, not a new fabricated value."),
+}
+DEFAULT_CHARGER = "surface_pad"
+
+
+def get_charger(name) -> Charger:
+    return name if isinstance(name, Charger) else _get(CHARGERS, name, "charger")
+
+
+def chargers_for_vehicle(vehicle) -> list:
+    """The chargers that can serve a vehicle type ('*' serves any) -- the per-vehicle association (#173)."""
+    vn = vehicle.name if isinstance(vehicle, Vehicle) else str(vehicle)
+    return [c for c in CHARGERS.values() if "*" in c.serves or vn in c.serves]
 
 
 def capabilities_of(vehicle, tools=()) -> frozenset:
