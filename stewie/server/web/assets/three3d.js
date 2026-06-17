@@ -210,6 +210,37 @@ function animateRover(points, durationMs) {
 }
 function stopRoverAnim() { if (S._roverRAF) { cancelAnimationFrame(S._roverRAF); S._roverRAF = 0; } }
 
-window.STEWIE3D = { mount, render, setRover, setPath, setSun, setWireframe, clearTracks, heightAt,
+// #182: render the lander at order (x, y) with AprilTag (tag36h11 id-0, the REAL beacon tag) faces -- the
+// pose-fix fiducial the AprilTag localization path keys on, composited into the convergence-viz scene.
+function setLander3D(x, y) {
+  if (!S.scene) return;
+  if (S.lander) {
+    S.group.remove(S.lander);
+    S.lander.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); });
+    S.lander = null;
+  }
+  if (x == null || y == null) return;
+  const s = Math.max(12, (S.win || 300) * 0.05);           // legible beacon footprint at the tile scale (the tag must read)
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(s, s * 0.7, s),
+    new THREE.MeshStandardMaterial({ color: 0xb8c0cc, metalness: 0.35, roughness: 0.55 }));
+  body.castShadow = true; body.receiveShadow = true;
+  g.add(body);
+  // AprilTag beacon panels on the 4 vertical faces (unlit MeshBasic so the bits read under any sun;
+  // NearestFilter keeps the 10x10 tag36h11 id-0 grid crisp -- the actual beacon tag, not a stand-in)
+  const tex = new THREE.TextureLoader().load("/assets/tags/tag36_11_id0.png");
+  tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+  const tagMat = new THREE.MeshBasicMaterial({ map: tex });
+  const ts = s * 0.55, off = s * 0.5 + 0.05, ty = s * 0.05;
+  [[0, 0, off], [Math.PI, 0, -off], [Math.PI / 2, off, 0], [-Math.PI / 2, -off, 0]].forEach(([ry, px, pz]) => {
+    const q = new THREE.Mesh(new THREE.PlaneGeometry(ts, ts), tagMat);
+    q.position.set(px, ty, pz); q.rotation.y = ry; g.add(q);
+  });
+  g.position.set(x, heightAt(x, y) + s * 0.35, y);
+  S.lander = g; S.group.add(g);
+}
+
+window.STEWIE3D = { mount, render, setRover, setPath, setSun, setWireframe, setLander3D, clearTracks, heightAt,
   animateRover, stopRoverAnim, get available() { return true; },
-  get sunState() { return { az: S._sunAz, el: S._sunEl, shadows: !!(S.renderer && S.renderer.shadowMap && S.renderer.shadowMap.enabled) }; } };
+  get sunState() { return { az: S._sunAz, el: S._sunEl, shadows: !!(S.renderer && S.renderer.shadowMap && S.renderer.shadowMap.enabled) }; },
+  get hasLander() { return !!S.lander; } };

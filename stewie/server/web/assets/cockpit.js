@@ -1003,6 +1003,8 @@ function setLander(x, y) {
   try { localStorage.setItem("stewie_lander", JSON.stringify(LANDER_P)); } catch (e) {}
   if (typeof drawPlan === "function") drawPlan();
   if (typeof updateLocator === "function") updateLocator();   // #174: lander moved -> refresh distances
+  if (typeof TD3D_ON !== "undefined" && TD3D_ON && window.STEWIE3D && STEWIE3D.setLander3D)
+    STEWIE3D.setLander3D(LANDER_P.x, LANDER_P.y);             // #182: keep the 3D lander+AprilTag in sync
 }
 function recordPose(x, y) {
   LAST_POSE = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, ts: Date.now() };
@@ -3334,6 +3336,8 @@ function open3D() {
       if (!hf || !hf.ok) { setQ("3D: heightfield unavailable for " + site); return; }
       STEWIE3D.render(hf);
       apply3DSun();                                                       // #181: ephemeris-driven sun + shadows
+      if (typeof LANDER_P !== "undefined" && (LANDER_P.x || LANDER_P.y) && STEWIE3D.setLander3D)
+        STEWIE3D.setLander3D(LANDER_P.x, LANDER_P.y);                     // #182: lander + AprilTag beacon
       STEWIE3D.clearTracks(); STEWIE3D.stopRoverAnim();
       if (loc && loc.trajectory && loc.trajectory.length) {
         const truth = loc.trajectory.map((p) => p["true"]);

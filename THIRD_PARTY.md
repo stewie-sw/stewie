@@ -145,3 +145,15 @@ SOFTWARE.
   both satisfied here (the fonts are UI assets, not resold; names unchanged).
 - **Use:** cockpit typography (Orbitron for the STEWIE display/headings, Inter for body text), self-hosted
   same-origin (no Google Fonts CDN call) so type renders under the production CSP and offline.
+
+---
+
+## AprilTag fiducial texture (3D lander beacon)
+
+- **File:** `stewie/server/web/assets/tags/tag36_11_id0.png` (a copy of the committed
+  `scripts/ros2_bridge/fixtures/_assets/tag36_11_00000.png`) — the 10x10 **tag36h11 id-0** bit grid.
+- **Source:** the **AprilTag** project (E. Olson, University of Michigan APRIL lab), tag36h11 family.
+- **License:** the AprilTag library is **BSD-2-Clause**; the tag *image* is an openly-published generated
+  bit grid (uncopyrightable). Compatible with this all-rights-reserved repository.
+- **Use:** textured onto the 3D lander beacon faces (#182) — the same tag36h11 id-0 the AprilTag pose
+  path (`apriltag_ros` / `fiducial_overlay`) detects, so the viz beacon matches the real pose fiducial.
