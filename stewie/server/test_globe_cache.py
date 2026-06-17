@@ -12,8 +12,11 @@ def test_globe_disk_cache_commits_not_orphan_part_files(monkeypatch, tmp_path):
     out = GL.render_globe("dem", sun_el=6.0, sun_az=90.0)          # real Haworth hillshade (no synthetic data)
     assert out is not None
     cdir = tmp_path / "globe_cache"
-    assert (cdir / "dem_6.0_90.0.npy").exists(), "globe cache .npy never committed (GIS-04 rename bug)"
-    assert (cdir / "dem_6.0_90.0.json").exists(), "globe cache .json never committed (GIS-04)"
+    # REG-01 made the stem site-aware (dem_<site>_<el>_<az>); assert the cache COMMITTED a .npy + matching
+    # .json sidecar (stem-agnostic) and left no .part orphans -- the GIS-04 invariant, robust to the stem.
+    npys = list(cdir.glob("dem_*_6.0_90.0.npy"))
+    assert npys, f"globe cache .npy never committed (GIS-04); dir={list(cdir.iterdir()) if cdir.exists() else 'MISSING'}"
+    assert list(cdir.glob("dem_*_6.0_90.0.json")), "globe cache .json sidecar (commit marker) never committed (GIS-04)"
     assert not list(cdir.glob("*.part*")), f"orphan .part files left behind: {list(cdir.glob('*.part*'))}"
     # with the in-memory cache cleared, a second call must read the committed bytes from DISK
     GL._GLOBE_CACHE.clear()
