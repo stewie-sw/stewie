@@ -44,6 +44,30 @@ def test_pose_to_odom_maps_fields():
     assert od["x"] == 7.0 and od["y"] == 5.0 and od["yaw"] == 0.5 and od["v"] == 0.2
 
 
+# ---- odom EGRESS (the perceive side of the seam: nav_msgs/Odometry for Nav2/Autoware) -----------
+
+def test_yaw_to_quaternion_is_a_flat_yaw_only_rotation():
+    assert B.yaw_to_quaternion(0.0) == pytest.approx((0.0, 0.0, 0.0, 1.0))
+    qx, qy, qz, qw = B.yaw_to_quaternion(math.pi / 2)
+    assert (qx, qy) == pytest.approx((0.0, 0.0))                          # planar: no roll/pitch
+    assert qz == pytest.approx(math.sin(math.pi / 4)) and qw == pytest.approx(math.cos(math.pi / 4))
+    for y in (-1.2, 0.0, 0.7, 3.0):                                       # round-trip: yaw = 2*atan2(qz, qw)
+        _, _, qz, qw = B.yaw_to_quaternion(y)
+        assert 2.0 * math.atan2(qz, qw) == pytest.approx(y, abs=1e-9)
+
+
+def test_pose_to_odom_carries_quaternion_for_nav_msgs():
+    od = B.pose_to_odom(RC.Pose(leg_id=0, row=1.0, col=2.0, yaw_rad=0.5))
+    assert od["qz"] == pytest.approx(math.sin(0.25)) and od["qw"] == pytest.approx(math.cos(0.25))
+
+
+def test_rcbridge_exposes_current_pose_odom_for_publishing():
+    bridge = B.RcBridge(RC.SafingWatchdog(RC.RecordingBackend()))
+    bridge.update_pose(RC.Pose(leg_id=0, row=4.0, col=9.0, yaw_rad=0.0))
+    od = bridge.pose_odom()
+    assert od["x"] == 9.0 and od["y"] == 4.0 and od["frame_id"] == "map"
+
+
 # ---- the SF-01-routed cmd_vel ingress (the safety property over ROS2) --------------------------
 
 def test_cmd_vel_reaches_the_backend_through_the_watchdog():

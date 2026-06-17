@@ -35,12 +35,22 @@ def twist_to_command(linear_x: float, angular_z: float, *, pose: RC.Pose, horizo
                    goal_col=float(pose.col) + dcol, v_max_mps=abs(float(linear_x)))
 
 
+def yaw_to_quaternion(yaw: float):
+    """Flat (z-up) yaw -> a unit quaternion (x, y, z, w) for geometry_msgs/Quaternion. Lunar SURFACE nav
+    here is planar, so roll = pitch = 0 and only the yaw half-angle populates z/w (w=cos(y/2), z=sin(y/2));
+    a consumer recovers yaw = 2*atan2(z, w)."""
+    h = 0.5 * float(yaw)
+    return (0.0, 0.0, math.sin(h), math.cos(h))
+
+
 def pose_to_odom(pose: RC.Pose) -> dict:
-    """Map an RC Pose telemetry sample to a ROS2-odometry-shaped record (the nav_msgs/Odometry fields
-    a consumer needs): map-frame position (col->x, row->y), yaw, achieved speed, plus the STEWIE
-    proprioception (slip/entrapment) a lunar autonomy layer wants alongside pose."""
+    """Map an RC Pose telemetry sample to a ROS2-odometry-shaped record (the nav_msgs/Odometry fields a
+    consumer needs): map-frame position (col->x, row->y), yaw + its quaternion (qz/qw, for the message's
+    orientation), achieved speed, plus the STEWIE proprioception (slip/entrapment) a lunar autonomy layer
+    wants alongside pose. The live node (make_ros2_node) builds the actual nav_msgs/Odometry from this."""
+    _, _, qz, qw = yaw_to_quaternion(pose.yaw_rad)
     return {"frame_id": "map", "x": float(pose.col), "y": float(pose.row),
-            "yaw": float(pose.yaw_rad), "v": float(pose.v_achieved_mps),
+            "yaw": float(pose.yaw_rad), "qz": qz, "qw": qw, "v": float(pose.v_achieved_mps),
             "slip": float(pose.slip), "sinkage_m": float(pose.sinkage_m),
             "entrapped": bool(pose.entrapped)}
 
@@ -59,6 +69,11 @@ class RcBridge:
     def update_pose(self, pose: RC.Pose) -> None:
         self._pose = pose
 
+    def pose_odom(self) -> dict:
+        """The bridge's current pose as a ROS2-odometry-shaped record -- the egress the live node
+        publishes on /stewie/odom each tick (the perceive side of the seam, for Nav2/Autoware)."""
+        return pose_to_odom(self._pose)
+
     def on_cmd_vel(self, linear_x: float, angular_z: float, *, now: float):
         """Translate one /cmd_vel Twist and submit it through the SF-01 watchdog (which feeds the
         dead-man). Returns the RC command submitted."""
@@ -74,14 +89,26 @@ class RcBridge:
 
 
 def make_ros2_node(watchdog: RC.SafingWatchdog, *, cmd_vel_topic: str = "/cmd_vel",
-                   odom_topic: str = "/stewie/odom", horizon_s: float = 1.0, cell_m: float = 1.0):
+                   odom_topic: str = "/stewie/odom", horizon_s: float = 1.0, cell_m: float = 1.0,
+                   pose_source=None, odom_rate_hz: float = 10.0):
     """Construct the LIVE rclpy Node (subscribes cmd_vel, ticks the SF-01 dead-man on a timer, publishes
     odom). Gated: raises RuntimeError if rclpy is absent -- the live node needs a ROS2 Jazzy host; the
-    translation + RcBridge above run and are tested without it. (Phase A delivers the seam + ingress.)
+    translation + RcBridge above run and are tested without it. (Phase A delivers the full seam: the
+    cmd_vel ingress AND the /stewie/odom egress.)
 
-    RUN-VERIFIED 2026-06-16 on the `stewie-ros2:latest` ROS2 Jazzy container: the node constructs and a
-    published /cmd_vel Twist (0.25 m/s, 0.1 rad/s) flows through to the SF-01 watchdog as the expected
-    GoTo (3 commands recorded, goal ~0.25 cells ahead = the 1 s-horizon projection). Reproduce:
+    ``pose_source`` (optional) is a callable -> RC.Pose | None, called each odom tick to refresh the
+    bridge from LIVE telemetry (the drive loop / estimator); without it the node republishes the last
+    pose set via ``update_pose`` -- no fabricated motion is ever invented. ``odom_rate_hz`` sets the
+    /stewie/odom publish rate (nav_msgs/Odometry, frame_id=map: position col->x/row->y, yaw quaternion,
+    achieved speed) so a Nav2/Autoware layer can localize off the same seam it drives through.
+
+    RUN-VERIFIED on the `stewie-ros2:latest` ROS2 Jazzy container:
+      - 2026-06-16 (ingress): a published /cmd_vel Twist (0.25 m/s, 0.1 rad/s) flows through to the SF-01
+        watchdog as the expected GoTo (goal ~0.25 cells ahead = the 1 s-horizon projection).
+      - 2026-06-17 (egress): with pose_source -> Pose(row=4, col=9, yaw=pi/2), a subscriber on /stewie/odom
+        received nav_msgs/Odometry x=9, y=4, qz=qw=0.7071 (yaw pi/2), v=0.2, frame_id=map -- the perceive
+        side of the seam (Nav2/Autoware can localize off the same bridge it drives through).
+    Reproduce (ingress):
         docker run --rm -v "$PWD:/ws" -e PYTHONPATH=/ws stewie-ros2:latest python3 -c \\
           "from stewie.bridge import ros2_bridge as B, rc_contract as RC; \\
            B.make_ros2_node(RC.SafingWatchdog(RC.RecordingBackend()))"
@@ -89,6 +116,7 @@ def make_ros2_node(watchdog: RC.SafingWatchdog, *, cmd_vel_topic: str = "/cmd_ve
     try:
         import rclpy  # type: ignore[import-not-found]
         from geometry_msgs.msg import Twist  # type: ignore[import-not-found]
+        from nav_msgs.msg import Odometry  # type: ignore[import-not-found]
         from rclpy.node import Node  # type: ignore[import-not-found]
     except ImportError as e:
         raise RuntimeError(
@@ -102,7 +130,9 @@ def make_ros2_node(watchdog: RC.SafingWatchdog, *, cmd_vel_topic: str = "/cmd_ve
             super().__init__("stewie_rc_bridge")
             self._bridge = bridge
             self.create_subscription(Twist, cmd_vel_topic, self._on_twist, 10)
-            self.create_timer(0.1, self._on_tick)        # SF-01 dead-man cadence
+            self._odom_pub = self.create_publisher(Odometry, odom_topic, 10)
+            self.create_timer(0.1, self._on_tick)                       # SF-01 dead-man cadence
+            self.create_timer(1.0 / float(odom_rate_hz), self._on_odom)  # /stewie/odom egress
 
         def _now(self) -> float:
             return self.get_clock().now().nanoseconds * 1e-9
@@ -112,6 +142,22 @@ def make_ros2_node(watchdog: RC.SafingWatchdog, *, cmd_vel_topic: str = "/cmd_ve
 
         def _on_tick(self) -> None:
             self._bridge.tick(now=self._now())
+
+        def _on_odom(self) -> None:
+            if pose_source is not None:                                 # refresh from LIVE telemetry (no fabricated motion)
+                p = pose_source()
+                if p is not None:
+                    self._bridge.update_pose(p)
+            od = self._bridge.pose_odom()
+            msg = Odometry()
+            msg.header.frame_id = od["frame_id"]
+            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.pose.pose.position.x = od["x"]
+            msg.pose.pose.position.y = od["y"]
+            msg.pose.pose.orientation.z = od["qz"]
+            msg.pose.pose.orientation.w = od["qw"]
+            msg.twist.twist.linear.x = od["v"]                          # achieved forward speed (map frame)
+            self._odom_pub.publish(msg)
 
     if not rclpy.ok():
         rclpy.init()
