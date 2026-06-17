@@ -229,3 +229,19 @@ def test_generated_bodies_json_is_world_readable():
     path = os.path.join(_ROOT, "stewie/server/bodies.json")
     mode = os.stat(path).st_mode
     assert mode & 0o044 == 0o044, f"bodies.json must be group/other readable for nginx; mode={oct(mode & 0o777)}"
+
+
+def test_katwijk_mount_is_readonly_and_env_overridable():
+    """REG-01 (review gap): the Katwijk dataset wiring (069286f) added STEWIE_KATWIJK_DIR + a read-only host
+    mount so /slam returns real ATE on the deployed host, but no deploy-config test pinned it -- the analogous
+    frontend bind IS guarded (test_arch05_*). Without this, dropping the mount / baking a machine path / flipping
+    :ro to rw would silently re-break /slam with all tests green. (The app-layer 503-when-absent is covered in
+    test_server.py.)"""
+    be = _compose()["services"]["backend"]
+    assert "STEWIE_KATWIJK_DIR" in be.get("environment", {}), \
+        "backend must set STEWIE_KATWIJK_DIR (/slam 503s on the deployed host without it)"
+    kat = [str(v) for v in be.get("volumes", []) if ":/katwijk:ro" in str(v)]
+    assert kat, "the Katwijk dataset must be mounted READ-ONLY at /katwijk"
+    host = kat[0].split(":")[0]
+    assert host.startswith("${"), f"the katwijk host path must be env-overridable (ARCH-05 no baked path), got {host!r}"
+    assert not _IPV4.search(host), f"no hardcoded host IP in the katwijk mount, got {host!r}"

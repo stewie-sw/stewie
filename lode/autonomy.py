@@ -217,7 +217,13 @@ def _dem_terrain_fix(dem, dem_origin, true_pose, guess_xy, base_sigma_m):
     observed = patch_at(Z, (tr, tc), 16)                   # the rover's downward terrain observation (33x33)
     gr, gc = int(round((oy + guess_xy[1]) / cell)), int(round((ox + guess_xy[0]) / cell))
     ref_rc = (oy / cell, ox / cell)                        # so the recovered xy returns in the order frame
-    return dem_position_fix(observed, dem, (gr, gc), ref_rc=ref_rc, base_sigma_m=base_sigma_m)
+    try:
+        return dem_position_fix(observed, dem, (gr, gc), ref_rc=ref_rc, base_sigma_m=base_sigma_m)
+    except ValueError:
+        # M-06: the dead-reckoned GUESS is too near a tile border for any in-bounds search patch ->
+        # register_to_dem refuses rather than edge-clamp. No terrain fix this leg (the beacon / odometry
+        # carries); never let it crash the closed loop.
+        return None
 
 
 def _beacon_fix(beacon_xy, true_pose, *, max_range_m=60.0, fx_px=900.0, sigma_px=1.0, tag_size_m=0.5):
@@ -227,8 +233,9 @@ def _beacon_fix(beacon_xy, true_pose, *, max_range_m=60.0, fx_px=900.0, sigma_px
     to the KNOWN beacon (dart.dock_pose: AprilTag accuracy is tight up close, degrading with range). I3 /
     no-optimistic-fix: the observation is QUANTIZED to the camera's pixel grid (a real detection-resolution
     limit), so the recovered mean carries a deterministic sub-pixel detection error rather than being the
-    exact truth, and sigma grows with range. Returns {'xy','sigma'} in the beacon's frame, or None when the
-    beacon is out of detection range (then odometry carries until the next fix / the charger dock). NO
+    exact truth, and sigma grows with range. Returns {'xy','sigma'} in the LOCAL order frame (beacon_xy is an
+    order-frame coord, re-added at the end), or None when the beacon is out of detection range (then odometry
+    carries until the next fix / the charger dock). NO
     seeded RNG -- deterministic in the geometry."""
     import math as _m
     dx, dy = true_pose[0] - beacon_xy[0], true_pose[1] - beacon_xy[1]

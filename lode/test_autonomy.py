@@ -354,3 +354,41 @@ def test_beacon_fix_recovers_in_range_grows_with_range_and_abstains_far():
     assert far["sigma"] > close["sigma"]                                     # AprilTag accuracy degrades with range
     assert A._beacon_fix(beacon, (10.0, 0.0)) == close                       # deterministic (no seeded RNG)
     assert A._beacon_fix(beacon, (5000.0, 0.0)) is None                      # out of detection range -> no fix
+    # NON-COLLAPSE: prove the recovered mean is NOT the exact truth (the docstring's claim). On-axis nice
+    # ranges land on the pixel grid (r_q == rng) and pass through truth exactly, so assert off-axis where
+    # the quantization carries a real sub-pixel detection error.
+    import math as _m
+    off = A._beacon_fix(beacon, (23.7, 11.1))
+    err = _m.hypot(off["xy"][0] - 23.7, off["xy"][1] - 11.1)
+    assert 0.0 < err < 0.5, f"beacon fix mean must carry a real (non-zero, bounded) detection error, got {err}"
+
+
+def test_closed_loop_falls_back_to_lander_beacon_when_terrain_abstains(monkeypatch):
+    """Slice 1b INTEGRATION: when the DEM scan-match abstains (forced None, i.e. the flat work area),
+    run_closed_loop falls back to the lander BEACON fix -- honoring mission.lander over the charger -- and
+    the believed pose stays bounded. Pins the live _dem_terrain_fix->None -> line-346 lander selection ->
+    _beacon_fix -> belief chain that the offline suite never reaches (Haworth's anchor always returns a fix)."""
+    from lode import autonomy as A
+    dem = MP.load_haworth_dem(); o = MP.flattest_anchor(dem)
+    monkeypatch.setattr(A, "_dem_terrain_fix", lambda *a, **k: None)            # force the flat-area branch
+    seen, real_beacon = [], A._beacon_fix
+    monkeypatch.setattr(A, "_beacon_fix",
+                        lambda beacon, tp, **k: (seen.append(beacon), real_beacon(beacon, tp, **k))[1])
+    m = MP.mission_from_dict({"name": "t", "body": "moon", "charger": [0, 0], "lander": [5, 5],
+                              "orders": [{"action": "c", "kind": "cut", "x": 8, "y": 2,
+                                          "footprint_m2": 9, "depth_m": 0.02}]})
+    r = A.run_closed_loop(m, dem=dem, dem_origin=o, perception_sigma_m=0.10)
+    assert seen and all(b == (5.0, 5.0) for b in seen)                         # beacon fired; lander beat the charger
+    assert r["perception_fixes"] >= 1                                          # arrived via the beacon path
+    assert r["belief"].pos_sigma_m <= 0.20 + 1e-6                              # drift bounded below the dig gate
+
+
+def test_perception_fixes_count_is_exact_not_just_nonzero():
+    """Pin the perception_fixes KPI exactly (plan.py surfaces it as BOTH perception_fixes and map_fixes).
+    On _spread()+Haworth perception-on, the deterministic count is the confident per-leg DEM fixes plus the
+    one charger dock; a >=1 floor can't catch an off-by-one / double-count in the accounting (autonomy.py
+    per-leg + dock increments). Pinned so a future change to fix-counting fails loudly."""
+    from lode import autonomy as A
+    dem = MP.load_haworth_dem(); o = MP.flattest_anchor(dem)
+    r = A.run_closed_loop(_spread(), dem=dem, dem_origin=o, perception_sigma_m=0.10)
+    assert r["perception_fixes"] == 5, f"expected 4 DEM fixes + 1 dock = 5, got {r['perception_fixes']}"

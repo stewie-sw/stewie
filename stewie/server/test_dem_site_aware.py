@@ -85,3 +85,20 @@ def test_globe_drape_bbox_is_site_specific():
 def test_globe_drape_unknown_site_404():
     r = client.get("/layers/globe/dem/bbox?site=not_a_real_site")
     assert r.status_code == 404
+
+
+def test_raster_layer_is_site_specific_and_rejects_unknown():
+    """REG-01 (review gap): the work-area raster /layers/raster/{kind}.png?site= got no site-correctness
+    test, yet it has the SAME render() site->bundle->crop + site cache-key class that broke test_globe_cache.
+    Each bundled site must render a DISTINCT raster (the crop follows the site, not always Haworth); an
+    unknown or path-traversal site must 404 (the bundle_for_site KeyError guard -- pins the ?site= safety)."""
+    pngs = {}
+    for site in BUNDLED:
+        r = client.get(f"/layers/raster/slope.png?site={site}")
+        assert r.status_code == 200, (site, r.status_code)
+        assert r.headers["content-type"] == "image/png"
+        pngs[site] = r.content
+    assert len({v for v in pngs.values()}) == len(BUNDLED), "raster not distinct per site (crop not following site)"
+    assert client.get("/layers/raster/slope.png?site=not_a_real_site").status_code == 404
+    # ?site= cannot path-traverse out of the registered bundle set (validated against SITES, not the FS)
+    assert client.get("/layers/raster/slope.png?site=../../etc/passwd").status_code == 404
