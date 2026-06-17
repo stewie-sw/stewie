@@ -487,7 +487,7 @@ solar power scheduling.
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
-| FL-01 | P0 | Fleet allocation, simulation, validation, timeline, Plan IR, and playback share one `PlanResult`. | P | N | N | NA |
+| FL-01 | P0 | Fleet allocation, simulation, validation, timeline, Plan IR, and playback share one `PlanResult`. | D | D | D | NA |
 | FL-02 | P1 | Detect and resolve route, site, and temporal conflicts rather than only same-site overlap. Detection: `_vehicle_conflicts` (same-site) + `_charger_conflicts` (shared charger) + `_temporal_conflicts` (FL-02: two vehicles working within a proximity radius at overlapping times -- space-time crowding beyond exact same-site), reported as `temporal_conflicts` + in the Fleet report. Resolution = the FCFS charger queue (FL-03); continuous moving haul-PATH crossing + re-sequencing on a work-crowding conflict are future MV work. | P | N | P | NA |
 | FL-03 | P1 | Model charger, pit, dump, observation vantage, and constrained corridor as shared resources. Charger = one-server FCFS queue: overlapping recharges serialise, the loser's wait shifts its timeline, the headline makespan reflects it (`makespan_parallel_s` keeps the optimistic value, `charger_wait_s` the cost); pit/dump/vantage/corridor pending. | P | N | P | NA |
 | FL-04 | P1 | Maintain one belief/health/resource state per rover and coordinate replans. `_rover_health(pv)` distils each rover's state from its sim (feasibility, lowest battery margin, recharges, health rollup stranded/low_margin/nominal) into `vehicles_detail[].health` + the Fleet report; a stranded rover sets `fleet_needs_replan` (the reallocation trigger). Active work-reallocation on the trigger is future MV work. | P | N | P | N |

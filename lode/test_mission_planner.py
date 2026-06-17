@@ -325,6 +325,33 @@ def test_dem_grid_info_reads_without_loading_data():
     assert info["width"] == 2000 and info["height"] == 2000 and info["cell_m"] == 5.0
 
 
+# ---- FL-01: the fleet pipeline shares ONE PlanResult (RB-03 compute-once / reuse-via-result) -----
+def test_fl01_pipeline_shares_one_planresult():
+    # [REQ:FL-01] allocation/simulation/validation/timeline/Plan-IR/playback share ONE PlanResult: the
+    # canonical plan is computed once and REUSED via result=, never recomputed into a divergent shape.
+    m = MP.mission_from_dict(_payload())
+    pr = MP.plan(m, with_acceptance=True)
+    assert type(pr).__name__ == "PlanResult" and type(pr).__module__ == "lode.mission_planner"
+    assert pr.validation is not None and pr.endurance is not None     # acceptance/endurance ride the shared result
+    tl = MP.build_timeline(m, result=pr)
+    assert tl["provenance"] is pr.provenance                          # playback reuses the SAME object (no recompute)
+    ir = MP.plan_ir(m, result=pr)
+    assert ir["provenance"] == pr.provenance                          # the Plan IR ties to the same shared plan
+
+
+def test_fl01_fleet_plan_is_one_shared_planresult():
+    # [REQ:FL-01] the multi-vehicle (fleet) path yields the SAME one PlanResult type -- not a divergent
+    # tuple/dict from plan_multi -- and that fleet plan flows through playback as one shared object.
+    m = MP.mission_from_dict(_payload())
+    pr_single = MP.plan(m)
+    m2 = MP.mission_from_dict(_payload())
+    pr_fleet = MP.plan(m2, vehicles=2)
+    assert type(pr_fleet) is type(pr_single)                          # fleet path -> the one PlanResult type
+    tl = MP.build_timeline(m2, result=pr_fleet)
+    assert tl["provenance"] is pr_fleet.provenance                    # the fleet plan flows as one shared object
+    assert pr_fleet.provenance["config"]["vehicles"] == 2
+
+
 def test_read_dem_window_matches_full_load_crop():
     import numpy as np
     Z, cell = MP.load_haworth_dem()
