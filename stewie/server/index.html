@@ -34,7 +34,11 @@
     --bg:#f4f6fa; --panel:#ffffff; --head:#e8edf5; --line:#c9d4e4; --field:#eef2f8; --field-bd:#b8c6dc;
     --txt:#16202e; --muted:#51607a; --dim:#5a6680; --accent:#1d6ae5; --fill:#2563eb; --fill-h:#1d4ed8;  /* UX-03: --dim >=4.5:1 */
   }
-  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+    /* MOBILE-05 ROOT CAUSE: without this, Firefox/Chrome Android "font boosting" inflates fonts ~2x,
+       which collided the stepper labels and oversized the chrome buttons on real phones (headless
+       Chromium does not font-boost, so local captures looked fine). Pin text to its CSS px size. */
+    -webkit-text-size-adjust: 100%; -moz-text-size-adjust: 100%; text-size-adjust: 100%; }
   body { font: var(--fontpx)/1.45 system-ui, sans-serif; background: var(--bg); color: var(--txt); display: flex; flex-direction: column; }
   /* one coherent left control sidebar + a tabbed view stage filling the rest */
   #app { display: flex; width: 100%; flex: 1 1 auto; min-height: 0; position: relative; }
@@ -59,6 +63,15 @@
   #stepper .step.viewactive { color: var(--accent); }
   .pulse { animation: pulsehl 1.6s ease-out 1; }
   @keyframes pulsehl { 0% { box-shadow: 0 0 0 0 rgba(232,39,63,.6); } 100% { box-shadow: 0 0 0 16px rgba(232,39,63,0); } }
+  /* MOBILE-05: track the *dynamic* viewport (collapsing address bar) so the flex-column body fills the
+     visible area, and compact the stepper so the mobile top is one tidy strip, not a bulky scroller. */
+  @media (max-width: 860px) {
+    html, body { height: 100vh; height: 100dvh; }
+    #stepper { height: 30px; padding: 0 6px; }
+    #stepper .step { font-size: 9px; letter-spacing: .03em; padding: 4px 7px; gap: 5px; }
+    #stepper .step:not(:last-child)::after { margin-left: 7px; }
+    #stepper .step .dot { width: 6px; height: 6px; }
+  }
   #stage { flex: 1 1 auto; min-width: 0; height: 100%; display: flex; flex-direction: column; }
   #viewtabs { position: relative; z-index: 90; flex: 0 0 auto; display: flex; gap: 2px; padding: 6px 8px 0; background: var(--head);
     border-bottom: 1px solid var(--line); }
