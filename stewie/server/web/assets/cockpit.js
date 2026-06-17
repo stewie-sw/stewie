@@ -966,7 +966,17 @@ async function refreshAuthState() {
     // exists so a fresh login populates without a manual refresh. loadSites re-fills the site selector;
     // refetchSun re-applies the on server rasters (hazard/slope/illumination/psr/grid) -- the once-only
     // applyDefaultsOnceReady gate won't re-fetch them, so the main-map hazard overlay needs this re-apply.
-    try { loadSites(); if (typeof refetchSun === "function") refetchSun(); } catch (e) { /* best-effort */ }
+    // refreshCatalog/refreshProfiles/refreshEvents are likewise TOP-LEVEL boot calls (lines ~3026/2960/1670)
+    // that 401 before login and never re-fire -- without this re-run the mission+structure CATALOG, the
+    // saved-PROFILES dropdown, and the EVENT ledger all stay empty after a fresh login (Aaron: "catalog/
+    // telemetry empty, fleet doesn't populate"). All are internally try/caught + hoisted, so this is safe.
+    try {
+      loadSites();
+      if (typeof refetchSun === "function") refetchSun();
+      if (typeof refreshCatalog === "function") refreshCatalog();
+      if (typeof refreshProfiles === "function") refreshProfiles();
+      if (typeof refreshEvents === "function") refreshEvents();
+    } catch (e) { /* best-effort */ }
   } catch (e) { AUTH.role = null; AUTH.identity = null;
     if (st) st.textContent = "not signed in";
     renderWhoami(null);
