@@ -333,7 +333,7 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
 | CT-01 | P0 | All public numeric inputs enforce units, finiteness, and physical domains. Negative depth/mass and NaN/Inf are rejected. | P | P | P | NA |
-| CT-02 | P0 | `ColumnState` validates dimensions, array shapes, dtypes/domains, density, labels, disturbance, datum, ice, and inventory at construction. | P | N | P | NA |
+| CT-02 | P0 | `ColumnState` validates dimensions, array shapes, dtypes/domains, density, labels, disturbance, datum, ice, and inventory at construction. | D | D | D | NA |
 | CT-03 | P0 | Every authority mutation is transactional, conserves mass when required, and leaves all invariants valid. | P | P | P | NA |
 | CT-04 | P0 | Scene publication writes verified rasters atomically and metadata last as the commit marker. | N | N | N | NA |
 | CT-05 | P0 | Python, Godot, and ROS share a versioned schema with strict required-field, frame, dtype, and range validation. | P | P | P | NA |
