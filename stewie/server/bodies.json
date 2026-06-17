@@ -264,6 +264,26 @@
       "product_density_kg_m3": 2300.0
     }
   },
+  "_chargers": {
+    "surface_pad": {
+      "label": "Surface charge pad",
+      "recharge_power_w": 700.0,
+      "concurrent": 1,
+      "serves": [
+        "*"
+      ],
+      "provenance": "[CALIB] no published IPEx solar/charge spec; matches ipex_specs.RECHARGE_POWER_W (700 W)."
+    },
+    "lander_tower": {
+      "label": "Lander power tower",
+      "recharge_power_w": 700.0,
+      "concurrent": 4,
+      "serves": [
+        "*"
+      ],
+      "provenance": "[ASSUMPTION] shared surface power station (K8 PSR tower) serving N rovers; reuses the [CALIB] recharge power, not a new fabricated value."
+    }
+  },
   "_actions": [
     "compact",
     "drive",

@@ -85,6 +85,11 @@ out["_tools"] = {
            "product_density_kg_m3": t.product_density_kg_m3}
     for name, t in V.TOOLS.items()
 }
+out["_chargers"] = {           # #173: surface recharge stations (the charger registry), for the charger-info UI
+    name: {"label": c.label, "recharge_power_w": c.recharge_power_w, "concurrent": c.concurrent,
+           "serves": list(c.serves), "provenance": c.provenance}
+    for name, c in V.CHARGERS.items()
+}
 out["_actions"] = sorted(V.ACTIONS)   # the full action vocabulary, for the planner UI
 
 path = os.path.join(HERE, "bodies.json")

@@ -352,13 +352,15 @@
     <section>
       <h3>3 · Fleet</h3>
       <div class="ctl"><label>Vehicle <select id="vehicle"></select></label>
-        <label title="regolith model — defaults to the body's own; override to e.g. run Earth soil on a lunar map">Soil <select id="soil"></select></label></div>
+        <label title="regolith model — defaults to the body's own; override to e.g. run Earth soil on a lunar map">Soil <select id="soil"></select></label>
+        <button class="info" id="soilinfo" title="the regolith model the planner uses (density · cohesion · friction · Bekker)">i</button></div>
       <div class="ctl"><label title="fleet size — >1 plans a multi-vehicle mission (site-exclusive allocation, parallel makespan, deconfliction)">Rovers <input id="vehcount" type="number" value="1" min="1" max="16" step="1" /></label></div>
       <div class="ctl" style="flex-wrap:wrap" title="fleet roster — add / remove rovers (drives the multi-vehicle plan). Per-vehicle DIFFERENT types + map-placed starts are a planner extension; the fleet is homogeneous (the selected vehicle type) today.">
         <div id="fleetlist" style="flex:1 1 100%"></div>
         <button id="fleetadd" class="site" style="font-size:10px" title="add a rover to the fleet">＋ Add rover</button></div>
       <div class="ctl"><label title="operator slope budget — the planner refuses to route a traverse steeper than this (the real traversability gate); tighter is safer but can make a leg infeasible">Max slope <input id="qslope" type="number" value="25" min="5" max="45" step="1" style="width:4em" />°</label></div>
-      <div class="ctl"><label title="how many rovers can charge at once (multi-vehicle): 1 = one shared charger (overlapping recharges serialise); >1 lets that many charge concurrently">Chargers <input id="qchargers" type="number" value="1" min="1" max="8" step="1" style="width:4em" /></label></div>
+      <div class="ctl"><label title="how many rovers can charge at once (multi-vehicle): 1 = one shared charger (overlapping recharges serialise); >1 lets that many charge concurrently">Chargers <input id="qchargers" type="number" value="1" min="1" max="8" step="1" style="width:4em" /></label>
+        <button class="info" id="chargerinfo" title="charger registry — surface recharge stations">i</button></div>
       <div class="ctl" id="tools">tools —</div>
       <div id="fleetcaps">capabilities —</div>
     </section>
@@ -914,6 +916,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=a2f2f987b1c3"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=fcc81bdb6b77"></script>
+<script src="/assets/cockpit.js?v=228f3b4b129b"></script>
 </body>
 </html>

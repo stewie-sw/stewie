@@ -3166,6 +3166,29 @@ function populateFleet() {
   qel("vehicle").addEventListener("change", syncKinds);
   if (qel("fleetadd")) qel("fleetadd").onclick = () => setFleetCount((parseInt(qel("vehcount").value, 10) || 1) + 1);
   if (qel("vehcount")) qel("vehcount").addEventListener("input", renderFleet);
+  // #172/#173: soil + charger info popovers, sourced from the loaded registries (PHY[soil], PHY._chargers)
+  if ($("soilinfo")) popover("soil", $("soilinfo"), () => {
+    const key = (qel("soil").value) || sel.value;            // "" -> the body's own regolith
+    const ph = (PHY && PHY[key]) || null; if (!ph) return "<i>soil model unavailable</i>";
+    const bk = ph.bekker ? `kφ ${(ph.bekker.k_phi / 1000).toFixed(0)}k · kc ${ph.bekker.k_c} · n ${ph.bekker.n}` : "—";
+    const r = (k, v) => `<tr><td style="color:var(--muted);padding-right:10px">${k}</td><td style="text-align:right">${v}</td></tr>`;
+    return `<b>${esc(ph.label || key)} regolith</b><table style="width:100%;border-collapse:collapse;margin-top:4px">`
+      + r("bulk density", `${ph.bulk_density} kg/m³`)
+      + (ph.cohesion_pa != null ? r("cohesion", `${ph.cohesion_pa} Pa`) : "")
+      + (ph.friction_deg != null ? r("friction", `${ph.friction_deg}°`) : "")
+      + r("Bekker", bk) + (ph.bekker_regime ? r("regime", esc(ph.bekker_regime)) : "")
+      + `</table><div style="opacity:.6;margin-top:4px">the regolith model the planner uses; override the body default to test a cross-soil run</div>`;
+  });
+  if ($("chargerinfo")) popover("charger", $("chargerinfo"), () => {
+    const ch = (PHY && PHY._chargers) || null; if (!ch) return "<i>charger registry unavailable</i>";
+    const rows = Object.values(ch).map((c) =>
+      `<tr><td><b>${esc(c.label)}</b></td><td style="text-align:right">${c.recharge_power_w} W</td>`
+      + `<td style="text-align:right;color:var(--muted)">×${c.concurrent}</td></tr>`).join("");
+    return `<b>Charger registry</b><table style="width:100%;border-collapse:collapse;margin-top:4px">`
+      + `<tr><td style="color:var(--muted)">station</td><td style="text-align:right;color:var(--muted)">recharge</td><td style="text-align:right;color:var(--muted)">at&nbsp;once</td></tr>`
+      + rows + `</table><div style="opacity:.6;margin-top:4px">the “Chargers” count = concurrent slots; recharge power [CALIB] (stewie/specs/vehicles.py)</div>`;
+  });
+  refreshPopovers();
   syncKinds();
 }
 
