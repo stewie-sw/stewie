@@ -1,0 +1,22 @@
+{
+ "scene": "crater_boulders",
+ "n_points": 60781,
+ "shown_points": 15196,
+ "baseline_m": 0.0699996948242188,
+ "x_range_m": [
+  4.108409997956006,
+  8.645913954633329
+ ],
+ "z_range_m": [
+  -0.8397792792620846,
+  3.056816725039071
+ ],
+ "elev_range_m": [
+  -1.443486124277115,
+  0.426503002643585
+ ],
+ "elev_median_m": -0.0013122260570528066,
+ "max_depth_m": 4.0,
+ "precision_1sigma_m": 0.3,
+ "note": "Real front-stereo egress -> cv2.stereoRectify -> SGBM disparity -> reprojectImageTo3D -> world frame (obs_map_producer.collect_world_points). Passive stereo at the rover's grazing eye-height has ~0.3 m (1 sigma) height precision; the producer resolves coverage + ground level, not cm-scale micro-relief. No synthetic points."
+}

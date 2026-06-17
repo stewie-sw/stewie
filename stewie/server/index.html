@@ -705,6 +705,20 @@
             <code>shadow_landmarks.py --emit-served</code> — the deployed container has no GPU, so the
             committed crater_boulders panorama is the served sample.</div>
         </div>
+
+        <!-- #145 front-stereo -> cv2.stereoRectify -> SGBM -> reprojectImageTo3D -> world points
+             (obs_map_producer.collect_world_points). The served pointcloud.png + pointcloud.json are
+             REAL render egress (crater_boulders), not synthetic -- the perception PRODUCER output. -->
+        <div id="pcwrap" style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
+          <div class="cap"><span>DEPTH / POINT CLOUD — front-stereo → SGBM → back-projected world points
+            <b id="pcmeta"></b></span></div>
+          <img id="pcimg" alt="front-stereo back-projected point cloud (top-down)"
+            style="display:block;width:100%;max-width:520px;margin:0 auto;border:1px solid var(--line);border-radius:4px;background:#0a0e17" />
+          <div id="pclist" style="font-size:10px;line-height:1.6;margin-top:8px;color:var(--muted)"></div>
+          <div id="pcempty" class="empty" style="display:none">No point-cloud egress. Render the front-stereo
+            pair then run <code>obs_map_producer.emit_served_pointcloud</code> — the deployed container has
+            no GPU, so the committed crater_boulders cloud is the served sample.</div>
+        </div>
       </div>
       <div id="navview" class="pane">
         <div class="cap"><span>NAVIGATION — ARGUS state estimation <small>(pose-graph estimate vs dead reckoning; articulation-parallax relocalization)</small></span></div>
@@ -988,6 +1002,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=28f087c82438"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=6663492df75e"></script>
+<script src="/assets/cockpit.js?v=b7140fd19a2f"></script>
 </body>
 </html>

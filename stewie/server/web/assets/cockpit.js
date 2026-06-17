@@ -785,6 +785,7 @@ function setView(name) {
   applySidebar(name);                                      // UX-05: collapse off-Plan / restore on Plan
   loadPane(name);
   if (name === "perception" && typeof loadPanorama === "function") loadPanorama();  // #183 shadow-nav surround
+  if (name === "perception" && typeof loadPointCloud === "function") loadPointCloud();  // #145 stereo points
   if (typeof renderStepper === "function") renderStepper();  // pipeline spine: reflect the active view
   if (typeof renderCtxSummaries === "function") renderCtxSummaries();  // live per-tab left-block content
 }
@@ -835,6 +836,29 @@ document.addEventListener("DOMContentLoaded", () => {
   const cb = document.getElementById("panomarks");
   if (cb) cb.addEventListener("change", applyPanoMarks);
 });
+
+// #145 Perception pane: load the REAL served front-stereo point cloud (obs_map_producer ->
+// SGBM -> reprojectImageTo3D -> world points). Honest empty state when no render egress exists.
+async function loadPointCloud() {
+  const img = $("pcimg"), empty = $("pcempty");
+  if (!img) return;
+  try {
+    const r = await fetch("assets/perception/pointcloud.json", { cache: "no-cache" });
+    if (!r.ok) throw new Error("no manifest");
+    const m = await r.json();
+    img.src = "assets/perception/pointcloud.png?v=" + (m.n_points || 0);
+    const xr = m.x_range_m || [0, 0], zr = m.z_range_m || [0, 0], er = m.elev_range_m || [0, 0];
+    $("pcmeta").textContent = ` · ${(m.n_points || 0).toLocaleString()} pts · ${(m.baseline_m || 0).toFixed(3)} m baseline`;
+    $("pclist").innerHTML = "<b>Back-projected world points:</b> "
+      + `X ${xr[0].toFixed(1)}…${xr[1].toFixed(1)} m · Z ${zr[0].toFixed(1)}…${zr[1].toFixed(1)} m · `
+      + `elevation ${er[0].toFixed(2)}…${er[1].toFixed(2)} m (median ${(m.elev_median_m || 0).toFixed(3)} m) · `
+      + `max depth ${m.max_depth_m} m · 1&sigma; &asymp; ${m.precision_1sigma_m} m`
+      + `<br><span style="opacity:.7">${m.note || ""}</span>`;
+    img.style.display = ""; empty.style.display = "none";
+  } catch (e) {
+    img.style.display = "none"; empty.style.display = "";
+  }
+}
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
 // FS-20: System / Settings / Admin live in the profile menu (off the work-area tab bar), role-gated:
 // Settings everyone, System operator+, Admin director. The items reuse setView -> same pane switch.

@@ -227,6 +227,70 @@ def produce_observed_map_multi(egress_dirs, grid: dict):
     return grid_to_heightfield(np.concatenate(pts, axis=0), grid)
 
 
+def downsample_stride(points: np.ndarray, max_points: int) -> np.ndarray:
+    """Even-stride downsample to at most ``max_points`` rows (deterministic, no RNG). Returns a SUBSET
+    of the real points -- never an interpolated/fabricated point -- so the served preview is faithful."""
+    pts = np.asarray(points)
+    n = int(pts.shape[0])
+    if n <= int(max_points) or n == 0:
+        return pts
+    step = int(np.ceil(n / float(max_points)))
+    return pts[::step]
+
+
+def emit_served_pointcloud(egress_dir: str, out_dir: str, *, max_points: int = 20000) -> dict:
+    """Render the REAL front-stereo back-projected world points into a cockpit Perception-pane asset:
+    a top-down (X east / Z north) elevation-coloured scatter PNG + a stats manifest. The points are
+    collect_world_points (SGBM + reprojectImageTo3D on the rendered stereo pair) -- no synthetic data.
+    Returns the manifest dict."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    pts = collect_world_points(egress_dir)
+    os.makedirs(out_dir, exist_ok=True)
+    s = json.load(open(os.path.join(egress_dir, "sensors.json")))
+    baseline = float(s.get("stereo", {}).get("baseline_m", 0.0))
+    shown = downsample_stride(pts, max_points)
+    fig = plt.figure(figsize=(6.0, 6.0), dpi=110)
+    ax = fig.add_subplot(111)
+    if shown.size:
+        sc = ax.scatter(shown[:, 0], shown[:, 2], c=shown[:, 1], s=1.5, cmap="viridis", linewidths=0)
+        cb = fig.colorbar(sc, ax=ax, fraction=0.046, pad=0.04)
+        cb.set_label("elevation Y (m)", color="#cfe3ff")
+        cb.ax.tick_params(colors="#9bb")
+    ax.set_xlabel("X east (m)"); ax.set_ylabel("Z north (m)")
+    ax.set_title("front-stereo back-projected point cloud (top-down)", color="#cfe3ff")
+    ax.set_aspect("equal", "box")
+    for spine in ax.spines.values():
+        spine.set_color("#2a3550")
+    ax.tick_params(colors="#9bb"); ax.xaxis.label.set_color("#cfe3ff"); ax.yaxis.label.set_color("#cfe3ff")
+    fig.patch.set_facecolor("#0a0e17"); ax.set_facecolor("#0a0e17")
+    fig.tight_layout()
+    fig.savefig(os.path.join(out_dir, "pointcloud.png"), facecolor="#0a0e17")
+    plt.close(fig)
+    elev = pts[:, 1] if pts.size else np.zeros(0)
+    manifest = {
+        "scene": os.path.basename(os.path.dirname(os.path.normpath(egress_dir))),
+        "n_points": int(pts.shape[0]),
+        "shown_points": int(shown.shape[0]),
+        "baseline_m": baseline,
+        "x_range_m": [float(pts[:, 0].min()), float(pts[:, 0].max())] if pts.size else [0.0, 0.0],
+        "z_range_m": [float(pts[:, 2].min()), float(pts[:, 2].max())] if pts.size else [0.0, 0.0],
+        "elev_range_m": [float(elev.min()), float(elev.max())] if pts.size else [0.0, 0.0],
+        "elev_median_m": float(np.median(elev)) if pts.size else 0.0,
+        "max_depth_m": MAX_DEPTH_M,
+        "precision_1sigma_m": PRIOR_SIGMA_M,
+        "note": ("Real front-stereo egress -> cv2.stereoRectify -> SGBM disparity -> reprojectImageTo3D "
+                 "-> world frame (obs_map_producer.collect_world_points). Passive stereo at the rover's "
+                 "grazing eye-height has ~0.3 m (1 sigma) height precision; the producer resolves "
+                 "coverage + ground level, not cm-scale micro-relief. No synthetic points."),
+    }
+    with open(os.path.join(out_dir, "pointcloud.json"), "w") as f:
+        json.dump(manifest, f, indent=1)
+    return manifest
+
+
 if __name__ == "__main__":
     import argparse
 
