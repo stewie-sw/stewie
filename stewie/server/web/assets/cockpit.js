@@ -1422,16 +1422,14 @@ function phys(key) {
 function showTerra() {
   const p = phys(sel.value);
   const bk = p.bekker ? `Bekker kφ ${(p.bekker.k_phi / 1000).toFixed(0)}k·kc ${p.bekker.k_c}·n ${p.bekker.n}` : "Bekker —";
-  const pw = PHY && PHY[sel.value] && PHY[sel.value].ipex_power;   // gravity-SWAPPED IPEx power for this body
+  // #172 (Aaron "is this appropriate for the Body?"): BODY info is terramechanics ONLY (g/ρ/c/φ/Bekker).
+  // The IPEx POWER block is the vehicle's draw on this body, not a body property -> moved to the VEHICLE
+  // info popover (syncKinds). This also drops the long power tail that abutted the Layer control.
   $("terra").textContent =
     `terramechanics  g ${p.g} m/s² · ρ ${p.density} kg/m³`
     + (p.cohesion_pa != null ? ` · c ${p.cohesion_pa} Pa` : "")
     + (p.friction_deg != null ? ` · φ ${p.friction_deg}°` : "")
     + ` · ${bk}` + (p.regime ? ` · ${p.regime}` : "")
-    + (pw ? `  ·  IPEx power (g-scaled) drive ${pw.drive_power_w} W (15° ${pw.drive_power_15deg_w} W) · `
-            + `system ${pw.system_power_w} W [thermal-survival ${pw.thermal_survival_w}+avionics ${pw.avionics_w}+comms ${pw.comms_w} W]`
-            + (pw.thermal_by_env_w && Object.keys(pw.thermal_by_env_w).length
-               ? `  ·  heater/env: ${Object.entries(pw.thermal_by_env_w).map(([e, w]) => `${e.replace(/^(lunar|mars)_/, "")} ${w}W`).join(", ")}` : "") : "")
     + (PHY ? "" : "  (fallback — serve bodies.json)");
 }
 
@@ -3106,12 +3104,15 @@ function syncKinds() {
     const v = (PHY && PHY._vehicles) ? PHY._vehicles[qel("vehicle").value] : null;
     if (!v) return "<i>registry unavailable</i>";
     const row = (k, val) => `<tr><td style="color:var(--muted);padding-right:10px">${k}</td><td style="text-align:right">${val}</td></tr>`;
+    const pw = (PHY && PHY[sel.value]) ? PHY[sel.value].ipex_power : null;   // #172: per-body (g-scaled) power lives WITH the vehicle
     return `<b>${v.label}</b><table style="width:100%;border-collapse:collapse;margin-top:4px">` +
       row("capabilities", [...caps].sort().join(", ")) +
       row("dry mass", `${v.dry_mass_kg} kg`) + row("wheels", v.n_wheels) +
       row("drum capacity", `${v.drum_capacity_kg} kg`) +
       row("drive power", `${v.drive_power_w} W`) +
       row("dig energy", `${v.dig_energy_j_per_kg} J/kg`) +
+      (pw ? row(`power on ${sel.value} (g-scaled)`, `drive ${pw.drive_power_w} W (15° ${pw.drive_power_15deg_w} W) · system ${pw.system_power_w} W`)
+          + row("heater / env", pw.thermal_by_env_w ? Object.entries(pw.thermal_by_env_w).map(([e, w]) => `${e.replace(/^(lunar|mars)_/, "")} ${w}W`).join(", ") : "—") : "") +
       `</table><div style="opacity:.6;margin-top:4px">registry values (provenance-tagged in stewie/specs/vehicles.py)</div>`;
   });
   refreshPopovers();
