@@ -82,3 +82,15 @@ SOFTWARE.
 - **Frame / datum:** south polar stereographic, MOON_ME (DE421), R = 1737400 m (IAU_2015:30135); Z = surface height above the 1737400 m sphere in metres. **Cite** Barker et al. 2021 (Planet. Space Sci. 203:105119) + Mazarico et al. 2011 (Icarus 211:1066) as scholarly courtesy (see [`papers/CITATIONS.md`](papers/CITATIONS.md)).
 
 > **Not committed (license-segregated):** the higher-detail **2026 Shape-from-Shading** DEMs (Bertone et al. 2026; Zenodo 10.5281/zenodo.17954508) are **CC-BY-4.0, not CC0** — kept reference-only (download script) or, if ever committed, only in a marked CC-BY-4.0 subfolder with an attribution NOTICE. The **Neukum production-function coefficient vector** is cross-checked against MintonGroup/cratermaker, which is **GPL-3.0** (verified 2026-05-31 at github.com/MintonGroup/cratermaker). GPL-3.0 is copyleft, so **no cratermaker code is — or may be — copied into this CC0 repo**; only the numeric coefficients are reused, and those are uncopyrightable scientific facts cited to **Neukum/Ivanov/Hartmann 2001** (the authority), not to cratermaker. cratermaker is therefore *not* a vendored asset here (no code is included).
+
+---
+
+## three.js (in-cockpit 3D playback)
+
+- **File:** `stewie/server/web/assets/three.module.min.js`
+- **Source:** [mrdoob/three.js](https://github.com/mrdoob/three.js) r170, the official minified ESM build.
+- **License:** MIT — the `@license` SPDX header is retained verbatim at the top of the vendored file.
+- **Use:** the in-cockpit 3D terrain dry-run (`stewie/server/web/assets/three3d.js`, #165): renders the
+  work-area DEM heightfield (`GET /dem/heightfield`) in the planner's order frame, plus the planned
+  physics-truth path / estimator belief / rover. Self-hosted same-origin (CSP `script-src 'self'`, no
+  CDN); imported directly as an ES module (no build step).

@@ -2938,6 +2938,42 @@ qel("execspd").onclick = () => { EXEC_SPEEDUP = EXEC_SPEEDUP === 10 ? 60 : EXEC_
   qel("execspeed").textContent = ` ${EXEC_SPEEDUP}×`; };
 qel("execclose").onclick = () => { cancelAnimationFrame(EXEC_RAF); setView("plan"); };
 
+// #165: the in-cockpit 3D terrain dry-run. Toggle hides the 2D top-down and shows the WebGL view
+// (window.STEWIE3D, three3d.js): the real work-area DEM in the order frame, plus -- once a mission is
+// planned -- the physics-truth path (amber) vs estimator belief (cyan) from LAST_LOCALIZATION and the
+// rover on the surface. Simulation, never a live rover.
+let TD3D_ON = false;
+function open3D() {
+  const host = $("td3d"); if (!host || !window.STEWIE3D) { setQ("3D view unavailable (three.js not loaded)"); return; }
+  STEWIE3D.mount(host);
+  const site = (typeof CURRENT_SITE !== "undefined" && CURRENT_SITE) || "haworth";
+  fetch("/dem/heightfield?site=" + encodeURIComponent(site) + "&n=129&window_m=300", { headers: apiHeaders() })
+    .then((r) => r.json()).then((hf) => {
+      if (!hf || !hf.ok) { setQ("3D: heightfield unavailable for " + site); return; }
+      STEWIE3D.render(hf);
+      STEWIE3D.clearTracks();
+      const loc = LAST_LOCALIZATION;
+      if (loc && loc.trajectory && loc.trajectory.length) {
+        STEWIE3D.setPath(loc.trajectory.map((p) => p["true"]), 0xf3b13a);   // physics truth
+        STEWIE3D.setPath(loc.trajectory.map((p) => p.est), 0x35e0d0);       // estimator belief
+        const last = loc.trajectory[loc.trajectory.length - 1];
+        STEWIE3D.setRover(last["true"][0], last["true"][1]);
+        setQ("3D dry-run: " + loc.trajectory.length + " poses on the real DEM (truth vs estimate)");
+      } else {
+        setQ("3D terrain loaded — plan a mission to see the rover path");
+      }
+    }).catch(() => setQ("3D: heightfield fetch failed"));
+}
+if ($("exec3d")) $("exec3d").onclick = () => {
+  TD3D_ON = !TD3D_ON;
+  $("td3d").style.display = TD3D_ON ? "block" : "none";
+  $("td3d-hint").style.display = TD3D_ON ? "block" : "none";
+  $("execcanvas").style.display = TD3D_ON ? "none" : "";
+  $("exec3d").style.borderColor = TD3D_ON ? "var(--accent)" : "";
+  if ($("exec-mode-lbl")) $("exec-mode-lbl").textContent = TD3D_ON ? "3D terrain dry-run" : "execution top-down";
+  if (TD3D_ON) open3D();
+};
+
 // ---- compare algorithms: POST /compare -> a table sorted by the chosen objective --------------
 qel("qcompare").onclick = async () => {
   if (!ORDERS.length) { setQ("add at least one order first"); return; }
