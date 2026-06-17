@@ -41,6 +41,23 @@ def load_site_dem(site: str = "haworth"):
     return load_haworth_dem(bundle_dir=s.bundle_dir)
 
 
+def bundle_for_site(site: str = "haworth") -> str:
+    """REG-01: resolve the on-disk DEM bundle DIRECTORY for an imported site -- for the loaders + endpoints
+    that take a ``bundle_dir`` (dem_georef_corners, latlon_to_dem_origin, the preview PNGs, the globe drape).
+    Haworth honors the $STEWIE_DEM_DIR deployment override; other sites come from the SITES registry. Raises
+    KeyError for an unknown site and FileNotFoundError for a known-but-not-imported one -- never points at a
+    fabricated or wrong-site surface (the caller maps these to 404)."""
+    from stewie.specs.sites import SITES
+    s = SITES.get(site)
+    if s is None:
+        raise KeyError(f"unknown site {site!r} (known: {sorted(SITES)})")
+    if site == "haworth":
+        return _haworth_bundle()
+    if not s.bundle_dir:
+        raise FileNotFoundError(f"site {site!r} is not imported (no DEM bundle); fetch it first")
+    return s.bundle_dir
+
+
 def load_haworth_dem(bundle_dir=None):
     """Load a real LOLA 5 m DEM from a sim bundle: returns (heightmap [m], cell_m). Defaults to the
     Haworth work-site bundle; ``bundle_dir`` selects another imported site (REG-01)."""

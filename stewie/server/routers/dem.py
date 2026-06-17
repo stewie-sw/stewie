@@ -17,26 +17,32 @@ _PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 @router.get("/dem/georef")
-def dem_georef():
-    """The Haworth tile's globe footprint (selenographic corners) for the cockpit overlay."""
+def dem_georef(site: str = "haworth"):
+    """The chosen site's tile globe footprint (selenographic corners) for the cockpit overlay (REG-01:
+    any imported site, not just Haworth -- so selecting a site overlays ITS tile on the globe)."""
     from lode import mission_planner as MP
     try:
-        return {"ok": True, **MP.dem_georef_corners()}
+        return {"ok": True, "site": site, **MP.dem_georef_corners(bundle_dir=MP.bundle_for_site(site))}
+    except KeyError as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
     except (ImportError, FileNotFoundError, ValueError) as e:
         return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
 
 
 @router.get("/dem/site_xy")
-def dem_site_xy(lat: float, lon: float):
-    """Selenographic lat/lon -> the Haworth site frame (x, y) [m] (the cursor-meters readout)."""
+def dem_site_xy(lat: float, lon: float, site: str = "haworth"):
+    """Selenographic lat/lon -> the chosen site's frame (x, y) [m] (the cursor-meters readout). REG-01:
+    site-aware, so a click on a non-Haworth tile resolves against THAT tile's georef, not Haworth's."""
     from lode import mission_planner as MP
     try:
-        x, y = MP.latlon_to_dem_origin(lat, lon)
+        x, y = MP.latlon_to_dem_origin(lat, lon, bundle_dir=MP.bundle_for_site(site))
+    except KeyError as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
     except ValueError as e:
         return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
-    except ImportError as e:
-        return JSONResponse(status_code=503, content={"ok": False, "error": f"pyproj absent: {e}"})
-    return {"ok": True, "x_m": round(x, 1), "y_m": round(y, 1)}
+    except (ImportError, FileNotFoundError) as e:
+        return JSONResponse(status_code=503, content={"ok": False, "error": f"DEM/pyproj absent: {e}"})
+    return {"ok": True, "site": site, "x_m": round(x, 1), "y_m": round(y, 1)}
 
 
 @router.get("/dem/sources")
@@ -55,11 +61,15 @@ def dem_sources_catalog():
 
 
 @router.get("/dem/{name}")
-def get_dem(name: str):                                 # the real LOLA work-area DEM previews (Haworth)
-    bundle = os.path.join(_PKG, "..", "..", "samples", "lunar_dem", "haworth_10km_5m")
+def get_dem(name: str, site: str = "haworth"):          # the real LOLA work-area DEM previews (REG-01: per site)
+    from stewie.terrain.site_dem import bundle_for_site
     f = {"hillshade.png": "preview_hillshade.png", "height.png": "preview_height.png"}.get(os.path.basename(name))
     if not f:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no dem {os.path.basename(name)}"})
+    try:
+        bundle = bundle_for_site(site)                  # the chosen imported site's bundle (not just Haworth)
+    except (KeyError, FileNotFoundError) as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
     path = os.path.join(bundle, f)
     if not os.path.isfile(path):                        # bundle absent (e.g. a wheel install) -> 404, not a 500
         return JSONResponse(status_code=404, content={"ok": False, "error": f"dem preview not available: {f}"})

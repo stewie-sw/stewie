@@ -1726,7 +1726,7 @@ def build_timeline(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_tra
 # dart). Re-exported here so MP.load_site_dem / MP.flattest_anchor / ... and internal callers are
 # unchanged; dart now imports site_dem directly (no dart->lode cycle).
 from stewie.terrain.site_dem import (  # noqa: F401
-    _haworth_bundle, dem_georef_corners, dem_grid_info, flattest_anchor,
+    _haworth_bundle, bundle_for_site, dem_georef_corners, dem_grid_info, flattest_anchor,
     flattest_anchor_streamed, latlon_to_dem_origin, load_haworth_dem, load_site_dem,
     read_dem_window, slope_deg_map,
 )

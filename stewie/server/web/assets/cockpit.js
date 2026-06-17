@@ -157,7 +157,7 @@ function loadBody(key) {
       if (cm) {
         const ca2 = Cesium.Cartographic.fromCartesian(cm, ellipsoid);
         const la2 = Cesium.Math.toDegrees(ca2.latitude), lo2 = Cesium.Math.toDegrees(ca2.longitude);
-        fetch(`/dem/site_xy?lat=${la2}&lon=${lo2}`).then((r) => r.json()).then((d2) => {
+        fetch(`/dem/site_xy?lat=${la2}&lon=${lo2}&site=${encodeURIComponent(CURRENT_SITE)}`).then((r) => r.json()).then((d2) => {
           if (!d2.ok) { setQ("outside the mapped tile"); return; }
           const ref = PIN_REFS.get(SELECTED_PIN);
           if (ref) { ref.obj.x = d2.x_m; ref.obj.y = d2.y_m; }
@@ -225,7 +225,7 @@ function loadBody(key) {
     if (sel.value === "moon" && HAWORTH_RECT &&
         Cesium.Rectangle.contains(HAWORTH_RECT, ca) && !_xyTimer) {
       _xyTimer = setTimeout(() => { _xyTimer = 0; }, 250);
-      fetch(`/dem/site_xy?lat=${lat}&lon=${lon}`).then((r) => r.json()).then((d) => {
+      fetch(`/dem/site_xy?lat=${lat}&lon=${lon}&site=${encodeURIComponent(CURRENT_SITE)}`).then((r) => r.json()).then((d) => {
         if (d.ok) el.textContent += `  ·  site ${d.x_m} m, ${d.y_m} m`;
       }).catch(() => {});
     }
@@ -409,7 +409,7 @@ document.addEventListener("keydown", (e) => {
 });
 async function editPlace(lat, lon) {
   if (!EDIT.tool) { $("editstate").textContent = "LOCKED · pick a tool first"; return; }
-  const r = await fetch(`/dem/site_xy?lat=${lat}&lon=${lon}`);
+  const r = await fetch(`/dem/site_xy?lat=${lat}&lon=${lon}&site=${encodeURIComponent(CURRENT_SITE)}`);
   const d = await r.json();
   if (!d.ok) { $("editstate").textContent = "outside the mapped tile"; return; }
   if (EDIT.tool === "goto") {
@@ -1515,7 +1515,9 @@ function showSiteDem() {                                   // auto-show the real
   // operator reported. Gate .show on img.onload, and cache-bust per session so a bad cached image can't stick.
   const i = document.getElementById("workareaimg");
   if (!i.dataset.locv) i.dataset.locv = String(Date.now());
-  const want = "/dem/hillshade.png?v=" + i.dataset.locv;
+  // REG-01: the work-area + plan-view preview follows the SELECTED site (not always Haworth). The site is
+  // in the URL, so switching sites changes `want` -> the image reloads for the new tile.
+  const want = "/dem/hillshade.png?site=" + encodeURIComponent(CURRENT_SITE) + "&v=" + i.dataset.locv;
   i.onload = () => { if (VIEW === "plan" && sel.value === "moon") wa.classList.add("show"); };
   if (i.complete && i.naturalWidth > 0 && i.getAttribute("src") === want) wa.classList.add("show");  // already decoded
   else if (i.getAttribute("src") !== want) i.src = want;  // (re)load -> onload reveals it; error handler hides
@@ -1694,6 +1696,8 @@ async function loadSites() {     // #auth-reload: named (not an IIFE) so refresh
       const [nm, ll] = sl.value.split("|"); const [la, lo] = ll.split(",").map(Number);
       CURRENT_SITE = opt.dataset.imported === "1" ? nm : "haworth";   // REG-01: plan on the chosen imported site
       if (sel.value !== "moon") { sel.value = "moon"; sel.onchange(); }
+      if (typeof showSiteDem === "function") showSiteDem();   // REG-01: reload the work-area DEM for the chosen site
+      if (typeof drawPlan === "function") drawPlan();         // refresh the plan-view background to the new tile
       setTimeout(() => { if (viewer) viewer.camera.setView({ destination:
         Cesium.Cartesian3.fromDegrees(lo, la, 90000, viewer.scene.globe.ellipsoid) }); }, 800);
       setQ(sl.options[sl.selectedIndex].text.includes("✓DEM")

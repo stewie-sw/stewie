@@ -278,8 +278,10 @@ def _plan_impl(req: PlanRequest, payload: dict):
         if mission.body == "moon":
             dem, origin = state.moon_dem(getattr(req, "site", "haworth"))  # REG-01: the chosen site DEM
             if req.lat is not None and req.lon is not None:   # M11: a globe site-pick overrides the anchor
-                try:
-                    origin = MP.latlon_to_dem_origin(req.lat, req.lon)
+                try:                                          # REG-01: anchor against the CHOSEN site's tile
+                    origin = MP.latlon_to_dem_origin(req.lat, req.lon, bundle_dir=MP.bundle_for_site(req.site))
+                except (KeyError, FileNotFoundError):
+                    log.warning("site %r has no DEM bundle; using the flattest anchor", req.site)
                 except ImportError:
                     log.warning("pyproj absent ([planner] extra); site lat/lon ignored, using flattest anchor")
                 except ValueError as e:
