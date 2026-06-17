@@ -346,12 +346,17 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
         # aliased region returns no fix and odometry carries; a confident match corrects the drift. The
         # guaranteed fix is the charger DOCK at mission end (a known-landmark fix). The old code fused
         # true_pose + N(0,sigma) -- a truth stand-in -- which is removed.
+        fix_kind = "none"                                  # which real fix corrected this leg (for the cockpit)
         if perception_sigma_m is not None:
             fix = _dem_terrain_fix(dem, dem_origin, true_pose, (belief.x, belief.y),
                                    perception_sigma_m) if dem is not None else None
-            if fix is None:                                # flat / no-terrain-signature -> the lander/charger
+            if fix is not None:
+                fix_kind = "dem"                           # terrain-relative scan-match
+            else:                                          # flat / no-terrain-signature -> the lander/charger
                 beacon = mission.lander if mission.lander is not None else tuple(mission.charger)
                 fix = _beacon_fix(beacon, true_pose)       # AprilTag fiducial fix (range-gated; the flat-area fix)
+                if fix is not None:
+                    fix_kind = "beacon"
             if fix is not None:
                 belief = update_pose(belief, fix["xy"], float(fix["sigma"]))
                 perception_fixes += 1
@@ -383,7 +388,12 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
         legs.append({"leg": leg["label"], "nominal_J": nominal_J, "true_J": telem["true_energy_J"],
                      "dig_e": float(leg.get("dig_e", 0.0)),     # dig doesn't slip; only the drive portion inflates
                      "soc": belief.soc_frac(), "slope_deg": telem["slope_deg"], "slip": telem["slip"],
-                     "energy_sigma_J": e_sig})
+                     "energy_sigma_J": e_sig,
+                     # localization trace for the cockpit Navigation pane: the BELIEVED (estimated) pose vs
+                     # the TRUE pose at this leg, its pos sigma, and which real fix corrected it.
+                     "bx": round(float(belief.x), 2), "by": round(float(belief.y), 2),
+                     "tx": round(float(true_pose[0]), 2), "ty": round(float(true_pose[1]), 2),
+                     "pos_sigma_m": round(float(belief.pos_sigma_m), 3), "fix": fix_kind})
     # A-03: reconcile the belief overlay to the canonical plant end state -- the canonical sim drives HOME
     # at mission end and the believed mission time IS the canonical plant time (the overlay does not invent
     # a location/energy the plant never had). Drive home through the SAME dead-reckoning machinery as a work

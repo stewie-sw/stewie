@@ -392,3 +392,19 @@ def test_perception_fixes_count_is_exact_not_just_nonzero():
     dem = MP.load_haworth_dem(); o = MP.flattest_anchor(dem)
     r = A.run_closed_loop(_spread(), dem=dem, dem_origin=o, perception_sigma_m=0.10)
     assert r["perception_fixes"] == 5, f"expected 4 DEM fixes + 1 dock = 5, got {r['perception_fixes']}"
+
+
+def test_closed_loop_legs_carry_localization_trace_for_the_cockpit():
+    """Frontend tie-in: run_closed_loop's per-leg records carry the est-vs-truth localization trace the
+    cockpit Navigation pane renders -- believed (bx,by) vs true (tx,ty) pose, pos_sigma_m, and which real
+    fix corrected the leg (dem / beacon / none). Pins the contract /plan's perception.localization is built
+    from."""
+    from lode import autonomy as A
+    dem = MP.load_haworth_dem(); o = MP.flattest_anchor(dem)
+    r = A.run_closed_loop(_spread(), dem=dem, dem_origin=o, perception_sigma_m=0.10)
+    assert r["legs"], "no legs"
+    for leg in r["legs"]:
+        for k in ("bx", "by", "tx", "ty", "pos_sigma_m", "fix"):
+            assert k in leg, f"leg missing localization field {k!r}"
+        assert leg["fix"] in ("dem", "beacon", "none")
+    assert any(leg["fix"] == "dem" for leg in r["legs"])      # the Haworth anchor has terrain -> real DEM fixes

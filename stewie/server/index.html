@@ -514,6 +514,15 @@
       </div>
       <div id="navview" class="pane">
         <div class="cap"><span>NAVIGATION — ARGUS state estimation <small>(pose-graph estimate vs dead reckoning; articulation-parallax relocalization)</small></span></div>
+        <!-- MISSION LOCALIZATION: the LIVE planning-loop estimate (run_closed_loop real terrain-relative +
+             AprilTag-beacon fixes) vs the true pose, per leg, colour-coded by which real fix corrected it.
+             Populated from the last /plan response (perception.localization). The Katwijk benchmark below is
+             the validation evidence; THIS is the rover's own mission localization. -->
+        <div style="padding:4px 2px 8px;border-bottom:1px solid var(--line);margin-bottom:8px">
+          <div class="cap" style="font-size:10px">MISSION LOCALIZATION — live estimate vs truth <small>(terrain-relative + AprilTag-beacon fixes, from the last plan)</small></div>
+          <canvas id="navmissionplot" width="460" height="240" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;max-width:100%;margin-top:4px"></canvas>
+          <div id="navmissionstats" style="font-size:11px;line-height:1.7;margin-top:4px;color:var(--muted)">Plan a mission (5·Plan → Plan mission) to see the rover's live estimated path vs truth and the per-leg fixes.</div>
+        </div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;padding:4px 2px">
           <div style="flex:1 1 460px;min-width:340px">
             <div class="ctl" style="font-size:11px">
@@ -750,6 +759,6 @@
 
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
-<script src="/assets/cockpit.js?v=71e5fc3cc638"></script>
+<script src="/assets/cockpit.js?v=2ab8c173ec30"></script>
 </body>
 </html>

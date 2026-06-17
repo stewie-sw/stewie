@@ -590,6 +590,7 @@ function setView(name) {
   for (const [v, id] of Object.entries(VIEW_PANE)) $(id).classList.toggle("active", v === name);
   if (name === "plan") { showSiteDem(); if (viewer) viewer.resize(); }   // restore the Plan inset + keep globe crisp
   else $("workarea").classList.remove("show");                            // the inset belongs to the Plan tab
+  if (name === "nav" && typeof navDrawMission === "function") navDrawMission(LAST_LOCALIZATION);  // #nav-mission: live est-vs-truth
   // the EDIT toolbar is a PLAN tool (Aaron's System screenshot: it stacked on the sub-bar)
   const et = document.getElementById("edittoolbar");
   if (et) et.style.display = (name === "plan") ? "flex" : "none";
@@ -1251,6 +1252,39 @@ function navDrawTrajectory(est, base) {
   line(base, "#e0a23a", 2); line(est, "#36d1dc", 2);
   g.font = "10px system-ui"; g.fillStyle = "#36d1dc"; g.fillText("— fused estimate", pad, 14);
   g.fillStyle = "#e0a23a"; g.fillText("— dead reckoning", pad + 104, 14);
+}
+let LAST_LOCALIZATION = null;                              // #nav-mission: localization trace from the last /plan
+// the LIVE mission localization: the run_closed_loop real estimate (terrain-relative + AprilTag-beacon
+// fixes) vs the true pose per leg, the leg dots colour-coded by which real fix corrected them.
+function navDrawMission(loc) {
+  const cv = $("navmissionplot"); if (!cv) return;
+  const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
+  const traj = (loc && loc.trajectory) || [];
+  const stat = $("navmissionstats");
+  if (!traj.length) { if (stat) stat.textContent =
+    "Plan a mission (5·Plan → Plan mission) to see the rover's live estimated path vs truth and the per-leg fixes."; return; }
+  const est = traj.map((p) => p.est), tru = traj.map((p) => p["true"]);
+  const all = est.concat(tru), xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
+  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+  const pad = 26, s = Math.min((cv.width - 2 * pad) / Math.max(1e-6, maxx - minx),
+                               (cv.height - 2 * pad) / Math.max(1e-6, maxy - miny));
+  const X = (x) => pad + (x - minx) * s, Y = (y) => cv.height - pad - (y - miny) * s;
+  const line = (path, color, w) => { g.strokeStyle = color; g.lineWidth = w; g.beginPath();
+    path.forEach((p, i) => (i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1])))); g.stroke(); };
+  line(tru, "#8a8a93", 2);                                 // true path (grey)
+  line(est, "#36d1dc", 2);                                 // estimated path (cyan)
+  const FIXC = { dem: "#3fa34d", beacon: "#e0b300", none: "#e8273f" };   // green / amber / red per fix kind
+  traj.forEach((p) => { g.fillStyle = FIXC[p.fix] || "#888"; g.beginPath();
+    g.arc(X(p.est[0]), Y(p.est[1]), 3, 0, 2 * Math.PI); g.fill(); });
+  g.font = "10px system-ui";
+  g.fillStyle = "#36d1dc"; g.fillText("— estimate", pad, 12); g.fillStyle = "#8a8a93"; g.fillText("— truth", pad + 66, 12);
+  g.fillStyle = "#3fa34d"; g.fillText("● DEM", pad + 118, 12); g.fillStyle = "#e0b300"; g.fillText("● beacon", pad + 166, 12);
+  g.fillStyle = "#e8273f"; g.fillText("● none", pad + 226, 12);
+  const fk = loc.fix_kinds || {}, lastSig = traj[traj.length - 1].sigma;
+  const maxErr = Math.max(...traj.map((p) => Math.hypot(p.est[0] - p["true"][0], p.est[1] - p["true"][1])));
+  if (stat) stat.innerHTML =
+    `fixes: <b style="color:#3fa34d">${fk.dem || 0} DEM</b> · <b style="color:#e0b300">${fk.beacon || 0} beacon</b> · ` +
+    `<b style="color:#e8273f">${fk.none || 0} none</b> · end pose σ <b>${lastSig} m</b> · max est-vs-truth <b>${maxErr.toFixed(2)} m</b>`;
 }
 async function navRun() {
   const seg = $("navseg").value, kf = +$("navkf").value || 30;
@@ -2550,6 +2584,8 @@ qel("qplan").onclick = async () => {
     const autag = au.completed !== undefined
       ? ` · autonomy ${au.completed ? "✓" : "⚠"} ${au.recharges}rch/${au.replans}rpl, SoC ${(au.final_soc * 100).toFixed(0)}%, slip ${au.max_slip}` : "";
     const pc = j.perception || {};
+    LAST_LOCALIZATION = pc.localization || null;            // #nav-mission: the live est-vs-truth trace
+    if (typeof navDrawMission === "function" && VIEW === "nav") navDrawMission(LAST_LOCALIZATION);
     const ptag = pc.pose_sigma_m != null
       ? ` · est ±${pc.pose_sigma_m} m pose (${pc.map_fixes} map fixes`
         + (pc.observe_more_before_dig ? `, ${pc.observe_more_before_dig} observe-more` : "")

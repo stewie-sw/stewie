@@ -164,6 +164,13 @@ def _autonomy_perception(mission, dem, origin, algorithm, objective):
         "map_uncertainty_m": round(mc.get("mean_uncertainty_m", 0.0), 2),
         "map_observe_more_before_dig": cl.get("map_observe_more", 0),
         "map_survey_time_s": round(cl.get("survey_time_s", 0.0), 1),   # the survey-before-dig gate's real time cost
+        # REAL-localization trace for the cockpit Navigation pane: per-leg estimated (believed) pose vs the
+        # true pose, the pos sigma, and which real fix corrected it (dem scan-match / beacon AprilTag / none).
+        "localization": {
+            "trajectory": [{"est": [leg["bx"], leg["by"]], "true": [leg["tx"], leg["ty"]],
+                            "sigma": leg["pos_sigma_m"], "fix": leg["fix"]} for leg in legs],
+            "fix_kinds": {k: sum(1 for leg in legs if leg.get("fix") == k) for k in ("dem", "beacon", "none")},
+        },
         "note": ("perception-in-the-loop: a map/landmark pose fix per leg bounds dead-reckoning drift; the "
                  "dig-ready gate observes more before digging when the pose is uncertain OR the dig site's "
                  "local map coverage is low. map_coverage is the onboard-observability tier (what the route "
