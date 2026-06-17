@@ -764,6 +764,8 @@
           <div id="excbatt"><div id="excbattfill"></div></div>
           <span class="k">battery</span><span id="excbattlbl">—</span>
         </div>
+        <!-- #184: rover HUD — azimuth compass, battery, front/rear drum weight, live pose (updates as it drives) -->
+        <canvas id="hudcanvas" width="320" height="96" title="rover HUD: azimuth compass · battery · front/rear drum weight · pose" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;margin-top:6px;max-width:340px;width:100%"></canvas>
         <div id="execempty" class="empty">No run yet. Plan a mission, then press
           <b>▶ Execute + watch</b> (Plan tab) to replay the planned timeline here (a deterministic
           forecast of the plan, not live rover telemetry).</div>
@@ -966,7 +968,7 @@
 
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
-<script type="module" src="/assets/three3d.js?v=bd9f9b2f47a4"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=309ffab21455"></script>
+<script type="module" src="/assets/three3d.js?v=28f087c82438"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
+<script src="/assets/cockpit.js?v=f88df432f6c0"></script>
 </body>
 </html>

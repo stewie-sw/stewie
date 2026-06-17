@@ -1974,6 +1974,7 @@ async function cgUpdate() {
   const riskCol = d.risk === "ok" ? "#3fa34d" : (d.risk === "warn" ? "#e0b300" : "#e8273f");
   $("cgout").innerHTML = `CG <b>${(d.cg_dx_m * 100).toFixed(1)} cm</b> fwd · height <b>${(d.cg_height_m * 100).toFixed(1)} cm</b> · ` +
     `tip margin <b style="color:${riskCol}">${d.margin_deg.toFixed(1)}°</b> (${d.binding_axis}) · risk <b style="color:${riskCol}">${d.risk.toUpperCase()}</b>`;
+  if (typeof drawRoverHUD === "function") drawRoverHUD(roverHUDState());   // #184: drum-load change -> refresh the rover HUD
 }
 ["cgF", "cgB", "cgFk", "cgBk", "cgP"].forEach((id) => { const el = $(id); if (el) el.addEventListener("input", cgSchedule); });
 setTimeout(cgUpdate, 1500);
@@ -3130,6 +3131,56 @@ function telePush(batt, mass, slip) {
   Object.values(TELE_BUF).forEach((b) => { if (b.length > 240) b.shift(); });
   teleSpark();
 }
+// #184: the rover HUD -- azimuth compass, battery, front/rear drum weight, live pose -- on #hudcanvas.
+// Updated each execution frame (heading from the path delta, SoC from the battery channel, pose) and when
+// the operator sets the drum loads. All real: pose/SoC from the planned timeline; drum kg from the
+// stability inputs (cgFk/cgBk) -- the same masses that feed the CG/tip-margin physics.
+const DRUM_CAP_KG = (typeof IPEX_FALLBACK !== "undefined" ? IPEX_FALLBACK.drum_kg : 30);
+function roverHUDState(extra) {
+  return Object.assign({ frontKg: +(qel("cgFk") ? qel("cgFk").value : 0) || 0,
+                         rearKg: +(qel("cgBk") ? qel("cgBk").value : 0) || 0 }, extra || {});
+}
+function drawRoverHUD(s) {
+  const cv = qel("hudcanvas"); if (!cv) return;
+  const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H); ctx.fillStyle = "#0a0a0c"; ctx.fillRect(0, 0, W, H);
+  ctx.font = "9px Orbitron, system-ui"; ctx.textBaseline = "middle";
+  // azimuth compass (left): from-north-eastward (N up, E right) -- matches the ephemeris/shadow convention
+  const cx = 46, cy = 44, r = 34;
+  ctx.strokeStyle = "#2a2a36"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.stroke();
+  ctx.textAlign = "center";
+  [["N", 0], ["E", 90], ["S", 180], ["W", 270]].forEach(([lab, az]) => {
+    const a = az * Math.PI / 180;
+    ctx.fillStyle = lab === "N" ? "#e0564b" : "#7a8290";
+    ctx.fillText(lab, cx + (r - 7) * Math.sin(a), cy - (r - 7) * Math.cos(a));
+  });
+  if (s && s.headingDeg != null) {
+    const a = s.headingDeg * Math.PI / 180;
+    ctx.strokeStyle = "#35e0d0"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + (r - 5) * Math.sin(a), cy - (r - 5) * Math.cos(a)); ctx.stroke();
+    ctx.fillStyle = "#35e0d0"; ctx.fillText(`${Math.round(s.headingDeg)}°`, cx, cy + r + 7);
+  }
+  // battery (middle)
+  const bx = 100, bw = 24, bh = 56, by = 16;
+  ctx.strokeStyle = "#2a2a36"; ctx.strokeRect(bx, by, bw, bh);
+  const soc = (s && s.soc != null) ? Math.max(0, Math.min(1, s.soc)) : null;
+  if (soc != null) {
+    ctx.fillStyle = soc < 0.2 ? "#e0564b" : "#39ff14";
+    ctx.fillRect(bx + 1, by + bh - bh * soc + 1, bw - 2, bh * soc - 2);
+    ctx.fillStyle = "#c7d2e3"; ctx.fillText(`${Math.round(soc * 100)}%`, bx + bw / 2, by + bh + 8);
+  }
+  ctx.fillStyle = "#7a8290"; ctx.fillText("BATT", bx + bw / 2, by - 7);
+  // front/rear drum weight (right)
+  const dx = 144, dw = 158, dh = 15;
+  [["FRONT", s && s.frontKg, 22], ["REAR", s && s.rearKg, 50]].forEach(([lab, kg, dy]) => {
+    ctx.strokeStyle = "#2a2a36"; ctx.lineWidth = 1; ctx.strokeRect(dx, dy, dw, dh);
+    const f = Math.max(0, Math.min(1, (kg || 0) / DRUM_CAP_KG));
+    ctx.fillStyle = "#e07b39"; ctx.fillRect(dx + 1, dy + 1, (dw - 2) * f, dh - 2);
+    ctx.fillStyle = "#c7d2e3"; ctx.textAlign = "left"; ctx.fillText(`${lab} ${(kg || 0).toFixed(1)} kg`, dx + 4, dy + dh / 2);
+  });
+  if (s && s.x != null) { ctx.fillStyle = "#7a8290"; ctx.textAlign = "left";
+    ctx.fillText(`pose ${Math.round(s.x)}, ${Math.round(s.y)} m`, dx + 4, 82); }
+}
 // UI-17: the activity Gantt -- one lane per phase kind, bars at [t0, t1], battery curve under.
 function drawGantt(tl) {
   const cv = $("gantt"); if (!cv) return;
@@ -3278,6 +3329,11 @@ function runExecution() {
     qel("excbattfill").style.width = `${Math.max(0, bf * 100).toFixed(0)}%`;
     qel("excbattfill").style.background = bf < 0.2 ? "#e0564b" : "var(--accent)";
     qel("excbattlbl").textContent = `${(bf * 100).toFixed(0)}%`;
+    // #184: rover HUD -- heading from the path delta (from-north-eastward), live SoC + pose, drum from the stability inputs
+    const _dE = fr.x1 - fr.x0, _dN = fr.y1 - fr.y0;
+    const _hd = (Math.abs(_dE) + Math.abs(_dN) > 1e-6) ? (Math.atan2(_dE, _dN) * 180 / Math.PI + 360) % 360 : undefined;
+    drawRoverHUD(roverHUDState({ headingDeg: _hd, soc: bf,
+      x: fr.x0 + (fr.x1 - fr.x0) * u, y: fr.y0 + (fr.y1 - fr.y0) * u }));
     if ((frame._n = (frame._n || 0) + 1) % 15 === 0) {     // #31: feed the rail ~4x/s
       telePush(bf, fr.cum_mass_kg, fr.slip || 0);
       teleChip("pose", `${(fr.x0 + (fr.x1 - fr.x0) * u).toFixed(0)},${(fr.y0 + (fr.y1 - fr.y0) * u).toFixed(0)}`, true);
