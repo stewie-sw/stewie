@@ -338,7 +338,7 @@
         <button class="site" id="site">Set site</button>
       </div>
       <div id="terra">terramechanics —</div>
-      <div id="hint">drag = pan · wheel = zoom · ctrl-drag = tilt · click = pick a site · <b id="cursorcoord" style="color:var(--accent)"></b>
+      <div id="hint">drag = pan · wheel = zoom · ctrl-drag = tilt · click = pick a site · <label style="color:var(--muted)" title="#169: show live lat/long (and site metres) following the cursor"><input type="checkbox" id="coordtoggle" checked> coords</label> <b id="cursorcoord" style="color:var(--accent)"></b>
   <span id="scalebar" style="margin-left:14px; border-bottom:2px solid #fff; border-left:2px solid #fff; border-right:2px solid #fff; padding:0 6px; height:7px; display:inline-block"></span>
   <span id="scaleval" style="margin-left:4px"></span>
   </div>
@@ -620,6 +620,8 @@
         <b style="font-family:Orbitron,system-ui;font-size:10px;letter-spacing:.1em">ALERTS</b>
         <ol style="list-style:none;margin:4px 0 0;padding:0"></ol></div>
       <div id="cesium" role="application" aria-label="3D lunar globe and site map: pan, zoom, tilt; click to set coordinates"></div>
+      <!-- #169: a coordinate readout that floats next to the cursor (toggle in the hint bar) -->
+      <div id="cursorxy" style="position:fixed;z-index:40;display:none;pointer-events:none;background:rgba(10,10,12,.92);border:1px solid var(--line);border-radius:4px;color:var(--accent);font-size:10px;font-variant-numeric:tabular-nums;padding:2px 6px;white-space:nowrap"></div>
       <div id="scalebox" style="position:absolute;left:12px;bottom:34px;z-index:25;background:rgba(10,10,12,.8);border:1px solid var(--line);border-radius:5px;padding:4px 9px;font-size:11px;font-variant-numeric:tabular-nums">
         <span id="scalebar2" style="border-bottom:2px solid #fff;border-left:2px solid #fff;border-right:2px solid #fff;height:7px;display:inline-block"></span>
         <span id="scaleval2" style="margin-left:6px"></span></div>
@@ -942,6 +944,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=a2f2f987b1c3"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=3a1e143c1b88"></script>
+<script src="/assets/cockpit.js?v=66f8ad8a2a20"></script>
 </body>
 </html>

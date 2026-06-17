@@ -213,24 +213,41 @@ function loadBody(key) {
     setPicked(Cesium.Math.toDegrees(carto.latitude), Cesium.Math.toDegrees(carto.longitude));
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-  // live cursor coordinates (Esri status-bar pattern; Aaron 2026-06-10)
+  // live cursor coordinates (Esri status-bar pattern; Aaron 2026-06-10) + #169 floating over-cursor readout (toggleable)
   let _xyTimer = 0;
   handler.setInputAction((e) => {
+    const el = $("cursorcoord"), fl = $("cursorxy");
+    const on = !$("coordtoggle") || $("coordtoggle").checked;        // #169: toggle the live coordinate readout
+    if (!on) { if (el) el.textContent = ""; if (fl) fl.style.display = "none"; return; }
     const c = viewer.camera.pickEllipsoid(e.endPosition, ellipsoid);
-    const el = $("cursorcoord"); if (!el) return;
-    if (!c) { el.textContent = ""; return; }
+    if (!c) { if (el) el.textContent = ""; if (fl) fl.style.display = "none"; return; }
     const ca = Cesium.Cartographic.fromCartesian(c, ellipsoid);
     const lat = Cesium.Math.toDegrees(ca.latitude), lon = Cesium.Math.toDegrees(ca.longitude);
-    el.textContent = `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
+    const txt = `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
+    if (el) el.textContent = txt;
+    if (fl) {                                                        // #169: float the readout next to the cursor
+      const r = viewer.canvas.getBoundingClientRect();
+      fl.textContent = txt;
+      fl.style.left = `${r.left + e.endPosition.x + 14}px`;
+      fl.style.top = `${r.top + e.endPosition.y + 14}px`;
+      fl.style.display = "block";
+    }
     // site-frame meters when inside the Haworth footprint (throttled; Esri status-bar style)
     if (sel.value === "moon" && HAWORTH_RECT &&
         Cesium.Rectangle.contains(HAWORTH_RECT, ca) && !_xyTimer) {
       _xyTimer = setTimeout(() => { _xyTimer = 0; }, 250);
       fetch(`/dem/site_xy?lat=${lat}&lon=${lon}&site=${encodeURIComponent(CURRENT_SITE)}`).then((r) => r.json()).then((d) => {
-        if (d.ok) el.textContent += `  ·  site ${d.x_m} m, ${d.y_m} m`;
+        if (d.ok) { const t2 = `${txt}  ·  site ${d.x_m} m, ${d.y_m} m`;
+          if (el) el.textContent = t2; if (fl) fl.textContent = t2; }
       }).catch(() => {});
     }
   }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+  // #169: hide the floating readout when the cursor leaves the map or the toggle is turned off
+  viewer.canvas.addEventListener("mouseleave", () => { if ($("cursorxy")) $("cursorxy").style.display = "none"; });
+  if ($("coordtoggle")) $("coordtoggle").onchange = () => {
+    if (!$("coordtoggle").checked) { if ($("cursorxy")) $("cursorxy").style.display = "none";
+      if ($("cursorcoord")) $("cursorcoord").textContent = ""; }
+  };
 
   // audit P1: the SCALE BAR -- meters-per-pixel sampled at screen center, niced to 1/2/5 steps
   function updateScale() {
