@@ -356,6 +356,7 @@ function dropPin(lat, lon, text, color, ref) {             // #64: pins carry th
 const PIN_REFS = new Map();                                // pin entity -> {kind, obj}
 let SELECTED_PIN = null;
 let LANDER_PIN = null;                                     // #lander-pin: the single 🛬 globe marker (unique)
+let ROVER_PIN = null;                                      // #174: the single 🤖 rover-position marker (unique)
 function deleteSelectedPin() {                             // #64: Delete removes feature + pin
   if (!SELECTED_PIN) return;
   const ref = PIN_REFS.get(SELECTED_PIN);
@@ -368,8 +369,9 @@ function deleteSelectedPin() {                             // #64: Delete remove
   viewer.entities.remove(SELECTED_PIN);
   const k = EDIT_PINS.indexOf(SELECTED_PIN); if (k >= 0) EDIT_PINS.splice(k, 1);
   if (SELECTED_PIN === LANDER_PIN) LANDER_PIN = null;      // #lander-pin: don't leave a dangling reference
+  if (SELECTED_PIN === ROVER_PIN) ROVER_PIN = null;        // #174: likewise the unique rover marker
   PIN_REFS.delete(SELECTED_PIN); SELECTED_PIN = null;
-  renderQueue(); setQ("feature deleted");
+  renderQueue(); if (typeof updateLocator === "function") updateLocator(); setQ("feature deleted");
 }
 document.addEventListener("keydown", (e) => {
   // UX-04: Escape closes the open auth dialog (the role=dialog aria-modal contract).
@@ -424,6 +426,14 @@ async function editPlace(lat, lon) {
       const li = EDIT_PINS.indexOf(LANDER_PIN); if (li >= 0) EDIT_PINS.splice(li, 1); }
     LANDER_PIN = dropPin(lat, lon, `🛬 lander ${LANDER_P.x}, ${LANDER_P.y} m`, "#39ff14", { kind: "lander" });
     drawPlan(); $("editstate").textContent = `🛬 lander @ site-frame ${d.x_m} m E, ${d.y_m} m N (${Number(lat).toFixed(3)}°, ${Number(lon).toFixed(3)}°)`;
+  } else if (EDIT.tool === "rover") {
+    // #174 (Aaron: "why can't I place the location of the rover?"): click-to-place the rover's known
+    // position. recordPose persists it (stewie_last_pose) + refreshes the locator (distances FROM it).
+    recordPose(d.x_m, d.y_m);
+    if (ROVER_PIN && viewer) { viewer.entities.remove(ROVER_PIN); PIN_REFS.delete(ROVER_PIN);
+      const ri = EDIT_PINS.indexOf(ROVER_PIN); if (ri >= 0) EDIT_PINS.splice(ri, 1); }
+    ROVER_PIN = dropPin(lat, lon, `🤖 rover ${LAST_POSE.x}, ${LAST_POSE.y} m`, "#ff9d3f", { kind: "rover" });
+    $("editstate").textContent = `🤖 rover @ site-frame ${d.x_m} m E, ${d.y_m} m N (${Number(lat).toFixed(3)}°, ${Number(lon).toFixed(3)}°)`;
   } else if (EDIT.tool === "measure") {
     // #178: click two points -> the site-frame metric distance between them. The order frame is metres
     // E/N (the meaningful planning distance), so it is just the Euclidean delta of the two site_xy hits.
@@ -447,6 +457,7 @@ async function editPlace(lat, lon) {
       LANDMARKS.push(lm);
       dropPin(lat, lon, `📍 ${name}`, "#3fb6ff", { kind: "landmark", obj: lm });
       persistDraft();
+      if (typeof updateLocator === "function") updateLocator();   // #174: new landmark -> refresh distances
       $("editstate").textContent = `📍 landmark "${name}" @ ${d.x_m} m E, ${d.y_m} m N`;
       setQ(`landmark "${name}" placed (${LANDMARKS.length} total) — the locator can measure distance from it`);
     }
@@ -853,12 +864,62 @@ function setLander(x, y) {
   if (typeof LANDER !== "undefined") { LANDER.x = LANDER_P.x; LANDER.y = LANDER_P.y; }
   try { localStorage.setItem("stewie_lander", JSON.stringify(LANDER_P)); } catch (e) {}
   if (typeof drawPlan === "function") drawPlan();
+  if (typeof updateLocator === "function") updateLocator();   // #174: lander moved -> refresh distances
 }
 function recordPose(x, y) {
   LAST_POSE = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, ts: Date.now() };
   try { localStorage.setItem("stewie_last_pose", JSON.stringify(LAST_POSE)); } catch (e) {}
   const el = $("lastpose");
   if (el) el.textContent = `rover last known: ${LAST_POSE.x}, ${LAST_POSE.y} m`;
+  if ($("roverx")) { $("roverx").value = LAST_POSE.x; $("rovery").value = LAST_POSE.y; }
+  if (typeof updateLocator === "function") updateLocator();   // #174: rover moved -> refresh distances
+}
+// #174: the "where are we" locator -- distance + compass bearing from the rover's known position to the
+// lander and every placed landmark (real distance extrapolation from placed points, replacing the fixed
+// 100 m ring), plus the actual selenographic coordinates next to the order-frame metres. Answers Aaron's
+// "why doesn't where-are-we pick up the lander / why metres not coordinates".
+function bearingFrom(dE, dN) {                              // site frame: +x = East, +y = North
+  let b = Math.atan2(dE, dN) * 180 / Math.PI;              // 0 deg = North, 90 deg = East
+  if (b < 0) b += 360;
+  const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  return `${b.toFixed(0)}° ${dirs[Math.round(b / 22.5) % 16]}`;
+}
+async function siteLatLon(x, y) {                          // order-frame metres -> lat/lon (the #174 reverse route)
+  try {
+    const r = await fetch(`/dem/site_lonlat?x=${x}&y=${y}&site=${encodeURIComponent(CURRENT_SITE)}`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.ok ? { lat: d.lat, lon: d.lon } : null;
+  } catch (e) { return null; }
+}
+const fmtLL = (ll) => (ll ? `${ll.lat.toFixed(4)}°, ${ll.lon.toFixed(4)}°` : "—");
+async function updateLocator() {
+  const box = $("locator"); if (!box) return;
+  if (!LAST_POSE) {
+    box.innerHTML = '<span style="opacity:.6">place the rover (🤖 tool or "place rover") to see distances ' +
+      "to the lander and landmarks</span>";
+    return;
+  }
+  const rx = LAST_POSE.x, ry = LAST_POSE.y, hasLander = !!(LANDER_P.x || LANDER_P.y);
+  const [roverLL, landerLL] = await Promise.all([
+    siteLatLon(rx, ry), hasLander ? siteLatLon(LANDER_P.x, LANDER_P.y) : Promise.resolve(null)]);
+  const rows = [`<b style="color:var(--accent)">🤖 rover</b> ${rx}, ${ry} m · ` +
+                `<span style="opacity:.8">${fmtLL(roverLL)}</span>`];
+  if (hasLander) {
+    const dE = LANDER_P.x - rx, dN = LANDER_P.y - ry, dist = Math.hypot(dE, dN);
+    rows.push(`🛬 <b>lander</b> ${LANDER_P.x}, ${LANDER_P.y} m · <b>${dist.toFixed(1)} m</b> ` +
+              `${bearingFrom(dE, dN)} · <span style="opacity:.8">${fmtLL(landerLL)}</span>`);
+  }
+  LANDMARKS.forEach((l) => {
+    const dE = l.x - rx, dN = l.y - ry, dist = Math.hypot(dE, dN);
+    rows.push(`📍 <b>${esc(l.name)}</b> ${l.x}, ${l.y} m · <b>${dist.toFixed(1)} m</b> ${bearingFrom(dE, dN)}`);
+  });
+  if (rows.length === 1) {
+    rows.push('<span style="opacity:.6">no lander or landmarks placed yet — drop a 🛬 lander or ' +
+      "📍 landmark to extrapolate distances from the rover</span>");
+  }
+  box.innerHTML = rows.map((r) => `<div>${r}</div>`).join("");
 }
 applySettings(SETTINGS);
 if ($("set-theme")) $("set-theme").onchange = () => {
@@ -1794,6 +1855,10 @@ async function loadSites() {     // #auth-reload: named (not an IIFE) so refresh
 $("landset").onclick = () => { setLander(+$("landx").value || 0, +$("landy").value || 0);
   setQ(`🛬 lander @ site-frame ${LANDER_P.x} m E, ${LANDER_P.y} m N`); };
 if ($("landx")) { $("landx").value = LANDER_P.x; $("landy").value = LANDER_P.y; }
+// #174: type the rover's known position (mirrors the lander control); the 🤖 rover edit tool is the map-click path.
+if ($("roverset")) $("roverset").onclick = () => { recordPose(+$("roverx").value || 0, +$("rovery").value || 0);
+  setQ(`🤖 rover @ site-frame ${LAST_POSE.x} m E, ${LAST_POSE.y} m N`); };
+if ($("roverx") && LAST_POSE) { $("roverx").value = LAST_POSE.x; $("rovery").value = LAST_POSE.y; }
 $("wpadd").onclick = () => {
   snapshotAuthoring();
   const n = ORDERS.filter((o) => o.kind === "goto").length + 1;
@@ -3481,6 +3546,6 @@ function renderCtxSummaries() {
   }
 }
 
-loadBody("moon"); restoreDraft(); estimate(); renderQueue(); renderKeepouts(); drawPlan(); setView("plan");  // #177: restore the auto-saved working draft before the first render
+loadBody("moon"); restoreDraft(); estimate(); renderQueue(); renderKeepouts(); drawPlan(); updateLocator(); setView("plan");  // #177: restore the auto-saved working draft before the first render
 focusStep(WIZ_STEP);                                         // #170: open the current wizard step's sidebar sections on boot
 _bootComplete = true;                                     // UX-01: boot done -> 401s may now nudge sign-in
