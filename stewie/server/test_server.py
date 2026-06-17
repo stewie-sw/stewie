@@ -322,6 +322,21 @@ def test_localize_fuses_shadow_heading(client):
     assert b1["yaw_sigma"]["0"] < b0["yaw_sigma"]["0"]            # shadow heading tightened the yaw
 
 
+def test_localize_traverse_real_haworth_beats_odometry(client):
+    """[REQ:PM-06] #148: /localize/traverse runs the REAL register_to_dem fix over a real Haworth
+    traverse and returns the est-vs-truth -- the fused trajectory must BOUND the odometry drift. 503
+    only when the Haworth bundle is absent on this host (never a fabricated run)."""
+    import pytest
+    r = client.get("/localize/traverse")
+    if r.status_code == 503:
+        pytest.skip("Haworth DEM bundle not present on this host")
+    assert r.status_code == 200, r.text
+    b = r.json()
+    assert b["ok"] is True and b["n_dem_fix"] >= 2
+    assert b["abs_max_fused_m"] < 0.2 * b["abs_max_odom_m"]      # real terrain fixes bound the drift
+    assert len(b["true_xy"]) == b["n_keyframes"] == len(b["fused_xy"]) == len(b["odom_xy"])
+
+
 def test_localize_shadow_bearings_require_anti_solar(client):
     """#148: shadow bearings without the ephemeris anti-solar azimuth cannot fix a heading -> clean 400."""
     r = client.post("/localize", json={

@@ -219,6 +219,26 @@ def post_localize(req: LocalizeRequest, _auth: None = Depends(require_auth)):
     }
 
 
+@router.get("/localize/traverse")
+def get_localize_traverse(_auth: None = Depends(require_auth)):
+    """[REQ:PM-06] #148: a REAL lunar est-vs-truth. Drives a reproducible textured traverse over the
+    real Haworth DEM, drifts dead-reckoning under a gyro bias, and corrects it with the REAL
+    register_to_dem terrain fix (dart.slam_seam) fused through the integrated pose graph -- scored
+    against the DEM's OWN truth, NOT the modeled-cue Katwijk baseline. Returns the fused/odom/true
+    trajectories + ATE + the absolute drift bounding. 503 when the Haworth bundle is absent on this
+    host (never a fabricated run). The render-derived shadow-yaw + parallax fixes plug into the same
+    seam once a multi-station lunar-shadow traverse is rendered."""
+    dem, _anchor = state.moon_dem("haworth")
+    if dem is None:
+        return JSONResponse(status_code=503, content={"ok": False, "error":
+            "Haworth DEM unavailable on this host (bundle absent); the real terrain-fix traverse needs it"})
+    from dart import slam_seam as SEAM
+    out = SEAM.haworth_demo_traverse(dem)
+    log_event("api", "localize/traverse", f"real Haworth DEM-fix: odom {out['abs_max_odom_m']:.1f}m -> "
+              f"fused {out['abs_max_fused_m']:.1f}m ({out['n_dem_fix']} fixes)")
+    return {"ok": True, **out}
+
+
 _KATWIJK_CACHE: dict = {}   # part name -> loaded real arrays (parse once, reuse across requests)
 
 

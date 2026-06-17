@@ -115,7 +115,30 @@ def dem_fixed_traverse(dem, path_rc, *, ref_rc=(0, 0), patch_half=6, gyro_bias_r
     odom = run_integrated_slam(true_xy, dr_xy, truth_yaw, gyro_yaw, factors=("odom", "imu"), **common)
     return {"ate_fused_m": fused["ate_aligned_m"], "ate_odom_m": odom["ate_aligned_m"],
             "abs_max_fused_m": fused["abs_max_err_m"], "abs_max_odom_m": odom["abs_max_err_m"],
-            "n_dem_fix": len(measured), "n_keyframes": int(n), "measured": fused["measured"]}
+            "n_dem_fix": len(measured), "n_keyframes": int(n), "measured": fused["measured"],
+            # trajectories for the cockpit est-vs-truth plot (world x,y; truth = the DEM's own path)
+            "true_xy": true_xy.tolist(), "fused_xy": fused["est_xy"].tolist(),
+            "odom_xy": odom["est_xy"].tolist(),
+            "fix_keyframes": sorted(int(k) for k in measured)}
+
+
+def haworth_demo_traverse(dem, *, n: int = 16, patch_half: int = 6, gyro_bias_rad: float = 0.01,
+                          fix_interval: int = 2):
+    """A reproducible real-Haworth est-vs-truth demo for the cockpit: pick a textured, in-bounds start
+    (max DEM gradient), drive a diagonal traverse, and score the REAL register_to_dem fusion vs
+    odometry-only via dem_fixed_traverse. Deterministic (argmax gradient). Returns the dem_fixed_traverse
+    result plus the start cell. Scored against the DEM's own truth -- no modeled cue, no synthetic data."""
+    Z, _cell = dem
+    H, W = Z.shape
+    m = 20
+    sub = np.abs(np.gradient(Z)[0])[m:H - m - 2 * n, m:W - m - n]   # bound the window so the path fits
+    rr, cc = np.unravel_index(int(np.argmax(sub)), sub.shape)
+    r0, c0 = int(rr + m), int(cc + m)
+    path = [(r0 + 2 * k, c0 + k) for k in range(n)]
+    out = dem_fixed_traverse(dem, path, patch_half=patch_half, gyro_bias_rad=gyro_bias_rad,
+                             fix_interval=fix_interval)
+    out["start_rc"] = [r0, c0]
+    return out
 
 
 def vo_relative_factors(vo_result):

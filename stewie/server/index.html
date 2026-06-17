@@ -731,6 +731,16 @@
           <canvas id="navmissionplot" width="460" height="240" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;max-width:100%;margin-top:4px"></canvas>
           <div id="navmissionstats" style="font-size:11px;line-height:1.7;margin-top:4px;color:var(--muted)">Plan a mission (5·Plan → Plan mission) to see the rover's live estimated path vs truth and the per-leg fixes.</div>
         </div>
+
+        <!-- #148: REAL terrain-fix est-vs-truth on the real Haworth DEM -- the register_to_dem fix fused
+             through the pose graph, scored against the DEM's OWN truth. This is the real lunar
+             est-vs-truth, distinct from the MODELED-cue Katwijk baseline below. -->
+        <div style="padding:4px 2px 8px;border-bottom:1px solid var(--line);margin-bottom:8px">
+          <div class="cap" style="font-size:10px">REAL TERRAIN-FIX LOCALIZATION — Haworth DEM <small>(register_to_dem fused vs odometry, scored vs the DEM's own truth)</small>
+            <button id="navreal" class="go" style="font-size:11px;margin-left:8px">▶ Run real traverse</button></div>
+          <canvas id="navrealplot" width="460" height="240" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;max-width:100%;margin-top:4px"></canvas>
+          <div id="navrealstats" style="font-size:11px;line-height:1.7;margin-top:4px;color:var(--muted)">Press <b>Run real traverse</b>: the rover drives a textured Haworth path, dead reckoning drifts under a gyro bias, and the REAL <code>register_to_dem</code> terrain fix corrects it — fused (cyan) vs odometry (amber) vs truth (white dashed), scored against the DEM's own truth. Real terrain + real estimator; the modeled-cue Katwijk run below is the noisy-odometry baseline. Needs the Haworth bundle (clean 503 otherwise).</div>
+        </div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;padding:4px 2px">
           <div style="flex:1 1 460px;min-width:340px">
             <div class="ctl" style="font-size:11px">
@@ -1002,6 +1012,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=28f087c82438"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=b7140fd19a2f"></script>
+<script src="/assets/cockpit.js?v=3023ae965680"></script>
 </body>
 </html>

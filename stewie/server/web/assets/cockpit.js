@@ -1675,6 +1675,44 @@ async function navRun() {
   } catch (e) { $("navstats").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
   finally { $("navrun").disabled = false; $("navrun").textContent = "▶ Run estimator"; }
 }
+// #148: REAL terrain-fix est-vs-truth on the real Haworth DEM (register_to_dem fused vs odometry),
+// scored against the DEM's own truth -- the real lunar est-vs-truth, distinct from modeled Katwijk.
+function navDrawReal(trueXY, fusedXY, odomXY) {
+  const cv = $("navrealplot"); if (!cv) return;
+  const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
+  const all = trueXY.concat(fusedXY, odomXY), xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
+  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+  const pad = 26, s = Math.min((cv.width - 2 * pad) / Math.max(1e-6, maxx - minx),
+                               (cv.height - 2 * pad) / Math.max(1e-6, maxy - miny));
+  const X = (x) => pad + (x - minx) * s, Y = (y) => cv.height - pad - (y - miny) * s;
+  const line = (path, color, w, dash) => {
+    g.strokeStyle = color; g.lineWidth = w; g.setLineDash(dash || []); g.beginPath();
+    path.forEach((p, i) => (i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))));
+    g.stroke(); g.setLineDash([]);
+  };
+  line(odomXY, "#e0a23a", 2);                            // dead reckoning (drifts)
+  line(trueXY, "#cfe3ff", 1.5, [4, 3]);                  // truth (white dashed)
+  line(fusedXY, "#36d1dc", 2);                           // fused (real DEM fixes)
+  g.font = "10px system-ui"; g.fillStyle = "#36d1dc"; g.fillText("— fused (real DEM fix)", pad, 14);
+  g.fillStyle = "#e0a23a"; g.fillText("— odometry", pad + 124, 14);
+  g.fillStyle = "#cfe3ff"; g.fillText("--- truth", pad + 200, 14);
+}
+async function navRealTraverse() {
+  const btn = $("navreal"); if (btn) { btn.disabled = true; btn.textContent = "… running"; }
+  try {
+    const r = await fetch("/localize/traverse", { headers: apiHeaders() });
+    const b = await r.json();
+    if (!b.ok) { $("navrealstats").innerHTML = `<span style="color:#e8273f">${esc(b.error || "unavailable")}</span>`; return; }
+    navDrawReal(b.true_xy, b.fused_xy, b.odom_xy);
+    const red = (b.abs_max_odom_m / Math.max(b.abs_max_fused_m, 1e-9));
+    $("navrealstats").innerHTML = `<b>${b.n_dem_fix}</b> real <code>register_to_dem</code> fixes over `
+      + `${b.n_keyframes} keyframes · odometry drift <b>${b.abs_max_odom_m.toFixed(1)} m</b> → fused `
+      + `<b style="color:var(--accent)">${b.abs_max_fused_m.toFixed(1)} m</b> (<b>${red.toFixed(0)}× tighter</b>) · `
+      + `aligned ATE ${b.ate_odom_m.toFixed(2)} → ${b.ate_fused_m.toFixed(2)} m`
+      + `<br><span style="opacity:.7">Real Haworth terrain, scored vs the DEM's own truth — no modeled cue.</span>`;
+  } catch (e) { $("navrealstats").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
+  finally { if (btn) { btn.disabled = false; btn.textContent = "▶ Run real traverse"; } }
+}
 async function navCompare() {                          // P3.1: shared-testbed head-to-head (modeled at reported σ)
   const seg = $("navseg").value, kf = +$("navkf").value || 30;
   $("navcmp").disabled = true; $("navcmp").textContent = "… comparing";
@@ -1743,6 +1781,7 @@ async function navReloc() {                            // REAL measured fix on t
 if ($("navrun")) {
   $("navrun").onclick = navRun;
   $("navcmp").onclick = navCompare;
+  if ($("navreal")) $("navreal").onclick = navRealTraverse;   // #148 real Haworth terrain-fix est-vs-truth
   $("navreloc").onclick = navReloc;
   if ($("ctxnav-run")) $("ctxnav-run").onclick = navRun;   // tab-contextual left: same estimator run
   ["navsig", "navstand"].forEach((id) => { const el = $(id); if (el) { el.oninput = navGate; el.onchange = navGate; } });
