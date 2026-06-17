@@ -76,6 +76,10 @@ def measure_pair(pose_dir: str, scene_dir: str, *, pair_key: str = "stereo_rear"
     hmask = vm & np.isfinite(truth_h) & np.isfinite(Pw[..., 1])
     herr = (Pw[..., 1] - truth_h)[hmask]
     hn = int(herr.size)
+    # PM-14: the observed point cloud is the set of back-projected valid world points; report its size
+    # + ground (x, z) extent in metres -- the dense stereo reconstruction's spatial footprint.
+    pc = Pw[vm & np.isfinite(Pw).all(axis=-1)]
+    extent = [float(np.ptp(pc[:, 0])), float(np.ptp(pc[:, 2]))] if pc.shape[0] else [0.0, 0.0]
     return {
         "n_valid": n,
         "valid_frac": float(np.mean(vm)) if vm.size else 0.0,
@@ -85,6 +89,8 @@ def measure_pair(pose_dir: str, scene_dir: str, *, pair_key: str = "stereo_rear"
         "height_rmse_m": float(np.sqrt(np.mean(herr ** 2))) if hn else float("nan"),
         "height_mean_abs_err_m": float(np.mean(np.abs(herr))) if hn else float("nan"),
         "n_height": hn,
+        "n_points": int(pc.shape[0]),
+        "pointcloud_extent_xz_m": extent,
         "band_m": [float(zlo), float(zhi)],
     }
 

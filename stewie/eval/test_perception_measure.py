@@ -33,8 +33,12 @@ def test_dense_depth_rmse_on_real_rendered_corpus():
     hrmse = r["dense_height_rmse_m"]
     assert r["n_height_total"] >= 1000 and 0.0 < hrmse < 0.5, f"dense height RMSE {hrmse} m implausible"
     # the per-pair band is the objective TRL5 band, not the full sensor range
-    lo, hi = r["per_pair"][0]["band_m"]
+    pp0 = r["per_pair"][0]
+    lo, hi = pp0["band_m"]
     assert 0.0 < lo < hi < 12.0
+    # PM-14: the observed point cloud has a real size + finite ground (x,z) footprint
+    assert pp0["n_points"] > 0 and len(pp0["pointcloud_extent_xz_m"]) == 2
+    assert all(e >= 0.0 for e in pp0["pointcloud_extent_xz_m"])
 
 
 def test_measure_pair_skips_a_pose_dir_without_renders(tmp_path):
