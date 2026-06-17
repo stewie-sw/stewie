@@ -160,5 +160,25 @@ function clearTracks() {
   }
 }
 
+// slice 3: walk the rover along an order-frame polyline on a looping clock (the "watch the rover
+// drive the plan" dry-run). Interpolates between poses; samples the surface for z via setRover.
+function animateRover(points, durationMs) {
+  stopRoverAnim();
+  if (!points || !points.length) return;
+  if (points.length === 1) { setRover(points[0][0], points[0][1]); return; }
+  const dur = Math.max(1500, durationMs || 9000), seg = points.length - 1;
+  let start = null;
+  function step(ts) {
+    if (start === null) start = ts;
+    const f = ((ts - start) % dur) / dur;                 // 0..1, looping
+    const g = f * seg, i = Math.min(seg - 1, Math.floor(g)), t = g - i;
+    const a = points[i], b = points[i + 1];
+    setRover(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t);
+    S._roverRAF = requestAnimationFrame(step);
+  }
+  S._roverRAF = requestAnimationFrame(step);
+}
+function stopRoverAnim() { if (S._roverRAF) { cancelAnimationFrame(S._roverRAF); S._roverRAF = 0; } }
+
 window.STEWIE3D = { mount, render, setRover, setPath, setSun, clearTracks, heightAt,
-  get available() { return true; } };
+  animateRover, stopRoverAnim, get available() { return true; } };

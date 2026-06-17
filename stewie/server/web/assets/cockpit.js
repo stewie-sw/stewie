@@ -2947,20 +2947,26 @@ function open3D() {
   const host = $("td3d"); if (!host || !window.STEWIE3D) { setQ("3D view unavailable (three.js not loaded)"); return; }
   STEWIE3D.mount(host);
   const site = (typeof CURRENT_SITE !== "undefined" && CURRENT_SITE) || "haworth";
-  fetch("/dem/heightfield?site=" + encodeURIComponent(site) + "&n=129&window_m=300", { headers: apiHeaders() })
+  const loc = LAST_LOCALIZATION;
+  // fit the window to the mission extent (the order frame is anchored at 0): cover orders + trajectory
+  let maxc = 120;
+  (typeof ORDERS !== "undefined" ? ORDERS : []).forEach((o) => { maxc = Math.max(maxc, o.x || 0, o.y || 0); });
+  if (loc && loc.trajectory) loc.trajectory.forEach((p) => {
+    maxc = Math.max(maxc, p["true"][0], p["true"][1], p.est[0], p.est[1]); });
+  const win = Math.min(2000, Math.max(120, Math.round(maxc * 1.2)));
+  fetch("/dem/heightfield?site=" + encodeURIComponent(site) + "&n=129&window_m=" + win, { headers: apiHeaders() })
     .then((r) => r.json()).then((hf) => {
       if (!hf || !hf.ok) { setQ("3D: heightfield unavailable for " + site); return; }
       STEWIE3D.render(hf);
-      STEWIE3D.clearTracks();
-      const loc = LAST_LOCALIZATION;
+      STEWIE3D.clearTracks(); STEWIE3D.stopRoverAnim();
       if (loc && loc.trajectory && loc.trajectory.length) {
-        STEWIE3D.setPath(loc.trajectory.map((p) => p["true"]), 0xf3b13a);   // physics truth
+        const truth = loc.trajectory.map((p) => p["true"]);
+        STEWIE3D.setPath(truth, 0xf3b13a);                                  // physics truth
         STEWIE3D.setPath(loc.trajectory.map((p) => p.est), 0x35e0d0);       // estimator belief
-        const last = loc.trajectory[loc.trajectory.length - 1];
-        STEWIE3D.setRover(last["true"][0], last["true"][1]);
-        setQ("3D dry-run: " + loc.trajectory.length + " poses on the real DEM (truth vs estimate)");
+        STEWIE3D.animateRover(truth);                                       // watch the rover drive the plan
+        setQ("3D dry-run: " + truth.length + " poses on the real DEM (truth vs estimate)");
       } else {
-        setQ("3D terrain loaded — plan a mission to see the rover path");
+        setQ("3D terrain loaded — plan a mission to see the rover drive it");
       }
     }).catch(() => setQ("3D: heightfield fetch failed"));
 }
@@ -2972,6 +2978,7 @@ if ($("exec3d")) $("exec3d").onclick = () => {
   $("exec3d").style.borderColor = TD3D_ON ? "var(--accent)" : "";
   if ($("exec-mode-lbl")) $("exec-mode-lbl").textContent = TD3D_ON ? "3D terrain dry-run" : "execution top-down";
   if (TD3D_ON) open3D();
+  else if (window.STEWIE3D) STEWIE3D.stopRoverAnim();
 };
 
 // ---- compare algorithms: POST /compare -> a table sorted by the chosen objective --------------
