@@ -140,3 +140,56 @@ def test_registration_can_be_closed(client, monkeypatch):
                                             "password": "a-strong-passphrase"})
     assert r.status_code == 403
     assert client.get("/auth/config").json()["registration_open"] is False
+
+
+# ---- backend user creation (control panel): a director creates an account directly --------------
+
+def test_admin_create_operator_is_immediately_active(client):
+    """Director-creates an account with email+password+role in one step (no register->approve dance).
+    Works even when self-service registration is CLOSED -- the control-panel path is independent."""
+    r = client.post("/admin/operators/create", headers={"X-API-Key": "test-key"},
+                    json={"email": "made@example.com", "password": "made-strong-passphrase",
+                          "role": "operator"})
+    assert r.status_code == 200, r.text
+    op = r.json()["operator"]
+    assert op["status"] == "active" and op["role"] == "operator" and op["approved_by"] == "api-key"
+    # it can sign in immediately, keyless, with NO approval step
+    r2 = client.post("/auth/login", json={"email": "made@example.com",
+                                          "password": "made-strong-passphrase"})
+    assert r2.status_code == 200 and r2.json()["role"] == "operator"
+
+
+def test_admin_create_operator_works_when_registration_closed(client, monkeypatch):
+    monkeypatch.setenv("STEWIE_REGISTRATION", "0")
+    assert client.post("/auth/register", json={"email": "no@example.com",
+                                               "password": "a-strong-passphrase"}).status_code == 403
+    r = client.post("/admin/operators/create", headers={"X-API-Key": "test-key"},
+                    json={"email": "yes@example.com", "password": "a-strong-passphrase", "role": "trainee"})
+    assert r.status_code == 200 and r.json()["operator"]["status"] == "active"
+
+
+def test_admin_create_operator_validates(client):
+    # unknown role -> 400
+    assert client.post("/admin/operators/create", headers={"X-API-Key": "test-key"},
+                       json={"email": "a@example.com", "password": "strong-enough-pass",
+                             "role": "superuser"}).status_code == 400
+    # weak password -> 400
+    assert client.post("/admin/operators/create", headers={"X-API-Key": "test-key"},
+                       json={"email": "b@example.com", "password": "short",
+                             "role": "operator"}).status_code == 400
+    # duplicate email -> 400 (the second create is refused)
+    client.post("/admin/operators/create", headers={"X-API-Key": "test-key"},
+                json={"email": "dup@example.com", "password": "first-strong-pass", "role": "operator"})
+    assert client.post("/admin/operators/create", headers={"X-API-Key": "test-key"},
+                       json={"email": "dup@example.com", "password": "second-strong-pass",
+                             "role": "operator"}).status_code == 400
+
+
+def test_admin_create_operator_is_director_only(client):
+    client.post("/auth/register", json={"email": "op2@example.com", "password": "a-strong-passphrase"})
+    _approve(client, "op2@example.com", role="operator")
+    tok = client.post("/auth/login", json={"email": "op2@example.com",
+                                           "password": "a-strong-passphrase"}).json()["token"]
+    assert client.post("/admin/operators/create", headers={"Authorization": f"Bearer {tok}"},
+                       json={"email": "x@example.com", "password": "strong-enough-pass",
+                             "role": "operator"}).status_code == 403

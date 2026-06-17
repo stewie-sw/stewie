@@ -1147,6 +1147,19 @@ async function adminAction(act, email, role) {
   renderAdmin();
 }
 if ($("admin-refresh")) $("admin-refresh").onclick = renderAdmin;
+// control panel: director creates an account directly (POST /admin/operators/create), no approve dance
+if ($("admnew-create")) $("admnew-create").onclick = async () => {
+  const email = ($("admnew-email").value || "").trim();
+  const password = $("admnew-pass").value || "";
+  const role = $("admnew-role").value || "operator";
+  if (!email || !password) { alert("email + initial password required"); return; }
+  const r = await fetch("/admin/operators/create", { method: "POST", headers: apiHeaders(),
+    body: JSON.stringify({ email, password, role }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.ok === false) { alert(j.detail || j.error || ("create failed (" + r.status + ")")); return; }
+  $("admnew-email").value = ""; $("admnew-pass").value = "";
+  renderAdmin();
+};
 { const av = $("prof-admin"); if (av) av.addEventListener("click", () => setTimeout(renderAdmin, 0)); }
 refreshAuthState();
 if ($("set-font")) $("set-font").oninput = () => {

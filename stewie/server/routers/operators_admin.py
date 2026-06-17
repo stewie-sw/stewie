@@ -44,6 +44,25 @@ def operators_list(_d: str = Depends(require_director)):
     return {"ok": True, "operators": OPS.list_all()}
 
 
+@router.post("/admin/operators/create")
+def operators_create(body: dict, director: str = Depends(require_director)):
+    """Director-creates an immediately-ACTIVE operator account in one step -- no self-service
+    register -> approve dance, and it works even when public registration is closed. The director
+    sets the initial password; the operator signs in at once and can change it via /auth/password.
+    Role defaults to operator. Validation (email / password length / role / duplicate) is enforced
+    by operators.create_active -> register (ValueError -> 400)."""
+    from stewie.server import operators as OPS
+    email = str(body.get("email", "")).strip().lower()
+    password = str(body.get("password", ""))
+    role = str(body.get("role", "operator"))
+    try:
+        rec = OPS.create_active(email, password, role=role, by=director)
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    log_event(director, "admin.operator.create", f"{email} as {role}")
+    return {"ok": True, "operator": rec}
+
+
 @router.post("/admin/operators/approve")
 def operators_approve(body: dict, director: str = Depends(require_director)):
     from stewie.server import operators as OPS

@@ -780,9 +780,16 @@
         <div id="evbox" style="padding:6px 4px"><span style="opacity:.6">—</span></div>
       </div>
       <div id="pane-admin" class="pane">
-        <div class="cap"><span>ADMIN — operator accounts (#117: approve · role · revoke · reset password · delete)</span>
+        <div class="cap"><span>ADMIN — operator accounts (create · approve · role · revoke · reset · delete)</span>
           <button class="site" id="admin-refresh" style="font-size:10px">refresh</button></div>
         <div style="padding:10px 4px">
+          <div id="admincreate" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:10px;border:1px solid var(--line);border-radius:8px">
+            <span style="font-family:'Orbitron',system-ui,sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--muted);width:100%">CREATE OPERATOR — add an account directly (no request-access step)</span>
+            <input id="admnew-email" type="email" placeholder="email" style="flex:1 1 12em" autocomplete="off" />
+            <input id="admnew-pass" type="password" placeholder="initial password (min 10)" style="flex:1 1 12em" autocomplete="new-password" />
+            <select id="admnew-role"><option value="trainee">trainee</option><option value="operator" selected>operator</option><option value="director">director</option></select>
+            <button class="site" id="admnew-create" style="font-size:10px">+ Create</button>
+          </div>
           <table id="adminroster">
             <thead><tr><th>email</th><th>role</th><th>status</th><th>last login</th><th>actions</th></tr></thead>
             <tbody id="adminrows"><tr><td colspan="5" style="opacity:.6">—</td></tr></tbody>
@@ -846,6 +853,6 @@
 
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
-<script src="/assets/cockpit.js?v=028156812135"></script>
+<script src="/assets/cockpit.js?v=cab6fa888c6e"></script>
 </body>
 </html>
