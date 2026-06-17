@@ -9,8 +9,8 @@ FIX = os.path.join(os.path.dirname(__file__), "fixtures", "frame", "runtime_sens
 
 def test_exact_stereo_baseline_from_real_extrinsics():
     rig = cr.CameraRig.from_sensors(FIX)
-    # front_left/right exact mounts differ by the 0.07 m stereo baseline
-    assert abs(rig.baseline_m("front_left", "front_right") - 0.07) < 1e-3
+    # front_left/right exact mounts differ by the 0.05 m stereo baseline (SCHULER24 final combined housing)
+    assert abs(rig.baseline_m("front_left", "front_right") - 0.05) < 1e-3
 
 
 def test_front_rear_baseline_is_wide():
