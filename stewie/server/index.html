@@ -274,10 +274,13 @@
     </section>
 
     <section>
-      <h3>4 · Feasibility — quick estimate <small>(sandbox; per-order totals live in 4·Plan)</small></h3>
-      <div class="ctl"><label>pad <input id="padW" type="number" value="20" step="1" />×<input id="padL" type="number" value="20" step="1" /> m</label></div>
+      <h3>4 · Feasibility — quick estimate <small>(quick estimate; per-order totals live in 5·Plan)</small></h3>
+      <!-- Aaron 2026-06-16 ("feasibility should be set for 1 charge"): the default mission is sized to a single
+           IPEx battery charge. pad 5×5 m × cut 0.03 m = 0.75 m³ ≈ 975 kg ≈ 0.84 charge on the Moon -- feasible
+           in one sortie (no amber >1-charge flag). The old 20×20×0.10 default was ~45 charges. -->
+      <div class="ctl"><label>pad <input id="padW" type="number" value="5" step="1" />×<input id="padL" type="number" value="5" step="1" /> m</label></div>
       <div class="ctl">
-        <label>cut <input id="cut" type="number" value="0.10" step="0.01" /> m</label>
+        <label>cut <input id="cut" type="number" value="0.03" step="0.01" /> m</label>
         <label>berm <input id="bermH" type="number" value="0.30" step="0.05" /> m</label>
       </div>
       <div id="est">—</div>
@@ -435,7 +438,12 @@
       <!-- FS-20: System / Settings / Admin moved OFF the work-area tab bar into the profile menu (role-gated);
            an operator sees only the mission work areas. -->
       <style>.profitem{display:block;width:100%;text-align:left;background:none;border:none;color:var(--fg,#dcdce4);font-size:12px;padding:7px 10px;border-radius:5px;cursor:pointer}.profitem:hover{background:var(--accent);color:#fff}</style>
-      <span id="whoami" title="account" style="margin-left:auto;display:none;position:relative;align-items:center;padding:0 4px 4px 0">
+      <!-- #workspace (Aaron 2026-06-16 "still cant determine training vs live"): an always-on badge of the
+           active workspace. TRAINING (green) = safe sandbox; LIVE (red) = commands the real rover. operator+
+           can click to switch (renderWorkspace wires the click + the ns= on every mission call); trainees are
+           sandbox-pinned server-side, so their badge reads TRAINING and the toggle is inert. -->
+      <button id="wsbadge" type="button" title="active workspace" style="margin-left:auto;display:none;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.05em;border-radius:11px;padding:3px 11px;border:1px solid var(--line);background:none;font-family:'Orbitron',system-ui,sans-serif"></button>
+      <span id="whoami" title="account" style="display:none;position:relative;align-items:center;padding:0 4px 4px 0;margin-left:8px">
         <button id="profbtn" aria-haspopup="menu" aria-expanded="false" title="account menu" style="display:inline-flex;align-items:center;gap:7px;border:none;background:none;cursor:pointer;padding:2px">
           <span id="whoami-av" aria-hidden="true" style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'Orbitron',system-ui,sans-serif"></span>
           <span id="whoami-label" style="font-size:11px;color:var(--muted);max-width:13em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
@@ -738,6 +746,6 @@
 
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
-<script src="/assets/cockpit.js?v=759190d3b6b6"></script>
+<script src="/assets/cockpit.js?v=0dc07b3743a3"></script>
 </body>
 </html>

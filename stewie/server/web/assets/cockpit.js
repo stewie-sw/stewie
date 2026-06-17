@@ -342,7 +342,7 @@ function loadBody(key) {
       if (s.name === "haworth") return;                    // Haworth has the footprint already
       SITE_MARKERS.push({ site: s, ent: viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 0, ellipsoid),
-        point: { pixelSize: 7, color: Cesium.Color.fromCssColorString(s.imported ? "#3fa34d" : "#e0b300"),
+        point: { pixelSize: 5, color: Cesium.Color.fromCssColorString(s.imported ? "#3fa34d" : "#e0b300"),
                  outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
         label: { text: s.label + (s.imported ? "" : " (no DEM)"), font: "10px Orbitron, sans-serif",
                  fillColor: Cesium.Color.fromCssColorString("#c7d2e3"),
@@ -368,7 +368,7 @@ function setEdit(on) {
 function dropPin(lat, lon, text, color, ref) {             // #64: pins carry their FEATURE ref
   const pin = viewer.entities.add({
     position: Cesium.Cartesian3.fromDegrees(lon, lat, 0, ellipsoid),
-    point: { pixelSize: 8, color: Cesium.Color.fromCssColorString(color),
+    point: { pixelSize: 5, color: Cesium.Color.fromCssColorString(color),   // #pin-size (Aaron 2026-06-16: "dots too large, not precise enough") -- a smaller dot + black outline pinpoints the placed feature
              outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
     label: { text, font: "10px Orbitron, sans-serif",
              fillColor: Cesium.Color.fromCssColorString("#c7d2e3"),
@@ -381,6 +381,7 @@ function dropPin(lat, lon, text, color, ref) {             // #64: pins carry th
 }
 const PIN_REFS = new Map();                                // pin entity -> {kind, obj}
 let SELECTED_PIN = null;
+let LANDER_PIN = null;                                     // #lander-pin: the single 🛬 globe marker (unique)
 function deleteSelectedPin() {                             // #64: Delete removes feature + pin
   if (!SELECTED_PIN) return;
   const ref = PIN_REFS.get(SELECTED_PIN);
@@ -439,6 +440,12 @@ async function editPlace(lat, lon) {
     // its 100 m ring (#161) redraw via drawPlan, and the typed inputs stay in sync.
     setLander(d.x_m, d.y_m);
     if ($("landx")) { $("landx").value = LANDER_P.x; $("landy").value = LANDER_P.y; }
+    // Aaron 2026-06-16 ("cant place lander"): the lander branch never dropped a GLOBE marker the way the
+    // goto/keepout/note tools do, so a click gave no on-map feedback -- it felt like nothing happened.
+    // Drop a single 🛬 pin at the clicked lat/lon (replace the prior one so the lander stays unique).
+    if (LANDER_PIN && viewer) { viewer.entities.remove(LANDER_PIN); PIN_REFS.delete(LANDER_PIN);
+      const li = EDIT_PINS.indexOf(LANDER_PIN); if (li >= 0) EDIT_PINS.splice(li, 1); }
+    LANDER_PIN = dropPin(lat, lon, `🛬 lander ${LANDER_P.x}, ${LANDER_P.y} m`, "#39ff14", { kind: "lander" });
     drawPlan(); $("editstate").textContent = `lander @ site ${d.x_m} m E, ${d.y_m} m N (persists + saves with the mission)`;
   }
 }
@@ -512,7 +519,7 @@ function setPicked(lat, lon) {
   if (marker) viewer.entities.remove(marker);
   marker = viewer.entities.add({
     position: Cesium.Cartesian3.fromDegrees(lon, lat, 0, ellipsoid),
-    point: { pixelSize: 11, color: Cesium.Color.CYAN, outlineColor: Cesium.Color.BLACK, outlineWidth: 2 },
+    point: { pixelSize: 7, color: Cesium.Color.CYAN, outlineColor: Cesium.Color.BLACK, outlineWidth: 2 },
   });
 }
 
@@ -966,12 +973,43 @@ async function refreshAuthState() {
     gateChrome(null); }
   applyGate();   // gated app: reconcile the sign-in gate after every auth refresh (boot + session loss)
 }
+// #workspace (Aaron 2026-06-16 "still cant determine training vs live"): a VISIBLE workspace badge so the
+// operator always knows whether they are in the safe TRAINING sandbox or the LIVE mission namespace, plus
+// an operator+ toggle. The badge is TRUTHFUL: it drives the ns= on every mission read/write (refreshCatalog
+// + save + load + delete), so switching actually changes which namespace the catalog saves to and lists
+// from. A trainee is pinned to their sandbox server-side (namespace_for ignores ns for trainees), so their
+// badge always reads TRAINING and the toggle is inert.
+let WORKSPACE = (localStorage.getItem("stewie_ws") === "sandbox") ? "sandbox" : "live";
+function wsParam() { return "ns=" + WORKSPACE; }
+function renderWorkspace(role) {
+  const b = $("wsbadge"); if (!b) return;
+  if (!role) { b.style.display = "none"; return; }
+  const canSwitch = _rrank(role) >= _rrank("operator");
+  const live = canSwitch && WORKSPACE === "live";          // trainees can never be on live
+  b.textContent = (live ? "● LIVE" : "● TRAINING") + (canSwitch ? "  ⇄" : "");
+  b.style.color = live ? "#e8273f" : "#3fa34d";
+  b.style.borderColor = live ? "#e8273f" : "#3fa34d";
+  b.style.cursor = canSwitch ? "pointer" : "default";
+  b.title = (live
+    ? "LIVE workspace -- missions save to the shared live namespace that commands the real rover."
+    : "TRAINING workspace -- a safe sandbox; missions here never command the real rover.")
+    + (canSwitch ? " Click to switch." : " (trainees are pinned to the training sandbox.)");
+  b.onclick = canSwitch ? () => {
+    WORKSPACE = (WORKSPACE === "live") ? "sandbox" : "live";
+    try { localStorage.setItem("stewie_ws", WORKSPACE); } catch (e) { /* private mode */ }
+    renderWorkspace(AUTH.role);
+    setQ("workspace → " + (WORKSPACE === "live" ? "LIVE" : "TRAINING"));
+    if (typeof refreshCatalog === "function") refreshCatalog();   // re-list the now-active namespace
+  } : null;
+  b.style.display = "inline-flex";
+}
 // #117: the signed-in identity chip (who's logged in) + sign-out. renderWhoami(null) hides it; a
 // director gets the accent avatar, an operator a muted one. Function declarations -> hoisted, so
 // refreshAuthState above can call renderWhoami regardless of source order.
 function renderWhoami(identity, role) {
   const w = $("whoami"); if (!w) return;
-  if (!identity) { w.style.display = "none"; return; }
+  if (!identity) { w.style.display = "none"; renderWorkspace(null); return; }
+  renderWorkspace(role);
   const av = $("whoami-av"), lab = $("whoami-label");
   if (av) { av.textContent = (String(identity).trim()[0] || "?").toUpperCase();
     av.style.background = (role === "director") ? "var(--accent)" : "var(--muted)"; }
@@ -1687,6 +1725,7 @@ $("qreset").onclick = () => {
   ORDERS.length = 0; KEEPOUTS.length = 0; ANNOTATIONS.length = 0;
   SELECTED_ORDER = -1; LAST_ROUTES.length = 0;
   EDIT_PINS.forEach((e) => viewer && viewer.entities.remove(e)); EDIT_PINS.length = 0;
+  LANDER_PIN = null;                                        // #lander-pin: the marker was just removed above
   renderQueue(); setQ("plan reset");
 };
 if ($("drawerbtn")) {
@@ -2922,13 +2961,13 @@ refreshProfiles();                                            // populate the sa
 // ---- S-4: the Catalog (saved missions + custom structure templates) ---------------------------
 async function refreshCatalog() {
   try {
-    const ms = await (await fetch("/missions")).json();
+    const ms = await (await fetch("/missions?" + wsParam())).json();   // #workspace: list the active namespace
     const ol = $("mslist"); ol.innerHTML = "";
     (ms.missions || []).forEach((m) => {
       const li = document.createElement("li");
       li.append(`${m.title || m.name} · ${m.body} · ${m.n_orders} orders `,
         mkbtn("⤓ load", async () => {
-          const d = (await (await fetch(`/missions/${m.name}`)).json()).doc;
+          const d = (await (await fetch(`/missions/${m.name}?` + wsParam())).json()).doc;
           if (!d) return;
           if (d.body && d.body !== sel.value) { sel.value = d.body; sel.onchange(); }
           ORDERS.length = 0; (d.orders || []).forEach((o) => ORDERS.push(o));
@@ -2939,7 +2978,7 @@ async function refreshCatalog() {
           renderQueue(); setQ(`loaded mission "${m.title || m.name}"`);
         }),
         mkbtn("✕", async () => {
-          await fetch(`/missions/${m.name}`, { method: "DELETE", headers: apiHeaders() });
+          await fetch(`/missions/${m.name}?` + wsParam(), { method: "DELETE", headers: apiHeaders() });
           refreshCatalog();
         }));
       ol.appendChild(li);
@@ -2965,7 +3004,7 @@ async function refreshCatalog() {
 }
 $("mssave").onclick = async () => {
   const name = $("msname").value.trim(); if (!name) { setQ("name the mission first"); return; }
-  const r = await fetch(`/missions/${encodeURIComponent(name)}`, { method: "POST",
+  const r = await fetch(`/missions/${encodeURIComponent(name)}?` + wsParam(), { method: "POST",
     headers: apiHeaders(), body: JSON.stringify({ body: sel.value, orders: ORDERS,
       keepouts: KEEPOUTS, precedence: parsePrec(), note: $("msnotes") ? $("msnotes").value : "",
       lander: { x: LANDER_P.x, y: LANDER_P.y } }) });
