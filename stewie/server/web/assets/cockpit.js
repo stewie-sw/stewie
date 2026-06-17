@@ -3338,6 +3338,17 @@ if ($("exec3d")) $("exec3d").onclick = () => {
   if (TD3D_ON) open3D();
   else if (window.STEWIE3D) STEWIE3D.stopRoverAnim();
 };
+// #180: toggle the depth/heightfield WIRE overlay (the convergence-viz structural backdrop); default on
+let TD3D_WIRE = true;
+if ($("exec3dwire")) {
+  $("exec3dwire").style.borderColor = "var(--accent)";          // reflect the default-on state
+  $("exec3dwire").onclick = () => {
+    TD3D_WIRE = !TD3D_WIRE;
+    if (window.STEWIE3D && STEWIE3D.setWireframe) STEWIE3D.setWireframe(TD3D_WIRE);
+    $("exec3dwire").style.borderColor = TD3D_WIRE ? "var(--accent)" : "";
+    setQ(`3D wire overlay ${TD3D_WIRE ? "on" : "off"}`);
+  };
+}
 
 // ---- compare algorithms: POST /compare -> a table sorted by the chosen objective --------------
 qel("qcompare").onclick = async () => {

@@ -79,6 +79,7 @@ function _loop() {
 function render(hf) {
   if (!S.scene || !hf || !hf.z) return false;
   if (S.mesh) { S.group.remove(S.mesh); S.mesh.geometry.dispose(); S.mesh.material.dispose(); S.mesh = null; }
+  if (S.wire) { S.group.remove(S.wire); S.wire.geometry.dispose(); S.wire.material.dispose(); S.wire = null; }
   const n = hf.n, win = hf.window_m, step = win / (n - 1);
   const zmin = hf.z_min, span = Math.max(1e-6, hf.z_max - hf.z_min);
   const pos = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3);
@@ -105,6 +106,13 @@ function render(hf) {
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0.0 });
   S.mesh = new THREE.Mesh(geo, mat);
   S.group.add(S.mesh);
+  // #180: the depth/heightfield as a WIRE overlay -- the structural backdrop the convergence viz
+  // composites ephemeris sun/shadows + the lander/AprilTags onto (Aaron 2026-06-17). A neon wireframe
+  // over the lit surface; toggleable via setWireframe (default on).
+  S.wire = new THREE.LineSegments(new THREE.WireframeGeometry(geo),
+    new THREE.LineBasicMaterial({ color: 0x35e0d0, transparent: true, opacity: 0.28 }));
+  S.wire.visible = (S._wireOn !== false);
+  S.group.add(S.wire);
 
   S.win = win; S.n = n; S.step = step; S.zmin = zmin; S.hf = hf;
   S.target.set(win / 2, span * 0.35, win / 2);
@@ -129,6 +137,12 @@ function setSun(azDeg, elDeg) {
   if (!S.sun) return;
   const a = azDeg * Math.PI / 180, e = Math.max(2, elDeg) * Math.PI / 180, R = (S.win || 600) * 2;
   S.sun.position.set(R * Math.cos(e) * Math.cos(a), R * Math.sin(e), R * Math.cos(e) * Math.sin(a));
+}
+
+// #180: toggle the depth/heightfield wire overlay (the convergence-viz structural backdrop)
+function setWireframe(on) {
+  S._wireOn = !!on;
+  if (S.wire) S.wire.visible = S._wireOn;
 }
 
 // slice-3 hooks: place a rover marker on the surface at order (x,y), and draw a path polyline
@@ -180,5 +194,5 @@ function animateRover(points, durationMs) {
 }
 function stopRoverAnim() { if (S._roverRAF) { cancelAnimationFrame(S._roverRAF); S._roverRAF = 0; } }
 
-window.STEWIE3D = { mount, render, setRover, setPath, setSun, clearTracks, heightAt,
+window.STEWIE3D = { mount, render, setRover, setPath, setSun, setWireframe, clearTracks, heightAt,
   animateRover, stopRoverAnim, get available() { return true; } };
