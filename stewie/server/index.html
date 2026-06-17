@@ -38,7 +38,8 @@
     /* MOBILE-05 ROOT CAUSE: without this, Firefox/Chrome Android "font boosting" inflates fonts ~2x,
        which collided the stepper labels and oversized the chrome buttons on real phones (headless
        Chromium does not font-boost, so local captures looked fine). Pin text to its CSS px size. */
-    -webkit-text-size-adjust: 100%; -moz-text-size-adjust: 100%; text-size-adjust: 100%; }
+    -webkit-text-size-adjust: 100%; -moz-text-size-adjust: 100%; text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent; }
   body { font: var(--fontpx)/1.45 system-ui, sans-serif; background: var(--bg); color: var(--txt); display: flex; flex-direction: column; }
   /* one coherent left control sidebar + a tabbed view stage filling the rest */
   #app { display: flex; width: 100%; flex: 1 1 auto; min-height: 0; position: relative; }
@@ -124,6 +125,12 @@
   button.site:hover { border-color: var(--accent); color: var(--accent); }
   button:focus-visible, input:focus-visible, select:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* MOBILE-06: kill the browser's default tap-focus ring on buttons (the oversized blue box seen
+     around the 🔔/☰ on a phone). Keyboard focus still shows the accent ring above via :focus-visible. */
+  button:focus:not(:focus-visible) { outline: none; }
+  /* the overview-locator hillshade is legitimately dark over a PSR (Haworth) -- give it a deliberate
+     dark-panel bg + frame so an empty/dark inset reads as a map viewport, not a broken black square. */
+  #workareaimg { background: #0c0f16; border-radius: 4px; min-width: 120px; min-height: 90px; }
   .pane, #workarea, #renderpanel { background: linear-gradient(180deg, var(--head-flat, #131316), var(--panel)); }
   body.light .pane, body.light #workarea, body.light #renderpanel {
     background: linear-gradient(180deg, #e8edf5, var(--panel)); }
