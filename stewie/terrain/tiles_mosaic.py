@@ -257,7 +257,8 @@ class TileMosaic:
                         fine_cell_m=self.fine_cell_m)
 
     def _page_path(self, tr: int, tc: int) -> str:
-        assert self.page_dir is not None, "_page_path requires page_dir (paging enabled); callers guard"
+        if self.page_dir is None:   # CT-06
+            raise RuntimeError("_page_path requires page_dir (paging enabled); callers guard")
         # fingerprint the generation parameters into the path (audit M06): a page_dir reused across
         # a different seed/cell-size/tiling silently served STALE terrain
         fp = f"s{getattr(self, 'world_seed', 0)}_c{self.fine_cell_m:g}_t{self.tile_base_cells}"

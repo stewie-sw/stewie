@@ -1516,7 +1516,8 @@ def plan_multi_oracle(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
             mk = max((pv["core"]["time_s"] + delays[i] for i, pv in enumerate(per_vehicle)), default=0.0)
             if best is None or mk < best[0] - 1e-9:
                 best = (mk, list(assign))
-    assert best is not None              # the assignment x per-vehicle-order loop always runs >= once
+    if best is None:   # CT-06: the assignment x per-vehicle-order loop always runs >= once
+        raise RuntimeError("planner: no assignment produced")
     mk, best_assign = best
     return {"makespan_s": float(mk), "vehicles": int(vehicles), "n_trips": len(trips),
             "n_groups": G, "assignment": best_assign, "exact": True}

@@ -158,7 +158,8 @@ class RoverSimEnv(_BASE):
     def _update_attitude(self) -> None:
         """Recompute the rover's terrain attitude (pitch/roll via conform_pose) + the tip-over stability
         (margin + risk). Called once per reset/step; _obs + the tip terminal read the stored result."""
-        assert self.cs is not None, "reset() must run before _update_attitude"
+        if self.cs is None:   # CT-06
+            raise RuntimeError("reset() must run before _update_attitude")
         h = self.cs.derive_height()
         cf = rover.conform_pose(h, self.rc, self.yaw, cell_m=self.cell_m, payload_kg=self.payload_kg)
         self._pitch_rad = float(cf["pitch_rad"])
@@ -166,7 +167,8 @@ class RoverSimEnv(_BASE):
         self._stab = ST.stability(np.degrees(self._pitch_rad), np.degrees(self._roll_rad), **self._geo)
 
     def _obs(self) -> np.ndarray:
-        assert self.cs is not None, "reset() must run before _obs"
+        if self.cs is None:   # CT-06
+            raise RuntimeError("reset() must run before _obs")
         h = self.cs.derive_height()
         r0 = int(round(self.rc[0]))
         c0 = int(round(self.rc[1]))

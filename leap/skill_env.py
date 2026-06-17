@@ -224,7 +224,8 @@ def greedy_action(env: SkillMacroEnv):
 def _greedy_nearest_target(env: SkillMacroEnv):
     """Core M3 planner: pick the NEAREST above-target cell to cut (if drum has room) else the
     nearest below-target cell to dump. Returns (rf, cf in [0,1], mode in {+1 cut, -1 dump})."""
-    assert env.cs is not None and env.rc is not None, "reset() must run before stepping the env"
+    if env.cs is None or env.rc is None:   # CT-06
+        raise RuntimeError("reset() must run before stepping the env")
     err = env._err()
     r0, c0, r1, c1 = env.region
     rr, cc = np.mgrid[r0:r1, c0:c1]

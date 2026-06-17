@@ -522,9 +522,8 @@ def extract_tiles(cs: ColumnState, leaf_boxes, fine_cell_m: float) -> list[Tile]
         fine = refine_field(block, k)
         fine_cs = _column_state_from_fields(fine, fine_cell_m)
         # Dimension relation (§5.3): fine dims == (r1-r0)*k x (c1-c0)*k.
-        assert fine_cs.height == (r1 - r0) * k and fine_cs.width == (c1 - c0) * k, (
-            "extract_tiles: fine dims do not match (r1-r0)*k x (c1-c0)*k"
-        )
+        if not (fine_cs.height == (r1 - r0) * k and fine_cs.width == (c1 - c0) * k):   # CT-06
+            raise ValueError("extract_tiles: fine dims do not match (r1-r0)*k x (c1-c0)*k")
         tiles.append(Tile(id=tile_id, region_rc=[r0, c0, r1, c1],
                           cell_m=float(fine_cell_m), cs=fine_cs))
     return tiles

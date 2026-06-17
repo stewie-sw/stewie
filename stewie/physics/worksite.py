@@ -78,7 +78,8 @@ def coarse_base_from_bundle(bundle_dir: str) -> tuple[ColumnState, dict]:
         disturbance=fields["disturbance"].astype(np.float64),
         datum=datum,
     )
-    assert np.allclose(base.derive_height(), fields["heightmap"], atol=1e-3), "datum round-trip"
+    if not np.allclose(base.derive_height(), fields["heightmap"], atol=1e-3):   # CT-06
+        raise ValueError("datum round-trip: derived height != saved heightmap")
     return base, meta
 
 
@@ -118,7 +119,8 @@ class WorkSite:
             "datum": base.datum, "state_label": base.state_label,
             "disturbance": base.disturbance,
         }
-        assert set(BASE_FIELD_NAMES) <= set(base_fields), "base fields cover BASE_FIELD_NAMES"
+        if not set(BASE_FIELD_NAMES) <= set(base_fields):   # CT-06
+            raise ValueError("base fields must cover BASE_FIELD_NAMES")
         self.reader = ArrayBaseReader(base_fields, self.base_cell_m,
                                       world_x0=self.world_x0, world_y0=self.world_y0)
         self.mosaic = TileMosaic(self.reader, self.base_cell_m, self.fine_cell_m,

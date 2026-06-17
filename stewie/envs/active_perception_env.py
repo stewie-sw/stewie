@@ -182,5 +182,6 @@ def beam_action(env: ActivePerceptionEnv, *, lookahead: int = 4, beam_width: int
     if not beam:
         raise ValueError(f"beam_width must be >= 1 (got {beam_width}) (audit L46)")
     first_action = beam[0][3]
-    assert first_action is not None    # the loop runs >=1 iteration, so the best beam carries a real action
+    if first_action is None:    # CT-06: the loop runs >=1 iteration, so the best beam carries a real action
+        raise RuntimeError("active perception: the best beam carries no action")
     return first_action

@@ -337,7 +337,7 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 | CT-03 | P0 | Every authority mutation is transactional, conserves mass when required, and leaves all invariants valid. | P | P | P | NA |
 | CT-04 | P0 | Scene publication writes verified rasters atomically and metadata last as the commit marker. | N | N | N | NA |
 | CT-05 | P0 | Python, Godot, and ROS share a versioned schema with strict required-field, frame, dtype, and range validation. | P | P | P | NA |
-| CT-06 | P0 | Production contract checks use explicit exceptions, never removable `assert` statements. | P | P | N | NA |
+| CT-06 | P0 | Production contract checks use explicit exceptions, never removable `assert` statements. | D | D | D | NA |
 | CT-07 | P1 | Every artifact records source commit, configuration, mode, seed, schema version, and input hashes. | P | P | N | NA |
 | SF-01 | P0 | A command-timeout safing watchdog auto-issues SAFE to any RC backend (sim or real pit) when valid commands stop arriving; resets on each heartbeat. The dead-man interlock on the command path (the §19.0 safety requirement; the moment STEWIE commands hardware, this is its interlock). | D | D | D | N |
 
