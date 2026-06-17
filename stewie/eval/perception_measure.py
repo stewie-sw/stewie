@@ -130,6 +130,38 @@ def measure_corpus(corpus_dir: str, scene_dir: str, *, pairs=(("stereo_rear", "r
             "n_pairs": len(rows), "per_pair": rows}
 
 
+def excavation_volume(before_h, after_h, cell_m: float) -> dict:
+    """PM-16: cut / fill / net excavation volume (m^3) between a BEFORE and AFTER heightfield on the same
+    grid. delta = after - before per cell; CUT = material removed (delta < 0), FILL = material added
+    (delta > 0), each integrated over the cell area; NET = signed sum (negative = net removed).
+    Note: the conserved authority bulks density on cut->spoil, so geometric cut and fill volumes need
+    NOT match -- this measures the geometric volume change, not conserved mass."""
+    b = np.asarray(before_h, dtype=float)
+    a = np.asarray(after_h, dtype=float)
+    if b.shape != a.shape:
+        raise ValueError(f"before/after heightfields must share a grid: {b.shape} vs {a.shape}")
+    cell_area = float(cell_m) ** 2
+    d = a - b
+    return {
+        "cut_volume_m3": float(-d[d < 0].sum() * cell_area),
+        "fill_volume_m3": float(d[d > 0].sum() * cell_area),
+        "net_volume_m3": float(d.sum() * cell_area),
+        "changed_cells": int(np.count_nonzero(np.abs(d) > 1e-9)),
+        "cell_area_m2": cell_area,
+    }
+
+
+def volume_from_scenes(before_dir: str, after_dir: str) -> dict:
+    """PM-16 convenience: load two conserved-authority scene heightfields (same grid + cell) and return
+    the excavation cut/fill/net volume between them. REAL before/after authority states only (no
+    synthetic terrain). Raises ValueError on a cell-size or grid mismatch."""
+    gb = dt.load_scene_geometry(before_dir)
+    ga = dt.load_scene_geometry(after_dir)
+    if abs(gb["cell"] - ga["cell"]) > 1e-9:
+        raise ValueError(f"before/after cell size differs: {gb['cell']} vs {ga['cell']}")
+    return excavation_volume(gb["H"], ga["H"], gb["cell"])
+
+
 if __name__ == "__main__":              # diagnostic: python -m stewie.eval.perception_measure [corpus] [scene]
     import sys
 

@@ -47,3 +47,29 @@ def test_measure_pair_skips_a_pose_dir_without_renders(tmp_path):
     from stewie.eval.perception_measure import measure_pair
     with pytest.raises((FileNotFoundError, KeyError)):
         measure_pair(str(tmp_path), _SCENE)
+
+
+_BEFORE = os.path.join(_HERE, "..", "..", "samples", "crater_boulders")
+_AFTER = os.path.join(_HERE, "..", "..", "samples", "crater_boulders_worked")
+
+
+@pytest.mark.skipif(not (os.path.isdir(_BEFORE) and os.path.isdir(_AFTER)),
+                    reason="before/after scene pair not present")
+def test_pm16_excavation_volume_on_real_before_after():
+    """PM-16: cut/fill/net excavation volume between the REAL crater_boulders (before) and
+    crater_boulders_worked (after) conserved-authority scenes. The worked scene was excavated, so cut
+    volume > 0; net = fill - cut (signed); volumes are physically scaled (sub-m^3 on a 5 m, 2 cm patch)."""
+    from stewie.eval.perception_measure import volume_from_scenes
+    v = volume_from_scenes(_BEFORE, _AFTER)
+    assert v["cut_volume_m3"] > 0 and v["fill_volume_m3"] >= 0 and v["changed_cells"] > 100
+    assert abs(v["net_volume_m3"] - (v["fill_volume_m3"] - v["cut_volume_m3"])) < 1e-6   # net = fill - cut
+    assert 0 < v["cut_volume_m3"] < 10.0
+
+
+def test_pm16_rejects_mismatched_grids():
+    """A before/after grid mismatch is rejected, not silently broadcast into a wrong volume."""
+    import numpy as np
+
+    from stewie.eval.perception_measure import excavation_volume
+    with pytest.raises(ValueError):
+        excavation_volume(np.zeros((4, 4)), np.zeros((5, 5)), 0.02)
