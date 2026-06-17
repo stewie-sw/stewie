@@ -128,3 +128,14 @@ def measure_corpus(corpus_dir: str, scene_dir: str, *, pairs=(("stereo_rear", "r
             "dense_height_rmse_m": pooled_hrmse,
             "n_valid_total": int(n_tot), "n_height_total": int(hn_tot),
             "n_pairs": len(rows), "per_pair": rows}
+
+
+if __name__ == "__main__":              # diagnostic: python -m stewie.eval.perception_measure [corpus] [scene]
+    import sys
+
+    corpus = sys.argv[1] if len(sys.argv) > 1 else os.path.join("stewie", "eval", "validation", "g2cal")
+    scene = sys.argv[2] if len(sys.argv) > 2 else os.path.join("samples", "crater_boulders")
+    out = measure_corpus(corpus, scene)
+    print(json.dumps({k: v for k, v in out.items() if k != "per_pair"}, indent=1))
+    print(f"pairs measured: {out['n_pairs']}  (dense depth RMSE {out['dense_depth_rmse_m']*100:.1f} cm, "
+          f"height RMSE {out['dense_height_rmse_m']*100:.1f} cm)")
