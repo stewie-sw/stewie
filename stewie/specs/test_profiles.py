@@ -24,7 +24,7 @@ def test_packaged_profiles_validate_and_have_distinct_geometry():
     official = load_profile("official")
     assert stewie.status == "VERIFIED"
     assert official.status == "UNVERIFIED"
-    assert stewie.data["stereo"]["front"]["baseline_m"] == 0.07
+    assert stewie.data["stereo"]["front"]["baseline_m"] == 0.05   # SCHULER24 final combined housing
     assert official.data["stereo"]["front"]["baseline_m"] == 0.162
     assert stewie.sha256 != official.sha256
 
@@ -60,7 +60,7 @@ def test_profile_drives_ipex_specs():
     assert stewie.profile_id == "STEWIE_IPEX_V1"
     assert stewie.pack_wh == 1332.0
     assert official.pack_wh == 283.0
-    assert stewie.stereo_baseline_m == 0.07
+    assert stewie.stereo_baseline_m == 0.05
     assert official.stereo_baseline_m == 0.162
 
 

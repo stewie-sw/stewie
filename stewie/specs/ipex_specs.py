@@ -109,6 +109,10 @@ BP1_PENETRATION_KPA = (206.0, 226.0)    # Humboldt soil penetrometer range [BDSC
 # Measurements outside the band are not evidence (G2 calibration, 2026-06-10: sub-0.25 m grazing
 # views carry a systematic matcher bias from anisotropic texture smear).
 STEREO_FX_PX = 679.570327764933       # rig intrinsic at 1024x768 (Godot camera_rig)
+# G2 stereo-band input: deliberately the value the depth-truth gate (eval/test_depth_truth.py) was
+# CALIBRATED at. The RENDER TWIN now uses the real SCHULER24 final baseline 0.05 m
+# (camera_rig.BASELINE_M + the stewie_ipex_v1 profile); reconciling THIS band to 0.05 shifts the
+# working band ~0.37-1.9 m -> ~0.27-1.6 m and re-opens G2, so it is a separate dated decision (Aaron).
 STEREO_BASELINE_M = 0.07
 def stereo_range_m(num_disparities: int = 128, sigma_d_px: float = 1.0,
                    obstacle_m: float = OBSTACLE_HEIGHT_M) -> tuple:
