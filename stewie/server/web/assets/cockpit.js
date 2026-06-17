@@ -1098,29 +1098,35 @@ if (_idleMon && $("set-idle")) {
   };
 }
 function authMode(mode) {
-  ["login", "register", "setpw"].forEach((k) => { const el = $("auth-" + k);
+  ["login", "register", "setpw", "redeem"].forEach((k) => { const el = $("auth-" + k);
     if (el) el.style.display = (k === mode) ? "flex" : "none"; });
   const lt = $("auth-tab-login"), rt = $("auth-tab-register"), tabs = $("auth-tabs");
   if (lt && rt) { lt.classList.toggle("active", mode === "login"); rt.classList.toggle("active", mode === "register"); }
   // registration closed -> the register tab is hidden, so a lone "Sign in" tab just duplicates the
   // submit button. Hide the whole tab row in that case; it shows only when registration is open.
   const _regClosed = rt && rt.style.display === "none";
-  if (tabs) tabs.style.display = (mode === "setpw" || _regClosed) ? "none" : "flex";
+  if (tabs) tabs.style.display = (mode === "setpw" || mode === "redeem" || _regClosed) ? "none" : "flex";
   authMsg("");
 }
 // GATED APP (Aaron 2026-06-15): the cockpit requires sign-in. _gate=true means a no-session boot ->
 // a BLOCKING sign-in (no X, no backdrop/Esc dismiss, opaque backdrop hiding the work area). It lifts
 // only once a session exists. applyGate() reconciles it after every refreshAuthState.
 let _gate = false;
+let INVITE_TOKEN = null;                                   // #179/AG-04: token parsed from an #invite=<token> link
+{ const _hm = (location.hash || "").match(/invite=([^&]+)/); if (_hm) INVITE_TOKEN = decodeURIComponent(_hm[1]); }  // parse EARLY so the gate opens redeem, not login
 function openAuth(mode) {
   const m = $("authmodal"); if (!m) return;
-  m.style.display = "flex"; authMode(mode || "login");
+  let want = mode || "login";
+  if (want === "login" && INVITE_TOKEN) want = "redeem";    // #179: a pending invite link redeems, not logs in
+  mode = want;
+  m.style.display = "flex"; authMode(want);
   // the header X + backdrop dismiss exist only when NOT gated (a signed-in user managing their
   // account); the boot gate is mandatory, so hide the X + make the backdrop fully opaque.
   const x = $("auth-dismiss"); if (x) x.style.display = _gate ? "none" : "";
   m.style.background = _gate ? "var(--bg, #0a0a0c)" : "rgba(0,0,0,.72)";
   // UX-04: focus the ACTIVE form's first field (not the X) so keyboard/SR users land on the input.
-  const formId = (mode === "register") ? "auth-register" : (mode === "setpw") ? "auth-setpw" : "auth-login";
+  const formId = (mode === "register") ? "auth-register" : (mode === "setpw") ? "auth-setpw"
+    : (mode === "redeem") ? "auth-redeem" : "auth-login";
   const first = ($(formId) || m).querySelector("input");
   if (first) first.focus();
 }
@@ -1132,7 +1138,7 @@ function applyGate() {
   // refreshAuthState (the only caller path) runs on boot + after login/set-password, NOT on a poll, so
   // arming/disarming the idle monitor here tracks real sign-in/out transitions (no spurious resets).
   if (AUTH.identity) { _gate = false; closeAuth(); if (_idleMon) _idleMon.start(); }   // signed in -> lift gate + arm idle logout
-  else { _gate = true; openAuth("login"); if (_idleMon) _idleMon.stop(); }             // no session -> block + disarm
+  else { _gate = true; openAuth(INVITE_TOKEN ? "redeem" : "login"); if (_idleMon) _idleMon.stop(); }   // no session -> block (redeem if an invite link is present)
 }
 let _authPromptTs = 0;
 let _bootComplete = false;                                // UX-01: set true once the initial load settles
@@ -1284,6 +1290,19 @@ async function doSetPassword() {
   if (r.ok && j.ok) { authMsg("Password set.", true); await refreshAuthState(); setTimeout(closeAuth, 600); }
   else authMsg(j.error || ("could not set password (" + r.status + ")"));
 }
+async function doRedeem() {                                // #179/AG-04: redeem an invite link -> self-create an account
+  const email = $("auth-iemail").value.trim(), pass = $("auth-ipass").value;
+  if (!INVITE_TOKEN) { authMsg("no invite token in the link"); return; }
+  if (!email || !pass) { authMsg("email + password required"); return; }
+  const r = await fetch("/auth/invite/redeem", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: INVITE_TOKEN, email, password: pass }) });
+  const j = await r.json().catch(() => ({}));
+  if (r.ok && j.ok) {
+    authMsg("Account created — signing in…", true);
+    INVITE_TOKEN = null; try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    $("auth-email").value = email; $("auth-pass").value = pass; authMode("login"); await doLogin();
+  } else { authMsg(j.detail || j.error || ("redeem refused (" + r.status + ")")); }
+}
 (function wireAuth() {
   const bind = (id, fn) => { const e = $(id); if (e) e.onclick = fn; };
   bind("auth-tab-login", () => authMode("login"));
@@ -1291,6 +1310,8 @@ async function doSetPassword() {
   bind("auth-do-login", doLogin);
   bind("auth-do-register", doRegister);
   bind("auth-do-setpw", doSetPassword);
+  bind("auth-do-redeem", doRedeem);
+  if (INVITE_TOKEN) openAuth("redeem");                     // #179/AG-04: an invite link opens the redeem panel
   bind("auth-dismiss", (ev) => { ev.preventDefault(); closeAuth(); });
   // click the dimmed backdrop (outside the card) to dismiss -- no inline handler (CSP forbids it)
   const am = $("authmodal"); if (am) am.addEventListener("click", (e) => { if (e.target === am) closeAuth(); });
@@ -1390,6 +1411,22 @@ if ($("admnew-create")) $("admnew-create").onclick = async () => {
   $("admnew-email").value = ""; $("admnew-pass").value = "";
   renderAdmin();
 };
+// #179: surface the AG-03 invite mint (POST /admin/invite) -- a director mints a one-time link the
+// invitee redeems (#invite=<token>) to self-create an account. The raw token is returned once.
+if ($("invmint")) $("invmint").onclick = async () => {
+  const role = $("invrole").value || "operator";
+  const ttl_s = Math.max(1, +$("invttl").value || 7) * 86400;
+  const max_uses = Math.max(1, +$("invuses").value || 1);
+  const r = await fetch("/admin/invite", { method: "POST", headers: apiHeaders(),
+    body: JSON.stringify({ role, ttl_s, max_uses }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.ok === false) { alert(j.detail || j.error || ("mint failed (" + r.status + ")")); return; }
+  const link = `${location.origin}/#invite=${j.token}`;
+  if ($("invout")) $("invout").value = link;
+  if ($("invcopy")) { $("invcopy").style.display = "";
+    $("invcopy").onclick = () => navigator.clipboard.writeText(link).then(() => setQ("invite link copied")); }
+  setQ(`minted ${role} invite (${max_uses} use${max_uses > 1 ? "s" : ""})`);
+};
 { const av = $("prof-admin"); if (av) av.addEventListener("click", () => setTimeout(renderAdmin, 0)); }
 refreshAuthState();
 if ($("set-font")) $("set-font").oninput = () => {
@@ -1398,6 +1435,14 @@ if ($("set-font")) $("set-font").oninput = () => {
 // FS-21: reset-to-default is always available -- restore the build order of the sidebar panes
 if ($("set-resetlayout")) $("set-resetlayout").onclick = () => {
   if (window.resetPanelLayout) window.resetPanelLayout();
+};
+// #179: clear the auto-saved working draft from THIS browser (the inverse of #177's persistence) -- a clean
+// slate without touching display settings or the server-side named-mission catalog. Confirm + reload.
+if ($("set-resetws")) $("set-resetws").onclick = () => {
+  if (!confirm("Clear the auto-saved draft (orders, keep-outs, landmarks, lander, rover) from this browser? " +
+               "Display settings and saved missions are NOT affected.")) return;
+  ["stewie_draft", "stewie_lander", "stewie_last_pose"].forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} });
+  location.reload();
 };
 
 // lazy-load the engineer/dev/intern panes the first time shown (Server refreshes live each open). All read

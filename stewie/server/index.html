@@ -843,6 +843,11 @@
             <input id="set-idle" type="number" min="1" max="240" step="1" value="30" style="width:5em" />
             <span style="font-size:11px;opacity:.7">sign out after this many minutes of inactivity (#133)</span>
           </label>
+          <label style="display:flex; align-items:center; gap:10px">
+            <b>Workspace</b>
+            <button id="set-resetws" class="site">Reset local workspace</button>
+            <span style="font-size:11px;opacity:.7">clear the auto-saved draft (orders, keep-outs, landmarks, lander, rover) from this browser (#179)</span>
+          </label>
           <div style="opacity:.75">Settings persist in this browser.</div>
         </div>
       </div>
@@ -880,6 +885,15 @@
             <input id="admnew-pass" type="password" placeholder="initial password (min 10)" style="flex:1 1 12em" autocomplete="new-password" />
             <select id="admnew-role"><option value="trainee">trainee</option><option value="operator" selected>operator</option><option value="director">director</option></select>
             <button class="site" id="admnew-create" style="font-size:10px">+ Create</button>
+          </div>
+          <div id="admininvite" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:10px;border:1px solid var(--line);border-radius:8px">
+            <span style="font-family:'Orbitron',system-ui,sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--muted);width:100%">MINT INVITE — a one-time link the invitee redeems to self-create an account (AG-03)</span>
+            <select id="invrole"><option value="trainee">trainee</option><option value="operator" selected>operator</option><option value="director">director</option></select>
+            <label style="font-size:11px">TTL days<input id="invttl" type="number" min="1" max="90" value="7" style="width:4em;margin-left:3px" /></label>
+            <label style="font-size:11px">uses<input id="invuses" type="number" min="1" max="1000" value="1" style="width:4em;margin-left:3px" /></label>
+            <button class="site" id="invmint" style="font-size:10px">+ Mint invite link</button>
+            <input id="invout" readonly placeholder="the shareable invite link appears here" style="flex:1 1 100%;font-family:monospace;font-size:11px" />
+            <button class="site" id="invcopy" style="font-size:10px;display:none">copy link</button>
           </div>
           <table id="adminroster">
             <thead><tr><th>email</th><th>role</th><th>status</th><th>last login</th><th>actions</th></tr></thead>
@@ -938,6 +952,13 @@
       <input id="auth-newpass2" type="password" placeholder="confirm password" autocomplete="new-password" />
       <button class="site" id="auth-do-setpw" style="padding:8px">Set password</button>
     </div>
+    <div id="auth-redeem" style="display:none;flex-direction:column;gap:9px"><!-- #179/AG-04: redeem a one-time invite link -->
+      <div style="font-size:12px;color:var(--accent)">You have an invite — create your account</div>
+      <input id="auth-iemail" type="email" placeholder="email" autocomplete="username" />
+      <input id="auth-ipass" type="password" placeholder="choose a password (min 10 chars)" autocomplete="new-password" />
+      <button class="site" id="auth-do-redeem" style="padding:8px">Redeem invite</button>
+      <div style="font-size:11px;opacity:.6">The invite token is in your link; just set your email + password.</div>
+    </div>
     <div id="auth-msg" style="min-height:1.1em;font-size:12px;margin-top:10px;color:var(--bad,#ff6b6b)"></div>
   </div>
 </div>
@@ -945,6 +966,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=a2f2f987b1c3"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=e8da86227860"></script>
+<script src="/assets/cockpit.js?v=baad16fc8ced"></script>
 </body>
 </html>
