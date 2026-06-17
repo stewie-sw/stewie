@@ -1548,9 +1548,15 @@ function showSiteDem() {                                   // auto-show the real
   // REG-01: the work-area + plan-view preview follows the SELECTED site (not always Haworth). The site is
   // in the URL, so switching sites changes `want` -> the image reloads for the new tile.
   const want = "/dem/hillshade.png?site=" + encodeURIComponent(CURRENT_SITE) + "&v=" + i.dataset.locv;
-  i.onload = () => { if (VIEW === "plan" && sel.value === "moon") wa.classList.add("show"); };
-  if (i.complete && i.naturalWidth > 0 && i.getAttribute("src") === want) wa.classList.add("show");  // already decoded
-  else if (i.getAttribute("src") !== want) i.src = want;  // (re)load -> onload reveals it; error handler hides
+  // #167 (Aaron "body still doesn't show in work area" on Moon/Plan): reveal ROBUSTLY. The old gate only
+  // revealed-when-already-decoded if src===want, so a cached/fast image that fired its load before this
+  // handler (re)attached stayed hidden -> the panel never showed. Now: reveal on load, reveal NOW if the
+  // image is already usable (no src-match requirement), and a short fallback in case the load was missed.
+  const reveal = () => { if (VIEW === "plan" && sel.value === "moon" && i.complete && i.naturalWidth > 0) wa.classList.add("show"); };
+  i.onload = reveal;
+  if (i.getAttribute("src") !== want) i.src = want;       // (re)load -> onload reveals it; error handler hides on real failure
+  reveal();                                               // already-decoded path
+  setTimeout(reveal, 500);                                // fallback: a missed load event still reveals
 }
 // the work-area inset is collapsible -- a thin tap bar so it never blocks a phone screen. Default
 // collapsed on mobile (no saved preference); the choice persists per browser.
