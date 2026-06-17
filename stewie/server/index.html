@@ -62,6 +62,19 @@
   #stepper .step.current .dot { background: var(--txt); border-color: var(--txt); box-shadow: 0 0 0 3px rgba(232,39,63,.30); }
   #stepper .step.locked { opacity: .38; cursor: not-allowed; }
   #stepper .step.viewactive { color: var(--accent); }
+  /* #126: the guided-walkthrough modal (first-run + ❔ Guide) */
+  #guidemodal { position: fixed; inset: 0; z-index: 300; background: rgba(2,4,8,.72);
+    display: flex; align-items: center; justify-content: center; padding: 20px; }
+  #guidemodal[hidden] { display: none; }
+  #guidemodal .guidecard { max-width: 560px; width: 100%; max-height: 86vh; overflow: auto;
+    background: var(--panel, #14141c); border: 1px solid var(--line); border-radius: 12px;
+    padding: 22px 24px; box-shadow: 0 18px 60px rgba(0,0,0,.6); }
+  #guidemodal .guidehd { font-family: 'Orbitron', system-ui, sans-serif; font-size: 14px; font-weight: 800;
+    letter-spacing: .08em; color: var(--txt); margin-bottom: 14px; }
+  #guidemodal .guidesteps { margin: 0 0 18px; padding-left: 20px; line-height: 1.7; font-size: 12px; color: var(--muted); }
+  #guidemodal .guidesteps b { color: var(--txt); }
+  #guidemodal .guidesteps small { opacity: .6; }
+  #guidemodal .guideft { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
   .pulse { animation: pulsehl 1.6s ease-out 1; }
   @keyframes pulsehl { 0% { box-shadow: 0 0 0 0 rgba(232,39,63,.6); } 100% { box-shadow: 0 0 0 16px rgba(232,39,63,0); } }
   /* MOBILE-05: track the *dynamic* viewport (collapsing address bar) so the flex-column body fills the
@@ -289,6 +302,25 @@
   <button class="step" data-step="solve"><span class="dot"></span>Solve</button>
   <button class="step" data-step="review"><span class="dot"></span>Review</button>
   <button class="step" data-step="execute"><span class="dot"></span>Execute</button>
+  <button id="guidebtn" title="how the planning workflow works" style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-family:'Orbitron',system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;padding:4px 10px;cursor:pointer;white-space:nowrap">&#10067; Guide</button>
+</div>
+<!-- #126: the first-run guided walkthrough of the mission pipeline (Site -> ... -> Execute). -->
+<div id="guidemodal" role="dialog" aria-modal="true" aria-label="how to plan a mission" hidden>
+  <div class="guidecard">
+    <div class="guidehd">STEWIE &mdash; how to plan a mission</div>
+    <ol class="guidesteps">
+      <li><b>Site</b> &mdash; pick where on the Moon to build: click the globe on the Plan tab, or choose a bundled site. <small>(1&middot;Site)</small></li>
+      <li><b>Fleet</b> &mdash; set the rover count and the max slope they may traverse. <small>(3&middot;Fleet)</small></li>
+      <li><b>Orders</b> &mdash; place cut / fill build orders on the map, plus keep-outs and precedence. <small>(5&middot;Plan)</small></li>
+      <li><b>Solve</b> &mdash; press <b>Plan mission</b>: the planner routes around hazards, balances cut&harr;fill mass, and schedules under the battery budget.</li>
+      <li><b>Review</b> &mdash; read the mission-control report (Report tab) and the metrics; check feasibility and the as-built flatness.</li>
+      <li><b>Execute</b> &mdash; watch the dry-run on the real terrain (Metrics &rarr; &#9638; 3D) <i>before</i> any uplink. Live execution is gated to a live mission.</li>
+    </ol>
+    <div class="guideft">
+      <button id="guide-sample" class="site" style="font-size:11px">&#9654; Load a sample mission to follow along</button>
+      <button id="guide-close" class="go" style="font-size:11px">Got it</button>
+    </div>
+  </div>
 </div>
 <div id="app">
   <aside id="panel">
@@ -865,6 +897,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=a2f2f987b1c3"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=3ad0889120dc"></script>
+<script src="/assets/cockpit.js?v=77ab139fea41"></script>
 </body>
 </html>

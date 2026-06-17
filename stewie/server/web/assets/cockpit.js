@@ -3264,5 +3264,18 @@ function renderStepper() {
   wrap.querySelectorAll(".step").forEach((b) => { b.onclick = () => goStep(b.dataset.step); });
 })();
 
+// #126: the guided walkthrough -- discoverable via the stepper's ❔ Guide button (no auto-popup, so it
+// never stacks over the sign-in screen); the sample CTA reuses the existing mission loader.
+function openGuide() { if ($("guidemodal")) $("guidemodal").hidden = false; }
+function closeGuide() { if ($("guidemodal")) $("guidemodal").hidden = true; }
+if ($("guidebtn")) $("guidebtn").onclick = openGuide;
+if ($("guide-close")) $("guide-close").onclick = closeGuide;
+if ($("guidemodal")) $("guidemodal").addEventListener("click", (e) => { if (e.target.id === "guidemodal") closeGuide(); });
+if ($("guide-sample")) $("guide-sample").onclick = () => {
+  closeGuide(); setView("plan");
+  const ss = $("qsample");
+  if (ss && ss.options.length && $("qloadsample")) { if (!ss.value) ss.value = ss.options[0].value; $("qloadsample").click(); }
+};
+
 loadBody("moon"); estimate(); renderQueue(); renderKeepouts(); setView("plan");
 _bootComplete = true;                                     // UX-01: boot done -> 401s may now nudge sign-in
