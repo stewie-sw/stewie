@@ -16,6 +16,10 @@ import math
 from stewie.bridge import rc_contract as RC
 
 _EPS = 1e-3
+# The cmd_vel carrot is a MOVING short-horizon goal re-projected each twist, not a discrete waypoint:
+# the default 1-cell GoTo arrival radius would SWALLOW a typical projection (e.g. 1 m/s x 1 s = 1 cell)
+# so the rover would register "already arrived" and never move. A tight radius keeps the carrot ahead.
+_GOAL_RADIUS_CELLS = 0.1
 
 
 def twist_to_command(linear_x: float, angular_z: float, *, pose: RC.Pose, horizon_s: float = 1.0,
@@ -32,7 +36,8 @@ def twist_to_command(linear_x: float, angular_z: float, *, pose: RC.Pose, horizo
     dcol = dist_m * math.cos(yaw) / float(cell_m)                        # +x == column, along the heading
     drow = dist_m * math.sin(yaw) / float(cell_m)                        # +y == row
     return RC.GoTo(leg_id=leg_id, goal_row=float(pose.row) + drow,
-                   goal_col=float(pose.col) + dcol, v_max_mps=abs(float(linear_x)))
+                   goal_col=float(pose.col) + dcol, v_max_mps=abs(float(linear_x)),
+                   goal_radius_cells=_GOAL_RADIUS_CELLS)
 
 
 def yaw_to_quaternion(yaw: float):
@@ -53,6 +58,24 @@ def pose_to_odom(pose: RC.Pose) -> dict:
             "yaw": float(pose.yaw_rad), "qz": qz, "qw": qw, "v": float(pose.v_achieved_mps),
             "slip": float(pose.slip), "sinkage_m": float(pose.sinkage_m),
             "entrapped": bool(pose.entrapped)}
+
+
+def sim_pose_source(backend):
+    """A ``pose_source`` for make_ros2_node that DRAINS a polling RCBackend (e.g. rc_contract.SimBackend)
+    each odom tick and returns its latest Pose -- so a /cmd_vel goal actually advances the conserved sim
+    and the resulting motion publishes on /stewie/odom (the closed cmd_vel -> sim -> /stewie/odom loop).
+    Returns None until the first Pose. No fabricated motion: the Pose is whatever the backend produced
+    from the commands the SF-01 watchdog forwarded to it. Pass the SAME backend instance the watchdog
+    targets, so commands and telemetry share one sim."""
+    state = {"last": None}
+
+    def _src():
+        for t in backend.poll():
+            if getattr(t, "kind", None) == "pose":
+                state["last"] = t
+        return state["last"]
+
+    return _src
 
 
 class RcBridge:
@@ -108,6 +131,9 @@ def make_ros2_node(watchdog: RC.SafingWatchdog, *, cmd_vel_topic: str = "/cmd_ve
       - 2026-06-17 (egress): with pose_source -> Pose(row=4, col=9, yaw=pi/2), a subscriber on /stewie/odom
         received nav_msgs/Odometry x=9, y=4, qz=qw=0.7071 (yaw pi/2), v=0.2, frame_id=map -- the perceive
         side of the seam (Nav2/Autoware can localize off the same bridge it drives through).
+      - 2026-06-17 (CLOSED LOOP): watchdog target = SimBackend, pose_source = sim_pose_source(backend);
+        a sustained /cmd_vel (1 m/s) drove the sim forward on /stewie/odom x 0.10 -> 2.40 cells over 2.6 s
+        -- cmd_vel -> SF-01 -> sim -> /stewie/odom closes end to end on live ROS2.
     Reproduce (ingress):
         docker run --rm -v "$PWD:/ws" -e PYTHONPATH=/ws stewie-ros2:latest python3 -c \\
           "from stewie.bridge import ros2_bridge as B, rc_contract as RC; \\

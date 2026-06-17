@@ -32,6 +32,15 @@ def test_forward_twist_drives_ahead_along_heading():
     assert cmd.v_max_mps == pytest.approx(0.3)
 
 
+def test_cmd_vel_goal_radius_is_tighter_than_the_projection_so_the_rover_moves():
+    # regression: a 1 m/s x 1 s projection is 1 cell ahead; the GoTo radius must be < that, else the
+    # SimBackend reports "already arrived" and the rover never drives (caught on the live closed loop)
+    cmd = B.twist_to_command(1.0, 0.0, pose=_pose(row=0, col=0, yaw=0.0), horizon_s=1.0, cell_m=1.0)
+    assert isinstance(cmd, RC.GoTo)
+    dist_cells = math.hypot(cmd.goal_row, cmd.goal_col)
+    assert cmd.goal_radius_cells < dist_cells               # the carrot is genuinely ahead of the radius
+
+
 def test_turn_rate_rotates_the_short_horizon_goal():
     cmd = B.twist_to_command(0.3, math.pi / 2, pose=_pose(row=10, col=10, yaw=0.0), horizon_s=1.0)
     assert isinstance(cmd, RC.GoTo)
@@ -66,6 +75,18 @@ def test_rcbridge_exposes_current_pose_odom_for_publishing():
     bridge.update_pose(RC.Pose(leg_id=0, row=4.0, col=9.0, yaw_rad=0.0))
     od = bridge.pose_odom()
     assert od["x"] == 9.0 and od["y"] == 4.0 and od["frame_id"] == "map"
+
+
+def test_sim_pose_source_closes_cmd_vel_to_odom_loop():
+    # the egress pose_source that drains a SimBackend: a GoTo advances the sim, odom follows it
+    be = RC.SimBackend(start_rc=(0.0, 0.0), cell_m=1.0, dt_s=1.0)
+    src = B.sim_pose_source(be)
+    assert src() is None                                       # no telemetry before any command
+    be.submit(RC.GoTo(leg_id=0, goal_row=0.0, goal_col=10.0, v_max_mps=1.0))
+    p1 = src()
+    assert p1 is not None and p1.col > 0.0                     # stepped toward the goal
+    p2 = src()
+    assert p2.col > p1.col                                     # keeps advancing along the live sim
 
 
 # ---- the SF-01-routed cmd_vel ingress (the safety property over ROS2) --------------------------
