@@ -78,6 +78,22 @@ def test_report_pdf_round_trips_through_reports_route(client):
     assert mr.status_code == 200 and "text/markdown" in mr.headers["content-type"] and len(mr.content) > 0
 
 
+def test_plan_honors_requested_slope_budget(client):
+    """The operator slope budget (max traverse slope) threads request -> planner -> result: the
+    response's traverse_cap_deg must equal the requested cap (default 25). A real planner param
+    (the routing traversability gate), now exposed -- not a cosmetic field."""
+    base = {"name": "Slope", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut", "kind": "cut", "x": 40, "y": 30, "footprint_m2": 36, "depth_m": 0.04},
+        {"action": "fill", "kind": "fill", "x": 44, "y": 44, "footprint_m2": 14, "depth_m": 0.10}]}
+    d = client.post("/plan", json=base).json()
+    assert d["totals"]["traverse_cap_deg"] == 25.0, d["totals"].get("traverse_cap_deg")
+    c = client.post("/plan", json={**base, "max_traverse_slope_deg": 12.0}).json()
+    assert c["totals"]["traverse_cap_deg"] == 12.0, c["totals"].get("traverse_cap_deg")
+    # out-of-range is REJECTED by the typed schema (not silently clamped); this server normalizes
+    # request-validation errors to its contracted 400 {ok:false} (like the bad-JSON path), not raw 422
+    assert client.post("/plan", json={**base, "max_traverse_slope_deg": 80.0}).status_code == 400
+
+
 # ---- POST error paths ---------------------------------------------------------------------------
 def test_post_unknown_route_404(client):
     r = client.post("/nope", json={})

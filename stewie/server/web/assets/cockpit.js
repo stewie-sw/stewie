@@ -2525,7 +2525,8 @@ qel("qplan").onclick = async () => {
     const res = await fetch("/plan", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify({ name: `${BODIES[sel.value].name} build`, body: sel.value, charger: [0, 0],
         orders: ORDERS, algorithm: qel("qalgo").value, objective: qel("qobj").value, precedence: parsePrec(),
-        keepouts: KEEPOUTS, ...fleet(), ...site() }) });
+        keepouts: KEEPOUTS, max_traverse_slope_deg: +(qel("qslope") ? qel("qslope").value : 25),
+        ...fleet(), ...site() }) });
     const j = await res.json();
     if (res.status === 401) { setQ("⚠ API key required: paste it in ⚙ Settings (server key lives in deploy/.env)"); setView("settings"); return; }
     if (!j.ok) { setQ("error: " + j.error); return; }

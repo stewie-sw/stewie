@@ -90,6 +90,7 @@ class PlanRequest(BaseModel):
     lon: float | None = Field(default=None, ge=-360.0, le=360.0)
     vehicles: int = Field(default=1, ge=1, le=16)               # MV: fleet size (>1 -> multi-vehicle plan)
     site: str = Field(default="haworth", max_length=40)        # REG-01: which imported site DEM to plan on
+    max_traverse_slope_deg: float = Field(default=25.0, ge=5.0, le=45.0)   # operator slope budget: the routing traversability gate (planner default 25 deg)
 
 
 def _totals_json(totals):
@@ -300,21 +301,23 @@ def _plan_impl(req: PlanRequest, payload: dict):
             dem, origin = None, (0.0, 0.0)
         # RB-03: compute the plan ONCE (incl. as-built validation + endurance); report/timeline/IR and the
         # validation/endurance fields are all VIEWS of this single result (no independent recompute).
+        slope_cap = req.max_traverse_slope_deg          # operator slope budget -> routing traversability gate
         result = MP.plan(mission, dem=dem, dem_origin=origin, algorithm=req.algorithm,
-                         objective=req.objective, vehicles=req.vehicles, with_acceptance=True)
+                         objective=req.objective, vehicles=req.vehicles,
+                         max_traverse_slope_deg=slope_cap, with_acceptance=True)
         # I10: hauls routed around hazards on the real DEM; I8 + I6/M11 slope-feasible siting.
         with report_lock:                              # serialize the thread-unsafe matplotlib report path
             pdf, md, totals = MP.run(mission, stem=_plan_stem(payload), dem=dem, dem_origin=origin,
                                      algorithm=req.algorithm, objective=req.objective,
-                                     vehicles=req.vehicles, result=result)
+                                     vehicles=req.vehicles, max_traverse_slope_deg=slope_cap, result=result)
         validation = result.validation                  # RB-03: from the one result, not a recompute
-        timeline = MP.build_timeline(mission, dem=dem, dem_origin=origin,
+        timeline = MP.build_timeline(mission, dem=dem, dem_origin=origin, max_traverse_slope_deg=slope_cap,
                                      algorithm=req.algorithm, objective=req.objective, result=result)
         endurance = result.endurance
         autonomy, perception = _autonomy_perception(mission, dem, origin, req.algorithm, req.objective)
         plan_ir = MP.plan_ir(mission, dem=dem, dem_origin=origin,                # the machine-executable plan
                              algorithm=req.algorithm, objective=req.objective,
-                             vehicles=req.vehicles, result=result)
+                             vehicles=req.vehicles, max_traverse_slope_deg=slope_cap, result=result)
         # H-07 follow-up: ORDERED IR-replay acceptance -- walk the trips in plan order through a bounded
         # drum so the order-dependent surface + drum-supply sequencing the pooled validate_plan flattens
         # are surfaced. Drop the per-cell as_built array from the API (keep the scalar verdict).
