@@ -339,3 +339,18 @@ def test_dem_terrain_fix_recovers_drifted_pose_and_abstains_on_flat():
     # a perfectly flat DEM is unregisterable -> None (no manufactured fix)
     flat = (np.zeros((400, 400)), float(cell))
     assert A._dem_terrain_fix(flat, (0.0, 0.0), (100.0, 100.0), (100.0 + 2 * cell, 100.0), 2.0) is None
+
+
+def test_beacon_fix_recovers_in_range_grows_with_range_and_abstains_far():
+    """Slice 1b: the lander/charger AprilTag BEACON fix gives a real feature-based fix on the FLAT work
+    area where terrain scan-match abstains. Near-truth + tight close, sigma grows with range, deterministic
+    (no seed), and None beyond fiducial-detection range (then odometry carries)."""
+    from lode import autonomy as A
+    beacon = (0.0, 0.0)
+    close = A._beacon_fix(beacon, (10.0, 0.0))
+    far = A._beacon_fix(beacon, (50.0, 0.0))
+    assert close is not None and far is not None
+    assert abs(close["xy"][0] - 10.0) < 1.0 and abs(close["xy"][1]) < 1.0    # recovers near the true pose
+    assert far["sigma"] > close["sigma"]                                     # AprilTag accuracy degrades with range
+    assert A._beacon_fix(beacon, (10.0, 0.0)) == close                       # deterministic (no seeded RNG)
+    assert A._beacon_fix(beacon, (5000.0, 0.0)) is None                      # out of detection range -> no fix

@@ -220,6 +220,31 @@ def _dem_terrain_fix(dem, dem_origin, true_pose, guess_xy, base_sigma_m):
     return dem_position_fix(observed, dem, (gr, gc), ref_rc=ref_rc, base_sigma_m=base_sigma_m)
 
 
+def _beacon_fix(beacon_xy, true_pose, *, max_range_m=60.0, fx_px=900.0, sigma_px=1.0, tag_size_m=0.5):
+    """REAL feature-based fix from the lander/charger AprilTag BEACON -- the localization the flat work area
+    needs when terrain scan-match abstains (a flat region carries no DEM signature, but a fiducial on the
+    known-position lander does). The rover sights the tag and recovers its position from the bearing+range
+    to the KNOWN beacon (dart.dock_pose: AprilTag accuracy is tight up close, degrading with range). I3 /
+    no-optimistic-fix: the observation is QUANTIZED to the camera's pixel grid (a real detection-resolution
+    limit), so the recovered mean carries a deterministic sub-pixel detection error rather than being the
+    exact truth, and sigma grows with range. Returns {'xy','sigma'} in the beacon's frame, or None when the
+    beacon is out of detection range (then odometry carries until the next fix / the charger dock). NO
+    seeded RNG -- deterministic in the geometry."""
+    import math as _m
+    dx, dy = true_pose[0] - beacon_xy[0], true_pose[1] - beacon_xy[1]
+    rng = _m.hypot(dx, dy)
+    if rng < 1e-3 or rng > max_range_m:                    # at the beacon, or beyond fiducial-detection range
+        return None
+    bearing_res = sigma_px / fx_px                         # angular detection step [rad] (pixel-limited)
+    px_size = max(1e-6, tag_size_m * fx_px / rng)          # tag apparent size [px] at this range
+    range_res = rng / px_size * sigma_px                   # metric range step from +/-sigma_px on that size
+    b_q = round(_m.atan2(dy, dx) / bearing_res) * bearing_res          # pixel-quantized bearing
+    r_q = round(rng / range_res) * range_res if range_res > 0 else rng  # pixel-quantized range
+    fix_xy = (beacon_xy[0] + r_q * _m.cos(b_q), beacon_xy[1] + r_q * _m.sin(b_q))
+    sigma = _m.hypot(bearing_res * rng, range_res)         # lateral (bearing) + range sigma; both grow with rng
+    return {"xy": fix_xy, "sigma": float(max(sigma, 1e-3))}
+
+
 def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto", objective="time",
                     max_traverse_slope_deg=25.0, perception_sigma_m=None, dig_sigma_gate_m=0.20, seed=0):
     """Run the AutoNav-style loop as an OVERLAY on the ONE canonical plant (A-03). The plan, vehicle,
@@ -314,8 +339,12 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
         # aliased region returns no fix and odometry carries; a confident match corrects the drift. The
         # guaranteed fix is the charger DOCK at mission end (a known-landmark fix). The old code fused
         # true_pose + N(0,sigma) -- a truth stand-in -- which is removed.
-        if perception_sigma_m is not None and dem is not None:
-            fix = _dem_terrain_fix(dem, dem_origin, true_pose, (belief.x, belief.y), perception_sigma_m)
+        if perception_sigma_m is not None:
+            fix = _dem_terrain_fix(dem, dem_origin, true_pose, (belief.x, belief.y),
+                                   perception_sigma_m) if dem is not None else None
+            if fix is None:                                # flat / no-terrain-signature -> the lander/charger
+                beacon = mission.lander if mission.lander is not None else tuple(mission.charger)
+                fix = _beacon_fix(beacon, true_pose)       # AprilTag fiducial fix (range-gated; the flat-area fix)
             if fix is not None:
                 belief = update_pose(belief, fix["xy"], float(fix["sigma"]))
                 perception_fixes += 1
