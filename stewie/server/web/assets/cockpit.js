@@ -3290,6 +3290,17 @@ function wizReset() {
   STEP_DONE[WIZ_STEP] = false; persistDraft(); renderStepper();
   setQ(WIZ_STEP.charAt(0).toUpperCase() + WIZ_STEP.slice(1) + " reset — re-confirm with Done");
 }
+// #170: step -> sidebar sections. Clicking a step shows ONLY its sections (Aaron: "Site should pull up
+// 1/2"); the rest collapse. The numbered sections (1·Site..7·Telemetry) are the collapsible <details>.
+const STEP_SECTIONS = { site: ["1", "2"], fleet: ["3", "4"], orders: ["5"], solve: ["4", "5"] };
+function focusStep(step) {
+  const want = STEP_SECTIONS[step]; if (!want) return;       // review/execute switch VIEWS, not sidebar focus
+  for (const det of document.querySelectorAll("#panel details")) {
+    const sum = det.querySelector("summary"); if (!sum) continue;
+    const m = sum.textContent.trim().match(/^(\d)/);          // a numbered pipeline section?
+    if (m) det.open = want.includes(m[1]);                    // open this step's sections, collapse the rest
+  }
+}
 function goStep(step) {
   setWizStep(step);                                         // #170: focus this step in the wizard
   const planned = !!LAST_TIMELINE;
@@ -3302,6 +3313,7 @@ function goStep(step) {
   if (step === "execute") { setView("metrics"); return; }
   setView("plan");                                          // site / fleet / orders / solve all live in the Plan sidebar
   if (innerWidth <= 860) $("panel").classList.add("open");
+  focusStep(step);                                          // #170: show ONLY this step's sidebar sections
   stepScrollTo(step === "site" ? "1 ·" : step === "fleet" ? "3 ·" : "5 ·");
   if (step === "solve") _pulseQplan();
 }
@@ -3370,4 +3382,5 @@ function renderCtxSummaries() {
 }
 
 loadBody("moon"); restoreDraft(); estimate(); renderQueue(); renderKeepouts(); drawPlan(); setView("plan");  // #177: restore the auto-saved working draft before the first render
+focusStep(WIZ_STEP);                                         // #170: open the current wizard step's sidebar sections on boot
 _bootComplete = true;                                     // UX-01: boot done -> 401s may now nudge sign-in

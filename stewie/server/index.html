@@ -548,6 +548,14 @@
         <div id="ctxrep-sum" style="font-size:11px;line-height:1.7;margin-top:10px;color:var(--muted)">No report yet.</div>
       </div>
     </div>
+    <!-- #170: the wizard controls live IN the sidebar (Aaron: "integrated into the sidebar... not up in the
+         top right where no one will see it") -- a sticky footer that travels with the focused step's content. -->
+    <div id="wizfoot" style="position:sticky;bottom:0;z-index:5;display:flex;align-items:center;gap:7px;padding:8px 10px;background:var(--panel);border-top:1px solid var(--line)">
+      <span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--muted)">STEP <b id="wizstep" style="color:var(--accent)">SITE</b></span>
+      <button id="wizreset" class="site" style="margin-left:auto;font-size:10px;padding:4px 9px" title="un-confirm this step (its dot returns to red)">↺ Reset</button>
+      <button id="wizdone" class="go" style="font-size:10px;padding:4px 9px" title="validate + confirm this step — turns its dot green and advances">✓ Done</button>
+      <button id="wiznext" class="site" style="font-size:10px;padding:4px 9px" title="go to the next step">Next →</button>
+    </div>
   </aside>
   <div id="stage">
     <nav id="viewtabs">
@@ -590,13 +598,7 @@
       <button class="step" data-step="solve"><span class="dot"></span>Solve</button>
       <button class="step" data-step="review"><span class="dot"></span>Review</button>
       <button class="step" data-step="execute"><span class="dot"></span>Execute</button>
-      <span id="wizbar" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;white-space:nowrap">
-        <span style="font-size:9px;font-weight:700;letter-spacing:.06em;color:var(--muted)">STEP <b id="wizstep" style="color:var(--accent)">SITE</b></span>
-        <button id="wizreset" class="site" style="font-size:9px;padding:3px 8px" title="un-confirm this step (its dot returns to red)">↺ Reset</button>
-        <button id="wizdone" class="go" style="font-size:9px;padding:3px 8px" title="validate + confirm this step — turns its dot green and advances">✓ Done</button>
-        <button id="wiznext" class="site" style="font-size:9px;padding:3px 8px" title="go to the next step">Next →</button>
-      </span>
-      <button id="guidebtn" title="how the planning workflow works" style="margin-left:6px;background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-family:'Orbitron',system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;padding:4px 10px;cursor:pointer;white-space:nowrap">&#10067; Guide</button>
+      <button id="guidebtn" title="how the planning workflow works" style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-family:'Orbitron',system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;padding:4px 10px;cursor:pointer;white-space:nowrap">&#10067; Guide</button>
     </div>
     <div id="viewarea">
       <button id="drawerbtn" title="planning sidebar">☰</button>
@@ -909,6 +911,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=a2f2f987b1c3"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=f790ba83b8a0"></script>
+<script src="/assets/cockpit.js?v=b8ff756b0785"></script>
 </body>
 </html>
