@@ -133,6 +133,7 @@ function loadBody(key) {
                                                  // and `false` is "defined" -> TypeError. Keep the object.)
   viewer.scene.globe.showGroundAtmosphere = false;
   viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#1a1a1a");
+  viewer.canvas.style.cursor = "crosshair";      // #169: crosshair over the map (Cesium reverts to grab during a drag, then back)
   const lsel = document.getElementById("layer");          // populate the Layer dropdown for this body
   lsel.innerHTML = "";
   b.layers.forEach((L, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = L.name; lsel.appendChild(o); });
@@ -974,7 +975,7 @@ async function refreshAuthState() {
 // + save + load + delete), so switching actually changes which namespace the catalog saves to and lists
 // from. A trainee is pinned to their sandbox server-side (namespace_for ignores ns for trainees), so their
 // badge always reads TRAINING and the toggle is inert.
-let WORKSPACE = (localStorage.getItem("stewie_ws") === "sandbox") ? "sandbox" : "live";
+let WORKSPACE = (localStorage.getItem("stewie_ws") === "live") ? "live" : "sandbox";  // #166: default TRAINING (sandbox); LIVE is an explicit, remembered opt-in
 function wsParam() { return "ns=" + WORKSPACE; }
 function renderWorkspace(role) {
   const b = $("wsbadge"); if (!b) return;

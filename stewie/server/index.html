@@ -163,7 +163,7 @@
   .pane-grip:active { cursor: grabbing; }
   #panel details.dragging { opacity: .45; }
   #cgcanvas, #telespark { resize: vertical; overflow: auto; }
-  #edittoolbar { position: absolute; top: 8px; right: 12px; z-index: 30;
+  #edittoolbar { position: absolute; top: 8px; right: 58px; z-index: 30;   /* #175: clear the 🔔 alert button (which sits at right:12px) so they no longer overlap */
     background: rgba(10,10,12,.85); border: 1px solid var(--line); border-radius: 6px;
     padding: 5px 8px; display: flex; gap: 6px; align-items: center; }
   details.substep { padding: 2px 0 2px 8px; border-bottom: none; border-left: 2px solid var(--line); margin: 3px 0; }
@@ -197,7 +197,7 @@
        visual chrome compact while the tappable box is finger-sized. */
     button, .site, .go, .vtab, #drawerbtn, #alertbtn, select, input[type="checkbox"] {
       min-height: 44px; min-width: 44px; }
-    #edittoolbar { top: 8px; right: 8px; flex-wrap: wrap; max-width: 70vw; }
+    #edittoolbar { top: 8px; right: 50px; flex-wrap: wrap; max-width: 66vw; }   /* #175: keep clear of the 🔔 on phones too */
     /* the work-area DEM inset must not block a phone screen: shrink it + win over the base
        #workarea rule (declared LATER, so plain #workarea here loses the cascade -- body #workarea
        outranks it). MUST also drop the base min-width:180px, which otherwise beats max-width. */
@@ -901,6 +901,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=a2f2f987b1c3"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=2eb128e756ce"></script>
+<script src="/assets/cockpit.js?v=a9922dfc01d3"></script>
 </body>
 </html>
