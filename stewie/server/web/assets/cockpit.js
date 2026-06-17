@@ -372,6 +372,21 @@ function dropKeepoutCircle(lat, lon, r, ref) {             // #178: a VISIBLE ci
   if (ref) PIN_REFS.set(ent, ref);
   return ent;
 }
+function dropBoxKeepout(lat0, lon0, lat1, lon1, ref) {     // #178: a VISIBLE rectangular barrier on the globe
+  const red = Cesium.Color.fromCssColorString("#e0564b");
+  const w = Math.min(lon0, lon1), e = Math.max(lon0, lon1), s = Math.min(lat0, lat1), n = Math.max(lat0, lat1);
+  const ent = viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees((w + e) / 2, (s + n) / 2, 0, ellipsoid),
+    rectangle: { coordinates: Cesium.Rectangle.fromDegrees(w, s, e, n), height: 0,
+                 material: red.withAlpha(0.22), outline: true, outlineColor: red.withAlpha(0.9) },
+    label: { text: "⬛ box keep-out", font: "10px Orbitron, sans-serif",
+             fillColor: Cesium.Color.fromCssColorString("#c7d2e3"), pixelOffset: new Cesium.Cartesian2(0, -10),
+             showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
+  });
+  EDIT_PINS.push(ent);
+  if (ref) PIN_REFS.set(ent, ref);
+  return ent;
+}
 function deleteSelectedPin() {                             // #64: Delete removes feature + pin
   if (!SELECTED_PIN) return;
   const ref = PIN_REFS.get(SELECTED_PIN);
@@ -400,6 +415,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 let MEASURE_A = null;                                       // #178: the distance-measure tool's first-click anchor
+let BOX_A = null;                                           // #178: the box-keepout tool's first-corner anchor {x,y,lat,lon,pin}
 async function editPlace(lat, lon) {
   if (!EDIT.tool) { $("editstate").textContent = "LOCKED · pick a tool first"; return; }
   const r = await fetch(`/dem/site_xy?lat=${lat}&lon=${lon}&site=${encodeURIComponent(CURRENT_SITE)}`);
@@ -426,6 +442,27 @@ async function editPlace(lat, lon) {
     dropKeepoutCircle(lat, lon, r, { kind: "keepout", obj: ko });
     if (typeof renderKeepouts === "function") renderKeepouts();
     drawPlan(); $("editstate").textContent = `⛔ circle keep-out @ ${d.x_m}, ${d.y_m} m (r ${r} m)`;
+  } else if (EDIT.tool === "box") {
+    // #178 (Aaron: "can't select a box"): a two-click axis-aligned RECTANGULAR barrier. First click
+    // anchors a corner; the second completes the box {x0,y0,x1,y1} (site metres). The planner rasterizes
+    // the rectangle impassable (point_in_keepout / _apply_keepouts), so hauls route around it.
+    if (!BOX_A) {
+      const pin = dropPin(lat, lon, "▭ corner", "#e0564b", { kind: "boxcorner" });
+      BOX_A = { x: d.x_m, y: d.y_m, lat: Number(lat), lon: Number(lon), pin };
+      $("editstate").textContent = `box: corner @ ${d.x_m}, ${d.y_m} m — click the opposite corner`;
+    } else {
+      if (BOX_A.pin && viewer) { viewer.entities.remove(BOX_A.pin); PIN_REFS.delete(BOX_A.pin);
+        const pi = EDIT_PINS.indexOf(BOX_A.pin); if (pi >= 0) EDIT_PINS.splice(pi, 1); }   // drop the temp corner marker
+      snapshotAuthoring();
+      const ko = { x0: Math.min(BOX_A.x, d.x_m), y0: Math.min(BOX_A.y, d.y_m),
+                   x1: Math.max(BOX_A.x, d.x_m), y1: Math.max(BOX_A.y, d.y_m) };
+      KEEPOUTS.push(ko);
+      dropBoxKeepout(BOX_A.lat, BOX_A.lon, Number(lat), Number(lon), { kind: "keepout", obj: ko });
+      if (typeof renderKeepouts === "function") renderKeepouts();
+      drawPlan();
+      $("editstate").textContent = `⬛ box keep-out [${ko.x0}, ${ko.y0}]–[${ko.x1}, ${ko.y1}] m`;
+      BOX_A = null;
+    }
   } else if (EDIT.tool === "note") {
     const text = prompt("note text:") || "";
     if (text) { const an = { x: d.x_m, y: d.y_m, text };
@@ -1915,7 +1952,7 @@ if ($("drawerbtn")) {
 $("editmode").onclick = () => setEdit(true);
 $("editdone").onclick = () => setEdit(false);
 document.querySelectorAll(".etool").forEach((b) => {
-  b.onclick = () => { EDIT.tool = b.dataset.tool; MEASURE_A = null;
+  b.onclick = () => { EDIT.tool = b.dataset.tool; MEASURE_A = null; BOX_A = null;
     $("editstate").textContent = `LOCKED · ${b.dataset.tool} armed — click the map`; };
 });
 // #mobile-delete (Aaron: "there is no delete on mobile"): the touch equivalent of the Delete key. Tap a
@@ -1949,7 +1986,25 @@ $("site").onclick = () => {
 // site, the queue places orders around it in meters (no fake lat/lon->meter projection). Planning
 // needs the server (fetch /plan): run `python3 server.py` and open the printed URL.
 const ORDERS = [];
-const KEEPOUTS = [];                                          // discrete obstacles {x,y,r} (local m); hauls route around
+const KEEPOUTS = [];                                          // discrete obstacles (local m): {x,y,r} circle OR {x0,y0,x1,y1} rect (#178); hauls route around
+function koIsRect(k) { return k && k.r == null && k.x0 != null; }   // #178: classify a keep-out shape (matches the planner's keepout_is_rect)
+function koBounds(k) {                                              // #178: a keep-out's local-frame AABB, either shape
+  return koIsRect(k)
+    ? { x0: Math.min(k.x0, k.x1), y0: Math.min(k.y0, k.y1), x1: Math.max(k.x0, k.x1), y1: Math.max(k.y0, k.y1) }
+    : { x0: k.x - k.r, y0: k.y - k.r, x1: k.x + k.r, y1: k.y + k.r };
+}
+function koLabel(k) {                                               // #178: a human-readable keep-out summary
+  return koIsRect(k) ? `box [${Math.round(k.x0)},${Math.round(k.y0)}]–[${Math.round(k.x1)},${Math.round(k.y1)}] m`
+                     : `circle @ ${k.x},${k.y} · r ${k.r} m`;
+}
+function fillKeepout(ctx, k, X, Y, s) {                            // #178: draw a keep-out on the 2D plan (rect or disc)
+  if (koIsRect(k)) {
+    const b = koBounds(k), x0 = X(b.x0), y0 = Y(b.y1), x1 = X(b.x1), y1 = Y(b.y0);   // site Y up, canvas Y down
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0); ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+  } else {
+    ctx.beginPath(); ctx.arc(X(k.x), Y(k.y), Math.max(2, k.r * s), 0, 7); ctx.fill(); ctx.stroke();
+  }
+}
 // #170: mission-pipeline WIZARD state -- STEP_DONE holds the steps the operator has CONFIRMED via "Done"
 // (the real red->green gate, replacing the old hardcoded site/fleet="done"); WIZ_STEP is the step in focus.
 const STEP_ORDER = ["site", "fleet", "orders", "solve", "review", "execute"];
@@ -2043,7 +2098,7 @@ function renderKeepouts() {
   KEEPOUTS.forEach((k, i) => {
     const li = document.createElement("li");
     const g = document.createElement("span"); g.className = "g";
-    g.textContent = `obstacle @ ${k.x},${k.y} · r ${k.r} m`;
+    g.textContent = `obstacle: ${koLabel(k)}`;                 // #178: circle or box
     li.appendChild(g);
     li.appendChild(mkbtn("✕", () => { KEEPOUTS.splice(i, 1); renderKeepouts(); }));
     ol.appendChild(li);
@@ -2411,7 +2466,7 @@ let _placeXY = null;                                       // last click-to-plac
 function _planExtent() {
   const xs = [0], ys = [0];                                // include the charger at (0,0)
   ORDERS.forEach((o) => { const h = Math.sqrt(o.footprint_m2) / 2; xs.push(o.x - h, o.x + h); ys.push(o.y - h, o.y + h); });
-  KEEPOUTS.forEach((k) => { xs.push(k.x - k.r, k.x + k.r); ys.push(k.y - k.r, k.y + k.r); });
+  KEEPOUTS.forEach((k) => { const b = koBounds(k); xs.push(b.x0, b.x1); ys.push(b.y0, b.y1); });
   if (_placeXY) { xs.push(_placeXY.x); ys.push(_placeXY.y); }
   let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
   if (x1 - x0 < 1) { x0 -= 10; x1 += 10; } if (y1 - y0 < 1) { y0 -= 10; y1 += 10; }
@@ -2465,9 +2520,9 @@ function drawPlan() {
     ctx.drawImage(wai, x0, y0, x1 - x0, y1 - y0);
     ctx.restore();
   }
-  if (LAYER_ON.hazard) KEEPOUTS.forEach((k) => {           // hazard layer: keep-outs = red discs
+  if (LAYER_ON.hazard) KEEPOUTS.forEach((k) => {           // hazard layer: keep-outs = red discs / boxes (#178)
     ctx.fillStyle = "rgba(224,86,75,.22)"; ctx.strokeStyle = "#e0564b"; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(X(k.x), Y(k.y), Math.max(2, k.r * s), 0, 7); ctx.fill(); ctx.stroke();
+    fillKeepout(ctx, k, X, Y, s);
   });
   LAST_ROUTES.forEach((rt) => {                            // item 3: planned terrain-following haul routes
     const wp = rt.waypoints || [];
@@ -3011,7 +3066,7 @@ function execDraw(tl, orders, ext, cv, simT) {
   // keep-out obstacles (the route bends around these): hatched red discs in the local frame
   LAST_KEEPOUTS.forEach(k => {
     ctx.fillStyle = "rgba(224,86,75,.22)"; ctx.strokeStyle = "#e0564b"; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(X(k.x), Y(k.y), k.r * s, 0, 7); ctx.fill(); ctx.stroke();
+    fillKeepout(ctx, k, X, Y, s);                          // #178: rect or disc
   });
   // order footprints (cut = blue, fill = orange) as squares sized by area
   orders.forEach((o, i) => {

@@ -333,17 +333,26 @@ def mission_from_dict(payload):
                 raise ValueError(f"precedence {b!r}->{a!r} references an unknown order action")
             pairs.append((b, a))
         kwargs["precedence"] = pairs
-    kos = payload.get("keepouts")                          # discrete keep-out obstacles (circles, local m)
+    kos = payload.get("keepouts")                          # discrete keep-out obstacles (circle or rect, local m)
     if kos is not None:
         if not isinstance(kos, list):
-            raise ValueError("'keepouts' must be a list of {x, y, r} circles")
+            raise ValueError("'keepouts' must be a list of {x,y,r} circles or {x0,y0,x1,y1} rectangles")
         clean = []
         for j, k in enumerate(kos):
-            if not isinstance(k, dict) or not all(f in k for f in ("x", "y", "r")):
-                raise ValueError(f"keepout {j} must be an object with x, y, r")
-            clean.append({"x": VAL.ensure_finite_scalar(k["x"], f"keepout {j} x"),
-                          "y": VAL.ensure_finite_scalar(k["y"], f"keepout {j} y"),
-                          "r": VAL.ensure_positive_scalar(k["r"], f"keepout {j} r")})
+            if not isinstance(k, dict):
+                raise ValueError(f"keepout {j} must be an object")
+            if all(f in k for f in ("x0", "y0", "x1", "y1")):                  # #178 axis-aligned rectangle
+                x0 = VAL.ensure_finite_scalar(k["x0"], f"keepout {j} x0")
+                y0 = VAL.ensure_finite_scalar(k["y0"], f"keepout {j} y0")
+                x1 = VAL.ensure_finite_scalar(k["x1"], f"keepout {j} x1")
+                y1 = VAL.ensure_finite_scalar(k["y1"], f"keepout {j} y1")
+                clean.append({"x0": min(x0, x1), "y0": min(y0, y1), "x1": max(x0, x1), "y1": max(y0, y1)})
+            elif all(f in k for f in ("x", "y", "r")):                         # circle (existing)
+                clean.append({"x": VAL.ensure_finite_scalar(k["x"], f"keepout {j} x"),
+                              "y": VAL.ensure_finite_scalar(k["y"], f"keepout {j} y"),
+                              "r": VAL.ensure_positive_scalar(k["r"], f"keepout {j} r")})
+            else:
+                raise ValueError(f"keepout {j} must be {{x,y,r}} (circle) or {{x0,y0,x1,y1}} (rectangle)")
         kwargs["keepouts"] = tuple(clean)
     return Mission(**kwargs)
 
@@ -1185,7 +1194,7 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
         if meta["straight_haul_m"] > 1e-9 else 0.0,
         n_keepouts=len(mission.keepouts),
         keepout_conflicts=sum(1 for o in mission.orders for k in mission.keepouts
-                              if (o.x - k["x"]) ** 2 + (o.y - k["y"]) ** 2 <= k["r"] ** 2),
+                              if point_in_keepout(o.x, o.y, k)),    # #178 rect or circle build-on-obstacle
         return_to_lander=_return_to_lander(mission),   # #161 return-to-lander feasibility (adjustable buffer)
         relocalization=_relocalization(mission, core))  # #96 scheduled articulation-parallax relocalization stops
 
@@ -1746,7 +1755,8 @@ from stewie.terrain.site_dem import (  # noqa: F401
 # MP.route_leg / MP.slope_costmap / ... and the solver's internal calls are unchanged.
 from lode.planner_routing import (  # noqa: F401
     _ROUTE_NB, MAX_DROP_M, _apply_keepouts, haul_cumulative_ascent_m, haul_elevation_gain_m,
-    negative_obstacle_mask, route_least_cost, routed_distance, slope_costmap,
+    keepout_is_rect, negative_obstacle_mask, point_in_keepout, route_least_cost, routed_distance,
+    slope_costmap,
 )
 from lode.planner_routing import route_leg as _route_leg_point   # P-06: the point-rover router (no inflation)
 

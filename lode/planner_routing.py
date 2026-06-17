@@ -54,15 +54,40 @@ def slope_costmap(Z, cell_m, *, max_slope_deg=25.0, slip_alpha=2.0, max_drop_m=N
     return cost, passable
 
 
+def keepout_is_rect(k):
+    """#178: a keep-out is an axis-aligned RECTANGLE if it carries corner bounds (x0,y0,x1,y1);
+    otherwise it is the {x,y,r} CIRCLE. One predicate so the router raster and the build-on-obstacle
+    conflict check classify shapes identically (they cannot diverge)."""
+    return all(key in k for key in ("x0", "y0", "x1", "y1"))
+
+
+def point_in_keepout(x, y, k):
+    """#178: True if the LOCAL-frame point (x, y) [m] lies inside keep-out k -- a {x0,y0,x1,y1}
+    rectangle (the box barrier) or the {x,y,r} circle. Single source for the conflict check."""
+    if keepout_is_rect(k):
+        return (min(k["x0"], k["x1"]) <= x <= max(k["x0"], k["x1"]) and
+                min(k["y0"], k["y1"]) <= y <= max(k["y0"], k["y1"]))
+    return (x - k["x"]) ** 2 + (y - k["y"]) ** 2 <= k["r"] ** 2
+
+
 def _apply_keepouts(passable, cell_m, r0, c0, dem_origin, keepouts):
-    """Mark cells inside any keep-out circle impassable, in-place, on a cropped costmap. keepouts are
-    {x,y,r} in the LOCAL order frame (metres); dem_origin maps that frame to DEM world metres. The crop
-    starts at row r0/col c0. Reuses route_least_cost's existing impassable-avoidance -> hauls bend around."""
+    """Mark cells inside any keep-out impassable, in-place, on a cropped costmap. keepouts are {x,y,r}
+    circles or {x0,y0,x1,y1} rectangles (#178) in the LOCAL order frame (metres); dem_origin maps that
+    frame to DEM world metres. The crop starts at row r0/col c0. Reuses route_least_cost's existing
+    impassable-avoidance -> hauls bend around either shape (the raster, not the Dijkstra, knows the shape)."""
     if not keepouts:
         return passable
     ox, oy = dem_origin
     H, W = passable.shape
     for k in keepouts:
+        if keepout_is_rect(k):                             # #178 axis-aligned rectangular barrier
+            x0, x1 = sorted((float(k["x0"]), float(k["x1"])))
+            y0, y1 = sorted((float(k["y0"]), float(k["y1"])))
+            c_lo, c_hi = max(0, int((ox + x0) / cell_m - c0)), min(W, int((ox + x1) / cell_m - c0) + 1)
+            r_lo, r_hi = max(0, int((oy + y0) / cell_m - r0)), min(H, int((oy + y1) / cell_m - r0) + 1)
+            if c_hi > c_lo and r_hi > r_lo:
+                passable[r_lo:r_hi, c_lo:c_hi] = False
+            continue
         kc = (ox + k["x"]) / cell_m - c0                   # keep-out centre in crop-cell coords
         kr = (oy + k["y"]) / cell_m - r0
         rad = k["r"] / cell_m

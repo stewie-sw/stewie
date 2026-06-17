@@ -769,6 +769,47 @@ def test_plan_accounts_keepouts_end_to_end():
     assert T2["keepout_conflicts"] == 1
 
 
+def test_point_in_keepout_circle_and_rect():
+    # #178: the single shape predicate the router raster + the conflict check both use
+    from lode.planner_routing import keepout_is_rect, point_in_keepout
+    circ = {"x": 10.0, "y": 10.0, "r": 5.0}
+    assert not keepout_is_rect(circ)
+    assert point_in_keepout(12.0, 11.0, circ) and not point_in_keepout(20.0, 10.0, circ)
+    rect = {"x0": 0.0, "y0": 0.0, "x1": 10.0, "y1": 4.0}
+    assert keepout_is_rect(rect)
+    assert point_in_keepout(5.0, 2.0, rect) and point_in_keepout(0.0, 0.0, rect)   # interior + corner
+    assert not point_in_keepout(5.0, 9.0, rect) and not point_in_keepout(11.0, 2.0, rect)
+
+
+def test_mission_from_dict_accepts_rect_keepout_and_normalizes_corners():
+    # #178: a {x0,y0,x1,y1} rectangle is accepted (corners normalized min/max); garbage still rejected
+    ord1 = [{"action": "cut", "kind": "cut", "x": 0, "y": 0, "footprint_m2": 9, "depth_m": 0.1}]
+    m = MP.mission_from_dict({"name": "r", "body": "moon", "orders": ord1,
+                              "keepouts": [{"x0": 30, "y0": 10, "x1": 10, "y1": -10}]})   # swapped corners
+    assert m.keepouts[0] == {"x0": 10, "y0": -10, "x1": 30, "y1": 10}
+    import pytest as _pt
+    with _pt.raises(ValueError):
+        MP.mission_from_dict({"name": "b", "body": "moon", "orders": ord1, "keepouts": [{"x0": 1, "y0": 2}]})
+
+
+def test_plan_accounts_rect_keepout_end_to_end():
+    # #178 (Aaron: "can't select a box"): a rectangular barrier straddling the cut->fill haul forces a
+    # detour exactly like the circle does, and an order inside the box is flagged build-on-obstacle.
+    dem = MP.load_haworth_dem(); o = MP.flattest_anchor(dem)
+    pay = {"name": "box", "body": "moon", "charger": [0, 0],
+           "orders": [{"action": "cut", "kind": "cut", "x": 0, "y": 0, "footprint_m2": 36, "depth_m": 0.1},
+                      {"action": "fill", "kind": "fill", "x": 50, "y": 0, "footprint_m2": 36, "depth_m": 0.1}],
+           "keepouts": [{"x0": 20, "y0": -15, "x1": 30, "y1": 15}]}      # blocks the straight haul corridor
+    _, _, _, _, T = MP.plan_and_simulate(MP.mission_from_dict(pay), dem=dem, dem_origin=o)
+    assert T["n_keepouts"] == 1
+    assert T["haul_detour_frac"] > 0.0 or T["blocked_legs"] > 0          # the box altered the routing
+    pay2 = {"name": "inbox", "body": "moon", "charger": [0, 0],
+            "orders": [{"action": "on_box", "kind": "cut", "x": 25, "y": 0, "footprint_m2": 9, "depth_m": 0.1}],
+            "keepouts": [{"x0": 20, "y0": -15, "x1": 30, "y1": 15}]}
+    _, _, _, _, T2 = MP.plan_and_simulate(MP.mission_from_dict(pay2), dem=dem, dem_origin=o)
+    assert T2["keepout_conflicts"] == 1
+
+
 # ---- K11c: continuous idle/heater/survival power (the likely-dominant multi-day term) -----------
 def test_survival_power_default_off_then_folds_in_when_set(monkeypatch):
     m = MP.mission_from_dict(_payload())
