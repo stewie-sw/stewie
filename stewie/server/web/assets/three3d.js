@@ -20,11 +20,16 @@ function mount(container) {
   S.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
   S.renderer.setSize(w, h);
   S.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  S.renderer.shadowMap.enabled = true;                      // #181: real sun shadows on the terrain
+  S.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.innerHTML = "";
   container.appendChild(S.renderer.domElement);
 
   S.sun = new THREE.DirectionalLight(0xfff4e8, 2.4);
+  S.sun.castShadow = true;                                  // #181: the sun casts shadows (ephemeris-driven)
+  S.sun.shadow.mapSize.set(2048, 2048);
   S.scene.add(S.sun);
+  S.scene.add(S.sun.target);                                // a directional light aims at its target
   S.scene.add(new THREE.AmbientLight(0x3a4456, 0.7));
   S.group = new THREE.Group();
   S.scene.add(S.group);
@@ -105,6 +110,7 @@ function render(hf) {
   geo.computeVertexNormals();
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0.0 });
   S.mesh = new THREE.Mesh(geo, mat);
+  S.mesh.castShadow = true; S.mesh.receiveShadow = true;    // #181: self-shadowing terrain under the ephemeris sun
   S.group.add(S.mesh);
   // #180: the depth/heightfield as a WIRE overlay -- the structural backdrop the convergence viz
   // composites ephemeris sun/shadows + the lander/AprilTags onto (Aaron 2026-06-17). A neon wireframe
@@ -135,8 +141,17 @@ function heightAt(x, y) {
 function setSun(azDeg, elDeg) {
   S._sunAz = azDeg; S._sunEl = elDeg;
   if (!S.sun) return;
-  const a = azDeg * Math.PI / 180, e = Math.max(2, elDeg) * Math.PI / 180, R = (S.win || 600) * 2;
-  S.sun.position.set(R * Math.cos(e) * Math.cos(a), R * Math.sin(e), R * Math.cos(e) * Math.sin(a));
+  const a = azDeg * Math.PI / 180, e = Math.max(2, elDeg) * Math.PI / 180;
+  const win = S.win || 600, R = win * 2, cx = win / 2, cz = win / 2;
+  // #181: from-north-eastward azimuth (the /ephemeris + shadow-layer convention) -- az=0 -> +z (North),
+  // az=90 -> +x (East); frame is x=E, y=up, z=N. Anchored on the terrain centre so the shadow camera covers it.
+  S.sun.position.set(cx + R * Math.cos(e) * Math.sin(a), R * Math.sin(e), cz + R * Math.cos(e) * Math.cos(a));
+  if (S.sun.target) { S.sun.target.position.set(cx, 0, cz); S.sun.target.updateMatrixWorld(); }
+  const sc = S.sun.shadow && S.sun.shadow.camera;           // size the ortho shadow frustum to the terrain
+  if (sc) {
+    sc.left = -win; sc.right = win; sc.top = win; sc.bottom = -win;
+    sc.near = Math.max(1, R * 0.2); sc.far = R * 3; sc.updateProjectionMatrix();
+  }
 }
 
 // #180: toggle the depth/heightfield wire overlay (the convergence-viz structural backdrop)
@@ -151,6 +166,7 @@ function setRover(x, y) {
   if (!S.rover) {
     S.rover = new THREE.Mesh(new THREE.SphereGeometry(Math.max(1.5, (S.win || 300) * 0.012), 16, 12),
       new THREE.MeshStandardMaterial({ color: 0xe8273f, emissive: 0x661018, roughness: 0.4 }));
+    S.rover.castShadow = true;                              // #181: the rover casts a shadow under the sun
     S.group.add(S.rover);
   }
   S.rover.position.set(x, heightAt(x, y) + (S.rover.geometry.parameters.radius || 2), y);
@@ -195,4 +211,5 @@ function animateRover(points, durationMs) {
 function stopRoverAnim() { if (S._roverRAF) { cancelAnimationFrame(S._roverRAF); S._roverRAF = 0; } }
 
 window.STEWIE3D = { mount, render, setRover, setPath, setSun, setWireframe, clearTracks, heightAt,
-  animateRover, stopRoverAnim, get available() { return true; } };
+  animateRover, stopRoverAnim, get available() { return true; },
+  get sunState() { return { az: S._sunAz, el: S._sunEl, shadows: !!(S.renderer && S.renderer.shadowMap && S.renderer.shadowMap.enabled) }; } };

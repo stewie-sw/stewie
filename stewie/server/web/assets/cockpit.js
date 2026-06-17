@@ -2582,7 +2582,8 @@ async function renderLegend() {                            // audit P1: physics-
   box.innerHTML = rows.join("<br>");
   renderWorkbench();                                       // the cards carry the legends now
 }
-function refetchSun() { GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); }); renderLegend(); }
+function refetchSun() { GIS_RASTERS.forEach((k) => { if (LAYER_ON[k]) applyLayerToggle(k, true); }); renderLegend();
+  if (typeof TD3D_ON !== "undefined" && TD3D_ON && typeof apply3DSun === "function") apply3DSun(); }  // #181: track the sun in the 3D view too
 ["sunel", "sunaz"].forEach((sid) => { const el = qel(sid); if (el) el.oninput = () => {
   qel("sunelv").textContent = qel("sunel").value + "\u00b0";
   qel("sunazv").textContent = qel("sunaz").value + "\u00b0";
@@ -3301,6 +3302,22 @@ qel("execclose").onclick = () => { cancelAnimationFrame(EXEC_RAF); setView("plan
 // planned -- the physics-truth path (amber) vs estimator belief (cyan) from LAST_LOCALIZATION and the
 // rover on the surface. Simulation, never a live rover.
 let TD3D_ON = false;
+// #181: drive the 3D-view sun from the SAME solar authority the shadow layer uses -- /ephemeris in AUTO
+// mode (real az/el at the Haworth latitude from mission time), or the manual az/el sliders. One source
+// of solar truth; the 3D wireframe/terrain then self-shadows under the real sun.
+function apply3DSun() {
+  if (!window.STEWIE3D || !STEWIE3D.setSun) return;
+  const auto = $("sunauto") && $("sunauto").checked;
+  if (auto && $("suntime")) {
+    const mt = Math.round(parseFloat($("suntime").value) * 86400);
+    fetch(`/ephemeris?mission_t_s=${mt}&lat_deg=-87.45&lon_deg=0`, { headers: apiHeaders() })
+      .then((r) => r.json()).then((d) => {
+        if (d && d.ok && d.ephemeris) STEWIE3D.setSun(d.ephemeris.sun_az_deg, d.ephemeris.sun_el_deg);
+      }).catch(() => {});
+  } else if ($("sunaz") && $("sunel")) {
+    STEWIE3D.setSun(+$("sunaz").value || 90, +$("sunel").value || 6);
+  }
+}
 function open3D() {
   const host = $("td3d"); if (!host || !window.STEWIE3D) { setQ("3D view unavailable (three.js not loaded)"); return; }
   STEWIE3D.mount(host);
@@ -3316,6 +3333,7 @@ function open3D() {
     .then((r) => r.json()).then((hf) => {
       if (!hf || !hf.ok) { setQ("3D: heightfield unavailable for " + site); return; }
       STEWIE3D.render(hf);
+      apply3DSun();                                                       // #181: ephemeris-driven sun + shadows
       STEWIE3D.clearTracks(); STEWIE3D.stopRoverAnim();
       if (loc && loc.trajectory && loc.trajectory.length) {
         const truth = loc.trajectory.map((p) => p["true"]);
