@@ -357,6 +357,21 @@ const PIN_REFS = new Map();                                // pin entity -> {kin
 let SELECTED_PIN = null;
 let LANDER_PIN = null;                                     // #lander-pin: the single 🛬 globe marker (unique)
 let ROVER_PIN = null;                                      // #174: the single 🤖 rover-position marker (unique)
+function dropKeepoutCircle(lat, lon, r, ref) {             // #178: a VISIBLE circular barrier on the globe (not a dot)
+  const red = Cesium.Color.fromCssColorString("#e0564b");
+  const ent = viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(lon, lat, 0, ellipsoid),
+    point: { pixelSize: 4, color: red, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+    ellipse: { semiMajorAxis: r, semiMinorAxis: r, height: 0, material: red.withAlpha(0.22),
+               outline: true, outlineColor: red.withAlpha(0.9), outlineWidth: 2 },
+    label: { text: `⛔ r${r} m`, font: "10px Orbitron, sans-serif",
+             fillColor: Cesium.Color.fromCssColorString("#c7d2e3"), pixelOffset: new Cesium.Cartesian2(0, -14),
+             showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
+  });
+  EDIT_PINS.push(ent);
+  if (ref) PIN_REFS.set(ent, ref);
+  return ent;
+}
 function deleteSelectedPin() {                             // #64: Delete removes feature + pin
   if (!SELECTED_PIN) return;
   const ref = PIN_REFS.get(SELECTED_PIN);
@@ -401,12 +416,16 @@ async function editPlace(lat, lon) {
             "#e8273f", { kind: "order", obj: wp });
     renderQueue(); $("editstate").textContent = `wp${n} @ site-frame ${d.x_m} m E, ${d.y_m} m N (${Number(lat).toFixed(3)}°, ${Number(lon).toFixed(3)}°)`;
   } else if (EDIT.tool === "keepout") {
+    // #178 (Aaron: "keep-out is just a dot — can't create a circle barrier"): an adjustable-radius
+    // circular barrier, drawn as a real translucent circle on the globe (not a dot). Radius from the
+    // ToolBox r field; hauls already route around circle keep-outs of any radius (planner-side).
     snapshotAuthoring();
-    const ko = { x: d.x_m, y: d.y_m, r: 8 };
+    const r = Math.max(1, +($("koradius") ? $("koradius").value : 25) || 25);
+    const ko = { x: d.x_m, y: d.y_m, r };
     KEEPOUTS.push(ko);
-    dropPin(lat, lon, `keep-out r8 (${d.x_m}, ${d.y_m})`, "#e0564b", { kind: "keepout", obj: ko });
+    dropKeepoutCircle(lat, lon, r, { kind: "keepout", obj: ko });
     if (typeof renderKeepouts === "function") renderKeepouts();
-    drawPlan(); $("editstate").textContent = `keep-out @ ${d.x_m}, ${d.y_m} m (r 8)`;
+    drawPlan(); $("editstate").textContent = `⛔ circle keep-out @ ${d.x_m}, ${d.y_m} m (r ${r} m)`;
   } else if (EDIT.tool === "note") {
     const text = prompt("note text:") || "";
     if (text) { const an = { x: d.x_m, y: d.y_m, text };
