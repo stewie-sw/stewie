@@ -1839,6 +1839,27 @@ $("site").onclick = () => {
 // needs the server (fetch /plan): run `python3 server.py` and open the printed URL.
 const ORDERS = [];
 const KEEPOUTS = [];                                          // discrete obstacles {x,y,r} (local m); hauls route around
+// #177: AUTO-SAVE the working draft. Orders + keep-outs lived only in memory (the lander already
+// persisted via stewie_lander), so anything placed on the map vanished on reload unless explicitly
+// saved as a NAMED mission -- "adding something doesn't save it". Persist the working set to
+// localStorage on every change and restore it on boot, so work survives a reload (the named-save
+// catalog is unchanged). Guarded by DRAFT_READY so an early render cannot clobber the saved draft.
+let DRAFT_READY = false;
+function persistDraft() {
+  if (!DRAFT_READY) return;
+  try {
+    localStorage.setItem("stewie_draft", JSON.stringify({
+      body: (typeof sel !== "undefined" ? sel.value : "moon"), orders: ORDERS, keepouts: KEEPOUTS }));
+  } catch (e) { /* storage disabled / full */ }
+}
+function restoreDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem("stewie_draft") || "null");
+    if (d && Array.isArray(d.orders)) { ORDERS.length = 0; d.orders.forEach((o) => ORDERS.push(o)); }
+    if (d && Array.isArray(d.keepouts)) { KEEPOUTS.length = 0; d.keepouts.forEach((k) => KEEPOUTS.push(k)); }
+  } catch (e) { /* ignore a corrupt draft */ }
+  DRAFT_READY = true;                                         // from here on, every change auto-persists
+}
 // PER-BODY WORKING SETS (Aaron 2026-06-10: "if I build something on earth it doesn't plot on the
 // moon?"): orders/keep-outs/routes are a per-body document; switching body saves the current set
 // and loads the target's. (S-4 generalizes this into named mission documents.)
@@ -1887,6 +1908,7 @@ const setQ = (m) => {
 };
 function mkbtn(t, fn) { const b = document.createElement("button"); b.textContent = t; b.onclick = fn; return b; }
 function renderKeepouts() {
+  persistDraft();                                             // #177: keep-out change -> auto-save the draft
   const ol = qel("kolist"); ol.innerHTML = "";
   KEEPOUTS.forEach((k, i) => {
     const li = document.createElement("li");
@@ -1927,6 +1949,7 @@ function undoAuthoring() {
 }
 let QSORT = { key: null, dir: 1 };                          // UI-14: column sort (display-only)
 function renderQueue() {
+  persistDraft();                                             // #177: order change -> auto-save the draft
   const tb = qel("qtable"); tb.innerHTML = "";
   // #4: x/y are site-local metres (East/North from the site origin) -- label the units so a queued
   // "wp1  2310  8165" reads as 2310 m E, 8165 m N, not bare unexplained numbers.
@@ -3310,5 +3333,5 @@ function renderCtxSummaries() {
   }
 }
 
-loadBody("moon"); estimate(); renderQueue(); renderKeepouts(); setView("plan");
+loadBody("moon"); restoreDraft(); estimate(); renderQueue(); renderKeepouts(); drawPlan(); setView("plan");  // #177: restore the auto-saved working draft before the first render
 _bootComplete = true;                                     // UX-01: boot done -> 401s may now nudge sign-in
