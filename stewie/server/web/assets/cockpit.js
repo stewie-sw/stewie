@@ -146,6 +146,12 @@ function loadBody(key) {
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction((e) => {
     const pickedPin = viewer.scene.pick(e.position);
+    // #178: clicking the FIRST vertex of an in-progress polygon CLOSES it (the GIS close-the-ring gesture).
+    // Must run before pin-selection, since the first vertex carries a selectable marker.
+    if (EDIT.on && EDIT.tool === "poly" && POLY_PTS && POLY_PTS.length >= 3 &&
+        pickedPin && pickedPin.id && POLY_PTS[0] && pickedPin.id === POLY_PTS[0].pin) {
+      closePolygon(); return;
+    }
     if (pickedPin && pickedPin.id && PIN_REFS.has(pickedPin.id)) {   // #64: select a pin
       if (SELECTED_PIN) SELECTED_PIN.point.outlineColor = Cesium.Color.BLACK;
       SELECTED_PIN = pickedPin.id;
@@ -404,6 +410,43 @@ function dropBoxKeepout(lat0, lon0, lat1, lon1, ref) {     // #178: a VISIBLE re
   if (ref) PIN_REFS.set(ent, ref);
   return ent;
 }
+function dropPolyKeepout(latlons, ref) {                   // #178: a VISIBLE polygon barrier on the globe
+  const red = Cesium.Color.fromCssColorString("#e0564b");
+  const flat = []; latlons.forEach(([la, lo]) => flat.push(lo, la));
+  const cy = latlons.reduce((a, p) => a + p[0], 0) / latlons.length;
+  const cx = latlons.reduce((a, p) => a + p[1], 0) / latlons.length;
+  const ent = viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(cx, cy, 0, ellipsoid),
+    polygon: { hierarchy: Cesium.Cartesian3.fromDegreesArray(flat), height: 0,
+               material: red.withAlpha(0.22), outline: true, outlineColor: red.withAlpha(0.9) },
+    label: { text: "⬡ poly keep-out", font: "10px Orbitron, sans-serif",
+             fillColor: Cesium.Color.fromCssColorString("#c7d2e3"), pixelOffset: new Cesium.Cartesian2(0, -10),
+             showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
+  });
+  EDIT_PINS.push(ent);
+  if (ref) PIN_REFS.set(ent, ref);
+  return ent;
+}
+function clearPolyDraft() {                                // #178: drop the in-progress polygon's temp markers + outline
+  if (POLY_PTS) POLY_PTS.forEach((v) => {
+    if (v.pin && viewer) { viewer.entities.remove(v.pin); PIN_REFS.delete(v.pin);
+      const pi = EDIT_PINS.indexOf(v.pin); if (pi >= 0) EDIT_PINS.splice(pi, 1); } });
+  if (POLY_LINE && viewer) { viewer.entities.remove(POLY_LINE); POLY_LINE = null; }
+  POLY_PTS = null;
+}
+function closePolygon() {                                  // #178: finalize the in-progress polygon into a keep-out
+  if (!(POLY_PTS && POLY_PTS.length >= 3)) return false;
+  const pts = POLY_PTS.map((v) => [v.x, v.y]), latlons = POLY_PTS.map((v) => [v.lat, v.lon]);
+  clearPolyDraft();
+  snapshotAuthoring();
+  const ko = { points: pts };
+  KEEPOUTS.push(ko);
+  dropPolyKeepout(latlons, { kind: "keepout", obj: ko });
+  if (typeof renderKeepouts === "function") renderKeepouts();
+  drawPlan();
+  $("editstate").textContent = `⬡ polygon keep-out (${pts.length} vertices)`;
+  return true;
+}
 function deleteSelectedPin() {                             // #64: Delete removes feature + pin
   if (!SELECTED_PIN) return;
   const ref = PIN_REFS.get(SELECTED_PIN);
@@ -433,6 +476,8 @@ document.addEventListener("keydown", (e) => {
 });
 let MEASURE_A = null;                                       // #178: the distance-measure tool's first-click anchor
 let BOX_A = null;                                           // #178: the box-keepout tool's first-corner anchor {x,y,lat,lon,pin}
+let POLY_PTS = null;                                        // #178: the polygon-keepout tool's growing vertex list [{x,y,lat,lon,pin}]
+let POLY_LINE = null;                                       // #178: the in-progress polygon's growing outline entity
 async function editPlace(lat, lon) {
   if (!EDIT.tool) { $("editstate").textContent = "LOCKED · pick a tool first"; return; }
   const r = await fetch(`/dem/site_xy?lat=${lat}&lon=${lon}&site=${encodeURIComponent(CURRENT_SITE)}`);
@@ -479,6 +524,26 @@ async function editPlace(lat, lon) {
       drawPlan();
       $("editstate").textContent = `⬛ box keep-out [${ko.x0}, ${ko.y0}]–[${ko.x1}, ${ko.y1}] m`;
       BOX_A = null;
+    }
+  } else if (EDIT.tool === "poly") {
+    // #178: a multi-click arbitrary POLYGON barrier. Each click adds a vertex; clicking near the FIRST
+    // vertex (with >= 3 vertices) closes it. The planner rasterizes the polygon impassable so hauls
+    // route around it (point_in_keepout / _apply_keepouts handle {points}).
+    if (POLY_PTS && POLY_PTS.length >= 3 &&
+        Math.hypot(d.x_m - POLY_PTS[0].x, d.y_m - POLY_PTS[0].y) < 25) {        // close on near-first-vertex (fallback)
+      closePolygon();
+    } else {
+      if (!POLY_PTS) POLY_PTS = [];
+      const pin = dropPin(lat, lon, `▪ v${POLY_PTS.length + 1}`, "#e0564b", { kind: "polyvertex" });
+      POLY_PTS.push({ x: d.x_m, y: d.y_m, lat: Number(lat), lon: Number(lon), pin });
+      if (POLY_LINE && viewer) { viewer.entities.remove(POLY_LINE); POLY_LINE = null; }
+      if (POLY_PTS.length >= 2) {                                              // redraw the growing outline
+        const flat = []; POLY_PTS.forEach((v) => flat.push(v.lon, v.lat));
+        POLY_LINE = viewer.entities.add({ polyline: { positions: Cesium.Cartesian3.fromDegreesArray(flat),
+          width: 2, material: Cesium.Color.fromCssColorString("#e0564b") } });
+      }
+      $("editstate").textContent = `polygon: ${POLY_PTS.length} vertex(es)` +
+        (POLY_PTS.length >= 3 ? " — click near the first vertex to close" : " — keep clicking to add vertices");
     }
   } else if (EDIT.tool === "note") {
     const text = prompt("note text:") || "";
@@ -1970,6 +2035,7 @@ $("editmode").onclick = () => setEdit(true);
 $("editdone").onclick = () => setEdit(false);
 document.querySelectorAll(".etool").forEach((b) => {
   b.onclick = () => { EDIT.tool = b.dataset.tool; MEASURE_A = null; BOX_A = null;
+    if (typeof clearPolyDraft === "function") clearPolyDraft();           // #178: drop any half-drawn polygon
     $("editstate").textContent = `LOCKED · ${b.dataset.tool} armed — click the map`; };
 });
 // #mobile-delete (Aaron: "there is no delete on mobile"): the touch equivalent of the Delete key. Tap a
@@ -2004,18 +2070,28 @@ $("site").onclick = () => {
 // needs the server (fetch /plan): run `python3 server.py` and open the printed URL.
 const ORDERS = [];
 const KEEPOUTS = [];                                          // discrete obstacles (local m): {x,y,r} circle OR {x0,y0,x1,y1} rect (#178); hauls route around
-function koIsRect(k) { return k && k.r == null && k.x0 != null; }   // #178: classify a keep-out shape (matches the planner's keepout_is_rect)
-function koBounds(k) {                                              // #178: a keep-out's local-frame AABB, either shape
+function koIsPoly(k) { return !!(k && Array.isArray(k.points) && k.points.length >= 3); }   // #178: polygon keep-out (matches keepout_is_poly)
+function koIsRect(k) { return k && k.r == null && k.x0 != null; }   // #178: rect keep-out (matches keepout_is_rect)
+function koBounds(k) {                                              // #178: a keep-out's local-frame AABB, any shape
+  if (koIsPoly(k)) {
+    const xs = k.points.map((p) => p[0]), ys = k.points.map((p) => p[1]);
+    return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+  }
   return koIsRect(k)
     ? { x0: Math.min(k.x0, k.x1), y0: Math.min(k.y0, k.y1), x1: Math.max(k.x0, k.x1), y1: Math.max(k.y0, k.y1) }
     : { x0: k.x - k.r, y0: k.y - k.r, x1: k.x + k.r, y1: k.y + k.r };
 }
 function koLabel(k) {                                               // #178: a human-readable keep-out summary
+  if (koIsPoly(k)) return `polygon (${k.points.length} pts)`;
   return koIsRect(k) ? `box [${Math.round(k.x0)},${Math.round(k.y0)}]–[${Math.round(k.x1)},${Math.round(k.y1)}] m`
                      : `circle @ ${k.x},${k.y} · r ${k.r} m`;
 }
-function fillKeepout(ctx, k, X, Y, s) {                            // #178: draw a keep-out on the 2D plan (rect or disc)
-  if (koIsRect(k)) {
+function fillKeepout(ctx, k, X, Y, s) {                            // #178: draw a keep-out on the 2D plan (poly/rect/disc)
+  if (koIsPoly(k)) {
+    ctx.beginPath();
+    k.points.forEach((p, i) => { const px = X(p[0]), py = Y(p[1]); if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); });
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  } else if (koIsRect(k)) {
     const b = koBounds(k), x0 = X(b.x0), y0 = Y(b.y1), x1 = X(b.x1), y1 = Y(b.y0);   // site Y up, canvas Y down
     ctx.fillRect(x0, y0, x1 - x0, y1 - y0); ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
   } else {

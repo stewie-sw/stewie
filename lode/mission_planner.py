@@ -341,7 +341,13 @@ def mission_from_dict(payload):
         for j, k in enumerate(kos):
             if not isinstance(k, dict):
                 raise ValueError(f"keepout {j} must be an object")
-            if all(f in k for f in ("x0", "y0", "x1", "y1")):                  # #178 axis-aligned rectangle
+            if isinstance(k.get("points"), (list, tuple)):                     # #178 arbitrary polygon
+                pts = k["points"]
+                if len(pts) < 3:
+                    raise ValueError(f"keepout {j} polygon needs >= 3 vertices")
+                clean.append({"points": [[VAL.ensure_finite_scalar(p[0], f"keepout {j} vertex x"),
+                                          VAL.ensure_finite_scalar(p[1], f"keepout {j} vertex y")] for p in pts]})
+            elif all(f in k for f in ("x0", "y0", "x1", "y1")):                # #178 axis-aligned rectangle
                 x0 = VAL.ensure_finite_scalar(k["x0"], f"keepout {j} x0")
                 y0 = VAL.ensure_finite_scalar(k["y0"], f"keepout {j} y0")
                 x1 = VAL.ensure_finite_scalar(k["x1"], f"keepout {j} x1")
@@ -352,7 +358,8 @@ def mission_from_dict(payload):
                               "y": VAL.ensure_finite_scalar(k["y"], f"keepout {j} y"),
                               "r": VAL.ensure_positive_scalar(k["r"], f"keepout {j} r")})
             else:
-                raise ValueError(f"keepout {j} must be {{x,y,r}} (circle) or {{x0,y0,x1,y1}} (rectangle)")
+                raise ValueError(f"keepout {j} must be {{x,y,r}} (circle), {{x0,y0,x1,y1}} (rectangle), "
+                                 f"or {{points}} (polygon)")
         kwargs["keepouts"] = tuple(clean)
     return Mission(**kwargs)
 

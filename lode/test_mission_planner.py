@@ -792,6 +792,45 @@ def test_mission_from_dict_accepts_rect_keepout_and_normalizes_corners():
         MP.mission_from_dict({"name": "b", "body": "moon", "orders": ord1, "keepouts": [{"x0": 1, "y0": 2}]})
 
 
+def test_point_in_keepout_polygon():
+    # #178: arbitrary polygon barrier — the third shape the predicate must classify + test
+    from lode.planner_routing import keepout_is_poly, point_in_keepout
+    sq = {"points": [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]]}
+    assert keepout_is_poly(sq)
+    assert point_in_keepout(5.0, 5.0, sq) and not point_in_keepout(15.0, 5.0, sq)
+    tri = {"points": [[0.0, 0.0], [10.0, 0.0], [0.0, 10.0]]}                  # a triangle
+    assert point_in_keepout(1.0, 1.0, tri) and not point_in_keepout(8.0, 8.0, tri)
+
+
+def test_mission_from_dict_accepts_polygon_keepout():
+    ord1 = [{"action": "cut", "kind": "cut", "x": 0, "y": 0, "footprint_m2": 9, "depth_m": 0.1}]
+    m = MP.mission_from_dict({"name": "p", "body": "moon", "orders": ord1,
+                              "keepouts": [{"points": [[0, 0], [20, 0], [20, 20], [0, 20]]}]})
+    assert len(m.keepouts[0]["points"]) == 4
+    import pytest as _pt
+    with _pt.raises(ValueError):                                             # < 3 vertices is not a polygon
+        MP.mission_from_dict({"name": "b", "body": "moon", "orders": ord1,
+                              "keepouts": [{"points": [[0, 0], [1, 1]]}]})
+
+
+def test_plan_accounts_polygon_keepout_end_to_end():
+    # #178: a polygon barrier across the cut->fill haul forces a detour; an order inside it is a conflict
+    dem = MP.load_haworth_dem(); o = MP.flattest_anchor(dem)
+    poly = [[20, -15], [30, -15], [30, 15], [20, 15]]                        # a quad straddling the corridor
+    pay = {"name": "poly", "body": "moon", "charger": [0, 0],
+           "orders": [{"action": "cut", "kind": "cut", "x": 0, "y": 0, "footprint_m2": 36, "depth_m": 0.1},
+                      {"action": "fill", "kind": "fill", "x": 50, "y": 0, "footprint_m2": 36, "depth_m": 0.1}],
+           "keepouts": [{"points": poly}]}
+    _, _, _, _, T = MP.plan_and_simulate(MP.mission_from_dict(pay), dem=dem, dem_origin=o)
+    assert T["n_keepouts"] == 1
+    assert T["haul_detour_frac"] > 0.0 or T["blocked_legs"] > 0
+    pay2 = {"name": "inpoly", "body": "moon", "charger": [0, 0],
+            "orders": [{"action": "on_poly", "kind": "cut", "x": 25, "y": 0, "footprint_m2": 9, "depth_m": 0.1}],
+            "keepouts": [{"points": poly}]}
+    _, _, _, _, T2 = MP.plan_and_simulate(MP.mission_from_dict(pay2), dem=dem, dem_origin=o)
+    assert T2["keepout_conflicts"] == 1
+
+
 def test_plan_accounts_rect_keepout_end_to_end():
     # #178 (Aaron: "can't select a box"): a rectangular barrier straddling the cut->fill haul forces a
     # detour exactly like the circle does, and an order inside the box is flagged build-on-obstacle.

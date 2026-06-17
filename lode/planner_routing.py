@@ -61,9 +61,33 @@ def keepout_is_rect(k):
     return all(key in k for key in ("x0", "y0", "x1", "y1"))
 
 
+def keepout_is_poly(k):
+    """#178: a keep-out is a POLYGON if it carries a 'points' vertex list ([[x,y],...], >= 3); else
+    a rectangle (x0,y0,x1,y1) or a circle (x,y,r)."""
+    pts = k.get("points") if isinstance(k, dict) else None
+    return isinstance(pts, (list, tuple)) and len(pts) >= 3
+
+
+def _point_in_poly(x, y, pts):
+    """Ray-casting (even-odd) point-in-polygon. pts = [[x,y],...] in the local order frame (or any
+    affine image of it -- crop-cell coords work too, since point-in-polygon is affine-invariant)."""
+    inside = False
+    n = len(pts)
+    j = n - 1
+    for i in range(n):
+        xi, yi = pts[i][0], pts[i][1]
+        xj, yj = pts[j][0], pts[j][1]
+        if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+
 def point_in_keepout(x, y, k):
-    """#178: True if the LOCAL-frame point (x, y) [m] lies inside keep-out k -- a {x0,y0,x1,y1}
-    rectangle (the box barrier) or the {x,y,r} circle. Single source for the conflict check."""
+    """#178: True if the LOCAL-frame point (x, y) [m] lies inside keep-out k -- a {points} polygon, a
+    {x0,y0,x1,y1} rectangle, or the {x,y,r} circle. Single source for the build-on-obstacle check."""
+    if keepout_is_poly(k):
+        return _point_in_poly(x, y, k["points"])
     if keepout_is_rect(k):
         return (min(k["x0"], k["x1"]) <= x <= max(k["x0"], k["x1"]) and
                 min(k["y0"], k["y1"]) <= y <= max(k["y0"], k["y1"]))
@@ -80,6 +104,17 @@ def _apply_keepouts(passable, cell_m, r0, c0, dem_origin, keepouts):
     ox, oy = dem_origin
     H, W = passable.shape
     for k in keepouts:
+        if keepout_is_poly(k):                             # #178 arbitrary polygon barrier
+            # map vertices to crop-cell coords once, then rasterize via point-in-polygon over the bbox
+            cells = [((ox + px) / cell_m - c0, (oy + py) / cell_m - r0) for px, py in k["points"]]
+            cs = [c for c, _ in cells]; rs = [r for _, r in cells]
+            c_lo, c_hi = max(0, int(min(cs))), min(W, int(max(cs)) + 1)
+            r_lo, r_hi = max(0, int(min(rs))), min(H, int(max(rs)) + 1)
+            for r in range(r_lo, r_hi):
+                for c in range(c_lo, c_hi):
+                    if _point_in_poly(c + 0.5, r + 0.5, cells):   # cell centre inside the polygon
+                        passable[r, c] = False
+            continue
         if keepout_is_rect(k):                             # #178 axis-aligned rectangular barrier
             x0, x1 = sorted((float(k["x0"]), float(k["x1"])))
             y0, y1 = sorted((float(k["y0"]), float(k["y1"])))
