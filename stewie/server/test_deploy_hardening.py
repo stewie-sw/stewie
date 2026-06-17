@@ -207,3 +207,25 @@ def test_sec05_ci_installs_from_the_lock():
     ci = _read(".github/workflows/ci.yml")
     assert "--require-hashes -r requirements-dev.lock" in ci, "CI does not install from the hashed lock"
     assert "pip install -e .[dev]" not in ci, "CI still has an unpinned `pip install -e .[dev]` (SEC-05)"
+
+
+def test_frontend_dockerfile_makes_served_assets_world_readable():
+    """bodies.json is produced by write_json_atomic (mkstemp -> 0600); a locally-built frontend image can
+    COPY in a root/owner-only file the non-root nginx worker cannot read -> 403 on GET /bodies.json ->
+    empty fleet/soil dropdowns. The Dockerfile must chmod the served html tree world-readable so a 0600
+    source can never strand the cockpit again."""
+    df = _read("deploy/Dockerfile.frontend")
+    assert re.search(r"chmod\s+-R\s+a\+rX\s+/usr/share/nginx/html", df), \
+        "Dockerfile.frontend must `chmod -R a+rX /usr/share/nginx/html` (a 0600 bodies.json -> nginx 403)"
+
+
+def test_generated_bodies_json_is_world_readable():
+    """The bodies.json generator must leave the file group/other-readable (nginx serves it as a non-root
+    user). write_json_atomic alone yields 0600; gen_bodies_json must chmod 0644 after the atomic write."""
+    import importlib
+
+    import stewie.server.gen_bodies_json as g
+    importlib.reload(g)                                  # re-run the generator body -> rewrite + chmod
+    path = os.path.join(_ROOT, "stewie/server/bodies.json")
+    mode = os.stat(path).st_mode
+    assert mode & 0o044 == 0o044, f"bodies.json must be group/other readable for nginx; mode={oct(mode & 0o777)}"

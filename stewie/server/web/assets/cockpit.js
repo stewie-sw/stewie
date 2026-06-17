@@ -2980,10 +2980,16 @@ function populateFleet() {
 // until a manual reload. Make it self-healing: retry with backoff (and re-run on login, see refreshAuthState).
 function loadBodies(attempt) {
   attempt = attempt || 0;
+  const retry = () => {
+    if (attempt < 5) { setTimeout(() => loadBodies(attempt + 1), 700 * (attempt + 1)); }
+    // don't fail SILENTLY (Codex review): exhausted retries with no valid payload -> surface it so an empty
+    // fleet/soil reads as a diagnosable error (e.g. /bodies.json 403/blocked), not a mystery blank dropdown.
+    else if (typeof setQ === "function") setQ("⚠ could not load vehicle/soil data (/bodies.json) — reload to retry");
+  };
   fetch("/bodies.json").then((r) => (r.ok ? r.json() : null)).then((d) => {
-    if (d) { PHY = d; showTerra(); estimate(); populateFleet(); }
-    else if (attempt < 5) { setTimeout(() => loadBodies(attempt + 1), 700 * (attempt + 1)); }
-  }).catch(() => { if (attempt < 5) setTimeout(() => loadBodies(attempt + 1), 700 * (attempt + 1)); });
+    if (d && d._vehicles) { PHY = d; showTerra(); estimate(); populateFleet(); }   // accept only a VALID payload
+    else retry();                                                                   // 403 / empty / partial -> retry
+  }).catch(() => retry());
 }
 loadBodies();
 refreshProfiles();                                            // populate the saved-profiles dropdown

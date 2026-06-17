@@ -19,5 +19,10 @@ COPY stewie/server/web/landing.html /usr/share/nginx/html/landing.html
 COPY stewie/server/web/assets/ /usr/share/nginx/html/assets/
 COPY stewie/server/index.html /usr/share/nginx/html/index.html
 COPY stewie/server/bodies.json /usr/share/nginx/html/bodies.json
+# Docker COPY preserves the source file mode. bodies.json is produced by write_json_atomic (mkstemp ->
+# 0600), so a locally-built image can COPY in a root/owner-only file the non-root nginx worker cannot read
+# -> "Permission denied" -> 403 on GET /bodies.json -> empty fleet/soil dropdowns. Force every served
+# static asset world-readable at the serving layer so a 0600 source can never strand the cockpit again.
+RUN chmod -R a+rX /usr/share/nginx/html
 EXPOSE 80
 HEALTHCHECK --interval=15s --timeout=3s --retries=4 CMD wget -qO- http://127.0.0.1/healthz >/dev/null || exit 1

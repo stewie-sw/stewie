@@ -93,6 +93,12 @@ path = os.path.join(HERE, "bodies.json")
 # file, never a half-written/empty one. Closes the read-during-write race (#122) that a truncating
 # open(path, "w") opens every time this generator (re-)runs at import.
 write_json_atomic(path, out, indent=2)
+# write_json_atomic uses tempfile.mkstemp, which creates the temp file 0600; after os.replace the final
+# bodies.json inherits 0600 (root/owner-only). bodies.json is a PUBLIC static asset the nginx worker (a
+# non-root user) must read to serve GET /bodies.json -- a 0600 copy gives "Permission denied" -> 403, which
+# leaves the cockpit's fleet + soil dropdowns empty. The generator runs at import, so every regeneration
+# re-applied 0600 ("fleet/soil broke again"). Force world-readable here so a regeneration can't re-break it.
+os.chmod(path, 0o644)
 n_bodies = sum(1 for k in out if not k.startswith("_"))
 print(f"wrote {n_bodies} bodies (+{len(out) - n_bodies} meta blocks) -> {path}: "
       f"{', '.join(b.label for b in B.BODIES.values())}")
