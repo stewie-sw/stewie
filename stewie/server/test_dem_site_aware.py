@@ -102,3 +102,38 @@ def test_raster_layer_is_site_specific_and_rejects_unknown():
     assert client.get("/layers/raster/slope.png?site=not_a_real_site").status_code == 404
     # ?site= cannot path-traverse out of the registered bundle set (validated against SITES, not the FS)
     assert client.get("/layers/raster/slope.png?site=../../etc/passwd").status_code == 404
+
+
+# ---- #165: /dem/heightfield -- the 3D-playback height grid in the order frame --------------------
+
+def test_heightfield_serves_order_frame_grid():
+    r = client.get("/dem/heightfield?site=haworth&n=33&window_m=200")
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["ok"] and j["n"] == 33 and len(j["z"]) == 33 * 33
+    assert j["window_m"] == 200.0 and j["cell_m"] > 0
+    assert len(j["dem_origin"]) == 2 and j["z_min"] <= j["z_max"]
+    assert all(isinstance(v, (int, float)) for v in j["z"][:5])
+
+
+def test_heightfield_matches_planner_elevation_sampler():
+    """The grid's height DELTA across the order frame must equal the planner's own DEM sampler
+    (haul_elevation_gain_m) -- proves the 3D surface and the rover's timeline (x,y) read the SAME
+    terrain with no frame drift. n=21,window=100 -> 5 m steps == one DEM cell, so x=100 is z[20]."""
+    from lode.planner_routing import haul_elevation_gain_m
+
+    from stewie.server import state
+    dem, origin = state.moon_dem("haworth")
+    j = client.get("/dem/heightfield?site=haworth&n=21&window_m=100").json()
+    z00, z_x100 = j["z"][0], j["z"][20]                 # (0,0) and (x=100, y=0)
+    gain = haul_elevation_gain_m(dem, origin, (0.0, 0.0), (100.0, 0.0))
+    assert abs((z_x100 - z00) - gain) < 1e-2            # within the 3-decimal serialization rounding
+
+
+def test_heightfield_unknown_site_404():
+    assert client.get("/dem/heightfield?site=not_a_real_site").status_code == 404
+
+
+def test_heightfield_caps_grid_and_window():
+    j = client.get("/dem/heightfield?site=haworth&n=9999&window_m=99999").json()
+    assert j["n"] <= 257 and j["window_m"] <= 2000.0 and len(j["z"]) == j["n"] * j["n"]

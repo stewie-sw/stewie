@@ -60,6 +60,41 @@ def dem_sources_catalog():
          "license": s.license, "notes": s.notes} for s in list_dem_sources()]}
 
 
+@router.get("/dem/heightfield")
+def dem_heightfield(site: str = "haworth", n: int = 129, window_m: float = 300.0):
+    """3D playback (#165): a decimated n*n height grid over the work-area ORDER FRAME [0, window_m]^2
+    -- x metres East, y metres North from the site origin -- sampled from the chosen site's real LOLA
+    DEM with the planner's exact convention (col = round((ox+x)/cell_m), row = round((oy+y)/cell_m),
+    lode.planner_routing.haul_elevation_gain_m). An in-browser 3D viewer renders this surface and the
+    rover's LAST_TIMELINE (x, y) samples the SAME grid, so the dry-run rover sits on the real terrain.
+    `z` is row-major y-then-x: z[j*n + i] is the height at (x = i/(n-1)*window_m, y = j/(n-1)*window_m).
+    Declared BEFORE /dem/{name} so the literal path is not captured as a preview name."""
+    import numpy as np
+
+    from stewie.server import state
+    from stewie.terrain.site_dem import bundle_for_site
+    try:
+        bundle_for_site(site)                           # validate the site (404 on unknown / unimported)
+    except (KeyError, FileNotFoundError) as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    dem, origin = state.moon_dem(site)
+    if dem is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no DEM for site {site!r}"})
+    Z, cell = dem
+    ox, oy = origin
+    H, W = np.asarray(Z).shape
+    n = max(2, min(int(n), 257))                        # bound the browser grid (n=257 -> ~66k samples)
+    win = max(10.0, min(float(window_m), 2000.0))
+    xs = np.linspace(0.0, win, n)
+    cols = np.clip(np.round((ox + xs) / cell).astype(int), 0, W - 1)
+    rows = np.clip(np.round((oy + xs) / cell).astype(int), 0, H - 1)
+    grid = np.asarray(Z, dtype=float)[np.ix_(rows, cols)]   # n x n, row = y (North), col = x (East)
+    return {"ok": True, "site": site, "n": n, "window_m": win, "cell_m": float(cell),
+            "dem_origin": [float(ox), float(oy)],
+            "z": [round(v, 3) for v in grid.flatten().tolist()],
+            "z_min": float(grid.min()), "z_max": float(grid.max())}
+
+
 @router.get("/dem/{name}")
 def get_dem(name: str, site: str = "haworth"):          # the real LOLA work-area DEM previews (REG-01: per site)
     from stewie.terrain.site_dem import bundle_for_site
