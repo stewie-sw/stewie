@@ -68,6 +68,56 @@ def parallax_position_fix(guess_xy, landmarks_xy, pixel_shifts, *, dh_m: float, 
             "ambiguous": bool(out["ambiguous"]), "fused": bool(out["fused"])}
 
 
+def dem_fixed_traverse(dem, path_rc, *, ref_rc=(0, 0), patch_half=6, gyro_bias_rad=0.01,
+                       fix_interval=2, base_sigma_m=2.0):
+    """Fuse REAL register_to_dem absolute fixes over a real-terrain traverse, scored vs TRUE pose.
+
+    The lunar est-vs-truth the modeled-Katwijk path could only approximate: scored against the render/
+    DEM's OWN truth, with the DEM fix produced by the real estimator on real terrain (no modeled
+    truth+sigma). The rover follows ``path_rc`` (a list of (row,col) cells) across the real DEM; dead
+    reckoning integrates each TRUE step length along a GYRO heading carrying a constant
+    ``gyro_bias_rad`` per step, so the odometry-only belief DRIFTS. At each DEM keyframe the rover
+    senses the REAL terrain patch at its TRUE cell and ``dem_position_fix`` (register_to_dem) corrects
+    the drifted guess -> a MEASURED absolute (x,y) fix. run_integrated_slam fuses odom+imu+the real DEM
+    fixes; ATE is scored against the true world path. Non-circular: the fix matches terrain
+    INDEPENDENTLY of the drift, so it genuinely pulls the drifted estimate back. Returns
+    {ate_fused_m, ate_odom_m, abs_max_*_m, n_dem_fix, n_keyframes, measured}. No render needed (the DEM
+    overlay senses the map directly); the shadow-yaw/parallax cues stay render-gated (header)."""
+    from dart import localization as LOC
+    from dart.integrated_slam import run_integrated_slam
+    Z, cell = dem
+    path = np.asarray(path_rc, float)
+    n = len(path)
+    true_xy = np.column_stack([(path[:, 1] - ref_rc[1]) * cell, (path[:, 0] - ref_rc[0]) * cell])
+    d = np.diff(true_xy, axis=0)
+    truth_yaw = np.zeros(n)
+    if n > 1:
+        truth_yaw[1:] = np.arctan2(d[:, 1], d[:, 0])
+        truth_yaw[0] = truth_yaw[1]
+    gyro_yaw = truth_yaw + gyro_bias_rad * np.arange(n)         # a constant gyro bias -> drift
+    step_len = np.r_[0.0, np.linalg.norm(d, axis=1)]
+    dr_xy = np.zeros((n, 2))
+    dr_xy[0] = true_xy[0]
+    for k in range(1, n):                                      # dead-reckon TRUE steps along GYRO heading
+        dr_xy[k] = dr_xy[k - 1] + step_len[k] * np.array([math.cos(gyro_yaw[k]), math.sin(gyro_yaw[k])])
+    measured = {}
+    for k in range(2 * fix_interval, n, 2 * fix_interval):     # the integrated_slam DEM-fix schedule
+        true_rc = (int(round(path[k, 0])), int(round(path[k, 1])))
+        guess_rc = (int(round(dr_xy[k, 1] / cell + ref_rc[0])),  # the DRIFTED odometry belief
+                    int(round(dr_xy[k, 0] / cell + ref_rc[1])))
+        observed = LOC.patch_at(Z, true_rc, patch_half)        # rover senses the REAL terrain it is on
+        fix = dem_position_fix(observed, dem, guess_rc, ref_rc=ref_rc, base_sigma_m=base_sigma_m)
+        if fix is not None:                                    # ambiguous/flat -> no fabricated fix
+            measured[k] = (fix["xy"], fix["sigma"])
+    common = dict(n_keyframes=n, fix_interval=fix_interval)
+    fused = run_integrated_slam(true_xy, dr_xy, truth_yaw, gyro_yaw,
+                                factors=("odom", "imu", "dem"), measured_fixes={"dem": measured}, **common)
+    odom = run_integrated_slam(true_xy, dr_xy, truth_yaw, gyro_yaw, factors=("odom", "imu"), **common)
+    return {"ate_fused_m": fused["ate_aligned_m"], "ate_odom_m": odom["ate_aligned_m"],
+            "abs_max_fused_m": fused["abs_max_err_m"], "abs_max_odom_m": odom["abs_max_err_m"],
+            "n_dem_fix": len(measured), "n_keyframes": int(n), "measured": fused["measured"]}
+
+
 def vo_relative_factors(vo_result):
     """Convert a stereo-VO result (estimate_vo) into ground-plane SE(2) relative between-factors.
 

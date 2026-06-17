@@ -122,6 +122,27 @@ def test_measured_parallax_fixes_bound_drift_on_katwijk():
     assert fused < base, f"measured parallax fixes did not bound drift (fused {fused} >= base {base})"
 
 
+# ---- the lunar est-vs-truth: REAL DEM fixes bound drift on a REAL Haworth traverse, scored vs truth -
+def test_dem_fixed_traverse_beats_odometry_on_real_haworth():
+    """#148: score the fused trajectory against the DEM's OWN truth (not modeled Katwijk). The rover
+    drives a real-terrain path; odometry drifts under a gyro bias; the REAL register_to_dem fix on the
+    real Haworth terrain corrects it. The fused ATE must beat odometry-only -- a real lunar est-vs-truth,
+    no modeled truth+sigma cue."""
+    from lode import mission_planner as MP
+    dem = MP.load_haworth_dem()
+    Z, _cell = dem
+    r0, c0 = _textured_cell(Z, 6)                              # start in textured terrain (real relief)
+    path = [(r0 + 2 * k, c0 + k) for k in range(16)]          # a real diagonal traverse over the DEM
+    out = SEAM.dem_fixed_traverse(dem, path, patch_half=6, gyro_bias_rad=0.01, fix_interval=2)
+    assert out["n_dem_fix"] >= 2, f"too few real DEM fixes landed: {out}"
+    assert out["measured"] == out["n_dem_fix"]                 # every fused fix is a MEASURED one
+    assert out["ate_fused_m"] < out["ate_odom_m"], (
+        f"real DEM fixes did not beat odometry (fused {out['ate_fused_m']} >= odom {out['ate_odom_m']})")
+    # the headline: odometry drifts unboundedly; the real terrain fixes BOUND the absolute drift (>5x)
+    assert out["abs_max_fused_m"] < 0.2 * out["abs_max_odom_m"], (
+        f"real DEM fixes did not bound the drift (fused {out['abs_max_fused_m']} vs odom {out['abs_max_odom_m']})")
+
+
 @pytest.mark.skipif(not os.path.isdir(_PART), reason="Katwijk not present")
 def test_measured_fixes_none_is_byte_identical_to_the_modeled_path():
     from dart.integrated_slam import run_integrated_slam
