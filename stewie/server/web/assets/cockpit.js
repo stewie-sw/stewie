@@ -606,6 +606,7 @@ function setView(name) {
   applySidebar(name);                                      // UX-05: collapse off-Plan / restore on Plan
   loadPane(name);
   if (typeof renderStepper === "function") renderStepper();  // pipeline spine: reflect the active view
+  if (typeof renderCtxSummaries === "function") renderCtxSummaries();  // live per-tab left-block content
 }
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
 // FS-20: System / Settings / Admin live in the profile menu (off the work-area tab bar), role-gated:
@@ -2632,6 +2633,8 @@ qel("qplan").onclick = async () => {
     LAST_ORDERS = ORDERS.slice(); LAST_KEEPOUTS = KEEPOUTS.slice();
     qel("qexec").disabled = !LAST_TIMELINE;
     if (typeof renderStepper === "function") renderStepper();  // pipeline spine: Solve done -> unlock Review/Execute
+    LAST_TOTALS = t; LAST_PDF = j.pdf;                     // mirror the last plan into the tab-contextual left blocks
+    if (typeof renderCtxSummaries === "function") renderCtxSummaries();
     qel("reportframe").src = j.pdf;                        // embed the mission-control PDF in the Report pane
     qel("reportframe").classList.add("show");
     qel("reportopen").href = j.pdf;                        // ...with an "open in tab" escape hatch
@@ -3276,6 +3279,28 @@ if ($("guide-sample")) $("guide-sample").onclick = () => {
   const ss = $("qsample");
   if (ss && ss.options.length && $("qloadsample")) { if (!ss.value) ss.value = ss.options[0].value; $("qloadsample").click(); }
 };
+
+// tab-contextual left blocks (#131/#132 follow-up): mirror the last plan into the per-tab left content
+// so #ctx-metrics/report/perception carry live status, not just "look in the pane ->" blurbs.
+let LAST_TOTALS = null, LAST_PDF = null;
+function renderCtxSummaries() {
+  const t = LAST_TOTALS, m = $("ctxmet-sum"), r = $("ctxrep-sum"), pp = $("ctxperc-sum");
+  if (m) m.innerHTML = t
+    ? `<b>Last plan</b><br>cut ${(t.cut_kg / 1000).toFixed(1)} t &rarr; fill ${(t.fill_kg / 1000).toFixed(1)} t`
+      + `<br>${(t.energy_J / 1e6).toFixed(1)} MJ &middot; ${t.charges || 0} recharge(s)`
+      + `<br><span style="color:${t.feasible === false ? "#e8273f" : "#39ff14"}">${t.feasible === false ? "INFEASIBLE" : "feasible"}</span>`
+      + (t.traverse_cap_deg != null ? ` &middot; &le;${t.traverse_cap_deg}&deg; slope` : "")
+    : "Plan a mission to see its totals here.";
+  if (r) r.innerHTML = LAST_PDF
+    ? `Report ready &mdash; <a href="${LAST_PDF}" target="_blank" rel="noopener" style="color:var(--accent)">open PDF &#8599;</a>`
+    : "No report yet.";
+  if (pp) {
+    const fk = (typeof LAST_LOCALIZATION !== "undefined" && LAST_LOCALIZATION) ? LAST_LOCALIZATION.fix_kinds : null;
+    pp.innerHTML = fk
+      ? `<b>Last localization fixes</b><br>DEM ${fk.dem || 0} &middot; beacon ${fk.beacon || 0} &middot; none ${fk.none || 0}`
+      : "Plan a mission to see the perception fix mix.";
+  }
+}
 
 loadBody("moon"); estimate(); renderQueue(); renderKeepouts(); setView("plan");
 _bootComplete = true;                                     // UX-01: boot done -> 401s may now nudge sign-in

@@ -538,19 +538,22 @@
       <div class="ctxsec">
         <div class="ctxh">Perception <span class="sysb">DART</span></div>
         <div style="font-size:11px;color:var(--muted);line-height:1.55">Sensor render + depth/SLAM. On the Plan tab, click the work-area DEM (Moon) to render a Godot before/after sensor frame; the two-posture render-pair localizer runs in the pane →</div>
+        <div id="ctxperc-sum" style="font-size:11px;line-height:1.7;margin-top:10px;color:var(--muted)">Plan a mission to see the perception fix mix.</div>
       </div>
     </div>
     <div id="ctx-metrics" class="ctxblock" hidden>
       <div class="ctxsec">
         <div class="ctxh">Metrics <span class="sysb">LEAP</span></div>
         <div style="font-size:11px;color:var(--muted);line-height:1.55">Live CG &amp; tip-over margin and the deterministic execution replay of the planned mission.</div>
-        <div id="ctxmet-cg" style="font-size:11px;line-height:1.7;margin-top:10px;color:var(--muted)">CG / tip margin is shown in the pane →</div>
+        <div id="ctxmet-sum" style="font-size:11px;line-height:1.7;margin-top:10px;color:var(--muted)">Plan a mission to see its totals here.</div>
+        <div id="ctxmet-cg" style="font-size:11px;line-height:1.7;margin-top:8px;color:var(--muted)">CG / tip margin is shown in the pane →</div>
       </div>
     </div>
     <div id="ctx-report" class="ctxblock" hidden>
       <div class="ctxsec">
         <div class="ctxh">Report <span class="sysb">FORGE</span></div>
         <div style="font-size:11px;color:var(--muted);line-height:1.55">The mission-control report. Plan a mission (Plan tab → Plan mission) to generate the PDF; it opens in the pane →</div>
+        <div id="ctxrep-sum" style="font-size:11px;line-height:1.7;margin-top:10px;color:var(--muted)">No report yet.</div>
       </div>
     </div>
   </aside>
@@ -897,6 +900,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=a2f2f987b1c3"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=77ab139fea41"></script>
+<script src="/assets/cockpit.js?v=847640aed478"></script>
 </body>
 </html>
