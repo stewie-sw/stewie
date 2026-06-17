@@ -166,6 +166,10 @@
   #edittoolbar { position: absolute; top: 8px; right: 58px; z-index: 30;   /* #175: clear the 🔔 alert button (which sits at right:12px) so they no longer overlap */
     background: rgba(10,10,12,.85); border: 1px solid var(--line); border-radius: 6px;
     padding: 5px 8px; display: flex; gap: 6px; align-items: center; }
+  /* #175 ToolBox: group the edit tools so the tray reads as labelled sections, not one crowded row */
+  #edittools .toolsep { display:inline-block; width:1px; height:15px; background:var(--line); margin:0 5px; vertical-align:middle; }
+  #edittools .toolgrp { display:inline-flex; gap:3px; align-items:center; vertical-align:middle; }
+  #edittools .toollbl { font-size:9px; letter-spacing:.08em; color:var(--muted); margin:0 4px 0 0; vertical-align:middle; text-transform:uppercase; }
   details.substep { padding: 2px 0 2px 8px; border-bottom: none; border-left: 2px solid var(--line); margin: 3px 0; }
   details.substep > summary { cursor: pointer; list-style: none; }
   details.substep > summary::before { content: "▸ "; color: var(--accent); font-size: 8px; }
@@ -620,21 +624,33 @@
         <span id="scalebar2" style="border-bottom:2px solid #fff;border-left:2px solid #fff;border-right:2px solid #fff;height:7px;display:inline-block"></span>
         <span id="scaleval2" style="margin-left:6px"></span></div>
       <div id="edittoolbar">
-    <button id="editmode" class="site" style="font-size:10px" title="QGIS-style edit session: freezes the camera so clicks DRAW instead of pan (#40/#41)">✎ Edit</button>
+    <button id="editmode" class="site" style="font-size:10px" title="QGIS-style edit session: freezes the camera so clicks DRAW instead of pan (#40/#41)">🧰 ToolBox</button>
     <span id="edittools" style="display:none">
-      <button class="site etool" data-tool="goto" style="font-size:10px">⌖ waypoint</button>
-      <button class="site etool" data-tool="keepout" style="font-size:10px" title="click the map to drop a circular keep-out barrier of the radius set here →">⛔ keep-out</button>
-      <label class="site" style="font-size:10px;padding:2px 5px" title="keep-out / barrier radius in metres (used by the ⛔ keep-out tool)">r<input id="koradius" type="number" value="25" min="1" step="1" style="width:3.4em;margin-left:3px" /> m</label>
-      <button class="site etool" data-tool="box" style="font-size:10px" title="click two opposite corners to draw a rectangular keep-out barrier (hauls route around it)">⬛ box</button>
-      <button class="site etool" data-tool="note" style="font-size:10px">✎ note</button>
-      <button class="site etool" data-tool="lander" style="font-size:10px" title="click the map to place the lander (the rover's safe haven + 100 m ring)">🛬 lander</button>
-      <button class="site etool" data-tool="measure" style="font-size:10px" title="click two points to measure the distance between them (site-frame metres)">📏 measure</button>
-      <button class="site etool" data-tool="landmark" style="font-size:10px" title="click the map to drop a named reference point (survey marker); the locator measures distance from it">📍 landmark</button>
-      <button class="site etool" data-tool="rover" style="font-size:10px" title="click the map to set the rover's current position; the locator measures distances/bearings from it">🤖 rover</button>
-      <!-- Aaron 2026-06-16 ("there is no delete on mobile"): pin delete was Delete/Backspace key only -- no
-           hardware key on a phone. This is the touch path: tap a placed pin to select it (it turns green),
-           then tap this to remove it. Mirrors deleteSelectedPin(). -->
-      <button id="editdel" class="site" style="font-size:10px" title="delete the selected pin — tap a pin on the map to select it (it turns green), then tap this">🗑 delete</button>
+      <b class="toollbl" title="place markers on the map">place</b>
+      <span class="toolgrp">
+        <button class="site etool" data-tool="goto" style="font-size:10px" title="click the map to add a traverse waypoint">⌖ waypoint</button>
+        <button class="site etool" data-tool="lander" style="font-size:10px" title="click the map to place the lander (the rover's safe haven + 100 m ring)">🛬 lander</button>
+        <button class="site etool" data-tool="rover" style="font-size:10px" title="click the map to set the rover's current position; the locator measures distances/bearings from it">🤖 rover</button>
+        <button class="site etool" data-tool="landmark" style="font-size:10px" title="click the map to drop a named reference point (survey marker); the locator measures distance from it">📍 landmark</button>
+        <button class="site etool" data-tool="note" style="font-size:10px" title="click the map to attach a text note">✎ note</button>
+      </span>
+      <span class="toolsep"></span>
+      <b class="toollbl" title="no-go barriers — hauls route around them">barrier</b>
+      <span class="toolgrp">
+        <button class="site etool" data-tool="keepout" style="font-size:10px" title="click the map to drop a circular keep-out barrier of the radius set here →">⛔ circle</button>
+        <label class="site" style="font-size:10px;padding:2px 5px" title="keep-out / barrier radius in metres (used by the ⛔ circle tool)">r<input id="koradius" type="number" value="25" min="1" step="1" style="width:3.4em;margin-left:3px" /> m</label>
+        <button class="site etool" data-tool="box" style="font-size:10px" title="click two opposite corners to draw a rectangular keep-out barrier (hauls route around it)">⬛ box</button>
+      </span>
+      <span class="toolsep"></span>
+      <b class="toollbl" title="measure + edit">tools</b>
+      <span class="toolgrp">
+        <button class="site etool" data-tool="measure" style="font-size:10px" title="click two points to measure the distance between them (site-frame metres)">📏 measure</button>
+        <!-- Aaron 2026-06-16 ("there is no delete on mobile"): pin delete was Delete/Backspace key only -- no
+             hardware key on a phone. This is the touch path: tap a placed pin to select it (it turns green),
+             then tap this to remove it. Mirrors deleteSelectedPin(). -->
+        <button id="editdel" class="site" style="font-size:10px" title="delete the selected pin — tap a pin on the map to select it (it turns green), then tap this">🗑 delete</button>
+      </span>
+      <span class="toolsep"></span>
       <button id="editdone" class="go" style="font-size:10px">✓ Done</button>
       <b id="editstate" style="font-size:10px;color:var(--accent)">LOCKED · pick a tool</b>
     </span>
