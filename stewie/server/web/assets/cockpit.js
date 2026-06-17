@@ -419,7 +419,7 @@ async function editPlace(lat, lon) {
     if (LANDER_PIN && viewer) { viewer.entities.remove(LANDER_PIN); PIN_REFS.delete(LANDER_PIN);
       const li = EDIT_PINS.indexOf(LANDER_PIN); if (li >= 0) EDIT_PINS.splice(li, 1); }
     LANDER_PIN = dropPin(lat, lon, `🛬 lander ${LANDER_P.x}, ${LANDER_P.y} m`, "#39ff14", { kind: "lander" });
-    drawPlan(); $("editstate").textContent = `lander @ site ${d.x_m} m E, ${d.y_m} m N (persists + saves with the mission)`;
+    drawPlan(); $("editstate").textContent = `🛬 lander @ site-frame ${d.x_m} m E, ${d.y_m} m N (${Number(lat).toFixed(3)}°, ${Number(lon).toFixed(3)}°)`;
   }
 }
 // #54 follow-up (Aaron: "default to on -- no matter where we are looking on bodies"): a global
@@ -1701,7 +1701,7 @@ async function loadSites() {     // #auth-reload: named (not an IIFE) so refresh
   } catch (e) { /* offline */ }
 })();
 $("landset").onclick = () => { setLander(+$("landx").value || 0, +$("landy").value || 0);
-  setQ(`lander placed at (${LANDER_P.x}, ${LANDER_P.y}) — persists + saves with the mission`); };
+  setQ(`🛬 lander @ site-frame ${LANDER_P.x} m E, ${LANDER_P.y} m N`); };
 if ($("landx")) { $("landx").value = LANDER_P.x; $("landy").value = LANDER_P.y; }
 $("wpadd").onclick = () => {
   snapshotAuthoring();
