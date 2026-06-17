@@ -1839,6 +1839,11 @@ $("site").onclick = () => {
 // needs the server (fetch /plan): run `python3 server.py` and open the printed URL.
 const ORDERS = [];
 const KEEPOUTS = [];                                          // discrete obstacles {x,y,r} (local m); hauls route around
+// #170: mission-pipeline WIZARD state -- STEP_DONE holds the steps the operator has CONFIRMED via "Done"
+// (the real red->green gate, replacing the old hardcoded site/fleet="done"); WIZ_STEP is the step in focus.
+const STEP_ORDER = ["site", "fleet", "orders", "solve", "review", "execute"];
+let WIZ_STEP = "site";
+const STEP_DONE = {};
 // #177: AUTO-SAVE the working draft. Orders + keep-outs lived only in memory (the lander already
 // persisted via stewie_lander), so anything placed on the map vanished on reload unless explicitly
 // saved as a NAMED mission -- "adding something doesn't save it". Persist the working set to
@@ -1849,7 +1854,8 @@ function persistDraft() {
   if (!DRAFT_READY) return;
   try {
     localStorage.setItem("stewie_draft", JSON.stringify({
-      body: (typeof sel !== "undefined" ? sel.value : "moon"), orders: ORDERS, keepouts: KEEPOUTS }));
+      body: (typeof sel !== "undefined" ? sel.value : "moon"), orders: ORDERS, keepouts: KEEPOUTS,
+      step_done: STEP_DONE, wiz_step: WIZ_STEP }));
   } catch (e) { /* storage disabled / full */ }
 }
 function restoreDraft() {
@@ -1857,6 +1863,8 @@ function restoreDraft() {
     const d = JSON.parse(localStorage.getItem("stewie_draft") || "null");
     if (d && Array.isArray(d.orders)) { ORDERS.length = 0; d.orders.forEach((o) => ORDERS.push(o)); }
     if (d && Array.isArray(d.keepouts)) { KEEPOUTS.length = 0; d.keepouts.forEach((k) => KEEPOUTS.push(k)); }
+    if (d && d.step_done && typeof d.step_done === "object") Object.assign(STEP_DONE, d.step_done);
+    if (d && typeof d.wiz_step === "string") WIZ_STEP = d.wiz_step;
   } catch (e) { /* ignore a corrupt draft */ }
   DRAFT_READY = true;                                         // from here on, every change auto-persists
 }
@@ -3257,7 +3265,33 @@ function _pulseQplan() {
   const b = $("qplan"); if (!b) return;
   b.classList.add("pulse"); setTimeout(() => b.classList.remove("pulse"), 1700);
 }
+// #170: the wizard step actions. Done VALIDATES + confirms the current step (red->green) and advances;
+// Next just moves on; Reset un-confirms it (without wiping data). validateStep gates each on its real input.
+function validateStep(step) {
+  if (step === "site")    return (typeof CURRENT_SITE !== "undefined" && CURRENT_SITE) ? { ok: true } : { ok: false, msg: "choose a site first (1·Site)" };
+  if (step === "fleet")   return ((+(($("vehcount") || {}).value) || 0) >= 1) ? { ok: true } : { ok: false, msg: "set at least one rover (3·Fleet)" };
+  if (step === "orders")  return (ORDERS.length > 0 || KEEPOUTS.length > 0) ? { ok: true } : { ok: false, msg: "add at least one build order or keep-out" };
+  if (step === "solve")   return (!!LAST_TIMELINE) ? { ok: true } : { ok: false, msg: "press “Plan mission → open report” to solve" };
+  if (step === "review")  return (!!LAST_TIMELINE) ? { ok: true } : { ok: false, msg: "solve a plan before reviewing" };
+  if (step === "execute") return (!!LAST_TIMELINE) ? { ok: true } : { ok: false, msg: "solve + review before execute" };
+  return { ok: true };
+}
+function setWizStep(step) { WIZ_STEP = step; renderStepper(); }
+function wizDone() {
+  const v = validateStep(WIZ_STEP);
+  if (!v.ok) { setQ("⚠ " + v.msg); if (WIZ_STEP === "solve") _pulseQplan(); return; }
+  STEP_DONE[WIZ_STEP] = true; persistDraft(); renderStepper();
+  setQ(WIZ_STEP.charAt(0).toUpperCase() + WIZ_STEP.slice(1) + " ✓ confirmed");
+  const nxt = STEP_ORDER[STEP_ORDER.indexOf(WIZ_STEP) + 1];
+  if (nxt) goStep(nxt);
+}
+function wizNext() { const nxt = STEP_ORDER[STEP_ORDER.indexOf(WIZ_STEP) + 1]; if (nxt) goStep(nxt); else setQ("last step — Execute"); }
+function wizReset() {
+  STEP_DONE[WIZ_STEP] = false; persistDraft(); renderStepper();
+  setQ(WIZ_STEP.charAt(0).toUpperCase() + WIZ_STEP.slice(1) + " reset — re-confirm with Done");
+}
 function goStep(step) {
+  setWizStep(step);                                         // #170: focus this step in the wizard
   const planned = !!LAST_TIMELINE;
   if ((step === "review" || step === "execute") && !planned) {   // can't review/execute before a plan exists
     setView("plan"); if (innerWidth <= 860) $("panel").classList.add("open");
@@ -3273,16 +3307,15 @@ function goStep(step) {
 }
 function renderStepper() {
   const wrap = $("stepper"); if (!wrap) return;
-  const hasOrders = typeof ORDERS !== "undefined" && ORDERS.length > 0;
-  const planned = !!LAST_TIMELINE;
-  const state = {
-    site: "done", fleet: "done",
-    orders: hasOrders ? "done" : "todo",
-    solve: planned ? "done" : "todo",
-    review: planned ? "todo" : "locked",
-    execute: planned ? "todo" : "locked",
-  };
-  const current = !hasOrders ? "orders" : !planned ? "solve" : "review";
+  // #170: real gates -- a step is green only once CONFIRMED via Done (STEP_DONE); the first unconfirmed
+  // step is the reachable "todo", the rest are "locked" until their predecessor is confirmed.
+  const state = {}; let reachable = true;
+  for (const s of STEP_ORDER) {
+    if (STEP_DONE[s]) state[s] = "done";
+    else { state[s] = reachable ? "todo" : "locked"; reachable = false; }
+  }
+  const current = WIZ_STEP || STEP_ORDER.find((s) => !STEP_DONE[s]) || "execute";
+  const wl = $("wizstep"); if (wl) wl.textContent = (WIZ_STEP || "site").toUpperCase();
   const viewStep = { plan: "orders", report: "review", metrics: "execute", nav: "review", perception: "review" }[VIEW];
   wrap.querySelectorAll(".step").forEach((b) => {
     const s = b.dataset.step;
@@ -3296,6 +3329,9 @@ function renderStepper() {
 (function initStepper() {
   const wrap = $("stepper"); if (!wrap) return;
   wrap.querySelectorAll(".step").forEach((b) => { b.onclick = () => goStep(b.dataset.step); });
+  if ($("wizdone")) $("wizdone").onclick = wizDone;          // #170: Reset / Done / Next act on the current step
+  if ($("wizreset")) $("wizreset").onclick = wizReset;
+  if ($("wiznext")) $("wiznext").onclick = wizNext;
 })();
 
 // #126: the guided walkthrough -- discoverable via the stepper's ❔ Guide button (no auto-popup, so it
