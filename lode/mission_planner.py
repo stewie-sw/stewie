@@ -1298,22 +1298,29 @@ def _charger_conflicts(per_vehicle, mission):
     return conflicts
 
 
-def _resolve_charger_queue(per_vehicle):
-    """FL-03: resolve the SHARED single charger as a one-server FCFS queue. v1 planned each vehicle's
-    recharges as if chargers were unlimited (optimistic); a real fleet has ONE charger, so charges must
-    serialise. Sweep every vehicle's charge windows in arrival order: a charge that arrives while the
-    charger is still busy WAITS until it frees, and that wait is added to the vehicle's accrued delay --
-    which shifts its later timeline (its later charges arrive later too, so they are re-queued at the
-    delayed time). Returns the per-vehicle accumulated wait [s]; a vehicle's real finish is its
-    independent time_s + delay[v]. Pure + deterministic (ties break to the lower vehicle index); the
-    delay is 0 for every vehicle when no two charge windows overlap."""
+def _resolve_charger_queue(per_vehicle, capacity=1):
+    """FL-03: resolve the SHARED charger(s) as a CAPACITY-k server queue. `capacity` is the number of
+    rovers that can charge at once; the DEFAULT 1 is the single-charger case and is BYTE-IDENTICAL to v1's
+    one-server FCFS queue. v1 planned each vehicle's recharges as if chargers were unlimited (optimistic);
+    a real fleet shares a finite charger, so charges serialise when they would exceed capacity. Sweep
+    every vehicle's charge windows in EFFECTIVE-arrival order; assign each to the charger slot that frees
+    earliest and start it at max(arrival, that slot's free time) -- so a charge that arrives while all k
+    slots are busy WAITS for the earliest, and that wait shifts the vehicle's later timeline. Each
+    scheduled charge is then ADMITTED against a ReservationLedger capacity-k 'charger' resource, so the
+    fleet plans AGAINST the ledger (FL-03/FL-04 preventive admission) rather than only detecting overlaps
+    after the fact; the k-server schedule fits the ledger by construction (<= k concurrent). Returns the
+    per-vehicle accumulated wait [s]; a vehicle's real finish is time_s + delay[v]. Pure + deterministic
+    (ties break to the lower vehicle index)."""
+    from lode.fleet_resources import Reservation, ReservationLedger, SharedResource
+    cap = max(1, int(capacity))
     n = len(per_vehicle)
     queues = [[(float(s["t0"]), float(s["t1"]) - float(s["t0"]))         # (arrival, duration) per charge
                for s in pv.get("tl", []) if s.get("kind") == "charge"]
               for pv in per_vehicle]
     ptr = [0] * n
     delay = [0.0] * n
-    charger_free = 0.0
+    slot_free = [0.0] * cap                                             # next-free time of each charger slot
+    ledger = ReservationLedger([SharedResource("charger", "charger", cap)])
     while True:
         nxt, nxt_arr = -1, None                                         # next charge to service, by EFFECTIVE arrival
         for v in range(n):
@@ -1324,9 +1331,12 @@ def _resolve_charger_queue(per_vehicle):
         if nxt < 0:
             break                                                       # all charges serviced
         dur = queues[nxt][ptr[nxt]][1]
-        start = max(nxt_arr, charger_free)                              # wait if the charger is still busy
+        slot = min(range(cap), key=lambda i: slot_free[i])              # the earliest-free slot (the only one when cap=1)
+        start = max(nxt_arr, slot_free[slot])                           # wait if every slot is still busy
         delay[nxt] += start - nxt_arr                                   # this wait shifts the vehicle's later timeline
-        charger_free = start + dur
+        slot_free[slot] = start + dur
+        if dur > 0:                                                     # admit the scheduled charge against the ledger
+            ledger.reserve(Reservation("charger", f"v{nxt}#{ptr[nxt]}", start, start + dur))
         ptr[nxt] += 1
     return delay
 

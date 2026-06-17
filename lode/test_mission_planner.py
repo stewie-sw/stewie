@@ -1884,6 +1884,22 @@ def test_fl03_resolve_charger_queue_serialises_overlapping_charges():
     assert MP._resolve_charger_queue(disjoint) == pytest.approx([0.0, 0.0])
 
 
+def test_fl03_capacity_k_charger_admits_concurrent_charges():
+    """FL-03 (rec #7): the charger is a CAPACITY-k server. With capacity=2 the two overlapping charges of
+    test_fl03 fit concurrently (no wait); a THIRD overlapping charge exceeds capacity and waits for a
+    slot. capacity=1 stays the FCFS single-server behaviour (regression guard above). Wiring the
+    ReservationLedger in so the fleet plans against a finite charger instead of an optimistic unlimited one."""
+    three = [
+        {"core": {"time_s": 30.0}, "tl": [{"kind": "charge", "t0": 10.0, "t1": 20.0}]},   # slot A [10,20)
+        {"core": {"time_s": 30.0}, "tl": [{"kind": "charge", "t0": 12.0, "t1": 22.0}]},   # slot B [12,22)
+        {"core": {"time_s": 30.0}, "tl": [{"kind": "charge", "t0": 14.0, "t1": 24.0}]},   # waits: A frees at 20
+    ]
+    # capacity 2: first two charge concurrently (0 wait); the third waits until slot A frees at t=20 -> 6 s
+    assert MP._resolve_charger_queue(three, capacity=2) == pytest.approx([0.0, 0.0, 6.0])
+    # capacity 1 serialises all three (FCFS): v1 waits 8, v2 waits until 30 (its arrival 14 -> start 30)
+    assert MP._resolve_charger_queue(three, capacity=1) == pytest.approx([0.0, 8.0, 16.0])
+
+
 def test_fl03_shared_charger_contention_is_modelled_in_makespan():
     """FL-03: the shared charger is MODELLED (not just detected). When two vehicles contend for the one
     charger the headline makespan reflects the queue wait (>= the optimistic parallel makespan), the
