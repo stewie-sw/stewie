@@ -46,7 +46,7 @@
   /* UX: always-visible mission pipeline spine (Site -> Fleet -> Orders -> Solve -> Review -> Execute) above
      the whole app, so the load->author->plan->simulate->review sequence is explicit and a user can't open
      Review/Execute before a plan exists. Additive over the tabs; reuses #conops as the ConOps state. */
-  #stepper { flex: 0 0 auto; display: flex; align-items: center; height: 34px; background: var(--head);
+  #stepper { flex: 0 0 auto; display: flex; align-items: center; height: 34px; background: var(--head); border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line); padding: 0 10px; overflow-x: auto; -webkit-overflow-scrolling: touch;
     scrollbar-width: none; }
   #stepper::-webkit-scrollbar { display: none; }
@@ -295,15 +295,6 @@
 </style>
 </head>
 <body>
-<div id="stepper" role="navigation" aria-label="mission pipeline">
-  <button class="step" data-step="site"><span class="dot"></span>Site</button>
-  <button class="step" data-step="fleet"><span class="dot"></span>Fleet</button>
-  <button class="step" data-step="orders"><span class="dot"></span>Orders</button>
-  <button class="step" data-step="solve"><span class="dot"></span>Solve</button>
-  <button class="step" data-step="review"><span class="dot"></span>Review</button>
-  <button class="step" data-step="execute"><span class="dot"></span>Execute</button>
-  <button id="guidebtn" title="how the planning workflow works" style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-family:'Orbitron',system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;padding:4px 10px;cursor:pointer;white-space:nowrap">&#10067; Guide</button>
-</div>
 <!-- #126: the first-run guided walkthrough of the mission pipeline (Site -> ... -> Execute). -->
 <div id="guidemodal" role="dialog" aria-modal="true" aria-label="how to plan a mission" hidden>
   <div class="guidecard">
@@ -590,6 +581,17 @@
         </div>
       </span>
     </nav>
+    <!-- #170: the mission pipeline stepper sits directly UNDER the work-area tab line (Aaron: "should be below
+         the Plan/Navigation/Perception/Metrics/Report lines"), in the main column above the view area. -->
+    <div id="stepper" role="navigation" aria-label="mission pipeline">
+      <button class="step" data-step="site"><span class="dot"></span>Site</button>
+      <button class="step" data-step="fleet"><span class="dot"></span>Fleet</button>
+      <button class="step" data-step="orders"><span class="dot"></span>Orders</button>
+      <button class="step" data-step="solve"><span class="dot"></span>Solve</button>
+      <button class="step" data-step="review"><span class="dot"></span>Review</button>
+      <button class="step" data-step="execute"><span class="dot"></span>Execute</button>
+      <button id="guidebtn" title="how the planning workflow works" style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-family:'Orbitron',system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;padding:4px 10px;cursor:pointer;white-space:nowrap">&#10067; Guide</button>
+    </div>
     <div id="viewarea">
       <button id="drawerbtn" title="planning sidebar">☰</button>
       <div id="alertrail" style="display:none;position:absolute;right:12px;top:100px;z-index:35;width:min(380px,80vw);max-height:46vh;overflow:auto;background:rgba(10,10,12,.95);border:1px solid var(--line);border-radius:8px;padding:8px 10px">
