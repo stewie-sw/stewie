@@ -329,6 +329,7 @@ function loadBody(key) {
 // #40/#41: the QGIS edit session -- camera frozen, clicks draw, explicit done restores.
 let EDIT = { on: false, tool: null };
 const ANNOTATIONS = [];                                    // note pins {x, y, text} (site frame)
+const LANDMARKS = [];                                      // #178/#174: named reference points {x, y, name, lat, lon} -- placed survey markers the locator measures distance FROM
 const EDIT_PINS = [];                                      // #61: VISIBLE markers for edit placements
 function setEdit(on) {
   EDIT.on = on; EDIT.tool = null;
@@ -362,6 +363,7 @@ function deleteSelectedPin() {                             // #64: Delete remove
     if (ref.kind === "order") { const i = ORDERS.indexOf(ref.obj); if (i >= 0) ORDERS.splice(i, 1); }
     if (ref.kind === "keepout") { const i = KEEPOUTS.indexOf(ref.obj); if (i >= 0) KEEPOUTS.splice(i, 1); }
     if (ref.kind === "note") { const i = ANNOTATIONS.indexOf(ref.obj); if (i >= 0) ANNOTATIONS.splice(i, 1); }
+    if (ref.kind === "landmark") { const i = LANDMARKS.indexOf(ref.obj); if (i >= 0) LANDMARKS.splice(i, 1); persistDraft(); }
   }
   viewer.entities.remove(SELECTED_PIN);
   const k = EDIT_PINS.indexOf(SELECTED_PIN); if (k >= 0) EDIT_PINS.splice(k, 1);
@@ -435,6 +437,18 @@ async function editPlace(lat, lon) {
       const msg = `distance ${dist.toFixed(1)} m  (Δ ${(d.x_m - MEASURE_A.x).toFixed(1)} m E, ${(d.y_m - MEASURE_A.y).toFixed(1)} m N)`;
       $("editstate").textContent = msg; setQ(msg);
       MEASURE_A = null;
+    }
+  } else if (EDIT.tool === "landmark") {
+    // #178/#174: a named reference point (survey marker). Persists across reload + the locator
+    // measures distance FROM it. Stores both site-frame metres and geographic lat/lon.
+    const name = (prompt("landmark name (e.g. 'Lander', 'Charge Pad', 'Crater Rim'):") || "").trim();
+    if (name) {
+      const lm = { x: d.x_m, y: d.y_m, name, lat: Number(lat), lon: Number(lon) };
+      LANDMARKS.push(lm);
+      dropPin(lat, lon, `📍 ${name}`, "#3fb6ff", { kind: "landmark", obj: lm });
+      persistDraft();
+      $("editstate").textContent = `📍 landmark "${name}" @ ${d.x_m} m E, ${d.y_m} m N`;
+      setQ(`landmark "${name}" placed (${LANDMARKS.length} total) — the locator can measure distance from it`);
     }
   }
 }
@@ -1868,7 +1882,7 @@ function persistDraft() {
   try {
     localStorage.setItem("stewie_draft", JSON.stringify({
       body: (typeof sel !== "undefined" ? sel.value : "moon"), orders: ORDERS, keepouts: KEEPOUTS,
-      step_done: STEP_DONE, wiz_step: WIZ_STEP }));
+      landmarks: LANDMARKS, step_done: STEP_DONE, wiz_step: WIZ_STEP }));
   } catch (e) { /* storage disabled / full */ }
 }
 function restoreDraft() {
@@ -1876,6 +1890,17 @@ function restoreDraft() {
     const d = JSON.parse(localStorage.getItem("stewie_draft") || "null");
     if (d && Array.isArray(d.orders)) { ORDERS.length = 0; d.orders.forEach((o) => ORDERS.push(o)); }
     if (d && Array.isArray(d.keepouts)) { KEEPOUTS.length = 0; d.keepouts.forEach((k) => KEEPOUTS.push(k)); }
+    if (d && Array.isArray(d.landmarks)) {
+      LANDMARKS.length = 0;
+      d.landmarks.forEach((l) => {
+        LANDMARKS.push(l);
+        // #178: re-drop the globe marker for a restored landmark (we stored its lat/lon), so a persistent
+        // reference point survives reload ON the map -- not just in the data model.
+        if (typeof viewer !== "undefined" && viewer && typeof l.lat === "number" && typeof l.lon === "number") {
+          dropPin(l.lat, l.lon, `📍 ${l.name}`, "#3fb6ff", { kind: "landmark", obj: l });
+        }
+      });
+    }
     if (d && d.step_done && typeof d.step_done === "object") Object.assign(STEP_DONE, d.step_done);
     if (d && typeof d.wiz_step === "string") WIZ_STEP = d.wiz_step;
   } catch (e) { /* ignore a corrupt draft */ }
