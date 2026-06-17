@@ -49,10 +49,11 @@ def test_ux05_sidebar_autocollapse_and_pin():
 
 def test_mobile03_phead_reserves_drawer_space():
     html = _read(_INDEX)
-    m = re.search(r"@media \(max-width: 860px\) \{(.*?)\n  \}", html, re.S)
-    assert m, "could not find the <=860px media query"
-    block = m.group(1)
-    assert re.search(r"#phead\s*\{[^}]*padding-left", block), \
+    # there may be MORE THAN ONE <=860px block (the stepper co-locates its responsive rules with the
+    # stepper CSS, MOBILE-05); the #phead drawer-padding rule need only live in SOME mobile block.
+    blocks = re.findall(r"@media \(max-width: 860px\) \{(.*?)\n  \}", html, re.S)
+    assert blocks, "could not find a <=860px media query"
+    assert any(re.search(r"#phead\s*\{[^}]*padding-left", b) for b in blocks), \
         "#phead does not reserve left padding for the #drawerbtn at <=860px (MOBILE-03)"
 
 
