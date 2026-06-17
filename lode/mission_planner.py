@@ -206,7 +206,7 @@ class BuildOrder:
 @dataclasses.dataclass
 class Mission:
     name: str; body: str; orders: list
-    charger: tuple = (0.0, 0.0); date: str = "2026-06-03"
+    charger: tuple = (0.0, 0.0); charger_capacity: int = 1; date: str = "2026-06-03"
     #: #161: the delivery lander = the rover's safe haven. None -> defaults to the charger. The return-to-
     #: lander feasibility (totals["return_to_lander"]) keeps an operator-ADJUSTABLE buffer over the bare
     #: return-drive energy so the rover can always get back before the battery dies.
@@ -304,6 +304,7 @@ def mission_from_dict(payload):
     kwargs = dict(name=str(payload.get("name", "Build Mission")), body=body, orders=orders,
                   charger=(VAL.ensure_finite_scalar(c[0], "charger x"),
                            VAL.ensure_finite_scalar(c[1], "charger y")),
+                  charger_capacity=max(1, min(8, int(payload.get("charger_capacity", 1) or 1))),
                   vehicle=veh, tools=tools, soil=soil)
     if "date" in payload:
         kwargs["date"] = str(payload["date"])
@@ -1430,7 +1431,7 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     # Each vehicle's real finish is its independent time + the wait it accrues queueing for the charger;
     # the headline makespan is the max of those. parallel_makespan keeps the optimistic (unlimited-charger)
     # value for reference, and charger_conflicts still reports how many overlaps the queue had to resolve.
-    charger_delays = _resolve_charger_queue(per_vehicle)
+    charger_delays = _resolve_charger_queue(per_vehicle, capacity=mission.charger_capacity)
     charger_wait_s = float(sum(charger_delays))
     makespan = max((pv["core"]["time_s"] + charger_delays[i] for i, pv in enumerate(per_vehicle)),
                    default=0.0)
@@ -1511,7 +1512,7 @@ def plan_multi_oracle(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
                 vtrips = [trips[i] for i in orders[v]]
                 tl, _per_trip, core = _simulate(mission, vtrips, routes)
                 per_vehicle.append({"vehicle": v, "tl": tl, "core": core})
-            delays = _resolve_charger_queue(per_vehicle)
+            delays = _resolve_charger_queue(per_vehicle, capacity=mission.charger_capacity)
             mk = max((pv["core"]["time_s"] + delays[i] for i, pv in enumerate(per_vehicle)), default=0.0)
             if best is None or mk < best[0] - 1e-9:
                 best = (mk, list(assign))

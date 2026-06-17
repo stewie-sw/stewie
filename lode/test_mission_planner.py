@@ -1900,6 +1900,18 @@ def test_fl03_capacity_k_charger_admits_concurrent_charges():
     assert MP._resolve_charger_queue(three, capacity=1) == pytest.approx([0.0, 8.0, 16.0])
 
 
+def test_charger_capacity_threads_request_to_mission():
+    """FL-03 (rec #7) wiring: the operator charger count flows request -> mission. mission_from_dict
+    parses charger_capacity (bounded 1..8); plan_multi then hands it to the capacity-k charger queue
+    (the scheduler effect is pinned by test_fl03_capacity_k_charger_admits_concurrent_charges)."""
+    base = {"name": "M", "body": "moon", "charger": [0, 0],
+            "orders": [{"action": "cut", "kind": "cut", "x": 40, "y": 30, "footprint_m2": 36, "depth_m": 0.04}]}
+    assert MP.mission_from_dict(base).charger_capacity == 1                                # default
+    assert MP.mission_from_dict({**base, "charger_capacity": 3}).charger_capacity == 3
+    assert MP.mission_from_dict({**base, "charger_capacity": 0}).charger_capacity == 1     # bounded >= 1
+    assert MP.mission_from_dict({**base, "charger_capacity": 99}).charger_capacity == 8    # bounded <= 8
+
+
 def test_fl03_shared_charger_contention_is_modelled_in_makespan():
     """FL-03: the shared charger is MODELLED (not just detected). When two vehicles contend for the one
     charger the headline makespan reflects the queue wait (>= the optimistic parallel makespan), the

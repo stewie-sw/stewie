@@ -364,6 +364,7 @@
         <label title="regolith model — defaults to the body's own; override to e.g. run Earth soil on a lunar map">Soil <select id="soil"></select></label></div>
       <div class="ctl"><label title="fleet size — >1 plans a multi-vehicle mission (site-exclusive allocation, parallel makespan, deconfliction)">Rovers <input id="vehcount" type="number" value="1" min="1" max="16" step="1" /></label></div>
       <div class="ctl"><label title="operator slope budget — the planner refuses to route a traverse steeper than this (the real traversability gate); tighter is safer but can make a leg infeasible">Max slope <input id="qslope" type="number" value="25" min="5" max="45" step="1" style="width:4em" />°</label></div>
+      <div class="ctl"><label title="how many rovers can charge at once (multi-vehicle): 1 = one shared charger (overlapping recharges serialise); >1 lets that many charge concurrently">Chargers <input id="qchargers" type="number" value="1" min="1" max="8" step="1" style="width:4em" /></label></div>
       <div class="ctl" id="tools">tools —</div>
       <div id="fleetcaps">capabilities —</div>
     </section>
@@ -900,6 +901,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=a2f2f987b1c3"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=847640aed478"></script>
+<script src="/assets/cockpit.js?v=2eb128e756ce"></script>
 </body>
 </html>

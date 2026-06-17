@@ -2527,6 +2527,7 @@ qel("qplan").onclick = async () => {
       body: JSON.stringify({ name: `${BODIES[sel.value].name} build`, body: sel.value, charger: [0, 0],
         orders: ORDERS, algorithm: qel("qalgo").value, objective: qel("qobj").value, precedence: parsePrec(),
         keepouts: KEEPOUTS, max_traverse_slope_deg: +(qel("qslope") ? qel("qslope").value : 25),
+        charger_capacity: +(qel("qchargers") ? qel("qchargers").value : 1),
         ...fleet(), ...site() }) });
     const j = await res.json();
     if (res.status === 401) { setQ("⚠ API key required: paste it in ⚙ Settings (server key lives in deploy/.env)"); setView("settings"); return; }

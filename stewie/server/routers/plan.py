@@ -91,6 +91,7 @@ class PlanRequest(BaseModel):
     vehicles: int = Field(default=1, ge=1, le=16)               # MV: fleet size (>1 -> multi-vehicle plan)
     site: str = Field(default="haworth", max_length=40)        # REG-01: which imported site DEM to plan on
     max_traverse_slope_deg: float = Field(default=25.0, ge=5.0, le=45.0)   # operator slope budget: the routing traversability gate (planner default 25 deg)
+    charger_capacity: int = Field(default=1, ge=1, le=8)   # FL-03: how many rovers can charge at once (multi-vehicle contention; default 1 = single shared charger)
 
 
 def _totals_json(totals):
