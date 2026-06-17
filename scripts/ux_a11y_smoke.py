@@ -210,9 +210,9 @@ def main() -> int:
             lp = b.new_page(viewport={"width": 390, "height": 844})
             lp.on("pageerror", lambda e: errs.append("[landing] " + str(e)))
             lp.goto(f"http://127.0.0.1:{args.port}/landing.html", wait_until="domcontentloaded", timeout=40000)
-            lp.wait_for_selector(".hero .hero-cta .btn", timeout=10000)
+            lp.wait_for_selector(".hero .cta", timeout=10000)
             cta = lp.evaluate(r"""() => {
-                const el = document.querySelector('.hero .hero-cta .btn');
+                const el = document.querySelector('.hero .cta');
                 const r = el.getBoundingClientRect();
                 return { bottom: Math.round(r.bottom), top: Math.round(r.top),
                          visible: el.offsetParent !== null, text: el.textContent.trim() };
