@@ -185,3 +185,29 @@ now explicitly anchored to the official challenge spec rather than invented.
   `slip_alpha_to_slip` entrapment ladder, `negative_obstacle_mask` ("don't fall
   in holes"), slope gating.
 - `planet_browser/localization.py` — scan-to-DEM map-relative localisation.
+
+---
+
+## Figure / table digestion map (SCHULER24, full 39-page pass — 2026-06-17)
+
+Every page + figure + table of `~/Desktop/STEWIE/ascend24-ipex-trl-5-design-overview.pdf` was
+viewed visually this session. Where each one's data lives, and what a FULL digital twin still needs.
+Legend: ✅ extracted to spec/code · 📄 documented (not simulated) · ⬜ viewed, not yet twin-grade.
+
+| Figure / Table | Content | Status |
+|---|---|---|
+| Fig 1, Tables 1-2 | CAD + build photo; subsystem list; envelope (30 kg, 70 km, 30 cm/s, 7.5 cm obstacle, 15°/20° slope) | ✅ `vehicle_ipex.md` + `ipex_specs.py` |
+| Fig 2, 4, 17; Tables 3, 5, 6 | Actuator cross-sections (ThinGap LSI, Harmonic Drive 80:1/160:1, SKF/EZO bearings, brake, torque shaft) + load cases | ✅ motor/gear/load grounded in `ipex_specs.py`; ⬜ bearing/part-stack internals not simulated |
+| Fig 6-9, 20-22; Tables 7-8 | Motor characterisation + accelerated-life graphs; the τ(I,V,T) curve-fit | ✅ the current-from-mass / FDC model in `rassor_mass_model.py`; 📄 life-test graphs |
+| Fig 10-15 | IPEx wheel design (cleats / grousers / side-ring "ski" / hub / spokes); 10-config trade study; dynamic FE | ⬜ render uses the EZ-RASSOR wheel mesh, NOT the IPEx grouser wheel; slip-trade documented |
+| Fig 16, 23-26; Table 9 | RDS (2 subsystems, drum+arm actuators); bucket-drum spiral geometry (straight/diverging, 4 sections); flight payload | ✅ drum mass-conservation + counter-rotation; ⬜ spiral scoop geometry not modelled |
+| **Fig 27-38; Table 10** | **Camera & dust subsystem: 8 cams (4 min), IMX547/6-4.4 mm/f4, 0.05 m baseline, 6 LED units 3000 lm/42° FWHM, EDS+HDRM, thermal calib** | ✅ **`vehicle_ipex_cameras.md` + `camera_rig.gd` + `eds_dust.py` (2026-06-17)** |
+| Fig 39-47; Tables 11-13 | Thermal: radiator cover (Ultem/Cerakote), PCM (n-hexadecane, 18°C, 300.5 kJ, 2.5 kg), Faulhaber 22GPT 862:1 cover actuator (1.8/2.5 N·m, 431 RPM, 30 s); tribo-charge surface densities + COMSOL dust-lofting vs arm angle | ⬜ thermal + electrostatic-lofting NOT modelled (hardware values captured here) |
+
+**For a complete twin, the open extractions are:** (1) the IPEx wheel grouser/cleat/side-ring geometry
+(replace the EZ-RASSOR render mesh); (2) the bucket-drum spiral scoop geometry; (3) actuator internal
+part stacks (if mechanical-detail sim is wanted); (4) the thermal subsystem (radiator cover + PCM) and
+the electrostatic dust-lofting model (Tables 11-13 + Fig 44-45) — the latter ties into the EDS dust
+model and the radiator-cover operational constraint (RDS arm ≤ 0° to avoid lofting dust onto the
+radiator). The CAMERA subsystem and the mechanical/energy spec are twin-ready; (1)-(4) are the remaining
+figure content not yet at twin-grade.
