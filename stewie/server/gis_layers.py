@@ -16,10 +16,10 @@ import numpy as np
 _CACHE: dict = {}
 
 
-def _work_area(mp):
+def _work_area(mp, bundle_dir=None):
     """The work-area crop the planner frames: load_haworth_dem returns (heightmap, cell_m); the
-    flattest-anchor gives the site center in DEM meters."""
-    pair = mp.load_haworth_dem()                         # the (heightmap, cell_m) tuple
+    flattest-anchor gives the site center in DEM meters. ``bundle_dir`` selects the chosen site (REG-01)."""
+    pair = mp.load_haworth_dem(bundle_dir=bundle_dir)    # the (heightmap, cell_m) tuple
     dem, cell_m = pair
     ax, ay = mp.flattest_anchor(pair)                    # takes the PAIR; returns (x, y) DEM meters
     r0 = int(ay / cell_m); c0 = int(ax / cell_m)
@@ -41,14 +41,16 @@ def _upscale(a: np.ndarray, k: int = 4) -> np.ndarray:
 
 
 def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float = 90.0,
-           mp=None) -> bytes | None:
-    """Render one raster layer as PNG bytes; None for unknown kinds."""
+           mp=None, site: str = "haworth") -> bytes | None:
+    """Render one raster layer as PNG bytes; None for unknown kinds. REG-01: ``site`` selects the
+    imported tile so the work-area raster follows the chosen site, not just Haworth."""
     if mp is None:
         from lode import mission_planner as mp
-    key = (kind, round(float(sun_el), 2), round(float(sun_az), 2))
+    bundle_dir = mp.bundle_for_site(site)                # raises KeyError/FileNotFoundError -> route 404
+    key = (kind, site, round(float(sun_el), 2), round(float(sun_az), 2))
     if key in _CACHE:
         return _CACHE[key]
-    dem, _, cell_m = _work_area(mp)
+    dem, _, cell_m = _work_area(mp, bundle_dir)
 
     if kind == "slope":
         gy, gx = np.gradient(dem, cell_m)
@@ -116,14 +118,15 @@ def _np_load_rgba(path):
 
 
 
-def _tile_geo(mp):
-    """(heightmap, cell_m, world_bounds dict, the pyproj fwd transformer)."""
+def _tile_geo(mp, bundle_dir=None):
+    """(heightmap, cell_m, world_bounds dict, the pyproj fwd transformer). ``bundle_dir`` selects the
+    chosen site's tile (REG-01); None = the Haworth default / $STEWIE_DEM_DIR."""
     import json as _json
     import os as _os
 
     from pyproj import CRS, Transformer
-    pair = mp.load_haworth_dem()
-    meta = _json.load(open(_os.path.join(mp._haworth_bundle(None), "metadata.json")))
+    pair = mp.load_haworth_dem(bundle_dir=bundle_dir)
+    meta = _json.load(open(_os.path.join(mp._haworth_bundle(bundle_dir), "metadata.json")))
     crs = CRS.from_user_input("IAU_2015:30135")
     fwd = Transformer.from_crs(crs.geodetic_crs, crs, always_xy=True)
     return pair[0], float(pair[1]), meta["world_bounds_m"], fwd
@@ -168,12 +171,14 @@ def _reproject(source_rgba, b, fwd, *, out_px: int = 1024, sub=None):
 
 
 def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=None,
-                 grid_color: str = "39ff14"):
+                 grid_color: str = "39ff14", site: str = "haworth"):
     """The geographic drape for the globe: 'dem' = the full-tile hillshade; the GIS rasters
-    reproject over the WORK AREA's own extent. Returns (rgba uint8, bbox)."""
+    reproject over the WORK AREA's own extent. Returns (rgba uint8, bbox). REG-01: ``site`` selects the
+    imported tile so the globe drape follows the chosen site, not just Haworth."""
     if mp is None:
         from lode import mission_planner as mp
-    key = ("globe", kind, round(float(sun_el), 2), round(float(sun_az), 2),
+    bundle_dir = mp.bundle_for_site(site)                # raises KeyError/FileNotFoundError -> route 404
+    key = ("globe", kind, site, round(float(sun_el), 2), round(float(sun_az), 2),
            grid_color if kind == "grid" else "")
     if key in _GLOBE_CACHE:
         return _GLOBE_CACHE[key]
@@ -183,14 +188,14 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
     from stewie.specs import config as _CFG
     cdir = _oss.path.join(_CFG.data_dir(), "globe_cache")
     _oss.makedirs(cdir, exist_ok=True)
-    stem = _oss.path.join(cdir, f"{kind}_{key[2]}_{key[3]}" + (f"_{grid_color}" if kind == "grid" else ""))
+    stem = _oss.path.join(cdir, f"{kind}_{site}_{key[3]}_{key[4]}" + (f"_{grid_color}" if kind == "grid" else ""))
     if _oss.path.exists(stem + ".npy") and _oss.path.exists(stem + ".json"):
         out = (_np_load_rgba(stem + ".npy"), _json.load(open(stem + ".json")))
         _GLOBE_CACHE[key] = out
         return out
 
     import numpy as _np
-    dem_full, cell_m, b, fwd = _tile_geo(mp)
+    dem_full, cell_m, b, fwd = _tile_geo(mp, bundle_dir)
     if kind == "dem":
         # CLEAN cartographic hillshade computed from the RAW heightmap (Aaron's 2nd screenshot:
         # preview_hillshade.png is a matplotlib FIGURE -- axis labels + white margins were being

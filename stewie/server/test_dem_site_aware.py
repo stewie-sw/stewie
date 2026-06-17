@@ -65,3 +65,23 @@ def test_georef_is_site_specific():
 def test_georef_unknown_site_404():
     r = client.get("/dem/georef?site=not_a_real_site")
     assert r.status_code == 404
+
+
+@pytest.mark.skipif(
+    __import__("importlib").util.find_spec("pyproj") is None, reason="pyproj ([planner] extra) absent")
+def test_globe_drape_bbox_is_site_specific():
+    """Slice 2: the globe drape (gis_layers.render_globe) reprojects the CHOSEN site's tile, so its
+    footprint bbox differs per site instead of always being Haworth's."""
+    boxes = {}
+    for site in BUNDLED:
+        r = client.get(f"/layers/globe/dem/bbox?site={site}")
+        assert r.status_code == 200, (site, r.text)
+        j = r.json()
+        assert j["ok"]
+        boxes[site] = (round(j["south"], 3), round(j["west"], 3))
+    assert len(set(boxes.values())) == len(BUNDLED), f"globe drape bbox not site-distinct: {boxes}"
+
+
+def test_globe_drape_unknown_site_404():
+    r = client.get("/layers/globe/dem/bbox?site=not_a_real_site")
+    assert r.status_code == 404

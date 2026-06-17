@@ -90,15 +90,18 @@ def layers_legend():
 @router.get("/layers/globe/{kind}.png")
 def globe_layer_png(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
                     mission_t_s: float | None = None, color: str = "39ff14",
-                    _auth: str = Depends(globe_quota)):
+                    site: str = "haworth", _auth: str = Depends(globe_quota)):
     """The GEOGRAPHIC drape (server-reprojected; Aaron's rotated-tile screenshot fix).
-    GIS-03 (live-fix): PUBLIC base-map drape, per-IP rate-limited (no auth); params clamped/quantized; color sanitized; kind allow-listed."""
+    GIS-03 (live-fix): PUBLIC base-map drape, per-IP rate-limited (no auth); params clamped/quantized; color sanitized; kind allow-listed.
+    REG-01: ``site`` selects the imported tile so the globe drape follows the chosen site."""
     if kind not in _GLOBE_KINDS:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
     from stewie.server.gis_layers import _to_png, render_globe
     el, az = _quantize_sun(sun_el, sun_az, mission_t_s)
     try:
-        out = render_globe(kind, sun_el=el, sun_az=az, grid_color=_sanitize_color(color))
+        out = render_globe(kind, sun_el=el, sun_az=az, grid_color=_sanitize_color(color), site=site)
+    except KeyError as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
     except FileNotFoundError as e:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"DEM absent: {e}"})
     if out is None:
@@ -108,13 +111,20 @@ def globe_layer_png(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
 
 @router.get("/layers/globe/{kind}/bbox")
 def globe_layer_bbox(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
-                     mission_t_s: float | None = None, _auth: str = Depends(globe_quota)):
-    """GIS-03 (live-fix): PUBLIC base-map drape, per-IP rate-limited (no auth); sun params clamped/quantized; kind allow-listed."""
+                     mission_t_s: float | None = None, site: str = "haworth",
+                     _auth: str = Depends(globe_quota)):
+    """GIS-03 (live-fix): PUBLIC base-map drape, per-IP rate-limited (no auth); sun params clamped/quantized; kind allow-listed.
+    REG-01: ``site`` selects the imported tile (the bbox is that site's footprint)."""
     if kind not in _GLOBE_KINDS:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
     from stewie.server.gis_layers import render_globe
     el, az = _quantize_sun(sun_el, sun_az, mission_t_s)
-    out = render_globe(kind, sun_el=el, sun_az=az)
+    try:
+        out = render_globe(kind, sun_el=el, sun_az=az, site=site)
+    except KeyError as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    except FileNotFoundError as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"DEM absent: {e}"})
     if out is None:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
     return {"ok": True, **out[1]}

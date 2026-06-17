@@ -305,35 +305,7 @@ function loadBody(key) {
   // THE PRIMARY SITE ON THE GLOBE: the committed Haworth tile at its true selenographic footprint
   // (server-inverse-projected from the LOLA polar-stereographic bounds; Aaron: "doesn't overlay
   // the haworth site -- this is the primary location").
-  fetch("/dem/georef").then((r) => r.json()).then((g) => {
-    if (!g.ok || !viewer) return;
-    const ll = [];
-    g.corners.forEach((p) => { ll.push(p.lon, p.lat); });
-    HAWORTH_CENTER = g.center;
-    const lats = g.corners.map((p) => p.lat), lons = g.corners.map((p) => p.lon);
-    HAWORTH_RECT = Cesium.Rectangle.fromDegrees(Math.min(...lons), Math.min(...lats),
-                                                Math.max(...lons), Math.max(...lats));
-    applyDefaultsOnceReady();                              // #63: fires once BOTH sides are ready
-    HAWORTH_ENTITIES.push(viewer.entities.add({
-      name: "Haworth work area",
-      // OUTLINE ONLY -- the imagery drape (server-reprojected clean hillshade) carries the
-      // picture; this polygon was still painting the OLD matplotlib preview figure on top
-      // (the rotated axes Aaron kept seeing -- found via his 2nd screenshot).
-      polygon: {
-        hierarchy: Cesium.Cartesian3.fromDegreesArray(ll, ellipsoid),
-        material: Cesium.Color.fromCssColorString("#e8273f").withAlpha(0.04),
-        outline: true, outlineColor: Cesium.Color.fromCssColorString("#e8273f"),
-      },
-    }));
-    HAWORTH_ENTITIES.push(viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(g.center.lon, g.center.lat, 0, ellipsoid),
-      label: { text: "HAWORTH WORK AREA", font: "11px Orbitron, sans-serif",
-               fillColor: Cesium.Color.fromCssColorString("#e8273f"),
-               pixelOffset: new Cesium.Cartesian2(0, -18), showBackground: true,
-               backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cdd") },
-    }));
-    setMoonOverlaysVisible(sel.value === "moon");
-  }).catch(() => {});
+  loadSiteFootprint();   // REG-01: (re)draw the selected site's footprint + rect (re-runnable on site change)
   drawGraticule();                                         // default-on, every body
   // #58: EVERY registry site linked on the globe like Haworth (marker + label; click = jump)
   fetch("/sites").then((r) => r.json()).then((j) => {
@@ -1698,6 +1670,7 @@ async function loadSites() {     // #auth-reload: named (not an IIFE) so refresh
       if (sel.value !== "moon") { sel.value = "moon"; sel.onchange(); }
       if (typeof showSiteDem === "function") showSiteDem();   // REG-01: reload the work-area DEM for the chosen site
       if (typeof drawPlan === "function") drawPlan();         // refresh the plan-view background to the new tile
+      if (typeof loadSiteFootprint === "function") loadSiteFootprint(true);   // REG-01: re-anchor the globe footprint + drape
       setTimeout(() => { if (viewer) viewer.camera.setView({ destination:
         Cesium.Cartesian3.fromDegrees(lo, la, 90000, viewer.scene.globe.ellipsoid) }); }, 800);
       setQ(sl.options[sl.selectedIndex].text.includes("✓DEM")
@@ -2027,9 +2000,45 @@ async function globeLayer(key, _url, on) {
 const BOOT_V = Date.now();                                 // per-pageload cache-bust for layer images
 function sunQS() {
   const gc = "&color=" + encodeURIComponent((SETTINGS.gridcolor || "#39ff14").replace("#", ""));
+  const st = "&site=" + encodeURIComponent(CURRENT_SITE);  // REG-01: globe drape + raster overlays follow the chosen site
   if (qel("sunauto") && qel("sunauto").checked)            // AUTO: mission time -> real solar geometry server-side
-    return `mission_t_s=${Math.round(parseFloat(qel("suntime").value) * 86400)}&b=${BOOT_V}` + gc;
-  return `sun_el=${qel("sunel").value}&sun_az=${qel("sunaz").value}&b=${BOOT_V}` + gc;
+    return `mission_t_s=${Math.round(parseFloat(qel("suntime").value) * 86400)}&b=${BOOT_V}` + gc + st;
+  return `sun_el=${qel("sunel").value}&sun_az=${qel("sunaz").value}&b=${BOOT_V}` + gc + st;
+}
+// REG-01: (re)draw the SELECTED site's globe footprint + re-anchor HAWORTH_RECT (the cursor-meters gate +
+// inset georef). Re-runnable: selecting a new site removes the old footprint, fetches that site's georef,
+// and (on reload) re-places the globe drape via refetchSun. The HAWORTH_* names are kept (internal) but
+// now hold whatever site CURRENT_SITE points at.
+function loadSiteFootprint(reload) {
+  if (!viewer) return;
+  HAWORTH_ENTITIES.forEach((e) => viewer.entities.remove(e)); HAWORTH_ENTITIES.length = 0;
+  const label = (CURRENT_SITE || "site").toUpperCase().replace(/_/g, " ") + " WORK AREA";
+  fetch("/dem/georef?site=" + encodeURIComponent(CURRENT_SITE)).then((r) => r.json()).then((g) => {
+    if (!g.ok || !viewer) return;
+    const ll = []; g.corners.forEach((p) => { ll.push(p.lon, p.lat); });
+    HAWORTH_CENTER = g.center;
+    const lats = g.corners.map((p) => p.lat), lons = g.corners.map((p) => p.lon);
+    HAWORTH_RECT = Cesium.Rectangle.fromDegrees(Math.min(...lons), Math.min(...lats),
+                                                Math.max(...lons), Math.max(...lats));
+    applyDefaultsOnceReady();                              // #63: fires once BOTH sides are ready
+    HAWORTH_ENTITIES.push(viewer.entities.add({
+      name: label,
+      polygon: {
+        hierarchy: Cesium.Cartesian3.fromDegreesArray(ll, ellipsoid),
+        material: Cesium.Color.fromCssColorString("#e8273f").withAlpha(0.04),
+        outline: true, outlineColor: Cesium.Color.fromCssColorString("#e8273f"),
+      },
+    }));
+    HAWORTH_ENTITIES.push(viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(g.center.lon, g.center.lat, 0, ellipsoid),
+      label: { text: label, font: "11px Orbitron, sans-serif",
+               fillColor: Cesium.Color.fromCssColorString("#e8273f"),
+               pixelOffset: new Cesium.Cartesian2(0, -18), showBackground: true,
+               backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cdd") },
+    }));
+    setMoonOverlaysVisible(sel.value === "moon");
+    if (reload && typeof refetchSun === "function") refetchSun();   // re-place the globe drape at the new footprint
+  }).catch(() => {});
 }
 function flyToWorkArea() {                                 // audit P1: toggles give FEEDBACK -- fly to where the layer lives
   if (!viewer || !HAWORTH_CENTER) return;
