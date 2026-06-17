@@ -7,19 +7,25 @@ import hashlib
 import os
 import re
 
+import pytest
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_COCKPIT_JS = os.path.join(_HERE, "web", "assets", "cockpit.js")
+_ASSET_DIR = os.path.join(_HERE, "web", "assets")
 _INDEX_HTML = os.path.join(_HERE, "index.html")
 
+# every cache-busted asset referenced from index.html as `<name>?v=<hash>`
+_ASSETS = ("cockpit.js", "three3d.js")
 
-def test_cockpit_js_cache_bust_matches_content_hash():
-    with open(_COCKPIT_JS, "rb") as fh:
+
+@pytest.mark.parametrize("name", _ASSETS)
+def test_asset_cache_bust_matches_content_hash(name):
+    with open(os.path.join(_ASSET_DIR, name), "rb") as fh:
         want = hashlib.sha256(fh.read()).hexdigest()[:12]
     with open(_INDEX_HTML) as fh:
         html = fh.read()
-    m = re.search(r"cockpit\.js\?v=([A-Za-z0-9_]+)", html)
-    assert m, "index.html must cache-bust cockpit.js with ?v=<hash>"
+    m = re.search(re.escape(name) + r"\?v=([A-Za-z0-9_]+)", html)
+    assert m, f"index.html must cache-bust {name} with ?v=<hash>"
     assert m.group(1) == want, (
-        f"stale cache-bust stamp: index.html has ?v={m.group(1)} but cockpit.js hashes to {want}. "
+        f"stale cache-bust stamp: index.html has {name}?v={m.group(1)} but {name} hashes to {want}. "
         f"Run `python scripts/stamp_cockpit_version.py` (Cloudflare would otherwise serve a stale asset)."
     )

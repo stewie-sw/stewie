@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
-"""Stamp the cockpit.js CONTENT HASH into index.html's <script src> cache-bust query.
+"""Stamp the CONTENT HASH of each versioned cockpit asset into index.html's <script src> cache-bust query.
 
 Why: app.stewie.space is fronted by Cloudflare, which edge-caches /assets/*.js. The cache key is the URL,
-so a CHANGED cockpit.js must get a NEW `?v=` or Cloudflare keeps serving the stale asset (this once shipped
-nothing to users for ~30 days). A content hash is the right cache-bust: it changes iff the bytes change
-(fresh URL on every edit, stable cacheable URL when unchanged). Replaces the error-prone manual `?v=N` bump.
+so a CHANGED asset must get a NEW `?v=` or Cloudflare keeps serving the stale bytes (this once shipped
+nothing to users for ~30 days, and again shipped a stale three3d.js). A content hash is the right
+cache-bust: it changes iff the bytes change (fresh URL on every edit, stable cacheable URL when
+unchanged). Replaces the error-prone manual `?v=N` bump.
+
+Covers every asset in ASSETS -- add a file here (and reference it as `name?v=...` in index.html) when a
+new cache-busted asset is introduced.
 
 Run before a frontend deploy:  python scripts/stamp_cockpit_version.py
-CI enforces it: stewie/server/test_asset_version_stamp.py fails if the stamp is stale (i.e. cockpit.js
-changed but nobody re-stamped), so a stale-cache deploy can't slip through. See deploy/DEPLOY.md.
+CI enforces it: stewie/server/test_asset_version_stamp.py fails if any stamp is stale, so a stale-cache
+deploy can't slip through. See deploy/DEPLOY.md.
 """
 from __future__ import annotations
 
@@ -18,36 +22,40 @@ import re
 import sys
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
-COCKPIT_JS = _ROOT / "stewie" / "server" / "web" / "assets" / "cockpit.js"
+_ASSET_DIR = _ROOT / "stewie" / "server" / "web" / "assets"
 INDEX_HTML = _ROOT / "stewie" / "server" / "index.html"
-_REF = re.compile(r'(cockpit\.js\?v=)([A-Za-z0-9_]+)')
+
+#: cache-busted assets referenced from index.html as `<name>?v=<hash>`.
+ASSETS = ("cockpit.js", "three3d.js")
 
 
-def content_hash() -> str:
-    """Short stable content hash of cockpit.js (the cache-bust token)."""
-    return hashlib.sha256(COCKPIT_JS.read_bytes()).hexdigest()[:12]
+def content_hash(name: str) -> str:
+    """Short stable content hash of an asset (the cache-bust token)."""
+    return hashlib.sha256((_ASSET_DIR / name).read_bytes()).hexdigest()[:12]
 
 
-def current_stamp(html: str) -> str | None:
-    """The ?v= token currently in index.html's cockpit.js reference, or None if absent."""
-    m = _REF.search(html)
-    return m.group(2) if m else None
+def _ref(name: str) -> re.Pattern[str]:
+    return re.compile(r"(" + re.escape(name) + r"\?v=)([A-Za-z0-9_]+)")
 
 
-def stamp() -> tuple[str, bool]:
-    """Rewrite index.html's cockpit.js ?v= to the current content hash. Returns (hash, changed)."""
-    h = content_hash()
+def stamp() -> list[tuple[str, str, bool]]:
+    """Rewrite each asset's ?v= in index.html to its current content hash.
+    Returns [(name, hash, changed), ...]."""
     html = INDEX_HTML.read_text()
-    if not _REF.search(html):
-        raise SystemExit("index.html has no cockpit.js?v= reference to stamp")
-    new = _REF.sub(lambda m: m.group(1) + h, html)
-    changed = new != html
-    if changed:
-        INDEX_HTML.write_text(new)
-    return h, changed
+    out: list[tuple[str, str, bool]] = []
+    for name in ASSETS:
+        rx = _ref(name)
+        if not rx.search(html):
+            raise SystemExit(f"index.html has no {name}?v= reference to stamp")
+        h = content_hash(name)
+        new = rx.sub(lambda m, h=h: m.group(1) + h, html)
+        out.append((name, h, new != html))
+        html = new
+    INDEX_HTML.write_text(html)
+    return out
 
 
 if __name__ == "__main__":
-    h, changed = stamp()
-    print(f"cockpit.js ?v={h} ({'updated index.html' if changed else 'already current'})")
+    for name, h, changed in stamp():
+        print(f"{name} ?v={h} ({'updated index.html' if changed else 'already current'})")
     sys.exit(0)
