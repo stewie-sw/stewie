@@ -87,7 +87,20 @@ async def lifespan(_app: "FastAPI"):
 
 
 app = FastAPI(title="STEWIE — mission planner + planet browser API", version=_version(),
-              lifespan=lifespan)
+              lifespan=lifespan, docs_url=None, redoc_url=None)   # #176: self-host Swagger (route below)
+
+
+@app.get("/docs", include_in_schema=False)
+def _swagger_ui_self_hosted():
+    """#176: FastAPI's default /docs loads Swagger UI from a CDN (cdn.jsdelivr.net) that the strict CSP
+    (script-src 'self') blocks -> the System->API page came up blank. Serve our own docs page from the
+    SELF-HOSTED swagger-ui-dist assets (web/assets/vendor/swagger/, Apache-2.0), which load as 'self'
+    under the CSP. /openapi.json is already same-origin."""
+    from fastapi.openapi.docs import get_swagger_ui_html
+    return get_swagger_ui_html(openapi_url=app.openapi_url, title="STEWIE API — docs",
+                               swagger_js_url="/assets/vendor/swagger/swagger-ui-bundle.js",
+                               swagger_css_url="/assets/vendor/swagger/swagger-ui.css")
+
 
 # S-11: CORS is SAME-ORIGIN by default. An unset (or empty) STEWIE_CORS_ORIGINS yields an EMPTY
 # allowlist -> no Access-Control-Allow-Origin is reflected for a cross-origin request (the browser's
