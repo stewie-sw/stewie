@@ -380,6 +380,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault(); deleteSelectedPin();
   }
 });
+let MEASURE_A = null;                                       // #178: the distance-measure tool's first-click anchor
 async function editPlace(lat, lon) {
   if (!EDIT.tool) { $("editstate").textContent = "LOCKED · pick a tool first"; return; }
   const r = await fetch(`/dem/site_xy?lat=${lat}&lon=${lon}&site=${encodeURIComponent(CURRENT_SITE)}`);
@@ -421,6 +422,20 @@ async function editPlace(lat, lon) {
       const li = EDIT_PINS.indexOf(LANDER_PIN); if (li >= 0) EDIT_PINS.splice(li, 1); }
     LANDER_PIN = dropPin(lat, lon, `🛬 lander ${LANDER_P.x}, ${LANDER_P.y} m`, "#39ff14", { kind: "lander" });
     drawPlan(); $("editstate").textContent = `🛬 lander @ site-frame ${d.x_m} m E, ${d.y_m} m N (${Number(lat).toFixed(3)}°, ${Number(lon).toFixed(3)}°)`;
+  } else if (EDIT.tool === "measure") {
+    // #178: click two points -> the site-frame metric distance between them. The order frame is metres
+    // E/N (the meaningful planning distance), so it is just the Euclidean delta of the two site_xy hits.
+    if (!MEASURE_A) {
+      MEASURE_A = { x: d.x_m, y: d.y_m };
+      dropPin(lat, lon, "📏 from", "#5577dd", { kind: "measure" });
+      $("editstate").textContent = `measure: anchor @ ${d.x_m}, ${d.y_m} m — click the second point`;
+    } else {
+      const dist = Math.hypot(d.x_m - MEASURE_A.x, d.y_m - MEASURE_A.y);
+      dropPin(lat, lon, `📏 ${dist.toFixed(1)} m`, "#5577dd", { kind: "measure" });
+      const msg = `distance ${dist.toFixed(1)} m  (Δ ${(d.x_m - MEASURE_A.x).toFixed(1)} m E, ${(d.y_m - MEASURE_A.y).toFixed(1)} m N)`;
+      $("editstate").textContent = msg; setQ(msg);
+      MEASURE_A = null;
+    }
   }
 }
 // #54 follow-up (Aaron: "default to on -- no matter where we are looking on bodies"): a global
@@ -1802,7 +1817,7 @@ if ($("drawerbtn")) {
 $("editmode").onclick = () => setEdit(true);
 $("editdone").onclick = () => setEdit(false);
 document.querySelectorAll(".etool").forEach((b) => {
-  b.onclick = () => { EDIT.tool = b.dataset.tool;
+  b.onclick = () => { EDIT.tool = b.dataset.tool; MEASURE_A = null;
     $("editstate").textContent = `LOCKED · ${b.dataset.tool} armed — click the map`; };
 });
 // #mobile-delete (Aaron: "there is no delete on mobile"): the touch equivalent of the Delete key. Tap a
