@@ -27,7 +27,7 @@ def test_sun_down_all_shadow_high_sun_mostly_lit():
     assert SP.cast_shadow_mask(crop, 0.0, 80.0, max_range_m=100).mean() < 0.5   # high sun -> mostly lit
 
 
-def test_excavation_creates_new_shadow():
+def test_excavation_creates_new_shadow():  # [REQ:TW-08]
     # [REQ:SN-04] shadow re-evaluated when terrain is excavated (excavation-aware prediction)
     if not _HAVE:
         return

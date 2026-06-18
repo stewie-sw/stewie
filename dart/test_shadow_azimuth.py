@@ -18,7 +18,7 @@ def test_sun_march_dir_cardinals():
         assert abs(dr - er) < 1e-9 and abs(dc - ec) < 1e-9, (az, dr, dc)
 
 
-def test_shadow_modules_agree_on_a_cardinal_sun():
+def test_shadow_modules_agree_on_a_cardinal_sun():  # [REQ:FS-06]
     """A N-S wall under an east (az=90, +X) low sun casts its shadow WEST (-col). Both the cast-shadow
     mask and the horizon clip must shadow the same (west) side and agree on most cells."""
     n, cell = 40, 1.0

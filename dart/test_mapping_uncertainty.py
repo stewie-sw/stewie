@@ -12,7 +12,7 @@ def _map(count):
                         n_points=int(count.sum()), n_frames=3)
 
 
-def test_dense_one_view_pixels_are_capped_not_independent():
+def test_dense_one_view_pixels_are_capped_not_independent():  # [REQ:PM-09]
     m = _map([[100, 2], [0, 8]])
     sigma, n_eff = m.cell_uncertainty(per_sample_sigma_m=0.05, floor_m=0.0, correlation_cap=8)
     # 100 correlated pixels do NOT beat the cap: n_eff caps at 8, sigma = 0.05/sqrt(8), NOT 0.05/sqrt(100)

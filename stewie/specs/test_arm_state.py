@@ -62,7 +62,7 @@ def test_raise_energy_is_the_documented_observable():
     assert arm.raise_energy_j(20.0, 1.62, from_deg=90.0, to_deg=0.0) == 0.0   # lowering costs ~0 (brake)
 
 
-def test_dig_reaction_cancellation():
+def test_dig_reaction_cancellation():  # [REQ:VT-07]
     """T2.2: counter-rotating drums cancel the horizontal dig reaction (KSC-TOPS-7)."""
     net = A.net_dig_reaction_n(torque_nm=18.5, drum_radius_m=0.15)
     assert abs(net) < 1e-9                               # equal+opposite by construction

@@ -21,7 +21,7 @@ def client(monkeypatch, tmp_path):
 H = {"X-API-Key": "test-key"}                                    # director-level (API key)
 
 
-def test_twin_version_requires_auth_and_hides_history(client):
+def test_twin_version_requires_auth_and_hides_history(client):  # [REQ:DT-02]
     anon = client.get("/twin/version")
     assert anon.status_code in (401, 403)                        # no anonymous version read
     ok = client.get("/twin/version", headers=H)

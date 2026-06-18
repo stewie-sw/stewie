@@ -10,7 +10,7 @@ def _mission(temp_c=None):
     return MP.Mission("derate-test", "moon", order, charger=(0.0, 0.0), temp_c=temp_c)
 
 
-def test_cold_mission_recharges_more_than_warm():
+def test_cold_mission_recharges_more_than_warm():  # [REQ:EP-05]
     warm = MP.plan_and_simulate(_mission(temp_c=None))[4]
     cold = MP.plan_and_simulate(_mission(temp_c=-60.0))[4]    # thermal_derate(-60) hits the 0.5 floor
     assert cold["charges"] > warm["charges"]                  # half the usable pack -> ~2x the recharges

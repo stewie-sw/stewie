@@ -47,7 +47,7 @@ def test_report_is_written_to_the_configured_data_dir(monkeypatch, tmp_path):
     assert os.path.exists(md)
 
 
-def test_profile_save_is_atomic_and_uses_the_data_dir(monkeypatch, tmp_path):
+def test_profile_save_is_atomic_and_uses_the_data_dir(monkeypatch, tmp_path):  # [REQ:PO-02]
     # the /profile route (ARCH-3 routers.profiles) resolves the profiles dir at call time from the data dir
     monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
     c = TestClient(SRV.app)

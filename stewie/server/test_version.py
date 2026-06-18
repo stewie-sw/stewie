@@ -19,7 +19,7 @@ def _pyproject_version() -> str:
     raise AssertionError("no [project].version in pyproject.toml")
 
 
-def test_exported_version_is_valid_semver():
+def test_exported_version_is_valid_semver():  # [REQ:PO-13]
     assert _SEMVER.match(stewie.__version__), f"{stewie.__version__!r} is not SemVer"
 
 

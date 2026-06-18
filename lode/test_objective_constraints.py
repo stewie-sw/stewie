@@ -12,7 +12,7 @@ def test_penalty_zero_when_unset():
     assert MP._constraint_penalty(core, {}) == 0.0
 
 
-def test_overshoot_is_penalized_and_monotone():
+def test_overshoot_is_penalized_and_monotone():  # [REQ:CP-08]
     cons = {"max_time_s": 100.0}
     assert MP._constraint_penalty({"time_s": 50.0}, cons) == 0.0       # within budget -> no penalty
     p_bad = MP._constraint_penalty({"time_s": 150.0}, cons)

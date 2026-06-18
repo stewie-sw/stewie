@@ -23,7 +23,7 @@ def client(monkeypatch, tmp_path):
     importlib.reload(srv)
 
 
-def test_schema_endpoint_exposes_every_spine_contract(client):
+def test_schema_endpoint_exposes_every_spine_contract(client):  # [REQ:FS-02]
     r = client.get("/contracts/schema")
     assert r.status_code == 200, r.text
     j = r.json()

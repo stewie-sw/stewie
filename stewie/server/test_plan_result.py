@@ -23,7 +23,7 @@ def _mission(body="moon"):
     })
 
 
-def test_plan_returns_immutable_result_with_provenance():
+def test_plan_returns_immutable_result_with_provenance():  # [REQ:CT-07]
     r = MP.plan(_mission())
     assert isinstance(r, MP.PlanResult)
     with pytest.raises(dataclasses.FrozenInstanceError):       # frozen: cannot reassign the plan fields
@@ -103,7 +103,7 @@ def _fleet_mission():
     })
 
 
-def test_plan_ir_per_vehicle_no_position_leak():
+def test_plan_ir_per_vehicle_no_position_leak():  # [REQ:NV-10]
     # RB-04: each rover's FIRST GoTo must measure from the charger, not from the previous rover's last
     # position. The old single-`prev` code leaked position across vehicles in the flat trip list.
     m = _fleet_mission()
@@ -120,7 +120,7 @@ def test_plan_ir_per_vehicle_no_position_leak():
         assert a["expect"]["distance_m"] == pytest.approx(expected, abs=0.02)   # starts at the charger
 
 
-def test_vehicle_selection_changes_the_planner_numbers():
+def test_vehicle_selection_changes_the_planner_numbers():  # [REQ:VT-02]
     # RB-05/VT-02: selecting a vehicle drives the planner numbers end to end. rassor2's larger sourced
     # per-cycle drum (2 x 24.98 kg) vs ipex's 30 kg -> FEWER drum cycles + different haul energy for the
     # same earthmoving. (No fabrication: rassor2's mass/drum/wheel/track are all sourced.)

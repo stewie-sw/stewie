@@ -1159,7 +1159,7 @@ def test_single_charge_range_monotone_in_slope_and_slip():
     assert MP.single_charge_range_m(g, full_pack=True) > flat              # full pack > to-reserve
 
 
-def test_h01_planning_context_propagates_selected_vehicle():
+def test_h01_planning_context_propagates_selected_vehicle():  # [REQ:EP-08]
     """Audit H-01 (2026-06-13): the planner resolves ONE PlanningContext from the SELECTED vehicle, so a
     non-IPEx vehicle's mass / drum / energy actually drive the plan instead of the IPEx globals. ipex
     resolves to EXACTLY the module globals (byte-identical); rassor2 (65 kg, 80 kg drum) differs and its
@@ -1634,7 +1634,7 @@ def test_p02_drum_inventory_capacity_bounded_per_flow():
     assert res["mass_conserved"] is True
 
 
-def test_acceptance_replays_a_balanced_multiload_cutfill_as_feasible():
+def test_acceptance_replays_a_balanced_multiload_cutfill_as_feasible():  # [REQ:CP-03]
     """MATH-01: a normal BALANCED cut/fill whose flow exceeds one drum load executes as drum-sized
     cut->transport->fill SHUTTLE cycles -- the ordered replay is FEASIBLE and the assigned flow is actually
     PLACED, instead of being declared infeasible the instant the drum fills before any fill drains it (the

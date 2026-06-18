@@ -20,7 +20,7 @@ def test_route_leg_returns_waypoint_polyline():
     assert abs(plen - rm) < 1.0                                          # polyline length == routed length
 
 
-def test_route_leg_blocked_returns_no_waypoints():
+def test_route_leg_blocked_returns_no_waypoints():  # [REQ:NV-01]
     dem = _dem(); o = MP.flattest_anchor(dem)
     rm, _gs, reached, wp = MP.route_leg(dem, o, (0.0, 0.0), (40.0, 0.0),
                                         keepouts=[{"x": 40.0, "y": 0.0, "r": 20.0}])   # encloses the goal

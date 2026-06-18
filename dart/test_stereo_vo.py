@@ -181,7 +181,7 @@ def test_triangulated_depths_positive_and_plausible():
 
 # ---- real rendered lunar stereo: VO across consecutive frames ----
 @pytest.mark.skipif(not _have_frames, reason="rendered traverse frames not present")
-def test_vo_translation_consistent_across_traverse():
+def test_vo_translation_consistent_across_traverse():  # [REQ:PM-05]
     """MATH: PnP VO across frames 000..003 recovers 3 inter-frame translations whose magnitudes are
     consistent (the rover drives a near-constant straight step), and whose summed path length matches
     the EVAL-only ground-truth traverse length within tolerance. Truth is read ONLY here, in the

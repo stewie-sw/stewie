@@ -55,7 +55,7 @@ def test_permissive_window_is_byte_identical():
     assert perm["charges"] == base["charges"]
 
 
-def test_work_window_idles_clock_without_changing_energy():
+def test_work_window_idles_clock_without_changing_energy():  # [REQ:EP-04]
     base = MP.plan_and_simulate(_mk())[4]
     _t, _f, _pt, tl, tot = MP.plan_and_simulate(_mk({"mission_windows": {"work": [[1000.0, 1e12]]}}))
     # the first dig was at ~66.7 s; gating work to [1000, inf) idles the clock to 1000 s exactly once

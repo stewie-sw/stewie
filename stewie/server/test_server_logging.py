@@ -24,7 +24,7 @@ def test_configure_logging_respects_env(monkeypatch):
     assert logging.getLogger().level == logging.INFO
 
 
-def test_request_is_access_logged(client, caplog):
+def test_request_is_access_logged(client, caplog):  # [REQ:PO-07]
     with caplog.at_level(logging.INFO, logger="stewie.server"):
         r = client.get("/healthz")
         assert r.status_code == 200

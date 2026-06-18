@@ -27,7 +27,7 @@ def test_ephemeris_azimuth_convention_is_required():
                                sun_az_deg=0.0, sun_el_deg=0.0)
 
 
-def test_ephemeris_rejects_out_of_domain():
+def test_ephemeris_rejects_out_of_domain():  # [REQ:CT-05]
     base = dict(mission_t_s=0.0, site_lat_deg=0.0, site_lon_deg=0.0, sun_el_deg=0.0,
                 azimuth_convention="north_cw")
     with pytest.raises(ValidationError):
@@ -118,7 +118,7 @@ def test_model_artifact_cannot_be_on_command_path():
                         dataset_lineage="d", eval_split="s", command_path=True)
 
 
-def test_model_artifact_deployment_requires_declared_schemas_and_budgets():
+def test_model_artifact_deployment_requires_declared_schemas_and_budgets():  # [REQ:ML-01]
     # ML-01: a minimally-defined model is NOT deployment-ready (no typed schemas / budgets declared)
     bare = C.ModelArtifact(model_id="m1", name="rocknet", version="1", task="rock_classify",
                            dataset_lineage="nac-2024", eval_split="80/20")

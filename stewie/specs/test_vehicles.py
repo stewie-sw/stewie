@@ -16,7 +16,7 @@ from stewie.physics import rover
 from stewie.specs import vehicles as V
 
 
-def test_both_bodies_registered_with_geometry():
+def test_both_bodies_registered_with_geometry():  # [REQ:VT-01]
     # both selectable vehicles exist, each carrying its own geometry (gauge/wheelbase/wheel/CG)
     assert "ipex" in V.VEHICLES and "ez_rassor" in V.VEHICLES
     for name in ("ipex", "ez_rassor"):

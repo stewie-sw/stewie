@@ -212,7 +212,7 @@ def test_healthz(client):
     assert r.status_code == 200 and body["status"] == "ok" and "version" in body and body["uptime_s"] >= 0.0
 
 
-def test_metrics_counts_requests(client):
+def test_metrics_counts_requests(client):  # [REQ:PO-08]
     client.get("/healthz")
     r = client.get("/metrics")
     body = r.json()

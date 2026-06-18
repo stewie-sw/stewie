@@ -49,7 +49,7 @@ def test_detect_on_flat_image_finds_nothing():
 
 
 @needs_inputs
-def test_detector_signature_takes_only_an_image():
+def test_detector_signature_takes_only_an_image():  # [REQ:PM-12]
     # I3 firewall at the API level: the detector cannot be handed truth.
     import inspect
     params = list(inspect.signature(rd.detect_rocks).parameters)

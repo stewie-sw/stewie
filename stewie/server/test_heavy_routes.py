@@ -95,7 +95,7 @@ def test_plan_within_caps_still_succeeds(client, monkeypatch):
     assert r.status_code == 200, r.text
 
 
-def test_plan_wall_clock_deadline_returns_bounded_error_not_a_hang(client, monkeypatch):
+def test_plan_wall_clock_deadline_returns_bounded_error_not_a_hang(client, monkeypatch):  # [REQ:PO-06]
     """ARCH-01/04 wall-clock cap: with a tiny per-request compute budget, a plan that exceeds it returns
     a bounded 503 rather than hanging the client. (The deadline bounds the client wait; the input cap
     bounds the actual compute -- Python cannot force-kill the worker thread.)"""
