@@ -1,37 +1,54 @@
-/* The STEWIE cockpit shell (front-end rewrite §11 IA): one window, the 5-mode bar + 4-source toggle on a
- * top strip, the 6 work-area tabs, a PERSISTENT map/world canvas at center, and a right command rail whose
- * real-rover controls arm only in OPERATE (AG-08 + SF-01). Phase 0 proves the stack + the design system;
- * the map is a placeholder (Cesium/Three.js is Phase 4) and the panes are stubs to be filled per phase. */
+/* The STEWIE cockpit shell (front-end rewrite §11 IA). Phase 1 adds: the AG-01/02 auth gate, the FS-20
+ * profile menu, and the FS-17 single-command-authority election wired into the AG-08 command rail. One
+ * window; the map/world canvas is the persistent spine (Cesium/Three.js is Phase 4). */
 import {
   ModeBar, SourceToggle, WorkAreaTabs, Panel, MetricTile, Button, Icon,
 } from "@stewie/design-system";
 import { useCockpit } from "./store";
+import { AuthGate } from "./AuthGate";
+import { ProfileMenu } from "./ProfileMenu";
+import { useCommandAuthority } from "./useCommandAuthority";
 
 const TXT = "var(--txt)";
 const MUTED = "var(--muted)";
 
 function CommandRail() {
   const { mode, roleRank } = useCockpit();
+  const { isOwner, takeover } = useCommandAuthority();
   const live = mode === "OPERATE";
-  const canCommand = live && roleRank >= 2;
+  const ag08 = live && roleRank >= 2; // AG-08: real commands need OPERATE + operator+
+  const canCommand = ag08 && isOwner; // ...AND this window holds command authority (FS-17)
+
   return (
     <aside style={{ width: 280, borderLeft: "1px solid var(--line)", padding: "var(--sp-4)",
       display: "flex", flexDirection: "column", gap: "var(--sp-4)", background: "var(--panel)" }}>
       <div className="ds-display" style={{ fontSize: 10, color: MUTED }}>Command rail</div>
+
+      {!isOwner && (
+        <div data-testid="readonly-banner" style={{ border: "1px solid var(--accent)", borderRadius: "var(--r-sm)",
+          padding: "var(--sp-2) var(--sp-3)", color: "var(--txt)", fontSize: "var(--fs-sm)", lineHeight: 1.5 }}>
+          Read-only window — another window holds command authority (FS-17).
+          <div style={{ marginTop: "var(--sp-2)" }}>
+            <Button size="sm" onClick={takeover}>Take over command</Button>
+          </div>
+        </div>
+      )}
+
       <Panel title="Selection">
         <div style={{ color: MUTED, fontSize: 12, lineHeight: 1.6 }}>
           No entity selected. Pick a site, rover, or order on the map.
         </div>
       </Panel>
+
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-        <Button variant="primary" icon="play" disabled={!canCommand}>
+        <Button variant="primary" icon="play" data-cmd-authority disabled={live ? !canCommand : !isOwner}>
           {live ? "Send to rover" : "Simulate"}
         </Button>
-        <Button variant="danger" icon="safe-stop" disabled={!live}>Safe-stop</Button>
+        <Button variant="danger" icon="safe-stop" data-cmd-authority disabled={!(live && isOwner)}>Safe-stop</Button>
         <div style={{ color: "var(--dim)", fontSize: 10, lineHeight: 1.5 }}>
           {canCommand
-            ? "OPERATE · live · operator+ — real rover commands armed under SF-01."
-            : "Real commands need OPERATE + live + operator+ (AG-08). Otherwise simulation only."}
+            ? "OPERATE · live · operator+ · this window — real rover commands armed under SF-01."
+            : "Real commands need OPERATE + live + operator+ (AG-08) in the command-authority window. Otherwise simulation only."}
         </div>
       </div>
     </aside>
@@ -59,7 +76,6 @@ function MapCanvas() {
           (Cesium globe + local DEM — Phase 4)
         </div>
       </div>
-      {/* the Metrics work area overlays a small forecast-vs-truth readout on the canvas */}
       {workArea === "metrics" && (
         <div style={{ position: "absolute", top: "var(--sp-4)", left: "var(--sp-4)", display: "flex", gap: "var(--sp-3)" }}>
           <MetricTile label="Makespan" value="42.6" unit="min" />
@@ -71,17 +87,16 @@ function MapCanvas() {
   );
 }
 
-export default function App() {
+function Cockpit() {
   const { mode, sources, workArea, roleRank, setMode, toggleSource, setWorkArea } = useCockpit();
   return (
     <div className="ds-root" style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* top strip: the two sim-vs-truth axes, always visible */}
       <header style={{ display: "flex", gap: "var(--sp-5)", alignItems: "center", flexWrap: "wrap",
         padding: "var(--sp-3) var(--sp-4)", borderBottom: "1px solid var(--line)", background: "var(--head)" }}>
         <span className="ds-display" style={{ color: "var(--accent)", fontSize: 16 }}>STEWIE</span>
         <ModeBar mode={mode} roleRank={roleRank} onChange={setMode} />
         <SourceToggle mode={mode} active={sources} onToggle={toggleSource} />
-        <span style={{ marginLeft: "auto", color: MUTED, fontSize: 11 }}>sandbox · director</span>
+        <span style={{ marginLeft: "auto" }}><ProfileMenu /></span>
       </header>
 
       <div style={{ padding: "var(--sp-2) var(--sp-4) 0", background: "var(--head)" }}>
@@ -89,11 +104,18 @@ export default function App() {
           readiness={{ plan: "•", navigation: "•", perception: "!", metrics: "•" }} />
       </div>
 
-      {/* main: persistent map canvas + the command rail */}
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         <MapCanvas />
         <CommandRail />
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthGate>
+      <Cockpit />
+    </AuthGate>
   );
 }

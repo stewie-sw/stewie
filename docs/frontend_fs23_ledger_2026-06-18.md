@@ -13,11 +13,13 @@ the contract; `vanilla` = still only in the live `stewie/server/web/assets/cockp
 
 | Concern | Backend route(s) | Domain module | React view | Tests |
 |---|---|---|---|---|
-| Auth / session | `/auth/login` `/auth/me` `/auth/logout` `/auth/password` `/auth/register` `/auth/invite/redeem` | `server/operators.py`, `routers/auth.py` | vanilla | `test_operators*.py` |
-| Role ladder (AG-01/02) | (role on `/auth/me`) | `operators.role_rank` | stub (`store.roleRank`) | `test_roles*.py` |
-| Command authority (FS-17) | n/a (client election) | `cockpit.js` CMD_AUTH | vanilla | `test_fs17_command_authority.py` |
+| Auth / session | `/auth/me` `/auth/login` `/auth/logout` | `routers/auth.py`, `operators.py` | **ported** (`cockpit/AuthGate.tsx`, `auth.ts`) | `cockpit/auth.test.ts`, `render_phase1.py` |
+| Role ladder (AG-01/02) | (role on `/auth/me`) | `operators.role_rank` | **ported** (`auth.roleRank` → `store.roleRank` gates ModeBar/command) | `cockpit/auth.test.ts` |
+| Command authority (FS-17) | n/a (client election) | ported from `cockpit.js` CMD_AUTH | **ported** (`useCommandAuthority.ts`) | `cockpit/useCommandAuthority.test.tsx` |
+| Chrome IA (FS-20) | (role) | — | **ported** (`ProfileMenu.tsx`, role-gated System/Admin) | `render_phase1.py` |
 | Contract types (FS-02) | `GET /contracts/schema` | `stewie/contracts` | **adapters.js view models (done)** | `test_adapter_contract_parity.py`, `test_contracts.py` |
 | Observability (FS-19) | `/events` | `routers/events.py` | vanilla (admin log) | — |
+| Registration / invites | `/auth/register` `/auth/invite/redeem` `/auth/password` | `routers/auth.py` | vanilla (Phase 2) | `test_operators*.py` |
 
 ## Work areas (§11 IA)
 
