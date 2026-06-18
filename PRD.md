@@ -404,14 +404,14 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
-| TW-01 | P0 | Load and crop real polar LOLA terrain; fail explicitly if a requested real asset is unavailable. | D | P | D | P |
-| TW-02 | P1 | Reproject supported non-polar products into a documented local metric frame. | D | P | D | P |
-| TW-03 | P1 | Product paths use windowed/tiled terrain access rather than loading the full map by default. | D | N | P | NA |
+| TW-01 | P0 | Load and crop real polar LOLA terrain; fail explicitly if a requested real asset is unavailable. | D | D | D | P |
+| TW-02 | P1 | Reproject supported non-polar products into a documented local metric frame. | D | D | D | P |
+| TW-03 | P1 | Product paths use windowed/tiled terrain access rather than loading the full map by default. | D | D | D | NA |
 | TW-04 | P1 | One seeded composite generator combines craters, rocks, material, and illumination parameters. | P | P | P | NA |
 | TW-05 | P1 | `WorldState` carries per-cell material, traversability, observed/unobserved state, and calibrated uncertainty. | P | P | P | P |
 | TW-06 | P1 | Add a site/time sun vector `s(t)` in the local world frame using a documented ephemeris interface. | D | D | D | P |
-| TW-07 | P1 | Compute terrain horizon, direct illumination, cast-shadow mask, incidence angle, and overexposure risk from terrain plus `s(t)`. | P | N | P | P |
-| TW-08 | P1 | Recompute affected illumination and navigation layers after excavation changes terrain. No stale pre-build shadow map may remain authoritative. | P | P | N | NA |
+| TW-07 | P1 | Compute terrain horizon, direct illumination, cast-shadow mask, incidence angle, and overexposure risk from terrain plus `s(t)`. | D | N | D | P |
+| TW-08 | P1 | Recompute affected illumination and navigation layers after excavation changes terrain. No stale pre-build shadow map may remain authoritative. | D | D | D | NA |
 | TW-09 | P2 | Model camera LED contribution separately from solar illumination, including configurable intensity and pose. | P | N | N | N |
 | TW-10 | P2 | Track dust/optical degradation as a state affecting image quality and maintenance decisions. `[PROPOSED]` | N | N | N | N |
 
@@ -419,13 +419,13 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
-| VT-01 | P0 | A typed `VehicleModel` supplies mass, gauge, wheelbase, wheel/contact geometry, CG, battery, drum capacity, speed, energy, sensors, and render assets. | P | P | P | P |
-| VT-02 | P0 | Selecting a vehicle changes all applicable authority/planner numbers; cross-vehicle tests assert expected differences. | N | N | N | N |
+| VT-01 | P0 | A typed `VehicleModel` supplies mass, gauge, wheelbase, wheel/contact geometry, CG, battery, drum capacity, speed, energy, sensors, and render assets. | D | D | D | P |
+| VT-02 | P0 | Selecting a vehicle changes all applicable authority/planner numbers; cross-vehicle tests assert expected differences. | D | D | D | N |
 | VT-03 | P1 | Model front and rear arm joint state, limits, velocity, brake state, and energy. Exact geometry must come from authoritative LAC/IPEx data. | N | N | N | G |
 | VT-04 | P1 | Track four drums and per-drum fill rather than one global inventory for IPEx mode. | N | N | N | P |
 | VT-05 | P1 | Compute dynamic CG from chassis, arm pose, drum pose, and fill mass. `[SPEC/PROPOSED model]` | N | N | N | G |
 | VT-06 | P1 | Compute posture-dependent support polygon and static stability margin each step. | P | N | P | G |
-| VT-07 | P1 | Nominal excavation requires balanced front/rear counter-rotation; asymmetric digging exposes reaction, traction, yaw, and pitch risk. | N | N | N | P |
+| VT-07 | P1 | Nominal excavation requires balanced front/rear counter-rotation; asymmetric digging exposes reaction, traction, yaw, and pitch risk. | D | D | D | P |
 | VT-08 | P1 | Drum fill-rate supports the sourced bridging behavior: effective collection need not increase monotonically beyond approximately half scoop depth. | N | N | N | P |
 | VT-09 | P2 | Arm/drum force and torque model distinguishes horizontal reaction, vertical fill-dependent load, cutting torque, and internal tumble. | N | N | N | G |
 | VT-10 | P1 | Posture-dependent camera extrinsics are derived from vehicle and arm state for every image. | N | N | N | G |
