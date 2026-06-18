@@ -21,6 +21,16 @@ log = logging.getLogger("stewie.server")
 _MAX_OBSTACLES = 512
 
 
+@router.get("/nav/contract")
+def get_nav_contract(_auth: None = Depends(require_auth)):
+    """FS-05: the auditable navigation contract -- the one descriptor connecting the navigation stages
+    (global route, local trajectory, tracker, recovery, keep-outs, negative obstacles, illumination risk,
+    slip/energy budget, NV-11 ROS lowering), each self-reporting whether its seam is wired on this host.
+    Read-only -> require_auth."""
+    from lode.planner_routing import navigation_contract
+    return {"ok": True, **navigation_contract()}
+
+
 class LocalPlanRequest(BaseModel):
     # NV-03/04 is observation/geometry only -- forbid extra keys so no truth/hidden-state field rides in.
     model_config = ConfigDict(extra="forbid")

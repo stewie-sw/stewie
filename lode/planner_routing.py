@@ -270,3 +270,41 @@ def haul_cumulative_ascent_m(dem, dem_origin, waypoints):
     if len(zs) < 2:
         return 0.0
     return float(sum(max(0.0, zs[i + 1] - zs[i]) for i in range(len(zs) - 1)))
+
+
+# FS-05: each navigation stage maps to a real seam (module.attr). keepouts ride route_leg's keepouts=
+# arg (same module); the live Autoware/Nav2 planner binary is the external (gated) tier.
+_NAV_STAGES = (
+    ("global_route", "lode.planner_routing", "route_leg"),
+    ("local_trajectory", "lode.local_planner", "plan_local"),
+    ("tracker", "lode.local_planner", "track_plan"),
+    ("recovery", "lode.recovery", "recovery_needed"),
+    ("keepouts", "lode.planner_routing", "route_leg"),
+    ("negative_obstacles", "lode.planner_routing", "negative_obstacle_mask"),
+    ("illumination_risk", "dart.illumination", "incidence_angle_deg"),
+    ("slip_energy_budget", "lode.mission_planner", "_simulate"),
+    ("ros_action_lowering", "stewie.bridge.plan_lowering", "lower_plan_ir"),
+)
+
+
+def navigation_contract() -> dict:
+    """FS-05: ONE auditable navigation contract -- the navigation stack's stages connected through a
+    single descriptor, each naming its implementing seam and SELF-REPORTING whether that seam is
+    importable on this host (no hard-coded presence: remove a stage and the contract flips it to
+    present=False). Connects global route planning, local trajectory sampling, the tracker, recovery,
+    keep-outs, negative obstacles, illumination risk, slip/energy budgets, and the NV-11 ROS2/Autoware
+    action lowering. The live Autoware/Nav2 planner BINARY is the gated tier (present=False -- needs a
+    ROS / Space ROS host); `on_host_complete` is true when every on-host stage is wired."""
+    import importlib
+
+    def _has(mod: str, attr: str) -> bool:
+        try:
+            return hasattr(importlib.import_module(mod), attr)
+        except Exception:                                  # noqa: BLE001 -- a missing seam is reported, not raised
+            return False
+
+    stages = [{"stage": s, "seam": f"{m}.{a}", "present": _has(m, a)} for s, m, a in _NAV_STAGES]
+    stages.append({"stage": "live_planner_binary", "seam": "Autoware/Nav2 (external ROS host)",
+                   "present": False, "note": "gated: needs the live planner binary on a ROS / Space ROS host"})
+    return {"version": "1.0", "stages": stages,
+            "on_host_complete": all(s["present"] for s in stages if "note" not in s)}
