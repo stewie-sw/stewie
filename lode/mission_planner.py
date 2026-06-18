@@ -222,6 +222,10 @@ class Mission:
     #: {x, y, r} in metres. Hauls route AROUND them (cells inside become impassable on the costmap) and a
     #: build placed inside one is rejected. Single-vehicle; complements the slope/crater hazard costmap (I10).
     keepouts: tuple = ()
+    #: EP-05: ambient/electronics temperature [deg C] for thermal battery derating. None -> nominal
+    #: (>=0 C, derate 1.0, byte-identical to an un-temperatured plan); a cold value shrinks the USABLE
+    #: pack (thermal_derate) so the battery-aware sim plans fewer/shorter sorties and recharges sooner.
+    temp_c: float | None = None
     @property
     def density(self): return body_density(self.body)
 
@@ -731,8 +735,13 @@ def _simulate(mission, trips, routes=None):
     DRIVE_SPEED_MS = ctx.drive_speed_ms
     CHARGE_W = ctx.charge_w
     RESERVE_FRAC = ctx.reserve_frac
-    pos = list(mission.charger); batt = BATTERY_J; t = 0.0
-    cum_mass = 0.0; cum_energy = 0.0; charges = 0; reserve = RESERVE_FRAC * BATTERY_J
+    # EP-05: thermal derating SHRINKS the usable pack on a cold mission (Li-ion cold capacity loss). The
+    # whole battery-aware sim (reserve, charge target, reachable work) runs against this derated capacity,
+    # so a cold plan genuinely recharges sooner / does fewer sorties. mission.temp_c None -> derate 1.0
+    # -> usable_battery_j == BATTERY_J -> byte-identical to an un-temperatured plan (no test drift).
+    usable_battery_j = BATTERY_J * thermal_derate(mission.temp_c)
+    pos = list(mission.charger); batt = usable_battery_j; t = 0.0
+    cum_mass = 0.0; cum_energy = 0.0; charges = 0; reserve = RESERVE_FRAC * usable_battery_j
     tl = []; per_trip = []; infeasible = []           # C-04: collected reachability / SoC-floor failures
 
     def _leg(to):
@@ -756,10 +765,10 @@ def _simulate(mission, trips, routes=None):
             infeasible.append(f"stranded at ({pos[0]:.0f},{pos[1]:.0f}): cannot reach the charger to "
                               "recharge on the remaining charge")
             return False
-        _leg(mission.charger); need = BATTERY_J - batt; dur = need / CHARGE_W
-        tl.append(dict(t0=t, t1=t+dur, kind="charge", batt0=batt, batt1=BATTERY_J, mass=0.0, speed=0.0,
+        _leg(mission.charger); need = usable_battery_j - batt; dur = need / CHARGE_W
+        tl.append(dict(t0=t, t1=t+dur, kind="charge", batt0=batt, batt1=usable_battery_j, mass=0.0, speed=0.0,
                        x0=pos[0], y0=pos[1], x1=pos[0], y1=pos[1]))  # parked at charger
-        batt = BATTERY_J; t += dur; charges += 1
+        batt = usable_battery_j; t += dur; charges += 1
         return True
 
     def drive(to):
@@ -773,7 +782,7 @@ def _simulate(mission, trips, routes=None):
         `to`, so the trip's dig/haul/fill is not credited (the prior bug ran spend() unconditionally)."""
         d = _rd(pos, to)                                  # H-02: routed inter-site distance (matches Plan IR)
         if d <= 1e-9: return True                         # already there (within tol): nothing to drive
-        e = d * DRIVE_J_PER_M; usable = BATTERY_J - reserve
+        e = d * DRIVE_J_PER_M; usable = usable_battery_j - reserve
         going_home = _d(to, mission.charger) <= 1e-9
         if not going_home and e > batt - reserve:     # to a work site: keep the reserve margin -> recharge
             if _rd(mission.charger, to) * DRIVE_J_PER_M > usable:
