@@ -4,7 +4,7 @@
  * gated IA surface; their panels land in Phase 2. */
 import { useState } from "react";
 import { Icon } from "@stewie/design-system";
-import { useCockpit } from "./store";
+import { useCockpit, type ChromeView } from "./store";
 
 interface ChromeItem {
   id: string;
@@ -18,7 +18,7 @@ const ITEMS: ChromeItem[] = [
 ];
 
 export function ProfileMenu() {
-  const { identity, roleRank, signOut } = useCockpit();
+  const { identity, roleRank, signOut, openChrome } = useCockpit();
   const [open, setOpen] = useState(false);
   if (!identity) return null;
 
@@ -43,7 +43,7 @@ export function ProfileMenu() {
           boxShadow: "var(--shadow-modal)", padding: "var(--sp-1)" }}>
           {ITEMS.filter((it) => roleRank >= it.minRank).map((it) => (
             <button key={it.id} role="menuitem" data-chrome={it.id} type="button"
-              style={menuItemStyle} onClick={() => setOpen(false)}>
+              style={menuItemStyle} onClick={() => { setOpen(false); openChrome(it.id as ChromeView); }}>
               {it.label}
             </button>
           ))}

@@ -21,7 +21,32 @@ export interface CockpitState {
   setMode: (m: StewieMode) => void;
   toggleSource: (l: SourceLayer, on: boolean) => void;
   setWorkArea: (a: WorkArea) => void;
+  // --- chrome (FS-20) + prefs (UI-1/UI-2), persisted ---
+  chrome: ChromeView | null;
+  theme: "dark" | "light";
+  fontPx: number;
+  openChrome: (c: ChromeView) => void;
+  closeChrome: () => void;
+  setTheme: (t: "dark" | "light") => void;
+  setFontPx: (px: number) => void;
 }
+
+export type ChromeView = "settings" | "system" | "admin";
+
+const lsGet = (k: string, d: string): string => {
+  try {
+    return localStorage.getItem(k) ?? d;
+  } catch {
+    return d;
+  }
+};
+const lsSet = (k: string, v: string) => {
+  try {
+    localStorage.setItem(k, v);
+  } catch {
+    /* ignore */
+  }
+};
 
 export const useCockpit = create<CockpitState>((set) => ({
   identity: null,
@@ -56,4 +81,18 @@ export const useCockpit = create<CockpitState>((set) => ({
   toggleSource: (l, on) =>
     set((s) => ({ sources: on ? [...new Set([...s.sources, l])] : s.sources.filter((x) => x !== l) })),
   setWorkArea: (workArea) => set({ workArea }),
+
+  chrome: null,
+  theme: lsGet("stewie_theme", "dark") === "light" ? "light" : "dark",
+  fontPx: Number(lsGet("stewie_fontpx", "13")) || 13,
+  openChrome: (chrome) => set({ chrome }),
+  closeChrome: () => set({ chrome: null }),
+  setTheme: (theme) => {
+    lsSet("stewie_theme", theme);
+    set({ theme });
+  },
+  setFontPx: (fontPx) => {
+    lsSet("stewie_fontpx", String(fontPx));
+    set({ fontPx });
+  },
 }));

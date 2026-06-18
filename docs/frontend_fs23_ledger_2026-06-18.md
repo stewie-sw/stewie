@@ -16,7 +16,7 @@ the contract; `vanilla` = still only in the live `stewie/server/web/assets/cockp
 | Auth / session | `/auth/me` `/auth/login` `/auth/logout` | `routers/auth.py`, `operators.py` | **ported** (`cockpit/AuthGate.tsx`, `auth.ts`) | `cockpit/auth.test.ts`, `render_phase1.py` |
 | Role ladder (AG-01/02) | (role on `/auth/me`) | `operators.role_rank` | **ported** (`auth.roleRank` → `store.roleRank` gates ModeBar/command) | `cockpit/auth.test.ts` |
 | Command authority (FS-17) | n/a (client election) | ported from `cockpit.js` CMD_AUTH | **ported** (`useCommandAuthority.ts`) | `cockpit/useCommandAuthority.test.tsx` |
-| Chrome IA (FS-20) | (role) | — | **ported** (`ProfileMenu.tsx`, role-gated System/Admin) | `render_phase1.py` |
+| Chrome IA (FS-20) | `/admin/operators` `/events` `/healthz` `/metrics` | `operators_admin.py`, `health.py` | **ported** (`ProfileMenu.tsx` + `ChromePanels.tsx`: Admin roster+audit / System health / Settings theme+font) | `render_phase1.py`, `render_phase2.py`, `api.test.ts` |
 | Contract types (FS-02) | `GET /contracts/schema` | `stewie/contracts` | **adapters.js view models (done)** | `test_adapter_contract_parity.py`, `test_contracts.py` |
 | Observability (FS-19) | `/events` | `routers/events.py` | vanilla (admin log) | — |
 | Registration / invites | `/auth/register` `/auth/invite/redeem` `/auth/password` | `routers/auth.py` | vanilla (Phase 2) | `test_operators*.py` |
@@ -28,9 +28,9 @@ the contract; `vanilla` = still only in the live `stewie/server/web/assets/cockp
 | **Plan** (+fleet) | `/plan` `/dem/*` `/layers` `/bodies.json` `/structure` `/profile` | `lode/mission_planner.py`, `planner_routing.py` | stub (canvas placeholder) | `lode/test_mission_planner.py` |
 | **Navigation/Autonomy** | `/nav/contract` `/nav/local_plan` `/rc/plan_ros` | `lode/planner_routing.navigation_contract`, `stewie/bridge/plan_lowering.py` (NV-11), `stream.py` (NV-12), `routers/rc.py` (AG-08) | stub | `test_navigation_contract.py`, `bridge/test_plan_lowering.py`, `test_plan_ros_route.py` |
 | **Perception** | `/evidence` `/compare` `/localize/render` `/localize/traverse` `/twin/*` | `dart/`, `leap/`, `planet_browser/localization.py` | stub | (perception suite) |
-| **Metrics/Execution** | `/events` `/dem/heightfield` | `lode` totals, `planet_browser` timeline | stub (overlay tiles) | — |
-| **Models** | `GET /contracts/schema` (ModelArtifact) | `stewie/contracts.ModelArtifact` (ML-01) | stub | `test_adapter_contract_parity.py` |
-| **Reports** | `/plan` (PDF) `/reports/*` | `planet_browser/mission_planner` report | stub | — |
+| **Metrics/Execution** | `/events` | `routers/operators_admin.py` | **ported** (event timeline + metric tiles; `EventsTable.tsx`, `api.ts`) | `cockpit/api.test.ts`, `render_phase2.py` |
+| **Models** | `GET /contracts/schema` (ModelArtifact) | `stewie/contracts.ModelArtifact` (ML-01) | stub (Phase 3) | `test_adapter_contract_parity.py` |
+| **Reports** | `/plan` (PDF) `/reports/*` | `planet_browser/mission_planner` report | stub (Phase 3 — produced by Plan flow) | — |
 
 ## Shell + design system (Phase 0 — DONE)
 
