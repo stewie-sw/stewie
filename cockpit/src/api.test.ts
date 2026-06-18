@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchEvents, fetchOperators, fetchHealth, fetchMetrics } from "./api";
+import { fetchEvents, fetchOperators, fetchHealth, fetchMetrics, fetchNavContract } from "./api";
 
 afterEach(() => vi.restoreAllMocks());
 function stub(status: number, json: unknown) {
@@ -36,5 +36,17 @@ describe("api adapters (map the real route shapes)", () => {
   it("fetchMetrics surfaces uptime + the raw snapshot", async () => {
     stub(200, { uptime_s: 100, latency: {} });
     expect((await fetchMetrics())!.uptimeS).toBe(100);
+  });
+
+  it("fetchNavContract maps stages with present/gated + on_host_complete (FS-05)", async () => {
+    stub(200, { ok: true, version: "1.0", on_host_complete: true, stages: [
+      { stage: "global_route", present: true, seam: "route_leg", note: "" },
+      { stage: "live_planner_binary", present: false, seam: "autoware", note: "gated: needs a ROS host" },
+    ] });
+    const c = await fetchNavContract();
+    expect(c!.version).toBe("1.0");
+    expect(c!.onHostComplete).toBe(true);
+    expect(c!.stages).toHaveLength(2);
+    expect(c!.stages.find((s) => s.stage === "live_planner_binary")!.present).toBe(false);
   });
 });

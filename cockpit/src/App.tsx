@@ -11,6 +11,7 @@ import { ProfileMenu } from "./ProfileMenu";
 import { useCommandAuthority } from "./useCommandAuthority";
 import { ChromePanel } from "./panels/ChromePanels";
 import { EventsTable } from "./panels/EventsTable";
+import { NavigationView } from "./panels/NavigationView";
 
 const TXT = "var(--txt)";
 const MUTED = "var(--muted)";
@@ -104,7 +105,9 @@ function Cockpit() {
   const { mode, sources, workArea, roleRank, theme, fontPx, setMode, toggleSource, setWorkArea } = useCockpit();
   const rootClass = theme === "light" ? "ds-root light" : "ds-root";
   const center =
-    workArea === "metrics" ? <MetricsView /> : workArea === "reports" ? <ReportsView /> : <MapCanvas />;
+    workArea === "navigation" ? <NavigationView /> :
+    workArea === "metrics" ? <MetricsView /> :
+    workArea === "reports" ? <ReportsView /> : <MapCanvas />;
   return (
     <div className={rootClass} style={{ height: "100vh", display: "flex", flexDirection: "column",
       ["--fontpx" as string]: `${fontPx}px` } as React.CSSProperties}>

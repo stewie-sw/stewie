@@ -25,9 +25,9 @@ the contract; `vanilla` = still only in the live `stewie/server/web/assets/cockp
 
 | Work area | Key route(s) | Domain module | React view | Tests |
 |---|---|---|---|---|
-| **Plan** (+fleet) | `/plan` `/dem/*` `/layers` `/bodies.json` `/structure` `/profile` | `lode/mission_planner.py`, `planner_routing.py` | stub (canvas placeholder) | `lode/test_mission_planner.py` |
-| **Navigation/Autonomy** | `/nav/contract` `/nav/local_plan` `/rc/plan_ros` | `lode/planner_routing.navigation_contract`, `stewie/bridge/plan_lowering.py` (NV-11), `stream.py` (NV-12), `routers/rc.py` (AG-08) | stub | `test_navigation_contract.py`, `bridge/test_plan_lowering.py`, `test_plan_ros_route.py` |
-| **Perception** | `/evidence` `/compare` `/localize/render` `/localize/traverse` `/twin/*` | `dart/`, `leap/`, `planet_browser/localization.py` | stub | (perception suite) |
+| **Plan** (+fleet) | `/plan` `/dem/*` `/layers` `/bodies.json` `/structure` `/profile` | `lode/mission_planner.py`, `planner_routing.py` | stub (authoring is spatial → Phase 4 map) | `lode/test_mission_planner.py` |
+| **Navigation/Autonomy** | `/nav/contract` `/nav/local_plan` `/rc/plan_ros` | `lode/planner_routing.navigation_contract`, `stewie/bridge/plan_lowering.py` (NV-11), `stream.py` (NV-12), `routers/rc.py` (AG-08) | **ported** (`NavigationView.tsx`: nav-contract stage readiness; Plan IR empty-state pending the map) | `cockpit/api.test.ts`, `render_phase3.py`, `test_navigation_contract.py` |
+| **Perception** | `/evidence` `/compare` `/localize/render` `/localize/traverse` `/twin/*` | `dart/`, `leap/`, `planet_browser/localization.py` | stub (render/depth-gated → Phase 4) | (perception suite) |
 | **Metrics/Execution** | `/events` | `routers/operators_admin.py` | **ported** (event timeline + metric tiles; `EventsTable.tsx`, `api.ts`) | `cockpit/api.test.ts`, `render_phase2.py` |
 | **Models** | `GET /contracts/schema` (ModelArtifact) | `stewie/contracts.ModelArtifact` (ML-01) | stub (Phase 3) | `test_adapter_contract_parity.py` |
 | **Reports** | `/plan` (PDF) `/reports/*` | `planet_browser/mission_planner` report | stub (Phase 3 — produced by Plan flow) | — |

@@ -79,3 +79,29 @@ export async function fetchMetrics(): Promise<Metrics | null> {
   if (status >= 400 || !json) return null;
   return { uptimeS: json.uptime_s ?? 0, raw: json };
 }
+
+export interface NavStage {
+  stage: string;
+  present: boolean; // wired on this host vs. a gated tier (e.g. the live planner binary)
+  seam: string;
+  note: string;
+}
+export interface NavContract {
+  version: string;
+  onHostComplete: boolean;
+  stages: NavStage[];
+}
+
+/** GET /nav/contract — the FS-05 auditable navigation contract: each stage self-reports whether its seam
+ * is wired on this host; the live Autoware/Nav2 planner binary is the gated tier. */
+export async function fetchNavContract(): Promise<NavContract | null> {
+  const { status, json } = await getJson("/nav/contract");
+  if (status >= 400 || !json?.ok) return null;
+  return {
+    version: json.version,
+    onHostComplete: !!json.on_host_complete,
+    stages: (json.stages || []).map((s: any): NavStage => ({
+      stage: s.stage, present: !!s.present, seam: s.seam || "", note: s.note || "",
+    })),
+  };
+}
