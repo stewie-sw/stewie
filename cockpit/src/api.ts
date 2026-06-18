@@ -80,6 +80,52 @@ export async function fetchMetrics(): Promise<Metrics | null> {
   return { uptimeS: json.uptime_s ?? 0, raw: json };
 }
 
+export interface MissionOrder {
+  action: string; // "borrow" (cut) | "pad" (fill)
+  kind: string; // "cut" | "fill"
+  x: number;
+  y: number;
+  footprint_m2: number;
+  depth_m: number;
+}
+export interface PlanResult {
+  feasible: boolean;
+  makespanS: number | null;
+  energyMJ: number | null;
+  massKg: number | null;
+  nActions: number;
+  planId: string | null;
+  error?: string;
+}
+
+/** POST /plan — cut-fill balance + route + simulate the placed orders; returns the PlanResult (feasibility,
+ * totals) + the executable Plan IR. Totals keys are read defensively (the report carries several energy
+ * variants). */
+export async function submitPlan(orders: MissionOrder[], body = "moon"): Promise<PlanResult> {
+  const r = await fetch("/plan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ body, charger: [0, 0], orders }),
+  });
+  const j = await r.json().catch(() => null);
+  if (r.status >= 400 || !j || j.ok === false) {
+    return { feasible: false, makespanS: null, energyMJ: null, massKg: null, nActions: 0, planId: null,
+      error: (j && j.error) || `HTTP ${r.status}` };
+  }
+  const t = j.totals || {};
+  const ir = j.plan_ir || {};
+  const energyKj = t.energy_actual_kj ?? t.energy_learned_kj ?? null;
+  return {
+    feasible: !!j.feasible,
+    makespanS: t.makespan_s ?? t.duration_s ?? null,
+    energyMJ: energyKj != null ? Number(energyKj) / 1000 : null,
+    massKg: t.mass_moved_kg ?? t.mass_kg ?? null,
+    nActions: Array.isArray(ir.actions) ? ir.actions.length : 0,
+    planId: ir.plan_id ?? j.plan_id ?? null,
+  };
+}
+
 export interface NavStage {
   stage: string;
   present: boolean; // wired on this host vs. a gated tier (e.g. the live planner binary)

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchEvents, fetchOperators, fetchHealth, fetchMetrics, fetchNavContract } from "./api";
+import { fetchEvents, fetchOperators, fetchHealth, fetchMetrics, fetchNavContract, submitPlan } from "./api";
 
 afterEach(() => vi.restoreAllMocks());
 function stub(status: number, json: unknown) {
@@ -48,5 +48,25 @@ describe("api adapters (map the real route shapes)", () => {
     expect(c!.onHostComplete).toBe(true);
     expect(c!.stages).toHaveLength(2);
     expect(c!.stages.find((s) => s.stage === "live_planner_binary")!.present).toBe(false);
+  });
+
+  it("submitPlan maps the PlanResult (feasible, totals, IR actions)", async () => {
+    stub(200, { ok: true, feasible: true,
+      totals: { makespan_s: 600, energy_actual_kj: 2040, mass_moved_kg: 120 },
+      plan_ir: { plan_id: "p1", actions: [{}, {}, {}] } });
+    const r = await submitPlan([{ action: "pad", kind: "fill", x: 1, y: 1, footprint_m2: 16, depth_m: 0.3 }]);
+    expect(r.feasible).toBe(true);
+    expect(r.makespanS).toBe(600);
+    expect(r.energyMJ).toBeCloseTo(2.04);
+    expect(r.massKg).toBe(120);
+    expect(r.nActions).toBe(3);
+    expect(r.planId).toBe("p1");
+  });
+
+  it("submitPlan surfaces the server error on a 400", async () => {
+    stub(400, { ok: false, error: "bad order field" });
+    const r = await submitPlan([]);
+    expect(r.feasible).toBe(false);
+    expect(r.error).toBe("bad order field");
   });
 });

@@ -7,7 +7,7 @@ import {
   ModeBar, SourceToggle, WorkAreaTabs, Panel, MetricTile, Button,
 } from "@stewie/design-system";
 import { useCockpit } from "./store";
-import { fetchHeightfield, type Heightfield } from "./api";
+import { fetchHeightfield, submitPlan, type Heightfield, type MissionOrder, type PlanResult } from "./api";
 import { AuthGate } from "./AuthGate";
 import { ProfileMenu } from "./ProfileMenu";
 import { useCommandAuthority } from "./useCommandAuthority";
@@ -19,15 +19,51 @@ import { MapCanvas3D } from "./panels/MapCanvas3D";
 const TXT = "var(--txt)";
 const MUTED = "var(--muted)";
 
+function PlanResultPanel({ r }: { r: PlanResult }) {
+  return (
+    <Panel title="Plan result">
+      {r.error ? (
+        <div style={{ color: "var(--accent)", fontSize: "var(--fs-sm)" }} data-testid="plan-error">Plan failed: {r.error}</div>
+      ) : (
+        <div data-testid="plan-result">
+          <div style={{ marginBottom: "var(--sp-2)", fontSize: "var(--fs-sm)",
+            color: r.feasible ? "var(--ok)" : "var(--accent)" }}>
+            {r.feasible ? "● feasible" : "○ infeasible"} · {r.nActions} IR actions{r.planId ? ` · ${r.planId}` : ""}
+          </div>
+          <div style={{ display: "flex", gap: "var(--sp-2)", flexWrap: "wrap" }}>
+            {r.makespanS != null && <MetricTile label="Makespan" value={(r.makespanS / 60).toFixed(1)} unit="min" />}
+            {r.energyMJ != null && <MetricTile label="Energy" value={r.energyMJ.toFixed(2)} unit="MJ" status="ok" />}
+            {r.massKg != null && <MetricTile label="Mass moved" value={r.massKg.toFixed(0)} unit="kg" />}
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 function CommandRail() {
-  const { mode, roleRank, orders, clearOrders } = useCockpit();
+  const { mode, roleRank, orders, clearOrders, placeMode, setPlaceMode } = useCockpit();
   const { isOwner, takeover } = useCommandAuthority();
+  const [result, setResult] = useState<PlanResult | null>(null);
+  const [busy, setBusy] = useState(false);
   const live = mode === "OPERATE";
   const ag08 = live && roleRank >= 2;
   const canCommand = ag08 && isOwner;
+
+  const runPlan = async () => {
+    setBusy(true);
+    setResult(null);
+    const mo: MissionOrder[] = orders.map((o) => ({
+      action: o.kind === "cut" ? "borrow" : "pad", kind: o.kind,
+      x: o.x, y: o.y, footprint_m2: 16, depth_m: 0.3, // operator defaults (shown in the queue), not hidden
+    }));
+    setResult(await submitPlan(mo));
+    setBusy(false);
+  };
+
   return (
     <aside style={{ width: 280, borderLeft: "1px solid var(--line)", padding: "var(--sp-4)",
-      display: "flex", flexDirection: "column", gap: "var(--sp-4)", background: "var(--panel)" }}>
+      display: "flex", flexDirection: "column", gap: "var(--sp-4)", background: "var(--panel)", overflow: "auto" }}>
       <div className="ds-display" style={{ fontSize: 10, color: MUTED }}>Command rail</div>
       {!isOwner && (
         <div data-testid="readonly-banner" style={{ border: "1px solid var(--accent)", borderRadius: "var(--r-sm)",
@@ -36,29 +72,33 @@ function CommandRail() {
           <div style={{ marginTop: "var(--sp-2)" }}><Button size="sm" onClick={takeover}>Take over command</Button></div>
         </div>
       )}
-      <Panel title="Selection">
-        <div style={{ color: MUTED, fontSize: 12, lineHeight: 1.6 }}>No entity selected. Pick a site, rover, or order on the map.</div>
-      </Panel>
       <Panel title="Build queue" actions={orders.length ? <Button size="sm" onClick={clearOrders}>Clear</Button> : undefined}>
+        <div style={{ display: "flex", gap: "var(--sp-2)", marginBottom: "var(--sp-3)" }}>
+          <Button size="sm" variant={placeMode === "cut" ? "primary" : "ghost"} onClick={() => setPlaceMode("cut")}>Cut</Button>
+          <Button size="sm" variant={placeMode === "fill" ? "primary" : "ghost"} onClick={() => setPlaceMode("fill")}>Fill</Button>
+        </div>
         {orders.length === 0 ? (
-          <div style={{ color: MUTED, fontSize: 12 }}>Click the terrain to place a build order (x, y in the order frame).</div>
+          <div style={{ color: MUTED, fontSize: 12 }}>Pick Cut/Fill, then click the terrain to place orders (16 m² × 0.3 m default).</div>
         ) : (
           <ol data-testid="order-queue" style={{ margin: 0, paddingLeft: "var(--sp-4)", color: TXT, fontSize: "var(--fs-sm)", lineHeight: 1.7 }}>
             {orders.map((o, i) => (
-              <li key={i}>order @ ({o.x.toFixed(0)}, {o.y.toFixed(0)}) m</li>
+              <li key={i}><span style={{ color: o.kind === "cut" ? "var(--accent)" : "var(--ok)" }}>{o.kind}</span> @ ({o.x.toFixed(0)}, {o.y.toFixed(0)}) m</li>
             ))}
           </ol>
         )}
       </Panel>
+      {result && <PlanResultPanel r={result} />}
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-        <Button variant="primary" icon="play" data-cmd-authority disabled={live ? !canCommand : !isOwner}>
-          {live ? "Send to rover" : "Simulate"}
+        <Button variant="primary" icon="play" data-cmd-authority
+          onClick={live ? undefined : runPlan}
+          disabled={live ? !canCommand : (!isOwner || orders.length === 0 || busy)}>
+          {busy ? "Solving…" : live ? "Send to rover" : "Simulate plan"}
         </Button>
         <Button variant="danger" icon="safe-stop" data-cmd-authority disabled={!(live && isOwner)}>Safe-stop</Button>
         <div style={{ color: "var(--dim)", fontSize: 10, lineHeight: 1.5 }}>
           {canCommand
             ? "OPERATE · live · operator+ · this window — real rover commands armed under SF-01."
-            : "Real commands need OPERATE + live + operator+ (AG-08) in the command-authority window. Otherwise simulation only."}
+            : "Simulate runs /plan (cut-fill balance + route). Real commands need OPERATE + live + operator+ (AG-08) in the command-authority window."}
         </div>
       </div>
     </aside>
