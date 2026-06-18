@@ -35,7 +35,7 @@ def globe_quota(request: Request) -> str:
 # growth (DoS). Sun angles quantize to integer degrees (sub-degree changes are not visible in the
 # drape and would otherwise multiply the cache key space); `color` becomes a cache-FILE component for
 # kind='grid', so it is restricted to 6 hex digits (rejecting length/path abuse); `kind` is allow-listed.
-_GLOBE_KINDS = ("dem", "slope", "hazard", "illumination", "psr", "grid")
+_GLOBE_KINDS = ("dem", "slope", "hazard", "illumination", "incidence", "psr", "grid")
 _HEX6 = re.compile(r"^[0-9a-fA-F]{6}$")
 _DEFAULT_GRID = "39ff14"
 _MISSION_T_MAX_S = 3.156e10            # +/- ~1000 yr: finite-bounds an arbitrary mission_t_s
@@ -80,6 +80,9 @@ def layers_legend():
                            "amber = penalty (> nominal slope)"},
         "illumination": {"sun": "horizon-clipped shadow at the mission-time sun (SPICE)",
                          "text": "blue = shadowed at the selected time"},
+        "incidence": {"sun": "solar incidence angle (DEM normal vs sun direction) at the selected geometry",
+                      "text": "amber = grazing / facet-away light (0° normal-on faint → 90°+ grazing opaque); "
+                              "washed-out cameras + poor solar flux even where geometrically lit"},
         "psr": {"sweep": "never lit across a 0–330° azimuth sweep at 3° elevation",
                 "text": "violet = permanently shadowed region (PSR) candidate -- never sunlit; "
                         "the cold traps where water ice survives"},

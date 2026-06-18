@@ -83,7 +83,7 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 > - **Closed this drive (TDD, gated, committed):** DT-02 (auth-gated `/twin/version` + director-only
 >   `/twin/history`), CT-07 (provenance now stamps source commit + version + seed), PO-13
 >   (`stewie.__version__` + CHANGELOG + SemVer), TW-07 (solar incidence-angle compute + tests; cockpit
->   layer surfacing = remaining X slice), ML-01 (`ModelArtifact` typed I/O schemas + inference budgets
+>   incidence `/layers` raster now surfaced + toggleable -- X closed), ML-01 (`ModelArtifact` typed I/O schemas + inference budgets
 >   + a `deployment_ready` gate).
 > - **~34 rows are hard-blocked external** and cannot be honestly completed on this host (kept marked,
 >   never stubbed): authoritative IPEx/LAC arm-camera-drum geometry (VT-03/05/09/10, AM-01..08, SN-11/15),
@@ -410,7 +410,7 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 | TW-04 | P1 | One seeded composite generator combines craters, rocks, material, and illumination parameters. | P | P | P | NA |
 | TW-05 | P1 | `WorldState` carries per-cell material, traversability, observed/unobserved state, and calibrated uncertainty. | P | P | P | P |
 | TW-06 | P1 | Add a site/time sun vector `s(t)` in the local world frame using a documented ephemeris interface. | D | D | D | P |
-| TW-07 | P1 | Compute terrain horizon, direct illumination, cast-shadow mask, incidence angle, and overexposure risk from terrain plus `s(t)`. | D | N | D | P |
+| TW-07 | P1 | Compute terrain horizon, direct illumination, cast-shadow mask, incidence angle, and overexposure risk from terrain plus `s(t)`. The dart compute (horizon / cast-shadow / `incidence_angle_deg`) is surfaced in the cockpit as toggleable `/layers` rasters: `illumination` (binary horizon shadow), `incidence` (continuous grazing-angle / overexposure-risk amber overlay, distinct from the shadow mask), and `psr`, all responding to the sun az/el controls. | D | D | D | P |
 | TW-08 | P1 | Recompute affected illumination and navigation layers after excavation changes terrain. No stale pre-build shadow map may remain authoritative. | D | D | D | NA |
 | TW-09 | P2 | Model camera LED contribution separately from solar illumination, including configurable intensity and pose. | P | N | N | N |
 | TW-10 | P2 | Track dust/optical degradation as a state affecting image quality and maintenance decisions. `[PROPOSED]` | N | N | N | N |

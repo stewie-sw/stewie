@@ -78,6 +78,19 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
         rgba = np.zeros((*lit.shape, 4))
         rgba[..., 2] = 180                               # shadow = translucent blue-black
         rgba[..., 3] = np.where(lit, 0, 165)
+    elif kind == "incidence":
+        # TW-07: per-pixel solar INCIDENCE angle (DEM-normal vs sun direction), distinct from the binary
+        # horizon-clip shadow. Grazing light (high incidence) washes out cameras + yields poor solar flux
+        # even where the cell is geometrically lit. Amber ramp: 0 deg (sun normal-on) faint -> 90+ deg
+        # (grazing / facet-away) opaque -- the deceptive-lighting warning the shadow mask cannot show.
+        from dart.illumination import incidence_angle_deg
+        inc = incidence_angle_deg(dem, cell_m, float(sun_az), float(sun_el))
+        t = np.clip(np.nan_to_num(inc, nan=90.0) / 90.0, 0, 1)
+        rgba = np.zeros((*inc.shape, 4))
+        rgba[..., 0] = 255                               # amber: grazing-incidence warning
+        rgba[..., 1] = 200 * (1 - t)
+        rgba[..., 2] = 40
+        rgba[..., 3] = 40 + 170 * t                      # grazing = more opaque
     elif kind == "psr":
         from dart.illumination import horizon_clip
         ever_lit = np.zeros(dem.shape, dtype=bool)
@@ -98,6 +111,7 @@ RASTER_DEFS = [
     {"key": "hazard", "name": "Hazard / no-go (nav cost)", "kind": "raster", "group": "safety",
      "default": True},   # T6.1: the routing round-trip -- routes detour on the SAME layer the user sees
     {"key": "illumination", "name": "Shadow (horizon-clipped sun)", "kind": "raster", "group": "sun"},
+    {"key": "incidence", "name": "Sun incidence (grazing-angle, from the DEM)", "kind": "raster", "group": "sun"},
     {"key": "psr", "name": "Permanently shadowed regions (PSR, never lit)", "kind": "raster", "group": "sun"},
     {"key": "grid", "name": "Site grid (100 m / 500 m)", "kind": "raster", "group": "reference", "default": True},
 ]

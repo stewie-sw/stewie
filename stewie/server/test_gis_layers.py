@@ -48,6 +48,16 @@ def test_illumination_layer_responds_to_sun_geometry(client):
     assert shadow_low > shadow_high > 0.0
 
 
+def test_incidence_layer_responds_to_sun_geometry(client):  # [REQ:TW-07]
+    # TW-07: solar incidence (DEM normal vs sun direction), distinct from the binary horizon shadow.
+    # A lower sun grazes everywhere (flat-ground incidence = 90 - el), so the amber overlay is more
+    # opaque at a low sun than a high one, and the overlay varies spatially with the real relief.
+    low = _png(client, "/layers/raster/incidence.png?sun_el=2&sun_az=90")
+    high = _png(client, "/layers/raster/incidence.png?sun_el=40&sun_az=90")
+    assert low.shape[0] >= 100 and float(low[..., 3].std()) > 0.0      # real relief, not a flat fill
+    assert float(low[..., 3].mean()) > float(high[..., 3].mean()) > 0.0  # lower sun -> grazing -> more opaque
+
+
 def test_psr_layer_is_subset_of_low_sun_shadow(client):
     psr = _png(client, "/layers/raster/psr.png")
     assert (psr[..., 3] > 0).any()                        # Haworth has PSR candidates

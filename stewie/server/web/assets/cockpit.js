@@ -2539,7 +2539,7 @@ async function loadLayers() {
   } catch (e) { /* serverless preview keeps the defaults */ }
   applyDefaultsOnceReady();                                // #63: the other ready side
 }
-const GIS_RASTERS = ["slope", "hazard", "illumination", "psr", "grid"];
+const GIS_RASTERS = ["slope", "hazard", "illumination", "incidence", "psr", "grid"];
 // #63 (Aaron's bug: layers need an off/on cycle): the default-layer application raced --
 // the georef .then() read LAYER_ON before loadLayers() had populated it (or vice versa).
 // Both sides now call this gate; it fires once when BOTH are ready.
@@ -2661,6 +2661,7 @@ function renderWorkbench() {
     slope: { name: "Slope", text: LEGEND.slope.ramp, sw: "#7bd07b→#ff5544" },
     hazard: { name: "Hazard / no-go", text: LEGEND.hazard.text, sw: "#e8273f" },
     illumination: { name: "Shadow (mission-time sun)", text: LEGEND.illumination.text, sw: "#5577dd" },
+    incidence: { name: "Sun incidence (grazing)", text: (LEGEND.incidence || {}).text || "grazing-angle solar incidence from the DEM", sw: "#ffc828" },
     psr: { name: "Permanently shadowed regions", text: LEGEND.psr.text, sw: "#9966dd" },
     grid: { name: "Site grid", text: "site-frame meters: 100 m minor / 500 m major (labels: inset axes + cursor readout)", sw: "#39ff14", colorpick: true },
   };
