@@ -32,6 +32,10 @@ def test_plan_returns_immutable_result_with_provenance():
     assert p["schema_version"] == MP.PLAN_RESULT_VERSION and p["mode"] == "PLAN"
     assert p["config"]["algorithm"] and "vehicles" in p["config"]
     assert len(p["input_sha256"]) == 64                        # a real content hash, not a placeholder
+    # CT-07: source commit + package version + seed are stamped (commit may be "unknown" in a wheel)
+    assert p["commit"] and isinstance(p["commit"], str)
+    assert p["version"] and isinstance(p["version"], str)
+    assert "seed" in p                                         # deterministic optimizers stamp None, honestly
 
 
 def test_plan_and_simulate_is_a_view_of_plan():

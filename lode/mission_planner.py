@@ -1623,15 +1623,42 @@ class PlanResult:
         return self.trips, self.flows, self.per_trip, self.tl, self.totals
 
 
-def _plan_provenance(mission, *, algorithm, objective, vehicles, dem_origin):
-    """CT-07: provenance for a PlanResult -- schema version, mode, the planning config, and a DETERMINISTIC
-    content hash of the mission + origin + config, so a result is tied to exactly the inputs that made it."""
+_SOURCE_COMMIT: str | None = None
+
+
+def _source_commit() -> str:
+    """CT-07: the source commit the artifact was produced from, best-effort + cached. Prefers an
+    explicit ``$STEWIE_COMMIT`` (baked into a wheel/container build), else `git rev-parse` in the repo,
+    else "unknown" (a wheel with neither is HONESTLY unknown, never fabricated)."""
+    global _SOURCE_COMMIT
+    if _SOURCE_COMMIT is None:
+        _SOURCE_COMMIT = os.environ.get("STEWIE_COMMIT", "").strip()
+        if not _SOURCE_COMMIT:
+            try:
+                import subprocess
+                _SOURCE_COMMIT = subprocess.run(
+                    ["git", "rev-parse", "--short", "HEAD"],
+                    cwd=os.path.dirname(os.path.abspath(__file__)),
+                    capture_output=True, text=True, timeout=2, check=True).stdout.strip() or "unknown"
+            except (OSError, subprocess.SubprocessError):
+                _SOURCE_COMMIT = "unknown"
+    return _SOURCE_COMMIT
+
+
+def _plan_provenance(mission, *, algorithm, objective, vehicles, dem_origin, seed=None):
+    """CT-07: provenance for a PlanResult -- source commit + package version, schema version, mode, the
+    planning config, the RNG seed, and a DETERMINISTIC content hash of the mission + origin + config, so
+    a result is tied to exactly the inputs (and the code) that made it. ``seed`` is None for the
+    deterministic optimizers (nearest / held-karp / beam) -- output is a pure function of input_sha256 --
+    and carries the actual seed only when a stochastic algorithm is selected."""
+    from stewie import __version__ as _version
     canon = json.dumps({
         "mission": dataclasses.asdict(mission), "dem_origin": list(dem_origin),
-        "algorithm": str(algorithm), "objective": str(objective), "vehicles": int(vehicles),
+        "algorithm": str(algorithm), "objective": str(objective), "vehicles": int(vehicles), "seed": seed,
     }, sort_keys=True, default=str)
     return {
         "schema_version": PLAN_RESULT_VERSION, "mode": "PLAN",
+        "commit": _source_commit(), "version": _version, "seed": seed,
         "config": {"algorithm": str(algorithm), "objective": str(objective), "vehicles": int(vehicles)},
         "input_sha256": hashlib.sha256(canon.encode()).hexdigest(),
     }
