@@ -6,7 +6,10 @@
   "type": "module",
   "module": "dist/index.js",
   "types": "dist/types/index.d.ts",
-  "exports": { ".": { "types": "./dist/types/index.d.ts", "import": "./dist/index.js" } },
+  "exports": {
+    ".": { "types": "./dist/types/index.d.ts", "import": "./dist/index.js" },
+    "./styles.css": "./dist/stewie-ds.css"
+  },
   "scripts": {
     "build": "node build.mjs && tsc -p tsconfig.build.json",
     "test": "vitest run"
