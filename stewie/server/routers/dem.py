@@ -112,6 +112,25 @@ def dem_heightfield(site: str = "haworth", n: int = 129, window_m: float = 300.0
             "z_min": float(grid.min()), "z_max": float(grid.max())}
 
 
+@router.get("/dem/terrain_grid")
+def dem_terrain_grid_route(site: str = "haworth", n: int = 64):
+    """REG-01 globe 3D layer: an n*n georeferenced height grid (lat/lon + real elevation [m]) of the chosen
+    site's LOLA DEM, for draping the work-area terrain as a 3D mesh layer on the Cesium globe. Reprojection
+    is vectorized (one pyproj call for all nodes). Declared BEFORE /dem/{name} so the literal path wins.
+    503 when pyproj (the [planner] extra) is absent; 404 on an unknown/unimported site."""
+    from stewie.terrain.site_dem import bundle_for_site, dem_terrain_grid
+    try:
+        bundle = bundle_for_site(site)
+    except (KeyError, FileNotFoundError) as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    try:
+        return {"ok": True, "site": site, **dem_terrain_grid(n=n, bundle_dir=bundle)}
+    except (FileNotFoundError, ValueError) as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    except ImportError as e:
+        return JSONResponse(status_code=503, content={"ok": False, "error": f"DEM/pyproj absent: {e}"})
+
+
 @router.get("/dem/{name}")
 def get_dem(name: str, site: str = "haworth"):          # the real LOLA work-area DEM previews (REG-01: per site)
     from stewie.terrain.site_dem import bundle_for_site

@@ -217,3 +217,38 @@ def dem_georef_corners(bundle_dir=None) -> dict:
     lon, lat = inv.transform(cx, cy)
     return {"corners": corners, "center": {"lat": float(lat), "lon": float(lon)},
             "crs": "IAU_2015:30135", "tile_km": 10.0}
+
+
+def dem_terrain_grid(n: int = 64, *, bundle_dir=None) -> dict:
+    """REG-01 globe 3D layer: an ``n`` x ``n`` decimation of the chosen site's REAL LOLA DEM, every node
+    georeferenced to selenographic lat/lon, for draping the work-area terrain as a 3D mesh layer on the
+    Cesium globe (the same IAU_2015:30135 south-polar stereographic frame + pixel-center convention as
+    dem_origin_to_latlon). ``z`` are the real DEM elevations [m]; lon/lat come from ONE VECTORIZED inverse
+    projection of all n*n nodes (pyproj transforms arrays in a single call), NOT the ~1.8 ms-per-call
+    point transform -- so an n=64 grid is one transform, not 4096. Row-major y-then-x like
+    /dem/heightfield: index ``j*n + i`` is the node at DEM row ``ri[j]`` (North), col ``ci[i]`` (East).
+    Raises ImportError if pyproj (the [planner] extra) is absent."""
+    from pyproj import CRS, Transformer
+    bundle = _haworth_bundle(bundle_dir)
+    meta = json.load(open(os.path.join(bundle, "metadata.json")))
+    g, b = meta["grid"], meta["world_bounds_m"]
+    cell, W, H = float(g["cell_m"]), int(g["width"]), int(g["height"])
+    Z, _cell = load_haworth_dem(bundle_dir=bundle_dir)
+    n = max(2, min(int(n), 192))                                    # bound the browser grid / transport size
+    ci = np.linspace(0, W - 1, n).round().astype(int)               # decimated col (East) + row (North) indices
+    ri = np.linspace(0, H - 1, n).round().astype(int)
+    heights = np.asarray(Z, dtype=float)[np.ix_(ri, ci)]            # n x n, row = y (North), col = x (East)
+    ax0, ay0 = float(b["x0"]) + cell / 2.0, float(b["y1"]) - cell / 2.0   # pixel(0,0) CENTER (north-up raster)
+    xs = ax0 + ci * cell                                            # polar-stereographic x per col
+    ys = ay0 - ri * cell                                            # polar-stereographic y per row
+    XS, YS = np.meshgrid(xs, ys)                                    # n x n projected coords
+    crs = CRS.from_user_input("IAU_2015:30135")
+    inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
+    lon, lat = inv.transform(XS.ravel(), YS.ravel())               # ONE vectorized projected -> selenographic call
+    lon = np.asarray(lon).reshape(n * n)
+    lat = np.asarray(lat).reshape(n * n)
+    return {"n": n, "cell_m": cell, "tile_m": [round(W * cell, 1), round(H * cell, 1)],
+            "lat": [round(v, 6) for v in lat.tolist()],
+            "lon": [round(v, 6) for v in lon.tolist()],
+            "z": [round(v, 2) for v in heights.ravel().tolist()],
+            "z_min": float(heights.min()), "z_max": float(heights.max())}
