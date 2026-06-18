@@ -536,7 +536,7 @@ CP-06 now reports pad flatness (I11), berm crest-profile vs ordered rise, and re
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
 | EP-01 | P0 | Energy ledger includes drive, slope/slip, payload, dig, arm/drum motion, observation, LEDs, compute, idle/heater, and recharge losses where modeled. | P | P | P | P |
-| EP-02 | P1 | Dig energy depends on material/density/ice or is explicitly marked constant-model uncertainty. | N | N | N | N |
+| EP-02 | P1 | Dig energy depends on material/density/ice or is explicitly marked constant-model uncertainty. The baseline is a CONSTANT J/kg (`ipex_specs.dig_energy_per_kg`, BP-1-calibrated, material/density/ice-independent) whose uncertainty is explicitly marked: the drum-rate `(0.72-1.0)x` band reported as `dig_energy_bounds_MJ`. An optional `Mission.dig_energy_factor` (default `None`=1.0=byte-identical, folded once in `plan_context` so every dig site is consistent) lets an operator scale it for a known harder/icier site, so the plan's dig energy depends on the declared material. Physical auto-derivation from density/ice remains unmodeled (Q=P). | D | D | D | P |
 | EP-03 | P1 | Distinguish PSR lander/tower power from sunlit solar power. | D | D | D | P |
 | EP-04 | P1 | Mission clock enforces power, illumination, thermal, and communications windows on actions/recharge. | D | D | D | N |
 | EP-05 | P1 | Thermal derating and heater/survival demand affect usable battery and action availability. | D | D | D | N |

@@ -135,8 +135,11 @@ def plan_context(mission) -> PlanningContext:
     """H-01: resolve the immutable PlanningContext for the mission's SELECTED vehicle. ipex -> the module
     globals (byte-identical); another vehicle -> its registry energy / mass / drum / power + onboard battery."""
     veh = V.get_vehicle(mission.vehicle)
+    # EP-02: the dig model is a constant J/kg (BP-1-calibrated); an optional operator material-difficulty
+    # factor scales it for a known harder/icier site. None -> 1.0 -> byte-identical to the constant baseline.
+    dig_factor = float(getattr(mission, "dig_energy_factor", None) or 1.0)
     return PlanningContext(
-        dig_j_per_kg=float(veh.dig_energy_j_per_kg),
+        dig_j_per_kg=float(veh.dig_energy_j_per_kg) * dig_factor,
         drive_j_per_m=float(veh.drive_power_w) / DRIVE_SPEED_MS,
         battery_j=_vehicle_battery_j(veh),
         drum_kg=float(veh.drum_capacity_kg),
@@ -283,6 +286,13 @@ class Mission:
     #: `capacity` rovers would occupy it at once the excess WAIT (capacity-k FCFS, like the charger queue).
     #: None/empty -> no extra contention -> single-vehicle AND non-reserved multi-vehicle byte-identical.
     shared_resources: list | None = None
+    #: EP-02: operator material-difficulty multiplier on the dig energy. The baseline dig model is a CONSTANT
+    #: J/kg (ipex_specs.dig_energy_per_kg, calibrated to BP-1 dry simulant -- material/density/ice-INDEPENDENT,
+    #: with the drum-rate (0.72-1.0)x band the planner already reports as dig_energy_bounds_MJ). Physical
+    #: auto-derivation of dig energy from density/ice is UNMODELED; this factor lets an operator scale it for
+    #: a known harder/icier site (>1) so the plan's dig energy DEPENDS on the declared material. None -> 1.0
+    #: -> byte-identical to the constant baseline.
+    dig_energy_factor: float | None = None
     @property
     def density(self): return body_density(self.body)
 
@@ -501,6 +511,12 @@ def mission_from_dict(payload):
             clean_sr.append({"id": rid, "kind": kind, "capacity": int(cap), "sites": sites})
         if clean_sr:
             kwargs["shared_resources"] = clean_sr
+    df = payload.get("dig_energy_factor")                  # EP-02: operator material-difficulty multiplier
+    if df is not None:
+        fv = VAL.ensure_finite_scalar(df, "dig_energy_factor")
+        if fv <= 0:
+            raise ValueError(f"'dig_energy_factor' must be > 0 (got {fv})")
+        kwargs["dig_energy_factor"] = fv
     return Mission(**kwargs)
 
 
