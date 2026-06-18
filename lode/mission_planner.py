@@ -192,6 +192,41 @@ def _bodies():
         return {k for k in json.load(f) if not k.startswith("_")}
 
 
+def footprint_shape_area_m2(shape: dict) -> float:
+    """CP-05: planar area [m^2] of a typed build-order footprint in the local order frame. Kinds (with
+    orientation where it applies): rectangle (w x h, theta_deg), circle (r), corridor (length x width,
+    theta_deg -- a haul/grade strip), polygon (vertices [[x,y],...], shoelace). Orientation does not
+    change area but is carried on the order for footprint geometry/acceptance. Raises ValueError on an
+    unknown kind or non-positive/degenerate dimensions. Scalar `footprint_m2` stays the legacy input."""
+    k = str(shape.get("kind", "")).lower()
+    if k == "rectangle":
+        w, h = float(shape["w"]), float(shape["h"])
+        if w <= 0 or h <= 0:
+            raise ValueError(f"rectangle footprint needs w,h > 0 (got {w},{h})")
+        return w * h
+    if k == "circle":
+        r = float(shape["r"])
+        if r <= 0:
+            raise ValueError(f"circle footprint needs r > 0 (got {r})")
+        return math.pi * r * r
+    if k == "corridor":
+        length, width = float(shape["length"]), float(shape["width"])
+        if length <= 0 or width <= 0:
+            raise ValueError(f"corridor footprint needs length,width > 0 (got {length},{width})")
+        return length * width
+    if k == "polygon":
+        verts = [(float(x), float(y)) for x, y in shape["vertices"]]
+        if len(verts) < 3:
+            raise ValueError(f"polygon footprint needs >= 3 vertices (got {len(verts)})")
+        a = sum(verts[i][0] * verts[(i + 1) % len(verts)][1] - verts[(i + 1) % len(verts)][0] * verts[i][1]
+                for i in range(len(verts)))
+        area = abs(a) * 0.5
+        if area <= 0:
+            raise ValueError("polygon footprint is degenerate (zero area)")
+        return area
+    raise ValueError(f"unknown footprint shape kind {k!r} (use rectangle|circle|corridor|polygon)")
+
+
 @dataclasses.dataclass
 class BuildOrder:
     action: str
@@ -200,6 +235,10 @@ class BuildOrder:
     footprint_m2: float
     depth_m: float          # cut depth / fill height / sinter depth
     note: str = ""
+    #: CP-05: optional typed footprint shape (rectangle/circle/corridor/polygon + orientation) in the
+    #: local order frame. When present, footprint_m2 is DERIVED from its area; a bare scalar footprint_m2
+    #: (no shape) is the legacy square-equivalent input. The shape carries orientation for acceptance.
+    shape: dict | None = None
     def mass_kg(self, rho): return self.footprint_m2 * self.depth_m * rho
 
 
@@ -279,6 +318,8 @@ def mission_from_dict(payload):
             raise ValueError(f"order {i} must be an object")
         # S-3: goto waypoints carry only a position -- no footprint/depth (zero-mass visits)
         req = ("action", "kind", "x", "y") if o.get("kind") == "goto" else _ORDER_FIELDS
+        if o.get("shape"):                                 # CP-05: a typed shape supplies the area -> footprint_m2 optional
+            req = tuple(k for k in req if k != "footprint_m2")
         missing = [k for k in req if k not in o]
         if missing:
             raise ValueError(f"order {i} missing field(s): {missing}")
@@ -300,10 +341,13 @@ def mission_from_dict(payload):
             x=VAL.ensure_finite_scalar(o["x"], f"order {i} x"),
             y=VAL.ensure_finite_scalar(o["y"], f"order {i} y"),
             footprint_m2=(0.0 if o.get("kind") == "goto" else
-                          VAL.ensure_positive_scalar(o["footprint_m2"], f"order {i} footprint_m2")),
+                          (VAL.ensure_positive_scalar(footprint_shape_area_m2(o["shape"]),
+                                                      f"order {i} footprint shape area") if o.get("shape")
+                           else VAL.ensure_positive_scalar(o["footprint_m2"], f"order {i} footprint_m2"))),
             depth_m=(0.0 if o.get("kind") == "goto" else
                      VAL.ensure_positive_scalar(o["depth_m"], f"order {i} depth_m")),
-            note=str(o.get("note", ""))))
+            note=str(o.get("note", "")),
+            shape=(o.get("shape") if o.get("kind") != "goto" else None)))
     c = payload.get("charger", (0.0, 0.0))
     kwargs = dict(name=str(payload.get("name", "Build Mission")), body=body, orders=orders,
                   charger=(VAL.ensure_finite_scalar(c[0], "charger x"),

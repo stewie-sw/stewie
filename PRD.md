@@ -522,7 +522,7 @@ solar power scheduling.
 | CP-02 | P0 | Balance bank cut and loose fill by mass with drum/capacity constraints. | D | D | D | P |
 | CP-03 | P0 | Execute/validate the selected optimized plan on the conserved authority and real terrain. | D | D | D | P |
 | CP-04 | P1 | Goal grammar supports typed structures, tolerances, budgets, priorities, deadlines, dependencies, and keep-outs. | P | P | P | NA |
-| CP-05 | P1 | Footprints support rectangle, circle, corridor, and polygon with orientation; scalar-area squares are legacy input only. | N | N | N | NA |
+| CP-05 | P1 | Footprints support rectangle, circle, corridor, and polygon with orientation; scalar-area squares are legacy input only. | D | D | D | NA |
 | CP-06 | P1 | Acceptance includes pad flatness, berm profile, bearing/compaction, repose stability, mass, time, and energy. | P | P | P | P |
 | CP-07 | P1 | Plan uncertainty carries DEM, material, slip, dig-rate, drum-fill, localization, and power-window uncertainty into feasibility/time/energy bands. | P | N | P | N |
 | CP-08 | P1 | Planner objectives support hard constraints and risk terms, not only unconstrained weighted metrics. | N | N | N | NA |
