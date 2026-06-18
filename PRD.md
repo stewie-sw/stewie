@@ -391,13 +391,13 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
-| CT-01 | P0 | All public numeric inputs enforce units, finiteness, and physical domains. Negative depth/mass and NaN/Inf are rejected. | P | P | P | NA |
+| CT-01 | P0 | All public numeric inputs enforce units, finiteness, and physical domains. Negative depth/mass and NaN/Inf are rejected. | D | D | D | NA |
 | CT-02 | P0 | `ColumnState` validates dimensions, array shapes, dtypes/domains, density, labels, disturbance, datum, ice, and inventory at construction. | D | D | D | NA |
-| CT-03 | P0 | Every authority mutation is transactional, conserves mass when required, and leaves all invariants valid. | P | P | P | NA |
-| CT-04 | P0 | Scene publication writes verified rasters atomically and metadata last as the commit marker. | D | P | D | NA |
-| CT-05 | P0 | Python, Godot, and ROS share a versioned schema with strict required-field, frame, dtype, and range validation. | P | P | P | NA |
+| CT-03 | P0 | Every authority mutation is transactional, conserves mass when required, and leaves all invariants valid. | D | D | D | NA |
+| CT-04 | P0 | Scene publication writes verified rasters atomically and metadata last as the commit marker. | D | D | D | NA |
+| CT-05 | P0 | Python, Godot, and ROS share a versioned schema with strict required-field, frame, dtype, and range validation. | D | D | D | NA |
 | CT-06 | P0 | Production contract checks use explicit exceptions, never removable `assert` statements. | D | D | D | NA |
-| CT-07 | P1 | Every artifact records source commit, configuration, mode, seed, schema version, and input hashes. | P | P | N | NA |
+| CT-07 | P1 | Every artifact records source commit, configuration, mode, seed, schema version, and input hashes. | D | D | D | NA |
 | SF-01 | P0 | A command-timeout safing watchdog auto-issues SAFE to any RC backend (sim or real pit) when valid commands stop arriving; resets on each heartbeat. The dead-man interlock on the command path (the §19.0 safety requirement; the moment STEWIE commands hardware, this is its interlock). | D | D | D | N |
 
 ### 7.2 Terrain, Material, and Illumination
@@ -607,7 +607,7 @@ DEM. They make the advertised product boundary enforceable.
 | GI-02 | P1 | Planetary map correctness: Moon/Mars views use body-correct ellipsoid/CRS metadata and real DEM terrain/elevation where a layer claims 3D terrain. A smooth WGS84 drape must be labeled as imagery-only, not terrain. | P | N | N | N |
 | GI-03 | P2 | GIS interoperability scope: define and implement the mission-required subset only -- GeoJSON/COG import, selected OGC/ArcGIS service consumption, feature attributes/query, measurement/profile tools, provenance, and offline mission package export. Do not claim ArcGIS parity. | N | N | N | NA |
 | DT-01 | P0 | Operational digital-twin unification: conserved authority, observed `TwinStore`, runtime packets, vehicle twin, PlanResult, belief state, and session events are linked by one versioned transaction envelope with mission/site/body/time/provenance/uncertainty. | P | N | N | N |
-| DT-02 | P0 | Twin audit read security: `/twin/version` exposes only a minimal authenticated version token to ordinary clients; full event history/provenance requires director/admin authorization and audit logging. | N | N | N | NA |
+| DT-02 | P0 | Twin audit read security: `/twin/version` exposes only a minimal authenticated version token to ordinary clients; full event history/provenance requires director/admin authorization and audit logging. | D | D | D | NA |
 | RL-01 | P1 | Deployed RL policy gate: no RL capability may be called operational until a versioned policy artifact, training/eval lineage, model card, safety shield, deterministic fallback, and out-of-distribution acceptance report exist. Training scripts/environments alone do not satisfy this row. | P | N | N | N |
 | SL-01 | P0 | Truth-isolated SLAM/ARGUS benchmark: runtime bags and estimator processes are physically denied truth topics/frames; the full render/sensor/RTAB-Map-or-equivalent/ARGUS/pose-graph pipeline is scored by an evaluator-only channel with pass/fail thresholds. | P | P | P | N |
 | SE-01 | P0 | Full security audit gate: release requires a completed host, container, app, DNS/site, secret, backup/restore, dependency/SBOM/CVE, and external exposure audit. The current non-invasive Archimedes/site review is not sufficient. | P | N | N | N |
