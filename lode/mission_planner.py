@@ -1406,10 +1406,36 @@ def _return_to_lander(mission) -> dict:
     return blk
 
 
+def _plan_uncertainty(mission, dig_bounds_mj) -> dict:
+    """CP-07: ONE plan-uncertainty block aggregating the named sources (DEM, material, slip, dig-rate,
+    drum-fill, localization, power-window) into the feasibility/time/energy picture. HONEST: a source
+    carries a numeric figure ONLY where the model is grounded in-repo -- the dig-rate energy band
+    (rated-vs-max RPM, T2.4), the localization corridor margin (P-06), the DEM per-cell sigma (PM-09), and
+    the operator material factor (EP-02). drum-fill (DrumSensor MPE at /sense), slip (terramechanics in the
+    drive sim), and power-window (EP-04 windows) are modeled ELSEWHERE but not yet propagated to a
+    plan-level band -- named + flagged `quantified: False`, never a fabricated fraction."""
+    mat = float(getattr(mission, "dig_energy_factor", None) or 1.0)
+    return {
+        "energy_MJ_band": list(dig_bounds_mj),                 # dig-rate sensitivity (rated-18 vs max-25 RPM)
+        "sources": {
+            "dig_rate":     {"quantified": True, "into": "energy", "band_MJ": list(dig_bounds_mj)},
+            "material":     {"quantified": mat != 1.0, "into": "energy", "dig_energy_factor": mat},
+            "localization": {"quantified": True, "into": "feasibility", "corridor_margin_m": LOCALIZATION_MARGIN_M},
+            "dem":          {"quantified": True, "into": "feasibility", "cell_sigma_m": 0.05},
+            "drum_fill":    {"quantified": False, "into": "time", "note": "DrumSensor MPE modeled at /sense; not yet a plan band"},
+            "slip":         {"quantified": False, "into": "time/energy", "note": "terramechanics slip modeled in the drive sim; not yet a plan band"},
+            "power_window": {"quantified": bool(getattr(mission, "mission_windows", None)), "into": "time",
+                             "note": "EP-04 mission-clock windows gate timing"},
+        },
+    }
+
+
 def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
     """The mission / material / routing / keep-out totals shared by the single- and multi-vehicle planners.
     `core` carries the simulated time/energy/distance/charges/mass; the caller applies survival + algorithm
     + vehicle fields. Kept DRY so the multi-vehicle aggregate reports the same fields as single-vehicle."""
+    dig_bounds_mj = tuple(round(b * sum(tr["mass"] for tr in trips if tr["kind"] != "goto") / 1e6, 1)
+                          for b in S.dig_energy_bounds_j_per_kg())   # T2.4 dig-rate band; CP-07 reuses it
     return dict(
         core,
         cut_kg=sum(o.mass_kg(mission.density * SWELL) for o in mission.orders if o.kind == "cut"),
@@ -1430,8 +1456,8 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
         cut_passes=max([1] + [math.ceil(float(o.depth_m) / S.max_cut_per_pass_m())
                               for o in mission.orders if getattr(o, "kind", "") == "cut"]),
         # T2.4: the drum-rate sensitivity band -- dig energy at rated-18 vs max-25 RPM
-        dig_energy_bounds_MJ=tuple(round(b * sum(tr["mass"] for tr in trips if tr["kind"] != "goto")
-                                          / 1e6, 1) for b in S.dig_energy_bounds_j_per_kg()),
+        dig_energy_bounds_MJ=dig_bounds_mj,
+        plan_uncertainty=_plan_uncertainty(mission, dig_bounds_mj),   # CP-07: one aggregated uncertainty block
         lift_energy_J=float(sum(tr.get("lift_e", 0.0) for tr in trips)),
         routed_haul=meta["routed"], blocked_legs=meta["blocked_legs"], traverse_cap_deg=meta["traverse_cap_deg"],
         routes=meta.get("routes", []),
