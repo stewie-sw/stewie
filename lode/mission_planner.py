@@ -1679,6 +1679,60 @@ def _temporal_conflicts(per_vehicle, *, proximity_m: float = 10.0) -> int:
     return n
 
 
+def _seg_seg_min_dist(a0, a1, b0, b1) -> float:
+    """Minimum Euclidean distance between two 2-D segments a0->a1 and b0->b1 (Ericson's clamped
+    closest-point-between-segments). Used by FL-02 to test whether two moving haul paths pass close."""
+    a0 = np.asarray(a0, float); a1 = np.asarray(a1, float)
+    b0 = np.asarray(b0, float); b1 = np.asarray(b1, float)
+    d1 = a1 - a0; d2 = b1 - b0; r = a0 - b0
+    aa = float(d1 @ d1); ee = float(d2 @ d2); f = float(d2 @ r)
+    EPS = 1e-12
+    if aa <= EPS and ee <= EPS:                            # both degenerate -> point-point
+        s = t = 0.0
+    elif aa <= EPS:                                        # first degenerate -> point vs segment
+        s = 0.0; t = min(max(f / ee, 0.0), 1.0)
+    else:
+        c = float(d1 @ r)
+        if ee <= EPS:                                      # second degenerate
+            t = 0.0; s = min(max(-c / aa, 0.0), 1.0)
+        else:
+            b = float(d1 @ d2); denom = aa * ee - b * b
+            s = min(max((b * f - c * ee) / denom, 0.0), 1.0) if denom > EPS else 0.0
+            t = (b * s + f) / ee
+            if t < 0.0:
+                t = 0.0; s = min(max(-c / aa, 0.0), 1.0)
+            elif t > 1.0:
+                t = 1.0; s = min(max((b - c) / aa, 0.0), 1.0)
+    cp1 = a0 + d1 * s; cp2 = b0 + d2 * t
+    return float(np.hypot(*(cp1 - cp2)))
+
+
+def _haul_path_conflicts(per_vehicle, *, proximity_m: float = 10.0) -> int:
+    """FL-02: continuous moving HAUL-PATH crossings -- two DIFFERENT vehicles whose DRIVE legs (the routed
+    inter-site segments, x0 != x1 or y0 != y1) pass within proximity_m of each other during OVERLAPPING
+    time windows. The moving path-vs-path case that complements _temporal_conflicts (stationary work
+    crowding), _vehicle_conflicts (same site) and _charger_conflicts (shared charger). Returns the count
+    (0 = deconflicted). proximity_m is an [ASSUMPTION] safe-separation radius; pure geometry over the
+    per-vehicle timelines -- no behaviour change, a reported fleet-safety metric like temporal_conflicts."""
+    segs = []                                              # (vehicle, (x0,y0), (x1,y1), t0, t1) per moving leg
+    for v, pv in enumerate(per_vehicle):
+        for s in pv.get("tl", []):
+            if s.get("kind") != "drive" or "x0" not in s:
+                continue
+            if abs(s["x0"] - s.get("x1", s["x0"])) < 1e-9 and abs(s["y0"] - s.get("y1", s["y0"])) < 1e-9:
+                continue                                   # a zero-length leg is not a moving path
+            segs.append((v, (float(s["x0"]), float(s["y0"])), (float(s["x1"]), float(s["y1"])),
+                         float(s["t0"]), float(s["t1"])))
+    n = 0
+    for i in range(len(segs)):
+        vi, ai0, ai1, a0, a1 = segs[i]
+        for j in range(i + 1, len(segs)):
+            vj, bj0, bj1, b0, b1 = segs[j]
+            if vi != vj and a0 < b1 and b0 < a1 and _seg_seg_min_dist(ai0, ai1, bj0, bj1) < proximity_m:
+                n += 1                                     # different vehicles, overlapping time, paths near
+    return n
+
+
 def _rover_health(pv) -> dict:
     """FL-04: distill one rover's belief/health/resource state from its battery-aware sim -- feasibility,
     the LOWEST battery SoC fraction it reaches (the resource margin), its recharge count, and a health
@@ -1786,6 +1840,7 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
                   vehicle_conflicts=int(conflicts), vehicles_detail=detail,
                   fleet_needs_replan=bool(fleet_needs_replan),
                   temporal_conflicts=int(_temporal_conflicts(per_vehicle)),   # FL-02: nearby-site space-time crowding
+                  haul_path_conflicts=int(_haul_path_conflicts(per_vehicle)),  # FL-02: moving haul-PATH crossings
                   charger_conflicts=int(_charger_conflicts(per_vehicle, mission)))
     if mission.shared_resources:    # FL-03: only surface resource fields when declared (else byte-identical)
         for d, pv in zip(detail, per_vehicle):
