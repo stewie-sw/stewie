@@ -631,8 +631,16 @@
           <button id="plan3dundo" class="site" style="font-size:10px" title="remove the last waypoint">↶</button>
           <button id="plan3dclear" class="site" style="font-size:10px" title="clear the 3D path">✕</button>
         </span>
+        <span id="plan3dtools" style="display:none;border-left:1px solid var(--line);padding-left:4px;margin-left:2px">
+          <button id="plan3dcoords" class="site" style="font-size:10px" title="live cursor coordinate readout: exact E / N metres (order frame, from the site origin) + absolute DEM elevation as you move over the surface">🧭 coords</button>
+          <button id="plan3dplot" class="site" style="font-size:10px" title="plot points: click the surface to drop a labeled coordinate marker (its exact E / N / elevation floats in the 3D scene)">📍 plot</button>
+          <button id="plan3dmeasure" class="site" style="font-size:10px" title="measure: click two surface points for the 3D distance — slant length, horizontal run, vertical rise, and slope">📏 measure</button>
+          <button id="plan3dplotclear" class="site" style="font-size:10px" title="clear all plotted markers and measures">⌫ plots</button>
+        </span>
       </div>
       <div id="plan3dstats" style="position:absolute;left:54px;top:42px;z-index:36;display:none;background:rgba(10,10,12,.92);border:1px solid var(--line);border-radius:5px;padding:4px 8px;font-size:10px;color:var(--muted);max-width:min(440px,80vw);line-height:1.6"></div>
+      <!-- 3D plotting HUD: live cursor coords + the plotted-point list / last measurement -->
+      <div id="plan3dcoord" style="position:absolute;right:12px;top:12px;z-index:36;display:none;background:rgba(10,11,15,.92);border:1px solid var(--line);border-radius:5px;padding:5px 9px;font-size:10px;color:var(--muted);max-width:min(300px,48vw);line-height:1.6;font-family:monospace;white-space:pre-wrap"></div>
       <!-- #169: a coordinate readout that floats next to the cursor (toggle in the hint bar) -->
       <div id="cursorxy" style="position:fixed;z-index:40;display:none;pointer-events:none;background:rgba(10,10,12,.92);border:1px solid var(--line);border-radius:4px;color:var(--accent);font-size:10px;font-variant-numeric:tabular-nums;padding:2px 6px;white-space:nowrap"></div>
       <div id="scalebox" style="position:absolute;left:12px;bottom:34px;z-index:25;background:rgba(10,10,12,.8);border:1px solid var(--line);border-radius:5px;padding:4px 9px;font-size:11px;font-variant-numeric:tabular-nums">
@@ -1024,7 +1032,7 @@
 
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
-<script type="module" src="/assets/three3d.js?v=814fcf790430"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=c38980dd4b2f"></script>
+<script type="module" src="/assets/three3d.js?v=3fc7e7695a0e"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
+<script src="/assets/cockpit.js?v=14f3b380263d"></script>
 </body>
 </html>

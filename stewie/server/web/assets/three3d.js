@@ -40,6 +40,8 @@ function mount(container) {
   S.target = new THREE.Vector3(0, 0, 0);
   // fly/move-through state (vs orbit): a free first-person camera through the real DEM world
   S.fly = false; S.walk = false; S.flyPos = new THREE.Vector3(); S.flyYaw = 0; S.flyPitch = -0.3; S.keys = {};
+  // 3D plotting toolbox state: live cursor coord readout, plotted coordinate markers, distance measures
+  S._coordReadout = false; S.markers = []; S.measures = []; S._measPts = [];
   _bindControls(container);
   _bindFlyKeys(container);
 
@@ -63,13 +65,16 @@ function _bindControls(el) {
   el.style.cursor = "grab";
   el.addEventListener("pointerdown", (e) => { drag = true; px = e.clientX; py = e.clientY; dx0 = e.clientX; dy0 = e.clientY; el.style.cursor = "grabbing"; el.setPointerCapture(e.pointerId); });
   el.addEventListener("pointerup", (e) => {
-    drag = false; el.style.cursor = S._editPath ? "crosshair" : "grab";
+    drag = false; el.style.cursor = (S._editPath || S._plotMode || S._measureMode) ? "crosshair" : "grab";
     try { el.releasePointerCapture(e.pointerId); } catch (_) { /* */ }
-    // a CLICK (not an orbit-drag) in path-edit mode drops a waypoint on the terrain surface
-    if (S._editPath && Math.hypot(e.clientX - dx0, e.clientY - dy0) < 6) _pickWaypoint(el, e);
+    // a CLICK (not an orbit-drag), never in fly: route to the active tool on the terrain surface
+    if (S.fly || Math.hypot(e.clientX - dx0, e.clientY - dy0) >= 6) return;
+    if (S._editPath) _pickWaypoint(el, e);                 // path-def: drop a goto waypoint
+    else if (S._plotMode) _plotPick(el, e);                // plot: drop a labeled coordinate marker
+    else if (S._measureMode) _measurePick(el, e);          // measure: pick a 3D distance endpoint
   });
   el.addEventListener("pointermove", (e) => {
-    if (!drag) return;
+    if (!drag) { if (S._coordReadout && !S.fly) _hoverPick(el, e); return; }  // live cursor coord readout
     if (S.fly) {                                          // fly mode: drag = mouse-look (yaw/pitch)
       S.flyYaw -= (e.clientX - px) * 0.005;
       S.flyPitch = Math.max(-1.45, Math.min(1.45, S.flyPitch - (e.clientY - py) * 0.005));
@@ -103,6 +108,7 @@ function render(hf) {
   if (!S.scene || !hf || !hf.z) return false;
   if (S.mesh) { S.group.remove(S.mesh); S.mesh.geometry.dispose(); S.mesh.material.dispose(); S.mesh = null; }
   if (S.wire) { S.group.remove(S.wire); S.wire.geometry.dispose(); S.wire.material.dispose(); S.wire = null; }
+  if (S.markerGroup || S.measureGroup) clearPlots();        // a new site = fresh annotations (stale order coords)
   const n = hf.n, win = hf.window_m, step = win / (n - 1);
   const zmin = hf.z_min, span = Math.max(1e-6, hf.z_max - hf.z_min);
   const pos = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3);
@@ -261,14 +267,18 @@ function setLander3D(x, y) {
 // --- path definition (Aaron 2026-06-17): click the 3D terrain to drop waypoints ON the real surface, so
 // a path is defined against the actual relief (the Cesium globe is general plotting; THIS is accurate).
 // Markers + a polyline ride the surface; per-leg length/slope come from the same bilinear heightAt. ---
-function _pickWaypoint(el, e) {
-  if (!S.mesh || !S.raycaster) return;
+function _raycastSurface(el, e) {                          // screen px -> the terrain hit point (world frame) or null
+  if (!S.mesh || !S.raycaster) return null;
   const rect = el.getBoundingClientRect();
   const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1,
                                 -((e.clientY - rect.top) / rect.height) * 2 + 1);
   S.raycaster.setFromCamera(ndc, S.camera);
   const hits = S.raycaster.intersectObject(S.mesh, false);
-  if (hits.length) _addWaypoint(hits[0].point.x, hits[0].point.z);   // world x=East=order x, z=North=order y
+  return hits.length ? hits[0].point : null;
+}
+function _pickWaypoint(el, e) {
+  const p = _raycastSurface(el, e);
+  if (p) _addWaypoint(p.x, p.z);                           // world x=East=order x, z=North=order y
 }
 function _addWaypoint(x, y) {
   S.waypoints = S.waypoints || [];
@@ -318,6 +328,117 @@ function pathStats() {
   return { legs, total_len_m: total, max_slope_deg: maxslope, n: wp.length };
 }
 
+// --- 3D plotting toolbox (Aaron 2026-06-17): overlay EXACT coordinate positions in the 3D world.
+// The picked surface point carries the planner's order frame directly: world x = East (m), world z =
+// North (m), both metres from the window SW origin (the same frame goto waypoints use); world y is the
+// height above the window minimum, so absolute elevation = world.y + S.zmin (raw DEM metres). Tools:
+// live cursor readout (onHover), plotted coordinate markers with floating labels, and 3D distance
+// measures (slant / horizontal / vertical / slope). ---
+function _coordOf(p) { return { e: p.x, n: p.z, elev: p.y + (S.zmin || 0) }; }   // world hit -> exact order coords
+function _hoverPick(el, e) {
+  const p = _raycastSurface(el, e);
+  if (p && S._onHover) S._onHover(_coordOf(p));
+  else if (!p && S._onHover) S._onHover(null);
+}
+function _textSprite(text, color) {                        // a depth-test-off canvas label that always reads
+  const fs = 34, pad = 7, cv = document.createElement("canvas"), ctx = cv.getContext("2d");
+  ctx.font = `${fs}px monospace`;
+  cv.width = Math.ceil(ctx.measureText(text).width) + pad * 2; cv.height = fs + pad * 2;
+  ctx.font = `${fs}px monospace`;
+  ctx.fillStyle = "rgba(8,11,15,0.82)"; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = color || "#39ff14"; ctx.textBaseline = "middle";
+  ctx.fillText(text, pad, cv.height / 2);
+  const tex = new THREE.CanvasTexture(cv); tex.minFilter = THREE.LinearFilter;
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+  const h = Math.max(5, (S.win || 300) * 0.035);
+  spr.scale.set(h * cv.width / cv.height, h, 1);
+  return spr;
+}
+function _disposeGroup(g) {
+  if (!g) return;
+  S.group.remove(g);
+  g.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); if (o.material.dispose) o.material.dispose(); } });
+}
+function _plotPick(el, e) {
+  const p = _raycastSurface(el, e); if (!p) return;
+  S.markers = S.markers || [];
+  S.markers.push({ x: p.x, z: p.z, elev: p.y + (S.zmin || 0), wy: p.y });
+  _redrawMarkers();
+  if (S._onMarkers) S._onMarkers(getMarkers());
+}
+function _redrawMarkers() {
+  _disposeGroup(S.markerGroup);
+  S.markerGroup = new THREE.Group();
+  const r = Math.max(1.2, (S.win || 300) * 0.011);
+  (S.markers || []).forEach((m, i) => {
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 12),
+      new THREE.MeshStandardMaterial({ color: 0x39ff14, emissive: 0x103a08, roughness: 0.4 }));
+    dot.position.set(m.x, m.wy + r, m.z); S.markerGroup.add(dot);
+    const lab = _textSprite(`#${i + 1} E${m.x.toFixed(1)} N${m.z.toFixed(1)} ${m.elev.toFixed(1)}m`, "#9dff7a");
+    lab.position.set(m.x, m.wy + r * 3.2, m.z); S.markerGroup.add(lab);
+  });
+  S.group.add(S.markerGroup);
+}
+function _measurePick(el, e) {
+  const p = _raycastSurface(el, e); if (!p) return;
+  S._measPts = S._measPts || [];
+  S._measPts.push(p.clone());
+  if (S._measPts.length === 2) {
+    const a = S._measPts[0], b = S._measPts[1];
+    const dx = b.x - a.x, dz = b.z - a.z, dy = b.y - a.y;
+    const horiz = Math.hypot(dx, dz), slant = Math.hypot(horiz, dy);
+    const slope = horiz > 1e-6 ? Math.atan2(Math.abs(dy), horiz) * 180 / Math.PI : 0;
+    S.measures = S.measures || [];
+    S.measures.push({ a: a.clone(), b: b.clone(), slant, horiz, vert: dy, slope });
+    S._measPts = [];
+    _redrawMeasures();
+    if (S._onMeasure) S._onMeasure({ slant_m: slant, horiz_m: horiz, vert_m: dy, slope_deg: slope });
+  } else { _redrawMeasures(); }                            // show the pending first endpoint immediately
+}
+function _redrawMeasures() {
+  _disposeGroup(S.measureGroup);
+  S.measureGroup = new THREE.Group();
+  const r = Math.max(1.0, (S.win || 300) * 0.009);
+  const endpt = (p, col) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10),
+      new THREE.MeshStandardMaterial({ color: col, emissive: 0x222, roughness: 0.4 }));
+    m.position.copy(p); S.measureGroup.add(m);
+  };
+  (S.measures || []).forEach((seg) => {
+    endpt(seg.a, 0xffd23f); endpt(seg.b, 0xffd23f);
+    const g = new THREE.BufferGeometry().setFromPoints([seg.a, seg.b]);
+    S.measureGroup.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xffd23f })));
+    const mid = seg.a.clone().add(seg.b).multiplyScalar(0.5);
+    const lab = _textSprite(`${seg.slant.toFixed(1)} m  (${seg.slope.toFixed(0)} deg)`, "#ffd23f");
+    lab.position.set(mid.x, mid.y + r * 3, mid.z); S.measureGroup.add(lab);
+  });
+  (S._measPts || []).forEach((p) => endpt(p, 0xff8c1a)); // pending endpoint
+  S.group.add(S.measureGroup);
+}
+function setCoordReadout(on) { S._coordReadout = !!on; if (!on && S._onHover) S._onHover(null); }
+function onHover(cb) { S._onHover = cb; }
+function setPlotMode(on) {
+  S._plotMode = !!on;
+  if (on) { S._measureMode = false; setPathEdit(false); }
+  if (S.renderer && S.renderer.domElement.parentElement)
+    S.renderer.domElement.parentElement.style.cursor = (on || S._editPath || S._measureMode) ? "crosshair" : "grab";
+}
+function setMeasureMode(on) {
+  S._measureMode = !!on; S._measPts = [];
+  if (on) { S._plotMode = false; setPathEdit(false); }
+  if (S.renderer && S.renderer.domElement.parentElement)
+    S.renderer.domElement.parentElement.style.cursor = (on || S._editPath || S._plotMode) ? "crosshair" : "grab";
+}
+function onMarkers(cb) { S._onMarkers = cb; }
+function onMeasure(cb) { S._onMeasure = cb; }
+function getMarkers() { return (S.markers || []).map((m) => ({ e: m.x, n: m.z, elev: m.elev })); }
+function clearPlots() {
+  S.markers = []; S.measures = []; S._measPts = [];
+  _disposeGroup(S.markerGroup); S.markerGroup = null;
+  _disposeGroup(S.measureGroup); S.measureGroup = null;
+  if (S._onMarkers) S._onMarkers([]);
+}
+
 // --- fly / move-through the 3D world (Aaron 2026-06-17): a first-person free camera through the REAL
 // DEM (vs the orbit camera). Drag = look; W/A/S/D = move; R/Space up, F/Shift down. Walk mode clamps to
 // the terrain surface at eye height so you walk the regolith. Speed scales to the scene extent. ---
@@ -364,6 +485,7 @@ function getCamPos() { return S.camera ? [S.camera.position.x, S.camera.position
 window.STEWIE3D = { mount, render, setRover, setPath, setSun, setWireframe, setLander3D, clearTracks, heightAt,
   animateRover, stopRoverAnim, setPathEdit, onPathChange, getWaypoints, undoWaypoint, clearWaypoints, pathStats,
   setFlyMode, getCamPos,
+  setCoordReadout, onHover, setPlotMode, setMeasureMode, onMarkers, onMeasure, getMarkers, clearPlots,
   get available() { return true; },
   get sunState() { return { az: S._sunAz, el: S._sunEl, shadows: !!(S.renderer && S.renderer.shadowMap && S.renderer.shadowMap.enabled) }; },
   get hasLander() { return !!S.lander; } };

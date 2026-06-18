@@ -785,6 +785,8 @@ function setView(name) {
   if (p3b) p3b.style.display = (name === "plan") ? "flex" : "none";
   const p3s = document.getElementById("plan3dstats");
   if (p3s && name !== "plan") p3s.style.display = "none";
+  const p3c = document.getElementById("plan3dcoord");      // the 3D plotting HUD is a PLAN-map tool too
+  if (p3c && name !== "plan") p3c.style.display = "none";
   if (name !== "plan" && EDIT.on) setEdit(false);          // leaving Plan ends the edit session
   applySidebar(name);                                      // UX-05: collapse off-Plan / restore on Plan
   loadPane(name);
@@ -3575,32 +3577,112 @@ function planLoad3D() {
       STEWIE3D.render(hf); if (STEWIE3D.setSun) STEWIE3D.setSun(135, 18);
       if (typeof LANDER_P !== "undefined" && (LANDER_P.x || LANDER_P.y) && STEWIE3D.setLander3D) STEWIE3D.setLander3D(LANDER_P.x, LANDER_P.y);
       STEWIE3D.setPathEdit(true); STEWIE3D.onPathChange(planSyncPathOrders); planSyncPathOrders();
+      // 3D plotting toolbox: live cursor coord readout + plotted coordinate markers + 3D distance measures
+      if (STEWIE3D.onHover) STEWIE3D.onHover((c) => {
+        P3D_HOVER = c ? `▸ E ${c.e.toFixed(1)}  N ${c.n.toFixed(1)}  ↕ ${c.elev.toFixed(1)} m` : "▸ (cursor off surface)";
+        p3dHud();
+      });
+      if (STEWIE3D.onMarkers) STEWIE3D.onMarkers((ms) => {
+        P3D_MARKERS = ms.length ? `📍 ${ms.length} plotted:\n` + ms.map((m, i) => `  #${i + 1} E${m.e.toFixed(1)} N${m.n.toFixed(1)} ${m.elev.toFixed(1)}m`).join("\n") : "";
+        p3dHud();
+      });
+      if (STEWIE3D.onMeasure) STEWIE3D.onMeasure((d) => {
+        P3D_MEAS = `📏 ${d.slant_m.toFixed(1)} m slant · H ${d.horiz_m.toFixed(1)} · V ${d.vert_m >= 0 ? "+" : ""}${d.vert_m.toFixed(1)} · ${d.slope_deg.toFixed(0)}°`;
+        p3dHud();
+      });
+      P3D_TOOL = "path"; P3D_COORDS = true; P3D_HOVER = ""; P3D_MARKERS = ""; P3D_MEAS = "";
+      if (STEWIE3D.setCoordReadout) STEWIE3D.setCoordReadout(true);
+      if ($("plan3dcoords")) $("plan3dcoords").style.borderColor = "var(--accent)";
+      if ($("plan3dplot")) $("plan3dplot").style.borderColor = "";
+      if ($("plan3dmeasure")) $("plan3dmeasure").style.borderColor = "";
+      p3dHud();
       setQ("3D path mode — click the " + site + " terrain to drop traverse waypoints (→ goto orders)");
     }).catch(() => setQ("3D: heightfield fetch failed"));
 }
-let FLY3D_ON = false;
+let FLY3D_ON = false, P3D_TOOL = "path", P3D_COORDS = true, P3D_HOVER = "", P3D_MARKERS = "", P3D_MEAS = "";
+function p3dHud() {                                         // compose the live-coord / plotted-points / measure HUD
+  const el = $("plan3dcoord"); if (!el) return;
+  const parts = [];
+  if (P3D_COORDS) parts.push(P3D_HOVER || "▸ move over the terrain for live E / N / elevation");
+  if (P3D_MEAS) parts.push(P3D_MEAS);
+  if (P3D_MARKERS) parts.push(P3D_MARKERS);
+  el.textContent = parts.join("\n");
+}
+function p3dSetTool(tool) {                                 // one click-tool at a time in orbit: path | plot | measure
+  P3D_TOOL = tool;
+  if (window.STEWIE3D) {
+    if (STEWIE3D.setPlotMode) STEWIE3D.setPlotMode(tool === "plot");
+    if (STEWIE3D.setMeasureMode) STEWIE3D.setMeasureMode(tool === "measure");
+    if (STEWIE3D.setPathEdit) STEWIE3D.setPathEdit(tool === "path" && !FLY3D_ON);
+  }
+  if ($("plan3dplot")) $("plan3dplot").style.borderColor = tool === "plot" ? "var(--accent)" : "";
+  if ($("plan3dmeasure")) $("plan3dmeasure").style.borderColor = tool === "measure" ? "var(--accent)" : "";
+  if ($("plan3dctl")) $("plan3dctl").style.display = (tool === "path" && !FLY3D_ON) ? "inline" : "none";
+}
 if ($("plan3dtoggle")) $("plan3dtoggle").onclick = () => {
   PLAN3D_ON = !PLAN3D_ON;
   if ($("cesium")) $("cesium").style.display = PLAN3D_ON ? "none" : "";
   if ($("plan3d")) $("plan3d").style.display = PLAN3D_ON ? "block" : "none";
   if ($("plan3dfly")) $("plan3dfly").style.display = PLAN3D_ON ? "inline-block" : "none";
+  if ($("plan3dtools")) $("plan3dtools").style.display = PLAN3D_ON ? "inline" : "none";
+  if ($("plan3dcoord")) $("plan3dcoord").style.display = PLAN3D_ON ? "block" : "none";
   if ($("plan3dstats")) $("plan3dstats").style.display = PLAN3D_ON ? "block" : "none";
   $("plan3dtoggle").style.borderColor = PLAN3D_ON ? "var(--accent)" : "";
   $("plan3dtoggle").textContent = PLAN3D_ON ? "▦ 2D map" : "▦ 3D path";
   if (PLAN3D_ON) { planLoad3D(); }                         // enters orbit + path-def on the chosen-site DEM
-  else {                                                   // leaving 3D: reset fly + path-def
+  else {                                                   // leaving 3D: reset fly + every click-tool
     FLY3D_ON = false; if ($("plan3dfly")) $("plan3dfly").style.borderColor = "";
-    if (window.STEWIE3D) { if (STEWIE3D.setFlyMode) STEWIE3D.setFlyMode(false); if (STEWIE3D.setPathEdit) STEWIE3D.setPathEdit(false); }
+    if (window.STEWIE3D) {
+      if (STEWIE3D.setFlyMode) STEWIE3D.setFlyMode(false);
+      if (STEWIE3D.setPlotMode) STEWIE3D.setPlotMode(false);
+      if (STEWIE3D.setMeasureMode) STEWIE3D.setMeasureMode(false);
+      if (STEWIE3D.setPathEdit) STEWIE3D.setPathEdit(false);
+    }
+    P3D_TOOL = "path";
+    if ($("plan3dplot")) $("plan3dplot").style.borderColor = "";
+    if ($("plan3dmeasure")) $("plan3dmeasure").style.borderColor = "";
   }
-  if ($("plan3dctl")) $("plan3dctl").style.display = (PLAN3D_ON && !FLY3D_ON) ? "inline" : "none";
+  if ($("plan3dctl")) $("plan3dctl").style.display = (PLAN3D_ON && !FLY3D_ON && P3D_TOOL === "path") ? "inline" : "none";
 };
-if ($("plan3dfly")) $("plan3dfly").onclick = () => {       // fly/move-through vs orbit (mutually exclusive with path-def clicks)
+if ($("plan3dfly")) $("plan3dfly").onclick = () => {       // fly/move-through; overrides every click-tool
   FLY3D_ON = !FLY3D_ON;
   if (window.STEWIE3D && STEWIE3D.setFlyMode) STEWIE3D.setFlyMode(FLY3D_ON, false);
-  if (window.STEWIE3D && STEWIE3D.setPathEdit) STEWIE3D.setPathEdit(!FLY3D_ON);
   $("plan3dfly").style.borderColor = FLY3D_ON ? "var(--accent)" : "";
-  if ($("plan3dctl")) $("plan3dctl").style.display = FLY3D_ON ? "none" : "inline";
-  setQ(FLY3D_ON ? "🎮 Fly — drag to look · W/A/S/D move · R/F up·down" : "Orbit view + path-def (click to drop waypoints)");
+  if (FLY3D_ON) {
+    if (window.STEWIE3D) {
+      if (STEWIE3D.setPlotMode) STEWIE3D.setPlotMode(false);
+      if (STEWIE3D.setMeasureMode) STEWIE3D.setMeasureMode(false);
+      if (STEWIE3D.setPathEdit) STEWIE3D.setPathEdit(false);
+    }
+    if ($("plan3dplot")) $("plan3dplot").style.borderColor = "";
+    if ($("plan3dmeasure")) $("plan3dmeasure").style.borderColor = "";
+    if ($("plan3dctl")) $("plan3dctl").style.display = "none";
+    setQ("🎮 Fly — drag to look · W/A/S/D move · R/F up·down");
+  } else {
+    p3dSetTool(P3D_TOOL);                                  // restore the previously-selected click-tool
+    setQ("Orbit view + " + (P3D_TOOL === "path" ? "path-def (click to drop waypoints)" : P3D_TOOL + " tool"));
+  }
+};
+if ($("plan3dcoords")) $("plan3dcoords").onclick = () => { // live cursor coordinate readout on/off
+  P3D_COORDS = !P3D_COORDS;
+  if (window.STEWIE3D && STEWIE3D.setCoordReadout) STEWIE3D.setCoordReadout(P3D_COORDS);
+  $("plan3dcoords").style.borderColor = P3D_COORDS ? "var(--accent)" : "";
+  if (!P3D_COORDS) P3D_HOVER = "";
+  p3dHud();
+};
+if ($("plan3dplot")) $("plan3dplot").onclick = () => {     // plot labeled coordinate markers
+  if (FLY3D_ON) return;
+  const t = P3D_TOOL === "plot" ? "path" : "plot"; p3dSetTool(t);
+  setQ(t === "plot" ? "📍 Plot — click the terrain to drop a coordinate marker (exact E / N / elevation)" : "Path-def — click to drop waypoints");
+};
+if ($("plan3dmeasure")) $("plan3dmeasure").onclick = () => { // 3D distance between two surface points
+  if (FLY3D_ON) return;
+  const t = P3D_TOOL === "measure" ? "path" : "measure"; p3dSetTool(t);
+  setQ(t === "measure" ? "📏 Measure — click two surface points for slant / horizontal / vertical distance" : "Path-def — click to drop waypoints");
+};
+if ($("plan3dplotclear")) $("plan3dplotclear").onclick = () => { // clear plotted markers + measures
+  if (window.STEWIE3D && STEWIE3D.clearPlots) STEWIE3D.clearPlots();
+  P3D_MARKERS = ""; P3D_MEAS = ""; p3dHud();
 };
 if ($("plan3dundo")) $("plan3dundo").onclick = () => { if (window.STEWIE3D && STEWIE3D.undoWaypoint) STEWIE3D.undoWaypoint(); };
 if ($("plan3dclear")) $("plan3dclear").onclick = () => { if (window.STEWIE3D && STEWIE3D.clearWaypoints) STEWIE3D.clearWaypoints(); };
