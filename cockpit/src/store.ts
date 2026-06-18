@@ -21,6 +21,10 @@ export interface CockpitState {
   setMode: (m: StewieMode) => void;
   toggleSource: (l: SourceLayer, on: boolean) => void;
   setWorkArea: (a: WorkArea) => void;
+  // --- Plan authoring: click-placed build orders in the order frame (x,y metres) ---
+  orders: { x: number; y: number }[];
+  addOrder: (x: number, y: number) => void;
+  clearOrders: () => void;
   // --- chrome (FS-20) + prefs (UI-1/UI-2), persisted ---
   chrome: ChromeView | null;
   theme: "dark" | "light";
@@ -81,6 +85,10 @@ export const useCockpit = create<CockpitState>((set) => ({
   toggleSource: (l, on) =>
     set((s) => ({ sources: on ? [...new Set([...s.sources, l])] : s.sources.filter((x) => x !== l) })),
   setWorkArea: (workArea) => set({ workArea }),
+
+  orders: [],
+  addOrder: (x, y) => set((s) => ({ orders: [...s.orders, { x, y }] })),
+  clearOrders: () => set({ orders: [] }),
 
   chrome: null,
   theme: lsGet("stewie_theme", "dark") === "light" ? "light" : "dark",

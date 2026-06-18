@@ -92,6 +92,22 @@ export interface NavContract {
   stages: NavStage[];
 }
 
+export interface Heightfield {
+  n: number;
+  windowM: number;
+  z: number[]; // row-major y-then-x, length n*n (real LOLA elevation, metres)
+  zMin: number;
+  zMax: number;
+}
+
+/** GET /dem/heightfield — a decimated n×n height grid over the [0,window_m]² order frame, sampled from the
+ * site's REAL LOLA DEM (#165). z[j*n+i] is the height at (x = i/(n-1)*window_m, y = j/(n-1)*window_m). */
+export async function fetchHeightfield(site = "haworth", n = 49, windowM = 300): Promise<Heightfield | null> {
+  const { status, json } = await getJson(`/dem/heightfield?site=${encodeURIComponent(site)}&n=${n}&window_m=${windowM}`);
+  if (status >= 400 || !json?.ok || !Array.isArray(json.z)) return null;
+  return { n: json.n, windowM: json.window_m, z: json.z, zMin: json.z_min, zMax: json.z_max };
+}
+
 /** GET /nav/contract — the FS-05 auditable navigation contract: each stage self-reports whether its seam
  * is wired on this host; the live Autoware/Nav2 planner binary is the gated tier. */
 export async function fetchNavContract(): Promise<NavContract | null> {

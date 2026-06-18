@@ -25,7 +25,7 @@ the contract; `vanilla` = still only in the live `stewie/server/web/assets/cockp
 
 | Work area | Key route(s) | Domain module | React view | Tests |
 |---|---|---|---|---|
-| **Plan** (+fleet) | `/plan` `/dem/*` `/layers` `/bodies.json` `/structure` `/profile` | `lode/mission_planner.py`, `planner_routing.py` | stub (authoring is spatial → Phase 4 map) | `lode/test_mission_planner.py` |
+| **Plan** (+fleet) | `/dem/heightfield` (real LOLA) · `/plan` (next) | `routers/dem.py`, `lode/mission_planner.py` | **ported** (real terrain mesh + click-to-place build orders; `MapCanvas3D.tsx`. `/plan` solve binds next) | `cockpit/api.test.ts`, `render_phase4b.py` |
 | **Navigation/Autonomy** | `/nav/contract` `/nav/local_plan` `/rc/plan_ros` | `lode/planner_routing.navigation_contract`, `stewie/bridge/plan_lowering.py` (NV-11), `stream.py` (NV-12), `routers/rc.py` (AG-08) | **ported** (`NavigationView.tsx`: nav-contract stage readiness; Plan IR empty-state pending the map) | `cockpit/api.test.ts`, `render_phase3.py`, `test_navigation_contract.py` |
 | **Perception** | `/evidence` `/compare` `/localize/render` `/localize/traverse` `/twin/*` | `dart/`, `leap/`, `planet_browser/localization.py` | stub (render/depth-gated → Phase 4) | (perception suite) |
 | **Metrics/Execution** | `/events` | `routers/operators_admin.py` | **ported** (event timeline + metric tiles; `EventsTable.tsx`, `api.ts`) | `cockpit/api.test.ts`, `render_phase2.py` |
@@ -38,7 +38,8 @@ the contract; `vanilla` = still only in the live `stewie/server/web/assets/cockp
 |---|---|---|---|
 | App shell / top bar / tabs / command rail | **ported** | `cockpit/src/App.tsx` | `render_under_csp.py` (CSP-clean, shell mounts) |
 | Map/World 3D canvas (Three.js) | **ported** (thin React boundary: mount-once + imperative-prop + dispose; grid scaffold + rover) | `cockpit/src/panels/MapCanvas3D.tsx` | `render_phase4.py` (CSP-clean, WebGL ctx, paints in swiftshader, lifecycle) |
-| Real DEM mesh + Cesium planetary globe | **gated** (real GPU browser + running backend `/dem/heightfield` + tile service) | — | the user's on-real-browser check |
+| Real DEM terrain mesh (Three.js) | **ported** (deformed elevation mesh from `/dem/heightfield`; click-to-place authoring) | `cockpit/src/panels/MapCanvas3D.tsx` | `render_phase4b.py` (real LOLA fixture, renders + places orders) |
+| Cesium planetary globe + Perception render pipeline | **gated** (real-GPU browser + tile service / render→depth) | — | the user's on-real-browser check |
 | State store (FS-16) | **ported** | `cockpit/src/store.ts` (Zustand) | render harness (truth-disabled-in-OPERATE) |
 | Design system | **shipped** | `@stewie/design-system` (8 components) | `adapters.test.js`, `components.test.tsx`, claude.ai/design |
 

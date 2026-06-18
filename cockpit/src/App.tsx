@@ -2,10 +2,12 @@
  * FS-20 profile menu, FS-17 command authority. Phase 2: theme/font prefs applied to the root, the FS-20
  * chrome overlay, and the data-light work areas (Metrics -> the FS-19 events timeline; Reports -> stub).
  * One window; the map/world canvas is the spatial spine (Cesium/Three.js is Phase 4). */
+import { useEffect, useState } from "react";
 import {
   ModeBar, SourceToggle, WorkAreaTabs, Panel, MetricTile, Button,
 } from "@stewie/design-system";
 import { useCockpit } from "./store";
+import { fetchHeightfield, type Heightfield } from "./api";
 import { AuthGate } from "./AuthGate";
 import { ProfileMenu } from "./ProfileMenu";
 import { useCommandAuthority } from "./useCommandAuthority";
@@ -18,7 +20,7 @@ const TXT = "var(--txt)";
 const MUTED = "var(--muted)";
 
 function CommandRail() {
-  const { mode, roleRank } = useCockpit();
+  const { mode, roleRank, orders, clearOrders } = useCockpit();
   const { isOwner, takeover } = useCommandAuthority();
   const live = mode === "OPERATE";
   const ag08 = live && roleRank >= 2;
@@ -37,6 +39,17 @@ function CommandRail() {
       <Panel title="Selection">
         <div style={{ color: MUTED, fontSize: 12, lineHeight: 1.6 }}>No entity selected. Pick a site, rover, or order on the map.</div>
       </Panel>
+      <Panel title="Build queue" actions={orders.length ? <Button size="sm" onClick={clearOrders}>Clear</Button> : undefined}>
+        {orders.length === 0 ? (
+          <div style={{ color: MUTED, fontSize: 12 }}>Click the terrain to place a build order (x, y in the order frame).</div>
+        ) : (
+          <ol data-testid="order-queue" style={{ margin: 0, paddingLeft: "var(--sp-4)", color: TXT, fontSize: "var(--fs-sm)", lineHeight: 1.7 }}>
+            {orders.map((o, i) => (
+              <li key={i}>order @ ({o.x.toFixed(0)}, {o.y.toFixed(0)}) m</li>
+            ))}
+          </ol>
+        )}
+      </Panel>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
         <Button variant="primary" icon="play" data-cmd-authority disabled={live ? !canCommand : !isOwner}>
           {live ? "Send to rover" : "Simulate"}
@@ -53,19 +66,29 @@ function CommandRail() {
 }
 
 function MapCanvas() {
-  const { workArea, mode, sources, theme } = useCockpit();
+  const { workArea, mode, sources, theme, orders, addOrder } = useCockpit();
   const accent = theme === "light" ? "#1d6ae5" : "#e8273f";
+  const [hf, setHf] = useState<Heightfield | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetchHeightfield("haworth").then((h) => live && setHf(h)).catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
   return (
     <div style={{ position: "relative", flex: 1, minWidth: 0, overflow: "hidden" }}>
-      <MapCanvas3D accent={accent} />
-      {/* info card over the live 3D world (pointer-events off so it never eats canvas interaction) */}
+      <MapCanvas3D accent={accent} heightfield={hf} orders={orders} onPlace={addOrder} />
       <div style={{ position: "absolute", left: "var(--sp-4)", bottom: "var(--sp-4)", pointerEvents: "none",
         background: "rgba(8,8,12,.66)", border: "1px solid var(--line)", borderRadius: "var(--r-md)",
         padding: "var(--sp-2) var(--sp-3)", color: MUTED, fontSize: 11, lineHeight: 1.5 }}>
         <span className="ds-display" style={{ fontSize: 11, color: TXT }}>Map / World</span>
         <div>work area <b style={{ color: TXT }}>{workArea}</b> · mode <b style={{ color: TXT }}>{mode}</b></div>
         <div>layers: {sources.join(", ") || "none"}</div>
-        <div style={{ color: "var(--dim)" }}>grid = scaffold · real DEM mesh binds to /dem/heightfield (backend) · Cesium globe = GPU</div>
+        <div style={{ color: "var(--dim)" }}>
+          {hf ? `terrain: REAL LOLA ${hf.n}×${hf.n} @ ${hf.windowM} m (×${2.5} relief)` : "terrain: grid scaffold (no /dem/heightfield)"}
+          {" · "}orders: {orders.length} (click terrain) · Cesium globe = GPU
+        </div>
       </div>
     </div>
   );
