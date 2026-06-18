@@ -49,6 +49,37 @@ def sun_march_dir_rowcol(sun_az_deg: float) -> tuple:
     return float(np.cos(a)), float(np.sin(a))
 
 
+def incidence_angle_deg(heightmap: np.ndarray, cell_m: float,
+                        sun_az_deg: float, sun_el_deg: float) -> np.ndarray:
+    """TW-07: per-pixel solar INCIDENCE angle [deg] -- the angle between the local surface normal and
+    the sun direction (the photometric cosine term, distinct from the horizon cast-shadow mask).
+
+    The surface normal is taken from the DEM gradient (world frame x=col/+X, z=row/+Z, y=up/height,
+    matching ``sun_march_dir_rowcol``): n = normalize(-dh/dx, 1, -dh/dz). The sun unit vector at the
+    same convention is s = (sin(az)cos(el), sin(el), cos(az)cos(el)). Returns
+    ``acos(clip(n.s, -1, 1))`` in degrees: 0 = sun normal-on, 90 = grazing, > 90 = the facet points
+    AWAY from the sun (self-shadowed by its own slope -- no direct flux on that face). Combine with
+    ``horizon_clip`` (cast shadow from distant terrain) for the full direct-illumination geometry.
+
+    A flat surface returns 90 - el everywhere (normal is straight up); a slope tilted toward the sun
+    reduces the incidence, a slope tilted away increases it.
+    """
+    h = np.asarray(heightmap, dtype=np.float64)
+    if h.ndim != 2:
+        raise ValueError(f"heightmap must be 2-D, got shape {h.shape}")
+    if cell_m <= 0:
+        raise ValueError(f"cell_m must be > 0, got {cell_m}")
+    dh_drow, dh_dcol = np.gradient(h, cell_m)                    # d/d(row)=d/dz, d/d(col)=d/dx
+    # normal (x=col, y=up, z=row): (-dh/dx, 1, -dh/dz), normalized
+    nx, ny, nz = -dh_dcol, np.ones_like(h), -dh_drow
+    nmag = np.sqrt(nx * nx + ny * ny + nz * nz)
+    el = np.deg2rad(sun_el_deg)
+    az = np.deg2rad(sun_az_deg)
+    sx, sy, sz = np.sin(az) * np.cos(el), np.sin(el), np.cos(az) * np.cos(el)   # |s| = 1
+    cos_inc = (nx * sx + ny * sy + nz * sz) / nmag
+    return np.degrees(np.arccos(np.clip(cos_inc, -1.0, 1.0)))
+
+
 def horizon_clip(heightmap: np.ndarray, cell_m: float,
                  sun_az_deg: float, sun_el_deg: float) -> np.ndarray:
     """Per-pixel local-horizon illuminated mask under one sun position.
