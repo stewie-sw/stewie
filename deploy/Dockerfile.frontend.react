@@ -1,0 +1,26 @@
+# STEWIE frontend — REACT COCKPIT cutover (Phase 5). Serves the prebuilt, CSP-clean Vite cockpit via
+# nginx. This MIRRORS the live Dockerfile.frontend pattern: that image runs NO npm in-image either — it
+# COPYs hand-written static assets and vendors Cesium with curl. The React cockpit is the same shape, only
+# its static bundle comes from a Vite build instead of being hand-written.
+#
+# PREREQUISITE — build cockpit/dist on the host before `docker build` (the Vite toolchain runs cleanly on
+# the host; an in-image multi-stage `npm ci` hit npm's reproducible "Exit handler never called!" bug, which
+# half-installs esbuild and is unrelated to our code):
+#     ( cd design-system && npm ci && npm run build )   # the cockpit imports @stewie/design-system (file: dep)
+#     ( cd cockpit && npm ci && npm run build )          # emits cockpit/dist: index.html + /assets/* + /cesium/*
+# cockpit/dist is self-contained: index.html references only same-origin hashed /assets/index-<hash>.js (CSP
+# `script-src 'self'`-clean, content-hashed so the Cloudflare edge never serves a stale build) and the Cesium
+# 1.140 static bundle that vite-plugin-cesium emits under /cesium (Cesium.js + Workers + Assets + Widgets),
+# so no curl-vendor step is needed. nginx.conf serves it unchanged (cockpit at / on app.stewie.space, /assets
+# + /cesium long-cache, the API proxied to the backend). The vanilla per-file cockpit.js no-cache locations
+# in nginx.conf become harmless no-ops (that file no longer exists in this image).
+FROM nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY stewie/server/web/landing.html /usr/share/nginx/html/landing.html
+COPY cockpit/dist/ /usr/share/nginx/html/
+COPY stewie/server/bodies.json /usr/share/nginx/html/bodies.json
+# Docker COPY preserves the source file mode; bodies.json is written 0600 by write_json_atomic, so force
+# every served asset world-readable or the non-root nginx worker 403s on it (same fix as Dockerfile.frontend).
+RUN chmod -R a+rX /usr/share/nginx/html
+EXPOSE 80
+HEALTHCHECK --interval=15s --timeout=3s --retries=4 CMD wget -qO- http://127.0.0.1/healthz >/dev/null || exit 1

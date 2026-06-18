@@ -1,79 +1,87 @@
-# Phase 5 — cockpit cutover plan (PREPARED, NOT executed)
+# Phase 5 — cockpit cutover plan (image BUILT + serve-tested; live flip awaits Aaron's go)
 
-**Date:** 2026-06-18 · **Status:** ready for Aaron's explicit go. **Nothing in this doc has been run.**
-This is the high-blast step: it replaces the live vanilla cockpit served at `app.stewie.space`. Per the
-operating rules it waits for an explicit yes; the rollback is named in every step.
+**Date:** 2026-06-18 · **Status:** the React image is built, serve-tested, and browser-verified on this
+deploy host. The only remaining step is the **live flip**, which swaps what `app.stewie.space` serves —
+a public, outward action. Per the operating rules it waits for an explicit yes; the rollback is one
+command and is named below. Everything up to (and including) building + serve-testing the image has been
+done; nothing public has changed.
 
-## Preconditions (must hold before cutover)
+## Approach: serve a prebuilt bundle (mirrors the live Dockerfile.frontend)
 
-1. **GPU-verified on a real browser** (only Aaron can do this — headless swiftshader can't):
-   - the **Cesium planetary globe** renders the Moon/Mars tiles (the one piece not yet built — see §"Open
-     build" below), and
-   - the **Perception** render→depth pipeline (render-gated) is either built + verified or explicitly
-     deferred for the first cutover.
-2. **The React cockpit drives end-to-end against a running backend** (`stewie-serve`): sign-in, all work
-   areas, real `/dem/heightfield` terrain, Plan authoring + `/plan` solve, Admin/System/Settings. (Phases
-   0-4c are integration-verified headlessly; this is the live-backend confirmation.)
-3. **CI green** on the `cockpit/` build (add a CI job: `npm ci && npm run build && npm test` in `cockpit/`).
+The live `deploy/Dockerfile.frontend` runs **no npm in-image** — it COPYs hand-written static assets and
+vendors Cesium with `curl`. The React cockpit takes the same shape: a **separate** `deploy/
+Dockerfile.frontend.react` COPYs the prebuilt `cockpit/dist` into nginx. The live Dockerfile is untouched,
+so rollback is simply "stop using the override."
 
-## What changes (the diff)
+**Why not a multi-stage in-image `npm ci` build:** it was tried and hit npm's reproducible
+**"Exit handler never called!"** bug in clean `node:20` — npm crashes mid-install, half-installs esbuild
+(dir present, no `package.json`), yet exits 0, so `&&` proceeds to a build that can't resolve esbuild
+(`ERR_MODULE_NOT_FOUND … esbuild/index.js`). Confirmed reproducible in an isolated `node:20` container,
+unrelated to our code (the Vite toolchain builds cleanly on the host). Serving a host-built bundle sidesteps
+this entirely and matches the project's existing deploy pattern.
 
-The build pipeline + which static files nginx serves. **No CSP change is needed** — the Vite build is
-already CSP-clean (no inline scripts), and the deployed policy (`deploy/nginx.conf:46`,
-`script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' blob:`, `worker-src 'self' blob:`,
-`trek.nasa.gov` in img/connect-src) already covers React + Cesium. This is the low-risk part.
+**Prerequisite — build `cockpit/dist` on the host before `docker build`** (the Dockerfile header repeats this):
+```
+( cd design-system && npm ci && npm run build )   # cockpit imports @stewie/design-system (file: dep)
+( cd cockpit && npm ci && npm run build )          # -> cockpit/dist: index.html + /assets/* + /cesium/*
+```
+`cockpit/dist` is gitignored (15 MB, includes the Cesium 1.140 bundle) — it is a regenerated build artifact,
+not committed, exactly as the vanilla image's curl-vendored Cesium is not committed.
 
-1. **`deploy/Dockerfile.frontend`** — add a build stage:
-   ```dockerfile
-   FROM node:20 AS cockpit
-   WORKDIR /cockpit
-   COPY cockpit/package*.json ./ && RUN npm ci
-   COPY cockpit/ ./ && RUN npm run build           # -> /cockpit/dist (hashed assets, CSP-clean)
-   # then in the nginx stage:
-   COPY --from=cockpit /cockpit/dist /usr/share/nginx/html
-   ```
-   (The design system is a `file:` dep; either vendor it into the image build context or publish it.)
-2. **`deploy/nginx.conf`** — serve the Vite output:
-   - `index.html` stays `expires -1` (no-cache) — already the case.
-   - **Remove** the per-file `location = /assets/cockpit.js { … }` (lines ~67-69) and the other vanilla
-     asset blocks; Vite emits **content-hashed** filenames under `/assets/`, so the generic
-     `location /assets/ { expires 30d; }` rule is correct AND the **manual `?v=N` cache-buster trap goes
-     away** (the hashes self-bust — this fixes the Cloudflare edge-cache footgun in
-     `infra_stewie_deploy_cloudflare`).
-   - SPA fallback: `location / { try_files $uri /index.html; }` for the cockpit routes, with the API
-     catch-all still proxying to `backend:8770` (keep the `/auth`, `/plan`, `/dem`, … proxies — the React
-     app calls the same routes).
-3. **Delete** `stewie/server/web/assets/cockpit.js` + the vanilla helpers (`adapters.js`, `cockpit_state.js`,
-   `panel_layout.js`, `idle_logout.js`, `three3d.js`) and `stewie/server/index.html` **only after** the
-   staging cutover (§sequence step 3) verifies the React app on the real host.
+## What changes (the diff) — all NEW files, the live config untouched
 
-## Sequence (staging first, then prod)
+- **`deploy/Dockerfile.frontend.react`** (NEW) — `FROM nginx:1.27-alpine@<digest>`; COPY `nginx.conf`,
+  `landing.html`, `cockpit/dist/ → html/`, `bodies.json`; `chmod -R a+rX`. No node stage.
+- **`deploy/compose.react.yml`** (NEW) — a one-service override pointing `frontend.build.dockerfile` at the
+  React Dockerfile. Nothing else (ports, depends_on, networks all inherit from `compose.yml`).
+- **`.dockerignore`** (edited) — un-ignore `cockpit/dist` so it is in the build context (it is the shipped
+  artifact); `node_modules` + `design-system/dist` stay ignored (not needed in the image).
+- **`deploy/nginx.conf`** — **no change needed.** The deployed policy already serves the React bundle: the
+  CSP (`script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' blob:`, `worker-src 'self' blob:`, `trek.nasa.gov`
+  in img/connect-src) covers React + Cesium; on `app.stewie.space` `location = /` already serves `/index.html`
+  (now the React app); content-hashed `/assets/index-<hash>.js` falls under the generic 30 d `location /assets/`
+  (correct for immutable hashed assets — and the manual `?v=N` Cloudflare cache trap is gone: the hashes
+  self-bust). The vanilla `location = /assets/cockpit.js` no-cache blocks become harmless no-ops.
 
-1. Land the Dockerfile/nginx changes on a branch; build the frontend image locally; **serve it at a
-   staging route** (`app.stewie.space/app2` or a separate cloudflared hostname) — the live cockpit at `/`
-   is untouched. **Rollback: nothing to roll back; the live site is unchanged.**
-2. Aaron drives the staging React cockpit on a real browser (Cesium globe, Perception, the full flow).
-   **Rollback: discard the branch.**
-3. Once accepted: flip `/` to serve the React `index.html`, redeploy via the cloudflared path
-   (`code/deploy/DEPLOY.md`), and **verify through `https://app.stewie.space`** (check `cf-cache-status`,
-   not just `:8000`). **Rollback: `git revert` the nginx/Dockerfile commit + redeploy — the vanilla
-   cockpit.js is still in git history (and on disk until step 4), so this restores the old cockpit in one
-   deploy.**
-4. After a soak period with the React cockpit live + healthy: delete the vanilla cockpit files (step §3
-   above) in a follow-up commit. **Rollback: `git revert` that deletion.**
+## Verified on this host (2026-06-18, before any flip)
 
-## Open build (the one piece still to write)
+- `docker build -f deploy/Dockerfile.frontend.react` → clean image (75.7 MB), seconds (no npm).
+- Serve-tested in a throwaway container on `127.0.0.1:8099` (`--add-host backend:127.0.0.1`, isolated from
+  the live network): `GET /app` → 200 with "STEWIE Cockpit" + hashed asset refs; host routing (`app.stewie.space/`
+  → cockpit, apex → landing); `/assets/index-*.js` → 200 (684 KB, `application/javascript`); `/cesium/Cesium.js`
+  → 200 (5.8 MB); production CSP header present; hashed asset `Cache-Control: max-age=2592000`.
+- Real-browser (Playwright, swiftshader): the app mounts (`#root` populated) and renders the sign-in screen
+  ("Invitation-only. Your role …"), zero page errors — the production image serves a working React shell.
+- Prior in-session verification of the same `dist`: vitest 16/16; six Playwright harnesses (phase1/2/3/4b/4c,
+  globe with real Moon imagery, perception with the real `/evidence` fixture) all PASS.
 
-The **Cesium planetary globe** (`CesiumGlobe.tsx`, the §11 planetary spine) is not yet built — it was held
-because its pixels need a real GPU browser + the NASA tile service to verify, which this environment lacks.
-Two honest paths: (a) I build the integration boundary (Cesium Viewer in a thin React wrapper, CSP already
-compatible) and Aaron verifies the globe pixels on his browser; or (b) now that the design system is on
-claude.ai/design, design the globe view there and emit it as React. Either way it precedes step 1.
+## The flip + rollback (the only remaining, public step)
 
-## Why the cutover is low-risk once the preconditions hold
+This host **is** the deploy host (`stewie-frontend-1` on `127.0.0.1:8000`, cloudflared at
+`/etc/cloudflared/config.yml`, `app.stewie.space` reachable → HTTP 200). The flip is reversible in ~1 min
+and verifiable immediately.
 
-The React app is an isolated, CSP-clean static bundle that calls the **same** backend routes the vanilla
-cockpit does (verified route-by-route in the FS-23 ledger). nginx changes are additive + reversible; the
-deploy topology (Cloudflare → cloudflared → docker frontend → backend:8770) is unchanged; and the rollback
-is a one-commit `git revert` + redeploy at every step. The only irreversible-ish moment is deleting the
-vanilla files (step 4), which happens last, after soak, with the files still in git history.
+**Flip (swaps the public cockpit):**
+```
+cd /mnt/projects/stewie/code
+( cd design-system && npm ci && npm run build ) && ( cd cockpit && npm ci && npm run build )   # ensure fresh dist
+docker compose -f deploy/compose.yml -f deploy/compose.react.yml up -d --build frontend
+```
+**Verify (must do, through Cloudflare — not just :8000):**
+```
+curl -sS -D - https://app.stewie.space/ | grep -iE "STEWIE Cockpit|cf-cache-status|content-security-policy"
+```
+plus a real-browser sign-in on `https://app.stewie.space`.
+
+**Rollback (restores the vanilla cockpit in one deploy):**
+```
+docker compose -f deploy/compose.yml up -d --build frontend     # rebuilds from the untouched Dockerfile.frontend
+```
+The vanilla `Dockerfile.frontend` + `cockpit.js` are unchanged on disk and in git, so this is a clean revert.
+
+## After a healthy soak (follow-up, not now)
+
+Delete the vanilla cockpit files (`stewie/server/web/assets/cockpit.js` + helpers, `stewie/server/index.html`)
+and fold the React Dockerfile into the canonical one. **Rollback: `git revert` that deletion** (files remain
+in history). Optional hardening: a CI job that builds `cockpit/dist` so the deploy host no longer needs a
+manual pre-build; revisit the from-source multi-stage image if/when the npm bug is resolved upstream.
