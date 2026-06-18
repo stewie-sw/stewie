@@ -15,7 +15,8 @@ def _mission(orders):
                                  "orders": orders})
 
 
-def test_leg_crossing_a_fresh_berm_is_flagged():
+def test_leg_crossing_a_fresh_berm_is_flagged():  # [REQ:CP-09]
+    # CP-09: routing re-reads the MUTATED (as-built) terrain -- a leg crossing a freshly EXECUTED berm
     # build a berm at (20, 0) FIRST (precedence), then a goto that drives straight through it
     m = _mission([
         {"action": "borrow", "kind": "cut", "x": 10, "y": 0, "footprint_m2": 36, "depth_m": 0.3},
