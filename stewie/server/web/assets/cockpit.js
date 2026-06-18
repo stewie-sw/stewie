@@ -2647,7 +2647,10 @@ function loadTerrain3D(on) {
     const n = g.n, lat = g.lat, lon = g.lon, z = g.z, N = n * n;
     const zmin = g.z_min, zspan = Math.max(1e-6, g.z_max - g.z_min);
     const coords = new Array(N * 3);
-    for (let k = 0; k < N; k++) { coords[k * 3] = lon[k]; coords[k * 3 + 1] = lat[k]; coords[k * 3 + 2] = z[k]; }
+    // anchor the base to the globe surface: g.z are ABSOLUTE datum elevations (mean ~+1 km), so plotting
+    // them as height-above-ellipsoid floated the whole sheet ~1 km above the drape. Subtract z_min so the
+    // lowest point sits on the draped surface and the real relief (z - z_min) rises from there.
+    for (let k = 0; k < N; k++) { coords[k * 3] = lon[k]; coords[k * 3 + 1] = lat[k]; coords[k * 3 + 2] = z[k] - zmin; }
     const carts = Cesium.Cartesian3.fromDegreesArrayHeights(coords, ellipsoid);
     const pos = new Float64Array(N * 3), col = new Uint8Array(N * 4);
     for (let k = 0; k < N; k++) {
