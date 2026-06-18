@@ -520,7 +520,7 @@ solar power scheduling.
 |---|---|---|---|---|---|---|
 | CP-01 | P0 | One immutable `PlanResult` is produced once and consumed by totals, report, validation, timeline, Plan IR, autonomy, and UI. | D | D | D | NA |
 | CP-02 | P0 | Balance bank cut and loose fill by mass with drum/capacity constraints. | D | D | D | P |
-| CP-03 | P0 | Execute/validate the selected optimized plan on the conserved authority and real terrain. | P | P | P | P |
+| CP-03 | P0 | Execute/validate the selected optimized plan on the conserved authority and real terrain. | D | D | D | P |
 | CP-04 | P1 | Goal grammar supports typed structures, tolerances, budgets, priorities, deadlines, dependencies, and keep-outs. | P | P | P | NA |
 | CP-05 | P1 | Footprints support rectangle, circle, corridor, and polygon with orientation; scalar-area squares are legacy input only. | N | N | N | NA |
 | CP-06 | P1 | Acceptance includes pad flatness, berm profile, bearing/compaction, repose stability, mass, time, and energy. | P | P | P | P |
@@ -535,12 +535,12 @@ solar power scheduling.
 |---|---|---|---|---|---|---|
 | EP-01 | P0 | Energy ledger includes drive, slope/slip, payload, dig, arm/drum motion, observation, LEDs, compute, idle/heater, and recharge losses where modeled. | P | P | P | P |
 | EP-02 | P1 | Dig energy depends on material/density/ice or is explicitly marked constant-model uncertainty. | N | N | N | N |
-| EP-03 | P1 | Distinguish PSR lander/tower power from sunlit solar power. | D | P | D | P |
+| EP-03 | P1 | Distinguish PSR lander/tower power from sunlit solar power. | D | D | D | P |
 | EP-04 | P1 | Mission clock enforces power, illumination, thermal, and communications windows on actions/recharge. | N | N | N | N |
-| EP-05 | P1 | Thermal derating and heater/survival demand affect usable battery and action availability. | P | P | P | N |
+| EP-05 | P1 | Thermal derating and heater/survival demand affect usable battery and action availability. | D | D | D | N |
 | EP-06 | P1 | Meerkat/arm posture and camera/LED policies include transition and dwell energy. | N | N | N | G |
 | EP-07 | P2 | Dust accumulation affects optics, joints, thermal surfaces, and maintenance actions. | N | N | N | N |
-| EP-08 | P1 | Endurance and reports use the selected `VehicleModel`, not global IPEx constants. | N | N | N | N |
+| EP-08 | P1 | Endurance and reports use the selected `VehicleModel`, not global IPEx constants. | D | D | D | N |
 
 ### 7.10 Fleet Planning
 
@@ -559,18 +559,18 @@ solar power scheduling.
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
 | PO-01 | P0 | `stewie-serve` (alias `stewie-serve`, deprecated) works after a fresh wheel install with one documented product extra. | P | P | N | N |
-| PO-02 | P0 | Reports, profiles, caches, and renders use configurable application-data directories and atomic writes. | N | N | N | NA |
-| PO-03 | P0 | CI installs declared dependencies and runs the configured suite across supported Python versions. | P | P | N | NA |
+| PO-02 | P0 | Reports, profiles, caches, and renders use configurable application-data directories and atomic writes. | D | D | D | NA |
+| PO-03 | P0 | CI installs declared dependencies and runs the configured suite across supported Python versions. | D | D | D | NA |
 | PO-04 | P0 | CI separately gates Python core, scripts, Godot, browser, package smoke, and hardware-gated tiers. | P | N | P | NA |
 | PO-05 | P1 | Commit a dependency lock, build an SBOM, scan resolved artifacts, and run a fresh-install test. | P | N | N | NA |
-| PO-06 | P1 | Server enforces streamed body limits, execution timeouts, bounded concurrency, auth policy, and deployment-safe CORS. | P | P | P | N |
-| PO-07 | P1 | Structured logs include request/event ID, mode, plan ID, route, duration, outcome, and error class. | P | P | P | N |
-| PO-08 | P1 | Metrics are bounded and exportable in a standard operations format. | P | P | P | N |
+| PO-06 | P1 | Server enforces streamed body limits, execution timeouts, bounded concurrency, auth policy, and deployment-safe CORS. | D | D | D | N |
+| PO-07 | P1 | Structured logs include request/event ID, mode, plan ID, route, duration, outcome, and error class. | D | D | D | N |
+| PO-08 | P1 | Metrics are bounded and exportable in a standard operations format. | D | D | D | N |
 | PO-09 | P1 | Mission/profile schemas are versioned and migratable. | P | P | P | NA |
 | PO-10 | P1 | UI distinguishes forecast, simulation truth, estimator belief, and live telemetry. | P | P | P | NA |
 | PO-11 | P1 | Fleet playback renders every rover and its independent telemetry. | N | N | N | NA |
 | PO-12 | P1 | Solar view displays sun vector, illumination/shadow layers, active cameras/LEDs, arm posture, and evidence accepted/rejected by localization. | N | N | N | N |
-| PO-13 | P1 | Add `CHANGELOG.md`, exported `__version__`, SemVer policy, and release evidence manifest. | N | N | N | NA |
+| PO-13 | P1 | Add `CHANGELOG.md`, exported `__version__`, SemVer policy, and release evidence manifest. | D | P | D | NA |
 | PO-14 | P1 | Provide deployment documentation and a supported server image; optional Godot/ROS capabilities are explicit profiles. | N | N | N | N |
 
 ### 7.12 Access, Identity, and Governance (added 2026-06-15)
