@@ -7,7 +7,7 @@ def test_camera_counts():
 
 
 def test_real_stereo_and_intrinsics():
-    assert abs(IPEX.stereo_baseline_m - 0.05) < 1e-3   # SCHULER24 final combined housing (render twin)
+    assert abs(IPEX.stereo_baseline_m - 0.07) < 1e-3
     assert 600 < IPEX.fx_px < 750
 
 

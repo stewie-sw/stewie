@@ -38,15 +38,17 @@ const CAM_VERT_M := -0.10              # URDF camera_front Z(Z-up) -> Y-up: 0.10
 # Stereo baseline: ~70 mm — a realistic small-rover stereo separation (John). The pair sits at
 # +/- BASELINE_M/2 along the lateral (Z) axis centered on the URDF mount, so the world separation
 # == BASELINE_M exactly (sensors.json baseline_m MUST equal |extrinsic_left.pos - right.pos|).
-const BASELINE_M := 0.050              # [SCHULER24 Fig.28/32] FINAL combined stereo housing (was 0.070)
-const INITIAL_BASELINE_M := 0.165      # [SCHULER24 Fig.28 left] split-shoulder initial design (lost calib under load)
+const BASELINE_M := 0.070              # MODELLED baseline = the frozen-fixture / G2 byte-identity value. SCHULER24's
+                                       # real flight final is 0.05 m (docs/vehicle_ipex_cameras.md); propagating it
+                                       # re-freezes the G2 runtime_sensors fixture, so it is a coordinated decision.
+const INITIAL_BASELINE_M := 0.165      # [SCHULER24 Fig.28 left] real split-shoulder INITIAL design (reference only)
 # REAR stereo baseline (contract §4 stereo_rear). A SEPARATE baseline from the front
 # pair (the rear pair is its own descriptor, never a replacement for the front
 # "stereo"). The rear module mirrors the front mount geometry, so we keep the same
 # realistic ~70 mm separation; it is a distinct const so the two can diverge without
 # touching the front pair. The rear pair sits at +/- REAR_BASELINE_M/2 along Z,
 # centered on the rear mount, so |extrinsic(rear_left).pos - rear_right.pos| == it.
-const REAR_BASELINE_M := 0.050         # rear module mirrors the front: SCHULER24 final 0.05 m
+const REAR_BASELINE_M := 0.070         # rear module mirrors the front (modelled value; see BASELINE_M)
 # Rear camera module mount: mirror the front mount to the BACK of base_link. The rear
 # arm joint sits at base_link X = -0.20 (sidecar.gd ARM_BACK_ORIGIN); the rear stereo
 # module rides just behind/above it at the symmetric -CAM_FORWARD_M, same height.

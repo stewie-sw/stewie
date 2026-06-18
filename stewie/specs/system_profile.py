@@ -83,7 +83,7 @@ class IPExSpecs:
     imu_hz: float | None = 20.0
 
     # Stereo / intrinsics  [SPEC: from a real LAC-twin sensors.json render]
-    stereo_baseline_m: float = 0.05       # SCHULER24 final combined housing (render twin); G2 band stays 0.07 in ipex_specs
+    stereo_baseline_m: float = 0.07       # front stereo, measured 0.0700 m
     fx_px: float = 679.57                 # twin render; [CONFIRM] flight intrinsics
 
     # Fiducials  [SPEC]

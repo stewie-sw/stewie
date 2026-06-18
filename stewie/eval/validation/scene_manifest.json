@@ -13,7 +13,7 @@
       "id": "stewie_crater_boulders_frame_000",
       "role": "runtime contract and fixed-reference stereo implementation",
       "files": {
-        "tests/fixtures/frame/runtime_sensors.json": "2338b434b27a4dbd7f31a4ce2fd8466aa89888014e53197a51a788d22cf16e78",
+        "tests/fixtures/frame/runtime_sensors.json": "c92566f0b2828a194e8b9ea05294fc43b37611b3c2c9b04ec4c35e6cd9938b29",
         "tests/fixtures/frame/evaluation_truth.json": "308f300d12b38474bff052f784f5e190548fc8cbc694a739cf6ae3c45e86c3b8",
         "tests/fixtures/frame/front_left.png": "5c84050971c773c3b64672aa41558d54a480141bf525c7ed3ea3c160b15baa1b",
         "tests/fixtures/frame/front_right.png": "fbaf7801389566f49fcd46ba81c6a2348d007232a25937f0606fbb4688e32dab"

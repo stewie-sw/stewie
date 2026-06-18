@@ -12,7 +12,7 @@ def test_depth_with_real_ipex_intrinsics():
     # fx and baseline from a real LAC-twin sensors.json
     z = stereo.depth_from_disparity(34.0, IPEX.fx_px, IPEX.stereo_baseline_m)
     assert abs(z - (IPEX.fx_px * IPEX.stereo_baseline_m / 34.0)) < 1e-9
-    assert 0.9 < z < 2.0   # disp 34 px at the 0.05 m combined-housing baseline -> ~1.0 m near obstacle
+    assert 1.0 < z < 2.0
 
 
 def test_disparity_depth_roundtrip():

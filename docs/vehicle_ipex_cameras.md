@@ -93,7 +93,7 @@ committed egress was simply rendered with the lights OFF, which is why its shado
 |---|---|---|---|
 | Sensor profile | CALIB: 1024x768, FOV_X 73.99° (EZ-RASSOR URDF) is the DEFAULT/committed egress; FLIGHT profile (IMX547 2472x2064, 58.88°) exists but only behind the `--flight-cam` path (`sidecar.gd:521`) | IMX547, 5 MP, 2.74 µm, 6 mm OR 4.4 mm @ f/4 | flight const captured but NOT the default render |
 | HFOV | 73.99° active (≈ the 4.4 mm config); 58.88° flight const (6 mm) | 58.9° (6 mm) or 75.3° (4.4 mm) | active ≈ 4.4 mm; pick the real candidate per profile |
-| **Stereo baseline** | **0.050 m** front + rear (FIXED 2026-06-17; was 0.070; `INITIAL_BASELINE_M=0.165`) | **0.05 m final** (0.165 m initial) | **FIXED to the real 0.05 m** |
+| **Stereo baseline** | **0.070 m** modelled (the frozen-G2-fixture value; `INITIAL_BASELINE_M=0.165` ref) | **0.05 m final** (0.165 m initial) | real is 0.05; 0.05 reverted (broke the frozen byte-identity fixture) — re-freeze pending |
 | Camera LED lights | `LIGHT_UNITS` + `build_work_lights()` + `--work-lights`; now **6 units** (4 mono + 2 stereo bank), 3000 lm, 42° FWHM; rendered ON | 6 LED units, 3000 lm, 42° FWHM TIR, mono-colocated, stereo-on-opposite-shoulder | MODELLED; energy lumens->Godot mapping is [CALIB] |
 | EDS / dust occlusion | not modelled | EDS shields + HDRM jettison + redundant set | MISSING (relevant to dust-degradation perception) |
 | Aperture / exposure | not modelled | f/4, HDR for low-sun | MISSING (no exposure/HDR model) |
@@ -101,9 +101,15 @@ committed egress was simply rendered with the lights OFF, which is why its shado
 
 ## 8. Recommended changes (by value / effort)
 
-1. **DONE 2026-06-17 — Baseline 0.070 -> 0.050 m** (`camera_rig.gd` BASELINE_M + REAR_BASELINE_M;
-   `INITIAL_BASELINE_M=0.165` kept as the split-shoulder profile). Re-rendered + re-ran #145 (lit, 0.05 m
-   -> 65,710 world points; sensors.json baseline_m=0.0500).
+1. **Baseline: real final is 0.05 m; the twin still MODELS 0.07 m — REVERTED 2026-06-17.** I first
+   propagated 0.05 through the rig + spec layer, but the G2 `runtime_sensors.json` fixture is a FROZEN
+   byte-identity reference (the `/admin/gates/validate` `byte_identical_to_frozen` invariant +
+   `eval/test_bridge`), so editing it to 0.05 broke CI and the frozen-artifact invariant. Reverted the
+   modeled baseline to 0.07 everywhere (`camera_rig.gd`, the `stewie_ipex_v1` profile, `system_profile`,
+   the fixture, `ipex_specs` G2 band). `INITIAL_BASELINE_M=0.165` is kept as a reference const. Cleanly
+   adopting the real 0.05 m requires RE-FREEZING the G2 fixture + re-validating the gates — a coordinated
+   dissertation-affecting decision, pending Aaron's go. (The served `pointcloud.json` demo asset still
+   reads 0.05 from the lit re-render; regenerate when the baseline is settled.)
 2. **DONE 2026-06-17 — LED model rendered ON, full 6 units**: added the 2 drum-cam LEDs so the rig models
    4 mono (1 each) + 2 stereo bank = 6, all at 3000 lm / 42° FWHM; crater_boulders egress now rendered
    with `--work-lights` (forward camera mean 12.3 -> 45.0). Remaining: the lumens->Godot energy mapping is
