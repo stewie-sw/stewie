@@ -1,0 +1,14 @@
+{
+  "projectId": "5c312bc4-53e4-4be8-8f9f-8cd5640a0f99",
+  "shape": "package",
+  "pkg": "@stewie/design-system",
+  "globalName": "StewieDS",
+  "buildCmd": "npm run build",
+  "srcDir": "src",
+  "cssEntry": "dist/stewie-ds.css",
+  "readmeHeader": ".design-sync/conventions.md",
+  "overrides": {
+    "ModeBar": { "cardMode": "column" },
+    "WorkAreaTabs": { "cardMode": "column" }
+  }
+}

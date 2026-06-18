@@ -4,8 +4,11 @@
   "private": true,
   "description": "STEWIE cockpit design system seed: tokens, fonts, icon set, and the core React components. Built from the deployed cockpit's real brand (lunar black + graphite ramp + drum-red accent + Orbitron). The dist/ bundle is what /design-sync uploads to claude.ai/design and the first brick of the front-end rewrite's component library.",
   "type": "module",
+  "module": "dist/index.js",
+  "types": "dist/types/index.d.ts",
+  "exports": { ".": { "types": "./dist/types/index.d.ts", "import": "./dist/index.js" } },
   "scripts": {
-    "build": "node build.mjs",
+    "build": "node build.mjs && tsc -p tsconfig.build.json",
     "test": "vitest run"
   },
   "peerDependencies": {

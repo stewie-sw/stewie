@@ -17,7 +17,7 @@ const common = {
   logLevel: "info",
 };
 
-// 1) the library bundle (IIFE, window.StewieDS)
+// 1) the library bundle (IIFE, window.StewieDS) — standalone use + the gallery
 await esbuild.build({
   ...common,
   entryPoints: ["src/index.tsx"],
@@ -25,6 +25,15 @@ await esbuild.build({
   format: "iife",
   globalName: "StewieDSBundle",
   minify: true,
+});
+
+// 1b) the ESM library entry (react/react-dom external) — the entry /design-sync's converter consumes
+await esbuild.build({
+  ...common,
+  entryPoints: ["src/index.tsx"],
+  outfile: "dist/index.js",
+  format: "esm",
+  external: ["react", "react-dom", "react/jsx-runtime"],
 });
 
 // 2) the stylesheet (resolves @import tokens + the @font-face woff2)
