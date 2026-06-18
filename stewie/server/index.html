@@ -626,6 +626,7 @@
       <div id="plan3d" style="position:absolute;inset:0;z-index:2;display:none;background:#05060c"></div>
       <div id="plan3dbar" style="position:absolute;left:54px;top:12px;z-index:36;display:flex;gap:4px;align-items:center">
         <button id="plan3dtoggle" class="site" style="font-size:10px" title="switch the Plan map between the 2D globe (general siting) and a 3D wireframe of the chosen site's DEM (accurate, relief-aware path: clicks drop goto waypoints on the real surface)">▦ 3D path</button>
+        <button id="plan3dfly" class="site" style="display:none;font-size:10px" title="fly / move through the 3D world — drag to look, W/A/S/D to move, R/F up·down (off = orbit + path-def)">🎮 fly</button>
         <span id="plan3dctl" style="display:none">
           <button id="plan3dundo" class="site" style="font-size:10px" title="remove the last waypoint">↶</button>
           <button id="plan3dclear" class="site" style="font-size:10px" title="clear the 3D path">✕</button>
@@ -1023,7 +1024,7 @@
 
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
-<script type="module" src="/assets/three3d.js?v=4e1346e9dbf1"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=0820032a552d"></script>
+<script type="module" src="/assets/three3d.js?v=814fcf790430"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
+<script src="/assets/cockpit.js?v=c38980dd4b2f"></script>
 </body>
 </html>

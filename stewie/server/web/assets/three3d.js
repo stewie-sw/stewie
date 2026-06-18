@@ -38,7 +38,10 @@ function mount(container) {
   // orbit state (spherical around target); drag = rotate, wheel = zoom
   S.az = Math.PI * 0.25; S.el = Math.PI * 0.34; S.dist = 600;
   S.target = new THREE.Vector3(0, 0, 0);
+  // fly/move-through state (vs orbit): a free first-person camera through the real DEM world
+  S.fly = false; S.walk = false; S.flyPos = new THREE.Vector3(); S.flyYaw = 0; S.flyPitch = -0.3; S.keys = {};
   _bindControls(container);
+  _bindFlyKeys(container);
 
   S._ro = new ResizeObserver(() => _resize(container));
   S._ro.observe(container);
@@ -67,8 +70,13 @@ function _bindControls(el) {
   });
   el.addEventListener("pointermove", (e) => {
     if (!drag) return;
-    S.az -= (e.clientX - px) * 0.006;
-    S.el = Math.max(0.06, Math.min(1.5, S.el - (e.clientY - py) * 0.006));
+    if (S.fly) {                                          // fly mode: drag = mouse-look (yaw/pitch)
+      S.flyYaw -= (e.clientX - px) * 0.005;
+      S.flyPitch = Math.max(-1.45, Math.min(1.45, S.flyPitch - (e.clientY - py) * 0.005));
+    } else {                                              // orbit mode: drag = rotate around target
+      S.az -= (e.clientX - px) * 0.006;
+      S.el = Math.max(0.06, Math.min(1.5, S.el - (e.clientY - py) * 0.006));
+    }
     px = e.clientX; py = e.clientY;
   });
   el.addEventListener("wheel", (e) => { e.preventDefault(); S.dist = Math.max(20, Math.min(20000, S.dist * (1 + Math.sign(e.deltaY) * 0.12))); }, { passive: false });
@@ -77,12 +85,16 @@ function _bindControls(el) {
 function _loop() {
   if (!S.ready) return;
   requestAnimationFrame(_loop);
-  // camera orbits the target
-  const cx = S.target.x + S.dist * Math.cos(S.el) * Math.cos(S.az);
-  const cy = S.target.y + S.dist * Math.sin(S.el);
-  const cz = S.target.z + S.dist * Math.cos(S.el) * Math.sin(S.az);
-  S.camera.position.set(cx, cy, cz);
-  S.camera.lookAt(S.target);
+  if (S.fly) {
+    _flyStep();                                           // first-person move-through the world
+  } else {
+    // camera orbits the target
+    const cx = S.target.x + S.dist * Math.cos(S.el) * Math.cos(S.az);
+    const cy = S.target.y + S.dist * Math.sin(S.el);
+    const cz = S.target.z + S.dist * Math.cos(S.el) * Math.sin(S.az);
+    S.camera.position.set(cx, cy, cz);
+    S.camera.lookAt(S.target);
+  }
   S.renderer.render(S.scene, S.camera);
 }
 
@@ -306,8 +318,52 @@ function pathStats() {
   return { legs, total_len_m: total, max_slope_deg: maxslope, n: wp.length };
 }
 
+// --- fly / move-through the 3D world (Aaron 2026-06-17): a first-person free camera through the REAL
+// DEM (vs the orbit camera). Drag = look; W/A/S/D = move; R/Space up, F/Shift down. Walk mode clamps to
+// the terrain surface at eye height so you walk the regolith. Speed scales to the scene extent. ---
+function _flyForward() {
+  const cp = Math.cos(S.flyPitch);
+  return new THREE.Vector3(Math.sin(S.flyYaw) * cp, Math.sin(S.flyPitch), Math.cos(S.flyYaw) * cp);
+}
+function _bindFlyKeys() {
+  const typing = (e) => e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable);
+  window.addEventListener("keydown", (e) => {
+    if (!S.fly || typing(e)) return;
+    const k = e.key.toLowerCase(); S.keys[k] = true;
+    if ("wasdrf ".includes(k)) e.preventDefault();      // stop page scroll while flying
+  });
+  window.addEventListener("keyup", (e) => { S.keys[e.key.toLowerCase()] = false; });
+}
+function _flyStep() {
+  const fwd = _flyForward();
+  const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+  const sp = Math.max(0.5, (S.win || 300) * 0.012);     // per-frame step, scaled to the scene extent
+  const k = S.keys, v = new THREE.Vector3();
+  if (k.w) v.add(fwd); if (k.s) v.sub(fwd);
+  if (k.d) v.add(right); if (k.a) v.sub(right);
+  if (k.r || k[" "]) v.y += 1; if (k.f || k.shift) v.y -= 1;
+  if (v.lengthSq() > 0) S.flyPos.addScaledVector(v.normalize(), sp);
+  if (S.walk) S.flyPos.y = heightAt(S.flyPos.x, S.flyPos.z) + 2.0;   // ride the surface at ~eye height
+  S.camera.position.copy(S.flyPos);
+  S.camera.lookAt(S.flyPos.clone().add(fwd));
+}
+function setFlyMode(on, walk) {
+  S.fly = !!on; S.walk = !!walk;
+  if (S.fly) {                                          // seed from the current orbit view so it's seamless
+    S.flyPos.copy(S.camera.position);
+    const dir = new THREE.Vector3().subVectors(S.target, S.camera.position).normalize();
+    S.flyYaw = Math.atan2(dir.x, dir.z);
+    S.flyPitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+    if (S.walk) S.flyPos.y = heightAt(S.flyPos.x, S.flyPos.z) + 2.0;
+    if (S._editPath) setPathEdit(false);                // fly + path-edit are mutually exclusive
+  }
+  S.keys = {};
+}
+function getCamPos() { return S.camera ? [S.camera.position.x, S.camera.position.y, S.camera.position.z] : null; }
+
 window.STEWIE3D = { mount, render, setRover, setPath, setSun, setWireframe, setLander3D, clearTracks, heightAt,
   animateRover, stopRoverAnim, setPathEdit, onPathChange, getWaypoints, undoWaypoint, clearWaypoints, pathStats,
+  setFlyMode, getCamPos,
   get available() { return true; },
   get sunState() { return { az: S._sunAz, el: S._sunEl, shadows: !!(S.renderer && S.renderer.shadowMap && S.renderer.shadowMap.enabled) }; },
   get hasLander() { return !!S.lander; } };

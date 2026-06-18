@@ -3578,16 +3578,29 @@ function planLoad3D() {
       setQ("3D path mode — click the " + site + " terrain to drop traverse waypoints (→ goto orders)");
     }).catch(() => setQ("3D: heightfield fetch failed"));
 }
+let FLY3D_ON = false;
 if ($("plan3dtoggle")) $("plan3dtoggle").onclick = () => {
   PLAN3D_ON = !PLAN3D_ON;
   if ($("cesium")) $("cesium").style.display = PLAN3D_ON ? "none" : "";
   if ($("plan3d")) $("plan3d").style.display = PLAN3D_ON ? "block" : "none";
-  if ($("plan3dctl")) $("plan3dctl").style.display = PLAN3D_ON ? "inline" : "none";
+  if ($("plan3dfly")) $("plan3dfly").style.display = PLAN3D_ON ? "inline-block" : "none";
   if ($("plan3dstats")) $("plan3dstats").style.display = PLAN3D_ON ? "block" : "none";
   $("plan3dtoggle").style.borderColor = PLAN3D_ON ? "var(--accent)" : "";
   $("plan3dtoggle").textContent = PLAN3D_ON ? "▦ 2D map" : "▦ 3D path";
-  if (PLAN3D_ON) planLoad3D();
-  else if (window.STEWIE3D && STEWIE3D.setPathEdit) STEWIE3D.setPathEdit(false);
+  if (PLAN3D_ON) { planLoad3D(); }                         // enters orbit + path-def on the chosen-site DEM
+  else {                                                   // leaving 3D: reset fly + path-def
+    FLY3D_ON = false; if ($("plan3dfly")) $("plan3dfly").style.borderColor = "";
+    if (window.STEWIE3D) { if (STEWIE3D.setFlyMode) STEWIE3D.setFlyMode(false); if (STEWIE3D.setPathEdit) STEWIE3D.setPathEdit(false); }
+  }
+  if ($("plan3dctl")) $("plan3dctl").style.display = (PLAN3D_ON && !FLY3D_ON) ? "inline" : "none";
+};
+if ($("plan3dfly")) $("plan3dfly").onclick = () => {       // fly/move-through vs orbit (mutually exclusive with path-def clicks)
+  FLY3D_ON = !FLY3D_ON;
+  if (window.STEWIE3D && STEWIE3D.setFlyMode) STEWIE3D.setFlyMode(FLY3D_ON, false);
+  if (window.STEWIE3D && STEWIE3D.setPathEdit) STEWIE3D.setPathEdit(!FLY3D_ON);
+  $("plan3dfly").style.borderColor = FLY3D_ON ? "var(--accent)" : "";
+  if ($("plan3dctl")) $("plan3dctl").style.display = FLY3D_ON ? "none" : "inline";
+  setQ(FLY3D_ON ? "🎮 Fly — drag to look · W/A/S/D move · R/F up·down" : "Orbit view + path-def (click to drop waypoints)");
 };
 if ($("plan3dundo")) $("plan3dundo").onclick = () => { if (window.STEWIE3D && STEWIE3D.undoWaypoint) STEWIE3D.undoWaypoint(); };
 if ($("plan3dclear")) $("plan3dclear").onclick = () => { if (window.STEWIE3D && STEWIE3D.clearWaypoints) STEWIE3D.clearWaypoints(); };
