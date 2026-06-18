@@ -277,6 +277,12 @@ class Mission:
     #: IDLES to the next interval's open (a "wait" leg); if no future interval exists the action is
     #: infeasible. None (or a missing class key) -> that class is unconstrained -> byte-identical.
     mission_windows: dict | None = None
+    #: FL-03: declared SHARED RESOURCES (pit / dump / vantage / corridor) the fleet contends for beyond the
+    #: charger, as a list of {id, kind, capacity, sites:[[x,y],...]}. A multi-vehicle trip whose work site
+    #: lies on one of a resource's sites OCCUPIES that resource for its trip window; when more than
+    #: `capacity` rovers would occupy it at once the excess WAIT (capacity-k FCFS, like the charger queue).
+    #: None/empty -> no extra contention -> single-vehicle AND non-reserved multi-vehicle byte-identical.
+    shared_resources: list | None = None
     @property
     def density(self): return body_density(self.body)
 
@@ -460,6 +466,41 @@ def mission_from_dict(payload):
                 clean_mw[cls] = clean_ivals
         if clean_mw:
             kwargs["mission_windows"] = clean_mw
+    sr = payload.get("shared_resources")                   # FL-03: declared capacity-k shared resources
+    if sr is not None:
+        if not isinstance(sr, (list, tuple)):
+            raise ValueError("'shared_resources' must be a list of {id, kind, capacity, sites}")
+        allowed_kinds = {"pit", "dump", "vantage", "corridor"}   # charger is handled by charger_capacity
+        clean_sr = []
+        seen_ids: set = set()
+        for n, r in enumerate(sr):
+            if not isinstance(r, dict):
+                raise ValueError(f"shared_resources[{n}] must be an object")
+            rid = str(r.get("id", "")).strip()
+            if not rid:
+                raise ValueError(f"shared_resources[{n}] needs a non-empty 'id'")
+            if rid in seen_ids:
+                raise ValueError(f"shared_resources[{n}]: duplicate id {rid!r}")
+            seen_ids.add(rid)
+            kind = r.get("kind")
+            if kind not in allowed_kinds:
+                raise ValueError(f"shared_resources[{rid!r}] kind {kind!r}; allowed: {sorted(allowed_kinds)}")
+            cap = r.get("capacity", 1)
+            if not isinstance(cap, int) or isinstance(cap, bool) or cap < 1:
+                raise ValueError(f"shared_resources[{rid!r}] capacity must be an int >= 1 (got {cap!r})")
+            sites_in = r.get("sites")
+            if not isinstance(sites_in, (list, tuple)) or not sites_in:
+                raise ValueError(f"shared_resources[{rid!r}] needs a non-empty 'sites' list of [x, y]")
+            sites = []
+            for m, s in enumerate(sites_in):
+                if not isinstance(s, (list, tuple)) or len(s) != 2:
+                    raise ValueError(f"shared_resources[{rid!r}].sites[{m}] must be an [x, y] pair")
+                sx = VAL.ensure_finite_scalar(s[0], f"shared_resources[{rid}].sites[{m}].x")
+                sy = VAL.ensure_finite_scalar(s[1], f"shared_resources[{rid}].sites[{m}].y")
+                sites.append([sx, sy])
+            clean_sr.append({"id": rid, "kind": kind, "capacity": int(cap), "sites": sites})
+        if clean_sr:
+            kwargs["shared_resources"] = clean_sr
     return Mission(**kwargs)
 
 
@@ -1544,6 +1585,76 @@ def _resolve_charger_queue(per_vehicle, capacity=1):
     return delay
 
 
+def _resolve_shared_resources(per_vehicle, resources, *, tol_m=0.5):
+    """FL-03: resolve declared SHARED RESOURCES (pit / dump / vantage / corridor) as capacity-k servers --
+    the SAME k-server FCFS discipline as the charger queue, but keyed on WORK SITES instead of charge events.
+
+    `resources` is None/empty -> no contention -> per-vehicle delay all 0 (byte-identical to an un-resourced
+    fleet). Each resource is {id, kind, capacity, sites:[[x,y],...]}: a trip whose work site lies within
+    `tol_m` of one of the resource's sites OCCUPIES it for that trip's [t_start, t_end] window; when more
+    than `capacity` rovers would occupy it at once the excess WAITS for the earliest-free slot, and that
+    wait shifts the waiting vehicle's later timeline. Each admitted occupancy is recorded against a
+    capacity-k ReservationLedger so the fleet plans AGAINST the ledger (FL-03/FL-04 preventive admission).
+
+    Returns (per_vehicle_delay, per_resource_wait) where per_resource_wait[id] is the summed wait that
+    resource caused. v1 approximation (documented): each resource and the charger queue are scheduled
+    INDEPENDENTLY, so a vehicle's total wait is the sum of its per-resource waits -- a conservative upper
+    estimate (a vehicle cannot truly be in two queues at once). Pure + deterministic (ties -> lower index)."""
+    n = len(per_vehicle)
+    delay = [0.0] * n
+    if not resources:
+        return delay, {}
+    from lode.fleet_resources import Reservation, ReservationLedger, SharedResource
+
+    def _near(site, pts):
+        return any(abs(site[0] - px) <= tol_m and abs(site[1] - py) <= tol_m for px, py in pts)
+
+    per_res_wait: dict = {}
+    for res in resources:
+        rid = res["id"]
+        cap = max(1, int(res["capacity"]))
+        pts = res["sites"]
+        ledger = ReservationLedger([SharedResource(rid, res["kind"], cap)])
+        qs: dict = {}                                          # per-vehicle (arrival, duration) occupancies
+        for v, pv in enumerate(per_vehicle):
+            for pt in pv.get("per_trip", []):
+                site = pt["trip"].get("site")
+                if site is None or not _near(site, pts):
+                    continue
+                t0, t1 = float(pt["t_start"]), float(pt["t_end"])
+                if t1 > t0:
+                    qs.setdefault(v, []).append((t0, t1 - t0))
+        if not qs:
+            continue
+        for v in qs:
+            qs[v].sort()
+        ptr = {v: 0 for v in qs}
+        res_delay = [0.0] * n
+        slot_free = [0.0] * cap
+        while True:
+            nxt, nxt_arr = -1, None                            # next occupancy by EFFECTIVE arrival
+            for v in qs:
+                if ptr[v] < len(qs[v]):
+                    arr = qs[v][ptr[v]][0] + res_delay[v]
+                    if nxt_arr is None or arr < nxt_arr:
+                        nxt, nxt_arr = v, arr
+            if nxt < 0:
+                break
+            dur = qs[nxt][ptr[nxt]][1]
+            slot = min(range(cap), key=lambda i: slot_free[i])
+            start = max(nxt_arr, slot_free[slot])
+            res_delay[nxt] += start - nxt_arr
+            slot_free[slot] = start + dur
+            ledger.reserve(Reservation(rid, f"v{nxt}#{ptr[nxt]}", start, start + dur))
+            ptr[nxt] += 1
+        for v in range(n):
+            delay[v] += res_delay[v]
+        w = float(sum(res_delay))
+        if w > 0:
+            per_res_wait[rid] = w
+    return delay, per_res_wait
+
+
 def _temporal_conflicts(per_vehicle, *, proximity_m: float = 10.0) -> int:
     """FL-02: SPACE-TIME conflicts beyond exact same-site overlap -- two DIFFERENT vehicles working within
     proximity_m of each other at OVERLAPPING times (rovers crowding adjacent sites simultaneously). Uses
@@ -1635,8 +1746,13 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     # value for reference, and charger_conflicts still reports how many overlaps the queue had to resolve.
     charger_delays = _resolve_charger_queue(per_vehicle, capacity=mission.charger_capacity)
     charger_wait_s = float(sum(charger_delays))
-    makespan = max((pv["core"]["time_s"] + charger_delays[i] for i, pv in enumerate(per_vehicle)),
-                   default=0.0)
+    # FL-03: declared shared resources (pit/dump/vantage/corridor) add capacity-k contention beyond the
+    # charger; a rover waits for an over-capacity resource the same way it queues for the charger. With no
+    # declared resources, resource_delays is all 0 -> makespan/survival are byte-identical to a non-reserved fleet.
+    resource_delays, resource_waits = _resolve_shared_resources(per_vehicle, mission.shared_resources)
+    resource_wait_s = float(sum(resource_delays))
+    makespan = max((pv["core"]["time_s"] + charger_delays[i] + resource_delays[i]
+                    for i, pv in enumerate(per_vehicle)), default=0.0)
     agg = dict(
         time_s=float(makespan),
         mass_kg=sum(pv["core"]["mass_kg"] for pv in per_vehicle),
@@ -1645,8 +1761,9 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
         distance_m=sum(pv["core"]["distance_m"] for pv in per_vehicle),
         avg_power_w=0.0)
     agg["avg_power_w"] = agg["energy_J"] / makespan if makespan > 1e-9 else 0.0
-    # idle/survival draw covers active per-vehicle time PLUS the time a rover sits idle in the charger queue
-    survival_J = IDLE_POWER_W * (sum(pv["core"]["time_s"] for pv in per_vehicle) + charger_wait_s)
+    # idle/survival draw covers active per-vehicle time PLUS time a rover sits idle queueing (charger + resources)
+    survival_J = IDLE_POWER_W * (sum(pv["core"]["time_s"] for pv in per_vehicle)
+                                 + charger_wait_s + resource_wait_s)
     all_trips = [tr for pv in per_vehicle for tr in pv["trips"]]
     all_per_trip = [pt for pv in per_vehicle for pt in pv["per_trip"]]
     all_tl = [seg for pv in per_vehicle for seg in pv["tl"]]
@@ -1670,6 +1787,11 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
                   fleet_needs_replan=bool(fleet_needs_replan),
                   temporal_conflicts=int(_temporal_conflicts(per_vehicle)),   # FL-02: nearby-site space-time crowding
                   charger_conflicts=int(_charger_conflicts(per_vehicle, mission)))
+    if mission.shared_resources:    # FL-03: only surface resource fields when declared (else byte-identical)
+        for d, pv in zip(detail, per_vehicle):
+            d["resource_wait_s"] = float(resource_delays[pv["vehicle"]])
+        totals.update(resource_wait_s=resource_wait_s, resource_waits=resource_waits,
+                      shared_resources_modeled=True)
     return all_trips, flows, all_per_trip, all_tl, totals
 
 
