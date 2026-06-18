@@ -1,7 +1,18 @@
 # foss_ipex Track C1 -- ROS2 side of the M1 front-stereo -> AprilTag -> pose-vs-truth bridge.
 # sensor_bridge_contract.md §2-§3. Buildable & testable WITHOUT the Godot track (via fixtures/).
 #
-# Base: osrf/ros:jazzy-desktop (ROS2 Jazzy on Ubuntu 24.04 Noble).
+# Base: osrf/ros:jazzy-desktop (ROS2 Jazzy on Ubuntu 24.04 Noble) -- the default, overridable below.
+#
+# SPACE ROS TARGET (NASA FFR alignment): Space ROS is a HARDENED, API-compatible distribution of ROS 2
+# (NPR-7150.2; NASA's Fly Foundational Robotics standardizes on it). The bridge nodes are plain rclpy on
+# the standard nav_msgs/geometry_msgs interfaces, so they build on the Space ROS base unchanged. Override
+# the base image to target it:
+#   docker build --build-arg ROS_BASE_IMAGE=osrf/space-ros:<tag> .
+# CONTAINER-GATED remainder (NOT done/verified here -- no fabricated claim): the actual Space ROS image
+# build needs Docker + pulling the Space ROS image, AND the `ros-jazzy-*` apt packages below are
+# distro-PINNED, so a Space ROS base on a different ROS 2 distro also needs those package names updated to
+# that distro (confirm which ROS 2 LTS Space ROS tracks first). The DEFAULT jazzy-desktop build is the
+# verified-on-host path; only the BASE is parameterized on-host.
 #
 # FALLBACK NOTE (2026-05-30): the contract prefers `osrf/ros:jazzy-perception`, but that tag's
 # manifest does NOT resolve from this environment's registry (osrf/ros publishes only
@@ -10,7 +21,8 @@
 # (it bundles image_pipeline/stereo_image_proc + rclpy + the rosbag2 stack) and was verified to
 # have valid Jazzy/Noble apt candidates for every package below (apriltag_ros 3.3.0,
 # stereo_image_proc 5.0.11, rosbag2_storage_mcap 0.26.10). No humble/Jammy fallback was needed.
-FROM osrf/ros:jazzy-desktop
+ARG ROS_BASE_IMAGE=osrf/ros:jazzy-desktop
+FROM ${ROS_BASE_IMAGE}
 
 SHELL ["/bin/bash", "-lc"]
 
