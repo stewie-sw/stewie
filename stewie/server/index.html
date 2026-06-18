@@ -318,6 +318,11 @@
   </div>
 </div>
 <div id="app">
+  <!-- FS-17: a second window/tab is read-only; this banner appears when this window does NOT hold command authority. -->
+  <div id="cmd-readonly-banner" role="status" style="display:none;position:sticky;top:0;z-index:9999;background:#3a2410;color:#ffce6b;border-bottom:1px solid #ffce6b;padding:6px 12px;font-size:12px;letter-spacing:.04em;text-align:center">
+    READ-ONLY WINDOW — another cockpit holds command authority; commands are disabled here.
+    <button id="cmd-takeover" style="margin-left:10px;font-size:11px;padding:2px 8px;cursor:pointer">Take over command</button>
+  </div>
   <aside id="panel">
     <header id="phead"><img src="/assets/brand/icon-32.png?v=2" alt="" style="width:18px;height:18px;vertical-align:-4px;margin-right:9px" /><b style="letter-spacing:.45em;font-weight:800">STEWIE</b><span style="opacity:.55;font-size:10px;margin-left:10px;letter-spacing:.18em">DIGITAL TWIN &amp; PLANNING PLATFORM</span><span style="font-size:10px;margin-left:10px;color:var(--accent);letter-spacing:.12em">IN SILICO → IN SITU</span><span id="stver" style="opacity:.45;font-size:10px;margin-left:8px"></span><span id="conops" title="ConOps position (operator finding 2.8: a status visual for where we are in the cycle)" style="font-size:10px;margin-left:12px;letter-spacing:.08em;color:var(--muted)">CONOPS —</span><span id="out">—</span></header>
 
@@ -480,7 +485,7 @@
       <div class="ctl" style="margin-top:5px">
         <button id="qexport" class="site">⤓ Export plan</button>
         <button id="qplanir" class="site" title="download the machine-executable plan IR (typed actions + DAG)">⤓ Plan IR</button>
-        <button id="qcmds" class="site" title="download the reusable RC command tape (GoTo sequence the sim/pit executes)">⤓ Commands</button>
+        <button id="qcmds" class="site" data-cmd-authority data-cmd-title="download the reusable RC command tape (GoTo sequence the sim/pit executes)" title="download the reusable RC command tape (GoTo sequence the sim/pit executes)">⤓ Commands</button>
         <button id="qimport" class="site">⤒ Import plan</button>
         <input id="qfile" type="file" accept=".json,application/json" style="display:none" />
       </div></div></details>
@@ -1033,6 +1038,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=3fc7e7695a0e"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=14f3b380263d"></script>
+<script src="/assets/cockpit.js?v=40ce9238c2a1"></script>
 </body>
 </html>

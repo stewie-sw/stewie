@@ -910,6 +910,56 @@ function apiHeaders(extra) {
   if (AUTH.apikey) h["X-API-Key"] = AUTH.apikey;
   return h;
 }
+// FS-17: SINGLE command-authority window. The production operator flow is ONE cockpit; any second
+// tab/window is READ-ONLY engineering/debug context -- it must NOT hold independent command authority
+// (it cannot emit rover commands). One tab claims authority in localStorage with a heartbeat; tabs that
+// find a FRESH claim from another tab go read-only and disable the command controls ([data-cmd-authority]).
+// The `storage` event + a BroadcastChannel keep tabs in sync live; localStorage is the durable arbiter.
+// If the authority tab closes, its claim goes stale (> TTL) and a read-only tab may TAKE OVER (an explicit
+// operator action, never a silent promotion of a hidden window). body.dataset.cmdrole = owner|readonly.
+const CMD_AUTH = (function () {
+  const KEY = "stewie_cmd_authority", TTL = 6000, BEAT = 2000;
+  const ID = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (String(Date.now()) + Math.random());
+  let isOwner = false;
+  let bc = null;
+  try { bc = new BroadcastChannel("stewie_cmd_authority"); } catch (e) { bc = null; }
+  const readClaim = () => { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } };
+  const fresh = (c) => !!(c && (Date.now() - (c.ts || 0)) < TTL);
+  const writeClaim = () => { try { localStorage.setItem(KEY, JSON.stringify({ id: ID, ts: Date.now() })); } catch (e) {} };
+  function apply() {
+    if (document.body) document.body.dataset.cmdrole = isOwner ? "owner" : "readonly";
+    const banner = document.getElementById("cmd-readonly-banner");
+    if (banner) banner.style.display = isOwner ? "none" : "";
+    document.querySelectorAll("[data-cmd-authority]").forEach((el) => {
+      el.disabled = !isOwner;
+      el.title = isOwner ? (el.dataset.cmdTitle || el.title || "")
+        : "Read-only window -- another cockpit holds command authority";
+    });
+  }
+  function become(owner) { if (owner !== isOwner) { isOwner = owner; apply(); } else { apply(); } }
+  function evaluate() {                                    // the durable localStorage claim is the arbiter
+    const c = readClaim();
+    if (!fresh(c)) { writeClaim(); become(true); if (bc) bc.postMessage({ t: "claim", id: ID }); }
+    else { become(c.id === ID); }
+  }
+  function start() {
+    evaluate();
+    const tk = document.getElementById("cmd-takeover");
+    if (tk) tk.onclick = () => { takeOver(); try { setQ("command authority taken over by this window"); } catch (e) {} };
+    window.addEventListener("storage", (e) => { if (e.key === KEY) become(((readClaim() || {}).id === ID) && fresh(readClaim())); });
+    if (bc) bc.onmessage = (ev) => { const m = ev.data || {}; if (m.t === "claim" && m.id !== ID) become((readClaim() || {}).id === ID && fresh(readClaim())); else if (m.t === "release") evaluate(); };
+    setInterval(() => { if (isOwner) writeClaim(); else evaluate(); }, BEAT);
+    window.addEventListener("beforeunload", () => { if (isOwner) { try { localStorage.removeItem(KEY); } catch (e) {} if (bc) bc.postMessage({ t: "release", id: ID }); } });
+  }
+  function takeOver() { writeClaim(); become(true); if (bc) bc.postMessage({ t: "claim", id: ID }); }
+  return { start, takeOver, isOwner: () => isOwner };
+})();
+// FS-17: command-authority gate -- a command action calls this FIRST; a read-only window is refused.
+function guardCommand(label) {
+  if (CMD_AUTH.isOwner()) return true;
+  try { setQ((label ? label + ": " : "") + "this window is READ-ONLY -- another cockpit holds command authority"); } catch (e) {}
+  return false;
+}
 function loadSettings() {
   let s = { theme: "dark", fontpx: 13 };                  // SEC-01: no credential fields persisted
   try { s = { ...s, ...(JSON.parse(localStorage.getItem("stewie_settings") || "{}")) }; } catch (e) {}
@@ -3162,6 +3212,7 @@ qel("qplanir").onclick = () => {                         // download the machine
   setQ(`exported plan IR ${LAST_PLAN_IR.plan_id} (${LAST_PLAN_IR.actions.length} actions)`);
 };
 qel("qcmds").onclick = async () => {                      // #66: the plan as a reusable RC command tape
+  if (!guardCommand("commands")) return;                  // FS-17: only the command-authority window may emit commands
   if (!ORDERS.length) { setQ("add orders first — commands come from the plan"); return; }
   try {
     const r = await fetch("/plan/commands", { method: "POST", headers: apiHeaders(),
@@ -4109,3 +4160,4 @@ function renderCtxSummaries() {
 loadBody("moon"); restoreDraft(); estimate(); renderQueue(); renderKeepouts(); drawPlan(); updateLocator(); setView("plan");  // #177: restore the auto-saved working draft before the first render
 focusStep(WIZ_STEP);                                         // #170: open the current wizard step's sidebar sections on boot
 _bootComplete = true;                                     // UX-01: boot done -> 401s may now nudge sign-in
+CMD_AUTH.start();                                         // FS-17: claim/observe single command authority across tabs
