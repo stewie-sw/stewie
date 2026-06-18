@@ -64,6 +64,33 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 > Still genuinely gated: #185 DA3 monocular producer (model install) and the live Autoware/Nav2 *planner*
 > driving through the seam (needs the costmap from the perception egress). Forward-queue items 2/4/5 below
 > remain the path to a production-complete twin.
+>
+> **UPDATE 2026-06-17 (code-grounded §7 reconciliation + PRD-completion drive).** A parallel
+> verification sweep re-checked every open §7 row against the actual tree (the paths in older rows
+> predate the monorepo move to `code/`; authority is now `stewie/physics/`, specs `stewie/specs/`,
+> contracts `stewie/contracts/`). Findings:
+> - **The §4.2 release blockers RB-01..06 are effectively CLEARED in code, each with tests** — domain
+>   validation + mass-conserving mutation invariants (`stewie/physics/validation.py`,
+>   `test_mutation_guards.py`), `trimesh` declared (`pyproject.toml`), ONE immutable fleet-aware
+>   `PlanResult` (`test_plan_result.py::test_consumers_reuse_the_one_result_no_recompute`), per-vehicle
+>   Plan-IR with an explicit no-position-leak test, the typed `VehicleModel` threaded through the
+>   planner/authority (`PlanningContext`; cross-vehicle drum/mass/footprint/endurance diff tests),
+>   configurable app-data dirs + atomic writes. **§4.2's "blockers" list is stale; no RB actually
+>   blocks** (the residual is per-row §7 marker hygiene, not missing code).
+> - **~36 §7 rows are DONE-STALE** (impl + passing tests exist, the row understates): incl. CT-01/03/04/05,
+>   PO-02/03/06/07/08, TW-01/02/03/08, VT-01/02/07, NV-01/04/05/08/09/10, CP-02, FL-06, FS-02/06/16,
+>   PM-05/06/08/12, EP-03/08. These need a per-row marker pass, not new code.
+> - **Closed this drive (TDD, gated, committed):** DT-02 (auth-gated `/twin/version` + director-only
+>   `/twin/history`), CT-07 (provenance now stamps source commit + version + seed), PO-13
+>   (`stewie.__version__` + CHANGELOG + SemVer), TW-07 (solar incidence-angle compute + tests; cockpit
+>   layer surfacing = remaining X slice), ML-01 (`ModelArtifact` typed I/O schemas + inference budgets
+>   + a `deployment_ready` gate).
+> - **~34 rows are hard-blocked external** and cannot be honestly completed on this host (kept marked,
+>   never stubbed): authoritative IPEx/LAC arm-camera-drum geometry (VT-03/05/09/10, AM-01..08, SN-11/15),
+>   GPU model weights + render→depth pipeline (PM-04/11/13-16, ML-04, DA3 #185, SuperPoint/LightGlue),
+>   McCardle's UDP/ROS link protocol (NV-11/12, FS-05 Autoware tail), LED-hardware photometry (TW-09,
+>   SN-06..10 Q-tails), the PyChrono SCM oracle (TM-01, VT-09, Lyasko), and Jetson Orin edge hardware
+>   (ML-09). The remaining ~40 doable rows are being closed in priority batches.
 
 **Current forward order (2026-06-15, codebase-aligned):**
 1. **Stabilize the production web/GIS surface.** Keep WEB-01/SEC-01 live-site hardening load-bearing:
@@ -367,7 +394,7 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 | CT-01 | P0 | All public numeric inputs enforce units, finiteness, and physical domains. Negative depth/mass and NaN/Inf are rejected. | P | P | P | NA |
 | CT-02 | P0 | `ColumnState` validates dimensions, array shapes, dtypes/domains, density, labels, disturbance, datum, ice, and inventory at construction. | D | D | D | NA |
 | CT-03 | P0 | Every authority mutation is transactional, conserves mass when required, and leaves all invariants valid. | P | P | P | NA |
-| CT-04 | P0 | Scene publication writes verified rasters atomically and metadata last as the commit marker. | N | N | N | NA |
+| CT-04 | P0 | Scene publication writes verified rasters atomically and metadata last as the commit marker. | D | P | D | NA |
 | CT-05 | P0 | Python, Godot, and ROS share a versioned schema with strict required-field, frame, dtype, and range validation. | P | P | P | NA |
 | CT-06 | P0 | Production contract checks use explicit exceptions, never removable `assert` statements. | D | D | D | NA |
 | CT-07 | P1 | Every artifact records source commit, configuration, mode, seed, schema version, and input hashes. | P | P | N | NA |
@@ -637,6 +664,9 @@ claims completion.
 | FS-19 | P0 | End-to-end observability ledger: log every mission decision, operator action, role/permission check, backend contract call, plan/replan, command emission, safing event, model inference summary, ARGUS factor accept/reject, fleet conflict, and state transition with correlation ID, mission/site/body/time, actor, input/output hashes, result, latency, and error code. Secrets, passwords, tokens, private keys, and operational truth-denied fields must never be logged. | P | P | P | NA |
 | FS-20 | P1 | Cockpit chrome IA: System, Settings, and Admin move OUT of the top-level work-area tab bar into a profile/account menu, role-gated (Settings per-user; System eng/director; Admin director-only) — an operator sees only the mission work areas. Directors get a read-only log/audit viewer surfacing the FS-19 observability ledger (logs visible to admins; secrets/tokens/truth-denied fields never shown). | D | D | D | NA |
 | FS-21 | P2 | Customizable workspace: within a work area, panes can be rearranged (drag-and-drop / dock) and the layout persists per operator (localStorage + optional server profile), with reset-to-default always available. Layout is a VIEW preference only — it never changes command authority, AG-08 gating, role gates, or which contract a pane consumes. | P | P | P | NA |
+| FS-22 | P0 | PRD-code reconciliation gate: before claiming "complete the PRD", audit every open or partial §7 row against code and tests, classify it as DONE-stale, PARTIAL, OPEN, or BLOCKED, and record file:line evidence plus the smallest next action. Stale PRD statuses must be corrected before new implementation work is counted. | P | N | N | NA |
+| FS-23 | P1 | Architecture review ledger: maintain a living full-stack map from PRD row -> backend route/service -> domain module -> frontend adapter/view -> tests -> logs. It must expose missing links without implying the capability is done. | P | N | N | NA |
+| FS-24 | P1 | Front-end module organization: split the cockpit into app shell, route/state store, typed API adapters, domain view models, shared visualization components, work-area views, command/approval rail, and diagnostics/log viewers. The split must preserve CSP/no-inline-script and fixture-driven tests. | P | N | N | NA |
 
 ## 8. User Workflows
 
@@ -1781,3 +1811,47 @@ Windowing decision:
 - **Large screens use panes, not independent authority.** The preferred production layout is a single
   routeable cockpit with optional split panes: map/world left, selected work area right, evidence drawer
   bottom, command/approval rail explicit and role-gated.
+
+### 25.5 Code-grounded architectural review and reconciliation
+
+The current PRD is not allowed to be treated as automatically current. The completion path is a
+code-grounded reconciliation sweep, then implementation of the truly-open subset. Each row reviewed
+gets one of four labels:
+
+| Label | Meaning | Action |
+|---|---|---|
+| DONE-stale | Code and tests satisfy the requirement, but the PRD row is stale. | Correct the PRD status and add/verify `[REQ:<ID>]` trace markers. |
+| PARTIAL | Some implementation exists, but product integration, tests, qualification, or frontend wiring is incomplete. | Record the missing link and smallest atomic follow-up. |
+| OPEN | No meaningful implementation exists. | Keep the row open and sequence it into §25.2. |
+| BLOCKED | Implementation requires external data, hardware, licensing, deployment, or qualification. | Name the blocker and avoid claiming completion. |
+
+Reconciliation evidence format:
+
+```text
+REQ-ID:
+  status: DONE-stale | PARTIAL | OPEN | BLOCKED
+  evidence:
+    - file:line implementation
+    - file:line test
+    - file:line frontend/backend wiring, if applicable
+  missing:
+    - smallest next action, or "none"
+```
+
+First verified stale-done correction:
+- `CT-04` is no longer `N/N/N`. `stewie/twin/io_fields.py` publishes scene rasters atomically,
+  validates raster dimensions before writing, writes `metadata.json` last as the commit marker, and
+  removes stale optional contract rasters on republish. Existing tests cover commit-marker behavior,
+  no leftover `.tmp` files, and incomplete-scene rejection; the PRD row is corrected to `D/P/D/NA`.
+
+Architectural review scope for the next sweep:
+- Contracts and authority: CT, TW, VT, AG, FS rows plus manifest drift.
+- Terrain, energy, vehicle, terramechanics: real authority versus calibrated/oracle gaps.
+- Perception, ARGUS, SLAM, imagery, small models: backend reachability, truth firewall, UI evidence.
+- Navigation, construction, fleet: PlanResult, local planner, resource conflicts, execution feedback.
+- Frontend organization: every top-level work area must have a contract adapter, route/state binding,
+  role gate, fixture render, mobile layout, error/empty states, and log visibility.
+
+The review output should feed §7 status corrections first, then implementation. A row that is stale
+done should not consume implementation time; a row that is partial should be split into the exact
+missing backend route, frontend adapter, test, log, or qualification slice.
