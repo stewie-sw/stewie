@@ -153,10 +153,17 @@ class ModelArtifact(Contract):
     task: str          # terrain_assess | rock_classify | shadow_slam | excavation_state | volume | llm_planner | assistant
     dataset_lineage: str
     eval_split: str
+    # ML-01: every model DECLARES its typed I/O contract + its inference budgets. Empty/zero = undeclared,
+    # which fails `deployment_ready` (a model may be defined without these, but not DEPLOYED).
+    input_schema: str = ""        # the typed input contract name the executive feeds it
+    output_schema: str = ""       # the typed estimate contract it emits (the executive consumes typed only)
+    latency_budget_ms: float = 0.0
+    memory_budget_mb: float = 0.0
     calibrated: bool = False
     ood_detector: bool = False
+    fallback: str | None = None   # the deterministic safe-default when OOD / low-confidence (runtime fallback)
     quantization: str = "fp32"
-    rollback_to: str | None = None
+    rollback_to: str | None = None  # the prior model version to roll back to (deploy-time)
     command_path: bool = False
 
     @field_validator("command_path")
@@ -165,6 +172,25 @@ class ModelArtifact(Contract):
         if v:
             raise ValueError("§25.3: no learned model may be on the rover command path")
         return v
+
+    @field_validator("latency_budget_ms", "memory_budget_mb")
+    @classmethod
+    def _budgets_nonneg(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("§25.3: model inference budgets must be >= 0")
+        return v
+
+    @property
+    def deployment_ready(self) -> bool:
+        """ML-01 gate: a model may be DEPLOYED only when it has declared both typed schemas, positive
+        latency+memory budgets, calibration, an OOD detector, a deterministic fallback, and is off the
+        command path. Definition without these is allowed; deployment is not."""
+        return bool(
+            self.input_schema and self.output_schema
+            and self.latency_budget_ms > 0 and self.memory_budget_mb > 0
+            and self.calibrated and self.ood_detector
+            and (self.fallback or self.rollback_to)
+            and not self.command_path)
 
 
 class ConstructionSkill(Contract):

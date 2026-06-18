@@ -118,6 +118,23 @@ def test_model_artifact_cannot_be_on_command_path():
                         dataset_lineage="d", eval_split="s", command_path=True)
 
 
+def test_model_artifact_deployment_requires_declared_schemas_and_budgets():
+    # ML-01: a minimally-defined model is NOT deployment-ready (no typed schemas / budgets declared)
+    bare = C.ModelArtifact(model_id="m1", name="rocknet", version="1", task="rock_classify",
+                           dataset_lineage="nac-2024", eval_split="80/20")
+    assert bare.deployment_ready is False
+    # fully declared (typed I/O + positive budgets + calibration + OOD + fallback, off command path) -> ready
+    ready = C.ModelArtifact(model_id="m1", name="rocknet", version="1", task="rock_classify",
+                            dataset_lineage="nac-2024", eval_split="80/20",
+                            input_schema="GrayFrame", output_schema="RockDetections",
+                            latency_budget_ms=50.0, memory_budget_mb=512.0,
+                            calibrated=True, ood_detector=True, fallback="classical_cv_detector")
+    assert ready.deployment_ready is True
+    with pytest.raises(ValidationError):                          # negative inference budget rejected
+        C.ModelArtifact(model_id="m3", name="x", version="1", task="rock_classify",
+                        dataset_lineage="d", eval_split="s", latency_budget_ms=-1.0)
+
+
 def test_construction_skill_must_be_closed_loop():
     s = C.ConstructionSkill(skill_id="dock1", name="dock", kind="dock", version="1", n_steps=20)
     assert s.closed_loop is True and s.approved is False
