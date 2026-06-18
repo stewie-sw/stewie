@@ -620,6 +620,18 @@
         <b style="font-family:Orbitron,system-ui;font-size:10px;letter-spacing:.1em">ALERTS</b>
         <ol style="list-style:none;margin:4px 0 0;padding:0"></ol></div>
       <div id="cesium" role="application" aria-label="3D lunar globe and site map: pan, zoom, tilt; click to set coordinates"></div>
+      <!-- 3D terrain path-definition surface (Aaron 2026-06-17, option 1): a relief-accurate alternative to
+           the 2D globe for the Plan flow. ▦ 3D path swaps the map for a Three.js wireframe of the chosen
+           site's DEM; clicking the surface drops goto-waypoint ORDERS on the real relief (Solve routes them). -->
+      <div id="plan3d" style="position:absolute;inset:0;z-index:2;display:none;background:#05060c"></div>
+      <div id="plan3dbar" style="position:absolute;left:54px;top:12px;z-index:36;display:flex;gap:4px;align-items:center">
+        <button id="plan3dtoggle" class="site" style="font-size:10px" title="switch the Plan map between the 2D globe (general siting) and a 3D wireframe of the chosen site's DEM (accurate, relief-aware path: clicks drop goto waypoints on the real surface)">▦ 3D path</button>
+        <span id="plan3dctl" style="display:none">
+          <button id="plan3dundo" class="site" style="font-size:10px" title="remove the last waypoint">↶</button>
+          <button id="plan3dclear" class="site" style="font-size:10px" title="clear the 3D path">✕</button>
+        </span>
+      </div>
+      <div id="plan3dstats" style="position:absolute;left:54px;top:42px;z-index:36;display:none;background:rgba(10,10,12,.92);border:1px solid var(--line);border-radius:5px;padding:4px 8px;font-size:10px;color:var(--muted);max-width:min(440px,80vw);line-height:1.6"></div>
       <!-- #169: a coordinate readout that floats next to the cursor (toggle in the hint bar) -->
       <div id="cursorxy" style="position:fixed;z-index:40;display:none;pointer-events:none;background:rgba(10,10,12,.92);border:1px solid var(--line);border-radius:4px;color:var(--accent);font-size:10px;font-variant-numeric:tabular-nums;padding:2px 6px;white-space:nowrap"></div>
       <div id="scalebox" style="position:absolute;left:12px;bottom:34px;z-index:25;background:rgba(10,10,12,.8);border:1px solid var(--line);border-radius:5px;padding:4px 9px;font-size:11px;font-variant-numeric:tabular-nums">
@@ -794,19 +806,11 @@
           <button id="execpause" title="pause/resume" style="margin-left:10px">⏸</button>
           <button id="execspd" title="cycle speed 10/60/600×">speed</button>
           <button id="exec3d" title="toggle the 3D terrain dry-run: the planned path + rover on the real DEM, before uplink" style="margin-left:6px">▦ 3D</button>
-          <button id="exec3dwire" title="toggle the depth/heightfield WIRE overlay in the 3D view (#180)" style="margin-left:4px">⊞ wire</button>
-          <button id="pathdef3d" title="define a path by clicking waypoints on the 3D terrain surface — accurate to the real relief (the Cesium globe is general plotting)" style="margin-left:4px">✏ path</button></span>
+          <button id="exec3dwire" title="toggle the depth/heightfield WIRE overlay in the 3D view (#180)" style="margin-left:4px">⊞ wire</button></span>
           <button id="execclose" title="back to Plan">✕</button></div>
         <canvas id="execcanvas" width="320" height="220"></canvas>
         <div id="td3d" title="3D terrain dry-run — drag to orbit, wheel to zoom" style="display:none;width:100%;max-width:560px;height:380px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#05060c"></div>
         <div id="td3d-hint" style="display:none;font-size:10px;color:var(--muted);margin-top:4px">3D dry-run on the real DEM — <b style="color:#e8273f">rover</b> · <b style="color:#f3b13a">physics-truth path</b> vs <b style="color:#35e0d0">estimator belief</b> (simulation, not a live rover). Drag to orbit · wheel to zoom.</div>
-        <!-- path definition on the 3D terrain (Aaron 2026-06-17): click the surface to drop waypoints,
-             defining a path against the REAL relief; live per-leg length + slope. -->
-        <div id="path3dctl" style="display:none;font-size:10px;margin-top:4px">
-          <button id="pathundo" title="remove the last waypoint">↶ undo</button>
-          <button id="pathclear" title="clear the path">✕ clear</button>
-          <span style="opacity:.7;margin-left:6px;color:var(--muted)">click the 3D terrain to drop waypoints on the surface</span></div>
-        <div id="path3dstats" style="display:none;font-size:10px;color:var(--muted);margin-top:4px;line-height:1.6"></div>
         <div id="exchud">
           <span class="k">phase</span><span id="excphase">—</span>
           <span class="k">elapsed</span><span id="exctime">—</span>
@@ -1020,6 +1024,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=4e1346e9dbf1"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=c02463c90712"></script>
+<script src="/assets/cockpit.js?v=0820032a552d"></script>
 </body>
 </html>

@@ -781,6 +781,10 @@ function setView(name) {
   if (et) et.style.display = (name === "plan") ? "flex" : "none";
   const sb = document.getElementById("scalebox");          // the scale belongs to the map
   if (sb) sb.style.display = (name === "plan") ? "block" : "none";
+  const p3b = document.getElementById("plan3dbar");        // the 3D-path toggle is a PLAN-map tool (z-index above panes)
+  if (p3b) p3b.style.display = (name === "plan") ? "flex" : "none";
+  const p3s = document.getElementById("plan3dstats");
+  if (p3s && name !== "plan") p3s.style.display = "none";
   if (name !== "plan" && EDIT.on) setEdit(false);          // leaving Plan ends the edit session
   applySidebar(name);                                      // UX-05: collapse off-Plan / restore on Plan
   loadPane(name);
@@ -3539,30 +3543,54 @@ if ($("exec3dwire")) {
   };
 }
 
-// path definition on the 3D terrain (Aaron 2026-06-17): click the surface to drop waypoints, defining a
-// path against the REAL relief (the Cesium globe is general plotting; THIS is accurate). Live len+slope.
-let PATH3D_ON = false;
-function renderPath3DStats() {
-  const el = $("path3dstats"); if (!el || !window.STEWIE3D || !STEWIE3D.pathStats) return;
-  const s = STEWIE3D.pathStats();
-  if (!s.n) { el.innerHTML = '<span style="opacity:.6">No waypoints — click the 3D terrain to start the path.</span>'; return; }
-  const col = (d) => (d > 25 ? "#e8273f" : "var(--accent)");
-  const legs = s.legs.map((l, i) => `L${i + 1} <b>${l.len_m.toFixed(1)}m</b>@<span style="color:${col(l.slope_deg)}">${l.slope_deg.toFixed(0)}°</span>`).join(" · ");
-  el.innerHTML = `<b>${s.n}</b> waypoints · path <b>${s.total_len_m.toFixed(1)} m</b> · max slope `
-    + `<b style="color:${col(s.max_slope_deg)}">${s.max_slope_deg.toFixed(1)}°</b>` + (legs ? "<br>" + legs : "");
+// 3D path definition in the PLAN flow (Aaron 2026-06-17, option 1): a relief-accurate alternative to the
+// 2D globe. "▦ 3D path" swaps the Plan map for a Three.js wireframe of the CHOSEN SITE's DEM; clicking the
+// terrain drops goto-waypoint ORDERS on the real surface (the same `goto` kind the 2D path uses), so Solve
+// routes them. Live per-leg length + slope; slopes > 25 deg flagged. The Metrics 3D view stays read-only.
+let PLAN3D_ON = false;
+function planSyncPathOrders() {
+  if (!window.STEWIE3D || !STEWIE3D.getWaypoints) return;
+  const wps = STEWIE3D.getWaypoints();
+  snapshotAuthoring();
+  for (let i = ORDERS.length - 1; i >= 0; i--)                 // drop the previous 3D-path gotos (keep other orders)
+    if (ORDERS[i].kind === "goto" && String(ORDERS[i].action || "").startsWith("p3d_")) ORDERS.splice(i, 1);
+  wps.forEach((p, i) => ORDERS.push({ action: "p3d_wp" + (i + 1), kind: "goto", x: Math.round(p[0]), y: Math.round(p[1]) }));
+  renderQueue();
+  const el = $("plan3dstats"); if (el && STEWIE3D.pathStats) {
+    const s = STEWIE3D.pathStats(), col = (d) => (d > 25 ? "#e8273f" : "var(--accent)");
+    el.innerHTML = s.n
+      ? `<b>${s.n}</b> waypoints → <b>${s.n}</b> goto orders · path <b>${s.total_len_m.toFixed(1)} m</b> · `
+        + `max slope <b style="color:${col(s.max_slope_deg)}">${s.max_slope_deg.toFixed(1)}°</b>`
+        + (s.legs.length ? "<br>" + s.legs.map((l, i) => `L${i + 1} ${l.len_m.toFixed(1)}m@${l.slope_deg.toFixed(0)}°`).join(" · ") : "")
+      : '<span style="opacity:.6">Click the 3D terrain to drop traverse waypoints on the surface — they become goto orders Solve routes.</span>';
+  }
 }
-if ($("pathdef3d")) $("pathdef3d").onclick = () => {
-  PATH3D_ON = !PATH3D_ON;
-  if (PATH3D_ON && typeof TD3D_ON !== "undefined" && !TD3D_ON && $("exec3d")) $("exec3d").click();  // open the 3D terrain to click on
-  $("pathdef3d").style.borderColor = PATH3D_ON ? "var(--accent)" : "";
-  if ($("path3dctl")) $("path3dctl").style.display = PATH3D_ON ? "block" : "none";
-  if ($("path3dstats")) $("path3dstats").style.display = PATH3D_ON ? "block" : "none";
-  if (window.STEWIE3D && STEWIE3D.setPathEdit) { STEWIE3D.setPathEdit(PATH3D_ON); STEWIE3D.onPathChange(renderPath3DStats); }
-  renderPath3DStats();
-  setQ(PATH3D_ON ? "Path-def ON — click the 3D terrain to drop waypoints on the surface" : "Path-def off");
+function planLoad3D() {
+  const host = $("plan3d"); if (!host || !window.STEWIE3D) { setQ("3D view unavailable (three.js not loaded)"); return; }
+  STEWIE3D.mount(host);
+  const site = (typeof CURRENT_SITE !== "undefined" && CURRENT_SITE) || "haworth";
+  fetch("/dem/heightfield?site=" + encodeURIComponent(site) + "&n=129&window_m=300", { headers: apiHeaders() })
+    .then((r) => r.json()).then((hf) => {
+      if (!hf || !hf.ok) { setQ("3D: heightfield unavailable for " + site); return; }
+      STEWIE3D.render(hf); if (STEWIE3D.setSun) STEWIE3D.setSun(135, 18);
+      if (typeof LANDER_P !== "undefined" && (LANDER_P.x || LANDER_P.y) && STEWIE3D.setLander3D) STEWIE3D.setLander3D(LANDER_P.x, LANDER_P.y);
+      STEWIE3D.setPathEdit(true); STEWIE3D.onPathChange(planSyncPathOrders); planSyncPathOrders();
+      setQ("3D path mode — click the " + site + " terrain to drop traverse waypoints (→ goto orders)");
+    }).catch(() => setQ("3D: heightfield fetch failed"));
+}
+if ($("plan3dtoggle")) $("plan3dtoggle").onclick = () => {
+  PLAN3D_ON = !PLAN3D_ON;
+  if ($("cesium")) $("cesium").style.display = PLAN3D_ON ? "none" : "";
+  if ($("plan3d")) $("plan3d").style.display = PLAN3D_ON ? "block" : "none";
+  if ($("plan3dctl")) $("plan3dctl").style.display = PLAN3D_ON ? "inline" : "none";
+  if ($("plan3dstats")) $("plan3dstats").style.display = PLAN3D_ON ? "block" : "none";
+  $("plan3dtoggle").style.borderColor = PLAN3D_ON ? "var(--accent)" : "";
+  $("plan3dtoggle").textContent = PLAN3D_ON ? "▦ 2D map" : "▦ 3D path";
+  if (PLAN3D_ON) planLoad3D();
+  else if (window.STEWIE3D && STEWIE3D.setPathEdit) STEWIE3D.setPathEdit(false);
 };
-if ($("pathundo")) $("pathundo").onclick = () => { if (window.STEWIE3D && STEWIE3D.undoWaypoint) STEWIE3D.undoWaypoint(); renderPath3DStats(); };
-if ($("pathclear")) $("pathclear").onclick = () => { if (window.STEWIE3D && STEWIE3D.clearWaypoints) STEWIE3D.clearWaypoints(); renderPath3DStats(); };
+if ($("plan3dundo")) $("plan3dundo").onclick = () => { if (window.STEWIE3D && STEWIE3D.undoWaypoint) STEWIE3D.undoWaypoint(); };
+if ($("plan3dclear")) $("plan3dclear").onclick = () => { if (window.STEWIE3D && STEWIE3D.clearWaypoints) STEWIE3D.clearWaypoints(); };
 
 // ---- compare algorithms: POST /compare -> a table sorted by the chosen objective --------------
 qel("qcompare").onclick = async () => {
