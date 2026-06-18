@@ -15,6 +15,7 @@ import { ChromePanel } from "./panels/ChromePanels";
 import { EventsTable } from "./panels/EventsTable";
 import { NavigationView } from "./panels/NavigationView";
 import { MapCanvas3D } from "./panels/MapCanvas3D";
+import { CesiumGlobe } from "./panels/CesiumGlobe";
 
 const TXT = "var(--txt)";
 const MUTED = "var(--muted)";
@@ -109,6 +110,8 @@ function MapCanvas() {
   const { workArea, mode, sources, theme, orders, addOrder } = useCockpit();
   const accent = theme === "light" ? "#1d6ae5" : "#e8273f";
   const [hf, setHf] = useState<Heightfield | null>(null);
+  const [view, setView] = useState<"local" | "globe">("local");
+  const [picked, setPicked] = useState<{ lat: number; lon: number } | null>(null);
   useEffect(() => {
     let live = true;
     fetchHeightfield("haworth").then((h) => live && setHf(h)).catch(() => {});
@@ -118,17 +121,30 @@ function MapCanvas() {
   }, []);
   return (
     <div style={{ position: "relative", flex: 1, minWidth: 0, overflow: "hidden" }}>
-      <MapCanvas3D accent={accent} heightfield={hf} orders={orders} onPlace={addOrder} />
+      {view === "globe"
+        ? <CesiumGlobe onPick={(lat, lon) => setPicked({ lat, lon })} />
+        : <MapCanvas3D accent={accent} heightfield={hf} orders={orders} onPlace={addOrder} />}
+      {/* Local (DEM terrain) vs Globe (planetary site picker) — the §11 planetary/local spine */}
+      <div style={{ position: "absolute", top: "var(--sp-4)", right: "var(--sp-4)", display: "flex", gap: 2 }}>
+        <Button size="sm" variant={view === "local" ? "primary" : "ghost"} onClick={() => setView("local")}>Local</Button>
+        <Button size="sm" variant={view === "globe" ? "primary" : "ghost"} onClick={() => setView("globe")}>Globe</Button>
+      </div>
       <div style={{ position: "absolute", left: "var(--sp-4)", bottom: "var(--sp-4)", pointerEvents: "none",
         background: "rgba(8,8,12,.66)", border: "1px solid var(--line)", borderRadius: "var(--r-md)",
         padding: "var(--sp-2) var(--sp-3)", color: MUTED, fontSize: 11, lineHeight: 1.5 }}>
         <span className="ds-display" style={{ fontSize: 11, color: TXT }}>Map / World</span>
         <div>work area <b style={{ color: TXT }}>{workArea}</b> · mode <b style={{ color: TXT }}>{mode}</b></div>
         <div>layers: {sources.join(", ") || "none"}</div>
-        <div style={{ color: "var(--dim)" }}>
-          {hf ? `terrain: REAL LOLA ${hf.n}×${hf.n} @ ${hf.windowM} m (×${2.5} relief)` : "terrain: grid scaffold (no /dem/heightfield)"}
-          {" · "}orders: {orders.length} (click terrain) · Cesium globe = GPU
-        </div>
+        {view === "globe" ? (
+          <div style={{ color: "var(--dim)" }} data-testid="globe-info">
+            planetary globe (Moon · NASA Trek){picked ? ` · picked ${picked.lat.toFixed(2)}°, ${picked.lon.toFixed(2)}°` : " · click to pick a site"} · pixels = GPU
+          </div>
+        ) : (
+          <div style={{ color: "var(--dim)" }}>
+            {hf ? `terrain: REAL LOLA ${hf.n}×${hf.n} @ ${hf.windowM} m (×${2.5} relief)` : "terrain: grid scaffold (no /dem/heightfield)"}
+            {" · "}orders: {orders.length} (click terrain)
+          </div>
+        )}
       </div>
     </div>
   );
