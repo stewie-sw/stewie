@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 
 from stewie.server import state
-from stewie.server.deps import require_auth
+from stewie.server.deps import require_auth, require_director
 
 router = APIRouter()
 
@@ -57,6 +57,16 @@ def twin_resync(req: ResyncRequest, _auth: None = Depends(require_auth)):
 
 
 @router.get("/twin/version")
-def twin_version():
+def twin_version(_auth: str = Depends(require_auth)):
+    """DT-02 (least privilege): ANY authenticated client gets the minimal version TOKEN -- the current
+    observed-twin version + chain-integrity flag -- but NOT the event history (that is an audit log,
+    director-only via /twin/history). Previously this leaked the full history with no auth at all."""
+    t = state.twin()
+    return {"twin_version": t.version, "chain_valid": t.verify_chain()}
+
+
+@router.get("/twin/history")
+def twin_history(_d: str = Depends(require_director)):
+    """DT-02: the full observed-twin audit history (resync events + provenance) -- director-only."""
     t = state.twin()
     return {"twin_version": t.version, "chain_valid": t.verify_chain(), "events": t.history()}

@@ -78,9 +78,10 @@ def test_resync_endpoint_roundtrip():
     r = c.post("/twin/resync", json={"heights_m": patch.tolist(), "origin_rc": [4, 4],
                                      "provenance": "test reconstruction patch"})
     assert r.status_code == 200 and r.json()["twin_version"] >= 1
-    v = c.get("/twin/version").json()
+    v = c.get("/twin/version").json()                            # DT-02: minimal version token (no history)
     assert v["twin_version"] == r.json()["twin_version"]
-    assert v["events"][-1]["provenance"] == "test reconstruction patch"
+    h = c.get("/twin/history").json()                            # DT-02: full audit history (director-only)
+    assert h["events"][-1]["provenance"] == "test reconstruction patch"
 
 
 def test_w1_durable_journal_survives_process_loss(tmp_path):
