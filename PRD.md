@@ -462,7 +462,7 @@ allowed if they meet the acceptance criteria.
 | PM-06 | P0 | Fuse VO/IMU and validated absolute factors in a recursive estimator or factor graph with covariance. | D | N | D | N |
 | PM-07 | P0 | Loop closures are candidate-gated, geometrically verified, and auditable; false closures must not silently enter the graph. | N | N | N | N |
 | PM-08 | P1 | Produce a local/world elevation map using robust per-cell aggregation and a rock occupancy/probability map. | D | D | D | P |
-| PM-09 | P1 | Track observed coverage, effective sample support, uncertainty floor, and correlation; dense pixels from one view are not treated as independent evidence. | P | P | P | N |
+| PM-09 | P1 | Track observed coverage, effective sample support, uncertainty floor, and correlation; dense pixels from one view are not treated as independent evidence. | D | P | D | N |
 | PM-10 | P1 | Benchmark on a fixed LAC-style suite: localization RMSE, 5 cm height-cell pass fraction, rock F1, coverage, runtime, and failure count across seeds/light/rocks. | P | N | P | N |
 | PM-11 | P1 | Target benchmark: demonstrate repeatable centimeter-scale localization comparable to the `0.038-0.067 m` `[NAVLAB26]` reference before claiming parity. | N | N | N | N |
 | PM-12 | P1 | Truth pose and semantic masks are development/evaluation-only and structurally unavailable to operational estimator code. | D | D | D | NA |

@@ -161,6 +161,26 @@ class ElevationMap:
         """Boolean mask of observed cells."""
         return np.isfinite(self.elevation)
 
+    def cell_uncertainty(self, *, per_sample_sigma_m: float = 0.05, floor_m: float = 0.02,
+                         correlation_cap: int = 8):
+        """PM-09: per-cell elevation uncertainty using EFFECTIVE sample support, not naive 1/sqrt(N).
+
+        Dense points from ONE viewpoint are spatially CORRELATED -- they are not independent evidence --
+        so beyond ``correlation_cap`` samples additional points in a cell do NOT keep shrinking the
+        uncertainty: the effective sample count is ``n_eff = min(count, correlation_cap)``. The per-cell
+        sigma is ``max(floor_m, per_sample_sigma_m / sqrt(n_eff))`` and can never drop below the
+        irreducible measurement ``floor_m`` no matter how many correlated pixels land in the cell.
+        Returns ``(sigma_m, n_eff)`` arrays shaped like ``count``; unobserved cells (count==0) are
+        ``NaN`` sigma / ``0`` n_eff. ``correlation_cap`` + ``floor_m`` are [CALIB] (render-cal pending);
+        the structural point is that one-view density is not independence (the requirement)."""
+        count = np.asarray(self.count)
+        n_eff = np.minimum(count, int(correlation_cap)).astype(float)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            sigma = np.where(count > 0,
+                             np.maximum(float(floor_m), float(per_sample_sigma_m) / np.sqrt(np.maximum(n_eff, 1.0))),
+                             np.nan)
+        return sigma, n_eff
+
 
 @dataclass(frozen=True)
 class ElevationStats:
