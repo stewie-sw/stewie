@@ -187,7 +187,8 @@ def post_localize(req: LocalizeRequest, _auth: None = Depends(require_auth)):
                         float(req.prior_sigma_xy), float(req.prior_sigma_yaw))
         if req.shadow_bearings_deg:                          # add shadow_yaw factors BEFORE the parallax
             from dart import shadow_factors as SF            # solve so the final optimize fuses both
-            assert req.anti_solar_az_deg is not None         # guaranteed non-None by the 400-guard above
+            if req.anti_solar_az_deg is None:                # 400-guarded above; explicit raise (CT-06: no bare assert)
+                raise ValueError("anti_solar_az_deg is required when shadow_bearings_deg is set")
             contrasts = (req.shadow_contrasts if req.shadow_contrasts is not None
                          else [req.shadow_min_contrast] * len(req.shadow_bearings_deg))
             facs = SF.shadow_yaw_factors([{"contrast": float(c)} for c in contrasts],
