@@ -2450,7 +2450,8 @@ def slip_alpha_to_slip(slope_deg, payload_kg=0.0, g=None, params=None, rover_mas
 
 
 def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, dem=None,
-                  dem_origin=(0.0, 0.0), max_slope_deg=15.0, accept_flatness_tol_m=0.02):
+                  dem_origin=(0.0, 0.0), max_slope_deg=15.0, accept_flatness_tol_m=0.02,
+                  bearing_load_pa=None, bearing_fs=3.0):
     """I8: MATERIAL-realizability acceptance on the CONSERVED authority (NOT full plan validation -- audit
     H-07). Rasterize each order's footprint onto a `ColumnState`, execute the cuts (into the drum) then the
     fills (from the drum), and report mass conservation + per-order feasibility + the executed (mass-exact)
@@ -2574,6 +2575,36 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
                        "stable": bool(worst_slope <= repose_limit_deg)})
     berm_profile_pass = all(b["within_tol"] for b in berm_profile) if berm_profile else True
     repose_pass = all(r["stable"] for r in repose) if repose else True
+    # CP-06 berm-firming: static BEARING-CAPACITY acceptance per built pad/berm (fill order). forge.bearing
+    # (Terzaghi/Vesic) gives the allowable bearing pressure of the as-built surface (loose) and of a FIRMED
+    # surface -- compacted to bank density (the sourced SWELL is the only firming gain modeled; a cohesion/phi
+    # gain from compaction is deliberately NOT claimed, so allowable_firmed is a conservative lower bound).
+    # For the light rover slip-sinkage dominates (constants.py), so this gates ONLY a supplied STRUCTURAL
+    # design load (a lander leg / stacked habitat element): holds = allowable_loose >= load;
+    # firming_recommended = loose fails but a firmed pad holds. Additive + REPORTED, never folded into
+    # `feasible` -- a pad that needs firming is an operational flag, not a material-conservation infeasibility.
+    from forge.bearing import allowable_bearing_pa
+    _soil = mission_soil_params(mission)
+    _g_body = body_gravity(mission.body)
+    gamma_loose, gamma_firm = rho_loose * _g_body, rho_bank * _g_body
+    bearing = []
+    for o in fills:
+        mask = _mask(o)
+        if int(mask.sum()) < 2:
+            continue
+        b_width = math.sqrt(o.footprint_m2)
+        allow_loose = allowable_bearing_pa(_soil.cohesion, _soil.phi_rad, gamma_loose, b_width, factor_of_safety=bearing_fs)
+        allow_firm = allowable_bearing_pa(_soil.cohesion, _soil.phi_rad, gamma_firm, b_width, factor_of_safety=bearing_fs)
+        rec = {"action": o.action, "width_m": round(b_width, 3),
+               "allowable_pa": round(allow_loose, 1), "allowable_firmed_pa": round(allow_firm, 1),
+               "factor_of_safety": float(bearing_fs)}
+        if bearing_load_pa is not None:
+            holds = bool(allow_loose >= bearing_load_pa)
+            rec["design_load_pa"] = float(bearing_load_pa)
+            rec["holds"] = holds
+            rec["firming_recommended"] = bool((not holds) and allow_firm >= bearing_load_pa)
+        bearing.append(rec)
+    bearing_pass = all(b.get("holds", True) for b in bearing) if bearing else True
     # I6 + I11: terrain-aware siting against the real DEM. A pad on a crater wall fails even when material
     # is available. dem = (heightmap, cell_m). M11: the order's LOCAL x,y is anchored to a real DEM site via
     # dem_origin (DEM meters where local (0,0) sits). I11: gate the WHOLE footprint, not just the center cell
@@ -2621,7 +2652,7 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
         "acceptance_scope": {
             "covers": ["mass_conservation", "datum_floor_feasibility", "drum_supply",
                        "slope_siting", "off_dem_siting", "as_built_flatness",
-                       "berm_profile", "repose_stability"],
+                       "berm_profile", "repose_stability", "bearing_capacity"],
             "defers_to_totals": ["route_feasibility", "battery_reserve", "sequence_precedence",
                                  "drum_capacity_shuttle_cycles"]},
         "drum_capacity_kg": float(drum_cap),
@@ -2647,6 +2678,10 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
         "repose": repose,                                      # per order: as-built flank slope vs phi
         "repose_pass": bool(repose_pass),
         "repose_limit_deg": round(float(repose_limit_deg), 2),
+        # CP-06 berm-firming: per pad/berm allowable bearing capacity (loose + firmed); holds/firming when a
+        # structural design load is supplied (bearing_load_pa). Additive/reported, not folded into `feasible`.
+        "bearing": bearing,
+        "bearing_pass": bool(bearing_pass),
     }
 
 
