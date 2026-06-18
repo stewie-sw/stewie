@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchEvents, fetchOperators, fetchHealth, fetchMetrics, fetchNavContract, submitPlan } from "./api";
+import { fetchEvents, fetchOperators, fetchHealth, fetchMetrics, fetchNavContract, submitPlan, fetchEvidence } from "./api";
 
 afterEach(() => vi.restoreAllMocks());
 function stub(status: number, json: unknown) {
@@ -68,5 +68,15 @@ describe("api adapters (map the real route shapes)", () => {
     const r = await submitPlan([]);
     expect(r.feasible).toBe(false);
     expect(r.error).toBe("bad order field");
+  });
+
+  it("fetchEvidence maps modality sigma + per-approach accuracy and strips _note", async () => {
+    stub(200, { ok: true,
+      modality_sigma: { range_m: 30, stereo_sigma_m: 0.05, articulation_advantage_x: 2.1 },
+      accuracy_precision: { ARGUS: { rmse_m: 0.04 }, "ShadowNav (JPL)": { rmse_m: 0.2 }, _note: "n" } });
+    const e = (await fetchEvidence())!;
+    expect(e.modalitySigma.range_m).toBe(30);
+    expect(Object.keys(e.accuracy)).toEqual(["ARGUS", "ShadowNav (JPL)"]); // _note stripped
+    expect(e.note).toBe("n");
   });
 });

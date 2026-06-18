@@ -14,6 +14,7 @@ import { useCommandAuthority } from "./useCommandAuthority";
 import { ChromePanel } from "./panels/ChromePanels";
 import { EventsTable } from "./panels/EventsTable";
 import { NavigationView } from "./panels/NavigationView";
+import { PerceptionView } from "./panels/PerceptionView";
 import { MapCanvas3D } from "./panels/MapCanvas3D";
 import { CesiumGlobe } from "./panels/CesiumGlobe";
 
@@ -186,6 +187,7 @@ function Cockpit() {
   const rootClass = theme === "light" ? "ds-root light" : "ds-root";
   const center =
     workArea === "navigation" ? <NavigationView /> :
+    workArea === "perception" ? <PerceptionView /> :
     workArea === "metrics" ? <MetricsView /> :
     workArea === "reports" ? <ReportsView /> : <MapCanvas />;
   return (

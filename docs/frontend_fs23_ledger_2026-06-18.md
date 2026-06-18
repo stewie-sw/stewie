@@ -40,7 +40,8 @@ the contract; `vanilla` = still only in the live `stewie/server/web/assets/cockp
 | Map/World 3D canvas (Three.js) | **ported** (thin React boundary: mount-once + imperative-prop + dispose; grid scaffold + rover) | `cockpit/src/panels/MapCanvas3D.tsx` | `render_phase4.py` (CSP-clean, WebGL ctx, paints in swiftshader, lifecycle) |
 | Real DEM terrain mesh (Three.js) | **ported** (deformed elevation mesh from `/dem/heightfield`; click-to-place authoring) | `cockpit/src/panels/MapCanvas3D.tsx` | `render_phase4b.py` (real LOLA fixture, renders + places orders) |
 | Cesium planetary globe (Moon) | **ported** (lunar ellipsoid + NASA Trek LRO WAC imagery + click-to-pick lat/lon; `CesiumGlobe.tsx`) | `cockpit/src/panels/CesiumGlobe.tsx` | `render_globe.py` (mounts CSP-clean; **Moon imagery rendered** in swiftshader) |
-| Perception render→depth pipeline | **gated** (render→depth producer) | — | next (item 2) |
+| **Perception** | `/evidence` | `dart/comparison.py` | **ported** (ARGUS-vs-baselines comparison + modality precision; `PerceptionView.tsx`) | `cockpit/api.test.ts`, `render_perception.py` |
+| Perception live stereo→depth render | **gated** (camera→depth→point-cloud producer, PM-13..16) | — | the render pipeline |
 | State store (FS-16) | **ported** | `cockpit/src/store.ts` (Zustand) | render harness (truth-disabled-in-OPERATE) |
 | Design system | **shipped** | `@stewie/design-system` (8 components) | `adapters.test.js`, `components.test.tsx`, claude.ai/design |
 

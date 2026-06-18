@@ -80,6 +80,23 @@ export async function fetchMetrics(): Promise<Metrics | null> {
   return { uptimeS: json.uptime_s ?? 0, raw: json };
 }
 
+export interface Evidence {
+  modalitySigma: Record<string, number>; // range_m, stereo_sigma_m, articulation_parallax_sigma_m, …
+  accuracy: Record<string, Record<string, unknown>>; // approach -> its accuracy/precision metrics
+  note: string;
+}
+
+/** GET /evidence — the localization-approach comparison (ARGUS vs the cited baselines): photometric+depth
+ * modality precision + per-approach accuracy/precision. The live stereo/depth render is the gated tier. */
+export async function fetchEvidence(): Promise<Evidence | null> {
+  const { status, json } = await getJson("/evidence");
+  if (status >= 400 || !json?.ok) return null;
+  const ap: Record<string, Record<string, unknown>> = { ...(json.accuracy_precision || {}) };
+  const note = String((ap as Record<string, unknown>)._note || "");
+  delete (ap as Record<string, unknown>)._note;
+  return { modalitySigma: json.modality_sigma || {}, accuracy: ap, note };
+}
+
 export interface MissionOrder {
   action: string; // "borrow" (cut) | "pad" (fill)
   kind: string; // "cut" | "fill"
