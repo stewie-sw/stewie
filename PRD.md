@@ -437,8 +437,8 @@ The maneuver vocabulary is sourced from LAC/IPEx/RASSOR capabilities through
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
-| AM-01 | P1 | Implement an explicit posture state machine: `TRANSIT`, `DIG`, `DUMP_Z`, `MEERKAT`, `DRUM_WALK`, `IRON_CROSS`, `SELF_RIGHT`, and `BRAKED_HOLD`. | N | N | N | G |
-| AM-02 | P1 | Every transition has preconditions for slope, arm range, drum load, support contacts, stability margin, and collision clearance. | N | N | N | G |
+| AM-01 | P1 | Implement an explicit posture state machine: `TRANSIT`, `DIG`, `DUMP_Z`, `MEERKAT`, `DRUM_WALK`, `IRON_CROSS`, `SELF_RIGHT`, and `BRAKED_HOLD`. `stewie.specs.posture_machine` is that FSM: the eight states + a legal-transition table + `PostureMachine`. `BRAKED_HOLD` (the SF-01 safe stop) is reachable from every state; `SELF_RIGHT`/`IRON_CROSS` are recovery-only from `BRAKED_HOLD` (AM-06). Pure + on-host; the flight-qualified posture geometry is the gated Q tier. | D | N | D | G |
+| AM-02 | P1 | Every transition has preconditions for slope, arm range, drum load, support contacts, stability margin, and collision clearance. `posture_machine.can_transition` enforces transition LEGALITY (collision/support-contact structure) and gates a transition INTO a raised/working posture on a caller-supplied stability margin (AM-03). The slope / arm-range / drum-load preconditions plug into the same guard from the on-host posture geometry / gated flight numbers (Q tier). | P | N | P | G |
 | AM-03 | P1 | `MEERKAT` raises the camera vantage by lowering arms under the chassis; motion is speed-limited and rejected when stability margin is inadequate. | N | N | N | G |
 | AM-04 | P1 | Differential front/rear arm pose may be used as a controlled camera-pitch action only after kinematic and stability validation. `[PROPOSED]` | N | N | N | G |
 | AM-05 | P2 | `DRUM_WALK` supports bounded slow translation while raised and records contact/slip/energy separately from wheel drive. | N | N | N | G |
