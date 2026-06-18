@@ -3,7 +3,7 @@
  * chrome overlay, and the data-light work areas (Metrics -> the FS-19 events timeline; Reports -> stub).
  * One window; the map/world canvas is the spatial spine (Cesium/Three.js is Phase 4). */
 import {
-  ModeBar, SourceToggle, WorkAreaTabs, Panel, MetricTile, Button, Icon,
+  ModeBar, SourceToggle, WorkAreaTabs, Panel, MetricTile, Button,
 } from "@stewie/design-system";
 import { useCockpit } from "./store";
 import { AuthGate } from "./AuthGate";
@@ -12,6 +12,7 @@ import { useCommandAuthority } from "./useCommandAuthority";
 import { ChromePanel } from "./panels/ChromePanels";
 import { EventsTable } from "./panels/EventsTable";
 import { NavigationView } from "./panels/NavigationView";
+import { MapCanvas3D } from "./panels/MapCanvas3D";
 
 const TXT = "var(--txt)";
 const MUTED = "var(--muted)";
@@ -52,19 +53,19 @@ function CommandRail() {
 }
 
 function MapCanvas() {
-  const { workArea, mode, sources } = useCockpit();
+  const { workArea, mode, sources, theme } = useCockpit();
+  const accent = theme === "light" ? "#1d6ae5" : "#e8273f";
   return (
-    <div style={{ position: "relative", flex: 1, minWidth: 0,
-      background: "radial-gradient(circle at 50% 40%, #14141a, #05060c 70%)",
-      display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-      <div style={{ textAlign: "center", color: MUTED }}>
-        <Icon name="layers" size={40} />
-        <div className="ds-display" style={{ fontSize: 12, marginTop: "var(--sp-3)", color: TXT }}>Map / World canvas</div>
-        <div style={{ fontSize: 11, marginTop: "var(--sp-1)" }}>
-          work area: <b style={{ color: TXT }}>{workArea}</b> · mode: <b style={{ color: TXT }}>{mode}</b>
-        </div>
-        <div style={{ fontSize: 11, marginTop: "var(--sp-1)" }}>source layers stack here: {sources.join(", ") || "none"}</div>
-        <div style={{ fontSize: 10, marginTop: "var(--sp-3)", color: "var(--dim)" }}>(Cesium globe + local DEM — Phase 4)</div>
+    <div style={{ position: "relative", flex: 1, minWidth: 0, overflow: "hidden" }}>
+      <MapCanvas3D accent={accent} />
+      {/* info card over the live 3D world (pointer-events off so it never eats canvas interaction) */}
+      <div style={{ position: "absolute", left: "var(--sp-4)", bottom: "var(--sp-4)", pointerEvents: "none",
+        background: "rgba(8,8,12,.66)", border: "1px solid var(--line)", borderRadius: "var(--r-md)",
+        padding: "var(--sp-2) var(--sp-3)", color: MUTED, fontSize: 11, lineHeight: 1.5 }}>
+        <span className="ds-display" style={{ fontSize: 11, color: TXT }}>Map / World</span>
+        <div>work area <b style={{ color: TXT }}>{workArea}</b> · mode <b style={{ color: TXT }}>{mode}</b></div>
+        <div>layers: {sources.join(", ") || "none"}</div>
+        <div style={{ color: "var(--dim)" }}>grid = scaffold · real DEM mesh binds to /dem/heightfield (backend) · Cesium globe = GPU</div>
       </div>
     </div>
   );

@@ -36,7 +36,9 @@ the contract; `vanilla` = still only in the live `stewie/server/web/assets/cockp
 
 | Piece | React | Source | Verify |
 |---|---|---|---|
-| App shell / top bar / tabs / map canvas / command rail | **ported** | `cockpit/src/App.tsx` | `render_under_csp.py` (CSP-clean, shell mounts) |
+| App shell / top bar / tabs / command rail | **ported** | `cockpit/src/App.tsx` | `render_under_csp.py` (CSP-clean, shell mounts) |
+| Map/World 3D canvas (Three.js) | **ported** (thin React boundary: mount-once + imperative-prop + dispose; grid scaffold + rover) | `cockpit/src/panels/MapCanvas3D.tsx` | `render_phase4.py` (CSP-clean, WebGL ctx, paints in swiftshader, lifecycle) |
+| Real DEM mesh + Cesium planetary globe | **gated** (real GPU browser + running backend `/dem/heightfield` + tile service) | — | the user's on-real-browser check |
 | State store (FS-16) | **ported** | `cockpit/src/store.ts` (Zustand) | render harness (truth-disabled-in-OPERATE) |
 | Design system | **shipped** | `@stewie/design-system` (8 components) | `adapters.test.js`, `components.test.tsx`, claude.ai/design |
 
