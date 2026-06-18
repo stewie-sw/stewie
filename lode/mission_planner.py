@@ -270,6 +270,13 @@ class Mission:
     #: budget is penalized (pushed below any feasible ordering); risk_weight adds a recharge-exposure cost.
     #: None -> unconstrained weighted metrics only (byte-identical to a no-constraints plan).
     objective_constraints: dict | None = None
+    #: EP-04: mission-clock windows gating actions/recharge by ACTION CLASS, as allowed [open_s, close_s]
+    #: intervals in mission-clock seconds. Keys: "recharge" (solar/power illumination window for refilling),
+    #: "work" (illumination/thermal window for digging/offload/sinter), "drive" (comms/teleop window for
+    #: inter-site transit). When an action of class C would start outside every allowed interval, the clock
+    #: IDLES to the next interval's open (a "wait" leg); if no future interval exists the action is
+    #: infeasible. None (or a missing class key) -> that class is unconstrained -> byte-identical.
+    mission_windows: dict | None = None
     @property
     def density(self): return body_density(self.body)
 
@@ -429,6 +436,30 @@ def mission_from_dict(payload):
             clean_oc[k] = fv
         if clean_oc:
             kwargs["objective_constraints"] = clean_oc
+    mw = payload.get("mission_windows")                    # EP-04: action-class mission-clock windows
+    if mw is not None:
+        if not isinstance(mw, dict):
+            raise ValueError("'mission_windows' must be an object of {class: [[open_s, close_s], ...]}")
+        allowed_cls = {"recharge", "work", "drive"}
+        clean_mw: dict = {}
+        for cls, ivals in mw.items():
+            if cls not in allowed_cls:
+                raise ValueError(f"unknown mission_window class {cls!r}; allowed: {sorted(allowed_cls)}")
+            if not isinstance(ivals, (list, tuple)):
+                raise ValueError(f"mission_windows[{cls!r}] must be a list of [open_s, close_s] pairs")
+            clean_ivals = []
+            for n, iv in enumerate(ivals):
+                if not isinstance(iv, (list, tuple)) or len(iv) != 2:
+                    raise ValueError(f"mission_windows[{cls!r}][{n}] must be a [open_s, close_s] pair")
+                o = VAL.ensure_finite_scalar(iv[0], f"mission_windows[{cls}][{n}] open")
+                c = VAL.ensure_finite_scalar(iv[1], f"mission_windows[{cls}][{n}] close")
+                if c < o:
+                    raise ValueError(f"mission_windows[{cls!r}][{n}]: close ({c}) must be >= open ({o})")
+                clean_ivals.append([o, c])
+            if clean_ivals:
+                clean_mw[cls] = clean_ivals
+        if clean_mw:
+            kwargs["mission_windows"] = clean_mw
     return Mission(**kwargs)
 
 
@@ -782,6 +813,28 @@ def _make_routes(mission, dem, dem_origin, max_traverse_slope_deg):
     return rd
 
 
+def _window_gate(windows, action_class, t):
+    """EP-04: gate an action of `action_class` against the mission-clock windows.
+
+    `windows` is None or {class: [[open_s, close_s], ...]} in mission-clock seconds. Returns
+    (start_t, wait_s, reason): the time the action may START, the idle wait it incurs, and an
+    infeasibility reason (or None). Falsy `windows` or a missing class key -> UNCONSTRAINED,
+    (t, 0.0, None) -> byte-identical to an un-windowed plan. Otherwise the action may only run inside
+    an allowed interval: already inside one -> run now (no wait); before the next -> idle to its open;
+    past the last interval's close -> cannot run this mission (reason set, caller skips the action)."""
+    if not windows:
+        return t, 0.0, None
+    intervals = windows.get(action_class)
+    if not intervals:
+        return t, 0.0, None
+    for open_s, close_s in sorted((float(a), float(b)) for a, b in intervals):
+        if t <= close_s:                                   # first interval not yet ended
+            if t < open_s:
+                return open_s, open_s - t, None            # idle until the window opens
+            return t, 0.0, None                            # already inside this window
+    return t, 0.0, f"{action_class} window closed (no allowed interval at or after t={t:.0f}s)"
+
+
 def _simulate(mission, trips, routes=None):
     """Battery-aware simulation of an ORDERED trip list (phase-split recharging; intra-trip haul/lift baked
     into each trip). Pure in (mission, trips, routes) so the optimizer can score any candidate order. H-02:
@@ -804,6 +857,7 @@ def _simulate(mission, trips, routes=None):
     # so a cold plan genuinely recharges sooner / does fewer sorties. mission.temp_c None -> derate 1.0
     # -> usable_battery_j == BATTERY_J -> byte-identical to an un-temperatured plan (no test drift).
     usable_battery_j = BATTERY_J * thermal_derate(mission.temp_c)
+    windows = mission.mission_windows                  # EP-04: action-class mission-clock windows (None -> unconstrained)
     pos = list(mission.charger); batt = usable_battery_j; t = 0.0
     cum_mass = 0.0; cum_energy = 0.0; charges = 0; reserve = RESERVE_FRAC * usable_battery_j
     tl = []; per_trip = []; infeasible = []           # C-04: collected reachability / SoC-floor failures
@@ -829,7 +883,18 @@ def _simulate(mission, trips, routes=None):
             infeasible.append(f"stranded at ({pos[0]:.0f},{pos[1]:.0f}): cannot reach the charger to "
                               "recharge on the remaining charge")
             return False
-        _leg(mission.charger); need = usable_battery_j - batt; dur = need / CHARGE_W
+        _leg(mission.charger)
+        # EP-04: solar/power recharge only inside an illumination/power window -- otherwise idle at the
+        # charger until the next window opens (a "wait" leg, no energy drawn); if none remains, infeasible.
+        start_t, wait_s, reason = _window_gate(windows, "recharge", t)
+        if reason is not None:
+            infeasible.append(f"recharge at charger: {reason}")
+            return False
+        if wait_s > 0:
+            tl.append(dict(t0=t, t1=start_t, kind="wait", batt0=batt, batt1=batt, mass=0.0, speed=0.0,
+                           x0=pos[0], y0=pos[1], x1=pos[0], y1=pos[1]))   # parked, awaiting the recharge window
+            t = start_t
+        need = usable_battery_j - batt; dur = need / CHARGE_W
         tl.append(dict(t0=t, t1=t+dur, kind="charge", batt0=batt, batt1=usable_battery_j, mass=0.0, speed=0.0,
                        x0=pos[0], y0=pos[1], x1=pos[0], y1=pos[1]))  # parked at charger
         batt = usable_battery_j; t += dur; charges += 1
@@ -870,6 +935,16 @@ def _simulate(mission, trips, routes=None):
             haul_e = haul_m * DRIVE_J_PER_M
         e = total_e + haul_e + lift_e
         dur = total_dur + (haul_m / DRIVE_SPEED_MS)
+        # EP-04: work (dig/offload/sinter) only inside an illumination/thermal window -- idle to the next
+        # window before starting; if none remains the work cannot be performed (no mass/energy credited).
+        start_t, wait_s, reason = _window_gate(windows, "work", t)
+        if reason is not None:
+            infeasible.append(f"{kind} at ({work_pos[0]:.0f},{work_pos[1]:.0f}): {reason}")
+            return
+        if wait_s > 0:
+            tl.append(dict(t0=t, t1=start_t, kind="wait", batt0=batt, batt1=batt, mass=0.0, speed=0.0,
+                           x0=work_pos[0], y0=work_pos[1], x1=work_pos[0], y1=work_pos[1]))
+            t = start_t
         spent = 0.0; completed = True
         while spent < e - 1e-6:
             usable = batt - reserve
@@ -896,6 +971,16 @@ def _simulate(mission, trips, routes=None):
 
     for tr in trips:
         t0 = t
+        # EP-04: comms/teleop transit window -- the inter-site drive may only begin inside a "drive" window
+        # (e.g. a relay-in-view pass). Idle to the next window; if none remains, the trip is unreachable.
+        d_start, d_wait, d_reason = _window_gate(windows, "drive", t)
+        if d_reason is not None:
+            infeasible.append(f"transit to ({tr['site'][0]:.0f},{tr['site'][1]:.0f}): {d_reason}")
+            per_trip.append(dict(trip=tr, t_start=t0, t_end=t)); continue
+        if d_wait > 0:
+            tl.append(dict(t0=t, t1=d_start, kind="wait", batt0=batt, batt1=batt, mass=0.0, speed=0.0,
+                           x0=pos[0], y0=pos[1], x1=pos[0], y1=pos[1]))
+            t = d_start
         # P-01: only credit a trip's work if the rover actually REACHED its site. A failed transit
         # (unreachable / stranded; recorded in `infeasible` by drive()) means no work was performed
         # there -- skip spend() entirely so no mass / energy / duration / dig entry is credited for a

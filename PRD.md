@@ -538,11 +538,13 @@ CP-06 now reports pad flatness (I11), berm crest-profile vs ordered rise, and re
 | EP-01 | P0 | Energy ledger includes drive, slope/slip, payload, dig, arm/drum motion, observation, LEDs, compute, idle/heater, and recharge losses where modeled. | P | P | P | P |
 | EP-02 | P1 | Dig energy depends on material/density/ice or is explicitly marked constant-model uncertainty. | N | N | N | N |
 | EP-03 | P1 | Distinguish PSR lander/tower power from sunlit solar power. | D | D | D | P |
-| EP-04 | P1 | Mission clock enforces power, illumination, thermal, and communications windows on actions/recharge. | N | N | N | N |
+| EP-04 | P1 | Mission clock enforces power, illumination, thermal, and communications windows on actions/recharge. | D | D | D | N |
 | EP-05 | P1 | Thermal derating and heater/survival demand affect usable battery and action availability. | D | D | D | N |
 | EP-06 | P1 | Meerkat/arm posture and camera/LED policies include transition and dwell energy. | N | N | N | G |
 | EP-07 | P2 | Dust accumulation affects optics, joints, thermal surfaces, and maintenance actions. | N | N | N | N |
 | EP-08 | P1 | Endurance and reports use the selected `VehicleModel`, not global IPEx constants. | D | D | D | N |
+
+EP-04 is enforced in the battery-aware simulator: `Mission.mission_windows` = `{class: [[open_s, close_s], ...]}` for class in `recharge` (solar/power illumination), `work` (illumination/thermal), and `drive` (comms/teleop transit). `_window_gate` idles the mission clock to the next allowed interval before each gated action (a `wait` leg, no battery drawn); an action with no remaining window is skipped and recorded infeasible. Threaded through `mission_from_dict` and validated at the `/plan` boundary; `None` (or a missing class) is unconstrained and byte-identical to an un-windowed plan. Tests: `lode/test_ep04_mission_windows.py`. Q stays N: the window schedules are operator-supplied, not yet driven by real lunar day/night illumination or DTE comms ephemerides; gating is also at action-start granularity (an action that begins inside a window may run past its close). Cockpit authoring control is pending.
 
 ### 7.10 Fleet Planning
 
