@@ -30,6 +30,7 @@ APID_TLM_IMG = 0x066
 SAFE_REASON_OPERATOR = 0
 SAFE_REASON_WATCHDOG = 1          # SF-01: command-timeout dead-man trip
 SAFE_REASON_HAZARD = 2
+SAFE_REASON_LINK_STALL = 3        # NV-12: live command/telemetry stream stalled (acks past the deadline)
 
 
 # --- Commands (TC, ground -> rover) ---------------------------------------------------------------
