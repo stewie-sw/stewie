@@ -21,4 +21,7 @@ solnav
 design-system/dist
 design-system/ds-bundle
 design-system/.ds-sync
-**/validation
+# only the cockpit's Playwright screenshot output — NOT a glob: `**/validation` would also exclude the
+# repo-root validation/ dir that Dockerfile.backend ships (COPY validation ./validation), breaking the
+# backend build.
+cockpit/validation

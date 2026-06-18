@@ -1,10 +1,9 @@
-# Phase 5 — cockpit cutover plan (image BUILT + serve-tested; live flip awaits Aaron's go)
+# Phase 5 — cockpit cutover (DEPLOYED + verified live 2026-06-18)
 
-**Date:** 2026-06-18 · **Status:** the React image is built, serve-tested, and browser-verified on this
-deploy host. The only remaining step is the **live flip**, which swaps what `app.stewie.space` serves —
-a public, outward action. Per the operating rules it waits for an explicit yes; the rollback is one
-command and is named below. Everything up to (and including) building + serve-testing the image has been
-done; nothing public has changed.
+**Date:** 2026-06-18 · **Status:** ✅ **LIVE.** The React cockpit was flipped on `app.stewie.space`
+(explicit go) and verified end-to-end through Cloudflare with a real browser. The vanilla cockpit + its
+Dockerfile/nginx config remain on disk and in git, so the rollback below restores it in one deploy. Only
+`stewie-frontend-1` was recreated; backend + ros2 were never touched.
 
 ## Approach: serve a prebuilt bundle (mirrors the live Dockerfile.frontend)
 
@@ -55,29 +54,52 @@ not committed, exactly as the vanilla image's curl-vendored Cesium is not commit
 - Prior in-session verification of the same `dist`: vitest 16/16; six Playwright harnesses (phase1/2/3/4b/4c,
   globe with real Moon imagery, perception with the real `/evidence` fixture) all PASS.
 
-## The flip + rollback (the only remaining, public step)
+## The flip + rollback — use `--no-deps` (build ONLY the frontend)
 
 This host **is** the deploy host (`stewie-frontend-1` on `127.0.0.1:8000`, cloudflared at
-`/etc/cloudflared/config.yml`, `app.stewie.space` reachable → HTTP 200). The flip is reversible in ~1 min
-and verifiable immediately.
+`/etc/cloudflared/config.yml`, `app.stewie.space` → HTTP 200). The flip is reversible in ~1 min.
 
-**Flip (swaps the public cockpit):**
+**IMPORTANT — never use `up -d --build frontend`.** In this compose version `--build` rebuilds the
+service's dependencies too, so it triggers a **backend** image build, which is slow and out of scope for a
+frontend flip. Build the one service explicitly, then recreate it with `--no-deps` so the backend + ros2
+containers are never touched:
+
+**Flip (swaps the public cockpit) — what was run:**
 ```
 cd /mnt/projects/stewie/code
-( cd design-system && npm ci && npm run build ) && ( cd cockpit && npm ci && npm run build )   # ensure fresh dist
-docker compose -f deploy/compose.yml -f deploy/compose.react.yml up -d --build frontend
+( cd design-system && npm run build ) && ( cd cockpit && npm run build )                     # fresh dist
+docker compose -f deploy/compose.yml -f deploy/compose.react.yml build frontend              # build ONLY frontend
+docker compose -f deploy/compose.yml -f deploy/compose.react.yml up -d --no-deps --force-recreate frontend
 ```
-**Verify (must do, through Cloudflare — not just :8000):**
+**Verify (through Cloudflare — not just :8000):**
 ```
 curl -sS -D - https://app.stewie.space/ | grep -iE "STEWIE Cockpit|cf-cache-status|content-security-policy"
 ```
 plus a real-browser sign-in on `https://app.stewie.space`.
 
-**Rollback (restores the vanilla cockpit in one deploy):**
+**Rollback (restores the vanilla cockpit in one deploy) — frontend-only, no backend build:**
 ```
-docker compose -f deploy/compose.yml up -d --build frontend     # rebuilds from the untouched Dockerfile.frontend
+docker compose -f deploy/compose.yml build frontend                                          # vanilla Dockerfile.frontend
+docker compose -f deploy/compose.yml up -d --no-deps --force-recreate frontend
 ```
 The vanilla `Dockerfile.frontend` + `cockpit.js` are unchanged on disk and in git, so this is a clean revert.
+
+## Verified LIVE (2026-06-18, post-flip)
+
+- Local origin `:8000` (what cloudflared serves): `/` → 200, **604 B** React index (was 89 324 B vanilla),
+  "STEWIE Cockpit" + hashed `/assets/index-CXL9ESjB.js`; `/healthz` → 200. Frontend healthy in 16 s.
+- Public through Cloudflare: `https://app.stewie.space/` → 200, React index, `cf-cache-status: DYNAMIC`
+  (no stale vanilla HIT), CSP header present; hashed `/assets/index-*.js` → 200 (685 KB, `MISS` → now
+  edge-cached fresh, content-hashed so no `?v=` trap); `/cesium/Cesium.js` → 200 (5 MB); apex
+  `stewie.space` still serves the landing page (host routing intact).
+- Real browser (Playwright) on `https://app.stewie.space`: app mounts, JS + Cesium load 200, `/auth/me`
+  401, sign-in screen renders, **zero page errors**.
+- `.dockerignore` regression fixed in the same pass: a `**/validation` glob added during this rewrite was
+  excluding the repo-root `validation/` that `Dockerfile.backend` ships → scoped to `cockpit/validation`;
+  `docker compose build backend` re-verified green.
+
+**Residual (only a signed-in run confirms):** a full authed mission flow (sign in → author → `/plan`)
+against the live backend — the cockpit is invitation-only and this run had no operator credentials.
 
 ## After a healthy soak (follow-up, not now)
 
