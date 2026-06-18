@@ -525,7 +525,7 @@ solar power scheduling.
 | CP-05 | P1 | Footprints support rectangle, circle, corridor, and polygon with orientation; scalar-area squares are legacy input only. | D | D | D | NA |
 | CP-06 | P1 | Acceptance includes pad flatness, berm profile, bearing/compaction, repose stability, mass, time, and energy. | P | P | P | P |
 | CP-07 | P1 | Plan uncertainty carries DEM, material, slip, dig-rate, drum-fill, localization, and power-window uncertainty into feasibility/time/energy bands. | P | N | P | N |
-| CP-08 | P1 | Planner objectives support hard constraints and risk terms, not only unconstrained weighted metrics. | N | N | N | NA |
+| CP-08 | P1 | Planner objectives support hard constraints and risk terms, not only unconstrained weighted metrics. | D | D | D | NA |
 | CP-09 | P1 | Construction actions mutate `WorldState`; routing, illumination, observability, and acceptance consume the updated terrain. | P | N | P | NA |
 | CP-10 | P1 | Sinter remains unavailable for baseline IPEx; enabling it requires a distinct tool/power model and capability-qualified vehicle. | D | D | D | P |
 

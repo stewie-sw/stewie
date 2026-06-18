@@ -265,6 +265,11 @@ class Mission:
     #: (>=0 C, derate 1.0, byte-identical to an un-temperatured plan); a cold value shrinks the USABLE
     #: pack (thermal_derate) so the battery-aware sim plans fewer/shorter sorties and recharges sooner.
     temp_c: float | None = None
+    #: CP-08: optional HARD CONSTRAINTS + risk term for order sequencing, beyond the weighted objective.
+    #: {max_time_s, max_energy_J, max_charges, max_distance_m, risk_weight}. An ordering that overshoots a
+    #: budget is penalized (pushed below any feasible ordering); risk_weight adds a recharge-exposure cost.
+    #: None -> unconstrained weighted metrics only (byte-identical to a no-constraints plan).
+    objective_constraints: dict | None = None
     @property
     def density(self): return body_density(self.body)
 
@@ -409,6 +414,21 @@ def mission_from_dict(payload):
                 raise ValueError(f"keepout {j} must be {{x,y,r}} (circle), {{x0,y0,x1,y1}} (rectangle), "
                                  f"or {{points}} (polygon)")
         kwargs["keepouts"] = tuple(clean)
+    oc = payload.get("objective_constraints")              # CP-08: hard budgets + risk for sequencing
+    if oc is not None:
+        if not isinstance(oc, dict):
+            raise ValueError("'objective_constraints' must be an object of {budget: value}")
+        allowed = set(_CONSTRAINT_CAPS) | {"risk_weight"}
+        clean_oc = {}
+        for k, v in oc.items():
+            if k not in allowed:
+                raise ValueError(f"unknown objective constraint {k!r}; allowed: {sorted(allowed)}")
+            fv = VAL.ensure_finite_scalar(v, f"objective_constraints[{k}]")
+            if fv < 0:
+                raise ValueError(f"objective constraint {k!r} must be >= 0 (got {fv})")
+            clean_oc[k] = fv
+        if clean_oc:
+            kwargs["objective_constraints"] = clean_oc
     return Mission(**kwargs)
 
 
@@ -983,15 +1003,43 @@ def _objective_optimality(resolved, objective):
     return "heuristic", False
 
 
+_CONSTRAINT_CAPS = {"max_time_s": "time_s", "max_energy_J": "energy_J",
+                    "max_charges": "charges", "max_distance_m": "distance_m"}
+
+
+def _constraint_penalty(core, constraints) -> float:
+    """CP-08: the hard-constraint + risk penalty added to an ordering's score. A candidate whose simulated
+    `core` overshoots a budget (max_time_s / max_energy_J / max_charges / max_distance_m) gets a LARGE
+    penalty scaled by the fractional overshoot, so any constraint-feasible ordering ranks below an
+    infeasible one is impossible -- feasible always wins, and among infeasible ones the least-overshooting
+    is preferred. ``risk_weight`` adds a recharge-exposure cost (more recharges = more operational risk).
+    Returns 0.0 when ``constraints`` is None/empty or nothing is violated (byte-identical default)."""
+    if not constraints:
+        return 0.0
+    pen = 0.0
+    for cap_key, metric in _CONSTRAINT_CAPS.items():
+        cap = constraints.get(cap_key)
+        if cap is not None and metric in core:
+            v, c = float(core[metric]), float(cap)
+            if v > c:
+                pen += 1e6 * (1.0 + (v - c) / max(abs(c), 1e-9))   # big + overshoot-scaled (least-bad first)
+    rw = constraints.get("risk_weight")
+    if rw is not None and "charges" in core:
+        pen += float(rw) * float(core["charges"])
+    return pen
+
+
 def _make_core_scorer(mission, trips, objective, routes=None):
     """Return a function core -> sortable scalar (lower = better). For a single objective this is the raw
     metric (max objectives negated). For a WEIGHTED multi-objective it is the weighted sum of each metric
     normalized by a reference plan (the nearest-neighbour order), so differently-scaled metrics combine.
-    H-02: `routes` is threaded into the reference simulation so the normalization uses routed geometry too."""
+    H-02: `routes` is threaded into the reference simulation so the normalization uses routed geometry too.
+    CP-08: a mission-level hard-constraint + risk penalty is added on top (0 when unset -> byte-identical)."""
     weights = parse_objective(objective)
+    cons = getattr(mission, "objective_constraints", None)
     if len(weights) == 1:
         (name,) = weights
-        return lambda core: _score(core, name)[0]
+        return lambda core: _score(core, name)[0] + _constraint_penalty(core, cons)
     ref = _simulate(mission, [trips[i] for i in _nn_order(trips, mission)], routes)[2]   # reference scales
 
     def scorer(core):
@@ -1010,7 +1058,7 @@ def _make_core_scorer(mission, trips, objective, routes=None):
             else:
                 norm = 1.0 if (abs(raw) <= 1e-9 and abs(r) <= 1e-9) else max(r, 0.0) / max(raw, 1e-9)
             s += w * norm
-        return s
+        return s + _constraint_penalty(core, cons)
     return scorer
 
 
