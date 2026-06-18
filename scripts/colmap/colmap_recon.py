@@ -190,7 +190,7 @@ def cmd_render_arc(args: argparse.Namespace) -> int:
     views_dir = out_dir
     os.makedirs(views_dir, exist_ok=True)
 
-    render_sh = os.path.join(repo, "godot_sidecar", "render_layers.sh")
+    render_sh = os.path.join(repo, "stewie", "godot", "render_layers.sh")   # 2026-06-09 monorepo move (was godot_sidecar/)
     intr = intrinsics_from_vertical_fov(SIDECAR_POSE_FOV_DEG, args.width, args.height)
 
     cameras = []
@@ -218,7 +218,7 @@ def cmd_render_arc(args: argparse.Namespace) -> int:
             "--out", png_abs,
         ]
         print(f"render-arc: view {name} pos=({px:.2f},{py:.2f},{pz:.2f})")
-        r = subprocess.run(cmd, cwd=os.path.join(repo, "godot_sidecar"),
+        r = subprocess.run(cmd, cwd=os.path.join(repo, "stewie", "godot"),
                            capture_output=True, text=True)
         if r.returncode != 0 or not os.path.isfile(png_abs):
             sys.stderr.write(r.stdout[-2000:] + "\n" + r.stderr[-2000:] + "\n")
@@ -390,8 +390,9 @@ def cmd_recon(args: argparse.Namespace) -> int:
     print(f"recon: feeding COLMAP EXACT known PINHOLE intrinsics {cam_params}")
 
     colmap = args.colmap_bin
+    gpu = "0" if getattr(args, "no_gpu", False) else "1"   # CPU SIFT when the host driver predates the image's CUDA
 
-    # (a) feature extraction with the EXACT known intrinsics, single shared camera, GPU.
+    # (a) feature extraction with the EXACT known intrinsics, single shared camera.
     _run([
         colmap, "feature_extractor",
         "--database_path", db_path,
@@ -399,14 +400,14 @@ def cmd_recon(args: argparse.Namespace) -> int:
         "--ImageReader.camera_model", "PINHOLE",
         "--ImageReader.single_camera", "1",
         "--ImageReader.camera_params", cam_params,
-        "--SiftExtraction.use_gpu", "1",
+        "--SiftExtraction.use_gpu", gpu,
     ], "feature_extractor")
 
-    # (b) exhaustive matching (small N views) on the GPU.
+    # (b) exhaustive matching (small N views).
     _run([
         colmap, "exhaustive_matcher",
         "--database_path", db_path,
-        "--SiftMatching.use_gpu", "1",
+        "--SiftMatching.use_gpu", gpu,
     ], "exhaustive_matcher")
 
     # (b cont.) sparse SfM. Critically forbid refining the (known-exact) intrinsics.
@@ -453,8 +454,13 @@ def cmd_recon(args: argparse.Namespace) -> int:
     colmap_imgs = parse_images_txt(os.path.join(model, "images.txt"))
     n_reg = len(colmap_imgs)
 
-    # (c) OPTIONAL dense MVS, gated behind --dense.
-    if args.dense:
+    # (c) OPTIONAL dense MVS, gated behind --dense. patch_match_stereo is CUDA-only (no CPU path), so a
+    # CPU/--no-gpu run cannot do dense -- skip it with a clear note instead of crashing.
+    if args.dense and gpu == "0":
+        print("recon: --dense needs CUDA (patch_match_stereo has no CPU path); skipping dense MVS on this "
+              "host (GPU driver predates the image's CUDA). The sparse reconstruction above is the artifact.",
+              file=sys.stderr)
+    elif args.dense:
         dense_dir = os.path.join(work, "dense")
         os.makedirs(dense_dir, exist_ok=True)
         _run([colmap, "image_undistorter",
@@ -595,6 +601,9 @@ def main() -> int:
     rc.add_argument("--out", default="out/colmap/recon/colmap_trajectory.json")
     rc.add_argument("--dense", action="store_true", help="also run dense MVS (image_undistorter -> patch_match_stereo -> stereo_fusion)")
     rc.add_argument("--colmap-bin", default="colmap", dest="colmap_bin")
+    rc.add_argument("--no-gpu", action="store_true", dest="no_gpu",
+                    help="CPU SIFT extraction+matching (use when the host GPU driver predates the image's "
+                         "CUDA); dense MVS is CUDA-only so it is skipped under --no-gpu")
     rc.set_defaults(func=cmd_recon)
 
     args = ap.parse_args()
