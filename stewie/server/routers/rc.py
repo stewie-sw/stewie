@@ -57,6 +57,38 @@ def rc_command(body: dict, identity: str = Depends(require_role("operator"))):
     return {"ok": True, "accepted": kind, "watchdog_tripped": _RC_WATCHDOG.tripped}
 
 
+@router.post("/rc/plan_ros")
+def rc_plan_ros(body: dict, identity: str = Depends(require_role("operator"))):
+    """NV-11 + NV-12 + AG-08: lower a LIVE mission's plan to the ROS2 command messages a Space ROS /
+    Nav2 / MoveIt executive consumes (paths / motion / arm-drum / observation goals + replan events),
+    framed on a versioned StreamSession (monotonic seq + backpressure + the SF-01 link-stall safe-stop).
+
+    operator+ is enforced by the route gate; AG-08 bars the sandbox -- the mission MUST be a PUBLISHED
+    (live) mission, so a trainee's draft can be simulated but is structurally unable to lower to a real
+    rover. rclpy is not required here: the lowering returns message-shaped dicts the live ROS2 node
+    publishes; this route is the product-path seam (NV-11/NV-12 egress under the AG-08 interlock)."""
+    from lode import mission_planner as MP
+    from lode import planner_views as PV
+    from stewie.bridge.plan_lowering import lower_plan_ir
+    from stewie.bridge.stream import StreamSession
+    name = body.get("mission")
+    if name is None:
+        raise HTTPException(status_code=400, detail="plan_ros requires a 'mission' (the live mission to lower)")
+    saved = OBJ.load_mission(str(name), namespace="live")
+    if saved is None:                                     # AG-08: only a published (live) mission lowers to ROS
+        raise HTTPException(status_code=403, detail=f"mission {name!r} is not published (live); only a live "
+                            "mission can be lowered to rover ROS commands")
+    lowered = lower_plan_ir(PV.plan_ir(MP.mission_from_dict(saved)))
+    groups = ("paths", "motion_goals", "work_goals", "observation_goals", "replan_events")
+    sess = StreamSession()
+    now = time.monotonic()
+    frames = [sess.send({"topic": g, "msg": m}, now=now) for g in groups for m in lowered[g]]
+    log_event(identity, "rc.plan_ros", str(name))
+    return {"ok": True, "plan_id": lowered["plan_id"], "ir_version": lowered["ir_version"],
+            "frames": frames, "stream": sess.status(),
+            "counts": {g: len(lowered[g]) for g in groups}}
+
+
 @router.get("/rc/telemetry")
 def rc_telemetry(_auth: None = Depends(require_auth)):
     """#66: drain the backend telemetry (Pose/Leg) + the SF-01 watchdog state. The watchdog ticks
