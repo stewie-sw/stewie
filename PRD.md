@@ -529,6 +529,8 @@ solar power scheduling.
 | CP-09 | P1 | Construction actions mutate `WorldState`; routing, illumination, observability, and acceptance consume the updated terrain. | P | N | P | NA |
 | CP-10 | P1 | Sinter remains unavailable for baseline IPEx; enabling it requires a distinct tool/power model and capability-qualified vehicle. | D | D | D | P |
 
+CP-06 now reports pad flatness (I11), berm crest-profile vs ordered rise, and repose-angle flank stability (`validate_plan` `berm_profile`/`repose`, additive and reported in the acceptance dict, not folded into `feasible`), alongside the existing mass conservation and the simulated time/energy totals. Tests: `lode/test_cp06_acceptance.py`. The one remaining sub-item is bearing-capacity / compaction-state acceptance (needs a Terzaghi-style bearing model plus a compaction-state field from FORGE), which is why I/X/V stay P rather than D.
+
 ### 7.9 Energy, Thermal, Power, and Operations
 
 | ID | P | Requirement and acceptance | I | X | V | Q |

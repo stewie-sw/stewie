@@ -2189,6 +2189,7 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
         ri = np.clip(((y0 + (np.arange(H) + 0.5) * cell_m + oy) / _dem_cell).astype(int), 0, Z.shape[0] - 1)
         cs.datum = Z[np.ix_(ri, ci)] - regolith_depth_m
     m0 = cs.total_mass()
+    datum_h0 = cs.derive_height().copy()                   # CP-06: pre-build surface (berm rise vs target)
     rr, cc = np.meshgrid(np.arange(H), np.arange(W), indexing="ij")
 
     def _mask(o):
@@ -2240,6 +2241,35 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
         flat_rmses.append(float(np.sqrt(np.mean((h - h.mean()) ** 2))))
     as_built_worst = max(flat_rmses) if flat_rmses else 0.0
     as_built_mean = (sum(flat_rmses) / len(flat_rmses)) if flat_rmses else 0.0
+    # CP-06: berm-profile + repose acceptance (additive, REPORTED -- like flatness, NOT folded into
+    # `feasible`). berm_profile: per fill order, did the executed crest rise reach the ordered depth_m
+    # (as-built mean height above the pre-build datum over the footprint) within tol? repose: the as-built
+    # side-slope of each worked footprint must not exceed the soil's angle of repose (phi), else the pile
+    # slumps -- a stability gate the flatness RMSE alone misses (a tall steep berm can be flat-topped yet
+    # over-steep on its flanks). Reported, not gated: berm under-build / over-steepness is a quality flag
+    # for the operator, not a material-conservation infeasibility (which `feasible` already covers).
+    repose_limit_deg = math.degrees(float(mission_soil_params(mission).phi_rad))
+    as_built_slope = slope_deg_map(as_built, cell_m)
+    berm_profile = []
+    for o in fills:
+        mask = _mask(o)
+        if int(mask.sum()) < 2:
+            continue
+        rise = float(as_built[mask].mean() - datum_h0[mask].mean())
+        berm_profile.append({"action": o.action, "target_rise_m": round(float(o.depth_m), 4),
+                             "as_built_rise_m": round(rise, 4),
+                             "within_tol": bool(abs(rise - float(o.depth_m)) <= accept_flatness_tol_m)})
+    repose = []
+    for o in mission.orders:
+        mask = _mask(o)
+        if int(mask.sum()) < 2:
+            continue
+        worst_slope = float(as_built_slope[mask].max())
+        repose.append({"action": o.action, "max_slope_deg": round(worst_slope, 2),
+                       "repose_limit_deg": round(repose_limit_deg, 2),
+                       "stable": bool(worst_slope <= repose_limit_deg)})
+    berm_profile_pass = all(b["within_tol"] for b in berm_profile) if berm_profile else True
+    repose_pass = all(r["stable"] for r in repose) if repose else True
     # I6 + I11: terrain-aware siting against the real DEM. A pad on a crater wall fails even when material
     # is available. dem = (heightmap, cell_m). M11: the order's LOCAL x,y is anchored to a real DEM site via
     # dem_origin (DEM meters where local (0,0) sits). I11: gate the WHOLE footprint, not just the center cell
@@ -2286,7 +2316,8 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
         # re-execution is materially identical -- this is acceptance, not a redundant second simulator.
         "acceptance_scope": {
             "covers": ["mass_conservation", "datum_floor_feasibility", "drum_supply",
-                       "slope_siting", "off_dem_siting", "as_built_flatness"],
+                       "slope_siting", "off_dem_siting", "as_built_flatness",
+                       "berm_profile", "repose_stability"],
             "defers_to_totals": ["route_feasibility", "battery_reserve", "sequence_precedence",
                                  "drum_capacity_shuttle_cycles"]},
         "drum_capacity_kg": float(drum_cap),
@@ -2306,6 +2337,12 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
         "as_built_flatness_mean_m": float(as_built_mean),
         "as_built_tol_m": float(accept_flatness_tol_m),
         "as_built_pass": bool(as_built_worst <= accept_flatness_tol_m),
+        # CP-06: berm crest-profile (rise vs ordered depth) + repose-angle stability (additive, reported):
+        "berm_profile": berm_profile,                          # per fill: target vs as-built crest rise
+        "berm_profile_pass": bool(berm_profile_pass),
+        "repose": repose,                                      # per order: as-built flank slope vs phi
+        "repose_pass": bool(repose_pass),
+        "repose_limit_deg": round(float(repose_limit_deg), 2),
     }
 
 
