@@ -55,3 +55,37 @@ def test_blocked_leg_and_infeasible_plan_emit_replan_events():
     reasons = {e["reason"] for e in out["replan_events"]}
     assert reasons == {"leg_unreachable", "plan_infeasible"}
     assert out["paths"] == [{"header": {"frame_id": "map"}, "action_id": 0, "vehicle": 0, "poses": []}]
+
+
+def test_posture_plan_assigns_and_legally_sequences_postures():  # [REQ:AM-01]
+    # AM-01 X: the lowering drives the posture FSM, so each action declares the posture the executive must
+    # command and every realized transition is legal under stewie.specs.posture_machine (the FSM is no island).
+    from stewie.specs.posture_machine import PostureMachine, can_transition
+    out = lower_plan_ir(_ir())
+    # the real IR is GoTo, CutHaulFill, GoTo, Excavate -> TRANSIT, DIG, TRANSIT, DIG
+    assert [s["target_posture"] for s in out["posture_plan"]] == ["TRANSIT", "DIG", "TRANSIT", "DIG"]
+    # replaying every entered posture through a fresh machine (starts BRAKED_HOLD) is legal end-to-end
+    m = PostureMachine()
+    for step in out["posture_plan"]:
+        for p in step["entered"]:
+            ok, why = can_transition(m.state, p)
+            assert ok, (m.state, p, why)
+            assert m.transition(p)
+    # the per-action goals carry the posture the executive holds for that action
+    assert all(g.get("posture") == "TRANSIT" for g in out["motion_goals"])
+    assert {g["op"]: g.get("posture") for g in out["work_goals"]} == {"CutHaulFill": "DIG", "Excavate": "DIG"}
+
+
+def test_illegal_direct_posture_inserts_legal_intermediate():  # [REQ:AM-01]
+    # Observe (MEERKAT) then Excavate (DIG): MEERKAT->DIG is illegal -> the FSM must pass through TRANSIT.
+    ir = {"plan_id": "z", "schema_version": "1.0", "feasible": True, "actions": [
+        {"id": 1, "op": "Observe", "vehicle": 0, "to": [1.0, 1.0]},
+        {"id": 2, "op": "Excavate", "vehicle": 0, "site": [2.0, 2.0], "mass_kg": 5.0,
+         "expect": {"energy_J": 1.0}},
+    ]}
+    out = lower_plan_ir(ir)
+    obs = next(s for s in out["posture_plan"] if s["action_id"] == 1)
+    exc = next(s for s in out["posture_plan"] if s["action_id"] == 2)
+    assert obs["target_posture"] == "MEERKAT" and obs["entered"] == ["TRANSIT", "MEERKAT"]  # from BRAKED_HOLD
+    assert exc["target_posture"] == "DIG" and "TRANSIT" in exc["entered"] and exc["entered"][-1] == "DIG"
+    assert out["observation_goals"][0]["posture"] == "MEERKAT"
