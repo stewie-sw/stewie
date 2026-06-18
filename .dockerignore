@@ -13,15 +13,3 @@ solnav
 
 # keep the landing brand assets (the *.png rule above must not drop them)
 !stewie/server/web/**
-
-# node_modules + source build trees are never shipped in the context. EXCEPTION: cockpit/dist IS the
-# shipped artifact — the React Dockerfile (Dockerfile.frontend.react) COPYs it into nginx, mirroring how
-# the vanilla Dockerfile.frontend COPYs its hand-written static assets. Build it on the host first.
-**/node_modules
-design-system/dist
-design-system/ds-bundle
-design-system/.ds-sync
-# only the cockpit's Playwright screenshot output — NOT a glob: `**/validation` would also exclude the
-# repo-root validation/ dir that Dockerfile.backend ships (COPY validation ./validation), breaking the
-# backend build.
-cockpit/validation
