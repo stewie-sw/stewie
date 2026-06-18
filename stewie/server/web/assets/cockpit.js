@@ -3539,6 +3539,31 @@ if ($("exec3dwire")) {
   };
 }
 
+// path definition on the 3D terrain (Aaron 2026-06-17): click the surface to drop waypoints, defining a
+// path against the REAL relief (the Cesium globe is general plotting; THIS is accurate). Live len+slope.
+let PATH3D_ON = false;
+function renderPath3DStats() {
+  const el = $("path3dstats"); if (!el || !window.STEWIE3D || !STEWIE3D.pathStats) return;
+  const s = STEWIE3D.pathStats();
+  if (!s.n) { el.innerHTML = '<span style="opacity:.6">No waypoints — click the 3D terrain to start the path.</span>'; return; }
+  const col = (d) => (d > 25 ? "#e8273f" : "var(--accent)");
+  const legs = s.legs.map((l, i) => `L${i + 1} <b>${l.len_m.toFixed(1)}m</b>@<span style="color:${col(l.slope_deg)}">${l.slope_deg.toFixed(0)}°</span>`).join(" · ");
+  el.innerHTML = `<b>${s.n}</b> waypoints · path <b>${s.total_len_m.toFixed(1)} m</b> · max slope `
+    + `<b style="color:${col(s.max_slope_deg)}">${s.max_slope_deg.toFixed(1)}°</b>` + (legs ? "<br>" + legs : "");
+}
+if ($("pathdef3d")) $("pathdef3d").onclick = () => {
+  PATH3D_ON = !PATH3D_ON;
+  if (PATH3D_ON && typeof TD3D_ON !== "undefined" && !TD3D_ON && $("exec3d")) $("exec3d").click();  // open the 3D terrain to click on
+  $("pathdef3d").style.borderColor = PATH3D_ON ? "var(--accent)" : "";
+  if ($("path3dctl")) $("path3dctl").style.display = PATH3D_ON ? "block" : "none";
+  if ($("path3dstats")) $("path3dstats").style.display = PATH3D_ON ? "block" : "none";
+  if (window.STEWIE3D && STEWIE3D.setPathEdit) { STEWIE3D.setPathEdit(PATH3D_ON); STEWIE3D.onPathChange(renderPath3DStats); }
+  renderPath3DStats();
+  setQ(PATH3D_ON ? "Path-def ON — click the 3D terrain to drop waypoints on the surface" : "Path-def off");
+};
+if ($("pathundo")) $("pathundo").onclick = () => { if (window.STEWIE3D && STEWIE3D.undoWaypoint) STEWIE3D.undoWaypoint(); renderPath3DStats(); };
+if ($("pathclear")) $("pathclear").onclick = () => { if (window.STEWIE3D && STEWIE3D.clearWaypoints) STEWIE3D.clearWaypoints(); renderPath3DStats(); };
+
 // ---- compare algorithms: POST /compare -> a table sorted by the chosen objective --------------
 qel("qcompare").onclick = async () => {
   if (!ORDERS.length) { setQ("add at least one order first"); return; }

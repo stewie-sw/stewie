@@ -33,6 +33,7 @@ function mount(container) {
   S.scene.add(new THREE.AmbientLight(0x3a4456, 0.7));
   S.group = new THREE.Group();
   S.scene.add(S.group);
+  S.raycaster = new THREE.Raycaster();                       // path-def: click -> terrain-surface waypoint
 
   // orbit state (spherical around target); drag = rotate, wheel = zoom
   S.az = Math.PI * 0.25; S.el = Math.PI * 0.34; S.dist = 600;
@@ -55,10 +56,15 @@ function _resize(container) {
 }
 
 function _bindControls(el) {
-  let drag = false, px = 0, py = 0;
+  let drag = false, px = 0, py = 0, dx0 = 0, dy0 = 0;
   el.style.cursor = "grab";
-  el.addEventListener("pointerdown", (e) => { drag = true; px = e.clientX; py = e.clientY; el.style.cursor = "grabbing"; el.setPointerCapture(e.pointerId); });
-  el.addEventListener("pointerup", (e) => { drag = false; el.style.cursor = "grab"; try { el.releasePointerCapture(e.pointerId); } catch (_) { /* */ } });
+  el.addEventListener("pointerdown", (e) => { drag = true; px = e.clientX; py = e.clientY; dx0 = e.clientX; dy0 = e.clientY; el.style.cursor = "grabbing"; el.setPointerCapture(e.pointerId); });
+  el.addEventListener("pointerup", (e) => {
+    drag = false; el.style.cursor = S._editPath ? "crosshair" : "grab";
+    try { el.releasePointerCapture(e.pointerId); } catch (_) { /* */ }
+    // a CLICK (not an orbit-drag) in path-edit mode drops a waypoint on the terrain surface
+    if (S._editPath && Math.hypot(e.clientX - dx0, e.clientY - dy0) < 6) _pickWaypoint(el, e);
+  });
   el.addEventListener("pointermove", (e) => {
     if (!drag) return;
     S.az -= (e.clientX - px) * 0.006;
@@ -240,7 +246,68 @@ function setLander3D(x, y) {
   S.lander = g; S.group.add(g);
 }
 
+// --- path definition (Aaron 2026-06-17): click the 3D terrain to drop waypoints ON the real surface, so
+// a path is defined against the actual relief (the Cesium globe is general plotting; THIS is accurate).
+// Markers + a polyline ride the surface; per-leg length/slope come from the same bilinear heightAt. ---
+function _pickWaypoint(el, e) {
+  if (!S.mesh || !S.raycaster) return;
+  const rect = el.getBoundingClientRect();
+  const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1,
+                                -((e.clientY - rect.top) / rect.height) * 2 + 1);
+  S.raycaster.setFromCamera(ndc, S.camera);
+  const hits = S.raycaster.intersectObject(S.mesh, false);
+  if (hits.length) _addWaypoint(hits[0].point.x, hits[0].point.z);   // world x=East=order x, z=North=order y
+}
+function _addWaypoint(x, y) {
+  S.waypoints = S.waypoints || [];
+  S.waypoints.push([x, y]);
+  _redrawPlan();
+  if (S._onPath) S._onPath(getWaypoints());
+}
+function _redrawPlan() {
+  if (S.planGroup) {
+    S.group.remove(S.planGroup);
+    S.planGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); });
+  }
+  S.planGroup = new THREE.Group();
+  const wp = S.waypoints || [], r = Math.max(1.2, (S.win || 300) * 0.01), v = [];
+  wp.forEach(([x, y], i) => {
+    const h = heightAt(x, y) + r;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10),
+      new THREE.MeshStandardMaterial({ color: i === 0 ? 0x39d98a : 0x8affd0, emissive: 0x0c3a28, roughness: 0.4 }));
+    m.position.set(x, h, y); S.planGroup.add(m);
+    v.push(x, h, y);
+  });
+  if (v.length >= 6) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(v, 3));
+    S.planGroup.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x39d98a })));
+  }
+  S.group.add(S.planGroup);
+}
+function setPathEdit(on) {
+  S._editPath = !!on;
+  if (S.renderer && S.renderer.domElement.parentElement)
+    S.renderer.domElement.parentElement.style.cursor = on ? "crosshair" : "grab";
+}
+function onPathChange(cb) { S._onPath = cb; }
+function getWaypoints() { return (S.waypoints || []).map((p) => [p[0], p[1]]); }
+function undoWaypoint() { if (S.waypoints && S.waypoints.length) { S.waypoints.pop(); _redrawPlan(); if (S._onPath) S._onPath(getWaypoints()); } }
+function clearWaypoints() { S.waypoints = []; _redrawPlan(); if (S._onPath) S._onPath([]); }
+function pathStats() {
+  const wp = S.waypoints || [], legs = []; let total = 0, maxslope = 0;
+  for (let i = 1; i < wp.length; i++) {
+    const dx = wp[i][0] - wp[i - 1][0], dy = wp[i][1] - wp[i - 1][1];
+    const dz = heightAt(wp[i][0], wp[i][1]) - heightAt(wp[i - 1][0], wp[i - 1][1]);
+    const horiz = Math.hypot(dx, dy), len = Math.hypot(horiz, dz);
+    const slope = horiz > 1e-6 ? Math.atan2(Math.abs(dz), horiz) * 180 / Math.PI : 0;
+    legs.push({ len_m: len, slope_deg: slope }); total += len; maxslope = Math.max(maxslope, slope);
+  }
+  return { legs, total_len_m: total, max_slope_deg: maxslope, n: wp.length };
+}
+
 window.STEWIE3D = { mount, render, setRover, setPath, setSun, setWireframe, setLander3D, clearTracks, heightAt,
-  animateRover, stopRoverAnim, get available() { return true; },
+  animateRover, stopRoverAnim, setPathEdit, onPathChange, getWaypoints, undoWaypoint, clearWaypoints, pathStats,
+  get available() { return true; },
   get sunState() { return { az: S._sunAz, el: S._sunEl, shadows: !!(S.renderer && S.renderer.shadowMap && S.renderer.shadowMap.enabled) }; },
   get hasLander() { return !!S.lander; } };
