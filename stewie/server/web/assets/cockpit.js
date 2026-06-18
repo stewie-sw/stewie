@@ -2536,6 +2536,15 @@ async function loadLayers() {
       }
       panel.appendChild(lab);
     });
+    // 3D Terrain: a client-side toggle (not a /layers raster) that drapes the chosen site's real DEM as a
+    // 3D mesh on the globe (GET /dem/terrain_grid). Off by default; additive, so it can't disturb the rasters.
+    const t3 = document.createElement("label");
+    t3.style.cssText = "display:inline-flex;gap:3px;align-items:center;cursor:pointer";
+    t3.title = "drape the work-area DEM as a 3D relief mesh on the globe";
+    const cb3 = document.createElement("input"); cb3.type = "checkbox"; cb3.id = "lyr_terrain3d"; cb3.checked = !!LAYER_ON.terrain3d;
+    cb3.onchange = () => { LAYER_ON.terrain3d = cb3.checked; applyLayerToggle("terrain3d", cb3.checked); };
+    t3.appendChild(cb3); t3.appendChild(document.createTextNode("3D Terrain"));
+    panel.appendChild(t3);
   } catch (e) { /* serverless preview keeps the defaults */ }
   applyDefaultsOnceReady();                                // #63: the other ready side
 }
@@ -2619,6 +2628,55 @@ function loadSiteFootprint(reload) {
     }));
     setMoonOverlaysVisible(sel.value === "moon");
     if (reload && typeof refetchSun === "function") refetchSun();   // re-place the globe drape at the new footprint
+    if (LAYER_ON.terrain3d) loadTerrain3D(true);          // re-drape the 3D terrain mesh at the new site
+  }).catch(() => {});
+}
+// 3D TERRAIN LAYER: drape the chosen site's REAL DEM (GET /dem/terrain_grid -> georeferenced n*n height
+// grid) as a triangulated mesh primitive on the globe, so the work-area relief is a layer ON the Cesium
+// map (not just a separate Three.js view). Heights are the real DEM elevations [m] above the lunar datum;
+// nodes are placed by their selenographic lon/lat on the shared `ellipsoid`, so the mesh co-locates with
+// the WORK AREA footprint. Per-vertex graphite->light elevation ramp. Toggleable + re-draped on site change.
+let TERRAIN3D = null;
+function loadTerrain3D(on) {
+  if (!viewer) return;
+  if (TERRAIN3D) { try { viewer.scene.primitives.remove(TERRAIN3D); } catch (e) {} TERRAIN3D = null; }
+  if (!on) { try { viewer.scene.requestRender(); } catch (e) {} return; }
+  const site = CURRENT_SITE || "haworth";
+  fetch("/dem/terrain_grid?site=" + encodeURIComponent(site) + "&n=64").then((r) => r.json()).then((g) => {
+    if (!g || !g.ok || !viewer || !g.z || !g.z.length) return;
+    const n = g.n, lat = g.lat, lon = g.lon, z = g.z, N = n * n;
+    const zmin = g.z_min, zspan = Math.max(1e-6, g.z_max - g.z_min);
+    const coords = new Array(N * 3);
+    for (let k = 0; k < N; k++) { coords[k * 3] = lon[k]; coords[k * 3 + 1] = lat[k]; coords[k * 3 + 2] = z[k]; }
+    const carts = Cesium.Cartesian3.fromDegreesArrayHeights(coords, ellipsoid);
+    const pos = new Float64Array(N * 3), col = new Uint8Array(N * 4);
+    for (let k = 0; k < N; k++) {
+      pos[k * 3] = carts[k].x; pos[k * 3 + 1] = carts[k].y; pos[k * 3 + 2] = carts[k].z;
+      const t = (z[k] - zmin) / zspan, v = Math.round(45 + 175 * t);   // graphite -> light grey ramp
+      col[k * 4] = v; col[k * 4 + 1] = v; col[k * 4 + 2] = Math.round(v * 0.95); col[k * 4 + 3] = 230;
+    }
+    const idx = [];                                       // triangulate the grid (k = j*n + i; i=East col, j=North row)
+    for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) {
+      const a = j * n + i, b = a + 1, c = a + n, d = c + 1;
+      idx.push(a, b, c, b, d, c);
+    }
+    const geom = new Cesium.Geometry({
+      attributes: {
+        position: new Cesium.GeometryAttribute({ componentDatatype: Cesium.ComponentDatatype.DOUBLE, componentsPerAttribute: 3, values: pos }),
+        color: new Cesium.GeometryAttribute({ componentDatatype: Cesium.ComponentDatatype.UNSIGNED_BYTE, componentsPerAttribute: 4, normalize: true, values: col }),
+      },
+      indices: new Uint32Array(idx),
+      primitiveType: Cesium.PrimitiveType.TRIANGLES,
+      boundingSphere: Cesium.BoundingSphere.fromVertices(Array.from(pos)),
+    });
+    const prim = new Cesium.Primitive({
+      geometryInstances: new Cesium.GeometryInstance({ geometry: geom }),
+      appearance: new Cesium.PerInstanceColorAppearance({ flat: true, translucent: true }),
+      asynchronous: false,
+    });
+    TERRAIN3D = viewer.scene.primitives.add(prim);
+    try { viewer.scene.requestRender(); } catch (e) {}
+    if (typeof flyToWorkArea === "function") flyToWorkArea();   // toggles give feedback: frame the relief
   }).catch(() => {});
 }
 function flyToWorkArea() {                                 // audit P1: toggles give FEEDBACK -- fly to where the layer lives
@@ -2632,6 +2690,7 @@ function flyToWorkArea() {                                 // audit P1: toggles 
     HAWORTH_CENTER.lon, HAWORTH_CENTER.lat, 30000, viewer.scene.globe.ellipsoid) });
 }
 function applyLayerToggle(id, on) {                          // load/unload the raster layers (vector layers redraw)
+  if (id === "terrain3d") { loadTerrain3D(on); return; }   // the 3D DEM mesh on the globe (additive layer)
   if (id === "dem") {
     const wa = qel("workarea"); if (wa) wa.style.display = on ? "" : "none";
     globeLayer("dem", "", on);                               // the GLOBE drape obeys the checkbox too
