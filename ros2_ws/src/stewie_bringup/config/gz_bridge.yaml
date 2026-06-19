@@ -46,12 +46,12 @@
 
 # ---- exteroception: GZ -> ROS (the front stereo pair; the redundant set bridges identically) ----
 - ros_topic_name: "/stewie/camera/front_left/image"
-  gz_topic_name: "/world/stewie_lunar/model/ipex/link/camera_front_left/sensor/camera_front_left/image"
+  gz_topic_name: "/model/ipex/camera/front_left/image"
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"
   direction: GZ_TO_ROS
 - ros_topic_name: "/stewie/camera/front_right/image"
-  gz_topic_name: "/world/stewie_lunar/model/ipex/link/camera_front_right/sensor/camera_front_right/image"
+  gz_topic_name: "/model/ipex/camera/front_right/image"
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"
   direction: GZ_TO_ROS
@@ -61,7 +61,7 @@
 # the offline scorer can read it; the truth-denial validator + the AS-01 contract forbid any
 # estimator (perception/localization/mapping) from subscribing it.
 - ros_topic_name: "/stewie/truth/pose"
-  gz_topic_name: "/world/stewie_lunar/dynamic_pose/info"
-  ros_type_name: "geometry_msgs/msg/PoseStamped"
+  gz_topic_name: "/world/stewie_lunar/pose/info"
+  ros_type_name: "geometry_msgs/msg/PoseArray"
   gz_type_name: "gz.msgs.Pose_V"
   direction: GZ_TO_ROS

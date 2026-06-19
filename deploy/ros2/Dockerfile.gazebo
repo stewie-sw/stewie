@@ -1,0 +1,41 @@
+# [REQ:AS-04][REQ:AS-06] Gazebo simulation tier — layers gz-sim (Harmonic) + ros_gz on the base
+# ros2dev image (AS-04 tier model; FROM-extends it). Runs the IPEx sim seam headless.
+#   docker build --network=host -f deploy/ros2/Dockerfile.ros2dev -t stewie-ros2dev:jazzy .
+#   docker build --network=host -f deploy/ros2/Dockerfile.gazebo  -t stewie-gazebo:jazzy  .
+#
+# Launch smoke (§25 Phase-4 "launch test proves Gazebo publishes expected topics"): brings up the
+# gz server + bridge headless, drives /cmd_vel, and asserts the proprioception/physics contract
+# topics publish. (Camera topics need a GL backend; on a GPU-less Docker host they are flagged, not
+# asserted -- the physics subset is the robust headless gate.)
+#   docker run --rm stewie-gazebo:jazzy
+FROM stewie-ros2dev:jazzy
+
+SHELL ["/bin/bash", "-lc"]
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ros-jazzy-ros-gz ros-jazzy-ros-gz-bridge ros-jazzy-ros-gz-sim \
+        xvfb \
+    && rm -rf /var/lib/apt/lists/*
+
+# Refresh the description (world + gz overlay) + bringup (launch + bridge cfg); rebuild those packages.
+COPY ros2_ws/src/stewie_description /ws/src/stewie_description
+COPY ros2_ws/src/stewie_bringup /ws/src/stewie_bringup
+RUN source /opt/ros/jazzy/setup.bash \
+    && colcon build --packages-select stewie_description stewie_bringup --event-handlers console_direct+
+
+ENV LIBGL_ALWAYS_SOFTWARE=1
+
+# Headless launch smoke: bring up the seam, let it settle, drive the rover, and assert the physics/
+# proprioception contract topics publish. Camera topics are reported (not gated) since GL/GPU may be absent.
+CMD ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && source install/setup.bash && \
+  ( xvfb-run -a ros2 launch stewie_bringup gz_sim.launch.py > /tmp/gz.log 2>&1 & ) && \
+  sleep 40 && \
+  ( timeout 5 ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist '{linear: {x: 0.2}}' >/dev/null 2>&1 || true ) && \
+  sleep 2 && \
+  echo '=== topics ===' && ros2 topic list && \
+  FAIL=0; for t in /clock /stewie/wheel_odom /joint_states /stewie/imu; do \
+    if timeout 8 ros2 topic echo --once $t >/dev/null 2>&1; then echo \"PUB OK  $t\"; else echo \"PUB MISSING $t\"; FAIL=1; fi; done && \
+  for t in /stewie/camera/front_left/image /stewie/truth/pose; do \
+    if timeout 8 ros2 topic echo --once $t >/dev/null 2>&1; then echo \"PUB OK  $t\"; else echo \"PUB (gated/absent) $t\"; fi; done && \
+  if [ $FAIL -eq 0 ]; then echo 'SMOKE OK: physics/proprioception contract topics publish'; else echo 'SMOKE FAIL'; tail -30 /tmp/gz.log; exit 1; fi"]

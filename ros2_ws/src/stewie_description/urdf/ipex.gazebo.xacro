@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<!-- [REQ:AS-06] Gazebo (gz-sim8) overlay for the IPEx model. Includes the single-source AS-03 URDF
+     and adds ONLY the gz plugins/sensors needed for the sim seam; all gz topic names match
+     stewie_bringup/config/gz_bridge.yaml so the ros_gz_bridge wires straight through. The truth pose
+     is published by gz's world dynamic_pose (bridged to /stewie/truth/pose only), NOT here. -->
+<robot name="ipex" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="$(find stewie_description)/urdf/ipex.urdf.xacro"/>
+
+  <gazebo>
+    <!-- 4-wheel skid-steer: front+rear wheels grouped per side (track_gauge 0.3645, r 0.1525). -->
+    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+      <left_joint>front_left_wheel_joint</left_joint>
+      <left_joint>rear_left_wheel_joint</left_joint>
+      <right_joint>front_right_wheel_joint</right_joint>
+      <right_joint>rear_right_wheel_joint</right_joint>
+      <wheel_separation>0.3645</wheel_separation>
+      <wheel_radius>0.1525</wheel_radius>
+      <max_linear_velocity>0.3</max_linear_velocity>   <!-- ipex_specs.DRIVE_SPEED_MS -->
+      <topic>/model/ipex/cmd_vel</topic>
+      <odom_topic>/model/ipex/odometry</odom_topic>
+      <tf_topic>/model/ipex/tf</tf_topic>
+      <frame_id>odom</frame_id>
+      <child_frame_id>base_link</child_frame_id>
+    </plugin>
+    <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher"/>
+    <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+      <publish_link_pose>true</publish_link_pose>
+      <use_pose_vector_msg>true</use_pose_vector_msg>
+      <static_publisher>true</static_publisher>
+    </plugin>
+  </gazebo>
+
+  <!-- IMU sensor on imu_link -> /model/ipex/imu (no rendering; works headless). -->
+  <gazebo reference="imu_link">
+    <sensor name="imu" type="imu">
+      <always_on>1</always_on>
+      <update_rate>100</update_rate>
+      <topic>/model/ipex/imu</topic>
+    </sensor>
+  </gazebo>
+
+  <!-- Front stereo cameras (RENDERING: needs the sensors system + a GL backend; GPU/EGL-gated headless).
+       hfov 73.99 deg (profile optics), 1024x768; topics match the bridge camera entries. -->
+  <gazebo reference="camera_front_left">
+    <sensor name="camera_front_left" type="camera">
+      <always_on>1</always_on>
+      <update_rate>10</update_rate>
+      <topic>/model/ipex/camera/front_left/image</topic>
+      <camera>
+        <horizontal_fov>1.2914</horizontal_fov>
+        <image><width>1024</width><height>768</height><format>R8G8B8</format></image>
+        <clip><near>0.02</near><far>100.0</far></clip>
+      </camera>
+    </sensor>
+  </gazebo>
+  <gazebo reference="camera_front_right">
+    <sensor name="camera_front_right" type="camera">
+      <always_on>1</always_on>
+      <update_rate>10</update_rate>
+      <topic>/model/ipex/camera/front_right/image</topic>
+      <camera>
+        <horizontal_fov>1.2914</horizontal_fov>
+        <image><width>1024</width><height>768</height><format>R8G8B8</format></image>
+        <clip><near>0.02</near><far>100.0</far></clip>
+      </camera>
+    </sensor>
+  </gazebo>
+</robot>
