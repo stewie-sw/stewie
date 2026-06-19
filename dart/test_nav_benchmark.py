@@ -40,7 +40,6 @@ def test_report_is_seeded_and_reproducible():
 
 def test_report_is_report_only_no_passfail():
     r = NB.benchmark_report(seed=0)
-    flat = json.dumps(r).lower()
     assert "pass" not in r["note"].split(".")[0] or "report-only" in r["note"]
     # no fabricated verdict keys
     assert "passed" not in r and "failed" not in r and "verdict" not in r

@@ -13,7 +13,6 @@ fed to the estimator. NOT synthetic: the inputs are real Godot renders; the esti
 from __future__ import annotations
 
 import json
-import math
 import os
 from dataclasses import dataclass, field
 
