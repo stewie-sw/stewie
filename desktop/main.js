@@ -17,7 +17,9 @@ const path = require("path");
 const net = require("net");
 const http = require("http");
 
-const REPO = path.resolve(__dirname, "..");                 // desktop/ -> repo root
+// Locate the repo that holds the .venv sidecar. A packaged build (AppImage) sets STEWIE_REPO (its
+// __dirname is inside the app bundle, not the repo); `npm start` (dev) falls back to the parent of desktop/.
+const REPO = process.env.STEWIE_REPO || path.resolve(__dirname, "..");
 const SERVE = path.join(REPO, ".venv", "bin", "stewie-serve");
 const HEALTH_TIMEOUT_MS = 40000;
 

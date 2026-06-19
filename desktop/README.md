@@ -31,6 +31,29 @@ npm start
 Requires the repo's Python venv at `../.venv` with the server extra installed
 (`pip install -e .[server]`). Needs a display; headless hosts can use `xvfb-run -a npm start`.
 
+## Build + install (local, this machine)
+
+```bash
+cd desktop
+npm run dist                 # electron-builder -> dist/STEWIE-0.1.0.AppImage (~109 MB)
+./install-local.sh           # -> ~/.local/bin/stewie-desktop + an app-menu .desktop launcher
+```
+
+`install-local.sh` bakes `STEWIE_REPO=<repo>` into the launcher, so the installed AppImage finds the
+repo `.venv` sidecar. Reverse it: `rm ~/.local/bin/stewie-desktop ~/.local/share/applications/stewie.desktop`.
+(Headless verification runs the AppImage with `APPIMAGE_EXTRACT_AND_RUN=1` since there's no FUSE.)
+
+## Visual smoke (Playwright)
+
+```bash
+PYTHONNOUSERSITE=1 STEWIE_DESKTOP=1 .venv/bin/stewie-serve --port 8795 --host 127.0.0.1 &
+PYTHONNOUSERSITE=1 .venv/bin/python desktop/visual_smoke.py 8795 /tmp/pw
+```
+
+Drives real Chromium against a desktop-mode sidecar, asserts the operator-login gate is lifted
+(`whoami = desktop-local (director)`), and screenshots all five work-area panes. Exits non-zero if
+the gate is still up or a pane renders blank.
+
 ## Verified (2026-06-19, archimedes)
 
 Launched under `Xvfb :99` and screenshotted: a native window renders the cockpit's **operator-access
@@ -43,12 +66,14 @@ Electron window → real cockpit → real FastAPI sidecar. Node 20, Electron 32.
 - **Auth**: the cockpit's operator login is active (it was built for a multi-user *server*). A
   single-user desktop build probably wants a local-trust bypass (e.g. auto-mint a local operator
   token, or a `STEWIE_DESKTOP=1` path that skips the login gate). Not done here.
-- **Packaging → distributable** (the real remaining work, *not* built — no stub bundle): turn this
-  into an AppImage / `.deb` via `electron-builder`, bundling a relocatable Python (PyInstaller or a
-  vendored venv) + the `server`-extra deps (`numpy/scipy/matplotlib/pyproj/opencv-headless/fastapi`)
-  + the ~255 MB of real DEM/validation assets the server reads. Exclude `torch`/SB3 (RL-only) and the
-  Godot binary (sensor-render track) to keep the artifact ~0.5–1 GB. Native deps (scipy/opencv/pyproj)
-  are the fiddly part; expect ~1–2 weeks for a robust signed bundle.
+- **Local install: DONE** — `npm run dist` builds the AppImage and `install-local.sh` installs it for
+  this machine (the sidecar runs from the repo `.venv`).
+- **Ship-to-other-machines bundle** (the real remaining packaging work, *not* built — no stub bundle):
+  bundle a relocatable Python (PyInstaller or a vendored venv) + the `server`-extra deps
+  (`numpy/scipy/matplotlib/pyproj/opencv-headless/fastapi`) + the ~255 MB of real DEM/validation assets
+  INTO the AppImage, so it has no `STEWIE_REPO` dependency. Exclude `torch`/SB3 (RL-only) and the Godot
+  binary (sensor-render track) to keep it ~0.5–1 GB. Native deps (scipy/opencv/pyproj) are the fiddly
+  part; expect ~1–2 weeks for a robust signed, self-contained bundle.
 - **WebGL**: Electron ships its own Chromium, so the Cesium globe + Three.js panes get consistent
   WebGL (the main reason to prefer Electron over a system-webview shell here). Under Xvfb it falls
   back to software GL; on a real GPU display it's hardware-accelerated.

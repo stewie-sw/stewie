@@ -5,9 +5,17 @@
   "description": "STEWIE cockpit as a Linux desktop app (Electron shell + Python FastAPI sidecar).",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "electron-builder --linux AppImage"
   },
   "devDependencies": {
-    "electron": "^32.0.0"
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "space.stewie.desktop",
+    "productName": "STEWIE",
+    "files": ["main.js", "package.json"],
+    "linux": { "target": ["AppImage"], "category": "Science" }
   }
 }
