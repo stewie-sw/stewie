@@ -1406,15 +1406,25 @@ def _return_to_lander(mission) -> dict:
     return blk
 
 
-def _plan_uncertainty(mission, dig_bounds_mj) -> dict:
+def _plan_uncertainty(mission, dig_bounds_mj, drum_cycles=0) -> dict:
     """CP-07: ONE plan-uncertainty block aggregating the named sources (DEM, material, slip, dig-rate,
     drum-fill, localization, power-window) into the feasibility/time/energy picture. HONEST: a source
     carries a numeric figure ONLY where the model is grounded in-repo -- the dig-rate energy band
-    (rated-vs-max RPM, T2.4), the localization corridor margin (P-06), the DEM per-cell sigma (PM-09), and
-    the operator material factor (EP-02). drum-fill (DrumSensor MPE at /sense), slip (terramechanics in the
-    drive sim), and power-window (EP-04 windows) are modeled ELSEWHERE but not yet propagated to a
-    plan-level band -- named + flagged `quantified: False`, never a fabricated fraction."""
+    (rated-vs-max RPM, T2.4), the localization corridor margin (P-06), the DEM per-cell sigma (PM-09), the
+    operator material factor (EP-02), and the drum-fill CYCLE band (DrumSensor FDC MPE, ICE-RASSOR
+    NTRS 20210022781): fill-sensing error does NOT change the dig energy (the same total mass must be dug)
+    but it perturbs WHEN the drum reads full -> a +/-MPE band on the offload cycle count, the time-relevant
+    quantity. slip and power-window stay flagged `quantified: False` where not propagated -- slip's
+    plan-level uncertainty is the [CALIB] Bekker/slip moduli, oracle-gated (FIX-1/2); power-window is
+    quantified only when mission windows are declared. Never a fabricated fraction."""
     mat = float(getattr(mission, "dig_energy_factor", None) or 1.0)
+    mpe = float(RM.FDC_MPE_HALF_FULL)                       # rover offloads at the upper confidence bound (>half full)
+    nc = float(drum_cycles)
+    drum_fill = ({"quantified": True, "into": "time", "mpe_frac": mpe, "cycles": nc,
+                  "cycles_band": [round(nc * (1.0 - mpe), 2), round(nc * (1.0 + mpe), 2)],
+                  "source": "DrumSensor FDC MPE, ICE-RASSOR NTRS 20210022781"}
+                 if nc > 0 else
+                 {"quantified": False, "into": "time", "note": "no drum cycles in this plan -> no fill-driven band"})
     return {
         "energy_MJ_band": list(dig_bounds_mj),                 # dig-rate sensitivity (rated-18 vs max-25 RPM)
         "sources": {
@@ -1422,8 +1432,8 @@ def _plan_uncertainty(mission, dig_bounds_mj) -> dict:
             "material":     {"quantified": mat != 1.0, "into": "energy", "dig_energy_factor": mat},
             "localization": {"quantified": True, "into": "feasibility", "corridor_margin_m": LOCALIZATION_MARGIN_M},
             "dem":          {"quantified": True, "into": "feasibility", "cell_sigma_m": 0.05},
-            "drum_fill":    {"quantified": False, "into": "time", "note": "DrumSensor MPE modeled at /sense; not yet a plan band"},
-            "slip":         {"quantified": False, "into": "time/energy", "note": "terramechanics slip modeled in the drive sim; not yet a plan band"},
+            "drum_fill":    drum_fill,                      # CP-07: cycle-count band from the grounded DrumSensor FDC MPE
+            "slip":         {"quantified": False, "into": "time/energy", "note": "slip moduli are [CALIB]; plan band oracle-gated (FIX-1/2)"},
             "power_window": {"quantified": bool(getattr(mission, "mission_windows", None)), "into": "time",
                              "note": "EP-04 mission-clock windows gate timing"},
         },
@@ -1436,6 +1446,8 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
     + vehicle fields. Kept DRY so the multi-vehicle aggregate reports the same fields as single-vehicle."""
     dig_bounds_mj = tuple(round(b * sum(tr["mass"] for tr in trips if tr["kind"] != "goto") / 1e6, 1)
                           for b in S.dig_energy_bounds_j_per_kg())   # T2.4 dig-rate band; CP-07 reuses it
+    n_drum_cycles = sum(max(1, math.ceil(tr["mass"] / _drum_kg(mission)))
+                        for tr in trips if tr["kind"] == "cutfill")   # CP-07: drum-fill cycle band reuses this
     return dict(
         core,
         cut_kg=sum(o.mass_kg(mission.density * SWELL) for o in mission.orders if o.kind == "cut"),
@@ -1449,7 +1461,7 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
         # to the procurement/logistics chain rather than to in-situ digging.
         import_kg=sum(m for c, f, m, d in flows if c is None),
         offload_energy_J=float(sum(tr.get("offload_e", 0.0) for tr in trips)),
-        drum_cycles=sum(max(1, math.ceil(tr["mass"] / _drum_kg(mission))) for tr in trips if tr["kind"] == "cutfill"),
+        drum_cycles=n_drum_cycles,
         # T2.3 (BDS p.7): cut depth per pass <= 50% of the scoop opening -- a deep cut is MULTIPLE
         # passes over the footprint; report the binding pass count (the 42 kg/hr demo dig rate is a
         # steady-state figure that already embodies multi-pass operation, so duration stays rate-based).
@@ -1457,7 +1469,7 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
                               for o in mission.orders if getattr(o, "kind", "") == "cut"]),
         # T2.4: the drum-rate sensitivity band -- dig energy at rated-18 vs max-25 RPM
         dig_energy_bounds_MJ=dig_bounds_mj,
-        plan_uncertainty=_plan_uncertainty(mission, dig_bounds_mj),   # CP-07: one aggregated uncertainty block
+        plan_uncertainty=_plan_uncertainty(mission, dig_bounds_mj, n_drum_cycles),   # CP-07: one aggregated uncertainty block
         lift_energy_J=float(sum(tr.get("lift_e", 0.0) for tr in trips)),
         routed_haul=meta["routed"], blocked_legs=meta["blocked_legs"], traverse_cap_deg=meta["traverse_cap_deg"],
         routes=meta.get("routes", []),
