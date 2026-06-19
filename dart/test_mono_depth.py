@@ -16,9 +16,11 @@ import pytest
 
 from dart import mono_depth as MD
 
-_A6 = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                   "stewie", "eval", "validation", "a6_traverse", "cam")
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_A6 = os.path.join(_ROOT, "stewie", "eval", "validation", "a6_traverse", "cam")
 _FRAME0 = os.path.join(_A6, "frame_000")
+_G2CAL = os.path.join(_ROOT, "stewie", "eval", "validation", "g2cal")
+_SCENE = os.path.join(_ROOT, "samples", "crater_boulders")
 
 
 def _real_stereo_depth():
@@ -90,3 +92,29 @@ def test_benchmark_traverse_scores_real_frames():
     assert rep["frames"] and "not ground truth" in rep["reference"]   # honest: stereo reference, NOT GT
     agg = rep["aggregate"]
     assert np.isfinite(agg["abs_rel"]) and agg["rmse_m"] > 0 and 0.0 <= agg["delta1"] <= 1.0
+
+
+# pose_0 has a physically sane ray-cast truth (median depth >> 0); pose_6's front_left camera sits at/under
+# the surface so the truth depth is ~0 -- the guard must refuse it instead of reporting a hollow 0.0 RMSE.
+_POSE_OK = os.path.join(_G2CAL, "pose_0")
+_POSE_DEGENERATE = os.path.join(_G2CAL, "pose_6")
+
+
+def test_benchmark_vs_truth_refuses_degenerate_pose():
+    """The degenerate-truth guard fires BEFORE the model loads, so this runs without DepthAnything: a
+    camera at/under the surface (pose_6) yields ~0 ground-truth depth and must raise, not score."""
+    if not (os.path.isdir(_POSE_DEGENERATE) and os.path.isdir(_SCENE)):
+        pytest.skip("g2cal pose / scene fixtures not present")
+    with pytest.raises(ValueError, match="degenerate"):
+        MD.benchmark_vs_truth(_POSE_DEGENERATE, _SCENE, left="front_left", stride=4)
+
+
+@pytest.mark.skipif(not _have_model(), reason="DepthAnything-V2 / transformers not available")
+def test_benchmark_vs_truth_scores_against_ground_truth():
+    if not (os.path.isdir(_POSE_OK) and os.path.isdir(_SCENE)):
+        pytest.skip("g2cal pose / scene fixtures not present")
+    rep = MD.benchmark_vs_truth(_POSE_OK, _SCENE, left="front_left", stride=4)
+    assert "GROUND TRUTH" in rep["reference"]                          # honest: ray-cast terrain truth, not stereo
+    assert rep["n_pixels"] >= 50 and rep["truth_valid_px"] >= 50 and rep["camera"] == "front_left"
+    assert np.isfinite(rep["abs_rel"]) and np.isfinite(rep["rmse_m"]) and 0.0 <= rep["delta1"] <= 1.0
+    assert rep["rmse_m"] > 0                                           # a real, non-degenerate comparison

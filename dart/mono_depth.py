@@ -3,10 +3,11 @@
 A single-camera depth cue (DepthAnything-V2) to complement the rig's passive STEREO depth
 (dart.stereo_depth): where stereo has no overlap or texture, a learned monocular prior still gives a
 dense relative-depth field. Monocular depth is SCALE-AMBIGUOUS, so it is never a metric source on its
-own -- it is aligned (least-squares scale+shift) to a metric reference, then scored. Here the metric
-reference is the rig's stereo depth on the SAME real rendered frame (the rover's actual measurement);
-a per-pixel DEM-raycast truth is the stronger reference and is the next increment (needs the camera
-<-> DEM transform). Honest: this benchmarks mono vs the stereo metric reference, not vs ground truth.
+own -- it is aligned (least-squares scale+shift) to a metric reference, then scored. Two references:
+`benchmark_traverse` aligns to the rig's stereo depth on the same real frame (the rover's actual
+measurement, NOT ground truth); `benchmark_vs_truth` aligns to the per-pixel ray-cast terrain GROUND
+TRUTH at the known camera pose (stewie.eval.depth_truth) -- the stronger reference, with a guard that
+refuses degenerate poses (camera at/under the surface -> ~0 truth depth).
 
 torch/transformers are imported lazily inside the functions so importing `dart` (and the test suite)
 stays fast and dependency-light.
@@ -132,7 +133,52 @@ def benchmark_traverse(traverse_dir: str, *, fx_px: float, baseline_m: float = 0
         "frames": per_frame,
         "aggregate": agg,
         "note": ("monocular depth is scale-ambiguous -> least-squares scale+shift aligned to the stereo "
-                 "reference per frame, then scored. A per-pixel DEM-raycast truth is the stronger "
-                 "reference (deferred: needs the camera<->DEM transform)."),
+                 "reference per frame, then scored. For GROUND-TRUTH scoring (not just stereo) use "
+                 "benchmark_vs_truth, which scores against the ray-cast terrain truth."),
     }
+
+
+def benchmark_vs_truth(pose_dir: str, scene_dir: str, *, left: str = "front_left", stride: int = 4) -> dict:
+    """Score monocular depth against per-pixel GROUND TRUTH (not stereo): the ray-cast terrain depth
+    from the known camera pose (stewie.eval.depth_truth.ray_cast_depth), masked by comparison_keep_mask
+    so clast/lander/occluded pixels (where the terrain heightfield is NOT the visible surface) are
+    excluded. Reuses the exact camera-dict construction the G2 calibration uses (run intrinsics + truth
+    pose_in_world). Mono is scale-aligned to the truth, then scored AbsRel/RMSE/delta1.
+
+    This is the stronger reference the stereo benchmark deferred to -- the truth is exact geometry on the
+    real DEM at the real pose, not a measurement. Needs a pose dir with sensors.json + evaluation_truth.json
+    (e.g. stewie/eval/validation/g2cal/pose_N) and the conserved scene (samples/crater_boulders)."""
+    import json
+    import os
+
+    import imageio.v2 as imageio
+
+    from stewie.eval import depth_truth as DT
+    run = json.load(open(os.path.join(pose_dir, "sensors.json")))
+    truth = json.load(open(os.path.join(pose_dir, "evaluation_truth.json")))
+    cam_r = {c["name"]: c for c in run["cameras"]}
+    cam_t = {c["name"]: c for c in truth["camera_poses_in_world"]}
+    if left not in cam_r:
+        left = run["cameras"][0]["name"]                                   # fall back to the first camera
+    cam = {**cam_r[left], "pose_in_world": cam_t[left]["pose_in_world"]}
+    img = np.asarray(imageio.imread(os.path.join(pose_dir, cam_r[left]["image"])))
+    T = DT.ray_cast_depth(cam, scene_dir, stride=stride, lander=run.get("lander"))
+    keep = DT.comparison_keep_mask(cam, T, scene_dir)                      # clast/lander/occlusion masking
+    zt = T["depth_m"]
+    # guard: a physically sane truth. A degenerate raycast (camera at/under the surface -> depth ~0)
+    # would make scale-alignment + AbsRel meaningless; refuse it instead of reporting a hollow 0.0 RMSE.
+    valid_t = zt[keep & np.isfinite(zt)]
+    if valid_t.size < 50 or float(np.median(valid_t)) < 0.05:
+        raise ValueError(f"degenerate ray-cast truth for {left} (median depth "
+                         f"{float(np.median(valid_t)) if valid_t.size else float('nan'):.4f} m); "
+                         "camera likely at/under the surface — pose excluded")
+    pred = predict_relative_depth(img)
+    rr, cc = np.meshgrid(T["rows"], T["cols"], indexing="ij")
+    pred_s = pred[rr, cc]                                                   # mono at the truth's strided grid
+    aligned = align_to_metric(pred_s, zt, keep)
+    m = depth_metrics(aligned, zt, keep)
+    m["reference"] = "ray_cast_depth GROUND TRUTH (terrain; clast/lander/occlusion-masked keep)"
+    m["truth_valid_px"] = int((np.isfinite(zt) & keep).sum())
+    m["camera"] = left
+    return m
 
