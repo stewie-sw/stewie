@@ -1,0 +1,4 @@
+loading /ws/install/stewie_rviz/share/stewie_rviz/rviz/mission.rviz
+--- rviz log (plugin load) ---
+The X11 connection broke (error 1). Did the X11 server die?
+SMOKE OK: mission.rviz loaded, no plugin-load failures

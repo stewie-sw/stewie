@@ -1,0 +1,10 @@
+stewie_bringup
+stewie_control
+stewie_description
+stewie_localization
+stewie_mapping
+stewie_msgs
+stewie_perception
+stewie_planning
+stewie_rviz
+stewie_vehicle_interface

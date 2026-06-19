@@ -1,0 +1,21 @@
+=== topics ===
+/clock
+/cmd_vel
+/joint_states
+/parameter_events
+/robot_description
+/rosout
+/stewie/camera/front_left/image
+/stewie/camera/front_right/image
+/stewie/imu
+/stewie/truth/pose
+/stewie/wheel_odom
+/tf
+/tf_static
+PUB OK  /clock
+PUB OK  /stewie/wheel_odom
+PUB OK  /joint_states
+PUB OK  /stewie/imu
+PUB OK  /stewie/camera/front_left/image
+PUB OK  /stewie/truth/pose
+SMOKE OK: physics/proprioception contract topics publish
