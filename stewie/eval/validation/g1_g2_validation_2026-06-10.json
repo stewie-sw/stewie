@@ -32,8 +32,8 @@
    "Synchronized stereo keyframes are not yet in the capture (sidecar renders local patches, not the traverse)."
   ],
   "runtime_fed_capture": {
-   "n_disparities": 64179,
-   "median_disparity_px": 37.3125,
+   "n_disparities": 63310,
+   "median_disparity_px": 44.125,
    "reproduces_direct": true
   },
   "katwijk_dead_reckon": {
@@ -54,10 +54,10 @@
   "status": "PASSED_RENDERED_SENSOR_SIM",
   "fixed_reference_camera": "front_left",
   "match_camera": "front_right",
-  "lr_consistent_fraction": 0.028076171875,
-  "lr_consistent_pixels": 22080,
-  "median_depth_m": 1.5790777206420898,
-  "median_sigma_depth_m": 0.05241752043366432,
+  "lr_consistent_fraction": 0.022251129150390625,
+  "lr_consistent_pixels": 17499,
+  "median_depth_m": 0.6449090242385864,
+  "median_sigma_depth_m": 0.012240266427397728,
   "covariance_calibrated": false,
   "shadow_image_frame": "IMAGE_X_RIGHT_Y_DOWN",
   "shadow_direction_periodicity_deg": 360,
@@ -68,11 +68,11 @@
   "ephemeris_fallback_contract": "PASS",
   "blockers": [],
   "covariance_calibration": {
-   "sigma_disparity_px": 3.6495039773398688,
+   "sigma_disparity_px": 3.468337028267968,
    "held_out_coverage_3sigma": 1.0,
    "band_m": [
-    0.37164002299644777,
-    1.8888473259546148
+    0.265457159283177,
+    1.5963673540631238
    ],
    "artifact": "stereo_sigma_calibration_2026-06-10.json"
   },

@@ -50,7 +50,7 @@ def test_gate_validation_surfaces_evidence_numbers(client):
     assert e["g1_baseline_raw_m"] > 0 and e["g1_baseline_aligned_m"] > 0
     assert e["g1_contract_checks_pass"] == e["g1_contract_checks_total"] > 0   # every contract check PASS
     # G2: rendered-sensor stereo covariance calibration + held-out coverage + depth
-    assert abs(e["g2_sigma_px"] - 3.6495) < 1e-2 and e["g2_coverage_3sigma"] == 1.0
+    assert abs(e["g2_sigma_px"] - 3.4683) < 1e-2 and e["g2_coverage_3sigma"] == 1.0  # 0.05 re-freeze
     assert e["g2_median_depth_m"] > 0
     # honesty firewall: scope stated as rendered-sensor sim, and a next gate is named
     assert "RENDERED-SENSOR" in e["g2_evidence_scope"] and len(e["next_gate"]) > 0
