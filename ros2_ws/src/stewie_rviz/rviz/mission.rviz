@@ -1,0 +1,104 @@
+# [REQ:AS-05] STEWIE mission dashboard — operator RViz layout for the autonomy stack.
+# Every display binds to an AS-01 boundary-contract topic (stewie/bridge/autonomy_contract.py).
+# Native RViz types bind directly; STEWIE custom msgs (Trajectory/RockArray/ArgusFactorArray/
+# SafeState/ExecutiveDecision/WorkGoal) are surfaced through companion MarkerArray/Path viz topics
+# that the owning nodes publish (the *_viz / *_markers convention), and GridMap via grid_map_rviz_plugin.
+# Validated by ros2_ws/test_rviz_config.py (config<->contract lint) + the container rviz2 load smoke.
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Global Options:
+    Fixed Frame: map
+    Frame Rate: 15
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Enabled: true
+      Description Topic:
+        Value: /robot_description
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+    - Class: rviz_default_plugins/Odometry
+      Name: Odometry
+      Enabled: true
+      Topic:
+        Value: /stewie/odom
+    - Class: rviz_default_plugins/Path
+      Name: Planned Path
+      Enabled: true
+      Topic:
+        Value: /stewie/plan/path
+    - Class: rviz_default_plugins/Path
+      Name: Local Trajectory
+      Enabled: true
+      Topic:
+        Value: /stewie/plan/local_traj_viz
+    - Class: rviz_default_plugins/Map
+      Name: Costmap
+      Enabled: true
+      Topic:
+        Value: /stewie/costmap
+    - Class: rviz_default_plugins/Map
+      Name: Occupancy
+      Enabled: true
+      Topic:
+        Value: /stewie/map/occupancy
+    - Class: grid_map_rviz_plugin/GridMap
+      Name: DEM
+      Enabled: true
+      Topic:
+        Value: /stewie/map/dem
+    - Class: grid_map_rviz_plugin/GridMap
+      Name: Excavation State
+      Enabled: false
+      Topic:
+        Value: /stewie/map/excavation_state
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Perception Points
+      Enabled: true
+      Topic:
+        Value: /stewie/perception/points
+    - Class: rviz_default_plugins/Image
+      Name: Front Left Cam
+      Enabled: true
+      Topic:
+        Value: /stewie/camera/front_left/image
+    - Class: rviz_default_plugins/Image
+      Name: Front Right Cam
+      Enabled: true
+      Topic:
+        Value: /stewie/camera/front_right/image
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Rock Graph
+      Enabled: true
+      Topic:
+        Value: /stewie/perception/rocks_markers
+    - Class: rviz_default_plugins/MarkerArray
+      Name: ARGUS Factors
+      Enabled: true
+      Topic:
+        Value: /stewie/argus/factors_markers
+    - Class: rviz_default_plugins/PoseWithCovariance
+      Name: Localization Covariance
+      Enabled: true
+      Topic:
+        Value: /stewie/localization/cov
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Diagnostics / SAFE / Command Status
+      Enabled: true
+      Topic:
+        Value: /stewie/status_markers
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 12
+      Name: Orbit

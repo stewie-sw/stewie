@@ -1,0 +1,36 @@
+# [REQ:AS-04][REQ:AS-05] RViz diagnostics tier — layers rviz2 + the grid_map plugin on the base
+# ros2dev image (AS-04 tier model: this is NOT the base; it FROM-extends it). Hosts the operator
+# mission dashboard (stewie_rviz/rviz/mission.rviz). The base tier must be built first:
+#   docker build --network=host -f deploy/ros2/Dockerfile.ros2dev -t stewie-ros2dev:jazzy .
+#   docker build --network=host -f deploy/ros2/Dockerfile.rviz   -t stewie-rviz:jazzy   .
+#
+# Config-load smoke (the §25 Phase-3 "RViz config smoke" -- launches rviz2 headless on the installed
+# config under xvfb with software GL and asserts no display PLUGIN fails to load):
+#   docker run --rm stewie-rviz:jazzy
+FROM stewie-ros2dev:jazzy
+
+SHELL ["/bin/bash", "-lc"]
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ros-jazzy-rviz2 ros-jazzy-rviz-default-plugins ros-jazzy-grid-map-rviz-plugin \
+        xvfb mesa-utils libgl1-mesa-dri \
+    && rm -rf /var/lib/apt/lists/*
+
+# Refresh stewie_rviz (the base image predates mission.rviz) and re-build just that package.
+COPY ros2_ws/src/stewie_rviz /ws/src/stewie_rviz
+RUN source /opt/ros/jazzy/setup.bash \
+    && colcon build --packages-select stewie_rviz --event-handlers console_direct+
+
+# Software GL so RViz's OpenGL canvas initializes under xvfb with no GPU.
+ENV LIBGL_ALWAYS_SOFTWARE=1 QT_QPA_PLATFORM=xcb
+
+# The smoke: launch rviz2 on the installed mission config under a virtual X server, capture its log,
+# and FAIL if any required display plugin failed to load (a missing plugin / typo'd Class). RViz has
+# no headless "validate" mode, so we run it for a few seconds then stop and inspect the log.
+CMD ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && source install/setup.bash && \
+  CFG=$(ros2 pkg prefix stewie_rviz)/share/stewie_rviz/rviz/mission.rviz && \
+  echo \"loading $CFG\" && \
+  ( timeout 18 xvfb-run -a rviz2 -d $CFG > /tmp/rviz.log 2>&1 || true ) && \
+  echo '--- rviz log (plugin load) ---' && grep -iE 'failed to load|pluginlib|does not exist|error' /tmp/rviz.log || true && \
+  if grep -iqE 'failed to load|could not load|does not exist.*plugin' /tmp/rviz.log; then echo 'SMOKE FAIL: a display plugin failed to load'; exit 1; else echo 'SMOKE OK: mission.rviz loaded, no plugin-load failures'; fi"]
