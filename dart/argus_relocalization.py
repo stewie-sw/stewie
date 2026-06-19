@@ -21,8 +21,8 @@ from dart import articulated_parallax as ap
 
 def _is_pd(cov: np.ndarray) -> bool:
     c = np.asarray(cov, float)
-    return (c.shape == (2, 2) and np.all(np.isfinite(c)) and np.allclose(c, c.T)
-            and float(np.min(np.linalg.eigvalsh(c))) > 0.0)
+    return bool(c.shape == (2, 2) and np.all(np.isfinite(c)) and np.allclose(c, c.T)
+                and float(np.min(np.linalg.eigvalsh(c))) > 0.0)
 
 
 def argus_standstill_fix(prior_xy, prior_cov, landmarks_xy, *, dh_m: float, fx_px: float,
@@ -55,9 +55,9 @@ def argus_standstill_fix(prior_xy, prior_cov, landmarks_xy, *, dh_m: float, fx_p
             reasons.append("fix covariance not finite/positive-definite")
 
     accepted = not reasons
-    if accepted:
-        C_post = np.linalg.inv(np.linalg.inv(C_prior) + np.linalg.inv(C_fix))   # information sum
-    else:
+    if accepted and C_fix is not None:      # C_fix is set iff not reasons; the explicit check (not a bare
+        C_post = np.linalg.inv(np.linalg.inv(C_prior) + np.linalg.inv(C_fix))   # assert: CT-06) narrows it
+    else:                                                                       # for mypy + survives python -O
         C_post = C_prior                                                        # nothing inserted
     return {
         "accepted": accepted,

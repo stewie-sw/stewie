@@ -25,7 +25,7 @@ class WorldModelLayers:
         self.cell_m = float(cell_m)
         self._z = {n: np.full(self.shape, np.nan, dtype=float) for n in LAYERS}
         self._count = np.zeros(self.shape, dtype=int)        # observed-layer per-cell observation count
-        self.provenance = {n: None for n in LAYERS}
+        self.provenance: dict[str, str | None] = {n: None for n in LAYERS}   # per-layer data source, set on write
 
     def layer(self, name: str) -> np.ndarray:
         """A COPY of a layer's elevation grid (callers can't mutate the store through it)."""
