@@ -1806,8 +1806,8 @@ def _resolve_spacetime_crowding(per_vehicle, *, proximity_m: float = 10.0, max_i
     wait); optimal JOINT re-ordering across the fleet remains future MV work."""
     n = len(per_vehicle)
     delay = [0.0] * n
-    stat = []   # (v, x, y, t0, t1) stationary work spans -- the _temporal_conflicts class (kind != charge)
-    move = []   # (v, (x0,y0), (x1,y1), t0, t1) moving drive legs -- the _haul_path_conflicts class
+    stat: list[tuple[int, float, float, float, float]] = []   # (v, x, y, t0, t1) stationary work spans
+    move: list[tuple[int, tuple[float, float], tuple[float, float], float, float]] = []  # moving drive legs
     for v, pv in enumerate(per_vehicle):
         for s in pv.get("tl", []):
             if "x0" not in s or s.get("kind") == "charge":
@@ -1822,7 +1822,7 @@ def _resolve_spacetime_crowding(per_vehicle, *, proximity_m: float = 10.0, max_i
     # each geometry-close crowding pair as (winner_idx, loser_idx, winner_t0, winner_t1, loser_t0, loser_t1)
     # with ORIGINAL (un-delayed) windows; only vi < vj (lower index wins). Resolution pushes the loser's
     # effective start past the winner's effective end whenever their delayed windows still overlap.
-    pairs = []
+    pairs: list[tuple[int, int, float, float, float, float]] = []
     for i in range(len(stat)):
         vi, xi, yi, ai0, ai1 = stat[i]
         for j in range(len(stat)):
@@ -1830,10 +1830,10 @@ def _resolve_spacetime_crowding(per_vehicle, *, proximity_m: float = 10.0, max_i
             if vi < vj and math.hypot(xi - xj, yi - yj) < proximity_m:
                 pairs.append((vi, vj, ai0, ai1, aj0, aj1))
     for i in range(len(move)):
-        vi, ai0, ai1, ti0, ti1 = move[i]
+        vi, pi0, pi1, ti0, ti1 = move[i]          # distinct names from the stat loop (those ai0/ai1 are floats)
         for j in range(len(move)):
-            vj, aj0, aj1, tj0, tj1 = move[j]
-            if vi < vj and _seg_seg_min_dist(ai0, ai1, aj0, aj1) < proximity_m:
+            vj, pj0, pj1, tj0, tj1 = move[j]
+            if vi < vj and _seg_seg_min_dist(pi0, pi1, pj0, pj1) < proximity_m:
                 pairs.append((vi, vj, ti0, ti1, tj0, tj1))
     if not pairs:
         return delay

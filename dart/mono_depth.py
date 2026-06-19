@@ -43,7 +43,7 @@ def predict_relative_depth(image_rgb: np.ndarray, model_id: str = _MODEL_ID) -> 
         arr = pred.detach().to("cpu").numpy().astype(np.float32)
         arr = np.squeeze(arr)
         if arr.shape != (img.height, img.width):
-            arr = np.asarray(Image.fromarray(arr).resize((img.width, img.height), Image.BILINEAR),
+            arr = np.asarray(Image.fromarray(arr).resize((img.width, img.height), Image.Resampling.BILINEAR),
                              dtype=np.float32)
         return arr
     return np.asarray(out["depth"], dtype=np.float32)      # fallback: the normalized visualization
