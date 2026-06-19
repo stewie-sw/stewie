@@ -43,6 +43,24 @@ def _reset_security_health():
 
 
 @pytest.fixture(autouse=True)
+def _reset_render_caches():
+    """REG-01: the GIS raster + globe renderers cache by (kind, SITE, sun) in process-global dicts that
+    are never cleared. A prior test that renders a site (in the same `-n auto` worker) can leave a stale
+    entry, so test_dem_site_aware's distinct-per-site assertions then read another site's cached bytes
+    and flip (the cache-key class that already broke test_globe_cache). Clear both before each test so the
+    raster/globe distinctness checks are isolated -- the in-process equivalent of the data-dir isolation
+    above. (The state DEM cache is site-keyed + loads deterministically from disk, so it is not a
+    distinctness vector and is left alone.)"""
+    try:
+        from stewie.server import gis_layers as _gl
+        _gl._CACHE.clear()
+        _gl._GLOBE_CACHE.clear()
+    except Exception:
+        pass
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _reset_auth_rate_limits():
     """S-07: the auth rate limiters are process-global fixed-window counters. Reset them before each
     test so a multi-login test (admin flows, fixtures) does not inherit another test's spent budget
