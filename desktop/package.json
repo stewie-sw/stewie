@@ -1,0 +1,13 @@
+{
+  "name": "stewie-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "STEWIE cockpit as a Linux desktop app (Electron shell + Python FastAPI sidecar).",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^32.0.0"
+  }
+}
