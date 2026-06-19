@@ -1775,6 +1775,71 @@ def _haul_path_conflicts(per_vehicle, *, proximity_m: float = 10.0) -> int:
     return n
 
 
+def _resolve_spacetime_crowding(per_vehicle, *, proximity_m: float = 10.0, max_iter: int = 64):
+    """FL-02 re-sequencing: RESOLVE the space-time crowding the detectors surface, not just count it. Two
+    vehicles that would work within ``proximity_m`` at overlapping times (the `_temporal_conflicts` class)
+    or whose moving haul paths pass that close at overlapping times (`_haul_path_conflicts`) are
+    deconflicted by the SAME FCFS discipline as the shared charger (`_resolve_charger_queue`): the lower
+    vehicle index keeps its slot and the HIGHER index (the loser) WAITS until the winner's conflicting span
+    clears -- a real re-sequence of when the loser does that work. The geometry is fixed; only the time
+    window shifts, so a wait that pushes the loser's window past the winner's removes the overlap.
+
+    Iterated to a fixed point: priority = vehicle index (lower wins), so lower indices never move and a
+    higher index's delay only grows, bounded by the winners' span lengths -> it converges (a few passes for
+    a real 2-4 rover fleet). Spans are selected to MATCH the two detectors exactly, so applying the returned
+    delays drives both `_temporal_conflicts` and `_haul_path_conflicts` to 0. Returns the per-vehicle delay
+    [s]; a vehicle's real finish is ``time_s + delay[v]``, folded into the makespan exactly like the
+    charger/resource waits. No crowding -> all-zero delays -> byte-identical to the un-resequenced fleet.
+    CONSERVATIVE (each loser yields to every lower-index crowder; the whole later timeline shifts by the
+    wait); optimal JOINT re-ordering across the fleet remains future MV work."""
+    n = len(per_vehicle)
+    delay = [0.0] * n
+    stat = []   # (v, x, y, t0, t1) stationary work spans -- the _temporal_conflicts class (kind != charge)
+    move = []   # (v, (x0,y0), (x1,y1), t0, t1) moving drive legs -- the _haul_path_conflicts class
+    for v, pv in enumerate(per_vehicle):
+        for s in pv.get("tl", []):
+            if "x0" not in s or s.get("kind") == "charge":
+                continue
+            x0, y0 = float(s["x0"]), float(s["y0"])
+            x1, y1 = float(s.get("x1", x0)), float(s.get("y1", y0))
+            t0, t1 = float(s["t0"]), float(s["t1"])
+            if abs(x0 - x1) < 1e-9 and abs(y0 - y1) < 1e-9:           # stationary -> _temporal_conflicts class
+                stat.append((v, x0, y0, t0, t1))
+            elif s.get("kind") == "drive":                           # moving drive leg -> _haul_path class
+                move.append((v, (x0, y0), (x1, y1), t0, t1))
+    # each geometry-close crowding pair as (winner_idx, loser_idx, winner_t0, winner_t1, loser_t0, loser_t1)
+    # with ORIGINAL (un-delayed) windows; only vi < vj (lower index wins). Resolution pushes the loser's
+    # effective start past the winner's effective end whenever their delayed windows still overlap.
+    pairs = []
+    for i in range(len(stat)):
+        vi, xi, yi, ai0, ai1 = stat[i]
+        for j in range(len(stat)):
+            vj, xj, yj, aj0, aj1 = stat[j]
+            if vi < vj and math.hypot(xi - xj, yi - yj) < proximity_m:
+                pairs.append((vi, vj, ai0, ai1, aj0, aj1))
+    for i in range(len(move)):
+        vi, ai0, ai1, ti0, ti1 = move[i]
+        for j in range(len(move)):
+            vj, aj0, aj1, tj0, tj1 = move[j]
+            if vi < vj and _seg_seg_min_dist(ai0, ai1, aj0, aj1) < proximity_m:
+                pairs.append((vi, vj, ti0, ti1, tj0, tj1))
+    if not pairs:
+        return delay
+    for _ in range(max_iter):
+        new_delay = list(delay)
+        for vi, vj, wt0, wt1, lt0, lt1 in pairs:
+            wi0, wi1 = wt0 + delay[vi], wt1 + delay[vi]              # winner's effective window
+            lj0, lj1 = lt0 + delay[vj], lt1 + delay[vj]             # loser's effective window
+            if wi0 < lj1 and lj0 < wi1:                             # windows still overlap -> re-sequence
+                need = wi1 - lj0                                    # push the loser past the winner's end
+                if need > 0:
+                    new_delay[vj] = max(new_delay[vj], delay[vj] + need)
+        if new_delay == delay:
+            break
+        delay = new_delay
+    return delay
+
+
 def _rover_health(pv) -> dict:
     """FL-04: distill one rover's belief/health/resource state from its battery-aware sim -- feasibility,
     the LOWEST battery SoC fraction it reaches (the resource margin), its recharge count, and a health
@@ -1847,7 +1912,11 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     # declared resources, resource_delays is all 0 -> makespan/survival are byte-identical to a non-reserved fleet.
     resource_delays, resource_waits = _resolve_shared_resources(per_vehicle, mission.shared_resources)
     resource_wait_s = float(sum(resource_delays))
-    makespan = max((pv["core"]["time_s"] + charger_delays[i] + resource_delays[i]
+    # FL-02 re-sequencing: deconflict space-time crowding + haul-path crossings by the same FCFS wait the
+    # charger queue uses (the loser yields). No crowding -> all 0 -> makespan/survival byte-identical.
+    crowd_delays = _resolve_spacetime_crowding(per_vehicle)
+    crowd_wait_s = float(sum(crowd_delays))
+    makespan = max((pv["core"]["time_s"] + charger_delays[i] + resource_delays[i] + crowd_delays[i]
                     for i, pv in enumerate(per_vehicle)), default=0.0)
     agg = dict(
         time_s=float(makespan),
@@ -1870,6 +1939,7 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     detail = [{"vehicle": pv["vehicle"], "n_trips": len(pv["trips"]), "time_s": pv["core"]["time_s"],
                "energy_J": pv["core"]["energy_J"], "distance_m": pv["core"]["distance_m"],
                "charges": pv["core"]["charges"], "charger_wait_s": float(charger_delays[pv["vehicle"]]),
+               "crowd_wait_s": float(crowd_delays[pv["vehicle"]]),  # FL-02 re-sequencing wait (space-time crowding)
                "health": _rover_health(pv)}                       # FL-04: per-rover belief/health/resource state
               for pv in per_vehicle]
     fleet_needs_replan = any(d["health"]["health"] == "stranded" for d in detail)   # FL-04 replan trigger
@@ -1879,6 +1949,7 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
                   n_precedence=len(glob_prec), objective=str(objective), vehicles=int(vehicles),
                   makespan_s=float(makespan), makespan_parallel_s=float(parallel_makespan),
                   charger_wait_s=charger_wait_s, charger_queue_modeled=True,
+                  crowd_wait_s=crowd_wait_s, crowd_resequenced=bool(crowd_wait_s > 0.0),  # FL-02 re-sequencing
                   vehicle_conflicts=int(conflicts), vehicles_detail=detail,
                   fleet_needs_replan=bool(fleet_needs_replan),
                   temporal_conflicts=int(_temporal_conflicts(per_vehicle)),   # FL-02: nearby-site space-time crowding
@@ -1900,7 +1971,8 @@ def plan_multi_oracle(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
     """FL-06: the EXACT small-problem multi-vehicle oracle that the heuristic `plan_multi` is validated
     against. Brute-forces the TRUE site-exclusive optimum -- every assignment of whole site-groups to V
     vehicles x every per-vehicle trip order -- each candidate simulated battery-aware and resolved through
-    the SAME one-server charger queue (FL-03), returning the minimum-makespan plan. The search is a
+    the SAME one-server charger queue (FL-03) AND the SAME FL-02 space-time crowding re-sequencing the
+    heuristic applies, returning the minimum-makespan plan. The search is a
     SUPERSET of what the heuristic can pick (identical site-exclusive policy + identical simulator), so
     oracle makespan <= heuristic makespan always; a heuristic that 'beats' it is a bug. The per-vehicle
     orders are bruted JOINTLY (the charger queue couples vehicles, so a vehicle cannot be optimised in
@@ -1934,7 +2006,9 @@ def plan_multi_oracle(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
                 tl, _per_trip, core = _simulate(mission, vtrips, routes)
                 per_vehicle.append({"vehicle": v, "tl": tl, "core": core})
             delays = _resolve_charger_queue(per_vehicle, capacity=mission.charger_capacity)
-            mk = max((pv["core"]["time_s"] + delays[i] for i, pv in enumerate(per_vehicle)), default=0.0)
+            crowd = _resolve_spacetime_crowding(per_vehicle)     # FL-02: same re-sequencing the heuristic applies
+            mk = max((pv["core"]["time_s"] + delays[i] + crowd[i] for i, pv in enumerate(per_vehicle)),
+                     default=0.0)
             if best is None or mk < best[0] - 1e-9:
                 best = (mk, list(assign))
     if best is None:   # CT-06: the assignment x per-vehicle-order loop always runs >= once
