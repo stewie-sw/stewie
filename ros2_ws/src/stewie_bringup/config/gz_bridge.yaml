@@ -1,0 +1,67 @@
+# [REQ:AS-06] ros_gz_bridge config — the FROZEN gz<->ROS2 seam for the Gazebo IPEx sim.
+# Every ROS topic name is an AS-01 boundary-contract topic (stewie/bridge/autonomy_contract.py).
+# TRUTH-DENIAL (the AS-06 acceptance, clause 2): the Gazebo ground-truth model pose is bridged ONLY
+# to /stewie/truth/pose (an autonomy_contract.TRUTH_TOPICS channel that estimator nodes may never
+# subscribe) -- it is NEVER bridged to /stewie/odom or any estimator input. The estimator sees only
+# the SENSOR topics below (imu, wheel_odom, cameras), exactly as on hardware.
+#
+# Validated by ros2_ws/test_gz_bridge.py (bridge<->contract + truth-denial lint); the running-sim
+# topic-publish smoke is the container-gated half (deploy/ros2/Dockerfile.gazebo).
+
+# ---- commands: ROS -> GZ (the actuation seam; emission gated by AG-08/SF-01 upstream) ----
+- ros_topic_name: "/cmd_vel"
+  gz_topic_name: "/model/ipex/cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_type_name: "gz.msgs.Twist"
+  direction: ROS_TO_GZ
+
+# ---- time: GZ -> ROS (sim clock drives /use_sim_time) ----
+- ros_topic_name: "/clock"
+  gz_topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS
+
+# ---- proprioception: GZ -> ROS ----
+- ros_topic_name: "/joint_states"
+  gz_topic_name: "/world/stewie_lunar/model/ipex/joint_state"
+  ros_type_name: "sensor_msgs/msg/JointState"
+  gz_type_name: "gz.msgs.Model"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/imu"
+  gz_topic_name: "/model/ipex/imu"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "gz.msgs.IMU"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/wheel_odom"
+  gz_topic_name: "/model/ipex/odometry"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/tf"
+  gz_topic_name: "/model/ipex/tf"
+  ros_type_name: "tf2_msgs/msg/TFMessage"
+  gz_type_name: "gz.msgs.Pose_V"
+  direction: GZ_TO_ROS
+
+# ---- exteroception: GZ -> ROS (the front stereo pair; the redundant set bridges identically) ----
+- ros_topic_name: "/stewie/camera/front_left/image"
+  gz_topic_name: "/world/stewie_lunar/model/ipex/link/camera_front_left/sensor/camera_front_left/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/front_right/image"
+  gz_topic_name: "/world/stewie_lunar/model/ipex/link/camera_front_right/sensor/camera_front_right/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+# ---- EVALUATION TRUTH: GZ -> ROS, truth channel ONLY (NEVER an estimator input) ----
+# The simulator's exact model pose. Lives on /stewie/truth/pose (autonomy_contract.TRUTH_TOPICS) so
+# the offline scorer can read it; the truth-denial validator + the AS-01 contract forbid any
+# estimator (perception/localization/mapping) from subscribing it.
+- ros_topic_name: "/stewie/truth/pose"
+  gz_topic_name: "/world/stewie_lunar/dynamic_pose/info"
+  ros_type_name: "geometry_msgs/msg/PoseStamped"
+  gz_type_name: "gz.msgs.Pose_V"
+  direction: GZ_TO_ROS
