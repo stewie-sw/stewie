@@ -15,7 +15,13 @@
 #
 # CC0-1.0 (see /LICENSE in the repo). The base image carries COLMAP's own
 # (BSD-3-Clause) + CUDA EULA terms; see scripts/colmap/README.md.
-FROM graffitytech/colmap:3.12.2-cuda12.8.1-devel-ubuntu24.04
+# Driver-matched base (parameterized). Default = CUDA 12.8 (host RTX 4090 / driver 570.x). On a host
+# whose driver is OLDER, override to a CUDA tag the driver supports, or the GPU steps die with
+# "forward compatibility was attempted on non supported HW". E.g. driver 535 (CUDA 12.2, RTX 3090):
+#   docker build --build-arg COLMAP_BASE=graffitytech/colmap:3.9-cuda12.2.2-devel-ubuntu22.04 \
+#     -f scripts/colmap/colmap.Dockerfile -t fossipex/colmap:m2b-cuda12.2 scripts/colmap/
+ARG COLMAP_BASE=graffitytech/colmap:3.12.2-cuda12.8.1-devel-ubuntu24.04
+FROM ${COLMAP_BASE}
 
 # Non-interactive apt; the base is devel-ubuntu24.04 (python3 may be absent/minimal).
 ENV DEBIAN_FRONTEND=noninteractive

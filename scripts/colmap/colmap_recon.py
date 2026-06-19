@@ -454,13 +454,11 @@ def cmd_recon(args: argparse.Namespace) -> int:
     colmap_imgs = parse_images_txt(os.path.join(model, "images.txt"))
     n_reg = len(colmap_imgs)
 
-    # (c) OPTIONAL dense MVS, gated behind --dense. patch_match_stereo is CUDA-only (no CPU path), so a
-    # CPU/--no-gpu run cannot do dense -- skip it with a clear note instead of crashing.
-    if args.dense and gpu == "0":
-        print("recon: --dense needs CUDA (patch_match_stereo has no CPU path); skipping dense MVS on this "
-              "host (GPU driver predates the image's CUDA). The sparse reconstruction above is the artifact.",
-              file=sys.stderr)
-    elif args.dense:
+    # (c) OPTIONAL dense MVS, gated behind --dense. patch_match_stereo is CUDA-only (needs the GPU) but,
+    # unlike GPU SIFT (SiftGPU), needs NO OpenGL context -- so it runs headless even under --no-gpu (CPU
+    # SIFT). The headless-correct combo on a server is therefore CPU SIFT + CUDA dense. It still needs a
+    # working CUDA (image CUDA <= host driver) or it aborts -- that is the operator's call, not skipped here.
+    if args.dense:
         dense_dir = os.path.join(work, "dense")
         os.makedirs(dense_dir, exist_ok=True)
         _run([colmap, "image_undistorter",
