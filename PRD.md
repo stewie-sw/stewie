@@ -1,7 +1,7 @@
 # STEWIE PRD: Lunar Construction and Solar-Terrain Autonomy
 
-**Version:** 7.1
-**Date:** 2026-06-15
+**Version:** 7.2
+**Date:** 2026-06-19
 **Status:** CANONICAL — the single source of truth for project design + reference. All other design
 documents are archived (`docs/archive/`) or are upstream STEWIE architecture/roadmap sources
 (maintained privately; public mapping in §16). The granular execution breakdown lives in the private
@@ -92,7 +92,70 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 >   SN-06..10 Q-tails), the PyChrono SCM oracle (TM-01, VT-09, Lyasko), and Jetson Orin edge hardware
 >   (ML-09). The remaining ~40 doable rows are being closed in priority batches.
 
-**Current forward order (2026-06-15, codebase-aligned):**
+> **UPDATE 2026-06-19 — FULL PRD↔CODE RECONCILIATION (FS-22) + the front-end-rewrite episode.** A
+> three-front evidence-grounded audit (planner+physics, autonomy+perception, product surface) re-checked
+> the §7 matrix + forward stages against the tree. Headline: several long-open items CLOSED, the front-end
+> IA REGRESSED (a React rewrite was reverted), the dense-reconstruction tier was UNBLOCKED as a
+> demonstrator, and the deep autonomy/comms tiers remain honestly gated. **Intent vs state:** STEWIE's
+> intent — a lunar mission-planning + digital-twin + autonomy *environment* whose trainer/sim product
+> drives a real rover, plus the SolNav/ARGUS dissertation evidence — is **substantially realized as a
+> planning + estimation + visualization platform; the live-autonomy and operational-twin tiers are built
+> as tested code but not yet deploy-integrated or hardware-passed.**
+>
+> **Closed since the last reconciliation (statuses corrected — these rows below are now STALE):**
+> - **REG-01 DEM site imports → DONE** (was an open functional gap). `site` is a PlanRequest field threaded
+>   through plan/timeline/IR/report; Shackleton + Nobile are plannable (`server/routers/plan.py:291`,
+>   `stewie/terrain/site_dem.py`, `server/test_dem_site_aware.py`). §20.3/§22.2 "planner hard-targets
+>   Haworth" no longer holds.
+> - **FORGE → populated** (was "empty package"): `forge/bearing.py` (Terzaghi/Vesic, sourced) + re-export `__init__`.
+> - **CP-06 bearing-capacity acceptance → DONE** (the sub-item that pinned CP-06 at "P", line ~532):
+>   `validate_plan` reports loose+firmed allowable bearing + holds/firming_recommended, additive, never
+>   folded into `feasible` (`lode/mission_planner.py:2578`). Honest residual: a loose-vs-bank-density proxy,
+>   not yet a true FORGE per-cell compaction-state field.
+> - **DT-02 `/twin/version` read-auth → DONE** (old forward-item #2). **REG-02 / VT-02 per-vehicle planner
+>   numbers → largely DONE** via H-01 (drive/dig/battery/mass threaded; the V=D delta test is the confirm).
+>   **PO-14 deployment docs/image → STALE-understated** (DEPLOY.md + compose + Dockerfiles exist + current).
+>
+> **New capability (real, on disk + verified):** a **3D Terrain** Cesium layer over the real reprojected
+> LOLA DEM (`/dem/terrain_grid`) and a **Reconstruction** 3D-Tiles twin layer (`/tiles`) on the cockpit
+> globe; and the **dense COLMAP MVS path UNBLOCKED** — a from-source CUDA-12.2 + sm_86 image
+> (`scripts/colmap/colmap-src.Dockerfile`, the one combo no prebuilt tag offered) produced a 149,709-pt
+> dense cloud (12/12 reg, 0.19 px, 3.3 mm ATE) packed to a georeferenced tileset (`ply_to_3dtiles.py`).
+> **Scope caveat:** a *demonstrator on 12 self-rendered Godot arc views of `boulder_field`* placed at the
+> site — NOT a reconstruction of a real traverse; **PM-13..16 stay OPEN** (no measurement-vs-truth acceptance).
+>
+> **REGRESSION — the front-end IA did not land.** A full React+Vite cockpit rewrite (Phases 0–5, targeting
+> the §11 8-work-area shell, FS-23) was built, deployed to app.stewie.space, broke on a Cesium init bug
+> (`CESIUM_BASE_URL` unset blanked the map panes), and was REVERTED (`55c44c6`). The LIVE cockpit is the
+> vanilla `cockpit.js` 5-tab shell (Plan/Navigation/Perception/Metrics/Report). **FS-03's 8-area IA (Fleet,
+> Construction, Models as first-class work areas) is NOT realized** — the single largest product-surface gap.
+> The vanilla cockpit absorbed the two new 3D layers cleanly afterward (no lasting damage).
+>
+> **Honest gates (unchanged — NOT passed):** **P20 live ROS2 node / P23 intern beta** — the
+> bridge/telemetry/role-split are real tested code + container-run-verified, but the live rclpy node is
+> host-gated (rclpy absent) and the P23 "<30 min unassisted Haworth traverse through real RC software" has
+> no evidence artifact → "built + container-verified, deploy-integration pending," not "gate passed."
+> **P7 live Chrono producer — still a STUB** (`scripts/chrono_scm_export.py:2`); **Tier-3 force-accurate
+> drum — OPEN**. **Fleet conflict RESOLUTION + MV precedence-chain splitting — OPEN** (every conflict class
+> is detected/reported; none re-sequenced; a chain can't span vehicles). **STEWIE-Orbit comms stack —
+> intent-only** (only the gated CCSDS Space-Packet RC seam exists; no Proximity-1/AOS-USLP/CFDP/SDLS/Yamcs/
+> Foxglove code). **GIS interop GI-03 — OPEN** (the cockpit toolbox is client annotation, not GeoJSON/COG/OGC).
+>
+> **Strongest, fully DONE + tested:** the AG-01..08 governance ladder (whole family), SF-01 safing, NV-11/12
+> Plan-IR lowering + stream under AG-08, FS-17 windowing, FS-20 chrome, server hardening (PO-06/07/08),
+> CSP/self-hosted-Cesium deploy, the SN-01..10 + P15 + articulation-parallax estimator library, the
+> map-channel observability reward, and the AprilTag pose channel (12.7 mm, container-gated qual).
+>
+> **Corrected forward order (supersedes the 2026-06-15 list below):**
+> 1. **Land the front-end IA** — the reverted §11 8-area shell, incrementally on the vanilla cockpit OR a
+>    re-attempted rewrite verified SIGNED-IN on a real browser before any flip. Biggest product gap.
+> 2. **Deploy-integrate the ROS2 bridge** (P20 live node in the deploy) + capture the P23 intern-beta run.
+> 3. **Fleet conflict resolution** (FL-02 re-sequencing) + MV precedence-chain splitting.
+> 4. **Operational world-model unification** (DT-01: authority + TwinStore + packets + PlanResult + belief).
+> 5. Externally gated (unchanged): Tier-3 drum forces (Chrono::GPU), the live Chrono producer, a
+>    real-traverse reconstruction closing PM-13..16, and the STEWIE-Orbit comms stack.
+
+**Current forward order (SUPERSEDED 2026-06-19 — see the reconciliation block above; original 2026-06-15 list):**
 1. **Stabilize the production web/GIS surface.** Keep WEB-01/SEC-01 live-site hardening load-bearing:
    self-host Cesium, preserve no-inline-script CSP, remove deploy-key-in-browser paths, run a real
    Nginx/Cesium/mobile smoke, and verify the declared `server` extra is actually installed in the
