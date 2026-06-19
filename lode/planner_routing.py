@@ -298,8 +298,8 @@ def navigation_contract() -> dict:
     import importlib
 
     def _has(mod: str, attr: str) -> bool:
-        try:
-            return hasattr(importlib.import_module(mod), attr)
+        try:                                               # the seam must resolve to a real CALLABLE entry
+            return callable(getattr(importlib.import_module(mod), attr, None))   # point, not merely be importable
         except Exception:                                  # noqa: BLE001 -- a missing seam is reported, not raised
             return False
 
