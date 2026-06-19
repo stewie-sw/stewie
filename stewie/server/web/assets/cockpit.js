@@ -1291,12 +1291,13 @@ function flashSignInNeeded() {                            // a 401 surfaced -> n
     return res;
   };
 })();
+let DESKTOP = false;   // STEWIE_DESKTOP: the bundled desktop app -> skip the operator-login gate, run as local-trust director
 async function refreshAuthState() {
   const st = $("set-opstate");
   // SEC-01: the session is an HttpOnly cookie -- we cannot read it, but the readable CSRF cookie (set
   // and cleared alongside it) tells us a session likely exists. With neither that nor an in-memory key,
   // skip /auth/me so an unauthenticated load does not pop the sign-in prompt via the 401 observer.
-  if (!getCookie("stewie_csrf") && !AUTH.apikey) {
+  if (!getCookie("stewie_csrf") && !AUTH.apikey && !DESKTOP) {
     AUTH.role = null; AUTH.identity = null;
     if (st) st.textContent = "not signed in";
     renderWhoami(null);
@@ -1447,6 +1448,7 @@ async function doRedeem() {                                // #179/AG-04: redeem
   const am = $("authmodal"); if (am) am.addEventListener("click", (e) => { if (e.target === am) closeAuth(); });
   bind("set-account", () => openAuth("login"));
   fetch("/auth/config").then((r) => r.json()).then((c) => {
+    if (c.desktop) { DESKTOP = true; refreshAuthState(); }   // desktop app: local-trust director, skip the login gate
     if (!c.operator_login) { const b = $("set-account"); if (b) b.disabled = true; }
     if (!c.registration_open) { const t = $("auth-tab-register"); if (t) t.style.display = "none";
       const tr = $("auth-tabs"); if (tr) tr.style.display = "none"; }   // lone "Sign in" tab is redundant with the submit

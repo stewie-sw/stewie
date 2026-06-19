@@ -38,8 +38,11 @@ function freePort() {
 function startServer(port) {
   // Mirror the documented venv-isolation: force PYTHONNOUSERSITE and drop any inherited PYTHONPATH
   // so the repo .venv resolves its own packages.
-  const env = { ...process.env, PYTHONNOUSERSITE: "1" };
+  const env = { ...process.env, PYTHONNOUSERSITE: "1", STEWIE_DESKTOP: "1" };
   delete env.PYTHONPATH;
+  // STEWIE_DESKTOP=1 -> the server grants a loopback-only local-trust "director" so the single-user
+  // desktop app opens straight to the cockpit (no operator login). Safe: the public/docker deploy
+  // never sets this flag, and the grant additionally requires a loopback client (see deps.require_auth).
   const proc = spawn(SERVE, ["--port", String(port), "--host", "127.0.0.1"], {
     cwd: REPO,
     env,

@@ -180,8 +180,9 @@ def role_of(identity: str) -> str:
     """#68: 'director' (full state: truth views, training toggles, admin) or 'operator' (shaped
     telemetry only). Directors default to the WHOLE whitelist (today's three are all staff);
     STEWIE_DIRECTORS narrows it when trainees join the whitelist. 'api-key' = automation =
-    director-equivalent. 'dev-open' (no key configured) = director."""
-    if identity in ("api-key", "dev-open"):
+    director-equivalent. 'dev-open' (no key configured) = director. 'desktop-local' (the bundled
+    single-user desktop app, STEWIE_DESKTOP=1 on loopback) = director."""
+    if identity in ("api-key", "dev-open", "desktop-local"):
         return "director"
     from stewie.server import operators as OPS
     sr = OPS.store_role(identity)        # #117: a registered active account governs its own role

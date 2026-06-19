@@ -63,6 +63,12 @@ def require_auth(request: Request,
     unless STEWIE_DEV_OPEN is explicitly set AND the client is loopback/in-process -- a keyless
     deployment is no longer silently director-open. Returns the operator identity."""
     from stewie.server import auth as AUTH
+    # Desktop local-trust: the bundled desktop app (Electron) sets STEWIE_DESKTOP=1 when it spawns the
+    # sidecar on loopback, so the single-user app opens straight to the cockpit instead of an operator
+    # login. The public/docker deploy NEVER sets this flag, so this branch cannot activate there;
+    # loopback is an additional barrier, mirroring the STEWIE_DEV_OPEN flag+loopback gate above.
+    if _truthy(_env("DESKTOP")) and _is_loopback(request):
+        return "desktop-local"
     key = _env("API_KEY")
     if not key:
         if _truthy(_env("DEV_OPEN")) and _is_loopback(request):

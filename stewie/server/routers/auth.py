@@ -135,8 +135,12 @@ def _token_response(email: str, *, must_set_password: bool,
 
 @router.get("/auth/config")
 def auth_config():
+    # `desktop`: the bundled single-user desktop app (STEWIE_DESKTOP=1) -> the cockpit skips the operator
+    # login and runs as the loopback local-trust director (see deps.require_auth). The public deploy never
+    # sets the flag, so this is false there.
     return {"ok": True,
             "operator_login": os.environ.get("STEWIE_OPERATOR_LOGIN", "1") != "0",
+            "desktop": os.environ.get("STEWIE_DESKTOP", "").strip().lower() in ("1", "true", "yes", "on"),
             "registration_open": _registration_open()}
 
 
