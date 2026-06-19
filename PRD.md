@@ -1127,7 +1127,7 @@ Status of UI-1..11 (evidence = shipped commits + captures, per the V&V disciplin
 | UI-3 one-action depth | 🟡 partial (popovers + workbench cards; macros ⬜) |
 | UI-4 pertinent cameras | ⬜ (rides the operator-screen split, #68) |
 | UI-5 staleness borders | ✅ SHIPPED (green/20s-yellow/60s-red sweeper) |
-| UI-6 alert rail | ⬜ |
+| UI-6 alert rail | ✅ SHIPPED (severity-typed/timestamped `#alertrail` + 🔔 badge; `alertMsg` chokepoint fed by plan hazard flags, layer failures, error-shaped status; Playwright-verified + `test_ui6_alert_rail.py`) |
 | UI-7 big-board mode | 🟡 (the control-room patterns adopted: status rail + sparklines; the single composed view ⬜) |
 | UI-8 ConOps widget | ✅ SHIPPED (header chip) |
 | UI-9 debrief + bookmarks | 🟡 (debrief ships; bookmarks/checklist export ⬜) |
@@ -1149,9 +1149,9 @@ New requirements from the 2026-06-10 audit/wireframe (the audit's priority order
 | UI-20 | Aaron | mobile: drawer cockpit, touch targets, phone-viewport verified | ✅ SHIPPED |
 | UI-21 | edit mode | QGIS-style edit sessions: camera lock, draw tools, select/move/delete features | ✅ SHIPPED |
 
-Open UI surface, in priority order: UI-14 (attribute table + undo), UI-6 (alert rail), UI-15
+Open UI surface, in priority order: UI-14 (attribute table + undo), UI-15
 (overview-locator), UI-17 remainder (route hero + Gantt), UI-4/UI-7 (the operator-screen split,
-rides #68), UI-18 (pane manager), UI-9/10 remainders.
+rides #68), UI-18 (pane manager), UI-9/10 remainders. (UI-6 alert rail shipped 2026-06-19.)
 
 ### 16.6 Boundary note
 The DART research track planning set (G1–G9 gates, separate honesty firewall) is NOT renamed or
