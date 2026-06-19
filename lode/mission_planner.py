@@ -2740,7 +2740,10 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
                        "slope_siting", "off_dem_siting", "as_built_flatness",
                        "berm_profile", "repose_stability", "bearing_capacity"],
             "defers_to_totals": ["route_feasibility", "battery_reserve", "sequence_precedence",
-                                 "drum_capacity_shuttle_cycles"]},
+                                 "drum_capacity_shuttle_cycles",
+                                 # CP-06: time + energy acceptance live in the plan totals (makespan_s /
+                                 # energy_J + the EP-* ledger + battery_reserve), not re-checked here.
+                                 "time_budget", "energy_budget"]},
         "drum_capacity_kg": float(drum_cap),
         "shuttle_cycles_est": shuttle_cycles_est,              # ceil(cut_mass / drum_cap), summed over cuts
         "max_slope_deg": float(max_slope_deg),

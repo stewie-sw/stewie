@@ -68,3 +68,22 @@ def test_cp06_does_not_gate_feasible():
     ]))
     assert r["repose_pass"] is False                   # over-steep flanks
     assert r["feasible"] is True                       # but mass-conserved + sited -> still feasible
+
+
+def test_cp06_acceptance_scope_accounts_for_all_seven_terms():  # [REQ:CP-06]
+    # every CP-06 acceptance term is accounted for in the scope: the geometry/mass/bearing terms are
+    # CHECKED here; time + energy are explicitly DEFERRED to the plan totals (makespan_s / energy_J +
+    # the EP-* ledger + battery reserve). No CP-06 term is silently missing.
+    r = MP.validate_plan(_mission([
+        {"action": "src", "kind": "cut", "x": 5.0, "y": 5.0, "footprint_m2": 36.0, "depth_m": 0.2},
+        {"action": "berm", "kind": "fill", "x": 20.0, "y": 20.0, "footprint_m2": 16.0, "depth_m": 0.1},
+    ]))
+    scope = r["acceptance_scope"]
+    accounted = set(scope["covers"]) | set(scope["defers_to_totals"])
+    cp06_terms = {"pad flatness": "as_built_flatness", "berm profile": "berm_profile",
+                  "bearing/compaction": "bearing_capacity", "repose stability": "repose_stability",
+                  "mass": "mass_conservation", "time": "time_budget", "energy": "energy_budget"}
+    missing = {term for term, key in cp06_terms.items() if key not in accounted}
+    assert not missing, f"CP-06 acceptance terms not accounted for in the scope: {missing}"
+    # time/energy are DEFERRED (carried by the totals), not re-checked in validate_plan
+    assert {"time_budget", "energy_budget"} <= set(scope["defers_to_totals"])
