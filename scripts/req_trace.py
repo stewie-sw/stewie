@@ -52,9 +52,14 @@ def trace(prd_path: str, paths: list) -> dict:
     cited = sorted(set(marks) & set(reqs))
     unknown = sorted(set(marks) - set(reqs))
     v_done_uncited = sorted(r for r, d in reqs.items() if d["V"] == "D" and r not in marks)
+    # FS-22 reconciliation audit (reverse staleness): a row that HAS a citing test but is NOT yet V=D --
+    # a PRD status that may lag the code. Legitimate mid-development (a test can cite a partial row), so
+    # it is SURFACED for review, not failed. Pairs with the v_done_uncited rule (which fails) to keep the
+    # PRD <-> test mapping honest in BOTH directions.
+    understated = sorted((r, reqs[r]["V"]) for r in cited if reqs[r]["V"] != "D")
     return {"total": len(reqs), "cited": len(cited), "cited_ids": cited,
             "unknown_markers": unknown, "v_done_uncited": v_done_uncited,
-            "markers": marks}
+            "understated": understated, "markers": marks}
 
 
 def main(argv=None) -> int:
@@ -65,12 +70,19 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     r = trace(args.prd, args.paths)
     print(f"requirements: {r['total']} · cited by tests: {r['cited']}")
-    if r["unknown_markers"]:
-        print(f"UNKNOWN markers (no such requirement): {r['unknown_markers']}")
+    if r["understated"]:        # FS-22 audit: cited-but-not-V=D, surfaced for promotion review (not a failure)
+        print(f"audit (FS-22): {len(r['understated'])} row(s) cited but V!=D — review for promotion: "
+              + ", ".join(f"{rid}({v})" for rid, v in r["understated"]))
+    violations = []
+    if r["unknown_markers"]:    # FS-22: an orphan [REQ:] citation -- a test claims a requirement that does
+        print(f"VIOLATION — orphan [REQ:] citation to a non-existent requirement: {r['unknown_markers']}")
+        violations.append("unknown_markers")   # not exist (typo / deleted row). The mapping must be exact.
     if r["v_done_uncited"]:
         print(f"VIOLATION — V=D without a citing test: {r['v_done_uncited']}")
+        violations.append("v_done_uncited")
+    if violations:
         return 1
-    print("traceability rule holds: every V=D requirement is test-cited")
+    print("reconciliation holds: every [REQ:] citation resolves to a real row, every V=D is test-cited")
     return 0
 
 
