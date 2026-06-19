@@ -2545,6 +2545,14 @@ async function loadLayers() {
     cb3.onchange = () => { LAYER_ON.terrain3d = cb3.checked; applyLayerToggle("terrain3d", cb3.checked); };
     t3.appendChild(cb3); t3.appendChild(document.createTextNode("3D Terrain"));
     panel.appendChild(t3);
+    // Reconstruction twin: the COLMAP dense-cloud 3D Tiles overlay (off by default; additive).
+    const rt = document.createElement("label");
+    rt.style.cssText = "display:inline-flex;gap:3px;align-items:center;cursor:pointer";
+    rt.title = "load the photogrammetric reconstruction (COLMAP dense cloud) as a 3D Tiles twin at the site";
+    const cbr = document.createElement("input"); cbr.type = "checkbox"; cbr.id = "lyr_recon_twin"; cbr.checked = !!LAYER_ON.recon_twin;
+    cbr.onchange = () => { LAYER_ON.recon_twin = cbr.checked; applyLayerToggle("recon_twin", cbr.checked); };
+    rt.appendChild(cbr); rt.appendChild(document.createTextNode("Reconstruction"));
+    panel.appendChild(rt);
   } catch (e) { /* serverless preview keeps the defaults */ }
   applyDefaultsOnceReady();                                // #63: the other ready side
 }
@@ -2682,6 +2690,27 @@ function loadTerrain3D(on) {
     if (typeof flyToWorkArea === "function") flyToWorkArea();   // toggles give feedback: frame the relief
   }).catch(() => {});
 }
+// RECONSTRUCTION TWIN: load the COLMAP dense cloud as a Cesium 3D Tiles point cloud (GET
+// /tiles/twin/tileset.json, packed + georeferenced by scripts/colmap/ply_to_3dtiles.py). It is placed at
+// the work-area site, so toggling on frames it up close (a ~5 m patch -- the work-area fly-to is too far).
+// Additive + off by default; a no-op if no tileset is published on this deployment.
+let RECON_TWIN = null;
+function loadReconTwin(on) {
+  if (!viewer || !Cesium.Cesium3DTileset) return;
+  if (RECON_TWIN) { try { viewer.scene.primitives.remove(RECON_TWIN); } catch (e) {} RECON_TWIN = null; }
+  if (!on) { try { viewer.scene.requestRender(); } catch (e) {} return; }
+  Cesium.Cesium3DTileset.fromUrl("/tiles/twin/tileset.json").then((ts) => {
+    if (!viewer) return;
+    RECON_TWIN = viewer.scene.primitives.add(ts);
+    try { ts.pointCloudShading.attenuation = true; ts.pointCloudShading.maximumAttenuation = 5; } catch (e) {}
+    try {                                                  // frame the patch (setView: flyTo tweens don't progress here)
+      const bs = ts.boundingSphere;
+      viewer.camera.lookAt(bs.center, new Cesium.HeadingPitchRange(0.0, Cesium.Math.toRadians(-35),
+                                                                   Math.max(bs.radius * 4.0, 15.0)));
+    } catch (e) {}
+    try { viewer.scene.requestRender(); } catch (e) {}
+  }).catch(() => { /* no tileset published on this deployment -> no-op */ });
+}
 function flyToWorkArea() {                                 // audit P1: toggles give FEEDBACK -- fly to where the layer lives
   if (!viewer || !HAWORTH_CENTER) return;
   const h = viewer.camera.positionCartographic.height;
@@ -2694,6 +2723,7 @@ function flyToWorkArea() {                                 // audit P1: toggles 
 }
 function applyLayerToggle(id, on) {                          // load/unload the raster layers (vector layers redraw)
   if (id === "terrain3d") { loadTerrain3D(on); return; }   // the 3D DEM mesh on the globe (additive layer)
+  if (id === "recon_twin") { loadReconTwin(on); return; }  // the COLMAP dense-cloud 3D Tiles twin
   if (id === "dem") {
     const wa = qel("workarea"); if (wa) wa.style.display = on ? "" : "none";
     globeLayer("dem", "", on);                               // the GLOBE drape obeys the checkbox too
