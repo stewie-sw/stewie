@@ -1141,7 +1141,7 @@ New requirements from the 2026-06-10 audit/wireframe (the audit's priority order
 | UI-12 | audit P1 | physics-fed layer legends + an on-map true-scale bar | ✅ SHIPPED (TDD: legend == code defaults) |
 | UI-13 | audit P2 | drag-to-move features + the branded glyph set, one drawing language | ✅ SHIPPED |
 | UI-14 | audit P3 | the queue as an attribute table + authoring undo | ✅ SHIPPED (`#qtable` sortable attribute table — kind/action/x·E/y·N/m²/depth, click-to-sort, per-row locate/reorder/delete; `undoAuthoring` history + ↶/Ctrl+Z; Playwright-verified + `test_ui14_queue_table.py`) |
-| UI-15 | audit P4 | the pip as a true overview-locator (draggable view rectangle) — or removed | ⬜ |
+| UI-15 | audit P4 | the pip as a true overview-locator (draggable view rectangle) — or removed | ✅ SHIPPED (`pipDraw` strokes the main camera's `computeViewRectangle` on the `#piploc` pip over the `#workareaimg` hillshade; single-drag pans, double-click renders that sub-area. Playwright-verified: the pip renders 240×240 and the neon view-rectangle is drawn — canvas getImageData found ~2198 stroke px, redrawing after a pip drag. `test_ui15_overview_locator.py`) |
 | UI-16 | survey | TerriaJS workbench cards (per-layer legend/opacity/zoom/remove) + basemap stacking | ✅ SHIPPED |
 | UI-17 | wireframe | REPORT = the mission dashboard (totals strip ✅; route hero + Gantt ⬜) | 🟡 |
 | UI-18 | wireframe | the pane manager (user-created, resizable, persisted layouts) | ⬜ (resizable inset shipped as the slice) |
@@ -1149,10 +1149,9 @@ New requirements from the 2026-06-10 audit/wireframe (the audit's priority order
 | UI-20 | Aaron | mobile: drawer cockpit, touch targets, phone-viewport verified | ✅ SHIPPED |
 | UI-21 | edit mode | QGIS-style edit sessions: camera lock, draw tools, select/move/delete features | ✅ SHIPPED |
 
-Open UI surface, in priority order: UI-15
-(overview-locator), UI-17 remainder (route hero + Gantt), UI-4/UI-7 (the operator-screen split,
-rides #68), UI-18 (pane manager), UI-9/10 remainders. (UI-6 alert rail + UI-14 queue attribute
-table both shipped 2026-06-19.)
+Open UI surface, in priority order: UI-17 remainder (route hero + Gantt), UI-4/UI-7 (the
+operator-screen split, rides #68), UI-18 (pane manager), UI-9/10 remainders. (UI-6 alert rail +
+UI-14 queue attribute table + UI-15 overview-locator all shipped 2026-06-19.)
 
 ### 16.6 Boundary note
 The DART research track planning set (G1–G9 gates, separate honesty firewall) is NOT renamed or
