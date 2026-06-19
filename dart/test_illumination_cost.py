@@ -18,10 +18,25 @@ def _scene(h=40, w=40):
 def test_cost_is_separable_inspectable_terms():
     z, cell = _scene()
     c = illumination_cost(z, cell_m=cell, sun_az_deg=0.0, sun_el_deg=8.0)
-    for term in ("shadow_hazard", "saturation", "map_uncertainty", "total"):
+    for term in ("shadow_hazard", "saturation", "map_uncertainty", "visibility", "total"):
         assert term in c and c[term].shape == z.shape    # each term is its own retrievable field
     # total is a weighted sum of the named terms -- not a black box
     assert np.all(c["total"] >= 0)
+    # visibility is OPT-IN: with no anchors it is all-zero (byte-identical to the pre-visibility cost)
+    assert not c["visibility"].any()
+
+
+def test_visibility_term_flags_cells_blind_to_the_anchor():  # [REQ:SN-05]
+    # a tall wall at col 20 occludes cells on the far side from a localization anchor at the left edge.
+    # Those cells get visibility cost 1 (no LOS -> no fiducial pose-lock); near-side cells stay 0.
+    z = np.zeros((40, 40)); z[:, 20] = 25.0               # an occluding wall spanning every row
+    anchor = (0.0, 20.0)                                  # world (x=col0, y=row20), same frame as cell_m/origin
+    c = illumination_cost(z, cell_m=1.0, sun_az_deg=0.0, sun_el_deg=45.0,
+                          anchors=[anchor], dem_origin=(0.0, 0.0))
+    assert c["visibility"][20, 30] == 1.0                 # far side of the wall -> blind to the anchor
+    assert c["visibility"][20, 5] == 0.0                  # same side as the anchor -> line-of-sight
+    # the far-side blind cell costs MORE than the near-side visible cell (the term enters the total)
+    assert c["total"][20, 30] > c["total"][20, 5]
 
 
 def test_shadowed_cells_cost_more_than_lit():
