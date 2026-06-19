@@ -18,7 +18,7 @@ def test_read_real_sensors_frame():
     names = {c.name for c in f.cameras}
     assert {"front_left", "front_right", "rear_left", "rear_right"} <= names
     # real stereo baseline ~7 cm and real fx from the twin render
-    assert abs(f.stereo_baseline_m - 0.07) < 1e-2
+    assert abs(f.stereo_baseline_m - 0.05) < 1e-2
     fl = f.camera("front_left")
     assert 600 < fl.fx < 750 and fl.image.endswith(".png")
     # the Sun block carries the low-sun regime

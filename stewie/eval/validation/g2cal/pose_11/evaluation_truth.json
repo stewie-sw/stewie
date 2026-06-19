@@ -7,7 +7,7 @@
         "position_m": [
           2.39999985694885,
           -0.0760093703866005,
-          2.7350001335144
+          2.72500014305115
         ],
         "quaternion_xyzw": [
           0.0,
@@ -23,7 +23,7 @@
         "position_m": [
           2.39999985694885,
           -0.0760093703866005,
-          2.66499996185303
+          2.67499995231628
         ],
         "quaternion_xyzw": [
           0.0,
@@ -39,7 +39,7 @@
         "position_m": [
           1.79999995231628,
           -0.0760093703866005,
-          2.7350001335144
+          2.72500014305115
         ],
         "quaternion_xyzw": [
           0.0,
@@ -55,7 +55,7 @@
         "position_m": [
           1.79999995231628,
           -0.0760093703866005,
-          2.66499996185303
+          2.67499995231628
         ],
         "quaternion_xyzw": [
           0.0,
@@ -166,7 +166,7 @@
   },
   "producer_schema_version": "sensor_bridge/1.1",
   "profile_id": "STEWIE_IPEX_V1",
-  "profile_sha256": "0002e4c56bc96d82e730b5357c91b7c34776d02c6b9dfd5192f8883deb8953d8",
+  "profile_sha256": "1cb00b8f77c006836dfb988f1f084959edf12fa961b8fae65364e5080049449c",
   "provenance": "GROUND_TRUTH_EVAL",
   "rover": {
     "frame_id": "base_link",

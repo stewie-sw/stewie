@@ -1,0 +1,187 @@
+<?xml version="1.0"?>
+<!-- [REQ:AS-03] IPEx vehicle description (chassis, 4 wheels, 2 bucket drums, IMU, 8-camera rig,
+     collision, inertials, joint limits, TF tree). [REQ:AS-17] the stereo baseline is the
+     authoritative profile value, NOT a hard-coded literal: it defaults to the 0.05 m TRL5-final
+     flight baseline (the sim's active geometry after the 2026-06-18 re-freeze) and is overridable
+     via the `stereo_baseline` arg. The rejected 0.165 m shoulder split is documented in
+     stewie/specs/stereo_authority.py and is deliberately NOT the default here.
+
+     Geometry provenance: stewie/specs/profile_data/stewie_ipex_v1.json (vehicle + stereo blocks)
+     and stewie/specs/ipex_specs.py (SCHULER24 NTRS 20240008162 / WHEELTEST / BDSCALE). Per-part
+     MASS ALLOCATION is [ASSUMPTION] (only the 30 kg dry total + 0.21 m CG height are sourced; the
+     split among chassis/wheels/drums is an engineering estimate, tagged like ipex_specs' other
+     [ASSUMPTION] values). Inertias use exact rigid-body formulas on those masses+dims. -->
+<robot name="ipex" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ============================ authoritative dimensions ============================ -->
+  <!-- stereo_baseline: TRL5-final default (stewie_ipex_v1.json stereo.front.baseline_m = 0.05). -->
+  <xacro:arg name="stereo_baseline" default="0.05"/>
+  <xacro:property name="stereo_baseline" value="$(arg stereo_baseline)"/>
+
+  <!-- vehicle block (stewie_ipex_v1.json) -->
+  <xacro:property name="wheelbase"     value="0.30"/>     <!-- front<->rear wheel separation (x) -->
+  <xacro:property name="track_gauge"   value="0.3645"/>   <!-- left<->right wheel separation (y) -->
+  <xacro:property name="wheel_radius"  value="0.1525"/>   <!-- = WHEEL_RADIUS_M (30.5 cm dia) -->
+  <xacro:property name="wheel_width"   value="0.18"/>
+  <xacro:property name="cg_height"     value="0.21"/>     <!-- [ASSUMPTION] CG height (stability.py) -->
+  <xacro:property name="dry_mass"      value="30.0"/>     <!-- SOURCED dry total (ROVER_MASS_CLASS_KG) -->
+
+  <!-- chassis box (encloses the wheelbase/track) -->
+  <xacro:property name="chassis_len"   value="0.46"/>     <!-- [ASSUMPTION] > wheelbase -->
+  <xacro:property name="chassis_wid"   value="0.30"/>     <!-- [ASSUMPTION] < track (wheels outboard) -->
+  <xacro:property name="chassis_hgt"   value="0.18"/>     <!-- [ASSUMPTION] -->
+
+  <!-- bucket drum (large class, ipex_specs.DRUM_DIMENSIONS_M['large']) at both ends (bidirectional) -->
+  <xacro:property name="drum_radius"   value="0.21855"/>  <!-- 0.4371 m dia / 2 -->
+  <xacro:property name="drum_width"    value="0.3526"/>
+  <xacro:property name="drum_reach"    value="0.32"/>     <!-- [ASSUMPTION] arm reach ahead of chassis -->
+
+  <!-- [ASSUMPTION] mass allocation summing to the 30 kg sourced dry total -->
+  <xacro:property name="m_chassis"     value="18.0"/>
+  <xacro:property name="m_wheel"       value="1.5"/>      <!-- x4 = 6.0 -->
+  <xacro:property name="m_drum"        value="3.0"/>      <!-- x2 = 6.0 ; 18 + 6 + 6 = 30 -->
+
+  <!-- ============================ reusable macros ============================ -->
+  <xacro:macro name="box_inertial" params="m x y z">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${m*(y*y+z*z)/12.0}" iyy="${m*(x*x+z*z)/12.0}" izz="${m*(x*x+y*y)/12.0}"
+               ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- cylinder spinning about its local Y (wheel/drum axle along body +Y) -->
+  <xacro:macro name="wheel_inertial" params="m r w">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${m*(3*r*r+w*w)/12.0}" iyy="${m*r*r/2.0}" izz="${m*(3*r*r+w*w)/12.0}"
+               ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- a drive wheel: continuous joint about body +Y, with joint-limit effort/velocity -->
+  <xacro:macro name="wheel" params="name x y">
+    <link name="${name}">
+      <visual>
+        <origin rpy="${pi/2} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+      </visual>
+      <collision>
+        <origin rpy="${pi/2} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+      </collision>
+      <xacro:wheel_inertial m="${m_wheel}" r="${wheel_radius}" w="${wheel_width}"/>
+    </link>
+    <joint name="${name}_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${name}"/>
+      <origin xyz="${x} ${y} 0"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="20.0" velocity="6.0"/>   <!-- [ASSUMPTION] actuator limits -->
+    </joint>
+  </xacro:macro>
+
+  <!-- a bucket drum: revolute arm joint (lift) carrying a spinning drum link -->
+  <xacro:macro name="drum" params="name x">
+    <link name="${name}_arm">
+      <xacro:box_inertial m="0.5" x="${drum_reach}" y="0.05" z="0.05"/>
+    </link>
+    <joint name="${name}_arm_joint" type="revolute">
+      <parent link="base_link"/>
+      <child link="${name}_arm"/>
+      <origin xyz="${x} 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="-0.6" upper="0.6" effort="${18.5}" velocity="1.0"/> <!-- ARM_EXCAVATION_LOAD_NM -->
+    </joint>
+    <link name="${name}">
+      <visual>
+        <origin rpy="${pi/2} 0 0"/>
+        <geometry><cylinder radius="${drum_radius}" length="${drum_width}"/></geometry>
+      </visual>
+      <collision>
+        <origin rpy="${pi/2} 0 0"/>
+        <geometry><cylinder radius="${drum_radius}" length="${drum_width}"/></geometry>
+      </collision>
+      <xacro:wheel_inertial m="${m_drum}" r="${drum_radius}" w="${drum_width}"/>
+    </link>
+    <joint name="${name}_spin_joint" type="continuous">
+      <parent link="${name}_arm"/>
+      <child link="${name}"/>
+      <origin xyz="${(drum_reach/2 if x &gt; 0 else -drum_reach/2)} 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="25.0" velocity="2.62"/>  <!-- 25 RPM drum (ipex_specs.DRUM_SPEED_RPM) -->
+    </joint>
+  </xacro:macro>
+
+  <!-- a camera: a mount link + an optical frame child (REP-103 mount -> optical convention).
+       role/active are carried as comments + the rig-contract test reads them from the profile. -->
+  <xacro:macro name="camera" params="frame x y z yaw">
+    <link name="camera_${frame}">
+      <visual><geometry><box size="0.03 0.03 0.03"/></geometry></visual>
+      <xacro:box_inertial m="0.05" x="0.03" y="0.03" z="0.03"/>
+    </link>
+    <joint name="camera_${frame}_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="camera_${frame}"/>
+      <origin xyz="${x} ${y} ${z}" rpy="0 0 ${yaw}"/>
+    </joint>
+    <!-- optical frame: REP-103 body (x-fwd,z-up) -> optical (z-fwd,x-right,y-down) = rpy(-pi/2,0,-pi/2) -->
+    <link name="camera_${frame}_optical"/>
+    <joint name="camera_${frame}_optical_joint" type="fixed">
+      <parent link="camera_${frame}"/>
+      <child link="camera_${frame}_optical"/>
+      <origin rpy="${-pi/2} 0 ${-pi/2}"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- ============================ the robot ============================ -->
+  <!-- base_link: the chassis body (REP-103 x-forward, y-left, z-up) -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 ${cg_height}"/>
+      <geometry><box size="${chassis_len} ${chassis_wid} ${chassis_hgt}"/></geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${cg_height}"/>
+      <geometry><box size="${chassis_len} ${chassis_wid} ${chassis_hgt}"/></geometry>
+    </collision>
+    <xacro:box_inertial m="${m_chassis}" x="${chassis_len}" y="${chassis_wid}" z="${chassis_hgt}"/>
+  </link>
+
+  <!-- IMU (REP-103 imu_link; matches autonomy_contract.FRAMES) -->
+  <link name="imu_link"/>
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 ${cg_height}"/>
+  </joint>
+
+  <!-- four skid-steer wheels (no steer joints), gauge/wheelbase from the profile -->
+  <xacro:wheel name="front_left_wheel"  x="${ wheelbase/2}" y="${ track_gauge/2}"/>
+  <xacro:wheel name="front_right_wheel" x="${ wheelbase/2}" y="${-track_gauge/2}"/>
+  <xacro:wheel name="rear_left_wheel"   x="${-wheelbase/2}" y="${ track_gauge/2}"/>
+  <xacro:wheel name="rear_right_wheel"  x="${-wheelbase/2}" y="${-track_gauge/2}"/>
+
+  <!-- two counter-rotating bucket drums (bidirectional excavator) -->
+  <xacro:drum name="front_drum" x="${ wheelbase/2 + drum_reach/2}"/>
+  <xacro:drum name="rear_drum"  x="${-wheelbase/2 - drum_reach/2}"/>
+
+  <!-- 8-camera rig = 4 operational (front stereo + 1 side + 1 drum) + 4 redundant. Frame names
+       match autonomy_contract.FRAMES (the four stereo frames) + the profile camera ids. Stereo
+       pairs are separated by the authoritative `stereo_baseline` (front_left +b/2, front_right -b/2). -->
+  <xacro:property name="cam_z" value="${cg_height + chassis_hgt/2 + 0.10}"/>  <!-- on a short mast -->
+  <xacro:property name="cam_fwd" value="${chassis_len/2}"/>
+  <!-- front nav stereo pair (operational) -->
+  <xacro:camera frame="front_left"  x="${ cam_fwd}" y="${ stereo_baseline/2}" z="${cam_z}" yaw="0"/>
+  <xacro:camera frame="front_right" x="${ cam_fwd}" y="${-stereo_baseline/2}" z="${cam_z}" yaw="0"/>
+  <!-- rear nav stereo pair (redundant; IPEx is bidirectional) -->
+  <xacro:camera frame="rear_left"   x="${-cam_fwd}" y="${-stereo_baseline/2}" z="${cam_z}" yaw="${pi}"/>
+  <xacro:camera frame="rear_right"  x="${-cam_fwd}" y="${ stereo_baseline/2}" z="${cam_z}" yaw="${pi}"/>
+  <!-- side localization monos (lander tracking): left operational, right redundant -->
+  <xacro:camera frame="left_mono"   x="0" y="${ chassis_wid/2}" z="${cam_z}" yaw="${ pi/2}"/>
+  <xacro:camera frame="right_mono"  x="0" y="${-chassis_wid/2}" z="${cam_z}" yaw="${-pi/2}"/>
+  <!-- between-drum monos (excavation awareness): front operational, back redundant -->
+  <xacro:camera frame="drum_front"  x="${ wheelbase/2}" y="0" z="${cg_height}" yaw="0"/>
+  <xacro:camera frame="drum_back"   x="${-wheelbase/2}" y="0" z="${cg_height}" yaw="${pi}"/>
+
+</robot>

@@ -83,7 +83,7 @@ class IPExSpecs:
     imu_hz: float | None = 20.0
 
     # Stereo / intrinsics  [SPEC: from a real LAC-twin sensors.json render]
-    stereo_baseline_m: float = 0.07       # front stereo, measured 0.0700 m
+    stereo_baseline_m: float = 0.05       # front stereo, TRL5-final 0.05 m (SCHULER24 Figs 28/30/32)
     fx_px: float = 679.57                 # twin render; [CONFIRM] flight intrinsics
 
     # Fiducials  [SPEC]

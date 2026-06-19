@@ -102,14 +102,14 @@ BP1_PENETRATION_KPA = (206.0, 226.0)    # Humboldt soil penetrometer range [BDSC
 
 # ---- Stereo working envelope [DERIVED] -------------------------------------------------------
 # The TRL5 docs publish NO camera ranges; the rig is the LAC-twin 8-camera set. The OBJECTIVE band
-# derives from sourced requirements + rig parameters (b = 0.07 m, fx = 679.57 @ 1024 px):
-#   near: the SGBM search range, z_min = fx*b/numDisparities  (0.372 m at the default N=128)
+# derives from sourced requirements + rig parameters (b = 0.05 m, fx = 679.57 @ 1024 px):
+#   near: the SGBM search range, z_min = fx*b/numDisparities  (0.265 m at the default N=128)
 #   far : obstacle resolvability, sigma_z = z^2*sigma_d/(fx*b) <= OBSTACLE_HEIGHT_M
-#         -> z_max = sqrt(OBSTACLE_HEIGHT_M * fx*b / sigma_d) ~ 1.9 m at sigma_d = 1 px
+#         -> z_max = sqrt(OBSTACLE_HEIGHT_M * fx*b / sigma_d) ~ 1.6 m at sigma_d = 1 px
 # Measurements outside the band are not evidence (G2 calibration, 2026-06-10: sub-0.25 m grazing
 # views carry a systematic matcher bias from anisotropic texture smear).
 STEREO_FX_PX = 679.570327764933       # rig intrinsic at 1024x768 (Godot camera_rig)
-STEREO_BASELINE_M = 0.07
+STEREO_BASELINE_M = 0.05
 def stereo_range_m(num_disparities: int = 128, sigma_d_px: float = 1.0,
                    obstacle_m: float = OBSTACLE_HEIGHT_M) -> tuple:
     """(z_min, z_max) of the objective stereo working band for the IPEx-class rig."""
@@ -400,8 +400,8 @@ CAMERA_APERTURE_F = 4.0           # "An aperture of f/4 has shown positive resul
 CAMERA_FOCAL_MM_CANDIDATES = (6.0, 4.4)   # "focal lengths of 6 mm and 4.4 mm are being evaluated"
 STEREO_BASELINE_REJECTED_M = 0.165        # the 16.5 cm split design -- PUBLISHED but REJECTED
                                           # (calibration loss under load); the flown reduced
-                                          # baseline is figure-only -> the sim's 0.07 stays JOHN'S
-                                          # ESTIMATE, honestly tagged.
+                                          # baseline (0.05 m, Figs 28/30/32) is now the sim's ACTIVE
+                                          # geometry (re-frozen 2026-06-18, supersedes John's 0.07 estimate).
 
 
 def flight_fx_px(focal_mm: float) -> float:

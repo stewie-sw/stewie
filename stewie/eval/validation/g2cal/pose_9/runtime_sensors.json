@@ -24,7 +24,7 @@
         "position_m": [
           0.299999952316284,
           -0.100000001490116,
-          0.0350000858306885
+          0.0250000953674316
         ],
         "quaternion_xyzw": [
           0.0,
@@ -62,7 +62,7 @@
         "position_m": [
           0.299999952316284,
           -0.100000001490116,
-          -0.0349999666213989
+          -0.0249999761581421
         ],
         "quaternion_xyzw": [
           0.0,
@@ -100,7 +100,7 @@
         "position_m": [
           -0.299999952316284,
           -0.100000001490116,
-          0.0350000858306885
+          0.0250000953674316
         ],
         "quaternion_xyzw": [
           0.0,
@@ -138,7 +138,7 @@
         "position_m": [
           -0.299999952316284,
           -0.100000001490116,
-          -0.0349999666213989
+          -0.0249999761581421
         ],
         "quaternion_xyzw": [
           0.0,
@@ -334,17 +334,17 @@
   },
   "producer_schema_version": "sensor_bridge/1.1",
   "profile_id": "STEWIE_IPEX_V1",
-  "profile_sha256": "0002e4c56bc96d82e730b5357c91b7c34776d02c6b9dfd5192f8883deb8953d8",
+  "profile_sha256": "1cb00b8f77c006836dfb988f1f084959edf12fa961b8fae65364e5080049449c",
   "provenance": "RUNTIME_SENSOR",
   "scene": "crater_boulders",
   "schema_version": "sensor_bridge_runtime/1.0",
   "stereo": {
-    "baseline_m": 0.0700000524520874,
+    "baseline_m": 0.0500000715255737,
     "left": "front_left",
     "right": "front_right"
   },
   "stereo_rear": {
-    "baseline_m": 0.0700000524520874,
+    "baseline_m": 0.0500000715255737,
     "left": "rear_left",
     "right": "rear_right"
   },

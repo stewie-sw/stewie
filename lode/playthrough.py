@@ -38,7 +38,7 @@ def estimate_rock(diameter_m: float, score: float, *, height_m: float | None = N
     return rock_taxonomy.classify(diameter_m, height_m=height_m, confidence=score, height_source=src)
 
 
-def classify_stereo_frame(left, right, *, hfov_deg: float = 73.99, baseline_m: float = 0.07,
+def classify_stereo_frame(left, right, *, hfov_deg: float = 73.99, baseline_m: float = 0.05,
                           sun_azimuth_deg=None, sun_elevation_deg=None, m_per_px=None) -> list:
     """One playthrough stereo frame -> [(SizedObstacle, Rock)]. Diameter from stereo (correct for the
     rover's oblique view); operational nav/loc/excav classes attached."""
@@ -52,7 +52,7 @@ def classify_stereo_frame(left, right, *, hfov_deg: float = 73.99, baseline_m: f
     return out
 
 
-def classify_traverse(traverse_dir: str, *, hfov_deg: float = 73.99, baseline_m: float = 0.07,
+def classify_traverse(traverse_dir: str, *, hfov_deg: float = 73.99, baseline_m: float = 0.05,
                       sun_azimuth_deg=None, sun_elevation_deg=None, cameras=("front_left", "front_right")):
     """Run the classifier over every frame of a rendered traverse playthrough. Returns
     (per_frame: list[list[(SizedObstacle, Rock)]], world_summary: dict counting nav classes seen)."""

@@ -735,6 +735,34 @@ claims completion.
 | FS-23 | P1 | Architecture review ledger: maintain a living full-stack map from PRD row -> backend route/service -> domain module -> frontend adapter/view -> tests -> logs. It must expose missing links without implying the capability is done. | P | N | N | NA |
 | FS-24 | P1 | Front-end module organization: split the cockpit into app shell, route/state store, typed API adapters, domain view models, shared visualization components, work-area views, command/approval rail, and diagnostics/log viewers. The split must preserve CSP/no-inline-script and fixture-driven tests. | P | N | N | NA |
 
+### 7.16 Autoware-Shaped Lunar Navigation Requirements (added 2026-06-18)
+
+STEWIE will **not** vendor or fork full Autoware as the rover brain. It will adopt the useful
+Autoware architecture shape and ROS discipline: lifecycle-managed ROS2 nodes, typed message contracts,
+TF/QoS discipline, containerized bringup, sensing -> perception -> localization -> mapping -> planning
+-> control -> vehicle-interface separation, and RViz/Gazebo engineering visualization. Lunar planning,
+excavation, ShadowNav, ARGUS, terramechanics, and mission authority remain STEWIE-native.
+
+| ID | P | Requirement and acceptance | I | X | V | Q |
+|---|---|---|---|---|---|---|
+| AS-01 | P0 | Autoware-shaped boundary: define the ROS2 node graph and topic contract for sensing, perception, localization, mapping, planning, control, vehicle interface, diagnostics, and mission executive without importing road/lanelet behavior planning. | P | N | N | NA |
+| AS-02 | P0 | ROS2 workspace skeleton: create container-buildable packages for `stewie_msgs`, `stewie_description`, `stewie_bringup`, `stewie_vehicle_interface`, `stewie_perception`, `stewie_localization`, `stewie_mapping`, `stewie_planning`, `stewie_control`, and `stewie_rviz`. | N | N | N | NA |
+| AS-03 | P0 | IPEx vehicle description: add URDF/Xacro/SDF describing chassis, wheels, drums, arms, camera rig, IMU, optional LiDAR, collision geometry, inertials, joint limits, TF tree, and frame names derived from STEWIE vehicle specs. | N | N | N | G |
+| AS-04 | P0 | ROS container tiers: provide reproducible containers for base ROS2 Jazzy dev, perception/SLAM, Gazebo simulation, RViz diagnostics, bridge runtime, and a Space ROS migration profile. Each container has a smoke command and pinned package manifest. | P | N | N | NA |
+| AS-05 | P0 | RViz mission dashboard: ship an RViz config showing robot model, TF, odom, `/stewie/odom`, planned path, local trajectory, costmaps, occupancy/DEM map, point cloud, camera feeds, covariance, ARGUS factors, diagnostics, SAFE state, and command topic state. | N | N | N | NA |
+| AS-06 | P1 | Gazebo simulation seam: launch the IPEx description in Gazebo with cameras, IMU, wheel odometry, contact/collision, `/cmd_vel`, `/joint_states`, `/tf`, `/clock`, and bridgeable terrain/world state. Gazebo sim is robot/sensor sim, not excavation truth. | N | N | N | N |
+| AS-07 | P0 | Stanford/NavLab-derived navigation spine: implement or integrate stereo feature detection/matching, stereo VO, robust PnP/triangulation, pose graph optimization, loop-closure gating, terrain/rock mapping, coverage planning, local arc planner, and recovery benchmarks on truth-denied bags. | P | N | P | N |
+| AS-08 | P0 | ShadowNav factor path: convert ephemeris-controlled sun geometry plus panorama/shadow landmark bearings into typed `ARGUSFactor` observations with covariance, residual gates, false-factor rejection, and ablation versus non-shadow VO/SLAM. | P | N | P | N |
+| AS-09 | P0 | ARGUS articulation path: convert commanded posture changes, arm/camera kinematics, shadow perturbations, and articulation parallax into standstill relocalization factors; accepted factors must reduce covariance and be visible in cockpit and RViz. | P | P | P | N |
+| AS-10 | P0 | Autonomous mapping: maintain observed DEM, occupancy/rock map, object graph, uncertainty, changed-terrain mask, and excavation state as separate layers over the conserved world model; estimator/mapping nodes are denied simulator truth. | P | N | P | N |
+| AS-11 | P1 | Lunar costmap stack: expose slope, roughness, sinkage, slip, tip risk, illumination, PSR, shadow confidence, energy, keep-outs, dynamic rocks, and shared fleet-resource reservations as composable planning layers. | P | N | P | N |
+| AS-12 | P1 | ROS lowering and control: lower verified Plan IR into ROS2 paths, motion goals, work goals, observation goals, replan events, and bounded `/cmd_vel` or action goals under AG-08, NV-12, SF-01, and role-gated command eligibility. | P | P | P | N |
+| AS-13 | P1 | Mission executive node: add a ROS2-side executive that monitors preconditions, acknowledgements, covariance, resource reservations, faults, acceptance state, and safing, then emits continue/pause/replan/relocalize/reverse/SAFE decisions. | P | N | P | N |
+| AS-14 | P1 | ROS diagnostics and logging: every ROS node emits diagnostics, lifecycle state, health, latency, dropped frames, QoS warnings, command eligibility, SAFE events, and correlation IDs into the STEWIE observability ledger without logging secrets or truth-denied fields. | P | N | N | NA |
+| AS-15 | P0 | NASA-style TDD gate: every autonomy slice lands test-first with `[REQ:<ID>]` markers, container smoke, deterministic fixtures, failure-mode tests, Power-of-10/static-analysis review for safety-critical code, and no capability claim until route/node/UI/log evidence exists. | P | P | P | NA |
+| AS-16 | P1 | ShadowNav/ARGUS/Stanford benchmark suite: compare passive VO, Stanford-style stereo SLAM, ShadowNav factors, ARGUS articulation factors, and combined fusion across sun angles, terrain changes, rocks, PSR, camera degradation, and excavation state. | P | N | P | N |
+| AS-17 | P0 | TRL5 stereo rig authority gate: navigation, mapping, ShadowNav, ARGUS, RViz, Gazebo, and cockpit visuals load camera intrinsics/extrinsics from the authoritative IPEx/LAC camera profile, not hard-coded baselines. Acceptance distinguishes the TRL5-final 0.05 m stereo module (sourced SCHULER24 Figs 28/30/32, single rigid housing) from the rejected 0.165 m shoulder-split; any non-final profile is labelled rejected/legacy. **2026-06-18: legacy 0.070 m fixture RETIRED — the G2 corpus (13 g2cal poses + frame fixture) re-rendered at 0.05 m, profile/camera_rig/ipex_specs/system_profile/manifest re-frozen, `stereo_authority.py` is the gate (4 tests). Camera count confirmed against SCHULER24: 8 physical / 4 operational + 4 redundant (NOT 8-surround). Suite green (308 eval/specs + 731 dart/lode).** | D | N | N | G |
+
 ## 8. User Workflows
 
 ### 8.1 Construction planning
@@ -1922,3 +1950,105 @@ Architectural review scope for the next sweep:
 The review output should feed §7 status corrections first, then implementation. A row that is stale
 done should not consume implementation time; a row that is partial should be split into the exact
 missing backend route, frontend adapter, test, log, or qualification slice.
+
+## 26. Autoware-Shaped ShadowNav / ARGUS Build Sequence (2026-06-18)
+
+This sequence is the next execution path for STEWIE autonomy. It deliberately uses Autoware's
+architecture shape, ROS2 discipline, lifecycle thinking, and visualization conventions without
+importing Autoware wholesale. Lunar planning, excavation, ShadowNav, ARGUS, autonomous mapping,
+terramechanics, mission authority, and safety logic remain STEWIE-native.
+
+Every item below is test-driven. The first commit for each slice must add or update the failing
+`[REQ:<ID>]` test, fixture, or trace expectation before implementation. The slice is not complete
+until the test passes, `scripts/req_trace.py` sees the marker, logs are visible, and the cockpit or
+RViz evidence route exists where applicable.
+
+NASA-style development rules for this sequence:
+- Prefer bounded, deterministic functions for estimation and command eligibility.
+- Keep safety-critical code simple enough for review: no hidden global state, no unbounded recursion,
+  no silent exception swallowing, no dynamic command construction, and explicit failure returns.
+- Treat simulator truth as controlled test oracle only; estimator, mapper, planner, and model code
+  must not subscribe to truth topics or fixtures.
+- Log every accept/reject/fallback/SAFE decision with a correlation ID across browser, backend, ROS,
+  simulator, and report artifacts.
+- Gate each slice with unit tests, integration tests, container smoke, static checks where available,
+  and at least one failure-mode test.
+- Do not mark a row `D` unless implementation, execution wiring, verification, and qualification
+  evidence match the §7 status columns.
+
+### 26.1 Ordered Implementation Plan
+
+| Step | Requirement rows | Build action | Test-first acceptance |
+|---|---|---|---|
+| 0 | AS-01, AS-15 | Freeze the STEWIE-native autonomy boundary: ROS2 nodes, topic names, frame names, QoS expectations, lifecycle states, command authority, SAFE path, and truth-denial policy. | Contract test rejects missing nodes/topics, road/lanelet behavior planning dependencies, and truth-topic estimator inputs. |
+| 1 | AS-02, AS-04 | Create the container-buildable ROS2 workspace skeleton: `stewie_msgs`, `stewie_description`, `stewie_bringup`, `stewie_vehicle_interface`, `stewie_perception`, `stewie_localization`, `stewie_mapping`, `stewie_planning`, `stewie_control`, and `stewie_rviz`. | `colcon test` runs in the base ROS2 container; smoke command proves the workspace builds and package discovery works. |
+| 2 | AS-03, AS-17 | Add the IPEx vehicle description and TRL5 stereo rig authority: chassis, wheels, excavation drum/arm joints, camera rig, IMU, optional LiDAR, inertials, collisions, joint limits, TF tree, camera intrinsics/extrinsics, lens/FOV profile, and stereo baselines loaded from the authoritative profile. | Robot-state-publisher and rig-contract tests verify the complete TF tree, expected frame names, front/rear stereo pairs, active-camera budget, and that the TRL5-final 0.05 m profile is separate from the legacy 0.070 m frozen fixture and historical 0.165 m shoulder-split design. |
+| 3 | AS-05, AS-14 | Add the RViz mission dashboard for robot model, TF, odom, planned path, local trajectory, costmaps, DEM/occupancy, point cloud, camera feeds, covariance, ARGUS factors, diagnostics, SAFE state, and command topics. | RViz config lint/smoke verifies required displays; replay fixture exposes diagnostics and command eligibility state. |
+| 4 | AS-06 | Add the Gazebo robot/sensor simulation seam with `/cmd_vel`, `/joint_states`, `/tf`, `/clock`, cameras, IMU, wheel odometry, contact/collision, and bridgeable terrain state. | Launch test proves Gazebo publishes expected topics; estimator test proves it does not consume simulator truth. |
+| 5 | AS-07 | Implement the Stanford/NavLab-style navigation spine: stereo feature detection, matching, stereo VO, robust PnP/triangulation, pose graph, loop-closure gates, terrain/rock mapping, coverage planning, local arcs, and recovery triggers. | Truth-denied bag tests report ATE, coverage, obstacle recall, recovery decisions, and no-truth-input assertions. |
+| 6 | AS-08 | Implement ShadowNav factors: ephemeris/azimuth convention, panorama or camera shadow landmark extraction, bearing residuals, covariance, false-shadow rejection, and fusion into the localization graph. | Sun-angle ablation shows shadow factors help under supported geometry and are rejected under ambiguous/false-shadow cases. |
+| 7 | AS-09 | Implement ARGUS articulation navigation: commanded posture change, arm/camera kinematics, articulation-induced parallax, shadow perturbation, covariance reduction, and accepted/rejected factor visualization. | Standstill relocalization test proves accepted ARGUS factors reduce covariance and rejected factors are not inserted. |
+| 8 | AS-10 | Build autonomous mapping layers: observed DEM, occupancy, rock/object graph, uncertainty, changed-terrain mask, excavation state, and provenance over the conserved world model. | Mapper tests update layers from observations only and preserve separate truth, observed, forecast, and edited layers. |
+| 9 | AS-11 | Build lunar costmap layers: slope, roughness, sinkage, slip, tip risk, illumination, PSR, shadow confidence, energy, keep-outs, dynamic rocks, and fleet reservations. | Planner tests prove each layer affects path cost or rejection and exposes a visible reason when it blocks motion. |
+| 10 | AS-12 | Lower verified Plan IR into ROS2 paths, action goals, work goals, observation goals, bounded velocity commands, replan events, and command eligibility state under AG-08, NV-12, and SF-01. | Command tests prove unsafe, unauthorized, stale, or namespace-conflicting commands fail closed before ROS emission. |
+| 11 | AS-13 | Add the ROS-side mission executive: monitor preconditions, acknowledgements, covariance, reservations, faults, acceptance state, and safing; emit continue/pause/replan/relocalize/reverse/SAFE decisions. | Executive tests cover nominal progress, timeout, blocked path, covariance loss, resource conflict, and SAFE escalation. |
+| 12 | AS-14 | Wire structured ROS diagnostics and logs into the STEWIE observability ledger with lifecycle state, latency, dropped frames, QoS warnings, command eligibility, SAFE events, and correlation IDs. | Log tests prove every failure path has a ledger event and no secrets or truth-denied fields are emitted. |
+| 13 | AS-16 | Build the benchmark suite comparing passive VO, Stanford-style stereo SLAM, ShadowNav, ARGUS, and fused localization across sun angles, terrain changes, rocks, PSR, camera degradation, and excavation state. | Benchmark report includes per-method metrics, ablations, failure classes, fixed seeds, and reproducible container command. |
+| 14 | AS-01 through AS-17 | Run release gate: requirement trace, ROS container smoke, browser cockpit evidence, RViz/Gazebo smoke, security scan, SBOM, benchmark report, TRL5 stereo-rig profile evidence, and stale-status reconciliation. | No row advances to `D` without implementation, execution, verification, and qualification evidence in §7. |
+
+### 26.2 Front-End And Visual Organization For This Sequence
+
+The production cockpit remains one authoritative browser application. RViz, Gazebo, ROS2 CLI, and bag
+replay are engineering tools; they may run beside the cockpit but cannot carry independent command
+authority.
+
+Required cockpit panes for the autonomy sequence:
+- World/map pane: DEM, occupancy, object graph, observed/forecast/edited layers, illumination, PSR,
+  shadow confidence, terrain changes, and provenance.
+- Sensor/rig pane: selected vehicle profile, camera placements, active stereo pair, baseline, FOV,
+  calibration status, dust/EDS status, LED profile, profile provenance, and whether the run is using
+  TRL5-final, calibration, or legacy geometry.
+- Navigation pane: global route, local arc, tracker state, costmap layer breakdown, recovery action,
+  blocked reason, and energy/slip/tip margins.
+- ShadowNav/ARGUS pane: sun azimuth/elevation source, camera/posture state, detected shadow landmarks,
+  candidate factors, residuals, covariance delta, accepted/rejected factors, and explanation.
+- Mission executive pane: active objective, preconditions, acknowledgements, command eligibility,
+  replan reasons, SAFE state, and operator approvals.
+- ROS diagnostics pane: lifecycle state, node health, topic freshness, QoS warnings, latency, dropped
+  frames, bridge status, and container profile.
+- Evidence drawer: requirement ID, fixture/bag/run ID, logs, benchmark metrics, screenshots, and report
+  artifact links for the selected decision.
+
+Information input sequence for mission planning:
+1. Select body, site, terrain product, coordinate frame, and ephemeris/azimuth convention.
+2. Select vehicle, tool configuration, camera/IMU/LiDAR profile, and container/runtime profile.
+3. Confirm the sensor/rig profile: TRL5-final stereo baseline, FOV/lens option, active-camera budget,
+   LED profile, calibration status, and any legacy/calibration override.
+4. Load observed map layers and mark their provenance, age, uncertainty, and truth-denial status.
+5. Define keep-outs, resource zones, construction targets, docking targets, and fleet reservations.
+6. Enter mission objective as typed goals: traverse, observe, excavate, grade, haul, dump, dock, or
+   inspect.
+7. Run feasibility and costmap explanation before command lowering.
+8. Review route, local trajectory, ShadowNav/ARGUS observation opportunities, energy/slip/tip margins,
+   and contingency branches.
+9. Approve only the bounded next command or action segment, not the entire mission as an open-loop tape.
+10. Monitor acknowledgements, covariance, map updates, execution feedback, and mission-executive state.
+11. Replan, relocalize, reverse, pause, or SAFE through explicit logged decisions.
+
+### 26.3 Immediate Next Work
+
+The next implementation slice is Step 0 followed by Step 1, then the Step 2 TRL5 stereo rig authority
+gate. Do not start ShadowNav, ARGUS, autonomous mapping, or Gazebo feature work until the ROS2 autonomy
+boundary, package skeleton, container smoke, requirement traces, cockpit/diagnostic contracts, and
+authoritative camera profile are in place. That foundation prevents duplicate interfaces, keeps
+navigation/mapping tied to the real sensor geometry, and makes the later navigation research measurable
+instead of anecdotal.
+
+Construction-round readiness checklist:
+- `AS-01`: ROS2 autonomy boundary contract exists and blocks Autoware road/lane behavior dependencies.
+- `AS-02`/`AS-04`: ROS2 package skeleton and containers build with a smoke command.
+- `AS-03`/`AS-17`: IPEx vehicle and TRL5 stereo rig profiles are loaded by ROS, backend, simulator, and
+  cockpit from one authority; legacy 0.070 m fixtures are labelled legacy/calibration, not final IPEx.
+- `AS-05`/`AS-14`: RViz and cockpit expose rig state, diagnostics, command eligibility, and SAFE state.
+- `AS-15`: failing tests, `[REQ:]` markers, deterministic fixtures, logs, and trace checks exist before
+  each implementation slice.

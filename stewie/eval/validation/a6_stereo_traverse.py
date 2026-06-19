@@ -20,7 +20,7 @@ import numpy as np
 
 CELL_M, DT, MASS, G, V_CMD = 0.02, 1.0, 30.0, 1.62, 0.30
 IMU_HZ, WHEEL_HZ = 100.0, 10.0
-CAM_H, BASELINE, LOOKAHEAD = 0.8, 0.07, 1.0       # camera height, stereo baseline, look-ahead (m)
+CAM_H, BASELINE, LOOKAHEAD = 0.8, 0.05, 1.0       # camera height, stereo baseline, look-ahead (m)
 
 
 def _render(sidecar, scene, pose, out_png, size="384x288", elev=8, azim=200):
