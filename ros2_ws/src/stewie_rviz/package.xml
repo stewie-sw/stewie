@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>stewie_rviz</name>
+  <version>0.1.0</version>
+  <description>RViz mission-dashboard configs (populated in AS-05).</description>
+  <maintainer email="dev@stewie.space">STEWIE</maintainer>
+  <license>SEE LICENSE</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

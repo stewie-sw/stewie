@@ -1,0 +1,35 @@
+# [REQ:AS-04] base tier -- the ROS2 Jazzy dev container that colcon-builds the STEWIE workspace (AS-02).
+# The base ROS2 toolchain is NOT on the Debian host (rclpy/colcon absent), so the §25 Phase-1 acceptance
+# ("colcon test runs in the base ROS2 container; smoke proves the workspace builds + package discovery")
+# runs HERE, not on the host.
+#
+# Build (host network for the apt layer, as with the COLMAP image):
+#   docker build --network=host -f deploy/ros2/Dockerfile.ros2dev -t stewie-ros2dev:jazzy .
+# Phase-1 smoke / build gate:
+#   docker run --rm stewie-ros2dev:jazzy bash -lc \
+#     'source /opt/ros/jazzy/setup.bash && source install/setup.bash && \
+#      ros2 pkg list | grep -E "^stewie_" | sort'   # -> all 10 stewie_* packages discoverable
+#   docker run --rm stewie-ros2dev:jazzy bash -lc \
+#     'source /opt/ros/jazzy/setup.bash && cd /ws && colcon test && colcon test-result --all'
+#
+# The other AS-04 tiers (perception/SLAM, Gazebo sim, RViz diagnostics, bridge runtime, Space ROS
+# migration) layer on top of this base and are added as their phases land (AS-06 Gazebo, AS-05 RViz, etc.).
+FROM ros:jazzy-ros-base
+
+SHELL ["/bin/bash", "-lc"]
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3-colcon-common-extensions python3-rosdep build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /ws
+COPY ros2_ws/src /ws/src
+
+# colcon-build the workspace at image-build time -- a failed build fails the image (the Phase-1 gate).
+RUN source /opt/ros/jazzy/setup.bash \
+    && (rosdep update || true) \
+    && (rosdep install --from-paths src --ignore-src -y -r || true) \
+    && colcon build --event-handlers console_direct+
+
+CMD ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && source install/setup.bash && ros2 pkg list | grep -E '^stewie_' | sort"]

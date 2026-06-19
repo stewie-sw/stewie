@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>stewie_vehicle_interface</name>
+  <version>0.1.0</version>
+  <description>vehicle interface: /cmd_vel -> hardware + wheel odom egress</description>
+  <maintainer email="dev@stewie.space">STEWIE</maintainer>
+  <license>SEE LICENSE</license>
+  <depend>rclpy</depend>
+  <depend>stewie_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>
