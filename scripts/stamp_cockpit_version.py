@@ -26,7 +26,7 @@ _ASSET_DIR = _ROOT / "stewie" / "server" / "web" / "assets"
 INDEX_HTML = _ROOT / "stewie" / "server" / "index.html"
 
 #: cache-busted assets referenced from index.html as `<name>?v=<hash>`.
-ASSETS = ("cockpit.js", "three3d.js")
+ASSETS = ("cockpit.js", "three3d.js", "geofmt.js")
 
 
 def content_hash(name: str) -> str:

@@ -14,7 +14,7 @@ _ASSET_DIR = os.path.join(_HERE, "web", "assets")
 _INDEX_HTML = os.path.join(_HERE, "index.html")
 
 # every cache-busted asset referenced from index.html as `<name>?v=<hash>`
-_ASSETS = ("cockpit.js", "three3d.js")
+_ASSETS = ("cockpit.js", "three3d.js", "geofmt.js")
 
 
 @pytest.mark.parametrize("name", _ASSETS)

@@ -1146,13 +1146,9 @@ function recordPose(x, y) {
 // lander and every placed landmark (real distance extrapolation from placed points, replacing the fixed
 // 100 m ring), plus the actual selenographic coordinates next to the order-frame metres. Answers Aaron's
 // "why doesn't where-are-we pick up the lander / why metres not coordinates".
-function bearingFrom(dE, dN) {                              // site frame: +x = East, +y = North
-  let b = Math.atan2(dE, dN) * 180 / Math.PI;              // 0 deg = North, 90 deg = East
-  if (b < 0) b += 360;
-  const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-                "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-  return `${b.toFixed(0)}° ${dirs[Math.round(b / 22.5) % 16]}`;
-}
+// FS-24: site-frame bearing + lat/lon formatting moved to geofmt.js (STEWIE_GEOFMT); aliased here so the
+// #174 locator call sites below are unchanged. Pure -> unit-tested in geofmt.test.js.
+const bearingFrom = window.STEWIE_GEOFMT.bearingFrom;       // site frame: +x = East, +y = North
 async function siteLatLon(x, y) {                          // order-frame metres -> lat/lon (the #174 reverse route)
   try {
     const r = await fetch(`/dem/site_lonlat?x=${x}&y=${y}&site=${encodeURIComponent(CURRENT_SITE)}`);
@@ -1161,7 +1157,7 @@ async function siteLatLon(x, y) {                          // order-frame metres
     return d.ok ? { lat: d.lat, lon: d.lon } : null;
   } catch (e) { return null; }
 }
-const fmtLL = (ll) => (ll ? `${ll.lat.toFixed(4)}°, ${ll.lon.toFixed(4)}°` : "—");
+const fmtLL = window.STEWIE_GEOFMT.fmtLL;                   // FS-24: lat/lon formatter -> geofmt.js
 async function updateLocator() {
   const box = $("locator"); if (!box) return;
   if (!LAST_POSE) {
