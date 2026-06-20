@@ -40,17 +40,31 @@ def negative_obstacle_mask(Z, *, max_drop_m=MAX_DROP_M):
     return (Z - nbr_min) > float(max_drop_m)
 
 
-def slope_costmap(Z, cell_m, *, max_slope_deg=25.0, slip_alpha=2.0, max_drop_m=None):
+def slope_costmap(Z, cell_m, *, max_slope_deg=25.0, slip_alpha=2.0, max_drop_m=None,
+                  illum=None, illum_weight=1.0):
     """I10: per-cell traversal cost from terrain slope. cost = 1 + slip_alpha*tan(slope) (a slip-weighted
     per-meter multiplier — slope drives wheel slip, which costs energy/time); cells steeper than
     max_slope_deg are impassable hazards a rover can't safely traverse. When ``max_drop_m`` is set, cells
     overlooking a drop-off (negative_obstacle_mask) are ALSO impassable (the don't-fall-in-a-hole hazard,
-    incl. the flat lip a slope cap misses). Returns (cost[H,W], passable bool)."""
+    incl. the flat lip a slope cap misses). Returns (cost[H,W], passable bool).
+
+    SN-05: ``illum`` is an OPTIONAL, SEPARABLE illumination route-cost layer (a crop-aligned (H, W)
+    array, e.g. ``dart.illumination_cost.illumination_cost(...)['total']`` — itself a severity/weighted
+    sum of inspectable shadow-hazard / saturation / map-uncertainty / visibility terms). When supplied it
+    is ADDED to the slope cost as ``illum_weight*illum`` (the covariance/severity gain scaling its
+    influence vs slip), so a route prefers lit, well-observed corridors. It is a SOFT cost, never a hard
+    hazard — passability is untouched. ``illum=None`` (the default) leaves the costmap BYTE-IDENTICAL to
+    the pre-SN-05 slope-only costmap, so illumination-aware routing is strictly opt-in."""
     smap = slope_deg_map(Z, cell_m)
     passable = smap <= max_slope_deg
     if max_drop_m is not None:
         passable = passable & ~negative_obstacle_mask(Z, max_drop_m=max_drop_m)
     cost = 1.0 + slip_alpha * np.tan(np.radians(np.minimum(smap, 89.0)))
+    if illum is not None:                                  # SN-05: add the separable illumination term
+        illum = np.asarray(illum, float)
+        if illum.shape != cost.shape:
+            raise ValueError(f"illum shape {illum.shape} must match the costmap shape {cost.shape}")
+        cost = cost + float(illum_weight) * illum
     return cost, passable
 
 
@@ -179,19 +193,29 @@ def route_least_cost(cost, passable, cell_m, start_rc, goal_rc):
 
 
 def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0, margin_m=20.0,
-              keepouts=()):
+              keepouts=(), illum_cost=None, illum_weight=1.0):
     """I10: terrain-aware route between two LOCAL sites on the real DEM (anchored via dem_origin, M11).
     Crops the DEM to the two sites' bounding box + margin, builds a slope costmap, and routes a
     least-cost hazard-avoiding Dijkstra path. Returns (routed_m, grid_straight_m, reached, waypoints):
     routed_m is the path length, grid_straight_m the straight-line distance between the same DEM cells,
     and WAYPOINTS the terrain-following polyline as LOCAL (x, y) coords (preserved for Plan IR / 2D / 3D
     / playback -- NOT discarded). reached=False (waypoints []) when no safe corridor exists; the caller
-    marks the plan infeasible rather than driving a straight line through the hazard."""
+    marks the plan infeasible rather than driving a straight line through the hazard.
+
+    SN-05: ``illum_cost`` is an OPTIONAL DEM-aligned (same H, W as ``Z``) illumination route-cost field
+    (e.g. ``dart.illumination_cost.illumination_cost(...)['total']`` rasterized onto the DEM grid). When
+    supplied it is cropped to the same window as the slope costmap and ADDED as ``illum_weight*illum`` so
+    the route prefers lit, well-observed corridors over shadowed ones. ``illum_cost=None`` (the default)
+    leaves the route BYTE-IDENTICAL to the pre-SN-05 slope-only route -- illumination routing is opt-in."""
     Z, cell = dem
     ox, oy = dem_origin
     ax, ay = ox + a_xy[0], oy + a_xy[1]
     bx, by = ox + b_xy[0], oy + b_xy[1]
     H, W = Z.shape
+    if illum_cost is not None:
+        illum_cost = np.asarray(illum_cost, float)
+        if illum_cost.shape != Z.shape:
+            raise ValueError(f"illum_cost shape {illum_cost.shape} must match the DEM shape {Z.shape}")
     straight = math.hypot(bx - ax, by - ay)
     # H-05: adaptive search window. A valid corridor can leave the endpoint bounding box by far more
     # than the initial margin, so when no route is found we DOUBLE the crop margin and retry, up to the
@@ -206,8 +230,10 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
         if c1 - c0 < 2 or r1 - r0 < 2:                   # sites off the DEM -> can't route
             return straight, straight, False, []
         crop = Z[r0:r1, c0:c1]
+        illum_crop = None if illum_cost is None else illum_cost[r0:r1, c0:c1]   # SN-05: same window as the costmap
         cost, passable = slope_costmap(crop, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
-                                       max_drop_m=MAX_DROP_M)   # routes also keep off drop-offs (don't fall in a hole)
+                                       max_drop_m=MAX_DROP_M,   # routes also keep off drop-offs (don't fall in a hole)
+                                       illum=illum_crop, illum_weight=illum_weight)
         _apply_keepouts(passable, cell, r0, c0, dem_origin, keepouts)   # discrete obstacles -> impassable cells
         hc, wc = crop.shape
         start = (min(max(int(ay / cell) - r0, 0), hc - 1), min(max(int(ax / cell) - c0, 0), wc - 1))
