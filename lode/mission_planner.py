@@ -1932,7 +1932,7 @@ def _erode_passable(passable, cell_m, radius_m):
 
 
 def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0, margin_m=20.0,
-              keepouts=(), footprint_radius_m=0.0):
+              keepouts=(), footprint_radius_m=0.0, illum_cost=None, illum_weight=1.0):
     """P-06: terrain-aware route between two LOCAL sites, with the rover treated as a FINITE-SIZE body.
 
     When `footprint_radius_m` > 0 the impassable hazards (slope cap, drop-offs, keep-outs) are inflated by
@@ -1940,15 +1940,24 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
     could thread it (the audit's 'routing treats the vehicle as a point' defect). `footprint_radius_m=0`
     reproduces the point-rover route_leg exactly (byte-identical). Returns (routed_m, grid_straight_m,
     reached, waypoints) with the same contract as the point router. The endpoints themselves are not
-    eroded (a site placed on a valid pad is reachable even if its immediate cell touches the inflation)."""
+    eroded (a site placed on a valid pad is reachable even if its immediate cell touches the inflation).
+
+    SN-05: ``illum_cost`` (DEM-aligned (H, W) illumination route-cost field) + ``illum_weight`` thread
+    through to the slope costmap exactly as in the point router -- a SEPARABLE, severity-weighted soft cost
+    that biases the corridor toward lit cells. ``illum_cost=None`` (default) is byte-identical (OFF)."""
     if not footprint_radius_m or footprint_radius_m <= 0:
         return _route_leg_point(dem, dem_origin, a_xy, b_xy, max_slope_deg=max_slope_deg,
-                                slip_alpha=slip_alpha, margin_m=margin_m, keepouts=keepouts)
+                                slip_alpha=slip_alpha, margin_m=margin_m, keepouts=keepouts,
+                                illum_cost=illum_cost, illum_weight=illum_weight)
     Z, cell = dem
     ox, oy = dem_origin
     ax, ay = ox + a_xy[0], oy + a_xy[1]
     bx, by = ox + b_xy[0], oy + b_xy[1]
     H, W = Z.shape
+    if illum_cost is not None:
+        illum_cost = np.asarray(illum_cost, float)
+        if illum_cost.shape != Z.shape:
+            raise ValueError(f"illum_cost shape {illum_cost.shape} must match the DEM shape {Z.shape}")
     straight = math.hypot(bx - ax, by - ay)
     m = float(margin_m)
     while True:
@@ -1959,8 +1968,9 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
         if c1 - c0 < 2 or r1 - r0 < 2:
             return straight, straight, False, []
         crop = Z[r0:r1, c0:c1]
+        illum_crop = None if illum_cost is None else illum_cost[r0:r1, c0:c1]   # SN-05: same window
         cost, passable = slope_costmap(crop, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
-                                       max_drop_m=MAX_DROP_M)
+                                       max_drop_m=MAX_DROP_M, illum=illum_crop, illum_weight=illum_weight)
         _apply_keepouts(passable, cell, r0, c0, dem_origin, keepouts)
         hc, wc = crop.shape
         start = (min(max(int(ay / cell) - r0, 0), hc - 1), min(max(int(ax / cell) - c0, 0), wc - 1))
