@@ -478,7 +478,7 @@ _DEM_PRESENT = os.path.exists(os.path.join(DEM_SCENE, "metadata.json"))
 
 
 @pytest.mark.skipif(not _DEM_PRESENT, reason="committed DEM scene not on disk")
-def test_build_from_dem_roundtrip_and_provenance():
+def test_build_from_dem_roundtrip_and_provenance():  # [REQ:TW-04]
     """build_from_dem wires the four Wave-2 generators against the real Haworth DEM and returns
     a loadable bundle whose derive_height() == the committed heightmap (the §8 datum re-supply),
     with the ChaSTE density, illumination, and corridor provenance attached additively."""

@@ -18,7 +18,8 @@ def _crop():
     return (Z[r0:r0 + 200, c0:c0 + 200].copy(), cell)
 
 
-def test_hazard_map_marks_steep_and_hard_rocks_nogo():
+def test_hazard_map_marks_steep_and_hard_rocks_nogo():  # [REQ:ML-02]
+    # the terrain-assessment hazard layer: real-DEM slope + rock classes -> traversability/no-go
     if not _HAVE:
         return
     dem = _crop()

@@ -128,7 +128,8 @@ def test_placement_binds_vehicle_tool_power_to_a_body():
         V.Placement("bad", "spaceship", "moon")                    # unknown vehicle rejected
 
 
-def test_deployment_spans_bodies_with_body_correct_physics():
+def test_deployment_spans_bodies_with_body_correct_physics():  # [REQ:FL-05]
+    # heterogeneous capability + physics vectors: per-placement terramechanics and per-tool capability
     dep = V.Deployment([
         V.Placement("luna_1", "ipex", "moon"),
         V.Placement("ares_1", "ipex", "mars", tools=("sinter",)),
