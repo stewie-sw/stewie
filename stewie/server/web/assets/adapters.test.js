@@ -125,6 +125,15 @@ test("normalizeTimelineFrame maps TimelineFrame + derives durationS (FS-15 gantt
   assert.strictEqual(A.normalizeTimelineFrame({}), null);
 });
 
+test("normalizeLocalizationFix maps LocalizationFix + derives errM (FS-15 nav trace)", () => {
+  const vm = A.normalizeLocalizationFix({ localization_fix: {
+    est: [40, 30], true: [43, 34], sigma: 0.2, fix: "beacon" } });
+  assert.deepStrictEqual(vm.truePose, [43, 34]);
+  assert.strictEqual(vm.fix, "beacon");
+  assert.strictEqual(vm.errM, 5);                                   // hypot(3,4) = 5 est-vs-truth error
+  assert.strictEqual(A.normalizeLocalizationFix({}), null);
+});
+
 test("normalizeARGUSFactor maps ARGUSFactor + derives rejected", () => {
   const vm = A.normalizeARGUSFactor({ argus_factor: {
     factor_id: "f1", kind: "shadow", keyframe_i: 0, keyframe_j: 1,

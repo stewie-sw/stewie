@@ -155,6 +155,18 @@ class TimelineFrame(Contract):
     cum_mass_kg: float = Field(default=0.0, ge=0.0)
 
 
+class LocalizationFix(Contract):
+    """FS-07/FS-15: one leg on the mission est-vs-truth localization trace -- the believed pose `est`, the
+    eval-only `true` pose, the position `sigma`, and which real fix (`dem`|`beacon`|`none`) corrected this
+    leg. The cockpit Nav pane's mission-localization plot renders these. The I3 truth firewall governs the
+    ESTIMATOR (which never sees truth); this is the after-the-fact DIAGNOSTIC display of how the estimate did
+    vs truth, which `run_closed_loop` already emits. A frozen typed view of that trace."""
+    est: tuple[float, float]
+    true: tuple[float, float]      # eval-only ground-truth pose (display/diagnostic, not an estimator input)
+    sigma: float = Field(ge=0.0)
+    fix: str                       # dem | beacon | none
+
+
 class ARGUSFactor(Contract):
     """FS-07 (PM-07): one pose-graph factor from the ARGUS articulation/shadow/parallax loop. `accepted`
     is the residual-gate verdict -- a rejected factor (false closure / bad shadow match) never enters the

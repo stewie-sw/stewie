@@ -118,6 +118,16 @@ def test_timeline_frame():
         C.TimelineFrame(t0=0.0, t1=1.0, phase="dig", batt0_frac=1.2)   # battery fraction in [0,1]
 
 
+def test_localization_fix():
+    f = C.LocalizationFix(est=(40.0, 30.0), true=(40.1, 30.0), sigma=0.1, fix="dem")
+    assert f.fix == "dem" and C.LocalizationFix.model_validate(f.model_dump()) == f
+    # validates the wire shape the cockpit Nav pane consumes directly
+    assert C.LocalizationFix.model_validate(
+        {"est": [1.0, 2.0], "true": [1.0, 2.0], "sigma": 0.0, "fix": "beacon"}).fix == "beacon"
+    with pytest.raises(ValidationError):
+        C.LocalizationFix(est=(0.0, 0.0), true=(0.0, 0.0), sigma=-1.0, fix="none")   # sigma >= 0
+
+
 def test_argus_factor():
     f = C.ARGUSFactor(factor_id="f1", kind="shadow", keyframe_i=0, keyframe_j=3, residual=0.02, accepted=True)
     assert f.accepted and f.information >= 0

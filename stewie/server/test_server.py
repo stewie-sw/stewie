@@ -558,3 +558,18 @@ def test_plan_timeline_frames_conform_to_the_timeline_frame_contract(client):
     assert frames, "no timeline frames to validate"
     for fr in frames:
         TimelineFrame.model_validate(fr)                  # raises on any drift from the contract shape
+
+
+def test_plan_localization_trace_conforms_to_the_localization_fix_contract(client):
+    """FS-15: the /plan mission-localization trace legs the cockpit Nav pane renders must conform to the
+    typed LocalizationFix contract (so normalizeLocalizationFix never drifts from the real leg shape).
+    Validates every leg; extra='forbid' catches any added/renamed field -- the backend mirror of parity."""
+    from stewie.contracts import LocalizationFix
+    r = client.post("/plan", json={"name": "loc", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut", "kind": "cut", "x": 40, "y": 30, "footprint_m2": 36, "depth_m": 0.04}]})
+    assert r.status_code == 200, r.text
+    loc = ((r.json().get("perception") or {}).get("localization") or {})
+    legs = loc.get("trajectory") or []
+    assert legs, "no localization legs to validate"
+    for leg in legs:
+        LocalizationFix.model_validate(leg)               # raises on any drift from the contract shape

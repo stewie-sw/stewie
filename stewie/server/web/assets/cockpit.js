@@ -1686,11 +1686,16 @@ let LAST_LOCALIZATION = null;                              // #nav-mission: loca
 function navDrawMission(loc) {
   const cv = $("navmissionplot"); if (!cv) return;
   const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
-  const traj = (loc && loc.trajectory) || [];
+  // FS-15: consume the typed LocalizationFix view model (adapters.js); inline fallback if it didn't load.
+  const A = window.STEWIE_ADAPTERS;
+  const normLoc = (p) => A ? A.normalizeLocalizationFix({ localization_fix: p })
+    : { est: p.est, truePose: p["true"], sigma: p.sigma, fix: p.fix,
+        errM: Math.hypot(p.est[0] - p["true"][0], p.est[1] - p["true"][1]) };
+  const traj = (((loc && loc.trajectory) || []).map(normLoc).filter(Boolean));
   const stat = $("navmissionstats");
   if (!traj.length) { if (stat) stat.textContent =
     "Plan a mission (5·Plan → Plan mission) to see the rover's live estimated path vs truth and the per-leg fixes."; return; }
-  const est = traj.map((p) => p.est), tru = traj.map((p) => p["true"]);
+  const est = traj.map((p) => p.est), tru = traj.map((p) => p.truePose);
   const all = est.concat(tru), xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
   const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
   const pad = 26, s = Math.min((cv.width - 2 * pad) / Math.max(1e-6, maxx - minx),
@@ -1708,7 +1713,7 @@ function navDrawMission(loc) {
   g.fillStyle = "#3fa34d"; g.fillText("● DEM", pad + 118, 12); g.fillStyle = "#e0b300"; g.fillText("● beacon", pad + 166, 12);
   g.fillStyle = "#e8273f"; g.fillText("● none", pad + 226, 12);
   const fk = loc.fix_kinds || {}, lastSig = traj[traj.length - 1].sigma;
-  const maxErr = Math.max(...traj.map((p) => Math.hypot(p.est[0] - p["true"][0], p.est[1] - p["true"][1])));
+  const maxErr = Math.max(...traj.map((p) => p.errM));   // FS-15: the view model derives est-vs-truth error
   const summary = `fixes: <b style="color:#3fa34d">${fk.dem || 0} DEM</b> · <b style="color:#e0b300">${fk.beacon || 0} beacon</b> · ` +
     `<b style="color:#e8273f">${fk.none || 0} none</b> · end pose σ <b>${lastSig} m</b> · max est-vs-truth <b>${maxErr.toFixed(2)} m</b>`;
   if (stat) stat.innerHTML = summary;

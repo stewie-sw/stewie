@@ -128,6 +128,16 @@
     };
   }
 
+  // LocalizationFix -> the Nav-pane mission-trace view model (est vs truth + which fix + the est-vs-truth error)
+  function normalizeLocalizationFix(payload) {
+    var f = payload && payload.localization_fix;
+    if (!f) return null;
+    return {
+      est: f.est, truePose: f["true"], sigma: f.sigma, fix: f.fix,
+      errM: Math.hypot(f.est[0] - f["true"][0], f.est[1] - f["true"][1]),   // derived: est-vs-truth error
+    };
+  }
+
   // ARGUSFactor -> the pose-graph factor view model (residual/information + accept/reject for the evidence pane)
   function normalizeARGUSFactor(payload) {
     var a = payload && payload.argus_factor;
@@ -188,7 +198,7 @@
     normalizeVehicle: normalizeVehicle, normalizeFleet: normalizeFleet,
     normalizeBelief: normalizeBelief, normalizePlanResult: normalizePlanResult,
     normalizeExecutionEvent: normalizeExecutionEvent, normalizeTimelineFrame: normalizeTimelineFrame,
-    normalizeARGUSFactor: normalizeARGUSFactor,
+    normalizeLocalizationFix: normalizeLocalizationFix, normalizeARGUSFactor: normalizeARGUSFactor,
     normalizeModelArtifact: normalizeModelArtifact, normalizeSkill: normalizeSkill,
     toViewState: toViewState,
   };

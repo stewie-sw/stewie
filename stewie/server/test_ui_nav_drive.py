@@ -26,7 +26,7 @@ def test_drive_preview_elements_are_in_the_served_page():
     for el in ('id="navdriveplot"', 'id="navdrive"', 'id="navdsx"', 'id="navdgx"'):
         assert el in html, f"FS-05 drive preview: {el} missing from the served cockpit page"
     # the cache-buster moved with the cockpit.js change (deploy cache trap)
-    assert "cockpit.js?v=38674a6da36a" in html
+    assert "cockpit.js?v=38674a6da36b" in html
 
 
 def test_drive_preview_handler_calls_nav_run():
