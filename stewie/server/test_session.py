@@ -96,6 +96,46 @@ def test_mission_summary_artifact(client):
     assert any(sid in f for f in files)
 
 
+def test_summary_covers_route_and_slip_from_a_real_haworth_run():
+    """B4.2 (spec): the per-run summary covers route, energy, comm drops, SLIP EVENTS, and
+    seen-vs-actual divergence. Grounded on the real Haworth DEM (no synthetic terrain): the slip
+    and pose figures are the closed-loop physics outputs for each leg, not authored numbers."""
+    import json
+    import os
+
+    from lode import mission_planner as MP
+
+    scen = os.path.join(os.path.dirname(__file__), "scenarios", "shadowed_traverse.json")
+    doc = json.load(open(scen))
+    profile = doc.pop("profile", "ideal")
+    doc.pop("teaching_point", None)
+    doc.pop("provenance", None)
+    mission = MP.mission_from_dict(doc)
+    dem = MP.load_haworth_dem()
+    origin = MP.flattest_anchor(dem)
+    s = SESMOD.Session.run(mission, profile=profile, dem=dem, dem_origin=origin)
+
+    md = SESMOD.summary_markdown(s)
+    # all five spec sections present (route, energy, comm drops, slip events, divergence)
+    for heading in ("## Route", "## Energy", "## Link", "## Slip events", "## Divergence"):
+        assert heading in md, f"summary missing section {heading!r}"
+    # route reports the real routed drive distance: the GoTo waypoint polylines from the plan IR
+    # (this run detours around the keep-outs, so the path is longer than the crow flies)
+    import math
+    drive_m = 0.0
+    for a in s.record["plan_ir"]["actions"]:
+        wp = a.get("waypoints") or []
+        drive_m += sum(math.dist(wp[i], wp[i + 1]) for i in range(len(wp) - 1))
+    assert drive_m > 0.0
+    assert f"{drive_m:.1f}" in md, "the summary must report the real routed drive distance"
+    # slip section names the worst-slip leg with its real slip fraction (a closed-loop physics output)
+    worst = max(s.record["legs"], key=lambda l_: l_["slip"])
+    assert f"{worst['slip']:.3f}" in md, "the worst-slip leg's real slip fraction must appear"
+    assert worst["leg"] in md
+    # divergence figure is the same one the debrief reports (single source of truth)
+    assert f"{s.debrief_view()['energy_divergence_J']:.1f}" in md
+
+
 def test_t42_sessions_stamp_one_sun_state(client):
     """ARGUS T4.2: a session carries mission_t0; operator AND director views stamp the SAME sun
     (az/el from the one solar authority at that time) -- camera frames, shadow layers, and the
