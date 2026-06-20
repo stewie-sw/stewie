@@ -26,13 +26,13 @@
        ONE hot accent = drum red; blue retired 2026-06-10 */
     --bg:#0a0a0c; --panel:#101013; --head:linear-gradient(180deg,#1b1b1f,#101013); --line:#26262c;
     --field:#141417; --field-bd:#34343c;
-    --txt:#d6d6da; --muted:#8a8a93; --dim:#86868f; --accent:#e8273f; --fill:#c8102e; --fill-h:#a30d26;  /* UX-03: --dim >=4.5:1 */
+    --txt:#d6d6da; --muted:#8a8a93; --dim:#86868f; --accent:#ef3a52; --fill:#c8102e; --fill-h:#a30d26;  /* UX-03: --dim >=4.5:1; A11Y: --accent text >=4.5:1 on panel/field (was #e8273f=4.34) */
     --fontpx:13px;   /* UI-1: operator-adjustable font size, persisted */
   }
   /* UI-2: light theme (dark stays default -- "dark room kept people calm", D8) */
   body.light {
     --bg:#f4f6fa; --panel:#ffffff; --head:#e8edf5; --line:#c9d4e4; --field:#eef2f8; --field-bd:#b8c6dc;
-    --txt:#16202e; --muted:#51607a; --dim:#5a6680; --accent:#1d6ae5; --fill:#2563eb; --fill-h:#1d4ed8;  /* UX-03: --dim >=4.5:1 */
+    --txt:#16202e; --muted:#51607a; --dim:#5a6680; --accent:#1a5fd0; --fill:#2563eb; --fill-h:#1d4ed8;  /* UX-03: --dim >=4.5:1; A11Y: --accent text >=4.5:1 on field (was #1d6ae5=4.40) */
   }
   html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
     /* MOBILE-05 ROOT CAUSE: without this, Firefox/Chrome Android "font boosting" inflates fonts ~2x,
@@ -268,6 +268,17 @@
   [data-fresh] { border: 2px solid #19c37d !important; }
   [data-fresh="stale"] { border-color: #e0b300 !important; }
   [data-fresh="dead"] { border-color: #e8273f !important; }
+  /* A11Y: freshness must not be conveyed by colour ALONE (WCAG 1.4.1). A corner
+     label names the state in text; it overlays the tile (position:absolute) so no
+     layout reflow. Parent tiles already establish a positioning context. */
+  [data-fresh] { position: relative; }
+  [data-fresh]::after {
+    position: absolute; top: 3px; right: 3px; z-index: 2; pointer-events: none;
+    font: 700 9px/1.4 'Orbitron', system-ui, sans-serif; letter-spacing: .08em;
+    padding: 1px 5px; border-radius: 7px; color: #05060c; }
+  [data-fresh="ok"]::after { content: "LIVE"; background: #19c37d; }
+  [data-fresh="stale"]::after { content: "STALE"; background: #e0b300; }
+  [data-fresh="dead"]::after { content: "STALE \2715"; background: #e8273f; color: #fff; }
   .gisovl { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; display:none; image-rendering:pixelated }
       #workareaimg { cursor: crosshair; }
   /* PERCEPTION pane: Godot PLAN -> RENDER before/after frame (sensor model). Live SLAM map = open work. */
@@ -1056,6 +1067,6 @@
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=3fc7e7695a0e"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
 <script src="/assets/adapters.js?v=fs15a1"></script>
-<script src="/assets/cockpit.js?v=90cd84bfdfe4"></script>
+<script src="/assets/cockpit.js?v=6fc3db2258f5"></script>
 </body>
 </html>
