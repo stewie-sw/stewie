@@ -39,6 +39,8 @@ _ADAPTER_FIELDS: dict[type, tuple[str, list[str]]] = {
         "plan_id", "feasible", "n_orders", "vehicles", "makespan_s", "energy_j",
         "mass_moved_kg", "blocked_legs", "recharges", "drum_cycles", "cut_passes", "resolved_algorithm"]),
     C.ExecutionEvent: ("normalizeExecutionEvent", ["t_s", "vehicle_id", "kind", "detail", "outcome"]),
+    C.TimelineFrame: ("normalizeTimelineFrame", [
+        "t0", "t1", "phase", "x0", "y0", "x1", "y1", "batt0_frac", "batt1_frac", "cum_mass_kg"]),
     C.ARGUSFactor: ("normalizeARGUSFactor", [
         "factor_id", "kind", "keyframe_i", "keyframe_j", "residual", "information", "accepted"]),
     C.ModelArtifact: ("normalizeModelArtifact", [

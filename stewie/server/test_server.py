@@ -543,3 +543,18 @@ def test_plan_returns_fs15_plan_result_contract(client):
     assert pr["resolved_algorithm"] == (t.get("resolved_algorithm") or t.get("algorithm"))
     assert abs(pr["mass_moved_kg"] - (t["cut_kg"] + t["fill_kg"])) < 1e-6
     assert abs(pr["energy_j"] - t["energy_J"]) < 1e-6 and abs(pr["makespan_s"] - t["makespan_s"]) < 1e-6
+
+
+def test_plan_timeline_frames_conform_to_the_timeline_frame_contract(client):
+    """FS-15: the /plan ACTIVITY-timeline frames the cockpit gantt + playback render must conform to the
+    typed TimelineFrame contract (so the adapters.js normalizeTimelineFrame view model never drifts from the
+    real frame shape). Validates EVERY frame against the Pydantic contract -- a renamed/added frame field
+    would fail here, the backend-side mirror of the adapter parity gate."""
+    from stewie.contracts import TimelineFrame
+    r = client.post("/plan", json={"name": "tl", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut", "kind": "cut", "x": 40, "y": 30, "footprint_m2": 36, "depth_m": 0.04}]})
+    assert r.status_code == 200, r.text
+    frames = (r.json().get("timeline") or {}).get("frames") or []
+    assert frames, "no timeline frames to validate"
+    for fr in frames:
+        TimelineFrame.model_validate(fr)                  # raises on any drift from the contract shape

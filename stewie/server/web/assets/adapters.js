@@ -116,6 +116,18 @@
     };
   }
 
+  // TimelineFrame -> the ACTIVITY-gantt / battery-curve / playback view model (one motion segment).
+  function normalizeTimelineFrame(payload) {
+    var f = payload && payload.timeline_frame;
+    if (!f) return null;
+    return {
+      t0: f.t0, t1: f.t1, phase: f.phase,
+      x0: f.x0, y0: f.y0, x1: f.x1, y1: f.y1,
+      batt0Frac: f.batt0_frac, batt1Frac: f.batt1_frac, cumMassKg: f.cum_mass_kg,
+      durationS: f.t1 - f.t0,                                          // derived: segment length
+    };
+  }
+
   // ARGUSFactor -> the pose-graph factor view model (residual/information + accept/reject for the evidence pane)
   function normalizeARGUSFactor(payload) {
     var a = payload && payload.argus_factor;
@@ -175,7 +187,8 @@
     normalizeEphemeris: normalizeEphemeris, normalizeWorld: normalizeWorld,
     normalizeVehicle: normalizeVehicle, normalizeFleet: normalizeFleet,
     normalizeBelief: normalizeBelief, normalizePlanResult: normalizePlanResult,
-    normalizeExecutionEvent: normalizeExecutionEvent, normalizeARGUSFactor: normalizeARGUSFactor,
+    normalizeExecutionEvent: normalizeExecutionEvent, normalizeTimelineFrame: normalizeTimelineFrame,
+    normalizeARGUSFactor: normalizeARGUSFactor,
     normalizeModelArtifact: normalizeModelArtifact, normalizeSkill: normalizeSkill,
     toViewState: toViewState,
   };

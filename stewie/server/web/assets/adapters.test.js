@@ -114,6 +114,17 @@ test("normalizeExecutionEvent maps ExecutionEvent + derives ok", () => {
     t_s: 0, vehicle_id: "x", kind: "command", detail: "", outcome: "ok" } }).ok, true);
 });
 
+test("normalizeTimelineFrame maps TimelineFrame + derives durationS (FS-15 gantt)", () => {
+  const vm = A.normalizeTimelineFrame({ timeline_frame: {
+    t0: 100, t1: 275, phase: "drive", x0: 0, y0: 0, x1: 40, y1: 30,
+    batt0_frac: 1.0, batt1_frac: 0.998, cum_mass_kg: 0 } });
+  assert.strictEqual(vm.phase, "drive");
+  assert.strictEqual(vm.batt0Frac, 1.0);
+  assert.strictEqual(vm.batt1Frac, 0.998);
+  assert.strictEqual(vm.durationS, 175);                            // t1 - t0
+  assert.strictEqual(A.normalizeTimelineFrame({}), null);
+});
+
 test("normalizeARGUSFactor maps ARGUSFactor + derives rejected", () => {
   const vm = A.normalizeARGUSFactor({ argus_factor: {
     factor_id: "f1", kind: "shadow", keyframe_i: 0, keyframe_j: 1,

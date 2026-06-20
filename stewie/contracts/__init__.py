@@ -137,6 +137,24 @@ class ExecutionEvent(Contract):
     outcome: str = "ok"   # ok | blocked | entrapped | rejected | safed
 
 
+class TimelineFrame(Contract):
+    """FS-04/FS-15: one motion segment on the mission ACTIVITY timeline -- a [t0, t1] interval in one
+    `phase` (drive | dig | cut | dump | fill | haul | recharge | goto), the rover moving (x0,y0)->(x1,y1)
+    with the battery going `batt0_frac`->`batt1_frac` and `cum_mass_kg` regolith moved so far. The cockpit
+    Report-pane ACTIVITY gantt + battery curve + the 3-D playback render these; `build_timeline` emits them.
+    Distinct from ExecutionEvent (a discrete event); a frame is a continuous segment."""
+    t0: float = Field(ge=0.0)
+    t1: float = Field(ge=0.0)
+    phase: str             # drive | dig | cut | dump | fill | haul | recharge | goto
+    x0: float = 0.0
+    y0: float = 0.0
+    x1: float = 0.0
+    y1: float = 0.0
+    batt0_frac: float = Field(default=1.0, ge=0.0, le=1.0)
+    batt1_frac: float = Field(default=1.0, ge=0.0, le=1.0)
+    cum_mass_kg: float = Field(default=0.0, ge=0.0)
+
+
 class ARGUSFactor(Contract):
     """FS-07 (PM-07): one pose-graph factor from the ARGUS articulation/shadow/parallax loop. `accepted`
     is the residual-gate verdict -- a rejected factor (false closure / bad shadow match) never enters the

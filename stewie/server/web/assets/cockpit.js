@@ -3497,8 +3497,14 @@ function drawRoverHUD(s) {
     ctx.fillText(`pose ${Math.round(s.x)}, ${Math.round(s.y)} m`, dx + 4, 82); }
 }
 // UI-17: the activity Gantt -- one lane per phase kind, bars at [t0, t1], battery curve under.
-function drawGantt(tl) {
+function drawGantt(rawFrames) {
   const cv = $("gantt"); if (!cv) return;
+  const A = window.STEWIE_ADAPTERS;
+  // FS-15: render the typed TimelineFrame view model (adapters.js), not raw frame dicts; the inline
+  // fallback keeps the gantt working if the adapter layer didn't load.
+  const norm = (f) => A ? A.normalizeTimelineFrame({ timeline_frame: f })
+                        : { phase: f.phase, t0: f.t0, t1: f.t1, batt0Frac: f.batt0_frac, batt1Frac: f.batt1_frac };
+  const tl = (rawFrames || []).map(norm).filter(Boolean);
   const ctx = cv.getContext("2d");
   ctx.fillStyle = "#05060c"; ctx.fillRect(0, 0, cv.width, cv.height);
   if (!tl.length) {
@@ -3532,7 +3538,7 @@ function drawGantt(tl) {
   ctx.strokeRect(L, by0, cv.width - L - R, bh);
   ctx.strokeStyle = "#e8273f"; ctx.lineWidth = 1.5; ctx.beginPath();
   tl.forEach((p, i) => {
-    const y0 = by0 + (1 - p.batt0_frac) * bh, y1 = by0 + (1 - p.batt1_frac) * bh;
+    const y0 = by0 + (1 - p.batt0Frac) * bh, y1 = by0 + (1 - p.batt1Frac) * bh;
     if (i === 0) ctx.moveTo(X(p.t0), y0); else ctx.lineTo(X(p.t0), y0);
     ctx.lineTo(X(p.t1), y1);
   });

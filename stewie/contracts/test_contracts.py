@@ -110,6 +110,14 @@ def test_execution_event_round_trips():
     assert C.ExecutionEvent.model_validate(e.model_dump()) == e
 
 
+def test_timeline_frame():
+    f = C.TimelineFrame(t0=0.0, t1=174.7, phase="drive", x0=0.0, y0=0.0, x1=40.0, y1=30.0,
+                        batt0_frac=1.0, batt1_frac=0.9985, cum_mass_kg=0.0)
+    assert f.phase == "drive" and C.TimelineFrame.model_validate(f.model_dump()) == f
+    with pytest.raises(ValidationError):
+        C.TimelineFrame(t0=0.0, t1=1.0, phase="dig", batt0_frac=1.2)   # battery fraction in [0,1]
+
+
 def test_argus_factor():
     f = C.ARGUSFactor(factor_id="f1", kind="shadow", keyframe_i=0, keyframe_j=3, residual=0.02, accepted=True)
     assert f.accepted and f.information >= 0
