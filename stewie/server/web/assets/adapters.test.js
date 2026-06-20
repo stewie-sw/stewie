@@ -87,13 +87,21 @@ test("normalizeBelief maps BeliefState + derives diverged", () => {
   assert.strictEqual(lost.diverged, true);                          // not localized -> estimator diverged
 });
 
-test("normalizePlanResult maps PlanResult + derives MJ/hasBlocked", () => {
+test("normalizePlanResult maps PlanResult + derives MJ/hasBlocked + FS-15 dashboard fields", () => {
   const vm = A.normalizePlanResult({ plan_result: {
     plan_id: "p1", feasible: true, n_orders: 3, vehicles: 1,
-    makespan_s: 600, energy_j: 2000000, mass_moved_kg: 120, blocked_legs: 0 } });
+    makespan_s: 7200, energy_j: 2000000, mass_moved_kg: 4584.8, blocked_legs: 0,
+    recharges: 2, drum_cycles: 61, cut_passes: 2, resolved_algorithm: "nearest" } });
   assert.strictEqual(vm.planId, "p1");
   assert.strictEqual(vm.energyMJ, 2);                               // 2e6 J -> 2 MJ
   assert.strictEqual(vm.hasBlocked, false);
+  // FS-15: the dashboard/CONOPS fields the cockpit consumes (so it stops reading legacy `totals` keys)
+  assert.strictEqual(vm.recharges, 2);
+  assert.strictEqual(vm.drumCycles, 61);
+  assert.strictEqual(vm.cutPasses, 2);
+  assert.strictEqual(vm.solver, "nearest");
+  assert.strictEqual(vm.durationH, 2);                              // 7200 s -> 2 h
+  assert.ok(Math.abs(vm.massMovedT - 4.5848) < 1e-9);               // 4584.8 kg -> 4.5848 t
   assert.strictEqual(A.normalizePlanResult({}), null);
 });
 

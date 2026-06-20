@@ -109,7 +109,8 @@ class BeliefState(Contract):
 
 class PlanResult(Contract):
     """CP-01/FS-02: the immutable plan SUMMARY one plan produces and every consumer shares (totals,
-    feasibility, makespan). The full per-leg Plan IR lives in the planner; this is the typed headline."""
+    feasibility, makespan). The full per-leg Plan IR lives in the planner; this is the typed headline.
+    The cockpit's dashboard strip + CONOPS line consume this via the adapters.js view model (FS-15)."""
     plan_id: str
     feasible: bool
     n_orders: int = Field(ge=0)
@@ -118,6 +119,12 @@ class PlanResult(Contract):
     energy_j: float = Field(ge=0.0)
     mass_moved_kg: float = Field(default=0.0, ge=0.0)
     blocked_legs: int = Field(default=0, ge=0)
+    # FS-15: the headline totals the Report-pane dashboard + CONOPS line display (so the cockpit can
+    # consume a typed view model instead of reaching into the legacy /plan `totals` dict by ad-hoc key).
+    recharges: int = Field(default=0, ge=0)            # mid-mission charger returns (totals['charges'])
+    drum_cycles: int = Field(default=0, ge=0)          # drum offload cycles
+    cut_passes: int = Field(default=1, ge=0)           # excavation passes
+    resolved_algorithm: str = ""                       # the solver actually used (e.g. 'nearest', 'beam')
 
 
 class ExecutionEvent(Contract):

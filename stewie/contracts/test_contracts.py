@@ -93,8 +93,16 @@ def test_belief_state():
 def test_plan_result():
     p = C.PlanResult(plan_id="abc", feasible=True, n_orders=5, vehicles=2, makespan_s=100.0, energy_j=5e5)
     assert p.feasible and p.vehicles == 2
+    assert p.recharges == 0 and p.drum_cycles == 0 and p.cut_passes == 1 and p.resolved_algorithm == ""
     with pytest.raises(ValidationError):
         C.PlanResult(plan_id="x", feasible=True, n_orders=1, vehicles=0, makespan_s=1.0, energy_j=1.0)
+    # FS-15 headline totals the dashboard/CONOPS consume
+    q = C.PlanResult(plan_id="d", feasible=True, n_orders=2, vehicles=1, makespan_s=1.0, energy_j=1.0,
+                     recharges=2, drum_cycles=61, cut_passes=2, resolved_algorithm="nearest")
+    assert q.recharges == 2 and q.drum_cycles == 61 and q.cut_passes == 2 and q.resolved_algorithm == "nearest"
+    with pytest.raises(ValidationError):
+        C.PlanResult(plan_id="n", feasible=True, n_orders=1, vehicles=1, makespan_s=1.0, energy_j=1.0,
+                     recharges=-1)                          # ge=0 boundary holds
 
 
 def test_execution_event_round_trips():

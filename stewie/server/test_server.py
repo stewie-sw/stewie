@@ -523,3 +523,23 @@ def test_cesium_dev_route_is_traversal_safe_and_404s_when_absent(client):
     gitignored, downloaded only in the Docker frontend build). No traversal to the package root."""
     assert client.get("/cesium/../server.py").status_code in (404, 400)
     assert client.get("/cesium/nonesuch.js").status_code == 404
+
+
+def test_plan_returns_fs15_plan_result_contract(client):
+    """FS-15: /plan returns the typed PlanResult contract the cockpit consumes via adapters.js, built from
+    the SAME totals so the contract and the legacy dict never diverge. The dashboard/CONOPS view model reads
+    this (not ad-hoc `totals` keys); recharges here is the real charge count the old `t.recharges` chip missed."""
+    r = client.post("/plan", json={"name": "fs15", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut", "kind": "cut", "x": 40, "y": 30, "footprint_m2": 36, "depth_m": 0.04},
+        {"action": "fill", "kind": "fill", "x": 44, "y": 44, "footprint_m2": 14, "depth_m": 0.10}]})
+    assert r.status_code == 200, r.text
+    j = r.json()
+    pr, t = j["plan_result"], j["totals"]
+    # the typed headline + the FS-15 dashboard fields, all cross-checked against the legacy totals dict
+    assert pr["feasible"] == t["feasible"] and pr["n_orders"] == 2
+    assert pr["recharges"] == int(t["charges"])               # the real recharge count (old chip read a missing key)
+    assert pr["drum_cycles"] == int(t["drum_cycles"])
+    assert pr["cut_passes"] == int(t["cut_passes"])
+    assert pr["resolved_algorithm"] == (t.get("resolved_algorithm") or t.get("algorithm"))
+    assert abs(pr["mass_moved_kg"] - (t["cut_kg"] + t["fill_kg"])) < 1e-6
+    assert abs(pr["energy_j"] - t["energy_J"]) < 1e-6 and abs(pr["makespan_s"] - t["makespan_s"]) < 1e-6

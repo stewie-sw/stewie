@@ -3197,9 +3197,16 @@ qel("qplan").onclick = async () => {
     if (res.status === 401) { setQ("⚠ API key required: paste it in ⚙ Settings (server key lives in deploy/.env)"); setView("settings"); return; }
     if (!j.ok) { setQ("error: " + j.error); return; }
     const t = j.totals;
+    // FS-15: the Report-pane dashboard + CONOPS consume the TYPED PlanResult view model (adapters.js),
+    // not ad-hoc legacy `totals` keys. Falls back to the raw dict if the adapter layer didn't load (never
+    // worse than before). This also corrects the `recharges` chip, which read a non-existent `totals` key.
+    const PR = (window.STEWIE_ADAPTERS && j.plan_result)
+      ? window.STEWIE_ADAPTERS.normalizePlanResult({ plan_result: j.plan_result }) : null;
+    const drumCycles = PR ? PR.drumCycles : (t.drum_cycles ?? 0);
+    const cutPasses = PR ? PR.cutPasses : (t.cut_passes ?? 1);
     if ($("conops")) $("conops").textContent =
-      `CONOPS PLANNED · ${t.trips ?? "—"} trips · ${t.drum_cycles ?? 0} drum cycles · ` +
-      `${t.cut_passes ?? 1} cut pass${(t.cut_passes ?? 1) > 1 ? "es" : ""}`;
+      `CONOPS PLANNED · ${t.trips ?? "—"} trips · ${drumCycles} drum cycles · ` +
+      `${cutPasses} cut pass${cutPasses > 1 ? "es" : ""}`;
     LAST_ROUTES = t.routes || []; drawPlan();              // item 3: overlay the planned routes on the 2D canvas
     // #56: the dashboard strip -- the last plan's headline numbers, chips on the Report pane
     const ds = $("dashstrip");
@@ -3209,12 +3216,12 @@ qel("qplan").onclick = async () => {
       if (hz) alertMsg("warn", `plan has ${hz} hazard flag(s): legs crossing freshly built terrain (repose-angle edges)`);
       alertMsg("info", `plan solved: ${(t.energy_J / 1e6).toFixed(1)} MJ · ${(t.time_s / 3600).toFixed(1)} h · ${t.resolved_algorithm || t.algorithm}`);
       ds.innerHTML =
-        chip("moved", `${((t.cut_kg + (t.fill_kg || 0)) / 1000).toFixed(1)} t`) +
-        chip("energy", `${(t.energy_J / 1e6).toFixed(1)} MJ`) +
-        chip("recharges", t.recharges ?? "—") +
-        chip("duration", `${(t.time_s / 3600).toFixed(1)} h`) +
+        chip("moved", `${(PR ? PR.massMovedT : (t.cut_kg + (t.fill_kg || 0)) / 1000).toFixed(1)} t`) +
+        chip("energy", `${(PR ? PR.energyMJ : t.energy_J / 1e6).toFixed(1)} MJ`) +
+        chip("recharges", PR ? PR.recharges : (t.recharges ?? "—")) +     // FS-15: now the real count, not "—"
+        chip("duration", `${(PR ? PR.durationH : t.time_s / 3600).toFixed(1)} h`) +
         chip("hazard flags", hz ? `⚠ ${hz}` : "0") +
-        chip("solver", t.resolved_algorithm || t.algorithm || "—");
+        chip("solver", (PR ? PR.solver : (t.resolved_algorithm || t.algorithm)) || "—");
       ds.style.display = "flex";
       // UI-17: the ROUTE HERO (the authored plan view, enlarged) + the ACTIVITY GANTT
       const db = $("dashboards");

@@ -37,7 +37,7 @@ _ADAPTER_FIELDS: dict[type, tuple[str, list[str]]] = {
         "localized", "last_relocalization_t_s"]),
     C.PlanResult: ("normalizePlanResult", [
         "plan_id", "feasible", "n_orders", "vehicles", "makespan_s", "energy_j",
-        "mass_moved_kg", "blocked_legs"]),
+        "mass_moved_kg", "blocked_legs", "recharges", "drum_cycles", "cut_passes", "resolved_algorithm"]),
     C.ExecutionEvent: ("normalizeExecutionEvent", ["t_s", "vehicle_id", "kind", "detail", "outcome"]),
     C.ARGUSFactor: ("normalizeARGUSFactor", [
         "factor_id", "kind", "keyframe_i", "keyframe_j", "residual", "information", "accepted"]),

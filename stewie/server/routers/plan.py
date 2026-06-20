@@ -351,10 +351,24 @@ def _plan_impl(req: PlanRequest, payload: dict):
         terrain_source = "flat_fallback"                # Moon site DEM missing -> honest flat-check warning
     else:
         terrain_source = f"{body}_flat"                 # non-Moon body has no lunar DEM (flat by design)
+    # FS-15: the typed PlanResult contract the cockpit consumes via adapters.js (the dashboard strip +
+    # CONOPS line read this view model, not ad-hoc legacy `totals` keys). Built from the SAME totals so the
+    # contract and the legacy dict never diverge; additive (legacy `totals` stays for un-migrated panes).
+    from stewie.contracts import PlanResult
+    plan_result = PlanResult(
+        plan_id=(result.provenance.get("input_sha256") or "")[:16] or "plan",
+        feasible=feasible, n_orders=len(mission.orders), vehicles=int(totals.get("vehicles", 1) or 1),
+        makespan_s=float(totals.get("makespan_s", 0.0)), energy_j=float(totals.get("energy_J", 0.0)),
+        mass_moved_kg=float(totals.get("cut_kg", 0.0)) + float(totals.get("fill_kg", 0.0)),
+        blocked_legs=int(totals.get("blocked_legs", 0) or 0),
+        recharges=int(totals.get("charges", 0) or 0), drum_cycles=int(totals.get("drum_cycles", 0) or 0),
+        cut_passes=int(totals.get("cut_passes", 1) or 1),
+        resolved_algorithm=str(totals.get("resolved_algorithm") or totals.get("algorithm") or "")).model_dump()
     return {
         "ok": True,
         "feasible": feasible,                           # H-03: surfaced at the top, not buried in totals
         "infeasible_reasons": infeasible_reasons,
+        "plan_result": plan_result,                     # FS-15: the typed contract the cockpit view model reads
         "mode": "DEM_KNOWN_POSE_MISSION_SIM",           # product boundary (known-pose mission sim, not SLAM)
         # A-06: site/body context echoed so the UI/report can verify the terrain basis and warn on a
         # mismatch. item 4: NEVER silently degrade to flat -- terrain_source names the ACTUAL terrain used.

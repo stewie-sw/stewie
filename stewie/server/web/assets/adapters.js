@@ -97,7 +97,11 @@
       planId: p.plan_id, feasible: p.feasible, nOrders: p.n_orders, vehicles: p.vehicles,
       makespanS: p.makespan_s, energyJ: p.energy_j, massMovedKg: p.mass_moved_kg,
       blockedLegs: p.blocked_legs,
-      energyMJ: p.energy_j / 1e6,                                      // derived display convenience
+      recharges: p.recharges, drumCycles: p.drum_cycles, cutPasses: p.cut_passes,  // FS-15 dashboard/CONOPS
+      solver: p.resolved_algorithm,
+      energyMJ: p.energy_j / 1e6,                                      // derived: MJ (dashboard 'energy')
+      massMovedT: p.mass_moved_kg / 1000,                             // derived: tonnes (dashboard 'moved')
+      durationH: p.makespan_s / 3600,                                 // derived: hours (dashboard 'duration')
       hasBlocked: p.blocked_legs > 0,                                  // derived
     };
   }
