@@ -101,3 +101,30 @@ def test_nav_react_no_hazard_on_route_does_not_replan(client):
     j = client.post("/nav/react", json={"pose": [0, 0], "heading_rad": 0.0, "goal": [20, 0],
                                         "planned_path": [[0, 0], [20, 0]], "deviation_max_m": 2.0}).json()
     assert j["replan"] is False and j["scope"] == "none" and j["n_new_hazards"] == 0
+
+
+# --- FS-05 end-to-end navigation spine over the API (POST /nav/run) ------------------------------
+def test_nav_run_drives_a_real_haworth_corridor(client):  # [REQ:FS-05]
+    # the end-to-end spine reachable through the product path: route the global corridor on the REAL
+    # Haworth DEM, then drive it to the goal, with every on-host stage exercised in one connected call.
+    r = client.post("/nav/run", json={"start": [4.0, 4.0], "goal": [44.0, 36.0], "dt": 2.0,
+                                      "max_ticks": 600})
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["ok"] and j["reached"] is True and j["arrived"] is True and j["reason"] == "arrived"
+    assert {"global_route", "local_trajectory", "tracker", "recovery", "deviation"} <= set(j["stages"])
+    assert len(j["waypoints"]) >= 2 and j["routed_m"] > 0.0
+    assert len(j["trajectory"]) > 2 and j["n_ticks"] > 10
+    end = j["trajectory"][-1]
+    assert ((end[0] - 44.0) ** 2 + (end[1] - 36.0) ** 2) ** 0.5 <= 2.0   # finished at the requested goal
+    assert "mean_m" in j["deviation"] and j["deviation"]["max_m"] < 8.0
+
+
+def test_nav_run_unknown_site_returns_400(client):
+    r = client.post("/nav/run", json={"start": [0.0, 0.0], "goal": [10.0, 0.0], "site": "nosuchsite_zzz"})
+    assert r.status_code == 400 and r.json()["ok"] is False and "DEM" in r.json()["error"]
+
+
+def test_nav_run_rejects_extra_fields(client):
+    r = client.post("/nav/run", json={"start": [0.0, 0.0], "goal": [10.0, 0.0], "true_pose": [1, 1]})
+    assert r.status_code == 400 and r.json()["ok"] is False

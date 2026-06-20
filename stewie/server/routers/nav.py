@@ -169,3 +169,65 @@ def post_react(req: ReactRequest, _auth: None = Depends(require_auth)):
             "n_new_hazards": len(out["new_hazards"]), "deviation_m": round(out["deviation_m"], 3),
             "keepouts": [[round(k[0], 3), round(k[1], 3), round(k[2], 3)] for k in out["keepouts"]],
             "local_arc": arc}
+
+
+_MAX_NAV_TICKS = 4000
+_NAV_TRAJ_WIRE_MAX = 400        # decimate the executed path to bound the response (the overlay needs the shape)
+
+
+class NavRunRequest(BaseModel):
+    # FS-05 end-to-end: route the global corridor then DRIVE it. Observation/geometry only (extra='forbid').
+    model_config = ConfigDict(extra="forbid")
+    start: tuple[float, float]                                      # rover start (x, y) [m, LOCAL]
+    goal: tuple[float, float]                                       # target (x, y) [m, LOCAL]
+    site: str = Field(default="haworth", max_length=64)            # REG-01: which real site DEM to drive on
+    keepouts: list[tuple[float, float, float]] = Field(default_factory=list, max_length=_MAX_OBSTACLES)
+    rocks: list[tuple[float, float, float]] = Field(default_factory=list, max_length=_MAX_OBSTACLES)
+    max_slope_deg: float = Field(default=25.0, gt=0.0, le=89.0)    # traversability cap (route + local)
+    dt: float = Field(default=2.0, gt=0.0, le=60.0)               # control tick [s]
+    horizon_m: float = Field(default=8.0, gt=0.0, le=1000.0)       # local arc horizon
+    clearance_m: float = Field(default=1.0, ge=0.0, le=100.0)      # obstacle safety margin
+    goal_tol_m: float = Field(default=2.0, gt=0.0, le=100.0)       # arrival radius
+    max_ticks: int = Field(default=2000, ge=1, le=_MAX_NAV_TICKS)  # drive-loop budget
+
+
+@router.post("/nav/run")
+def post_nav_run(req: NavRunRequest, _auth: None = Depends(require_auth)):
+    """FS-05 end-to-end: the navigation spine over the API. Routes the global corridor (route_leg) on the
+    real ``site`` DEM, then DRIVES it as a receding-horizon closed loop (plan_local -> track_plan -> integrate
+    -> recovery_needed) and scores the executed path against the route (cross_track_deviation). Read-only
+    PREVIEW compute -- no state mutation, no real rover command (it simulates the drive on the conserved
+    terrain), so require_auth (not require_role), matching /nav/local_plan. Returns reached/arrived, the
+    planned waypoints, the executed (decimated) trajectory, recovery events, the cmd_vel tick count, the
+    cross-track deviation, and the stages exercised. 400 when the site has no DEM (the spine needs real
+    terrain) or the inputs are invalid."""
+    from lode.nav_pipeline import run_navigation
+    from stewie.server import state
+    dem, origin = state.moon_dem(req.site)
+    if dem is None:
+        return JSONResponse(status_code=400,
+                            content={"ok": False, "error": f"no DEM bundle for site {req.site!r}"})
+    keepouts = [(float(a), float(b), float(c)) for a, b, c in req.keepouts]
+    rocks = [(float(a), float(b), float(c)) for a, b, c in req.rocks]
+    try:
+        res = run_navigation(dem, origin, (float(req.start[0]), float(req.start[1])),
+                             (float(req.goal[0]), float(req.goal[1])), keepouts=keepouts, rocks=rocks,
+                             max_slope_deg=float(req.max_slope_deg), dt=float(req.dt),
+                             horizon_m=float(req.horizon_m), clearance_m=float(req.clearance_m),
+                             goal_tol_m=float(req.goal_tol_m), max_ticks=int(req.max_ticks))
+    except (ValueError, RuntimeError) as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    traj = res["trajectory"]
+    step = max(1, len(traj) // _NAV_TRAJ_WIRE_MAX)        # decimate to bound the wire (keep first + last)
+    traj_wire = [[round(float(x), 3), round(float(y), 3)] for x, y in traj[::step]]
+    if len(traj) and step > 1:
+        traj_wire.append([round(float(traj[-1][0]), 3), round(float(traj[-1][1]), 3)])
+    return {"ok": True, "reached": res["reached"], "arrived": res["arrived"], "reason": res["reason"],
+            "site": req.site,
+            "waypoints": [[round(float(x), 3), round(float(y), 3)] for x, y in res["waypoints"]],
+            "trajectory": traj_wire, "routed_m": round(float(res.get("routed_m", 0.0)), 3),
+            "n_ticks": int(res.get("n_ticks", 0)), "n_recoveries": int(res.get("n_recoveries", 0)),
+            "recovery_events": [{"tick": int(e["tick"]), "reason": e["reason"], "scope": e["scope"]}
+                                for e in res.get("recovery_events", [])],
+            "deviation": res.get("deviation", {"mean_m": 0.0, "max_m": 0.0}),
+            "stages": res.get("stages", [])}
