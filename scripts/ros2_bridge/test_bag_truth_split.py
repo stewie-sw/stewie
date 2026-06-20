@@ -95,7 +95,8 @@ def test_register_connections_two_bag_split_keeps_truth_out_of_perception():
     assert bag_writer.TRUTH_POSE_TOPIC in truth_conns
 
 
-def test_write_frame_routes_true_rover_pose_to_evaluator_bag_not_tf():
+def test_write_frame_routes_true_rover_pose_to_evaluator_bag_not_tf():  # [REQ:SL-01]
+    # truth-isolated SLAM bag: the runtime/SLAM-input bag is physically denied the true rover pose
     ts = _FakeTS()
     sensors, left, right, baseline = _load()
     perc, truth = _FakeWriter(), _FakeWriter()

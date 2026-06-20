@@ -37,7 +37,7 @@ def test_percentiles_from_recorded_latencies(svc):
     assert snap["max"] == 100
 
 
-def test_over_budget_flag_set_only_when_breached(svc):
+def test_over_budget_flag_set_only_when_breached(svc):  # [REQ:FS-10]
     b = svc.budget_for("/ephemeris")
     svc.record_latency("/ephemeris", b + 500)     # one clear breach
     snap = svc.latency_snapshot()["/ephemeris"]

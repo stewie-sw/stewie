@@ -1,0 +1,263 @@
+{
+  "autonomy_track": {
+    "cited": 17,
+    "currently_v_done": [],
+    "eligible_for_v_done": [
+      "AS-17"
+    ],
+    "in_matrix": 17,
+    "total": 17
+  },
+  "cited": 119,
+  "per_family": {
+    "AG": {
+      "cited": 8,
+      "total": 8
+    },
+    "AM": {
+      "cited": 2,
+      "total": 9
+    },
+    "AS": {
+      "cited": 17,
+      "total": 17
+    },
+    "CP": {
+      "cited": 9,
+      "total": 10
+    },
+    "CT": {
+      "cited": 7,
+      "total": 7
+    },
+    "DT": {
+      "cited": 1,
+      "total": 2
+    },
+    "EP": {
+      "cited": 5,
+      "total": 8
+    },
+    "FL": {
+      "cited": 6,
+      "total": 7
+    },
+    "FS": {
+      "cited": 12,
+      "total": 24
+    },
+    "GI": {
+      "cited": 0,
+      "total": 3
+    },
+    "ML": {
+      "cited": 4,
+      "total": 9
+    },
+    "NV": {
+      "cited": 11,
+      "total": 12
+    },
+    "PM": {
+      "cited": 5,
+      "total": 16
+    },
+    "PO": {
+      "cited": 8,
+      "total": 14
+    },
+    "RL": {
+      "cited": 0,
+      "total": 1
+    },
+    "SE": {
+      "cited": 0,
+      "total": 1
+    },
+    "SF": {
+      "cited": 1,
+      "total": 1
+    },
+    "SL": {
+      "cited": 1,
+      "total": 1
+    },
+    "SN": {
+      "cited": 11,
+      "total": 15
+    },
+    "TM": {
+      "cited": 0,
+      "total": 1
+    },
+    "TW": {
+      "cited": 7,
+      "total": 10
+    },
+    "VT": {
+      "cited": 4,
+      "total": 10
+    }
+  },
+  "total": 186,
+  "unknown_markers": [],
+  "v_done_uncited": [],
+  "v_ne_d_flagged": [
+    {
+      "id": "AM-02",
+      "v": "P"
+    },
+    {
+      "id": "AS-01",
+      "v": "N"
+    },
+    {
+      "id": "AS-02",
+      "v": "N"
+    },
+    {
+      "id": "AS-03",
+      "v": "N"
+    },
+    {
+      "id": "AS-04",
+      "v": "N"
+    },
+    {
+      "id": "AS-05",
+      "v": "N"
+    },
+    {
+      "id": "AS-06",
+      "v": "N"
+    },
+    {
+      "id": "AS-07",
+      "v": "P"
+    },
+    {
+      "id": "AS-08",
+      "v": "P"
+    },
+    {
+      "id": "AS-09",
+      "v": "P"
+    },
+    {
+      "id": "AS-10",
+      "v": "P"
+    },
+    {
+      "id": "AS-11",
+      "v": "P"
+    },
+    {
+      "id": "AS-12",
+      "v": "P"
+    },
+    {
+      "id": "AS-13",
+      "v": "P"
+    },
+    {
+      "id": "AS-14",
+      "v": "N"
+    },
+    {
+      "id": "AS-15",
+      "v": "P"
+    },
+    {
+      "id": "AS-16",
+      "v": "P"
+    },
+    {
+      "id": "AS-17",
+      "v": "N"
+    },
+    {
+      "id": "CP-07",
+      "v": "P"
+    },
+    {
+      "id": "FL-04",
+      "v": "P"
+    },
+    {
+      "id": "FL-05",
+      "v": "P"
+    },
+    {
+      "id": "FS-05",
+      "v": "P"
+    },
+    {
+      "id": "FS-10",
+      "v": "P"
+    },
+    {
+      "id": "FS-11",
+      "v": "P"
+    },
+    {
+      "id": "FS-15",
+      "v": "P"
+    },
+    {
+      "id": "FS-18",
+      "v": "N"
+    },
+    {
+      "id": "FS-19",
+      "v": "P"
+    },
+    {
+      "id": "FS-21",
+      "v": "P"
+    },
+    {
+      "id": "ML-02",
+      "v": "N"
+    },
+    {
+      "id": "ML-03",
+      "v": "N"
+    },
+    {
+      "id": "ML-04",
+      "v": "P"
+    },
+    {
+      "id": "PO-01",
+      "v": "N"
+    },
+    {
+      "id": "PO-04",
+      "v": "P"
+    },
+    {
+      "id": "SL-01",
+      "v": "P"
+    },
+    {
+      "id": "SN-05",
+      "v": "P"
+    },
+    {
+      "id": "SN-07",
+      "v": "N"
+    },
+    {
+      "id": "SN-12",
+      "v": "N"
+    },
+    {
+      "id": "TW-04",
+      "v": "P"
+    },
+    {
+      "id": "VT-06",
+      "v": "P"
+    }
+  ]
+}

@@ -4,7 +4,8 @@ import math
 from dart import rock_taxonomy as RT
 
 
-def test_70cm_boulder_is_hazard_landmark_and_avoid():
+def test_70cm_boulder_is_hazard_landmark_and_avoid():  # [REQ:ML-03]
+    # rock classification: size -> nav/loc/excav class + confidence + navigation/excavation relevance
     r = RT.classify(0.70)                    # the user's example: one rock, three meanings
     assert r.nav_class == "E" and r.loc_class == "L2" and r.excav_class == "E3"
     m = r.meanings()

@@ -2085,7 +2085,7 @@ def test_fl02_plan_totals_report_temporal_conflicts():
     assert "temporal_conflicts" in totals and isinstance(totals["temporal_conflicts"], int)
 
 
-def test_fl04_per_rover_health_state_and_replan_trigger():
+def test_fl04_per_rover_health_state_and_replan_trigger():  # [REQ:FL-04]
     """FL-04: every fleet plan carries a per-rover belief/health/resource state (feasibility, lowest
     battery margin, recharges, a health rollup), and a stranded rover sets the fleet replan trigger."""
     m = _pairs_mission([(40, 0), (-40, 5), (80, 0)])
