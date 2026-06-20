@@ -985,7 +985,15 @@ function markFresh(el) { if (el) { el.dataset.fresh = "ok"; el.dataset.freshTs =
 setInterval(() => {
   document.querySelectorAll("[data-fresh]").forEach((el) => {
     const age = (Date.now() - parseInt(el.dataset.freshTs || "0", 10)) / 1000;
-    el.dataset.fresh = age < 20 ? "ok" : (age < 60 ? "stale" : "dead");
+    const state = age < 20 ? "ok" : (age < 60 ? "stale" : "dead");
+    el.dataset.fresh = state;
+    // A11Y (WCAG 1.4.1): the border colour is mirrored by a text state so the
+    // freshness is not conveyed by colour alone -- a CSS ::after corner label
+    // shows it visually; this annotation exposes the same word to assistive tech
+    // and on hover. No behaviour change beyond the label.
+    const label = state === "ok" ? "data live" : (state === "stale" ? "data stale" : "data stale (no recent update)");
+    el.setAttribute("aria-label", label);
+    el.setAttribute("title", label);
   });
 }, 5000);
 
