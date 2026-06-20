@@ -227,7 +227,8 @@ def post_nav_run(req: NavRunRequest, _auth: None = Depends(require_auth)):
             "waypoints": [[round(float(x), 3), round(float(y), 3)] for x, y in res["waypoints"]],
             "trajectory": traj_wire, "routed_m": round(float(res.get("routed_m", 0.0)), 3),
             "n_ticks": int(res.get("n_ticks", 0)), "n_recoveries": int(res.get("n_recoveries", 0)),
-            "recovery_events": [{"tick": int(e["tick"]), "reason": e["reason"], "scope": e["scope"]}
+            "recovery_events": [{"tick": int(e["tick"]), "reason": e["reason"], "scope": e["scope"],
+                                 "xy": [round(float(e["pose"][0]), 3), round(float(e["pose"][1]), 3)]}
                                 for e in res.get("recovery_events", [])],
             "deviation": res.get("deviation", {"mean_m": 0.0, "max_m": 0.0}),
             "stages": res.get("stages", [])}

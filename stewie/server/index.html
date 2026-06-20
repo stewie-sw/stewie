@@ -749,6 +749,22 @@
       </div>
       <div id="navview" class="pane">
         <div class="cap"><span>NAVIGATION — ARGUS state estimation <small>(pose-graph estimate vs dead reckoning; articulation-parallax relocalization)</small></span></div>
+        <!-- FS-05 END-TO-END DRIVE PREVIEW: route the global corridor (route_leg) then DRIVE it as a
+             receding-horizon closed loop (plan_local -> track_plan -> recovery) on the real site DEM,
+             via POST /nav/run. Draws the planned route (amber dashed) vs the executed trajectory (cyan)
+             + start/goal + recovery backups. The product-path surface of the connected nav spine. -->
+        <div style="padding:4px 2px 8px;border-bottom:1px solid var(--line);margin-bottom:8px">
+          <div class="cap" style="font-size:10px">FS-05 DRIVE PREVIEW — route then drive <small>(route_leg → plan_local → track_plan → recovery, on the real DEM)</small></div>
+          <div class="ctl" style="font-size:11px;margin-top:4px">
+            start <input id="navdsx" type="number" value="4" step="1" style="width:4em" />,
+            <input id="navdsy" type="number" value="4" step="1" style="width:4em" />
+            · goal <input id="navdgx" type="number" value="44" step="1" style="width:4em" />,
+            <input id="navdgy" type="number" value="36" step="1" style="width:4em" /> m
+            <button id="navdrive" class="go" style="font-size:11px;margin-left:6px">▶ Run drive</button>
+          </div>
+          <canvas id="navdriveplot" width="460" height="240" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;max-width:100%;margin-top:4px"></canvas>
+          <div id="navdrivestats" style="font-size:11px;line-height:1.7;margin-top:4px;color:var(--muted)">Press <b>Run drive</b>: STEWIE routes the global corridor on the real Haworth DEM, then drives it as a receding-horizon closed loop — the planned route (amber) vs the executed path (cyan), with recovery backups marked. Needs the Haworth bundle (clean 400 otherwise).</div>
+        </div>
         <!-- MISSION LOCALIZATION: the LIVE planning-loop estimate (run_closed_loop real terrain-relative +
              AprilTag-beacon fixes) vs the true pose, per leg, colour-coded by which real fix corrected it.
              Populated from the last /plan response (perception.localization). The Katwijk benchmark below is
@@ -1039,6 +1055,6 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=3fc7e7695a0e"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
-<script src="/assets/cockpit.js?v=38674a6da367"></script>
+<script src="/assets/cockpit.js?v=38674a6da368"></script>
 </body>
 </html>

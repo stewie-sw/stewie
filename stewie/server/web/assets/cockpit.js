@@ -1714,6 +1714,50 @@ function navDrawMission(loc) {
   if (stat) stat.innerHTML = summary;
   const cx = $("ctxnav-loc"); if (cx) cx.innerHTML = summary;   // tab-contextual left: mirror the live summary
 }
+// FS-05 end-to-end DRIVE PREVIEW: POST /nav/run -> route the global corridor then drive it; draw the
+// planned route (amber dashed) vs the executed trajectory (cyan) + start/goal + recovery backups.
+function navDrawDrive(res) {
+  const cv = $("navdriveplot"); if (!cv) return;
+  const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
+  const route = res.waypoints || [], traj = res.trajectory || [];
+  const all = route.concat(traj); if (!all.length) return;
+  const xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
+  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+  const pad = 26, s = Math.min((cv.width - 2 * pad) / Math.max(1e-6, maxx - minx),
+                               (cv.height - 2 * pad) / Math.max(1e-6, maxy - miny));
+  const X = (x) => pad + (x - minx) * s, Y = (y) => cv.height - pad - (y - miny) * s;
+  const line = (path, color, w, dash) => {
+    g.strokeStyle = color; g.lineWidth = w; g.setLineDash(dash || []); g.beginPath();
+    path.forEach((p, i) => (i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))));
+    g.stroke(); g.setLineDash([]);
+  };
+  line(route, "#e0a23a", 2, [5, 3]);                       // planned corridor (amber dashed)
+  line(traj, "#36d1dc", 2);                                // executed drive (cyan)
+  const dot = (p, color, r) => { g.fillStyle = color; g.beginPath(); g.arc(X(p[0]), Y(p[1]), r, 0, 2 * Math.PI); g.fill(); };
+  if (route.length) { dot(route[0], "#3fa34d", 5); dot(route[route.length - 1], "#e8273f", 5); }   // start green / goal red
+  (res.recovery_events || []).forEach((e) => {             // recovery backups: orange ring at the recovered pose
+    if (e.xy) { g.strokeStyle = "#ff8c00"; g.lineWidth = 2; g.beginPath(); g.arc(X(e.xy[0]), Y(e.xy[1]), 6, 0, 2 * Math.PI); g.stroke(); } });
+  g.font = "10px system-ui"; g.fillStyle = "#e0a23a"; g.fillText("--- planned route", pad, 12);
+  g.fillStyle = "#36d1dc"; g.fillText("— executed", pad + 96, 12);
+  g.fillStyle = "#3fa34d"; g.fillText("● start", pad + 162, 12); g.fillStyle = "#e8273f"; g.fillText("● goal", pad + 208, 12);
+}
+async function navDriveRun() {
+  const btn = $("navdrive"); btn.disabled = true; btn.textContent = "… driving";
+  const sx = +$("navdsx").value, sy = +$("navdsy").value, gx = +$("navdgx").value, gy = +$("navdgy").value;
+  try {
+    const r = await fetch("/nav/run", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ start: [sx, sy], goal: [gx, gy], dt: 2.0, max_ticks: 800 }) });
+    const b = await r.json();
+    if (!b.ok) { $("navdrivestats").innerHTML = `<span style="color:#e8273f">${esc(b.error || "drive unavailable")}</span>`; return; }  // SEC-04
+    navDrawDrive(b);
+    const dev = b.deviation || {};
+    const arr = b.arrived ? `<b style="color:var(--accent)">arrived</b>` : `<b style="color:#e8273f">${esc(b.reason)}</b>`;
+    $("navdrivestats").innerHTML = `${arr} · routed <b>${b.routed_m} m</b> · <b>${b.n_ticks}</b> control ticks · `
+      + `<b>${b.n_recoveries}</b> recoveries · cross-track mean <b>${(dev.mean_m || 0).toFixed(2)} m</b> / max <b>${(dev.max_m || 0).toFixed(2)} m</b>`
+      + `<br><span style="opacity:.7">Stages: ${esc((b.stages || []).join(" → "))}. Real Haworth DEM; route_leg corridor then plan_local/track_plan/recovery drive.</span>`;
+  } catch (e) { $("navdrivestats").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
+  finally { btn.disabled = false; btn.textContent = "▶ Run drive"; }
+}
 async function navRun() {
   const seg = $("navseg").value, kf = +$("navkf").value || 30;
   $("navrun").disabled = true; $("navrun").textContent = "… running";
@@ -1839,6 +1883,7 @@ async function navReloc() {                            // REAL measured fix on t
 if ($("navrun")) {
   $("navrun").onclick = navRun;
   $("navcmp").onclick = navCompare;
+  if ($("navdrive")) $("navdrive").onclick = navDriveRun;     // FS-05 end-to-end route-then-drive preview
   if ($("navreal")) $("navreal").onclick = navRealTraverse;   // #148 real Haworth terrain-fix est-vs-truth
   $("navreloc").onclick = navReloc;
   if ($("ctxnav-run")) $("ctxnav-run").onclick = navRun;   // tab-contextual left: same estimator run
