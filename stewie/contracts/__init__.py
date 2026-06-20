@@ -249,3 +249,46 @@ class ConstructionSkill(Contract):
         if not v:
             raise ValueError("§25.3: no construction/docking primitive may replay open-loop")
         return v
+
+
+# MO-01 / MO-03 / MO-04 (§27 mission-ops): the mission-intent, provenance, and labeling contracts the
+# operational UI renders. Defined in `mission_ops` to keep this base module small; re-exported here so
+# consumers use the same `from stewie import contracts as C; C.MissionIntent` access as the spine above.
+# (MO-02, the executive state machine, is gated/out of scope -- not exported.)
+from .mission_ops import (  # noqa: E402  (re-export after the base Contract it builds on)
+    AcceptanceCriterion,
+    CompiledOrder,
+    Constraint,
+    ConstraintKind,
+    Contingency,
+    ContingencyPolicy,
+    DataLabel,
+    LabeledValue,
+    MissionIntent,
+    Objective,
+    PriorityTier,
+    Provenance,
+    ProvenancedValue,
+    combine_provenance,
+    compile_order,
+)
+
+# re-export the mission-ops contracts as the public surface of this package (so pyflakes sees the
+# above imports as used and `from stewie.contracts import MissionIntent` works without reaching in).
+__all__ = [
+    "AcceptanceCriterion",
+    "CompiledOrder",
+    "Constraint",
+    "ConstraintKind",
+    "Contingency",
+    "ContingencyPolicy",
+    "DataLabel",
+    "LabeledValue",
+    "MissionIntent",
+    "Objective",
+    "PriorityTier",
+    "Provenance",
+    "ProvenancedValue",
+    "combine_provenance",
+    "compile_order",
+]
