@@ -280,7 +280,3 @@ def test_optional_objectives_are_not_compiled_into_orders():  # [REQ:CP-04]
     actions = {o.action for o in req.mission.orders}
     assert actions == {"pit"}                       # only the mandatory objective is an order
     assert "nice-to-have" in req.order.optional_objective_ids
-
-
-def test_proven_compiler_is_the_worktree_copy():  # provenance: prove the worktree module ran
-    assert "/tmp/stewie-wt-cp04r/" in MIC.__file__
