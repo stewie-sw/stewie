@@ -35,7 +35,7 @@
       if (ra !== rb) return ra - rb;
       return _num((b.public || {}).objectives_total) - _num((a.public || {}).objectives_total);
     });
-    var medal = ["🥇", "🥈", "🥉"];
+    var medal = ["1", "2", "3"];
     var lbRows = ranked.map(function (s, i) {
       var pub = s.public || {}, mk = s.makespan || {};
       var ratio = _num(mk.makespan_ratio, 1);

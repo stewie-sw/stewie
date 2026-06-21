@@ -164,7 +164,7 @@ function loadBody(key) {
       if (SELECTED_PIN) SELECTED_PIN.point.outlineColor = Cesium.Color.BLACK;
       SELECTED_PIN = pickedPin.id;
       SELECTED_PIN.point.outlineColor = Cesium.Color.fromCssColorString("#39ff14");
-      setQ("feature selected — press Delete to remove; in ✎ Edit, click a new spot to MOVE it");
+      setQ("feature selected — press Delete to remove; in Edit, click a new spot to MOVE it");
       return;
     }
     if (EDIT.on && SELECTED_PIN) {                          // #64: edit-mode click MOVES the selection
@@ -387,8 +387,8 @@ function dropPin(lat, lon, text, color, ref) {             // #64: pins carry th
 }
 const PIN_REFS = new Map();                                // pin entity -> {kind, obj}
 let SELECTED_PIN = null;
-let LANDER_PIN = null;                                     // #lander-pin: the single 🛬 globe marker (unique)
-let ROVER_PIN = null;                                      // #174: the single 🤖 rover-position marker (unique)
+let LANDER_PIN = null;                                     // #lander-pin: the single globe marker (unique)
+let ROVER_PIN = null;                                      // #174: the single rover-position marker (unique)
 function dropKeepoutCircle(lat, lon, r, ref) {             // #178: a VISIBLE circular barrier on the globe (not a dot)
   const red = Cesium.Color.fromCssColorString("#e0564b");
   const ent = viewer.entities.add({
@@ -396,7 +396,7 @@ function dropKeepoutCircle(lat, lon, r, ref) {             // #178: a VISIBLE ci
     point: { pixelSize: 4, color: red, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
     ellipse: { semiMajorAxis: r, semiMinorAxis: r, height: 0, material: red.withAlpha(0.22),
                outline: true, outlineColor: red.withAlpha(0.9), outlineWidth: 2 },
-    label: { text: `⛔ r${r} m`, font: "10px Orbitron, sans-serif",
+    label: { text: `keep-out r${r} m`, font: "10px Orbitron, sans-serif",
              fillColor: Cesium.Color.fromCssColorString("#c7d2e3"), pixelOffset: new Cesium.Cartesian2(0, -14),
              showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
   });
@@ -411,7 +411,7 @@ function dropBoxKeepout(lat0, lon0, lat1, lon1, ref) {     // #178: a VISIBLE re
     position: Cesium.Cartesian3.fromDegrees((w + e) / 2, (s + n) / 2, 0, ellipsoid),
     rectangle: { coordinates: Cesium.Rectangle.fromDegrees(w, s, e, n), height: 0,
                  material: red.withAlpha(0.22), outline: true, outlineColor: red.withAlpha(0.9) },
-    label: { text: "⬛ box keep-out", font: "10px Orbitron, sans-serif",
+    label: { text: "box keep-out", font: "10px Orbitron, sans-serif",
              fillColor: Cesium.Color.fromCssColorString("#c7d2e3"), pixelOffset: new Cesium.Cartesian2(0, -10),
              showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
   });
@@ -512,7 +512,7 @@ async function editPlace(lat, lon) {
     KEEPOUTS.push(ko);
     dropKeepoutCircle(lat, lon, r, { kind: "keepout", obj: ko });
     if (typeof renderKeepouts === "function") renderKeepouts();
-    drawPlan(); $("editstate").textContent = `⛔ circle keep-out @ ${d.x_m}, ${d.y_m} m (r ${r} m)`;
+    drawPlan(); $("editstate").textContent = `keep-out circle keep-out @ ${d.x_m}, ${d.y_m} m (r ${r} m)`;
   } else if (EDIT.tool === "box") {
     // #178 (Aaron: "can't select a box"): a two-click axis-aligned RECTANGULAR barrier. First click
     // anchors a corner; the second completes the box {x0,y0,x1,y1} (site metres). The planner rasterizes
@@ -531,7 +531,7 @@ async function editPlace(lat, lon) {
       dropBoxKeepout(BOX_A.lat, BOX_A.lon, Number(lat), Number(lon), { kind: "keepout", obj: ko });
       if (typeof renderKeepouts === "function") renderKeepouts();
       drawPlan();
-      $("editstate").textContent = `⬛ box keep-out [${ko.x0}, ${ko.y0}]–[${ko.x1}, ${ko.y1}] m`;
+      $("editstate").textContent = `box keep-out [${ko.x0}, ${ko.y0}]–[${ko.x1}, ${ko.y1}] m`;
       BOX_A = null;
     }
   } else if (EDIT.tool === "poly") {
@@ -558,7 +558,7 @@ async function editPlace(lat, lon) {
     const text = prompt("note text:") || "";
     if (text) { const an = { x: d.x_m, y: d.y_m, text };
       ANNOTATIONS.push(an);
-      dropPin(lat, lon, `📝 ${text.slice(0, 24)}`, "#e0b300", { kind: "note", obj: an });
+      dropPin(lat, lon, `${text.slice(0, 24)}`, "#e0b300", { kind: "note", obj: an });
       $("editstate").textContent = `note @ ${d.x_m}, ${d.y_m} m`; drawPlan(); }
   } else if (EDIT.tool === "lander") {
     // #3 (Aaron: "no way to place lander"): click-to-place the lander on the map (mirrors the typed
@@ -568,29 +568,29 @@ async function editPlace(lat, lon) {
     if ($("landx")) { $("landx").value = LANDER_P.x; $("landy").value = LANDER_P.y; }
     // Aaron 2026-06-16 ("cant place lander"): the lander branch never dropped a GLOBE marker the way the
     // goto/keepout/note tools do, so a click gave no on-map feedback -- it felt like nothing happened.
-    // Drop a single 🛬 pin at the clicked lat/lon (replace the prior one so the lander stays unique).
+    // Drop a single pin at the clicked lat/lon (replace the prior one so the lander stays unique).
     if (LANDER_PIN && viewer) { viewer.entities.remove(LANDER_PIN); PIN_REFS.delete(LANDER_PIN);
       const li = EDIT_PINS.indexOf(LANDER_PIN); if (li >= 0) EDIT_PINS.splice(li, 1); }
-    LANDER_PIN = dropPin(lat, lon, `🛬 lander ${LANDER_P.x}, ${LANDER_P.y} m`, "#39ff14", { kind: "lander" });
-    drawPlan(); $("editstate").textContent = `🛬 lander @ site-frame ${d.x_m} m E, ${d.y_m} m N (${Number(lat).toFixed(3)}°, ${Number(lon).toFixed(3)}°)`;
+    LANDER_PIN = dropPin(lat, lon, `lander ${LANDER_P.x}, ${LANDER_P.y} m`, "#39ff14", { kind: "lander" });
+    drawPlan(); $("editstate").textContent = `lander @ site-frame ${d.x_m} m E, ${d.y_m} m N (${Number(lat).toFixed(3)}°, ${Number(lon).toFixed(3)}°)`;
   } else if (EDIT.tool === "rover") {
     // #174 (Aaron: "why can't I place the location of the rover?"): click-to-place the rover's known
     // position. recordPose persists it (stewie_last_pose) + refreshes the locator (distances FROM it).
     recordPose(d.x_m, d.y_m);
     if (ROVER_PIN && viewer) { viewer.entities.remove(ROVER_PIN); PIN_REFS.delete(ROVER_PIN);
       const ri = EDIT_PINS.indexOf(ROVER_PIN); if (ri >= 0) EDIT_PINS.splice(ri, 1); }
-    ROVER_PIN = dropPin(lat, lon, `🤖 rover ${LAST_POSE.x}, ${LAST_POSE.y} m`, "#ff9d3f", { kind: "rover" });
-    $("editstate").textContent = `🤖 rover @ site-frame ${d.x_m} m E, ${d.y_m} m N (${Number(lat).toFixed(3)}°, ${Number(lon).toFixed(3)}°)`;
+    ROVER_PIN = dropPin(lat, lon, `rover ${LAST_POSE.x}, ${LAST_POSE.y} m`, "#ff9d3f", { kind: "rover" });
+    $("editstate").textContent = `rover @ site-frame ${d.x_m} m E, ${d.y_m} m N (${Number(lat).toFixed(3)}°, ${Number(lon).toFixed(3)}°)`;
   } else if (EDIT.tool === "measure") {
     // #178: click two points -> the site-frame metric distance between them. The order frame is metres
     // E/N (the meaningful planning distance), so it is just the Euclidean delta of the two site_xy hits.
     if (!MEASURE_A) {
       MEASURE_A = { x: d.x_m, y: d.y_m };
-      dropPin(lat, lon, "📏 from", "#5577dd", { kind: "measure" });
+      dropPin(lat, lon, "measure from", "#5577dd", { kind: "measure" });
       $("editstate").textContent = `measure: anchor @ ${d.x_m}, ${d.y_m} m — click the second point`;
     } else {
       const dist = Math.hypot(d.x_m - MEASURE_A.x, d.y_m - MEASURE_A.y);
-      dropPin(lat, lon, `📏 ${dist.toFixed(1)} m`, "#5577dd", { kind: "measure" });
+      dropPin(lat, lon, `measure ${dist.toFixed(1)} m`, "#5577dd", { kind: "measure" });
       const msg = `distance ${dist.toFixed(1)} m  (Δ ${(d.x_m - MEASURE_A.x).toFixed(1)} m E, ${(d.y_m - MEASURE_A.y).toFixed(1)} m N)`;
       $("editstate").textContent = msg; setQ(msg);
       MEASURE_A = null;
@@ -602,10 +602,10 @@ async function editPlace(lat, lon) {
     if (name) {
       const lm = { x: d.x_m, y: d.y_m, name, lat: Number(lat), lon: Number(lon) };
       LANDMARKS.push(lm);
-      dropPin(lat, lon, `📍 ${name}`, "#3fb6ff", { kind: "landmark", obj: lm });
+      dropPin(lat, lon, `plot ${name}`, "#3fb6ff", { kind: "landmark", obj: lm });
       persistDraft();
       if (typeof updateLocator === "function") updateLocator();   // #174: new landmark -> refresh distances
-      $("editstate").textContent = `📍 landmark "${name}" @ ${d.x_m} m E, ${d.y_m} m N`;
+      $("editstate").textContent = `plot landmark "${name}" @ ${d.x_m} m E, ${d.y_m} m N`;
       setQ(`landmark "${name}" placed (${LANDMARKS.length} total) — the locator can measure distance from it`);
     }
   }
@@ -1356,27 +1356,27 @@ const fmtLL = window.STEWIE_GEOFMT.fmtLL;                   // FS-24: lat/lon fo
 async function updateLocator() {
   const box = $("locator"); if (!box) return;
   if (!LAST_POSE) {
-    box.innerHTML = '<span style="opacity:.6">place the rover (🤖 tool or "place rover") to see distances ' +
+    box.innerHTML = '<span style="opacity:.6">place the rover (tool or "place rover") to see distances ' +
       "to the lander and landmarks</span>";
     return;
   }
   const rx = LAST_POSE.x, ry = LAST_POSE.y, hasLander = !!(LANDER_P.x || LANDER_P.y);
   const [roverLL, landerLL] = await Promise.all([
     siteLatLon(rx, ry), hasLander ? siteLatLon(LANDER_P.x, LANDER_P.y) : Promise.resolve(null)]);
-  const rows = [`<b style="color:var(--accent)">🤖 rover</b> ${rx}, ${ry} m · ` +
+  const rows = [`<b style="color:var(--accent)">rover</b> ${rx}, ${ry} m · ` +
                 `<span style="opacity:.8">${fmtLL(roverLL)}</span>`];
   if (hasLander) {
     const dE = LANDER_P.x - rx, dN = LANDER_P.y - ry, dist = Math.hypot(dE, dN);
-    rows.push(`🛬 <b>lander</b> ${LANDER_P.x}, ${LANDER_P.y} m · <b>${dist.toFixed(1)} m</b> ` +
+    rows.push(`<b>lander</b> ${LANDER_P.x}, ${LANDER_P.y} m · <b>${dist.toFixed(1)} m</b> ` +
               `${bearingFrom(dE, dN)} · <span style="opacity:.8">${fmtLL(landerLL)}</span>`);
   }
   LANDMARKS.forEach((l) => {
     const dE = l.x - rx, dN = l.y - ry, dist = Math.hypot(dE, dN);
-    rows.push(`📍 <b>${esc(l.name)}</b> ${l.x}, ${l.y} m · <b>${dist.toFixed(1)} m</b> ${bearingFrom(dE, dN)}`);
+    rows.push(`plot <b>${esc(l.name)}</b> ${l.x}, ${l.y} m · <b>${dist.toFixed(1)} m</b> ${bearingFrom(dE, dN)}`);
   });
   if (rows.length === 1) {
-    rows.push('<span style="opacity:.6">no lander or landmarks placed yet — drop a 🛬 lander or ' +
-      "📍 landmark to extrapolate distances from the rover</span>");
+    rows.push('<span style="opacity:.6">no lander or landmarks placed yet — drop a lander or ' +
+      "plot landmark to extrapolate distances from the rover</span>");
   }
   box.innerHTML = rows.map((r) => `<div>${r}</div>`).join("");
 }
@@ -1808,7 +1808,7 @@ async function loadPane(name) {
           rows.map(([k, v]) => `<span style="color:var(--muted)">${k}</span> ${v}`).join("<br>");
         cards.appendChild(d);
       };
-      const yn = (b) => b ? "✅" : "—";
+      const yn = (b) => b ? "✓" : "—";
       card("SERVER", [["version", c.server.version], ["data dir", c.server.data_dir],
                       ["backup dir", c.server.backup_dir]]);
       card("AUTH", [["API key", yn(c.auth.api_key_set)], ["operator login", yn(c.auth.operator_login)],
@@ -1972,7 +1972,7 @@ async function navCompare() {                          // P3.1: shared-testbed h
         }).join("")
       + `<div style="color:var(--muted);margin-top:3px">${b.modeled} · n=${b.n_seeds} seeds</div>`;
   } catch (e) { $("navcmpout").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
-  finally { $("navcmp").disabled = false; $("navcmp").textContent = "⚖ Compare approaches"; }
+  finally { $("navcmp").disabled = false; $("navcmp").textContent = "Compare approaches"; }
 }
 function navGate() {                                  // #97 perception gate: should_relocalize(sigma, moving)
   const sig = +$("navsig").value, stand = $("navstand").checked, armed = sig > 2.0 && stand;
@@ -2220,7 +2220,7 @@ async function renderArea(u, v, opts) {
       body: JSON.stringify(rbody) });
     const j = await res.json();
     if (res.status === 401) {                              // actionable, like every other 401 path
-      $("rpstatus").innerHTML = "⚠ API key required for rendering — paste it in <b>⚙ Settings</b> (the server key lives in deploy/.env)";
+      $("rpstatus").innerHTML = "⚠ API key required for rendering — paste it in <b>Settings</b> (the server key lives in deploy/.env)";
       if (!opts.quiet) setView("settings");
       return;
     }
@@ -2250,7 +2250,7 @@ function renderGateEvidence(j) {
     try {
       const r = await fetch(url, { method: "POST", headers: apiHeaders() });
       const j = await r.json();
-      $("admout").textContent = r.status === 401 ? "⚠ sign in (⚙ Settings)" : (j.ok ? fmt(j) : (j.error || r.status));
+      $("admout").textContent = r.status === 401 ? "⚠ sign in (Settings)" : (j.ok ? fmt(j) : (j.error || r.status));
     } catch (e) { $("admout").textContent = "failed: " + e; }
     b.disabled = false;
   };
@@ -2361,11 +2361,11 @@ async function loadSites() {     // #auth-reload: named (not an IIFE) so refresh
   } catch (e) { /* offline */ }
 })();
 $("landset").onclick = () => { setLander(+$("landx").value || 0, +$("landy").value || 0);
-  setQ(`🛬 lander @ site-frame ${LANDER_P.x} m E, ${LANDER_P.y} m N`); };
+  setQ(`lander @ site-frame ${LANDER_P.x} m E, ${LANDER_P.y} m N`); };
 if ($("landx")) { $("landx").value = LANDER_P.x; $("landy").value = LANDER_P.y; }
-// #174: type the rover's known position (mirrors the lander control); the 🤖 rover edit tool is the map-click path.
+// #174: type the rover's known position (mirrors the lander control); the rover edit tool is the map-click path.
 if ($("roverset")) $("roverset").onclick = () => { recordPose(+$("roverx").value || 0, +$("rovery").value || 0);
-  setQ(`🤖 rover @ site-frame ${LAST_POSE.x} m E, ${LAST_POSE.y} m N`); };
+  setQ(`rover @ site-frame ${LAST_POSE.x} m E, ${LAST_POSE.y} m N`); };
 if ($("roverx") && LAST_POSE) { $("roverx").value = LAST_POSE.x; $("rovery").value = LAST_POSE.y; }
 $("wpadd").onclick = () => {
   snapshotAuthoring();
@@ -2412,7 +2412,7 @@ document.querySelectorAll(".etool").forEach((b) => {
 // pin to select it (SELECTED_PIN, highlighted green), then tap this to remove the feature + its pin.
 if ($("editdel")) $("editdel").onclick = () => {
   if (SELECTED_PIN) deleteSelectedPin();
-  else setQ("tap a pin on the map first (it turns green), then tap 🗑 delete");
+  else setQ("tap a pin on the map first (it turns green), then tap delete");
 };
 $("rpclose").onclick = () => setView("plan");
 ["padW", "padL", "cut", "bermH"].forEach((id) => $(id).addEventListener("input", estimate));
@@ -2481,7 +2481,7 @@ function restoreDraft() {
         // #178: re-drop the globe marker for a restored landmark (we stored its lat/lon), so a persistent
         // reference point survives reload ON the map -- not just in the data model.
         if (typeof viewer !== "undefined" && viewer && typeof l.lat === "number" && typeof l.lon === "number") {
-          dropPin(l.lat, l.lon, `📍 ${l.name}`, "#3fb6ff", { kind: "landmark", obj: l });
+          dropPin(l.lat, l.lon, `plot ${l.name}`, "#3fb6ff", { kind: "landmark", obj: l });
         }
       });
     }
@@ -2992,7 +2992,7 @@ function renderWorkbench() {
     const card = document.createElement("div");
     card.style.cssText = "border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin:4px 0;font-size:10px;line-height:1.45";
     const head = document.createElement("div"); head.style.cssText = "display:flex;align-items:center;gap:6px";
-    const ttl = document.createElement("b"); ttl.textContent = "🗺 " + L.name; head.appendChild(ttl);
+    const ttl = document.createElement("b"); ttl.textContent = "" + L.name; head.appendChild(ttl);
     if (BASEMAP_STACK.length > 1) {
       const rm = document.createElement("button"); rm.textContent = "✕"; rm.title = "remove basemap";
       rm.style.cssText = "margin-left:auto;background:none;border:1px solid var(--line);border-radius:4px;color:var(--txt);cursor:pointer;font-size:10px";
@@ -3361,7 +3361,7 @@ function renderScorecardBoard(sid, b) {
 }
 qel("sesstart").onclick = async () => {                  // B3: operator/director training session
   if (!ORDERS.length) { setQ("add at least one order first"); return; }
-  const b = qel("sesstart"); b.disabled = true; b.textContent = "⏳ running session…";
+  const b = qel("sesstart"); b.disabled = true; b.textContent = "running session…";
   try {
     const res = await fetch("/session/start", { method: "POST",
       headers: apiHeaders(),
@@ -3397,12 +3397,12 @@ qel("sesstart").onclick = async () => {                  // B3: operator/directo
     } catch (e) { /* scorecard optional */ }
     setQ("session ready — operator link is the trainee view; scorecard in the Metrics tab");
   } catch (e) { setQ("session error: " + e); }
-  finally { b.disabled = false; b.textContent = "🎓 Start session"; }
+  finally { b.disabled = false; b.textContent = "Start session"; }
 };
 
 qel("qplan").onclick = async () => {
   if (!ORDERS.length) { setQ("add at least one order first"); return; }
-  const pb = qel("qplan"); pb.disabled = true; pb.textContent = "⏳ planning + rendering report…";   // B0.4
+  const pb = qel("qplan"); pb.disabled = true; pb.textContent = "planning + rendering report…";   // B0.4
   setQ("planning…");
   try {
     const res = await fetch("/plan", { method: "POST", headers: apiHeaders(),
@@ -3412,7 +3412,7 @@ qel("qplan").onclick = async () => {
         charger_capacity: +(qel("qchargers") ? qel("qchargers").value : 1),
         ...fleet(), ...site() }) });
     const j = await res.json();
-    if (res.status === 401) { setQ("⚠ API key required: paste it in ⚙ Settings (server key lives in deploy/.env)"); setView("settings"); return; }
+    if (res.status === 401) { setQ("⚠ API key required: paste it in Settings (server key lives in deploy/.env)"); setView("settings"); return; }
     if (!j.ok) { setQ("error: " + j.error); return; }
     const t = j.totals;
     // FS-15: the Report-pane dashboard + CONOPS consume the TYPED PlanResult view model (adapters.js),
@@ -3773,7 +3773,7 @@ function runExecution() {
   EXEC_RAF = requestAnimationFrame(frame);
 }
 qel("qexec").onclick = runExecution;
-qel("execpause").onclick = () => { EXEC_PAUSED = !EXEC_PAUSED; qel("execpause").textContent = EXEC_PAUSED ? "▶" : "⏸"; };
+qel("execpause").onclick = () => { EXEC_PAUSED = !EXEC_PAUSED; qel("execpause").textContent = EXEC_PAUSED ? "▶" : "pause"; };
 qel("execspd").onclick = () => { EXEC_SPEEDUP = EXEC_SPEEDUP === 10 ? 60 : EXEC_SPEEDUP === 60 ? 600 : 10;
   qel("execspeed").textContent = ` ${EXEC_SPEEDUP}×`; };
 qel("execclose").onclick = () => { cancelAnimationFrame(EXEC_RAF); setView("plan"); };
@@ -3889,11 +3889,11 @@ function planLoad3D() {
         p3dHud();
       });
       if (STEWIE3D.onMarkers) STEWIE3D.onMarkers((ms) => {
-        P3D_MARKERS = ms.length ? `📍 ${ms.length} plotted:\n` + ms.map((m, i) => `  #${i + 1} E${m.e.toFixed(1)} N${m.n.toFixed(1)} ${m.elev.toFixed(1)}m`).join("\n") : "";
+        P3D_MARKERS = ms.length ? `plot ${ms.length} plotted:\n` + ms.map((m, i) => `  #${i + 1} E${m.e.toFixed(1)} N${m.n.toFixed(1)} ${m.elev.toFixed(1)}m`).join("\n") : "";
         p3dHud();
       });
       if (STEWIE3D.onMeasure) STEWIE3D.onMeasure((d) => {
-        P3D_MEAS = `📏 ${d.slant_m.toFixed(1)} m slant · H ${d.horiz_m.toFixed(1)} · V ${d.vert_m >= 0 ? "+" : ""}${d.vert_m.toFixed(1)} · ${d.slope_deg.toFixed(0)}°`;
+        P3D_MEAS = `measure ${d.slant_m.toFixed(1)} m slant · H ${d.horiz_m.toFixed(1)} · V ${d.vert_m >= 0 ? "+" : ""}${d.vert_m.toFixed(1)} · ${d.slope_deg.toFixed(0)}°`;
         p3dHud();
       });
       P3D_TOOL = "path"; P3D_COORDS = true; P3D_HOVER = ""; P3D_MARKERS = ""; P3D_MEAS = "";
@@ -3963,7 +3963,7 @@ if ($("plan3dfly")) $("plan3dfly").onclick = () => {       // fly/move-through; 
     if ($("plan3dplot")) $("plan3dplot").style.borderColor = "";
     if ($("plan3dmeasure")) $("plan3dmeasure").style.borderColor = "";
     if ($("plan3dctl")) $("plan3dctl").style.display = "none";
-    setQ("🎮 Fly — drag to look · W/A/S/D move · R/F up·down");
+    setQ("fly Fly — drag to look · W/A/S/D move · R/F up·down");
   } else {
     p3dSetTool(P3D_TOOL);                                  // restore the previously-selected click-tool
     setQ("Orbit view + " + (P3D_TOOL === "path" ? "path-def (click to drop waypoints)" : P3D_TOOL + " tool"));
@@ -3979,12 +3979,12 @@ if ($("plan3dcoords")) $("plan3dcoords").onclick = () => { // live cursor coordi
 if ($("plan3dplot")) $("plan3dplot").onclick = () => {     // plot labeled coordinate markers
   if (FLY3D_ON) return;
   const t = P3D_TOOL === "plot" ? "path" : "plot"; p3dSetTool(t);
-  setQ(t === "plot" ? "📍 Plot — click the terrain to drop a coordinate marker (exact E / N / elevation)" : "Path-def — click to drop waypoints");
+  setQ(t === "plot" ? "plot Plot — click the terrain to drop a coordinate marker (exact E / N / elevation)" : "Path-def — click to drop waypoints");
 };
 if ($("plan3dmeasure")) $("plan3dmeasure").onclick = () => { // 3D distance between two surface points
   if (FLY3D_ON) return;
   const t = P3D_TOOL === "measure" ? "path" : "measure"; p3dSetTool(t);
-  setQ(t === "measure" ? "📏 Measure — click two surface points for slant / horizontal / vertical distance" : "Path-def — click to drop waypoints");
+  setQ(t === "measure" ? "measure Measure — click two surface points for slant / horizontal / vertical distance" : "Path-def — click to drop waypoints");
 };
 if ($("plan3dplotclear")) $("plan3dplotclear").onclick = () => { // clear plotted markers + measures
   if (window.STEWIE3D && STEWIE3D.clearPlots) STEWIE3D.clearPlots();
@@ -4009,11 +4009,11 @@ qel("qcompare").onclick = async () => {
     const cols = ["algorithm", "time_s", "energy_J", "avg_power_w", "distance_m", "charges", "mass_kg"];
     const head = "<tr>" + cols.map(c => `<th style="text-align:left;color:var(--muted)">${c.replace('_s','').replace('_J','').replace('_w','').replace('_m','').replace('_kg','')}</th>`).join("") + "</tr>";
     const rows = j.rows.map((r, i) => "<tr>" + cols.map(c => {
-      if (c === "algorithm") return `<td><b>${r.algorithm}${i === 0 ? " ★" : ""}${r.pareto ? " ⬩" : ""}</b></td>`;
+      if (c === "algorithm") return `<td><b>${r.algorithm}${i === 0 ? " ★" : ""}${r.pareto ? " •" : ""}</b></td>`;
       return `<td>${r.error ? "—" : fmt[c](r[c])}</td>`;
     }).join("") + "</tr>").join("");
     const t = qel("cmptable"); t.innerHTML = head + rows; t.style.display = "table";
-    setQ(`compared ${j.rows.length} algorithms by ${obj} (★ best, ⬩ Pareto-optimal); pick one in the dropdown to plan it`);
+    setQ(`compared ${j.rows.length} algorithms by ${obj} (★ best, • Pareto-optimal); pick one in the dropdown to plan it`);
   } catch (e) { setQ("compare failed — run server.py (" + e + ")"); }
 };
 
@@ -4114,7 +4114,7 @@ function renderFleet() {
     row.appendChild(txt);
     if (n > 1) {
       const del = document.createElement("button");
-      del.textContent = "🗑"; del.title = "remove a rover";
+      del.textContent = "delete"; del.title = "remove a rover";
       del.style.cssText = "margin-left:auto;background:none;border:1px solid var(--line);border-radius:4px;color:var(--muted);cursor:pointer;font-size:10px;padding:1px 6px";
       del.onclick = () => setFleetCount(n - 1);
       row.appendChild(del);
@@ -4233,7 +4233,7 @@ $("mssave").onclick = async () => {
     headers: apiHeaders(), body: JSON.stringify({ body: sel.value, orders: ORDERS,
       keepouts: KEEPOUTS, precedence: parsePrec(), note: $("msnotes") ? $("msnotes").value : "",
       lander: { x: LANDER_P.x, y: LANDER_P.y } }) });
-  if (r.status === 401) { setQ("⚠ API key required: ⚙ Settings"); setView("settings"); return; }
+  if (r.status === 401) { setQ("⚠ API key required: Settings"); setView("settings"); return; }
   setQ((await r.json()).ok ? `saved mission "${name}"` : "save failed"); refreshCatalog();
 };
 $("stsave").onclick = async () => {
@@ -4245,7 +4245,7 @@ $("stsave").onclick = async () => {
     footprint_m2: o.footprint_m2, depth_m: o.depth_m }));
   const r = await fetch(`/structures/custom/${encodeURIComponent(name)}`, { method: "POST",
     headers: apiHeaders(), body: JSON.stringify({ kind_list }) });
-  if (r.status === 401) { setQ("⚠ API key required: ⚙ Settings"); setView("settings"); return; }
+  if (r.status === 401) { setQ("⚠ API key required: Settings"); setView("settings"); return; }
   setQ((await r.json()).ok ? `template "${name}" saved` : "template save failed"); refreshCatalog();
 };
 refreshCatalog();
@@ -4386,7 +4386,7 @@ function renderStepper() {
   if ($("wiznext")) $("wiznext").onclick = wizNext;
 })();
 
-// #126: the guided walkthrough -- discoverable via the stepper's ❔ Guide button (no auto-popup, so it
+// #126: the guided walkthrough -- discoverable via the stepper's Guide button (no auto-popup, so it
 // never stacks over the sign-in screen); the sample CTA reuses the existing mission loader.
 function openGuide() { if ($("guidemodal")) $("guidemodal").hidden = false; }
 function closeGuide() { if ($("guidemodal")) $("guidemodal").hidden = true; }

@@ -62,7 +62,7 @@
   #stepper .step.current .dot { background: var(--txt); border-color: var(--txt); box-shadow: 0 0 0 3px rgba(232,39,63,.30); }
   #stepper .step.locked { opacity: .38; cursor: not-allowed; }
   #stepper .step.viewactive { color: var(--accent); }
-  /* #126: the guided-walkthrough modal (first-run + ❔ Guide) */
+  /* #126: the guided-walkthrough modal (first-run + Guide) */
   #guidemodal { position: fixed; inset: 0; z-index: 300; background: rgba(2,4,8,.72);
     display: flex; align-items: center; justify-content: center; padding: 20px; }
   #guidemodal[hidden] { display: none; }
@@ -99,7 +99,7 @@
   /* the non-Plan views are full-area panes that cover the globe; the active tab shows exactly one */
   .pane { position: absolute; inset: 0; z-index: 5; display: none; flex-direction: column;
     background: #05060c; padding: 50px 16px 12px; box-sizing: border-box; overflow: auto; }
-  /* MOBILE-04: the floating ☰ (top-left) + 🔔 (top-right) chrome buttons sit over every pane's
+  /* MOBILE-04: the floating ☰ (top-left) + (top-right) chrome buttons sit over every pane's
      top corners and overlapped the caps (worst on narrow mobile, present on desktop too). Both
      buttons are aligned into a single top strip (alertbtn top:8) and the panes reserve a 50px
      button-clear top padding so no cap renders under them. The Plan tab has no .pane (globe +
@@ -139,7 +139,7 @@
   button:focus-visible, input:focus-visible, select:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 1px; }
   /* MOBILE-06: kill the browser's default tap-focus ring on buttons (the oversized blue box seen
-     around the 🔔/☰ on a phone). Keyboard focus still shows the accent ring above via :focus-visible. */
+     around the/☰ on a phone). Keyboard focus still shows the accent ring above via :focus-visible. */
   button:focus:not(:focus-visible) { outline: none; }
   /* the overview-locator hillshade is legitimately dark over a PSR (Haworth) -- give it a deliberate
      dark-panel bg + frame so an empty/dark inset reads as a map viewport, not a broken black square. */
@@ -163,7 +163,7 @@
   .pane-grip:active { cursor: grabbing; }
   #panel details.dragging { opacity: .45; }
   #cgcanvas, #telespark { resize: vertical; overflow: auto; }
-  #edittoolbar { position: absolute; top: 8px; right: 58px; z-index: 30;   /* #175: clear the 🔔 alert button (which sits at right:12px) so they no longer overlap */
+  #edittoolbar { position: absolute; top: 8px; right: 58px; z-index: 30;   /* #175: clear the alert button (which sits at right:12px) so they no longer overlap */
     background: rgba(10,10,12,.85); border: 1px solid var(--line); border-radius: 6px;
     padding: 5px 8px; display: flex; gap: 6px; align-items: center; }
   /* #175 ToolBox: group the edit tools so the tray reads as labelled sections, not one crowded row */
@@ -201,7 +201,7 @@
        visual chrome compact while the tappable box is finger-sized. */
     button, .site, .go, .vtab, #drawerbtn, #alertbtn, select, input[type="checkbox"] {
       min-height: 44px; min-width: 44px; }
-    #edittoolbar { top: 8px; right: 50px; flex-wrap: wrap; max-width: 66vw; }   /* #175: keep clear of the 🔔 on phones too */
+    #edittoolbar { top: 8px; right: 50px; flex-wrap: wrap; max-width: 66vw; }   /* #175: keep clear of the on phones too */
     /* the work-area DEM inset must not block a phone screen: shrink it + win over the base
        #workarea rule (declared LATER, so plain #workarea here loses the cascade -- body #workarea
        outranks it). MUST also drop the base min-width:180px, which otherwise beats max-width. */
@@ -406,17 +406,17 @@
       <h3>5 · Plan — the mission, in order</h3>
       <div class="step">A · Where are we <small>— site, charger, lander, the rover's last pose</small></div>
       <div class="ctl" style="font-size:11px">
-        🛬 lander x<input id="landx" type="number" value="0" step="1" style="width:4em" />
+        lander x<input id="landx" type="number" value="0" step="1" style="width:4em" />
         y<input id="landy" type="number" value="0" step="1" style="width:4em" />
         <button id="landset" class="site">place</button>
         <label style="margin-left:8px" title="show a 100 m reference ring around the lander"><input type="checkbox" id="landring" checked> 100 m ring</label></div>
       <div class="ctl" style="font-size:11px">
-        🤖 rover x<input id="roverx" type="number" value="0" step="1" style="width:4em" />
+        rover x<input id="roverx" type="number" value="0" step="1" style="width:4em" />
         y<input id="rovery" type="number" value="0" step="1" style="width:4em" />
-        <button id="roverset" class="site" title="set the rover's known position — or use the 🤖 rover edit tool to click the map">place rover</button>
+        <button id="roverset" class="site" title="set the rover's known position — or use the rover edit tool to click the map">place rover</button>
         <span id="lastpose" style="opacity:.75;margin-left:6px"></span></div>
       <div id="locator" style="font-size:11px;line-height:1.6;margin:2px 0 8px" title="#174: distance + bearing from the rover to the lander and each placed landmark, with the actual coordinates"></div>
-      <div class="step">B · Traverse <small>— draw the path (✏ on the map) or type coordinates</small></div>
+      <div class="step">B · Traverse <small>— draw the path (on the map) or type coordinates</small></div>
       <div class="ctl" style="font-size:11px">
         wp x<input id="wpx" type="number" value="0" step="1" style="width:4em" />
         y<input id="wpy" type="number" value="0" step="1" style="width:4em" />
@@ -529,19 +529,19 @@
         Session <select id="seslink"><option value="ideal">ideal link</option>
           <option value="mission_default">mission link</option>
           <option value="comm_dropout">comm dropout</option></select>
-        <button id="sesstart" class="site">🎓 Start session</button></div>
+        <button id="sesstart" class="site">Start session</button></div>
       <div id="sesout" class="ctl" style="display:none; font-size:0.85em"></div></div></details>
       <details class="substep"><summary><span class="step" style="display:inline">Solver profiles <small>— save / load configs</small></span></summary><div>
       <div class="ctl" style="margin-top:5px">
         <input id="profname" class="lbl" placeholder="profile name" style="max-width:11em" />
-        <button id="profsave" class="site">💾 Save</button>
+        <button id="profsave" class="site">Save</button>
         <select id="profload"></select>
         <button id="profloadbtn" class="site">↻ Load</button>
       </div></div></details>
       <div class="cap" style="margin-top:8px">PLAN VIEW <small>(local site frame, top-down) · click to set x,y</small></div>
       <div id="layerpanel" class="cap" style="margin:4px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center">LAYERS</div>
       <div class="ctl" style="margin:2px 0">
-        <button id="pathmode" class="site" title="S-3 path-first authoring: click waypoints in order; each becomes a sequenced goto; attach work orders at any point">✏ Draw path</button>
+        <button id="pathmode" class="site" title="S-3 path-first authoring: click waypoints in order; each becomes a sequenced goto; attach work orders at any point">Draw path</button>
         <button id="pathdone" class="site" style="display:none">✓ Finish path</button>
         <span id="pathinfo" style="font-size:10px;opacity:.7"></span></div>
       <canvas id="plancanvas" width="324" height="220" title="click to set the build x,y (path mode: click adds waypoints)"></canvas>
@@ -552,7 +552,7 @@
     <section>
       <h3>6 · Catalog — saved missions &amp; structures</h3>
       <div class="ctl"><input id="msname" class="lbl" placeholder="mission name" style="max-width:11em" />
-        <button id="mssave" class="site">💾 Save mission</button></div>
+        <button id="mssave" class="site">Save mission</button></div>
       <textarea id="msnotes" placeholder="mission notes (saved with the document)"
         style="width:100%;min-height:52px;background:var(--bg2,#111318);color:var(--txt);border:1px solid var(--line);border-radius:6px;font-size:11px;padding:6px;resize:vertical"></textarea>
       <ol id="mslist" style="font-size:11px;margin:4px 0;padding-left:18px"></ol>
@@ -642,7 +642,7 @@
            active workspace. TRAINING (green) = safe sandbox; LIVE (red) = commands the real rover. operator+
            can click to switch (renderWorkspace wires the click + the ns= on every mission call); trainees are
            sandbox-pinned server-side, so their badge reads TRAINING and the toggle is inert. -->
-      <button id="alertbtn" title="alerts (UI-6): warnings, errors, info — timestamped" style="margin-left:auto;align-self:center;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:13px;padding:3px 9px;cursor:pointer">🔔<span id="alertbadge" style="display:none;background:#e8273f;color:#fff;border-radius:8px;font-size:9px;padding:1px 5px;margin-left:4px"></span></button>
+      <button id="alertbtn" title="alerts (UI-6): warnings, errors, info — timestamped" style="margin-left:auto;align-self:center;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:13px;padding:3px 9px;cursor:pointer"><span id="alertbadge" style="display:none;background:#e8273f;color:#fff;border-radius:8px;font-size:9px;padding:1px 5px;margin-left:4px"></span></button>
       <button id="wsbadge" type="button" title="active workspace" style="margin-left:8px;display:none;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.05em;border-radius:11px;padding:3px 11px;border:1px solid var(--line);background:none;font-family:'Orbitron',system-ui,sans-serif"></button>
       <span id="whoami" title="account" style="display:none;position:relative;align-items:center;padding:0 4px 4px 0;margin-left:8px">
         <button id="profbtn" aria-haspopup="menu" aria-expanded="false" title="account menu" style="display:inline-flex;align-items:center;gap:7px;border:none;background:none;cursor:pointer;padding:2px">
@@ -682,16 +682,16 @@
       <div id="plan3d" style="position:absolute;inset:0;z-index:2;display:none;background:#05060c"></div>
       <div id="plan3dbar" style="position:absolute;left:54px;top:12px;z-index:36;display:flex;gap:4px;align-items:center">
         <button id="plan3dtoggle" class="site" style="font-size:10px" title="switch the Plan map between the 2D globe (general siting) and a 3D wireframe of the chosen site's DEM (accurate, relief-aware path: clicks drop goto waypoints on the real surface)">▦ 3D path</button>
-        <button id="plan3dfly" class="site" style="display:none;font-size:10px" title="fly / move through the 3D world — drag to look, W/A/S/D to move, R/F up·down (off = orbit + path-def)">🎮 fly</button>
+        <button id="plan3dfly" class="site" style="display:none;font-size:10px" title="fly / move through the 3D world — drag to look, W/A/S/D to move, R/F up·down (off = orbit + path-def)">fly</button>
         <span id="plan3dctl" style="display:none">
           <button id="plan3dundo" class="site" style="font-size:10px" title="remove the last waypoint">↶</button>
           <button id="plan3dclear" class="site" style="font-size:10px" title="clear the 3D path">✕</button>
         </span>
         <span id="plan3dtools" style="display:none;border-left:1px solid var(--line);padding-left:4px;margin-left:2px">
-          <button id="plan3dcoords" class="site" style="font-size:10px" title="live cursor coordinate readout: exact E / N metres (order frame, from the site origin) + absolute DEM elevation as you move over the surface">🧭 coords</button>
-          <button id="plan3dplot" class="site" style="font-size:10px" title="plot points: click the surface to drop a labeled coordinate marker (its exact E / N / elevation floats in the 3D scene)">📍 plot</button>
-          <button id="plan3dmeasure" class="site" style="font-size:10px" title="measure: click two surface points for the 3D distance — slant length, horizontal run, vertical rise, and slope">📏 measure</button>
-          <button id="plan3dplotclear" class="site" style="font-size:10px" title="clear all plotted markers and measures">⌫ plots</button>
+          <button id="plan3dcoords" class="site" style="font-size:10px" title="live cursor coordinate readout: exact E / N metres (order frame, from the site origin) + absolute DEM elevation as you move over the surface">coords</button>
+          <button id="plan3dplot" class="site" style="font-size:10px" title="plot points: click the surface to drop a labeled coordinate marker (its exact E / N / elevation floats in the 3D scene)">plot</button>
+          <button id="plan3dmeasure" class="site" style="font-size:10px" title="measure: click two surface points for the 3D distance — slant length, horizontal run, vertical rise, and slope">measure</button>
+          <button id="plan3dplotclear" class="site" style="font-size:10px" title="clear all plotted markers and measures">clear plots</button>
         </span>
       </div>
       <div id="plan3dstats" style="position:absolute;left:54px;top:42px;z-index:36;display:none;background:rgba(10,10,12,.92);border:1px solid var(--line);border-radius:5px;padding:4px 8px;font-size:10px;color:var(--muted);max-width:min(440px,80vw);line-height:1.6"></div>
@@ -703,32 +703,32 @@
         <span id="scalebar2" style="border-bottom:2px solid #fff;border-left:2px solid #fff;border-right:2px solid #fff;height:7px;display:inline-block"></span>
         <span id="scaleval2" style="margin-left:6px"></span></div>
       <div id="edittoolbar">
-    <button id="editmode" class="site" style="font-size:10px" title="QGIS-style edit session: freezes the camera so clicks DRAW instead of pan (#40/#41)">🧰 ToolBox</button>
+    <button id="editmode" class="site" style="font-size:10px" title="QGIS-style edit session: freezes the camera so clicks DRAW instead of pan (#40/#41)">edit ToolBox</button>
     <span id="edittools" style="display:none">
       <b class="toollbl" title="place markers on the map">place</b>
       <span class="toolgrp">
         <button class="site etool" data-tool="goto" style="font-size:10px" title="click the map to add a traverse waypoint">⌖ waypoint</button>
-        <button class="site etool" data-tool="lander" style="font-size:10px" title="click the map to place the lander (the rover's safe haven + 100 m ring)">🛬 lander</button>
-        <button class="site etool" data-tool="rover" style="font-size:10px" title="click the map to set the rover's current position; the locator measures distances/bearings from it">🤖 rover</button>
-        <button class="site etool" data-tool="landmark" style="font-size:10px" title="click the map to drop a named reference point (survey marker); the locator measures distance from it">📍 landmark</button>
-        <button class="site etool" data-tool="note" style="font-size:10px" title="click the map to attach a text note">✎ note</button>
+        <button class="site etool" data-tool="lander" style="font-size:10px" title="click the map to place the lander (the rover's safe haven + 100 m ring)">lander</button>
+        <button class="site etool" data-tool="rover" style="font-size:10px" title="click the map to set the rover's current position; the locator measures distances/bearings from it">rover</button>
+        <button class="site etool" data-tool="landmark" style="font-size:10px" title="click the map to drop a named reference point (survey marker); the locator measures distance from it">plot landmark</button>
+        <button class="site etool" data-tool="note" style="font-size:10px" title="click the map to attach a text note">note</button>
       </span>
       <span class="toolsep"></span>
       <b class="toollbl" title="no-go barriers — hauls route around them">barrier</b>
       <span class="toolgrp">
-        <button class="site etool" data-tool="keepout" style="font-size:10px" title="click the map to drop a circular keep-out barrier of the radius set here →">⛔ circle</button>
-        <label class="site" style="font-size:10px;padding:2px 5px" title="keep-out / barrier radius in metres (used by the ⛔ circle tool)">r<input id="koradius" type="number" value="25" min="1" step="1" style="width:3.4em;margin-left:3px" /> m</label>
-        <button class="site etool" data-tool="box" style="font-size:10px" title="click two opposite corners to draw a rectangular keep-out barrier (hauls route around it)">⬛ box</button>
+        <button class="site etool" data-tool="keepout" style="font-size:10px" title="click the map to drop a circular keep-out barrier of the radius set here →">keep-out circle</button>
+        <label class="site" style="font-size:10px;padding:2px 5px" title="keep-out / barrier radius in metres (used by the keep-out circle tool)">r<input id="koradius" type="number" value="25" min="1" step="1" style="width:3.4em;margin-left:3px" /> m</label>
+        <button class="site etool" data-tool="box" style="font-size:10px" title="click two opposite corners to draw a rectangular keep-out barrier (hauls route around it)">box</button>
         <button class="site etool" data-tool="poly" style="font-size:10px" title="click vertices to draw a polygon keep-out; click near the first vertex to close it (hauls route around it)">⬡ poly</button>
       </span>
       <span class="toolsep"></span>
       <b class="toollbl" title="measure + edit">tools</b>
       <span class="toolgrp">
-        <button class="site etool" data-tool="measure" style="font-size:10px" title="click two points to measure the distance between them (site-frame metres)">📏 measure</button>
+        <button class="site etool" data-tool="measure" style="font-size:10px" title="click two points to measure the distance between them (site-frame metres)">measure</button>
         <!-- Aaron 2026-06-16 ("there is no delete on mobile"): pin delete was Delete/Backspace key only -- no
              hardware key on a phone. This is the touch path: tap a placed pin to select it (it turns green),
              then tap this to remove it. Mirrors deleteSelectedPin(). -->
-        <button id="editdel" class="site" style="font-size:10px" title="delete the selected pin — tap a pin on the map to select it (it turns green), then tap this">🗑 delete</button>
+        <button id="editdel" class="site" style="font-size:10px" title="delete the selected pin — tap a pin on the map to select it (it turns green), then tap this">delete</button>
       </span>
       <span class="toolsep"></span>
       <button id="editdone" class="go" style="font-size:10px">✓ Done</button>
@@ -748,7 +748,7 @@
           <img id="ovl_psr" class="gisovl" alt="" />
         </div>
         <div class="cap" id="suncap" title="south-pole sun geometry drives the shadow layer (horizon-clipped, the shadow-SLAM signal). AUTO = real spherical geometry at the Haworth latitude from mission time; manual sliders override.">
-          <label style="cursor:pointer">☀ auto <input id="sunauto" type="checkbox" checked /></label>
+          <label style="cursor:pointer">auto <input id="sunauto" type="checkbox" checked /></label>
           t <input id="suntime" type="range" min="0" max="29.5" step="0.1" value="6" style="width:9em" />
           <span id="suntimev">day 6.0</span> ·
           el <input id="sunel" type="range" min="-5" max="30" value="6" style="width:5em" disabled />
@@ -841,7 +841,7 @@
               segment <select id="navseg"><option>Part1</option><option>Part2</option><option>Part3</option></select>
               · keyframes <input id="navkf" type="number" value="30" min="5" max="200" style="width:4em" />
               <button id="navrun" class="go" style="font-size:11px">▶ Run estimator</button>
-              <button id="navcmp" class="site" style="font-size:11px" title="shared-testbed head-to-head: the same trajectory under passive / ShadowNav-class / ARGUS, each modeled at its reported sigma">⚖ Compare approaches</button>
+              <button id="navcmp" class="site" style="font-size:11px" title="shared-testbed head-to-head: the same trajectory under passive / ShadowNav-class / ARGUS, each modeled at its reported sigma">Compare approaches</button>
             </div>
             <canvas id="navplot" width="460" height="330" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;max-width:100%;margin-top:6px"></canvas>
             <div id="navstats" style="font-size:11px;line-height:1.7;margin-top:6px"></div>
@@ -892,7 +892,7 @@
         <canvas id="cgcanvas" width="420" height="130" style="border:1px solid var(--line);border-radius:6px;width:100%;max-width:460px"></canvas>
         <div id="cgout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:3px 0 10px"></div>
         <div class="cap"><span>METRICS — <span id="exec-mode-lbl">execution top-down</span><b id="execspeed"> 60×</b>
-          <button id="execpause" title="pause/resume" style="margin-left:10px">⏸</button>
+          <button id="execpause" title="pause/resume" style="margin-left:10px">pause</button>
           <button id="execspd" title="cycle speed 10/60/600×">speed</button>
           <button id="exec3d" title="toggle the 3D terrain dry-run: the planned path + rover on the real DEM, before uplink" style="margin-left:6px">▦ 3D</button>
           <button id="exec3dwire" title="toggle the depth/heightfield WIRE overlay in the 3D view (#180)" style="margin-left:4px">⊞ wire</button></span>
@@ -1025,10 +1025,10 @@
       </div>
       <div id="pane-server" class="pane">
         <div class="ctl" style="margin:8px 0">
-          <button id="admsnap" class="site">📸 Twin snapshot</button>
-          <button id="admret" class="site">🧹 Retention</button>
+          <button id="admsnap" class="site">Twin snapshot</button>
+          <button id="admret" class="site">Retention</button>
           <button id="admrep" class="site">⇆ Replicate backup</button>
-          <button id="admgate" class="site">🛡 Validate gates</button>
+          <button id="admgate" class="site">Validate gates</button>
           <span id="admout" style="font-size:11px;opacity:.8"></span>
         </div>
         <div id="gateevidence"></div>
@@ -1199,16 +1199,16 @@
 <script src="/assets/role_rank.js?v=46d024fe6f3b"></script><!-- FS-24: pure role-authority ladder rank (sets window.STEWIE_ROLE_RANK) -->
 <script src="/assets/keepout_geom.js?v=8e0b54e7d7e5"></script><!-- FS-24: pure keep-out shape/bounds/label (sets window.STEWIE_KEEPOUT_GEOM) -->
 <script src="/assets/navplot.js?v=e542c82063f0"></script><!-- FS-24: pure nav-pane canvas plotters (sets window.STEWIE_NAVPLOT) -->
-<script src="/assets/evidence_html.js?v=7178f72e6076"></script><!-- FS-24: pure release-evidence HTML builders (sets window.STEWIE_EVIDENCE_HTML) -->
+<script src="/assets/evidence_html.js?v=b5ebb0672aa2"></script><!-- FS-24: pure release-evidence HTML builders (sets window.STEWIE_EVIDENCE_HTML) -->
 <script src="/assets/rover_hud.js?v=ed01a404713d"></script><!-- FS-24: pure exec-telemetry renderers HUD/spark/chips/gantt (sets window.STEWIE_ROVER_HUD) -->
 <script src="/assets/plan_geom.js?v=6bf00111b311"></script><!-- FS-24: pure plan-canvas extent/transform/glyph/precedence math (sets window.STEWIE_PLAN_GEOM) -->
 <script src="/assets/footprint_geom.js?v=0a9f6fa9884c"></script><!-- GIS S-3: pure typed-footprint shape geometry (ring/area/draw; sets window.STEWIE_FOOTPRINT_GEOM) -->
-<script src="/assets/fleet_render.js?v=06884853fac0"></script><!-- FS-03: pure Fleet-pane roster/allocation HTML builders (sets window.STEWIE_FLEET_RENDER) -->
+<script src="/assets/fleet_render.js?v=893e64c9273d"></script><!-- FS-03: pure Fleet-pane roster/allocation HTML builders (sets window.STEWIE_FLEET_RENDER) -->
 <script src="/assets/construction_render.js?v=a649526014e9"></script><!-- FS-03: pure Construction-pane catalog/acceptance HTML builders (sets window.STEWIE_CONSTRUCTION_RENDER) -->
 <script src="/assets/models_render.js?v=c5b4efe434e8"></script><!-- FS-03: pure Models-pane profile/registry/governance HTML builders (sets window.STEWIE_MODELS_RENDER) -->
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
-<script src="/assets/trainer_boards.js?v=8fad1337f531"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=f0529733141d"></script>
+<script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
+<script src="/assets/cockpit.js?v=0777d96cdf07"></script>
 </body>
 </html>

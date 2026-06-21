@@ -30,7 +30,7 @@
         + '<td style="text-align:right;font-variant-numeric:tabular-nums">' + Number(v.dry_mass_kg || 0).toFixed(1) + "</td>"
         + '<td style="text-align:right;font-variant-numeric:tabular-nums">' + Number(v.drum_capacity_kg || 0).toFixed(1) + "</td>"
         + '<td style="text-align:right;font-variant-numeric:tabular-nums">' + Number(v.drive_power_w || 0).toFixed(1) + "</td>"
-        + "<td>" + (v.can_dig ? "✅" : "—") + "</td>"
+        + "<td>" + (v.can_dig ? "✓" : "—") + "</td>"
         + '<td style="font-size:10px;opacity:.85">' + caps + "</td>"
         + '<td style="font-size:10px;opacity:.85">' + pwr + "</td>"
         + "</tr>";
