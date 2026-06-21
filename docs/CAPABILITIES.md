@@ -10,6 +10,13 @@
 > unusually honest conserved-physics core. It is not yet an operational mission-operations console**, and
 > does not claim to be. The deployed planner is deterministic on purpose; RL is training-only; the 3D
 > playback is a sim dry-run (no live telemetry).
+>
+> **Verified baseline 2026-06-20:** full suite **2418 passed / 92.91% coverage**, ruff+mypy clean,
+> CI green. **The public deploy `app.stewie.space` is 502** (Docker daemon stopped + disabled on the
+> host — a deploy state, not code; fix = PRD §27.2 OPS-01). The actionable backlog + 2-week sprint is
+> **PRD §27**; the cockpit overhaul plan is `ui_overhaul_plan_2026-06-20.md`. This matrix will be
+> auto-generated from `req_trace.py`/`release_gate.py` once OPS-04 (the per-row `[REQ:]` marker pass)
+> lands; until then it is hand-maintained and the code wins on any disagreement.
 
 ## Mission planning
 

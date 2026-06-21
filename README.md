@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/stewie-sw/stewie/actions/workflows/ci.yml/badge.svg)](https://github.com/stewie-sw/stewie/actions/workflows/ci.yml)
 [![Docs](https://github.com/stewie-sw/stewie/actions/workflows/pages.yml/badge.svg)](https://stewie-sw.github.io/stewie/)
-[![Python](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12%20|%203.13-blue.svg)](pyproject.toml)
+[![Python](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13-blue.svg)](pyproject.toml)
 [![Coverage](https://img.shields.io/badge/coverage-%E2%89%A585%25-brightgreen.svg)](pyproject.toml)
 [![Types: mypy](https://img.shields.io/badge/types-mypy-blue.svg)](pyproject.toml)
 [![Lint: ruff](https://img.shields.io/badge/lint-ruff-orange.svg)](pyproject.toml)
@@ -50,7 +50,7 @@ pip install -e .[dev]      # full toolchain (tests, lint, types, server, planner
 pip install -e .[server]   # the mission-planning cockpit only
 ```
 
-Requires Python ≥ 3.10.
+Requires Python ≥ 3.11.
 
 ## Quickstart
 
@@ -75,7 +75,10 @@ obs, reward, term, trunc, info = env.step(env.action_space.sample())
 
 ## Documentation
 
-- **`PRD.md`** — the canonical design source (the STEWIE PRD; §16 is the subsystem map + phase gates).
+- **`PRD.md`** — the canonical design source (the STEWIE PRD; §16 is the subsystem map + phase gates;
+  §27 is the dated actionable backlog + 2-week sprint).
+- **`docs/CAPABILITIES.md`** — the honest capability matrix (shipped / training-only / unbuilt).
+- **`docs/ui_overhaul_plan_2026-06-20.md`** — the full-fidelity cockpit overhaul plan.
 - **Docs site** — <https://stewie-sw.github.io/stewie/>
 
 ## Quality gates
@@ -86,7 +89,7 @@ Every push runs the CI gate ([`ci.yml`](.github/workflows/ci.yml)):
 - **Power-of-10** — bounded cyclomatic complexity (≤ 10) on the conserved core (`stewie/physics`, `stewie/twin`).
 - **Types** — `mypy` over the core and planner (a documented ratchet narrows the remaining exclusions).
 - **Requirements traceability** — every `V=D` requirement must be cited by a test.
-- **Tests + coverage** — `pytest` with a coverage floor of **85%**, across Python 3.10–3.13.
+- **Tests + coverage** — `pytest` with a coverage floor of **85%**, across Python 3.11–3.13.
 - **G1/G2 validation** — a frozen, byte-reproducible dissertation-evidence gate.
 
 ```bash

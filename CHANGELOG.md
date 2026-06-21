@@ -22,10 +22,22 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
 - Cockpit Plan 3D: first-person fly/move-through camera and a 3D plotting
   toolbox (live coordinate readout, plotted coordinate markers, 3D measure).
 - `CHANGELOG.md` + exported `stewie.__version__` + SemVer policy (PO-13).
+- PRD §27: dated actionable execution backlog + a 10-working-day sprint + a full-fidelity UI
+  overhaul summary (new IDs `OPS-`/`MO-`/`TR-`), from the 2026-06-20 architecture + mission-ops reviews.
+- `docs/ui_overhaul_plan_2026-06-20.md` (full-fidelity cockpit overhaul plan) and
+  `docs/architecture_review_2026-06-20.md` (this review); both added to the docs nav.
 
 ### Changed
 - `stewie/godot/render.sh`: documented the working sensor-capture recipe
   (never `--headless`; run `res://sidecar.tscn` with `--layers …,rover`).
+- PRD §4.2 (release blockers) and §19.1 (requirement census) reconciled: RB-01..06 are cleared in
+  code with citing tests; the 112-row census is superseded by the live ~186-row matrix tally
+  (33 DONE / 39 IXV-done / 73 partial / 41 open-or-gated). Per-row matrix glyph closure is scheduled
+  as OPS-04 (the `[REQ:]` marker pass), not hand-flipped, to keep `req_trace` CI honest.
+- Execution plans (`design/STEWIE_UNIFIED_EXECUTION_PLAN.md`,
+  `design/STEWIE_ATOMIC_EXECUTION_PLAN_2026-06-09.md`) point to the PRD §27 sprint and reconcile the
+  stale intern-beta checkboxes (bridge/deploy shipped + container-verified; live rclpy node still gated).
+- README Python support corrected to 3.11–3.13 (the 3.10 leg was dropped; `requires-python>=3.11`).
 
 ## [0.1.0] — pre-release baseline
 

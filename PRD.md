@@ -344,6 +344,13 @@ have `I=D` while `X`, `V`, or `Q` remain partial.
 
 ### 4.2 Release blockers
 
+> **RECONCILED 2026-06-20 (see §27.1):** RB-01..06 are **effectively cleared in code, each with citing
+> tests** (per the §0 2026-06-17 reconciliation: domain validation + mutation invariants, declared
+> `trimesh`, one immutable fleet-aware `PlanResult`, per-vehicle Plan-IR no-position-leak test, typed
+> `VehicleModel` threaded through, externalized atomic data dirs). **No RB actually blocks.** The
+> residual is per-row §7 marker hygiene, scheduled as OPS-04 (the `[REQ:]` marker pass), not missing
+> code. The table below is kept for historical traceability.
+
 | ID | Blocker | Required exit |
 |---|---|---|
 | RB-01 | Negative/non-finite physical values and malformed authority state are accepted. | Shared domain validation at every public boundary; mutation invariants enforced. |
@@ -1342,6 +1349,14 @@ on each heartbeat. [REQ:SF-01] test-cited; wired at /rc/telemetry (ticks on ever
 closes the architecture's "flagged-REQUIRED-and-missing, Phase-0/Week-4" node.
 
 ### 19.1 Where the §7 matrix actually stands (census, 2026-06-10)
+
+> **SUPERSEDED 2026-06-20 (see §27.1):** this 112-requirement / "0 release-ready, 19 partial, 93 not
+> started" census is **stale**. The live §7 matrix is ~186 rows; the parsed 2026-06-20 tally is
+> **33 DONE / 39 IXV-done (Q-pending) / 73 partial / 41 open-or-gated**. The headline "0 release-ready"
+> is a column-completeness artifact (no family has every column at D), not a statement that the product
+> doesn't work — the rung-4 trainer surface is software-complete. The census below is kept for the
+> per-family track tagging, which remains valid; the counts are historical.
+
 112 identified requirements; **0 release-ready (all-required-columns D), 19 partial, 93 not
 started.** By family (worst-column):
 
@@ -2052,3 +2067,190 @@ Construction-round readiness checklist:
 - `AS-05`/`AS-14`: RViz and cockpit expose rig state, diagnostics, command eligibility, and SAFE state.
 - `AS-15`: failing tests, `[REQ:]` markers, deterministic fixtures, logs, and trace checks exist before
   each implementation slice.
+
+## 27. Actionable Execution Backlog + 2-Week Sprint + Full-Fidelity UI Overhaul (2026-06-20)
+
+This section is the appended, dated, actionable to-do register requested 2026-06-20, sequenced for
+completion in the next two weeks. It is grounded in two same-day reviews — the architecture review
+(this session) and the mission-ops review (`docs/architecture_review_2026-06-20_mission_ops.md`,
+incorporated as co-authoritative) — plus the UI/UX design corpus. The full-fidelity UI overhaul plan
+lives in `docs/ui_overhaul_plan_2026-06-20.md` and is summarized in §27.4.
+
+New IDs introduced here (`OPS-`, `MO-`, `TR-`) are defined inline; per the chosen integration mode
+they live in this section and are referenced by the sprint, **not** mass-inserted into the §7 matrix.
+Existing IDs (FS-/NV-/FL-/DT-/SN-/PM-/CP-/GI-/PO-/ARCH-/AS-/B-/P-) are referenced as-is.
+
+### 27.0 Verified baseline (this review, run on archimedes 2026-06-20)
+
+- **Code health (local):** full suite **2418 passed / 5 skipped / 0 failed** (2423 collected, ~22 min);
+  **coverage 92.91%** (gate 85%); `ruff --select F` clean; `mypy` clean (240 files); CI green
+  (lint+type+cov on 3.11, test matrix 3.12/3.13). This is the no-regression baseline to diff against.
+- **Deploy (public):** `app.stewie.space` returned **HTTP 502 — origin down**. Root cause: on the
+  deploy host (archimedes) `docker.service` is `inactive (dead)` and `disabled`; `cloudflared` is up
+  and routes `app.stewie.space → 127.0.0.1:8000`, but no frontend container is running. **Host action,
+  not code.**
+- **Status integrity:** the §7 matrix understates (§0 lists ~36 done-stale rows; `req_trace.py`
+  reports 186 requirements, 105 test-cited, 25 V≠D flagged). Per §19.2, a row may hold `V=D` **only**
+  with a `[REQ:]`-citing test (CI-enforced). The reconciliation below therefore fixes stale *headlines*
+  (§4.2, §19.1) and **schedules a per-row marker pass (OPS-04)** rather than flipping unverified cells.
+
+### 27.1 Reconciliation applied 2026-06-20
+
+- **§4.2** carries a banner: RB-01..06 are effectively cleared in code with citing tests (per §0
+  2026-06-17); no RB blocks; the residual is per-row §7 marker hygiene (OPS-04).
+- **§19.1** carries a banner: the "112 requirements / 0 release-ready / 19 partial / 93 not started"
+  census is stale; the live §7 matrix is ~186 rows; the parsed 2026-06-20 tally is **33 DONE /
+  39 IXV-done (Q-pending) / 73 partial / 41 open-or-gated**.
+- The §7 matrix glyphs are **not** mass-flipped here (would violate the §19.2 `[REQ:]` rule and could
+  red the `req_trace` CI gate); OPS-04 closes them on citing evidence.
+
+### 27.2 Actionable backlog (buildable now, in-repo; grouped, ID-mapped)
+
+**A. Ops / deploy / status truth (highest leverage, smallest cost)**
+- **OPS-01** Restore the public deploy: `systemctl start docker && systemctl enable docker`;
+  `docker compose -f deploy/compose.yml up -d backend frontend`; verify **through Cloudflare**
+  (`curl -I https://app.stewie.space/assets/cockpit.js`, check `cf-cache-status`, run
+  `scripts/stamp_cockpit_version.py` if cockpit.js changed). Host action; rollback = `compose down`.
+- **OPS-02** SEC-host: `chmod 600 deploy/.env`; rotate `STEWIE_API_KEY`; drop any stale
+  `STEWIE_DIRECTOR_KEY`. (Carried from the 2026-06-15 audit.)
+- **OPS-03** CI dependency hardening (= PO-04/05/09 follow-on): dependency lock + SBOM + fresh-install
+  smoke; mark PO-14 done (DEPLOY.md + compose + Dockerfiles exist + current).
+- **OPS-04** Single status surface: auto-derive the §7 status from `scripts/req_trace.py` +
+  `scripts/release_gate.py`; publish a generated `STATUS.md` / `/figures` readout; run the per-row
+  `[REQ:]` marker pass to close the 25 V≠D flags + the ~36 done-stale rows on citing tests. Retire the
+  hand-maintained checkboxes in the execution plans. **Directly answers "determine exactly what is done."**
+
+**B. Architecture health**
+- **ARCH-2** Continue the `lode/mission_planner.py` (2612 LOC) god-module split behind its existing
+  `planner_views` / `planner_routing` / `planner_multivehicle` seams.
+- **FS-24** Begin the `cockpit.js` (4321 LOC) module split (app shell / route-state store / typed
+  adapters / view models / shared viz / work-area views / command rail / diagnostics viewers),
+  preserving the no-inline-script CSP + fixture tests.
+
+**C. Mission-ops contracts (new, from the 2026-06-20 mission-ops review; no executive needed)**
+- **MO-01** `MissionIntent` → objective → constraint/flight-rule → acceptance → contingency/abort →
+  task-graph typed hierarchy; mandatory objectives + hard constraints compiled before any weighted
+  optimization (a flight rule is never softened into a weight).
+- **MO-02** Mission-executive state machine `DRAFT→ANALYZED→REHEARSED→REVIEWED→RELEASED→ARMED→
+  EXECUTING→HOLDING|SAFED|COMPLETED|ABORTED→DEBRIEFED` (RELEASED = signed immutable revision). *Spine
+  for live execution; gates the Execute screen (U3).*
+- **MO-03** One enforced provenance vocabulary on every operational field (`source/basis/timestamp/
+  age/frame/units/confidence/revision`); reject incompatible frames/revisions, never silently combine.
+- **MO-04** Strict SIM/FORECAST/LIVE visual+data labeling contract everywhere (forecast cyan /
+  observed white / truth magenta directors-only); **all execution UI stays labeled SIMULATION/FORECAST
+  until MO-02 exists and passes fault injection.**
+
+**D. Planning / fleet / twin (in-repo)**
+- **FL-02 / FL-04** Fleet conflict *resolution* (re-sequencing) beyond detection + MV precedence-chain
+  splitting across vehicles.
+- **DT-01** Operational world-model unification (authority + TwinStore + packets + PlanResult + belief
+  as one transactionally linked world-state log) + W-1/W-4 durability (twin journal + cold-restore CI).
+- **CP-04 / CP-07** Goal grammar (budgets/priorities/deadlines/dependencies) + per-source uncertainty
+  bands (quantify the slip term).
+- **SN-05** Wire `illumination_cost` into the live planner route cost; **PM-08/09** map-uncertainty
+  cost coefficient feed.
+
+**E. GIS / presentation (Demo/GMRO; detailed in `docs/ui_overhaul_plan_2026-06-20.md`)**
+- **GIS S-2** Contents tree (TerriaJS workbench-card model; orders become a feature layer).
+- **GIS S-3** True footprint geometry (polygon / corridor / oriented-rectangle) + QGIS edit sessions +
+  order undo/redo. *(#1 "feels like a real tool" gap.)*
+- **GI-02 / GI-03** Body-correct CRS labeling + per-body globe radius (stop rendering the Moon on a
+  WGS84 sphere); GeoJSON / COG / OGC import+export.
+- **TR-01..TR-04** Trainer dashboard A-board (operator scorecard + persisted session record) /
+  B-board (director truth+divergence) / C-board (program leaderboard) / debrief scrubber.
+
+**F. Intern-beta P23 in-repo halves (the live rclpy node stays ROS2-host-gated)**
+- **B2.x** Telemetry injector (rate/latency/drop) verification; **B3.3** replay/debrief record;
+  **B4.2** auto mission-summary artifact; **P1.4** scenario library (4 authored scenarios on real DEMs).
+
+**Gated — explicitly NOT in the 2-week window** (kept honest, never stubbed): live rclpy node +
+P23 traverse evidence (ROS2 host); AS-02..06 Autoware nodes/RViz (ROS2 Jazzy container);
+PM-13..16 dense stereo (GPU render→depth); TM-01 calibrated terramechanics + P7 live Chrono producer
+(PyChrono on euclid); Tier-3 drum forces (Chrono::GPU); RC wire binding + IPEx geometry (John / NASA);
+real-traverse reconstruction + SL-01 (no public dataset); STEWIE-Orbit comms stack.
+
+### 27.3 The 2-week sprint sequence (10 working days)
+
+Primary axis = Demo/GMRO readiness; interleaved with Architecture-health (status truth) and the
+intern-beta in-repo halves. Dissertation/ARGUS evidence is deferred (proven later). Every slice is
+TDD with a `[REQ:]` marker; the full gate must stay green (baseline 2418 passed / 92.91% cov); every
+UI pane flip is Playwright-verified **signed-in on a real browser** before it ships.
+
+| Day | Slice | IDs |
+|---|---|---|
+| **0** | Restore deploy + verify through Cloudflare; SEC-host hardening | OPS-01, OPS-02 |
+| **1** | Status truth: req_trace/release_gate → generated STATUS surface; start the per-row `[REQ:]` marker pass | OPS-04 |
+| **1–2** | UI U0: FS-24 split scaffold behind FS-15 adapters; 8-area IA routing on the **vanilla** shell (fixture-tested empty panes); Playwright signed-in render harness | FS-03, FS-24 |
+| **2–3** | Mission-ops contracts: MissionIntent hierarchy + SIM/FORECAST/LIVE labeling + provenance vocab | MO-01, MO-03, MO-04 |
+| **3–4** | GIS S-2 Contents tree (orders → feature layer); per-body globe radius | GIS S-2, GI-02 |
+| **4–5** | Fleet conflict resolution (re-sequencing); SN-05 illumination route cost | FL-02, SN-05 |
+| **6–7** | GIS S-3 footprints (polygon/corridor/oriented-rect) + edit sessions + undo | GIS S-3, GI-03 |
+| **7–8** | Plan-screen fidelity: 9-layer ordered map + objective/constraint inspector bound to MissionIntent | FS-03, MO-01 |
+| **8–9** | Trainer A-board + persisted scorecard; intern-beta in-repo (replay/debrief, mission summary, scenario library) | TR-01, B3.3, B4.2, P1.4 |
+| **9–10** | Brand B-3/B-4 (icons + patch badges) + WCAG-AA contrast pass; ARCH-2 + FS-24 increment; full-gate diff; regenerate STATUS; final signed-in Playwright sweep | B-3, B-4, ARCH-2, FS-24, OPS-04 |
+
+**Honest sizing:** this is a prioritized *sequence*, not a guarantee every slice fully lands in 10
+days for one builder; days 6–10 are the stretch. The sprint deliberately lands the **deploy + status
+truth + UI foundation + the highest-value authoring upgrades**, and explicitly leaves the gated tiers
+(Execute screen, live ROS2 node, dense perception, Chrono) out of the window.
+
+### 27.4 Full-fidelity UI overhaul (summary; full plan in `docs/ui_overhaul_plan_2026-06-20.md`)
+
+The cockpit overhaul is full-fidelity but phased, organized by the 2026-06-20 mission-ops four-screen
+model (Plan / Rehearse / Execute / Debrief) over the FS-03 eight-area IA, behind the FS-15 adapters.
+
+- **Lead decision:** an **incremental strangler-fig migration of the vanilla cockpit**, work-area by
+  work-area, with Cesium + `three3d.js` kept as never-rewritten modules — **not** a big-bang framework
+  rewrite. Evidence: the React+Vite rewrite already black-screened on Cesium init and was reverted
+  (`55c44c6`). A framework, if used, enters as an *island* per pane and flips only after a signed-in
+  Playwright render check. Adopt TerriaJS catalog/workbench *patterns* and QGIS *edit-session* model,
+  not the whole apps; Cesium stays the globe.
+- **Phases:** **U0 Foundation** (sprint: module split + 8-area IA scaffold + MO-01/03/04 + GIS S-2 +
+  per-body globe + brand + a11y start) → **U1 Plan+Rehearse** (9-layer map, objective/constraint
+  inspector, GIS S-3 footprints, trainer A-board) → **U2 Debrief+program+interop** (debrief scrubber,
+  trainer B/C, pane manager named layouts, GeoJSON/COG) → **U3 Execute (GATED)** — the live Execute
+  HMI unlocks only when the mission executive (MO-02) exists and passes fault injection; until then
+  Execute is present but labeled SIMULATION/FORECAST.
+- **Non-negotiables every phase:** preserve CSP/no-inline-script + mobile; fixture-driven per-pane
+  tests; provenance (MO-03) + SIM/FORECAST/LIVE labeling (MO-04) on every field; a real signed-in
+  Playwright verification before any pane flip (the lesson of the revert).
+
+### 27.5 Fan-out execution structure (parallel agent lanes)
+
+§27.3 is the single-builder day grid. For multi-agent fan-out the binding constraint is **file
+contention, not task order** — nearly all UI items touch `cockpit.js` and several planning items
+touch `mission_planner.py`, so naive parallel agents would collide. The structure is
+**decouple-then-fan**.
+
+**Contention map (what serializes a naive fan-out):**
+
+| Shared file | Lane items that touch it | Fan-out rule |
+|---|---|---|
+| `stewie/server/web/assets/cockpit.js` (4321) | FS-03 IA, GIS S-2/S-3, per-body globe, Plan screen, trainer UI, MO-04 labels, brand | split via FS-24 FIRST, then one agent per extracted module |
+| `lode/mission_planner.py` (2612) | FL-02, CP-04, SN-05, MO-01 wiring | split via ARCH-2 / partition by `planner_*` sub-module |
+| `stewie/server/routers/*` | MO-*, resync, session | one agent per router file |
+| test files (broad) | OPS-04 `[REQ:]` markers | additive-only; coordinate to avoid races (a concurrent session is already in `test_io_fields.py`) |
+
+**Waves (the DAG):**
+- **Wave 0 — parallel from T0, low/zero contention:** OPS-01/02 deploy (host, no code); **Lane C**
+  MO-01/03/04 contracts (new files); **Lane D** intern-beta B2.x/B3.3/B4.2/P1.4 (new files); the
+  **FS-24** + **ARCH-2** enabling splits; **OPS-04** status surface + marker pass. These unblock the rest.
+- **Wave 1 — fans after the splits:** **Lane A (UI)** A1 IA shell · A2 GIS authoring · A3 globe/3D ·
+  A4 trainer dashboard · A5 brand+a11y; **Lane B (planning)** FL-02 → `planner_multivehicle`,
+  SN-05 → `planner_routing`, CP-04 → new goal-grammar module.
+- **Wave 2 — cross-lane joins:** Plan-screen fidelity (needs A2 GIS + C MissionIntent); then the
+  integration barrier.
+
+**Mechanism + rules:**
+1. Every code-mutating lane runs in its **own git worktree off `code/.git`** (branched from clean
+   `HEAD`), so the main tree stays pristine and lanes don't stomp each other.
+2. **Verification is per-lane scoped; the full suite + signed-in Playwright sweep is the integration
+   gate AT MERGE**, not per-lane (standard feature-branch → CI-on-merge model). The editable install +
+   `.venv` live in the main tree, so a worktree lane verifies via a per-worktree venv or proves which
+   tree it tested — it must never claim green falsely.
+3. **Merge order:** the enabling splits (FS-24, ARCH-2) merge before the dependent UI/planning lanes;
+   new-file lanes (C, D) merge any time; OPS-04 last (it re-derives status from the merged tree).
+4. Every lane is TDD, real-data-only, no stubs/synthetic/TODO; no commit/push without review; no
+   Claude/co-author trailer.
+
+This is what makes §27.3 dispatchable to a swarm without merge chaos.
