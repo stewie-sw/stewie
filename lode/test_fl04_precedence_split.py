@@ -25,30 +25,41 @@ import lode.planner_multivehicle as PM
 # ---------------------------------------------------------------------------
 # unit: the cross-vehicle precedence resolver on hand-built per-vehicle state
 # ---------------------------------------------------------------------------
-def _pv(per_trip_windows):
-    """A vehicle whose per_trip windows are (global_trip_idx, t_start, t_end).
-    The resolver only needs the trip identity (via alloc) + each leg's window."""
-    return {"per_trip": [{"trip": {"_gid": g}, "t_start": t0, "t_end": t1}
+# A global trips list whose elements are matched back to their global index by OBJECT IDENTITY
+# (id(pt["trip"])), mirroring how plan_multi keys per_trip windows to global indices -- so the unit
+# fixtures exercise the SAME identity mapping as the real planner (not a positional alloc/per_trip zip).
+def _trips(n):
+    """n distinct trip objects; the global list `trips[g]` has the trip with global index g."""
+    return [{"_gid": g} for g in range(n)]
+
+
+def _pv(trips, per_trip_windows):
+    """A vehicle whose per_trip windows are (global_trip_idx, t_start, t_end). Each leg's trip is the
+    ACTUAL global trip object trips[g], so the resolver recovers its global index by identity -- the
+    per_trip list may be in any order (the sequencer reorders it), not necessarily alloc order."""
+    return {"per_trip": [{"trip": trips[g], "t_start": t0, "t_end": t1}
                          for (g, t0, t1) in per_trip_windows]}
 
 
 def test_no_cross_vehicle_edge_means_zero_delay():
     # an INTRA-vehicle edge (both trips on vehicle 0) is honored by the sequencer,
     # not by a cross-vehicle wait -> the resolver returns all-zero.
-    per_vehicle = [_pv([(0, 0.0, 100.0), (1, 100.0, 200.0)]), _pv([(2, 0.0, 50.0)])]
+    trips = _trips(3)
+    per_vehicle = [_pv(trips, [(0, 0.0, 100.0), (1, 100.0, 200.0)]), _pv(trips, [(2, 0.0, 50.0)])]
     alloc = [[0, 1], [2]]
-    assert PM._resolve_cross_vehicle_precedence(per_vehicle, alloc, [(0, 1)]) == [0.0, 0.0]
+    assert PM._resolve_cross_vehicle_precedence(per_vehicle, alloc, [(0, 1)], trips) == [0.0, 0.0]
     # no precedence at all -> all zero
-    assert PM._resolve_cross_vehicle_precedence(per_vehicle, alloc, []) == [0.0, 0.0]
+    assert PM._resolve_cross_vehicle_precedence(per_vehicle, alloc, [], trips) == [0.0, 0.0]
 
 
 def test_dependent_leg_waits_for_predecessor_on_another_vehicle():
     # trip 0 on vehicle 0 (ends at t=120) must precede trip 1 on vehicle 1
     # (which would otherwise start at t=0). Vehicle 1 must be delayed so trip 1's
     # effective start >= trip 0's effective end.
-    per_vehicle = [_pv([(0, 0.0, 120.0)]), _pv([(1, 0.0, 80.0)])]
+    trips = _trips(2)
+    per_vehicle = [_pv(trips, [(0, 0.0, 120.0)]), _pv(trips, [(1, 0.0, 80.0)])]
     alloc = [[0], [1]]
-    delay = PM._resolve_cross_vehicle_precedence(per_vehicle, alloc, [(0, 1)])
+    delay = PM._resolve_cross_vehicle_precedence(per_vehicle, alloc, [(0, 1)], trips)
     assert delay[0] == 0.0                      # the predecessor's vehicle never moves
     assert delay[1] >= 120.0 - 0.0             # vehicle 1 waits until trip 0 has finished
     # the effective start of trip 1 (0.0 + delay[1]) is now at/after trip 0's end (120.0)
@@ -58,11 +69,37 @@ def test_dependent_leg_waits_for_predecessor_on_another_vehicle():
 def test_predecessor_not_first_leg_on_its_vehicle():
     # the predecessor (trip 2) is the SECOND leg on vehicle 0 (ends at t=200);
     # the dependent (trip 3) is the first leg on vehicle 1.
-    per_vehicle = [_pv([(0, 0.0, 90.0), (2, 90.0, 200.0)]), _pv([(3, 0.0, 60.0)])]
+    trips = _trips(4)
+    per_vehicle = [_pv(trips, [(0, 0.0, 90.0), (2, 90.0, 200.0)]), _pv(trips, [(3, 0.0, 60.0)])]
     alloc = [[0, 2], [3]]
-    delay = PM._resolve_cross_vehicle_precedence(per_vehicle, alloc, [(2, 3)])
+    delay = PM._resolve_cross_vehicle_precedence(per_vehicle, alloc, [(2, 3)], trips)
     assert delay[0] == 0.0
     assert 0.0 + delay[1] >= 200.0 - 1e-9      # trip 3 starts only after trip 2 ends
+
+
+def test_per_trip_in_non_alloc_order_still_honors_precedence():
+    # REGRESSION (cross-vehicle precedence mis-pairing): the per-vehicle sequencer reorders a vehicle's
+    # trips before _simulate, so per_trip is in SIMULATION order, NOT alloc order. Here vehicle 0 is
+    # ALLOCATED trips [4, 5] but the sequencer ran trip 5 FIRST (per_trip order = 5 then 4) -- so the
+    # PREDECESSOR (trip 4) is NOT the first simulated leg on its vehicle. The dependent trip 6 (on
+    # vehicle 1) must start only after trip 4's REAL end (t=300), not after the FIRST per_trip leg's end.
+    #   alloc order  : v0 = [4, 5]            (4 is alloc-position 0)
+    #   per_trip order: v0 = [5 @ 0..40, 4 @ 40..300]   (4 is the SECOND simulated leg, ending at 300)
+    # The OLD positional zip(alloc, per_trip) pairs alloc[0]=4 with per_trip[0] (trip 5, end 40), so it
+    # would let dependent trip 6 start at ~40 -- a SILENT precedence violation. Identity mapping pairs
+    # trip 4 with its true window (end 300), so trip 6 must wait until 300.
+    trips = _trips(7)
+    per_vehicle = [
+        _pv(trips, [(5, 0.0, 40.0), (4, 40.0, 300.0)]),   # per_trip in NON-alloc (simulation) order
+        _pv(trips, [(6, 0.0, 50.0)]),
+    ]
+    alloc = [[4, 5], [6]]                                   # alloc order: predecessor 4 is FIRST in alloc
+    delay = PM._resolve_cross_vehicle_precedence(per_vehicle, alloc, [(4, 6)], trips)
+    assert delay[0] == 0.0                                  # predecessor's vehicle never moves
+    # dependent trip 6's effective start (0.0 + delay[1]) must be >= predecessor trip 4's REAL end (300),
+    # NOT the 40 the buggy positional zip would have used.
+    assert 0.0 + delay[1] >= 300.0 - 1e-9, (
+        f"dependent must wait for trip 4's real end (300), got effective start {delay[1]}")
 
 
 # ---------------------------------------------------------------------------

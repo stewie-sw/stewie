@@ -104,11 +104,17 @@ def _allocate_precedence_split(trips, vehicles, precedence):
     return _allocate_trips(trips, vehicles)
 
 
-def _resolve_cross_vehicle_precedence(per_vehicle, alloc, precedence):
+def _resolve_cross_vehicle_precedence(per_vehicle, alloc, precedence, trips):
     """FL-04: hold a CROSS-vehicle precedence edge by delaying the dependent vehicle until its predecessor
     leg (on a DIFFERENT vehicle) has finished -- the chain-splitting counterpart to `_allocate_components`'s
     keep-the-chain-whole policy. `alloc` is the per-vehicle list of GLOBAL trip indices (so a trip's vehicle
-    + its window are recoverable); `precedence` is the global (i, j) 'trip i before trip j' edges.
+    is recoverable); `trips` is the global trip list so each per_trip leg's window is keyed back to its REAL
+    global index by TRIP-OBJECT IDENTITY -- NOT by positional zip(alloc, per_trip). The per-vehicle sequencer
+    (`optimize_sequence` in plan_multi) reorders a vehicle's trips before `_simulate`, so `per_trip` is in
+    SIMULATION order, which is NOT alloc order; zipping the two silently mis-pairs a trip with another trip's
+    window and a dependent leg could start before its predecessor's real end (precedence VIOLATED). Matching
+    `id(pt["trip"])` to its global index is order-independent and correct under any sequencer permutation.
+    `precedence` is the global (i, j) 'trip i before trip j' edges.
 
     Only edges whose endpoints land on DIFFERENT vehicles need a wait (an INTRA-vehicle edge is already
     honored by the per-vehicle sequencer -> contributes nothing). For each cross edge the dependent
@@ -129,11 +135,14 @@ def _resolve_cross_vehicle_precedence(per_vehicle, alloc, precedence):
     for v, idxs in enumerate(alloc):
         for gi in idxs:
             veh_of[gi] = v
+    obj_to_gid = {id(tr): g for g, tr in enumerate(trips)}       # trip OBJECT -> global trip idx
     win: dict = {}                                               # global trip idx -> (t_start, t_end)
-    for v, idxs in enumerate(alloc):
-        pv = per_vehicle[v]
-        for gi, pt in zip(idxs, pv.get("per_trip", [])):
-            win[gi] = (float(pt["t_start"]), float(pt["t_end"]))
+    for pv in per_vehicle:
+        for pt in pv.get("per_trip", []):
+            gid = obj_to_gid.get(id(pt["trip"]))                 # REAL identity, not positional zip
+            if gid is None:                                      # leg not in the global trips list -> skip
+                continue
+            win[gid] = (float(pt["t_start"]), float(pt["t_end"]))
     # keep only edges that actually CROSS a vehicle boundary (intra-vehicle edges the sequencer handles)
     cross = []
     for i, j in precedence:

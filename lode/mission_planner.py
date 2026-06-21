@@ -1480,7 +1480,7 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     # FL-04: cross-vehicle precedence chain-splitting -- a dependent leg on one rover waits for its
     # predecessor leg on another rover (the chain is SPLIT, not forced onto one vehicle). Same per-vehicle
     # wait discipline as the charger/crowding resolvers. No cross-vehicle edge -> all 0 -> byte-identical.
-    precedence_delays = _resolve_cross_vehicle_precedence(per_vehicle, alloc, glob_prec)
+    precedence_delays = _resolve_cross_vehicle_precedence(per_vehicle, alloc, glob_prec, trips)
     precedence_wait_s = float(sum(precedence_delays))
     makespan = max((pv["core"]["time_s"] + charger_delays[i] + resource_delays[i]
                     + crowd_delays[i] + precedence_delays[i]
