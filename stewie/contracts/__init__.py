@@ -254,7 +254,6 @@ class ConstructionSkill(Contract):
 # MO-01 / MO-03 / MO-04 (§27 mission-ops): the mission-intent, provenance, and labeling contracts the
 # operational UI renders. Defined in `mission_ops` to keep this base module small; re-exported here so
 # consumers use the same `from stewie import contracts as C; C.MissionIntent` access as the spine above.
-# (MO-02, the executive state machine, is gated/out of scope -- not exported.)
 from .mission_ops import (  # noqa: E402  (re-export after the base Contract it builds on)
     AcceptanceCriterion,
     CompiledOrder,
@@ -273,6 +272,17 @@ from .mission_ops import (  # noqa: E402  (re-export after the base Contract it 
     compile_order,
 )
 
+# MO-02 (§27.2.C / review P1-2): the mission-executive STATE MACHINE. Lands in its own `executive`
+# module (the spine for live execution that gates the Execute screen); re-exported here so consumers
+# use `C.MissionExecutive` like the MO-01 spine. The state machine itself is pure + on-host (not wired
+# to live ROS/hardware -- that tier is gated).
+from .executive import (  # noqa: E402  (re-export after the base Contract it builds on)
+    ExecutiveState,
+    IllegalTransition,
+    MissionExecutive,
+    SignedRevision,
+)
+
 # re-export the mission-ops contracts as the public surface of this package (so pyflakes sees the
 # above imports as used and `from stewie.contracts import MissionIntent` works without reaching in).
 __all__ = [
@@ -283,12 +293,16 @@ __all__ = [
     "Contingency",
     "ContingencyPolicy",
     "DataLabel",
+    "ExecutiveState",
+    "IllegalTransition",
     "LabeledValue",
+    "MissionExecutive",
     "MissionIntent",
     "Objective",
     "PriorityTier",
     "Provenance",
     "ProvenancedValue",
+    "SignedRevision",
     "combine_provenance",
     "compile_order",
 ]
