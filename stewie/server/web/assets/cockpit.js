@@ -764,6 +764,7 @@ function el(tag, attrs, ...children) {
 // The globe (#cesium) stays mounted under the panes (no Cesium re-init); the active pane covers it.
 let VIEW = "plan";
 const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navview", report: "pane-report",
+                    rehearse: "pane_rehearse",                            // REHEARSE: candidate-compare review surface
                     fleet: "pane_fleet",                                  // FS-03: the Fleet work area
                     construction: "pane_construction", models: "pane_models",  // FS-03: Construction + Models work areas
                     trainer: "pane_trainer",                            // TR-02/03/04: the Trainer work area
@@ -939,6 +940,40 @@ async function loadFleet() {
   }
   if (_FLEET_ROSTER) rosterEl.innerHTML = FR.fleetRosterHTML(_FLEET_ROSTER, esc);
   planEl.innerHTML = FR.fleetPlanHTML(LAST_TOTALS, esc);  // live per-vehicle allocation from the last plan
+}
+
+// REHEARSE (mission-ops screen 2): POST the CURRENT build queue to /resync/compare (the conserved
+// forward_compare ensemble: each candidate solver input is re-simulated faster-than-realtime, returning
+// ranked futures with measured wall_s/energy/feasibility), then render the candidate cards side-by-side
+// FEASIBILITY FIRST via the pure rehearse_render.js module (CSP-safe). Director-gated server-side; an
+// honest empty state shows when there is no queue. No fabricated data -- every number is from the planner.
+async function loadRehearse() {
+  const RR = window.STEWIE_REHEARSE_RENDER;
+  const host = $("rehearsecards");
+  if (!RR || !host) return;
+  if (!ORDERS.length) {                                     // honest empty state -- no plan to rehearse
+    host.innerHTML = RR.rehearseCardsHTML(null, esc);
+    return;
+  }
+  host.innerHTML = '<div class="empty">Re-simulating candidate futures…</div>';
+  try {
+    const objective = (qel("qobj") && qel("qobj").value) || "duration";
+    const mission = { name: `${BODIES[sel.value].name} rehearsal`, body: sel.value, charger: [0, 0],
+      orders: ORDERS, keepouts: KEEPOUTS, precedence: parsePrec(),
+      max_traverse_slope_deg: +(qel("qslope") ? qel("qslope").value : 25), ...fleet(), ...site() };
+    const r = await fetch("/resync/compare", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ mission, candidates: ["nearest", "two_opt"], objective }) });
+    if (r.status === 401 || r.status === 403) {
+      host.innerHTML = '<div class="empty">Rehearse &amp; compare is director-only. Sign in with a '
+        + "director key (the forward-compare ensemble sees truth).</div>";
+      return;
+    }
+    const j = await r.json();
+    if (!j.ok) { host.innerHTML = '<div class="empty">Forward-compare error: ' + esc(j.error || r.status) + "</div>"; return; }
+    host.innerHTML = RR.rehearseCardsHTML(j, esc);
+  } catch (e) {
+    host.innerHTML = '<div class="empty">Forward-compare failed — is the server running? (' + esc(String(e)) + ")</div>";
+  }
 }
 
 // FS-03 Construction pane: render the REAL build catalog (/construction, fetched once -- static templates)
@@ -1919,6 +1954,8 @@ async function loadPane(name) {
   try {
     if (name === "api") {
       if (!_PANE_LOADED.api) { $("apiframe").src = "/docs"; _PANE_LOADED.api = true; }   // FastAPI Swagger
+    } else if (name === "rehearse") {
+      await loadRehearse();                                               // REHEARSE: forward-compare candidate cards (/resync/compare)
     } else if (name === "fleet") {
       await loadFleet();                                                  // FS-03: roster (/fleet) + last-plan allocation
     } else if (name === "construction") {
@@ -3543,6 +3580,12 @@ qel("sesstart").onclick = async () => {                  // B3: operator/directo
     setQ("session ready — operator link is the trainee view; scorecard in the Metrics tab");
   } catch (e) { setQ("session error: " + e); }
   finally { b.disabled = false; b.textContent = "Start session"; }
+};
+
+// REHEARSE: the "Re-run forward-compare" button re-fetches the candidate cards from the current queue.
+if (qel("rehearserun")) qel("rehearserun").onclick = async () => {
+  const b = qel("rehearserun"); b.disabled = true; const t = b.textContent; b.textContent = "rehearsing…";
+  try { await loadRehearse(); } finally { b.disabled = false; b.textContent = t; }
 };
 
 qel("qplan").onclick = async () => {

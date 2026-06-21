@@ -30,7 +30,7 @@ ASSETS = ("cockpit.js", "three3d.js", "geofmt.js", "globe_ellipsoid.js",
           "htmlesc.js", "icons.js", "role_rank.js", "keepout_geom.js",
           "navplot.js", "evidence_html.js", "rover_hud.js", "plan_geom.js",
           "footprint_geom.js",
-          "fleet_render.js", "construction_render.js", "models_render.js",
+          "fleet_render.js", "rehearse_render.js", "construction_render.js", "models_render.js",
           "plan_stepper.js", "contents_tree.js", "trainer_boards.js",
           "layouts.js")
 
