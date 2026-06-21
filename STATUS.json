@@ -1,14 +1,16 @@
 {
   "autonomy_track": {
     "cited": 17,
-    "currently_v_done": [],
+    "currently_v_done": [
+      "AS-17"
+    ],
     "eligible_for_v_done": [
       "AS-17"
     ],
     "in_matrix": 17,
     "total": 17
   },
-  "cited": 123,
+  "cited": 125,
   "per_family": {
     "AG": {
       "cited": 8,
@@ -35,7 +37,7 @@
       "total": 2
     },
     "EP": {
-      "cited": 5,
+      "cited": 6,
       "total": 8
     },
     "FL": {
@@ -47,7 +49,7 @@
       "total": 24
     },
     "GI": {
-      "cited": 0,
+      "cited": 1,
       "total": 3
     },
     "ML": {
@@ -176,20 +178,16 @@
       "v": "P"
     },
     {
-      "id": "AS-17",
-      "v": "N"
-    },
-    {
-      "id": "CP-04",
-      "v": "P"
-    },
-    {
       "id": "CP-07",
       "v": "P"
     },
     {
       "id": "DT-01",
       "v": "N"
+    },
+    {
+      "id": "EP-01",
+      "v": "P"
     },
     {
       "id": "FL-04",
@@ -228,6 +226,10 @@
       "v": "P"
     },
     {
+      "id": "GI-03",
+      "v": "N"
+    },
+    {
       "id": "ML-02",
       "v": "N"
     },
@@ -256,20 +258,8 @@
       "v": "P"
     },
     {
-      "id": "SN-05",
-      "v": "P"
-    },
-    {
-      "id": "SN-07",
-      "v": "N"
-    },
-    {
       "id": "SN-12",
       "v": "N"
-    },
-    {
-      "id": "TW-04",
-      "v": "P"
     },
     {
       "id": "VT-06",

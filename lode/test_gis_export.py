@@ -1,8 +1,14 @@
-"""GI-03: GeoJSON export of a plan (orders, keep-outs, route, footprints) to RFC-7946 in lon/lat.
+"""GI-03 [REQ:GI-03]: GeoJSON export of a plan (orders, keep-outs, route, footprints) to RFC-7946 in
+lon/lat -- the MISSION-REQUIRED interchange subset (export + provenance + honest COG availability).
 
 Real Haworth LOLA DEM only -- the order-frame (x, y) -> selenographic lon/lat transform is the same
 IAU_2015:30135 south-polar stereographic projection the cockpit georef uses (no synthetic terrain, no
-fabricated coordinates). Geometry is validated to be inside the committed tile's globe footprint."""
+fabricated coordinates). Geometry is validated to be inside the committed tile's globe footprint.
+
+SCOPE NOTE (why GI-03 stays V!=D): these tests pin only the EXPORT + COG-honesty slice that exists. The
+broader GI-03 subset -- GeoJSON/COG IMPORT, OGC/ArcGIS service consumption, feature attribute query,
+measurement/profile tools, and offline mission-package export -- is not implemented in-repo, so the row
+is NOT promoted to V=D on the strength of these markers."""
 import json
 
 from lode import gis_export as GE
@@ -23,7 +29,7 @@ def _mission():
     return MP.mission_from_dict(pay)
 
 
-def test_export_is_valid_rfc7946_featurecollection_that_parses_back():
+def test_export_is_valid_rfc7946_featurecollection_that_parses_back():  # [REQ:GI-03]
     dem, o = _dem_origin()
     fc = GE.plan_to_geojson(_mission(), dem=dem, dem_origin=o)
     # round-trips through json (no numpy floats / sets leak into the document)
@@ -63,7 +69,7 @@ def test_coords_are_lonlat_inside_the_haworth_tile():
     assert seen > 0
 
 
-def test_features_match_the_plan_orders_keepouts_and_route():
+def test_features_match_the_plan_orders_keepouts_and_route():  # [REQ:GI-03]
     dem, o = _dem_origin()
     m = _mission()
     fc = GE.plan_to_geojson(m, dem=dem, dem_origin=o)
@@ -92,7 +98,7 @@ def test_polygons_are_closed_rings_lonlat():
             assert ring[0] == ring[-1]
 
 
-def test_cog_availability_is_reported_honestly():
+def test_cog_availability_is_reported_honestly():  # [REQ:GI-03]
     # COG export ships only when a real raster backend (rasterio/GDAL) is importable; otherwise it is
     # honestly marked unavailable -- never a stub raster.
     ok, reason = GE.cog_available()

@@ -64,5 +64,11 @@ def test_report_is_read_only_does_not_promote_the_scorecard():
     release_report()
     after = {r: parse_requirements("PRD.md").get(r, {}).get("V") for r in AS_ROWS}
     assert before == after
-    # and nothing is silently V=D yet (AS-17 is I=D but V=N pending the human call)
-    assert release_report()["summary"]["currently_v_done"] == []
+    # the human call has been made for AS-17 (the sole eligible row, I=D + host-verified): it is now
+    # V=D. The firewall invariant still holds -- every promoted row must be both eligible AND cited, and
+    # no container-gated row may be V=D. A promotion that violated that would re-red this assertion.
+    rep = release_report()["summary"]
+    promoted = set(rep["currently_v_done"])
+    assert promoted <= set(rep["eligible_for_v_done"]), "a V=D row that is NOT V=D-eligible slipped through"
+    assert promoted.isdisjoint(set(rep["container_gated"])), "a container-gated row was promoted to V=D"
+    assert "AS-17" in promoted
