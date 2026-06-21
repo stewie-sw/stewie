@@ -24,9 +24,13 @@ def _read(p: str) -> str:
 
 def test_moved_views_are_off_the_work_area_tab_bar():
     html = _read(_INDEX)
-    vtab_views = re.findall(r'class="vtab[^"]*"[^>]*data-view="([a-z]+)"', html)
-    assert vtab_views == ["plan", "nav", "perception", "metrics", "report"], \
-        f"the work-area tab bar is {vtab_views}; System/Settings/Admin must not be vtabs"
+    vtab_views = re.findall(r'class="vtab[^"]*"[^>]*data-view="([a-z_]+)"', html)
+    # FS-20 invariant: System/Settings/Admin live in the profile menu, never the work-area tab bar.
+    for moved in ("system", "settings", "admin"):
+        assert moved not in vtab_views, f"'{moved}' is a vtab; it must live in the profile menu"
+    # the ConOps mission work areas are present (FS-03 added the operator-gated Fleet tab).
+    assert {"plan", "nav", "perception", "metrics", "report", "fleet"} <= set(vtab_views), \
+        f"the work-area tab bar is missing a mission view: {vtab_views}"
 
 
 def test_moved_views_live_in_the_profile_menu():

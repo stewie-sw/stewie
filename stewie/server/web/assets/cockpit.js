@@ -726,6 +726,7 @@ function el(tag, attrs, ...children) {
 // The globe (#cesium) stays mounted under the panes (no Cesium re-init); the active pane covers it.
 let VIEW = "plan";
 const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navview", report: "pane-report",
+                    fleet: "pane_fleet",                                  // FS-03: the Fleet work area
                     validation: "pane-validation", api: "pane-api", server: "pane-server", config: "pane-config",
                     evidence: "pane-evidence", admin: "pane-admin", settings: "pane-settings" };
 const _PANE_LOADED = {};
@@ -875,6 +876,31 @@ async function loadPointCloud() {
     img.style.display = "none"; empty.style.display = "";
   }
 }
+
+// FS-03 Fleet pane: render the REAL vehicle-registry roster (/fleet, fetched once) + the LIVE
+// per-vehicle allocation / makespan / space-time conflicts from the last plan (LAST_TOTALS, re-read on
+// every open so it tracks the latest /plan). All HTML built by the pure fleet_render.js module (CSP-safe:
+// no inline script). Honest empty states: the roster shows the registry-down message if /fleet fails; the
+// allocation shows "plan a mission" until a plan with vehicles_detail exists. No fabricated data.
+let _FLEET_ROSTER = null;
+async function loadFleet() {
+  const FR = window.STEWIE_FLEET_RENDER;
+  const rosterEl = $("fleetroster"), planEl = $("fleetplan");
+  if (!FR || !rosterEl || !planEl) return;
+  if (!_FLEET_ROSTER) {                                   // fetch the registry once (it is static config)
+    try {
+      const r = await fetch("/fleet", { headers: apiHeaders() });
+      if (r.ok) _FLEET_ROSTER = await r.json();
+      else rosterEl.innerHTML = '<div class="empty">Fleet roster unavailable (HTTP ' + r.status
+        + (r.status === 401 || r.status === 403 ? " — operator+ sign-in required" : "") + ").</div>";
+    } catch (e) {
+      rosterEl.innerHTML = '<div class="empty">Fleet roster unavailable (' + esc(String(e)) + ").</div>";
+    }
+  }
+  if (_FLEET_ROSTER) rosterEl.innerHTML = FR.fleetRosterHTML(_FLEET_ROSTER, esc);
+  planEl.innerHTML = FR.fleetPlanHTML(LAST_TOTALS, esc);  // live per-vehicle allocation from the last plan
+}
+
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
 // FS-20: System / Settings / Admin live in the profile menu (off the work-area tab bar), role-gated:
 // Settings everyone, System operator+, Admin director. The items reuse setView -> same pane switch.
@@ -884,6 +910,13 @@ function gateChrome(role) {
   const sys = $("prof-system"), adm = $("prof-admin");
   if (sys) sys.style.display = (_rrank(role) >= _rrank("operator")) ? "block" : "none";  // System: operator+
   if (adm) adm.style.display = (role === "director") ? "block" : "none";                 // Admin: director
+  // FS-03: role-gate the work-area tabs that declare a minimum role (the Fleet tab is operator+). Same
+  // ladder + fail-closed semantics as the chrome above; a sub-operator never sees the fleet command surface.
+  document.querySelectorAll(".vtab[data-minrole]").forEach((b) => {
+    const ok = _rrank(role) >= _rrank(b.dataset.minrole);
+    b.style.display = ok ? "" : "none";
+    if (!ok && b.dataset.view === VIEW) setView("plan");   // bounce a demoted operator off the gated tab
+  });
 }
 (function wireProfile() {
   const btn = $("profbtn"), menu = $("profmenu"); if (!btn || !menu) return;
@@ -1598,6 +1631,8 @@ async function loadPane(name) {
   try {
     if (name === "api") {
       if (!_PANE_LOADED.api) { $("apiframe").src = "/docs"; _PANE_LOADED.api = true; }   // FastAPI Swagger
+    } else if (name === "fleet") {
+      await loadFleet();                                                  // FS-03: roster (/fleet) + last-plan allocation
     } else if (name === "validation" && !_PANE_LOADED.validation) {
       _PANE_LOADED.validation = true;
       const d = await (await fetch("/figures")).json();

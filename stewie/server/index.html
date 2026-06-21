@@ -595,6 +595,10 @@
       <button class="vtab" data-view="perception">Perception <span class="sysb">DART</span></button>
       <button class="vtab" data-view="metrics">Metrics <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
+      <!-- FS-03: the FLEET work area (operator+). Roster = the real vehicle registry (/fleet);
+           per-vehicle allocation + makespan + conflicts = the last /plan result. data-minrole gates it
+           like the operator chrome (gateChrome hides it for sub-operators). -->
+      <button class="vtab" id="vtab-fleet" data-view="fleet" data-minrole="operator" style="display:none" title="fleet coordination: the vehicle registry roster + the last plan's per-vehicle allocation, makespan, and space-time conflicts">Fleet <span class="sysb">LODE</span></button>
       <!-- FS-20: System / Settings / Admin moved OFF the work-area tab bar into the profile menu (role-gated);
            an operator sees only the mission work areas. -->
       <style>.profitem{display:block;width:100%;text-align:left;background:none;border:none;color:var(--fg,#dcdce4);font-size:12px;padding:7px 10px;border-radius:5px;cursor:pointer}.profitem:hover{background:var(--accent);color:#fff}</style>
@@ -890,6 +894,21 @@
         <div id="reportempty" class="empty">No report yet. Build a queue and press
           <b>Plan mission → open report</b> (Plan tab); the PDF appears here.</div>
       </div>
+      <!-- FS-03: the FLEET pane. Operator+ work area. Two sections: the static vehicle-registry ROSTER
+           (from /fleet) and the live per-vehicle ALLOCATION + makespan + conflicts (from the last /plan).
+           cockpit.js loadPane('fleet') fetches /fleet and reads LAST_TOTALS, then fleet_render.js builds
+           the HTML (CSP-safe: no inline script; the module is loaded as an external asset). -->
+      <div id="pane_fleet" class="pane">
+        <div class="cap"><span>FLEET ROSTER — vehicle registry (<b>specs/vehicles.py</b>)</span></div>
+        <div id="fleetroster" style="overflow:auto;margin-bottom:14px">
+          <div id="fleetrosterempty" class="empty">Loading the vehicle registry…</div>
+        </div>
+        <div class="cap"><span>FLEET ALLOCATION — last plan (per-vehicle, makespan, space-time conflicts)</span></div>
+        <div id="fleetplan" style="overflow:auto">
+          <div id="fleetplanempty" class="empty">No fleet allocation yet. Plan a mission (Plan tab); the
+            per-vehicle allocation, makespan, and conflicts from that plan appear here.</div>
+        </div>
+      </div>
       <div id="pane-validation" class="pane">
         <div class="cap"><span>VALIDATION — figures from <b>validation/</b> (conserved-truth measurements)</span>
           <select id="valselect" title="pick a figure"></select></div>
@@ -1083,6 +1102,7 @@
 <script src="/assets/evidence_html.js?v=7178f72e6076"></script><!-- FS-24: pure release-evidence HTML builders (sets window.STEWIE_EVIDENCE_HTML) -->
 <script src="/assets/rover_hud.js?v=ed01a404713d"></script><!-- FS-24: pure exec-telemetry renderers HUD/spark/chips/gantt (sets window.STEWIE_ROVER_HUD) -->
 <script src="/assets/plan_geom.js?v=b231e1bb3015"></script><!-- FS-24: pure plan-canvas extent/transform/glyph/precedence math (sets window.STEWIE_PLAN_GEOM) -->
-<script src="/assets/cockpit.js?v=572afbd14769"></script>
+<script src="/assets/fleet_render.js?v=06884853fac0"></script><!-- FS-03: pure Fleet-pane roster/allocation HTML builders (sets window.STEWIE_FLEET_RENDER) -->
+<script src="/assets/cockpit.js?v=0955d2b265b5"></script>
 </body>
 </html>

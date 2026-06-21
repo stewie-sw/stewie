@@ -137,6 +137,7 @@ from stewie.server.routers import ephemeris as _ephemeris_router  # noqa: E402
 from stewie.server.routers import tiles as _tiles_router  # noqa: E402
 from stewie.server.routers import evidence as _evidence_router  # noqa: E402
 from stewie.server.routers import executive as _executive_router  # noqa: E402
+from stewie.server.routers import fleet as _fleet_router  # noqa: E402
 from stewie.server.routers import figures as _figures_router  # noqa: E402
 from stewie.server.routers import gis_export as _gis_export_router  # noqa: E402
 from stewie.server.routers import health as _health_router  # noqa: E402
@@ -178,6 +179,7 @@ app.include_router(_twin_router.router)
 app.include_router(_admin_ops_router.router)
 app.include_router(_session_router.router)
 app.include_router(_plan_router.router)
+app.include_router(_fleet_router.router)
 app.include_router(_perception_router.router)
 app.include_router(_nav_router.router)
 app.include_router(_gis_export_router.router)        # GI-03: GeoJSON/COG GIS export
