@@ -29,8 +29,21 @@ from lode.planner_constants import (
     BATTERY_J, DIG_J_PER_KG, DIG_RATE_KG_S, DRIVE_J_PER_M, DRIVE_SPEED_MS, RESERVE_FRAC,
 )
 from lode.mission_planner import (
-    Mission, _d, _dur, _drum_kg, body_gravity, plan, route_leg, trip_precedence,
+    Mission, _d, _dur, _drum_kg, body_gravity, footprint_shape_area_m2, plan, route_leg,
+    trip_precedence,
 )
+
+
+def _footprint_view(shape: dict | None) -> dict | None:
+    """GIS S-3 -> Plan-IR: lower a typed build-order footprint (rectangle/circle/corridor/polygon +
+    orientation) to the action's machine view so a ROS executive sees the real footprint, not just the
+    scalar area. Echoes the shape verbatim (kind + dims + theta_deg / vertices) plus its derived area_m2.
+    Returns None for a scalar (no-shape) order so its action stays byte-identical (behavior-preserving)."""
+    if not shape:
+        return None
+    view = dict(shape)                                      # carry kind + dims + theta_deg / vertices as authored
+    view["area_m2"] = round(footprint_shape_area_m2(shape), 6)
+    return view
 
 
 def plan_math(mission, *, dem=None, dem_origin=(0.0, 0.0), result=None) -> dict:
@@ -485,6 +498,9 @@ def plan_ir(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_s
             "actions": sorted(tr.get("actions", [])),
             "expect": {"energy_J": round(work_e, 1), "duration_s": round(work_t, 1)},
             "tol": {"energy_frac": _IR_MODEL_ERR_FRAC}, "pre": pre}
+        fp = _footprint_view(tr.get("shape"))               # S-3 typed footprint -> action view (None for scalar)
+        if fp is not None:
+            act["footprint"] = fp
         actions.append(act)
         trip_work_aid[ti] = aid
         aid += 1

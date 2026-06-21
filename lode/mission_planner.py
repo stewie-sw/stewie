@@ -661,7 +661,7 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
                               mass=mass, dig_e=0.0, dig_t=0.0,
                               offload_e=mass*offload_e_per_kg, offload_t=mass/OFFLOAD_RATE_KG_S,
                               haul_m=0.0, haul_e=0.0, lift_e=0.0, dest=(fo.x, fo.y),
-                              actions=frozenset({fo.action})))
+                              actions=frozenset({fo.action}), shape=fo.shape))
         elif fo is None:
             # surplus (un-routed) cut mass: it is still EXCAVATED -- the dominant dig cost (4151 J/kg) must
             # enter the plan. Dig in place; the spoil-disposal haul to a dump is a separate unmodeled term
@@ -669,7 +669,7 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
             trips.append(dict(kind="dig", site=(co.x, co.y), label=f"Excavate spoil: {co.action}",
                               mass=mass, dig_e=mass*ctx.dig_j_per_kg, dig_t=mass/DIG_RATE_KG_S,
                               haul_m=0.0, haul_e=0.0, lift_e=0.0, dest=(co.x, co.y),
-                              actions=frozenset({co.action})))
+                              actions=frozenset({co.action}), shape=co.shape))
         else:
             loads = max(1, math.ceil(mass / drum_kg))
             leg = base = dist                           # one-way cut<->fill distance (straight line)
@@ -717,12 +717,12 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
             trips.append(dict(kind="cutfill", site=(co.x, co.y), label=f"{co.action} → {fo.action}",
                               mass=mass, dig_e=mass*ctx.dig_j_per_kg, dig_t=mass/DIG_RATE_KG_S,
                               haul_m=haul_m, haul_e=haul_e, lift_e=mass * g * ascent, dest=(fo.x, fo.y),
-                              actions=frozenset({co.action, fo.action})))
+                              actions=frozenset({co.action, fo.action}), shape=co.shape))
     for o in sinters:
         m = o.mass_kg(rho)
         trips.append(dict(kind="sinter", site=(o.x, o.y), label=o.action, mass=m, lift_e=0.0,
                           sinter_e=m*SINTER_J_PER_KG, sinter_t=m*SINTER_J_PER_KG/SINTER_POWER_W,
-                          dest=(o.x, o.y), actions=frozenset({o.action})))
+                          dest=(o.x, o.y), actions=frozenset({o.action}), shape=o.shape))
     meta = dict(straight_haul_m=straight_haul_m, routed_haul_m=routed_haul_m, blocked_legs=blocked_legs,
                 routed=dem is not None, traverse_cap_deg=float(max_traverse_slope_deg),
                 routes=leg_routes, feasible=(blocked_legs == 0))   # item 1: route geometry; item 2: feasibility

@@ -8,7 +8,7 @@
     "in_matrix": 17,
     "total": 17
   },
-  "cited": 122,
+  "cited": 123,
   "per_family": {
     "AG": {
       "cited": 8,
@@ -67,7 +67,7 @@
       "total": 16
     },
     "PO": {
-      "cited": 8,
+      "cited": 9,
       "total": 14
     },
     "RL": {
@@ -246,6 +246,10 @@
     {
       "id": "PO-04",
       "v": "P"
+    },
+    {
+      "id": "PO-05",
+      "v": "N"
     },
     {
       "id": "SL-01",
