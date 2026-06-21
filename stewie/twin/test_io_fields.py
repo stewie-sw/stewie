@@ -99,7 +99,7 @@ def test_roundtrip_raw_bytes_match_source(tmp_path, real_scene):
 
 
 def test_metadata_is_the_commit_marker(tmp_path, real_scene):
-    """metadata.json is emitted (the CT-04 commit marker) and parses back to the input."""
+    """[REQ:CT-04] metadata.json is emitted as the CT-04 commit marker and parses back."""
     fields, meta = real_scene
     out = str(tmp_path / "meta")
     save_scene(out, fields, meta)
@@ -111,7 +111,7 @@ def test_metadata_is_the_commit_marker(tmp_path, real_scene):
 
 
 def test_save_is_atomic_no_tmp_left(tmp_path, real_scene):
-    """CT-04: atomic publication leaves no `.tmp` siblings behind (each was os.replace'd into place)."""
+    """[REQ:CT-04] atomic publication leaves no `.tmp` siblings after os.replace."""
     fields, meta = real_scene
     out = str(tmp_path / "atomic")
     save_scene(out, fields, meta)
@@ -120,7 +120,7 @@ def test_save_is_atomic_no_tmp_left(tmp_path, real_scene):
 
 
 def test_metadata_absence_means_incomplete_scene(tmp_path, real_scene):
-    """CT-04: with rasters present but the metadata commit marker missing (a crash mid-publish),
+    """[REQ:CT-04] with rasters present but the metadata commit marker missing (a crash mid-publish),
     load_scene does NOT load a half-written snapshot -- it fails because the commit marker is absent."""
     fields, meta = real_scene
     out = str(tmp_path / "partial")
