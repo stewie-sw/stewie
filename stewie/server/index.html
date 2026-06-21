@@ -1062,10 +1062,17 @@
             <input id="set-font" type="range" min="11" max="20" step="1" value="13" style="width:12em" />
             <span id="set-fontv">13 px</span>
           </label>
-          <label style="display:flex; align-items:center; gap:10px">
+          <label style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
             <b>Layout</b>
-            <button id="set-resetlayout" class="site">Reset pane order</button>
-            <span style="font-size:11px;opacity:.7">restore the default sidebar pane order (FS-21)</span>
+            <select id="set-layout-pick" class="site" title="load a saved workspace layout (FS-21: view preference only)" style="min-width:11em"></select>
+            <button id="set-layout-save" class="site" title="save the current pane arrangement as a named layout">Save current…</button>
+            <button id="set-layout-rename" class="site" title="rename the selected layout">Rename</button>
+            <button id="set-layout-delete" class="site" title="delete the selected layout">Delete</button>
+            <label style="display:flex;align-items:center;gap:5px;font-size:11px;opacity:.85" title="apply this layout automatically on boot">
+              <input id="set-layout-default" type="checkbox" /> default
+            </label>
+            <button id="set-resetlayout" class="site" title="restore the built-in pane order">Reset</button>
+            <span id="set-layout-msg" style="font-size:11px;opacity:.7" aria-live="polite">named workspace layouts — view preference only (FS-21)</span>
           </label>
           <label style="display:flex; align-items:center; gap:10px">
             <b>Auto sign-out</b>
@@ -1193,6 +1200,7 @@
 </div>
 
 <script src="/assets/panel_layout.js?v=1"></script>
+<script src="/assets/layouts.js?v=cbabd0de2f90"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
 <script type="module" src="/assets/three3d.js?v=3fc7e7695a0e"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
 <script src="/assets/adapters.js?v=fs15a1"></script>
@@ -1213,6 +1221,6 @@
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=cb3fcc8f15e5"></script>
+<script src="/assets/cockpit.js?v=aa6654a3f9eb"></script>
 </body>
 </html>

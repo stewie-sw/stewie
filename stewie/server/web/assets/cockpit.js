@@ -1336,6 +1336,27 @@ setInterval(() => {
     if (after == null) host.appendChild(dragEl); else host.insertBefore(dragEl, after); });
   // reset-to-default (always available, surfaced in Settings): forget the saved order + restore build order
   window.resetPanelLayout = () => { try { localStorage.removeItem(L.KEY); } catch (e) {} apply(current); };
+
+  // FS-21 (named layouts): a layout is a VIEW snapshot = pane ORDER + each pane's COLLAPSED state. Capture
+  // reads the live DOM; apply restores order (via the same appendChild move) then sets each <details>.open.
+  // Nothing gated is read or written here -- panes keep their ids + handlers, so this changes no command
+  // authority (the FS-21 invariant). captureLayout/applyLayout are exposed so the dropdown UI (below) can
+  // snapshot + restore without re-implementing the DOM walk.
+  const collapsedNow = () => {
+    const c = {};
+    panes.forEach((d) => { c[d.dataset.pane] = !d.open; });   // collapsed = NOT open
+    return c;
+  };
+  window.captureLayout = () => ({
+    order: Array.prototype.slice.call(host.querySelectorAll(":scope > details")).map((d) => d.dataset.pane),
+    collapsed: collapsedNow()
+  });
+  window.applyLayout = (snap) => {
+    if (!snap) return;
+    apply(L.mergeOrder(snap.order || [], current));          // restore order (new panes never hidden)
+    const col = snap.collapsed || {};
+    panes.forEach((d) => { if (Object.prototype.hasOwnProperty.call(col, d.dataset.pane)) d.open = !col[d.dataset.pane]; });
+  };
 })();
 
 const SETTINGS = loadSettings();
@@ -1797,6 +1818,92 @@ if ($("set-font")) $("set-font").oninput = () => {
 if ($("set-resetlayout")) $("set-resetlayout").onclick = () => {
   if (window.resetPanelLayout) window.resetPanelLayout();
 };
+
+// FS-21: NAMED saved workspace layouts. The pure collection logic lives in layouts.js (STEWIE_NAMED_LAYOUTS);
+// this glue is the localStorage read/write + the Settings dropdown that drives save / load / rename / delete /
+// set-default over the live panes (window.captureLayout / window.applyLayout from wirePanelLayout). A layout
+// is a VIEW preference ONLY -- it carries pane order + collapsed booleans, never a role/contract/auth, so it
+// cannot change command authority (the FS-21 invariant; enforced by layouts.js dropping non-view fields).
+(function wireNamedLayouts() {
+  const NL = window.STEWIE_NAMED_LAYOUTS; if (!NL) return;
+  const pick = $("set-layout-pick"); if (!pick) return;   // Settings not in this build -> nothing to wire
+  const msgEl = $("set-layout-msg"), defBox = $("set-layout-default");
+  const readStore = () => { try { return NL.normalize(JSON.parse(localStorage.getItem(NL.KEY) || "null")); } catch (e) { return NL.normalize(null); } };
+  const writeStore = (s) => { try { localStorage.setItem(NL.KEY, JSON.stringify(s)); } catch (e) {} };
+  const msg = (t) => { if (msgEl) msgEl.textContent = t; };
+
+  function refresh(selected) {
+    const store = readStore();
+    const names = NL.list(store), def = NL.defaultName(store);
+    const want = selected || (names.indexOf(pick.value) !== -1 ? pick.value : def) || names[0] || "";
+    pick.textContent = "";
+    if (!names.length) {
+      const o = document.createElement("option"); o.value = ""; o.textContent = "(no saved layouts)"; pick.appendChild(o);
+    }
+    names.forEach((n) => {
+      const o = document.createElement("option"); o.value = n;
+      o.textContent = (n === def ? "★ " : "") + n; pick.appendChild(o);
+    });
+    pick.value = want;
+    if (defBox) defBox.checked = !!want && want === def;
+    return store;
+  }
+
+  // load on selection change (VIEW restore only)
+  pick.onchange = () => {
+    const store = readStore(); const name = pick.value; if (!name) return;
+    const snap = NL.get(store, name);
+    if (snap && window.applyLayout) { window.applyLayout(snap); msg("Loaded layout “" + name + "”."); }
+    if (defBox) defBox.checked = name === NL.defaultName(store);
+  };
+
+  if ($("set-layout-save")) $("set-layout-save").onclick = () => {
+    if (!window.captureLayout) { msg("Pane manager not ready."); return; }
+    const suggested = (pick.value || "").trim();
+    const name = (prompt("Save the current pane arrangement as:", suggested) || "").trim();
+    if (!name) return;
+    const r = NL.save(readStore(), name, window.captureLayout());
+    if (r.error) { msg(r.error); return; }
+    writeStore(r.store); refresh(name); msg("Saved layout “" + name + "”.");
+  };
+
+  if ($("set-layout-rename")) $("set-layout-rename").onclick = () => {
+    const from = pick.value; if (!from) { msg("Select a layout to rename."); return; }
+    const to = (prompt("Rename “" + from + "” to:", from) || "").trim();
+    if (!to || to === from) return;
+    const r = NL.rename(readStore(), from, to);
+    if (r.error) { msg(r.error); return; }
+    writeStore(r.store); refresh(to); msg("Renamed to “" + to + "”.");
+  };
+
+  if ($("set-layout-delete")) $("set-layout-delete").onclick = () => {
+    const name = pick.value; if (!name) { msg("Select a layout to delete."); return; }
+    if (!confirm("Delete the saved layout “" + name + "”? (This does not change any pane's contents.)")) return;
+    const r = NL.remove(readStore(), name);
+    if (r.error) { msg(r.error); return; }
+    writeStore(r.store); refresh(); msg("Deleted “" + name + "”.");
+  };
+
+  if (defBox) defBox.onchange = () => {
+    const name = pick.value; if (!name) { defBox.checked = false; return; }
+    const r = NL.setDefault(readStore(), defBox.checked ? name : null);
+    if (r.error) { msg(r.error); refresh(); return; }
+    writeStore(r.store); refresh(name);
+    msg(defBox.checked ? "“" + name + "” is now the default layout." : "Default layout cleared.");
+  };
+
+  // apply the default layout on boot (view restore; never blocks if none is set). Deferred a macrotask so it
+  // lands AFTER the synchronous boot cascade -- in particular after the #170 plan-stepper's boot focusStep(),
+  // which auto-collapses the numbered pipeline sections. The operator's explicitly-saved layout is the
+  // authority over that boot default; a LATER step click still re-focuses (a deliberate user action), so this
+  // only wins the boot, not the wizard. View preference only -- still just order + open/closed (FS-21).
+  const boot = refresh();
+  const def = NL.defaultName(boot);
+  if (def && window.applyLayout) {
+    const snap = NL.get(boot, def);
+    if (snap) setTimeout(() => { try { window.applyLayout(snap); } catch (e) {} }, 0);
+  }
+})();
 // #179: clear the auto-saved working draft from THIS browser (the inverse of #177's persistence) -- a clean
 // slate without touching display settings or the server-side named-mission catalog. Confirm + reload.
 if ($("set-resetws")) $("set-resetws").onclick = () => {
