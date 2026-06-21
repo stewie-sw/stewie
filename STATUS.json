@@ -8,7 +8,7 @@
     "in_matrix": 17,
     "total": 17
   },
-  "cited": 120,
+  "cited": 121,
   "per_family": {
     "AG": {
       "cited": 8,
@@ -31,7 +31,7 @@
       "total": 7
     },
     "DT": {
-      "cited": 1,
+      "cited": 2,
       "total": 2
     },
     "EP": {
@@ -182,6 +182,10 @@
     {
       "id": "CP-07",
       "v": "P"
+    },
+    {
+      "id": "DT-01",
+      "v": "N"
     },
     {
       "id": "FL-04",

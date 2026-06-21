@@ -50,16 +50,26 @@ def session_operator(sid: str):
 
 @router.get("/session/{sid}/scorecard")
 def session_scorecard(sid: str, identity: str = Depends(require_auth)):
-    """#80: the trainer A-board KPIs. Operators see the public board; directors also get the
-    truth board (believed-vs-actual divergence)."""
+    """#80 / TR-01: the trainer A-board KPIs (incl. makespan-vs-optimal). Operators see the public
+    board; directors also get the truth board (believed-vs-actual divergence). Requesting it
+    PERSISTS the durable per-session record under data_dir/sessions/, so a finished run survives the
+    live-store eviction; an already-evicted session falls back to that persisted record."""
     from stewie.server import auth as AUTH
+    is_director = AUTH.role_of(identity) == "director"
     s = SES.get(sid)
-    if s is None:
+    if s is not None:
+        SES.persist_scorecard(s)                            # durable record (outlives M-09 eviction)
+        sc = s.scorecard()
+        board = dict(sc["public"])
+        if is_director:
+            board.update(sc["truth"])
+        return {"ok": True, "scorecard": board}
+    rec = SES.load_scorecard_record(sid)                    # live session gone -> the durable record
+    if rec is None:
         raise HTTPException(status_code=404, detail="no such session")
-    sc = s.scorecard()
-    board = dict(sc["public"])
-    if AUTH.role_of(identity) == "director":
-        board.update(sc["truth"])
+    board = dict(rec["public"])
+    if is_director:
+        board.update(rec["truth"])
     return {"ok": True, "scorecard": board}
 
 

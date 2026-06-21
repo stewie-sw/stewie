@@ -782,6 +782,7 @@ function setView(name) {
   if (name === "plan") { showSiteDem(); if (viewer) viewer.resize(); }   // restore the Plan inset + keep globe crisp
   else $("workarea").classList.remove("show");                            // the inset belongs to the Plan tab
   if (name === "nav" && typeof navDrawMission === "function") navDrawMission(LAST_LOCALIZATION);  // #nav-mission: live est-vs-truth
+  if (name === "metrics" && typeof renderScorecardBoard === "function") renderScorecardBoard();   // TR-01: re-show the last A-board
   // tab-contextual left workspace (#131/#132): show THIS tab's context block, hide the others
   const CTX = { plan: "ctx-plan", nav: "ctx-nav", perception: "ctx-perception", metrics: "ctx-metrics", report: "ctx-report" };
   document.querySelectorAll(".ctxblock").forEach((bk) => { bk.hidden = (bk.id !== CTX[name]); });
@@ -3162,6 +3163,33 @@ function parsePrec() {
   return (qel("qprec").value || "").split(",").map(s => s.trim()).filter(Boolean)
     .map(s => s.split(">").map(x => x.trim())).filter(p => p.length === 2 && p[0] && p[1]);
 }
+// TR-01: render the persisted trainer A-board into the Metrics pane (#scorecard-board). The board is
+// the autonomy-run KPIs the server persisted to data_dir/sessions/; makespan-vs-optimal scores the run
+// against the best alternative forward_compare found. Truth divergence only shows when the director key
+// is present (the server gates it). LAST_SCORECARD lets a Metrics-tab switch re-show the last run.
+let LAST_SCORECARD = null;
+function renderScorecardBoard(sid, b) {
+  LAST_SCORECARD = b ? { sid, b } : LAST_SCORECARD;
+  const host = document.getElementById("scorecard-board");
+  if (!host || !LAST_SCORECARD) return;
+  const cur = LAST_SCORECARD;
+  document.getElementById("sc-sid").textContent = cur.sid.slice(0, 8);
+  const m = cur.b;
+  const chip = (k, v, warn) => `<span style="border:1px solid ${warn ? "#c0392b" : "var(--line)"};border-radius:6px;padding:3px 8px;margin:2px;display:inline-block;font-size:11px"><span style="color:var(--muted)">${k}</span> <b style="font-variant-numeric:tabular-nums">${v}</b></span>`;
+  const html =
+    chip("objectives", `${m.completed ? "✓" : "✗"} ${m.objectives_total}`) +
+    chip("legs delivered", `${m.legs_delivered}/${m.legs_total}`) +
+    chip("comm delivered", `${(m.comm_delivered_frac * 100).toFixed(0)}%`) +
+    chip("makespan", `${m.makespan_s} s`) +
+    chip("optimal", `${m.optimal_s} s`) +
+    chip("makespan/opt", `${(m.makespan_ratio || 1).toFixed(2)}×`, (m.makespan_ratio || 1) > 1.15) +
+    chip("recharges", m.recharges) + chip("replans", m.replans) +
+    chip("stranded pkts", m.stranded_packets) + chip("dropped pkts", m.dropped_packets) +
+    chip("energy", `${m.energy_MJ} MJ`) +
+    (m.energy_divergence_J !== undefined ? chip("⚠ believed↔actual (truth)", `${m.energy_divergence_J} J`, true) : "");
+  document.getElementById("sc-chips").innerHTML = html;
+  host.style.display = "block";
+}
 qel("sesstart").onclick = async () => {                  // B3: operator/director training session
   if (!ORDERS.length) { setQ("add at least one order first"); return; }
   const b = qel("sesstart"); b.disabled = true; b.textContent = "⏳ running session…";
@@ -3179,7 +3207,8 @@ qel("sesstart").onclick = async () => {                  // B3: operator/directo
       `<a href="${j.debrief_url}" target="_blank">debrief</a> · ` +
       `<a href="/session/${j.session_id}/summary" target="_blank">summary</a>` +
       ` <span style="opacity:.7">(debrief + summary need the director key when auth is on)</span>`;
-    // #80: the trainer SCORECARD (A-board KPIs) rendered inline -- director also sees truth divergence
+    // #80 / TR-01: the trainer SCORECARD (A-board KPIs, persisted server-side) rendered inline AND in
+    // the Metrics pane -- director also sees the truth divergence; the inline block is the quick chip strip.
     try {
       const sb = await (await fetch(`/session/${j.session_id}/scorecard`, { headers: apiHeaders() })).json();
       if (sb.ok) {
@@ -3189,13 +3218,15 @@ qel("sesstart").onclick = async () => {                  // B3: operator/directo
           chip("objectives", `${b.completed ? "✓" : "✗"} ${b.objectives_total}`) +
           chip("legs delivered", `${b.legs_delivered}/${b.legs_total}`) +
           chip("comm delivered", `${(b.comm_delivered_frac * 100).toFixed(0)}%`) +
+          chip("makespan/opt", `${(b.makespan_ratio || 1).toFixed(2)}×`) +
           chip("recharges", b.recharges) + chip("replans", b.replans) +
           chip("stranded", b.stranded_packets) + chip("energy", `${b.energy_MJ} MJ`) +
           (b.energy_divergence_J !== undefined ? chip("⚠ divergence (truth)", `${b.energy_divergence_J} J`) : "") +
           `</div>`;
+        renderScorecardBoard(j.session_id, b);             // TR-01: the Metrics-pane A-board surface
       }
     } catch (e) { /* scorecard optional */ }
-    setQ("session ready — operator link is the trainee view; scorecard below");
+    setQ("session ready — operator link is the trainee view; scorecard in the Metrics tab");
   } catch (e) { setQ("session error: " + e); }
   finally { b.disabled = false; b.textContent = "🎓 Start session"; }
 };

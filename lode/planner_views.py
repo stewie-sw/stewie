@@ -79,6 +79,23 @@ def plan_math(mission, *, dem=None, dem_origin=(0.0, 0.0), result=None) -> dict:
 
 
 
+def plan_uncertainty_view(result, *, dem=None, dem_origin=(0.0, 0.0)) -> dict:
+    """CP-07 (PRD §27.2.D): the SEPARABLE per-source plan-uncertainty VIEW over the one PlanResult.
+
+    Where the core ``mission_planner._plan_uncertainty`` block leaves the slip term
+    ``quantified: False`` ("slip term un-quantified"), this VIEW QUANTIFIES it: each named
+    contribution (slip / dig_rate / energy_estimate / localization / terrain / drum_fill) is
+    propagated separately and is independently inspectable, and the slip term comes from the real
+    Janosi-Hanamoto slip ladder swept over the SOURCED soil-traction [CALIB] envelope (so the slip
+    energy band is ~zero on a flat haul and non-zero on sloped terrain). The composite energy band is
+    the honest root-sum-of-squares of the independent energy-channel sources (no false precision; PRD
+    risk note). A read-only view (RB-03): it never re-solves the plan and never mutates the plan
+    totals, so the existing planner outputs are unchanged when the band is not requested. The model
+    itself lives in ``lode.plan_uncertainty``; this is the planner-facing entry point."""
+    from lode import plan_uncertainty as _pu
+    return _pu.per_source_uncertainty(result, dem=dem, dem_origin=dem_origin)
+
+
 def assumptions_register() -> list:
     """#75 (mission brief packet): every [CALIB]/[ASSUMPTION] value the plan rests on, parsed
     straight from the specs source so the register can never drift from the code or fabricate a
@@ -189,7 +206,8 @@ def report(mission, trips, flows, per_trip, tl, totals, out_pdf, out_md, endu=No
 
         # PAGE 2 — battery + speed
         fig, (axb, axs) = plt.subplots(2, 1, figsize=(11, 8.5))
-        col = {"dig": "#e07b39", "drive": "#3b82c4", "charge": "#3fa34d", "sinter": "#b5179e"}
+        col = {"dig": "#e07b39", "drive": "#3b82c4", "charge": "#3fa34d", "sinter": "#b5179e",
+               "offload": "#8d6e63"}   # drum offload-to-ISRU leg (mission_planner spend("offload"))
         for p in tl:
             axb.plot([p["t0"]/3600, p["t1"]/3600], [p["batt0"]/BATTERY_J*100, p["batt1"]/BATTERY_J*100], color=col[p["kind"]], lw=2)
             axs.plot([p["t0"]/3600, p["t1"]/3600], [p["speed"], p["speed"]], color=col[p["kind"]], lw=2)

@@ -36,6 +36,8 @@ class Session:
     operator_legs: list = field(default_factory=list)
     mission_t0_s: float = 0.0         # T4.2: the session's mission epoch -- ONE sun for all views
     created_monotonic_s: float = 0.0  # M-09: store-eviction stamp; set by start() at insert time
+    mission: object = None            # TR-01: retained so makespan-vs-optimal can re-sim alternatives
+    objective: str = "time"           # TR-01: the objective the run optimised (ranks forward_compare)
 
     def sun_state(self) -> dict:
         from stewie.specs.solar import sun_az_el
@@ -53,7 +55,7 @@ class Session:
                                   algorithm=algorithm, objective=objective)
         link = tl.TelemetryLink(prof, seed=seed)
         sess = cls(session_id=secrets.token_hex(8), profile_name=profile, record=out, link=link,
-                   mission_t0_s=float(mission_t0_s))
+                   mission_t0_s=float(mission_t0_s), mission=mission, objective=objective)
         for i, leg in enumerate(out["legs"]):
             visible_at = link.deliver_at(_LEG_PACKET_BYTES, t_s=i * _LEG_PERIOD_S)
             if visible_at is not None:                     # mypy-narrowed (the bool indirection wasn't)
@@ -100,10 +102,33 @@ class Session:
             "energy_MJ": round(nominal / 1e6, 3),
             "link_profile": self.profile_name,
         }
+        public.update(self.makespan_vs_optimal())
         truth = {"energy_divergence_J": round(abs(true - nominal), 1),
                  "true_energy_MJ": round(true / 1e6, 3),
                  "operator_missed_legs": missed}
         return {"public": public, "truth": truth}
+
+    def makespan_vs_optimal(self) -> dict:
+        """TR-01: score the run's makespan against the best alternative the planner can find.
+        ``makespan_s`` is THIS run's canonical plant time; ``optimal_s`` is the head of the ranked
+        candidate futures that ``lode.resync.forward_compare`` re-simulates over the same mission
+        (same conserved authority -- no second simulator, no authored numbers). ``makespan_ratio`` =
+        run / optimal (>= 1.0 when the chosen plan was not the fastest). When the mission was not
+        retained (a structural fixture), the run is its own reference (ratio 1.0)."""
+        makespan_s = float(self.record.get("plant_time_s", 0.0))
+        optimal_s = makespan_s
+        if self.mission is not None and makespan_s > 0.0:
+            from lode import resync as RES
+            fc = RES.forward_compare(self.mission, objective=self.objective,
+                                     stem=f"scorecard_{self.session_id}")
+            futures = fc.get("futures") or []
+            cand = [float(f["time_s"]) for f in futures if float(f.get("time_s", 0.0)) > 0.0]
+            # the optimal is the fastest candidate; never claim faster than the run actually achieved
+            if cand:
+                optimal_s = min([makespan_s, *cand])
+        ratio = makespan_s / optimal_s if optimal_s > 0.0 else 1.0
+        return {"makespan_s": round(makespan_s, 3), "optimal_s": round(optimal_s, 3),
+                "makespan_ratio": round(ratio, 4)}
 
     def debrief_view(self, fast_forward: float = 1.0) -> dict:
         legs = self.record["legs"]
@@ -234,3 +259,44 @@ def persist_summary(s: Session) -> str:
     path = os.path.join(d, f"summary_{s.session_id}.md")
     open(path, "w").write(summary_markdown(s))
     return path
+
+
+def scorecard_record(s: Session) -> dict:
+    """TR-01: the durable per-session scorecard record (PRD §27.2.E A-board). One JSON object that
+    carries the public trainee board, the director-only truth divergence, and the makespan-vs-optimal
+    block, keyed by session id. This is the artifact that OUTLIVES the in-memory session (M-09
+    eviction), so a trainer can review a finished run after the live store has dropped it."""
+    sc = s.scorecard()
+    mk = sc["public"]
+    return {
+        "session_id": s.session_id,
+        "profile": s.profile_name,
+        "objective": s.objective,
+        "public": sc["public"],
+        "truth": sc["truth"],
+        "makespan": {"makespan_s": mk["makespan_s"], "optimal_s": mk["optimal_s"],
+                     "makespan_ratio": mk["makespan_ratio"]},
+    }
+
+
+def persist_scorecard(s: Session) -> str:
+    """Write the scorecard record atomically to data_dir/sessions/scorecard_{sid}.json."""
+    from stewie.server import atomicio
+    from stewie.specs import config as CFG
+    d = os.path.join(CFG.data_dir(), "sessions")
+    os.makedirs(d, exist_ok=True)
+    path = os.path.join(d, f"scorecard_{s.session_id}.json")
+    atomicio.write_json_atomic(path, scorecard_record(s), indent=2)
+    return path
+
+
+def load_scorecard_record(session_id: str) -> dict | None:
+    """Read a persisted scorecard record by session id, or None if no record exists. The durable
+    read path: serves a finished session's A-board even after live eviction (M-09)."""
+    import json
+    from stewie.specs import config as CFG
+    path = os.path.join(CFG.data_dir(), "sessions", f"scorecard_{session_id}.json")
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return json.load(f)
