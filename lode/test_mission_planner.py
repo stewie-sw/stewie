@@ -906,15 +906,30 @@ def test_multi_vehicle_parallelises_and_deconflicts():
     assert sum(d["n_trips"] for d in T2["vehicles_detail"]) == len(pt2)
 
 
-def test_multi_vehicle_precedence_chain_is_co_located_and_ordered():
-    """MV cross-precedence v2 (supersedes the v1 refusal): precedence + vehicles>1 now PLANS. A precedence
-    chain is kept WHOLE on one vehicle and its order honored (the 'before' build precedes the 'after')."""
+def _eff_window(per_trip, detail, action):
+    """FL-04: the EFFECTIVE [start, end] of the leg touching `action`, with that vehicle's cross-vehicle
+    precedence wait folded in (the same shift plan_multi adds to the makespan)."""
+    pre = {d["vehicle"]: d.get("precedence_wait_s", 0.0) for d in detail}
+    for pt in per_trip:
+        if action in pt["trip"]["actions"]:
+            v = pt["trip"]["vehicle"]
+            return pt["t_start"] + pre[v], pt["t_end"] + pre[v], v
+    raise AssertionError(f"no leg touches {action}")
+
+
+def test_multi_vehicle_precedence_chain_is_split_and_ordered():
+    """FL-04 cross-vehicle precedence chain-SPLITTING (supersedes the v2 keep-whole policy): precedence +
+    vehicles>1 PLANS, and a precedence chain that spans two work sites is SPLIT across rovers (run in
+    parallel) with the 'before' build's EFFECTIVE end still preceding the 'after' build's EFFECTIVE start --
+    the ordering honored ACROSS vehicles, not by co-locating the chain on one rover."""
     m = _pairs_mission([(40, 0), (-40, 5), (80, 0)], precedence=[["fill0", "fill1"]])
-    trips, _, _, _, T = MP.plan_and_simulate(m, vehicles=2)
+    trips, _, per_trip, _, T = MP.plan_and_simulate(m, vehicles=2)
     assert T["vehicles"] == 2 and T["n_precedence"] >= 1
-    b = next(i for i, t in enumerate(trips) if "fill0" in t["actions"])
-    a = next(i for i, t in enumerate(trips) if "fill1" in t["actions"])
-    assert trips[b].get("vehicle") == trips[a].get("vehicle") and b < a   # chain whole + ordered
+    assert T["precedence_split"] is True and T["precedence_wait_s"] > 0.0   # a chain was split across rovers
+    b_start, b_end, b_v = _eff_window(per_trip, T["vehicles_detail"], "fill0")
+    a_start, a_end, a_v = _eff_window(per_trip, T["vehicles_detail"], "fill1")
+    assert b_v != a_v                                  # the chain straddles two rovers (split, not co-located)
+    assert a_start >= b_end - 1e-6                      # ordering HONORED across vehicles
     # a cyclic cross-precedence still raises (never silently mis-ordered)
     mc = _pairs_mission([(40, 0), (-40, 5)], precedence=[["fill0", "fill1"], ["fill1", "fill0"]])
     with pytest.raises((ValueError, RuntimeError), match="precedence|cyclic|infeasible"):
@@ -1535,23 +1550,22 @@ def test_load_site_dem_honors_the_sites_registry():
 
 
 def test_mv_cross_precedence_independent_chains_parallelize():
-    """P2 MV cross-precedence: a multi-vehicle mission WITH precedence no longer refuses (v1 raised). Two
-    INDEPENDENT precedence chains run in parallel on two vehicles; within the vehicle that owns a chain its
-    order is honored; the makespan beats the single-vehicle serial time."""
+    """P2 + FL-04 MV cross-precedence: a multi-vehicle mission WITH precedence no longer refuses (v1 raised).
+    Two INDEPENDENT precedence chains run in parallel on two vehicles, each chain's order HONORED (now
+    enforced across vehicles via the cross-precedence wait, not only by co-location); the makespan beats the
+    single-vehicle serial time."""
     # 2 independent 2-build chains (cut/fill builds get NO auto-precedence, unlike gotos)
     m = _pairs_mission([(40, 0), (80, 0), (0, 40), (0, 80)],
                        precedence=[["fill0", "cut1"], ["fill2", "cut3"]])
-    trips, _, _, _, T = MP.plan_and_simulate(m, vehicles=2)   # used to RAISE; now plans
+    trips, _, per_trip, _, T = MP.plan_and_simulate(m, vehicles=2)   # used to RAISE; now plans
     assert T["vehicles"] == 2 and T["feasible"] is not False and T["n_precedence"] >= 2
 
-    def trip_with(action):
-        i = next(k for k, t in enumerate(trips) if action in t["actions"])
-        return i, trips[i].get("vehicle")
-    a0, a1 = trip_with("fill0"), trip_with("cut1")          # chain A: build0 before build1
-    b0, b1 = trip_with("fill2"), trip_with("cut3")          # chain B: build2 before build3
-    assert a0[1] == a1[1] and a0[0] < a1[0]                 # chain A ordered on its vehicle
-    assert b0[1] == b1[1] and b0[0] < b1[0]                 # chain B ordered on its vehicle
-    assert a0[1] != b0[1]                                   # independent chains -> DIFFERENT vehicles
+    a0 = _eff_window(per_trip, T["vehicles_detail"], "fill0")        # chain A: build0 before build1
+    a1 = _eff_window(per_trip, T["vehicles_detail"], "cut1")
+    b0 = _eff_window(per_trip, T["vehicles_detail"], "fill2")        # chain B: build2 before build3
+    b1 = _eff_window(per_trip, T["vehicles_detail"], "cut3")
+    assert a1[0] >= a0[1] - 1e-6                                     # chain A ordering honored (eff start>=end)
+    assert b1[0] >= b0[1] - 1e-6                                     # chain B ordering honored
     # parallelized, not serialized: the 2-vehicle makespan beats the 1-vehicle serial time
     _, _, _, _, T1 = MP.plan_and_simulate(m, vehicles=1)
     assert T["makespan_s"] < T1["time_s"]
