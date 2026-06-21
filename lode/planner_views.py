@@ -189,7 +189,8 @@ def report(mission, trips, flows, per_trip, tl, totals, out_pdf, out_md, endu=No
 
         # PAGE 2 — battery + speed
         fig, (axb, axs) = plt.subplots(2, 1, figsize=(11, 8.5))
-        col = {"dig": "#e07b39", "drive": "#3b82c4", "charge": "#3fa34d", "sinter": "#b5179e"}
+        col = {"dig": "#e07b39", "drive": "#3b82c4", "charge": "#3fa34d", "sinter": "#b5179e",
+               "offload": "#8d6e63"}   # drum offload-to-ISRU leg (mission_planner spend("offload"))
         for p in tl:
             axb.plot([p["t0"]/3600, p["t1"]/3600], [p["batt0"]/BATTERY_J*100, p["batt1"]/BATTERY_J*100], color=col[p["kind"]], lw=2)
             axs.plot([p["t0"]/3600, p["t1"]/3600], [p["speed"], p["speed"]], color=col[p["kind"]], lw=2)

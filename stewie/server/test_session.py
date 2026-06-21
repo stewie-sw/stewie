@@ -194,6 +194,84 @@ def test_session_scorecard_a_board(client, monkeypatch):
     assert "comm_delivered_frac" in oboard and "energy_divergence_J" not in oboard
 
 
+def test_scorecard_carries_makespan_vs_optimal_from_forward_compare(client):
+    """TR-01: the A-board scores the run's makespan against the best alternative the planner can
+    find (forward_compare over the same mission). makespan_s is the run's actual plant time; the
+    optimal is the head of the ranked candidate futures; the ratio is run/optimal (>= 1.0 when the
+    chosen plan is not the fastest). Grounded entirely on the real planner -- no authored numbers."""
+    K = {"X-API-Key": "director-key"}
+    sid = client.post("/session/start", json=_mission(), headers=K).json()["session_id"]
+    board = client.get(f"/session/{sid}/scorecard", headers=K).json()["scorecard"]
+    for k in ("makespan_s", "optimal_s", "makespan_ratio"):
+        assert k in board, f"missing makespan KPI {k}"
+    assert board["makespan_s"] > 0.0 and board["optimal_s"] > 0.0
+    # the run can be no faster than the best alternative the planner found -> ratio >= 1 (-eps)
+    assert board["makespan_ratio"] >= 1.0 - 1e-6
+    # ratio is run/optimal (each field rounded for display -> compare within rounding tolerance)
+    assert board["makespan_ratio"] == pytest.approx(board["makespan_s"] / board["optimal_s"], abs=1e-3)
+
+
+def test_scorecard_record_persists_to_data_dir(client):
+    """TR-01: requesting the scorecard persists a per-session JSON record under data_dir/sessions/
+    that OUTLIVES the in-memory session (the durable trainer record). It carries the public board,
+    the truth divergence, the makespan-vs-optimal block, and the session id."""
+    import json
+    import os
+
+    import stewie.specs.config as CFG
+    K = {"X-API-Key": "director-key"}
+    sid = client.post("/session/start", json=_mission(), headers=K).json()["session_id"]
+    client.get(f"/session/{sid}/scorecard", headers=K)
+    path = os.path.join(CFG.data_dir(), "sessions", f"scorecard_{sid}.json")
+    assert os.path.exists(path), "the scorecard record must persist to data_dir/sessions/"
+    rec = json.load(open(path))
+    assert rec["session_id"] == sid
+    assert rec["public"]["legs_total"] >= 0 and "energy_MJ" in rec["public"]
+    assert "energy_divergence_J" in rec["truth"]              # the durable record keeps truth
+    assert rec["makespan"]["makespan_ratio"] >= 1.0 - 1e-6
+
+
+def test_scorecard_record_survives_session_eviction():
+    """TR-01: the durable record is read from disk, so a director can pull the scorecard for a
+    session that has already been evicted from the live store (load_scorecard_record(sid))."""
+    import os
+
+    from lode import mission_planner as MP
+    scen = os.path.join(os.path.dirname(__file__), "scenarios", "shadowed_traverse.json")
+    import json
+    doc = json.load(open(scen))
+    profile = doc.pop("profile", "ideal")
+    doc.pop("teaching_point", None)
+    doc.pop("provenance", None)
+    mission = MP.mission_from_dict(doc)
+    dem = MP.load_haworth_dem()
+    origin = MP.flattest_anchor(dem)
+    s = SESMOD.Session.run(mission, profile=profile, dem=dem, dem_origin=origin,
+                           objective="time")
+    path = SESMOD.persist_scorecard(s)
+    assert os.path.exists(path)
+    loaded = SESMOD.load_scorecard_record(s.session_id)
+    assert loaded is not None and loaded["session_id"] == s.session_id
+    assert loaded["makespan"]["makespan_s"] > 0.0
+
+
+def test_cockpit_metrics_pane_surfaces_the_scorecard():
+    """TR-01: the A-board has a cockpit surface -- a #scorecard-board container in the Metrics pane
+    (#execview) plus a renderScorecardBoard() that fetches /session/.../scorecard and shows the
+    makespan-vs-optimal KPIs. (cockpit.js is string-tested like the other cockpit panes here.)"""
+    import os
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    html = open(os.path.join(root, "stewie", "server", "index.html")).read()
+    js = open(os.path.join(root, "stewie", "server", "web", "assets", "cockpit.js")).read()
+    # the Metrics pane (#execview) carries the scorecard surface
+    ev = html[html.index('id="execview"'):]
+    assert 'id="scorecard-board"' in ev, "no #scorecard-board in the Metrics pane (#execview)"
+    assert 'id="sc-chips"' in ev, "no #sc-chips slot for the KPI chips"
+    # the cockpit wires it: a renderer that reads /session/.../scorecard + shows makespan-vs-optimal
+    assert "renderScorecardBoard" in js, "cockpit does not render the scorecard board"
+    assert "/scorecard" in js and "makespan_ratio" in js, "the board does not surface makespan-vs-optimal"
+
+
 import stewie.server.session as SESMOD  # noqa: E402  (mechanism tests on the module-global store)
 
 

@@ -218,6 +218,7 @@ _LAT_WINDOW = 256                                    # bounded ring buffer per r
 _DEFAULT_BUDGET_MS = 1000.0
 _LATENCY_BUDGETS_MS: dict[str, float] = {
     "/plan": 30000.0,            # synchronous PDF render -- seconds, not ms
+    "/session/{sid}/scorecard": 30000.0,   # TR-01: re-sims candidate futures (forward_compare) to score makespan
     "/figure/{key}": 8000.0,     # figure render
     "/layers": 3000.0,           # globe-layer render
     "/world": 1500.0,            # DEM load + reproject
