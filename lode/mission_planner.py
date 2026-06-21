@@ -2161,14 +2161,14 @@ if __name__ == "__main__":
 # imports first without a circular-import crash (ARCH-03). The TYPE_CHECKING import gives mypy the static
 # names with no runtime edge.
 _VIEW_EXPORTS = frozenset({
-    "report", "plan_math", "assumptions_register", "plan_ir",
+    "report", "plan_math", "assumptions_register", "plan_ir", "plan_uncertainty_view",
     "PLAN_IR_VERSION", "_IR_OP", "_IR_DIG_OPS", "_IR_MODEL_ERR_FRAC",
 })
 
 if TYPE_CHECKING:                                 # static only -- never executed, so no runtime cycle
     from lode.planner_views import (  # noqa: F401
         PLAN_IR_VERSION, _IR_DIG_OPS, _IR_MODEL_ERR_FRAC, _IR_OP,
-        assumptions_register, plan_ir, plan_math, report,
+        assumptions_register, plan_ir, plan_math, plan_uncertainty_view, report,
     )
 
 
