@@ -32,7 +32,8 @@ def test_active_camera_limit_caps_coverage():
     assert one["uncovered_need"] > two["uncovered_need"]   # one camera can't light both opposed shadows
 
 
-def test_power_budget_caps_intensity_and_coverage():
+def test_power_budget_caps_intensity_and_coverage():  # [REQ:SN-07]
+    # camera-subset + LED-intensity chosen to light hard shadows within the active-cam and power budgets
     full = LB.select_led_budget([(0.0, 1.0)], active_cam_limit=1, power_budget_w=10.0, led_max_w=10.0)
     half = LB.select_led_budget([(0.0, 1.0)], active_cam_limit=1, power_budget_w=5.0, led_max_w=10.0)
     assert half["selected"][0]["intensity"] == pytest.approx(0.5)   # only half the watts -> half intensity

@@ -72,7 +72,7 @@ def test_bootstrap_marker_makes_a_missing_store_fail_closed(ops):
         ops.list_all()
 
 
-def test_corrupt_store_denies_fallback_director_at_the_auth_boundary(ops, monkeypatch):
+def test_corrupt_store_denies_fallback_director_at_the_auth_boundary(ops, monkeypatch):  # [REQ:FS-11]
     """The end-to-end S-05 guarantee: with a CORRUPT store, auth.is_allowed for a default-allowlist
     director must NOT fall back to True -- it must propagate the fail-closed error (so a corrupt disk
     cannot reactivate a fallback director). Before the fix, _load() collapsed to empty and is_allowed

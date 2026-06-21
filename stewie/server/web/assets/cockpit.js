@@ -109,15 +109,21 @@ function loadBody(key) {
     viewer = null;
     return;
   }
-  // v1 uses the default geographic globe: imagery + lat/lon + pan/zoom/tilt are all correct; only the
-  // sphere RADIUS is Earth-sized (cosmetic). A true per-body ellipsoid is a refinement (Cesium's custom
-  // globe path errors in 1.119). The body radius is kept in BODIES for the future ellipsoid swap.
-  ellipsoid = Cesium.Ellipsoid.WGS84;
+  // GI-02: the globe is now rendered at the SELECTED body's true radius (Moon 1737.4 km / Mars 3389.5 km;
+  // Earth WGS84), not the Earth-sized default. Built via Cesium 1.119's supported per-body path: set
+  // Ellipsoid.default + pass the `ellipsoid` Viewer option BEFORE construction (NOT the custom-Globe path
+  // that errored in 1.119 and black-screened the prior rewrite). Sourced radii live in globe_ellipsoid.js.
+  // Degrade to WGS84 if that helper did not load, so the globe never black-screens on a missing asset.
+  const bodyEll = (window.STEWIE_GLOBE && window.STEWIE_GLOBE.bodyEllipsoid)
+    ? window.STEWIE_GLOBE.bodyEllipsoid(Cesium, key) : null;
+  ellipsoid = bodyEll || Cesium.Ellipsoid.WGS84;
+  try { Cesium.Ellipsoid.default = ellipsoid; } catch (e) { /* older Cesium: per-body via Viewer option below */ }
   try {                                       // B0.1: GPU-less machines must get a usable site map
   viewer = new Cesium.Viewer("cesium", {
     baseLayer: false, baseLayerPicker: false, geocoder: false, timeline: false,
     animation: false, sceneModePicker: false, homeButton: false, navigationHelpButton: false,
     fullscreenButton: false, infoBox: false, selectionIndicator: false,
+    ellipsoid: ellipsoid,
   });
   } catch (e) {
     const c = document.getElementById("cesium");
@@ -128,9 +134,11 @@ function loadBody(key) {
     viewer = null;
     return;                                   // sidebar + plan view + planning all work without the globe
   }
-  viewer.scene.skyAtmosphere.show = false;       // hide Earth atmosphere (do NOT set =false: Cesium's
-                                                 // render loop calls skyAtmosphere.setDynamicLighting()
-                                                 // and `false` is "defined" -> TypeError. Keep the object.)
+  // GI-02: with a per-body (non-WGS84) ellipsoid, Cesium does NOT build a skyAtmosphere (it is the Earth-
+  // specific atmosphere model), so scene.skyAtmosphere is undefined -> guard before .show (it threw here).
+  // When present (Earth), keep the object and set .show=false (do NOT set the property =false: Cesium's
+  // render loop calls skyAtmosphere.setDynamicLighting() and `false` is "defined" -> TypeError).
+  if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = false;
   viewer.scene.globe.showGroundAtmosphere = false;
   viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#1a1a1a");
   viewer.canvas.style.cursor = "crosshair";      // #169: crosshair over the map (Cesium reverts to grab during a drag, then back)
@@ -264,9 +272,10 @@ function loadBody(key) {
     const sb2 = $("scalebar2"), sv2 = $("scaleval2");
     if (!a || !b) { [sb, sb2].forEach((x) => x && (x.style.display = "none"));
       [sv, sv2].forEach((x) => x && (x.textContent = "")); return; }
-    // #42: the globe is WGS84-shaped (documented cosmetic shortcut) -- Cartesian distances are
-    // Earth-scaled. TRUE meters scale by the body's real radius (lat/lon angles are unaffected).
-    const mpp = Cesium.Cartesian3.distance(a, b) / 100.0 * (BODIES[sel.value].radius / 6371008.8);
+    // GI-02: the globe is now rendered at the SELECTED body's true radius (per-body ellipsoid), so the
+    // pickEllipsoid Cartesian distance is already in TRUE body meters -- no Earth-ratio rescale needed
+    // (the prior `* radius/6371008.8` correction would now double-count and mis-scale the bar).
+    const mpp = Cesium.Cartesian3.distance(a, b) / 100.0;
     const target = mpp * 90;                               // ~90 px of bar
     const pow10 = Math.pow(10, Math.floor(Math.log10(target)));
     const nice = [1, 2, 5, 10].map((k) => k * pow10).find((v) => v >= target) || target;
@@ -976,7 +985,15 @@ function markFresh(el) { if (el) { el.dataset.fresh = "ok"; el.dataset.freshTs =
 setInterval(() => {
   document.querySelectorAll("[data-fresh]").forEach((el) => {
     const age = (Date.now() - parseInt(el.dataset.freshTs || "0", 10)) / 1000;
-    el.dataset.fresh = age < 20 ? "ok" : (age < 60 ? "stale" : "dead");
+    const state = age < 20 ? "ok" : (age < 60 ? "stale" : "dead");
+    el.dataset.fresh = state;
+    // A11Y (WCAG 1.4.1): the border colour is mirrored by a text state so the
+    // freshness is not conveyed by colour alone -- a CSS ::after corner label
+    // shows it visually; this annotation exposes the same word to assistive tech
+    // and on hover. No behaviour change beyond the label.
+    const label = state === "ok" ? "data live" : (state === "stale" ? "data stale" : "data stale (no recent update)");
+    el.setAttribute("aria-label", label);
+    el.setAttribute("title", label);
   });
 }, 5000);
 
@@ -1146,13 +1163,9 @@ function recordPose(x, y) {
 // lander and every placed landmark (real distance extrapolation from placed points, replacing the fixed
 // 100 m ring), plus the actual selenographic coordinates next to the order-frame metres. Answers Aaron's
 // "why doesn't where-are-we pick up the lander / why metres not coordinates".
-function bearingFrom(dE, dN) {                              // site frame: +x = East, +y = North
-  let b = Math.atan2(dE, dN) * 180 / Math.PI;              // 0 deg = North, 90 deg = East
-  if (b < 0) b += 360;
-  const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-                "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-  return `${b.toFixed(0)}° ${dirs[Math.round(b / 22.5) % 16]}`;
-}
+// FS-24: site-frame bearing + lat/lon formatting moved to geofmt.js (STEWIE_GEOFMT); aliased here so the
+// #174 locator call sites below are unchanged. Pure -> unit-tested in geofmt.test.js.
+const bearingFrom = window.STEWIE_GEOFMT.bearingFrom;       // site frame: +x = East, +y = North
 async function siteLatLon(x, y) {                          // order-frame metres -> lat/lon (the #174 reverse route)
   try {
     const r = await fetch(`/dem/site_lonlat?x=${x}&y=${y}&site=${encodeURIComponent(CURRENT_SITE)}`);
@@ -1161,7 +1174,7 @@ async function siteLatLon(x, y) {                          // order-frame metres
     return d.ok ? { lat: d.lat, lon: d.lon } : null;
   } catch (e) { return null; }
 }
-const fmtLL = (ll) => (ll ? `${ll.lat.toFixed(4)}°, ${ll.lon.toFixed(4)}°` : "—");
+const fmtLL = window.STEWIE_GEOFMT.fmtLL;                   // FS-24: lat/lon formatter -> geofmt.js
 async function updateLocator() {
   const box = $("locator"); if (!box) return;
   if (!LAST_POSE) {

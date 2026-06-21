@@ -155,25 +155,75 @@ def get(session_id: str) -> Session | None:
     return _SESSIONS.get(session_id)
 
 
+def _route_drive_m(record: dict) -> float:
+    """Total routed drive distance [m]: the GoTo waypoint polylines from the canonical plan IR.
+    This is the EXECUTED route geometry (it includes any keep-out detour), not the crow-flies."""
+    import math
+    total = 0.0
+    for a in record.get("plan_ir", {}).get("actions", ()):
+        wp = a.get("waypoints") or []
+        total += sum(math.dist(wp[i], wp[i + 1]) for i in range(len(wp) - 1))
+    return total
+
+
 def summary_markdown(s: Session) -> str:
-    """The per-run mission summary (beta B4.2): route, energy, link behaviour, divergence."""
+    """The per-run mission summary (beta B4.2): route, energy, comm drops, slip events, and the
+    seen-vs-actual divergence. A director/debrief artifact (it carries truth fields), built only
+    from the closed-loop record -- no authored numbers."""
     d = s.debrief_view()
+    rec = s.record
+    legs = rec["legs"]
+    nominal_J = sum(float(l_["nominal_J"]) for l_ in legs)
+    true_J = sum(float(l_["true_J"]) for l_ in legs)
+    drive_m = _route_drive_m(rec)
+    stats = dict(s.link.stats)
+    # a "slip event" leg = one whose drive actually slipped (slope-driven; dig legs do not slip)
+    slipped = sorted((l_ for l_ in legs if float(l_["slip"]) > 0.0),
+                     key=lambda l_: float(l_["slip"]), reverse=True)
+
     lines = [f"# Mission summary — session {s.session_id}",
              "",
              f"- completed: {d['completed']} · legs: {d['n_legs_total']} "
              f"(operator received {d['operator_received']})",
-             f"- recharges: {s.record['recharges']} · replans: {s.record['replans']}",
-             f"- energy divergence (true vs nominal): {d['energy_divergence_J']:.1f} J",
-             f"- link profile: {s.profile_name} · stats: {dict(s.link.stats)}",
-             f"- operator missed legs: {d['operator_missed_legs'] or 'none'}",
-             "", "| leg | nominal J | true J | SoC |", "|---|---|---|---|"]
-    for leg in s.record["legs"]:
-        lines.append(f"| {leg['leg']} | {leg['nominal_J']:.0f} | {leg['true_J']:.0f} "
-                     f"| {leg['soc']:.2f} |")
+             f"- recharges: {rec['recharges']} · replans: {rec['replans']}",
+             "",
+             "## Route",
+             f"- routed drive distance: {drive_m:.1f} m (executed path incl. any detour)",
+             "", "| leg | believed → true pose | SoC |", "|---|---|---|"]
+    for leg in legs:
+        lines.append(f"| {leg['leg']} | ({leg['bx']:.1f}, {leg['by']:.1f}) → "
+                     f"({leg['tx']:.1f}, {leg['ty']:.1f}) | {leg['soc']:.2f} |")
+
+    lines += ["",
+              "## Energy",
+              f"- nominal (planned): {nominal_J / 1e6:.3f} MJ · "
+              f"true (slip/grade physics): {true_J / 1e6:.3f} MJ",
+              "", "| leg | nominal J | true J |", "|---|---|---|"]
+    for leg in legs:
+        lines.append(f"| {leg['leg']} | {leg['nominal_J']:.0f} | {leg['true_J']:.0f} |")
+
+    lines += ["",
+              "## Link (comm drops)",
+              f"- link profile: {s.profile_name} · stats: {stats}",
+              f"- operator received {d['operator_received']} / {d['n_legs_total']} legs · "
+              f"missed: {d['operator_missed_legs'] or 'none'}"]
+
+    lines += ["", "## Slip events"]
+    if slipped:
+        lines += [f"- {len(slipped)} drive leg(s) slipped on the real DEM grade",
+                  "", "| leg | slip | slope° |", "|---|---|---|"]
+        for leg in slipped:
+            lines.append(f"| {leg['leg']} | {leg['slip']:.3f} | {leg['slope_deg']:.2f} |")
+    else:
+        lines.append("- none (every drive leg held traction on this route)")
+
+    lines += ["",
+              "## Divergence (seen vs actual)",
+              f"- energy divergence (true vs nominal): {d['energy_divergence_J']:.1f} J"]
     mc = d.get("map_channel")
     if mc:
-        lines += ["", f"map channel: coverage {mc.get('coverage', 0):.2f}, "
-                       f"mean uncertainty {mc.get('mean_uncertainty_m', 0):.2f} m"]
+        lines.append(f"- map channel: coverage {mc.get('coverage', 0):.2f}, "
+                     f"mean uncertainty {mc.get('mean_uncertainty_m', 0):.2f} m")
     return "\n".join(lines)
 
 

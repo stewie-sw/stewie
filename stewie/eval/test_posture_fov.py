@@ -26,7 +26,8 @@ def test_nominal_vs_extreme_flags():
     assert all(kin.posture(n).within_mech_limit for n in kin.POSTURES)  # all <=135 deg
 
 
-def test_stability_margin_shrinks_when_raised():
+def test_stability_margin_shrinks_when_raised():  # [REQ:VT-06]
+    # posture-dependent support polygon -> static stability margin (raised posture shrinks it)
     m_t = kin.stability_margin_m(kin.posture("TRANSIT"), 15, 15)
     m_i = kin.stability_margin_m(kin.posture("IRON_CROSS"), 15, 15)
     assert m_t > m_i                                  # raised -> smaller support polygon

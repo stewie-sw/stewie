@@ -34,7 +34,7 @@ def test_drag_handle_and_reset_control_present():
     assert 'id="set-resetlayout"' in html, "no reset-to-default control in Settings"
 
 
-def test_reorder_glue_wired_and_persists():
+def test_reorder_glue_wired_and_persists():  # [REQ:FS-21]
     js = _read(_COCKPIT)
     assert "function wirePanelLayout" in js, "no wirePanelLayout() drag glue"
     glue = js.split("function wirePanelLayout")[1].split("\nconst SETTINGS")[0]

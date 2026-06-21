@@ -52,7 +52,7 @@ def test_log_event_writes_structured_fields(svc):
     assert rec["status"] == 200 and rec["latency_ms"] == 12.5 and rec["action"] == "http.post"
 
 
-def test_secrets_are_redacted_never_written(svc):
+def test_secrets_are_redacted_never_written(svc):  # [REQ:FS-19]
     SVC, tmp = svc
     SVC.log_event("alice", "auth.login", "x", password="hunter2", api_key="sk-secret", note="ok")
     line = open(os.path.join(str(tmp), "events.jsonl")).read()

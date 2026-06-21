@@ -22,7 +22,8 @@ def test_low_contrast_shadow_is_rejected_not_fed_to_graph():
     assert SF.add_shadow_yaw_factors(g, 0, facs) == 0     # rejected -> nothing enters the graph
 
 
-def test_shadow_factors_recover_a_perturbed_heading():
+def test_shadow_factors_recover_a_perturbed_heading():  # [REQ:ML-04]
+    # shadow-SLAM/ARGUS: shadow bearings + ephemeris sun geometry -> gated pose-graph yaw factors
     true_yaw_deg = 40.0
     anti_solar = 215.0                                    # world azimuth of the anti-solar shadow ray
     # all cast shadows are parallel (point anti-solar); each landmark measures the SAME body-frame

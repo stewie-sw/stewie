@@ -41,7 +41,8 @@ print("FRESH WHEEL OK")
 """
 
 
-def test_fresh_wheel_server_runs(tmp_path):
+def test_fresh_wheel_server_runs(tmp_path):  # [REQ:PO-01]
+    # stewie-serve runs after a fresh wheel install with the one documented [server] product extra
     dist = tmp_path / "dist"
     # build just the stewie wheel via pip's own backend (no `build`/pyproject_hooks toolchain dep).
     subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "-w", str(dist), _REPO],
