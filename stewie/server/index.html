@@ -136,6 +136,9 @@
   button.plan:hover, button.go:hover { background: var(--fill-h); }
   button.site { background: transparent; border: 1px solid var(--field-bd); color: var(--txt); }
   button.site:hover { border-color: var(--accent); color: var(--accent); }
+  /* ICON-SET: shared sizing for the inline monochrome toolbar glyphs (web/assets/icons.js). The SVGs
+     are stroke="currentColor" so they recolor with the button text + the drum-red accent on hover. */
+  .ic { width: 1em; height: 1em; vertical-align: -0.125em; stroke-width: 2; }
   button:focus-visible, input:focus-visible, select:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 1px; }
   /* MOBILE-06: kill the browser's default tap-focus ring on buttons (the oversized blue box seen
@@ -642,7 +645,7 @@
            active workspace. TRAINING (green) = safe sandbox; LIVE (red) = commands the real rover. operator+
            can click to switch (renderWorkspace wires the click + the ns= on every mission call); trainees are
            sandbox-pinned server-side, so their badge reads TRAINING and the toggle is inert. -->
-      <button id="alertbtn" title="alerts (UI-6): warnings, errors, info — timestamped" style="margin-left:auto;align-self:center;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:13px;padding:3px 9px;cursor:pointer"><span id="alertbadge" style="display:none;background:#e8273f;color:#fff;border-radius:8px;font-size:9px;padding:1px 5px;margin-left:4px"></span></button>
+      <button id="alertbtn" title="alerts (UI-6): warnings, errors, info — timestamped" aria-label="alerts: warnings, errors, info" style="margin-left:auto;align-self:center;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:13px;padding:3px 9px;cursor:pointer;display:inline-flex;align-items:center"><span class="ic-slot"></span><span id="alertbadge" style="display:none;background:#e8273f;color:#fff;border-radius:8px;font-size:9px;padding:1px 5px;margin-left:4px"></span></button>
       <button id="wsbadge" type="button" title="active workspace" style="margin-left:8px;display:none;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.05em;border-radius:11px;padding:3px 11px;border:1px solid var(--line);background:none;font-family:'Orbitron',system-ui,sans-serif"></button>
       <span id="whoami" title="account" style="display:none;position:relative;align-items:center;padding:0 4px 4px 0;margin-left:8px">
         <button id="profbtn" aria-haspopup="menu" aria-expanded="false" title="account menu" style="display:inline-flex;align-items:center;gap:7px;border:none;background:none;cursor:pointer;padding:2px">
@@ -651,7 +654,7 @@
           <span aria-hidden="true" style="font-size:9px;color:var(--muted)">&#9662;</span>
         </button>
         <div id="profmenu" role="menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:60;min-width:170px;background:var(--panel,#14141c);border:1px solid var(--line,#2a2a36);border-radius:8px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.5)">
-          <button class="profitem" data-view="settings" role="menuitem">&#9881; Settings</button>
+          <button class="profitem" data-view="settings" role="menuitem" style="display:flex;align-items:center;gap:7px"><span class="ic-slot"></span>Settings</button>
           <button class="profitem" id="prof-system" data-view="system" role="menuitem" style="display:none" title="validation / API / server / config">System</button>
           <button class="profitem" id="prof-admin" data-view="admin" role="menuitem" style="display:none" title="operator accounts (director-only)">Admin</button>
           <div style="border-top:1px solid var(--line,#2a2a36);margin:6px 0"></div>
@@ -682,16 +685,16 @@
       <div id="plan3d" style="position:absolute;inset:0;z-index:2;display:none;background:#05060c"></div>
       <div id="plan3dbar" style="position:absolute;left:54px;top:12px;z-index:36;display:flex;gap:4px;align-items:center">
         <button id="plan3dtoggle" class="site" style="font-size:10px" title="switch the Plan map between the 2D globe (general siting) and a 3D wireframe of the chosen site's DEM (accurate, relief-aware path: clicks drop goto waypoints on the real surface)">▦ 3D path</button>
-        <button id="plan3dfly" class="site" style="display:none;font-size:10px" title="fly / move through the 3D world — drag to look, W/A/S/D to move, R/F up·down (off = orbit + path-def)">fly</button>
+        <button id="plan3dfly" class="site" style="display:none;font-size:10px" title="fly / move through the 3D world — drag to look, W/A/S/D to move, R/F up·down (off = orbit + path-def)" aria-label="fly / move through the 3D world"></button>
         <span id="plan3dctl" style="display:none">
           <button id="plan3dundo" class="site" style="font-size:10px" title="remove the last waypoint">↶</button>
           <button id="plan3dclear" class="site" style="font-size:10px" title="clear the 3D path">✕</button>
         </span>
         <span id="plan3dtools" style="display:none;border-left:1px solid var(--line);padding-left:4px;margin-left:2px">
-          <button id="plan3dcoords" class="site" style="font-size:10px" title="live cursor coordinate readout: exact E / N metres (order frame, from the site origin) + absolute DEM elevation as you move over the surface">coords</button>
-          <button id="plan3dplot" class="site" style="font-size:10px" title="plot points: click the surface to drop a labeled coordinate marker (its exact E / N / elevation floats in the 3D scene)">plot</button>
-          <button id="plan3dmeasure" class="site" style="font-size:10px" title="measure: click two surface points for the 3D distance — slant length, horizontal run, vertical rise, and slope">measure</button>
-          <button id="plan3dplotclear" class="site" style="font-size:10px" title="clear all plotted markers and measures">clear plots</button>
+          <button id="plan3dcoords" class="site" style="font-size:10px" title="live cursor coordinate readout: exact E / N metres (order frame, from the site origin) + absolute DEM elevation as you move over the surface" aria-label="live cursor coordinate readout"></button>
+          <button id="plan3dplot" class="site" style="font-size:10px" title="plot points: click the surface to drop a labeled coordinate marker (its exact E / N / elevation floats in the 3D scene)" aria-label="plot a coordinate marker"></button>
+          <button id="plan3dmeasure" class="site" style="font-size:10px" title="measure: click two surface points for the 3D distance — slant length, horizontal run, vertical rise, and slope" aria-label="measure 3D distance"></button>
+          <button id="plan3dplotclear" class="site" style="font-size:10px" title="clear all plotted markers and measures" aria-label="clear all plotted markers and measures"></button>
         </span>
       </div>
       <div id="plan3dstats" style="position:absolute;left:54px;top:42px;z-index:36;display:none;background:rgba(10,10,12,.92);border:1px solid var(--line);border-radius:5px;padding:4px 8px;font-size:10px;color:var(--muted);max-width:min(440px,80vw);line-height:1.6"></div>
@@ -703,7 +706,7 @@
         <span id="scalebar2" style="border-bottom:2px solid #fff;border-left:2px solid #fff;border-right:2px solid #fff;height:7px;display:inline-block"></span>
         <span id="scaleval2" style="margin-left:6px"></span></div>
       <div id="edittoolbar">
-    <button id="editmode" class="site" style="font-size:10px" title="QGIS-style edit session: freezes the camera so clicks DRAW instead of pan (#40/#41)">edit ToolBox</button>
+    <button id="editmode" class="site" style="font-size:10px;display:inline-flex;align-items:center;gap:4px" title="QGIS-style edit session: freezes the camera so clicks DRAW instead of pan (#40/#41)" aria-label="edit ToolBox"><span class="ic-slot"></span>ToolBox</button>
     <span id="edittools" style="display:none">
       <b class="toollbl" title="place markers on the map">place</b>
       <span class="toolgrp">
@@ -711,24 +714,24 @@
         <button class="site etool" data-tool="lander" style="font-size:10px" title="click the map to place the lander (the rover's safe haven + 100 m ring)">lander</button>
         <button class="site etool" data-tool="rover" style="font-size:10px" title="click the map to set the rover's current position; the locator measures distances/bearings from it">rover</button>
         <button class="site etool" data-tool="landmark" style="font-size:10px" title="click the map to drop a named reference point (survey marker); the locator measures distance from it">plot landmark</button>
-        <button class="site etool" data-tool="note" style="font-size:10px" title="click the map to attach a text note">note</button>
+        <button class="site etool" data-tool="note" style="font-size:10px" title="click the map to attach a text note" aria-label="note: click the map to attach a text note"></button>
       </span>
       <span class="toolsep"></span>
       <b class="toollbl" title="no-go barriers — hauls route around them">barrier</b>
       <span class="toolgrp">
-        <button class="site etool" data-tool="keepout" style="font-size:10px" title="click the map to drop a circular keep-out barrier of the radius set here →">keep-out circle</button>
+        <button class="site etool" data-tool="keepout" style="font-size:10px;display:inline-flex;align-items:center;gap:4px" title="click the map to drop a circular keep-out barrier of the radius set here →" aria-label="keep-out circle barrier"><span class="ic-slot"></span>keep-out circle</button>
         <label class="site" style="font-size:10px;padding:2px 5px" title="keep-out / barrier radius in metres (used by the keep-out circle tool)">r<input id="koradius" type="number" value="25" min="1" step="1" style="width:3.4em;margin-left:3px" /> m</label>
-        <button class="site etool" data-tool="box" style="font-size:10px" title="click two opposite corners to draw a rectangular keep-out barrier (hauls route around it)">box</button>
+        <button class="site etool" data-tool="box" style="font-size:10px" title="click two opposite corners to draw a rectangular keep-out barrier (hauls route around it)" aria-label="rectangular keep-out box"></button>
         <button class="site etool" data-tool="poly" style="font-size:10px" title="click vertices to draw a polygon keep-out; click near the first vertex to close it (hauls route around it)">⬡ poly</button>
       </span>
       <span class="toolsep"></span>
       <b class="toollbl" title="measure + edit">tools</b>
       <span class="toolgrp">
-        <button class="site etool" data-tool="measure" style="font-size:10px" title="click two points to measure the distance between them (site-frame metres)">measure</button>
+        <button class="site etool" data-tool="measure" style="font-size:10px" title="click two points to measure the distance between them (site-frame metres)" aria-label="measure distance between two points"></button>
         <!-- Aaron 2026-06-16 ("there is no delete on mobile"): pin delete was Delete/Backspace key only -- no
              hardware key on a phone. This is the touch path: tap a placed pin to select it (it turns green),
              then tap this to remove it. Mirrors deleteSelectedPin(). -->
-        <button id="editdel" class="site" style="font-size:10px" title="delete the selected pin — tap a pin on the map to select it (it turns green), then tap this">delete</button>
+        <button id="editdel" class="site" style="font-size:10px" title="delete the selected pin — tap a pin on the map to select it (it turns green), then tap this" aria-label="delete the selected pin"></button>
       </span>
       <span class="toolsep"></span>
       <button id="editdone" class="go" style="font-size:10px">✓ Done</button>
@@ -892,7 +895,7 @@
         <canvas id="cgcanvas" width="420" height="130" style="border:1px solid var(--line);border-radius:6px;width:100%;max-width:460px"></canvas>
         <div id="cgout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:3px 0 10px"></div>
         <div class="cap"><span>METRICS — <span id="exec-mode-lbl">execution top-down</span><b id="execspeed"> 60×</b>
-          <button id="execpause" title="pause/resume" style="margin-left:10px">pause</button>
+          <button id="execpause" title="pause/resume" aria-label="pause / resume" style="margin-left:10px"></button>
           <button id="execspd" title="cycle speed 10/60/600×">speed</button>
           <button id="exec3d" title="toggle the 3D terrain dry-run: the planned path + rover on the real DEM, before uplink" style="margin-left:6px">▦ 3D</button>
           <button id="exec3dwire" title="toggle the depth/heightfield WIRE overlay in the 3D view (#180)" style="margin-left:4px">⊞ wire</button></span>
@@ -1196,6 +1199,7 @@
 <script src="/assets/geofmt.js?v=8ab2024e447b"></script><!-- FS-24: pure site-frame bearing + lat/lon fmt (sets window.STEWIE_GEOFMT) -->
 <script src="/assets/globe_ellipsoid.js?v=8e052105d4b2"></script><!-- GI-02: per-body globe radii (sets window.STEWIE_GLOBE) -->
 <script src="/assets/htmlesc.js?v=aeb7e4bb4091"></script><!-- FS-24: pure HTML-entity escape (sets window.STEWIE_HTMLESC) -->
+<script src="/assets/icons.js?v=cc7490feb72b"></script><!-- ICON-SET: monochrome inline-SVG toolbar glyphs (sets window.STEWIE_ICONS) -->
 <script src="/assets/role_rank.js?v=46d024fe6f3b"></script><!-- FS-24: pure role-authority ladder rank (sets window.STEWIE_ROLE_RANK) -->
 <script src="/assets/keepout_geom.js?v=8e0b54e7d7e5"></script><!-- FS-24: pure keep-out shape/bounds/label (sets window.STEWIE_KEEPOUT_GEOM) -->
 <script src="/assets/navplot.js?v=e542c82063f0"></script><!-- FS-24: pure nav-pane canvas plotters (sets window.STEWIE_NAVPLOT) -->
@@ -1209,6 +1213,6 @@
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=0777d96cdf07"></script>
+<script src="/assets/cockpit.js?v=cb3fcc8f15e5"></script>
 </body>
 </html>

@@ -9,6 +9,44 @@
   });
 })();
 
+// ICON-SET: paint the production-grade monochrome SVG glyphs onto the icon-only toolbar buttons. The
+// markup carries the title= + aria-label= (tooltip + a11y name); this fills the visual glyph from
+// web/assets/icons.js. CSP-safe: STEWIE_ICONS.icon() returns inline <svg> markup, not script. A button
+// keeping a word label (ToolBox / keep-out circle / Settings / the alert badge) has an empty
+// <span class="ic-slot"> the glyph drops into; a pure icon button gets its innerHTML set directly.
+(function initToolbarIcons() {
+  var ICONS = (typeof window !== "undefined") && window.STEWIE_ICONS;
+  if (!ICONS) return;                                       // module not loaded -> leave aria-label text
+  // id -> icon name for the pure icon-only buttons (no retained word label).
+  var DIRECT = {
+    plan3dfly: "fly", plan3dcoords: "coords", plan3dplot: "plot", plan3dmeasure: "measure",
+    plan3dplotclear: "clear", editdel: "delete",
+  };
+  for (var id in DIRECT) {
+    var b = document.getElementById(id);
+    if (b) b.innerHTML = ICONS.icon(DIRECT[id]);
+  }
+  // etool buttons are addressed by data-tool (no id).
+  var ETOOL = { note: "note", box: "box", measure: "measure" };
+  for (var tool in ETOOL) {
+    var et = document.querySelector('.etool[data-tool="' + tool + '"]');
+    if (et) et.innerHTML = ICONS.icon(ETOOL[tool]);
+  }
+  // buttons that keep a word label: drop the glyph into the leading .ic-slot span.
+  var SLOTTED = [["editmode", "edit"], ["alertbtn", "alert"]];
+  var keepoutBtn = document.querySelector('.etool[data-tool="keepout"]');
+  if (keepoutBtn) { var ks = keepoutBtn.querySelector(".ic-slot"); if (ks) ks.innerHTML = ICONS.icon("keepout"); }
+  var settingsItem = document.querySelector('.profitem[data-view="settings"]');
+  if (settingsItem) { var ss = settingsItem.querySelector(".ic-slot"); if (ss) ss.innerHTML = ICONS.icon("settings"); }
+  SLOTTED.forEach(function (pair) {
+    var el = document.getElementById(pair[0]);
+    if (el) { var slot = el.querySelector(".ic-slot"); if (slot) slot.innerHTML = ICONS.icon(pair[1]); }
+  });
+  // execpause boots showing the pause glyph (running state); the toggle (below) swaps pause<->play.
+  var ep = document.getElementById("execpause");
+  if (ep) ep.innerHTML = ICONS.icon("pause");
+})();
+
 // UX-04 (WAI-ARIA tabs): the view switcher is a tablist, the panes are tabpanels, and Left/Right/Home/
 // End move + activate between tabs (the active tab carries tabindex 0, the rest -1 -- set in setView).
 (function initTabsA11y() {
@@ -3773,7 +3811,8 @@ function runExecution() {
   EXEC_RAF = requestAnimationFrame(frame);
 }
 qel("qexec").onclick = runExecution;
-qel("execpause").onclick = () => { EXEC_PAUSED = !EXEC_PAUSED; qel("execpause").textContent = EXEC_PAUSED ? "▶" : "pause"; };
+qel("execpause").onclick = () => { EXEC_PAUSED = !EXEC_PAUSED;
+  qel("execpause").innerHTML = window.STEWIE_ICONS ? window.STEWIE_ICONS.icon(EXEC_PAUSED ? "play" : "pause") : (EXEC_PAUSED ? "resume" : "pause"); };
 qel("execspd").onclick = () => { EXEC_SPEEDUP = EXEC_SPEEDUP === 10 ? 60 : EXEC_SPEEDUP === 60 ? 600 : 10;
   qel("execspeed").textContent = ` ${EXEC_SPEEDUP}×`; };
 qel("execclose").onclick = () => { cancelAnimationFrame(EXEC_RAF); setView("plan"); };
