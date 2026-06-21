@@ -4132,9 +4132,17 @@ function wizReset() {
 }
 // #170: step -> sidebar sections. Clicking a step shows ONLY its sections (Aaron: "Site should pull up
 // 1/2"); the rest collapse. The numbered sections (1·Site..7·Telemetry) are the collapsible <details>.
-const STEP_SECTIONS = { site: ["1", "2"], fleet: ["3", "4"], orders: ["5"], solve: ["4", "5"] };
+// The step->section map is the pure window.STEWIE_PLAN_STEPPER module (single source of truth, unit-
+// tested); ALL six steps map now (review/execute used to be no-ops, leaving the previous step's
+// sections showing). The inline fallback keeps focusStep working if the module fails to load.
+const STEP_SECTIONS = (typeof window !== "undefined" && window.STEWIE_PLAN_STEPPER)
+  ? window.STEWIE_PLAN_STEPPER.STEP_SECTIONS
+  : { site: ["1", "2"], fleet: ["3", "4"], orders: ["5"], solve: ["4", "5"], review: ["5", "6"], execute: ["5", "7"] };
 function focusStep(step) {
-  const want = STEP_SECTIONS[step]; if (!want) return;       // review/execute switch VIEWS, not sidebar focus
+  const want = (typeof window !== "undefined" && window.STEWIE_PLAN_STEPPER)
+    ? window.STEWIE_PLAN_STEPPER.sectionsForStep(step)
+    : (STEP_SECTIONS[step] || []);
+  if (!want.length) return;                                  // unknown step: leave the sidebar untouched
   for (const det of document.querySelectorAll("#panel details")) {
     const sum = det.querySelector("summary"); if (!sum) continue;
     const m = sum.textContent.replace(/^\W+/, "").match(/^(\d)/);   // numbered pipeline section (the FS-21 drag-grip ⠿ precedes the number)
@@ -4146,6 +4154,7 @@ function goStep(step) {
   const planned = !!LAST_TIMELINE;
   if ((step === "review" || step === "execute") && !planned) {   // can't review/execute before a plan exists
     setView("plan"); if (innerWidth <= 860) $("panel").classList.add("open");
+    focusStep(step);                                        // reflect THIS step's sections, not the prior step's
     stepScrollTo("5 ·"); _pulseQplan();
     setQ("plan a mission first - press “Plan mission → open report”"); return;
   }
