@@ -73,24 +73,56 @@ def resync(belief, observation: dict):
     return dataclasses.replace(belief, x=fused_x, y=fused_y, pos_sigma_m=fused_sig)
 
 
+def _objective_key(objective: str):
+    """The within-group sort key for a future, by the chosen objective (duration/time -> time_s,
+    else energy). Used by both forward_compare and rank_feasible_first so the two agree."""
+    if objective in ("duration", "time"):
+        return lambda f: f.get("time_s", float("inf"))
+    return lambda f: f.get("energy_MJ", float("inf"))
+
+
+def rank_feasible_first(futures: list, *, objective: str = "duration") -> list:
+    """Mission-ops screen-2 INVARIANT: a feasible candidate is ALWAYS ranked above an infeasible one,
+    regardless of how the infeasible candidate scores on the raw objective. Within each feasibility
+    group the order is best-first on the objective. A pure, stable two-key sort -- no weighted score
+    can ever float an infeasible future above a feasible one."""
+    key = _objective_key(objective)
+    # sort key: feasible(=False=0) groups ahead of infeasible(=True=1); then objective best-first.
+    return sorted(futures, key=lambda f: (not bool(f.get("feasible", True)), key(f)))
+
+
 def forward_compare(mission, *, candidates=("auto", "nearest"), objective: str = "duration",
                     stem: str = "resync_fwd") -> dict:
     """Re-simulate the mission under each candidate solver input at wall speed and rank the
-    outcomes. Returns every future WITH its numbers -- the comparison is the product, the
-    recommendation is just the head of the ranking."""
+    outcomes FEASIBLE-FIRST. Returns every future WITH its numbers -- the comparison is the product;
+    the recommendation is the head of the feasible-first ranking (None when no candidate is feasible).
+    Every field is read straight from the conserved planner totals (no fabricated numbers)."""
     futures = []
+    n_orders = len(getattr(mission, "orders", []) or [])
     for algo in candidates:
         t0 = time.monotonic()
         _, _, totals = MP.run(mission, stem=f"{stem}_{algo}", algorithm=algo, objective=objective)
+        rtl = totals.get("return_to_lander") or {}
         futures.append({
             "algorithm": algo,
             "resolved": totals.get("resolved_algorithm", algo),
+            "optimality": totals.get("optimality"),
+            "objective_exact": bool(totals.get("objective_exact", False)),
             "time_s": float(totals["time_s"]),
             "energy_MJ": round(float(totals["energy_J"]) / 1e6, 3),
             "recharges": totals.get("recharges"),
+            "charges": int(totals.get("charges", totals.get("recharges", 0)) or 0),
+            # feasibility FIRST: the conserved planner's combined route+battery verdict (#161/C-04).
+            "feasible": bool(totals.get("feasible", True)),
+            "infeasible_reasons": list(totals.get("infeasible_reasons", []) or []),
+            "return_to_lander": rtl,                         # #161 margin/feasibility, carried verbatim
+            # objective completion: how many of the mission's orders the plan resolves into work.
+            "objectives_total": n_orders,
+            "blocked_legs": int(totals.get("blocked_legs", 0) or 0),
             "hazard_flags": len(totals.get("hazard_violations", [])) if isinstance(
                 totals.get("hazard_violations"), list) else 0,
             "wall_s": round(time.monotonic() - t0, 3),      # the faster-than-realtime claim, measured
         })
-    futures.sort(key=lambda f: f["time_s"] if objective in ("duration", "time") else f["energy_MJ"])
-    return {"objective": objective, "futures": futures, "recommended": futures[0]["algorithm"]}
+    futures = rank_feasible_first(futures, objective=objective)
+    recommended = futures[0]["algorithm"] if futures and futures[0]["feasible"] else None
+    return {"objective": objective, "futures": futures, "recommended": recommended}

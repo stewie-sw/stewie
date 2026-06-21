@@ -44,6 +44,41 @@ def test_forward_compare_ranks_candidate_futures():
     assert out["recommended"] == out["futures"][0]["algorithm"]
 
 
+def test_forward_compare_exposes_feasibility_first_fields():
+    """REHEARSE (mission-ops screen 2): every candidate future carries the FEASIBILITY-FIRST review
+    fields -- feasible + infeasible_reasons, return-to-lander margin, objective completion, charges --
+    drawn from the same conserved planner totals (no fabricated numbers)."""
+    m = _mission()
+    out = RS.forward_compare(m, candidates=("nearest", "two_opt"), objective="duration")
+    for f in out["futures"]:
+        assert isinstance(f["feasible"], bool)
+        assert isinstance(f["infeasible_reasons"], list)
+        # return-to-lander block carried straight from totals (#161): feasible + margin
+        assert isinstance(f["return_to_lander"]["feasible"], bool)
+        assert "margin_J" in f["return_to_lander"]
+        # objective completion: how many of the mission's orders the plan resolves into trips
+        assert f["objectives_total"] >= 1
+        assert f["charges"] >= 0
+
+
+def test_forward_compare_never_ranks_infeasible_above_feasible():
+    """The screen-2 INVARIANT: a feasible candidate is ALWAYS ranked above an infeasible one, even when
+    the infeasible candidate would score better on the raw objective. The recommendation is the head of a
+    feasible-first ordering, and is None when no candidate is feasible."""
+    # two synthetic futures (the ordering rule is pure, so we test it on the public sort directly):
+    # an infeasible candidate that is FASTER must still sort BELOW a slower feasible one.
+    fast_infeasible = {"algorithm": "x", "time_s": 10.0, "energy_MJ": 1.0, "feasible": False}
+    slow_feasible = {"algorithm": "y", "time_s": 99.0, "energy_MJ": 9.0, "feasible": True}
+    ranked = RS.rank_feasible_first([fast_infeasible, slow_feasible], objective="duration")
+    assert ranked[0]["algorithm"] == "y"          # feasible first, despite being slower
+    assert ranked[1]["algorithm"] == "x"
+    # all-infeasible -> still ordered by objective, but recommended is None at the route layer
+    both_bad = RS.rank_feasible_first(
+        [{"algorithm": "a", "time_s": 5.0, "feasible": False},
+         {"algorithm": "b", "time_s": 3.0, "feasible": False}], objective="duration")
+    assert [f["algorithm"] for f in both_bad] == ["b", "a"]   # objective order within the infeasible group
+
+
 def test_resync_graph_fuses_multiple_factors():
     """#78 [REQ:CP-06]: the graph resync fuses DEM + shadow fixes jointly; sigma shrinks below
     either single fix and the estimate sits between the factors, prior-weighted."""

@@ -622,6 +622,12 @@
       <button class="vtab" data-view="perception">Perception <span class="sysb">DART</span></button>
       <button class="vtab" data-view="metrics">Metrics <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
+      <!-- REHEARSE (mission-ops screen 2): the "Rehearse and compare" review surface. Re-simulates the
+           current build queue under each candidate solver input via the conserved forward-compare
+           ensemble (/resync/compare, director-gated) and shows the candidate plans side-by-side,
+           FEASIBILITY FIRST. Director-only because forward_compare sees truth; data-minrole bounces a
+           non-director. This is the rehearse step of Plan -> Rehearse -> (gated) Execute. -->
+      <button class="vtab" id="vtab-rehearse" data-view="rehearse" data-minrole="director" style="display:none" title="rehearse and compare: re-simulate the current build queue under each candidate solver input (faster-than-realtime) and review the candidate plans side-by-side, feasibility first — minimum margins, objective completion, duration, energy, charge cycles, optimality">Rehearse <span class="sysb">LODE</span></button>
       <!-- FS-03: the FLEET work area (operator+). Roster = the real vehicle registry (/fleet);
            per-vehicle allocation + makespan + conflicts = the last /plan result. data-minrole gates it
            like the operator chrome (gateChrome hides it for sub-operators). -->
@@ -933,6 +939,19 @@
         <div id="reportempty" class="empty">No report yet. Build a queue and press
           <b>Plan mission → open report</b> (Plan tab); the PDF appears here.</div>
       </div>
+      <!-- REHEARSE (mission-ops screen 2) pane. Director-only review surface. cockpit.js loadRehearse()
+           POSTs the current build queue to /resync/compare (lode.resync.forward_compare), then
+           rehearse_render.js builds the candidate cards side-by-side, FEASIBILITY FIRST (CSP-safe: no
+           inline script; the module is an external asset). Honest empty state when there is no plan. -->
+      <div id="pane_rehearse" class="pane">
+        <div class="cap"><span>REHEARSE &amp; COMPARE — candidate plans, feasibility first (<b>lode/resync.py forward_compare</b>)</span>
+          <button id="rehearserun" class="site" style="font-size:10px">Re-run forward-compare</button></div>
+        <div id="rehearsecards" style="overflow:auto;margin-top:8px">
+          <div id="rehearseempty" class="empty">No candidates to rehearse yet. Add at least one order
+            (Plan tab) and press <b>Re-run forward-compare</b>; the re-simulated candidate futures from
+            the conserved planner appear here side-by-side, feasibility first.</div>
+        </div>
+      </div>
       <!-- FS-03: the FLEET pane. Operator+ work area. Two sections: the static vehicle-registry ROSTER
            (from /fleet) and the live per-vehicle ALLOCATION + makespan + conflicts (from the last /plan).
            cockpit.js loadPane('fleet') fetches /fleet and reads LAST_TOTALS, then fleet_render.js builds
@@ -1216,11 +1235,12 @@
 <script src="/assets/plan_geom.js?v=6bf00111b311"></script><!-- FS-24: pure plan-canvas extent/transform/glyph/precedence math (sets window.STEWIE_PLAN_GEOM) -->
 <script src="/assets/footprint_geom.js?v=0a9f6fa9884c"></script><!-- GIS S-3: pure typed-footprint shape geometry (ring/area/draw; sets window.STEWIE_FOOTPRINT_GEOM) -->
 <script src="/assets/fleet_render.js?v=893e64c9273d"></script><!-- FS-03: pure Fleet-pane roster/allocation HTML builders (sets window.STEWIE_FLEET_RENDER) -->
+<script src="/assets/rehearse_render.js?v=0945308d87e1"></script><!-- REHEARSE: pure candidate-card HTML builder, feasibility first (sets window.STEWIE_REHEARSE_RENDER) -->
 <script src="/assets/construction_render.js?v=a649526014e9"></script><!-- FS-03: pure Construction-pane catalog/acceptance HTML builders (sets window.STEWIE_CONSTRUCTION_RENDER) -->
 <script src="/assets/models_render.js?v=c5b4efe434e8"></script><!-- FS-03: pure Models-pane profile/registry/governance HTML builders (sets window.STEWIE_MODELS_RENDER) -->
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=aa6654a3f9eb"></script>
+<script src="/assets/cockpit.js?v=af5a87494536"></script>
 </body>
 </html>
