@@ -427,6 +427,26 @@
         <label>area<input id="qfoot" type="number" value="36" step="1" />m²</label>
         <label>depth<input id="qdepth" type="number" value="0.04" step="0.01" />m</label>
       </div>
+      <!-- GIS S-3: typed footprint shape (rect WxL + orientation, corridor, polygon). "square" = the
+           legacy scalar->axis-aligned-square default (area field used). A non-square shape supplies the
+           area and carries orientation, round-tripping to the CP-05 planner. -->
+      <div class="ctl">
+        <label title="footprint shape: square = the legacy scalar->axis-aligned square (uses the area field); rectangle/corridor/polygon give a real oriented footprint">shape
+          <select id="qshape">
+            <option value="square">square (area)</option>
+            <option value="rectangle">rectangle W×L</option>
+            <option value="corridor">corridor</option>
+            <option value="polygon">polygon</option>
+          </select></label>
+      </div>
+      <div class="ctl" id="qshape-rect" style="display:none">
+        <label>W<input id="qsw" type="number" value="15" step="0.5" style="width:4.5em" />m</label>
+        <label>L<input id="qsh" type="number" value="2" step="0.5" style="width:4.5em" />m</label>
+        <label title="orientation: degrees CCW from +x (site east)">θ<input id="qstheta" type="number" value="0" step="5" style="width:4em" />°</label>
+      </div>
+      <div class="ctl" id="qshape-poly" style="display:none">
+        <input id="qspoly" class="lbl" placeholder="polygon verts (order frame): x,y; x,y; x,y …" />
+      </div>
       <div class="ctl"><input id="qlabel" class="lbl" placeholder="label (e.g. Level landing pad)" /></div>
       <div class="ctl">
         <button id="qadd" class="site">+ Add</button>
@@ -1141,10 +1161,11 @@
 <script src="/assets/navplot.js?v=e542c82063f0"></script><!-- FS-24: pure nav-pane canvas plotters (sets window.STEWIE_NAVPLOT) -->
 <script src="/assets/evidence_html.js?v=7178f72e6076"></script><!-- FS-24: pure release-evidence HTML builders (sets window.STEWIE_EVIDENCE_HTML) -->
 <script src="/assets/rover_hud.js?v=ed01a404713d"></script><!-- FS-24: pure exec-telemetry renderers HUD/spark/chips/gantt (sets window.STEWIE_ROVER_HUD) -->
-<script src="/assets/plan_geom.js?v=b231e1bb3015"></script><!-- FS-24: pure plan-canvas extent/transform/glyph/precedence math (sets window.STEWIE_PLAN_GEOM) -->
+<script src="/assets/plan_geom.js?v=6bf00111b311"></script><!-- FS-24: pure plan-canvas extent/transform/glyph/precedence math (sets window.STEWIE_PLAN_GEOM) -->
+<script src="/assets/footprint_geom.js?v=0a9f6fa9884c"></script><!-- GIS S-3: pure typed-footprint shape geometry (ring/area/draw; sets window.STEWIE_FOOTPRINT_GEOM) -->
 <script src="/assets/fleet_render.js?v=06884853fac0"></script><!-- FS-03: pure Fleet-pane roster/allocation HTML builders (sets window.STEWIE_FLEET_RENDER) -->
 <script src="/assets/construction_render.js?v=a649526014e9"></script><!-- FS-03: pure Construction-pane catalog/acceptance HTML builders (sets window.STEWIE_CONSTRUCTION_RENDER) -->
 <script src="/assets/models_render.js?v=c5b4efe434e8"></script><!-- FS-03: pure Models-pane profile/registry/governance HTML builders (sets window.STEWIE_MODELS_RENDER) -->
-<script src="/assets/cockpit.js?v=5cb493945715"></script>
+<script src="/assets/cockpit.js?v=fc6be36d6da5"></script>
 </body>
 </html>

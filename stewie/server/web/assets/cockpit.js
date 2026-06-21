@@ -2474,7 +2474,7 @@ function renderQueue() {
   // #4: x/y are site-local metres (East/North from the site origin) -- label the units so a queued
   // "wp1  2310  8165" reads as 2310 m E, 8165 m N, not bare unexplained numbers.
   const cols = [["#", null], ["kind", "kind"], ["action", "action"], ["x m·E", "x"], ["y m·N", "y"],
-                ["m²", "footprint_m2"], ["depth", "depth_m"], ["", null]];
+                ["m²", "footprint_m2"], ["shape", null], ["depth", "depth_m"], ["", null]];
   const tr = document.createElement("tr");
   cols.forEach(([label, key]) => {
     const th = document.createElement("th");
@@ -2494,8 +2494,20 @@ function renderQueue() {
     const row = document.createElement("tr");
     row.style.cssText = "border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer" +
       (i === SELECTED_ORDER ? ";outline:1px solid var(--accent)" : "");
+    // GIS S-3: the queue shows the typed footprint shape (e.g. "rect 15×2 @30°") or "square" (legacy).
+    const shapeLabel = o.kind === "goto" ? "—" : (function () {
+      const sh = o.shape;
+      if (!sh) return "square";
+      const t = sh.theta_deg ? ` @${Number(sh.theta_deg).toFixed(0)}°` : "";
+      if (sh.kind === "rectangle") return `rect ${fx(sh.w)}×${fx(sh.h)}${t}`;
+      if (sh.kind === "corridor") return `corridor ${fx(sh.length)}×${fx(sh.width)}${t}`;
+      if (sh.kind === "circle") return `circle r${fx(sh.r)}`;
+      if (sh.kind === "polygon") return `poly (${(sh.vertices || []).length}v)`;
+      return "square";
+    })();
     const cells = [String(i + 1), o.kind, o.action || "", fx(o.x), fx(o.y),
-                   o.kind === "goto" ? "—" : fx(o.footprint_m2), o.kind === "goto" ? "—" : fx(o.depth_m)];
+                   o.kind === "goto" ? "—" : fx(o.footprint_m2), shapeLabel,
+                   o.kind === "goto" ? "—" : fx(o.depth_m)];
     cells.forEach((c) => { const td = document.createElement("td");
       td.textContent = c; td.style.padding = "2px 5px"; row.appendChild(td); });
     const ctl = document.createElement("td"); ctl.style.whiteSpace = "nowrap";
@@ -2894,7 +2906,7 @@ loadLayers();
 let _placeXY = null;                                       // last click-to-place marker (local metres)
 // FS-24: the plan-canvas extent/transform/glyph math lives in plan_geom.js (pure). These thin aliases
 // resolve the cockpit's globals (ORDERS/KEEPOUTS/_placeXY/koBounds) and pass them in; callers unchanged.
-function _planExtent() { return window.STEWIE_PLAN_GEOM.planExtent(ORDERS, KEEPOUTS, _placeXY, koBounds); }
+function _planExtent() { return window.STEWIE_PLAN_GEOM.planExtent(ORDERS, KEEPOUTS, _placeXY, koBounds, window.STEWIE_FOOTPRINT_GEOM.footprintBounds); }
 const _planXform = window.STEWIE_PLAN_GEOM.planXform;
 let LAST_ROUTES = [];                                      // item 3: routes from the last /plan response, drawn on the 2D canvas
 // #29: the branded feature glyphs -- ONE drawing function so map, queue, and legend agree (plan_geom.js).
@@ -2944,17 +2956,22 @@ function drawPlan() {
       ctx.fillText(String(k + 1), X(w.x), Y(w.y) + 2.5);
     });
   }
-  if (LAYER_ON.excavation) ORDERS.forEach((o, i) => {      // excavation layer: cut (blue) / fill (orange) squares
+  if (LAYER_ON.excavation) ORDERS.forEach((o, i) => {      // excavation layer: cut (blue) / fill (orange)
+    if (o.kind === "goto") return;                         // S-3 waypoints are drawn as the path, not a footprint
     const half = Math.max(2, Math.sqrt(o.footprint_m2) / 2 * s);
     ctx.fillStyle = o.kind === "cut" ? "rgba(79,156,255,.30)" : "rgba(224,123,57,.30)";
     ctx.strokeStyle = o.kind === "cut" ? "#4f9cff" : "#e07b39"; ctx.lineWidth = 1;
-    ctx.fillRect(X(o.x) - half, Y(o.y) - half, half * 2, half * 2);
-    ctx.strokeRect(X(o.x) - half, Y(o.y) - half, half * 2, half * 2);
-    if (i === SELECTED_ORDER) {                            // S-2: selection highlight (brand red)
+    // GIS S-3: draw the REAL typed footprint (oriented rect / corridor / circle / polygon); an order
+    // with no shape falls back to its legacy axis-aligned square inside footprint_geom.drawFootprint.
+    window.STEWIE_FOOTPRINT_GEOM.drawFootprint(ctx, o, X, Y);
+    if (i === SELECTED_ORDER) {                            // S-2: selection highlight (brand red AABB)
+      const b = window.STEWIE_FOOTPRINT_GEOM.footprintBounds(o);
+      const bx0 = X(b.x0), by1 = Y(b.y0), bx1 = X(b.x1), by0 = Y(b.y1);   // site Y up, canvas Y down
       ctx.strokeStyle = "#e8273f"; ctx.lineWidth = 2;
-      ctx.strokeRect(X(o.x) - half - 3, Y(o.y) - half - 3, half * 2 + 6, half * 2 + 6);
+      ctx.strokeRect(Math.min(bx0, bx1) - 3, Math.min(by0, by1) - 3,
+                     Math.abs(bx1 - bx0) + 6, Math.abs(by1 - by0) + 6);
     }
-    drawGlyph(ctx, o.kind, X(o.x), Y(o.y) - half - 6, 5);  // the kind glyph above the square
+    drawGlyph(ctx, o.kind, X(o.x), Y(o.y) - half - 6, 5);  // the kind glyph above the footprint
     ctx.fillStyle = "#c7d2e3"; ctx.font = "9px system-ui"; ctx.textAlign = "center";
     ctx.fillText(String(i + 1), X(o.x), Y(o.y) + 3);
   });
@@ -3059,11 +3076,48 @@ qel("plancanvas").onclick = (e) => {                       // canvas px -> local
   setQ(`placed ${_placeXY.x}, ${_placeXY.y} m — pick a kind/structure + Add to queue it`);
   drawPlan();
 };
-qel("qadd").onclick = () => addOrder({
-  action: qel("qlabel").value || (qel("qkind").value === "cut" ? "Cut" : "Fill"),
-  kind: qel("qkind").value, x: +qel("qx").value, y: +qel("qy").value,
-  footprint_m2: +qel("qfoot").value, depth_m: +qel("qdepth").value,
-});
+// GIS S-3: read the authoring form's footprint-shape control into a CP-05 shape dict (or null for the
+// legacy "square (area)" default). Pure builder lives in footprint_geom.js; this thin reader pulls the
+// DOM values, mirroring the FS-24 pattern. Returns {shape, area} -- area is the shape's planar area so
+// the order's footprint_m2 stays consistent with the typed geometry the planner rasterizes.
+const _FPG = window.STEWIE_FOOTPRINT_GEOM;
+function _authoredFootprint() {
+  const kind = qel("qshape") ? qel("qshape").value : "square";
+  let vals;
+  if (kind === "rectangle" || kind === "corridor") {
+    const w = +qel("qsw").value, l = +qel("qsh").value, theta = +qel("qstheta").value;
+    vals = (kind === "rectangle") ? { w, h: l, theta_deg: theta }
+                                  : { length: w, width: l, theta_deg: theta };
+  } else if (kind === "polygon") {
+    vals = { vertices: _FPG.parsePolyVerts(qel("qspoly") ? qel("qspoly").value : "") };
+  }
+  const shape = _FPG.shapeFromForm(kind, vals);
+  return { shape, area: shape ? _FPG.shapeArea(shape) : NaN };
+}
+qel("qadd").onclick = () => {
+  const fp = _authoredFootprint();
+  const order = {
+    action: qel("qlabel").value || (qel("qkind").value === "cut" ? "Cut" : "Fill"),
+    kind: qel("qkind").value, x: +qel("qx").value, y: +qel("qy").value,
+    // a typed shape supplies the area (CP-05) and carries orientation; otherwise the legacy scalar.
+    footprint_m2: fp.shape ? +fp.area.toFixed(3) : +qel("qfoot").value,
+    depth_m: +qel("qdepth").value,
+  };
+  if (fp.shape) order.shape = fp.shape;                    // round-trips to mission_from_dict -> planner
+  addOrder(order);
+};
+// toggle the shape sub-rows so only the chosen shape's inputs show (square = legacy area path)
+if (qel("qshape")) {
+  const _syncShapeRows = () => {
+    const k = qel("qshape").value;
+    const rect = qel("qshape-rect"), poly = qel("qshape-poly"), area = qel("qfoot");
+    if (rect) rect.style.display = (k === "rectangle" || k === "corridor") ? "" : "none";
+    if (poly) poly.style.display = (k === "polygon") ? "" : "none";
+    if (area && area.parentElement) area.parentElement.style.opacity = (k === "square") ? "1" : ".45";
+  };
+  qel("qshape").addEventListener("change", _syncShapeRows);
+  _syncShapeRows();
+}
 qel("qfrompad").onclick = () => {                          // convenience: pad estimator -> a cut + a balanced fill
   const padW = +$("padW").value, padL = +$("padL").value, cut = +$("cut").value, bermH = +$("bermH").value;
   const x = +qel("qx").value, y = +qel("qy").value, p = phys(sel.value);

@@ -12,9 +12,14 @@
   // The plan-canvas world extent: a padded AABB over the charger (0,0), every order's footprint
   // square, every keep-out's bounds, and the click-to-place marker. `koBounds(k)` returns a keep-out's
   // local-frame AABB (any shape). Degenerate spans get a 10 m fallback. Pure.
-  function planExtent(orders, keepouts, placeXY, koBounds) {
+  function planExtent(orders, keepouts, placeXY, koBounds, footprintBounds) {
     const xs = [0], ys = [0];                                // include the charger at (0,0)
-    orders.forEach((o) => { const h = Math.sqrt(o.footprint_m2) / 2; xs.push(o.x - h, o.x + h); ys.push(o.y - h, o.y + h); });
+    // GIS S-3: frame each order by its REAL footprint AABB when a bounds fn is supplied (an oriented
+    // corridor/rect/polygon), else the legacy sqrt(footprint_m2) square -- behaviour-preserving.
+    orders.forEach((o) => {
+      if (footprintBounds) { const b = footprintBounds(o); xs.push(b.x0, b.x1); ys.push(b.y0, b.y1); return; }
+      const h = Math.sqrt(o.footprint_m2) / 2; xs.push(o.x - h, o.x + h); ys.push(o.y - h, o.y + h);
+    });
     keepouts.forEach((k) => { const b = koBounds(k); xs.push(b.x0, b.x1); ys.push(b.y0, b.y1); });
     if (placeXY) { xs.push(placeXY.x); ys.push(placeXY.y); }
     let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
