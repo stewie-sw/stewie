@@ -81,6 +81,37 @@ def session_debrief(sid: str, fast_forward: float = 1.0, _auth: str = Depends(re
     return s.debrief_view(fast_forward=fast_forward)
 
 
+@router.get("/session/{sid}/divergence")
+def session_divergence(sid: str, _auth: str = Depends(require_director)):
+    """TR-02 (DIRECTOR truth board): the believed-vs-true POSE divergence per leg, plus the mean/max
+    aggregate. Director-only -- the truth pose track is exactly the truth-denylisted signal (MO-04:
+    truth is magenta, directors-only). Built from the live session record (no authored numbers)."""
+    s = SES.get(sid)
+    if s is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "unknown session"})
+    return {"ok": True, "session_id": sid, "divergence": s.pose_divergence()}
+
+
+@router.get("/trainer/history")
+def trainer_history(identity: str = Depends(require_auth)):
+    """TR-03 (PROGRAM board): the cross-session history -- every persisted scorecard record (the REAL
+    recorded sessions under data_dir/sessions/), newest first, for the leaderboard + makespan/
+    objectives trend. Operator+; the per-session TRUTH block (pose/energy divergence) is included ONLY
+    for directors (the same gating the per-session scorecard applies). Honest empty list when no
+    sessions have been recorded yet -- the cockpit renders a 'no recorded sessions yet' empty state."""
+    from stewie.server import auth as AUTH
+    is_director = AUTH.role_of(identity) == "director"
+    sessions = []
+    for rec in SES.list_scorecard_records():
+        row = {"session_id": rec["session_id"], "profile": rec.get("profile", "?"),
+               "objective": rec.get("objective", "?"), "recorded_at": rec.get("recorded_at"),
+               "public": rec.get("public", {}), "makespan": rec.get("makespan", {})}
+        if is_director:
+            row["truth"] = rec.get("truth", {})               # TR-02 divergence, directors only
+        sessions.append(row)
+    return {"ok": True, "is_director": is_director, "count": len(sessions), "sessions": sessions}
+
+
 @router.get("/session/{sid}/summary")
 def session_summary(sid: str, _auth: None = Depends(require_auth)):
     s = SES.get(sid)

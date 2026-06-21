@@ -272,6 +272,104 @@ def test_cockpit_metrics_pane_surfaces_the_scorecard():
     assert "/scorecard" in js and "makespan_ratio" in js, "the board does not surface makespan-vs-optimal"
 
 
+def test_pose_divergence_is_believed_vs_true_and_director_gated_in_scorecard(client, monkeypatch):
+    """TR-02: the scorecard truth block carries the believed-vs-true POSE divergence (mean/max), built
+    from each leg's believed (bx,by) vs true (tx,ty) pose. It is director-only (MO-04 magenta) -- an
+    operator never sees it."""
+    monkeypatch.setenv("STEWIE_ALLOWED_OPERATORS", "aaron.w.storey80@gmail.com, trainee@gmail.com")
+    monkeypatch.setenv("STEWIE_DIRECTORS", "aaron.w.storey80@gmail.com")
+    K = {"X-API-Key": "director-key"}
+    sid = client.post("/session/start", json=_mission(), headers=K).json()["session_id"]
+    dboard = client.get(f"/session/{sid}/scorecard", headers=K).json()["scorecard"]
+    assert "pose_divergence_mean_m" in dboard and "pose_divergence_max_m" in dboard
+    assert dboard["pose_divergence_mean_m"] >= 0.0 and dboard["pose_divergence_max_m"] >= dboard["pose_divergence_mean_m"]
+    # operator (trainee token) is gated out of the truth pose divergence
+    tok = client.post("/auth/login", json={"email": "trainee@gmail.com"}, headers=K).json()["token"]
+    oboard = client.get(f"/session/{sid}/scorecard",
+                        headers={"Authorization": f"Bearer {tok}"}).json()["scorecard"]
+    assert "pose_divergence_mean_m" not in oboard
+
+
+def test_divergence_route_is_director_only_and_returns_per_leg_pose(client):
+    """TR-02: GET /session/{sid}/divergence is director-gated and returns the per-leg believed-vs-true
+    pose track + the mean/max aggregate (the truth board's data)."""
+    K = {"X-API-Key": "director-key"}
+    sid = client.post("/session/start", json=_mission(), headers=K).json()["session_id"]
+    assert client.get(f"/session/{sid}/divergence").status_code == 401   # operator-open? no -> director only
+    d = client.get(f"/session/{sid}/divergence", headers=K)
+    assert d.status_code == 200, d.text
+    div = d.json()["divergence"]
+    assert "per_leg" in div and "mean_m" in div and "max_m" in div
+    for leg in div["per_leg"]:
+        for k in ("leg", "err_m", "bx", "by", "tx", "ty"):
+            assert k in leg, f"divergence leg missing {k}"
+        assert leg["err_m"] >= 0.0
+
+
+def test_trainer_history_lists_real_recorded_sessions_and_gates_truth(client, monkeypatch):
+    """TR-03 (PROGRAM board): /trainer/history lists every persisted scorecard record (real recorded
+    sessions). Operators see the public board + makespan; only directors see the per-session truth
+    block. Honest empty list before any session is recorded."""
+    monkeypatch.setenv("STEWIE_ALLOWED_OPERATORS", "aaron.w.storey80@gmail.com, trainee@gmail.com")
+    monkeypatch.setenv("STEWIE_DIRECTORS", "aaron.w.storey80@gmail.com")
+    K = {"X-API-Key": "director-key"}
+    # empty state before any scorecard is persisted
+    h0 = client.get("/trainer/history", headers=K).json()
+    assert h0["ok"] and h0["count"] == 0 and h0["sessions"] == []
+    # record two real sessions (requesting the scorecard persists the durable record)
+    sids = []
+    for _ in range(2):
+        sid = client.post("/session/start", json=_mission(), headers=K).json()["session_id"]
+        client.get(f"/session/{sid}/scorecard", headers=K)
+        sids.append(sid)
+    h = client.get("/trainer/history", headers=K).json()
+    assert h["count"] == 2 and h["is_director"] is True
+    listed = {row["session_id"] for row in h["sessions"]}
+    assert set(sids) <= listed
+    row = h["sessions"][0]
+    assert "makespan_ratio" in row["makespan"] and "energy_MJ" in row["public"]
+    assert "truth" in row and "pose_divergence_mean_m" in row["truth"]   # director sees truth
+    # operator (trainee) sees the history but NOT the truth block
+    tok = client.post("/auth/login", json={"email": "trainee@gmail.com"}, headers=K).json()["token"]
+    ho = client.get("/trainer/history", headers={"Authorization": f"Bearer {tok}"}).json()
+    assert ho["count"] == 2 and ho["is_director"] is False
+    assert all("truth" not in row for row in ho["sessions"])
+
+
+def test_trainer_history_requires_auth(client):
+    """TR-03: the program board is not open -- an unauthenticated caller is rejected (auth configured)."""
+    assert client.get("/trainer/history").status_code == 401
+
+
+def test_cockpit_trainer_pane_surfaces_the_three_boards():
+    """TR-02/03/04: the Trainer dashboard has a cockpit surface -- a #pane_trainer with the PROGRAM
+    (#trainerprogram), DIRECTOR truth (#trainertruth, hidden for non-directors), and DEBRIEF scrubber
+    (#trainerdebrief) sections, a director-gated Trainer vtab (data-minrole=operator), the pure
+    trainer_boards.js module loaded + stamped, and the cockpit wiring (loadTrainer + the three board
+    builders + the real routes)."""
+    import os
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    html = open(os.path.join(root, "stewie", "server", "index.html")).read()
+    js = open(os.path.join(root, "stewie", "server", "web", "assets", "cockpit.js")).read()
+    tb = open(os.path.join(root, "stewie", "server", "web", "assets", "trainer_boards.js")).read()
+    # the Trainer tab is gated to operator+ (the truth board is further director-gated server-side)
+    assert 'id="vtab-trainer"' in html and 'data-view="trainer"' in html
+    assert 'data-minrole="operator"' in html[html.index('id="vtab-trainer"'):html.index('id="vtab-trainer"') + 300]
+    # the pane carries the three boards
+    pane = html[html.index('id="pane_trainer"'):]
+    for slot in ('id="trainerprogram"', 'id="trainertruth"', 'id="trainerdebrief"',
+                 'id="trainerdebriefsel"', 'id="trainerstep"'):
+        assert slot in pane, f"no {slot} in the Trainer pane (#pane_trainer)"
+    # the pure module is loaded (CSP-safe external asset) + stamped (content-hash ?v=, not the 0-stub)
+    assert "trainer_boards.js?v=" in html
+    assert "trainer_boards.js?v=0000000000000" not in html, "trainer_boards.js was not stamped"
+    # the cockpit wires the boards from the REAL routes
+    assert "loadTrainer" in js and "/trainer/history" in js and "/debrief" in js
+    # the pure module exposes the three builders + the MO-04 truth color
+    for fn in ("programBoardHTML", "truthBoardHTML", "debriefScrubberHTML"):
+        assert fn in tb, f"trainer_boards.js missing {fn}"
+
+
 import stewie.server.session as SESMOD  # noqa: E402  (mechanism tests on the module-global store)
 
 
