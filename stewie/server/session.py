@@ -103,9 +103,13 @@ class Session:
             "link_profile": self.profile_name,
         }
         public.update(self.makespan_vs_optimal())
+        pd = self.pose_divergence()
         truth = {"energy_divergence_J": round(abs(true - nominal), 1),
                  "true_energy_MJ": round(true / 1e6, 3),
-                 "operator_missed_legs": missed}
+                 "operator_missed_legs": missed,
+                 # TR-02: the believed-vs-true POSE divergence (director-only, MO-04 magenta)
+                 "pose_divergence_mean_m": pd["mean_m"],
+                 "pose_divergence_max_m": pd["max_m"]}
         return {"public": public, "truth": truth}
 
     def makespan_vs_optimal(self) -> dict:
@@ -129,6 +133,30 @@ class Session:
         ratio = makespan_s / optimal_s if optimal_s > 0.0 else 1.0
         return {"makespan_s": round(makespan_s, 3), "optimal_s": round(optimal_s, 3),
                 "makespan_ratio": round(ratio, 4)}
+
+    def pose_divergence(self) -> dict:
+        """TR-02: the believed-vs-true POSE divergence of the run, per leg and aggregated. Each leg
+        carries the BELIEVED pose (bx, by -- the dead-reckoned estimate the operator's telemetry
+        reflects) and the TRUE pose (tx, ty -- the conserved-physics ground truth). The per-leg error
+        is the Euclidean gap; mean/max over the run are the director-only truth signal (MO-04: truth is
+        magenta, directors-only). Built only from the closed-loop record -- no authored numbers.
+
+        Returns ``{"per_leg": [{"leg","err_m","bx","by","tx","ty"}...], "mean_m", "max_m"}``."""
+        import math
+        per_leg = []
+        for leg in self.record["legs"]:
+            # a leg with no localization trace (a structural fixture) contributes no pose error
+            if not all(k in leg for k in ("bx", "by", "tx", "ty")):
+                continue
+            err = math.dist((float(leg["bx"]), float(leg["by"])),
+                            (float(leg["tx"]), float(leg["ty"])))
+            per_leg.append({"leg": leg["leg"], "err_m": round(err, 3),
+                            "bx": float(leg["bx"]), "by": float(leg["by"]),
+                            "tx": float(leg["tx"]), "ty": float(leg["ty"])})
+        errs = [p["err_m"] for p in per_leg]
+        return {"per_leg": per_leg,
+                "mean_m": round(sum(errs) / len(errs), 3) if errs else 0.0,
+                "max_m": round(max(errs), 3) if errs else 0.0}
 
     def debrief_view(self, fast_forward: float = 1.0) -> dict:
         legs = self.record["legs"]
@@ -300,3 +328,29 @@ def load_scorecard_record(session_id: str) -> dict | None:
         return None
     with open(path) as f:
         return json.load(f)
+
+
+def list_scorecard_records() -> list[dict]:
+    """TR-03 (program board): every persisted scorecard record under data_dir/sessions/, newest
+    first by file mtime. The durable cross-session history the leaderboard/trend reads -- these are
+    REAL recorded runs (each was persisted by a scorecard request), never fabricated. A record that
+    cannot be parsed is skipped (a half-written or hand-corrupted file never breaks the board)."""
+    import glob
+    import json
+    from stewie.specs import config as CFG
+    d = os.path.join(CFG.data_dir(), "sessions")
+    if not os.path.isdir(d):
+        return []
+    paths = sorted(glob.glob(os.path.join(d, "scorecard_*.json")),
+                   key=lambda p: os.path.getmtime(p), reverse=True)
+    out: list[dict] = []
+    for p in paths:
+        try:
+            with open(p) as f:
+                rec = json.load(f)
+        except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+            continue
+        if isinstance(rec, dict) and rec.get("session_id"):
+            rec["recorded_at"] = round(os.path.getmtime(p), 3)   # the durable timestamp (file mtime)
+            out.append(rec)
+    return out

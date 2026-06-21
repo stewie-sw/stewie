@@ -629,6 +629,12 @@
       <!-- FS-03: the MODELS work area (engineer/dev surface, operator+ like System). The model + config registries:
            system profiles (sha256 + VERIFIED), vehicle + body registries, and the ML-01 deployment-ready governance. -->
       <button class="vtab" id="vtab-models" data-view="models" data-minrole="operator" style="display:none" title="models: the system-profile registry (sha256 + VERIFIED status), vehicle + body registries with provenance, and the ML-01 deployment-ready gate + no-command-path governance">Models <span class="sysb">FORGE</span></button>
+      <!-- TR-02/03/04: the TRAINER work area (operator+, badge DART). Three boards: the PROGRAM leaderboard +
+           session history over the persisted scorecards (operator+); the DIRECTOR truth board (believed-vs-true
+           divergence, director-only, MO-04 magenta); and the DEBRIEF scrubber (step a recorded session
+           seen-vs-estimated-vs-truth). data-minrole gates the tab to operator+; the truth board content is
+           further director-gated server-side (/trainer/history truth block + /session/.../debrief). -->
+      <button class="vtab" id="vtab-trainer" data-view="trainer" data-minrole="operator" style="display:none" title="trainer dashboard: the program leaderboard + session history (operator+), the director truth board (believed-vs-true divergence, director-only), and the debrief scrubber to step a recorded run seen-vs-estimated-vs-truth">Trainer <span class="sysb">DART</span></button>
       <!-- FS-20: System / Settings / Admin moved OFF the work-area tab bar into the profile menu (role-gated);
            an operator sees only the mission work areas. -->
       <style>.profitem{display:block;width:100%;text-align:left;background:none;border:none;color:var(--fg,#dcdce4);font-size:12px;padding:7px 10px;border-radius:5px;cursor:pointer}.profitem:hover{background:var(--accent);color:#fff}</style>
@@ -973,6 +979,36 @@
           <div id="modelsgovernanceempty" class="empty">Loading the model-deployment governance…</div>
         </div>
       </div>
+      <!-- TR-02/03/04: the TRAINER pane (operator+, badge DART). Three boards, all rendered by the pure
+           trainer_boards.js module (CSP-safe: no inline script). TR-03 PROGRAM = leaderboard + history over
+           the persisted scorecards (/trainer/history). TR-02 DIRECTOR truth board = believed-vs-true
+           divergence (director-only; the section hides for non-directors). TR-04 DEBRIEF scrubber = step a
+           recorded run seen-vs-estimated-vs-truth (/session/.../debrief, director-only). loadTrainer()
+           fetches the real data; honest empty states when no sessions are recorded. -->
+      <div id="pane_trainer" class="pane">
+        <div class="cap"><span>PROGRAM — leaderboard + session history (<b>data_dir/sessions</b>)</span>
+          <button id="trainerrefresh" class="site" style="font-size:10px" title="reload the recorded-session history">↻ refresh</button></div>
+        <div id="trainerprogram" style="overflow:auto;margin-bottom:14px">
+          <div id="trainerprogramempty" class="empty">Loading recorded sessions…</div>
+        </div>
+        <div id="trainertruthwrap" style="display:none">
+          <div class="cap"><span>DIRECTOR TRUTH BOARD — believed-vs-true divergence <small>(director-only, MO-04)</small></span></div>
+          <div id="trainertruth" style="overflow:auto;margin-bottom:14px"></div>
+        </div>
+        <div class="cap"><span>DEBRIEF SCRUBBER — step a recorded run (seen vs estimated vs truth)</span></div>
+        <div id="trainerdebriefctl" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0;font-size:11px">
+          <label>session
+            <select id="trainerdebriefsel" title="pick a recorded session to scrub" style="font-size:11px;margin-left:4px"></select></label>
+          <button id="trainerstepback" class="site" style="font-size:11px" title="previous leg" disabled>◀</button>
+          <input id="trainerstep" type="range" min="0" max="0" value="0" step="1" style="vertical-align:middle;width:200px" title="scrub through the recorded legs" disabled />
+          <button id="trainerstepfwd" class="site" style="font-size:11px" title="next leg" disabled>▶</button>
+          <span id="trainerdebriefnote" style="color:var(--muted)"></span>
+        </div>
+        <div id="trainerdebrief" style="overflow:auto">
+          <div id="trainerdebriefempty" class="empty">No recorded run loaded. Pick a session above (or start
+            one in the Plan tab), then step through its legs. The debrief truth track is director-only.</div>
+        </div>
+      </div>
       <div id="pane-validation" class="pane">
         <div class="cap"><span>VALIDATION — figures from <b>validation/</b> (conserved-truth measurements)</span>
           <select id="valselect" title="pick a figure"></select></div>
@@ -1172,6 +1208,7 @@
 <script src="/assets/models_render.js?v=c5b4efe434e8"></script><!-- FS-03: pure Models-pane profile/registry/governance HTML builders (sets window.STEWIE_MODELS_RENDER) -->
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
-<script src="/assets/cockpit.js?v=d1a2ed3c15e4"></script>
+<script src="/assets/trainer_boards.js?v=8fad1337f531"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
+<script src="/assets/cockpit.js?v=f0529733141d"></script>
 </body>
 </html>

@@ -728,6 +728,7 @@ let VIEW = "plan";
 const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navview", report: "pane-report",
                     fleet: "pane_fleet",                                  // FS-03: the Fleet work area
                     construction: "pane_construction", models: "pane_models",  // FS-03: Construction + Models work areas
+                    trainer: "pane_trainer",                            // TR-02/03/04: the Trainer work area
                     validation: "pane-validation", api: "pane-api", server: "pane-server", config: "pane-config",
                     evidence: "pane-evidence", admin: "pane-admin", settings: "pane-settings" };
 const _PANE_LOADED = {};
@@ -952,6 +953,95 @@ async function loadModels() {
     rEl.innerHTML = MR.modelsRegistriesHTML(_MODELS, esc);
     gEl.innerHTML = MR.modelsGovernanceHTML(_MODELS, esc);
   }
+}
+
+// TR-02/03/04 Trainer pane: render the three boards from REAL recorded sessions. All HTML built by the
+// pure trainer_boards.js module (CSP-safe). TR-03 PROGRAM = leaderboard + history over /trainer/history
+// (the persisted scorecards). TR-02 DIRECTOR truth board = the believed-vs-true divergence (director-only;
+// the server omits the truth block + the section is hidden for non-directors). TR-04 DEBRIEF scrubber =
+// step a recorded run seen-vs-estimated-vs-truth via /session/.../debrief (director-only). Honest empty
+// states throughout (no fabricated runs); a non-director simply sees fewer boards.
+let _TRAINER_HISTORY = null;       // last /trainer/history payload (drives PROGRAM + truth + the sel list)
+let _TRAINER_DEBRIEF = null;       // last loaded /session/.../debrief payload (the scrubber's run)
+let _TRAINER_STEP = 0;             // the scrubber's current leg index
+async function loadTrainer() {
+  const TB = window.STEWIE_TRAINER_BOARDS;
+  const progEl = $("trainerprogram");
+  if (!TB || !progEl) return;
+  try {
+    const r = await fetch("/trainer/history", { headers: apiHeaders() });
+    if (r.ok) { _TRAINER_HISTORY = await r.json(); }
+    else {
+      progEl.innerHTML = '<div class="empty">Session history unavailable (HTTP ' + r.status
+        + (r.status === 401 || r.status === 403 ? " — operator+ sign-in required" : "") + ").</div>";
+      return;
+    }
+  } catch (e) {
+    progEl.innerHTML = '<div class="empty">Session history unavailable (' + esc(String(e)) + ").</div>";
+    return;
+  }
+  progEl.innerHTML = TB.programBoardHTML(_TRAINER_HISTORY, esc);
+  // TR-02 director truth board: only shown to a director (the server flags is_director on the payload)
+  const truthWrap = $("trainertruthwrap"), truthEl = $("trainertruth");
+  if (truthWrap && truthEl) {
+    const isDir = _TRAINER_HISTORY && _TRAINER_HISTORY.is_director === true;
+    truthWrap.style.display = isDir ? "block" : "none";
+    if (isDir) truthEl.innerHTML = TB.truthBoardHTML(_TRAINER_HISTORY, esc);
+  }
+  // TR-04 scrubber session picker: populate from the recorded sessions (the debrief route is director-only,
+  // so a non-director picking a session gets the honest "director-only" empty state when it 401s).
+  const sel = $("trainerdebriefsel");
+  if (sel) {
+    const sessions = (_TRAINER_HISTORY && _TRAINER_HISTORY.sessions) || [];
+    const prev = sel.value;
+    sel.innerHTML = sessions.length
+      ? sessions.map((s) => `<option value="${esc(s.session_id)}">${esc(s.session_id.slice(0, 8))}`
+          + ` · ${esc(String(s.profile || "?"))}</option>`).join("")
+      : '<option value="">no recorded sessions</option>';
+    if (sessions.some((s) => s.session_id === prev)) sel.value = prev;   // keep the user's pick across refresh
+  }
+}
+async function loadTrainerDebrief(sid) {
+  const TB = window.STEWIE_TRAINER_BOARDS, dbEl = $("trainerdebrief"), note = $("trainerdebriefnote");
+  if (!TB || !dbEl || !sid) return;
+  try {
+    const r = await fetch(`/session/${encodeURIComponent(sid)}/debrief`, { headers: apiHeaders() });
+    if (r.status === 401 || r.status === 403) {
+      _TRAINER_DEBRIEF = null;
+      dbEl.innerHTML = '<div class="empty">The debrief scrubber (seen-vs-estimated-vs-truth) is '
+        + "director-only (MO-04). Sign in as a director to step through a recorded run.</div>";
+      _syncScrubberControls();
+      return;
+    }
+    if (!r.ok) {
+      _TRAINER_DEBRIEF = null;
+      dbEl.innerHTML = '<div class="empty">Debrief unavailable (HTTP ' + r.status
+        + "; the live session may have been evicted — re-run it from the Plan tab).</div>";
+      _syncScrubberControls();
+      return;
+    }
+    _TRAINER_DEBRIEF = await r.json();
+    _TRAINER_STEP = 0;
+  } catch (e) {
+    _TRAINER_DEBRIEF = null;
+    dbEl.innerHTML = '<div class="empty">Debrief unavailable (' + esc(String(e)) + ").</div>";
+  }
+  _renderScrubber();
+}
+function _renderScrubber() {
+  const TB = window.STEWIE_TRAINER_BOARDS, dbEl = $("trainerdebrief"), note = $("trainerdebriefnote");
+  if (!TB || !dbEl) return;
+  dbEl.innerHTML = TB.debriefScrubberHTML(_TRAINER_DEBRIEF, _TRAINER_STEP, esc);
+  const n = (_TRAINER_DEBRIEF && _TRAINER_DEBRIEF.legs) ? _TRAINER_DEBRIEF.legs.length : 0;
+  if (note) note.textContent = n ? `${n} legs recorded` : "";
+  _syncScrubberControls();
+}
+function _syncScrubberControls() {
+  const slider = $("trainerstep"), back = $("trainerstepback"), fwd = $("trainerstepfwd");
+  const n = (_TRAINER_DEBRIEF && _TRAINER_DEBRIEF.legs) ? _TRAINER_DEBRIEF.legs.length : 0;
+  if (slider) { slider.max = Math.max(0, n - 1); slider.value = _TRAINER_STEP; slider.disabled = n < 1; }
+  if (back) back.disabled = n < 1 || _TRAINER_STEP <= 0;
+  if (fwd) fwd.disabled = n < 1 || _TRAINER_STEP >= n - 1;
 }
 
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
@@ -1690,6 +1780,8 @@ async function loadPane(name) {
       await loadConstruction();                                          // FS-03: build catalog (/construction) + last-plan as-built
     } else if (name === "models") {
       await loadModels();                                                // FS-03: model + config registries (/models)
+    } else if (name === "trainer") {
+      await loadTrainer();                                               // TR-02/03/04: program + truth + debrief boards
     } else if (name === "validation" && !_PANE_LOADED.validation) {
       _PANE_LOADED.validation = true;
       const d = await (await fetch("/figures")).json();
@@ -1738,6 +1830,24 @@ async function loadPane(name) {
 // these thin aliases pass the SEC-04 escaper / write the result into the DOM, preserving behaviour.
 function renderEvidence(d) { return window.STEWIE_EVIDENCE_HTML.evidenceHTML(d, (typeof esc === "function") ? esc : null); }
 $("srvrefresh").onclick = () => loadPane("server");
+
+// TR-02/03/04 Trainer pane controls: refresh the recorded-session history, pick a session, and scrub its
+// debrief legs (seen-vs-estimated-vs-truth). The scrubber re-renders from the cached debrief payload (no
+// re-fetch per step) so stepping is instant and the link accounting (server-side) is never touched.
+$("trainerrefresh") && ($("trainerrefresh").onclick = () => loadTrainer());
+$("trainerdebriefsel") && ($("trainerdebriefsel").onchange = (e) => {
+  if (e.target.value) loadTrainerDebrief(e.target.value);
+});
+$("trainerstep") && ($("trainerstep").oninput = (e) => {
+  _TRAINER_STEP = Number(e.target.value) | 0; _renderScrubber();
+});
+$("trainerstepback") && ($("trainerstepback").onclick = () => {
+  if (_TRAINER_STEP > 0) { _TRAINER_STEP -= 1; _renderScrubber(); }
+});
+$("trainerstepfwd") && ($("trainerstepfwd").onclick = () => {
+  const n = (_TRAINER_DEBRIEF && _TRAINER_DEBRIEF.legs) ? _TRAINER_DEBRIEF.legs.length : 0;
+  if (_TRAINER_STEP < n - 1) { _TRAINER_STEP += 1; _renderScrubber(); }
+});
 
 // ---- Navigation view (P1.4): ARGUS estimator surface + articulation-parallax relocalization -----
 // FS-24: the four pure nav-pane CANVAS PLOTTERS now live in navplot.js (window.STEWIE_NAVPLOT); these
