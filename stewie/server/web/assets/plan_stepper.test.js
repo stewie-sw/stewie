@@ -58,3 +58,16 @@ test("sectionsForStep is pure -- the returned array does not alias the internal 
   a.push("9");
   assert.deepStrictEqual(S.sectionsForStep("site"), ["1", "2"]);
 });
+
+// GIS S-2: the Contents tree groups must stay coherent with the stepper -- each group's section is one the
+// expected step reveals. Basemap/Terrain/Sun ride the Site step (1+2); Safety/Operations(orders) ride Orders (5).
+test("contents_tree groups carry sections revealed by the right pipeline step", () => {
+  const CT = require("./contents_tree.js");
+  const expectStep = { basemap: "site", terrain: "site", sun: "site", safety: "orders", operations: "orders" };
+  CT.GROUPS.forEach((g) => {
+    const step = expectStep[g.id];
+    assert.ok(step, `group ${g.id} has an expected step`);
+    assert.ok(S.sectionVisible(step, g.section),
+      `group ${g.id} (section ${g.section}) must be revealed by the ${step} step`);
+  });
+});

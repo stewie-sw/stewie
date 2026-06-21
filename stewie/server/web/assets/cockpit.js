@@ -2439,6 +2439,7 @@ function renderKeepouts() {
     ol.appendChild(li);
   });
   drawPlan();
+  if (typeof renderContentsTree === "function") renderContentsTree();   // GIS S-2: keep-out feature rows in the tree
 }
 qel("koadd").onclick = () => {
   const x = +qel("kox").value, y = +qel("koy").value, r = +qel("kor").value;
@@ -2524,8 +2525,84 @@ function renderQueue() {
   drawPlan();
   scheduleAutoRender();                                    // #33: edits flow to the Godot render
   if (typeof renderStepper === "function") renderStepper();  // pipeline spine: Orders done when queue non-empty
+  if (typeof renderContentsTree === "function") renderContentsTree();   // GIS S-2: orders feature layer in the tree
 }
 function addOrder(o) { snapshotAuthoring(); ORDERS.push(o); renderQueue(); }
+
+// GIS S-2: the Contents tree -- a sidebar PRESENTATION layer over the existing plan/layer state. It owns NO
+// state: it snapshots LAYER_ON / ORDERS / KEEPOUTS / markers, asks the pure module to build the tree, and
+// wires each row's checkbox/zoom/remove/select back to the SAME functions the flat widgets already call
+// (applyLayerToggle, flyToWorkArea, the ORDERS/KEEPOUTS splices + renderQueue/renderKeepouts). So the queue,
+// keep-out list, layer strip and tree all stay in sync off one source of truth.
+function syncLayerStripCheckbox(lid, on) {                  // keep the flat LAYERS strip in lockstep
+  const lp = qel("layerpanel"); if (!lp) return;
+  if (lid === "terrain3d") { const c = qel("lyr_terrain3d"); if (c) c.checked = on; return; }
+  if (lid === "recon_twin") { const c = qel("lyr_recon_twin"); if (c) c.checked = on; return; }
+  // the /layers rows have no stable id; match by the layer's display name in the label text.
+  const NAME = { imagery: "imagery", dem: "DEM", slope: "Slope", topology: "Topology", grid: "grid",
+                 hazard: "no-go", illumination: "Shadow", incidence: "incidence", psr: "PSR", excavation: "excavation",
+                 lander: "lander" };
+  const needle = NAME[lid]; if (!needle) return;
+  lp.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+    const t = (cb.parentElement && cb.parentElement.textContent) || "";
+    if (t.toLowerCase().includes(needle.toLowerCase())) cb.checked = on;
+  });
+}
+function renderContentsTree() {
+  const CT = window.STEWIE_CONTENTS_TREE; if (!CT) return;
+  const tgt = qel("contents-tree"); if (!tgt) return;
+  const tree = CT.buildTree({
+    layerOn: LAYER_ON,
+    orders: ORDERS,
+    keepouts: KEEPOUTS,
+    selectedOrder: SELECTED_ORDER,
+    koLabel,
+    markers: {
+      lander: { present: true, x: (typeof LANDER_P !== "undefined" ? LANDER_P.x : 0),
+                y: (typeof LANDER_P !== "undefined" ? LANDER_P.y : 0) },
+      charger: { present: true, x: 0, y: 0 },               // the planner charger is fixed at the site origin (0,0)
+    },
+  });
+  CT.renderTree(tgt, tree, document, {
+    onToggle: (row, checked) => {
+      if (row.kind === "layer" || row.kind === "marker" || row.kind === "keepout") {
+        const lid = row.kind === "marker" ? "lander" : (row.kind === "keepout" ? "hazard" : row.ref);
+        LAYER_ON[lid] = checked;
+        applyLayerToggle(lid, checked);
+        syncLayerStripCheckbox(lid, checked);
+        if (typeof drawPlan === "function") drawPlan();
+      } else if (row.kind === "order") {                    // orders ride the excavation feature layer
+        LAYER_ON.excavation = checked;
+        applyLayerToggle("excavation", checked);
+        syncLayerStripCheckbox("excavation", checked);
+        if (typeof drawPlan === "function") drawPlan();
+      }
+      renderContentsTree();
+    },
+    onZoom: (row) => {
+      if (row.kind === "order") { SELECTED_ORDER = row.ref; if (typeof drawPlan === "function") drawPlan(); }
+      if (typeof flyToWorkArea === "function") flyToWorkArea();
+      renderContentsTree();
+    },
+    onRemove: (row) => {
+      if (row.kind === "order") {
+        snapshotAuthoring(); ORDERS.splice(row.ref, 1);
+        if (SELECTED_ORDER === row.ref) SELECTED_ORDER = -1;
+        else if (SELECTED_ORDER > row.ref) SELECTED_ORDER -= 1;
+        renderQueue();
+      } else if (row.kind === "keepout") {
+        KEEPOUTS.splice(row.ref, 1); renderKeepouts();
+      }
+    },
+    onSelect: (row) => {
+      if (row.kind === "order") {
+        SELECTED_ORDER = row.ref;
+        if (typeof drawPlan === "function") drawPlan();
+        renderQueue();
+      }
+    },
+  });
+}
 if ($("alertbtn")) $("alertbtn").onclick = () => {
   const r = $("alertrail");
   r.style.display = r.style.display === "none" ? "block" : "none";
@@ -2564,7 +2641,8 @@ async function loadLayers() {
       LAYER_ON[lid] = !!L.default;
       const lab = document.createElement("label"); lab.style.cssText = "display:inline-flex;gap:3px;align-items:center;cursor:pointer";
       const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!L.default;
-      cb.onchange = () => { LAYER_ON[lid] = cb.checked; applyLayerToggle(lid, cb.checked); drawPlan(); };
+      cb.onchange = () => { LAYER_ON[lid] = cb.checked; applyLayerToggle(lid, cb.checked); drawPlan();
+        if (typeof renderContentsTree === "function") renderContentsTree(); };   // GIS S-2: mirror the flat strip into the tree
       lab.appendChild(cb); lab.appendChild(document.createTextNode(L.name));
       LAYERS_LOADED = true;                                  // (set per row; cheap + monotonic)
       if (["topology", "excavation", "lander"].includes(lid)) {
@@ -2581,7 +2659,8 @@ async function loadLayers() {
     t3.style.cssText = "display:inline-flex;gap:3px;align-items:center;cursor:pointer";
     t3.title = "drape the work-area DEM as a 3D relief mesh on the globe";
     const cb3 = document.createElement("input"); cb3.type = "checkbox"; cb3.id = "lyr_terrain3d"; cb3.checked = !!LAYER_ON.terrain3d;
-    cb3.onchange = () => { LAYER_ON.terrain3d = cb3.checked; applyLayerToggle("terrain3d", cb3.checked); };
+    cb3.onchange = () => { LAYER_ON.terrain3d = cb3.checked; applyLayerToggle("terrain3d", cb3.checked);
+      if (typeof renderContentsTree === "function") renderContentsTree(); };
     t3.appendChild(cb3); t3.appendChild(document.createTextNode("3D Terrain"));
     panel.appendChild(t3);
     // Reconstruction twin: the COLMAP dense-cloud 3D Tiles overlay (off by default; additive).
@@ -2589,11 +2668,13 @@ async function loadLayers() {
     rt.style.cssText = "display:inline-flex;gap:3px;align-items:center;cursor:pointer";
     rt.title = "load the photogrammetric reconstruction (COLMAP dense cloud) as a 3D Tiles twin at the site";
     const cbr = document.createElement("input"); cbr.type = "checkbox"; cbr.id = "lyr_recon_twin"; cbr.checked = !!LAYER_ON.recon_twin;
-    cbr.onchange = () => { LAYER_ON.recon_twin = cbr.checked; applyLayerToggle("recon_twin", cbr.checked); };
+    cbr.onchange = () => { LAYER_ON.recon_twin = cbr.checked; applyLayerToggle("recon_twin", cbr.checked);
+      if (typeof renderContentsTree === "function") renderContentsTree(); };
     rt.appendChild(cbr); rt.appendChild(document.createTextNode("Reconstruction"));
     panel.appendChild(rt);
   } catch (e) { /* serverless preview keeps the defaults */ }
   applyDefaultsOnceReady();                                // #63: the other ready side
+  if (typeof renderContentsTree === "function") renderContentsTree();   // GIS S-2: build the tree once layers are known
 }
 const GIS_RASTERS = ["slope", "hazard", "illumination", "incidence", "psr", "grid"];
 // #63 (Aaron's bug: layers need an off/on cycle): the default-layer application raced --
