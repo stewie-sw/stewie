@@ -1642,59 +1642,15 @@ async function loadPane(name) {
   } catch (e) { /* server not reachable (file://) -> panes keep their placeholder/empty state */ }
 }
 // #108: render the three dissertation-evidence sections from /evidence (grounded dart.comparison output).
-function renderEvidence(d) {
-  const e = (typeof esc === "function") ? esc : (s) => String(s);
-  const fmt = (v) => Array.isArray(v) ? v.join("–") : (v === true ? "✅" : v === false ? "—"
-                    : (v == null ? "—" : e(String(v))));
-  const SYS = ["Stanford NAV Lab (LAC)", "ShadowNav (JPL)", "ARGUS"];
-  const th = (t) => `<th style="text-align:left;padding:2px 8px">${e(t)}</th>`;
-  const td = (v, muted) => `<td style="padding:2px 8px${muted ? ';color:var(--muted)' : ''}">${fmt(v)}</td>`;
-  const h3 = (t) => `<h3 style="font-size:11px;letter-spacing:.1em;margin:12px 0 4px">${t}</h3>`;
-  // 1) GENERALIZATION -- the capability matrix (systems x attribute)
-  const cm = d.capability_matrix || {};
-  const rows = ["scope", "needs_orbital_prior", "builds_map_online", "motion", "heading_source",
-                "shadow_role", "active_reconfiguration"];
-  let html = h3("GENERALIZATION — capability matrix")
-    + `<table style="font-size:11px;border-collapse:collapse;width:100%"><tr>${th("")}${SYS.map(th).join("")}</tr>`
-    + rows.map((k) => `<tr><td style="color:var(--muted);padding:2px 8px">${k}</td>`
-        + SYS.map((s) => td((cm[s] || {})[k])).join("") + `</tr>`).join("") + `</table>`;
-  // 2) COMPARISON -- accuracy / precision per system (each in its reported regime)
-  const ap = d.accuracy_precision || {};
-  html += h3("COMPARISON — accuracy / precision (each system's reported regime)")
-    + `<table style="font-size:11px;border-collapse:collapse;width:100%"><tr>`
-    + ["system", "accuracy (m)", "precision (m)", "frame", "source"].map(th).join("") + `</tr>`
-    + SYS.map((s) => { const r = ap[s] || {};
-        return `<tr>${td(s)}${td(r.accuracy_m)}${td(r.precision_m)}${td(r.frame)}${td(r.source, true)}</tr>`;
-      }).join("") + `</table>`;
-  if (ap._note) html += `<div style="font-size:10px;color:var(--muted);margin-top:4px">${e(ap._note)}</div>`;
-  // 3) PHOTOMETRIC + DEPTH -- modality range precision
-  const ms = d.modality_sigma || {};
-  html += h3(`PHOTOMETRIC + DEPTH — range precision @ ${fmt(ms.range_m)} m`)
-    + `<div style="font-size:11px;line-height:1.8">articulation parallax σ <b>${fmt(ms.articulation_parallax_sigma_m)} m</b>`
-    + ` vs physical stereo σ <b>${fmt(ms.stereo_sigma_m)} m</b> → articulation advantage `
-    + `<b>${fmt(ms.articulation_advantage_x)}×</b> (the pose-change baseline exceeds the rig baseline)</div>`;
-  return html;
-}
+// FS-24: the evidence/gate HTML builders now live in evidence_html.js (window.STEWIE_EVIDENCE_HTML);
+// these thin aliases pass the SEC-04 escaper / write the result into the DOM, preserving behaviour.
+function renderEvidence(d) { return window.STEWIE_EVIDENCE_HTML.evidenceHTML(d, (typeof esc === "function") ? esc : null); }
 $("srvrefresh").onclick = () => loadPane("server");
 
 // ---- Navigation view (P1.4): ARGUS estimator surface + articulation-parallax relocalization -----
-function navDrawTrajectory(est, base) {
-  const cv = $("navplot"), g = cv.getContext("2d");
-  g.clearRect(0, 0, cv.width, cv.height);
-  const all = est.concat(base), xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
-  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
-  const pad = 26, s = Math.min((cv.width - 2 * pad) / Math.max(1e-6, maxx - minx),
-                               (cv.height - 2 * pad) / Math.max(1e-6, maxy - miny));
-  const X = (x) => pad + (x - minx) * s, Y = (y) => cv.height - pad - (y - miny) * s;
-  const line = (path, color, w) => {
-    g.strokeStyle = color; g.lineWidth = w; g.beginPath();
-    path.forEach((p, i) => (i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))));
-    g.stroke();
-  };
-  line(base, "#e0a23a", 2); line(est, "#36d1dc", 2);
-  g.font = "10px system-ui"; g.fillStyle = "#36d1dc"; g.fillText("— fused estimate", pad, 14);
-  g.fillStyle = "#e0a23a"; g.fillText("— dead reckoning", pad + 104, 14);
-}
+// FS-24: the four pure nav-pane CANVAS PLOTTERS now live in navplot.js (window.STEWIE_NAVPLOT); these
+// thin binding aliases resolve the target <canvas> via $() and forward, preserving behaviour exactly.
+function navDrawTrajectory(est, base) { window.STEWIE_NAVPLOT.drawTrajectory($("navplot"), est, base); }
 let LAST_LOCALIZATION = null;                              // #nav-mission: localization trace from the last /plan
 // the LIVE mission localization: the run_closed_loop real estimate (terrain-relative + AprilTag-beacon
 // fixes) vs the true pose per leg, the leg dots colour-coded by which real fix corrected them.
@@ -1736,31 +1692,7 @@ function navDrawMission(loc) {
 }
 // FS-05 end-to-end DRIVE PREVIEW: POST /nav/run -> route the global corridor then drive it; draw the
 // planned route (amber dashed) vs the executed trajectory (cyan) + start/goal + recovery backups.
-function navDrawDrive(res) {
-  const cv = $("navdriveplot"); if (!cv) return;
-  const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
-  const route = res.waypoints || [], traj = res.trajectory || [];
-  const all = route.concat(traj); if (!all.length) return;
-  const xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
-  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
-  const pad = 26, s = Math.min((cv.width - 2 * pad) / Math.max(1e-6, maxx - minx),
-                               (cv.height - 2 * pad) / Math.max(1e-6, maxy - miny));
-  const X = (x) => pad + (x - minx) * s, Y = (y) => cv.height - pad - (y - miny) * s;
-  const line = (path, color, w, dash) => {
-    g.strokeStyle = color; g.lineWidth = w; g.setLineDash(dash || []); g.beginPath();
-    path.forEach((p, i) => (i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))));
-    g.stroke(); g.setLineDash([]);
-  };
-  line(route, "#e0a23a", 2, [5, 3]);                       // planned corridor (amber dashed)
-  line(traj, "#36d1dc", 2);                                // executed drive (cyan)
-  const dot = (p, color, r) => { g.fillStyle = color; g.beginPath(); g.arc(X(p[0]), Y(p[1]), r, 0, 2 * Math.PI); g.fill(); };
-  if (route.length) { dot(route[0], "#3fa34d", 5); dot(route[route.length - 1], "#e8273f", 5); }   // start green / goal red
-  (res.recovery_events || []).forEach((e) => {             // recovery backups: orange ring at the recovered pose
-    if (e.xy) { g.strokeStyle = "#ff8c00"; g.lineWidth = 2; g.beginPath(); g.arc(X(e.xy[0]), Y(e.xy[1]), 6, 0, 2 * Math.PI); g.stroke(); } });
-  g.font = "10px system-ui"; g.fillStyle = "#e0a23a"; g.fillText("--- planned route", pad, 12);
-  g.fillStyle = "#36d1dc"; g.fillText("— executed", pad + 96, 12);
-  g.fillStyle = "#3fa34d"; g.fillText("● start", pad + 162, 12); g.fillStyle = "#e8273f"; g.fillText("● goal", pad + 208, 12);
-}
+function navDrawDrive(res) { const cv = $("navdriveplot"); if (cv) window.STEWIE_NAVPLOT.drawDrive(cv, res); }
 async function navDriveRun() {
   const btn = $("navdrive"); btn.disabled = true; btn.textContent = "… driving";
   const sx = +$("navdsx").value, sy = +$("navdsy").value, gx = +$("navdgx").value, gy = +$("navdgy").value;
@@ -1800,24 +1732,7 @@ async function navRun() {
 // #148: REAL terrain-fix est-vs-truth on the real Haworth DEM (register_to_dem fused vs odometry),
 // scored against the DEM's own truth -- the real lunar est-vs-truth, distinct from modeled Katwijk.
 function navDrawReal(trueXY, fusedXY, odomXY) {
-  const cv = $("navrealplot"); if (!cv) return;
-  const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
-  const all = trueXY.concat(fusedXY, odomXY), xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
-  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
-  const pad = 26, s = Math.min((cv.width - 2 * pad) / Math.max(1e-6, maxx - minx),
-                               (cv.height - 2 * pad) / Math.max(1e-6, maxy - miny));
-  const X = (x) => pad + (x - minx) * s, Y = (y) => cv.height - pad - (y - miny) * s;
-  const line = (path, color, w, dash) => {
-    g.strokeStyle = color; g.lineWidth = w; g.setLineDash(dash || []); g.beginPath();
-    path.forEach((p, i) => (i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))));
-    g.stroke(); g.setLineDash([]);
-  };
-  line(odomXY, "#e0a23a", 2);                            // dead reckoning (drifts)
-  line(trueXY, "#cfe3ff", 1.5, [4, 3]);                  // truth (white dashed)
-  line(fusedXY, "#36d1dc", 2);                           // fused (real DEM fixes)
-  g.font = "10px system-ui"; g.fillStyle = "#36d1dc"; g.fillText("— fused (real DEM fix)", pad, 14);
-  g.fillStyle = "#e0a23a"; g.fillText("— odometry", pad + 124, 14);
-  g.fillStyle = "#cfe3ff"; g.fillText("--- truth", pad + 200, 14);
+  const cv = $("navrealplot"); if (cv) window.STEWIE_NAVPLOT.drawReal(cv, trueXY, fusedXY, odomXY);
 }
 async function navRealTraverse() {
   const btn = $("navreal"); if (btn) { btn.disabled = true; btn.textContent = "… running"; }
@@ -1865,25 +1780,7 @@ function navGate() {                                  // #97 perception gate: sh
   $("navreloc").disabled = !armed;
   return armed;
 }
-function navDrawFix(res) {                             // top-down DEM-frame plot of the real fix
-  const cv = $("navcov"), g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
-  const pts = res.landmarks_xy.concat([res.fix_xy, res.true_xy, res.seed_xy]);
-  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
-  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
-  const pad = 26, s = Math.min((cv.width - 2 * pad) / Math.max(0.5, maxx - minx),
-                               (cv.height - 2 * pad) / Math.max(0.5, maxy - miny));
-  const X = (x) => pad + (x - minx) * s, Y = (y) => cv.height - pad - (y - miny) * s;
-  g.fillStyle = "#667";                                // matched landmarks (DEM coordinates)
-  res.landmarks_xy.forEach((p) => { g.beginPath(); g.arc(X(p[0]), Y(p[1]), 2, 0, 2 * Math.PI); g.fill(); });
-  g.strokeStyle = "#36d1dc"; g.lineWidth = 1.5;        // covariance around the fix
-  g.beginPath(); g.arc(X(res.fix_xy[0]), Y(res.fix_xy[1]), Math.max(3, res.fix_sigma_m * s), 0, 2 * Math.PI); g.stroke();
-  const dot = (p, c) => { g.fillStyle = c; g.beginPath(); g.arc(X(p[0]), Y(p[1]), 4, 0, 2 * Math.PI); g.fill(); };
-  dot(res.seed_xy, "#e0a23a"); dot(res.fix_xy, "#36d1dc");      // drifted prior (amber), recovered fix (cyan)
-  g.strokeStyle = "#3ad17a"; g.lineWidth = 2;          // truth (green cross)
-  const tx = X(res.true_xy[0]), ty = Y(res.true_xy[1]);
-  g.beginPath(); g.moveTo(tx - 5, ty); g.lineTo(tx + 5, ty); g.moveTo(tx, ty - 5); g.lineTo(tx, ty + 5); g.stroke();
-  g.fillStyle = "#9aa"; g.font = "10px system-ui"; g.fillText("● landmarks  ● drift  ● fix  ✛ true  (DEM frame, m)", 6, 14);
-}
+function navDrawFix(res) { window.STEWIE_NAVPLOT.drawFix($("navcov"), res); }   // top-down DEM-frame plot
 async function navReloc() {                            // REAL measured fix on the committed render-pair
   if (!navGate()) return;
   const sig = +$("navsig").value;
@@ -2134,19 +2031,8 @@ async function renderArea(u, v, opts) {
 // P3: the Validate-gates button renders the full G1/G2 EVIDENCE (real-sensor ATE, stereo covariance
 // + held-out coverage + depth, the honest evidence scope, and the next gate) from the dated artifact.
 function renderGateEvidence(j) {
-  const e = j.evidence || {}, el = $("gateevidence"); if (!el) return;
-  const f = (x, u, d) => (x == null ? "—" : (+x).toFixed(d == null ? 2 : d) + (u || ""));
-  const ok = (s) => `<span style="color:#7CE0A6">${s}</span>`;
-  el.innerHTML =
-    `<div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px;font-size:11px;line-height:1.7;font-variant-numeric:tabular-nums">
-       <div style="font-family:Orbitron,system-ui;letter-spacing:.08em;font-size:10px;color:var(--accent);margin-bottom:6px">RELEASE GATES — EVIDENCE <small style="color:var(--muted)">(${e.evidence_mode || "?"})</small></div>
-       <div><b>G1</b> ${ok(j.g1)} · contracts ${e.g1_contract_checks_pass}/${e.g1_contract_checks_total} PASS · real Katwijk dead-reckon ATE <b>${f(e.g1_ate_m, " m")}</b> over ${f(e.g1_eval_track_m, " m", 1)} · sim baseline ${f(e.g1_baseline_raw_m, " m")} raw / ${f(e.g1_baseline_aligned_m, " m")} aligned</div>
-       <div><b>G2</b> ${ok(j.g2)} · stereo covariance σ <b>${f(e.g2_sigma_px, " px")}</b> · held-out 3σ coverage <b>${f(e.g2_coverage_3sigma, "", 3)}</b> · depth ${f(e.g2_median_depth_m, " m")} ± ${f(e.g2_sigma_depth_m, " m", 3)}</div>
-       <div style="color:var(--muted);margin-top:4px">${e.g2_evidence_scope || ""}</div>
-       <div style="margin-top:4px">frozen baseline ${j.byte_identical_to_frozen ? ok("byte-identical ✓") : '<span style="color:#e0556a">DIVERGED ✗</span>'} · artifact <code>${j.latest_artifact}</code></div>
-       <div style="color:var(--muted);margin-top:4px"><b>next gate:</b> ${e.next_gate || ""}</div>
-       <div style="margin-top:6px;color:var(--muted)">Full evidence (head-to-head, cross-dataset generalization, photometric depth pass, the executed notebooks): <a href="https://stewie-sw.github.io/stewie/" target="_blank" rel="noopener">documentation ↗</a></div>
-     </div>`;
+  const el = $("gateevidence"); if (!el) return;
+  el.innerHTML = window.STEWIE_EVIDENCE_HTML.gateEvidenceHTML(j);
 }
 [["admsnap", "/admin/twin/snapshot", (j) => "snapshot: " + j.snapshot.split("/").pop()],
  ["admret", "/admin/twin/retention", (j) => `retention: ${j.removed.length} removed`],
@@ -3451,41 +3337,16 @@ qel("profloadbtn").onclick = async () => {
 // the packet-channel names the runtime emits: imu/wheel/power/camera/thermal/pose).
 const TELE_CH = ["pose", "wheel", "power", "drum", "camera", "thermal"];
 const TELE_BUF = { batt: [], mass: [], slip: [] };
+// FS-24: the execution-telemetry renderers (sparkline, ring push, chips, rover HUD, activity Gantt) now
+// live in rover_hud.js (window.STEWIE_ROVER_HUD); these thin aliases resolve the DOM target / module
+// state (TELE_BUF, DRUM_CAP_KG, markFresh) and forward, preserving behaviour exactly.
 function teleChip(ch, text, ok) {
-  const rail = qel("telerail"); if (!rail) return;
-  let el = rail.querySelector(`[data-ch="${ch}"]`);
-  if (!el) {
-    el = document.createElement("span");
-    el.dataset.ch = ch;
-    el.style.cssText = "font-size:9px;font-family:Orbitron,system-ui;letter-spacing:.06em;padding:2px 6px;border:1px solid var(--line);border-radius:4px";
-    rail.appendChild(el);
-  }
-  el.textContent = `${ch.toUpperCase()} ${text}`;
-  el.style.color = ok ? "var(--txt)" : "#e0564b";
-  el.style.borderColor = ok ? "var(--line)" : "#e0564b";
-  if (typeof markFresh === "function") markFresh(el);
+  window.STEWIE_ROVER_HUD.teleChip(qel("telerail"), ch, text, ok,
+    (typeof markFresh === "function") ? markFresh : null);
 }
-function teleSpark() {
-  const cv = qel("telespark"); if (!cv) return;
-  const ctx = cv.getContext("2d");
-  ctx.fillStyle = "#0a0a0c"; ctx.fillRect(0, 0, cv.width, cv.height);
-  const series = [["batt", "#e8273f"], ["mass", "#e07b39"], ["slip", "#4f9cff"]];
-  series.forEach(([k, col]) => {
-    const buf = TELE_BUF[k]; if (buf.length < 2) return;
-    const mx = Math.max(...buf, 1e-9);
-    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath();
-    buf.forEach((v, i) => {
-      const x = i / (buf.length - 1) * (cv.width - 4) + 2;
-      const y = cv.height - 3 - (v / mx) * (cv.height - 8);
-      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-    });
-    ctx.stroke();
-  });
-}
+function teleSpark() { window.STEWIE_ROVER_HUD.teleSpark(qel("telespark"), TELE_BUF); }
 function telePush(batt, mass, slip) {
-  TELE_BUF.batt.push(batt); TELE_BUF.mass.push(mass); TELE_BUF.slip.push(slip);
-  Object.values(TELE_BUF).forEach((b) => { if (b.length > 240) b.shift(); });
-  teleSpark();
+  window.STEWIE_ROVER_HUD.telePush(TELE_BUF, batt, mass, slip, teleSpark);
 }
 // #184: the rover HUD -- azimuth compass, battery, front/rear drum weight, live pose -- on #hudcanvas.
 // Updated each execution frame (heading from the path delta, SoC from the battery channel, pose) and when
@@ -3496,102 +3357,10 @@ function roverHUDState(extra) {
   return Object.assign({ frontKg: +(qel("cgFk") ? qel("cgFk").value : 0) || 0,
                          rearKg: +(qel("cgBk") ? qel("cgBk").value : 0) || 0 }, extra || {});
 }
-function drawRoverHUD(s) {
-  const cv = qel("hudcanvas"); if (!cv) return;
-  const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
-  ctx.clearRect(0, 0, W, H); ctx.fillStyle = "#0a0a0c"; ctx.fillRect(0, 0, W, H);
-  ctx.font = "9px Orbitron, system-ui"; ctx.textBaseline = "middle";
-  // azimuth compass (left): from-north-eastward (N up, E right) -- matches the ephemeris/shadow convention
-  const cx = 46, cy = 44, r = 34;
-  ctx.strokeStyle = "#2a2a36"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.stroke();
-  ctx.textAlign = "center";
-  [["N", 0], ["E", 90], ["S", 180], ["W", 270]].forEach(([lab, az]) => {
-    const a = az * Math.PI / 180;
-    ctx.fillStyle = lab === "N" ? "#e0564b" : "#7a8290";
-    ctx.fillText(lab, cx + (r - 7) * Math.sin(a), cy - (r - 7) * Math.cos(a));
-  });
-  if (s && s.headingDeg != null) {
-    const a = s.headingDeg * Math.PI / 180;
-    ctx.strokeStyle = "#35e0d0"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + (r - 5) * Math.sin(a), cy - (r - 5) * Math.cos(a)); ctx.stroke();
-    ctx.fillStyle = "#35e0d0"; ctx.fillText(`${Math.round(s.headingDeg)}°`, cx, cy + r + 7);
-  }
-  // battery (middle)
-  const bx = 100, bw = 24, bh = 56, by = 16;
-  ctx.strokeStyle = "#2a2a36"; ctx.strokeRect(bx, by, bw, bh);
-  const soc = (s && s.soc != null) ? Math.max(0, Math.min(1, s.soc)) : null;
-  if (soc != null) {
-    ctx.fillStyle = soc < 0.2 ? "#e0564b" : "#39ff14";
-    ctx.fillRect(bx + 1, by + bh - bh * soc + 1, bw - 2, bh * soc - 2);
-    ctx.fillStyle = "#c7d2e3"; ctx.fillText(`${Math.round(soc * 100)}%`, bx + bw / 2, by + bh + 8);
-  }
-  ctx.fillStyle = "#7a8290"; ctx.fillText("BATT", bx + bw / 2, by - 7);
-  // front/rear drum weight (right)
-  const dx = 144, dw = 158, dh = 15;
-  [["FRONT", s && s.frontKg, 22], ["REAR", s && s.rearKg, 50]].forEach(([lab, kg, dy]) => {
-    ctx.strokeStyle = "#2a2a36"; ctx.lineWidth = 1; ctx.strokeRect(dx, dy, dw, dh);
-    const f = Math.max(0, Math.min(1, (kg || 0) / DRUM_CAP_KG));
-    ctx.fillStyle = "#e07b39"; ctx.fillRect(dx + 1, dy + 1, (dw - 2) * f, dh - 2);
-    ctx.fillStyle = "#c7d2e3"; ctx.textAlign = "left"; ctx.fillText(`${lab} ${(kg || 0).toFixed(1)} kg`, dx + 4, dy + dh / 2);
-  });
-  if (s && s.x != null) { ctx.fillStyle = "#7a8290"; ctx.textAlign = "left";
-    ctx.fillText(`pose ${Math.round(s.x)}, ${Math.round(s.y)} m`, dx + 4, 82); }
-}
+function drawRoverHUD(s) { window.STEWIE_ROVER_HUD.drawRoverHUD(qel("hudcanvas"), s, DRUM_CAP_KG); }
 // UI-17: the activity Gantt -- one lane per phase kind, bars at [t0, t1], battery curve under.
-function drawGantt(rawFrames) {
-  const cv = $("gantt"); if (!cv) return;
-  const A = window.STEWIE_ADAPTERS;
-  // FS-15: render the typed TimelineFrame view model (adapters.js), not raw frame dicts; the inline
-  // fallback keeps the gantt working if the adapter layer didn't load.
-  const norm = (f) => A ? A.normalizeTimelineFrame({ timeline_frame: f })
-                        : { phase: f.phase, t0: f.t0, t1: f.t1, batt0Frac: f.batt0_frac, batt1Frac: f.batt1_frac };
-  const tl = (rawFrames || []).map(norm).filter(Boolean);
-  const ctx = cv.getContext("2d");
-  ctx.fillStyle = "#05060c"; ctx.fillRect(0, 0, cv.width, cv.height);
-  if (!tl.length) {
-    ctx.fillStyle = "#9ab"; ctx.font = "12px system-ui";
-    ctx.fillText("plan a mission to populate the activity timeline", 16, 28);
-    return;
-  }
-  const kinds = [...new Set(tl.map((p) => p.phase))];
-  const COLORS = { drive: "#4f9cff", dig: "#e8273f", cut: "#e8273f", dump: "#e07b39",
-                   fill: "#e07b39", haul: "#9966dd", recharge: "#3fa34d", goto: "#7bd0d0" };
-  const T = Math.max(...tl.map((p) => p.t1)), L = 86, R = 12, TOP = 16;
-  const laneH = Math.min(34, (cv.height - 110) / Math.max(1, kinds.length));
-  const X = (t) => L + (t / T) * (cv.width - L - R);
-  ctx.font = "10px Orbitron, system-ui"; ctx.textBaseline = "middle";
-  kinds.forEach((k, i) => {
-    const y = TOP + i * laneH;
-    ctx.fillStyle = "#9ab"; ctx.textAlign = "right";
-    ctx.fillText(k.toUpperCase().slice(0, 9), L - 8, y + laneH / 2);
-    ctx.strokeStyle = "rgba(255,255,255,.05)";
-    ctx.beginPath(); ctx.moveTo(L, y + laneH); ctx.lineTo(cv.width - R, y + laneH); ctx.stroke();
-    tl.filter((p) => p.phase === k).forEach((p) => {
-      ctx.fillStyle = COLORS[k] || "#c7d2e3";
-      ctx.globalAlpha = .85;
-      ctx.fillRect(X(p.t0), y + 4, Math.max(2, X(p.t1) - X(p.t0)), laneH - 8);
-      ctx.globalAlpha = 1;
-    });
-  });
-  // the battery curve under the lanes
-  const by0 = TOP + kinds.length * laneH + 14, bh = cv.height - by0 - 26;
-  ctx.strokeStyle = "#3a3f4a";
-  ctx.strokeRect(L, by0, cv.width - L - R, bh);
-  ctx.strokeStyle = "#e8273f"; ctx.lineWidth = 1.5; ctx.beginPath();
-  tl.forEach((p, i) => {
-    const y0 = by0 + (1 - p.batt0Frac) * bh, y1 = by0 + (1 - p.batt1Frac) * bh;
-    if (i === 0) ctx.moveTo(X(p.t0), y0); else ctx.lineTo(X(p.t0), y0);
-    ctx.lineTo(X(p.t1), y1);
-  });
-  ctx.stroke(); ctx.lineWidth = 1;
-  ctx.fillStyle = "#9ab"; ctx.textAlign = "right";
-  ctx.fillText("BATT", L - 8, by0 + bh / 2);
-  // the time axis
-  ctx.textAlign = "center";
-  for (let h = 0; h <= T / 3600; h += Math.max(1, Math.round(T / 3600 / 6))) {
-    ctx.fillText(`${h}h`, X(h * 3600), cv.height - 12);
-  }
-}
+// FS-24: the painter lives in rover_hud.js; this thin alias resolves $("gantt") and forwards.
+function drawGantt(rawFrames) { window.STEWIE_ROVER_HUD.drawGantt($("gantt"), rawFrames); }
 let LAST_TIMELINE = null, LAST_ORDERS = [], LAST_KEEPOUTS = [], LAST_PLAN_IR = null, EXEC_RAF = 0;
 let EXEC_SPEEDUP = 60;                                     // sim seconds per wall-clock second (B0.3: mutable)
 let EXEC_PAUSED = false;
