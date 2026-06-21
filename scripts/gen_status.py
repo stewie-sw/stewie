@@ -20,6 +20,11 @@ import json
 import os
 import sys
 
+# Allow running as a bare script (`python scripts/gen_status.py`, as the docstring + the drift-test
+# error message instruct) and not only via `-m`/pytest: put the repo root on sys.path so the absolute
+# `scripts.*` imports below resolve.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from scripts.release_gate import release_report
 from scripts.req_trace import parse_requirements, trace
 

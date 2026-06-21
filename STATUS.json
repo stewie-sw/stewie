@@ -8,7 +8,7 @@
     "in_matrix": 17,
     "total": 17
   },
-  "cited": 119,
+  "cited": 120,
   "per_family": {
     "AG": {
       "cited": 8,
@@ -23,7 +23,7 @@
       "total": 17
     },
     "CP": {
-      "cited": 9,
+      "cited": 10,
       "total": 10
     },
     "CT": {
@@ -174,6 +174,10 @@
     {
       "id": "AS-17",
       "v": "N"
+    },
+    {
+      "id": "CP-04",
+      "v": "P"
     },
     {
       "id": "CP-07",
