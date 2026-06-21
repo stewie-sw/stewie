@@ -695,8 +695,8 @@ const $ = (id) => document.getElementById(id);
 // template (option lists, labels, error text). Escaping &<>"' neutralizes both element injection and
 // double/single-quoted attribute breakout, so an `<img onerror>`-style value renders as inert text.
 // (New DOM construction should still prefer the el() builder below; esc() hardens the existing sinks.)
-const _ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => _ESC[c]); }
+// FS-24: esc() now lives in htmlesc.js (window.STEWIE_HTMLESC); thin binding alias preserves behaviour.
+const esc = window.STEWIE_HTMLESC.esc;
 
 // S-02: safe DOM builder. Server data (operator emails, roles, mission math labels) is NEVER
 // concatenated into innerHTML/attributes -- it goes in via textContent / setAttribute, so an
@@ -878,7 +878,8 @@ async function loadPointCloud() {
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
 // FS-20: System / Settings / Admin live in the profile menu (off the work-area tab bar), role-gated:
 // Settings everyone, System operator+, Admin director. The items reuse setView -> same pane switch.
-function _rrank(r) { return ["guest", "trainee", "operator", "director"].indexOf(r); }
+// FS-24: role-ladder rank now lives in role_rank.js (window.STEWIE_ROLE_RANK); thin binding alias.
+const _rrank = window.STEWIE_ROLE_RANK.rrank;
 function gateChrome(role) {
   const sys = $("prof-system"), adm = $("prof-admin");
   if (sys) sys.style.display = (_rrank(role) >= _rrank("operator")) ? "block" : "none";  // System: operator+
@@ -2351,22 +2352,13 @@ $("site").onclick = () => {
 // needs the server (fetch /plan): run `python3 server.py` and open the printed URL.
 const ORDERS = [];
 const KEEPOUTS = [];                                          // discrete obstacles (local m): {x,y,r} circle OR {x0,y0,x1,y1} rect (#178); hauls route around
-function koIsPoly(k) { return !!(k && Array.isArray(k.points) && k.points.length >= 3); }   // #178: polygon keep-out (matches keepout_is_poly)
-function koIsRect(k) { return k && k.r == null && k.x0 != null; }   // #178: rect keep-out (matches keepout_is_rect)
-function koBounds(k) {                                              // #178: a keep-out's local-frame AABB, any shape
-  if (koIsPoly(k)) {
-    const xs = k.points.map((p) => p[0]), ys = k.points.map((p) => p[1]);
-    return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
-  }
-  return koIsRect(k)
-    ? { x0: Math.min(k.x0, k.x1), y0: Math.min(k.y0, k.y1), x1: Math.max(k.x0, k.x1), y1: Math.max(k.y0, k.y1) }
-    : { x0: k.x - k.r, y0: k.y - k.r, x1: k.x + k.r, y1: k.y + k.r };
-}
-function koLabel(k) {                                               // #178: a human-readable keep-out summary
-  if (koIsPoly(k)) return `polygon (${k.points.length} pts)`;
-  return koIsRect(k) ? `box [${Math.round(k.x0)},${Math.round(k.y0)}]–[${Math.round(k.x1)},${Math.round(k.y1)}] m`
-                     : `circle @ ${k.x},${k.y} · r ${k.r} m`;
-}
+// FS-24: keep-out shape predicates + bounds + label now live in keepout_geom.js
+// (window.STEWIE_KEEPOUT_GEOM); thin binding aliases preserve behaviour. fillKeepout (below) draws on
+// the canvas using these.
+const koIsPoly = window.STEWIE_KEEPOUT_GEOM.koIsPoly;   // #178: polygon keep-out (matches keepout_is_poly)
+const koIsRect = window.STEWIE_KEEPOUT_GEOM.koIsRect;   // #178: rect keep-out (matches keepout_is_rect)
+const koBounds = window.STEWIE_KEEPOUT_GEOM.koBounds;   // #178: a keep-out's local-frame AABB, any shape
+const koLabel = window.STEWIE_KEEPOUT_GEOM.koLabel;     // #178: a human-readable keep-out summary
 function fillKeepout(ctx, k, X, Y, s) {                            // #178: draw a keep-out on the 2D plan (poly/rect/disc)
   if (koIsPoly(k)) {
     ctx.beginPath();
