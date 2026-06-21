@@ -88,6 +88,84 @@ def _allocate_components(trips, vehicles, precedence):
     return alloc
 
 
+def _allocate_precedence_split(trips, vehicles, precedence):
+    """FL-04 cross-vehicle precedence chain-SPLITTING allocation. Unlike `_allocate_components` (which
+    unions whole precedence chains onto ONE vehicle so the per-vehicle sequencer can order them), this
+    keeps only the SITE-exclusivity union -- whole site-groups stay together on one vehicle (zero
+    co-occupation, as before) -- but does NOT union across precedence edges, so a precedence chain that
+    spans two work sites can land on TWO vehicles and run in parallel. The cross-vehicle ORDERING is then
+    preserved by `_resolve_cross_vehicle_precedence` (a dependent leg's effective start is held at/after its
+    predecessor's effective end, the same per-vehicle wait the shared charger uses). With no precedence this
+    is BYTE-IDENTICAL to `_allocate_trips` (it computes the same site-group LPT assignment). The global
+    precedence is verified acyclic before allocation (mission_planner._precedence_is_feasible), so splitting
+    a chain across vehicles can never create an unsatisfiable cross-vehicle wait cycle. Returns a list of V
+    index-lists. `precedence` is accepted for symmetry/intent (and a future smarter split) but the
+    site-exclusive LPT assignment alone already separates distinct sites across the fleet."""
+    return _allocate_trips(trips, vehicles)
+
+
+def _resolve_cross_vehicle_precedence(per_vehicle, alloc, precedence, trips):
+    """FL-04: hold a CROSS-vehicle precedence edge by delaying the dependent vehicle until its predecessor
+    leg (on a DIFFERENT vehicle) has finished -- the chain-splitting counterpart to `_allocate_components`'s
+    keep-the-chain-whole policy. `alloc` is the per-vehicle list of GLOBAL trip indices (so a trip's vehicle
+    is recoverable); `trips` is the global trip list so each per_trip leg's window is keyed back to its REAL
+    global index by TRIP-OBJECT IDENTITY -- NOT by positional zip(alloc, per_trip). The per-vehicle sequencer
+    (`optimize_sequence` in plan_multi) reorders a vehicle's trips before `_simulate`, so `per_trip` is in
+    SIMULATION order, which is NOT alloc order; zipping the two silently mis-pairs a trip with another trip's
+    window and a dependent leg could start before its predecessor's real end (precedence VIOLATED). Matching
+    `id(pt["trip"])` to its global index is order-independent and correct under any sequencer permutation.
+    `precedence` is the global (i, j) 'trip i before trip j' edges.
+
+    Only edges whose endpoints land on DIFFERENT vehicles need a wait (an INTRA-vehicle edge is already
+    honored by the per-vehicle sequencer -> contributes nothing). For each cross edge the dependent
+    vehicle's whole schedule is shifted so the dependent leg's EFFECTIVE start (original t_start + that
+    vehicle's accrued delay) is at/after the predecessor leg's EFFECTIVE end (its t_end + the predecessor
+    vehicle's delay). This is the SAME per-vehicle delay discipline the shared charger
+    (`_resolve_charger_queue`) and crowding (`_resolve_spacetime_crowding`) use, so it folds into the
+    makespan identically. Iterated to a fixed point: the precedence is acyclic (checked upstream), so the
+    delays only grow and converge. CONSERVATIVE: shifting the whole vehicle (not just the dependent leg) can
+    over-delay later independent work on that vehicle -- a finer per-leg re-time is future MV work. No
+    cross-vehicle edge -> all-zero delays -> byte-identical to the un-coordinated fleet. Returns the
+    per-vehicle delay [s]; a vehicle's real finish is time_s + delay[v]."""
+    n = len(per_vehicle)
+    delay = [0.0] * n
+    if not precedence:
+        return delay
+    veh_of: dict = {}                                            # global trip idx -> vehicle
+    for v, idxs in enumerate(alloc):
+        for gi in idxs:
+            veh_of[gi] = v
+    obj_to_gid = {id(tr): g for g, tr in enumerate(trips)}       # trip OBJECT -> global trip idx
+    win: dict = {}                                               # global trip idx -> (t_start, t_end)
+    for pv in per_vehicle:
+        for pt in pv.get("per_trip", []):
+            gid = obj_to_gid.get(id(pt["trip"]))                 # REAL identity, not positional zip
+            if gid is None:                                      # leg not in the global trips list -> skip
+                continue
+            win[gid] = (float(pt["t_start"]), float(pt["t_end"]))
+    # keep only edges that actually CROSS a vehicle boundary (intra-vehicle edges the sequencer handles)
+    cross = []
+    for i, j in precedence:
+        vi, vj = veh_of.get(i), veh_of.get(j)
+        if vi is None or vj is None or vi == vj or i not in win or j not in win:
+            continue
+        cross.append((vi, win[i][1], vj, win[j][0]))            # (pred_v, pred_end, dep_v, dep_start)
+    if not cross:
+        return delay
+    for _ in range(n + 1):                                       # acyclic DAG over <= n vehicles -> converges
+        new_delay = list(delay)
+        for pred_v, pred_end, dep_v, dep_start in cross:
+            eff_pred_end = pred_end + delay[pred_v]
+            eff_dep_start = dep_start + delay[dep_v]
+            if eff_dep_start < eff_pred_end:                     # dependent leg would start too early
+                need = eff_pred_end - eff_dep_start
+                new_delay[dep_v] = max(new_delay[dep_v], delay[dep_v] + need)
+        if new_delay == delay:
+            break
+        delay = new_delay
+    return delay
+
+
 def _vehicle_conflicts(per_vehicle):
     """MV5: count space-time conflicts -- two DIFFERENT vehicles whose per-trip time windows overlap at the
     SAME site. Site-exclusive allocation makes this 0 by construction; the detector verifies it (and would

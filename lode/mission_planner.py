@@ -1409,7 +1409,8 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
 # (self-contained geometry over duck-typed per_vehicle/trip structures; no planner-core dep, no
 # cycle). Re-exported so MP.<fn> + plan_multi keep working unchanged.
 from lode.planner_multivehicle import (  # noqa: E402,F401
-    _trip_work_e, _allocate_trips, _allocate_components, _vehicle_conflicts,
+    _trip_work_e, _allocate_trips, _allocate_components, _allocate_precedence_split,
+    _resolve_cross_vehicle_precedence, _vehicle_conflicts,
     _charger_conflicts, _resolve_charger_queue, _resolve_shared_resources, _temporal_conflicts,
     _seg_seg_min_dist, _haul_path_conflicts, _resolve_spacetime_crowding, _rover_health,
 )
@@ -1427,9 +1428,11 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     overlapping recharges serialise, the loser waits, and the headline makespan reflects that wait
     (makespan_parallel_s keeps the optimistic unlimited-charger value); continuous haul-PATH collision
     avoidance and pit/dump/vantage/corridor as reservable resources are future MV work.
-    Cross-vehicle PRECEDENCE (v2): a precedence chain is kept WHOLE on one vehicle so its order is honored,
-    and INDEPENDENT chains parallelize; SPLITTING one chain across vehicles with cross-vehicle wait-
-    coordination is still future work. A cyclic precedence still raises (never silently mis-ordered)."""
+    Cross-vehicle PRECEDENCE (FL-04, supersedes v2): a precedence chain that spans two work sites is now
+    SPLIT across vehicles and run in parallel -- the dependent leg waits (a per-vehicle delay, the same
+    discipline as the charger/crowding resolvers) until its predecessor leg has finished on whichever rover
+    does it, so the ordering is honored ACROSS vehicles instead of forcing the whole chain onto one rover.
+    A cyclic precedence still raises (never silently mis-ordered)."""
     if vehicles < 1:
         raise ValueError(f"vehicles must be >= 1 (got {vehicles})")
     trips, flows, surplus_kg, meta = _build_trips(mission, dem, dem_origin, max_traverse_slope_deg)
@@ -1437,8 +1440,10 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     glob_prec = trip_precedence(trips, mission)            # MV cross-precedence: trip-index constraints
     if glob_prec and not _precedence_is_feasible(len(trips), glob_prec):
         raise ValueError("precedence is infeasible (cyclic / unsatisfiable): no valid build ordering exists")
-    # precedence present -> keep each chain whole on one vehicle (site- + chain-exclusive); else site-only.
-    alloc = _allocate_components(trips, vehicles, glob_prec) if glob_prec else _allocate_trips(trips, vehicles)
+    # FL-04: precedence present -> SPLIT chains across vehicles (site-exclusive site-group LPT; cross-vehicle
+    # ordering held by a per-vehicle wait below) so a precedence chain that spans two work sites runs in
+    # parallel instead of collapsing onto one rover. No precedence -> site-only (byte-identical to before).
+    alloc = _allocate_precedence_split(trips, vehicles, glob_prec) if glob_prec else _allocate_trips(trips, vehicles)
     per_vehicle = []
     for v, idxs in enumerate(alloc):
         vtrips = [trips[i] for i in idxs]
@@ -1472,7 +1477,13 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     # charger queue uses (the loser yields). No crowding -> all 0 -> makespan/survival byte-identical.
     crowd_delays = _resolve_spacetime_crowding(per_vehicle)
     crowd_wait_s = float(sum(crowd_delays))
-    makespan = max((pv["core"]["time_s"] + charger_delays[i] + resource_delays[i] + crowd_delays[i]
+    # FL-04: cross-vehicle precedence chain-splitting -- a dependent leg on one rover waits for its
+    # predecessor leg on another rover (the chain is SPLIT, not forced onto one vehicle). Same per-vehicle
+    # wait discipline as the charger/crowding resolvers. No cross-vehicle edge -> all 0 -> byte-identical.
+    precedence_delays = _resolve_cross_vehicle_precedence(per_vehicle, alloc, glob_prec, trips)
+    precedence_wait_s = float(sum(precedence_delays))
+    makespan = max((pv["core"]["time_s"] + charger_delays[i] + resource_delays[i]
+                    + crowd_delays[i] + precedence_delays[i]
                     for i, pv in enumerate(per_vehicle)), default=0.0)
     agg = dict(
         time_s=float(makespan),
@@ -1482,9 +1493,10 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
         distance_m=sum(pv["core"]["distance_m"] for pv in per_vehicle),
         avg_power_w=0.0)
     agg["avg_power_w"] = agg["energy_J"] / makespan if makespan > 1e-9 else 0.0
-    # idle/survival draw covers active per-vehicle time PLUS time a rover sits idle queueing (charger + resources)
+    # idle/survival draw covers active per-vehicle time PLUS time a rover sits idle queueing (charger +
+    # resources + waiting on a cross-vehicle precedence predecessor)
     survival_J = IDLE_POWER_W * (sum(pv["core"]["time_s"] for pv in per_vehicle)
-                                 + charger_wait_s + resource_wait_s)
+                                 + charger_wait_s + resource_wait_s + precedence_wait_s)
     all_trips = [tr for pv in per_vehicle for tr in pv["trips"]]
     all_per_trip = [pt for pv in per_vehicle for pt in pv["per_trip"]]
     all_tl = [seg for pv in per_vehicle for seg in pv["tl"]]
@@ -1496,6 +1508,7 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
                "energy_J": pv["core"]["energy_J"], "distance_m": pv["core"]["distance_m"],
                "charges": pv["core"]["charges"], "charger_wait_s": float(charger_delays[pv["vehicle"]]),
                "crowd_wait_s": float(crowd_delays[pv["vehicle"]]),  # FL-02 re-sequencing wait (space-time crowding)
+               "precedence_wait_s": float(precedence_delays[pv["vehicle"]]),  # FL-04 cross-vehicle precedence wait
                "health": _rover_health(pv)}                       # FL-04: per-rover belief/health/resource state
               for pv in per_vehicle]
     fleet_needs_replan = any(d["health"]["health"] == "stranded" for d in detail)   # FL-04 replan trigger
@@ -1506,6 +1519,8 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
                   makespan_s=float(makespan), makespan_parallel_s=float(parallel_makespan),
                   charger_wait_s=charger_wait_s, charger_queue_modeled=True,
                   crowd_wait_s=crowd_wait_s, crowd_resequenced=bool(crowd_wait_s > 0.0),  # FL-02 re-sequencing
+                  precedence_wait_s=precedence_wait_s,            # FL-04 cross-vehicle precedence wait
+                  precedence_split=bool(precedence_wait_s > 0.0),  # FL-04 a chain was split across vehicles
                   vehicle_conflicts=int(conflicts), vehicles_detail=detail,
                   fleet_needs_replan=bool(fleet_needs_replan),
                   temporal_conflicts=int(_temporal_conflicts(per_vehicle)),   # FL-02: nearby-site space-time crowding
