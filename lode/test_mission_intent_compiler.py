@@ -1,0 +1,286 @@
+"""CP-04: goal-grammar compiler tests, on the CANONICAL MO-01 contracts.
+
+The compiler INPUT is ``stewie.contracts.MissionIntent`` (MO-01): a HIERARCHY of objectives (each with
+target geometry + measurable acceptance + resource budgets + prerequisites, tagged primary/secondary/
+stretch and mandatory/optional) and constraints (HARD / FLIGHT_RULE / SOFT). The compiler LOWERS it into
+the REAL planner contract -- a ``lode.mission_planner.Mission`` carrying compiled excavation orders,
+precedence, and the hard-constraint budget dict ``objective_constraints`` -- plus a weighted soft
+objective string, returned together as a ``CompiledPlanRequest`` (the planner takes them SEPARATELY:
+``plan(mission, objective=...)``; hard rules ride on the Mission, soft trade-offs are the objective).
+
+The load-bearing invariants under test (CP-04, expressed over MO-01):
+  1. Mandatory objectives compile into orders BEFORE any soft/weighted optimization (mandatory-first,
+     sourced from the MO-01 ``compile_order`` helper the compiler reuses), and a hard structured budget
+     lands in ``objective_constraints`` (the planner's HARD penalty path) -- never as a soft weight.
+  2. A hard / flight-rule constraint that also carries a soft weight is REJECTED (a flight rule must not
+     be tradeable). (MO-01's Constraint model also rejects this at the contract boundary; the compiler
+     re-asserts it.)
+  3. The compiled request drives the REAL planner path (``mission_planner.plan``) on real moon physics,
+     the mandatory objectives are honoured (present + sequenced respecting prerequisites), and the
+     optimizer is free to ORDER independent objectives (the lowering does not impose a spurious total
+     order).
+
+No synthetic data and no stubs: inputs are real canonical MO-01 contract instances and the end-to-end
+test runs the real single-vehicle planner on the real moon regolith model (bodies.json).
+"""
+import math
+
+import pytest
+
+import lode.mission_planner as MP
+from lode import mission_intent_compiler as MIC
+from stewie.contracts import (
+    AcceptanceCriterion,
+    Constraint,
+    ConstraintKind,
+    Contingency,
+    ContingencyPolicy,
+    MissionIntent,
+    Objective,
+    PriorityTier,
+)
+
+
+# ---------------------------------------------------------------------------------------------------
+# canonical MO-01 builders: every MO-01 required field is supplied with a real, valid value (the
+# compiler consumes the canonical contract, so the tests construct it -- not a local duplicate).
+# ---------------------------------------------------------------------------------------------------
+def _objective(objective_id, *, target_row, target_col, mandatory=True,
+               priority=PriorityTier.PRIMARY, prerequisites=(), material_budget_kg=300.0,
+               energy_budget_j=None, time_window_s=None):
+    """A fully-specified MO-01 Objective (acceptance non-empty, contingency present, approver set)."""
+    return Objective(
+        objective_id=objective_id, revision=0,
+        statement=f"excavate {objective_id}", rationale="construction prep",
+        priority=priority, mandatory=mandatory,
+        target_row=target_row, target_col=target_col, frame="MOON_ME",
+        acceptance=[AcceptanceCriterion(criterion_id=f"{objective_id}-ac", statement="excavated",
+                                        measurable="as-built RMSE <= 0.02 m", sensor="stereo")],
+        confidence_required=0.6,
+        energy_budget_j=energy_budget_j, material_budget_kg=material_budget_kg,
+        time_window_s=time_window_s,
+        prerequisites=list(prerequisites),
+        contingency=Contingency(policy=ContingencyPolicy.SAFE, detail="loss of localization"),
+        approver="flight-director")
+
+
+def _intent(mission_id, objectives, constraints=()):
+    return MissionIntent(mission_id=mission_id, revision=0, statement="test mission",
+                         objectives=list(objectives), constraints=list(constraints))
+
+
+def test_mandatory_objective_compiles_to_order_and_soft_constraint_to_weight():  # [REQ:CP-04]
+    intent = _intent(
+        "dig-then-prefer-fast",
+        [_objective("pit", target_row=10.0, target_col=10.0, material_budget_kg=300.0)],
+        # a SOFT constraint: minimize energy, weighted -- it tunes the optimizer, it is not a hard budget.
+        [Constraint(constraint_id="prefer-energy", kind=ConstraintKind.SOFT,
+                    statement="minimize energy", weight=1.0)],
+    )
+    req = MIC.compile_intent(intent)
+
+    # the mandatory objective compiled into a real excavation order (mandatory-first: it is in the order set).
+    assert isinstance(req.mission, MP.Mission)
+    actions = {o.action for o in req.mission.orders}
+    assert "pit" in actions
+    pit = next(o for o in req.mission.orders if o.action == "pit")
+    assert pit.kind == "cut" and pit.x == 10.0 and pit.y == 10.0
+    # the order's MASS equals the objective's material_budget_kg (the load-bearing sizing quantity).
+    recovered = pit.footprint_m2 * pit.depth_m * MP.body_density("moon")
+    assert math.isclose(recovered, 300.0, rel_tol=1e-9)
+
+    # the soft constraint became a WEIGHTED objective the planner optimizes (a convex weight dict).
+    weights = MP.parse_objective(req.objective)
+    assert "energy" in weights
+
+    # no soft constraint leaked into the HARD-constraint budget.
+    assert not req.mission.objective_constraints
+
+    # the MO-01 ordering proof confirms mandatory-first / hard-first discipline.
+    assert req.order.mandatory_objective_ids == ["pit"]
+    assert req.order.weighted_constraint_ids == ["prefer-energy"]
+
+
+def test_hard_budget_lands_in_objective_constraints_not_in_soft_weights():  # [REQ:CP-04]
+    intent = _intent(
+        "hard-time-cap",
+        [_objective("pit", target_row=8.0, target_col=8.0, material_budget_kg=200.0,
+                    # a HARD numeric budget from MO-01's structured objective fields (a flight rule).
+                    time_window_s=(0.0, 5000.0), energy_budget_j=1.5e8)],
+        [Constraint(constraint_id="prefer-distance", kind=ConstraintKind.SOFT,
+                    statement="minimize distance", weight=1.0)],
+    )
+    req = MIC.compile_intent(intent)
+
+    # the hard caps are on the planner's HARD penalty path (objective_constraints), keyed as the planner's
+    # budget keys -- the time window close -> max_time_s, the energy budget -> max_energy_J.
+    assert req.mission.objective_constraints["max_time_s"] == 5000.0
+    assert req.mission.objective_constraints["max_energy_J"] == 1.5e8
+    # they are NOT tradeable weights in the soft objective.
+    assert "time" not in MP.parse_objective(req.objective)
+    assert "energy" not in MP.parse_objective(req.objective)
+
+
+def test_hard_constraint_with_weight_is_rejected():  # [REQ:CP-04]
+    # a flight rule must never be expressible as a soft, tradeable weight. MO-01's Constraint model rejects
+    # a weight on a HARD/FLIGHT_RULE constraint at construction, so the contradiction cannot even be built
+    # (the boundary that the compiler also re-asserts). Either way it never reaches the soft objective.
+    with pytest.raises(ValueError, match="weight"):
+        Constraint(constraint_id="bad", kind=ConstraintKind.FLIGHT_RULE,
+                   statement="energy ceiling", weight=0.5)
+
+
+def test_objective_time_window_compiles_to_hard_time_budget():  # [REQ:CP-04]
+    intent = _intent(
+        "deadline",
+        [_objective("pit", target_row=8.0, target_col=8.0, time_window_s=(0.0, 3600.0))],
+    )
+    req = MIC.compile_intent(intent)
+    # an objective's time-window close is a HARD makespan budget, not a soft weight.
+    assert req.mission.objective_constraints["max_time_s"] == 3600.0
+
+
+def test_energy_budget_is_aggregated_across_objectives():  # [REQ:CP-04]
+    intent = _intent(
+        "two-budgets",
+        [_objective("a", target_row=4.0, target_col=4.0, energy_budget_j=1.0e8),
+         _objective("b", target_row=20.0, target_col=20.0, energy_budget_j=2.0e8)],
+    )
+    req = MIC.compile_intent(intent)
+    # the planner models a single mission energy budget; the per-objective ceilings aggregate.
+    assert req.mission.objective_constraints["max_energy_J"] == 3.0e8
+
+
+def test_prerequisites_compile_to_precedence():  # [REQ:CP-04]
+    intent = _intent(
+        "grade-then-haul",
+        [_objective("grade", target_row=5.0, target_col=5.0),
+         _objective("berm", target_row=20.0, target_col=20.0, prerequisites=("grade",))],
+    )
+    req = MIC.compile_intent(intent)
+    # prerequisite (grade before berm) -> the planner's precedence (sequencer honours it). Exactly one
+    # edge -- the lowering does NOT also auto-chain the orders into a spurious path.
+    assert req.mission.precedence == [("grade", "berm")]
+
+
+def test_independent_objectives_are_freely_orderable():  # [REQ:CP-04]
+    # objectives with NO prerequisites must be freely orderable by the optimizer (the lowering must not
+    # impose a hidden total order). An optimal distance order differs from authorship order, proving it.
+    intent = _intent(
+        "free-order",
+        [_objective("A", target_row=0.0, target_col=0.0),
+         _objective("B", target_row=50.0, target_col=50.0),
+         _objective("C", target_row=5.0, target_col=5.0)],
+    )
+    req = MIC.compile_intent(intent)
+    assert req.mission.precedence == []   # no prerequisites -> no precedence edges, no auto-chain
+    # drive the planner with an explicit distance objective (overriding the compiled one) to surface the
+    # optimizer's freedom to reorder -- the mission is what carries the ordering constraints, and it has none.
+    result = MP.plan(mission=req.mission, algorithm="brute", objective="distance")
+    labels = [t["label"] for t in result.trips]
+    # the optimizer chose a NON-authorship order (A,B,C authored; A,C,B is shorter), which it could only do
+    # if the orders are independent.
+    assert labels != ["Excavate spoil: A", "Excavate spoil: B", "Excavate spoil: C"]
+    visited = {a for t in result.trips for a in t.get("actions", ())}
+    assert {"A", "B", "C"} <= visited
+
+
+def test_soft_constraint_priorities_preserved_in_objective_string():  # [REQ:CP-04]
+    # multiple soft constraints combine into a single convex objective; higher weight = higher priority.
+    intent = _intent(
+        "prio",
+        [_objective("pit", target_row=8.0, target_col=8.0)],
+        [Constraint(constraint_id="want-fast", kind=ConstraintKind.SOFT,
+                    statement="minimize time", weight=0.75),
+         Constraint(constraint_id="want-lean", kind=ConstraintKind.SOFT,
+                    statement="minimize energy", weight=0.25)],
+    )
+    req = MIC.compile_intent(intent)
+    weights = MP.parse_objective(req.objective)
+    assert weights["time"] > weights["energy"]   # priority preserved through normalization
+
+
+def test_soft_constraint_naming_unknown_metric_is_rejected():  # [REQ:CP-04]
+    # a soft constraint must say WHAT to optimize; a statement naming no planner metric is rejected, not
+    # silently dropped (which would turn a stated preference into a no-op).
+    intent = _intent(
+        "vague",
+        [_objective("pit", target_row=8.0, target_col=8.0)],
+        [Constraint(constraint_id="vibes", kind=ConstraintKind.SOFT,
+                    statement="make it nice", weight=1.0)],
+    )
+    with pytest.raises(ValueError, match="no known planner optimization metric"):
+        MIC.compile_intent(intent)
+
+
+def test_compiled_mission_runs_real_planner_path():  # [REQ:CP-04]
+    # end-to-end: the compiled request drives the REAL planner (no stub) on real moon physics, honouring
+    # the prerequisite, and the mandatory objectives are present in the resulting plan's trips.
+    intent = _intent(
+        "e2e",
+        [_objective("grade", target_row=6.0, target_col=6.0),
+         _objective("berm", target_row=18.0, target_col=18.0, prerequisites=("grade",),
+                    # a generous time window -> the plan is feasible under the hard makespan budget.
+                    time_window_s=(0.0, 1.0e9))],
+    )
+    req = MIC.compile_intent(intent)
+    result = MP.plan(algorithm="nearest", **req.plan_kwargs)
+    assert isinstance(result, MP.PlanResult)
+    # the real plan visited the mandatory work sites.
+    visited = {a for t in result.trips for a in t.get("actions", ())}
+    assert {"grade", "berm"} <= visited
+    # and it honoured the prerequisite: grade's trip precedes berm's.
+    labels = [t["label"] for t in result.trips]
+    grade_i = next(i for i, label in enumerate(labels) if "grade" in label)
+    berm_i = next(i for i, label in enumerate(labels) if "berm" in label)
+    assert grade_i < berm_i
+    # the plan produced real, finite totals (it ran the physics, not a stub).
+    assert result.totals["time_s"] > 0.0
+    assert result.totals["energy_J"] > 0.0
+
+
+def test_no_mandatory_objective_is_rejected():  # [REQ:CP-04]
+    # a MissionIntent with no mandatory objective has nothing to plan -> hard error, not a silent empty plan.
+    intent = _intent(
+        "all-optional",
+        [_objective("maybe", target_row=8.0, target_col=8.0, mandatory=False,
+                    priority=PriorityTier.STRETCH)],
+    )
+    with pytest.raises(ValueError, match="mandatory"):
+        MIC.compile_intent(intent)
+
+
+def test_empty_mission_is_rejected():  # [REQ:CP-04]
+    intent = _intent("empty", [])
+    with pytest.raises(ValueError, match="mandatory"):
+        MIC.compile_intent(intent)
+
+
+def test_mandatory_objective_without_material_budget_is_rejected():  # [REQ:CP-04]
+    # MO-01 supplies no work geometry other than material_budget_kg; without it the planner cannot size an
+    # order, so the compiler refuses rather than inventing a footprint.
+    intent = _intent(
+        "no-geometry",
+        [_objective("pit", target_row=8.0, target_col=8.0, material_budget_kg=None)],
+    )
+    with pytest.raises(ValueError, match="material_budget_kg"):
+        MIC.compile_intent(intent)
+
+
+def test_optional_objectives_are_not_compiled_into_orders():  # [REQ:CP-04]
+    # mandatory-first: a secondary/optional objective is NOT planned as a required order (it goes to the
+    # optional list in compile_order, never the order set), so the plan carries only the mandatory work.
+    intent = _intent(
+        "mixed",
+        [_objective("pit", target_row=8.0, target_col=8.0, material_budget_kg=300.0),
+         _objective("nice-to-have", target_row=12.0, target_col=12.0, mandatory=False,
+                    priority=PriorityTier.SECONDARY, material_budget_kg=100.0)],
+    )
+    req = MIC.compile_intent(intent)
+    actions = {o.action for o in req.mission.orders}
+    assert actions == {"pit"}                       # only the mandatory objective is an order
+    assert "nice-to-have" in req.order.optional_objective_ids
+
+
+def test_proven_compiler_is_the_worktree_copy():  # provenance: prove the worktree module ran
+    assert "/tmp/stewie-wt-cp04r/" in MIC.__file__
