@@ -362,6 +362,10 @@
       <div class="ctl" style="font-size:11px">Artemis sites
         <select id="sitesel" title="#49: the site registry -- jump to any Artemis III candidate region; only imported sites carry a DEM bundle"></select></div>
       <h3>2 · Contents — map layers &amp; sun</h3>
+      <!-- GIS S-2: the ArcGIS/TerriaJS Contents tree -- ONE ordered checkbox layer tree (Basemap/Terrain/Sun
+           /Safety/Operations) where build orders + keep-outs render as real feature rows (zoom-to + remove).
+           Driven from the live LAYER_ON / ORDERS / KEEPOUTS state by renderContentsTree() (no duplicate state). -->
+      <div id="contents-tree" style="margin-bottom:6px"></div>
       <div id="contents-pane"></div>
       <div id="workbench" style="margin-top:6px"></div>
       <div id="legendbox" style="font-size:10px; line-height:1.5; margin-top:4px; display:none"></div>
@@ -1166,7 +1170,8 @@
 <script src="/assets/fleet_render.js?v=06884853fac0"></script><!-- FS-03: pure Fleet-pane roster/allocation HTML builders (sets window.STEWIE_FLEET_RENDER) -->
 <script src="/assets/construction_render.js?v=a649526014e9"></script><!-- FS-03: pure Construction-pane catalog/acceptance HTML builders (sets window.STEWIE_CONSTRUCTION_RENDER) -->
 <script src="/assets/models_render.js?v=c5b4efe434e8"></script><!-- FS-03: pure Models-pane profile/registry/governance HTML builders (sets window.STEWIE_MODELS_RENDER) -->
-<script src="/assets/plan_stepper.js?v=1889a4081de4"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
-<script src="/assets/cockpit.js?v=a558639449d8"></script>
+<script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
+<script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
+<script src="/assets/cockpit.js?v=d1a2ed3c15e4"></script>
 </body>
 </html>

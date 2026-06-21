@@ -11,6 +11,13 @@
 //   site    -> 1 Site picker + 2 Contents/layers/locator
 //   fleet   -> 3 Fleet (vehicle/rovers/soil/charger) + 4 Feasibility
 //   orders  -> 5 Plan (build queue + order authoring + keep-outs)
+//
+// GIS S-2 Contents tree (contents_tree.js, mounted IN section 2): its groups stay coherent with this map.
+// Each tree group carries the numbered section its features ALSO live in, so the tree never claims a feature
+// belongs to a step that does not reveal it:
+//   Basemap / Terrain / Sun  -> section "1" (the Site step reveals 1+2)
+//   Safety (keep-outs) / Operations (build orders) -> section "5" (the Orders step reveals 5)
+// plan_stepper.test.js asserts these group sections are revealed by the Site / Orders steps respectively.
 //   solve   -> 4 Feasibility + 5 Plan (constraints + algorithm + Plan button)
 //   review  -> 5 Plan (plan summary, Plan IR/report export) + 6 Catalog (saved missions/report)
 //   execute -> 5 Plan (Execute+watch, Training session) + 7 Telemetry (channels/drum/exec feed)
