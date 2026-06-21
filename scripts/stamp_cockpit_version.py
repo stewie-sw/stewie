@@ -28,7 +28,8 @@ INDEX_HTML = _ROOT / "stewie" / "server" / "index.html"
 #: cache-busted assets referenced from index.html as `<name>?v=<hash>`.
 ASSETS = ("cockpit.js", "three3d.js", "geofmt.js", "globe_ellipsoid.js",
           "htmlesc.js", "role_rank.js", "keepout_geom.js",
-          "navplot.js", "evidence_html.js", "rover_hud.js", "plan_geom.js")
+          "navplot.js", "evidence_html.js", "rover_hud.js", "plan_geom.js",
+          "fleet_render.js")
 
 
 def content_hash(name: str) -> str:
