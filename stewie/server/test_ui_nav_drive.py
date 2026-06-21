@@ -16,9 +16,15 @@ client = TestClient(app)
 
 
 def _cockpit_js() -> str:
-    r = client.get("/assets/cockpit.js")
-    assert r.status_code == 200 and "javascript" in r.headers.get("content-type", "")
-    return r.text
+    # FS-24 split: the cockpit is served as cockpit.js plus extracted ES modules. The nav-drive
+    # renderer body (res.waypoints/res.trajectory/res.recovery_events/e.xy) now lives in
+    # /assets/navplot.js, so fetch the served bundle and guard against the actual served JS.
+    parts = []
+    for path in ("/assets/cockpit.js", "/assets/navplot.js"):
+        r = client.get(path)
+        assert r.status_code == 200 and "javascript" in r.headers.get("content-type", "")
+        parts.append(r.text)
+    return "\n".join(parts)
 
 
 def test_drive_preview_elements_are_in_the_served_page():
