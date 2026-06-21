@@ -832,6 +832,13 @@
         </div>
       </div>
       <div id="execview" class="pane">
+        <!-- TR-01: trainer A-board scorecard (per-session KPIs, persisted to data_dir/sessions/). Filled
+             by renderScorecardBoard() on session start; hidden until a session has run. -->
+        <div id="scorecard-board" style="display:none;margin-bottom:10px">
+          <div class="cap" style="margin-bottom:6px"><span>TRAINER SCORECARD — <span id="sc-sid">—</span>
+            <small id="sc-prov">(autonomy-run KPIs; the human-RC seam is gated)</small></span></div>
+          <div id="sc-chips" style="line-height:1.9"></div>
+        </div>
         <div class="cap" style="margin-bottom:6px"><span>STABILITY — live CG &amp; tip margin <small>(posture + weighted drums; ArmState physics)</small></span></div>
         <div class="ctl" style="font-size:11px">
           front arm <input id="cgF" type="range" min="-110" max="110" value="0" style="width:7em" /><span id="cgFv">0°</span>
@@ -1069,6 +1076,6 @@
 <script src="/assets/adapters.js?v=fs15a1"></script>
 <script src="/assets/geofmt.js?v=8ab2024e447b"></script><!-- FS-24: pure site-frame bearing + lat/lon fmt (sets window.STEWIE_GEOFMT) -->
 <script src="/assets/globe_ellipsoid.js?v=8e052105d4b2"></script><!-- GI-02: per-body globe radii (sets window.STEWIE_GLOBE) -->
-<script src="/assets/cockpit.js?v=57a654ecaef7"></script>
+<script src="/assets/cockpit.js?v=97d7d7932dbf"></script>
 </body>
 </html>
