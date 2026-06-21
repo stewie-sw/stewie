@@ -599,6 +599,12 @@
            per-vehicle allocation + makespan + conflicts = the last /plan result. data-minrole gates it
            like the operator chrome (gateChrome hides it for sub-operators). -->
       <button class="vtab" id="vtab-fleet" data-view="fleet" data-minrole="operator" style="display:none" title="fleet coordination: the vehicle registry roster + the last plan's per-vehicle allocation, makespan, and space-time conflicts">Fleet <span class="sysb">LODE</span></button>
+      <!-- FS-03: the CONSTRUCTION work area (operator+). Catalog = the real structure templates (/construction);
+           acceptance criteria + the last plan's as-built pass/fail = validate_plan (lode/planner_acceptance). -->
+      <button class="vtab" id="vtab-construction" data-view="construction" data-minrole="operator" style="display:none" title="construction: the build catalog (structure templates → cut/fill primitives) + acceptance criteria and the last plan's as-built flatness/berm/repose/bearing verdict">Construction <span class="sysb">FORGE</span></button>
+      <!-- FS-03: the MODELS work area (engineer/dev surface, operator+ like System). The model + config registries:
+           system profiles (sha256 + VERIFIED), vehicle + body registries, and the ML-01 deployment-ready governance. -->
+      <button class="vtab" id="vtab-models" data-view="models" data-minrole="operator" style="display:none" title="models: the system-profile registry (sha256 + VERIFIED status), vehicle + body registries with provenance, and the ML-01 deployment-ready gate + no-command-path governance">Models <span class="sysb">FORGE</span></button>
       <!-- FS-20: System / Settings / Admin moved OFF the work-area tab bar into the profile menu (role-gated);
            an operator sees only the mission work areas. -->
       <style>.profitem{display:block;width:100%;text-align:left;background:none;border:none;color:var(--fg,#dcdce4);font-size:12px;padding:7px 10px;border-radius:5px;cursor:pointer}.profitem:hover{background:var(--accent);color:#fff}</style>
@@ -909,6 +915,40 @@
             per-vehicle allocation, makespan, and conflicts from that plan appear here.</div>
         </div>
       </div>
+      <!-- FS-03: the CONSTRUCTION pane (operator+, badge FORGE). Two sections: the static build CATALOG
+           (structure templates → cut/fill primitives, from /construction) and the acceptance criteria +
+           the live AS-BUILT verdict from the last /plan (validate_plan). cockpit.js loadConstruction()
+           fetches /construction + reads LAST_VALIDATION, then construction_render.js builds the HTML
+           (CSP-safe: no inline script; module loaded as an external asset). -->
+      <div id="pane_construction" class="pane">
+        <div class="cap"><span>BUILD CATALOG — structure templates (<b>leap/structures.py</b>)</span></div>
+        <div id="constructioncatalog" style="overflow:auto;margin-bottom:14px">
+          <div id="constructioncatalogempty" class="empty">Loading the build catalog…</div>
+        </div>
+        <div class="cap"><span>ACCEPTANCE — criteria (<b>validate_plan</b>) + last plan as-built verdict</span></div>
+        <div id="constructionacceptance" style="overflow:auto">
+          <div id="constructionacceptanceempty" class="empty">No as-built acceptance yet. Plan a mission
+            (Plan tab); the flatness, berm-profile, repose, and bearing pass/fail appear here.</div>
+        </div>
+      </div>
+      <!-- FS-03: the MODELS pane (operator+, badge FORGE). Three sections: the deployable SYSTEM-PROFILE
+           registry (sha256 + VERIFIED), the vehicle + body registries with provenance, and the ML-01
+           model-deployment governance (deployment-ready gate + §25.3 no-command-path status). cockpit.js
+           loadModels() fetches /models, then models_render.js builds the HTML (CSP-safe: external module). -->
+      <div id="pane_models" class="pane">
+        <div class="cap"><span>SYSTEM PROFILES — deployable config (<b>specs/profiles.py</b>, sha256 + VERIFIED)</span></div>
+        <div id="modelsprofiles" style="overflow:auto;margin-bottom:14px">
+          <div id="modelsprofilesempty" class="empty">Loading the profile registry…</div>
+        </div>
+        <div class="cap"><span>REGISTRIES — vehicles + bodies (<b>specs/vehicles.py</b>, <b>specs/bodies.py</b>)</span></div>
+        <div id="modelsregistries" style="overflow:auto;margin-bottom:14px">
+          <div id="modelsregistriesempty" class="empty">Loading the registries…</div>
+        </div>
+        <div class="cap"><span>MODEL GOVERNANCE — ML-01 deployment-ready gate + §25.3 no-command-path</span></div>
+        <div id="modelsgovernance" style="overflow:auto">
+          <div id="modelsgovernanceempty" class="empty">Loading the model-deployment governance…</div>
+        </div>
+      </div>
       <div id="pane-validation" class="pane">
         <div class="cap"><span>VALIDATION — figures from <b>validation/</b> (conserved-truth measurements)</span>
           <select id="valselect" title="pick a figure"></select></div>
@@ -1103,6 +1143,8 @@
 <script src="/assets/rover_hud.js?v=ed01a404713d"></script><!-- FS-24: pure exec-telemetry renderers HUD/spark/chips/gantt (sets window.STEWIE_ROVER_HUD) -->
 <script src="/assets/plan_geom.js?v=b231e1bb3015"></script><!-- FS-24: pure plan-canvas extent/transform/glyph/precedence math (sets window.STEWIE_PLAN_GEOM) -->
 <script src="/assets/fleet_render.js?v=06884853fac0"></script><!-- FS-03: pure Fleet-pane roster/allocation HTML builders (sets window.STEWIE_FLEET_RENDER) -->
-<script src="/assets/cockpit.js?v=0955d2b265b5"></script>
+<script src="/assets/construction_render.js?v=a649526014e9"></script><!-- FS-03: pure Construction-pane catalog/acceptance HTML builders (sets window.STEWIE_CONSTRUCTION_RENDER) -->
+<script src="/assets/models_render.js?v=c5b4efe434e8"></script><!-- FS-03: pure Models-pane profile/registry/governance HTML builders (sets window.STEWIE_MODELS_RENDER) -->
+<script src="/assets/cockpit.js?v=5cb493945715"></script>
 </body>
 </html>

@@ -27,7 +27,8 @@ from playwright.sync_api import sync_playwright
 
 # FS-20: the work-area tab bar carries only the mission views; System / Settings / Admin moved into
 # the profile menu (role-gated), so the harness reaches those by opening the menu first.
-WORK_PANES = ["plan", "nav", "perception", "metrics", "report", "fleet"]   # FS-03: the Fleet work area
+WORK_PANES = ["plan", "nav", "perception", "metrics", "report", "fleet",
+              "construction", "models"]   # FS-03: the Fleet + Construction + Models work areas
 PROFILE_PANES = ["settings", "system", "admin"]
 
 
