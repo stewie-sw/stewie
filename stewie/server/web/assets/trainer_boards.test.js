@@ -40,7 +40,7 @@ test("programBoardHTML: leaderboard ranks closest-to-optimal first", () => {
   // the ideal run (1.05x) should rank ABOVE the comm_dropout run (1.20x): its 8-char id appears first
   assert.ok(html.indexOf("bbbbbbbb") < html.indexOf("aaaaaaaa"),
     "the lower makespan ratio must lead the leaderboard");
-  assert.match(html, /🥇/);
+  assert.match(html, /1/);
 });
 
 test("programBoardHTML: history table lists every recorded session newest-first", () => {

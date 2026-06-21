@@ -11,7 +11,7 @@
   // the /evidence payload; `escFn` is the SEC-04 escaper (htmlesc.esc). Returns the inner HTML string.
   function evidenceHTML(d, escFn) {
     const e = (typeof escFn === "function") ? escFn : (s) => String(s);
-    const fmt = (v) => Array.isArray(v) ? v.join("–") : (v === true ? "✅" : v === false ? "—"
+    const fmt = (v) => Array.isArray(v) ? v.join("–") : (v === true ? "✓" : v === false ? "—"
                       : (v == null ? "—" : e(String(v))));
     const SYS = ["Stanford NAV Lab (LAC)", "ShadowNav (JPL)", "ARGUS"];
     const th = (t) => `<th style="text-align:left;padding:2px 8px">${e(t)}</th>`;
