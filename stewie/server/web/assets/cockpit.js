@@ -727,6 +727,7 @@ function el(tag, attrs, ...children) {
 let VIEW = "plan";
 const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navview", report: "pane-report",
                     fleet: "pane_fleet",                                  // FS-03: the Fleet work area
+                    construction: "pane_construction", models: "pane_models",  // FS-03: Construction + Models work areas
                     validation: "pane-validation", api: "pane-api", server: "pane-server", config: "pane-config",
                     evidence: "pane-evidence", admin: "pane-admin", settings: "pane-settings" };
 const _PANE_LOADED = {};
@@ -899,6 +900,58 @@ async function loadFleet() {
   }
   if (_FLEET_ROSTER) rosterEl.innerHTML = FR.fleetRosterHTML(_FLEET_ROSTER, esc);
   planEl.innerHTML = FR.fleetPlanHTML(LAST_TOTALS, esc);  // live per-vehicle allocation from the last plan
+}
+
+// FS-03 Construction pane: render the REAL build catalog (/construction, fetched once -- static templates)
+// + the acceptance criteria, plus the LIVE as-built verdict from the last plan (LAST_VALIDATION, re-read on
+// every open so it tracks the latest /plan). All HTML built by the pure construction_render.js module
+// (CSP-safe). Honest empty states: catalog shows the catalog-down message if /construction fails; the
+// as-built result shows "plan a mission" until a plan validation exists. No fabricated data.
+let _CONSTRUCTION = null;
+async function loadConstruction() {
+  const CR = window.STEWIE_CONSTRUCTION_RENDER;
+  const catEl = $("constructioncatalog"), accEl = $("constructionacceptance");
+  if (!CR || !catEl || !accEl) return;
+  if (!_CONSTRUCTION) {                                   // fetch the catalog once (it is static config)
+    try {
+      const r = await fetch("/construction", { headers: apiHeaders() });
+      if (r.ok) _CONSTRUCTION = await r.json();
+      else catEl.innerHTML = '<div class="empty">Build catalog unavailable (HTTP ' + r.status
+        + (r.status === 401 || r.status === 403 ? " — operator+ sign-in required" : "") + ").</div>";
+    } catch (e) {
+      catEl.innerHTML = '<div class="empty">Build catalog unavailable (' + esc(String(e)) + ").</div>";
+    }
+  }
+  if (_CONSTRUCTION) {
+    catEl.innerHTML = CR.constructionCatalogHTML(_CONSTRUCTION, esc);
+    accEl.innerHTML = CR.constructionAcceptanceHTML(_CONSTRUCTION, LAST_VALIDATION, esc);  // live as-built from last plan
+  }
+}
+
+// FS-03 Models pane: render the REAL model + config registries (/models, fetched once): the deployable
+// system-profile registry (sha256 + VERIFIED), the vehicle + body registries with provenance, and the
+// ML-01 deployment-ready governance + §25.3 no-command-path status. All HTML built by the pure
+// models_render.js module (CSP-safe). Honest empty state if /models fails. No fabricated data.
+let _MODELS = null;
+async function loadModels() {
+  const MR = window.STEWIE_MODELS_RENDER;
+  const pEl = $("modelsprofiles"), rEl = $("modelsregistries"), gEl = $("modelsgovernance");
+  if (!MR || !pEl || !rEl || !gEl) return;
+  if (!_MODELS) {                                         // fetch the registries once (static config)
+    try {
+      const r = await fetch("/models", { headers: apiHeaders() });
+      if (r.ok) _MODELS = await r.json();
+      else pEl.innerHTML = '<div class="empty">Model registries unavailable (HTTP ' + r.status
+        + (r.status === 401 || r.status === 403 ? " — operator+ sign-in required" : "") + ").</div>";
+    } catch (e) {
+      pEl.innerHTML = '<div class="empty">Model registries unavailable (' + esc(String(e)) + ").</div>";
+    }
+  }
+  if (_MODELS) {
+    pEl.innerHTML = MR.modelsProfilesHTML(_MODELS, esc);
+    rEl.innerHTML = MR.modelsRegistriesHTML(_MODELS, esc);
+    gEl.innerHTML = MR.modelsGovernanceHTML(_MODELS, esc);
+  }
 }
 
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
@@ -1633,6 +1686,10 @@ async function loadPane(name) {
       if (!_PANE_LOADED.api) { $("apiframe").src = "/docs"; _PANE_LOADED.api = true; }   // FastAPI Swagger
     } else if (name === "fleet") {
       await loadFleet();                                                  // FS-03: roster (/fleet) + last-plan allocation
+    } else if (name === "construction") {
+      await loadConstruction();                                          // FS-03: build catalog (/construction) + last-plan as-built
+    } else if (name === "models") {
+      await loadModels();                                                // FS-03: model + config registries (/models)
     } else if (name === "validation" && !_PANE_LOADED.validation) {
       _PANE_LOADED.validation = true;
       const d = await (await fetch("/figures")).json();
@@ -3222,6 +3279,7 @@ qel("qplan").onclick = async () => {
     qel("qexec").disabled = !LAST_TIMELINE;
     if (typeof renderStepper === "function") renderStepper();  // pipeline spine: Solve done -> unlock Review/Execute
     LAST_TOTALS = t; LAST_PDF = j.pdf;                     // mirror the last plan into the tab-contextual left blocks
+    LAST_VALIDATION = j.validation || null;                // FS-03: the as-built acceptance verdict for the Construction pane
     if (typeof renderCtxSummaries === "function") renderCtxSummaries();
     qel("reportframe").src = j.pdf;                        // embed the mission-control PDF in the Report pane
     qel("reportframe").classList.add("show");
@@ -4090,6 +4148,7 @@ if ($("guide-sample")) $("guide-sample").onclick = () => {
 // tab-contextual left blocks (#131/#132 follow-up): mirror the last plan into the per-tab left content
 // so #ctx-metrics/report/perception carry live status, not just "look in the pane ->" blurbs.
 let LAST_TOTALS = null, LAST_PDF = null;
+let LAST_VALIDATION = null;                               // FS-03: the last plan's validate_plan as-built verdict (Construction pane)
 function renderCtxSummaries() {
   const t = LAST_TOTALS, m = $("ctxmet-sum"), r = $("ctxrep-sum"), pp = $("ctxperc-sum");
   if (m) m.innerHTML = t

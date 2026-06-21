@@ -132,6 +132,7 @@ from stewie.server.routers import admin_ops as _admin_ops_router  # noqa: E402
 from stewie.server.routers import assets as _assets_router  # noqa: E402
 from stewie.server.routers import auth as _auth_router  # noqa: E402
 from stewie.server.routers import config as _config_router  # noqa: E402
+from stewie.server.routers import construction as _construction_router  # noqa: E402
 from stewie.server.routers import dem as _dem_router  # noqa: E402
 from stewie.server.routers import ephemeris as _ephemeris_router  # noqa: E402
 from stewie.server.routers import tiles as _tiles_router  # noqa: E402
@@ -144,6 +145,7 @@ from stewie.server.routers import health as _health_router  # noqa: E402
 from stewie.server.routers import invites as _invites_router  # noqa: E402
 from stewie.server.routers import layers as _layers_router  # noqa: E402
 from stewie.server.routers import missions as _missions_router  # noqa: E402
+from stewie.server.routers import models as _models_router  # noqa: E402
 from stewie.server.routers import operators_admin as _operators_admin_router  # noqa: E402
 from stewie.server.routers import perception as _perception_router  # noqa: E402
 from stewie.server.routers import nav as _nav_router  # noqa: E402
@@ -180,6 +182,8 @@ app.include_router(_admin_ops_router.router)
 app.include_router(_session_router.router)
 app.include_router(_plan_router.router)
 app.include_router(_fleet_router.router)
+app.include_router(_construction_router.router)      # FS-03: Construction work area (build catalog + acceptance)
+app.include_router(_models_router.router)            # FS-03: Models work area (registries + ML-01 governance)
 app.include_router(_perception_router.router)
 app.include_router(_nav_router.router)
 app.include_router(_gis_export_router.router)        # GI-03: GeoJSON/COG GIS export
