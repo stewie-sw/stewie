@@ -41,7 +41,7 @@ def negative_obstacle_mask(Z, *, max_drop_m=MAX_DROP_M):
 
 
 def slope_costmap(Z, cell_m, *, max_slope_deg=25.0, slip_alpha=2.0, max_drop_m=None,
-                  illum=None, illum_weight=1.0):
+                  illum=None, illum_weight=1.0, map_unc=None, map_unc_weight=1.0):
     """I10: per-cell traversal cost from terrain slope. cost = 1 + slip_alpha*tan(slope) (a slip-weighted
     per-meter multiplier — slope drives wheel slip, which costs energy/time); cells steeper than
     max_slope_deg are impassable hazards a rover can't safely traverse. When ``max_drop_m`` is set, cells
@@ -54,7 +54,16 @@ def slope_costmap(Z, cell_m, *, max_slope_deg=25.0, slip_alpha=2.0, max_drop_m=N
     is ADDED to the slope cost as ``illum_weight*illum`` (the covariance/severity gain scaling its
     influence vs slip), so a route prefers lit, well-observed corridors. It is a SOFT cost, never a hard
     hazard — passability is untouched. ``illum=None`` (the default) leaves the costmap BYTE-IDENTICAL to
-    the pre-SN-05 slope-only costmap, so illumination-aware routing is strictly opt-in."""
+    the pre-SN-05 slope-only costmap, so illumination-aware routing is strictly opt-in.
+
+    PM-08/09: ``map_unc`` is a second OPTIONAL, SEPARABLE layer — the per-cell RESIDUAL MAP UNCERTAINTY
+    (a crop-aligned (H, W) field [m], e.g. the onboard-observability sigma where observed cells carry the
+    onboard-stereo height sigma and unobserved cells the prior, the same residual the LAC map channel in
+    ``dart.map_channel`` scores). When supplied it is ADDED as ``map_unc_weight*map_unc`` (the severity gain
+    scaling its influence vs slip/illumination), so a route prefers WELL-OBSERVED, low-uncertainty cells. It
+    is INDEPENDENT of ``illum`` (both layers compose additively, neither shadows the other) and, like
+    ``illum``, a SOFT cost that never touches passability. ``map_unc=None`` (the default) leaves the costmap
+    BYTE-IDENTICAL to the pre-PM-08/09 costmap, so map-uncertainty-aware routing is strictly opt-in."""
     smap = slope_deg_map(Z, cell_m)
     passable = smap <= max_slope_deg
     if max_drop_m is not None:
@@ -65,6 +74,11 @@ def slope_costmap(Z, cell_m, *, max_slope_deg=25.0, slip_alpha=2.0, max_drop_m=N
         if illum.shape != cost.shape:
             raise ValueError(f"illum shape {illum.shape} must match the costmap shape {cost.shape}")
         cost = cost + float(illum_weight) * illum
+    if map_unc is not None:                                # PM-08/09: add the separable map-uncertainty term
+        map_unc = np.asarray(map_unc, float)
+        if map_unc.shape != cost.shape:
+            raise ValueError(f"map_unc shape {map_unc.shape} must match the costmap shape {cost.shape}")
+        cost = cost + float(map_unc_weight) * map_unc
     return cost, passable
 
 
@@ -193,7 +207,7 @@ def route_least_cost(cost, passable, cell_m, start_rc, goal_rc):
 
 
 def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0, margin_m=20.0,
-              keepouts=(), illum_cost=None, illum_weight=1.0):
+              keepouts=(), illum_cost=None, illum_weight=1.0, map_unc_cost=None, map_unc_weight=1.0):
     """I10: terrain-aware route between two LOCAL sites on the real DEM (anchored via dem_origin, M11).
     Crops the DEM to the two sites' bounding box + margin, builds a slope costmap, and routes a
     least-cost hazard-avoiding Dijkstra path. Returns (routed_m, grid_straight_m, reached, waypoints):
@@ -206,7 +220,14 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
     (e.g. ``dart.illumination_cost.illumination_cost(...)['total']`` rasterized onto the DEM grid). When
     supplied it is cropped to the same window as the slope costmap and ADDED as ``illum_weight*illum`` so
     the route prefers lit, well-observed corridors over shadowed ones. ``illum_cost=None`` (the default)
-    leaves the route BYTE-IDENTICAL to the pre-SN-05 slope-only route -- illumination routing is opt-in."""
+    leaves the route BYTE-IDENTICAL to the pre-SN-05 slope-only route -- illumination routing is opt-in.
+
+    PM-08/09: ``map_unc_cost`` is a second OPTIONAL DEM-aligned (same H, W as ``Z``) field — the per-cell
+    RESIDUAL MAP UNCERTAINTY [m] (e.g. the onboard-observability sigma the LAC map channel scores, observed
+    cells low / unobserved cells the prior). Cropped to the same window and ADDED as
+    ``map_unc_weight*map_unc`` so the route prefers WELL-OBSERVED, low-uncertainty corridors. Independent of
+    ``illum_cost`` (both compose additively). ``map_unc_cost=None`` (the default) leaves the route
+    BYTE-IDENTICAL to the pre-PM-08/09 route -- map-uncertainty routing is opt-in."""
     Z, cell = dem
     ox, oy = dem_origin
     ax, ay = ox + a_xy[0], oy + a_xy[1]
@@ -216,6 +237,10 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
         illum_cost = np.asarray(illum_cost, float)
         if illum_cost.shape != Z.shape:
             raise ValueError(f"illum_cost shape {illum_cost.shape} must match the DEM shape {Z.shape}")
+    if map_unc_cost is not None:
+        map_unc_cost = np.asarray(map_unc_cost, float)
+        if map_unc_cost.shape != Z.shape:
+            raise ValueError(f"map_unc_cost shape {map_unc_cost.shape} must match the DEM shape {Z.shape}")
     straight = math.hypot(bx - ax, by - ay)
     # H-05: adaptive search window. A valid corridor can leave the endpoint bounding box by far more
     # than the initial margin, so when no route is found we DOUBLE the crop margin and retry, up to the
@@ -231,9 +256,11 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
             return straight, straight, False, []
         crop = Z[r0:r1, c0:c1]
         illum_crop = None if illum_cost is None else illum_cost[r0:r1, c0:c1]   # SN-05: same window as the costmap
+        map_unc_crop = None if map_unc_cost is None else map_unc_cost[r0:r1, c0:c1]   # PM-08/09: same window
         cost, passable = slope_costmap(crop, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
                                        max_drop_m=MAX_DROP_M,   # routes also keep off drop-offs (don't fall in a hole)
-                                       illum=illum_crop, illum_weight=illum_weight)
+                                       illum=illum_crop, illum_weight=illum_weight,
+                                       map_unc=map_unc_crop, map_unc_weight=map_unc_weight)
         _apply_keepouts(passable, cell, r0, c0, dem_origin, keepouts)   # discrete obstacles -> impassable cells
         hc, wc = crop.shape
         start = (min(max(int(ay / cell) - r0, 0), hc - 1), min(max(int(ax / cell) - c0, 0), wc - 1))
