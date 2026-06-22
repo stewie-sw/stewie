@@ -80,6 +80,38 @@ def test_every_spine_contract_has_a_normalizer():
         assert f"function {fn}(" in js, f"{contract.__name__}: no '{fn}' normalizer in adapters.js"
 
 
+_WEB = _ADAPTERS_JS.parent
+# FS-15 X (integration): a cockpit work area must CONSUME its normalized view model, not raw backend JSON.
+# This maps each PRODUCTION cockpit module (NOT a *.test.js) to the view model it is required to call. Only
+# the in-repo /plan-path contracts are listed: PlanResult (dashboard/CONOPS), TimelineFrame (Gantt/rover
+# HUD), and LocalizationFix (nav-mission) have live data sources in the product path and are wired. The
+# remaining FS-02 spine view models (Ephemeris/World/Vehicle/Fleet-live/Belief/ExecutionEvent/ARGUSFactor/
+# ModelArtifact/ConstructionSkill) target LIVE-RUNTIME or registry sources that are render/ROS/telemetry-
+# gated (e.g. the Fleet ROSTER pane renders the static vehicle REGISTRY from /fleet, a different shape than
+# the FleetState contract), so their pane wiring is tracked with those gated rows, not asserted here.
+_PANE_CONSUMES = {
+    "cockpit.js": ["normalizePlanResult", "normalizeLocalizationFix"],
+    "rover_hud.js": ["normalizeTimelineFrame"],
+}
+
+
+def test_plan_path_panes_consume_view_models():  # [REQ:FS-15]
+    # FS-15: the wired cockpit work areas read the NORMALIZED view model (STEWIE_ADAPTERS.normalize*),
+    # never raw backend JSON. Regression guard: a pane silently reverting to raw fields fails here.
+    for fname, fns in _PANE_CONSUMES.items():
+        src = (_WEB / fname).read_text(encoding="utf-8")
+        for fn in fns:
+            assert f".{fn}(" in src, f"FS-15: {fname} no longer consumes the {fn} view model (raw-JSON regression?)"
+
+
+def test_pane_view_models_are_real_adapters():  # [REQ:FS-15]
+    # every view model a pane is asserted to consume must actually be a normalizer exported by adapters.js
+    js = _js()
+    for fns in _PANE_CONSUMES.values():
+        for fn in fns:
+            assert f"function {fn}(" in js, f"FS-15: pane consumes {fn} but adapters.js exports no such normalizer"
+
+
 def test_model_artifact_keeps_the_canonical_deployment_ready_rule():
     # the JS deploymentReady MIRRORS this property; if the backend rule changes, the mirror must be revisited
     assert isinstance(getattr(C.ModelArtifact, "deployment_ready", None), property), (
