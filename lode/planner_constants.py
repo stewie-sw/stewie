@@ -17,3 +17,14 @@ DIG_J_PER_KG = S.dig_energy_per_kg()              # ~4151 J/kg (derived)
 DRIVE_J_PER_M = S.drive_energy_per_m()            # ~135 J/m (derived)
 BATTERY_J = S.battery_energy_j()                  # ~4.79 MJ (12S/30Ah)
 RESERVE_FRAC = S.BATTERY_RESERVE_FRAC             # 0.10
+CHARGE_W = S.RECHARGE_POWER_W                     # 700 W [CALIB]
+
+# ARCH-2 (#123): constants the model leaf (lode.planner_model) shares with the energy/scoring clusters
+# that stay in mission_planner -- hosted here in the dependency-neutral leaf so BOTH import them with no
+# cycle. Values are the exact expressions mission_planner defined before, so the plan is byte-identical.
+#: P-06 positional-uncertainty margin [m] added to the vehicle swept radius when inflating routing hazards.
+LOCALIZATION_MARGIN_M = 0.15
+#: CP-08 objective-constraint key -> the core metric it caps. Used by mission_from_dict (validation, in
+#: planner_model) and _constraint_penalty (sequencing, in mission_planner).
+_CONSTRAINT_CAPS = {"max_time_s": "time_s", "max_energy_J": "energy_J",
+                    "max_charges": "charges", "max_distance_m": "distance_m"}
