@@ -49,6 +49,22 @@ MO-01 field gaps this compiler maps around (no invented fields):
      names; a soft constraint that names no known planner metric is REJECTED (not silently dropped). A HARD
      / FLIGHT_RULE constraint's free-text statement is NOT coerced into a numeric cap (no parsing convention
      is invented); it is honored as a flight-rule-head ordering element via ``compile_order``.
+
+The two remaining goal-grammar terms CP-04 names, also lowered onto the real planner path:
+
+  * TOLERANCES -- an objective's measurable acceptance carries a STRUCTURED numeric tolerance
+    (``AcceptanceCriterion.tolerance_m``, the as-built RMSE bound; per objective, the tightest is
+    ``Objective.acceptance_tolerance_m``). The compiler lowers the TIGHTEST tolerance across the mandatory
+    objectives onto ``Mission.accept_flatness_tol_m``, which the conserved-authority acceptance gate
+    (``validate_plan``) measures the worked footprints against (``as_built_pass`` = as-built RMSE <= tol).
+    Like the budgets, the tolerance is a STRUCTURED field, never parsed out of the free-text ``measurable``.
+    No objective declares a tolerance -> the gate keeps its documented default (byte-identical).
+  * KEEP-OUTS -- a mission ``KeepOutRegion`` (circle / axis-aligned rectangle / polygon in the local order
+    frame) lowers via ``KeepOutRegion.to_planner_keepout`` into the planner's OWN keep-out input
+    (``Mission.keepouts``): hauls route AROUND it (the costmap raster marks it impassable) and a build sited
+    inside it is flagged as a build-on-obstacle conflict (``totals['keepout_conflicts']``). We REUSE the
+    planner's existing keep-out mechanism (``mission_planner`` routing + ``point_in_keepout``), not a
+    parallel barrier model.
 """
 from __future__ import annotations
 
@@ -200,6 +216,18 @@ def compile_intent(intent: MissionIntent) -> CompiledPlanRequest:
 
     budgets = _compile_hard_budgets(mandatory)
 
+    # --- TOLERANCES -> the as-built acceptance gate. Each mandatory objective's measurable acceptance may
+    #     carry a STRUCTURED numeric tolerance (MO-01 AcceptanceCriterion.tolerance_m, the as-built RMSE
+    #     bound -- not parsed out of prose). A single plan must meet the strictest, so the mission's
+    #     acceptance tolerance is the TIGHTEST across the mandatory objectives. None when none declares one
+    #     (validate_plan keeps its default). ---
+    accept_tol = _compile_acceptance_tolerance(mandatory)
+
+    # --- KEEP-OUTS -> the planner's OWN keep-out input. Each MO-01 keep-out region lowers to the planner's
+    #     keepout dict shape (circle/rectangle/polygon) the router already routes around and the build-on-
+    #     obstacle conflict check already consumes -- we reuse Mission.keepouts, not a parallel barrier. ---
+    keepouts = [r.to_planner_keepout() for r in intent.keep_outs]
+
     payload: dict = {
         "name": intent.mission_id,
         "body": body,
@@ -209,10 +237,14 @@ def compile_intent(intent: MissionIntent) -> CompiledPlanRequest:
         payload["precedence"] = precedence
     if budgets:
         payload["objective_constraints"] = budgets
+    if accept_tol is not None:
+        payload["accept_flatness_tol_m"] = accept_tol
+    if keepouts:
+        payload["keepouts"] = keepouts
 
     # REUSE the planner's own order-compilation + validation boundary (kinds/capabilities/footprints/
-    # precedence/budgets) so mandatory objectives + hard constraints are compiled the SAME way the planner
-    # consumes any mission -- not via a parallel path that could diverge.
+    # precedence/budgets/keep-outs) so mandatory objectives + hard constraints are compiled the SAME way
+    # the planner consumes any mission -- not via a parallel path that could diverge.
     mission = MP.mission_from_dict(payload)
 
     # --- soft constraints LAST -> the weighted objective string (tunes the plan within the feasible set).
@@ -255,6 +287,18 @@ def _compile_hard_budgets(objectives: list[Objective]) -> dict:
     if closes:
         budgets[_PLANNER_TIME_CAP_KEY] = float(max(closes))
     return budgets
+
+
+def _compile_acceptance_tolerance(objectives: list[Objective]) -> float | None:
+    """CP-04: compile the mission's as-built acceptance tolerance [m] from the OBJECTIVES' structured
+    acceptance tolerances (MO-01 ``AcceptanceCriterion.tolerance_m``, exposed per objective as
+    ``Objective.acceptance_tolerance_m`` = the tightest of its criteria). The plan's single as-built
+    flatness gate (``validate_plan``) must satisfy the strictest objective, so the mission tolerance is the
+    TIGHTEST (minimum) across the mandatory objectives that declare one. None when none declares a
+    tolerance (the gate keeps its documented default -- byte-identical to a pre-tolerance plan). A tolerance
+    is NOT parsed from the free-text ``measurable``; only the structured numeric field is lowered."""
+    tols = [o.acceptance_tolerance_m for o in objectives if o.acceptance_tolerance_m is not None]
+    return min(tols) if tols else None
 
 
 def _compile_soft_objective(constraints: list[Constraint]) -> str:

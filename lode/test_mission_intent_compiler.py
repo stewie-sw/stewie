@@ -35,6 +35,7 @@ from stewie.contracts import (
     ConstraintKind,
     Contingency,
     ContingencyPolicy,
+    KeepOutRegion,
     MissionIntent,
     Objective,
     PriorityTier,
@@ -47,15 +48,19 @@ from stewie.contracts import (
 # ---------------------------------------------------------------------------------------------------
 def _objective(objective_id, *, target_row, target_col, mandatory=True,
                priority=PriorityTier.PRIMARY, prerequisites=(), material_budget_kg=300.0,
-               energy_budget_j=None, time_window_s=None):
-    """A fully-specified MO-01 Objective (acceptance non-empty, contingency present, approver set)."""
+               energy_budget_j=None, time_window_s=None, tolerance_m=None):
+    """A fully-specified MO-01 Objective (acceptance non-empty, contingency present, approver set).
+
+    ``tolerance_m`` -> the acceptance criterion's structured numeric acceptance tolerance (the as-built
+    flatness/profile tolerance the planner's acceptance gate consumes); None -> the contract default."""
     return Objective(
         objective_id=objective_id, revision=0,
         statement=f"excavate {objective_id}", rationale="construction prep",
         priority=priority, mandatory=mandatory,
         target_row=target_row, target_col=target_col, frame="MOON_ME",
         acceptance=[AcceptanceCriterion(criterion_id=f"{objective_id}-ac", statement="excavated",
-                                        measurable="as-built RMSE <= 0.02 m", sensor="stereo")],
+                                        measurable="as-built RMSE <= 0.02 m", sensor="stereo",
+                                        tolerance_m=tolerance_m)],
         confidence_required=0.6,
         energy_budget_j=energy_budget_j, material_budget_kg=material_budget_kg,
         time_window_s=time_window_s,
@@ -64,9 +69,10 @@ def _objective(objective_id, *, target_row, target_col, mandatory=True,
         approver="flight-director")
 
 
-def _intent(mission_id, objectives, constraints=()):
+def _intent(mission_id, objectives, constraints=(), keep_outs=()):
     return MissionIntent(mission_id=mission_id, revision=0, statement="test mission",
-                         objectives=list(objectives), constraints=list(constraints))
+                         objectives=list(objectives), constraints=list(constraints),
+                         keep_outs=list(keep_outs))
 
 
 def test_mandatory_objective_compiles_to_order_and_soft_constraint_to_weight():  # [REQ:CP-04]
@@ -280,3 +286,151 @@ def test_optional_objectives_are_not_compiled_into_orders():  # [REQ:CP-04]
     actions = {o.action for o in req.mission.orders}
     assert actions == {"pit"}                       # only the mandatory objective is an order
     assert "nice-to-have" in req.order.optional_objective_ids
+
+
+# ---------------------------------------------------------------------------------------------------
+# TOLERANCES: an objective's measurable acceptance tolerance (as-built flatness/profile) compiles onto
+# the Mission and the planner's acceptance gate HONORS it (a tight tol fails a sloped pad; a loose tol
+# passes it). MO-01 carries the tolerance as a STRUCTURED numeric field on the AcceptanceCriterion, not
+# parsed out of free text -- the same no-invented-parsing-convention discipline the budget lowering uses.
+# ---------------------------------------------------------------------------------------------------
+def _sloped_dem():
+    """A real geometric construction fixture: flat for col<50, a ~26.6deg ramp for col>=50 (rise 0.5
+    m/cell). A uniform-depth cut over the ramp leaves a sloped as-built surface, so the as-built flatness
+    RMSE is non-trivial and the acceptance tolerance is load-bearing (not the trivially-flat mantle)."""
+    import numpy as np
+    cell = 1.0
+    Z = np.zeros((100, 100), dtype=np.float64)
+    Z[:, 50:] = (np.arange(50) * 0.5)[None, :]
+    return (Z, cell)
+
+
+def test_acceptance_tolerance_compiles_onto_mission():  # [REQ:CP-04]
+    # an objective's acceptance tolerance is a STRUCTURED MO-01 field; the compiler lowers it onto the
+    # Mission so the planner's acceptance gate (validate_plan) consumes it -- not a hardcoded default.
+    intent = _intent(
+        "tight-pad",
+        [_objective("pad", target_row=8.0, target_col=8.0, material_budget_kg=300.0, tolerance_m=0.05)],
+    )
+    req = MIC.compile_intent(intent)
+    assert req.mission.accept_flatness_tol_m == 0.05
+
+
+def test_acceptance_tolerance_is_the_tightest_over_objectives():  # [REQ:CP-04]
+    # multiple mandatory objectives with different tolerances -> the mission as-built gate is the TIGHTEST
+    # (a single mission-wide as-built RMSE tolerance must satisfy the strictest objective's acceptance).
+    intent = _intent(
+        "mixed-tol",
+        [_objective("loose", target_row=4.0, target_col=4.0, tolerance_m=0.10),
+         _objective("tight", target_row=20.0, target_col=20.0, tolerance_m=0.02)],
+    )
+    req = MIC.compile_intent(intent)
+    assert req.mission.accept_flatness_tol_m == 0.02
+
+
+def test_compiled_tolerance_is_honored_by_the_real_acceptance_gate():  # [REQ:CP-04]
+    # end-to-end: the compiled tolerance flows into the REAL acceptance gate. The SAME sloped pad leaves an
+    # as-built RMSE of ~0.24 m (a uniform cut on the ramp stays sloped); that FAILS a tight 0.02 m compiled
+    # tolerance and PASSES a loose 0.30 m one -- proving the objective's tolerance, not a fixed default,
+    # decides acceptance.
+    dem = _sloped_dem()
+    origin = (45.0, 45.0)                     # anchor the local frame so the pad straddles the ramp
+    tight = MIC.compile_intent(_intent(
+        "tol-tight",
+        [_objective("pad", target_row=10.0, target_col=10.0, material_budget_kg=300.0, tolerance_m=0.02)]))
+    loose = MIC.compile_intent(_intent(
+        "tol-loose",
+        [_objective("pad", target_row=10.0, target_col=10.0, material_budget_kg=300.0, tolerance_m=0.30)]))
+    r_tight = MP.plan(mission=tight.mission, algorithm="nearest", dem=dem, dem_origin=origin,
+                      with_acceptance=True)
+    r_loose = MP.plan(mission=loose.mission, algorithm="nearest", dem=dem, dem_origin=origin,
+                      with_acceptance=True)
+    # the as-built surface is genuinely sloped (the tolerance is load-bearing, not a flat-mantle no-op).
+    rmse = r_tight.validation["as_built_flatness_rmse_m"]
+    assert 0.02 < rmse < 0.30
+    # the gate reports the COMPILED tolerance and decides pass/fail against it.
+    assert r_tight.validation["as_built_tol_m"] == 0.02
+    assert r_tight.validation["as_built_pass"] is False
+    assert r_loose.validation["as_built_tol_m"] == 0.30
+    assert r_loose.validation["as_built_pass"] is True
+
+
+def test_no_acceptance_tolerance_keeps_the_default_gate():  # [REQ:CP-04]
+    # an objective that declares no structured tolerance -> the mission carries no override, so the
+    # acceptance gate falls back to its documented default (byte-identical to a pre-CP-04-tolerance plan).
+    intent = _intent("no-tol", [_objective("pad", target_row=8.0, target_col=8.0, material_budget_kg=300.0)])
+    req = MIC.compile_intent(intent)
+    assert req.mission.accept_flatness_tol_m is None
+
+
+# ---------------------------------------------------------------------------------------------------
+# KEEP-OUTS: a mission keep-out region compiles into the planner's existing keep-out mechanism, so the
+# real planner ROUTES AROUND it (a haul bends around the no-go circle) and a build placed INSIDE one is
+# flagged as a build-on-obstacle conflict. The compiler reuses Mission.keepouts (the planner's own
+# routing input), not a parallel barrier model.
+# ---------------------------------------------------------------------------------------------------
+def test_keep_out_region_compiles_to_mission_keepouts():  # [REQ:CP-04]
+    intent = _intent(
+        "with-nogo",
+        [_objective("pad", target_row=8.0, target_col=8.0, material_budget_kg=300.0)],
+        keep_outs=[KeepOutRegion(region_id="boulder", x=4.0, y=4.0, radius_m=2.0,
+                                 reason="boulder field")],
+    )
+    req = MIC.compile_intent(intent)
+    # the keep-out lowered into the planner's OWN keepout input (a {x,y,r} circle in the local frame).
+    assert req.mission.keepouts == ({"x": 4.0, "y": 4.0, "r": 2.0},)
+
+
+def test_keep_out_makes_the_planner_route_around_it():  # [REQ:CP-04]
+    # the compiled keep-out is honored by the REAL planner routing (route_leg): on a FLAT DEM (so slope is
+    # never the blocker -- only the keep-out can force a detour), a no-go disk straddling the direct
+    # (0,0)->(20,20) line makes the router bend AROUND it, lengthening the routed path vs the same leg with
+    # no keep-out. This drives the planner's own costmap router, not a parallel barrier model.
+    import numpy as np
+    flat = (np.zeros((60, 60), dtype=np.float64), 1.0)
+    a, b = (2.0, 2.0), (40.0, 40.0)
+    blocked = _intent(
+        "route-around",
+        [_objective("site", target_row=40.0, target_col=40.0, material_budget_kg=300.0)],
+        keep_outs=[KeepOutRegion(region_id="rubble", x=21.0, y=21.0, radius_m=6.0, reason="rubble")],
+    )
+    mission = MIC.compile_intent(blocked).mission
+    # the compiled keep-out reached the planner's routing input.
+    assert mission.keepouts == ({"x": 21.0, "y": 21.0, "r": 6.0},)
+    clear_m, _, clear_reached, _ = MP.route_leg(flat, (0.0, 0.0), a, b, keepouts=())
+    routed_m, _, reached, waypoints = MP.route_leg(flat, (0.0, 0.0), a, b, keepouts=mission.keepouts)
+    # the leg is still reachable (the router found a corridor) but it is LONGER -- it detoured around the
+    # no-go disk -- and no waypoint lies inside the keep-out.
+    assert clear_reached and reached
+    assert routed_m > clear_m
+    assert all(not MP.point_in_keepout(wx, wy, mission.keepouts[0]) for wx, wy in waypoints)
+
+
+def test_build_inside_a_keep_out_is_flagged_as_a_conflict():  # [REQ:CP-04]
+    # an objective whose target sits INSIDE a compiled keep-out is a build-on-obstacle: the planner's own
+    # conflict check (keepout_conflicts) flags it, so an operator cannot silently site work on a no-go.
+    intent = _intent(
+        "build-on-nogo",
+        [_objective("pad", target_row=10.0, target_col=10.0, material_budget_kg=300.0)],
+        keep_outs=[KeepOutRegion(region_id="crater", x=10.0, y=10.0, radius_m=3.0, reason="crater")],
+    )
+    req = MIC.compile_intent(intent)
+    result = MP.plan(mission=req.mission, algorithm="nearest")
+    assert result.totals["keepout_conflicts"] == 1
+
+
+def test_keep_out_rectangle_and_polygon_compile():  # [REQ:CP-04]
+    # a keep-out region may be a circle, an axis-aligned rectangle, or a polygon -- each lowers to the
+    # matching planner keepout shape the router already understands (reusing point_in_keepout / the raster).
+    intent = _intent(
+        "shapes",
+        [_objective("pad", target_row=2.0, target_col=2.0, material_budget_kg=300.0)],
+        keep_outs=[
+            KeepOutRegion(region_id="rect", x0=30.0, y0=30.0, x1=40.0, y1=40.0, reason="trench"),
+            KeepOutRegion(region_id="poly", points=[(50.0, 50.0), (60.0, 50.0), (55.0, 60.0)],
+                          reason="ejecta"),
+        ],
+    )
+    req = MIC.compile_intent(intent)
+    assert {"x0": 30.0, "y0": 30.0, "x1": 40.0, "y1": 40.0} in req.mission.keepouts
+    assert {"points": [[50.0, 50.0], [60.0, 50.0], [55.0, 60.0]]} in req.mission.keepouts
