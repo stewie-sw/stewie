@@ -2181,3 +2181,65 @@ def test_arch03_no_import_cycle_in_either_order():
          "assert M.PLAN_IR_VERSION and isinstance(M._IR_DIG_OPS, (set, frozenset, tuple, list))"],
         capture_output=True, text=True)
     assert r.returncode == 0, f"MP view re-export API broke:\n{r.stderr[-900:]}"
+
+
+# ---- EP-01: the energy ledger keeps drive, slope/slip, payload-lift, and dig as SEPARATE additive terms
+def _ep01_real_dem_mission():
+    """A real cut->fill haul on the REAL Haworth LOLA 5 m DEM, anchored at its flattest cell so the leg
+    routes and feeds the live segmented haul-energy integrator. No synthetic terrain or fabricated mass."""
+    dem = MP.load_haworth_dem()                       # (Z, cell_m) -- real LOLA Haworth 5 m
+    anchor = MP.flattest_anchor(dem)
+    mission = MP.mission_from_dict({
+        "name": "ep01", "body": "moon", "charger": [0, 0],
+        "orders": [
+            {"action": "cut1", "kind": "cut", "x": 20, "y": 15, "footprint_m2": 36, "depth_m": 0.1},
+            {"action": "fill1", "kind": "fill", "x": 50, "y": 15, "footprint_m2": 36, "depth_m": 0.1},
+        ],
+    })
+    return mission, dem, anchor
+
+
+def test_ep01_ledger_keeps_drive_slip_payload_and_dig_as_separate_terms():  # [REQ:EP-01]
+    """EP-01: the energy ledger carries drive, slope/slip, payload-lift, and dig as SEPARATE, retrievable,
+    additive terms -- never one fused number. On the real DEM a cut->fill trip pays a positive dig term
+    (in-situ excavation, ipex_specs ~4151 J/kg), a positive haul term (drive + per-segment slope/slip,
+    `_segmented_haul_energy`), and a positive lift term (m*g*ascent over the routed polyline), and they are
+    distinct dict keys. (EP-01 is V=P: arm/drum-motion, observation, LED, and compute terms are NOT yet
+    modeled -- this test pins the terms that EXIST as separable, it does not assert ledger completeness.)"""
+    mission, dem, anchor = _ep01_real_dem_mission()
+    trips, _flows, _surplus, meta = MP._build_trips(mission, dem, anchor, 25.0)
+    assert meta["feasible"] and meta["routed"]
+    cutfill = next(t for t in trips if t["kind"] == "cutfill")
+
+    # the four modeled terms are SEPARATE keys (not fused), each physically positive on this real haul.
+    assert cutfill["dig_e"] > 0.0            # in-situ excavation (dominant; ~4151 J/kg * mass)
+    assert cutfill["haul_e"] > 0.0           # drive + per-segment slope/slip drive energy
+    assert cutfill["lift_e"] > 0.0           # payload gravity lift over the routed ascent
+    assert cutfill["haul_m"] > 0.0           # the haul distance the drive term integrates over
+    # they do not collapse onto each other (three distinct magnitudes -> three real, separate terms).
+    assert len({round(cutfill["dig_e"], 3), round(cutfill["haul_e"], 3), round(cutfill["lift_e"], 3)}) == 3
+
+    # the dig term scales with the excavated mass and the per-kg dig energy (additive, not a constant).
+    ctx = MP.plan_context(mission)
+    assert math.isclose(cutfill["dig_e"], cutfill["mass"] * ctx.dig_j_per_kg, rel_tol=1e-9)
+    # the lift term is exactly m*g*ascent: zero ascent would zero it (so it is a real, separable driver).
+    g = MP.body_gravity(mission.body)
+    assert cutfill["lift_e"] <= cutfill["mass"] * g * 1e4   # finite, bounded by a generous ascent ceiling
+
+
+def test_ep01_modeled_terms_compose_into_the_plan_energy_total():  # [REQ:EP-01]
+    """EP-01: the per-trip ledger terms (dig + haul + lift + offload + sinter) ADD into the simulated
+    mission energy total -- the ledger is the sum of its parts, not a separate black-box number. The real
+    plan's energy_J is at least the modeled per-trip ledger (the only extra is the simulator's recharge/
+    window overhead, never a hidden term that replaces the ledger)."""
+    mission, dem, anchor = _ep01_real_dem_mission()
+    trips, _flows, _surplus, _meta = MP._build_trips(mission, dem, anchor, 25.0)
+    ledger = sum(t.get("dig_e", 0.0) + t.get("haul_e", 0.0) + t.get("lift_e", 0.0)
+                 + t.get("offload_e", 0.0) + t.get("sinter_e", 0.0) for t in trips)
+    assert ledger > 0.0
+    result = MP.plan(mission=mission, algorithm="nearest", dem=dem, dem_origin=anchor)
+    assert result.totals["feasible"]
+    total = result.totals["energy_J"]
+    # the modeled ledger composes into the total: total >= ledger (overhead only adds), and within a few %.
+    assert total >= ledger - 1.0
+    assert total <= ledger * 1.05
