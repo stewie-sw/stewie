@@ -211,11 +211,29 @@ def carve_crater(cs: ColumnState, center_rc: tuple[int, int], diameter_m: float,
     rim_h = rim_height_frac * depth
     r0, c0 = center_rc
 
-    rows = (np.arange(h)[:, None] - r0) * cm
-    cols = (np.arange(w)[None, :] - c0) * cm
+    # PERF (byte-identical): the crater only edits cells within a finite radius of its center,
+    # so compute on a clipped WINDOW instead of the whole grid (carve_crater is called per crater
+    # by populate_craters over cm-resolution fine tiles -> the full-grid form is O(n_craters*grid)
+    # and dominated build_from_dem >90 s). The window must reach past every NON-zero delta term:
+    #   - bowl/floor/disturbance: r <= R          - ejecta: r <= ej_outer
+    #   - rim gaussian rim_h*exp(-((r-R)^2)/(2 sigma^2)): has an infinite tail, but exp() is
+    #     EXACTLY 0.0 once (r-R)^2/(2 sigma^2) > 745.13 (float64 underflow), i.e. r-R > 38.61*sigma.
+    # So beyond R + 38.7*sigma the delta is bit-identically 0 and the cell is untouched -- identical
+    # to the full-grid form for ANY surface magnitude. derive_height and set_height_via_mass are
+    # both elementwise, so the local mass back-out below equals the full set_height_via_mass exactly.
+    rim_sigma = 0.25 * R
+    ej_outer = ejecta_extent_radii * R
+    safe_r = max(ej_outer, R + 38.7 * rim_sigma)
+    rad = int(np.ceil(safe_r / cm)) + 1
+    rlo, rhi = max(0, r0 - rad), min(h, r0 + rad + 1)
+    clo, chi = max(0, c0 - rad), min(w, c0 + rad + 1)
+    sl = (slice(rlo, rhi), slice(clo, chi))
+
+    rows = (np.arange(rlo, rhi)[:, None] - r0) * cm
+    cols = (np.arange(clo, chi)[None, :] - c0) * cm
     r = np.sqrt(rows ** 2 + cols ** 2)
 
-    surface = cs.derive_height()
+    surface = cs.datum[sl] + cs.mass_areal[sl] / cs.density[sl]   # = derive_height()[sl]
     delta = np.zeros_like(surface)
 
     # Inside the bowl: parabolic floor, depressed.
@@ -224,11 +242,9 @@ def carve_crater(cs: ColumnState, center_rc: tuple[int, int], diameter_m: float,
     delta[inside] = -depth * (1.0 - rn[inside] ** 2)
 
     # Rim lip: gaussian bump centered at r=R, width ~0.25R.
-    rim_sigma = 0.25 * R
     delta += rim_h * np.exp(-((r - R) ** 2) / (2 * rim_sigma ** 2))
 
     # Ejecta blanket: thin positive skirt beyond the rim out to ejecta extent.
-    ej_outer = ejecta_extent_radii * R
     ej_region = (r > R) & (r <= ej_outer)
     if ejecta_mode == "quadratic":
         # LEGACY edge-keyed quadratic ramp — unchanged.
@@ -248,16 +264,21 @@ def carve_crater(cs: ColumnState, center_rc: tuple[int, int], diameter_m: float,
             f"carve_crater: unknown ejecta_mode={ejecta_mode!r} (use 'quadratic' or 'mcgetchin')")
 
     new_surface = surface + delta
-    cs.set_height_via_mass(new_surface)
+    # Local set_height_via_mass (elementwise: mass_areal = max(target-datum,0)*density). Outside
+    # the window new_surface == surface, so the full call would leave mass_areal unchanged there.
+    cs.mass_areal[sl] = np.maximum(new_surface - cs.datum[sl], 0.0) * cs.density[sl]
 
     # Label: bowl interior is freshly excavated (dense sublayer exposed -> brighter,
     # spec §6); bump up density on the exposed floor and bump disturbance there.
     floor = r <= 0.8 * R
-    cs.state_label[floor] = StateLabel.EXCAVATED
-    cs.density[floor] = np.clip(cs.density[floor] * 1.15, None, K.RHO_DEEP)
-    cs.disturbance[inside] = np.clip(cs.disturbance[inside] + 0.5 * (1 - rn[inside]), 0, 1)
+    state_w = cs.state_label[sl]
+    state_w[floor] = StateLabel.EXCAVATED
+    dens_w = cs.density[sl]
+    dens_w[floor] = np.clip(dens_w[floor] * 1.15, None, K.RHO_DEEP)
+    dist_w = cs.disturbance[sl]
+    dist_w[inside] = np.clip(dist_w[inside] + 0.5 * (1 - rn[inside]), 0, 1)
     # Re-back-out mass after the density change so height stays consistent at new rho.
-    cs.set_height_via_mass(new_surface)
+    cs.mass_areal[sl] = np.maximum(new_surface - cs.datum[sl], 0.0) * cs.density[sl]
     return cs
 
 
