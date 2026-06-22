@@ -40,8 +40,12 @@ def negative_obstacle_mask(Z, *, max_drop_m=MAX_DROP_M):
     return (Z - nbr_min) > float(max_drop_m)
 
 
+#: SN-05: the separable illumination SUB-terms a route-cost breakdown reports, in `illumination_cost` order.
+_ILLUM_SUBTERMS = ("shadow_hazard", "saturation", "map_uncertainty", "visibility")
+
+
 def slope_costmap(Z, cell_m, *, max_slope_deg=25.0, slip_alpha=2.0, max_drop_m=None,
-                  illum=None, illum_weight=1.0, map_unc=None, map_unc_weight=1.0):
+                  illum=None, illum_weight=1.0, map_unc=None, map_unc_weight=1.0, return_terms=False):
     """I10: per-cell traversal cost from terrain slope. cost = 1 + slip_alpha*tan(slope) (a slip-weighted
     per-meter multiplier — slope drives wheel slip, which costs energy/time); cells steeper than
     max_slope_deg are impassable hazards a rover can't safely traverse. When ``max_drop_m`` is set, cells
@@ -68,17 +72,46 @@ def slope_costmap(Z, cell_m, *, max_slope_deg=25.0, slip_alpha=2.0, max_drop_m=N
     passable = smap <= max_slope_deg
     if max_drop_m is not None:
         passable = passable & ~negative_obstacle_mask(Z, max_drop_m=max_drop_m)
-    cost = 1.0 + slip_alpha * np.tan(np.radians(np.minimum(smap, 89.0)))
-    if illum is not None:                                  # SN-05: add the separable illumination term
-        illum = np.asarray(illum, float)
-        if illum.shape != cost.shape:
-            raise ValueError(f"illum shape {illum.shape} must match the costmap shape {cost.shape}")
-        cost = cost + float(illum_weight) * illum
+    slope_term = 1.0 + slip_alpha * np.tan(np.radians(np.minimum(smap, 89.0)))   # SN-05: slope/slip is its own term
+    cost = slope_term
+    # SN-05 inspectability: keep every route-cost layer as its OWN term so the route never fuses into a
+    # black box. ``terms`` mirrors the fused cost: the weighted contributions SUM EXACTLY to ``cost``.
+    terms = {"slope": slope_term}
+    if illum is not None:                                  # SN-05: add the separable illumination term(s)
+        if isinstance(illum, dict):
+            # the FULL illumination_cost dict -> each SUB-term (shadow_hazard/saturation/map_uncertainty/
+            # visibility) stays separately inspectable through the route; their weighted sum equals
+            # illum_weight*total (so the fused cost is byte-identical to feeding the bare 'total' array).
+            for name in _ILLUM_SUBTERMS:
+                if name not in illum:
+                    raise ValueError(f"illum dict missing the '{name}' sub-term")
+            w = illum["weights"] if isinstance(illum.get("weights"), dict) else {}
+            illum_total = np.zeros(cost.shape)
+            for name in _ILLUM_SUBTERMS:
+                layer = np.asarray(illum[name], float)
+                if layer.shape != cost.shape:
+                    raise ValueError(f"illum['{name}'] shape {layer.shape} must match the costmap shape {cost.shape}")
+                wkey = "shadow" if name == "shadow_hazard" else name
+                contrib = float(illum_weight) * float(w.get(wkey, 1.0)) * layer
+                terms[name] = contrib
+                illum_total = illum_total + contrib
+            cost = cost + illum_total
+        else:
+            illum = np.asarray(illum, float)
+            if illum.shape != cost.shape:
+                raise ValueError(f"illum shape {illum.shape} must match the costmap shape {cost.shape}")
+            illum_contrib = float(illum_weight) * illum
+            terms["illum"] = illum_contrib
+            cost = cost + illum_contrib
     if map_unc is not None:                                # PM-08/09: add the separable map-uncertainty term
         map_unc = np.asarray(map_unc, float)
         if map_unc.shape != cost.shape:
             raise ValueError(f"map_unc shape {map_unc.shape} must match the costmap shape {cost.shape}")
-        cost = cost + float(map_unc_weight) * map_unc
+        map_unc_contrib = float(map_unc_weight) * map_unc
+        terms["map_unc"] = map_unc_contrib
+        cost = cost + map_unc_contrib
+    if return_terms:
+        return cost, passable, terms
     return cost, passable
 
 
@@ -206,8 +239,23 @@ def route_least_cost(cost, passable, cell_m, start_rc, goal_rc):
     return path, float(glen[gr, gc]), True
 
 
+def _crop_illum(illum_cost, r0, r1, c0, c1):
+    """SN-05: crop the illumination route-cost layer(s) to the planner window. ``illum_cost`` is either a
+    bare (H, W) ``total`` array OR the FULL ``illumination_cost`` dict (each sub-term a (H, W) array); a dict
+    is cropped term-by-term so the per-term breakdown stays separately inspectable on the routed corridor."""
+    if illum_cost is None:
+        return None
+    if isinstance(illum_cost, dict):
+        out = {k: np.asarray(v, float)[r0:r1, c0:c1] for k, v in illum_cost.items() if k != "weights"}
+        if "weights" in illum_cost:
+            out["weights"] = illum_cost["weights"]
+        return out
+    return illum_cost[r0:r1, c0:c1]
+
+
 def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0, margin_m=20.0,
-              keepouts=(), illum_cost=None, illum_weight=1.0, map_unc_cost=None, map_unc_weight=1.0):
+              keepouts=(), illum_cost=None, illum_weight=1.0, map_unc_cost=None, map_unc_weight=1.0,
+              return_terms=False):
     """I10: terrain-aware route between two LOCAL sites on the real DEM (anchored via dem_origin, M11).
     Crops the DEM to the two sites' bounding box + margin, builds a slope costmap, and routes a
     least-cost hazard-avoiding Dijkstra path. Returns (routed_m, grid_straight_m, reached, waypoints):
@@ -227,16 +275,30 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
     cells low / unobserved cells the prior). Cropped to the same window and ADDED as
     ``map_unc_weight*map_unc`` so the route prefers WELL-OBSERVED, low-uncertainty corridors. Independent of
     ``illum_cost`` (both compose additively). ``map_unc_cost=None`` (the default) leaves the route
-    BYTE-IDENTICAL to the pre-PM-08/09 route -- map-uncertainty routing is opt-in."""
+    BYTE-IDENTICAL to the pre-PM-08/09 route -- map-uncertainty routing is opt-in.
+
+    SN-05 inspectability: ``illum_cost`` may be EITHER the bare ``total`` (H, W) array OR the FULL
+    ``illumination_cost`` dict (the separable shadow_hazard / saturation / map_uncertainty / visibility
+    sub-terms). Both produce the SAME route (the fused cost is identical). With ``return_terms=True`` the
+    call returns a 5th element -- a per-term breakdown of the routed corridor: a dict mapping each cost
+    term (``slope`` + each illumination sub-term + ``map_unc``) to a list of its per-waypoint cost, so the
+    cockpit / mission report can show WHY the route costs what it does, term by term, never a fused number.
+    ``return_terms=False`` (the default) keeps the original 4-tuple contract (no caller breakage)."""
     Z, cell = dem
     ox, oy = dem_origin
     ax, ay = ox + a_xy[0], oy + a_xy[1]
     bx, by = ox + b_xy[0], oy + b_xy[1]
     H, W = Z.shape
-    if illum_cost is not None:
+    if illum_cost is not None and not isinstance(illum_cost, dict):
         illum_cost = np.asarray(illum_cost, float)
         if illum_cost.shape != Z.shape:
             raise ValueError(f"illum_cost shape {illum_cost.shape} must match the DEM shape {Z.shape}")
+    elif isinstance(illum_cost, dict):
+        for k, v in illum_cost.items():
+            if k == "weights":
+                continue
+            if np.asarray(v).shape != Z.shape:
+                raise ValueError(f"illum_cost['{k}'] shape {np.asarray(v).shape} must match the DEM shape {Z.shape}")
     if map_unc_cost is not None:
         map_unc_cost = np.asarray(map_unc_cost, float)
         if map_unc_cost.shape != Z.shape:
@@ -253,14 +315,17 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
         r0 = max(0, int((min(ay, by) - m) / cell))
         r1 = min(H, int((max(ay, by) + m) / cell) + 1)
         if c1 - c0 < 2 or r1 - r0 < 2:                   # sites off the DEM -> can't route
+            if return_terms:
+                return straight, straight, False, [], {}
             return straight, straight, False, []
         crop = Z[r0:r1, c0:c1]
-        illum_crop = None if illum_cost is None else illum_cost[r0:r1, c0:c1]   # SN-05: same window as the costmap
+        illum_crop = _crop_illum(illum_cost, r0, r1, c0, c1)                   # SN-05: same window as the costmap
         map_unc_crop = None if map_unc_cost is None else map_unc_cost[r0:r1, c0:c1]   # PM-08/09: same window
-        cost, passable = slope_costmap(crop, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
-                                       max_drop_m=MAX_DROP_M,   # routes also keep off drop-offs (don't fall in a hole)
-                                       illum=illum_crop, illum_weight=illum_weight,
-                                       map_unc=map_unc_crop, map_unc_weight=map_unc_weight)
+        cost, passable, terms = slope_costmap(crop, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
+                                              max_drop_m=MAX_DROP_M,   # routes also keep off drop-offs (don't fall in a hole)
+                                              illum=illum_crop, illum_weight=illum_weight,
+                                              map_unc=map_unc_crop, map_unc_weight=map_unc_weight,
+                                              return_terms=True)
         _apply_keepouts(passable, cell, r0, c0, dem_origin, keepouts)   # discrete obstacles -> impassable cells
         hc, wc = crop.shape
         start = (min(max(int(ay / cell) - r0, 0), hc - 1), min(max(int(ax / cell) - c0, 0), wc - 1))
@@ -270,8 +335,14 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
         if reached:
             # crop cell (r, c) -> world metres -> LOCAL (x, y) waypoint (local = world - origin)
             waypoints = [(((c0 + c) * cell) - ox, ((r0 + r) * cell) - oy) for (r, c) in path]
+            if return_terms:
+                # SN-05: per-term cost along the ACTUAL routed corridor, each term separately inspectable.
+                breakdown = {name: [float(layer[r, c]) for (r, c) in path] for name, layer in terms.items()}
+                return length_m, grid_straight, True, waypoints, breakdown
             return length_m, grid_straight, True, waypoints
         if c0 == 0 and c1 == W and r0 == 0 and r1 == H:  # already searched the whole DEM -> truly unreachable
+            if return_terms:
+                return straight, straight, False, [], {}
             return straight, straight, False, []
         m *= 2.0                                          # widen the window and retry (H-05 adaptive expansion)
 
