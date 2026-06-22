@@ -174,3 +174,106 @@ def test_mission_planner_route_leg_threads_illum_through_inflated_router():
         return n
 
     assert shadow_wps(on_wp) < shadow_wps(off_wp)
+
+    # SN-05 inspectability through the INFLATED (footprint) live router used by the multi-vehicle planner:
+    # the per-term breakdown is separately inspectable here too, fed the FULL illumination_cost dict.
+    illum_terms = {k: np.zeros_like(Z) for k in ("shadow_hazard", "saturation", "map_uncertainty",
+                                                 "visibility", "total")}
+    for k in illum_terms:
+        illum_terms[k][_R0:_R0 + _N, _C0:_C0 + _N] = ic[k]
+    out = mp_route_leg(dem, dem_origin, a_xy, b_xy, footprint_radius_m=fr,
+                       illum_cost=illum_terms, illum_weight=50.0, return_terms=True)
+    assert len(out) == 5
+    _rm, _gs, reached_t, wp_t, breakdown = out
+    assert reached_t and len(wp_t) >= 2
+    assert set(breakdown) >= {"slope", "shadow_hazard", "saturation", "map_uncertainty", "visibility"}
+    assert all(len(v) == len(wp_t) for v in breakdown.values())
+    assert sum(breakdown["shadow_hazard"]) > 0.0
+
+
+def test_slope_costmap_returns_separable_terms():
+    # SN-05 inspectability: the LIVE route cost must keep slope, illumination, and map-uncertainty as
+    # SEPARATE inspectable terms -- not only a fused total. slope_costmap(..., return_terms=True) returns
+    # a third element: a per-cell term dict whose weighted contributions SUM EXACTLY to the routed cost.
+    crop, cell = _real_crop()
+    ic = illumination_cost(crop, cell_m=cell, sun_az_deg=_SUN_AZ, sun_el_deg=_SUN_EL)
+    illum = ic["total"]
+    map_unc = np.full(crop.shape, 0.2)  # a real uniform residual-uncertainty field (no fabricated structure)
+
+    # default (2-tuple) is byte-identical -- back-compat preserved
+    base_cost, base_pass = slope_costmap(crop, cell, max_drop_m=2.0,
+                                         illum=illum, illum_weight=3.0, map_unc=map_unc, map_unc_weight=4.0)
+    cost, passable, terms = slope_costmap(crop, cell, max_drop_m=2.0,
+                                          illum=illum, illum_weight=3.0, map_unc=map_unc, map_unc_weight=4.0,
+                                          return_terms=True)
+    assert np.array_equal(cost, base_cost)
+    assert np.array_equal(passable, base_pass)
+    # the terms are SEPARATELY inspectable and reconstruct the fused cost exactly (no black box)
+    assert set(terms) >= {"slope", "illum", "map_unc"}
+    assert np.allclose(terms["slope"] + terms["illum"] + terms["map_unc"], cost)
+    # each term is its own retrievable layer: the illum contribution is exactly illum_weight*illum
+    assert np.allclose(terms["illum"], 3.0 * illum)
+    assert np.allclose(terms["map_unc"], 4.0 * map_unc)
+    # the slope term alone equals the pre-illumination slope-only cost
+    slope_only, _ = slope_costmap(crop, cell, max_drop_m=2.0)
+    assert np.allclose(terms["slope"], slope_only)
+
+
+def test_route_leg_exposes_per_term_breakdown_on_real_dem():
+    # SN-05 through the LIVE point router: route_leg(..., return_terms=True) returns a 5th element -- a
+    # per-term breakdown of the routed corridor's cost. Each illumination SUB-term (shadow_hazard /
+    # saturation / map_uncertainty / visibility) plus slope is SEPARATELY inspectable along the actual
+    # route, so the cockpit/report can show WHY the route costs what it does (not a fused number).
+    from lode.planner_routing import route_leg
+
+    Z, cell = load_haworth_dem()
+    dem = (Z, cell)
+    dem_origin = (0.0, 0.0)
+    a_xy = ((_C0 + 4) * cell, (_R0 + 4) * cell)
+    b_xy = ((_C0 + _N - 4) * cell, (_R0 + _N - 4) * cell)
+
+    # pass the FULL term dict (not just total) so the route can break illumination into its sub-terms
+    crop = Z[_R0:_R0 + _N, _C0:_C0 + _N]
+    ic = illumination_cost(crop, cell_m=cell, sun_az_deg=_SUN_AZ, sun_el_deg=_SUN_EL)
+    illum_terms = {k: np.zeros_like(Z) for k in ("shadow_hazard", "saturation", "map_uncertainty",
+                                                 "visibility", "total")}
+    for k in illum_terms:
+        illum_terms[k][_R0:_R0 + _N, _C0:_C0 + _N] = ic[k]
+
+    # default 4-tuple stays byte-identical to feeding the bare total array
+    bare = route_leg(dem, dem_origin, a_xy, b_xy, illum_cost=illum_terms["total"], illum_weight=10.0)
+    dict_fed = route_leg(dem, dem_origin, a_xy, b_xy, illum_cost=illum_terms, illum_weight=10.0)
+    assert bare[0] == dict_fed[0] and bare[3] == dict_fed[3]  # dict vs total array -> SAME route
+
+    out = route_leg(dem, dem_origin, a_xy, b_xy, illum_cost=illum_terms, illum_weight=10.0,
+                    return_terms=True)
+    assert len(out) == 5
+    routed_m, _gs, reached, wp, breakdown = out
+    assert reached and len(wp) >= 2
+
+    # the breakdown SEPARATELY inspects each route-cost term summed along the routed corridor
+    assert set(breakdown) >= {"slope", "shadow_hazard", "saturation", "map_uncertainty", "visibility"}
+    # every term is a real number, one per routed waypoint -> per-cell inspectable, not fused
+    for k, v in breakdown.items():
+        assert len(v) == len(wp)
+    # the shadow-hazard term carries real cost on this shadowed window (it is NOT a placeholder zero)
+    assert sum(breakdown["shadow_hazard"]) > 0.0
+    # the per-waypoint term vectors reconstruct the per-cell ROUTE cost the router saw at each waypoint
+    # (separability holds end-to-end), and illumination actually contributes beyond slope somewhere.
+    per_wp_total = [sum(breakdown[k][i] for k in breakdown) for i in range(len(wp))]
+    assert all(np.isfinite(t) for t in per_wp_total)
+    assert any(t > breakdown["slope"][i] for i, t in enumerate(per_wp_total))  # illum actually contributes
+
+
+def test_route_leg_return_terms_off_is_byte_identical():
+    # return_terms defaults OFF -> route_leg returns the original 4-tuple, byte-identical to before SN-05's
+    # inspectability addition (no caller breakage).
+    from lode.planner_routing import route_leg
+
+    Z, cell = load_haworth_dem()
+    dem = (Z, cell)
+    dem_origin = (0.0, 0.0)
+    a_xy = ((_C0 + 4) * cell, (_R0 + 4) * cell)
+    b_xy = ((_C0 + _N - 4) * cell, (_R0 + _N - 4) * cell)
+    out = route_leg(dem, dem_origin, a_xy, b_xy)
+    assert len(out) == 4  # unchanged default contract

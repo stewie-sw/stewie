@@ -1855,7 +1855,7 @@ from stewie.terrain.site_dem import (  # noqa: F401
 # ---- I10 routing moved to lode.planner_routing (ARCH-2 god-module split); re-exported so
 # MP.route_leg / MP.slope_costmap / ... and the solver's internal calls are unchanged.
 from lode.planner_routing import (  # noqa: F401
-    _ROUTE_NB, MAX_DROP_M, _apply_keepouts, haul_cumulative_ascent_m, haul_elevation_gain_m,
+    _ROUTE_NB, MAX_DROP_M, _apply_keepouts, _crop_illum, haul_cumulative_ascent_m, haul_elevation_gain_m,
     keepout_is_rect, negative_obstacle_mask, point_in_keepout, route_least_cost, routed_distance,
     slope_costmap,
 )
@@ -1883,7 +1883,7 @@ def _erode_passable(passable, cell_m, radius_m):
 
 def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0, margin_m=20.0,
               keepouts=(), footprint_radius_m=0.0, illum_cost=None, illum_weight=1.0,
-              map_unc_cost=None, map_unc_weight=1.0):
+              map_unc_cost=None, map_unc_weight=1.0, return_terms=False):
     """P-06: terrain-aware route between two LOCAL sites, with the rover treated as a FINITE-SIZE body.
 
     When `footprint_radius_m` > 0 the impassable hazards (slope cap, drop-offs, keep-outs) are inflated by
@@ -1905,16 +1905,23 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
         return _route_leg_point(dem, dem_origin, a_xy, b_xy, max_slope_deg=max_slope_deg,
                                 slip_alpha=slip_alpha, margin_m=margin_m, keepouts=keepouts,
                                 illum_cost=illum_cost, illum_weight=illum_weight,
-                                map_unc_cost=map_unc_cost, map_unc_weight=map_unc_weight)
+                                map_unc_cost=map_unc_cost, map_unc_weight=map_unc_weight,
+                                return_terms=return_terms)
     Z, cell = dem
     ox, oy = dem_origin
     ax, ay = ox + a_xy[0], oy + a_xy[1]
     bx, by = ox + b_xy[0], oy + b_xy[1]
     H, W = Z.shape
-    if illum_cost is not None:
+    if illum_cost is not None and not isinstance(illum_cost, dict):
         illum_cost = np.asarray(illum_cost, float)
         if illum_cost.shape != Z.shape:
             raise ValueError(f"illum_cost shape {illum_cost.shape} must match the DEM shape {Z.shape}")
+    elif isinstance(illum_cost, dict):
+        for k, v in illum_cost.items():
+            if k == "weights":
+                continue
+            if np.asarray(v).shape != Z.shape:
+                raise ValueError(f"illum_cost['{k}'] shape {np.asarray(v).shape} must match the DEM shape {Z.shape}")
     if map_unc_cost is not None:
         map_unc_cost = np.asarray(map_unc_cost, float)
         if map_unc_cost.shape != Z.shape:
@@ -1927,13 +1934,14 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
         r0 = max(0, int((min(ay, by) - m) / cell))
         r1 = min(H, int((max(ay, by) + m) / cell) + 1)
         if c1 - c0 < 2 or r1 - r0 < 2:
-            return straight, straight, False, []
+            return (straight, straight, False, [], {}) if return_terms else (straight, straight, False, [])
         crop = Z[r0:r1, c0:c1]
-        illum_crop = None if illum_cost is None else illum_cost[r0:r1, c0:c1]   # SN-05: same window
+        illum_crop = _crop_illum(illum_cost, r0, r1, c0, c1)   # SN-05: same window (array OR per-term dict)
         map_unc_crop = None if map_unc_cost is None else map_unc_cost[r0:r1, c0:c1]   # PM-08/09: same window
-        cost, passable = slope_costmap(crop, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
-                                       max_drop_m=MAX_DROP_M, illum=illum_crop, illum_weight=illum_weight,
-                                       map_unc=map_unc_crop, map_unc_weight=map_unc_weight)
+        cost, passable, terms = slope_costmap(crop, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
+                                              max_drop_m=MAX_DROP_M, illum=illum_crop, illum_weight=illum_weight,
+                                              map_unc=map_unc_crop, map_unc_weight=map_unc_weight,
+                                              return_terms=True)
         _apply_keepouts(passable, cell, r0, c0, dem_origin, keepouts)
         hc, wc = crop.shape
         start = (min(max(int(ay / cell) - r0, 0), hc - 1), min(max(int(ax / cell) - c0, 0), wc - 1))
@@ -1947,9 +1955,12 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
         path, length_m, reached = route_least_cost(cost, eroded, cell, start, goal)
         if reached:
             waypoints = [(((c0 + c) * cell) - ox, ((r0 + r) * cell) - oy) for (r, c) in path]
+            if return_terms:
+                breakdown = {name: [float(layer[r, c]) for (r, c) in path] for name, layer in terms.items()}
+                return length_m, grid_straight, True, waypoints, breakdown
             return length_m, grid_straight, True, waypoints
         if c0 == 0 and c1 == W and r0 == 0 and r1 == H:
-            return straight, straight, False, []
+            return (straight, straight, False, [], {}) if return_terms else (straight, straight, False, [])
         m *= 2.0
 # ---- endurance / single-charge range (the "true distance before recharge", grounded) ------------
 def single_charge_range_m(g, *, slope_deg=0.0, slip=0.0, full_pack=False,
