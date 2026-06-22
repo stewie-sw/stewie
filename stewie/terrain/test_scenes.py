@@ -513,6 +513,38 @@ def test_build_from_dem_roundtrip_and_provenance():  # [REQ:TW-04]
     assert {"dem_backbone", "dem_corridor", "density_chaste", "illumination_horizon"} <= set(
         meta["features"])
 
+    # --- TW-04: ROCKS is the FOURTH family combined into the composite (this single build). The rocks
+    # step is cheap -- build_from_dem's per-call cost is the illumination horizon scan, not rocks -- so
+    # the rocks assertions ride the existing build (no extra ~180 s build_from_dem calls; seeded
+    # determinism is unit-tested fast in test_build_from_dem_rocks_seeded).
+    assert "rocks" in set(meta["features"])
+    rs = meta["rocks_source"]
+    assert rs["seed"] == 91 and rs["k"] > 0.0 and rs["tag"] == "Golombek SFD"
+    clasts = meta["clasts"]
+    assert isinstance(clasts, list) and len(clasts) >= 1
+    assert rs["n_clasts"] == len(clasts)
+    wb = meta["world_bounds_m"]
+    for c in clasts:                                   # each clast: a real Golombek sphere, surface-snapped
+        cx, cy, cz = c["center_m"]                      # into the scene's NON-ZERO global frame
+        assert c["radius_m"] > 0.0 and c["shape"] == "sphere"
+        assert wb["x0"] <= cx <= wb["x1"] and wb["y0"] <= cz <= wb["y1"] and np.isfinite(cy)
+    # Rocks are metadata refs, NOT carved into the conserved mass -> the datum round-trip stays exact.
+    assert np.max(np.abs((fields["datum"] + fields["mass_areal"] / fields["density"]) - h)) <= 1e-3
+
+
+def test_build_from_dem_rocks_seeded():  # [REQ:TW-04]
+    """The rocks family is SEEDED: build_from_dem feeds rocks_seed to procgen.sample_boulders (the same
+    Golombek sampler, scenes.py step 5b), so a fixed seed -> a byte-identical clast set and a different
+    seed -> a different set. Tested on the sampler directly (fast, no DEM build) -- build_from_dem's
+    per-call cost is the illumination horizon scan, not rocks, so this avoids extra ~180 s builds."""
+    from stewie.terrain import procgen
+    a = procgen.sample_boulders(100, 100, 0.5, k=0.08, d_min_m=0.30, seed=91)
+    b = procgen.sample_boulders(100, 100, 0.5, k=0.08, d_min_m=0.30, seed=91)
+    c = procgen.sample_boulders(100, 100, 0.5, k=0.08, d_min_m=0.30, seed=92)
+    assert a == b                 # same seed -> byte-identical clast list (build_from_dem's determinism)
+    assert a != c                 # a different seed genuinely drives a different rocks family
+    assert len(a) >= 1            # the bounded SFD still places resolvable boulders over the window
+
 
 @pytest.mark.skipif(not _DEM_PRESENT, reason="committed DEM scene not on disk")
 def test_build_from_dem_no_craters_path():

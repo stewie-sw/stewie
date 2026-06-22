@@ -920,11 +920,15 @@ DEFAULT_FBM_NU0_FINE = dem_overlay.DEFAULT_OVERLAY_PARAMS["fbm_nu0"]
 def build_from_dem(scene_dir: str = "samples/lunar_dem/haworth_10km_5m", *,
                    region: str = "haworth", radius_m: float = 30.0,
                    with_craters: bool = True, fbm_nu0: float | None = None,
-                   world_seed: int = 0) -> tuple[dict, dict]:
+                   world_seed: int = 0, rocks_k: float = 0.08,
+                   rocks_d_min_m: float = 0.30, rocks_seed: int = 91) -> tuple[dict, dict]:
     """Build a loadable DEM-backed scene by wiring the four Wave-2 generators (contract §8).
 
-    Connects the previously-disconnected corridor stack to a builder. Steps (contract §8 +
-    the binding decisions in the W2-SCENES task brief):
+    Connects the previously-disconnected corridor stack to a builder. ONE seeded composite
+    generator combines all FOUR families deterministically by seed (TW-04): craters (the
+    overlay crater feature_fn), ROCKS (the Golombek SFD boulder sampler), material (the
+    sourced ChaSTE density), and illumination (the terrain-derived horizon clip). Steps
+    (contract §8 + the binding decisions in the W2-SCENES task brief):
 
       1. ``load_scene`` the committed real-LOLA base (heightmap + carried fields + metadata).
          Read the loose-mantle thickness from ``metadata.regolith_model.mantle_thickness_m``
@@ -941,11 +945,18 @@ def build_from_dem(scene_dir: str = "samples/lunar_dem/haworth_10km_5m", *,
          and the calibrated ``fbm_nu0`` into the overlay params used by the mosaic's fine tiles.
       5. Compute a terrain-derived illumination mask via ``illumination.horizon_clip`` and carry
          it in the returned meta (CLEARLY tagged terrain-derived, NOT a Product-69 ingest).
+      5b. ROCKS (the fourth family, contract TW-04): sample a seeded Golombek SFD boulder field
+         over the DEM patch (the SAME ``procgen.sample_boulders`` used by ``build_crater_boulders``),
+         surface-snap each clast onto the REAL heightmap, and shift into the scene's NON-ZERO
+         global frame. Deterministic in ``rocks_seed`` (a fixed seed -> a byte-identical clast
+         list); clasts are metadata refs (uncovered -> Chrono rigid bodies, spec §6), NOT carved
+         into the conserved mass, so the datum round-trip in step 2 is untouched.
       6. Update ``meta`` via ``tiles_mosaic.write_dem_base_metadata`` (non-zero world_bounds,
          base/fine cell, region, dem_provenance, density source [CALIB] tag). schema_version 1.0.
       7. Return ``(fields, meta)``. ``fields`` IS the loadable base bundle whose
          ``derive_height() == heightmap`` (so the acceptance harness can measure the deviogram on
-         the real surface); ``meta`` carries the corridor / illumination / density provenance.
+         the real surface); ``meta`` carries the corridor / rocks / illumination / density
+         provenance.
 
     Returns
     -------
@@ -1037,6 +1048,44 @@ def build_from_dem(scene_dir: str = "samples/lunar_dem/haworth_10km_5m", *,
     center_y = (world_y0 + float(wb["y1"])) / 2.0
     fine_tiles = mosaic.ensure_fine((center_x, center_y), radius_m=float(radius_m))
 
+    # --- Step 5b: ROCKS (the fourth family, TW-04) -------------------------------------------
+    # ONE seeded composite generator combines craters + rocks + material + illumination. The rocks
+    # family is a seeded Golombek SFD boulder field (the SAME sampler build_crater_boulders uses,
+    # procgen.sample_boulders) sampled over the SAME demand-refined corridor window the craters /
+    # material are refined into (the [center +/- radius_m] patch, NOT the whole 10 km tile — a cm-
+    # scale clast enumeration over 1e8 m^2 is both infeasible and physically meaningless; rocks
+    # follow the corridor-scoped, demand-driven philosophy the rest of build_from_dem already uses).
+    # Deterministic in rocks_seed: a fixed seed -> a byte-identical clast list (asserted [REQ:TW-04]).
+    # Each clast is surface-snapped onto the REAL heightmap (rest the partially-buried sphere:
+    # center = surface + r(1 - 2*buried), mirroring build_crater_boulders) and shifted into the
+    # scene's NON-ZERO global frame. Clasts are metadata refs (uncovered -> Chrono rigid bodies,
+    # spec §6), NOT carved into the conserved mass, so the step-2 datum round-trip is untouched.
+    win_col0 = min(W - 1, max(0, int(round((center_x - world_x0 - radius_m) / base_cell_m))))
+    win_row0 = min(H - 1, max(0, int(round((center_y - world_y0 - radius_m) / base_cell_m))))
+    win_col1 = min(W, max(win_col0 + 1, int(round((center_x - world_x0 + radius_m) / base_cell_m))))
+    win_row1 = min(H, max(win_row0 + 1, int(round((center_y - world_y0 + radius_m) / base_cell_m))))
+    win_W = win_col1 - win_col0
+    win_H = win_row1 - win_row0
+    # d_min_m bounds the Golombek SFD: the 0.04 m floor over-generates cm-scale clasts; the composite
+    # generator places the RESOLVABLE boulders (>= rocks_d_min_m, default 0.30 m). (build_from_dem's
+    # cost is dominated by the illumination horizon scan, not rocks -- this just keeps the clast list sane.)
+    raw_rocks = procgen.sample_boulders(win_W, win_H, base_cell_m,
+                                        k=float(rocks_k), d_min_m=float(rocks_d_min_m),
+                                        seed=int(rocks_seed))
+    clasts: list[dict] = []
+    for c in raw_rocks:
+        x_local, _y, z_local = c["center_m"]            # window-local metres (0..win_W*cell, ...)
+        col = min(W - 1, max(0, win_col0 + int(round(x_local / base_cell_m))))
+        row = min(H - 1, max(0, win_row0 + int(round(z_local / base_cell_m))))
+        rad = c["radius_m"]
+        buried = c["buried_frac"]
+        surf = float(heightmap[row, col])
+        c["center_m"] = [round(world_x0 + win_col0 * base_cell_m + x_local, 4),
+                         round(surf + rad * (1.0 - 2.0 * buried), 4),
+                         round(world_y0 + win_row0 * base_cell_m + z_local, 4)]
+        c["id"] = len(clasts)
+        clasts.append(c)
+
     # Conservation self-check on one materialized fine tile: coarsen(fine) == its base block.
     corridor_conservation = None
     if fine_tiles:
@@ -1108,6 +1157,23 @@ def build_from_dem(scene_dir: str = "samples/lunar_dem/haworth_10km_5m", *,
                 "DEM surface is untouched (dem_import.polar_mantle_density_fn).",
     }
     meta["fbm_nu0_fine"] = nu0
+    # ROCKS (TW-04 fourth family): the seeded Golombek SFD boulder field, surface-snapped and in
+    # the scene's global frame. Carried in the INTERFACE.md §5 ``clasts`` schema (the same key the
+    # legacy boulder builders use) PLUS a provenance block so the seed/k/SFD are self-describing.
+    meta["clasts"] = clasts
+    meta["rocks_source"] = {
+        "tag": "Golombek SFD",
+        "model": "procgen.sample_boulders (Golombek et al. 2003 cumulative area SFD "
+                 "F_k(D)=k*exp(-q(k)*D), Poisson-sampled to a clast count)",
+        "k": float(rocks_k),
+        "q": round(float(K.golombek_q(float(rocks_k))), 4),
+        "seed": int(rocks_seed),
+        "n_clasts": len(clasts),
+        "surface_snapped": True,
+        "note": "deterministic in seed (fixed seed -> byte-identical clast list). Clasts are "
+                "metadata refs (uncovered -> Chrono rigid bodies, spec §6), NOT carved into the "
+                "conserved mass, so derive_height() == heightmap is untouched.",
+    }
     # Illumination: CLEARLY tagged terrain-derived single-epoch local-horizon, NOT a Product-69.
     meta["illumination"] = {
         "tag": "terrain-derived",
@@ -1122,7 +1188,7 @@ def build_from_dem(scene_dir: str = "samples/lunar_dem/haworth_10km_5m", *,
     }
     meta["features"] = sorted(set(meta.get("features", []))
                               | {"dem_backbone", "dem_corridor", "density_chaste",
-                                 "illumination_horizon"})
+                                 "illumination_horizon", "rocks"})
 
     # --- Step 7: assemble the returned loadable fields (5 required + re-derived datum) ------
     fields = {

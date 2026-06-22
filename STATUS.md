@@ -4,7 +4,7 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 
 - requirements (PRD §7 rows): **187**
 - cited by >=1 test ([REQ:] marker): **125**
-- V!=D flagged (FS-22 audit: cited but not yet V=D): **40**
+- V!=D flagged (FS-22 audit: cited but not yet V=D): **39**
 
 ## V!=D flagged rows (cited, awaiting promotion)
 
@@ -48,7 +48,6 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | PO-05 | N |
 | SL-01 | P |
 | SN-12 | N |
-| TW-04 | P |
 | VT-06 | P |
 
 ## Per-family rollup (cited / total)
