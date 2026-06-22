@@ -432,3 +432,111 @@ def navigation_contract() -> dict:
                    "present": False, "note": "gated: needs the live planner binary on a ROS / Space ROS host"})
     return {"version": "1.0", "stages": stages,
             "on_host_complete": all(s["present"] for s in stages if "note" not in s)}
+
+
+# ARCH-2 (#123): the footprint-INFLATING router wrapper (config-space inflation of hazards by the rover's
+# swept radius) lives here with the costmap + point router it extends; route_leg above is the point rover
+# (footprint_radius_m=0). mission_planner re-exports route_leg_inflated as MP.route_leg (the public router).
+_route_leg_point = route_leg   # the point rover (no inflation); the wrapper falls back to it at radius 0
+
+
+def _erode_passable(passable, cell_m, radius_m):
+    """P-06: erode the passable mask by the rover's swept footprint -- a cell is passable for a finite-size
+    rover only if EVERY cell within `radius_m` of it is passable (so the body never clips a hazard). This is
+    a binary erosion by a disk of radius_m, the standard configuration-space inflation of obstacles by the
+    robot radius. Returns the eroded boolean mask."""
+    if radius_m is None or radius_m <= 0:
+        return passable
+    from scipy.ndimage import minimum_filter
+    rad_cells = int(math.ceil(float(radius_m) / float(cell_m)))
+    if rad_cells <= 0:
+        return passable
+    n = 2 * rad_cells + 1
+    yy, xx = np.ogrid[-rad_cells:rad_cells + 1, -rad_cells:rad_cells + 1]
+    disk = (yy * yy + xx * xx) <= (radius_m / cell_m) ** 2     # circular structuring element
+    # minimum_filter over the disk: a cell stays True only if all True within the disk (erosion).
+    return minimum_filter(passable.astype(np.uint8), footprint=disk, mode="constant", cval=0).astype(bool) \
+        if n > 1 else passable
+
+
+def route_leg_inflated(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0, margin_m=20.0,
+              keepouts=(), footprint_radius_m=0.0, illum_cost=None, illum_weight=1.0,
+              map_unc_cost=None, map_unc_weight=1.0, return_terms=False):
+    """P-06: terrain-aware route between two LOCAL sites, with the rover treated as a FINITE-SIZE body.
+
+    When `footprint_radius_m` > 0 the impassable hazards (slope cap, drop-offs, keep-outs) are inflated by
+    the rover's swept radius -- a corridor narrower than the rover is impassable even though a point rover
+    could thread it (the audit's 'routing treats the vehicle as a point' defect). `footprint_radius_m=0`
+    reproduces the point-rover route_leg exactly (byte-identical). Returns (routed_m, grid_straight_m,
+    reached, waypoints) with the same contract as the point router. The endpoints themselves are not
+    eroded (a site placed on a valid pad is reachable even if its immediate cell touches the inflation).
+
+    SN-05: ``illum_cost`` (DEM-aligned (H, W) illumination route-cost field) + ``illum_weight`` thread
+    through to the slope costmap exactly as in the point router -- a SEPARABLE, severity-weighted soft cost
+    that biases the corridor toward lit cells. ``illum_cost=None`` (default) is byte-identical (OFF).
+
+    PM-08/09: ``map_unc_cost`` (DEM-aligned (H, W) residual map-uncertainty field [m]) + ``map_unc_weight``
+    thread through the same way -- a SEPARABLE, severity-weighted soft cost biasing the corridor toward
+    well-observed, low-uncertainty cells. Independent of ``illum_cost`` (both compose additively).
+    ``map_unc_cost=None`` (default) is byte-identical (OFF)."""
+    if not footprint_radius_m or footprint_radius_m <= 0:
+        return _route_leg_point(dem, dem_origin, a_xy, b_xy, max_slope_deg=max_slope_deg,
+                                slip_alpha=slip_alpha, margin_m=margin_m, keepouts=keepouts,
+                                illum_cost=illum_cost, illum_weight=illum_weight,
+                                map_unc_cost=map_unc_cost, map_unc_weight=map_unc_weight,
+                                return_terms=return_terms)
+    Z, cell = dem
+    ox, oy = dem_origin
+    ax, ay = ox + a_xy[0], oy + a_xy[1]
+    bx, by = ox + b_xy[0], oy + b_xy[1]
+    H, W = Z.shape
+    if illum_cost is not None and not isinstance(illum_cost, dict):
+        illum_cost = np.asarray(illum_cost, float)
+        if illum_cost.shape != Z.shape:
+            raise ValueError(f"illum_cost shape {illum_cost.shape} must match the DEM shape {Z.shape}")
+    elif isinstance(illum_cost, dict):
+        for k, v in illum_cost.items():
+            if k == "weights":
+                continue
+            if np.asarray(v).shape != Z.shape:
+                raise ValueError(f"illum_cost['{k}'] shape {np.asarray(v).shape} must match the DEM shape {Z.shape}")
+    if map_unc_cost is not None:
+        map_unc_cost = np.asarray(map_unc_cost, float)
+        if map_unc_cost.shape != Z.shape:
+            raise ValueError(f"map_unc_cost shape {map_unc_cost.shape} must match the DEM shape {Z.shape}")
+    straight = math.hypot(bx - ax, by - ay)
+    m = float(margin_m)
+    while True:
+        c0 = max(0, int((min(ax, bx) - m) / cell))
+        c1 = min(W, int((max(ax, bx) + m) / cell) + 1)
+        r0 = max(0, int((min(ay, by) - m) / cell))
+        r1 = min(H, int((max(ay, by) + m) / cell) + 1)
+        if c1 - c0 < 2 or r1 - r0 < 2:
+            return (straight, straight, False, [], {}) if return_terms else (straight, straight, False, [])
+        crop = Z[r0:r1, c0:c1]
+        illum_crop = _crop_illum(illum_cost, r0, r1, c0, c1)   # SN-05: same window (array OR per-term dict)
+        map_unc_crop = None if map_unc_cost is None else map_unc_cost[r0:r1, c0:c1]   # PM-08/09: same window
+        cost, passable, terms = slope_costmap(crop, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
+                                              max_drop_m=MAX_DROP_M, illum=illum_crop, illum_weight=illum_weight,
+                                              map_unc=map_unc_crop, map_unc_weight=map_unc_weight,
+                                              return_terms=True)
+        _apply_keepouts(passable, cell, r0, c0, dem_origin, keepouts)
+        hc, wc = crop.shape
+        start = (min(max(int(ay / cell) - r0, 0), hc - 1), min(max(int(ax / cell) - c0, 0), wc - 1))
+        goal = (min(max(int(by / cell) - r0, 0), hc - 1), min(max(int(bx / cell) - c0, 0), wc - 1))
+        # P-06: inflate hazards by the swept footprint (erode passable), but keep the start/goal cells
+        # themselves traversable so a validly-sited endpoint is not declared unreachable by its own pad edge.
+        eroded = _erode_passable(passable, cell, footprint_radius_m)
+        eroded[start] = passable[start]
+        eroded[goal] = passable[goal]
+        grid_straight = math.hypot((goal[1] - start[1]) * cell, (goal[0] - start[0]) * cell)
+        path, length_m, reached = route_least_cost(cost, eroded, cell, start, goal)
+        if reached:
+            waypoints = [(((c0 + c) * cell) - ox, ((r0 + r) * cell) - oy) for (r, c) in path]
+            if return_terms:
+                breakdown = {name: [float(layer[r, c]) for (r, c) in path] for name, layer in terms.items()}
+                return length_m, grid_straight, True, waypoints, breakdown
+            return length_m, grid_straight, True, waypoints
+        if c0 == 0 and c1 == W and r0 == 0 and r1 == H:
+            return (straight, straight, False, [], {}) if return_terms else (straight, straight, False, [])
+        m *= 2.0
