@@ -10,6 +10,7 @@ IPEx-grounded expressions the solver used before, so the byte-identical G1/G2 ev
 from __future__ import annotations
 
 from stewie.specs import ipex_specs as S
+from stewie.physics import terramechanics as TM   # leaf: TerramechanicsParams (no lode import)
 
 DRIVE_SPEED_MS = S.DRIVE_SPEED_MS                 # 0.30 m/s
 DIG_RATE_KG_S = S.DIG_RATE_KG_PER_HR / 3600.0     # 42 kg/hr
@@ -28,3 +29,10 @@ LOCALIZATION_MARGIN_M = 0.15
 #: planner_model) and _constraint_penalty (sequencing, in mission_planner).
 _CONSTRAINT_CAPS = {"max_time_s": "time_s", "max_energy_J": "energy_J",
                     "max_charges": "charges", "max_distance_m": "distance_m"}
+
+# ARCH-2 (#123): the rover-physics constants the endurance/range leaf (lode.planner_endurance) shares
+# with the trips + relocalization clusters that stay in mission_planner -- hosted here so both import
+# them with no cycle. Values are the exact expressions mission_planner used before (byte-identical).
+ROVER_MASS_KG = S.ROVER_MASS_CLASS_KG             # 30 kg-class (for gravity-climb drive energy)
+SLIP_ALPHA = 2.0                                  # [CALIB] slip energy multiplier vs tan(slope) (I10 costmap)
+_TM_PARAMS = TM.TerramechanicsParams.from_constants()   # lunar defaults for the weight-aware leg-slip solve
