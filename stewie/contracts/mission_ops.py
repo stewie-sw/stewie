@@ -150,11 +150,17 @@ class Contingency(Contract):
 class AcceptanceCriterion(Contract):
     """MO-01 / P1-1: the measurable evidence required to declare an objective complete -- "an optimization
     objective such as time is not the mission objective". ``measurable`` is the observable completion test;
-    ``sensor`` is what supplies the evidence."""
+    ``sensor`` is what supplies the evidence; ``tolerance_m`` is the STRUCTURED numeric acceptance
+    tolerance the planner's acceptance gate consumes (the as-built flatness/profile RMSE bound in metres,
+    e.g. the +/-0.02 m named in ``measurable``). It is a structured field -- NOT parsed out of the
+    free-text ``measurable`` -- so the goal-grammar compiler (CP-04) lowers a real number onto the plan,
+    never an invented parse of prose. None -> no per-objective override (the gate keeps its documented
+    default)."""
     criterion_id: str
     statement: str
     measurable: str               # the observable completion test (e.g. "as-built RMSE <= 0.02 m")
     sensor: str = ""              # the acceptance sensor that supplies the evidence
+    tolerance_m: float | None = Field(default=None, gt=0.0)   # as-built RMSE acceptance bound [m]
 
 
 class Constraint(Contract):
@@ -220,6 +226,65 @@ class Objective(Contract):
     approver: str
     evidence: str = ""
 
+    @property
+    def acceptance_tolerance_m(self) -> float | None:
+        """CP-04: the TIGHTEST structured acceptance tolerance across this objective's criteria (the
+        as-built RMSE bound the planner must meet), or None if none declares one. A single plan must
+        satisfy the strictest criterion, so the minimum is the binding tolerance."""
+        tols = [c.tolerance_m for c in self.acceptance if c.tolerance_m is not None]
+        return min(tols) if tols else None
+
+
+class KeepOutRegion(Contract):
+    """MO-01: a mission keep-out region the planner must avoid -- a no-go zone (boulder field, crater,
+    ejecta blanket, PSR boundary) in the mission's LOCAL order frame [metres]. Exactly ONE shape is
+    supplied: a CIRCLE (``x``, ``y``, ``radius_m``), an axis-aligned RECTANGLE (``x0``, ``y0``, ``x1``,
+    ``y1``), or a POLYGON (``points``, >= 3 vertices). The goal-grammar compiler (CP-04) lowers it into
+    the planner's OWN keep-out input (``Mission.keepouts``): hauls route AROUND it and a build sited
+    inside it is flagged as a build-on-obstacle conflict -- the same mechanism the router already uses,
+    not a parallel barrier model."""
+    region_id: str
+    reason: str = ""
+    # circle
+    x: float | None = None
+    y: float | None = None
+    radius_m: float | None = Field(default=None, gt=0.0)
+    # axis-aligned rectangle
+    x0: float | None = None
+    y0: float | None = None
+    x1: float | None = None
+    y1: float | None = None
+    # polygon (>= 3 vertices)
+    points: list[tuple[float, float]] | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one_shape(self) -> KeepOutRegion:
+        is_circle = self.x is not None and self.y is not None and self.radius_m is not None
+        is_rect = all(v is not None for v in (self.x0, self.y0, self.x1, self.y1))
+        is_poly = self.points is not None
+        n = sum((is_circle, is_rect, is_poly))
+        if n != 1:
+            raise ValueError(
+                "MO-01: a KeepOutRegion must supply exactly one shape -- a circle (x,y,radius_m), a "
+                "rectangle (x0,y0,x1,y1), or a polygon (points, >= 3 vertices)")
+        if self.points is not None and len(self.points) < 3:
+            raise ValueError("MO-01: a KeepOutRegion polygon needs >= 3 vertices")
+        if is_rect and (self.x0 == self.x1 or self.y0 == self.y1):
+            raise ValueError("MO-01: a KeepOutRegion rectangle must have non-zero width and height")
+        return self
+
+    def to_planner_keepout(self) -> dict:
+        """CP-04: lower this region into the planner's keep-out dict shape (the SAME schema
+        ``mission_from_dict`` validates and ``point_in_keepout`` / the router raster consume). The
+        validator guarantees exactly one shape's fields are all non-None."""
+        if self.points is not None:
+            return {"points": [[float(px), float(py)] for px, py in self.points]}
+        if None not in (self.x0, self.y0, self.x1, self.y1):
+            return {"x0": float(self.x0), "y0": float(self.y0),     # type: ignore[arg-type]
+                    "x1": float(self.x1), "y1": float(self.y1)}     # type: ignore[arg-type]
+        return {"x": float(self.x), "y": float(self.y),             # type: ignore[arg-type]
+                "r": float(self.radius_m)}                          # type: ignore[arg-type]
+
 
 class MissionIntent(Contract):
     """MO-01 / P1-1: the operator-facing mission object the planner compiles against -- a HIERARCHY, not a
@@ -231,6 +296,9 @@ class MissionIntent(Contract):
     statement: str
     objectives: list[Objective] = Field(default_factory=list)
     constraints: list[Constraint] = Field(default_factory=list)
+    # MO-01 / CP-04: mission-wide keep-out regions (no-go zones) the planner must route around; lowered
+    # into Mission.keepouts by the goal-grammar compiler.
+    keep_outs: list[KeepOutRegion] = Field(default_factory=list)
     # the compiled task graph reference (e.g. a Plan IR id); the task graph itself lives in the planner
     task_graph_ref: str = ""
 

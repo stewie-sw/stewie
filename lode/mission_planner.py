@@ -292,6 +292,12 @@ class Mission:
     #: a known harder/icier site (>1) so the plan's dig energy DEPENDS on the declared material. None -> 1.0
     #: -> byte-identical to the constant baseline.
     dig_energy_factor: float | None = None
+    #: CP-04: the as-built FLATNESS acceptance tolerance [m] the conserved-authority acceptance gate
+    #: (validate_plan) measures the worked footprints against (as-built RMSE <= tol -> as_built_pass).
+    #: Compiled from the mission objectives' structured acceptance tolerance (MO-01
+    #: AcceptanceCriterion.tolerance_m, tightest over objectives). None -> validate_plan keeps its
+    #: documented default (byte-identical to a pre-CP-04-tolerance plan).
+    accept_flatness_tol_m: float | None = None
     @property
     def density(self): return body_density(self.body)
 
@@ -516,6 +522,12 @@ def mission_from_dict(payload):
         if fv <= 0:
             raise ValueError(f"'dig_energy_factor' must be > 0 (got {fv})")
         kwargs["dig_energy_factor"] = fv
+    aft = payload.get("accept_flatness_tol_m")             # CP-04: compiled as-built acceptance tolerance
+    if aft is not None:
+        tv = VAL.ensure_finite_scalar(aft, "accept_flatness_tol_m")
+        if tv <= 0:
+            raise ValueError(f"'accept_flatness_tol_m' must be > 0 (got {tv})")
+        kwargs["accept_flatness_tol_m"] = tv
     return Mission(**kwargs)
 
 
@@ -1728,7 +1740,12 @@ def plan(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_slop
         algorithm=algorithm, objective=objective, vehicles=vehicles)
     prov = _plan_provenance(mission, algorithm=algorithm, objective=objective,
                             vehicles=vehicles, dem_origin=dem_origin)
-    validation = validate_plan(mission, dem=dem, dem_origin=dem_origin) if with_acceptance else None
+    # CP-04: honor the mission's compiled as-built acceptance tolerance (from the objectives' MO-01
+    # acceptance tolerance) when one was lowered onto the mission; else validate_plan keeps its default.
+    _val_kw = ({} if mission.accept_flatness_tol_m is None
+               else {"accept_flatness_tol_m": mission.accept_flatness_tol_m})
+    validation = (validate_plan(mission, dem=dem, dem_origin=dem_origin, **_val_kw)
+                  if with_acceptance else None)
     endu = endurance(mission, dem=dem, dem_origin=dem_origin) if with_acceptance else None
     return PlanResult(mission=mission, dem_origin=tuple(dem_origin), trips=trips, flows=flows,
                       per_trip=per_trip, tl=tl, totals=totals, provenance=prov,
