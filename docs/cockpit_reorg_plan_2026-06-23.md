@@ -89,8 +89,16 @@ page-error/screenshot pass.
 - The ES-module render files (e.g. `three3d.js`) for any pane-content moves.
 - New "Validate" tab = compose the existing `#navview` + `#renderpanel` panes under one tab with a
   sub-tab switcher (do not rewrite their internals — move/wrap).
-- New "Release" surface = a thin pane around the existing `/executive/advance` call + the executive
-  state display.
+- New "Release" surface. **Correction (2026-06-23, found by reading `stewie/server/routers/executive.py`):**
+  there is NO GET state endpoint and no persistent executive — `POST /executive/advance` is a one-shot,
+  director-gated call that takes a full `MissionIntent`, runs the entire DRAFT→ANALYZED→REHEARSED→REVIEWED
+  →RELEASED lifecycle (`lode.mission_lifecycle.run_lifecycle`), and returns the reached state + signed
+  revision + evidence (plan_id, forward_compare) + transition log. So Release is an ACTION surface, not a
+  display: it must (a) build a valid `MissionIntent` from the cockpit's current plan/queue (the cockpit
+  already constructs mission payloads for `/plan` — reuse that), (b) POST it, (c) render the returned
+  state/revision/evidence/log. Open design choices (need a decision before building): which intent it
+  submits (the current queue? a named mission?), how the operator selects it, and the result layout. This
+  makes Release a real integration, not a quick additive pane.
 - After ANY `cockpit.js` / `three3d.js` change: run `python scripts/stamp_cockpit_version.py` to
   re-stamp the `?v=` content hashes (CI `stewie/server/test_asset_version_stamp.py` fails on a stale
   stamp). Do NOT hand-edit `?v=`.
