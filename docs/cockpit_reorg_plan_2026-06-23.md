@@ -56,12 +56,24 @@ Keep the numbered authoring spine but compress it:
 2. **Contents**
 3. **Rovers** (renamed from "Fleet" to break the collision with the Fleet tab)
 4. **Plan** — queue + feasibility + files/catalog combined, specifically:
-   - MERGE the old `4 Feasibility` quick-estimate into the `5 Plan` totals (remove the duplicate).
-   - FOLD the old `6 Catalog` into the Plan "files" substep (one save / load / template home).
+   - **MOVE (do NOT remove)** the old `4 Feasibility` controls into the `5 Plan` section as a sub-step.
+     **Correction (2026-06-23, found by reading the code):** the Feasibility inputs are LOAD-BEARING, not
+     a removable duplicate — `padW`/`padL`/`cut`/`bermH`/`est` drive `estimate()` (cockpit.js:2270 +
+     input listeners at :2600) AND the "Pad cut" order convenience (:3495-3501). The restructure must
+     reparent them with **every id + listener preserved**; removing them breaks the live estimate and the
+     pad-cut quick-order. (The original "remove the duplicate" wording was wrong.)
+   - **FOLD (move, preserve ids)** the old `6 Catalog` (`msname`/`mssave`/`msnotes`/`mslist`/`stname`/
+     `stsave`/`stlist`, all wired) into the Plan "files" substep — one save / load / template home.
 
-Removed from the authoring sidebar: `7 Telemetry` moves to the Execute pane (above). Collapse the four
-pointer-only context blocks (nav / perception / metrics / report `#ctx-*`) into their pane headers,
-keeping only the live summary line.
+Removed-from-position (moved, not deleted): `7 Telemetry` (`telerail`/`telespark`/`drumkg`/`drumnoise`/
+`drumout`, wired) relocates to the Execute pane. Collapse the four pointer-only context blocks
+(nav / perception / metrics / report `#ctx-*`) into their pane headers, keeping only the live summary line.
+
+**Verification caveat for the sidebar stage:** the screenshot harness (`scripts/cockpit_harness.py`) only
+captures the default state — it will NOT catch a silent wiring break (e.g. `estimate()` no longer firing
+after a moved input). Sidebar-restructure stages require INTERACTIVE Playwright checks (fill `padW` →
+assert `#est` updates; click the pad-cut convenience → assert an order is appended) in addition to the
+page-error/screenshot pass.
 
 ## Cross-cutting
 
