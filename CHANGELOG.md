@@ -43,6 +43,13 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
   `planner_sim` / `planner_optimize` / `planner_assembly`, + the earlier `planner_views` / `planner_acceptance`).
   Every public symbol stays byte-identical via facade re-export; the former lode↔planner_views import
   cycle is broken via `planner_constants`.
+- FL-03: the shared charger and all declared shared resources (pit/dump/vantage/corridor) are now
+  scheduled **jointly** (`lode.planner_multivehicle._resolve_joint_resources`) — one per-vehicle delay
+  clock advanced over a single event calendar, every contended segment admitted against ONE multi-server
+  `ReservationLedger` — so the multi-vehicle makespan/waits are the real coupled FCFS schedule rather than
+  a sum of independent per-server estimates (which double-counted a rover queued in two resources at once).
+  A no-declared-resource fleet reduces to the prior charger-only queue (byte-identical). FL-02 crowding and
+  FL-04 cross-vehicle precedence remain separate fixed-point resolvers folded on top.
 - `stewie/godot/render.sh`: documented the working sensor-capture recipe
   (never `--headless`; run `res://sidecar.tscn` with `--layers …,rover`).
 - PRD §4.2 (release blockers) and §19.1 (requirement census) reconciled: RB-01..06 are cleared in

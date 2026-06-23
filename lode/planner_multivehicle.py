@@ -315,6 +315,117 @@ def _resolve_shared_resources(per_vehicle, resources, *, tol_m=0.5):
     return delay, per_res_wait
 
 
+def _resolve_joint_resources(per_vehicle, *, charger_capacity=1, shared_resources=None, tol_m=0.5):
+    """FL-03: schedule the shared CHARGER and ALL declared shared resources (pit/dump/vantage/corridor)
+    JOINTLY against ONE multi-server `ReservationLedger` driven by ONE per-vehicle delay clock -- replacing
+    v1's independent per-server clocks (`_resolve_charger_queue` + `_resolve_shared_resources` summed),
+    which double-counted a rover modelled as queued in two resources "at once" (the documented conservative
+    over-estimate). Every vehicle's contended segments -- its charge events (server ``charger``, capacity =
+    `charger_capacity`) and its work-site occupancies within `tol_m` of a declared resource (server = that
+    resource's id, capacity = its) -- are placed in one event loop by EARLIEST EFFECTIVE ARRIVAL (the
+    segment's original t0 plus the vehicle's ACCRUED delay), each admitted against the ONE ledger so the
+    schedule is feasible on every server simultaneously, not under four separate single-server models. A
+    wait on ANY server bumps the SINGLE delay[v], so the rover's later segments (on any server) shift with
+    it -- the coupling the independent resolvers lack.
+
+    Reported makespan/waits are the REAL coupled FCFS schedule, NOT a bound: coupling usually RELIEVES
+    contention (an earlier wait pushes a later event out of a conflict -> joint total < independent sum),
+    but it can also SHIFT a rover into a conflict it independently missed (-> joint total > sum on that
+    rover); the value is the true coupled schedule either way. With a single contended server the joint
+    output is byte-identical to the old per-server FCFS queue (a lone server cannot be double-counted), so
+    a no-declared-resource fleet matches `_resolve_charger_queue` exactly.
+
+    Returns (per_vehicle_delay, breakdown). `per_vehicle_delay[v]` is the rover's TOTAL accrued wait
+    (charger + resources); breakdown carries `charger_wait_s` / `resource_wait_s` / `resource_waits{id}`,
+    the per-vehicle `charger_delay` / `resource_delay` attribution slices (so the Fleet report columns stay
+    consistent), and `reservations` (the placed [server, t0, t1] windows, for feasibility replay). Pure +
+    deterministic (ties break by earliest effective arrival, then lower vehicle index, then charger before
+    resource, then resource id)."""
+    from lode.fleet_resources import Reservation, ReservationLedger, SharedResource
+    n = len(per_vehicle)
+    cap = max(1, int(charger_capacity))
+    resources = list(shared_resources or [])
+    servers = [SharedResource("charger", "charger", cap)]                 # ONE ledger holds ALL servers
+    for res in resources:
+        servers.append(SharedResource(res["id"], res["kind"], max(1, int(res["capacity"]))))
+    ledger = ReservationLedger(servers)
+
+    def _near(site, pts):
+        return any(abs(site[0] - px) <= tol_m and abs(site[1] - py) <= tol_m for px, py in pts)
+
+    KIND_CHARGER, KIND_RESOURCE = 0, 1
+    segs = []                                                             # [v, t0, dur, server_id, kind, rid]
+    for v, pv in enumerate(per_vehicle):
+        for s in pv.get("tl", []):
+            if s.get("kind") == "charge":
+                t0, t1 = float(s["t0"]), float(s["t1"])
+                if t1 > t0:
+                    segs.append([v, t0, t1 - t0, "charger", KIND_CHARGER, ""])
+        for res in resources:
+            rid, pts = res["id"], res["sites"]
+            for pt in pv.get("per_trip", []):
+                site = pt["trip"].get("site")
+                if site is None or not _near(site, pts):
+                    continue
+                t0, t1 = float(pt["t_start"]), float(pt["t_end"])
+                if t1 > t0:
+                    segs.append([v, t0, t1 - t0, rid, KIND_RESOURCE, rid])
+    delay = [0.0] * n
+    charger_delay = [0.0] * n
+    resource_delay = [0.0] * n
+    resource_waits: dict = {}
+    reservations: list = []
+    if not segs:
+        return delay, {"charger_wait_s": 0.0, "resource_wait_s": 0.0, "resource_waits": {},
+                       "charger_delay": charger_delay, "resource_delay": resource_delay,
+                       "reservations": reservations}
+
+    def _earliest_start(server_id, dur, after):
+        # smallest tau >= after at which the ledger admits [tau, tau+dur) on server_id, given what is
+        # already held: candidates are `after` and every held end on this server that is past `after`.
+        cands = {after}
+        for r in ledger.held():
+            if r.resource_id == server_id and r.t_end > after:
+                cands.add(float(r.t_end))
+        for tau in sorted(cands):
+            if ledger.would_admit(Reservation(server_id, "_probe", tau, tau + dur)):
+                return tau
+        return max(cands)                                                 # capacity>=1 -> always fits eventually
+
+    placed = [False] * len(segs)
+    for _ in range(len(segs)):                                            # place each contended segment once
+        best, best_key = -1, None
+        for k, sg in enumerate(segs):
+            if placed[k]:
+                continue
+            v, t0, _dur, sid, krank, _rid = sg
+            key = (t0 + delay[v], v, krank, sid)                          # earliest effective arrival, total order
+            if best_key is None or key < best_key:
+                best, best_key = k, key
+        v, t0, dur, sid, krank, rid = segs[best]
+        arr = t0 + delay[v]
+        start = _earliest_start(sid, dur, arr)
+        wait = start - arr
+        if wait > 0:
+            delay[v] += wait
+            if krank == KIND_CHARGER:
+                charger_delay[v] += wait
+            else:
+                resource_delay[v] += wait
+                resource_waits[rid] = resource_waits.get(rid, 0.0) + wait
+        ledger.reserve(Reservation(sid, f"v{v}", start, start + dur))
+        reservations.append({"server": sid, "t0": float(start), "t1": float(start + dur)})
+        placed[best] = True
+    return delay, {
+        "charger_wait_s": float(sum(charger_delay)),
+        "resource_wait_s": float(sum(resource_delay)),
+        "resource_waits": {k: float(w) for k, w in resource_waits.items() if w > 0.0},
+        "charger_delay": charger_delay,
+        "resource_delay": resource_delay,
+        "reservations": reservations,
+    }
+
+
 def _temporal_conflicts(per_vehicle, *, proximity_m: float = 10.0) -> int:
     """FL-02: SPACE-TIME conflicts beyond exact same-site overlap -- two DIFFERENT vehicles working within
     proximity_m of each other at OVERLAPPING times (rovers crowding adjacent sites simultaneously). Uses

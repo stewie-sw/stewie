@@ -36,7 +36,7 @@ from lode.planner_optimize import (
 from lode.planner_trips import _build_trips, _make_routes, _precedence_is_feasible, trip_precedence
 from lode.planner_multivehicle import (
     _allocate_precedence_split, _allocate_trips, _charger_conflicts, _haul_path_conflicts,
-    _resolve_charger_queue, _resolve_cross_vehicle_precedence, _resolve_shared_resources,
+    _resolve_charger_queue, _resolve_cross_vehicle_precedence, _resolve_joint_resources,
     _resolve_spacetime_crowding, _rover_health, _temporal_conflicts, _vehicle_conflicts,
 )
 
@@ -203,17 +203,21 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
         per_vehicle.append({"vehicle": v, "trips": vtrips, "tl": tl, "per_trip": per_trip, "core": core})
     conflicts = _vehicle_conflicts(per_vehicle)
     parallel_makespan = max((pv["core"]["time_s"] for pv in per_vehicle), default=0.0)
-    # FL-03: the fleet shares ONE charger -> serialise overlapping recharges (FCFS single-server queue).
-    # Each vehicle's real finish is its independent time + the wait it accrues queueing for the charger;
-    # the headline makespan is the max of those. parallel_makespan keeps the optimistic (unlimited-charger)
-    # value for reference, and charger_conflicts still reports how many overlaps the queue had to resolve.
-    charger_delays = _resolve_charger_queue(per_vehicle, capacity=mission.charger_capacity)
-    charger_wait_s = float(sum(charger_delays))
-    # FL-03: declared shared resources (pit/dump/vantage/corridor) add capacity-k contention beyond the
-    # charger; a rover waits for an over-capacity resource the same way it queues for the charger. With no
-    # declared resources, resource_delays is all 0 -> makespan/survival are byte-identical to a non-reserved fleet.
-    resource_delays, resource_waits = _resolve_shared_resources(per_vehicle, mission.shared_resources)
-    resource_wait_s = float(sum(resource_delays))
+    # FL-03: schedule the shared CHARGER and all declared resources (pit/dump/vantage/corridor) JOINTLY
+    # against ONE multi-server ReservationLedger driven by ONE per-vehicle delay clock -- replacing v1's
+    # independent per-server clocks (which double-counted a rover modelled as queued in two resources "at
+    # once", a conservative over-estimate). A wait on any server shifts the rover's later events on every
+    # server, so the reported makespan/waits are the REAL coupled FCFS schedule, not a sum of per-server
+    # upper bounds. parallel_makespan keeps the optimistic (unlimited-server) reference; charger_conflicts
+    # still reports the raw overlaps. With NO declared resources the joint schedule reduces to the
+    # charger-only FCFS queue -> makespan/survival byte-identical to a non-reserved fleet.
+    joint_delays, joint_bd = _resolve_joint_resources(
+        per_vehicle, charger_capacity=mission.charger_capacity, shared_resources=mission.shared_resources)
+    charger_delays = joint_bd["charger_delay"]        # per-vehicle charger-attributed slice (report column)
+    charger_wait_s = joint_bd["charger_wait_s"]
+    resource_delays = joint_bd["resource_delay"]      # per-vehicle resource-attributed slice (report column)
+    resource_wait_s = joint_bd["resource_wait_s"]
+    resource_waits = joint_bd["resource_waits"]
     # FL-02 re-sequencing: deconflict space-time crowding + haul-path crossings by the same FCFS wait the
     # charger queue uses (the loser yields). No crowding -> all 0 -> makespan/survival byte-identical.
     crowd_delays = _resolve_spacetime_crowding(per_vehicle)
@@ -223,7 +227,7 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     # wait discipline as the charger/crowding resolvers. No cross-vehicle edge -> all 0 -> byte-identical.
     precedence_delays = _resolve_cross_vehicle_precedence(per_vehicle, alloc, glob_prec, trips)
     precedence_wait_s = float(sum(precedence_delays))
-    makespan = max((pv["core"]["time_s"] + charger_delays[i] + resource_delays[i]
+    makespan = max((pv["core"]["time_s"] + joint_delays[i]
                     + crowd_delays[i] + precedence_delays[i]
                     for i, pv in enumerate(per_vehicle)), default=0.0)
     agg = dict(
@@ -295,6 +299,14 @@ def plan_multi_oracle(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
     if mission.precedence:
         raise ValueError("plan_multi_oracle does not handle cross-vehicle precedence; it validates the "
                          "base site-exclusive allocation problem only (use plan_multi for precedence)")
+    if mission.shared_resources:
+        # FL-03/FL-06: the oracle scores candidates through the shared-CHARGER queue only -- it does NOT
+        # model declared pit/dump/vantage/corridor resources, so it would NOT be a tight lower bound for a
+        # resource-laden fleet (oracle <= heuristic would still hold, but the optimum could be looser).
+        # RAISE rather than silently validate against an under-modelled optimum (the precedence pattern above).
+        raise ValueError("plan_multi_oracle does not model declared shared_resources (pit/dump/vantage/"
+                         "corridor); it validates the base site-exclusive allocation + shared-charger "
+                         "problem only (use plan_multi for resource-laden fleets)")
     trips, _flows, _surplus, _meta = _build_trips(mission, dem, dem_origin, max_traverse_slope_deg)
     routes = _make_routes(mission, dem, dem_origin, max_traverse_slope_deg)
     if len(trips) > MV_ORACLE_MAX_TRIPS:
