@@ -563,15 +563,6 @@
         <button id="stsave" class="site" title="saves the CURRENT queue (relative to its first order) as a reusable structure template">＋ Template</button></div>
       <ol id="stlist" style="font-size:11px;margin:4px 0;padding-left:18px"></ol>
     </section>
-
-    <section>
-      <h3>5 · Telemetry — channels &amp; drum sensing <small>(ICE-RASSOR drum; exec feed)</small></h3>
-      <div id="telerail" style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0"></div>
-      <canvas id="telespark" width="300" height="56" title="sparklines: battery (red), mass moved (amber), slip (blue) — fed by the execution feed" style="width:100%;border:1px solid var(--line);border-radius:4px"></canvas>
-      <div class="ctl">fill <input id="drumkg" type="number" value="20" step="1" /> kg
-        <label><input id="drumnoise" type="checkbox" /> noise</label></div>
-      <div id="drumout" style="opacity:.7">click the fill field to read the simulated drum-current sensor</div>
-    </section>
     </div><!-- /ctx-plan -->
     <!-- per-tab contextual left content. Deliberately NOT <section>/<h3>: the collapseSidebar IIFE rebuilds
          every #panel <section> that has an <h3> into a collapsible <details> (and FS-21 reorders
@@ -594,10 +585,21 @@
     </div>
     <div id="ctx-metrics" class="ctxblock" hidden>
       <div class="ctxsec">
-        <div class="ctxh">Metrics <span class="sysb">LEAP</span></div>
+        <div class="ctxh">Execute <span class="sysb">LEAP</span></div>
         <div style="font-size:11px;color:var(--muted);line-height:1.55">Live CG &amp; tip-over margin and the deterministic execution replay of the planned mission.</div>
         <div id="ctxmet-sum" style="font-size:11px;line-height:1.7;margin-top:10px;color:var(--muted)">Plan a mission to see its totals here.</div>
         <div id="ctxmet-cg" style="font-size:11px;line-height:1.7;margin-top:8px;color:var(--muted)">CG / tip margin is shown in the pane →</div>
+      </div>
+      <!-- sidebar 7->4 (docs/cockpit_reorg_plan_2026-06-23.md): Telemetry (live channels + ICE-RASSOR drum
+           sensing, fed by the execution feed) moved here from the Plan authoring sidebar -- it belongs with
+           execution, not authoring. telerail/telespark/drumkg/drumnoise/drumout ids + handlers preserved verbatim. -->
+      <div class="ctxsec">
+        <div class="ctxh">Telemetry <small style="opacity:.6">(channels &amp; drum sensing)</small></div>
+        <div id="telerail" style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0"></div>
+        <canvas id="telespark" width="300" height="56" title="sparklines: battery (red), mass moved (amber), slip (blue) — fed by the execution feed" style="width:100%;border:1px solid var(--line);border-radius:4px"></canvas>
+        <div class="ctl">fill <input id="drumkg" type="number" value="20" step="1" /> kg
+          <label><input id="drumnoise" type="checkbox" /> noise</label></div>
+        <div id="drumout" style="opacity:.7">click the fill field to read the simulated drum-current sensor</div>
       </div>
     </div>
     <div id="ctx-report" class="ctxblock" hidden>
