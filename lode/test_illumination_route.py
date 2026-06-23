@@ -277,3 +277,29 @@ def test_route_leg_return_terms_off_is_byte_identical():
     b_xy = ((_C0 + _N - 4) * cell, (_R0 + _N - 4) * cell)
     out = route_leg(dem, dem_origin, a_xy, b_xy)
     assert len(out) == 4  # unchanged default contract
+
+
+def test_run_navigation_surfaces_the_separable_route_terms_on_the_live_path():  # [REQ:SN-05]
+    # SN-05 X (integration): the separable per-term route cost is now surfaced on the LIVE FS-05 nav spine
+    # (lode.nav_pipeline.run_navigation, reachable via POST /nav/run) -- not only at the DART/route_leg layer.
+    # Fed the real illumination_cost dict it exposes slope + each illumination sub-term (shadow / saturation /
+    # map-uncertainty / visibility) as its OWN inspectable per-waypoint field; OFF (illum_cost=None) the live
+    # path is byte-identical (the slope term only). Real Haworth window, no synthetic terrain.
+    from lode.nav_pipeline import run_navigation
+
+    crop, cell = _real_crop()
+    ic = illumination_cost(crop, cell_m=cell, sun_az_deg=_SUN_AZ, sun_el_deg=_SUN_EL)
+    H, W = crop.shape
+    start, goal = (2 * cell, 2 * cell), ((W - 3) * cell, (H - 3) * cell)
+
+    on = run_navigation((crop, cell), (0.0, 0.0), start, goal, illum_cost=ic, margin_m=40.0)
+    assert on["reached"], "the verified-passable window must yield a corridor"
+    rt = on["route_terms"]
+    # slope AND every illumination sub-term are SEPARATE, inspectable fields along the routed corridor
+    for term in ("slope", "shadow_hazard", "saturation", "map_uncertainty", "visibility"):
+        assert term in rt, f"SN-05: live route_terms is missing the separable '{term}' term"
+        assert isinstance(rt[term], list) and len(rt[term]) == len(on["waypoints"])  # per-waypoint, inspectable
+
+    off = run_navigation((crop, cell), (0.0, 0.0), start, goal, illum_cost=None, margin_m=40.0)
+    # OFF: the live path stays byte-identical -- the slope term only, no fused illumination black box
+    assert set(off["route_terms"].keys()) == {"slope"}

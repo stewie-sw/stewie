@@ -226,7 +226,7 @@ def drive_route(waypoints, *, is_blocked=None, speed_scale_fn=None, rocks=(), ke
     }
 
 
-def run_navigation(dem, dem_origin, start_xy, goal_xy, *, keepouts=(), rocks=(),
+def run_navigation(dem, dem_origin, start_xy, goal_xy, *, keepouts=(), rocks=(), illum_cost=None,
                    max_slope_deg=25.0, slip_alpha=2.0, margin_m=20.0,
                    v_max=S.DRIVE_SPEED_MS, omega_max=DEFAULT_OMEGA_MAX, dt=1.0, horizon_m=8.0,
                    lookahead_m=6.0, clearance_m=1.0, goal_tol_m=2.0, max_ticks=4000):
@@ -244,15 +244,18 @@ def run_navigation(dem, dem_origin, start_xy, goal_xy, *, keepouts=(), rocks=(),
     Returns ``reached`` (a corridor existed), ``arrived`` (the drive reached the goal), the global
     ``waypoints`` + ``routed_m``, the executed ``trajectory`` + cmd_vel ``twists`` (the ROS egress stream),
     ``deviation`` (mean/max cross-track m), ``recovery_events``, and the ``stages`` exercised."""
-    routed_m, straight_m, reached, waypoints = route_leg(
+    # SN-05: route WITH the separable per-term cost breakdown surfaced (return_terms). The optional
+    # `illum_cost` (a dart.illumination_cost dict OR a bare total array) keeps shadow/saturation/visibility/
+    # map-uncertainty as their OWN inspectable terms along the routed corridor; None -> the slope term only.
+    routed_m, straight_m, reached, waypoints, route_terms = route_leg(
         dem, dem_origin, start_xy, goal_xy, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
-        margin_m=margin_m, keepouts=keepouts)
+        margin_m=margin_m, keepouts=keepouts, illum_cost=illum_cost, return_terms=True)
     if not reached or len(waypoints) < 2:
         return {"reached": False, "arrived": False, "reason": "no global corridor",
                 "waypoints": [tuple(w) for w in waypoints], "routed_m": float(routed_m),
                 "straight_m": float(straight_m), "trajectory": np.empty((0, 2)), "twists": [],
                 "recovery_events": [], "deviation": {"mean_m": 0.0, "max_m": 0.0},
-                "stages": ["global_route"]}
+                "route_terms": route_terms, "stages": ["global_route"]}
 
     is_blocked = dem_blocked_predicate(dem, dem_origin, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha)
     speed_scale_fn = dem_speed_scale_fn(dem, dem_origin)
@@ -284,5 +287,6 @@ def run_navigation(dem, dem_origin, start_xy, goal_xy, *, keepouts=(), rocks=(),
         "n_ticks": drive["n_ticks"],
         "local_calls": drive["local_calls"],
         "track_calls": drive["track_calls"],
+        "route_terms": route_terms,                 # SN-05: per-term route-cost breakdown along the corridor
         "stages": sorted(set(stages)),
     }

@@ -231,4 +231,9 @@ def post_nav_run(req: NavRunRequest, _auth: None = Depends(require_auth)):
                                  "xy": [round(float(e["pose"][0]), 3), round(float(e["pose"][1]), 3)]}
                                 for e in res.get("recovery_events", [])],
             "deviation": res.get("deviation", {"mean_m": 0.0, "max_m": 0.0}),
+            # SN-05: the SEPARABLE per-term route-cost breakdown along the corridor (slope by default; the
+            # illumination sub-terms appear when a precomputed illum_cost field is supplied to run_navigation,
+            # kept off this request path to avoid a full-DEM illumination recompute per call).
+            "route_terms": {k: [round(float(v), 4) for v in vals]
+                            for k, vals in (res.get("route_terms") or {}).items()},
             "stages": res.get("stages", [])}

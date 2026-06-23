@@ -118,6 +118,9 @@ def test_nav_run_drives_a_real_haworth_corridor(client):  # [REQ:FS-05]
     end = j["trajectory"][-1]
     assert ((end[0] - 44.0) ** 2 + (end[1] - 36.0) ** 2) ** 0.5 <= 2.0   # finished at the requested goal
     assert "mean_m" in j["deviation"] and j["deviation"]["max_m"] < 8.0
+    # SN-05: the live /nav/run endpoint surfaces the SEPARABLE per-term route cost (slope by default; the
+    # illumination sub-terms appear when a precomputed illum field is supplied to run_navigation).
+    assert "slope" in j["route_terms"] and len(j["route_terms"]["slope"]) == len(j["waypoints"])  # [REQ:SN-05]
 
 
 def test_nav_run_unknown_site_returns_400(client):
