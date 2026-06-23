@@ -550,10 +550,10 @@
       <canvas id="plancanvas" width="324" height="220" title="click to set the build x,y (path mode: click adds waypoints)"></canvas>
       <div id="qstatus">queue empty</div>
       <table id="cmptable" style="display:none;width:100%;font-size:11px;border-collapse:collapse;margin-top:6px"></table>
-    </section>
-
-    <section>
-      <h3>6 · Catalog — saved missions &amp; structures</h3>
+      <!-- sidebar 7->4 (docs/cockpit_reorg_plan_2026-06-23.md): the old "6 · Catalog" group is folded into
+           the Plan group here as the "· Files" sub-step (msname/mssave/msnotes/mslist/stname/stsave/stlist
+           ids + handlers preserved verbatim -- moved, not removed). -->
+      <div class="step">· Files — saved missions &amp; structure templates</div>
       <div class="ctl"><input id="msname" class="lbl" placeholder="mission name" style="max-width:11em" />
         <button id="mssave" class="site">Save mission</button></div>
       <textarea id="msnotes" placeholder="mission notes (saved with the document)"
@@ -562,8 +562,10 @@
       <div class="ctl" style="margin-top:6px"><input id="stname" class="lbl" placeholder="new structure from queue" style="max-width:13em" />
         <button id="stsave" class="site" title="saves the CURRENT queue (relative to its first order) as a reusable structure template">＋ Template</button></div>
       <ol id="stlist" style="font-size:11px;margin:4px 0;padding-left:18px"></ol>
+    </section>
 
-      <h3>7 · Telemetry — channels &amp; drum sensing <small>(ICE-RASSOR drum; exec feed)</small></h3>
+    <section>
+      <h3>5 · Telemetry — channels &amp; drum sensing <small>(ICE-RASSOR drum; exec feed)</small></h3>
       <div id="telerail" style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0"></div>
       <canvas id="telespark" width="300" height="56" title="sparklines: battery (red), mass moved (amber), slip (blue) — fed by the execution feed" style="width:100%;border:1px solid var(--line);border-radius:4px"></canvas>
       <div class="ctl">fill <input id="drumkg" type="number" value="20" step="1" /> kg
