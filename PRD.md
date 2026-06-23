@@ -645,7 +645,7 @@ EP-04 is enforced in the battery-aware simulator: `Mission.mission_windows` = `{
 | PO-10 | P1 | UI distinguishes forecast, simulation truth, estimator belief, and live telemetry. | P | P | P | NA |
 | PO-11 | P1 | Fleet playback renders every rover and its independent telemetry. | N | N | N | NA |
 | PO-12 | P1 | Solar view displays sun vector, illumination/shadow layers, active cameras/LEDs, arm posture, and evidence accepted/rejected by localization. | N | N | N | N |
-| PO-13 | P1 | Add `CHANGELOG.md`, exported `__version__`, SemVer policy, and release evidence manifest. | D | P | D | NA |
+| PO-13 | P1 | `CHANGELOG.md` (Keep a Changelog), exported `stewie.__version__` (== pyproject `[project].version`, enforced by `stewie/server/test_version.py`), a SemVer policy (`docs/RELEASE.md`), and a release-evidence manifest (`release_manifest.json`) aggregated from REAL artifacts by `scripts/gen_release_manifest.py` — version+drift, req_trace reconciliation, autonomy gate, SBOM component count, dep-lock status, changelog/SemVer presence; deterministic surface CI-guarded by `--check` (the gen_status.py honesty pattern), volatile fields (commit, live coverage/tests) written by `--full` to the reports dir at release time. `scripts/test_gen_release_manifest.py` [REQ:PO-13] proves every field IS the live tool output (no hand numbers) + the committed surface is in-sync + volatile-excluded. | D | D | D | NA |
 | PO-14 | P1 | Provide deployment documentation and a supported server image; optional Godot/ROS capabilities are explicit profiles. | N | N | N | N |
 
 ### 7.12 Access, Identity, and Governance (added 2026-06-15)
