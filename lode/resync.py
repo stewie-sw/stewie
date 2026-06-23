@@ -101,9 +101,15 @@ def forward_compare(mission, *, candidates=("auto", "nearest"), objective: str =
     n_orders = len(getattr(mission, "orders", []) or [])
     for algo in candidates:
         t0 = time.monotonic()
-        _, _, totals = MP.run(mission, stem=f"{stem}_{algo}", algorithm=algo, objective=objective)
+        # CP-04: when the mission carries a COMPILED as-built acceptance tolerance (MO-01 AcceptanceCriterion
+        # -> Mission.accept_flatness_tol_m), exercise it on this LIVE REHEARSE path -- plan with_acceptance so
+        # validate_plan honors the COMPILED tolerance, then surface its as-built verdict in the future. No
+        # compiled tolerance -> with_acceptance=False -> byte-identical (no extra work, no new field).
+        _accept = getattr(mission, "accept_flatness_tol_m", None) is not None
+        result = MP.plan(mission, algorithm=algo, objective=objective, with_acceptance=_accept)
+        _, _, totals = MP.run(mission, stem=f"{stem}_{algo}", result=result)   # reuse the result (RB-03; no recompute)
         rtl = totals.get("return_to_lander") or {}
-        futures.append({
+        fut = {
             "algorithm": algo,
             "resolved": totals.get("resolved_algorithm", algo),
             "optimality": totals.get("optimality"),
@@ -122,7 +128,12 @@ def forward_compare(mission, *, candidates=("auto", "nearest"), objective: str =
             "hazard_flags": len(totals.get("hazard_violations", [])) if isinstance(
                 totals.get("hazard_violations"), list) else 0,
             "wall_s": round(time.monotonic() - t0, 3),      # the faster-than-realtime claim, measured
-        })
+        }
+        if _accept and isinstance(result.validation, dict):   # CP-04: the compiled-tolerance as-built verdict, on the live path
+            fut["as_built_pass"] = bool(result.validation.get("as_built_pass"))
+            _tol = result.validation.get("as_built_tol_m")
+            fut["as_built_tol_m"] = float(_tol) if _tol is not None else None
+        futures.append(fut)
     futures = rank_feasible_first(futures, objective=objective)
     recommended = futures[0]["algorithm"] if futures and futures[0]["feasible"] else None
     return {"objective": objective, "futures": futures, "recommended": recommended}

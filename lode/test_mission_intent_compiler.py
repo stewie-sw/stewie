@@ -434,3 +434,32 @@ def test_keep_out_rectangle_and_polygon_compile():  # [REQ:CP-04]
     req = MIC.compile_intent(intent)
     assert {"x0": 30.0, "y0": 30.0, "x1": 40.0, "y1": 40.0} in req.mission.keepouts
     assert {"points": [[50.0, 50.0], [60.0, 50.0], [55.0, 60.0]]} in req.mission.keepouts
+
+
+def test_compiled_tolerance_is_exercised_on_the_live_rehearse_path():  # [REQ:CP-04]
+    # CP-04 X (integration): the compiled as-built tolerance is not only honored by the planner API
+    # (plan(with_acceptance=True)) but EXERCISED on the live REHEARSE product path -- lode.resync.
+    # forward_compare (the executive REHEARSED edge, /executive/advance). A mission compiled WITH an
+    # acceptance tolerance surfaces the as-built verdict against THAT compiled tolerance in every future;
+    # a mission compiled WITHOUT one is byte-identical (no as-built field, no acceptance computed).
+    from lode.resync import forward_compare
+
+    req = MIC.compile_intent(_intent(
+        "rehearse-accept",
+        [_objective("pad", target_row=8.0, target_col=8.0, material_budget_kg=300.0, tolerance_m=0.035)]))
+    assert req.mission.accept_flatness_tol_m == 0.035
+    fc = forward_compare(req.mission, candidates=("nearest",))
+    assert fc["futures"], "forward_compare produced no futures"
+    for f in fc["futures"]:
+        # the COMPILED tolerance (0.035), not a hardcoded default, is what the live path's gate used
+        assert f["as_built_tol_m"] == 0.035, f"live rehearse path did not honor the compiled tolerance: {f}"
+        assert isinstance(f["as_built_pass"], bool)
+
+    # no compiled tolerance -> the live path stays byte-identical (no acceptance computed, no field)
+    req_none = MIC.compile_intent(_intent(
+        "rehearse-no-accept",
+        [_objective("pad", target_row=8.0, target_col=8.0, material_budget_kg=300.0)]))
+    assert req_none.mission.accept_flatness_tol_m is None
+    fc_none = forward_compare(req_none.mission, candidates=("nearest",))
+    for f in fc_none["futures"]:
+        assert "as_built_pass" not in f and "as_built_tol_m" not in f
