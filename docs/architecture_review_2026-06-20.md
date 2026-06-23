@@ -61,7 +61,8 @@ honesty discipline holds. The full backlog and the 2-week sprint are PRD §27.
    namespaces (PRD I/X/V/Q · atomic B/P/Y2 · git FS-xx · audit ARCH/SEC), with stale headlines
    (§4.2 RB blockers, §19.1 census). (OPS-04 + the reconciliation in §27.1.)
 3. **[MEDIUM] God-modules** — `lode/mission_planner.py` (2612 LOC), `cockpit.js` (4321), `scenes.py`
-   (1189). Tracked as ARCH-2/FS-24.
+   (1189). Tracked as ARCH-2/FS-24. — **ARCH-2 RESOLVED 2026-06-22:** `mission_planner.py` is now a
+   448-line facade over 10 `planner_*` leaf modules; the cockpit.js / scenes.py splits (FS-24) remain.
 4. **[MEDIUM] Presentation gaps for the GMRO/KSC audience** — build-order authoring is typed `x,y`
    with axis-aligned squares; the optimizer reports but doesn't respect sun/thermal/comms windows; no
    trainer dashboard; the Moon renders on a WGS84 sphere. (See the UI overhaul plan.)
@@ -75,7 +76,7 @@ honesty discipline holds. The full backlog and the 2-week sprint are PRD §27.
 2. Make the tool the single status surface: auto-derive status from `req_trace.py`/`release_gate.py`,
    publish `STATUS.md`/`/figures`, run the per-row `[REQ:]` marker pass, retire the hand-maintained
    checkboxes. — OPS-04
-3. Split the two god-modules behind their existing seams. — ARCH-2, FS-24
+3. Split the two god-modules behind their existing seams. — ARCH-2 (mission_planner: **DONE 2026-06-22**, 448-line facade over 10 `planner_*` leaves), FS-24 (cockpit.js: open)
 4. Presentation upgrades in audience-priority order: draw-on-map order authoring (polygon/corridor/
    oriented-rect) → constraint-respecting optimizer → trainer dashboard → per-body globe. See the
    full-fidelity plan: [UI overhaul plan (2026-06-20)](ui_overhaul_plan_2026-06-20.md).

@@ -21,13 +21,28 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
   render (parallax fused beats odometry on a turning traverse).
 - Cockpit Plan 3D: first-person fly/move-through camera and a 3D plotting
   toolbox (live coordinate readout, plotted coordinate markers, 3D measure).
-- `CHANGELOG.md` + exported `stewie.__version__` + SemVer policy (PO-13).
+- PO-13: `CHANGELOG.md` + exported `stewie.__version__` + SemVer policy (`docs/RELEASE.md`) + a
+  **release-evidence manifest** (`release_manifest.json` via `scripts/gen_release_manifest.py`,
+  aggregated from the live tools — req_trace / release_gate / SBOM / dep-lock / version, no hand
+  numbers; `--check` CI staleness gate; `--full` writes commit + live coverage at release time).
+- CP-04: the compiled MO-01 acceptance tolerance is now exercised on the live REHEARSE path
+  (`lode.resync.forward_compare`, via `POST /executive/advance`), surfacing the as-built verdict
+  (`as_built_pass` + the compiled tolerance) per candidate.
+- SN-05: the separable per-term route cost (slope + the illumination sub-terms shadow / saturation /
+  map-uncertainty / visibility) is surfaced on the live FS-05 nav spine (`lode.nav_pipeline.run_navigation`)
+  and `POST /nav/run`.
 - PRD §27: dated actionable execution backlog + a 10-working-day sprint + a full-fidelity UI
   overhaul summary (new IDs `OPS-`/`MO-`/`TR-`), from the 2026-06-20 architecture + mission-ops reviews.
 - `docs/ui_overhaul_plan_2026-06-20.md` (full-fidelity cockpit overhaul plan) and
   `docs/architecture_review_2026-06-20.md` (this review); both added to the docs nav.
 
 ### Changed
+- ARCH-2: `lode/mission_planner.py` decomposed from a ~2110-line god-module into a **448-line facade**
+  re-exporting **10 dependency-ordered leaf modules** (`planner_constants` / `planner_model` /
+  `planner_routing` / `planner_balance` / `planner_multivehicle` / `planner_endurance` / `planner_trips` /
+  `planner_sim` / `planner_optimize` / `planner_assembly`, + the earlier `planner_views` / `planner_acceptance`).
+  Every public symbol stays byte-identical via facade re-export; the former lode↔planner_views import
+  cycle is broken via `planner_constants`.
 - `stewie/godot/render.sh`: documented the working sensor-capture recipe
   (never `--headless`; run `res://sidecar.tscn` with `--layers …,rover`).
 - PRD §4.2 (release blockers) and §19.1 (requirement census) reconciled: RB-01..06 are cleared in

@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
-"""mission_planner.py — SimCity-Space lunar build planner + mission-control report.
+"""mission_planner.py — the lunar build-planner FACADE (ARCH-2).
 
-Takes a MISSION (build orders on a map), CUT-FILL BALANCES it (route excavated material to fills,
-minimizing haul), OPTIMIZES the execution sequence (TSP + battery-aware mid-task recharge), and outputs
-a 2-3 page mission-control REPORT (PDF + markdown): coordinates, actions, speed, battery-draw over the
-project, cumulative mass/energy, the material balance, and metrics.
+This module is a thin FACADE. The planner was decomposed (ARCH-2, 2026-06-22) from a ~2110-line
+god-module into 10 dependency-ordered leaf modules — `planner_constants` (shared constants),
+`planner_model` (data model + order compilation), `planner_routing`, `planner_balance`,
+`planner_multivehicle`, `planner_endurance`, `planner_trips`, `planner_sim`, `planner_optimize`,
+`planner_assembly` (plan/compare/run) — plus `planner_views` (report/PDF/plan_math/commands) and
+`planner_acceptance` (`validate_plan`). Every public symbol is RE-EXPORTED here, so `MP.<name>` and
+`from lode.mission_planner import …` are byte-identical for all dependents; the former
+lode↔planner_views import cycle is broken via `planner_constants`.
+
+What the planner does (conceptually): takes a MISSION (build orders on a map), CUT-FILL BALANCES it
+(route excavated material to fills, minimizing haul), OPTIMIZES the execution sequence (TSP +
+battery-aware mid-task recharge), and outputs a 2-3 page mission-control REPORT (PDF + markdown):
+coordinates, actions, speed, battery-draw over the project, cumulative mass/energy, the balance, metrics.
 
 Order kinds:
   cut    — excavate a footprint to a depth -> PRODUCES regolith (energy: 4151 J/kg dig).

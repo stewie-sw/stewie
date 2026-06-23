@@ -110,7 +110,7 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 > - **FORGE → populated** (was "empty package"): `forge/bearing.py` (Terzaghi/Vesic, sourced) + re-export `__init__`.
 > - **CP-06 bearing-capacity acceptance → DONE** (the sub-item that pinned CP-06 at "P", line ~532):
 >   `validate_plan` reports loose+firmed allowable bearing + holds/firming_recommended, additive, never
->   folded into `feasible` (`lode/mission_planner.py:2578`). Honest residual: a loose-vs-bank-density proxy,
+>   folded into `feasible` (`lode/planner_acceptance.py` `validate_plan`, an ARCH-2 leaf; re-exported as `MP.validate_plan`). Honest residual: a loose-vs-bank-density proxy,
 >   not yet a true FORGE per-cell compaction-state field.
 > - **DT-02 `/twin/version` read-auth → DONE** (old forward-item #2). **REG-02 / VT-02 per-vehicle planner
 >   numbers → largely DONE** via H-01 (drive/dig/battery/mass threaded; the V=D delta test is the confirm).
@@ -1501,7 +1501,7 @@ debt. Findings + remediation (ranked):
 | ID | Sev | Finding (file:line) | Remediation |
 |---|---|---|---|
 | ARCH-1 | MED | **`lode`↔`dart` circular dependency**: `dart/hazard_map.py:22` `from lode import rock_costs`, while `lode/actions.py` + `lode/resync.py` import `dart`. Perception (lower layer) reaches up into planning. | Move `rock_costs` to `stewie/specs` (the shared kernel both already depend on) — it is cost DATA, not planning logic. One move removes the only layering violation. |
-| ARCH-2 | MED | **`lode/mission_planner.py` god-module** (2110 lines / 78 functions): solver + report + Plan-IR + math worksheet + command-tape + site loading all in one file; the `lode` coupling magnet. | Split into `planner_core` (the `plan`/`_build_trips`/`PlanResult` solver) and `planner_views` (report/PDF, `plan_math`, `commands_from_plan`) — formalizes the RB-03 "every output is a VIEW over the one artifact" principle the PRD already states. Well-tested, so this is decomposition, not a rewrite. |
+| ARCH-2 | DONE | **`lode/mission_planner.py` god-module — RESOLVED (ARCH-2, 2026-06-22; commits 140a7cb..66f20b4, task #123).** Was 2110+ lines / 78 functions: solver + report + Plan-IR + math worksheet + command-tape + site loading in one file. | DONE: decomposed into a **448-line facade** re-exporting **10 dependency-ordered leaf modules** — `planner_constants`, `planner_model`, `planner_routing`, `planner_balance`, `planner_multivehicle`, `planner_endurance`, `planner_trips`, `planner_sim`, `planner_optimize`, `planner_assembly` (plan/compare/run), alongside the earlier `planner_views` (report/PDF/plan_math/commands) and `planner_acceptance` (validate_plan). Every public symbol stays byte-identical via facade re-export (`MP.<name>` / `from lode.mission_planner import …` unchanged); the former lode↔planner_views import cycle is broken via `planner_constants`. Formalizes the RB-03 "every output is a VIEW over the one artifact" principle. |
 | ARCH-3 | LOW | **`server.py` handler sprawl**: 61 endpoints in 1261 lines — the safety-relevant auth + RC command path sits beside everything else. | Split into routers by concern (auth/session/plan/twin/rc/admin); isolate the RC command path (the Class-boundary surface, §19.2) for focused review. |
 | ARCH-4 | LOW | **Cockpit is a single 2855-line inline `index.html`** — no module boundary; the largest single-file complexity in the repo. | Extract the cockpit JS into modules behind a small build/bundling step; keep the `node --check` gate. Lower priority — it is verified per-change and outward behavior is covered by the live UI evals. |
 
@@ -1512,7 +1512,7 @@ debt. Findings + remediation (ranked):
   complete; the open rows are the deferred research frontier + externally-gated families.
 
 ### 21.3 Sequencing
-ARCH-1 first (smallest, removes the cycle), then ARCH-2 (the RB-03-aligned split), then ARCH-3
+ARCH-1 first (smallest, removes the cycle), then ARCH-2 (the RB-03-aligned split — DONE 2026-06-22, the 448-line facade + 10 `planner_*` leaves), then ARCH-3
 (routers — do this WITH the SF-01/#66 hardening since it touches the same command path), ARCH-4 last
 (or never, if the build step is judged not worth it). None block the product; all improve
 reviewability ahead of a NASA-standards external review.
@@ -2122,8 +2122,10 @@ Existing IDs (FS-/NV-/FL-/DT-/SN-/PM-/CP-/GI-/PO-/ARCH-/AS-/B-/P-) are reference
   hand-maintained checkboxes in the execution plans. **Directly answers "determine exactly what is done."**
 
 **B. Architecture health**
-- **ARCH-2** Continue the `lode/mission_planner.py` (2612 LOC) god-module split behind its existing
-  `planner_views` / `planner_routing` / `planner_multivehicle` seams.
+- **ARCH-2 — DONE (2026-06-22).** `lode/mission_planner.py` is now a 448-line facade re-exporting 10
+  `planner_*` leaf modules (constants/model/routing/balance/multivehicle/endurance/trips/sim/optimize/
+  assembly + the earlier views/acceptance); all public symbols byte-identical via re-export, the former
+  lode↔planner_views cycle broken via `planner_constants`.
 - **FS-24** Begin the `cockpit.js` (4321 LOC) module split (app shell / route-state store / typed
   adapters / view models / shared viz / work-area views / command rail / diagnostics viewers),
   preserving the no-inline-script CSP + fixture tests.
@@ -2228,7 +2230,7 @@ touch `mission_planner.py`, so naive parallel agents would collide. The structur
 | Shared file | Lane items that touch it | Fan-out rule |
 |---|---|---|
 | `stewie/server/web/assets/cockpit.js` (4321) | FS-03 IA, GIS S-2/S-3, per-body globe, Plan screen, trainer UI, MO-04 labels, brand | split via FS-24 FIRST, then one agent per extracted module |
-| `lode/mission_planner.py` (2612) | FL-02, CP-04, SN-05, MO-01 wiring | split via ARCH-2 / partition by `planner_*` sub-module |
+| `lode/mission_planner.py` (448 facade) + `planner_*` leaves | MO-01 wiring (CP-04, SN-05 now CLOSED) | ALREADY SPLIT (ARCH-2 done): one agent per `planner_*` leaf; the facade only re-exports |
 | `stewie/server/routers/*` | MO-*, resync, session | one agent per router file |
 | test files (broad) | OPS-04 `[REQ:]` markers | additive-only; coordinate to avoid races (a concurrent session is already in `test_io_fields.py`) |
 
