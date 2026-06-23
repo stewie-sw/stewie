@@ -616,18 +616,22 @@
   </aside>
   <div id="stage">
     <nav id="viewtabs">
-      <!-- ConOps flow: plan the mission -> drive/navigate -> perceive -> watch metrics -> report -->
+      <!-- ConOps spine (docs/cockpit_reorg_plan_2026-06-23.md): Plan -> Rehearse -> [Validate = Nav+Perception, later stage]
+           -> [Release, later stage] -> Execute -> Report, then the role-gated secondary cluster (Fleet/Construction/Models
+           /Trainer). Today Navigation + Perception are still separate primary tabs (the Validate merge + the Release surface
+           are later stages); Rehearse is positioned at the spine's slot 2 but stays director-gated until its pane handles
+           the operator read-only case (/resync/compare is director-gated server-side). -->
       <button class="vtab active" data-view="plan">Plan <span class="sysb">LODE</span></button>
-      <button class="vtab" data-view="nav" title="navigation + state estimation: the ARGUS pose-graph estimate vs dead reckoning, leave-one-out attribution, and the perception-gated articulation-parallax relocalization">Navigation <span class="sysb">LEAP</span></button>
-      <button class="vtab" data-view="perception">Perception <span class="sysb">DART</span></button>
-      <button class="vtab" data-view="metrics" title="execution: top-down replay of the planned mission + live CG / tip-over margin and the live telemetry channels">Execute <span class="sysb">LEAP</span></button>
-      <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
       <!-- REHEARSE (mission-ops screen 2): the "Rehearse and compare" review surface. Re-simulates the
            current build queue under each candidate solver input via the conserved forward-compare
            ensemble (/resync/compare, director-gated) and shows the candidate plans side-by-side,
            FEASIBILITY FIRST. Director-only because forward_compare sees truth; data-minrole bounces a
            non-director. This is the rehearse step of Plan -> Rehearse -> (gated) Execute. -->
       <button class="vtab" id="vtab-rehearse" data-view="rehearse" data-minrole="director" style="display:none" title="rehearse and compare: re-simulate the current build queue under each candidate solver input (faster-than-realtime) and review the candidate plans side-by-side, feasibility first — minimum margins, objective completion, duration, energy, charge cycles, optimality">Rehearse <span class="sysb">LODE</span></button>
+      <button class="vtab" data-view="nav" title="navigation + state estimation: the ARGUS pose-graph estimate vs dead reckoning, leave-one-out attribution, and the perception-gated articulation-parallax relocalization">Navigation <span class="sysb">LEAP</span></button>
+      <button class="vtab" data-view="perception">Perception <span class="sysb">DART</span></button>
+      <button class="vtab" data-view="metrics" title="execution: top-down replay of the planned mission + live CG / tip-over margin and the live telemetry channels">Execute <span class="sysb">LEAP</span></button>
+      <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
       <!-- FS-03: the FLEET work area (operator+). Roster = the real vehicle registry (/fleet);
            per-vehicle allocation + makespan + conflicts = the last /plan result. data-minrole gates it
            like the operator chrome (gateChrome hides it for sub-operators). -->
