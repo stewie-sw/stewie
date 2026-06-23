@@ -393,7 +393,11 @@
     </section>
 
     <section>
-      <h3>4 · Feasibility — quick estimate <small>(quick estimate; per-order totals live in 5·Plan)</small></h3>
+      <h3>4 · Plan — the mission, in order</h3>
+      <!-- sidebar 7->4 (docs/cockpit_reorg_plan_2026-06-23.md): the old standalone "4 · Feasibility" group is
+           folded in here as the quick-estimate sub-step. Its padW/padL/cut/bermH/est inputs + listeners are
+           preserved verbatim (they drive estimate() and the Pad-cut order convenience -- NOT a duplicate). -->
+      <div class="step">· Feasibility — quick pad estimate <small>(per-order totals in the steps below)</small></div>
       <!-- Aaron 2026-06-16 ("feasibility should be set for 1 charge"): the default mission is sized to a single
            IPEx battery charge. pad 5×5 m × cut 0.03 m = 0.75 m³ ≈ 975 kg ≈ 0.84 charge on the Moon -- feasible
            in one sortie (no amber >1-charge flag). The old 20×20×0.10 default was ~45 charges. -->
@@ -403,10 +407,6 @@
         <label>berm <input id="bermH" type="number" value="0.30" step="0.05" /> m</label>
       </div>
       <div id="est">—</div>
-    </section>
-
-    <section>
-      <h3>5 · Plan — the mission, in order</h3>
       <div class="step">A · Where are we <small>— site, charger, lander, the rover's last pose</small></div>
       <div class="ctl" style="font-size:11px">
         lander x<input id="landx" type="number" value="0" step="1" style="width:4em" />
