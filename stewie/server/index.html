@@ -377,7 +377,7 @@
     </section>
 
     <section>
-      <h3>3 · Fleet</h3>
+      <h3>3 · Rovers</h3>
       <div class="ctl"><label>Vehicle <select id="vehicle"></select></label>
         <label title="regolith model — defaults to the body's own; override to e.g. run Earth soil on a lunar map">Soil <select id="soil"></select></label>
         <button class="info" id="soilinfo" title="the regolith model the planner uses (density · cohesion · friction · Bekker)">i</button></div>
@@ -620,7 +620,7 @@
       <button class="vtab active" data-view="plan">Plan <span class="sysb">LODE</span></button>
       <button class="vtab" data-view="nav" title="navigation + state estimation: the ARGUS pose-graph estimate vs dead reckoning, leave-one-out attribution, and the perception-gated articulation-parallax relocalization">Navigation <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="perception">Perception <span class="sysb">DART</span></button>
-      <button class="vtab" data-view="metrics">Metrics <span class="sysb">LEAP</span></button>
+      <button class="vtab" data-view="metrics" title="execution: top-down replay of the planned mission + live CG / tip-over margin and the live telemetry channels">Execute <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
       <!-- REHEARSE (mission-ops screen 2): the "Rehearse and compare" review surface. Re-simulates the
            current build queue under each candidate solver input via the conserved forward-compare
