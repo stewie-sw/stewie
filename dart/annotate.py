@@ -3,7 +3,7 @@
 Each function returns a STRUCTURED annotation -- the marked image points, the measured quantities, and
 the worked equations as text (math_lines) -- so a notebook can draw the overlay and a test can verify
 the numbers. The measurements reuse the instrument code (shadow_height, articulated_parallax,
-shadow_edge_sigma); this module adds the geometry + the human-readable math for dissertation figures.
+shadow_edge_sigma); this module adds the geometry + the human-readable math for figures.
 Real images only.
 """
 from __future__ import annotations

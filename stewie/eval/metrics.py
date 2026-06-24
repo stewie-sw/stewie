@@ -10,7 +10,7 @@ Standard, gauge-aware definitions:
 ATE is alignment-invariant (a global rotation/translation gives ~0); RPE is invariant to
 any global gauge. Both verified by gauge-invariance tests.
 """
-# PROVENANCE: SolNav dissertation (A. Storey) -- moved from solnav/eval/metrics.py, 2026-06-09 (M2)
+# PROVENANCE: ARGUS navigation work (A. Storey) -- moved from solnav/eval/metrics.py, 2026-06-09 (M2)
 from __future__ import annotations
 
 import numpy as np

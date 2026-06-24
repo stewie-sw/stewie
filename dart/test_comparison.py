@@ -1,6 +1,4 @@
 """ARGUS vs Stanford NAV Lab vs ShadowNav: the comparison framework + head-to-head fix."""
-import sys
-sys.path.insert(0, "/mnt/projects/Dissertation/projects/argus/notebooks")  # for the haworth DEM helper
 
 import numpy as np
 

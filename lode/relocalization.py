@@ -29,7 +29,7 @@ def schedule_relocalization_stops(traverse_m: float, *, drift_tol_m: float = 0.5
     predicted along-track drift never exceeds ``drift_tol_m``. Returns the fix schedule (count, the
     along-traverse distances), the run length between fixes, the time + energy the fixes cost, and the
     worst-case (bounded) drift. ``fix_residual_m`` is the post-fix residual the parallax fix cannot remove
-    (0 = an ideal fix; the dissertation's heading-free fix is ~0 m). Deterministic."""
+    (0 = an ideal fix; the ARGUS heading-free fix is ~0 m). Deterministic."""
     if traverse_m < 0:
         raise ValueError(f"traverse_m must be >= 0 (got {traverse_m})")
     if drift_frac <= 0:

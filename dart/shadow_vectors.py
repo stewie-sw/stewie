@@ -1,8 +1,8 @@
 """SN-02: shadow-vector detection front-end (the accept/reject gate feeding the SN-03 yaw factor).
 
 From a cast-shadow mask + scene context, extract the dominant shadow-edge azimuth and decide whether
-it is a TRUSTWORTHY solar-shadow observation. Rejects the four contamination modes the dissertation
-calls out (PROPOSAL §4): self/rover-cast shadows, LED-cast shadows, saturation, and ambiguous
+it is a TRUSTWORTHY solar-shadow observation. Rejects the four contamination modes the design
+calls out: self/rover-cast shadows, LED-cast shadows, saturation, and ambiguous
 penumbra / texture edges (low edge sharpness). Only an accepted vector should become a yaw factor;
 its sigma is the shadow-sigma envelope's edge-sharpness scaling, so a crisp low-sun edge is tight.
 Real masks only -- the rejection logic is geometric, no fabricated detections.

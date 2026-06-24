@@ -1,6 +1,6 @@
 """SN-08: active-morphology posture selection for camera viewpoint (canonical kinematics).
 
-The dissertation's lead idea: the rover RECONFIGURES (arm angles) to improve its own observation
+The lead idea: the rover RECONFIGURES (arm angles) to improve its own observation
 geometry. A static rover gets one fixed viewpoint and ZERO vertical parallax; rotating the drums
 down plants them and PUSHES THE BODY UP, lifting the camera (more horizon/shadow visible) and
 yielding a vertical parallax baseline for depth, but raising shrinks the support polygon, so there

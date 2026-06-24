@@ -4,7 +4,7 @@ The release gate is the capstone trace over AS-01..17. These tests enforce, mech
 NASA-style rule the PRD states in prose: no AS row is cited-and-claimed without test evidence, the
 verification tier each row reports is honest, and the genuinely-deferred capabilities stay named
 (the gate can never silently mark them complete). The report itself is read-only -- it must not
-mutate the committee scorecard.
+mutate the review scorecard.
 """
 from scripts.release_gate import AS_ROWS, DEFERRED, TIER, release_report
 from scripts.req_trace import parse_requirements

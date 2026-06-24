@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-ROOT = os.path.dirname(__file__)                                  # dissertation/ (M2)
+ROOT = os.path.dirname(__file__)                                  # eval/ (M2)
 MANIFEST = os.path.join(ROOT, "validation", "scene_manifest.json")
 G1CAP = os.path.join(ROOT, "validation", "g1_capture.py")
 _DUST = os.environ.get("STEWIE_ROOT", "/mnt/projects/stewie/code")

@@ -1,4 +1,4 @@
-"""#108: GET /evidence surfaces the grounded dissertation evidence for the cockpit -- the comparison
+"""#108: GET /evidence surfaces the grounded navigation evidence for the cockpit -- the comparison
 (accuracy/precision vs the cited baselines), generalization (the capability matrix positioning the
 three approach classes), and photometric+depth modality precision. All numbers come from
 dart.comparison (sourced constants + the parallax covariance model); no synthetic data.

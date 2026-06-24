@@ -90,7 +90,7 @@ Every push runs the CI gate ([`ci.yml`](.github/workflows/ci.yml)):
 - **Types** — `mypy` over the core and planner (a documented ratchet narrows the remaining exclusions).
 - **Requirements traceability** — every `V=D` requirement must be cited by a test.
 - **Tests + coverage** — `pytest` with a coverage floor of **85%**, across Python 3.11–3.13.
-- **G1/G2 validation** — a frozen, byte-reproducible dissertation-evidence gate.
+- **G1/G2 validation** — a frozen, byte-reproducible navigation-evidence gate.
 
 ```bash
 pytest                    # the configured suite

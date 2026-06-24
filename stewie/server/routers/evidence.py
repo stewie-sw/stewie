@@ -1,4 +1,4 @@
-"""Dissertation-evidence router (#108): surface the grounded navigation evidence for the cockpit System
+"""Navigation-evidence router (#108): surface the grounded navigation evidence for the cockpit System
 pane -- the comparison (accuracy/precision vs the cited Stanford-LAC and ShadowNav baselines), the
 generalization (the capability matrix positioning the three approach classes by regime), and the
 photometric+depth modality precision (articulation parallax vs physical stereo). Every number comes
@@ -17,7 +17,7 @@ _MODALITY_RANGE_M = 6.0   # near-range landmarks (~shadow-tip distance) where th
 
 @router.get("/evidence")
 def get_evidence() -> dict:
-    """The dissertation evidence bundle: comparison / generalization / photometric+depth + op cost."""
+    """The navigation evidence bundle: comparison / generalization / photometric+depth + op cost."""
     return {
         "ok": True,
         "capability_matrix": CMP.nav_capability_matrix(),               # generalization: 3 approach classes

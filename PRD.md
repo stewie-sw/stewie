@@ -98,7 +98,7 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 > IA REGRESSED (a React rewrite was reverted), the dense-reconstruction tier was UNBLOCKED as a
 > demonstrator, and the deep autonomy/comms tiers remain honestly gated. **Intent vs state:** STEWIE's
 > intent — a lunar mission-planning + digital-twin + autonomy *environment* whose trainer/sim product
-> drives a real rover, plus the SolNav/ARGUS dissertation evidence — is **substantially realized as a
+> drives a real rover, plus the ARGUS navigation evidence — is **substantially realized as a
 > planning + estimation + visualization platform; the live-autonomy and operational-twin tiers are built
 > as tested code but not yet deploy-integrated or hardware-passed.**
 >
@@ -1182,7 +1182,7 @@ mirror those layers, so the strategy is **adopt the architecture + the road-agno
 off-road-applicable components; build the lunar-specific autonomy ourselves** — never fork the whole
 stack (Autoware's planning is road/lanelet2-centric; there are no lanes on the Moon, so that layer is
 dead weight). The lunar planning/perception layer is both the product differentiator and the
-dissertation-worthy novelty (ARGUS).
+ARGUS articulation-localization novelty.
 
 | Layer | Autoware fit | STEWIE plan | Maps to |
 |---|---|---|---|
@@ -1731,7 +1731,7 @@ physics, regolith flow, terramechanics, wheel-slip, illumination/shadow); AutoDi
 ### 24.2 Diff — three buckets
 - **STEWIE owns (testbed can't):** Bekker terramechanics, slip/entrapment, mass-conserving excavation,
   drum-fill sensing, IPEx dig energy, solar/shadow/PSR, the conserved digital twin, the planner +
-  multi-vehicle scheduler, Shadow-SLAM + ARGUS articulation localization (the dissertation novelty).
+  multi-vehicle scheduler, Shadow-SLAM + ARGUS articulation localization (the platform novelty).
 - **Testbed complements (STEWIE's real gaps):** a physical robot running ROS2/Nav2/RTAB-Map/AMCL on real
   sensors — the proving ground for the autonomy software STEWIE only simulates.
 - **Gaps in both (the build list):** live ROS2-Jazzy node bridge, dense stereo→depth producer, adaptive
@@ -2182,7 +2182,7 @@ real-traverse reconstruction + SL-01 (no public dataset); STEWIE-Orbit comms sta
 ### 27.3 The 2-week sprint sequence (10 working days)
 
 Primary axis = Demo/GMRO readiness; interleaved with Architecture-health (status truth) and the
-intern-beta in-repo halves. Dissertation/ARGUS evidence is deferred (proven later). Every slice is
+intern-beta in-repo halves. ARGUS navigation evidence is deferred (proven later). Every slice is
 TDD with a `[REQ:]` marker; the full gate must stay green (baseline 2418 passed / 92.91% cov); every
 UI pane flip is Playwright-verified **signed-in on a real browser** before it ships.
 

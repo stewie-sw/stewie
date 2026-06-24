@@ -1,6 +1,6 @@
 """KEYSTONE: the integrated multi-factor estimator run on the real Katwijk trajectory.
 
-The dissertation's central claim assembled in one place: the SE(2) pose graph fusing odometry, the
+The central claim assembled in one place: the SE(2) pose graph fusing odometry, the
 gyro-IMU yaw factor, the SN-03 shadow-yaw factor, the SN-10 articulation-parallax position fix (at
 the geometry-derived sigma), and a DEM-registration position fix, driven over the REAL Katwijk
 truth + wheel/gyro odometry, with absolute trajectory error reported against RTK truth and a

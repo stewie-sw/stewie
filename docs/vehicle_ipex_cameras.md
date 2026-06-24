@@ -108,7 +108,7 @@ committed egress was simply rendered with the lights OFF, which is why its shado
    modeled baseline to 0.07 everywhere (`camera_rig.gd`, the `stewie_ipex_v1` profile, `system_profile`,
    the fixture, `ipex_specs` G2 band). `INITIAL_BASELINE_M=0.165` is kept as a reference const. Cleanly
    adopting the real 0.05 m requires RE-FREEZING the G2 fixture + re-validating the gates — a coordinated
-   dissertation-affecting decision, pending Aaron's go. (The served `pointcloud.json` demo asset still
+   gate-affecting decision, pending Aaron's go. (The served `pointcloud.json` demo asset still
    reads 0.05 from the lit re-render; regenerate when the baseline is settled.)
 2. **DONE 2026-06-17 — LED model rendered ON, full 6 units**: added the 2 drum-cam LEDs so the rig models
    4 mono (1 each) + 2 stereo bank = 6, all at 3000 lm / 42° FWHM; crater_boulders egress now rendered

@@ -12,7 +12,7 @@ Two hard rules it encodes (NASA-style: "no capability claim until evidence exist
   * the genuinely-deferred capabilities are named here, so the gate can never silently "complete" them.
 
 REPORT-ONLY. It reads the PRD; it does NOT promote any V column. Advancing a row to V=D edits the
-committee scorecard and stays a human decision. Run: `python3 scripts/release_gate.py`.
+review scorecard and stays a human decision. Run: `python3 scripts/release_gate.py`.
 """
 from __future__ import annotations
 
