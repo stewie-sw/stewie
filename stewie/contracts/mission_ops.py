@@ -204,6 +204,10 @@ class Objective(Contract):
     target_row: float
     target_col: float
     frame: str = "MOON_ME"
+    # MO-01 extension (2026-06-23): the build-order KIND this objective lowers to (cut | fill | sinter).
+    # Default "cut" keeps every existing intent byte-identical (objectives were cut-only); fill/sinter let
+    # the full plan vocabulary round-trip through compile_intent instead of collapsing every objective to cut.
+    order_kind: str = "cut"
     # measurable acceptance (at least one criterion)
     acceptance: list[AcceptanceCriterion] = Field(min_length=1)
     # minimum belief quality (not only nominal value)
@@ -225,6 +229,13 @@ class Objective(Contract):
     # who may release it and on what basis
     approver: str
     evidence: str = ""
+
+    @model_validator(mode="after")
+    def _valid_order_kind(self) -> Objective:
+        if self.order_kind not in ("cut", "fill", "sinter"):
+            raise ValueError(f"objective {self.objective_id!r} order_kind must be cut|fill|sinter, "
+                             f"got {self.order_kind!r}")
+        return self
 
     @property
     def acceptance_tolerance_m(self) -> float | None:

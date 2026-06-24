@@ -48,7 +48,7 @@ from stewie.contracts import (
 # ---------------------------------------------------------------------------------------------------
 def _objective(objective_id, *, target_row, target_col, mandatory=True,
                priority=PriorityTier.PRIMARY, prerequisites=(), material_budget_kg=300.0,
-               energy_budget_j=None, time_window_s=None, tolerance_m=None):
+               energy_budget_j=None, time_window_s=None, tolerance_m=None, order_kind="cut"):
     """A fully-specified MO-01 Objective (acceptance non-empty, contingency present, approver set).
 
     ``tolerance_m`` -> the acceptance criterion's structured numeric acceptance tolerance (the as-built
@@ -57,7 +57,7 @@ def _objective(objective_id, *, target_row, target_col, mandatory=True,
         objective_id=objective_id, revision=0,
         statement=f"excavate {objective_id}", rationale="construction prep",
         priority=priority, mandatory=mandatory,
-        target_row=target_row, target_col=target_col, frame="MOON_ME",
+        target_row=target_row, target_col=target_col, frame="MOON_ME", order_kind=order_kind,
         acceptance=[AcceptanceCriterion(criterion_id=f"{objective_id}-ac", statement="excavated",
                                         measurable="as-built RMSE <= 0.02 m", sensor="stereo",
                                         tolerance_m=tolerance_m)],
@@ -105,6 +105,33 @@ def test_mandatory_objective_compiles_to_order_and_soft_constraint_to_weight(): 
     # the MO-01 ordering proof confirms mandatory-first / hard-first discipline.
     assert req.order.mandatory_objective_ids == ["pit"]
     assert req.order.weighted_constraint_ids == ["prefer-energy"]
+
+
+def test_objective_order_kind_lowers_to_that_kind_round_trip():  # [REQ:CP-04]
+    # MO-01 extension (2026-06-23): an objective's order_kind lowers to an order of THAT kind, not silently a
+    # cut -- so the full plan vocabulary round-trips through compile_intent (a 'fill' objective compiles to a
+    # fill order, mass preserved), instead of every objective collapsing to cut.
+    for kind in ("cut", "fill"):
+        intent = _intent("m", [_objective("o1", target_row=5.0, target_col=10.0,
+                                           material_budget_kg=300.0, order_kind=kind)])
+        req = MIC.compile_intent(intent)
+        o1 = next(o for o in req.mission.orders if o.action == "o1")
+        assert o1.kind == kind, f"order_kind={kind} lowered to {o1.kind!r}, expected {kind}"
+        recovered = o1.footprint_m2 * o1.depth_m * MP.body_density("moon")
+        assert math.isclose(recovered, 300.0, rel_tol=1e-9)   # mass preserved across the kind
+
+
+def test_default_order_kind_is_cut_byte_identical():  # [REQ:CP-04]
+    # additive extension: an objective with no order_kind defaults to cut (the prior behaviour, unchanged).
+    intent = _intent("m", [_objective("o1", target_row=5.0, target_col=10.0)])
+    req = MIC.compile_intent(intent)
+    assert next(o for o in req.mission.orders if o.action == "o1").kind == "cut"
+
+
+def test_invalid_order_kind_is_rejected():  # [REQ:CP-04]
+    import pytest
+    with pytest.raises(ValueError, match="order_kind"):
+        _objective("o1", target_row=0.0, target_col=0.0, order_kind="bogus")
 
 
 def test_hard_budget_lands_in_objective_constraints_not_in_soft_weights():  # [REQ:CP-04]

@@ -167,10 +167,11 @@ def compile_intent(intent: MissionIntent) -> CompiledPlanRequest:
     body = _intent_body(intent)
 
     # --- objectives -> the planner's order queue. MO-01 objectives carry target geometry +
-    #     material_budget_kg but no order-kind/footprint/depth, so each lowers to a ``cut`` (excavation) at
-    #     its target point (x <- target_col, y <- target_row), sized so its mass EQUALS material_budget_kg
-    #     (footprint = mass / (nominal-depth x density)). ``cut`` carries no auto-precedence, so independent
-    #     objectives stay freely orderable; ordering comes only from prerequisites below. ---
+    #     material_budget_kg + an ``order_kind`` (default ``cut``; MO-01 2026-06-23 extension), so each lowers
+    #     to an order of that kind (cut | fill | sinter) at its target point (x <- target_col, y <- target_row),
+    #     sized so its mass EQUALS material_budget_kg (footprint = mass / (nominal-depth x density)). The order
+    #     carries no auto-precedence, so independent objectives stay freely orderable; ordering comes only from
+    #     prerequisites below. ---
     density = MP.body_density(body)
     order_payload = []
     for o in mandatory:
@@ -183,7 +184,7 @@ def compile_intent(intent: MissionIntent) -> CompiledPlanRequest:
         footprint_m2 = mass / (_NOMINAL_CUT_DEPTH_M * density)
         order_payload.append({
             "action": o.objective_id,
-            "kind": "cut",
+            "kind": o.order_kind,                    # MO-01 extension: honor the objective's order_kind (cut|fill|sinter)
             "x": float(o.target_col),
             "y": float(o.target_row),
             "footprint_m2": footprint_m2,
