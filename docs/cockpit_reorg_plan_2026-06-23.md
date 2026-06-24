@@ -99,6 +99,17 @@ page-error/screenshot pass.
   state/revision/evidence/log. Open design choices (need a decision before building): which intent it
   submits (the current queue? a named mission?), how the operator selects it, and the result layout. This
   makes Release a real integration, not a quick additive pane.
+
+  **Deepest finding (2026-06-23, reading the contracts):** there is NO orders→`MissionIntent` builder —
+  `lode/mission_intent_compiler.py` only lowers the OTHER way (`MissionIntent` → planner `Mission`).
+  `MissionIntent` (`stewie/contracts/mission_ops.py:289`) needs `mission_id` + `revision` + `statement` +
+  `objectives[]`; each `Objective` needs `target_row/col` + `frame` + **≥1** `AcceptanceCriterion` +
+  `confidence_required` + `priority` + `mandatory`. So Release requires a REAL backend builder
+  (`Mission`/orders → `MissionIntent`, the inverse of the compiler) with honest [ASSUMPTION]-tagged defaults
+  (acceptance tolerance, confidence, priority), built via TDD per the no-stubs rule — NOT a placeholder
+  intent, and NOT a non-functional Release button. This is the largest remaining F stage and is genuinely a
+  backend feature (a mission-release capability). Sequence: mechanical polish (drag-reorder, ctx-collapse) +
+  docs FIRST, then this builder as a focused TDD stage.
 - After ANY `cockpit.js` / `three3d.js` change: run `python scripts/stamp_cockpit_version.py` to
   re-stamp the `?v=` content hashes (CI `stewie/server/test_asset_version_stamp.py` fails on a stale
   stamp). Do NOT hand-edit `?v=`.
