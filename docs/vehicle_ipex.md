@@ -6,7 +6,7 @@ regolith excavator. The **Regolith Advanced Surface Systems Operations Robot
 proof of concept that IPEx evolved from. Where this repo says "the rover", it
 means IPEx; RASSOR appears only as the lineage and as the physical test platform
 the IPEx team used for wheel/drum/auto-dig characterisation. Within STEWIE the
-vehicle digital twin is the **ARGUS** subsystem (Articulated Rover Geometry for
+vehicle digital twin is the **Navigation** subsystem (Articulated Rover Geometry for
 Unified State Estimation), named in tribute to Jadon Schuler, IPEx Project
 Manager and Principal Investigator.
 

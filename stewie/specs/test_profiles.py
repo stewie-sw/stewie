@@ -35,7 +35,7 @@ def test_unverified_profile_cannot_be_required_as_verified():
 
 
 def test_environment_selects_profile(monkeypatch):
-    monkeypatch.setenv("SOLNAV_PROFILE", "official")
+    monkeypatch.setenv("STEWIE_PROFILE", "official")
     assert get_profile().profile_id == "OFFICIAL_LAC_2025_UNVERIFIED"
 
 

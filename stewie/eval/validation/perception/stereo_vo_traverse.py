@@ -22,7 +22,7 @@ from imageio.v3 import imread
 from dart import stereo_vo
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(os.path.dirname(HERE))                 # .../solnav (package root dir)
+ROOT = os.path.dirname(os.path.dirname(HERE))                 # .../stewie (package root dir)
 CAM = os.path.join(ROOT, "validation", "a6_traverse", "cam")
 SEQUENCE = os.path.join(ROOT, "validation", "a6_traverse", "sequence.json")
 # EVAL-ONLY truth (GROUND_TRUTH_EVAL); read only for the scoring print below.

@@ -75,7 +75,7 @@ each with route/state binding, role gate, fixture render, error/empty states, an
 |---|---|---|---|
 | **Plan** | LODE | operator | `PlanResult`, `WorldState`, GIS layers, MissionIntent (MO-01) |
 | **Fleet** | LODE | operator | `FleetState`, allocation, FL-02 conflicts |
-| **Navigation / ARGUS** | LEAP | engineer-leaning | `LocalizationFix`, `ARGUSFactor`, pose-graph |
+| **Navigation / Navigation** | LEAP | engineer-leaning | `LocalizationFix`, `NavigationFactor`, pose-graph |
 | **Perception / Imagery** | DART | engineer/demo | panorama, point cloud, shadow landmarks |
 | **Construction** | FORGE | operator | structures, acceptance, certified records |
 | **Models** | — | engineer | `ModelArtifact` registry, vehicle/soil/body profiles |

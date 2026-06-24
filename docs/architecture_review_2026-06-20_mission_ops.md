@@ -285,7 +285,7 @@ Architectural rules:
 | `stewie_hardware` | `ros2_control` SystemInterface, MCU heartbeat, brakes, drum/arm I/O |
 | `stewie_sensing` | drivers, timestamps, calibration, image/IMU/wheel publication |
 | `stewie_perception` | stereo/depth, rock/negative-obstacle detection, quality metrics |
-| `stewie_localization` | wheel/IMU/visual/ARGUS fusion, TF, covariance, integrity monitor |
+| `stewie_localization` | wheel/IMU/visual/Navigation fusion, TF, covariance, integrity monitor |
 | `stewie_mapping` | observed DEM, occupancy, excavation state, map revision/provenance |
 | `stewie_planning` | Plan IR adapter, global corridor, local trajectories, costmap layers |
 | `stewie_control` | bounded trajectory tracking through `ros2_control` |

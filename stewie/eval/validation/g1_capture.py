@@ -5,7 +5,7 @@ UNAVAILABLE, lock them, and record the passive wheel+IMU dead-reckoning baseline
 Provenance = MEASUREMENT_MODEL_SIM. The trajectory + per-step slip are stewie's REAL physics on a
 REAL LOLA Haworth DEM; the IMU/wheel channels are the grounded sensor model. Truth poses are kept on
 a SEPARATE eval channel (I3). PORTABLE (G1.A3): stewie, DEM, and output are resolved from CLI/env;
-no machine path is hardcoded; the run records stewie/solnav commits, parameter + DEM hashes, seed,
+no machine path is hardcoded; the run records stewie/stewie commits, parameter + DEM hashes, seed,
 and Python/NumPy versions; no directories are created at import.
 
   python3 validation/g1_capture.py --stewie-root <dir> --dem <heightmap.rf32> --output <dir> --seed 0
@@ -25,7 +25,7 @@ from dart import posegraph as pg
 
 G, CELL_M, DT, MASS = 1.62, 5.0, 2.0, 30.0
 IMU_HZ, WHEEL_HZ, V_CMD = 100.0, 10.0, 0.30
-_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # projects/solnav/solnav
+_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # projects/stewie/stewie
 
 
 def _sha256(path):
@@ -134,7 +134,7 @@ def run(stewie_root, dem_path, out_dir, seed):
         },
         "reproducibility": {
             "stewie_commit": _git_commit(stewie_root),
-            "solnav_commit": _git_commit(_REPO),
+            "stewie_commit": _git_commit(_REPO),
             "param_sha256": _sha256(os.path.join(stewie_root, "stewie", "physics", "data", "imu_wheel_params.json")),
             "dem_sha256": _sha256(dem_path),
             "seed": seed,

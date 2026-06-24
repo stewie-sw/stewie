@@ -34,7 +34,7 @@ def test_round_trip_producer_to_consumer():
 def test_consumer_derives_odometry_from_raw_four_wheel():
     from stewie.sensors.imu_wheel import body_odometry_from_encoders
     w = pio.parse_proprioception(_packet())["wheel"][0]
-    v, omega = body_odometry_from_encoders(w, 0.5207, 0.1)     # solnav OWNS the derivation
+    v, omega = body_odometry_from_encoders(w, 0.5207, 0.1)     # stewie OWNS the derivation
     assert v > 0 and abs(omega) < 0.05                          # straight drive -> forward, ~zero yaw
 
 

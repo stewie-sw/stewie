@@ -863,7 +863,7 @@ function setView(name) {
 }
 
 // #183/#79 Perception pane: load the REAL served 8-cam panorama + overlay the shadow-nav landmarks
-// (each tagged with the azimuth bearing an ARGUS pose-graph factor consumes). Honest empty state when
+// (each tagged with the azimuth bearing an Navigation pose-graph factor consumes). Honest empty state when
 // no render egress is present (a GPU-less deploy ships the committed crater_boulders sample).
 let PANO_LOADED = false;
 function applyPanoMarks() {
@@ -894,7 +894,7 @@ async function loadPanorama() {
         + `<div style="position:absolute;left:11px;top:-3px;white-space:nowrap;font-size:8px;color:#ffd479;text-shadow:0 0 3px #000">${l.bearing_deg}&deg;</div></div>`;
     }).join("");
     $("panometa").textContent = ` · ${nc} cams · ${lms.length} landmarks · ${m.full_width || "?"}×${m.full_height || "?"}px source`;
-    $("panolist").innerHTML = "<b>Shadow-nav bearings (ARGUS measurements):</b> "
+    $("panolist").innerHTML = "<b>Shadow-nav bearings (Navigation measurements):</b> "
       + lms.slice(0, 12).map((l) => `<span style="color:#ffd479">${l.bearing_deg}&deg;</span><span style="opacity:.55">/c${Math.round(l.contrast)}</span>`).join(" · ")
       + `<br><span style="opacity:.7">${m.note || ""}</span>`;
     stage.style.display = ""; empty.style.display = "none";
@@ -2129,7 +2129,7 @@ $("trainerstepfwd") && ($("trainerstepfwd").onclick = () => {
   if (_TRAINER_STEP < n - 1) { _TRAINER_STEP += 1; _renderScrubber(); }
 });
 
-// ---- Navigation view (P1.4): ARGUS estimator surface + articulation-parallax relocalization -----
+// ---- Navigation view (P1.4): Navigation estimator surface + articulation-parallax relocalization -----
 // FS-24: the four pure nav-pane CANVAS PLOTTERS now live in navplot.js (window.STEWIE_NAVPLOT); these
 // thin binding aliases resolve the target <canvas> via $() and forward, preserving behaviour exactly.
 function navDrawTrajectory(est, base) { window.STEWIE_NAVPLOT.drawTrajectory($("navplot"), est, base); }
@@ -2245,7 +2245,7 @@ async function navCompare() {                          // P3.1: shared-testbed h
     $("navcmpout").innerHTML = "<b>shared-testbed head-to-head</b> — absolute drift, one trajectory, one metric:<br>"
       + rows.map(([k, v]) => {
           const w = Math.max(2, Math.round(180 * v.mean_m / worst));
-          const cls = k.includes("ARGUS") ? "#36d1dc" : k.includes("ShadowNav") ? "#e0a23a" : "#888";
+          const cls = k.includes("Navigation") ? "#36d1dc" : k.includes("ShadowNav") ? "#e0a23a" : "#888";
           return `<div style="margin:3px 0"><span style="display:inline-block;width:230px">${k}</span>`
             + `<span style="display:inline-block;height:9px;width:${w}px;background:${cls};vertical-align:middle"></span> `
             + `<b>${v.mean_m} m</b> ±${v.ci95_m}</div>`;

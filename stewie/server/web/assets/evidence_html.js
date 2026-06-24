@@ -13,7 +13,7 @@
     const e = (typeof escFn === "function") ? escFn : (s) => String(s);
     const fmt = (v) => Array.isArray(v) ? v.join("–") : (v === true ? "✓" : v === false ? "—"
                       : (v == null ? "—" : e(String(v))));
-    const SYS = ["Stanford NAV Lab (LAC)", "ShadowNav (JPL)", "ARGUS"];
+    const SYS = ["Stanford NAV Lab (LAC)", "ShadowNav (JPL)", "Navigation"];
     const th = (t) => `<th style="text-align:left;padding:2px 8px">${e(t)}</th>`;
     const td = (v, muted) => `<td style="padding:2px 8px${muted ? ';color:var(--muted)' : ''}">${fmt(v)}</td>`;
     const h3 = (t) => `<h3 style="font-size:11px;letter-spacing:.1em;margin:12px 0 4px">${t}</h3>`;

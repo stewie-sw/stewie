@@ -19,7 +19,7 @@ from typing import Any, Mapping, Optional
 import numpy as np
 
 DEFAULT_PROFILE_ID = "STEWIE_IPEX_V1"
-PROFILE_ENV = "SOLNAV_PROFILE"
+PROFILE_ENV = "STEWIE_PROFILE"
 _ALIASES = {
     "stewie": DEFAULT_PROFILE_ID,
     "official": "OFFICIAL_LAC_2025_UNVERIFIED",
@@ -135,7 +135,7 @@ def _validate(data: Mapping[str, Any], *, require_verified: bool) -> None:
     missing = sorted(required - set(data))
     if missing:
         raise ProfileError(f"profile missing top-level fields: {missing}")
-    if data["schema_version"] != "solnav_system_profile/1.0":
+    if data["schema_version"] != "stewie_system_profile/1.0":
         raise ProfileError(f"unsupported schema_version {data['schema_version']!r}")
     if require_verified and data["status"] != "VERIFIED":
         raise ProfileError(
@@ -200,7 +200,7 @@ def load_profile(identifier: Optional[str] = None, *, require_verified: bool = F
 
 
 def get_profile() -> SystemProfile:
-    """Load the profile selected by ``SOLNAV_PROFILE`` (Stewie by default)."""
+    """Load the profile selected by ``STEWIE_PROFILE`` (Stewie by default)."""
     return load_profile()
 
 

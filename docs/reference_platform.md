@@ -57,7 +57,7 @@ atomic field I/O.
 constants + calibration parameters, honesty-tagged), `ipex_specs.py` (IPEx flight-system
 parameters, "real-data-sourced (no fabricated values)"), `bodies.py` (per-planet terramechanics),
 `vehicles.py` (vehicle/power/tool registries, PRD O4), `vehicle_twin.py` (one pluggable record
-per vehicle instance — the ARGUS spine), `arm_state.py` (joint model), `solar.py` (sun az/el from
+per vehicle instance — the Navigation spine), `arm_state.py` (joint model), `solar.py` (sun az/el from
 mission time; SPICE-backed), `sites.py` (site registry), `config.py` (the PRD N15 externalized
 config overlay), `profiles.py`/`system_profile.py` (sensor-profile validation).
 

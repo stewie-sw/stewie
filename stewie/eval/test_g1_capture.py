@@ -35,7 +35,7 @@ def test_g1a3_capture_portable_and_reproducible(tmp_path):
     for f in ("imu.csv", "wheel_odom.csv", "truth.csv"):
         assert h(a / f) == h(b / f)          # reproducible across separate output dirs
     prov = json.load(open(a / "g1_capture_result.json"))["reproducibility"]
-    for k in ("stewie_commit", "solnav_commit", "param_sha256", "dem_sha256", "seed", "python", "numpy"):
+    for k in ("stewie_commit", "stewie_commit", "param_sha256", "dem_sha256", "seed", "python", "numpy"):
         assert k in prov
 
 

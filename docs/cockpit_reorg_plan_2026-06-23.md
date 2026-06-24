@@ -22,8 +22,8 @@ The top tabs become the linear concept-of-operations spine an operator actually 
    director retains the advance action. (Resolves the open "Rehearse gating" question: operators no
    longer jump Plan -> Execute blind.)
 3. **Validate** — **merges Navigation (LEAP) + Perception (DART) into one tab with two sub-tabs**:
-   - Navigation sub-tab: ARGUS state estimation (drive preview `/nav/run`, est-vs-truth localization,
-     real-Haworth `register_to_dem` fix, Katwijk estimator + ARGUS compare, articulation-parallax).
+   - Navigation sub-tab: Navigation state estimation (drive preview `/nav/run`, est-vs-truth localization,
+     real-Haworth `register_to_dem` fix, Katwijk estimator + Navigation compare, articulation-parallax).
    - Perception sub-tab: Godot before/after sensor render, 8-camera shadow-nav panorama, front-stereo
      depth / point cloud.
    Rationale: both answer the same operator question ("does the plan hold up against truth / against

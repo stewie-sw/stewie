@@ -26,7 +26,7 @@ learned model only for the expensive perception branch.** Owners: John McCardle 
 | **LODE** | Lunar Operations & Development Environment | Mission planning and operations: sequencing, scheduling, energy budgeting, reports |
 | **LEAP** | Lunar Excavation Analysis & Planning | Earthmoving and execution: excavation skills, worksite construction, terrain-target environments |
 | **FORGE** | Foundation Operations & Regolith Generation Environment | Infrastructure: terrain generation, regolith physics substrate, foundations |
-| **ARGUS** | Articulated Rover Geometry for Unified State Estimation | The vehicle digital twin — chassis, drums, arm, camera rig, and work lights as one state. Named in tribute to Jadon Schuler, IPEx Project Manager and Principal Investigator |
+| **Navigation** | Articulated Rover Geometry for Unified State Estimation | The vehicle digital twin — chassis, drums, arm, camera rig, and work lights as one state. Named in tribute to Jadon Schuler, IPEx Project Manager and Principal Investigator |
 
 The vehicle is **IPEx** (the ISRU Pilot Excavator, the only flight vehicle); RASSOR is its TRL-4
 precursor. See [the modelled vehicle](vehicle_ipex.md).
@@ -93,7 +93,7 @@ Naming: the pip package is `stewie`; the console entry points are `stewie-serve`
 
 | Doc | What it is |
 |---|---|
-| [ARGUS: the modelled vehicle — IPEx](vehicle_ipex.md) | The ISRU Pilot Excavator, grounded in the six NASA IPEx papers; the digital-twin architecture and the excavation gap |
+| [Navigation: the modelled vehicle — IPEx](vehicle_ipex.md) | The ISRU Pilot Excavator, grounded in the six NASA IPEx papers; the digital-twin architecture and the excavation gap |
 | [DART: SLAM pipeline analysis](slam_pipeline_analysis.md) | Map-relative localization vs SLAM-from-scratch; the P15 build path |
 | [DART: 10 km lunar DEM evaluation](lunar_dem_10km_eval.md) | Real south-polar DEM ingest, data sources, and the procgen infill plan |
 | [FORGE: per-planet constants](bodies_sysrev.md) | Literature-sourced terramechanics per body, every value tagged |

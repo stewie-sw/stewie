@@ -19,7 +19,7 @@ telemetry shaping (#67, downlink latency + per-sol stranded-byte ledger), operat
 (#68); the COLMAP/triage design + budget ledger (#69); the resync forward-sim (#70); the
 NASA-standards mechanism (§19: requirements-traceability + Power-of-10 gates live in CI; SF-01
 built); the 8-agent full-stack audit (§20: 2 criticals + 2 highs fixed, no known criticals
-remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); the cockpit
+remain); the Navigation pose-graph estimator spine (DEM + shadow-outline factors); the cockpit
 (authoring, math worksheet, dashboards, mobile); Moon coordinate chain verified end-to-end.
 
 > **UPDATE 2026-06-14:** item 1 below (**P1 — the navigation bridge**) is **DONE** (§22.3): /localize +
@@ -55,7 +55,7 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 >   run-verified on the `stewie-ros2:latest` Jazzy container. Nav2/Autoware plug straight in.
 > • **#79 8-cam front-end + shadow-outline landmarks:** the LAC **8-camera rig renders on the RTX 3090**
 >   (Godot 4.6.3, `render.sh sidecar.tscn --cameras`) → `panorama.py` 8192×768 heading-ordered surround
->   → `shadow_landmarks.py` real cast-shadow landmarks + azimuth bearings (the ARGUS measurement). NOT
+>   → `shadow_landmarks.py` real cast-shadow landmarks + azimuth bearings (the Navigation measurement). NOT
 >   render-gated on this host. Plus a `sensor_msgs/PointCloud2` perception egress. Tasks #144/#145/#183.
 > • **Convergence visualization (cockpit 3D view, live):** the depth/heightfield as a wire overlay,
 >   **ephemeris-driven sun + shadows** (`/ephemeris` solar authority + Three.js shadow casting), the
@@ -98,7 +98,7 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 > IA REGRESSED (a React rewrite was reverted), the dense-reconstruction tier was UNBLOCKED as a
 > demonstrator, and the deep autonomy/comms tiers remain honestly gated. **Intent vs state:** STEWIE's
 > intent — a lunar mission-planning + digital-twin + autonomy *environment* whose trainer/sim product
-> drives a real rover, plus the ARGUS navigation evidence — is **substantially realized as a
+> drives a real rover, plus the Navigation navigation evidence — is **substantially realized as a
 > planning + estimation + visualization platform; the live-autonomy and operational-twin tiers are built
 > as tested code but not yet deploy-integrated or hardware-passed.**
 >
@@ -182,15 +182,15 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
    before the PRD may claim a production-complete digital twin.
 
 The pre-audit queue (still valid, lower priority): the real-pit `PitBackend` over the UDP/ROS
-transport (awaiting McCardle's link details); the mission-brief packet (§8); the ARGUS SE(3)+IMU
+transport (awaiting McCardle's link details); the mission-brief packet (§8); the Navigation SE(3)+IMU
 upgrade and the construction-autonomy + perception roadmap (#79: docking/berm autonomy, RL on the
 multi-objective/multi-vehicle frontier, 8-cam feature front-end, shadow-outline landmark learning).
 
 **Production readiness:** useful trainer/simulator prototype, but not a production release. The
 trainer/simulator surface has many completed slices; the flight-autonomy stack, security posture,
-truth-free SLAM/ARGUS path, operational digital twin, and field-calibrated terramechanics remain earlier.
+truth-free SLAM/Navigation path, operational digital twin, and field-calibrated terramechanics remain earlier.
 
-**SN / ARGUS evidence path — DONE (2026-06-11):** CP-01 (release-ready), SN-02 detection front-end,
+**SN / Navigation evidence path — DONE (2026-06-11):** CP-01 (release-ready), SN-02 detection front-end,
 SN-03 shadow yaw factor, SN-05 illumination route cost, SN-06 camera selection, SN-08 active-morphology
 posture + SN-08b full posture×load coverage, all shipped TDD + flipped on citing tests. SN family now
 SN-01 D, SN-02 D, SN-03 D, SN-04 D, SN-05 P, SN-06 D, SN-08 D, SN-09 D (articulated self-shadow:
@@ -224,7 +224,7 @@ Then the bigger #79 frontier: the 8-cam SuperGlue front-end to convert the model
 ablations into MEASURED ones (the move from characterized to qualified, fresh-session scale).
 The completed plan that produced this session, for reference:
 
-**Completed plan (2026-06-11): the SN / ARGUS evidence path.** The trainer product is
+**Completed plan (2026-06-11): the SN / Navigation evidence path.** The trainer product is
 done + gated on John's wire transport, so solo effort goes to the navigation-research contribution (the SN
 family, 13 rows mostly open). Sequenced, bounded TDD slices (tasks #83-86), each gate-byte-identical
 with a `[REQ:]` marker:
@@ -399,7 +399,7 @@ L5  Navigation and execution
 L4  Perception and localization
     camera policy / segmentation / stereo VO / SLAM / map / solar factors
 
-L3  ARGUS -- articulated vehicle digital twin (PRD 16.3b)
+L3  Navigation -- articulated vehicle digital twin (PRD 16.3b)
     VehicleTwin / ArmState / drums / per-drum load / CG / support polygon / work lights / camera rig
 
 L2  Terrain, illumination, and world state
@@ -690,7 +690,7 @@ DEM. They make the advertised product boundary enforceable.
 | DT-01 | P0 | Operational digital-twin unification: conserved authority, observed `TwinStore`, runtime packets, vehicle twin, PlanResult, belief state, and session events are linked by one versioned transaction envelope with mission/site/body/time/provenance/uncertainty. | P | N | N | N |
 | DT-02 | P0 | Twin audit read security: `/twin/version` exposes only a minimal authenticated version token to ordinary clients; full event history/provenance requires director/admin authorization and audit logging. | D | D | D | NA |
 | RL-01 | P1 | Deployed RL policy gate: no RL capability may be called operational until a versioned policy artifact, training/eval lineage, model card, safety shield, deterministic fallback, and out-of-distribution acceptance report exist. Training scripts/environments alone do not satisfy this row. | P | N | N | N |
-| SL-01 | P0 | Truth-isolated SLAM/ARGUS benchmark: runtime bags and estimator processes are physically denied truth topics/frames; the full render/sensor/RTAB-Map-or-equivalent/ARGUS/pose-graph pipeline is scored by an evaluator-only channel with pass/fail thresholds. | P | P | P | N |
+| SL-01 | P0 | Truth-isolated SLAM/Navigation benchmark: runtime bags and estimator processes are physically denied truth topics/frames; the full render/sensor/RTAB-Map-or-equivalent/Navigation/pose-graph pipeline is scored by an evaluator-only channel with pass/fail thresholds. | P | P | P | N |
 | SE-01 | P0 | Full security audit gate: release requires a completed host, container, app, DNS/site, secret, backup/restore, dependency/SBOM/CVE, and external exposure audit. The current non-invasive Archimedes/site review is not sufficient. | P | N | N | N |
 | TM-01 | P1 | Calibrated terramechanics/excavation gate: construction forecasts distinguish analytical surrogate, calibrated mission model, and offline oracle; excavation resistance, drum/arm torque, drivetrain/current limits, low-g parameters, and uncertainty are validated before field-confidence claims. | P | P | P | N |
 
@@ -706,7 +706,7 @@ LLMs may draft plans or explain telemetry, but they do not directly actuate the 
 | ML-01 | P0 | Model-orchestration rule: every learned model declares input schema, output schema, latency budget, compute/memory budget, calibration set, uncertainty output, failure modes, and safe fallback. Mission Executive consumes only typed outputs, never free-form model actions. | D | P | D | N |
 | ML-02 | P1 | Terrain Assessment Model: stereo/depth, DEM, slope, shadow, and uncertainty layers produce traversability, hazard class, slope/roughness summaries, and confidence for the local planner. | P | N | N | N |
 | ML-03 | P1 | Rock Classification Model: image/depth observations produce rock size, class, confidence, and navigation/excavation relevance; Class-A `>7 cm` hazard classification is acceptance-gated against held-out truth/evaluation labels. | P | N | N | N |
-| ML-04 | P1 | Shadow-SLAM / ARGUS Model: image pair or sequence plus sun geometry and articulation pose propose pose/landmark factors with covariance; the factor graph accepts them only through residual/observability gates. | P | P | P | N |
+| ML-04 | P1 | Shadow-SLAM / Navigation Model: image pair or sequence plus sun geometry and articulation pose propose pose/landmark factors with covariance; the factor graph accepts them only through residual/observability gates. | P | P | P | N |
 | ML-05 | P1 | Excavation State Model: drum torque/current, wheel slip, IMU, arm/drum state, and drive current estimate digging state, fill fraction, slip, stall risk, and confidence; advisory until calibrated against IPEx/AutoDig-style data. | P | N | P | N |
 | ML-06 | P1 | Regolith Volume Estimator: before/after DEM or stereo heightfields estimate moved volume/mass with uncertainty, cross-checked against conserved authority mass and drum-fill sensing. | P | N | P | N |
 | ML-07 | P1 | Mission Planner LLM: a small language model may convert operator intent into candidate task graphs, but plans must compile to typed goals, pass deterministic validation, and be approved by the mission executive before simulation or command lowering. | N | N | N | N |
@@ -716,7 +716,7 @@ LLMs may draft plans or explain telemetry, but they do not directly actuate the 
 ### 7.15 Full-Stack Onboard Autonomy Build Requirements (added 2026-06-15)
 
 These rows turn the onboard-autonomy roadmap into atomic product work. They explicitly include
-multi-vehicle coordination, path planning, navigation, ephemerides/azimuth, ARGUS, front-end
+multi-vehicle coordination, path planning, navigation, ephemerides/azimuth, Navigation, front-end
 restructuring, backend-to-frontend wiring, testing, optimization, security, and model hardening.
 The sequence is defined in §25. No broad rewrite is allowed: each slice must start from a current
 front-end/back-end inventory, add one contract or view, and land with tests before the next layer
@@ -725,24 +725,24 @@ claims completion.
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
 | FS-01 | P0 | Codebase assessment gate: before implementing a roadmap slice, inventory the touched front-end panes, backend routers, domain modules, tests, data contracts, security boundaries, and deployment assumptions. Acceptance is an updated slice note or PRD entry naming affected files/modules and existing tests. | P | P | P | NA |
-| FS-02 | P0 | Contract spine: define versioned schemas for `WorldState`, `VehicleState`, `FleetState`, `BeliefState`, `PlanResult`, `ExecutionEvent`, `EphemerisObservation`, `ARGUSFactor`, `ModelArtifact`, and `ConstructionSkill`. Backend APIs and cockpit views must consume these contracts instead of ad hoc payloads. | D | D | D | NA |
-| FS-03 | P0 | Front-end information architecture: restructure the cockpit so Plan, Fleet, Navigation/ARGUS, Perception/Imagery, Construction, Models, Security/System, and Reports are first-class work areas with mobile-safe layouts and explicit truth/belief/forecast/live labels. | P | N | N | NA |
+| FS-02 | P0 | Contract spine: define versioned schemas for `WorldState`, `VehicleState`, `FleetState`, `BeliefState`, `PlanResult`, `ExecutionEvent`, `EphemerisObservation`, `NavigationFactor`, `ModelArtifact`, and `ConstructionSkill`. Backend APIs and cockpit views must consume these contracts instead of ad hoc payloads. | D | D | D | NA |
+| FS-03 | P0 | Front-end information architecture: restructure the cockpit so Plan, Fleet, Navigation/Navigation, Perception/Imagery, Construction, Models, Security/System, and Reports are first-class work areas with mobile-safe layouts and explicit truth/belief/forecast/live labels. | P | N | N | NA |
 | FS-04 | P1 | Multi-vehicle coordination: extend allocation into coordinated execution with per-vehicle state, shared-resource reservations, space-time corridor deconfliction, cross-vehicle precedence, conflict explanation, and safe replan/fallback behavior. | P | N | P | N |
 | FS-05 | P1 | Path-planning and navigation stack: connect global route planning, local trajectory sampling, tracker, recovery, keep-outs, negative obstacles, illumination risk, slip/energy budgets, and ROS2/Autoware-style action lowering through one auditable navigation contract. `lode.planner_routing.navigation_contract` is that contract: it names each stage's implementing seam (`route_leg`, `local_planner.plan_local`/`track_plan`, `recovery.recovery_needed`, `negative_obstacle_mask`, `dart.illumination`, the `_simulate` slip/energy budget, and the NV-11 `lower_plan_ir` ROS egress) and self-reports whether each is wired on-host (import-check, not a hard-coded claim); surfaced read-only at `GET /nav/contract`. `on_host_complete` is true. An executable end-to-end spine now CONNECTS those on-host stages rather than leaving them as nine seams that merely import: `lode.nav_pipeline.run_navigation` routes the global corridor (`route_leg`), then DRIVES it as a receding-horizon closed loop through `plan_local` (local_trajectory), `track_plan` (the bounded cmd_vel egress), exact-unicycle integration, and `recovery_needed` (backup on a planner failure or a sustained low-progress stall), and `cross_track_deviation` scores the executed path against the planned route. `lode/test_nav_pipeline.py` is the on-host acceptance: it drives a real LOLA Haworth corridor to the goal with all five stages exercised in one connected run, fires-and-escapes recovery on a fully blocking keep-out (never entering the obstacle), and reports the honest no-corridor infeasible, so the on-host V evidence is now a real connected drive, not the import-check alone. X is now D: the spine is wired into the advertised product path. `POST /nav/run` runs the route-then-drive on the real site DEM and returns the planned waypoints + executed trajectory + recovery events + cross-track deviation + the stages exercised, and the cockpit Navigation pane's FS-05 DRIVE PREVIEW overlay (`navDrawDrive`) renders the planned route vs the executed trajectory with start/goal + recovery markers. Playwright-verified against a desktop-mode sidecar: the overlay drew the arrived-at-goal drive on the real Haworth corridor (54.5 m routed, 94 control ticks, cross-track mean 0.76 m). Tests: `test_nav_router.py` (the route end-to-end + unknown-site/extra-field 400s) and `test_ui_nav_drive.py` (the served drive-preview wiring). The cockpit drive is a PREVIEW simulated on the conserved terrain; commanding a real rover stays AG-08/SF-01 gated. I and V stay P: the live Autoware/Nav2 planner BINARY remains the one gated tier (present=False, needs a ROS/Space ROS host). | P | D | P | N |
 | FS-06 | P0 | Ephemerides and azimuth authority: one backend service owns mission time, body/site frame, sun vector, sun elevation, azimuth convention, uncertainty, cache/provenance, and all shadow consumers. Acceptance includes cross-module azimuth tests and UI display of the convention. | D | D | D | P |
-| FS-07 | P1 | ARGUS operational loop: articulation pose, camera rig, shadow/parallax observation, pose-graph factor, residual gate, covariance update, operator evidence view, and planner-triggered relocalization stop form one closed loop. | P | P | P | N |
+| FS-07 | P1 | Navigation operational loop: articulation pose, camera rig, shadow/parallax observation, pose-graph factor, residual gate, covariance update, operator evidence view, and planner-triggered relocalization stop form one closed loop. | P | P | P | N |
 | FS-08 | P0 | Backend-to-frontend wiring: every new autonomy capability exposes a typed API, OpenAPI/schema example or equivalent fixture, cockpit state binding, loading/error/empty states, and a browser regression test covering desktop and mobile widths. | P | N | N | NA |
 | FS-09 | P0 | Test pyramid: each slice lands with unit tests for math/contracts, backend route tests, front-end interaction tests, traceability markers, deterministic fixtures, and one integration/e2e path where the capability is user-visible. | P | P | P | NA |
-| FS-10 | P1 | Optimization budgets: define and enforce latency, memory, CPU/GPU, bandwidth, tile/cache, and model-inference budgets for map rendering, planning, fleet solving, ARGUS estimation, and cockpit mobile performance. | P | P | P | N |
+| FS-10 | P1 | Optimization budgets: define and enforce latency, memory, CPU/GPU, bandwidth, tile/cache, and model-inference budgets for map rendering, planning, fleet solving, Navigation estimation, and cockpit mobile performance. | P | P | P | N |
 | FS-11 | P0 | Security and hardening gate: capability work must preserve fail-closed auth, role gating, no automation secrets in browser state, CSP/no-inline-script deployment, SBOM/CVE review, backup/restore assumptions, and command-path interlocks. | P | P | P | N |
 | FS-12 | P1 | Model integration and fine-tuning hardening: every learned model has dataset lineage, train/eval split, artifact registry entry, model card, quantization/deployment profile, calibration report, OOD detector, safe fallback, and rollback plan before cockpit exposure. | P | N | N | N |
 | FS-13 | P1 | Recorded construction and self-docking skills: record, version, replay, compare, and approve movement primitives for excavation, dumping, berm shaping, and docking; replay must be corrected by belief feedback and bounded by safety checks. | P | N | N | N |
 | FS-14 | P0 | Atomic rollout rule: the roadmap is implemented in dependency order; a phase cannot be marked done until the previous phase's contracts, front-end affordance, backend route, tests, security review, and performance budget are complete or explicitly gated. | P | N | N | NA |
-| FS-15 | P0 | Front-end contract adapters: each cockpit work area owns a typed client adapter, request/response fixture, normalized view model, loading/error/empty mapping, and permission mapping. UI components consume view models, not raw backend JSON. The adapter LAYER is complete: `web/assets/adapters.js` normalizes all 10 FS-02 spine contracts (Ephemeris / World / Vehicle / Fleet / Belief / PlanResult / ExecutionEvent / ARGUSFactor / ModelArtifact / ConstructionSkill) to view models, `toViewState` maps every fetch outcome to loading/ok/empty/error, `canAct` maps work-area→role (AG-01), and `ModelArtifact.deploymentReady` mirrors the backend ML-01 gate. Tested by `adapters.test.js` (node) + the CI-gated `test_adapter_contract_parity.py`, which proves every field an adapter reads is a real Pydantic contract field (no fabrication) and fails on backend drift. FS-08 pane wiring is now UNDERWAY (incremental, one pane per step, each Playwright-verified): `adapters.js` is loaded into the cockpit (the `STEWIE_ADAPTERS` global), the `/plan` route returns the typed `PlanResult` contract (built from the same `totals`, additive), and the Report-pane dashboard strip + CONOPS line consume the `normalizePlanResult` view model instead of ad-hoc `totals` keys -- which also fixed a latent bug where the `recharges` chip read a non-existent `totals.recharges` and showed a dash (now the real charge count, Playwright-confirmed). Increment 2 adds the new `TimelineFrame` contract (the activity-gantt motion frames; the /plan timeline frames are tested to conform to it) and the `normalizeTimelineFrame` view model, and the Report-pane ACTIVITY gantt + battery curve now consume it instead of raw frame dicts. Increment 3 adds the `LocalizationFix` contract (the Nav pane's est-vs-truth trace leg: `est`/`true`/`sigma`/`fix`; the /plan trace legs are tested to conform) + `normalizeLocalizationFix`, and the Nav pane's mission-localization plot consumes it. So THREE surfaces are migrated, each Playwright-verified: the Report dashboard (PlanResult), the activity gantt (TimelineFrame), and the Nav est-vs-truth trace (LocalizationFix). X stays N until the Perception pane consumes view models too (its panorama/shadow aggregates need their own contract). | D | N | P | NA |
+| FS-15 | P0 | Front-end contract adapters: each cockpit work area owns a typed client adapter, request/response fixture, normalized view model, loading/error/empty mapping, and permission mapping. UI components consume view models, not raw backend JSON. The adapter LAYER is complete: `web/assets/adapters.js` normalizes all 10 FS-02 spine contracts (Ephemeris / World / Vehicle / Fleet / Belief / PlanResult / ExecutionEvent / NavigationFactor / ModelArtifact / ConstructionSkill) to view models, `toViewState` maps every fetch outcome to loading/ok/empty/error, `canAct` maps work-area→role (AG-01), and `ModelArtifact.deploymentReady` mirrors the backend ML-01 gate. Tested by `adapters.test.js` (node) + the CI-gated `test_adapter_contract_parity.py`, which proves every field an adapter reads is a real Pydantic contract field (no fabrication) and fails on backend drift. FS-08 pane wiring is now UNDERWAY (incremental, one pane per step, each Playwright-verified): `adapters.js` is loaded into the cockpit (the `STEWIE_ADAPTERS` global), the `/plan` route returns the typed `PlanResult` contract (built from the same `totals`, additive), and the Report-pane dashboard strip + CONOPS line consume the `normalizePlanResult` view model instead of ad-hoc `totals` keys -- which also fixed a latent bug where the `recharges` chip read a non-existent `totals.recharges` and showed a dash (now the real charge count, Playwright-confirmed). Increment 2 adds the new `TimelineFrame` contract (the activity-gantt motion frames; the /plan timeline frames are tested to conform to it) and the `normalizeTimelineFrame` view model, and the Report-pane ACTIVITY gantt + battery curve now consume it instead of raw frame dicts. Increment 3 adds the `LocalizationFix` contract (the Nav pane's est-vs-truth trace leg: `est`/`true`/`sigma`/`fix`; the /plan trace legs are tested to conform) + `normalizeLocalizationFix`, and the Nav pane's mission-localization plot consumes it. So THREE surfaces are migrated, each Playwright-verified: the Report dashboard (PlanResult), the activity gantt (TimelineFrame), and the Nav est-vs-truth trace (LocalizationFix). X stays N until the Perception pane consumes view models too (its panorama/shadow aggregates need their own contract). | D | N | P | NA |
 | FS-16 | P0 | Cockpit state and routing: the app has one routeable state model for selected mission, site, vehicle, body, time, mode, role, work area, selected entity, and live/sim/eval source. Desktop and mobile navigation are alternate views of the same state, not separate logic. | D | D | P | NA |
 | FS-17 | P0 | Windowing policy: the production operator flow is one browser cockpit. Any second window is read-only engineering/debug context or a separate ROS/RViz/Gazebo tool; it cannot hold independent command authority, hidden state, or unique approval controls. Enforced in `cockpit.js` by a single-authority election (`CMD_AUTH`: a localStorage claim + heartbeat, `BroadcastChannel` + `storage`-event sync); a window without the fresh claim is read-only (`body.dataset.cmdrole`), shows the `#cmd-readonly-banner`, disables `[data-cmd-authority]` command controls, and `guardCommand` refuses the command-tape emit. An explicit Take-over control promotes a window (no silent promotion of a hidden tab). Two-tab behavior Playwright-verified; static wiring guarded by `stewie/server/test_fs17_command_authority.py`. | D | D | D | NA |
 | FS-18 | P0 | Frontend-backend contract gate: every new route-to-pane connection has a schema fixture, backend route test, frontend fixture render test, permission test, mobile-width smoke, and one failure-mode test before it is considered wired. | P | N | N | NA |
-| FS-19 | P0 | End-to-end observability ledger: log every mission decision, operator action, role/permission check, backend contract call, plan/replan, command emission, safing event, model inference summary, ARGUS factor accept/reject, fleet conflict, and state transition with correlation ID, mission/site/body/time, actor, input/output hashes, result, latency, and error code. Secrets, passwords, tokens, private keys, and operational truth-denied fields must never be logged. | P | P | P | NA |
+| FS-19 | P0 | End-to-end observability ledger: log every mission decision, operator action, role/permission check, backend contract call, plan/replan, command emission, safing event, model inference summary, Navigation factor accept/reject, fleet conflict, and state transition with correlation ID, mission/site/body/time, actor, input/output hashes, result, latency, and error code. Secrets, passwords, tokens, private keys, and operational truth-denied fields must never be logged. | P | P | P | NA |
 | FS-20 | P1 | Cockpit chrome IA: System, Settings, and Admin move OUT of the top-level work-area tab bar into a profile/account menu, role-gated (Settings per-user; System eng/director; Admin director-only) — an operator sees only the mission work areas. Directors get a read-only log/audit viewer surfacing the FS-19 observability ledger (logs visible to admins; secrets/tokens/truth-denied fields never shown). | D | D | D | NA |
 | FS-21 | P2 | Customizable workspace: within a work area, panes can be rearranged (drag-and-drop / dock) and the layout persists per operator (localStorage + optional server profile), with reset-to-default always available. Layout is a VIEW preference only — it never changes command authority, AG-08 gating, role gates, or which contract a pane consumes. | P | P | P | NA |
 | FS-22 | P0 | PRD-code reconciliation gate: before claiming "complete the PRD", audit every open or partial §7 row against code and tests, classify it as DONE-stale, PARTIAL, OPEN, or BLOCKED, and record file:line evidence plus the smallest next action. Stale PRD statuses must be corrected before new implementation work is counted. The STRUCTURAL reconciliation invariants are now CODE-ENFORCED in `scripts/req_trace.py` and run as a hard CI step (`.github/workflows/ci.yml`): every `[REQ:]` citation must resolve to a real matrix row (an orphan/typo'd marker FAILS the gate), every row claiming V=D must be test-cited (FAILS otherwise), and rows that are cited but not yet V=D are surfaced as an "understated — review for promotion" audit list (the reverse-staleness signal). Tested by `scripts/test_req_trace.py` [REQ:FS-22] (orphan citation → exit 1; valid citation → pass; understated rows surfaced). The per-row SEMANTIC classification (DONE-stale/PARTIAL/OPEN/BLOCKED + smallest next action) remains the periodic manual audit deliverable. | D | D | D | NA |
@@ -755,7 +755,7 @@ STEWIE will **not** vendor or fork full Autoware as the rover brain. It will ado
 Autoware architecture shape and ROS discipline: lifecycle-managed ROS2 nodes, typed message contracts,
 TF/QoS discipline, containerized bringup, sensing -> perception -> localization -> mapping -> planning
 -> control -> vehicle-interface separation, and RViz/Gazebo engineering visualization. Lunar planning,
-excavation, ShadowNav, ARGUS, terramechanics, and mission authority remain STEWIE-native.
+excavation, ShadowNav, Navigation, terramechanics, and mission authority remain STEWIE-native.
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
@@ -763,19 +763,19 @@ excavation, ShadowNav, ARGUS, terramechanics, and mission authority remain STEWI
 | AS-02 | P0 | ROS2 workspace skeleton: create container-buildable packages for `stewie_msgs`, `stewie_description`, `stewie_bringup`, `stewie_vehicle_interface`, `stewie_perception`, `stewie_localization`, `stewie_mapping`, `stewie_planning`, `stewie_control`, and `stewie_rviz`. | N | N | N | NA |
 | AS-03 | P0 | IPEx vehicle description: add URDF/Xacro/SDF describing chassis, wheels, drums, arms, camera rig, IMU, optional LiDAR, collision geometry, inertials, joint limits, TF tree, and frame names derived from STEWIE vehicle specs. | N | N | N | G |
 | AS-04 | P0 | ROS container tiers: provide reproducible containers for base ROS2 Jazzy dev, perception/SLAM, Gazebo simulation, RViz diagnostics, bridge runtime, and a Space ROS migration profile. Each container has a smoke command and pinned package manifest. | P | N | N | NA |
-| AS-05 | P0 | RViz mission dashboard: ship an RViz config showing robot model, TF, odom, `/stewie/odom`, planned path, local trajectory, costmaps, occupancy/DEM map, point cloud, camera feeds, covariance, ARGUS factors, diagnostics, SAFE state, and command topic state. | N | N | N | NA |
+| AS-05 | P0 | RViz mission dashboard: ship an RViz config showing robot model, TF, odom, `/stewie/odom`, planned path, local trajectory, costmaps, occupancy/DEM map, point cloud, camera feeds, covariance, Navigation factors, diagnostics, SAFE state, and command topic state. | N | N | N | NA |
 | AS-06 | P1 | Gazebo simulation seam: launch the IPEx description in Gazebo with cameras, IMU, wheel odometry, contact/collision, `/cmd_vel`, `/joint_states`, `/tf`, `/clock`, and bridgeable terrain/world state. Gazebo sim is robot/sensor sim, not excavation truth. | N | N | N | N |
 | AS-07 | P0 | Stanford/NavLab-derived navigation spine: implement or integrate stereo feature detection/matching, stereo VO, robust PnP/triangulation, pose graph optimization, loop-closure gating, terrain/rock mapping, coverage planning, local arc planner, and recovery benchmarks on truth-denied bags. | P | N | P | N |
-| AS-08 | P0 | ShadowNav factor path: convert ephemeris-controlled sun geometry plus panorama/shadow landmark bearings into typed `ARGUSFactor` observations with covariance, residual gates, false-factor rejection, and ablation versus non-shadow VO/SLAM. | P | N | P | N |
-| AS-09 | P0 | ARGUS articulation path: convert commanded posture changes, arm/camera kinematics, shadow perturbations, and articulation parallax into standstill relocalization factors; accepted factors must reduce covariance and be visible in cockpit and RViz. | P | P | P | N |
+| AS-08 | P0 | ShadowNav factor path: convert ephemeris-controlled sun geometry plus panorama/shadow landmark bearings into typed `NavigationFactor` observations with covariance, residual gates, false-factor rejection, and ablation versus non-shadow VO/SLAM. | P | N | P | N |
+| AS-09 | P0 | Navigation articulation path: convert commanded posture changes, arm/camera kinematics, shadow perturbations, and articulation parallax into standstill relocalization factors; accepted factors must reduce covariance and be visible in cockpit and RViz. | P | P | P | N |
 | AS-10 | P0 | Autonomous mapping: maintain observed DEM, occupancy/rock map, object graph, uncertainty, changed-terrain mask, and excavation state as separate layers over the conserved world model; estimator/mapping nodes are denied simulator truth. | P | N | P | N |
 | AS-11 | P1 | Lunar costmap stack: expose slope, roughness, sinkage, slip, tip risk, illumination, PSR, shadow confidence, energy, keep-outs, dynamic rocks, and shared fleet-resource reservations as composable planning layers. | P | N | P | N |
 | AS-12 | P1 | ROS lowering and control: lower verified Plan IR into ROS2 paths, motion goals, work goals, observation goals, replan events, and bounded `/cmd_vel` or action goals under AG-08, NV-12, SF-01, and role-gated command eligibility. | P | P | P | N |
 | AS-13 | P1 | Mission executive node: add a ROS2-side executive that monitors preconditions, acknowledgements, covariance, resource reservations, faults, acceptance state, and safing, then emits continue/pause/replan/relocalize/reverse/SAFE decisions. | P | N | P | N |
 | AS-14 | P1 | ROS diagnostics and logging: every ROS node emits diagnostics, lifecycle state, health, latency, dropped frames, QoS warnings, command eligibility, SAFE events, and correlation IDs into the STEWIE observability ledger without logging secrets or truth-denied fields. | P | N | N | NA |
 | AS-15 | P0 | NASA-style TDD gate: every autonomy slice lands test-first with `[REQ:<ID>]` markers, container smoke, deterministic fixtures, failure-mode tests, Power-of-10/static-analysis review for safety-critical code, and no capability claim until route/node/UI/log evidence exists. | P | P | P | NA |
-| AS-16 | P1 | ShadowNav/ARGUS/Stanford benchmark suite: compare passive VO, Stanford-style stereo SLAM, ShadowNav factors, ARGUS articulation factors, and combined fusion across sun angles, terrain changes, rocks, PSR, camera degradation, and excavation state. | P | N | P | N |
-| AS-17 | P0 | TRL5 stereo rig authority gate: navigation, mapping, ShadowNav, ARGUS, RViz, Gazebo, and cockpit visuals load camera intrinsics/extrinsics from the authoritative IPEx/LAC camera profile, not hard-coded baselines. Acceptance distinguishes the TRL5-final 0.05 m stereo module (sourced SCHULER24 Figs 28/30/32, single rigid housing) from the rejected 0.165 m shoulder-split; any non-final profile is labelled rejected/legacy. **2026-06-18: legacy 0.070 m fixture RETIRED — the G2 corpus (13 g2cal poses + frame fixture) re-rendered at 0.05 m, profile/camera_rig/ipex_specs/system_profile/manifest re-frozen, `stereo_authority.py` is the gate (4 tests). Camera count confirmed against SCHULER24: 8 physical / 4 operational + 4 redundant (NOT 8-surround). Suite green (308 eval/specs + 731 dart/lode).** | D | N | D | G |
+| AS-16 | P1 | ShadowNav/Navigation/Stanford benchmark suite: compare passive VO, Stanford-style stereo SLAM, ShadowNav factors, Navigation articulation factors, and combined fusion across sun angles, terrain changes, rocks, PSR, camera degradation, and excavation state. | P | N | P | N |
+| AS-17 | P0 | TRL5 stereo rig authority gate: navigation, mapping, ShadowNav, Navigation, RViz, Gazebo, and cockpit visuals load camera intrinsics/extrinsics from the authoritative IPEx/LAC camera profile, not hard-coded baselines. Acceptance distinguishes the TRL5-final 0.05 m stereo module (sourced SCHULER24 Figs 28/30/32, single rigid housing) from the rejected 0.165 m shoulder-split; any non-final profile is labelled rejected/legacy. **2026-06-18: legacy 0.070 m fixture RETIRED — the G2 corpus (13 g2cal poses + frame fixture) re-rendered at 0.05 m, profile/camera_rig/ipex_specs/system_profile/manifest re-frozen, `stereo_authority.py` is the gate (4 tests). Camera count confirmed against SCHULER24: 8 physical / 4 operational + 4 redundant (NOT 8-surround). Suite green (308 eval/specs + 731 dart/lode).** | D | N | D | G |
 
 ## 8. User Workflows
 
@@ -1070,7 +1070,7 @@ is unchanged — the container maps the port.
 - **Year 2** = mission assistant (suggestion queue), multi-sol planning, DART live feedback loop —
   the operator approves; they no longer initiate.
 
-### 16.3b ARGUS — Articulated Rover Geometry for Unified State Estimation (added 2026-06-10)
+### 16.3b Navigation — Articulated Rover Geometry for Unified State Estimation (added 2026-06-10)
 The articulated vehicle-twin subsystem: documented rover geometry (chassis/wheels, bucket drums,
 arm swing, the 8-camera rig, the LED work-light units) carried as ONE state consumed by every
 estimator and the renderer alike. Implementation spine: stewie/specs/vehicle_twin.py +
@@ -1182,7 +1182,7 @@ mirror those layers, so the strategy is **adopt the architecture + the road-agno
 off-road-applicable components; build the lunar-specific autonomy ourselves** — never fork the whole
 stack (Autoware's planning is road/lanelet2-centric; there are no lanes on the Moon, so that layer is
 dead weight). The lunar planning/perception layer is both the product differentiator and the
-ARGUS articulation-localization novelty.
+Navigation articulation-localization novelty.
 
 | Layer | Autoware fit | STEWIE plan | Maps to |
 |---|---|---|---|
@@ -1380,7 +1380,7 @@ as product debt. **GATED** = blocked on an external input (IPEx geometry, John's
 | VT 7.3 | vehicle/arms/drums/stability | 1 | 9 | GATED | the two-vehicle stance gap (VT-01/02/05); exact geometry awaits authoritative IPEx data |
 | AM 7.4 | posture maneuvers (MEERKAT…) | 0 | 9 | GATED | all gated on authoritative IPEx geometry |
 | CP 7.5 | perception/mapping/localization | 5 | 5 | PRODUCT | the G1/G2 evidence feeds this |
-| SN 7.6 | solar-terrain navigation | 0 | 13 | DEFERRED | **the ARGUS research frontier** — open by design (the navigation-research contribution) |
+| SN 7.6 | solar-terrain navigation | 0 | 13 | DEFERRED | **the Navigation research frontier** — open by design (the navigation-research contribution) |
 | NV 7.7 | navigation/planning/recovery | 1 | 11 | PRODUCT | berm re-hazard + routing + docking/berm FSMs exist; recovery behaviors don't |
 | PM 7.8 | construction mission planning | 1 | 11 | PRODUCT | the planner is rich but matrix-unverified (mostly flip-on-evidence) |
 | EP 7.9 | energy/thermal/power/ops | 2 | 6 | PRODUCT | battery-honest timeline shipped; thermal ops partial |
@@ -1479,7 +1479,7 @@ STEWIE has TWO production targets with very different bars (PRD §18 ladder):
   remaining 25% is almost entirely the **#66 pluggable RC contract + SF-01 watchdog** (blocked on
   John's protocol) plus the medium hardening list above. NOT a research demo — a usable trainer
   once the RC seam lands.
-- **As FLIGHT-RELEVANT autonomy / the ARGUS estimator (the research track):** **~30%, by design.**
+- **As FLIGHT-RELEVANT autonomy / the Navigation estimator (the research track):** **~30%, by design.**
   The SN solar-terrain-navigation family is 13/13 open; the pose-graph that fuses sun/shadow/DEM
   factors over mutating terrain is scaffolded (shadow_predict, register_to_dem, the re-hazard,
   the conserved mutable twin) but NOT integrated. This is the protected contribution, correctly
@@ -1530,7 +1530,7 @@ sweep) mapped the whole monorepo against intent; findings verified and folded in
 STEWIE is two tracks.
 The excavation planner and trainer (LODE planning, the conserved physics, the operator/trainer
 sessions) is wired end to end, backend to a 71-endpoint API to a full cockpit. The navigation
-research, the ARGUS estimator that is the navigation-research core, is built and validated as a library
+research, the Navigation estimator that is the navigation-research core, is built and validated as a library
 of eighteen modules but has no HTTP endpoint and no cockpit presence. Completing the system is
 mostly bridging the second track into the live one.
 
@@ -1566,7 +1566,7 @@ shadows and pose truth; the SN-07 LED-illumination hardware.
 Captured headless on the live server (`validation/ui_2026-06-12/`, playwright + chromium, no page
 errors). Each view read against intent:
 
-| View (tab) | Screenshot | What it shows today | Gap vs the ARGUS nav track |
+| View (tab) | Screenshot | What it shows today | Gap vs the Navigation nav track |
 |---|---|---|---|
 | Plan (LODE) | `00_initial.png`, `01_plan.png` | Cesium Haworth globe; sidebar 1 Site / 2 Contents / 3 Fleet / 4 Feasibility / 5 Plan A-F / 6 Catalog / 7 Telemetry. The full authoring product. | None — the complete planning surface. |
 | Perception (DART) | `02_perception.png` | "Godot PLAN → RENDER", before/after sensor frame. Empty-state copy: a live SLAM map is "the open map-channel work, not a faked feed." | No parallax measurement, no depth pass, no photometric render-pair, no shadow-vector overlay. P1 (parallax capture) + P3 (evidence). |
@@ -1577,7 +1577,7 @@ errors). Each view read against intent:
 
 The finding the screenshots make concrete: every empty-state placeholder narrates a planner
 function, and none of the six tabs references the navigation/estimation track. The cockpit is the
-planning-and-trainer product, complete; the ARGUS estimator is invisible to it. The work
+planning-and-trainer product, complete; the Navigation estimator is invisible to it. The work
 tied into UI/UX is therefore P1 (a Navigation/Estimation view plus the endpoints behind it) and P3
 (the evidence figures into Perception, System, and Report).
 
@@ -1586,7 +1586,7 @@ tied into UI/UX is therefore P1 (a Navigation/Estimation view plus the endpoints
 Each slice is bounded, gate-byte-identical, and lands with a citing `[REQ:]` test plus (where it is
 navigation-research evidence) a baseline-comparing notebook. The matrix rows each slice promotes are named.
 
-**P1 — wire the navigation half (#106, #96, #97) — ✅ DONE 2026-06-14.** The ARGUS estimator is now
+**P1 — wire the navigation half (#106, #96, #97) — ✅ DONE 2026-06-14.** The Navigation estimator is now
 reachable from the live system and visible in the cockpit: P1.1 `/localize` (heading-free fix +
 covariance; truth-field denylist; 5 citing tests), P1.2 `/slam` + `/slam/compare` (trajectory + ATE +
 LOO over a named real segment; 503 when the dataset is absent; 5 tests), P1.3 `/render/parallax` +
@@ -1731,7 +1731,7 @@ physics, regolith flow, terramechanics, wheel-slip, illumination/shadow); AutoDi
 ### 24.2 Diff — three buckets
 - **STEWIE owns (testbed can't):** Bekker terramechanics, slip/entrapment, mass-conserving excavation,
   drum-fill sensing, IPEx dig energy, solar/shadow/PSR, the conserved digital twin, the planner +
-  multi-vehicle scheduler, Shadow-SLAM + ARGUS articulation localization (the platform novelty).
+  multi-vehicle scheduler, Shadow-SLAM + Navigation articulation localization (the platform novelty).
 - **Testbed complements (STEWIE's real gaps):** a physical robot running ROS2/Nav2/RTAB-Map/AMCL on real
   sensors — the proving ground for the autonomy software STEWIE only simulates.
 - **Gaps in both (the build list):** live ROS2-Jazzy node bridge, dense stereo→depth producer, adaptive
@@ -1750,7 +1750,7 @@ physics, regolith flow, terramechanics, wheel-slip, illumination/shadow); AutoDi
   independent per-server estimates; the exact 2-rover oracle (FL-06, `plan_multi_oracle`) lower-bounds +
   validates the heuristic. Per-rover belief/health + active replan on the trigger (FL-04) remain.
 - **D. Excavation depth** — Tier-3 force-accurate drum (Chrono GPU-DEM) + adaptive AutoDig control. (CP-03, P7.)
-- **E. ARGUS contribution** — close the Shadow-SLAM + articulation-parallax loop (scaffolds exist) →
+- **E. Navigation contribution** — close the Shadow-SLAM + articulation-parallax loop (scaffolds exist) →
   GPS-independent PSR localization + excavation-progress tracking; the publishable contribution. (SN-*.)
 
 Honest restatement: the "~70% software / ~35% mission" figure is the *testbed's*. STEWIE is the mirror —
@@ -1781,7 +1781,7 @@ Current front-end surface:
 Current backend surface:
 - `stewie/server/routers/plan.py` owns planning, math, command, and raster-layer paths.
 - `stewie/server/routers/perception.py` owns compare, localize, SLAM, render, structure, and sensing
-  paths, including the current ARGUS/render-pair entry points.
+  paths, including the current Navigation/render-pair entry points.
 - `stewie/server/routers/twin.py`, `admin_ops.py`, `missions.py`, `structures.py`, `config.py`,
   `layers.py`, `auth.py`, `invites.py`, `operators_admin.py`, `health.py`, and related routers cover
   world/twin state, mission persistence, access, layers, admin, health, and operator state.
@@ -1799,14 +1799,14 @@ and which need role-gated writes. Define the correlation-ID and event-ledger fie
 Do not start new UI work before the contracts and logging envelope exist.
 
 **Phase 1 — backend contract APIs.**
-Exit: typed API fixtures exist for world, fleet, navigation, ephemerides, ARGUS, model artifacts, and
+Exit: typed API fixtures exist for world, fleet, navigation, ephemerides, Navigation, model artifacts, and
 construction skills. Add schema validation at route boundaries and expose examples that browser tests
 can load. Existing route handlers may delegate to current modules, but their payloads must match the
 contract spine. Every route emits structured decision/error/latency logs with redaction and truth-firewall
 checks.
 
 **Phase 2 — front-end contract layer and cockpit restructuring.**
-Exit: the cockpit has first-class work areas for Plan, Fleet, Navigation/ARGUS, Perception/Imagery,
+Exit: the cockpit has first-class work areas for Plan, Fleet, Navigation/Navigation, Perception/Imagery,
 Construction, Models, Security/System, and Reports on desktop and mobile. Build this in sublayers:
 first the route/state shell, then typed API adapters, then normalized view models, then shared
 visualization components, then command/approval affordances. The existing plan/GIS/nav features keep
@@ -1814,10 +1814,10 @@ working while new panes are introduced behind typed API adapters. Every pane lab
 simulated truth, estimator belief, and live telemetry explicitly. No component may fetch raw backend
 JSON directly after its work area has a contract adapter.
 
-**Phase 3 — ephemerides, azimuth, imagery, and ARGUS authority.**
+**Phase 3 — ephemerides, azimuth, imagery, and Navigation authority.**
 Exit: one sun/ephemeris/azimuth service feeds shadows, imagery layers, navigation risk, camera policy,
-and ARGUS. The UI displays sun elevation, azimuth convention, site frame, source/provenance, and
-accepted/rejected evidence. ARGUS becomes an operational loop: planned relocalization stop -> render or
+and Navigation. The UI displays sun elevation, azimuth convention, site frame, source/provenance, and
+accepted/rejected evidence. Navigation becomes an operational loop: planned relocalization stop -> render or
 camera observation -> articulation/shadow/parallax factor -> pose graph update -> cockpit evidence.
 
 **Phase 4 — path planning, navigation, and Autoware-style execution seam.**
@@ -1840,7 +1840,7 @@ cut/fill volume, berm geometry, fill fraction, slip, and docking alignment all p
 bands and acceptance events.
 
 **Phase 7 — model integration and fine-tuning hardening.**
-Exit: terrain assessment, rock classification, Shadow-SLAM/ARGUS, excavation state, regolith volume,
+Exit: terrain assessment, rock classification, Shadow-SLAM/Navigation, excavation state, regolith volume,
 mission-planner LLM, and operator-assistant models are registered artifacts with lineage, model cards,
 evaluation fixtures, calibration, OOD detection, quantized deployment budgets, rollback, and safe
 fallback. No model gets a command path; the mission executive consumes typed outputs only.
@@ -1848,7 +1848,7 @@ fallback. No model gets a command path; the mission executive consumes typed out
 **Phase 8 — test, optimize, secure, and release-gate.**
 Exit: the slice has unit, contract, route, browser, mobile, integration, security, performance, and
 traceability coverage. Optimization budgets cover map rendering, tile/cache behavior, planning latency,
-fleet solve time, ARGUS factor latency, model inference, memory, and bandwidth. Security review covers
+fleet solve time, Navigation factor latency, model inference, memory, and bandwidth. Security review covers
 auth/roles, CSP, secrets, SBOM/CVEs, backup/restore, exposed routes, command interlocks, log retention,
 redaction, and replayability from event hashes.
 
@@ -1858,7 +1858,7 @@ redaction, and replayability from event hashes.
   traceable to a PRD row.
 - No learned model directly controls the rover. Models produce bounded, typed estimates; deterministic
   planners, safety checks, role gates, and the mission executive decide whether commands can be emitted.
-- No solar, shadow, ARGUS, or illumination result may use a private azimuth convention. The convention
+- No solar, shadow, Navigation, or illumination result may use a private azimuth convention. The convention
   must be displayed, tested, and shared across all consumers.
 - No fleet claim is complete until resource conflicts and path/time conflicts are represented in both
   the backend result and the UI.
@@ -1889,7 +1889,7 @@ Required frontend contract adapters:
 - `mission`: PlanResult, command tape, feasibility, report, namespace/ownership.
 - `fleet`: vehicles, assignments, reservations, conflicts, health, waiting reasons.
 - `navigation`: route, local trajectory, tracker state, recovery state, keep-outs, cost layers.
-- `argus`: articulation pose, camera rig, shadow/parallax factors, covariance, residual gates.
+- `nav`: articulation pose, camera rig, shadow/parallax factors, covariance, residual gates.
 - `perception`: imagery, depth/point cloud summaries, rock/obstacle classes, height/volume estimates.
 - `construction`: cut/fill state, bucket/drum fill, volume moved, berm/pad acceptance, recorded skills.
 - `models`: model artifacts, datasets, eval reports, deployment profile, fallback/rollback status.
@@ -1902,7 +1902,7 @@ Required log/event channels:
 - `command`: command eligibility, approval, lowering, dispatch, acknowledgement, timeout, SAFE.
 - `world`: TwinStore/timeline event, terrain mutation, observed patch, backup, restore, provenance.
 - `navigation`: route request, local-plan update, tracker state, recovery action, blocked reason.
-- `argus`: sun/azimuth source, observation, residual, covariance, accepted/rejected factor.
+- `nav`: sun/azimuth source, observation, residual, covariance, accepted/rejected factor.
 - `fleet`: reservation, conflict, wait reason, handoff, deconfliction, reassignment.
 - `model`: artifact selected, version, input/output hashes, confidence, OOD/fallback, latency.
 - `frontend`: pane route, contract adapter error, empty/loading/error state, command affordance shown.
@@ -1965,7 +1965,7 @@ First verified stale-done correction:
 Architectural review scope for the next sweep:
 - Contracts and authority: CT, TW, VT, AG, FS rows plus manifest drift.
 - Terrain, energy, vehicle, terramechanics: real authority versus calibrated/oracle gaps.
-- Perception, ARGUS, SLAM, imagery, small models: backend reachability, truth firewall, UI evidence.
+- Perception, Navigation, SLAM, imagery, small models: backend reachability, truth firewall, UI evidence.
 - Navigation, construction, fleet: PlanResult, local planner, resource conflicts, execution feedback.
 - Frontend organization: every top-level work area must have a contract adapter, route/state binding,
   role gate, fixture render, mobile layout, error/empty states, and log visibility.
@@ -1974,11 +1974,11 @@ The review output should feed §7 status corrections first, then implementation.
 done should not consume implementation time; a row that is partial should be split into the exact
 missing backend route, frontend adapter, test, log, or qualification slice.
 
-## 26. Autoware-Shaped ShadowNav / ARGUS Build Sequence (2026-06-18)
+## 26. Autoware-Shaped ShadowNav / Navigation Build Sequence (2026-06-18)
 
 This sequence is the next execution path for STEWIE autonomy. It deliberately uses Autoware's
 architecture shape, ROS2 discipline, lifecycle thinking, and visualization conventions without
-importing Autoware wholesale. Lunar planning, excavation, ShadowNav, ARGUS, autonomous mapping,
+importing Autoware wholesale. Lunar planning, excavation, ShadowNav, Navigation, autonomous mapping,
 terramechanics, mission authority, and safety logic remain STEWIE-native.
 
 Every item below is test-driven. The first commit for each slice must add or update the failing
@@ -2006,17 +2006,17 @@ NASA-style development rules for this sequence:
 | 0 | AS-01, AS-15 | Freeze the STEWIE-native autonomy boundary: ROS2 nodes, topic names, frame names, QoS expectations, lifecycle states, command authority, SAFE path, and truth-denial policy. | Contract test rejects missing nodes/topics, road/lanelet behavior planning dependencies, and truth-topic estimator inputs. |
 | 1 | AS-02, AS-04 | Create the container-buildable ROS2 workspace skeleton: `stewie_msgs`, `stewie_description`, `stewie_bringup`, `stewie_vehicle_interface`, `stewie_perception`, `stewie_localization`, `stewie_mapping`, `stewie_planning`, `stewie_control`, and `stewie_rviz`. | `colcon test` runs in the base ROS2 container; smoke command proves the workspace builds and package discovery works. |
 | 2 | AS-03, AS-17 | Add the IPEx vehicle description and TRL5 stereo rig authority: chassis, wheels, excavation drum/arm joints, camera rig, IMU, optional LiDAR, inertials, collisions, joint limits, TF tree, camera intrinsics/extrinsics, lens/FOV profile, and stereo baselines loaded from the authoritative profile. | Robot-state-publisher and rig-contract tests verify the complete TF tree, expected frame names, front/rear stereo pairs, active-camera budget, and that the TRL5-final 0.05 m profile is separate from the legacy 0.070 m frozen fixture and historical 0.165 m shoulder-split design. |
-| 3 | AS-05, AS-14 | Add the RViz mission dashboard for robot model, TF, odom, planned path, local trajectory, costmaps, DEM/occupancy, point cloud, camera feeds, covariance, ARGUS factors, diagnostics, SAFE state, and command topics. | RViz config lint/smoke verifies required displays; replay fixture exposes diagnostics and command eligibility state. |
+| 3 | AS-05, AS-14 | Add the RViz mission dashboard for robot model, TF, odom, planned path, local trajectory, costmaps, DEM/occupancy, point cloud, camera feeds, covariance, Navigation factors, diagnostics, SAFE state, and command topics. | RViz config lint/smoke verifies required displays; replay fixture exposes diagnostics and command eligibility state. |
 | 4 | AS-06 | Add the Gazebo robot/sensor simulation seam with `/cmd_vel`, `/joint_states`, `/tf`, `/clock`, cameras, IMU, wheel odometry, contact/collision, and bridgeable terrain state. | Launch test proves Gazebo publishes expected topics; estimator test proves it does not consume simulator truth. |
 | 5 | AS-07 | Implement the Stanford/NavLab-style navigation spine: stereo feature detection, matching, stereo VO, robust PnP/triangulation, pose graph, loop-closure gates, terrain/rock mapping, coverage planning, local arcs, and recovery triggers. | Truth-denied bag tests report ATE, coverage, obstacle recall, recovery decisions, and no-truth-input assertions. |
 | 6 | AS-08 | Implement ShadowNav factors: ephemeris/azimuth convention, panorama or camera shadow landmark extraction, bearing residuals, covariance, false-shadow rejection, and fusion into the localization graph. | Sun-angle ablation shows shadow factors help under supported geometry and are rejected under ambiguous/false-shadow cases. |
-| 7 | AS-09 | Implement ARGUS articulation navigation: commanded posture change, arm/camera kinematics, articulation-induced parallax, shadow perturbation, covariance reduction, and accepted/rejected factor visualization. | Standstill relocalization test proves accepted ARGUS factors reduce covariance and rejected factors are not inserted. |
+| 7 | AS-09 | Implement Navigation articulation navigation: commanded posture change, arm/camera kinematics, articulation-induced parallax, shadow perturbation, covariance reduction, and accepted/rejected factor visualization. | Standstill relocalization test proves accepted Navigation factors reduce covariance and rejected factors are not inserted. |
 | 8 | AS-10 | Build autonomous mapping layers: observed DEM, occupancy, rock/object graph, uncertainty, changed-terrain mask, excavation state, and provenance over the conserved world model. | Mapper tests update layers from observations only and preserve separate truth, observed, forecast, and edited layers. |
 | 9 | AS-11 | Build lunar costmap layers: slope, roughness, sinkage, slip, tip risk, illumination, PSR, shadow confidence, energy, keep-outs, dynamic rocks, and fleet reservations. | Planner tests prove each layer affects path cost or rejection and exposes a visible reason when it blocks motion. |
 | 10 | AS-12 | Lower verified Plan IR into ROS2 paths, action goals, work goals, observation goals, bounded velocity commands, replan events, and command eligibility state under AG-08, NV-12, and SF-01. | Command tests prove unsafe, unauthorized, stale, or namespace-conflicting commands fail closed before ROS emission. |
 | 11 | AS-13 | Add the ROS-side mission executive: monitor preconditions, acknowledgements, covariance, reservations, faults, acceptance state, and safing; emit continue/pause/replan/relocalize/reverse/SAFE decisions. | Executive tests cover nominal progress, timeout, blocked path, covariance loss, resource conflict, and SAFE escalation. |
 | 12 | AS-14 | Wire structured ROS diagnostics and logs into the STEWIE observability ledger with lifecycle state, latency, dropped frames, QoS warnings, command eligibility, SAFE events, and correlation IDs. | Log tests prove every failure path has a ledger event and no secrets or truth-denied fields are emitted. |
-| 13 | AS-16 | Build the benchmark suite comparing passive VO, Stanford-style stereo SLAM, ShadowNav, ARGUS, and fused localization across sun angles, terrain changes, rocks, PSR, camera degradation, and excavation state. | Benchmark report includes per-method metrics, ablations, failure classes, fixed seeds, and reproducible container command. |
+| 13 | AS-16 | Build the benchmark suite comparing passive VO, Stanford-style stereo SLAM, ShadowNav, Navigation, and fused localization across sun angles, terrain changes, rocks, PSR, camera degradation, and excavation state. | Benchmark report includes per-method metrics, ablations, failure classes, fixed seeds, and reproducible container command. |
 | 14 | AS-01 through AS-17 | Run release gate: requirement trace, ROS container smoke, browser cockpit evidence, RViz/Gazebo smoke, security scan, SBOM, benchmark report, TRL5 stereo-rig profile evidence, and stale-status reconciliation. | No row advances to `D` without implementation, execution, verification, and qualification evidence in §7. |
 
 ### 26.2 Front-End And Visual Organization For This Sequence
@@ -2033,7 +2033,7 @@ Required cockpit panes for the autonomy sequence:
   TRL5-final, calibration, or legacy geometry.
 - Navigation pane: global route, local arc, tracker state, costmap layer breakdown, recovery action,
   blocked reason, and energy/slip/tip margins.
-- ShadowNav/ARGUS pane: sun azimuth/elevation source, camera/posture state, detected shadow landmarks,
+- ShadowNav/Navigation pane: sun azimuth/elevation source, camera/posture state, detected shadow landmarks,
   candidate factors, residuals, covariance delta, accepted/rejected factors, and explanation.
 - Mission executive pane: active objective, preconditions, acknowledgements, command eligibility,
   replan reasons, SAFE state, and operator approvals.
@@ -2052,7 +2052,7 @@ Information input sequence for mission planning:
 6. Enter mission objective as typed goals: traverse, observe, excavate, grade, haul, dump, dock, or
    inspect.
 7. Run feasibility and costmap explanation before command lowering.
-8. Review route, local trajectory, ShadowNav/ARGUS observation opportunities, energy/slip/tip margins,
+8. Review route, local trajectory, ShadowNav/Navigation observation opportunities, energy/slip/tip margins,
    and contingency branches.
 9. Approve only the bounded next command or action segment, not the entire mission as an open-loop tape.
 10. Monitor acknowledgements, covariance, map updates, execution feedback, and mission-executive state.
@@ -2061,7 +2061,7 @@ Information input sequence for mission planning:
 ### 26.3 Immediate Next Work
 
 The next implementation slice is Step 0 followed by Step 1, then the Step 2 TRL5 stereo rig authority
-gate. Do not start ShadowNav, ARGUS, autonomous mapping, or Gazebo feature work until the ROS2 autonomy
+gate. Do not start ShadowNav, Navigation, autonomous mapping, or Gazebo feature work until the ROS2 autonomy
 boundary, package skeleton, container smoke, requirement traces, cockpit/diagnostic contracts, and
 authoritative camera profile are in place. That foundation prevents duplicate interfaces, keeps
 navigation/mapping tied to the real sensor geometry, and makes the later navigation research measurable
@@ -2182,7 +2182,7 @@ real-traverse reconstruction + SL-01 (no public dataset); STEWIE-Orbit comms sta
 ### 27.3 The 2-week sprint sequence (10 working days)
 
 Primary axis = Demo/GMRO readiness; interleaved with Architecture-health (status truth) and the
-intern-beta in-repo halves. ARGUS navigation evidence is deferred (proven later). Every slice is
+intern-beta in-repo halves. Navigation navigation evidence is deferred (proven later). Every slice is
 TDD with a `[REQ:]` marker; the full gate must stay green (baseline 2418 passed / 92.91% cov); every
 UI pane flip is Playwright-verified **signed-in on a real browser** before it ships.
 

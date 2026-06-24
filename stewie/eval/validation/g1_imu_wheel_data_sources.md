@@ -19,7 +19,7 @@ All numbers below are from the cited public sources. None are fabricated.
 | **LuSNAR** (2024) | none (cameras / LiDAR / depth / pose) | UE sim labels | **Lunar** but **SIMULATED** (Unreal Engine) | GitHub (open) | NOT for G1 proprioception; useful for the perception (G2) leg only. |
 
 **Acquisition plan for the locked G1 capture:** ingest the **Katwijk** run as the surrogate "real
-capture" (real timestamped wheel odometry + IMU + DGPS truth on natural terrain). Run solnav's SE(2)
+capture" (real timestamped wheel odometry + IMU + DGPS truth on natural terrain). Run stewie's SE(2)
 pose graph on its wheel/IMU stream and validate ATE/RPE against the DGPS track. This is an honest
 real-sensor end-to-end localization result (the gap the architectural review flagged as "surface
 lunar localization with real ground truth is essentially absent"), with the lunar-g terramechanics
@@ -44,7 +44,7 @@ matching the Katwijk/ExoMars choice).
 In-run bias is modelled as a first-order Gauss-Markov process (steady-state sigma = the in-run bias
 stability; correlation time 1000 s is an [ASSUMPTION], not a spec value), NOT a pure random walk
 (which over-drifts). Each sample carries its measurement variance (I4). Packaged params:
-`solnav/config/data/g1_imu_wheel_params.json` (installable; was validation/, moved so the wheel can
+`stewie/config/data/g1_imu_wheel_params.json` (installable; was validation/, moved so the wheel can
 locate it).
 | Accel range | 200 m/s^2 | MTi-10 high-range (~20 g) option; corrected from the 50 m/s^2 default |
 
@@ -78,7 +78,7 @@ the gyro. Encoder rate 10-50 Hz typical.
   (Katwijk, Section 1) so the stewie egress can publish a passive wheel/IMU/stereo baseline.
 - **Still needed for G1 PASS:** (a) wire the IMU/wheel/joint channels into the stewie egress (they
   currently report UNAVAILABLE); (b) ingest the Katwijk capture and freeze it into the (currently
-  empty) `scene_manifest.json`; (c) run solnav SLAM on the real stream and record ATE/RPE vs DGPS.
+  empty) `scene_manifest.json`; (c) run stewie SLAM on the real stream and record ATE/RPE vs DGPS.
   Sourcing the data (this document) is step 0; the channel wiring and the locked capture remain.
 
 ## Sources

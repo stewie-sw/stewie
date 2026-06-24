@@ -1,5 +1,5 @@
 {
-  "schema_version": "solnav_system_profile/1.0",
+  "schema_version": "stewie_system_profile/1.0",
   "profile_id": "STEWIE_IPEX_V1",
   "status": "VERIFIED",
   "substrate": "stewie",

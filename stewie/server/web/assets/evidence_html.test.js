@@ -9,14 +9,14 @@ const esc = require("./htmlesc.js").esc;
 
 test("evidenceHTML: renders the three sections in order with the system columns", () => {
   const d = {
-    capability_matrix: { "ARGUS": { scope: "global", motion: "articulated" } },
-    accuracy_precision: { "ARGUS": { accuracy_m: 1.2, precision_m: 0.3, frame: "DEM", source: "this work" }, _note: "regimes differ" },
+    capability_matrix: { "Navigation": { scope: "global", motion: "articulated" } },
+    accuracy_precision: { "Navigation": { accuracy_m: 1.2, precision_m: 0.3, frame: "DEM", source: "this work" }, _note: "regimes differ" },
     modality_sigma: { range_m: 10, articulation_parallax_sigma_m: 0.05, stereo_sigma_m: 0.2, articulation_advantage_x: 4 },
   };
   const h = E.evidenceHTML(d, esc);
   assert.ok(h.indexOf("GENERALIZATION — capability matrix") < h.indexOf("COMPARISON"));
   assert.ok(h.indexOf("COMPARISON") < h.indexOf("PHOTOMETRIC + DEPTH"));
-  assert.ok(h.includes("ARGUS"));
+  assert.ok(h.includes("Navigation"));
   assert.ok(h.includes("regimes differ"));            // the _note
   assert.ok(h.includes("4×"));                         // articulation advantage
 });
@@ -28,7 +28,7 @@ test("evidenceHTML: missing values render as the em-dash placeholder, no crash o
 });
 
 test("evidenceHTML: escapes a hostile source string (SEC-04)", () => {
-  const d = { accuracy_precision: { "ARGUS": { source: "<img onerror=x>" } } };
+  const d = { accuracy_precision: { "Navigation": { source: "<img onerror=x>" } } };
   const h = E.evidenceHTML(d, esc);
   assert.ok(!h.includes("<img onerror=x>"));
   assert.ok(h.includes("&lt;img"));

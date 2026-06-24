@@ -73,7 +73,7 @@ def test_disparity_sigma_dev_calibration_covers_held_out():
 
     z_max_recal = float(np.sqrt(0.075 * 679.570327764933 * 0.07 / sigma))
     out = {
-        "schema_version": "solnav_stereo_sigma_calibration/1.0",
+        "schema_version": "stewie_stereo_sigma_calibration/1.0",
         "date": "2026-06-10",
         "method": ("geometric ray-cast truth vs SGBM(512, saturation+floor gates), disparity-domain "
                    "robust MAD; clast-masked; restricted to the TRL5-derived objective band; "

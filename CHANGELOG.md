@@ -78,7 +78,7 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
 
 Initial tagged baseline of the consolidated monorepo (`code/`): the conserved
 NumPy terrain authority, the LODE mission planner (multi-algorithm optimizer,
-multi-vehicle, plan IR, PDF report), the DART perception/ARGUS estimator spine,
+multi-vehicle, plan IR, PDF report), the DART perception/Navigation estimator spine,
 the FastAPI server + cockpit (Plan/Navigation/Perception/Metrics/Report,
 auth/role ladder, GIS globe), the ROS2 bridge seam, and the Gymnasium env suite.
 See PRD §0 for the authoritative status model and release blockers.

@@ -33,7 +33,7 @@ nav:
       - Sun-sweep manifest: sun_sweep_manifest.md
       - Spec coverage scorecard: spec_coverage.md
   - Subsystems:
-      - "ARGUS — the modelled vehicle (IPEx)": vehicle_ipex.md
+      - "Navigation — the modelled vehicle (IPEx)": vehicle_ipex.md
       - "DART — SLAM pipeline analysis": slam_pipeline_analysis.md
       - "DART — 10 km lunar DEM evaluation": lunar_dem_10km_eval.md
       - "FORGE — per-planet constants": bodies_sysrev.md

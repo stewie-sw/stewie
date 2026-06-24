@@ -13,7 +13,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEST = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "..", "public_cut")
-MANIFEST = os.path.join(ROOT, "..", "design", "SOLNAV_PROVENANCE_MANIFEST.md")
+MANIFEST = os.path.join(ROOT, "..", "design", "STEWIE_PROVENANCE_MANIFEST.md")
 
 # research track-derived module paths (new-side column of the manifest table)
 excluded = set()
