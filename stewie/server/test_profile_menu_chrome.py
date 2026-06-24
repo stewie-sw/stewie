@@ -28,10 +28,12 @@ def test_moved_views_are_off_the_work_area_tab_bar():
     # FS-20 invariant: System/Settings/Admin live in the profile menu, never the work-area tab bar.
     for moved in ("system", "settings", "admin"):
         assert moved not in vtab_views, f"'{moved}' is a vtab; it must live in the profile menu"
-    # the ConOps mission work areas are present (FS-03 added the operator-gated Fleet, Construction,
-    # and Models work-area tabs).
-    assert {"plan", "nav", "perception", "metrics", "report",
-            "fleet", "construction", "models"} <= set(vtab_views), \
+    # the ConOps mission work areas are present (FS-03 + the 2026-06-23 reorg). The spine is
+    # plan/rehearse/validate/execute(metrics)/report; Validate merges the former nav+perception tabs into a
+    # sub-tab strip (so nav/perception are NOT top-level vtabs); the operator-gated secondary cluster is
+    # Fleet/Construction/Models/Trainer.
+    assert {"plan", "rehearse", "validate", "metrics", "report",
+            "fleet", "construction", "models", "trainer"} <= set(vtab_views), \
         f"the work-area tab bar is missing a mission view: {vtab_views}"
 
 

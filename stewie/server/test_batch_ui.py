@@ -17,10 +17,13 @@ def _read(p):
         return f.read()
 
 
-def test_tab_flow_order_plan_nav_perception_metrics_report():
+def test_tab_flow_order_plan_rehearse_validate_execute_report():
     order = re.findall(r'data-view="([a-z]+)"', _read(_INDEX))
-    assert order[:5] == ["plan", "nav", "perception", "metrics", "report"], \
-        f"tab flow is {order[:5]}, expected the ConOps order plan->nav->perception->metrics->report"
+    # ConOps spine (cockpit reorg 2026-06-23): Plan -> Rehearse -> Validate -> Execute -> Report. Validate
+    # merges the former Navigation + Perception tabs into one tab + a sub-tab strip (data-sub="nav|perception"),
+    # so nav/perception are no longer top-level data-view tabs; Execute keeps data-view "metrics" (relabeled).
+    assert order[:5] == ["plan", "rehearse", "validate", "metrics", "report"], \
+        f"tab flow is {order[:5]}, expected the ConOps spine plan->rehearse->validate->execute(metrics)->report"
 
 
 def test_landing_has_no_direct_app_link():
