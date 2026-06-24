@@ -1409,6 +1409,51 @@ setInterval(() => {
   };
 })();
 
+// FS-21 extension (user customization): per-operator TOP-TAB order, the same drag-to-reorder discipline as
+// the sidebar. VIEW preference ONLY -- reordering a tab never changes its data-view (setView keys on it),
+// its data-minrole (gateChrome keys on it), command authority, or any AG/role gate. A plain click still
+// switches tabs (native draggable does not suppress click); a drag reorders. Persisted in localStorage;
+// window.resetTabOrder restores the build-default ConOps spine.
+(function wireTabLayout() {
+  const L = window.STEWIE_PANEL_LAYOUT; if (!L) return;
+  const KEY = "stewie_tab_order";
+  const nav = document.getElementById("viewtabs"); if (!nav) return;
+  const tabs = Array.prototype.slice.call(nav.querySelectorAll(".vtab"));
+  if (tabs.length < 2) return;
+  const keyOf = (b) => b.dataset.view;
+  const current = tabs.map(keyOf);                              // build-default order (for reset)
+  const byKey = (k) => tabs.find((b) => keyOf(b) === k);
+  const chrome = nav.querySelector("#alertbtn");               // tabs sit BEFORE the alert/badge/account chrome
+  const place = (b) => { if (b) { if (chrome) nav.insertBefore(b, chrome); else nav.appendChild(b); } };
+  const apply = (order) => L.mergeOrder(order, current).forEach((k) => place(byKey(k)));
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) {}
+  apply(saved);
+  const persist = () => {
+    const ord = Array.prototype.slice.call(nav.querySelectorAll(".vtab")).map(keyOf);
+    try { localStorage.setItem(KEY, JSON.stringify(ord)); } catch (e) {}
+  };
+  const dropBefore = (x) => {                                  // the VISIBLE tab nearest right of the cursor
+    const els = Array.prototype.slice.call(nav.querySelectorAll(".vtab:not(.dragging)"))
+      .filter((c) => c.offsetParent !== null);
+    let best = { off: -Infinity, el: null };
+    els.forEach((c) => { const b = c.getBoundingClientRect(); const off = x - b.left - b.width / 2;
+      if (off < 0 && off > best.off) best = { off, el: c }; });
+    return best.el;
+  };
+  let dragEl = null;
+  tabs.forEach((b) => {
+    b.setAttribute("draggable", "true");
+    b.addEventListener("dragstart", (e) => { dragEl = b; b.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", keyOf(b)); } catch (x) {} });
+    b.addEventListener("dragend", () => { if (dragEl) dragEl.classList.remove("dragging"); dragEl = null; persist(); });
+  });
+  nav.addEventListener("dragover", (e) => { if (!dragEl) return; e.preventDefault();
+    const before = dropBefore(e.clientX);
+    if (before == null) place(dragEl); else nav.insertBefore(dragEl, before); });
+  window.resetTabOrder = () => { try { localStorage.removeItem(KEY); } catch (e) {} apply(current); };
+})();
+
 const SETTINGS = loadSettings();
 // SEC-01 migration: delete any legacy bearer token / raw API key an OLDER build persisted in
 // localStorage. The session is now an HttpOnly cookie; credentials never touch localStorage again.
@@ -1866,7 +1911,8 @@ if ($("set-font")) $("set-font").oninput = () => {
 };
 // FS-21: reset-to-default is always available -- restore the build order of the sidebar panes
 if ($("set-resetlayout")) $("set-resetlayout").onclick = () => {
-  if (window.resetPanelLayout) window.resetPanelLayout();
+  if (window.resetPanelLayout) window.resetPanelLayout();      // sidebar pane order
+  if (window.resetTabOrder) window.resetTabOrder();            // top-tab order (user customization)
 };
 
 // FS-21: NAMED saved workspace layouts. The pure collection logic lives in layouts.js (STEWIE_NAMED_LAYOUTS);
