@@ -155,6 +155,7 @@ from stewie.server.routers import rc as _rc_router  # noqa: E402
 from stewie.server.routers import sample_missions as _sample_missions_router  # noqa: E402
 from stewie.server.routers import session as _session_router  # noqa: E402
 from stewie.server.routers import structures as _structures_router  # noqa: E402
+from stewie.server.routers import siteplan as _siteplan_router  # noqa: E402
 from stewie.server.routers import schema as _schema_router  # noqa: E402
 from stewie.server.routers import twin as _twin_router  # noqa: E402
 from stewie.server.routers import world as _world_router  # noqa: E402
@@ -188,6 +189,7 @@ app.include_router(_perception_router.router)
 app.include_router(_nav_router.router)
 app.include_router(_gis_export_router.router)        # GI-03: GeoJSON/COG GIS export
 app.include_router(_executive_router.router)         # MO-WIRE: plan->executive advance (director-gated)
+app.include_router(_siteplan_router.router)          # structure-first: site-plan validate-and-advise analysis
 
 
 @app.middleware("http")
