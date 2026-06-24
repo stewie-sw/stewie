@@ -41,7 +41,6 @@ nav:
       - "LODE — power calibration (2026-06-09)": power_calibration_2026-06-09.md
       - "LEAP — EZ-RASSOR assets": ezrassor_assets.md
       - "LAC reimplementation evaluation": lac_reimplementation_eval.md
-  - Reviews:
       - Architecture review (2026-06-04): architecture_review.md
       - Deep code review (2026-06-05): architecture_review_2026-06-05.md
       - Real-world-mission review (2026-06-05): architecture_review_2026-06-05_realworld.md
