@@ -1410,10 +1410,10 @@ setInterval(() => {
 })();
 
 // FS-21 extension (user customization): per-operator TOP-TAB order, the same drag-to-reorder discipline as
-// the sidebar. VIEW preference ONLY -- reordering a tab never changes its data-view (setView keys on it),
-// its data-minrole (gateChrome keys on it), command authority, or any AG/role gate. A plain click still
-// switches tabs (native draggable does not suppress click); a drag reorders. Persisted in localStorage;
-// window.resetTabOrder restores the build-default ConOps spine.
+// the sidebar. VIEW preference ONLY -- reordering a tab never changes its data-view (setView keys on that),
+// its visibility tier (gateChrome still gates it), command authority, or any access gate. A plain click
+// still switches tabs (native draggable does not suppress click); a drag reorders. Persisted in
+// localStorage; window.resetTabOrder restores the build-default ConOps spine.
 (function wireTabLayout() {
   const L = window.STEWIE_PANEL_LAYOUT; if (!L) return;
   const KEY = "stewie_tab_order";
