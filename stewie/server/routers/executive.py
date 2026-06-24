@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
 from stewie.contracts import MissionIntent
 from stewie.contracts.executive import MissionExecutive
@@ -52,4 +53,49 @@ def advance_executive(intent: MissionIntent, _auth: str = Depends(require_direct
         "signed_revision": rel.model_dump(mode="json") if rel is not None else None,
         "evidence": res.evidence,
         "transitions": res.transitions,
+    })
+
+
+class ReleasePlanRequest(BaseModel):
+    """The cockpit's current build-order queue, for the live "release the current plan" surface."""
+    orders: list[dict] = Field(max_length=1000)
+    body: str = "moon"
+    mission_id: str = "cockpit-release"
+    revision: int = Field(default=0, ge=0)
+
+
+@router.post("/executive/release-plan")
+def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)) -> JSONResponse:
+    """Director-gated: build a canonical MO-01 MissionIntent from the cockpit's current build-order queue
+    (``lode.mission_intent_compiler.intent_from_orders``) and drive it through the MO-02 lifecycle to
+    RELEASED -- the live "release the current plan" surface. Each build order (cut|fill|sinter) becomes a
+    mandatory objective carrying its order_kind, so the full plan round-trips; non-build orders (e.g. goto
+    path waypoints) are NOT objectives and are returned in ``skipped`` so the surface shows them honestly
+    (nothing is dropped or faked). Same SIM/FORECAST labeling + 400-on-uncompilable contract as
+    /executive/advance; signs only, no live ROS command (the execution tier is gated, MO-04)."""
+    from lode import mission_lifecycle as LC
+    from lode.mission_intent_compiler import intent_from_orders
+    try:
+        intent, skipped = intent_from_orders(
+            list(req.orders), mission_id=req.mission_id, approver=_auth, body=req.body, revision=req.revision)
+        if not intent.objectives:
+            return JSONResponse(status_code=400, content={
+                "ok": False, "skipped": skipped,
+                "error": "no build orders to release (cut/fill/sinter): the queue has only path/other orders"})
+        res = LC.run_lifecycle(MissionExecutive.start(intent))
+    except (ValueError, KeyError) as e:
+        # an uncompilable plan (no work geometry, bad frame, ...) -> 400; nothing advanced, no fabrication.
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e), "skipped": []})
+    rel = res.executive.released_revision
+    log_event(_auth, "executive.release_plan",
+              f"{req.mission_id}: {len(intent.objectives)} objectives -> {res.executive.state.value}")
+    return JSONResponse(content={
+        "ok": True,
+        "label": "sim",
+        "state": res.executive.state.value,
+        "signed_revision": rel.model_dump(mode="json") if rel is not None else None,
+        "evidence": res.evidence,
+        "transitions": res.transitions,
+        "released_objectives": len(intent.objectives),
+        "skipped": skipped,
     })

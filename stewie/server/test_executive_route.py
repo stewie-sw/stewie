@@ -87,3 +87,44 @@ def test_advance_rejects_malformed_intent(client):
     r = c.post("/executive/advance", headers={"X-API-Key": key}, json={"revision": 0})
     assert r.status_code == 400, r.text
     assert r.json()["ok"] is False
+
+
+# --- /executive/release-plan: build a MissionIntent from the cockpit's BUILD-order queue, then advance ---
+
+def _plan_payload():
+    # cut + a SMALLER fill (fill mass < cut mass, so the cut sources it -> feasible) + a goto path waypoint.
+    return {
+        "body": "moon", "mission_id": "M-release-1",
+        "orders": [
+            {"action": "Pad cut", "kind": "cut", "x": 10.0, "y": 5.0, "footprint_m2": 9.0, "depth_m": 0.2},
+            {"action": "Berm fill", "kind": "fill", "x": 4.0, "y": 5.0, "footprint_m2": 4.0, "depth_m": 0.1},
+            {"action": "wp1", "kind": "goto", "x": 0.0, "y": 0.0},
+        ],
+    }
+
+
+def test_release_plan_builds_intent_and_reaches_released(client):  # [REQ:MO-02]
+    c, key = client
+    r = c.post("/executive/release-plan", headers={"X-API-Key": key}, json=_plan_payload())
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["ok"] is True and body["state"] == "released"
+    assert body["released_objectives"] == 2                      # cut + fill became objectives
+    assert body["skipped"] == [{"action": "wp1", "kind": "goto"}]  # the path waypoint surfaced, not faked into a cut
+    assert body["evidence"]["plan_id"]                           # REAL evidence, same path as /advance
+    rev = body["signed_revision"]
+    assert rev is not None and len(rev["content_hash"]) == 64
+
+
+def test_release_plan_requires_director(client):  # [REQ:MO-02]
+    c, _key = client
+    r = c.post("/executive/release-plan", json=_plan_payload())
+    assert r.status_code == 401, r.text
+
+
+def test_release_plan_with_no_build_orders_is_400(client):  # [REQ:MO-02]
+    c, key = client
+    payload = {"body": "moon", "orders": [{"action": "wp1", "kind": "goto", "x": 0.0, "y": 0.0}]}
+    r = c.post("/executive/release-plan", headers={"X-API-Key": key}, json=payload)
+    assert r.status_code == 400, r.text
+    assert r.json()["ok"] is False
