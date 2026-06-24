@@ -134,6 +134,29 @@ def test_invalid_order_kind_is_rejected():  # [REQ:CP-04]
         _objective("o1", target_row=0.0, target_col=0.0, order_kind="bogus")
 
 
+def test_intent_from_orders_round_trips_the_full_vocabulary():  # [REQ:CP-04]
+    # Release builder (intent_from_orders): cockpit BUILD orders -> MissionIntent -> compile_intent returns
+    # orders of the SAME kind / x / y / mass (nothing dropped or faked); non-build orders (goto path
+    # waypoints) are honestly surfaced in `skipped`, never silently dropped or mapped to a cut.
+    orders = [
+        {"action": "Pad cut", "kind": "cut", "x": 10.0, "y": 5.0, "footprint_m2": 9.0, "depth_m": 0.2},
+        {"action": "Berm fill", "kind": "fill", "x": -10.0, "y": 5.0, "footprint_m2": 12.0, "depth_m": 0.3},
+        {"action": "wp1", "kind": "goto", "x": 0.0, "y": 0.0},
+    ]
+    intent, skipped = MIC.intent_from_orders(orders, mission_id="m1", approver="dir", body="moon")
+    assert skipped == [{"action": "wp1", "kind": "goto"}]
+    assert len(intent.objectives) == 2
+    density = MP.body_density("moon")
+    req = MIC.compile_intent(intent)                          # round-trip through the REAL compiler
+    by_action = {o.action: o for o in req.mission.orders}
+    for src in orders[:2]:
+        ro = by_action[src["action"]]
+        assert ro.kind == src["kind"] and ro.x == src["x"] and ro.y == src["y"]
+        rt_mass = ro.footprint_m2 * ro.depth_m * density
+        orig_mass = src["footprint_m2"] * src["depth_m"] * density
+        assert math.isclose(rt_mass, orig_mass, rel_tol=1e-9)
+
+
 def test_hard_budget_lands_in_objective_constraints_not_in_soft_weights():  # [REQ:CP-04]
     intent = _intent(
         "hard-time-cap",

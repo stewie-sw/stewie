@@ -71,10 +71,14 @@ from __future__ import annotations
 import dataclasses
 
 from stewie.contracts import (
+    AcceptanceCriterion,
     Constraint,
     ConstraintKind,
+    Contingency,
+    ContingencyPolicy,
     MissionIntent,
     Objective,
+    PriorityTier,
     compile_order,
 )
 
@@ -345,3 +349,55 @@ def _statement_metric(c: Constraint) -> str:
     # longest keyword wins (e.g. 'average power' over 'power'), so a more specific metric is preferred.
     best_kw = max((kw for kw, _ in matches), key=len)
     return dict(matches)[best_kw]
+
+
+_BUILD_KINDS = ("cut", "fill", "sinter")
+
+
+def intent_from_orders(orders, *, mission_id, approver, body="moon", statement="",
+                       revision=0, accept_tol_m=0.02, confidence_required=0.8):
+    """Build a canonical MO-01 ``MissionIntent`` from a cockpit BUILD-order queue -- the INVERSE of
+    ``compile_intent``, for the Release surface. Each build order (``cut`` | ``fill`` | ``sinter``) becomes
+    one mandatory PRIMARY ``Objective`` carrying its ``order_kind`` + target (x -> target_col, y ->
+    target_row) + ``material_budget_kg`` (= footprint_m2 x depth_m x the body's regolith density -- the
+    load-bearing sizing quantity ``compile_intent`` reads back), with a structured as-built acceptance
+    tolerance. Because the Objective now carries ``order_kind`` (MO-01 2026-06-23 extension), the built
+    intent round-trips through ``compile_intent`` to orders of the SAME kind + x/y + mass -- nothing is
+    dropped or faked.
+
+    Non-build orders (e.g. ``goto`` path waypoints) carry no acceptance/geometry the objective contract
+    models, so they are NOT objectives -- they are returned in ``skipped`` (with their kind) so the Release
+    surface can show them honestly. ``accept_tol_m`` / ``confidence_required`` are [ASSUMPTION] release
+    defaults the director can tighten. Pure + deterministic.
+
+    Returns ``(intent, skipped)``."""
+    density = MP.body_density(body)
+    objectives: list[Objective] = []
+    skipped: list[dict] = []
+    for i, o in enumerate(orders):
+        kind = o.get("kind")
+        if kind not in _BUILD_KINDS:
+            skipped.append({"action": o.get("action"), "kind": kind})
+            continue
+        footprint = float(o.get("footprint_m2") or 0.0)
+        depth = float(o.get("depth_m") or 0.0)
+        mass = footprint * depth * density
+        oid = str(o.get("action") or f"obj-{i}")
+        x, y = float(o.get("x") or 0.0), float(o.get("y") or 0.0)
+        objectives.append(Objective(
+            objective_id=oid, revision=revision,
+            statement=o.get("note") or f"{kind} at ({x:g}, {y:g})",
+            rationale="operator-authored build order",
+            priority=PriorityTier.PRIMARY, mandatory=True,
+            target_row=y, target_col=x, order_kind=kind,
+            acceptance=[AcceptanceCriterion(
+                criterion_id=f"{oid}-ac", statement=f"as-built {kind} within tolerance",
+                measurable=f"as-built RMSE <= {accept_tol_m} m", sensor="stereo", tolerance_m=accept_tol_m)],
+            confidence_required=confidence_required, material_budget_kg=mass,
+            contingency=Contingency(policy=ContingencyPolicy.SAFE, detail="loss of localization / off-nominal"),
+            approver=approver))
+    intent = MissionIntent(
+        mission_id=mission_id, revision=revision,
+        statement=statement or f"release of {len(objectives)} build objective(s)",
+        objectives=objectives)
+    return intent, skipped
