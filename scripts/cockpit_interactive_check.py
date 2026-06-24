@@ -30,8 +30,8 @@ import sys
 from playwright.sync_api import sync_playwright
 
 # the tab -> pane mapping mirrors VIEW_PANE in cockpit.js; `plan` has no overlay pane (the bare globe).
-VIEW_PANE = {"rehearse": "pane_rehearse", "nav": "navview", "perception": "renderpanel",
-             "metrics": "execview", "report": "pane-report"}
+# nav + perception are NOT top tabs -- they are sub-views of the Validate tab (checked separately below).
+VIEW_PANE = {"rehearse": "pane_rehearse", "metrics": "execview", "report": "pane-report"}
 
 
 def main() -> int:
@@ -93,6 +93,20 @@ def main() -> int:
                 checks[f"tab_{view}"] = {"pass": bool(active), "pane": pane, "active": bool(active)}
             except Exception as e:  # noqa: BLE001
                 checks[f"tab_{view}"] = {"pass": False, "error": str(e)}
+
+        # VALIDATE merge: the Validate tab + its Navigation|Perception sub-tabs drive #navview / #renderpanel
+        def _active(pane_id):
+            return pg.evaluate(
+                "(id)=>{const e=document.getElementById(id);return !!e&&e.classList.contains('active');}", pane_id)
+        try:
+            pg.click('.vtab[data-view="validate"]'); pg.wait_for_timeout(500)
+            checks["validate_default_nav"] = {"pass": _active("navview")}
+            pg.click('#validate-subtabs .vsub[data-sub="perception"]'); pg.wait_for_timeout(500)
+            checks["validate_sub_perception"] = {"pass": _active("renderpanel")}
+            pg.click('#validate-subtabs .vsub[data-sub="nav"]'); pg.wait_for_timeout(500)
+            checks["validate_sub_nav"] = {"pass": _active("navview")}
+        except Exception as e:  # noqa: BLE001
+            checks["validate_merge"] = {"pass": False, "error": str(e)}
         b.close()
 
     all_pass = all(c.get("pass") for c in checks.values()) and not errs

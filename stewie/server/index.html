@@ -632,8 +632,12 @@
            FEASIBILITY FIRST. Director-only because forward_compare sees truth; data-minrole bounces a
            non-director. This is the rehearse step of Plan -> Rehearse -> (gated) Execute. -->
       <button class="vtab" id="vtab-rehearse" data-view="rehearse" data-minrole="director" style="display:none" title="rehearse and compare: re-simulate the current build queue under each candidate solver input (faster-than-realtime) and review the candidate plans side-by-side, feasibility first — minimum margins, objective completion, duration, energy, charge cycles, optimality">Rehearse <span class="sysb">LODE</span></button>
-      <button class="vtab" data-view="nav" title="navigation + state estimation: the ARGUS pose-graph estimate vs dead reckoning, leave-one-out attribution, and the perception-gated articulation-parallax relocalization">Navigation <span class="sysb">LEAP</span></button>
-      <button class="vtab" data-view="perception">Perception <span class="sysb">DART</span></button>
+      <!-- VALIDATE (ConOps spine slot 3, docs/cockpit_reorg_plan_2026-06-23.md): merges Navigation (LEAP) +
+           Perception (DART) under one tab with a Navigation|Perception sub-tab strip (#validate-subtabs). Both
+           answer "does the plan hold up vs truth / vs what the rover will see?". The sub-views REUSE the existing
+           #navview + #renderpanel panes + their handlers; setView('validate') delegates to the last/default sub,
+           and the Validate tab shows active whenever nav or perception is the sub-view. -->
+      <button class="vtab" data-view="validate" title="validate the plan: ARGUS navigation / state-estimation (est-vs-truth) and the perception sensor render — two sub-tabs">Validate <span class="sysb">LEAP·DART</span></button>
       <button class="vtab" data-view="metrics" title="execution: top-down replay of the planned mission + live CG / tip-over margin and the live telemetry channels">Execute <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
       <!-- FS-03: the FLEET work area (operator+). Roster = the real vehicle registry (/fleet);
@@ -686,6 +690,14 @@
       <button class="step" data-step="review"><span class="dot"></span>Review</button>
       <button class="step" data-step="execute"><span class="dot"></span>Execute</button>
       <button id="guidebtn" title="how the planning workflow works" style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-family:'Orbitron',system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;padding:4px 10px;cursor:pointer;white-space:nowrap">&#10067; Guide</button>
+    </div>
+    <!-- VALIDATE sub-tab strip: shown only when the Validate tab is active (sub-view nav or perception);
+         the buttons switch the sub-view via setView('nav'/'perception'), reusing those panes + handlers. -->
+    <style>.vsub.active{border-color:var(--accent)!important;background:var(--accent)!important;color:#fff!important}.vsub .sysb{opacity:.7;margin-left:3px}</style>
+    <div id="validate-subtabs" role="tablist" aria-label="validate sub-views" style="display:none;align-items:center;gap:6px;padding:5px 12px;border-bottom:1px solid var(--line);background:var(--panel,#14141c)">
+      <span style="font-size:9px;letter-spacing:.12em;color:var(--muted);font-family:'Orbitron',system-ui,sans-serif">VALIDATE</span>
+      <button class="vsub" data-sub="nav" role="tab" style="font-size:11px;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);padding:3px 11px;cursor:pointer">Navigation <span class="sysb">LEAP</span></button>
+      <button class="vsub" data-sub="perception" role="tab" style="font-size:11px;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);padding:3px 11px;cursor:pointer">Perception <span class="sysb">DART</span></button>
     </div>
     <div id="viewarea">
       <button id="drawerbtn" title="planning sidebar">☰</button>
@@ -1249,6 +1261,6 @@
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=af5a87494536"></script>
+<script src="/assets/cockpit.js?v=db800a3f2b64"></script>
 </body>
 </html>

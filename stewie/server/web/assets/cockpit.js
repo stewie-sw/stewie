@@ -763,6 +763,7 @@ function el(tag, attrs, ...children) {
 // --- view tabs: swap the stage between Plan (globe) / Perception (render) / Metrics (telemetry) / Report.
 // The globe (#cesium) stays mounted under the panes (no Cesium re-init); the active pane covers it.
 let VIEW = "plan";
+let _validateSub = "nav";        // VALIDATE tab: which sub-view (nav|perception) is shown; setView('validate') uses it
 const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navview", report: "pane-report",
                     rehearse: "pane_rehearse",                            // REHEARSE: candidate-compare review surface
                     fleet: "pane_fleet",                                  // FS-03: the Fleet work area
@@ -792,15 +793,27 @@ function applySidebar(view) {
 }
 function setView(name) {
   if (name === "system") name = LAST_SYSTEM_VIEW;          // #55: the cluster remembers its sub-tab
+  if (name === "validate") name = _validateSub || "nav";   // VALIDATE: delegate to the last/default sub-view
   if (SYSTEM_VIEWS.includes(name)) LAST_SYSTEM_VIEW = name;
   VIEW = name;
   document.querySelectorAll(".vtab").forEach((b) => {       // UX-04: tab semantics + selected state
-    const sel = b.dataset.view === name || (b.dataset.view === "system" && SYSTEM_VIEWS.includes(name));
+    const sel = b.dataset.view === name
+      || (b.dataset.view === "validate" && (name === "nav" || name === "perception"))   // VALIDATE owns nav+perception
+      || (b.dataset.view === "system" && SYSTEM_VIEWS.includes(name));
     b.classList.toggle("active", sel);
     b.setAttribute("role", "tab");
     b.setAttribute("aria-selected", sel ? "true" : "false");
     b.tabIndex = sel ? 0 : -1;                              // roving tabindex (WAI-ARIA tabs pattern)
   });
+  const vsub = document.getElementById("validate-subtabs");   // VALIDATE: show the sub-tab strip + mark the sub
+  if (vsub) {
+    const inVal = (name === "nav" || name === "perception");
+    vsub.style.display = inVal ? "flex" : "none";
+    if (inVal) {
+      _validateSub = name;
+      vsub.querySelectorAll(".vsub").forEach((b) => b.classList.toggle("active", b.dataset.sub === name));
+    }
+  }
   let sysbar = document.getElementById("sysbar");
   if (SYSTEM_VIEWS.includes(name)) {
     if (!sysbar) {
@@ -1118,6 +1131,7 @@ function _syncScrubberControls() {
 }
 
 document.querySelectorAll(".vtab").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
+document.querySelectorAll("#validate-subtabs .vsub").forEach((b) => { b.onclick = () => setView(b.dataset.sub); });  // VALIDATE sub-tabs
 // FS-20: System / Settings / Admin live in the profile menu (off the work-area tab bar), role-gated:
 // Settings everyone, System operator+, Admin director. The items reuse setView -> same pane switch.
 // FS-24: role-ladder rank now lives in role_rank.js (window.STEWIE_ROLE_RANK); thin binding alias.
