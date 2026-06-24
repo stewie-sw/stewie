@@ -5,7 +5,7 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/Rock.msg" "msg/RockArray.msg" "msg/ArgusFactor.msg" "msg/ArgusFactorArray.msg"
+  "msg/Rock.msg" "msg/RockArray.msg" "msg/NavFactor.msg" "msg/NavFactorArray.msg"
   "msg/Trajectory.msg" "msg/WorkGoal.msg" "msg/SafeState.msg" "msg/ExecutiveDecision.msg"
   DEPENDENCIES std_msgs geometry_msgs)
 ament_package()

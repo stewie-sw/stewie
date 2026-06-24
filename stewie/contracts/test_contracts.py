@@ -1,7 +1,7 @@
 """FS-02 / §25 Phase 0: the typed contract spine. Each schema is strict (extra='forbid' -> unknown
 fields rejected at the boundary), carries schema_version, and enforces physical domains. This first
 brick covers the base + EphemerisObservation / VehicleState / FleetState; the remaining spine schemas
-(WorldState, BeliefState, PlanResult, ExecutionEvent, ARGUSFactor, ModelArtifact, ConstructionSkill)
+(WorldState, BeliefState, PlanResult, ExecutionEvent, NavFactor, ModelArtifact, ConstructionSkill)
 land in subsequent Phase-0 bricks.
 
 Run: <venv>/bin/python -m pytest stewie/contracts/test_contracts.py -q
@@ -128,11 +128,11 @@ def test_localization_fix():
         C.LocalizationFix(est=(0.0, 0.0), true=(0.0, 0.0), sigma=-1.0, fix="none")   # sigma >= 0
 
 
-def test_argus_factor():
-    f = C.ARGUSFactor(factor_id="f1", kind="shadow", keyframe_i=0, keyframe_j=3, residual=0.02, accepted=True)
+def test_nav_factor():
+    f = C.NavFactor(factor_id="f1", kind="shadow", keyframe_i=0, keyframe_j=3, residual=0.02, accepted=True)
     assert f.accepted and f.information >= 0
     with pytest.raises(ValidationError):
-        C.ARGUSFactor(factor_id="f", kind="loop", keyframe_i=-1, keyframe_j=0, residual=0.0, accepted=False)
+        C.NavFactor(factor_id="f", kind="loop", keyframe_i=-1, keyframe_j=0, residual=0.0, accepted=False)
 
 
 def test_model_artifact_cannot_be_on_command_path():

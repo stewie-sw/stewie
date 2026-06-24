@@ -21,7 +21,7 @@ _SPINE: dict[str, type[BaseModel]] = {
     "BeliefState": C.BeliefState,
     "PlanResult": C.PlanResult,
     "ExecutionEvent": C.ExecutionEvent,
-    "ARGUSFactor": C.ARGUSFactor,
+    "NavFactor": C.NavFactor,
     "ModelArtifact": C.ModelArtifact,
     "ConstructionSkill": C.ConstructionSkill,
 }

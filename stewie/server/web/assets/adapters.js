@@ -138,9 +138,9 @@
     };
   }
 
-  // ARGUSFactor -> the pose-graph factor view model (residual/information + accept/reject for the evidence pane)
-  function normalizeARGUSFactor(payload) {
-    var a = payload && payload.argus_factor;
+  // NavFactor -> the pose-graph factor view model (residual/information + accept/reject for the evidence pane)
+  function normalizeNavFactor(payload) {
+    var a = payload && payload.nav_factor;
     if (!a) return null;
     return {
       factorId: a.factor_id, kind: a.kind, keyframeI: a.keyframe_i, keyframeJ: a.keyframe_j,
@@ -198,7 +198,7 @@
     normalizeVehicle: normalizeVehicle, normalizeFleet: normalizeFleet,
     normalizeBelief: normalizeBelief, normalizePlanResult: normalizePlanResult,
     normalizeExecutionEvent: normalizeExecutionEvent, normalizeTimelineFrame: normalizeTimelineFrame,
-    normalizeLocalizationFix: normalizeLocalizationFix, normalizeARGUSFactor: normalizeARGUSFactor,
+    normalizeLocalizationFix: normalizeLocalizationFix, normalizeNavFactor: normalizeNavFactor,
     normalizeModelArtifact: normalizeModelArtifact, normalizeSkill: normalizeSkill,
     toViewState: toViewState,
   };

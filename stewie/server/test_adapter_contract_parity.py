@@ -42,7 +42,7 @@ _ADAPTER_FIELDS: dict[type, tuple[str, list[str]]] = {
     C.TimelineFrame: ("normalizeTimelineFrame", [
         "t0", "t1", "phase", "x0", "y0", "x1", "y1", "batt0_frac", "batt1_frac", "cum_mass_kg"]),
     C.LocalizationFix: ("normalizeLocalizationFix", ["est", "true", "sigma", "fix"]),
-    C.ARGUSFactor: ("normalizeARGUSFactor", [
+    C.NavFactor: ("normalizeNavFactor", [
         "factor_id", "kind", "keyframe_i", "keyframe_j", "residual", "information", "accepted"]),
     C.ModelArtifact: ("normalizeModelArtifact", [
         "model_id", "name", "version", "task", "dataset_lineage", "eval_split",
@@ -85,7 +85,7 @@ _WEB = _ADAPTERS_JS.parent
 # This maps each PRODUCTION cockpit module (NOT a *.test.js) to the view model it is required to call. Only
 # the in-repo /plan-path contracts are listed: PlanResult (dashboard/CONOPS), TimelineFrame (Gantt/rover
 # HUD), and LocalizationFix (nav-mission) have live data sources in the product path and are wired. The
-# remaining FS-02 spine view models (Ephemeris/World/Vehicle/Fleet-live/Belief/ExecutionEvent/ARGUSFactor/
+# remaining FS-02 spine view models (Ephemeris/World/Vehicle/Fleet-live/Belief/ExecutionEvent/NavFactor/
 # ModelArtifact/ConstructionSkill) target LIVE-RUNTIME or registry sources that are render/ROS/telemetry-
 # gated (e.g. the Fleet ROSTER pane renders the static vehicle REGISTRY from /fleet, a different shape than
 # the FleetState contract), so their pane wiring is tracked with those gated rows, not asserted here.

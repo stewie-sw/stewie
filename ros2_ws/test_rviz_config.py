@@ -70,7 +70,7 @@ def test_companion_viz_topics_derive_from_contract_topics():
     companions = {
         "/stewie/plan/local_traj_viz": "/stewie/plan/local_traj",
         "/stewie/perception/rocks_markers": "/stewie/perception/rocks",
-        "/stewie/argus/factors_markers": "/stewie/argus/factors",
+        "/stewie/nav/factors_markers": "/stewie/nav/factors",
     }
     for viz, base in companions.items():
         assert viz in topics, f"missing companion display topic {viz}"

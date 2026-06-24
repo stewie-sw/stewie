@@ -1,6 +1,6 @@
 # [REQ:AS-05] STEWIE mission dashboard — operator RViz layout for the autonomy stack.
 # Every display binds to an AS-01 boundary-contract topic (stewie/bridge/autonomy_contract.py).
-# Native RViz types bind directly; STEWIE custom msgs (Trajectory/RockArray/ArgusFactorArray/
+# Native RViz types bind directly; STEWIE custom msgs (Trajectory/RockArray/NavFactorArray/
 # SafeState/ExecutiveDecision/WorkGoal) are surfaced through companion MarkerArray/Path viz topics
 # that the owning nodes publish (the *_viz / *_markers convention), and GridMap via grid_map_rviz_plugin.
 # Validated by ros2_ws/test_rviz_config.py (config<->contract lint) + the container rviz2 load smoke.
@@ -81,10 +81,10 @@ Visualization Manager:
       Topic:
         Value: /stewie/perception/rocks_markers
     - Class: rviz_default_plugins/MarkerArray
-      Name: ARGUS Factors
+      Name: Navigation Factors
       Enabled: true
       Topic:
-        Value: /stewie/argus/factors_markers
+        Value: /stewie/nav/factors_markers
     - Class: rviz_default_plugins/PoseWithCovariance
       Name: Localization Covariance
       Enabled: true

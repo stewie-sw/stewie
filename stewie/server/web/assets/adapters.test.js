@@ -134,13 +134,13 @@ test("normalizeLocalizationFix maps LocalizationFix + derives errM (FS-15 nav tr
   assert.strictEqual(A.normalizeLocalizationFix({}), null);
 });
 
-test("normalizeARGUSFactor maps ARGUSFactor + derives rejected", () => {
-  const vm = A.normalizeARGUSFactor({ argus_factor: {
+test("normalizeNavFactor maps NavFactor + derives rejected", () => {
+  const vm = A.normalizeNavFactor({ nav_factor: {
     factor_id: "f1", kind: "shadow", keyframe_i: 0, keyframe_j: 1,
     residual: 0.02, information: 1.5, accepted: true } });
   assert.strictEqual(vm.kind, "shadow");
   assert.strictEqual(vm.rejected, false);
-  assert.strictEqual(A.normalizeARGUSFactor({ argus_factor: { factor_id: "f2", kind: "loop",
+  assert.strictEqual(A.normalizeNavFactor({ nav_factor: { factor_id: "f2", kind: "loop",
     keyframe_i: 3, keyframe_j: 9, residual: 5, information: 0, accepted: false } }).rejected, true);
 });
 

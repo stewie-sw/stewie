@@ -1,4 +1,4 @@
-"""#183/#79 shadow-nav landmarks -> ARGUS heading factors.
+"""#183/#79 shadow-nav landmarks -> Navigation heading factors.
 
 A cast shadow under the grazing lunar sun points along the ANTI-SOLAR azimuth -- a known WORLD
 direction the ephemeris provides (anti_solar = sun_azimuth + 180). Detected on the 8-camera panorama
@@ -7,9 +7,9 @@ of that anti-solar ray: the rover's fixed camera-rig mount heading plus the with
 a rig quantity independent of the unknown world yaw. The pair fixes the rover heading via
 ``dart.pose_graph_se2.yaw_from_shadow``: yaw = anti_solar_az - observed_body_bearing.
 
-This is the MEASUREMENT leg of the ARGUS shadow loop: it turns accepted shadow landmarks into the
+This is the MEASUREMENT leg of the Navigation shadow loop: it turns accepted shadow landmarks into the
 gated ``shadow_yaw`` factors a ``PoseGraphSE2`` consumes (SN-03). A landmark whose shadow contrast is
-below the gate is a weak/ambiguous match and is rejected -- it never enters the graph (the ARGUSFactor
+below the gate is a weak/ambiguous match and is rejected -- it never enters the graph (the NavFactor
 ``accepted`` residual-gate semantics). Pure numpy-free math; the estimator does the work.
 
 Frame note (honest): all cast shadows are parallel (they share the single anti-solar world direction),

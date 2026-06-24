@@ -29,7 +29,7 @@ def test_schema_endpoint_exposes_every_spine_contract(client):  # [REQ:FS-02]
     j = r.json()
     assert j["spine_version"] == C.SPINE_VERSION
     for name in ("EphemerisObservation", "VehicleState", "FleetState", "ResourceReservation",
-                 "WorldState", "BeliefState", "PlanResult", "ExecutionEvent", "ARGUSFactor",
+                 "WorldState", "BeliefState", "PlanResult", "ExecutionEvent", "NavFactor",
                  "ModelArtifact", "ConstructionSkill"):
         assert name in j["schemas"], name
         assert j["schemas"][name]["type"] == "object"          # a valid JSON Schema object

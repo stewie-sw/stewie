@@ -7,7 +7,7 @@ and carries ``schema_version`` for migratability. Models are frozen (a contract 
 
 The codebase is not missing capability -- it is missing one typed contract unifying the surfaces. The
 spine schemas are: WorldState, VehicleState, FleetState, BeliefState, PlanResult, ExecutionEvent,
-EphemerisObservation, ARGUSFactor, ModelArtifact, ConstructionSkill. This first brick lands the base +
+EphemerisObservation, NavFactor, ModelArtifact, ConstructionSkill. This first brick lands the base +
 EphemerisObservation / VehicleState / FleetState (with ResourceReservation); the rest follow in
 subsequent Phase-0 bricks, then Phase 1 wires route handlers to them.
 """
@@ -28,7 +28,7 @@ class Contract(BaseModel):
 
 class EphemerisObservation(Contract):
     """FS-06 / §25.3: the SINGLE ephemeris+azimuth authority record that every shadow, illumination,
-    navigation-risk, camera-policy, and ARGUS consumer reads. ``azimuth_convention`` is REQUIRED and
+    navigation-risk, camera-policy, and Navigation consumer reads. ``azimuth_convention`` is REQUIRED and
     explicit -- no consumer may assume a private convention; it is shared, tested, and UI-displayed."""
     mission_t_s: float
     body: str = "moon"
@@ -167,8 +167,8 @@ class LocalizationFix(Contract):
     fix: str                       # dem | beacon | none
 
 
-class ARGUSFactor(Contract):
-    """FS-07 (PM-07): one pose-graph factor from the ARGUS articulation/shadow/parallax loop. `accepted`
+class NavFactor(Contract):
+    """FS-07 (PM-07): one pose-graph factor from the Navigation articulation/shadow/parallax loop. `accepted`
     is the residual-gate verdict -- a rejected factor (false closure / bad shadow match) never enters the
     graph. `information` (inverse-covariance scale) is non-negative."""
     factor_id: str

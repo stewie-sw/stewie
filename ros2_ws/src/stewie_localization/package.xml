@@ -2,7 +2,7 @@
 <package format="3">
   <name>stewie_localization</name>
   <version>0.1.0</version>
-  <description>localization node: odom/imu/points + ARGUS factors -> /stewie/odom (AS-08/09)</description>
+  <description>localization node: odom/imu/points + Navigation factors -> /stewie/odom (AS-08/09)</description>
   <maintainer email="dev@stewie.space">STEWIE</maintainer>
   <license>SEE LICENSE</license>
   <depend>rclpy</depend>
