@@ -176,7 +176,15 @@ class SimBackend(RCBackend):
                               v_achieved_mps=g.v_max_mps * self.time_factor))
 
 
-def commands_from_plan(mission, *, cell_m: float = 5.0, dem=None, dem_origin=(0.0, 0.0),
+# The canonical fallback grid resolution for the drive-loop seam: the Moon LOLA DEM cell (5 m/cell,
+# routers/plan.py moon=5.0). commands_from_plan AND the ROS2 bridge (twist_to_command / RcBridge /
+# make_ros2_node) default to THIS one constant so the two ends of the seam cannot silently disagree
+# (the prior 5.0-vs-1.0 default split was a latent 5x mislocalization). Callers should still pass the
+# actual mission DEM cell; this is only the shared fallback. (SimBackend keeps its own 1.0 grid default.)
+DEFAULT_CELL_M = 5.0
+
+
+def commands_from_plan(mission, *, cell_m: float = DEFAULT_CELL_M, dem=None, dem_origin=(0.0, 0.0),
                        v_max_mps: float = 0.3) -> list:
     """#66 (Aaron: "plan should output cmds for reuse"): convert a plan into a REUSABLE GoTo
     command sequence -- one GoTo per ordered site, in metres->cells (row=y/cell, col=x/cell). The

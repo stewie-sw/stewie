@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 
+from stewie.bridge import frames as FR
 from stewie.bridge import rc_contract as RC
 
 _EPS = 1e-3
@@ -23,7 +24,7 @@ _GOAL_RADIUS_CELLS = 0.1
 
 
 def twist_to_command(linear_x: float, angular_z: float, *, pose: RC.Pose, horizon_s: float = 1.0,
-                     cell_m: float = 1.0, leg_id: int = 0):
+                     cell_m: float = RC.DEFAULT_CELL_M, leg_id: int = 0):
     """Translate a ROS2 Twist (cmd_vel: forward m/s + yaw-rate rad/s) into an RC command, given the
     current Pose. A (near-)zero twist -> Safe(operator). Otherwise project the unicycle forward by
     ``horizon_s`` to a short-horizon goal cell and drive to it at v_max=|linear_x|. (RC is goal-based,
@@ -33,8 +34,8 @@ def twist_to_command(linear_x: float, angular_z: float, *, pose: RC.Pose, horizo
         return RC.Safe(reason=RC.SAFE_REASON_OPERATOR)
     yaw = float(pose.yaw_rad) + float(angular_z) * float(horizon_s)      # heading after the commanded turn
     dist_m = float(linear_x) * float(horizon_s)
-    dcol = dist_m * math.cos(yaw) / float(cell_m)                        # +x == column, along the heading
-    drow = dist_m * math.sin(yaw) / float(cell_m)                        # +y == row
+    dcol = dist_m * math.cos(yaw) / float(cell_m)                        # REP-103 +x -> +col (frames.py)
+    drow = -dist_m * math.sin(yaw) / float(cell_m)                       # REP-103 +y (left) -> -row (frames.py)
     return RC.GoTo(leg_id=leg_id, goal_row=float(pose.row) + drow,
                    goal_col=float(pose.col) + dcol, v_max_mps=abs(float(linear_x)),
                    goal_radius_cells=_GOAL_RADIUS_CELLS)
@@ -48,16 +49,18 @@ def yaw_to_quaternion(yaw: float):
     return (0.0, 0.0, math.sin(h), math.cos(h))
 
 
-def pose_to_odom(pose: RC.Pose) -> dict:
-    """Map an RC Pose telemetry sample to a ROS2-odometry-shaped record (the nav_msgs/Odometry fields a
-    consumer needs): map-frame position (col->x, row->y), yaw + its quaternion (qz/qw, for the message's
-    orientation), achieved speed, plus the STEWIE proprioception (slip/entrapment) a lunar autonomy layer
-    wants alongside pose. The live node (make_ros2_node) builds the actual nav_msgs/Odometry from this."""
-    _, _, qz, qw = yaw_to_quaternion(pose.yaw_rad)
-    return {"frame_id": "map", "x": float(pose.col), "y": float(pose.row),
-            "yaw": float(pose.yaw_rad), "qz": qz, "qw": qw, "v": float(pose.v_achieved_mps),
-            "slip": float(pose.slip), "sinkage_m": float(pose.sinkage_m),
-            "entrapped": bool(pose.entrapped)}
+def pose_to_odom(pose: RC.Pose, *, cell_m: float = RC.DEFAULT_CELL_M) -> dict:
+    """Map an RC Pose telemetry sample to a ROS2-odometry-shaped record (nav_msgs/Odometry fields), in
+    REP-103 METRES via frames.py -- THE single conversion site. Position is x = col*cell_m and
+    y = -row*cell_m (sim +row is the rover's right; REP-103 +y is left), so a Nav2/Autoware consumer reads
+    real metres in the map frame, not raw grid cells (the prior col->x / row->y shortcut published cells
+    under a metric frame with a flipped y -- a scale + handedness defect). Carries yaw's quaternion + the
+    STEWIE proprioception (slip/sinkage/entrapment). make_ros2_node builds the actual Odometry from this."""
+    rp = FR.grid_pose_to_rep103((pose.row, pose.col), float(pose.yaw_rad), cell_m=float(cell_m))
+    return {"frame_id": "map", "x": rp.x, "y": rp.y,
+            "yaw": float(pose.yaw_rad), "qz": rp.quaternion_xyzw[2], "qw": rp.quaternion_xyzw[3],
+            "v": float(pose.v_achieved_mps), "slip": float(pose.slip),
+            "sinkage_m": float(pose.sinkage_m), "entrapped": bool(pose.entrapped)}
 
 
 def sim_pose_source(backend):
@@ -83,7 +86,8 @@ class RcBridge:
     the last-known pose and submits it through the SF-01 watchdog; ``tick`` advances the dead-man so a
     stalled cmd_vel stream auto-safes; ``update_pose`` keeps the projection anchored to live telemetry."""
 
-    def __init__(self, watchdog: RC.SafingWatchdog, *, horizon_s: float = 1.0, cell_m: float = 1.0) -> None:
+    def __init__(self, watchdog: RC.SafingWatchdog, *, horizon_s: float = 1.0,
+                 cell_m: float = RC.DEFAULT_CELL_M) -> None:
         self._wd = watchdog
         self._horizon_s = float(horizon_s)
         self._cell_m = float(cell_m)
@@ -95,7 +99,7 @@ class RcBridge:
     def pose_odom(self) -> dict:
         """The bridge's current pose as a ROS2-odometry-shaped record -- the egress the live node
         publishes on /stewie/odom each tick (the perceive side of the seam, for Nav2/Autoware)."""
-        return pose_to_odom(self._pose)
+        return pose_to_odom(self._pose, cell_m=self._cell_m)
 
     def on_cmd_vel(self, linear_x: float, angular_z: float, *, now: float):
         """Translate one /cmd_vel Twist and submit it through the SF-01 watchdog (which feeds the
@@ -112,8 +116,8 @@ class RcBridge:
 
 
 def make_ros2_node(watchdog: RC.SafingWatchdog, *, cmd_vel_topic: str = "/cmd_vel",
-                   odom_topic: str = "/stewie/odom", horizon_s: float = 1.0, cell_m: float = 1.0,
-                   pose_source=None, odom_rate_hz: float = 10.0):
+                   odom_topic: str = "/stewie/odom", horizon_s: float = 1.0,
+                   cell_m: float = RC.DEFAULT_CELL_M, pose_source=None, odom_rate_hz: float = 10.0):
     """Construct the LIVE rclpy Node (subscribes cmd_vel, ticks the SF-01 dead-man on a timer, publishes
     odom). Gated: raises RuntimeError if rclpy is absent -- the live node needs a ROS2 Jazzy host; the
     translation + RcBridge above run and are tested without it. (Phase A delivers the full seam: the
@@ -122,15 +126,16 @@ def make_ros2_node(watchdog: RC.SafingWatchdog, *, cmd_vel_topic: str = "/cmd_ve
     ``pose_source`` (optional) is a callable -> RC.Pose | None, called each odom tick to refresh the
     bridge from LIVE telemetry (the drive loop / estimator); without it the node republishes the last
     pose set via ``update_pose`` -- no fabricated motion is ever invented. ``odom_rate_hz`` sets the
-    /stewie/odom publish rate (nav_msgs/Odometry, frame_id=map: position col->x/row->y, yaw quaternion,
-    achieved speed) so a Nav2/Autoware layer can localize off the same seam it drives through.
+    /stewie/odom publish rate (nav_msgs/Odometry, frame_id=map: REP-103 metres x=col*cell_m, y=-row*cell_m
+    via frames.py, yaw quaternion, achieved speed) so a Nav2/Autoware layer localizes off the same seam.
 
     RUN-VERIFIED on the `stewie-ros2:latest` ROS2 Jazzy container:
       - 2026-06-16 (ingress): a published /cmd_vel Twist (0.25 m/s, 0.1 rad/s) flows through to the SF-01
         watchdog as the expected GoTo (goal ~0.25 cells ahead = the 1 s-horizon projection).
-      - 2026-06-17 (egress): with pose_source -> Pose(row=4, col=9, yaw=pi/2), a subscriber on /stewie/odom
-        received nav_msgs/Odometry x=9, y=4, qz=qw=0.7071 (yaw pi/2), v=0.2, frame_id=map -- the perceive
-        side of the seam (Nav2/Autoware can localize off the same bridge it drives through).
+      - 2026-06-17 (egress, SUPERSEDED 2026-06-24): the original run published x=9, y=4 for
+        Pose(row=4, col=9) -- raw grid cells under a metric frame with a flipped y, the scale+handedness
+        defect this seam now fixes. The corrected contract (frames.py REP-103 metres) publishes
+        x=col*cell_m, y=-row*cell_m; RE-VERIFY on the stewie-ros2:latest container after this change.
       - 2026-06-17 (CLOSED LOOP): watchdog target = SimBackend, pose_source = sim_pose_source(backend);
         a sustained /cmd_vel (1 m/s) drove the sim forward on /stewie/odom x 0.10 -> 2.40 cells over 2.6 s
         -- cmd_vel -> SF-01 -> sim -> /stewie/odom closes end to end on live ROS2.
@@ -206,7 +211,8 @@ def main(argv=None) -> int:
     ap.add_argument("--odom-topic", default="/stewie/odom")
     ap.add_argument("--deadline-s", type=float, default=5.0, help="SF-01 dead-man timeout")
     ap.add_argument("--horizon-s", type=float, default=1.0, help="cmd_vel short-horizon projection")
-    ap.add_argument("--cell-m", type=float, default=1.0)
+    ap.add_argument("--cell-m", type=float, default=RC.DEFAULT_CELL_M,
+                    help="grid resolution shared across the seam (default = the Moon LOLA DEM cell)")
     ap.add_argument("--odom-rate-hz", type=float, default=10.0)
     args = ap.parse_args(argv)
 

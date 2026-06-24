@@ -42,15 +42,18 @@ def test_cmd_vel_goal_radius_is_tighter_than_the_projection_so_the_rover_moves()
 
 
 def test_turn_rate_rotates_the_short_horizon_goal():
-    cmd = B.twist_to_command(0.3, math.pi / 2, pose=_pose(row=10, col=10, yaw=0.0), horizon_s=1.0)
+    cmd = B.twist_to_command(0.3, math.pi / 2, pose=_pose(row=10, col=10, yaw=0.0), horizon_s=1.0, cell_m=1.0)
     assert isinstance(cmd, RC.GoTo)
-    assert cmd.goal_row == pytest.approx(10.3, abs=1e-6)             # turned +90deg -> drives +y
+    # +angular_z is CCW; forward after +90deg is REP-103 +y (left), which is -row in the grid (frames.py)
+    assert cmd.goal_row == pytest.approx(9.7, abs=1e-6)
     assert cmd.goal_col == pytest.approx(10.0, abs=1e-6)
 
 
 def test_pose_to_odom_maps_fields():
-    od = B.pose_to_odom(RC.Pose(leg_id=1, row=5.0, col=7.0, yaw_rad=0.5, v_achieved_mps=0.2, slip=0.1))
-    assert od["x"] == 7.0 and od["y"] == 5.0 and od["yaw"] == 0.5 and od["v"] == 0.2
+    # REP-103 metres via frames.py: x=col*cell_m, y=-row*cell_m (handedness), not raw grid cells
+    od = B.pose_to_odom(RC.Pose(leg_id=1, row=5.0, col=7.0, yaw_rad=0.5, v_achieved_mps=0.2, slip=0.1),
+                        cell_m=1.0)
+    assert od["x"] == 7.0 and od["y"] == -5.0 and od["yaw"] == 0.5 and od["v"] == 0.2
 
 
 # ---- odom EGRESS (the perceive side of the seam: nav_msgs/Odometry for Nav2/Autoware) -----------
@@ -71,10 +74,33 @@ def test_pose_to_odom_carries_quaternion_for_nav_msgs():
 
 
 def test_rcbridge_exposes_current_pose_odom_for_publishing():
-    bridge = B.RcBridge(RC.SafingWatchdog(RC.RecordingBackend()))
+    bridge = B.RcBridge(RC.SafingWatchdog(RC.RecordingBackend()))      # default cell_m = DEFAULT_CELL_M (5 m)
     bridge.update_pose(RC.Pose(leg_id=0, row=4.0, col=9.0, yaw_rad=0.0))
     od = bridge.pose_odom()
-    assert od["x"] == 9.0 and od["y"] == 4.0 and od["frame_id"] == "map"
+    # REP-103 metres at the seam's shared 5 m/cell: x=col*5, y=-row*5 (frames.py), not raw cells
+    assert od["x"] == 45.0 and od["y"] == -20.0 and od["frame_id"] == "map"
+
+
+def test_pose_to_odom_round_trips_through_frames_in_metres():
+    # the egress speaks frames.py REP-103 metres (x=col*cell_m, y=-row*cell_m); rep103_to_grid_pose
+    # recovers the exact grid cells at the SAME cell_m -> the seam is one self-consistent contract
+    from stewie.bridge import frames as FR
+    pose = RC.Pose(leg_id=0, row=4.0, col=9.0, yaw_rad=math.pi / 2)
+    for cell in (1.0, 5.0):
+        od = B.pose_to_odom(pose, cell_m=cell)
+        assert od["x"] == pytest.approx(9.0 * cell) and od["y"] == pytest.approx(-4.0 * cell)
+        rp = FR.Rep103Pose(x=od["x"], y=od["y"], z=0.0, quaternion_xyzw=(0.0, 0.0, od["qz"], od["qw"]))
+        (row, col), yaw = FR.rep103_to_grid_pose(rp, cell_m=cell)
+        assert (row, col) == pytest.approx((4.0, 9.0)) and yaw == pytest.approx(math.pi / 2)
+
+
+def test_drive_loop_seam_shares_one_cell_m_default():
+    # the prior 5.0-vs-1.0 default split was a latent 5x mislocalization; both ends now default to ONE source
+    import inspect
+    assert RC.DEFAULT_CELL_M == 5.0
+    assert inspect.signature(RC.commands_from_plan).parameters["cell_m"].default == RC.DEFAULT_CELL_M
+    assert inspect.signature(B.twist_to_command).parameters["cell_m"].default == RC.DEFAULT_CELL_M
+    assert inspect.signature(B.make_ros2_node).parameters["cell_m"].default == RC.DEFAULT_CELL_M
 
 
 def test_sim_pose_source_closes_cmd_vel_to_odom_loop():
