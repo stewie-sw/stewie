@@ -473,6 +473,11 @@
         <button id="qstruct" class="go">+ Structure @ x,y</button>
       </div>
       <div class="ctl" style="margin:4px 0">
+        <button id="qsiteplan" class="site" title="validate-and-advise across ALL placed structures: base-wide mass balance + source/sink routing, inter-structure clearances, build order, advisories">⚖ Analyze site plan</button>
+        <span id="qsitecount" style="font-size:10px;opacity:.6"></span>
+      </div>
+      <div id="qsiteout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:2px 0 6px;color:var(--muted)"></div>
+      <div class="ctl" style="margin:4px 0">
         <button id="qundo" class="site" title="undo the last authoring change (Ctrl+Z)">↶ Undo</button>
         <span id="qhist" style="font-size:10px;opacity:.6"></span></div>
       <table id="qtable" style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums"></table>
@@ -1284,6 +1289,6 @@
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=7fd26fccd773"></script>
+<script src="/assets/cockpit.js?v=b1564ad922c2"></script>
 </body>
 </html>

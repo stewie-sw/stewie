@@ -2658,6 +2658,7 @@ if (LAST_POSE && $("lastpose")) $("lastpose").textContent = `rover last known: $
 $("qreset").onclick = () => {
   if (!confirm("Clear the queue, keep-outs, path, and annotations?")) return;
   ORDERS.length = 0; KEEPOUTS.length = 0; ANNOTATIONS.length = 0;
+  PLACED_STRUCTURES.length = 0; if (typeof renderSitePlan === "function") renderSitePlan(null);
   SELECTED_ORDER = -1; LAST_ROUTES.length = 0;
   EDIT_PINS.forEach((e) => viewer && viewer.entities.remove(e)); EDIT_PINS.length = 0;
   LANDER_PIN = null;                                        // #lander-pin: the marker was just removed above
@@ -2719,6 +2720,10 @@ $("site").onclick = () => {
 // site, the queue places orders around it in meters (no fake lat/lon->meter projection). Planning
 // needs the server (fetch /plan): run `python3 server.py` and open the printed URL.
 const ORDERS = [];
+// structure-first base planning: the placed structures the operator dropped (name + site coords), kept
+// as a first-class list so the Site-plan analyzer can reason ACROSS them (base-wide mass routing,
+// clearances, build order). Distinct from ORDERS, which is the lowered cut/fill queue they expand into.
+const PLACED_STRUCTURES = [];
 const KEEPOUTS = [];                                          // discrete obstacles (local m): {x,y,r} circle OR {x0,y0,x1,y1} rect (#178); hauls route around
 // FS-24: keep-out shape predicates + bounds + label now live in keepout_geom.js
 // (window.STEWIE_KEEPOUT_GEOM); thin binding aliases preserve behaviour. fillKeepout (below) draws on
@@ -3606,9 +3611,46 @@ qel("qstruct").onclick = async () => {                     // place a named stru
     const j = await res.json();
     if (!j.ok) { setQ("structure error: " + j.error); return; }
     j.orders.forEach(addOrder);
+    // structure-first: remember the structure itself (name + site coords), not just its lowered orders,
+    // so the Site-plan analyzer can reason across the whole base. Same name+x,y the server expanded.
+    PLACED_STRUCTURES.push({ name: qel("struct").value, x: +qel("qx").value, y: +qel("qy").value });
+    if (typeof renderSitePlan === "function") renderSitePlan(null);
     setQ(`added ${j.orders.length} order(s) from ${qel("struct").value}`);
   } catch (e) { setQ("structure failed — run server.py (" + e + ")"); }
 };
+// structure-first VALIDATE-AND-ADVISE: analyze the placed structures AS A BASE -- base-wide mass economy,
+// inter-structure clearances, build order, and advisories (POST /siteplan/analyze -> leap.siteplan). The
+// operator keeps placement authority; this only checks + advises. ``rpt`` null = just refresh the count.
+function renderSitePlan(rpt) {
+  const cnt = qel("qsitecount");
+  if (cnt) cnt.textContent = PLACED_STRUCTURES.length ? `${PLACED_STRUCTURES.length} structure(s) placed` : "";
+  const out = qel("qsiteout"); if (!out || rpt === null) return;
+  if (rpt.error) { out.textContent = "site-plan error: " + rpt.error; return; }
+  const fmt = (n) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  const net = rpt.net_mass_kg;
+  const netTxt = Math.abs(net) < 1 ? "mass balanced"
+    : net > 0 ? `+${fmt(net)} kg surplus` : `${fmt(-net)} kg deficit`;
+  const overlaps = (rpt.clearances || []).filter((c) => c.overlap).length;
+  let html = `<div style="color:var(--muted)">cut ${fmt(rpt.total_cut_mass_kg)} kg · fill ${fmt(rpt.total_fill_mass_kg)} kg · <b style="color:${Math.abs(net) < 1 ? "var(--txt)" : "var(--accent)"}">${netTxt}</b></div>`;
+  html += `<div style="color:var(--muted)">haul work ${fmt(rpt.total_haul_work_kg_m)} kg·m · ${overlaps ? `<b style="color:var(--accent)">${overlaps} overlap(s)</b>` : "footprints clear"}</div>`;
+  if (rpt.advisories && rpt.advisories.length) {
+    html += "<ul style='margin:4px 0 0;padding-left:16px;color:var(--txt)'>"
+      + rpt.advisories.map((a) => `<li>${a}</li>`).join("") + "</ul>";
+  }
+  out.innerHTML = html;
+}
+async function analyzeSitePlan() {
+  const out = qel("qsiteout"); if (!out) return;
+  if (!PLACED_STRUCTURES.length) { out.textContent = "place one or more structures first (+ Structure @ x,y)"; return; }
+  out.textContent = "analyzing the site plan…";
+  try {
+    const res = await fetch("/siteplan/analyze", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ placements: PLACED_STRUCTURES, min_gap_m: 2 }) });
+    const j = await res.json();
+    renderSitePlan(j.ok ? j : { error: j.error || ("HTTP " + res.status) });
+  } catch (e) { out.textContent = "site-plan failed — run server.py (" + e + ")"; }
+}
+{ const b = qel("qsiteplan"); if (b) b.onclick = analyzeSitePlan; }
 // precedence text "Grade road > Build berm, Dig pit > Fill" -> [[before, after], ...] (I9). The pure
 // parser lives in plan_geom.js; this thin alias reads the #qprec field and passes it in (FS-24).
 function parsePrec() { return window.STEWIE_PLAN_GEOM.parsePrec(qel("qprec").value); }
