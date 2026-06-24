@@ -5,7 +5,7 @@ Under the grazing lunar sun, boulders and crater rims cast long, high-contrast s
 shadows are the trackable visual landmarks ShadowNav keys on (deterministic given the sun geometry,
 which STEWIE's ephemeris already provides). This detects them on the heading-ordered panorama from
 ``panorama.py`` and maps each landmark's panorama column to an AZIMUTH bearing -- the bearing
-measurement an ARGUS pose-graph factor consumes.
+measurement an Navigation pose-graph factor consumes.
 
 The detector finds dark blobs that are darker than their LOCAL lit neighborhood (so the uniform-black
 sky and the rover-occluded void are excluded -- a cast shadow is dark RELATIVE to the lit regolith
@@ -54,7 +54,7 @@ def column_to_bearing_deg(col: float, cam_order, *, cam_w: int = CAM_W, fov_x_de
 
 
 def landmark_bearings(landmarks, cam_order, **kw):
-    """Attach an azimuth bearing to each shadow landmark -> the ARGUS-facing measurement list."""
+    """Attach an azimuth bearing to each shadow landmark -> the Navigation-facing measurement list."""
     out = []
     for lm in landmarks:
         b = column_to_bearing_deg(lm["x"], cam_order, **kw)
@@ -103,7 +103,7 @@ def emit_served_artifacts(egress_dir: str, out_dir: str, *, width: int = 2048, t
         "cameras": [{"name": n, "heading_deg": round(az, 1)} for n, az, _ in order],
         "landmarks": scaled,
         "note": ("Real Godot 8-camera rig render -> heading-ordered panorama; shadow-nav landmarks are "
-                 "cast-shadow dark-contrast blobs, each tagged with its azimuth bearing (the ARGUS "
+                 "cast-shadow dark-contrast blobs, each tagged with its azimuth bearing (the Navigation "
                  "pose-graph measurement). No synthetic pixels."),
     }
     with open(os.path.join(out_dir, "landmarks.json"), "w") as f:

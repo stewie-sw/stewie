@@ -58,7 +58,7 @@ def test_world_to_rc_nonzero_origin_consistency():
 
 
 def test_t13_obstacle_limit_makes_tall_rocks_hard():
-    """ARGUS T1.3 (TRL5): the 7.5 cm obstacle capability is the HARD limit -- a rock TALLER than
+    """Navigation T1.3 (TRL5): the 7.5 cm obstacle capability is the HARD limit -- a rock TALLER than
     OBSTACLE_LIMIT_M is no-go regardless of its nav class; a shorter soft-class rock stays passable."""
     import numpy as np
 

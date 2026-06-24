@@ -299,7 +299,7 @@ def post_slam(req: SlamRequest, _auth: None = Depends(require_auth)):
 def post_slam_compare(req: SlamCompareRequest, _auth: None = Depends(require_auth)):
     """[REQ:SN-12] The shared-testbed head-to-head, surfaced. The SAME pose graph over the SAME real
     Katwijk trajectory under three approach classes, each at its characteristic absolute-fix sigma:
-    passive single-pass (no fix), ShadowNav-class global map-match (~3 m), ARGUS articulation parallax
+    passive single-pass (no fix), ShadowNav-class global map-match (~3 m), Navigation articulation parallax
     (~0.5 m). Each class is MODELED at its reported accuracy against the real drift -- the proprietary
     stacks are not executed (honest comparison-of-classes, not of stacks). 503 when the dataset is
     absent (PRD §22 P3)."""

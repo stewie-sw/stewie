@@ -8,9 +8,9 @@ from dart import nav_benchmark as NB
 
 def test_report_covers_all_five_methods_with_metrics():
     r = NB.benchmark_report(seed=0)
-    assert set(r["methods"]) == {"passive_vo", "stereo_slam", "shadownav", "argus", "fused"}
-    # ARGUS carries quantitative metrics (range sigma + accuracy/precision from the sourced models)
-    a = r["methods"]["argus"]
+    assert set(r["methods"]) == {"passive_vo", "stereo_slam", "shadownav", "nav", "fused"}
+    # Navigation carries quantitative metrics (range sigma + accuracy/precision from the sourced models)
+    a = r["methods"]["nav"]
     assert a["range_sigma_m"] > 0 and a["accuracy_m"] > 0 and a["precision_m"] > 0
     # the post-re-freeze 0.05 m stereo baseline -> dh/b ratio ~3.49 (the re-freeze flows into the bench)
     assert abs(a["baseline_ratio_dh_over_b"] - 0.1743 / 0.05) < 0.05
@@ -25,7 +25,7 @@ def test_report_has_ablation_and_failure_classes_over_conditions():
     assert set(r["conditions"]) == {"sun_angle", "terrain_change", "rocks", "psr",
                                     "camera_degradation", "excavation_state"}
     assert any("psr" in f for f in r["failure_classes"]["shadownav"])         # ShadowNav dies in PSR
-    assert any("far_range" in f for f in r["failure_classes"]["argus"])       # ARGUS dies past resolvable range
+    assert any("far_range" in f for f in r["failure_classes"]["nav"])       # Navigation dies past resolvable range
     assert any("texture" in f for f in r["failure_classes"]["passive_vo"])    # VO dies on low texture
     assert r["failure_classes"]["fused"] == ["all_inputs_simultaneously_lost"]  # robust to any single loss
 

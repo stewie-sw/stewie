@@ -1,4 +1,4 @@
-"""ARGUS T2.1-T2.2: the arm-swing joint model -- ONE articulated state for every consumer.
+"""Navigation T2.1-T2.2: the arm-swing joint model -- ONE articulated state for every consumer.
 
 Doc truth: arm actuator excavation load 18.5 N*m on the Moon (TRL5 Table 7); arm origins at
 base_link x = +/-0.20 (the sidecar render rig); arm raise = the ICE-RASSOR mass-inference

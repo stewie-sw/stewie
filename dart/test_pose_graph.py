@@ -1,9 +1,9 @@
-"""#78 (ARGUS subsystem): the windowed pose-graph estimator.
+"""#78 (Navigation subsystem): the windowed pose-graph estimator.
 
 The thesis claim is a UNIFIED articulated state every estimator reads. This is the spine: a
 windowed 2-D pose graph that fuses odometry priors (the drift model) with absolute factors
 (DEM scan-registration + a SHADOW-outline residual) into a joint least-squares estimate with
-covariance -- the structure ARGUS needs and that resync.py's 1-D fuse was the placeholder for.
+covariance -- the structure Navigation needs and that resync.py's 1-D fuse was the placeholder for.
 Real factor primitives (dart/localization, dart/shadow_predict) feed it; no fabricated data.
 """
 import numpy as np
@@ -39,7 +39,7 @@ def test_an_absolute_factor_pulls_the_drifted_chain_back():
 def test_shadow_outline_descriptor_seeds_an_absolute_factor_structurally():
     """[REQ:SN] H-16: shadow_outline_descriptor is a FEATURE DESCRIPTOR (the observed shadow-edge centroid
     in the local frame), NOT a registered observed-vs-predicted map match. Its centroid can SEED an
-    absolute factor as the structural form of the ARGUS shadow-as-instrument claim -- the graph fuses it
+    absolute factor as the structural form of the Navigation shadow-as-instrument claim -- the graph fuses it
     like any absolute term -- but the real map registration + rover-camera transform is the #79 slice."""
     from dart.shadow_predict import cast_shadow_mask
     # a small real-terrain patch with a ridge -> a cast shadow whose edge is the descriptor source

@@ -93,7 +93,7 @@ def test_cut_depth_rule_flows_into_planning():
 
 
 def test_t11_drive_context_binds_the_registry_contact_geometry():
-    """ARGUS T1.1: the contact patch comes VERBATIM from the vehicle registry (wheel_width_m,
+    """Navigation T1.1: the contact patch comes VERBATIM from the vehicle registry (wheel_width_m,
     contact_len_m -- [ASSUMPTION]-tagged there until the WHEEL doc's figure dims are read), not
     from a derived heuristic. Vehicle choice must change the contact patch."""
     tw = vtw.VehicleTwin.assemble("a", vehicle="ipex", body="moon")
@@ -105,7 +105,7 @@ def test_t11_drive_context_binds_the_registry_contact_geometry():
 
 
 def test_t71_bp1_testbed_soil_binds_measured_density():
-    """ARGUS T7.1: the GMRO BP-1 bed is selectable; density is the MEASURED 1750, moduli are the
+    """Navigation T7.1: the GMRO BP-1 bed is selectable; density is the MEASURED 1750, moduli are the
     DISCLOSED Wong analog (a BP-1 Bekker fit is unpublished -- never fabricated)."""
     from stewie.specs import bodies as B
     bp1 = B.get_body("bp1_testbed")

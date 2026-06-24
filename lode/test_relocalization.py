@@ -1,5 +1,5 @@
 """#96 (SN-10 tie-in B): the relocalization-stop scheduler. Pure + deterministic; the drift model and
-the per-fix cost are grounded (autonomy.ODOM_DRIFT_FRAC; the ARGUS fix = arm_raise_lift_energy_j + an
+the per-fix cost are grounded (autonomy.ODOM_DRIFT_FRAC; the Navigation fix = arm_raise_lift_energy_j + an
 ~8 s articulation maneuver) but passed in, so this is a numerical-method test, not fabricated data."""
 import pytest
 

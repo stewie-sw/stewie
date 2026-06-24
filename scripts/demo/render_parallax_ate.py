@@ -1,4 +1,4 @@
-"""Fresh-render ATE-at-scale via the PARALLAX leg (robust, the ARGUS articulation cue): render a
+"""Fresh-render ATE-at-scale via the PARALLAX leg (robust, the Navigation articulation cue): render a
 per-station two-posture A/B pair along a traverse on crater_boulders, extract REAL absolute parallax
 fixes (articulation_bridge.localize_on_render_pair), fuse via run_integrated_slam(measured_fixes), and
 score ATE vs the true station cells. Real pixels only; truth = placed cells. Shadow leg NOT used.

@@ -9,7 +9,7 @@ since the last fix would exceed the tolerance, so along-track drift never crosse
 in time + energy.
 
 PURE + deterministic, and PARAMETRIC: the drift rate and the per-fix cost are passed in (defaults mirror
-their grounded sources -- autonomy.ODOM_DRIFT_FRAC, and the ARGUS fix cost = the ~8 s articulation
+their grounded sources -- autonomy.ODOM_DRIFT_FRAC, and the Navigation fix cost = the ~8 s articulation
 maneuver + dart.rassor_mass_model.arm_raise_lift_energy_j). Kept parametric (not imported) so the planner
 can call this without the autonomy->mission_planner import cycle.
 """
@@ -18,7 +18,7 @@ from __future__ import annotations
 import math
 
 DEFAULT_DRIFT_FRAC = 0.05       # mirrors lode.autonomy.ODOM_DRIFT_FRAC (along-track DR drift per metre)
-DEFAULT_FIX_MANEUVER_S = 8.0    # mirrors dart.comparison.operational_cost argus_maneuver_s [ASSUMPTION]
+DEFAULT_FIX_MANEUVER_S = 8.0    # mirrors dart.comparison.operational_cost nav_maneuver_s [ASSUMPTION]
 
 
 def schedule_relocalization_stops(traverse_m: float, *, drift_tol_m: float = 0.5,
@@ -29,7 +29,7 @@ def schedule_relocalization_stops(traverse_m: float, *, drift_tol_m: float = 0.5
     predicted along-track drift never exceeds ``drift_tol_m``. Returns the fix schedule (count, the
     along-traverse distances), the run length between fixes, the time + energy the fixes cost, and the
     worst-case (bounded) drift. ``fix_residual_m`` is the post-fix residual the parallax fix cannot remove
-    (0 = an ideal fix; the ARGUS heading-free fix is ~0 m). Deterministic."""
+    (0 = an ideal fix; the Navigation heading-free fix is ~0 m). Deterministic."""
     if traverse_m < 0:
         raise ValueError(f"traverse_m must be >= 0 (got {traverse_m})")
     if drift_frac <= 0:

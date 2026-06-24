@@ -171,7 +171,7 @@ def test_camera_channel_attaches_real_frames(tmp_path):
 
 
 def test_all_eight_cameras_in_the_packet(tmp_path):
-    """T3.1 (ARGUS): the full documented rig flows -- all 8 cameras with per-camera intrinsics
+    """T3.1 (Navigation): the full documented rig flows -- all 8 cameras with per-camera intrinsics
     from the frame store's own producer file; the packet still passes the strict parser."""
     import os
     store = os.path.join(os.path.dirname(rp.__file__), "..", "eval", "validation",
@@ -196,7 +196,7 @@ def test_all_eight_cameras_in_the_packet(tmp_path):
 
 
 def test_t34_camera_thermal_gating(tmp_path):
-    """ARGUS T3.4: below the DOCUMENTED camera floor (0 C TVAC, SCHULER24 pp.28-29) the camera
+    """Navigation T3.4: below the DOCUMENTED camera floor (0 C TVAC, SCHULER24 pp.28-29) the camera
     channel reports UNAVAILABLE reason=thermal -- polar-night perception planning becomes honest.
     The avionics keep running (imu/wheel/power unaffected)."""
     import os
@@ -222,7 +222,7 @@ def test_t34_camera_thermal_gating(tmp_path):
 
 
 def test_t51_heaters_own_the_camera_window(tmp_path):
-    """ARGUS T5.1 (corrected en route): the naive sun-equilibrium model PROVED that grazing polar
+    """Navigation T5.1 (corrected en route): the naive sun-equilibrium model PROVED that grazing polar
     sun (max el ~1.6 deg at Haworth) can never passively hold the 0..50 C window -- so, per the
     TRL5 TVAC/heater design, the HEATERS own it while the pack can power them. Powered: camera OK
     at any sun. Pack below the shed reserve: housing falls cold, the TVAC gate fires. Manual

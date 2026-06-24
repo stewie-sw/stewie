@@ -1,6 +1,6 @@
 """#78: the SE(2)+IMU pose-graph upgrade (orientation state + gyro-preintegrated yaw factors).
 
-The 2-D PoseGraph estimates position only; ARGUS needs heading too (the shadow/stereo factors are
+The 2-D PoseGraph estimates position only; Navigation needs heading too (the shadow/stereo factors are
 bearing-bearing, and the rover drives in its body frame). PoseGraphSE2 estimates (x, y, yaw) per
 node via Gauss-Newton on the SE(2) manifold, with:
   - prior            : anchor a node's full pose

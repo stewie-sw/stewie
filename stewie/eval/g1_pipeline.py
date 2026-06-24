@@ -10,7 +10,7 @@ Formalizes the g1_capture baseline into three SEPARATED stages so the evidence i
 The start pose is the rover's declared deployment origin (a legitimate runtime input -- the rover knows
 where it was placed), written to runtime/config.json, NOT read from the truth channel.
 """
-# PROVENANCE: ARGUS navigation work (A. Storey) -- moved from solnav/eval/g1_pipeline.py, 2026-06-09 (M2)
+# PROVENANCE: navigation work -- relocated into stewie/eval (was g1_pipeline.py) 2026-06-09 (M2)
 from __future__ import annotations
 
 import csv

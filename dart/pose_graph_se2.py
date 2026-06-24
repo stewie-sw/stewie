@@ -1,7 +1,7 @@
 """#78: the SE(2)+IMU pose-graph estimator (orientation-aware upgrade of dart.pose_graph).
 
 Estimates (x, y, yaw) per node by Gauss-Newton on the SE(2) manifold. This is the orientation
-state the 2-D position graph lacked and that ARGUS needs: the rover drives in its body frame, and
+state the 2-D position graph lacked and that Navigation needs: the rover drives in its body frame, and
 the shadow/stereo factors are heading-dependent. Factor types:
 
   prior(i, (x,y,yaw), sigma_xy, sigma_yaw)   anchor a full pose

@@ -48,7 +48,7 @@ def build_hazard_map(dem, dem_origin=(0.0, 0.0), *, rocks_world=(), rock_mask=No
     """Build the navigation cost grid. cost = 1 (base) + slope penalty + roughness penalty + rock penalty;
     inf (no-go) where slope > max_slope OR a hard (D/E) rock sits.
 
-    DEFAULTS ARE DOC-TRUE (ARGUS T6.2, TRL5): no-go above the 20-deg TESTED slope limit, penalty
+    DEFAULTS ARE DOC-TRUE (Navigation T6.2, TRL5): no-go above the 20-deg TESTED slope limit, penalty
     from the 15-deg NOMINAL envelope, roughness hazard at the 7.5 cm obstacle capability. ``rocks_world`` = iterable of
     (x, y, Rock); ``rock_mask`` = optional dense semantic rock occupancy (same shape as the DEM, the
     Stanford per-pixel layer)."""

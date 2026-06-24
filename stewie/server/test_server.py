@@ -269,7 +269,7 @@ def test_prune_reports_removes_old_files(tmp_path, monkeypatch):
     assert removed == 1 and not os.path.exists(old) and os.path.exists(fresh)
 
 
-# ---- POST /localize : P1.1 -- the ARGUS articulation-parallax fix, wired into the estimator -------
+# ---- POST /localize : P1.1 -- the Navigation articulation-parallax fix, wired into the estimator -------
 def test_localize_recovers_known_position_with_covariance(client):
     """[REQ:PM-06] /localize ties articulation_localize into a live PoseGraphSE2: from the shadow-tip
     PIXEL shifts under a commanded lift dh it triangulates ranges, fixes (x,y) heading-free, injects an
@@ -444,7 +444,7 @@ def test_render_parallax_rejects_unknown_posture(client):
                     reason="raw Katwijk dataset not on this host (ESA license + size, not bundled)")
 def test_slam_compare_three_approach_classes(client, monkeypatch):
     """[REQ:SN-12] /slam/compare runs the shared-testbed head-to-head over a REAL segment: the same
-    pose graph under three approach classes, each modeled at its reported sigma. ARGUS bounds the
+    pose graph under three approach classes, each modeled at its reported sigma. Navigation bounds the
     absolute drift the passive single-pass cannot."""
     monkeypatch.setenv("STEWIE_KATWIJK_DIR", _KATWIJK)
     PERC._KATWIJK_CACHE.clear()
@@ -453,9 +453,9 @@ def test_slam_compare_three_approach_classes(client, monkeypatch):
     c = r.json()["comparison"]
     keys = list(c)
     assert len(keys) == 3 and all("mean_m" in c[k] and "note" in c[k] for k in keys)
-    argus = [k for k in keys if "ARGUS" in k][0]
+    nav = [k for k in keys if "Navigation" in k][0]
     passive = [k for k in keys if "passive" in k or "Stanford" in k][0]
-    assert c[argus]["mean_m"] < c[passive]["mean_m"]            # active fixes bound what passive cannot
+    assert c[nav]["mean_m"] < c[passive]["mean_m"]            # active fixes bound what passive cannot
 
 
 def test_slam_compare_503_when_dataset_absent(client, monkeypatch):

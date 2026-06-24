@@ -1,4 +1,4 @@
-"""#183/#79 shadow-nav landmarks: cast-shadow blobs on the panorama + their azimuth bearings (the ARGUS
+"""#183/#79 shadow-nav landmarks: cast-shadow blobs on the panorama + their azimuth bearings (the Navigation
 measurements). The detector + the column->bearing map are unit-tested on controlled fixtures; the full
 detection runs on a REAL render-derived panorama when present and SKIPs otherwise (the egress is render
 output, not committed). The fixtures are literal arrays exercising the image-processing logic, not stand-in

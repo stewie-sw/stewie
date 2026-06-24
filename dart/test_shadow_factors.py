@@ -1,4 +1,4 @@
-"""#183/#79 shadow-nav landmarks -> ARGUS heading factors. The converter pairs each accepted shadow
+"""#183/#79 shadow-nav landmarks -> Navigation heading factors. The converter pairs each accepted shadow
 landmark (from shadow_landmarks.py) with its body-frame bearing of the anti-solar shadow ray and the
 ephemeris anti-solar azimuth, building the gated PoseGraphSE2 shadow_yaw factors. These tests verify
 the gate and that the estimator recovers a deliberately-wrong heading from the shadow factors. Real
@@ -23,7 +23,7 @@ def test_low_contrast_shadow_is_rejected_not_fed_to_graph():
 
 
 def test_shadow_factors_recover_a_perturbed_heading():  # [REQ:ML-04]
-    # shadow-SLAM/ARGUS: shadow bearings + ephemeris sun geometry -> gated pose-graph yaw factors
+    # shadow-SLAM/Navigation: shadow bearings + ephemeris sun geometry -> gated pose-graph yaw factors
     true_yaw_deg = 40.0
     anti_solar = 215.0                                    # world azimuth of the anti-solar shadow ray
     # all cast shadows are parallel (point anti-solar); each landmark measures the SAME body-frame

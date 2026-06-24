@@ -1,5 +1,5 @@
 """Reproduce the current G1/G2 validation evidence without overstating gate status."""
-# PROVENANCE: ARGUS navigation work (A. Storey) -- moved from solnav/eval/gates.py, 2026-06-09 (M2)
+# PROVENANCE: navigation work -- relocated into stewie/eval (was gates.py) 2026-06-09 (M2)
 from __future__ import annotations
 
 import hashlib

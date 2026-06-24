@@ -1,4 +1,4 @@
-"""ARGUS T2.1/T2.2: arm-swing kinematics as ONE articulated state (ode-to-Schuler subsystem).
+"""Navigation T2.1/T2.2: arm-swing kinematics as ONE articulated state (ode-to-Schuler subsystem).
 
 Doc truth folded in: arm pivots at base_link x = +/-0.20 m (the render rig's ARM_*_ORIGIN -- one
 geometry for physics AND pixels), arm-actuator excavation load 18.5 N*m on the Moon (TRL5 Table 7),

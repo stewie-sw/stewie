@@ -125,7 +125,7 @@ def shared_testbed_comparison(truth_xy, dr_xy, truth_yaw, gyro_yaw, *, n_seeds=2
     """The measured head-to-head: the SAME pose graph over the SAME trajectory under three approach
     classes, each at its characteristic fix sigma -- Stanford-class passive (no absolute fix on a
     single-pass traverse; bounds drift only by driving a loop-closure pattern), ShadowNav-class
-    (global map-match fixes ~3 m), ARGUS (articulation-parallax fixes ~0.5 m). Returns each config's
+    (global map-match fixes ~3 m), Navigation (articulation-parallax fixes ~0.5 m). Returns each config's
     absolute-drift distribution (mean + 95% CI). Converts the positioning matrix into one-testbed
     numbers. The active-cue/map fixes are modeled at each method's reported sigma against the real
     Katwijk drift."""
@@ -142,7 +142,7 @@ def shared_testbed_comparison(truth_xy, dr_xy, truth_yaw, gyro_yaw, *, n_seeds=2
             "note": "no absolute fix on a non-looping traverse; bounds drift only via a driven loop-closure pattern"},
         "ShadowNav-class (global map-match)": {**stat(("odom", "imu", "dem"), sigma_dem_m=3.0),
             "note": "global map-match fixes ~3 m; needs the orbital prior"},
-        "ARGUS (articulation parallax)": {**stat(("odom", "imu", "shadow", "parallax"), sigma_parallax_m=0.5),
+        "Navigation (articulation parallax)": {**stat(("odom", "imu", "shadow", "parallax"), sigma_parallax_m=0.5),
             "note": "standstill parallax fixes ~0.5 m; map-free, heading-free"},
     }
 

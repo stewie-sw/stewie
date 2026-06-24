@@ -70,7 +70,7 @@ def main() -> int:
         for pane in panes:
             page.click(f'.vtab[data-view="{pane}"]')
             page.wait_for_timeout(700)                           # let the pane load (figures/iframe/poll)
-            if pane == "nav":                                    # P1.4 live-verify: ARGUS estimator surface
+            if pane == "nav":                                    # P1.4 live-verify: Navigation estimator surface
                 if page.query_selector("#navrun") and not page.eval_on_selector("#navrun", "el => el.disabled"):
                     page.click("#navrun")                        # run the integrated estimator
                     page.wait_for_timeout(1800)                  # estimator run (or graceful 503 if no dataset)

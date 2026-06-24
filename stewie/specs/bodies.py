@@ -108,7 +108,7 @@ BODIES = {
         provenance="Wong, Theory of Ground Vehicles (dry sand: k_c=0.99 kN/m^(n+1), k_phi=1528.43 "
                    "kN/m^(n+2), n=1.1, c=1.04 kPa, phi=28).",
     ),
-    # ARGUS T7.1: the GMRO Regolith Test Bed soil (compacted BP-1) -- the bin IPEx/RASSOR are
+    # Navigation T7.1: the GMRO Regolith Test Bed soil (compacted BP-1) -- the bin IPEx/RASSOR are
     # TESTED in. Density/shear/penetration are MEASURED (WHEELTEST/BDSCALE, in ipex_specs);
     # Bekker moduli for BP-1 are NOT published, so the Wong dry-sand baseline stands in,
     # DISCLOSED as [ANALOG] (same pattern as Ceres' lunar-analog soil). Earth-validation

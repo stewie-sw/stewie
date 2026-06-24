@@ -23,16 +23,16 @@ def test_evidence_route_ok_and_has_the_three_evidence_sections():
 
 def test_generalization_matrix_positions_the_three_approach_classes():
     cm = _ev().json()["capability_matrix"]
-    assert {"Stanford NAV Lab (LAC)", "ShadowNav (JPL)", "ARGUS"}.issubset(cm.keys())
-    # ARGUS is the map-free, active-reconfiguration approach using shadow as a geometric instrument
-    assert cm["ARGUS"]["active_reconfiguration"] is True
-    assert cm["ARGUS"]["shadow_role"].startswith("GEOMETRIC")
+    assert {"Stanford NAV Lab (LAC)", "ShadowNav (JPL)", "Navigation"}.issubset(cm.keys())
+    # Navigation is the map-free, active-reconfiguration approach using shadow as a geometric instrument
+    assert cm["Navigation"]["active_reconfiguration"] is True
+    assert cm["Navigation"]["shadow_role"].startswith("GEOMETRIC")
     assert cm["ShadowNav (JPL)"]["needs_orbital_prior"] is True
 
 
 def test_comparison_reports_accuracy_precision_per_system_with_frames():
     ap = _ev().json()["accuracy_precision"]
-    assert ap["ARGUS"]["frame"] == "local (map-free)"
+    assert ap["Navigation"]["frame"] == "local (map-free)"
     assert ap["Stanford NAV Lab (LAC)"]["frame"] == "relative (SLAM)"
     assert ap["ShadowNav (JPL)"]["frame"] == "global (orbital map)"
     assert "_note" in ap                                      # the honest different-problem-scales caveat

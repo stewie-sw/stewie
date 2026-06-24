@@ -207,7 +207,7 @@ class RuntimeProcess:
         sens = _json.load(open(os.path.join(self.frame_store, "sensors.json")))
         stereo = sens["stereo"]
         cam0 = next(c for c in sens["cameras"] if c["name"] == stereo["left"])
-        # ARGUS T3.1: the FULL documented rig -- every camera the store's producer file declares,
+        # Navigation T3.1: the FULL documented rig -- every camera the store's producer file declares,
         # each with ITS OWN intrinsics (per-camera fx/cx/cy from the producer, never assumed).
         frames, intr = [], {}
         for c in sens["cameras"]:

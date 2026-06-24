@@ -56,7 +56,7 @@ def executive_step(*, faults=(), command_acked: bool = True, plan_accepted: bool
                 "safety_critical": False}
     if not covariance_ok:
         return {"action": "relocalize",
-                "reason": "localization covariance lost -> standstill relocalization fix (ARGUS/DEM)",
+                "reason": "localization covariance lost -> standstill relocalization fix (Navigation/DEM)",
                 "safety_critical": False}
     if rec_action == "replan_global" or reactive_scope == "global":
         return {"action": "replan_global", "reason": "planner failure / no local detour -> global re-route",

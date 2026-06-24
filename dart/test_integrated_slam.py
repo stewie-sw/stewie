@@ -64,13 +64,13 @@ def test_fusion_generalizes_across_traverse_segments():
 
 @pytest.mark.skipif(not os.path.isdir(PART), reason="Katwijk not present")
 def test_shared_testbed_head_to_head_orders_correctly():
-    """On ONE trajectory, ARGUS (sub-m parallax) beats ShadowNav-class (m-global), both beat passive
+    """On ONE trajectory, Navigation (sub-m parallax) beats ShadowNav-class (m-global), both beat passive
     (drifts on a single pass) -- the measured head-to-head."""
     from dart.integrated_slam import load_katwijk_arrays, shared_testbed_comparison
     truth, dr, tyaw, gyro = load_katwijk_arrays(PART)
     r = shared_testbed_comparison(truth, dr, tyaw, gyro, n_seeds=10)
     passive = r["Stanford-class (passive, single pass)"]["mean_m"]
     sn = r["ShadowNav-class (global map-match)"]["mean_m"]
-    argus = r["ARGUS (articulation parallax)"]["mean_m"]
-    assert argus < sn < passive          # ARGUS tightest, then global map-match, then drifting passive
-    assert argus < 5.0 and passive > 20.0
+    nav = r["Navigation (articulation parallax)"]["mean_m"]
+    assert nav < sn < passive          # Navigation tightest, then global map-match, then drifting passive
+    assert nav < 5.0 and passive > 20.0

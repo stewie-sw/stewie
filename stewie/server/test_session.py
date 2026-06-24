@@ -137,7 +137,7 @@ def test_summary_covers_route_and_slip_from_a_real_haworth_run():
 
 
 def test_t42_sessions_stamp_one_sun_state(client):
-    """ARGUS T4.2: a session carries mission_t0; operator AND director views stamp the SAME sun
+    """Navigation T4.2: a session carries mission_t0; operator AND director views stamp the SAME sun
     (az/el from the one solar authority at that time) -- camera frames, shadow layers, and the
     debrief all agree on lighting."""
     r = client.post("/session/start", json={**_mission(), "mission_t0_s": 600000},

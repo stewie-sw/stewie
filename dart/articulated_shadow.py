@@ -1,11 +1,11 @@
-"""SN-09: the articulated self-shadow instrument (the ARGUS-title idea).
+"""SN-09: the articulated self-shadow instrument (the Navigation-title idea).
 
 Not the ambient terrain shadow (azimuth -> heading, SN-02/03), but the rover's OWN self-shadow,
 whose LENGTH changes by a KNOWN amount when the rover commands an articulated posture change. A
 feature at height h casts a self-shadow of length L = h / (tan e - tan slope) on ground sloped by
 ``slope`` along the anti-solar direction (downslope positive), at sun elevation e.
 
-The ARGUS insight: the rover commands a PRECISE height change dh (forward kinematics, known to mm),
+The Navigation insight: the rover commands a PRECISE height change dh (forward kinematics, known to mm),
 and the unknown effective casting-height baseline h0 CANCELS in the differential
 
     dL = L(h0 + dh) - L(h0) = dh / (tan e - tan slope).

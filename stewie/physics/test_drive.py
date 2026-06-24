@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
 
 def test_skid_steer_yaw_authority_is_slip_coupled():
-    """ARGUS T1.2: with skid_steer=True, yaw comes from DIFFERENTIAL thrust over the documented
+    """Navigation T1.2: with skid_steer=True, yaw comes from DIFFERENTIAL thrust over the documented
     0.5207 m track -- the same slip that robs forward progress robs the speed differential, so
     omega under-achieves on low-traction slopes exactly as v does. Default path: byte-identical."""
     import numpy as np

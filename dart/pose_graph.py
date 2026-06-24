@@ -1,4 +1,4 @@
-"""#78 (ARGUS subsystem): a windowed 2-D pose-graph estimator.
+"""#78 (Navigation subsystem): a windowed 2-D pose-graph estimator.
 
 The unified-state contract the thesis protects, made concrete: a sparse least-squares graph over
 2-D positions x_i, with three factor types, all sourced from the existing primitives --

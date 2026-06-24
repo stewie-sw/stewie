@@ -1,7 +1,7 @@
 """Ephemeris / azimuth authority route (FS-06 / §25.3, §25 Phase 1). The SINGLE backend service that
 resolves the sun geometry for a mission time + site and returns the typed EphemerisObservation contract
 with the azimuth convention EXPLICIT -- every shadow / illumination / navigation-risk / camera-policy /
-ARGUS consumer reads this, so no consumer may assume a private convention. Public read (illumination
+Navigation consumer reads this, so no consumer may assume a private convention. Public read (illumination
 geometry is not operator-secret, like the globe base map). Delegates to the solar authority; no
 app-module import (no cycle)."""
 from __future__ import annotations

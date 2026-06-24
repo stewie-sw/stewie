@@ -4,7 +4,7 @@ Aggregates the per-method comparison primitives (dart.comparison) into ONE seede
 benchmark report: per-method metrics, the add-one ablation (marginal factor value), the failure
 classes each method has across the lunar condition axes (sun angle, terrain change, rocks, PSR,
 camera degradation, excavation), and the exact command to regenerate it. Methods: passive VO,
-Stanford-style stereo SLAM, ShadowNav, ARGUS, and the fused estimator.
+Stanford-style stereo SLAM, ShadowNav, Navigation, and the fused estimator.
 
 Honest: metrics + the parallax error come from dart.comparison's sourced models (seeded, fixed);
 the failure classes are grounded in each method's real acceptance gate (stereo inliers, the AS-08
@@ -25,7 +25,7 @@ FAILURE_CLASSES = {
     "stereo_slam": ("low_texture", "camera_degradation", "loop_closure_absent_on_open_traverse"),
     "shadownav": ("psr (no sun -> no shadow)", "high_sun_short_shadow (AS-08 reject)",
                   "false_shadow (low contrast, gated)"),
-    "argus": ("far_range (beyond camera-resolvable parallax, AS-09 reject)",
+    "nav": ("far_range (beyond camera-resolvable parallax, AS-09 reject)",
               "collinear_landmarks (trilateration mirror ambiguity)", "no_articulation_freedom"),
     "fused": ("all_inputs_simultaneously_lost",),     # complementary: robust to any single failure
 }
@@ -45,15 +45,15 @@ def benchmark_report(*, seed: int = 0, near_range_m: float = 6.0) -> dict:
         "stereo_slam": {"class": "passive VO + pose-graph SLAM (Stanford NAV Lab)",
                         "global_bound": "loop-closure only", "range_sigma_m": modality["stereo_sigma_m"]},
         "shadownav": {"class": "shadow appearance, coarse global match", "global_bound": True},
-        "argus": {"class": "active articulation parallax, local fix", "global_bound": "standstill fix",
+        "nav": {"class": "active articulation parallax, local fix", "global_bound": "standstill fix",
                   "range_sigma_m": modality["articulation_parallax_sigma_m"],
                   "baseline_ratio_dh_over_b": modality["baseline_ratio_dh_over_b"]},
-        "fused": {"class": "complementary fusion (VO + ShadowNav + ARGUS in the pose graph)",
+        "fused": {"class": "complementary fusion (VO + ShadowNav + Navigation in the pose graph)",
                   "global_bound": True},
     }
-    # fold in the accuracy/precision comparison (ShadowNav global vs ARGUS local vs Stanford SLAM)
+    # fold in the accuracy/precision comparison (ShadowNav global vs Navigation local vs Stanford SLAM)
     for k, v in (acc.items() if isinstance(acc, dict) else []):
-        kk = {"stanford": "stereo_slam", "shadownav": "shadownav", "argus": "argus"}.get(str(k).lower())
+        kk = {"stanford": "stereo_slam", "shadownav": "shadownav", "navigation": "nav"}.get(str(k).lower())
         if kk and isinstance(v, dict):
             methods[kk] = {**methods[kk], **{m: v[m] for m in ("accuracy_m", "precision_m") if m in v}}
 
