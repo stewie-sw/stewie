@@ -31,7 +31,8 @@ from playwright.sync_api import sync_playwright
 
 # the tab -> pane mapping mirrors VIEW_PANE in cockpit.js; `plan` has no overlay pane (the bare globe).
 # nav + perception are NOT top tabs -- they are sub-views of the Validate tab (checked separately below).
-VIEW_PANE = {"rehearse": "pane_rehearse", "metrics": "execview", "report": "pane-report"}
+VIEW_PANE = {"rehearse": "pane_rehearse", "release": "pane_release", "metrics": "execview",
+             "report": "pane-report"}
 
 
 def main() -> int:

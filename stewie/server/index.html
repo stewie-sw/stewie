@@ -638,6 +638,11 @@
            #navview + #renderpanel panes + their handlers; setView('validate') delegates to the last/default sub,
            and the Validate tab shows active whenever nav or perception is the sub-view. -->
       <button class="vtab" data-view="validate" title="validate the plan: ARGUS navigation / state-estimation (est-vs-truth) and the perception sensor render — two sub-tabs">Validate <span class="sysb">LEAP·DART</span></button>
+      <!-- RELEASE (ConOps spine slot 4, director-only): drive the current build plan through the MO-02 mission
+           lifecycle (DRAFT->ANALYZED->REHEARSED->REVIEWED->RELEASED) via POST /executive/release-plan, recording
+           the signed immutable revision + evidence. Signs on the conserved sim authority; does NOT command a
+           rover (the execution tier is gated, MO-04). data-minrole bounces a non-director. -->
+      <button class="vtab" id="vtab-release" data-view="release" data-minrole="director" style="display:none" title="release: sign off the current build plan — run it through the MO-02 lifecycle (analyze → rehearse → review → release) and record the signed revision + evidence. Director-only.">Release <span class="sysb">DART</span></button>
       <button class="vtab" data-view="metrics" title="execution: top-down replay of the planned mission + live CG / tip-over margin and the live telemetry channels">Execute <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
       <!-- FS-03: the FLEET work area (operator+). Roster = the real vehicle registry (/fleet);
@@ -972,6 +977,24 @@
             the conserved planner appear here side-by-side, feasibility first.</div>
         </div>
       </div>
+      <!-- RELEASE pane (director-only): drive the current build queue through the MO-02 lifecycle to RELEASED
+           via POST /executive/release-plan; render the signed revision + evidence + the honestly-surfaced
+           non-build (skipped) orders. cockpit.js loadPane('release') -> loadRelease(). -->
+      <div id="pane_release" class="pane">
+        <div style="padding:14px 16px;max-width:780px">
+          <div style="font-size:13px;font-weight:700;letter-spacing:.04em">RELEASE &mdash; sign off the current plan</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.6;margin:8px 0 12px">
+            Drive the current build queue through the MO-02 mission lifecycle (DRAFT &rarr; ANALYZED &rarr;
+            REHEARSED &rarr; REVIEWED &rarr; RELEASED) and record the signed immutable revision + evidence
+            (plan_id, forward-compare). Director-only; plans / rehearses / reviews / signs on the conserved sim
+            authority &mdash; it does NOT command a rover (the execution tier is gated, MO-04). Build orders
+            (cut / fill / sinter) become mission objectives; path waypoints are not objectives and are listed,
+            not released.
+          </div>
+          <button id="releasebtn" class="go">&#9654; Release current plan</button>
+          <div id="releaseout" style="margin-top:14px;font-size:12px;line-height:1.7"></div>
+        </div>
+      </div>
       <!-- FS-03: the FLEET pane. Operator+ work area. Two sections: the static vehicle-registry ROSTER
            (from /fleet) and the live per-vehicle ALLOCATION + makespan + conflicts (from the last /plan).
            cockpit.js loadPane('fleet') fetches /fleet and reads LAST_TOTALS, then fleet_render.js builds
@@ -1261,6 +1284,6 @@
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=db800a3f2b64"></script>
+<script src="/assets/cockpit.js?v=03f400ec7960"></script>
 </body>
 </html>

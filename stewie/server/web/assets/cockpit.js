@@ -766,6 +766,7 @@ let VIEW = "plan";
 let _validateSub = "nav";        // VALIDATE tab: which sub-view (nav|perception) is shown; setView('validate') uses it
 const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navview", report: "pane-report",
                     rehearse: "pane_rehearse",                            // REHEARSE: candidate-compare review surface
+                    release: "pane_release",                              // RELEASE: director sign-off (/executive/release-plan)
                     fleet: "pane_fleet",                                  // FS-03: the Fleet work area
                     construction: "pane_construction", models: "pane_models",  // FS-03: Construction + Models work areas
                     trainer: "pane_trainer",                            // TR-02/03/04: the Trainer work area
@@ -1964,12 +1965,49 @@ if ($("set-resetws")) $("set-resetws").onclick = () => {
 
 // lazy-load the engineer/dev/intern panes the first time shown (Server refreshes live each open). All read
 // real server endpoints; on file:// or a down server they keep their empty state (no fabricated content).
+async function loadRelease() {                                            // RELEASE: director sign-off (POST /executive/release-plan)
+  const out = $("releaseout"), btn = $("releasebtn");
+  if (!out || !btn) return;
+  out.innerHTML = ORDERS.length
+    ? `<div style="color:var(--muted)">${ORDERS.length} order(s) in the queue. Click <b>Release</b> to drive them through the lifecycle and sign the revision.</div>`
+    : '<div class="empty">No build orders yet — author a plan on the Plan tab first.</div>';
+  btn.onclick = async () => {
+    if (!ORDERS.length) {
+      out.innerHTML = '<div class="empty">No build orders to release — author a plan on the Plan tab first.</div>';
+      return;
+    }
+    out.innerHTML = '<div class="empty">Driving the plan through the mission lifecycle…</div>';
+    try {
+      const r = await fetch("/executive/release-plan", { method: "POST", headers: apiHeaders(),
+        body: JSON.stringify({ body: sel.value, orders: ORDERS, mission_id: `${BODIES[sel.value].name} release` }) });
+      if (r.status === 401 || r.status === 403) {
+        out.innerHTML = '<div class="empty">Release is director-only. Sign in with a director key (RELEASED is a '
+          + "director-authority signing transition).</div>";
+        return;
+      }
+      const d = await r.json();
+      if (!d.ok) { out.innerHTML = `<div class="empty">Cannot release: ${esc(d.error || "uncompilable plan")}</div>`; return; }
+      const rev = d.signed_revision, skipped = d.skipped || [], ev = d.evidence || {};
+      const trail = (d.transitions || []).map((t) => `${esc(t.to)} <span style="color:var(--muted)">(${esc(t.role)})</span>`).join(" → ");
+      out.innerHTML =
+        `<div><b style="color:var(--accent);font-size:13px">${esc(String(d.state).toUpperCase())}</b> — ${d.released_objectives} build objective(s) released <span style="color:var(--muted)">(${esc(d.label)})</span></div>`
+        + (rev ? `<div style="margin-top:6px;color:var(--muted)">signed revision <code>${esc(String(rev.content_hash).slice(0, 16))}…</code> by ${esc(rev.signed_by)}</div>` : "")
+        + `<div style="margin-top:4px;color:var(--muted)">plan_id <code>${esc(String(ev.plan_id || "—"))}</code></div>`
+        + (trail ? `<div style="margin-top:8px">${trail}</div>` : "")
+        + (skipped.length ? `<div style="margin-top:12px;color:#e0a000">${skipped.length} non-build order(s) NOT released (path waypoints are not mission objectives): ${skipped.map((s) => esc(String(s.action || s.kind))).join(", ")}</div>` : "");
+    } catch (e) { out.innerHTML = `<div class="empty">Release failed: ${esc(String(e))}</div>`; }
+  };
+}
+
+
 async function loadPane(name) {
   try {
     if (name === "api") {
       if (!_PANE_LOADED.api) { $("apiframe").src = "/docs"; _PANE_LOADED.api = true; }   // FastAPI Swagger
     } else if (name === "rehearse") {
       await loadRehearse();                                               // REHEARSE: forward-compare candidate cards (/resync/compare)
+    } else if (name === "release") {
+      await loadRelease();                                                // RELEASE: director sign-off via /executive/release-plan
     } else if (name === "fleet") {
       await loadFleet();                                                  // FS-03: roster (/fleet) + last-plan allocation
     } else if (name === "construction") {
