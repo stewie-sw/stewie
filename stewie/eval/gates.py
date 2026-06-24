@@ -120,7 +120,7 @@ def validate() -> dict:
         }
         g1_blockers = [
             "Native stewie camera-egress publication of IMU/wheel/joint channels is still pending "
-            "(stewie g1_capture.py supplies them for the SIMULATED case).",
+            "(solnav g1_capture.py supplies them for the SIMULATED case).",
             "No REAL-WORLD locked capture (Katwijk download network-blocked here); G1 release stays "
             "blocked until a real run is scored vs DGPS (see katwijk_io.py + g1_imu_wheel_data_sources.md).",
             "Synchronized stereo keyframes are not yet in the capture (sidecar renders local patches, "
@@ -140,7 +140,7 @@ def validate() -> dict:
         "mapping consumes an already associated segment.",
     ]
     return {
-        "schema_version": "stewie_gate_validation/1.0",
+        "schema_version": "solnav_gate_validation/1.0",
         "date": "2026-06-07",
         "evidence_mode": "RENDERED_SENSOR_SIM",
         "manifest": manifest,
@@ -181,7 +181,7 @@ def validate() -> dict:
                    if g1_simulated_closure else "NOT_PASSED"),
             "G2": "NOT_PASSED",
             "next_gate": "Ingest a real Katwijk run (wheel+IMU+DGPS) via katwijk_io.py, add synchronized "
-                         "stereo, score stewie SLAM vs DGPS; acquire untouched depth/shadow truth",
+                         "stereo, score solnav SLAM vs DGPS; acquire untouched depth/shadow truth",
         },
     }
 
@@ -200,7 +200,7 @@ def validate_current() -> dict:
     """
     base = validate()
     out = dict(base)
-    out["schema_version"] = "stewie_gate_validation/1.1"
+    out["schema_version"] = "solnav_gate_validation/1.1"
     out["date"] = "2026-06-10"
     g2 = dict(base["g2"])
 

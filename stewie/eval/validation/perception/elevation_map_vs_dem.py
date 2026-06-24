@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""VISUAL + MATH check for stewie.perception.mapping: build a 2.5D elevation + return-count map from
+"""VISUAL + MATH check for solnav.perception.mapping: build a 2.5D elevation + return-count map from
 the REAL rendered lunar stereo traverse (frames 000..003, crater_boulders scene, Godot sensor model)
 and save it beside the prior REAL DEM as a PNG, with the honest built-vs-DEM elevation statistics.
 
-Pipeline (perception path): triangulate each stereo pair (stewie.perception.stereo_vo), place each
+Pipeline (perception path): triangulate each stereo pair (solnav.perception.stereo_vo), place each
 cloud in the Godot ground frame with the VO-estimated camera centres (a perception product) anchored
 at a single start localization fix and the fixed camera-mount rotation, and accumulate the median
 elevation + return count per cell. The map is then compared to the prior crater_boulders DEM.
@@ -34,7 +34,7 @@ from dart import mapping, stereo_vo  # noqa: E402
 _REPO_SAMPLES = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "samples"))
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(os.path.dirname(HERE))                 # .../stewie (package root dir)
+ROOT = os.path.dirname(os.path.dirname(HERE))                 # .../solnav (package root dir)
 CAM = os.path.join(ROOT, "validation", "a6_traverse", "cam")
 SEQUENCE = os.path.join(ROOT, "validation", "a6_traverse", "sequence.json")
 # EVAL/localization fix: the START (x, z) only -- read once, never per frame (invariant I3).

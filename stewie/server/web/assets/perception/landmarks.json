@@ -124,5 +124,5 @@
    "bearing_deg": 211.67
   }
  ],
- "note": "Real Godot 8-camera rig render -> heading-ordered panorama; shadow-nav landmarks are cast-shadow dark-contrast blobs, each tagged with its azimuth bearing (the Navigation pose-graph measurement). No synthetic pixels."
+ "note": "Real Godot 8-camera rig render -> heading-ordered panorama; shadow-nav landmarks are cast-shadow dark-contrast blobs, each tagged with its azimuth bearing (the ARGUS pose-graph measurement). No synthetic pixels."
 }

@@ -10,8 +10,8 @@ workspace: `design/STEWIE_ATOMIC_EXECUTION_PLAN_2026-06-09.md`.
 
 ## 0. Where we are / what's next (2026-06-11 — read this first)
 
-**Status:** the research track is FOLDED IN as a live production system — STEWIE is one platform,
-not a platform plus a separate research track. The trainer/simulator product (PRD §18 rung 4) is **software-complete**.
+**Status:** STEWIE is a single live production platform — one integrated system (planner, twin,
+cockpit, navigation), not a platform plus a separate track. The trainer/simulator product (PRD §18 rung 4) is **software-complete**.
 
 **Done (this build cycle):** all three rung-4 gaps — the pluggable RC contract + SF-01 safing
 watchdog (#66, deduced from the frozen CONTRACT.md; a plan exports a reusable GoTo command tape),
@@ -225,13 +225,13 @@ ablations into MEASURED ones (the move from characterized to qualified, fresh-se
 The completed plan that produced this session, for reference:
 
 **Completed plan (2026-06-11): the SN / Navigation evidence path.** The trainer product is
-done + gated on John's wire transport, so solo effort goes to the navigation-research contribution (the SN
+done + gated on John's wire transport, so solo effort goes to the navigation contribution (the SN
 family, 13 rows mostly open). Sequenced, bounded TDD slices (tasks #83-86), each gate-byte-identical
 with a `[REQ:]` marker:
 1. **CP-01 flip** (warm-up) — write the citing test for the produced-once `PlanResult`; clear the stale N.
 2. **SN-03** — the shadow *yaw* factor in `PoseGraphSE2` (this session's shadow factor is positional;
    SN-03 is the heading-from-shadow-azimuth factor, weak + covariance-weighted from the shadow-sigma
-   envelope). The core research instrument, made operational.
+   envelope). The core navigation instrument, made operational.
 3. **SN-02** — the shadow-vector detection front-end (reject rover/LED/saturation/penumbra) that feeds SN-03.
 4. **SN-05** — illumination-aware route cost (separable visibility/shadow-hazard/map-uncertainty terms).
 The arc: detect shadow -> fuse as a yaw factor -> route by illumination, turning the shadow-sigma
@@ -310,7 +310,7 @@ are treated as `[PROPOSED]` or `[ASSUMPTION]` here.
 
 The NavLab paper establishes robust navigation under variable lunar lighting. It does **not**
 establish shadow-azimuth heading, arm-controlled solar observation, or Meerkat solar navigation.
-Those are proposed STEWIE research/product requirements derived from the IPEx/LAC platform
+Those are proposed STEWIE product requirements derived from the IPEx/LAC platform
 capabilities and south-pole lighting environment.
 
 ## 3. Status Model
@@ -956,7 +956,7 @@ navigation performance under defined low-sun conditions.
 - Claiming real closed-loop autonomy from simulator truth.
 - Treating proposed solar/shadow methods as proven before ablation and qualification.
 
-Force-controlled excavation and high-energy sintering remain gated research/tool variants. Meerkat
+Force-controlled excavation and high-energy sintering remain gated tooling variants. Meerkat
 observation is in scope; unconstrained stunt-like motion is not.
 
 ## 13. Open Decisions and Required Data
@@ -1099,7 +1099,7 @@ Adoption, three phases in value order:
    used 8xA100).
 
 **Non-negotiable rail: diffusion-generated frames are NEVER evidence.** Rehearsal, visualization,
-and detector-training augmentation only -- the same fencing as the perception research track.
+and detector-training augmentation only -- the same fencing as the perception track.
 Their 2D-warp-error consistency metric is adopted for render/NVS QA regardless. Full note:
 `design/LUNAR_WORLD_MODEL_NOTE_2026-06-10.md` (private workspace).
 
@@ -1168,10 +1168,10 @@ manager), UI-9/10 remainders. (UI-6 alert rail + UI-14 queue attribute table + U
 + UI-17 report dashboard/Gantt all shipped 2026-06-19.)
 
 ### 16.6 Boundary note
-The DART research track planning set (G1–G9 gates, separate honesty firewall) is NOT renamed or
+The DART navigation track planning set (G1–G9 gates, separate honesty firewall) is NOT renamed or
 re-scoped by STEWIE. Convergence: STEWIE P20 (ROS2 bridge + live drive loop) is the same engineering
-object as the research track's persistent-runtime gap (G1.A4/A6) — one build advances both tracks;
-the research track's evidence-mode rules still apply on its side.
+object as the navigation track's persistent-runtime gap (G1.A4/A6) — one build advances both tracks;
+the navigation track's evidence-mode rules still apply on its side.
 
 ### 16.7 On-rover autonomy stack — Autoware-derived architecture (added 2026-06-15)
 
@@ -1332,7 +1332,7 @@ under-observed cells by science value — needs the team's actual objectives).
 outcomes, resync often" — the world-model-flavored rung, honestly implementable as input
 iteration over the existing terramechanics (the closed loop already runs candidate plans;
 optimize_sequence already compares algorithms). GAP: a resync protocol (real telemetry ingested
-→ state correction → re-simulate futures) — the research track-relevant piece.
+→ state correction → re-simulate futures) — the navigation track-relevant piece.
 
 ### Rung 1 (HORIZON): "Claude Rove" — click-accept mission autonomy
 A glimpse, not a deliverable: the rover will not run this code, and no one is running
@@ -1369,7 +1369,7 @@ started.** By family (worst-column):
 
 **Track tagging (architecture review rec 3, 2026-06-11):** the "0 release-ready" headline is read
 correctly only WITH the track each family is on. **PRODUCT** families are on the rung-4 trainer
-critical path (their gap is real product work); **DEFERRED** families are research-frontier or
+critical path (their gap is real product work); **DEFERRED** families are deferred frontier or
 externally-gated by design (their "N" rows are the roadmap, not debt) — do not read their N count
 as product debt. **GATED** = blocked on an external input (IPEx geometry, John's pit protocol).
 
@@ -1380,11 +1380,11 @@ as product debt. **GATED** = blocked on an external input (IPEx geometry, John's
 | VT 7.3 | vehicle/arms/drums/stability | 1 | 9 | GATED | the two-vehicle stance gap (VT-01/02/05); exact geometry awaits authoritative IPEx data |
 | AM 7.4 | posture maneuvers (MEERKAT…) | 0 | 9 | GATED | all gated on authoritative IPEx geometry |
 | CP 7.5 | perception/mapping/localization | 5 | 5 | PRODUCT | the G1/G2 evidence feeds this |
-| SN 7.6 | solar-terrain navigation | 0 | 13 | DEFERRED | **the Navigation research frontier** — open by design (the navigation-research contribution) |
+| SN 7.6 | solar-terrain navigation | 0 | 13 | DEFERRED | **the Navigation frontier** — open by design (the navigation contribution) |
 | NV 7.7 | navigation/planning/recovery | 1 | 11 | PRODUCT | berm re-hazard + routing + docking/berm FSMs exist; recovery behaviors don't |
 | PM 7.8 | construction mission planning | 1 | 11 | PRODUCT | the planner is rich but matrix-unverified (mostly flip-on-evidence) |
 | EP 7.9 | energy/thermal/power/ops | 2 | 6 | PRODUCT | battery-honest timeline shipped; thermal ops partial |
-| FL 7.10 | fleet | 0 | 7 | DEFERRED | MV1-7 exists; the RL multi-vehicle frontier + fleet reqs are research-scale |
+| FL 7.10 | fleet | 0 | 7 | DEFERRED | MV1-7 exists; the RL multi-vehicle frontier + fleet reqs are frontier-scale |
 | PO 7.11 | product/packaging/ops | 2 | 12 | PRODUCT | docs trilogy + fetcher land here; flip on evidence |
 
 **Reading the census honestly:** the rung-4 trainer product (the §0 / §18 intent) is software-COMPLETE;
@@ -1394,7 +1394,7 @@ capability exists, the matrix column hasn't been moved on a citing test yet). "0
 no family has every column at D, NOT that the product doesn't work.
 
 ### 19.2 The standards frame (honest scoping)
-- **Classification (NPR 7150.2 software classes):** STEWIE-as-simulator/training-tool is research/
+- **Classification (NPR 7150.2 software classes):** STEWIE-as-simulator/training-tool is
   Class-E-like; the moment the pluggable RC contract (#66) lets it COMMAND the dirt-pit robot, the
   command path crosses into safety-relevant territory → that path (and only that path) needs
   Class-D-style rigor: independent review, hazard analysis, the SAFING/WATCHDOG requirement the
@@ -1421,7 +1421,7 @@ no family has every column at D, NOT that the product doesn't work.
    (CT/TW/CP families first) — turn the 19 P's into evidence-backed D's or honest N's.
 3. Flip stale matrix rows on existing evidence (TW-06 SPICE; PO docs/fetcher; EP battery).
 4. Then the families in mission order: VT/AM (needs IPEx geometry from John), NV recovery,
-   SN as the research track track.
+   SN as the navigation track track.
 
 ### 18.1 Rung status (2026-06-11)
 Rung 4: ALL THREE software gaps CLOSED. Gap 2 (telemetry shaping — downlink latency first-class,
@@ -1477,9 +1477,9 @@ STEWIE has TWO production targets with very different bars (PRD §18 ladder):
   authoring cockpit, conserved twin, link/latency shaping, operator/director roles, audit trail,
   and no-terminal ops are real and tested; the two security criticals are now closed. The
   remaining 25% is almost entirely the **#66 pluggable RC contract + SF-01 watchdog** (blocked on
-  John's protocol) plus the medium hardening list above. NOT a research demo — a usable trainer
+  John's protocol) plus the medium hardening list above. NOT a demo — a usable trainer
   once the RC seam lands.
-- **As FLIGHT-RELEVANT autonomy / the Navigation estimator (the research track):** **~30%, by design.**
+- **As FLIGHT-RELEVANT autonomy / the Navigation estimator (the navigation track):** **~30%, by design.**
   The SN solar-terrain-navigation family is 13/13 open; the pose-graph that fuses sun/shadow/DEM
   factors over mutating terrain is scaffolded (shadow_predict, register_to_dem, the re-hazard,
   the conserved mutable twin) but NOT integrated. This is the protected contribution, correctly
@@ -1495,7 +1495,7 @@ external dependency (the RC protocol); the flight-autonomy story is early and pr
 
 A full architecture review (pattern, layering, coupling/complexity hotspots, PRD-vs-intent) ran
 against the live tree (~62k LOC, 153 core modules, 169 test files, 61 endpoints). Verdict: the
-system is in unusually good shape for a research-stage codebase — a PURE conserved kernel
+system is in unusually good shape for a pre-production codebase — a PURE conserved kernel
 (`stewie/physics` + `stewie/twin` have zero upward imports; mass-exactness + the hash-chained
 journal are production guards, not asserts), four enforced CI gates (pyflakes, mypy,
 requirements-traceability, Power-of-10), and documented contract seams. Against INTENT (the rung-4
@@ -1515,7 +1515,7 @@ debt. Findings + remediation (ranked):
 - The high fan-in of `stewie/specs` (×96) and `stewie/physics` (×74) is a shared KERNEL, not a god
   object — expected and healthy for a conserved-core design.
 - "0 release-ready" in §7 is NOT product debt — see the §19.1 track tags. The rung-4 product is
-  complete; the open rows are the deferred research frontier + externally-gated families.
+  complete; the open rows are the deferred frontier + externally-gated families.
 
 ### 21.3 Sequencing
 ARCH-1 first (smallest, removes the cycle), then ARCH-2 (the RB-03-aligned split — DONE 2026-06-22, the 448-line facade + 10 `planner_*` leaves), then ARCH-3
@@ -1530,7 +1530,7 @@ sweep) mapped the whole monorepo against intent; findings verified and folded in
 STEWIE is two tracks.
 The excavation planner and trainer (LODE planning, the conserved physics, the operator/trainer
 sessions) is wired end to end, backend to a 71-endpoint API to a full cockpit. The navigation
-research, the Navigation estimator that is the navigation-research core, is built and validated as a library
+subsystem, the Navigation estimator that is the navigation core, is built and validated as a library
 of eighteen modules but has no HTTP endpoint and no cockpit presence. Completing the system is
 mostly bridging the second track into the live one.
 
@@ -1584,7 +1584,7 @@ tied into UI/UX is therefore P1 (a Navigation/Estimation view plus the endpoints
 ### 22.3 TDD-sequenced forward plan
 
 Each slice is bounded, gate-byte-identical, and lands with a citing `[REQ:]` test plus (where it is
-navigation-research evidence) a baseline-comparing notebook. The matrix rows each slice promotes are named.
+navigation evidence) a baseline-comparing notebook. The matrix rows each slice promotes are named.
 
 **P1 — wire the navigation half (#106, #96, #97) — ✅ DONE 2026-06-14.** The Navigation estimator is now
 reachable from the live system and visible in the cockpit: P1.1 `/localize` (heading-free fix +
@@ -2064,7 +2064,7 @@ The next implementation slice is Step 0 followed by Step 1, then the Step 2 TRL5
 gate. Do not start ShadowNav, Navigation, autonomous mapping, or Gazebo feature work until the ROS2 autonomy
 boundary, package skeleton, container smoke, requirement traces, cockpit/diagnostic contracts, and
 authoritative camera profile are in place. That foundation prevents duplicate interfaces, keeps
-navigation/mapping tied to the real sensor geometry, and makes the later navigation research measurable
+navigation/mapping tied to the real sensor geometry, and makes the later navigation work measurable
 instead of anecdotal.
 
 Construction-round readiness checklist:

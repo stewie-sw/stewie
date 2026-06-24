@@ -22,7 +22,7 @@ Current assessment across the PRD's 136 requirement/limit rows:
 | Failing the stated acceptance intent | 4 |
 | Open planning limits, accurately documented | 4 |
 
-The project is a capable research simulator and source-run planning application. It
+The project is a capable simulation platform and source-run planning application. It
 does not currently meet the PRD's “production-grade system” intent. The primary
 reasons are:
 
@@ -321,7 +321,7 @@ state/plan artifact.
 | P14 | Missing | Implement planner/tracker only after the plan/execution contract is stable. |
 | P15 | Missing beyond scalar belief | Build scan-to-map registration and ESKF against timestamped observations, not simulated truth fixes. |
 | P16 | Missing | Add a local planner consuming dynamic obstacles. |
-| P17 | Producer research exists; deliverable missing | Add obstacle detection and dynamic keep-out publication. |
+| P17 | Producer prototype exists; deliverable missing | Add obstacle detection and dynamic keep-out publication. |
 | P18 | Gated | Keep explicitly gated until a force/contact authority is available. |
 | P19 | Missing | Defer unless tooling requires precise end-effector placement. |
 
@@ -429,5 +429,5 @@ status accounting is not sound enough to manage release decisions.
 The immediate project goal should not be another feature area. It should be to make
 the existing product paths agree on one validated physical plan, make the configured
 quality gate truthful, and make the installed artifact behave like the advertised
-server product. Once those are complete, the PRD can credibly move from research
+server product. Once those are complete, the PRD can credibly move from pre-production
 capability tracking to production delivery tracking.

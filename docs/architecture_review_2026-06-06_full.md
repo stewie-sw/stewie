@@ -562,7 +562,7 @@ broken. They must remain labeled unverified until exercised in controlled enviro
 
 ## Final assessment
 
-STEWIE is currently best classified as a strong research simulation and planning
+STEWIE is currently best classified as a strong simulation and planning
 prototype with a partially integrated visualization and API product. It is not ready
 to be treated as a physically authoritative, fleet-capable, installable rover execution
 stack.

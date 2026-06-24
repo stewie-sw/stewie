@@ -23,7 +23,6 @@ nav:
       - Robotics curriculum diff: robotics_curriculum_diff.md
       - Implementation plan (2026-06-06): implementation_plan_2026-06-06.md
       - UI overhaul plan (2026-06-20): ui_overhaul_plan_2026-06-20.md
-      - Research workspace: research_workspace.md
   - Contracts:
       - Sensor-bridge contract: sensor_bridge_contract.md
       - DEM terrain contract: dem_terrain_contract.md

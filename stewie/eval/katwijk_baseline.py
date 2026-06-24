@@ -85,7 +85,7 @@ def run(part_dir: str) -> dict:
     m_eval = t > cal_t
     err = np.linalg.norm(xy_al[m_eval] - gt_at[m_eval], axis=1)
     return {
-        "schema_version": "stewie_katwijk_dead_reckon/1.0",
+        "schema_version": "solnav_katwijk_dead_reckon/1.0",
         "dataset": "Katwijk Beach Traverse-1 Part1 (roboshare, RTK_FIXED truth)",
         "wheel_radius_m": round(float(r_wheel), 6),
         "calibration": {"segment": "first_third", "gt_len_m": round(gt_cal_len, 3),

@@ -1,5 +1,5 @@
 {
- "schema_version": "stewie_stereo_sigma_calibration/1.0",
+ "schema_version": "solnav_stereo_sigma_calibration/1.0",
  "date": "2026-06-10",
  "method": "geometric ray-cast truth vs SGBM(512, saturation+floor gates), disparity-domain robust MAD; clast-masked; restricted to the TRL5-derived objective band; dev = poses 0-5, held-out = poses 6-11 (untouched)",
  "band_m": [

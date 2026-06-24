@@ -6,7 +6,7 @@ nav_order: 4
 # Per-planet terramechanics review
 
 The systematic review that grounds `terrain_authority/bodies.py` is maintained
-in the canonical research workspace:
+in the project workspace:
 
 `/mnt/projects/stewie/research/reviews/stewie/per-planet-terramechanics/review.md`
 

@@ -75,7 +75,6 @@ Naming: the pip package is `stewie`; the console entry points are `stewie-serve`
 | [Robotics curriculum diff](robotics_curriculum_diff.md) | Coverage of the standard robotics corpus vs what the software implements |
 | [Implementation plan (2026-06-06)](implementation_plan_2026-06-06.md) | The dependency-ordered execution plan for PRD v6.0 |
 | [UI overhaul plan (2026-06-20)](ui_overhaul_plan_2026-06-20.md) | The full-fidelity cockpit overhaul: stack decision, 8-area IA, 4-screen model, GIS authoring, brand, a11y, phasing |
-| [Research workspace](research_workspace.md) | Where manuscripts, reviews, grants, and references live |
 
 **Contracts**
 

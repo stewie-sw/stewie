@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""VISUAL check for stewie.perception.dem_anchor: render the NCC correlation surface that the DEM
+"""VISUAL check for solnav.perception.dem_anchor: render the NCC correlation surface that the DEM
 anchor reads the horizontal offset off of.
 
 MATH self-consistency on REAL DEM data: crop an observed patch from the REAL crater_boulders DEM,

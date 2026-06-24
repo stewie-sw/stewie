@@ -164,3 +164,8 @@ stewie/server/cesium/
 
 # §25 container-execution evidence: keep manifest + smoke transcripts, drop verbose build logs
 deploy/ros2/evidence/_build_*.log
+
+# Workflow worktrees + agent session scratch (3.2G observed; regenerable, never distributed)
+.claude/
+# All local UI-eval / Playwright scratch screenshot dirs (cf. validation/ui/)
+validation/ui_*/

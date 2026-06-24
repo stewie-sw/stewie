@@ -43,7 +43,7 @@ and `WorldState` mutation exist. The data de-risking track (§8) runs continuous
 
 ## 1.1 Four-to-Six-Week Intern Product Track
 
-This track is allowed to run in parallel with the research critical path because it productizes
+This track is allowed to run in parallel with the critical path because it productizes
 existing known-map capabilities and makes no sensor-derived SLAM claim.
 
 **Mode:** `DEM_KNOWN_POSE_MISSION_SIM`

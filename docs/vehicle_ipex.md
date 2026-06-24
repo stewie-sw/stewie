@@ -19,7 +19,7 @@ constants, each carrying its tag) and `terrain_authority/test_ipex_specs.py`
 
 The local source corpus is in
 `/mnt/projects/stewie/research/references/library/nasa_lunabotics/` and is
-Git-ignored by the research workspace.
+Git-ignored by the project workspace.
 
 | Tag | Paper |
 |---|---|

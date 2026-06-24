@@ -7,7 +7,7 @@ docs/ui_eval_2026-06-06.md). Not a cheerleading review.
 
 1. **Does an engineer have everything to plan a (basic, single-rover) construction mission? — YES, end-to-end.**
 2. **Is this a production-worthy UI/UX for an operational NASA mission? — NO, not yet.** It is a strong
-   **research / demo cockpit** (TRL ~3-4 ground tool), genuinely capable and honest, but it lacks the
+   **pre-production cockpit** (TRL ~3-4 ground tool), genuinely capable and honest, but it lacks the
    authoring depth, operational-constraint modelling, live execution, and ground-system UX/process a NASA
    operational planner requires.
 
@@ -64,7 +64,7 @@ tagged. For a basic single-rover earthmoving mission this is a coherent, complet
 
 What to claim: a validated, conserved-physics, IPEx-grounded **single-rover construction planner** with an
 authorable web cockpit, honest validation + as-built acceptance, a machine-executable plan output, and a
-reusable Gymnasium/RL substrate — a credible **research / pre-operational planning tool**. What NOT to claim:
+reusable Gymnasium/RL substrate — a credible **pre-operational planning tool**. What NOT to claim:
 an operational ground system. The shortest path to "production-worthy" is, in order: **(1) draw-on-map +
 on-map order visualization + edit + goal-level specs** (authoring), **(2) operational constraints**
 (time/op-windows/comms/thermal/contingency in the objective grammar), **(3) live execution** (the P13
