@@ -12,6 +12,12 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
 ## [Unreleased]
 
 ### Added
+- Structure-first base planning (validate-and-advise): `leap/siteplan.py` analyzes a placed-structure
+  set for the base-wide mass economy, nearest source→sink routing, inter-structure clearances, and build
+  order; exposed via `POST /siteplan/analyze` and a cockpit **Site plan** panel (drop structures on the
+  map, then analyze the base). Operator keeps placement authority; the solver checks + advises.
+- `design.md`: the cockpit visual-identity spec in the Google Labs `design.md` format, generated from the
+  real cockpit CSS tokens (neutral ramp + single crimson accent, Orbitron + system-ui, mirrored light theme).
 - DT-02: least-privilege `/twin/version` (authenticated minimal version token) +
   director-only `/twin/history` audit route, replacing the unauthenticated
   full-history read.
@@ -36,7 +42,21 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
 - `docs/ui_overhaul_plan_2026-06-20.md` (full-fidelity cockpit overhaul plan) and
   `docs/architecture_review_2026-06-20.md` (this review); both added to the docs nav.
 
+### Fixed
+- Drive-loop seam contract: `pose_to_odom` now emits REP-103 metres (`x=col*cell_m`, `y=-row*cell_m`)
+  through the single `frames.py` conversion instead of raw grid cells under a metric `map` frame with a
+  flipped `y`; and `cell_m` is unified to one shared default (the Moon LOLA 5 m cell) across
+  `commands_from_plan` and the ROS2 bridge (was 5.0 vs 1.0 — a latent 5× mislocalization). Live-verified on
+  the `stewie-ros2` container (`/stewie/odom` now publishes correct metres). External wire-contract change.
+
 ### Changed
+- Production positioning: STEWIE reads as a single production platform. The `ARGUS` codename → `Navigation`
+  across code, the ROS2 `NavFactor` message + `/stewie/nav/factors` topic, JS, config, and docs; the
+  research/dissertation framing is removed from the PRD and docs. The checksum-pinned profile + eval/
+  gate-validation subsystems are honestly exempted (codenames remain in pinned content; re-pinning tracked).
+- Production-distribution cleanup: reclaimed ~3.8 GB of regenerable cruft (gitignored `.claude/worktrees`
+  + UI scratch), and archived 18 superseded dated dev docs (architecture reviews, evals, plans) to
+  `docs/archive/` with mkdocs nav + inbound-link cleanup.
 - Cockpit reorg (landed + deployed): the cockpit nav is reorganized into the decided 6-slot ConOps spine
   **Plan · Rehearse · Validate · Release · Execute · Report** (+ a role-gated secondary cluster Fleet /
   Construction / Models / Trainer), and the Plan sidebar is consolidated **7 groups → 4** (Site / Contents /
