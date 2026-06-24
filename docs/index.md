@@ -73,8 +73,8 @@ Naming: the pip package is `stewie`; the console entry points are `stewie-serve`
 | [The five-layer world model](world_model.md) | Geometry / Material / Physics / Task / Uncertainty, and the conserved-vs-learned design decision |
 | [Related work](related_work.md) | Where STEWIE lands across NASA autonomy, lunar mining, world models, autonomous driving, SLAM |
 | [Robotics curriculum diff](robotics_curriculum_diff.md) | Coverage of the standard robotics corpus vs what the software implements |
-| [Implementation plan (2026-06-06)](implementation_plan_2026-06-06.md) | The dependency-ordered execution plan for PRD v6.0 |
-| [UI overhaul plan (2026-06-20)](ui_overhaul_plan_2026-06-20.md) | The full-fidelity cockpit overhaul: stack decision, 8-area IA, 4-screen model, GIS authoring, brand, a11y, phasing |
+| [Implementation plan (2026-06-06)](archive/implementation_plan_2026-06-06.md) | The dependency-ordered execution plan for PRD v6.0 |
+| [UI overhaul plan (2026-06-20)](archive/ui_overhaul_plan_2026-06-20.md) | The full-fidelity cockpit overhaul: stack decision, 8-area IA, 4-screen model, GIS authoring, brand, a11y, phasing |
 
 **Contracts**
 
@@ -94,25 +94,25 @@ Naming: the pip package is `stewie`; the console entry points are `stewie-serve`
 |---|---|
 | [Navigation: the modelled vehicle — IPEx](vehicle_ipex.md) | The ISRU Pilot Excavator, grounded in the six NASA IPEx papers; the digital-twin architecture and the excavation gap |
 | [DART: SLAM pipeline analysis](slam_pipeline_analysis.md) | Map-relative localization vs SLAM-from-scratch; the P15 build path |
-| [DART: 10 km lunar DEM evaluation](lunar_dem_10km_eval.md) | Real south-polar DEM ingest, data sources, and the procgen infill plan |
+| [DART: 10 km lunar DEM evaluation](archive/lunar_dem_10km_eval.md) | Real south-polar DEM ingest, data sources, and the procgen infill plan |
 | [FORGE: per-planet constants](bodies_sysrev.md) | Literature-sourced terramechanics per body, every value tagged |
 | [FORGE: Chrono integration](chrono_integration.md) | Project Chrono as the physics-authority producer |
-| [LODE: power calibration (2026-06-09)](power_calibration_2026-06-09.md) | The IPEx power model's lunar-environment fidelity |
+| [LODE: power calibration (2026-06-09)](archive/power_calibration_2026-06-09.md) | The IPEx power model's lunar-environment fidelity |
 | [LEAP: EZ-RASSOR assets](ezrassor_assets.md) | The EZ-RASSOR asset/integration assessment |
 
 **Reviews**
 
 | Doc | What it is |
 |---|---|
-| [Architecture review (2026-06-04)](architecture_review.md) | Production-readiness assessment |
-| [Deep code review (2026-06-05)](architecture_review_2026-06-05.md) | 8-agent run-verified review + mission-readiness analysis |
-| [Real-world-mission review (2026-06-05)](architecture_review_2026-06-05_realworld.md) | Gap analysis for real-world mission execution |
-| [Full architectural review (2026-06-06)](architecture_review_2026-06-06_full.md) | The complete static-scope review at commit `0473312` |
-| [PRD gap analysis (2026-06-06)](prd_gap_analysis_2026-06-06.md) | Requirement-by-requirement PRD-vs-code diff |
-| [Autonomous planning review](autonomous_planning_review.md) | Single- and multi-vehicle planning limits |
-| [UI/UX audit (2026-06-09)](uiux_audit_2026-06-09.md) | Full frontend audit against the operator KPT |
-| [Mission-ops review (2026-06-20)](architecture_review_2026-06-20_mission_ops.md) | Mission-operations review: the 4-screen operational model, mission intent + executive, provenance |
-| [Architecture review (2026-06-20)](architecture_review_2026-06-20.md) | Local + deployed review against the PRD; done-vs-needed; feeds the PRD §27 backlog |
+| [Architecture review (2026-06-04)](archive/architecture_review.md) | Production-readiness assessment |
+| [Deep code review (2026-06-05)](archive/architecture_review_2026-06-05.md) | 8-agent run-verified review + mission-readiness analysis |
+| [Real-world-mission review (2026-06-05)](archive/architecture_review_2026-06-05_realworld.md) | Gap analysis for real-world mission execution |
+| [Full architectural review (2026-06-06)](archive/architecture_review_2026-06-06_full.md) | The complete static-scope review at commit `0473312` |
+| [PRD gap analysis (2026-06-06)](archive/prd_gap_analysis_2026-06-06.md) | Requirement-by-requirement PRD-vs-code diff |
+| [Autonomous planning review](archive/autonomous_planning_review.md) | Single- and multi-vehicle planning limits |
+| [UI/UX audit (2026-06-09)](archive/uiux_audit_2026-06-09.md) | Full frontend audit against the operator KPT |
+| [Mission-ops review (2026-06-20)](archive/architecture_review_2026-06-20_mission_ops.md) | Mission-operations review: the 4-screen operational model, mission intent + executive, provenance |
+| [Architecture review (2026-06-20)](archive/architecture_review_2026-06-20.md) | Local + deployed review against the PRD; done-vs-needed; feeds the PRD §27 backlog |
 
 Repository-root references (rendered on GitHub):
 [Product requirements (`PRD.md`)](https://github.com/stewie-sw/stewie/blob/main/PRD.md) ·

@@ -5,7 +5,7 @@ nav_order: 9
 
 # Render-fidelity & variable-resolution spec — per-wheel tracks, drum teeth marks, 1 cm experiments
 
-*Status: DESIGN SPEC (not yet implemented). Written 2026-05-30. Extends [`lac_reimplementation_eval.md`](lac_reimplementation_eval.md) §8 (scaling) and the [`INTERFACE.md`](../INTERFACE.md) contract (the metadata additions land there as v1.0.2 §5.2/§5.3). Producer/consumer code is specified here, not built.*
+*Status: DESIGN SPEC (not yet implemented). Written 2026-05-30. Extends [`lac_reimplementation_eval.md`](archive/lac_reimplementation_eval.md) §8 (scaling) and the [`INTERFACE.md`](../INTERFACE.md) contract (the metadata additions land there as v1.0.2 §5.2/§5.3). Producer/consumer code is specified here, not built.*
 
 > **Goal in one line:** resolve **four separate wheel tracks** and **drum/excavation teeth marks** to photo-fidelity, by (a) optionally refining the terrain grid to **~1 cm in the active corridor** (toggleable off for speed), (b) carrying a little **extra metadata** that orients track/teeth detail, and (c) **faking sub-cm texture in shaders** (detail normals + parallax + anti-aliasing) rather than simulating it.
 

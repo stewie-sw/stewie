@@ -109,7 +109,7 @@ LAC's map is **fixed at 27×27 m**. foss_ipex's differentiator — and the reaso
 
 The required new work is **mass-conserving LOD operators** — *refine* (coarse→fine: split `mass_areal`, density preserved, height re-derives) and *coarsen* (fine→coarse: mass = Σ, density = mass-weighted mean) — holding the §10 invariant across LOD boundaries. The quadtree currently moves *zero* mass; making it conserve mass across LOD transitions is itself a strong GMRO-facing demonstration (and removes the power-of-two-square constraint, since only touched tiles are allocated). Solve-cost bounding (running Chrono/SCM only on active tiles) is the follow-on.
 
-> **Design spec:** the variable-resolution corridor refinement (1 cm tiles, toggleable for speed), the additive INTERFACE.md v1.0.2 metadata for per-wheel tracks + drum teeth marks, and the Godot detail-shading pipeline are specified in [`render_fidelity_spec.md`](render_fidelity_spec.md).
+> **Design spec:** the variable-resolution corridor refinement (1 cm tiles, toggleable for speed), the additive INTERFACE.md v1.0.2 metadata for per-wheel tracks + drum teeth marks, and the Godot detail-shading pipeline are specified in [`render_fidelity_spec.md`](../render_fidelity_spec.md).
 
 ---
 
