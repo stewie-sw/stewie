@@ -124,12 +124,18 @@ remain); the ARGUS pose-graph estimator spine (DEM + shadow-outline factors); th
 > **Scope caveat:** a *demonstrator on 12 self-rendered Godot arc views of `boulder_field`* placed at the
 > site — NOT a reconstruction of a real traverse; **PM-13..16 stay OPEN** (no measurement-vs-truth acceptance).
 >
-> **REGRESSION — the front-end IA did not land.** A full React+Vite cockpit rewrite (Phases 0–5, targeting
-> the §11 8-work-area shell, FS-23) was built, deployed to app.stewie.space, broke on a Cesium init bug
-> (`CESIUM_BASE_URL` unset blanked the map panes), and was REVERTED (`55c44c6`). The LIVE cockpit is the
-> vanilla `cockpit.js` 5-tab shell (Plan/Navigation/Perception/Metrics/Report). **FS-03's 8-area IA (Fleet,
-> Construction, Models as first-class work areas) is NOT realized** — the single largest product-surface gap.
-> The vanilla cockpit absorbed the two new 3D layers cleanly afterward (no lasting damage).
+> **Front-end IA — landed via a strangler-fig reorg of the vanilla cockpit (2026-06-23, deployed).** The
+> earlier React+Vite rewrite (Phases 0–5, FS-23) had black-screened on a Cesium init bug and was REVERTED
+> (`55c44c6`); rather than retry a big-bang rewrite, the vanilla `cockpit.js` was reorganized in place into
+> the decided **6-slot ConOps spine: Plan · Rehearse · Validate · Release · Execute · Report** (Validate
+> merges the former Navigation + Perception tabs into one tab + a sub-tab strip; Release is a new
+> director-gated mission-sign-off surface — `POST /executive/release-plan` drives the current build queue
+> through the MO-02 lifecycle to RELEASED, faithfully releasing the full cut/fill/sinter vocabulary via the
+> `Objective.order_kind` contract extension), the Plan sidebar consolidated **7 groups → 4**, and the
+> role-gated **Fleet / Construction / Models / Trainer** work areas surfaced as first-class secondary tabs —
+> so **FS-03's 8-area IA is now substantially realized**. Verified end-to-end (interactive Playwright gate +
+> live e2e release + contracts/lode/server suites) and **deployed live to app.stewie.space** (CI green,
+> `?v=` cache-bust confirmed `MISS`). Spec + history: `docs/cockpit_reorg_plan_2026-06-23.md`.
 >
 > **Honest gates (unchanged — NOT passed):** **P20 live ROS2 node / P23 intern beta** — the
 > bridge/telemetry/role-split are real tested code + container-run-verified, but the live rclpy node is

@@ -37,15 +37,19 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
   `docs/architecture_review_2026-06-20.md` (this review); both added to the docs nav.
 
 ### Changed
-- Cockpit reorg (in progress): the cockpit nav is reorganized into the decided ConOps spine
-  **Plan · Rehearse · Validate · Execute · Report** (+ a role-gated secondary cluster Fleet / Construction
-  / Models / Trainer), and the Plan sidebar is consolidated **7 groups → 4** (Site / Contents / Rovers /
-  Plan, with the old Feasibility + Catalog folded into Plan as sub-steps and Telemetry moved to the Execute
-  context). **Validate** merges the former Navigation + Perception tabs into one tab with a
-  Navigation|Perception sub-tab strip (reusing the existing panes). A reusable interactive verification gate
-  (`scripts/cockpit_interactive_check.py`) asserts the wiring a screenshot can't (estimate listener fires;
-  tab/sub-tab → pane switching). Spec: `docs/cockpit_reorg_plan_2026-06-23.md`. Remaining: the Release
-  surface (a real `Mission`→`MissionIntent` builder, not a stub) and the public deploy.
+- Cockpit reorg (landed + deployed): the cockpit nav is reorganized into the decided 6-slot ConOps spine
+  **Plan · Rehearse · Validate · Release · Execute · Report** (+ a role-gated secondary cluster Fleet /
+  Construction / Models / Trainer), and the Plan sidebar is consolidated **7 groups → 4** (Site / Contents /
+  Rovers / Plan, with the old Feasibility + Catalog folded into Plan as sub-steps and Telemetry moved to the
+  Execute context). **Validate** merges the former Navigation + Perception tabs into one tab with a
+  Navigation|Perception sub-tab strip (reusing the existing panes). **Release** is a new director-gated
+  mission-sign-off surface: `POST /executive/release-plan` builds a `MissionIntent` from the current build
+  queue (the new `lode.mission_intent_compiler.intent_from_orders`) and drives it through the MO-02 lifecycle
+  to RELEASED. To make this faithful, the MO-01 `Objective` gained an additive `order_kind` (cut|fill|sinter,
+  default cut) and `compile_intent` now honors it, so the full plan vocabulary round-trips — no order is
+  dropped or faked (non-build path waypoints are surfaced as skipped). A reusable interactive verification
+  gate (`scripts/cockpit_interactive_check.py`) asserts the wiring a screenshot can't. Deployed live to
+  app.stewie.space (CI green; `?v=` cache-bust confirmed). Spec: `docs/cockpit_reorg_plan_2026-06-23.md`.
 - ARCH-2: `lode/mission_planner.py` decomposed from a ~2110-line god-module into a **448-line facade**
   re-exporting **10 dependency-ordered leaf modules** (`planner_constants` / `planner_model` /
   `planner_routing` / `planner_balance` / `planner_multivehicle` / `planner_endurance` / `planner_trips` /
