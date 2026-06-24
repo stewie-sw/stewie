@@ -36,9 +36,12 @@ def test_dead_reckon_ate_on_heldout_segment():
     ate = res["ate_aligned_m"]
     L = res["eval_track_length_m"]
     assert L > 20.0
-    # dead-reckoning drifts; the gate for G1 is an HONEST, reproducible figure, not a magic number.
-    # Sanity bounds: better than a random walk (< 50% of track), worse than zero (> 0).
-    assert 0.0 < ate < 0.5 * L
+    # G1 real-sensor gate. Wheel+IMU dead-reckoning ATE on the held-out Katwijk Traverse-1 segment is a
+    # reproduced, deterministic 3.35 m over 92.48 m (3.6% of track). Gate to the REAL band, not the old
+    # 0.5*L (~46 m) sanity bound that let any sub-half-track error pass: a regression that meaningfully
+    # worsens the drift now FAILS the gate, while the +-0.35 m margin tolerates benign numerical variation.
+    assert 3.0 < ate < 3.7
+    assert ate < 0.05 * L                               # and well under 5% of the eval-track length
     # determinism: the artifact is reproducible bit-for-bit
     res2 = kb.run(PART1)
     assert json.dumps(res, sort_keys=True) == json.dumps(res2, sort_keys=True)
