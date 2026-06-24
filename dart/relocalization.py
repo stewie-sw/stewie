@@ -1,9 +1,9 @@
-"""[REQ:AS-09] ARGUS standstill relocalization: accept/reject + covariance reduction (§25 Phase 7).
+"""[REQ:AS-09] Standstill relocalization (Navigation): accept/reject + covariance reduction (§25 Phase 7).
 
 A commanded posture change (chassis lift dh) gives the camera a known vertical parallax baseline;
 ranges to known shadow-tip / map landmarks then fix the rover (x,y) by trilateration from a
 STANDSTILL, HEADING-FREE (dart.articulated_parallax). This module gates that fix and shows the
-AS-09 acceptance: an ACCEPTED ARGUS factor, fused into the standstill node, REDUCES the position
+AS-09 acceptance: an ACCEPTED standstill NavFactor, fused into the standstill node, REDUCES the position
 covariance (information addition); a REJECTED factor (parallax not camera-resolvable at range, or
 mirror-ambiguous collinear landmarks, or a non-PD covariance) is NOT inserted -- the covariance is
 unchanged.
@@ -25,9 +25,9 @@ def _is_pd(cov: np.ndarray) -> bool:
                 and float(np.min(np.linalg.eigvalsh(c))) > 0.0)
 
 
-def argus_standstill_fix(prior_xy, prior_cov, landmarks_xy, *, dh_m: float, fx_px: float,
+def standstill_fix(prior_xy, prior_cov, landmarks_xy, *, dh_m: float, fx_px: float,
                          sigma_px: float = 1.0, min_pixel_shift: float = 1.0) -> dict:
-    """Gate the ARGUS standstill parallax fix and fuse it into the prior.
+    """Gate the standstill parallax fix and fuse it into the prior.
 
     accepted iff: every landmark range is camera-resolvable at the commanded dh (parallax >=
     min_pixel_shift px), the landmarks are NOT collinear (no trilateration mirror ambiguity), and the
@@ -72,7 +72,7 @@ def argus_standstill_fix(prior_xy, prior_cov, landmarks_xy, *, dh_m: float, fx_p
 
 
 def insert_into_graph(graph, node_id: int, fix_xy, result: dict) -> bool:
-    """Insert the ARGUS fix into a PoseGraphSE2 iff accepted (the contract: rejected -> not inserted).
+    """Insert the standstill fix into a PoseGraphSE2 iff accepted (the contract: rejected -> not inserted).
     Returns True if a factor was added."""
     if not result["accepted"]:
         return False
