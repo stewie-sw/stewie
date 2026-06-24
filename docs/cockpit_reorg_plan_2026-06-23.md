@@ -110,6 +110,24 @@ page-error/screenshot pass.
   intent, and NOT a non-functional Release button. This is the largest remaining F stage and is genuinely a
   backend feature (a mission-release capability). Sequence: mechanical polish (drag-reorder, ctx-collapse) +
   docs FIRST, then this builder as a focused TDD stage.
+
+  **BLOCKING finding (2026-06-23, reading `compile_intent`): there is no honest "release the current plan"
+  default.** `compile_intent` lowers EVERY objective to a `cut` order ("objectives carry target geometry +
+  material_budget_kg but no order-kind/footprint/depth, so each lowers to a `cut`"). So `MissionIntent`
+  CANNOT represent `fill` or `sinter` orders at all. A "release the current plan/queue" surface therefore
+  either (a) silently DROPS every fill/sinter order (a typical pad-cut-then-berm-fill mission would release
+  only half — confusing/misleading), or (b) FAKES fill→cut (dishonest; violates no-synthetic). Neither is an
+  acceptable "sensible default". This is a genuine DESIGN FORK that is the user's to make:
+  - **(A) excavation-only Release** — submit only the cut/excavation objectives; surface fill/sinter as
+    "not part of the MO-01 objective contract, not released". Honest + the primary IPEx use case, but drops
+    fill/sinter from the release.
+  - **(B) extend the contract** — add order-kind + footprint/depth to `Objective` so the full plan
+    (cut/fill/sinter) round-trips faithfully. Bigger backend change to the MO-01 contract.
+  - **(C) defer** — ship the reorg (nav/sidebar/Validate, done + pushed) WITHOUT a Release tab; track the
+    order↔objective bridge as its own feature.
+  Until decided, the Release tab is NOT built (a non-functional or order-dropping Release button would be a
+  stub / misleading). The spine ships as Plan/Rehearse/Validate/Execute/Report (5 slots) with Release pending
+  this decision.
 - After ANY `cockpit.js` / `three3d.js` change: run `python scripts/stamp_cockpit_version.py` to
   re-stamp the `?v=` content hashes (CI `stewie/server/test_asset_version_stamp.py` fails on a stale
   stamp). Do NOT hand-edit `?v=`.
