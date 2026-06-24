@@ -12,15 +12,15 @@ hot paths benchmarked. There is only this software now; `roversim` is deprecated
 
 ## Verdict
 
-**Tier: high-quality research / pre-production code. Not yet production.** The scientific core is unusually
-disciplined for research software: 296 tests green (terrain_authority 210 + planet_browser 86, + 26 in
+**Tier: high-quality pre-production code. Not yet production.** The scientific core is unusually
+disciplined for pre-production software: 296 tests green (terrain_authority 210 + planet_browser 86, + 26 in
 scripts), deterministic seeded dynamics, mass conservation bit-exact (0.0 drift over 300 steps), sub-ms
 authority step (0.391 ms verified), honest `[FIXED]/[CALIB]/[UNKNOWN]` tags with citations, no synthetic-data
 shortcuts, clean license hygiene (CC0 core + attributed MIT mesh). The gap to production-grade is **not the
 science and not the architecture — it is the operational shell**: no test/lint/type CI, no structured
 logging, no externalized config, floor-only deps with no lockfile, a multi-threaded stdlib server with a
 thread-safety bug and no auth/limits, the planner product absent from the wheel, and deprecated roversim
-references throughout the PRD and docs. None of these are research gaps; they are a focused hardening
+references throughout the PRD and docs. None of these are blocking gaps; they are a focused hardening
 program.
 
 ## Findings by severity (consolidated)

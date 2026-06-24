@@ -51,7 +51,7 @@ docker run --rm stewie-gazebo:jazzy         # AS-06 gz topic publish
   producer** (P7), **dense MVS / COLMAP RMSE** (CUDA), and the **Space ROS / perception / bridge**
   container tiers remain deferred.
 
-## Scorecard recommendation (NOT applied — committee-scorecard call, like the V column)
+## Scorecard recommendation (NOT applied — reviewer-scorecard call, like the V column)
 
 Backed by the recorded runs above, the honest per-row promotion is:
 

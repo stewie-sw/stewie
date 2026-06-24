@@ -1,6 +1,6 @@
 # Contributing to STEWIE
 
-Thanks for your interest. STEWIE is a research platform by John McCardle and Aaron Storey; its license
+Thanks for your interest. STEWIE is a simulation and mission-planning platform by John McCardle and Aaron Storey; its license
 is currently all-rights-reserved (the prior CC0 dedication was withdrawn 2026-06-10; see
 [`LICENSE`](LICENSE)). Contributions from collaborators are welcome, but the project holds a few
 **non-negotiable engineering conventions** that keep its results trustworthy. Please read these before

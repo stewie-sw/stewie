@@ -1483,7 +1483,7 @@ STEWIE has TWO production targets with very different bars (PRD §18 ladder):
   The SN solar-terrain-navigation family is 13/13 open; the pose-graph that fuses sun/shadow/DEM
   factors over mutating terrain is scaffolded (shadow_predict, register_to_dem, the re-hazard,
   the conserved mutable twin) but NOT integrated. This is the protected contribution, correctly
-  unbuilt at proposal stage.
+  currently unbuilt.
 
 **Quantitatively against the §7 matrix:** 112 requirements, 0 were release-ready (all-D) at the
 §19.1 census; after the audit fixes + the traceability seeding, the CT (contracts) family is the

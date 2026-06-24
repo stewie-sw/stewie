@@ -5,7 +5,7 @@ All notable changes to STEWIE are recorded here. The format follows
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 `0.x` is pre-release: STEWIE is a trainer/simulator surface plus a navigation
-research track, not a production flight-autonomy release (see PRD §0). The
+simulation + mission-planning platform, not a production flight-autonomy release (see PRD §0). The
 exported version lives in `stewie.__version__` and `pyproject [project].version`;
 `stewie/server/test_version.py` keeps them in lockstep (PO-13).
 

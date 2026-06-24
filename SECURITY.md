@@ -1,6 +1,6 @@
 # Security Policy
 
-STEWIE is a research simulator and mission-planning platform. It does not process sensitive data or
+STEWIE is a simulation and mission-planning platform. It does not process sensitive data or
 credentials. The one network-facing component is the optional mission-planner web UI
 (`stewie/server/server.py`), a FastAPI/uvicorn (ASGI) service intended for local or trusted-LAN use.
 The repository's license is currently all-rights-reserved (the prior CC0 dedication was withdrawn
