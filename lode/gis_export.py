@@ -197,6 +197,8 @@ def geojson_to_features(fc: dict, *, dem_origin, bundle_dir=None) -> dict[str, A
         props = (f or {}).get("properties") or {}
         geom = (f or {}).get("geometry") or {}
         layer, gtype, coords = props.get("feature"), geom.get("type"), geom.get("coordinates")
+        if coords is None:                                  # a feature with no geometry carries nothing to import
+            continue
         if layer == "order" and gtype == "Point":
             x, y = _lonlat_to_xy(coords[0], coords[1], dem_origin, bundle_dir=bundle_dir)
             out["orders"].append({"action": props.get("action"), "kind": props.get("kind"),
