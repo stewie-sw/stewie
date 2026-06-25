@@ -1,5 +1,14 @@
 # STEWIE Architecture Assessment — 2026-06-24
 
+> **CORRECTION (2026-06-24, verified against the live code):** the #2 finding below — "perception-to-pose
+> is 0% closed; every fused-SLAM number is ground-truth + Gaussian noise" — is an **over-claim**. It read
+> `integrated_slam.py`'s *default* modeled-fix path and missed `dart/render_traverse.py`, which closes the
+> loop with REAL rendered pixels (real stereo-VO + a real articulation-parallax fix through the
+> `measured_fixes` seam → fused SE(2) → ATE vs truth; `dart/test_render_traverse.py` runs on the committed
+> real renders and passes 4/4). Perception-to-pose IS closed at the rendered-sensor level. The genuine
+> remaining gap is operational truth-free SLAM on REAL LUNAR imagery (a data-availability frontier), which
+> PRD §0 + `CAPABILITIES.md` already frame correctly. Treat this archived assessment as cycle-1 history.
+
 *Chief Systems Engineer review board (Architect + NASA Systems Engineer + Integration Engineer + Navigation reviewer -> risk-verified synthesis), `stewie-arch-assessment` workflow at HEAD 96a72fb. Verifier: a recommendation is accepted only if it reduces technical / scientific / integration / schedule risk.*
 
 ## Architecture summary
