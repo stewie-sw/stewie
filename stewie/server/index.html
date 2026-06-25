@@ -851,6 +851,11 @@
       </div>
       <div id="navview" class="pane">
         <div class="cap"><span>NAVIGATION — state estimation <small>(pose-graph estimate vs dead reckoning; articulation-parallax relocalization)</small></span></div>
+        <div class="ctl" style="font-size:11px;margin:2px 0 4px">
+          <button id="navcontract" class="site" style="font-size:11px" title="FS-05 navigation contract: each nav stage (global route / local trajectory / tracker / recovery / keep-outs / negative obstacles / illumination / slip-energy budget / ROS lowering) self-reports whether its seam is wired on this host">⛓ Nav contract</button>
+          <span id="navcontracthdr" style="font-size:10px;opacity:.6"></span>
+        </div>
+        <div id="navcontractout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:0 0 8px;color:var(--muted)"></div>
         <!-- FS-05 END-TO-END DRIVE PREVIEW: route the global corridor (route_leg) then DRIVE it as a
              receding-horizon closed loop (plan_local -> track_plan -> recovery) on the real site DEM,
              via POST /nav/run. Draws the planned route (amber dashed) vs the executed trajectory (cyan)
@@ -1301,6 +1306,6 @@
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=db889af63c4c"></script>
+<script src="/assets/cockpit.js?v=e170d709dfed"></script>
 </body>
 </html>

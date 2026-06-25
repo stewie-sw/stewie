@@ -2279,9 +2279,29 @@ async function navReloc() {                            // REAL measured fix on t
   } catch (e) { $("navcovstat").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
   finally { $("navreloc").disabled = false; $("navreloc").textContent = "⌖ Relocalize"; navGate(); }
 }
+// FS-05 nav contract readout: GET /nav/contract -> render each nav stage's on-host wired status (the
+// auditable navigation contract). Read-only diagnostic; the missing on-host stages render flagged.
+async function navContract() {
+  const out = qel("navcontractout"), hdr = qel("navcontracthdr");
+  out.textContent = "loading…"; hdr.textContent = "";
+  try {
+    const r = await fetch("/nav/contract", { headers: apiHeaders() });
+    const b = await r.json();
+    if (!r.ok) { out.textContent = `nav contract failed: ${b.error || ("HTTP " + r.status)}`; return; }
+    hdr.textContent = `v${b.version} · on-host ${b.on_host_complete ? "COMPLETE" : "partial"}`;
+    out.textContent = "";
+    (b.stages || []).forEach((s) => {
+      const d = document.createElement("div");
+      d.textContent = `${s.present ? "✓" : "✗"} ${s.stage}  —  ${s.seam}${s.note ? "  (" + s.note + ")" : ""}`;
+      if (!s.present && !s.note) d.style.color = "var(--accent)";  // a missing on-host stage is flagged
+      out.appendChild(d);
+    });
+  } catch (e) { out.textContent = "nav contract failed — run server.py (" + e + ")"; }
+}
 if ($("navrun")) {
   $("navrun").onclick = navRun;
   $("navcmp").onclick = navCompare;
+  if ($("navcontract")) $("navcontract").onclick = navContract;  // #228 L2: FS-05 nav-stage contract readout
   if ($("navdrive")) $("navdrive").onclick = navDriveRun;     // FS-05 end-to-end route-then-drive preview
   if ($("navreal")) $("navreal").onclick = navRealTraverse;   // #148 real Haworth terrain-fix est-vs-truth
   $("navreloc").onclick = navReloc;
