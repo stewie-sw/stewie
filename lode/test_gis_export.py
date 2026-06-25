@@ -161,3 +161,29 @@ def test_offline_mission_package_is_self_contained_and_reimportable():  # [REQ:G
     assert len(imp["orders"]) == len(m.orders)
     for io, orig in zip(imp["orders"], m.orders):
         assert io["x"] == pytest.approx(orig.x, abs=0.05) and io["y"] == pytest.approx(orig.y, abs=0.05)
+
+
+def test_feature_attribute_query_filters_by_layer_and_attribute():  # [REQ:GI-03]
+    """GI-03 feature attribute/query: pull a layer ("all keep-outs") or filter by attribute
+    ("orders where kind=cut") out of an exported FeatureCollection. Real Haworth plan."""
+    dem, o = _dem_origin()
+    m = _mission()
+    fc = GE.plan_to_geojson(m, dem=dem, dem_origin=o)
+    # by layer tag
+    orders = GE.query_features(fc, feature="order")
+    assert len(orders) == len(m.orders) and all(f["properties"]["feature"] == "order" for f in orders)
+    keepouts = GE.query_features(fc, feature="keepout")
+    assert len(keepouts) == len(m.keepouts) and all(f["geometry"]["type"] == "Polygon" for f in keepouts)
+    # by attribute, scoped to a layer: order Points whose kind == "cut"
+    cuts = GE.query_features(fc, feature="order", kind="cut")
+    assert len(cuts) == sum(1 for ordr in m.orders if ordr.kind == "cut")
+    assert cuts and all(f["properties"]["kind"] == "cut" for f in cuts)
+    # an attribute query with no layer scope matches across layers (order + footprint both carry kind)
+    assert len(GE.query_features(fc, kind="cut")) >= len(cuts)
+    # no match -> empty list (never raises)
+    assert GE.query_features(fc, feature="nonesuch") == []
+
+
+def test_feature_query_rejects_non_featurecollection():  # [REQ:GI-03]
+    with pytest.raises(ValueError):
+        GE.query_features({"type": "Feature"})

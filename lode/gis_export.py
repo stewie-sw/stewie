@@ -217,6 +217,24 @@ def geojson_to_features(fc: dict, *, dem_origin, bundle_dir=None) -> dict[str, A
     return out
 
 
+def query_features(fc: dict, *, feature: str | None = None, **props: Any) -> list[dict]:
+    """GI-03 feature attribute/query: return the FeatureCollection's features whose ``feature`` layer tag
+    equals ``feature`` (when given) AND whose properties match every ``props`` key=value (attribute
+    equality). A GIS client uses this to pull a layer ("all keep-outs") or filter by attribute ("order
+    features where kind=cut"). Raises ValueError on a non-FeatureCollection; a no-match query returns ``[]``
+    (never an error)."""
+    if not isinstance(fc, dict) or fc.get("type") != "FeatureCollection":
+        raise ValueError("query_features expects an RFC-7946 FeatureCollection")
+    matches: list[dict] = []
+    for f in fc.get("features", []) or []:
+        p = (f or {}).get("properties") or {}
+        if feature is not None and p.get("feature") != feature:
+            continue
+        if all(p.get(k) == v for k, v in props.items()):
+            matches.append(f)
+    return matches
+
+
 # ---- terrain raster -> COG (cloud-optimized GeoTIFF) -------------------------------------------------
 def cog_available() -> tuple[bool, str]:
     """Whether a real COG raster backend is importable. Returns (ok, reason). COG export needs rasterio
