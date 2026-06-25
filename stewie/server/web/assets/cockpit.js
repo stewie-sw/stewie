@@ -2279,6 +2279,31 @@ async function navReloc() {                            // REAL measured fix on t
   } catch (e) { $("navcovstat").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
   finally { $("navreloc").disabled = false; $("navreloc").textContent = "⌖ Relocalize"; navGate(); }
 }
+// #228 L3: live RC telemetry readout -- GET /rc/telemetry drains the backend Pose/Leg + the SF-01
+// watchdog state (the watchdog ticks on each poll, so a stalled operator auto-SAFEs within the deadline).
+// Read-only; the gated live command-emit (/rc/command, /rc/plan_ros) stays behind AG-08/SF-01, not a button.
+async function rcTelemetry() {
+  const out = qel("rctlmout"), hdr = qel("rctlmhdr");
+  if (!out) return;
+  out.textContent = "polling…"; if (hdr) hdr.textContent = "";
+  try {
+    const r = await fetch("/rc/telemetry", { headers: apiHeaders() });
+    const b = await r.json();
+    if (!r.ok) { out.textContent = `RC telemetry failed: ${b.error || ("HTTP " + r.status)}`; return; }
+    const wd = b.watchdog || {};
+    if (hdr) hdr.textContent = `SF-01 watchdog: ${wd.tripped ? "TRIPPED (auto-SAFE)" : "armed"} · deadline ${wd.deadline_s}s`;
+    const tlm = b.telemetry || [];
+    if (!tlm.length) { out.textContent = "no live RC backend telemetry (idle — drive a published mission to populate)"; return; }
+    out.textContent = "";
+    tlm.slice(-8).forEach((t) => {
+      const d = document.createElement("div");
+      const pose = (t.x !== undefined && t.y !== undefined) ? ` (${(+t.x).toFixed(1)}, ${(+t.y).toFixed(1)})` : "";
+      d.textContent = `${t.kind || "?"}${pose}`;
+      out.appendChild(d);
+    });
+  } catch (e) { out.textContent = "RC telemetry failed — run server.py (" + e + ")"; }
+}
+
 // FS-05 nav contract readout: GET /nav/contract -> render each nav stage's on-host wired status (the
 // auditable navigation contract). Read-only diagnostic; the missing on-host stages render flagged.
 async function navContract() {
@@ -2302,6 +2327,7 @@ if ($("navrun")) {
   $("navrun").onclick = navRun;
   $("navcmp").onclick = navCompare;
   if ($("navcontract")) $("navcontract").onclick = navContract;  // #228 L2: FS-05 nav-stage contract readout
+  if ($("rctlm")) $("rctlm").onclick = rcTelemetry;              // #228 L3: live RC telemetry + SF-01 watchdog readout
   if ($("navdrive")) $("navdrive").onclick = navDriveRun;     // FS-05 end-to-end route-then-drive preview
   if ($("navreal")) $("navreal").onclick = navRealTraverse;   // #148 real Haworth terrain-fix est-vs-truth
   $("navreloc").onclick = navReloc;
