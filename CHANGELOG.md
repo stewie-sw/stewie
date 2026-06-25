@@ -56,8 +56,18 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
   flipped `y`; and `cell_m` is unified to one shared default (the Moon LOLA 5 m cell) across
   `commands_from_plan` and the ROS2 bridge (was 5.0 vs 1.0 — a latent 5× mislocalization). Live-verified on
   the `stewie-ros2` container (`/stewie/odom` now publishes correct metres). External wire-contract change.
+- Clean shutdown for the live `rover_executive` ROS2 node (`scripts/ccsds_ros_nav/nodes/`): a SIGTERM
+  (`docker stop`/restart) tearing the rclpy context down mid-spin surfaced one of three races (RCLError
+  "rcl_shutdown already called" / `ExternalShutdownException` / RCLError "wait set ... context not valid").
+  It now spins under an `rclpy.ok()` guard with an idempotent shutdown — runtime-verified clean across 3
+  restart cycles in `stewie-ros2-1` (healthy 10-topic graph each time).
 
 ### Changed
+- ROS2 image (`stewie-ros2`) now bundles **Nav2** (`ros-jazzy-navigation2` + `nav2_bringup`, 34 packages):
+  the FS-05 live nav-binary tier is PRESENT + launchable in-container — verified `planner_server` +
+  `global_costmap` launch and register alongside the live `/rover_executive` node. The deep terrain-wired
+  Nav2 (costmap / behavior-tree / params driving the rover on the lunar DEM, e2e-verified) stays the #144
+  convergence phase. Rollback image: `stewie-ros2:pre-nav2`.
 - Production positioning: STEWIE reads as a single production platform. The `ARGUS` codename → `Navigation`
   across code, the ROS2 `NavFactor` message + `/stewie/nav/factors` topic, JS, config, and docs; the
   research/dissertation framing is removed from the PRD and docs. The checksum-pinned profile + eval/

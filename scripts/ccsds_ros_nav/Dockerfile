@@ -15,6 +15,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # rosbags = pure-python MCAP writer (same lib the ros2_bridge uses) for optional telemetry bagging.
 RUN pip3 install --no-cache-dir --break-system-packages "rosbags>=0.10,<1" || true
 
+# Nav2 (FS-05 navigation binary tier / #144 Convergence Phase A): the standard ROS 2 Nav2 lifecycle stack
+# (planner / controller / bt_navigator / behaviors + bringup), so the live nav-binary runs inside the
+# container instead of being import-absent. Terrain-wired costmap/BT/params are the later #144 step; this
+# layer makes the binary PRESENT + launchable.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ros-jazzy-navigation2 ros-jazzy-nav2-bringup \
+    && rm -rf /var/lib/apt/lists/*
+
 # The repo is mounted at /work (see docker-compose.yml). Make terrain_authority + the package importable.
 ENV PYTHONPATH=/work:/work/scripts/ccsds_ros_nav
 ENV MPLBACKEND=Agg
