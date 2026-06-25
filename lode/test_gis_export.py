@@ -5,11 +5,13 @@ Real Haworth LOLA DEM only -- the order-frame (x, y) -> selenographic lon/lat tr
 IAU_2015:30135 south-polar stereographic projection the cockpit georef uses (no synthetic terrain, no
 fabricated coordinates). Geometry is validated to be inside the committed tile's globe footprint.
 
-SCOPE NOTE (why GI-03 stays V!=D): these tests pin only the EXPORT + COG-honesty slice that exists. The
-broader GI-03 subset -- GeoJSON/COG IMPORT, OGC/ArcGIS service consumption, feature attribute query,
-measurement/profile tools, and offline mission-package export -- is not implemented in-repo, so the row
-is NOT promoted to V=D on the strength of these markers."""
+SCOPE NOTE (why GI-03 stays V!=D): these tests pin the EXPORT + COG-honesty slice plus the GeoJSON IMPORT
+inverse (geojson_to_features, below). The remaining GI-03 subset -- COG/GeoTIFF feature IMPORT, OGC/ArcGIS
+service consumption, feature attribute query, measurement/profile tools, and offline mission-package
+export -- is not implemented in-repo, so the row is NOT promoted to V=D on the strength of these markers."""
 import json
+
+import pytest
 
 from lode import gis_export as GE
 from lode import mission_planner as MP
@@ -105,3 +107,37 @@ def test_cog_availability_is_reported_honestly():  # [REQ:GI-03]
     assert isinstance(ok, bool)
     if not ok:
         assert isinstance(reason, str) and reason
+
+
+def test_geojson_import_is_the_inverse_of_export():  # [REQ:GI-03]
+    """GI-03 IMPORT: parsing the exported FeatureCollection back through the SAME IAU_2015:30135 transform
+    recovers the plan's orders / keep-out / charger in the LOCAL order frame, within sub-decimetre
+    projection round-trip tolerance. Real Haworth DEM; the real export is the import fixture -- no
+    fabricated GeoJSON, no synthetic coordinates."""
+    dem, o = _dem_origin()
+    m = _mission()
+    fc = json.loads(json.dumps(GE.plan_to_geojson(m, dem=dem, dem_origin=o)))   # the real wire form
+    imp = GE.geojson_to_features(fc, dem_origin=o)
+    # build orders recovered: same count, action/kind/footprint, local xy within projection round-trip tol
+    assert len(imp["orders"]) == len(m.orders)
+    for io, orig in zip(imp["orders"], m.orders):
+        assert io["action"] == orig.action and io["kind"] == orig.kind
+        assert io["x"] == pytest.approx(orig.x, abs=0.05)
+        assert io["y"] == pytest.approx(orig.y, abs=0.05)
+        assert io["footprint_m2"] == pytest.approx(float(orig.footprint_m2))
+    # the keep-out circle round-trips as a closed local ring centred on the original centre
+    assert len(imp["keepouts"]) == len(m.keepouts)
+    pts = imp["keepouts"][0]["points"]
+    cx = sum(p[0] for p in pts) / len(pts)
+    cy = sum(p[1] for p in pts) / len(pts)
+    assert cx == pytest.approx(float(m.keepouts[0]["x"]), abs=0.5)
+    assert cy == pytest.approx(float(m.keepouts[0]["y"]), abs=0.5)
+    # charger recovered in the local frame
+    assert imp["charger"][0] == pytest.approx(float(m.charger[0]), abs=0.05)
+    assert imp["charger"][1] == pytest.approx(float(m.charger[1]), abs=0.05)
+
+
+def test_geojson_import_rejects_non_featurecollection():  # [REQ:GI-03]
+    # the importer never silently accepts a bare Feature / arbitrary dict (fail closed, like the export)
+    with pytest.raises(ValueError):
+        GE.geojson_to_features({"type": "Feature"}, dem_origin=(0.0, 0.0))

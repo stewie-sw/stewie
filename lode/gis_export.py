@@ -37,6 +37,17 @@ def _xy_to_lonlat(x: float, y: float, dem_origin, *, bundle_dir=None) -> list[fl
     return [round(lon, 8), round(lat, 8)]
 
 
+def _lonlat_to_xy(lon: float, lat: float, dem_origin, *, bundle_dir=None) -> tuple[float, float]:
+    """Inverse of ``_xy_to_lonlat``: project a selenographic [lon, lat] (deg) back to a LOCAL order-frame
+    point (x, y) [m], through the SAME IAU_2015:30135 transform (``latlon_to_dem_origin`` gives DEM-frame
+    metres; subtract ``dem_origin`` to land in the order frame route_leg uses). Raises ValueError if the
+    point falls outside the committed tile and ImportError if pyproj is absent -- it never fabricates a
+    local coordinate."""
+    ox, oy = dem_origin
+    dx, dy = MP.latlon_to_dem_origin(float(lat), float(lon), bundle_dir=bundle_dir)
+    return (float(dx) - float(ox), float(dy) - float(oy))
+
+
 def _feature(geometry: dict, properties: dict) -> dict:
     return {"type": "Feature", "geometry": geometry, "properties": properties}
 
@@ -163,6 +174,45 @@ def plan_to_geojson(mission, *, dem, dem_origin, algorithm: str = "nearest", obj
                        "feasible": bool(ir.get("feasible", True))},
         "features": features,
     }
+
+
+def geojson_to_features(fc: dict, *, dem_origin, bundle_dir=None) -> dict[str, Any]:
+    """GI-03 IMPORT: parse an RFC-7946 GeoJSON FeatureCollection (selenographic lon/lat, the form
+    ``plan_to_geojson`` emits, or any GIS client producing the same ``feature``-tagged layers) back into
+    LOCAL order-frame geometry [m] -- the faithful inverse of ``plan_to_geojson`` through the SAME
+    IAU_2015:30135 transform (``_lonlat_to_xy``).
+
+    Returns the importable mission geometry grouped by the ``feature`` layer tag:
+      - ``orders``  : ``{action, kind, x, y, footprint_m2, depth_m}`` per Point order.
+      - ``keepouts``: ``{points: [[x, y]...], index}`` per keep-out Polygon (the outer ring in local m).
+      - ``charger`` : ``[x, y]`` (or None if absent).
+      - ``route``   : ``{leg_id, vehicle, waypoints: [[x, y]...]}`` per route LineString.
+    Untagged / unknown layers and the ``footprint`` derived-geometry layer are ignored (the orders carry the
+    authoritative shape). Raises ValueError on a non-FeatureCollection or a coordinate outside the committed
+    tile, ImportError if pyproj is absent -- it never fabricates a local coordinate."""
+    if not isinstance(fc, dict) or fc.get("type") != "FeatureCollection":
+        raise ValueError("geojson_to_features expects an RFC-7946 FeatureCollection")
+    out: dict[str, Any] = {"orders": [], "keepouts": [], "charger": None, "route": []}
+    for f in fc.get("features", []) or []:
+        props = (f or {}).get("properties") or {}
+        geom = (f or {}).get("geometry") or {}
+        layer, gtype, coords = props.get("feature"), geom.get("type"), geom.get("coordinates")
+        if layer == "order" and gtype == "Point":
+            x, y = _lonlat_to_xy(coords[0], coords[1], dem_origin, bundle_dir=bundle_dir)
+            out["orders"].append({"action": props.get("action"), "kind": props.get("kind"),
+                                  "x": x, "y": y, "footprint_m2": float(props.get("footprint_m2", 0.0)),
+                                  "depth_m": float(props.get("depth_m", 0.0))})
+        elif layer == "keepout" and gtype == "Polygon":
+            ring = [_lonlat_to_xy(lon, lat, dem_origin, bundle_dir=bundle_dir) for lon, lat in coords[0]]
+            out["keepouts"].append({"points": [[x, y] for x, y in ring], "index": props.get("index")})
+        elif layer == "charger" and gtype == "Point":
+            x, y = _lonlat_to_xy(coords[0], coords[1], dem_origin, bundle_dir=bundle_dir)
+            out["charger"] = [x, y]
+        elif layer == "route" and gtype == "LineString":
+            wp = [list(_lonlat_to_xy(lon, lat, dem_origin, bundle_dir=bundle_dir)) for lon, lat in coords]
+            out["route"].append({"leg_id": props.get("leg_id"), "vehicle": props.get("vehicle"),
+                                 "waypoints": wp})
+    return out
 
 
 # ---- terrain raster -> COG (cloud-optimized GeoTIFF) -------------------------------------------------
