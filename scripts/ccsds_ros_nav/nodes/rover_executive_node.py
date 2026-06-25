@@ -23,6 +23,7 @@ for _p in (_PKG, _REPO):
         sys.path.insert(0, _p)
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
@@ -215,12 +216,21 @@ def main(argv=None) -> None:
     rclpy.init(args=argv)
     node = RoverExecutive()
     try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
+        # Spin in short increments guarded by rclpy.ok(): a stop signal (SIGINT / SIGTERM from
+        # `docker stop`/restart) shuts the context down, the guard sees it and exits the loop cleanly,
+        # instead of letting a blocking spin() re-init its wait set on the just-invalidated context
+        # (RCLError "wait set ... context is not valid") or surface ExternalShutdownException mid-wait.
+        while rclpy.ok():
+            rclpy.spin_once(node, timeout_sec=0.1)
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        # Idempotent: when the signal handler already shut the context down, a second rclpy.shutdown()
+        # raises RCLError ("rcl_shutdown already called"). Guard on rclpy.ok() so a clean container stop
+        # never exits non-zero on a redundant call.
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":
