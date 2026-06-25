@@ -141,3 +141,23 @@ def test_geojson_import_rejects_non_featurecollection():  # [REQ:GI-03]
     # the importer never silently accepts a bare Feature / arbitrary dict (fail closed, like the export)
     with pytest.raises(ValueError):
         GE.geojson_to_features({"type": "Feature"}, dem_origin=(0.0, 0.0))
+
+
+def test_offline_mission_package_is_self_contained_and_reimportable():  # [REQ:GI-03]
+    """GI-03 offline mission-package export: a single self-contained, JSON-serializable bundle (plan GeoJSON
+    + a manifest naming the mission/body/CRS/order-frame anchor) a field operator can carry OFFLINE and
+    re-import WITHOUT the live DEM, via the embedded dem_origin. Real Haworth; no fabricated data."""
+    dem, o = _dem_origin()
+    m = _mission()
+    pkg = json.loads(json.dumps(GE.mission_package(m, dem=dem, dem_origin=o)))   # fully JSON-portable
+    assert pkg["format"].startswith("stewie.mission_package/")
+    man = pkg["manifest"]
+    assert man["mission"] == m.name and man["body"] == m.body
+    assert man["dem_origin"] == [float(o[0]), float(o[1])]                       # the anchor for offline re-import
+    assert man["feature_count"] == len(pkg["geojson"]["features"])
+    assert isinstance(man["crs"], str) and man["crs"] and isinstance(man["raster_cog_available"], bool)
+    # OFFLINE re-import: the package's own GeoJSON + manifest anchor recovers the orders, no live DEM needed
+    imp = GE.geojson_to_features(pkg["geojson"], dem_origin=tuple(man["dem_origin"]))
+    assert len(imp["orders"]) == len(m.orders)
+    for io, orig in zip(imp["orders"], m.orders):
+        assert io["x"] == pytest.approx(orig.x, abs=0.05) and io["y"] == pytest.approx(orig.y, abs=0.05)

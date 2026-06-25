@@ -269,3 +269,33 @@ def _plan_to_cog_rasterio(dem, dem_origin, out_path: str, *, bundle_dir=None) ->
         dst.build_overviews(factors, Resampling.average)
         dst.update_tags(ns="rio_overview", resampling="average")
     return out_path
+
+
+# ---- offline mission package (GI-03) ----------------------------------------------------------------
+
+def mission_package(mission, *, dem, dem_origin, algorithm: str = "nearest", objective: str = "time",
+                    max_traverse_slope_deg: float = 25.0, bundle_dir=None) -> dict[str, Any]:
+    """GI-03 offline mission-package export: assemble a single self-contained, JSON-serializable bundle a
+    field operator can carry OFFLINE -- the plan's GeoJSON FeatureCollection (selenographic lon/lat) plus a
+    manifest naming the mission, body, CRS / provenance note, generator settings, and the order-frame anchor
+    (``dem_origin``) needed to re-import it (``geojson_to_features``) WITHOUT the live DEM. No raster is
+    embedded: the COG is a separate, backend-gated artifact, reported by availability, never a stub."""
+    fc = plan_to_geojson(mission, dem=dem, dem_origin=dem_origin, algorithm=algorithm,
+                         objective=objective, max_traverse_slope_deg=max_traverse_slope_deg,
+                         bundle_dir=bundle_dir)
+    cog_ok, _reason = cog_available()
+    return {
+        "format": "stewie.mission_package/1.0",
+        "manifest": {
+            "mission": mission.name,
+            "body": mission.body,
+            "crs": _CRS_NAME,
+            "crs_note": fc["crs_note"],
+            "dem_origin": [float(dem_origin[0]), float(dem_origin[1])],
+            "algorithm": algorithm,
+            "objective": objective,
+            "feature_count": len(fc["features"]),
+            "raster_cog_available": bool(cog_ok),
+        },
+        "geojson": fc,
+    }
