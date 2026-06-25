@@ -615,6 +615,14 @@
         </div>
         <div id="rctlmout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:4px 0 0;color:var(--muted)">Live rover command-emit (GoTo/Safe/uplink) stays gated to a published mission (AG-08 / SF-01) — this is the read-only telemetry + watchdog view.</div>
       </div>
+      <div class="ctxsec">
+        <div class="ctxh">Twin audit <span class="sysb">DT-02 · director</span></div>
+        <div class="ctl" style="margin-top:6px">
+          <button id="twinaudit" class="site" style="font-size:11px" title="DT-02 observed-twin audit history: resync events + provenance + hash-chain validity — director-only">⛓ Twin audit</button>
+          <span id="twinaudithdr" style="font-size:10px;opacity:.6"></span>
+        </div>
+        <div id="twinauditout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:4px 0 0;color:var(--muted)">Director-only audit of the observed-twin resync history (provenance + hash-chain). Sign in with a director key to view.</div>
+      </div>
       <!-- sidebar 7->4 (docs/cockpit_reorg_plan_2026-06-23.md): Telemetry (live channels + ICE-RASSOR drum
            sensing, fed by the execution feed) moved here from the Plan authoring sidebar -- it belongs with
            execution, not authoring. telerail/telespark/drumkg/drumnoise/drumout ids + handlers preserved verbatim. -->
@@ -1314,6 +1322,6 @@
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=82d2e64f3e8b"></script>
+<script src="/assets/cockpit.js?v=7e536bf57657"></script>
 </body>
 </html>

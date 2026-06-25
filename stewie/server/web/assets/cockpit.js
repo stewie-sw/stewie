@@ -2304,6 +2304,35 @@ async function rcTelemetry() {
   } catch (e) { out.textContent = "RC telemetry failed — run server.py (" + e + ")"; }
 }
 
+// #229: DT-02 director-only twin audit -- the observed-twin resync history (events + provenance +
+// hash-chain validity). Director-gated server-side (require_director); a non-director gets 403 and the
+// readout shows the honest director-only state (same pattern as the TR-02/TR-04 trainer boards).
+async function twinAudit() {
+  const out = qel("twinauditout"), hdr = qel("twinaudithdr");
+  if (!out) return;
+  out.textContent = "loading…"; if (hdr) hdr.textContent = "";
+  try {
+    const r = await fetch("/twin/history", { headers: apiHeaders() });
+    if (r.status === 401 || r.status === 403) {
+      if (hdr) hdr.textContent = "director-only";
+      out.textContent = "DT-02 twin audit is director-only — sign in with a director key to view the resync history.";
+      return;
+    }
+    const b = await r.json();
+    if (!r.ok) { out.textContent = `twin audit failed: ${b.error || ("HTTP " + r.status)}`; return; }
+    if (hdr) hdr.textContent = `v${b.twin_version} · chain ${b.chain_valid ? "VALID" : "BROKEN"}`;
+    const ev = b.events || [];
+    if (!ev.length) { out.textContent = "no resync events recorded (the observed twin is at its base version)."; return; }
+    out.textContent = "";
+    ev.slice(-12).forEach((e) => {
+      const d = document.createElement("div");
+      const ts = e.timestamp || e.ts || e.time || "";
+      d.textContent = `#${e.version ?? "?"}  ${e.kind || e.event || "resync"}  ${e.source || e.basis || ""} ${ts}`.replace(/\s+/g, " ").trim();
+      out.appendChild(d);
+    });
+  } catch (e) { out.textContent = "twin audit failed — run server.py (" + e + ")"; }
+}
+
 // FS-05 nav contract readout: GET /nav/contract -> render each nav stage's on-host wired status (the
 // auditable navigation contract). Read-only diagnostic; the missing on-host stages render flagged.
 async function navContract() {
@@ -2328,6 +2357,7 @@ if ($("navrun")) {
   $("navcmp").onclick = navCompare;
   if ($("navcontract")) $("navcontract").onclick = navContract;  // #228 L2: FS-05 nav-stage contract readout
   if ($("rctlm")) $("rctlm").onclick = rcTelemetry;              // #228 L3: live RC telemetry + SF-01 watchdog readout
+  if ($("twinaudit")) $("twinaudit").onclick = twinAudit;       // #229: DT-02 director-only twin audit readout
   if ($("navdrive")) $("navdrive").onclick = navDriveRun;     // FS-05 end-to-end route-then-drive preview
   if ($("navreal")) $("navreal").onclick = navRealTraverse;   // #148 real Haworth terrain-fix est-vs-truth
   $("navreloc").onclick = navReloc;
