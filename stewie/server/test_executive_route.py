@@ -128,3 +128,16 @@ def test_release_plan_with_no_build_orders_is_400(client):  # [REQ:MO-02]
     r = c.post("/executive/release-plan", headers={"X-API-Key": key}, json=payload)
     assert r.status_code == 400, r.text
     assert r.json()["ok"] is False
+
+
+def test_release_plan_sinter_order_gated_off_is_400(client):  # [REQ:MO-02] sinter is a valid order_kind but GATED OFF
+    # A sinter order is contract-valid (mission_ops accepts cut|fill|sinter) but sinter is gated off for the
+    # IPEx baseline; the release path must surface that as a clean 400, not an unhandled 500.
+    c, key = client
+    payload = {"body": "moon", "mission_id": "M-sinter-gated",
+               "orders": [{"action": "Sinter pad", "kind": "sinter", "x": 6.0, "y": 0.0,
+                           "footprint_m2": 4.0, "depth_m": 0.05}]}
+    r = c.post("/executive/release-plan", headers={"X-API-Key": key}, json=payload)
+    assert r.status_code == 400, r.text
+    assert r.json()["ok"] is False
+    assert "sinter" in r.json()["error"].lower()
