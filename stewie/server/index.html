@@ -576,7 +576,7 @@
     <div id="ctx-nav" class="ctxblock" hidden>
       <div class="ctxsec">
         <div class="ctxh">Navigation <span class="sysb">LEAP</span></div>
-        <div style="font-size:11px;color:var(--muted);line-height:1.55">ARGUS state estimation — the rover's live pose estimate vs truth, the per-leg fixes (terrain scan-match / AprilTag beacon), and articulation-parallax relocalization. Full controls &amp; plots are in the pane →</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.55">State estimation — the rover's live pose estimate vs truth, the per-leg fixes (terrain scan-match / AprilTag beacon), and articulation-parallax relocalization. Full controls &amp; plots are in the pane →</div>
         <div id="ctxnav-loc" style="font-size:11px;line-height:1.7;margin-top:10px;color:var(--muted)">Plan a mission (Plan tab) to see the live localization summary.</div>
         <button id="ctxnav-run" class="go" style="font-size:11px;margin-top:10px;width:100%">▶ Run Katwijk estimator</button>
       </div>
@@ -642,7 +642,7 @@
            answer "does the plan hold up vs truth / vs what the rover will see?". The sub-views REUSE the existing
            #navview + #renderpanel panes + their handlers; setView('validate') delegates to the last/default sub,
            and the Validate tab shows active whenever nav or perception is the sub-view. -->
-      <button class="vtab" data-view="validate" title="validate the plan: ARGUS navigation / state-estimation (est-vs-truth) and the perception sensor render — two sub-tabs">Validate <span class="sysb">LEAP·DART</span></button>
+      <button class="vtab" data-view="validate" title="validate the plan: navigation / state-estimation (est-vs-truth) and the perception sensor render — two sub-tabs">Validate <span class="sysb">LEAP·DART</span></button>
       <!-- RELEASE (ConOps spine slot 4, director-only): drive the current build plan through the MO-02 mission
            lifecycle (DRAFT->ANALYZED->REHEARSED->REVIEWED->RELEASED) via POST /executive/release-plan, recording
            the signed immutable revision + evidence. Signs on the conserved sim authority; does NOT command a
@@ -805,7 +805,7 @@
           the rover drives) is the open map-channel work, not a faked feed.</div>
 
         <!-- #183/#79 8-camera rig -> heading-ordered panorama -> shadow-nav cast-shadow landmarks
-             (each tagged with the AZIMUTH bearing an ARGUS pose-graph factor consumes). The served
+             (each tagged with the AZIMUTH bearing a navigation pose-graph factor consumes). The served
              panorama.png + landmarks.json are REAL Godot render egress (crater_boulders), not synthetic. -->
         <div id="panowrap" style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
           <div class="cap"><span>SHADOW-NAV PANORAMA — 8-cam rig → 360° surround → cast-shadow landmarks
@@ -838,7 +838,7 @@
         </div>
       </div>
       <div id="navview" class="pane">
-        <div class="cap"><span>NAVIGATION — ARGUS state estimation <small>(pose-graph estimate vs dead reckoning; articulation-parallax relocalization)</small></span></div>
+        <div class="cap"><span>NAVIGATION — state estimation <small>(pose-graph estimate vs dead reckoning; articulation-parallax relocalization)</small></span></div>
         <!-- FS-05 END-TO-END DRIVE PREVIEW: route the global corridor (route_leg) then DRIVE it as a
              receding-horizon closed loop (plan_local -> track_plan -> recovery) on the real site DEM,
              via POST /nav/run. Draws the planned route (amber dashed) vs the executed trajectory (cyan)
@@ -880,7 +880,7 @@
               segment <select id="navseg"><option>Part1</option><option>Part2</option><option>Part3</option></select>
               · keyframes <input id="navkf" type="number" value="30" min="5" max="200" style="width:4em" />
               <button id="navrun" class="go" style="font-size:11px">▶ Run estimator</button>
-              <button id="navcmp" class="site" style="font-size:11px" title="shared-testbed head-to-head: the same trajectory under passive / ShadowNav-class / ARGUS, each modeled at its reported sigma">Compare approaches</button>
+              <button id="navcmp" class="site" style="font-size:11px" title="shared-testbed head-to-head: the same trajectory under passive / ShadowNav-class / Navigation, each modeled at its reported sigma">Compare approaches</button>
             </div>
             <canvas id="navplot" width="460" height="330" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;max-width:100%;margin-top:6px"></canvas>
             <div id="navstats" style="font-size:11px;line-height:1.7;margin-top:6px"></div>
@@ -1172,7 +1172,7 @@
       <div id="pane-evidence" class="pane">
         <div class="cap"><span>EVIDENCE — navigation evidence (comparison · generalization · photometric+depth)</span></div>
         <div style="padding:10px 4px;font-size:12px;color:var(--muted)">
-          Grounded dissertation evidence served live from <code>/evidence</code> (dart.comparison: sourced
+          Grounded evidence served live from <code>/evidence</code> (dart.comparison: sourced
           constants + the parallax covariance model; no synthetic data). The three systems target different
           problem scales (relative / global / local) — a shared-testbed head-to-head is the §6 protocol.
         </div>
