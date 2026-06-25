@@ -41,6 +41,14 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
   overhaul summary (new IDs `OPS-`/`MO-`/`TR-`), from the 2026-06-20 architecture + mission-ops reviews.
 - `docs/ui_overhaul_plan_2026-06-20.md` (full-fidelity cockpit overhaul plan) and
   `docs/architecture_review_2026-06-20.md` (this review); both added to the docs nav.
+- GI-03 GIS interop (in-repo subset): `lode.gis_export` gained the inverse + companion of the existing
+  plan→GeoJSON/COG export — **`geojson_to_features`** (RFC-7946 lon/lat → local order-frame orders /
+  keep-outs / charger / route, through the same `IAU_2015:30135` inverse transform `latlon_to_dem_origin`),
+  **`mission_package`** (a self-contained, offline-portable bundle: manifest + plan GeoJSON + the
+  `dem_origin` anchor that re-imports without the live DEM), and **`query_features`** (pull a layer / filter
+  by attribute). Round-trip-verified on the real Haworth tile (`lode/test_gis_export.py [REQ:GI-03]`).
+  GI-03 stays V≠D (no matrix hand-flip): COG/GeoTIFF feature import, OGC/ArcGIS consumption, and
+  measurement/profile tools remain out of the in-repo subset.
 
 ### Fixed
 - Drive-loop seam contract: `pose_to_odom` now emits REP-103 metres (`x=col*cell_m`, `y=-row*cell_m`)
@@ -54,6 +62,9 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
   across code, the ROS2 `NavFactor` message + `/stewie/nav/factors` topic, JS, config, and docs; the
   research/dissertation framing is removed from the PRD and docs. The checksum-pinned profile + eval/
   gate-validation subsystems are honestly exempted (codenames remain in pinned content; re-pinning tracked).
+  A follow-up pass purged the codename from the leftovers the first sweep missed: the served cockpit UI
+  (`index.html` labels / tooltips / captions + the "dissertation evidence" → "grounded evidence" pane) and
+  the committed posture / shadow-landmark doc-metadata (`ipex_postures.json`, `perception/landmarks.json`).
 - Production-distribution cleanup: reclaimed ~3.8 GB of regenerable cruft (gitignored `.claude/worktrees`
   + UI scratch), and archived 18 superseded dated dev docs (architecture reviews, evals, plans) to
   `docs/archive/` with mkdocs nav + inbound-link cleanup.

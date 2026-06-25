@@ -145,7 +145,10 @@ remain); the Navigation pose-graph estimator spine (DEM + shadow-outline factors
 > drum — OPEN**. **Fleet conflict RESOLUTION + MV precedence-chain splitting — OPEN** (every conflict class
 > is detected/reported; none re-sequenced; a chain can't span vehicles). **STEWIE-Orbit comms stack —
 > intent-only** (only the gated CCSDS Space-Packet RC seam exists; no Proximity-1/AOS-USLP/CFDP/SDLS/Yamcs/
-> Foxglove code). **GIS interop GI-03 — OPEN** (the cockpit toolbox is client annotation, not GeoJSON/COG/OGC).
+> Foxglove code). **GIS interop GI-03 — PARTIAL** (the in-repo GeoJSON subset is DONE in `lode.gis_export`:
+> plan→GeoJSON/COG export, GeoJSON import (`geojson_to_features`), offline mission-package (`mission_package`),
+> and feature query (`query_features`); the cockpit-toolbox annotation, COG/GeoTIFF feature import,
+> OGC/ArcGIS service consumption, and measurement/profile tools stay OPEN).
 >
 > **Strongest, fully DONE + tested:** the AG-01..08 governance ladder (whole family), SF-01 safing, NV-11/12
 > Plan-IR lowering + stream under AG-08, FS-17 windowing, FS-20 chrome, server hardening (PO-06/07/08),
