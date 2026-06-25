@@ -2333,6 +2333,37 @@ async function twinAudit() {
   } catch (e) { out.textContent = "twin audit failed — run server.py (" + e + ")"; }
 }
 
+// #229 lane B: FS-17-gated live-rover command console (POST /rc/command). Controls are
+// [data-cmd-authority] (auto-disabled by CMD_AUTH in a read-only window); every emit calls guardCommand()
+// FIRST; GoTo confirms before sending; the AG-08 published-mission + operator/director role gates are
+// enforced server-side and surfaced honestly (403 -> "refused (gated)"). Safe = emergency stop (no mission
+// ref, always allowed to the authority holder); SetSim (time-warp) is director-only.
+async function rcCommand(kind) {
+  const out = qel("rccmdout");
+  if (!guardCommand("RC " + kind)) {
+    if (out) out.textContent = "this window is READ-ONLY — another cockpit holds command authority (Take over to command).";
+    return;
+  }
+  let body = { kind };
+  if (kind === "goto") {
+    const gr = parseFloat(qel("rcgr").value), gc = parseFloat(qel("rcgc").value);
+    if (!Number.isFinite(gr) || !Number.isFinite(gc)) { out.textContent = "enter a goal row, col first"; return; }
+    const m = qel("rccmdmission").value.trim();
+    if (!window.confirm(`Send GoTo (${gr}, ${gc})${m ? " for mission " + m : ""} to the LIVE rover?`)) return;
+    body = { kind, goal_row: gr, goal_col: gc, leg_id: 0, v_max_mps: 0.3, ...(m ? { mission: m } : {}) };
+  } else if (kind === "setsim") {
+    body = { kind, time_factor: parseFloat(qel("rctf").value) || 1.0 };
+  }
+  out.textContent = "sending…";
+  try {
+    const r = await fetch("/rc/command", { method: "POST", headers: apiHeaders(), body: JSON.stringify(body) });
+    const b = await r.json().catch(() => ({}));
+    if (r.status === 403) { out.textContent = `refused (gated): ${b.detail || b.error || "AG-08 / role"}`; return; }
+    if (!r.ok) { out.textContent = `command failed: ${b.error || b.detail || ("HTTP " + r.status)}`; return; }
+    out.textContent = `accepted: ${b.accepted}${b.watchdog_tripped ? " · watchdog TRIPPED" : ""}`;
+  } catch (e) { out.textContent = "command failed — run server.py (" + e + ")"; }
+}
+
 // FS-05 nav contract readout: GET /nav/contract -> render each nav stage's on-host wired status (the
 // auditable navigation contract). Read-only diagnostic; the missing on-host stages render flagged.
 async function navContract() {
@@ -2358,6 +2389,9 @@ if ($("navrun")) {
   if ($("navcontract")) $("navcontract").onclick = navContract;  // #228 L2: FS-05 nav-stage contract readout
   if ($("rctlm")) $("rctlm").onclick = rcTelemetry;              // #228 L3: live RC telemetry + SF-01 watchdog readout
   if ($("twinaudit")) $("twinaudit").onclick = twinAudit;       // #229: DT-02 director-only twin audit readout
+  if ($("rcsafe")) $("rcsafe").onclick = () => rcCommand("safe");     // #229 L B: FS-17/AG-08 command console
+  if ($("rcgoto")) $("rcgoto").onclick = () => rcCommand("goto");
+  if ($("rcsetsim")) $("rcsetsim").onclick = () => rcCommand("setsim");
   if ($("navdrive")) $("navdrive").onclick = navDriveRun;     // FS-05 end-to-end route-then-drive preview
   if ($("navreal")) $("navreal").onclick = navRealTraverse;   // #148 real Haworth terrain-fix est-vs-truth
   $("navreloc").onclick = navReloc;
