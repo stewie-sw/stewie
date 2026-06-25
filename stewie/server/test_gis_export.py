@@ -5,6 +5,7 @@ endpoint returns a valid FeatureCollection whose coordinates are lon/lat inside 
 whose features match the mission's orders + keep-outs, and that COG availability is reported honestly."""
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 
 from stewie.server.server import app
@@ -80,3 +81,48 @@ def test_export_cog_availability_endpoint_is_honest():
     assert "available" in body and isinstance(body["available"], bool)
     if not body["available"]:
         assert body["reason"]                                  # honest blocked reason, never a stub
+
+
+def test_gis_import_route_round_trips_orders():
+    """POST /gis/import is the inverse of GET /export/geojson: the exported FeatureCollection re-imports to
+    the local order-frame orders (sub-decimetre on the real Haworth tile)."""
+    c = _client()
+    fc = c.get("/export/geojson", params={"mission": json.dumps(_MISSION)}).json()
+    r = c.post("/gis/import", json={"featurecollection": fc})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["ok"] is True and len(body["orders"]) == len(_MISSION["orders"])
+    got = sorted((o["x"], o["y"]) for o in body["orders"])
+    want = sorted((o["x"], o["y"]) for o in _MISSION["orders"])
+    for (gx, gy), (wx, wy) in zip(got, want):
+        assert gx == pytest.approx(wx, abs=0.5) and gy == pytest.approx(wy, abs=0.5)
+    assert body["charger"] is not None and len(body["keepouts"]) == 1
+
+
+def test_gis_import_route_rejects_non_featurecollection():
+    c = _client()
+    r = c.post("/gis/import", json={"featurecollection": {"type": "Feature"}})
+    assert r.status_code == 400 and r.json()["ok"] is False
+
+
+def test_gis_mission_package_route_is_self_contained():
+    """GET /gis/mission-package returns the offline bundle: manifest + plan GeoJSON, feature counts agree."""
+    c = _client()
+    r = c.get("/gis/mission-package", params={"mission": json.dumps(_MISSION)})
+    assert r.status_code == 200, r.text
+    pkg = r.json()
+    assert pkg["format"].startswith("stewie.mission_package/")
+    assert pkg["geojson"]["type"] == "FeatureCollection"
+    assert pkg["manifest"]["feature_count"] == len(pkg["geojson"]["features"])
+    assert pkg["manifest"]["mission"] == _MISSION["name"]
+
+
+def test_gis_query_route_filters_by_layer_and_attribute():
+    c = _client()
+    fc = c.get("/export/geojson", params={"mission": json.dumps(_MISSION)}).json()
+    r = c.post("/gis/query", json={"featurecollection": fc, "feature": "keepout"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["count"] == 1 and all(f["properties"]["feature"] == "keepout" for f in body["features"])
+    r2 = c.post("/gis/query", json={"featurecollection": fc, "feature": "order", "attrs": {"kind": "cut"}})
+    assert r2.status_code == 200 and r2.json()["count"] == 1
