@@ -1,0 +1,4 @@
+REAL ESA Katwijk Beach Planetary Rover Dataset, Part1 (de Jong 2019), a verbatim 30 s time-window slice
+[2015_11_26_12_54_00_000 .. 2015_11_26_12_54_30_999] of gps-latlong/odometry/imu (no downsampling, no synthetic data). Used by
+stewie/eval/test_katwijk_mini.py to run the wheel+IMU dead-reckoning G1 gate in CI without the full 76 GB
+mount. The full-track 3.35 m headline ATE stays the nightly full-data run (test_katwijk_baseline.py).
