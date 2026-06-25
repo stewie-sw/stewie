@@ -3651,6 +3651,69 @@ async function analyzeSitePlan() {
   } catch (e) { out.textContent = "site-plan failed — run server.py (" + e + ")"; }
 }
 { const b = qel("qsiteplan"); if (b) b.onclick = analyzeSitePlan; }
+
+// GI-03 GIS interchange: export the current plan to GeoJSON / an offline mission package, import a
+// FeatureCollection back to local order-frame features, and query a loaded FeatureCollection by layer.
+// Routes: GET /export/geojson, GET /gis/mission-package, POST /gis/import, POST /gis/query.
+let LAST_FC = null;
+function _gisMission() {
+  return { name: "gis export", body: sel.value, charger: [0, 0], orders: ORDERS, keepouts: KEEPOUTS };
+}
+function _gisDownload(name, text, type) {
+  const blob = new Blob([text], { type: type || "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+async function gisExportGeojson() {
+  const out = qel("gisout"); out.textContent = "exporting…";
+  const q = `mission=${encodeURIComponent(JSON.stringify(_gisMission()))}&site=${encodeURIComponent(CURRENT_SITE)}`;
+  try {
+    const r = await fetch(`/export/geojson?${q}`, { headers: apiHeaders() });
+    const b = await r.json();
+    if (!r.ok) { out.textContent = `export failed: ${b.error || ("HTTP " + r.status)}`; return; }
+    LAST_FC = b; _gisDownload("plan.geojson", JSON.stringify(b, null, 1), "application/geo+json");
+    out.textContent = `exported ${b.features.length} feature(s) → plan.geojson`;
+  } catch (e) { out.textContent = "export failed — run server.py (" + e + ")"; }
+}
+async function gisExportPackage() {
+  const out = qel("gisout"); out.textContent = "packaging…";
+  const q = `mission=${encodeURIComponent(JSON.stringify(_gisMission()))}&site=${encodeURIComponent(CURRENT_SITE)}`;
+  try {
+    const r = await fetch(`/gis/mission-package?${q}`, { headers: apiHeaders() });
+    const b = await r.json();
+    if (!r.ok) { out.textContent = `package failed: ${b.error || ("HTTP " + r.status)}`; return; }
+    _gisDownload("mission_package.json", JSON.stringify(b, null, 1));
+    out.textContent = `package: ${b.manifest.feature_count} feature(s), body ${b.manifest.body} → mission_package.json`;
+  } catch (e) { out.textContent = "package failed — run server.py (" + e + ")"; }
+}
+async function gisImport() {
+  const out = qel("gisout"); let fc;
+  try { fc = JSON.parse(qel("gisin").value); } catch (e) { out.textContent = "paste a valid GeoJSON FeatureCollection first"; return; }
+  try {
+    const r = await fetch("/gis/import", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ featurecollection: fc, site: CURRENT_SITE }) });
+    const b = await r.json();
+    if (!r.ok) { out.textContent = `import failed: ${b.error || ("HTTP " + r.status)}`; return; }
+    LAST_FC = fc;
+    out.textContent = `imported: ${b.orders.length} order(s), ${b.keepouts.length} keep-out(s), charger ${b.charger ? "yes" : "no"}, ${b.route.length} route leg(s)`;
+  } catch (e) { out.textContent = "import failed — run server.py (" + e + ")"; }
+}
+async function gisQuery() {
+  const out = qel("gisout");
+  if (!LAST_FC) { out.textContent = "export or import a FeatureCollection first"; return; }
+  const layer = qel("gisq").value.trim();
+  try {
+    const r = await fetch("/gis/query", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ featurecollection: LAST_FC, feature: layer || null }) });
+    const b = await r.json();
+    out.textContent = r.ok ? `query "${layer || "*"}": ${b.count} feature(s)` : `query failed: ${b.error || ("HTTP " + r.status)}`;
+  } catch (e) { out.textContent = "query failed — run server.py (" + e + ")"; }
+}
+{ const e = qel("gisexport"); if (e) e.onclick = gisExportGeojson; }
+{ const e = qel("gispkg"); if (e) e.onclick = gisExportPackage; }
+{ const e = qel("gisimport"); if (e) e.onclick = gisImport; }
+{ const e = qel("gisquery"); if (e) e.onclick = gisQuery; }
 // precedence text "Grade road > Build berm, Dig pit > Fill" -> [[before, after], ...] (I9). The pure
 // parser lives in plan_geom.js; this thin alias reads the #qprec field and passes it in (FS-24).
 function parsePrec() { return window.STEWIE_PLAN_GEOM.parsePrec(qel("qprec").value); }

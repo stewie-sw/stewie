@@ -477,6 +477,18 @@
         <span id="qsitecount" style="font-size:10px;opacity:.6"></span>
       </div>
       <div id="qsiteout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:2px 0 6px;color:var(--muted)"></div>
+      <div class="ctl" style="margin:8px 0 2px"><b style="font-size:10px;letter-spacing:.12em;opacity:.6">GIS INTERCHANGE</b> <span style="font-size:10px;opacity:.5">(GI-03)</span></div>
+      <div class="ctl" style="margin:2px 0">
+        <button id="gisexport" class="site" title="download the current plan as RFC-7946 GeoJSON (selenographic lon/lat)">⬇ GeoJSON</button>
+        <button id="gispkg" class="site" title="download the offline mission package (manifest + plan GeoJSON; re-importable without the live DEM)">⬇ Package</button>
+      </div>
+      <textarea id="gisin" placeholder="paste a GeoJSON FeatureCollection to import →" style="width:100%;height:42px;font-size:10px;box-sizing:border-box"></textarea>
+      <div class="ctl" style="margin:2px 0">
+        <button id="gisimport" class="site" title="import a GeoJSON FeatureCollection back to local order-frame features">⬆ Import</button>
+        <input id="gisq" placeholder="layer e.g. keepout" style="font-size:10px;width:84px" />
+        <button id="gisquery" class="site" title="query/filter the loaded FeatureCollection by its layer tag">Query</button>
+      </div>
+      <div id="gisout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:2px 0 6px;color:var(--muted)"></div>
       <div class="ctl" style="margin:4px 0">
         <button id="qundo" class="site" title="undo the last authoring change (Ctrl+Z)">↶ Undo</button>
         <span id="qhist" style="font-size:10px;opacity:.6"></span></div>
@@ -1289,6 +1301,6 @@
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=4003e1faa9b4"></script>
+<script src="/assets/cockpit.js?v=db889af63c4c"></script>
 </body>
 </html>
