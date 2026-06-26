@@ -99,7 +99,9 @@ def _telemetry_payload() -> dict:
     with _RC_LOCK:
         tripped = _RC_WATCHDOG.tick(now=now)
         tlm = [t.__dict__ | {"kind": t.kind} for t in _RC_BACKEND.poll()]
-    return {"ok": True, "telemetry": tlm,
+    # #230 step 3: the Pose is in grid (row, col) cells; cell_m lets the cockpit live drive-map convert to
+    # REP-103 meters (x=col*cell_m, y=-row*cell_m -- bridge.frames). Without it the map is dimensionless.
+    return {"ok": True, "telemetry": tlm, "cell_m": _RC_BACKEND.cell_m,
             "watchdog": {"tripped": tripped, "deadline_s": _RC_WATCHDOG.deadline_s}}
 
 

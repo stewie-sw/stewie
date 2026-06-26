@@ -82,3 +82,17 @@ def test_telemetry_stream_requires_auth(client):  # #230: the stream is auth-gat
     c, _key = client
     r = c.get("/rc/telemetry/stream", params={"max_frames": 1})
     assert r.status_code in (401, 403), r.text
+
+
+def test_telemetry_payload_carries_cell_m(client):  # #230 step 3: the live drive map needs the grid scale
+    # The Pose is in grid (row, col) cells; the cockpit live map converts to REP-103 meters
+    # (x=col*cell_m, y=-row*cell_m, frames.py). So the telemetry MUST expose the backend cell_m, else the
+    # map can only plot dimensionless cells. Assert it on both the one-shot snapshot and a streamed frame.
+    c, key = client
+    snap = c.get("/rc/telemetry", headers={"X-API-Key": key})
+    assert snap.status_code == 200, snap.text
+    assert isinstance(snap.json()["cell_m"], (int, float)) and snap.json()["cell_m"] > 0
+    st = c.get("/rc/telemetry/stream", params={"max_frames": 1, "interval_s": 0.05},
+               headers={"X-API-Key": key})
+    frame = json.loads([ln[len("data: "):] for ln in st.text.splitlines() if ln.startswith("data: ")][0])
+    assert isinstance(frame["cell_m"], (int, float)) and frame["cell_m"] > 0

@@ -2290,20 +2290,105 @@ async function navReloc() {                            // REAL measured fix on t
 // AG-08/SF-01, never a button. The button TOGGLES the live stream (start/stop).
 let rcStream = null;     // the open EventSource while streaming live; null when stopped
 
+// #230 step 3: the LIVE DRIVE MAP state. The RC backend reports a grid (row, col) pose on a cell_m grid;
+// we convert to REP-103 metres EXACTLY as bridge.frames does (x = col*cell_m, y = -row*cell_m) and plot
+// the rover + its travelled path + the last commanded GoTo goal on #rcdrivemap. This is the RC backend's
+// OWN frame (a teleop sim with origin at its start cell) -- it is deliberately NOT overlaid on the
+// planned-mission replay (a different, order-frame coordinate system); conflating them would mis-place
+// the rover. So the live map is self-consistent and frame-honest.
+let RC_PATH = [];          // travelled path, raw {row, col} cells (converted to metres at draw time)
+let RC_GOAL = null;        // last commanded GoTo goal {row, col} cells, or null
+let RC_CELL_M = 1;         // latest grid scale from the telemetry payload
+const RC_PATH_MAX = 600;   // bound the path buffer (Power-of-10: no unbounded growth)
+const _rc_xy = (rc) => ({ x: rc.col * RC_CELL_M, y: -rc.row * RC_CELL_M });   // frames.py: REP-103 metres
+
 function renderRcTelemetry(b) {                          // render ONE pushed telemetry frame
   const out = qel("rctlmout"), hdr = qel("rctlmhdr");
   if (!out) return;
   const wd = b.watchdog || {};
+  if (typeof b.cell_m === "number" && b.cell_m > 0) RC_CELL_M = b.cell_m;
   if (hdr) hdr.textContent = `live · SF-01 watchdog: ${wd.tripped ? "TRIPPED (auto-SAFE)" : "armed"} · deadline ${wd.deadline_s}s`;
   const tlm = b.telemetry || [];
-  if (!tlm.length) { out.textContent = "live — no RC backend telemetry yet (idle; drive a published mission to populate)"; return; }
-  out.textContent = "";
-  tlm.slice(-8).forEach((t) => {
-    const d = document.createElement("div");
-    const pose = (t.x !== undefined && t.y !== undefined) ? ` (${(+t.x).toFixed(1)}, ${(+t.y).toFixed(1)})` : "";
-    d.textContent = `${t.kind || "?"}${pose}`;
-    out.appendChild(d);
+  // accumulate every POSE sample (it carries row/col); a Leg sample has no row, only final_row
+  tlm.forEach((t) => {
+    if (t.row !== undefined && t.col !== undefined && t.kind === "pose") {
+      RC_PATH.push({ row: +t.row, col: +t.col });
+      if (RC_PATH.length > RC_PATH_MAX) RC_PATH.shift();
+    }
   });
+  if (!RC_PATH.length && !tlm.length) {
+    out.textContent = "live — no RC pose yet (issue a GoTo in the command console to drive the rover).";
+  } else {
+    const last = tlm.filter((t) => t.kind === "pose").slice(-1)[0];
+    if (last) {
+      const p = _rc_xy(last);
+      const extra = [];
+      if (typeof last.slip === "number") extra.push(`slip ${(+last.slip).toFixed(2)}`);
+      if (typeof last.soc === "number") extra.push(`soc ${(last.soc * 100).toFixed(0)}%`);
+      if (last.entrapped) extra.push("ENTRAPPED");
+      out.textContent = `pose ${p.x.toFixed(1)}, ${p.y.toFixed(1)} m (REP-103)`
+        + (extra.length ? ` · ${extra.join(" · ")}` : "");
+    } else {
+      const leg = tlm.filter((t) => t.kind === "leg").slice(-1)[0];
+      if (leg) out.textContent = `leg ${leg.leg_id} complete (status ${leg.status}) — rover stopped.`;
+    }
+  }
+  rcDrawMap();
+}
+
+function rcDrawMap() {                                   // top-down live map in the RC frame (REP-103 m)
+  const cv = qel("rcdrivemap"); if (!cv) return;
+  const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H); ctx.fillStyle = "#05060c"; ctx.fillRect(0, 0, W, H);
+  const pts = RC_PATH.map(_rc_xy);
+  if (RC_GOAL) pts.push(_rc_xy(RC_GOAL));
+  pts.push({ x: 0, y: 0 });                              // always show the RC origin
+  const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const spanx = Math.max(2, x1 - x0), spany = Math.max(2, y1 - y0);
+  const padx = spanx * 0.15, pady = spany * 0.15;
+  x0 -= padx; x1 += padx; y0 -= pady; y1 += pady;
+  const s = Math.min(W / (x1 - x0), H / (y1 - y0));
+  const ox = (W - s * (x1 - x0)) / 2, oy = (H - s * (y1 - y0)) / 2;
+  const X = (wx) => ox + (wx - x0) * s, Y = (wy) => H - (oy + (wy - y0) * s);   // y up
+  // RC origin tick
+  ctx.strokeStyle = "rgba(120,130,150,.5)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(X(0) - 4, Y(0)); ctx.lineTo(X(0) + 4, Y(0));
+  ctx.moveTo(X(0), Y(0) - 4); ctx.lineTo(X(0), Y(0) + 4); ctx.stroke();
+  // travelled path
+  if (pts.length > 1 && RC_PATH.length > 1) {
+    ctx.strokeStyle = "#6ee7a8"; ctx.lineWidth = 1.5; ctx.beginPath();
+    const pp = RC_PATH.map(_rc_xy);
+    ctx.moveTo(X(pp[0].x), Y(pp[0].y));
+    for (let i = 1; i < pp.length; i++) ctx.lineTo(X(pp[i].x), Y(pp[i].y));
+    ctx.stroke();
+  }
+  // goal marker (ring)
+  if (RC_GOAL) {
+    const g = _rc_xy(RC_GOAL);
+    ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(X(g.x), Y(g.y), 6, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(g.x) - 8, Y(g.y)); ctx.lineTo(X(g.x) + 8, Y(g.y));
+    ctx.moveTo(X(g.x), Y(g.y) - 8); ctx.lineTo(X(g.x), Y(g.y) + 8); ctx.stroke();
+  }
+  // rover marker (current = last pose) + a heading tick from the last path delta
+  if (RC_PATH.length) {
+    const cur = _rc_xy(RC_PATH[RC_PATH.length - 1]);
+    if (RC_PATH.length > 1) {
+      const prev = _rc_xy(RC_PATH[RC_PATH.length - 2]);
+      const dx = cur.x - prev.x, dy = cur.y - prev.y, m = Math.hypot(dx, dy);
+      if (m > 1e-6) {
+        ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.beginPath();
+        ctx.moveTo(X(cur.x), Y(cur.y));
+        ctx.lineTo(X(cur.x) + (dx / m) * 10, Y(cur.y) - (dy / m) * 10); ctx.stroke();
+      }
+    }
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(X(cur.x), Y(cur.y), 4, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#0b0e17"; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  // frame label
+  ctx.fillStyle = "rgba(207,216,227,.65)"; ctx.font = "9px system-ui";
+  ctx.fillText(`RC frame · REP-103 m · cell ${RC_CELL_M} m`, 5, H - 5);
 }
 
 function stopRcStream() {
@@ -2316,6 +2401,7 @@ function stopRcStream() {
 async function startRcStream() {
   const out = qel("rctlmout"), hdr = qel("rctlmhdr"), btn = qel("rctlm");
   if (!out) return;
+  RC_PATH = [];                                          // fresh live session -> clear the travelled path
   out.textContent = "connecting to the live telemetry stream…"; if (hdr) hdr.textContent = "";
   // Auth probe via the one-shot endpoint (carries any X-API-Key/CSRF) so an unauthenticated tab gets an
   // HONEST message instead of an EventSource retry-loop spinning on a 401 (EventSource exposes no status).
@@ -2399,6 +2485,9 @@ async function rcCommand(kind) {
     if (r.status === 403) { out.textContent = `refused (gated): ${b.detail || b.error || "AG-08 / role"}`; return; }
     if (!r.ok) { out.textContent = `command failed: ${b.error || b.detail || ("HTTP " + r.status)}`; return; }
     out.textContent = `accepted: ${b.accepted}${b.watchdog_tripped ? " · watchdog TRIPPED" : ""}`;
+    // #230 step 3: a GoTo sets the live-map goal ring; SAFE clears it (the drive was halted).
+    if (kind === "goto" && body.goal_row !== undefined) { RC_GOAL = { row: body.goal_row, col: body.goal_col }; rcDrawMap(); }
+    else if (kind === "safe") { RC_GOAL = null; rcDrawMap(); }
   } catch (e) { out.textContent = "command failed — run server.py (" + e + ")"; }
 }
 
