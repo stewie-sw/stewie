@@ -610,7 +610,7 @@
       <div class="ctxsec">
         <div class="ctxh">Live RC <span class="sysb">RC·SF-01</span></div>
         <div class="ctl" style="margin-top:6px">
-          <button id="rctlm" class="site" style="font-size:11px" title="drain the live RC backend telemetry (Pose/Leg) + the SF-01 watchdog state; the watchdog ticks on every poll, so a stalled operator auto-SAFEs within the deadline">⇄ RC telemetry</button>
+          <button id="rctlm" class="site" style="font-size:11px" title="toggle a LIVE push stream of the RC backend telemetry (Pose/Leg) + the SF-01 watchdog state (server-sent events); the watchdog ticks on every streamed frame, so a stalled operator auto-SAFEs within the deadline">⇄ Live RC telemetry</button>
           <span id="rctlmhdr" style="font-size:10px;opacity:.6"></span>
         </div>
         <div id="rctlmout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:4px 0 0;color:var(--muted)">Live rover command-emit (GoTo/Safe/uplink) stays gated to a published mission (AG-08 / SF-01) — telemetry + watchdog view; the command console is below.</div>
@@ -1340,6 +1340,6 @@
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=ca4293823b65"></script>
+<script src="/assets/cockpit.js?v=befc78c94d36"></script>
 </body>
 </html>

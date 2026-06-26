@@ -2279,30 +2279,68 @@ async function navReloc() {                            // REAL measured fix on t
   } catch (e) { $("navcovstat").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
   finally { $("navreloc").disabled = false; $("navreloc").textContent = "⌖ Relocalize"; navGate(); }
 }
-// #228 L3: live RC telemetry readout -- GET /rc/telemetry drains the backend Pose/Leg + the SF-01
-// watchdog state (the watchdog ticks on each poll, so a stalled operator auto-SAFEs within the deadline).
-// Read-only; the gated live command-emit (/rc/command, /rc/plan_ros) stays behind AG-08/SF-01, not a button.
-async function rcTelemetry() {
+// #228 L3 / #230: LIVE RC telemetry. The readout is PUSH-DRIVEN over an SSE stream
+// (GET /rc/telemetry/stream) so the operator sees continuous live Pose/Leg + SF-01 watchdog state
+// instead of poll-on-click; the watchdog ticks on every streamed frame, so the live drain itself keeps
+// a stalled operator's SF-01 deadline armed. Auth: EventSource carries the SEC-01 session cookie
+// automatically (same-origin) and a GET is CSRF-exempt, so the browser operator session authenticates
+// the stream with no header; dev-open works on loopback. (The in-memory automation X-API-Key path can
+// only reach the one-shot /rc/telemetry JSON, not this browser stream -- automation polls, it doesn't
+// drive the cockpit.) Read-only: the gated command-emit (/rc/command, /rc/plan_ros) stays behind
+// AG-08/SF-01, never a button. The button TOGGLES the live stream (start/stop).
+let rcStream = null;     // the open EventSource while streaming live; null when stopped
+
+function renderRcTelemetry(b) {                          // render ONE pushed telemetry frame
   const out = qel("rctlmout"), hdr = qel("rctlmhdr");
   if (!out) return;
-  out.textContent = "polling…"; if (hdr) hdr.textContent = "";
-  try {
-    const r = await fetch("/rc/telemetry", { headers: apiHeaders() });
-    const b = await r.json();
-    if (!r.ok) { out.textContent = `RC telemetry failed: ${b.error || ("HTTP " + r.status)}`; return; }
-    const wd = b.watchdog || {};
-    if (hdr) hdr.textContent = `SF-01 watchdog: ${wd.tripped ? "TRIPPED (auto-SAFE)" : "armed"} · deadline ${wd.deadline_s}s`;
-    const tlm = b.telemetry || [];
-    if (!tlm.length) { out.textContent = "no live RC backend telemetry (idle — drive a published mission to populate)"; return; }
-    out.textContent = "";
-    tlm.slice(-8).forEach((t) => {
-      const d = document.createElement("div");
-      const pose = (t.x !== undefined && t.y !== undefined) ? ` (${(+t.x).toFixed(1)}, ${(+t.y).toFixed(1)})` : "";
-      d.textContent = `${t.kind || "?"}${pose}`;
-      out.appendChild(d);
-    });
-  } catch (e) { out.textContent = "RC telemetry failed — run server.py (" + e + ")"; }
+  const wd = b.watchdog || {};
+  if (hdr) hdr.textContent = `live · SF-01 watchdog: ${wd.tripped ? "TRIPPED (auto-SAFE)" : "armed"} · deadline ${wd.deadline_s}s`;
+  const tlm = b.telemetry || [];
+  if (!tlm.length) { out.textContent = "live — no RC backend telemetry yet (idle; drive a published mission to populate)"; return; }
+  out.textContent = "";
+  tlm.slice(-8).forEach((t) => {
+    const d = document.createElement("div");
+    const pose = (t.x !== undefined && t.y !== undefined) ? ` (${(+t.x).toFixed(1)}, ${(+t.y).toFixed(1)})` : "";
+    d.textContent = `${t.kind || "?"}${pose}`;
+    out.appendChild(d);
+  });
 }
+
+function stopRcStream() {
+  if (rcStream) { rcStream.close(); rcStream = null; }
+  const btn = qel("rctlm"), hdr = qel("rctlmhdr");
+  if (btn) { btn.textContent = "⇄ Live RC telemetry"; btn.classList.remove("active"); }
+  if (hdr) hdr.textContent = "stopped";
+}
+
+async function startRcStream() {
+  const out = qel("rctlmout"), hdr = qel("rctlmhdr"), btn = qel("rctlm");
+  if (!out) return;
+  out.textContent = "connecting to the live telemetry stream…"; if (hdr) hdr.textContent = "";
+  // Auth probe via the one-shot endpoint (carries any X-API-Key/CSRF) so an unauthenticated tab gets an
+  // HONEST message instead of an EventSource retry-loop spinning on a 401 (EventSource exposes no status).
+  try {
+    const probe = await fetch("/rc/telemetry", { headers: apiHeaders() });
+    if (probe.status === 401 || probe.status === 403 || probe.status === 503) {
+      if (hdr) hdr.textContent = "auth required";
+      out.textContent = "live telemetry needs an authenticated operator session — sign in to stream.";
+      return;
+    }
+  } catch (e) { out.textContent = "live stream unavailable — run server.py (" + e + ")"; return; }
+  let es;
+  try { es = new EventSource("/rc/telemetry/stream?interval_s=1.0"); }   // cookie auth, same-origin
+  catch (e) { out.textContent = "live stream unavailable — run server.py (" + e + ")"; return; }
+  rcStream = es;
+  if (btn) { btn.textContent = "■ Stop (live)"; btn.classList.add("active"); }
+  es.onmessage = (ev) => {
+    try { renderRcTelemetry(JSON.parse(ev.data)); } catch (e) { /* skip a malformed frame; the next re-renders */ }
+  };
+  es.onerror = () => {                                  // the browser auto-reconnects SSE; surface the drop
+    if (rcStream === es && hdr) hdr.textContent = "live · reconnecting…";
+  };
+}
+
+function rcTelemetryToggle() { if (rcStream) stopRcStream(); else startRcStream(); }
 
 // #229: DT-02 director-only twin audit -- the observed-twin resync history (events + provenance +
 // hash-chain validity). Director-gated server-side (require_director); a non-director gets 403 and the
@@ -2387,7 +2425,7 @@ if ($("navrun")) {
   $("navrun").onclick = navRun;
   $("navcmp").onclick = navCompare;
   if ($("navcontract")) $("navcontract").onclick = navContract;  // #228 L2: FS-05 nav-stage contract readout
-  if ($("rctlm")) $("rctlm").onclick = rcTelemetry;              // #228 L3: live RC telemetry + SF-01 watchdog readout
+  if ($("rctlm")) $("rctlm").onclick = rcTelemetryToggle;       // #228 L3 / #230: push-driven live RC telemetry + SF-01 watchdog stream
   if ($("twinaudit")) $("twinaudit").onclick = twinAudit;       // #229: DT-02 director-only twin audit readout
   if ($("rcsafe")) $("rcsafe").onclick = () => rcCommand("safe");     // #229 L B: FS-17/AG-08 command console
   if ($("rcgoto")) $("rcgoto").onclick = () => rcCommand("goto");
