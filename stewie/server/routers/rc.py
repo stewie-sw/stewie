@@ -12,6 +12,7 @@ import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 from stewie.bridge import rc_contract as RC
 from stewie.server import objects as OBJ
@@ -23,6 +24,14 @@ router = APIRouter()
 _RC_BACKEND = RC.SimBackend(start_rc=(0.0, 0.0))
 _RC_WATCHDOG = RC.SafingWatchdog(_RC_BACKEND, deadline_s=float(os.environ.get("STEWIE_RC_DEADLINE_S", "5")))
 _RC_LOCK = threading.Lock()
+
+# #144 (PRD §16.7 / P20, autonomy seam): the LIVE ROS2 odometry the container's rover_executive_node
+# pushes here (REP-103 metres, bridge.pose_to_odom-shaped). The cockpit live drive-map renders it as the
+# real ROS-driven rover, distinct from the in-process SimBackend teleop. Latest-wins + a monotonic
+# receive stamp so the cockpit can show staleness; one slot, no unbounded growth (Power-of-10).
+_ROS_ODOM_LOCK = threading.Lock()
+_ROS_ODOM: dict | None = None
+_ROS_ODOM_RECV = 0.0
 
 
 @router.post("/rc/command")
@@ -92,6 +101,41 @@ def rc_plan_ros(body: dict, identity: str = Depends(require_role("operator"))):
             "counts": {g: len(lowered[g]) for g in groups}}
 
 
+class RosOdomIngest(BaseModel):
+    """#144: the live ROS2 odometry frame the rover node POSTs (REP-103 metres + yaw, optional state).
+    Bounded (ge/le reject NaN/Inf too) so a malformed push can't poison the live operator view."""
+    x_m: float = Field(..., ge=-1e7, le=1e7)
+    y_m: float = Field(..., ge=-1e7, le=1e7)
+    yaw_rad: float = Field(0.0, ge=-7.0, le=7.0)
+    slip: float | None = Field(None, ge=0.0, le=1.0)
+    soc: float | None = Field(None, ge=0.0, le=1.0)
+    stamp_s: float | None = Field(None, ge=0.0)        # the producer's own clock (informational)
+
+
+@router.post("/rc/ros_odom")
+def rc_ros_odom(body: RosOdomIngest, identity: str = Depends(require_role("operator"))):
+    """#144 (PRD §16.7 / P20, autonomy seam, INGRESS): the live ROS2 container's rover_executive_node
+    POSTs its /odom here so the cockpit live drive-map can render the REAL ROS-driven rover (distinct
+    from the in-process SimBackend teleop). This is a WRITE to the live-ops view, so operator+ is
+    required (the node authenticates as automation = api-key = operator+); a guest/trainee cannot inject
+    a pose. Latest-wins, one slot. NOT a command path -- it only feeds the display, never the rover."""
+    global _ROS_ODOM, _ROS_ODOM_RECV
+    with _ROS_ODOM_LOCK:
+        _ROS_ODOM = {"x_m": body.x_m, "y_m": body.y_m, "yaw_rad": body.yaw_rad,
+                     "slip": body.slip, "soc": body.soc, "stamp_s": body.stamp_s}
+        _ROS_ODOM_RECV = time.monotonic()
+    log_event(identity, "rc.ros_odom", f"{body.x_m:.1f},{body.y_m:.1f}")
+    return {"ok": True}
+
+
+def _ros_odom_snapshot(now: float) -> dict | None:
+    """The latest live ROS odom + its age (staleness), or None if the node has never pushed."""
+    with _ROS_ODOM_LOCK:
+        if _ROS_ODOM is None:
+            return None
+        return _ROS_ODOM | {"age_s": max(0.0, now - _ROS_ODOM_RECV)}
+
+
 def _telemetry_payload() -> dict:
     """#66: one telemetry frame -- drain the backend Pose/Leg + tick the SF-01 watchdog. The watchdog
     ticks on every drain, so a stalled operator (no commands) auto-SAFEs within the deadline."""
@@ -101,7 +145,9 @@ def _telemetry_payload() -> dict:
         tlm = [t.__dict__ | {"kind": t.kind} for t in _RC_BACKEND.poll()]
     # #230 step 3: the Pose is in grid (row, col) cells; cell_m lets the cockpit live drive-map convert to
     # REP-103 meters (x=col*cell_m, y=-row*cell_m -- bridge.frames). Without it the map is dimensionless.
+    # #144: ros_odom is the live ROS2 rover's odometry (already REP-103 m), surfaced for the same map.
     return {"ok": True, "telemetry": tlm, "cell_m": _RC_BACKEND.cell_m,
+            "ros_odom": _ros_odom_snapshot(now),
             "watchdog": {"tripped": tripped, "deadline_s": _RC_WATCHDOG.deadline_s}}
 
 

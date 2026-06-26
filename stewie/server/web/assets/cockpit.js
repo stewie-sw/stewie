@@ -2299,7 +2299,10 @@ let rcStream = null;     // the open EventSource while streaming live; null when
 let RC_PATH = [];          // travelled path, raw {row, col} cells (converted to metres at draw time)
 let RC_GOAL = null;        // last commanded GoTo goal {row, col} cells, or null
 let RC_CELL_M = 1;         // latest grid scale from the telemetry payload
-const RC_PATH_MAX = 600;   // bound the path buffer (Power-of-10: no unbounded growth)
+let RC_ROS_PATH = [];      // #144: the LIVE ROS2 rover odom path, already REP-103 metres {x, y}
+let RC_ROS_STALE = false;  // #144: the live ROS odom is older than the freshness window
+const RC_PATH_MAX = 600;   // bound the path buffers (Power-of-10: no unbounded growth)
+const RC_ROS_STALE_S = 3.0;
 const _rc_xy = (rc) => ({ x: rc.col * RC_CELL_M, y: -rc.row * RC_CELL_M });   // frames.py: REP-103 metres
 
 function renderRcTelemetry(b) {                          // render ONE pushed telemetry frame
@@ -2316,9 +2319,17 @@ function renderRcTelemetry(b) {                          // render ONE pushed te
       if (RC_PATH.length > RC_PATH_MAX) RC_PATH.shift();
     }
   });
-  if (!RC_PATH.length && !tlm.length) {
-    out.textContent = "live — no RC pose yet (issue a GoTo in the command console to drive the rover).";
+  // #144: the LIVE ROS2 rover odom (already REP-103 m) -> its own path on the same map
+  const ro = b.ros_odom;
+  if (ro && typeof ro.x_m === "number") {
+    RC_ROS_PATH.push({ x: ro.x_m, y: ro.y_m });
+    if (RC_ROS_PATH.length > RC_PATH_MAX) RC_ROS_PATH.shift();
+    RC_ROS_STALE = (typeof ro.age_s === "number" && ro.age_s > RC_ROS_STALE_S);
+  }
+  if (!RC_PATH.length && !tlm.length && !RC_ROS_PATH.length) {
+    out.textContent = "live — no rover pose yet (issue a GoTo, or start the live ROS2 node, to populate).";
   } else {
+    const line = [];
     const last = tlm.filter((t) => t.kind === "pose").slice(-1)[0];
     if (last) {
       const p = _rc_xy(last);
@@ -2326,12 +2337,17 @@ function renderRcTelemetry(b) {                          // render ONE pushed te
       if (typeof last.slip === "number") extra.push(`slip ${(+last.slip).toFixed(2)}`);
       if (typeof last.soc === "number") extra.push(`soc ${(last.soc * 100).toFixed(0)}%`);
       if (last.entrapped) extra.push("ENTRAPPED");
-      out.textContent = `pose ${p.x.toFixed(1)}, ${p.y.toFixed(1)} m (REP-103)`
-        + (extra.length ? ` · ${extra.join(" · ")}` : "");
+      line.push(`sim ${p.x.toFixed(1)}, ${p.y.toFixed(1)} m`
+        + (extra.length ? ` · ${extra.join(" · ")}` : ""));
     } else {
       const leg = tlm.filter((t) => t.kind === "leg").slice(-1)[0];
-      if (leg) out.textContent = `leg ${leg.leg_id} complete (status ${leg.status}) — rover stopped.`;
+      if (leg) line.push(`sim leg ${leg.leg_id} complete (status ${leg.status})`);
     }
+    if (ro && typeof ro.x_m === "number") {
+      line.push(`ROS ${ro.x_m.toFixed(1)}, ${ro.y_m.toFixed(1)} m`
+        + (RC_ROS_STALE ? ` · STALE ${ro.age_s.toFixed(1)}s` : " · live"));
+    }
+    out.textContent = line.join("  ·  ") || "live — streaming.";
   }
   rcDrawMap();
 }
@@ -2342,6 +2358,7 @@ function rcDrawMap() {                                   // top-down live map in
   ctx.clearRect(0, 0, W, H); ctx.fillStyle = "#05060c"; ctx.fillRect(0, 0, W, H);
   const pts = RC_PATH.map(_rc_xy);
   if (RC_GOAL) pts.push(_rc_xy(RC_GOAL));
+  RC_ROS_PATH.forEach((p) => pts.push(p));               // #144: the live ROS rover frames the extent too
   pts.push({ x: 0, y: 0 });                              // always show the RC origin
   const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
   let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
@@ -2386,9 +2403,22 @@ function rcDrawMap() {                                   // top-down live map in
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(X(cur.x), Y(cur.y), 4, 0, 7); ctx.fill();
     ctx.strokeStyle = "#0b0e17"; ctx.lineWidth = 1.5; ctx.stroke();
   }
-  // frame label
+  // #144: the LIVE ROS2 rover (cyan when fresh, grey when stale) + its path -- already REP-103 m
+  if (RC_ROS_PATH.length) {
+    const col = RC_ROS_STALE ? "#7a8290" : "#22d3ee";
+    if (RC_ROS_PATH.length > 1) {
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath();
+      ctx.moveTo(X(RC_ROS_PATH[0].x), Y(RC_ROS_PATH[0].y));
+      for (let i = 1; i < RC_ROS_PATH.length; i++) ctx.lineTo(X(RC_ROS_PATH[i].x), Y(RC_ROS_PATH[i].y));
+      ctx.stroke();
+    }
+    const r = RC_ROS_PATH[RC_ROS_PATH.length - 1];
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(X(r.x), Y(r.y), 4, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#0b0e17"; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  // frame label + legend (sim = white, ROS = cyan)
   ctx.fillStyle = "rgba(207,216,227,.65)"; ctx.font = "9px system-ui";
-  ctx.fillText(`RC frame · REP-103 m · cell ${RC_CELL_M} m`, 5, H - 5);
+  ctx.fillText(`REP-103 m · cell ${RC_CELL_M} m · ◦sim ◦ROS`, 5, H - 5);
 }
 
 function stopRcStream() {
@@ -2401,7 +2431,7 @@ function stopRcStream() {
 async function startRcStream() {
   const out = qel("rctlmout"), hdr = qel("rctlmhdr"), btn = qel("rctlm");
   if (!out) return;
-  RC_PATH = [];                                          // fresh live session -> clear the travelled path
+  RC_PATH = []; RC_ROS_PATH = [];                        // fresh live session -> clear both travelled paths
   out.textContent = "connecting to the live telemetry stream…"; if (hdr) hdr.textContent = "";
   // Auth probe via the one-shot endpoint (carries any X-API-Key/CSRF) so an unauthenticated tab gets an
   // HONEST message instead of an EventSource retry-loop spinning on a 401 (EventSource exposes no status).

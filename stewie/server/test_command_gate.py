@@ -84,6 +84,36 @@ def test_telemetry_stream_requires_auth(client):  # #230: the stream is auth-gat
     assert r.status_code in (401, 403), r.text
 
 
+def test_ros_odom_ingest_round_trips(client):  # #144: the live ROS2 node POSTs /odom -> cockpit live view
+    c, key = client
+    r = c.post("/rc/ros_odom", headers={"X-API-Key": key},
+               json={"x_m": 12.5, "y_m": -4.0, "yaw_rad": 0.3, "slip": 0.1, "soc": 0.8})
+    assert r.status_code == 200, r.text
+    # the ingested live-ROS pose surfaces on the telemetry payload (the cockpit stream renders it)
+    tel = c.get("/rc/telemetry", headers={"X-API-Key": key}).json()
+    ro = tel["ros_odom"]
+    assert ro is not None
+    assert ro["x_m"] == 12.5 and ro["y_m"] == -4.0
+    assert isinstance(ro["age_s"], (int, float)) and ro["age_s"] >= 0   # staleness is reported
+
+
+def test_ros_odom_ingest_requires_operator(client):  # a write to the live-ops surface is auth-gated
+    c, _key = client
+    r = c.post("/rc/ros_odom", json={"x_m": 0.0, "y_m": 0.0})
+    assert r.status_code in (401, 403), r.text
+
+
+def test_ros_odom_ingest_rejects_nonfinite(client):  # bounded input -> no NaN/Inf poisons the live view
+    c, key = client
+    # raw JSON: 1e400 parses to +inf server-side (the client json encoder would refuse float('inf'))
+    r = c.post("/rc/ros_odom", headers={"X-API-Key": key, "Content-Type": "application/json"},
+               content=b'{"x_m": 1e400, "y_m": 0.0}')
+    assert r.status_code == 400, r.text          # rejected (this app maps validation errors to 400), not stored
+    # and a finite OUT-OF-RANGE value is rejected by the same bound (not silently clamped/stored)
+    r2 = c.post("/rc/ros_odom", headers={"X-API-Key": key}, json={"x_m": 1e9, "y_m": 0.0})
+    assert r2.status_code == 400 and "less than or equal" in r2.text, r2.text
+
+
 def test_telemetry_payload_carries_cell_m(client):  # #230 step 3: the live drive map needs the grid scale
     # The Pose is in grid (row, col) cells; the cockpit live map converts to REP-103 meters
     # (x=col*cell_m, y=-row*cell_m, frames.py). So the telemetry MUST expose the backend cell_m, else the
