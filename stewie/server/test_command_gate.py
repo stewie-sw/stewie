@@ -7,6 +7,7 @@ via a TestClient (api-key identity == director == operator+; require_role("opera
 Run: <venv>/bin/python -m pytest stewie/server/test_command_gate.py -q
 """
 import importlib
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -61,3 +62,23 @@ def test_low_level_teleop_without_a_mission_is_unaffected(client):
     r = c.post("/rc/command", headers={"X-API-Key": key}, json=_cmd())   # no mission ref
     assert r.status_code == 200, r.text
     assert r.json()["accepted"] == "safe"
+
+
+def test_telemetry_stream_pushes_sse_frames(client):  # #230 live-ops: the SSE telemetry stream
+    c, key = client
+    r = c.get("/rc/telemetry/stream", params={"max_frames": 2, "interval_s": 0.05},
+              headers={"X-API-Key": key})
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"].startswith("text/event-stream")
+    frames = [ln[len("data: "):] for ln in r.text.splitlines() if ln.startswith("data: ")]
+    assert len(frames) == 2                                  # max_frames bounded the stream (no hang)
+    for f in frames:
+        payload = json.loads(f)
+        assert payload["ok"] is True
+        assert "telemetry" in payload and "deadline_s" in payload["watchdog"]
+
+
+def test_telemetry_stream_requires_auth(client):  # #230: the stream is auth-gated like the snapshot
+    c, _key = client
+    r = c.get("/rc/telemetry/stream", params={"max_frames": 1})
+    assert r.status_code in (401, 403), r.text

@@ -4,11 +4,14 @@ app includes this router. Auth comes from server.deps, the audit log from server
 of the app module (no cycle)."""
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 import threading
 import time
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 
 from stewie.bridge import rc_contract as RC
 from stewie.server import objects as OBJ
@@ -89,13 +92,41 @@ def rc_plan_ros(body: dict, identity: str = Depends(require_role("operator"))):
             "counts": {g: len(lowered[g]) for g in groups}}
 
 
-@router.get("/rc/telemetry")
-def rc_telemetry(_auth: None = Depends(require_auth)):
-    """#66: drain the backend telemetry (Pose/Leg) + the SF-01 watchdog state. The watchdog ticks
-    on every poll, so a stalled operator (no commands) auto-SAFEs within the deadline."""
+def _telemetry_payload() -> dict:
+    """#66: one telemetry frame -- drain the backend Pose/Leg + tick the SF-01 watchdog. The watchdog
+    ticks on every drain, so a stalled operator (no commands) auto-SAFEs within the deadline."""
     now = time.monotonic()
     with _RC_LOCK:
         tripped = _RC_WATCHDOG.tick(now=now)
         tlm = [t.__dict__ | {"kind": t.kind} for t in _RC_BACKEND.poll()]
-    return {"ok": True, "telemetry": tlm, "watchdog": {"tripped": tripped,
-            "deadline_s": _RC_WATCHDOG.deadline_s}}
+    return {"ok": True, "telemetry": tlm,
+            "watchdog": {"tripped": tripped, "deadline_s": _RC_WATCHDOG.deadline_s}}
+
+
+@router.get("/rc/telemetry")
+def rc_telemetry(_auth: None = Depends(require_auth)):
+    """#66: drain the backend telemetry (Pose/Leg) + the SF-01 watchdog state (one frame)."""
+    return _telemetry_payload()
+
+
+@router.get("/rc/telemetry/stream")
+async def rc_telemetry_stream(interval_s: float = 1.0, max_frames: int | None = None,
+                              _auth: None = Depends(require_auth)):
+    """#230 live-ops: a Server-Sent-Events stream of the live RC telemetry (Pose/Leg) + the SF-01 watchdog,
+    pushed every ``interval_s`` so the cockpit Execute console shows continuous live state instead of
+    polling. The watchdog ticks on every frame, so the streaming drain itself keeps a live operator's
+    deadline armed. Streams until the client disconnects (EventSource auto-reconnects); ``max_frames`` bounds
+    it for finite clients + tests. require_auth (any operator+). One-way push only -- never a command path."""
+    interval = max(0.1, min(float(interval_s), 10.0))
+
+    async def _gen():
+        n = 0
+        while max_frames is None or n < max_frames:
+            yield f"data: {json.dumps(_telemetry_payload())}\n\n"
+            n += 1
+            if max_frames is not None and n >= max_frames:
+                break
+            await asyncio.sleep(interval)
+
+    return StreamingResponse(_gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
