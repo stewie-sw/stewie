@@ -63,6 +63,37 @@ def pose_to_odom(pose: RC.Pose, *, cell_m: float = RC.DEFAULT_CELL_M) -> dict:
             "sinkage_m": float(pose.sinkage_m), "entrapped": bool(pose.entrapped)}
 
 
+def ros_odom_ingest_body(*, x_m: float, y_m: float, yaw_rad: float = 0.0,
+                         slip: float | None = None, soc: float | None = None) -> dict:
+    """#144 (producer side): the /rc/ros_odom body the rover node POSTs so the cockpit live drive-map
+    can render the ROS rover. REP-103 metres (already the cockpit frame). Matches the cockpit's
+    RosOdomIngest contract field-for-field (a test pins that), so the producer cannot drift from the
+    consumer. slip/soc are clamped to [0, 1]; only finite values are included."""
+    body: dict = {"x_m": float(x_m), "y_m": float(y_m), "yaw_rad": float(yaw_rad)}
+    if slip is not None and math.isfinite(slip):
+        body["slip"] = max(0.0, min(1.0, float(slip)))
+    if soc is not None and math.isfinite(soc):
+        body["soc"] = max(0.0, min(1.0, float(soc)))
+    return body
+
+
+def post_odom_to_cockpit(base_url: str, body: dict, *, api_key: str | None = None,
+                         timeout_s: float = 0.5) -> int:
+    """#144 (producer side): POST one /rc/ros_odom frame to the cockpit ingest. stdlib urllib only -- the
+    ROS2 container need not carry `requests`. Returns the HTTP status; raises urllib.error.URLError on a
+    network failure so the caller can swallow it (a telemetry-mirror outage must never disrupt control)."""
+    import json as _json
+    import urllib.request
+    data = _json.dumps(body).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["X-API-Key"] = api_key
+    req = urllib.request.Request(base_url.rstrip("/") + "/rc/ros_odom", data=data,
+                                 method="POST", headers=headers)
+    with urllib.request.urlopen(req, timeout=float(timeout_s)) as resp:   # noqa: S310 (fixed scheme, our URL)
+        return int(resp.status)
+
+
 def sim_pose_source(backend):
     """A ``pose_source`` for make_ros2_node that DRAINS a polling RCBackend (e.g. rc_contract.SimBackend)
     each odom tick and returns its latest Pose -- so a /cmd_vel goal actually advances the conserved sim

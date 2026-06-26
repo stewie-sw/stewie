@@ -155,3 +155,21 @@ def test_bridge_service_entrypoint_help_and_gating():
     except ImportError:
         with pytest.raises(RuntimeError, match="rclpy"):
             B.main([])                                       # reaches the gated make_ros2_node
+
+
+# ---- #144: the producer body pins to the cockpit /rc/ros_odom contract ------------------------
+
+def test_ros_odom_ingest_body_matches_cockpit_contract():
+    # the body the node POSTs must validate against the cockpit's RosOdomIngest, field-for-field, so the
+    # producer can never drift from the consumer (a real contract pin, not a mock).
+    from stewie.server.routers.rc import RosOdomIngest
+    body = B.ros_odom_ingest_body(x_m=12.5, y_m=-4.0, yaw_rad=0.3, slip=0.1, soc=0.8)
+    assert body == {"x_m": 12.5, "y_m": -4.0, "yaw_rad": 0.3, "slip": 0.1, "soc": 0.8}
+    m = RosOdomIngest(**body)                                # accepted by the cockpit contract
+    assert m.x_m == 12.5 and m.y_m == -4.0
+
+
+def test_ros_odom_ingest_body_clamps_and_drops_nonfinite():
+    body = B.ros_odom_ingest_body(x_m=0.0, y_m=0.0, slip=2.0, soc=float("nan"))
+    assert body["slip"] == 1.0          # slip clamped into [0, 1]
+    assert "soc" not in body            # a non-finite soc is dropped, never posted

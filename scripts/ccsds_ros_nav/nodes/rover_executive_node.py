@@ -15,6 +15,7 @@ import json
 import math
 import os
 import sys
+import threading
 
 _PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _REPO = os.path.abspath(os.path.join(_PKG, "..", ".."))
@@ -94,6 +95,14 @@ class RoverExecutive(Node):
         self._pub_state = self.create_publisher(String, "/rover/state", 50)
         self._pub_leg = self.create_publisher(String, "/rover/leg", 10)
         self._tf = TransformBroadcaster(self)
+        # #144: mirror /odom to the cockpit live drive-map (best-effort, env-gated, NON-blocking). The ROS
+        # /odom topic stays authoritative; this only feeds the operator display. No env set -> no push.
+        self._cockpit_url = (os.environ.get("STEWIE_COCKPIT_URL", "") or "").strip() or None
+        self._cockpit_key = (os.environ.get("STEWIE_API_KEY", "") or "").strip() or None
+        self._cockpit_push_dt = float(os.environ.get("STEWIE_COCKPIT_PUSH_S", "0.5"))
+        self._cockpit_last = -1e9
+        if self._cockpit_url:
+            self.get_logger().info(f"cockpit odom mirror -> {self._cockpit_url} every {self._cockpit_push_dt}s")
         self._timer = self.create_timer(self._dt / self._time_factor, self._tick)
         self.get_logger().info(f"rover_executive up: body={g('body').value} crop {int(g('win').value)}@"
                                f"{self.cell_m}m start=({sr},{sc}) dt={self._dt} "
@@ -200,8 +209,36 @@ class RoverExecutive(Node):
             od.twist.twist.angular.z = -dyaw / self.fm.dt
         self._prev_yaw = p.yaw_rad
         self._pub_odom.publish(od)
+        # #144: mirror this pose to the cockpit live drive-map (REP-103 m; yaw_ros = -yaw, as for /odom)
+        self._maybe_push_cockpit(x, y, -p.yaw_rad, getattr(p, "slip", None), getattr(p, "soc", None))
 
         self._pub_state.publish(String(data=json.dumps({**vars(p), "met": self.fm.met})))
+
+    def _maybe_push_cockpit(self, x_m: float, y_m: float, yaw_rad: float,
+                            slip: float | None, soc: float | None) -> None:
+        """#144 producer: POST the live pose to the cockpit /rc/ros_odom on a daemon thread (fire-and-
+        forget) so a slow/unreachable cockpit never blocks the control loop. Decimated to push_dt; the
+        ROS /odom topic remains authoritative. No-op unless STEWIE_COCKPIT_URL is set."""
+        if not self._cockpit_url:
+            return
+        t = self.fm.met
+        if t - self._cockpit_last < self._cockpit_push_dt:
+            return
+        self._cockpit_last = t
+        try:
+            from stewie.bridge.ros2_bridge import post_odom_to_cockpit, ros_odom_ingest_body
+            body = ros_odom_ingest_body(x_m=x_m, y_m=y_m, yaw_rad=yaw_rad, slip=slip, soc=soc)
+        except Exception:                                    # never let a mirror error reach the control loop
+            return
+        url, key = self._cockpit_url, self._cockpit_key
+
+        def _send() -> None:
+            try:
+                post_odom_to_cockpit(url, body, api_key=key, timeout_s=0.5)
+            except Exception:
+                pass                                         # best-effort: the ROS /odom topic is authoritative
+
+        threading.Thread(target=_send, daemon=True).start()
 
     def _publish_leg(self, status: int) -> None:
         leg = messages.Leg(leg_id=self._leg_id, status=status, commanded_dist_m=self._commanded,
