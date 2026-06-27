@@ -2326,6 +2326,13 @@ function renderRcTelemetry(b) {                          // render ONE pushed te
     if (RC_ROS_PATH.length > RC_PATH_MAX) RC_ROS_PATH.shift();
     RC_ROS_STALE = (typeof ro.age_s === "number" && ro.age_s > RC_ROS_STALE_S);
   }
+  // #144 tier-1: also place the live ROS rover on the MAIN 3D DEM view, in the order frame (y flips:
+  // frames.py is y=-row, the 3D view is y=+row). setLiveRover self-gates to the loaded DEM window
+  // (off-DEM -> hidden), and is harmless when the 3D view isn't mounted. A stale/absent pose clears it.
+  if (window.STEWIE3D && STEWIE3D.setLiveRover) {
+    if (ro && typeof ro.x_m === "number" && !RC_ROS_STALE) STEWIE3D.setLiveRover(ro.x_m, -ro.y_m);
+    else STEWIE3D.clearLiveRover();
+  }
   if (!RC_PATH.length && !tlm.length && !RC_ROS_PATH.length) {
     out.textContent = "live — no rover pose yet (issue a GoTo, or start the live ROS2 node, to populate).";
   } else {
@@ -2423,6 +2430,7 @@ function rcDrawMap() {                                   // top-down live map in
 
 function stopRcStream() {
   if (rcStream) { rcStream.close(); rcStream = null; }
+  if (window.STEWIE3D && STEWIE3D.clearLiveRover) STEWIE3D.clearLiveRover();   // #144 tier-1: drop the live 3D rover
   const btn = qel("rctlm"), hdr = qel("rctlmhdr");
   if (btn) { btn.textContent = "⇄ Live RC telemetry"; btn.classList.remove("active"); }
   if (hdr) hdr.textContent = "stopped";

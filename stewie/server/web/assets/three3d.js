@@ -196,6 +196,28 @@ function setRover(x, y) {
   S.rover.position.set(x, heightAt(x, y) + (S.rover.geometry.parameters.radius || 2), y);
 }
 
+// #144 tier-1: the LIVE ROS rover on the main DEM view, in the ORDER frame (the caller applies the ROS
+// map-frame -> order transform: order_y = -ros_y, since frames.py is y=-row and this view is y=+row).
+// Cyan, distinct from the red dry-run rover. HONESTLY GATED to the loaded DEM window [0, win]: a pose
+// off the loaded terrain is HIDDEN and returns false (no misleading edge-clamp), so the live rover only
+// appears where its coords actually fall on the loaded DEM -- it never implies a position it can't ground.
+function setLiveRover(x, y) {
+  if (!S.scene) return false;
+  const win = S.win || 0;
+  const onDem = win > 0 && x >= 0 && x <= win && y >= 0 && y <= win;
+  if (!S.liveRover) {
+    S.liveRover = new THREE.Mesh(new THREE.SphereGeometry(Math.max(1.5, (S.win || 300) * 0.012), 16, 12),
+      new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x0a4a55, roughness: 0.4 }));
+    S.liveRover.castShadow = true;
+    S.group.add(S.liveRover);
+  }
+  S.liveRover.visible = onDem;
+  if (onDem) S.liveRover.position.set(x, heightAt(x, y) + (S.liveRover.geometry.parameters.radius || 2), y);
+  return onDem;
+}
+
+function clearLiveRover() { if (S.liveRover) S.liveRover.visible = false; }
+
 function setPath(pts, colorHex) {  // pts: [[x,y],...] in order frame; e.g. truth (amber) or estimate (cyan)
   if (!S.scene || !pts || !pts.length) return;
   const key = colorHex === 0x35e0d0 ? "estPath" : "truthPath";
@@ -482,10 +504,13 @@ function setFlyMode(on, walk) {
 }
 function getCamPos() { return S.camera ? [S.camera.position.x, S.camera.position.y, S.camera.position.z] : null; }
 
-window.STEWIE3D = { mount, render, setRover, setPath, setSun, setWireframe, setLander3D, clearTracks, heightAt,
+window.STEWIE3D = { mount, render, setRover, setLiveRover, clearLiveRover, setPath, setSun, setWireframe, setLander3D, clearTracks, heightAt,
   animateRover, stopRoverAnim, setPathEdit, onPathChange, getWaypoints, undoWaypoint, clearWaypoints, pathStats,
   setFlyMode, getCamPos,
   setCoordReadout, onHover, setPlotMode, setMeasureMode, onMarkers, onMeasure, getMarkers, clearPlots,
   get available() { return true; },
   get sunState() { return { az: S._sunAz, el: S._sunEl, shadows: !!(S.renderer && S.renderer.shadowMap && S.renderer.shadowMap.enabled) }; },
+  get liveRoverState() {   // #144 tier-1 introspection (verification): the live ROS rover's placement
+    return S.liveRover ? { pos: [S.liveRover.position.x, S.liveRover.position.y, S.liveRover.position.z],
+      visible: S.liveRover.visible } : null; },
   get hasLander() { return !!S.lander; } };
