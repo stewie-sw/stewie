@@ -5,12 +5,34 @@ specific paths win (route order is preserved within the router). No app-module i
 server-owned shared state (the planner owns the DEM)."""
 from __future__ import annotations
 
+import json
 import os
 
 from fastapi import APIRouter
 from fastapi.responses import FileResponse, JSONResponse
 
+from stewie.specs.config import data_dir
+
 router = APIRouter()
+
+
+@router.get("/clasts/scene")
+def clasts_scene():
+    """#147 tier-3 (Chrono brick): the latest REAL Chrono-settled boulder scene -- scripts/chrono_clast_scene.py
+    runs a ChSystemSMC rigid-body solve (settled vs analytic g) and writes <data_dir>/clasts_scene.json with
+    {clasts:[{x,y,z,r}], ...} in the ORDER FRAME. The cockpit 3D view places each boulder ON the DEM surface.
+    Returns an empty scene if none produced yet. Open GET (read-only terrain feature). NOT the force-accurate
+    drum-excavation tier (that stays blocked on the Chrono vehicle/SCM module + GPU DEM; see task #147)."""
+    path = os.path.join(data_dir(), "clasts_scene.json")
+    if not os.path.exists(path):
+        return JSONResponse({"present": False, "n": 0, "clasts": []})
+    try:
+        with open(path) as f:
+            doc = json.load(f)
+    except (OSError, ValueError):
+        return JSONResponse({"present": False, "n": 0, "clasts": []})
+    doc["present"] = True
+    return JSONResponse(doc)
 
 # the server package dir (server/), one level up from routers/ -- the DEM bundle sits two levels above
 _PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

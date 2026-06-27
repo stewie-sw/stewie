@@ -218,6 +218,33 @@ function setLiveRover(x, y) {
 
 function clearLiveRover() { if (S.liveRover) S.liveRover.visible = false; }
 
+// #147 tier-3 (Chrono brick): render a REAL Chrono-settled boulder scene on the DEM. clasts = [{x,y,r}]
+// in the order frame (from scripts/chrono_clast_scene.py, a real ChSystemSMC rigid-body settle). Each
+// boulder sits ON the loaded DEM surface (heightAt(x,y) + r), in-window only (off-DEM clasts skipped --
+// honest, no edge-clamp). Tan rock material; replaces any prior scene. Returns the count actually placed.
+function setClasts(clasts) {
+  if (!S.scene) return 0;
+  if (S.clastGroup) { S.group.remove(S.clastGroup); S.clastGroup.traverse((o) => {
+    if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); }
+  S.clastGroup = new THREE.Group();
+  const win = S.win || 0;
+  let placed = 0;
+  const mat = new THREE.MeshStandardMaterial({ color: 0x8a7a5e, roughness: 0.95, metalness: 0.0 });
+  (clasts || []).forEach((c) => {
+    if (!(win > 0 && c.x >= 0 && c.x <= win && c.y >= 0 && c.y <= win)) return;   // off the loaded DEM
+    const m = new THREE.Mesh(new THREE.SphereGeometry(Math.max(0.3, +c.r || 1), 12, 10), mat);
+    m.castShadow = true; m.receiveShadow = true;
+    m.position.set(c.x, heightAt(c.x, c.y) + (+c.r || 1), c.y);
+    S.clastGroup.add(m); placed++;
+  });
+  S.group.add(S.clastGroup);
+  return placed;
+}
+
+function clearClasts() {
+  if (S.clastGroup) { S.group.remove(S.clastGroup); S.clastGroup = null; }
+}
+
 function setPath(pts, colorHex) {  // pts: [[x,y],...] in order frame; e.g. truth (amber) or estimate (cyan)
   if (!S.scene || !pts || !pts.length) return;
   const key = colorHex === 0x35e0d0 ? "estPath" : "truthPath";
@@ -504,7 +531,7 @@ function setFlyMode(on, walk) {
 }
 function getCamPos() { return S.camera ? [S.camera.position.x, S.camera.position.y, S.camera.position.z] : null; }
 
-window.STEWIE3D = { mount, render, setRover, setLiveRover, clearLiveRover, setPath, setSun, setWireframe, setLander3D, clearTracks, heightAt,
+window.STEWIE3D = { mount, render, setRover, setLiveRover, clearLiveRover, setClasts, clearClasts, setPath, setSun, setWireframe, setLander3D, clearTracks, heightAt,
   animateRover, stopRoverAnim, setPathEdit, onPathChange, getWaypoints, undoWaypoint, clearWaypoints, pathStats,
   setFlyMode, getCamPos,
   setCoordReadout, onHover, setPlotMode, setMeasureMode, onMarkers, onMeasure, getMarkers, clearPlots,
@@ -513,4 +540,5 @@ window.STEWIE3D = { mount, render, setRover, setLiveRover, clearLiveRover, setPa
   get liveRoverState() {   // #144 tier-1 introspection (verification): the live ROS rover's placement
     return S.liveRover ? { pos: [S.liveRover.position.x, S.liveRover.position.y, S.liveRover.position.z],
       visible: S.liveRover.visible } : null; },
+  get clastCount() { return S.clastGroup ? S.clastGroup.children.length : 0; },   // #147 verification
   get hasLander() { return !!S.lander; } };

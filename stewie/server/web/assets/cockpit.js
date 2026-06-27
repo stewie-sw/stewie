@@ -4454,6 +4454,19 @@ let TD3D_ON = false;
 // #181: drive the 3D-view sun from the SAME solar authority the shadow layer uses -- /ephemeris in AUTO
 // mode (real az/el at the Haworth latitude from mission time), or the manual az/el sliders. One source
 // of solar truth; the 3D wireframe/terrain then self-shadows under the real sun.
+// #147 tier-3: fetch the REAL Chrono-settled boulder scene (GET /clasts/scene -- written by
+// scripts/chrono_clast_scene.py, a ChSystemSMC rigid-body solve) and render it on the DEM. Self-gates
+// (empty scene -> clears); harmless when the 3D view isn't mounted. Not the force-accurate excavation tier.
+async function loadClasts() {
+  if (!window.STEWIE3D || !STEWIE3D.setClasts) return;
+  try {
+    const r = await fetch("/clasts/scene", { headers: apiHeaders() });
+    const d = await r.json();
+    if (d && d.present && Array.isArray(d.clasts) && d.clasts.length) STEWIE3D.setClasts(d.clasts);
+    else STEWIE3D.clearClasts();
+  } catch (e) { /* no scene produced yet -- leave the terrain bare */ }
+}
+
 function apply3DSun() {
   if (!window.STEWIE3D || !STEWIE3D.setSun) return;
   const auto = $("sunauto") && $("sunauto").checked;
@@ -4482,6 +4495,7 @@ function open3D() {
     .then((r) => r.json()).then((hf) => {
       if (!hf || !hf.ok) { setQ("3D: heightfield unavailable for " + site); return; }
       STEWIE3D.render(hf);
+      loadClasts();                                                       // #147: REAL Chrono boulder scene on the DEM
       apply3DSun();                                                       // #181: ephemeris-driven sun + shadows
       if (typeof LANDER_P !== "undefined" && (LANDER_P.x || LANDER_P.y) && STEWIE3D.setLander3D)
         STEWIE3D.setLander3D(LANDER_P.x, LANDER_P.y);                     // #182: lander + AprilTag beacon
@@ -4549,6 +4563,7 @@ function planLoad3D() {
     .then((r) => r.json()).then((hf) => {
       if (!hf || !hf.ok) { setQ("3D: heightfield unavailable for " + site); return; }
       STEWIE3D.render(hf); if (STEWIE3D.setSun) STEWIE3D.setSun(135, 18);
+      loadClasts();                                                       // #147: REAL Chrono boulder scene on the DEM
       if (typeof LANDER_P !== "undefined" && (LANDER_P.x || LANDER_P.y) && STEWIE3D.setLander3D) STEWIE3D.setLander3D(LANDER_P.x, LANDER_P.y);
       STEWIE3D.setPathEdit(true); STEWIE3D.onPathChange(planSyncPathOrders); planSyncPathOrders();
       // 3D plotting toolbox: live cursor coord readout + plotted coordinate markers + 3D distance measures
