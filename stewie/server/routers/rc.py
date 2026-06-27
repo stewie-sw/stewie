@@ -110,6 +110,7 @@ class RosOdomIngest(BaseModel):
     slip: float | None = Field(None, ge=0.0, le=1.0)
     soc: float | None = Field(None, ge=0.0, le=1.0)
     stamp_s: float | None = Field(None, ge=0.0)        # the producer's own clock (informational)
+    mode: str | None = Field(None, max_length=16)      # tier-2: control mode (idle|cmd_vel|goal|safe)
 
 
 @router.post("/rc/ros_odom")
@@ -122,7 +123,7 @@ def rc_ros_odom(body: RosOdomIngest, identity: str = Depends(require_role("opera
     global _ROS_ODOM, _ROS_ODOM_RECV
     with _ROS_ODOM_LOCK:
         _ROS_ODOM = {"x_m": body.x_m, "y_m": body.y_m, "yaw_rad": body.yaw_rad,
-                     "slip": body.slip, "soc": body.soc, "stamp_s": body.stamp_s}
+                     "slip": body.slip, "soc": body.soc, "stamp_s": body.stamp_s, "mode": body.mode}
         _ROS_ODOM_RECV = time.monotonic()
     log_event(identity, "rc.ros_odom", f"{body.x_m:.1f},{body.y_m:.1f}")
     return {"ok": True}

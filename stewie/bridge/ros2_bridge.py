@@ -64,16 +64,20 @@ def pose_to_odom(pose: RC.Pose, *, cell_m: float = RC.DEFAULT_CELL_M) -> dict:
 
 
 def ros_odom_ingest_body(*, x_m: float, y_m: float, yaw_rad: float = 0.0,
-                         slip: float | None = None, soc: float | None = None) -> dict:
+                         slip: float | None = None, soc: float | None = None,
+                         mode: str | None = None) -> dict:
     """#144 (producer side): the /rc/ros_odom body the rover node POSTs so the cockpit live drive-map
     can render the ROS rover. REP-103 metres (already the cockpit frame). Matches the cockpit's
     RosOdomIngest contract field-for-field (a test pins that), so the producer cannot drift from the
-    consumer. slip/soc are clamped to [0, 1]; only finite values are included."""
+    consumer. slip/soc are clamped to [0, 1]; only finite values are included. mode (tier-2) is the
+    rover's control mode (idle|cmd_vel|goal|safe), so the console shows when it is under autonomy."""
     body: dict = {"x_m": float(x_m), "y_m": float(y_m), "yaw_rad": float(yaw_rad)}
     if slip is not None and math.isfinite(slip):
         body["slip"] = max(0.0, min(1.0, float(slip)))
     if soc is not None and math.isfinite(soc):
         body["soc"] = max(0.0, min(1.0, float(soc)))
+    if mode is not None:
+        body["mode"] = str(mode)[:16]
     return body
 
 

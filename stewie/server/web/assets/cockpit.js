@@ -2352,6 +2352,7 @@ function renderRcTelemetry(b) {                          // render ONE pushed te
     }
     if (ro && typeof ro.x_m === "number") {
       line.push(`ROS ${ro.x_m.toFixed(1)}, ${ro.y_m.toFixed(1)} m`
+        + (ro.mode ? ` · ${ro.mode}` : "")                  // tier-2: idle | cmd_vel (autonomy) | goal | safe
         + (RC_ROS_STALE ? ` · STALE ${ro.age_s.toFixed(1)}s` : " · live"));
     }
     out.textContent = line.join("  ·  ") || "live — streaming.";

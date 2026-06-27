@@ -87,13 +87,14 @@ def test_telemetry_stream_requires_auth(client):  # #230: the stream is auth-gat
 def test_ros_odom_ingest_round_trips(client):  # #144: the live ROS2 node POSTs /odom -> cockpit live view
     c, key = client
     r = c.post("/rc/ros_odom", headers={"X-API-Key": key},
-               json={"x_m": 12.5, "y_m": -4.0, "yaw_rad": 0.3, "slip": 0.1, "soc": 0.8})
+               json={"x_m": 12.5, "y_m": -4.0, "yaw_rad": 0.3, "slip": 0.1, "soc": 0.8, "mode": "cmd_vel"})
     assert r.status_code == 200, r.text
     # the ingested live-ROS pose surfaces on the telemetry payload (the cockpit stream renders it)
     tel = c.get("/rc/telemetry", headers={"X-API-Key": key}).json()
     ro = tel["ros_odom"]
     assert ro is not None
     assert ro["x_m"] == 12.5 and ro["y_m"] == -4.0
+    assert ro["mode"] == "cmd_vel"                                      # tier-2: the rover's control mode
     assert isinstance(ro["age_s"], (int, float)) and ro["age_s"] >= 0   # staleness is reported
 
 

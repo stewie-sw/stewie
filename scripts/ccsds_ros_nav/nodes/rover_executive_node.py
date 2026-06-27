@@ -225,9 +225,11 @@ class RoverExecutive(Node):
         if t - self._cockpit_last < self._cockpit_push_dt:
             return
         self._cockpit_last = t
+        # tier-2: report the control mode so the console shows when the rover is under autonomy (cmd_vel)
+        mode = "cmd_vel" if self._teleop is not None else ("goal" if self._goal is not None else "idle")
         try:
             from stewie.bridge.ros2_bridge import post_odom_to_cockpit, ros_odom_ingest_body
-            body = ros_odom_ingest_body(x_m=x_m, y_m=y_m, yaw_rad=yaw_rad, slip=slip, soc=soc)
+            body = ros_odom_ingest_body(x_m=x_m, y_m=y_m, yaw_rad=yaw_rad, slip=slip, soc=soc, mode=mode)
         except Exception:                                    # never let a mirror error reach the control loop
             return
         url, key = self._cockpit_url, self._cockpit_key
