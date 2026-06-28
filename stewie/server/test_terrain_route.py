@@ -46,3 +46,32 @@ def test_terrain_route_returns_recorded_world_state(client):
 def test_terrain_route_requires_auth(client):
     c, _key, _dd = client
     assert c.get("/twin/terrain/haworth").status_code in (401, 403)
+
+
+def test_terrain_record_populates_then_reads_back(client):
+    c, key, _dd = client
+    mission = {"name": "pad-A", "body": "moon", "charger": [0, 0],
+               "orders": [{"action": "src", "kind": "cut", "x": 5.0, "y": 5.0, "footprint_m2": 36.0, "depth_m": 0.3}]}
+    r = c.post("/twin/terrain/haworth", headers={"X-API-Key": key}, json={"mission": mission})
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["recorded"] is True and j["version"] == 1 and j["max_cut_m"] > 0.0 and j["chain_valid"] is True
+    # GET reads back the now-persisted authoritative world state
+    g = c.get("/twin/terrain/haworth", headers={"X-API-Key": key}).json()
+    assert g["version"] == 1 and g["missions"] == ["pad-A"]
+    # a SECOND recorded mission ACCUMULATES (the terrain remembers)
+    r2 = c.post("/twin/terrain/haworth", headers={"X-API-Key": key}, json={"mission": {**mission, "name": "pad-B"}})
+    assert r2.json()["version"] == 2 and r2.json()["missions"] == ["pad-A", "pad-B"]
+
+
+def test_terrain_record_requires_operator(client):
+    c, _key, _dd = client
+    r = c.post("/twin/terrain/haworth",
+               json={"mission": {"name": "x", "body": "moon", "charger": [0, 0], "orders": []}})
+    assert r.status_code in (401, 403)
+
+
+def test_terrain_record_rejects_bad_mission(client):
+    c, key, _dd = client
+    r = c.post("/twin/terrain/haworth", headers={"X-API-Key": key}, json={"mission": {"nonsense": True}})
+    assert r.status_code == 400

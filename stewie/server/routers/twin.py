@@ -4,12 +4,13 @@ version/audit views. The twin store + lock live in server.state (shared, importe
 import, no cycle); resync is auth-gated."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 
 from stewie.server import state
-from stewie.server.deps import require_auth, require_director
+from stewie.server.deps import require_auth, require_director, require_role
+from stewie.server.services import log_event
 from stewie.specs.config import data_dir
 from stewie.twin import terrain_memory as TM
 
@@ -90,3 +91,47 @@ def twin_terrain(site: str, _auth: str = Depends(require_auth)):
     s = mem.summary()
     s.update({"ok": True, "recorded": True, "chain_valid": mem.verify_chain()})
     return s
+
+
+class TerrainRecordReq(BaseModel):
+    """W3: record a (completed) mission's terrain change into a site's Terrain Memory. ``mission`` is the
+    /plan order shape; the optional site-grid fields define the persistent site extent (default: the
+    mission's own footprint, for a single-mission site)."""
+    model_config = ConfigDict(extra="forbid")
+    mission: dict
+    rows: int | None = None
+    cols: int | None = None
+    cell_m: float | None = None
+    origin: tuple[float, float] | None = None
+
+
+@router.post("/twin/terrain/{site}")
+def twin_terrain_record(site: str, req: TerrainRecordReq, identity: str = Depends(require_role("operator"))):
+    """W3 (Terrain Memory): fold a completed mission's conserved terrain change into a site's authoritative
+    world model and persist it -- the terrain then REMEMBERS what was built, and a future plan can target
+    the remembered surface (imprint_on_dem). The delta is computed on the conserved authority via
+    lode.mission_terrain_delta (flat-mantle baseline; a real-DEM baseline is the next wire). Operator+ (it
+    writes durable world state). On a fresh site the grid defaults to the mission's footprint frame; on an
+    existing site the mission is placed at its global offset (clipped to the site bounds, surfaced)."""
+    from lode import mission_planner as MP
+    from lode.planner_acceptance import mission_terrain_delta
+    try:
+        mission = MP.mission_from_dict({"name": req.mission.get("name", site), **req.mission})
+        d = mission_terrain_delta(mission)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"bad mission: {e}")
+    mem = TM.load_site(data_dir(), site)
+    if mem is None:
+        mem = TM.TerrainMemory(site=site, rows=int(req.rows or d["rows"]), cols=int(req.cols or d["cols"]),
+                               cell_m=float(req.cell_m or d["cell_m"]),
+                               origin=req.origin if req.origin else (float(d["x0"]), float(d["y0"])))
+    try:
+        res = mem.apply_subgrid(d["delta"], sub_origin=(d["x0"], d["y0"]), cell_m=d["cell_m"],
+                                mission=str(mission.name), mass_moved_kg=d["mass_moved_kg"])
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"cannot place mission on site grid: {e}")
+    TM.save_site(data_dir(), mem)
+    log_event(identity, "twin.terrain.record", f"{site}:{mission.name}")
+    out = mem.summary()
+    out.update({"ok": True, "recorded": True, "chain_valid": mem.verify_chain(), **res})
+    return out
