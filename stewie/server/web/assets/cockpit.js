@@ -2824,7 +2824,9 @@ function renderGateEvidence(j) {
     b.disabled = false;
   };
 });
-// #25: the live CG / stability side-profile (server physics: /twin/cg)
+// #25: the CG / stability side-profile (server physics: /twin/cg). WHAT-IF, not live: the posture
+// (front/back arm deg, drum kg, pitch) is read from the sliders below, NOT from live rover pose. The
+// SSA tip-margin math is real; its inputs are operator-set. Bind to live pose when a live mission connects.
 let CG_T = 0;
 function cgSchedule() { clearTimeout(CG_T); CG_T = setTimeout(cgUpdate, 200); }
 async function cgUpdate() {
@@ -4346,7 +4348,10 @@ function execExtent(tl, orders) {
   return { x0: x0 - padx, x1: x1 + padx, y0: y0 - pady, y1: y1 + pady };
 }
 function execDraw(tl, orders, ext, cv, simT) {
-  markFresh(cv);                                           // UI-5: the telemetry canvas freshness
+  // NOT markFresh(cv): this canvas REPLAYS the precomputed planned timeline (a dry-run forecast), it does
+  // not receive live telemetry. Stamping it data-fresh="ok" painted a "FRESH" badge that read as a live
+  // feed -- the forecast must not claim freshness. (Live data-freshness badges belong on the genuine SSE
+  // RC stream + camera tile only.) The pane caption labels this explicitly as a forecast replay.
   if ($("conops") && tl && tl.length) {                    // UI-8: live cycle position during playback
     let done = 0;
     for (const e of tl) if ((e.t ?? 0) <= simT) done++;

@@ -282,7 +282,10 @@
   #wa-caret { display: inline-block; width: 1em; }
   #workarea img { width: 100%; display: block; border-radius: 4px; background: #05060c; }
   /* UI-5 (PRD 16.5, P4 verbatim): data-freshness borders -- green when fresh, yellow past 20 s,
-     red past 60 s. Applied to any element carrying data-fresh; ages re-evaluated every 5 s. */
+     red past 60 s. Applied to any element carrying data-fresh; ages re-evaluated every 5 s.
+     The corner label reads FRESH/STALE -- it means "this data was updated recently", NOT "live rover".
+     The real-rover live/sandbox state is the separate #wsbadge (● LIVE / ● TRAINING); keep them distinct
+     so a freshly-redrawn forecast never reads as a live-rover feed. */
   [data-fresh] { border: 2px solid #19c37d !important; }
   [data-fresh="stale"] { border-color: #e0b300 !important; }
   [data-fresh="dead"] { border-color: #e8273f !important; }
@@ -294,7 +297,7 @@
     position: absolute; top: 3px; right: 3px; z-index: 2; pointer-events: none;
     font: 700 9px/1.4 'Orbitron', system-ui, sans-serif; letter-spacing: .08em;
     padding: 1px 5px; border-radius: 7px; color: #05060c; }
-  [data-fresh="ok"]::after { content: "LIVE"; background: #19c37d; }
+  [data-fresh="ok"]::after { content: "FRESH"; background: #19c37d; }
   [data-fresh="stale"]::after { content: "STALE"; background: #e0b300; }
   [data-fresh="dead"]::after { content: "STALE \2715"; background: #e8273f; color: #fff; }
   .gisovl { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; display:none; image-rendering:pixelated }
@@ -618,7 +621,7 @@
     <div id="ctx-metrics" class="ctxblock" hidden>
       <div class="ctxsec">
         <div class="ctxh">Execute <span class="sysb">LEAP</span></div>
-        <div style="font-size:11px;color:var(--muted);line-height:1.55">Live CG &amp; tip-over margin and the deterministic execution replay of the planned mission.</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.55">CG &amp; tip-over margin (what-if: posture set by the sliders, not live pose) and the deterministic forecast replay of the planned mission.</div>
         <div id="ctxmet-sum" style="font-size:11px;line-height:1.7;margin-top:10px;color:var(--muted)">Plan a mission to see its totals here.</div>
         <div id="ctxmet-cg" style="font-size:11px;line-height:1.7;margin-top:8px;color:var(--muted)">CG / tip margin is shown in the pane →</div>
       </div>
@@ -710,7 +713,7 @@
            the signed immutable revision + evidence. Signs on the conserved sim authority; does NOT command a
            rover (the execution tier is gated, MO-04). data-minrole bounces a non-director. -->
       <button class="vtab" id="vtab-release" data-view="release" data-minrole="director" style="display:none" title="release: sign off the current build plan — run it through the MO-02 lifecycle (analyze → rehearse → review → release) and record the signed revision + evidence. Director-only.">Release <span class="sysb">DART</span></button>
-      <button class="vtab" data-view="metrics" title="execution: top-down replay of the planned mission + live CG / tip-over margin and the live telemetry channels">Execute <span class="sysb">LEAP</span></button>
+      <button class="vtab" data-view="metrics" title="execution: top-down FORECAST replay of the planned mission + CG / tip-over margin (what-if posture) + the genuine live RC telemetry stream (when connected)">Execute <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
       <!-- FS-03: the FLEET work area (operator+). Roster = the real vehicle registry (/fleet);
            per-vehicle allocation + makespan + conflicts = the last /plan result. data-minrole gates it
@@ -985,7 +988,7 @@
             <small id="sc-prov">(autonomy-run KPIs; the human-RC seam is gated)</small></span></div>
           <div id="sc-chips" style="line-height:1.9"></div>
         </div>
-        <div class="cap" style="margin-bottom:6px"><span>STABILITY — live CG &amp; tip margin <small>(posture + weighted drums; ArmState physics)</small></span></div>
+        <div class="cap" style="margin-bottom:6px"><span>STABILITY — CG &amp; tip margin <small>(what-if: posture set by the sliders below + weighted drums; ArmState physics)</small></span></div>
         <div class="ctl" style="font-size:11px">
           front arm <input id="cgF" type="range" min="-110" max="110" value="0" style="width:7em" /><span id="cgFv">0°</span>
           · back arm <input id="cgB" type="range" min="-110" max="110" value="0" style="width:7em" /><span id="cgBv">0°</span>
@@ -1356,6 +1359,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=75107c92d366"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=61b25faff8ed"></script>
+<script src="/assets/cockpit.js?v=ebf0b32538e7"></script>
 </body>
 </html>
