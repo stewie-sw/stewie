@@ -4776,7 +4776,12 @@ qel("qcompare").onclick = async () => {
   setQ(`comparing algorithms by ${obj}…`);
   try {
     const res = await fetch("/compare", { method: "POST", headers: apiHeaders(),
-      body: JSON.stringify({ name: "compare", body: sel.value, charger: [0, 0], orders: ORDERS, objective: obj, precedence: parsePrec(), ...fleet() }) });
+      // usefulness council #234 dim-2 (GAP 3): rank algorithms on the REAL world -- carry keep-outs, the
+      // traverse-slope cap, and the site, exactly as /plan does, so the Pareto "best" can't be wrong
+      // because the comparison saw a flatter, obstacle-free, wrong-site terrain.
+      body: JSON.stringify({ name: "compare", body: sel.value, charger: [0, 0], orders: ORDERS,
+        keepouts: KEEPOUTS, objective: obj, precedence: parsePrec(),
+        max_traverse_slope_deg: +(qel("qslope") ? qel("qslope").value : 25), ...fleet(), ...site() }) });
     const j = await res.json();
     if (!j.ok) { setQ("compare error: " + j.error); return; }
     const fmt = { time_s: v => (v / 3600).toFixed(1) + " h", energy_J: v => (v / 1e6).toFixed(1) + " MJ",
@@ -4784,12 +4789,22 @@ qel("qcompare").onclick = async () => {
       charges: v => v.toFixed(0), mass_kg: v => (v / 1000).toFixed(1) + " t" };
     const cols = ["algorithm", "time_s", "energy_J", "avg_power_w", "distance_m", "charges", "mass_kg"];
     const head = "<tr>" + cols.map(c => `<th style="text-align:left;color:var(--muted)">${c.replace('_s','').replace('_J','').replace('_w','').replace('_m','').replace('_kg','')}</th>`).join("") + "</tr>";
-    const rows = j.rows.map((r, i) => "<tr>" + cols.map(c => {
+    const rows = j.rows.map((r, i) => `<tr${r.error ? "" : ` data-algo="${r.algorithm}" style="cursor:pointer"`}>` + cols.map(c => {
       if (c === "algorithm") return `<td><b>${r.algorithm}${i === 0 ? " ★" : ""}${r.pareto ? " •" : ""}</b></td>`;
       return `<td>${r.error ? "—" : fmt[c](r[c])}</td>`;
     }).join("") + "</tr>").join("");
     const t = qel("cmptable"); t.innerHTML = head + rows; t.style.display = "table";
-    setQ(`compared ${j.rows.length} algorithms by ${obj} (★ best, • Pareto-optimal); pick one in the dropdown to plan it`);
+    // GAP 2 (usefulness council #234 dim-2): the Pareto frontier IS the solver picker -- click a row to set
+    // the algorithm + re-plan, instead of hand-copying the winner into the dropdown.
+    t.querySelectorAll("tr[data-algo]").forEach((tr) => {
+      tr.title = `click to plan with ${tr.dataset.algo}`;
+      tr.onclick = () => {
+        if (qel("qalgo")) qel("qalgo").value = tr.dataset.algo;
+        setQ(`algorithm → ${tr.dataset.algo}; planning…`);
+        if (qel("qplan")) qel("qplan").click();
+      };
+    });
+    setQ(`compared ${j.rows.length} algorithms by ${obj} (★ best, • Pareto-optimal); click a row to plan with it`);
   } catch (e) { setQ("compare failed — run server.py (" + e + ")"); }
 };
 
