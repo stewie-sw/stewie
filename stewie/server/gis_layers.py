@@ -109,7 +109,9 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
 RASTER_DEFS = [
     {"key": "slope", "name": "Slope (deg, from the real DEM)", "kind": "raster", "group": "terrain"},
     {"key": "hazard", "name": "Hazard / no-go (nav cost)", "kind": "raster", "group": "safety",
-     "default": True},   # T6.1: the routing round-trip -- routes detour on the SAME layer the user sees
+     "default": True},   # T6.1: the /layers/raster inset hazard is the rock+slope build_hazard_map COST;
+    # the globe/3D drape (_layer_rgba) is a slope>=20 PROXY + the planner routes on slope_costmap (gate 25) --
+    # slope-family, not byte-identical (#239: the drape carries no rock data; rock-fused cost is inset-only).
     {"key": "illumination", "name": "Shadow (horizon-clipped sun)", "kind": "raster", "group": "sun"},
     {"key": "incidence", "name": "Sun incidence (grazing-angle, from the DEM)", "kind": "raster", "group": "sun"},
     {"key": "psr", "name": "Permanently shadowed regions (PSR, never lit)", "kind": "raster", "group": "sun"},
@@ -188,8 +190,13 @@ def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0):
     """GIS-WA2: each layer's colouring as a PURE function of a DEM patch + its cell size -- the single
     source of truth shared by the globe drape (render_globe, full-tile, reprojected) and the order-frame
     work-area drape (/dem/workarea.png, native crop). Returns (H,W,4) uint8 RGBA, or None for an unknown
-    kind. 'dem'/'hillshade' = 315/45 lambertian relief; slope/hazard from the gradient (hazard uses the
-    20deg TESTED [WHEELTEST] envelope); illumination/psr from the real horizon (dart.illumination)."""
+    kind. 'dem'/'hillshade' = 315/45 lambertian relief; slope/incidence/psr/illumination from the gradient
+    or the real horizon (dart.illumination).
+    HAZARD honesty (#239): this is a slope>=20deg TESTED-envelope [WHEELTEST] PROXY -- it is NOT the
+    rock+roughness-fused navigation COST that render() draws via dart.hazard_map.build_hazard_map (the
+    surveyed work-area inset), nor the slope_costmap (gate 25deg) the PLANNER actually routes on. The
+    drape patches carry no rock data, so the rock-fused cost only exists in the inset; these three are
+    slope-FAMILY but not byte-identical. Don't 'unify' to build_hazard_map: the planner doesn't route on it."""
     import numpy as np
     dem = np.asarray(dem, dtype=float)
     if kind in ("dem", "hillshade"):
@@ -233,6 +240,17 @@ def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0):
         rgba = np.zeros((*dem.shape, 4))
         rgba[..., 0] = 90; rgba[..., 2] = 200
         rgba[..., 3] = np.where(ever_lit, 0, 200)
+        return rgba.astype("uint8")
+    if kind == "incidence":
+        # TW-07: per-pixel solar INCIDENCE angle (DEM-normal vs sun direction) -- grazing light washes out
+        # cameras + yields poor solar flux even where geometrically lit. Amber ramp 0deg faint -> 90+deg
+        # opaque. Ported here (#239) so the globe + work-area/3D incidence drape work (was _layer_rgba->None).
+        from dart.illumination import incidence_angle_deg
+        inc = incidence_angle_deg(dem, cell, float(sun_az), float(sun_el))
+        t = np.clip(np.nan_to_num(inc, nan=90.0) / 90.0, 0, 1)
+        rgba = np.zeros((*inc.shape, 4))
+        rgba[..., 0] = 255; rgba[..., 1] = 200 * (1 - t); rgba[..., 2] = 40
+        rgba[..., 3] = 40 + 170 * t
         return rgba.astype("uint8")
     return None
 

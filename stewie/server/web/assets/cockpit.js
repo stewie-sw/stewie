@@ -4711,6 +4711,7 @@ function _layer3DLegendHTML(kind) {
   if (kind === "slope") return sw("linear-gradient(90deg,#3cc828,#ffd200,#ff3c28)") + " slope 0°–30°+";
   if (kind === "hazard") return sw("linear-gradient(90deg,#ff8c00,#ff2000)") + " hazard nominal–no-go &gt;20°";
   if (kind === "illumination") return sw("#1a73e8") + " blue = shadowed now";
+  if (kind === "incidence") return sw("linear-gradient(90deg,#ffc828,#ff2840)") + " sun incidence 0°–90° (grazing)";
   if (kind === "psr") return sw("#1a73e8") + " blue = ever-shadowed (PSR)";
   if (kind === "dem") return sw("linear-gradient(90deg,#2a2a2a,#f0f0f0)") + " hillshade 315°/45°";
   return "relief — height shading";

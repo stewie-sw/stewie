@@ -51,7 +51,7 @@ def test_workarea_png_unknown_site_404():
 import pytest
 
 
-@pytest.mark.parametrize("kind", ["dem", "slope", "hazard", "illumination", "psr"])
+@pytest.mark.parametrize("kind", ["dem", "slope", "hazard", "illumination", "psr", "incidence"])
 def test_workarea_png_per_layer_kind(kind):
     """GIS-WA2: every layer kind renders an order-frame [0,win]^2 raster (real Haworth, via the shared
     gis_layers._layer_rgba) so the 3D view can texture the relief with the selected layer. Small window
@@ -70,3 +70,24 @@ def test_workarea_png_unknown_kind_400():
     r = client.get("/dem/workarea.png?site=haworth&window_m=200&kind=__bogus__")
     assert r.status_code == 400
     assert r.json()["ok"] is False
+
+
+def test_workarea_png_dos_cache():
+    """#239: the expensive psr layer must be cached so repeat unauthenticated requests are O(1), and the
+    cache key must NOT include the sun for psr (psr sweeps its own azimuths) -- else varying sun_az would
+    bust the cache and re-trigger the 12-azimuth horizon sweep every call (the DoS lever)."""
+    from stewie.server.routers import dem as DEM
+    DEM._WORKAREA_CACHE.clear()
+    r1 = client.get("/dem/workarea.png?site=haworth&window_m=200&kind=psr")
+    assert r1.status_code == 200
+    assert len(DEM._WORKAREA_CACHE) == 1
+    r2 = client.get("/dem/workarea.png?site=haworth&window_m=200&kind=psr")
+    assert r2.content == r1.content                 # served from cache: byte-identical
+    assert len(DEM._WORKAREA_CACHE) == 1            # cache HIT -> no new entry
+    # varying the sun on psr must NOT add a cache entry (psr ignores the sun)
+    client.get("/dem/workarea.png?site=haworth&window_m=200&kind=psr&sun_az=123&sun_el=9")
+    assert len(DEM._WORKAREA_CACHE) == 1, "psr cache key must not depend on the sun (DoS guard)"
+    # a sun-dependent kind (dem hillshade) DOES key on the sun -> a distinct angle is a distinct entry
+    client.get("/dem/workarea.png?site=haworth&window_m=200&kind=dem&sun_az=315&sun_el=45")
+    client.get("/dem/workarea.png?site=haworth&window_m=200&kind=dem&sun_az=90&sun_el=20")
+    assert len(DEM._WORKAREA_CACHE) == 3            # +2 distinct dem-sun entries

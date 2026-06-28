@@ -134,6 +134,14 @@ def dem_heightfield(site: str = "haworth", n: int = 129, window_m: float = 300.0
             "z_min": float(grid.min()), "z_max": float(grid.max())}
 
 
+# #239 DoS cache: /dem/workarea.png is unauthenticated and the psr/illumination layers run an O(P^2..P^3)
+# horizon sweep (kind=psr = 12 azimuths). Cache the rendered PNG bytes per quantized key so repeats are O(1).
+# Plain dict + FIFO cap, matching the unlocked gis_layers._GLOBE_CACHE precedent (values are a deterministic
+# pure function of the key, so a concurrent miss-miss just recomputes identical bytes -- no lock needed).
+_WORKAREA_CACHE: dict = {}
+_WORKAREA_CACHE_MAX = 256
+
+
 @router.get("/dem/workarea.png")
 def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str = "dem",
                      sun_az: float = 315.0, sun_el: float = 45.0):
@@ -150,6 +158,16 @@ def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str =
     from stewie.server import state
     from stewie.server.gis_layers import _layer_rgba, _to_png
     from stewie.terrain.site_dem import bundle_for_site
+    win = max(10.0, min(float(window_m), 2000.0))        # clamp BEFORE keying (an attacker can't inflate the key)
+    az = round(float(sun_az)) % 360                      # quantize the sun to int degrees (sub-degree is invisible)
+    el = max(-90, min(90, round(float(sun_el))))
+    # #239: slope/hazard/psr IGNORE the sun (psr sweeps its own 12 azimuths) -- so do NOT key on the sun for
+    # them, else varying sun_az would bust the cache and re-trigger the expensive psr sweep every call.
+    sun_part = (az, el) if kind in ("dem", "hillshade", "illumination", "incidence") else None
+    ckey = (site, kind, round(win), sun_part)
+    cached = _WORKAREA_CACHE.get(ckey)
+    if cached is not None:
+        return Response(content=cached, media_type="image/png")
     try:
         bundle_for_site(site)                           # validate the site (404 on unknown / unimported)
     except (KeyError, FileNotFoundError) as e:
@@ -161,18 +179,21 @@ def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str =
     ox, oy = origin
     Zf = np.asarray(Z, dtype=float)
     H, W = Zf.shape
-    win = max(10.0, min(float(window_m), 2000.0))
     npx = max(2, int(round(win / float(cell))) + 1)     # NATIVE sampling over the window (no fabricated detail)
     xs = np.linspace(0.0, win, npx)
     cols = np.clip(np.round((ox + xs) / cell).astype(int), 0, W - 1)
     rows = np.clip(np.round((oy + xs) / cell).astype(int), 0, H - 1)
     patch = Zf[np.ix_(rows, cols)]                       # [row=y(North as j incr), col=x(East)] -- TRUE orientation
-    rgba = _layer_rgba(patch, float(cell), kind, sun_az, sun_el)   # compute the layer on the true-orient patch
+    rgba = _layer_rgba(patch, float(cell), kind, az, el)   # compute on the true-orient patch at the quantized sun
     if rgba is None:
         return JSONResponse(status_code=400,
                             content={"ok": False, "error": f"unknown layer kind {kind!r}"})
     rgba = np.flipud(rgba)                               # image row 0 = top = max y (North) = the plan canvas's top
-    return Response(content=_to_png(rgba), media_type="image/png")
+    png = _to_png(rgba)
+    _WORKAREA_CACHE[ckey] = png
+    if len(_WORKAREA_CACHE) > _WORKAREA_CACHE_MAX:
+        _WORKAREA_CACHE.pop(next(iter(_WORKAREA_CACHE)), None)   # FIFO: evict the oldest entry
+    return Response(content=png, media_type="image/png")
 
 
 @router.get("/dem/terrain_grid")
