@@ -18,6 +18,7 @@ import math
 import numpy as np
 
 from dart.ablation import _align_ate
+from dart.factors import FactorType, MeasurementFactor, factor_lookup
 from dart.pose_graph_se2 import PoseGraphSE2
 
 ALL_FACTORS = ("odom", "imu", "shadow", "parallax", "dem")
@@ -48,10 +49,27 @@ def run_integrated_slam(truth_xy, dr_xy, truth_yaw, gyro_yaw, *, factors=ALL_FAC
     T, D, Ty, Gy = T[idx], D[idx], Ty[idx], Gy[idx]
     rng = np.random.default_rng(seed)
 
+    typed_lookup = factor_lookup(measured_fixes) if isinstance(measured_fixes, (list, tuple)) else None
+
     def _measured(factor, k):
-        if measured_fixes and factor in measured_fixes and k in measured_fixes[factor]:
-            return measured_fixes[factor][k]               # (value, sigma)
+        if typed_lookup and factor in typed_lookup and k in typed_lookup[factor]:
+            return typed_lookup[factor][k]
+        if measured_fixes and isinstance(measured_fixes, dict) and factor in measured_fixes and k in measured_fixes[factor]:
+            return measured_fixes[factor][k]               # legacy (value, sigma)
         return None
+
+    def _add_yaw(k, m):
+        if isinstance(m, MeasurementFactor):
+            v = float(np.asarray(m.value, float).reshape(-1)[0])
+            g.add_shadow_yaw(k, v, sigma=m.scalar_sigma())
+        else:
+            g.add_shadow_yaw(k, float(m[0]), sigma=float(m[1]))
+
+    def _add_xy(k, m):
+        if isinstance(m, MeasurementFactor):
+            g.add_absolute_cov(k, np.asarray(m.value, float), m.xy_covariance())
+        else:
+            g.add_absolute(k, np.asarray(m[0], float), sigma=float(m[1]))
 
     g = PoseGraphSE2()
     g.add_prior(0, (T[0, 0], T[0, 1], Ty[0]), sigma_xy=0.1, sigma_yaw=0.1)
@@ -66,24 +84,24 @@ def run_integrated_slam(truth_xy, dr_xy, truth_yaw, gyro_yaw, *, factors=ALL_FAC
     s_sh = math.radians(sigma_shadow_deg)
     for k in range(fix_interval, n_keyframes, fix_interval):
         if "shadow" in factors:
-            m = _measured("shadow", k)
+            m = _measured(FactorType.SHADOW_YAW, k) or _measured("shadow", k)
             if m is not None:
-                g.add_shadow_yaw(k, float(m[0]), sigma=float(m[1])); n_measured += 1
+                _add_yaw(k, m); n_measured += 1
             else:
                 g.add_shadow_yaw(k, float(Ty[k] + rng.normal(0, s_sh)), sigma=s_sh)
             n_fix["shadow"] += 1
         if "parallax" in factors:
-            m = _measured("parallax", k)
+            m = _measured(FactorType.PARALLAX_XY, k) or _measured("parallax", k)
             if m is not None:
-                g.add_absolute(k, np.asarray(m[0], float), sigma=float(m[1])); n_measured += 1
+                _add_xy(k, m); n_measured += 1
             else:
                 g.add_absolute(k, T[k] + rng.normal(0, sigma_parallax_m, 2), sigma=sigma_parallax_m)
             n_fix["parallax"] += 1
     for k in range(2 * fix_interval, n_keyframes, 2 * fix_interval):
         if "dem" in factors:
-            m = _measured("dem", k)
+            m = _measured(FactorType.DEM_XY, k) or _measured("dem", k)
             if m is not None:
-                g.add_absolute(k, np.asarray(m[0], float), sigma=float(m[1])); n_measured += 1
+                _add_xy(k, m); n_measured += 1
             else:
                 g.add_absolute(k, T[k] + rng.normal(0, sigma_dem_m, 2), sigma=sigma_dem_m)
             n_fix["dem"] += 1

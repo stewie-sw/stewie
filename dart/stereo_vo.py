@@ -211,6 +211,158 @@ def disparity_to_depth(disparity_px: np.ndarray, *, fx_px: float, baseline_m: fl
         return np.where(d > 0.0, fx_px * baseline_m / d, np.inf)
 
 
+@dataclass(frozen=True)
+class Rectification:
+    """A rectifying homography pair recovered from a rigid stereo rig's own imagery.
+
+    ``H_left``/``H_right`` (3x3) map the raw left/right images onto a row-aligned (epipolar-horizontal)
+    pair so the ``row_tol_px`` gate in :func:`triangulate_stereo` no longer rejects valid disparities.
+    ``n_inliers`` is the fundamental-matrix RANSAC inlier count the homographies were fit from, and
+    ``residual_voffset_px`` is the post-rectification median |dy| over those inliers (the
+    rectification-quality readout). Truth firewall I3: recovered from IMAGES ONLY -- no pose/truth."""
+
+    H_left: np.ndarray
+    H_right: np.ndarray
+    n_inliers: int
+    residual_voffset_px: float
+
+
+def compute_self_rectification(
+    stereo_pairs: list[tuple[np.ndarray, np.ndarray]],
+    *,
+    n_accum: int = 12,
+    n_features: int = 4000,
+    ransac_px: float = 1.0,
+    confidence: float = 0.999,
+) -> Rectification:
+    """Recover a rectifying homography pair from a rigid stereo rig's OWN left/right imagery.
+
+    Real unrectified stereo (e.g. the Katwijk LocCam Bumblebee2 pairs) carries a several-pixel vertical
+    L-R offset, so the row-alignment gate in :func:`triangulate_stereo` (|dy| < ``row_tol_px``) rejects
+    almost every correspondence and triangulation starves. Because the rig is rigid, ONE rectification
+    computed from the epipolar geometry of accumulated L-R ORB inliers applies to every pair: detect +
+    mutual-NN match ORB over the first ``n_accum`` frames, fit the fundamental matrix by RANSAC, and call
+    ``cv2.stereoRectifyUncalibrated`` on the inliers to get (H_left, H_right). The returned
+    ``residual_voffset_px`` reports the post-rectification median |dy| as the honest quality check.
+
+    Truth firewall (invariant I3): only the left/right IMAGES are read -- no pose, slip, or any
+    ground-truth field is ever an argument. Calibrated-baseline scale is unaffected (rectification is a
+    pixel-domain alignment); the metric scale still comes from the rig baseline at triangulation time.
+    """
+    if len(stereo_pairs) < 1:
+        raise ValueError("need at least one stereo pair to recover a rectification")
+    accL: list[np.ndarray] = []
+    accR: list[np.ndarray] = []
+    for left, right in stereo_pairs[:n_accum]:
+        gl, gr = to_gray_u8(left), to_gray_u8(right)
+        if gl.shape != gr.shape:
+            raise ValueError("stereo images must have the same shape")
+        ptsL, desL = _detect(gl, n_features)
+        ptsR, desR = _detect(gr, n_features)
+        q, t = _mutual_match(desL, desR)
+        if q.size:
+            accL.append(ptsL[q])
+            accR.append(ptsR[t])
+    if not accL:
+        raise ValueError("no L-R correspondences found; cannot self-rectify")
+    L_pts = np.concatenate(accL).astype(np.float64)
+    R_pts = np.concatenate(accR).astype(np.float64)
+    F, mask = cv2.findFundamentalMat(L_pts, R_pts, cv2.FM_RANSAC, ransac_px, confidence)
+    if F is None or mask is None:
+        raise ValueError("fundamental-matrix fit failed; cannot self-rectify")
+    inl = mask.ravel().astype(bool)
+    Li, Ri = L_pts[inl], R_pts[inl]
+    if len(Li) < 8:
+        raise ValueError(f"too few F-inliers ({len(Li)}) to rectify reliably")
+    h, w = to_gray_u8(stereo_pairs[0][0]).shape[:2]
+    ok, H1, H2 = cv2.stereoRectifyUncalibrated(
+        Li.reshape(-1, 1, 2), Ri.reshape(-1, 1, 2), F, (int(w), int(h)),
+    )
+    if not ok:
+        raise ValueError("stereoRectifyUncalibrated failed")
+    Lr = cv2.perspectiveTransform(Li.reshape(-1, 1, 2), H1).reshape(-1, 2)
+    Rr = cv2.perspectiveTransform(Ri.reshape(-1, 1, 2), H2).reshape(-1, 2)
+    resid = float(np.median(np.abs(Lr[:, 1] - Rr[:, 1])))
+    return Rectification(H_left=np.asarray(H1, float), H_right=np.asarray(H2, float),
+                         n_inliers=int(inl.sum()), residual_voffset_px=resid)
+
+
+def apply_rectification(
+    stereo_pairs: list[tuple[np.ndarray, np.ndarray]],
+    rect: Rectification,
+) -> list[tuple[np.ndarray, np.ndarray]]:
+    """Warp every (left, right) pair by the recovered (H_left, H_right) into row-aligned gray pairs.
+
+    Returns grayscale ``uint8`` pairs ready for :func:`estimate_vo`/:func:`triangulate_stereo` (which
+    grayscale internally). Truth-free: a pure pixel-domain warp of the imagery."""
+    out: list[tuple[np.ndarray, np.ndarray]] = []
+    for left, right in stereo_pairs:
+        gl, gr = to_gray_u8(left), to_gray_u8(right)
+        h, w = gl.shape[:2]
+        Lr = cv2.warpPerspective(gl, rect.H_left, (w, h))
+        Rr = cv2.warpPerspective(gr, rect.H_right, (w, h))
+        out.append((Lr, Rr))
+    return out
+
+
+def self_rectify_pairs(
+    stereo_pairs: list[tuple[np.ndarray, np.ndarray]],
+    **kwargs,
+) -> tuple[list[tuple[np.ndarray, np.ndarray]], Rectification]:
+    """Convenience: recover the rig rectification from the imagery and apply it to every pair.
+
+    Returns ``(rectified_pairs, rectification)``. Truth firewall I3: images only. This is the front-end
+    stage that makes :func:`estimate_vo` viable on REAL unrectified stereo (e.g. Katwijk LocCam)."""
+    rect = compute_self_rectification(stereo_pairs, **kwargs)
+    return apply_rectification(stereo_pairs, rect), rect
+
+
+def calibrated_rectify_pairs(
+    stereo_pairs: list[tuple[np.ndarray, np.ndarray]],
+    *,
+    K_left: np.ndarray,
+    dist_left: np.ndarray,
+    K_right: np.ndarray,
+    dist_right: np.ndarray,
+    R: np.ndarray,
+    T_m: np.ndarray,
+    alpha: float = 0.0,
+) -> tuple[list[tuple[np.ndarray, np.ndarray]], "StereoVOConfig"]:
+    """Rectify stereo pairs from the rig's MEASURED metric calibration (intrinsics + extrinsics).
+
+    Unlike :func:`self_rectify_pairs` (which recovers a rectification from the imagery's epipolar
+    geometry but leaves the rectified focal length arbitrary, so triangulating with a nominal fx is off
+    by an unknown scale), this uses ``cv2.stereoRectify`` with the real per-camera matrices
+    ``K_left``/``K_right``, distortion ``dist_left``/``dist_right``, and the inter-camera rotation ``R``
+    + translation ``T_m`` (metres). The rectified projection matrices fix a COMMON, KNOWN focal length
+    and baseline, so the returned :class:`StereoVOConfig` makes :func:`triangulate_stereo` METRIC.
+
+    Truth firewall (invariant I3): the calibration is a CAMERA PROPERTY (intrinsics + the rigid stereo
+    geometry), NOT a ground-truth pose -- no rover/world truth enters. Returns ``(rectified_gray_pairs,
+    config)``; the config's fx/cx/cy/baseline are read off the rectified P matrices.
+    """
+    h, w = to_gray_u8(stereo_pairs[0][0]).shape[:2]
+    Kl = np.asarray(K_left, float); Kr = np.asarray(K_right, float)
+    dl = np.asarray(dist_left, float); dr = np.asarray(dist_right, float)
+    Rm = np.asarray(R, float); Tm = np.asarray(T_m, float).reshape(3)
+    R1, R2, P1, P2, _Q, _roi1, _roi2 = cv2.stereoRectify(
+        Kl, dl, Kr, dr, (int(w), int(h)), Rm, Tm,
+        flags=cv2.CALIB_ZERO_DISPARITY, alpha=float(alpha),
+    )
+    m1x, m1y = cv2.initUndistortRectifyMap(Kl, dl, R1, P1, (int(w), int(h)), cv2.CV_32FC1)
+    m2x, m2y = cv2.initUndistortRectifyMap(Kr, dr, R2, P2, (int(w), int(h)), cv2.CV_32FC1)
+    fx = float(P1[0, 0]); fy = float(P1[1, 1])
+    cx = float(P1[0, 2]); cy = float(P1[1, 2])
+    baseline = abs(float(-P2[0, 3] / P2[0, 0]))            # P2[0,3] = -fx * baseline
+    config = StereoVOConfig(fx_px=fx, fy_px=fy, cx_px=cx, cy_px=cy, baseline_m=baseline)
+    out: list[tuple[np.ndarray, np.ndarray]] = []
+    for left, right in stereo_pairs:
+        gl, gr = to_gray_u8(left), to_gray_u8(right)
+        out.append((cv2.remap(gl, m1x, m1y, cv2.INTER_LINEAR),
+                    cv2.remap(gr, m2x, m2y, cv2.INTER_LINEAR)))
+    return out, config
+
+
 def triangulate_stereo(
     image_left: np.ndarray,
     image_right: np.ndarray,

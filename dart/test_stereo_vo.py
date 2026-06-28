@@ -218,3 +218,83 @@ def test_trajectory_plot_png_written(tmp_path):
     path = stereo_vo.save_trajectory_plot(result, str(out))
     assert os.path.exists(path)
     assert os.path.getsize(path) > 1000             # a real raster, not an empty file
+
+
+# ---- real UNRECTIFIED stereo: self-rectification front-end (WP1, Loop A) -------------------------
+# Real Katwijk LocCam stereo (PointGrey Bumblebee2, 1024x768) carries a ~6 px vertical L-R offset; the
+# row-alignment gate in triangulate_stereo then rejects ~99% of correspondences and PnP starves. The
+# self-rectification stage recovers a rectifying homography pair from the imagery alone (I3-clean) and
+# restores the yield. Data-gated (ESA license; bytes not bundled) -> runs where Katwijk is present.
+_KATWIJK_PART7 = "/mnt/projects/datasets/argus_dem_nav/katwijk/Part7"
+_have_katwijk = os.path.isdir(os.path.join(_KATWIJK_PART7, "LocCam"))
+
+
+def _load_katwijk_loccam(n=24, start=200):
+    import glob
+    from imageio.v3 import imread
+    stamps = sorted(set(f.rsplit("_", 1)[0] for f in glob.glob(_KATWIJK_PART7 + "/LocCam/*.png")))
+    seg = stamps[start:start + n]
+    return [(np.asarray(imread(s + "_0.png")), np.asarray(imread(s + "_1.png"))) for s in seg]
+
+
+@pytest.mark.skipif(not _have_katwijk, reason="Katwijk Part7 LocCam not present")
+def test_self_rectification_restores_row_alignment_on_real_katwijk():
+    """Self-rectification recovered from the REAL Part7 LocCam imagery drops the median L-R vertical
+    offset from several pixels to sub-pixel, so the row-alignment gate stops starving triangulation.
+    Images only (invariant I3): no pose/truth is read here."""
+    pairs = _load_katwijk_loccam()
+    rect = stereo_vo.compute_self_rectification(pairs)
+    assert rect.n_inliers >= 100                       # plenty of real L-R correspondences
+    assert rect.residual_voffset_px < 2.0              # below the triangulate row_tol gate (raw ~6 px)
+    rectified = stereo_vo.apply_rectification(pairs, rect)
+    assert len(rectified) == len(pairs)
+    assert rectified[0][0].shape == pairs[0][0].shape[:2]   # gray, same H,W
+
+
+@pytest.mark.skipif(not _have_katwijk, reason="Katwijk Part7 LocCam not present")
+def test_rectification_lifts_vo_factor_yield_on_real_katwijk():
+    """The de-oracled yield jump: on REAL Part7 LocCam the raw pairs yield very few valid VO factors,
+    while the SAME estimator on the self-rectified pairs validates the whole segment. The VO consumes
+    images + calibration only; truth never enters (invariant I3)."""
+    pairs = _load_katwijk_loccam()
+    cfg = stereo_vo.StereoVOConfig.from_fov(width_px=pairs[0][0].shape[1], height_px=pairs[0][0].shape[0],
+                                            hfov_deg=66.0, baseline_m=0.12)
+    raw = stereo_vo.estimate_vo(pairs, cfg)
+    rectified, _rect = stereo_vo.self_rectify_pairs(pairs)
+    rec = stereo_vo.estimate_vo(rectified, cfg)
+    n_raw = int(np.sum(raw.step_valid))
+    n_rec = int(np.sum(rec.step_valid))
+    assert n_rec > n_raw                                # rectification strictly increases the yield
+    assert n_rec >= int(0.9 * len(rec.step_valid))      # near-complete validity on the rectified pairs
+    assert np.median(rec.stereo_point_counts) > np.median(raw.stereo_point_counts)
+
+
+# True LocCam metric calibration extracted from the dataset's own LocCam_calibration.mat MCOS subsystem
+# (a CAMERA PROPERTY, not a truth pose). MATLAB IntrinsicMatrix is column-major / transposed vs OpenCV.
+_LOCCAM_K1 = np.array([[834.256, 0, 497.715], [0, 838.961, 398.773], [0, 0, 1]], float)
+_LOCCAM_K2 = np.array([[837.129, 0, 481.938], [0, 840.816, 391.460], [0, 0, 1]], float)
+_LOCCAM_R = np.array([[0.999992, -0.003275, 0.002344],     # RotationOfCamera2, transposed for OpenCV
+                      [0.003280, 0.999992, -0.002108],
+                      [-0.002337, 0.002116, 0.999995]], float).T
+_LOCCAM_T_M = np.array([-0.120079, -0.000263, 0.000268], float)   # TranslationOfCamera2 (mm->m)
+
+
+@pytest.mark.skipif(not _have_katwijk, reason="Katwijk Part7 LocCam not present")
+def test_calibrated_rectification_recovers_metric_depth_on_real_katwijk():
+    """The calibrated stereoRectify (true LocCam intrinsics + baseline) yields a row-aligned pair whose
+    triangulated depths are PHYSICALLY PLAUSIBLE for a forward-facing rover on a beach (a few metres,
+    not tens of metres as the uncalibrated self-rectify gave) -- i.e. METRIC. Camera calibration only,
+    no truth pose (invariant I3)."""
+    pairs = _load_katwijk_loccam()
+    rect, cfg = stereo_vo.calibrated_rectify_pairs(
+        pairs, K_left=_LOCCAM_K1, dist_left=np.zeros(5), K_right=_LOCCAM_K2, dist_right=np.zeros(5),
+        R=_LOCCAM_R, T_m=_LOCCAM_T_M)
+    assert 800 < cfg.fx_px < 900                       # rectified focal near the true ~835 px
+    assert 0.11 < cfg.baseline_m < 0.13                # rectified baseline near the true 0.120 m
+    cloud = stereo_vo.triangulate_stereo(rect[0][0], rect[0][1], cfg)
+    z = cloud.points_3d[:, 2]
+    assert cloud.points_3d.shape[0] >= 200             # dense after calibrated rectification
+    assert np.all(z > 0.0)                             # positive depth (correct disparity sign)
+    assert 1.0 < float(np.median(z)) < 15.0            # metres, not the ~45 m the uncalibrated rectify gave
+    vo = stereo_vo.estimate_vo(rect, cfg)
+    assert int(np.sum(vo.step_valid)) >= int(0.9 * len(vo.step_valid))

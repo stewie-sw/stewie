@@ -54,15 +54,24 @@ class PoseGraphSE2:
     is never down-weighted.
     """
 
-    def __init__(self, *, robust: bool = True, huber_delta: float = 1.345) -> None:
+    def __init__(self, *, robust: bool = True, huber_delta: float = 1.345,
+                 estimate_vo_scale: bool = False) -> None:
         self._priors: list = []      # (i, pose[3], W[3])
         self._between: list = []     # (i, j, meas[3], W[3])
+        self._vo_between: list = []  # (i, j, meas[3], W[3]) -- VO between-factor; forward = scale * meas[0]
         self._imu: list = []         # (i, j, dyaw, w)
         self._shadow_yaw: list = []  # SN-03 (i, measured_yaw, w): weak absolute-yaw factor from shadow
         self._abs: list = []         # (i, xy[2], w)            -- isotropic absolute (x,y)
         self._abs_cov: list = []     # (i, xy[2], sqrt_info[2,2]) -- H-30 anisotropic absolute (x,y), keeps GDOP
         self._ids: set = set()
         self._robust = bool(robust)
+        # VO-scale state: when estimate_vo_scale is True AND >=1 add_vo_between factor exists, the solver
+        # adds ONE shared latent scalar `scale` (the per-traverse VO forward-scale-bias multiplier) to the
+        # state and estimates it jointly with the poses. OFF (default) -> scale is fixed at 1.0 and a
+        # vo_between behaves byte-identically to a plain between-factor (so existing graphs are unaffected).
+        self._estimate_vo_scale = bool(estimate_vo_scale)
+        self._vo_scale_prior: tuple | None = None   # (mean, info_weight) Gaussian prior on the scale state
+        self._scale_estimate = 1.0                   # populated by _solve(): the recovered scale (1.0 if OFF)
         # Huber threshold on the whitened residual; 1.345 is the 95%-efficiency constant for unit-sigma
         # Gaussian noise (residuals are already information-weighted, so the scale is in sigma units).
         self._huber_delta = float(huber_delta)
@@ -89,6 +98,22 @@ class PoseGraphSE2:
         self._between.append((int(i), int(j), np.asarray(meas, float),
                               np.array([self._w(sigma_xy), self._w(sigma_xy), self._w(sigma_yaw)])))
         self._ids.update((int(i), int(j)))
+
+    def add_vo_between(self, i: int, j: int, meas, sigma_xy: float, sigma_yaw: float) -> None:
+        """A stereo-VO relative SE(2) between-factor (dx_forward, dy_lateral, dyaw) whose FORWARD
+        component is subject to the shared latent VO-scale state: the modelled measurement the residual
+        compares against is (scale*dx, dy, dyaw). With estimate_vo_scale OFF (the default) scale==1.0 so
+        this is exactly add_between; with it ON the solver estimates the per-traverse forward-scale bias.
+        Truth firewall (I3): the measurement is the de-oracled VO step -- no ground-truth field enters here."""
+        self._vo_between.append((int(i), int(j), np.asarray(meas, float),
+                                 np.array([self._w(sigma_xy), self._w(sigma_xy), self._w(sigma_yaw)])))
+        self._ids.update((int(i), int(j)))
+
+    def set_vo_scale_prior(self, mean: float = 1.0, sigma: float = 0.2) -> None:
+        """Gaussian prior on the VO-scale state: N(mean, sigma^2). Anchors the scalar near `mean` (1.0 =
+        'VO is metric') so the estimate is well-posed; when no independent absolute scale reference makes
+        the scale observable from the data, the posterior collapses to this prior (the honest outcome)."""
+        self._vo_scale_prior = (float(mean), self._w(sigma))
 
     def add_imu_yaw(self, i: int, j: int, dyaw: float, sigma: float) -> None:
         self._imu.append((int(i), int(j), float(dyaw), self._w(sigma)))
@@ -136,7 +161,7 @@ class PoseGraphSE2:
     # Each entry carries a robust-block id: residual scalars from the SAME data factor share a block id
     # so the Huber kernel is applied on the factor's whitened residual NORM (not per scalar component).
     # The prior is the gauge anchor and is tagged non-robust (block id -1).
-    def _residuals_blocked(self, X: np.ndarray, idx: dict):
+    def _residuals_blocked(self, X: np.ndarray, idx: dict, scale: float = 1.0):
         r: list = []
         block: list = []      # robust-block id per residual scalar; -1 = never down-weighted (prior)
         b = 0
@@ -148,6 +173,14 @@ class PoseGraphSE2:
             e = _relative(X[idx[i]], X[idx[j]]) - meas; e[2] = _wrap(e[2])
             vals = np.sqrt(W) * e
             r.extend(vals); block.extend([b] * len(vals)); b += 1
+        for i, j, meas, W in self._vo_between:                  # VO between: forward scaled by `scale`
+            scaled = np.array([scale * meas[0], meas[1], meas[2]])
+            e = _relative(X[idx[i]], X[idx[j]]) - scaled; e[2] = _wrap(e[2])
+            vals = np.sqrt(W) * e
+            r.extend(vals); block.extend([b] * len(vals)); b += 1
+        if self._estimate_vo_scale and self._vo_between and self._vo_scale_prior is not None:
+            mean, w = self._vo_scale_prior                     # Gaussian prior on the scale state (regularizer)
+            r.append(math.sqrt(w) * (scale - mean)); block.append(-1)   # never down-weighted
         for i, j, dyaw, w in self._imu:
             r.append(math.sqrt(w) * _wrap((X[idx[j]][2] - X[idx[i]][2]) - dyaw))
             block.append(b); b += 1
@@ -162,8 +195,8 @@ class PoseGraphSE2:
             r.extend(vals); block.extend([b] * len(vals)); b += 1
         return np.asarray(r, float), np.asarray(block, int)
 
-    def _residuals(self, X: np.ndarray, idx: dict) -> np.ndarray:
-        return self._residuals_blocked(X, idx)[0]
+    def _residuals(self, X: np.ndarray, idx: dict, scale: float = 1.0) -> np.ndarray:
+        return self._residuals_blocked(X, idx, scale)[0]
 
     def _robust_weights(self, r: np.ndarray, block: np.ndarray) -> np.ndarray:
         """Per-residual sqrt(IRLS weight). Huber: w(s)=1 for |s|<=delta, else delta/|s|, computed on
@@ -186,23 +219,30 @@ class PoseGraphSE2:
         order = sorted(self._ids)
         idx = {nid: k for k, nid in enumerate(order)}
         n = len(order)
+        # The estimable state is the 3n pose DOF plus, when estimate_vo_scale is ON and >=1 vo_between
+        # factor exists, ONE shared latent VO-scale scalar appended at column index 3n. ns = 0 collapses
+        # to the exact prior pose-only solver (existing graphs are byte-identical).
+        ns = 1 if (self._estimate_vo_scale and self._vo_between) else 0
+        npar = 3 * n + ns
+        scale = float(self._vo_scale_prior[0]) if (ns and self._vo_scale_prior is not None) else 1.0
         if n == 0:
             self._status = {"converged": True, "iterations": 0, "condition_number": 1.0,
                             "well_conditioned": True, "final_gradient_norm": 0.0, "final_cost": 0.0}
-            return order, np.zeros((0, 3)), np.zeros((0, 0))
+            self._scale_estimate = scale
+            return order, np.zeros((0, 3)), np.zeros((npar, npar))
         X = np.zeros((n, 3))
-        # initialise from the prior + chained between-factors so GN starts near the basin
+        # initialise from the prior + chained between/vo-between-factors so GN starts near the basin
         for i, p0, _W in self._priors:
             X[idx[i]] = p0
-        for i, j, meas, _W in self._between:
+        for i, j, meas, _W in list(self._between) + list(self._vo_between):
             a, b = idx[i], idx[j]
             c, s = math.cos(X[a][2]), math.sin(X[a][2])
             X[b] = [X[a][0] + c * meas[0] - s * meas[1],
                     X[a][1] + s * meas[0] + c * meas[1], _wrap(X[a][2] + meas[2])]
         eps = 1e-6
 
-        def robust_cost(X_):
-            r_, blk_ = self._residuals_blocked(X_, idx)
+        def robust_cost(X_, scale_):
+            r_, blk_ = self._residuals_blocked(X_, idx, scale_)
             if not self._robust:
                 return 0.5 * float(r_ @ r_)
             total = 0.0
@@ -215,20 +255,26 @@ class PoseGraphSE2:
                     total += self._huber_delta * (norm - 0.5 * self._huber_delta)  # linear tail
             return total
 
+        def jacobian(X_, scale_, r0_):
+            J_ = np.zeros((r0_.size, npar))
+            for v in range(npar):                        # numerical Jacobian (small graphs)
+                if v < 3 * n:
+                    node, comp = divmod(v, 3)
+                    Xp = X_.copy(); Xp[node, comp] += eps
+                    J_[:, v] = (self._residuals(Xp, idx, scale_) - r0_) / eps
+                else:
+                    J_[:, v] = (self._residuals(X_, idx, scale_ + eps) - r0_) / eps
+            return J_
+
         lam = 1e-3                                           # LM damping (trust region)
         H = None
         converged = False
         it = 0
         grad_norm = math.inf
-        cost = robust_cost(X)
+        cost = robust_cost(X, scale)
         for it in range(1, iters + 1):
-            r0, block = self._residuals_blocked(X, idx)
-            m = r0.size
-            J = np.zeros((m, 3 * n))
-            for v in range(3 * n):                       # numerical Jacobian (small graphs)
-                node, comp = divmod(v, 3)
-                Xp = X.copy(); Xp[node, comp] += eps
-                J[:, v] = (self._residuals(Xp, idx) - r0) / eps
+            r0, block = self._residuals_blocked(X, idx, scale)
+            J = jacobian(X, scale, r0)
             sw = self._robust_weights(r0, block)         # IRLS sqrt-weights (Huber)
             Jw = J * sw[:, None]
             rw = r0 * sw
@@ -238,17 +284,18 @@ class PoseGraphSE2:
             # Levenberg-Marquardt: damped step, accept only if the robust cost decreases.
             accepted = False
             for _ in range(12):
-                H = JTJ + (lam + 1e-12) * np.eye(3 * n)
+                H = JTJ + (lam + 1e-12) * np.eye(npar)
                 try:
-                    dx = np.linalg.solve(H, -g).reshape(n, 3)
+                    dx = np.linalg.solve(H, -g)
                 except np.linalg.LinAlgError:
                     lam *= 10.0
                     continue
-                Xn = X + dx
+                Xn = X + dx[:3 * n].reshape(n, 3)
                 Xn[:, 2] = np.array([_wrap(a) for a in Xn[:, 2]])
-                new_cost = robust_cost(Xn)
+                scale_n = scale + (float(dx[3 * n]) if ns else 0.0)
+                new_cost = robust_cost(Xn, scale_n)
                 if new_cost < cost:
-                    X = Xn; cost = new_cost; lam = max(lam * 0.5, 1e-9); accepted = True
+                    X = Xn; scale = scale_n; cost = new_cost; lam = max(lam * 0.5, 1e-9); accepted = True
                     break
                 lam *= 10.0
             if not accepted:
@@ -258,18 +305,14 @@ class PoseGraphSE2:
             if grad_norm < 1e-4 or float(np.linalg.norm(dx)) < 1e-9:
                 converged = True
                 break
+        self._scale_estimate = float(scale)
         # final weighted information matrix (un-damped) for covariance + conditioning
-        r0, block = self._residuals_blocked(X, idx)
-        m = r0.size
-        J = np.zeros((m, 3 * n))
-        for v in range(3 * n):
-            node, comp = divmod(v, 3)
-            Xp = X.copy(); Xp[node, comp] += eps
-            J[:, v] = (self._residuals(Xp, idx) - r0) / eps
+        r0, block = self._residuals_blocked(X, idx, scale)
+        J = jacobian(X, scale, r0)
         sw = self._robust_weights(r0, block)
         Jw = J * sw[:, None]
         info = Jw.T @ Jw
-        H = info + 1e-9 * np.eye(3 * n)
+        H = info + 1e-9 * np.eye(npar)
         # conditioning: ratio of largest to smallest eigenvalue of the (un-damped) information matrix.
         evals = np.linalg.eigvalsh(0.5 * (info + info.T))
         lo = float(evals.min()); hi = float(evals.max())
@@ -296,6 +339,35 @@ class PoseGraphSE2:
     def optimize(self) -> dict:
         order, X, _H = self._solve()
         return {nid: (float(X[k, 0]), float(X[k, 1]), float(X[k, 2])) for k, nid in enumerate(order)}
+
+    def optimize_with_scale(self) -> dict:
+        """Estimate poses jointly with the latent VO-scale state. Returns {pose, vo_scale, vo_scale_sigma,
+        scale_observable, observable, status}.
+
+        ``vo_scale`` is the recovered per-traverse VO forward-scale multiplier (1.0 == VO is metric); a
+        value >1 means the solver inferred the raw VO UNDER-reads forward motion and is rescaling it up.
+        ``vo_scale_sigma`` is its 1-sigma from the inverse information matrix. The scale is OBSERVABLE only
+        when an independent absolute scale reference (e.g. >=2 absolute (x,y) fixes, a loop closure)
+        constrains the global metric scale; with a single start anchor + relative VO alone the posterior
+        collapses to the prior (``vo_scale_sigma`` ~= the prior sigma, ``scale_observable`` False) -- the
+        honest statement that a latent scale state cannot manufacture an absolute scale the data does not
+        carry. When estimate_vo_scale is OFF this returns vo_scale==1.0 with scale_observable False."""
+        order, X, H = self._solve()
+        pose = {nid: (float(X[k, 0]), float(X[k, 1]), float(X[k, 2])) for k, nid in enumerate(order)}
+        ns = 1 if (self._estimate_vo_scale and self._vo_between) else 0
+        vo_scale_sigma = None
+        scale_observable = False
+        if ns and len(order):
+            cov = np.linalg.inv(H)
+            si = 3 * len(order)
+            vo_scale_sigma = float(np.sqrt(max(0.0, cov[si, si])))
+            if self._vo_scale_prior is not None:
+                prior_sigma = 1.0 / math.sqrt(self._vo_scale_prior[1])
+                # observable iff the data tightened the scale meaningfully below its prior sigma
+                scale_observable = bool(vo_scale_sigma < 0.9 * prior_sigma)
+        return {"pose": pose, "vo_scale": float(self._scale_estimate), "vo_scale_sigma": vo_scale_sigma,
+                "scale_observable": scale_observable,
+                "observable": bool(self._priors), "status": dict(self._status)}
 
     def optimize_with_cov(self) -> dict:
         """Estimate + per-node xy / yaw 1-sigma from the inverse information matrix."""
