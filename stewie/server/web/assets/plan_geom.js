@@ -12,8 +12,13 @@
   // The plan-canvas world extent: a padded AABB over the charger (0,0), every order's footprint
   // square, every keep-out's bounds, and the click-to-place marker. `koBounds(k)` returns a keep-out's
   // local-frame AABB (any shape). Degenerate spans get a 10 m fallback. Pure.
-  function planExtent(orders, keepouts, placeXY, koBounds, footprintBounds) {
-    const xs = [0], ys = [0];                                // include the charger at (0,0)
+  function planExtent(orders, keepouts, placeXY, koBounds, footprintBounds, workArea) {
+    // GIS-WA1: the work area IS the canvas. Seed the extent with the full [0, workArea]^2 operational
+    // patch so an empty/sparse plan shows the whole georeferenced work area (the backdrop fills it and
+    // clicks map to true site metres), expanding only if an order/keep-out falls beyond it. workArea<=0
+    // (or omitted) keeps the legacy charger-only seed -- node tests and any non-work-area caller unchanged.
+    const W = workArea > 0 ? workArea : 0;
+    const xs = [0, W], ys = [0, W];                          // the charger at (0,0) + the work-area span
     // GIS S-3: frame each order by its REAL footprint AABB when a bounds fn is supplied (an oriented
     // corridor/rect/polygon), else the legacy sqrt(footprint_m2) square -- behaviour-preserving.
     orders.forEach((o) => {

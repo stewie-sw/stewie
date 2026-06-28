@@ -334,17 +334,17 @@ function loadBody(key) {
   // UI-15: the overview-locator -- draw the camera's view rectangle on the pip; drag pans.
   function pipDraw() {
     const cv = $("piploc"), img = $("workareaimg");
-    if (!cv || !img || !img.complete || !HAWORTH_RECT || sel.value !== "moon") return;
+    const RECT = WORK_AREA_RECT || HAWORTH_RECT;            // GIS-WA1: the inset image IS the work area now
+    if (!cv || !img || !img.complete || !RECT || sel.value !== "moon") return;
     cv.width = img.clientWidth || 1; cv.height = img.clientHeight || 1;
     const ctx = cv.getContext("2d"); ctx.clearRect(0, 0, cv.width, cv.height);
     const vr = viewer.camera.computeViewRectangle(ellipsoid);
     if (!vr) return;
     // Cesium Rectangle fields are RADIANS -- consistent here (vr is radians too)
-    const W = HAWORTH_RECT.west, E = HAWORTH_RECT.east, S = HAWORTH_RECT.south, N = HAWORTH_RECT.north;
+    const W = RECT.west, E = RECT.east, S = RECT.south, N = RECT.north;
     const u = (lon) => (lon - W) / (E - W), v = (lat) => (N - lat) / (N - S);
-    // the matplotlib preview has margins: the PLOT box is approx the central 78% (axes labels
-    // around it) -- calibrated against the figure's known layout, disclosed approximation
-    const M = { l: 0.125, r: 0.04, t: 0.06, b: 0.11 };
+    // GIS-WA1: the inset is the CLEAN work-area raster now (no matplotlib axis margins) -> no inset offset
+    const M = { l: 0, r: 0, t: 0, b: 0 };
     const px = (uu) => (M.l + uu * (1 - M.l - M.r)) * cv.width;
     const py = (vv) => (M.t + vv * (1 - M.t - M.b)) * cv.height;
     const x0 = px(Math.max(0, u(vr.west))), x1 = px(Math.min(1, u(vr.east)));
@@ -356,13 +356,14 @@ function loadBody(key) {
   let PIP_DRAG = false;
   function pipPan(e) {
     const cv = $("piploc"), r = cv.getBoundingClientRect();
-    const M = { l: 0.125, r: 0.04, t: 0.06, b: 0.11 };
+    const RECT = WORK_AREA_RECT || HAWORTH_RECT;            // GIS-WA1: pan over the work area (the inset's true extent)
+    const M = { l: 0, r: 0, t: 0, b: 0 };                   // clean work-area raster: no axis margins
     let uu = ((e.clientX - r.left) / r.width - M.l) / (1 - M.l - M.r);
     let vv = ((e.clientY - r.top) / r.height - M.t) / (1 - M.t - M.b);
     uu = Math.min(1, Math.max(0, uu)); vv = Math.min(1, Math.max(0, vv));
     // RADIANS -> degrees before fromDegrees (the first cut fed radians in -- camera flew to ~0°)
-    const W = Cesium.Math.toDegrees(HAWORTH_RECT.west), E = Cesium.Math.toDegrees(HAWORTH_RECT.east);
-    const S = Cesium.Math.toDegrees(HAWORTH_RECT.south), N = Cesium.Math.toDegrees(HAWORTH_RECT.north);
+    const W = Cesium.Math.toDegrees(RECT.west), E = Cesium.Math.toDegrees(RECT.east);
+    const S = Cesium.Math.toDegrees(RECT.south), N = Cesium.Math.toDegrees(RECT.north);
     const lon = W + uu * (E - W), lat = N - vv * (N - S);
     const h = Math.max(4000, viewer.camera.positionCartographic.height);
     viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(lon, lat, h, ellipsoid) });
@@ -684,6 +685,7 @@ function drawGraticule() {
 }
 let HAWORTH_CENTER = null;
 let HAWORTH_RECT = null;                                   // Cesium.Rectangle of the tile footprint
+let WORK_AREA_RECT = null;                                 // GIS-WA1: Cesium.Rectangle of the [0,WORK_AREA_M]^2 work area (the inset image's true extent)
 const GLOBE_LAYERS = {};                                   // key -> Cesium ImageryLayer on the BIG map
 const HAWORTH_ENTITIES = [];                               // the footprint polygon + label (MOON-ONLY)
 function setMoonOverlaysVisible(on) {                      // body-scope: Haworth exists on the Moon
@@ -3539,6 +3541,11 @@ function drawWorkAreaRect() {
     .then((cs) => {
       if (!viewer || !cs.every((c) => c && c.ok)) return;
       const ll = []; cs.forEach((c) => ll.push(c.lon, c.lat));
+      const wlons = cs.map((c) => c.lon), wlats = cs.map((c) => c.lat);
+      // the inset image IS this work area, so the overview-locator maps the camera view over THIS rect
+      // (not the full tile). bbox of the 4 corners -- the polar-stereo rotation over 640 m is negligible.
+      WORK_AREA_RECT = Cesium.Rectangle.fromDegrees(Math.min(...wlons), Math.min(...wlats),
+                                                    Math.max(...wlons), Math.max(...wlats));
       HAWORTH_ENTITIES.push(viewer.entities.add({
         name: "WORK AREA",
         polygon: {
@@ -3791,7 +3798,7 @@ let _placeXY = null;                                       // last click-to-plac
 // the authoring backdrop image (/dem/workarea.png?window_m=), the plan-canvas drape box, and the globe
 // work-area rectangle all agree -- the precision fix for "what should the work area be".
 const WORK_AREA_M = 640;
-function _planExtent() { return window.STEWIE_PLAN_GEOM.planExtent(ORDERS, KEEPOUTS, _placeXY, koBounds, window.STEWIE_FOOTPRINT_GEOM.footprintBounds); }
+function _planExtent() { return window.STEWIE_PLAN_GEOM.planExtent(ORDERS, KEEPOUTS, _placeXY, koBounds, window.STEWIE_FOOTPRINT_GEOM.footprintBounds, WORK_AREA_M); }
 const _planXform = window.STEWIE_PLAN_GEOM.planXform;
 let LAST_ROUTES = [];                                      // item 3: routes from the last /plan response, drawn on the 2D canvas
 // #29: the branded feature glyphs -- ONE drawing function so map, queue, and legend agree (plan_geom.js).
