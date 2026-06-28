@@ -27,8 +27,8 @@
     { id: "basemap", name: "Basemap", section: "1" },
     { id: "terrain", name: "Terrain", section: "1" },
     { id: "sun", name: "Sun", section: "1" },
-    { id: "safety", name: "Safety", section: "5" },
-    { id: "operations", name: "Operations", section: "5" },
+    { id: "safety", name: "Safety", section: "4" },
+    { id: "operations", name: "Operations", section: "4" },
   ];
 
   // which LAYER_ON ids belong to which group, and their display names. Ordered within the group.

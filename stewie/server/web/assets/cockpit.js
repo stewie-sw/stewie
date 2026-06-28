@@ -5020,13 +5020,14 @@ function wizReset() {
   setQ(WIZ_STEP.charAt(0).toUpperCase() + WIZ_STEP.slice(1) + " reset — re-confirm with Done");
 }
 // #170: step -> sidebar sections. Clicking a step shows ONLY its sections (Aaron: "Site should pull up
-// 1/2"); the rest collapse. The numbered sections (1·Site..7·Telemetry) are the collapsible <details>.
+// 1/2"); the rest collapse. The numbered sections (1·Site · 2·Contents · 3·Rovers · 4·Plan) are the
+// collapsible <details> (sidebar 7->4 reorg: orders/solve/review/execute all live inside 4·Plan now).
 // The step->section map is the pure window.STEWIE_PLAN_STEPPER module (single source of truth, unit-
 // tested); ALL six steps map now (review/execute used to be no-ops, leaving the previous step's
 // sections showing). The inline fallback keeps focusStep working if the module fails to load.
 const STEP_SECTIONS = (typeof window !== "undefined" && window.STEWIE_PLAN_STEPPER)
   ? window.STEWIE_PLAN_STEPPER.STEP_SECTIONS
-  : { site: ["1", "2"], fleet: ["3", "4"], orders: ["5"], solve: ["4", "5"], review: ["5", "6"], execute: ["5", "7"] };
+  : { site: ["1", "2"], fleet: ["3"], orders: ["4"], solve: ["4"], review: ["4"], execute: ["4"] };
 function focusStep(step) {
   const want = (typeof window !== "undefined" && window.STEWIE_PLAN_STEPPER)
     ? window.STEWIE_PLAN_STEPPER.sectionsForStep(step)
@@ -5044,7 +5045,7 @@ function goStep(step) {
   if ((step === "review" || step === "execute") && !planned) {   // can't review/execute before a plan exists
     setView("plan"); if (innerWidth <= 860) $("panel").classList.add("open");
     focusStep(step);                                        // reflect THIS step's sections, not the prior step's
-    stepScrollTo("5 ·"); _pulseQplan();
+    stepScrollTo("4 ·"); _pulseQplan();
     setQ("plan a mission first - press “Plan mission → open report”"); return;
   }
   if (step === "review") { setView("report"); return; }
@@ -5052,7 +5053,7 @@ function goStep(step) {
   setView("plan");                                          // site / fleet / orders / solve all live in the Plan sidebar
   if (innerWidth <= 860) $("panel").classList.add("open");
   focusStep(step);                                          // #170: show ONLY this step's sidebar sections
-  stepScrollTo(step === "site" ? "1 ·" : step === "fleet" ? "3 ·" : "5 ·");
+  stepScrollTo(step === "site" ? "1 ·" : step === "fleet" ? "3 ·" : "4 ·");
   if (step === "solve") _pulseQplan();
 }
 function renderStepper() {

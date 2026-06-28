@@ -110,15 +110,16 @@ test("buildTree: lander + charger markers are Operations rows; charger has no vi
 });
 
 // ---- stepper coherence ----
-test("buildTree: groups carry the stepper section (Site=1 terrain/sun/basemap, Orders=5 safety/operations)", () => {
+test("buildTree: groups carry the stepper section (Site=1 terrain/sun/basemap, Orders=4 safety/operations)", () => {
   const tree = T.buildTree(baseState({ keepouts: [{ x: 1, y: 1, r: 2 }], orders: [{ kind: "cut", action: "A", x: 0, y: 0 }] }));
   const sec = {};
   tree.forEach((g) => { sec[g.id] = g.section; });
   assert.strictEqual(sec.basemap, "1");
   assert.strictEqual(sec.terrain, "1");
   assert.strictEqual(sec.sun, "1");
-  assert.strictEqual(sec.safety, "5");
-  assert.strictEqual(sec.operations, "5");
+  // sidebar 7->4 reorg: keep-outs + build orders now live in section 4 (Plan), revealed by the Orders step.
+  assert.strictEqual(sec.safety, "4");
+  assert.strictEqual(sec.operations, "4");
 });
 
 // ---- renderTree: DOM (jsdom-free minimal document stub) ----
