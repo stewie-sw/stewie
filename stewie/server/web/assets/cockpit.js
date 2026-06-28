@@ -2147,7 +2147,7 @@ function navDrawMission(loc) {
   const traj = (((loc && loc.trajectory) || []).map(normLoc).filter(Boolean));
   const stat = $("navmissionstats");
   if (!traj.length) { if (stat) stat.textContent =
-    "Plan a mission (5·Plan → Plan mission) to see the rover's live estimated path vs truth and the per-leg fixes."; return; }
+    "Plan a mission (4·Plan → Plan mission) to see the rover's live estimated path vs truth and the per-leg fixes."; return; }
   const est = traj.map((p) => p.est), tru = traj.map((p) => p.truePose);
   const all = est.concat(tru), xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
   const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
@@ -2689,7 +2689,7 @@ function estimate() {
                rw, perChargeH, rechargeH };
   $("est").innerHTML = "";
   const summary = document.createElement("span");
-  summary.textContent = `${(cutMass / 1000).toFixed(1)} t · ${charges.toFixed(1)} charges · ~${Math.round(hrs + rechargeH).toLocaleString()} h incl. recharge `;
+  summary.textContent = `dig-only est · ${(cutMass / 1000).toFixed(1)} t · ${charges.toFixed(1)} charges · ~${Math.round(hrs + rechargeH).toLocaleString()} h (dig + recharge) `;
   // #7 (conservative feasibility, Aaron): a single battery charge is the conservative baseline. >1 charge
   // = a multi-sortie mission -> FLAG it amber ("review"), never present it as feasible-green. Planning
   // still allows >1 charge (not capped); the readout just stops calling it green.
@@ -2705,7 +2705,12 @@ function estimate() {
   const info = document.createElement("button");
   info.textContent = "ⓘ details";
   info.style.cssText = "background:none;border:1px solid var(--line);border-radius:4px;color:var(--accent);cursor:pointer;font-size:10px;padding:1px 6px";
-  $("est").append(summary, info);
+  // Planner P4: the estimate is a DIG-ONLY lower bound -- say so on the summary itself, not just the ⓘ
+  // popover, so a planner never reads it as the real feasibility verdict (the 4·Plan solver supersedes it).
+  const sub = document.createElement("div");
+  sub.style.cssText = "font-size:9px;color:var(--muted);margin-top:1px";
+  sub.textContent = "lower bound — the 4·Plan solver adds travel + slip + recharge routing (it supersedes this)";
+  $("est").append(summary, info, sub);
   popover("est", info, () => {
     const e2 = LAST_EST;
     const row = (k, v) => `<tr><td style="color:var(--muted);padding-right:10px">${k}</td><td style="text-align:right">${v}</td></tr>`;
@@ -2722,7 +2727,7 @@ function estimate() {
       row("<b>mission timeline</b>", `<b>~${Math.round(e2.hrs + e2.rechargeH).toLocaleString()} h</b>`) +
       `</table><div style="opacity:.6;margin-top:4px">dig-energy basis: ${LAST_EST ? "4151" : ""} J/kg (excavation mechanics
       — cutting + drum + losses; ~8,600× the pure m·g·h lift floor). The sandbox is DIG-dominant by
-      design; the solver in 5·Plan adds travel + slip + recharge routing per leg. Updates live.</div>`;
+      design; the solver in 4·Plan adds travel + slip + recharge routing per leg. Updates live.</div>`;
   });
   refreshPopovers();
   return { body: sel.value, padW, padL, cut_m: cut, bermH_m: bermH, cutVol_m3: cutVol, cutMass_kg: cutMass,
@@ -5000,7 +5005,7 @@ qel("qloadsample").onclick = async () => {
 const STEP_TITLES = {
   site: "Site - choose the landing / work site (Plan, 1·Site)",
   fleet: "Fleet - set the rover count (Plan, 3·Fleet)",
-  orders: "Orders - author build orders + keep-outs (Plan, 5·Plan)",
+  orders: "Orders - author build orders + keep-outs (Plan, 4·Plan)",
   solve: "Solve - plan the mission (Plan mission -> report)",
   review: "Review - the mission-control report",
   execute: "Execute - execution forecast, before uplink",
