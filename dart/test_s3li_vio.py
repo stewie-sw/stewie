@@ -14,6 +14,11 @@ import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
 
+# This module's tests reach dart.s3li_reader, which hard-imports `rosbags` at module top; skip the whole
+# module cleanly where rosbags is absent (e.g. CI) instead of FAILING a test at collection/run. Mirrors the
+# guard in test_s3li_reader.py -- same recurring root: an unguarded rosbags import (see CI fix history).
+pytest.importorskip("rosbags")
+
 from dart import s3li_vio as V
 
 _FROZEN_VO = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
