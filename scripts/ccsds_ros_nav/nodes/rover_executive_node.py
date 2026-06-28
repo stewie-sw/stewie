@@ -58,7 +58,9 @@ class RoverExecutive(Node):
         self.declare_parameter("downlink_decim", 5)
 
         g = self.get_parameter
-        crop = load_crop(g("scene").value, int(g("r0").value), int(g("c0").value),
+        self._r0, self._c0 = int(g("r0").value), int(g("c0").value)     # #144 tier-1: the DEM-crop frame
+        self._dem = os.path.basename(str(g("scene").value)).split("_")[0]   # e.g. haworth_10km_5m -> "haworth"
+        crop = load_crop(g("scene").value, self._r0, self._c0,
                          int(g("win").value), int(g("win").value))
         self.cell_m = crop.cell_m
         # snap the boot pose to navigable terrain the SAME way the ground station plans from, so the
@@ -227,9 +229,13 @@ class RoverExecutive(Node):
         self._cockpit_last = t
         # tier-2: report the control mode so the console shows when the rover is under autonomy (cmd_vel)
         mode = "cmd_vel" if self._teleop is not None else ("goal" if self._goal is not None else "idle")
+        # #144 tier-1 (frame-match): the rover's DEM-crop frame, so the cockpit only overlays it on the MAIN
+        # 3D view when the loaded DEM matches (order origin = the crop corner in DEM metres: [c0*cell, r0*cell]).
+        frame = {"dem": self._dem, "cell_m": float(self.cell_m),
+                 "dem_origin": [self._c0 * self.cell_m, self._r0 * self.cell_m]}
         try:
             from stewie.bridge.ros2_bridge import post_odom_to_cockpit, ros_odom_ingest_body
-            body = ros_odom_ingest_body(x_m=x_m, y_m=y_m, yaw_rad=yaw_rad, slip=slip, soc=soc, mode=mode)
+            body = ros_odom_ingest_body(x_m=x_m, y_m=y_m, yaw_rad=yaw_rad, slip=slip, soc=soc, mode=mode, frame=frame)
         except Exception:                                    # never let a mirror error reach the control loop
             return
         url, key = self._cockpit_url, self._cockpit_key

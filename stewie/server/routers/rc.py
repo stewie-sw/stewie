@@ -101,6 +101,14 @@ def rc_plan_ros(body: dict, identity: str = Depends(require_role("operator"))):
             "counts": {g: len(lowered[g]) for g in groups}}
 
 
+class RosOdomFrame(BaseModel):
+    """#144 tier-1: the rover's DEM-crop frame, so the cockpit only overlays it on the MAIN 3D view when
+    the loaded DEM matches. dem_origin = the order-frame origin in DEM metres ([c0*cell, r0*cell])."""
+    dem: str = Field(..., max_length=32)
+    cell_m: float = Field(..., gt=0.0, le=1e4)
+    dem_origin: tuple[float, float] = Field(...)
+
+
 class RosOdomIngest(BaseModel):
     """#144: the live ROS2 odometry frame the rover node POSTs (REP-103 metres + yaw, optional state).
     Bounded (ge/le reject NaN/Inf too) so a malformed push can't poison the live operator view."""
@@ -111,6 +119,7 @@ class RosOdomIngest(BaseModel):
     soc: float | None = Field(None, ge=0.0, le=1.0)
     stamp_s: float | None = Field(None, ge=0.0)        # the producer's own clock (informational)
     mode: str | None = Field(None, max_length=16)      # tier-2: control mode (idle|cmd_vel|goal|safe)
+    frame: RosOdomFrame | None = Field(None)           # tier-1: the rover's DEM-crop frame (for the 3D overlay)
 
 
 @router.post("/rc/ros_odom")
@@ -123,7 +132,8 @@ def rc_ros_odom(body: RosOdomIngest, identity: str = Depends(require_role("opera
     global _ROS_ODOM, _ROS_ODOM_RECV
     with _ROS_ODOM_LOCK:
         _ROS_ODOM = {"x_m": body.x_m, "y_m": body.y_m, "yaw_rad": body.yaw_rad,
-                     "slip": body.slip, "soc": body.soc, "stamp_s": body.stamp_s, "mode": body.mode}
+                     "slip": body.slip, "soc": body.soc, "stamp_s": body.stamp_s, "mode": body.mode,
+                     "frame": (body.frame.model_dump() if body.frame is not None else None)}
         _ROS_ODOM_RECV = time.monotonic()
     log_event(identity, "rc.ros_odom", f"{body.x_m:.1f},{body.y_m:.1f}")
     return {"ok": True}

@@ -65,7 +65,7 @@ def pose_to_odom(pose: RC.Pose, *, cell_m: float = RC.DEFAULT_CELL_M) -> dict:
 
 def ros_odom_ingest_body(*, x_m: float, y_m: float, yaw_rad: float = 0.0,
                          slip: float | None = None, soc: float | None = None,
-                         mode: str | None = None) -> dict:
+                         mode: str | None = None, frame: dict | None = None) -> dict:
     """#144 (producer side): the /rc/ros_odom body the rover node POSTs so the cockpit live drive-map
     can render the ROS rover. REP-103 metres (already the cockpit frame). Matches the cockpit's
     RosOdomIngest contract field-for-field (a test pins that), so the producer cannot drift from the
@@ -78,6 +78,9 @@ def ros_odom_ingest_body(*, x_m: float, y_m: float, yaw_rad: float = 0.0,
         body["soc"] = max(0.0, min(1.0, float(soc)))
     if mode is not None:
         body["mode"] = str(mode)[:16]
+    if frame is not None and isinstance(frame.get("dem"), str) and "dem_origin" in frame:
+        body["frame"] = {"dem": str(frame["dem"])[:32], "cell_m": float(frame["cell_m"]),
+                         "dem_origin": [float(frame["dem_origin"][0]), float(frame["dem_origin"][1])]}
     return body
 
 

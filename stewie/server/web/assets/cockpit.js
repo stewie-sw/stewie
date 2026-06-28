@@ -2301,7 +2301,19 @@ let RC_GOAL = null;        // last commanded GoTo goal {row, col} cells, or null
 let RC_CELL_M = 1;         // latest grid scale from the telemetry payload
 let RC_ROS_PATH = [];      // #144: the LIVE ROS2 rover odom path, already REP-103 metres {x, y}
 let RC_ROS_STALE = false;  // #144: the live ROS odom is older than the freshness window
+let CUR_HF_FRAME = null;    // #144 tier-1: the loaded 3D-DEM frame {dem, cell_m, dem_origin} for the overlay match
 const RC_PATH_MAX = 600;   // bound the path buffers (Power-of-10: no unbounded growth)
+
+// #144 tier-1 (frame-match): the live rover is placed on the MAIN 3D view ONLY when its DEM-crop frame
+// matches the loaded heightfield's frame (same dem, cell_m, and order origin in DEM metres). Then
+// setLiveRover(x,-y) is provably correct; otherwise we suppress it (no mis-placement) -- the sidebar
+// RC-frame map is always self-consistent and unaffected.
+function _frameMatches(rf, hf) {
+  if (!rf || !hf || rf.dem !== hf.dem) return false;
+  if (Math.abs((+rf.cell_m) - (+hf.cell_m)) > 1e-6) return false;
+  const ao = rf.dem_origin || [], bo = hf.dem_origin || [];
+  return Math.abs((+ao[0]) - (+bo[0])) < 0.5 && Math.abs((+ao[1]) - (+bo[1])) < 0.5;
+}
 const RC_ROS_STALE_S = 3.0;
 const _rc_xy = (rc) => ({ x: rc.col * RC_CELL_M, y: -rc.row * RC_CELL_M });   // frames.py: REP-103 metres
 
@@ -2326,11 +2338,12 @@ function renderRcTelemetry(b) {                          // render ONE pushed te
     if (RC_ROS_PATH.length > RC_PATH_MAX) RC_ROS_PATH.shift();
     RC_ROS_STALE = (typeof ro.age_s === "number" && ro.age_s > RC_ROS_STALE_S);
   }
-  // #144 tier-1: also place the live ROS rover on the MAIN 3D DEM view, in the order frame (y flips:
-  // frames.py is y=-row, the 3D view is y=+row). setLiveRover self-gates to the loaded DEM window
-  // (off-DEM -> hidden), and is harmless when the 3D view isn't mounted. A stale/absent pose clears it.
+  // #144 tier-1: place the live ROS rover on the MAIN 3D DEM view, in the order frame (y flips: frames.py
+  // is y=-row, the 3D view is y=+row), ONLY when the rover's DEM-crop frame matches the loaded heightfield
+  // (else the origins differ and it would mis-place -> suppress). Window-gated + harmless when unmounted.
   if (window.STEWIE3D && STEWIE3D.setLiveRover) {
-    if (ro && typeof ro.x_m === "number" && !RC_ROS_STALE) STEWIE3D.setLiveRover(ro.x_m, -ro.y_m);
+    if (ro && typeof ro.x_m === "number" && !RC_ROS_STALE && _frameMatches(ro.frame, CUR_HF_FRAME))
+      STEWIE3D.setLiveRover(ro.x_m, -ro.y_m);
     else STEWIE3D.clearLiveRover();
   }
   if (!RC_PATH.length && !tlm.length && !RC_ROS_PATH.length) {
@@ -4495,6 +4508,7 @@ function open3D() {
     .then((r) => r.json()).then((hf) => {
       if (!hf || !hf.ok) { setQ("3D: heightfield unavailable for " + site); return; }
       STEWIE3D.render(hf);
+      CUR_HF_FRAME = { dem: hf.site, cell_m: hf.cell_m, dem_origin: hf.dem_origin };   // #144 tier-1: overlay frame-match
       loadClasts();                                                       // #147: REAL Chrono boulder scene on the DEM
       apply3DSun();                                                       // #181: ephemeris-driven sun + shadows
       if (typeof LANDER_P !== "undefined" && (LANDER_P.x || LANDER_P.y) && STEWIE3D.setLander3D)
@@ -4563,6 +4577,7 @@ function planLoad3D() {
     .then((r) => r.json()).then((hf) => {
       if (!hf || !hf.ok) { setQ("3D: heightfield unavailable for " + site); return; }
       STEWIE3D.render(hf); if (STEWIE3D.setSun) STEWIE3D.setSun(135, 18);
+      CUR_HF_FRAME = { dem: hf.site, cell_m: hf.cell_m, dem_origin: hf.dem_origin };   // #144 tier-1: overlay frame-match
       loadClasts();                                                       // #147: REAL Chrono boulder scene on the DEM
       if (typeof LANDER_P !== "undefined" && (LANDER_P.x || LANDER_P.y) && STEWIE3D.setLander3D) STEWIE3D.setLander3D(LANDER_P.x, LANDER_P.y);
       STEWIE3D.setPathEdit(true); STEWIE3D.onPathChange(planSyncPathOrders); planSyncPathOrders();

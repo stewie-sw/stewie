@@ -163,10 +163,13 @@ def test_ros_odom_ingest_body_matches_cockpit_contract():
     # the body the node POSTs must validate against the cockpit's RosOdomIngest, field-for-field, so the
     # producer can never drift from the consumer (a real contract pin, not a mock).
     from stewie.server.routers.rc import RosOdomIngest
-    body = B.ros_odom_ingest_body(x_m=12.5, y_m=-4.0, yaw_rad=0.3, slip=0.1, soc=0.8, mode="cmd_vel")
-    assert body == {"x_m": 12.5, "y_m": -4.0, "yaw_rad": 0.3, "slip": 0.1, "soc": 0.8, "mode": "cmd_vel"}
+    frame = {"dem": "haworth", "cell_m": 5.0, "dem_origin": [9000.0, 3600.0]}
+    body = B.ros_odom_ingest_body(x_m=12.5, y_m=-4.0, yaw_rad=0.3, slip=0.1, soc=0.8, mode="cmd_vel", frame=frame)
+    assert body == {"x_m": 12.5, "y_m": -4.0, "yaw_rad": 0.3, "slip": 0.1, "soc": 0.8, "mode": "cmd_vel",
+                    "frame": {"dem": "haworth", "cell_m": 5.0, "dem_origin": [9000.0, 3600.0]}}
     m = RosOdomIngest(**body)                                # accepted by the cockpit contract
-    assert m.x_m == 12.5 and m.y_m == -4.0 and m.mode == "cmd_vel"
+    assert m.x_m == 12.5 and m.mode == "cmd_vel"
+    assert m.frame.dem == "haworth" and tuple(m.frame.dem_origin) == (9000.0, 3600.0)
 
 
 def test_ros_odom_ingest_body_clamps_and_drops_nonfinite():
