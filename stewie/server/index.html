@@ -213,7 +213,11 @@
     /* MOBILE-04: hide the dev subsystem badges (LODE/LEAP/FORGE...) IN THE NAV TABS on phones -- they
        bloat each tab's width and cram/garble the label at phone size; the ConOps spine + pipeline read
        cleaner without them (the per-pane readiness dot stays; pane-header .sysb badges are untouched). */
-    #viewtabs .sysb, #stepper .sysb, #stepper .substep .sysb { display: none; }
+    #viewtabs .sysb, #stepper .sysb, #stepper .substep .sysb, #validate-subtabs .sysb { display: none; }
+    /* MOBILE-05: the TRAINING/LIVE workspace badge is a safety indicator -- it lived after the bell in the
+       scrolling nav and slid off-screen on a phone. Pin it sticky at the right edge so it's always visible
+       (solid background so it reads over anything behind it). */
+    #wsbadge { position: sticky; right: 6px; z-index: 92; margin-left: 6px; background: var(--bg, #0a0a0c); }
   }
   .step { font-size: 9px; font-family: "Orbitron", system-ui, sans-serif; letter-spacing: .12em;
           color: var(--accent); margin: 9px 0 3px; text-transform: uppercase; }
@@ -477,7 +481,7 @@
         <button id="qstruct" class="go">+ Structure @ x,y</button>
       </div>
       <div class="ctl" style="margin:4px 0">
-        <button id="qsiteplan" class="site" title="validate-and-advise across ALL placed structures: base-wide mass balance + source/sink routing, inter-structure clearances, build order, advisories">⚖ Analyze site plan</button>
+        <button id="qsiteplan" class="site" title="validate-and-advise across ALL placed structures: base-wide mass balance + source/sink routing, inter-structure clearances, build order, advisories">Analyze site plan</button>
         <span id="qsitecount" style="font-size:10px;opacity:.6"></span>
       </div>
       <div id="qsiteout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:2px 0 6px;color:var(--muted)"></div>
@@ -641,7 +645,7 @@
       <div class="ctxsec">
         <div class="ctxh">Twin audit <span class="sysb">DT-02 · director</span></div>
         <div class="ctl" style="margin-top:6px">
-          <button id="twinaudit" class="site" style="font-size:11px" title="DT-02 observed-twin audit history: resync events + provenance + hash-chain validity — director-only">⛓ Twin audit</button>
+          <button id="twinaudit" class="site" style="font-size:11px" title="DT-02 observed-twin audit history: resync events + provenance + hash-chain validity — director-only">Twin audit</button>
           <span id="twinaudithdr" style="font-size:10px;opacity:.6"></span>
         </div>
         <div id="twinauditout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:4px 0 0;color:var(--muted)">Director-only audit of the observed-twin resync history (provenance + hash-chain). Sign in with a director key to view.</div>
@@ -891,7 +895,7 @@
       <div id="navview" class="pane">
         <div class="cap"><span>NAVIGATION — state estimation <small>(pose-graph estimate vs dead reckoning; articulation-parallax relocalization)</small></span></div>
         <div class="ctl" style="font-size:11px;margin:2px 0 4px">
-          <button id="navcontract" class="site" style="font-size:11px" title="FS-05 navigation contract: each nav stage (global route / local trajectory / tracker / recovery / keep-outs / negative obstacles / illumination / slip-energy budget / ROS lowering) self-reports whether its seam is wired on this host">⛓ Nav contract</button>
+          <button id="navcontract" class="site" style="font-size:11px" title="FS-05 navigation contract: each nav stage (global route / local trajectory / tracker / recovery / keep-outs / negative obstacles / illumination / slip-energy budget / ROS lowering) self-reports whether its seam is wired on this host">Nav contract</button>
           <span id="navcontracthdr" style="font-size:10px;opacity:.6"></span>
         </div>
         <div id="navcontractout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:0 0 8px;color:var(--muted)"></div>
@@ -901,12 +905,12 @@
              + start/goal + recovery backups. The product-path surface of the connected nav spine. -->
         <div style="padding:4px 2px 8px;border-bottom:1px solid var(--line);margin-bottom:8px">
           <div class="cap" style="font-size:10px">FS-05 DRIVE PREVIEW — route then drive <small>(route_leg → plan_local → track_plan → recovery, on the real DEM)</small></div>
-          <div class="ctl" style="font-size:11px;margin-top:4px">
-            start <input id="navdsx" type="number" value="4" step="1" style="width:4em" />,
-            <input id="navdsy" type="number" value="4" step="1" style="width:4em" />
-            · goal <input id="navdgx" type="number" value="44" step="1" style="width:4em" />,
-            <input id="navdgy" type="number" value="36" step="1" style="width:4em" /> m
-            <button id="navdrive" class="go" style="font-size:11px;margin-left:6px">▶ Run drive</button>
+          <div class="ctl" style="font-size:11px;margin-top:4px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px">
+            <span style="white-space:nowrap">start <input id="navdsx" type="number" value="4" step="1" style="width:4em" />,
+              <input id="navdsy" type="number" value="4" step="1" style="width:4em" /></span>
+            <span style="white-space:nowrap">· goal <input id="navdgx" type="number" value="44" step="1" style="width:4em" />,
+              <input id="navdgy" type="number" value="36" step="1" style="width:4em" /> m</span>
+            <button id="navdrive" class="go" style="font-size:11px">▶ Run drive</button>
           </div>
           <canvas id="navdriveplot" width="460" height="240" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;max-width:100%;margin-top:4px"></canvas>
           <div id="navdrivestats" style="font-size:11px;line-height:1.7;margin-top:4px;color:var(--muted)">Press <b>Run drive</b>: STEWIE routes the global corridor on the real Haworth DEM, then drives it as a receding-horizon closed loop — the planned route (amber) vs the executed path (cyan), with recovery backups marked. Needs the Haworth bundle (clean 400 otherwise).</div>
@@ -952,7 +956,7 @@
             <div class="cap" style="font-size:10px">RELOCALIZE — articulation parallax (standstill)</div>
             <div id="navgate" style="font-size:11px;margin:5px 0"></div>
             <div class="ctl" style="font-size:11px">
-              est σ (drift) <input id="navsig" type="number" value="6.0" step="0.5" min="0" style="width:4.2em" /> m
+              est σ (drift) <input id="navsig" type="number" value="6.0" step="0.5" min="0" style="width:4.2em" />&nbsp;m
               <label style="cursor:pointer">· <input id="navstand" type="checkbox" checked /> standstill</label>
             </div>
             <button id="navreloc" class="go" style="font-size:11px;margin-top:4px">⌖ Relocalize</button>
@@ -1345,6 +1349,6 @@
 <script src="/assets/plan_stepper.js?v=3cf08b1d9611"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=3a98e3fb0dcd"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=6fd93a4e59be"></script>
+<script src="/assets/cockpit.js?v=6aa9a1b3ad84"></script>
 </body>
 </html>

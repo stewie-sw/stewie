@@ -1692,7 +1692,7 @@ function renderWorkspace(role) {
   if (!role) { b.style.display = "none"; return; }
   const canSwitch = _rrank(role) >= _rrank("operator");
   const live = canSwitch && WORKSPACE === "live";          // trainees can never be on live
-  b.textContent = (live ? "● LIVE" : "● TRAINING") + (canSwitch ? "  ⇄" : "");
+  b.textContent = (live ? "● LIVE" : "● TRAINING");        // clickable to switch (title + pointer cue; no emoji)
   b.style.color = live ? "#e8273f" : "#3fa34d";
   b.style.borderColor = live ? "#e8273f" : "#3fa34d";
   b.style.cursor = canSwitch ? "pointer" : "default";
