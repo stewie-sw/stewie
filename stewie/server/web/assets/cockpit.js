@@ -2355,7 +2355,7 @@ function renderRcTelemetry(b) {                          // render ONE pushed te
       const p = _rc_xy(last);
       const extra = [];
       if (typeof last.slip === "number") extra.push(`slip ${(+last.slip).toFixed(2)}`);
-      if (typeof last.soc === "number") extra.push(`soc ${(last.soc * 100).toFixed(0)}%`);
+      if (typeof last.soc === "number") extra.push(`soc ${(last.soc * 100).toFixed(1)}%`);
       if (last.entrapped) extra.push("ENTRAPPED");
       line.push(`sim ${p.x.toFixed(1)}, ${p.y.toFixed(1)} m`
         + (extra.length ? ` · ${extra.join(" · ")}` : ""));
@@ -2866,7 +2866,7 @@ async function cgUpdate() {
   ctx.lineWidth = 1;
   const riskCol = d.risk === "ok" ? "#3fa34d" : (d.risk === "warn" ? "#e0b300" : "#e8273f");
   $("cgout").innerHTML = `CG <b>${(d.cg_dx_m * 100).toFixed(1)} cm</b> fwd · height <b>${(d.cg_height_m * 100).toFixed(1)} cm</b> · ` +
-    `tip margin <b style="color:${riskCol}">${d.margin_deg.toFixed(1)}°</b> (${d.binding_axis}) · risk <b style="color:${riskCol}">${d.risk.toUpperCase()}</b>`;
+    `tip margin <b style="color:${riskCol}">${d.margin_deg.toFixed(2)}°</b> (${d.binding_axis}) · risk <b style="color:${riskCol}">${d.risk.toUpperCase()}</b>`;
   if (typeof drawRoverHUD === "function") drawRoverHUD(roverHUDState());   // #184: drum-load change -> refresh the rover HUD
 }
 ["cgF", "cgB", "cgFk", "cgBk", "cgP"].forEach((id) => { const el = $(id); if (el) el.addEventListener("input", cgSchedule); });
@@ -4436,7 +4436,7 @@ function runExecution() {
     const bf = fr.batt0_frac + (fr.batt1_frac - fr.batt0_frac) * u;
     qel("excbattfill").style.width = `${Math.max(0, bf * 100).toFixed(0)}%`;
     qel("excbattfill").style.background = bf < 0.2 ? "#e0564b" : "var(--accent)";
-    qel("excbattlbl").textContent = `${(bf * 100).toFixed(0)}%`;
+    qel("excbattlbl").textContent = `${(bf * 100).toFixed(1)}%`;   // 1 decimal: the bar flips red at <20% on the raw value, so a rounded "20%" beside a red bar was a mismatch
     // #184: rover HUD -- heading from the path delta (from-north-eastward), live SoC + pose, drum from the stability inputs
     const _dE = fr.x1 - fr.x0, _dN = fr.y1 - fr.y0;
     const _hd = (Math.abs(_dE) + Math.abs(_dN) > 1e-6) ? (Math.atan2(_dE, _dN) * 180 / Math.PI + 360) % 360 : undefined;
