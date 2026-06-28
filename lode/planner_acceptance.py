@@ -31,7 +31,7 @@ from stewie.terrain.site_dem import slope_deg_map     # I6/I11/CP-06 slope sitin
 
 def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, dem=None,
                   dem_origin=(0.0, 0.0), max_slope_deg=15.0, accept_flatness_tol_m=0.02,
-                  bearing_load_pa=None, bearing_fs=3.0):
+                  bearing_load_pa=None, bearing_fs=3.0, return_grids=False):
     """I8: MATERIAL-realizability acceptance on the CONSERVED authority (NOT full plan validation -- audit
     H-07). Rasterize each order's footprint onto a `ColumnState`, execute the cuts (into the drum) then the
     fills (from the drum), and report mass conservation + per-order feasibility + the executed (mass-exact)
@@ -221,7 +221,7 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
     drum_cap = ctx.drum_kg
     shuttle_cycles_est = int(sum(max(1, math.ceil((o.footprint_m2 * o.depth_m * rho_bank) / drum_cap))
                                  for o in cuts)) if drum_cap > 0 else 0
-    return {
+    result: dict = {
         "feasible": bool(feasible and mass_conserved and not slope_violations and not off_dem_orders),
         "mass_conserved": bool(mass_conserved),
         "slope_violations": slope_violations,
@@ -266,6 +266,33 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
         # structural design load is supplied (bearing_load_pa). Additive/reported, not folded into `feasible`.
         "bearing": bearing,
         "bearing_pass": bool(bearing_pass),
+    }
+    if return_grids:
+        # W2 (Terrain Memory): expose the conserved per-cell grids this run already computed so the world
+        # model can fold the mission's terrain change in. These are NumPy arrays -> added ONLY on request,
+        # so the default-False /plan path stays JSON-serializable + byte-identical for every existing caller.
+        result["terrain_grids"] = {
+            "as_built": as_built,                 # (H, W) surface AFTER the mission [m]
+            "base": datum_h0,                     # (H, W) pre-mission surface [m]
+            "delta": as_built - datum_h0,         # per-cell height change [m] (cut negative / fill positive)
+            "x0": float(x0), "y0": float(y0), "cell_m": float(cell_m),
+            "rows": int(H), "cols": int(W),
+        }
+    return result
+
+
+def mission_terrain_delta(mission, **kwargs):
+    """W2 (Terrain Memory): the per-cell conserved height delta a mission imprints on the terrain, for the
+    world-model store (stewie.twin.terrain_memory.TerrainMemory.apply). Reuses validate_plan's EXACT
+    rasterize -> execute (cuts into the drum, fills from it) path on the conserved authority -- the delta is
+    ``as_built - base`` over the worked region, with its order-frame origin/cell. ``mass_moved_kg`` is the
+    executed cut mass. Pass the same kwargs you would to validate_plan (e.g. dem/dem_origin for a real DEM)."""
+    r = validate_plan(mission, return_grids=True, **kwargs)
+    g = r["terrain_grids"]
+    return {
+        "delta": g["delta"], "as_built": g["as_built"], "base": g["base"],
+        "x0": g["x0"], "y0": g["y0"], "cell_m": g["cell_m"], "rows": g["rows"], "cols": g["cols"],
+        "mass_moved_kg": float(r["executed_cut_kg"]),
     }
 
 
