@@ -402,14 +402,16 @@ def _compare_to_reference(metrics_out: dict[str, Any], reference_artifact: str,
         comparison["rpe_rmse_reference_m"] = float(ref_rpe)
         comparison["rpe_rmse_delta_m"] = abs(metrics_out["rpe_trans_m"]["rmse"] - float(ref_rpe))
     comparison["ate_matches_reference"] = bool(d_se3 <= ate_tol_m and d_sim3 <= ate_tol_m)
-    assert d_se3 <= ate_tol_m, (
-        f"recomputed SE(3) ATE RMSE {metrics_out['ate_aligned_se3_m']['rmse']:.6f} m differs from the "
-        f"committed {ref_se3:.6f} m by {d_se3:.2e} m (> tol {ate_tol_m:.0e} m)"
-    )
-    assert d_sim3 <= ate_tol_m, (
-        f"recomputed Sim(3) ATE RMSE {metrics_out['ate_aligned_sim3_m']['rmse']:.6f} m differs from the "
-        f"committed {ref_sim3:.6f} m by {d_sim3:.2e} m (> tol {ate_tol_m:.0e} m)"
-    )
+    # CT-06: explicit raise (a bare `assert` is stripped by `python -O`) -- this guard re-validates the
+    # committed ATE reference and must survive an optimized run.
+    if d_se3 > ate_tol_m:
+        raise AssertionError(
+            f"recomputed SE(3) ATE RMSE {metrics_out['ate_aligned_se3_m']['rmse']:.6f} m differs from the "
+            f"committed {ref_se3:.6f} m by {d_se3:.2e} m (> tol {ate_tol_m:.0e} m)")
+    if d_sim3 > ate_tol_m:
+        raise AssertionError(
+            f"recomputed Sim(3) ATE RMSE {metrics_out['ate_aligned_sim3_m']['rmse']:.6f} m differs from the "
+            f"committed {ref_sim3:.6f} m by {d_sim3:.2e} m (> tol {ate_tol_m:.0e} m)")
     return comparison
 
 
