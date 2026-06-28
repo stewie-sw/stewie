@@ -60,7 +60,7 @@ stewie-ros2-bridge = "stewie.bridge.ros2_bridge:main"
 [tool.setuptools]
 packages = ["stewie", "stewie.physics", "stewie.terrain", "stewie.twin", "stewie.specs",
             "stewie.envs", "stewie.server", "stewie.eval", "stewie.bridge", "stewie.sensors",
-            "dart", "dart.geometry", "lode", "leap", "forge"]
+            "dart", "dart.geometry", "dart.viz", "lode", "leap", "forge"]
 
 [tool.setuptools.package-data]
 # ship the planner's web UI + per-body config + the real-DEM ingest fixtures + intern sample missions

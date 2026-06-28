@@ -1,0 +1,59 @@
+{
+  "n_pose_pairs": 547,
+  "ate_aligned_se3_m": {
+    "rmse": 0.19057475547315625,
+    "mean": 0.1581788279005172,
+    "median": 0.13328375642657936,
+    "std": 0.10629297167579738,
+    "min": 0.015201562636679178,
+    "max": 0.4758109875034561,
+    "sse": 19.866349370738355
+  },
+  "ate_aligned_sim3_m": {
+    "rmse": 0.1904894786075082,
+    "mean": 0.15768833185354184,
+    "median": 0.1328613549638597,
+    "std": 0.10686735449802987,
+    "min": 0.016305072112532935,
+    "max": 0.47805316810934845,
+    "sse": 19.848574078707696
+  },
+  "sim3_scale": 0.9999243682206073,
+  "rpe_kind": "hand_eye_frame_to_frame",
+  "rpe_trans_m": {
+    "rmse": 0.014675588729827807,
+    "mean": 0.006523053462127049,
+    "median": 0.002076106784539837,
+    "std": 0.013146203942480174,
+    "min": 0.00022509448628393506,
+    "max": 0.08941998119309304,
+    "sse": 0.11759360589360873
+  },
+  "rpe_rotation_deg": {
+    "rmse": 0.07488630710908624,
+    "mean": 0.04153648850076948,
+    "median": 0.024045574533806856,
+    "std": 0.06231114760186835,
+    "min": 0.0026902847802704835,
+    "max": 0.7783489570018763,
+    "sse": 3.0619456098702633
+  },
+  "gt_path_length_m": 261.0028747685765,
+  "est_path_length_m": 261.208497667625,
+  "ate_se3_rmse_m": 0.19057475547315625,
+  "ate_sim3_rmse_m": 0.1904894786075082,
+  "rpe_rmse_m": 0.014675588729827807,
+  "label": "lusnar_vo_2026-06-28",
+  "estimate_tum": "/mnt/projects/stewie/code/stewie/eval/validation/lusnar_vo_estimate_2026-06-28.tum",
+  "comparison": {
+    "reference_artifact": "/mnt/projects/stewie/code/stewie/eval/validation/lusnar_vo_dem_anchor_2026-06-28.json",
+    "ate_tol_m": 0.001,
+    "ate_se3_rmse_reference_m": 0.19057475547315625,
+    "ate_se3_rmse_delta_m": 0.0,
+    "ate_sim3_rmse_reference_m": 0.1904894786075082,
+    "ate_sim3_rmse_delta_m": 0.0,
+    "rpe_rmse_reference_m": 0.014675588729828002,
+    "rpe_rmse_delta_m": 1.942890293094024e-16,
+    "ate_matches_reference": true
+  }
+}
