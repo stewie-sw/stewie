@@ -2466,7 +2466,8 @@ async function startRcStream() {
     }
   } catch (e) { out.textContent = "live stream unavailable — run server.py (" + e + ")"; return; }
   let es;
-  try { es = new EventSource("/rc/telemetry/stream?interval_s=1.0"); }   // cookie auth, same-origin
+  const _rate = (qel("rctlmrate") && qel("rctlmrate").value) || "1.0";  // P4: operator-set push rate (server clamps 0.1-10 s)
+  try { es = new EventSource(`/rc/telemetry/stream?interval_s=${encodeURIComponent(_rate)}`); }   // cookie auth, same-origin
   catch (e) { out.textContent = "live stream unavailable — run server.py (" + e + ")"; return; }
   rcStream = es;
   if (btn) { btn.textContent = "■ Stop (live)"; btn.classList.add("active"); }
@@ -2584,6 +2585,7 @@ if ($("navrun")) {
   $("navcmp").onclick = navCompare;
   if ($("navcontract")) $("navcontract").onclick = navContract;  // #228 L2: FS-05 nav-stage contract readout
   if ($("rctlm")) $("rctlm").onclick = rcTelemetryToggle;       // #228 L3 / #230: push-driven live RC telemetry + SF-01 watchdog stream
+  if ($("rctlmrate")) $("rctlmrate").addEventListener("change", () => { if (rcStream) { stopRcStream(); startRcStream(); } });  // P4: re-open at the new push rate without losing the session
   if ($("twinaudit")) $("twinaudit").onclick = twinAudit;       // #229: DT-02 director-only twin audit readout
   if ($("rcsafe")) $("rcsafe").onclick = () => rcCommand("safe");     // #229 L B: FS-17/AG-08 command console
   if ($("rcgoto")) $("rcgoto").onclick = () => rcCommand("goto");

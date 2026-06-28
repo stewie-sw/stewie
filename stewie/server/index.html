@@ -629,6 +629,13 @@
         <div class="ctxh">Live RC <span class="sysb">RC·SF-01</span></div>
         <div class="ctl" style="margin-top:6px">
           <button id="rctlm" class="site" style="font-size:11px" title="toggle a LIVE push stream of the RC backend telemetry (Pose/Leg) + the SF-01 watchdog state (server-sent events); the watchdog ticks on every streamed frame, so a stalled operator auto-SAFEs within the deadline">⇄ Live RC telemetry</button>
+          <label style="font-size:10px;color:var(--muted);margin-left:6px" title="telemetry push rate — faster gives finer pose resolution when threading a hazard; takes effect immediately while streaming (server-clamped 0.1–10 s)">rate
+            <select id="rctlmrate" style="font-size:10px">
+              <option value="0.2">5 Hz</option>
+              <option value="0.5">2 Hz</option>
+              <option value="1.0" selected>1 Hz</option>
+              <option value="2.0">0.5 Hz</option>
+            </select></label>
           <span id="rctlmhdr" style="font-size:10px;opacity:.6"></span>
         </div>
         <div id="rctlmout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:4px 0 0;color:var(--muted)">Live rover command-emit (GoTo/Safe/uplink) stays gated to a published mission (AG-08 / SF-01) — telemetry + watchdog view; the command console is below.</div>
@@ -1360,6 +1367,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=75107c92d366"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=68268689ddbb"></script>
+<script src="/assets/cockpit.js?v=3dbc5e528e1d"></script>
 </body>
 </html>
