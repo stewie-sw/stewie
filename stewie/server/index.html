@@ -650,6 +650,7 @@
         <div class="ctl" style="font-size:11px;margin:2px 0">
           goto <input id="rcgr" type="number" placeholder="row" style="width:4.2em" />,
           <input id="rcgc" type="number" placeholder="col" style="width:4.2em" />
+          <label title="commanded drive-speed cap (IPEx-class; clamped 0.05–0.5 m/s)" style="font-size:10px;color:var(--muted)">v&le;<input id="rcvmax" type="number" value="0.3" step="0.05" min="0.05" max="0.5" style="width:3.6em" />m/s</label>
           <input id="rccmdmission" placeholder="mission (live)" style="width:7.5em;font-size:10px" />
           <button id="rcgoto" class="site" data-cmd-authority data-cmd-title="send a GoTo to the live rover (published mission only; confirms first)" title="send a GoTo to the live rover (published mission only; confirms first)" style="font-size:11px">▶ GoTo</button>
         </div>
@@ -1367,6 +1368,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=75107c92d366"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=3dbc5e528e1d"></script>
+<script src="/assets/cockpit.js?v=e7b85eb40f37"></script>
 </body>
 </html>

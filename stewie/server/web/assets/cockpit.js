@@ -2526,8 +2526,11 @@ async function rcCommand(kind) {
     const gr = parseFloat(qel("rcgr").value), gc = parseFloat(qel("rcgc").value);
     if (!Number.isFinite(gr) || !Number.isFinite(gc)) { out.textContent = "enter a goal row, col first"; return; }
     const m = qel("rccmdmission").value.trim();
-    if (!window.confirm(`Send GoTo (${gr}, ${gc})${m ? " for mission " + m : ""} to the LIVE rover?`)) return;
-    body = { kind, goal_row: gr, goal_col: gc, leg_id: 0, v_max_mps: 0.3, ...(m ? { mission: m } : {}) };
+    // P5: operator-set drive-speed cap (server takes v_max_mps unbounded -> clamp to a safe IPEx-class range)
+    const _vraw = parseFloat(qel("rcvmax") ? qel("rcvmax").value : "");
+    const vmax = Number.isFinite(_vraw) ? Math.max(0.05, Math.min(_vraw, 0.5)) : 0.3;
+    if (!window.confirm(`Send GoTo (${gr}, ${gc}) at ≤${vmax} m/s${m ? " for mission " + m : ""} to the LIVE rover?`)) return;
+    body = { kind, goal_row: gr, goal_col: gc, leg_id: 0, v_max_mps: vmax, ...(m ? { mission: m } : {}) };
   } else if (kind === "setsim") {
     body = { kind, time_factor: parseFloat(qel("rctf").value) || 1.0 };
   }
