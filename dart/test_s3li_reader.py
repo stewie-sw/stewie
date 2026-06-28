@@ -31,6 +31,12 @@ import os
 import numpy as np
 import pytest
 
+# dart.s3li_reader hard-imports `rosbags` (the ROS1 bag parser) at module top; skip cleanly where it is
+# absent (e.g. CI) instead of erroring at COLLECTION and interrupting the whole suite. These tests are
+# data-gated on the 26 GB bag anyway (absent in CI), so they would skip regardless -- this just moves the
+# skip from a hard ImportError to a clean module skip, matching the file's stated data-gated-skip intent.
+pytest.importorskip("rosbags")
+
 from dart import s3li_dem, s3li_reader
 from dart.s3li_reader import S3liReader
 
