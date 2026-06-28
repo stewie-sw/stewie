@@ -1,0 +1,36 @@
+{
+  "stride": 3,
+  "n_frames": 10599,
+  "n_imu_samples": 454373,
+  "imu_load_s": 0.010412931442260742,
+  "vio_build_s": 5.488770961761475,
+  "vio_enu_tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/vio_enu.tum",
+  "anchored_tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/vio_dem_anchored_enu.tum",
+  "leveled_npz": "/mnt/projects/stewie/code/benchmarks/s3li_crater/vio_cam_leveled_stride3.npz",
+  "yaw_deg": 345.0,
+  "yaw_peak_corr": 0.4638017996636568,
+  "z0_m": 2646.686219585047,
+  "vio_build": {
+    "gyro_bias_rad_s": [
+      -0.0011439839856541999,
+      -0.00529169825305409,
+      -0.0033557909046463335
+    ],
+    "vo_gyro_resid_deg_before": 0.07381309816653459,
+    "vo_gyro_resid_deg_after": 0.0644005502913733,
+    "gravity_norm_m_s2": 9.763483412150565,
+    "leveling_tilt_deg": 19.250805565099036,
+    "n_steps": 10598,
+    "n_valid_vo_steps": 10599,
+    "n_imu_samples": 454373,
+    "cam_imu_td_s": 0.015,
+    "imu_gyro_noise_rad_s_sqrthz": 0.0001
+  },
+  "anchor_diag": {
+    "mean_abs_height_correction_m": 66.28033446303601,
+    "mean_abs_horizontal_correction_m": 24.9539322806362,
+    "converged": false,
+    "iterations": 12,
+    "final_cost": 8522.411194703918
+  }
+}

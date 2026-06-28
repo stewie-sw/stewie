@@ -1,0 +1,40 @@
+{
+  "n_pose_pairs": 5262,
+  "ate_aligned_se3_m": {
+    "rmse": 92.5201628294567,
+    "mean": 83.1173766635141,
+    "median": 92.03320127500666,
+    "std": 40.63843287535461,
+    "min": 17.387697243399376,
+    "max": 185.57464529160933,
+    "sse": 45042617.54880306
+  },
+  "ate_aligned_sim3_m": {
+    "rmse": 90.64107786703262,
+    "mean": 79.2081883950278,
+    "median": 88.18840861694933,
+    "std": 44.06663009665313,
+    "min": 7.215538990842891,
+    "max": 183.02144642375507,
+    "sse": 43231565.89367449
+  },
+  "sim3_scale": 1.2251596602626136,
+  "rpe_kind": "world_displacement",
+  "rpe_trans_m": {
+    "rmse": 0.18504619753476384,
+    "mean": 0.14152475615678836,
+    "median": 0.12366493031017958,
+    "std": 0.11921761034694676,
+    "min": 0.0035756579015984694,
+    "max": 3.800287536323254,
+    "sse": 180.14766296333573
+  },
+  "rpe_rotation_deg": null,
+  "gt_path_length_m": 1026.3018826731168,
+  "est_path_length_m": 749.8287807824065,
+  "ate_se3_rmse_m": 92.5201628294567,
+  "ate_sim3_rmse_m": 90.64107786703262,
+  "rpe_rmse_m": 0.18504619753476384,
+  "label": "s3li_crater_vio_dem_anchored",
+  "estimate_tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/vio_dem_anchored_enu.tum"
+}

@@ -1,0 +1,17 @@
+{
+  "test": "poison_vio_is_byte_identical_under_gt_corruption",
+  "result": "PASS",
+  "gt_corruption_m": 1000000.0,
+  "n_real_vo_frames": 14,
+  "n_real_imu_samples": 837,
+  "sha256_clean": {
+    "vio_enu": "d15a59a54ba32d9c5d4d678674d1e86f156f413a185952c325e94439bffc3063",
+    "anchored": "2a78d5b7bcd73db8d590a25cb3e8e6e3f1892be22b0eda93f7d86837a2debaf8"
+  },
+  "sha256_poison": {
+    "vio_enu": "d15a59a54ba32d9c5d4d678674d1e86f156f413a185952c325e94439bffc3063",
+    "anchored": "2a78d5b7bcd73db8d590a25cb3e8e6e3f1892be22b0eda93f7d86837a2debaf8"
+  },
+  "byte_identical": true,
+  "note": "VO poses + IMU gyro -> gyro fuse -> register -> DEM-anchoring is a pure function of images + IMU + cam-IMU calibration + DEM + the declared start; the DEM is sampled at the ESTIMATED (x,y), never a GT cell. GT enters only in scoring, after the freeze."
+}
