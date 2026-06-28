@@ -318,6 +318,17 @@
   #exchud .k { color: var(--muted); }
   #excbatt { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: #1a2030; margin-top: 4px; overflow: hidden; }
   #excbattfill { height: 100%; width: 100%; background: #19c37d; transition: width .08s linear; }  /* default GREEN (healthy); JS recolors amber/red by charge -- red is reserved for a genuine low-charge alarm (#234 dim-1) */
+  /* Visual analysis (#234 dim-1 r2): pre-data plot canvases were flat black voids that read as "broken /
+     failed to render" on first load (Validate's drive-preview + localization, Execute, the nav plots). A
+     faint grid makes an EMPTY canvas read as a "viewport awaiting data"; once the JS fills the canvas the
+     opaque bitmap covers the grid, so this only shows when there's nothing drawn yet. !important overrides
+     the per-element inline background:#0a0a0c without touching the inline border/radius. */
+  #navdriveplot, #navmissionplot, #navrealplot, #navplot, #navcov, #execcanvas, #hudcanvas, #rcdrivemap {
+    background-color: #0a0a0c !important;
+    background-image: linear-gradient(rgba(120,132,150,.06) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(120,132,150,.06) 1px, transparent 1px) !important;
+    background-size: 22px 22px !important;
+  }
   /* REPORT pane: the generated mission-control PDF, embedded */
   #reportframe { flex: 1 1 auto; width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; display: none; }
   #reportframe.show { display: block; }
