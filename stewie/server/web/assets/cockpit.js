@@ -294,8 +294,15 @@ function loadBody(key) {
       }).catch(() => {});
     }
   }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-  // #169: hide the floating readout when the cursor leaves the map or the toggle is turned off
-  viewer.canvas.addEventListener("mouseleave", () => { if ($("cursorxy")) $("cursorxy").style.display = "none"; });
+  // #169: hide the floating readout when the cursor leaves the MAP AREA. Bind to the stable #viewarea
+  // container, not viewer.canvas: the Cesium MOUSE_MOVE only fires over the canvas, and the canvas's own
+  // `mouseleave` is missed on fast/overlay exits -- so the readout used to freeze on the pointer over the
+  // left nav sidebar. #viewarea bounds the whole map region, so leaving it (onto the sidebar) clears both.
+  const _mapArea = $("viewarea") || viewer.canvas;
+  _mapArea.addEventListener("mouseleave", () => {
+    if ($("cursorxy")) $("cursorxy").style.display = "none";
+    if ($("cursorcoord")) $("cursorcoord").textContent = "";
+  });
   if ($("coordtoggle")) $("coordtoggle").onchange = () => {
     if (!$("coordtoggle").checked) { if ($("cursorxy")) $("cursorxy").style.display = "none";
       if ($("cursorcoord")) $("cursorcoord").textContent = ""; }

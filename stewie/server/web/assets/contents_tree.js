@@ -34,8 +34,10 @@
   // which LAYER_ON ids belong to which group, and their display names. Ordered within the group.
   var LAYER_GROUPS = {
     basemap: [["imagery", "Imagery basemap"]],
-    terrain: [["dem", "Haworth DEM"], ["slope", "Slope"], ["topology", "Topology"],
-              ["terrain3d", "3D Terrain"], ["recon_twin", "Reconstruction twin"], ["grid", "Site grid"]],
+    // Workbench order = top-to-bottom by z-stack (topmost-drawn first): the Site grid is a thin reference
+    // overlay drawn ON TOP, so it leads; then the data rasters in derivation order DEM -> Slope -> Topology.
+    terrain: [["grid", "Site grid"], ["dem", "Haworth DEM"], ["slope", "Slope"], ["topology", "Topology"],
+              ["terrain3d", "3D Terrain"], ["recon_twin", "Reconstruction twin"]],
     sun: [["illumination", "Shadow (mission-time sun)"], ["incidence", "Sun incidence"], ["psr", "PSR shadow"]],
   };
 

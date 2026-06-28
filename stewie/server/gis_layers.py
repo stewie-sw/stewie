@@ -202,7 +202,10 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
     from stewie.specs import config as _CFG
     cdir = _oss.path.join(_CFG.data_dir(), "globe_cache")
     _oss.makedirs(cdir, exist_ok=True)
-    stem = _oss.path.join(cdir, f"{kind}_{site}_{key[3]}_{key[4]}" + (f"_{grid_color}" if kind == "grid" else ""))
+    # _r2: cache-version token -- bumped when the render math changes (R-1: dem drape now native-res, not
+    # 1024) so a stale globe_cache entry can't keep serving the old resolution after a deploy. Bump on any
+    # future render change.
+    stem = _oss.path.join(cdir, f"{kind}_{site}_{key[3]}_{key[4]}_r2" + (f"_{grid_color}" if kind == "grid" else ""))
     if _oss.path.exists(stem + ".npy") and _oss.path.exists(stem + ".json"):
         out = (_np_load_rgba(stem + ".npy"), _json.load(open(stem + ".json")))
         _GLOBE_CACHE[key] = out
@@ -222,7 +225,10 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         shade01 = _np.clip((nx * lx + ny * ly + nz * lz) / norm, 0.0, 1.0)
         g8 = (40 + shade01 * 200).astype("uint8")        # lift the floor so shadows stay readable
         rgba = _np.dstack([g8, g8, g8, _np.full(g8.shape, 255, dtype="uint8")])
-        out = _reproject(rgba, b, fwd, out_px=1024)
+        # R-1 (#234 / website DEM-layering audit): drape at the DEM's NATIVE resolution, not a fixed 1024
+        # (which ~2x-downsampled the 2000-px / 5 m Haworth tile to ~10 m/px). Cap at 2048 so an oversized
+        # DEM can't blow up the reproject; cached per sun key, so the 4x cost is one-time.
+        out = _reproject(rgba, b, fwd, out_px=min(int(_np.asarray(dem_full).shape[0]), 2048))
     else:
         # FULL-TILE analysis rasters for the globe (Aaron 2026-06-10: "when hazard is clicked the
         # full tile isn't loaded") -- computed from the whole heightmap at a working downsample;
