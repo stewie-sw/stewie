@@ -1109,6 +1109,13 @@
           <div id="constructionacceptanceempty" class="empty">No as-built acceptance yet. Plan a mission
             (Plan tab); the flatness, berm-profile, repose, and bearing pass/fail appear here.</div>
         </div>
+        <div class="cap" style="margin-top:14px"><span>TERRAIN MEMORY — authoritative world state (<b>twin/terrain</b>): what IPEx has built at this site</span></div>
+        <div id="terrainmem" style="overflow:auto;font-size:11px;line-height:1.7;color:var(--muted)">
+          <div class="empty">Loading the site's terrain memory…</div>
+        </div>
+        <div class="ctl" style="margin-top:6px">
+          <button id="tmrecord" class="site" title="fold the current build queue's terrain change into this site's authoritative Terrain Memory (operator+) — the terrain then remembers what was built, and a future plan can target the remembered surface" style="font-size:11px">⤓ Record plan → terrain memory</button>
+        </div>
       </div>
       <!-- FS-03: the MODELS pane (operator+, badge FORGE). Three sections: the deployable SYSTEM-PROFILE
            registry (sha256 + VERIFIED), the vehicle + body registries with provenance, and the ML-01
@@ -1368,6 +1375,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=75107c92d366"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=e7b85eb40f37"></script>
+<script src="/assets/cockpit.js?v=f63bec8f88ac"></script>
 </body>
 </html>

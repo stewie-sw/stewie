@@ -1014,6 +1014,48 @@ async function loadConstruction() {
     catEl.innerHTML = CR.constructionCatalogHTML(_CONSTRUCTION, esc);
     accEl.innerHTML = CR.constructionAcceptanceHTML(_CONSTRUCTION, LAST_VALIDATION, esc);  // live as-built from last plan
   }
+  if ($("tmrecord")) $("tmrecord").onclick = recordTerrainMemory;   // W3: Terrain Memory record action
+  loadTerrainMemory();                                              // W3: the site's authoritative world state
+}
+
+// W3 (Terrain Memory): the Construction pane's authoritative world-state readout -- how much the chosen
+// site's terrain has changed across every recorded mission (GET /twin/terrain/{site}). The terrain
+// "remembers" what IPEx built; the operator folds the current build queue into it via recordTerrainMemory.
+async function loadTerrainMemory() {
+  const el = $("terrainmem"); if (!el) return;
+  try {
+    const r = await fetch(`/twin/terrain/${encodeURIComponent(CURRENT_SITE)}`, { headers: apiHeaders() });
+    if (!r.ok) { el.innerHTML = `<div class="empty">Terrain memory unavailable (HTTP ${r.status}).</div>`; return; }
+    const t = await r.json();
+    if (!t.recorded) {
+      el.innerHTML = `<div class="empty">No terrain changes recorded for <b>${esc(CURRENT_SITE)}</b> yet — `
+        + "record a plan below and the site starts remembering what was built.</div>";
+      return;
+    }
+    const miss = (t.missions || []).map(esc).join(", ") || "—";
+    el.innerHTML = `<b>${esc(CURRENT_SITE)}</b> · v${t.version} · `
+      + (t.chain_valid ? "chain ✓" : "<span style='color:#e8273f'>chain ✗</span>") + "<br>"
+      + `cells changed <b>${(t.cells_changed || 0).toLocaleString()}</b> · net volume <b>${(t.net_volume_m3 || 0).toFixed(2)} m³</b><br>`
+      + `deepest cut <b>${((t.max_cut_m || 0) * 100).toFixed(1)} cm</b> · highest build <b>${((t.max_fill_m || 0) * 100).toFixed(1)} cm</b><br>`
+      + `missions: ${miss}`;
+  } catch (e) { el.innerHTML = `<div class="empty">Terrain memory unavailable (${esc(String(e))}).</div>`; }
+}
+
+async function recordTerrainMemory() {
+  if (!ORDERS.length) { setQ("⚠ add build orders first — nothing to record into terrain memory"); return; }
+  if (!window.confirm(`Record the ${ORDERS.length} queued order(s) into ${CURRENT_SITE}'s terrain memory? `
+      + "The site will remember this build, and a future plan can target the remembered surface.")) return;
+  const mission = { name: `${BODIES[sel.value].name} build`, body: sel.value, charger: [0, 0],
+    orders: ORDERS, keepouts: KEEPOUTS, ...fleet(), ...site() };
+  try {
+    const r = await fetch(`/twin/terrain/${encodeURIComponent(CURRENT_SITE)}`, { method: "POST",
+      headers: apiHeaders(), body: JSON.stringify({ mission }) });
+    const b = await r.json().catch(() => ({}));
+    if (r.status === 403) { setQ("refused — recording terrain memory is operator+"); return; }
+    if (!r.ok) { setQ(`record failed: ${b.detail || b.error || ("HTTP " + r.status)}`); return; }
+    setQ(`terrain memory updated → v${b.version}${b.clipped ? " (part clipped off-site)" : ""}`);
+    loadTerrainMemory();
+  } catch (e) { setQ("record failed — run server.py (" + e + ")"); }
 }
 
 // FS-03 Models pane: render the REAL model + config registries (/models, fetched once): the deployable
