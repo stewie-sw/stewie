@@ -4118,10 +4118,10 @@ qel("sesstart").onclick = async () => {                  // B3: operator/directo
     const j = await res.json();
     if (!j.ok) { setQ("session error: " + (j.error || res.status)); return; }
     const o = qel("sesout"); o.style.display = "block";
-    o.innerHTML = `session <code>${j.session_id.slice(0, 8)}</code> · ${j.n_legs} legs · ` +
-      `<a href="${j.operator_url}" target="_blank">operator view</a> · ` +
-      `<a href="${j.debrief_url}" target="_blank">debrief</a> · ` +
-      `<a href="/session/${j.session_id}/summary" target="_blank">summary</a>` +
+    o.innerHTML = `session <code>${esc(String(j.session_id).slice(0, 8))}</code> · ${j.n_legs} legs · ` +
+      `<a href="${esc(j.operator_url)}" target="_blank">operator view</a> · ` +
+      `<a href="${esc(j.debrief_url)}" target="_blank">debrief</a> · ` +
+      `<a href="/session/${esc(j.session_id)}/summary" target="_blank">summary</a>` +
       ` <span style="opacity:.7">(debrief + summary need the director key when auth is on)</span>`;
     // #80 / TR-01: the trainer SCORECARD (A-board KPIs, persisted server-side) rendered inline AND in
     // the Metrics pane -- director also sees the truth divergence; the inline block is the quick chip strip.
@@ -4789,8 +4789,8 @@ qel("qcompare").onclick = async () => {
       charges: v => v.toFixed(0), mass_kg: v => (v / 1000).toFixed(1) + " t" };
     const cols = ["algorithm", "time_s", "energy_J", "avg_power_w", "distance_m", "charges", "mass_kg"];
     const head = "<tr>" + cols.map(c => `<th style="text-align:left;color:var(--muted)">${c.replace('_s','').replace('_J','').replace('_w','').replace('_m','').replace('_kg','')}</th>`).join("") + "</tr>";
-    const rows = j.rows.map((r, i) => `<tr${r.error ? "" : ` data-algo="${r.algorithm}" style="cursor:pointer"`}>` + cols.map(c => {
-      if (c === "algorithm") return `<td><b>${r.algorithm}${i === 0 ? " ★" : ""}${r.pareto ? " •" : ""}</b></td>`;
+    const rows = j.rows.map((r, i) => `<tr${r.error ? "" : ` data-algo="${esc(r.algorithm)}" style="cursor:pointer"`}>` + cols.map(c => {
+      if (c === "algorithm") return `<td><b>${esc(r.algorithm)}${i === 0 ? " ★" : ""}${r.pareto ? " •" : ""}</b></td>`;  // SEC-04 (#234 dim-3): escape server data into the DOM
       return `<td>${r.error ? "—" : fmt[c](r[c])}</td>`;
     }).join("") + "</tr>").join("");
     const t = qel("cmptable"); t.innerHTML = head + rows; t.style.display = "table";

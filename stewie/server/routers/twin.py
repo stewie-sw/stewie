@@ -49,13 +49,18 @@ class ResyncRequest(BaseModel):
 
 
 @router.post("/twin/resync")
-def twin_resync(req: ResyncRequest, _auth: None = Depends(require_auth)):
+def twin_resync(req: ResyncRequest, identity: str = Depends(require_role("operator"))):
+    # SECURITY (council #234 dim-3): resync MUTATES the shared authoritative twin (apply_patch on the live
+    # observed terrain) -- it must be operator+, not any authenticated client. Previously require_auth let a
+    # guest/trainee (confined elsewhere to read-only / own sandbox) overwrite the world model everyone plans
+    # against. Now gated like its sibling twin_terrain_record + audit-logged.
     import numpy as _np
     try:
         v = state.twin().apply_patch(_np.array(req.heights_m, dtype=float),
                                      origin_rc=tuple(req.origin_rc), provenance=req.provenance)
     except ValueError as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    log_event(identity, "twin.resync", str(req.provenance))
     return {"ok": True, "twin_version": v}
 
 

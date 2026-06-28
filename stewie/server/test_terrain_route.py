@@ -75,3 +75,11 @@ def test_terrain_record_rejects_bad_mission(client):
     c, key, _dd = client
     r = c.post("/twin/terrain/haworth", headers={"X-API-Key": key}, json={"mission": {"nonsense": True}})
     assert r.status_code == 400
+
+
+def test_twin_resync_requires_operator(client):
+    c, _key, _dd = client
+    # SECURITY (#234 dim-3): /twin/resync MUTATES the shared authoritative twin -> operator+, not any
+    # authenticated client. An unauthenticated POST must be rejected (the require_role gate).
+    r = c.post("/twin/resync", json={"heights_m": [[0.0]], "origin_rc": [0, 0], "provenance": "x"})
+    assert r.status_code in (401, 403)
