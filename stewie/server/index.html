@@ -317,7 +317,7 @@
     display: grid; grid-template-columns: 1fr 1fr; gap: 3px 14px; width: 100%; max-width: 560px; align-self: center; }
   #exchud .k { color: var(--muted); }
   #excbatt { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: #1a2030; margin-top: 4px; overflow: hidden; }
-  #excbattfill { height: 100%; width: 100%; background: #19c37d; transition: width .08s linear; }  /* default GREEN (healthy); JS recolors amber/red by charge -- red is reserved for a genuine low-charge alarm (#234 dim-1) */
+  #excbattfill { height: 100%; width: 0; background: #3a3f4a; transition: width .08s linear; }  /* council #238: default EMPTY/grey = NO TELEMETRY (was full GREEN, which read as 100% healthy when nothing is loaded); JS sets width + green/amber/red only on a live charge */
   /* Visual analysis (#234 dim-1 r2): pre-data plot canvases were flat black voids that read as "broken /
      failed to render" on first load (Validate's drive-preview + localization, Execute, the nav plots). A
      faint grid makes an EMPTY canvas read as a "viewport awaiting data"; once the JS fills the canvas the
@@ -1388,7 +1388,7 @@
 <script src="/assets/icons.js?v=cc7490feb72b"></script><!-- ICON-SET: monochrome inline-SVG toolbar glyphs (sets window.STEWIE_ICONS) -->
 <script src="/assets/role_rank.js?v=46d024fe6f3b"></script><!-- FS-24: pure role-authority ladder rank (sets window.STEWIE_ROLE_RANK) -->
 <script src="/assets/keepout_geom.js?v=8e0b54e7d7e5"></script><!-- FS-24: pure keep-out shape/bounds/label (sets window.STEWIE_KEEPOUT_GEOM) -->
-<script src="/assets/navplot.js?v=e542c82063f0"></script><!-- FS-24: pure nav-pane canvas plotters (sets window.STEWIE_NAVPLOT) -->
+<script src="/assets/navplot.js?v=6d01e52727b7"></script><!-- FS-24: pure nav-pane canvas plotters (sets window.STEWIE_NAVPLOT) -->
 <script src="/assets/evidence_html.js?v=56796cce20c6"></script><!-- FS-24: pure release-evidence HTML builders (sets window.STEWIE_EVIDENCE_HTML) -->
 <script src="/assets/rover_hud.js?v=ed01a404713d"></script><!-- FS-24: pure exec-telemetry renderers HUD/spark/chips/gantt (sets window.STEWIE_ROVER_HUD) -->
 <script src="/assets/plan_geom.js?v=bcf37ae566eb"></script><!-- FS-24: pure plan-canvas extent/transform/glyph/precedence math (sets window.STEWIE_PLAN_GEOM) -->
@@ -1400,6 +1400,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=b9996be65138"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=560663d3c6ac"></script>
+<script src="/assets/cockpit.js?v=4014a0bec918"></script>
 </body>
 </html>

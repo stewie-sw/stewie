@@ -39,7 +39,12 @@
   function drawDrive(cv, res) {
     const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
     const route = res.waypoints || [], traj = res.trajectory || [];
-    const all = route.concat(traj); if (!all.length) return;
+    const all = route.concat(traj);
+    if (!all.length) {                                       // council #238: honest in-canvas empty-state (was a blank dark box reading as "broken")
+      g.font = "12px system-ui"; g.fillStyle = "#5a6472"; g.textAlign = "center";
+      g.fillText("No drive yet — press ▶ Run drive preview", cv.width / 2, cv.height / 2);
+      g.textAlign = "left"; return;
+    }
     const t = _fit(cv, all), X = t.X, Y = t.Y;
     const line = (path, color, w, dash) => {
       g.strokeStyle = color; g.lineWidth = w; g.setLineDash(dash || []); g.beginPath();

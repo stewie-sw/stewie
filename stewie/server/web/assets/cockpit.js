@@ -847,7 +847,9 @@ function setView(name) {
   if (name === "plan") { showSiteDem(); if (viewer) viewer.resize(); }   // restore the Plan inset + keep globe crisp
   else $("workarea").classList.remove("show");                            // the inset belongs to the Plan tab
   if (name === "nav" && typeof navDrawMission === "function") navDrawMission(LAST_LOCALIZATION);  // #nav-mission: live est-vs-truth
+  if (name === "nav" && typeof navDrawDrive === "function") navDrawDrive(LAST_DRIVE || {});       // council #238: drive-preview empty-state (or replay the last drive)
   if (name === "metrics" && typeof renderScorecardBoard === "function") renderScorecardBoard();   // TR-01: re-show the last A-board
+  if (name === "metrics" && typeof paintExecIdle === "function") paintExecIdle();   // council #238: honest empty-state on the idle Execute canvas
   // tab-contextual left workspace (#131/#132): show THIS tab's context block, hide the others
   const CTX = { plan: "ctx-plan", nav: "ctx-nav", perception: "ctx-perception", metrics: "ctx-metrics", report: "ctx-report" };
   document.querySelectorAll(".ctxblock").forEach((bk) => { bk.hidden = (bk.id !== CTX[name]); });
@@ -2197,8 +2199,13 @@ function navDrawMission(loc) {
         errM: Math.hypot(p.est[0] - p["true"][0], p.est[1] - p["true"][1]) };
   const traj = (((loc && loc.trajectory) || []).map(normLoc).filter(Boolean));
   const stat = $("navmissionstats");
-  if (!traj.length) { if (stat) stat.textContent =
-    "Plan a mission (4·Plan → Plan mission) to see the rover's live estimated path vs truth and the per-leg fixes."; return; }
+  if (!traj.length) {
+    if (stat) stat.textContent =
+      "Plan a mission (4·Plan → Plan mission) to see the rover's live estimated path vs truth and the per-leg fixes.";
+    g.font = "12px system-ui"; g.fillStyle = "#5a6472"; g.textAlign = "center";   // council #238: in-canvas empty-state
+    g.fillText("Plan a mission to see localization vs truth", cv.width / 2, cv.height / 2);
+    g.textAlign = "left"; return;
+  }
   const est = traj.map((p) => p.est), tru = traj.map((p) => p.truePose);
   const all = est.concat(tru), xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
   const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
@@ -2225,6 +2232,7 @@ function navDrawMission(loc) {
 }
 // FS-05 end-to-end DRIVE PREVIEW: POST /nav/run -> route the global corridor then drive it; draw the
 // planned route (amber dashed) vs the executed trajectory (cyan) + start/goal + recovery backups.
+let LAST_DRIVE = null;   // council #238: persist the last drive result so re-opening Validate redraws it (else the empty-state)
 function navDrawDrive(res) { const cv = $("navdriveplot"); if (cv) window.STEWIE_NAVPLOT.drawDrive(cv, res); }
 async function navDriveRun() {
   const btn = $("navdrive"); btn.disabled = true; btn.textContent = "… driving";
@@ -2234,7 +2242,7 @@ async function navDriveRun() {
       body: JSON.stringify({ start: [sx, sy], goal: [gx, gy], dt: 2.0, max_ticks: 800 }) });
     const b = await r.json();
     if (!b.ok) { $("navdrivestats").innerHTML = `<span style="color:#e8273f">${esc(b.error || "drive unavailable")}</span>`; return; }  // SEC-04
-    navDrawDrive(b);
+    LAST_DRIVE = b; navDrawDrive(b);
     const dev = b.deviation || {};
     const arr = b.arrived ? `<b style="color:var(--accent)">arrived</b>` : `<b style="color:#e8273f">${esc(b.reason)}</b>`;
     $("navdrivestats").innerHTML = `${arr} · routed <b>${b.routed_m} m</b> · <b>${b.n_ticks}</b> control ticks · `
@@ -2945,7 +2953,10 @@ async function cgUpdate() {
   ctx.beginPath(); ctx.moveTo(cgx - 9, cgy); ctx.lineTo(cgx + 9, cgy); ctx.moveTo(cgx, cgy - 9); ctx.lineTo(cgx, cgy + 9); ctx.stroke();
   ctx.lineWidth = 1;
   const riskCol = d.risk === "ok" ? "#3fa34d" : (d.risk === "warn" ? "#e0b300" : "#e8273f");
-  $("cgout").innerHTML = `CG <b>${(d.cg_dx_m * 100).toFixed(1)} cm</b> fwd · height <b>${(d.cg_height_m * 100).toFixed(1)} cm</b> · ` +
+  // council #238: lead with WHAT-IF so the green "risk OK" verdict + precise margin are not read as a LIVE
+  // safety call -- this is a posture computed from the sliders, not a live-pose telemetry verdict.
+  $("cgout").innerHTML = `<span style="color:var(--muted)">what-if · sliders, not live</span> · ` +
+    `CG <b>${(d.cg_dx_m * 100).toFixed(1)} cm</b> fwd · height <b>${(d.cg_height_m * 100).toFixed(1)} cm</b> · ` +
     `tip margin <b style="color:${riskCol}">${d.margin_deg.toFixed(2)}°</b> (${d.binding_axis}) · risk <b style="color:${riskCol}">${d.risk.toUpperCase()}</b>`;
   if (typeof drawRoverHUD === "function") drawRoverHUD(roverHUDState());   // #184: drum-load change -> refresh the rover HUD
 }
@@ -4537,6 +4548,18 @@ function execDraw(tl, orders, ext, cv, simT) {
   ctx.beginPath(); ctx.arc(X(rx), Y(ry), 5, 0, 7); ctx.fill();
   ctx.strokeStyle = "#0b0e17"; ctx.lineWidth = 1.5; ctx.stroke();
   return fr;
+}
+// council #238: an honest in-canvas placeholder when the Execute view is opened with no mission (the empty
+// dark grid read as "broken"). clearRect leaves the canvas transparent so the faint CSS grid still shows
+// THROUGH, with a centered "No mission loaded" cue; a real run (execDraw) overwrites it.
+function paintExecIdle() {
+  const cv = qel("execcanvas"); if (!cv) return;
+  if (LAST_TIMELINE && LAST_TIMELINE.frames && LAST_TIMELINE.frames.length) return;   // a run exists -> leave it
+  const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
+  g.textAlign = "center";
+  g.font = "12px system-ui"; g.fillStyle = "#7a8696"; g.fillText("No mission loaded", cv.width / 2, cv.height / 2 - 6);
+  g.font = "10px system-ui"; g.fillStyle = "#5a6472"; g.fillText("plan a mission, then ▶ Execute + watch", cv.width / 2, cv.height / 2 + 11);
+  g.textAlign = "left";
 }
 function runExecution() {
   const tl = LAST_TIMELINE; if (!tl || !tl.frames.length) return;
