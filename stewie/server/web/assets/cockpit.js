@@ -4678,6 +4678,17 @@ if ($("exec3dwire")) {
     setQ(`3D wire overlay ${TD3D_WIRE ? "on" : "off"}`);
   };
 }
+// GIS-WA2: drape the selected GIS layer onto the 3D relief + vertical exaggeration (the answer to "view
+// layers on the 3D view"). The layer raster is rendered in the loaded heightfield's exact order-frame window.
+if ($("exec3dlayer")) $("exec3dlayer").onchange = (e) => {
+  if (window.STEWIE3D && STEWIE3D.setLayer) STEWIE3D.setLayer(e.target.value);
+  setQ(e.target.value === "height" ? "3D: height-ramp relief" : `3D: ${e.target.value} layer on the relief`);
+};
+if ($("exec3dvex")) $("exec3dvex").oninput = (e) => {
+  const k = parseFloat(e.target.value) || 1;
+  if ($("exec3dvexv")) $("exec3dvexv").textContent = k.toFixed(1);
+  if (window.STEWIE3D && STEWIE3D.setVertExag) STEWIE3D.setVertExag(k);
+};
 
 // 3D path definition in the PLAN flow (Aaron 2026-06-17, option 1): a relief-accurate alternative to the
 // 2D globe. "▦ 3D path" swaps the Plan map for a Three.js wireframe of the CHOSEN SITE's DEM; clicking the

@@ -46,3 +46,27 @@ def test_workarea_png_unknown_site_404():
     r = client.get("/dem/workarea.png?site=__nope__&window_m=640")
     assert r.status_code == 404
     assert r.json()["ok"] is False
+
+
+import pytest
+
+
+@pytest.mark.parametrize("kind", ["dem", "slope", "hazard", "illumination", "psr"])
+def test_workarea_png_per_layer_kind(kind):
+    """GIS-WA2: every layer kind renders an order-frame [0,win]^2 raster (real Haworth, via the shared
+    gis_layers._layer_rgba) so the 3D view can texture the relief with the selected layer. Small window
+    keeps the illumination/psr horizon sweep fast."""
+    r = client.get(f"/dem/workarea.png?site=haworth&window_m=200&kind={kind}")
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"] == "image/png"
+    img = _decode(r.content)
+    assert img.ndim == 3 and img.shape[2] == 4, f"{kind}: expected RGBA, got {img.shape}"
+    h, w = img.shape[:2]
+    assert h == w, f"{kind}: order frame is square, got {h}x{w}"
+    assert 20 <= h <= 300, f"{kind}: expected native-res (~41 px for 200 m @ 5 m), got {h}"
+
+
+def test_workarea_png_unknown_kind_400():
+    r = client.get("/dem/workarea.png?site=haworth&window_m=200&kind=__bogus__")
+    assert r.status_code == 400
+    assert r.json()["ok"] is False

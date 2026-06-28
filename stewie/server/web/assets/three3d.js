@@ -111,15 +111,22 @@ function render(hf) {
   if (S.markerGroup || S.measureGroup) clearPlots();        // a new site = fresh annotations (stale order coords)
   const n = hf.n, win = hf.window_m, step = win / (n - 1);
   const zmin = hf.z_min, span = Math.max(1e-6, hf.z_max - hf.z_min);
-  const pos = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3);
+  const vex = S._vex || 1;                                  // GIS-WA2: vertical exaggeration (relief readability)
+  const pos = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3), uv = new Float32Array(n * n * 2);
+  const baseH = new Float32Array(n * n);                    // GIS-WA2: un-exaggerated heights, for setVertExag
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
       const k = j * n + i, h = hf.z[k] - zmin;
-      pos[k * 3] = i * step; pos[k * 3 + 1] = h; pos[k * 3 + 2] = j * step;  // x=E, y=up, z=N
+      baseH[k] = h;
+      pos[k * 3] = i * step; pos[k * 3 + 1] = h * vex; pos[k * 3 + 2] = j * step;  // x=E, y=up, z=N
+      // GIS-WA2: uv for layer texturing. /dem/workarea.png is North-up/West-left; with three's default
+      // flipY the texture top (North) is v=1, so vertex j (z=N, North as j grows) -> v=j/(n-1); u=i/(n-1).
+      uv[k * 2] = i / (n - 1); uv[k * 2 + 1] = j / (n - 1);
       const t = h / span;                                                     // low=slate, high=regolith tan
       col[k * 3] = 0.26 + 0.50 * t; col[k * 3 + 1] = 0.27 + 0.36 * t; col[k * 3 + 2] = 0.30 + 0.12 * t;
     }
   }
+  S._baseH = baseH;                                         // GIS-WA2: setVertExag rescales from this
   const idx = [];
   for (let j = 0; j < n - 1; j++) {
     for (let i = 0; i < n - 1; i++) {
@@ -130,6 +137,7 @@ function render(hf) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));   // GIS-WA2: for layer texturing
   geo.setIndex(idx);
   geo.computeVertexNormals();
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0.0 });
@@ -145,10 +153,53 @@ function render(hf) {
   S.group.add(S.wire);
 
   S.win = win; S.n = n; S.step = step; S.zmin = zmin; S.hf = hf;
+  S._site = hf.site || S._site;                            // GIS-WA2: for the layer-texture URL (matches this window)
   S.target.set(win / 2, span * 0.35, win / 2);
   S.dist = win * 1.5;
   setSun(S._sunAz ?? 135, S._sunEl ?? 18);   // grazing south-pole sun by default
+  if (S._layerKind && S._layerKind !== "height") setLayer(S._layerKind);   // GIS-WA2: re-drape the selected layer
   return true;
+}
+
+// GIS-WA2: drape the selected GIS layer raster onto the relief as a texture (the answer to "view layers on
+// the 3D view"). kind: 'height' (the synthetic slate->tan ramp, default) or a real layer rendered in THIS
+// window's order frame (dem/hillshade, slope, hazard, illumination, psr) via /dem/workarea.png?kind=. The
+// raster window MUST equal S.win (the loaded heightfield window) so the texture registers cell-for-cell.
+function setLayer(kind) {
+  S._layerKind = kind || "height";
+  if (!S.mesh) return;
+  const mat = S.mesh.material;
+  if (!kind || kind === "height") {                       // back to the per-vertex height ramp
+    if (mat.map) { mat.map.dispose(); mat.map = null; }
+    mat.vertexColors = true; mat.color.setHex(0xffffff); mat.needsUpdate = true;
+    return;
+  }
+  const site = encodeURIComponent(S._site || "haworth");
+  const url = `/dem/workarea.png?site=${site}&window_m=${Math.round(S.win)}&kind=${encodeURIComponent(kind)}` +
+              `&sun_az=${Math.round(S._sunAz ?? 315)}&sun_el=${Math.round(S._sunEl ?? 45)}`;
+  new THREE.TextureLoader().load(url, (tex) => {
+    if (!S.mesh || S._layerKind !== kind) { tex.dispose(); return; }   // a newer selection won
+    tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
+    const m = S.mesh.material;
+    if (m.map) m.map.dispose();
+    m.map = tex; m.vertexColors = false; m.color.setHex(0xffffff); m.needsUpdate = true;
+  });
+}
+
+// GIS-WA2: vertical exaggeration -- rescale the relief height (k=1 true scale) so subtle slopes read in 3D.
+function setVertExag(k) {
+  k = Math.max(0.1, Math.min(20, +k || 1));
+  S._vex = k;
+  if (!S.mesh || !S._baseH) return;
+  const pos = S.mesh.geometry.attributes.position, bh = S._baseH;
+  for (let i = 0; i < bh.length; i++) pos.array[i * 3 + 1] = bh[i] * k;
+  pos.needsUpdate = true; S.mesh.geometry.computeVertexNormals();
+  if (S.wire) {                                            // rebuild the wire overlay to match the new relief
+    S.group.remove(S.wire); S.wire.geometry.dispose(); S.wire.material.dispose();
+    S.wire = new THREE.LineSegments(new THREE.WireframeGeometry(S.mesh.geometry),
+      new THREE.LineBasicMaterial({ color: 0x35e0d0, transparent: true, opacity: 0.28 }));
+    S.wire.visible = (S._wireOn !== false); S.group.add(S.wire);
+  }
 }
 
 // bilinear height (metres above zmin) at order (x, y), for placing the rover ON the surface
@@ -532,6 +583,8 @@ function setFlyMode(on, walk) {
 function getCamPos() { return S.camera ? [S.camera.position.x, S.camera.position.y, S.camera.position.z] : null; }
 
 window.STEWIE3D = { mount, render, setRover, setLiveRover, clearLiveRover, setClasts, clearClasts, setPath, setSun, setWireframe, setLander3D, clearTracks, heightAt,
+  setLayer, setVertExag,
+  get layerKind() { return S._layerKind || "height"; }, get vertExag() { return S._vex || 1; },
   animateRover, stopRoverAnim, setPathEdit, onPathChange, getWaypoints, undoWaypoint, clearWaypoints, pathStats,
   setFlyMode, getCamPos,
   setCoordReadout, onHover, setPlotMode, setMeasureMode, onMarkers, onMeasure, getMarkers, clearPlots,

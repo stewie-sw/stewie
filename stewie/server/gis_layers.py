@@ -184,6 +184,59 @@ def _reproject(source_rgba, b, fwd, *, out_px: int = 1024, sub=None):
     return out.astype("uint8"), bbox
 
 
+def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0):
+    """GIS-WA2: each layer's colouring as a PURE function of a DEM patch + its cell size -- the single
+    source of truth shared by the globe drape (render_globe, full-tile, reprojected) and the order-frame
+    work-area drape (/dem/workarea.png, native crop). Returns (H,W,4) uint8 RGBA, or None for an unknown
+    kind. 'dem'/'hillshade' = 315/45 lambertian relief; slope/hazard from the gradient (hazard uses the
+    20deg TESTED [WHEELTEST] envelope); illumination/psr from the real horizon (dart.illumination)."""
+    import numpy as np
+    dem = np.asarray(dem, dtype=float)
+    if kind in ("dem", "hillshade"):
+        gy, gx = np.gradient(dem, cell)
+        az, el = np.radians(float(sun_az)), np.radians(float(sun_el))
+        nx, ny, nz = -gx, -gy, np.ones_like(gx)
+        norm = np.sqrt(nx * nx + ny * ny + nz * nz)
+        lx = np.cos(el) * np.sin(az); ly = np.cos(el) * np.cos(az); lz = np.sin(el)
+        shade = np.clip((nx * lx + ny * ly + nz * lz) / norm, 0.0, 1.0)
+        g8 = (40 + shade * 200).astype("uint8")          # lift the floor so shadows stay readable
+        return np.dstack([g8, g8, g8, np.full(g8.shape, 255, dtype="uint8")])
+    if kind == "slope":
+        gy, gx = np.gradient(dem, cell)
+        slope = np.degrees(np.arctan(np.hypot(gx, gy)))
+        t = np.clip(slope / 30.0, 0, 1)
+        rgba = np.zeros((*slope.shape, 4))
+        rgba[..., 0] = 60 + 195 * t; rgba[..., 1] = 200 * (1 - t); rgba[..., 2] = 40
+        rgba[..., 3] = 90 + 120 * t
+        return rgba.astype("uint8")
+    if kind == "hazard":
+        gy, gx = np.gradient(dem, cell)
+        slope = np.degrees(np.arctan(np.hypot(gx, gy)))
+        nogo = slope > 20.0                               # the TESTED envelope [WHEELTEST]
+        graded = np.clip((slope - 15.0) / 5.0, 0, 1)      # nominal->tested band
+        rgba = np.zeros((*slope.shape, 4))
+        rgba[..., 0] = 255; rgba[..., 1] = 140 * (1 - graded)
+        rgba[..., 3] = np.where(nogo, 230, 170 * graded)
+        rgba[nogo, 1] = 0
+        return rgba.astype("uint8")
+    if kind == "illumination":
+        from dart.illumination import horizon_clip
+        lit = horizon_clip(dem, cell, float(sun_az), float(sun_el))
+        rgba = np.zeros((*lit.shape, 4))
+        rgba[..., 2] = 180; rgba[..., 3] = np.where(lit, 0, 165)
+        return rgba.astype("uint8")
+    if kind == "psr":
+        from dart.illumination import horizon_clip
+        ever_lit = np.zeros(dem.shape, dtype=bool)
+        for az in range(0, 360, 30):
+            ever_lit |= horizon_clip(dem, cell, float(az), 3.0)
+        rgba = np.zeros((*dem.shape, 4))
+        rgba[..., 0] = 90; rgba[..., 2] = 200
+        rgba[..., 3] = np.where(ever_lit, 0, 200)
+        return rgba.astype("uint8")
+    return None
+
+
 def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=None,
                  grid_color: str = "39ff14", site: str = "haworth"):
     """The geographic drape for the globe: 'dem' = the full-tile hillshade; the GIS rasters
@@ -214,20 +267,11 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
     import numpy as _np
     dem_full, cell_m, b, fwd = _tile_geo(mp, bundle_dir)
     if kind == "dem":
-        # CLEAN cartographic hillshade computed from the RAW heightmap (Aaron's 2nd screenshot:
-        # preview_hillshade.png is a matplotlib FIGURE -- axis labels + white margins were being
-        # draped onto the Moon). Standard 315/45 lambertian; the real-sun SHADOW layer is separate.
-        gy, gx = _np.gradient(_np.asarray(dem_full, dtype=float), cell_m)
-        az, el = _np.radians(315.0), _np.radians(45.0)
-        nx, ny, nz = -gx, -gy, _np.ones_like(gx)
-        norm = _np.sqrt(nx * nx + ny * ny + nz * nz)
-        lx = _np.cos(el) * _np.sin(az); ly = _np.cos(el) * _np.cos(az); lz = _np.sin(el)
-        shade01 = _np.clip((nx * lx + ny * ly + nz * lz) / norm, 0.0, 1.0)
-        g8 = (40 + shade01 * 200).astype("uint8")        # lift the floor so shadows stay readable
-        rgba = _np.dstack([g8, g8, g8, _np.full(g8.shape, 255, dtype="uint8")])
-        # R-1 (#234 / website DEM-layering audit): drape at the DEM's NATIVE resolution, not a fixed 1024
-        # (which ~2x-downsampled the 2000-px / 5 m Haworth tile to ~10 m/px). Cap at 2048 so an oversized
-        # DEM can't blow up the reproject; cached per sun key, so the 4x cost is one-time.
+        # CLEAN cartographic hillshade (315/45 lambertian) computed from the RAW heightmap via the shared
+        # _layer_rgba helper (the order-frame work-area drape uses the same). The real-sun SHADOW layer is
+        # separate. R-1 (#234): drape at the DEM's NATIVE resolution, not a fixed 1024 (which ~2x-downsampled
+        # the 2000-px / 5 m Haworth tile). Cap at 2048 so an oversized DEM can't blow up the reproject.
+        rgba = _layer_rgba(dem_full, cell_m, "dem")
         out = _reproject(rgba, b, fwd, out_px=min(int(_np.asarray(dem_full).shape[0]), 2048))
     else:
         # FULL-TILE analysis rasters for the globe (Aaron 2026-06-10: "when hazard is clicked the
@@ -265,36 +309,10 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         stride = max(1, dem_full.shape[0] // px)
         dem = _np.asarray(dem_full, dtype=float)[::stride, ::stride]
         cm = cell_m * stride
-        if kind == "slope":
-            gy, gx = _np.gradient(dem, cm)
-            slope = _np.degrees(_np.arctan(_np.hypot(gx, gy)))
-            t = _np.clip(slope / 30.0, 0, 1)
-            rgba = _np.zeros((*slope.shape, 4))
-            rgba[..., 0] = 60 + 195 * t; rgba[..., 1] = 200 * (1 - t); rgba[..., 2] = 40
-            rgba[..., 3] = 90 + 120 * t
-        elif kind == "hazard":
-            gy, gx = _np.gradient(dem, cm)
-            slope = _np.degrees(_np.arctan(_np.hypot(gx, gy)))
-            nogo = slope > 20.0                            # the TESTED envelope [WHEELTEST]
-            graded = _np.clip((slope - 15.0) / 5.0, 0, 1)  # nominal->tested band
-            rgba = _np.zeros((*slope.shape, 4))
-            rgba[..., 0] = 255; rgba[..., 1] = 140 * (1 - graded)
-            rgba[..., 3] = _np.where(nogo, 230, 170 * graded)
-            rgba[nogo, 1] = 0
-        elif kind == "illumination":
-            from dart.illumination import horizon_clip
-            lit = horizon_clip(dem, cm, float(sun_az), float(sun_el))
-            rgba = _np.zeros((*lit.shape, 4))
-            rgba[..., 2] = 180; rgba[..., 3] = _np.where(lit, 0, 165)
-        elif kind == "psr":
-            from dart.illumination import horizon_clip
-            ever_lit = _np.zeros(dem.shape, dtype=bool)
-            for az in range(0, 360, 30):
-                ever_lit |= horizon_clip(dem, cm, float(az), 3.0)
-            rgba = _np.zeros((*dem.shape, 4))
-            rgba[..., 0] = 90; rgba[..., 2] = 200
-            rgba[..., 3] = _np.where(ever_lit, 0, 200)
-        else:
+        # the per-kind colouring is the shared _layer_rgba helper (same formulas the order-frame
+        # work-area drape uses); here it runs on the downsampled full tile + is reprojected for the globe.
+        rgba = _layer_rgba(dem, cm, kind, sun_az, sun_el)
+        if rgba is None:
             return None
         out = _reproject(rgba.astype("uint8"), b, fwd, out_px=1024)
     _GLOBE_CACHE[key] = out

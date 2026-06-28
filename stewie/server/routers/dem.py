@@ -135,20 +135,20 @@ def dem_heightfield(site: str = "haworth", n: int = 129, window_m: float = 300.0
 
 
 @router.get("/dem/workarea.png")
-def dem_workarea_png(site: str = "haworth", window_m: float = 640.0,
+def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str = "dem",
                      sun_az: float = 315.0, sun_el: float = 45.0):
-    """GIS-WA1: a CLEAN, axis-free hillshade of the WORK-AREA order frame [0, window_m]^2 (x East, y North
-    from the site origin), sampled from the chosen site's real LOLA DEM at NATIVE cell resolution and
-    rendered as a bare grayscale raster -- no matplotlib axes/title/margins. This is the authoring backdrop:
-    the cockpit drapes it into the plan canvas's [0, window_m] world box (X(0)..X(win)), so a click maps to
-    true site metres. REPLACES /dem/hillshade.png (preview_hillshade.png = a matplotlib FIGURE whose ~12%
-    margins inset the terrain and misregistered every click). Image row 0 = top = max y (North); col 0 =
-    left = x=0 (West) -- the plan canvas's North-up, West-left convention. Same 315/45 lambertian as the
-    globe `dem` drape. Declared BEFORE /dem/{name} so the literal path is not captured as a preview name."""
+    """GIS-WA1/WA2: a CLEAN, axis-free raster of the WORK-AREA order frame [0, window_m]^2 (x East, y North
+    from the site origin), sampled from the chosen site's real LOLA DEM at NATIVE cell resolution -- no
+    matplotlib axes/title/margins. `kind` selects the LAYER: dem (315/45 hillshade, the plan-canvas authoring
+    backdrop), slope, hazard, illumination, psr -- all rendered in the order frame via the SAME gis_layers
+    _layer_rgba the globe drape uses, so the 3D view (GIS-WA2) can texture the relief with the chosen layer
+    at the heightfield's exact window. Image row 0 = top = max y (North); col 0 = left = x=0 (West) -- the
+    plan canvas's North-up, West-left convention. Declared BEFORE /dem/{name} so the literal path is not
+    captured as a preview name."""
     import numpy as np
 
     from stewie.server import state
-    from stewie.server.gis_layers import _to_png
+    from stewie.server.gis_layers import _layer_rgba, _to_png
     from stewie.terrain.site_dem import bundle_for_site
     try:
         bundle_for_site(site)                           # validate the site (404 on unknown / unimported)
@@ -166,16 +166,12 @@ def dem_workarea_png(site: str = "haworth", window_m: float = 640.0,
     xs = np.linspace(0.0, win, npx)
     cols = np.clip(np.round((ox + xs) / cell).astype(int), 0, W - 1)
     rows = np.clip(np.round((oy + xs) / cell).astype(int), 0, H - 1)
-    # crop [row=y(North), col=x(East)]; flipud so image row 0 = max y (North) = the plan canvas's top.
-    patch = np.flipud(Zf[np.ix_(rows, cols)])
-    gy, gx = np.gradient(patch, float(cell))            # in image coords after the flip
-    az, el = np.radians(float(sun_az)), np.radians(float(sun_el))
-    nx, ny, nz = -gx, -gy, np.ones_like(gx)
-    norm = np.sqrt(nx * nx + ny * ny + nz * nz)
-    lx = np.cos(el) * np.sin(az); ly = np.cos(el) * np.cos(az); lz = np.sin(el)
-    shade01 = np.clip((nx * lx + ny * ly + nz * lz) / norm, 0.0, 1.0)
-    g8 = (40 + shade01 * 200).astype("uint8")           # lift the floor so shadows stay readable (<=240, no white chrome)
-    rgba = np.dstack([g8, g8, g8, np.full(g8.shape, 255, dtype="uint8")])
+    patch = Zf[np.ix_(rows, cols)]                       # [row=y(North as j incr), col=x(East)] -- TRUE orientation
+    rgba = _layer_rgba(patch, float(cell), kind, sun_az, sun_el)   # compute the layer on the true-orient patch
+    if rgba is None:
+        return JSONResponse(status_code=400,
+                            content={"ok": False, "error": f"unknown layer kind {kind!r}"})
+    rgba = np.flipud(rgba)                               # image row 0 = top = max y (North) = the plan canvas's top
     return Response(content=_to_png(rgba), media_type="image/png")
 
 
