@@ -210,6 +210,10 @@
        outranks it). MUST also drop the base min-width:180px, which otherwise beats max-width. */
     body #workarea { width: 32vw; max-width: 120px; min-width: 0; }
     #scalebox { bottom: 12px; }
+    /* MOBILE-04: hide the dev subsystem badges (LODE/LEAP/FORGE...) IN THE NAV TABS on phones -- they
+       bloat each tab's width and cram/garble the label at phone size; the ConOps spine + pipeline read
+       cleaner without them (the per-pane readiness dot stays; pane-header .sysb badges are untouched). */
+    #viewtabs .sysb, #stepper .sysb, #stepper .substep .sysb { display: none; }
   }
   .step { font-size: 9px; font-family: "Orbitron", system-ui, sans-serif; letter-spacing: .12em;
           color: var(--accent); margin: 9px 0 3px; text-transform: uppercase; }
