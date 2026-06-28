@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass, field
 from typing import cast
 
@@ -196,3 +197,30 @@ class TerrainMemory:
         m = json.loads(str(z["meta"]))
         return cls(site=m["site"], rows=int(m["rows"]), cols=int(m["cols"]), cell_m=float(m["cell_m"]),
                    origin=tuple(m["origin"]), _delta=z["delta"], version=int(m["version"]), chain=list(m["chain"]))
+
+
+# -- per-site persistence store (W3): the authoritative Terrain Memory for each site lives under the data
+#    dir, so the server can expose it + a future mission release can fold its terrain change in. --------------
+
+def _safe_site(site: str) -> str:
+    """A path-safe filename component for a site name (no traversal, no separators)."""
+    return "".join(c for c in str(site) if c.isalnum() or c in ("-", "_")) or "site"
+
+
+def terrain_path(data_dir: str, site: str) -> str:
+    """The persisted Terrain-Memory file for a site: ``<data_dir>/terrain_memory/<site>.npz``."""
+    return os.path.join(data_dir, "terrain_memory", _safe_site(site) + ".npz")
+
+
+def load_site(data_dir: str, site: str) -> "TerrainMemory | None":
+    """Load a site's persisted Terrain Memory, or None if nothing has been recorded for it yet."""
+    p = terrain_path(data_dir, site)
+    return TerrainMemory.load(p) if os.path.exists(p) else None
+
+
+def save_site(data_dir: str, memory: "TerrainMemory") -> str:
+    """Persist a site's Terrain Memory under the data dir (creating the directory). Returns the path."""
+    p = terrain_path(data_dir, memory.site)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    memory.save(p)
+    return p

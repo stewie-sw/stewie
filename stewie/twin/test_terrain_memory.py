@@ -137,3 +137,17 @@ def test_imprint_rejects_cell_mismatch():
     tm = TerrainMemory(site="s", rows=4, cols=4, cell_m=0.5)
     with pytest.raises(ValueError):
         tm.imprint_on_dem(np.zeros((6, 6)), dem_cell=1.0)
+
+
+def test_save_site_load_site_round_trip(tmp_path):
+    import os
+
+    from stewie.twin.terrain_memory import load_site, save_site, terrain_path
+    assert load_site(str(tmp_path), "haworth") is None         # nothing recorded yet -> None (not an error)
+    tm = TerrainMemory(site="haworth", rows=4, cols=4, cell_m=0.5)
+    tm.apply(_real_cut_delta(4, 4, 0.5, 0.1), mission="m")
+    p = save_site(str(tmp_path), tm)
+    assert os.path.exists(p) and p == terrain_path(str(tmp_path), "haworth")
+    back = load_site(str(tmp_path), "haworth")
+    assert back is not None and back.version == 1 and back.verify_chain()
+    assert np.allclose(back.cumulative_delta(), tm.cumulative_delta())

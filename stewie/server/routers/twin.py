@@ -10,6 +10,8 @@ from pydantic import BaseModel, ConfigDict
 
 from stewie.server import state
 from stewie.server.deps import require_auth, require_director
+from stewie.specs.config import data_dir
+from stewie.twin import terrain_memory as TM
 
 router = APIRouter()
 
@@ -70,3 +72,21 @@ def twin_history(_d: str = Depends(require_director)):
     """DT-02: the full observed-twin audit history (resync events + provenance) -- director-only."""
     t = state.twin()
     return {"twin_version": t.version, "chain_valid": t.verify_chain(), "events": t.history()}
+
+
+@router.get("/twin/terrain/{site}")
+def twin_terrain(site: str, _auth: str = Depends(require_auth)):
+    """W3 (Terrain Memory): a site's authoritative world-model summary -- how much the terrain has changed
+    across every recorded mission (version, cells changed, net volume moved, deepest cut / highest build,
+    the mission log + chain-integrity flag). Never 500: an unrecorded site returns an empty (version 0)
+    summary so the cockpit shows an honest "no terrain changes recorded yet" rather than an error."""
+    try:
+        mem = TM.load_site(data_dir(), site)
+    except Exception:
+        mem = None
+    if mem is None:
+        return {"ok": True, "site": site, "recorded": False, "version": 0, "cells_changed": 0,
+                "net_volume_m3": 0.0, "max_cut_m": 0.0, "max_fill_m": 0.0, "missions": []}
+    s = mem.summary()
+    s.update({"ok": True, "recorded": True, "chain_valid": mem.verify_chain()})
+    return s
