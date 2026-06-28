@@ -1,0 +1,18 @@
+{
+  "test": "poison_estimation_is_byte_identical_under_gt_corruption",
+  "result": "PASS",
+  "gt_corruption_m": 1000000.0,
+  "n_real_vo_frames": 8,
+  "sha256_clean": {
+    "vo_cam": "9266c02c2bf72c8654054ef6aa37d8cda330327ae935deed4ffc0f5b1737cfc6",
+    "vo_enu": "85cb913684a89652428ab7b5aeb350f2a065d82dd0cc1a8895ab2b5ddb0e0f01",
+    "anchored": "d27dc9f6b8e8e5e3a4c6a0eabe341c867ef2b6b061e250f6d97c947535f47d6d"
+  },
+  "sha256_poison": {
+    "vo_cam": "9266c02c2bf72c8654054ef6aa37d8cda330327ae935deed4ffc0f5b1737cfc6",
+    "vo_enu": "85cb913684a89652428ab7b5aeb350f2a065d82dd0cc1a8895ab2b5ddb0e0f01",
+    "anchored": "d27dc9f6b8e8e5e3a4c6a0eabe341c867ef2b6b061e250f6d97c947535f47d6d"
+  },
+  "byte_identical": true,
+  "note": "VO -> register -> DEM-anchoring is a pure function of images + DEM + the declared start; the DEM is sampled at the ESTIMATED (x,y), never a GT cell. GT enters only in scoring, after the estimate is frozen."
+}

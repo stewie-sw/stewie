@@ -1,0 +1,17 @@
+{
+  "stride": 3,
+  "n_frames": 10599,
+  "read_s": 10.212922096252441,
+  "vo_runtime_s": 308.7707505226135,
+  "ms_per_frame": 29.132064395000807,
+  "n_valid": 10599,
+  "n_invalid_steps": 0,
+  "median_pnp_inliers": 165.0,
+  "median_stereo_points": 222.0,
+  "median_temporal_matches": 300.0,
+  "ts_first_ns": 1625658929426191123,
+  "ts_last_ns": 1625660065292736752,
+  "duration_s": 1135.866545629,
+  "npz_path": "/mnt/projects/stewie/code/benchmarks/s3li_crater/vo_cam_stride3.npz",
+  "tum_path": "/mnt/projects/stewie/code/benchmarks/s3li_crater/vo_cam_stride3.tum"
+}
