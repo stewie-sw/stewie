@@ -218,6 +218,13 @@
        scrolling nav and slid off-screen on a phone. Pin it sticky at the right edge so it's always visible
        (solid background so it reads over anything behind it). */
     #wsbadge { position: sticky; right: 6px; z-index: 92; margin-left: 6px; background: var(--bg, #0a0a0c); }
+    /* MOBILE-06: the wizard/pipeline step descriptions were <small> = 0.83em of 9px = 7.5px, below the
+       phone readability floor. Bump them to a legible 10px on mobile. */
+    .step small { font-size: 10px; }
+    .ct-badge { font-size: 9px; }                          /* contents-tree tag chips: nudge off the 8px floor */
+    /* MOBILE-07: dense registry/profile/feasibility tables (Models, Fleet, Construction panes) were
+       crammed into 390px with tiny provenance text. Let them scroll horizontally at a readable width. */
+    #stage table, #panel table { display: block; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
   }
   .step { font-size: 9px; font-family: "Orbitron", system-ui, sans-serif; letter-spacing: .12em;
           color: var(--accent); margin: 9px 0 3px; text-transform: uppercase; }
