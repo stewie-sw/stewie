@@ -94,6 +94,36 @@ class TerrainMemory:
         self.chain.append({**meta, "hash": _record_hash(prev, meta)})
         return self.version
 
+    def apply_subgrid(self, delta: np.ndarray, *, sub_origin: tuple[float, float], cell_m: float,
+                      mission: str, mass_moved_kg: float = 0.0) -> dict:
+        """Fold a mission's LOCAL per-cell delta (over its OWN bbox, with order-frame origin ``sub_origin`` =
+        (x0, y0) and the same ``cell_m`` as the site) into the authoritative SITE grid at the computed offset,
+        clipping to the site bounds, then commit it as a normal versioned transaction. Real missions each
+        work a different sub-region of a site, so the local delta must be placed in the GLOBAL frame: the
+        offset is round((sub_origin - site origin) / cell_m), with x -> col and y -> row (the order-frame
+        convention shared with lode.planner_acceptance / bridge.frames). Returns
+        {version, placed_cells, clipped}; ``clipped`` is True iff part of the mission fell outside the site
+        grid -- surfaced (never silently dropped) so the caller can widen the site or warn."""
+        if abs(float(cell_m) - self.cell_m) > 1e-9:
+            raise ValueError(f"sub-grid cell_m {cell_m} != site cell_m {self.cell_m}")
+        d = np.asarray(delta, dtype=np.float64)
+        if d.ndim != 2:
+            raise ValueError("delta must be a 2-D (rows, cols) grid")
+        col_off = int(round((sub_origin[0] - self.origin[0]) / self.cell_m))   # x -> col
+        row_off = int(round((sub_origin[1] - self.origin[1]) / self.cell_m))   # y -> row
+        full = np.zeros((self.rows, self.cols), dtype=np.float64)
+        r0, c0 = max(0, row_off), max(0, col_off)
+        r1, c1 = min(self.rows, row_off + d.shape[0]), min(self.cols, col_off + d.shape[1])
+        placed = 0
+        if r1 > r0 and c1 > c0:
+            sub = d[r0 - row_off:r1 - row_off, c0 - col_off:c1 - col_off]
+            full[r0:r1, c0:c1] = sub
+            placed = int(np.count_nonzero(np.abs(sub) > 1e-9))
+        clipped = bool(row_off < 0 or col_off < 0
+                       or row_off + d.shape[0] > self.rows or col_off + d.shape[1] > self.cols)
+        version = self.apply(full, mission=mission, mass_moved_kg=mass_moved_kg)
+        return {"version": version, "placed_cells": placed, "clipped": clipped}
+
     def cumulative_delta(self) -> np.ndarray:
         """The accumulated per-cell height change [m] vs the base DEM (a fresh copy)."""
         return self._delta.copy()

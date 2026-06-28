@@ -57,3 +57,20 @@ def test_delta_feeds_terrain_memory_apply():
     # the memory's net volume equals the conserved delta's net volume
     assert tm.summary()["net_volume_m3"] == pytest.approx(float(d["delta"].sum()) * d["cell_m"] ** 2, abs=1e-6)
     assert tm.summary()["max_cut_m"] > 0.0
+
+
+def test_record_mission_folds_two_missions_into_one_site_at_separate_places():
+    from stewie.twin.terrain_memory import TerrainMemory
+    from lode.planner_acceptance import record_mission
+    # a site big enough to contain both missions' footprints (incl. validate_plan's bbox margin) without clip
+    site = TerrainMemory(site="haworth", rows=120, cols=120, cell_m=0.5, origin=(-10.0, -10.0))
+    r1 = record_mission(site, _mission([
+        {"action": "src", "kind": "cut", "x": 5.0, "y": 5.0, "footprint_m2": 36.0, "depth_m": 0.2}]))
+    assert r1["version"] == 1 and r1["placed_cells"] > 0 and r1["clipped"] is False
+    r2 = record_mission(site, _mission([
+        {"action": "src", "kind": "cut", "x": 25.0, "y": 25.0, "footprint_m2": 36.0, "depth_m": 0.15}]))
+    assert r2["version"] == 2 and site.verify_chain()
+    d = site.cumulative_delta()
+    # each cut lands at its own mapped centre: (5,5)->cell ~30, (25,25)->cell ~70 (origin -10, cell 0.5)
+    assert d[30, 30] < 0.0 and d[70, 70] < 0.0          # both cuts present, in separate regions
+    assert site.summary()["missions"] == ["S", "S"] and site.summary()["max_cut_m"] > 0.0

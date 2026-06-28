@@ -296,6 +296,19 @@ def mission_terrain_delta(mission, **kwargs):
     }
 
 
+def record_mission(memory, mission, **kwargs):
+    """W2 (Terrain Memory): fold a (completed/released) mission's conserved terrain change into a site's
+    authoritative world model. Computes the mission's per-cell delta (mission_terrain_delta) and places it
+    into the site grid at its order-frame offset via TerrainMemory.apply_subgrid -- so a sequence of missions
+    over different sub-regions accumulates into the one authoritative site surface. ``memory`` is a
+    stewie.twin.terrain_memory.TerrainMemory whose cell_m matches the plan; kwargs pass through to
+    validate_plan (e.g. dem/dem_origin for a real DEM). Returns {version, placed_cells, clipped}."""
+    d = mission_terrain_delta(mission, **kwargs)
+    return memory.apply_subgrid(d["delta"], sub_origin=(d["x0"], d["y0"]), cell_m=d["cell_m"],
+                                mission=str(getattr(mission, "name", "mission")),
+                                mass_moved_kg=d["mass_moved_kg"])
+
+
 def execute_plan_acceptance(mission, trips, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500,
                             dem=None, dem_origin=(0.0, 0.0)):
     """H-07 follow-up: ORDERED IR-replay acceptance (the literal "execute the exact Plan IR" path).

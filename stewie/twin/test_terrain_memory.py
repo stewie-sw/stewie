@@ -95,3 +95,27 @@ def test_constructor_rejects_bad_grid():
         TerrainMemory(site="s", rows=0, cols=3, cell_m=1.0)
     with pytest.raises(ValueError):
         TerrainMemory(site="s", rows=3, cols=3, cell_m=0.0)
+
+
+def test_apply_subgrid_places_local_delta_at_the_global_offset():
+    # site grid 8x8 at origin (0,0), cell 0.5 -> a local 2x2 mission delta at sub_origin (1.0, 1.5) lands at
+    # col_off=round(1.0/0.5)=2, row_off=round(1.5/0.5)=3 (x->col, y->row), nothing elsewhere.
+    tm = TerrainMemory(site="haworth", rows=8, cols=8, cell_m=0.5, origin=(0.0, 0.0))
+    res = tm.apply_subgrid(np.full((2, 2), -0.1), sub_origin=(1.0, 1.5), cell_m=0.5, mission="pad")
+    assert res == {"version": 1, "placed_cells": 4, "clipped": False}
+    d = tm.cumulative_delta()
+    assert np.allclose(d[3:5, 2:4], -0.1) and np.count_nonzero(np.abs(d) > 1e-9) == 4
+
+
+def test_apply_subgrid_clips_a_mission_partly_outside_the_site():
+    # a 3x3 delta at offset (2,2) of a 4x4 site: only the 2x2 overlap [2:4,2:4] lands; the rest is clipped
+    tm = TerrainMemory(site="s", rows=4, cols=4, cell_m=1.0, origin=(0.0, 0.0))
+    res = tm.apply_subgrid(np.full((3, 3), 0.2), sub_origin=(2.0, 2.0), cell_m=1.0, mission="edge")
+    assert res["clipped"] is True and res["placed_cells"] == 4
+    assert np.allclose(tm.cumulative_delta()[2:4, 2:4], 0.2)
+
+
+def test_apply_subgrid_rejects_cell_mismatch():
+    tm = TerrainMemory(site="s", rows=4, cols=4, cell_m=0.5)
+    with pytest.raises(ValueError):
+        tm.apply_subgrid(np.zeros((2, 2)), sub_origin=(0.0, 0.0), cell_m=1.0, mission="m")
