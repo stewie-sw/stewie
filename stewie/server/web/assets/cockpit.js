@@ -4506,7 +4506,9 @@ function runExecution() {
     qel("excmass").textContent = `${(fr.cum_mass_kg / 1000).toFixed(2)} t`;
     const bf = fr.batt0_frac + (fr.batt1_frac - fr.batt0_frac) * u;
     qel("excbattfill").style.width = `${Math.max(0, bf * 100).toFixed(0)}%`;
-    qel("excbattfill").style.background = bf < 0.2 ? "#e0564b" : "var(--accent)";
+    // visual-appeal council (#234 dim-1): state triad -- green healthy / amber caution / red ONLY at a
+    // genuine low charge, so a full battery no longer renders as a brand-red "alarm" bar.
+    qel("excbattfill").style.background = bf < 0.15 ? "#e0564b" : bf < 0.40 ? "#e0b300" : "#19c37d";
     qel("excbattlbl").textContent = `${(bf * 100).toFixed(1)}%`;   // 1 decimal: the bar flips red at <20% on the raw value, so a rounded "20%" beside a red bar was a mismatch
     // #184: rover HUD -- heading from the path delta (from-north-eastward), live SoC + pose, drum from the stability inputs
     const _dE = fr.x1 - fr.x0, _dN = fr.y1 - fr.y0;

@@ -126,6 +126,10 @@
   .sysb { font-size: 8px; letter-spacing: .15em; color: var(--accent);
     border: 1px solid var(--accent); border-radius: 8px; padding: 0 5px; margin-left: 4px;
     opacity: .8; vertical-align: 1px; }
+  /* Visual-appeal council (#234 dim-1, both reviewers' #1): the per-tab subsystem pills are red-confetti
+     noise in the top nav (and double each tab's height). Hide them in the nav at ALL widths -- mobile
+     already did (see the @media rule below); the subsystem identity stays in the pane-header badges. */
+  #viewtabs .sysb { display: none; }
   .vtab { font-family: "Orbitron", system-ui, sans-serif; letter-spacing: .08em;
     text-transform: uppercase; font-size: 10.5px; }
   .cap, .cap span, h3, label > b, .sidehead { letter-spacing: .1em; }
@@ -313,7 +317,7 @@
     display: grid; grid-template-columns: 1fr 1fr; gap: 3px 14px; width: 100%; max-width: 560px; align-self: center; }
   #exchud .k { color: var(--muted); }
   #excbatt { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: #1a2030; margin-top: 4px; overflow: hidden; }
-  #excbattfill { height: 100%; width: 100%; background: var(--accent); transition: width .08s linear; }
+  #excbattfill { height: 100%; width: 100%; background: #19c37d; transition: width .08s linear; }  /* default GREEN (healthy); JS recolors amber/red by charge -- red is reserved for a genuine low-charge alarm (#234 dim-1) */
   /* REPORT pane: the generated mission-control PDF, embedded */
   #reportframe { flex: 1 1 auto; width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; display: none; }
   #reportframe.show { display: block; }
@@ -1375,6 +1379,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=75107c92d366"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=f63bec8f88ac"></script>
+<script src="/assets/cockpit.js?v=70d887fb6f0c"></script>
 </body>
 </html>
