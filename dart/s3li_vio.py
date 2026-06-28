@@ -40,7 +40,7 @@ only downstream, at time-sync + scoring, after the estimate is frozen.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -89,6 +89,12 @@ class VioBuild:
     n_steps: int
     n_valid_vo_steps: int
     n_imu_samples: int
+    # per-frame gyro-fused CAMERA orientation in the W (= camera-0) frame, R_W_c (N,3,3), and the
+    # leveling rotation R_LW (3,3) (W -> gravity-leveled L). Together with the registration yaw/z0 they
+    # place a camera-frame stereo point into the DEM ENU frame -- the input the horizontal DEM
+    # terrain-correlation anchor needs to build a local elevation patch. (No GT; invariant I3.)
+    R_W_c: np.ndarray = field(default_factory=lambda: np.zeros((0, 3, 3)))
+    R_LW: np.ndarray = field(default_factory=lambda: np.eye(3))
 
 
 # --------------------------------------------------------------------------------------------------
@@ -305,7 +311,39 @@ def build_vio_leveled_trajectory(
         n_steps=n - 1,
         n_valid_vo_steps=int(valid.sum()),
         n_imu_samples=int(np.asarray(imu_ts_ns).shape[0]),
+        R_W_c=R_W_c,
+        R_LW=R_LW,
     )
+
+
+def enu_rotation_from_yaw(yaw_rad: float) -> np.ndarray:
+    """The leveled-frame -> ENU rotation R_enu_leveled implied by the registration heading ``yaw_rad``.
+
+    This is the matrix form of :func:`dart.s3li_capstone.register_cam_to_enu`'s rotation: a leveled
+    vector (x_right, y_down, z_forward) maps to (East, North, Up) as east = s*x + c*z, north = -c*x +
+    s*z, up = -y, with (c, s) = (cos yaw, sin yaw). Orthonormal by construction (the registration is a
+    rigid transform)."""
+    c, s = float(np.cos(yaw_rad)), float(np.sin(yaw_rad))
+    return np.array([[s, 0.0, c], [-c, 0.0, s], [0.0, -1.0, 0.0]], dtype=float)
+
+
+def vio_enu_camera_frames(
+    build: VioBuild, yaw_rad: float, z0_m: float
+) -> tuple[np.ndarray, np.ndarray]:
+    """Per-frame camera-optical -> DEM-ENU pose of the frozen VIO trajectory.
+
+    Returns ``(R_enu_cam (N,3,3), enu_pos (N,3))`` such that a stereo point ``p_cam`` (camera optical
+    frame, x right / y down / z forward) observed at frame k maps to the DEM ENU frame as
+    ``p_enu = R_enu_cam[k] @ p_cam + enu_pos[k]``. The orientation chains the gyro-fused camera
+    orientation ``R_W_c`` through the gravity leveling ``R_LW`` and the registration heading; the
+    position is exactly :func:`register_cam_to_enu` of the leveled VIO positions. Firewall I3: built
+    from the VIO estimate + the declared registration only -- no GT."""
+    from dart.s3li_capstone import register_cam_to_enu
+
+    r_enu_lev = enu_rotation_from_yaw(yaw_rad)
+    r_enu_cam = np.einsum("ij,jk,nkl->nil", r_enu_lev, build.R_LW, build.R_W_c)
+    enu_pos = register_cam_to_enu(build.xyz_leveled, yaw_rad, z0_m)
+    return r_enu_cam, enu_pos
 
 
 # --------------------------------------------------------------------------------------------------

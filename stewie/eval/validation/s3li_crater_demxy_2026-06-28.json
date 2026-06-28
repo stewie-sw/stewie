@@ -1,0 +1,956 @@
+{
+  "experiment": "S3LI s3li_crater stereo-VIO + HORIZONTAL DEM terrain-correlation anchor (DEM_XY): absolute (E,N) fix from matching the rover's locally-observed terrain to the independent Copernicus GLO-30 DEM, attacking the dominant horizontal translation/scale drift",
+  "date": "2026-06-28",
+  "data": {
+    "bag": "/mnt/projects/datasets/argus_dem_nav/s3li/data/Bagfiles/s3li_crater.bag",
+    "gt": "/mnt/projects/datasets/argus_dem_nav/s3li/data/GT/s3li_crater/global_lle.pos",
+    "dem_source": "Copernicus GLO-30 (Copernicus DEM, EGM2008-orthometric, ~30 m), tile N37/E015",
+    "stride": 3,
+    "n_frames": 10599,
+    "n_cloud_frames": 1767,
+    "n_cloud_points": 1758030,
+    "stereo_depth_range_m": [
+      0.5,
+      8.0
+    ]
+  },
+  "method": {
+    "summary": "Per sliding window, accumulate per-frame stereo 3-D points (transformed by the ESTIMATED VIO poses) into a local 2.5-D elevation patch in the DEM ENU frame, downsample to ~DEM scale (grid + per-cell median), and search (dx,dy) for the shift maximising the de-meaned elevation cross-correlation against the DEM sampled at the SHIFTED (estimated) cell centres. The peak gives an absolute (E,N) fix; the peak correlation, a far-competitor ambiguity margin, and the peak-breadth-derived sigma are the firewall-clean confidence. Accepted fixes enter the pose graph as DEM_XY absolute-position factors, solved jointly with the VIO between-factors and the DEM height-normal anchors.",
+    "stereo_depth_caveat": "S3LI stereo sees terrain within ~0.5-8 m of the camera, so a window's patch is a THIN ~1-D elevation ribbon along the rover path (not a 2-D terrain tile); this, with the coarse DEM, is the binding limitation reported below.",
+    "resolution_ceiling": "Copernicus GLO-30 (~30 m) over a 245x309 m traverse (~10 cells) caps horizontal-match precision at roughly 15-30 m; the ~66 m crater relief is the matchable signal. A sub-10 m fix needs a higher-res DEM.",
+    "registration_params": {
+      "cloud_sample_every": 6
+    }
+  },
+  "time_sync": {
+    "method": "VIO-vs-GT translation-speed cross-correlation (constant offset)",
+    "offset_s": -16.600000000000048,
+    "peak_corr": 0.9161106952538295
+  },
+  "registration_quality": {
+    "n_windows": 36,
+    "n_accepted": 0,
+    "reject_reasons": {
+      "low_corr": 18,
+      "ambiguous_peak": 6,
+      "too_few_cells": 12
+    },
+    "accepted_corr_distribution": {
+      "min": -0.9471183344794931,
+      "median": -0.751216424888701,
+      "max": 0.974899352669628
+    },
+    "per_window": [
+      {
+        "keyframe": 750,
+        "enu_xy_m": [
+          3.0182947805131617,
+          39.50859561440812
+        ],
+        "shift_m": [
+          6.0,
+          -24.0
+        ],
+        "shift_norm_m": 24.73863375370596,
+        "corr": -0.9217738602831644,
+        "margin": 0.011358060415154525,
+        "sigma_m": 35.0,
+        "relief_std_m": 20.439132616687267,
+        "n_cells": 19,
+        "n_points": 324659,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 1050,
+        "enu_xy_m": [
+          4.764032066068239,
+          66.20171045942769
+        ],
+        "shift_m": [
+          60.0,
+          60.0
+        ],
+        "shift_norm_m": 84.8528137423857,
+        "corr": -0.9471183344794931,
+        "margin": 0.000653175344129231,
+        "sigma_m": 35.0,
+        "relief_std_m": 21.96267547288167,
+        "n_cells": 21,
+        "n_points": 326101,
+        "on_boundary": true,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 1350,
+        "enu_xy_m": [
+          10.725349878583996,
+          99.50680043653881
+        ],
+        "shift_m": [
+          48.0,
+          60.0
+        ],
+        "shift_norm_m": 76.83749084919418,
+        "corr": -0.9084038796956038,
+        "margin": 0.027966683190948638,
+        "sigma_m": 35.0,
+        "relief_std_m": 16.419471199481215,
+        "n_cells": 20,
+        "n_points": 323609,
+        "on_boundary": true,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 1650,
+        "enu_xy_m": [
+          11.742614104575694,
+          123.40088926221713
+        ],
+        "shift_m": [
+          57.0,
+          60.0
+        ],
+        "shift_norm_m": 82.75868534480233,
+        "corr": -0.8730561083703513,
+        "margin": 0.051399916912576504,
+        "sigma_m": 19.262540189327435,
+        "relief_std_m": 14.718205873504502,
+        "n_cells": 20,
+        "n_points": 315742,
+        "on_boundary": true,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 1950,
+        "enu_xy_m": [
+          14.771112486848086,
+          147.3076494827079
+        ],
+        "shift_m": [
+          57.0,
+          60.0
+        ],
+        "shift_norm_m": 82.75868534480233,
+        "corr": -0.8199478020786103,
+        "margin": 0.07216014525450354,
+        "sigma_m": 14.653132283381794,
+        "relief_std_m": 14.353987020728175,
+        "n_cells": 21,
+        "n_points": 312942,
+        "on_boundary": true,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 2250,
+        "enu_xy_m": [
+          18.416684149323096,
+          177.9978908731125
+        ],
+        "shift_m": [
+          48.0,
+          30.0
+        ],
+        "shift_norm_m": 56.60388679233962,
+        "corr": 0.029635799108962208,
+        "margin": 0.03403882500749785,
+        "sigma_m": 20.140173342811153,
+        "relief_std_m": 8.931173949745386,
+        "n_cells": 19,
+        "n_points": 290828,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 2550,
+        "enu_xy_m": [
+          21.49298769250385,
+          208.05328741752254
+        ],
+        "shift_m": [
+          48.0,
+          12.0
+        ],
+        "shift_norm_m": 49.47726750741192,
+        "corr": 0.7246579993448177,
+        "margin": 0.029765764978901266,
+        "sigma_m": 25.22557571849789,
+        "relief_std_m": 12.87881551724636,
+        "n_cells": 16,
+        "n_points": 248075,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "ambiguous_peak"
+      },
+      {
+        "keyframe": 2850,
+        "enu_xy_m": [
+          27.748936574656454,
+          235.73571999504708
+        ],
+        "shift_m": [
+          48.0,
+          -9.0
+        ],
+        "shift_norm_m": 48.83646178829912,
+        "corr": 0.945333571519589,
+        "margin": 0.005745814774844593,
+        "sigma_m": 35.0,
+        "relief_std_m": 19.044858609877316,
+        "n_cells": 15,
+        "n_points": 219668,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "ambiguous_peak"
+      },
+      {
+        "keyframe": 3150,
+        "enu_xy_m": [
+          31.02658692158625,
+          249.13370080013664
+        ],
+        "shift_m": [
+          45.0,
+          9.0
+        ],
+        "shift_norm_m": 45.89117562233506,
+        "corr": 0.974899352669628,
+        "margin": 0.0027478396146444206,
+        "sigma_m": 35.0,
+        "relief_std_m": 21.740189857128687,
+        "n_cells": 13,
+        "n_points": 178699,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "ambiguous_peak"
+      },
+      {
+        "keyframe": 3450,
+        "enu_xy_m": [
+          34.73471337447334,
+          264.95269871468776
+        ],
+        "shift_m": [
+          0.0,
+          0.0
+        ],
+        "shift_norm_m": 0.0,
+        "corr": -2.0,
+        "margin": 0.0,
+        "sigma_m": 0.0,
+        "relief_std_m": 19.312191023881862,
+        "n_cells": 9,
+        "n_points": 141452,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "too_few_cells"
+      },
+      {
+        "keyframe": 3750,
+        "enu_xy_m": [
+          35.728400189286404,
+          279.21983361564475
+        ],
+        "shift_m": [
+          0.0,
+          0.0
+        ],
+        "shift_norm_m": 0.0,
+        "corr": -2.0,
+        "margin": 0.0,
+        "sigma_m": 0.0,
+        "relief_std_m": 21.371020832387746,
+        "n_cells": 7,
+        "n_points": 140888,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "too_few_cells"
+      },
+      {
+        "keyframe": 4050,
+        "enu_xy_m": [
+          33.98305326845232,
+          274.30864971685526
+        ],
+        "shift_m": [
+          0.0,
+          0.0
+        ],
+        "shift_norm_m": 0.0,
+        "corr": -2.0,
+        "margin": 0.0,
+        "sigma_m": 0.0,
+        "relief_std_m": 14.77189928491987,
+        "n_cells": 5,
+        "n_points": 149871,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "too_few_cells"
+      },
+      {
+        "keyframe": 4350,
+        "enu_xy_m": [
+          34.99749249215184,
+          276.2531224236596
+        ],
+        "shift_m": [
+          0.0,
+          0.0
+        ],
+        "shift_norm_m": 0.0,
+        "corr": -2.0,
+        "margin": 0.0,
+        "sigma_m": 0.0,
+        "relief_std_m": 8.383214956616126,
+        "n_cells": 7,
+        "n_points": 157291,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "too_few_cells"
+      },
+      {
+        "keyframe": 4650,
+        "enu_xy_m": [
+          34.26211784383333,
+          275.4692198570684
+        ],
+        "shift_m": [
+          0.0,
+          0.0
+        ],
+        "shift_norm_m": 0.0,
+        "corr": -2.0,
+        "margin": 0.0,
+        "sigma_m": 0.0,
+        "relief_std_m": 12.324638533491457,
+        "n_cells": 9,
+        "n_points": 179235,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "too_few_cells"
+      },
+      {
+        "keyframe": 4950,
+        "enu_xy_m": [
+          38.7846819026914,
+          295.5919879576019
+        ],
+        "shift_m": [
+          -60.0,
+          45.0
+        ],
+        "shift_norm_m": 75.0,
+        "corr": -0.20830831443541314,
+        "margin": 0.015351352974438681,
+        "sigma_m": 35.0,
+        "relief_std_m": 12.558198874063855,
+        "n_cells": 12,
+        "n_points": 208636,
+        "on_boundary": true,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 5250,
+        "enu_xy_m": [
+          43.0185850731472,
+          292.00116471890584
+        ],
+        "shift_m": [
+          -57.0,
+          24.0
+        ],
+        "shift_norm_m": 61.84658438426491,
+        "corr": -0.771607437829911,
+        "margin": 0.03201676323319014,
+        "sigma_m": 35.0,
+        "relief_std_m": 20.29621519456313,
+        "n_cells": 15,
+        "n_points": 203557,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 5550,
+        "enu_xy_m": [
+          41.93803040115109,
+          266.7016212080192
+        ],
+        "shift_m": [
+          -57.0,
+          33.0
+        ],
+        "shift_norm_m": 65.86349520030045,
+        "corr": -0.8835107965064709,
+        "margin": 0.01441525964306778,
+        "sigma_m": 35.0,
+        "relief_std_m": 24.466661698734008,
+        "n_cells": 17,
+        "n_points": 219650,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 5850,
+        "enu_xy_m": [
+          42.97548949604057,
+          244.56113586789436
+        ],
+        "shift_m": [
+          -57.0,
+          24.0
+        ],
+        "shift_norm_m": 61.84658438426491,
+        "corr": -0.8978000408889941,
+        "margin": 0.011948460844276143,
+        "sigma_m": 35.0,
+        "relief_std_m": 23.47026176239193,
+        "n_cells": 20,
+        "n_points": 211127,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 6150,
+        "enu_xy_m": [
+          43.33653609043505,
+          210.4009144105038
+        ],
+        "shift_m": [
+          -60.0,
+          21.0
+        ],
+        "shift_norm_m": 63.56886030125127,
+        "corr": -0.8835694542374706,
+        "margin": 0.0258776050109919,
+        "sigma_m": 35.0,
+        "relief_std_m": 23.58908240533457,
+        "n_cells": 23,
+        "n_points": 191384,
+        "on_boundary": true,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 6450,
+        "enu_xy_m": [
+          42.935008137216315,
+          184.15991828555602
+        ],
+        "shift_m": [
+          -57.0,
+          33.0
+        ],
+        "shift_norm_m": 65.86349520030045,
+        "corr": -0.7308254119474911,
+        "margin": 0.04138177826174261,
+        "sigma_m": 35.0,
+        "relief_std_m": 12.04916498466544,
+        "n_cells": 20,
+        "n_points": 176009,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 6750,
+        "enu_xy_m": [
+          42.64442295691736,
+          159.76689246637682
+        ],
+        "shift_m": [
+          -57.0,
+          60.0
+        ],
+        "shift_norm_m": 82.75868534480233,
+        "corr": 0.13973357296066044,
+        "margin": 0.04549276237333577,
+        "sigma_m": 35.0,
+        "relief_std_m": 6.928038686808494,
+        "n_cells": 19,
+        "n_points": 183477,
+        "on_boundary": true,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 7050,
+        "enu_xy_m": [
+          39.92738854517243,
+          135.0995728572537
+        ],
+        "shift_m": [
+          24.0,
+          9.0
+        ],
+        "shift_norm_m": 25.632011235952593,
+        "corr": 0.8418935001534772,
+        "margin": 0.016964029642918543,
+        "sigma_m": 35.0,
+        "relief_std_m": 19.860403450123634,
+        "n_cells": 18,
+        "n_points": 184365,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "ambiguous_peak"
+      },
+      {
+        "keyframe": 7350,
+        "enu_xy_m": [
+          36.12705243336769,
+          112.00016674094445
+        ],
+        "shift_m": [
+          27.0,
+          -60.0
+        ],
+        "shift_norm_m": 65.79513659838392,
+        "corr": 0.9203185803264634,
+        "margin": 0.00477130472812326,
+        "sigma_m": 35.0,
+        "relief_std_m": 31.53978755278031,
+        "n_cells": 15,
+        "n_points": 185185,
+        "on_boundary": true,
+        "accepted": false,
+        "reject_reason": "ambiguous_peak"
+      },
+      {
+        "keyframe": 7650,
+        "enu_xy_m": [
+          32.434548441816275,
+          97.16600154885417
+        ],
+        "shift_m": [
+          24.0,
+          -54.0
+        ],
+        "shift_norm_m": 59.09314681077663,
+        "corr": 0.9394490830059746,
+        "margin": 0.0063537536083072554,
+        "sigma_m": 35.0,
+        "relief_std_m": 37.892724335967415,
+        "n_cells": 10,
+        "n_points": 226028,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "ambiguous_peak"
+      },
+      {
+        "keyframe": 7950,
+        "enu_xy_m": [
+          30.704092150084474,
+          88.15035604004115
+        ],
+        "shift_m": [
+          0.0,
+          0.0
+        ],
+        "shift_norm_m": 0.0,
+        "corr": -2.0,
+        "margin": 0.0,
+        "sigma_m": 0.0,
+        "relief_std_m": 38.65300974563282,
+        "n_cells": 7,
+        "n_points": 250640,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "too_few_cells"
+      },
+      {
+        "keyframe": 8250,
+        "enu_xy_m": [
+          31.550688005208357,
+          89.25144405109583
+        ],
+        "shift_m": [
+          0.0,
+          0.0
+        ],
+        "shift_norm_m": 0.0,
+        "corr": -2.0,
+        "margin": 0.0,
+        "sigma_m": 0.0,
+        "relief_std_m": 37.2230841453718,
+        "n_cells": 8,
+        "n_points": 266805,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "too_few_cells"
+      },
+      {
+        "keyframe": 8550,
+        "enu_xy_m": [
+          32.79166404593413,
+          104.10401764263405
+        ],
+        "shift_m": [
+          0.0,
+          0.0
+        ],
+        "shift_norm_m": 0.0,
+        "corr": -2.0,
+        "margin": 0.0,
+        "sigma_m": 0.0,
+        "relief_std_m": 40.29215724349311,
+        "n_cells": 8,
+        "n_points": 276486,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "too_few_cells"
+      },
+      {
+        "keyframe": 8850,
+        "enu_xy_m": [
+          36.76504742152065,
+          109.35430361868073
+        ],
+        "shift_m": [
+          0.0,
+          0.0
+        ],
+        "shift_norm_m": 0.0,
+        "corr": -2.0,
+        "margin": 0.0,
+        "sigma_m": 0.0,
+        "relief_std_m": 39.85637191843207,
+        "n_cells": 9,
+        "n_points": 309220,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "too_few_cells"
+      },
+      {
+        "keyframe": 9150,
+        "enu_xy_m": [
+          40.311235243502395,
+          114.7789935409107
+        ],
+        "shift_m": [
+          0.0,
+          0.0
+        ],
+        "shift_norm_m": 0.0,
+        "corr": -2.0,
+        "margin": 0.0,
+        "sigma_m": 0.0,
+        "relief_std_m": 38.198732905581814,
+        "n_cells": 8,
+        "n_points": 312168,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "too_few_cells"
+      },
+      {
+        "keyframe": 9450,
+        "enu_xy_m": [
+          45.68410407813678,
+          127.10749949665049
+        ],
+        "shift_m": [
+          6.0,
+          60.0
+        ],
+        "shift_norm_m": 60.29925372672534,
+        "corr": -0.25381375395062433,
+        "margin": 0.24883211111953663,
+        "sigma_m": 19.026297590440446,
+        "relief_std_m": 29.304995071321954,
+        "n_cells": 10,
+        "n_points": 317940,
+        "on_boundary": true,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 9750,
+        "enu_xy_m": [
+          47.31405679462175,
+          122.81606111828658
+        ],
+        "shift_m": [
+          3.0,
+          60.0
+        ],
+        "shift_norm_m": 60.07495318350236,
+        "corr": -0.716887634903134,
+        "margin": 0.035749404157884634,
+        "sigma_m": 23.611724069061825,
+        "relief_std_m": 31.013603324419215,
+        "n_cells": 13,
+        "n_points": 323758,
+        "on_boundary": true,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 9949,
+        "enu_xy_m": [
+          51.212325971134064,
+          140.01278773213016
+        ],
+        "shift_m": [
+          -18.0,
+          60.0
+        ],
+        "shift_norm_m": 62.6418390534633,
+        "corr": -0.8429737553584499,
+        "margin": 0.010838154035874847,
+        "sigma_m": 35.0,
+        "relief_std_m": 22.54787912190355,
+        "n_cells": 13,
+        "n_points": 292025,
+        "on_boundary": true,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 10099,
+        "enu_xy_m": [
+          52.41479498837717,
+          152.8195183264356
+        ],
+        "shift_m": [
+          -18.0,
+          60.0
+        ],
+        "shift_norm_m": 62.6418390534633,
+        "corr": -0.8671843335622541,
+        "margin": 0.01131296203525145,
+        "sigma_m": 35.0,
+        "relief_std_m": 21.297762452195027,
+        "n_cells": 13,
+        "n_points": 225846,
+        "on_boundary": true,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 10249,
+        "enu_xy_m": [
+          54.843522811154344,
+          168.4140536570601
+        ],
+        "shift_m": [
+          -9.0,
+          42.0
+        ],
+        "shift_norm_m": 42.95346318982906,
+        "corr": -0.8313929888817434,
+        "margin": 0.015917517011038385,
+        "sigma_m": 29.30471214405891,
+        "relief_std_m": 17.717038508166116,
+        "n_cells": 11,
+        "n_points": 158867,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "low_corr"
+      },
+      {
+        "keyframe": 10399,
+        "enu_xy_m": [
+          58.708731535995845,
+          184.29302576049662
+        ],
+        "shift_m": [
+          0.0,
+          0.0
+        ],
+        "shift_norm_m": 0.0,
+        "corr": -2.0,
+        "margin": 0.0,
+        "sigma_m": 0.0,
+        "relief_std_m": 7.296168826318697,
+        "n_cells": 6,
+        "n_points": 91265,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "too_few_cells"
+      },
+      {
+        "keyframe": 10549,
+        "enu_xy_m": [
+          62.52797558569803,
+          194.19719507528234
+        ],
+        "shift_m": [
+          0.0,
+          0.0
+        ],
+        "shift_norm_m": 0.0,
+        "corr": -2.0,
+        "margin": 0.0,
+        "sigma_m": 0.0,
+        "relief_std_m": 0.9373001837323045,
+        "n_cells": 2,
+        "n_points": 24058,
+        "on_boundary": false,
+        "accepted": false,
+        "reject_reason": "too_few_cells"
+      }
+    ],
+    "global_4dof_terrain_registration": {
+      "best_corr": 0.4757975196987311,
+      "dyaw_deg": -40.0,
+      "scale": 0.8,
+      "shift_m": [
+        30.0,
+        -60.0
+      ],
+      "on_boundary": true,
+      "n_cells": 47,
+      "heading_only_corr": 0.4638017996636568,
+      "whole_patch_cells": 47
+    },
+    "verdict": "0 of 36 windows produced a confident horizontal fix on the 30 m DEM. The per-window translation-only correlation is mostly NEGATIVE (the rover's stereo-range elevation ribbon, placed at the drifted estimate, anti-correlates with the coarse DEM relief), and even a well-posed 4-DOF GLOBAL terrain registration of the whole patch reaches only corr 0.476 -- barely above the firewall-clean heading-only registration (0.464) and pinned to the search boundary. A free per-window yaw can reach high correlation (~0.95-0.99) but at INCONSISTENT, boundary-pinned angles (over-fit of a 1-D ribbon to a smooth DEM), so it is correctly NOT used. The horizontal terrain anchor therefore applies no correction here: the 30 m DEM is too coarse for the stereo-range terrain the rover observes."
+  },
+  "ladder_se3_rmse_m": {
+    "vo": 93.33177819169934,
+    "vio": 79.5224697445705,
+    "vio_height_anchored": 92.5201628294567,
+    "vio_demxy_joint": 92.5201628294567,
+    "vio_demxy_xy_only": 79.5224697445705
+  },
+  "ladder_horizontal_rmse_m": {
+    "vo": 92.51280024028212,
+    "vio": 77.85254143313895,
+    "vio_height_anchored": 92.20091162304746,
+    "vio_demxy_joint": 92.20091162304746,
+    "vio_demxy_xy_only": 77.85254143313895
+  },
+  "ate_vio_enu": {
+    "tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/vio_enu.tum",
+    "se3": {
+      "rmse": 79.5224697445705,
+      "mean": 65.65561550565631,
+      "median": 52.821422163985865,
+      "std": 44.86828887811027,
+      "min": 20.694124001055275,
+      "max": 181.13678660889704,
+      "sse": 33275957.648281
+    },
+    "sim3": {
+      "rmse": 79.38819956293253,
+      "mean": 63.96100529755369,
+      "median": 50.47864931773974,
+      "std": 47.026333380036206,
+      "min": 16.336488516448192,
+      "max": 184.11630900836576,
+      "sse": 33163682.541439123
+    },
+    "sim3_scale": 1.0438266467220703,
+    "se3_axis_decompose_m": {
+      "rms_east_m": 48.25625046134879,
+      "rms_north_m": 61.09298240395708,
+      "rms_up_m": 16.211261106943923,
+      "rms_horizontal_m": 77.85254143313895,
+      "rms_vertical_m": 16.211261106943923
+    }
+  },
+  "ate_vio_demxy_joint": {
+    "tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/vio_demxy_anchored_enu.tum",
+    "se3": {
+      "rmse": 92.5201628294567,
+      "mean": 83.1173766635141,
+      "median": 92.03320127500666,
+      "std": 40.63843287535461,
+      "min": 17.387697243399376,
+      "max": 185.57464529160933,
+      "sse": 45042617.54880306
+    },
+    "sim3": {
+      "rmse": 90.64107786703262,
+      "mean": 79.2081883950278,
+      "median": 88.18840861694933,
+      "std": 44.06663009665313,
+      "min": 7.215538990842891,
+      "max": 183.02144642375507,
+      "sse": 43231565.89367449
+    },
+    "sim3_scale": 1.2251596602626136,
+    "se3_axis_decompose_m": {
+      "rms_east_m": 77.54956332538698,
+      "rms_north_m": 49.87056578947963,
+      "rms_up_m": 7.679350615004452,
+      "rms_horizontal_m": 92.20091162304746,
+      "rms_vertical_m": 7.679350615004448
+    }
+  },
+  "ate_vio_demxy_xy_only": {
+    "tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/vio_demxy_only_enu.tum",
+    "se3": {
+      "rmse": 79.5224697445705,
+      "mean": 65.65561550565631,
+      "median": 52.821422163985865,
+      "std": 44.86828887811027,
+      "min": 20.694124001055275,
+      "max": 181.13678660889704,
+      "sse": 33275957.648281
+    },
+    "sim3": {
+      "rmse": 79.38819956293253,
+      "mean": 63.96100529755369,
+      "median": 50.47864931773974,
+      "std": 47.026333380036206,
+      "min": 16.336488516448192,
+      "max": 184.11630900836576,
+      "sse": 33163682.541439123
+    },
+    "sim3_scale": 1.0438266467220703,
+    "se3_axis_decompose_m": {
+      "rms_east_m": 48.25625046134879,
+      "rms_north_m": 61.09298240395708,
+      "rms_up_m": 16.211261106943923,
+      "rms_horizontal_m": 77.85254143313895,
+      "rms_vertical_m": 16.211261106943923
+    }
+  },
+  "horizontal_drift_reduction_pct_xy_only_vs_vio": 0.0,
+  "did_horizontal_drift_drop": false,
+  "honest_read": "The horizontal DEM terrain-correlation anchor did NOT reduce the horizontal drift on this dataset, because the 30 m Copernicus DEM is too coarse for the terrain the S3LI stereo actually observes (depth ~0.5-8 m -> a 1-D elevation ribbon, not a 2-D tile). The registration is honestly unobservable: translation-only anti-correlates and a free yaw over-fits. The machinery (DEM_XY pose-graph factor + terrain-correlation registration + confidence gates) is complete and verified; with 0 confident fixes it correctly leaves the VIO estimate unchanged (xy-only == VIO, byte-identical). A clearly higher-resolution DEM (e.g. Tinitaly 10 m or an OpenTopography Etna LiDAR DSM) AND/OR longer-range onboard depth (the bag carries an unused /bf_lidar/points_raw LiDAR stream) would give a real 2-D terrain patch and is the path to a sub-10 m terrain-relative horizontal fix.",
+  "comparison_vs_baselines": {
+    "ate_vo_enu_se3_rmse_m": 93.33177819169934,
+    "ate_vo_enu_horizontal_m": 92.51280024028212,
+    "ate_vio_enu_se3_rmse_m": 79.5224697445705,
+    "ate_vio_enu_horizontal_m": 77.85254143313895,
+    "ate_vio_enu_vertical_m": 16.211261106943923,
+    "ate_vio_height_anchored_se3_rmse_m": 92.5201628294567,
+    "ate_vio_height_anchored_horizontal_m": 92.20091162304746,
+    "source": "/mnt/projects/stewie/code/stewie/eval/validation/s3li_crater_vio_2026-06-28.json"
+  },
+  "poison_test": {
+    "test": "poison_demxy_is_byte_identical_under_gt_corruption",
+    "result": "PASS",
+    "gt_corruption_m": 1000000.0,
+    "n_nodes": 10599,
+    "n_cloud_frames": 1767,
+    "n_accepted_fixes": 0,
+    "sha256_clean": {
+      "joint": "1d25f418281b3326fb2de4ad15f3489337793da58f7c3545213599b848cecb5d",
+      "xy_only": "d22ab919721d46e85cf1088d33fc7a8f5cf20c4d563c17b3f20e8c490de83ed3"
+    },
+    "sha256_poison": {
+      "joint": "1d25f418281b3326fb2de4ad15f3489337793da58f7c3545213599b848cecb5d",
+      "xy_only": "d22ab919721d46e85cf1088d33fc7a8f5cf20c4d563c17b3f20e8c490de83ed3"
+    },
+    "byte_identical": true,
+    "note": "Stereo clouds -> terrain registration -> DEM_XY fixes -> pose-graph solve is a pure function of images + IMU + cam-IMU calibration + DEM (sampled at the ESTIMATED, shifted cell centres) + the declared start; the horizontal (x,y) shift is found by terrain CORRELATION, never by comparing to GT. GT enters only in scoring, after the freeze."
+  },
+  "evo_version": "v1.36.5",
+  "figures_dir": "/mnt/projects/stewie/code/stewie/eval/validation/figures/s3li_crater_demxy_2026-06-28",
+  "estimates": {
+    "vio_enu_tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/vio_enu.tum",
+    "demxy_joint_tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/vio_demxy_anchored_enu.tum",
+    "demxy_xy_only_tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/vio_demxy_only_enu.tum"
+  },
+  "i3_attestation": "The VIO + terrain-registration + DEM_XY-anchored estimates consume ONLY the stereo images (triangulated to terrain points), intrinsics, baseline, IMU, cam-IMU calibration, the DEM prior (sampled at the ESTIMATED, shifted cell centres), and a single declared coarse start. The horizontal (x,y) shift is found by TERRAIN CORRELATION (local elevation patch vs the global DEM), NEVER by comparing to the GT position. No ground-truth trajectory is an argument to any estimation function; GT enters only at time-sync + scoring, after each estimate is frozen. The poison test (GT + 1e6 m) confirms both frozen estimates are byte-identical."
+}

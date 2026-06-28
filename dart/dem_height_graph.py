@@ -49,7 +49,8 @@ class DemAnchorResult:
 
     ``xyz`` (N,3) is the optimized ENU trajectory; ``xyz_initial`` the registered-VO input it started
     from. ``mean_abs_height_correction_m`` / ``mean_abs_horizontal_correction_m`` summarise how far the
-    DEM pulled the estimate. ``converged`` + ``iterations`` + ``final_cost`` are the solver diagnostics."""
+    DEM pulled the estimate. ``converged`` + ``iterations`` + ``final_cost`` are the solver diagnostics.
+    ``n_xy_anchors`` is the number of DEM_XY absolute horizontal fixes fused (0 for height-only)."""
 
     xyz: np.ndarray
     xyz_initial: np.ndarray
@@ -58,6 +59,7 @@ class DemAnchorResult:
     converged: bool
     iterations: int
     final_cost: float
+    n_xy_anchors: int = 0
 
 
 def build_between_factors(deltas: np.ndarray, sigma_xyz_m: float) -> list[MeasurementFactor]:
@@ -82,6 +84,30 @@ def build_dem_anchor_factors(indices: list[int], sigma_height_m: float) -> list[
         metadata={"sampled_at": "estimated_xy"}) for a in indices]
 
 
+def build_dem_xy_factors(
+    indices: list[int], xy_values: np.ndarray, sigmas_m: np.ndarray | float,
+    *, source: str = "dem_terrain_correlation",
+) -> list[MeasurementFactor]:
+    """One DEM_XY ABSOLUTE-position factor per registered keyframe: an absolute (E, N) fix obtained by
+    correlating the rover's locally-observed terrain to the global DEM (NOT by comparing to GT). The fix
+    constrains the horizontal translation/scale drift that DEM height-normal anchoring (vertical only)
+    cannot. ``xy_values`` is (K, 2) ENU fixes; ``sigmas_m`` a per-fix isotropic 1-sigma (or one scalar).
+
+    Truth firewall (invariant I3): the value is a terrain-correlation fix (estimated terrain vs the DEM
+    prior), never a ground-truth position. The DEM is sampled at the ESTIMATED cell centres."""
+    xy = np.asarray(xy_values, float).reshape(-1, 2)
+    sig = np.broadcast_to(np.asarray(sigmas_m, float), (xy.shape[0],))
+    out: list[MeasurementFactor] = []
+    for a, z, s in zip(indices, xy, sig):
+        if not (np.isfinite(s) and s > 0.0):
+            raise ValueError(f"DEM_XY sigma must be finite and > 0 (got {s!r})")
+        out.append(MeasurementFactor(
+            factor_type=FactorType.DEM_XY, keyframe=int(a), value=np.asarray(z, float),
+            covariance=np.eye(2) * float(s) ** 2, frame=Frame.DEM, source=source,
+            evidence_class=EvidenceClass.COMPUTED, metadata={"sampled_at": "estimated_xy"}))
+    return out
+
+
 class DemHeightPoseGraph:
     """Sparse analytic Gauss-Newton over 3-D ENU node positions with DEM height-normal anchoring."""
 
@@ -90,10 +116,12 @@ class DemHeightPoseGraph:
 
     def _linearize(self, X: np.ndarray, between: list[MeasurementFactor],
                    anchors: list[MeasurementFactor], prior_idx: int, prior_xyz: np.ndarray,
-                   prior_sigma_m: float):
+                   prior_sigma_m: float, xy_anchors: list[MeasurementFactor] | None = None):
         """Build the sqrt-weighted (rows = residuals) sparse Jacobian J and residual r at X.
 
-        DEM factors re-sample H + normal at the CURRENT estimate (firewall: estimated (x,y), not GT)."""
+        DEM factors re-sample H + normal at the CURRENT estimate (firewall: estimated (x,y), not GT).
+        DEM_XY factors add an absolute (E, N) residual S @ (X[a,:2] - z) (sqrt-info S), pulling the
+        horizontal translation/scale drift onto the terrain-correlation fixes."""
         n = X.shape[0]
         rows: list[int] = []
         cols: list[int] = []
@@ -144,13 +172,33 @@ class DemHeightPoseGraph:
             rvec.append(sd * (za - h))
             row += 1
 
+        # DEM_XY absolute horizontal fix: S @ (X[a,:2] - z), S the 2x2 sqrt-information (S^T S = cov^-1).
+        for f in xy_anchors or []:
+            a = f.keyframe
+            cov = f.xy_covariance()
+            info = np.linalg.inv(cov)
+            info = 0.5 * (info + info.T)
+            s_info = np.linalg.cholesky(info).T            # upper factor: s_info^T s_info = info
+            z = np.asarray(f.value, float).reshape(2)
+            d_xy = np.array([float(X[a, 0]) - z[0], float(X[a, 1]) - z[1]])
+            res2 = s_info @ d_xy
+            for rr in range(2):
+                add(row, a, 0, s_info[rr, 0])
+                add(row, a, 1, s_info[rr, 1])
+                rvec.append(float(res2[rr]))
+                row += 1
+
         J = sp.csr_matrix((data, (rows, cols)), shape=(row, 3 * n))
         return J, np.asarray(rvec, float)
 
     def solve(self, initial_xyz: np.ndarray, between: list[MeasurementFactor],
               anchors: list[MeasurementFactor], *, prior_idx: int, prior_xyz: np.ndarray,
-              prior_sigma_m: float, iters: int = 12, tol: float = 1e-6) -> DemAnchorResult:
-        """Gauss-Newton solve. Returns the optimized ENU trajectory + correction diagnostics."""
+              prior_sigma_m: float, xy_anchors: list[MeasurementFactor] | None = None,
+              iters: int = 12, tol: float = 1e-6) -> DemAnchorResult:
+        """Gauss-Newton solve. Returns the optimized ENU trajectory + correction diagnostics.
+
+        ``xy_anchors`` (optional) are DEM_XY absolute horizontal fixes fused jointly with the VIO
+        between-factors and the DEM height-normal anchors (the horizontal terrain-correlation anchor)."""
         X = np.array(initial_xyz, float, copy=True)
         prior_xyz = np.asarray(prior_xyz, float)
         n = X.shape[0]
@@ -160,7 +208,7 @@ class DemHeightPoseGraph:
         it = 0
         cost = np.inf
         for it in range(1, iters + 1):
-            J, r = self._linearize(X, between, anchors, prior_idx, prior_xyz, prior_sigma_m)
+            J, r = self._linearize(X, between, anchors, prior_idx, prior_xyz, prior_sigma_m, xy_anchors)
             cost = 0.5 * float(r @ r)
             H = (J.T @ J + ridge).tocsc()
             g = J.T @ r
@@ -172,7 +220,7 @@ class DemHeightPoseGraph:
                 break
             prev_cost = cost
         # final cost at the updated estimate
-        _, r_final = self._linearize(X, between, anchors, prior_idx, prior_xyz, prior_sigma_m)
+        _, r_final = self._linearize(X, between, anchors, prior_idx, prior_xyz, prior_sigma_m, xy_anchors)
         final_cost = 0.5 * float(r_final @ r_final)
         corr = X - np.asarray(initial_xyz, float)
         return DemAnchorResult(
@@ -183,4 +231,5 @@ class DemHeightPoseGraph:
             converged=converged,
             iterations=it,
             final_cost=final_cost,
+            n_xy_anchors=len(xy_anchors or []),
         )

@@ -1,0 +1,18 @@
+{
+  "test": "poison_demxy_is_byte_identical_under_gt_corruption",
+  "result": "PASS",
+  "gt_corruption_m": 1000000.0,
+  "n_nodes": 10599,
+  "n_cloud_frames": 1767,
+  "n_accepted_fixes": 0,
+  "sha256_clean": {
+    "joint": "1d25f418281b3326fb2de4ad15f3489337793da58f7c3545213599b848cecb5d",
+    "xy_only": "d22ab919721d46e85cf1088d33fc7a8f5cf20c4d563c17b3f20e8c490de83ed3"
+  },
+  "sha256_poison": {
+    "joint": "1d25f418281b3326fb2de4ad15f3489337793da58f7c3545213599b848cecb5d",
+    "xy_only": "d22ab919721d46e85cf1088d33fc7a8f5cf20c4d563c17b3f20e8c490de83ed3"
+  },
+  "byte_identical": true,
+  "note": "Stereo clouds -> terrain registration -> DEM_XY fixes -> pose-graph solve is a pure function of images + IMU + cam-IMU calibration + DEM (sampled at the ESTIMATED, shifted cell centres) + the declared start; the horizontal (x,y) shift is found by terrain CORRELATION, never by comparing to GT. GT enters only in scoring, after the freeze."
+}

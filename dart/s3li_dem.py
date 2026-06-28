@@ -242,6 +242,18 @@ class S3liDem:
         lat, lon, _ = self.enu_to_lle(east_m, north_m)
         return float(self._bilinear(np.asarray([float(lat)]), np.asarray([float(lon)]))[0])
 
+    def heights_enu(self, east_m: Any, north_m: Any) -> np.ndarray:
+        """Vectorised DEM orthometric height (m) at local ENU ``(east, north)`` ARRAYS. The horizontal
+        lat/lon (and hence the sampled height) is insensitive to the query's up at the sub-mm level over
+        this extent, so up is taken at the origin. Used by the terrain-correlation horizontal anchor,
+        which evaluates the DEM at many (estimated) cell centres per shift -- the per-call pyproj cost
+        of :meth:`height_enu` would dominate. Raises (via :meth:`_bilinear`) if any query is outside the
+        loaded window (honest failure, no edge extrapolation)."""
+        e = np.asarray(east_m, dtype=float)
+        n = np.asarray(north_m, dtype=float)
+        lat, lon, _ = self.enu_to_lle(e, n, np.zeros_like(e))
+        return self._bilinear(np.asarray(lat, dtype=float), np.asarray(lon, dtype=float))
+
     # ---- surface normal (local gradient, in the ENU frame) ----------------------------------------
     def normal_enu(self, east_m: float, north_m: float, step_m: float | None = None) -> np.ndarray:
         """Unit outward surface normal (East, North, Up) at a local ENU point, from DEM central
