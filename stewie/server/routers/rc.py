@@ -154,6 +154,13 @@ def _telemetry_payload() -> dict:
     with _RC_LOCK:
         tripped = _RC_WATCHDOG.tick(now=now)
         tlm = [t.__dict__ | {"kind": t.kind} for t in _RC_BACKEND.poll()]
+    # No-synthetic: the kinematic SimBackend has no energy model, so its Pose.soc is a default (1.0), NOT a
+    # measurement -- null it so the cockpit shows no SoC rather than a fabricated "100%" live reading. A
+    # backend that models the battery (PitBackend / live ROS odom) reports a real soc, left untouched.
+    if isinstance(_RC_BACKEND, RC.SimBackend):
+        for _t in tlm:
+            if _t.get("kind") == "pose":
+                _t["soc"] = None
     # #230 step 3: the Pose is in grid (row, col) cells; cell_m lets the cockpit live drive-map convert to
     # REP-103 meters (x=col*cell_m, y=-row*cell_m -- bridge.frames). Without it the map is dimensionless.
     # #144: ros_odom is the live ROS2 rover's odometry (already REP-103 m), surfaced for the same map.

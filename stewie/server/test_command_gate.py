@@ -127,3 +127,21 @@ def test_telemetry_payload_carries_cell_m(client):  # #230 step 3: the live driv
                headers={"X-API-Key": key})
     frame = json.loads([ln[len("data: "):] for ln in st.text.splitlines() if ln.startswith("data: ")][0])
     assert isinstance(frame["cell_m"], (int, float)) and frame["cell_m"] > 0
+
+
+def test_sim_telemetry_does_not_fabricate_soc():
+    """No-synthetic (Council Operator P2): the in-process kinematic SimBackend has NO energy model, so the
+    telemetry payload must NOT report a fabricated soc (the Pose default 1.0). The cockpit then shows no
+    SoC rather than a permanent "100%" live reading. A battery-modelling backend reports a real soc."""
+    from stewie.server.routers import rc as RCR
+    from stewie.bridge import rc_contract as C
+    saved = RCR._RC_BACKEND
+    try:
+        RCR._RC_BACKEND = C.SimBackend(start_rc=(0.0, 0.0))
+        RCR._RC_BACKEND.submit(C.GoTo(leg_id=1, goal_row=2.0, goal_col=0.0))
+        payload = RCR._telemetry_payload()
+        poses = [t for t in payload["telemetry"] if t.get("kind") == "pose"]
+        assert poses, "the SimBackend emitted no pose to check"
+        assert all(t["soc"] is None for t in poses)        # no fabricated 100% on the sim telemetry path
+    finally:
+        RCR._RC_BACKEND = saved
