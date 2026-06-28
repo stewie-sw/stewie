@@ -10,6 +10,11 @@
 import * as THREE from "./three.module.min.js";
 
 const S = { ready: false };
+// GIS-WA2 council fix: ONE wire-overlay style (was duplicated in render + setVertExag). The base opacity
+// is low so the depth wire reads as structure WITHOUT drowning a draped layer; when a real layer texture
+// is on, the wire dims further (DIM) so the layer is the dominant, decodable read (council finding #1).
+const WIRE = { color: 0x35e0d0, base: 0.14, dim: 0.05 };
+function _wireMat() { return new THREE.LineBasicMaterial({ color: WIRE.color, transparent: true, opacity: WIRE.base }); }
 
 function mount(container) {
   if (S.renderer) { _resize(container); return true; }
@@ -147,8 +152,7 @@ function render(hf) {
   // #180: the depth/heightfield as a WIRE overlay -- the structural backdrop the convergence viz
   // composites ephemeris sun/shadows + the lander/AprilTags onto (Aaron 2026-06-17). A neon wireframe
   // over the lit surface; toggleable via setWireframe (default on).
-  S.wire = new THREE.LineSegments(new THREE.WireframeGeometry(geo),
-    new THREE.LineBasicMaterial({ color: 0x35e0d0, transparent: true, opacity: 0.28 }));
+  S.wire = new THREE.LineSegments(new THREE.WireframeGeometry(geo), _wireMat());
   S.wire.visible = (S._wireOn !== false);
   S.group.add(S.wire);
 
@@ -169,6 +173,7 @@ function setLayer(kind) {
   S._layerKind = kind || "height";
   if (!S.mesh) return;
   const mat = S.mesh.material;
+  if (S.wire) S.wire.material.opacity = (S._layerKind !== "height") ? WIRE.dim : WIRE.base;  // let the layer dominate
   if (!kind || kind === "height") {                       // back to the per-vertex height ramp
     if (mat.map) { mat.map.dispose(); mat.map = null; }
     mat.vertexColors = true; mat.color.setHex(0xffffff); mat.needsUpdate = true;
@@ -183,8 +188,12 @@ function setLayer(kind) {
     const m = S.mesh.material;
     if (m.map) m.map.dispose();
     m.map = tex; m.vertexColors = false; m.color.setHex(0xffffff); m.needsUpdate = true;
+  }, undefined, () => {                                    // council fix: a failed/404 raster must not leave a stale drape
+    if (S._layerKind === kind) { S._onLayerError && S._onLayerError(kind); setLayer("height"); }
   });
 }
+// optional callback so the cockpit can reset the dropdown + warn when a layer raster fails to load
+function onLayerError(cb) { S._onLayerError = cb; }
 
 // GIS-WA2: vertical exaggeration -- rescale the relief height (k=1 true scale) so subtle slopes read in 3D.
 function setVertExag(k) {
@@ -196,8 +205,8 @@ function setVertExag(k) {
   pos.needsUpdate = true; S.mesh.geometry.computeVertexNormals();
   if (S.wire) {                                            // rebuild the wire overlay to match the new relief
     S.group.remove(S.wire); S.wire.geometry.dispose(); S.wire.material.dispose();
-    S.wire = new THREE.LineSegments(new THREE.WireframeGeometry(S.mesh.geometry),
-      new THREE.LineBasicMaterial({ color: 0x35e0d0, transparent: true, opacity: 0.28 }));
+    S.wire = new THREE.LineSegments(new THREE.WireframeGeometry(S.mesh.geometry), _wireMat());
+    S.wire.material.opacity = (S._layerKind && S._layerKind !== "height") ? WIRE.dim : WIRE.base;
     S.wire.visible = (S._wireOn !== false); S.group.add(S.wire);
   }
 }
@@ -583,7 +592,7 @@ function setFlyMode(on, walk) {
 function getCamPos() { return S.camera ? [S.camera.position.x, S.camera.position.y, S.camera.position.z] : null; }
 
 window.STEWIE3D = { mount, render, setRover, setLiveRover, clearLiveRover, setClasts, clearClasts, setPath, setSun, setWireframe, setLander3D, clearTracks, heightAt,
-  setLayer, setVertExag,
+  setLayer, setVertExag, onLayerError,
   get layerKind() { return S._layerKind || "height"; }, get vertExag() { return S._vex || 1; },
   animateRover, stopRoverAnim, setPathEdit, onPathChange, getWaypoints, undoWaypoint, clearWaypoints, pathStats,
   setFlyMode, getCamPos,

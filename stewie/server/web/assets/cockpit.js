@@ -4664,7 +4664,8 @@ if ($("exec3d")) $("exec3d").onclick = () => {
   $("execcanvas").style.display = TD3D_ON ? "none" : "";
   $("exec3d").style.borderColor = TD3D_ON ? "var(--accent)" : "";
   if ($("exec-mode-lbl")) $("exec-mode-lbl").textContent = TD3D_ON ? "3D terrain dry-run" : "execution top-down";
-  if (TD3D_ON) open3D();
+  if ($("td3dlegend")) $("td3dlegend").style.display = TD3D_ON ? "" : "none";
+  if (TD3D_ON) { open3D(); update3DLegend(); }
   else if (window.STEWIE3D) STEWIE3D.stopRoverAnim();
 };
 // #180: toggle the depth/heightfield WIRE overlay (the convergence-viz structural backdrop); default on
@@ -4678,16 +4679,39 @@ if ($("exec3dwire")) {
     setQ(`3D wire overlay ${TD3D_WIRE ? "on" : "off"}`);
   };
 }
-// GIS-WA2: drape the selected GIS layer onto the 3D relief + vertical exaggeration (the answer to "view
-// layers on the 3D view"). The layer raster is rendered in the loaded heightfield's exact order-frame window.
+// GIS-WA2 (+ council fix): drape the selected GIS layer onto the 3D relief + vertical exaggeration, with a
+// LEGEND (the ramp -> values) and an explicit exaggeration disclosure so the relief is never silently
+// scaled (precision-honesty) and the layer is readable (not just coloured). The layer raster is rendered in
+// the loaded heightfield's exact order-frame window.
+function _layer3DLegendHTML(kind) {
+  const sw = (g) => `<span style="display:inline-block;width:34px;height:9px;border:1px solid #2a3340;vertical-align:middle;background:${g}"></span>`;
+  if (kind === "slope") return sw("linear-gradient(90deg,#3cc828,#ffd200,#ff3c28)") + " slope 0°–30°+";
+  if (kind === "hazard") return sw("linear-gradient(90deg,#ff8c00,#ff2000)") + " hazard nominal–no-go &gt;20°";
+  if (kind === "illumination") return sw("#1a73e8") + " blue = shadowed now";
+  if (kind === "psr") return sw("#1a73e8") + " blue = ever-shadowed (PSR)";
+  if (kind === "dem") return sw("linear-gradient(90deg,#2a2a2a,#f0f0f0)") + " hillshade 315°/45°";
+  return "relief — height shading";
+}
+function update3DLegend() {
+  const el = $("td3dlegend"); if (!el || !window.STEWIE3D) return;
+  const vex = +STEWIE3D.vertExag || 1;
+  const exag = vex > 1 ? ` · ↕×${vex.toFixed(1)} vert. exag` : " · ↕ true scale";
+  el.innerHTML = _layer3DLegendHTML(STEWIE3D.layerKind) + `<span style="opacity:.8">${exag}</span>`;
+}
+if (window.STEWIE3D && STEWIE3D.onLayerError) STEWIE3D.onLayerError((kind) => {   // raster failed -> revert UI + warn
+  if ($("exec3dlayer")) $("exec3dlayer").value = "height";
+  update3DLegend(); setQ(`3D: ${kind} layer unavailable — reverted to relief`);
+});
 if ($("exec3dlayer")) $("exec3dlayer").onchange = (e) => {
   if (window.STEWIE3D && STEWIE3D.setLayer) STEWIE3D.setLayer(e.target.value);
+  update3DLegend();
   setQ(e.target.value === "height" ? "3D: height-ramp relief" : `3D: ${e.target.value} layer on the relief`);
 };
 if ($("exec3dvex")) $("exec3dvex").oninput = (e) => {
   const k = parseFloat(e.target.value) || 1;
   if ($("exec3dvexv")) $("exec3dvexv").textContent = k.toFixed(1);
   if (window.STEWIE3D && STEWIE3D.setVertExag) STEWIE3D.setVertExag(k);
+  update3DLegend();
 };
 
 // 3D path definition in the PLAN flow (Aaron 2026-06-17, option 1): a relief-accurate alternative to the

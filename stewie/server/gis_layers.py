@@ -314,7 +314,7 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         rgba = _layer_rgba(dem, cm, kind, sun_az, sun_el)
         if rgba is None:
             return None
-        out = _reproject(rgba.astype("uint8"), b, fwd, out_px=1024)
+        out = _reproject(rgba, b, fwd, out_px=1024)   # _layer_rgba already returns uint8
     _GLOBE_CACHE[key] = out
     # RC-03 (audit 2026-06-11): write ATOMICALLY (.part -> os.replace) so a concurrent reader /
     # the startup warm thread never sees a torn .npy; the JSON sidecar lands LAST as the commit
