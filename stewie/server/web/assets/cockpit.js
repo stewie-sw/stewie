@@ -2321,7 +2321,7 @@ function renderRcTelemetry(b) {                          // render ONE pushed te
   const out = qel("rctlmout"), hdr = qel("rctlmhdr");
   if (!out) return;
   const wd = b.watchdog || {};
-  if (typeof b.cell_m === "number" && b.cell_m > 0) RC_CELL_M = b.cell_m;
+  if (typeof b.cell_m === "number" && b.cell_m > 0) { RC_CELL_M = b.cell_m; rcGotoEcho(); }   // GIS: keep the metres echo accurate to the live grid scale
   if (hdr) hdr.textContent = `live · SF-01 watchdog: ${wd.tripped ? "TRIPPED (auto-SAFE)" : "armed"} · deadline ${wd.deadline_s}s`;
   const tlm = b.telemetry || [];
   // accumulate every POSE sample (it carries row/col); a Leg sample has no row, only final_row
@@ -2543,6 +2543,23 @@ async function rcCommand(kind) {
   } catch (e) { out.textContent = "command failed — run server.py (" + e + ")"; }
 }
 
+// GIS: live REP-103 metres echo for the GoTo console. The operator types grid (row, col) on the RC
+// backend's cell_m grid; show WHERE that is in metres via the frames.py transform (x = col*cell_m,
+// y = -row*cell_m -- the exact transform _rc_xy/the drive map plot), so a GoTo target is never an
+// unlabelled cell. Honest: this is the RC backend's OWN REP-103 frame (matching the drive-map label),
+// NOT a site lat/lon -- the SimBackend grid is not georeferenced to the DEM, so a geographic coord here
+// would be false precision. Refreshes on input + when telemetry updates the grid scale (RC_CELL_M).
+function rcGotoEcho() {
+  const el = $("rcgotom"); if (!el) return;
+  const gr = parseFloat($("rcgr") ? $("rcgr").value : ""), gc = parseFloat($("rcgc") ? $("rcgc").value : "");
+  if (Number.isFinite(gr) && Number.isFinite(gc)) {
+    const x = gc * RC_CELL_M, y = -gr * RC_CELL_M;            // frames.py REP-103 metres
+    el.textContent = `target → ${x.toFixed(1)}, ${y.toFixed(1)} m (REP-103) · cell ${RC_CELL_M} m`;
+  } else {
+    el.textContent = `target — REP-103 m (enter row, col) · cell ${RC_CELL_M} m`;
+  }
+}
+
 // FS-05 nav contract readout: GET /nav/contract -> render each nav stage's on-host wired status (the
 // auditable navigation contract). Read-only diagnostic; the missing on-host stages render flagged.
 async function navContract() {
@@ -2571,6 +2588,8 @@ if ($("navrun")) {
   if ($("rcsafe")) $("rcsafe").onclick = () => rcCommand("safe");     // #229 L B: FS-17/AG-08 command console
   if ($("rcgoto")) $("rcgoto").onclick = () => rcCommand("goto");
   if ($("rcsetsim")) $("rcsetsim").onclick = () => rcCommand("setsim");
+  ["rcgr", "rcgc"].forEach((id) => { if ($(id)) $(id).addEventListener("input", rcGotoEcho); });  // GIS: live REP-103 metres echo of the GoTo target
+  rcGotoEcho();
   if ($("navdrive")) $("navdrive").onclick = navDriveRun;     // FS-05 end-to-end route-then-drive preview
   if ($("navreal")) $("navreal").onclick = navRealTraverse;   // #148 real Haworth terrain-fix est-vs-truth
   $("navreloc").onclick = navReloc;
