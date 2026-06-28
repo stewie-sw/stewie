@@ -17,7 +17,6 @@ Constructed straight-traverse geometry verifies the estimator MATH (no rover tru
 is the same controlled-characterization pattern dart.ablation / test_pose_graph_se2 use). The real-render
 adjudication lives in the de-oracle artifact, not here.
 """
-import math
 
 import numpy as np
 
