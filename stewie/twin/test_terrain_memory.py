@@ -119,3 +119,21 @@ def test_apply_subgrid_rejects_cell_mismatch():
     tm = TerrainMemory(site="s", rows=4, cols=4, cell_m=0.5)
     with pytest.raises(ValueError):
         tm.apply_subgrid(np.zeros((2, 2)), sub_origin=(0.0, 0.0), cell_m=1.0, mission="m")
+
+
+def test_imprint_on_dem_adds_memory_to_a_larger_base_surface():
+    # memory over a 4x4 site at order-frame origin (1.0, 1.0), cell 0.5; a base DEM 10x10 at origin (0,0)
+    tm = TerrainMemory(site="s", rows=4, cols=4, cell_m=0.5, origin=(1.0, 1.0))
+    tm.apply(_real_cut_delta(4, 4, 0.5, 0.2), mission="m")      # real conserved cut -> negative over its 2x2
+    base = np.full((10, 10), 100.0)
+    cur = tm.imprint_on_dem(base, dem_cell=0.5, dem_origin=(0.0, 0.0))
+    # offset round((1-0)/0.5)=2 -> memory occupies cur[2:6,2:6]; the cut lowered the surface there
+    assert cur.shape == (10, 10) and cur[2:6, 2:6].min() < 100.0
+    assert np.allclose(cur[0, 0], 100.0)                        # untouched away from the memory
+    assert np.allclose(base, 100.0)                            # base DEM not mutated (returns a copy)
+
+
+def test_imprint_rejects_cell_mismatch():
+    tm = TerrainMemory(site="s", rows=4, cols=4, cell_m=0.5)
+    with pytest.raises(ValueError):
+        tm.imprint_on_dem(np.zeros((6, 6)), dem_cell=1.0)

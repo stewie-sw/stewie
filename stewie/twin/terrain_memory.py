@@ -129,11 +129,33 @@ class TerrainMemory:
         return self._delta.copy()
 
     def current_height(self, base_height: np.ndarray) -> np.ndarray:
-        """The current authoritative surface [m] = base DEM + accumulated delta (the world model's terrain)."""
+        """The current authoritative surface [m] = base DEM + accumulated delta (the world model's terrain).
+        ``base_height`` must be the SITE-grid base (same shape); for a larger full DEM use imprint_on_dem."""
         b = np.asarray(base_height, dtype=np.float64)
         if b.shape != (self.rows, self.cols):
             raise ValueError(f"base_height shape {b.shape} != grid {(self.rows, self.cols)}")
         return b + self._delta
+
+    def imprint_on_dem(self, base_z: np.ndarray, *, dem_cell: float,
+                       dem_origin: tuple[float, float] = (0.0, 0.0)) -> np.ndarray:
+        """Return a COPY of a (larger) base DEM with this site's accumulated terrain memory added -- the
+        CURRENT remembered surface, so a NEW mission can be planned/validated against what prior missions
+        actually built rather than the pristine DEM (the Terrain-Memory payoff: opt-in, the default plan
+        path is unchanged). The site-grid delta (at self.origin/self.cell_m) is placed onto the DEM at offset
+        round((self.origin - dem_origin)/dem_cell) (x->col, y->row), clipped to the DEM bounds. Requires the
+        memory cell_m to match dem_cell -- a resample is out of scope (raise rather than silently mis-scale)."""
+        if abs(float(dem_cell) - self.cell_m) > 1e-9:
+            raise ValueError(f"dem_cell {dem_cell} != memory cell_m {self.cell_m} (resample not supported)")
+        z = np.array(base_z, dtype=np.float64, copy=True)
+        if z.ndim != 2:
+            raise ValueError("base_z must be a 2-D DEM")
+        col_off = int(round((self.origin[0] - dem_origin[0]) / self.cell_m))   # x -> col
+        row_off = int(round((self.origin[1] - dem_origin[1]) / self.cell_m))   # y -> row
+        r0, c0 = max(0, row_off), max(0, col_off)
+        r1, c1 = min(z.shape[0], row_off + self.rows), min(z.shape[1], col_off + self.cols)
+        if r1 > r0 and c1 > c0:
+            z[r0:r1, c0:c1] += self._delta[r0 - row_off:r1 - row_off, c0 - col_off:c1 - col_off]
+        return z
 
     def summary(self) -> dict:
         """A compact terrain-memory report: how much the site has changed across all applied missions."""

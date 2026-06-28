@@ -74,3 +74,23 @@ def test_record_mission_folds_two_missions_into_one_site_at_separate_places():
     # each cut lands at its own mapped centre: (5,5)->cell ~30, (25,25)->cell ~70 (origin -10, cell 0.5)
     assert d[30, 30] < 0.0 and d[70, 70] < 0.0          # both cuts present, in separate regions
     assert site.summary()["missions"] == ["S", "S"] and site.summary()["max_cut_m"] > 0.0
+
+
+def test_plan_sees_remembered_terrain_after_imprint():
+    import numpy as np
+    from stewie.twin.terrain_memory import TerrainMemory
+    from lode.planner_acceptance import record_mission, validate_plan
+    base = np.full((120, 120), 100.0)                          # flat base DEM, cell 0.5, origin (0,0) -> 60 m
+    site = TerrainMemory(site="haworth", rows=120, cols=120, cell_m=0.5, origin=(0.0, 0.0))
+    # record a real cut -> the world model remembers a hole at (15,15)
+    record_mission(site, _mission([
+        {"action": "src", "kind": "cut", "x": 15.0, "y": 15.0, "footprint_m2": 36.0, "depth_m": 0.5}]),
+        dem=(base, 0.5), dem_origin=(0.0, 0.0))
+    assert site.summary()["max_cut_m"] > 0.0
+    remembered = site.imprint_on_dem(base, dem_cell=0.5, dem_origin=(0.0, 0.0))
+    assert remembered.min() < 100.0 and np.isclose(remembered[0, 0], 100.0)   # lower where built, else pristine
+    # the PAYOFF: a NEW plan validates against the remembered surface, not the pristine DEM
+    r = validate_plan(_mission([
+        {"action": "pad", "kind": "cut", "x": 15.0, "y": 15.0, "footprint_m2": 36.0, "depth_m": 0.1}]),
+        dem=(remembered, 0.5), dem_origin=(0.0, 0.0))
+    assert r["as_built_on_real_dem"] is True
