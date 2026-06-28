@@ -889,9 +889,9 @@
           <button id="rpclose" title="back to Plan">✕</button></div>
         <img id="rpimg" alt="plan render" style="display:none" />
         <div id="rpstatus"></div>
-        <div id="rpempty" class="empty">No render yet. On the <b>Plan</b> tab, click the work-area DEM
-          (Moon) to render a Godot before/after sensor frame here. A live SLAM map (observed-vs-truth as
-          the rover drives) is the open map-channel work, not a faked feed.</div>
+        <div id="rpempty" class="empty">No render yet. On the <b>Plan</b> tab, double-click the work-area
+          DEM (Moon) to render a Godot before/after sensor frame here (~40 s). A live SLAM map
+          (observed-vs-truth as the rover drives) is the open map-channel work, not a faked feed.</div>
 
         <!-- #183/#79 8-camera rig -> heading-ordered panorama -> shadow-nav cast-shadow landmarks
              (each tagged with the AZIMUTH bearing a navigation pose-graph factor consumes). The served
@@ -1390,6 +1390,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=b9996be65138"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=5142a4cd5caf"></script>
+<script src="/assets/cockpit.js?v=6340bc62e502"></script>
 </body>
 </html>

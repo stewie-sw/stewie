@@ -2800,7 +2800,10 @@ function showSiteDem() {                                   // auto-show the real
   if (!i.dataset.locv) i.dataset.locv = String(Date.now());
   // REG-01: the work-area + plan-view preview follows the SELECTED site (not always Haworth). The site is
   // in the URL, so switching sites changes `want` -> the image reloads for the new tile.
-  const want = "/dem/hillshade.png?site=" + encodeURIComponent(CURRENT_SITE) + "&v=" + i.dataset.locv;
+  // GIS-WA1: the CLEAN, axis-free, native-res work-area hillshade of [0,WORK_AREA_M]^2 (was /dem/hillshade.png
+  // = preview_hillshade.png, a matplotlib FIGURE whose axis margins inset the terrain and misregistered the
+  // plan-canvas drape). This raster fills the [0,WORK_AREA_M] world box exactly, so authoring clicks land true.
+  const want = "/dem/workarea.png?site=" + encodeURIComponent(CURRENT_SITE) + "&window_m=" + WORK_AREA_M + "&v=" + i.dataset.locv;
   // #167 (Aaron "body still doesn't show in work area" on Moon/Plan): reveal ROBUSTLY. The old gate only
   // revealed-when-already-decoded if src===want, so a cached/fast image that fired its load before this
   // handler (re)attached stayed hidden -> the panel never showed. Now: reveal on load, reveal NOW if the
@@ -2842,17 +2845,14 @@ function scheduleAutoRender() {                            // #33: planning edit
   clearTimeout(RERENDER_T);
   RERENDER_T = setTimeout(() => renderArea(LAST_RENDER_UV.u, LAST_RENDER_UV.v, { quiet: true }), 1500);
 }
-// UI-15: single-drag = locator pan (the canvas above captures it); DOUBLE-click = render area
+// GIS-WA1: rendering a Godot sensor frame is a ~40 s heavy action, so it is EXPLICIT (double-click the
+// locator) -- a plain single click on the work-area inset no longer fires it (it used to, which fired a
+// surprise 40 s render on the lightest gesture). Single-drag = locator pan (the canvas above captures it).
 $("piploc") && ($("piploc").ondblclick = (e) => {
   const r = e.target.getBoundingClientRect();
   const u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
   renderArea(u, v, {});
 });
-$("workareaimg").onclick = (e) => {
-  const r = e.target.getBoundingClientRect();
-  const u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
-  renderArea(u, v, {});
-};
 async function renderArea(u, v, opts) {
   LAST_RENDER_UV = { u, v };
   if (!opts.quiet) setView("perception");                  // swap to the Perception pane to show the render
@@ -3494,7 +3494,9 @@ function sunQS() {
 function loadSiteFootprint(reload) {
   if (!viewer) return;
   HAWORTH_ENTITIES.forEach((e) => viewer.entities.remove(e)); HAWORTH_ENTITIES.length = 0;
-  const label = (CURRENT_SITE || "site").toUpperCase().replace(/_/g, " ") + " WORK AREA";
+  // GIS-WA1: this outline is the WHOLE DEM TILE (e.g. Haworth ~10 km), not the work area. The true
+  // operational work area is the small [0, WORK_AREA_M]^2 patch drawn by drawWorkAreaRect() below.
+  const label = (CURRENT_SITE || "site").toUpperCase().replace(/_/g, " ") + " DEM TILE";
   fetch("/dem/georef?site=" + encodeURIComponent(CURRENT_SITE)).then((r) => r.json()).then((g) => {
     if (!g.ok || !viewer) return;
     const ll = []; g.corners.forEach((p) => { ll.push(p.lon, p.lat); });
@@ -3518,10 +3520,44 @@ function loadSiteFootprint(reload) {
                pixelOffset: new Cesium.Cartesian2(0, -18), showBackground: true,
                backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cdd") },
     }));
+    drawWorkAreaRect();                                    // GIS-WA1: the TRUE operational patch, inside the tile
     setMoonOverlaysVisible(sel.value === "moon");
     if (reload && typeof refetchSun === "function") refetchSun();   // re-place the globe drape at the new footprint
     if (LAYER_ON.terrain3d) loadTerrain3D(true);          // re-drape the 3D terrain mesh at the new site
   }).catch(() => {});
+}
+// GIS-WA1: draw the TRUE operational work area = the [0, WORK_AREA_M]^2 order frame, as a small bright-cyan
+// rectangle ON the globe so "work area" means the patch IPEx actually works (the big red outline is the
+// whole DEM tile). The 4 order-frame corners -> selenographic lat/lon via /dem/site_lonlat (the exact
+// inverse the cursor readout uses), so the rectangle is georeferenced, not an approximation.
+function drawWorkAreaRect() {
+  if (!viewer) return;
+  const site = encodeURIComponent(CURRENT_SITE), W = WORK_AREA_M;
+  const corners = [[0, 0], [W, 0], [W, W], [0, W]];
+  Promise.all(corners.map(([x, y]) =>
+    fetch(`/dem/site_lonlat?x=${x}&y=${y}&site=${site}`).then((r) => r.json()).catch(() => null)))
+    .then((cs) => {
+      if (!viewer || !cs.every((c) => c && c.ok)) return;
+      const ll = []; cs.forEach((c) => ll.push(c.lon, c.lat));
+      HAWORTH_ENTITIES.push(viewer.entities.add({
+        name: "WORK AREA",
+        polygon: {
+          hierarchy: Cesium.Cartesian3.fromDegreesArray(ll, ellipsoid),
+          material: Cesium.Color.fromCssColorString("#38bdf8").withAlpha(0.12),
+          outline: true, outlineColor: Cesium.Color.fromCssColorString("#38bdf8"),
+        },
+      }));
+      const clon = cs.reduce((s, c) => s + c.lon, 0) / cs.length;
+      const clat = cs.reduce((s, c) => s + c.lat, 0) / cs.length;
+      HAWORTH_ENTITIES.push(viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(clon, clat, 0, ellipsoid),
+        label: { text: `WORK AREA (${W} m)`, font: "10px Orbitron, sans-serif",
+                 fillColor: Cesium.Color.fromCssColorString("#38bdf8"),
+                 pixelOffset: new Cesium.Cartesian2(0, 10), showBackground: true,
+                 backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cdd") },
+      }));
+      try { viewer.scene.requestRender(); } catch (e) {}
+    }).catch(() => {});
 }
 // 3D TERRAIN LAYER: drape the chosen site's REAL DEM (GET /dem/terrain_grid -> georeferenced n*n height
 // grid) as a triangulated mesh primitive on the globe, so the work-area relief is a layer ON the Cesium
@@ -3751,6 +3787,10 @@ loadLayers();
 let _placeXY = null;                                       // last click-to-place marker (local metres)
 // FS-24: the plan-canvas extent/transform/glyph math lives in plan_geom.js (pure). These thin aliases
 // resolve the cockpit's globals (ORDERS/KEEPOUTS/_placeXY/koBounds) and pass them in; callers unchanged.
+// GIS-WA1: the canonical WORK-AREA operational extent [0, WORK_AREA_M]^2 (site metres). ONE constant so
+// the authoring backdrop image (/dem/workarea.png?window_m=), the plan-canvas drape box, and the globe
+// work-area rectangle all agree -- the precision fix for "what should the work area be".
+const WORK_AREA_M = 640;
 function _planExtent() { return window.STEWIE_PLAN_GEOM.planExtent(ORDERS, KEEPOUTS, _placeXY, koBounds, window.STEWIE_FOOTPRINT_GEOM.footprintBounds); }
 const _planXform = window.STEWIE_PLAN_GEOM.planXform;
 let LAST_ROUTES = [];                                      // item 3: routes from the last /plan response, drawn on the 2D canvas
@@ -3762,11 +3802,11 @@ function drawPlan() {
   const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
   ctx.clearRect(0, 0, W, H); ctx.fillStyle = "#05060c"; ctx.fillRect(0, 0, W, H);
   const ext = _planExtent(), tf = _planXform(cv, ext), X = tf.X, Y = tf.Y, s = tf.s;
-  // #48 (Aaron): TERRAIN UNDER THE FEATURES -- the work-area hillshade (site frame 0..640 m)
-  // drawn beneath the vectors so authoring has real context.
+  // #48 (Aaron): TERRAIN UNDER THE FEATURES -- the clean work-area hillshade (site frame [0, WORK_AREA_M] m)
+  // drawn beneath the vectors so authoring has real, correctly-registered context (GIS-WA1).
   const wai = qel("workareaimg");
   if (LAYER_ON.dem !== false && wai && wai.complete && wai.naturalWidth) {
-    const x0 = X(0), y0 = Y(640), x1 = X(640), y1 = Y(0);  // site Y is up; canvas Y is down
+    const x0 = X(0), y0 = Y(WORK_AREA_M), x1 = X(WORK_AREA_M), y1 = Y(0);  // site Y up; canvas Y down
     ctx.save(); ctx.globalAlpha = 0.55;
     ctx.drawImage(wai, x0, y0, x1 - x0, y1 - y0);
     ctx.restore();
