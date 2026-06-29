@@ -162,6 +162,9 @@ function loadBody(key) {
     animation: false, sceneModePicker: false, homeButton: false, navigationHelpButton: false,
     fullscreenButton: false, infoBox: false, selectionIndicator: false,
     ellipsoid: ellipsoid,
+    // G6 (#252): retain the WebGL drawing buffer so scene.canvas.toDataURL() can capture the map (the
+    // "capture map" PNG export). Minor per-frame cost; required -- without it toDataURL yields a blank image.
+    contextOptions: { webgl: { preserveDrawingBuffer: true } },
   });
   } catch (e) {
     const c = document.getElementById("cesium");
@@ -3438,6 +3441,59 @@ const SLOPE_SYM = { vmax: 30, classes: 0 };   // G5 (#251): slope graduated-rend
 function slopeRampText() {                     // G5: the legend tracks the operator's live symbology (not a stale "0-30")
   return `green 0° → red ${SLOPE_SYM.vmax}°` + (SLOPE_SYM.classes >= 2 ? ` · ${SLOPE_SYM.classes} classes` : " · continuous");
 }
+
+// G6 (#252): map capture / print composer -- the current globe view + a captioned legend strip, exported
+// as a downloadable PNG (the ArcGIS layout-view analog). Composited via Canvas 2D so the caption + legend
+// travel with the map image. Returns the data URL (also exposed for the Playwright check).
+function captureMapDataURL() {
+  if (!viewer || !viewer.scene) return null;
+  viewer.render();                                       // force a fresh synchronous frame before reading the buffer
+  const globe = viewer.scene.canvas;
+  const gw = globe.width, gh = globe.height;
+  if (!gw || !gh) return null;
+  const capH = 26, pad = 10;
+  // active GIS layers + the live slope symbology -> a one-line legend
+  const active = (typeof LAYER_ON === "object")
+    ? Object.keys(LAYER_ON).filter((k) => LAYER_ON[k] && ["dem", "slope", "hazard", "illumination", "incidence", "psr", "grid"].includes(k)) : [];
+  const legend = active.map((k) => (k === "slope" ? `slope (${slopeRampText()})` : k)).join("  ·  ") || "base map";
+  const legH = 22;
+  const cv = document.createElement("canvas");
+  cv.width = gw; cv.height = gh + capH + legH;
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#0a0a0c"; ctx.fillRect(0, 0, cv.width, cv.height);
+  const site = (typeof CURRENT_SITE === "string" ? CURRENT_SITE : "site");
+  const stamp = new Date().toISOString().slice(0, 19).replace("T", " ") + " UTC";
+  ctx.fillStyle = "#e6f0ff"; ctx.font = "15px sans-serif"; ctx.textBaseline = "middle";
+  ctx.fillText(`STEWIE lunar map — ${site}`, pad, capH / 2);
+  ctx.fillStyle = "#9ab"; ctx.font = "12px sans-serif"; ctx.textAlign = "right";
+  ctx.fillText(stamp, gw - pad, capH / 2); ctx.textAlign = "left";
+  ctx.drawImage(globe, 0, capH);                         // the captured globe view
+  ctx.fillStyle = "#0a0a0c"; ctx.fillRect(0, capH + gh, gw, legH);
+  ctx.fillStyle = "#cdd"; ctx.font = "12px sans-serif";
+  ctx.fillText("layers: " + legend, pad, capH + gh + legH / 2);
+  return cv.toDataURL("image/png");
+}
+async function captureMap() {
+  if (!viewer) { if (typeof alertMsg === "function") alertMsg("error", "map capture needs the 3-D globe (no WebGL here)"); return; }
+  try {
+    const data = captureMapDataURL();                    // a non-empty check (not a blank-frame detector)
+    if (!data || data.length < 200) { if (typeof alertMsg === "function") alertMsg("error", "map capture produced no image"); return; }
+    const a = document.createElement("a");
+    a.href = data; a.download = `stewie_${(typeof CURRENT_SITE === "string" ? CURRENT_SITE : "map")}_${new Date().toISOString().slice(0, 10)}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    // honesty: a capture taken mid-stream shows whatever tiles have loaded -- say so rather than imply complete
+    const loading = viewer.scene && viewer.scene.globe && viewer.scene.globe.tilesLoaded === false;
+    if (typeof setQ === "function") setQ("map captured → PNG downloaded" + (loading ? " (some tiles were still loading)" : ""));
+  } catch (e) {
+    // a cross-origin layer WITHOUT CORS taints the WebGL canvas -> toDataURL throws SecurityError. Shipped
+    // layers (Trek/Esri/GIBS) are CORS-clean; this guards a future user-added non-CORS layer (#241).
+    const taint = /SecurityError|tainted/i.test(String(e));
+    if (typeof alertMsg === "function") alertMsg("error", taint
+      ? "map capture blocked: a layer's tiles are cross-origin without CORS, so the map cannot be exported"
+      : "map capture failed: " + e);
+  }
+}
+if (qel("mapcapture")) qel("mapcapture").onclick = captureMap;
 let LANDER = { name: "Nova-C", x: LANDER_P.x, y: LANDER_P.y, footprint_m: 4.6, n_legs: 6 };   // delivery lander (persisted position, #65)
 // #161: a toggleable 100 m reference ring around the lander (the safe-operating-radius cue; pairs with
 // the planner's return-to-lander feasibility). Persisted per-browser; default on.
