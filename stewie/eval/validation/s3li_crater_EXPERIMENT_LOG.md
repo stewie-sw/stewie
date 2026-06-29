@@ -126,6 +126,32 @@ real S3LI sequence**:
 So **8.4 m is the honest floor for S3LI**; the next gains are dataset-structural (multi-loop) or
 deployment-specific (the lunar shadow + multi-camera channels), not more solver tuning.
 
+## Scale-recovery autoresearch — pushing the SE(3) 7.99 m toward the 5.57 m Sim3 floor
+
+The committed full-SE(3) estimator (`s3li_crater_se3_2026-06-28.json`) sits at **SE3 7.99 m / Sim3
+5.57 m** — the 2.4 m gap is a **~4% VO forward-scale bias** the rigid SE3 alignment can't absorb. The
+autoresearch loop (`benchmarks/s3li_crater/autoresearch_scale.py`, artifact
+`s3li_crater_autoresearch_scale_2026-06-28.json`) tested every firewall-clean way to recover that scale,
+applying each to the SE(3) trajectory and re-scoring:
+
+| method | recovered scale | SE3 | verdict |
+|---|---|---|---|
+| baseline (SE3+LC+DEM) | 1.000 | 7.99 | the committed floor |
+| **GT-optimal (ceiling)** | 1.045 | **5.50** | what a perfect scale would buy — **GT-derived, not reachable** |
+| loop closure (`vo_scale` state) | 0.370 | 85.96 | **DEGENERATE** — a single revisit lets scale shrink the whole loop to force closure |
+| IMU accel-regression | 3.065 | 260.07 | **TOO NOISY** — the slow rover's 0.14 m/s² horizontal motion accel is 40× below the 5.6 m/s² gravity-removal residual (corr 0.10) |
+
+**Conclusion: the 4% scale is NOT firewall-cleanly recoverable on this data.** Both real estimators
+recover wildly wrong scales that make the ATE *far worse*; only the GT-derived scale reaches 5.50 m. A
+DEM scale search is circular (the SE(3) z is already DEM-anchored at the current scale). So **7.99 m SE3
+is the genuine floor** for vision-only + a 30 m DEM + a single-loop traverse, and **~5.6 m (Sim3) is an
+unreachable ceiling** without a clean metric scale reference: a higher-res DEM (Tinitaly/Pleiades/LROC-
+NAC, all gated here), wheel odometry (absent from the bag), tight IMU pre-integration with online accel-
+bias + cam-IMU-extrinsic estimation (a real VIO build, and marginal at this motion level), or a
+multi-loop traverse (different data). The IMU being unusable here is the slow-rover analog of the
+shadow channels being unusable here — both are real lunar levers that this Etna dataset just doesn't
+exercise.
+
 ## Method / solver notes
 
 - Position graph: `dart/dem_height_graph.py` (analytic sparse GN, 3-D node positions; `height_only` DEM
