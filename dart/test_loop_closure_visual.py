@@ -33,6 +33,12 @@ _have_vo = pytest.mark.skipif(not os.path.isfile(_VO_NPZ),
                               reason="frozen VO npz absent (run benchmarks/s3li_crater/freeze_vo.py)")
 _have_cache = pytest.mark.skipif(not os.path.isfile(_LOOP_NPZ),
                                  reason="loop-feature cache absent (run freeze_loopclosure.py)")
+# S3liDem() reads the independent Copernicus GLO-30 tile at construction; gate the tests that build it
+# on that real artifact too (same skip-cleanly-when-absent contract as the VO/cache artifacts above),
+# else they FileNotFoundError where the tile isn't fetched (e.g. CI).
+from dart.s3li_dem import DEFAULT_DEM_PATH as _DEM_TILE  # noqa: E402
+_have_dem = pytest.mark.skipif(not os.path.isfile(_DEM_TILE),
+                               reason="independent Copernicus DEM tile absent (fetch GLO-30 N37/E015)")
 
 
 @_have_vo
@@ -49,6 +55,7 @@ def test_quat_wxyz_to_rotmat_inverts_rotmat_to_quat():
 
 
 @_have_vo
+@_have_dem
 def test_registration_rotation_matches_register_cam_to_enu():
     """registration_rotation(yaw) reproduces dart.s3li_capstone.register_cam_to_enu on REAL VO camera
     points: ``p_enu = R_M @ p_cam + [0,0,z0]``. (This is the rotation the loop factor uses to map a
@@ -67,6 +74,7 @@ def test_registration_rotation_matches_register_cam_to_enu():
 
 
 @_have_vo
+@_have_dem
 def test_build_loop_factors_emits_loop_closure_between_factors():
     """build_loop_factors turns accepted closures into LOOP_CLOSURE between-factors (keyframe a, metadata
     ``to`` = b, length-3 value, isotropic sigma) and drops rejected ones. The displacement values are
