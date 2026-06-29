@@ -2798,6 +2798,12 @@ function estimate() {
     flag.style.cssText = "color:#e0b300";
     flag.title = "exceeds a single battery charge -> multi-sortie; the conservative default flags this for review rather than feasible-green";
     $("est").append(flag);
+  } else {                                                  // #8: the explicit feasible-GREEN badge (the amber flag's pair)
+    const ok = document.createElement("b");
+    ok.textContent = "✓ feasible · single charge  ";
+    ok.style.cssText = "color:#2ecc71";
+    ok.title = "within one IPEx battery charge -> a single-sortie dig (the conservative feasible-green baseline; the 4·Plan solver still adds travel + slip + recharge routing)";
+    $("est").append(ok);
   }
   const info = document.createElement("button");
   info.textContent = "ⓘ details";
