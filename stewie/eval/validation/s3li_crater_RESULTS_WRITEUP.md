@@ -194,6 +194,27 @@ Ranked by value to the dissertation and feasibility.
    integration plan calls for), to position the result against published lunar SLAM rather than only the
    one reference paper.
 
+### Loop readiness (data-availability check, 2026-06-28)
+
+Each forward direction was checked against the data actually on disk, so the loops are specified with
+their real blocker rather than assumed runnable:
+
+| Loop | Data on disk | Status |
+|---|---|---|
+| More S3LI sequences (multi-loop generalization) | only `s3li_crater.bag` present | BLOCKED: no second S3LI sequence |
+| Katwijk visual SLAM (second real rover) | `katwijk/PartN/LocCam` has 0 image files (only IMU/GPS/odometry text + calibration); existing Katwijk code is wheel+IMU dead-reckoning | BLOCKED: LocCam stereo not downloaded |
+| LuSNAR rendered-lunar loop closure | `lusnar/extracted/Moon_1` present (stereo+gt+imu), but the traverse is OPEN (span 256 x 19 m, no revisit) and the DEM is GT-derived | BLOCKED: no revisit (loop closure cannot fire); DEM not firewall-clean |
+| Lunar Godot render (the real target) | `stewie/godot/out/plan_render` holds PNGs only, not a consumable stereo+DEM sequence | NEEDS BUILD: the Godot/Chrono producer + sensor-bridge fixtures (FORGE track) |
+| VIO into the SE(3) graph | S3LI IMU present; tested-negative for scale (gravity-dominated, corr 0.10) | NEEDS BUILD + COORDINATION: IMU preintegration factors in the concurrent SE(3) estimator; marginal at this motion level |
+| Higher-res Etna DEM | only the 30 m Copernicus tile; Tinitaly/Pleiades are registration-gated | BLOCKED: gated download |
+
+**Honest conclusion.** The S3LI loop has converged to its floor (7.99 m, exhaustively documented), and
+every forward loop is currently blocked on missing data or is a real build that overlaps the concurrent
+SE(3)/integration work. There is no quick autoresearch loop left to run on the present data. The single
+highest-value unblocked next step is the **lunar render track** (Section 9 item 1): standing up the
+Godot/Chrono producer so the estimator and the already-built shadow and multi-camera channels run on
+grazing-sun lunar terrain, which is where those levers actually move the number.
+
 ---
 
 ## 10. Artifacts and reproducibility
