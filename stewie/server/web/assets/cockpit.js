@@ -4056,6 +4056,85 @@ function drawPlan() {
     ctx.beginPath(); ctx.arc(cx, cy, 5, 0, 7); ctx.moveTo(cx - 8, cy); ctx.lineTo(cx + 8, cy);
     ctx.moveTo(cx, cy - 8); ctx.lineTo(cx, cy + 8); ctx.stroke();
   }
+  syncPlanToGlobe();                                        // #audit-7: mirror the placed plan onto the 3D globe
+}
+
+// #audit-7 (#257): the placed plan (orders/keep-outs/routes) drew ONLY on the 2D plan canvas, so the main
+// globe looked empty -- Aaron: "I plotted waypoints... doesn't show on the actual main view." This mirrors
+// them onto the Cesium globe: each order-frame (x,y) -> tile-metres (WORK_AREA_ANCHOR + (x,y)) -> selenographic
+// lon/lat via /dem/site_lonlat (the SAME anchor offset the work-area rect uses, so markers land in the rect).
+// Debounced so a drag / queue edit coalesces into one batched conversion; entities live in their OWN layer
+// (PLAN_GLOBE_ENTS), separate from the edit-mode EDIT_PINS.
+let PLAN_GLOBE_ENTS = [];
+let _syncPlanTimer = 0;
+function syncPlanToGlobe() {
+  if (_syncPlanTimer) clearTimeout(_syncPlanTimer);
+  _syncPlanTimer = setTimeout(_syncPlanToGlobeNow, 250);
+}
+async function _syncPlanToGlobeNow() {
+  _syncPlanTimer = 0;
+  if (!viewer) return;
+  PLAN_GLOBE_ENTS.forEach((e) => { try { viewer.entities.remove(e); } catch (_e) {} });
+  PLAN_GLOBE_ENTS = [];
+  const [ox, oy] = (WORK_AREA_ANCHOR && WORK_AREA_ANCHOR.length === 2) ? WORK_AREA_ANCHOR : [0, 0];
+  const site = encodeURIComponent(CURRENT_SITE);
+  const showOrders = LAYER_ON.excavation !== false;        // respects the Contents-tree Operations toggle
+  const pts = [];                                          // every (x,y) tile-metre needing a lon/lat
+  if (showOrders) ORDERS.forEach((o, i) => pts.push({ t: "order", i, x: ox + (+o.x || 0), y: oy + (+o.y || 0) }));
+  KEEPOUTS.forEach((k, i) => {
+    if (typeof k.x === "number") pts.push({ t: "koc", i, x: ox + k.x, y: oy + k.y, r: +k.r || 5 });
+    else if (Array.isArray(k.points)) k.points.forEach((p, j) => pts.push({ t: "kop", i, j, x: ox + (+p[0]), y: oy + (+p[1]) }));
+  });
+  if (showOrders) LAST_ROUTES.forEach((rt, i) => (rt.waypoints || rt.points || []).forEach((w, j) =>
+    pts.push({ t: "route", i, j, x: ox + (+w[0]), y: oy + (+w[1]) })));
+  if (!pts.length) { try { viewer.scene.requestRender(); } catch (_e) {} return; }
+  const res = await Promise.all(pts.map((p) =>
+    fetch(`/dem/site_lonlat?x=${p.x}&y=${p.y}&site=${site}`).then((r) => r.json())
+      .then((d) => ({ p, d })).catch(() => null)));
+  if (!viewer) return;
+  const polys = {}, routes = {};
+  res.forEach((rr) => {
+    if (!rr || !rr.d || !rr.d.ok) return;
+    const { p, d } = rr, red = Cesium.Color.fromCssColorString("#e0564b");
+    if (p.t === "order") {
+      const o = ORDERS[p.i] || {};
+      const col = o.kind === "goto" ? "#38bdf8" : (o.kind === "fill" ? "#fbbf24" : "#22d3ee");
+      PLAN_GLOBE_ENTS.push(viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(d.lon, d.lat, 0, ellipsoid),
+        point: { pixelSize: 6, color: Cesium.Color.fromCssColorString(col), outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
+        label: { text: `${o.kind || "order"} ${o.action || ""}`.trim(), font: "10px Orbitron, sans-serif",
+                 fillColor: Cesium.Color.fromCssColorString("#c7d2e3"), pixelOffset: new Cesium.Cartesian2(0, -13),
+                 showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
+      }));
+    } else if (p.t === "koc") {
+      PLAN_GLOBE_ENTS.push(viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(d.lon, d.lat, 0, ellipsoid),
+        ellipse: { semiMajorAxis: p.r, semiMinorAxis: p.r, height: 0, material: red.withAlpha(0.18),
+                   outline: true, outlineColor: red.withAlpha(0.9) },
+      }));
+    } else if (p.t === "kop") {
+      (polys[p.i] = polys[p.i] || []).push([d.lon, d.lat]);
+    } else if (p.t === "route") {
+      (routes[p.i] = routes[p.i] || []).push([d.lon, d.lat]);
+    }
+  });
+  Object.values(polys).forEach((ll) => {
+    if (ll.length < 3) return;
+    const red = Cesium.Color.fromCssColorString("#e0564b"), flat = [];
+    ll.forEach(([lo, la]) => flat.push(lo, la));
+    PLAN_GLOBE_ENTS.push(viewer.entities.add({
+      polygon: { hierarchy: Cesium.Cartesian3.fromDegreesArray(flat, ellipsoid),
+                 material: red.withAlpha(0.18), outline: true, outlineColor: red.withAlpha(0.9) } }));
+  });
+  Object.values(routes).forEach((ll) => {
+    if (ll.length < 2) return;
+    const flat = [];
+    ll.forEach(([lo, la]) => flat.push(lo, la));
+    PLAN_GLOBE_ENTS.push(viewer.entities.add({
+      polyline: { positions: Cesium.Cartesian3.fromDegreesArray(flat, ellipsoid), width: 2,
+                  material: Cesium.Color.fromCssColorString("#38bdf8").withAlpha(0.85) } }));
+  });
+  try { viewer.scene.requestRender(); } catch (_e) {}
 }
 let PATH_MODE = false, PATH_N = 0;
 qel("pathmode").onclick = () => {
