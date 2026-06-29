@@ -159,6 +159,7 @@ from stewie.server.routers import siteplan as _siteplan_router  # noqa: E402
 from stewie.server.routers import schema as _schema_router  # noqa: E402
 from stewie.server.routers import twin as _twin_router  # noqa: E402
 from stewie.server.routers import world as _world_router  # noqa: E402
+from stewie.server.routers import ogc as _ogc_router  # noqa: E402
 app.include_router(_rc_router.router)
 app.include_router(_auth_router.router)
 app.include_router(_invites_router.router)
@@ -169,6 +170,7 @@ app.include_router(_profiles_router.router)
 app.include_router(_sample_missions_router.router)
 app.include_router(_assets_router.router)
 app.include_router(_layers_router.router)
+app.include_router(_ogc_router.router)               # ArcGIS-G1 #248: OGC WMS over the globe layers
 app.include_router(_config_router.router)
 app.include_router(_health_router.router)
 app.include_router(_dem_router.router)

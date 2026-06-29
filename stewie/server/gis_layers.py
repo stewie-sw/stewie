@@ -121,6 +121,39 @@ def _tile_geo(mp, bundle_dir=None):
     return pair[0], float(pair[1]), meta["world_bounds_m"], fwd
 
 
+def _geographic_bbox_of_extent(x0, y0, x1, y1):
+    """Project an extent's boundary ring from the polar-stereo frame (IAU_2015:30135) to selenographic
+    lat/lon, returning bbox{south,north,west,east}. Ring (not just corners) because the projection bows
+    the edges. Shared by the globe reproject and the OGC WMS capabilities extent (no raster needed).
+    CAVEAT (off-pole assumption): a simple lon/lat min/max box. Valid for an OFF-POLE work-site tile
+    (Haworth: west~-29 east~-22 south~-86.5 north~-86.1). A tile that ENCLOSES the pole or crosses the
+    +/-180 antimeridian would collapse lon to ~[-180,180] and need a split bbox -- the existing globe
+    drape shares this assumption, so this helper does not regress it."""
+    import numpy as _np
+    from pyproj import CRS, Transformer
+    t = _np.linspace(0.0, 1.0, 64)
+    ring_x = _np.concatenate([x0 + (x1 - x0) * t, _np.full(64, x1), x1 - (x1 - x0) * t, _np.full(64, x0)])
+    ring_y = _np.concatenate([_np.full(64, y0), y0 + (y1 - y0) * t, _np.full(64, y1), y1 - (y1 - y0) * t])
+    crs = CRS.from_user_input("IAU_2015:30135")
+    inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
+    lons, lats = inv.transform(ring_x, ring_y)
+    return {"south": float(lats.min()), "north": float(lats.max()),
+            "west": float(lons.min()), "east": float(lons.max())}
+
+
+def geographic_bbox(site: str = "haworth", mp=None):
+    """The selenographic lat/lon bounding box of a site's tile -- the OGC WMS GetCapabilities extent,
+    computed WITHOUT a raster render (reads only the tile metadata's polar-stereo world bounds)."""
+    import json as _json
+    import os as _os
+    if mp is None:
+        from lode import mission_planner as mp
+    bundle_dir = mp.bundle_for_site(site)                    # raises KeyError/FileNotFoundError
+    meta = _json.load(open(_os.path.join(mp._haworth_bundle(bundle_dir), "metadata.json")))
+    b = meta["world_bounds_m"]
+    return _geographic_bbox_of_extent(b["x0"], b["y0"], b["x1"], b["y1"])
+
+
 def _reproject(source_rgba, b, fwd, *, out_px: int = 1024, sub=None):
     """Resample an RGBA raster (north-up in the stereo frame, extent = b or the sub-window) onto a
     geographic grid. Returns (rgba_geo uint8, bbox{south,north,west,east})."""
@@ -129,16 +162,7 @@ def _reproject(source_rgba, b, fwd, *, out_px: int = 1024, sub=None):
         x0, y0, x1, y1 = sub
     else:
         x0, y0, x1, y1 = b["x0"], b["y0"], b["x1"], b["y1"]
-    # the geographic bbox: project a dense ring of the extent's boundary to lat/lon
-    t = _np.linspace(0.0, 1.0, 64)
-    ring_x = _np.concatenate([x0 + (x1 - x0) * t, _np.full(64, x1), x1 - (x1 - x0) * t, _np.full(64, x0)])
-    ring_y = _np.concatenate([_np.full(64, y0), y0 + (y1 - y0) * t, _np.full(64, y1), y1 - (y1 - y0) * t])
-    from pyproj import CRS, Transformer
-    crs = CRS.from_user_input("IAU_2015:30135")
-    inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
-    lons, lats = inv.transform(ring_x, ring_y)
-    bbox = {"south": float(lats.min()), "north": float(lats.max()),
-            "west": float(lons.min()), "east": float(lons.max())}
+    bbox = _geographic_bbox_of_extent(x0, y0, x1, y1)        # the geographic extent (shared helper)
     # the output grid -> stereo coords -> source pixel indices
     H = out_px
     W = max(64, int(out_px * (bbox["east"] - bbox["west"])
