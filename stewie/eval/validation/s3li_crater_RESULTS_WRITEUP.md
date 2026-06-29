@@ -202,18 +202,22 @@ their real blocker rather than assumed runnable:
 | Loop | Data on disk | Status |
 |---|---|---|
 | More S3LI sequences (multi-loop generalization) | only `s3li_crater.bag` present | BLOCKED: no second S3LI sequence |
-| Katwijk visual SLAM (second real rover) | `katwijk/PartN/LocCam` has 0 image files (only IMU/GPS/odometry text + calibration); existing Katwijk code is wheel+IMU dead-reckoning | BLOCKED: LocCam stereo not downloaded |
+| Katwijk visual SLAM (second real rover) | LocCam stereo extracted from the part tars; Part4 is a 76 m loop | **DONE** (`katwijk_part4_slam_2026-06-28.json`): VO **0.74 m SE3** (Sim3 0.66 m, scale 1.013) over the 76 m GPS loop, 100 GPS associations, 191 loop closures; the stack generalizes to a second real rover |
 | LuSNAR rendered-lunar loop closure | `lusnar/extracted/Moon_1` present (stereo+gt+imu), but the traverse is OPEN (span 256 x 19 m, no revisit) and the DEM is GT-derived | BLOCKED: no revisit (loop closure cannot fire); DEM not firewall-clean |
 | Lunar Godot render (the real target) | `stewie/godot/out/plan_render` holds PNGs only, not a consumable stereo+DEM sequence | NEEDS BUILD: the Godot/Chrono producer + sensor-bridge fixtures (FORGE track) |
 | VIO into the SE(3) graph | S3LI IMU present; tested-negative for scale (gravity-dominated, corr 0.10) | NEEDS BUILD + COORDINATION: IMU preintegration factors in the concurrent SE(3) estimator; marginal at this motion level |
 | Higher-res Etna DEM | only the 30 m Copernicus tile; Tinitaly/Pleiades are registration-gated | BLOCKED: gated download |
 
-**Honest conclusion.** The S3LI loop has converged to its floor (7.99 m, exhaustively documented), and
-every forward loop is currently blocked on missing data or is a real build that overlaps the concurrent
-SE(3)/integration work. There is no quick autoresearch loop left to run on the present data. The single
-highest-value unblocked next step is the **lunar render track** (Section 9 item 1): standing up the
-Godot/Chrono producer so the estimator and the already-built shadow and multi-camera channels run on
-grazing-sun lunar terrain, which is where those levers actually move the number.
+**Honest conclusion.** The S3LI loop has converged to its floor (7.99 m, exhaustively documented). The
+**Katwijk loop is now closed** (the LocCam stereo was extracted from the part tars): the same VO + loop
+closure + pose-graph stack runs on a second real rover and scores **0.74 m SE3** over Part4's 76 m GPS
+loop, confirming the method generalizes (Katwijk's VO is already sub-metre, so loop closure has little
+gross drift to remove there, unlike S3LI's 1.3 km, 93 m-drift loop). The remaining forward loops are
+blocked on data that is not fetchable (second S3LI sequence, LuSNAR revisit, gated higher-res DEM) or are
+real builds overlapping the concurrent SE(3)/render work. The single highest-value unblocked next step is
+the **lunar render track** (Section 9 item 1): standing up the Godot/Chrono producer so the estimator and
+the already-built shadow and multi-camera channels run on grazing-sun lunar terrain, which is where those
+levers actually move the number.
 
 ---
 
