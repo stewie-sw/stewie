@@ -8,11 +8,12 @@ from __future__ import annotations
 import os
 
 import numpy as np
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from stewie.contracts import WorldState
 from stewie.server import state as S
+from stewie.server.deps import require_auth
 from stewie.specs.sites import SITES
 
 router = APIRouter()
@@ -24,7 +25,7 @@ _SITE_SOURCE = {name: os.path.basename(s.bundle_dir) for name, s in SITES.items(
 
 
 @router.get("/world")
-def world(site: str = "haworth"):
+def world(site: str = "haworth", _auth: str = Depends(require_auth)):
     """FS-02 / TW-05: the typed WorldState descriptor for `site` (grid geometry + lunar datum +
     provenance). 404 if the site's DEM bundle is absent (degraded mode)."""
     dem, _anchor = S.moon_dem(site)

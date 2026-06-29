@@ -13,11 +13,12 @@ import json
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from stewie.server import state
+from stewie.server.deps import require_auth
 
 router = APIRouter()
 log = logging.getLogger("stewie.server")
@@ -32,6 +33,7 @@ def export_geojson(
     lat: float | None = Query(None, ge=-90.0, le=90.0),
     lon: float | None = Query(None, ge=-360.0, le=360.0),
     max_traverse_slope_deg: float = Query(25.0, ge=5.0, le=45.0),
+    _auth: str = Depends(require_auth),
 ):
     """Export the plan to an RFC-7946 GeoJSON FeatureCollection in lon/lat (PRD GI-03). The mission is a
     JSON object identical to the /plan body. Coordinates are projected from the order frame to selenographic
@@ -121,7 +123,7 @@ def _resolve_origin(site: str, lat: float | None, lon: float | None):
 
 
 @router.post("/gis/import")
-def gis_import(req: GisImportRequest):
+def gis_import(req: GisImportRequest, _auth: str = Depends(require_auth)):
     """GI-03 import: parse a GeoJSON FeatureCollection (selenographic lon/lat) back into LOCAL order-frame
     orders / keep-outs / charger / route via the inverse IAU_2015:30135 transform -- the faithful inverse of
     /export/geojson. 400 on a non-FeatureCollection or an out-of-tile coordinate, 503 if pyproj/DEM is
@@ -150,6 +152,7 @@ def gis_mission_package(
     lat: float | None = Query(None, ge=-90.0, le=90.0),
     lon: float | None = Query(None, ge=-360.0, le=360.0),
     max_traverse_slope_deg: float = Query(25.0, ge=5.0, le=45.0),
+    _auth: str = Depends(require_auth),
 ):
     """GI-03 offline mission-package export: a single self-contained bundle (manifest + plan GeoJSON + the
     dem_origin anchor) a field operator can carry offline and re-import without the live DEM. Same mission/
@@ -193,7 +196,7 @@ class GisQueryRequest(BaseModel):
 
 
 @router.post("/gis/query")
-def gis_query(req: GisQueryRequest):
+def gis_query(req: GisQueryRequest, _auth: str = Depends(require_auth)):
     """GI-03 feature attribute/query: return the features whose `feature` layer tag matches (when given) AND
     whose properties match every `attrs` key=value. 400 on a non-FeatureCollection or a reserved attr key.
     Read-only."""

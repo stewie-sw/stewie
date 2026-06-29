@@ -3,8 +3,9 @@
 request there); these routes read a consistent snapshot. No app-module import (no cycle)."""
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from stewie.server.deps import require_auth
 from stewie.server.services import (
     audit_health,
     latency_snapshot,
@@ -36,6 +37,6 @@ def healthz():
 
 
 @router.get("/metrics")
-def metrics():
+def metrics(_auth: str = Depends(require_auth)):
     # FS-10: the latency block reports p50/p95/max per route against its budget (over_budget flagged).
     return {"uptime_s": uptime_s(), **metrics_snapshot(), "latency": latency_snapshot()}

@@ -8,16 +8,17 @@ from __future__ import annotations
 import json
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse, JSONResponse, Response
 
+from stewie.server.deps import require_auth
 from stewie.specs.config import data_dir
 
 router = APIRouter()
 
 
 @router.get("/clasts/scene")
-def clasts_scene():
+def clasts_scene(_auth: str = Depends(require_auth)):
     """#147 tier-3 (Chrono brick): the latest REAL Chrono-settled boulder scene -- scripts/chrono_clast_scene.py
     runs a ChSystemSMC rigid-body solve (settled vs analytic g) and writes <data_dir>/clasts_scene.json with
     {clasts:[{x,y,z,r}], ...} in the ORDER FRAME. The cockpit 3D view places each boulder ON the DEM surface.
@@ -39,7 +40,7 @@ _PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 @router.get("/dem/georef")
-def dem_georef(site: str = "haworth"):
+def dem_georef(site: str = "haworth", _auth: str = Depends(require_auth)):
     """The chosen site's tile globe footprint (selenographic corners) for the cockpit overlay (REG-01:
     any imported site, not just Haworth -- so selecting a site overlays ITS tile on the globe)."""
     from lode import mission_planner as MP
@@ -52,7 +53,7 @@ def dem_georef(site: str = "haworth"):
 
 
 @router.get("/dem/site_xy")
-def dem_site_xy(lat: float, lon: float, site: str = "haworth"):
+def dem_site_xy(lat: float, lon: float, site: str = "haworth", _auth: str = Depends(require_auth)):
     """Selenographic lat/lon -> the chosen site's frame (x, y) [m] (the cursor-meters readout). REG-01:
     site-aware, so a click on a non-Haworth tile resolves against THAT tile's georef, not Haworth's."""
     from lode import mission_planner as MP
@@ -68,7 +69,7 @@ def dem_site_xy(lat: float, lon: float, site: str = "haworth"):
 
 
 @router.get("/dem/site_lonlat")
-def dem_site_lonlat(x: float, y: float, site: str = "haworth"):
+def dem_site_lonlat(x: float, y: float, site: str = "haworth", _auth: str = Depends(require_auth)):
     """#174: the chosen site's order-frame (x, y) [m] -> selenographic lat/lon (deg) -- the INVERSE of
     /dem/site_xy, so the cockpit can show the actual coordinates next to the site metres for the lander,
     the rover's pose, and placed landmarks (Aaron: "why are these in meters vs actual coordinates?")."""
@@ -85,7 +86,7 @@ def dem_site_lonlat(x: float, y: float, site: str = "haworth"):
 
 
 @router.get("/dem/sources")
-def dem_sources_catalog():
+def dem_sources_catalog(_auth: str = Depends(require_auth)):
     """#150: the lunar DEM source catalog -- every selectable base layer with provenance, license, and
     readiness. `bundled` tiles load offline (the 3 real LOLA tiles on disk); the rest are real-data-gated
     (you supply the downloaded product). `planning_grade` is false for render-only visualization products.
@@ -100,7 +101,8 @@ def dem_sources_catalog():
 
 
 @router.get("/dem/heightfield")
-def dem_heightfield(site: str = "haworth", n: int = 129, window_m: float = 300.0):
+def dem_heightfield(site: str = "haworth", n: int = 129, window_m: float = 300.0,
+                    _auth: str = Depends(require_auth)):
     """3D playback (#165): a decimated n*n height grid over the work-area ORDER FRAME [0, window_m]^2
     -- x metres East, y metres North from the site origin -- sampled from the chosen site's real LOLA
     DEM with the planner's exact convention (col = round((ox+x)/cell_m), row = round((oy+y)/cell_m),
@@ -144,7 +146,7 @@ _WORKAREA_CACHE_MAX = 256
 
 @router.get("/dem/workarea.png")
 def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str = "dem",
-                     sun_az: float = 315.0, sun_el: float = 45.0):
+                     sun_az: float = 315.0, sun_el: float = 45.0, _auth: str = Depends(require_auth)):
     """GIS-WA1/WA2: a CLEAN, axis-free raster of the WORK-AREA order frame [0, window_m]^2 (x East, y North
     from the site origin), sampled from the chosen site's real LOLA DEM at NATIVE cell resolution -- no
     matplotlib axes/title/margins. `kind` selects the LAYER: dem (315/45 hillshade, the plan-canvas authoring
@@ -197,7 +199,7 @@ def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str =
 
 
 @router.get("/dem/terrain_grid")
-def dem_terrain_grid_route(site: str = "haworth", n: int = 64):
+def dem_terrain_grid_route(site: str = "haworth", n: int = 64, _auth: str = Depends(require_auth)):
     """REG-01 globe 3D layer: an n*n georeferenced height grid (lat/lon + real elevation [m]) of the chosen
     site's LOLA DEM, for draping the work-area terrain as a 3D mesh layer on the Cesium globe. Reprojection
     is vectorized (one pyproj call for all nodes). Declared BEFORE /dem/{name} so the literal path wins.
@@ -216,7 +218,7 @@ def dem_terrain_grid_route(site: str = "haworth", n: int = 64):
 
 
 @router.get("/dem/{name}")
-def get_dem(name: str, site: str = "haworth"):          # the real LOLA work-area DEM previews (REG-01: per site)
+def get_dem(name: str, site: str = "haworth", _auth: str = Depends(require_auth)):   # real LOLA work-area DEM previews (REG-01: per site)
     from stewie.terrain.site_dem import bundle_for_site
     f = {"hillshade.png": "preview_hillshade.png", "height.png": "preview_height.png"}.get(os.path.basename(name))
     if not f:

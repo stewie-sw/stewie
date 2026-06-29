@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse, JSONResponse
+
+from stewie.server.deps import require_auth
 
 router = APIRouter()
 
@@ -21,7 +23,7 @@ _CT = {".json": "application/json", ".pnts": "application/octet-stream",
 
 
 @router.get("/tiles/{name}/{asset:path}")
-def get_tile(name: str, asset: str):
+def get_tile(name: str, asset: str, _auth: str = Depends(require_auth)):
     """Serve a tileset file. `name` = tileset dir (e.g. 'twin'); `asset` = tileset.json or points.pnts."""
     base = os.path.join(_TILES_DIR, name)
     path = os.path.realpath(os.path.join(base, asset))

@@ -18,7 +18,8 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
     import stewie.server.server as srv
     importlib.reload(srv)
-    yield TestClient(srv.app)
+    # /world is auth-gated (#246); this fixture configures a key, so the client must send it.
+    yield TestClient(srv.app, headers={"X-API-Key": "test-key"})
     monkeypatch.undo()
     importlib.reload(srv)
 

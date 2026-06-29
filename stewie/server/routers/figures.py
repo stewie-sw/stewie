@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse, JSONResponse
+
+from stewie.server.deps import require_auth
 
 router = APIRouter()
 
@@ -32,7 +34,7 @@ def _validation_figures() -> dict:
 
 
 @router.get("/figures")
-def get_figures():
+def get_figures(_auth: str = Depends(require_auth)):
     """List the validation figures (engineer pane). key = 'category/file.png'; fetch via /figure/{key}."""
     figs = _validation_figures()
     return {"ok": True, "figures": [{"key": k, "category": k.split("/")[0], "url": "/figure/" + k}
@@ -40,7 +42,7 @@ def get_figures():
 
 
 @router.get("/figure/{key:path}")
-def get_figure(key: str):
+def get_figure(key: str, _auth: str = Depends(require_auth)):
     """Serve a validation PNG by allowlisted key (only the keys /figures lists -> no path traversal)."""
     p = _validation_figures().get(key)
     if not p:
