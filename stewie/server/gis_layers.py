@@ -41,13 +41,16 @@ def _upscale(a: np.ndarray, k: int = 4) -> np.ndarray:
 
 
 def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float = 90.0,
-           mp=None, site: str = "haworth") -> bytes | None:
+           mp=None, site: str = "haworth", slope_vmax: float = 30.0, slope_classes: int = 0) -> bytes | None:
     """Render one raster layer as PNG bytes; None for unknown kinds. REG-01: ``site`` selects the
-    imported tile so the work-area raster follows the chosen site, not just Haworth."""
+    imported tile so the work-area raster follows the chosen site, not just Haworth. G5 (#251):
+    slope_vmax/slope_classes are the slope layer's graduated-renderer controls (so the PIP-overlay raster
+    matches the globe drape's symbology); ignored for other kinds."""
     if mp is None:
         from lode import mission_planner as mp
     bundle_dir = mp.bundle_for_site(site)                # raises KeyError/FileNotFoundError -> route 404
-    key = (kind, site, round(float(sun_el), 2), round(float(sun_az), 2))
+    sym = (round(float(slope_vmax), 2), int(slope_classes)) if kind == "slope" else (30.0, 0)   # G5 key
+    key = (kind, site, round(float(sun_el), 2), round(float(sun_az), 2), sym)
     if key in _CACHE:
         return _CACHE[key]
     dem, _, cell_m = _work_area(mp, bundle_dir)
@@ -69,7 +72,8 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
         # #234 cleanup: these are byte-identical to the globe/work-area drape, so share the ONE source of
         # truth (_layer_rgba) instead of re-implementing each formula here. A new shared layer kind now only
         # needs adding to _layer_rgba -- this inset path picks it up. (hazard stays the richer cost above.)
-        rgba = _layer_rgba(dem, cell_m, kind, sun_az, sun_el)
+        rgba = _layer_rgba(dem, cell_m, kind, sun_az, sun_el,
+                           slope_vmax=slope_vmax, slope_classes=slope_classes)
         if rgba is None:
             return None
     else:
@@ -183,7 +187,7 @@ def _reproject(source_rgba, b, fwd, *, out_px: int = 1024, sub=None):
     return out.astype("uint8"), bbox
 
 
-def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0):
+def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0, *, slope_vmax=30.0, slope_classes=0):
     """GIS-WA2: each layer's colouring as a PURE function of a DEM patch + its cell size -- the single
     source of truth shared by the globe drape (render_globe, full-tile, reprojected) and the order-frame
     work-area drape (/dem/workarea.png, native crop). Returns (H,W,4) uint8 RGBA, or None for an unknown
@@ -208,7 +212,13 @@ def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0):
     if kind == "slope":
         gy, gx = np.gradient(dem, cell)
         slope = np.degrees(np.arctan(np.hypot(gx, gy)))
-        t = np.clip(slope / 30.0, 0, 1)
+        # G5 (#251): graduated renderer. slope_vmax = the ramp's classification domain (operator-tunable,
+        # default 30 deg); slope_classes>=2 = a classified (equal-interval N-band) renderer vs the stretch.
+        vmax = max(1.0, float(slope_vmax))
+        t = np.clip(slope / vmax, 0, 1)
+        n = int(slope_classes)
+        if n >= 2:
+            t = np.clip(np.floor(t * n), 0, n - 1) / (n - 1)
         rgba = np.zeros((*slope.shape, 4))
         rgba[..., 0] = 60 + 195 * t; rgba[..., 1] = 200 * (1 - t); rgba[..., 2] = 40
         rgba[..., 3] = 90 + 120 * t
@@ -253,15 +263,19 @@ def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0):
 
 
 def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=None,
-                 grid_color: str = "39ff14", site: str = "haworth"):
+                 grid_color: str = "39ff14", site: str = "haworth",
+                 slope_vmax: float = 30.0, slope_classes: int = 0):
     """The geographic drape for the globe: 'dem' = the full-tile hillshade; the GIS rasters
     reproject over the WORK AREA's own extent. Returns (rgba uint8, bbox). REG-01: ``site`` selects the
-    imported tile so the globe drape follows the chosen site, not just Haworth."""
+    imported tile so the globe drape follows the chosen site, not just Haworth. G5: slope_vmax/slope_classes
+    are the slope layer's graduated-renderer controls (ignored for other kinds)."""
     if mp is None:
         from lode import mission_planner as mp
     bundle_dir = mp.bundle_for_site(site)                # raises KeyError/FileNotFoundError -> route 404
+    # G5 symbology key: a 2-tuple always (the (30.0,0) default for non-slope is constant -> no fragmentation)
+    sym = (round(float(slope_vmax), 2), int(slope_classes)) if kind == "slope" else (30.0, 0)
     key = ("globe", kind, site, round(float(sun_el), 2), round(float(sun_az), 2),
-           grid_color if kind == "grid" else "")
+           grid_color if kind == "grid" else "", sym)
     if key in _GLOBE_CACHE:
         return _GLOBE_CACHE[key]
     # disk cache: survive restarts; PSR/illumination cost seconds-to-minutes to compute
@@ -273,7 +287,11 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
     # _r2: cache-version token -- bumped when the render math changes (R-1: dem drape now native-res, not
     # 1024) so a stale globe_cache entry can't keep serving the old resolution after a deploy. Bump on any
     # future render change.
-    stem = _oss.path.join(cdir, f"{kind}_{site}_{key[3]}_{key[4]}_r2" + (f"_{grid_color}" if kind == "grid" else ""))
+    # G5: a non-default slope symbology gets its own cache file; the default (30/continuous) keeps the
+    # original stem so existing cached slope tiles are reused.
+    sym_tag = f"_v{sym[0]}_c{sym[1]}" if (kind == "slope" and sym != (30.0, 0)) else ""
+    stem = _oss.path.join(cdir, f"{kind}_{site}_{key[3]}_{key[4]}_r2"
+                          + (f"_{grid_color}" if kind == "grid" else "") + sym_tag)
     if _oss.path.exists(stem + ".npy") and _oss.path.exists(stem + ".json"):
         out = (_np_load_rgba(stem + ".npy"), _json.load(open(stem + ".json")))
         _GLOBE_CACHE[key] = out
@@ -326,7 +344,8 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         cm = cell_m * stride
         # the per-kind colouring is the shared _layer_rgba helper (same formulas the order-frame
         # work-area drape uses); here it runs on the downsampled full tile + is reprojected for the globe.
-        rgba = _layer_rgba(dem, cm, kind, sun_az, sun_el)
+        rgba = _layer_rgba(dem, cm, kind, sun_az, sun_el,
+                           slope_vmax=slope_vmax, slope_classes=slope_classes)
         if rgba is None:
             return None
         out = _reproject(rgba, b, fwd, out_px=1024)   # _layer_rgba already returns uint8

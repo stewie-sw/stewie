@@ -246,18 +246,24 @@ def get_layers():
 @router.get("/layers/raster/{kind}.png")
 def get_raster_layer(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
                      mission_t_s: float | None = None, site: str = "haworth",
+                     vmax: float = 30.0, classes: int = 0,
                      _auth: str = Depends(heavy_quota)):
     """A computed GIS raster overlay from the REAL Haworth DEM. S-08: auth + per-identity heavy-route
     quota (each call renders a full raster). When mission_t_s is given the sun
     is AUTOMATIC: real spherical geometry at the Haworth latitude (stewie.specs.solar) -- azimuth
     circles per lunar day, elevation breathes inside colatitude+obliquity. el/az are the manual
-    override path."""
+    override path. G5 (#251): vmax/classes = the slope graduated-renderer (clamped; NaN -> default 30),
+    so the PIP-overlay raster matches the globe drape's symbology."""
+    import math
     from stewie.server.gis_layers import render
     if mission_t_s is not None:
         from stewie.specs.solar import sun_az_el
         sun_az, sun_el = sun_az_el(-87.45, float(mission_t_s))   # Haworth site latitude
+    s_vmax = float(max(1.0, min(90.0, vmax))) if math.isfinite(vmax) else 30.0   # NaN/inf -> default
+    s_classes = int(max(0, min(12, classes)))
     try:
-        png = render(kind, sun_el=sun_el, sun_az=sun_az, site=site)   # REG-01: the chosen site's tile
+        png = render(kind, sun_el=sun_el, sun_az=sun_az, site=site,
+                     slope_vmax=s_vmax, slope_classes=s_classes)   # REG-01: the chosen site's tile
     except KeyError as e:
         return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
     except FileNotFoundError as e:

@@ -93,16 +93,22 @@ def layers_legend():
 @router.get("/layers/globe/{kind}.png")
 def globe_layer_png(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
                     mission_t_s: float | None = None, color: str = "39ff14",
-                    site: str = "haworth", _auth: str = Depends(globe_quota)):
+                    site: str = "haworth", vmax: float = 30.0, classes: int = 0,
+                    _auth: str = Depends(globe_quota)):
     """The GEOGRAPHIC drape (server-reprojected; Aaron's rotated-tile screenshot fix).
     GIS-03 (live-fix): PUBLIC base-map drape, per-IP rate-limited (no auth); params clamped/quantized; color sanitized; kind allow-listed.
-    REG-01: ``site`` selects the imported tile so the globe drape follows the chosen site."""
+    REG-01: ``site`` selects the imported tile so the globe drape follows the chosen site.
+    G5 (#251): ``vmax``/``classes`` are the slope layer's graduated-renderer controls (clamped; ignored for other kinds)."""
     if kind not in _GLOBE_KINDS:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
     from stewie.server.gis_layers import _to_png, render_globe
     el, az = _quantize_sun(sun_el, sun_az, mission_t_s)
+    import math
+    s_vmax = float(max(1.0, min(90.0, vmax))) if math.isfinite(vmax) else 30.0   # clamp [1,90]; NaN/inf -> default
+    s_classes = int(max(0, min(12, classes)))            # 0 = continuous; up to 12 equal-interval bands
     try:
-        out = render_globe(kind, sun_el=el, sun_az=az, grid_color=_sanitize_color(color), site=site)
+        out = render_globe(kind, sun_el=el, sun_az=az, grid_color=_sanitize_color(color), site=site,
+                           slope_vmax=s_vmax, slope_classes=s_classes)
     except KeyError as e:
         return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
     except FileNotFoundError as e:

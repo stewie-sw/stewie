@@ -3434,6 +3434,10 @@ document.addEventListener("keydown", (e) => {
 
 // ---- LAYER SYSTEM: select / load / unload map overlays (imagery, dem, topology, hazard, excavation, lander) ----
 const LAYER_ON = { imagery: true, dem: true, topology: false, hazard: true, excavation: true, lander: true };
+const SLOPE_SYM = { vmax: 30, classes: 0 };   // G5 (#251): slope graduated-renderer (ramp domain deg / N bands, 0=continuous)
+function slopeRampText() {                     // G5: the legend tracks the operator's live symbology (not a stale "0-30")
+  return `green 0° → red ${SLOPE_SYM.vmax}°` + (SLOPE_SYM.classes >= 2 ? ` · ${SLOPE_SYM.classes} classes` : " · continuous");
+}
 let LANDER = { name: "Nova-C", x: LANDER_P.x, y: LANDER_P.y, footprint_m: 4.6, n_legs: 6 };   // delivery lander (persisted position, #65)
 // #161: a toggleable 100 m reference ring around the lander (the safe-operating-radius cue; pairs with
 // the planner's return-to-lander feasibility). Persisted per-browser; default on.
@@ -3511,6 +3515,8 @@ async function globeLayer(key, _url, on) {
   if (!on) return;
   // server-REPROJECTED geographic drape in the layer's OWN bbox (the rotated-tile fix)
   const qs = sunQS();
+  // G5: the slope layer carries the operator's graduated-renderer choice (ramp max + class count)
+  const symQS = (key === "slope") ? `&vmax=${SLOPE_SYM.vmax}&classes=${SLOPE_SYM.classes}` : "";
   // loading feedback: the server-rendered drapes take real time (PSR's horizon sweep ~40s cold), so
   // a toggle isn't instant -- tell the operator it's rendering instead of looking dead.
   const _busy = (typeof setQ === "function");
@@ -3521,7 +3527,7 @@ async function globeLayer(key, _url, on) {
     // fromUrl = the supported modern-Cesium path (the constructor-with-url form is deprecated);
     // errors surface to the console instead of a silent swallow (the old catch hid failures).
     const prov = await Cesium.SingleTileImageryProvider.fromUrl(
-      `/layers/globe/${key}.png?` + qs,
+      `/layers/globe/${key}.png?` + qs + symQS,
       { rectangle: Cesium.Rectangle.fromDegrees(bb.west, bb.south, bb.east, bb.north) });
     GLOBE_LAYERS[key] = viewer.imageryLayers.addImageryProvider(prov);
     if (LAYER_OPACITY[key]) GLOBE_LAYERS[key].alpha = LAYER_OPACITY[key] / 100;   // slider persists
@@ -3710,12 +3716,15 @@ function applyLayerToggle(id, on) {                          // load/unload the 
   if (id === "grid") drawGraticule();                      // the global graticule follows the toggle
   if (GIS_RASTERS.includes(id)) {
     renderLegend();
+    // G5 (#251): the slope graduated-renderer choice flows to BOTH the PIP overlay and the globe drape,
+    // so the two views never disagree on the color->value mapping.
+    const symQS = (id === "slope") ? `&vmax=${SLOPE_SYM.vmax}&classes=${SLOPE_SYM.classes}` : "";
     const im = qel("ovl_" + id);
     if (im) {
-      if (on) { im.src = `/layers/raster/${id}.png?` + sunQS(); im.style.display = "block"; }
+      if (on) { im.src = `/layers/raster/${id}.png?` + sunQS() + symQS; im.style.display = "block"; }
       else { im.style.display = "none"; }
     }
-    globeLayer(id, `/layers/raster/${id}.png?` + sunQS(), on);   // AND on the big map
+    globeLayer(id, `/layers/raster/${id}.png?` + sunQS(), on);   // AND on the big map (adds its own symQS)
     if (on) flyToWorkArea();                                 // a work-area layer you can't see = a dead checkbox
   }
 }
@@ -3727,7 +3736,7 @@ function renderWorkbench() {
   wb.innerHTML = "";
   const CARDS = {
     dem:  { name: "Haworth 5 m DEM", text: (LEGEND.dem || {}).text || "" },
-    slope: { name: "Slope", text: LEGEND.slope.ramp, sw: "#7bd07b→#ff5544" },
+    slope: { name: "Slope", text: slopeRampText(), sw: "#7bd07b→#ff5544" },   // G5: live symbology, not stale "0-30"
     hazard: { name: "Hazard / no-go", text: LEGEND.hazard.text, sw: "#e8273f" },
     illumination: { name: "Shadow (mission-time sun)", text: LEGEND.illumination.text, sw: "#5577dd" },
     incidence: { name: "Sun incidence (grazing)", text: (LEGEND.incidence || {}).text || "grazing-angle solar incidence from the DEM", sw: "#ffc828" },
@@ -3795,6 +3804,31 @@ function renderWorkbench() {
         applyLayerToggle("grid", true); };
       card.appendChild(cp);
     }
+    if (k === "slope") {                                   // G5 (#251): graduated-renderer controls
+      const sym = document.createElement("div");
+      sym.style.cssText = "display:flex;align-items:center;gap:4px;margin-top:4px;flex-wrap:wrap";
+      const vlab = document.createElement("label"); vlab.textContent = "max°"; vlab.style.opacity = ".75";
+      const v = document.createElement("input");
+      v.type = "number"; v.min = "1"; v.max = "90"; v.step = "1"; v.value = String(SLOPE_SYM.vmax);
+      v.title = "slope ramp domain: the angle that maps to the steepest (red) end";
+      v.style.cssText = "width:48px;background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:4px;font-size:10px";
+      const clab = document.createElement("label"); clab.textContent = "classes"; clab.style.opacity = ".75";
+      const cls = document.createElement("select");
+      cls.style.cssText = "background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:4px;font-size:10px";
+      [["0", "continuous"], ["3", "3"], ["5", "5"], ["7", "7"], ["10", "10"]].forEach(([val, txt]) => {
+        const o = document.createElement("option"); o.value = val; o.textContent = txt;
+        if (+val === SLOPE_SYM.classes) o.selected = true; cls.appendChild(o);
+      });
+      const apply = () => {
+        SLOPE_SYM.vmax = Math.max(1, Math.min(90, Math.round(+v.value || 30)));
+        SLOPE_SYM.classes = +cls.value;
+        applyLayerToggle("slope", true);                   // re-render BOTH the drape + the PIP overlay
+        renderLegend();                                    // G5 (#251): the legend tracks the new symbology
+        renderWorkbench();                                 // refresh the card's legend text
+      };
+      v.onchange = apply; cls.onchange = apply;
+      sym.append(vlab, v, clab, cls); card.appendChild(sym);
+    }
     if (k !== "dem") {                                     // opacity (the globe imagery layer)
       const op = document.createElement("input");
       op.type = "range"; op.min = "10"; op.max = "100"; op.value = String(LAYER_OPACITY[k] || 100);
@@ -3815,7 +3849,7 @@ async function renderLegend() {                            // audit P1: physics-
   const box = $("legendbox"); if (!box) return;
   if (!LEGEND) { try { LEGEND = await (await fetch("/layers/legend")).json(); } catch (e) { return; } }
   const rows = [];
-  if (LAYER_ON.slope) rows.push(`<span style="color:#7bd07b">■</span>→<span style="color:#ff5544">■</span> slope: ${LEGEND.slope.ramp}`);
+  if (LAYER_ON.slope) rows.push(`<span style="color:#7bd07b">■</span>→<span style="color:#ff5544">■</span> slope: ${slopeRampText()}`);
   if (LAYER_ON.hazard) rows.push(`<span style="color:#e8273f">■</span> hazard: no-go &gt;${LEGEND.hazard.nogo_deg}° (tested) · <span style="color:#e0b300">■</span> penalty &gt;${LEGEND.hazard.penalty_deg}° · rocks &gt;${(LEGEND.hazard.obstacle_m*100).toFixed(1)} cm`);
   if (LAYER_ON.illumination) rows.push(`<span style="color:#5577dd">■</span> ${LEGEND.illumination.text}`);
   if (LAYER_ON.psr) rows.push(`<span style="color:#9966dd">■</span> ${LEGEND.psr.text}`);
@@ -4777,7 +4811,7 @@ if ($("exec3dwire")) {
 // the loaded heightfield's exact order-frame window.
 function _layer3DLegendHTML(kind) {
   const sw = (g) => `<span style="display:inline-block;width:34px;height:9px;border:1px solid #2a3340;vertical-align:middle;background:${g}"></span>`;
-  if (kind === "slope") return sw("linear-gradient(90deg,#3cc828,#ffd200,#ff3c28)") + " slope 0°–30°+";
+  if (kind === "slope") return sw("linear-gradient(90deg,#3cc828,#ffd200,#ff3c28)") + ` slope 0°–${SLOPE_SYM.vmax}°` + (SLOPE_SYM.classes >= 2 ? ` (${SLOPE_SYM.classes})` : "+");
   if (kind === "hazard") return sw("linear-gradient(90deg,#ff8c00,#ff2000)") + " hazard nominal–no-go &gt;20°";
   if (kind === "illumination") return sw("#1a73e8") + " blue = shadowed now";
   if (kind === "incidence") return sw("linear-gradient(90deg,#ffc828,#ff2840)") + " sun incidence 0°–90° (grazing)";
