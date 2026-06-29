@@ -24,7 +24,8 @@ from pydantic import BaseModel, Field
 
 from stewie.contracts import MissionIntent
 from stewie.contracts.executive import MissionExecutive
-from stewie.server.deps import require_director
+from stewie.server import state
+from stewie.server.deps import require_director, require_role
 from stewie.server.services import log_event
 
 router = APIRouter()
@@ -99,3 +100,46 @@ def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)
         "released_objectives": len(intent.objectives),
         "skipped": skipped,
     })
+
+
+class RunRequest(BaseModel):
+    """#245: run a released build plan as a SIM execution. Same queue shape as release-plan + the site."""
+    orders: list[dict] = Field(max_length=1000)
+    body: str = "moon"
+    site: str = Field("haworth", max_length=40)
+    mission_id: str = "cockpit-run"
+    revision: int = Field(default=0, ge=0)
+
+
+@router.post("/executive/run")
+def executive_run(req: RunRequest, identity: str = Depends(require_role("operator"))) -> JSONResponse:
+    """#245: execute a RELEASED build plan as a SIM run -- ARMED -> EXECUTING -> (COMPLETED | SAFED) over
+    the conserved closed-loop sim, sequenced by lode.sim_execution.run_sim_execution. Builds the MO-01
+    intent from the queue, drives the MO-02 head to RELEASED, runs run_closed_loop on the chosen site DEM,
+    then steps the live chain. OPERATOR-gated (operator arms; a watchdog/critical fault drives SAFED inside
+    the driver). DataLabel SIM ONLY -- this drives the in-process plant, never the gated real-rover command
+    path. 400 on an uncompilable / no-build-order plan."""
+    from lode import autonomy as AUT
+    from lode import mission_lifecycle as LC
+    from lode import mission_planner as MP
+    from lode.mission_intent_compiler import intent_from_orders
+    from lode.sim_execution import run_sim_execution
+    try:
+        intent, skipped = intent_from_orders(
+            list(req.orders), mission_id=req.mission_id, approver=identity, body=req.body, revision=req.revision)
+        if not intent.objectives:
+            return JSONResponse(status_code=400, content={
+                "ok": False, "skipped": skipped, "error": "no build orders to run (cut/fill/sinter)"})
+        released = LC.run_lifecycle(MissionExecutive.start(intent)).executive
+        mission = MP.mission_from_dict({"name": req.mission_id, "body": req.body,
+                                        "orders": list(req.orders), "charger": [0.0, 0.0]})
+        dem, origin = state.moon_dem(req.site) if req.body == "moon" else (None, (0.0, 0.0))
+        out = AUT.run_closed_loop(mission, dem=dem, dem_origin=origin)
+        run = run_sim_execution(released, out.get("legs", []))
+    except (ValueError, KeyError) as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e), "skipped": []})
+    log_event(identity, "executive.run", f"{req.mission_id}: {run['final_state']} ({run['n_legs_total']} legs)")
+    return JSONResponse(content={
+        "ok": True, "label": run["label"], "final_state": run["final_state"],
+        "transitions": run["transitions"], "n_legs_total": run["n_legs_total"], "safed": run["safed"],
+        "nonnominal_legs": run["nonnominal_legs"], "executed_legs": run["executed_legs"], "skipped": skipped})
