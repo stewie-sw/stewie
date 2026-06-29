@@ -257,9 +257,11 @@ def plan_to_cog(*_args, **_kwargs):
     return _plan_to_cog_rasterio(*_args, **_kwargs)
 
 
-def _plan_to_cog_rasterio(dem, dem_origin, out_path: str, *, bundle_dir=None) -> str:
-    """Write the site DEM heightfield to a cloud-optimized GeoTIFF in the DEM's south-polar stereographic
-    CRS (IAU_2015:30135). Tiled + overviews = the COG layout. Reached only when rasterio is importable."""
+def _array_to_cog(arr, cell, out_path: str, *, nodata=None, bundle_dir=None) -> str:
+    """Write a single-band raster (north-up, same grid as the site DEM) to a cloud-optimized GeoTIFF in the
+    DEM's south-polar stereographic CRS (IAU_2015:30135): tiled + overviews. dtype follows ``arr`` (float32
+    for continuous, int32 for a reclassified/categorical raster -- which uses NEAREST overviews so class
+    codes are not averaged into nonexistent classes). Reached only when rasterio is importable."""
     import json as _json
     import os as _os
 
@@ -269,24 +271,85 @@ def _plan_to_cog_rasterio(dem, dem_origin, out_path: str, *, bundle_dir=None) ->
     from rasterio.transform import from_origin
 
     from stewie.terrain import site_dem as SD
-    Z, cell = dem
-    Z = np.asarray(Z, dtype="float32")
+    arr = np.asarray(arr)
+    dt = "int32" if np.issubdtype(arr.dtype, np.integer) else "float32"
+    arr = arr.astype(dt)
     with open(_os.path.join(SD._haworth_bundle(bundle_dir), "metadata.json")) as _f:
         meta = _json.load(_f)
     b = meta["world_bounds_m"]
     transform = from_origin(float(b["x0"]), float(b["y1"]), float(cell), float(cell))   # north-up raster
     profile = {
-        "driver": "GTiff", "dtype": "float32", "count": 1,
-        "height": Z.shape[0], "width": Z.shape[1], "transform": transform,
+        "driver": "GTiff", "dtype": dt, "count": 1,
+        "height": arr.shape[0], "width": arr.shape[1], "transform": transform,
         "crs": "IAU_2015:30135", "tiled": True, "blockxsize": 256, "blockysize": 256,
         "compress": "deflate",
     }
+    if nodata is not None:
+        profile["nodata"] = nodata
+    resamp = Resampling.nearest if dt == "int32" else Resampling.average   # categorical -> nearest
     with rasterio.open(out_path, "w", **profile) as dst:
-        dst.write(Z, 1)
-        factors = [2, 4, 8, 16]
-        dst.build_overviews(factors, Resampling.average)
-        dst.update_tags(ns="rio_overview", resampling="average")
+        dst.write(arr, 1)
+        dst.build_overviews([2, 4, 8, 16], resamp)
+        dst.update_tags(ns="rio_overview", resampling=resamp.name)
     return out_path
+
+
+def _plan_to_cog_rasterio(dem, dem_origin, out_path: str, *, bundle_dir=None) -> str:
+    """Write the site DEM heightfield to a cloud-optimized GeoTIFF (IAU_2015:30135). Reached only when
+    rasterio is importable."""
+    Z, cell = dem
+    return _array_to_cog(Z, float(cell), out_path, bundle_dir=bundle_dir)
+
+
+# ---- value-raster products + map-algebra (ArcGIS-G2) -----------------------------------------------
+# The globe analysis layers are RGBA renders; these are the DATA products -- continuous value rasters a
+# GIS client can analyze. Slope is orientation-independent (gradient magnitude), so it is exact regardless
+# of the DEM-frame north (aspect/incidence, which need the geographic rotation, are deferred -- see #249).
+VALUE_RASTER_KINDS = ("slope",)
+
+
+def slope_value_array(dem):
+    """Per-cell slope VALUE field [deg] from the site DEM (gradient magnitude). float32. Reuses the planner's
+    slope_deg_map so the value product matches the slope the planner/drape reason over."""
+    import numpy as np
+
+    from stewie.terrain.site_dem import slope_deg_map
+    Z, cell = dem
+    return slope_deg_map(np.asarray(Z, dtype="float32"), float(cell)).astype("float32")
+
+
+def reclassify(arr, breaks):
+    """Map-algebra reclassify (ArcGIS Reclassify): class i = number of ascending breaks strictly below the
+    value (np.digitize, right=False) -> int32. Raises ValueError on non-ascending breaks."""
+    import numpy as np
+    b = [float(x) for x in breaks]
+    if any(b[i] >= b[i + 1] for i in range(len(b) - 1)):
+        raise ValueError("reclassify breaks must be strictly ascending")
+    a = np.asarray(arr)
+    cls = np.digitize(a, b, right=False)
+    # non-finite (nodata) cells -> -1 sentinel, NOT the top class (np.digitize sorts NaN above all bins)
+    return np.where(np.isfinite(a), cls, -1).astype("int32")
+
+
+def value_raster_cog(dem, out_path: str, kind: str, *, breaks=None, bundle_dir=None) -> str:
+    """Compute a value-raster product for ``kind`` from the real DEM and write it as a COG. With ``breaks``,
+    the continuous field is reclassified to integer classes first (map-algebra). RuntimeError if rasterio is
+    absent (honest, no stub raster); ValueError on an unknown kind."""
+    import numpy as np
+    ok, reason = cog_available()
+    if not ok:
+        raise RuntimeError(reason)
+    if kind == "slope":
+        arr = slope_value_array(dem)
+    else:
+        raise ValueError(f"unknown value-raster kind {kind!r}; supported: {VALUE_RASTER_KINDS}")
+    if breaks:
+        arr = reclassify(arr, breaks)
+        nodata: float | None = -1                            # the reclassify nodata sentinel
+    else:
+        nodata = float("nan") if not np.isfinite(arr).all() else None   # carry DEM nodata holes honestly
+    _, cell = dem
+    return _array_to_cog(arr, float(cell), out_path, nodata=nodata, bundle_dir=bundle_dir)
 
 
 # ---- offline mission package (GI-03) ----------------------------------------------------------------

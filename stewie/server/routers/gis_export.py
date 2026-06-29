@@ -14,11 +14,12 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from stewie.server import state
 from stewie.server.deps import require_auth
+from stewie.server.routers.plan import heavy_quota   # shared per-identity S-08 quota for heavy routes
 
 router = APIRouter()
 log = logging.getLogger("stewie.server")
@@ -89,6 +90,58 @@ def export_cog_available():
     ok, reason = GE.cog_available()
     return {"ok": True, "available": ok, "reason": reason,
             "format": "cloud-optimized GeoTIFF (IAU_2015:30135)"}
+
+
+@router.get("/export/cog/{kind}.tif")
+def export_value_cog(
+    kind: str,
+    site: str = Query("haworth", max_length=40),
+    breaks: str | None = Query(None, max_length=200,
+                               description="optional ascending comma-separated reclassify breaks, e.g. 10,20,30"),
+    _auth: str = Depends(heavy_quota),   # M1: the full-tile COG render is heavy -> share the S-08 quota (429)
+):
+    """ArcGIS-G2 (#249): a persisted VALUE-raster product as a cloud-optimized GeoTIFF (the analysis layers
+    are otherwise RGBA renders). ``kind`` is a continuous field (slope [deg]) computed from the real site
+    DEM in IAU_2015:30135; with ``breaks`` it is reclassified to integer classes (map-algebra). Auth-gated
+    like the other GIS exports (#246 operational-data egress). 503 if the rasterio backend is absent."""
+    import os as _os
+    import tempfile
+
+    from lode import gis_export as GE
+    from lode import mission_planner as MP
+    if kind not in GE.VALUE_RASTER_KINDS:
+        return JSONResponse(status_code=400, content={"ok": False, "error":
+                            f"unknown value-raster kind {kind!r}; supported: {list(GE.VALUE_RASTER_KINDS)}"})
+    ok, reason = GE.cog_available()
+    if not ok:
+        return JSONResponse(status_code=503, content={"ok": False, "error": reason})
+    brks: list[float] | None = None
+    if breaks:
+        try:
+            brks = [float(x) for x in breaks.split(",") if x.strip() != ""]
+        except ValueError:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "breaks must be numbers"})
+        if not (1 <= len(brks) <= 32) or any(brks[i] >= brks[i + 1] for i in range(len(brks) - 1)):
+            return JSONResponse(status_code=400, content={"ok": False, "error":
+                                "breaks must be 1-32 strictly ascending numbers"})
+    dem, _origin = state.moon_dem(site)
+    if dem is None:
+        return JSONResponse(status_code=503, content={"ok": False, "error":
+                            f"site {site!r} DEM bundle absent; cannot build the value raster"})
+    try:
+        bundle = MP.bundle_for_site(site)
+    except (KeyError, FileNotFoundError) as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    tmp = tempfile.NamedTemporaryFile(suffix=".tif", delete=False)
+    tmp.close()
+    try:
+        GE.value_raster_cog(dem, tmp.name, kind, breaks=brks, bundle_dir=bundle)
+        with open(tmp.name, "rb") as fh:
+            data = fh.read()
+    finally:
+        _os.unlink(tmp.name)
+    return Response(content=data, media_type="image/tiff",
+                    headers={"Content-Disposition": f'attachment; filename="{kind}_{site}.tif"'})
 
 
 class GisImportRequest(BaseModel):
