@@ -37,8 +37,23 @@ SINTER_POWER_W  = S.SINTER_HEAD_POWER_W                  # 1000 W [CALIB]
 OFFLOAD_RATE_KG_S = DIG_RATE_KG_S                        # drum deposit throughput == its collect throughput
 
 
+def _density_at(density_field, dem_origin, cell, x, y):
+    """Per-cell regolith density [kg/m^3] at local (x, y) from the optional per-cell density field
+    (mirrors the elevation sampler), or None when there is no field or the point is off-grid -- in which
+    case the slip solve falls back to the uniform surface density (density_stiffening == 1). #242 1b:
+    lets the planner's per-leg slip/sinkage/energy respond to a spatially-varying regolith density
+    (a compacted trail, a soil zone) instead of assuming uniform ground. No new physics: the density
+    only feeds the grounded density_stiffening relation already used by the simulator drive loop."""
+    if density_field is None:
+        return None
+    ox, oy = dem_origin
+    H, W = density_field.shape
+    c = int(round((ox + x) / cell)); r = int(round((oy + y) / cell))
+    return float(density_field[r, c]) if (0 <= r < H and 0 <= c < W) else None
+
+
 def _segmented_haul_energy(dem, dem_origin, waypoints, *, loads, drum_kg, g, soil, drive_j_per_m,
-                           rover_mass_kg):
+                           rover_mass_kg, density_field=None):
     """P-05: drive ENERGY of a shuttle haul, integrated SEGMENT-BY-SEGMENT along the routed polyline,
     separately for the LOADED outbound leg (cut->fill, carrying ~drum_kg) and the EMPTY return
     (fill->cut). Each segment pays seg_len * drive_j_per_m / (1 - slip), where slip is solved from THAT
@@ -71,8 +86,12 @@ def _segmented_haul_energy(dem, dem_origin, waypoints, *, loads, drum_kg, g, soi
             if seg_len <= 1e-9:
                 continue
             slope_deg = math.degrees(math.atan2(abs(z1 - z0), seg_len))
+            # #242 1b: sample the REAL per-cell density at the segment midpoint -- a compacted trail
+            # (density up) stiffens bearing -> less sinkage -> less slip -> cheaper haul. None (no
+            # field / off-grid) -> uniform surface density (byte-identical to before).
+            rho = _density_at(density_field, dem_origin, cell, 0.5 * (x0 + x1), 0.5 * (y0 + y1))
             slip = slip_alpha_to_slip(slope_deg, payload_kg=payload_kg, g=g, params=soil,
-                                      rover_mass_kg=rover_mass_kg)
+                                      rover_mass_kg=rover_mass_kg, density=rho)
             e += seg_len * drive_j_per_m / (1.0 - slip)
         return e
 
@@ -81,7 +100,7 @@ def _segmented_haul_energy(dem, dem_origin, waypoints, *, loads, drum_kg, g, soi
     return (out_e + back_e) * loads
 
 
-def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
+def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg, density_field=None):
     """Order-INDEPENDENT trip construction: cut->fill flows (I10-routed haul + exact gravity lift) and
     sinters. Returns (trips, flows, surplus_kg, meta). meta carries the routing summary; trips carry the
     per-trip dig/haul/lift energy so any visit order can be simulated/scored downstream."""
@@ -177,17 +196,21 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg):
             if dem is not None and reached and len(waypoints) >= 2:
                 seg_e = _segmented_haul_energy(dem, dem_origin, waypoints, loads=loads, drum_kg=drum_kg,
                                                g=g, soil=_soil, drive_j_per_m=ctx.drive_j_per_m,
-                                               rover_mass_kg=ctx.rover_mass_kg)
+                                               rover_mass_kg=ctx.rover_mass_kg, density_field=density_field)
             if seg_e is not None:
                 haul_e = seg_e
             else:
                 # endpoint-slope fallback (no-DEM straight line, or too few on-grid samples).
                 slope_haul = math.degrees(math.atan2(abs(dh), leg)) if leg > 1e-9 else 0.0
                 out_m = back_m = leg * loads          # loaded out + empty back (haul_m = 2*leg*loads)
+                # #242 1b: per-leg density at the leg midpoint (None -> uniform surface density).
+                rho_leg = (_density_at(density_field, dem_origin, dem[1],
+                                       0.5 * (co.x + fo.x), 0.5 * (co.y + fo.y))
+                           if dem is not None else None)
                 slip_loaded = slip_alpha_to_slip(slope_haul, payload_kg=drum_kg, g=g, params=_soil,
-                                                 rover_mass_kg=ctx.rover_mass_kg)
+                                                 rover_mass_kg=ctx.rover_mass_kg, density=rho_leg)
                 slip_empty = slip_alpha_to_slip(slope_haul, payload_kg=0.0, g=g, params=_soil,
-                                                rover_mass_kg=ctx.rover_mass_kg)
+                                                rover_mass_kg=ctx.rover_mass_kg, density=rho_leg)
                 haul_e = (out_m * ctx.drive_j_per_m / (1.0 - slip_loaded)
                           + back_m * ctx.drive_j_per_m / (1.0 - slip_empty))
             trips.append(dict(kind="cutfill", site=(co.x, co.y), label=f"{co.action} → {fo.action}",

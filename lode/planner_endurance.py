@@ -192,18 +192,22 @@ def endurance(mission, *, dem=None, dem_origin=(0.0, 0.0), power_site="psr_tower
     return out
 
 
-def slip_alpha_to_slip(slope_deg, payload_kg=0.0, g=None, params=None, rover_mass_kg=None):
+def slip_alpha_to_slip(slope_deg, payload_kg=0.0, g=None, params=None, rover_mass_kg=None, density=None):
     """Wheel slip from terrain slope AND the rover's laden weight, via the CONSERVED slip ladder
     (slip.slip_sinkage_equilibrium): a steeper grade OR a heavier rover (full drum) -> more slip,
     entrapping near ~45 deg. ``payload_kg`` is the regolith in the drum on this leg (0 = empty); ``g``
     defaults to lunar. This replaces the old slope-only [CALIB] curve so the planner's per-leg slip (and
     the 1/(1-slip) drive-energy inflation) is weight-coupled, consistent with the simulator authority.
     H-01: ``rover_mass_kg`` defaults to the IPEx global; pass the selected vehicle's mass so a heavier
-    platform (rassor2, 65 kg) slips more. (The per-cell routing costmap keeps the SLIP_ALPHA*tan heuristic.)"""
+    platform (rassor2, 65 kg) slips more. (The per-cell routing costmap keeps the SLIP_ALPHA*tan heuristic.)
+    #242 1b: ``density`` is the per-cell regolith density [kg/m^3] WHERE this leg traverses; it stiffens
+    BEARING (less sinkage -> less slip) via the same grounded density_stiffening relation the simulator
+    drive loop uses (terramechanics.density_stiffening, consumed inside slip_sinkage_equilibrium). None ->
+    the uniform surface density (factor 1), so absent/uniform terrain is byte-identical to before."""
     gg = C.g if g is None else float(g)
     p = params if params is not None else _TM_PARAMS     # soil model (params_for_body(soil)); default lunar
     m = ROVER_MASS_KG if rover_mass_kg is None else float(rover_mass_kg)
     weight_n = (m + max(0.0, payload_kg)) * gg
     eq = TMS.slip_sinkage_equilibrium(weight_n, math.radians(max(0.0, slope_deg)),
-                                      params=p, contact_len_m=0.10, contact_width_m=0.18)
+                                      params=p, contact_len_m=0.10, contact_width_m=0.18, density=density)
     return max(0.0, min(0.95, float(eq["slip"])))
