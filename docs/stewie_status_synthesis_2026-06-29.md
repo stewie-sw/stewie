@@ -82,3 +82,23 @@ representations down to the wired one (TerrainMemory) rather than crediting the 
 ONE verified checkpoint per tick: build TDD-first, council-validate before commit, deploy, verify (Playwright
 for UI, real run for backend), commit with no Claude trailer, confirm CI green via `gh run view`, halt+fix on
 red. Backend deploys are clean again (the coordination block is resolved).
+
+## ArcGIS-parity cross-compare (2026-06-29)
+
+A second graphify dimension was added: a 3-reviewer LLM-council diff of STEWIE's *actual* GIS capability vs
+production ArcGIS-type software, cross-compared against this interaction graph. Diff:
+`docs/stewie_arcgis_parity_2026-06-29.md`. Capability-parity graph (EXTENDS `graph.json` with capability
+nodes carrying a `unique|parity|partial|gap` status + `owned_by`/`closed_by` edges to the state-blocks above):
+`graphify-out/stewie_arcgis_parity_2026-06-29.json` (30 nodes / 24 edges; 5 unique, 3 parity, 7 gap, 3 partial).
+
+- **Moat (meets/exceeds ArcGIS):** conserved hash-chained digital-twin Terrain Memory; mass-conserving cut/fill;
+  lunar solar geometry (cast-shadow/incidence/PSR); click-to-author mission INTENT; executive run lifecycle;
+  fail-closed per-owner auth. These map to the same world-model + executive blocks this graph already tracks.
+- **Top gaps (ArcGIS has, STEWIE lacks), prioritized:** G1 served OGC service (WMS/WMTS/WFS/OGC-API) — the
+  single highest external-value move, turns the already-rendered layers into client-consumable tiles for little
+  new compute; G2 persisted value-rasters + map-algebra (layers are RGBA renders, not GeoTIFF/COG products);
+  G3 bring-your-own DEM upload (already #237/#171/#149); G4 on-map feature MODIFY; G5 user-editable symbology;
+  G6 map layout/print composer; G7 cost-distance surface; G8 raster viewshed.
+- The gap->build edges (`closed_by`) seed the backlog; each gap node names the smallest next build at file:line
+  in the diff. Through-line: STEWIE is ArcGIS-grade+ on the operational-twin axis, below ArcGIS on the
+  general-GIS-platform axis (no served standard services, render-only analysis layers, no user-data ingest/edit).
