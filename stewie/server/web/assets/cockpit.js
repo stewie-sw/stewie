@@ -726,6 +726,11 @@ function flyTo(lat, lon, height) {
 
 function setPicked(lat, lon) {
   picked = { lat, lon };
+  // #audit-2: a map click writes the site lat/lon inputs, so the next plan RE-ANCHORS the work area there
+  // (the M11 backend re-anchor already consumes #lat/#lon); previously only manual typing moved the work area.
+  const _la = document.getElementById("lat"), _lo = document.getElementById("lon");
+  if (_la) _la.value = lat.toFixed(4);
+  if (_lo) _lo.value = lon.toFixed(4);
   document.getElementById("out").textContent = `picked  lat ${lat.toFixed(3)}°  lon ${lon.toFixed(3)}°`;
   if (marker) viewer.entities.remove(marker);
   marker = viewer.entities.add({
@@ -876,6 +881,10 @@ function setView(name) {
   if (p3s && name !== "plan") p3s.style.display = "none";
   const p3c = document.getElementById("plan3dcoord");      // the 3D plotting HUD is a PLAN-map tool too
   if (p3c && name !== "plan") p3c.style.display = "none";
+  if (name !== "plan") {                                   // #audit-1: clear the floating + header cursor coords off-Plan
+    const cxy = document.getElementById("cursorxy"); if (cxy) cxy.style.display = "none";
+    const cc = document.getElementById("cursorcoord"); if (cc) cc.textContent = "";
+  }
   if (name !== "plan" && EDIT.on) setEdit(false);          // leaving Plan ends the edit session
   applySidebar(name);                                      // UX-05: collapse off-Plan / restore on Plan
   loadPane(name);
@@ -3045,6 +3054,9 @@ if ($("landx")) { $("landx").value = LANDER_P.x; $("landy").value = LANDER_P.y; 
 if ($("roverset")) $("roverset").onclick = () => { recordPose(+$("roverx").value || 0, +$("rovery").value || 0);
   setQ(`rover @ site-frame ${LAST_POSE.x} m E, ${LAST_POSE.y} m N`); };
 if ($("roverx") && LAST_POSE) { $("roverx").value = LAST_POSE.x; $("rovery").value = LAST_POSE.y; }
+// #audit-5: 4b (Traverse) seeds the first waypoint from the rover's last known pose so the path starts where
+// the rover actually is; with no pose set it stays at the site origin (0,0) -- a valid, explicit start.
+if (LAST_POSE && $("wpx")) { $("wpx").value = LAST_POSE.x; $("wpy").value = LAST_POSE.y; }
 $("wpadd").onclick = () => {
   snapshotAuthoring();
   const n = ORDERS.filter((o) => o.kind === "goto").length + 1;
@@ -4279,7 +4291,16 @@ async function gisImport() {
     const b = await r.json();
     if (!r.ok) { out.textContent = `import failed: ${b.error || ("HTTP " + r.status)}`; return; }
     LAST_FC = fc;
-    out.textContent = `imported: ${b.orders.length} order(s), ${b.keepouts.length} keep-out(s), charger ${b.charger ? "yes" : "no"}, ${b.route.length} route leg(s)`;
+    // #audit-9: actually LOAD the imported geometry into the live plan (previously it only printed a count).
+    if ((Array.isArray(b.orders) && b.orders.length) || (Array.isArray(b.keepouts) && b.keepouts.length)) {
+      snapshotAuthoring();
+      (b.orders || []).forEach((o) => ORDERS.push(o));
+      (b.keepouts || []).forEach((k) => KEEPOUTS.push(k));
+      renderQueue();
+      if (typeof renderKeepouts === "function") renderKeepouts();
+      drawPlan();
+    }
+    out.textContent = `imported + LOADED: ${b.orders.length} order(s), ${b.keepouts.length} keep-out(s), charger ${b.charger ? "yes" : "no"}, ${b.route.length} route leg(s)`;
   } catch (e) { out.textContent = "import failed — run server.py (" + e + ")"; }
 }
 async function gisQuery() {
@@ -5200,7 +5221,7 @@ function renderFleet() {
     const row = document.createElement("div");
     row.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11px";
     const txt = document.createElement("span");
-    txt.innerHTML = `&#129302; <b>Rover ${i + 1}</b> <span style="color:var(--muted)">&middot; ${esc(label)}</span>`;
+    txt.innerHTML = `<b>Rover ${i + 1}</b> <span style="color:var(--muted)">&middot; ${esc(label)}</span>`;
     row.appendChild(txt);
     if (n > 1) {
       const del = document.createElement("button");
