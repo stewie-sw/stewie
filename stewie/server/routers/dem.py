@@ -44,8 +44,15 @@ def dem_georef(site: str = "haworth", _auth: str = Depends(require_auth)):
     """The chosen site's tile globe footprint (selenographic corners) for the cockpit overlay (REG-01:
     any imported site, not just Haworth -- so selecting a site overlays ITS tile on the globe)."""
     from lode import mission_planner as MP
+    from stewie.server import state
     try:
-        return {"ok": True, "site": site, **MP.dem_georef_corners(bundle_dir=MP.bundle_for_site(site))}
+        out = {"ok": True, "site": site, **MP.dem_georef_corners(bundle_dir=MP.bundle_for_site(site))}
+        # #audit-2b: the work area's TRUE anchor (the auto-selected flattest buildable patch, tile-meters) so
+        # the cockpit draws the WORK AREA rect WHERE the work actually is -- the inset + planner use this origin,
+        # but drawWorkAreaRect was pinning the rect to the tile's (0,0) corner (~8 km away). (None DEM -> 0,0.)
+        _dem, origin = state.moon_dem(site)
+        out["anchor_xy"] = [float(origin[0]), float(origin[1])]
+        return out
     except KeyError as e:
         return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
     except (ImportError, FileNotFoundError, ValueError) as e:

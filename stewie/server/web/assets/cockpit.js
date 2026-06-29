@@ -693,6 +693,7 @@ function drawGraticule() {
 let HAWORTH_CENTER = null;
 let HAWORTH_RECT = null;                                   // Cesium.Rectangle of the tile footprint
 let WORK_AREA_RECT = null;                                 // GIS-WA1: Cesium.Rectangle of the [0,WORK_AREA_M]^2 work area (the inset image's true extent)
+let WORK_AREA_ANCHOR = [0, 0];                             // #audit-2b: the work area's TRUE origin (flattest-anchor, tile-m) from /dem/georef -- the rect draws HERE, not the tile corner
 const GLOBE_LAYERS = {};                                   // key -> Cesium ImageryLayer on the BIG map
 const HAWORTH_ENTITIES = [];                               // the footprint polygon + label (MOON-ONLY)
 function setMoonOverlaysVisible(on) {                      // body-scope: Haworth exists on the Moon
@@ -3631,6 +3632,7 @@ function loadSiteFootprint(reload) {
     if (!g.ok || !viewer) return;
     const ll = []; g.corners.forEach((p) => { ll.push(p.lon, p.lat); });
     HAWORTH_CENTER = g.center;
+    WORK_AREA_ANCHOR = (g.anchor_xy && g.anchor_xy.length === 2) ? g.anchor_xy : [0, 0];   // #audit-2b: the true work-area origin
     const lats = g.corners.map((p) => p.lat), lons = g.corners.map((p) => p.lon);
     HAWORTH_RECT = Cesium.Rectangle.fromDegrees(Math.min(...lons), Math.min(...lats),
                                                 Math.max(...lons), Math.max(...lats));
@@ -3663,7 +3665,10 @@ function loadSiteFootprint(reload) {
 function drawWorkAreaRect() {
   if (!viewer) return;
   const site = encodeURIComponent(CURRENT_SITE), W = WORK_AREA_M;
-  const corners = [[0, 0], [W, 0], [W, W], [0, W]];
+  // #audit-2b: draw the rect at the work area's TRUE anchor origin (tile-metres, from /dem/georef), where
+  // the inset + planner actually work -- NOT the tile's (0,0) corner (which sat ~8 km away, "top-left").
+  const [ox, oy] = (WORK_AREA_ANCHOR && WORK_AREA_ANCHOR.length === 2) ? WORK_AREA_ANCHOR : [0, 0];
+  const corners = [[ox, oy], [ox + W, oy], [ox + W, oy + W], [ox, oy + W]];
   Promise.all(corners.map(([x, y]) =>
     fetch(`/dem/site_lonlat?x=${x}&y=${y}&site=${site}`).then((r) => r.json()).catch(() => null)))
     .then((cs) => {
