@@ -225,6 +225,10 @@
     /* MOBILE-06: the wizard/pipeline step descriptions were <small> = 0.83em of 9px = 7.5px, below the
        phone readability floor. Bump them to a legible 10px on mobile. */
     .step small { font-size: 10px; }
+    /* MOBILE-07: in-pane action LINKS (e.g. the report "open in tab" link) are <a>, not covered by the
+       MOBILE-01 button rule, so they were ~16px tall -- below the 44px finger target. Give them a
+       finger-sized tap box (inline-flex so min-height applies to the inline link). */
+    .cap a, .empty a { min-height: 44px; display: inline-flex; align-items: center; }
     .ct-badge { font-size: 9px; }                          /* contents-tree tag chips: nudge off the 8px floor */
     /* MOBILE-07: dense registry/profile/feasibility tables (Models, Fleet, Construction panes) were
        crammed into 390px with tiny provenance text. Let them scroll horizontally at a readable width. */
