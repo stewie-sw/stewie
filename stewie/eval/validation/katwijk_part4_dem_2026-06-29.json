@@ -1,0 +1,40 @@
+{
+  "experiment": "Katwijk Part4 loop-closing SE(3) visual SLAM + AHN-DEM anchoring (second-rover generalisation ladder, completing VO->VO+LC->VO+LC+DEM)",
+  "date": "2026-06-29",
+  "data": {
+    "dataset": "/mnt/projects/datasets/katwijk/Part4",
+    "dem": "/mnt/projects/datasets/katwijk/dem/katwijk_ahn_dtm_05m.tif (AHN 0.5m national LiDAR DTM)",
+    "n_frames": 563,
+    "n_loop_closures": 191
+  },
+  "ahn_register": {
+    "yaw_deg": 328.0,
+    "vo_vs_ahn_corr": 0.9193626911942905,
+    "z0_m": 4.068464693144493
+  },
+  "ladder_se3_m": {
+    "vo": 0.736578334120632,
+    "vo_lc": 0.7308024277118209,
+    "vo_lc_dem": 0.7574572742141938
+  },
+  "vo": {
+    "se3_m": 0.736578334120632,
+    "sim3_m": 0.6626345865065945,
+    "horiz_m": 0.5166864127621273,
+    "vert_m": 0.5249598014733413
+  },
+  "vo_lc": {
+    "se3_m": 0.7308024277118209,
+    "sim3_m": 0.66137481865576,
+    "horiz_m": 0.5073275991160561,
+    "vert_m": 0.5260141590533752
+  },
+  "vo_lc_dem": {
+    "se3_m": 0.7574572742141938,
+    "sim3_m": 0.5309507038153198,
+    "horiz_m": 0.6935204343272402,
+    "vert_m": 0.30458320608752015
+  },
+  "honest_read": "Completes the second-rover ladder. The AHN 0.5 m DTM is independent national LiDAR (the firewall-clean role Copernicus played for S3LI); the VO-vs-AHN correlation 0.92 confirms it matches the 2015 beach/dune terrain. Katwijk VO is already sub-metre on the 76 m loop, so loop closure and DEM anchoring have little drift to remove (unlike S3LI 93->8 m); the value here is ladder COMPLETENESS on a second real rover, not a number improvement. The DEM's vertical effect is reported honestly below.",
+  "i3_attestation": "VO + loop closure + AHN DEM (sampled at the ESTIMATED x,y; heading from the firewall-clean VO-vs-DEM yaw search, not GPS) only; GPS read solely at scoring."
+}

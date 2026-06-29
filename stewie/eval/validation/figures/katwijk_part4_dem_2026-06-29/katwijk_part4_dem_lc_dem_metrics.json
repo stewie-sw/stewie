@@ -1,0 +1,40 @@
+{
+  "n_pose_pairs": 100,
+  "ate_aligned_se3_m": {
+    "rmse": 0.7574572742141938,
+    "mean": 0.6798554073114441,
+    "median": 0.6776141564643554,
+    "std": 0.3339732734956301,
+    "min": 0.13356758609051586,
+    "max": 1.872565013135729,
+    "sse": 57.374152225999644
+  },
+  "ate_aligned_sim3_m": {
+    "rmse": 0.5309507038153198,
+    "mean": 0.4309056842037428,
+    "median": 0.25459752775086786,
+    "std": 0.31020789996853365,
+    "min": 0.03215198487938091,
+    "max": 1.549422808833993,
+    "sse": 28.19086498819835
+  },
+  "sim3_scale": 1.0218186221892365,
+  "rpe_kind": "world_displacement",
+  "rpe_trans_m": {
+    "rmse": 0.2521250907279136,
+    "mean": 0.1772284775723587,
+    "median": 0.14514002910374516,
+    "std": 0.17932408681474624,
+    "min": 0.0038460689659667894,
+    "max": 0.9946061006381682,
+    "sse": 6.293139076081308
+  },
+  "rpe_rotation_deg": null,
+  "gt_path_length_m": 78.12988983552748,
+  "est_path_length_m": 74.13322268532228,
+  "ate_se3_rmse_m": 0.7574572742141938,
+  "ate_sim3_rmse_m": 0.5309507038153198,
+  "rpe_rmse_m": 0.2521250907279136,
+  "label": "katwijk_part4_dem_lc_dem",
+  "estimate_tum": "/mnt/projects/stewie/code/benchmarks/katwijk/katwijk_part4_dem_lc_dem.tum"
+}

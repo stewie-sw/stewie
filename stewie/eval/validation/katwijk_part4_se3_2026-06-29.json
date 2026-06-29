@@ -1,0 +1,13 @@
+{
+  "experiment": "Katwijk Part4 SE(3) pose-graph SLAM (generalisation, no DEM)",
+  "n_frames": 563,
+  "n_loop_closures": 191,
+  "vo_se3_m": 0.7365783340970543,
+  "se3_lc_se3_m": 0.7308024277497751,
+  "vo_sim3_m": 0.6626345865115213,
+  "se3_lc_sim3_m": 0.6613748186476218,
+  "se3_scale": 1.0124429425306403,
+  "se3_converged": true,
+  "se3_mean_rot_correction_deg": 0.352956147985412,
+  "honest_read": "SE(3) estimator (concurrent dart.se3_pose_graph) run on Katwijk Part4. VO is already sub-metre on the 76m loop so loop closure / SE(3) orientation optimisation has almost no drift to remove (unlike S3LI 93->8m); this confirms the SE(3) estimator generalises to a 2nd real rover, not that it corrects drift here."
+}
