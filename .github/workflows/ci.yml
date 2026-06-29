@@ -33,7 +33,7 @@ jobs:
       - name: Type check (mypy; mission-planner + core enforced, sim modules ratcheted in pyproject)
         run: mypy
       - name: Test + coverage gate (the CONFIGURED suite; testpaths = core + planner + scripts)
-        run: pytest --cov --cov-report=term-missing
+        run: pytest -n auto --cov --cov-report=term-missing   # CI-OPT #158: parallel across runner cores (pytest-cov combines workers)
 
   test:
     name: test (py${{ matrix.python-version }})
@@ -54,4 +54,4 @@ jobs:
           pip install --require-hashes -r requirements-dev.lock
           pip install -e . --no-deps
       - name: Test (the CONFIGURED suite; gated tiers skip)
-        run: pytest -p no:cacheprovider
+        run: pytest -n auto -p no:cacheprovider   # CI-OPT #158: parallel across runner cores
