@@ -591,7 +591,60 @@ function setFlyMode(on, walk) {
 }
 function getCamPos() { return S.camera ? [S.camera.position.x, S.camera.position.y, S.camera.position.z] : null; }
 
-window.STEWIE3D = { mount, render, setRover, setLiveRover, clearLiveRover, setClasts, clearClasts, setPath, setSun, setWireframe, setLander3D, clearTracks, heightAt,
+// #264 (placing -> topology transform): render a non-square AS-BUILT worked-region grid from
+// /dem/asbuilt -- {rows, cols, cell_m, z, z_min, z_max, delta, delta_min, delta_max}. Mirrors render()'s
+// mesh/wire/material build but is keyed by cell_m (not a square window) and tints by the CONSERVED
+// per-cell delta so the operator SEES the change: cut footprints sink + go cool, berms/fills rise + go warm.
+function renderGrid(g) {
+  if (!S.scene || !g || !g.z) return false;
+  if (S.mesh) { S.group.remove(S.mesh); S.mesh.geometry.dispose(); S.mesh.material.dispose(); S.mesh = null; }
+  if (S.wire) { S.group.remove(S.wire); S.wire.geometry.dispose(); S.wire.material.dispose(); S.wire = null; }
+  if (S.markerGroup || S.measureGroup) clearPlots();
+  const rows = g.rows, cols = g.cols, cell = g.cell_m;
+  const zmin = g.z_min, span = Math.max(1e-6, g.z_max - g.z_min);
+  const dmax = Math.max(1e-6, Math.abs(g.delta_min || 0), Math.abs(g.delta_max || 0));
+  const vex = S._vex || 1;
+  const N = rows * cols;
+  const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+  const baseH = new Float32Array(N);
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const k = j * cols + i, h = g.z[k] - zmin;
+      baseH[k] = h;
+      pos[k * 3] = i * cell; pos[k * 3 + 1] = h * vex; pos[k * 3 + 2] = j * cell;   // x=E, y=up, z=N
+      const t = h / span;
+      let r = 0.26 + 0.50 * t, gr = 0.27 + 0.36 * t, b = 0.30 + 0.12 * t;           // base slate->tan ramp
+      const d = g.delta ? g.delta[k] : 0;                                           // conserved change cue
+      if (d < -0.02) { const a = Math.min(1, -d / dmax); b += 0.40 * a; gr += 0.10 * a; r -= 0.12 * a; }   // cut -> cool
+      else if (d > 0.02) { const a = Math.min(1, d / dmax); r += 0.34 * a; gr += 0.18 * a; b -= 0.12 * a; } // berm -> warm
+      col[k * 3] = Math.max(0, Math.min(1, r)); col[k * 3 + 1] = Math.max(0, Math.min(1, gr)); col[k * 3 + 2] = Math.max(0, Math.min(1, b));
+    }
+  }
+  S._baseH = baseH;
+  const idx = [];
+  for (let j = 0; j < rows - 1; j++) {
+    for (let i = 0; i < cols - 1; i++) {
+      const a = j * cols + i, b = a + 1, c = a + cols, dd = c + 1;
+      idx.push(a, c, b, b, c, dd);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0.0 });
+  S.mesh = new THREE.Mesh(geo, mat); S.mesh.castShadow = true; S.mesh.receiveShadow = true; S.group.add(S.mesh);
+  S.wire = new THREE.LineSegments(new THREE.WireframeGeometry(geo), _wireMat());
+  S.wire.visible = (S._wireOn !== false); S.group.add(S.wire);
+  const wx = (cols - 1) * cell, wy = (rows - 1) * cell;
+  S.win = Math.max(wx, wy); S.n = Math.max(rows, cols); S.step = cell; S.zmin = zmin; S.hf = null;
+  S._layerKind = "height";                                  // as-built uses the delta-tinted vertex colours, not a layer drape
+  S.target.set(wx / 2, span * 0.35, wy / 2); S.dist = Math.max(wx, wy) * 1.5;
+  setSun(S._sunAz ?? 135, S._sunEl ?? 18);
+  return true;
+}
+
+window.STEWIE3D = { mount, render, renderGrid, setRover, setLiveRover, clearLiveRover, setClasts, clearClasts, setPath, setSun, setWireframe, setLander3D, clearTracks, heightAt,
   setLayer, setVertExag, onLayerError,
   get layerKind() { return S._layerKind || "height"; }, get vertExag() { return S._vex || 1; },
   animateRover, stopRoverAnim, setPathEdit, onPathChange, getWaypoints, undoWaypoint, clearWaypoints, pathStats,

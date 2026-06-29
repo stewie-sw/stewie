@@ -830,6 +830,7 @@
         <span id="plan3dctl" style="display:none">
           <button id="plan3dundo" class="site" style="font-size:10px" title="remove the last waypoint">↶</button>
           <button id="plan3dclear" class="site" style="font-size:10px" title="clear the 3D path">✕</button>
+          <button id="plan3dasbuilt" class="site" style="font-size:10px" title="show the AS-BUILT terrain — the conserved, mass-balanced surface after your queued cut/fill orders (cuts sink, berms rise). Placing edits actually transforms the topology.">⛰ as-built</button>
         </span>
         <span id="plan3dtools" style="display:none;border-left:1px solid var(--line);padding-left:4px;margin-left:2px">
           <button id="plan3dcoords" class="site" style="font-size:10px" title="live cursor coordinate readout: exact E / N metres (order frame, from the site origin) + absolute DEM elevation as you move over the surface" aria-label="live cursor coordinate readout"></button>
@@ -1407,7 +1408,7 @@
 <script src="/assets/panel_layout.js?v=1"></script>
 <script src="/assets/layouts.js?v=cbabd0de2f90"></script>
 <script src="/assets/idle_logout.js?v=1"></script>
-<script type="module" src="/assets/three3d.js?v=005c77d05b21"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
+<script type="module" src="/assets/three3d.js?v=fd4932afcf6d"></script><!-- #165: in-cockpit 3D playback (sets window.STEWIE3D) -->
 <script src="/assets/adapters.js?v=fs15a1"></script>
 <script src="/assets/geofmt.js?v=8ab2024e447b"></script><!-- FS-24: pure site-frame bearing + lat/lon fmt (sets window.STEWIE_GEOFMT) -->
 <script src="/assets/globe_ellipsoid.js?v=8e052105d4b2"></script><!-- GI-02: per-body globe radii (sets window.STEWIE_GLOBE) -->
@@ -1427,6 +1428,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=b9996be65138"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=93dd1626ad36"></script>
+<script src="/assets/cockpit.js?v=73abce162e4f"></script>
 </body>
 </html>

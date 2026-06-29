@@ -5272,6 +5272,28 @@ if ($("plan3dplotclear")) $("plan3dplotclear").onclick = () => { // clear plotte
 };
 if ($("plan3dundo")) $("plan3dundo").onclick = () => { if (window.STEWIE3D && STEWIE3D.undoWaypoint) STEWIE3D.undoWaypoint(); };
 if ($("plan3dclear")) $("plan3dclear").onclick = () => { if (window.STEWIE3D && STEWIE3D.clearWaypoints) STEWIE3D.clearWaypoints(); };
+// #264 (placing -> topology transform): the "as-built" toggle swaps the 3D path view between the PRISTINE
+// relief (path-editing) and the AS-BUILT surface -- the conserved, mass-balanced terrain after the queued
+// cut/fill orders (POST /dem/asbuilt: cuts sink + tint cool, berms rise + tint warm). So the operator
+// literally SEES placing a cut/berm transform the topology, not just an abstract footprint.
+let ASBUILT_ON = false;
+if ($("plan3dasbuilt")) $("plan3dasbuilt").onclick = () => {
+  const build = ORDERS.filter((o) => o.kind === "cut" || o.kind === "fill");
+  if (!build.length) { setQ("place a cut or fill order first — as-built shows the conserved terrain change"); return; }
+  ASBUILT_ON = !ASBUILT_ON;
+  const btn = $("plan3dasbuilt"); if (btn) btn.style.borderColor = ASBUILT_ON ? "var(--accent)" : "";
+  if (!ASBUILT_ON) { planLoad3D(); return; }                // back to the pristine relief + path tools
+  const site = (typeof CURRENT_SITE !== "undefined" && CURRENT_SITE) || "haworth";
+  setQ("building as-built surface…");
+  fetch("/dem/asbuilt", { method: "POST", headers: apiHeaders(),
+    body: JSON.stringify({ body: (typeof sel !== "undefined" && sel) ? sel.value : "moon", site, orders: ORDERS,
+                           lat: picked ? picked.lat : null, lon: picked ? picked.lon : null }) })
+    .then((r) => readJson(r)).then((g) => {
+      if (!g || !g.ok) { setQ("as-built failed: " + ((g && g.error) || "")); ASBUILT_ON = false; if (btn) btn.style.borderColor = ""; return; }
+      if (window.STEWIE3D && STEWIE3D.renderGrid) STEWIE3D.renderGrid(g);
+      setQ(`as-built · ${(g.mass_moved_kg / 1000).toFixed(1)} t moved · cut ↓${Math.abs(g.delta_min).toFixed(2)} m · fill ↑${g.delta_max.toFixed(2)} m (mass-conserved)`);
+    }).catch((e) => { setQ("as-built failed — " + (e && e.message ? e.message : e)); ASBUILT_ON = false; if (btn) btn.style.borderColor = ""; });
+};
 
 // ---- compare algorithms: POST /compare -> a table sorted by the chosen objective --------------
 qel("qcompare").onclick = async () => {
