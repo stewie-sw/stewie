@@ -171,6 +171,31 @@ def load_mission(name: str, namespace: str = "live", owner: str | None = None) -
     return json.load(open(path)) if os.path.exists(path) else None
 
 
+# ---- #241: per-owner draft autosave -----------------------------------------------------------
+# The cockpit's live authoring draft (orders/keep-outs/landmarks/wizard), today browser-localStorage only,
+# autosaved to the operator's PER-OWNER sandbox so it survives a reload + crosses devices. SANDBOX-ONLY by
+# construction: NO namespace arg and NO publish route for a draft, so it can never become live /
+# command-eligible -- promotion to a shared mission stays the explicit, operator-gated publish path. Reuses
+# the same per-owner isolation (_ns_dir), owner-stamp (_owner_meta), and atomic write as save_mission.
+_DRAFT_KEYS = {"body", "orders", "keepouts", "landmarks", "step_done", "wiz_step"}
+
+
+def save_draft(doc: dict, owner: str) -> dict:
+    unknown = set(doc) - _DRAFT_KEYS                     # reject anything outside the known draft shape
+    if unknown:
+        raise ValueError(f"unknown draft fields {sorted(unknown)}")
+    path = os.path.join(_ns_dir("draft", "sandbox", owner), "current.json")   # one doc per owner; sandbox only
+    meta = _owner_meta(path, owner)
+    from stewie.twin.io_fields import atomic_write_bytes
+    atomic_write_bytes(path, json.dumps({**meta, **doc}, indent=1, sort_keys=True).encode())
+    return {"ok": True, "created_by": meta["created_by"]}
+
+
+def load_draft(owner: str) -> dict | None:
+    path = os.path.join(_ns_dir("draft", "sandbox", owner), "current.json")
+    return json.load(open(path)) if os.path.exists(path) else None
+
+
 def delete_mission(name: str, namespace: str = "live", owner: str | None = None) -> bool:
     """AG-06: recoverable soft-delete (moves to .trash, not unlink). The route enforces the
     ownership-escalation policy (deletion_allowed) before calling this."""

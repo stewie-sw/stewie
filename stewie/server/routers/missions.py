@@ -7,14 +7,16 @@ sandbox; an operator+ works on live by default and may target their own sandbox 
 publish route promotes a sandbox draft into the shared live namespace (operator+)."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
 from stewie.server import objects as OBJ
 from stewie.server.deps import namespace_for, require_auth, require_role
+from stewie.server.ratelimit import RateLimiter
 from stewie.server.services import log_event
 
 router = APIRouter()
+_draft_quota = RateLimiter(120, 60.0)   # #241: bound per-identity autosave churn (debounced ~1-2s client-side)
 
 
 @router.post("/missions/{name}")
@@ -44,6 +46,29 @@ def mission_load(name: str, ns: str = "live", identity: str = Depends(require_au
     if d is None:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no mission {name!r}"})
     return {"ok": True, "namespace": namespace, "doc": d}
+
+
+# ---- #241: per-owner draft autosave ----------------------------------------------------------
+# owner = the AUTHENTICATED identity (require_auth), NEVER a client param -> no cross-owner read/write.
+# Sandbox-only by construction (OBJ.save_draft has no namespace/publish), so a draft is never
+# command-eligible without the operator explicitly saving it as a mission (the publish path).
+@router.get("/draft")
+def draft_load(identity: str = Depends(require_auth)):
+    """The caller's OWN authoring draft (per-owner sandbox); null if none saved yet."""
+    return {"ok": True, "doc": OBJ.load_draft(owner=identity)}
+
+
+@router.put("/draft")
+def draft_save(doc: dict, identity: str = Depends(require_auth)):
+    """Autosave the caller's draft to their per-owner sandbox. Rate-limited per identity; the global
+    body-size cap (server.py) bounds the payload; unknown fields -> 400."""
+    if not _draft_quota.allow(identity):
+        raise HTTPException(status_code=429, detail="draft autosave quota exceeded; slow down")
+    try:
+        out = OBJ.save_draft(doc, owner=identity)
+        return {"ok": True, **out}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
 
 
 @router.delete("/missions/{name}")
