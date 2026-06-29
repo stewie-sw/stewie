@@ -3590,6 +3590,20 @@ async function loadLayers() {
     cb3.onchange = () => { LAYER_ON.terrain3d = cb3.checked; applyLayerToggle("terrain3d", cb3.checked);
       if (typeof renderContentsTree === "function") renderContentsTree(); };
     t3.appendChild(cb3); t3.appendChild(document.createTextNode("3D Terrain"));
+    // #262: a co-located ×exag input so the operator amplifies the MAIN-globe relief from where the
+    // layer is toggled (shares TERRAIN3D_VEX with the Execute-pane #exec3dvex slider). Clicking this
+    // interactive input does NOT toggle the sibling checkbox (HTML label forwards only non-interactive clicks).
+    const vx = document.createElement("input");
+    vx.type = "number"; vx.id = "lyr_terrain3d_vex"; vx.min = "1"; vx.max = "8"; vx.step = "0.5";
+    vx.value = String(TERRAIN3D_VEX); vx.title = "vertical exaggeration of the 3D Terrain relief on the globe (1-8×)";
+    vx.style.cssText = "width:3em;margin-left:4px;font-size:11px";
+    vx.onchange = () => {
+      TERRAIN3D_VEX = Math.max(1, Math.min(8, parseFloat(vx.value) || 1));
+      vx.value = String(TERRAIN3D_VEX);
+      if ($("exec3dvex")) { $("exec3dvex").value = String(TERRAIN3D_VEX); if ($("exec3dvexv")) $("exec3dvexv").textContent = TERRAIN3D_VEX.toFixed(1); }
+      if (LAYER_ON.terrain3d) loadTerrain3D(true);          // rebuild the globe mesh at the new exaggeration
+    };
+    t3.appendChild(document.createTextNode(" ×")); t3.appendChild(vx);
     panel.appendChild(t3);
     // Reconstruction twin: the COLMAP dense-cloud 3D Tiles overlay (off by default; additive).
     const rt = document.createElement("label");
@@ -3766,6 +3780,7 @@ function resetWorkAreaAnchor() {                            // #260b: back to th
 // nodes are placed by their selenographic lon/lat on the shared `ellipsoid`, so the mesh co-locates with
 // the WORK AREA footprint. Per-vertex graphite->light elevation ramp. Toggleable + re-draped on site change.
 let TERRAIN3D = null;
+let TERRAIN3D_VEX = 1;                                      // #262: vertical exaggeration of the MAIN-globe relief mesh (the ×exag slider drives this too, not just the inset)
 function loadTerrain3D(on) {
   if (!viewer) return;
   if (TERRAIN3D) { try { viewer.scene.primitives.remove(TERRAIN3D); } catch (e) {} TERRAIN3D = null; }
@@ -3779,7 +3794,7 @@ function loadTerrain3D(on) {
     // anchor the base to the globe surface: g.z are ABSOLUTE datum elevations (mean ~+1 km), so plotting
     // them as height-above-ellipsoid floated the whole sheet ~1 km above the drape. Subtract z_min so the
     // lowest point sits on the draped surface and the real relief (z - z_min) rises from there.
-    for (let k = 0; k < N; k++) { coords[k * 3] = lon[k]; coords[k * 3 + 1] = lat[k]; coords[k * 3 + 2] = z[k] - zmin; }
+    for (let k = 0; k < N; k++) { coords[k * 3] = lon[k]; coords[k * 3 + 1] = lat[k]; coords[k * 3 + 2] = (z[k] - zmin) * TERRAIN3D_VEX; }   // #262: ×exag drives the MAIN globe relief, not just the inset
     const carts = Cesium.Cartesian3.fromDegreesArrayHeights(coords, ellipsoid);
     const pos = new Float64Array(N * 3), col = new Uint8Array(N * 4);
     for (let k = 0; k < N; k++) {
@@ -5108,7 +5123,9 @@ if ($("exec3dlayer")) $("exec3dlayer").onchange = (e) => {
 if ($("exec3dvex")) $("exec3dvex").oninput = (e) => {
   const k = parseFloat(e.target.value) || 1;
   if ($("exec3dvexv")) $("exec3dvexv").textContent = k.toFixed(1);
-  if (window.STEWIE3D && STEWIE3D.setVertExag) STEWIE3D.setVertExag(k);
+  if (window.STEWIE3D && STEWIE3D.setVertExag) STEWIE3D.setVertExag(k);   // the inset three.js relief
+  TERRAIN3D_VEX = k;                                       // #262: ...and the MAIN-globe relief mesh
+  if (typeof LAYER_ON === "object" && LAYER_ON.terrain3d && typeof loadTerrain3D === "function") loadTerrain3D(true);
   update3DLegend();
 };
 
