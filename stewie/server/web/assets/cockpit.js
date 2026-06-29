@@ -4647,6 +4647,36 @@ function runExecution() {
   EXEC_RAF = requestAnimationFrame(frame);
 }
 qel("qexec").onclick = runExecution;
+
+// #245: run the current build queue as a real SIM EXECUTION via POST /executive/run -- the MO-02 executive
+// drives ARMED -> EXECUTING -> (COMPLETED | SAFED) on the conserved sim authority. Distinct from the forecast
+// replay above (qexec/LAST_TIMELINE): this is the executive actually running the released plan, SIM-labeled.
+// The real-rover command path stays gated; this only exercises the in-process plant.
+async function runExecutiveSim() {
+  if (!ORDERS.length) { setQ("⚠ add build orders first — nothing to run"); return; }
+  const out = qel("execrunout"); const btn = qel("execrun");
+  if (out) { out.style.display = ""; out.textContent = "running SIM execution…"; }
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch("/executive/run", {
+      method: "POST", headers: apiHeaders(),   // already sets Content-Type+CSRF; a 2nd content-type key collides -> 400
+      body: JSON.stringify({ orders: ORDERS, site: CURRENT_SITE }) });
+    const j = await r.json();
+    if (!r.ok || !j.ok) { if (out) out.textContent = "run rejected: " + esc(String(j.error || r.status)); return; }
+    const chain = (j.transitions || []).join(" → ");
+    const fs = String(j.final_state || "").toUpperCase();
+    const safe = j.safed ? ' <b style="color:#e8273f">⚠ SAFED</b>' : "";
+    if (out) {
+      out.innerHTML = '<b>SIM RUN</b> <span style="color:var(--muted)">[' + esc(String(j.label)) + ']</span> — '
+        + esc(chain) + " · <b>" + esc(fs) + "</b>" + safe
+        + " · " + (j.n_legs_total | 0) + " legs"
+        + (j.nonnominal_legs ? ", " + (j.nonnominal_legs | 0) + " non-nominal" : "")
+        + (j.run_id ? ' <span style="color:var(--muted)">· run ' + esc(String(j.run_id)) + "</span>" : "");
+    }
+  } catch (e) { if (out) out.textContent = "run error: " + esc(String(e)); }
+  finally { if (btn) btn.disabled = false; }
+}
+if (qel("execrun")) qel("execrun").onclick = runExecutiveSim;
 qel("execpause").onclick = () => { EXEC_PAUSED = !EXEC_PAUSED;
   qel("execpause").innerHTML = window.STEWIE_ICONS ? window.STEWIE_ICONS.icon(EXEC_PAUSED ? "play" : "pause") : (EXEC_PAUSED ? "resume" : "pause"); };
 qel("execspd").onclick = () => { EXEC_SPEEDUP = EXEC_SPEEDUP === 10 ? 60 : EXEC_SPEEDUP === 60 ? 600 : 10;

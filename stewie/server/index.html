@@ -1054,8 +1054,10 @@
           </select>
           <label style="margin-left:6px;font-size:10px" title="GIS-WA2: vertical exaggeration of the 3D relief">×exag <input id="exec3dvex" type="range" min="1" max="8" step="0.5" value="1" style="width:5em;vertical-align:middle" /><span id="exec3dvexv">1.0</span></label>
           <span id="td3dlegend" style="margin-left:8px;font-size:10px;color:var(--muted);white-space:nowrap"></span></span>
+          <button id="execrun" class="site" style="margin-left:6px" title="#245: run the current build queue as a SIM execution — the MO-02 executive drives ARMED → EXECUTING → COMPLETED|SAFED on the conserved sim authority (a real run, not the forecast replay; the real-rover command path stays gated)">▶ Run (SIM)</button>
           <button id="execclose" title="back to Plan">✕</button></div>
         <canvas id="execcanvas" width="320" height="220"></canvas>
+        <div id="execrunout" style="display:none;margin-top:8px;font-size:12px;line-height:1.6"></div>
         <div id="td3d" title="3D terrain dry-run — drag to orbit, wheel to zoom" style="display:none;width:100%;max-width:560px;height:380px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#05060c"></div>
         <div id="td3d-hint" style="display:none;font-size:10px;color:var(--muted);margin-top:4px">3D dry-run on the real DEM — <b style="color:#e8273f">rover</b> · <b style="color:#f3b13a">physics-truth path</b> vs <b style="color:#35e0d0">estimator belief</b> (simulation, not a live rover). Drag to orbit · wheel to zoom.</div>
         <div id="exchud">
@@ -1420,6 +1422,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=b9996be65138"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=b576c92b64b6"></script>
+<script src="/assets/cockpit.js?v=fbeab61b33aa"></script>
 </body>
 </html>
