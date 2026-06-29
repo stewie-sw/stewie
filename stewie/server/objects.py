@@ -196,6 +196,25 @@ def load_draft(owner: str) -> dict | None:
     return json.load(open(path)) if os.path.exists(path) else None
 
 
+# ---- #245: per-owner SIM-execution RUN store (the recorded run_sim_execution output, retrievable later) ----
+# Sandbox-only, keyed by run_id; the live executive object is NEVER persisted (only the serializable record).
+def save_run(run_id: str, doc: dict, owner: str) -> dict:
+    """Persist a SIM execution run per-owner (sandbox), keyed by run_id, so an operator can retrieve a
+    completed run. ``doc`` is the run_sim_execution record's serializable fields."""
+    slug = _slug(run_id)
+    path = os.path.join(_ns_dir("runs", "sandbox", owner), f"{slug}.json")
+    meta = _owner_meta(path, owner)
+    from stewie.twin.io_fields import atomic_write_bytes
+    atomic_write_bytes(path, json.dumps({"run_id": slug, **meta, **doc}, indent=1, sort_keys=True,
+                                        default=str).encode())
+    return {"ok": True, "run_id": slug}
+
+
+def load_run(run_id: str, owner: str) -> dict | None:
+    path = os.path.join(_ns_dir("runs", "sandbox", owner), f"{_slug(run_id)}.json")
+    return json.load(open(path)) if os.path.exists(path) else None
+
+
 # ---- #241: per-owner SOIL OVERLAY (user-authored terramechanics, on top of the static bodies.py baseline) -
 # An operator can save a measured/bevameter-fit soil profile to their PER-OWNER overlay. The static
 # bodies.py registry stays the grounded, audited ground truth (NEVER mutated here); this is a clearly-tagged

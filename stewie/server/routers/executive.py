@@ -18,12 +18,15 @@ import (the lifecycle bridge is a leaf), so no router<->app cycle.
 """
 from __future__ import annotations
 
+import secrets
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from stewie.contracts import MissionIntent
 from stewie.contracts.executive import MissionExecutive
+from stewie.server import objects as OBJ
 from stewie.server import state
 from stewie.server.deps import require_director, require_role
 from stewie.server.services import log_event
@@ -138,8 +141,20 @@ def executive_run(req: RunRequest, identity: str = Depends(require_role("operato
         run = run_sim_execution(released, out.get("legs", []))
     except (ValueError, KeyError) as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e), "skipped": []})
-    log_event(identity, "executive.run", f"{req.mission_id}: {run['final_state']} ({run['n_legs_total']} legs)")
-    return JSONResponse(content={
-        "ok": True, "label": run["label"], "final_state": run["final_state"],
-        "transitions": run["transitions"], "n_legs_total": run["n_legs_total"], "safed": run["safed"],
-        "nonnominal_legs": run["nonnominal_legs"], "executed_legs": run["executed_legs"], "skipped": skipped})
+    run_id = secrets.token_hex(6)
+    rec = {"label": run["label"], "final_state": run["final_state"], "transitions": run["transitions"],
+           "n_legs_total": run["n_legs_total"], "safed": run["safed"], "nonnominal_legs": run["nonnominal_legs"],
+           "executed_legs": run["executed_legs"], "mission_id": req.mission_id, "site": req.site}
+    OBJ.save_run(run_id, rec, owner=identity)                  # #245: persist the run for later retrieval
+    log_event(identity, "executive.run",
+              f"{run_id} {req.mission_id}: {run['final_state']} ({run['n_legs_total']} legs)")
+    return JSONResponse(content={"ok": True, "run_id": run_id, **rec, "skipped": skipped})
+
+
+@router.get("/executive/run/{run_id}")
+def executive_run_get(run_id: str, identity: str = Depends(require_role("operator"))) -> JSONResponse:
+    """#245: retrieve a persisted SIM run by id -- the caller's OWN runs (per-owner sandbox). 404 if absent."""
+    rec = OBJ.load_run(run_id, owner=identity)
+    if rec is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no run {run_id!r}"})
+    return JSONResponse(content={"ok": True, **rec})

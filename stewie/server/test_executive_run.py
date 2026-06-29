@@ -36,3 +36,22 @@ def test_run_rejects_a_queue_with_no_build_orders(monkeypatch, tmp_path):
     c = _client(monkeypatch, tmp_path, dev_open=True)
     r = c.post("/executive/run", json={"orders": [{"kind": "goto", "x": 1.0, "y": 1.0, "action": "wp"}]})
     assert r.status_code == 400                                  # nothing to build -> rejected, no fabrication
+
+
+def test_run_persists_and_is_retrievable(monkeypatch, tmp_path):
+    c = _client(monkeypatch, tmp_path, dev_open=True)
+    r = c.post("/executive/run", json={"orders": _ORDERS, "site": "haworth"})
+    assert r.status_code == 200, r.text
+    run_id = r.json()["run_id"]
+    g = c.get(f"/executive/run/{run_id}")
+    assert g.status_code == 200 and g.json()["run_id"] == run_id            # round-trips the recorded run
+    assert g.json()["final_state"] == r.json()["final_state"]
+    assert c.get("/executive/run/nope").status_code == 404                  # unknown run -> 404
+
+
+def test_save_run_is_per_owner_isolated(monkeypatch, tmp_path):
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    from stewie.server import objects as OBJ
+    OBJ.save_run("r1", {"final_state": "completed"}, owner="alice@x")
+    assert OBJ.load_run("r1", owner="alice@x")["final_state"] == "completed"
+    assert OBJ.load_run("r1", owner="bob@x") is None                        # per-owner isolation
