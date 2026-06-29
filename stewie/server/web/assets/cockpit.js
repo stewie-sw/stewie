@@ -3130,34 +3130,60 @@ const STEP_DONE = {};
 // localStorage on every change and restore it on boot, so work survives a reload (the named-save
 // catalog is unchanged). Guarded by DRAFT_READY so an early render cannot clobber the saved draft.
 let DRAFT_READY = false;
+let _draftSaveT = 0;                                          // #241: debounce the per-owner SERVER autosave
+function _draftPayload() {
+  return { body: (typeof sel !== "undefined" ? sel.value : "moon"), orders: ORDERS, keepouts: KEEPOUTS,
+           landmarks: LANDMARKS, step_done: STEP_DONE, wiz_step: WIZ_STEP };
+}
 function persistDraft() {
   if (!DRAFT_READY) return;
+  try { localStorage.setItem("stewie_draft", JSON.stringify(_draftPayload())); } catch (e) { /* storage disabled / full */ }
+  // #241: ALSO autosave to the per-owner SERVER draft (durable + cross-device), DEBOUNCED ~1.5s so per-drag/
+  // per-keystroke edits coalesce. Only when signed in (csrf cookie or in-memory key) -- an anonymous cockpit
+  // stays localStorage-only (the server has no anonymous draft owner). owner is the server identity, not sent.
+  if (!getCookie("stewie_csrf") && !AUTH.apikey) return;
+  clearTimeout(_draftSaveT);
+  _draftSaveT = setTimeout(() => {
+    fetch("/draft", { method: "PUT", headers: apiHeaders(), body: JSON.stringify(_draftPayload()) }).catch(() => {});
+  }, 1500);
+}
+function _hydrateDraft(d) {                                   // apply a draft doc (localStorage OR server) into the live state
+  if (d && Array.isArray(d.orders)) { ORDERS.length = 0; d.orders.forEach((o) => ORDERS.push(o)); }
+  if (d && Array.isArray(d.keepouts)) { KEEPOUTS.length = 0; d.keepouts.forEach((k) => KEEPOUTS.push(k)); }
+  if (d && Array.isArray(d.landmarks)) {
+    LANDMARKS.length = 0;
+    d.landmarks.forEach((l) => {
+      LANDMARKS.push(l);
+      // #178: re-drop the globe marker for a restored landmark (we stored its lat/lon), so a persistent
+      // reference point survives reload ON the map -- not just in the data model.
+      if (typeof viewer !== "undefined" && viewer && typeof l.lat === "number" && typeof l.lon === "number") {
+        dropPin(l.lat, l.lon, `plot ${l.name}`, "#3fb6ff", { kind: "landmark", obj: l });
+      }
+    });
+  }
+  if (d && d.step_done && typeof d.step_done === "object") Object.assign(STEP_DONE, d.step_done);
+  if (d && typeof d.wiz_step === "string") WIZ_STEP = d.wiz_step;
+}
+function _redrawAfterDraft() {                                // #241: re-render after a LATE server-draft hydrate
   try {
-    localStorage.setItem("stewie_draft", JSON.stringify({
-      body: (typeof sel !== "undefined" ? sel.value : "moon"), orders: ORDERS, keepouts: KEEPOUTS,
-      landmarks: LANDMARKS, step_done: STEP_DONE, wiz_step: WIZ_STEP }));
-  } catch (e) { /* storage disabled / full */ }
+    if (typeof renderQueue === "function") renderQueue();
+    if (typeof renderKeepouts === "function") renderKeepouts();
+    if (typeof drawPlan === "function") drawPlan();
+    if (typeof estimate === "function") estimate();
+    if (typeof renderStepper === "function") renderStepper();
+  } catch (e) { /* best-effort */ }
 }
 function restoreDraft() {
-  try {
-    const d = JSON.parse(localStorage.getItem("stewie_draft") || "null");
-    if (d && Array.isArray(d.orders)) { ORDERS.length = 0; d.orders.forEach((o) => ORDERS.push(o)); }
-    if (d && Array.isArray(d.keepouts)) { KEEPOUTS.length = 0; d.keepouts.forEach((k) => KEEPOUTS.push(k)); }
-    if (d && Array.isArray(d.landmarks)) {
-      LANDMARKS.length = 0;
-      d.landmarks.forEach((l) => {
-        LANDMARKS.push(l);
-        // #178: re-drop the globe marker for a restored landmark (we stored its lat/lon), so a persistent
-        // reference point survives reload ON the map -- not just in the data model.
-        if (typeof viewer !== "undefined" && viewer && typeof l.lat === "number" && typeof l.lon === "number") {
-          dropPin(l.lat, l.lon, `plot ${l.name}`, "#3fb6ff", { kind: "landmark", obj: l });
-        }
-      });
-    }
-    if (d && d.step_done && typeof d.step_done === "object") Object.assign(STEP_DONE, d.step_done);
-    if (d && typeof d.wiz_step === "string") WIZ_STEP = d.wiz_step;
-  } catch (e) { /* ignore a corrupt draft */ }
-  DRAFT_READY = true;                                         // from here on, every change auto-persists
+  try { _hydrateDraft(JSON.parse(localStorage.getItem("stewie_draft") || "null")); } catch (e) { /* corrupt local draft */ }
+  // #241: the per-owner SERVER draft WINS when present (cross-device source of truth). Async: arm autosave
+  // only AFTER it is fetched + applied (the .finally), so an empty/stale local draft can't PUT-clobber a good
+  // server draft on boot. Anonymous (no creds) stays localStorage-only and arms immediately.
+  if (!getCookie("stewie_csrf") && !AUTH.apikey) { DRAFT_READY = true; return; }
+  fetch("/draft", { headers: apiHeaders() })
+    .then((r) => r.ok ? r.json() : null)
+    .then((j) => { if (j && j.doc) { _hydrateDraft(j.doc); _redrawAfterDraft(); } })
+    .catch(() => {})
+    .finally(() => { DRAFT_READY = true; });                 // from here on, every change auto-persists (local + server)
 }
 // PER-BODY WORKING SETS (Aaron 2026-06-10: "if I build something on earth it doesn't plot on the
 // moon?"): orders/keep-outs/routes are a per-body document; switching body saves the current set
