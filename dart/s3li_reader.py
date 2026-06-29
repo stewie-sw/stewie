@@ -54,8 +54,19 @@ from dataclasses import dataclass
 from typing import Any, Iterator
 
 import numpy as np
-from rosbags.rosbag1 import Reader
-from rosbags.typesys import Stores, get_typestore
+
+# rosbags is a heavy OPTIONAL dependency: it is only needed to read the REAL DLR S3LI ROS1 bag, which is
+# data-gated (absent in CI and most checkouts). Import it lazily-at-module-load via try/except so merely
+# IMPORTING this module (S3liReader, Intrinsics, the dataclasses) never requires rosbags -- that lets the
+# many tests that import S3liReader collect cleanly without it. Any method that actually opens a bag uses
+# these symbols and will fail clearly only when invoked, by which point the gated bag must also be present.
+try:
+    from rosbags.rosbag1 import Reader
+    from rosbags.typesys import Stores, get_typestore
+except ModuleNotFoundError:                      # pragma: no cover - exercised only where rosbags is absent
+    Reader = None                                # type: ignore[assignment,misc]
+    Stores = None                                # type: ignore[assignment]
+    get_typestore = None                         # type: ignore[assignment]
 
 from dart.stereo_vo import Intrinsics
 
