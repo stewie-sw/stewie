@@ -458,7 +458,7 @@
         lander x<input id="landx" type="number" value="0" step="1" style="width:4em" />
         y<input id="landy" type="number" value="0" step="1" style="width:4em" />
         <button id="landset" class="site">place</button>
-        <label style="margin-left:8px" title="show a 100 m reference ring around the lander"><input type="checkbox" id="landring" checked> 100 m ring</label></div>
+        <label style="margin-left:8px" title="show the lander safe-haven ring on the plan view AND the 3-D globe"><input type="checkbox" id="landring" checked> ring</label><input id="landringm" type="number" value="100" min="10" max="2000" step="10" style="width:4em;margin-left:3px" title="ring radius in metres (10-2000); shown on both the 2-D plan and the 3-D globe"> m</div>
       <div class="ctl" style="font-size:11px">
         rover x<input id="roverx" type="number" value="0" step="1" style="width:4em" />
         y<input id="rovery" type="number" value="0" step="1" style="width:4em" />
@@ -1427,6 +1427,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=b9996be65138"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=67b277c8ddce"></script>
+<script src="/assets/cockpit.js?v=dfea6e410169"></script>
 </body>
 </html>

@@ -520,7 +520,7 @@ function deleteSelectedPin() {                             // #64: Delete remove
   }
   viewer.entities.remove(SELECTED_PIN);
   const k = EDIT_PINS.indexOf(SELECTED_PIN); if (k >= 0) EDIT_PINS.splice(k, 1);
-  if (SELECTED_PIN === LANDER_PIN) LANDER_PIN = null;      // #lander-pin: don't leave a dangling reference
+  if (SELECTED_PIN === LANDER_PIN) { LANDER_PIN = null; LANDER_LATLON = null; if (typeof updateLanderRing3D === "function") updateLanderRing3D(); }  // #lander-pin/#6: clear the ring too
   if (SELECTED_PIN === ROVER_PIN) ROVER_PIN = null;        // #174: likewise the unique rover marker
   PIN_REFS.delete(SELECTED_PIN); SELECTED_PIN = null;
   renderQueue(); if (typeof updateLocator === "function") updateLocator(); setQ("feature deleted");
@@ -625,6 +625,7 @@ async function editPlace(lat, lon) {
     if (LANDER_PIN && viewer) { viewer.entities.remove(LANDER_PIN); PIN_REFS.delete(LANDER_PIN);
       const li = EDIT_PINS.indexOf(LANDER_PIN); if (li >= 0) EDIT_PINS.splice(li, 1); }
     LANDER_PIN = dropPin(lat, lon, `lander ${LANDER_P.x}, ${LANDER_P.y} m`, "#39ff14", { kind: "lander" });
+    LANDER_LATLON = { lat, lon }; if (typeof updateLanderRing3D === "function") updateLanderRing3D();  // #6: the safe-haven ring follows the lander onto the 3-D globe
     drawPlan(); $("editstate").textContent = `lander @ site-frame ${d.x_m} m E, ${d.y_m} m N (${Number(lat).toFixed(3)}°, ${Number(lon).toFixed(3)}°)`;
   } else if (EDIT.tool === "rover") {
     // #174 (Aaron: "why can't I place the location of the rover?"): click-to-place the rover's known
@@ -3079,7 +3080,7 @@ $("qreset").onclick = () => {
   PLACED_STRUCTURES.length = 0; if (typeof renderSitePlan === "function") renderSitePlan(null);
   SELECTED_ORDER = -1; LAST_ROUTES.length = 0;
   EDIT_PINS.forEach((e) => viewer && viewer.entities.remove(e)); EDIT_PINS.length = 0;
-  LANDER_PIN = null;                                        // #lander-pin: the marker was just removed above
+  LANDER_PIN = null; LANDER_LATLON = null; if (typeof updateLanderRing3D === "function") updateLanderRing3D();  // #lander-pin/#6: clear the marker + ring
   renderQueue(); setQ("plan reset");
 };
 if ($("drawerbtn")) {
@@ -3518,14 +3519,44 @@ if (qel("mapcapture")) qel("mapcapture").onclick = captureMap;
 let LANDER = { name: "Nova-C", x: LANDER_P.x, y: LANDER_P.y, footprint_m: 4.6, n_legs: 6 };   // delivery lander (persisted position, #65)
 // #161: a toggleable 100 m reference ring around the lander (the safe-operating-radius cue; pairs with
 // the planner's return-to-lander feasibility). Persisted per-browser; default on.
-const LANDER_RING_M = 100;
+// #6 (Aaron): the lander safe-haven ring is ADJUSTABLE (was a fixed 100 m), shown on BOTH the 2D plan view
+// and the 3D globe. let (not const) + persisted; the #landringm input drives it; LANDER_RING_ENT is the globe ring.
+let LANDER_RING_M = Math.max(10, Math.min(2000, +(localStorage.getItem("stewie_landring_m")) || 100));
 let LANDER_RING_ON = (localStorage.getItem("stewie_landring") !== "0");
+let LANDER_RING_ENT = null;                                // the Cesium ring entity on the globe
+let LANDER_LATLON = null;                                  // the lander's lat/lon (set when placed) for the globe ring
+function updateLanderRing3D() {                            // #6: draw/update/remove the safe-haven ring on the globe
+  if (!viewer) return;
+  if (LANDER_RING_ENT) { try { viewer.entities.remove(LANDER_RING_ENT); } catch (e) {} LANDER_RING_ENT = null; }
+  if (LANDER_RING_ON && LANDER_LATLON) {
+    const y = Cesium.Color.fromCssColorString("#ffd166");
+    LANDER_RING_ENT = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(LANDER_LATLON.lon, LANDER_LATLON.lat, 0, ellipsoid),
+      ellipse: { semiMajorAxis: LANDER_RING_M, semiMinorAxis: LANDER_RING_M, height: 0,
+                 material: y.withAlpha(0.10), outline: true, outlineColor: y.withAlpha(0.85) },
+      label: { text: LANDER_RING_M + " m", font: "9px Orbitron, sans-serif", fillColor: y,
+               pixelOffset: new Cesium.Cartesian2(0, -8), showBackground: true,
+               backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
+    });
+    try { viewer.scene.requestRender(); } catch (e) {}
+  }
+}
+function applyLanderRing() {                               // #6: a checkbox/radius change -> persist + redraw 2D + 3D
+  try { localStorage.setItem("stewie_landring", LANDER_RING_ON ? "1" : "0"); } catch (e) {}
+  try { localStorage.setItem("stewie_landring_m", String(LANDER_RING_M)); } catch (e) {}
+  if (typeof drawPlan === "function") drawPlan();
+  updateLanderRing3D();
+}
 if ($("landring")) {
   $("landring").checked = LANDER_RING_ON;
-  $("landring").onchange = () => {
-    LANDER_RING_ON = $("landring").checked;
-    try { localStorage.setItem("stewie_landring", LANDER_RING_ON ? "1" : "0"); } catch (e) {}
-    if (typeof drawPlan === "function") drawPlan();       // redraw the plan view with/without the ring
+  $("landring").onchange = () => { LANDER_RING_ON = $("landring").checked; applyLanderRing(); };
+}
+if ($("landringm")) {
+  $("landringm").value = String(LANDER_RING_M);
+  $("landringm").onchange = () => {
+    LANDER_RING_M = Math.max(10, Math.min(2000, Math.round(+$("landringm").value || 100)));
+    $("landringm").value = String(LANDER_RING_M);
+    applyLanderRing();
   };
 }
 async function loadLayers() {
@@ -4359,9 +4390,9 @@ async function analyzeSitePlan() {
   try {
     const res = await fetch("/siteplan/analyze", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify({ placements: PLACED_STRUCTURES, min_gap_m: 2 }) });
-    const j = await res.json();
+    const j = await readJson(res);
     renderSitePlan(j.ok ? j : { error: j.error || ("HTTP " + res.status) });
-  } catch (e) { out.textContent = "site-plan failed — run server.py (" + e + ")"; }
+  } catch (e) { out.textContent = "site-plan failed — " + (e && e.message ? e.message : e); }
 }
 { const b = qel("qsiteplan"); if (b) b.onclick = analyzeSitePlan; }
 
@@ -4513,6 +4544,24 @@ if (qel("rehearserun")) qel("rehearserun").onclick = async () => {
   try { await loadRehearse(); } finally { b.disabled = false; b.textContent = t; }
 };
 
+// A robust JSON read for fetch responses. A 5xx (or a Cloudflare/nginx 502-504 proxy page) returns an
+// HTML/plain body, so a bare res.json() throws the cryptic "JSON.parse: unexpected character at line 1
+// column 1" -- which the catch then dressed up as the (stale, wrong) "start the server: python3
+// server.py". Read the body once, try to parse it, and on a non-JSON body throw a legible Error keyed to
+// the HTTP status so the operator sees something actionable. Behaves exactly like res.json() for real JSON.
+async function readJson(res) {
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch (_) {
+    const s = res.status;
+    let hint;
+    if (s === 502 || s === 503 || s === 504) hint = `the planner is unavailable or timed out (HTTP ${s}) — try again, or reduce the work area / number of orders`;
+    else if (s >= 500) hint = `server error (HTTP ${s}) — the request reached the server but failed; the trace is in the server logs`;
+    else if (s === 413) hint = `the request is too large (HTTP ${s}) — use fewer orders or keep-outs`;
+    else hint = `unexpected non-JSON response (HTTP ${s})` + (text ? `: ${text.slice(0, 120)}` : "");
+    throw new Error(hint);
+  }
+}
 qel("qplan").onclick = async () => {
   if (!ORDERS.length) { setQ("add at least one order first"); return; }
   const pb = qel("qplan"); pb.disabled = true; pb.textContent = "planning + rendering report…";   // B0.4
@@ -4524,8 +4573,8 @@ qel("qplan").onclick = async () => {
         keepouts: KEEPOUTS, max_traverse_slope_deg: +(qel("qslope") ? qel("qslope").value : 25),
         charger_capacity: +(qel("qchargers") ? qel("qchargers").value : 1),
         ...fleet(), ...site() }) });
-    const j = await res.json();
     if (res.status === 401) { setQ("⚠ API key required: paste it in Settings (server key lives in deploy/.env)"); setView("settings"); return; }
+    const j = await readJson(res);   // legible on a non-JSON 5xx/proxy body (was a raw res.json() -> cryptic JSON.parse)
     if (!j.ok) { setQ("error: " + j.error); return; }
     const t = j.totals;
     // FS-15: the Report-pane dashboard + CONOPS consume the TYPED PlanResult view model (adapters.js),
@@ -4644,7 +4693,7 @@ qel("qplan").onclick = async () => {
     qel("reportopen").href = j.pdf;                        // ...with an "open in tab" escape hatch
     qel("reportempty").style.display = "none";
     setView("report");
-  } catch (e) { setQ("plan failed. start the server: python3 server.py  (" + e + ")"); }
+  } catch (e) { setQ("plan failed — " + (e && e.message ? e.message : e)); }
   finally { const pb = qel("qplan"); pb.disabled = false; pb.textContent = "Plan mission → open report"; }
 };
 
@@ -4723,10 +4772,10 @@ qel("profsave").onclick = async () => {
   const name = (qel("profname").value || "").trim();
   if (!name) { setQ("name the profile first"); return; }
   try {
-    const j = await (await fetch("/profile", { method: "POST", headers: apiHeaders(),
-      body: JSON.stringify({ name, profile: currentPlan() }) })).json();
+    const j = await readJson(await fetch("/profile", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ name, profile: currentPlan() }) }));
     if (j.ok) { setQ(`saved profile '${j.name}'`); refreshProfiles(); } else { setQ("save failed: " + j.error); }
-  } catch (err) { setQ("save failed (start the server): " + err); }
+  } catch (err) { setQ("save failed — " + (err && err.message ? err.message : err)); }
 };
 qel("profloadbtn").onclick = async () => {
   const slug = qel("profload").value; if (!slug) { setQ("no saved profiles"); return; }
@@ -5253,14 +5302,14 @@ async function senseDrum() {
   try {
     const res = await fetch("/sense", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify({ true_mass_kg: kg, noise_frac: noise, seed: 1 }) });
-    const j = await res.json();
+    const j = await readJson(res);
     if (!j.ok) { qel("drumout").textContent = "error: " + j.error; return; }
     qel("drumout").textContent =
       `${j.current_a.toFixed(2)} A → inferred ${j.inferred_kg.toFixed(1)} kg `
       + `±${(j.uncertainty_frac * 100).toFixed(1)}% (${j.lower_kg.toFixed(1)}–${j.upper_kg.toFixed(1)}) `
       + (j.offload ? "· OFFLOAD → process" : "· keep digging");
     teleChip("drum", `${j.inferred_kg.toFixed(1)} kg`, true);
-  } catch (e) { qel("drumout").textContent = "— start the server: python3 server.py"; }
+  } catch (e) { qel("drumout").textContent = "drum sensor unavailable — " + (e && e.message ? e.message : e); }
 }
 ["drumkg", "drumnoise"].forEach((id) => qel(id).addEventListener("input", senseDrum));
 

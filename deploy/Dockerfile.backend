@@ -20,7 +20,13 @@ COPY forge ./forge
 COPY samples ./samples
 COPY validation ./validation
 RUN pip install --no-cache-dir --no-deps . && useradd -r -u 10001 stewie \
- && mkdir -p /data && chown -R stewie /data
+ && mkdir -p /data && chown -R stewie /data \
+ && chmod -R a+rX /app
+# Docker COPY preserves the source file mode. Generated artifacts (e.g. bodies.json via
+# write_json_atomic -> mkstemp 0600) would arrive owner-only and the non-root `stewie` worker could not
+# read them -> PermissionError on /plan (read_only rootfs blocks any runtime chmod). a+rX forces every
+# served file readable + dirs traversable (mirrors Dockerfile.frontend). atomicio.py also chmods 0644
+# at the source; this is defence-in-depth for any other generated/odd-mode file.
 USER stewie
 EXPOSE 8770
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=4 \

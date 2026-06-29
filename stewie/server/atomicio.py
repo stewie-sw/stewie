@@ -17,12 +17,20 @@ from typing import Any
 
 
 def write_bytes_atomic(path: str, data: bytes) -> None:
-    """Write `data` to `path` atomically (temp in the same dir + os.replace)."""
+    """Write `data` to `path` atomically (temp in the same dir + os.replace).
+
+    DEPLOY-CRIT: tempfile.mkstemp() creates the temp file 0600 (owner-only). bodies.json is generated
+    this way, then COPY'd into the backend image (which preserves the source mode) and read at request
+    time by the non-root `stewie` user -> PermissionError -> /plan 500s a non-JSON body. So chmod the
+    final inode 0644 (world-readable): these artifacts are non-secret config the planner + GET routes
+    must read regardless of the writing process's owner/umask.
+    """
     d = os.path.dirname(os.path.abspath(path)) or "."
     fd, tmp = tempfile.mkstemp(dir=d, prefix=".atomic.", suffix=".tmp")
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data)
+        os.chmod(tmp, 0o644)
         os.replace(tmp, path)
     except BaseException:
         if os.path.exists(tmp):

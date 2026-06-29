@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import threading
 
 from stewie.server.atomicio import write_bytes_atomic, write_json_atomic
@@ -34,6 +35,21 @@ def test_round_trip_bytes_overwrite(tmp_path):
     write_bytes_atomic(p, b"second")                 # overwrite a longer file with a shorter one
     with open(p, "rb") as f:
         assert f.read() == b"second"                 # no leftover bytes from the longer first write
+
+
+def test_atomic_write_is_world_readable(tmp_path):
+    """DEPLOY-CRIT regression (the /plan 500): tempfile.mkstemp() creates the temp file 0600, so
+    bodies.json was COPY'd into the backend image owner-only and the non-root `stewie` worker hit
+    PermissionError reading it -> a non-JSON 500 -> the cockpit's cryptic JSON.parse failure. The atomic
+    writer must leave the final file world-readable (group + other read bits set)."""
+    p = str(tmp_path / "perm.json")
+    write_json_atomic(p, {"k": "v"})
+    mode = stat.S_IMODE(os.stat(p).st_mode)
+    assert mode & stat.S_IRGRP, f"group cannot read the atomic-written file (mode {oct(mode)})"
+    assert mode & stat.S_IROTH, f"other cannot read the atomic-written file (mode {oct(mode)})"
+    write_bytes_atomic(p, b"again")                  # also on the bytes path (overwrite)
+    mode2 = stat.S_IMODE(os.stat(p).st_mode)
+    assert (mode2 & stat.S_IRGRP) and (mode2 & stat.S_IROTH), f"bytes write not world-readable ({oct(mode2)})"
 
 
 def test_no_temp_files_left_behind(tmp_path):
