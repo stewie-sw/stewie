@@ -74,14 +74,22 @@ def build_between_factors(deltas: np.ndarray, sigma_xyz_m: float) -> list[Measur
     return out
 
 
-def build_dem_anchor_factors(indices: list[int], sigma_height_m: float) -> list[MeasurementFactor]:
-    """One DEM_HEIGHT_NORMAL factor per anchored keyframe (height sigma; sampled live at solve time)."""
+def build_dem_anchor_factors(indices: list[int], sigma_height_m: float, *,
+                             height_only: bool = False) -> list[MeasurementFactor]:
+    """One DEM_HEIGHT_NORMAL factor per anchored keyframe (height sigma; sampled live at solve time).
+
+    ``height_only`` drops the DEM surface-NORMAL slope coupling from the Jacobian, so the height residual
+    ``z - H(x, y)`` is reduced purely by moving ``z``, never ``x, y``. Use it when the horizontal is
+    already tighter than the DEM's posting: on a coarse DEM the slope/normal is noisy, and the default
+    normal-coupled factor redistributes the height residual into a WRONG horizontal pull (it does on the
+    30 m Copernicus DEM -- horiz 7.5 -> 13.4 m). Height-only keeps the real vertical correction (vert
+    7.7 -> ~3-4 m) without that penalty, so SE3 drops below the normal-coupled result."""
     cov = np.array([[float(sigma_height_m) ** 2]])
     return [MeasurementFactor(
         factor_type=FactorType.DEM_HEIGHT_NORMAL, keyframe=int(a), value=np.array([0.0]),
         covariance=cov, frame=Frame.DEM, source="copernicus_glo30_dem_prior",
         evidence_class=EvidenceClass.COMPUTED,
-        metadata={"sampled_at": "estimated_xy"}) for a in indices]
+        metadata={"sampled_at": "estimated_xy", "height_only": bool(height_only)}) for a in indices]
 
 
 def build_dem_xy_factors(
@@ -155,19 +163,21 @@ class DemHeightPoseGraph:
                 rvec.append(sb * ((X[j, c] - X[i, c]) - d[c]))
                 row += 1
 
-        # DEM height-normal: sqrt(wd) * (z_a - H(x_a,y_a)); Jacobian uses the DEM normal (slope coupling)
+        # DEM height-normal: sqrt(wd) * (z_a - H(x_a,y_a)); Jacobian uses the DEM normal (slope coupling),
+        # UNLESS the factor is height_only (slope coupling dropped: z-only Jacobian, no horizontal pull).
         for f in anchors:
             a = f.keyframe
             wd = 1.0 / float(f.covariance_array()[0, 0])
             sd = np.sqrt(wd)
             xa, ya, za = float(X[a, 0]), float(X[a, 1]), float(X[a, 2])
             h = self.dem.height_enu(xa, ya)                      # sampled at ESTIMATE (I3)
-            nrm = np.asarray(self.dem.normal_enu(xa, ya), float)
-            nz = nrm[2] if abs(nrm[2]) > 1e-9 else 1e-9
-            dHdx = -nrm[0] / nz                                  # dH/dE = -n_x/n_z
-            dHdy = -nrm[1] / nz                                  # dH/dN = -n_y/n_z
-            add(row, a, 0, sd * (-dHdx))                         # d(z-H)/dx = -dH/dE
-            add(row, a, 1, sd * (-dHdy))
+            if not f.metadata.get("height_only", False):
+                nrm = np.asarray(self.dem.normal_enu(xa, ya), float)
+                nz = nrm[2] if abs(nrm[2]) > 1e-9 else 1e-9
+                dHdx = -nrm[0] / nz                              # dH/dE = -n_x/n_z
+                dHdy = -nrm[1] / nz                              # dH/dN = -n_y/n_z
+                add(row, a, 0, sd * (-dHdx))                     # d(z-H)/dx = -dH/dE
+                add(row, a, 1, sd * (-dHdy))
             add(row, a, 2, sd * 1.0)
             rvec.append(sd * (za - h))
             row += 1
