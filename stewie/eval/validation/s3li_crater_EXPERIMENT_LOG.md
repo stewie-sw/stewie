@@ -5,6 +5,16 @@ arXiv:2603.17229 recipe (VO → loop closure → DEM anchoring) and pushing past
 ground-truth-free (truth firewall I3); GT enters only at evo scoring after each estimate is frozen.
 DEM = free Copernicus GLO-30 (~30 m); the paper used a ~2 m Pleiades DSM.
 
+> **⚠ SUPERSEDED FOR THE "FLOOR" CLAIM (2026-06-28).** This log is supporting **SE(2)** exploration. Its
+> "8.4 m is the floor" and "horizontal pinned at ~7.5 m" claims are the floor of the *keyframe-SE(2) +
+> deformation-lift* configuration only (orientations only partially freed). The **load-bearing dissertation
+> result is the full SE(3) pose-graph estimator** (commit `ef8d4e2`, artifact
+> `s3li_crater_se3_2026-06-28.json`): freeing full SE(3) orientation breaks through that floor to **7.99 m
+> SE3 / 6.69 m horizontal** (converged, 27 iter, I3 poison-test PASS). In the full SE(3) the DEM
+> height-**normal** factor *helps* (horizontal is tight enough at 6.69 m that the slope coupling is fine), so
+> the height-only workaround this log needed at SE(2)'s 7.5 m is not needed there. Read "8.4 m" / "~7.5 m
+> floor" below as SE(2)-lift-specific, not the estimator's limit.
+
 ## The ladder (SE3 ATE vs RTK GT, evo, offset −16.6 s)
 
 | # | Estimate | SE3 m | horiz m | vert m | Sim3 scale | verdict |
