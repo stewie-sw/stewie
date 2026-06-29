@@ -52,16 +52,9 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
         return _CACHE[key]
     dem, _, cell_m = _work_area(mp, bundle_dir)
 
-    if kind == "slope":
-        gy, gx = np.gradient(dem, cell_m)
-        slope = np.degrees(np.arctan(np.hypot(gx, gy)))
-        t = np.clip(slope / 30.0, 0, 1)
-        rgba = np.zeros((*slope.shape, 4))
-        rgba[..., 0] = 60 + 195 * t                      # green->red ramp
-        rgba[..., 1] = 200 * (1 - t)
-        rgba[..., 2] = 40
-        rgba[..., 3] = 90 + 120 * t                      # steeper = more opaque
-    elif kind == "hazard":
+    if kind == "hazard":
+        # the inset hazard is the ROCK+slope navigation COST (build_hazard_map) the routing detours on -- a
+        # RICHER layer than the globe/3D slope-proxy (_layer_rgba); kept distinct on purpose (#239 decision).
         from dart.hazard_map import build_hazard_map
         hm = build_hazard_map((dem, cell_m))             # the (Z, cell_m) pair convention
         cost = np.asarray(hm.cost, dtype=float)
@@ -72,33 +65,13 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
         rgba[..., 1] = 140 * (1 - graded)
         rgba[..., 3] = np.where(nogo, 230, 170 * graded)  # transparent where benign
         rgba[nogo, 1] = 0
-    elif kind == "illumination":
-        from dart.illumination import horizon_clip
-        lit = horizon_clip(dem, cell_m, float(sun_az), float(sun_el))
-        rgba = np.zeros((*lit.shape, 4))
-        rgba[..., 2] = 180                               # shadow = translucent blue-black
-        rgba[..., 3] = np.where(lit, 0, 165)
-    elif kind == "incidence":
-        # TW-07: per-pixel solar INCIDENCE angle (DEM-normal vs sun direction), distinct from the binary
-        # horizon-clip shadow. Grazing light (high incidence) washes out cameras + yields poor solar flux
-        # even where the cell is geometrically lit. Amber ramp: 0 deg (sun normal-on) faint -> 90+ deg
-        # (grazing / facet-away) opaque -- the deceptive-lighting warning the shadow mask cannot show.
-        from dart.illumination import incidence_angle_deg
-        inc = incidence_angle_deg(dem, cell_m, float(sun_az), float(sun_el))
-        t = np.clip(np.nan_to_num(inc, nan=90.0) / 90.0, 0, 1)
-        rgba = np.zeros((*inc.shape, 4))
-        rgba[..., 0] = 255                               # amber: grazing-incidence warning
-        rgba[..., 1] = 200 * (1 - t)
-        rgba[..., 2] = 40
-        rgba[..., 3] = 40 + 170 * t                      # grazing = more opaque
-    elif kind == "psr":
-        from dart.illumination import horizon_clip
-        ever_lit = np.zeros(dem.shape, dtype=bool)
-        for az in range(0, 360, 30):                     # polar sun sweep at max elevation
-            ever_lit |= horizon_clip(dem, cell_m, float(az), 3.0)
-        rgba = np.zeros((*dem.shape, 4))
-        rgba[..., 0] = 90; rgba[..., 2] = 200
-        rgba[..., 3] = np.where(ever_lit, 0, 200)        # PSR candidates: never lit in the sweep
+    elif kind in ("slope", "illumination", "incidence", "psr"):
+        # #234 cleanup: these are byte-identical to the globe/work-area drape, so share the ONE source of
+        # truth (_layer_rgba) instead of re-implementing each formula here. A new shared layer kind now only
+        # needs adding to _layer_rgba -- this inset path picks it up. (hazard stays the richer cost above.)
+        rgba = _layer_rgba(dem, cell_m, kind, sun_az, sun_el)
+        if rgba is None:
+            return None
     else:
         return None
     png = _to_png(_upscale(rgba))
