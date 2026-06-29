@@ -33,6 +33,11 @@ _VO_NPZ = os.path.join(_BENCH, "vo_cam_stride3.npz")
 _META = os.path.join(_BENCH, "se2_recipe_stride3_meta.json")
 _META_ALT = os.path.join(_BENCH, "loopclosure_stride3_meta.json")
 _have_vo = pytest.mark.skipif(not os.path.isfile(_VO_NPZ), reason="frozen VO npz absent")
+# the tests below build S3liDem(), which reads the independent Copernicus GLO-30 tile at construction;
+# gate on that real artifact too (it is absent in CI), else they FileNotFoundError instead of skipping.
+from dart.s3li_dem import DEFAULT_DEM_PATH as _DEM_TILE  # noqa: E402
+_have_dem = pytest.mark.skipif(not os.path.isfile(_DEM_TILE),
+                               reason="independent Copernicus DEM tile absent (S3liDem build)")
 
 
 def _meta_path() -> str | None:
@@ -69,6 +74,7 @@ def test_relative_se2_and_wrap_identities():
 
 
 @_have_vo
+@_have_dem
 def test_node_headings_enu_consistent_with_registration():
     """At node 0 (R_wc = I) the ENU heading equals atan2 of R_M @ camera-forward; all headings finite."""
     from dart.s3li_dem import S3liDem
@@ -86,6 +92,7 @@ def test_node_headings_enu_consistent_with_registration():
 
 
 @_have_vo
+@_have_dem
 def test_lift_identity_and_hits_corrected_keyframes():
     """The deformation lift is the identity when the keyframe poses are unchanged, and reproduces a
     shifted keyframe EXACTLY (continuity anchor for the full-resolution lift)."""
@@ -111,6 +118,7 @@ def test_lift_identity_and_hits_corrected_keyframes():
 
 
 @_have_vo
+@_have_dem
 def test_lift_applies_rotational_correction():
     """Exercise the LOAD-BEARING rotational branch of the lift (phi != 0): a CONSTANT rigid SE(2)
     correction (rotate headings by delta, rotate+translate positions) at every keyframe must rotate AND
@@ -135,6 +143,7 @@ def test_lift_applies_rotational_correction():
 
 
 @_have_vo
+@_have_dem
 @pytest.mark.skipif(_meta_path() is None, reason="loop-closure meta absent (run freeze_se2_recipe.py)")
 def test_se2_loop_closure_closes_the_gap():
     """End-to-end on REAL detected closures: the SE(2) solve drives the loop-closed pair (end vs start)
@@ -166,6 +175,7 @@ def test_se2_loop_closure_closes_the_gap():
 
 
 @_have_vo
+@_have_dem
 def test_shadow_yaw_factor_is_fused_and_pulls_heading():
     """The optional shadow-yaw channel (anti-solar absolute-heading factor) is wired into the SE(2)
     solve: it is counted (n_shadow) and it pulls a node's optimized yaw toward the measured heading.
