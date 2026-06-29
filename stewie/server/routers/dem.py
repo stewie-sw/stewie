@@ -10,6 +10,7 @@ import os
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse, JSONResponse, Response
+from pydantic import BaseModel
 
 from stewie.server.deps import require_auth
 from stewie.specs.config import data_dir
@@ -141,6 +142,65 @@ def dem_heightfield(site: str = "haworth", n: int = 129, window_m: float = 300.0
             "dem_origin": [float(ox), float(oy)],
             "z": [round(v, 3) for v in grid.flatten().tolist()],
             "z_min": float(grid.min()), "z_max": float(grid.max())}
+
+
+class AsBuiltRequest(BaseModel):
+    body: str = "moon"
+    site: str = "haworth"
+    orders: list = []
+    lat: float | None = None
+    lon: float | None = None
+
+
+@router.post("/dem/asbuilt")
+def dem_asbuilt(req: AsBuiltRequest, _auth: str = Depends(require_auth)):
+    """#264 (3D-placement -> topology transform): the AS-BUILT (deformed) terrain for a set of cut/fill
+    orders, on the REAL site DEM, so the 3D mesh renders the topology ACTUALLY transforming -- a cut
+    LOWERS its footprint, a berm/fill RAISES it. Reuses the conserved authority's exact rasterize->execute
+    path (mission_terrain_delta == validate_plan's grids: cuts into the drum, fills from it), so the
+    surface is MASS-CONSERVING, not a cosmetic displacement. The grid is the worked region (orders' bbox +
+    margin) in the order frame at [x0, y0], cell_m. `z` = as-built surface (real terrain + conserved
+    delta), `base` = pre-build surface, `delta` = per-cell change (cut < 0 / fill > 0). Row-major y-then-x."""
+    from lode import mission_planner as MP
+    from lode.planner_acceptance import mission_terrain_delta
+    from stewie.server import state
+    from stewie.terrain.site_dem import bundle_for_site
+
+    payload = req.model_dump()
+    # only cut/fill orders move terrain; drop goto/keep-out so validate_plan (which reads footprint_m2/
+    # depth_m on every order) gets a clean buildable set.
+    payload["orders"] = [o for o in (payload.get("orders") or [])
+                         if isinstance(o, dict) and o.get("kind") in ("cut", "fill")]
+    if not payload["orders"]:
+        return JSONResponse(status_code=400, content={
+            "ok": False, "error": "need at least one cut or fill order to build an as-built surface"})
+    try:
+        mission = MP.mission_from_dict(payload)
+    except (ValueError, KeyError, TypeError) as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    dem, origin = (None, (0.0, 0.0))
+    if mission.body == "moon":
+        try:
+            bundle_for_site(req.site)
+        except (KeyError, FileNotFoundError) as e:
+            return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+        dem, origin = state.moon_dem(req.site)
+        if req.lat is not None and req.lon is not None:    # globe site-pick overrides the flattest anchor
+            try:
+                origin = MP.latlon_to_dem_origin(req.lat, req.lon, bundle_dir=MP.bundle_for_site(req.site))
+            except (KeyError, FileNotFoundError, ImportError, ValueError):
+                pass
+    d = mission_terrain_delta(mission, dem=dem, dem_origin=origin)
+    ab, base, delta = d["as_built"], d["base"], d["delta"]
+    return {"ok": True, "site": req.site, "body": mission.body,
+            "rows": int(d["rows"]), "cols": int(d["cols"]), "cell_m": float(d["cell_m"]),
+            "x0": float(d["x0"]), "y0": float(d["y0"]),
+            "z": [round(float(v), 3) for v in ab.flatten().tolist()],
+            "base": [round(float(v), 3) for v in base.flatten().tolist()],
+            "delta": [round(float(v), 4) for v in delta.flatten().tolist()],
+            "z_min": float(ab.min()), "z_max": float(ab.max()),
+            "delta_min": float(delta.min()), "delta_max": float(delta.max()),
+            "mass_moved_kg": float(d["mass_moved_kg"])}
 
 
 # #239 DoS cache: /dem/workarea.png is unauthenticated and the psr/illumination layers run an O(P^2..P^3)
