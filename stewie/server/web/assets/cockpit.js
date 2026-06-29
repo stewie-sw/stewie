@@ -1734,6 +1734,10 @@ async function refreshAuthState() {
       // recovery: if /bodies.json never landed (its retries exhausted during a deploy window), re-fetch it
       // now so the fleet + soil dropdowns self-heal on login (Aaron: "why did fleet and soil break again?").
       if (typeof loadBodies === "function" && (!PHY || !PHY._vehicles)) loadBodies();
+      // #246: /dem/georef is now auth-gated, so the boot-time loadSiteFootprint() 401s pre-login and
+      // the work-area footprint + georef stay blank. Re-anchor it now that a session exists (the 3D
+      // /dem/terrain_grid loader is user-triggered post-login, so it needs no re-fire).
+      if (typeof loadSiteFootprint === "function") loadSiteFootprint(true);
     } catch (e) { /* best-effort */ }
   } catch (e) { AUTH.role = null; AUTH.identity = null;
     if (st) st.textContent = "not signed in";
