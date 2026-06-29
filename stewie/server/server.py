@@ -33,7 +33,7 @@ log = logging.getLogger("stewie.server")
 
 # ARCH-3: the shared auth dependencies + env helpers live in stewie.server.deps so the per-concern
 # routers can import them without cycling through this app module.
-from stewie.server.deps import _env, _truthy  # noqa: E402
+from stewie.server.deps import _env, _is_loopback, _truthy  # noqa: E402
 
 
 
@@ -261,8 +261,17 @@ async def _on_http_exc(request: Request, exc: StarletteHTTPException):
 # ---- GET: static front-end + generated reports + DEM previews + ops ------------------------------
 @app.get("/")
 @app.get("/index.html")
-def get_index():
-    return FileResponse(os.path.join(HERE, "index.html"), media_type=_CTYPE[".html"])
+def get_index(request: Request):
+    resp = FileResponse(os.path.join(HERE, "index.html"), media_type=_CTYPE[".html"])
+    # #265: on a loopback dev-open server (keyless local dev / headless visual verification) seed the
+    # readable stewie_csrf cookie so the cockpit boot sees "a session likely exists", calls /auth/me
+    # (which returns the dev-open director on loopback), and reveals the cockpit instead of the sign-in
+    # overlay. Guarded by DEV_OPEN + loopback -> a real (proxied, keyed) deployment is NEVER affected, and
+    # in prod nginx serves index.html so this route isn't even hit. The value is arbitrary: auth is granted
+    # by require_auth's env+loopback check (not the cookie), and CSRF is double-submit (cookie == header).
+    if _truthy(_env("DEV_OPEN")) and _is_loopback(request) and not request.cookies.get("stewie_csrf"):
+        resp.set_cookie("stewie_csrf", "dev-open", httponly=False, samesite="strict", path="/")
+    return resp
 
 
 
