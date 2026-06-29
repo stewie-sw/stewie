@@ -196,6 +196,52 @@ def load_draft(owner: str) -> dict | None:
     return json.load(open(path)) if os.path.exists(path) else None
 
 
+# ---- #241: per-owner SOIL OVERLAY (user-authored terramechanics, on top of the static bodies.py baseline) -
+# An operator can save a measured/bevameter-fit soil profile to their PER-OWNER overlay. The static
+# bodies.py registry stays the grounded, audited ground truth (NEVER mutated here); this is a clearly-tagged
+# overlay layered on top. NO-FABRICATION INVARIANT enforced at the write boundary: a user soil MUST carry a
+# non-empty `provenance` (where the moduli came from) + a `confidence` tag -- a soil with no source is
+# rejected (400), mirroring bodies.py's MEASURED/ESTIMATED/UNKNOWN discipline. Sandbox-only (per-owner).
+_SOIL_KEYS = {"bekker", "cohesion_pa", "friction_deg", "bulk_density", "confidence", "provenance"}
+_SOIL_REQUIRED = ("provenance", "confidence")    # cite a source + a confidence tag -- no fabricated moduli
+
+
+def save_soil(name: str, profile: dict, owner: str) -> dict:
+    unknown = set(profile) - _SOIL_KEYS
+    if unknown:
+        raise ValueError(f"unknown soil fields {sorted(unknown)}")
+    missing = [k for k in _SOIL_REQUIRED if not str(profile.get(k, "")).strip()]
+    if missing:
+        raise ValueError(f"a user soil must carry {missing} (no fabricated moduli -- cite a source)")
+    slug = _slug(name)
+    path = os.path.join(_ns_dir("soil", "sandbox", owner), f"{slug}.json")
+    meta = _owner_meta(path, owner)
+    from stewie.twin.io_fields import atomic_write_bytes
+    atomic_write_bytes(path, json.dumps({"name": slug, "title": name, **meta, **profile},
+                                        indent=1, sort_keys=True).encode())
+    return {"ok": True, "name": slug, "created_by": meta["created_by"]}
+
+
+def load_soil(name: str, owner: str) -> dict | None:
+    path = os.path.join(_ns_dir("soil", "sandbox", owner), f"{_slug(name)}.json")
+    return json.load(open(path)) if os.path.exists(path) else None
+
+
+def list_soils(owner: str) -> list:
+    d0 = _ns_dir("soil", "sandbox", owner)
+    out = []
+    for fn in sorted(os.listdir(d0)):
+        if fn.endswith(".json"):
+            try:
+                d = json.load(open(os.path.join(d0, fn)))
+                out.append({"name": d.get("name", fn[:-5]), "title": d.get("title", ""),
+                            "provenance": d.get("provenance", ""), "confidence": d.get("confidence", ""),
+                            "owner": d.get("created_by", "unknown")})
+            except (json.JSONDecodeError, OSError):
+                continue
+    return out
+
+
 def delete_mission(name: str, namespace: str = "live", owner: str | None = None) -> bool:
     """AG-06: recoverable soft-delete (moves to .trash, not unlink). The route enforces the
     ownership-escalation policy (deletion_allowed) before calling this."""

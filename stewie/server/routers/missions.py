@@ -71,6 +71,30 @@ def draft_save(doc: dict, identity: str = Depends(require_auth)):
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
 
 
+# ---- #241: per-owner SOIL OVERLAY (user-authored terramechanics over the static bodies.py baseline) -------
+# owner = the AUTHENTICATED identity (never client). NO-FABRICATION: OBJ.save_soil rejects a soil missing
+# provenance/confidence (400). The static bodies.py registry is unchanged -- this is a per-owner overlay.
+@router.get("/soils")
+def soils_list(identity: str = Depends(require_auth)):
+    """The caller's per-owner custom soil overlay (provenance-tagged). The built-in body soils stay in
+    bodies.json; this lists ONLY the operator's own authored soils."""
+    return {"ok": True, "soils": OBJ.list_soils(owner=identity)}
+
+
+@router.post("/soil/{name}")
+def soil_save(name: str, profile: dict, identity: str = Depends(require_auth)):
+    """Save an operator-authored soil to their per-owner overlay. NO-FABRICATION: a soil missing
+    `provenance` or `confidence` is rejected (400). Rate-limited; body-capped (server.py)."""
+    if not _draft_quota.allow(identity):
+        raise HTTPException(status_code=429, detail="soil-save quota exceeded; slow down")
+    try:
+        out = OBJ.save_soil(name, profile, owner=identity)
+        log_event(identity, "soil.save", out["name"])
+        return out
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+
+
 @router.delete("/missions/{name}")
 def mission_delete(name: str, ns: str = "live", identity: str = Depends(require_auth)):
     """AG-06/07: recoverable soft-delete with ownership escalation within the resolved namespace --
