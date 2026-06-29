@@ -1,0 +1,136 @@
+{
+  "stride": 3,
+  "every": 6,
+  "n_frames": 10599,
+  "n_loop_keyframes": 1767,
+  "yaw_deg": 91.0,
+  "yaw_peak_corr": 0.9413975798949069,
+  "z0_m": 2646.686219585047,
+  "loop_params": {
+    "min_index_gap": 1500,
+    "sim_min": 0.8,
+    "min_inliers": 15,
+    "max_translation_m": 25.0,
+    "max_candidates": 4000,
+    "per_query_topk": 8
+  },
+  "solver_params": {
+    "sigma_vo_m": 0.05,
+    "sigma_loop_m": 0.5,
+    "sigma_dem_m": 2.0,
+    "sigma_prior_m": 0.5,
+    "anchor_every": 20,
+    "n_dem_anchors": 530
+  },
+  "n_candidates": 4000,
+  "n_loop_closures": 5,
+  "n_rejected": 3995,
+  "reject_reasons": {
+    "too_few_3d_correspondences": 3017,
+    "pnp_failed": 193,
+    "too_few_matches": 785
+  },
+  "loop_a_node_range": [
+    18,
+    258
+  ],
+  "loop_b_node_range": [
+    10548,
+    10596
+  ],
+  "loop_inlier_min": 16,
+  "loop_inlier_max": 18,
+  "loop_closures": [
+    {
+      "a_node": 18,
+      "b_node": 10572,
+      "d_enu_m": [
+        0.050924265904632345,
+        -0.9690124938138586,
+        -0.505385829271313
+      ],
+      "trans_m": 1.0940719036944198,
+      "n_inliers": 18,
+      "n_matches": 110,
+      "similarity": 0.9785388112068176,
+      "accepted": true,
+      "reject_reason": "ok"
+    },
+    {
+      "a_node": 18,
+      "b_node": 10548,
+      "d_enu_m": [
+        -0.17049687012419062,
+        -1.1234360050789853,
+        -0.566820554784967
+      ],
+      "trans_m": 1.269828012589387,
+      "n_inliers": 16,
+      "n_matches": 108,
+      "similarity": 0.9773887991905212,
+      "accepted": true,
+      "reject_reason": "ok"
+    },
+    {
+      "a_node": 24,
+      "b_node": 10572,
+      "d_enu_m": [
+        -0.0014406374398817036,
+        -0.9703312108714562,
+        -0.5391561855939004
+      ],
+      "trans_m": 1.110060415784503,
+      "n_inliers": 18,
+      "n_matches": 118,
+      "similarity": 0.9752998948097229,
+      "accepted": true,
+      "reject_reason": "ok"
+    },
+    {
+      "a_node": 24,
+      "b_node": 10566,
+      "d_enu_m": [
+        0.05235989917378223,
+        -1.0860191516190114,
+        -0.5364213533467969
+      ],
+      "trans_m": 1.2124054705630352,
+      "n_inliers": 18,
+      "n_matches": 110,
+      "similarity": 0.9746301174163818,
+      "accepted": true,
+      "reject_reason": "ok"
+    },
+    {
+      "a_node": 258,
+      "b_node": 10596,
+      "d_enu_m": [
+        0.1888789301162537,
+        -1.3802274940526624,
+        -0.507118861034573
+      ],
+      "trans_m": 1.482522419661084,
+      "n_inliers": 16,
+      "n_matches": 87,
+      "similarity": 0.9613491892814636,
+      "accepted": true,
+      "reject_reason": "ok"
+    }
+  ],
+  "lc_solve_diag": {
+    "converged": true,
+    "iterations": 4,
+    "mean_abs_horizontal_correction_m": 161.29993222698985,
+    "mean_abs_height_correction_m": 20.78876917974353
+  },
+  "lcdem_solve_diag": {
+    "converged": false,
+    "iterations": 12,
+    "mean_abs_horizontal_correction_m": 161.02516032273726,
+    "mean_abs_height_correction_m": 23.575511048739155
+  },
+  "vo_tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/lc_vo_enu.tum",
+  "lc_tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/lc_only_enu.tum",
+  "lcdem_tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/lc_dem_enu.tum",
+  "cache_path": "/mnt/projects/stewie/code/benchmarks/s3li_crater/loop_feats_stride3.npz"
+}

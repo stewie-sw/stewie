@@ -1,0 +1,40 @@
+{
+  "n_pose_pairs": 5262,
+  "ate_aligned_se3_m": {
+    "rmse": 51.21334864351521,
+    "mean": 44.729587081073745,
+    "median": 41.762627672911634,
+    "std": 24.94135358874659,
+    "min": 6.708548988430333,
+    "max": 117.18394509458889,
+    "sse": 13801210.851183154
+  },
+  "ate_aligned_sim3_m": {
+    "rmse": 50.85960968594324,
+    "mean": 45.10443305383966,
+    "median": 42.13415368628551,
+    "std": 23.500851395176902,
+    "min": 11.127911420248788,
+    "max": 113.02724176127657,
+    "sse": 13611214.86015296
+  },
+  "sim3_scale": 1.0501721984488936,
+  "rpe_kind": "world_displacement",
+  "rpe_trans_m": {
+    "rmse": 0.14642198653376712,
+    "mean": 0.10666670985467704,
+    "median": 0.0909327932787961,
+    "std": 0.10030758271074439,
+    "min": 0.003738182587784227,
+    "max": 3.3751221394940516,
+    "sse": 112.7926736171425
+  },
+  "rpe_rotation_deg": null,
+  "gt_path_length_m": 1026.3018826731168,
+  "est_path_length_m": 916.5406635495802,
+  "ate_se3_rmse_m": 51.21334864351521,
+  "ate_sim3_rmse_m": 50.85960968594324,
+  "rpe_rmse_m": 0.14642198653376712,
+  "label": "s3li_crater_recipe_vo_lc_dem",
+  "estimate_tum": "/mnt/projects/stewie/code/benchmarks/s3li_crater/lc_dem_enu.tum"
+}

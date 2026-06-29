@@ -1,0 +1,18 @@
+{
+  "test": "poison_loopclosure_is_byte_identical_under_gt_corruption",
+  "result": "PASS",
+  "gt_corruption_m": 1000000.0,
+  "n_nodes": 10599,
+  "n_loop_keyframes": 1767,
+  "n_loop_closures": 5,
+  "sha256_clean": {
+    "lc": "c93b3fdc931dfd861202ff2d351c7080112e06d4eae851fda38455a08618ee78",
+    "lc_dem": "16c6bc377933ff2b6c12f95b9903fbc4f17d2c5398a6a973016b81de4a4f22e0"
+  },
+  "sha256_poison": {
+    "lc": "c93b3fdc931dfd861202ff2d351c7080112e06d4eae851fda38455a08618ee78",
+    "lc_dem": "16c6bc377933ff2b6c12f95b9903fbc4f17d2c5398a6a973016b81de4a4f22e0"
+  },
+  "byte_identical": true,
+  "note": "VO ENU registration -> visual loop-closure detection (appearance + node index candidates, LightGlue + PnP verification) -> loop + DEM-height factors -> joint pose-graph solve is a pure function of images + VO orientation + the DEM (sampled at the ESTIMATED x, y) + the declared start. Loop closures are NEVER proposed by GT proximity. GT enters only in scoring, after the freeze."
+}
