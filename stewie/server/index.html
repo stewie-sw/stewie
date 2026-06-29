@@ -891,7 +891,8 @@
         <div id="rpstatus"></div>
         <div id="rpempty" class="empty">No render yet. On the <b>Plan</b> tab, double-click the work-area
           DEM (Moon) to render a Godot before/after sensor frame here (~40 s). A live SLAM map
-          (observed-vs-truth as the rover drives) is the open map-channel work, not a faked feed.</div>
+          (observed-vs-truth as the rover drives) is the open map-channel work, not a faked feed.
+          <button type="button" class="site" data-go="plan" style="margin-top:6px;font-size:10px">→ Go to Plan</button></div>
 
         <!-- #183/#79 8-camera rig -> heading-ordered panorama -> shadow-nav cast-shadow landmarks
              (each tagged with the AZIMUTH bearing a navigation pose-graph factor consumes). The served
@@ -1056,7 +1057,8 @@
         <canvas id="hudcanvas" width="320" height="96" title="rover HUD: azimuth compass · battery · front/rear drum weight · pose" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;margin-top:6px;max-width:340px;width:100%"></canvas>
         <div id="execempty" class="empty">No run yet. Plan a mission, then press
           <b>▶ Execute + watch</b> (Plan tab) to replay the planned timeline here (a deterministic
-          forecast of the plan, not live rover telemetry).</div>
+          forecast of the plan, not live rover telemetry).
+          <button type="button" class="site" data-go="plan" style="margin-top:6px;font-size:10px">→ Go to Plan</button></div>
       </div>
       <div id="pane-report" class="pane">
         <div id="dashstrip" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
@@ -1072,7 +1074,8 @@
           <a id="reportopen" href="#" target="_blank" rel="noopener">open in tab ↗</a></div>
         <iframe id="reportframe" title="mission-control report"></iframe>
         <div id="reportempty" class="empty">No report yet. Build a queue and press
-          <b>Plan mission → open report</b> (Plan tab); the PDF appears here.</div>
+          <b>Plan mission → open report</b> (Plan tab); the PDF appears here.
+          <button type="button" class="site" data-go="plan" style="margin-top:6px;font-size:10px">→ Go to Plan</button></div>
       </div>
       <!-- REHEARSE (mission-ops screen 2) pane. Director-only review surface. cockpit.js loadRehearse()
            POSTs the current build queue to /resync/compare (lode.resync.forward_compare), then
@@ -1084,7 +1087,8 @@
         <div id="rehearsecards" style="overflow:auto;margin-top:8px">
           <div id="rehearseempty" class="empty">No candidates to rehearse yet. Add at least one order
             (Plan tab) and press <b>Re-run forward-compare</b>; the re-simulated candidate futures from
-            the conserved planner appear here side-by-side, feasibility first.</div>
+            the conserved planner appear here side-by-side, feasibility first.
+            <button type="button" class="site" data-go="plan" style="margin-top:6px;font-size:10px">→ Go to Plan</button></div>
         </div>
       </div>
       <!-- RELEASE pane (director-only): drive the current build queue through the MO-02 lifecycle to RELEASED
@@ -1117,7 +1121,8 @@
         <div class="cap"><span>FLEET ALLOCATION — last plan (per-vehicle, makespan, space-time conflicts)</span></div>
         <div id="fleetplan" style="overflow:auto">
           <div id="fleetplanempty" class="empty">No fleet allocation yet. Plan a mission (Plan tab); the
-            per-vehicle allocation, makespan, and conflicts from that plan appear here.</div>
+            per-vehicle allocation, makespan, and conflicts from that plan appear here.
+            <button type="button" class="site" data-go="plan" style="margin-top:6px;font-size:10px">→ Go to Plan</button></div>
         </div>
       </div>
       <!-- FS-03: the CONSTRUCTION pane (operator+, badge FORGE). Two sections: the static build CATALOG
@@ -1133,7 +1138,8 @@
         <div class="cap"><span>ACCEPTANCE — criteria (<b>validate_plan</b>) + last plan as-built verdict</span></div>
         <div id="constructionacceptance" style="overflow:auto">
           <div id="constructionacceptanceempty" class="empty">No as-built acceptance yet. Plan a mission
-            (Plan tab); the flatness, berm-profile, repose, and bearing pass/fail appear here.</div>
+            (Plan tab); the flatness, berm-profile, repose, and bearing pass/fail appear here.
+            <button type="button" class="site" data-go="plan" style="margin-top:6px;font-size:10px">→ Go to Plan</button></div>
         </div>
         <div class="cap" style="margin-top:14px"><span>TERRAIN MEMORY — authoritative world state (<b>twin/terrain</b>): what IPEx has built at this site</span></div>
         <div id="terrainmem" style="overflow:auto;font-size:11px;line-height:1.7;color:var(--muted)">
@@ -1401,6 +1407,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=b9996be65138"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=821d5c2a93b4"></script>
+<script src="/assets/cockpit.js?v=72d906f325f0"></script>
 </body>
 </html>

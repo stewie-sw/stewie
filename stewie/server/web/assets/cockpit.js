@@ -803,6 +803,13 @@ function applySidebar(view) {
       : !HAS_CTX;
   panel.classList.toggle("collapsed", collapsed);
 }
+// #240: empty-state jump buttons -- any [data-go] control switches to that view. One delegated,
+// CSP-clean listener (no inline onclick); setView is a hoisted declaration so this is safe above it.
+document.addEventListener("click", (e) => {
+  const j = e.target.closest && e.target.closest("[data-go]");
+  if (j) { e.preventDefault(); setView(j.getAttribute("data-go")); }
+});
+
 function setView(name) {
   if (name === "system") name = LAST_SYSTEM_VIEW;          // #55: the cluster remembers its sub-tab
   if (name === "validate") name = _validateSub || "nav";   // VALIDATE: delegate to the last/default sub-view
