@@ -1,0 +1,17 @@
+{
+  "test": "poison_se3_is_byte_identical_under_gt_corruption",
+  "result": "PASS",
+  "gt_corruption_m": 1000000.0,
+  "n_nodes": 10599,
+  "n_loop_closures": 5,
+  "sha256_clean": {
+    "se3_lc": "27712e4a6c90a4cc09130a9abe5617c3d713b4b5d7b1def81558c51dd0df049a",
+    "se3_lc_dem": "abbc926a4c5d390b7ede0d32093fbf34b0f99d5768cb6ee0daa4bf6e1259c210"
+  },
+  "sha256_poison": {
+    "se3_lc": "27712e4a6c90a4cc09130a9abe5617c3d713b4b5d7b1def81558c51dd0df049a",
+    "se3_lc_dem": "abbc926a4c5d390b7ede0d32093fbf34b0f99d5768cb6ee0daa4bf6e1259c210"
+  },
+  "byte_identical": true,
+  "note": "Registered VO ENU pose (position + orientation) -> visual loop-closure detection (appearance + node index candidates, LightGlue + PnP verification) -> SE(3) odometry + loop + DEM-height + DEM-normal factors -> on-manifold Gauss-Newton/LM solve is a pure function of images + VO + the DEM (sampled at the ESTIMATED x, y) + the declared start. Keyframe ORIENTATIONS are optimised but never read from GT. GT enters only in scoring, after the freeze."
+}

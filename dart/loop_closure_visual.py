@@ -33,7 +33,7 @@ estimate is frozen.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -107,9 +107,12 @@ class LoopClosure:
     """A verified (or rejected) visual loop closure between keyframe ``a`` (earlier) and ``b`` (later).
 
     ``d_enu`` (3,) is the measured ENU displacement ``p_b - p_a`` (the between-factor value);
-    ``c_in_a`` (3,) the relative camera motion in camera-a's frame; ``n_inliers`` / ``n_matches`` the
-    PnP-inlier and LightGlue-match counts; ``similarity`` the appearance cosine; ``trans_m`` the
-    relative-translation magnitude; ``accepted`` + ``reject_reason`` the geometric-gate decision."""
+    ``c_in_a`` (3,) the relative camera motion in camera-a's frame; ``r_ab`` (3,3) the PnP relative
+    rotation ``R_{cam_b<-cam_a}`` (identity for a rejected closure) -- the rotation the position-only
+    graph discarded and the SE(3) graph needs (the relative-rotation measurement in a's frame is its
+    transpose, ``R_a^T R_b``); ``n_inliers`` / ``n_matches`` the PnP-inlier and LightGlue-match counts;
+    ``similarity`` the appearance cosine; ``trans_m`` the relative-translation magnitude; ``accepted`` +
+    ``reject_reason`` the geometric-gate decision."""
 
     a_node: int
     b_node: int
@@ -121,11 +124,14 @@ class LoopClosure:
     trans_m: float
     accepted: bool
     reject_reason: str
+    r_ab: np.ndarray = field(default_factory=lambda: np.eye(3))
 
     def to_json(self) -> dict[str, object]:
         return {
             "a_node": int(self.a_node), "b_node": int(self.b_node),
             "d_enu_m": [float(x) for x in self.d_enu],
+            "c_in_a_m": [float(x) for x in self.c_in_a],
+            "r_ab": np.asarray(self.r_ab, float).tolist(),
             "trans_m": float(self.trans_m), "n_inliers": int(self.n_inliers),
             "n_matches": int(self.n_matches), "similarity": float(self.similarity),
             "accepted": bool(self.accepted), "reject_reason": self.reject_reason,
@@ -211,7 +217,7 @@ def verify_candidate(
                            trans, False, "translation_too_large")
     d_enu = r_m @ (r_wc_a @ c_in_a)                        # ENU displacement p_b - p_a (I3: VO frames)
     return LoopClosure(kf_a.node, kf_b.node, d_enu, c_in_a, int(n_inl), n_matches, similarity, trans,
-                       True, "ok")
+                       True, "ok", r_ab=np.asarray(r_rel, float))
 
 
 def detect_loops(
