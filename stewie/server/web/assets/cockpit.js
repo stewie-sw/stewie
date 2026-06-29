@@ -272,6 +272,10 @@ function loadBody(key) {
   let _xyTimer = 0;
   handler.setInputAction((e) => {
     const el = $("cursorcoord"), fl = $("cursorxy");
+    // #audit-1 (root fix): the live cursor coords belong to the PLAN map only. Gate the handler on the
+    // active view so it can't re-show the readout while the operator is in Validate/Execute/etc. (the
+    // previous one-shot hide in setView was overwritten by the next mouse-move).
+    if (VIEW !== "plan") { if (el) el.textContent = ""; if (fl) fl.style.display = "none"; return; }
     const on = !$("coordtoggle") || $("coordtoggle").checked;        // #169: toggle the live coordinate readout
     if (!on) { if (el) el.textContent = ""; if (fl) fl.style.display = "none"; return; }
     const c = viewer.camera.pickEllipsoid(e.endPosition, ellipsoid);
