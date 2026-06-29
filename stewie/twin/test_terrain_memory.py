@@ -139,6 +139,48 @@ def test_imprint_rejects_cell_mismatch():
         tm.imprint_on_dem(np.zeros((6, 6)), dem_cell=1.0)
 
 
+def test_imprint_on_dem_resampled_aggregates_fine_memory_onto_a_coarse_dem():
+    # #242 read-back: a fine work-area memory (0.5 m) must add to a COARSE planning DEM (5 m). The 10x10
+    # @0.5m memory (5x5 m) maps to ONE 5 m DEM cell; a uniform -0.2 m cut -> that cell drops by the MEAN
+    # (-0.2). Mean is the VOLUME-CONSERVING downsample: mean*coarse_area == sum(fine)*fine_area.
+    tm = TerrainMemory(site="s", rows=10, cols=10, cell_m=0.5, origin=(0.0, 0.0))
+    tm.apply(np.full((10, 10), -0.2), mission="cut")
+    base = np.full((4, 4), 100.0)                              # 4x4 DEM at 5 m
+    cur = tm.imprint_on_dem_resampled(base, dem_cell=5.0, dem_origin=(0.0, 0.0))
+    assert cur.shape == (4, 4)
+    assert np.isclose(cur[0, 0], 99.8)                          # the memory block -> DEM cell (0,0), mean -0.2
+    assert np.allclose(cur[1:, :], 100.0) and np.allclose(cur[0, 1:], 100.0)   # nothing elsewhere
+    fine_vol = float(tm.cumulative_delta().sum()) * (0.5 ** 2)
+    coarse_vol = float((cur - base).sum()) * (5.0 ** 2)
+    assert abs(fine_vol - coarse_vol) < 1e-9                    # volume conserved across the resample
+    assert np.allclose(base, 100.0)                            # base not mutated
+
+
+def test_imprint_on_dem_resampled_conserves_volume_for_a_sub_cell_build():
+    # a build SMALLER than one coarse DEM cell must NOT inflate volume: a 1 m x 1 m (2x2 @0.5m) +1.0 m berm
+    # inside one 5 m DEM cell raises that cell by built_volume/coarse_area = 1.0 m^3 / 25 m^2 = 0.04 m,
+    # NOT by 1.0 m (the mean over only the built fine-cells). This is the partial-tiling case the
+    # capacity denominator fixes (council-caught: dividing by present-count over-stated moved volume).
+    tm = TerrainMemory(site="s", rows=10, cols=10, cell_m=0.5, origin=(0.0, 0.0))
+    d = np.zeros((10, 10)); d[0:2, 0:2] = 1.0                   # a 1 m x 1 m berm (4 fine cells) in cell (0,0)
+    tm.apply(d, mission="berm")
+    base = np.full((4, 4), 100.0)
+    cur = tm.imprint_on_dem_resampled(base, dem_cell=5.0, dem_origin=(0.0, 0.0))
+    fine_vol = float(tm.cumulative_delta().sum()) * (0.5 ** 2)  # 4 * 1.0 * 0.25 = 1.0 m^3
+    coarse_vol = float((cur - base).sum()) * (5.0 ** 2)
+    assert abs(fine_vol - coarse_vol) < 1e-9                    # volume conserved for the sub-cell build
+    assert np.isclose(cur[0, 0], 100.04)                       # 0.04 m, not 1.0 m (would be the old bug)
+
+
+def test_imprint_on_dem_resampled_equals_exact_when_cells_match():
+    tm = TerrainMemory(site="s", rows=4, cols=4, cell_m=0.5, origin=(1.0, 1.0))
+    tm.apply(np.full((4, 4), -0.1), mission="m")
+    base = np.full((10, 10), 50.0)
+    exact = tm.imprint_on_dem(base, dem_cell=0.5, dem_origin=(0.0, 0.0))
+    resampled = tm.imprint_on_dem_resampled(base, dem_cell=0.5, dem_origin=(0.0, 0.0))
+    assert np.allclose(exact, resampled)                        # equal cells -> identical to the exact path
+
+
 def test_save_site_load_site_round_trip(tmp_path):
     import os
 

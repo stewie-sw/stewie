@@ -158,6 +158,43 @@ class TerrainMemory:
             z[r0:r1, c0:c1] += self._delta[r0 - row_off:r1 - row_off, c0 - col_off:c1 - col_off]
         return z
 
+    def imprint_on_dem_resampled(self, base_z: np.ndarray, *, dem_cell: float,
+                                 dem_origin: tuple[float, float] = (0.0, 0.0)) -> np.ndarray:
+        """Like :meth:`imprint_on_dem` but tolerant of a COARSER planning DEM: it block-aggregates this
+        memory's fine delta (``self.cell_m``) onto the ``dem_cell`` grid -- the VOLUME-CONSERVING downsample:
+        a coarse cell's height change is the built volume spread over the FULL coarse cell (unrecorded fine
+        cells contribute zero), so it is ``sum(present fine deltas) / capacity`` where capacity is the
+        coarse cell's fine-cell count ``(dem_cell/cell_m)**2``. That conserves volume EXACTLY -- including a
+        build that only partially tiles a coarse cell or is smaller than one -- because
+        ``(sum/capacity)*coarse_area == sum*fine_area``. The #242 read-back use is a ~0.5 m work-area memory
+        added to the 5 m LOLA planning DEM, where exact imprint_on_dem raises on the cell mismatch; when the
+        cells already match it delegates to imprint_on_dem (identical). Each fine memory-cell CENTER is binned
+        into the coarse DEM cell it falls in (correct for a coarser DEM; a finer DEM would leave gaps, out of
+        scope). NOTE: sub-coarse-cell geometry is necessarily SMEARED to the cell mean -- a sub-5 m berm is
+        invisible to the slope/obstacle gate at 5 m, inherent to planning on a coarse DEM, not a defect."""
+        if abs(float(dem_cell) - self.cell_m) <= 1e-9:
+            return self.imprint_on_dem(base_z, dem_cell=dem_cell, dem_origin=dem_origin)
+        z = np.array(base_z, dtype=np.float64, copy=True)
+        if z.ndim != 2:
+            raise ValueError("base_z must be a 2-D DEM")
+        jj, ii = np.meshgrid(np.arange(self.cols), np.arange(self.rows))
+        x = self.origin[0] + (jj + 0.5) * self.cell_m          # fine memory-cell centers, order frame
+        y = self.origin[1] + (ii + 0.5) * self.cell_m
+        col = np.floor((x - dem_origin[0]) / dem_cell).astype(np.int64)   # -> coarse DEM (row, col)
+        row = np.floor((y - dem_origin[1]) / dem_cell).astype(np.int64)
+        valid = (row >= 0) & (row < z.shape[0]) & (col >= 0) & (col < z.shape[1])
+        if not np.any(valid):
+            return z
+        flat = row[valid] * z.shape[1] + col[valid]
+        sums = np.bincount(flat, weights=self._delta[valid], minlength=z.size)
+        cnts = np.bincount(flat, minlength=z.size)
+        # divide by the coarse cell's fine-cell CAPACITY (not the count of present cells) so the unrecorded
+        # part of a partially-tiled coarse cell counts as zero change -> volume conserved in every case.
+        capacity = (float(dem_cell) / self.cell_m) ** 2
+        nz = cnts > 0
+        z.reshape(-1)[nz] += sums[nz] / capacity
+        return z
+
     def summary(self) -> dict:
         """A compact terrain-memory report: how much the site has changed across all applied missions."""
         d = self._delta

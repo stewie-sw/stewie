@@ -195,6 +195,7 @@ def plan_commands(req: PlanRequest, _auth: str = Depends(heavy_quota)):
     mission = MP.mission_from_dict(payload)
     cell = 5.0 if mission.body == "moon" else 1.0
     dem, origin = state.moon_dem(getattr(req, "site", "haworth")) if mission.body == "moon" else (None, (0.0, 0.0))
+    dem = _as_built_dem(getattr(req, "site", "haworth"), dem, origin)   # #242: command tape on the remembered surface
     cmds = RC.commands_from_plan(mission, cell_m=cell, dem=dem, dem_origin=origin)
     return {"ok": True, "cell_m": cell, "commands": [
         {"kind": c.kind, "leg_id": c.leg_id, "goal_row": c.goal_row, "goal_col": c.goal_col,
@@ -212,6 +213,7 @@ def plan_math_endpoint(req: PlanRequest, _auth: str = Depends(heavy_quota)):
         return over
     mission = MP.mission_from_dict(payload)
     dem, origin = state.moon_dem(getattr(req, "site", "haworth")) if mission.body == "moon" else (None, (0.0, 0.0))
+    dem = _as_built_dem(getattr(req, "site", "haworth"), dem, origin)   # #242: math worksheet on the remembered surface
     return {"ok": True, **MP.plan_math(mission, dem=dem, dem_origin=origin)}
 
 
@@ -281,6 +283,27 @@ def post_plan(req: PlanRequest, _auth: str = Depends(heavy_quota)):
                             "plan exceeded the compute budget; reduce the mission size or retry"})
 
 
+def _as_built_dem(site, dem, origin):
+    """#242 read-back (graphify INT-016/INT-046): plan on the AS-BUILT remembered surface. If the site has
+    recorded TerrainMemory, imprint it (resampled to the planning-DEM cell -- e.g. a ~0.5 m work-area memory
+    onto the 5 m LOLA tile) so a NEW mission routes/validates against what prior missions actually built,
+    not the pristine DEM. No memory -> the pristine DEM unchanged (opt-in = a build was recorded). Defensive:
+    a bad/mismatched memory falls back to pristine and never fails a plan."""
+    if dem is None:
+        return dem
+    try:
+        from stewie.specs.config import data_dir
+        from stewie.twin import terrain_memory as TM
+        mem = TM.load_site(data_dir(), site)
+        if mem is None:
+            return dem
+        z, cell = dem
+        return (mem.imprint_on_dem_resampled(z, dem_cell=cell, dem_origin=origin), cell)
+    except Exception as e:   # noqa: BLE001 -- as-built is an enhancement; never fail a plan on it
+        log.warning("as-built imprint skipped for site %r: %s", site, e)
+        return dem
+
+
 def _plan_impl(req: PlanRequest, payload: dict):
     """The synchronous plan + report + views compute, run under the ARCH-01/04 caps (post_plan)."""
     from lode import mission_planner as MP
@@ -300,6 +323,7 @@ def _plan_impl(req: PlanRequest, payload: dict):
                     return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
         else:
             dem, origin = None, (0.0, 0.0)
+        dem = _as_built_dem(getattr(req, "site", "haworth"), dem, origin)   # #242: plan on the remembered surface
         # RB-03: compute the plan ONCE (incl. as-built validation + endurance); report/timeline/IR and the
         # validation/endurance fields are all VIEWS of this single result (no independent recompute).
         slope_cap = req.max_traverse_slope_deg          # operator slope budget -> routing traversability gate
