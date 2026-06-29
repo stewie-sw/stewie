@@ -706,10 +706,10 @@
     <!-- #170: the wizard controls live IN the sidebar (Aaron: "integrated into the sidebar... not up in the
          top right where no one will see it") -- a sticky footer that travels with the focused step's content. -->
     <div id="wizfoot" style="position:sticky;bottom:0;z-index:5;display:flex;align-items:center;gap:7px;padding:8px 10px;background:var(--panel);border-top:1px solid var(--line)">
-      <span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--muted)">STEP <b id="wizstep" style="color:var(--accent)">SITE</b></span>
-      <button id="wizreset" class="site" style="margin-left:auto;font-size:10px;padding:4px 9px" title="un-confirm this step (its dot returns to red)">↺ Reset</button>
-      <button id="wizdone" class="go" style="font-size:10px;padding:4px 9px" title="validate + confirm this step — turns its dot green and advances">✓ Done</button>
-      <button id="wiznext" class="site" style="font-size:10px;padding:4px 9px" title="go to the next step">Next →</button>
+      <span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--muted)">NEXT <b id="wizstep" style="color:var(--accent)">SITE</b></span>
+      <!-- council #4: ONE data-driven primary. Steps light green on their own as their real prerequisite is
+           met (validateStep); this button always names + jumps to the next real action (no manual Done/Reset). -->
+      <button id="wizgo" class="go" style="margin-left:auto;font-size:11px;padding:5px 13px" title="go to the next action in the mission flow">Set a site →</button>
     </div>
   </aside>
   <div id="stage">
@@ -1401,6 +1401,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=b9996be65138"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=0fa91ab56c8c"></script>
+<script src="/assets/cockpit.js?v=e077f41ae6da"></script>
 </body>
 </html>

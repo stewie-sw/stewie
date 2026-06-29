@@ -795,7 +795,9 @@ function applySidebar(view) {
   if (innerWidth <= 860) { panel.classList.remove("collapsed"); return; }   // mobile = slide-over, not collapse
   // tab-contextual (#131/#132): the left panel stays OPEN on every workspace tab (its content swaps per
   // tab via #ctx-<view>); it only auto-collapses on a System sub-view that has no contextual block.
-  const HAS_CTX = ["plan", "nav", "perception", "metrics", "report"].includes(view);
+  // council #4: rehearse + release were missing -> the sidebar (with the wizard Done/Next/Reset controls)
+  // COLLAPSED on those two spine tabs, dead-ending the operator with no way to advance the wizard. Keep it open.
+  const HAS_CTX = ["plan", "rehearse", "nav", "perception", "release", "metrics", "report"].includes(view);
   const collapsed = SIDEBAR_PIN === "open" ? false
     : SIDEBAR_PIN === "collapsed" ? true
       : !HAS_CTX;
@@ -5187,6 +5189,14 @@ const STEP_TITLES = {
   review: "Review - the mission-control report",
   execute: "Execute - execution forecast, before uplink",
 };
+// council #4: the single primary button's label per step -- it NAMES the real next action + jumps to it.
+const STEP_ACTION = {
+  site: "Set a site", fleet: "Set the fleet", orders: "Add a build order",
+  solve: "Plan the mission", review: "Open the report", execute: "Execute + watch",
+};
+// the first step whose REAL prerequisite is not yet satisfied -- data-driven (validateStep is the truth),
+// no manual Done flag. This is the "current" step the primary button + the NEXT label point at.
+function _currentStep() { return STEP_ORDER.find((s) => !validateStep(s).ok) || "execute"; }
 function stepScrollTo(prefix) {                            // scroll the sidebar to a numbered section, opening it
   for (const h of document.querySelectorAll("#panel h3, #panel summary")) {
     if (h.textContent.trim().startsWith(prefix)) {
@@ -5212,19 +5222,9 @@ function validateStep(step) {
   return { ok: true };
 }
 function setWizStep(step) { WIZ_STEP = step; renderStepper(); }
-function wizDone() {
-  const v = validateStep(WIZ_STEP);
-  if (!v.ok) { setQ("⚠ " + v.msg); if (WIZ_STEP === "solve") _pulseQplan(); return; }
-  STEP_DONE[WIZ_STEP] = true; persistDraft(); renderStepper();
-  setQ(WIZ_STEP.charAt(0).toUpperCase() + WIZ_STEP.slice(1) + " ✓ confirmed");
-  const nxt = STEP_ORDER[STEP_ORDER.indexOf(WIZ_STEP) + 1];
-  if (nxt) goStep(nxt);
-}
-function wizNext() { const nxt = STEP_ORDER[STEP_ORDER.indexOf(WIZ_STEP) + 1]; if (nxt) goStep(nxt); else setQ("last step — Execute"); }
-function wizReset() {
-  STEP_DONE[WIZ_STEP] = false; persistDraft(); renderStepper();
-  setQ(WIZ_STEP.charAt(0).toUpperCase() + WIZ_STEP.slice(1) + " reset — re-confirm with Done");
-}
+// council #4: the manual Done/Next/Reset confirm flow is gone -- steps are data-driven (validateStep), and
+// the single #wizgo primary jumps to _currentStep()'s real action. wizGo is its handler.
+function wizGo() { goStep(_currentStep()); }
 // #170: step -> sidebar sections. Clicking a step shows ONLY its sections (Aaron: "Site should pull up
 // 1/2"); the rest collapse. The numbered sections (1·Site · 2·Contents · 3·Rovers · 4·Plan) are the
 // collapsible <details> (sidebar 7->4 reorg: orders/solve/review/execute all live inside 4·Plan now).
@@ -5264,31 +5264,35 @@ function goStep(step) {
 }
 function renderStepper() {
   const wrap = $("stepper"); if (!wrap) return;
-  // #170: real gates -- a step is green only once CONFIRMED via Done (STEP_DONE); the first unconfirmed
-  // step is the reachable "todo", the rest are "locked" until their predecessor is confirmed.
-  const state = {}; let reachable = true;
+  // council #4: DATA-DRIVEN -- a step lights green the moment its REAL prerequisite is satisfied
+  // (validateStep), sequentially; the first unsatisfied step is "current", the rest are "locked". No
+  // manual Done/Reset flag. The single #wizgo primary always names + jumps to current's real next action.
+  const state = {}; let current = null;
   for (const s of STEP_ORDER) {
-    if (STEP_DONE[s]) state[s] = "done";
-    else { state[s] = reachable ? "todo" : "locked"; reachable = false; }
+    if (!current && validateStep(s).ok) state[s] = "done";
+    else if (!current) { state[s] = "current"; current = s; }
+    else state[s] = "locked";
   }
-  const current = WIZ_STEP || STEP_ORDER.find((s) => !STEP_DONE[s]) || "execute";
-  const wl = $("wizstep"); if (wl) wl.textContent = (WIZ_STEP || "site").toUpperCase();
-  const viewStep = { plan: "orders", report: "review", metrics: "execute", nav: "review", perception: "review" }[VIEW];
+  const allDone = !current;
+  if (!current) current = "execute";
+  const wl = $("wizstep"); if (wl) wl.textContent = allDone ? "READY" : current.toUpperCase();
+  const viewStep = { plan: "orders", rehearse: "solve", report: "review", metrics: "execute",
+                     nav: "review", perception: "review", release: "review" }[VIEW];
   wrap.querySelectorAll(".step").forEach((b) => {
     const s = b.dataset.step;
     b.className = "step " + (state[s] || "todo");
-    if (s === current) b.classList.add("current");
+    if (s === current && !allDone) b.classList.add("current");
     if (s === viewStep) b.classList.add("viewactive");
     b.title = STEP_TITLES[s] || s;
   });
+  const go = $("wizgo");
+  if (go) go.textContent = allDone ? "Mission ready ✓" : ((STEP_ACTION[current] || "Continue") + " →");
   const co = $("conops"); if (co) co.textContent = "CONOPS — " + current.toUpperCase();
 }
 (function initStepper() {
   const wrap = $("stepper"); if (!wrap) return;
   wrap.querySelectorAll(".step").forEach((b) => { b.onclick = () => goStep(b.dataset.step); });
-  if ($("wizdone")) $("wizdone").onclick = wizDone;          // #170: Reset / Done / Next act on the current step
-  if ($("wizreset")) $("wizreset").onclick = wizReset;
-  if ($("wiznext")) $("wiznext").onclick = wizNext;
+  if ($("wizgo")) $("wizgo").onclick = wizGo;                // council #4: ONE primary -> jump to the next real action
 })();
 
 // #126: the guided walkthrough -- discoverable via the stepper's Guide button (no auto-popup, so it
