@@ -7,6 +7,15 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/icon-32.png?v=2" />
 <link rel="icon" type="image/png" sizes="192x192" href="/assets/brand/icon-192.png?v=3" />
 <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=3" />
+<!-- #244 PWA: installable app shell. The manifest + apple-mobile meta make STEWIE a standalone home-screen
+     app on iOS today (no SW needed there); a service worker for Android install + offline is the next half
+     (it needs a root-scope route, so it ships with the next clean backend deploy). CSP default-src 'self'
+     already permits the same-origin manifest. -->
+<link rel="manifest" href="/assets/site.webmanifest" />
+<meta name="theme-color" content="#0a0a0c" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="STEWIE" />
 <!-- WEB-01: Cesium is SELF-HOSTED same-origin (it was loaded from a third-party CDN, which the
      production CSP `script-src 'self'` blocks -> the map rendered blank). The frontend image vendors
      cesium 1.119 to /cesium/ at build time (deploy/Dockerfile.frontend). CESIUM_BASE_URL must be set

@@ -1,0 +1,17 @@
+{
+  "name": "STEWIE — Digital Twin & Planning Platform",
+  "short_name": "STEWIE",
+  "description": "Lunar surface-construction mission control: plan, validate, and watch IPEx-class excavation on real terrain.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0a0c",
+  "theme_color": "#0a0a0c",
+  "icons": [
+    { "src": "/assets/brand/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/brand/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/assets/brand/icon-32.png", "sizes": "32x32", "type": "image/png" }
+  ]
+}
