@@ -153,7 +153,9 @@ _WORKAREA_CACHE_MAX = 256
 
 @router.get("/dem/workarea.png")
 def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str = "dem",
-                     sun_az: float = 315.0, sun_el: float = 45.0, _auth: str = Depends(require_auth)):
+                     sun_az: float = 315.0, sun_el: float = 45.0,
+                     lat: float | None = None, lon: float | None = None,
+                     _auth: str = Depends(require_auth)):
     """GIS-WA1/WA2: a CLEAN, axis-free raster of the WORK-AREA order frame [0, window_m]^2 (x East, y North
     from the site origin), sampled from the chosen site's real LOLA DEM at NATIVE cell resolution -- no
     matplotlib axes/title/margins. `kind` selects the LAYER: dem (315/45 hillshade, the plan-canvas authoring
@@ -173,7 +175,10 @@ def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str =
     # #239: slope/hazard/psr IGNORE the sun (psr sweeps its own 12 azimuths) -- so do NOT key on the sun for
     # them, else varying sun_az would bust the cache and re-trigger the expensive psr sweep every call.
     sun_part = (az, el) if kind in ("dem", "hillshade", "illumination", "incidence") else None
-    ckey = (site, kind, round(win), sun_part)
+    # #audit-2b/#260b: an optional lat/lon RE-ANCHORS the work-area window (the operator picked a new origin);
+    # key on the rounded lat/lon so distinct re-anchors cache separately. None = the default flattest anchor.
+    org = (round(float(lat), 4), round(float(lon), 4)) if (lat is not None and lon is not None) else None
+    ckey = (site, kind, round(win), sun_part, org)
     cached = _WORKAREA_CACHE.get(ckey)
     if cached is not None:
         return Response(content=cached, media_type="image/png")
@@ -186,6 +191,12 @@ def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str =
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no DEM for site {site!r}"})
     Z, cell = dem
     ox, oy = origin
+    if lat is not None and lon is not None:              # #260b: re-anchor the window to the picked lat/lon
+        from lode import mission_planner as MP
+        try:
+            ox, oy = MP.latlon_to_dem_origin(float(lat), float(lon), bundle_dir=bundle_for_site(site))
+        except (ValueError, ImportError):
+            pass                                         # outside the tile / no pyproj -> keep the flattest anchor
     Zf = np.asarray(Z, dtype=float)
     H, W = Zf.shape
     npx = max(2, int(round(win / float(cell))) + 1)     # NATIVE sampling over the window (no fabricated detail)

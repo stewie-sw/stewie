@@ -694,6 +694,8 @@ let HAWORTH_CENTER = null;
 let HAWORTH_RECT = null;                                   // Cesium.Rectangle of the tile footprint
 let WORK_AREA_RECT = null;                                 // GIS-WA1: Cesium.Rectangle of the [0,WORK_AREA_M]^2 work area (the inset image's true extent)
 let WORK_AREA_ANCHOR = [0, 0];                             // #audit-2b: the work area's TRUE origin (flattest-anchor, tile-m) from /dem/georef -- the rect draws HERE, not the tile corner
+let WORK_AREA_ENTS = [];                                   // #260b: the rect+label entities (own list -> drawWorkAreaRect is idempotent/re-callable on re-anchor)
+let WORK_AREA_OVERRIDE = null;                             // #260b: {lat,lon} when the operator re-anchored the work area off the auto flattest patch (null = auto)
 const GLOBE_LAYERS = {};                                   // key -> Cesium ImageryLayer on the BIG map
 const HAWORTH_ENTITIES = [];                               // the footprint polygon + label (MOON-ONLY)
 function setMoonOverlaysVisible(on) {                      // body-scope: Haworth exists on the Moon
@@ -2843,7 +2845,8 @@ function showSiteDem() {                                   // auto-show the real
   // GIS-WA1: the CLEAN, axis-free, native-res work-area hillshade of [0,WORK_AREA_M]^2 (was /dem/hillshade.png
   // = preview_hillshade.png, a matplotlib FIGURE whose axis margins inset the terrain and misregistered the
   // plan-canvas drape). This raster fills the [0,WORK_AREA_M] world box exactly, so authoring clicks land true.
-  const want = "/dem/workarea.png?site=" + encodeURIComponent(CURRENT_SITE) + "&window_m=" + WORK_AREA_M + "&v=" + i.dataset.locv;
+  const ov = WORK_AREA_OVERRIDE ? ("&lat=" + WORK_AREA_OVERRIDE.lat + "&lon=" + WORK_AREA_OVERRIDE.lon) : "";   // #260b: re-anchored window
+  const want = "/dem/workarea.png?site=" + encodeURIComponent(CURRENT_SITE) + "&window_m=" + WORK_AREA_M + ov + "&v=" + i.dataset.locv;
   // #167 (Aaron "body still doesn't show in work area" on Moon/Plan): reveal ROBUSTLY. The old gate only
   // revealed-when-already-decoded if src===want, so a cached/fast image that fired its load before this
   // handler (re)attached stayed hidden -> the panel never showed. Now: reveal on load, reveal NOW if the
@@ -3128,6 +3131,7 @@ $("site").onclick = () => {
     `sandbox est: ${(order.cutMass_kg / 1000).toFixed(1)} t / ${order.batteryCharges.toFixed(1)} charges`;
   console.log("build_order", JSON.stringify(spec));
   window.dispatchEvent(new CustomEvent("buildsite", { detail: spec }));
+  reanchorWorkArea(picked.lat, picked.lon);                 // #260b: "Set site" moves the work area to the pick
 };
 
 // ---- build queue -> POST /plan -> open the mission-control report -----------------------------
@@ -3673,13 +3677,15 @@ function drawWorkAreaRect() {
     fetch(`/dem/site_lonlat?x=${x}&y=${y}&site=${site}`).then((r) => r.json()).catch(() => null)))
     .then((cs) => {
       if (!viewer || !cs.every((c) => c && c.ok)) return;
+      WORK_AREA_ENTS.forEach((e) => { try { viewer.entities.remove(e); } catch (_e) {} });   // #260b: idempotent re-draw
+      WORK_AREA_ENTS = [];
       const ll = []; cs.forEach((c) => ll.push(c.lon, c.lat));
       const wlons = cs.map((c) => c.lon), wlats = cs.map((c) => c.lat);
       // the inset image IS this work area, so the overview-locator maps the camera view over THIS rect
       // (not the full tile). bbox of the 4 corners -- the polar-stereo rotation over 640 m is negligible.
       WORK_AREA_RECT = Cesium.Rectangle.fromDegrees(Math.min(...wlons), Math.min(...wlats),
                                                     Math.max(...wlons), Math.max(...wlats));
-      HAWORTH_ENTITIES.push(viewer.entities.add({
+      WORK_AREA_ENTS.push(viewer.entities.add({
         name: "WORK AREA",
         polygon: {
           hierarchy: Cesium.Cartesian3.fromDegreesArray(ll, ellipsoid),
@@ -3689,7 +3695,7 @@ function drawWorkAreaRect() {
       }));
       const clon = cs.reduce((s, c) => s + c.lon, 0) / cs.length;
       const clat = cs.reduce((s, c) => s + c.lat, 0) / cs.length;
-      HAWORTH_ENTITIES.push(viewer.entities.add({
+      WORK_AREA_ENTS.push(viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(clon, clat, 0, ellipsoid),
         label: { text: `WORK AREA (${W} m)`, font: "10px Orbitron, sans-serif",
                  fillColor: Cesium.Color.fromCssColorString("#38bdf8"),
@@ -3698,6 +3704,30 @@ function drawWorkAreaRect() {
       }));
       try { viewer.scene.requestRender(); } catch (e) {}
     }).catch(() => {});
+}
+// #260b: RE-ANCHOR the work area to a picked lat/lon -- the displayed rect + inset + globe markers + the
+// planner all move to where the operator clicked (the M11 backend already re-anchors the plan via #lat/#lon).
+// Wired to the "Set site" button (deliberate, not every map click). resetWorkAreaAnchor() returns to auto.
+async function reanchorWorkArea(lat, lon) {
+  if (!viewer || !isFinite(lat) || !isFinite(lon)) return;
+  try {
+    const d = await (await fetch(`/dem/site_xy?lat=${lat}&lon=${lon}&site=${encodeURIComponent(CURRENT_SITE)}`,
+      { headers: apiHeaders() })).json();
+    if (!d.ok) { setQ("can't set the work area there — " + (d.error || "outside the mapped tile")); return; }
+    WORK_AREA_ANCHOR = [d.x_m, d.y_m];
+    WORK_AREA_OVERRIDE = { lat: +lat.toFixed(4), lon: +lon.toFixed(4) };
+    drawWorkAreaRect();                                     // re-draw the cyan rect at the new origin (idempotent)
+    showSiteDem();                                          // re-fetch the inset hillshade at the new origin
+    syncPlanToGlobe();                                      // re-mirror the placed plan at the new anchor
+    if (typeof flyToWorkArea === "function") flyToWorkArea();
+    setQ(`work area moved to ${lat.toFixed(3)}°, ${lon.toFixed(3)}° — Set site again on the flattest patch, or reset`);
+  } catch (e) { setQ("set work area failed: " + e); }
+}
+function resetWorkAreaAnchor() {                            // #260b: back to the auto flattest-patch anchor
+  WORK_AREA_OVERRIDE = null;
+  if (typeof loadSiteFootprint === "function") loadSiteFootprint(true);   // re-reads /dem/georef -> flattest anchor
+  showSiteDem();
+  setQ("work area reset to the auto flattest-buildable patch");
 }
 // 3D TERRAIN LAYER: drape the chosen site's REAL DEM (GET /dem/terrain_grid -> georeferenced n*n height
 // grid) as a triangulated mesh primitive on the globe, so the work-area relief is a layer ON the Cesium
