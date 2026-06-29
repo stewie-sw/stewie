@@ -4063,6 +4063,20 @@ qel("plancanvas").addEventListener("pointerdown", (e) => {
     const d = Math.hypot(o.x - wx, o.y - wy);
     if (d < bd) { bd = d; best = i; }
   });
+  // G4 (#250): circle keep-outs ({x,y,r}) are repositionable too (orders already were). Grab by centroid
+  // proximity; the closest grabbable feature wins. (Polygon keep-outs + vertex-edit are a later slice.)
+  let bestKo = -1, bdk = tol;
+  KEEPOUTS.forEach((k, i) => {
+    if (typeof k.x === "number" && typeof k.y === "number") {
+      const d = Math.hypot(k.x - wx, k.y - wy);
+      if (d < bdk) { bdk = d; bestKo = i; }
+    }
+  });
+  if (bestKo >= 0 && bdk <= bd) {                          // a keep-out is the nearest grabbable feature
+    DRAG = { ko: bestKo, moved: false };
+    qel("plancanvas").setPointerCapture(e.pointerId);
+    return;
+  }
   if (best >= 0) {
     DRAG = { i: best, moved: false };
     SELECTED_ORDER = best;
@@ -4072,6 +4086,13 @@ qel("plancanvas").addEventListener("pointerdown", (e) => {
 qel("plancanvas").addEventListener("pointermove", (e) => {
   if (!DRAG) return;
   const { wx, wy } = _canvasToWorld(e);
+  if (DRAG.ko != null) {                                   // G4: move a circle keep-out's center
+    const k = KEEPOUTS[DRAG.ko];
+    k.x = Math.round(wx * 10) / 10; k.y = Math.round(wy * 10) / 10;
+    DRAG.moved = true;
+    drawPlan();
+    return;
+  }
   const o = ORDERS[DRAG.i];
   o.x = Math.round(wx * 10) / 10; o.y = Math.round(wy * 10) / 10;
   DRAG.moved = true;
@@ -4079,9 +4100,15 @@ qel("plancanvas").addEventListener("pointermove", (e) => {
 });
 qel("plancanvas").addEventListener("pointerup", (e) => {
   if (DRAG && DRAG.moved) {
-    const o = ORDERS[DRAG.i];
-    setQ(`moved ${o.kind} "${o.action}" to (${o.x}, ${o.y})`);
-    renderQueue();
+    if (DRAG.ko != null) {                                 // G4: commit the keep-out move (persists + redraws)
+      const k = KEEPOUTS[DRAG.ko];
+      setQ(`moved keep-out to (${k.x}, ${k.y})`);
+      renderKeepouts();
+    } else {
+      const o = ORDERS[DRAG.i];
+      setQ(`moved ${o.kind} "${o.action}" to (${o.x}, ${o.y})`);
+      renderQueue();
+    }
     DRAG = null;
     e.stopImmediatePropagation?.();
     SUPPRESS_CLICK = true;
