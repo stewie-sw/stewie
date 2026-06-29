@@ -117,6 +117,7 @@ def slip_sinkage_equilibrium(total_weight_n: float, slope_rad: float, *,
                              n_wheels: int = K.N_WHEELS,
                              contact_len_m: float = 0.10, contact_width_m: float = 0.18,
                              params: "tm.TerramechanicsParams | None" = None,
+                             density: float | None = None,
                              demand_frac: float = 1.0,
                              s_entrap: float = 0.95, z_entrap_m: float | None = None,
                              max_iter: int = 200, tol: float = 1e-7) -> dict:
@@ -142,7 +143,7 @@ def slip_sinkage_equilibrium(total_weight_n: float, slope_rad: float, *,
     h_max = traction_budget(normal, cohesion=p.cohesion, phi_rad=p.phi_rad,
                             contact_area_m2=area)
     z_static = tm.wheel_static_sinkage(normal, params=p, contact_len_m=contact_len_m,
-                                       contact_width_m=contact_width_m)
+                                       contact_width_m=contact_width_m, density=density)
     sink = z_static
     slip = 0.0
     resistance = 0.0

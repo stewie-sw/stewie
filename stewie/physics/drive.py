@@ -70,7 +70,8 @@ _MIN_CONTACT_LEN_M = 1e-3
 
 def _resolve_contact_length(weight_n: float, slope_rad: float, wheel_radius_m: float,
                             nominal_len_m: float, wheel_width_m: float, n_wheels: int,
-                            params: "tm.TerramechanicsParams") -> tuple[float, float]:
+                            params: "tm.TerramechanicsParams",
+                            density: float | None = None) -> tuple[float, float]:
     """Self-consistently resolve (contact_len, static_sinkage) for the loaded wheel (T-03).
 
     The Bekker pressure depends on the contact length, and the sinkage-dependent contact length depends
@@ -85,7 +86,7 @@ def _resolve_contact_length(weight_n: float, slope_rad: float, wheel_radius_m: f
     z = 0.0
     for _ in range(40):                                  # monotone fixed point, converges quickly
         z = tm.wheel_static_sinkage(per_wheel_n, params=params,
-                                    contact_len_m=cl, contact_width_m=wheel_width_m)
+                                    contact_len_m=cl, contact_width_m=wheel_width_m, density=density)
         cl_new = max(_MIN_CONTACT_LEN_M, contact_length_from_sinkage(wheel_radius_m, z))
         if abs(cl_new - cl) < 1e-7:
             cl = cl_new
@@ -202,11 +203,16 @@ def drive_step(cs: ColumnState, rc: tuple[float, float], yaw: float,
     omega_cmd, v_achieved, slip, entrapped, slope_rad, sinkage_m.
     """
     p = params or tm.TerramechanicsParams.from_constants()
+    cell_rho = None
     if material:                                          # Material layer: per-cell strength from local density
         row = min(max(int(round(rc[0])), 0), cs.density.shape[0] - 1)
         col = min(max(int(round(rc[1])), 0), cs.density.shape[1] - 1)
-        phi_r, coh = materialmod.cell_strength(float(cs.density[row, col]))
+        cell_rho = float(cs.density[row, col])
+        phi_r, coh = materialmod.cell_strength(cell_rho)
         p = dataclasses.replace(p, cohesion=coh, phi_rad=phi_r)   # loose cell -> less traction -> more slip
+        # #242: the SAME per-cell density also stiffens BEARING (sinkage), not just shear -- a compacted
+        # trail (density up) sinks LESS on the next pass, closing the compaction->sinkage loop the wheel
+        # itself created. Fresh cells sit at RHO_SURFACE -> density_stiffening==1 -> no change (test-safe).
     # A-02: load is the RESOLVED vehicle mass (dry + drum fill), not the K.ROVER_MASS_DRY_KG global, so a
     # 65 kg RASSOR-2 puts ~2.2x the per-wheel normal load of a 30 kg IPEx and therefore sinks/slips more.
     weight_n = (float(mass_kg) + max(0.0, payload_kg)) * float(g)
@@ -224,11 +230,11 @@ def drive_step(cs: ColumnState, rc: tuple[float, float], yaw: float,
     # contact length self-consistently with the static sinkage (a bigger wheel / firmer soil spreads the
     # load over a longer patch -> lower pressure -> less sinkage) before the slip-sinkage equilibrium.
     contact_len_resolved, _z_static = _resolve_contact_length(
-        weight_n, slope_rad, wheel_radius_m, contact_len_m, wheel_width_m, int(n_wheels), p)
+        weight_n, slope_rad, wheel_radius_m, contact_len_m, wheel_width_m, int(n_wheels), p, density=cell_rho)
     eq = slipmod.slip_sinkage_equilibrium(weight_n, slope_rad, params=p,
                                           n_wheels=int(n_wheels),
                                           contact_len_m=contact_len_resolved,
-                                          contact_width_m=wheel_width_m)
+                                          contact_width_m=wheel_width_m, density=cell_rho)
     s = eq["slip"]
     entrapped = bool(eq["entrapped"])
     # T-01: entrapment is a DISCRETE stuck state, not a slow creep. When the demanded thrust exceeds
