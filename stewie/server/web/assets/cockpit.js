@@ -4239,17 +4239,24 @@ qel("plancanvas").addEventListener("pointerdown", (e) => {
     const d = Math.hypot(o.x - wx, o.y - wy);
     if (d < bd) { bd = d; best = i; }
   });
-  // G4 (#250): circle keep-outs ({x,y,r}) are repositionable too (orders already were). Grab by centroid
-  // proximity; the closest grabbable feature wins. (Polygon keep-outs + vertex-edit are a later slice.)
-  let bestKo = -1, bdk = tol;
+  // G4 (#250) + G4b (#255): ALL keep-out shapes are repositionable -- circle ({x,y,r}), polygon
+  // ({points:[[x,y]..]}), and box ({x0,y0,x1,y1}). Grab by the shape centroid; the closest grabbable
+  // feature wins. A poly/box drags as a whole (every vertex/corner translates by the cursor delta).
+  let bestKo = -1, bdk = tol, bestKind = null;
   KEEPOUTS.forEach((k, i) => {
-    if (typeof k.x === "number" && typeof k.y === "number") {
-      const d = Math.hypot(k.x - wx, k.y - wy);
-      if (d < bdk) { bdk = d; bestKo = i; }
-    }
+    let cx, cy, kind;
+    if (typeof k.x === "number" && typeof k.y === "number") { cx = k.x; cy = k.y; kind = "circle"; }
+    else if (Array.isArray(k.points) && k.points.length) {  // #255: polygon -> centroid of its vertices
+      cx = k.points.reduce((s, p) => s + (+p[0]), 0) / k.points.length;
+      cy = k.points.reduce((s, p) => s + (+p[1]), 0) / k.points.length; kind = "poly";
+    } else if (typeof k.x0 === "number" && typeof k.x1 === "number") {   // #255: box -> centre
+      cx = (k.x0 + k.x1) / 2; cy = (k.y0 + k.y1) / 2; kind = "box";
+    } else { return; }
+    const d = Math.hypot(cx - wx, cy - wy);
+    if (d < bdk) { bdk = d; bestKo = i; bestKind = kind; }
   });
   if (bestKo >= 0 && bdk <= bd) {                          // a keep-out is the nearest grabbable feature
-    DRAG = { ko: bestKo, moved: false };
+    DRAG = { ko: bestKo, kind: bestKind, moved: false, lastWx: wx, lastWy: wy };
     qel("plancanvas").setPointerCapture(e.pointerId);
     return;
   }
@@ -4262,9 +4269,16 @@ qel("plancanvas").addEventListener("pointerdown", (e) => {
 qel("plancanvas").addEventListener("pointermove", (e) => {
   if (!DRAG) return;
   const { wx, wy } = _canvasToWorld(e);
-  if (DRAG.ko != null) {                                   // G4: move a circle keep-out's center
+  if (DRAG.ko != null) {                                   // G4/G4b: move a keep-out
     const k = KEEPOUTS[DRAG.ko];
-    k.x = Math.round(wx * 10) / 10; k.y = Math.round(wy * 10) / 10;
+    if (DRAG.kind === "circle") {                          // circle: centre follows the cursor (#250)
+      k.x = Math.round(wx * 10) / 10; k.y = Math.round(wy * 10) / 10;
+    } else {                                               // #255: poly/box translate by the cursor delta
+      const dx = wx - DRAG.lastWx, dy = wy - DRAG.lastWy;
+      if (DRAG.kind === "poly" && Array.isArray(k.points)) k.points.forEach((p) => { p[0] = (+p[0]) + dx; p[1] = (+p[1]) + dy; });
+      else if (DRAG.kind === "box") { k.x0 += dx; k.y0 += dy; k.x1 += dx; k.y1 += dy; }
+    }
+    DRAG.lastWx = wx; DRAG.lastWy = wy;
     DRAG.moved = true;
     drawPlan();
     return;
@@ -4276,9 +4290,11 @@ qel("plancanvas").addEventListener("pointermove", (e) => {
 });
 qel("plancanvas").addEventListener("pointerup", (e) => {
   if (DRAG && DRAG.moved) {
-    if (DRAG.ko != null) {                                 // G4: commit the keep-out move (persists + redraws)
+    if (DRAG.ko != null) {                                 // G4/G4b: commit the keep-out move (persists + redraws)
       const k = KEEPOUTS[DRAG.ko];
-      setQ(`moved keep-out to (${k.x}, ${k.y})`);
+      if (DRAG.kind === "poly" && Array.isArray(k.points)) k.points.forEach((p) => { p[0] = Math.round(p[0] * 10) / 10; p[1] = Math.round(p[1] * 10) / 10; });   // #255: snap to 0.1 m at commit
+      else if (DRAG.kind === "box") { k.x0 = Math.round(k.x0 * 10) / 10; k.y0 = Math.round(k.y0 * 10) / 10; k.x1 = Math.round(k.x1 * 10) / 10; k.y1 = Math.round(k.y1 * 10) / 10; }
+      setQ(`moved ${DRAG.kind || "circle"} keep-out` + (DRAG.kind === "circle" ? ` to (${k.x}, ${k.y})` : ""));
       renderKeepouts();
     } else {
       const o = ORDERS[DRAG.i];
