@@ -4163,6 +4163,7 @@ function drawPlan() {
 // (PLAN_GLOBE_ENTS), separate from the edit-mode EDIT_PINS.
 let PLAN_GLOBE_ENTS = [];
 let _syncPlanTimer = 0;
+let _syncPlanGen = 0;          // #291: generation guard so only the LATEST async run mutates the globe
 function syncPlanToGlobe() {
   if (_syncPlanTimer) clearTimeout(_syncPlanTimer);
   _syncPlanTimer = setTimeout(_syncPlanToGlobeNow, 250);
@@ -4170,6 +4171,10 @@ function syncPlanToGlobe() {
 async function _syncPlanToGlobeNow() {
   _syncPlanTimer = 0;
   if (!viewer) return;
+  const gen = ++_syncPlanGen;   // #291: the debounce only coalesces SCHEDULING; once a run starts and awaits
+  //                               its /dem/site_lonlat fetches, a later run can start and await concurrently,
+  //                               and both would push into PLAN_GLOBE_ENTS after their awaits -> duplicate or
+  //                               orphaned globe entities. Claim a generation; the stale run bails post-await.
   PLAN_GLOBE_ENTS.forEach((e) => { try { viewer.entities.remove(e); } catch (_e) {} });
   PLAN_GLOBE_ENTS = [];
   const [ox, oy] = (WORK_AREA_ANCHOR && WORK_AREA_ANCHOR.length === 2) ? WORK_AREA_ANCHOR : [0, 0];
@@ -4187,7 +4192,7 @@ async function _syncPlanToGlobeNow() {
   const res = await Promise.all(pts.map((p) =>
     fetch(`/dem/site_lonlat?x=${p.x}&y=${p.y}&site=${site}`).then((r) => r.json())
       .then((d) => ({ p, d })).catch(() => null)));
-  if (!viewer) return;
+  if (!viewer || gen !== _syncPlanGen) return;   // #291: a newer sync started while we awaited -> bail (no dup/orphan)
   const polys = {}, routes = {};
   res.forEach((rr) => {
     if (!rr || !rr.d || !rr.d.ok) return;
