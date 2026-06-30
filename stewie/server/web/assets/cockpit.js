@@ -840,6 +840,8 @@ function setView(name) {
     b.setAttribute("aria-selected", sel ? "true" : "false");
     b.tabIndex = sel ? 0 : -1;                              // roving tabindex (WAI-ARIA tabs pattern)
   });
+  const moreBtn = $("vtab-more");                            // #258: highlight "More ▾" while one of its views is active
+  if (moreBtn) moreBtn.classList.toggle("active", ["fleet", "construction", "models", "trainer"].includes(name));
   const vsub = document.getElementById("validate-subtabs");   // VALIDATE: show the sub-tab strip + mark the sub
   if (vsub) {
     const inVal = (name === "nav" || name === "perception");
@@ -1230,6 +1232,15 @@ function gateChrome(role) {
     b.style.display = ok ? "" : "none";
     if (!ok && b.dataset.view === VIEW) setView("plan");   // bounce a demoted operator off the gated tab
   });
+  // #258: the "More ▾" overflow shows iff >=1 of its (role-gated) secondary tabs is permitted; collapse
+  // the open menu if the current role has none of them.
+  const more = $("vtab-more"), mm = $("moremenu");
+  if (more && mm) {
+    const anyVisible = [...mm.querySelectorAll(".vtab[data-minrole]")]
+      .some((b) => _rrank(role) >= _rrank(b.dataset.minrole));
+    more.style.display = anyVisible ? "" : "none";
+    if (!anyVisible) { mm.style.display = "none"; more.setAttribute("aria-expanded", "false"); }
+  }
 }
 (function wireProfile() {
   const btn = $("profbtn"), menu = $("profmenu"); if (!btn || !menu) return;
@@ -1240,6 +1251,20 @@ function gateChrome(role) {
     btn.setAttribute("aria-expanded", open ? "false" : "true"); };
   menu.querySelectorAll(".profitem[data-view]").forEach((it) => {
     it.onclick = () => { setView(it.dataset.view); close(); }; });
+  document.addEventListener("click", (e) => {
+    if (menu.style.display !== "none" && !menu.contains(e.target) && !btn.contains(e.target)) close(); });
+})();
+// #258: the "More ▾" tab overflow -- toggle #moremenu (flex column), close on outside-click + item-click.
+// The 4 menu items keep their global .vtab onclick (setView, wired above); this just opens/closes the panel.
+(function wireMoreTabs() {
+  const btn = document.getElementById("vtab-more"), menu = document.getElementById("moremenu");
+  if (!btn || !menu) return;
+  const close = () => { menu.style.display = "none"; btn.setAttribute("aria-expanded", "false"); };
+  btn.onclick = (e) => { e.stopPropagation();
+    const open = menu.style.display !== "none";
+    menu.style.display = open ? "none" : "flex";
+    btn.setAttribute("aria-expanded", open ? "false" : "true"); };
+  menu.querySelectorAll(".vtab[data-view]").forEach((it) => it.addEventListener("click", close));
   document.addEventListener("click", (e) => {
     if (menu.style.display !== "none" && !menu.contains(e.target) && !btn.contains(e.target)) close(); });
 })();
@@ -1500,23 +1525,23 @@ setInterval(() => {
   const L = window.STEWIE_PANEL_LAYOUT; if (!L) return;
   const KEY = "stewie_tab_order";
   const nav = document.getElementById("viewtabs"); if (!nav) return;
-  const tabs = Array.prototype.slice.call(nav.querySelectorAll(".vtab"));
+  const tabs = Array.prototype.slice.call(nav.querySelectorAll(":scope > .vtab"));
   if (tabs.length < 2) return;
   const keyOf = (b) => b.dataset.view;
   const current = tabs.map(keyOf);                              // build-default order (for reset)
   const byKey = (k) => tabs.find((b) => keyOf(b) === k);
-  const chrome = nav.querySelector("#alertbtn");               // tabs sit BEFORE the alert/badge/account chrome
+  const chrome = nav.querySelector("#morewrap") || nav.querySelector("#alertbtn");   // #258: spine tabs sit BEFORE the "More ▾" overflow (then the alert/badge/account chrome)
   const place = (b) => { if (b) { if (chrome) nav.insertBefore(b, chrome); else nav.appendChild(b); } };
   const apply = (order) => L.mergeOrder(order, current).forEach((k) => place(byKey(k)));
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) {}
   apply(saved);
   const persist = () => {
-    const ord = Array.prototype.slice.call(nav.querySelectorAll(".vtab")).map(keyOf);
+    const ord = Array.prototype.slice.call(nav.querySelectorAll(":scope > .vtab")).map(keyOf);
     try { localStorage.setItem(KEY, JSON.stringify(ord)); } catch (e) {}
   };
   const dropBefore = (x) => {                                  // the VISIBLE tab nearest right of the cursor
-    const els = Array.prototype.slice.call(nav.querySelectorAll(".vtab:not(.dragging)"))
+    const els = Array.prototype.slice.call(nav.querySelectorAll(":scope > .vtab:not(.dragging)"))
       .filter((c) => c.offsetParent !== null);
     let best = { off: -Infinity, el: null };
     els.forEach((c) => { const b = c.getBoundingClientRect(); const off = x - b.left - b.width / 2;

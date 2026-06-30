@@ -755,6 +755,15 @@
       <button class="vtab" id="vtab-release" data-view="release" data-minrole="director" style="display:none" title="release: sign off the current build plan — run it through the MO-02 lifecycle (analyze → rehearse → review → release) and record the signed revision + evidence. Director-only.">Release <span class="sysb">DART</span></button>
       <button class="vtab" data-view="metrics" title="execution: top-down FORECAST replay of the planned mission + CG / tip-over margin (what-if posture) + the genuine live RC telemetry stream (when connected)">Execute <span class="sysb">LEAP</span></button>
       <button class="vtab" data-view="report">Report <span class="sysb">FORGE</span></button>
+      <!-- #258: the role-gated secondary work areas group under a "More ▾" overflow so the ConOps spine
+           (Plan·Rehearse·Validate·Release·Execute·Report) stays scannable. Each keeps .vtab + data-view +
+           data-minrole, so setView/gateChrome/active are unchanged; wireTabLayout is scoped to direct
+           children (:scope > .vtab) so it ignores the nested menu items, and inserts the spine before
+           #morewrap so "More ▾" stays at the end. #vtab-more is a TOGGLE (not .vtab — setView('more') is
+           not a view). -->
+      <span id="morewrap" style="position:relative;display:inline-flex;align-items:center">
+        <button id="vtab-more" aria-haspopup="menu" aria-expanded="false" style="display:none;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:13px;padding:3px 10px;cursor:pointer" title="more work areas — Fleet · Construction · Models · Trainer (role-gated, operator+)">More ▾</button>
+        <div id="moremenu" role="menu" style="display:none;flex-direction:column;gap:2px;position:absolute;top:100%;right:0;z-index:40;background:#0a0d14;border:1px solid var(--line);border-radius:8px;padding:5px;min-width:170px;box-shadow:0 8px 22px #000a">
       <!-- FS-03: the FLEET work area (operator+). Roster = the real vehicle registry (/fleet);
            per-vehicle allocation + makespan + conflicts = the last /plan result. data-minrole gates it
            like the operator chrome (gateChrome hides it for sub-operators). -->
@@ -771,6 +780,8 @@
            seen-vs-estimated-vs-truth). data-minrole gates the tab to operator+; the truth board content is
            further director-gated server-side (/trainer/history truth block + /session/.../debrief). -->
       <button class="vtab" id="vtab-trainer" data-view="trainer" data-minrole="operator" style="display:none" title="trainer dashboard: the program leaderboard + session history (operator+), the director truth board (believed-vs-true divergence, director-only), and the debrief scrubber to step a recorded run seen-vs-estimated-vs-truth">Trainer <span class="sysb">DART</span></button>
+        </div>
+      </span>
       <!-- FS-20: System / Settings / Admin moved OFF the work-area tab bar into the profile menu (role-gated);
            an operator sees only the mission work areas. -->
       <style>.profitem{display:block;width:100%;text-align:left;background:none;border:none;color:var(--fg,#dcdce4);font-size:12px;padding:7px 10px;border-radius:5px;cursor:pointer}.profitem:hover{background:var(--accent);color:#fff}</style>
@@ -1428,6 +1439,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=b9996be65138"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=9ea3b379164b"></script>
+<script src="/assets/cockpit.js?v=fbe9bab17219"></script>
 </body>
 </html>
