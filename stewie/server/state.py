@@ -43,6 +43,28 @@ def moon_dem(site: str = "haworth"):
     return out
 
 
+def as_built_dem(site, dem, origin):
+    """#242/#267: imprint a site's recorded TerrainMemory onto the planning DEM so EVERY consumer plans/
+    renders on the AS-BUILT remembered surface, not the pristine tile. The planner (plan.py) AND the 3D
+    as-built mesh (/dem/asbuilt) share this ONE helper, so they cannot diverge once prior missions have
+    reshaped the site. ``dem`` is the (z, cell) pair; a fine work-area memory is resampled onto the coarse
+    LOLA cell. No memory / a None DEM -> returned unchanged (opt-in = a build was recorded). Defensive: a
+    bad/mismatched memory falls back to pristine and never raises (as-built is an enhancement, not a gate)."""
+    if dem is None:
+        return dem
+    try:
+        from stewie.specs.config import data_dir
+        from stewie.twin import terrain_memory as TM
+        mem = TM.load_site(data_dir(), site)
+        if mem is None:
+            return dem
+        z, cell = dem
+        return (mem.imprint_on_dem_resampled(z, dem_cell=cell, dem_origin=origin), cell)
+    except Exception as e:   # noqa: BLE001 -- never fail a consumer on the as-built enhancement
+        log.warning("as-built imprint skipped for site %r: %s", site, e)
+        return dem
+
+
 # ---- the lazy, durable digital twin (RC-02 / W-1) --------------------------------------------
 _TWIN: "TwinStore | None" = None
 _TWIN_LOCK = threading.Lock()   # RC-02: serialize the lazy cold-restore

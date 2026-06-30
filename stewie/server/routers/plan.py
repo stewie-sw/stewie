@@ -289,25 +289,10 @@ def post_plan(req: PlanRequest, _auth: str = Depends(heavy_quota)):
                             "plan exceeded the compute budget; reduce the mission size or retry"})
 
 
-def _as_built_dem(site, dem, origin):
-    """#242 read-back (graphify INT-016/INT-046): plan on the AS-BUILT remembered surface. If the site has
-    recorded TerrainMemory, imprint it (resampled to the planning-DEM cell -- e.g. a ~0.5 m work-area memory
-    onto the 5 m LOLA tile) so a NEW mission routes/validates against what prior missions actually built,
-    not the pristine DEM. No memory -> the pristine DEM unchanged (opt-in = a build was recorded). Defensive:
-    a bad/mismatched memory falls back to pristine and never fails a plan."""
-    if dem is None:
-        return dem
-    try:
-        from stewie.specs.config import data_dir
-        from stewie.twin import terrain_memory as TM
-        mem = TM.load_site(data_dir(), site)
-        if mem is None:
-            return dem
-        z, cell = dem
-        return (mem.imprint_on_dem_resampled(z, dem_cell=cell, dem_origin=origin), cell)
-    except Exception as e:   # noqa: BLE001 -- as-built is an enhancement; never fail a plan on it
-        log.warning("as-built imprint skipped for site %r: %s", site, e)
-        return dem
+# #267: the as-built remembered-surface imprint is the SINGLE source of truth in state.py, shared with the
+# 3D as-built mesh (/dem/asbuilt) so the plan and the rendered topology cannot diverge. Aliased here to keep
+# the #242 call sites + test_as_built_readback import (stewie.server.routers.plan._as_built_dem) stable.
+_as_built_dem = state.as_built_dem
 
 
 def _plan_impl(req: PlanRequest, payload: dict):

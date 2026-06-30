@@ -41,3 +41,26 @@ def test_no_buildable_orders_is_400(monkeypatch, tmp_path):
     r = c.post("/dem/asbuilt", json={"body": "moon", "site": "haworth", "orders": [
         {"action": "wp1", "kind": "goto", "x": 5, "y": 5}]})  # only a waypoint -> nothing to build
     assert r.status_code == 400 and "cut or fill" in r.json()["error"]
+
+
+def test_asbuilt_builds_on_the_remembered_surface(monkeypatch, tmp_path):
+    """#267: the as-built mesh must build on the AS-BUILT remembered surface (state.as_built_dem) -- the
+    SAME surface the planner (plan.py) uses -- not the pristine DEM, else the 3D mesh diverges from the
+    plan once prior missions have reshaped the site. Guard: the route's `base` (pre-build surface) must
+    reflect whatever as_built_dem returns. A +7 m spy raises every base cell by 7 m; pre-fix the route
+    ignored as_built_dem and base stayed pristine (delta ~= 0)."""
+    import numpy as np
+
+    import stewie.server.state as state
+    req = {"body": "moon", "site": "haworth", "orders": [
+        {"action": "cut", "kind": "cut", "x": 0, "y": 0, "footprint_m2": 100, "depth_m": 0.5}]}
+
+    c = _client(monkeypatch, tmp_path)                       # no memory recorded -> pristine surface
+    base0 = np.asarray(c.post("/dem/asbuilt", json=req).json()["base"], dtype=float)
+
+    monkeypatch.setattr(state, "as_built_dem", lambda site, dem, origin: (dem[0] + 7.0, dem[1]))
+    base1 = np.asarray(c.post("/dem/asbuilt", json=req).json()["base"], dtype=float)
+
+    assert abs((base1.mean() - base0.mean()) - 7.0) < 0.05, (
+        "base must reflect as_built_dem's remembered surface; the route ignored Terrain Memory "
+        f"(delta={(base1.mean() - base0.mean()):.3f} m, expected ~7.0)")

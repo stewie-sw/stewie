@@ -190,6 +190,9 @@ def dem_asbuilt(req: AsBuiltRequest, _auth: str = Depends(require_auth)):
                 origin = MP.latlon_to_dem_origin(req.lat, req.lon, bundle_dir=MP.bundle_for_site(req.site))
             except (KeyError, FileNotFoundError, ImportError, ValueError):
                 pass
+    # #267: build on the AS-BUILT remembered surface (the SAME state.as_built_dem the planner uses), so the
+    # 3D as-built mesh stacks on what prior missions actually built instead of diverging on the pristine DEM.
+    dem = state.as_built_dem(req.site, dem, origin)
     d = mission_terrain_delta(mission, dem=dem, dem_origin=origin)
     ab, base, delta = d["as_built"], d["base"], d["delta"]
     return {"ok": True, "site": req.site, "body": mission.body,
