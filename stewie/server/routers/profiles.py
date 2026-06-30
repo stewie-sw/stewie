@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from stewie.server.deps import require_auth
+from stewie.server.deps import require_auth, require_role
 from stewie.twin.io_fields import atomic_write_bytes
 
 router = APIRouter()
@@ -33,8 +33,12 @@ def _profile_slug(name: str) -> str:
 
 
 @router.post("/profile")
-def post_profile(req: ProfileRequest, _auth: None = Depends(require_auth)):
-    """Save a planning profile (the full config snapshot) under a slug of its name, to profiles/."""
+def post_profile(req: ProfileRequest, _auth: None = Depends(require_role("operator"))):
+    """Save a planning profile (the full config snapshot) under a slug of its name, to profiles/.
+    #304 (AG-07): the profile store is SHARED + name-keyed (no owner namespace) and loading a profile
+    restores the WHOLE planning config (body/soil/fleet/orders), so WRITING it is operator+ -- a
+    guest/trainee (below operator on the AG-01 ladder) must not clobber the shared library. The exact
+    sibling of the #294 structures-write gate. Reads (/profiles, /profile/{name}) stay any-auth (S-06)."""
     d = _profiles_dir()
     os.makedirs(d, exist_ok=True)
     slug = _profile_slug(req.name)
