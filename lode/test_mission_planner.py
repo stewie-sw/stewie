@@ -2252,3 +2252,19 @@ def test_ep01_modeled_terms_compose_into_the_plan_energy_total():  # [REQ:EP-01]
     # the modeled ledger composes into the total: total >= ledger (overhead only adds), and within a few %.
     assert total >= ledger - 1.0
     assert total <= ledger * 1.05
+
+
+def test_malformed_charger_or_lander_is_a_value_error_not_500():
+    """#284: a malformed charger/lander shape (scalar / wrong length / null / string) is a clean ValueError
+    (-> 400 at the route), NOT an uncaught IndexError/TypeError 500 -- the #275 class for the planner's
+    mission build (mission_from_dict indexed c[0]/c[1] before validating the shape)."""
+    base = {"body": "moon", "orders": [
+        {"action": "c", "kind": "cut", "x": 1, "y": 1, "footprint_m2": 9, "depth_m": 0.02}]}
+    for bad in ([1], 5, "xy", [], [1, 2, 3], None):
+        with pytest.raises(ValueError):
+            MP.mission_from_dict({**base, "charger": bad})
+    for bad in ([1], 5, "xy"):
+        with pytest.raises(ValueError):
+            MP.mission_from_dict({**base, "charger": [0, 0], "lander": bad})
+    m = MP.mission_from_dict({**base, "charger": [3.0, 4.0], "lander": [5.0, 6.0]})   # well-formed still builds
+    assert tuple(m.charger) == (3.0, 4.0) and tuple(m.lander) == (5.0, 6.0)

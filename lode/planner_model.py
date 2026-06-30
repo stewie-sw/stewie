@@ -260,6 +260,15 @@ _ORDER_FIELDS = ("action", "kind", "x", "y", "footprint_m2", "depth_m")
 KIND_CAPABILITY = {"cut": "excavate", "fill": "dump", "sinter": "sinter"}
 
 
+def _require_xy(val, name):
+    """#284: validate a 2-element [x, y] (charger/lander) BEFORE indexing, so a malformed shape (a scalar,
+    a 1-element list, null, a string) is a clean ValueError (-> 400 at the route) rather than an uncaught
+    IndexError/TypeError 500. ensure_finite_scalar then rejects NaN/Inf/non-numeric values."""
+    if not (isinstance(val, (list, tuple)) and len(val) == 2):
+        raise ValueError(f"{name} must be a 2-element [x, y]; got {val!r}")
+    return (VAL.ensure_finite_scalar(val[0], f"{name} x"), VAL.ensure_finite_scalar(val[1], f"{name} y"))
+
+
 def mission_from_dict(payload):
     """Build a Mission from a JSON-style dict (the browser's build-order queue: see index.html).
 
@@ -327,16 +336,13 @@ def mission_from_dict(payload):
             shape=(o.get("shape") if o.get("kind") != "goto" else None)))
     c = payload.get("charger", (0.0, 0.0))
     kwargs = dict(name=str(payload.get("name", "Build Mission")), body=body, orders=orders,
-                  charger=(VAL.ensure_finite_scalar(c[0], "charger x"),
-                           VAL.ensure_finite_scalar(c[1], "charger y")),
+                  charger=_require_xy(c, "charger"),       # #284: shape-validate before indexing (bad shape -> 400)
                   charger_capacity=max(1, min(8, int(payload.get("charger_capacity", 1) or 1))),
                   vehicle=veh, tools=tools, soil=soil)
     if "date" in payload:
         kwargs["date"] = str(payload["date"])
     if payload.get("lander") is not None:                  # #161: the delivery lander (safe haven)
-        ld = payload["lander"]
-        kwargs["lander"] = (VAL.ensure_finite_scalar(ld[0], "lander x"),
-                            VAL.ensure_finite_scalar(ld[1], "lander y"))
+        kwargs["lander"] = _require_xy(payload["lander"], "lander")   # #284: shape-validate (bad shape -> 400)
     if "return_buffer_frac" in payload:                    # #161: operator-adjustable return-to-lander buffer
         rb = VAL.ensure_finite_scalar(payload["return_buffer_frac"], "return_buffer_frac")
         if rb < 0:
