@@ -1,0 +1,883 @@
+{
+  "experiment": "ARGUS Niche-1 shadow metric H=L*tan(e): reproduce a PUBLISHED lunar boulder height/shape on REAL LROC NAC imagery",
+  "date": "2026-06-30",
+  "data_real": true,
+  "synthetic_data_used": false,
+  "fabricated_height": false,
+  "truth_firewall": "measurement reads pixels + metadata Sun elevation only; PUBLISHED targets enter only at compare_* (verified by test_nac_boulder_repro truth-isolation tests).",
+  "tooling": {
+    "pdr": "1.4.4",
+    "rasterio": "1.4.4",
+    "geometry_source": "ODE CDRNAC4 geometry index (incidence -> elevation=90-incidence)",
+    "dart_reuse": [
+      "dart.shadow_height.measure_shadow_length_px",
+      "dart.rock_taxonomy.shadow_height_m"
+    ]
+  },
+  "target_A_population_hd": {
+    "site": "Messier / Messier A fresh-crater ejecta, Mare Fecunditatis (~1.93 S, 47.71 E)",
+    "nac_frame": "M165530748",
+    "ortho_file": "NAC_DTM_MESSIER3_M165530748_60CM.TIF",
+    "ortho_url": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/EXTRAS/BROWSE/NAC_DTM/MESSIER3/NAC_DTM_MESSIER3_M165530748_60CM.TIF",
+    "incidence_deg": 68.11,
+    "sun_elevation_deg": 21.89,
+    "gsd_m_per_px": 0.6,
+    "anti_solar_image_az_deg": 1.7,
+    "az_validation": "sign anchored by large-crater interior shadow geometry -- the lit inner walls of the frame's large bowl craters are on the EAST, so the Sun is in the WEST and cast shadows point EAST; the data-derived shadow axis is 1.7/181.7 deg.",
+    "hd_distribution": {
+      "n": 62,
+      "median": 0.502,
+      "mean": 0.5377258064516128,
+      "iqr": [
+        0.41875,
+        0.603
+      ],
+      "median_ci95": [
+        0.502,
+        0.603
+      ],
+      "diameter_m_range": [
+        2.4,
+        5.4
+      ]
+    },
+    "comparison": {
+      "verdict": "REPRODUCES the lunar-boulder aspect family (median 0.50 matches the engineering ~0.5/h_D 0.54 value); the headline 0.60 lies within the IQR but above the point median",
+      "measured_median_hd": 0.502,
+      "measured_iqr": [
+        0.419,
+        0.603
+      ],
+      "measured_ci95": [
+        0.502,
+        0.603
+      ],
+      "published_h_over_d": 0.6,
+      "published_sigma": 0.03,
+      "published_family": {
+        "h_over_D_full": 0.54,
+        "engineering": 0.5
+      },
+      "headline_within_iqr": true,
+      "is_boulder_like_not_crater_like": true,
+      "doi": "10.1134/S0038094614050013",
+      "ref": "Demidov & Basilevsky (2014), Solar System Research 48(5):324-353"
+    },
+    "sensitivity_diameter_convention": {
+      "diameter_halfmax_frac=0.4": {
+        "median": 0.502,
+        "n": 95
+      },
+      "diameter_halfmax_frac=0.5": {
+        "median": 0.502,
+        "n": 62
+      }
+    },
+    "sensitivity_shadow_darkfrac": {
+      "dark_frac=0.5": {
+        "median": 0.502,
+        "n": 52
+      },
+      "dark_frac=0.6": {
+        "median": 0.502,
+        "n": 68
+      }
+    },
+    "n_boulders": 62,
+    "boulders": [
+      {
+        "col": 1337,
+        "row": 5682,
+        "diameter_m": 5.4,
+        "shadow_len_m": 10.2,
+        "height_m": 4.1,
+        "h_over_d": 0.759,
+        "shadow_len_px": 17.0,
+        "diameter_px": 9,
+        "bg_dn": 5.9
+      },
+      {
+        "col": 6554,
+        "row": 7481,
+        "diameter_m": 3.0,
+        "shadow_len_m": 6.0,
+        "height_m": 2.41,
+        "h_over_d": 0.804,
+        "shadow_len_px": 10.0,
+        "diameter_px": 5,
+        "bg_dn": 58.6
+      },
+      {
+        "col": 4517,
+        "row": 2988,
+        "diameter_m": 5.4,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.223,
+        "shadow_len_px": 5.0,
+        "diameter_px": 9,
+        "bg_dn": 60.8
+      },
+      {
+        "col": 5348,
+        "row": 8403,
+        "diameter_m": 3.0,
+        "shadow_len_m": 5.4,
+        "height_m": 2.17,
+        "h_over_d": 0.723,
+        "shadow_len_px": 9.0,
+        "diameter_px": 5,
+        "bg_dn": 61.1
+      },
+      {
+        "col": 8745,
+        "row": 36472,
+        "diameter_m": 4.2,
+        "shadow_len_m": 4.2,
+        "height_m": 1.69,
+        "h_over_d": 0.402,
+        "shadow_len_px": 7.0,
+        "diameter_px": 7,
+        "bg_dn": 57.6
+      },
+      {
+        "col": 6138,
+        "row": 36584,
+        "diameter_m": 4.2,
+        "shadow_len_m": 4.2,
+        "height_m": 1.69,
+        "h_over_d": 0.402,
+        "shadow_len_px": 7.0,
+        "diameter_px": 7,
+        "bg_dn": 71.3
+      },
+      {
+        "col": 7273,
+        "row": 38697,
+        "diameter_m": 3.6,
+        "shadow_len_m": 4.8,
+        "height_m": 1.93,
+        "h_over_d": 0.536,
+        "shadow_len_px": 8.0,
+        "diameter_px": 6,
+        "bg_dn": 70.3
+      },
+      {
+        "col": 8418,
+        "row": 45674,
+        "diameter_m": 4.2,
+        "shadow_len_m": 4.2,
+        "height_m": 1.69,
+        "h_over_d": 0.402,
+        "shadow_len_px": 7.0,
+        "diameter_px": 7,
+        "bg_dn": 73.1
+      },
+      {
+        "col": 3305,
+        "row": 708,
+        "diameter_m": 4.8,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.251,
+        "shadow_len_px": 5.0,
+        "diameter_px": 8,
+        "bg_dn": 53.9
+      },
+      {
+        "col": 5729,
+        "row": 4052,
+        "diameter_m": 4.8,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.251,
+        "shadow_len_px": 5.0,
+        "diameter_px": 8,
+        "bg_dn": 56.4
+      },
+      {
+        "col": 7418,
+        "row": 5701,
+        "diameter_m": 4.8,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.251,
+        "shadow_len_px": 5.0,
+        "diameter_px": 8,
+        "bg_dn": 57.3
+      },
+      {
+        "col": 5251,
+        "row": 7021,
+        "diameter_m": 2.4,
+        "shadow_len_m": 5.4,
+        "height_m": 2.17,
+        "h_over_d": 0.904,
+        "shadow_len_px": 9.0,
+        "diameter_px": 4,
+        "bg_dn": 58.5
+      },
+      {
+        "col": 6731,
+        "row": 8901,
+        "diameter_m": 3.6,
+        "shadow_len_m": 4.2,
+        "height_m": 1.69,
+        "h_over_d": 0.469,
+        "shadow_len_px": 7.0,
+        "diameter_px": 6,
+        "bg_dn": 58.1
+      },
+      {
+        "col": 3617,
+        "row": 42351,
+        "diameter_m": 3.6,
+        "shadow_len_m": 4.2,
+        "height_m": 1.69,
+        "h_over_d": 0.469,
+        "shadow_len_px": 7.0,
+        "diameter_px": 6,
+        "bg_dn": 49.9
+      },
+      {
+        "col": 6805,
+        "row": 465,
+        "diameter_m": 2.4,
+        "shadow_len_m": 4.8,
+        "height_m": 1.93,
+        "h_over_d": 0.804,
+        "shadow_len_px": 8.0,
+        "diameter_px": 4,
+        "bg_dn": 75.5
+      },
+      {
+        "col": 4531,
+        "row": 1514,
+        "diameter_m": 3.0,
+        "shadow_len_m": 4.2,
+        "height_m": 1.69,
+        "h_over_d": 0.563,
+        "shadow_len_px": 7.0,
+        "diameter_px": 5,
+        "bg_dn": 70.3
+      },
+      {
+        "col": 4942,
+        "row": 5282,
+        "diameter_m": 4.2,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.287,
+        "shadow_len_px": 5.0,
+        "diameter_px": 7,
+        "bg_dn": 87.0
+      },
+      {
+        "col": 1304,
+        "row": 7989,
+        "diameter_m": 4.2,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.287,
+        "shadow_len_px": 5.0,
+        "diameter_px": 7,
+        "bg_dn": 53.4
+      },
+      {
+        "col": 5335,
+        "row": 9051,
+        "diameter_m": 2.4,
+        "shadow_len_m": 4.8,
+        "height_m": 1.93,
+        "h_over_d": 0.804,
+        "shadow_len_px": 8.0,
+        "diameter_px": 4,
+        "bg_dn": 58.8
+      },
+      {
+        "col": 8160,
+        "row": 37945,
+        "diameter_m": 2.4,
+        "shadow_len_m": 4.8,
+        "height_m": 1.93,
+        "h_over_d": 0.804,
+        "shadow_len_px": 8.0,
+        "diameter_px": 4,
+        "bg_dn": 58.4
+      },
+      {
+        "col": 8560,
+        "row": 38719,
+        "diameter_m": 4.2,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.287,
+        "shadow_len_px": 5.0,
+        "diameter_px": 7,
+        "bg_dn": 61.4
+      },
+      {
+        "col": 5618,
+        "row": 38940,
+        "diameter_m": 2.4,
+        "shadow_len_m": 4.8,
+        "height_m": 1.93,
+        "h_over_d": 0.804,
+        "shadow_len_px": 8.0,
+        "diameter_px": 4,
+        "bg_dn": 70.4
+      },
+      {
+        "col": 7058,
+        "row": 41317,
+        "diameter_m": 2.4,
+        "shadow_len_m": 4.8,
+        "height_m": 1.93,
+        "h_over_d": 0.804,
+        "shadow_len_px": 8.0,
+        "diameter_px": 4,
+        "bg_dn": 84.8
+      },
+      {
+        "col": 6862,
+        "row": 814,
+        "diameter_m": 3.6,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.335,
+        "shadow_len_px": 5.0,
+        "diameter_px": 6,
+        "bg_dn": 66.8
+      },
+      {
+        "col": 6518,
+        "row": 1280,
+        "diameter_m": 2.4,
+        "shadow_len_m": 4.2,
+        "height_m": 1.69,
+        "h_over_d": 0.703,
+        "shadow_len_px": 7.0,
+        "diameter_px": 4,
+        "bg_dn": 74.6
+      },
+      {
+        "col": 7468,
+        "row": 3790,
+        "diameter_m": 2.4,
+        "shadow_len_m": 4.2,
+        "height_m": 1.69,
+        "h_over_d": 0.703,
+        "shadow_len_px": 7.0,
+        "diameter_px": 4,
+        "bg_dn": 74.6
+      },
+      {
+        "col": 6381,
+        "row": 4420,
+        "diameter_m": 3.0,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.482,
+        "shadow_len_px": 6.0,
+        "diameter_px": 5,
+        "bg_dn": 48.8
+      },
+      {
+        "col": 6732,
+        "row": 5257,
+        "diameter_m": 3.6,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.335,
+        "shadow_len_px": 5.0,
+        "diameter_px": 6,
+        "bg_dn": 64.3
+      },
+      {
+        "col": 3959,
+        "row": 6156,
+        "diameter_m": 2.4,
+        "shadow_len_m": 4.2,
+        "height_m": 1.69,
+        "h_over_d": 0.703,
+        "shadow_len_px": 7.0,
+        "diameter_px": 4,
+        "bg_dn": 71.7
+      },
+      {
+        "col": 8180,
+        "row": 6462,
+        "diameter_m": 3.0,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.482,
+        "shadow_len_px": 6.0,
+        "diameter_px": 5,
+        "bg_dn": 70.0
+      },
+      {
+        "col": 1435,
+        "row": 39685,
+        "diameter_m": 2.4,
+        "shadow_len_m": 4.2,
+        "height_m": 1.69,
+        "h_over_d": 0.703,
+        "shadow_len_px": 7.0,
+        "diameter_px": 4,
+        "bg_dn": 85.4
+      },
+      {
+        "col": 4836,
+        "row": 41714,
+        "diameter_m": 3.0,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.482,
+        "shadow_len_px": 6.0,
+        "diameter_px": 5,
+        "bg_dn": 69.5
+      },
+      {
+        "col": 7018,
+        "row": 41995,
+        "diameter_m": 2.4,
+        "shadow_len_m": 4.2,
+        "height_m": 1.69,
+        "h_over_d": 0.703,
+        "shadow_len_px": 7.0,
+        "diameter_px": 4,
+        "bg_dn": 69.8
+      },
+      {
+        "col": 2520,
+        "row": 42541,
+        "diameter_m": 3.6,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.335,
+        "shadow_len_px": 5.0,
+        "diameter_px": 6,
+        "bg_dn": 66.8
+      },
+      {
+        "col": 5852,
+        "row": 42751,
+        "diameter_m": 3.0,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.482,
+        "shadow_len_px": 6.0,
+        "diameter_px": 5,
+        "bg_dn": 53.8
+      },
+      {
+        "col": 3904,
+        "row": 43561,
+        "diameter_m": 3.6,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.335,
+        "shadow_len_px": 5.0,
+        "diameter_px": 6,
+        "bg_dn": 66.7
+      },
+      {
+        "col": 8090,
+        "row": 1238,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 72.4
+      },
+      {
+        "col": 7648,
+        "row": 3842,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 68.3
+      },
+      {
+        "col": 5766,
+        "row": 4282,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 49.6
+      },
+      {
+        "col": 4616,
+        "row": 6529,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 62.6
+      },
+      {
+        "col": 5392,
+        "row": 7668,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 67.6
+      },
+      {
+        "col": 6278,
+        "row": 8369,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 49.3
+      },
+      {
+        "col": 6059,
+        "row": 9129,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 54.5
+      },
+      {
+        "col": 5897,
+        "row": 9246,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 40.0
+      },
+      {
+        "col": 5294,
+        "row": 9652,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 68.5
+      },
+      {
+        "col": 8054,
+        "row": 10181,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 86.8
+      },
+      {
+        "col": 8766,
+        "row": 36512,
+        "diameter_m": 3.0,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.402,
+        "shadow_len_px": 5.0,
+        "diameter_px": 5,
+        "bg_dn": 49.7
+      },
+      {
+        "col": 2266,
+        "row": 36812,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 55.5
+      },
+      {
+        "col": 7170,
+        "row": 37239,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 65.5
+      },
+      {
+        "col": 6265,
+        "row": 38685,
+        "diameter_m": 3.0,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.402,
+        "shadow_len_px": 5.0,
+        "diameter_px": 5,
+        "bg_dn": 63.7
+      },
+      {
+        "col": 6279,
+        "row": 38738,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 61.2
+      },
+      {
+        "col": 5305,
+        "row": 43353,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.6,
+        "height_m": 1.45,
+        "h_over_d": 0.603,
+        "shadow_len_px": 6.0,
+        "diameter_px": 4,
+        "bg_dn": 82.1
+      },
+      {
+        "col": 6947,
+        "row": 762,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.502,
+        "shadow_len_px": 5.0,
+        "diameter_px": 4,
+        "bg_dn": 69.7
+      },
+      {
+        "col": 917,
+        "row": 7057,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.502,
+        "shadow_len_px": 5.0,
+        "diameter_px": 4,
+        "bg_dn": 80.5
+      },
+      {
+        "col": 7086,
+        "row": 7086,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.502,
+        "shadow_len_px": 5.0,
+        "diameter_px": 4,
+        "bg_dn": 63.3
+      },
+      {
+        "col": 6243,
+        "row": 8181,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.502,
+        "shadow_len_px": 5.0,
+        "diameter_px": 4,
+        "bg_dn": 65.9
+      },
+      {
+        "col": 424,
+        "row": 10500,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.502,
+        "shadow_len_px": 5.0,
+        "diameter_px": 4,
+        "bg_dn": 66.5
+      },
+      {
+        "col": 6093,
+        "row": 36006,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.502,
+        "shadow_len_px": 5.0,
+        "diameter_px": 4,
+        "bg_dn": 84.4
+      },
+      {
+        "col": 7396,
+        "row": 41361,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.502,
+        "shadow_len_px": 5.0,
+        "diameter_px": 4,
+        "bg_dn": 92.1
+      },
+      {
+        "col": 6289,
+        "row": 42912,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.502,
+        "shadow_len_px": 5.0,
+        "diameter_px": 4,
+        "bg_dn": 104.1
+      },
+      {
+        "col": 8249,
+        "row": 44198,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.502,
+        "shadow_len_px": 5.0,
+        "diameter_px": 4,
+        "bg_dn": 85.3
+      },
+      {
+        "col": 1815,
+        "row": 45326,
+        "diameter_m": 2.4,
+        "shadow_len_m": 3.0,
+        "height_m": 1.21,
+        "h_over_d": 0.502,
+        "shadow_len_px": 5.0,
+        "diameter_px": 4,
+        "bg_dn": 74.2
+      }
+    ]
+  },
+  "target_B_station6_house_rock": {
+    "site": "Apollo 17 Station 6 'House Rock', base of the North Massif (~20.29 N, 30.80 E)",
+    "nac_frame": "M134991788R",
+    "ortho_file": "NAC_DTM_APOLLO17_1_M134991788_60CM.TIF",
+    "ortho_url": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/EXTRAS/BROWSE/NAC_DTM/APOLLO17_1/NAC_DTM_APOLLO17_1_M134991788_60CM.TIF",
+    "incidence_deg": 64.66,
+    "sun_elevation_deg": 25.340000000000003,
+    "gsd_m_per_px": 0.6,
+    "anti_solar_image_az_deg": 345.5,
+    "az_validation": "frame + boulder located by 0.80 normalized cross-correlation against the LROC published image of the boulder (lroc.im-ldi.com/images/759); the main fragment's cast shadow points ENE, so the Sun is in the WSW (afternoon).",
+    "comparison": {
+      "verdict": "CONSISTENT with documented ~6 m (largest fragment retains ~full original height)",
+      "largest_fragment_height_m": 5.71,
+      "documented_height_m": 6.0,
+      "documented_block_dims_m": [
+        18.0,
+        10.0,
+        6.0
+      ],
+      "caveats": [
+        "boulder is SPLIT into ~5 fragments; this is the LARGEST fragment, not the intact block",
+        "sits on the North-Massif-base SLOPE -- H=L*tan(e) assumes level ground, so a local down-Sun slope biases the recovered height",
+        "smaller fragments' shadows MERGE with the main shadow at 0.6 m/px -> not separately measurable (recorded, not fabricated)"
+      ],
+      "url": "https://lroc.im-ldi.com/images/759",
+      "fragments_measured": [
+        {
+          "seed_xy": [
+            60,
+            60
+          ],
+          "cap_thr": 230.0,
+          "shadow_az_deg": 346.9,
+          "diameter_m": 6.44,
+          "shadow_len_m": 12.59,
+          "height_m": 5.96,
+          "h_over_d": 0.925,
+          "cap_px": 62,
+          "shadow_px": 221,
+          "global_seed": [
+            4930,
+            6585
+          ]
+        },
+        {
+          "seed_xy": [
+            60,
+            60
+          ],
+          "cap_thr": 200.0,
+          "shadow_az_deg": 345.6,
+          "diameter_m": 7.14,
+          "shadow_len_m": 12.06,
+          "height_m": 5.71,
+          "h_over_d": 0.799,
+          "cap_px": 82,
+          "shadow_px": 221,
+          "global_seed": [
+            4930,
+            6585
+          ]
+        },
+        {
+          "seed_xy": [
+            60,
+            60
+          ],
+          "cap_thr": 160.0,
+          "shadow_az_deg": 345.5,
+          "diameter_m": 8.0,
+          "shadow_len_m": 11.9,
+          "height_m": 5.64,
+          "h_over_d": 0.704,
+          "cap_px": 99,
+          "shadow_px": 221,
+          "global_seed": [
+            4930,
+            6585
+          ]
+        }
+      ],
+      "ncc_match_to_lroc_published_image": 0.8
+    }
+  },
+  "published_sources": {
+    "demidov_hd": {
+      "h_over_d": 0.6,
+      "sigma": 0.03,
+      "also": {
+        "h_over_D_full": 0.54,
+        "engineering": 0.5
+      },
+      "n_rocks": 445,
+      "doi": "10.1134/S0038094614050013",
+      "ref": "Demidov & Basilevsky (2014), Solar System Research 48(5):324-353",
+      "note": "h/d from ground-based Apollo/Lunokhod panoramas, independent of NAC shadows."
+    },
+    "station6_house_rock": {
+      "height_m": 6.0,
+      "block_dims_m": [
+        18.0,
+        10.0,
+        6.0
+      ],
+      "largest_fragment_across_m": 10.0,
+      "n_fragments": 5,
+      "url": "https://lroc.im-ldi.com/images/759",
+      "note": "documented original block 18x10x6 m from Apollo 17 surface photogrammetry; now split."
+    }
+  },
+  "overlay_png": "nac_boulder_repro_2026-06-30.png"
+}
