@@ -257,8 +257,10 @@ def get_raster_layer(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
     import math
     from stewie.server.gis_layers import render
     if mission_t_s is not None:
+        from stewie.specs.sites import site_latlon
         from stewie.specs.solar import sun_az_el
-        sun_az, sun_el = sun_az_el(-87.45, float(mission_t_s))   # Haworth site latitude
+        _lat, _lon = site_latlon(site)                          # #274 (REG-01): the CHOSEN site, not hardcoded Haworth
+        sun_az, sun_el = sun_az_el(_lat, float(mission_t_s), site_lon_deg=_lon)
     s_vmax = float(max(1.0, min(90.0, vmax))) if math.isfinite(vmax) else 30.0   # NaN/inf -> default
     s_classes = int(max(0, min(12, classes)))
     try:

@@ -60,6 +60,15 @@ def get_site(name: str) -> Site:
     return SITES[name]
 
 
+def site_latlon(name: str) -> tuple:
+    """#274: the (lat_deg, lon_deg) of a site for solar geometry, falling back to Haworth for an unknown
+    name. Used by the raster-overlay + globe-layer sun resolution so mission-time shadows follow the
+    CHOSEN site (REG-01) instead of a hardcoded Haworth latitude -- mirrors ephemeris.py's correct usage
+    (both lat AND lon feed sun_az_el's hour angle)."""
+    s = SITES.get(name) or SITES["haworth"]
+    return s.lat_deg, s.lon_deg
+
+
 def site_rows() -> list:
     """UI rows: name, label, center, candidate flag, and the HONEST imported state."""
     return [{"name": s.name, "label": s.label, "lat": s.lat_deg, "lon": s.lon_deg,

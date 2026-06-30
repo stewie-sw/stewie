@@ -48,13 +48,16 @@ def _sanitize_color(color: str) -> str:
     return c if _HEX6.match(c) else _DEFAULT_GRID
 
 
-def _quantize_sun(sun_el: float, sun_az: float, mission_t_s: float | None):
+def _quantize_sun(sun_el: float, sun_az: float, mission_t_s: float | None, site: str = "haworth"):
     """Clamp + quantize the sun geometry to integer degrees (el in [-90,90], az wrapped to [0,360)).
-    A mission time, when given, is finite-bounded then resolved to the polar sun geometry first."""
+    A mission time, when given, is finite-bounded then resolved to the CHOSEN site's polar sun geometry
+    first (#274/REG-01: site lat+lon feed sun_az_el, not a hardcoded Haworth latitude)."""
     if mission_t_s is not None:
+        from stewie.specs.sites import site_latlon
         from stewie.specs.solar import sun_az_el
         mt = max(-_MISSION_T_MAX_S, min(_MISSION_T_MAX_S, float(mission_t_s)))
-        sun_az, sun_el = sun_az_el(-87.45, mt)
+        _lat, _lon = site_latlon(site)
+        sun_az, sun_el = sun_az_el(_lat, mt, site_lon_deg=_lon)
     el = float(max(-90.0, min(90.0, round(float(sun_el)))))
     az = float(round(float(sun_az)) % 360)
     return el, az
@@ -102,7 +105,7 @@ def globe_layer_png(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
     if kind not in _GLOBE_KINDS:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
     from stewie.server.gis_layers import _to_png, render_globe
-    el, az = _quantize_sun(sun_el, sun_az, mission_t_s)
+    el, az = _quantize_sun(sun_el, sun_az, mission_t_s, site)
     import math
     s_vmax = float(max(1.0, min(90.0, vmax))) if math.isfinite(vmax) else 30.0   # clamp [1,90]; NaN/inf -> default
     s_classes = int(max(0, min(12, classes)))            # 0 = continuous; up to 12 equal-interval bands
@@ -127,7 +130,7 @@ def globe_layer_bbox(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
     if kind not in _GLOBE_KINDS:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
     from stewie.server.gis_layers import render_globe
-    el, az = _quantize_sun(sun_el, sun_az, mission_t_s)
+    el, az = _quantize_sun(sun_el, sun_az, mission_t_s, site)
     try:
         out = render_globe(kind, sun_el=el, sun_az=az, site=site)
     except KeyError as e:
