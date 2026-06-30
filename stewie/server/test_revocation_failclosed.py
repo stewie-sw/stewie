@@ -84,3 +84,21 @@ def test_revoke_does_not_clobber_a_corrupt_store(auth, tmp_path):
     # the corrupt bytes are still there (not replaced by a valid one-entry store)
     with open(_store_path(tmp_path)) as f:
         assert f.read() == '{ broken'
+
+
+def test_revoke_jti_runs_the_rmw_under_a_lock(auth, monkeypatch):
+    """#285: revoke_jti's read-modify-write of the revocation store runs under _REVOKE_LOCK, so two
+    concurrent logouts (FastAPI threadpool) cannot lose a revocation (a fail-OPEN lost-update window).
+    Deterministic guard: the lock is HELD while the store is read inside revoke_jti, and a second revoke
+    preserves the first (no lost update)."""
+    locks = []
+    orig = auth._revoked_set
+
+    def spy():
+        locks.append(auth._REVOKE_LOCK.locked())
+        return orig()
+    monkeypatch.setattr(auth, "_revoked_set", spy)
+    auth.revoke_jti("jti-1")
+    assert locks and locks[0] is True, "revoke_jti's read-modify-write ran WITHOUT the lock (#285)"
+    auth.revoke_jti("jti-2")
+    assert auth.is_revoked("jti-1") and auth.is_revoked("jti-2")   # no lost update

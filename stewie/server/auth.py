@@ -15,8 +15,14 @@ import hashlib
 import hmac
 import json
 import os
+import threading
 import time
 import uuid
+
+# #285: serialize the read-modify-write of the durable revocation store. revoke_jti reads the set, adds a
+# jti, then atomic_write_bytes; two concurrent logouts (sync handlers -> FastAPI threadpool) would both read
+# the OLD set and the second write would drop the first's revocation -- a fail-OPEN lost-update window.
+_REVOKE_LOCK = threading.Lock()
 
 DEFAULT_ALLOWLIST = (
     "mccardle.john@gmail.com",
@@ -87,16 +93,17 @@ def revoke_jti(jti: str) -> None:
     file would drop every prior revocation and re-open the fail-open hole."""
     import os as _os
     p = _revoked_path()
-    try:
-        cur = _revoked_set()
-    except RevocationStoreError:
-        from stewie.server import services as SVC
-        SVC.record_revocation_failure(RevocationStoreError(f"revoke_jti aborted: {p} unreadable"))
-        raise
-    cur.add(jti)
-    _os.makedirs(_os.path.dirname(p), exist_ok=True)
-    from stewie.twin.io_fields import atomic_write_bytes
-    atomic_write_bytes(p, json.dumps(sorted(cur)).encode())
+    with _REVOKE_LOCK:                                   # #285: atomic read-modify-write -> no lost revocation
+        try:
+            cur = _revoked_set()
+        except RevocationStoreError:
+            from stewie.server import services as SVC
+            SVC.record_revocation_failure(RevocationStoreError(f"revoke_jti aborted: {p} unreadable"))
+            raise
+        cur.add(jti)
+        _os.makedirs(_os.path.dirname(p), exist_ok=True)
+        from stewie.twin.io_fields import atomic_write_bytes
+        atomic_write_bytes(p, json.dumps(sorted(cur)).encode())
 
 
 def _revoked_set() -> set:
