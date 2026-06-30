@@ -2157,6 +2157,47 @@ async function loadRelease() {                                            // REL
 }
 
 
+// A1: render the live linked DT-01 world-state record + the execution/world timeline in the Report pane.
+// Reads GET /world/transaction (the latest consistent linked snapshot) + GET /world/transactions (the
+// recent timeline). Honest: when nothing has been committed the block stays hidden (no fabricated state).
+async function loadReport() {
+  const ws = $("worldstate");
+  if (!ws) return;
+  try {
+    const [latest, recent] = await Promise.all([
+      fetch("/world/transaction", { headers: apiHeaders() }).then((r) => r.json()),
+      fetch("/world/transactions?limit=50", { headers: apiHeaders() }).then((r) => r.json()),
+    ]);
+    if (!latest || !latest.committed) { ws.style.display = "none"; return; }   // nothing committed yet
+    const t = latest.transaction;
+    const txns = (recent && recent.transactions) || [];
+    const sh = (s) => esc(String(s || "").slice(0, 12)) + "…";
+    let html =
+      '<div class="cap"><span>LINKED WORLD STATE — DT-01</span></div>'
+      + '<div style="font-size:11px;font-variant-numeric:tabular-nums;line-height:1.7;color:var(--muted)">'
+      + `authority <code>${sh(t.authority_sha)}</code> · twin v${esc(String(t.twin_version))}`
+      + ` · plan <code>${esc(String(t.plan_id))}</code><br>`
+      + `world_sha <code>${sh(t.world_sha)}</code> · seq ${esc(String(t.seq))}`
+      + ` · ${esc(String(latest.count))} transaction(s)</div>`;
+    html += '<div class="cap" style="margin-top:8px"><span>EXECUTION TIMELINE</span></div>'
+      + '<div style="font-size:11px;line-height:1.6;max-height:200px;overflow:auto">'
+      + (txns.length
+          ? txns.map((x) => {
+              const m = /\[(\w+)\]/.exec(x.provenance || "");
+              const tag = m ? m[1] : "";
+              const color = tag === "ok" ? "var(--accent)"
+                : (tag === "safed" || tag === "blocked") ? "#e0a000" : "var(--muted)";
+              return `<div><span style="color:var(--muted)">#${esc(String(x.seq))}</span> `
+                + `<span style="color:${color}">${esc(x.provenance)}</span></div>`;
+            }).join("")
+          : '<div class="empty">No transitions recorded yet.</div>')
+      + "</div>";
+    ws.innerHTML = html;
+    ws.style.display = "block";
+  } catch (e) { ws.style.display = "none"; }   // never break the Report pane on the world-state overlay
+}
+
+
 async function loadPane(name) {
   try {
     if (name === "api") {
@@ -2165,6 +2206,8 @@ async function loadPane(name) {
       await loadRehearse();                                               // REHEARSE: forward-compare candidate cards (/resync/compare)
     } else if (name === "release") {
       await loadRelease();                                                // RELEASE: director sign-off via /executive/release-plan
+    } else if (name === "report") {
+      await loadReport();                                                 // A1: live DT-01 world state + execution timeline
     } else if (name === "fleet") {
       await loadFleet();                                                  // FS-03: roster (/fleet) + last-plan allocation
     } else if (name === "construction") {

@@ -161,6 +161,16 @@ class WorldStateService:
     def transaction_count(self) -> int:
         return len(self._log.transactions)
 
+    def recent(self, limit: int = 50) -> list[dict]:
+        """The most recent linked transactions, oldest-first within the window, as plain dicts -- the
+        world/execution timeline the cockpit Report pane renders. ``limit`` bounds the window; 0 -> []."""
+        n = max(0, int(limit))
+        txns = self._log.transactions[-n:] if n else []
+        return [{"seq": t.seq, "provenance": t.provenance, "world_sha": t.world_sha,
+                 "twin_version": t.twin_version, "plan_id": t.plan_id,
+                 "authority_sha": t.authority_sha, "mission": t.mission,
+                 "mission_t_s": t.mission_t_s} for t in txns]
+
     def verify_chain(self) -> bool:
         return self._log.verify_chain()
 

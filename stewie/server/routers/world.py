@@ -50,3 +50,13 @@ def world_transaction(_auth: str = Depends(require_auth)):
         return {"ok": True, "committed": False, "count": 0}
     return {"ok": True, "committed": True, "count": wss.transaction_count(),
             "transaction": asdict(wss.latest())}
+
+
+@router.get("/world/transactions")
+def world_transactions(limit: int = 50, _auth: str = Depends(require_auth)):
+    """Gap A1 / FS-04: the recent linked world-state transactions (chronological) -- the world/execution
+    timeline the cockpit Report pane renders (each entry's provenance carries plan/terrain/resync/leg/
+    safe and its outcome). Auth-gated; ``limit`` clamped to [1, 500]."""
+    lim = max(1, min(500, int(limit)))
+    wss = S.world_state_service()
+    return {"ok": True, "count": wss.transaction_count(), "transactions": wss.recent(lim)}

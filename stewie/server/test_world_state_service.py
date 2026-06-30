@@ -233,6 +233,30 @@ def test_twin_terrain_survives_a_world_log_failure(client, monkeypatch):  # find
     assert r.status_code == 200 and r.json()["recorded"] is True    # terrain saved despite world-log failure
 
 
+def test_recent_returns_the_window_chronologically():
+    """recent(limit) returns the most recent transactions oldest-first within the window -- the
+    execution/world timeline the cockpit renders."""
+    wss = WorldStateService(twin=_twin())
+    for i in range(5):
+        wss.record_plan(plan_id=f"p{i}", provenance=f"step {i}", mission="m")
+    win = wss.recent(3)
+    assert [t["seq"] for t in win] == [2, 3, 4]            # last 3, chronological
+    assert win[-1]["plan_id"] == "p4" and "step 4" in win[-1]["provenance"]
+    assert all({"seq", "provenance", "world_sha", "twin_version", "plan_id",
+                "authority_sha", "mission", "mission_t_s"} <= set(t) for t in win)
+    assert wss.recent(0) == []                             # zero window is empty, not an error
+
+
+def test_world_transactions_route_lists_the_timeline(client):
+    empty = client.get("/world/transactions", headers=H).json()
+    assert empty["ok"] is True and empty["count"] == 0 and empty["transactions"] == []
+    client.post("/twin/resync", headers=H,
+                json={"heights_m": [[0.1, 0.1], [0.1, 0.1]], "origin_rc": [0, 0], "provenance": "r1"})
+    d = client.get("/world/transactions?limit=10", headers=H).json()
+    assert d["count"] == 1 and len(d["transactions"]) == 1
+    assert "twin.resync" in d["transactions"][0]["provenance"]
+
+
 def test_concurrent_records_serialize_and_keep_the_chain_valid():  # gap G4
     """The lock claim, exercised: N threads each commit a transition; all N land, the chain stays valid,
     and seqs are a contiguous 0..N-1 (no lost or interleaved-corrupt record)."""
