@@ -1036,6 +1036,12 @@
         </div>
       </div>
       <div id="execview" class="pane">
+        <!-- Loop #2 SSE: play back a SIM run's execution timeline live (cockpit.js playSimRun) -->
+        <div id="playback-block" style="margin-bottom:12px">
+          <div class="cap"><span>MISSION PLAYBACK — SIM execution</span>
+            <button id="playrun" type="button" style="margin-left:10px;font-size:10px">▶ Play SIM run</button></div>
+          <div id="execplayback" style="font-size:11px;line-height:1.6;max-height:200px;overflow:auto;color:var(--muted)">Queue build orders on the Plan tab, then ▶ Play SIM run to stream the execution here.</div>
+        </div>
         <!-- TR-01: trainer A-board scorecard (per-session KPIs, persisted to data_dir/sessions/). Filled
              by renderScorecardBoard() on session start; hidden until a session has run. -->
         <div id="scorecard-board" style="display:none;margin-bottom:10px">
@@ -1441,6 +1447,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=b9996be65138"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=f34ba274c00a"></script>
+<script src="/assets/cockpit.js?v=66d5bb1475f5"></script>
 </body>
 </html>

@@ -18,11 +18,13 @@ import (the lifecycle bridge is a leaf), so no router<->app cycle.
 """
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import secrets
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from stewie.contracts import MissionIntent
@@ -172,3 +174,32 @@ def executive_run_get(run_id: str, identity: str = Depends(require_role("operato
     if rec is None:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no run {run_id!r}"})
     return JSONResponse(content={"ok": True, **rec})
+
+
+@router.get("/executive/run/{run_id}/stream")
+async def executive_run_stream(run_id: str, interval_s: float = 0.6,
+                               identity: str = Depends(require_role("operator"))):
+    """SSE playback: replay a persisted SIM run's FS-04 ExecutionEvent timeline as Server-Sent Events --
+    one event per leg + a terminal ``done`` -- paced by ``interval_s`` so the cockpit Execute pane plays
+    the run back as it happened. The events are REAL (built from the persisted run via execution_events);
+    only the pacing is a display rate. Owner-scoped (the caller's own runs); 404 if absent. One-way push
+    only -- never a command path."""
+    rec = OBJ.load_run(run_id, owner=identity)
+    if rec is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no run {run_id!r}"})
+    from lode.sim_execution import execution_events
+    events = execution_events(rec)
+    interval = max(0.0, min(float(interval_s), 5.0))
+
+    async def _gen():
+        for ev in events:
+            yield ("data: " + json.dumps({"kind": ev.kind, "detail": ev.detail, "outcome": ev.outcome,
+                                          "t_s": ev.t_s, "vehicle_id": ev.vehicle_id}) + "\n\n")
+            if interval:
+                await asyncio.sleep(interval)
+        yield ("data: " + json.dumps({"done": True, "final_state": rec.get("final_state"),
+                                      "n_legs_total": rec.get("n_legs_total"),
+                                      "safed": rec.get("safed")}) + "\n\n")
+
+    return StreamingResponse(_gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

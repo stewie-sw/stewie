@@ -2198,6 +2198,57 @@ async function loadReport() {
 }
 
 
+// Loop #2: SSE playback of a SIM run in the Execute pane. POST the queued orders to /executive/run,
+// then open an EventSource to /executive/run/{id}/stream and render each FS-04 ExecutionEvent live as
+// it plays back (paced server-side). Events are REAL (from the persisted run); only the pacing is a
+// display rate. One-way push; closes on the terminal `done`.
+let execStream = null;
+async function playSimRun() {
+  const out = $("execplayback");
+  if (!out) return;
+  if (execStream) { execStream.close(); execStream = null; }
+  if (!ORDERS.length) {
+    out.innerHTML = '<div class="empty">No build orders — author a plan on the Plan tab first.</div>';
+    return;
+  }
+  out.innerHTML = '<div style="color:var(--muted)">Running SIM execution…</div>';
+  let runId;
+  try {
+    const site = (typeof CURRENT_SITE !== "undefined" && CURRENT_SITE) ? CURRENT_SITE : "haworth";
+    const r = await fetch("/executive/run", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ orders: ORDERS, site, mission_id: "cockpit playback" }) });
+    if (r.status === 401 || r.status === 403) {
+      out.innerHTML = '<div class="empty">SIM run is director-only. Sign in with a director key.</div>';
+      return;
+    }
+    const d = await r.json();
+    if (!d.ok) { out.innerHTML = `<div class="empty">Cannot run: ${esc(d.error || "uncompilable plan")}</div>`; return; }
+    runId = d.run_id;
+  } catch (e) { out.innerHTML = `<div class="empty">Run failed: ${esc(String(e))}</div>`; return; }
+  out.innerHTML = "";
+  const es = new EventSource(`/executive/run/${encodeURIComponent(runId)}/stream?interval_s=0.6`);
+  execStream = es;
+  es.onmessage = (ev) => {
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.done) {
+      const tag = m.safed ? "SAFED" : "COMPLETED";
+      const c = m.safed ? "#e0a000" : "var(--accent)";
+      out.insertAdjacentHTML("beforeend",
+        `<div style="margin-top:6px"><b style="color:${c}">${tag}</b> <span style="color:var(--muted)">· ${esc(String(m.n_legs_total))} leg(s)</span></div>`);
+      es.close(); if (execStream === es) execStream = null;
+      return;
+    }
+    const c = m.outcome === "ok" ? "var(--accent)"
+      : (m.outcome === "safed" || m.outcome === "blocked") ? "#e0a000" : "var(--muted)";
+    out.insertAdjacentHTML("beforeend",
+      `<div><span style="color:var(--muted)">t${esc(String(m.t_s))}</span> `
+      + `<span style="color:${c}">${esc(m.kind)}</span> — ${esc(m.detail)} `
+      + `<span style="color:${c}">[${esc(m.outcome)}]</span></div>`);
+  };
+  es.onerror = () => { if (execStream === es) { es.close(); execStream = null; } };
+}
+
+
 async function loadPane(name) {
   try {
     if (name === "api") {
@@ -2265,6 +2316,7 @@ async function loadPane(name) {
 // these thin aliases pass the SEC-04 escaper / write the result into the DOM, preserving behaviour.
 function renderEvidence(d) { return window.STEWIE_EVIDENCE_HTML.evidenceHTML(d, (typeof esc === "function") ? esc : null); }
 $("srvrefresh").onclick = () => loadPane("server");
+if ($("playrun")) $("playrun").onclick = playSimRun;        // Loop #2: SSE playback of a SIM run
 
 // TR-02/03/04 Trainer pane controls: refresh the recorded-session history, pick a session, and scrub its
 // debrief legs (seen-vs-estimated-vs-truth). The scrubber re-renders from the cached debrief payload (no
