@@ -2174,7 +2174,6 @@ async function loadPane(name) {
     } else if (name === "trainer") {
       await loadTrainer();                                               // TR-02/03/04: program + truth + debrief boards
     } else if (name === "validation" && !_PANE_LOADED.validation) {
-      _PANE_LOADED.validation = true;
       const d = await (await fetch("/figures")).json();
       const vs = $("valselect");
       if (d.ok && d.figures.length) {
@@ -2183,13 +2182,14 @@ async function loadPane(name) {
         const show = () => { $("valimg").src = vs.value; $("valimg").style.display = "block"; };
         vs.onchange = show; show();
       }
+      _PANE_LOADED.validation = true;   // #289: latch loaded ONLY after the fetch+render succeeded -- a thrown
+      //                                   fetch leaves it false so the next open retries (no wedged-empty pane)
     } else if (name === "server") {                                       // live ops view: refresh every open
       const [h, m] = await Promise.all([fetch("/healthz").then((r) => r.json()),
                                         fetch("/metrics").then((r) => r.json())]);
       $("srvout").textContent = "health\n" + JSON.stringify(h, null, 2)
                               + "\n\nmetrics\n" + JSON.stringify(m, null, 2);
     } else if (name === "config" && !_PANE_LOADED.config) {
-      _PANE_LOADED.config = true;
       const c = await (await fetch("/config/full")).json();   // #61: the organized one-call state
       const cards = $("cfgcards"); cards.innerHTML = "";
       const card = (title, rows) => {
@@ -2209,10 +2209,11 @@ async function loadPane(name) {
                     ["SPICE kernels", yn(c.data.spice_available)],
                     ["twin snapshots", c.data.twin_snapshots]]);
       $("cfgout").textContent = JSON.stringify(c.overlay, null, 2);
+      _PANE_LOADED.config = true;       // #289: latch loaded ONLY after the fetch+render succeeded
     } else if (name === "evidence" && !_PANE_LOADED.evidence) {          // #108: dissertation evidence
-      _PANE_LOADED.evidence = true;
       const d = await (await fetch("/evidence")).json();
       if (d && d.ok) $("evbox").innerHTML = renderEvidence(d);           // empty state kept if the fetch fails
+      _PANE_LOADED.evidence = true;     // #289: latch loaded ONLY after the fetch+render succeeded
     }
   } catch (e) { /* server not reachable (file://) -> panes keep their placeholder/empty state */ }
 }
