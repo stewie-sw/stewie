@@ -148,8 +148,12 @@ def drive_power_w() -> float:
 
 
 def drive_energy_per_m() -> float:
-    """Joules per metre driven at the nominal 0.30 m/s: P_drive / v."""
-    return drive_power_w() / DRIVE_SPEED_MS
+    """Joules per metre of FLAT drive. #273: the GROUNDED lunar tractive draw (lunar_drive_power_w at the
+    Moon's g, defined below), NOT the Earth-test Table-3 motor draw (drive_power_w, ~40 W) which
+    over-estimates the lunar flat-drive ~6x. This module default is the Moon value (the project's default
+    body); plan_context resolves it per the mission's body. drive_power_w() stays the raw motor spec
+    (offload energy uses it)."""
+    return lunar_drive_power_w(slope_deg=0.0) / DRIVE_SPEED_MS
 
 
 def dig_power_w() -> float:

@@ -1102,9 +1102,12 @@ def _tiny_mission():
 
 def test_endurance_flat_range_is_grounded():
     e = MP.endurance(_tiny_mission())
-    # ~4.795 MJ / 134.6 J/m -> ~35.6 km full pack, ~32 km to the 10% reserve
-    assert 34.0 < e["range_flat_full_km"] < 37.0
-    assert 30.0 < e["range_flat_reserve_km"] < 34.0
+    # #273: ~4.795 MJ / ~14.6 J/m (the GROUNDED lunar flat-drive draw) -> ~329 km full pack, ~296 km to the
+    # 10% reserve. This is the flat-drive-ONLY theoretical ceiling (real missions are dig/housekeeping-
+    # dominated -- see the conops test); sensitive to crr=0.15 / efficiency=0.5 (tagged estimates). The
+    # pre-#273 Earth-test ~135 J/m gave ~35 km (~9x lower -- it over-estimated the lunar drive draw).
+    assert 300.0 < e["range_flat_full_km"] < 360.0
+    assert 270.0 < e["range_flat_reserve_km"] < 320.0
     assert e["range_flat_reserve_km"] < e["range_flat_full_km"]   # reserve cuts range
     assert e["duration_flat_h"] > 20.0
 
@@ -1149,16 +1152,21 @@ def test_endurance_carries_power_regime():
 def test_endurance_conops_reconciliation_drums_dominate():
     c = MP.endurance(_tiny_mission())["conops"]
     assert c["traverse_km"] == 70.0 and c["mission_days"] == 11.0          # SCHULER24 ConOps
-    assert 1.5 < c["drive_packs"] < 2.5                                    # 70 km drive ~ 2 packs
-    assert c["dig_packs"][0] > c["drive_packs"]                            # digging 5-10 t > driving
+    # #273: 70 km at the GROUNDED lunar flat-drive draw (~14.6 J/m) ~ 0.2 packs (the pre-#273 Earth-test
+    # ~135 J/m gave ~2 packs); digging 5-10 t dwarfs driving even more strongly now.
+    assert 0.1 < c["drive_packs"] < 0.4                                    # 70 km drive ~ 0.2 packs (lunar)
+    assert c["dig_packs"][0] > c["drive_packs"]                            # digging 5-10 t >> driving
     assert c["drums_dominate"] is True
 
 
 def test_timescale_is_body_dependent():
-    # Moon: a 30 h sortie fits easily in the ~9-11 day sun window; Mars: it spans multiple sols
+    # #273: with the grounded lunar drive a FULL-RANGE sortie (~296 km) is ~274 h ~= one lunar sun window,
+    # i.e. ~0.77 of a lunar daylight period; on Mars (shorter day, higher g -> shorter range) the same
+    # sortie spans many sols. The robust, crr-insensitive body-dependence is the spans_days contrast
+    # (moon < 1 daylight period; mars >> 1 sol), not the marginal fits_in_window boolean.
     moon = MP.endurance(_tiny_mission())["timescale"]
     assert moon["day_label"] == "lunar day" and moon["solar_day_h"] > 700
-    assert moon["fits_in_window"] is True and moon["sorties_per_window"] > 5
+    assert moon["spans_days"] < 1.0                       # a full-range sortie stays within one lunar daylight period
     mars_m = MP.mission_from_dict({"name": "m", "body": "mars", "charger": [0, 0],
                                    "orders": [{"action": "c", "kind": "cut", "x": 1, "y": 1, "footprint_m2": 9, "depth_m": 0.02}]})
     mars = MP.endurance(mars_m)["timescale"]
@@ -1597,16 +1605,17 @@ def test_p01_unreachable_work_site_credits_zero_work():
     """P-01: a work site the rover can never reach (a full charge can't get there above reserve) must
     contribute ZERO mass / energy / duration and NO timeline dig entry -- the prior bug recorded the leg
     as infeasible but still ran spend() and credited the full dig at the never-visited site."""
-    # ipex: battery ~4.79 MJ, drive ~135 J/m, reserve 0.10 -> usable ~4.31 MJ reaches ~31.9 km above reserve.
-    # Put a dig 80 km from the charger: no full charge reaches it -> drive() records infeasible.
-    far = (80000.0, 0.0)
+    # #273: ipex battery ~4.79 MJ at the GROUNDED lunar flat-drive draw (~14.6 J/m), reserve 0.10 -> usable
+    # ~4.31 MJ reaches ~296 km above reserve. So the unreachable site must be FARTHER than ~296 km (the
+    # pre-#273 Earth-test ~135 J/m only reached ~32 km). Put a dig 400 km out: no full charge reaches it.
+    far = (400000.0, 0.0)
     trip = dict(kind="dig", site=far, label="far excavate", mass=10.0,
                 dig_e=10.0 * MP.DIG_J_PER_KG, dig_t=10.0 / MP.DIG_RATE_KG_S,
                 haul_m=0.0, haul_e=0.0, lift_e=0.0, dest=far, actions=frozenset({"far"}))
     m = MP.Mission("unreach", "moon", [MP.BuildOrder("far", "cut", far[0], far[1], 36.0, 0.05)])
     tl, per_trip, core = MP._simulate(m, [trip])
     assert core["feasible"] is False                                 # the unreachable leg is flagged
-    assert any("80000" in r or "stranded" in r or "reaches only" in r for r in core["infeasible_reasons"])
+    assert any("400000" in r or "stranded" in r or "reaches only" in r for r in core["infeasible_reasons"])
     # ZERO credit for work never performed at the unreachable site:
     assert core["mass_kg"] == 0.0, f"credited {core['mass_kg']} kg at an unreachable site"
     assert core["energy_J"] == 0.0, f"credited {core['energy_J']} J at an unreachable site"

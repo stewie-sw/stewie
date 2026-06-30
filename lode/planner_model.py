@@ -15,6 +15,7 @@ import json
 import math
 import os
 
+from stewie.specs import ipex_specs                 # #273: gravity-aware lunar drive power (not the Earth-test draw)
 from stewie.specs import vehicles as V             # vehicle/tool capability registry (gate order kinds)
 from stewie.physics import validation as VAL        # RB-01: physical-domain validation at this input boundary
 from stewie.specs.bodies import get_body as _get_body, params_for_body  # soil model (soil override)
@@ -75,7 +76,14 @@ def plan_context(mission) -> PlanningContext:
     dig_factor = float(getattr(mission, "dig_energy_factor", None) or 1.0)
     return PlanningContext(
         dig_j_per_kg=float(veh.dig_energy_j_per_kg) * dig_factor,
-        drive_j_per_m=float(veh.drive_power_w) / DRIVE_SPEED_MS,
+        # #273: the FLAT per-metre drive ENERGY is the gravity-aware lunar tractive draw at the mission's
+        # body g (lunar_drive_power_w), NOT the Earth-test Table-3 motor draw (veh.drive_power_w, ~40 W,
+        # which over-estimates the lunar flat-drive ~6x). For an ipex Moon mission this == the module
+        # drive_energy_per_m() default (byte-identical); a higher-g body costs proportionally more. The
+        # per-segment slope/soil effect enters via slip in _segmented_haul_energy, so this is slope=0.
+        # drive_power_w stays the raw spec (offload energy uses it).
+        drive_j_per_m=ipex_specs.lunar_drive_power_w(
+            slope_deg=0.0, mass_kg=float(veh.dry_mass_kg), g_ms2=body_gravity(mission.body)) / DRIVE_SPEED_MS,
         battery_j=_vehicle_battery_j(veh),
         drum_kg=float(veh.drum_capacity_kg),
         rover_mass_kg=float(veh.dry_mass_kg),
