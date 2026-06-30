@@ -6,6 +6,7 @@ brick). Public read. Delegates to server.state.moon_dem; no app-module import (n
 from __future__ import annotations
 
 import os
+from dataclasses import asdict
 
 import numpy as np
 from fastapi import APIRouter, Depends
@@ -37,3 +38,15 @@ def world(site: str = "haworth", _auth: str = Depends(require_auth)):
     cell_m = float(dem[1]) if (isinstance(dem, tuple) and len(dem) >= 2 and dem[1]) else 5.0
     w = WorldState(rows=rows, cols=cols, cell_m=cell_m, dem_source=_SITE_SOURCE.get(site, site))
     return {"ok": True, "world": w.model_dump()}
+
+
+@router.get("/world/transaction")
+def world_transaction(_auth: str = Depends(require_auth)):
+    """Gap A1 / DT-01: the single most recent consistent linked world-state transaction -- the one
+    query that returns the conserved authority, observed twin, plan, and belief as ONE snapshot (not
+    four independent reads). ``committed: False`` before any transition has been recorded. Auth-gated."""
+    wss = S.world_state_service()
+    if wss.transaction_count() == 0:
+        return {"ok": True, "committed": False, "count": 0}
+    return {"ok": True, "committed": True, "count": wss.transaction_count(),
+            "transaction": asdict(wss.latest())}

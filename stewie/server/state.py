@@ -43,39 +43,64 @@ def moon_dem(site: str = "haworth"):
     return out
 
 
-def as_built_dem(site, dem, origin):
-    """#242/#267/#280: resolve the PLANNING SURFACE every consumer (planner + 3D as-built mesh) plans/renders
-    on, as a precedence stack -- OBSERVED-where-measured > AS-BUILT remembered > pristine -- so they cannot
-    diverge from what prior missions built or what perception has measured. ``dem`` is the (z, cell) pair.
+def current_terrain_view(site, dem, origin):
+    """#242/#267/#280 + gap A2: the ONE composed planning surface every consumer (planner + 3D as-built
+    mesh + cockpit) reads, as a typed ``CurrentTerrainView`` that RETAINS provenance -- the precedence
+    stack OBSERVED-where-measured > AS-BUILT remembered > pristine, plus a per-cell source map and the
+    provenance counters (as-built version, observed twin version, observed fraction). ``dem`` is the
+    (z, cell) pair; a None DEM returns None.
       1. AS-BUILT (#242/#267): imprint a site's recorded TerrainMemory (a fine work-area memory resampled
          onto the coarse LOLA cell). No memory -> pristine unchanged.
-      2. OBSERVED (#280): overlay the durable perception/resync TwinStore's current() heights, but ONLY where
-         it has MEASURED coverage (twin.observed_mask()), so a thin/empty resync can never degrade a plan.
-         Gated to Haworth (the single global observed twin) + an exact grid match. Measured reality wins.
-    A None DEM passes through. Defensive: each layer is an enhancement -- a bad memory / twin falls back to
-    the lower layer and never raises (planning must not fail on the world-model overlay)."""
+      2. OBSERVED (#280): overlay the durable perception/resync TwinStore's current() heights, but ONLY
+         where it has MEASURED coverage (twin.observed_mask()), so a thin/empty resync can never degrade a
+         plan. Gated to Haworth (the single global observed twin) + an exact grid match. Measured reality
+         wins. Defensive: a bad memory / twin is ignored (the composer drops a wrong-shaped layer); the
+         gather never raises (planning must not fail on the world-model overlay)."""
     if dem is None:
-        return dem
+        return None
     z, cell = dem
+    as_built_z = None
+    as_built_version = 0
     try:                                                 # layer 1: as-built TerrainMemory
         from stewie.specs.config import data_dir
         from stewie.twin import terrain_memory as TM
         mem = TM.load_site(data_dir(), site)
         if mem is not None:
-            z = mem.imprint_on_dem_resampled(z, dem_cell=cell, dem_origin=origin)
+            as_built_z = mem.imprint_on_dem_resampled(z, dem_cell=cell, dem_origin=origin)
+            as_built_version = int(getattr(mem, "version", 0))
     except Exception as e:   # noqa: BLE001 -- never fail a consumer on the as-built enhancement
         log.warning("as-built imprint skipped for site %r: %s", site, e)
+        as_built_z, as_built_version = None, 0
+    observed_heights = observed_mask = None
+    twin_version = 0
     try:                                                 # layer 2 (#280): observed twin, where measured
         if site == "haworth":                            # the single global observed/perception twin is Haworth's
             tw = twin()
-            if tuple(tw.base.shape) == tuple(z.shape):   # same tile grid -> 1:1, no resample
-                mask = tw.observed_mask()
-                if mask.any():
-                    z = z.copy()                         # don't mutate the as-built/pristine array in place
-                    z[mask] = tw.current()[mask]         # measured reality overrides the modelled surface
+            import numpy as _np
+            if tuple(tw.base.shape) == tuple(_np.asarray(z).shape):   # same tile grid -> 1:1, no resample
+                m = tw.observed_mask()
+                if m.any():
+                    observed_heights, observed_mask = tw.current(), m
+                    twin_version = int(getattr(tw, "version", 0))
     except Exception as e:   # noqa: BLE001 -- the observed overlay is an enhancement; never fail a plan
         log.warning("observed-twin overlay skipped for site %r: %s", site, e)
-    return (z, cell)
+        observed_heights = observed_mask = None
+        twin_version = 0
+    from stewie.twin.terrain_view import compose_terrain_view
+    return compose_terrain_view(z, cell, as_built_z=as_built_z, as_built_version=as_built_version,
+                                observed_heights=observed_heights, observed_mask=observed_mask,
+                                twin_version=twin_version)
+
+
+def as_built_dem(site, dem, origin):
+    """The (z, cell) planning-surface contract every #242/#267/#280 call site uses. Delegates to
+    ``current_terrain_view`` (the one composition path) and returns just its composed heights -- so the
+    planner/mesh keep their array contract while the typed view + provenance is available to callers
+    that want it. A None DEM passes through unchanged."""
+    view = current_terrain_view(site, dem, origin)
+    if view is None:
+        return dem
+    return (view.heights, view.cell_m)
 
 
 # ---- the lazy, durable digital twin (RC-02 / W-1) --------------------------------------------
@@ -104,3 +129,28 @@ def twin() -> "TwinStore":
             _TWIN = VT.TwinStore.from_journal(_np.asarray(base, dtype=float), cell_m=5.0,
                                               journal_path=_jp)
     return _TWIN
+
+
+# ---- the lazy, durable world-state authority (gap A1 / DT-01 runtime path) --------------------
+_WSS = None
+_WSS_LOCK = threading.Lock()
+
+
+def world_state_service():
+    """Lazy, process-wide WorldStateService -- the one route-level facade that commits a
+    ``WorldTransaction`` for every meaningful world-state transition (plan / terrain record / resync /
+    belief / execution). Durable: its TransactionLog cold-restores from ``data_dir/twin/world.journal``
+    and journals on. Wraps the same lazy observed twin (``twin``) so a resync route's mutation is
+    captured live. Built once (RC-02-style single-restore under lock)."""
+    global _WSS
+    if _WSS is not None:                                  # fast path (no lock once built)
+        return _WSS
+    with _WSS_LOCK:
+        if _WSS is None:
+            from stewie.server.world_state import WorldStateService
+            from stewie.specs import config as _CFG
+            _jdir = os.path.join(_CFG.data_dir(), "twin")
+            os.makedirs(_jdir, exist_ok=True)
+            _jp = os.path.join(_jdir, "world.journal")
+            _WSS = WorldStateService(twin=twin, journal_path=_jp)
+    return _WSS

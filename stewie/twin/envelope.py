@@ -134,18 +134,31 @@ class TransactionLog:
     def commit(self, *, authority: "ColumnState", twin: "TwinStore", plan: "PlanResult",
                belief: "BeliefState | dict", mission: str, site: str, body: str,
                mission_t_s: float, provenance: str, uncertainty_m: float = 0.0) -> WorldTransaction:
-        """Link the four CURRENT world-state sources into one record, hash-chain it, durably journal
-        it (if journalling), and append it. Returns the committed transaction. Provenance is
-        mandatory (the same discipline the twin enforces)."""
+        """Link the four CURRENT world-state source OBJECTS into one record, hash-chain it, durably
+        journal it (if journalling), and append it. Returns the committed transaction. Extracts each
+        source's identity then delegates to ``commit_snapshot`` (the shared commit path)."""
+        return self.commit_snapshot(
+            authority_sha=authority_sha(authority),
+            twin_version=int(twin.version),
+            twin_hash=twin.events[-1]["hash"] if twin.events else "genesis",
+            plan_id=str(plan.plan_id), belief=belief, mission=mission, site=site, body=body,
+            mission_t_s=mission_t_s, provenance=provenance, uncertainty_m=uncertainty_m)
+
+    def commit_snapshot(self, *, authority_sha: str, twin_version: int, twin_hash: str, plan_id: str,
+                        belief: "BeliefState | dict", mission: str, site: str, body: str,
+                        mission_t_s: float, provenance: str,
+                        uncertainty_m: float = 0.0) -> WorldTransaction:
+        """Commit a transaction from already-extracted source IDENTITIES rather than live source
+        OBJECTS. A route-level facade (``WorldStateService``) holds the latest-known identity of each
+        source (the conserved-authority sha, the observed twin's version/hash, the plan id, the belief)
+        but not a live ColumnState/PlanResult at a resync or terrain-record -- so it commits here.
+        Same hash-chain, same durability, same mandatory provenance as ``commit``."""
         if not provenance or not str(provenance).strip():
             raise ValueError("every world transaction requires non-empty provenance")
-        a_sha = authority_sha(authority)
-        t_ver = int(twin.version)
-        t_hash = twin.events[-1]["hash"] if twin.events else "genesis"
-        plan_id = str(plan.plan_id)
         bel = _belief_snapshot(belief)
-        return self._append(a_sha, t_ver, t_hash, plan_id, bel, str(mission), str(site), str(body),
-                            float(mission_t_s), str(provenance), float(uncertainty_m))
+        return self._append(str(authority_sha), int(twin_version), str(twin_hash), str(plan_id), bel,
+                            str(mission), str(site), str(body), float(mission_t_s), str(provenance),
+                            float(uncertainty_m))
 
     def _chain_hash(self, body: dict, prev: str) -> str:
         h = hashlib.sha256()

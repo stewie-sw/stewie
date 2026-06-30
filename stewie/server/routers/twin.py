@@ -80,6 +80,10 @@ def twin_resync(req: ResyncRequest, identity: str = Depends(require_role("operat
     except ValueError as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     log_event(identity, "twin.resync", str(req.provenance))
+    # gap A1: a resync MUTATES the observed twin -> commit one linked world-state transaction so the
+    # change is captured in the canonical DT-01 log, not only in the twin's own journal.
+    state.world_state_service().record_resync(provenance=f"twin.resync: {req.provenance}",
+                                              site="haworth")
     return {"ok": True, "twin_version": v}
 
 
@@ -157,6 +161,14 @@ def twin_terrain_record(site: str, req: TerrainRecordReq, identity: str = Depend
             raise HTTPException(status_code=400, detail=f"cannot place mission on site grid: {e}")
         TM.save_site(data_dir(), mem)
         log_event(identity, "twin.terrain.record", f"{site}:{mission.name}")
+        # gap A1: fold the conserved terrain change into the one linked world-state log. The
+        # authority identity is a content sha over the as-built cumulative delta (the conserved
+        # surface), so any recorded build moves it -- the DT-01 authority_sha contract.
+        import hashlib as _hl
+        import numpy as _np
+        a_sha = _hl.sha256(_np.asarray(mem.cumulative_delta(), dtype=_np.float64).tobytes()).hexdigest()
+        state.world_state_service().record_terrain(authority_sha=a_sha, mission=str(mission.name),
+                                                   site=site, provenance=f"terrain.record:{mission.name}")
         out = mem.summary()
         out.update({"ok": True, "recorded": True, "chain_valid": mem.verify_chain(), **res})
     return out

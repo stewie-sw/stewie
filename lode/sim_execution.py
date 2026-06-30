@@ -12,6 +12,7 @@ no terrain or state. The route/persistence/HMI that call this are a separate wir
 from __future__ import annotations
 
 from lode.executive import executive_step
+from stewie.contracts import ExecutionEvent
 from stewie.contracts.executive import ExecutiveState, MissionExecutive
 
 SIM_LABEL = "sim"   # MO-04 DataLabel: produced on the sim authority, never promotable to LIVE here
@@ -68,3 +69,29 @@ def run_sim_execution(executive: MissionExecutive, legs, *, operator: str = "ope
     return {"label": SIM_LABEL, "final_state": ex.state.value, "transitions": transitions,
             "executed_legs": executed, "n_legs_total": len(legs), "safed": safed,
             "nonnominal_legs": len(nonnominal), "executive": ex}
+
+
+def execution_events(run: dict, *, vehicle_id: str = "ipex") -> list[ExecutionEvent]:
+    """Convert a ``run_sim_execution`` result into the typed FS-04 ExecutionEvent timeline: one ``leg``
+    event per executed leg, then one terminal event -- ``safe``/``safed`` if the run safed, else
+    ``acceptance``/``ok`` for a completed run. ``t_s`` is the leg ORDINAL (the SIM run carries no
+    wall-clock); a non-nominal leg action (pause/relocalize/replan/reverse) is surfaced as
+    ``outcome='blocked'`` so a reader can tell a clean leg from a held/replanned one. The discrete
+    record the WorldStateService commits and the Fleet/Report panes render."""
+    events: list[ExecutionEvent] = []
+    executed = run.get("executed_legs", []) or []
+    for leg in executed:
+        i = int(leg.get("leg", len(events)))
+        action = str(leg.get("action", "continue"))
+        outcome = "ok" if action in ("continue", "persist") else "blocked"
+        events.append(ExecutionEvent(t_s=float(i), vehicle_id=vehicle_id, kind="leg",
+                                     detail=f"sim leg {i}: {action}", outcome=outcome))
+    t_term = float(len(executed))
+    if run.get("safed"):
+        events.append(ExecutionEvent(t_s=t_term, vehicle_id=vehicle_id, kind="safe",
+                                     detail="SIM watchdog: run safed", outcome="safed"))
+    else:
+        events.append(ExecutionEvent(t_s=t_term, vehicle_id=vehicle_id, kind="acceptance",
+                                     detail=f"SIM run {run.get('final_state', 'completed')}",
+                                     outcome="ok"))
+    return events

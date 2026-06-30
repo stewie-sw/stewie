@@ -18,6 +18,7 @@ import (the lifecycle bridge is a leaf), so no router<->app cycle.
 """
 from __future__ import annotations
 
+import logging
 import secrets
 
 from fastapi import APIRouter, Depends
@@ -31,6 +32,7 @@ from stewie.server import state
 from stewie.server.deps import require_director, require_role
 from stewie.server.services import log_event
 
+log = logging.getLogger("stewie.server")
 router = APIRouter()
 
 
@@ -149,6 +151,15 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
            "n_legs_total": run["n_legs_total"], "safed": run["safed"], "nonnominal_legs": run["nonnominal_legs"],
            "executed_legs": run["executed_legs"], "mission_id": req.mission_id, "site": req.site}
     OBJ.save_run(run_id, rec, owner=identity)                  # #245: persist the run for later retrieval
+    # gap W1: the SIM run is one canonical world-state record -- commit the released plan + per-leg
+    # ExecutionEvents through the one DT-01 log so /world/transaction reflects the executed mission.
+    # Best-effort: the run already succeeded and is persisted; a world-log failure must not fail it.
+    try:
+        from stewie.server.world_state import commit_sim_run
+        commit_sim_run(state.world_state_service(), run, mission=req.mission_id, site=req.site,
+                       body=req.body, plan_id=req.mission_id)
+    except Exception as e:   # noqa: BLE001 -- the world-state record is best-effort, never fail the run
+        log.warning("world-state commit for SIM run %s skipped: %s", run_id, e)
     log_event(identity, "executive.run",
               f"{run_id} {req.mission_id}: {run['final_state']} ({run['n_legs_total']} legs)")
     return JSONResponse(content={"ok": True, "run_id": run_id, **rec, "skipped": skipped})
