@@ -7,14 +7,17 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from stewie.server import objects as OBJ
-from stewie.server.deps import require_auth
+from stewie.server.deps import require_auth, require_role
 from stewie.server.services import log_event
 
 router = APIRouter()
 
 
 @router.post("/structures/custom/{name}")
-def structure_save(name: str, doc: dict, _auth: str = Depends(require_auth)):
+def structure_save(name: str, doc: dict, _auth: str = Depends(require_role("operator"))):
+    # #294 (AG-07): a custom structure is saved into the SHARED LIVE template library (save_structure
+    # namespace="live") and expands into ANY operator's plan, so WRITING it is operator+ -- a guest/trainee
+    # (below operator on the AG-01 ladder) must not pollute the shared pool. Reads stay any-auth (S-06).
     try:
         out = OBJ.save_structure(name, doc, owner=_auth)      # AG-05: stamp the creating operator
         log_event(_auth, "structure.save", out["name"])
