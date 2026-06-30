@@ -198,15 +198,39 @@ def load_draft(owner: str) -> dict | None:
 
 # ---- #245: per-owner SIM-execution RUN store (the recorded run_sim_execution output, retrievable later) ----
 # Sandbox-only, keyed by run_id; the live executive object is NEVER persisted (only the serializable record).
+_RUN_MAX = 200          # #307: hard cap on retained runs PER OWNER (oldest pruned) -- a long operator session
+#                         writes one file per /executive/run, so without a cap the run dir grows without bound.
+
+
+def _prune_runs(d: str) -> None:
+    """#307: bound the per-owner SIM-run store -- delete the oldest run files beyond _RUN_MAX (by mtime),
+    so the run directory cannot grow without limit. Best-effort (mirrors the M-09 session cap + the #283
+    FIFO render cache); a pruned run simply 404s on later retrieval, like an aged-out session."""
+    try:
+        files = [os.path.join(d, f) for f in os.listdir(d) if f.endswith(".json")]
+    except OSError:
+        return
+    if len(files) <= _RUN_MAX:
+        return
+    files.sort(key=lambda p: os.path.getmtime(p))                # oldest first
+    for p in files[:len(files) - _RUN_MAX]:
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+
+
 def save_run(run_id: str, doc: dict, owner: str) -> dict:
     """Persist a SIM execution run per-owner (sandbox), keyed by run_id, so an operator can retrieve a
     completed run. ``doc`` is the run_sim_execution record's serializable fields."""
     slug = _slug(run_id)
-    path = os.path.join(_ns_dir("runs", "sandbox", owner), f"{slug}.json")
+    d = _ns_dir("runs", "sandbox", owner)
+    path = os.path.join(d, f"{slug}.json")
     meta = _owner_meta(path, owner)
     from stewie.twin.io_fields import atomic_write_bytes
     atomic_write_bytes(path, json.dumps({"run_id": slug, **meta, **doc}, indent=1, sort_keys=True,
                                         default=str).encode())
+    _prune_runs(d)                                               # #307: cap the per-owner run store (FIFO oldest)
     return {"ok": True, "run_id": slug}
 
 

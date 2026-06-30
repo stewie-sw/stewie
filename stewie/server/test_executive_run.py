@@ -90,3 +90,20 @@ def test_save_run_is_per_owner_isolated(monkeypatch, tmp_path):
     OBJ.save_run("r1", {"final_state": "completed"}, owner="alice@x")
     assert OBJ.load_run("r1", owner="alice@x")["final_state"] == "completed"
     assert OBJ.load_run("r1", owner="bob@x") is None                        # per-owner isolation
+
+
+def test_run_store_is_capped_per_owner_oldest_pruned(monkeypatch, tmp_path):  # #307
+    """The per-owner SIM-run store is FIFO-capped: writing more than _RUN_MAX runs prunes the oldest, so a
+    long operator session cannot grow the run dir without bound. The newest stay retrievable; the oldest 404."""
+    import os
+    import time
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    from stewie.server import objects as OBJ
+    monkeypatch.setattr(OBJ, "_RUN_MAX", 3)
+    for i in range(6):
+        OBJ.save_run(f"run{i}", {"final_state": "completed", "i": i}, owner="op@x")
+        time.sleep(0.01)                                          # distinct mtimes -> well-defined FIFO order
+    d = OBJ._ns_dir("runs", "sandbox", "op@x")
+    assert len([f for f in os.listdir(d) if f.endswith(".json")]) == 3      # capped at _RUN_MAX
+    assert OBJ.load_run("run5", owner="op@x") is not None                   # newest retained
+    assert OBJ.load_run("run0", owner="op@x") is None                       # oldest pruned -> 404s on retrieval
