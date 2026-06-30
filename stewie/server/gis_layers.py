@@ -53,7 +53,7 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
     key = (kind, site, round(float(sun_el), 2), round(float(sun_az), 2), sym)
     if key in _CACHE:
         return _CACHE[key]
-    dem, _, cell_m = _work_area(mp, bundle_dir)
+    dem, (r0, c0), cell_m = _work_area(mp, bundle_dir)
 
     if kind == "hazard":
         # the inset hazard is the ROCK+slope navigation COST (build_hazard_map) the routing detours on -- a
@@ -72,8 +72,16 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
         # #234 cleanup: these are byte-identical to the globe/work-area drape, so share the ONE source of
         # truth (_layer_rgba) instead of re-implementing each formula here. A new shared layer kind now only
         # needs adding to _layer_rgba -- this inset path picks it up. (hazard stays the richer cost above.)
+        gnb = None
+        if kind in ("illumination", "incidence"):   # #266: re-express the TRUE sun az in the grid frame
+            try:
+                from stewie.terrain.site_dem import grid_north_bearing_deg
+                cx = (c0 + dem.shape[1] / 2.0) * cell_m; cy = (r0 + dem.shape[0] / 2.0) * cell_m
+                gnb = grid_north_bearing_deg(cx, cy, bundle_dir=bundle_dir)
+            except (ImportError, ValueError):        # pyproj absent / off-tile -> skip (uncorrected)
+                gnb = None
         rgba = _layer_rgba(dem, cell_m, kind, sun_az, sun_el,
-                           slope_vmax=slope_vmax, slope_classes=slope_classes)
+                           slope_vmax=slope_vmax, slope_classes=slope_classes, grid_north_bearing=gnb)
         if rgba is None:
             return None
     else:
@@ -187,7 +195,27 @@ def _reproject(source_rgba, b, fwd, *, out_px: int = 1024, sub=None):
     return out.astype("uint8"), bbox
 
 
-def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0, *, slope_vmax=30.0, slope_classes=0):
+def grid_sun_az(sun_az_true_deg, grid_north_bearing_deg):
+    """#266: express a TRUE selenographic sun azimuth (solar.py sun_az_el, 'azimuth from local north,
+    eastward') in dart.illumination's DEM-GRID azimuth (CW from +row), so the horizon march points at
+    the real sun.
+
+    Two facts make this a REFLECTION, not a rotation: (1) the DEM is IAU_2015:30135 south-polar
+    stereographic, so grid axes are rotated from true north by the meridian convergence (~|lon| at the
+    pole); (2) load_haworth_dem keeps the north-up raster (row 0 = max stereo-Y), while
+    dart.illumination ASSUMES origin-lower-left (+row = north) -- the row-flip makes the (row,col) grid
+    LEFT-handed vs the true compass. Empirically (real Haworth tile) the +row direction (grid az=0) has
+    true bearing B = grid_north_bearing_deg ~= 205.5 deg, and +col (grid az=90) has B-90 -- so a grid
+    march at azimuth ``a`` points at true bearing ``B - a``. Inverting for the sun: a = B - sun_az_true.
+    grid_north_bearing_deg is measured per tile (site_dem.grid_north_bearing_deg) so this generalises to
+    any imported DEM/longitude. NOTE: feeding the true azimuth straight in (the pre-#266 bug) marched at
+    ``B - sun_az_true`` instead of ``sun_az_true`` -- a reflection whose error is ~26 deg near az=90
+    (what the cockpit council first saw) but up to ~180 deg at other sun positions."""
+    return (float(grid_north_bearing_deg) - float(sun_az_true_deg)) % 360.0
+
+
+def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0, *, slope_vmax=30.0, slope_classes=0,
+                grid_north_bearing=None):
     """GIS-WA2: each layer's colouring as a PURE function of a DEM patch + its cell size -- the single
     source of truth shared by the globe drape (render_globe, full-tile, reprojected) and the order-frame
     work-area drape (/dem/workarea.png, native crop). Returns (H,W,4) uint8 RGBA, or None for an unknown
@@ -235,7 +263,8 @@ def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0, *, slope_vmax=30.0, 
         return rgba.astype("uint8")
     if kind == "illumination":
         from dart.illumination import horizon_clip
-        lit = horizon_clip(dem, cell, float(sun_az), float(sun_el))
+        saz = grid_sun_az(sun_az, grid_north_bearing) if grid_north_bearing is not None else float(sun_az)  # #266 true->grid
+        lit = horizon_clip(dem, cell, saz, float(sun_el))
         rgba = np.zeros((*lit.shape, 4))
         rgba[..., 2] = 180; rgba[..., 3] = np.where(lit, 0, 165)
         return rgba.astype("uint8")
@@ -253,7 +282,8 @@ def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0, *, slope_vmax=30.0, 
         # cameras + yields poor solar flux even where geometrically lit. Amber ramp 0deg faint -> 90+deg
         # opaque. Ported here (#239) so the globe + work-area/3D incidence drape work (was _layer_rgba->None).
         from dart.illumination import incidence_angle_deg
-        inc = incidence_angle_deg(dem, cell, float(sun_az), float(sun_el))
+        saz = grid_sun_az(sun_az, grid_north_bearing) if grid_north_bearing is not None else float(sun_az)  # #266 true->grid
+        inc = incidence_angle_deg(dem, cell, saz, float(sun_el))
         t = np.clip(np.nan_to_num(inc, nan=90.0) / 90.0, 0, 1)
         rgba = np.zeros((*inc.shape, 4))
         rgba[..., 0] = 255; rgba[..., 1] = 200 * (1 - t); rgba[..., 2] = 40
@@ -344,8 +374,16 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         cm = cell_m * stride
         # the per-kind colouring is the shared _layer_rgba helper (same formulas the order-frame
         # work-area drape uses); here it runs on the downsampled full tile + is reprojected for the globe.
+        gnb = None
+        if kind in ("illumination", "incidence"):    # #266: re-express the TRUE sun az in the grid frame
+            try:
+                from stewie.terrain.site_dem import grid_north_bearing_deg
+                _h, _w = dem_full.shape[:2]           # native-frame tile centre (orientation, stride-invariant)
+                gnb = grid_north_bearing_deg((_w / 2.0) * cell_m, (_h / 2.0) * cell_m, bundle_dir=bundle_dir)
+            except (ImportError, ValueError):
+                gnb = None
         rgba = _layer_rgba(dem, cm, kind, sun_az, sun_el,
-                           slope_vmax=slope_vmax, slope_classes=slope_classes)
+                           slope_vmax=slope_vmax, slope_classes=slope_classes, grid_north_bearing=gnb)
         if rgba is None:
             return None
         out = _reproject(rgba, b, fwd, out_px=1024)   # _layer_rgba already returns uint8

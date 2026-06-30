@@ -199,6 +199,30 @@ def dem_origin_to_latlon(x, y, *, bundle_dir=None):
     return float(lat), float(lon)
 
 
+def grid_north_bearing_deg(x, y, *, bundle_dir=None):
+    """#266: the TRUE selenographic bearing [deg, CW from north] of the DEM GRID's +row direction
+    (dart.illumination's azimuth-0 axis) at order-frame point (x, y) [m]. The DEM is south-polar
+    stereographic (IAU_2015:30135) kept north-up (row 0 = max stereo-Y), so +row points roughly SOUTH
+    plus the meridian convergence -- NOT true north (empirically ~205.5 deg at the Haworth tile centre,
+    lon -25.5). Measured by finite-difference of dem_origin_to_latlon along +y_dem (= +row), so it
+    captures BOTH the projection convergence and the raster row orientation for any imported tile;
+    gis_layers.grid_sun_az(true_az, this) then re-expresses a true sun azimuth in the grid frame.
+    Raises ImportError if pyproj is absent (caller may skip the correction), ValueError only if (x, y)
+    is off-tile by more than a cell either way."""
+    import math
+    g = json.load(open(os.path.join(_haworth_bundle(bundle_dir), "metadata.json")))["grid"]
+    cell = float(g["cell_m"])
+    lat0, lon0 = dem_origin_to_latlon(x, y, bundle_dir=bundle_dir)
+    try:                                                          # +1 row = +y_dem = grid azimuth 0
+        lat1, lon1 = dem_origin_to_latlon(x, y + cell, bundle_dir=bundle_dir); flip = 0.0
+    except ValueError:                                           # at the top edge: step -row, reverse
+        lat1, lon1 = dem_origin_to_latlon(x, y - cell, bundle_dir=bundle_dir); flip = 180.0
+    p1, p2, dl = math.radians(lat0), math.radians(lat1), math.radians(lon1 - lon0)
+    east = math.sin(dl) * math.cos(p2)
+    north = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
+    return (math.degrees(math.atan2(east, north)) + flip) % 360.0
+
+
 def dem_georef_corners(bundle_dir=None) -> dict:
     """The committed tile's GLOBE footprint: world_bounds_m corners (IAU_2015:30135 south-polar
     stereographic) inverse-projected to selenographic lat/lon -- so the cockpit can OVERLAY the
