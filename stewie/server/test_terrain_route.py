@@ -105,3 +105,16 @@ def test_terrain_record_holds_the_site_lock_during_the_rmw(client, monkeypatch):
     r = c.post("/twin/terrain/haworth", headers={"X-API-Key": key}, json={"mission": mission})
     assert r.status_code == 200, r.text
     assert held.get("locked") is True, "the load->apply->save RMW ran WITHOUT the per-site lock (#278)"
+
+
+def test_terrain_lock_keys_on_the_sanitized_site_not_the_raw_param():
+    """#282: two site spellings that sanitize to the SAME .npz must share ONE lock, else the #278 lost-mission
+    RMW race re-opens. _terrain_lock keys on TM.safe_site, so spellings that collapse to 'haworth' share a lock,
+    while a genuinely different site gets its own."""
+    from stewie.server.routers import twin as TW
+    from stewie.twin import terrain_memory as TM
+    base = TW._terrain_lock("haworth")
+    for spelling in ("haworth ", "haworth/", "haworth!"):
+        assert TM.safe_site(spelling) == "haworth"            # all collapse to the same persisted .npz key
+        assert TW._terrain_lock(spelling) is base, f"{spelling!r} took a DIFFERENT lock (#282 race re-opened)"
+    assert TW._terrain_lock("de_gerlache_rim") is not base    # a genuinely different site gets its own lock

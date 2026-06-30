@@ -254,6 +254,10 @@ def _safe_site(site: str) -> str:
     return "".join(c for c in str(site) if c.isalnum() or c in ("-", "_")) or "site"
 
 
+safe_site = _safe_site   # #282: public alias -- consumers that must MATCH the persisted .npz key (e.g. the
+#                          per-site RMW lock in routers/twin.py) normalize the site the same way save_site does.
+
+
 def terrain_path(data_dir: str, site: str) -> str:
     """The persisted Terrain-Memory file for a site: ``<data_dir>/terrain_memory/<site>.npz``."""
     return os.path.join(data_dir, "terrain_memory", _safe_site(site) + ".npz")

@@ -27,8 +27,12 @@ _TERRAIN_LOCKS_GUARD = threading.Lock()
 
 
 def _terrain_lock(site: str) -> threading.Lock:
+    # #282: key on the SANITIZED site (the same normalization save_site/load_site use for the .npz path), so
+    # two requests whose site spellings collapse to the same file (e.g. "haworth" vs "haworth ") take the
+    # SAME lock -- keying on the raw param re-opened the #278 lost-mission RMW race for such spellings.
+    key = TM.safe_site(site)
     with _TERRAIN_LOCKS_GUARD:
-        return _TERRAIN_LOCKS.setdefault(site, threading.Lock())
+        return _TERRAIN_LOCKS.setdefault(key, threading.Lock())
 
 
 @router.get("/twin/cg")
