@@ -14,6 +14,7 @@ import io
 import numpy as np
 
 _CACHE: dict = {}
+_CACHE_MAX = 256          # #283: FIFO cap so the per-(kind,site,sun) PNG cache can't grow without bound
 
 
 def _work_area(mp, bundle_dir=None):
@@ -49,8 +50,15 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
     if mp is None:
         from lode import mission_planner as mp
     bundle_dir = mp.bundle_for_site(site)                # raises KeyError/FileNotFoundError -> route 404
+    # #283: quantize the sun to INT degrees + bound it, and key the cache on it ONLY for sun-sensitive kinds
+    # (slope/hazard/psr ignore the sun -- keying on sub-degree sun would bust the cache + grow _CACHE without
+    # bound on the /layers/raster route, mirroring the dem.py /dem/workarea.png treatment, #239). Quantizing
+    # the VALUE (not just the key) keeps the cached layer consistent with its key.
+    sun_el = float(max(-90, min(90, round(float(sun_el)))))
+    sun_az = float(round(float(sun_az)) % 360)
     sym = (round(float(slope_vmax), 2), int(slope_classes)) if kind == "slope" else (30.0, 0)   # G5 key
-    key = (kind, site, round(float(sun_el), 2), round(float(sun_az), 2), sym)
+    sun_part = (sun_el, sun_az) if kind in ("illumination", "incidence") else None
+    key = (kind, site, sun_part, sym)
     if key in _CACHE:
         return _CACHE[key]
     dem, (r0, c0), cell_m = _work_area(mp, bundle_dir)
@@ -88,6 +96,8 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
         return None
     png = _to_png(_upscale(rgba))
     _CACHE[key] = png
+    if len(_CACHE) > _CACHE_MAX:
+        _CACHE.pop(next(iter(_CACHE)), None)             # #283: FIFO evict (mirror _WORKAREA_CACHE)
     return png
 
 

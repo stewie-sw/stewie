@@ -86,3 +86,32 @@ def test_legend_endpoint_carries_the_real_physics(client):
     assert d["hazard"]["obstacle_m"] == 0.075                                       # the envelope
     assert d["slope"]["max_deg"] == 30.0 and "ramp" in d["slope"]
     assert "sun" in d["illumination"] and "sweep" in d["psr"]
+
+
+import os  # noqa: E402
+
+_BUNDLE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                       "samples", "lunar_dem", "haworth_10km_5m")
+
+
+@pytest.mark.skipif(not os.path.isdir(_BUNDLE), reason="Haworth bundle absent")
+def test_layer_cache_is_bounded_and_sun_irrelevant_kinds_share_one_entry(monkeypatch):
+    """#283: render()'s _CACHE keyed sub-degree sun for EVERY kind + had no cap -> a /layers/raster DoS
+    (slope/hazard/psr ignore the sun, yet each distinct sun made a new entry; _CACHE grew unbounded).
+    Now the sun is in the key only for sun-sensitive kinds, quantized to int degrees, and _CACHE is FIFO-capped."""
+    from stewie.server import gis_layers as G
+    G._CACHE.clear()
+    # slope IGNORES the sun -> two different sun geometries collapse to ONE cache entry
+    G.render("slope", sun_az=10, sun_el=5)
+    G.render("slope", sun_az=200, sun_el=40)
+    assert len([k for k in G._CACHE if k[0] == "slope"]) == 1, "slope cached per-sun (#283)"
+    # illumination IS sun-sensitive -> distinct sun -> distinct entries
+    G.render("illumination", sun_az=10, sun_el=6)
+    G.render("illumination", sun_az=200, sun_el=6)
+    assert len([k for k in G._CACHE if k[0] == "illumination"]) == 2, "illumination must key on the sun"
+    # the FIFO cap bounds growth (3 distinct slope-symbology keys under a cap of 2 -> evicts to 2)
+    monkeypatch.setattr(G, "_CACHE_MAX", 2)
+    G._CACHE.clear()
+    for vmax in (10.0, 20.0, 30.0):
+        G.render("slope", slope_vmax=vmax)
+    assert len(G._CACHE) <= 2, f"_CACHE exceeded its FIFO cap: {len(G._CACHE)}"
