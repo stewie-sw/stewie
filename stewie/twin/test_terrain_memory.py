@@ -133,6 +133,31 @@ def test_imprint_on_dem_adds_memory_to_a_larger_base_surface():
     assert np.allclose(base, 100.0)                            # base DEM not mutated (returns a copy)
 
 
+def test_imprint_offset_uses_the_planner_add_convention_at_a_nonzero_anchor():  # #292
+    """The planner maps a LOCAL order coord to a DEM pixel by ADDING dem_origin (planner_acceptance.py:
+    cx=(ox+o.x)/dem_cell; comment "DEM meters where local (0,0) sits"). Terrain Memory's imprint must use
+    the SAME sign, else the remembered as-built surface lands ~2*dem_origin away on every non-zero-anchor
+    (real-Moon) plan. The bug was invisible because every prior imprint/as-built test used dem_origin=(0,0),
+    the one value where +0 == -0."""
+    cell = 5.0
+    tm = TerrainMemory(site="s", rows=4, cols=4, cell_m=cell, origin=(20.0, 20.0))
+    tm.apply(_real_cut_delta(4, 4, cell, 0.2), mission="cut")    # a REAL conserved cut at local order (20,20)
+    base = np.zeros((20, 20))
+    anchor = (10.0, 30.0)                                        # a NON-zero planning anchor (dem_origin)
+    out = tm.imprint_on_dem(base, dem_cell=cell, dem_origin=anchor)
+    # planner ADD convention: DEM pixel = (order + dem_origin)/cell -> row=(20+30)/5=10, col=(20+10)/5=6
+    r0 = int(round((20.0 + anchor[1]) / cell)); c0 = int(round((20.0 + anchor[0]) / cell))
+    assert out[r0:r0 + 4, c0:c0 + 4].min() < 0.0, "imprint did not land at the planner ADD location (#292)"
+    # the OLD subtract location (row=(20-30)/5=-2 clipped, col=(20-10)/5=2) must be untouched
+    assert np.allclose(out[0:2, 2:6], 0.0), "imprint landed at the (wrong) subtract-convention location (#292)"
+    # the coarse/resampled path must use the same ADD sign
+    tmf = TerrainMemory(site="s", rows=10, cols=10, cell_m=cell / 2.0, origin=(20.0, 20.0))
+    tmf.apply(_real_cut_delta(10, 10, cell / 2.0, 0.2), mission="cut")
+    outr = tmf.imprint_on_dem_resampled(np.zeros((20, 20)), dem_cell=cell, dem_origin=anchor)
+    assert outr[r0:r0 + 3, c0:c0 + 3].min() < 0.0              # lands at the ADD region (rows ~10, cols ~6)
+    assert np.allclose(outr[0:3, 0:6], 0.0)                    # NOT at the subtract region
+
+
 def test_imprint_rejects_cell_mismatch():
     tm = TerrainMemory(site="s", rows=4, cols=4, cell_m=0.5)
     with pytest.raises(ValueError):

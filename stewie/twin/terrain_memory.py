@@ -143,15 +143,20 @@ class TerrainMemory:
         CURRENT remembered surface, so a NEW mission can be planned/validated against what prior missions
         actually built rather than the pristine DEM (the Terrain-Memory payoff: opt-in, the default plan
         path is unchanged). The site-grid delta (at self.origin/self.cell_m) is placed onto the DEM at offset
-        round((self.origin - dem_origin)/dem_cell) (x->col, y->row), clipped to the DEM bounds. Requires the
-        memory cell_m to match dem_cell -- a resample is out of scope (raise rather than silently mis-scale)."""
+        round((self.origin + dem_origin)/dem_cell) (x->col, y->row), clipped to the DEM bounds. Requires the
+        memory cell_m to match dem_cell -- a resample is out of scope (raise rather than silently mis-scale).
+
+        #292: dem_origin is "DEM metres where local (0,0) sits", so a LOCAL order coord maps to a DEM pixel by
+        ADDING it -- the SAME convention the planner uses (lode/planner_acceptance.py: cx=(ox+o.x)/dem_cell).
+        The earlier code SUBTRACTED dem_origin, which only matched the planner at dem_origin=(0,0) (every test)
+        and misregistered the as-built surface by ~2*dem_origin on every real-Moon (non-zero-anchor) plan."""
         if abs(float(dem_cell) - self.cell_m) > 1e-9:
             raise ValueError(f"dem_cell {dem_cell} != memory cell_m {self.cell_m} (resample not supported)")
         z = np.array(base_z, dtype=np.float64, copy=True)
         if z.ndim != 2:
             raise ValueError("base_z must be a 2-D DEM")
-        col_off = int(round((self.origin[0] - dem_origin[0]) / self.cell_m))   # x -> col
-        row_off = int(round((self.origin[1] - dem_origin[1]) / self.cell_m))   # y -> row
+        col_off = int(round((self.origin[0] + dem_origin[0]) / self.cell_m))   # x -> col (#292: ADD, match planner)
+        row_off = int(round((self.origin[1] + dem_origin[1]) / self.cell_m))   # y -> row
         r0, c0 = max(0, row_off), max(0, col_off)
         r1, c1 = min(z.shape[0], row_off + self.rows), min(z.shape[1], col_off + self.cols)
         if r1 > r0 and c1 > c0:
@@ -180,8 +185,8 @@ class TerrainMemory:
         jj, ii = np.meshgrid(np.arange(self.cols), np.arange(self.rows))
         x = self.origin[0] + (jj + 0.5) * self.cell_m          # fine memory-cell centers, order frame
         y = self.origin[1] + (ii + 0.5) * self.cell_m
-        col = np.floor((x - dem_origin[0]) / dem_cell).astype(np.int64)   # -> coarse DEM (row, col)
-        row = np.floor((y - dem_origin[1]) / dem_cell).astype(np.int64)
+        col = np.floor((x + dem_origin[0]) / dem_cell).astype(np.int64)   # -> coarse DEM (row, col); #292 ADD
+        row = np.floor((y + dem_origin[1]) / dem_cell).astype(np.int64)
         valid = (row >= 0) & (row < z.shape[0]) & (col >= 0) & (col < z.shape[1])
         if not np.any(valid):
             return z
