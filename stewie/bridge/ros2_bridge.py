@@ -38,6 +38,12 @@ def twist_to_command(linear_x: float, angular_z: float, *, pose: RC.Pose, horizo
         return RC.Safe(reason=RC.SAFE_REASON_OPERATOR)
     yaw = float(pose.yaw_rad) + float(angular_z) * float(horizon_s)      # heading after the commanded turn
     dist_m = float(linear_x) * float(horizon_s)
+    if abs(dist_m) < _EPS:
+        # #303: a pure in-place rotation (linear_x~0, angular_z!=0) has no forward projection, so a
+        # position GoTo at the current cell was a silent no-op. Emit a HEADING-ONLY GoTo at the current
+        # cell carrying the post-turn yaw -- the SimBackend (and a real backend) turns in place to it.
+        return RC.GoTo(leg_id=leg_id, goal_row=float(pose.row), goal_col=float(pose.col),
+                       v_max_mps=0.0, goal_radius_cells=1.0, goal_yaw_rad=yaw)
     dcol = dist_m * math.cos(yaw) / float(cell_m)                        # REP-103 +x -> +col (frames.py)
     drow = -dist_m * math.sin(yaw) / float(cell_m)                       # REP-103 +y (left) -> -row (frames.py)
     proj_cells = math.hypot(dcol, drow)                                  # #296: this twist's projection magnitude

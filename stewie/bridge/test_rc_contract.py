@@ -7,6 +7,8 @@ pluggable, the contract is the seam. SF-01 (the architecture's flagged-REQUIRED 
 the command-timeout watchdog: a dead-man switch that auto-SAFEs if commands stop arriving.
 """
 
+import math
+
 import pytest
 
 from stewie.bridge import rc_contract as RC
@@ -88,6 +90,27 @@ def test_watchdog_latches_safe_until_explicit_rearm():
     assert not wd.tripped
     wd.submit(RC.GoTo(leg_id=2, goal_row=0, goal_col=9, v_max_mps=0.3, goal_radius_cells=1), now=3.4)
     assert be.commands[-1].kind == "goto", "re-armed watchdog still refused the command"
+
+
+def test_simbackend_turns_in_place_for_a_heading_only_goal():  # #303
+    """A GoTo at the CURRENT cell carrying a goal_yaw_rad rotates the rover IN PLACE (row/col fixed) until
+    the heading is met, THEN finishes the leg -- so a pure-rotation cmd_vel is no longer a silent no-op."""
+    be = RC.SimBackend(start_rc=(5.0, 5.0), cell_m=1.0)
+    be.submit(RC.GoTo(leg_id=3, goal_row=5.0, goal_col=5.0, v_max_mps=0.0,
+                      goal_radius_cells=1.0, goal_yaw_rad=math.pi / 2))
+    poses, leg = [], None
+    for _ in range(200):
+        for t in be.poll():
+            if t.kind == "pose":
+                poses.append(t)
+            elif t.kind == "leg":
+                leg = t
+        if leg is not None:
+            break
+    assert poses, "no rotation telemetry emitted -- pure rotation was a silent no-op (#303)"
+    assert all(p.row == 5.0 and p.col == 5.0 for p in poses)      # turned IN PLACE -- no translation
+    assert abs(poses[-1].yaw_rad - math.pi / 2) < 0.05            # converged to the commanded heading
+    assert leg is not None                                        # the leg completes once the heading is met
 
 
 def test_setsim_is_director_only_capability():

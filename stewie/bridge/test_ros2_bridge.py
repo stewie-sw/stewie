@@ -61,6 +61,17 @@ def test_slow_twist_on_the_production_grid_still_projects_a_reachable_carrot(): 
     assert cmd.goal_radius_cells < dist_cells, "slow twist carrot is inside the arrival radius -> swallowed (#296)"
 
 
+def test_pure_rotation_commands_a_turn_in_place_not_a_no_op():  # #303
+    """A pure in-place rotation (linear_x=0, angular_z!=0) must NOT be a silent no-op. It emits a
+    heading-only GoTo at the CURRENT cell carrying the post-turn yaw (no translation), so the backend
+    turns in place instead of registering 'already arrived' and doing nothing."""
+    cmd = B.twist_to_command(0.0, math.pi / 2, pose=_pose(row=10, col=10, yaw=0.0), horizon_s=1.0, cell_m=5.0)
+    assert isinstance(cmd, RC.GoTo)
+    assert cmd.goal_row == pytest.approx(10.0) and cmd.goal_col == pytest.approx(10.0)   # no translation
+    assert cmd.goal_yaw_rad == pytest.approx(math.pi / 2)         # the post-turn heading
+    assert cmd.v_max_mps == pytest.approx(0.0)
+
+
 def test_pose_to_odom_maps_fields():
     # REP-103 metres via frames.py: x=col*cell_m, y=-row*cell_m (handedness), not raw grid cells
     od = B.pose_to_odom(RC.Pose(leg_id=1, row=5.0, col=7.0, yaw_rad=0.5, v_achieved_mps=0.2, slip=0.1),

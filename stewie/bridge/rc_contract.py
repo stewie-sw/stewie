@@ -36,12 +36,17 @@ SAFE_REASON_LINK_STALL = 3        # NV-12: live command/telemetry stream stalled
 # --- Commands (TC, ground -> rover) ---------------------------------------------------------------
 @dataclass(frozen=True)
 class GoTo:
-    """Drive to a waypoint (CONTRACT.md §3 GoTo)."""
+    """Drive to a waypoint (CONTRACT.md §3 GoTo). #303: ``goal_yaw_rad`` is an OPTIONAL terminal heading
+    -- when the position goal is reached, the rover turns IN PLACE to this heading before the leg
+    completes. It lets a pure-rotation cmd_vel (linear_x=0, angular_z!=0) be expressed as a heading-only
+    goal at the current cell instead of a silent no-op. None = no heading constraint (the prior behaviour:
+    the rover ends facing its last drive direction)."""
     leg_id: int
     goal_row: float
     goal_col: float
     v_max_mps: float = 0.3
     goal_radius_cells: float = 1.0
+    goal_yaw_rad: float | None = None
     kind: str = field(default="goto", init=False)
     director_only: bool = field(default=False, init=False)
 
@@ -129,8 +134,13 @@ class SimBackend(RCBackend):
     SimBackend wraps drive.drive_step the same way -- this is the contract-level stand-in that proves
     the seam end to end without a terrain load. SAFE halts; SetSim bends the step rate."""
 
+    #: #303 turn-in-place kinematics (kinematic stand-in; a real terramechanics backend uses its own rate)
+    _YAW_TOL_RAD = 0.02                        # ~1.1 deg: heading "met"
+    _MAX_YAW_RATE = 0.6                        # rad/s skid-steer turn rate cap
+
     def __init__(self, start_rc=(0.0, 0.0), *, cell_m: float = 1.0, dt_s: float = 1.0) -> None:
         self.row, self.col = float(start_rc[0]), float(start_rc[1])
+        self.yaw = 0.0                          # #303: persisted heading (was recomputed per drive step)
         self.cell_m = float(cell_m)
         self.dt_s = float(dt_s)
         self.time_factor = 1.0
@@ -162,7 +172,18 @@ class SimBackend(RCBackend):
             return
         drow, dcol = g.goal_row - self.row, g.goal_col - self.col
         dist_cells = math.hypot(drow, dcol)
-        if dist_cells <= g.goal_radius_cells:                     # reached -> emit a Leg, stop
+        if dist_cells <= g.goal_radius_cells:                     # position reached
+            # #303: if a terminal heading is set and not yet met, TURN IN PLACE toward it (no translation),
+            # emit a Pose, and keep the goal -- so a pure-rotation cmd_vel actually rotates the rover. Only
+            # when the heading is also met (or none is asked) does the leg finish.
+            if g.goal_yaw_rad is not None:
+                dyaw = math.atan2(math.sin(g.goal_yaw_rad - self.yaw), math.cos(g.goal_yaw_rad - self.yaw))
+                if abs(dyaw) > self._YAW_TOL_RAD:
+                    cap = self._MAX_YAW_RATE * self.dt_s * self.time_factor
+                    self.yaw += max(-cap, min(cap, dyaw))
+                    self._out.append(Pose(leg_id=self._leg_id, row=self.row, col=self.col,
+                                          yaw_rad=self.yaw, v_achieved_mps=0.0))
+                    return
             self._out.append(Leg(leg_id=self._leg_id, status=0, final_row=self.row,
                                  final_col=self.col))
             self._goal = None
@@ -171,8 +192,9 @@ class SimBackend(RCBackend):
         step_cells = min(step_cells, dist_cells)                 # never overshoot
         self.row += step_cells * drow / dist_cells
         self.col += step_cells * dcol / dist_cells
+        self.yaw = math.atan2(drow, dcol)                        # #303: persist the heading we drove toward
         self._out.append(Pose(leg_id=self._leg_id, row=self.row, col=self.col,
-                              yaw_rad=math.atan2(drow, dcol),
+                              yaw_rad=self.yaw,
                               v_achieved_mps=g.v_max_mps * self.time_factor))
 
 
