@@ -41,6 +41,30 @@ def test_live_mission_lowers_to_sequenced_ros_frames(client):  # [REQ:NV-11] [RE
     assert d["stream"]["version"] == "1.0" and d["stream"]["seq"] == len(d["frames"])
 
 
+def test_large_plan_lowers_every_goal_without_silent_backpressure_drop(client):  # #287 [REQ:NV-12]
+    """A plan whose lowered messages exceed the StreamSession default 64-frame un-acked window must
+    still lower EVERY goal. This route is a one-shot batch lowering (no live consumer acks within the
+    request), so the backpressure window previously REFUSED every frame past the 64th as a null frame
+    while HTTP stayed 200 -- a silent goal drop. Now the session is sized to the batch: no nulls, no
+    refusals, contiguous seqs, and len(frames) == sum(counts)."""
+    c, key = client
+    from stewie.server import objects as OBJ
+    # ~60 orders -> well over 64 lowered frames across the 5 groups (paths/motion/work/observation/replan)
+    big = [{"action": f"o{i}", "kind": ("cut" if i % 2 else "fill"),
+            "x": 20.0 + 5.0 * (i % 12), "y": 5.0 * (i // 12),
+            "footprint_m2": 16.0, "depth_m": 0.3} for i in range(60)]
+    OBJ.save_mission("Big Pad", {"body": "moon", "orders": big}, owner="op@x.com", namespace="live")
+    r = c.post("/rc/plan_ros", headers={"X-API-Key": key}, json={"mission": "Big Pad"})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    total = sum(d["counts"].values())
+    assert total > 64, f"test needs a >64-frame plan to exercise the window (got {total})"
+    assert all(f is not None for f in d["frames"]), "a goal was silently refused as a null frame (#287)"
+    assert len(d["frames"]) == total, "lowered-message count != framed count -> goals were dropped"
+    assert [f["seq"] for f in d["frames"]] == list(range(total))      # contiguous, nothing missing
+    assert d["stream"]["refused"] == 0, "backpressure refused frames in a one-shot batch lowering (#287)"
+
+
 def test_sandbox_draft_is_refused(client):
     c, key = client
     r = c.post("/rc/plan_ros", headers={"X-API-Key": key}, json={"mission": "Draft"})

@@ -102,9 +102,18 @@ def rc_plan_ros(body: dict, identity: str = Depends(require_role("operator"))):
                             "mission can be lowered to rover ROS commands")
     lowered = lower_plan_ir(PV.plan_ir(MP.mission_from_dict(saved)))
     groups = ("paths", "motion_goals", "work_goals", "observation_goals", "replan_events")
-    sess = StreamSession()
     now = time.monotonic()
+    # #287 [REQ:NV-12]: this route is a ONE-SHOT batch lowering -- it frames the whole plan and returns it
+    # to the caller; there is NO live consumer acking within the request, so the StreamSession's default
+    # 64-frame un-acked backpressure window would spuriously REFUSE every goal past the 64th (returning null
+    # frames) while HTTP stayed 200 -- a silent goal drop. The backpressure window belongs to the LIVE link
+    # (the ROS node republishes these frames over its own ack'd session, where backpressure is real); size
+    # THIS session to the whole batch so nothing is dropped, then assert no frame was refused.
+    total = sum(len(lowered[g]) for g in groups)
+    sess = StreamSession(window=max(64, total))
     frames = [sess.send({"topic": g, "msg": m}, now=now) for g in groups for m in lowered[g]]
+    if sess.refused or any(f is None for f in frames):   # #287 tripwire: lowering must never silently drop a goal
+        raise HTTPException(status_code=500, detail="plan lowering refused frames (backpressure window misconfigured)")
     log_event(identity, "rc.plan_ros", str(name))
     return {"ok": True, "plan_id": lowered["plan_id"], "ir_version": lowered["ir_version"],
             "frames": frames, "stream": sess.status(),
