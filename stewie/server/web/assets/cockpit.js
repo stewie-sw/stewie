@@ -4964,6 +4964,12 @@ function paintExecIdle() {
 function runExecution() {
   const tl = LAST_TIMELINE; if (!tl || !tl.frames.length) return;
   cancelAnimationFrame(EXEC_RAF);
+  // #306: a fresh run always starts PLAYING. EXEC_PAUSED is a global toggled by the pause button; if a
+  // prior run was paused then closed, it stays true and the new playback's `if (!EXEC_PAUSED)` advance
+  // gate never fires -> the run looks frozen. Reset it (and the pause-button icon) at every run start.
+  EXEC_PAUSED = false;
+  const _pb = qel("execpause");
+  if (_pb) _pb.innerHTML = window.STEWIE_ICONS ? window.STEWIE_ICONS.icon("pause") : "pause";
   setView("metrics");                                       // swap to the Metrics pane for the telemetry playback
   qel("execempty").style.display = "none";
   qel("execspeed").textContent = ` ${EXEC_SPEEDUP}×`;
