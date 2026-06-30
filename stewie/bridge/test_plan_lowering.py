@@ -2,9 +2,34 @@
 goals / replan events). The main path uses a REAL plan_ir from a real mission; the Observe + replan
 branches are unit-tested with minimal IR action dicts (the rclpy-optional translation, like the bridge's
 twist_to_command tests)."""
+import pytest
+
 from lode import mission_planner as MP
 from lode import planner_views as PV
+from stewie.bridge import frames as FR
 from stewie.bridge.plan_lowering import lower_plan_ir
+
+
+def test_lowered_goal_is_rep103_not_planner_order_frame():  # #308
+    """The IR carries planner ORDER-frame metres (y=+row); a lowered map-frame goal must be REP-103
+    (y=-row, via frames.local_xy_to_rep103) so it shares ONE frame with the rover's odometry (pose_to_odom).
+    The bug emitted the planner y verbatim -> every off-x-axis goal was mirrored across the x-axis from
+    where odometry reported the rover. Uses a y!=0 order (the existing tests all sit on the x-axis, y=0,
+    where the bug is invisible)."""
+    m = MP.mission_from_dict({"name": "Y", "body": "moon", "charger": [0, 0],
+                              "orders": [{"action": "pad", "kind": "fill", "x": 40.0, "y": 30.0,
+                                          "footprint_m2": 16.0, "depth_m": 0.3}]})
+    ir = PV.plan_ir(m)
+    out = lower_plan_ir(ir)
+    gotos = [a for a in ir["actions"] if a.get("op") == "GoTo" and a.get("to")]
+    assert gotos and any(abs(a["to"][1]) > 1.0 for a in gotos), "need an off-x-axis (y!=0) goal to exercise the flip"
+    by_id = {g.get("action_id"): g for g in out["motion_goals"]}
+    for a in gotos:
+        g = by_id[a.get("id")]
+        exp_x, exp_y = FR.local_xy_to_rep103(a["to"][0], a["to"][1])    # x unchanged, y negated
+        assert g["pose"]["position"]["x"] == pytest.approx(exp_x)
+        assert g["pose"]["position"]["y"] == pytest.approx(exp_y)
+        assert g["pose"]["position"]["y"] == pytest.approx(-a["to"][1])  # the row-axis sign flip happened
 
 
 def _ir():

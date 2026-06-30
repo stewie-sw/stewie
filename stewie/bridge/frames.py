@@ -34,6 +34,16 @@ def rep103_to_grid_pose(p: Rep103Pose, *, cell_m: float) -> tuple:
     return (-p.y / cell_m, p.x / cell_m), yaw
 
 
+def local_xy_to_rep103(x: float, y: float) -> tuple[float, float]:
+    """#308: planner ORDER-frame local metres -> REP-103 map metres. The planner/RC-sim local frame has
+    x East and y increasing with grid ROW (south), so a local (x, y) for grid cell (row=y/cell, col=x/cell)
+    maps to REP-103 (x East unchanged, y = -y) -- the SAME row-axis sign-flip grid_pose_to_rep103 applies
+    (y=-row*cell). Routing a lowered ROS goal through here makes it share ONE frame with the rover's own
+    odometry (pose_to_odom, also via this module); they previously disagreed on the sign of y, mirroring
+    every lowered goal across the x-axis from where odometry reported the rover."""
+    return float(x), -float(y)
+
+
 def twist_to_drive(*, linear_x: float, angular_z: float) -> tuple:
     """ROS geometry_msgs/Twist -> the drive loop's (v_ms, omega_rad_s). 1:1 by contract; finite-only."""
     if not (math.isfinite(linear_x) and math.isfinite(angular_z)):

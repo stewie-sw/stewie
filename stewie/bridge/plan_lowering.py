@@ -4,7 +4,9 @@ MoveIt executive consumes.
 PURE translation -- rclpy-OPTIONAL, the same pattern as ``ros2_bridge`` (``twist_to_command`` /
 ``pose_to_odom``): the function returns plain message-shaped dicts, fully testable without ROS2; the live
 node turns them into real ``nav_msgs`` / ``geometry_msgs`` messages. Frame convention matches the bridge:
-``frame_id=map``, ground plane with position col->x, row->y (REP-103 surface frame, z-up yaw).
+``frame_id=map``, REP-103 surface frame (col->x, row->-y, z-up yaw) -- the planner ORDER-frame (x,y) is
+converted via frames.local_xy_to_rep103 at the seam (#308), so a lowered goal shares ONE frame with
+pose_to_odom (NOT the prior row->+y, which mirrored every goal across the x-axis from the rover's odometry).
 
 Space ROS is a HARDENED, API-compatible distribution of ROS 2 (NPR-7150.2-aligned: memory safety,
 deterministic performance, static analysis) -- so the standard ``nav_msgs/Path`` + ``geometry_msgs/
@@ -27,6 +29,7 @@ transition legality is enforced at this seam (the per-posture stability margin i
 """
 from __future__ import annotations
 
+from stewie.bridge import frames as FR              # #308: THE frame conversion site (planner-local -> REP-103)
 from stewie.specs import posture_machine as PM
 
 _WORK_OPS = ("Excavate", "CutHaulFill", "Import", "Sinter")
@@ -97,11 +100,14 @@ def lower_plan_ir(ir: dict, *, frame_id: str = "map") -> dict:
         goal: dict | None = None
         if op == "GoTo":
             wps = a.get("waypoints") or []
+            # #308: the IR waypoints/goal are in the planner ORDER frame (y=+row); convert to the REP-103
+            # map frame (y=-row, FR.local_xy_to_rep103) so a lowered goal shares ONE frame with the rover's
+            # odometry (pose_to_odom). Previously emitted verbatim -> every goal mirrored across the x-axis.
             paths.append({"header": {"frame_id": frame_id}, "action_id": a.get("id"), "vehicle": veh,
-                          "poses": [_pose_stamped(p[0], p[1], frame_id) for p in wps]})
+                          "poses": [_pose_stamped(*FR.local_xy_to_rep103(p[0], p[1]), frame_id) for p in wps]})
             to = a.get("to")
             if to is not None:
-                goal = _pose_stamped(to[0], to[1], frame_id)
+                goal = _pose_stamped(*FR.local_xy_to_rep103(to[0], to[1]), frame_id)
                 goal["action_id"] = a.get("id")
                 goal["vehicle"] = veh
                 motion_goals.append(goal)
