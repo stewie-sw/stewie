@@ -345,38 +345,60 @@ def redeem_invite(token: str, email: str, password: str) -> dict:
     return rec
 
 
-def verify_credentials(email: str, password: str) -> str | None:
-    """The normalized email iff the account is active, unlocked, and the password matches; else
-    None (caller returns a GENERIC error -- no existence/lock leak). Failed attempts increment the
-    lockout counter; a success resets it and stamps last_login."""
+_MAX_LOCK_IPS = 64         # #279: bound the per-account lockout map so IP-rotation can't bloat the record
+
+
+def _prune_locks(locks: dict, now: float) -> dict:
+    """Drop EXPIRED, non-counting per-IP lockout entries and cap the map size (evict the most-stale first),
+    so a remote attacker rotating source IPs cannot grow an account record without bound."""
+    for ip in [k for k, v in locks.items() if v.get("until", 0.0) <= now and int(v.get("n", 0)) == 0]:
+        locks.pop(ip, None)
+    if len(locks) > _MAX_LOCK_IPS:                               # still over cap -> drop the least-locked
+        for ip in sorted(locks, key=lambda k: locks[k].get("until", 0.0))[:len(locks) - _MAX_LOCK_IPS]:
+            locks.pop(ip, None)
+    return locks
+
+
+def verify_credentials(email: str, password: str, *, client_ip: str | None = None) -> str | None:
+    """The normalized email iff the account is active, the password matches, and THIS client IP is not
+    locked out; else None (caller returns a GENERIC error -- no existence/lock leak). #279: the failed-login
+    lockout is keyed per (account, client_ip), so a remote attacker burning attempts from their own IP can
+    no longer lock out a legitimate operator logging in from a DIFFERENT IP (lockout-griefing). A missing
+    client_ip falls back to a single shared bucket ('_') -- the pre-#279 global behaviour for callers that
+    do not supply an IP. A success clears that IP's counter; the per-account map is GC'd + size-capped."""
     e = _norm(email)
     now = _clock()
+    ipk = str(client_ip) if client_ip else "_"
     with _LOCK:
         data = _load()
         rec = data["operators"].get(e)
         if rec is None or rec.get("status") != "active" or not rec.get("pw_hash"):
             return None
-        if rec.get("locked_until", 0.0) > now:
+        locks = _prune_locks(rec.setdefault("fail_by_ip", {}), now)
+        if locks.get(ipk, {}).get("until", 0.0) > now:          # THIS ip is locked for this account
             return None
         ok = hmac.compare_digest(_hash(password, rec["pw_salt"]), rec["pw_hash"])
         if ok:
-            rec["failed"] = 0
-            rec["locked_until"] = 0.0
+            locks.pop(ipk, None)                                # a success from this ip clears its counter
             rec["last_login"] = now
             _save(data)
             return e
-        rec["failed"] = int(rec.get("failed", 0)) + 1
-        if rec["failed"] >= _MAX_FAILED:
-            rec["locked_until"] = now + _LOCKOUT_S
-            rec["failed"] = 0
+        ent = locks.setdefault(ipk, {"n": 0, "until": 0.0})
+        ent["n"] = int(ent.get("n", 0)) + 1
+        if ent["n"] >= _MAX_FAILED:                             # lock only THIS ip, not the account globally
+            ent["until"] = now + _LOCKOUT_S
+            ent["n"] = 0
         _save(data)
         return None
 
 
-def is_locked(email: str) -> bool:
+def is_locked(email: str, *, client_ip: str | None = None) -> bool:
+    """#279: is this (account, client_ip) bucket locked out? A missing client_ip checks the shared '_'
+    bucket (the pre-#279 global behaviour)."""
+    ipk = str(client_ip) if client_ip else "_"
     with _LOCK:
         rec = _load()["operators"].get(_norm(email))
-    return bool(rec and rec.get("locked_until", 0.0) > _clock())
+    return bool(rec and rec.get("fail_by_ip", {}).get(ipk, {}).get("until", 0.0) > _clock())
 
 
 def _mutate(email: str, fn) -> dict:
@@ -402,6 +424,7 @@ def approve(email: str, by: str, *, role: str = "operator") -> dict:
         rec["approved_by"] = by
         rec["failed"] = 0
         rec["locked_until"] = 0.0
+        rec["fail_by_ip"] = {}                                  # #279: a reset/approval clears all per-IP lockouts
     return _mutate(email, _f)
 
 
@@ -433,6 +456,7 @@ def set_password(email: str, password: str) -> dict:
         rec["pw_hash"] = _hash(password, salt_hex)
         rec["failed"] = 0
         rec["locked_until"] = 0.0
+        rec["fail_by_ip"] = {}                                  # #279: a reset/approval clears all per-IP lockouts
     return _mutate(email, _f)
 
 

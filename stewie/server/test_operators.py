@@ -78,6 +78,21 @@ def test_lockout_after_five_failures_then_releases(ops, monkeypatch):
     assert ops.verify_credentials("lock@example.com", "the-real-password") == "lock@example.com"
 
 
+def test_lockout_is_per_ip_not_griefable_across_ips(ops, monkeypatch):
+    """#279: the failed-login lockout is keyed per (account, client_ip), so a remote attacker burning 5
+    attempts from THEIR IP cannot lock out the legitimate operator logging in from a DIFFERENT IP. Pre-#279
+    the lockout was global per-account, so any known email could be locked by anyone."""
+    t = [1000.0]
+    monkeypatch.setattr(ops, "_clock", lambda: t[0])
+    ops.create_active("vic@example.com", "the-real-password")
+    for _ in range(5):                                  # attacker at 10.0.0.9 burns the account's attempts
+        assert ops.verify_credentials("vic@example.com", "nope", client_ip="10.0.0.9") is None
+    assert ops.is_locked("vic@example.com", client_ip="10.0.0.9")          # the attacker's IP is locked
+    # the LEGIT user at a different IP is NOT locked -> the correct password still authenticates (no griefing)
+    assert not ops.is_locked("vic@example.com", client_ip="10.0.0.2")
+    assert ops.verify_credentials("vic@example.com", "the-real-password", client_ip="10.0.0.2") == "vic@example.com"
+
+
 def test_revoke_denies_and_role_change_sticks(ops):
     ops.create_active("r@example.com", "the-real-password", role="director")
     assert ops.store_role("r@example.com") == "director"

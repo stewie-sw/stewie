@@ -174,7 +174,7 @@ def auth_login(body: LoginRequest, request: Request, response: Response,
                                 content={"ok": False, "error": "too many login attempts; slow down"})
 
     if password is not None and str(password) != "":
-        op = OPS.verify_credentials(email, str(password))
+        op = OPS.verify_credentials(email, str(password), client_ip=client_ip(request))   # #279: per-IP lockout
         if not op:
             # generic -- no account-existence / lockout leak
             return JSONResponse(status_code=403,
