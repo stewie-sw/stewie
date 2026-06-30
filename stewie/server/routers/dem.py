@@ -267,7 +267,14 @@ def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str =
     cols = np.clip(np.round((ox + xs) / cell).astype(int), 0, W - 1)
     rows = np.clip(np.round((oy + xs) / cell).astype(int), 0, H - 1)
     patch = Zf[np.ix_(rows, cols)]                       # [row=y(North as j incr), col=x(East)] -- TRUE orientation
-    rgba = _layer_rgba(patch, float(cell), kind, az, el)   # compute on the true-orient patch at the quantized sun
+    gnb = None
+    if kind in ("illumination", "incidence"):            # #272/#266: re-express the TRUE sun az in the grid frame
+        try:                                             # (the inset was the 3rd _layer_rgba consumer, missed by #266)
+            from stewie.terrain.site_dem import grid_north_bearing_deg
+            gnb = grid_north_bearing_deg(ox + win / 2.0, oy + win / 2.0, bundle_dir=bundle_for_site(site))
+        except (ImportError, ValueError):                # pyproj absent / window off-tile -> uncorrected
+            gnb = None
+    rgba = _layer_rgba(patch, float(cell), kind, az, el, grid_north_bearing=gnb)   # compute at the quantized sun
     if rgba is None:
         return JSONResponse(status_code=400,
                             content={"ok": False, "error": f"unknown layer kind {kind!r}"})

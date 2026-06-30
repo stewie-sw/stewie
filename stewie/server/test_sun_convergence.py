@@ -22,6 +22,7 @@ import math
 import os
 
 import pytest
+from fastapi.testclient import TestClient
 
 BUNDLE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                       "samples", "lunar_dem", "haworth_10km_5m")
@@ -103,3 +104,37 @@ def test_correction_is_a_reflection_through_the_real_render_path():
         assert far > 0.20, f"{kind}: az=180 changed only {far:.1%} -- correction not applied?"
         assert far > near + 0.15, (f"{kind}: change is azimuth-INVARIANT ({near:.1%} vs {far:.1%}) -- "
                                     "that is a uniform rotation, not the meridian-convergence reflection")
+
+
+@_needs_dem
+def test_workarea_inset_threads_the_grid_convergence(monkeypatch, tmp_path):
+    """#272 (#266 completion): the /dem/workarea.png inset was the 3rd _layer_rgba consumer and was passing
+    the TRUE sun azimuth straight into the grid march (grid_north_bearing defaulting to None). It must now
+    thread the per-tile grid-north bearing for illumination/incidence ONLY -- and never for the sun-agnostic
+    kinds (slope/dem/psr). Spy on _layer_rgba to capture exactly what the route threads."""
+    pytest.importorskip("pyproj")
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STEWIE_DEV_OPEN", "1")                # loopback dev-open -> require_auth passes
+    monkeypatch.delenv("STEWIE_API_KEY", raising=False)
+
+    import numpy as np
+
+    from stewie.server import gis_layers as G
+    captured = {}
+
+    def spy(patch, cell, kind, az=315.0, el=45.0, *, grid_north_bearing=None, **kw):
+        captured[kind] = grid_north_bearing
+        return np.zeros((4, 4, 4), dtype=np.uint8)        # a valid rgba so the route completes
+    monkeypatch.setattr(G, "_layer_rgba", spy)
+
+    import stewie.server.server as SRV
+    from stewie.server.routers import dem as DEM
+    DEM._WORKAREA_CACHE.clear()                            # avoid a cached PNG short-circuiting the spy
+    c = TestClient(SRV.app)
+
+    assert c.get("/dem/workarea.png?kind=illumination&sun_az=90&sun_el=6&site=haworth").status_code == 200
+    assert c.get("/dem/workarea.png?kind=slope&site=haworth").status_code == 200
+    assert captured.get("illumination") is not None, "illumination inset still uncorrected (#272)"
+    assert 200.0 < captured["illumination"] < 212.0, (   # the real Haworth +row true bearing ~206 deg
+        f"grid-north bearing off ({captured['illumination']:.1f}); expected ~206")
+    assert captured.get("slope") is None, "slope must NOT get the sun-azimuth grid correction"
