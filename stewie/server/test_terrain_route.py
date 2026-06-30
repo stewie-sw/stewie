@@ -26,6 +26,21 @@ def test_terrain_route_empty_site_is_not_an_error(client):
     assert j["recorded"] is False and j["version"] == 0 and j["missions"] == []
 
 
+def test_resync_malformed_origin_rc_is_400_not_500(client):  # #299 (the #275/#284 malformed-input class)
+    """POST /twin/resync with a malformed origin_rc (wrong length / non-int element) must be a client error
+    (400), not an uncaught 500. origin_rc is a (row, col) pair; a 1-element list previously indexed past the
+    end inside apply_patch -> IndexError -> 500. Now the contract validates it as exactly two ints."""
+    c, key, _dd = client
+    H = {"X-API-Key": key}
+    def body(orc):
+        return {"heights_m": [[0.0, 0.0], [0.0, 0.0]], "origin_rc": orc, "provenance": "p"}
+    assert c.post("/twin/resync", headers=H, json=body([1])).status_code == 400            # too short (was 500)
+    assert c.post("/twin/resync", headers=H, json=body([1, 2, 3])).status_code == 400       # too long
+    assert c.post("/twin/resync", headers=H, json=body(["a", "b"])).status_code == 400      # non-int
+    ok = c.post("/twin/resync", headers=H, json=body([0, 0]))                                # well-formed
+    assert ok.status_code == 200, ok.text
+
+
 def test_terrain_route_returns_recorded_world_state(client):
     c, key, dd = client
     import lode.mission_planner as MP

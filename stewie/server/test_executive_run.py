@@ -30,6 +30,15 @@ def test_run_executes_released_plan_sim_labeled(monkeypatch, tmp_path):
     assert j["transitions"][:2] == ["armed", "executing"]        # ARMED -> EXECUTING actually happened
 
 
+def test_run_malformed_order_field_is_400_not_500(monkeypatch, tmp_path):  # #300 (#275/#284 class)
+    """An order field that is a list/object where a number is expected (e.g. x=[1,2]) must be a client
+    error (400), not an uncaught TypeError -> 500 inside intent_from_orders."""
+    c = _client(monkeypatch, tmp_path, dev_open=True)
+    bad = [{"kind": "cut", "x": [1, 2], "y": 10.0, "action": "dig", "footprint_m2": 4.0, "depth_m": 0.3}]
+    r = c.post("/executive/run", json={"orders": bad, "site": "haworth"})
+    assert r.status_code == 400, r.text
+
+
 def test_run_requires_auth(monkeypatch, tmp_path):
     c = _client(monkeypatch, tmp_path, dev_open=False)           # no key, no dev-open -> locked
     assert c.post("/executive/run", json={"orders": _ORDERS}).status_code in (401, 403, 503)

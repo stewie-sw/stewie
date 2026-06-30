@@ -87,8 +87,9 @@ def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)
                 "ok": False, "skipped": skipped,
                 "error": "no build orders to release (cut/fill/sinter): the queue has only path/other orders"})
         res = LC.run_lifecycle(MissionExecutive.start(intent))
-    except (ValueError, KeyError) as e:
-        # an uncompilable plan (no work geometry, bad frame, ...) -> 400; nothing advanced, no fabrication.
+    except (ValueError, KeyError, TypeError) as e:
+        # #300: a malformed order field (a list/object where a number is expected) is a client 400, not an
+        # uncaught TypeError -> 500. an uncompilable plan (no work geometry, bad frame, ...) -> 400 too.
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e), "skipped": []})
     rel = res.executive.released_revision
     log_event(_auth, "executive.release_plan",
@@ -141,7 +142,7 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
         dem, origin = state.moon_dem(req.site) if req.body == "moon" else (None, (0.0, 0.0))
         out = AUT.run_closed_loop(mission, dem=dem, dem_origin=origin)
         run = run_sim_execution(released, out.get("legs", []))
-    except (ValueError, KeyError) as e:
+    except (ValueError, KeyError, TypeError) as e:    # #300: malformed order field -> 400, not an uncaught 500
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e), "skipped": []})
     run_id = secrets.token_hex(6)
     rec = {"label": run["label"], "final_state": run["final_state"], "transitions": run["transitions"],

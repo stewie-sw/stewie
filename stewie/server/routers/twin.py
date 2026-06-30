@@ -62,7 +62,8 @@ def twin_cg(front_deg: float = 0.0, back_deg: float = 0.0, front_kg: float = 0.0
 class ResyncRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     heights_m: list
-    origin_rc: list
+    origin_rc: tuple[int, int]   # #299: a (row, col) PAIR -- validate at the contour so a 1-elem/non-int
+    #                              origin is a 400 (was an uncaught IndexError -> 500 inside apply_patch)
     provenance: str
 
 

@@ -130,6 +130,15 @@ def test_release_plan_with_no_build_orders_is_400(client):  # [REQ:MO-02]
     assert r.json()["ok"] is False
 
 
+def test_release_plan_malformed_order_field_is_400_not_500(client):  # #300 (#275/#284 class)
+    """An order field that is a list/object where a number is expected (e.g. x=[1,2]) must be a client
+    error (400), not an uncaught TypeError -> 500 inside intent_from_orders."""
+    c, key = client
+    bad = [{"action": "dig", "kind": "cut", "x": [1, 2], "y": 10.0, "footprint_m2": 4.0, "depth_m": 0.3}]
+    r = c.post("/executive/release-plan", headers={"X-API-Key": key}, json={"body": "moon", "orders": bad})
+    assert r.status_code == 400, r.text
+
+
 def test_release_plan_sinter_order_gated_off_is_400(client):  # [REQ:MO-02] sinter is a valid order_kind but GATED OFF
     # A sinter order is contract-valid (mission_ops accepts cut|fill|sinter) but sinter is gated off for the
     # IPEx baseline; the release path must surface that as a clean 400, not an unhandled 500.
