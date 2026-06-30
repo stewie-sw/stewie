@@ -40,3 +40,30 @@ def test_n_is_bounded():
     b = bundle_for_site("haworth")
     assert dem_terrain_grid(n=1, bundle_dir=b)["n"] == 2        # floored to a usable grid
     assert dem_terrain_grid(n=9999, bundle_dir=b)["n"] == 192   # capped for browser/transport
+
+
+def test_pole_touching_grid_is_continuous_in_ecef_no_mesh_tear():  # #293
+    """#293 alleged the Cesium globe drape (loadTerrain3D -> Cesium.Cartesian3.fromDegreesArrayHeights)
+    SHREDS for a pole-touching tile because grid-adjacent nodes' LONGITUDE jumps ~356 deg near the pole.
+    VERIFIED FALSE and guarded here: fromDegrees converts (lon, lat) to ECEF, where those same nodes are
+    physically CLOSE (a few-degree lon step at lat -89.8 is metres on the ground, not a globe-spanning
+    jump), so the triangulated mesh is continuous. shackleton_rim touches the south pole (the worst case);
+    the max ECEF gap between grid-adjacent nodes must stay ~the node spacing, not a globe-scale tear."""
+    import math
+    g = dem_terrain_grid(n=64, bundle_dir=bundle_for_site("shackleton_rim"))
+    n, lat, lon = g["n"], g["lat"], g["lon"]
+    assert min(lat) < -89.5                                     # the tile genuinely reaches the pole region
+    R = 1737400.0                                              # selenographic sphere (the fromDegrees ellipsoid)
+
+    def ecef(k):
+        la, lo = math.radians(lat[k]), math.radians(lon[k])
+        return (R * math.cos(la) * math.cos(lo), R * math.cos(la) * math.sin(lo), R * math.sin(la))
+    spacing = g["tile_m"][0] / (n - 1)                         # ~159 m at n=64 on a 10 km tile
+    worst = 0.0
+    for j in range(n):
+        for i in range(n):
+            if i < n - 1:
+                worst = max(worst, math.dist(ecef(j * n + i), ecef(j * n + i + 1)))    # right neighbour
+            if j < n - 1:
+                worst = max(worst, math.dist(ecef(j * n + i), ecef((j + 1) * n + i)))  # down neighbour
+    assert worst < 5.0 * spacing, f"pole-touching mesh tears in ECEF: {worst:.0f} m vs ~{spacing:.0f} m (#293)"
