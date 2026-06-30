@@ -71,6 +71,23 @@ def rc_command(body: dict, identity: str = Depends(require_role("operator"))):
                 raise HTTPException(status_code=400, detail=f"unknown RC command kind {kind!r}")
         except (KeyError, ValueError, TypeError) as e:
             raise HTTPException(status_code=400, detail=f"malformed {kind!r} command: {e}") from e
+        if kind == "goto":
+            # #290 [REQ:AS-12]: the UNIFIED command-eligibility interlock is the single auditable pre-emission
+            # gate -- wired here so the SF-01 safed AND NV-12 stale-link gates actually RUN on the live command
+            # path (the interlock had zero production callers). Applies to motion (GoTo only); Safe/rearm are
+            # always-legal safety actions and SetSim is a director-gated sim toggle, so both are exempt -- a
+            # safed rover must still accept Safe and the re-arm. AG-08 already 403'd a non-live mission above,
+            # and low-level teleop (no mission ref) is a direct LIVE-rover command -> both namespaces are "live".
+            from stewie.bridge.command_eligibility import CommandContext, command_eligible
+            ok, reason = command_eligible(CommandContext(
+                role=AUTH.role_of(identity), mission_namespace="live", target_namespace="live",
+                safed=_RC_WATCHDOG.tripped, ack_age_s=_RC_WATCHDOG.seconds_idle(now=now),
+                ack_deadline_s=_RC_WATCHDOG.deadline_s))
+            if not ok:
+                log_event(identity, "rc.ineligible", reason)
+                detail = f"command ineligible: {reason}" + (
+                    "; an operator re-arm is required" if reason == "unsafe_safed" else "")
+                raise HTTPException(status_code=403 if reason.startswith("unauthorized") else 409, detail=detail)
         try:    # #286: a motion command while the SF-01 watchdog is safed is a 409 (re-arm first), not a silent resume
             _RC_WATCHDOG.submit(cmd, now=now)
         except RC.WatchdogTrippedError as e:

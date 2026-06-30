@@ -238,6 +238,12 @@ class SafingWatchdog:
         self._last_feed = float(now)
         self.tripped = False
 
+    def seconds_idle(self, *, now: float) -> float:
+        """#290 [REQ:AS-12 / NV-12]: seconds since the last valid feed -- the link-freshness the
+        command-eligibility interlock compares against the ack deadline. 0.0 when never fed yet (no live
+        link to be stale)."""
+        return 0.0 if self._last_feed is None else max(0.0, float(now) - self._last_feed)
+
     def submit(self, cmd, *, now: float) -> None:
         """Forward a command to the backend AND feed the watchdog (the normal command path). #286: while
         the watchdog is TRIPPED a non-Safe (motion) command is REFUSED (WatchdogTrippedError) and never

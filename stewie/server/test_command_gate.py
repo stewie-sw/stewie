@@ -172,6 +172,33 @@ def test_goto_is_refused_409_while_watchdog_tripped_until_rearm(client):
         RCR._RC_WATCHDOG = saved
 
 
+def test_goto_refused_409_when_link_is_stale_even_if_not_safed(client):  # #290 [REQ:AS-12]
+    """The unified command-eligibility interlock must actually RUN on the live command path -- it had
+    zero production callers, so the NV-12 stale-link gate never fired live. A GoTo on a link that has gone
+    quiet past the ack deadline (but has NOT yet been ticked into a SAFE trip) must be refused with a
+    'stale_link' reason; a fresh command is eligible again. (safed is exercised by the #286 test.)"""
+    import time
+
+    from stewie.bridge import rc_contract as C
+    from stewie.server.routers import rc as RCR
+    c, key = client
+    H = {"X-API-Key": key}
+    saved = RCR._RC_WATCHDOG
+    try:
+        wd = C.SafingWatchdog(RCR._RC_BACKEND, deadline_s=5.0)
+        wd.feed(now=time.monotonic() - 100.0)            # last command 100 s ago -> link stale, NOT tripped
+        assert not wd.tripped
+        RCR._RC_WATCHDOG = wd
+        r = c.post("/rc/command", headers=H, json={"kind": "goto", "goal_row": 5, "goal_col": 6})
+        assert r.status_code == 409, r.text
+        assert "stale_link" in r.text, r.text               # NV-12 freshness gate ran live (#290)
+        wd.feed(now=time.monotonic())                        # a recent command -> link fresh again
+        ok = c.post("/rc/command", headers=H, json={"kind": "goto", "goal_row": 5, "goal_col": 6})
+        assert ok.status_code == 200 and ok.json()["accepted"] == "goto", ok.text
+    finally:
+        RCR._RC_WATCHDOG = saved
+
+
 def test_sim_telemetry_does_not_fabricate_soc():
     """No-synthetic (Council Operator P2): the in-process kinematic SimBackend has NO energy model, so the
     telemetry payload must NOT report a fabricated soc (the Pose default 1.0). The cockpit then shows no
