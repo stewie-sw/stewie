@@ -162,9 +162,12 @@ def auth_login(body: LoginRequest, request: Request, response: Response,
                                      "(STEWIE_OPERATOR_LOGIN=0); use the API key"})
     email = body.email.strip().lower()
     password = body.password
-    # S-07: rate-limit BEFORE the expensive credential path. An automation/API-key bootstrap (no
-    # password) is exempt -- the key is already a bounded constant-time check, and CI must not 429.
-    if not (x_api_key or authorization):
+    submitting_password = password is not None and str(password) != ""
+    # S-07 / #270: rate-limit BEFORE the expensive credential path. Only the password-LESS API-key/proxy
+    # bootstrap is exempt -- the key is a bounded constant-time check, and CI must not 429. The PASSWORD
+    # path (PBKDF2) is ALWAYS limited: a forged Authorization/X-API-Key header must NOT exempt it, or a
+    # bogus-header burst re-opens the very PBKDF2 DoS / brute-force this limiter closes.
+    if submitting_password or not (x_api_key or authorization):
         ip = client_ip(request)
         if not _login_ip_limiter.allow(ip) or (email and not _login_acct_limiter.allow(email)):
             return JSONResponse(status_code=429,

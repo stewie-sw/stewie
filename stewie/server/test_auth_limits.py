@@ -64,6 +64,34 @@ def test_failed_login_burst_is_rate_limited(client):
     assert 429 in codes, f"no 429 after a sustained failed-login burst (S-07); saw {codes}"
 
 
+@pytest.mark.parametrize("hdr", [
+    {"Authorization": "Bearer not-a-real-token"},   # a forged bearer must NOT exempt the limiter
+    {"X-API-Key": "not-the-key"},                    # nor a wrong api-key value
+])
+def test_forged_credential_header_does_not_bypass_login_limit(client, hdr):
+    """#270: the rate-limit exemption keyed on the mere PRESENCE of an Authorization/X-API-Key header, so a
+    forged header skipped the per-IP/per-account limiter and the failed-PASSWORD burst still reached PBKDF2
+    -- re-opening the exact DoS / brute-force S-07 closed. A password submission must be limited regardless
+    of headers; only the password-LESS key bootstrap stays exempt (the next test)."""
+    codes = []
+    for _ in range(12):
+        r = client.post("/auth/login",
+                        json={"email": "nobody@example.com", "password": "wrongpassword1"}, headers=hdr)
+        codes.append(r.status_code)
+    assert 429 in codes, f"forged {list(hdr)[0]} bypassed the login limiter (#270); saw {codes}"
+
+
+def test_passwordless_apikey_bootstrap_stays_exempt(client):
+    """#270 regression: the password-LESS automation/API-key bootstrap stays exempt (a bounded constant-time
+    key check; CI must not 429). Hammering it stays 200, never 429 -- the fix limits only the password path."""
+    codes = []
+    for _ in range(12):
+        r = client.post("/auth/login", json={"email": "storeyaw@clarkson.edu"},
+                        headers={"X-API-Key": "test-key"})
+        codes.append(r.status_code)
+    assert 429 not in codes and codes.count(200) == 12, f"bootstrap wrongly rate-limited (#270); saw {codes}"
+
+
 def test_registration_burst_is_rate_limited(client, monkeypatch):
     # the per-IP limiter only fires on the OPEN path; closed registration 403s before the limiter (SEC-06)
     monkeypatch.setenv("STEWIE_REGISTRATION", "1")
