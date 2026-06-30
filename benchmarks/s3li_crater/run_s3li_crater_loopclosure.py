@@ -1,4 +1,4 @@
-"""ARGUS capstone runner -- the PAPER RECIPE of arXiv:2603.17229 on the REAL DLR S3LI ``s3li_crater``
+"""STEWIE estimator benchmark runner -- the PAPER RECIPE of arXiv:2603.17229 on the REAL DLR S3LI ``s3li_crater``
 sequence: stereo VO + visual LOOP CLOSURE + ONLINE DEM height-normal anchoring in ONE joint pose graph.
 
 Scores, vs RTK ground truth with evo (SE3 + Sim3 + horizontal/vertical split), the three estimates the
@@ -183,7 +183,7 @@ def main() -> None:
             "The DEM here is the free global Copernicus GLO-30 (~30 m); the paper used a ~2 m Pleiades "
             "DSM (Ames Stereo Pipeline on Pleiades stereo). Higher-res Etna DEMs (Tinitaly 10 m, "
             "OpenTopography Etna LiDAR) are registration/API-key gated and not on disk. For the lunar "
-            "ARGUS target the equivalent high-res DEMs DO exist and are downloaded (LOLA 5 m Haworth, "
+            "deployment target the equivalent high-res DEMs DO exist and are downloaded (LOLA 5 m Haworth, "
             "PGDA optical-nav models, and ~1-2 m LROC-NAC / shape-from-shading site DSMs), so on the Moon "
             "the DEM-resolution gap closes. NOTE: in THIS position-only reproduction the DEM is not the "
             "binding limit (see honest_read); the position-only solver + single revisit are."

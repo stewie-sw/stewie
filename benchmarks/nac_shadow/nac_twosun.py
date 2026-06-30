@@ -2,7 +2,7 @@
 
 This extends ``benchmarks/nac_shadow`` (Giordano Bruno, a single cluttered fresh crater) to the one
 untested, promising regime the prior run flagged: SPARSE MARE boulder fields imaged at two Sun
-elevations. The two-Sun idea is the ARGUS Niche-1 core novelty -- if the SAME isolated boulder yields
+elevations. The two-Sun idea is the shadow-height core novelty -- if the SAME isolated boulder yields
 the same recovered height H from two independent Sun angles, the metric is validated ground-truth-free,
 sidestepping the scarce per-boulder-height problem.
 

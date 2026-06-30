@@ -233,7 +233,7 @@ def main():
             f"heading changes little. The dominant residual is VO TRANSLATION drift (the ~6% forward-scale + "
             f"per-step translation noise accumulating), which wheel odometry (truth-calibrated, on firm beach) "
             f"handles better and which a heading cue cannot fix. THE NEXT CUE IS AN ABSOLUTE GLOBAL POSITION "
-            f"ANCHOR -- the ARGUS DEM_HEIGHT_NORMAL factor (DEM height + surface-normal anchoring) or loop "
+            f"ANCHOR -- the DEM_HEIGHT_NORMAL factor (DEM height + surface-normal anchoring) or loop "
             f"closure -- to bound the accumulated translation/scale drift; NOT more heading. This is a valid, "
             f"falsification-driven boundary. I3 firewall HELD (fused estimate byte-identical under truth "
             f"poison; the IMU yaw is a sensor channel, never an RTK fit)."),

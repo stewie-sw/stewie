@@ -1,4 +1,4 @@
-"""ARGUS capstone runner (VIO variant): fuse the S3LI IMU gyro into the SuperPoint+LightGlue stereo VO
+"""STEWIE estimator benchmark runner (VIO variant): fuse the S3LI IMU gyro into the SuperPoint+LightGlue stereo VO
 to tame the heading drift that left the vision-only VO at ATE 93.3 m (92.9 m horizontal) on the REAL
 DLR S3LI ``s3li_crater`` Mt-Etna traverse, then RE-TEST DEM height-normal anchoring on the improved
 trajectory. Scored vs RTK ground truth with evo.

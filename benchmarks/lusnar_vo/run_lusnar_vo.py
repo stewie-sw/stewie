@@ -1,6 +1,6 @@
 """SuperPoint+LightGlue stereo VO on the REAL LuSNAR Moon_1 lunar traverse, scored with evo.
 
-This is the keystone estimator experiment for the ARGUS dissertation (reproducing the VO family of
+This is the keystone estimator experiment for STEWIE navigation (reproducing the VO family of
 arXiv:2603.17229: a SuperPoint+LightGlue stereo VO front end on a lunar sequence, scored against ground
 truth). It runs in two strictly ordered phases with the truth firewall (invariant I3/I7) between them:
 
@@ -248,7 +248,7 @@ def main() -> None:
 
     import evo
     artifact = {
-        "experiment": "LuSNAR Moon_1 SuperPoint+LightGlue stereo VO (ARGUS keystone estimator)",
+        "experiment": "LuSNAR Moon_1 SuperPoint+LightGlue stereo VO (keystone estimator)",
         "date": DATE,
         "reproduces": "arXiv:2603.17229 VO front end (SuperPoint+LightGlue stereo VO, lunar nav)",
         "dataset": {

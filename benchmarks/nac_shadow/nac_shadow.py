@@ -1,6 +1,6 @@
 """Cast-shadow-length metric (H = L*tan(e)) on REAL LROC NAC imagery -- acquisition + measurement.
 
-This module validates the ARGUS Niche-1 shadow-height cue on real Lunar Reconnaissance Orbiter
+This module validates the shadow-height cue on real Lunar Reconnaissance Orbiter
 Narrow Angle Camera (LROC NAC) products, NOT on renders. It reuses the tested DART shadow code
 (`dart.shadow_extract`, `dart.shadow_height`, `dart.rock_taxonomy`) and adds only the NAC-specific
 acquisition + co-registration + measurement glue.

@@ -1,4 +1,4 @@
-"""Typed navigation measurement factors for the ARGUS/STEWIE estimator seam.
+"""Typed navigation measurement factors for the STEWIE estimator seam.
 
 The estimator can still consume legacy ``measured_fixes`` tuples, but new producers should emit
 ``MeasurementFactor`` records so factor type, covariance, source, frame, and evidence class cannot be
@@ -143,7 +143,7 @@ class MeasurementFactor:
 
 
 def assert_current_claim_allowed(factor_type: str, evidence_class: str) -> None:
-    """Current ARGUS evidence guardrail.
+    """Current STEWIE evidence guardrail.
 
     The 2026-06-24 two-split shadow residual attempt is negative/blocked. Until a later artifact replaces
     that status, metric shadow length and boundary-registration factors must remain proposed or modeled.

@@ -1,6 +1,6 @@
 """Freeze the S3LI ``s3li_crater`` FULL SE(3) pose-graph estimates to disk, GT-free (truth firewall I3).
 
-This is the dissertation's central proposed experiment: the position-only loop-closure solve caps at
+This is the central navigation benchmark experiment: the position-only loop-closure solve caps at
 ~51 m because it holds keyframe ORIENTATIONS at their VO front-end values and cannot redistribute the
 accumulated HEADING drift that bows the single-loop trajectory. A FULL SE(3) pose graph optimises the
 keyframe orientations jointly with positions, so a visual loop closure can rotate the inter-loop chain

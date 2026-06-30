@@ -1,4 +1,4 @@
-"""ARGUS SE(3) pose-graph runner -- the dissertation's central proposed experiment on the REAL DLR S3LI
+"""STEWIE SE(3) pose-graph runner -- the central navigation benchmark experiment on the REAL DLR S3LI
 ``s3li_crater`` sequence: does optimising keyframe ORIENTATIONS (a full SE(3) pose graph) let visual loop
 closure beat the 51 m position-only floor, and how close to the literature's 21.4 m (arXiv:2603.17229)?
 
@@ -224,7 +224,7 @@ def main() -> None:
         "dem_resolution_caveat": (
             "The DEM here is the free global Copernicus GLO-30 (~30 m); the paper used a ~2 m Pleiades "
             "DSM. In this SE(3) reproduction the DEM is not the binding limit (loop-closure heading "
-            "redistribution is), so the 30 m vs 2 m gap does not cost accuracy here. For the lunar ARGUS "
+            "redistribution is), so the 30 m vs 2 m gap does not cost accuracy here. For the lunar STEWIE nav "
             "target the high-res DEMs exist on disk (LOLA 5 m Haworth, ~1-2 m LROC-NAC), so the DEM leg "
             "is resolution-ready there."
         ),

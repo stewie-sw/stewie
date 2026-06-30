@@ -1,4 +1,4 @@
-"""ARGUS capstone runner (horizontal DEM terrain-correlation anchor): attack the DOMINANT residual of
+"""STEWIE estimator benchmark runner (horizontal DEM terrain-correlation anchor): attack the DOMINANT residual of
 the S3LI ``s3li_crater`` stereo-VIO trajectory -- the horizontal translation/scale drift (~78 m
 horizontal vs ~16 m vertical after the gyro tamed the heading) -- with an ABSOLUTE horizontal position
 constraint from matching the rover's locally-observed terrain to the independent Copernicus DEM.

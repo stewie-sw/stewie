@@ -1,4 +1,4 @@
-"""Reusable, dataset-agnostic figure generator for ARGUS estimator runs.
+"""Reusable, dataset-agnostic figure generator for STEWIE estimator runs.
 
 Given a frozen estimate trajectory (TUM file) and a ground-truth trajectory, this module aligns the
 estimate to ground truth with Umeyama (SE(3) and Sim(3)), computes ATE/RPE with evo (the SAME
@@ -474,11 +474,11 @@ def generate_figures(
 
 
 def main(argv: list[str] | None = None) -> None:
-    """CLI: generate the ARGUS figure set for one estimator run.
+    """CLI: generate the STEWIE figure set for one estimator run.
 
     GT comes from a LuSNAR scene (``--lusnar-scene`` [+ ``--stride``]) or a ground-truth TUM
     (``--gt-tum``). With ``--reference`` the recomputed ATE is checked against a committed artifact."""
-    p = argparse.ArgumentParser(description="ARGUS estimator figure generator (trajectory/ATE/RPE).")
+    p = argparse.ArgumentParser(description="STEWIE estimator figure generator (trajectory/ATE/RPE).")
     p.add_argument("--est", required=True, help="frozen estimate trajectory (TUM file)")
     p.add_argument("--out", required=True, help="output directory for the figures + metrics JSON")
     p.add_argument("--label", required=True, help="run label (titles + output filename stem)")

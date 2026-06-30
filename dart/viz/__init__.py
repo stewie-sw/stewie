@@ -1,6 +1,6 @@
-"""dart.viz -- reusable figure generation for ARGUS estimator runs.
+"""dart.viz -- reusable figure generation for STEWIE estimator runs.
 
-The keystone evaluation of an ARGUS estimator (visual odometry / SLAM) is a frozen estimate
+The keystone evaluation of a STEWIE estimator (visual odometry / SLAM) is a frozen estimate
 trajectory scored against ground truth with evo. ``run_figures`` turns that scoring into the
 paper-style figure set (trajectory overlay, ATE error map, drift-vs-distance, RPE curve) plus a
 metrics JSON, and is dataset-agnostic so later runs (S3LI, Katwijk, ...) reuse it unchanged. A thin

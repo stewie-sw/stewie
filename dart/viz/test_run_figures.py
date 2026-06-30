@@ -1,4 +1,4 @@
-"""TDD for dart.viz.run_figures: the reusable ARGUS estimator figure generator.
+"""TDD for dart.viz.run_figures: the reusable STEWIE estimator figure generator.
 
 Runs against the REAL keystone artifacts -- the frozen LuSNAR Moon_1 VO estimate (TUM, 547 poses), the
 real LuSNAR ground truth (via the reader adapter), and the committed scoring JSON. Data-gated: skips

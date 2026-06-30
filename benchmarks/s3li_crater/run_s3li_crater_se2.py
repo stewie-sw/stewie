@@ -1,4 +1,4 @@
-"""ARGUS capstone runner -- the FULL s3li_crater loop-closure ladder including the SE(2) heading-
+"""STEWIE estimator benchmark runner -- the FULL s3li_crater loop-closure ladder including the SE(2) heading-
 optimizing FIX. Scores, vs RTK ground truth with evo (SE3 + Sim3 + horizontal/vertical split), the four
 GT-free estimates and answers: what actually closes the VO 94 m -> paper 21.43 m gap on this sequence.
 

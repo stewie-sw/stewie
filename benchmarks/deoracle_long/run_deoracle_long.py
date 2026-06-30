@@ -8,7 +8,7 @@ read RENDERED PIXELS + intrinsics + the calibrated baseline ONLY. The render's t
 (sensors.json rover.position_m) enter ONLY (a) the single start anchor of the pose graph and (b) the
 aligned-ATE scoring -- NEVER the VO measurement or the scale state. A poison test proves it.
 
-Prior finding (frozen): argus/code/.../se3_vo_deoracle_2026-06-24.json -- 4-frame a6 crater_boulders
+Prior finding (frozen snapshot): se3_vo_deoracle_2026-06-24.json -- 4-frame a6 crater_boulders
 traverse at baseline 0.07, vo_mean_forward 0.2564 vs truth 0.2874 -> -10.8%. Reproduced here byte-for-byte
 with this same code (pipeline verification) before any new claim.
 
@@ -255,7 +255,7 @@ def main():
         "date": "2026-06-27",
         "scene": "crater_boulders (same scene as the prior a6 finding)",
         "estimator_frame": "SE(2) pose graph (dart.pose_graph_se2) -- the live, tested estimator; "
-                           "SE(3) was NOT used to avoid editing the frozen argus/code snapshot",
+                           "SE(3) was NOT used to avoid editing the frozen prior-run snapshot",
         "haworth_boundary": {
             "scene": "haworth_spiral_driven (real PGDA LOLA South-Pole Haworth DEM, 0.05 m/cell)",
             "result": "BOUNDARY: 0 valid VO factors -- the de-oracled stereo VO cannot triangulate/track "

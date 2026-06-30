@@ -1,6 +1,6 @@
 """Reproduce a PUBLISHED lunar-boulder height/shape with H = L*tan(e) on REAL LROC NAC imagery.
 
-This moves the ARGUS Niche-1 shadow-height cue (H = L*tan(e): boulder height = shadow length times the
+This moves the shadow-height cue (H = L*tan(e): boulder height = shadow length times the
 tangent of the solar elevation) from "validated only on renders + edge noise" to "reproduces a published
 height/shape statistic on real lunar boulders." Two independent real-NAC targets:
 

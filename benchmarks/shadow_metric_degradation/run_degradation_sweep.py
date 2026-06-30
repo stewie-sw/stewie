@@ -1,4 +1,4 @@
-"""Degradation-sensitivity analysis of the ARGUS cast-shadow-length metric observable.
+"""Degradation-sensitivity analysis of the STEWIE cast-shadow-length metric observable.
 
 WHAT THIS IS (read this first):
   A MODELED-DEGRADATION sensitivity sweep of the shadow-length measurement (recover caster height
@@ -382,7 +382,7 @@ def _make_figure(cases: list, path: str) -> None:
         ax.set_yscale("symlog", linthresh=1.0)
     axes[0].set_ylabel("metric drift |dH|/H_clean  (%)  [symlog]", fontsize=9)
     axes[0].legend(fontsize=8, title="Sun elev", loc="upper left")
-    fig.suptitle("ARGUS cast-shadow-length metric: MODELED degradation sensitivity "
+    fig.suptitle("STEWIE cast-shadow-length metric: MODELED degradation sensitivity "
                  "(NOT real-imagery validation)\n"
                  "x = refuses (dotted line);  gray dash = 1% gate reproduction threshold;  "
                  "clean abs. error vs 1.0 m truth ~4-5%", fontsize=10)

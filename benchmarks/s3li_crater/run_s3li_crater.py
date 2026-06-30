@@ -1,4 +1,4 @@
-"""ARGUS capstone runner: SuperPoint+LightGlue stereo VO -> DEM-anchoring on the REAL DLR S3LI
+"""STEWIE estimator benchmark runner: SuperPoint+LightGlue stereo VO -> DEM-anchoring on the REAL DLR S3LI
 ``s3li_crater`` Mt-Etna traverse, scored vs RTK ground truth with evo (reproduces arXiv:2603.17229's
 VO -> VO+DEM-anchoring result on real data).
 

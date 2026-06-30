@@ -131,7 +131,7 @@ def make_overlay(a: dict, b: dict, messier_path: str, png_path: str):
         axb.set_title(f"TARGET B: Station 6 House Rock M134991788R\nlargest fragment d={m['diameter_m']}m "
                       f"L={m['shadow_len_m']}m H={m['height_m']}m (doc ~6 m)")
     axb.axis("off")
-    fig.suptitle("ARGUS Niche-1 H=L*tan(e) reproduced on REAL LROC NAC boulders", fontsize=14)
+    fig.suptitle("Shadow-height metric H=L*tan(e) reproduced on REAL LROC NAC boulders", fontsize=14)
     fig.tight_layout(rect=(0, 0, 1, 0.98))
     fig.savefig(png_path, dpi=90)
     plt.close()
@@ -151,7 +151,7 @@ def main():
     make_overlay(a, b, args.messier, png)
 
     out = {
-        "experiment": "ARGUS Niche-1 shadow metric H=L*tan(e): reproduce a PUBLISHED lunar boulder "
+        "experiment": "Shadow-height metric H=L*tan(e): reproduce a PUBLISHED lunar boulder "
                       "height/shape on REAL LROC NAC imagery",
         "date": str(date.today()),
         "data_real": True, "synthetic_data_used": False, "fabricated_height": False,
