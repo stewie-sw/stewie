@@ -7,6 +7,8 @@ pluggable, the contract is the seam. SF-01 (the architecture's flagged-REQUIRED 
 the command-timeout watchdog: a dead-man switch that auto-SAFEs if commands stop arriving.
 """
 
+import pytest
+
 from stewie.bridge import rc_contract as RC
 
 
@@ -57,6 +59,35 @@ def test_watchdog_resets_on_each_valid_command():
         wd.feed(now=t)
         wd.tick(now=t + 0.1)
     assert not wd.tripped and not any(c.kind == "safe" for c in be.commands)
+
+
+def test_watchdog_latches_safe_until_explicit_rearm():
+    """#286 [REQ:SF-01]: a watchdog TRIP must LATCH -- after a comms-dropout safe-stop, the very next
+    command must NOT silently resume motion. The old feed()-clears-tripped let any GoTo un-safe the
+    machine (a stale/buffered command from the dropped link would drive). Now: while tripped a motion
+    command is REFUSED (WatchdogTrippedError, backend NOT fed it), a Safe is still accepted (re-affirm,
+    no re-arm), and only an explicit operator rearm() resumes motion."""
+    be = RC.RecordingBackend()
+    wd = RC.SafingWatchdog(be, deadline_s=2.0)
+    wd.submit(RC.GoTo(leg_id=0, goal_row=0, goal_col=5, v_max_mps=0.3, goal_radius_cells=1), now=0.0)
+    wd.tick(now=3.0)                                 # comms dropout past the deadline -> AUTO-SAFE + latch
+    assert wd.tripped and be.commands[-1].kind == "safe"
+    n_before = len(be.commands)
+
+    # a motion command while tripped is REFUSED and never reaches the backend (no silent resume)
+    with pytest.raises(RC.WatchdogTrippedError):
+        wd.submit(RC.GoTo(leg_id=1, goal_row=0, goal_col=9, v_max_mps=0.3, goal_radius_cells=1), now=3.1)
+    assert wd.tripped and len(be.commands) == n_before, "a GoTo resumed motion without a re-arm (#286)"
+
+    # commanding SAFE is always legal while tripped, and does NOT by itself re-arm
+    wd.submit(RC.Safe(reason=RC.SAFE_REASON_OPERATOR), now=3.2)
+    assert wd.tripped and be.commands[-1].kind == "safe"
+
+    # the deliberate operator re-arm clears the latch; motion is accepted again
+    wd.rearm(now=3.3)
+    assert not wd.tripped
+    wd.submit(RC.GoTo(leg_id=2, goal_row=0, goal_col=9, v_max_mps=0.3, goal_radius_cells=1), now=3.4)
+    assert be.commands[-1].kind == "goto", "re-armed watchdog still refused the command"
 
 
 def test_setsim_is_director_only_capability():

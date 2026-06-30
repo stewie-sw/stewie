@@ -141,6 +141,37 @@ def test_telemetry_payload_carries_cell_m(client):  # #230 step 3: the live driv
     assert isinstance(frame["cell_m"], (int, float)) and frame["cell_m"] > 0
 
 
+def test_goto_is_refused_409_while_watchdog_tripped_until_rearm(client):
+    """#286 [REQ:SF-01]: once the SF-01 watchdog has tripped (comms-dropout safe-stop), POST /rc/command
+    GoTo must be REFUSED (409, no silent resume) until an explicit operator re-arm. A 'rearm' command
+    clears the latch; only then does a GoTo drive again. (Force the latch directly -- the route's watchdog
+    uses a real monotonic clock, so we set its tripped state rather than sleep past the live deadline.)"""
+    c, key = client
+    H = {"X-API-Key": key}
+    from stewie.server.routers import rc as RCR
+    saved = RCR._RC_WATCHDOG
+    try:
+        from stewie.bridge import rc_contract as C
+        RCR._RC_WATCHDOG = C.SafingWatchdog(RCR._RC_BACKEND, deadline_s=5.0)
+        RCR._RC_WATCHDOG.submit(C.GoTo(leg_id=0, goal_row=0, goal_col=1, v_max_mps=0.3, goal_radius_cells=1),
+                                now=0.0)
+        RCR._RC_WATCHDOG.tick(now=100.0)                 # past the deadline -> latched SAFE
+        assert RCR._RC_WATCHDOG.tripped
+        # a GoTo while tripped is refused (409), not silently resumed
+        r = c.post("/rc/command", headers=H, json={"kind": "goto", "goal_row": 5, "goal_col": 6})
+        assert r.status_code == 409, r.text
+        assert "re-arm" in r.text.lower() or "tripped" in r.text.lower()
+        # the deliberate re-arm clears the latch
+        ra = c.post("/rc/command", headers=H, json={"kind": "rearm"})
+        assert ra.status_code == 200 and ra.json()["accepted"] == "rearm", ra.text
+        assert ra.json()["watchdog_tripped"] is False
+        # now a GoTo drives again
+        ok = c.post("/rc/command", headers=H, json={"kind": "goto", "goal_row": 5, "goal_col": 6})
+        assert ok.status_code == 200 and ok.json()["accepted"] == "goto", ok.text
+    finally:
+        RCR._RC_WATCHDOG = saved
+
+
 def test_sim_telemetry_does_not_fabricate_soc():
     """No-synthetic (Council Operator P2): the in-process kinematic SimBackend has NO energy model, so the
     telemetry payload must NOT report a fabricated soc (the Pose default 1.0). The cockpit then shows no

@@ -206,6 +206,12 @@ def commands_from_plan(mission, *, cell_m: float = DEFAULT_CELL_M, dem=None, dem
 
 
 # --- SF-01: the safing watchdog (the dead-man switch) ---------------------------------------------
+class WatchdogTrippedError(Exception):
+    """#286 [REQ:SF-01]: a motion command was submitted while the watchdog is TRIPPED (latched SAFE
+    after a comms-dropout/deadline safe-stop). The command is REFUSED -- motion resumes only after a
+    deliberate operator ``rearm()``, never as a side effect of the next command arriving."""
+
+
 class SafingWatchdog:
     """SF-01 [REQ:SF-01]: wrap any backend with a command-timeout interlock. Every valid command
     feeds the watchdog; if ``deadline_s`` elapses with no feed, ``tick`` auto-issues a SAFE to the
@@ -221,12 +227,26 @@ class SafingWatchdog:
         self.tripped = False
 
     def feed(self, *, now: float) -> None:
-        """Register a valid command/heartbeat at time ``now`` (resets the dead-man timer)."""
+        """Register a valid command/heartbeat at time ``now`` (resets the dead-man timer). #286: a feed
+        does NOT clear a tripped latch -- once safed, motion resumes only via an explicit ``rearm()``.
+        (A heartbeat keeps an UN-tripped link alive; it cannot silently un-safe a comms-dropout stop.)"""
+        self._last_feed = float(now)
+
+    def rearm(self, *, now: float) -> None:
+        """#286 [REQ:SF-01]: the deliberate operator re-arm -- the ONLY way motion resumes after a
+        watchdog safe-stop. Clears the tripped latch and re-arms the dead-man timer."""
         self._last_feed = float(now)
         self.tripped = False
 
     def submit(self, cmd, *, now: float) -> None:
-        """Forward a command to the backend AND feed the watchdog (the normal command path)."""
+        """Forward a command to the backend AND feed the watchdog (the normal command path). #286: while
+        the watchdog is TRIPPED a non-Safe (motion) command is REFUSED (WatchdogTrippedError) and never
+        reaches the backend -- a Safe is always accepted (re-affirm the stop) but does not itself re-arm;
+        only ``rearm()`` does. So a stale/buffered command from a dropped link cannot resume motion."""
+        if self.tripped and not isinstance(cmd, Safe):
+            raise WatchdogTrippedError(
+                "SF-01 watchdog is tripped (safed after a command-timeout/comms dropout); an explicit "
+                "operator re-arm is required before motion commands are accepted")
         self.backend.submit(cmd)
         self.feed(now=now)
 

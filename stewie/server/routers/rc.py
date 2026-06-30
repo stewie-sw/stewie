@@ -51,6 +51,10 @@ def rc_command(body: dict, identity: str = Depends(require_role("operator"))):
     kind = str(body.get("kind", "")).lower()
     now = time.monotonic()
     with _RC_LOCK:
+        if kind == "rearm":              # #286 [REQ:SF-01]: the deliberate operator re-arm after a safe-stop
+            _RC_WATCHDOG.rearm(now=now)  # the ONLY way motion resumes once the watchdog has latched SAFE
+            log_event(identity, "rc.rearm", "")
+            return {"ok": True, "accepted": "rearm", "watchdog_tripped": _RC_WATCHDOG.tripped}
         cmd: object
         try:    # #275: a malformed/missing numeric field is a 400 (client error), not an uncaught 500.
             if kind == "goto":
@@ -67,7 +71,10 @@ def rc_command(body: dict, identity: str = Depends(require_role("operator"))):
                 raise HTTPException(status_code=400, detail=f"unknown RC command kind {kind!r}")
         except (KeyError, ValueError, TypeError) as e:
             raise HTTPException(status_code=400, detail=f"malformed {kind!r} command: {e}") from e
-        _RC_WATCHDOG.submit(cmd, now=now)
+        try:    # #286: a motion command while the SF-01 watchdog is safed is a 409 (re-arm first), not a silent resume
+            _RC_WATCHDOG.submit(cmd, now=now)
+        except RC.WatchdogTrippedError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
         log_event(identity, f"rc.{kind}", str(body.get("leg_id", "")))
     return {"ok": True, "accepted": kind, "watchdog_tripped": _RC_WATCHDOG.tripped}
 
