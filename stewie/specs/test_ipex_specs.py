@@ -23,7 +23,10 @@ def test_drive_power_and_per_m():
     omega = 1530.0 * 2 * math.pi / 60.0
     assert math.isclose(ix.drive_power_w(), 4 * 0.063 * omega, rel_tol=1e-9)
     assert 30.0 < ix.drive_power_w() < 60.0                 # ~40 W, sane for a 30 kg rover
-    assert math.isclose(ix.drive_energy_per_m(), ix.drive_power_w() / 0.30, rel_tol=1e-9)
+    # #273: drive_energy_per_m is the GROUNDED lunar flat-drive draw (lunar_drive_power_w at the Moon's g),
+    # NOT drive_power_w()/v (the Earth-test motor draw, which over-estimates the lunar flat-drive ~6-9x).
+    assert math.isclose(ix.drive_energy_per_m(), ix.lunar_drive_power_w(slope_deg=0.0) / 0.30, rel_tol=1e-9)
+    assert ix.drive_energy_per_m() < (ix.drive_power_w() / 0.30) / 3.0   # well below the Earth-test J/m
 
 
 def test_dig_energy_per_kg():
