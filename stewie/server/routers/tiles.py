@@ -25,10 +25,11 @@ _CT = {".json": "application/json", ".pnts": "application/octet-stream",
 @router.get("/tiles/{name}/{asset:path}")
 def get_tile(name: str, asset: str, _auth: str = Depends(require_auth)):
     """Serve a tileset file. `name` = tileset dir (e.g. 'twin'); `asset` = tileset.json or points.pnts."""
-    base = os.path.join(_TILES_DIR, name)
-    path = os.path.realpath(os.path.join(base, asset))
-    # path-traversal guard: the resolved path must stay under the tileset's own dir.
-    if not path.startswith(os.path.realpath(base) + os.sep):
+    path = os.path.realpath(os.path.join(_TILES_DIR, name, asset))
+    # #302 path-traversal guard: the resolved path must stay under the FIXED tiles dir. Validating against
+    # a base recomputed from the attacker-controlled {name} (e.g. name='..') moved the containment dir up a
+    # level and served files outside _TILES_DIR; pin it to _TILES_DIR (already realpath'd at import).
+    if not path.startswith(_TILES_DIR + os.sep):
         return JSONResponse(status_code=400, content={"ok": False, "error": "bad tile path"})
     if not os.path.isfile(path):
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no tile {name}/{asset}"})
