@@ -21,6 +21,7 @@ import math
 
 from dart import map_channel as MC
 from lode import mission_planner as MP
+from lode.faults import classify_faults     # #269: classify per-leg telemetry so the SIM watchdog can SAFE
 from lode.mission_planner import BATTERY_J
 
 ODOM_DRIFT_FRAC = 0.05   # [ASSUMPTION] along-track odometry drift per metre; an independent pose fix corrects it
@@ -393,7 +394,13 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
                      # the TRUE pose at this leg, its pos sigma, and which real fix corrected it.
                      "bx": round(float(belief.x), 2), "by": round(float(belief.y), 2),
                      "tx": round(float(true_pose[0]), 2), "ty": round(float(true_pose[1]), 2),
-                     "pos_sigma_m": round(float(belief.pos_sigma_m), 3), "fix": fix_kind})
+                     "pos_sigma_m": round(float(belief.pos_sigma_m), 3), "fix": fix_kind,
+                     # #269 WMDT-L4: classify THIS leg's executed telemetry into faults so run_sim_execution's
+                     # watchdog can reach SAFED on a real entrapment / low-energy / localization-divergence event
+                     # (was always [] -> the cascade could never fire). tip-margin needs the support-polygon
+                     # geometry not computed in this loop, so it stays None (no fabricated margin).
+                     "faults": classify_faults(slip=float(telem["slip"]), battery_frac=belief.soc_frac(),
+                                               loc_sigma_m=float(belief.pos_sigma_m))})
     # A-03: reconcile the belief overlay to the canonical plant end state -- the canonical sim drives HOME
     # at mission end and the believed mission time IS the canonical plant time (the overlay does not invent
     # a location/energy the plant never had). Drive home through the SAME dead-reckoning machinery as a work

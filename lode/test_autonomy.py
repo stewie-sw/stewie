@@ -408,3 +408,22 @@ def test_closed_loop_legs_carry_localization_trace_for_the_cockpit():
             assert k in leg, f"leg missing localization field {k!r}"
         assert leg["fix"] in ("dem", "beacon", "none")
     assert any(leg["fix"] == "dem" for leg in r["legs"])      # the Haworth anchor has terrain -> real DEM fixes
+
+
+def test_legs_carry_classified_faults_for_the_watchdog():
+    """#269 WMDT-L4: run_closed_loop must attach a `faults` list to every leg (classify_faults of that
+    leg's executed slip / soc / pos_sigma_m), so run_sim_execution's watchdog can reach SAFED on a real
+    entrapment / low-energy / localization-divergence event. Pre-#269 NO leg carried a `faults` key, so
+    leg.get('faults') was always [] and the cascade could never fire. Real Haworth mission, no synthetic."""
+    from lode import autonomy as A
+    from lode.faults import classify_faults
+    dem = MP.load_haworth_dem(); o = MP.flattest_anchor(dem)
+    r = A.run_closed_loop(_spread(), dem=dem, dem_origin=o, algorithm="nearest", objective="time")
+    assert r["legs"], "no legs produced"
+    for leg in r["legs"]:
+        assert isinstance(leg.get("faults"), list), "leg missing the classified faults list (#269)"
+        # the attached faults must reflect THIS leg's own executed telemetry (slip / soc / pos_sigma_m)
+        exp = classify_faults(slip=float(leg["slip"]), battery_frac=float(leg["soc"]),
+                              loc_sigma_m=float(leg["pos_sigma_m"]))
+        assert sorted(f["fault"] for f in leg["faults"]) == sorted(f["fault"] for f in exp), \
+            f"attached faults inconsistent with leg telemetry: {leg['faults']} vs {exp}"
