@@ -153,7 +153,11 @@ def execute_leg(belief, leg, *, dem=None, dem_origin=(0.0, 0.0), g=None, body="m
     # for mass never on the wheels in a single drive (audit 2026-06-09); the extra shuttles' costs are
     # priced in the leg's slip-aware haul_e.
     haul_mass_kg = min(max(0.0, float(leg.get("mass", 0.0))), float(drum_kg))
-    slip = MP.slip_alpha_to_slip(slope_deg, payload_kg=haul_mass_kg, g=g, params=params)
+    # #298: pass the SELECTED vehicle's mass so slip uses the same rover mass as the gravity-climb term
+    # below (slip_alpha_to_slip defaults to the IPEx 30 kg global; a heavier platform must slip as its
+    # real mass, else slip is computed for 30 kg while m*g*h is charged for the true mass -- inconsistent).
+    slip = MP.slip_alpha_to_slip(slope_deg, payload_kg=haul_mass_kg, g=g, params=params,
+                                 rover_mass_kg=rover_mass_kg)
     true_drive_J = (drive_m * drive_j_per_m / (1.0 - slip)
                     + (rover_mass_kg + haul_mass_kg) * g * max(0.0, dh))
     haul_e = leg.get("haul_e", leg.get("haul_m", 0.0) * drive_j_per_m)      # #1 slip-aware haul (the plan's)

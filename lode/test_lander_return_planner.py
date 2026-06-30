@@ -59,3 +59,25 @@ def test_plan_totals_include_relocalization_with_bounded_drift():
 def test_negative_buffer_rejected_at_parse():
     with pytest.raises(ValueError):
         MP.mission_from_dict(_payload(return_buffer_frac=-0.1))
+
+
+def test_return_to_lander_uses_the_selected_vehicle_and_body_energy(monkeypatch):  # #297
+    """The return-to-lander safe-operating-radius check must price the return drive with the SELECTED
+    vehicle's battery + the BODY-aware per-metre drive energy (plan_context), not the hardcoded IPEx/lunar
+    module globals -- else a heavier platform or a non-Moon body gets a wrong feasibility verdict. Spy: the
+    feasibility call receives the ctx battery (usable_j) + ctx drive energy, and a heavier vehicle's
+    per-metre drive energy genuinely differs from the IPEx default."""
+    from lode import lander_return as LR
+    seen = {}
+    orig = LR.return_to_lander_feasible
+
+    def spy(**kw):
+        seen.update(kw)
+        return orig(**kw)
+    monkeypatch.setattr(LR, "return_to_lander_feasible", spy)
+    m = MP.mission_from_dict({**_payload(lander=[0, 0]), "vehicle": "rassor2"})
+    ctx = MP.plan_context(m)
+    assert not (abs(ctx.drive_j_per_m - MP.DRIVE_J_PER_M) < 1e-9), "test needs a non-default-energy vehicle"
+    MP._return_to_lander(m)
+    assert seen.get("drive_j_per_m") == pytest.approx(ctx.drive_j_per_m), "RTL ignored the body/vehicle drive energy (#297)"
+    assert seen.get("battery_j") == pytest.approx(ctx.usable_j), "RTL ignored the selected vehicle battery (#297)"

@@ -291,6 +291,30 @@ def test_execute_leg_caps_haul_at_the_selected_vehicles_drum():
     assert math.isclose(t_rassor["haul_mass_capped_kg"], 60.0), t_rassor["haul_mass_capped_kg"]
 
 
+def test_execute_leg_passes_the_selected_vehicle_mass_to_slip(monkeypatch):  # #298
+    """execute_leg's slip and gravity-climb terms must use the SAME selected-vehicle mass. The gravity term
+    used ctx.rover_mass_kg, but slip_alpha_to_slip was called WITHOUT rover_mass_kg, so it fell back to the
+    IPEx 30 kg default -- a heavier platform (rassor2) slipped as if it were 30 kg, an internal
+    inconsistency. Assert the slip call receives the SELECTED vehicle's mass (the spy proves it flows)."""
+    from lode import autonomy as A
+    seen = {}
+    orig = MP.slip_alpha_to_slip
+
+    def spy(slope_deg, **kw):
+        seen["rover_mass_kg"] = kw.get("rover_mass_kg")
+        return orig(slope_deg, **kw)
+    monkeypatch.setattr(MP, "slip_alpha_to_slip", spy)
+    dem = MP.load_haworth_dem(); o = MP.flattest_anchor(dem)
+    ctx = MP.plan_context(_veh_mission("rassor2"))            # heavier than the IPEx 30 kg default
+    assert not math.isclose(ctx.rover_mass_kg, MP.ROVER_MASS_KG), "test needs a non-default vehicle mass"
+    b = A.initial_belief(_veh_mission("rassor2"), 1)
+    A.execute_leg(b, {"site": (5.0, 0.0), "mass": 10.0, "kind": "cutfill"},
+                  dem=dem, dem_origin=o, body="moon", ctx=ctx)
+    assert seen.get("rover_mass_kg") is not None, "execute_leg did not pass rover_mass_kg to slip (#298)"
+    assert math.isclose(seen["rover_mass_kg"], ctx.rover_mass_kg), \
+        f"slip got {seen['rover_mass_kg']} not the selected vehicle mass {ctx.rover_mass_kg} (#298)"
+
+
 def test_initial_belief_threads_the_vehicle_pack_into_soc():
     """MODEL-01: the SOC denominator is the SELECTED vehicle's pack (via PlanningContext), not the global
     IPEx BATTERY_J. A fresh belief is full (soc 1.0) and its energy equals the vehicle's battery."""

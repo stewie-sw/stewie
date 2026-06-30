@@ -24,9 +24,9 @@ from stewie.physics import rassor_mass_model as RMM    # RMM.arm_raise_lift_ener
 from lode import lander_return as LR                   # #161 return-to-lander feasibility
 from lode import relocalization as REL                 # #96 articulation-parallax relocalization scheduling
 from lode.planner_constants import (
-    BATTERY_J, DRIVE_J_PER_M, LOCALIZATION_MARGIN_M, RESERVE_FRAC, ROVER_MASS_KG,
+    LOCALIZATION_MARGIN_M, ROVER_MASS_KG,   # #297: BATTERY_J/DRIVE_J_PER_M/RESERVE_FRAC now via plan_context
 )
-from lode.planner_model import Mission, _drum_kg, body_gravity
+from lode.planner_model import Mission, _drum_kg, body_gravity, plan_context
 from lode.planner_balance import SWELL
 from lode.planner_routing import point_in_keepout
 from lode.planner_sim import _simulate
@@ -62,13 +62,18 @@ def _return_to_lander(mission) -> dict:
     the safe haven; at its furthest order the rover must retain enough USABLE charge (after the general
     reserve) to drive back, keeping the operator-adjustable return_buffer_frac over the bare return drive
     energy. Conservative safe-operating-radius check (worst-case return from the furthest waypoint)."""
+    # #297: price the return drive with the SELECTED vehicle's battery + the BODY-aware per-metre drive
+    # energy (plan_context: gravity-aware lunar_drive_power_w at the mission body g + the vehicle mass),
+    # NOT the hardcoded IPEx/lunar globals -- a heavier platform or a non-Moon body has a different
+    # safe-operating radius. ipex on the Moon resolves to exactly the old globals (byte-identical).
+    ctx = plan_context(mission)
     lander = mission.lander or tuple(mission.charger)
     lx, ly = float(lander[0]), float(lander[1])
     pts = [(float(o.x), float(o.y)) for o in mission.orders] + [tuple(mission.charger)]
     reach = LR.furthest_reach_from_lander_m((lx, ly), pts)
-    usable_j = BATTERY_J * (1.0 - RESERVE_FRAC)
+    usable_j = ctx.usable_j
     blk = LR.return_to_lander_feasible(furthest_reach_m=reach, energy_spent_at_reach_j=0.0,
-                                       battery_j=usable_j, drive_j_per_m=DRIVE_J_PER_M,
+                                       battery_j=usable_j, drive_j_per_m=ctx.drive_j_per_m,
                                        return_buffer_frac=float(mission.return_buffer_frac))
     blk["lander_xy"] = [round(lx, 1), round(ly, 1)]
     return blk
