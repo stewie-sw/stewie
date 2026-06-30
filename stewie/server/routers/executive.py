@@ -115,13 +115,15 @@ class RunRequest(BaseModel):
 
 
 @router.post("/executive/run")
-def executive_run(req: RunRequest, identity: str = Depends(require_role("operator"))) -> JSONResponse:
+def executive_run(req: RunRequest, identity: str = Depends(require_director)) -> JSONResponse:
     """#245: execute a RELEASED build plan as a SIM run -- ARMED -> EXECUTING -> (COMPLETED | SAFED) over
     the conserved closed-loop sim, sequenced by lode.sim_execution.run_sim_execution. Builds the MO-01
     intent from the queue, drives the MO-02 head to RELEASED, runs run_closed_loop on the chosen site DEM,
-    then steps the live chain. OPERATOR-gated (operator arms; a watchdog/critical fault drives SAFED inside
-    the driver). DataLabel SIM ONLY -- this drives the in-process plant, never the gated real-rover command
-    path. 400 on an uncompilable / no-build-order plan."""
+    then steps the live chain. DIRECTOR-gated (#276, two-role ConOps): this route drives the plan to RELEASED,
+    and RELEASED is a director-authority MO-02 signing edge -- so an operator must NOT be able to drive it (the
+    prior require_role('operator') let an operator forge a director-signed release). Operators plan + rehearse;
+    a director releases (here, or via /executive/release-plan). DataLabel SIM ONLY -- this drives the in-process
+    plant, never the gated real-rover command path. 400 on an uncompilable / no-build-order plan."""
     from lode import autonomy as AUT
     from lode import mission_lifecycle as LC
     from lode import mission_planner as MP

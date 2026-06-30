@@ -1,6 +1,9 @@
 """#245 route TDD: POST /executive/run executes a RELEASED build plan as a SIM run end-to-end
-(intent_from_orders -> RELEASED -> run_closed_loop -> run_sim_execution), operator-gated and SIM-labeled.
-Unauthenticated -> locked; a queue with no build orders -> 400. Uses the REAL planner + sim (no mocks)."""
+(intent_from_orders -> RELEASED -> run_closed_loop -> run_sim_execution), DIRECTOR-gated (#276: it drives
+the plan to RELEASED, a director-authority MO-02 edge) and SIM-labeled. Unauthenticated -> locked; an
+authenticated operator -> 403; a queue with no build orders -> 400. Uses the REAL planner + sim (no mocks)."""
+import importlib
+
 from fastapi.testclient import TestClient
 
 _ORDERS = [{"kind": "cut", "x": 10.0, "y": 10.0, "action": "dig pad", "footprint_m2": 4.0, "depth_m": 0.3}]
@@ -30,6 +33,29 @@ def test_run_executes_released_plan_sim_labeled(monkeypatch, tmp_path):
 def test_run_requires_auth(monkeypatch, tmp_path):
     c = _client(monkeypatch, tmp_path, dev_open=False)           # no key, no dev-open -> locked
     assert c.post("/executive/run", json={"orders": _ORDERS}).status_code in (401, 403, 503)
+
+
+def test_run_is_director_gated_an_operator_is_refused(monkeypatch, tmp_path):
+    """#276 (two-role): /executive/run drives the plan to RELEASED, a director-authority MO-02 signing edge,
+    so an authenticated OPERATOR must be refused (403) -- the prior require_role('operator') let an operator
+    forge a director-signed release. A director (api-key identity) still runs the SIM."""
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STEWIE_API_KEY", "dir-key")              # the api-key identity == director
+    monkeypatch.delenv("STEWIE_DEV_OPEN", raising=False)
+    from stewie.server import operators as OPS
+    importlib.reload(OPS)
+    import stewie.server.server as SRV
+    importlib.reload(SRV)
+    from stewie.server import auth as AUTH
+    OPS.create_active("op@x.com", "operator-pw-1", role="operator", by="test")
+    tok = AUTH.issue_token("op@x.com")
+    c = TestClient(SRV.app)
+    body = {"orders": _ORDERS, "site": "haworth"}
+    r_op = c.post("/executive/run", headers={"Authorization": f"Bearer {tok}"}, json=body)
+    assert r_op.status_code == 403, f"an operator must NOT drive a director release (#276); got {r_op.status_code}: {r_op.text}"
+    r_dir = c.post("/executive/run", headers={"X-API-Key": "dir-key"}, json=body)
+    assert r_dir.status_code == 200, r_dir.text
+    importlib.reload(SRV)                                        # restore default app for other modules
 
 
 def test_run_rejects_a_queue_with_no_build_orders(monkeypatch, tmp_path):
