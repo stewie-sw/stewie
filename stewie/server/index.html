@@ -608,7 +608,7 @@
       <!-- #audit-3: the flat LAYERS strip is fully redundant with the organized Contents tree (section 2:
            Basemap/Terrain/Sun/Safety/Operations). Hidden (display:none) -- loadLayers still seeds LAYER_ON
            defaults into it (off-screen), but the Contents tree is the single visible, grouped layer surface. -->
-      <div id="layerpanel" class="cap" style="display:none;margin:4px 0;flex-wrap:wrap;gap:8px;align-items:center">LAYERS</div>
+      <div id="layerpanel" class="cap" style="display:flex;margin:4px 0;flex-wrap:wrap;gap:8px;align-items:center" title="3D / Recon globe overlays (the 2-D layers live in the Contents tree above)">3D · Recon</div>
       <div class="ctl" style="margin:2px 0">
         <button id="pathmode" class="site" title="S-3 path-first authoring: click waypoints in order; each becomes a sequenced goto; attach work orders at any point">Draw path</button>
         <button id="pathdone" class="site" style="display:none">✓ Finish path</button>
@@ -1439,6 +1439,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=b9996be65138"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=fbe9bab17219"></script>
+<script src="/assets/cockpit.js?v=7c4e6bfcae24"></script>
 </body>
 </html>

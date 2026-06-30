@@ -3594,24 +3594,12 @@ async function loadLayers() {
   try {
     const d = await (await fetch("/layers")).json();
     const panel = qel("layerpanel"); if (!panel) return;
-    panel.innerHTML = "<b style=\"margin-right:4px\">LAYERS</b>";
-    d.layers.forEach((L) => {
-      const lid = L.id || L.key;                             // server rasters use `key`
-      LAYER_ON[lid] = !!L.default;
-      const lab = document.createElement("label"); lab.style.cssText = "display:inline-flex;gap:3px;align-items:center;cursor:pointer";
-      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!L.default;
-      cb.onchange = () => { LAYER_ON[lid] = cb.checked; applyLayerToggle(lid, cb.checked); drawPlan();
-        if (typeof renderContentsTree === "function") renderContentsTree(); };   // GIS S-2: mirror the flat strip into the tree
-      lab.appendChild(cb); lab.appendChild(document.createTextNode(L.name));
-      LAYERS_LOADED = true;                                  // (set per row; cheap + monotonic)
-      if (["topology", "excavation", "lander"].includes(lid)) {
-        const tag = document.createElement("span");
-        tag.textContent = "plan"; tag.title = "draws on the PLAN canvas (section 4) and the work-area inset";
-        tag.style.cssText = "font-size:8px;color:var(--dim);border:1px solid var(--line);border-radius:3px;padding:0 3px";
-        lab.appendChild(tag);
-      }
-      panel.appendChild(lab);
-    });
+    panel.innerHTML = "<b style=\"margin-right:4px\" title=\"globe overlays beyond the Contents tree's 2-D layers: the 3-D relief drape + its exaggeration, and the photogrammetric reconstruction twin\">3D · Recon</b>";
+    d.layers.forEach((L) => {                               // #259-#3: SEED LAYER_ON only. The basic-layer rows
+      LAYER_ON[L.id || L.key] = !!L.default;                // now live SOLELY in the grouped Contents tree (de-dup
+      LAYERS_LOADED = true;                                  // of the redundant flat "LAYERS" strip Aaron flagged);
+    });                                                     // the panel below keeps just the 3D-Terrain/Recon controls
+                                                            // the tree lacks -- which a prior hide (e9b5ab2) had orphaned.
     // 3D Terrain: a client-side toggle (not a /layers raster) that drapes the chosen site's real DEM as a
     // 3D mesh on the globe (GET /dem/terrain_grid). Off by default; additive, so it can't disturb the rasters.
     const t3 = document.createElement("label");
