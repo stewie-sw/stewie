@@ -161,6 +161,20 @@ class TwinStore:
                 out[r0:r0 + p.shape[0], c0:c0 + p.shape[1]] = p
         return out
 
+    def observed_mask(self) -> np.ndarray:
+        """#280: a bool array (base shape) True where a resync patch has been applied (minus undos) -- the
+        cells the perception/resync channel has actually MEASURED. It is the coverage gate for consuming the
+        observed surface in planning (state.as_built_dem): an UNobserved cell falls back to the as-built /
+        pristine surface, so a thin or empty resync can never degrade a plan. Mirrors current()'s replay."""
+        undone = {e["target"] for e in self.events if e["kind"] == "undo"}
+        mask = np.zeros(self.base.shape, dtype=bool)
+        for e in self.events:
+            if e["kind"] == "patch" and e["seq"] not in undone:
+                r0, c0 = e["origin_rc"]
+                p = np.array(e["patch"])
+                mask[r0:r0 + p.shape[0], c0:c0 + p.shape[1]] = True
+        return mask
+
     def verify_chain(self) -> bool:
         prev = "genesis"
         for e in self.events:
