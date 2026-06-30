@@ -130,6 +130,29 @@ def sim_pose_source(backend):
     return _src
 
 
+def bridge_session_events(commands, *, tripped: bool, vehicle_id: str = "ipex"):
+    """Step 4 (gap W2): convert a bridge backend's command log into the FS-04 ExecutionEvent timeline so
+    the live ROS/pit path can commit to the SAME world-state log as the SIM run -- one ``command`` event
+    per drive command the watchdog forwarded, plus a terminal ``safe``/``safed`` event if the SF-01
+    watchdog tripped (the cmd_vel stream stalled past the dead-man). A ``Safe`` command in the log is the
+    trip itself, recorded once as the terminal event, not as a separate ``command``. Pure + rclpy-free:
+    the live verification script and the in-process test both build the same events from this and commit
+    them through ``WorldStateService.record_execution_event``."""
+    from stewie.contracts import ExecutionEvent
+    events = []
+    t = 0.0
+    for c in commands:
+        if type(c).__name__ == "Safe":
+            continue                                         # the trip is the terminal event below
+        events.append(ExecutionEvent(t_s=t, vehicle_id=vehicle_id, kind="command",
+                                     detail=f"cmd_vel -> {type(c).__name__}", outcome="ok"))
+        t += 1.0
+    if tripped:
+        events.append(ExecutionEvent(t_s=t, vehicle_id=vehicle_id, kind="safe",
+                                     detail="SF-01 watchdog: cmd_vel stream stalled", outcome="safed"))
+    return events
+
+
 class RcBridge:
     """The rclpy-OPTIONAL bridge core (testable without ROS2). ``on_cmd_vel`` translates a Twist using
     the last-known pose and submits it through the SF-01 watchdog; ``tick`` advances the dead-man so a
