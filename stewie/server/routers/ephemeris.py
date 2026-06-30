@@ -22,10 +22,17 @@ AZIMUTH_CONVENTION = "from_north_eastward"
 @router.get("/ephemeris")
 def ephemeris(mission_t_s: float = Query(0.0),
               lat_deg: float = Query(-87.45, ge=-90.0, le=90.0),
-              lon_deg: float = Query(0.0, ge=-360.0, le=360.0)) -> dict:
+              lon_deg: float = Query(0.0, ge=-360.0, le=360.0),
+              site: str | None = Query(None, max_length=64)) -> dict:
     """FS-06: resolve the sun azimuth/elevation for (mission_t_s, site) via the solar authority and
     return the typed EphemerisObservation -- the sun vector, the EXPLICIT azimuth convention, the body
-    frame, and provenance. Lat/lon are domain-checked at the route boundary (422 on out-of-domain)."""
+    frame, and provenance. Lat/lon are domain-checked at the route boundary (422 on out-of-domain).
+    #301 (REG-01): when ``site`` is given, ITS lat/lon (sites.site_latlon, the SAME source #274 wired into
+    the layer/plan sun routes) OVERRIDE lat_deg/lon_deg, so the 3D-view sun follows the CHOSEN site rather
+    than the hardcoded Haworth lat the cockpit used to send for every site."""
+    if site:
+        from stewie.specs.sites import site_latlon
+        lat_deg, lon_deg = site_latlon(site)
     az, el = sun_az_el(lat_deg, mission_t_s, site_lon_deg=lon_deg)
     obs = EphemerisObservation(
         mission_t_s=mission_t_s, site_lat_deg=lat_deg, site_lon_deg=lon_deg,

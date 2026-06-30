@@ -37,6 +37,20 @@ def test_azimuth_convention_is_explicit_and_shared(client):
     assert obs.frame == "MOON_ME" and obs.source == "analytic"
 
 
+def test_site_param_resolves_the_chosen_sites_lat_lon(client):  # #301 (REG-01)
+    """A 'site' param resolves the sun geometry to THAT site's lat/lon (sites.site_latlon, the source #274
+    wired into the layer/plan sun routes), not the hardcoded Haworth lat the cockpit's 3D-view sun used to
+    send for every site. shackleton_rim (~-89.8) genuinely differs from Haworth (-87.45)."""
+    from stewie.specs.sites import site_latlon
+    slat, slon = site_latlon("shackleton_rim")
+    assert abs(slat - (-87.45)) > 0.1                          # the test site genuinely differs from Haworth
+    obs = EphemerisObservation.model_validate(
+        client.get("/ephemeris?mission_t_s=0&site=shackleton_rim").json()["ephemeris"])
+    assert obs.site_lat_deg == pytest.approx(slat) and obs.site_lon_deg == pytest.approx(slon)
+    d = EphemerisObservation.model_validate(client.get("/ephemeris").json()["ephemeris"])
+    assert d.site_lat_deg == pytest.approx(-87.45)             # no site -> the default Haworth lat (back-compat)
+
+
 def test_out_of_domain_latitude_is_rejected_at_the_boundary(client):
     r = client.get("/ephemeris?lat_deg=120")                   # |lat| > 90 -> rejected at the route boundary
     assert r.status_code == 400 and r.json()["ok"] is False    # app maps validation errors to 400 {ok,error}

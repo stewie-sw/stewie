@@ -5070,7 +5070,10 @@ function apply3DSun() {
   const auto = $("sunauto") && $("sunauto").checked;
   if (auto && $("suntime")) {
     const mt = Math.round(parseFloat($("suntime").value) * 86400);
-    fetch(`/ephemeris?mission_t_s=${mt}&lat_deg=-87.45&lon_deg=0`, { headers: apiHeaders() })
+    // #301 (REG-01): resolve the sun for the CHOSEN site (server-side site_latlon), not a hardcoded
+    // Haworth lat -- the 3D-view sun was wrong for every non-Haworth site (the #274 fix, frontend side).
+    const _site = (typeof CURRENT_SITE === "string" && CURRENT_SITE) ? CURRENT_SITE : "haworth";
+    fetch(`/ephemeris?mission_t_s=${mt}&site=${encodeURIComponent(_site)}`, { headers: apiHeaders() })
       .then((r) => r.json()).then((d) => {
         if (d && d.ok && d.ephemeris) STEWIE3D.setSun(d.ephemeris.sun_az_deg, d.ephemeris.sun_el_deg);
       }).catch(() => {});
