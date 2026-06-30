@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import threading
 import time
 from dataclasses import dataclass, field
 
@@ -180,11 +181,17 @@ _SESSIONS: dict[str, Session] = {}
 _SESSION_TTL_S = 6 * 3600.0          # M-09: live-session TTL (~one training shift)
 _SESSION_MAX = 256                   # M-09: hard cap on concurrently-held sessions
 _now = time.monotonic                # injectable elapsed-time source (test-pinnable)
+# #295: serialize the _SESSIONS registry read-modify-write. start() runs _evict (which ITERATES
+# _SESSIONS.items()) then inserts; two concurrent POST /session/start (sync handlers -> FastAPI
+# threadpool) would otherwise mutate the dict mid-iteration -> "dictionary changed size during
+# iteration" -> uncaught 500. _evict assumes it is called holding this lock.
+_SESSIONS_LOCK = threading.Lock()
 
 
 def _evict(now: float) -> None:
     """M-09: drop expired sessions, then enforce the cap oldest-first (clock-driven). The durable
-    record is the on-demand debrief/summary markdown, so eviction never loses the trainer's record."""
+    record is the on-demand debrief/summary markdown, so eviction never loses the trainer's record.
+    #295: call ONLY while holding _SESSIONS_LOCK (it iterates + mutates _SESSIONS)."""
     for sid in [k for k, v in _SESSIONS.items()
                 if now - v.created_monotonic_s > _SESSION_TTL_S]:
         _SESSIONS.pop(sid, None)
@@ -194,13 +201,14 @@ def _evict(now: float) -> None:
 
 
 def start(mission, **kw) -> Session:
-    s = Session.run(mission, **kw)
+    s = Session.run(mission, **kw)   # the heavy closed-loop run stays OUTSIDE the lock (don't serialize it)
     now = _now()
-    _evict(now)                      # clear the expired/over-cap backlog before inserting
-    s.created_monotonic_s = now
-    _SESSIONS[s.session_id] = s
-    if len(_SESSIONS) > _SESSION_MAX:   # the just-inserted session itself may put us at cap+1
-        _evict(now)
+    with _SESSIONS_LOCK:             # #295: the registry RMW (evict + insert) is the only serialized part
+        _evict(now)                  # clear the expired/over-cap backlog before inserting
+        s.created_monotonic_s = now
+        _SESSIONS[s.session_id] = s
+        if len(_SESSIONS) > _SESSION_MAX:   # the just-inserted session itself may put us at cap+1
+            _evict(now)
     return s
 
 

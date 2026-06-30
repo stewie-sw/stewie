@@ -43,6 +43,23 @@ def test_session_start_runs_the_real_loop(client):
     assert s["ok"] and s["n_legs"] > 0 and "session_id" in s
 
 
+def test_session_start_runs_the_registry_mutation_under_a_lock(client, monkeypatch):  # #295
+    """Concurrent POST /session/start must not corrupt _SESSIONS: the evict+insert read-modify-write runs
+    under _SESSIONS_LOCK, so one thread's _evict iteration cannot collide with another's insert ('dictionary
+    changed size during iteration' -> 500). Deterministic guard: the lock is HELD while _evict runs."""
+    from stewie.server import session as S
+    held = []
+    orig = S._evict
+
+    def spy(now):
+        held.append(S._SESSIONS_LOCK.locked())
+        return orig(now)
+    monkeypatch.setattr(S, "_evict", spy)
+    r = client.post("/session/start", json=_mission(), headers={"X-API-Key": "director-key"})
+    assert r.status_code == 200, r.text
+    assert held and all(held), "session.start's registry RMW ran WITHOUT _SESSIONS_LOCK (#295)"
+
+
 def test_operator_view_is_truth_denylisted_and_link_constrained(client):
     sid = client.post("/session/start", json=_mission(),
                       headers={"X-API-Key": "director-key"}).json()["session_id"]
