@@ -220,12 +220,22 @@ class TerrainMemory:
         return True
 
     def save(self, path: str) -> None:
-        """Persist the accumulated delta grid + metadata + provenance chain to ``path`` (a .npz)."""
+        """Persist the accumulated delta grid + metadata + provenance chain to ``path`` (a .npz).
+
+        #277: write ATOMICALLY -- a ``.part`` temp in the same dir, fsync'd, then ``os.replace``'d into
+        place -- so a crash or a concurrent writer mid-write never leaves a TORN .npz at the canonical path
+        (as_built_dem's defensive reader would then silently discard ALL recorded terrain memory). ``np.savez``
+        is handed the open FILE so it writes the exact temp name (a string path would append a second .npz)."""
         meta = {
             "site": self.site, "rows": self.rows, "cols": self.cols, "cell_m": self.cell_m,
             "origin": list(self.origin), "version": self.version, "chain": self.chain,
         }
-        np.savez(path, delta=self._delta, meta=json.dumps(meta))
+        tmp = path + ".part"
+        with open(tmp, "wb") as f:
+            np.savez(f, delta=self._delta, meta=json.dumps(meta))
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
 
     @classmethod
     def load(cls, path: str) -> "TerrainMemory":

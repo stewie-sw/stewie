@@ -193,3 +193,24 @@ def test_save_site_load_site_round_trip(tmp_path):
     back = load_site(str(tmp_path), "haworth")
     assert back is not None and back.version == 1 and back.verify_chain()
     assert np.allclose(back.cumulative_delta(), tm.cumulative_delta())
+
+
+def test_save_is_atomic_a_failed_commit_keeps_the_prior_file(tmp_path, monkeypatch):
+    """#277: TerrainMemory.save writes a .part then os.replace's it into place, so a crash/concurrent
+    writer mid-write can never TORN the canonical .npz (as_built_dem would then silently discard all
+    recorded memory). Guard: if the atomic commit (os.replace) fails mid-save, the PRIOR committed file is
+    left intact -- pre-#277 the in-place np.savez overwrote the real file before any rename, corrupting it."""
+    import os
+    p = str(tmp_path / "haworth.npz")
+    d = _real_cut_delta(8, 8, 1.0, 0.10)                       # a REAL conserved cut delta (no synthetic)
+    v1 = TerrainMemory(site="haworth", rows=8, cols=8, cell_m=1.0, origin=(0.0, 0.0))
+    v1.apply(d, mission="v1"); v1.save(p)
+    committed = TerrainMemory.load(p).cumulative_delta().copy()
+
+    v2 = TerrainMemory(site="haworth", rows=8, cols=8, cell_m=1.0, origin=(0.0, 0.0))
+    v2.apply(d * 3.0, mission="v2")                            # a DIFFERENT surface
+    monkeypatch.setattr(os, "replace", lambda *a, **k: (_ for _ in ()).throw(OSError("simulated crash")))
+    with pytest.raises(OSError):
+        v2.save(p)                                            # the commit fails AFTER writing the .part
+    assert np.allclose(TerrainMemory.load(p).cumulative_delta(), committed), \
+        "a failed save corrupted the prior committed terrain memory (#277)"
