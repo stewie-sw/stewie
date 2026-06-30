@@ -49,6 +49,18 @@ def test_turn_rate_rotates_the_short_horizon_goal():
     assert cmd.goal_col == pytest.approx(10.0, abs=1e-6)
 
 
+def test_slow_twist_on_the_production_grid_still_projects_a_reachable_carrot():  # #296
+    """A realistic IPEx speed (0.3 m/s) on the production 5 m/cell grid projects only 0.06 cells ahead, so
+    the FIXED 0.1-cell arrival radius swallowed it as 'already arrived' -> ZERO motion (verified: 0.2-0.4
+    m/s drove 0 m at cell_m=5). The arrival radius must scale to the projection so the moving carrot is
+    always genuinely ahead of the rover at any cell size + speed."""
+    cmd = B.twist_to_command(0.3, 0.0, pose=_pose(row=0, col=0, yaw=0.0), horizon_s=1.0, cell_m=5.0)
+    assert isinstance(cmd, RC.GoTo)
+    dist_cells = math.hypot(cmd.goal_row, cmd.goal_col)
+    assert dist_cells > 0.0
+    assert cmd.goal_radius_cells < dist_cells, "slow twist carrot is inside the arrival radius -> swallowed (#296)"
+
+
 def test_pose_to_odom_maps_fields():
     # REP-103 metres via frames.py: x=col*cell_m, y=-row*cell_m (handedness), not raw grid cells
     od = B.pose_to_odom(RC.Pose(leg_id=1, row=5.0, col=7.0, yaw_rad=0.5, v_achieved_mps=0.2, slip=0.1),

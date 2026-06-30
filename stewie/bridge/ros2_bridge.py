@@ -18,9 +18,13 @@ from stewie.bridge import rc_contract as RC
 
 _EPS = 1e-3
 # The cmd_vel carrot is a MOVING short-horizon goal re-projected each twist, not a discrete waypoint:
-# the default 1-cell GoTo arrival radius would SWALLOW a typical projection (e.g. 1 m/s x 1 s = 1 cell)
-# so the rover would register "already arrived" and never move. A tight radius keeps the carrot ahead.
-_GOAL_RADIUS_CELLS = 0.1
+# the default 1-cell GoTo arrival radius would SWALLOW a typical projection so the rover registers
+# "already arrived" and never moves. The arrival radius must therefore be a FRACTION of THIS twist's
+# projection (#296), not a fixed cell count -- a fixed 0.1-cell radius is larger than a slow IPEx twist's
+# projection on the coarse production grid (0.3 m/s x 1 s = 0.06 cell at 5 m/cell < 0.1) and swallowed it,
+# so a realistic slow drive produced ZERO motion. A projection-relative radius keeps the carrot ahead at
+# ANY cell size + speed.
+_GOAL_RADIUS_FRAC = 0.5
 
 
 def twist_to_command(linear_x: float, angular_z: float, *, pose: RC.Pose, horizon_s: float = 1.0,
@@ -36,9 +40,10 @@ def twist_to_command(linear_x: float, angular_z: float, *, pose: RC.Pose, horizo
     dist_m = float(linear_x) * float(horizon_s)
     dcol = dist_m * math.cos(yaw) / float(cell_m)                        # REP-103 +x -> +col (frames.py)
     drow = -dist_m * math.sin(yaw) / float(cell_m)                       # REP-103 +y (left) -> -row (frames.py)
+    proj_cells = math.hypot(dcol, drow)                                  # #296: this twist's projection magnitude
     return RC.GoTo(leg_id=leg_id, goal_row=float(pose.row) + drow,
                    goal_col=float(pose.col) + dcol, v_max_mps=abs(float(linear_x)),
-                   goal_radius_cells=_GOAL_RADIUS_CELLS)
+                   goal_radius_cells=_GOAL_RADIUS_FRAC * proj_cells)      # #296: always < the projection
 
 
 def yaw_to_quaternion(yaw: float):
