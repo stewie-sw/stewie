@@ -137,6 +137,8 @@ class TransactionLog:
         """Link the four CURRENT world-state source OBJECTS into one record, hash-chain it, durably
         journal it (if journalling), and append it. Returns the committed transaction. Extracts each
         source's identity then delegates to ``commit_snapshot`` (the shared commit path)."""
+        if not provenance or not str(provenance).strip():   # validate FIRST (before touching sources),
+            raise ValueError("every world transaction requires non-empty provenance")  # original contract
         return self.commit_snapshot(
             authority_sha=authority_sha(authority),
             twin_version=int(twin.version),

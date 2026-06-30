@@ -98,6 +98,15 @@ class TwinStore:
         self.version += 1
         return self.version
 
+    def identity(self) -> tuple[int, str]:
+        """The (version, latest-event-hash) pair read ATOMICALLY under the twin's lock -- so a caller
+        (e.g. WorldStateService committing a linked world transaction) gets a consistent identity that
+        always corresponds to a real twin state, even while a concurrent apply_patch/undo runs. Reading
+        version and the hash separately can otherwise tear (apply_patch appends the event THEN bumps the
+        version), yielding an identity pair for a state that never existed."""
+        with self._mutex:
+            return int(self.version), (self.events[-1]["hash"] if self.events else "genesis")
+
     # ---- edits ---------------------------------------------------------------------------
     def apply_patch(self, heights_m: np.ndarray, *, origin_rc: tuple, provenance: str) -> int:
         """Replace the observed heights of a rectangular region. Returns the new version."""

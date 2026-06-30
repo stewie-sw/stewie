@@ -19,17 +19,32 @@ from stewie.twin import versioned as vt
 
 
 def _twin() -> vt.TwinStore:
-    rng = np.random.default_rng(11)
-    return vt.TwinStore(rng.normal(0.0, 0.05, (32, 32)), cell_m=0.5)
+    # plumbing fixture: never patched/read (only its identity is linked) -> zero base, no fabrication.
+    return vt.TwinStore(np.zeros((32, 32), dtype=float), cell_m=0.5)
 
 
-def test_session_events_one_command_each_plus_safe_on_trip():
+def test_session_events_one_event_per_command_safe_carries_cause():
     cmds = [RC.GoTo(leg_id=0, goal_row=0.0, goal_col=1.0, v_max_mps=0.3),
             RC.GoTo(leg_id=0, goal_row=0.0, goal_col=2.0, v_max_mps=0.3),
             RC.Safe(reason=RC.SAFE_REASON_WATCHDOG)]
-    evs = B.bridge_session_events(cmds, tripped=True)
-    assert [e.kind for e in evs] == ["command", "command", "safe"]   # Safe cmd folded into the terminal
-    assert evs[-1].outcome == "safed"
+    evs = B.bridge_session_events(cmds)
+    assert [e.kind for e in evs] == ["command", "command", "safe"]
+    assert evs[-1].outcome == "safed" and "watchdog" in evs[-1].detail.lower()
+
+
+def test_operator_and_watchdog_safes_are_both_recorded_with_true_cause():
+    """Regression (review B1): a near-zero twist yields Safe(OPERATOR), which the watchdog forwards to
+    the backend. Every safe-stop must be recorded with its REAL reason -- an operator stop must not be
+    dropped, and a watchdog trip must not be relabeled onto it. The audit log must be faithful."""
+    cmds = [RC.GoTo(leg_id=0, goal_row=0.0, goal_col=1.0, v_max_mps=0.3),
+            RC.Safe(reason=RC.SAFE_REASON_OPERATOR),                 # operator released the stick
+            RC.GoTo(leg_id=0, goal_row=0.0, goal_col=2.0, v_max_mps=0.3),
+            RC.Safe(reason=RC.SAFE_REASON_WATCHDOG)]                 # then the stream stalled
+    evs = B.bridge_session_events(cmds)
+    assert [e.kind for e in evs] == ["command", "safe", "command", "safe"]   # nothing dropped
+    assert "operator" in evs[1].detail.lower()                      # operator stop recorded with true cause
+    assert "watchdog" in evs[3].detail.lower()                      # watchdog trip NOT relabeled onto it
+    assert evs[1].t_s == 1.0 and evs[3].t_s == 3.0                  # ordinals preserved
 
 
 def test_watchdog_trip_records_a_safe_world_transaction():
@@ -44,7 +59,7 @@ def test_watchdog_trip_records_a_safe_world_transaction():
     assert bridge.tick(now=10.0) is True                   # stalled past 5 s -> tripped + auto-safed
 
     wss = WorldStateService(twin=_twin())
-    evs = B.bridge_session_events(be.commands, tripped=True)
+    evs = B.bridge_session_events(be.commands)
     for ev in evs:
         wss.record_execution_event(provenance=f"bridge {ev.kind}: {ev.detail} [{ev.outcome}]",
                                    mission="teleop", site="haworth", body="moon", mission_t_s=ev.t_s)

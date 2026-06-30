@@ -89,9 +89,12 @@ class WorldStateService:
         if mission_t_s is not None:
             self._mission_t_s = float(mission_t_s)
         tw = self._twin_obj()
-        t_ver = int(getattr(tw, "version", 0))
-        events = getattr(tw, "events", None)
-        t_hash = events[-1]["hash"] if events else "genesis"
+        if hasattr(tw, "identity"):                       # atomic (version, hash) under the twin's lock
+            t_ver, t_hash = tw.identity()
+        else:                                            # duck-typed fallback (e.g. a bare stub twin)
+            t_ver = int(getattr(tw, "version", 0))
+            events = getattr(tw, "events", None)
+            t_hash = events[-1]["hash"] if events else "genesis"
         return self._log.commit_snapshot(
             authority_sha=self._authority_sha, twin_version=t_ver, twin_hash=t_hash,
             plan_id=self._plan_id, belief=self._belief, mission=self._mission, site=self._site,

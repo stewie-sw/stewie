@@ -91,7 +91,7 @@ def main(deadline_s: float = 2.0, drive_s: float = 1.5, stall_s: float = 3.0) ->
 
     # commit the live session to the world-state log via the SAME seam the SIM run uses
     wss = WorldStateService(twin=_scratch_twin())
-    events = B.bridge_session_events(backend.commands, tripped=tripped)
+    events = B.bridge_session_events(backend.commands)
     for ev in events:
         wss.record_execution_event(provenance=f"LIVE bridge {ev.kind}: {ev.detail} [{ev.outcome}]",
                                    mission="live-teleop", site="haworth", body="moon", mission_t_s=ev.t_s)

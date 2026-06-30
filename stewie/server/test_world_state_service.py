@@ -16,6 +16,7 @@ fixture style as test_envelope.py.
 from __future__ import annotations
 
 import importlib
+import threading
 
 import numpy as np
 import pytest
@@ -196,3 +197,56 @@ def test_world_transaction_route_requires_auth(client, monkeypatch):
     monkeypatch.delenv("STEWIE_DEV_OPEN", raising=False)
     anon = client.get("/world/transaction")
     assert anon.status_code in (401, 403)
+
+
+_TERRAIN_MISSION = {"name": "pad-A", "body": "moon", "charger": [0, 0],
+                    "orders": [{"action": "src", "kind": "cut", "x": 5.0, "y": 5.0,
+                                "footprint_m2": 36.0, "depth_m": 0.3}]}
+
+
+def test_twin_terrain_record_commits_a_world_transaction(client):  # gap G2
+    """POST /twin/terrain commits a linked world transaction whose authority_sha is the content hash of
+    the recorded as-built surface (not the genesis default), labeled terrain.record."""
+    assert client.get("/world/transaction", headers=H).json()["committed"] is False
+    r = client.post("/twin/terrain/haworth", headers=H, json={"mission": _TERRAIN_MISSION})
+    assert r.status_code == 200, r.text
+    txn = client.get("/world/transaction", headers=H).json()["transaction"]
+    assert txn["authority_sha"] != "genesis" and len(txn["authority_sha"]) == 64
+    assert "terrain.record" in txn["provenance"] and txn["mission"] == "pad-A"
+
+
+def test_twin_resync_survives_a_world_log_failure(client, monkeypatch):  # gap G1 sibling / finding C1
+    """Defensive: if the world-state commit raises (e.g. a corrupt world journal, which DT-01 surfaces by
+    raising), POST /twin/resync must STILL return 200 -- the resync mutation is already applied; the
+    best-effort world-log record must never 500 a succeeded mutation."""
+    from stewie.server import state as S
+    monkeypatch.setattr(S, "world_state_service", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    r = client.post("/twin/resync", headers=H,
+                    json={"heights_m": [[0.1, 0.1], [0.1, 0.1]], "origin_rc": [0, 0], "provenance": "p"})
+    assert r.status_code == 200 and r.json()["twin_version"] >= 1   # mutation applied despite world-log failure
+
+
+def test_twin_terrain_survives_a_world_log_failure(client, monkeypatch):  # finding C1
+    from stewie.server import state as S
+    monkeypatch.setattr(S, "world_state_service", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    r = client.post("/twin/terrain/haworth", headers=H, json={"mission": _TERRAIN_MISSION})
+    assert r.status_code == 200 and r.json()["recorded"] is True    # terrain saved despite world-log failure
+
+
+def test_concurrent_records_serialize_and_keep_the_chain_valid():  # gap G4
+    """The lock claim, exercised: N threads each commit a transition; all N land, the chain stays valid,
+    and seqs are a contiguous 0..N-1 (no lost or interleaved-corrupt record)."""
+    wss = WorldStateService(twin=_twin())
+    n = 64
+
+    def worker(i: int) -> None:
+        wss.record_plan(plan_id=f"p{i}", provenance=f"t{i}", mission="m")
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert wss.transaction_count() == n
+    assert wss.verify_chain()
+    assert sorted(t.seq for t in wss._log.transactions) == list(range(n))

@@ -130,26 +130,34 @@ def sim_pose_source(backend):
     return _src
 
 
-def bridge_session_events(commands, *, tripped: bool, vehicle_id: str = "ipex"):
+_SAFE_REASON_DETAIL = {
+    RC.SAFE_REASON_OPERATOR: "operator stop",
+    RC.SAFE_REASON_WATCHDOG: "SF-01 watchdog: cmd_vel stream stalled",
+    RC.SAFE_REASON_HAZARD: "hazard stop",
+}
+
+
+def bridge_session_events(commands, *, vehicle_id: str = "ipex"):
     """Step 4 (gap W2): convert a bridge backend's command log into the FS-04 ExecutionEvent timeline so
-    the live ROS/pit path can commit to the SAME world-state log as the SIM run -- one ``command`` event
-    per drive command the watchdog forwarded, plus a terminal ``safe``/``safed`` event if the SF-01
-    watchdog tripped (the cmd_vel stream stalled past the dead-man). A ``Safe`` command in the log is the
-    trip itself, recorded once as the terminal event, not as a separate ``command``. Pure + rclpy-free:
-    the live verification script and the in-process test both build the same events from this and commit
-    them through ``WorldStateService.record_execution_event``."""
+    the live ROS/pit path can commit to the SAME world-state log as the SIM run. ONE event per command:
+    a ``command``/``ok`` for each drive command the watchdog forwarded, and a ``safe``/``safed`` for each
+    ``Safe`` carrying its actual REASON (operator stop, SF-01 watchdog stall, hazard) -- every safe-stop
+    is recorded with its true cause, never dropped or relabeled (the audit log this seam exists to
+    produce must be faithful). ``t_s`` is the command ORDINAL. Pure + rclpy-free: the live verification
+    script and the in-process test both build the same events and commit them through
+    ``WorldStateService.record_execution_event``."""
     from stewie.contracts import ExecutionEvent
     events = []
-    t = 0.0
-    for c in commands:
+    for i, c in enumerate(commands):
         if type(c).__name__ == "Safe":
-            continue                                         # the trip is the terminal event below
-        events.append(ExecutionEvent(t_s=t, vehicle_id=vehicle_id, kind="command",
-                                     detail=f"cmd_vel -> {type(c).__name__}", outcome="ok"))
-        t += 1.0
-    if tripped:
-        events.append(ExecutionEvent(t_s=t, vehicle_id=vehicle_id, kind="safe",
-                                     detail="SF-01 watchdog: cmd_vel stream stalled", outcome="safed"))
+            reason = getattr(c, "reason", None)
+            detail = (_SAFE_REASON_DETAIL.get(reason, f"safe (reason {reason})")
+                      if isinstance(reason, int) else "safe")
+            events.append(ExecutionEvent(t_s=float(i), vehicle_id=vehicle_id, kind="safe",
+                                         detail=detail, outcome="safed"))
+        else:
+            events.append(ExecutionEvent(t_s=float(i), vehicle_id=vehicle_id, kind="command",
+                                         detail=f"cmd_vel -> {type(c).__name__}", outcome="ok"))
     return events
 
 

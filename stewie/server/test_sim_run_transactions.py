@@ -23,8 +23,9 @@ from stewie.twin import versioned as vt
 
 
 def _twin() -> vt.TwinStore:
-    rng = np.random.default_rng(11)
-    return vt.TwinStore(rng.normal(0.0, 0.05, (32, 32)), cell_m=0.5)
+    # plumbing fixture: this twin is never patched/read by these tests (only its version/hash identity
+    # is linked), so a zero base is the cleanest opaque vessel -- no fabricated heights at all.
+    return vt.TwinStore(np.zeros((32, 32), dtype=float), cell_m=0.5)
 
 
 # ---- (1) execution_events: run -> typed ExecutionEvent timeline ---------------------------------
@@ -48,6 +49,16 @@ def test_execution_events_safed_run_terminates_with_a_safe_event():
            "executed_legs": [{"leg": 0, "action": "continue"}]}
     evs = execution_events(run)
     assert evs[-1].kind == "safe" and evs[-1].outcome == "safed"
+
+
+def test_execution_events_marks_a_nonnominal_leg_blocked():  # gap G5
+    """A held/replanned leg (pause/relocalize/replan/reverse) is surfaced as outcome='blocked', not
+    hidden as 'ok' -- so a reader can tell a clean run from one that recovered."""
+    from lode.sim_execution import execution_events
+    run = {"label": "sim", "final_state": "completed", "safed": False, "n_legs_total": 2,
+           "executed_legs": [{"leg": 0, "action": "continue"}, {"leg": 1, "action": "replan_local"}]}
+    evs = execution_events(run)
+    assert evs[0].outcome == "ok" and evs[1].outcome == "blocked"
 
 
 # ---- (2) commit_sim_run: the run becomes world transactions through the service ------------------
@@ -97,5 +108,15 @@ def test_executive_run_records_world_transactions(client):
 
     after = client.get("/world/transaction", headers=H).json()
     assert after["committed"] is True
-    assert after["count"] >= 1                             # at least the released-plan transaction
+    # EXACT: plan(1) + one per executed leg + the terminal event == len(executed_legs) + 2
+    assert after["count"] == len(body["executed_legs"]) + 2
     assert "SIM" in after["transaction"]["provenance"]     # the run's transactions are SIM-labeled
+
+
+def test_executive_run_survives_a_world_log_failure(client, monkeypatch):  # gap G1
+    """Defensive: the SIM run already succeeded and is persisted, so a world-state commit failure must
+    NOT fail the run -- /executive/run still returns 200/ok even when world_state_service raises."""
+    from stewie.server import state as S
+    monkeypatch.setattr(S, "world_state_service", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    r = client.post("/executive/run", headers=H, json={"orders": _ORDERS, "site": "haworth"})
+    assert r.status_code == 200 and r.json()["ok"] is True

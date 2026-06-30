@@ -4,6 +4,7 @@ version/audit views. The twin store + lock live in server.state (shared, importe
 import, no cycle); resync is auth-gated."""
 from __future__ import annotations
 
+import logging
 import threading
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,6 +17,7 @@ from stewie.server.services import log_event
 from stewie.specs.config import data_dir
 from stewie.twin import terrain_memory as TM
 
+log = logging.getLogger("stewie.server")
 router = APIRouter()
 
 # #278: serialize the load->apply->save read-modify-write of a site's durable Terrain Memory. Two
@@ -81,9 +83,14 @@ def twin_resync(req: ResyncRequest, identity: str = Depends(require_role("operat
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     log_event(identity, "twin.resync", str(req.provenance))
     # gap A1: a resync MUTATES the observed twin -> commit one linked world-state transaction so the
-    # change is captured in the canonical DT-01 log, not only in the twin's own journal.
-    state.world_state_service().record_resync(provenance=f"twin.resync: {req.provenance}",
-                                              site="haworth")
+    # change is captured in the canonical DT-01 log, not only in the twin's own journal. Best-effort:
+    # the resync is already applied + journaled above, so a world-log failure (e.g. a corrupt world
+    # journal, which DT-01 from_journal surfaces by raising) must NOT 500 a succeeded mutation.
+    try:
+        state.world_state_service().record_resync(provenance=f"twin.resync: {req.provenance}",
+                                                  site="haworth")
+    except Exception as e:   # noqa: BLE001 -- the world-log record is best-effort, never fail the resync
+        log.warning("world-state commit for twin.resync skipped: %s", e)
     return {"ok": True, "twin_version": v}
 
 
@@ -163,12 +170,16 @@ def twin_terrain_record(site: str, req: TerrainRecordReq, identity: str = Depend
         log_event(identity, "twin.terrain.record", f"{site}:{mission.name}")
         # gap A1: fold the conserved terrain change into the one linked world-state log. The
         # authority identity is a content sha over the as-built cumulative delta (the conserved
-        # surface), so any recorded build moves it -- the DT-01 authority_sha contract.
-        import hashlib as _hl
-        import numpy as _np
-        a_sha = _hl.sha256(_np.asarray(mem.cumulative_delta(), dtype=_np.float64).tobytes()).hexdigest()
-        state.world_state_service().record_terrain(authority_sha=a_sha, mission=str(mission.name),
-                                                   site=site, provenance=f"terrain.record:{mission.name}")
+        # surface), so any recorded build moves it -- the DT-01 authority_sha contract. Best-effort:
+        # the terrain is already saved above, so a world-log failure must NOT 500 a succeeded record.
+        try:
+            import hashlib as _hl
+            import numpy as _np
+            a_sha = _hl.sha256(_np.asarray(mem.cumulative_delta(), dtype=_np.float64).tobytes()).hexdigest()
+            state.world_state_service().record_terrain(authority_sha=a_sha, mission=str(mission.name),
+                                                       site=site, provenance=f"terrain.record:{mission.name}")
+        except Exception as e:   # noqa: BLE001 -- best-effort world-log record, never fail the terrain save
+            log.warning("world-state commit for twin.terrain.record skipped: %s", e)
         out = mem.summary()
         out.update({"ok": True, "recorded": True, "chain_valid": mem.verify_chain(), **res})
     return out

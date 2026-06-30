@@ -77,3 +77,19 @@ def _reset_auth_rate_limits():
     except Exception:
         pass
     yield
+
+
+@pytest.fixture(autouse=True)
+def _reset_world_state_service():
+    """A1: the WorldStateService is a process-global singleton (state._WSS) bound to its data-dir world
+    journal at first build. Like the twin, it is not reset by _isolate_data_dir, so a route that builds
+    it (e.g. /twin/resync, /executive/run) would bind it to whichever test ran first and every later
+    in-worker test would reuse that stale service (wrong journal). Reset it before each test so each gets
+    a fresh service against its own isolated data dir. (It wraps the state.twin accessor, read live, so
+    resetting _WSS alone suffices.)"""
+    try:
+        from stewie.server import state as _st
+        _st._WSS = None
+    except Exception:
+        pass
+    yield
