@@ -83,3 +83,25 @@ def test_twin_resync_requires_operator(client):
     # authenticated client. An unauthenticated POST must be rejected (the require_role gate).
     r = c.post("/twin/resync", json={"heights_m": [[0.0]], "origin_rc": [0, 0], "provenance": "x"})
     assert r.status_code in (401, 403)
+
+
+def test_terrain_record_holds_the_site_lock_during_the_rmw(client, monkeypatch):
+    """#278: the load->apply->save read-modify-write of a site's Terrain Memory must run under a per-site
+    lock, so two concurrent POST /twin/terrain/{site} handlers (sync def -> FastAPI threadpool) cannot
+    last-writer-win and silently drop a mission. Deterministic guard: the per-site lock is HELD while
+    apply_subgrid (the chain-bumping mutation) runs -- pre-#278 there was no lock at all."""
+    c, key, _dd = client
+    from stewie.server.routers import twin as TW
+    from stewie.twin import terrain_memory as TM
+    held = {}
+    orig = TM.TerrainMemory.apply_subgrid
+
+    def spy(self, *a, **k):
+        held["locked"] = TW._terrain_lock("haworth").locked()    # the per-site lock must be HELD here
+        return orig(self, *a, **k)
+    monkeypatch.setattr(TM.TerrainMemory, "apply_subgrid", spy)
+    mission = {"name": "pad-lock", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut", "kind": "cut", "x": 40, "y": 30, "footprint_m2": 36, "depth_m": 0.04}]}
+    r = c.post("/twin/terrain/haworth", headers={"X-API-Key": key}, json={"mission": mission})
+    assert r.status_code == 200, r.text
+    assert held.get("locked") is True, "the load->apply->save RMW ran WITHOUT the per-site lock (#278)"

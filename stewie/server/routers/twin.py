@@ -4,6 +4,8 @@ version/audit views. The twin store + lock live in server.state (shared, importe
 import, no cycle); resync is auth-gated."""
 from __future__ import annotations
 
+import threading
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
@@ -15,6 +17,18 @@ from stewie.specs.config import data_dir
 from stewie.twin import terrain_memory as TM
 
 router = APIRouter()
+
+# #278: serialize the load->apply->save read-modify-write of a site's durable Terrain Memory. Two
+# concurrent POST /twin/terrain/{site} handlers (sync defs -> FastAPI threadpool) would otherwise
+# last-writer-win and silently drop a mission's as-built delta. Per-site lock so different sites proceed
+# in parallel; a meta-lock guards the registry dict itself.
+_TERRAIN_LOCKS: dict = {}
+_TERRAIN_LOCKS_GUARD = threading.Lock()
+
+
+def _terrain_lock(site: str) -> threading.Lock:
+    with _TERRAIN_LOCKS_GUARD:
+        return _TERRAIN_LOCKS.setdefault(site, threading.Lock())
 
 
 @router.get("/twin/cg")
@@ -125,18 +139,19 @@ def twin_terrain_record(site: str, req: TerrainRecordReq, identity: str = Depend
         d = mission_terrain_delta(mission)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"bad mission: {e}")
-    mem = TM.load_site(data_dir(), site)
-    if mem is None:
-        mem = TM.TerrainMemory(site=site, rows=int(req.rows or d["rows"]), cols=int(req.cols or d["cols"]),
-                               cell_m=float(req.cell_m or d["cell_m"]),
-                               origin=req.origin if req.origin else (float(d["x0"]), float(d["y0"])))
-    try:
-        res = mem.apply_subgrid(d["delta"], sub_origin=(d["x0"], d["y0"]), cell_m=d["cell_m"],
-                                mission=str(mission.name), mass_moved_kg=d["mass_moved_kg"])
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"cannot place mission on site grid: {e}")
-    TM.save_site(data_dir(), mem)
-    log_event(identity, "twin.terrain.record", f"{site}:{mission.name}")
-    out = mem.summary()
-    out.update({"ok": True, "recorded": True, "chain_valid": mem.verify_chain(), **res})
+    with _terrain_lock(site):    # #278: the load->apply->save RMW is atomic per site (no lost-mission race)
+        mem = TM.load_site(data_dir(), site)
+        if mem is None:
+            mem = TM.TerrainMemory(site=site, rows=int(req.rows or d["rows"]), cols=int(req.cols or d["cols"]),
+                                   cell_m=float(req.cell_m or d["cell_m"]),
+                                   origin=req.origin if req.origin else (float(d["x0"]), float(d["y0"])))
+        try:
+            res = mem.apply_subgrid(d["delta"], sub_origin=(d["x0"], d["y0"]), cell_m=d["cell_m"],
+                                    mission=str(mission.name), mass_moved_kg=d["mass_moved_kg"])
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"cannot place mission on site grid: {e}")
+        TM.save_site(data_dir(), mem)
+        log_event(identity, "twin.terrain.record", f"{site}:{mission.name}")
+        out = mem.summary()
+        out.update({"ok": True, "recorded": True, "chain_valid": mem.verify_chain(), **res})
     return out
