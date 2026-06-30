@@ -811,6 +811,14 @@ def test_mission_from_dict_accepts_polygon_keepout():
     with _pt.raises(ValueError):                                             # < 3 vertices is not a polygon
         MP.mission_from_dict({"name": "b", "body": "moon", "orders": ord1,
                               "keepouts": [{"points": [[0, 0], [1, 1]]}]})
+    # #305: an UNBOUNDED vertex list is an O(cells x verts) routing-DoS vector -> capped at the boundary
+    from lode.planner_model import _MAX_KEEPOUT_VERTS as _MKV
+    with _pt.raises(ValueError):
+        MP.mission_from_dict({"name": "huge", "body": "moon", "orders": ord1,
+                              "keepouts": [{"points": [[float(i), 0.0] for i in range(_MKV + 1)]}]})
+    ok = MP.mission_from_dict({"name": "cap", "body": "moon", "orders": ord1,                 # exactly at the cap = ok
+                               "keepouts": [{"points": [[float(i), 0.0] for i in range(_MKV)]}]})
+    assert len(ok.keepouts[0]["points"]) == _MKV
 
 
 def test_plan_accounts_polygon_keepout_end_to_end():

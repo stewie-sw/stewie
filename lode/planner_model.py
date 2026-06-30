@@ -255,6 +255,11 @@ def mission_soil_params(mission):
 
 _ORDER_KINDS = ("cut", "fill", "sinter", "goto")   # goto = S-3 path waypoint (zero mass, sequenced)
 _ORDER_FIELDS = ("action", "kind", "x", "y", "footprint_m2", "depth_m")
+# #305: cap a polygon keep-out's vertex count at the boundary. _apply_keepouts (planner_routing) runs an
+# O(vertices) point-in-polygon for EVERY bbox cell on the real 2000x2000 DEM, re-run by the adaptive-window
+# retry, so an unbounded vertex list (a 4 MiB body can encode ~1e5 verts) is an O(cells x verts) routing
+# DoS. A real keep-out is a simple footprint; 256 verts is generous.
+_MAX_KEEPOUT_VERTS = 256
 #: order kind -> the vehicle capability it requires (vehicles.ACTIONS). The fleet (selected vehicle +
 #: mounted tools) must have it or the order is refused -- e.g. sinter needs the separate sinter Tool.
 KIND_CAPABILITY = {"cut": "excavate", "fill": "dump", "sinter": "sinter"}
@@ -374,8 +379,8 @@ def mission_from_dict(payload):
                 raise ValueError(f"keepout {j} must be an object")
             if isinstance(k.get("points"), (list, tuple)):                     # #178 arbitrary polygon
                 pts = k["points"]
-                if len(pts) < 3:
-                    raise ValueError(f"keepout {j} polygon needs >= 3 vertices")
+                if not (3 <= len(pts) <= _MAX_KEEPOUT_VERTS):   # #305: upper bound -> no O(cells x verts) routing DoS
+                    raise ValueError(f"keepout {j} polygon needs 3..{_MAX_KEEPOUT_VERTS} vertices (got {len(pts)})")
                 clean.append({"points": [[VAL.ensure_finite_scalar(p[0], f"keepout {j} vertex x"),
                                           VAL.ensure_finite_scalar(p[1], f"keepout {j} vertex y")] for p in pts]})
             elif all(f in k for f in ("x0", "y0", "x1", "y1")):                # #178 axis-aligned rectangle
