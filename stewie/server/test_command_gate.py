@@ -64,6 +64,18 @@ def test_low_level_teleop_without_a_mission_is_unaffected(client):
     assert r.json()["accepted"] == "safe"
 
 
+def test_malformed_goto_is_400_not_500(client):
+    """#275: a GoTo with missing/garbled numeric fields is a client error (400), not an uncaught 500
+    (raw body['goal_row']/['goal_col'] subscripts inside float() previously had no try/except)."""
+    c, key = client
+    H = {"X-API-Key": key}
+    assert c.post("/rc/command", headers=H, json={"kind": "goto", "leg_id": 0}).status_code == 400  # missing goals
+    assert c.post("/rc/command", headers=H,
+                  json={"kind": "goto", "goal_row": "north", "goal_col": 1}).status_code == 400      # non-numeric
+    ok = c.post("/rc/command", headers=H, json={"kind": "goto", "goal_row": 5, "goal_col": 6})        # well-formed
+    assert ok.status_code == 200 and ok.json()["accepted"] == "goto", ok.text
+
+
 def test_telemetry_stream_pushes_sse_frames(client):  # #230 live-ops: the SSE telemetry stream
     c, key = client
     r = c.get("/rc/telemetry/stream", params={"max_frames": 2, "interval_s": 0.05},

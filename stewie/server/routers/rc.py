@@ -52,18 +52,21 @@ def rc_command(body: dict, identity: str = Depends(require_role("operator"))):
     now = time.monotonic()
     with _RC_LOCK:
         cmd: object
-        if kind == "goto":
-            cmd = RC.GoTo(leg_id=int(body.get("leg_id", 0)), goal_row=float(body["goal_row"]),
-                          goal_col=float(body["goal_col"]), v_max_mps=float(body.get("v_max_mps", 0.3)),
-                          goal_radius_cells=float(body.get("goal_radius_cells", 1.0)))
-        elif kind == "safe":
-            cmd = RC.Safe(reason=RC.SAFE_REASON_OPERATOR)
-        elif kind == "setsim":
-            if AUTH.role_of(identity) != "director":
-                raise HTTPException(status_code=403, detail="SetSim (time-warp) is director-only")
-            cmd = RC.SetSim(time_factor=float(body.get("time_factor", 1.0)))
-        else:
-            raise HTTPException(status_code=400, detail=f"unknown RC command kind {kind!r}")
+        try:    # #275: a malformed/missing numeric field is a 400 (client error), not an uncaught 500.
+            if kind == "goto":
+                cmd = RC.GoTo(leg_id=int(body.get("leg_id", 0)), goal_row=float(body["goal_row"]),
+                              goal_col=float(body["goal_col"]), v_max_mps=float(body.get("v_max_mps", 0.3)),
+                              goal_radius_cells=float(body.get("goal_radius_cells", 1.0)))
+            elif kind == "safe":
+                cmd = RC.Safe(reason=RC.SAFE_REASON_OPERATOR)
+            elif kind == "setsim":
+                if AUTH.role_of(identity) != "director":   # HTTPException is not Key/Value/TypeError -> propagates
+                    raise HTTPException(status_code=403, detail="SetSim (time-warp) is director-only")
+                cmd = RC.SetSim(time_factor=float(body.get("time_factor", 1.0)))
+            else:
+                raise HTTPException(status_code=400, detail=f"unknown RC command kind {kind!r}")
+        except (KeyError, ValueError, TypeError) as e:
+            raise HTTPException(status_code=400, detail=f"malformed {kind!r} command: {e}") from e
         _RC_WATCHDOG.submit(cmd, now=now)
         log_event(identity, f"rc.{kind}", str(body.get("leg_id", "")))
     return {"ok": True, "accepted": kind, "watchdog_tripped": _RC_WATCHDOG.tripped}
