@@ -151,6 +151,23 @@ def test_bad_request_returns_service_exception():
     assert "ServiceException" in r3.text
 
 
+def test_getmap_total_pixel_area_budget_rejects_within_per_dimension_cap():  # #288
+    """Both WIDTH and HEIGHT individually within the per-dimension cap (<=4096) can STILL demand a multi-GB
+    render when their PRODUCT is huge (4096x4096 builds ~7 float64 WxH meshgrids ~ 1 GB). On this PUBLIC,
+    only IP-rate-limited route that is a memory DoS the per-dimension cap does not catch. A total
+    pixel-area budget must reject it; a normal tile within the budget still renders."""
+    c = _client()
+    root = ET.fromstring(c.get("/ogc/wms", params={"SERVICE": "WMS", "REQUEST": "GetCapabilities"}).content)
+    bb = _caps_bbox(root)
+    box = f"{bb['west']},{bb['south']},{bb['east']},{bb['north']}"
+    common = {"SERVICE": "WMS", "VERSION": "1.3.0", "REQUEST": "GetMap", "LAYERS": "dem",
+              "CRS": "CRS84", "BBOX": box, "FORMAT": "image/png"}
+    big = c.get("/ogc/wms", params={**common, "WIDTH": "4096", "HEIGHT": "4096"})   # 16.7M px, within per-dim cap
+    assert "ServiceException" in big.text, "4096x4096 (within per-dim cap) not rejected by an area budget (#288)"
+    ok = c.get("/ogc/wms", params={**common, "WIDTH": "512", "HEIGHT": "512"})       # within the area budget
+    assert ok.status_code == 200 and ok.headers["content-type"] == "image/png", ok.text
+
+
 def test_wms_is_public_no_auth_required(monkeypatch):
     """Consistent with the wrapped globe drape (GIS-03): the base-map WMS is reachable without a key."""
     monkeypatch.setenv("STEWIE_API_KEY", "secret-key")       # auth configured, but WMS is public base-map

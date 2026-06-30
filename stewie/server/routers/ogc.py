@@ -21,6 +21,9 @@ router = APIRouter()
 
 _LUNAR_GEOG = "IAU_2015:30100"          # Moon (2015) ocentric sphere -- the geographic CRS of the drape
 _MAX_PX = 4096                          # per-dimension GetMap bound (a multi-GB render is a DoS)
+_MAX_TOTAL_PX = 2048 * 2048             # #288: total pixel-AREA budget. The per-dimension cap alone lets
+#                                         4096x4096 through (each <=4096) yet that builds ~7 float64 WxH
+#                                         meshgrids (~1 GB) on this PUBLIC, only IP-rate-limited route.
 _SE_MIME = "application/vnd.ogc.se_xml"  # WMS ServiceExceptionReport media type
 
 
@@ -159,6 +162,9 @@ def _getmap(request: Request, p: dict) -> Response:
         return _service_exception("WIDTH and HEIGHT must be integers")
     if not (1 <= width <= _MAX_PX and 1 <= height <= _MAX_PX):
         return _service_exception(f"WIDTH/HEIGHT must be in [1,{_MAX_PX}]")
+    if width * height > _MAX_TOTAL_PX:   # #288: bound the AREA too (per-dim cap alone allows a ~1 GB 4096x4096)
+        return _service_exception(f"WIDTH*HEIGHT must be <= {_MAX_TOTAL_PX} pixels "
+                                  f"(got {width}x{height}={width * height})")
     # BBOX axis order: CRS84 is lon,lat; EPSG:4326 / the lunar geographic CRS are lat,lon in WMS 1.3.0.
     crs = (_ci(p, "CRS") or "CRS:84").upper().replace("OGC:", "")   # WMS 1.3.0 uses CRS, not 1.1.x SRS
     try:
