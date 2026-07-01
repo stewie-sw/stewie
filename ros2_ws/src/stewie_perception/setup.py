@@ -10,5 +10,6 @@ setup(
     install_requires=["setuptools"], zip_safe=True,
     maintainer="STEWIE", maintainer_email="dev@stewie.space",
     description="perception node: stereo -> points + rocks (full impl AS-07/PM-*)", license="SEE LICENSE",
+    test_suite="test",
     entry_points={"console_scripts": ["perception = stewie_perception.node:main"]},
 )

@@ -334,7 +334,7 @@
   },
   "producer_schema_version": "sensor_bridge/1.1",
   "profile_id": "STEWIE_IPEX_V1",
-  "profile_sha256": "1cb00b8f77c006836dfb988f1f084959edf12fa961b8fae65364e5080049449c",
+  "profile_sha256": "f59b07c430f70eb8c922478f7e0deb30c78a1eb3458e8d13fefef336758501df",
   "provenance": "RUNTIME_SENSOR",
   "scene": "crater_boulders",
   "schema_version": "sensor_bridge_runtime/1.0",

@@ -253,3 +253,17 @@ requirements:
   evidence: d80cfdc
   blocked_by: []
   last_verified: '2026-06-06'
+- id: AS-18
+  title: Typed ARGUS Navigation evidence contract
+  priority: P0
+  blocks_release: false
+  I: D
+  X: D
+  V: P
+  Q: N
+  owner: active
+  source: dart/factors.py, dart/integrated_slam.py, dart/evidence_ledger.py, docs/argus_navigation_integration.md
+  acceptance: dart/test_factors.py, dart/test_integrated_slam.py
+  evidence: local-2026-06-26
+  blocked_by: []
+  last_verified: '2026-06-26'

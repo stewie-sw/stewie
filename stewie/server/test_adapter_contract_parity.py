@@ -44,6 +44,10 @@ _ADAPTER_FIELDS: dict[type, tuple[str, list[str]]] = {
     C.LocalizationFix: ("normalizeLocalizationFix", ["est", "true", "sigma", "fix"]),
     C.NavFactor: ("normalizeNavFactor", [
         "factor_id", "kind", "keyframe_i", "keyframe_j", "residual", "information", "accepted"]),
+    C.PerceptionState: ("normalizePerception", [
+        "source_profile", "frame_id", "point_topic", "point_count", "valid_fraction",
+        "range_min_m", "range_max_m", "covariance_m", "panorama_cameras", "shadow_landmarks",
+        "accepted_factors", "no_truth", "evidence_class"]),
     C.ModelArtifact: ("normalizeModelArtifact", [
         "model_id", "name", "version", "task", "dataset_lineage", "eval_split",
         "input_schema", "output_schema", "latency_budget_ms", "memory_budget_mb",
@@ -90,7 +94,7 @@ _WEB = _ADAPTERS_JS.parent
 # gated (e.g. the Fleet ROSTER pane renders the static vehicle REGISTRY from /fleet, a different shape than
 # the FleetState contract), so their pane wiring is tracked with those gated rows, not asserted here.
 _PANE_CONSUMES = {
-    "cockpit.js": ["normalizePlanResult", "normalizeLocalizationFix"],
+    "cockpit.js": ["normalizePlanResult", "normalizeLocalizationFix", "normalizePerception"],
     "rover_hud.js": ["normalizeTimelineFrame"],
 }
 

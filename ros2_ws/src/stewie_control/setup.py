@@ -10,5 +10,6 @@ setup(
     install_requires=["setuptools"], zip_safe=True,
     maintainer="STEWIE", maintainer_email="dev@stewie.space",
     description="control node: local_traj -> /cmd_vel (bounded, AG-08/SF-01)", license="SEE LICENSE",
+    test_suite="test",
     entry_points={"console_scripts": ["control = stewie_control.node:main"]},
 )

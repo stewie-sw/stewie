@@ -10,5 +10,6 @@ setup(
     install_requires=["setuptools"], zip_safe=True,
     maintainer="STEWIE", maintainer_email="dev@stewie.space",
     description="localization node: odom/imu/points + Navigation factors -> /stewie/odom (AS-08/09)", license="SEE LICENSE",
+    test_suite="test",
     entry_points={"console_scripts": ["localization = stewie_localization.node:main"]},
 )

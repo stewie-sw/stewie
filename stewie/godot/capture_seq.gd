@@ -56,48 +56,63 @@ static func run_capture_seq(sidecar) -> void:
 		sidecar.get_tree().quit(4)
 		return
 
-	# --- resolve the trajectory anchor: the scene's authored driven rover_rc -------
-	var anchor: Vector2i = _resolve_anchor(sidecar, sf)
-	if anchor.x < 0:
-		push_error("capture_seq: scene '%s' has no rover_rc; pick a driven scene (e.g. samples/tread_track_4wheel)" % sf.scene_name)
-		sidecar.get_tree().quit(5)
-		return
-
-	var n_frames: int = maxi(2, sidecar._seq_stride if sidecar._seq_stride > 2 else DEFAULT_FRAMES)
-
-	# --- synthesise the approach trajectory (rover_rc per frame) -------------------
-	# Heading: from the scene's authored heading if a real prior rover_rc exists, else
-	# along grid +X (col axis). We step BACKWARD from the anchor by STEP_CELLS each
-	# frame, then reverse so the rover APPROACHES and ENDS at the authored anchor: the
-	# last frame == the single-frame --cameras pose, earlier frames trail behind it.
-	var heading: Vector2 = _approach_heading(sidecar, sf, anchor)   # unit (drow, dcol)
+	# --- resolve the per-frame trajectory (rc + yaw + conform-up) -------------------
+	# Two sources: (A) a DRIVEN pose track (--rover-pose <rover_pose.json>): the authored
+	# per-frame rc/yaw/up from drive_spiral.py -- this renders the REAL traverse (e.g. the
+	# 80-frame Haworth spiral, which revisits its start so visual loop closure can fire).
+	# (B) default: synthesise a straight APPROACH ending at the scene's authored rover_rc.
 	var rc_seq: Array = []          # Array[Vector2i], frame 0..n_frames-1 (moving)
-	for k in range(n_frames):
-		var back := float(n_frames - 1 - k) * float(STEP_CELLS)
-		var r := int(round(float(anchor.x) - heading.x * back))
-		var c := int(round(float(anchor.y) - heading.y * back))
-		r = clampi(r, 0, sf.height - 1)
-		c = clampi(c, 0, sf.width - 1)
-		rc_seq.append(Vector2i(r, c))
-
-	# Per-frame yaw from consecutive waypoints (same convention as sidecar._heading_yaw:
-	# col delta -> +X, row delta -> +Z; yaw = atan2(-dz, dx) points rover forward +X
-	# along travel). Constant heading here, but computed per frame so it is correct for
-	# a curved real trajectory too.
-	var yaw_seq: Array = []
-	for k in range(n_frames):
-		var a: Vector2i = rc_seq[maxi(0, k - 1)]
-		var b: Vector2i = rc_seq[mini(n_frames - 1, k + 1)]
-		var dx := float(b.y - a.y)      # col delta -> +X
-		var dz := float(b.x - a.x)      # row delta -> +Z
-		var yaw := 0.0
-		if absf(dx) > 1e-6 or absf(dz) > 1e-6:
-			yaw = atan2(-dz, dx)
-		yaw_seq.append(yaw)
-
+	var yaw_seq: Array = []         # parallel yaw (rad)
+	var up_seq: Array = []          # parallel conform-up (Vector3); empty -> leave _rover_up default
+	var n_frames: int
 	var scene: String = sf.scene_name
-	print("capture_seq: --cameras-seq scene='%s' frames=%d anchor_rc=%s step_cells=%d" % [
-		scene, n_frames, str(anchor), STEP_CELLS])
+
+	var pose_track: Dictionary = _load_pose_track(sidecar, sf)
+	if not pose_track.is_empty():
+		rc_seq = pose_track["rc_seq"]
+		yaw_seq = pose_track["yaw_seq"]
+		up_seq = pose_track["up_seq"]
+		n_frames = rc_seq.size()
+		print("capture_seq: --cameras-seq DRIVEN pose-track '%s' scene='%s' frames=%d (in-bounds)" % [
+			String(sidecar._rover_pose_path), scene, n_frames])
+	else:
+		# --- (B) synthesise the straight approach trajectory ------------------------
+		var anchor: Vector2i = _resolve_anchor(sidecar, sf)
+		if anchor.x < 0:
+			push_error("capture_seq: scene '%s' has no rover_rc; pick a driven scene or pass --rover-pose <track>" % scene)
+			sidecar.get_tree().quit(5)
+			return
+		n_frames = maxi(2, sidecar._seq_stride if sidecar._seq_stride > 2 else DEFAULT_FRAMES)
+		# Heading: from the scene's authored heading if a real prior rover_rc exists, else
+		# along grid +X (col axis). We step BACKWARD from the anchor by step_cells each frame.
+		var heading: Vector2 = _approach_heading(sidecar, sf, anchor)   # unit (drow, dcol)
+		# Per-frame advance in grid cells. STEP_CELLS by default; an optional SEQ_STEP_CELLS env var lets a
+		# caller match a target metric step (e.g. a calibrated 0.28 m/frame VO traverse = 14 cells at 0.02 m/
+		# cell) on a fixed-size patch without a new flag. Unset -> STEP_CELLS (existing behavior unchanged).
+		var step_cells := STEP_CELLS
+		var step_env := OS.get_environment("SEQ_STEP_CELLS")
+		if step_env != "" and step_env.is_valid_int():
+			step_cells = maxi(1, int(step_env))
+		for k in range(n_frames):
+			var back := float(n_frames - 1 - k) * float(step_cells)
+			var r := int(round(float(anchor.x) - heading.x * back))
+			var c := int(round(float(anchor.y) - heading.y * back))
+			r = clampi(r, 0, sf.height - 1)
+			c = clampi(c, 0, sf.width - 1)
+			rc_seq.append(Vector2i(r, c))
+		# Per-frame yaw from consecutive waypoints (col delta -> +X, row delta -> +Z;
+		# yaw = atan2(-dz, dx) points rover forward +X along travel).
+		for k in range(n_frames):
+			var a: Vector2i = rc_seq[maxi(0, k - 1)]
+			var b: Vector2i = rc_seq[mini(n_frames - 1, k + 1)]
+			var dx := float(b.y - a.y)      # col delta -> +X
+			var dz := float(b.x - a.x)      # row delta -> +Z
+			var yaw := 0.0
+			if absf(dx) > 1e-6 or absf(dz) > 1e-6:
+				yaw = atan2(-dz, dx)
+			yaw_seq.append(yaw)
+		print("capture_seq: --cameras-seq scene='%s' frames=%d anchor_rc=%s step_cells=%d" % [
+			scene, n_frames, str(anchor), step_cells])
 
 	# --- per-frame egress loop -----------------------------------------------------
 	var n_written := 0
@@ -107,6 +122,8 @@ static func run_capture_seq(sidecar) -> void:
 		# below) reads these members for its rover_rc placement branch.
 		sidecar._rover_rc_override = rc
 		sidecar._rover_yaw = yaw_seq[k]
+		if not up_seq.is_empty():
+			sidecar._rover_up = up_seq[k]   # authored conform attitude (driven pose track)
 
 		# Rebuild ONLY the per-frame layer nodes (terrain/clasts/rover), leaving the
 		# sun + WorldEnvironment in place — exactly the sidecar sequence-mode pattern.
@@ -236,6 +253,13 @@ static func _resolve_anchor(sidecar, sf) -> Vector2i:
 			var rc := _peek_rover_rc(base + "/" + fn)
 			if rc.x >= 0:
 				return rc
+	# Final fallback: an operator-supplied --rover-rc (sidecar._rover_rc_override). Lets a
+	# field-raster scene that authors no driven rover_rc and ships no tNNN frames (e.g. the
+	# haworth_spiral_driven DEM scene) still anchor a synthesised straight approach. Existing
+	# tread scenes resolve above, so their behavior is unchanged.
+	var ov: Vector2i = sidecar._rover_rc_override
+	if ov.x >= 0 and ov.y >= 0:
+		return ov
 	return Vector2i(-1, -1)
 
 # Read just rover_rc from a frame's metadata.json (mirrors sidecar._peek_rover_rc).
@@ -268,3 +292,49 @@ static func _approach_heading(sidecar, sf, anchor: Vector2i) -> Vector2:
 		return Vector2(0.0, 1.0)          # degenerate: travel along +col (+X)
 	var v := Vector2(dr, dc).normalized()
 	return v
+
+# Load a DRIVEN per-frame trajectory from --rover-pose <rover_pose.json> (drive_spiral.py
+# output: {records:[{rc:[row,col], yaw_rad, up:[x,y,z], ...}, ...]}). Returns
+# {rc_seq:Array[Vector2i], yaw_seq:Array[float], up_seq:Array[Vector3]} parallel by frame,
+# or {} when no --rover-pose is given / the file is unreadable / fewer than 2 in-bounds
+# records remain. Records whose rc falls outside the grid are SKIPPED (the spiral can
+# partially exit the patch), so only on-terrain frames are rendered. This is the real
+# traverse (with its revisit) rather than the synthesised straight approach.
+static func _load_pose_track(sidecar, sf) -> Dictionary:
+	var path := String(sidecar._rover_pose_path)
+	if path == "":
+		return {}
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		push_error("capture_seq: --rover-pose cannot open %s" % path)
+		return {}
+	var parsed = JSON.parse_string(f.get_as_text())
+	f.close()
+	if typeof(parsed) != TYPE_DICTIONARY or not parsed.has("records"):
+		push_error("capture_seq: --rover-pose %s has no 'records' array" % path)
+		return {}
+	var recs: Array = parsed["records"]
+	var rc_seq: Array = []
+	var yaw_seq: Array = []
+	var up_seq: Array = []
+	for rec in recs:
+		if typeof(rec) != TYPE_DICTIONARY:
+			continue
+		var rcv = rec.get("rc", null)
+		if typeof(rcv) != TYPE_ARRAY or rcv.size() != 2:
+			continue
+		var r := int(round(float(rcv[0])))
+		var c := int(round(float(rcv[1])))
+		if r < 0 or r > sf.height - 1 or c < 0 or c > sf.width - 1:
+			continue   # off-patch frame -- skip (render only on-terrain poses)
+		rc_seq.append(Vector2i(r, c))
+		yaw_seq.append(float(rec.get("yaw_rad", 0.0)))
+		var upv = rec.get("up", null)
+		if typeof(upv) == TYPE_ARRAY and upv.size() == 3:
+			up_seq.append(Vector3(float(upv[0]), float(upv[1]), float(upv[2])))
+		else:
+			up_seq.append(Vector3.UP)
+	if rc_seq.size() < 2:
+		push_warning("capture_seq: --rover-pose %s has <2 in-bounds records; falling back" % path)
+		return {}
+	return {"rc_seq": rc_seq, "yaw_seq": yaw_seq, "up_seq": up_seq}

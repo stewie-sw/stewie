@@ -8,3 +8,125 @@ stewie_perception
 stewie_planning
 stewie_rviz
 stewie_vehicle_interface
+Starting >>> stewie_msgs
+Starting >>> stewie_description
+Finished <<< stewie_description [0.01s]
+Finished <<< stewie_msgs [0.02s]
+Starting >>> stewie_control
+Starting >>> stewie_localization
+Starting >>> stewie_mapping
+Starting >>> stewie_perception
+Starting >>> stewie_planning
+Starting >>> stewie_vehicle_interface
+Starting >>> stewie_rviz
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+Finished <<< stewie_control [0.50s]
+--- stderr: stewie_control
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+---
+--- stderr: stewie_localization
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+---
+Finished <<< stewie_localization [0.49s]
+--- stderr: stewie_mapping
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+---
+Finished <<< stewie_mapping [0.49s]
+--- stderr: stewie_perception
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+---
+Finished <<< stewie_perception [0.49s]
+--- stderr: stewie_planning
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+---
+Finished <<< stewie_planning [0.49s]
+Finished <<< stewie_rviz [0.49s]
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+Finished <<< stewie_vehicle_interface [0.51s]
+--- stderr: stewie_vehicle_interface
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+---
+Starting >>> stewie_bringup
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+--- stderr: stewie_bringup
+test_package_imports (test.test_package_import.PackageImportTest.test_package_imports) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+---
+Finished <<< stewie_bringup [0.11s]
+
+Summary: 10 packages finished [0.73s]
+  7 packages had stderr output: stewie_bringup stewie_control stewie_localization stewie_mapping stewie_perception stewie_planning stewie_vehicle_interface
+Summary: 0 tests, 0 errors, 0 failures, 0 skipped

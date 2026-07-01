@@ -10,5 +10,6 @@ setup(
     install_requires=["setuptools"], zip_safe=True,
     maintainer="STEWIE", maintainer_email="dev@stewie.space",
     description="mapping node: observed DEM/occupancy/excavation layers over the conserved twin (AS-10)", license="SEE LICENSE",
+    test_suite="test",
     entry_points={"console_scripts": ["mapping = stewie_mapping.node:main"]},
 )

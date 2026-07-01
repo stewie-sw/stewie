@@ -22,7 +22,7 @@ def _read(p):
 def test_world_has_lunar_gravity_and_required_systems():
     w = _read(WORLD)
     assert "<gravity>0 0 -1.62</gravity>" in w, "world gravity must be lunar 1.62 m/s^2"
-    for sysname in ("Physics", "SceneBroadcaster", "Sensors", "Imu"):
+    for sysname in ("Physics", "SceneBroadcaster", "Sensors", "Imu", "Contact"):
         assert sysname in w, f"world missing gz system {sysname}"
 
 
@@ -44,17 +44,41 @@ def test_overlay_has_imu_and_front_stereo_cameras():
     assert o.count('type="camera"') == 2
 
 
+def test_overlay_has_selected_depth_cloud_source():
+    o = _read(OVERLAY)
+    assert 'reference="lidar_front_mount"' in o
+    assert 'type="gpu_lidar"' in o
+    assert "<topic>/model/ipex/perception</topic>" in o
+
+
+def test_overlay_has_contact_sensor_on_named_wheel_collision():
+    o = _read(OVERLAY)
+    urdf = _read(os.path.join(SRC, "stewie_description", "urdf", "ipex.urdf.xacro"))
+    assert 'name="${name}_collision"' in urdf
+    assert 'reference="front_left_wheel"' in o
+    assert 'type="contact"' in o
+    assert "<collision>front_left_wheel_collision_collision</collision>" in o
+    assert "<topic>/model/ipex/contact</topic>" in o
+
+
 def test_overlay_gz_topics_match_the_bridge():
     o = _read(OVERLAY)
     bridge = {e["gz_topic_name"] for e in yaml.safe_load(_read(BRIDGE))}
     # every absolute gz topic the model declares must be a bridge gz endpoint
     declared = set(re.findall(r"<(?:topic|odom_topic|tf_topic)>(/[\w/]+)</", o))
-    missing = declared - bridge
+    missing = {
+        t for t in declared - bridge
+        if not (t == "/model/ipex/perception" and "/model/ipex/perception/points" in bridge)
+    }
     assert not missing, f"model declares gz topics not in the bridge: {missing}"
     # the command + key sensor topics specifically
     for t in ("/model/ipex/cmd_vel", "/model/ipex/odometry", "/model/ipex/tf", "/model/ipex/imu",
-              "/model/ipex/camera/front_left/image", "/model/ipex/camera/front_right/image"):
-        assert t in declared and t in bridge, f"{t} not consistently declared+bridged"
+              "/model/ipex/camera/front_left/image", "/model/ipex/camera/front_right/image",
+              "/model/ipex/perception/points", "/model/ipex/contact"):
+        if t == "/model/ipex/perception/points":
+            assert "/model/ipex/perception" in declared and t in bridge, f"{t} not consistently declared+bridged"
+        else:
+            assert t in declared and t in bridge, f"{t} not consistently declared+bridged"
 
 
 def test_launch_wires_world_spawn_and_bridge():

@@ -75,6 +75,10 @@ class SystemProfile:
     def mapping(self) -> Mapping[str, Any]:
         return self.data["mapping"]
 
+    @property
+    def sensors(self) -> Mapping[str, Any]:
+        return self.data.get("sensors", {})
+
     def camera(self, name: str) -> Mapping[str, Any]:
         for camera in self.cameras["entries"]:
             if camera["name"] == name:
@@ -181,6 +185,32 @@ def _validate(data: Mapping[str, Any], *, require_verified: bool) -> None:
             raise ProfileError(
                 f"stereo pair {pair_name} baseline mismatch: geometry {actual}, declared {declared}"
             )
+
+    sensors = data.get("sensors")
+    if sensors is not None:
+        depth_sources = sensors.get("depth_sources", [])
+        if not depth_sources:
+            raise ProfileError("sensors.depth_sources must name at least one source")
+        source_names = {str(source.get("name")) for source in depth_sources}
+        selected = str(sensors.get("selected_depth_source"))
+        if selected not in source_names:
+            raise ProfileError(f"selected depth source {selected!r} is not in sensors.depth_sources")
+        statuses = {str(source.get("status")) for source in depth_sources}
+        required_statuses = {"absent", "simulated", "bench", "flight", "legacy"}
+        missing_statuses = required_statuses - statuses
+        if missing_statuses:
+            raise ProfileError(f"sensors.depth_sources missing status labels: {sorted(missing_statuses)}")
+        for source in depth_sources:
+            status = str(source.get("status"))
+            if status not in required_statuses:
+                raise ProfileError(f"unknown sensor status {status!r}")
+            kind = str(source.get("kind"))
+            if kind in {"lidar", "rgbd"} and not source.get("mount_frame"):
+                raise ProfileError(f"{source.get('name')} must declare a mount_frame")
+            if kind == "stereo" and status != "legacy":
+                for side in ("left", "right"):
+                    if source.get(side) not in by_name:
+                        raise ProfileError(f"{source.get('name')} references unknown {side} camera")
 
     vehicle = data["vehicle"]
     for key in ("dry_mass_kg", "wheelbase_m", "track_gauge_m", "wheel_radius_m"):

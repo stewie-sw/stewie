@@ -13,7 +13,7 @@ subsequent Phase-0 bricks, then Phase 1 wires route handlers to them.
 """
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 #: bump on any backwards-incompatible spine change (drives migration; surfaced in every schema).
 SPINE_VERSION = "1.0"
@@ -178,6 +178,54 @@ class NavFactor(Contract):
     residual: float
     information: float = Field(default=1.0, ge=0.0)
     accepted: bool
+
+
+class PerceptionState(Contract):
+    """FS-15 / PRD §26.2: the Perception pane's normalized sensor-health snapshot. This is not the dense
+    point cloud itself; it is the typed status/card payload the cockpit renders for the selected depth
+    source, panorama/shadow egress, covariance, and truth-denial state."""
+    source_profile: str = "stereo_sgbm"       # stereo_sgbm | stereo_neural | lidar | rgbd | replay
+    frame_id: str = "ipex_front_stereo_optical"
+    point_topic: str = "/stewie/perception/points"
+    point_count: int = Field(default=0, ge=0)
+    valid_fraction: float = Field(default=0.0, ge=0.0, le=1.0)
+    range_min_m: float = Field(default=0.0, ge=0.0)
+    range_max_m: float = Field(default=0.0, ge=0.0)
+    covariance_m: float = Field(default=0.0, ge=0.0)
+    panorama_cameras: int = Field(default=0, ge=0)
+    shadow_landmarks: int = Field(default=0, ge=0)
+    accepted_factors: int = Field(default=0, ge=0)
+    no_truth: bool = True
+    evidence_class: str = "simulation"        # simulation | replay | bench | hil | live
+
+    @field_validator("source_profile")
+    @classmethod
+    def _known_source_profile(cls, v: str) -> str:
+        allowed = {"stereo_sgbm", "stereo_neural", "lidar", "rgbd", "replay"}
+        if v not in allowed:
+            raise ValueError(f"unknown depth source profile: {v}")
+        return v
+
+    @field_validator("evidence_class")
+    @classmethod
+    def _known_evidence_class(cls, v: str) -> str:
+        allowed = {"simulation", "replay", "bench", "hil", "live"}
+        if v not in allowed:
+            raise ValueError(f"unknown perception evidence class: {v}")
+        return v
+
+    @field_validator("no_truth")
+    @classmethod
+    def _must_be_truth_denied(cls, v: bool) -> bool:
+        if not v:
+            raise ValueError("PerceptionState exposed to the cockpit must be truth-denied")
+        return v
+
+    @model_validator(mode="after")
+    def _range_order(self) -> "PerceptionState":
+        if self.range_max_m and self.range_max_m < self.range_min_m:
+            raise ValueError("range_max_m must be >= range_min_m")
+        return self
 
 
 class ModelArtifact(Contract):

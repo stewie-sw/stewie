@@ -45,6 +45,7 @@
 |---|---|---|
 | The cheap onboard-observability map channel (route coverage + uncertainty from conserved truth) | `dart/stereo_depth.py` (real cv2 SGBM) — consumed by `eval/gates.py`, not a live producer | Dense render→depth→point-cloud perception producer (PM-13..16) — PRD Convergence-B |
 | Terrain scan-match + AprilTag-beacon localization fixes in the closed loop (`lode/autonomy.py`) | AprilTag 12.7 mm / 7.15° end-to-end — container-gated, not reproducible in default CI | Dense-tier §10/P6 map-channel RMSE (reconstructed-map vs truth) |
+| Typed ARGUS Navigation factor contract: accepted estimator evidence now carries factor type, covariance, frame, source, and evidence class (`dart/factors.py`, `dart/evidence_ledger.py`); metric shadow-length/boundary claims are blocked behind the 2026-06-24 negative residual artifact | | |
 | | | Truth-free operational SLAM/Navigation cm-parity (real Katwijk ATE is 3.35 m — `/slam` visibility ≠ operational parity) — the protected navigation frontier |
 
 ## Cockpit / UI

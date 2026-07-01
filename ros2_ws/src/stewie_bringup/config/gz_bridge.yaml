@@ -38,6 +38,11 @@
   ros_type_name: "nav_msgs/msg/Odometry"
   gz_type_name: "gz.msgs.Odometry"
   direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/contact"
+  gz_topic_name: "/model/ipex/contact"
+  ros_type_name: "ros_gz_interfaces/msg/Contacts"
+  gz_type_name: "gz.msgs.Contacts"
+  direction: GZ_TO_ROS
 - ros_topic_name: "/tf"
   gz_topic_name: "/model/ipex/tf"
   ros_type_name: "tf2_msgs/msg/TFMessage"
@@ -54,6 +59,11 @@
   gz_topic_name: "/model/ipex/camera/front_right/image"
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/perception/points"
+  gz_topic_name: "/model/ipex/perception/points"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_type_name: "gz.msgs.PointCloudPacked"
   direction: GZ_TO_ROS
 
 # ---- EVALUATION TRUTH: GZ -> ROS, truth channel ONLY (NEVER an estimator input) ----

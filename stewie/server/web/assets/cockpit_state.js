@@ -5,8 +5,9 @@
 (function (root) {
   "use strict";
 
-  var WORK_AREAS = ["plan", "fleet", "navigation", "perception", "construction",
-                    "models", "system", "report", "admin"];
+  var WORK_AREAS = ["plan", "rehearse", "nav", "navigation", "perception", "release", "metrics",
+                    "fleet", "construction", "models", "system", "report", "admin", "settings",
+                    "trainer", "validation", "api", "server", "config", "evidence"];
   var SOURCES = ["live", "sim", "eval"];      // PO-10: which truth source the panes label
   var MODES = ["sandbox", "live"];            // AG-07 namespace
 

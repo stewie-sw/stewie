@@ -6,7 +6,7 @@
      via the `stereo_baseline` arg. The rejected 0.165 m shoulder split is documented in
      stewie/specs/stereo_authority.py and is deliberately NOT the default here.
 
-     Geometry provenance: stewie/specs/profile_data/stewie_ipex_v1.json (vehicle + stereo blocks)
+     Geometry provenance: stewie/specs/profile_data/stewie_ipex_v1.json (vehicle + stereo/sensor blocks)
      and stewie/specs/ipex_specs.py (SCHULER24 NTRS 20240008162 / WHEELTEST / BDSCALE). Per-part
      MASS ALLOCATION is [ASSUMPTION] (only the 30 kg dry total + 0.21 m CG height are sourced; the
      split among chassis/wheels/drums is an engineering estimate, tagged like ipex_specs' other
@@ -66,7 +66,7 @@
         <origin rpy="${pi/2} 0 0"/>
         <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
       </visual>
-      <collision>
+      <collision name="${name}_collision">
         <origin rpy="${pi/2} 0 0"/>
         <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
       </collision>
@@ -134,6 +134,21 @@
     </joint>
   </xacro:macro>
 
+  <!-- Optional depth-source hardpoints. The selected source can be stereo, LiDAR, RGB-D, or replay;
+       the physical mount frames stay stable so downstream SLAM/mapping consumes the same cloud topic. -->
+  <xacro:macro name="depth_mount" params="name x y z yaw">
+    <link name="${name}">
+      <visual><geometry><box size="0.04 0.04 0.03"/></geometry></visual>
+      <collision><geometry><box size="0.04 0.04 0.03"/></geometry></collision>
+      <xacro:box_inertial m="0.08" x="0.04" y="0.04" z="0.03"/>
+    </link>
+    <joint name="${name}_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="${name}"/>
+      <origin xyz="${x} ${y} ${z}" rpy="0 0 ${yaw}"/>
+    </joint>
+  </xacro:macro>
+
   <!-- ============================ the robot ============================ -->
   <!-- base_link: the chassis body (REP-103 x-forward, y-left, z-up) -->
   <link name="base_link">
@@ -183,5 +198,11 @@
   <!-- between-drum monos (excavation awareness): front operational, back redundant -->
   <xacro:camera frame="drum_front"  x="${ wheelbase/2}" y="0" z="${cg_height}" yaw="0"/>
   <xacro:camera frame="drum_back"   x="${-wheelbase/2}" y="0" z="${cg_height}" yaw="${pi}"/>
+
+  <!-- Swappable depth-source mounts: stereo is flight-selected in the profile; LiDAR/RGB-D can be
+       installed on the same forward hardpoint when those sensors are available. -->
+  <xacro:depth_mount name="depth_sensor_mount" x="${ cam_fwd + 0.02}" y="0" z="${cam_z + 0.04}" yaw="0"/>
+  <xacro:depth_mount name="lidar_front_mount" x="${ cam_fwd + 0.03}" y="0" z="${cam_z + 0.07}" yaw="0"/>
+  <xacro:depth_mount name="rgbd_front_mount" x="${ cam_fwd + 0.03}" y="0" z="${cam_z + 0.04}" yaw="0"/>
 
 </robot>

@@ -169,3 +169,6 @@ deploy/ros2/evidence/_build_*.log
 .claude/
 # All local UI-eval / Playwright scratch screenshot dirs (cf. validation/ui/)
 validation/ui_*/
+
+# Large real lunar datasets (DEMs/imagery) -- machine-local, never commit
+datasets/

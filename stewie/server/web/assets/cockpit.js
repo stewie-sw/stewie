@@ -797,6 +797,24 @@ const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navvie
                     trainer: "pane_trainer",                            // TR-02/03/04: the Trainer work area
                     validation: "pane-validation", api: "pane-api", server: "pane-server", config: "pane-config",
                     evidence: "pane-evidence", admin: "pane-admin", settings: "pane-settings" };
+const ROUTE_STATE = window.STEWIE_STATE;
+let APP_STATE = ROUTE_STATE ? ROUTE_STATE.fromHash(location.hash, ROUTE_STATE.defaultState()) : null;
+function syncRouteState(view, opts) {
+  if (!ROUTE_STATE || !APP_STATE) return;
+  try {
+    APP_STATE = ROUTE_STATE.setState(APP_STATE, { workArea: view });
+    if (opts && opts.fromHash) return;
+    const h = ROUTE_STATE.toHash(APP_STATE);
+    if (history.replaceState) history.replaceState(null, "", location.pathname + location.search + (h ? "#" + h : ""));
+  } catch (e) {
+    console.warn("route state rejected", e);
+  }
+}
+window.addEventListener("hashchange", () => {
+  if (!ROUTE_STATE) return;
+  APP_STATE = ROUTE_STATE.fromHash(location.hash, APP_STATE || ROUTE_STATE.defaultState());
+  if (APP_STATE.workArea && APP_STATE.workArea !== VIEW) setView(APP_STATE.workArea, { fromHash: true });
+});
 const _PANE_LOADED = {};
 const SYSTEM_VIEWS = ["validation", "api", "server", "config", "evidence"];
 let LAST_SYSTEM_VIEW = "server";
@@ -826,11 +844,12 @@ document.addEventListener("click", (e) => {
   if (j) { e.preventDefault(); setView(j.getAttribute("data-go")); }
 });
 
-function setView(name) {
+function setView(name, opts) {
   if (name === "system") name = LAST_SYSTEM_VIEW;          // #55: the cluster remembers its sub-tab
   if (name === "validate") name = _validateSub || "nav";   // VALIDATE: delegate to the last/default sub-view
   if (SYSTEM_VIEWS.includes(name)) LAST_SYSTEM_VIEW = name;
   VIEW = name;
+  syncRouteState(name, opts || {});
   document.querySelectorAll(".vtab").forEach((b) => {       // UX-04: tab semantics + selected state
     const sel = b.dataset.view === name
       || (b.dataset.view === "validate" && (name === "nav" || name === "perception"))   // VALIDATE owns nav+perception
@@ -908,6 +927,26 @@ function setView(name) {
 // (each tagged with the azimuth bearing an Navigation pose-graph factor consumes). Honest empty state when
 // no render egress is present (a GPU-less deploy ships the committed crater_boulders sample).
 let PANO_LOADED = false;
+const PERCEPTION_STATE = {
+  source_profile: "stereo_sgbm",
+  frame_id: "ipex_front_stereo_optical",
+  point_topic: "/stewie/perception/points",
+  point_count: 0,
+  valid_fraction: 0,
+  range_min_m: 0,
+  range_max_m: 0,
+  covariance_m: 0,
+  panorama_cameras: 0,
+  shadow_landmarks: 0,
+  accepted_factors: 0,
+  no_truth: true,
+  evidence_class: "simulation",
+};
+function updatePerceptionState(patch) {
+  Object.assign(PERCEPTION_STATE, patch || {});
+  const A = window.STEWIE_ADAPTERS;
+  return A && A.normalizePerception ? A.normalizePerception({ perception_state: PERCEPTION_STATE }) : null;
+}
 function applyPanoMarks() {
   const ov = $("panooverlay");
   if (ov) ov.style.display = ($("panomarks") && $("panomarks").checked) ? "" : "none";
@@ -921,6 +960,8 @@ async function loadPanorama() {
     const m = await r.json();
     const cams = m.cameras || [], lms = m.landmarks || [];
     const nc = cams.length || 1, W = m.width || 2048, H = m.height || 192;
+    const pvm = updatePerceptionState({ panorama_cameras: cams.length, shadow_landmarks: lms.length,
+      no_truth: true, evidence_class: "simulation" }) || { panoramaCameras: cams.length, shadowLandmarks: lms.length };
     $("panoimg").src = "assets/perception/panorama.png?v=" + (m.full_width || 0);
     // camera tile dividers + per-tile heading label (the panorama is 8 FOV tiles ordered by heading)
     $("panoticks").innerHTML = cams.map((c, i) => {
@@ -935,7 +976,7 @@ async function loadPanorama() {
         + `<div style="width:10px;height:10px;border:1.5px solid #ffd479;border-radius:50%;box-shadow:0 0 4px #000"></div>`
         + `<div style="position:absolute;left:11px;top:-3px;white-space:nowrap;font-size:8px;color:#ffd479;text-shadow:0 0 3px #000">${l.bearing_deg}&deg;</div></div>`;
     }).join("");
-    $("panometa").textContent = ` · ${nc} cams · ${lms.length} landmarks · ${m.full_width || "?"}×${m.full_height || "?"}px source`;
+    $("panometa").textContent = ` · ${pvm.panoramaCameras} cams · ${pvm.shadowLandmarks} landmarks · ${m.full_width || "?"}×${m.full_height || "?"}px source`;
     $("panolist").innerHTML = "<b>Shadow-nav bearings (Navigation measurements):</b> "
       + lms.slice(0, 12).map((l) => `<span style="color:#ffd479">${l.bearing_deg}&deg;</span><span style="opacity:.55">/c${Math.round(l.contrast)}</span>`).join(" · ")
       + `<br><span style="opacity:.7">${m.note || ""}</span>`;
@@ -962,11 +1003,17 @@ async function loadPointCloud() {
     const m = await r.json();
     img.src = "assets/perception/pointcloud.png?v=" + (m.n_points || 0);
     const xr = m.x_range_m || [0, 0], zr = m.z_range_m || [0, 0], er = m.elev_range_m || [0, 0];
-    $("pcmeta").textContent = ` · ${(m.n_points || 0).toLocaleString()} pts · ${(m.baseline_m || 0).toFixed(3)} m baseline`;
+    const pvm = updatePerceptionState({ source_profile: m.source_profile || "stereo_sgbm",
+      point_count: m.n_points || 0, valid_fraction: m.valid_fraction || 1.0,
+      range_min_m: m.range_min_m || 0, range_max_m: m.max_depth_m || 0,
+      covariance_m: m.precision_1sigma_m || 0, no_truth: true, evidence_class: "simulation" })
+      || { pointCount: m.n_points || 0, sourceProfile: "stereo_sgbm", rangeMaxM: m.max_depth_m || 0,
+        covarianceM: m.precision_1sigma_m || 0 };
+    $("pcmeta").textContent = ` · ${pvm.pointCount.toLocaleString()} pts · ${(m.baseline_m || 0).toFixed(3)} m baseline · ${pvm.sourceProfile}`;
     $("pclist").innerHTML = "<b>Back-projected world points:</b> "
       + `X ${xr[0].toFixed(1)}…${xr[1].toFixed(1)} m · Z ${zr[0].toFixed(1)}…${zr[1].toFixed(1)} m · `
       + `elevation ${er[0].toFixed(2)}…${er[1].toFixed(2)} m (median ${(m.elev_median_m || 0).toFixed(3)} m) · `
-      + `max depth ${m.max_depth_m} m · 1&sigma; &asymp; ${m.precision_1sigma_m} m`
+      + `max depth ${pvm.rangeMaxM} m · 1&sigma; &asymp; ${pvm.covarianceM} m`
       + `<br><span style="opacity:.7">${m.note || ""}</span>`;
     img.style.display = ""; empty.style.display = "none";
   } catch (e) {
@@ -5829,7 +5876,7 @@ function renderCtxSummaries() {
   }
 }
 
-loadBody("moon"); restoreDraft(); estimate(); renderQueue(); renderKeepouts(); drawPlan(); updateLocator(); setView("plan");  // #177: restore the auto-saved working draft before the first render
+loadBody("moon"); restoreDraft(); estimate(); renderQueue(); renderKeepouts(); drawPlan(); updateLocator(); setView((APP_STATE && APP_STATE.workArea) || "plan", { fromHash: true });  // #177: restore the auto-saved working draft before the first render
 focusStep(WIZ_STEP);                                         // #170: open the current wizard step's sidebar sections on boot
 _bootComplete = true;                                     // UX-01: boot done -> 401s may now nudge sign-in
 CMD_AUTH.start();                                         // FS-17: claim/observe single command authority across tabs

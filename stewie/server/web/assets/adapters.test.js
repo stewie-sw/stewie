@@ -144,6 +144,28 @@ test("normalizeNavFactor maps NavFactor + derives rejected", () => {
     keyframe_i: 3, keyframe_j: 9, residual: 5, information: 0, accepted: false } }).rejected, true);
 });
 
+test("normalizePerception maps depth-source health + derives readiness", () => {
+  const vm = A.normalizePerception({ perception_state: {
+    source_profile: "stereo_sgbm", frame_id: "ipex_front_stereo_optical",
+    point_topic: "/stewie/perception/points", point_count: 65710, valid_fraction: 0.8,
+    range_min_m: 0.37, range_max_m: 4.0, covariance_m: 0.3,
+    panorama_cameras: 8, shadow_landmarks: 12, accepted_factors: 2,
+    no_truth: true, evidence_class: "simulation" } });
+  assert.strictEqual(vm.sourceProfile, "stereo_sgbm");
+  assert.strictEqual(vm.pointTopic, "/stewie/perception/points");
+  assert.strictEqual(vm.pointCount, 65710);
+  assert.strictEqual(vm.hasCloud, true);
+  assert.strictEqual(vm.hasPanorama, true);
+  assert.strictEqual(vm.rangeSpanM, 3.63);
+  assert.strictEqual(vm.ready, true);                              // truth-denied cloud/panorama present
+  assert.strictEqual(A.normalizePerception({ perception_state: {
+    source_profile: "replay", frame_id: "map", point_topic: "/stewie/perception/points",
+    point_count: 0, valid_fraction: 0, range_min_m: 0, range_max_m: 0, covariance_m: 0,
+    panorama_cameras: 0, shadow_landmarks: 0, accepted_factors: 0,
+    no_truth: true, evidence_class: "replay" } }).ready, false);    // no observable input yet
+  assert.strictEqual(A.normalizePerception({}), null);
+});
+
 test("normalizeModelArtifact mirrors the ML-01 deployment_ready gate", () => {
   const ready = A.normalizeModelArtifact({ model_artifact: {
     model_id: "m1", name: "terrain", version: "1.0", task: "terrain_assess",

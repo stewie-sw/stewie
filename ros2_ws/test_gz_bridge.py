@@ -33,9 +33,11 @@ def test_required_topics_bridged_to_contract_names():
         "/joint_states": "GZ_TO_ROS",
         "/stewie/imu": "GZ_TO_ROS",
         "/stewie/wheel_odom": "GZ_TO_ROS",
+        "/stewie/contact": "GZ_TO_ROS",
         "/tf": "GZ_TO_ROS",
         "/stewie/camera/front_left/image": "GZ_TO_ROS",
         "/stewie/camera/front_right/image": "GZ_TO_ROS",
+        "/stewie/perception/points": "GZ_TO_ROS",
     }
     for topic, direction in expected.items():
         assert topic in by_ros, f"bridge missing {topic}"

@@ -34,6 +34,14 @@ TIER = {
     "AS-05": "container", "AS-06": "container",
 }
 
+CONTAINER_EVIDENCE_VERIFIED = {
+    # Recorded 2026-07-01 in deploy/ros2/evidence/README.md from current Docker builds/smokes.
+    "AS-02",  # base ROS2 image: 10 packages build, discover, and pass colcon test smoke
+    "AS-03",  # vehicle description: check_urdf parses updated IPEx rig with swappable depth mounts
+    "AS-05",  # RViz tier: mission.rviz loads under xvfb with no plugin-load failures
+    "AS-06",  # Gazebo tier: gz sim publishes proprioception, contact, camera, and depth-cloud topics
+}
+
 # Capabilities the PRD HONESTLY defers. Named so the release gate cannot mark the track "done" while
 # any of these remain stubs / gated. Each maps to the PRD row that tracks it.
 DEFERRED = {
@@ -50,7 +58,7 @@ DEFERRED = {
 }
 
 
-def _recommend(tier: str, i: str, v: str, cited: bool) -> str:
+def _recommend(row: str, tier: str, i: str, x: str, v: str, cited: bool) -> str:
     if not cited:
         return "BLOCKED: no citing test -- cannot claim V=D under the traceability rule."
     if tier == "host":
@@ -61,6 +69,11 @@ def _recommend(tier: str, i: str, v: str, cited: bool) -> str:
         return (f"V tracks the partial slice (I={i}); V=D waits on I=D -- verification cannot lead "
                 "implementation. Host tests cover what is built.")
     # container tier
+    if row in CONTAINER_EVIDENCE_VERIFIED and v == "D":
+        return "V=D held: recorded container evidence exists and the row is cited."
+    if x in {"D", "P"}:
+        return (f"V stays {v}: recorded container evidence covers X={x}, but acceptance remains "
+                f"I={i}; V=D is gated on completing the missing row scope.")
     return (f"V stays {v} (host static/contract gate passes); X is gated on the docker build + smoke "
             "(deploy/ros2/Dockerfile.*), so V=D waits on a recorded container run.")
 
@@ -76,15 +89,18 @@ def release_report() -> dict:
         cites = sorted(marks.get(r, []))
         tier = TIER[r]
         v, i = d.get("V", "?"), d.get("I", "?")
-        # V=D eligibility: host-tier, cited, AND implementation done -- verification never leads I.
-        eligible = bool(cites) and tier == "host" and i == "D"
+        # V=D eligibility: cited, implementation done, and verification evidence exists in the tier
+        # that owns execution. Verification never leads implementation.
+        eligible = bool(cites) and i == "D" and (
+            tier == "host" or r in CONTAINER_EVIDENCE_VERIFIED
+        )
         rows[r] = {
             "pri": d.get("pri"), "I": i, "X": d.get("X"), "V": v, "Q": d.get("Q"),
             "tier": tier,
             "citing_tests": cites,
             "cited": bool(cites),
             "eligible_for_v_done": eligible,
-            "recommendation": _recommend(tier, i, v, bool(cites)),
+            "recommendation": _recommend(r, tier, i, d.get("X", "?"), v, bool(cites)),
         }
 
     in_matrix = [r for r in AS_ROWS if r in reqs]

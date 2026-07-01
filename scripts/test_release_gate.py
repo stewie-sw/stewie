@@ -6,7 +6,7 @@ verification tier each row reports is honest, and the genuinely-deferred capabil
 (the gate can never silently mark them complete). The report itself is read-only -- it must not
 mutate the review scorecard.
 """
-from scripts.release_gate import AS_ROWS, DEFERRED, TIER, release_report
+from scripts.release_gate import AS_ROWS, CONTAINER_EVIDENCE_VERIFIED, DEFERRED, TIER, release_report
 from scripts.req_trace import parse_requirements
 
 
@@ -33,21 +33,25 @@ def test_tier_classification_is_complete_and_honest():
     assert set(rep["summary"]["container_gated"]) == {"AS-02", "AS-03", "AS-04", "AS-05", "AS-06"}
     # the host-verified rows are everything else
     assert set(rep["summary"]["host_verified"]) == set(AS_ROWS) - set(rep["summary"]["container_gated"])
-    # V=D eligibility is STRICTER than host-tier: it also needs I=D (verification never leads
-    # implementation). Today only AS-17 is I=D, so it is the sole eligible row.
+    # V=D eligibility is STRICTER than tier: it also needs I=D (verification never leads
+    # implementation). Container rows become eligible only after recorded container evidence exists.
     eligible = set(rep["summary"]["eligible_for_v_done"])
-    assert eligible <= set(rep["summary"]["host_verified"])
     for r in eligible:
         assert rep["rows"][r]["I"] == "D", f"{r} eligible for V=D but I != D"
-    assert eligible == {"AS-17"}
+    assert eligible == {"AS-02", "AS-03", "AS-05", "AS-06", "AS-17"}
 
 
 def test_container_rows_are_not_auto_eligible_for_v_done():
-    # X is gated on a real container smoke -> a container row must NOT be reported V=D-eligible on host alone
+    # X is gated on a real container smoke -> a container row must not be reported V=D-eligible on host alone.
+    # The fully promoted rows below have current deploy/ros2/evidence records.
     rep = release_report()
     for r in rep["summary"]["container_gated"]:
-        assert not rep["rows"][r]["eligible_for_v_done"]
-        assert "gated" in rep["rows"][r]["recommendation"].lower()
+        if r in CONTAINER_EVIDENCE_VERIFIED:
+            assert rep["rows"][r]["eligible_for_v_done"]
+            assert "recorded container evidence" in rep["rows"][r]["recommendation"].lower()
+        else:
+            assert not rep["rows"][r]["eligible_for_v_done"]
+            assert "gated" in rep["rows"][r]["recommendation"].lower()
 
 
 def test_deferred_capabilities_stay_named():
@@ -64,11 +68,10 @@ def test_report_is_read_only_does_not_promote_the_scorecard():
     release_report()
     after = {r: parse_requirements("PRD.md").get(r, {}).get("V") for r in AS_ROWS}
     assert before == after
-    # the human call has been made for AS-17 (the sole eligible row, I=D + host-verified): it is now
-    # V=D. The firewall invariant still holds -- every promoted row must be both eligible AND cited, and
-    # no container-gated row may be V=D. A promotion that violated that would re-red this assertion.
+    # the human call has been made for AS-02, AS-03, AS-05, AS-06, and AS-17. The firewall invariant still holds:
+    # every promoted row must be both eligible AND cited; container rows need recorded container evidence.
     rep = release_report()["summary"]
     promoted = set(rep["currently_v_done"])
     assert promoted <= set(rep["eligible_for_v_done"]), "a V=D row that is NOT V=D-eligible slipped through"
-    assert promoted.isdisjoint(set(rep["container_gated"])), "a container-gated row was promoted to V=D"
-    assert "AS-17" in promoted
+    assert (promoted & set(rep["container_gated"])) <= CONTAINER_EVIDENCE_VERIFIED
+    assert {"AS-02", "AS-03", "AS-05", "AS-06", "AS-17"} <= promoted

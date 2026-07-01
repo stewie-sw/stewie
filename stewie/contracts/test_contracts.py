@@ -135,6 +135,20 @@ def test_nav_factor():
         C.NavFactor(factor_id="f", kind="loop", keyframe_i=-1, keyframe_j=0, residual=0.0, accepted=False)
 
 
+def test_perception_state_truth_denied_depth_source_card():  # [REQ:FS-15]
+    p = C.PerceptionState(point_count=65710, valid_fraction=0.8, range_min_m=0.37, range_max_m=4.0,
+                          covariance_m=0.3, panorama_cameras=8, shadow_landmarks=12,
+                          accepted_factors=2, evidence_class="simulation")
+    assert p.source_profile == "stereo_sgbm" and p.no_truth is True
+    assert C.PerceptionState.model_validate(p.model_dump()) == p
+    with pytest.raises(ValidationError):
+        C.PerceptionState(source_profile="truth_depth")
+    with pytest.raises(ValidationError):
+        C.PerceptionState(no_truth=False)
+    with pytest.raises(ValidationError):
+        C.PerceptionState(range_min_m=5.0, range_max_m=1.0)
+
+
 def test_model_artifact_cannot_be_on_command_path():
     m = C.ModelArtifact(model_id="m1", name="rocknet", version="1", task="rock_classify",
                         dataset_lineage="nac-2024", eval_split="80/20")

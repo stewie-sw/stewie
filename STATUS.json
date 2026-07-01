@@ -2,15 +2,23 @@
   "autonomy_track": {
     "cited": 16,
     "currently_v_done": [
+      "AS-02",
+      "AS-03",
+      "AS-05",
+      "AS-06",
       "AS-17"
     ],
     "eligible_for_v_done": [
+      "AS-02",
+      "AS-03",
+      "AS-05",
+      "AS-06",
       "AS-17"
     ],
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 124,
+  "cited": 125,
   "per_family": {
     "AG": {
       "cited": 8,
@@ -45,7 +53,7 @@
       "total": 7
     },
     "FS": {
-      "cited": 12,
+      "cited": 13,
       "total": 24
     },
     "GI": {
@@ -118,24 +126,8 @@
       "v": "N"
     },
     {
-      "id": "AS-02",
-      "v": "N"
-    },
-    {
-      "id": "AS-03",
-      "v": "N"
-    },
-    {
       "id": "AS-04",
-      "v": "N"
-    },
-    {
-      "id": "AS-05",
-      "v": "N"
-    },
-    {
-      "id": "AS-06",
-      "v": "N"
+      "v": "P"
     },
     {
       "id": "AS-07",

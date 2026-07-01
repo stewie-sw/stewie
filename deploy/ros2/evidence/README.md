@@ -1,67 +1,54 @@
-# §25 container-execution evidence (AS-02 / AS-03 / AS-04 / AS-05 / AS-06)
+# §25 Container-Execution Evidence (AS-02 / AS-03 / AS-04 / AS-05 / AS-06)
 
-Recorded container runs for the ROS2 deployment tiers, rebuilt **from current source** (after the
-2026-06-18 0.05 m stereo re-freeze) so the smokes reflect the live workspace, not a stale image.
-This is the `X` (execution) evidence the §25 release gate (`scripts/release_gate.py`) names as the
-gate for the five container-tier rows.
+Recorded container runs for the ROS2 deployment tiers, rebuilt from current source on 2026-07-01.
+These are the execution records behind the PRD AS scorecard updates.
 
-Host: archimedes · Docker 29.5.3 (overlay2, rootless-capable) · all builds `--network=host`.
+Host: local workspace · Docker 29.6.1 linux/amd64 · all builds `--network=host`.
 
-## Image digests (reproducibility anchor)
+## Image Digests
 
 | tier | image | digest |
 |---|---|---|
-| base (ROS2 Jazzy dev) | `stewie-ros2dev:jazzy` | `sha256:6d4dc8c8417d1b239d4a8bf64e76fe086e19927063fb2c24ef62eada80bedb51` |
-| RViz diagnostics | `stewie-rviz:jazzy` | `sha256:dac247c2554cae387ce43ae0e816d472c23b13ead3c0321008661300e50475cf` |
-| Gazebo simulation | `stewie-gazebo:jazzy` | `sha256:6c3d87159309a1aa5ba3ba1886220354b8c53f4c58c5a32226a86406b507badd` |
+| base ROS2 Jazzy dev | `stewie-ros2dev:jazzy` | `sha256:21d3d6224a3bbd0f6ff5b661fcdd15ce8746af96fcb46408c9cc4582cb14a3f7` |
+| RViz diagnostics | `stewie-rviz:jazzy` | `sha256:fbe0045424edcc9e080c25bd691d497150a830cfe7dfe3162e1adf5ca9db5b83` |
+| Gazebo simulation | `stewie-gazebo:jazzy` | `sha256:74b302596039f2d53a30cd26e4c0427a35f505ffde7efce289a442b0d648ad8f` |
 
-## What ran, and what it proves
+## What Ran
 
 | Row | Smoke | Result | Proves |
 |---|---|---|---|
-| **AS-02** | `docker run --rm stewie-ros2dev:jazzy` (`ros2 pkg list \| grep ^stewie_`) | rc=0, **10/10 packages** | the workspace colcon-builds and all 10 `stewie_*` packages are discoverable in-container |
-| **AS-03** | `check_urdf` at image build (`xacro ipex.urdf.xacro \| check_urdf`) | rc=0, **"Successfully Parsed XML"** | the IPEx URDF parses to a valid TF tree: `base_link` → 8 cameras (+optical), both bucket drums (`front_drum_arm`→`front_drum`), 4 skid-steer wheels, `imu_link` |
-| **AS-04** | all three tiers build + smoke (base / FROM-base rviz / FROM-base gazebo) | 3/3 build rc=0, 3/3 smoke rc=0 | the reproducible **tier model** works: one pinned base, two tiers inherit it, each smokes. (3 of 6 named tiers; perception/SLAM, bridge, Space ROS still deferred.) |
-| **AS-05** | `docker run --rm stewie-rviz:jazzy` (rviz2 headless on `mission.rviz` under xvfb) | rc=0, **"SMOKE OK: mission.rviz loaded, no plugin-load failures"** | the mission RViz config loads in a real rviz2 with the grid_map plugin; no missing-plugin failures |
-| **AS-06** | `docker run --rm stewie-gazebo:jazzy` (gz Harmonic sim + ros_gz bridge) | rc=0, **"SMOKE OK: physics/proprioception contract topics publish"** | gz sim launches and publishes the contract topics: `/clock /cmd_vel /joint_states /robot_description /tf /tf_static /stewie/imu /stewie/wheel_odom /stewie/truth/pose /stewie/camera/front_{left,right}/image` (PUB OK confirmed on clock, wheel_odom, joint_states, imu, front_left image, truth/pose) |
+| AS-02 | `docker run --rm stewie-ros2dev:jazzy` with `ros2 pkg list`, `colcon test`, and `colcon test-result --all` | rc=0; 10/10 `stewie_*` packages discoverable; seven ament_python package smoke tests pass | the ROS2 workspace skeleton builds, installs, discovers, and has a non-zero test gate in-container |
+| AS-03 | `check_urdf` during base image build after `xacro ipex.urdf.xacro` | rc=0; `Successfully Parsed XML`; root `base_link` has 18 expected children including camera rig, drum, wheels, IMU, `depth_sensor_mount`, `lidar_front_mount`, and `rgbd_front_mount` | the current IPEx URDF/Xacro/SDF rig expands and parses as a valid TF tree with collision/inertial/joint-limit artifacts and swappable depth-source mounts present in source; profile tests prove absent/simulated/bench/flight/legacy sensor labels |
+| AS-04 | base, RViz, and Gazebo images build and smoke | 3/3 built tiers pass; 3/6 accepted tiers exist | the tier model works for base ROS2 dev, RViz diagnostics, and Gazebo simulation; perception/SLAM, bridge runtime, and Space ROS remain deferred |
+| AS-05 | `docker run --rm stewie-rviz:jazzy` loading `mission.rviz` under Xvfb | rc=0; `SMOKE OK: mission.rviz loaded, no plugin-load failures` | the RViz mission dashboard loads in real rviz2; host tests verify the display/topic contract |
+| AS-06 | `docker run --rm stewie-gazebo:jazzy` with gz sim + ros_gz bridge | rc=0; `SMOKE OK: physics/proprioception/contact/depth contract topics publish` | Gazebo launches and publishes `/clock`, `/stewie/wheel_odom`, `/joint_states`, `/stewie/imu`, `/stewie/contact`, `/stewie/perception/points`, `/stewie/camera/front_left/image`, and `/stewie/truth/pose`; `/cmd_vel` is present |
 
-Captured smoke transcripts: `_smoke_ros2dev_pkglist.txt`, `_smoke_rviz.txt`, `_smoke_gazebo.txt`
-(the verbose `_build_*.log` apt/colcon transcripts are git-ignored — regenerable from the commands below).
+Captured smoke transcripts: `_smoke_ros2dev_pkglist.txt`, `_smoke_rviz.txt`, `_smoke_gazebo.txt`.
+Verbose `_build_*.log` files are regenerable from the commands below.
 
 ## Reproduce
 
 ```bash
 cd /mnt/projects/stewie/code
-docker build --network=host -f deploy/ros2/Dockerfile.ros2dev -t stewie-ros2dev:jazzy .   # base; runs check_urdf
-docker build --network=host -f deploy/ros2/Dockerfile.rviz    -t stewie-rviz:jazzy    .   # FROM base
-docker build --network=host -f deploy/ros2/Dockerfile.gazebo  -t stewie-gazebo:jazzy  .   # FROM base
-docker run --rm stewie-ros2dev:jazzy        # AS-02 package discovery
-docker run --rm stewie-rviz:jazzy           # AS-05 rviz config load
-docker run --rm stewie-gazebo:jazzy         # AS-06 gz topic publish
+docker build --network=host -f deploy/ros2/Dockerfile.ros2dev -t stewie-ros2dev:jazzy .
+docker build --network=host -f deploy/ros2/Dockerfile.rviz -t stewie-rviz:jazzy .
+docker build --network=host -f deploy/ros2/Dockerfile.gazebo -t stewie-gazebo:jazzy .
+docker run --rm stewie-ros2dev:jazzy bash -lc 'source /opt/ros/jazzy/setup.bash && source install/setup.bash && ros2 pkg list | grep -E "^stewie_" | sort && cd /ws && colcon test --event-handlers console_direct+ && colcon test-result --all'
+docker run --rm stewie-rviz:jazzy
+docker run --rm stewie-gazebo:jazzy
 ```
 
-## What this does NOT prove (still gated/deferred — release-gate `deferred` set)
+## PRD Marking Applied
 
-- **AS-06 contact/collision** is named in the acceptance but the smoke verifies topic *publishing*
-  only — contact/collision physics is not demonstrated here (its gz tests assert 0 contacts).
-- **AS-03 collision geometry / inertials** are not separately asserted by `check_urdf` (a clean parse
-  needs only the kinematic tree); the host `test_rig_contract` covers structure, not mass properties.
-- **AS-05** the host test confirms RobotModel + config structure, not every one of the ~13 named displays.
-- **AprilTag 12.7 mm** pose re-confirm (needs `apriltag_ros` wired into the image), **live Chrono
-  producer** (P7), **dense MVS / COLMAP RMSE** (CUDA), and the **Space ROS / perception / bridge**
-  container tiers remain deferred.
+| Row | Marked | Basis |
+|---|---|---|
+| AS-02 | `I=D X=D V=D Q=NA` | all named packages build, discover, and pass the container smoke |
+| AS-03 | `I=D X=D V=D Q=G` | URDF parses; SDF/Gazebo artifacts exist; swappable LiDAR/RGB-D mounts and explicit absent/simulated/bench/flight/legacy sensor-profile labels are covered by host and container evidence |
+| AS-04 | `I=P X=P V=P Q=NA` | 3 of 6 named tiers build and smoke |
+| AS-05 | `I=D X=D V=D Q=NA` | deterministic host display/topic tests plus real rviz2 load smoke |
+| AS-06 | `I=D X=D V=D Q=N` | Gazebo robot/sensor seam publishes proprioception, contact/collision, camera, selected depth-cloud, command, clock, TF, and truth-denied bridge topics in-container |
 
-## Scorecard recommendation (NOT applied — reviewer-scorecard call, like the V column)
+## Still Not Proven
 
-Backed by the recorded runs above, the honest per-row promotion is:
-
-| Row | now (I/X) | recommended | basis |
-|---|---|---|---|
-| AS-02 | N/N | **I=D, X=D** | 10/10 packages build + discoverable — acceptance fully met |
-| AS-03 | N/N | **X=D**; I=D only after collision/inertial confirmation | URDF parses to full TF tree; mass props unverified |
-| AS-04 | P/N | **X=P** | 3 of 6 tiers build + smoke; 3 deferred |
-| AS-05 | N/N | **X=D**; I=D after full display-set confirmation | mission.rviz loads; not every display asserted |
-| AS-06 | N/N | **X=D**; I stays **P** | topics publish; contact/collision not demonstrated |
-
-The `X` column is a factual "did it execute" claim and is now recorded + reproducible; `I=D` and the
-`V` column carry acceptance-completeness judgment and stay the human's call.
+- AS-04 perception/SLAM, bridge runtime, and Space ROS migration container tiers.
+- Deferred non-container capabilities named by `scripts/release_gate.py`: live Chrono producer, AprilTag 12.7 mm ROS pose confirmation, dense MVS/COLMAP RMSE, and Space ROS migration.

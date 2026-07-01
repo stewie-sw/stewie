@@ -7,7 +7,7 @@
   <world name="stewie_lunar">
     <!-- Moon surface gravity (constants.LUNAR_G_MS2 / ipex_specs.LUNAR_G_MS2 = 1.62 m/s^2, -Z). -->
     <gravity>0 0 -1.62</gravity>
-    <physics name="1ms" type="dart">
+    <physics name="1ms" type="ode">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
     </physics>

@@ -36,7 +36,8 @@ artifact. The honest remaining work splits three ways:
 - **Gated, deferred (not unfinished):** the live rclpy node + P23 intern-beta traverse (needs a ROS host
   and a real pit); P7 live Chrono producer + Tier-3 drum forces (needs a PyChrono host); the AS-* flight-
   autonomy stack (the ARGUS / navigation lane); arm geometry (AM-*, VT-03/05, needs LAC/IPEx data); dense
-  stereo PM-13..16 (GPU); CP-07 slip-band fold-in (blocked on the PyChrono calibration oracle); the
+  range/point-cloud PM-13..16 (stereo by default, LiDAR/RGB-D swappable when sensors are available; GPU or
+  live sensor host required); CP-07 slip-band fold-in (blocked on the PyChrono calibration oracle); the
   STEWIE-Orbit CCSDS comms stack (intent-only).
 - **Bottom line:** the production trainer/planner/twin is essentially finished and live; "finishing the
   program" past this point is mostly the marker-pass hygiene plus the externally-gated flight stack, not
@@ -574,12 +575,20 @@ allowed if they meet the acceptance criteria.
 | PM-10 | P1 | Benchmark on a fixed LAC-style suite: localization RMSE, 5 cm height-cell pass fraction, rock F1, coverage, runtime, and failure count across seeds/light/rocks. | P | N | P | N |
 | PM-11 | P1 | Target benchmark: demonstrate repeatable centimeter-scale localization comparable to the `0.038-0.067 m` `[NAVLAB26]` reference before claiming parity. | N | N | N | N |
 | PM-12 | P1 | Truth pose and semantic masks are development/evaluation-only and structurally unavailable to operational estimator code. | D | D | D | NA |
-| PM-13 | P1 | Stereo distance/range: rectified stereo pairs yield a calibrated disparity→depth estimate to a selected pixel/target, with per-estimate uncertainty from baseline + disparity noise. Acceptance scores the estimate against the conserved truth depth in sim (no synthetic depth). | N | N | N | N |
-| PM-14 | P1 | 3D depth point cloud + recognition: a dense/semi-dense point cloud is reconstructed from stereo, expressed in the world frame with per-point confidence; recognition (ground/rock/berm/pit/lander) operates on the cloud, never on truth masks. | N | N | N | N |
-| PM-15 | P1 | Regional target height: over an operator-selected footprint, estimate a height field / max-min relief (berm crest, pad flatness, obstacle height) from the stereo cloud, with uncertainty; acceptance compares to the conserved as-built truth (ties CP-06 flatness/profile and I11 as-built RMSE). | N | N | N | N |
-| PM-16 | P1 | Regional target volume: over a selected footprint, integrate cut/fill volume (excavated pit, spoil/berm) from the stereo height field vs a reference datum, with an uncertainty band; cross-checked against the conserved mass/volume the authority actually moved (CT-03 conservation). | N | N | N | N |
+| PM-13 | P1 | Range/depth source abstraction: the selected sensor profile may provide depth from rectified stereo disparity, LiDAR, RGB-D, or a simulator sensor feed, but every source must emit the same typed `DepthObservation`/point-cloud contract with frame, timestamp, calibration identity, valid mask, range limits, and uncertainty. Stereo remains the default no-LiDAR IPEx path; LiDAR is a swappable upgrade or testbed source when mass/power/sensor availability permits. Acceptance scores each source against conserved truth depth in sim or against surveyed targets on hardware, without allowing simulator truth into estimator code. | N | N | N | N |
+| PM-14 | P1 | 3D point cloud + recognition: a dense/semi-dense cloud is reconstructed from the selected depth source, converted to `sensor_msgs/PointCloud2` or an equivalent STEWIE cloud record, expressed in the world frame with per-point confidence; recognition (ground/rock/berm/pit/lander) operates on the cloud, never on truth masks. Downstream mapping/planning must be unchanged whether the cloud came from stereo, LiDAR, RGB-D, or replay. | N | N | N | N |
+| PM-15 | P1 | Regional target height: over an operator-selected footprint, estimate a height field / max-min relief (berm crest, pad flatness, obstacle height) from the selected depth cloud, with uncertainty; acceptance compares to the conserved as-built truth (ties CP-06 flatness/profile and I11 as-built RMSE). | N | N | N | N |
+| PM-16 | P1 | Regional target volume: over a selected footprint, integrate cut/fill volume (excavated pit, spoil/berm) from the selected depth-derived height field vs a reference datum, with an uncertainty band; cross-checked against the conserved mass/volume the authority actually moved (CT-03 conservation). | N | N | N | N |
 
-PM-13–16 are the stereo-perception *measurement* family — they feed the construction-acceptance loop and the Perception ("what it sees") pane, and are validated against the conserved-physics truth rather than synthetic data. They are the perceived counterparts to the truth-field acceptance already in CP-06/I11; all are gated on the render→depth pipeline (the §16.7 perception layer).
+PM-13–16 are the depth-perception *measurement* family. Stereo is the baseline because it minimizes mass,
+power, and mechanical complexity for the no-LiDAR IPEx profile, but LiDAR is explicitly swappable when the
+vehicle or test stand has it. The downstream contract is source-neutral: depth observation -> point cloud ->
+observed height/occupancy layers -> construction acceptance. A LiDAR-equipped run may improve range quality,
+but it does not bypass truth-denial, calibration, covariance, or evidence requirements. These rows feed the
+construction-acceptance loop and the Perception ("what it sees") pane, and are validated against the
+conserved-physics truth rather than synthetic depth. They are the perceived counterparts to the truth-field
+acceptance already in CP-06/I11; all are gated on the render/live-sensor -> depth pipeline (the §16.7
+perception layer).
 
 ### 7.6 Solar-Terrain Navigation
 
@@ -743,7 +752,7 @@ LLMs may draft plans or explain telemetry, but they do not directly actuate the 
 | ML-06 | P1 | Regolith Volume Estimator: before/after DEM or stereo heightfields estimate moved volume/mass with uncertainty, cross-checked against conserved authority mass and drum-fill sensing. | P | N | P | N |
 | ML-07 | P1 | Mission Planner LLM: a small language model may convert operator intent into candidate task graphs, but plans must compile to typed goals, pass deterministic validation, and be approved by the mission executive before simulation or command lowering. | N | N | N | N |
 | ML-08 | P1 | Science/Operator Assistant: a separate explanatory model may summarize telemetry, faults, and evidence; it has read-only access and no command path. | N | N | N | N |
-| ML-09 | P0 | Edge deployment envelope: any simultaneous model set intended for IPEx-class hardware must fit the selected compute profile (for example Jetson Orin NX/AGX class) under measured RAM, power, thermal, latency, and sensor-I/O budgets with degraded-mode scheduling. | N | N | N | N |
+| ML-09 | P0 | Edge deployment envelope: any simultaneous model set intended for IPEx-class hardware must fit the selected compute profile (for example Jetson Orin Nano/NX/AGX class) under measured RAM, power, thermal, latency, and sensor-I/O budgets with degraded-mode scheduling. The budget must name the active depth source (stereo SGBM, neural stereo, LiDAR, RGB-D, or replay), image/cloud rate, CPU/GPU split, RAM ceiling, thermal/power ceiling, telemetry bandwidth, and offload boundary to a base station. | N | N | N | N |
 
 ### 7.15 Full-Stack Onboard Autonomy Build Requirements (added 2026-06-15)
 
@@ -770,8 +779,8 @@ claims completion.
 | FS-12 | P1 | Model integration and fine-tuning hardening: every learned model has dataset lineage, train/eval split, artifact registry entry, model card, quantization/deployment profile, calibration report, OOD detector, safe fallback, and rollback plan before cockpit exposure. | P | N | N | N |
 | FS-13 | P1 | Recorded construction and self-docking skills: record, version, replay, compare, and approve movement primitives for excavation, dumping, berm shaping, and docking; replay must be corrected by belief feedback and bounded by safety checks. | P | N | N | N |
 | FS-14 | P0 | Atomic rollout rule: the roadmap is implemented in dependency order; a phase cannot be marked done until the previous phase's contracts, front-end affordance, backend route, tests, security review, and performance budget are complete or explicitly gated. | P | N | N | NA |
-| FS-15 | P0 | Front-end contract adapters: each cockpit work area owns a typed client adapter, request/response fixture, normalized view model, loading/error/empty mapping, and permission mapping. UI components consume view models, not raw backend JSON. The adapter LAYER is complete: `web/assets/adapters.js` normalizes all 10 FS-02 spine contracts (Ephemeris / World / Vehicle / Fleet / Belief / PlanResult / ExecutionEvent / NavigationFactor / ModelArtifact / ConstructionSkill) to view models, `toViewState` maps every fetch outcome to loading/ok/empty/error, `canAct` maps work-area→role (AG-01), and `ModelArtifact.deploymentReady` mirrors the backend ML-01 gate. Tested by `adapters.test.js` (node) + the CI-gated `test_adapter_contract_parity.py`, which proves every field an adapter reads is a real Pydantic contract field (no fabrication) and fails on backend drift. FS-08 pane wiring is now UNDERWAY (incremental, one pane per step, each Playwright-verified): `adapters.js` is loaded into the cockpit (the `STEWIE_ADAPTERS` global), the `/plan` route returns the typed `PlanResult` contract (built from the same `totals`, additive), and the Report-pane dashboard strip + CONOPS line consume the `normalizePlanResult` view model instead of ad-hoc `totals` keys -- which also fixed a latent bug where the `recharges` chip read a non-existent `totals.recharges` and showed a dash (now the real charge count, Playwright-confirmed). Increment 2 adds the new `TimelineFrame` contract (the activity-gantt motion frames; the /plan timeline frames are tested to conform to it) and the `normalizeTimelineFrame` view model, and the Report-pane ACTIVITY gantt + battery curve now consume it instead of raw frame dicts. Increment 3 adds the `LocalizationFix` contract (the Nav pane's est-vs-truth trace leg: `est`/`true`/`sigma`/`fix`; the /plan trace legs are tested to conform) + `normalizeLocalizationFix`, and the Nav pane's mission-localization plot consumes it. So THREE surfaces are migrated, each Playwright-verified: the Report dashboard (PlanResult), the activity gantt (TimelineFrame), and the Nav est-vs-truth trace (LocalizationFix). X stays N until the Perception pane consumes view models too (its panorama/shadow aggregates need their own contract). | D | N | P | NA |
-| FS-16 | P0 | Cockpit state and routing: the app has one routeable state model for selected mission, site, vehicle, body, time, mode, role, work area, selected entity, and live/sim/eval source. Desktop and mobile navigation are alternate views of the same state, not separate logic. | D | D | P | NA |
+| FS-15 | P0 | Front-end contract adapters: each cockpit work area owns a typed client adapter, request/response fixture, normalized view model, loading/error/empty mapping, and permission mapping. UI components consume view models, not raw backend JSON. The adapter LAYER is complete: `web/assets/adapters.js` normalizes all 10 FS-02 spine contracts (Ephemeris / World / Vehicle / Fleet / Belief / PlanResult / ExecutionEvent / NavigationFactor / ModelArtifact / ConstructionSkill) to view models, `toViewState` maps every fetch outcome to loading/ok/empty/error, `canAct` maps work-area→role (AG-01), and `ModelArtifact.deploymentReady` mirrors the backend ML-01 gate. Tested by `adapters.test.js` (node) + the CI-gated `test_adapter_contract_parity.py`, which proves every field an adapter reads is a real Pydantic contract field (no fabrication) and fails on backend drift. FS-08 pane wiring is now UNDERWAY (incremental, one pane per step, each Playwright-verified): `adapters.js` is loaded into the cockpit (the `STEWIE_ADAPTERS` global), the `/plan` route returns the typed `PlanResult` contract (built from the same `totals`, additive), and the Report-pane dashboard strip + CONOPS line consume the `normalizePlanResult` view model instead of ad-hoc `totals` keys -- which also fixed a latent bug where the `recharges` chip read a non-existent `totals.recharges` and showed a dash (now the real charge count, Playwright-confirmed). Increment 2 adds the new `TimelineFrame` contract (the activity-gantt motion frames; the /plan timeline frames are tested to conform to it) and the `normalizeTimelineFrame` view model, and the Report-pane ACTIVITY gantt + battery curve now consume it instead of raw frame dicts. Increment 3 adds the `LocalizationFix` contract (the Nav pane's est-vs-truth trace leg: `est`/`true`/`sigma`/`fix`; the /plan trace legs are tested to conform) + `normalizeLocalizationFix`, and the Nav pane's mission-localization plot consumes it. Increment 4 adds `PerceptionState` for the selected depth/cloud + panorama/shadow health card, `normalizePerception`, node coverage, and CI-gated parity coverage proving the Perception pane calls the view model instead of owning an untyped status shape. X is now D for the wired Plan/Report/Nav/Perception surfaces; V remains P until the remaining non-plan live-runtime panes get their route fixtures, browser render tests, and failure-mode coverage. | D | D | P | NA |
+| FS-16 | P0 | Cockpit state and routing: the app has one routeable state model for selected mission, site, vehicle, body, time, mode, role, work area, selected entity, and live/sim/eval source. Desktop and mobile navigation are alternate views of the same state, not separate logic. Production now loads `cockpit_state.js` before `cockpit.js`; `setView` synchronizes through `window.STEWIE_STATE` using enum-guarded `setState`, `toHash`, and `fromHash`; Python gate `test_cockpit_state_routing.py` cites the row so CI/req_trace counts the existing node-tested model. | D | D | D | NA |
 | FS-17 | P0 | Windowing policy: the production operator flow is one browser cockpit. Any second window is read-only engineering/debug context or a separate ROS/RViz/Gazebo tool; it cannot hold independent command authority, hidden state, or unique approval controls. Enforced in `cockpit.js` by a single-authority election (`CMD_AUTH`: a localStorage claim + heartbeat, `BroadcastChannel` + `storage`-event sync); a window without the fresh claim is read-only (`body.dataset.cmdrole`), shows the `#cmd-readonly-banner`, disables `[data-cmd-authority]` command controls, and `guardCommand` refuses the command-tape emit. An explicit Take-over control promotes a window (no silent promotion of a hidden tab). Two-tab behavior Playwright-verified; static wiring guarded by `stewie/server/test_fs17_command_authority.py`. | D | D | D | NA |
 | FS-18 | P0 | Frontend-backend contract gate: every new route-to-pane connection has a schema fixture, backend route test, frontend fixture render test, permission test, mobile-width smoke, and one failure-mode test before it is considered wired. | P | N | N | NA |
 | FS-19 | P0 | End-to-end observability ledger: log every mission decision, operator action, role/permission check, backend contract call, plan/replan, command emission, safing event, model inference summary, Navigation factor accept/reject, fleet conflict, and state transition with correlation ID, mission/site/body/time, actor, input/output hashes, result, latency, and error code. Secrets, passwords, tokens, private keys, and operational truth-denied fields must never be logged. | P | P | P | NA |
@@ -791,13 +800,13 @@ excavation, ShadowNav, Navigation, terramechanics, and mission authority remain 
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
-| AS-01 | P0 | Autoware-shaped boundary: define the ROS2 node graph and topic contract for sensing, perception, localization, mapping, planning, control, vehicle interface, diagnostics, and mission executive without importing road/lanelet behavior planning. | P | N | N | NA |
-| AS-02 | P0 | ROS2 workspace skeleton: create container-buildable packages for `stewie_msgs`, `stewie_description`, `stewie_bringup`, `stewie_vehicle_interface`, `stewie_perception`, `stewie_localization`, `stewie_mapping`, `stewie_planning`, `stewie_control`, and `stewie_rviz`. | N | N | N | NA |
-| AS-03 | P0 | IPEx vehicle description: add URDF/Xacro/SDF describing chassis, wheels, drums, arms, camera rig, IMU, optional LiDAR, collision geometry, inertials, joint limits, TF tree, and frame names derived from STEWIE vehicle specs. | N | N | N | G |
-| AS-04 | P0 | ROS container tiers: provide reproducible containers for base ROS2 Jazzy dev, perception/SLAM, Gazebo simulation, RViz diagnostics, bridge runtime, and a Space ROS migration profile. Each container has a smoke command and pinned package manifest. | P | N | N | NA |
-| AS-05 | P0 | RViz mission dashboard: ship an RViz config showing robot model, TF, odom, `/stewie/odom`, planned path, local trajectory, costmaps, occupancy/DEM map, point cloud, camera feeds, covariance, Navigation factors, diagnostics, SAFE state, and command topic state. | N | N | N | NA |
-| AS-06 | P1 | Gazebo simulation seam: launch the IPEx description in Gazebo with cameras, IMU, wheel odometry, contact/collision, `/cmd_vel`, `/joint_states`, `/tf`, `/clock`, and bridgeable terrain/world state. Gazebo sim is robot/sensor sim, not excavation truth. | N | N | N | N |
-| AS-07 | P0 | Stanford/NavLab-derived navigation spine: implement or integrate stereo feature detection/matching, stereo VO, robust PnP/triangulation, pose graph optimization, loop-closure gating, terrain/rock mapping, coverage planning, local arc planner, and recovery benchmarks on truth-denied bags. | P | N | P | N |
+| AS-01 | P0 | Autoware-shaped boundary: define the ROS2 node graph and topic contract for sensing, depth-source selection, perception, localization, mapping, planning, control, vehicle interface, diagnostics, and mission executive without importing road/lanelet behavior planning. The graph must allow stereo, LiDAR, RGB-D, or replayed point clouds to feed the same mapping/localization contracts. | P | N | N | NA |
+| AS-02 | P0 | ROS2 workspace skeleton: create container-buildable packages for `stewie_msgs`, `stewie_description`, `stewie_bringup`, `stewie_vehicle_interface`, `stewie_perception`, `stewie_localization`, `stewie_mapping`, `stewie_planning`, `stewie_control`, and `stewie_rviz`. | D | D | D | NA |
+| AS-03 | P0 | IPEx vehicle description: add URDF/Xacro/SDF describing chassis, wheels, drums, arms, camera rig, IMU, optional swappable LiDAR/RGB-D mounts, collision geometry, inertials, joint limits, TF tree, and frame names derived from STEWIE vehicle specs. Sensor profiles must label absent, simulated, bench, flight, and legacy sensors explicitly. | D | D | D | G |
+| AS-04 | P0 | ROS container tiers: provide reproducible containers for base ROS2 Jazzy dev, perception/SLAM, Gazebo simulation, RViz diagnostics, bridge runtime, and a Space ROS migration profile. Each container has a smoke command and pinned package manifest. | P | P | P | NA |
+| AS-05 | P0 | RViz mission dashboard: ship an RViz config showing robot model, TF, odom, `/stewie/odom`, planned path, local trajectory, costmaps, occupancy/DEM map, selected depth-source cloud (`PointCloud2` or equivalent), camera feeds, covariance, Navigation factors, diagnostics, SAFE state, and command topic state. | D | D | D | NA |
+| AS-06 | P1 | Gazebo simulation seam: launch the IPEx description in Gazebo with cameras, selected depth source (stereo pair, depth camera, LiDAR/RGB-D, or replay bridge), IMU, wheel odometry, contact/collision, `/cmd_vel`, `/joint_states`, `/tf`, `/clock`, `/stewie/perception/points` or equivalent `DepthObservation`, and bridgeable terrain/world state. Gazebo sim is robot/sensor sim, not excavation truth; estimator and planner inputs must be truth-denied. | D | D | D | N |
+| AS-07 | P0 | Stanford/NavLab-derived navigation spine: implement or integrate stereo feature detection/matching, stereo VO, optional LiDAR/depth-cloud odometry or scan-to-DEM registration when a range sensor is selected, robust PnP/triangulation, pose graph optimization, loop-closure gating, terrain/rock mapping, coverage planning, local arc planner, and recovery benchmarks on truth-denied bags. | P | N | P | N |
 | AS-08 | P0 | ShadowNav factor path: convert ephemeris-controlled sun geometry plus panorama/shadow landmark bearings into typed `NavigationFactor` observations with covariance, residual gates, false-factor rejection, and ablation versus non-shadow VO/SLAM. | P | N | P | N |
 | AS-09 | P0 | Navigation articulation path: convert commanded posture changes, arm/camera kinematics, shadow perturbations, and articulation parallax into standstill relocalization factors; accepted factors must reduce covariance and be visible in cockpit and RViz. | P | P | P | N |
 | AS-10 | P0 | Autonomous mapping: maintain observed DEM, occupancy/rock map, object graph, uncertainty, changed-terrain mask, and excavation state as separate layers over the conserved world model; estimator/mapping nodes are denied simulator truth. | P | N | P | N |
@@ -1102,9 +1111,9 @@ NASA-style development rules for this sequence:
 |---|---|---|---|
 | 0 | AS-01, AS-15 | Freeze the STEWIE-native autonomy boundary: ROS2 nodes, topic names, frame names, QoS expectations, lifecycle states, command authority, SAFE path, and truth-denial policy. | Contract test rejects missing nodes/topics, road/lanelet behavior planning dependencies, and truth-topic estimator inputs. |
 | 1 | AS-02, AS-04 | Create the container-buildable ROS2 workspace skeleton: `stewie_msgs`, `stewie_description`, `stewie_bringup`, `stewie_vehicle_interface`, `stewie_perception`, `stewie_localization`, `stewie_mapping`, `stewie_planning`, `stewie_control`, and `stewie_rviz`. | `colcon test` runs in the base ROS2 container; smoke command proves the workspace builds and package discovery works. |
-| 2 | AS-03, AS-17 | Add the IPEx vehicle description and TRL5 stereo rig authority: chassis, wheels, excavation drum/arm joints, camera rig, IMU, optional LiDAR, inertials, collisions, joint limits, TF tree, camera intrinsics/extrinsics, lens/FOV profile, and stereo baselines loaded from the authoritative profile. | Robot-state-publisher and rig-contract tests verify the complete TF tree, expected frame names, front/rear stereo pairs, active-camera budget, and that the TRL5-final 0.05 m profile is separate from the legacy 0.070 m frozen fixture and historical 0.165 m shoulder-split design. |
+| 2 | AS-03, AS-17 | Add the IPEx vehicle description and TRL5 stereo/depth-source authority: chassis, wheels, excavation drum/arm joints, camera rig, IMU, optional swappable LiDAR/RGB-D mounts, inertials, collisions, joint limits, TF tree, camera intrinsics/extrinsics, lens/FOV profile, stereo baselines, and depth-source profiles loaded from the authoritative profile. | Robot-state-publisher and rig-contract tests verify the complete TF tree, expected frame names, front/rear stereo pairs, active-camera budget, optional range-sensor frames when selected, and that the TRL5-final 0.05 m profile is separate from the legacy 0.070 m frozen fixture and historical 0.165 m shoulder-split design. |
 | 3 | AS-05, AS-14 | Add the RViz mission dashboard for robot model, TF, odom, planned path, local trajectory, costmaps, DEM/occupancy, point cloud, camera feeds, covariance, Navigation factors, diagnostics, SAFE state, and command topics. | RViz config lint/smoke verifies required displays; replay fixture exposes diagnostics and command eligibility state. |
-| 4 | AS-06 | Add the Gazebo robot/sensor simulation seam with `/cmd_vel`, `/joint_states`, `/tf`, `/clock`, cameras, IMU, wheel odometry, contact/collision, and bridgeable terrain state. | Launch test proves Gazebo publishes expected topics; estimator test proves it does not consume simulator truth. |
+| 4 | AS-06 | Add the Gazebo robot/sensor simulation seam with `/cmd_vel`, `/joint_states`, `/tf`, `/clock`, cameras, selected depth-source output, IMU, wheel odometry, contact/collision, and bridgeable terrain state. | Launch test proves Gazebo publishes expected robot, sensor, and depth/point-cloud topics; estimator test proves it consumes only truth-denied sensor outputs, never simulator truth. |
 | 5 | AS-07 | Implement the Stanford/NavLab-style navigation spine: stereo feature detection, matching, stereo VO, robust PnP/triangulation, pose graph, loop-closure gates, terrain/rock mapping, coverage planning, local arcs, and recovery triggers. | Truth-denied bag tests report ATE, coverage, obstacle recall, recovery decisions, and no-truth-input assertions. |
 | 6 | AS-08 | Implement ShadowNav factors: ephemeris/azimuth convention, panorama or camera shadow landmark extraction, bearing residuals, covariance, false-shadow rejection, and fusion into the localization graph. | Sun-angle ablation shows shadow factors help under supported geometry and are rejected under ambiguous/false-shadow cases. |
 | 7 | AS-09 | Implement Navigation articulation navigation: commanded posture change, arm/camera kinematics, articulation-induced parallax, shadow perturbation, covariance reduction, and accepted/rejected factor visualization. | Standstill relocalization test proves accepted Navigation factors reduce covariance and rejected factors are not inserted. |
@@ -1123,27 +1132,79 @@ replay are engineering tools; they may run beside the cockpit but cannot carry i
 authority.
 
 Required cockpit panes for the autonomy sequence:
-- World/map pane: DEM, occupancy, object graph, observed/forecast/edited layers, illumination, PSR,
-  shadow confidence, terrain changes, and provenance.
-- Sensor/rig pane: selected vehicle profile, camera placements, active stereo pair, baseline, FOV,
-  calibration status, dust/EDS status, LED profile, profile provenance, and whether the run is using
-  TRL5-final, calibration, or legacy geometry.
+- World/map pane: DEM, occupancy, object graph, observed/forecast/edited layers, selected cloud source,
+  observed DEM freshness, illumination, PSR, shadow confidence, terrain changes, and provenance.
+- Sensor/rig pane: selected vehicle profile, camera placements, active stereo pair, selected depth source,
+  baseline, FOV, range limits, cloud freshness, calibration/covariance status, dust/EDS status, LED profile,
+  profile provenance, Gazebo/RViz/replay profile, and whether the run is using TRL5-final, calibration, or
+  legacy geometry.
 - Navigation pane: global route, local arc, tracker state, costmap layer breakdown, recovery action,
   blocked reason, and energy/slip/tip margins.
 - ShadowNav/Navigation pane: sun azimuth/elevation source, camera/posture state, detected shadow landmarks,
   candidate factors, residuals, covariance delta, accepted/rejected factors, and explanation.
 - Mission executive pane: active objective, preconditions, acknowledgements, command eligibility,
   replan reasons, SAFE state, and operator approvals.
-- ROS diagnostics pane: lifecycle state, node health, topic freshness, QoS warnings, latency, dropped
-  frames, bridge status, and container profile.
+- ROS diagnostics pane: lifecycle state, node health, Gazebo bridge status, RViz config/run status, bag
+  replay status, topic freshness for `/stewie/perception/points` and command topics, QoS warnings, latency,
+  dropped frames, bridge status, and container profile.
 - Evidence drawer: requirement ID, fixture/bag/run ID, logs, benchmark metrics, screenshots, and report
   artifact links for the selected decision.
 
+Full-use cockpit design requirements:
+
+- Persistent mode/source rail: every screen shows `GIS-PLAN`, `SIM-OPERATE`, `TRAIN`, `EVALUATE`, or
+  future `OPERATE`; the active runnable profile (`desktop_sil`, `digital_twin`, `ros2_replay`,
+  `hil_jetson`, `sensor_bench`, `rover_bench`, `field_traverse`, or `monte_carlo`); selected sensor profile;
+  command-authority state; and truth-denial label. Simulation, forecast, replay, HIL, and live state must
+  never share ambiguous styling.
+- Mission workflow spine: the primary operator path is Plan -> Rehearse -> Validate -> Release -> Execute
+  -> Report. System and Admin remain supporting surfaces, not mission work areas.
+- Plan surface: select body/site/DEM, vehicle/tool configuration, depth-source profile, constraints,
+  objectives, fleet/resource reservations, and evidence requirements before solving.
+- Rehearse surface: compare candidate plans, scenario variants, costmap explanations, time/energy budgets,
+  map updates, and failure branches before release.
+- Validate surface: split evidence into Perception, Navigation, Mapping, ROS/Gazebo, and Evidence panes.
+  It must show `DepthObservation`/`PointCloud2` freshness, source profile, point count or valid fraction,
+  range/covariance, observed DEM coverage, accepted/rejected factors, estimator covariance, and no-truth
+  status.
+- Release surface: show immutable plan revision, selected runtime profile, namespace, sensor/depth-source
+  profile, AG-08 command eligibility, director/operator sign-off, and artifact links. Release cannot depend
+  on an RViz-only control or hidden browser state.
+- Execute surface: show only the bounded next segment or action goal, acknowledgements, link/watchdog state,
+  SAFE/pause/replan controls, covariance and map freshness, and command refusal reasons. RViz/Gazebo may
+  visualize the run but must not own independent command authority.
+- Report surface: emit the evidence bundle with run metrics, cockpit and RViz screenshots, bag/log links,
+  requirement IDs, claim labels, and pass/fail/refuted status.
+- System/Admin surface: expose ROS node health, container/runtime profile, topic/QoS/dropped-frame status,
+  Gazebo/RViz/bag process status, operator roles, audit events, and evidence retention controls.
+
+Required operational cards:
+
+| Card | Required content | Action consequence |
+|---|---|---|
+| Sensor Profile | vehicle profile, active cameras, depth-source profile, calibration ID, range limits, covariance model, provenance | blocks Release if missing, stale, or labelled legacy without director override |
+| Depth/Cloud Health | `DepthObservation`/`PointCloud2` topic, freshness, frame, point count or valid fraction, confidence, dropped frames, degraded mode | blocks Execute if stale below the selected profile threshold |
+| Map/Belief Delta | observed DEM coverage, occupancy changes, changed-terrain mask, odom-vs-belief divergence, covariance thresholds | forces replan/relocalize when thresholds are exceeded |
+| Command Eligibility | AG-08 role/namespace/profile checks, SF-01 watchdog, link ack, active SAFE state, bounded next command | disables command controls and records refusal reasons |
+| ROS/Gazebo/RViz Status | lifecycle nodes, `/clock`, `/tf`, `/joint_states`, bridge topics, bag replay, RViz display status, process/container profile | prevents claiming a profile-complete run without matching runtime evidence |
+| Evidence Drawer | requirement IDs, fixtures/bags, logs, metrics, screenshots, validation JSON, Graphify diagnostics, report links | no row may advance to done without linked evidence |
+
+Frontend implementation rules:
+- Cockpit components consume typed adapters and view models, not raw backend JSON, ROS topic payloads, or
+  ad-hoc global state.
+- Every pane has explicit empty, loading, stale, degraded, error, permission-denied, and truth-denied states.
+- Desktop and mobile layouts are alternate views of the same route/state model; command authority and
+  approvals cannot move to a mobile-only or second-window-only control.
+- No fake telemetry, simulated truth, or evaluator-only fields may be displayed as live measurements.
+- The operator UI is dense, utilitarian, and workflow-first; visualizations are used to inspect state and
+  command consequences, not to market the product.
+
 Information input sequence for mission planning:
 1. Select body, site, terrain product, coordinate frame, and ephemeris/azimuth convention.
-2. Select vehicle, tool configuration, camera/IMU/LiDAR profile, and container/runtime profile.
+2. Select vehicle, tool configuration, camera/IMU/depth-source profile, and container/runtime profile.
 3. Confirm the sensor/rig profile: TRL5-final stereo baseline, FOV/lens option, active-camera budget,
-   LED profile, calibration status, and any legacy/calibration override.
+   selected `DepthObservation`/`PointCloud2` source, range limits, cloud confidence, LED profile,
+   calibration status, and any legacy/calibration override.
 4. Load observed map layers and mark their provenance, age, uncertainty, and truth-denial status.
 5. Define keep-outs, resource zones, construction targets, docking targets, and fleet reservations.
 6. Enter mission objective as typed goals: traverse, observe, excavate, grade, haul, dump, dock, or
@@ -1155,20 +1216,146 @@ Information input sequence for mission planning:
 10. Monitor acknowledgements, covariance, map updates, execution feedback, and mission-executive state.
 11. Replan, relocalize, reverse, pause, or SAFE through explicit logged decisions.
 
-### 26.3 Immediate Next Work
+### 26.3 Sensor-Swappable Depth Contract
+
+The perception stack is depth-source neutral. The no-LiDAR lunar rover profile uses calibrated stereo as
+the baseline because it is lower mass and lower power; a LiDAR-equipped rover, bench rig, or simulation
+profile may replace or augment that source without changing localization, mapping, costmaps, or planning.
+
+The source selection is a runtime/profile decision, not a forked architecture:
+
+| Depth source profile | Primary use | Required output | Claim boundary |
+|---|---|---|---|
+| `stereo_sgbm` | default onboard real-time path | disparity, depth, valid mask, sigma, point cloud | calibrated stereo estimate, noisier than LiDAR |
+| `stereo_neural` | high-quality GPU/offboard path | disparity/depth + confidence, point cloud | only when model artifact and edge budget pass ML-09/FS-12 |
+| `lidar` | hardware/testbed upgrade when available | range cloud, per-point timing/frame/calibration, confidence | direct range source, still must pass calibration/truth-denial gates |
+| `rgbd` | lab/bench substitute | depth image/cloud with calibration | bench evidence, not automatically flight-equivalent |
+| `replay` | SIL/regression | recorded `PointCloud2`/cloud + metadata | valid for regression only; truth topics denied to estimator |
+
+Every source must emit the same downstream contract:
+
+```text
+DepthObservation
+  source_profile: stereo_sgbm | stereo_neural | lidar | rgbd | replay
+  frame_id, stamp, calibration_id, sensor_pose
+  depth_image or point_cloud
+  valid_mask / confidence
+  range_min_m, range_max_m
+  covariance or per-point uncertainty
+  evidence_class
+```
+
+Downstream software consumes only `DepthObservation` or its ROS `PointCloud2` equivalent. The mapper,
+DEM-registration factor, obstacle detector, construction acceptance, and cockpit visualization must not
+branch on "stereo vs LiDAR" except to display provenance, confidence, and degraded-mode warnings. A
+LiDAR-equipped run may be better data, but it does not bypass the same evidence ledger, calibration, TF,
+and truth-denial rules.
+
+### 26.4 Runnable Profiles
+
+The autonomy stack must be runnable in explicitly named profiles. A profile is complete only when it has a
+command, a fixture or live endpoint, expected topics/files, and an artifact bundle.
+
+| Profile | Runs where | Purpose | Required artifacts |
+|---|---|---|---|
+| `desktop_sil` | developer workstation | simulator + STEWIE server + DART/LODE over deterministic fixtures | test log, metrics JSON, cockpit screenshot, world-transaction log |
+| `digital_twin` | workstation/Godot host | rendered cameras/depth, sun/shadow, mutable terrain, replayable missions | render packet, depth/cloud artifact, terrain diff, evidence ledger |
+| `ros2_replay` | ROS2 container | bag replay through perception/localization/mapping/planning contracts | rosbag2, RViz screenshot, topic freshness report, no-truth-input assertion |
+| `hil_jetson` | Jetson or edge host + simulated sensors | CPU/GPU/RAM/thermal/latency budget and degraded-mode scheduling | perf report, ML-09 budget, dropped-frame log, watchdog log |
+| `sensor_bench` | real stereo/LiDAR/RGB-D + IMU bench rig | calibrate sensor profile and range/depth uncertainty | calibration file, target measurements, covariance report |
+| `rover_bench` | rover or pit testbed | bounded `/cmd_vel`, odom, watchdog, local planner, no open-loop command tape | command log, odom trace, SAFE/fault injection evidence |
+| `field_traverse` | analog field or lunar-analog dataset | truth-denied autonomy benchmark | ATE/RPE, map coverage, obstacle recall, recovery decisions |
+| `monte_carlo` | CI/offline batch | randomized lighting, texture, slip, terrain, sensor failures | scenario summary, failure taxonomy, regression diff |
+
+No profile may be described as "flight-autonomy complete" unless it executes the §26.6 run-everything
+gate with the selected sensor profile and records all required artifacts.
+
+### 26.5 Algorithm Selection Policy
+
+The default onboard stack is conservative: classical stereo/depth plus typed factors first; neural and
+third-party stacks are optional accelerators or baselines.
+
+| Function | Default | Optional / baseline | Rule |
+|---|---|---|---|
+| Depth | OpenCV SGBM + LR consistency | RAFT-Stereo/CREStereo/IGEV/HITNet, LiDAR, RGB-D | optional models require FS-12 + ML-09; LiDAR/RGB-D require sensor-profile calibration |
+| VO/features | DART stereo VO / ORB-style features | SuperPoint/LightGlue, ORB-SLAM3, VINS-Fusion | external stacks are baselines or replaceable components behind typed factors |
+| Map-relative localization | scan/heightfield-to-DEM registration + factors | RTAB-Map, Cartographer, ICP/NDT libraries | prior DEM localization is preferred over full SLAM-from-scratch when a site DEM exists |
+| Mapping | observed DEM + occupancy/object layers over conserved world model | TSDF/Voxblox/Open3D/OctoMap | mapping layers stay separate from conserved truth and mutable-terrain ledger |
+| Planning/control | STEWIE route/local planner + SF-01 watchdog | Nav2/Autoware-style planners | Autoware architecture shape is adopted; road/lanelet behavior is not imported |
+| Mission logic | typed Mission Executive | small read-only assistant models | no free-form model directly commands ROS2 or rover hardware |
+
+### 26.6 Run-Everything Gate
+
+The full autonomy gate is one connected run, not a list of importable modules:
+
+```text
+selected sensor profile
+  -> camera/LiDAR/RGB-D/replay input
+  -> DepthObservation / PointCloud2
+  -> observed DEM + occupancy/object layers
+  -> localization factors (VO/IMU/wheel/dem/shadow/parallax as available)
+  -> estimator covariance update
+  -> costmap layers
+  -> global route + local trajectory
+  -> bounded cmd_vel or action goal
+  -> SF-01 watchdog + command eligibility
+  -> world-model update
+  -> report/evidence artifact
+```
+
+Acceptance requires:
+
+- no estimator/planner subscription to simulator truth;
+- one bag or replay fixture with camera/depth/IMU/wheel/joint/time topics or equivalent files;
+- selected depth source identified as stereo, LiDAR, RGB-D, or replay, with calibration/provenance;
+- point cloud or observed heightfield generated and consumed by mapping/localization;
+- at least one accepted or correctly rejected navigation factor with covariance and evidence class;
+- route and local trajectory produced from inspectable costmap layers;
+- command lowered through AG-08/NV-12/SF-01 or explicitly refused with a logged reason;
+- world transaction recorded with terrain/map/belief/provenance deltas;
+- metrics JSON containing latency, memory, CPU/GPU if available, coverage, ATE/RPE if truth is evaluator-only,
+  fault/recovery decisions, and degraded-mode flags;
+- RViz or cockpit evidence screenshot plus a report artifact linking requirement IDs and run IDs.
+
+This is the gate that turns "stereo as virtual LiDAR," "LiDAR swappable," "ARGUS factors," and "ROS2
+autonomy" into one runnable system. Passing one sensor profile does not automatically pass another:
+`stereo_sgbm`, `lidar`, and `rgbd` each need their own calibration/performance evidence.
+
+### 26.7 Fan-Out Normalization Update
+
+The 2026-07-01 normalization pass produced `FANOUT_SPECS.md`: 62 self-contained dispatch briefs for the
+current buildable ready-set, one per row, with goal, acceptance, current state, real paths, test target,
+and type. Treat it as the orchestrator-facing execution layer for §7 marker work and small build slices,
+not as a replacement for this PRD. The binding gates remain `scripts/req_trace.py`, `scripts/release_gate.py`,
+and the §7 glyphs.
+
+The pass surfaced three PRD-relevant findings:
+
+- JavaScript `*.test.js` files are not currently counted by `req_trace.py` and are not run in GitHub CI, so
+  JS-only frontend rows need Python citing tests or a CI/browser-tier update before they can count as V=D.
+- PO-04 markers are currently misattributed to auth/secret tests; the CI-tier row needs a real workflow test.
+- GI-03 appears done-stale: implementation and test coverage exist, so it should be verified and reconciled
+  rather than rebuilt.
+
+Operational rule: a fan-out agent may use `FANOUT_SPECS.md` as its dispatch brief, but it finishes only by
+adding or extending a real `[REQ:<ID>]` test, running the targeted gate, and updating the PRD/status glyph
+only when the implementation, execution, verification, and qualification evidence match the row.
+
+### 26.8 Immediate Next Work
 
 The next implementation slice is Step 0 followed by Step 1, then the Step 2 TRL5 stereo rig authority
 gate. Do not start ShadowNav, Navigation, autonomous mapping, or Gazebo feature work until the ROS2 autonomy
 boundary, package skeleton, container smoke, requirement traces, cockpit/diagnostic contracts, and
-authoritative camera profile are in place. That foundation prevents duplicate interfaces, keeps
+authoritative camera/depth-source profile are in place. That foundation prevents duplicate interfaces, keeps
 navigation/mapping tied to the real sensor geometry, and makes the later navigation work measurable
 instead of anecdotal.
 
 Construction-round readiness checklist:
 - `AS-01`: ROS2 autonomy boundary contract exists and blocks Autoware road/lane behavior dependencies.
 - `AS-02`/`AS-04`: ROS2 package skeleton and containers build with a smoke command.
-- `AS-03`/`AS-17`: IPEx vehicle and TRL5 stereo rig profiles are loaded by ROS, backend, simulator, and
-  cockpit from one authority; legacy 0.070 m fixtures are labelled legacy/calibration, not final IPEx.
+- `AS-03`/`AS-17`: IPEx vehicle, TRL5 stereo rig, and optional LiDAR/RGB-D sensor profiles are loaded by
+  ROS, backend, simulator, and cockpit from one authority; legacy 0.070 m fixtures are labelled
+  legacy/calibration, not final IPEx.
 - `AS-05`/`AS-14`: RViz and cockpit expose rig state, diagnostics, command eligibility, and SAFE state.
 - `AS-15`: failing tests, `[REQ:]` markers, deterministic fixtures, logs, and trace checks exist before
   each implementation slice.
@@ -1272,7 +1459,7 @@ Existing IDs (FS-/NV-/FL-/DT-/SN-/PM-/CP-/GI-/PO-/ARCH-/AS-/B-/P-) are reference
 
 **Gated — explicitly NOT in the 2-week window** (kept honest, never stubbed): live rclpy node +
 P23 traverse evidence (ROS2 host); AS-02..06 Autoware nodes/RViz (ROS2 Jazzy container);
-PM-13..16 dense stereo (GPU render→depth); TM-01 calibrated terramechanics + P7 live Chrono producer
+PM-13..16 depth-source pipeline (stereo GPU/render path or live LiDAR/RGB-D bench); TM-01 calibrated terramechanics + P7 live Chrono producer
 (PyChrono on euclid); Tier-3 drum forces (Chrono::GPU); RC wire binding + IPEx geometry (John / NASA);
 real-traverse reconstruction + SL-01 (no public dataset); STEWIE-Orbit comms stack.
 
@@ -1485,7 +1672,7 @@ SIMULATION/FORECAST until the relevant live-execution gates pass.
 | `LunarSite` | site DEM endpoints, site metadata, body/frame config | **Plan** site selector and map header | site ID, body, lat/lon, DEM ID, cell size, frame/provenance | all slices |
 | `TerrainMesh`, `RegolithState`, `MutableTerrainLedger` | `/plan`, terrain layers, terrain-memory read-back, Graphify row status | **Plan** and **Rehearse** map layers | DEM/as-built toggle, changed cells, slope/traversability, source/provenance, stale-map warning | WMDT-S1, WMDT-S3 |
 | `RoverPose`, `WheelDynamics`, `RoverBelief` | `/stewie/odom`, belief packet, replay log, `/tf` | **Validate** navigation sub-pane | pose, slip, sinkage if available, `pos_sigma_m`, odom-vs-belief divergence, covariance threshold state | WMDT-S1 |
-| `LightingModel`, `Ephemeris`, `PerceptionState` | `/ephemeris`, render/shadow products, disparity/factor logs | **Validate** perception/navigation sub-pane | sun azimuth/elevation, shadow mask, disparity confidence, accepted/rejected factors, low-light warning | WMDT-S2 |
+| `LightingModel`, `Ephemeris`, `PerceptionState` | `/ephemeris`, render/shadow products, selected `DepthObservation` or `/stewie/perception/points`, disparity/depth/cloud/factor logs | **Validate** perception/navigation sub-pane and RViz evidence view | sun azimuth/elevation, shadow mask, source profile, cloud freshness/count or valid fraction, range/covariance, disparity confidence, accepted/rejected factors, low-light warning, no-truth status | WMDT-S2, AS-06, PM-13..16 |
 | `ArticulationState`, `CameraRig`, `SurveyedMonuments` | `/tf_static`, render packet, camera profile, landmark/factor logs | **Validate** navigation/perception sub-pane | posture, camera extrinsics, active camera pair, landmark visibility, factor acceptance/rejection | WMDT-S2 |
 | `ExcavatorDrum`, `MutableTerrainLedger` | excavation event log, drum/current packet, terrain diff | **Execute** forecast and **Report** evidence | commanded cut/fill, measured or simulated volume, before/after terrain diff, acceptance status | WMDT-S3 |
 | `MissionPlan` | `/plan`, `PlanResult`, `/executive/advance`, mission lifecycle evidence | **Plan**, **Rehearse**, **Release**, and **Report** | objective, constraints, route, costs, infeasible reasons, release eligibility, replay/evidence links | all slices |
@@ -1497,7 +1684,7 @@ SIMULATION/FORECAST until the relevant live-execution gates pass.
 | `ResourceModeling` | resource-value map, `ice_frac`, prospecting layer, goal-priority log | **Plan** resource layer and **Rehearse** objective inspector | resource target, confidence/provenance, goal priority, excavation rationale | Phase 2 prospecting slice |
 | `PredictionModels` | slip/illumination/power forecast, predictor residual, activity-window schedule | **Plan**, **Rehearse**, and **System** model pane | forecast map, prediction residual, confidence, model version, correction event | WMDT-S1, WMDT-S2, WMDT-S5 |
 | `MultiAgentCoordination` | shared-map updates, reservation ledger, task split, inter-agent route state | **Plan** fleet pane and **Execute** coordination pane | agent positions, reservations, changed shared cells, route conflicts, right-of-way decision | Phase 2 multi-agent slice |
-| `ExecutiveState` | `/stewie/exec/decision`, `/executive/advance`, mission lifecycle log | **Release**, **Execute**, and **Report** | current state, guard that fired, safe/replan/hold reason, operator action required | WMDT-S1 through WMDT-S6 |
+| `ExecutiveState` | `/stewie/exec/decision`, `/executive/advance`, mission lifecycle log, ROS/Gazebo/RViz runtime evidence | **Release**, **Execute**, **Report**, and **System** runtime pane | current state, guard that fired, safe/replan/hold reason, operator action required, active runtime profile, bridge/topic freshness, RViz/Gazebo/bag evidence status | WMDT-S1 through WMDT-S6, AS-02..06, AS-14 |
 | `VV`/`KPI`/`FID` evidence records | validation JSON, figure path, Graphify diagnostic, test ID | **Report** and **System** validation pane | claim label, acceptance criterion, refutation condition, artifact link, pass/fail status | all slices |
 
 Coverage check: the table above explicitly names all 18 current Graphify state blocks and all 9 added

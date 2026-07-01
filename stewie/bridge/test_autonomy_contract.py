@@ -52,3 +52,36 @@ def test_command_topics_are_command_qos_and_safe_path_present():
 
 def test_topic_graph_is_closed_no_dangling():
     assert not [e for e in AC.validate_contract() if "undefined topic" in e]
+
+
+def test_as07_navigation_spine_is_source_neutral_and_truth_denied():  # [REQ:AS-07]
+    assert AC.validate_navigation_spine() == []
+    stages = {stage.name: stage for stage in AC.NAVIGATION_SPINE}
+    assert set(stages) == {
+        "stereo_feature_tracking",
+        "source_neutral_depth_odometry",
+        "visual_inertial_fusion",
+        "pose_graph_loop_closure",
+    }
+    depth = stages["source_neutral_depth_odometry"]
+    assert "/stewie/perception/points" in depth.inputs
+    assert set(depth.optional_depth_sources) == {"stereo_sgbm", "stereo_neural", "lidar", "rgbd", "replay"}
+    assert "/stewie/localization/loop_closures" in stages["pose_graph_loop_closure"].outputs
+    assert all(stage.truth_denied for stage in AC.NAVIGATION_SPINE)
+
+
+def test_as07_navigation_spine_rejects_truth_or_lidar_only_shortcut():  # [REQ:AS-07]
+    depth = next(stage for stage in AC.NAVIGATION_SPINE if stage.name == "source_neutral_depth_odometry")
+    bad_truth = tuple(
+        dataclasses.replace(stage, inputs=stage.inputs + ("/stewie/truth/pose",))
+        if stage.name == "visual_inertial_fusion" else stage
+        for stage in AC.NAVIGATION_SPINE
+    )
+    assert any("truth-denial" in e for e in AC.validate_navigation_spine(stages=bad_truth))
+
+    lidar_only = tuple(
+        dataclasses.replace(depth, optional_depth_sources=("lidar",))
+        if stage.name == depth.name else stage
+        for stage in AC.NAVIGATION_SPINE
+    )
+    assert any("source_neutral_depth_odometry" in e for e in AC.validate_navigation_spine(stages=lidar_only))

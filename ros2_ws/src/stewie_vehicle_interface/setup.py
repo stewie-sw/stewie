@@ -10,5 +10,6 @@ setup(
     install_requires=["setuptools"], zip_safe=True,
     maintainer="STEWIE", maintainer_email="dev@stewie.space",
     description="vehicle interface: /cmd_vel -> hardware + wheel odom egress", license="SEE LICENSE",
+    test_suite="test",
     entry_points={"console_scripts": ["vehicle_interface = stewie_vehicle_interface.node:main"]},
 )

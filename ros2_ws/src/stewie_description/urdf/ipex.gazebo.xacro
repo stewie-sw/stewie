@@ -39,6 +39,20 @@
     </sensor>
   </gazebo>
 
+  <!-- Contact/collision evidence: front-left wheel contact sensor publishes when the rover settles
+       onto the regolith plane. gz sdf appends "_collision" to the named URDF collision, so the
+       sensor references the generated SDF collision name. It is diagnostics/evidence, not truth. -->
+  <gazebo reference="front_left_wheel">
+    <sensor name="front_left_wheel_contact" type="contact">
+      <always_on>1</always_on>
+      <update_rate>20</update_rate>
+      <contact>
+        <collision>front_left_wheel_collision_collision</collision>
+        <topic>/model/ipex/contact</topic>
+      </contact>
+    </sensor>
+  </gazebo>
+
   <!-- Front stereo cameras (RENDERING: needs the sensors system + a GL backend; GPU/EGL-gated headless).
        hfov 73.99 deg (profile optics), 1024x768; topics match the bridge camera entries. -->
   <gazebo reference="camera_front_left">
@@ -63,6 +77,43 @@
         <image><width>1024</width><height>768</height><format>R8G8B8</format></image>
         <clip><near>0.02</near><far>100.0</far></clip>
       </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- Selected simulated depth source for AS-06: low-rate front LiDAR-style cloud on the swappable
+       range-sensor mount. The no-LiDAR flight profile can still select stereo; this Gazebo source
+       gives the sim a concrete PointCloud2 egress without simulator truth. -->
+  <gazebo reference="lidar_front_mount">
+    <sensor name="lidar_front_points" type="gpu_lidar">
+      <always_on>1</always_on>
+      <update_rate>5</update_rate>
+      <topic>/model/ipex/perception</topic>
+      <lidar>
+        <scan>
+          <horizontal>
+            <samples>64</samples>
+            <resolution>1</resolution>
+            <min_angle>-0.785398</min_angle>
+            <max_angle>0.785398</max_angle>
+          </horizontal>
+          <vertical>
+            <samples>8</samples>
+            <resolution>1</resolution>
+            <min_angle>-0.261799</min_angle>
+            <max_angle>0.261799</max_angle>
+          </vertical>
+        </scan>
+        <range>
+          <min>0.20</min>
+          <max>20.0</max>
+          <resolution>0.02</resolution>
+        </range>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </lidar>
     </sensor>
   </gazebo>
 </robot>

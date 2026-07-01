@@ -10,5 +10,6 @@ setup(
     install_requires=["setuptools"], zip_safe=True,
     maintainer="STEWIE", maintainer_email="dev@stewie.space",
     description="planning node: costmap + Plan-IR -> path/local_traj (AS-11/AS-12)", license="SEE LICENSE",
+    test_suite="test",
     entry_points={"console_scripts": ["planning = stewie_planning.node:main"]},
 )

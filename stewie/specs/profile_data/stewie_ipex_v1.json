@@ -54,6 +54,16 @@
     "front": {"left": "front_left", "right": "front_right", "baseline_m": 0.05},
     "rear": {"left": "rear_left", "right": "rear_right", "baseline_m": 0.05}
   },
+  "sensors": {
+    "selected_depth_source": "stereo_front",
+    "depth_sources": [
+      {"name": "stereo_front", "kind": "stereo", "status": "flight", "left": "front_left", "right": "front_right", "baseline_m": 0.05, "output_topic": "/stewie/perception/points"},
+      {"name": "stereo_rear", "kind": "stereo", "status": "simulated", "left": "rear_left", "right": "rear_right", "baseline_m": 0.05, "output_topic": "/stewie/perception/points"},
+      {"name": "lidar_front", "kind": "lidar", "status": "absent", "mount_frame": "lidar_front_mount", "output_topic": "/stewie/perception/points"},
+      {"name": "rgbd_front", "kind": "rgbd", "status": "bench", "mount_frame": "rgbd_front_mount", "output_topic": "/stewie/perception/points"},
+      {"name": "legacy_shoulder_stereo", "kind": "stereo", "status": "legacy", "baseline_m": 0.165, "note": "Rejected shoulder-split geometry retained only for provenance."}
+    ]
+  },
   "posture": {
     "arm_length_m": 0.30,
     "pivot_height_m": 0.25,

@@ -209,7 +209,7 @@
   "_ipex": {
     "drum_kg": 30.0,
     "dig_j_per_kg": 4151.4,
-    "drive_j_per_m": 134.59,
+    "drive_j_per_m": 14.58,
     "battery_j": 4795200.0,
     "dig_rate_kg_hr": 42.0,
     "recharge_w": 700.0,

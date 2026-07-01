@@ -149,6 +149,25 @@
     };
   }
 
+  // PerceptionState -> the Perception pane's depth/cloud + panorama/shadow health card. The dense cloud
+  // stays in PointCloud2/assets; this view model carries the source/provenance/quality state the UI gates on.
+  function normalizePerception(payload) {
+    var p = payload && payload.perception_state;
+    if (!p) return null;
+    var hasCloud = (p.point_count || 0) > 0;
+    var hasPanorama = (p.panorama_cameras || 0) > 0;
+    return {
+      sourceProfile: p.source_profile, frameId: p.frame_id, pointTopic: p.point_topic,
+      pointCount: p.point_count, validFraction: p.valid_fraction,
+      rangeMinM: p.range_min_m, rangeMaxM: p.range_max_m, covarianceM: p.covariance_m,
+      panoramaCameras: p.panorama_cameras, shadowLandmarks: p.shadow_landmarks,
+      acceptedFactors: p.accepted_factors, noTruth: p.no_truth, evidenceClass: p.evidence_class,
+      hasCloud: hasCloud, hasPanorama: hasPanorama,
+      rangeSpanM: Math.max(0, p.range_max_m - p.range_min_m),
+      ready: !!(p.no_truth && (hasCloud || hasPanorama)),
+    };
+  }
+
   // ModelArtifact -> the model-registry view model. `deploymentReady` MIRRORS the backend ML-01
   // ModelArtifact.deployment_ready property; the Python parity test (test_adapter_contract_parity.py)
   // guards these field names + that the canonical property still exists, so this cannot silently drift.
@@ -199,6 +218,7 @@
     normalizeBelief: normalizeBelief, normalizePlanResult: normalizePlanResult,
     normalizeExecutionEvent: normalizeExecutionEvent, normalizeTimelineFrame: normalizeTimelineFrame,
     normalizeLocalizationFix: normalizeLocalizationFix, normalizeNavFactor: normalizeNavFactor,
+    normalizePerception: normalizePerception,
     normalizeModelArtifact: normalizeModelArtifact, normalizeSkill: normalizeSkill,
     toViewState: toViewState,
   };

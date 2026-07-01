@@ -57,6 +57,21 @@ class Node:
     dependencies: tuple = ()  # ROS package deps (checked against FORBIDDEN_DEPENDENCIES)
 
 
+@dataclass(frozen=True)
+class NavigationStage:
+    """One AS-07 navigation-spine stage.
+
+    This is a contract, not the SLAM implementation: it freezes the source-neutral dataflow that later
+    ORB/RAFT/Open3D/pose-graph nodes must satisfy.
+    """
+    name: str
+    method_family: str
+    inputs: tuple[str, ...]
+    outputs: tuple[str, ...]
+    optional_depth_sources: tuple[str, ...] = ()
+    truth_denied: bool = True
+
+
 # Command topics: the actuation seam. Emission is gated (AG-08 live-namespace + operator+ + SF-01); the
 # bridge already enforces this (rc_contract.SafingWatchdog + routers/rc.py). Listed so the contract test
 # asserts they exist + are gated.
@@ -70,10 +85,15 @@ TOPICS: dict[str, Topic] = {t.name: t for t in (
     Topic("/joint_states", "sensor_msgs/JointState", QOS_SENSOR),
     Topic("/stewie/imu", "sensor_msgs/Imu", QOS_SENSOR),
     Topic("/stewie/wheel_odom", "nav_msgs/Odometry", QOS_SENSOR),
+    Topic("/stewie/contact", "ros_gz_interfaces/Contacts", QOS_SENSOR),
     Topic("/stewie/camera/front_left/image", "sensor_msgs/Image", QOS_SENSOR),
     Topic("/stewie/camera/front_right/image", "sensor_msgs/Image", QOS_SENSOR),
+    Topic("/stewie/perception/features", "stewie_msgs/FeatureTrackArray", QOS_SENSOR),
     Topic("/stewie/perception/points", "sensor_msgs/PointCloud2", QOS_SENSOR),
     Topic("/stewie/perception/rocks", "stewie_msgs/RockArray", QOS_DEFAULT),
+    Topic("/stewie/localization/visual_odom", "nav_msgs/Odometry", QOS_DEFAULT),
+    Topic("/stewie/localization/depth_odom", "nav_msgs/Odometry", QOS_DEFAULT),
+    Topic("/stewie/localization/loop_closures", "stewie_msgs/NavFactorArray", QOS_DEFAULT),
     Topic("/stewie/odom", "nav_msgs/Odometry", QOS_DEFAULT),
     Topic("/stewie/nav/factors", "stewie_msgs/NavFactorArray", QOS_DEFAULT),
     Topic("/stewie/localization/cov", "geometry_msgs/PoseWithCovarianceStamped", QOS_DEFAULT),
@@ -93,13 +113,17 @@ TOPICS: dict[str, Topic] = {t.name: t for t in (
 NODES: dict[str, Node] = {n.name: n for n in (
     Node("sensing", "sensing",
          publishes=("/clock", "/tf", "/tf_static", "/joint_states", "/stewie/imu", "/stewie/wheel_odom",
-                    "/stewie/camera/front_left/image", "/stewie/camera/front_right/image")),
+                    "/stewie/contact", "/stewie/camera/front_left/image",
+                    "/stewie/camera/front_right/image")),
     Node("perception", "perception",
          subscribes=("/stewie/camera/front_left/image", "/stewie/camera/front_right/image"),
-         publishes=("/stewie/perception/points", "/stewie/perception/rocks")),
+         publishes=("/stewie/perception/features", "/stewie/perception/points", "/stewie/perception/rocks")),
     Node("localization", "localization",
-         subscribes=("/stewie/wheel_odom", "/stewie/imu", "/stewie/perception/points", "/tf"),
-         publishes=("/stewie/odom", "/stewie/nav/factors", "/stewie/localization/cov")),
+         subscribes=("/stewie/wheel_odom", "/stewie/imu", "/stewie/perception/features",
+                     "/stewie/perception/points", "/tf"),
+         publishes=("/stewie/localization/visual_odom", "/stewie/localization/depth_odom",
+                    "/stewie/localization/loop_closures", "/stewie/odom", "/stewie/nav/factors",
+                    "/stewie/localization/cov")),
     Node("mapping", "mapping",
          subscribes=("/stewie/perception/points", "/stewie/perception/rocks", "/stewie/odom"),
          publishes=("/stewie/map/dem", "/stewie/map/occupancy", "/stewie/map/excavation_state")),
@@ -120,6 +144,80 @@ NODES: dict[str, Node] = {n.name: n for n in (
 
 REQUIRED_ROLES = ("sensing", "perception", "localization", "mapping", "planning", "control",
                   "vehicle_interface", "diagnostics", "mission_executive")
+
+NAVIGATION_SPINE: tuple[NavigationStage, ...] = (
+    NavigationStage(
+        name="stereo_feature_tracking",
+        method_family="ORB/FAST/SuperPoint feature tracks",
+        inputs=("/stewie/camera/front_left/image", "/stewie/camera/front_right/image"),
+        outputs=("/stewie/perception/features",),
+    ),
+    NavigationStage(
+        name="source_neutral_depth_odometry",
+        method_family="stereo disparity, LiDAR/RGB-D cloud odometry, or replay cloud registration",
+        inputs=("/stewie/perception/points", "/stewie/wheel_odom", "/stewie/imu"),
+        outputs=("/stewie/localization/depth_odom",),
+        optional_depth_sources=("stereo_sgbm", "stereo_neural", "lidar", "rgbd", "replay"),
+    ),
+    NavigationStage(
+        name="visual_inertial_fusion",
+        method_family="VIO / robust PnP / triangulation",
+        inputs=("/stewie/perception/features", "/stewie/localization/depth_odom",
+                "/stewie/wheel_odom", "/stewie/imu"),
+        outputs=("/stewie/localization/visual_odom", "/stewie/nav/factors"),
+    ),
+    NavigationStage(
+        name="pose_graph_loop_closure",
+        method_family="pose graph optimization with residual-gated loop closures",
+        inputs=("/stewie/localization/visual_odom", "/stewie/nav/factors"),
+        outputs=("/stewie/localization/loop_closures", "/stewie/odom", "/stewie/localization/cov"),
+    ),
+)
+
+
+def validate_navigation_spine(
+    stages: tuple[NavigationStage, ...] | None = None,
+    topics: dict | None = None,
+) -> list[str]:
+    """Return AS-07 navigation-spine contract violations.
+
+    Checks: every stage is truth-denied, every input/output is declared in the ROS topic contract,
+    the selected-depth-source stage accepts all swappable depth profiles, and the loop-closure stage
+    emits a factor topic plus the fused odometry output.
+    """
+    stages = NAVIGATION_SPINE if stages is None else stages
+    topics = TOPICS if topics is None else topics
+    errs: list[str] = []
+    names = {stage.name for stage in stages}
+
+    required = {"stereo_feature_tracking", "source_neutral_depth_odometry",
+                "visual_inertial_fusion", "pose_graph_loop_closure"}
+    for name in sorted(required - names):
+        errs.append(f"missing AS-07 navigation stage: {name}")
+
+    for stage in stages:
+        if not stage.truth_denied:
+            errs.append(f"navigation stage {stage.name!r} is not truth-denied")
+        for topic in (*stage.inputs, *stage.outputs):
+            if topic in TRUTH_TOPICS:
+                errs.append(f"truth-denial violation: navigation stage {stage.name!r} references {topic!r}")
+            if topic not in topics:
+                errs.append(f"navigation stage {stage.name!r} references undefined topic {topic!r}")
+
+    depth = next((stage for stage in stages if stage.name == "source_neutral_depth_odometry"), None)
+    if depth is not None:
+        expected_sources = {"stereo_sgbm", "stereo_neural", "lidar", "rgbd", "replay"}
+        if set(depth.optional_depth_sources) != expected_sources:
+            errs.append("source_neutral_depth_odometry must accept stereo, neural stereo, LiDAR, RGB-D, and replay")
+        if "/stewie/perception/points" not in depth.inputs:
+            errs.append("source_neutral_depth_odometry must consume the shared point-cloud contract")
+
+    loop = next((stage for stage in stages if stage.name == "pose_graph_loop_closure"), None)
+    if loop is not None:
+        for required_output in ("/stewie/localization/loop_closures", "/stewie/odom"):
+            if required_output not in loop.outputs:
+                errs.append(f"pose_graph_loop_closure must publish {required_output}")
+    return errs
 
 
 def validate_contract(nodes: dict | None = None, topics: dict | None = None) -> list[str]:
@@ -165,4 +263,5 @@ def validate_contract(nodes: dict | None = None, topics: dict | None = None) -> 
     for f in ("map", "odom", "base_link"):
         if f not in FRAMES:
             errs.append(f"missing REP-103 frame: {f}")
+    errs.extend(validate_navigation_spine(topics=topics))
     return errs

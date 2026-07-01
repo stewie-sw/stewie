@@ -3,8 +3,13 @@
 **Result in one line.** On the real DLR S3LI `s3li_crater` Mt Etna traverse, a vision-only stereo SLAM
 pipeline (SuperPoint+LightGlue VO, visual loop closure, full SE(3) pose graph, online DEM height-normal
 anchoring) drives the absolute trajectory error from **93.3 m (VO) to 7.99 m (SE3 ATE)**, below the
-21.43 m the reference paper arXiv:2603.17229 reports on the same sequence. Every estimate is computed
+21.43 m the reference paper arXiv:2603.17229 reports on the same sequence. The same stack then
+generalizes unchanged to a second real rover (ESA Katwijk, Section 9). Every estimate is computed
 without ground truth (truth firewall I3); ground truth enters only at scoring.
+
+**Honest scope.** This is a rigorous, de-oracled *reproduction* of arXiv:2603.17229 plus a performance-floor
+analysis and a second-rover replication, not a novel method (Section 11). For the dissertation it is the
+validated baseline and methodology; the novel contribution must come from the empty PRISMA-review niches.
 
 ---
 
@@ -107,9 +112,20 @@ firewall poison test passes (corrupting GT by +1e6 m leaves the estimate byte-id
 - **Only one revisit region exists.** This is a single-loop traverse; interior drift is corrected only
   through the chain. More loop closures at a lower inlier gate (27 vs 5) made the result worse, not
   better (noisier closures).
-- **The "below 21.4 m" comparison is not like-for-like.** The estimator is a batch smoother over all
-  10599 poses with 5 tight start-to-end closures on a clean single loop, which can outperform an
-  online or filtering setup. The result is a strong feasibility number, not a claim that this method
+- **The "below 21.4 m" comparison is not like-for-like, and the 7.99 m is not the real-time error.**
+  The estimator is a batch smoother over all 10599 poses with 5 tight start-to-end closures on a clean
+  single loop, which can outperform an online or filtering setup. Quantified
+  (`s3li_crater_online_vs_batch_2026-06-29.json`): because the only loop closure is start-to-end, it is
+  causally available only at about 99 percent of the traverse (node ~10548), so an online/causal
+  estimator carries the growing VO drift the whole way (4.8 m at 30 percent, 24.7 m at 70 percent,
+  64.9 m at 90 percent, 93.3 m just before loop closure) and only then snaps to the 7.99 m smoothed
+  value. The 7.99 m is therefore a retroactive post-hoc number, not the error a rover would have in real
+  time. This is now demonstrated with the real estimator: a causal growing-window SE(3) backend
+  (`s3li_crater_incremental_se3_2026-06-29.json`) re-solved at each checkpoint with only the
+  causally-available factors carries the drift (smoothed-so-far SE3 2.3 -> 6.5 -> 11.3 -> 43.8 -> 77.1 ->
+  89.3 m) until the single loop closure becomes reachable at node ~10548 (99 percent of the traverse),
+  then snaps to 9.96 m. A production iSAM2 would reproduce these estimates with incremental-factorisation
+  efficiency, not change them. The result is a strong feasibility number, not a claim that this method
   beats the paper's system in deployment.
 
 ## 6. The performance floor
@@ -162,7 +178,86 @@ the lunar South Pole target:
 
 ---
 
-## 9. What else we can do
+## 9. Generalization to a second real rover (Katwijk)
+
+The same loop-closing, DEM-anchored SE(3) stack was run unchanged on the ESA Katwijk beach planetary-rover
+dataset (PointGrey Bumblebee2 LocCam, 1024x768, calibration from the dataset's own
+`LocCam_calibration.mat`). Part4 is the one Katwijk traverse that closes a loop (a 76 m closed path; the
+RTK-GPS truth returns to a prior point). The DEM is the independent AHN 0.5 m national LiDAR DTM of the
+beach (PDOK WCS), in the same firewall-clean role Copernicus played for S3LI: a national survey, not built
+from the rover GPS. A validity gate confirmed it matches the 2015 terrain (VO-vs-AHN height correlation
+0.92, against S3LI's 0.94), so the beach-shift risk did not materialize; the rover climbed about 16 m of
+beach-to-dune relief that gives the DEM real signal.
+
+| Stage | SE3 (m) | Sim3 (m) | horizontal (m) | vertical (m) |
+|---|---|---|---|---|
+| VO | 0.74 | 0.66 | 0.52 | 0.52 |
+| VO + loop closure (SE(3)) | 0.73 | 0.66 | 0.51 | 0.53 |
+| VO + LC + DEM (AHN 0.5 m) | 0.76 | **0.53** | 0.69 | **0.30** |
+
+100 GPS associations; 191 loop closures accepted; the SE(3) solve converged (mean per-keyframe rotation
+correction 0.35 degrees). Two findings transfer:
+
+- **The VO front end generalizes**: the SuperPoint+LightGlue stereo VO path length (76.2 m) matches the
+  GPS-truth loop almost exactly, with only a 1.3 percent scale bias (vs S3LI's 4 percent), so Katwijk's VO
+  is sub-metre and loop closure has almost no gross drift to remove (0.74 -> 0.73 m). This is *completeness
+  and finding-replication on a second rover*, not a number improvement; S3LI (1.3 km, 93 m drift) remains
+  the dataset where loop closure and orientation optimization do the heavy lifting.
+- **The DEM behavior replicates exactly**: anchoring to the AHN DTM improves the vertical (0.52 -> 0.30 m,
+  -42 percent) and Sim3 (0.66 -> 0.53 m), at the cost of the same small slope-coupling horizontal pull seen
+  on S3LI (0.51 -> 0.69 m). So "the DEM supplies height with a slope-coupled horizontal tradeoff" now holds
+  across two rovers, two DEMs (30 m Copernicus, 0.5 m AHN), and two drift regimes (93 m and sub-metre).
+
+Artifacts: `katwijk_part4_slam_2026-06-28.json` (VO + position/SE2 loop closure),
+`katwijk_part4_se3_2026-06-29.json` (SE(3)), `katwijk_part4_dem_2026-06-29.json` (the DEM ladder above).
+
+---
+
+## 10. Reproducibility
+
+The full pipeline is **seeded, hashed, and byte-reproducible**, verified rather than asserted:
+
+- **Seeded**: `cv2.setRNGSeed(0)` + `torch.manual_seed(0)` in the VO front end and the loop-closure
+  detection; the pose-graph solvers are deterministic numpy.
+- **Hashed**: every estimator carries a `sha256` attestation (`poison_attestation_*.json` for VO,
+  loop-closure, SE(3), VIO, DEM-XY).
+- **Reproducible**: a fresh re-run of the S3LI loop detection plus solve today is **byte-identical** to the
+  committed estimate (`sha256 = c93b3fdc...`), and the firewall poison test independently confirms
+  GT-independence (corrupting GT by +1e6 m leaves the estimate byte-identical). Caveat: byte-identity is
+  established on this GPU; a different cuDNN build could shift the learned front end by sub-pixel amounts
+  (the seeds fix RANSAC and torch, not cuDNN atomics), so the honest statement is reproducible-to-the-byte
+  here, reproducible-to-within-noise across hardware.
+
+---
+
+## 11. Novelty vs current literature (honest)
+
+The **method and the core findings are a reproduction, not a novel contribution.** A literature check
+confirms:
+
+- The reference paper, arXiv:2603.17229 ("Visual SLAM with DEM Anchoring for Lunar Surface Navigation"),
+  already does this exact pipeline (SuperPoint+LightGlue VO, loop-closing pose graph, DEM height +
+  surface-normal anchoring) on the same S3LI dataset and reports the same findings (DEM anchoring reduces
+  ATE not RPE, most in long/repetitive traverses; loop closure needs revisits). This work *reproduces* it.
+- Katwijk SLAM is established (the dataset, Hewitt et al. IJRR 2018, was built for localization and SLAM;
+  prior SLAM work on it exists). Ground-truth-free SLAM evaluation is published (arXiv:2412.01116, "Look Ma,
+  No Ground Truth!", 2024), so the truth-firewall *concept* is not new. DEM / orbital-map-aided rover
+  localization is a mature field (NASA NTRS 20190001760; ISPRS DEM-constrained SLAM 2024).
+
+What survives as a (modest, methodological) contribution: a fully byte-reproducible, poison-tested
+*de-oracled implementation* with an explicit firewall; the **exhaustive performance-floor analysis** (the
+autoresearch establishing 7.99 m as the floor and the 4 percent VO scale as the irreducible residual, every
+recovery lever tested-negative); and the **second-rover replication** (Section 9). None is a novel algorithm
+or a novel finding.
+
+**Implication for the dissertation:** this S3LI/Katwijk work is the **validated baseline and methodology**,
+not the novel artifact. The dissertation's novelty must rest on the two empty niches the PRISMA-ScR review
+identified; confirming those gaps are still empty post-2024 is the claim that actually has to hold, and is
+the highest-value remaining task.
+
+---
+
+## 12. What else we can do
 
 Ranked by value to the dissertation and feasibility.
 
@@ -183,10 +278,17 @@ Ranked by value to the dissertation and feasibility.
 4. **Multi-loop and additional S3LI sequences.** A traverse with more than one revisit region breaks the
    single-revisit floor (Section 5). Running the other S3LI sequences tests generalization and gives the
    loop-closure detector more than one closure cluster to work with.
-5. **Higher-resolution DEM where one binds.** A 2 m Pleiades or 10 m Tinitaly DSM on Etna (registration-
-   gated), or the 1 to 2 m LROC-NAC / shape-from-shading DSMs already downloaded for the lunar sites,
-   would let the DEM height factor refine the vertical without horizontal penalty and could expose a
-   weak terrain-relative horizontal fix the 30 m DEM cannot.
+5. **Higher-resolution DEM, TESTED, and the result is counterintuitive (`s3li_crater_tinitaly10m_2026-06-29.json`).**
+   The 10 m TINITALY/01 Etna DSM (tile w41510) was fetched and run through the SE(3) recipe. It registers
+   slightly better than the 30 m Copernicus (VO-vs-DEM correlation 0.967 vs 0.941) and improves the
+   vertical (4.37 -> 3.22 m), but its **finer slopes HURT the horizontal**: normal-coupled SE3 rises to
+   13.48 m (horizontal 6.69 -> 13.09), and even height-only (slope decoupled) only reaches 8.59 m. The
+   smooth 30 m DEM (7.99 m) stays best. The mechanism: at the ~8 m horizontal residual of the single-loop
+   SE(3) result, the 10 m DEM's real small-scale terrain is sampled at the wrong place, so its sharp
+   normals misregister; the 30 m DEM's smoothness is effectively a robust low-pass slope. A finer DEM
+   only helps once the horizontal is sub-DEM-cell accurate, which this single-revisit traverse is not.
+   So this disproves the earlier prediction that a higher-res DEM "refines vertical without horizontal
+   penalty" -- for DEM anchoring on a coarsely-registered trajectory, a smoother DEM is more robust.
 6. **Complete the shadow-parallax perception.** The geometric core is done and tested; the remaining
    work is shadow-tip detection and cross-frame tracking (reusing `dart/shadow_extract.py`) to feed real
    disparities into the parallax factor on the lunar track.
@@ -206,14 +308,14 @@ their real blocker rather than assumed runnable:
 | LuSNAR rendered-lunar loop closure | `lusnar/extracted/Moon_1` present (stereo+gt+imu), but the traverse is OPEN (span 256 x 19 m, no revisit) and the DEM is GT-derived | BLOCKED: no revisit (loop closure cannot fire); DEM not firewall-clean |
 | Lunar Godot render (the real target) | `stewie/godot/out/plan_render` holds PNGs only, not a consumable stereo+DEM sequence | NEEDS BUILD: the Godot/Chrono producer + sensor-bridge fixtures (FORGE track) |
 | VIO into the SE(3) graph | S3LI IMU present; tested-negative for scale (gravity-dominated, corr 0.10) | NEEDS BUILD + COORDINATION: IMU preintegration factors in the concurrent SE(3) estimator; marginal at this motion level |
-| Higher-res Etna DEM | only the 30 m Copernicus tile; Tinitaly/Pleiades are registration-gated | BLOCKED: gated download |
+| Higher-res Etna DEM | TINITALY/01 10 m (w41510) fetched + tested | **DONE** (Section 12 item 5): the 10 m DEM does NOT beat the 30 m (sharp slopes misregister the 8 m-residual horizontal); smoother is more robust |
 
 **Honest conclusion.** The S3LI loop has converged to its floor (7.99 m, exhaustively documented). The
 **Katwijk loop is now closed** (the LocCam stereo was extracted from the part tars): the same VO + loop
 closure + pose-graph stack runs on a second real rover and scores **0.74 m SE3** over Part4's 76 m GPS
 loop, confirming the method generalizes (Katwijk's VO is already sub-metre, so loop closure has little
 gross drift to remove there, unlike S3LI's 1.3 km, 93 m-drift loop). The remaining forward loops are
-blocked on data that is not fetchable (second S3LI sequence, LuSNAR revisit, gated higher-res DEM) or are
+blocked on data that is not fetchable (second S3LI sequence, LuSNAR revisit) or are
 real builds overlapping the concurrent SE(3)/render work. The single highest-value unblocked next step is
 the **lunar render track** (Section 9 item 1): standing up the Godot/Chrono producer so the estimator and
 the already-built shadow and multi-camera channels run on grazing-sun lunar terrain, which is where those
@@ -221,7 +323,7 @@ levers actually move the number.
 
 ---
 
-## 10. Artifacts and reproducibility
+## 13. Artifacts and reproducibility
 
 | Artifact (under `stewie/eval/validation/`) | Content |
 |---|---|
@@ -233,8 +335,15 @@ levers actually move the number.
 | `s3li_crater_autoresearch_scale_2026-06-28.json` | the scale-recovery sweep (floor 7.99 m, ceiling 5.50 m) |
 | `s3li_crater_vio_2026-06-28.json` | the gyro-fused VIO rung (79.5 m) |
 | `s3li_crater_EXPERIMENT_LOG.md` | the full lab-notebook with the per-experiment tables |
+| `katwijk_part4_slam_2026-06-28.json` | Katwijk second-rover VO + position/SE2 loop closure (0.74 m) |
+| `katwijk_part4_se3_2026-06-29.json` | Katwijk SE(3) loop closure (0.73 m, 0.35 deg rotation correction) |
+| `katwijk_part4_dem_2026-06-29.json` | Katwijk full DEM ladder (AHN 0.5 m; vert 0.52 -> 0.30 m) |
+| `s3li_crater_online_vs_batch_2026-06-29.json` | online/causal error curve vs the batch smoother (Section 5) |
+| `s3li_crater_incremental_se3_2026-06-29.json` | causal growing-window SE(3) backend: online drift to 89.3 m, snaps to 9.96 m at the loop (Section 5) |
+| `s3li_crater_tinitaly10m_2026-06-29.json` | 10 m TINITALY DEM test (Section 12 item 5; 30 m stays best) |
+| `render_vo_crater_boulders_2026-06-29.json` | FORGE render-track estimator integration (VO on rendered stereo) |
 
 Code: `dart/se3_pose_graph.py` (SE(3) estimator), `dart/loop_closure_visual.py` (loop detection),
 `dart/loop_pose_graph_se2.py` (SE(2) variant), `dart/dem_height_graph.py` (DEM factors),
 `dart/shadow_parallax_nav.py` (lunar shadow-parallax core), with runners and firewall tests under
-`benchmarks/s3li_crater/`.
+`benchmarks/s3li_crater/` and the second-rover runners under `benchmarks/katwijk/`.

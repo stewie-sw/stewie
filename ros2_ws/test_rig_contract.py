@@ -73,3 +73,22 @@ def test_active_camera_budget_is_profile_max_live_four():
     # NASA-4 operational + 4 redundant: the operational budget is the profile's max_live
     prof = load_profile("STEWIE_IPEX_V1")
     assert int(prof.cameras["max_live"]) == 4
+
+
+def test_swappable_depth_source_mounts_and_status_labels():
+    t = _text()
+    for frame in ("depth_sensor_mount", "lidar_front_mount", "rgbd_front_mount"):
+        assert f'<xacro:depth_mount name="{frame}"' in t
+    assert '<link name="${name}">' in t
+    assert '<joint name="${name}_joint" type="fixed">' in t
+
+    prof = load_profile("STEWIE_IPEX_V1")
+    sensors = prof.data["sensors"]
+    statuses = {source["status"] for source in sensors["depth_sources"]}
+    assert {"absent", "simulated", "bench", "flight", "legacy"} <= statuses
+
+    by_name = {source["name"]: source for source in sensors["depth_sources"]}
+    assert by_name[sensors["selected_depth_source"]]["status"] in {"flight", "simulated", "bench"}
+    assert by_name["lidar_front"]["mount_frame"] == "lidar_front_mount"
+    assert by_name["rgbd_front"]["mount_frame"] == "rgbd_front_mount"
+    assert by_name["legacy_shoulder_stereo"]["status"] == "legacy"
