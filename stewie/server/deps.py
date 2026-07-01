@@ -104,7 +104,7 @@ def require_auth(request: Request,
 
 
 def require_director(identity: str = Depends(require_auth)) -> str:
-    """#68 [REQ:PO-04]: the truth/training surface is director-only."""
+    """#68 [REQ:AG-02]: the truth/training surface is director-only."""
     from stewie.server import auth as AUTH
     if AUTH.role_of(identity) != "director":
         raise HTTPException(status_code=403,

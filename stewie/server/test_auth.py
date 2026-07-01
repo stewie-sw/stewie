@@ -81,7 +81,7 @@ def test_operator_login_kill_switch(client, monkeypatch):
 
 
 def test_role_separation_director_vs_operator(client, monkeypatch):
-    """#68 [REQ:PO-04]: truth views (debrief) are DIRECTOR-only; the shaped operator view is for
+    """#68 [REQ:AG-02]: truth views (debrief) are DIRECTOR-only; the shaped operator view is for
     everyone authenticated. Directors default to the full whitelist; STEWIE_DIRECTORS narrows."""
     monkeypatch.setenv("STEWIE_ALLOWED_OPERATORS",
                        "aaron.w.storey80@gmail.com, trainee@gmail.com")

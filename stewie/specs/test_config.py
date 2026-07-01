@@ -135,7 +135,7 @@ def test_data_dir_serves_legacy_dustgym_dir_only_when_new_absent(monkeypatch, tm
 
 
 def test_describe_redacts_secret_env_values(monkeypatch):
-    """SEC-1 [REQ:PO-04]: describe() (and thus /config) must NEVER return key/token/secret VALUES."""
+    """SEC-1 [REQ:FS-11]: describe() (and thus /config) must NEVER return key/token/secret VALUES."""
     monkeypatch.setenv("STEWIE_API_KEY", "supersecret-master-key")
     monkeypatch.setenv("STEWIE_DIRECTOR_KEY", "another-secret")
     d = config.describe()
