@@ -1,6 +1,6 @@
 {
   "autonomy_gate": {
-    "cited": 17,
+    "cited": 16,
     "container_gated": [
       "AS-02",
       "AS-03",
@@ -25,11 +25,10 @@
       "AS-13",
       "AS-14",
       "AS-15",
-      "AS-16",
       "AS-17"
     ],
-    "in_matrix": 17,
-    "total": 17,
+    "in_matrix": 16,
+    "total": 16,
     "uncited": []
   },
   "changelog": {
@@ -61,10 +60,10 @@
     ]
   },
   "req_trace": {
-    "cited": 125,
+    "cited": 124,
     "reconciles": true,
-    "total": 187,
-    "understated_count": 39,
+    "total": 188,
+    "understated_count": 38,
     "unknown_markers": [],
     "v_done_uncited": []
   },

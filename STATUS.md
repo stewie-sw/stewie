@@ -2,9 +2,9 @@
 
 Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/release_gate.py`) by `scripts/gen_status.py`. Do NOT hand-edit -- `gen_status.py --check` fails CI if this file drifts from the tools.
 
-- requirements (PRD §7 rows): **187**
-- cited by >=1 test ([REQ:] marker): **125**
-- V!=D flagged (FS-22 audit: cited but not yet V=D): **39**
+- requirements (PRD §7 rows): **188**
+- cited by >=1 test ([REQ:] marker): **124**
+- V!=D flagged (FS-22 audit: cited but not yet V=D): **38**
 
 ## V!=D flagged rows (cited, awaiting promotion)
 
@@ -26,7 +26,6 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | AS-13 | P |
 | AS-14 | N |
 | AS-15 | P |
-| AS-16 | P |
 | CP-07 | P |
 | DT-01 | N |
 | EP-01 | P |
@@ -56,7 +55,7 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 |--------|-------|-------|
 | AG | 8 | 8 |
 | AM | 2 | 9 |
-| AS | 17 | 17 |
+| AS | 16 | 18 |
 | CP | 10 | 10 |
 | CT | 7 | 7 |
 | DT | 2 | 2 |
@@ -80,7 +79,7 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 
 ## §25 autonomy track (AS-01..17)
 
-- in matrix: 17/17
-- cited: 17/17
+- in matrix: 16/16
+- cited: 16/16
 - currently V=D: ['AS-17']
 - eligible for V=D: ['AS-17']
