@@ -355,7 +355,10 @@ def test_route_pane_connections_carry_all_artifact_layers():  # [REQ:FS-18]
     html, js = _INDEX.read_text(encoding="utf-8"), _COCKPIT.read_text(encoding="utf-8")
     i_cockpit = html.find("/assets/cockpit.js")
     for view, c in _ROUTE_PANES.items():
-        assert f'fetch("{c["route"]}"' in js, f"{view}: cockpit.js no longer fetches {c['route']}"
+        # FS-15: a wired pane may consume the route through the typed adapter path
+        # (fetchPaneViewState) instead of a raw fetch -- both prove the route->pane connection.
+        assert (f'fetch("{c["route"]}"' in js or f'fetchPaneViewState("{c["route"]}"' in js), (
+            f"{view}: cockpit.js no longer fetches {c['route']}")
         backend = (_SERVER / c["backend_test"]).read_text(encoding="utf-8")
         assert c["route"] in backend and c["pane_id"] in backend, (
             f"{view}: {c['backend_test']} does not cite both the route ({c['route']}) and the pane container")
