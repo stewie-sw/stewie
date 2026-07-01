@@ -31,6 +31,21 @@ def test_cockpit_split_is_not_falsely_gated_as_live_pit():
     assert "FS-24" not in gated
 
 
+def test_fanout_specs_briefs_are_real_requirement_rows():
+    # every dispatch brief in FANOUT_SPECS.md must name a real §7 requirement ID (no orphan briefs).
+    import os
+    import re
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    specs_path = os.path.join(root, "FANOUT_SPECS.md")
+    if not os.path.exists(specs_path):
+        return  # doc optional; the plan generator stands alone
+    spec_ids = set(re.findall(r"^### ([A-Z]{2}-\d{2})", open(specs_path, encoding="utf-8").read(), re.M))
+    real_ids = {r["id"] for r in F.parse_rows()}
+    orphans = spec_ids - real_ids
+    assert not orphans, f"FANOUT_SPECS.md briefs reference non-existent §7 rows: {sorted(orphans)}"
+    assert len(spec_ids) >= 40, "FANOUT_SPECS.md lost most of its briefs -- regen the normalization pass"
+
+
 def test_known_gated_rows_are_routed_to_a_reason():
     p = F.plan()
     by_id = {i: reason for reason, ids in p["gated"].items() for i in ids}

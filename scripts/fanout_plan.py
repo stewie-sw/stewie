@@ -105,6 +105,8 @@ def render(p: dict) -> str:
     for reason in sorted(p["gated"], key=lambda r: -len(p["gated"][r])):
         out.append(f"  {reason}: {sorted(p['gated'][reason])}")
     out.append(f"\n## Concurrent lane (owned elsewhere, do not fan out): {p['concurrent']}")
+    out.append("\nPer-row dispatch briefs (goal / acceptance / files / test target) for the buildable "
+               "ready-set: see FANOUT_SPECS.md.")
     return "\n".join(out)
 
 
