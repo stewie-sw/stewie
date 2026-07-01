@@ -1102,6 +1102,8 @@
         <div id="dashstrip" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
         <!-- A1: the live linked DT-01 world-state record + execution/world timeline (cockpit.js loadReport) -->
         <div id="worldstate" style="display:none;margin-bottom:12px"></div>
+        <!-- A2 viz: CurrentTerrainView provenance -- measured vs remembered vs modeled terrain -->
+        <div id="terrainprov" style="display:none;margin-bottom:12px"></div>
         <details id="mathsheet" style="display:none;margin-bottom:10px"><summary style="cursor:pointer;font-family:Orbitron,system-ui;font-size:11px;letter-spacing:.08em;color:var(--accent)">▸ PATH-PLANNING MATH — every equation, every number (never assume)</summary>
           <div id="mathbody" style="font-size:11px;font-variant-numeric:tabular-nums;margin-top:6px"></div></details>
         <div id="dashboards" style="display:none;gap:12px;flex-wrap:wrap;margin-bottom:10px">
@@ -1447,6 +1449,6 @@
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
 <script src="/assets/contents_tree.js?v=b9996be65138"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
-<script src="/assets/cockpit.js?v=66d5bb1475f5"></script>
+<script src="/assets/cockpit.js?v=39901a130c92"></script>
 </body>
 </html>

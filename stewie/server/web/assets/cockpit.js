@@ -2195,7 +2195,34 @@ async function loadReport() {
     ws.innerHTML = html;
     ws.style.display = "block";
   } catch (e) { ws.style.display = "none"; }   // never break the Report pane on the world-state overlay
+  await loadTerrainProvenance();               // A2 viz: measured vs remembered vs modeled terrain
 }
+
+// A2 viz: render the CurrentTerrainView provenance -- per-cell observed(measured) / as-built(remembered)
+// / pristine(modeled) breakdown + the source-map raster. Hidden if the site DEM is absent. No fabrication.
+async function loadTerrainProvenance() {
+  const tp = $("terrainprov");
+  if (!tp) return;
+  try {
+    const tv = await fetch("/world/terrain_view", { headers: apiHeaders() }).then((r) => r.json());
+    if (!tv || !tv.ok) { tp.style.display = "none"; return; }
+    const pv = tv.provenance, tot = (pv.rows * pv.cols) || 1;
+    const pct = (n) => (100 * n / tot).toFixed(3);
+    tp.innerHTML =
+      '<div class="cap"><span>TERRAIN PROVENANCE — measured vs remembered vs modeled</span></div>'
+      + '<div style="font-size:11px;line-height:1.7;color:var(--muted)">'
+      + `<span style="color:#28be5a">■</span> observed (measured) ${esc(String(pv.cells.observed))} (${pct(pv.cells.observed)}%) · `
+      + `<span style="color:#2e6edc">■</span> as-built (remembered) ${esc(String(pv.cells.as_built))} (${pct(pv.cells.as_built)}%) · `
+      + `<span style="color:#5a5a5a">■</span> pristine (modeled) ${esc(String(pv.cells.pristine))}<br>`
+      + `as-built v${esc(String(pv.as_built_version))} · twin v${esc(String(pv.twin_version))}`
+      + ` · observed fraction ${(pv.observed_fraction * 100).toFixed(3)}%</div>`
+      + `<img src="/world/terrain_view.png?max_px=360&_=${_cacheBust()}" alt="terrain provenance source map" `
+      + 'style="margin-top:8px;max-width:360px;border:1px solid var(--line);border-radius:6px;image-rendering:pixelated" />';
+    tp.style.display = "block";
+  } catch (e) { tp.style.display = "none"; }
+}
+
+function _cacheBust() { return String(performance.now() | 0); }   // Math.random-free img cache-buster
 
 
 // Loop #2: SSE playback of a SIM run in the Execute pane. POST the queued orders to /executive/run,
