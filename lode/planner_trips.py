@@ -59,8 +59,11 @@ def _segmented_haul_energy(dem, dem_origin, waypoints, *, loads, drum_kg, g, soi
     (fill->cut). Each segment pays seg_len * drive_j_per_m / (1 - slip), where slip is solved from THAT
     segment's grade and the rover's weight on that leg (loaded vs empty). A route that climbs a ridge and
     descends back to the same elevation therefore costs real per-segment grade work -- the prior code used
-    only the endpoint slope abs(dh)/leg and read ~0 grade for such a roller-coaster. Returns the total
-    round-trip haul energy [J] over all `loads` shuttle cycles."""
+    only the endpoint slope abs(dh)/leg and read ~0 grade for such a roller-coaster. [REQ:EP-01] Returns
+    (total_e, flat_e): the total round-trip haul energy [J] over all `loads` shuttle cycles AND the
+    flat-ground drive baseline over the SAME segments (seg_len * drive_j_per_m, no slip divisor), so the
+    caller can keep drive and slope/slip as SEPARATE ledger terms (slip surcharge = total_e - flat_e >= 0,
+    since every segment's 1/(1-slip) >= 1)."""
     Z, cell = dem
     ox, oy = dem_origin
     H, W = Z.shape
@@ -79,8 +82,9 @@ def _segmented_haul_energy(dem, dem_origin, waypoints, *, loads, drum_kg, g, soi
         return None                                   # not enough on-grid samples -> caller falls back
 
     def _dir_energy(seq, payload_kg):
-        """Energy [J] for ONE traversal of the polyline `seq` carrying `payload_kg` (per-segment slip)."""
-        e = 0.0
+        """(energy [J], flat baseline [J]) for ONE traversal of the polyline `seq` carrying `payload_kg`
+        (per-segment slip); the flat baseline is the same segments at drive_j_per_m with no slip divisor."""
+        e = 0.0; flat = 0.0
         for (x0, y0, z0), (x1, y1, z1) in zip(seq, seq[1:]):
             seg_len = math.hypot(x1 - x0, y1 - y0)
             if seg_len <= 1e-9:
@@ -93,11 +97,12 @@ def _segmented_haul_energy(dem, dem_origin, waypoints, *, loads, drum_kg, g, soi
             slip = slip_alpha_to_slip(slope_deg, payload_kg=payload_kg, g=g, params=soil,
                                       rover_mass_kg=rover_mass_kg, density=rho)
             e += seg_len * drive_j_per_m / (1.0 - slip)
-        return e
+            flat += seg_len * drive_j_per_m
+        return e, flat
 
-    out_e = _dir_energy(pts, drum_kg)                 # loaded outbound (cut -> fill)
-    back_e = _dir_energy(list(reversed(pts)), 0.0)    # empty return (fill -> cut)
-    return (out_e + back_e) * loads
+    out_e, out_flat = _dir_energy(pts, drum_kg)                 # loaded outbound (cut -> fill)
+    back_e, back_flat = _dir_energy(list(reversed(pts)), 0.0)   # empty return (fill -> cut)
+    return (out_e + back_e) * loads, (out_flat + back_flat) * loads
 
 
 def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg, density_field=None):
@@ -127,6 +132,7 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg, density_field
         if o.kind == "goto":
             trips.append(dict(kind="goto", site=(o.x, o.y), label=f"Waypoint: {o.action}",
                               mass=0.0, dig_e=0.0, dig_t=0.0, haul_m=0.0, haul_e=0.0,
+                              drive_e=0.0, slip_e=0.0,
                               lift_e=0.0, dest=(o.x, o.y), actions=frozenset({o.action})))
     straight_haul_m = 0.0; routed_haul_m = 0.0; blocked_legs = 0; leg_routes = []
     # P-04: per-kg offload (deposit) energy/time for imported fill -- drum-discharge handling at the
@@ -155,16 +161,16 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg, density_field
             trips.append(dict(kind="import", site=(fo.x, fo.y), label=f"Import fill: {fo.action}",
                               mass=mass, dig_e=0.0, dig_t=0.0,
                               offload_e=mass*offload_e_per_kg, offload_t=mass/OFFLOAD_RATE_KG_S,
-                              haul_m=0.0, haul_e=0.0, lift_e=0.0, dest=(fo.x, fo.y),
-                              actions=frozenset({fo.action}), shape=fo.shape))
+                              haul_m=0.0, haul_e=0.0, drive_e=0.0, slip_e=0.0, lift_e=0.0,
+                              dest=(fo.x, fo.y), actions=frozenset({fo.action}), shape=fo.shape))
         elif fo is None:
             # surplus (un-routed) cut mass: it is still EXCAVATED -- the dominant dig cost (4151 J/kg) must
             # enter the plan. Dig in place; the spoil-disposal haul to a dump is a separate unmodeled term
             # (no spoil-site coordinate to fabricate one), so haul/lift = 0 here.
             trips.append(dict(kind="dig", site=(co.x, co.y), label=f"Excavate spoil: {co.action}",
                               mass=mass, dig_e=mass*ctx.dig_j_per_kg, dig_t=mass/DIG_RATE_KG_S,
-                              haul_m=0.0, haul_e=0.0, lift_e=0.0, dest=(co.x, co.y),
-                              actions=frozenset({co.action}), shape=co.shape))
+                              haul_m=0.0, haul_e=0.0, drive_e=0.0, slip_e=0.0, lift_e=0.0,
+                              dest=(co.x, co.y), actions=frozenset({co.action}), shape=co.shape))
         else:
             loads = max(1, math.ceil(mass / drum_kg))
             leg = base = dist                           # one-way cut<->fill distance (straight line)
@@ -198,7 +204,9 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg, density_field
                                                g=g, soil=_soil, drive_j_per_m=ctx.drive_j_per_m,
                                                rover_mass_kg=ctx.rover_mass_kg, density_field=density_field)
             if seg_e is not None:
-                haul_e = seg_e
+                # [REQ:EP-01] keep drive and slope/slip SEPARABLE: drive_e is the flat baseline over the
+                # SAME routed segments; slip_e the slope/slip surcharge (>= 0, every 1/(1-slip) >= 1).
+                haul_e, drive_e = seg_e
             else:
                 # endpoint-slope fallback (no-DEM straight line, or too few on-grid samples).
                 slope_haul = math.degrees(math.atan2(abs(dh), leg)) if leg > 1e-9 else 0.0
@@ -213,13 +221,16 @@ def _build_trips(mission, dem, dem_origin, max_traverse_slope_deg, density_field
                                                 rover_mass_kg=ctx.rover_mass_kg, density=rho_leg)
                 haul_e = (out_m * ctx.drive_j_per_m / (1.0 - slip_loaded)
                           + back_m * ctx.drive_j_per_m / (1.0 - slip_empty))
+                drive_e = (out_m + back_m) * ctx.drive_j_per_m   # [REQ:EP-01] flat baseline (no slip divisor)
             trips.append(dict(kind="cutfill", site=(co.x, co.y), label=f"{co.action} → {fo.action}",
                               mass=mass, dig_e=mass*ctx.dig_j_per_kg, dig_t=mass/DIG_RATE_KG_S,
-                              haul_m=haul_m, haul_e=haul_e, lift_e=mass * g * ascent, dest=(fo.x, fo.y),
+                              haul_m=haul_m, haul_e=haul_e, drive_e=drive_e, slip_e=haul_e - drive_e,
+                              lift_e=mass * g * ascent, dest=(fo.x, fo.y),
                               actions=frozenset({co.action, fo.action}), shape=co.shape))
     for o in sinters:
         m = o.mass_kg(rho)
         trips.append(dict(kind="sinter", site=(o.x, o.y), label=o.action, mass=m, lift_e=0.0,
+                          drive_e=0.0, slip_e=0.0,
                           sinter_e=m*SINTER_J_PER_KG, sinter_t=m*SINTER_J_PER_KG/SINTER_POWER_W,
                           dest=(o.x, o.y), actions=frozenset({o.action}), shape=o.shape))
     meta = dict(straight_haul_m=straight_haul_m, routed_haul_m=routed_haul_m, blocked_legs=blocked_legs,

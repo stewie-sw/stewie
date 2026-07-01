@@ -2221,8 +2221,8 @@ def test_ep01_ledger_keeps_drive_slip_payload_and_dig_as_separate_terms():  # [R
     additive terms -- never one fused number. On the real DEM a cut->fill trip pays a positive dig term
     (in-situ excavation, ipex_specs ~4151 J/kg), a positive haul term (drive + per-segment slope/slip,
     `_segmented_haul_energy`), and a positive lift term (m*g*ascent over the routed polyline), and they are
-    distinct dict keys. (EP-01 is V=P: arm/drum-motion, observation, LED, and compute terms are NOT yet
-    modeled -- this test pins the terms that EXIST as separable, it does not assert ledger completeness.)"""
+    distinct dict keys. (Ledger COMPLETENESS -- every named term incl. the unmodeled explicit zeros --
+    is asserted by test_ep01_energy_report_exposes_every_named_term_separately below.)"""
     mission, dem, anchor = _ep01_real_dem_mission()
     trips, _flows, _surplus, meta = MP._build_trips(mission, dem, anchor, 25.0)
     assert meta["feasible"] and meta["routed"]
@@ -2260,6 +2260,51 @@ def test_ep01_modeled_terms_compose_into_the_plan_energy_total():  # [REQ:EP-01]
     # the modeled ledger composes into the total: total >= ledger (overhead only adds), and within a few %.
     assert total >= ledger - 1.0
     assert total <= ledger * 1.05
+
+
+def test_ep01_energy_report_exposes_every_named_term_separately():  # [REQ:EP-01]
+    """EP-01: the plan's energy report carries EVERY named vehicle-energy term as its OWN separable line
+    (totals['energy_ledger']): drive, slope/slip, payload lift, dig, offload, sinter, arm/drum motion,
+    observation, LEDs, thermal, comms, compute, survival. Modeled terms are real numbers that sum EXACTLY
+    to the headline energy_J (matches_total); terms the IPEx vehicle model genuinely lacks (arm/drum,
+    observation, LED, thermal, comms, compute) are EXPLICIT documented zeros -- never silent omissions --
+    and recharge is its own pack-INPUT line reconciled against the timeline's charge legs, not summed into
+    consumption. Same real Haworth LOLA DEM mission as the other EP-01 tests; the multi-vehicle planner
+    reports the identical ledger schema."""
+    mission, dem, anchor = _ep01_real_dem_mission()
+    result = MP.plan(mission=mission, algorithm="nearest", dem=dem, dem_origin=anchor)
+    led = result.totals["energy_ledger"]
+    terms = led["terms_J"]
+    named = {"drive", "slope_slip", "payload_lift", "dig", "offload", "sinter",
+             "arm_drum", "observation", "led", "thermal", "comms", "compute", "survival"}
+    assert set(terms) == named                       # every named term present, none fused, none missing
+    # modeled terms are physically positive on this real cut->fill haul
+    assert terms["dig"] > 0.0 and terms["drive"] > 0.0 and terms["payload_lift"] > 0.0
+    assert terms["slope_slip"] >= 0.0                # slip only ever ADDS to the flat drive baseline
+    # no import/sinter orders and IDLE_POWER_W defaults 0 -> these MODELED lines are honest zeros here
+    assert terms["offload"] == 0.0 and terms["sinter"] == 0.0 and terms["survival"] == 0.0
+    # unmodeled terms: explicit zeros WITH a documenting note each (absent-marker, not an omission)
+    for k in ("arm_drum", "observation", "led", "thermal", "comms", "compute"):
+        assert terms[k] == 0.0
+        assert isinstance(led["unmodeled"][k], str) and led["unmodeled"][k]
+    # the separable terms sum EXACTLY to the headline plan energy (no hidden term, no double count)
+    assert math.isclose(led["sum_J"], sum(terms.values()), rel_tol=1e-12)
+    assert math.isclose(led["sum_J"], result.totals["energy_J"], rel_tol=1e-9)
+    assert led["matches_total"] is True
+    # recharge: the pack-input line equals the timeline's actual charge-leg replenishment; this dig-heavy
+    # mission (>1 pack of dig energy) really recharges, so the line is exercised nonzero
+    tl_recharge = sum(max(0.0, seg["batt1"] - seg["batt0"]) for seg in result.tl if seg["kind"] == "charge")
+    assert math.isclose(led["recharge_J"], tl_recharge, rel_tol=1e-9, abs_tol=1e-9)
+    assert result.totals["charges"] > 0 and led["recharge_J"] > 0.0
+    # drive vs slope/slip stay separable down at the TRIP level too: drive_e + slip_e == haul_e exactly
+    cutfill = next(t for t in result.trips if t["kind"] == "cutfill")
+    assert math.isclose(cutfill["drive_e"] + cutfill["slip_e"], cutfill["haul_e"], rel_tol=1e-9)
+    assert cutfill["drive_e"] > 0.0 and cutfill["slip_e"] >= 0.0
+    # the fleet planner reports the identical ledger schema and it reconciles the same way
+    mv = MP.plan(mission=mission, algorithm="nearest", dem=dem, dem_origin=anchor, vehicles=2)
+    mled = mv.totals["energy_ledger"]
+    assert set(mled["terms_J"]) == named
+    assert mled["matches_total"] is True
 
 
 def test_malformed_charger_or_lander_is_a_value_error_not_500():

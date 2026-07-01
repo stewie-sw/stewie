@@ -113,6 +113,55 @@ def _plan_uncertainty(mission, dig_bounds_mj, drum_cycles=0) -> dict:
     }
 
 
+def _energy_ledger(mission, trips, tl, totals) -> dict:
+    """[REQ:EP-01] ONE separable energy ledger over the plan's headline energy_J. Every named vehicle-
+    energy term is its OWN line in terms_J -- drive (inter-site legs + the flat haul baseline), slope/slip
+    (the per-segment slip surcharge, drive_e/slip_e split in _build_trips), payload lift, dig, offload,
+    sinter, survival -- and every term the IPEx vehicle model genuinely LACKS (arm/drum motion,
+    observation, LEDs, thermal, comms, compute) is an EXPLICIT documented zero in terms_J + `unmodeled`,
+    never a silent omission. The terms sum EXACTLY to totals['energy_J'] on a feasible plan
+    (matches_total); a stranded plan credits only partial work (P-01), so the planned lines can exceed the
+    credited total and matches_total goes False rather than hiding the gap. recharge_J is the energy
+    delivered INTO the pack at the charger (the timeline's charge legs) -- a pack-INPUT line reported
+    alongside, never summed into the consumption total."""
+    ctx = plan_context(mission)
+    haul_m = sum(tr.get("haul_m", 0.0) for tr in trips)
+    # inter-site drive legs: _simulate draws exactly d * drive_j_per_m per leg and distance_m = legs + haul
+    drive_legs_j = max(0.0, float(totals.get("distance_m", 0.0)) - haul_m) * ctx.drive_j_per_m
+    terms = {
+        "drive": drive_legs_j + sum(tr.get("drive_e", 0.0) for tr in trips),
+        "slope_slip": sum(tr.get("slip_e", 0.0) for tr in trips),
+        "payload_lift": float(totals.get("lift_energy_J", 0.0)),
+        "dig": sum(tr.get("dig_e", 0.0) for tr in trips),
+        "offload": float(totals.get("offload_energy_J", 0.0)),
+        "sinter": sum(tr.get("sinter_e", 0.0) for tr in trips),
+        "arm_drum": 0.0, "observation": 0.0, "led": 0.0, "thermal": 0.0, "comms": 0.0, "compute": 0.0,
+        "survival": float(totals.get("survival_energy_J", 0.0)),
+    }
+    unmodeled = {
+        "arm_drum": ("not separately metered: bucket-drum excavation work is inside `dig` (the drum IS "
+                     "the dig implement, ipex_specs); discrete arm-raise relocalization fixes are "
+                     "scheduled + priced in totals['relocalization'] (#96), not folded into energy_J"),
+        "observation": "sensing/camera draw is not modeled (no sourced per-sensor power for IPEx)",
+        "led": "no LED/illumination load in the modeled IPEx TRL-5 power budget",
+        "thermal": ("heater draw is not separately metered: the K11c survival idle draw (IDLE_POWER_W) "
+                    "carries the whole idle/heater load when set; cold-pack capacity loss enters as the "
+                    "EP-05 thermal derate (capacity, not consumption)"),
+        "comms": "radio/telemetry draw is not modeled (no sourced comms power for IPEx)",
+        "compute": "avionics/compute draw is not modeled (no sourced compute power for IPEx)",
+    }
+    recharge_j = sum(max(0.0, seg["batt1"] - seg["batt0"]) for seg in tl if seg.get("kind") == "charge")
+    total_j = float(totals.get("energy_J", 0.0))
+    sum_j = float(sum(terms.values()))
+    return {
+        "terms_J": {k: float(v) for k, v in terms.items()},
+        "recharge_J": float(recharge_j),
+        "sum_J": sum_j,
+        "matches_total": bool(math.isclose(sum_j, total_j, rel_tol=1e-9, abs_tol=1e-6)),
+        "unmodeled": unmodeled,
+    }
+
+
 def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
     """The mission / material / routing / keep-out totals shared by the single- and multi-vehicle planners.
     `core` carries the simulated time/energy/distance/charges/mass; the caller applies survival + algorithm
@@ -281,6 +330,7 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
             d["resource_wait_s"] = float(resource_delays[pv["vehicle"]])
         totals.update(resource_wait_s=resource_wait_s, resource_waits=resource_waits,
                       shared_resources_modeled=True)
+    totals["energy_ledger"] = _energy_ledger(mission, all_trips, all_tl, totals)   # EP-01 separable terms
     return all_trips, flows, all_per_trip, all_tl, totals
 
 
@@ -403,4 +453,5 @@ def plan_and_simulate(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
         objective=str(objective), vehicles=1,
         makespan_s=float(core["time_s"]), vehicle_conflicts=0, charger_conflicts=0,   # 1 vehicle -> no fleet contention
         vehicles_detail=[])   # uniform fleet schema
+    totals["energy_ledger"] = _energy_ledger(mission, trips, tl, totals)   # EP-01 separable terms
     return trips, flows, per_trip, tl, totals

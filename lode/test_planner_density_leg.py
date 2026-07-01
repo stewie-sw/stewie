@@ -53,9 +53,11 @@ def test_haul_energy_lower_over_compacted_trail():
     xc, yc = c * cell, r * cell
     wp = [(xc - 2 * cell, yc), (xc + 2 * cell, yc)]
     dem, origin = (Z, cell), (0.0, 0.0)
-    e_uniform = PT._segmented_haul_energy(dem, origin, wp, density_field=None, **_KW)
-    e_compact = PT._segmented_haul_energy(dem, origin, wp, density_field=rho_c, **_KW)
-    assert e_uniform is not None and e_compact is not None
+    r_uniform = PT._segmented_haul_energy(dem, origin, wp, density_field=None, **_KW)
+    r_compact = PT._segmented_haul_energy(dem, origin, wp, density_field=rho_c, **_KW)
+    assert r_uniform is not None and r_compact is not None
+    e_uniform, _flat_u = r_uniform   # [REQ:EP-01] (total, flat-drive baseline) -- total is compared here
+    e_compact, _flat_c = r_compact
     assert rho_c[r, c] > K.RHO_SURFACE, "sanity: the sampled trail cell is genuinely compacted (real data)"
     assert e_compact < e_uniform, f"compacted trail must cost less drive energy: {e_compact} !< {e_uniform}"
 
@@ -69,7 +71,9 @@ def test_loose_scene_matches_uniform_surface():
     assert rho_l.max() <= K.RHO_SURFACE + 1e-6, "t000 is the pre-drive loose scene (real)"
     wp = [(10 * cell, 10 * cell), ((W // 2) * cell, 10 * cell)]
     dem, origin = (Z, cell), (0.0, 0.0)
-    e_none = PT._segmented_haul_energy(dem, origin, wp, density_field=None, **_KW)
-    e_loose = PT._segmented_haul_energy(dem, origin, wp, density_field=rho_l, **_KW)
-    assert e_none is not None and e_loose is not None
+    r_none = PT._segmented_haul_energy(dem, origin, wp, density_field=None, **_KW)
+    r_loose = PT._segmented_haul_energy(dem, origin, wp, density_field=rho_l, **_KW)
+    assert r_none is not None and r_loose is not None
+    e_none, _ = r_none               # [REQ:EP-01] (total, flat-drive baseline) -- total is compared here
+    e_loose, _ = r_loose
     assert abs(e_loose - e_none) < 1e-9, "loose (<=surface) field must equal the uniform-surface plan"
