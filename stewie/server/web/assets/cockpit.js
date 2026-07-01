@@ -2383,14 +2383,11 @@ async function navDriveRun() {
     const r = await fetch("/nav/run", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify({ start: [sx, sy], goal: [gx, gy], dt: 2.0, max_ticks: 800 }) });
     const b = await r.json();
-    if (!b.ok) { $("navdrivestats").innerHTML = `<span style="color:#e8273f">${esc(b.error || "drive unavailable")}</span>`; return; }  // SEC-04
+    const N = window.STEWIE_NAV_STATS_HTML;                  // FS-24: pure stat builders; fetch + plot stay here
+    if (!b.ok) { $("navdrivestats").innerHTML = N.errLine(b.error || "drive unavailable", esc); return; }  // SEC-04
     LAST_DRIVE = b; navDrawDrive(b);
-    const dev = b.deviation || {};
-    const arr = b.arrived ? `<b style="color:var(--accent)">arrived</b>` : `<b style="color:#e8273f">${esc(b.reason)}</b>`;
-    $("navdrivestats").innerHTML = `${arr} · routed <b>${b.routed_m} m</b> · <b>${b.n_ticks}</b> control ticks · `
-      + `<b>${b.n_recoveries}</b> recoveries · cross-track mean <b>${(dev.mean_m || 0).toFixed(2)} m</b> / max <b>${(dev.max_m || 0).toFixed(2)} m</b>`
-      + `<br><span style="opacity:.7">Stages: ${esc((b.stages || []).join(" → "))}. Real Haworth DEM; route_leg corridor then plan_local/track_plan/recovery drive.</span>`;
-  } catch (e) { $("navdrivestats").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
+    $("navdrivestats").innerHTML = N.driveStatsHTML(b, esc);
+  } catch (e) { $("navdrivestats").innerHTML = window.STEWIE_NAV_STATS_HTML.errLine("server unreachable", esc); }
   finally { btn.disabled = false; btn.textContent = "▶ Run drive"; }
 }
 async function navRun() {
@@ -2400,16 +2397,15 @@ async function navRun() {
     const r = await fetch("/slam", { method: "POST", headers: apiHeaders(),
       body: JSON.stringify({ segment: seg, n_keyframes: kf }) });
     const b = await r.json();
+    const N = window.STEWIE_NAV_STATS_HTML;                  // FS-24: pure stat builders; fetch + plot stay here
     if (!b.ok) { $("navempty").style.display = "none";
-      $("navstats").innerHTML = `<span style="color:#e8273f">${esc(b.error || "estimator unavailable")}</span>`;  // SEC-04
+      $("navstats").innerHTML = N.errLine(b.error || "estimator unavailable", esc);  // SEC-04
       $("navloo").textContent = ""; return; }
     $("navempty").style.display = "none";
     navDrawTrajectory(b.trajectory_xy, b.baseline_xy);
-    $("navstats").innerHTML = `fused ATE <b>${b.ate_aligned_m} m</b> · abs drift <b>${b.abs_max_err_m} m</b>`
-      + ` vs baseline <b>${b.baseline_abs_max_err_m} m</b> · <b style="color:var(--accent)">${b.reduction_x}× tighter</b>`;
-    $("navloo").innerHTML = "leave-one-out (drift increase when removed): "
-      + Object.entries(b.leave_one_out).map(([k, v]) => `${k} <b>+${v.contribution_m} m</b>`).join(" · ");
-  } catch (e) { $("navstats").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
+    $("navstats").innerHTML = N.slamStatsHTML(b);
+    $("navloo").innerHTML = N.leaveOneOutHTML(b);
+  } catch (e) { $("navstats").innerHTML = window.STEWIE_NAV_STATS_HTML.errLine("server unreachable", esc); }
   finally { $("navrun").disabled = false; $("navrun").textContent = "▶ Run estimator"; }
 }
 // #148: REAL terrain-fix est-vs-truth on the real Haworth DEM (register_to_dem fused vs odometry),
