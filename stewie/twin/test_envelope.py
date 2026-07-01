@@ -189,3 +189,67 @@ def test_interior_journal_corruption_is_surfaced_not_silently_dropped(tmp_path):
         f.write("\n".join(lines) + "\n")
     with pytest.raises(ValueError, match="interior"):
         E.TransactionLog.from_journal(jp)
+
+
+# ---- (3) DT-01 extension: runtime packet + vehicle twin join the one linked envelope --------------
+
+def _packet() -> dict:
+    """A REAL runtime packet built from the module's channel functions (deterministic, not synthetic)."""
+    from stewie.twin import runtime_packet as RP
+    return {"joints": RP.joint_channel(0.1, 0.2, t=1.0), "power": RP.power_channel(40.0, 0.8, t=1.0)}
+
+
+# a representative vehicle-twin IDENTITY (instance/vehicle/body + the physics scalars that distinguish
+# two twins) -- the envelope links the identity, not the full assembled object, so this is hermetic.
+_VT = {"instance": "ipex-1", "vehicle": "ipex", "body": "moon", "gravity_ms2": 1.62, "mass_kg": 300.0}
+
+
+def test_envelope_links_runtime_packet_and_vehicle_twin():
+    """[REQ:DT-01]: a runtime packet + a vehicle twin join the ONE linked transaction (packet_sha +
+    vehicle_sha), are covered by the world_sha (linking them moves it), and the chain still verifies."""
+    log = E.TransactionLog()
+    base = log.commit(authority=_authority(), twin=_twin(), plan=_plan(), belief=_belief(),
+                      mission="LSP-1", site="haworth", body="moon", mission_t_s=1.0, provenance="p1")
+    linked = log.commit(authority=_authority(), twin=_twin(), plan=_plan(), belief=_belief(),
+                        mission="LSP-1", site="haworth", body="moon", mission_t_s=2.0, provenance="p2",
+                        packet=_packet(), vehicle_twin=_VT)
+    assert base.packet_sha == "" and base.vehicle_sha == ""           # unlinked -> empty by default
+    assert len(linked.packet_sha) == 64 and len(linked.vehicle_sha) == 64
+    assert linked.packet_sha == E.packet_identity(_packet())
+    assert linked.vehicle_sha == E.vehicle_identity(_VT)
+    # the packet + vehicle are part of the snapshot: the world_sha WITH them differs from WITHOUT them
+    without = E._world_sha(linked.authority_sha, linked.twin_version, linked.twin_hash, linked.plan_id,
+                           linked.belief, linked.mission, linked.site, linked.body, linked.mission_t_s,
+                           linked.provenance, linked.uncertainty_m)
+    assert linked.world_sha != without
+    assert log.verify_chain()
+
+
+def test_unlinked_packet_vehicle_is_backward_compatible():
+    """[REQ:DT-01]: a transaction with no packet/vehicle OMITS those keys from its hashed body, so its
+    world_sha + chain_hash are byte-identical to a pre-extension record -- old journals still verify."""
+    log = E.TransactionLog()
+    txn = log.commit(authority=_authority(), twin=_twin(), plan=_plan(), belief=_belief(),
+                     mission="LSP-1", site="haworth", body="moon", mission_t_s=1.0, provenance="p")
+    body = txn.linked_body()
+    assert "packet_sha" not in body and "vehicle_sha" not in body     # omitted when empty
+    # equals the pre-extension world_sha formula (called without the packet/vehicle args)
+    assert txn.world_sha == E._world_sha(txn.authority_sha, txn.twin_version, txn.twin_hash, txn.plan_id,
+                                         txn.belief, txn.mission, txn.site, txn.body, txn.mission_t_s,
+                                         txn.provenance, txn.uncertainty_m)
+    assert log.verify_chain()
+
+
+def test_cold_restore_reproduces_packet_and_vehicle_bit_exact(tmp_path):
+    """[REQ:DT-01] W-4: a cold rebuild from the journal reproduces the linked packet + vehicle
+    identities bit-exact and re-verifies the chain."""
+    jp = str(tmp_path / "world.journal")
+    log = E.TransactionLog(journal_path=jp)
+    warm = log.commit(authority=_authority(), twin=_twin(), plan=_plan(), belief=_belief(),
+                      mission="LSP-1", site="haworth", body="moon", mission_t_s=1.0, provenance="p",
+                      packet=_packet(), vehicle_twin=_VT)
+    cold = E.TransactionLog.from_journal(jp)
+    assert cold.latest().packet_sha == warm.packet_sha
+    assert cold.latest().vehicle_sha == warm.vehicle_sha
+    assert cold.latest().world_sha == warm.world_sha
+    assert cold.verify_chain()

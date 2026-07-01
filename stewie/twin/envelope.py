@@ -83,20 +83,31 @@ class WorldTransaction:
     world_sha: str
     prev_hash: str
     chain_hash: str
+    packet_sha: str = ""          # DT-01: linked runtime-packet identity ("" = no packet linked)
+    vehicle_sha: str = ""         # DT-01: linked vehicle-twin identity ("" = no vehicle twin linked)
 
     def linked_body(self) -> dict:
         """The content this record commits to -- everything EXCEPT its own chain_hash (which is the
         digest OF this body). Stable key order via json sort_keys at hashing time."""
         b = asdict(self)
         b.pop("chain_hash")
+        # DT-01 backward-compat: an unlinked packet/vehicle (empty sha) is OMITTED so a record written
+        # before this extension hashes byte-identically (world_sha + chain_hash unchanged, old journals
+        # still verify); a linked packet/vehicle IS included, so it is covered by the tamper-evident hash.
+        if not b.get("packet_sha"):
+            b.pop("packet_sha", None)
+        if not b.get("vehicle_sha"):
+            b.pop("vehicle_sha", None)
         return b
 
 
 def _world_sha(authority_sha_: str, twin_version: int, twin_hash: str, plan_id: str, belief: dict,
                mission: str, site: str, body: str, mission_t_s: float, provenance: str,
-               uncertainty_m: float) -> str:
-    """The combined content hash over all four linked sources + the stamp. A function of EVERY source
-    so mutating any one moves the sha (the consistency guarantee: this is one linked snapshot)."""
+               uncertainty_m: float, packet_sha: str = "", vehicle_sha: str = "") -> str:
+    """The combined content hash over every linked source + the stamp. A function of EVERY source so
+    mutating any one moves the sha (the consistency guarantee: this is one linked snapshot). DT-01: an
+    optional runtime-packet and vehicle-twin identity join the hash ONLY when linked (non-empty), so a
+    record with no packet/vehicle hashes byte-identically to a pre-extension record."""
     h = hashlib.sha256()
     payload = {
         "authority_sha": authority_sha_,
@@ -111,8 +122,31 @@ def _world_sha(authority_sha_: str, twin_version: int, twin_hash: str, plan_id: 
         "provenance": provenance,
         "uncertainty_m": uncertainty_m,
     }
+    if packet_sha:
+        payload["packet_sha"] = packet_sha
+    if vehicle_sha:
+        payload["vehicle_sha"] = vehicle_sha
     h.update(json.dumps(payload, sort_keys=True).encode())
     return h.hexdigest()
+
+
+def packet_identity(packet: dict) -> str:
+    """DT-01: a stable content hash of a runtime packet (the canonical proprio+camera+joint+power dict
+    from ``runtime_packet.canonical_runtime_packet``). Deterministic key order."""
+    return hashlib.sha256(json.dumps(packet, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def vehicle_identity(vehicle_twin: object) -> str:
+    """DT-01: a stable content hash of a vehicle twin's identity (instance/vehicle/body + the physics
+    scalars that make two twins distinct). Accepts a ``VehicleTwin`` or a plain dict."""
+    g = vehicle_twin if isinstance(vehicle_twin, dict) else {
+        "instance": getattr(vehicle_twin, "instance", ""),
+        "vehicle": getattr(vehicle_twin, "vehicle", ""),
+        "body": getattr(vehicle_twin, "body", ""),
+        "gravity_ms2": getattr(vehicle_twin, "gravity_ms2", 0.0),
+        "mass_kg": getattr(vehicle_twin, "mass_kg", 0.0),
+    }
+    return hashlib.sha256(json.dumps(g, sort_keys=True, default=str).encode()).hexdigest()
 
 
 def _belief_snapshot(belief: "BeliefState | dict") -> dict:
@@ -133,10 +167,12 @@ class TransactionLog:
     # ---- commit ---------------------------------------------------------------------------------
     def commit(self, *, authority: "ColumnState", twin: "TwinStore", plan: "PlanResult",
                belief: "BeliefState | dict", mission: str, site: str, body: str,
-               mission_t_s: float, provenance: str, uncertainty_m: float = 0.0) -> WorldTransaction:
-        """Link the four CURRENT world-state source OBJECTS into one record, hash-chain it, durably
-        journal it (if journalling), and append it. Returns the committed transaction. Extracts each
-        source's identity then delegates to ``commit_snapshot`` (the shared commit path)."""
+               mission_t_s: float, provenance: str, uncertainty_m: float = 0.0,
+               packet: "dict | None" = None, vehicle_twin: object | None = None) -> WorldTransaction:
+        """Link the CURRENT world-state source OBJECTS into one record, hash-chain it, durably journal
+        it (if journalling), and append it. Returns the committed transaction. Extracts each source's
+        identity then delegates to ``commit_snapshot`` (the shared commit path). DT-01: an optional
+        runtime ``packet`` (dict) and ``vehicle_twin`` join the linked snapshot when supplied."""
         if not provenance or not str(provenance).strip():   # validate FIRST (before touching sources),
             raise ValueError("every world transaction requires non-empty provenance")  # original contract
         return self.commit_snapshot(
@@ -144,12 +180,14 @@ class TransactionLog:
             twin_version=int(twin.version),
             twin_hash=twin.events[-1]["hash"] if twin.events else "genesis",
             plan_id=str(plan.plan_id), belief=belief, mission=mission, site=site, body=body,
-            mission_t_s=mission_t_s, provenance=provenance, uncertainty_m=uncertainty_m)
+            mission_t_s=mission_t_s, provenance=provenance, uncertainty_m=uncertainty_m,
+            packet_sha=packet_identity(packet) if packet is not None else "",
+            vehicle_sha=vehicle_identity(vehicle_twin) if vehicle_twin is not None else "")
 
     def commit_snapshot(self, *, authority_sha: str, twin_version: int, twin_hash: str, plan_id: str,
                         belief: "BeliefState | dict", mission: str, site: str, body: str,
-                        mission_t_s: float, provenance: str,
-                        uncertainty_m: float = 0.0) -> WorldTransaction:
+                        mission_t_s: float, provenance: str, uncertainty_m: float = 0.0,
+                        packet_sha: str = "", vehicle_sha: str = "") -> WorldTransaction:
         """Commit a transaction from already-extracted source IDENTITIES rather than live source
         OBJECTS. A route-level facade (``WorldStateService``) holds the latest-known identity of each
         source (the conserved-authority sha, the observed twin's version/hash, the plan id, the belief)
@@ -160,7 +198,7 @@ class TransactionLog:
         bel = _belief_snapshot(belief)
         return self._append(str(authority_sha), int(twin_version), str(twin_hash), str(plan_id), bel,
                             str(mission), str(site), str(body), float(mission_t_s), str(provenance),
-                            float(uncertainty_m))
+                            float(uncertainty_m), str(packet_sha), str(vehicle_sha))
 
     def _chain_hash(self, body: dict, prev: str) -> str:
         h = hashlib.sha256()
@@ -170,16 +208,17 @@ class TransactionLog:
 
     def _append(self, a_sha: str, t_ver: int, t_hash: str, plan_id: str, belief: dict,
                 mission: str, site: str, body: str, mission_t_s: float, provenance: str,
-                uncertainty_m: float, *, expected_chain: str | None = None) -> WorldTransaction:
+                uncertainty_m: float, packet_sha: str = "", vehicle_sha: str = "", *,
+                expected_chain: str | None = None) -> WorldTransaction:
         seq = len(self.transactions)
         prev = self.transactions[-1].chain_hash if self.transactions else "genesis"
         w_sha = _world_sha(a_sha, t_ver, t_hash, plan_id, belief, mission, site, body,
-                           mission_t_s, provenance, uncertainty_m)
+                           mission_t_s, provenance, uncertainty_m, packet_sha, vehicle_sha)
         txn = WorldTransaction(seq=seq, authority_sha=a_sha, twin_version=t_ver, twin_hash=t_hash,
                                plan_id=plan_id, belief=belief, mission=mission, site=site, body=body,
                                mission_t_s=mission_t_s, provenance=provenance,
                                uncertainty_m=uncertainty_m, world_sha=w_sha, prev_hash=prev,
-                               chain_hash="")
+                               chain_hash="", packet_sha=packet_sha, vehicle_sha=vehicle_sha)
         txn.chain_hash = self._chain_hash(txn.linked_body(), prev)
         # on REPLAY, verify the recomputed chain hash BEFORE any durable write or in-memory append --
         # a tampered journal raises with NO state change (atomic failure), never persisting a bad record.
@@ -211,7 +250,8 @@ class TransactionLog:
         for txn in self.transactions:
             recomputed_world = _world_sha(
                 txn.authority_sha, txn.twin_version, txn.twin_hash, txn.plan_id, txn.belief,
-                txn.mission, txn.site, txn.body, txn.mission_t_s, txn.provenance, txn.uncertainty_m)
+                txn.mission, txn.site, txn.body, txn.mission_t_s, txn.provenance, txn.uncertainty_m,
+                txn.packet_sha, txn.vehicle_sha)
             if recomputed_world != txn.world_sha:
                 return False
             if txn.prev_hash != prev:
@@ -244,6 +284,7 @@ class TransactionLog:
                             rec["plan_id"], rec["belief"], rec["mission"], rec["site"], rec["body"],
                             float(rec["mission_t_s"]), rec["provenance"],
                             float(rec.get("uncertainty_m", 0.0)),
+                            rec.get("packet_sha", ""), rec.get("vehicle_sha", ""),  # DT-01 (old recs: "")
                             expected_chain=rec["chain_hash"])
         log.journal_path = journal_path                      # future commits journal again
         return log
