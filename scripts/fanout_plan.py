@@ -82,7 +82,7 @@ def plan(prd_path: str = _PRD) -> dict:
             done += 1
         elif bucket == "concurrent":
             concurrent.append(r["id"])
-        elif bucket == "gated":
+        elif bucket == "gated" and reason is not None:   # classify() always gives a reason for gated
             gated[reason].append(r["id"])
         else:
             lanes[r["fam"]].append(r)
