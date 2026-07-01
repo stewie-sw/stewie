@@ -24,6 +24,7 @@ import sys
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 _ASSET_DIR = _ROOT / "stewie" / "server" / "web" / "assets"
 INDEX_HTML = _ROOT / "stewie" / "server" / "index.html"
+PROGRAM_HTML = _ROOT / "stewie" / "server" / "web" / "program.html"
 
 #: cache-busted assets referenced from index.html as `<name>?v=<hash>`.
 ASSETS = ("cockpit.js", "three3d.js", "geofmt.js", "globe_ellipsoid.js",
@@ -35,6 +36,9 @@ ASSETS = ("cockpit.js", "three3d.js", "geofmt.js", "globe_ellipsoid.js",
           "regolith_estimate.js", "scorecard_chips.js", "terrain_memory_html.js", "nav_stats_html.js",
           "layouts.js")
 
+#: cache-busted assets referenced from the standalone /program board page.
+PROGRAM_ASSETS = ("htmlesc.js", "program_board.js")
+
 
 def content_hash(name: str) -> str:
     """Short stable content hash of an asset (the cache-bust token)."""
@@ -45,24 +49,29 @@ def _ref(name: str) -> re.Pattern[str]:
     return re.compile(r"(" + re.escape(name) + r"\?v=)([A-Za-z0-9_]+)")
 
 
-def stamp() -> list[tuple[str, str, bool]]:
-    """Rewrite each asset's ?v= in index.html to its current content hash.
+def _stamp_page(page: pathlib.Path, assets: tuple[str, ...]) -> list[tuple[str, str, bool]]:
+    """Rewrite each asset's ?v= in one HTML page to its current content hash.
     Returns [(name, hash, changed), ...]."""
-    html = INDEX_HTML.read_text()
+    html = page.read_text()
     out: list[tuple[str, str, bool]] = []
-    for name in ASSETS:
+    for name in assets:
         rx = _ref(name)
         if not rx.search(html):
-            raise SystemExit(f"index.html has no {name}?v= reference to stamp")
+            raise SystemExit(f"{page.name} has no {name}?v= reference to stamp")
         h = content_hash(name)
         new = rx.sub(lambda m, h=h: m.group(1) + h, html)
         out.append((name, h, new != html))
         html = new
-    INDEX_HTML.write_text(html)
+    page.write_text(html)
     return out
+
+
+def stamp() -> list[tuple[str, str, bool]]:
+    """Stamp every cache-busted page (the cockpit's index.html + the /program board)."""
+    return _stamp_page(INDEX_HTML, ASSETS) + _stamp_page(PROGRAM_HTML, PROGRAM_ASSETS)
 
 
 if __name__ == "__main__":
     for name, h, changed in stamp():
-        print(f"{name} ?v={h} ({'updated index.html' if changed else 'already current'})")
+        print(f"{name} ?v={h} ({'updated page' if changed else 'already current'})")
     sys.exit(0)
