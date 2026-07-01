@@ -2168,30 +2168,9 @@ async function loadReport() {
       fetch("/world/transaction", { headers: apiHeaders() }).then((r) => r.json()),
       fetch("/world/transactions?limit=50", { headers: apiHeaders() }).then((r) => r.json()),
     ]);
-    if (!latest || !latest.committed) { ws.style.display = "none"; return; }   // nothing committed yet
-    const t = latest.transaction;
-    const txns = (recent && recent.transactions) || [];
-    const sh = (s) => esc(String(s || "").slice(0, 12)) + "…";
-    let html =
-      '<div class="cap"><span>LINKED WORLD STATE — DT-01</span></div>'
-      + '<div style="font-size:11px;font-variant-numeric:tabular-nums;line-height:1.7;color:var(--muted)">'
-      + `authority <code>${sh(t.authority_sha)}</code> · twin v${esc(String(t.twin_version))}`
-      + ` · plan <code>${esc(String(t.plan_id))}</code><br>`
-      + `world_sha <code>${sh(t.world_sha)}</code> · seq ${esc(String(t.seq))}`
-      + ` · ${esc(String(latest.count))} transaction(s)</div>`;
-    html += '<div class="cap" style="margin-top:8px"><span>EXECUTION TIMELINE</span></div>'
-      + '<div style="font-size:11px;line-height:1.6;max-height:200px;overflow:auto">'
-      + (txns.length
-          ? txns.map((x) => {
-              const m = /\[(\w+)\]/.exec(x.provenance || "");
-              const tag = m ? m[1] : "";
-              const color = tag === "ok" ? "var(--accent)"
-                : (tag === "safed" || tag === "blocked") ? "#e0a000" : "var(--muted)";
-              return `<div><span style="color:var(--muted)">#${esc(String(x.seq))}</span> `
-                + `<span style="color:${color}">${esc(x.provenance)}</span></div>`;
-            }).join("")
-          : '<div class="empty">No transitions recorded yet.</div>')
-      + "</div>";
+    // FS-24: the pure HTML build lives in world_state_html.js (null => nothing committed => hide the block).
+    const html = window.STEWIE_WORLD_STATE_HTML.worldStateHTML(latest, (recent && recent.transactions) || [], esc);
+    if (html === null) { ws.style.display = "none"; return; }
     ws.innerHTML = html;
     ws.style.display = "block";
   } catch (e) { ws.style.display = "none"; }   // never break the Report pane on the world-state overlay
@@ -2205,19 +2184,11 @@ async function loadTerrainProvenance() {
   if (!tp) return;
   try {
     const tv = await fetch("/world/terrain_view", { headers: apiHeaders() }).then((r) => r.json());
-    if (!tv || !tv.ok) { tp.style.display = "none"; return; }
-    const pv = tv.provenance, tot = (pv.rows * pv.cols) || 1;
-    const pct = (n) => (100 * n / tot).toFixed(3);
-    tp.innerHTML =
-      '<div class="cap"><span>TERRAIN PROVENANCE — measured vs remembered vs modeled</span></div>'
-      + '<div style="font-size:11px;line-height:1.7;color:var(--muted)">'
-      + `<span style="color:#28be5a">■</span> observed (measured) ${esc(String(pv.cells.observed))} (${pct(pv.cells.observed)}%) · `
-      + `<span style="color:#2e6edc">■</span> as-built (remembered) ${esc(String(pv.cells.as_built))} (${pct(pv.cells.as_built)}%) · `
-      + `<span style="color:#5a5a5a">■</span> pristine (modeled) ${esc(String(pv.cells.pristine))}<br>`
-      + `as-built v${esc(String(pv.as_built_version))} · twin v${esc(String(pv.twin_version))}`
-      + ` · observed fraction ${(pv.observed_fraction * 100).toFixed(3)}%</div>`
-      + `<img src="/world/terrain_view.png?max_px=360&_=${_cacheBust()}" alt="terrain provenance source map" `
-      + 'style="margin-top:8px;max-width:360px;border:1px solid var(--line);border-radius:6px;image-rendering:pixelated" />';
+    // FS-24: the pure HTML build lives in world_state_html.js; the fetch + cache-busted raster URL stay here.
+    const html = window.STEWIE_WORLD_STATE_HTML.terrainProvenanceHTML(
+      tv, esc, `/world/terrain_view.png?max_px=360&_=${_cacheBust()}`);
+    if (html === null) { tp.style.display = "none"; return; }
+    tp.innerHTML = html;
     tp.style.display = "block";
   } catch (e) { tp.style.display = "none"; }
 }
