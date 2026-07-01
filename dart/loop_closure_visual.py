@@ -32,6 +32,7 @@ estimate is frozen.
 # PROVENANCE: STEWIE DART subsystem (A. Storey). Data: DLR S3LI s3li_crater (public).
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -40,6 +41,13 @@ import numpy as np
 
 from dart.factors import EvidenceClass, FactorType, Frame, MeasurementFactor
 from dart.stereo_vo import StereoVOConfig, _solve_pnp
+
+log = logging.getLogger("dart.loop_closure")
+
+# The closed vocabulary of geometric-gate rejections verify_candidate can emit ([REQ:PM-07] audit:
+# every rejected closure carries exactly one of these, so an audit trail is machine-checkable).
+REJECT_REASONS = ("too_few_matches", "too_few_3d_correspondences", "pnp_failed",
+                  "translation_too_large")
 
 
 def quat_wxyz_to_rotmat(q: np.ndarray) -> np.ndarray:
@@ -220,6 +228,31 @@ def verify_candidate(
                        True, "ok", r_ab=np.asarray(r_rel, float))
 
 
+def audit_closures(attempts: list[LoopClosure]) -> dict[str, object]:
+    """Audit-log a closure attempt set on the standard logging path ([REQ:PM-07]): every REJECTED
+    candidate gets its own WARNING line (both node ids + the geometric-gate reject reason, so a false
+    closure's rejection is on the record), acceptances get one INFO line each, and an INFO summary
+    reconciles the disposition. Returns the reconciliation ``{n_attempts, n_accepted, n_rejected,
+    reject_reasons}`` (per-reason histogram) -- accepted + rejected == attempts by construction."""
+    reject_reasons: dict[str, int] = {}
+    n_accepted = 0
+    for lc in attempts:
+        if lc.accepted:
+            n_accepted += 1
+            log.info("loop closure ACCEPTED %d->%d: inliers=%d/%d matches, sim=%.3f, |t|=%.2f m",
+                     lc.a_node, lc.b_node, lc.n_inliers, lc.n_matches, lc.similarity, lc.trans_m)
+        else:
+            reject_reasons[lc.reject_reason] = reject_reasons.get(lc.reject_reason, 0) + 1
+            log.warning("loop closure REJECTED %d->%d: %s (inliers=%d/%d matches, sim=%.3f)",
+                        lc.a_node, lc.b_node, lc.reject_reason, lc.n_inliers, lc.n_matches,
+                        lc.similarity)
+    n_rejected = len(attempts) - n_accepted
+    log.info("loop closure audit: %d attempts -> %d accepted, %d rejected %s",
+             len(attempts), n_accepted, n_rejected, reject_reasons)
+    return {"n_attempts": len(attempts), "n_accepted": n_accepted, "n_rejected": n_rejected,
+            "reject_reasons": reject_reasons}
+
+
 def detect_loops(
     keyframes: list[LoopKeyframe], quat_wxyz_cam: np.ndarray, yaw_rad: float, cfg: StereoVOConfig,
     *, min_index_gap: int = 1500, sim_min: float = 0.80, min_inliers: int = 15,
@@ -250,7 +283,8 @@ def detect_loops(
         attempts.append(lc)
         if lc.accepted:
             accepted.append(lc)
-    return {"accepted": accepted, "attempts": attempts, "n_candidates": len(cands),
+    audit = audit_closures(attempts)                       # [REQ:PM-07] rejections hit the audit log
+    return {"accepted": accepted, "attempts": attempts, "n_candidates": len(cands), "audit": audit,
             "min_index_gap": int(min_index_gap), "sim_min": float(sim_min),
             "min_inliers": int(min_inliers), "max_translation_m": float(max_translation_m)}
 

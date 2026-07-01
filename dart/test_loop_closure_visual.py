@@ -6,6 +6,8 @@ gate on those artifacts being present and skip cleanly otherwise.
 """
 from __future__ import annotations
 
+import json
+import logging
 import os
 
 import numpy as np
@@ -13,7 +15,9 @@ import pytest
 
 from dart.factors import FactorType
 from dart.loop_closure_visual import (
+    REJECT_REASONS,
     LoopClosure,
+    audit_closures,
     build_loop_factors,
     detect_loops,
     global_descriptor,
@@ -29,10 +33,13 @@ _BENCH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
                       "benchmarks", "s3li_crater")
 _VO_NPZ = os.path.join(_BENCH, "vo_cam_stride3.npz")
 _LOOP_NPZ = os.path.join(_BENCH, "loop_feats_stride3.npz")
+_META_JSON = os.path.join(_BENCH, "loopclosure_stride3_meta.json")
 _have_vo = pytest.mark.skipif(not os.path.isfile(_VO_NPZ),
                               reason="frozen VO npz absent (run benchmarks/s3li_crater/freeze_vo.py)")
 _have_cache = pytest.mark.skipif(not os.path.isfile(_LOOP_NPZ),
                                  reason="loop-feature cache absent (run freeze_loopclosure.py)")
+_have_meta = pytest.mark.skipif(not os.path.isfile(_META_JSON),
+                                reason="frozen loop-closure run meta absent (run freeze_loopclosure.py)")
 # S3liDem() reads the independent Copernicus GLO-30 tile at construction; gate the tests that build it
 # on that real artifact too (same skip-cleanly-when-absent contract as the VO/cache artifacts above),
 # else they FileNotFoundError where the tile isn't fetched (e.g. CI).
@@ -130,7 +137,7 @@ def test_propose_candidates_respects_gap_appearance_and_order():
 def test_detect_loops_finds_start_end_revisit_and_chain_matches_vo():
     """End-to-end on REAL data: detect_loops finds the genuine start<->end crater revisit, and the loop
     factor's ENU displacement chain is validated on a consecutive keyframe pair against the trusted VO
-    ENU delta (the geometric-correctness anchor for the whole module)."""
+    ENU delta (the geometric-correctness anchor for the whole module). [REQ:PM-07]"""
     from dart.s3li_dem import S3liDem
     from dart.s3li_reader import S3liReader
     from dart.stereo_vo import StereoVOConfig
@@ -164,3 +171,77 @@ def test_detect_loops_finds_start_end_revisit_and_chain_matches_vo():
     assert lc.accepted, lc.reject_reason
     vo_delta = enu_vo[kfs[jb].node] - enu_vo[kfs[ja].node]
     assert np.linalg.norm(lc.d_enu - vo_delta) < 0.1
+
+
+def _real_run_attempts() -> tuple[list[LoopClosure], dict]:
+    """Closure records grounded in the REAL frozen crater run (loopclosure_stride3_meta.json): the five
+    accepted closures verbatim from the meta, plus one rejected record per reject reason the real run
+    actually produced (its histogram), in verify_candidate's exact rejection shape (zero d_enu,
+    accepted=False). ``c_in_a`` is not recorded in the meta and is read by nothing under test. Node
+    indices of the rejected records are real keyframe nodes (every=6 within the run's node ranges)."""
+    with open(_META_JSON, encoding="utf-8") as fh:
+        meta = json.load(fh)
+    attempts = [
+        LoopClosure(int(lc["a_node"]), int(lc["b_node"]), np.asarray(lc["d_enu_m"], float),
+                    np.zeros(3), int(lc["n_inliers"]), int(lc["n_matches"]), float(lc["similarity"]),
+                    float(lc["trans_m"]), bool(lc["accepted"]), str(lc["reject_reason"]))
+        for lc in meta["loop_closures"]
+    ]
+    a0 = int(meta["loop_a_node_range"][0])
+    b0 = int(meta["loop_b_node_range"][0])
+    for k, reason in enumerate(sorted(meta["reject_reasons"])):
+        attempts.append(LoopClosure(a0 + 6 * k, b0 + 6 * k, np.zeros(3), np.zeros(3), 0, 20,
+                                    0.85, 0.0, False, reason))
+    return attempts, meta
+
+
+@_have_meta
+def test_audit_closures_logs_every_rejection_and_reconciles(caplog):
+    """[REQ:PM-07] Every rejected closure is LOGGED (standard logging path, WARNING, with both node ids
+    + the reject reason), the audit summary reconciles accepted + rejected == attempts with a per-reason
+    histogram, and build_loop_factors admits ONLY the accepted closures into the graph -- a false
+    closure is rejected, logged, and never becomes a factor. Closure records are the REAL frozen crater
+    run's (five accepted verbatim; rejected reasons from its real histogram)."""
+    attempts, meta = _real_run_attempts()
+    n_acc = int(meta["n_loop_closures"])
+    n_rej = len(attempts) - n_acc
+    with caplog.at_level(logging.INFO, logger="dart.loop_closure"):
+        summary = audit_closures(attempts)
+    rej_recs = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(rej_recs) == n_rej                          # one audit line per rejection
+    for lc in attempts:
+        if lc.accepted:
+            continue
+        line = [r.getMessage() for r in rej_recs
+                if f"{lc.a_node}" in r.getMessage() and f"{lc.b_node}" in r.getMessage()]
+        assert line and lc.reject_reason in line[0]        # nodes + reason are in the logged rejection
+    assert summary["n_attempts"] == len(attempts)
+    assert summary["n_accepted"] == n_acc and summary["n_rejected"] == n_rej
+    assert summary["n_accepted"] + summary["n_rejected"] == summary["n_attempts"]
+    assert summary["reject_reasons"] == {r: 1 for r in sorted(meta["reject_reasons"])}
+    facs = build_loop_factors(attempts, sigma_m=0.5)       # false closures never enter the graph
+    assert len(facs) == n_acc
+    accepted_pairs = {(lc.a_node, lc.b_node) for lc in attempts if lc.accepted}
+    assert {(f.keyframe, int(f.metadata["to"])) for f in facs} == accepted_pairs
+
+
+@_have_meta
+def test_frozen_crater_run_is_candidate_gated_verified_and_auditable():
+    """[REQ:PM-07] The frozen REAL crater run's audit artifact shows the full closure discipline: every
+    one of the 4000 candidates is dispositioned (accepted + rejected == candidates -- auditable), every
+    reject reason is from the module's vocabulary, the geometric gate did real work (the overwhelming
+    majority of appearance candidates were REJECTED), and every accepted closure honors the recorded
+    candidate gates (temporal gap, similarity floor) and geometric gates (PnP inliers, translation)."""
+    with open(_META_JSON, encoding="utf-8") as fh:
+        meta = json.load(fh)
+    p = meta["loop_params"]
+    assert meta["n_loop_closures"] + meta["n_rejected"] == meta["n_candidates"]
+    assert set(meta["reject_reasons"]) <= set(REJECT_REASONS)
+    assert meta["n_rejected"] > meta["n_loop_closures"]    # the gate rejects, it does not rubber-stamp
+    assert len(meta["loop_closures"]) == meta["n_loop_closures"]
+    for lc in meta["loop_closures"]:
+        assert lc["accepted"] is True and lc["reject_reason"] == "ok"
+        assert lc["b_node"] - lc["a_node"] >= p["min_index_gap"]      # candidate gate: temporal gap
+        assert lc["similarity"] >= p["sim_min"]                       # candidate gate: appearance floor
+        assert lc["n_inliers"] >= p["min_inliers"]                    # geometric gate: PnP inliers
+        assert lc["trans_m"] <= p["max_translation_m"]                # geometric gate: plausible motion
