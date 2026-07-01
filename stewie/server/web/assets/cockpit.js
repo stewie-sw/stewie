@@ -2891,18 +2891,11 @@ function estimate() {
   const p = phys(sel.value);
   const padW = +$("padW").value, padL = +$("padL").value, cut = +$("cut").value, bermH = +$("bermH").value;
   const ix = ipex();                                       // IPEx constants (bodies.json _ipex, py source)
-  const cutVol = padW * padL * cut;                         // m^3
-  const cutMass = cutVol * p.density;                       // kg
-  const weightN = cutMass * p.g;                            // N (weight on THIS body)
-  const bermArea = bermH > 0 ? cutMass / (bermH * p.density) : 0;   // mass-balanced berm footprint [m^2]
-  const drumLoads = Math.ceil(cutMass / ix.drum_kg);
-  const energyJ = cutMass * ix.dig_j_per_kg;               // excavation energy (dominant term)
-  const charges = energyJ / ix.battery_j, hrs = cutMass / ix.dig_rate_kg_hr;
-  // the KEY line + the structured breakdown behind a live ⓘ (Aaron's feasibility-layout note)
-  const rw = (ix.recharge_w || 700), perChargeH = ix.battery_j / rw / 3600;
-  const rechargeH = charges * perChargeH;
-  LAST_EST = { cutVol, cutMass, weightN, bermArea, drumLoads, energyJ, charges, hrs, bermH, p,
-               rw, perChargeH, rechargeH };
+  // FS-24: the pure feasibility math lives in regolith_estimate.js; the badges + popover DOM stay here.
+  LAST_EST = window.STEWIE_REGOLITH_ESTIMATE.computeEstimate({ padW, padL, cut, bermH }, p, ix);
+  const cutVol = LAST_EST.cutVol, cutMass = LAST_EST.cutMass, weightN = LAST_EST.weightN;
+  const bermArea = LAST_EST.bermArea, drumLoads = LAST_EST.drumLoads, energyJ = LAST_EST.energyJ;
+  const charges = LAST_EST.charges, hrs = LAST_EST.hrs, rechargeH = LAST_EST.rechargeH;
   $("est").innerHTML = "";
   const summary = document.createElement("span");
   summary.textContent = `dig-only est · ${(cutMass / 1000).toFixed(1)} t · ${charges.toFixed(1)} charges · ~${Math.round(hrs + rechargeH).toLocaleString()} h (dig + recharge) `;
@@ -2933,24 +2926,7 @@ function estimate() {
   sub.style.cssText = "font-size:9px;color:var(--muted);margin-top:1px";
   sub.textContent = "lower bound — the 4·Plan solver adds travel + slip + recharge routing (it supersedes this)";
   $("est").append(summary, info, sub);
-  popover("est", info, () => {
-    const e2 = LAST_EST;
-    const row = (k, v) => `<tr><td style="color:var(--muted);padding-right:10px">${k}</td><td style="text-align:right">${v}</td></tr>`;
-    return `<b>Feasibility breakdown</b><table style="width:100%;border-collapse:collapse;margin-top:4px">` +
-      row("excavated volume", `${e2.cutVol.toFixed(0)} m³`) +
-      row(`mass (ρ = ${e2.p.density} kg/m³)`, `${(e2.cutMass / 1000).toFixed(1)} t`) +
-      row(`weight @ ${e2.p.g} m/s²`, `${(e2.weightN / 1000).toFixed(0)} kN`) +
-      row("drum loads", e2.drumLoads.toLocaleString()) +
-      row(`berm footprint @ ${e2.bermH} m`, `${e2.bermArea.toFixed(0)} m²`) +
-      row("dig energy", `${(e2.energyJ / 1e6).toFixed(1)} MJ`) +
-      row("battery charges", e2.charges.toFixed(1)) +
-      row("dig time", `~${Math.round(e2.hrs).toLocaleString()} h`) +
-      row("recharge time", `~${Math.round(e2.rechargeH).toLocaleString()} h (${e2.charges.toFixed(0)} × ${e2.perChargeH.toFixed(1)} h @ ${e2.rw} W [CALIB])`) +
-      row("<b>mission timeline</b>", `<b>~${Math.round(e2.hrs + e2.rechargeH).toLocaleString()} h</b>`) +
-      `</table><div style="opacity:.6;margin-top:4px">dig-energy basis: ${LAST_EST ? "4151" : ""} J/kg (excavation mechanics
-      — cutting + drum + losses; ~8,600× the pure m·g·h lift floor). The sandbox is DIG-dominant by
-      design; the solver in 4·Plan adds travel + slip + recharge routing per leg. Updates live.</div>`;
-  });
+  popover("est", info, () => window.STEWIE_REGOLITH_ESTIMATE.feasibilityBreakdownHTML(LAST_EST));
   refreshPopovers();
   return { body: sel.value, padW, padL, cut_m: cut, bermH_m: bermH, cutVol_m3: cutVol, cutMass_kg: cutMass,
            weight_N: weightN, bermArea_m2: bermArea, drumLoads, energy_MJ: energyJ / 1e6,
