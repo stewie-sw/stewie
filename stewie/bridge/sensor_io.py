@@ -17,6 +17,9 @@ import numpy as np
 
 RUNTIME_SCHEMA = "sensor_bridge_runtime/1.0"
 TRUTH_SCHEMA = "sensor_bridge_evaluation_truth/1.0"
+# PM-01: the canonical sim timebase both bridge packets are stamped on (matches the
+# proprioception/runtime producer clock name). Declared explicitly, never assumed.
+SIM_CLOCK_DOMAIN = "sim_monotonic"
 _FORBIDDEN_RUNTIME_KEYS = {"rover", "lander", "camera_poses_in_world"}
 
 
@@ -58,6 +61,7 @@ class SensorFrame:
     sun_azimuth_deg: Optional[float]
     availability: Mapping[str, Any]
     health: Mapping[str, Any]
+    clock_domain: str = SIM_CLOCK_DOMAIN
     provenance: str = "RUNTIME_SENSOR"
     raw: dict[str, Any] = field(default_factory=dict)
 
@@ -75,6 +79,7 @@ class EvaluationTruthPacket:
     rover_quat_xyzw: np.ndarray
     lander_pos_m: np.ndarray
     camera_poses_in_world: tuple[Mapping[str, Any], ...]
+    clock_domain: str = SIM_CLOCK_DOMAIN
     provenance: str = "GROUND_TRUTH_EVAL"
 
 
@@ -114,6 +119,14 @@ def _vector(value: Any, size: int, label: str) -> np.ndarray:
 def _read_json(path: str) -> dict[str, Any]:
     with open(path, encoding="utf-8") as stream:
         return _object(json.load(stream), os.path.basename(path))
+
+
+def _clock_domain(data: Mapping[str, Any]) -> str:
+    # PM-01: an explicit timebase NAME; packets without one are on the canonical sim clock.
+    domain = data.get("clock_domain", SIM_CLOCK_DOMAIN)
+    if not isinstance(domain, str) or not domain.strip():
+        raise PacketValidationError("clock_domain must be a non-empty timebase name")
+    return domain
 
 
 def _validate_image(path: str, width: int, height: int) -> None:
@@ -264,6 +277,7 @@ def read_sensors(sensors_json_path: str, *, validate_images: bool = True) -> Sen
         ),
         availability=availability,
         health=health,
+        clock_domain=_clock_domain(data),
         raw=data,
     )
 
@@ -290,6 +304,7 @@ def read_evaluation_truth(path: str) -> EvaluationTruthPacket:
         ),
         lander_pos_m=_vector(_required(lander, "position_m", "lander"), 3, "lander.position_m"),
         camera_poses_in_world=tuple(_object(item, "camera pose") for item in camera_poses),
+        clock_domain=_clock_domain(data),
     )
 
 

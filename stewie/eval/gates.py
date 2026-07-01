@@ -11,6 +11,7 @@ import numpy as np
 from imageio.v3 import imread
 
 from stewie.bridge import sensor_io
+from stewie.eval import timestamp_joins
 from stewie.specs.profiles import load_profile, validate_sensor_frame
 from dart.geometry import shadow_metric
 from dart import shadow_extract, stereo_depth
@@ -72,8 +73,9 @@ def validate() -> dict:
         raise RuntimeError("runtime packet leaked evaluation truth")
     if any("pose_in_world" in camera for camera in frame.raw["cameras"]):
         raise RuntimeError("runtime camera leaked pose_in_world")
-    if frame.frame_index != truth.frame_index or frame.timestamp_s != truth.timestamp_s:
-        raise RuntimeError("runtime/evaluation packet identity mismatch")
+    # PM-01: the runtime<->truth evaluation join is timestamp-verified (declared clock
+    # domains + tolerance, per-camera stamps included), not an implicit exact-equality check.
+    timestamp_joins.assert_frame_truth_aligned(frame, truth)
 
     left_name, right_name = frame.stereo_pair
     left_camera = frame.camera(left_name)
