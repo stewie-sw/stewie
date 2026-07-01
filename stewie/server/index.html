@@ -242,6 +242,10 @@
     /* MOBILE-07: dense registry/profile/feasibility tables (Models, Fleet, Construction panes) were
        crammed into 390px with tiny provenance text. Let them scroll horizontally at a readable width. */
     #stage table, #panel table { display: block; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+    /* MOBILE-08 (FS-03): the epistemic provenance chips (TRUTH/BELIEF/FORECAST/LIVE) are load-bearing
+       context, not dev chrome -- unlike the .sysb badges (MOBILE-04) they stay visible at phone widths,
+       nudged off the 8px base to the phone readability floor. */
+    .epis { display: inline-flex; font-size: 9px; }
   }
   .step { font-size: 9px; font-family: "Orbitron", system-ui, sans-serif; letter-spacing: .12em;
           color: var(--accent); margin: 9px 0 3px; text-transform: uppercase; }
@@ -604,7 +608,9 @@
         <select id="profload"></select>
         <button id="profloadbtn" class="site">↻ Load</button>
       </div></div></details>
-      <div class="cap" style="margin-top:8px">PLAN VIEW <small>(local site frame, top-down) · click to set x,y</small></div>
+      <!-- FS-03: epistemic provenance chips -- one reusable component (provenance_label.js) fills each
+           data-epistemic placeholder; the queue/plan being authored here is a FORECAST of the mission. -->
+      <div class="cap" style="margin-top:8px">PLAN VIEW <small>(local site frame, top-down) · click to set x,y</small><span data-epistemic="forecast"></span></div>
       <!-- #audit-3: the flat LAYERS strip is fully redundant with the organized Contents tree (section 2:
            Basemap/Terrain/Sun/Safety/Operations). Hidden (display:none) -- loadLayers still seeds LAYER_ON
            defaults into it (off-screen), but the Contents tree is the single visible, grouped layer surface. -->
@@ -657,7 +663,9 @@
         <div id="ctxmet-cg" style="font-size:11px;line-height:1.7;margin-top:8px;color:var(--muted)">CG / tip margin is shown in the pane →</div>
       </div>
       <div class="ctxsec">
-        <div class="ctxh">Live RC <span class="sysb">RC·SF-01</span></div>
+        <!-- FS-03: the LIVE chip is stream-bound -- it ships IDLE and startRcStream/stopRcStream flip it
+             with the real SSE EventSource (never a static claim of a flowing feed). -->
+        <div class="ctxh">Live RC <span class="sysb">RC·SF-01</span><span data-epistemic="live" data-live="idle"></span></div>
         <div class="ctl" style="margin-top:6px">
           <button id="rctlm" class="site" style="font-size:11px" title="toggle a LIVE push stream of the RC backend telemetry (Pose/Leg) + the SF-01 watchdog state (server-sent events); the watchdog ticks on every streamed frame, so a stalled operator auto-SAFEs within the deadline">⇄ Live RC telemetry</button>
           <label style="font-size:10px;color:var(--muted);margin-left:6px" title="telemetry push rate — faster gives finer pose resolution when threading a hazard; takes effect immediately while streaming (server-clamped 0.1–10 s)">rate
@@ -915,7 +923,7 @@
           <span id="sunazv">90°</span></div>
       </div>
       <div id="renderpanel" class="pane">
-        <div class="cap"><span>PERCEPTION — Godot PLAN → RENDER<b id="rpvol"></b>
+        <div class="cap"><span>PERCEPTION — Godot PLAN → RENDER<b id="rpvol"></b><span data-epistemic="forecast"></span><!-- FS-03: a rendered scene is a simulated sensor prediction -->
           <label style="margin-left:10px;font-size:10px;cursor:pointer"><input id="autorender" type="checkbox" checked /> auto re-render on plan edits</label></span>
           <button id="rpclose" title="back to Plan">✕</button></div>
         <img id="rpimg" alt="plan render" style="display:none" />
@@ -959,7 +967,7 @@
         </div>
       </div>
       <div id="navview" class="pane">
-        <div class="cap"><span>NAVIGATION — state estimation <small>(pose-graph estimate vs dead reckoning; articulation-parallax relocalization)</small></span></div>
+        <div class="cap"><span>NAVIGATION — state estimation <small>(pose-graph estimate vs dead reckoning; articulation-parallax relocalization)</small><span data-epistemic="belief"></span><!-- FS-03: an estimator's pose is what the system BELIEVES --></span></div>
         <div class="ctl" style="font-size:11px;margin:2px 0 4px">
           <button id="navcontract" class="site" style="font-size:11px" title="FS-05 navigation contract: each nav stage (global route / local trajectory / tracker / recovery / keep-outs / negative obstacles / illumination / slip-energy budget / ROS lowering) self-reports whether its seam is wired on this host">Nav contract</button>
           <span id="navcontracthdr" style="font-size:10px;opacity:.6"></span>
@@ -1062,7 +1070,7 @@
         </div>
         <canvas id="cgcanvas" width="420" height="130" style="border:1px solid var(--line);border-radius:6px;width:100%;max-width:460px"></canvas>
         <div id="cgout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:3px 0 10px"></div>
-        <div class="cap"><span>METRICS — <span id="exec-mode-lbl">execution top-down</span><b id="execspeed"> 60×</b>
+        <div class="cap"><span>METRICS — <span id="exec-mode-lbl">execution top-down</span><span data-epistemic="forecast"></span><!-- FS-03: the replay is a deterministic forecast of the plan; the flowing feed carries its own live chip --><b id="execspeed"> 60×</b>
           <button id="execpause" title="pause/resume" aria-label="pause / resume" style="margin-left:10px"></button>
           <button id="execspd" title="cycle speed 10/60/600×">speed</button>
           <button id="exec3d" title="toggle the 3D terrain dry-run: the planned path + rover on the real DEM, before uplink" style="margin-left:6px">▦ 3D</button>
@@ -1113,7 +1121,7 @@
           <div style="flex:1;min-width:320px"><div class="cap" style="margin-bottom:4px">ACTIVITY — mission time</div>
             <canvas id="gantt" width="560" height="340" style="border:1px solid var(--line);border-radius:8px;width:100%;max-width:640px"></canvas></div>
         </div>
-        <div class="cap"><span>MISSION-CONTROL REPORT</span>
+        <div class="cap"><span>MISSION-CONTROL REPORT<span data-epistemic="forecast"></span><!-- FS-03: the report totals a planned (simulated) mission --></span>
           <a id="reportopen" href="#" target="_blank" rel="noopener">open in tab ↗</a></div>
         <iframe id="reportframe" title="mission-control report"></iframe>
         <div id="reportempty" class="empty">No report yet. Build a queue and press
@@ -1125,7 +1133,7 @@
            rehearse_render.js builds the candidate cards side-by-side, FEASIBILITY FIRST (CSP-safe: no
            inline script; the module is an external asset). Honest empty state when there is no plan. -->
       <div id="pane_rehearse" class="pane">
-        <div class="cap"><span>REHEARSE &amp; COMPARE — candidate plans, feasibility first (<b>lode/resync.py forward_compare</b>)</span>
+        <div class="cap"><span>REHEARSE &amp; COMPARE — candidate plans, feasibility first (<b>lode/resync.py forward_compare</b>)</span><span data-epistemic="forecast"></span>
           <button id="rehearserun" class="site" style="font-size:10px">Re-run forward-compare</button></div>
         <div id="rehearsecards" style="overflow:auto;margin-top:8px">
           <div id="rehearseempty" class="empty">No candidates to rehearse yet. Add at least one order
@@ -1157,11 +1165,11 @@
            cockpit.js loadPane('fleet') fetches /fleet and reads LAST_TOTALS, then fleet_render.js builds
            the HTML (CSP-safe: no inline script; the module is loaded as an external asset). -->
       <div id="pane_fleet" class="pane">
-        <div class="cap"><span>FLEET ROSTER — vehicle registry (<b>specs/vehicles.py</b>)</span></div>
+        <div class="cap"><span>FLEET ROSTER — vehicle registry (<b>specs/vehicles.py</b>)</span><span data-epistemic="truth"></span><!-- FS-03: /fleet serves the committed registry, not an estimate --></div>
         <div id="fleetroster" style="overflow:auto;margin-bottom:14px">
           <div id="fleetrosterempty" class="empty">Loading the vehicle registry…</div>
         </div>
-        <div class="cap"><span>FLEET ALLOCATION — last plan (per-vehicle, makespan, space-time conflicts)</span></div>
+        <div class="cap"><span>FLEET ALLOCATION — last plan (per-vehicle, makespan, space-time conflicts)</span><span data-epistemic="forecast"></span></div>
         <div id="fleetplan" style="overflow:auto">
           <div id="fleetplanempty" class="empty">No fleet allocation yet. Plan a mission (Plan tab); the
             per-vehicle allocation, makespan, and conflicts from that plan appear here.
@@ -1174,17 +1182,17 @@
            fetches /construction + reads LAST_VALIDATION, then construction_render.js builds the HTML
            (CSP-safe: no inline script; module loaded as an external asset). -->
       <div id="pane_construction" class="pane">
-        <div class="cap"><span>BUILD CATALOG — structure templates (<b>leap/structures.py</b>)</span></div>
+        <div class="cap"><span>BUILD CATALOG — structure templates (<b>leap/structures.py</b>)</span><span data-epistemic="truth"></span></div>
         <div id="constructioncatalog" style="overflow:auto;margin-bottom:14px">
           <div id="constructioncatalogempty" class="empty">Loading the build catalog…</div>
         </div>
-        <div class="cap"><span>ACCEPTANCE — criteria (<b>validate_plan</b>) + last plan as-built verdict</span></div>
+        <div class="cap"><span>ACCEPTANCE — criteria (<b>validate_plan</b>) + last plan as-built verdict</span><span data-epistemic="forecast"></span><!-- FS-03: the as-built verdict is measured on the SIMULATED build --></div>
         <div id="constructionacceptance" style="overflow:auto">
           <div id="constructionacceptanceempty" class="empty">No as-built acceptance yet. Plan a mission
             (Plan tab); the flatness, berm-profile, repose, and bearing pass/fail appear here.
             <button type="button" class="site" data-go="plan" style="margin-top:6px;font-size:10px">→ Go to Plan</button></div>
         </div>
-        <div class="cap" style="margin-top:14px"><span>TERRAIN MEMORY — authoritative world state (<b>twin/terrain</b>): what IPEx has built at this site</span></div>
+        <div class="cap" style="margin-top:14px"><span>TERRAIN MEMORY — authoritative world state (<b>twin/terrain</b>): what IPEx has built at this site</span><span data-epistemic="truth"></span></div>
         <div id="terrainmem" style="overflow:auto;font-size:11px;line-height:1.7;color:var(--muted)">
           <div class="empty">Loading the site's terrain memory…</div>
         </div>
@@ -1197,15 +1205,15 @@
            model-deployment governance (deployment-ready gate + §25.3 no-command-path status). cockpit.js
            loadModels() fetches /models, then models_render.js builds the HTML (CSP-safe: external module). -->
       <div id="pane_models" class="pane">
-        <div class="cap"><span>SYSTEM PROFILES — deployable config (<b>specs/profiles.py</b>, sha256 + VERIFIED)</span></div>
+        <div class="cap"><span>SYSTEM PROFILES — deployable config (<b>specs/profiles.py</b>, sha256 + VERIFIED)</span><span data-epistemic="truth"></span></div>
         <div id="modelsprofiles" style="overflow:auto;margin-bottom:14px">
           <div id="modelsprofilesempty" class="empty">Loading the profile registry…</div>
         </div>
-        <div class="cap"><span>REGISTRIES — vehicles + bodies (<b>specs/vehicles.py</b>, <b>specs/bodies.py</b>)</span></div>
+        <div class="cap"><span>REGISTRIES — vehicles + bodies (<b>specs/vehicles.py</b>, <b>specs/bodies.py</b>)</span><span data-epistemic="truth"></span></div>
         <div id="modelsregistries" style="overflow:auto;margin-bottom:14px">
           <div id="modelsregistriesempty" class="empty">Loading the registries…</div>
         </div>
-        <div class="cap"><span>MODEL GOVERNANCE — ML-01 deployment-ready gate + §25.3 no-command-path</span></div>
+        <div class="cap"><span>MODEL GOVERNANCE — ML-01 deployment-ready gate + §25.3 no-command-path</span><span data-epistemic="truth"></span></div>
         <div id="modelsgovernance" style="overflow:auto">
           <div id="modelsgovernanceempty" class="empty">Loading the model-deployment governance…</div>
         </div>
@@ -1340,7 +1348,7 @@
         <div id="evbox" style="padding:6px 4px"><span style="opacity:.6">—</span></div>
       </div>
       <div id="pane-admin" class="pane">
-        <div class="cap"><span>ADMIN — operator accounts (create · approve · role · revoke · reset · delete)</span>
+        <div class="cap"><span>ADMIN — operator accounts (create · approve · role · revoke · reset · delete)</span><span data-epistemic="truth"></span><!-- FS-03 Security/Operators: the live account store is the source of record -->
           <button class="site" id="admin-refresh" style="font-size:10px">refresh</button></div>
         <div style="padding:10px 4px">
           <div id="admincreate" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:10px;border:1px solid var(--line);border-radius:8px">
@@ -1456,6 +1464,7 @@
 <script src="/assets/terrain_memory_html.js?v=829b436ab1ff"></script><!-- FS-24: pure Construction-pane Terrain Memory readout W3 (sets window.STEWIE_TERRAIN_MEMORY_HTML) -->
 <script src="/assets/nav_stats_html.js?v=3dda1aea883a"></script><!-- FS-24: pure Navigation-pane drive/SLAM stat lines (sets window.STEWIE_NAV_STATS_HTML) -->
 <script src="/assets/cockpit_state.js?v=1ed5684da0be"></script><!-- FS-16: pure routeable cockpit state model (sets window.STEWIE_STATE) -->
+<script src="/assets/provenance_label.js?v=1"></script><!-- FS-03: pure epistemic provenance chips truth/belief/forecast/live (sets window.STEWIE_PROVENANCE) -->
 <script src="/assets/cockpit.js?v=18257a978329"></script>
 </body>
 </html>

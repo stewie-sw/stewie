@@ -990,6 +990,9 @@ async function loadPanorama() {
 document.addEventListener("DOMContentLoaded", () => {
   const cb = document.getElementById("panomarks");
   if (cb) cb.addEventListener("change", applyPanoMarks);
+  // FS-03: render every pane header's data-epistemic placeholder via the one reusable component
+  // (truth/belief/forecast/live); the live chip ships idle and is stream-bound (startRcStream).
+  if (window.STEWIE_PROVENANCE) STEWIE_PROVENANCE.applyProvenanceLabels(document);
 });
 
 // #145 Perception pane: load the REAL served front-stereo point cloud (obs_map_producer ->
@@ -2709,6 +2712,7 @@ function rcDrawMap() {                                   // top-down live map in
 
 function stopRcStream() {
   if (rcStream) { rcStream.close(); rcStream = null; }
+  if (window.STEWIE_PROVENANCE) STEWIE_PROVENANCE.setLiveState(document, false);   // FS-03: LIVE chip back to idle
   if (window.STEWIE3D && STEWIE3D.clearLiveRover) STEWIE3D.clearLiveRover();   // #144 tier-1: drop the live 3D rover
   const btn = qel("rctlm"), hdr = qel("rctlmhdr");
   if (btn) { btn.textContent = "⇄ Live RC telemetry"; btn.classList.remove("active"); }
@@ -2735,6 +2739,8 @@ async function startRcStream() {
   try { es = new EventSource(`/rc/telemetry/stream?interval_s=${encodeURIComponent(_rate)}`); }   // cookie auth, same-origin
   catch (e) { out.textContent = "live stream unavailable — run server.py (" + e + ")"; return; }
   rcStream = es;
+  // FS-03: the stream is genuinely open -> flip the epistemic LIVE chip from idle to flowing
+  if (window.STEWIE_PROVENANCE) STEWIE_PROVENANCE.setLiveState(document, true);
   if (btn) { btn.textContent = "■ Stop (live)"; btn.classList.add("active"); }
   es.onmessage = (ev) => {
     try { renderRcTelemetry(JSON.parse(ev.data)); } catch (e) { /* skip a malformed frame; the next re-renders */ }
