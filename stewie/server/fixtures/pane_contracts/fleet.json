@@ -1,0 +1,38 @@
+{
+  "pane": "fleet",
+  "provenance": "captured from the live dev-open TestClient response (real registries, isolated data dir); regenerate via STEWIE_WRITE_PANE_FIXTURES=1 pytest",
+  "route": "/fleet",
+  "shape": {
+    "count": "int",
+    "default_vehicle": "str",
+    "live_allocation_source": "str",
+    "note": "str",
+    "ok": "bool",
+    "ui_visible_count": "int",
+    "vehicles": [
+      {
+        "can_dig": "bool",
+        "capabilities": [
+          "str"
+        ],
+        "dig_energy_j_per_kg": "float",
+        "drive_power_w": "float",
+        "drum_capacity_kg": "float",
+        "dry_mass_kg": "float",
+        "id": "str",
+        "label": "str",
+        "n_wheels": "int",
+        "onboard_power": [
+          {
+            "capacity_j": "float",
+            "id": "str",
+            "kind": "str",
+            "label": "str"
+          }
+        ],
+        "provenance": "str",
+        "ui_visible": "bool"
+      }
+    ]
+  }
+}

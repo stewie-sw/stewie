@@ -1,0 +1,64 @@
+{
+  "pane": "models",
+  "provenance": "captured from the live dev-open TestClient response (real registries, isolated data dir); regenerate via STEWIE_WRITE_PANE_FIXTURES=1 pytest",
+  "route": "/models",
+  "shape": {
+    "bodies": [
+      {
+        "bekker_regime": "str",
+        "bulk_density_kg_m3": "float",
+        "confidence": "str",
+        "g_m_s2": "float",
+        "id": "str",
+        "label": "str",
+        "provenance": "str",
+        "repose_deg": "float"
+      }
+    ],
+    "body_count": "int",
+    "default_body": "str",
+    "default_profile": "str",
+    "default_vehicle": "str",
+    "model_governance": {
+      "command_path_enforced": "bool",
+      "command_path_invariant": "str",
+      "contract": "str",
+      "deployed_models": [],
+      "deployment_ready_criteria": [
+        "str"
+      ],
+      "schema_endpoint": "str",
+      "status": "str"
+    },
+    "note": "str",
+    "ok": "bool",
+    "profile_count": "int",
+    "profiles": [
+      {
+        "capacity_wh": "float",
+        "deployment_ready": "bool",
+        "dry_mass_kg": "float",
+        "id": "str",
+        "n_cameras": "int",
+        "sha256": "str",
+        "source": "str",
+        "status": "str",
+        "substrate": "str"
+      }
+    ],
+    "profiles_deployable": "int",
+    "vehicle_count": "int",
+    "vehicles": [
+      {
+        "capabilities": [
+          "str"
+        ],
+        "dry_mass_kg": "float",
+        "id": "str",
+        "label": "str",
+        "n_wheels": "int",
+        "provenance": "str"
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "pane": "trainer",
+  "provenance": "captured from the live dev-open TestClient response (real registries, isolated data dir); regenerate via STEWIE_WRITE_PANE_FIXTURES=1 pytest",
+  "route": "/trainer/history",
+  "shape": {
+    "count": "int",
+    "is_director": "bool",
+    "ok": "bool",
+    "sessions": []
+  }
+}

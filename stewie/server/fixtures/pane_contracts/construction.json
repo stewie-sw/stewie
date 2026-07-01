@@ -1,0 +1,46 @@
+{
+  "pane": "construction",
+  "provenance": "captured from the live dev-open TestClient response (real registries, isolated data dir); regenerate via STEWIE_WRITE_PANE_FIXTURES=1 pytest",
+  "route": "/construction",
+  "shape": {
+    "acceptance": {
+      "checks": [
+        {
+          "id": "str",
+          "what": "str"
+        }
+      ],
+      "defers_to_totals": [
+        "str"
+      ]
+    },
+    "balanced_count": "int",
+    "count": "int",
+    "live_acceptance_source": "str",
+    "note": "str",
+    "ok": "bool",
+    "probe_origin_m": [
+      "float"
+    ],
+    "templates": [
+      {
+        "balanced": "bool",
+        "defaults": {},
+        "doc": "str",
+        "id": "str",
+        "n_cut": "int",
+        "n_fill": "int",
+        "n_orders": "int",
+        "orders": [
+          {
+            "action": "str",
+            "depth_m": "float",
+            "footprint_m2": "float",
+            "kind": "str",
+            "note": "str"
+          }
+        ]
+      }
+    ]
+  }
+}
