@@ -286,7 +286,11 @@ def test_cockpit_metrics_pane_surfaces_the_scorecard():
     assert 'id="sc-chips"' in ev, "no #sc-chips slot for the KPI chips"
     # the cockpit wires it: a renderer that reads /session/.../scorecard + shows makespan-vs-optimal
     assert "renderScorecardBoard" in js, "cockpit does not render the scorecard board"
-    assert "/scorecard" in js and "makespan_ratio" in js, "the board does not surface makespan-vs-optimal"
+    assert "/scorecard" in js, "the board does not fetch the scorecard"
+    # FS-24: the KPI chip strip (incl. makespan-vs-optimal) moved into scorecard_chips.js; cockpit wires it.
+    assert "STEWIE_SCORECARD_CHIPS" in js, "cockpit does not use the scorecard-chips module"
+    chips = open(os.path.join(root, "stewie", "server", "web", "assets", "scorecard_chips.js")).read()
+    assert "makespan_ratio" in chips, "the scorecard board does not surface makespan-vs-optimal"
 
 
 def test_pose_divergence_is_believed_vs_true_and_director_gated_in_scorecard(client, monkeypatch):
