@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from scripts.req_trace import parse_requirements, scan_markers
 
-AS_ROWS = [f"AS-{n:02d}" for n in range(1, 18)]
+AS_ROWS = [f"AS-{n:02d}" for n in range(1, 18) if n != 16]   # AS-16 (cross-method benchmark suite) is research-acceptance, tracked in the dissertation extract
 _PATHS = ["stewie", "dart", "lode", "scripts", "ros2_ws"]
 
 # WHERE each row's execution + verification evidence lives:
@@ -29,7 +29,7 @@ _PATHS = ["stewie", "dart", "lode", "scripts", "ros2_ws"]
 TIER = {
     "AS-01": "host", "AS-07": "host", "AS-08": "host", "AS-09": "host", "AS-10": "host",
     "AS-11": "host", "AS-12": "host", "AS-13": "host", "AS-14": "host", "AS-15": "host",
-    "AS-16": "host", "AS-17": "host",
+    "AS-17": "host",
     "AS-02": "container", "AS-03": "container", "AS-04": "container",
     "AS-05": "container", "AS-06": "container",
 }

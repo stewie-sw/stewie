@@ -35,10 +35,11 @@ def test_v_done_requires_a_citation():
 
 
 def test_full_autonomy_track_is_traced():
-    # the §25 release gate: every AS-01..17 row exists in the matrix AND is cited by >=1 test
+    # the §25 release gate: every AS-01..17 row (except AS-16, the cross-method benchmark suite moved to
+    # the dissertation acceptance extract) exists in the matrix AND is cited by >=1 test
     # (the ros2_ws scan is what makes AS-02/03/04/05/06 visible)
     report = trace("PRD.md", PATHS)
-    as_rows = {f"AS-{n:02d}" for n in range(1, 18)}
+    as_rows = {f"AS-{n:02d}" for n in range(1, 18) if n != 16}
     in_matrix = as_rows & set(parse_requirements("PRD.md"))
     assert in_matrix == as_rows, f"AS rows missing from matrix: {sorted(as_rows - in_matrix)}"
     uncited = sorted(as_rows - set(report["cited_ids"]))

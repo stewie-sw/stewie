@@ -1,4 +1,4 @@
-"""#183/#79 shadow-nav landmarks -> Navigation heading factors. The converter pairs each accepted shadow
+"""[REQ:AS-08] #183/#79 shadow-nav landmarks -> Navigation heading factors. The converter pairs each accepted shadow
 landmark (from shadow_landmarks.py) with its body-frame bearing of the anti-solar shadow ray and the
 ephemeris anti-solar azimuth, building the gated PoseGraphSE2 shadow_yaw factors. These tests verify
 the gate and that the estimator recovers a deliberately-wrong heading from the shadow factors. Real

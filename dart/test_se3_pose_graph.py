@@ -1,4 +1,4 @@
-"""Tests for the full SE(3) pose-graph estimator (dart.se3_pose_graph).
+"""[REQ:AS-07] Tests for the full SE(3) pose-graph estimator (dart.se3_pose_graph), the navigation-spine optimizer core.
 
 Two layers, NO synthetic measurements:
 

@@ -19,7 +19,8 @@ from typing import Any, Mapping, Optional
 import numpy as np
 
 DEFAULT_PROFILE_ID = "STEWIE_IPEX_V1"
-PROFILE_ENV = "SOLNAV_PROFILE"
+PROFILE_ENV = "STEWIE_PROFILE"
+PROFILE_ENV_LEGACY = "SOLNAV_PROFILE"   # backward-compat: honored when STEWIE_PROFILE is unset
 _ALIASES = {
     "stewie": DEFAULT_PROFILE_ID,
     "official": "OFFICIAL_LAC_2025_UNVERIFIED",
@@ -98,7 +99,7 @@ def _resource_bytes(filename: str) -> bytes:
 
 
 def _resolve(identifier: Optional[str]) -> tuple[bytes, str]:
-    requested = identifier or os.environ.get(PROFILE_ENV, DEFAULT_PROFILE_ID)
+    requested = identifier or os.environ.get(PROFILE_ENV) or os.environ.get(PROFILE_ENV_LEGACY, DEFAULT_PROFILE_ID)
     key = _ALIASES.get(requested.lower(), requested)
     if key in _FILES:
         return _resource_bytes(_FILES[key]), "package:" + _FILES[key]
@@ -200,7 +201,7 @@ def load_profile(identifier: Optional[str] = None, *, require_verified: bool = F
 
 
 def get_profile() -> SystemProfile:
-    """Load the profile selected by ``SOLNAV_PROFILE`` (Stewie by default)."""
+    """Load the profile selected by ``STEWIE_PROFILE`` (or legacy ``SOLNAV_PROFILE``; Stewie by default)."""
     return load_profile()
 
 

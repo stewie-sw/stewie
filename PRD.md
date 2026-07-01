@@ -1,7 +1,7 @@
 # STEWIE PRD: Lunar Construction and Solar-Terrain Autonomy
 
-**Version:** 7.2
-**Date:** 2026-06-19
+**Version:** 7.3
+**Date:** 2026-06-29
 **Status:** CANONICAL — the single source of truth for project design + reference. All other design
 documents are archived (`docs/archive/`) or are upstream STEWIE architecture/roadmap sources
 (maintained privately; public mapping in §16). The granular execution breakdown lives in the private
@@ -137,6 +137,24 @@ remain); the Navigation pose-graph estimator spine (DEM + shadow-outline factors
 > live e2e release + contracts/lode/server suites) and **deployed live to app.stewie.space** (CI green,
 > `?v=` cache-bust confirmed `MISS`). Spec + history: `docs/cockpit_reorg_plan_2026-06-23.md`.
 >
+> **COUNCIL ROUND 2 (2026-06-29): GIS / world-model / security / API correctness, deployed.** A 6-lens
+> adversarial council review (17 agents, refute-to-confirm) surfaced 11 verified findings. 7 surgical fixes
+> shipped, each TDD-first on REAL Haworth data, deployed and CI-green: **#266** the sun-azimuth true->grid
+> mapping is a REFLECTION (not a ~26 deg rotation; off up to ~180 deg at some sun positions) in
+> `gis_layers.render`/`render_globe`, **plus #272** the same correction in the `/dem/workarea.png` inset (a
+> 3rd `_layer_rgba` consumer that was missed); **#274** mission-time sun geometry now resolves lat+lon per
+> site via `sites.site_latlon` (was hardcoded -87.45, wrong even for Haworth at -86.33); **#267**
+> `/dem/asbuilt` builds on the as-built remembered surface (shared `state.as_built_dem` with the planner);
+> **#269** `run_closed_loop` classifies each leg's telemetry so the SIM watchdog can reach SAFED (the WMDT-L4
+> cascade was dead); **#270** the login rate-limiter is no longer bypassed by a forged Authorization/X-API-Key
+> header; **#275** `/rc/command` returns 400 (not 500) on a malformed GoTo. **Open from the same review
+> (design / decision, NOT done):** #268 user soils are write-only (planner never reads `/soil` back;
+> cross-layer, overlaps #242); #273 flat-drive/haul energy is gravity-independent and ~6x over-estimated on
+> the Moon (`body_gravity` never reaches `drive_j_per_m`); #276 + #281 the operator-gated `/executive/run`
+> forges a director Release sign-off and the MO-02 chain is self-asserted (ConOps decision); #277 + #278
+> `TerrainMemory` save is non-atomic and unlocked; #279 per-email lockout griefing; #280 the observed
+> `TwinStore` map has no downstream consumer.
+>
 > **Honest gates (unchanged — NOT passed):** **P20 live ROS2 node / P23 intern beta** — the
 > bridge/telemetry/role-split are real tested code + container-run-verified, but the live rclpy node is
 > host-gated (rclpy absent) and the P23 "<30 min unassisted Haworth traverse through real RC software" has
@@ -211,6 +229,28 @@ pose-driven elevation gain is the baseline. **ARTICULATION INSTRUMENT TIE-IN**: 
 render-at-posture capture -> pixel measurement -> estimator) both wired + TDD. **Posture models
 RECONCILED**: the parallax dh now sources from `posture_kinematics` (sourced render FK) everywhere, with
 a cross-module consistency test. Findings: `FINDINGS_2026-06-11_SN_evidence_path.md` (+ `.pdf`).
+
+**ARGUS/NAV Lab integration boundary — UPDATED (2026-06-26):** `docs/argus_navigation_integration.md`
+is now the Navigation integration plan. Stanford NAV Lab / Adam Dai is the full-stack baseline for
+stereo VO, DEM anchoring, loop closure, neural terrain/radiance maps, and IPEx digital-twin autonomy.
+STEWIE's protected Navigation lane is narrower: construction-rover posture as a commanded localization
+action, articulation-created parallax as a local position cue, shadow direction as yaw, shadow length and
+shadow boundaries as queued research channels, and localization on terrain the rover changes. New
+Navigation producers must emit typed `MeasurementFactor` records with factor type, covariance, frame,
+source, and evidence class; modeled cue runs may not be reported as measured-cue results. Current
+metric-shadow guardrail: shadow length and shadow-boundary registration remain proposed or modeled until
+the negative `sigma_n_two_split_2026-06-24` status is replaced by a passing residual-coverage artifact.
+
+**STEWIE world-model / digital-twin architecture loop — UPDATED 2026-06-29:** the current implementation
+graph (`docs/stewie_digital_twin_interaction_map_2026-06-28.md`) has 51 current interactions and is the
+implementation-status map. The new Phase 1 v2 coverage map
+(`docs/stewie_interaction_layer_phase1_v2_current_2026-06-29.md`) accounts for the full 60-row target
+taxonomy using current STEWIE names, with status counts of 8 complete, 22 partial, 9 started, 18 planned,
+and 3 sim-only rows. The reference architecture using current names is
+`docs/stewie_layered_reference_architecture_current_2026-06-29.md`, and the gap analysis is
+`docs/stewie_wm_dt_architecture_gap_analysis_2026-06-29.md`. The next implementation target is not a
+large standalone framework: it is the six-layer executable slice loop in §28, organized for parallel
+agents and Graphify-backed status updates.
 
 **NEXT SESSION — plan (2026-06-11):** finish the articulation-instrument tie-in chain, then the queued
 SN slices. Bounded TDD, each gate-byte-identical with a `[REQ:]` marker + a baseline-comparing notebook:
@@ -777,8 +817,9 @@ excavation, ShadowNav, Navigation, terramechanics, and mission authority remain 
 | AS-13 | P1 | Mission executive node: add a ROS2-side executive that monitors preconditions, acknowledgements, covariance, resource reservations, faults, acceptance state, and safing, then emits continue/pause/replan/relocalize/reverse/SAFE decisions. | P | N | P | N |
 | AS-14 | P1 | ROS diagnostics and logging: every ROS node emits diagnostics, lifecycle state, health, latency, dropped frames, QoS warnings, command eligibility, SAFE events, and correlation IDs into the STEWIE observability ledger without logging secrets or truth-denied fields. | P | N | N | NA |
 | AS-15 | P0 | NASA-style TDD gate: every autonomy slice lands test-first with `[REQ:<ID>]` markers, container smoke, deterministic fixtures, failure-mode tests, Power-of-10/static-analysis review for safety-critical code, and no capability claim until route/node/UI/log evidence exists. | P | P | P | NA |
-| AS-16 | P1 | ShadowNav/Navigation/Stanford benchmark suite: compare passive VO, Stanford-style stereo SLAM, ShadowNav factors, Navigation articulation factors, and combined fusion across sun angles, terrain changes, rocks, PSR, camera degradation, and excavation state. | P | N | P | N |
+| AS-16 | P1 | (MOVED to the dissertation acceptance extract; research-acceptance, not a production gate row) ShadowNav/Navigation/Stanford benchmark suite: compare passive VO, Stanford-style stereo SLAM, ShadowNav factors, Navigation articulation factors, and combined fusion across sun angles, terrain changes, rocks, PSR, camera degradation, and excavation state. | P | N | P | N |
 | AS-17 | P0 | TRL5 stereo rig authority gate: navigation, mapping, ShadowNav, Navigation, RViz, Gazebo, and cockpit visuals load camera intrinsics/extrinsics from the authoritative IPEx/LAC camera profile, not hard-coded baselines. Acceptance distinguishes the TRL5-final 0.05 m stereo module (sourced SCHULER24 Figs 28/30/32, single rigid housing) from the rejected 0.165 m shoulder-split; any non-final profile is labelled rejected/legacy. **2026-06-18: legacy 0.070 m fixture RETIRED — the G2 corpus (13 g2cal poses + frame fixture) re-rendered at 0.05 m, profile/camera_rig/ipex_specs/system_profile/manifest re-frozen, `stereo_authority.py` is the gate (4 tests). Camera count confirmed against SCHULER24: 8 physical / 4 operational + 4 redundant (NOT 8-surround). Suite green (308 eval/specs + 731 dart/lode).** | D | N | D | G |
+| AS-18 | P0 | Typed ARGUS Navigation evidence contract: every accepted navigation measurement crossing the estimator seam carries factor type, covariance, frame, source, and evidence class; shadow-yaw remains heading-only; metric shadow-length/boundary factors are blocked from calibrated/measured labels until a passing residual artifact replaces the 2026-06-24 negative. | D | D | P | N |
 
 ## 8. User Workflows
 
@@ -2019,7 +2060,7 @@ NASA-style development rules for this sequence:
 | 10 | AS-12 | Lower verified Plan IR into ROS2 paths, action goals, work goals, observation goals, bounded velocity commands, replan events, and command eligibility state under AG-08, NV-12, and SF-01. | Command tests prove unsafe, unauthorized, stale, or namespace-conflicting commands fail closed before ROS emission. |
 | 11 | AS-13 | Add the ROS-side mission executive: monitor preconditions, acknowledgements, covariance, reservations, faults, acceptance state, and safing; emit continue/pause/replan/relocalize/reverse/SAFE decisions. | Executive tests cover nominal progress, timeout, blocked path, covariance loss, resource conflict, and SAFE escalation. |
 | 12 | AS-14 | Wire structured ROS diagnostics and logs into the STEWIE observability ledger with lifecycle state, latency, dropped frames, QoS warnings, command eligibility, SAFE events, and correlation IDs. | Log tests prove every failure path has a ledger event and no secrets or truth-denied fields are emitted. |
-| 13 | AS-16 | Build the benchmark suite comparing passive VO, Stanford-style stereo SLAM, ShadowNav, Navigation, and fused localization across sun angles, terrain changes, rocks, PSR, camera degradation, and excavation state. | Benchmark report includes per-method metrics, ablations, failure classes, fixed seeds, and reproducible container command. |
+| 13 | AS-16 | (MOVED to the dissertation acceptance extract; research-acceptance, not a production gate row) Build the benchmark suite comparing passive VO, Stanford-style stereo SLAM, ShadowNav, Navigation, and fused localization across sun angles, terrain changes, rocks, PSR, camera degradation, and excavation state. | Benchmark report includes per-method metrics, ablations, failure classes, fixed seeds, and reproducible container command. |
 | 14 | AS-01 through AS-17 | Run release gate: requirement trace, ROS container smoke, browser cockpit evidence, RViz/Gazebo smoke, security scan, SBOM, benchmark report, TRL5 stereo-rig profile evidence, and stale-status reconciliation. | No row advances to `D` without implementation, execution, verification, and qualification evidence in §7. |
 
 ### 26.2 Front-End And Visual Organization For This Sequence
@@ -2267,3 +2308,223 @@ touch `mission_planner.py`, so naive parallel agents would collide. The structur
    Claude/co-author trailer.
 
 This is what makes §27.3 dispatchable to a swarm without merge chaos.
+
+## 28. STEWIE world-model / digital-twin executable architecture loop (2026-06-29)
+
+This section supersedes ad hoc world-model planning for the next STEWIE architecture push. It folds the
+current interaction catalogue, the layered reference architecture, and the gap analysis into one
+agent-dispatchable loop.
+
+Authoritative inputs:
+
+- current implementation graph: `docs/stewie_digital_twin_interaction_map_2026-06-28.md`
+- Phase 1 v2 target coverage map: `docs/stewie_interaction_layer_phase1_v2_current_2026-06-29.md`
+- current-name reference architecture: `docs/stewie_layered_reference_architecture_current_2026-06-29.md`
+- current gap analysis: `docs/stewie_wm_dt_architecture_gap_analysis_2026-06-29.md`
+- Graphify export: `graphify-out/graph.json` from `scripts/export_stewie_interaction_graph.py`
+
+### 28.1 Product decision
+
+The six next layers are required, but they must be implemented as thin executable contracts over the
+same interaction graph, not as six new architecture frameworks. The dependency chain is:
+
+```text
+state variables
+  -> interaction wires
+    -> cascades
+      -> executive decisions
+        -> scenarios
+          -> verification evidence
+```
+
+The PRD claim boundary is:
+
+- A row is **accounted for** when it exists in the Phase 1 v2 table with current STEWIE block names,
+  variables, legacy-current mapping, status, and next-build field.
+- A row is **implemented** when producer, consumer, runtime wire, log/evidence surface, and test exist.
+- A row is **claimable** only when the verification layer states the acceptance criterion and the
+  refutation condition, and the evidence artifact is present.
+- A row marked `sim_only` may support lunar reasoning, but it must not be described as
+  hardware-validated on STEWIE.
+
+### 28.2 The six build layers
+
+| Layer | Purpose | Deliverable | Needed now? |
+|---|---|---|---|
+| **WMDT-L1 State Registry** | Declare every state block, variable, unit, frame, range, owner, persistence class, and source of truth. | machine-readable registry plus rendered markdown crosswalk | yes, blocks all rigorous wiring |
+| **WMDT-L2 Interaction Wiring** | Turn `INT` rows into runtime wires: ROS topics, services, message types, logs, rates, QoS, and producer/consumer ownership. | ICD table plus bridge/test stubs for each implemented row | yes, turns prose into software architecture |
+| **WMDT-L3 Cascade Tests** | Convert interaction paths into connected walks with measurable propagation. | `CAS` records plus tests/replays for each path | yes, required for causal dissertation claims |
+| **WMDT-L4 Executive Behavior** | Bind cascades to `ExecutiveState` decisions: hold, safe, replan, power-save, comm-loss fallback, excavation start/stop. | transition table plus behavior tests | yes, otherwise the twin does not change autonomy |
+| **WMDT-L5 Scenario Runs** | Exercise multiple edges in repeatable mission playthroughs. | scenario fixtures, replay logs, Graphify trace, pass/fail summary | yes, but keep the first set small |
+| **WMDT-L6 Verification Evidence** | State what proves or refutes each claim. | `VV`/`KPI`/`FID` records tied to logs, tests, figures, or NASA-open references | yes, this is the claim boundary |
+
+### 28.3 Current coverage baseline
+
+The 51-row current implementation graph remains the live status graph. The 60-row Phase 1 v2 table is
+the target coverage graph. As of 2026-06-29:
+
+| Status | Phase 1 v2 rows |
+|---|---:|
+| complete | 8 |
+| partial | 22 |
+| started | 9 |
+| planned | 18 |
+| sim_only | 3 |
+
+Missing or under-modeled target blocks that must become first-class registry entries before their rows
+can graduate:
+
+- `DustDynamics`
+- `CommunicationState`
+- `MultiAgentCoordination`
+- `HealthMonitoring`
+- `FaultDetection`
+- `ResourceModeling`
+- `PredictionModels`
+- `DigitalTwinSync`
+- `PersistenceWorldState`
+
+### 28.4 First vertical slices
+
+Do not try to implement all 60 rows at once. Each loop must advance one vertical slice from state
+variables through evidence.
+
+| Slice | Interaction path | Why first | Minimum completion condition |
+|---|---|---|---|
+| **WMDT-S1 soft-soil caution** | `RegolithState -> WheelDynamics -> RoverBelief -> MissionPlan/ExecutiveState` | already closest to implemented and directly tied to lunar mobility | slip/sinkage raises `pos_sigma_m`; planner or executive visibly shortens, holds, or replans; replay evidence exists |
+| **WMDT-S2 shadow perception loss** | `LightingModel/TerrainMesh -> PerceptionState -> FaultDetection -> MissionPlan/ExecutiveState` | central to ShadowNav and south-pole low-sun operations | changing sun/shadow lowers disparity confidence or factor acceptance; executive response is logged |
+| **WMDT-S3 excavation mutates terrain** | `ExcavatorDrum -> MutableTerrainLedger/TerrainMesh -> PerceptionState/MissionPlan` | differentiates STEWIE from rover-only navigation stacks | cut/fill event changes terrain, invalidates stale map/cost, and forces remap or replan |
+| **WMDT-S4 persistence and replay** | `RoverPose/MutableTerrainLedger -> DigitalTwinSync -> PersistenceWorldState` | required for digital-twin rigor and reproducible experiments | checkpoint/replay reproduces state within declared tolerance and emits divergence metric |
+| **WMDT-S5 power-window survival** | `Ephemeris/LightingModel/ThermalEnvironment -> PowerThermalState -> ExecutiveState` | required for lunar south-pole mission planning | illumination or shadow window changes generation/SoC and causes a power-aware mode decision |
+| **WMDT-S6 comm-loss fallback** | `TerrainMesh/Ephemeris -> CommunicationState -> ExecutiveState` | required for supervised autonomy rather than teleop claims | link state/latency window causes fallback mode and prevents unsafe open-loop continuation |
+
+### 28.5 Parallel agent lanes
+
+Agents may fan out only when they own disjoint artifacts or clearly additive rows. Shared status docs
+and generated Graphify outputs merge last.
+
+| Lane | Owns | Primary files | May edit | Must not edit |
+|---|---|---|---|---|
+| **Lane A, registry** | WMDT-L1 state variables and block ownership | new registry under `docs/` or `stewie/twin/`; reference architecture doc | variable schemas, crosswalk tables | runtime behavior |
+| **Lane B, wiring** | WMDT-L2 ICD and ROS/log contracts | `stewie/bridge/`, `ros2_ws/`, wiring docs | topic/message/service contracts, bridge tests | planner algorithms |
+| **Lane C, cascades** | WMDT-L3 connected paths and Graphify validation | `docs/*cascade*`, `scripts/export_stewie_interaction_graph*.py`, `graphify-out/` | CAS records, graph export, diagnostics | state variable definitions except references |
+| **Lane D, executive** | WMDT-L4 behavior transitions | `lode/autonomy.py`, `stewie/contracts/`, executive router/tests | transition guards and actions | Graphify source tables |
+| **Lane E, scenarios** | WMDT-L5 mission playthroughs | `validation/`, `lode/playthrough.py`, scenario docs/tests | fixtures, replay logs, scenario summaries | core schemas |
+| **Lane F, evidence** | WMDT-L6 VV/KPI/FID and claim status | `docs/`, `stewie/eval/validation/`, release/status tooling | acceptance/refutation records, figures, status derivation | implementation logic except test hooks |
+
+Merge rule: L1 registry and L2 wiring merge before L3/L4 depend on them. Scenario/evidence lanes may
+start with fixtures, but they cannot mark a slice complete until the registry, wire, cascade, executive
+decision, and verification record all resolve.
+
+### 28.6 Backend-to-frontend contract
+
+The WMDT loop must map backend state to cockpit surfaces explicitly. A row is not product-complete if it
+only exists in a backend module, ROS topic, log, or Graphify table; the operator or director must have a
+bounded surface that shows the state, the provenance, and the command consequence without exposing truth
+to the wrong role.
+
+The cockpit mapping uses the current ConOps spine: Plan, Rehearse, Validate, Release, Execute, Report,
+plus System/Admin for health and governance. Validate owns navigation/perception evidence; Execute stays
+SIMULATION/FORECAST until the relevant live-execution gates pass.
+
+| Backend object | API/topic/log contract | Frontend surface | What the UI must show | Primary slice |
+|---|---|---|---|---|
+| `LunarSite` | site DEM endpoints, site metadata, body/frame config | **Plan** site selector and map header | site ID, body, lat/lon, DEM ID, cell size, frame/provenance | all slices |
+| `TerrainMesh`, `RegolithState`, `MutableTerrainLedger` | `/plan`, terrain layers, terrain-memory read-back, Graphify row status | **Plan** and **Rehearse** map layers | DEM/as-built toggle, changed cells, slope/traversability, source/provenance, stale-map warning | WMDT-S1, WMDT-S3 |
+| `RoverPose`, `WheelDynamics`, `RoverBelief` | `/stewie/odom`, belief packet, replay log, `/tf` | **Validate** navigation sub-pane | pose, slip, sinkage if available, `pos_sigma_m`, odom-vs-belief divergence, covariance threshold state | WMDT-S1 |
+| `LightingModel`, `Ephemeris`, `PerceptionState` | `/ephemeris`, render/shadow products, disparity/factor logs | **Validate** perception/navigation sub-pane | sun azimuth/elevation, shadow mask, disparity confidence, accepted/rejected factors, low-light warning | WMDT-S2 |
+| `ArticulationState`, `CameraRig`, `SurveyedMonuments` | `/tf_static`, render packet, camera profile, landmark/factor logs | **Validate** navigation/perception sub-pane | posture, camera extrinsics, active camera pair, landmark visibility, factor acceptance/rejection | WMDT-S2 |
+| `ExcavatorDrum`, `MutableTerrainLedger` | excavation event log, drum/current packet, terrain diff | **Execute** forecast and **Report** evidence | commanded cut/fill, measured or simulated volume, before/after terrain diff, acceptance status | WMDT-S3 |
+| `MissionPlan` | `/plan`, `PlanResult`, `/executive/advance`, mission lifecycle evidence | **Plan**, **Rehearse**, **Release**, and **Report** | objective, constraints, route, costs, infeasible reasons, release eligibility, replay/evidence links | all slices |
+| `DigitalTwinSync`, `PersistenceWorldState` | `WorldTransaction`, `TransactionLog`, checkpoint/replay diff | **System** twin/provenance pane and **Report** | world hash, chain hash, checkpoint age, replay divergence, unresolved sync mismatch | WMDT-S4 |
+| `PowerThermalState`, `ThermalEnvironment`, `Ephemeris` | battery/power packet, mission windows, thermal flags | **Plan**, **Execute**, and **System** | SoC/reserve, illumination window, heater load, power-save/night-survival trigger | WMDT-S5 |
+| `CommunicationState` | link-state packet, latency/ack ledger, contact-window schedule | **Execute** command rail and **System** comms pane | link state, one-way/ack latency, command eligibility, comm-loss fallback reason | WMDT-S6 |
+| `DustDynamics` | dust field/deposition log, camera/panel/radiator degradation metrics | **Validate**, **System**, and **Report** | dust opacity/coverage, affected subsystem, degradation trend, sim-only or analog label | Phase 2 dust-accrual slice |
+| `FaultDetection`, `HealthMonitoring` | fault rollup, health index, degradation trend, `/stewie/exec/decision` reason | **Execute** command rail and **System** health pane | active fault class, severity, trigger evidence, derating/safe action, remaining-life estimate | WMDT-S1, WMDT-S2, WMDT-S5, WMDT-S6 |
+| `ResourceModeling` | resource-value map, `ice_frac`, prospecting layer, goal-priority log | **Plan** resource layer and **Rehearse** objective inspector | resource target, confidence/provenance, goal priority, excavation rationale | Phase 2 prospecting slice |
+| `PredictionModels` | slip/illumination/power forecast, predictor residual, activity-window schedule | **Plan**, **Rehearse**, and **System** model pane | forecast map, prediction residual, confidence, model version, correction event | WMDT-S1, WMDT-S2, WMDT-S5 |
+| `MultiAgentCoordination` | shared-map updates, reservation ledger, task split, inter-agent route state | **Plan** fleet pane and **Execute** coordination pane | agent positions, reservations, changed shared cells, route conflicts, right-of-way decision | Phase 2 multi-agent slice |
+| `ExecutiveState` | `/stewie/exec/decision`, `/executive/advance`, mission lifecycle log | **Release**, **Execute**, and **Report** | current state, guard that fired, safe/replan/hold reason, operator action required | WMDT-S1 through WMDT-S6 |
+| `VV`/`KPI`/`FID` evidence records | validation JSON, figure path, Graphify diagnostic, test ID | **Report** and **System** validation pane | claim label, acceptance criterion, refutation condition, artifact link, pass/fail status | all slices |
+
+Coverage check: the table above explicitly names all 18 current Graphify state blocks and all 9 added
+Phase 1 target blocks. The 60 Phase 1 v2 interaction rows also resolve their source/target endpoint
+tokens to these mapped objects; `all subsystems` in the checkpoint/replay row is treated as a global
+view over the same mapped object set. If a new state block appears in the Graphify export or the state
+registry, this table must gain a row in the same change.
+
+Frontend completion rule for each slice:
+
+1. **Empty state:** pane renders without fake data and names the missing backend producer.
+2. **Fixture state:** pane renders a checked fixture with SIMULATION/FORECAST/LIVE label.
+3. **Live/replay state:** pane consumes the real API, ROS bridge output, or replay log.
+4. **Evidence state:** pane links to the test, replay, figure, Graphify diagnostic, or validation JSON.
+5. **Role boundary:** operator sees operational state; director may see truth/divergence; trainee never
+   sees denied truth fields.
+
+Agent ownership:
+
+- Backend agents own producers, schemas, APIs, topics, replay logs, and tests.
+- Frontend agents own routeable panes, typed adapters, empty/loading/error/success states, and role labels.
+- Evidence agents own the validation artifact and claim status.
+- A slice merges only when all three views agree on the same variable names and artifact IDs.
+
+### 28.7 Loop protocol
+
+Each autonomous loop uses the same packet format so work can resume without rereading the whole PRD.
+
+**Loop input packet**
+
+- selected slice ID, for example `WMDT-S2`
+- rows to advance, for example `INT-041`, `INT-043`, `INT-047`, `INT-142`
+- owned lane and files
+- starting status from the v2 table
+- acceptance criterion and refutation condition
+
+**Loop body**
+
+1. Read the current source artifacts listed at the top of §28.
+2. Update the state registry or interaction row only if the variable names and endpoints are current.
+3. Implement the smallest runtime wire or replay needed to move one row forward.
+4. Add or update the cascade/behavior/scenario/evidence artifact that proves the row moved.
+5. Regenerate Graphify if endpoints, rows, or status changed.
+6. Run targeted tests plus any graph/export diagnostics touched by the lane.
+
+**Loop exit packet**
+
+- rows changed and old -> new status
+- files changed
+- tests/diagnostics run
+- evidence artifact path
+- remaining blocker, if any, classified as code, data, hardware, NASA-reference, or sim-only
+- next recommended slice
+
+No loop may mark a row complete because the concept is documented. Completion requires an executed
+artifact: test, replay, log, figure, Graphify diagnostic, or generated status surface.
+
+### 28.8 Implementation backlog
+
+| ID | Work item | Layer | Status |
+|---|---|---|---|
+| **WMDT-01** | Create the state-variable registry for the 18 current blocks and the 9 added target blocks. | L1 | next |
+| **WMDT-02** | Export the 60-row Phase 1 v2 table to Graphify as a separate target graph without replacing the 51-row implementation graph. | L2/L3 | next |
+| **WMDT-03** | Add ICD rows for the first three slices: soft soil, shadow perception loss, excavation mutation. | L2 | next |
+| **WMDT-04** | Implement or document the cascade tests for WMDT-S1, WMDT-S2, and WMDT-S3. | L3 | next |
+| **WMDT-05** | Bind first-slice cascade outputs to `ExecutiveState` decisions and logs. | L4 | next |
+| **WMDT-06** | Build three scenario fixtures: soft-soil traverse, shadowed navigation, excavation-remap. | L5 | next |
+| **WMDT-07** | Add VV/KPI/FID records with refutation conditions for every row touched by WMDT-S1 through WMDT-S3. | L6 | next |
+| **WMDT-08** | Reconcile PRD §7 statuses affected by the new world-model/digital-twin loop through `[REQ:]` evidence, not manual flips. | L6/OPS | planned |
+| **WMDT-09** | Add typed frontend adapters and pane bindings for the backend-to-frontend contract in §28.6. | UI/L2/L6 | next |
+
+### 28.9 Claim discipline
+
+The dissertation/committee claim should use three labels:
+
+- **implemented in STEWIE**: code path exists, is wired, and has test or replay evidence
+- **validated in STEWIE analog**: hardware or terrestrial simulation evidence supports the mechanism
+- **lunar-parameterized in sim**: lunar physics is represented from NASA-open references, but not
+  hardware-validated on STEWIE
+
+This prevents the common over-claim: STEWIE can validate the mechanism and the autonomy response, while
+vacuum, one-sixth gravity, electrostatic dust, PSR radiometry, multi-week thermal cycles, and long-period
+relay geometry remain simulation/reference-layer claims unless a future testbed can reproduce them.

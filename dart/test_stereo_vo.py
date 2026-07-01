@@ -1,4 +1,4 @@
-"""TDD for dart.stereo_vo: calibrated stereo triangulation + PnP visual odometry on the
+"""[REQ:AS-07] TDD for dart.stereo_vo: calibrated stereo triangulation + PnP visual odometry on the
 REAL rendered lunar stereo traverse (Godot sensor model, crater_boulders scene, frames 000..003).
 
 Real inputs only. The pipeline reuses dart.features for keypoints/matching, triangulates
