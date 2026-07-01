@@ -32,7 +32,7 @@ ASSETS = ("cockpit.js", "three3d.js", "geofmt.js", "globe_ellipsoid.js",
           "footprint_geom.js",
           "fleet_render.js", "rehearse_render.js", "construction_render.js", "models_render.js",
           "plan_stepper.js", "contents_tree.js", "trainer_boards.js", "world_state_html.js",
-          "regolith_estimate.js",
+          "regolith_estimate.js", "scorecard_chips.js",
           "layouts.js")
 
 

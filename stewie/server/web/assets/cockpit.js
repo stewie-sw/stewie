@@ -4607,19 +4607,8 @@ function renderScorecardBoard(sid, b) {
   const cur = LAST_SCORECARD;
   document.getElementById("sc-sid").textContent = cur.sid.slice(0, 8);
   const m = cur.b;
-  const chip = (k, v, warn) => `<span style="border:1px solid ${warn ? "#c0392b" : "var(--line)"};border-radius:6px;padding:3px 8px;margin:2px;display:inline-block;font-size:11px"><span style="color:var(--muted)">${k}</span> <b style="font-variant-numeric:tabular-nums">${v}</b></span>`;
-  const html =
-    chip("objectives", `${m.completed ? "✓" : "✗"} ${m.objectives_total}`) +
-    chip("legs delivered", `${m.legs_delivered}/${m.legs_total}`) +
-    chip("comm delivered", `${(m.comm_delivered_frac * 100).toFixed(0)}%`) +
-    chip("makespan", `${m.makespan_s} s`) +
-    chip("optimal", `${m.optimal_s} s`) +
-    chip("makespan/opt", `${(m.makespan_ratio || 1).toFixed(2)}×`, (m.makespan_ratio || 1) > 1.15) +
-    chip("recharges", m.recharges) + chip("replans", m.replans) +
-    chip("stranded pkts", m.stranded_packets) + chip("dropped pkts", m.dropped_packets) +
-    chip("energy", `${m.energy_MJ} MJ`) +
-    (m.energy_divergence_J !== undefined ? chip("⚠ believed↔actual (truth)", `${m.energy_divergence_J} J`, true) : "");
-  document.getElementById("sc-chips").innerHTML = html;
+  // FS-24: the pure chip strip lives in scorecard_chips.js; the DOM write stays here.
+  document.getElementById("sc-chips").innerHTML = window.STEWIE_SCORECARD_CHIPS.boardChips(m);
   host.style.display = "block";
 }
 qel("sesstart").onclick = async () => {                  // B3: operator/director training session
@@ -4645,16 +4634,9 @@ qel("sesstart").onclick = async () => {                  // B3: operator/directo
       const sb = await (await fetch(`/session/${j.session_id}/scorecard`, { headers: apiHeaders() })).json();
       if (sb.ok) {
         const b = sb.scorecard;
-        const chip = (k, v) => `<span style="border:1px solid var(--line);border-radius:6px;padding:3px 8px;margin:2px;display:inline-block;font-size:11px"><span style="color:var(--muted)">${k}</span> <b style="font-variant-numeric:tabular-nums">${v}</b></span>`;
+        // FS-24: the pure quick chip strip lives in scorecard_chips.js; the DOM write stays here.
         o.innerHTML += `<div style="margin-top:8px"><b style="font-family:Orbitron,system-ui;font-size:10px;letter-spacing:.08em">TRAINER SCORECARD</b><br>` +
-          chip("objectives", `${b.completed ? "✓" : "✗"} ${b.objectives_total}`) +
-          chip("legs delivered", `${b.legs_delivered}/${b.legs_total}`) +
-          chip("comm delivered", `${(b.comm_delivered_frac * 100).toFixed(0)}%`) +
-          chip("makespan/opt", `${(b.makespan_ratio || 1).toFixed(2)}×`) +
-          chip("recharges", b.recharges) + chip("replans", b.replans) +
-          chip("stranded", b.stranded_packets) + chip("energy", `${b.energy_MJ} MJ`) +
-          (b.energy_divergence_J !== undefined ? chip("⚠ divergence (truth)", `${b.energy_divergence_J} J`) : "") +
-          `</div>`;
+          window.STEWIE_SCORECARD_CHIPS.quickChips(b) + `</div>`;
         renderScorecardBoard(j.session_id, b);             // TR-01: the Metrics-pane A-board surface
       }
     } catch (e) { /* scorecard optional */ }
