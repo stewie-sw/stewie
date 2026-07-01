@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
 from stewie.server.deps import require_auth
+from stewie.server.services import log_event
 from stewie.specs.config import data_dir
 
 router = APIRouter()
@@ -195,6 +196,8 @@ def dem_asbuilt(req: AsBuiltRequest, _auth: str = Depends(require_auth)):
     dem = state.as_built_dem(req.site, dem, origin)
     d = mission_terrain_delta(mission, dem=dem, dem_origin=origin)
     ab, base, delta = d["as_built"], d["base"], d["delta"]
+    log_event(_auth, "dem.asbuilt",                          # FS-19: backend contract-call audit
+              f"{req.site}: {len(payload['orders'])} orders, {d['mass_moved_kg']:.0f} kg moved")
     return {"ok": True, "site": req.site, "body": mission.body,
             "rows": int(d["rows"]), "cols": int(d["cols"]), "cell_m": float(d["cell_m"]),
             "x0": float(d["x0"]), "y0": float(d["y0"]),

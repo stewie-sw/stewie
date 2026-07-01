@@ -66,6 +66,7 @@ def draft_save(doc: dict, identity: str = Depends(require_auth)):
         raise HTTPException(status_code=429, detail="draft autosave quota exceeded; slow down")
     try:
         out = OBJ.save_draft(doc, owner=identity)
+        log_event(identity, "draft.save", "sandbox")        # FS-19: operator-action audit
         return {"ok": True, **out}
     except ValueError as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
@@ -130,7 +131,10 @@ def mission_publish(name: str, owner: str | None = None,
 def mission_restore(name: str, ns: str = "live", identity: str = Depends(require_role("operator"))):
     """AG-06/07: restore the most-recent trashed copy of a mission within a namespace (operator+)."""
     namespace, owner = namespace_for(identity, ns)
-    return {"ok": OBJ.restore("missions", name, namespace=namespace, owner=owner)}
+    ok = OBJ.restore("missions", name, namespace=namespace, owner=owner)
+    if ok:
+        log_event(identity, "mission.restore", name)        # FS-19: operator-action audit
+    return {"ok": ok}
 
 
 @router.get("/admin/trash/missions")
@@ -142,4 +146,7 @@ def mission_trash(_auth: str = Depends(require_role("director"))):
 @router.delete("/admin/trash/missions/{filename}")
 def mission_purge(filename: str, _auth: str = Depends(require_role("director"))):
     """AG-06: permanent purge of one trashed mission -- director-only (no hard delete otherwise)."""
-    return {"ok": OBJ.purge_trash("missions", filename)}
+    ok = OBJ.purge_trash("missions", filename)
+    if ok:
+        log_event(_auth, "mission.purge", filename)         # FS-19: irreversible-delete audit
+    return {"ok": ok}

@@ -197,6 +197,7 @@ def plan_commands(req: PlanRequest, _auth: str = Depends(heavy_quota)):
     dem, origin = state.moon_dem(getattr(req, "site", "haworth")) if mission.body == "moon" else (None, (0.0, 0.0))
     dem = _as_built_dem(getattr(req, "site", "haworth"), dem, origin)   # #242: command tape on the remembered surface
     cmds = RC.commands_from_plan(mission, cell_m=cell, dem=dem, dem_origin=origin)
+    log_event(_auth, "plan.commands", f"{mission.name}: {len(cmds)} commands")   # FS-19: plan audit
     return {"ok": True, "cell_m": cell, "commands": [
         {"kind": c.kind, "leg_id": c.leg_id, "goal_row": c.goal_row, "goal_col": c.goal_col,
          "v_max_mps": c.v_max_mps, "goal_radius_cells": c.goal_radius_cells} for c in cmds]}
@@ -214,7 +215,9 @@ def plan_math_endpoint(req: PlanRequest, _auth: str = Depends(heavy_quota)):
     mission = MP.mission_from_dict(payload)
     dem, origin = state.moon_dem(getattr(req, "site", "haworth")) if mission.body == "moon" else (None, (0.0, 0.0))
     dem = _as_built_dem(getattr(req, "site", "haworth"), dem, origin)   # #242: math worksheet on the remembered surface
-    return {"ok": True, **MP.plan_math(mission, dem=dem, dem_origin=origin)}
+    out = MP.plan_math(mission, dem=dem, dem_origin=origin)
+    log_event(_auth, "plan.math", mission.name)                         # FS-19: plan-review audit
+    return {"ok": True, **out}
 
 
 @router.post("/resync/compare")
@@ -285,10 +288,13 @@ def post_plan(req: PlanRequest, _auth: str = Depends(heavy_quota)):
     if over is not None:
         return over
     try:
-        return _bounded(lambda: _plan_impl(req, payload))
+        res = _bounded(lambda: _plan_impl(req, payload))
     except concurrent.futures.TimeoutError:
         return JSONResponse(status_code=503, content={"ok": False, "error":
                             "plan exceeded the compute budget; reduce the mission size or retry"})
+    if not isinstance(res, JSONResponse):                    # FS-19: audit the successful plan/replan
+        log_event(_auth, "plan.run", str(payload.get("name", "")))
+    return res
 
 
 # #267: the as-built remembered-surface imprint is the SINGLE source of truth in state.py, shared with the

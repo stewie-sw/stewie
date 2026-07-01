@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from stewie.server.deps import require_auth
+from stewie.server.services import log_event
 
 router = APIRouter()
 log = logging.getLogger("stewie.server")
@@ -46,7 +47,7 @@ class LocalPlanRequest(BaseModel):
 
 
 @router.post("/nav/local_plan")
-def post_local_plan(req: LocalPlanRequest, _auth: None = Depends(require_auth)):
+def post_local_plan(req: LocalPlanRequest, _auth: str = Depends(require_auth)):
     """Plan one short-horizon local arc to the goal around the given obstacles, with its bounded drive
     command. Returns feasible=false (the global router takes over) when no arc clears the obstacles."""
     from lode import local_planner as LP
@@ -58,6 +59,7 @@ def post_local_plan(req: LocalPlanRequest, _auth: None = Depends(require_auth)):
                              horizon_m=float(req.horizon_m), clearance_m=float(req.clearance_m))
     except (ValueError, RuntimeError) as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    log_event(_auth, "nav.local_plan", f"feasible={plan['feasible']}")   # FS-19: mission-decision audit
     if not plan["feasible"]:
         return {"ok": True, "feasible": False, "reason": plan["reason"],
                 "n_sampled": plan["n_sampled"], "n_feasible": plan["n_feasible"]}
@@ -100,16 +102,18 @@ _FAULT_KEYS = ("tip_margin_deg", "slip", "loc_sigma_m", "battery_frac", "temp_c"
 
 
 @router.post("/nav/faults")
-def post_faults(req: FaultRequest, _auth: None = Depends(require_auth)):
+def post_faults(req: FaultRequest, _auth: str = Depends(require_auth)):
     """NV-08: classify the active fault state from the supplied telemetry (tip margin, slip, pose sigma,
     battery fraction, temperature, actuator status) -> the fault records + a safety-critical rollup."""
     from lode import faults as F
     active = F.classify_faults(**{k: getattr(req, k) for k in _FAULT_KEYS if getattr(req, k) is not None})
-    return {"ok": True, "faults": active, "summary": F.fault_summary(active)}
+    summary = F.fault_summary(active)
+    log_event(_auth, "nav.faults", f"{len(active)} active, safety_critical={summary.get('safety_critical')}")
+    return {"ok": True, "faults": active, "summary": summary}
 
 
 @router.post("/nav/executive")
-def post_executive(req: ExecutiveRequest, _auth: None = Depends(require_auth)):
+def post_executive(req: ExecutiveRequest, _auth: str = Depends(require_auth)):
     """NV-09: one autonomy executive step. Classifies faults (NV-08), folds in a recovery recommendation
     (NV-06/07, when the progress telemetry is supplied) and a reactive replan scope (NV-05), and returns
     the safe next action in strict precedence (fail_safe wins): fail_safe / pause / replan_global /
@@ -125,6 +129,7 @@ def post_executive(req: ExecutiveRequest, _auth: None = Depends(require_auth)):
     reactive = {"scope": req.reactive_scope} if req.reactive_scope else None
     out = EX.executive_step(faults=active, command_acked=req.command_acked, plan_accepted=req.plan_accepted,
                             recovery=recovery, reactive=reactive)
+    log_event(_auth, "nav.executive", str(out.get("action", "")))       # FS-19: safety-decision audit
     return {"ok": True, **out, "faults": active, "fault_summary": F.fault_summary(active)}
 
 
@@ -145,7 +150,7 @@ class ReactRequest(BaseModel):
 
 
 @router.post("/nav/react")
-def post_react(req: ReactRequest, _auth: None = Depends(require_auth)):
+def post_react(req: ReactRequest, _auth: str = Depends(require_auth)):
     """NV-05: reactive replan. Observed rocks (x, y, diameter) are classified into nav hazards; the D/E
     obstacles within sensor range become dynamic keep-outs and trigger a LOCAL replan (an NV-03 arc),
     escalating to GLOBAL when every local arc is blocked. An off-route deviation also triggers. Returns the
@@ -165,6 +170,7 @@ def post_react(req: ReactRequest, _auth: None = Depends(require_auth)):
     arc = None
     if plan and plan.get("feasible"):
         arc = [[round(float(x), 4), round(float(y), 4), round(float(t), 5)] for x, y, t in plan["arc"]]
+    log_event(_auth, "nav.react", f"replan={out['replan']} scope={out['scope']}")   # FS-19: replan audit
     return {"ok": True, "replan": out["replan"], "scope": out["scope"],
             "n_new_hazards": len(out["new_hazards"]), "deviation_m": round(out["deviation_m"], 3),
             "keepouts": [[round(k[0], 3), round(k[1], 3), round(k[2], 3)] for k in out["keepouts"]],
@@ -192,7 +198,7 @@ class NavRunRequest(BaseModel):
 
 
 @router.post("/nav/run")
-def post_nav_run(req: NavRunRequest, _auth: None = Depends(require_auth)):
+def post_nav_run(req: NavRunRequest, _auth: str = Depends(require_auth)):
     """FS-05 end-to-end: the navigation spine over the API. Routes the global corridor (route_leg) on the
     real ``site`` DEM, then DRIVES it as a receding-horizon closed loop (plan_local -> track_plan -> integrate
     -> recovery_needed) and scores the executed path against the route (cross_track_deviation). Read-only
@@ -217,6 +223,8 @@ def post_nav_run(req: NavRunRequest, _auth: None = Depends(require_auth)):
                              goal_tol_m=float(req.goal_tol_m), max_ticks=int(req.max_ticks))
     except (ValueError, RuntimeError) as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    log_event(_auth, "nav.run",                              # FS-19: end-to-end drive-preview audit
+              f"{req.site}: reached={res['reached']} n_recoveries={res.get('n_recoveries', 0)}")
     traj = res["trajectory"]
     step = max(1, len(traj) // _NAV_TRAJ_WIRE_MAX)        # decimate to bound the wire (keep first + last)
     traj_wire = [[round(float(x), 3), round(float(y), 3)] for x, y in traj[::step]]

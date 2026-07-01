@@ -152,6 +152,7 @@ def post_compare(req: CompareRequest, _auth: None = Depends(require_auth)):
         result = MP.compare_algorithms(mission, objective=req.objective, dem=dem, dem_origin=origin)
     except (ValueError, RuntimeError) as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    log_event("api", "compare", f"objective={req.objective}")           # FS-19: plan-comparison audit
     return {"ok": True, **result}
 
 
@@ -315,6 +316,7 @@ def post_slam_compare(req: SlamCompareRequest, _auth: None = Depends(require_aut
                                               n_seeds=req.n_seeds, n_keyframes=req.n_keyframes)
     except (ValueError, RuntimeError) as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    log_event("api", "slam/compare", req.segment)
     return {"ok": True, "segment": req.segment, "n_seeds": req.n_seeds,
             "modeled": "each class at its reported sigma vs the real drift; stacks not executed", "comparison": cmp}
 
@@ -333,6 +335,7 @@ def post_render_parallax(req: ParallaxPlanRequest, _auth: None = Depends(require
             posture_from=req.posture_from, posture_to=req.posture_to, size=req.size)
     except (KeyError, ValueError) as e:                 # unknown posture name -> get_posture raises KeyError
         return JSONResponse(status_code=400, content={"ok": False, "error": f"unknown posture: {e}"})
+    log_event("api", "render/parallax", req.scene)
     return {"ok": True, "scene": req.scene, **plan}
 
 
@@ -368,6 +371,7 @@ def post_structure(req: StructureRequest, _auth: None = Depends(require_auth)):
         orders = ST.decompose(req.name, req.x, req.y, **(req.params or {}))
     except (ValueError, TypeError) as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    log_event("api", "structure", f"{req.name}: {len(orders)} orders")  # FS-19: decompose-call audit
     return {"ok": True, "name": req.name, "orders": orders}
 
 
@@ -382,6 +386,7 @@ def post_sense(req: SenseRequest, _auth: None = Depends(require_auth)):
     current = sensor.current(req.true_mass_kg)
     inferred = sensor.infer(current)
     dec = sensor.offload(inferred)
+    log_event("api", "sense", f"inferred {inferred:.1f} kg, offload={dec.offload}")
     return {
         "ok": True, "true_mass_kg": req.true_mass_kg, "current_a": current, "inferred_kg": inferred,
         "uncertainty_frac": dec.uncertainty_frac, "lower_kg": dec.lower_kg, "upper_kg": dec.upper_kg,
@@ -410,6 +415,7 @@ def post_render(req: RenderRequest, _auth: None = Depends(require_auth)):
         return JSONResponse(status_code=500, content={"ok": False, "error": f"render failed: {e}"})
     fig_name = stem + ".png"
     shutil.copyfile(r["figure"], os.path.join(reports, fig_name))
+    log_event("api", "render", fig_name)
     return {
         "ok": True, "figure": "/reports/" + fig_name,
         "cut_vol_m3": round(r["cut_vol_m3"], 2), "fill_vol_m3": round(r["fill_vol_m3"], 2),

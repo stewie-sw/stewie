@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends
 
 from stewie.server import state
 from stewie.server.deps import require_director
+from stewie.server.services import log_event
 
 router = APIRouter()
 
@@ -19,6 +20,7 @@ def admin_snapshot(_auth: str = Depends(require_director)):
     from stewie.specs import config as CFG
     from stewie.twin import backup as BK
     path = BK.snapshot(state.twin(), os.path.join(CFG.data_dir(), "snapshots"))
+    log_event(_auth, "admin.twin.snapshot", os.path.basename(path))     # FS-19: maintenance ops audit
     return {"ok": True, "snapshot": path}
 
 
@@ -27,6 +29,7 @@ def admin_retention(_auth: str = Depends(require_director)):
     from stewie.specs import config as CFG
     from stewie.twin import backup as BK
     removed = BK.apply_retention(os.path.join(CFG.data_dir(), "snapshots"))
+    log_event(_auth, "admin.twin.retention", f"{len(removed)} removed")
     return {"ok": True, "removed": removed}
 
 
@@ -36,6 +39,7 @@ def admin_replicate(_auth: str = Depends(require_director)):
     from stewie.twin import backup as BK
     dest = os.environ.get("STEWIE_BACKUP_DIR", os.path.join(CFG.data_dir(), "replica"))
     out = BK.replicate(CFG.data_dir(), dest)
+    log_event(_auth, "admin.backup.replicate", dest)
     return {"ok": True, **out}
 
 
@@ -76,5 +80,7 @@ def admin_gates(_auth: str = Depends(require_director)):
         "g2_evidence_scope": g2.get("evidence_scope"),
         "next_gate": summary.get("next_gate"),
     }
+    log_event(_auth, "admin.gates.validate",
+              f"G1={summary.get('G1', '?')} G2={summary.get('G2', '?')} byte_identical={same}")
     return {"ok": True, "g1": str(summary.get("G1", "?")), "g2": str(summary.get("G2", "?")),
             "latest_artifact": dated[-1], "byte_identical_to_frozen": same, "evidence": evidence}

@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from stewie.server.deps import require_auth, require_role
+from stewie.server.services import log_event
 from stewie.twin.io_fields import atomic_write_bytes
 
 router = APIRouter()
@@ -33,7 +34,7 @@ def _profile_slug(name: str) -> str:
 
 
 @router.post("/profile")
-def post_profile(req: ProfileRequest, _auth: None = Depends(require_role("operator"))):
+def post_profile(req: ProfileRequest, _auth: str = Depends(require_role("operator"))):
     """Save a planning profile (the full config snapshot) under a slug of its name, to profiles/.
     #304 (AG-07): the profile store is SHARED + name-keyed (no owner namespace) and loading a profile
     restores the WHOLE planning config (body/soil/fleet/orders), so WRITING it is operator+ -- a
@@ -44,6 +45,7 @@ def post_profile(req: ProfileRequest, _auth: None = Depends(require_role("operat
     slug = _profile_slug(req.name)
     atomic_write_bytes(os.path.join(d, slug + ".json"),                  # PO-02: atomic, no partial profile
                        json.dumps({"name": req.name, "profile": req.profile}, indent=2).encode("utf-8"))
+    log_event(_auth, "profile.save", slug)                               # FS-19: shared-library write audit
     return {"ok": True, "name": slug}
 
 

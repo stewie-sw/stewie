@@ -204,9 +204,12 @@ def auth_logout(request: Request, response: Response):
     always sign yourself out). Best-effort: revoke the presented session token's jti so a stolen copy of
     the cookie value cannot be replayed after logout."""
     from stewie.server import auth as AUTH
+    actor = "anonymous"
     tok = request.cookies.get(SESSION_COOKIE)
     if tok:
         claims = AUTH.decode_claims(tok)
+        if claims:
+            actor = str(claims.get("op") or actor)
         if claims and claims.get("jti"):
             try:
                 AUTH.revoke_jti(claims["jti"])
@@ -214,6 +217,7 @@ def auth_logout(request: Request, response: Response):
                 pass   # SEC-02: a corrupt store already fails closed at verify; still clear the cookies
     response.delete_cookie(SESSION_COOKIE, path="/")
     response.delete_cookie(CSRF_COOKIE, path="/")
+    log_event(actor, "auth.logout", "session cleared")      # FS-19: session-end audit
     return {"ok": True}
 
 

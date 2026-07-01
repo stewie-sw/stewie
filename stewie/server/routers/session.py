@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict
 from stewie.server import session as SES
 from stewie.server import state
 from stewie.server.deps import require_auth, require_director
+from stewie.server.services import log_event
 
 router = APIRouter()
 
@@ -23,7 +24,7 @@ class SessionRequest(BaseModel):
 
 
 @router.post("/session/start")
-def session_start(req: SessionRequest, _auth: None = Depends(require_auth)):
+def session_start(req: SessionRequest, _auth: str = Depends(require_auth)):
     from lode import mission_planner as MP
     body = req.model_dump()
     profile = body.pop("profile", "ideal")
@@ -34,6 +35,7 @@ def session_start(req: SessionRequest, _auth: None = Depends(require_auth)):
         s = SES.start(mission, profile=profile, dem=dem, dem_origin=origin, mission_t0_s=mission_t0_s)
     except (ValueError, RuntimeError, KeyError, FileNotFoundError) as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    log_event(_auth, "session.start", s.session_id)         # FS-19: training-run start audit
     return {"ok": True, "session_id": s.session_id, "n_legs": len(s.record["legs"]),
             "operator_url": f"/session/{s.session_id}/operator",
             "debrief_url": f"/session/{s.session_id}/debrief"}

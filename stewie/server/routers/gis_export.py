@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from stewie.server import state
 from stewie.server.deps import require_auth
 from stewie.server.routers.plan import heavy_quota   # shared per-identity S-08 quota for heavy routes
+from stewie.server.services import log_event
 
 router = APIRouter()
 log = logging.getLogger("stewie.server")
@@ -193,6 +194,7 @@ def gis_import(req: GisImportRequest, _auth: str = Depends(require_auth)):
                             f"coordinate transform unavailable (install the [planner] extra): {e}"})
     except ValueError as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    log_event(_auth, "gis.import", req.site)                 # FS-19: backend contract-call audit
     return {"ok": True, **feats}
 
 
@@ -260,4 +262,5 @@ def gis_query(req: GisQueryRequest, _auth: str = Depends(require_auth)):
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     except TypeError as e:                                     # a reserved kwarg in attrs (e.g. 'feature')
         return JSONResponse(status_code=400, content={"ok": False, "error": f"bad query attrs: {e}"})
+    log_event(_auth, "gis.query", f"{len(matches)} features matched")
     return {"ok": True, "count": len(matches), "features": matches}
