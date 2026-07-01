@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # rosbags = pure-python MCAP writer (same lib the ros2_bridge uses) for optional telemetry bagging.
-RUN pip3 install --no-cache-dir --break-system-packages "rosbags>=0.10,<1" || true
+# pydantic = the stewie.contracts models (ExecutionEvent etc.) the live-ROS bridge verify commits through,
+# so scripts/ros2_bridge/verify_live_bridge.py runs in-image reproducibly (no ephemeral pip install).
+RUN pip3 install --no-cache-dir --break-system-packages "rosbags>=0.10,<1" "pydantic>=2,<3" || true
 
 # Nav2 (FS-05 navigation binary tier / #144 Convergence Phase A): the standard ROS 2 Nav2 lifecycle stack
 # (planner / controller / bt_navigator / behaviors + bringup), so the live nav-binary runs inside the
