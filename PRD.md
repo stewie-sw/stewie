@@ -20,16 +20,19 @@ arm, live-pit, and Tier-3 tracks remain hardware and host gated.
 
 **Completion snapshot (§7 requirements = 188).** Raw verification glyphs: 86 verified-done (45%), 41
 partial, 61 not-started; 119 (63%) are cited by a real `[REQ:]` test; 24 are hardware or host gated. The
-glyphs UNDERSTATE reality: the `[REQ:]` marker pass (OPS-04) is incomplete, so about 38 done-in-code rows
-still read partial or not-started (STATUS.md "V!=D flagged"), and this session's closures (DT-01, the
-execute-remember loop, the FS-24 cockpit modularization) are not yet reflected. Excluding the 24 gated
-rows, the in-scope platform is roughly 75 to 80 percent done or done-in-code; the honest remaining work
-splits three ways:
+glyphs are ROUGHLY ACCURATE, not a large undercount (a 2026-07-01 audit corrected the earlier
+"~38 done-stale" optimism): 33 rows are cited but read V!=D (STATUS.md "V!=D flagged"), yet a citation
+does NOT mean done -- the implementation glyph confirms ~32 of those are genuinely partial (I=P/N), a
+test legitimately citing a partial row, not a done row awaiting a flip. Excluding the 24 gated rows,
+in-scope verified-done is about 52 percent (86 of ~164). Reconciling the two honest bars: the production
+spine is functional and DEPLOYED (the product works end to end), but by the strict §7 verified-done bar
+many in-scope rows are legitimately partial (hardening, full verification, edge cases), not a glyph-lag
+artifact. The honest remaining work splits three ways:
 
-- **Open, in-scope, buildable here:** the §7 `[REQ:]` marker pass (flip the ~38 understated done-in-code
-  rows, one citing test each, to keep req_trace honest); finish FS-24 (5 pure modules extracted this
-  session, the DOM app-shell remainder is by design, not a pure-module candidate); the MO-02 live-execute
-  fault-injection tier; GI-01 deployed-browser GIS smoke.
+- **Open, in-scope, buildable here:** finish the genuinely-partial in-scope rows (real work + a citing
+  test each; NOT a bulk glyph flip -- only ~1 row, FS-15, is impl-done-but-under-verified); finish FS-24
+  (5 pure modules extracted this session, the DOM app-shell remainder is by design, not a pure-module
+  candidate); the MO-02 live-execute fault-injection tier; GI-01 deployed-browser GIS smoke.
 - **Gated, deferred (not unfinished):** the live rclpy node + P23 intern-beta traverse (needs a ROS host
   and a real pit); P7 live Chrono producer + Tier-3 drum forces (needs a PyChrono host); the AS-* flight-
   autonomy stack (the ARGUS / navigation lane); arm geometry (AM-*, VT-03/05, needs LAC/IPEx data); dense
@@ -716,7 +719,7 @@ DEM. They make the advertised product boundary enforceable.
 | GI-01 | P0 | Production GIS runtime gate: the built Nginx/front-end image loads Cesium, Moon/Mars/Earth imagery, worksite overlays, sign-in, and mobile navigation under the actual CSP with zero blocking console errors. Acceptance is a desktop + mobile browser smoke against the deployed headers, not a direct asset curl. | P | P | P | N |
 | GI-02 | P1 | Planetary map correctness: Moon/Mars views use body-correct ellipsoid/CRS metadata and real DEM terrain/elevation where a layer claims 3D terrain. A smooth WGS84 drape must be labeled as imagery-only, not terrain. | P | N | N | N |
 | GI-03 | P2 | GIS interoperability scope: define and implement the mission-required subset only -- GeoJSON/COG import, selected OGC/ArcGIS service consumption, feature attributes/query, measurement/profile tools, provenance, and offline mission package export. Do not claim ArcGIS parity. | N | N | N | NA |
-| DT-01 | P0 | Operational digital-twin unification: conserved authority, observed `TwinStore`, runtime packets, vehicle twin, PlanResult, belief state, and session events are linked by one versioned transaction envelope with mission/site/body/time/provenance/uncertainty. | P | N | N | N |
+| DT-01 | P0 | Operational digital-twin unification: conserved authority, observed `TwinStore`, runtime packets, vehicle twin, PlanResult, belief state, and session events are linked by one versioned transaction envelope with mission/site/body/time/provenance/uncertainty. Runtime path done (`WorldStateService`, hash-chained log) + the SIM execute->remember loop (`commit_sim_run` folds terrain into `TerrainMemory` + records belief); packets + vehicle-twin unification remain. | P | P | P | N |
 | DT-02 | P0 | Twin audit read security: `/twin/version` exposes only a minimal authenticated version token to ordinary clients; full event history/provenance requires director/admin authorization and audit logging. | D | D | D | NA |
 | RL-01 | P1 | Deployed RL policy gate: no RL capability may be called operational until a versioned policy artifact, training/eval lineage, model card, safety shield, deterministic fallback, and out-of-distribution acceptance report exist. Training scripts/environments alone do not satisfy this row. | P | N | N | N |
 | SL-01 | P0 | Truth-isolated SLAM/Navigation benchmark: runtime bags and estimator processes are physically denied truth topics/frames; the full render/sensor/RTAB-Map-or-equivalent/Navigation/pose-graph pipeline is scored by an evaluator-only channel with pass/fail thresholds. | P | P | P | N |

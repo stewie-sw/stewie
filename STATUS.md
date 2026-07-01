@@ -27,7 +27,7 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | AS-14 | N |
 | AS-15 | P |
 | CP-07 | P |
-| DT-01 | N |
+| DT-01 | P |
 | EP-01 | P |
 | FL-04 | P |
 | FL-05 | P |
