@@ -133,6 +133,7 @@ from stewie.server.routers import assets as _assets_router  # noqa: E402
 from stewie.server.routers import auth as _auth_router  # noqa: E402
 from stewie.server.routers import config as _config_router  # noqa: E402
 from stewie.server.routers import construction as _construction_router  # noqa: E402
+from stewie.server.routers import program as _program_router  # noqa: E402
 from stewie.server.routers import dem as _dem_router  # noqa: E402
 from stewie.server.routers import ephemeris as _ephemeris_router  # noqa: E402
 from stewie.server.routers import tiles as _tiles_router  # noqa: E402
@@ -192,6 +193,7 @@ app.include_router(_nav_router.router)
 app.include_router(_gis_export_router.router)        # GI-03: GeoJSON/COG GIS export
 app.include_router(_executive_router.router)         # MO-WIRE: plan->executive advance (director-gated)
 app.include_router(_siteplan_router.router)          # structure-first: site-plan validate-and-advise analysis
+app.include_router(_program_router.router)           # PO-lane program board: /program + the committed PRD-matrix snapshot
 
 
 @app.middleware("http")

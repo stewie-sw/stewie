@@ -1,0 +1,2722 @@
+{
+ "provenance": {
+  "citations_sha256": "9230109051c302f0dc05765873ccd592ae63a9f0ad9e621515b74b9bb89dfd0a",
+  "generated_by": "scripts/gen_program_snapshot.py",
+  "prd_commit": "e11dc06c23689292ea27f6b0c3b5e680f25d1a1e",
+  "prd_sha256": "afb8d05ac07ff4a14312a3ec1698ec162f328760392cd9e39ff5d9258f90ed5a",
+  "specs_sha256": "4b2c5de33da676744a6a597546e55f8243ee263773643bdad9dafec1a8d63bfb"
+ },
+ "rows": [
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "AG-01",
+   "lane": "AG",
+   "pri": "P0",
+   "text": "Role model is a four-tier ordered ladder: `guest` (read-only) < `trainee` (own-sandbox write) < `operator` (live write + command) < `director` (admin + approve + escalation). A single `role_rank()` is the source of capability ordering; the legacy two-role store (`director`/`operator`) migrates forward without data loss."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "AG-02",
+   "lane": "AG",
+   "pri": "P0",
+   "text": "Capability gating keys every mutating/command route off `role_rank`, not merely authenticated-or-not. A `require_role(min)` dependency enforces it: reads open to `guest`+, live writes + real rover commands (rc_command, NV-11/NV-12 lowering) require `operator`+, admin/escalation require `director`."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "AG-03",
+   "lane": "AG",
+   "pri": "P1",
+   "text": "One-time invite tokens: `create_invite(by, role, ttl, max_uses=1)` mints a crypto-random token stored **hashed** (never plaintext, like a password) with role, issuer, expiry, and use-count; expired/spent tokens are inert. Default mint authority = `director` (Open Decision 11)."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "AG-04",
+   "lane": "AG",
+   "pri": "P1",
+   "text": "Invite redemption: `POST /auth/invite/redeem {token,email,password}` activates the account at the token's role iff the token is valid/unexpired/unused, then burns it. The invitee sets their own password; no secret is transmitted out-of-band."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "AG-05",
+   "lane": "AG",
+   "pri": "P1",
+   "text": "Artifact ownership: missions, structures, and reports stamp `created_by` + `created_at` at save; the public record exposes the owner. Existing unowned artifacts read as owner `unknown` (no silent backfill)."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "AG-06",
+   "lane": "AG",
+   "pri": "P1",
+   "text": "Delete is a recoverable soft-delete (trash + audit event). Self-service for your OWN sandbox artifact; deleting another operator's artifact OR any live-namespace artifact requires `director` (escalation). No hard purge without director confirmation."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "AG-07",
+   "lane": "AG",
+   "pri": "P1",
+   "text": "Workspace separation: artifacts save to a per-owner `sandbox/<owner>/` namespace by default; a role-gated `publish` promotes a copy into the shared `live/` namespace. Sandbox state never feeds the real-command path."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "AG-08",
+   "lane": "AG",
+   "pri": "P0",
+   "text": "**End-goal gate:** real rover instructions (NV-11/NV-12) are emitted ONLY from a `live`-namespace mission, by an `operator`+, under the SF-01 interlock. Sandbox/trainee/guest plans may simulate and output a Plan IR for review but cannot lower to hardware commands."
+  },
+  {
+   "I": "D",
+   "Q": "G",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "AM-01",
+   "lane": "AM",
+   "pri": "P1",
+   "text": "Implement an explicit posture state machine: `TRANSIT`, `DIG`, `DUMP_Z`, `MEERKAT`, `DRUM_WALK`, `IRON_CROSS`, `SELF_RIGHT`, and `BRAKED_HOLD`. `stewie.specs.posture_machine` is that FSM: the eight states + a legal-transition table + `PostureMachine`. `BRAKED_HOLD` (the SF-01 safe stop) is reachable from every state; `SELF_RIGHT`/`IRON_CROSS` are recovery-only from `BRAKED_HOLD` (AM-06). Consumed in the product command path by NV-11 `lower_plan_ir`: each lowered action declares its required posture (GoTo\u2192TRANSIT, Excavate/CutHaulFill\u2192DIG, Import\u2192DUMP_Z, Observe\u2192MEERKAT) and a `PostureMachine` is driven through the action sequence, emitting the FSM-legal `posture_plan` (inserting TRANSIT / the BRAKED_HOLD safe stance where a direct transition is illegal) so the executive holds a legal posture per action. Pure + on-host; only structural transition legality is enforced at this seam -- the per-posture stability margin (AM-02) and flight-qualified posture geometry are the gated Q tier."
+  },
+  {
+   "I": "P",
+   "Q": "G",
+   "V": "P",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AM-02",
+   "lane": "AM",
+   "pri": "P1",
+   "text": "Every transition has preconditions for slope, arm range, drum load, support contacts, stability margin, and collision clearance. `posture_machine.can_transition` enforces transition LEGALITY (collision/support-contact structure) and gates a transition INTO a raised/working posture on a caller-supplied stability margin (AM-03). The slope / arm-range / drum-load preconditions plug into the same guard from the on-host posture geometry / gated flight numbers (Q tier)."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": false,
+   "id": "AM-03",
+   "lane": "AM",
+   "pri": "P1",
+   "text": "`MEERKAT` raises the camera vantage by lowering arms under the chassis; motion is speed-limited and rejected when stability margin is inadequate."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": false,
+   "id": "AM-04",
+   "lane": "AM",
+   "pri": "P1",
+   "text": "Differential front/rear arm pose may be used as a controlled camera-pitch action only after kinematic and stability validation. `[PROPOSED]`"
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": false,
+   "id": "AM-05",
+   "lane": "AM",
+   "pri": "P2",
+   "text": "`DRUM_WALK` supports bounded slow translation while raised and records contact/slip/energy separately from wheel drive."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": false,
+   "id": "AM-06",
+   "lane": "AM",
+   "pri": "P2",
+   "text": "`IRON_CROSS` permits wheel-cleaning/recovery only under explicit raised-posture safety limits."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": false,
+   "id": "AM-07",
+   "lane": "AM",
+   "pri": "P2",
+   "text": "`SELF_RIGHT` is a fault-recovery plan with transient stability/contact checks; it is not available as an unconstrained action."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": false,
+   "id": "AM-08",
+   "lane": "AM",
+   "pri": "P1",
+   "text": "Arm brake allows a validated posture hold with zero or modeled holding power; transition energy remains charged."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": false,
+   "id": "AM-09",
+   "lane": "AM",
+   "pri": "P1",
+   "text": "The planner may choose Meerkat only when predicted information gain or recovery value exceeds time, energy, and risk cost. `[PROPOSED]`"
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-01",
+   "lane": "AS",
+   "pri": "P0",
+   "text": "Autoware-shaped boundary: define the ROS2 node graph and topic contract for sensing, perception, localization, mapping, planning, control, vehicle interface, diagnostics, and mission executive without importing road/lanelet behavior planning."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-02",
+   "lane": "AS",
+   "pri": "P0",
+   "text": "ROS2 workspace skeleton: create container-buildable packages for `stewie_msgs`, `stewie_description`, `stewie_bringup`, `stewie_vehicle_interface`, `stewie_perception`, `stewie_localization`, `stewie_mapping`, `stewie_planning`, `stewie_control`, and `stewie_rviz`."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-03",
+   "lane": "AS",
+   "pri": "P0",
+   "text": "IPEx vehicle description: add URDF/Xacro/SDF describing chassis, wheels, drums, arms, camera rig, IMU, optional LiDAR, collision geometry, inertials, joint limits, TF tree, and frame names derived from STEWIE vehicle specs."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-04",
+   "lane": "AS",
+   "pri": "P0",
+   "text": "ROS container tiers: provide reproducible containers for base ROS2 Jazzy dev, perception/SLAM, Gazebo simulation, RViz diagnostics, bridge runtime, and a Space ROS migration profile. Each container has a smoke command and pinned package manifest."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-05",
+   "lane": "AS",
+   "pri": "P0",
+   "text": "RViz mission dashboard: ship an RViz config showing robot model, TF, odom, `/stewie/odom`, planned path, local trajectory, costmaps, occupancy/DEM map, point cloud, camera feeds, covariance, Navigation factors, diagnostics, SAFE state, and command topic state."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-06",
+   "lane": "AS",
+   "pri": "P1",
+   "text": "Gazebo simulation seam: launch the IPEx description in Gazebo with cameras, IMU, wheel odometry, contact/collision, `/cmd_vel`, `/joint_states`, `/tf`, `/clock`, and bridgeable terrain/world state. Gazebo sim is robot/sensor sim, not excavation truth."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-07",
+   "lane": "AS",
+   "pri": "P0",
+   "text": "Stanford/NavLab-derived navigation spine: implement or integrate stereo feature detection/matching, stereo VO, robust PnP/triangulation, pose graph optimization, loop-closure gating, terrain/rock mapping, coverage planning, local arc planner, and recovery benchmarks on truth-denied bags."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-08",
+   "lane": "AS",
+   "pri": "P0",
+   "text": "ShadowNav factor path: convert ephemeris-controlled sun geometry plus panorama/shadow landmark bearings into typed `NavigationFactor` observations with covariance, residual gates, false-factor rejection, and ablation versus non-shadow VO/SLAM."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "P",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-09",
+   "lane": "AS",
+   "pri": "P0",
+   "text": "Navigation articulation path: convert commanded posture changes, arm/camera kinematics, shadow perturbations, and articulation parallax into standstill relocalization factors; accepted factors must reduce covariance and be visible in cockpit and RViz."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-10",
+   "lane": "AS",
+   "pri": "P0",
+   "text": "Autonomous mapping: maintain observed DEM, occupancy/rock map, object graph, uncertainty, changed-terrain mask, and excavation state as separate layers over the conserved world model; estimator/mapping nodes are denied simulator truth."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-11",
+   "lane": "AS",
+   "pri": "P1",
+   "text": "Lunar costmap stack: expose slope, roughness, sinkage, slip, tip risk, illumination, PSR, shadow confidence, energy, keep-outs, dynamic rocks, and shared fleet-resource reservations as composable planning layers."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "P",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-12",
+   "lane": "AS",
+   "pri": "P1",
+   "text": "ROS lowering and control: lower verified Plan IR into ROS2 paths, motion goals, work goals, observation goals, replan events, and bounded `/cmd_vel` or action goals under AG-08, NV-12, SF-01, and role-gated command eligibility."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-13",
+   "lane": "AS",
+   "pri": "P1",
+   "text": "Mission executive node: add a ROS2-side executive that monitors preconditions, acknowledgements, covariance, resource reservations, faults, acceptance state, and safing, then emits continue/pause/replan/relocalize/reverse/SAFE decisions."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-14",
+   "lane": "AS",
+   "pri": "P1",
+   "text": "ROS diagnostics and logging: every ROS node emits diagnostics, lifecycle state, health, latency, dropped frames, QoS warnings, command eligibility, SAFE events, and correlation IDs into the STEWIE observability ledger without logging secrets or truth-denied fields."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "P",
+   "X": "P",
+   "bucket": "concurrent",
+   "cited": true,
+   "id": "AS-15",
+   "lane": "AS",
+   "pri": "P0",
+   "text": "NASA-style TDD gate: every autonomy slice lands test-first with `[REQ:<ID>]` markers, container smoke, deterministic fixtures, failure-mode tests, Power-of-10/static-analysis review for safety-critical code, and no capability claim until route/node/UI/log evidence exists."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "bucket": "concurrent",
+   "cited": false,
+   "id": "AS-16",
+   "lane": "AS",
+   "pri": "P1",
+   "text": "(MOVED to the dissertation acceptance extract; research-acceptance, not a production gate row) ShadowNav/Navigation/Stanford benchmark suite: compare passive VO, Stanford-style stereo SLAM, ShadowNav factors, Navigation articulation factors, and combined fusion across sun angles, terrain changes, rocks, PSR, camera degradation, and excavation state."
+  },
+  {
+   "I": "D",
+   "Q": "G",
+   "V": "D",
+   "X": "N",
+   "bucket": "done",
+   "cited": true,
+   "id": "AS-17",
+   "lane": "AS",
+   "pri": "P0",
+   "text": "TRL5 stereo rig authority gate: navigation, mapping, ShadowNav, Navigation, RViz, Gazebo, and cockpit visuals load camera intrinsics/extrinsics from the authoritative IPEx/LAC camera profile, not hard-coded baselines. Acceptance distinguishes the TRL5-final 0.05 m stereo module (sourced SCHULER24 Figs 28/30/32, single rigid housing) from the rejected 0.165 m shoulder-split; any non-final profile is labelled rejected/legacy. **2026-06-18: legacy 0.070 m fixture RETIRED \u2014 the G2 corpus (13 g2cal poses + frame fixture) re-rendered at 0.05 m, profile/camera_rig/ipex_specs/system_profile/manifest re-frozen, `stereo_authority.py` is the gate (4 tests). Camera count confirmed against SCHULER24: 8 physical / 4 operational + 4 redundant (NOT 8-surround). Suite green (308 eval/specs + 731 dart/lode).**"
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "P",
+   "X": "D",
+   "bucket": "concurrent",
+   "cited": false,
+   "id": "AS-18",
+   "lane": "AS",
+   "pri": "P0",
+   "text": "Typed ARGUS Navigation evidence contract: every accepted navigation measurement crossing the estimator seam carries factor type, covariance, frame, source, and evidence class; shadow-yaw remains heading-only; metric shadow-length/boundary factors are blocked from calibrated/measured labels until a passing residual artifact replaces the 2026-06-24 negative."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CP-01",
+   "lane": "CP",
+   "pri": "P0",
+   "text": "One immutable `PlanResult` is produced once and consumed by totals, report, validation, timeline, Plan IR, autonomy, and UI."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CP-02",
+   "lane": "CP",
+   "pri": "P0",
+   "text": "Balance bank cut and loose fill by mass with drum/capacity constraints."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CP-03",
+   "lane": "CP",
+   "pri": "P0",
+   "text": "Execute/validate the selected optimized plan on the conserved authority and real terrain."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CP-04",
+   "lane": "CP",
+   "pri": "P1",
+   "text": "Goal grammar supports typed structures, tolerances, budgets, priorities, deadlines, dependencies, and keep-outs. `lode/mission_intent_compiler.py` lowers a canonical MO-01 `MissionIntent` onto the real planner path: objectives->`cut` orders, hard energy/time budgets->`objective_constraints`, soft-weight priorities->the weighted objective, deadlines->`max_time_s`, prerequisites->precedence, TOLERANCES (`AcceptanceCriterion.tolerance_m`, tightest per mission->`Mission.accept_flatness_tol_m`, honored by `validate_plan`'s as-built RMSE gate), and KEEP-OUTS (`KeepOutRegion` circle/rectangle/polygon->`Mission.keepouts`, the planner's own routing input: `route_leg` detours around them, a build inside is flagged `keepout_conflicts`). Keep-outs are integrated end-to-end: `lode/mission_lifecycle.analyze`/`rehearse` (executive ANALYZED/REHEARSED) compile the intent to the planner `Mission`, whose `keepouts` the planner honors in routing + `keepout_conflicts` through the forward_compare -> planner path. `lode/test_mission_intent_compiler.py` [REQ:CP-04] verifies all terms incl. a compiled tolerance failing a tight pad + passing a loose one on a real sloped DEM, and a compiled keep-out routing the real planner around it + flagging a build inside it. I=D/V=D: the tolerances + keep-outs implementation gap from the I-audit is closed + test-verified. X=D: keep-outs are on the live product path, AND the compiled acceptance tolerance is now EXERCISED on a live product path -- `lode.resync.forward_compare` (the executive REHEARSED edge, reachable via `POST /executive/advance`) plans each candidate `with_acceptance` WHEN the mission carries a compiled `accept_flatness_tol_m` and surfaces the as-built verdict (`as_built_pass` + the compiled `as_built_tol_m`) in every future; a mission without a compiled tolerance is byte-identical (no acceptance computed, no field). `lode/test_mission_intent_compiler.py::test_compiled_tolerance_is_exercised_on_the_live_rehearse_path` [REQ:CP-04] verifies the COMPILED tolerance (not a default) drives the live forward_compare path, and the no-tolerance case stays byte-identical."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CP-05",
+   "lane": "CP",
+   "pri": "P1",
+   "text": "Footprints support rectangle, circle, corridor, and polygon with orientation; scalar-area squares are legacy input only."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CP-06",
+   "lane": "CP",
+   "pri": "P1",
+   "text": "Acceptance includes pad flatness, berm profile, bearing/compaction, repose stability, mass, time, and energy. `validate_plan` reports each as an additive, inspectable check (never folded into `feasible`): `as_built_flatness` (I11 RMSE on the real datum), `berm_profile` (executed crest rise vs ordered depth, per fill order), `bearing_capacity` (allowable static capacity loose + firmed/compacted-to-bank-density, per pad/berm), `repose_stability` (as-built flank slope vs the soil angle of repose phi), and `mass_conservation`; time + energy acceptance are carried by the plan totals (`makespan_s` / `energy_J` + the EP-* ledger + battery reserve) and named in `acceptance_scope.defers_to_totals`. So `acceptance_scope` accounts for all seven CP-06 terms with no silent gap. Tested by `test_cp06_acceptance.py` + `test_bearing_acceptance.py` + the all-seven-terms completeness test [REQ:CP-06]. Q stays P: validated on the conserved physics in-sim, not yet qualified against a real as-built lunar surface."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "P",
+   "bucket": "gated",
+   "cited": true,
+   "gated_reason": "PyChrono calibration oracle",
+   "id": "CP-07",
+   "lane": "CP",
+   "pri": "P1",
+   "text": "Plan uncertainty carries DEM, material, slip, dig-rate, drum-fill, localization, and power-window uncertainty into feasibility/time/energy bands. A single `plan_uncertainty` block in the plan totals (`_plan_uncertainty`) aggregates all seven named sources, carrying a numeric figure where the model is grounded in-repo -- the dig-rate energy band (`dig_energy_bounds_MJ`, rated-vs-max RPM), the localization corridor margin (P-06), the DEM per-cell sigma (PM-09), the operator material factor (EP-02), and the drum-fill CYCLE band (`cycles_band` = `drum_cycles` \u00b1`FDC_MPE_HALF_FULL`, the grounded DrumSensor FDC MPE from ICE-RASSOR NTRS 20210022781: fill-sensing error does not change the dig energy but perturbs the offload cycle count). Slip is named with `quantified: False` because its plan-level uncertainty is the [CALIB] Bekker/slip moduli, oracle-gated (FIX-1/2); power-window is quantified only when mission windows are declared (EP-04). No fabricated fraction. Full per-source band propagation of the slip term stays open (I/V partial)."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CP-08",
+   "lane": "CP",
+   "pri": "P1",
+   "text": "Planner objectives support hard constraints and risk terms, not only unconstrained weighted metrics."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "D",
+   "X": "P",
+   "bucket": "done",
+   "cited": true,
+   "id": "CP-09",
+   "lane": "CP",
+   "pri": "P1",
+   "text": "Construction actions mutate `WorldState`; routing, illumination, observability, and acceptance consume the updated terrain. Three consumers read the MUTATED as-built in the product `/plan` path: routing (`run_closed_loop` re-hazards a leg crossing a freshly EXECUTED cut/fill at the repose slope -- `test_berm_rehazard`), acceptance (`validate_plan` flatness/berm/repose on `as_built` -- CP-06), and illumination (shadow recompute after excavation -- TW-08 `test_shadow_predict`). Observability (the onboard map-channel coverage) consuming the as-built remains render/onboard-gated, so I stays partial."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CP-10",
+   "lane": "CP",
+   "pri": "P1",
+   "text": "Sinter remains unavailable for baseline IPEx; enabling it requires a distinct tool/power model and capability-qualified vehicle."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CT-01",
+   "lane": "CT",
+   "pri": "P0",
+   "text": "All public numeric inputs enforce units, finiteness, and physical domains. Negative depth/mass and NaN/Inf are rejected."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CT-02",
+   "lane": "CT",
+   "pri": "P0",
+   "text": "`ColumnState` validates dimensions, array shapes, dtypes/domains, density, labels, disturbance, datum, ice, and inventory at construction."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CT-03",
+   "lane": "CT",
+   "pri": "P0",
+   "text": "Every authority mutation is transactional, conserves mass when required, and leaves all invariants valid."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CT-04",
+   "lane": "CT",
+   "pri": "P0",
+   "text": "Scene publication writes verified rasters atomically and metadata last as the commit marker."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CT-05",
+   "lane": "CT",
+   "pri": "P0",
+   "text": "Python, Godot, and ROS share a versioned schema with strict required-field, frame, dtype, and range validation."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CT-06",
+   "lane": "CT",
+   "pri": "P0",
+   "text": "Production contract checks use explicit exceptions, never removable `assert` statements."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "CT-07",
+   "lane": "CT",
+   "pri": "P1",
+   "text": "Every artifact records source commit, configuration, mode, seed, schema version, and input hashes."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "link the remaining runtime packets + the vehicle twin into the one versioned transaction envelope that already unifies authority + TwinStore + PlanResult + belief + session events.",
+    "kind": "epic",
+    "test_target": "stewie/twin/test_envelope.py (extend, `[REQ:DT-01]` present) \u2014 add packet + vehicle-twin cases"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "DT-01",
+   "lane": "DT",
+   "pri": "P0",
+   "text": "Operational digital-twin unification: conserved authority, observed `TwinStore`, runtime packets, vehicle twin, PlanResult, belief state, and session events are linked by one versioned transaction envelope with mission/site/body/time/provenance/uncertainty. Runtime path done (`WorldStateService`, hash-chained log) + the SIM execute->remember loop (`commit_sim_run` folds terrain into `TerrainMemory` + records belief); packets + vehicle-twin unification remain."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "DT-02",
+   "lane": "DT",
+   "pri": "P0",
+   "text": "Twin audit read security: `/twin/version` exposes only a minimal authenticated version token to ordinary clients; full event history/provenance requires director/admin authorization and audit logging."
+  },
+  {
+   "I": "P",
+   "Q": "P",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "extend the energy ledger so observation, LED, compute, idle/heater appear as separate retrievable terms alongside drive/slope-slip/payload/dig/arm-drum/recharge, or are explicitly marked unmodeled.",
+    "kind": "atomic",
+    "test_target": "lode/test_mission_planner.py::test_ep01_ledger_keeps_drive_slip_payload_and_dig_as_separate_terms (extend, `[REQ:EP-01]` present)"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "EP-01",
+   "lane": "EP",
+   "pri": "P0",
+   "text": "Energy ledger includes drive, slope/slip, payload, dig, arm/drum motion, observation, LEDs, compute, idle/heater, and recharge losses where modeled."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "EP-02",
+   "lane": "EP",
+   "pri": "P1",
+   "text": "Dig energy depends on material/density/ice or is explicitly marked constant-model uncertainty. The baseline is a CONSTANT J/kg (`ipex_specs.dig_energy_per_kg`, BP-1-calibrated, material/density/ice-independent) whose uncertainty is explicitly marked: the drum-rate `(0.72-1.0)x` band reported as `dig_energy_bounds_MJ`. An optional `Mission.dig_energy_factor` (default `None`=1.0=byte-identical, folded once in `plan_context` so every dig site is consistent) lets an operator scale it for a known harder/icier site, so the plan's dig energy depends on the declared material. Physical auto-derivation from density/ice remains unmodeled (Q=P)."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "EP-03",
+   "lane": "EP",
+   "pri": "P1",
+   "text": "Distinguish PSR lander/tower power from sunlit solar power."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "EP-04",
+   "lane": "EP",
+   "pri": "P1",
+   "text": "Mission clock enforces power, illumination, thermal, and communications windows on actions/recharge."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "EP-05",
+   "lane": "EP",
+   "pri": "P1",
+   "text": "Thermal derating and heater/survival demand affect usable battery and action availability."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "quality/hardware gated",
+   "id": "EP-06",
+   "lane": "EP",
+   "pri": "P1",
+   "text": "Meerkat/arm posture and camera/LED policies include transition and dwell energy."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "add a dust-accumulation state degrading optics/joints/thermal surfaces + driving maintenance actions in the energy/ops model.",
+    "kind": "atomic",
+    "test_target": "NEW lode/test_ep07_dust.py (`[REQ:EP-07]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EP-07",
+   "lane": "EP",
+   "pri": "P2",
+   "text": "Dust accumulation affects optics, joints, thermal surfaces, and maintenance actions."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "EP-08",
+   "lane": "EP",
+   "pri": "P1",
+   "text": "Endurance and reports use the selected `VehicleModel`, not global IPEx constants."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "FL-01",
+   "lane": "FL",
+   "pri": "P0",
+   "text": "Fleet allocation, simulation, validation, timeline, Plan IR, and playback share one `PlanResult`."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "FL-02",
+   "lane": "FL",
+   "pri": "P1",
+   "text": "Detect AND resolve route, site, and temporal conflicts rather than only same-site overlap. Detection: `_vehicle_conflicts` (same-site) + `_charger_conflicts` (shared charger) + `_temporal_conflicts` (two vehicles working within a proximity radius at overlapping times -- stationary space-time crowding) + `_haul_path_conflicts` (two vehicles' MOVING drive legs passing within a safe-separation radius at overlapping times -- segment-vs-segment proximity over the routed haul paths). Resolution: the FCFS charger queue (FL-03) for the shared charger, and `_resolve_spacetime_crowding` RE-SEQUENCES the work-crowding + haul-path crossings by the SAME FCFS discipline (lower vehicle index wins; the loser waits until the winner's span clears, iterated to a fixed point). The per-vehicle wait is folded into the makespan and surfaced as `crowd_wait_s` + a per-rover column in the Fleet report; the exact `plan_multi_oracle` applies the same re-sequencing so it stays a valid lower bound. The resolved spans match the detectors, so applying the waits drives both counts to 0 (`test_fl02_resequencing.py` [REQ:FL-02]). CONSERVATIVE (each loser yields to every lower-index crowder, shifting its whole later timeline); optimal JOINT re-ordering across the fleet remains future MV work."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "FL-03",
+   "lane": "FL",
+   "pri": "P1",
+   "text": "Model charger, pit, dump, observation vantage, and constrained corridor as shared resources. Charger = one-server FCFS queue: overlapping recharges serialise, the loser's wait shifts its timeline, the headline makespan reflects it (`makespan_parallel_s` keeps the optimistic value, `charger_wait_s` the cost). Pit/dump/vantage/corridor are declared via `mission.shared_resources` (`[{id, kind, capacity, sites}]`) and modelled as capacity-k FCFS servers keyed on work sites (`ReservationLedger` admission); over-capacity rovers wait, the wait folds into `makespan_s` and is reported as `resource_wait_s` / `resource_waits`. None/empty (or single-vehicle) is byte-identical. The charger AND all declared resources are scheduled JOINTLY by `_resolve_joint_resources`: one per-vehicle delay clock advanced over a single event calendar, every contended segment admitted against ONE multi-server `ReservationLedger`, so the reported makespan/waits are the real coupled FCFS schedule (feasible on every server at once) rather than a sum of independent per-server estimates -- removing the v1 double-count of a rover modelled as queued in two resources at once. A wait on one server now shifts the rover's later events on every server, so the coupled total is usually below (but can exceed) the old per-server sum: it is the true coupled schedule, not a bound. FL-02 crowding + FL-04 cross-vehicle precedence remain separate fixed-point resolvers folded on top. `test_fl03_shared_resources.py` [REQ:FL-03]."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "brief": {
+    "goal": "implement ACTIVE work-reallocation \u2014 when fleet_needs_replan fires (a stranded rover), reassign its remaining work to healthy rovers, not just flag it.",
+    "kind": "atomic",
+    "test_target": "NEW lode/test_fl04_precedence_split.py::test_stranded_rover_work_is_reallocated_to_healthy_rovers (`[REQ:FL-04]`)"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "FL-04",
+   "lane": "FL",
+   "pri": "P1",
+   "text": "Maintain one belief/health/resource state per rover and coordinate replans. `_rover_health(pv)` distils each rover's state from its sim (feasibility, lowest battery margin, recharges, health rollup stranded/low_margin/nominal) into `vehicles_detail[].health` + the Fleet report; a stranded rover sets `fleet_needs_replan` (the reallocation trigger). Active work-reallocation on the trigger is future MV work."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "brief": {
+    "goal": "wire heterogeneous vehicle capability/physics vectors into the FLEET plan so one plan_multi run carries rovers with different physics (not N identical clones).",
+    "kind": "atomic",
+    "test_target": "NEW lode/test_mission_planner.py::test_fl05_heterogeneous_fleet_plan_uses_per_vehicle_physics (`[REQ:FL-05]`)"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "FL-05",
+   "lane": "FL",
+   "pri": "P2",
+   "text": "Support heterogeneous vehicle capability and physics vectors."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "N",
+   "bucket": "done",
+   "cited": true,
+   "id": "FL-06",
+   "lane": "FL",
+   "pri": "P1",
+   "text": "Validate two-rover plans against an exact small-problem oracle before learned/heuristic superiority claims. `plan_multi_oracle` brute-forces the true site-exclusive optimum (every group->vehicle assignment x every per-vehicle order, jointly, same simulator + charger queue) up to MV_ORACLE_MAX_TRIPS; oracle <= heuristic by construction. Verified: heuristic within 0.15% of optimum on the 3-site instance."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "make Solar/Meerkat raised observation sites reservable fleet resources with an occlusion/collision exclusion.",
+    "kind": "optional",
+    "test_target": "NEW lode/test_fleet_resources.py::test_fl07_raised_observation_reserves_vantage_no_occlusion (`[REQ:FL-07]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FL-07",
+   "lane": "FL",
+   "pri": "P1",
+   "text": "Solar/Meerkat observation sites are reservable fleet resources so rovers do not occlude or collide during raised observations. `[PROPOSED]`"
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "give the codebase-assessment gate a machine-checkable form (a slice can't be done without an inventory of touched panes/routers/modules/tests) and cite it.",
+    "kind": "atomic",
+    "test_target": "extend scripts/test_req_trace.py with a `[REQ:FS-01]` marker, OR NEW scripts/test_assessment_gate.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-01",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "Codebase assessment gate: before implementing a roadmap slice, inventory the touched front-end panes, backend routers, domain modules, tests, data contracts, security boundaries, and deployment assumptions. Acceptance is an updated slice note or PRD entry naming affected files/modules and existing tests."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "FS-02",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "Contract spine: define versioned schemas for `WorldState`, `VehicleState`, `FleetState`, `BeliefState`, `PlanResult`, `ExecutionEvent`, `EphemerisObservation`, `NavigationFactor`, `ModelArtifact`, and `ConstructionSkill`. Backend APIs and cockpit views must consume these contracts instead of ad hoc payloads."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "make Plan/Fleet/Navigation/Perception/Construction/Models/Security/Reports first-class cockpit work areas, mobile-safe, with explicit truth/belief/forecast/live provenance labels; cite it.",
+    "kind": "epic",
+    "test_target": "extend stewie/server/test_ui18_pane_manager.py or test_panel_layout_chrome.py; OR NEW stewie/server/test_ia_provenance_labels.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-03",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "Front-end information architecture: restructure the cockpit so Plan, Fleet, Navigation/Navigation, Perception/Imagery, Construction, Models, Security/System, and Reports are first-class work areas with mobile-safe layouts and explicit truth/belief/forecast/live labels."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "brief": {
+    "goal": "close multi-vehicle coordination as one umbrella \u2014 per-vehicle state, reservations, corridor deconfliction, cross-vehicle precedence, conflict explanation, safe replan \u2014 with an FS-04 integration test on real Haworth.",
+    "kind": "epic",
+    "test_target": "extend lode/test_fl04_precedence_split.py with `[REQ:FS-04]`, OR NEW lode/test_fs04_coordination.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-04",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "Multi-vehicle coordination: extend allocation into coordinated execution with per-vehicle state, shared-resource reservations, space-time corridor deconfliction, cross-vehicle precedence, conflict explanation, and safe replan/fallback behavior."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "D",
+   "brief": {
+    "goal": "land the live Autoware/Nav2 planner BINARY egress (the one remaining nav tier) so I/V move off P.",
+    "kind": "gated",
+    "test_target": "on-host tier already `[REQ:FS-05]` (lode/test_nav_pipeline.py, stewie/server/test_nav_router.py); live tier NEW stewie/bridge/test_live_planner_egress.py (host-gated)"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "FS-05",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "Path-planning and navigation stack: connect global route planning, local trajectory sampling, tracker, recovery, keep-outs, negative obstacles, illumination risk, slip/energy budgets, and ROS2/Autoware-style action lowering through one auditable navigation contract. `lode.planner_routing.navigation_contract` is that contract: it names each stage's implementing seam (`route_leg`, `local_planner.plan_local`/`track_plan`, `recovery.recovery_needed`, `negative_obstacle_mask`, `dart.illumination`, the `_simulate` slip/energy budget, and the NV-11 `lower_plan_ir` ROS egress) and self-reports whether each is wired on-host (import-check, not a hard-coded claim); surfaced read-only at `GET /nav/contract`. `on_host_complete` is true. An executable end-to-end spine now CONNECTS those on-host stages rather than leaving them as nine seams that merely import: `lode.nav_pipeline.run_navigation` routes the global corridor (`route_leg`), then DRIVES it as a receding-horizon closed loop through `plan_local` (local_trajectory), `track_plan` (the bounded cmd_vel egress), exact-unicycle integration, and `recovery_needed` (backup on a planner failure or a sustained low-progress stall), and `cross_track_deviation` scores the executed path against the planned route. `lode/test_nav_pipeline.py` is the on-host acceptance: it drives a real LOLA Haworth corridor to the goal with all five stages exercised in one connected run, fires-and-escapes recovery on a fully blocking keep-out (never entering the obstacle), and reports the honest no-corridor infeasible, so the on-host V evidence is now a real connected drive, not the import-check alone. X is now D: the spine is wired into the advertised product path. `POST /nav/run` runs the route-then-drive on the real site DEM and returns the planned waypoints + executed trajectory + recovery events + cross-track deviation + the stages exercised, and the cockpit Navigation pane's FS-05 DRIVE PREVIEW overlay (`navDrawDrive`) renders the planned route vs the executed trajectory with start/goal + recovery markers. Playwright-verified against a desktop-mode sidecar: the overlay drew the arrived-at-goal drive on the real Haworth corridor (54.5 m routed, 94 control ticks, cross-track mean 0.76 m). Tests: `test_nav_router.py` (the route end-to-end + unknown-site/extra-field 400s) and `test_ui_nav_drive.py` (the served drive-preview wiring). The cockpit drive is a PREVIEW simulated on the conserved terrain; commanding a real rover stays AG-08/SF-01 gated. I and V stay P: the live Autoware/Nav2 planner BINARY remains the one gated tier (present=False, needs a ROS/Space ROS host)."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "FS-06",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "Ephemerides and azimuth authority: one backend service owns mission time, body/site frame, sun vector, sun elevation, azimuth convention, uncertainty, cache/provenance, and all shadow consumers. Acceptance includes cross-module azimuth tests and UI display of the convention."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "wire the nav seams (articulation pose, camera rig, shadow/parallax obs, pose-graph factor, residual gate, covariance update, evidence view, planner relocalization stop) into one auditable closed loop; cite it.",
+    "kind": "epic",
+    "test_target": "NEW dart/test_nav_operational_loop.py (`[REQ:FS-07]`); optionally extend dart/test_relocalization.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-07",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "Navigation operational loop: articulation pose, camera rig, shadow/parallax observation, pose-graph factor, residual gate, covariance update, operator evidence view, and planner-triggered relocalization stop form one closed loop."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "enforce that every new capability ships typed API + schema fixture + cockpit binding + loading/error/empty states + a desktop AND mobile browser regression; cite it.",
+    "kind": "epic",
+    "test_target": "extend stewie/server/test_ux_clusterb.py with `[REQ:FS-08]`, OR NEW stewie/server/test_fs08_wiring.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-08",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "Backend-to-frontend wiring: every new autonomy capability exposes a typed API, OpenAPI/schema example or equivalent fixture, cockpit state binding, loading/error/empty states, and a browser regression test covering desktop and mobile widths."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "cite a meta-test proving each user-visible slice has unit + route + FE tests, `[REQ:]` markers, deterministic fixtures, and one e2e path.",
+    "kind": "atomic",
+    "test_target": "extend scripts/test_req_trace.py with `[REQ:FS-09]`, OR NEW scripts/test_pyramid_gate.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-09",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "Test pyramid: each slice lands with unit tests for math/contracts, backend route tests, front-end interaction tests, traceability markers, deterministic fixtures, and one integration/e2e path where the capability is user-visible."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "extend the budget framework beyond latency to memory, CPU/GPU, bandwidth, tile/cache, and model-inference budgets across map render/plan/fleet/nav/mobile.",
+    "kind": "epic",
+    "test_target": "extend stewie/server/test_perf_budgets.py::test_over_budget_flag_set_only_when_breached"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "FS-10",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "Optimization budgets: define and enforce latency, memory, CPU/GPU, bandwidth, tile/cache, and model-inference budgets for map rendering, planning, fleet solving, Navigation estimation, and cockpit mobile performance."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "consolidate the security-hardening gate into one FS-11 assertion + close the remaining backup/restore sub-item.",
+    "kind": "atomic",
+    "test_target": "extend stewie/server/test_account_store_failclosed.py, OR NEW stewie/server/test_fs11_hardening_gate.py"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "FS-11",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "Security and hardening gate: capability work must preserve fail-closed auth, role gating, no automation secrets in browser state, CSP/no-inline-script deployment, SBOM/CVE review, backup/restore assumptions, and command-path interlocks."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "enforce ML-01 model governance (no learned model exposed without lineage/split/registry/card/quant profile/calibration/OOD/fallback/rollback); cite it.",
+    "kind": "epic",
+    "test_target": "extend stewie/contracts/test_contracts.py::test_model_artifact_deployment_requires_declared_schemas_and_budgets with `[REQ:FS-12]`"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-12",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "Model integration and fine-tuning hardening: every learned model has dataset lineage, train/eval split, artifact registry entry, model card, quantization/deployment profile, calibration report, OOD detector, safe fallback, and rollback plan before cockpit exposure."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "record/version/replay/compare/approve construction + self-docking primitives (excavate/dump/berm/dock), replay belief-corrected + safety-bounded; cite it.",
+    "kind": "epic",
+    "test_target": "extend stewie/contracts/test_contracts.py::test_construction_skill_must_be_closed_loop with `[REQ:FS-13]`, OR NEW dart/test_skill_record_replay.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-13",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "Recorded construction and self-docking skills: record, version, replay, compare, and approve movement primitives for excavation, dumping, berm shaping, and docking; replay must be corrected by belief feedback and bounded by safety checks."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "code-enforce the atomic-rollout rule (a row can't reach V=D until contracts + FE affordance + route + tests + security + perf budget are complete-or-explicitly-gated); cite it.",
+    "kind": "epic",
+    "test_target": "NEW scripts/test_atomic_rollout_gate.py (`[REQ:FS-14]`), OR extend scripts/test_release_gate.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-14",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "Atomic rollout rule: the roadmap is implemented in dependency order; a phase cannot be marked done until the previous phase's contracts, front-end affordance, backend route, tests, security review, and performance budget are complete or explicitly gated."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "P",
+   "X": "N",
+   "brief": {
+    "goal": "give the Perception pane a typed contract + normalizer consuming the view model (not raw JSON), flipping X from N to D.",
+    "kind": "atomic",
+    "test_target": "extend stewie/server/test_adapter_contract_parity.py (add PerceptionState to _ADAPTER_FIELDS + a perception _PANE_CONSUMES entry; existing `[REQ:FS-15]` covers it)"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "FS-15",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "Front-end contract adapters: each cockpit work area owns a typed client adapter, request/response fixture, normalized view model, loading/error/empty mapping, and permission mapping. UI components consume view models, not raw backend JSON. The adapter LAYER is complete: `web/assets/adapters.js` normalizes all 10 FS-02 spine contracts (Ephemeris / World / Vehicle / Fleet / Belief / PlanResult / ExecutionEvent / NavigationFactor / ModelArtifact / ConstructionSkill) to view models, `toViewState` maps every fetch outcome to loading/ok/empty/error, `canAct` maps work-area\u2192role (AG-01), and `ModelArtifact.deploymentReady` mirrors the backend ML-01 gate. Tested by `adapters.test.js` (node) + the CI-gated `test_adapter_contract_parity.py`, which proves every field an adapter reads is a real Pydantic contract field (no fabrication) and fails on backend drift. FS-08 pane wiring is now UNDERWAY (incremental, one pane per step, each Playwright-verified): `adapters.js` is loaded into the cockpit (the `STEWIE_ADAPTERS` global), the `/plan` route returns the typed `PlanResult` contract (built from the same `totals`, additive), and the Report-pane dashboard strip + CONOPS line consume the `normalizePlanResult` view model instead of ad-hoc `totals` keys -- which also fixed a latent bug where the `recharges` chip read a non-existent `totals.recharges` and showed a dash (now the real charge count, Playwright-confirmed). Increment 2 adds the new `TimelineFrame` contract (the activity-gantt motion frames; the /plan timeline frames are tested to conform to it) and the `normalizeTimelineFrame` view model, and the Report-pane ACTIVITY gantt + battery curve now consume it instead of raw frame dicts. Increment 3 adds the `LocalizationFix` contract (the Nav pane's est-vs-truth trace leg: `est`/`true`/`sigma`/`fix`; the /plan trace legs are tested to conform) + `normalizeLocalizationFix`, and the Nav pane's mission-localization plot consumes it. So THREE surfaces are migrated, each Playwright-verified: the Report dashboard (PlanResult), the activity gantt (TimelineFrame), and the Nav est-vs-truth trace (LocalizationFix). X stays N until the Perception pane consumes view models too (its panorama/shadow aggregates need their own contract)."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "P",
+   "X": "D",
+   "brief": {
+    "goal": "add a PYTHON citing test proving the single routeable state model drives desktop + mobile (enum enforcement + hash round-trip), flipping V P\u2192D.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_cockpit_state_routing.py (`[REQ:FS-16]`; static-read pattern of test_panel_layout_chrome.py)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-16",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "Cockpit state and routing: the app has one routeable state model for selected mission, site, vehicle, body, time, mode, role, work area, selected entity, and live/sim/eval source. Desktop and mobile navigation are alternate views of the same state, not separate logic."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "FS-17",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "Windowing policy: the production operator flow is one browser cockpit. Any second window is read-only engineering/debug context or a separate ROS/RViz/Gazebo tool; it cannot hold independent command authority, hidden state, or unique approval controls. Enforced in `cockpit.js` by a single-authority election (`CMD_AUTH`: a localStorage claim + heartbeat, `BroadcastChannel` + `storage`-event sync); a window without the fresh claim is read-only (`body.dataset.cmdrole`), shows the `#cmd-readonly-banner`, disables `[data-cmd-authority]` command controls, and `guardCommand` refuses the command-tape emit. An explicit Take-over control promotes a window (no silent promotion of a hidden tab). Two-tab behavior Playwright-verified; static wiring guarded by `stewie/server/test_fs17_command_authority.py`."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "build the frontend-backend contract GATE enforcing, per route-to-pane connection, six artifacts (schema fixture, route test, FE render test, permission test, mobile smoke, failure-mode test); cite it.",
+    "kind": "epic",
+    "test_target": "NEW stewie/server/test_contract_gate.py (`[REQ:FS-18]`)"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "FS-18",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "Frontend-backend contract gate: every new route-to-pane connection has a schema fixture, backend route test, frontend fixture render test, permission test, mobile-width smoke, and one failure-mode test before it is considered wired."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "complete the observability ledger (every event class logs correlation-id + mission/site/body/time + actor + I/O hashes + result + latency + error, never secrets/truth-denied); broaden the citation.",
+    "kind": "epic",
+    "test_target": "extend stewie/server/test_observability_ledger.py with per-class `[REQ:FS-19]` assertions"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "FS-19",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "End-to-end observability ledger: log every mission decision, operator action, role/permission check, backend contract call, plan/replan, command emission, safing event, model inference summary, Navigation factor accept/reject, fleet conflict, and state transition with correlation ID, mission/site/body/time, actor, input/output hashes, result, latency, and error code. Secrets, passwords, tokens, private keys, and operational truth-denied fields must never be logged."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "FS-20",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "Cockpit chrome IA: System, Settings, and Admin move OUT of the top-level work-area tab bar into a profile/account menu, role-gated (Settings per-user; System eng/director; Admin director-only) \u2014 an operator sees only the mission work areas. Directors get a read-only log/audit viewer surfacing the FS-19 observability ledger (logs visible to admins; secrets/tokens/truth-denied fields never shown)."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "finish the customizable workspace (drag/dock panes, persist per operator via localStorage + optional server profile, reset always available, view-only); broaden the citation.",
+    "kind": "optional",
+    "test_target": "extend stewie/server/test_panel_layout_chrome.py, OR NEW server-profile round-trip test"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "FS-21",
+   "lane": "FS",
+   "pri": "P2",
+   "text": "Customizable workspace: within a work area, panes can be rearranged (drag-and-drop / dock) and the layout persists per operator (localStorage + optional server profile), with reset-to-default always available. Layout is a VIEW preference only \u2014 it never changes command authority, AG-08 gating, role gates, or which contract a pane consumes."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "FS-22",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "PRD-code reconciliation gate: before claiming \"complete the PRD\", audit every open or partial \u00a77 row against code and tests, classify it as DONE-stale, PARTIAL, OPEN, or BLOCKED, and record file:line evidence plus the smallest next action. Stale PRD statuses must be corrected before new implementation work is counted. The STRUCTURAL reconciliation invariants are now CODE-ENFORCED in `scripts/req_trace.py` and run as a hard CI step (`.github/workflows/ci.yml`): every `[REQ:]` citation must resolve to a real matrix row (an orphan/typo'd marker FAILS the gate), every row claiming V=D must be test-cited (FAILS otherwise), and rows that are cited but not yet V=D are surfaced as an \"understated \u2014 review for promotion\" audit list (the reverse-staleness signal). Tested by `scripts/test_req_trace.py` [REQ:FS-22] (orphan citation \u2192 exit 1; valid citation \u2192 pass; understated rows surfaced). The per-row SEMANTIC classification (DONE-stale/PARTIAL/OPEN/BLOCKED + smallest next action) remains the periodic manual audit deliverable."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "build the architecture-review traceability ledger \u2014 a living map PRD row \u2192 route/service \u2192 domain module \u2192 FE adapter/view \u2192 tests \u2192 logs \u2014 that exposes missing links without implying done.",
+    "kind": "epic",
+    "test_target": "NEW scripts/test_arch_ledger.py (`[REQ:FS-23]`), OR extend req_trace to emit the full chain"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-23",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "Architecture review ledger: maintain a living full-stack map from PRD row -> backend route/service -> domain module -> frontend adapter/view -> tests -> logs. It must expose missing links without implying the capability is done."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "add a python citing test locking the cockpit module split (app shell / state / adapters / view models / shared viz / work-area views / command rail / diagnostics) + proving CSP/no-inline + purity.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_cockpit_modularization.py (`[REQ:FS-24]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-24",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "Front-end module organization: split the cockpit into app shell, route/state store, typed API adapters, domain view models, shared visualization components, work-area views, command/approval rail, and diagnostics/log viewers. The split must preserve CSP/no-inline-script and fixture-driven tests."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "turn the CSP/runtime smoke into a real desktop + mobile browser check against the DEPLOYED headers asserting Cesium + Moon/Mars/Earth imagery + worksite overlays + sign-in + mobile nav load with zero blocking console errors.",
+    "kind": "gated",
+    "test_target": "NEW stewie/server/test_gi01_runtime_smoke.py (`[REQ:GI-01]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GI-01",
+   "lane": "GI",
+   "pri": "P0",
+   "text": "Production GIS runtime gate: the built Nginx/front-end image loads Cesium, Moon/Mars/Earth imagery, worksite overlays, sign-in, and mobile navigation under the actual CSP with zero blocking console errors. Acceptance is a desktop + mobile browser smoke against the deployed headers, not a direct asset curl."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "give each body body-correct ellipsoid/CRS metadata + drive real DEM 3D terrain where a layer claims terrain, labeling any smooth WGS84 drape imagery-only.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_gi02_body_crs.py (`[REQ:GI-02]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GI-02",
+   "lane": "GI",
+   "pri": "P1",
+   "text": "Planetary map correctness: Moon/Mars views use body-correct ellipsoid/CRS metadata and real DEM terrain/elevation where a layer claims 3D terrain. A smooth WGS84 drape must be labeled as imagery-only, not terrain."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "verify + glyph-reconcile the mission-required GIS interop subset (GeoJSON/COG import, feature query, offline mission package) that is already implemented.",
+    "kind": "atomic (done-stale)",
+    "test_target": "lode/test_gis_export.py::test_export_is_valid_rfc7946_featurecollection_that_parses_back (verify green + reconcile the \u00a77 glyph)"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "GI-03",
+   "lane": "GI",
+   "pri": "P2",
+   "text": "GIS interoperability scope: define and implement the mission-required subset only -- GeoJSON/COG import, selected OGC/ArcGIS service consumption, feature attributes/query, measurement/profile tools, provenance, and offline mission package export. Do not claim ArcGIS parity."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "P",
+   "bucket": "done",
+   "cited": true,
+   "id": "ML-01",
+   "lane": "ML",
+   "pri": "P0",
+   "text": "Model-orchestration rule: every learned model declares input schema, output schema, latency budget, compute/memory budget, calibration set, uncertainty output, failure modes, and safe fallback. Mission Executive consumes only typed outputs, never free-form model actions."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "extend the terrain-assessment hazard layer to emit a hazard CLASS + slope/roughness SUMMARY + per-cell CONFIDENCE alongside the existing traversability/cost.",
+    "kind": "atomic",
+    "test_target": "dart/test_hazard_map.py::test_hazard_map_marks_steep_and_hard_rocks_nogo (extend, `[REQ:ML-02]` present)"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "ML-02",
+   "lane": "ML",
+   "pri": "P1",
+   "text": "Terrain Assessment Model: stereo/depth, DEM, slope, shadow, and uncertainty layers produce traversability, hazard class, slope/roughness summaries, and confidence for the local planner."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "acceptance-GATE the Class-A (>7 cm) rock hazard classification against held-out truth with a pass/fail threshold; move the marker off the tautological binning test to the real held-out eval.",
+    "kind": "atomic",
+    "test_target": "dart/test_rock_detect.py::test_score_precision_recall_consistency (extend with a >7cm threshold gate + `[REQ:ML-03]`), OR NEW test_class_a_hazard_acceptance_gate"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "ML-03",
+   "lane": "ML",
+   "pri": "P1",
+   "text": "Rock Classification Model: image/depth observations produce rock size, class, confidence, and navigation/excavation relevance; Class-A `>7 cm` hazard classification is acceptance-gated against held-out truth/evaluation labels."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "harden the shadow-SLAM factor path \u2014 assert factors carry covariance (information) AND the graph rejects factors failing a residual AND an observability gate.",
+    "kind": "atomic",
+    "test_target": "dart/test_shadow_factors.py::test_shadow_factors_recover_a_perturbed_heading (extend, `[REQ:ML-04]` present)"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "ML-04",
+   "lane": "ML",
+   "pri": "P1",
+   "text": "Shadow-SLAM / Navigation Model: image pair or sequence plus sun geometry and articulation pose propose pose/landmark factors with covariance; the factor graph accepts them only through residual/observability gates."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "brief": {
+    "goal": "build a unified ExcavationState estimator fusing drum torque/current + slip + IMU + arm/drum + drive current \u2192 {digging_state, fill_fraction, slip, stall_risk, confidence}, advisory until calibrated.",
+    "kind": "epic",
+    "test_target": "NEW stewie/physics/test_excavation_state.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "ML-05",
+   "lane": "ML",
+   "pri": "P1",
+   "text": "Excavation State Model: drum torque/current, wheel slip, IMU, arm/drum state, and drive current estimate digging state, fill fraction, slip, stall risk, and confidence; advisory until calibrated against IPEx/AutoDig-style data."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "brief": {
+    "goal": "build a regolith-volume estimator (moved volume/mass WITH UNCERTAINTY from observed before/after DEM/stereo), cross-checked vs conserved-authority mass + drum-fill.",
+    "kind": "epic",
+    "test_target": "NEW lode/test_regolith_volume.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "ML-06",
+   "lane": "ML",
+   "pri": "P1",
+   "text": "Regolith Volume Estimator: before/after DEM or stereo heightfields estimate moved volume/mass with uncertainty, cross-checked against conserved authority mass and drum-fill sensing."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "enforce the mission-planner-LLM guardrail \u2014 any candidate task graph MUST compile to typed goals, pass deterministic validation, and be executive-approved before sim/lowering; the LLM itself is optional.",
+    "kind": "optional",
+    "test_target": "extend lode/test_mission_intent_compiler.py with `[REQ:ML-07]`, OR NEW stewie/contracts/test_ml07_planner_guardrail.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "ML-07",
+   "lane": "ML",
+   "pri": "P1",
+   "text": "Mission Planner LLM: a small language model may convert operator intent into candidate task graphs, but plans must compile to typed goals, pass deterministic validation, and be approved by the mission executive before simulation or command lowering."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "establish the science/operator assistant as a read-only summarizer with the enforceable invariant of no command path.",
+    "kind": "optional",
+    "test_target": "extend stewie/contracts/test_contracts.py::test_model_artifact_cannot_be_on_command_path with `[REQ:ML-08]`"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "ML-08",
+   "lane": "ML",
+   "pri": "P1",
+   "text": "Science/Operator Assistant: a separate explanatory model may summarize telemetry, faults, and evidence; it has read-only access and no command path."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "define the edge deployment envelope \u2014 a Jetson-Orin-class compute profile (RAM/power/thermal/latency/sensor-IO) + an aggregate check that any SIMULTANEOUS model set fits it + degraded-mode scheduling.",
+    "kind": "epic",
+    "test_target": "NEW stewie/specs/test_edge_envelope.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "ML-09",
+   "lane": "ML",
+   "pri": "P0",
+   "text": "Edge deployment envelope: any simultaneous model set intended for IPEx-class hardware must fit the selected compute profile (for example Jetson Orin NX/AGX class) under measured RAM, power, thermal, latency, and sensor-I/O budgets with degraded-mode scheduling."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "MO-02",
+   "lane": "MO",
+   "pri": "P1",
+   "text": "Mission-executive state machine (`DRAFT->ANALYZED->REHEARSED->REVIEWED->RELEASED->ARMED->EXECUTING->HOLDING/SAFED/COMPLETED/ABORTED->DEBRIEFED`; RELEASED = signed immutable revision). The planning + authorization head (DRAFT->RELEASED) is implemented: `stewie.contracts.executive.MissionExecutive` drives the typed transitions, `lode.mission_lifecycle.run_lifecycle` attaches REAL evidence at each edge (the compiler's deterministic plan_id at ANALYZED; the forward_compare ranking at REHEARSED), and `POST /executive/advance` (`stewie/server/routers/executive.py`, director-gated) exposes it. An uncompilable intent yields a 400 with no fabricated plan_id. Tested by `lode/test_mission_lifecycle.py` + `stewie/server/test_executive_route.py` [REQ:MO-02]. Q stays N: the live ARMED..EXECUTING execution tier is gated (MO-04, SIM/FORECAST-labeled) and not yet qualified against fault injection or hardware."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "NV-01",
+   "lane": "NV",
+   "pri": "P0",
+   "text": "Global routing rejects unreachable goals; it never substitutes an unsafe straight line."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "brief": {
+    "goal": "add a coverage-route generator emitting overlapping-loop / outward-spiral waypoints promoting map coverage + deliberate re-observation / loop closure.",
+    "kind": "atomic",
+    "test_target": "NEW lode/test_coverage_route.py (`[REQ:NV-02]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "NV-02",
+   "lane": "NV",
+   "pri": "P1",
+   "text": "Coverage routes promote map coverage and deliberate re-observation/loop closure. `[NAVLAB26 reference: overlapping loops/outward spiral]`"
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "NV-03",
+   "lane": "NV",
+   "pri": "P1",
+   "text": "A local planner samples dynamically feasible short-horizon trajectories and rejects rock/terrain collisions. `[NAVLAB26 reference: constant-curvature arcs]` `lode/local_planner.py`: samples a symmetric constant-curvature arc fan, rejects keep-out/rock/terrain (injected obstacle oracle), returns the max-progress feasible arc or feasible=False (NV-01: never a forced unsafe arc). Verified on the real Haworth slope map. Reachable from the cockpit via `POST /nav/local_plan` (router `stewie/server/routers/nav.py`, returns the arc + the NV-04 bounded drive command)."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "NV-04",
+   "lane": "NV",
+   "pri": "P1",
+   "text": "A path tracker converts trajectories into bounded commands and reports expected speed/progress. `lode/local_planner.py` `bounded_twist`/`track_arc`/`track_plan`: a constant-curvature arc -> a bounded (v, omega) twist (gentle = linear-capped, sharp = yaw-rate-capped), with expected speed (slip-derated via injected `(1-slip)`), duration, and arc-length progress; consumes an NV-03 plan and refuses an infeasible one."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "NV-05",
+   "lane": "NV",
+   "pri": "P1",
+   "text": "Reactive obstacle observations update dynamic keep-outs and trigger local/global replan. `lode/reactive_nav.py` `react`: discovers newly-observed D/E rocks in sensor range (path_track), folds them into the dynamic keep-out set, and replans -- LOCAL (NV-03 arc around the updated keep-outs) first, escalating to GLOBAL when every local arc is blocked; deviation off-route also triggers."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "NV-06",
+   "lane": "NV",
+   "pri": "P1",
+   "text": "Backup recovery triggers on progress ratio, duration, and planner failure; initial benchmark uses the `[NAVLAB26]` less-than-25%-for-2-to-3-second rule as a configurable reference. `lode/recovery.py` `recovery_needed`: fires on planner failure or sustained low progress (configurable threshold/stall window, default <25% for 2 s)."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "NV-07",
+   "lane": "NV",
+   "pri": "P1",
+   "text": "Recovery distinguishes collision/obstacle blockage from expected slope/slip slowdown to avoid false reverse maneuvers. `lode/recovery.py` `classify_stall`/`recommend`: low progress matching the slip-predicted (injected) ground speed -> 'slope_slip' (persist, no reverse); far below it -> 'blockage' (reverse); planner failure -> replan_global."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "NV-08",
+   "lane": "NV",
+   "pri": "P1",
+   "text": "Tip, entrapment, localization divergence, low energy, thermal violation, and actuator faults are explicit fault classes. `lode/faults.py` `classify_faults`: the six classes with warn/critical severity off the existing models' signals (SSA tip margin, slip-ladder entrapment, pose-graph sigma, battery fraction vs the sourced 0.10 reserve, the -35/+40 C actuator qual, actuator status) + a safety-critical rollup the executive gates on."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "NV-09",
+   "lane": "NV",
+   "pri": "P1",
+   "text": "An executive monitors action preconditions, command acknowledgements, belief covariance, and acceptance state, then pauses/replans/fails safely. `lode/executive.py` `executive_step`: strict safety precedence over the nav family -- safety-critical fault (NV-08) -> fail_safe; un-acked command / unaccepted step -> pause; recovery/reactive (NV-05/06/07) -> replan_global / reverse / persist / replan_local; else continue."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "NV-10",
+   "lane": "NV",
+   "pri": "P0",
+   "text": "Plan IR maintains independent position, energy, time, and action state per vehicle."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "NV-11",
+   "lane": "NV",
+   "pri": "P1",
+   "text": "ROS lowering emits paths, motion commands, arm/drum goals, observation actions, and replan events from Plan IR. `stewie.bridge.plan_lowering.lower_plan_ir` lowers the IR's typed actions to ROS2-shaped messages -- `nav_msgs/Path` + `geometry_msgs/PoseStamped` per GoTo, an arm/drum action goal per Excavate/CutHaulFill/Import/Sinter, an observation goal per Observe, and replan events for blocked legs / an infeasible plan -- carrying the deterministic `plan_id`. Pure (rclpy-optional, the bridge pattern); the standard `nav_msgs`/`geometry_msgs` shapes are exactly what a Space ROS (hardened, API-compatible ROS 2) executive consumes. Published on the AG-08-gated `/rc/plan_ros` route (operator+, live-namespace mission only, SF-01) which lowers a live mission's plan and frames it on the NV-12 `StreamSession`."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "NV-12",
+   "lane": "NV",
+   "pri": "P1",
+   "text": "Live command/telemetry uses a versioned streaming API with timestamps, sequence numbers, backpressure, and safe-stop semantics. `stewie.bridge.stream.StreamSession`: every frame carries `protocol_version` + a monotonic `seq` + a timestamp; a bounded un-acked window applies backpressure (frames past the window are refused + counted, never silently dropped); cumulative `ack` is the heartbeat; and an SF-01-tied safe-stop trips when the oldest un-acked frame stalls past `ack_deadline_s`, submitting `RC.Safe(SAFE_REASON_LINK_STALL)` through the same backend SF-01 uses. Pure (caller supplies `now`, the watchdog pattern; rclpy-optional). Wired into the AG-08-gated `/rc/plan_ros` route, which frames NV-11's lowered messages on a `StreamSession` (sequenced, back-pressured) for a live mission only."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "brief": {
+    "goal": "provide a unified explicit-clock + frame-ID synchronizer time-aligning camera/IMU/command/arm/truth streams into one estimator-consumable timeline.",
+    "kind": "epic",
+    "test_target": "extend dart/test_s3li_reader.py with `[REQ:PM-01]`; NEW dart/test_stream_sync.py for the unified aligner"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PM-01",
+   "lane": "PM",
+   "pri": "P0",
+   "text": "Time-synchronize camera, IMU, command, arm, and truth/evaluation streams using explicit clocks and frame IDs."
+  },
+  {
+   "I": "P",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "quality/hardware gated",
+   "id": "PM-02",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "Support the documented IPEx/LAC camera set and a maximum active-camera budget; camera activation/resolution has compute and energy cost."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "add an eval-mode segmenter labeling \u2265 ground/rock/lander/fiducial/sky from grayscale without a truth mask.",
+    "kind": "epic",
+    "test_target": "NEW dart/test_eval_segmentation.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PM-03",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "Segment at least ground, rock, lander, fiducial, and sky from grayscale images without truth masks in evaluation mode."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "cite + close the illumination-robust feature detect/match row (already exposes confidence/inlier stats).",
+    "kind": "atomic",
+    "test_target": "dart/test_features.py::test_math_check_at_least_one_method_exceeds_inlier_floor (add `[REQ:PM-04]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PM-04",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "Detect/match illumination-robust features and expose confidence/inlier statistics. `[NAVLAB26 reference: SuperPoint + LightGlue]`"
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "N",
+   "bucket": "done",
+   "cited": true,
+   "id": "PM-05",
+   "lane": "PM",
+   "pri": "P0",
+   "text": "Stereo VO triangulates landmarks, maintains persistent tracks, and estimates relative SE(3) pose with robust outlier rejection."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "N",
+   "bucket": "done",
+   "cited": true,
+   "id": "PM-06",
+   "lane": "PM",
+   "pri": "P0",
+   "text": "Fuse VO/IMU and validated absolute factors in a recursive estimator or factor graph with covariance."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "cite + close the loop-closure row (candidate-gated, geometrically verified, auditable, false closures kept out of the graph).",
+    "kind": "atomic",
+    "test_target": "dart/test_loop_closure_visual.py::test_detect_loops_finds_start_end_revisit_and_chain_matches_vo (add `[REQ:PM-07]`) + a negative-case test"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PM-07",
+   "lane": "PM",
+   "pri": "P0",
+   "text": "Loop closures are candidate-gated, geometrically verified, and auditable; false closures must not silently enter the graph."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PM-08",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "Produce a local/world elevation map using robust per-cell aggregation and a rock occupancy/probability map."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "P",
+   "bucket": "done",
+   "cited": true,
+   "id": "PM-09",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "Track observed coverage, effective sample support, uncertainty floor, and correlation; dense pixels from one view are not treated as independent evidence."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "brief": {
+    "goal": "build one fixed LAC-style benchmark suite (localization RMSE, 5 cm height-cell pass, rock F1, coverage, runtime, failure count) swept over seeds \u00d7 light \u00d7 rocks.",
+    "kind": "epic",
+    "test_target": "NEW scripts/ros2_bridge/test_lac_suite.py (or benchmarks/lac_suite/)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PM-10",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "Benchmark on a fixed LAC-style suite: localization RMSE, 5 cm height-cell pass fraction, rock F1, coverage, runtime, and failure count across seeds/light/rocks."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "demonstrate repeatable cm-scale localization comparable to the 0.038-0.067 m NAVLAB26 band before any parity claim.",
+    "kind": "gated",
+    "test_target": "NEW benchmarks/lac_suite/test_cm_parity.py (depends on PM-10)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PM-11",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "Target benchmark: demonstrate repeatable centimeter-scale localization comparable to the `0.038-0.067 m` `[NAVLAB26]` reference before claiming parity."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PM-12",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "Truth pose and semantic masks are development/evaluation-only and structurally unavailable to operational estimator code."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "GPU/live depth-source pipeline",
+   "id": "PM-13",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "Stereo distance/range: rectified stereo pairs yield a calibrated disparity\u2192depth estimate to a selected pixel/target, with per-estimate uncertainty from baseline + disparity noise. Acceptance scores the estimate against the conserved truth depth in sim (no synthetic depth)."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "GPU/live depth-source pipeline",
+   "id": "PM-14",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "3D depth point cloud + recognition: a dense/semi-dense point cloud is reconstructed from stereo, expressed in the world frame with per-point confidence; recognition (ground/rock/berm/pit/lander) operates on the cloud, never on truth masks."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "GPU/live depth-source pipeline",
+   "id": "PM-15",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "Regional target height: over an operator-selected footprint, estimate a height field / max-min relief (berm crest, pad flatness, obstacle height) from the stereo cloud, with uncertainty; acceptance compares to the conserved as-built truth (ties CP-06 flatness/profile and I11 as-built RMSE)."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "GPU/live depth-source pipeline",
+   "id": "PM-16",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "Regional target volume: over a selected footprint, integrate cut/fill volume (excavated pit, spoil/berm) from the stereo height field vs a reference datum, with an uncertainty band; cross-checked against the conserved mass/volume the authority actually moved (CT-03 conservation)."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "N",
+   "X": "P",
+   "brief": {
+    "goal": "make \"fresh wheel \u2192 `stewie-serve` runs with one product extra\" close by citing an always-on proxy test + wiring the opt-in wheel smoke into a scheduled CI tier (the `[REQ:PO-01]` test is skip-by-default today).",
+    "kind": "atomic",
+    "test_target": "add `[REQ:PO-01]` to stewie/server/test_server_install.py::test_server_app_and_entrypoint_import; keep the wheel smoke + add a scheduled CI step"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "PO-01",
+   "lane": "PO",
+   "pri": "P0",
+   "text": "`stewie-serve` (alias `stewie-serve`, deprecated) works after a fresh wheel install with one documented product extra."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PO-02",
+   "lane": "PO",
+   "pri": "P0",
+   "text": "Reports, profiles, caches, and renders use configurable application-data directories and atomic writes."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PO-03",
+   "lane": "PO",
+   "pri": "P0",
+   "text": "CI installs declared dependencies and runs the configured suite across supported Python versions."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "P",
+   "X": "N",
+   "brief": {
+    "goal": "restructure CI to SEPARATELY gate the named tiers (python core / scripts / godot / browser-JS / package smoke / hardware-gated) + a test asserting the workflow declares them; fix the misattributed markers.",
+    "kind": "epic",
+    "test_target": "NEW scripts/test_ci_tiers.py"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "PO-04",
+   "lane": "PO",
+   "pri": "P0",
+   "text": "CI separately gates Python core, scripts, Godot, browser, package smoke, and hardware-gated tiers."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "add the missing \"scan resolved artifacts\" step + wire the lock/SBOM/fresh-install scripts into CI as a real gate (lock+SBOM+fresh-install exist + are tested; only the CVE scan + CI wiring are missing).",
+    "kind": "atomic",
+    "test_target": "NEW scripts/test_scan_artifacts.py + a CI step"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "PO-05",
+   "lane": "PO",
+   "pri": "P1",
+   "text": "Commit a dependency lock, build an SBOM, scan resolved artifacts, and run a fresh-install test."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PO-06",
+   "lane": "PO",
+   "pri": "P1",
+   "text": "Server enforces streamed body limits, execution timeouts, bounded concurrency, auth policy, and deployment-safe CORS."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PO-07",
+   "lane": "PO",
+   "pri": "P1",
+   "text": "Structured logs include request/event ID, mode, plan ID, route, duration, outcome, and error class."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PO-08",
+   "lane": "PO",
+   "pri": "P1",
+   "text": "Metrics are bounded and exportable in a standard operations format."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "add a real schema-migration mechanism for mission/profile schemas (versioning exists; the loader only REJECTS an unknown version).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/specs/test_profile_migration.py (`[REQ:PO-09]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PO-09",
+   "lane": "PO",
+   "pri": "P1",
+   "text": "Mission/profile schemas are versioned and migratable."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "give the cockpit one tested four-way visual distinction among forecast / sim-truth / estimator-belief / live-telemetry (concepts exist scattered; state model carries a 3-value source enum).",
+    "kind": "atomic",
+    "test_target": "extend .../cockpit_state.test.js with `[REQ:PO-10]`, OR NEW .../provenance_label.test.js"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PO-10",
+   "lane": "PO",
+   "pri": "P1",
+   "text": "UI distinguishes forecast, simulation truth, estimator belief, and live telemetry."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "make fleet playback render EVERY rover + each rover's INDEPENDENT telemetry (today it replays a single-rover forecast; the Fleet pane shows static tables).",
+    "kind": "epic",
+    "test_target": "extend .../fleet_render.test.js, OR NEW .../fleet_playback.test.js"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PO-11",
+   "lane": "PO",
+   "pri": "P1",
+   "text": "Fleet playback renders every rover and its independent telemetry."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "build an integrated Solar view (sun vector + illumination/shadow layers + active cameras/LEDs + arm posture + localization evidence accepted/rejected).",
+    "kind": "epic",
+    "test_target": "NEW .../solar_view.test.js (`[REQ:PO-12]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PO-12",
+   "lane": "PO",
+   "pri": "P1",
+   "text": "Solar view displays sun vector, illumination/shadow layers, active cameras/LEDs, arm posture, and evidence accepted/rejected by localization."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PO-13",
+   "lane": "PO",
+   "pri": "P1",
+   "text": "`CHANGELOG.md` (Keep a Changelog), exported `stewie.__version__` (== pyproject `[project].version`, enforced by `stewie/server/test_version.py`), a SemVer policy (`docs/RELEASE.md`), and a release-evidence manifest (`release_manifest.json`) aggregated from REAL artifacts by `scripts/gen_release_manifest.py` \u2014 version+drift, req_trace reconciliation, autonomy gate, SBOM component count, dep-lock status, changelog/SemVer presence; deterministic surface CI-guarded by `--check` (the gen_status.py honesty pattern), volatile fields (commit, live coverage/tests) written by `--full` to the reports dir at release time. `scripts/test_gen_release_manifest.py` [REQ:PO-13] proves every field IS the live tool output (no hand numbers) + the committed surface is in-sync + volatile-excluded."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "make optional Godot an explicit deploy PROFILE (ROS is a compose profile; Godot is not) + a test asserting docs + supported image + ros2/godot capability profiles are declared.",
+    "kind": "atomic",
+    "test_target": "NEW deploy/test_deploy_profiles.py (note deploy/ not in testpaths \u2192 place under scripts/ or add to testpaths)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PO-14",
+   "lane": "PO",
+   "pri": "P1",
+   "text": "Provide deployment documentation and a supported server image; optional Godot/ROS capabilities are explicit profiles."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "enforce (+ mark) the deployed-RL-policy gate (no RL operational without versioned artifact + lineage + card + safety shield + deterministic fallback + OOD report).",
+    "kind": "gated",
+    "test_target": "stewie/server/test_models_pane.py::test_models_endpoint_serves_the_real_registries (add `[REQ:RL-01]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RL-01",
+   "lane": "RL",
+   "pri": "P1",
+   "text": "Deployed RL policy gate: no RL capability may be called operational until a versioned policy artifact, training/eval lineage, model card, safety shield, deterministic fallback, and out-of-distribution acceptance report exist. Training scripts/environments alone do not satisfy this row."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "complete the full release security-audit gate (host / container / app / DNS-site / secret / backup-restore / dependency-SBOM-CVE / external-exposure) with recorded evidence.",
+    "kind": "epic / gated",
+    "test_target": "NEW scripts/test_se01_audit_gate.py (`[REQ:SE-01]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "SE-01",
+   "lane": "SE",
+   "pri": "P0",
+   "text": "Full security audit gate: release requires a completed host, container, app, DNS/site, secret, backup/restore, dependency/SBOM/CVE, and external exposure audit. The current non-invasive Archimedes/site review is not sufficient."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "SF-01",
+   "lane": "SF",
+   "pri": "P0",
+   "text": "A command-timeout safing watchdog auto-issues SAFE to any RC backend (sim or real pit) when valid commands stop arriving; resets on each heartbeat. The dead-man interlock on the command path (the \u00a719.0 safety requirement; the moment STEWIE commands hardware, this is its interlock)."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "close the truth-isolated SLAM/Nav benchmark \u2014 keep the built truth-topic denial, add evaluator-only pass/fail thresholds, score the full render\u2192sensor\u2192RTAB-Map\u2192Nav\u2192pose-graph pipeline end to end.",
+    "kind": "epic / gated",
+    "test_target": "scripts/ros2_bridge/test_bag_truth_split.py (extend, `[REQ:SL-01]` present) with an evaluator-only threshold assertion"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "SL-01",
+   "lane": "SL",
+   "pri": "P0",
+   "text": "Truth-isolated SLAM/Navigation benchmark: runtime bags and estimator processes are physically denied truth topics/frames; the full render/sensor/RTAB-Map-or-equivalent/Navigation/pose-graph pipeline is scored by an evaluator-only channel with pass/fail thresholds."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "SN-01",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Derive expected shadow azimuth from `s(t)` and local terrain/objects. `[PROPOSED]`"
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "SN-02",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Detect reliable shadow vectors while rejecting rover/LED shadows, saturation, ambiguous penumbra, and texture edges. `[PROPOSED]`"
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "SN-03",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Fuse accepted shadow evidence as a weak yaw factor with covariance; never as an unqualified absolute heading. `[PROPOSED]`"
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "SN-04",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Re-evaluate shadow factors when terrain is excavated, the sun vector changes, or the observation viewpoint changes."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "SN-05",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Add illumination-aware route cost: visibility, saturation, shadow hazard, map uncertainty, energy, slope, and construction constraints remain separate inspectable terms. `dart.illumination_cost.illumination_cost` returns the four illumination terms SEPARATELY (never a fused black box): shadow-hazard (unlit -> no tag-lock), saturation (low-sun washout), map-uncertainty (coverage field), and visibility (opt-in: a cell with NO line-of-sight to a localization anchor cannot get a fiducial pose-lock -- distinct from shadow, reusing the audited `dart.visibility.is_visible` LOS march); energy/slope/construction stay the planner's existing separate route terms. [REQ:SN-05] tests assert each is its own retrievable field + the visibility term flags cells blind to the anchor. The separable terms now remain SEPARATE AND INSPECTABLE THROUGH THE LIVE ROUTE COST, not only at the DART layer: `lode.planner_routing.slope_costmap` / `route_leg` (and the footprint-inflated multi-vehicle `lode.mission_planner.route_leg`) accept either the bare `total` array OR the FULL `illumination_cost` dict and expose, via `return_terms=True`, a per-term breakdown of the routed corridor -- slope + each illumination sub-term (shadow_hazard / saturation / map_uncertainty / visibility) + map_unc as its OWN per-waypoint cost vector, so the cockpit/report can (once a consumer is wired) inspect why each routed cell costs what it does, term by term (the weighted terms sum exactly to the fused route cost; `return_terms=False` keeps the original 4-tuple contract byte-identical, and the dict-fed route is identical to the total-fed route). Validated on the real Haworth DEM by `lode/test_illumination_route.py` [REQ:SN-05]: a route across a shadowed region prefers lit cells AND the live route exposes the separable per-term breakdown (`test_route_leg_exposes_per_term_breakdown_on_real_dem`, point + inflated routers). I=D (separable per-term route cost fully implemented on the point + multi-vehicle inflated routers), V=D (the [REQ:SN-05] test verifies per-term inspectability through the live route, proven non-vacuous). X=D: the per-term breakdown now has a LIVE consumer + endpoint -- `lode.nav_pipeline.run_navigation` (the FS-05 spine) threads `illum_cost` + `return_terms` and surfaces `route_terms` (slope + each separable illumination sub-term shadow_hazard / saturation / map_uncertainty / visibility, each its own per-waypoint vector) in its result, and `POST /nav/run` surfaces `route_terms` in its JSON response. `illum_cost=None` keeps the live path byte-identical (the slope term only). `lode/test_illumination_route.py::test_run_navigation_surfaces_the_separable_route_terms_on_the_live_path` + `stewie/server/test_nav_router.py` [REQ:SN-05] verify the live spine + endpoint expose the separable breakdown on the real Haworth DEM; the endpoint does not auto-compute illumination per request (a full-DEM recompute) -- the illumination sub-terms appear when a precomputed `illum_cost` field is supplied to `run_navigation`. Illumination routing remains opt-in (off by default leaves routes byte-identical), the intended design."
+  },
+  {
+   "I": "D",
+   "Q": "G",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "SN-06",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Choose camera direction and exposure to avoid low-sun washout while preserving useful stereo overlap."
+  },
+  {
+   "I": "D",
+   "Q": "G",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "SN-07",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Choose camera subset and LED intensity to illuminate hard shadows within the active-camera and power budgets."
+  },
+  {
+   "I": "D",
+   "Q": "G",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "SN-08",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Permit arm-angle selection for near-field downward mapping or horizon/sun-grazing views using posture-dependent extrinsics. `[PROPOSED]`"
+  },
+  {
+   "I": "D",
+   "Q": "G",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "SN-09",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Use the rover self-shadow LENGTH CHANGE under a COMMANDED articulated posture change as an instrument: the known `dh` cancels the unknown casting height, recovering sun elevation (or local slope) unbiased. `[PROPOSED]`"
+  },
+  {
+   "I": "D",
+   "Q": "G",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "SN-10",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Triangulate landmark range from the KNOWN articulation baseline `dh` (depression-angle parallax of shadow tips), and fix rover `(x,y)` by heading-free trilateration from a standstill. `[PROPOSED]`"
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "LED/photometry hardware",
+   "id": "SN-11",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Permit a Meerkat observation action for multi-height parallax and shadow/rock disambiguation when stability guards pass. `[PROPOSED]`"
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "turn the single-trajectory solar-vs-VO/SLAM head-to-head into a real ablation SWEEP across sun angles \u00d7 terrains \u00d7 terrain-change states \u00d7 seeds.",
+    "kind": "epic",
+    "test_target": "extend dart/test_ablation.py with a `[REQ:SN-12]` sweep test"
+   },
+   "bucket": "buildable",
+   "cited": true,
+   "id": "SN-12",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Solar-navigation claims require ablations against VO/SLAM without solar factors across multiple sun angles, terrains, terrain-change states, and seeds."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "add the preregistered acceptance gate for solar-nav claims (improve median yaw/pose error or track survival by a preregistered margin WITHOUT increasing tip events; report energy/time overhead).",
+    "kind": "optional",
+    "test_target": "NEW dart/test_ablation.py::test_sn13_preregistered_margin_gate (`[REQ:SN-13]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "SN-13",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Acceptance target `[PROPOSED]`: improve median yaw/pose error or feature-track survival by a preregistered margin without increasing tip events; report energy/time overhead."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "N",
+   "brief": {
+    "goal": "build the active-perception objective ranking candidate observation actions by expected info per joule and per second, with stability margin as a HARD constraint.",
+    "kind": "atomic",
+    "test_target": "NEW dart/test_posture_select.py::test_sn14_info_per_joule_per_second_with_stability_hard_constraint (`[REQ:SN-14]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "SN-14",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "The active-perception objective maximizes expected localization/map information per joule and second, with stability risk as a hard constraint."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "LED/photometry hardware",
+   "id": "SN-15",
+   "lane": "SN",
+   "pri": "P1",
+   "text": "Low/high posture observations must be associated to the same world features through the current arm/camera transforms."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "P",
+   "X": "P",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "PyChrono calibration oracle",
+   "id": "TM-01",
+   "lane": "TM",
+   "pri": "P1",
+   "text": "Calibrated terramechanics/excavation gate: construction forecasts distinguish analytical surrogate, calibrated mission model, and offline oracle; excavation resistance, drum/arm torque, drivetrain/current limits, low-g parameters, and uncertainty are validated before field-confidence claims."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "TW-01",
+   "lane": "TW",
+   "pri": "P0",
+   "text": "Load and crop real polar LOLA terrain; fail explicitly if a requested real asset is unavailable."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "TW-02",
+   "lane": "TW",
+   "pri": "P1",
+   "text": "Reproject supported non-polar products into a documented local metric frame."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "TW-03",
+   "lane": "TW",
+   "pri": "P1",
+   "text": "Product paths use windowed/tiled terrain access rather than loading the full map by default."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "TW-04",
+   "lane": "TW",
+   "pri": "P1",
+   "text": "One seeded composite generator combines craters, rocks, material, and illumination parameters. `stewie/terrain/scenes.build_from_dem` combines all FOUR families on the real Haworth DEM: craters (DEM corridor, `populate_craters`), material (ChaSTE density), illumination (`horizon_clip`), and ROCKS (a seeded Golombek SFD boulder field via `procgen.sample_boulders` over the corridor window, `rocks_d_min_m`-bounded to resolvable boulders >= 0.30 m, surface-snapped into the non-zero global frame; clasts are metadata refs NOT carved into the conserved mass, so the datum round-trip is preserved). `stewie/terrain/test_scenes.py` [REQ:TW-04]: `test_build_from_dem_roundtrip_and_provenance` validates all four families present + provenance + datum round-trip on one build; `test_build_from_dem_rocks_seeded` validates the rocks family is seeded (fast, sampler-level -- avoids extra ~180 s builds). PERF NOTE (separate item): `build_from_dem`'s ~180 s per-call cost is `dart/illumination.py horizon_clip` -- a per-pixel shadow ray-march over the base heightmap, O(grid*sqrt(grid)), radius-independent -- NOT rocks/craters. `carve_crater` was the original crater bottleneck, now windowed + byte-identical (commit `fe18d91`); `horizon_clip` is NOT byte-identically optimizable (a faster horizon sweep changes the illumination result), so its speedup is tracked separately, not part of this row."
+  },
+  {
+   "I": "P",
+   "Q": "P",
+   "V": "P",
+   "X": "P",
+   "brief": {
+    "goal": "give the fleet one WorldState carrying all four per-cell fields together (material, traversability, observed/unobserved, calibrated uncertainty) instead of four scattered rasters; prove on real Haworth.",
+    "kind": "epic",
+    "test_target": "NEW dart/test_world_model_layers.py::test_worldstate_carries_material_traversability_observed_uncertainty (`[REQ:TW-05]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TW-05",
+   "lane": "TW",
+   "pri": "P1",
+   "text": "`WorldState` carries per-cell material, traversability, observed/unobserved state, and calibrated uncertainty."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "TW-06",
+   "lane": "TW",
+   "pri": "P1",
+   "text": "Add a site/time sun vector `s(t)` in the local world frame using a documented ephemeris interface."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "TW-07",
+   "lane": "TW",
+   "pri": "P1",
+   "text": "Compute terrain horizon, direct illumination, cast-shadow mask, incidence angle, and overexposure risk from terrain plus `s(t)`. The dart compute (horizon / cast-shadow / `incidence_angle_deg`) is surfaced in the cockpit as toggleable `/layers` rasters: `illumination` (binary horizon shadow), `incidence` (continuous grazing-angle / overexposure-risk amber overlay, distinct from the shadow mask), and `psr`, all responding to the sun az/el controls."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "TW-08",
+   "lane": "TW",
+   "pri": "P1",
+   "text": "Recompute affected illumination and navigation layers after excavation changes terrain. No stale pre-build shadow map may remain authoritative."
+  },
+  {
+   "I": "P",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "model camera-LED illumination as a field separate from solar, parameterized by per-camera intensity AND pose, composable with the terrain solar map.",
+    "kind": "atomic",
+    "test_target": "NEW dart/test_illumination.py::test_led_contribution_separate_from_solar_with_pose_and_intensity (`[REQ:TW-09]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TW-09",
+   "lane": "TW",
+   "pri": "P2",
+   "text": "Model camera LED contribution separately from solar illumination, including configurable intensity and pose."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "add a dust/optical-degradation STATE that accumulates over operations + drives image-quality and maintenance decisions (not just render particles).",
+    "kind": "optional",
+    "test_target": "NEW dart/test_optical_degradation.py (`[REQ:TW-10]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TW-10",
+   "lane": "TW",
+   "pri": "P2",
+   "text": "Track dust/optical degradation as a state affecting image quality and maintenance decisions. `[PROPOSED]`"
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "VT-01",
+   "lane": "VT",
+   "pri": "P0",
+   "text": "A typed `VehicleModel` supplies mass, gauge, wheelbase, wheel/contact geometry, CG, battery, drum capacity, speed, energy, sensors, and render assets."
+  },
+  {
+   "I": "D",
+   "Q": "N",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "VT-02",
+   "lane": "VT",
+   "pri": "P0",
+   "text": "Selecting a vehicle changes all applicable authority/planner numbers; cross-vehicle tests assert expected differences."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "LAC/IPEx arm/vehicle geometry",
+   "id": "VT-03",
+   "lane": "VT",
+   "pri": "P1",
+   "text": "Model front and rear arm joint state, limits, velocity, brake state, and energy. Exact geometry must come from authoritative LAC/IPEx data."
+  },
+  {
+   "I": "N",
+   "Q": "P",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "replace the single global drum-inventory scalar with per-drum (four-drum) fill tracking for IPEx while preserving mass conservation.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/physics/test_column_state.py::test_vt04_per_drum_fill_conserves_total (`[REQ:VT-04]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "VT-04",
+   "lane": "VT",
+   "pri": "P1",
+   "text": "Track four drums and per-drum fill rather than one global inventory for IPEx mode."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "LAC/IPEx arm/vehicle geometry",
+   "id": "VT-05",
+   "lane": "VT",
+   "pri": "P1",
+   "text": "Compute dynamic CG from chassis, arm pose, drum pose, and fill mass. `[SPEC/PROPOSED model]`"
+  },
+  {
+   "I": "P",
+   "Q": "G",
+   "V": "P",
+   "X": "N",
+   "bucket": "gated",
+   "cited": true,
+   "gated_reason": "LAC/IPEx arm/vehicle geometry",
+   "id": "VT-06",
+   "lane": "VT",
+   "pri": "P1",
+   "text": "Compute posture-dependent support polygon and static stability margin each step."
+  },
+  {
+   "I": "D",
+   "Q": "P",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "VT-07",
+   "lane": "VT",
+   "pri": "P1",
+   "text": "Nominal excavation requires balanced front/rear counter-rotation; asymmetric digging exposes reaction, traction, yaw, and pitch risk."
+  },
+  {
+   "I": "N",
+   "Q": "P",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "model drum fill-RATE so effective collection saturates beyond ~half scoop depth (bridging plateau), per the sourced RASSOR behavior.",
+    "kind": "atomic (soft)",
+    "test_target": "NEW stewie/physics/test_drum_sensing.py::test_vt08_fill_rate_bridging_plateau (`[REQ:VT-08]`)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "VT-08",
+   "lane": "VT",
+   "pri": "P1",
+   "text": "Drum fill-rate supports the sourced bridging behavior: effective collection need not increase monotonically beyond approximately half scoop depth."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "LAC/IPEx arm/vehicle geometry",
+   "id": "VT-09",
+   "lane": "VT",
+   "pri": "P2",
+   "text": "Arm/drum force and torque model distinguishes horizontal reaction, vertical fill-dependent load, cutting torque, and internal tumble."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "LAC/IPEx arm/vehicle geometry",
+   "id": "VT-10",
+   "lane": "VT",
+   "pri": "P1",
+   "text": "Posture-dependent camera extrinsics are derived from vehicle and arm state for every image."
+  }
+ ],
+ "summary": {
+  "briefs": 62,
+  "buckets": {
+   "buildable": 62,
+   "concurrent": 25,
+   "done": 86,
+   "gated": 15
+  },
+  "by_lane": {
+   "AG": {
+    "done": 8,
+    "total": 8
+   },
+   "AM": {
+    "done": 1,
+    "total": 9
+   },
+   "AS": {
+    "done": 1,
+    "total": 18
+   },
+   "CP": {
+    "done": 9,
+    "total": 10
+   },
+   "CT": {
+    "done": 7,
+    "total": 7
+   },
+   "DT": {
+    "done": 1,
+    "total": 2
+   },
+   "EP": {
+    "done": 5,
+    "total": 8
+   },
+   "FL": {
+    "done": 4,
+    "total": 7
+   },
+   "FS": {
+    "done": 5,
+    "total": 24
+   },
+   "GI": {
+    "done": 0,
+    "total": 3
+   },
+   "ML": {
+    "done": 1,
+    "total": 9
+   },
+   "MO": {
+    "done": 1,
+    "total": 1
+   },
+   "NV": {
+    "done": 11,
+    "total": 12
+   },
+   "PM": {
+    "done": 5,
+    "total": 16
+   },
+   "PO": {
+    "done": 6,
+    "total": 14
+   },
+   "RL": {
+    "done": 0,
+    "total": 1
+   },
+   "SE": {
+    "done": 0,
+    "total": 1
+   },
+   "SF": {
+    "done": 1,
+    "total": 1
+   },
+   "SL": {
+    "done": 0,
+    "total": 1
+   },
+   "SN": {
+    "done": 10,
+    "total": 15
+   },
+   "TM": {
+    "done": 0,
+    "total": 1
+   },
+   "TW": {
+    "done": 7,
+    "total": 10
+   },
+   "VT": {
+    "done": 3,
+    "total": 10
+   }
+  },
+  "by_priority": {
+   "P0": {
+    "done": 30,
+    "total": 61
+   },
+   "P1": {
+    "done": 56,
+    "total": 117
+   },
+   "P2": {
+    "done": 0,
+    "total": 10
+   }
+  },
+  "cited": 124,
+  "done_pct": 45.7,
+  "in_scope": 173,
+  "in_scope_done_pct": 49.7,
+  "total": 188
+ },
+ "workflow_spine": [
+  "Plan",
+  "Rehearse",
+  "Validate",
+  "Release",
+  "Execute",
+  "Report"
+ ]
+}
