@@ -40,10 +40,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
-      - name: Test the cockpit's pure browser modules (PO-04 JS tier -- the 29 *.test.js were previously ungated)
+      - name: Test the cockpit's pure browser modules (PO-04 JS tier -- the *.test.js were previously ungated)
+        # shell-expanded file list, not a directory arg: node v22 (the runner) no longer accepts a
+        # directory positional for --test ("Cannot find module .../assets"); explicit files work on all.
         run: |
           node --version
-          node --test stewie/server/web/assets/
+          node --test stewie/server/web/assets/*.test.js
 
   test:
     name: test (py${{ matrix.python-version }})
