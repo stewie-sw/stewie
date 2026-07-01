@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "1a0571997ea0a2d3c63e49e2fb5ac5c77c9291c5daab9e77561c850baf5f7d9c",
+  "citations_sha256": "062b5104a0a15aca6c577d3df21f6a673d60297fa863ecaef37df1a259b0f09e",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "8d96601110090c722c9498f2e30f3b45d5928bcb",
-  "prd_sha256": "ecd379063771c85522ed7f65ca12fdf5f3f501daac84708e6f6fed8a0ca08e71",
+  "prd_commit": "e365906071d70b8326388707dc0a3439b15a68e9",
+  "prd_sha256": "2d731b7ec96732a42e195a081443b3af77beccfa7af80d4ce8f58383d621175e",
   "specs_sha256": "4b2c5de33da676744a6a597546e55f8243ee263773643bdad9dafec1a8d63bfb"
  },
  "rows": [
@@ -662,16 +662,16 @@
    "text": "Twin audit read security: `/twin/version` exposes only a minimal authenticated version token to ordinary clients; full event history/provenance requires director/admin authorization and audit logging."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "P",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "extend the energy ledger so observation, LED, compute, idle/heater appear as separate retrievable terms alongside drive/slope-slip/payload/dig/arm-drum/recharge, or are explicitly marked unmodeled.",
     "kind": "atomic",
     "test_target": "lode/test_mission_planner.py::test_ep01_ledger_keeps_drive_slip_payload_and_dig_as_separate_terms (extend, `[REQ:EP-01]` present)"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "EP-01",
    "lane": "EP",
@@ -868,17 +868,17 @@
    "text": "Solar/Meerkat observation sites are reservable fleet resources so rovers do not occlude or collide during raised observations. `[PROPOSED]`"
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "give the codebase-assessment gate a machine-checkable form (a slice can't be done without an inventory of touched panes/routers/modules/tests) and cite it.",
     "kind": "atomic",
     "test_target": "extend scripts/test_req_trace.py with a `[REQ:FS-01]` marker, OR NEW scripts/test_assessment_gate.py"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FS-01",
    "lane": "FS",
    "pri": "P0",
@@ -899,15 +899,15 @@
   {
    "I": "P",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "P",
    "brief": {
     "goal": "make Plan/Fleet/Navigation/Perception/Construction/Models/Security/Reports first-class cockpit work areas, mobile-safe, with explicit truth/belief/forecast/live provenance labels; cite it.",
     "kind": "epic",
     "test_target": "extend stewie/server/test_ui18_pane_manager.py or test_panel_layout_chrome.py; OR NEW stewie/server/test_ia_provenance_labels.py"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "FS-03",
    "lane": "FS",
    "pri": "P0",
@@ -994,17 +994,17 @@
    "text": "Backend-to-frontend wiring: every new autonomy capability exposes a typed API, OpenAPI/schema example or equivalent fixture, cockpit state binding, loading/error/empty states, and a browser regression test covering desktop and mobile widths."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "cite a meta-test proving each user-visible slice has unit + route + FE tests, `[REQ:]` markers, deterministic fixtures, and one e2e path.",
     "kind": "atomic",
     "test_target": "extend scripts/test_req_trace.py with `[REQ:FS-09]`, OR NEW scripts/test_pyramid_gate.py"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FS-09",
    "lane": "FS",
    "pri": "P0",
@@ -1081,15 +1081,15 @@
   {
    "I": "P",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "P",
    "brief": {
     "goal": "code-enforce the atomic-rollout rule (a row can't reach V=D until contracts + FE affordance + route + tests + security + perf budget are complete-or-explicitly-gated); cite it.",
     "kind": "epic",
     "test_target": "NEW scripts/test_atomic_rollout_gate.py (`[REQ:FS-14]`), OR extend scripts/test_release_gate.py"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "FS-14",
    "lane": "FS",
    "pri": "P0",
@@ -1144,8 +1144,8 @@
   {
    "I": "P",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "P",
    "brief": {
     "goal": "build the frontend-backend contract GATE enforcing, per route-to-pane connection, six artifacts (schema fixture, route test, FE render test, permission test, mobile smoke, failure-mode test); cite it.",
     "kind": "epic",
@@ -1159,16 +1159,16 @@
    "text": "Frontend-backend contract gate: every new route-to-pane connection has a schema fixture, backend route test, frontend fixture render test, permission test, mobile-width smoke, and one failure-mode test before it is considered wired."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "complete the observability ledger (every event class logs correlation-id + mission/site/body/time + actor + I/O hashes + result + latency + error, never secrets/truth-denied); broaden the citation.",
     "kind": "epic",
     "test_target": "extend stewie/server/test_observability_ledger.py with per-class `[REQ:FS-19]` assertions"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "FS-19",
    "lane": "FS",
@@ -1261,7 +1261,7 @@
     "test_target": "NEW stewie/server/test_gi01_runtime_smoke.py (`[REQ:GI-01]`)"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "GI-01",
    "lane": "GI",
    "pri": "P0",
@@ -1433,17 +1433,17 @@
    "text": "Science/Operator Assistant: a separate explanatory model may summarize telemetry, faults, and evidence; it has read-only access and no command path."
   },
   {
-   "I": "N",
+   "I": "P",
    "Q": "N",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "P",
    "brief": {
     "goal": "define the edge deployment envelope \u2014 a Jetson-Orin-class compute profile (RAM/power/thermal/latency/sensor-IO) + an aggregate check that any SIMULTANEOUS model set fits it + degraded-mode scheduling.",
     "kind": "epic",
     "test_target": "NEW stewie/specs/test_edge_envelope.py"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "ML-09",
    "lane": "ML",
    "pri": "P0",
@@ -1614,14 +1614,14 @@
    "I": "P",
    "Q": "N",
    "V": "P",
-   "X": "N",
+   "X": "P",
    "brief": {
     "goal": "provide a unified explicit-clock + frame-ID synchronizer time-aligning camera/IMU/command/arm/truth streams into one estimator-consumable timeline.",
     "kind": "epic",
     "test_target": "extend dart/test_s3li_reader.py with `[REQ:PM-01]`; NEW dart/test_stream_sync.py for the unified aligner"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "PM-01",
    "lane": "PM",
    "pri": "P0",
@@ -1699,17 +1699,17 @@
    "text": "Fuse VO/IMU and validated absolute factors in a recursive estimator or factor graph with covariance."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "N",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "P",
    "brief": {
     "goal": "cite + close the loop-closure row (candidate-gated, geometrically verified, auditable, false closures kept out of the graph).",
     "kind": "atomic",
     "test_target": "dart/test_loop_closure_visual.py::test_detect_loops_finds_start_end_revisit_and_chain_matches_vo (add `[REQ:PM-07]`) + a negative-case test"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "PM-07",
    "lane": "PM",
    "pri": "P0",
@@ -1838,16 +1838,16 @@
    "text": "Regional target volume: over a selected footprint, integrate cut/fill volume (excavated pit, spoil/berm) from the selected depth-derived height field vs a reference datum, with an uncertainty band; cross-checked against the conserved mass/volume the authority actually moved (CT-03 conservation)."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "N",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "make \"fresh wheel \u2192 `stewie-serve` runs with one product extra\" close by citing an always-on proxy test + wiring the opt-in wheel smoke into a scheduled CI tier (the `[REQ:PO-01]` test is skip-by-default today).",
     "kind": "atomic",
     "test_target": "add `[REQ:PO-01]` to stewie/server/test_server_install.py::test_server_app_and_entrypoint_import; keep the wheel smoke + add a scheduled CI step"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "PO-01",
    "lane": "PO",
@@ -2073,7 +2073,7 @@
     "test_target": "NEW scripts/test_se01_audit_gate.py (`[REQ:SE-01]`)"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "SE-01",
    "lane": "SE",
    "pri": "P0",
@@ -2592,9 +2592,9 @@
  "summary": {
   "briefs": 62,
   "buckets": {
-   "buildable": 60,
+   "buildable": 55,
    "concurrent": 21,
-   "done": 92,
+   "done": 97,
    "gated": 15
   },
   "by_lane": {
@@ -2623,7 +2623,7 @@
     "total": 2
    },
    "EP": {
-    "done": 5,
+    "done": 6,
     "total": 8
    },
    "FL": {
@@ -2631,7 +2631,7 @@
     "total": 7
    },
    "FS": {
-    "done": 6,
+    "done": 9,
     "total": 24
    },
    "GI": {
@@ -2655,7 +2655,7 @@
     "total": 16
    },
    "PO": {
-    "done": 6,
+    "done": 7,
     "total": 14
    },
    "RL": {
@@ -2693,7 +2693,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 35,
+    "done": 40,
     "total": 61
    },
    "P1": {
@@ -2705,10 +2705,10 @@
     "total": 10
    }
   },
-  "cited": 125,
-  "done_pct": 48.9,
+  "cited": 134,
+  "done_pct": 51.6,
   "in_scope": 173,
-  "in_scope_done_pct": 53.2,
+  "in_scope_done_pct": 56.1,
   "total": 188
  },
  "workflow_spine": [
