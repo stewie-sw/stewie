@@ -6,12 +6,17 @@ It reads the PRD §7 matrix (the single source of truth for requirement state) a
 not-yet-verified-done row into exactly one bucket:
 
   - DONE            : V == "D" (skip; already verified).
-  - CONCURRENT      : owned by another active lane (the ARGUS/autonomy + arms families) -- do NOT fan out
-                      here or you collide with the concurrent session.
-  - GATED           : blocked on an external resource STEWIE cannot self-provide (a ROS host, a live pit,
-                      a PyChrono host/oracle, a GPU, or LAC/IPEx arm geometry). Marked either by the PRD's
-                      own Q=G quality glyph OR by the curated prose-gated map below (the PRD tags some
-                      gated rows in prose, not the glyph -- e.g. the GPU dense-stereo PM rows).
+  - CONCURRENT/OWNED: the AS autonomy stack is CONTAINER-BUILDABLE (Gazebo/ROS2 via the compose `ros2`
+                      profile -- osrf/ros:jazzy-desktop / stewie-gazebo:jazzy are on this host) but is
+                      currently OWNED by the live AS-lane agent; keep it out of the fan-out to avoid
+                      collision, NOT because it is gated. AM (arms) is genuinely data-gated on LAC/IPEx
+                      geometry. Both stay out of the ready-set for now.
+  - GATED           : blocked on a resource STEWIE genuinely cannot self-provide -- a LIVE PIT / real
+                      rover, external DATA (LAC/IPEx arm geometry), a PyChrono calibration oracle, or a
+                      physical GPU where the Docker render/depth container will not substitute. NOTE:
+                      containerized ROS2/Gazebo is AVAILABLE, so a row needing only that is buildable-in-
+                      container, not gated (the earlier "AS needs a ROS host" framing was wrong). Marked
+                      by the Q=G glyph OR the curated prose-gated map below (e.g. the depth-source PM rows).
   - BUILDABLE       : everything else not-done -> the ready-set, grouped by family into parallel lanes.
 
 This keeps the fan-out metadata OUT of the 188-row §7 matrix (no CI-coupled bloat there): lane / gated-on
@@ -27,20 +32,23 @@ from collections import defaultdict
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _PRD = os.path.join(_ROOT, "PRD.md")
 
-# families owned by the concurrent ARGUS / autonomy + arms lane (do not fan out here).
+# kept out of the fan-out ready-set. AS = the autonomy/ROS stack: container-buildable (Gazebo/ROS2) but
+# owned by the live AS-lane agent right now, so don't double-dispatch. AM = arms: data-gated on LAC/IPEx
+# geometry. (AS is NOT host-gated -- the container is the host; that earlier call was wrong.)
 CONCURRENT_FAMILIES = {"AS", "AM"}
 
 # rows the PRD gates in prose rather than with the Q=G glyph, with the reason (curated, verified against
 # §0's gated frontier -- NOT substring-matched, which false-flags e.g. "cockpit" as "pit").
 PROSE_GATED = {
-    "PM-13": "GPU dense stereo", "PM-14": "GPU dense stereo",
-    "PM-15": "GPU dense stereo", "PM-16": "GPU dense stereo",
+    "PM-13": "GPU/live depth-source pipeline", "PM-14": "GPU/live depth-source pipeline",
+    "PM-15": "GPU/live depth-source pipeline", "PM-16": "GPU/live depth-source pipeline",
     "CP-07": "PyChrono calibration oracle", "TM-01": "PyChrono calibration oracle",
 }
 # reason for a Q=G glyph-gated row, by family (falls back to "quality/hardware gated").
+# (No "AS" entry: AS is caught by the concurrent/owned bucket above and is container-buildable, not gated.)
 GLYPH_GATED_REASON = {
     "AM": "LAC/IPEx arm geometry", "VT": "LAC/IPEx arm/vehicle geometry",
-    "SN": "LED/photometry hardware", "AS": "ROS host / live pit",
+    "SN": "LED/photometry hardware",
 }
 
 

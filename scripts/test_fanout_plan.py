@@ -49,8 +49,8 @@ def test_fanout_specs_briefs_are_real_requirement_rows():
 def test_known_gated_rows_are_routed_to_a_reason():
     p = F.plan()
     by_id = {i: reason for reason, ids in p["gated"].items() for i in ids}
-    # the GPU dense-stereo PM rows are prose-gated (not Q=G) -> the curated map must catch them
+    # the PM depth-source rows are prose-gated (not Q=G) -> the curated map must catch them
     for rid in ("PM-13", "PM-14", "PM-15", "PM-16"):
-        assert by_id.get(rid) == "GPU dense stereo"
+        assert by_id.get(rid) == "GPU/live depth-source pipeline"
     # the PyChrono-oracle rows too
     assert by_id.get("CP-07") == "PyChrono calibration oracle"
