@@ -883,6 +883,12 @@ No solar-navigation capability claim is allowed until:
 
 ## 10. Roadmap
 
+**Current position (2026-07-01):** Phase 0 exit is met (the `RB-*` release blockers are cleared in code,
+see §0). The platform sits across Phase 1 (vehicle/posture twin, partial: geometry gated on LAC/IPEx data)
+and Phase 2 (navigation spine, partial: the estimator + evidence path are built, the truth-free live
+stack is host/pit gated). See the §0 completion snapshot for the current per-area status; the phases below
+are the standing strategic arc, not a live status board.
+
 ### Phase 0: Truthful baseline and release gates
 
 **Exit:** all `RB-*` issues closed.
