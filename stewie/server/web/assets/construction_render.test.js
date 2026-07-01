@@ -1,9 +1,13 @@
 // FS-03 (node:test): the Construction-pane renderers are pure -> unit-testable without a browser.
+// FS-15: the catalog fixture below is the RAW /construction response shape, routed through
+// adapters.normalizeConstructionCatalog exactly as the cockpit does -- this tests the response-fixture
+// -> adapter -> render chain, and the failure modes (empty catalog, error/empty outcome mapping).
 // Run: node --test stewie/server/web/assets/construction_render.test.js
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert");
 const C = require("./construction_render.js");
+const A = require("./adapters.js");
 
 function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
@@ -34,9 +38,11 @@ const CON = {
     defers_to_totals: ["route_feasibility", "battery_reserve", "time_budget"],
   },
 };
+// the pane consumes the FS-15 view model, never the raw payload (mirrors cockpit loadConstruction).
+const VM = A.normalizeConstructionCatalog(CON);
 
 test("constructionCatalogHTML: renders one row per real structure template with its primitives", () => {
-  const html = C.constructionCatalogHTML(CON, esc);
+  const html = C.constructionCatalogHTML(VM, esc);
   assert.ok(html.includes("blast_berm"), "blast_berm template present");
   assert.ok(html.includes("borrow_pit"), "borrow_pit template present");
   assert.ok(html.includes("Blast berm"), "primitive fill order action rendered");
@@ -46,12 +52,23 @@ test("constructionCatalogHTML: renders one row per real structure template with 
   assert.ok(html.includes("leap/structures.py"), "provenance named");
 });
 
-test("constructionCatalogHTML: honest empty when no templates", () => {
-  assert.ok(C.constructionCatalogHTML({ templates: [] }, esc).includes("No structure catalog"));
+test("constructionCatalogHTML: honest empty when no templates (adapter -> null VM)", () => {
+  assert.strictEqual(A.normalizeConstructionCatalog({ ok: true, templates: [] }), null);
+  assert.ok(C.constructionCatalogHTML(null, esc).includes("No structure catalog"));
+});
+
+test("FS-15 failure modes: /construction outcomes map to error/empty view states", () => {
+  const err = A.toViewState({ status: 500, json: { ok: false, error: "catalog exploded" },
+    normalize: A.normalizeConstructionCatalog });
+  assert.strictEqual(err.state, "error");
+  assert.strictEqual(err.error, "catalog exploded");
+  const empty = A.toViewState({ status: 200, json: { ok: true, templates: [] },
+    normalize: A.normalizeConstructionCatalog });
+  assert.strictEqual(empty.state, "empty");
 });
 
 test("constructionAcceptanceHTML: criteria definition always rendered (with tolerances)", () => {
-  const html = C.constructionAcceptanceHTML(CON, null, esc);
+  const html = C.constructionAcceptanceHTML(VM, null, esc);
   assert.ok(html.includes("mass_conservation"), "check id rendered");
   assert.ok(html.includes("as_built_flatness"), "flatness check rendered");
   assert.ok(html.includes("2.0 cm"), "flatness tol (0.02 m) rendered in cm");
@@ -61,7 +78,7 @@ test("constructionAcceptanceHTML: criteria definition always rendered (with tole
 });
 
 test("constructionAcceptanceHTML: honest empty as-built when no plan has been run", () => {
-  const html = C.constructionAcceptanceHTML(CON, null, esc);
+  const html = C.constructionAcceptanceHTML(VM, null, esc);
   assert.ok(html.includes("No as-built acceptance yet"), "empty as-built state shown");
 });
 
@@ -73,7 +90,7 @@ test("constructionAcceptanceHTML: renders the live as-built result from the last
     repose: [{}], repose_pass: false, repose_limit_deg: 35.0,
     bearing: [{}, {}], bearing_pass: true,
   };
-  const html = C.constructionAcceptanceHTML(CON, validation, esc);
+  const html = C.constructionAcceptanceHTML(VM, validation, esc);
   assert.ok(html.includes("as-built flatness"), "flatness result row");
   assert.ok(html.includes("1.3 cm"), "as-built RMSE (0.013 m) rendered");
   assert.ok(html.includes("✓ pass"), "a passing verdict rendered");

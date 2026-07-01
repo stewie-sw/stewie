@@ -1,9 +1,13 @@
-// FS-03 (node:test): the Fleet-pane renderers are pure -> unit-testable without a browser.
+// FS-03 (node:test): the Fleet-pane renderers are pure -> unit-testable without a browser. FS-15: the
+// roster fixture below is the RAW /fleet response shape, routed through adapters.normalizeFleetRoster
+// exactly as the cockpit does -- this tests the response-fixture -> adapter -> render chain, and the
+// failure modes (empty registry, error/empty outcome mapping) below it.
 // Run: node --test stewie/server/web/assets/fleet_render.test.js
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert");
 const F = require("./fleet_render.js");
+const A = require("./adapters.js");
 
 // identity-ish escaper standing in for window.STEWIE_HTMLESC.esc (real one is tested in htmlesc.test.js).
 function esc(s) {
@@ -25,21 +29,34 @@ const FLEET = {
   ],
 };
 
-test("fleetRosterHTML: renders one row per registry vehicle with its real specs", () => {
-  const html = F.fleetRosterHTML(FLEET, esc);
+test("fleetRosterHTML: renders one row per registry vehicle with its real specs (via the FS-15 VM)", () => {
+  const html = F.fleetRosterHTML(A.normalizeFleetRoster(FLEET), esc);
   assert.ok(html.includes("ipex"), "ipex id present");
   assert.ok(html.includes("ISRU Pilot Excavator"), "ipex label present");
   assert.ok(html.includes("30.0"), "ipex dry mass present");
   assert.ok(html.includes("80.0"), "rassor2 drum capacity present");
+  assert.ok(html.includes("4.80 MJ"), "onboard power capacity in MJ (derived capacityMJ)");
   assert.ok(html.includes("excavate"), "capability rendered");
   assert.ok(html.includes("IPEx 12S/30Ah"), "onboard power label rendered");
   assert.ok(html.includes("(data only)"), "ui_visible=false flagged, not hidden");
   assert.ok(html.includes("default ipex"), "default vehicle footer");
 });
 
-test("fleetRosterHTML: honest empty when no vehicles", () => {
-  const html = F.fleetRosterHTML({ vehicles: [] }, esc);
+test("fleetRosterHTML: honest empty when the registry serves no vehicles (adapter -> null VM)", () => {
+  assert.strictEqual(A.normalizeFleetRoster({ ok: true, vehicles: [] }), null);  // empty payload -> null VM
+  const html = F.fleetRosterHTML(null, esc);
   assert.ok(html.includes("No vehicle registry"), "empty state shown");
+});
+
+test("FS-15 failure modes: /fleet outcomes map to error/empty/loading view states", () => {
+  const err = A.toViewState({ status: 403, json: { ok: false, error: "operator role required" },
+    normalize: A.normalizeFleetRoster });
+  assert.strictEqual(err.state, "error");
+  assert.strictEqual(err.error, "operator role required");
+  const empty = A.toViewState({ status: 200, json: { ok: true, vehicles: [] },
+    normalize: A.normalizeFleetRoster });
+  assert.strictEqual(empty.state, "empty");
+  assert.strictEqual(A.toViewState({ status: "pending" }).state, "loading");
 });
 
 test("fleetPlanHTML: empty state when no plan has been run", () => {

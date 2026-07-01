@@ -201,6 +201,96 @@
     };
   }
 
+  // ---- PANE-PAYLOAD normalizers (FS-15): the three registry work areas fetch ROUTE payloads (dicts the
+  // routers build, not FS-02 spine contracts), so each pane owns a normalizer over its endpoint's real
+  // response shape. The Python parity test (test_adapter_contract_parity.py) proves every snake_case
+  // field read here is present in the LIVE route response, so these cannot silently drift either. ----
+
+  // GET /fleet -> the Fleet-pane ROSTER view model (the real vehicle registry; specs/vehicles.py)
+  function normalizeFleetRoster(json) {
+    if (!json || !Array.isArray(json.vehicles) || !json.vehicles.length) return null;
+    var vehicles = json.vehicles.map(function (v) {
+      return {
+        id: v.id, label: v.label,
+        dryMassKg: v.dry_mass_kg, nWheels: v.n_wheels,
+        drumCapacityKg: v.drum_capacity_kg, drivePowerW: v.drive_power_w,
+        digEnergyJPerKg: v.dig_energy_j_per_kg, canDig: v.can_dig,
+        capabilities: v.capabilities || [],
+        onboardPower: (v.onboard_power || []).map(function (p) {
+          return { id: p.id, label: p.label, kind: p.kind, capacityJ: p.capacity_j,
+                   capacityMJ: (p.capacity_j || 0) / 1e6 };   // derived: MJ (roster display unit)
+        }),
+        uiVisible: v.ui_visible, provenance: v.provenance,
+      };
+    });
+    return {
+      vehicles: vehicles, count: json.count, uiVisibleCount: json.ui_visible_count,
+      defaultVehicle: json.default_vehicle, liveAllocationSource: json.live_allocation_source,
+      digCount: vehicles.filter(function (v) { return v.canDig; }).length,   // derived
+    };
+  }
+
+  // GET /construction -> the Construction-pane CATALOG + acceptance-criteria view model (leap/structures)
+  function normalizeConstructionCatalog(json) {
+    if (!json || !Array.isArray(json.templates) || !json.templates.length) return null;
+    var acc = json.acceptance || {};
+    return {
+      templates: json.templates.map(function (t) {
+        return {
+          id: t.id, doc: t.doc,
+          orders: (t.orders || []).map(function (o) {
+            return { action: o.action, kind: o.kind, footprintM2: o.footprint_m2,
+                     depthM: o.depth_m, note: o.note };
+          }),
+          nOrders: t.n_orders, nCut: t.n_cut, nFill: t.n_fill, balanced: t.balanced,
+        };
+      }),
+      count: json.count, balancedCount: json.balanced_count,
+      acceptance: {
+        checks: (acc.checks || []).map(function (c) {
+          return { id: c.id, what: c.what, tolM: c.tol_m, maxSlopeDeg: c.max_slope_deg,
+                   factorOfSafety: c.factor_of_safety };
+        }),
+        defersToTotals: acc.defers_to_totals || [],
+      },
+      liveAcceptanceSource: json.live_acceptance_source,
+    };
+  }
+
+  // GET /models -> the Models-pane REGISTRY view model (system profiles + vehicle/body registries +
+  // the ML-01 governance block). `deploymentReady` here is the profile STATUS gate (VERIFIED), served
+  // by the route; the learned-model ML-01 gate mirror stays in normalizeModelArtifact above.
+  function normalizeModelsRegistry(json) {
+    if (!json || !Array.isArray(json.profiles) || !json.profiles.length) return null;
+    var g = json.model_governance || {};
+    var deployed = g.deployed_models || [];
+    return {
+      profiles: json.profiles.map(function (p) {
+        return { id: p.id, status: p.status, substrate: p.substrate, sha256: p.sha256,
+                 source: p.source, nCameras: p.n_cameras, dryMassKg: p.dry_mass_kg,
+                 capacityWh: p.capacity_wh, deploymentReady: p.deployment_ready };
+      }),
+      profileCount: json.profile_count, profilesDeployable: json.profiles_deployable,
+      defaultProfile: json.default_profile,
+      vehicles: (json.vehicles || []).map(function (v) {
+        return { id: v.id, label: v.label, dryMassKg: v.dry_mass_kg, provenance: v.provenance };
+      }),
+      vehicleCount: json.vehicle_count, defaultVehicle: json.default_vehicle,
+      bodies: (json.bodies || []).map(function (b) {
+        return { id: b.id, label: b.label, gMS2: b.g_m_s2, bekkerRegime: b.bekker_regime,
+                 confidence: b.confidence, provenance: b.provenance };
+      }),
+      bodyCount: json.body_count, defaultBody: json.default_body,
+      governance: {
+        contract: g.contract, schemaEndpoint: g.schema_endpoint,
+        deploymentReadyCriteria: g.deployment_ready_criteria || [],
+        commandPathInvariant: g.command_path_invariant, commandPathEnforced: g.command_path_enforced,
+        deployedModels: deployed, status: g.status,
+        anyOnCommandPath: deployed.length > 0,                       // derived: §25.3 must stay false
+      },
+    };
+  }
+
   // ---- fetch-outcome -> view STATE the UI renders (FS-15 loading/error/empty mapping) ----
   function toViewState(o) {
     if (o.status === "pending") return { state: "loading", data: null };
@@ -220,6 +310,9 @@
     normalizeLocalizationFix: normalizeLocalizationFix, normalizeNavFactor: normalizeNavFactor,
     normalizePerception: normalizePerception,
     normalizeModelArtifact: normalizeModelArtifact, normalizeSkill: normalizeSkill,
+    normalizeFleetRoster: normalizeFleetRoster,
+    normalizeConstructionCatalog: normalizeConstructionCatalog,
+    normalizeModelsRegistry: normalizeModelsRegistry,
     toViewState: toViewState,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;   // node:test

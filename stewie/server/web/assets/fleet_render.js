@@ -1,7 +1,9 @@
 // FS-03 Fleet work area: PURE renderers for the Fleet pane. No DOM lookups, no network, no module
-// globals -- the cockpit's thin wrapper fetches /fleet + reads the last-plan `totals` and passes them
-// in, mirroring the existing window.STEWIE_* module pattern (rover_hud.js / plan_geom.js). Two builders:
-//   fleetRosterHTML(fleet, esc)  -> the real vehicle-registry roster table (always present)
+// globals -- the cockpit's thin wrapper fetches /fleet, normalizes it through the FS-15 adapter
+// (adapters.normalizeFleetRoster), reads the last-plan `totals`, and passes them in, mirroring the
+// existing window.STEWIE_* module pattern (rover_hud.js / plan_geom.js). Two builders:
+//   fleetRosterHTML(vm, esc)     -> the roster table from the NORMALIZED roster view model (FS-15:
+//                                    this module consumes the view model, never the raw /fleet JSON)
 //   fleetPlanHTML(totals, esc)   -> the live per-vehicle ALLOCATION + makespan + space-time conflicts
 //                                    from the LAST plan (totals.vehicles_detail + makespan_s + *_conflicts);
 //                                    honest empty state when no multi-vehicle plan has been run yet.
@@ -13,24 +15,24 @@
   function _mj(j) { return (Number(j || 0) / 1e6).toFixed(2); }
   function _km(m) { return (Number(m || 0) / 1000).toFixed(2); }
 
-  // the static fleet ROSTER from the real /fleet registry payload (specs/vehicles.py).
-  function fleetRosterHTML(fleet, esc) {
-    if (!fleet || !Array.isArray(fleet.vehicles) || !fleet.vehicles.length) {
+  // the static fleet ROSTER from the NORMALIZED /fleet view model (adapters.normalizeFleetRoster).
+  function fleetRosterHTML(vm, esc) {
+    if (!vm || !Array.isArray(vm.vehicles) || !vm.vehicles.length) {
       return '<div class="empty">No vehicle registry served. /fleet returned no vehicles.</div>';
     }
-    var rows = fleet.vehicles.map(function (v) {
+    var rows = vm.vehicles.map(function (v) {
       var caps = (v.capabilities || []).map(esc).join(", ");
-      var pwr = (v.onboard_power || []).map(function (p) {
-        return esc(p.label) + " (" + (Number(p.capacity_j || 0) / 1e6).toFixed(2) + " MJ)";
+      var pwr = (v.onboardPower || []).map(function (p) {
+        return esc(p.label) + " (" + Number(p.capacityMJ || 0).toFixed(2) + " MJ)";
       }).join(", ") || "—";
-      var vis = v.ui_visible ? "" : ' <span style="opacity:.55;font-size:9px">(data only)</span>';
+      var vis = v.uiVisible ? "" : ' <span style="opacity:.55;font-size:9px">(data only)</span>';
       return "<tr>"
         + '<td style="font-weight:600">' + esc(v.id) + vis + "</td>"
         + "<td>" + esc(v.label) + "</td>"
-        + '<td style="text-align:right;font-variant-numeric:tabular-nums">' + Number(v.dry_mass_kg || 0).toFixed(1) + "</td>"
-        + '<td style="text-align:right;font-variant-numeric:tabular-nums">' + Number(v.drum_capacity_kg || 0).toFixed(1) + "</td>"
-        + '<td style="text-align:right;font-variant-numeric:tabular-nums">' + Number(v.drive_power_w || 0).toFixed(1) + "</td>"
-        + "<td>" + (v.can_dig ? "✓" : "—") + "</td>"
+        + '<td style="text-align:right;font-variant-numeric:tabular-nums">' + Number(v.dryMassKg || 0).toFixed(1) + "</td>"
+        + '<td style="text-align:right;font-variant-numeric:tabular-nums">' + Number(v.drumCapacityKg || 0).toFixed(1) + "</td>"
+        + '<td style="text-align:right;font-variant-numeric:tabular-nums">' + Number(v.drivePowerW || 0).toFixed(1) + "</td>"
+        + "<td>" + (v.canDig ? "✓" : "—") + "</td>"
         + '<td style="font-size:10px;opacity:.85">' + caps + "</td>"
         + '<td style="font-size:10px;opacity:.85">' + pwr + "</td>"
         + "</tr>";
@@ -42,8 +44,8 @@
       + "<th>digs</th><th>capabilities</th><th>onboard power</th></tr></thead>"
       + "<tbody>" + rows + "</tbody></table>"
       + '<div style="font-size:10px;opacity:.6;margin-top:6px">'
-      + esc(fleet.count || 0) + " registered · " + esc(fleet.ui_visible_count || 0)
-      + " UI-visible · default " + esc(fleet.default_vehicle || "") + "</div>";
+      + esc(vm.count || 0) + " registered · " + esc(vm.uiVisibleCount || 0)
+      + " UI-visible · default " + esc(vm.defaultVehicle || "") + "</div>";
   }
 
   // the LIVE per-vehicle allocation + makespan + conflicts from the last /plan `totals` (real plan data).

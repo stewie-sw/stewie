@@ -1,8 +1,10 @@
 // FS-03 Construction work area: PURE renderers for the Construction pane (badge FORGE, operator+). No DOM
-// lookups, no network, no module globals -- the cockpit's thin wrapper fetches /construction + reads the
-// last-plan `validation` (+ `ordered_acceptance`) and passes them in, mirroring fleet_render.js. Builders:
-//   constructionCatalogHTML(con, esc)     -> the real structure-template build catalog (always present)
-//   constructionAcceptanceHTML(con, validation, esc)
+// lookups, no network, no module globals -- the cockpit's thin wrapper fetches /construction, normalizes
+// it through the FS-15 adapter (adapters.normalizeConstructionCatalog), reads the last-plan `validation`
+// (+ `ordered_acceptance`), and passes them in, mirroring fleet_render.js. Builders:
+//   constructionCatalogHTML(vm, esc)      -> the build catalog from the NORMALIZED catalog view model
+//                                             (FS-15: consumes the view model, never raw /construction JSON)
+//   constructionAcceptanceHTML(vm, validation, esc)
 //        -> the acceptance-criteria DEFINITION (what validate_plan measures + default tolerances) AND the
 //           live AS-BUILT acceptance RESULT from the LAST plan (validation: flatness/berm/repose/bearing
 //           pass-fail on the real terrain); honest empty state for the result when no plan has been run.
@@ -12,17 +14,18 @@
 
   function _cm(m) { return (Number(m || 0) * 100).toFixed(1); }
 
-  // the structure-template BUILD CATALOG from the real /construction payload (leap/structures.py).
-  function constructionCatalogHTML(con, esc) {
-    if (!con || !Array.isArray(con.templates) || !con.templates.length) {
+  // the structure-template BUILD CATALOG from the NORMALIZED /construction view model
+  // (adapters.normalizeConstructionCatalog).
+  function constructionCatalogHTML(vm, esc) {
+    if (!vm || !Array.isArray(vm.templates) || !vm.templates.length) {
       return '<div class="empty">No structure catalog served. /construction returned no templates.</div>';
     }
-    var rows = con.templates.map(function (t) {
+    var rows = vm.templates.map(function (t) {
       var kinds = (t.orders || []).map(function (o) {
         var c = o.kind === "cut" ? "#e07b39" : "#4caf72";
         return '<span style="color:' + c + '">' + esc(o.kind) + "</span> "
-          + esc(o.action) + " (" + Number(o.footprint_m2 || 0).toFixed(1) + " m² × "
-          + _cm(o.depth_m) + " cm)";
+          + esc(o.action) + " (" + Number(o.footprintM2 || 0).toFixed(1) + " m² × "
+          + _cm(o.depthM) + " cm)";
       }).join("<br>");
       var bal = t.balanced
         ? '<span style="color:#4caf72">cut↔fill balanced</span>'
@@ -30,7 +33,7 @@
       return "<tr>"
         + '<td style="font-weight:600;vertical-align:top">' + esc(t.id) + "</td>"
         + '<td style="font-size:10px;opacity:.85;vertical-align:top">' + esc(t.doc || "") + "</td>"
-        + '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + esc(t.n_orders) + "</td>"
+        + '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + esc(t.nOrders) + "</td>"
         + '<td style="vertical-align:top">' + bal + "</td>"
         + '<td style="font-size:10px;opacity:.85;vertical-align:top">' + kinds + "</td>"
         + "</tr>";
@@ -41,26 +44,26 @@
       + "<th>balance</th><th>primitive cut/fill (default size)</th></tr></thead>"
       + "<tbody>" + rows + "</tbody></table>"
       + '<div style="font-size:10px;opacity:.6;margin-top:6px">'
-      + esc(con.count || 0) + " templates · " + esc(con.balanced_count || 0)
+      + esc(vm.count || 0) + " templates · " + esc(vm.balancedCount || 0)
       + " volume-balanced · catalog from specs (leap/structures.py)</div>";
   }
 
   // the acceptance-criteria DEFINITION (always) + the LIVE as-built RESULT from the last /plan validation.
-  function constructionAcceptanceHTML(con, validation, esc) {
-    var acc = (con && con.acceptance) || {};
+  function constructionAcceptanceHTML(vm, validation, esc) {
+    var acc = (vm && vm.acceptance) || {};
     var checks = Array.isArray(acc.checks) ? acc.checks : [];
     var critRows = checks.map(function (c) {
       var tol = "";
-      if (typeof c.tol_m === "number") tol = _cm(c.tol_m) + " cm";
-      else if (typeof c.max_slope_deg === "number") tol = "≤ " + c.max_slope_deg + "°";
-      else if (typeof c.factor_of_safety === "number") tol = "FS " + c.factor_of_safety;
+      if (typeof c.tolM === "number") tol = _cm(c.tolM) + " cm";
+      else if (typeof c.maxSlopeDeg === "number") tol = "≤ " + c.maxSlopeDeg + "°";
+      else if (typeof c.factorOfSafety === "number") tol = "FS " + c.factorOfSafety;
       return "<tr>"
         + '<td style="font-weight:600">' + esc(c.id) + "</td>"
         + '<td style="font-size:10px;opacity:.85">' + esc(c.what || "") + "</td>"
         + '<td style="text-align:right;font-variant-numeric:tabular-nums">' + esc(tol || "—") + "</td>"
         + "</tr>";
     }).join("");
-    var defers = (acc.defers_to_totals || []).map(esc).join(", ");
+    var defers = (acc.defersToTotals || []).map(esc).join(", ");
     var critHTML = '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">'
       + '<thead><tr style="text-align:left;color:var(--muted);border-bottom:1px solid var(--line)">'
       + "<th>check</th><th>what it measures</th><th style='text-align:right'>tolerance</th></tr></thead>"

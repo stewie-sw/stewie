@@ -1021,27 +1021,50 @@ async function loadPointCloud() {
   }
 }
 
-// FS-03 Fleet pane: render the REAL vehicle-registry roster (/fleet, fetched once) + the LIVE
-// per-vehicle allocation / makespan / space-time conflicts from the last plan (LAST_TOTALS, re-read on
-// every open so it tracks the latest /plan). All HTML built by the pure fleet_render.js module (CSP-safe:
-// no inline script). Honest empty states: the roster shows the registry-down message if /fleet fails; the
-// allocation shows "plan a mission" until a plan with vehicles_detail exists. No fabricated data.
-let _FLEET_ROSTER = null;
-async function loadFleet() {
-  const FR = window.STEWIE_FLEET_RENDER;
-  const rosterEl = $("fleetroster"), planEl = $("fleetplan");
-  if (!FR || !rosterEl || !planEl) return;
-  if (!_FLEET_ROSTER) {                                   // fetch the registry once (it is static config)
-    try {
-      const r = await fetch("/fleet", { headers: apiHeaders() });
-      if (r.ok) _FLEET_ROSTER = await r.json();
-      else rosterEl.innerHTML = '<div class="empty">Fleet roster unavailable (HTTP ' + r.status
-        + (r.status === 401 || r.status === 403 ? " — operator+ sign-in required" : "") + ").</div>";
-    } catch (e) {
-      rosterEl.innerHTML = '<div class="empty">Fleet roster unavailable (' + esc(String(e)) + ").</div>";
-    }
+// FS-15 registry-pane fetch mapping: GET a pane's route and fold the outcome through the central
+// adapters.toViewState() -> {state: loading|ok|empty|error, data: view model}. The pane loaders below
+// render EXACTLY that state machine (a loading placeholder while in flight, the pane's honest empty
+// state, or the error card), and their render modules consume the normalized VIEW MODEL -- never the
+// raw backend JSON. The HTTP status is kept on the view state for the permission (401/403) hint.
+async function fetchPaneViewState(url, normalize) {
+  const A = window.STEWIE_ADAPTERS;
+  let status = 0, json = null;
+  try {
+    const r = await fetch(url, { headers: apiHeaders() });
+    status = r.status;
+    json = await r.json().catch(() => null);
+  } catch (e) {
+    json = { ok: false, error: String(e) };               // network failure -> error state with the cause
   }
-  if (_FLEET_ROSTER) rosterEl.innerHTML = FR.fleetRosterHTML(_FLEET_ROSTER, esc);
+  const vs = A.toViewState({ status: status, json: json, normalize: normalize });
+  vs.status = status;
+  return vs;
+}
+function paneErrorHTML(what, vs) {
+  const hint = (vs.status === 401 || vs.status === 403) ? " — operator+ sign-in required" : "";
+  return '<div class="empty">' + esc(what) + " unavailable (" + esc(String(vs.error)) + hint + ").</div>";
+}
+
+// FS-03 Fleet pane: render the REAL vehicle-registry roster (/fleet, fetched once, consumed as the
+// FS-15 normalizeFleetRoster view model) + the LIVE per-vehicle allocation / makespan / space-time
+// conflicts from the last plan (LAST_TOTALS, re-read on every open so it tracks the latest /plan). All
+// HTML built by the pure fleet_render.js module (CSP-safe: no inline script). FS-15 states: loading
+// placeholder while /fleet is in flight; the registry-down error card (with the operator+ hint on
+// 401/403); the pane's honest empty state when the registry serves no vehicles; the allocation shows
+// "plan a mission" until a plan with vehicles_detail exists. No fabricated data.
+let _FLEET_VM = null;
+async function loadFleet() {
+  const FR = window.STEWIE_FLEET_RENDER, A = window.STEWIE_ADAPTERS;
+  const rosterEl = $("fleetroster"), planEl = $("fleetplan");
+  if (!FR || !A || !rosterEl || !planEl) return;
+  if (!_FLEET_VM) {                                       // fetch the registry once (it is static config)
+    rosterEl.innerHTML = '<div class="empty">Loading fleet roster…</div>';
+    const vs = await fetchPaneViewState("/fleet", A.normalizeFleetRoster);
+    if (vs.state === "error") rosterEl.innerHTML = paneErrorHTML("Fleet roster", vs);
+    else if (vs.state === "empty") rosterEl.innerHTML = FR.fleetRosterHTML(null, esc);
+    else _FLEET_VM = vs.data;
+  }
+  if (_FLEET_VM) rosterEl.innerHTML = FR.fleetRosterHTML(_FLEET_VM, esc);
   planEl.innerHTML = FR.fleetPlanHTML(LAST_TOTALS, esc);  // live per-vehicle allocation from the last plan
 }
 
@@ -1079,29 +1102,28 @@ async function loadRehearse() {
   }
 }
 
-// FS-03 Construction pane: render the REAL build catalog (/construction, fetched once -- static templates)
-// + the acceptance criteria, plus the LIVE as-built verdict from the last plan (LAST_VALIDATION, re-read on
-// every open so it tracks the latest /plan). All HTML built by the pure construction_render.js module
-// (CSP-safe). Honest empty states: catalog shows the catalog-down message if /construction fails; the
-// as-built result shows "plan a mission" until a plan validation exists. No fabricated data.
-let _CONSTRUCTION = null;
+// FS-03 Construction pane: render the REAL build catalog (/construction, fetched once -- static templates,
+// consumed as the FS-15 normalizeConstructionCatalog view model) + the acceptance criteria, plus the LIVE
+// as-built verdict from the last plan (LAST_VALIDATION, re-read on every open so it tracks the latest
+// /plan). All HTML built by the pure construction_render.js module (CSP-safe). FS-15 states: loading
+// placeholder while /construction is in flight; the catalog-down error card (operator+ hint on 401/403);
+// the pane's honest empty state when no templates are served; the as-built result shows "plan a mission"
+// until a plan validation exists. No fabricated data.
+let _CONSTRUCTION_VM = null;
 async function loadConstruction() {
-  const CR = window.STEWIE_CONSTRUCTION_RENDER;
+  const CR = window.STEWIE_CONSTRUCTION_RENDER, A = window.STEWIE_ADAPTERS;
   const catEl = $("constructioncatalog"), accEl = $("constructionacceptance");
-  if (!CR || !catEl || !accEl) return;
-  if (!_CONSTRUCTION) {                                   // fetch the catalog once (it is static config)
-    try {
-      const r = await fetch("/construction", { headers: apiHeaders() });
-      if (r.ok) _CONSTRUCTION = await r.json();
-      else catEl.innerHTML = '<div class="empty">Build catalog unavailable (HTTP ' + r.status
-        + (r.status === 401 || r.status === 403 ? " — operator+ sign-in required" : "") + ").</div>";
-    } catch (e) {
-      catEl.innerHTML = '<div class="empty">Build catalog unavailable (' + esc(String(e)) + ").</div>";
-    }
+  if (!CR || !A || !catEl || !accEl) return;
+  if (!_CONSTRUCTION_VM) {                                // fetch the catalog once (it is static config)
+    catEl.innerHTML = '<div class="empty">Loading build catalog…</div>';
+    const vs = await fetchPaneViewState("/construction", A.normalizeConstructionCatalog);
+    if (vs.state === "error") catEl.innerHTML = paneErrorHTML("Build catalog", vs);
+    else if (vs.state === "empty") catEl.innerHTML = CR.constructionCatalogHTML(null, esc);
+    else _CONSTRUCTION_VM = vs.data;
   }
-  if (_CONSTRUCTION) {
-    catEl.innerHTML = CR.constructionCatalogHTML(_CONSTRUCTION, esc);
-    accEl.innerHTML = CR.constructionAcceptanceHTML(_CONSTRUCTION, LAST_VALIDATION, esc);  // live as-built from last plan
+  if (_CONSTRUCTION_VM) {
+    catEl.innerHTML = CR.constructionCatalogHTML(_CONSTRUCTION_VM, esc);
+    accEl.innerHTML = CR.constructionAcceptanceHTML(_CONSTRUCTION_VM, LAST_VALIDATION, esc);  // live as-built from last plan
   }
   if ($("tmrecord")) $("tmrecord").onclick = recordTerrainMemory;   // W3: Terrain Memory record action
   loadTerrainMemory();                                              // W3: the site's authoritative world state
@@ -1137,29 +1159,28 @@ async function recordTerrainMemory() {
   } catch (e) { setQ("record failed — run server.py (" + e + ")"); }
 }
 
-// FS-03 Models pane: render the REAL model + config registries (/models, fetched once): the deployable
-// system-profile registry (sha256 + VERIFIED), the vehicle + body registries with provenance, and the
-// ML-01 deployment-ready governance + §25.3 no-command-path status. All HTML built by the pure
-// models_render.js module (CSP-safe). Honest empty state if /models fails. No fabricated data.
-let _MODELS = null;
+// FS-03 Models pane: render the REAL model + config registries (/models, fetched once, consumed as the
+// FS-15 normalizeModelsRegistry view model): the deployable system-profile registry (sha256 + VERIFIED),
+// the vehicle + body registries with provenance, and the ML-01 deployment-ready governance + §25.3
+// no-command-path status. All HTML built by the pure models_render.js module (CSP-safe). FS-15 states:
+// loading placeholder while /models is in flight; the registries-down error card (operator+ hint on
+// 401/403); the pane's honest empty state when no profiles are served. No fabricated data.
+let _MODELS_VM = null;
 async function loadModels() {
-  const MR = window.STEWIE_MODELS_RENDER;
+  const MR = window.STEWIE_MODELS_RENDER, A = window.STEWIE_ADAPTERS;
   const pEl = $("modelsprofiles"), rEl = $("modelsregistries"), gEl = $("modelsgovernance");
-  if (!MR || !pEl || !rEl || !gEl) return;
-  if (!_MODELS) {                                         // fetch the registries once (static config)
-    try {
-      const r = await fetch("/models", { headers: apiHeaders() });
-      if (r.ok) _MODELS = await r.json();
-      else pEl.innerHTML = '<div class="empty">Model registries unavailable (HTTP ' + r.status
-        + (r.status === 401 || r.status === 403 ? " — operator+ sign-in required" : "") + ").</div>";
-    } catch (e) {
-      pEl.innerHTML = '<div class="empty">Model registries unavailable (' + esc(String(e)) + ").</div>";
-    }
+  if (!MR || !A || !pEl || !rEl || !gEl) return;
+  if (!_MODELS_VM) {                                      // fetch the registries once (static config)
+    pEl.innerHTML = '<div class="empty">Loading model registries…</div>';
+    const vs = await fetchPaneViewState("/models", A.normalizeModelsRegistry);
+    if (vs.state === "error") pEl.innerHTML = paneErrorHTML("Model registries", vs);
+    else if (vs.state === "empty") pEl.innerHTML = MR.modelsProfilesHTML(null, esc);
+    else _MODELS_VM = vs.data;
   }
-  if (_MODELS) {
-    pEl.innerHTML = MR.modelsProfilesHTML(_MODELS, esc);
-    rEl.innerHTML = MR.modelsRegistriesHTML(_MODELS, esc);
-    gEl.innerHTML = MR.modelsGovernanceHTML(_MODELS, esc);
+  if (_MODELS_VM) {
+    pEl.innerHTML = MR.modelsProfilesHTML(_MODELS_VM, esc);
+    rEl.innerHTML = MR.modelsRegistriesHTML(_MODELS_VM, esc);
+    gEl.innerHTML = MR.modelsGovernanceHTML(_MODELS_VM, esc);
   }
 }
 

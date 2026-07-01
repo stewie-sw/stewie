@@ -182,6 +182,79 @@ test("normalizeModelArtifact mirrors the ML-01 deployment_ready gate", () => {
   assert.strictEqual(A.normalizeModelArtifact({}), null);
 });
 
+// ---- FS-15 pane-payload normalizers: the registry work areas' route responses -> view models ----
+// (field parity vs the LIVE routes is proven in test_adapter_contract_parity.py; shapes here mirror
+// the real /fleet, /construction, /models payloads built by the routers.)
+
+test("normalizeFleetRoster maps the /fleet registry payload + derives capacityMJ/digCount", () => {
+  const vm = A.normalizeFleetRoster({ ok: true, count: 2, ui_visible_count: 1, default_vehicle: "ipex",
+    live_allocation_source: "plan.totals.vehicles_detail + makespan_s + vehicle_conflicts",
+    vehicles: [
+      { id: "ipex", label: "ISRU Pilot Excavator (IPEx)", dry_mass_kg: 30.0, n_wheels: 4,
+        drum_capacity_kg: 30.0, drive_power_w: 40.38, dig_energy_j_per_kg: 4151.4, can_dig: true,
+        ui_visible: true, capabilities: ["drive", "excavate"], provenance: "SCHULER24",
+        onboard_power: [{ id: "ipex_battery", label: "IPEx 12S/30Ah Li-ion", kind: "battery",
+                          capacity_j: 4795200 }] },
+      { id: "hauler", label: "Hauler", dry_mass_kg: 20.0, n_wheels: 4, drum_capacity_kg: 0.0,
+        drive_power_w: 40.0, dig_energy_j_per_kg: 0.0, can_dig: false, ui_visible: false,
+        capabilities: ["drive"], provenance: "x", onboard_power: [] },
+    ] });
+  assert.strictEqual(vm.vehicles[0].id, "ipex");
+  assert.strictEqual(vm.vehicles[0].dryMassKg, 30.0);
+  assert.strictEqual(vm.vehicles[0].onboardPower[0].capacityMJ, 4.7952);  // derived: J -> MJ
+  assert.strictEqual(vm.defaultVehicle, "ipex");
+  assert.strictEqual(vm.uiVisibleCount, 1);
+  assert.strictEqual(vm.digCount, 1);                                     // derived: only ipex digs
+  assert.strictEqual(A.normalizeFleetRoster({ ok: true, vehicles: [] }), null);
+  assert.strictEqual(A.normalizeFleetRoster(null), null);
+});
+
+test("normalizeConstructionCatalog maps the /construction payload (templates + acceptance)", () => {
+  const vm = A.normalizeConstructionCatalog({ ok: true, count: 1, balanced_count: 1,
+    live_acceptance_source: "plan.validation (validate_plan) + plan.ordered_acceptance (IR replay)",
+    templates: [{ id: "blast_berm", doc: "A loose fill ridge.", n_orders: 2, n_cut: 1, n_fill: 1,
+      balanced: true,
+      orders: [{ action: "Borrow pit (berm)", kind: "cut", footprint_m2: 15.2, depth_m: 0.3, note: "src" },
+               { action: "Blast berm", kind: "fill", footprint_m2: 45.0, depth_m: 0.5, note: "ridge" }] }],
+    acceptance: {
+      checks: [{ id: "as_built_flatness", what: "flatness RMSE within tol", tol_m: 0.02 },
+               { id: "slope_siting", what: "no order above max slope", max_slope_deg: 15.0 },
+               { id: "bearing_capacity", what: "allowable bearing", factor_of_safety: 3.0 }],
+      defers_to_totals: ["route_feasibility", "battery_reserve"] } });
+  assert.strictEqual(vm.templates[0].nOrders, 2);
+  assert.strictEqual(vm.templates[0].orders[0].footprintM2, 15.2);
+  assert.strictEqual(vm.balancedCount, 1);
+  assert.strictEqual(vm.acceptance.checks[0].tolM, 0.02);
+  assert.strictEqual(vm.acceptance.checks[1].maxSlopeDeg, 15.0);
+  assert.strictEqual(vm.acceptance.checks[2].factorOfSafety, 3.0);
+  assert.deepStrictEqual(vm.acceptance.defersToTotals, ["route_feasibility", "battery_reserve"]);
+  assert.strictEqual(A.normalizeConstructionCatalog({ ok: true, templates: [] }), null);
+});
+
+test("normalizeModelsRegistry maps the /models payload + derives anyOnCommandPath", () => {
+  const vm = A.normalizeModelsRegistry({ ok: true,
+    profile_count: 1, profiles_deployable: 1, default_profile: "STEWIE_IPEX_V1",
+    profiles: [{ id: "STEWIE_IPEX_V1", status: "VERIFIED", substrate: "stewie", sha256: "abc123def456",
+                 source: "specs/profiles", n_cameras: 8, dry_mass_kg: 30.0, capacity_wh: 1332.0,
+                 deployment_ready: true }],
+    vehicle_count: 1, default_vehicle: "ipex",
+    vehicles: [{ id: "ipex", label: "IPEx", dry_mass_kg: 30.0, provenance: "SCHULER24" }],
+    body_count: 1, default_body: "moon",
+    bodies: [{ id: "moon", label: "Moon", g_m_s2: 1.62, bekker_regime: "gravity-loaded",
+               confidence: "MEASURED", provenance: "NASA LTV" }],
+    model_governance: { contract: "ModelArtifact", schema_endpoint: "/contracts/schema",
+      deployment_ready_criteria: ["calibrated"], command_path_invariant: "no learned model on command path",
+      command_path_enforced: true, deployed_models: [], status: "none deployed" } });
+  assert.strictEqual(vm.profiles[0].deploymentReady, true);
+  assert.strictEqual(vm.profiles[0].nCameras, 8);
+  assert.strictEqual(vm.vehicles[0].dryMassKg, 30.0);
+  assert.strictEqual(vm.bodies[0].gMS2, 1.62);
+  assert.strictEqual(vm.bodies[0].bekkerRegime, "gravity-loaded");
+  assert.strictEqual(vm.governance.commandPathEnforced, true);
+  assert.strictEqual(vm.governance.anyOnCommandPath, false);              // derived: §25.3 stays false
+  assert.strictEqual(A.normalizeModelsRegistry({ ok: true, profiles: [] }), null);
+});
+
 test("normalizeSkill maps ConstructionSkill + derives usable", () => {
   const vm = A.normalizeSkill({ skill: {
     skill_id: "s1", name: "dig-pad", kind: "excavate", version: "1.0",

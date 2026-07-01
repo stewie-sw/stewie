@@ -93,26 +93,100 @@ def test_every_spine_contract_has_a_normalizer():
 
 _WEB = _ADAPTERS_JS.parent
 # FS-15 X (integration): a cockpit work area must CONSUME its normalized view model, not raw backend JSON.
-# This maps each PRODUCTION cockpit module (NOT a *.test.js) to the view model it is required to call. Only
-# the in-repo /plan-path contracts are listed: PlanResult (dashboard/CONOPS), TimelineFrame (Gantt/rover
-# HUD), and LocalizationFix (nav-mission) have live data sources in the product path and are wired. The
-# remaining FS-02 spine view models (Ephemeris/World/Vehicle/Fleet-live/Belief/ExecutionEvent/NavFactor/
-# ModelArtifact/ConstructionSkill) target LIVE-RUNTIME or registry sources that are render/ROS/telemetry-
-# gated (e.g. the Fleet ROSTER pane renders the static vehicle REGISTRY from /fleet, a different shape than
-# the FleetState contract), so their pane wiring is tracked with those gated rows, not asserted here.
+# This maps each PRODUCTION cockpit module (NOT a *.test.js) to the view model it is required to call. The
+# in-repo /plan-path contracts -- PlanResult (dashboard/CONOPS), TimelineFrame (Gantt/rover HUD), and
+# LocalizationFix (nav-mission) -- have live data sources in the product path and are wired, and the three
+# registry work areas (Fleet roster /fleet, Construction catalog /construction, Models registries /models)
+# are wired through their PANE-PAYLOAD normalizers below. The remaining FS-02 spine view models
+# (Ephemeris/World/Vehicle/Fleet-live/Belief/ExecutionEvent/NavFactor/ModelArtifact/ConstructionSkill)
+# target LIVE-RUNTIME telemetry sources that are render/ROS-gated (e.g. a live FleetState stream, a
+# different shape than the /fleet registry), so their pane wiring is tracked with those gated rows.
 _PANE_CONSUMES = {
-    "cockpit.js": ["normalizePlanResult", "normalizeLocalizationFix", "normalizePerception"],
+    "cockpit.js": ["normalizePlanResult", "normalizeLocalizationFix", "normalizePerception",
+                   "normalizeFleetRoster", "normalizeConstructionCatalog", "normalizeModelsRegistry"],
     "rover_hud.js": ["normalizeTimelineFrame"],
 }
+
+# FS-15 pane-payload parity: the three registry work areas fetch ROUTE payloads (dicts built by the
+# routers, not FS-02 pydantic contracts), so parity is proven against the LIVE route response: every
+# snake_case field the pane normalizer reads must be present in the real endpoint JSON. The spec maps
+# normalizer -> (route, {json-path: fields-read-there}); "" is the response root, "a.0.b" digs into
+# list element 0. Every name here is what the adapters.js normalizer actually consumes.
+_PANE_PAYLOAD_FIELDS: dict[str, tuple[str, dict[str, list[str]]]] = {
+    "normalizeFleetRoster": ("/fleet", {
+        "": ["vehicles", "count", "ui_visible_count", "default_vehicle", "live_allocation_source"],
+        "vehicles.0": ["id", "label", "dry_mass_kg", "n_wheels", "drum_capacity_kg", "drive_power_w",
+                       "dig_energy_j_per_kg", "can_dig", "capabilities", "onboard_power", "ui_visible",
+                       "provenance"],
+        "vehicles.0.onboard_power.0": ["id", "label", "kind", "capacity_j"],
+    }),
+    "normalizeConstructionCatalog": ("/construction", {
+        "": ["templates", "count", "balanced_count", "acceptance", "live_acceptance_source"],
+        "templates.0": ["id", "doc", "orders", "n_orders", "n_cut", "n_fill", "balanced"],
+        "templates.0.orders.0": ["action", "kind", "footprint_m2", "depth_m", "note"],
+        "acceptance": ["checks", "defers_to_totals"],
+        "acceptance.checks.0": ["id", "what"],
+    }),
+    "normalizeModelsRegistry": ("/models", {
+        "": ["profiles", "profile_count", "profiles_deployable", "default_profile",
+             "vehicles", "vehicle_count", "default_vehicle",
+             "bodies", "body_count", "default_body", "model_governance"],
+        "profiles.0": ["id", "status", "substrate", "sha256", "source", "n_cameras",
+                       "dry_mass_kg", "capacity_wh", "deployment_ready"],
+        "vehicles.0": ["id", "label", "dry_mass_kg", "provenance"],
+        "bodies.0": ["id", "label", "g_m_s2", "bekker_regime", "confidence", "provenance"],
+        "model_governance": ["contract", "schema_endpoint", "deployment_ready_criteria",
+                             "command_path_invariant", "command_path_enforced", "deployed_models",
+                             "status"],
+    }),
+}
+
+# FS-15 "UI components consume view models, not raw backend JSON": for each registry render module, the
+# raw snake_case payload fields that must be GONE and the camelCase view-model fields that must be read.
+# (fleet_render's fleetPlanHTML + construction_render's as-built RESULT block consume the last-plan
+# totals/validation -- plan-path data tracked with the plan surface, so their fields are not listed.)
+_RENDER_CONSUMES_VM = {
+    "fleet_render.js": {
+        "forbid_raw": ["dry_mass_kg", "drum_capacity_kg", "onboard_power", "can_dig", "default_vehicle"],
+        "require_vm": ["dryMassKg", "drumCapacityKg", "onboardPower", "canDig", "defaultVehicle"],
+    },
+    "construction_render.js": {
+        "forbid_raw": ["footprint_m2", "n_orders", "balanced_count", "defers_to_totals"],
+        "require_vm": ["footprintM2", "nOrders", "balancedCount", "defersToTotals"],
+    },
+    "models_render.js": {
+        "forbid_raw": ["model_governance", "profile_count", "deployment_ready_criteria",
+                       "command_path_enforced", "g_m_s2", "dry_mass_kg", "n_cameras"],
+        "require_vm": ["profileCount", "deploymentReadyCriteria",
+                       "commandPathEnforced", "gMS2", "dryMassKg", "nCameras"],
+    },
+}
+
+
+@pytest.fixture()
+def client(monkeypatch):
+    monkeypatch.delenv("STEWIE_API_KEY", raising=False)
+    monkeypatch.setenv("STEWIE_DEV_OPEN", "1")    # loopback in-process -> dev-open (operator+ routes open)
+    return TestClient(SRV.app)
+
+
+def _dig(obj, path: str):
+    """Resolve 'a.0.b' into a nested dict/list; '' is the object itself."""
+    for part in [p for p in path.split(".") if p]:
+        obj = obj[int(part)] if part.isdigit() else obj[part]
+    return obj
 
 
 def test_plan_path_panes_consume_view_models():  # [REQ:FS-15]
     # FS-15: the wired cockpit work areas read the NORMALIZED view model (STEWIE_ADAPTERS.normalize*),
-    # never raw backend JSON. Regression guard: a pane silently reverting to raw fields fails here.
+    # never raw backend JSON -- either called directly (`.normalizeX({...})`) or passed as the normalize
+    # step of the toViewState mapping (`fetchPaneViewState(url, A.normalizeX)`). Regression guard: a pane
+    # silently reverting to raw fields fails here.
     for fname, fns in _PANE_CONSUMES.items():
         src = (_WEB / fname).read_text(encoding="utf-8")
         for fn in fns:
-            assert f".{fn}(" in src, f"FS-15: {fname} no longer consumes the {fn} view model (raw-JSON regression?)"
+            assert f".{fn}(" in src or f".{fn})" in src, (
+                f"FS-15: {fname} no longer consumes the {fn} view model (raw-JSON regression?)")
 
 
 def test_pane_view_models_are_real_adapters():  # [REQ:FS-15]
@@ -121,6 +195,50 @@ def test_pane_view_models_are_real_adapters():  # [REQ:FS-15]
     for fns in _PANE_CONSUMES.values():
         for fn in fns:
             assert f"function {fn}(" in js, f"FS-15: pane consumes {fn} but adapters.js exports no such normalizer"
+
+
+def test_pane_payload_adapter_fields_are_real_route_fields(client):  # [REQ:FS-15]
+    # no fabricated fields on the registry panes either: every snake_case field the Fleet/Construction/
+    # Models pane normalizer reads is present in the LIVE route response (the real payload contract).
+    for fn, (route, spec) in _PANE_PAYLOAD_FIELDS.items():
+        r = client.get(route)
+        assert r.status_code == 200, f"{fn}: GET {route} -> {r.status_code}: {r.text[:200]}"
+        j = r.json()
+        assert j.get("ok") is True, f"{fn}: {route} did not return ok:true"
+        for path, fields in spec.items():
+            node = _dig(j, path)
+            for f in fields:
+                assert f in node, f"{fn}: adapter reads '{f}' at '{route} {path or '$'}' but it is absent"
+
+
+def test_pane_payload_fields_appear_in_adapters_js():  # [REQ:FS-15]
+    # the pane-payload map cannot silently drift from the JS: each mapped field + normalizer is in the file
+    js = _js()
+    for fn, (_route, spec) in _PANE_PAYLOAD_FIELDS.items():
+        assert f"function {fn}(" in js, f"no '{fn}' pane-payload normalizer in adapters.js"
+        for fields in spec.values():
+            for f in fields:
+                assert f in js, f"{fn}: field '{f}' is mapped but not present in adapters.js"
+
+
+def test_registry_panes_route_through_the_view_state_mapping():  # [REQ:FS-15]
+    # FS-15 loading/error/empty mapping: the registry pane loaders in cockpit.js go through the central
+    # toViewState() outcome mapping (not ad-hoc raw-JSON branching) before any render call.
+    src = (_WEB / "cockpit.js").read_text(encoding="utf-8")
+    assert ".toViewState(" in src, "cockpit.js does not route fetch outcomes through toViewState"
+    for fn in ("normalizeFleetRoster", "normalizeConstructionCatalog", "normalizeModelsRegistry"):
+        assert f".{fn}" in src, f"cockpit.js does not consume the {fn} view model"
+
+
+def test_registry_render_modules_consume_view_models_not_raw_json():  # [REQ:FS-15]
+    # the pure render modules read the camelCase VIEW MODEL fields; the raw snake_case payload fields the
+    # pane fetches are gone (a renderer silently reverting to raw backend JSON fails here).
+    for fname, want in _RENDER_CONSUMES_VM.items():
+        src = (_WEB / fname).read_text(encoding="utf-8")
+        for raw in want["forbid_raw"]:
+            assert raw not in src, f"FS-15: {fname} still reads raw payload field '{raw}'"
+        for vm in want["require_vm"]:
+            assert vm in src, f"FS-15: {fname} does not read view-model field '{vm}'"
 
 
 def test_model_artifact_keeps_the_canonical_deployment_ready_rule():
