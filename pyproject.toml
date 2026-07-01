@@ -59,7 +59,8 @@ stewie-ros2-bridge = "stewie.bridge.ros2_bridge:main"
 
 [tool.setuptools]
 packages = ["stewie", "stewie.physics", "stewie.terrain", "stewie.twin", "stewie.specs",
-            "stewie.envs", "stewie.server", "stewie.eval", "stewie.bridge", "stewie.sensors",
+            "stewie.envs", "stewie.server", "stewie.server.routers", "stewie.eval", "stewie.bridge",
+            "stewie.sensors", "stewie.contracts", "stewie.runtime",
             "dart", "dart.geometry", "dart.viz", "lode", "leap", "forge"]
 
 [tool.setuptools.package-data]

@@ -9,9 +9,13 @@ The fast import-graph proxy in test_server_install.py runs in standard CI every 
 from __future__ import annotations
 
 import glob
+import json
 import os
+import socket
 import subprocess
 import sys
+import time
+import urllib.request
 import venv
 
 import pytest
@@ -66,6 +70,43 @@ def test_fresh_wheel_server_runs(tmp_path):  # [REQ:PO-01]
     assert "FRESH WHEEL OK" in r.stdout
     # the report was written under the configured data dir, in the clean venv (not the source tree)
     assert glob.glob(str(tmp_path / "appdata" / "reports" / "wheel_smoke.*"))
+
+    # [REQ:PO-01] the CLI itself: the installed `stewie-serve` script reports version + config surface
+    # and the server BOOTS + serves /healthz from the wheel install (loopback, ephemeral port).
+    serve = str(venv_dir / ("Scripts" if os.name == "nt" else "bin") / "stewie-serve")
+    wheel_version = os.path.basename(wheels[0]).split("-")[1]     # stewie-<ver>-py3-none-any.whl
+    v = subprocess.run([serve, "--version"], env=clean, capture_output=True, text=True)
+    assert v.returncode == 0, f"stewie-serve --version failed:\nSTDOUT:\n{v.stdout}\nSTDERR:\n{v.stderr}"
+    assert wheel_version in v.stdout, f"--version output {v.stdout!r} missing wheel version {wheel_version}"
+    h = subprocess.run([serve, "--help"], env=clean, capture_output=True, text=True)
+    assert h.returncode == 0, f"stewie-serve --help failed:\nSTDOUT:\n{h.stdout}\nSTDERR:\n{h.stderr}"
+    assert "--port" in h.stdout and "--host" in h.stdout          # the CLI config surface is documented
+
+    with socket.socket() as s:                                    # a free loopback port for the boot
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    boot_env = {**clean, "STEWIE_DATA_DIR": str(tmp_path / "appdata")}
+    proc = subprocess.Popen([serve, "--port", str(port)], env=boot_env, cwd=str(tmp_path),
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    try:
+        body = None
+        for _ in range(60):                                       # up to ~12 s for a cold uvicorn boot
+            if proc.poll() is not None:
+                break
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/healthz", timeout=1) as resp:
+                    body = json.loads(resp.read().decode())
+                break
+            except OSError:
+                time.sleep(0.2)
+        if body is None:
+            out = proc.communicate(timeout=10)[0] if proc.poll() is not None else ""
+            raise AssertionError(f"stewie-serve never served /healthz (rc={proc.poll()}):\n{out}")
+        assert body["status"] in ("ok", "degraded"), body
+        assert body["version"] == wheel_version, body             # the INSTALLED dist answers, not source
+    finally:
+        proc.terminate()
+        proc.wait(timeout=10)
 
 
 if __name__ == "__main__":

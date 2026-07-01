@@ -355,7 +355,11 @@ def _require_tls_for_public_bind(host: str) -> None:
 
 
 def main():
-    ap = argparse.ArgumentParser(description="planet browser + mission planner server (ASGI)")
+    ap = argparse.ArgumentParser(
+        description="planet browser + mission planner server (ASGI)",
+        epilog="env config: STEWIE_API_KEY (auth on POST), STEWIE_CORS_ORIGINS, STEWIE_REPORTS_TTL_S, "
+               "STEWIE_LOG_LEVEL, STEWIE_DATA_DIR; full effective config at GET /config once running")
+    ap.add_argument("--version", action="version", version=f"stewie-serve {_version()}")   # [REQ:PO-01]
     ap.add_argument("--port", type=int, default=8770)
     ap.add_argument("--host", default="127.0.0.1",
                     help="bind address; use 0.0.0.0 to reach it over the LAN/tailnet (default localhost)")
