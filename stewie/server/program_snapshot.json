@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "9230109051c302f0dc05765873ccd592ae63a9f0ad9e621515b74b9bb89dfd0a",
+  "citations_sha256": "1a0571997ea0a2d3c63e49e2fb5ac5c77c9291c5daab9e77561c850baf5f7d9c",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "e11dc06c23689292ea27f6b0c3b5e680f25d1a1e",
-  "prd_sha256": "afb8d05ac07ff4a14312a3ec1698ec162f328760392cd9e39ff5d9258f90ed5a",
+  "prd_commit": "8d96601110090c722c9498f2e30f3b45d5928bcb",
+  "prd_sha256": "ecd379063771c85522ed7f65ca12fdf5f3f501daac84708e6f6fed8a0ca08e71",
   "specs_sha256": "4b2c5de33da676744a6a597546e55f8243ee263773643bdad9dafec1a8d63bfb"
  },
  "rows": [
@@ -221,14 +221,14 @@
    "id": "AS-01",
    "lane": "AS",
    "pri": "P0",
-   "text": "Autoware-shaped boundary: define the ROS2 node graph and topic contract for sensing, perception, localization, mapping, planning, control, vehicle interface, diagnostics, and mission executive without importing road/lanelet behavior planning."
+   "text": "Autoware-shaped boundary: define the ROS2 node graph and topic contract for sensing, depth-source selection, perception, localization, mapping, planning, control, vehicle interface, diagnostics, and mission executive without importing road/lanelet behavior planning. The graph must allow stereo, LiDAR, RGB-D, or replayed point clouds to feed the same mapping/localization contracts."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "concurrent",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "AS-02",
    "lane": "AS",
@@ -236,22 +236,22 @@
    "text": "ROS2 workspace skeleton: create container-buildable packages for `stewie_msgs`, `stewie_description`, `stewie_bringup`, `stewie_vehicle_interface`, `stewie_perception`, `stewie_localization`, `stewie_mapping`, `stewie_planning`, `stewie_control`, and `stewie_rviz`."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "G",
-   "V": "N",
-   "X": "N",
-   "bucket": "concurrent",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "AS-03",
    "lane": "AS",
    "pri": "P0",
-   "text": "IPEx vehicle description: add URDF/Xacro/SDF describing chassis, wheels, drums, arms, camera rig, IMU, optional LiDAR, collision geometry, inertials, joint limits, TF tree, and frame names derived from STEWIE vehicle specs."
+   "text": "IPEx vehicle description: add URDF/Xacro/SDF describing chassis, wheels, drums, arms, camera rig, IMU, optional swappable LiDAR/RGB-D mounts, collision geometry, inertials, joint limits, TF tree, and frame names derived from STEWIE vehicle specs. Sensor profiles must label absent, simulated, bench, flight, and legacy sensors explicitly."
   },
   {
    "I": "P",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "P",
    "bucket": "concurrent",
    "cited": true,
    "id": "AS-04",
@@ -260,28 +260,28 @@
    "text": "ROS container tiers: provide reproducible containers for base ROS2 Jazzy dev, perception/SLAM, Gazebo simulation, RViz diagnostics, bridge runtime, and a Space ROS migration profile. Each container has a smoke command and pinned package manifest."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "concurrent",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "AS-05",
    "lane": "AS",
    "pri": "P0",
-   "text": "RViz mission dashboard: ship an RViz config showing robot model, TF, odom, `/stewie/odom`, planned path, local trajectory, costmaps, occupancy/DEM map, point cloud, camera feeds, covariance, Navigation factors, diagnostics, SAFE state, and command topic state."
+   "text": "RViz mission dashboard: ship an RViz config showing robot model, TF, odom, `/stewie/odom`, planned path, local trajectory, costmaps, occupancy/DEM map, selected depth-source cloud (`PointCloud2` or equivalent), camera feeds, covariance, Navigation factors, diagnostics, SAFE state, and command topic state."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "N",
-   "V": "N",
-   "X": "N",
-   "bucket": "concurrent",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "AS-06",
    "lane": "AS",
    "pri": "P1",
-   "text": "Gazebo simulation seam: launch the IPEx description in Gazebo with cameras, IMU, wheel odometry, contact/collision, `/cmd_vel`, `/joint_states`, `/tf`, `/clock`, and bridgeable terrain/world state. Gazebo sim is robot/sensor sim, not excavation truth."
+   "text": "Gazebo simulation seam: launch the IPEx description in Gazebo with cameras, selected depth source (stereo pair, depth camera, LiDAR/RGB-D, or replay bridge), IMU, wheel odometry, contact/collision, `/cmd_vel`, `/joint_states`, `/tf`, `/clock`, `/stewie/perception/points` or equivalent `DepthObservation`, and bridgeable terrain/world state. Gazebo sim is robot/sensor sim, not excavation truth; estimator and planner inputs must be truth-denied."
   },
   {
    "I": "P",
@@ -293,7 +293,7 @@
    "id": "AS-07",
    "lane": "AS",
    "pri": "P0",
-   "text": "Stanford/NavLab-derived navigation spine: implement or integrate stereo feature detection/matching, stereo VO, robust PnP/triangulation, pose graph optimization, loop-closure gating, terrain/rock mapping, coverage planning, local arc planner, and recovery benchmarks on truth-denied bags."
+   "text": "Stanford/NavLab-derived navigation spine: implement or integrate stereo feature detection/matching, stereo VO, optional LiDAR/depth-cloud odometry or scan-to-DEM registration when a range sensor is selected, robust PnP/triangulation, pose graph optimization, loop-closure gating, terrain/rock mapping, coverage planning, local arc planner, and recovery benchmarks on truth-denied bags."
   },
   {
    "I": "P",
@@ -633,21 +633,21 @@
    "text": "Every artifact records source commit, configuration, mode, seed, schema version, and input hashes."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "link the remaining runtime packets + the vehicle twin into the one versioned transaction envelope that already unifies authority + TwinStore + PlanResult + belief + session events.",
     "kind": "epic",
     "test_target": "stewie/twin/test_envelope.py (extend, `[REQ:DT-01]` present) \u2014 add packet + vehicle-twin cases"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "DT-01",
    "lane": "DT",
    "pri": "P0",
-   "text": "Operational digital-twin unification: conserved authority, observed `TwinStore`, runtime packets, vehicle twin, PlanResult, belief state, and session events are linked by one versioned transaction envelope with mission/site/body/time/provenance/uncertainty. Runtime path done (`WorldStateService`, hash-chained log) + the SIM execute->remember loop (`commit_sim_run` folds terrain into `TerrainMemory` + records belief); packets + vehicle-twin unification remain."
+   "text": "Operational digital-twin unification: conserved authority, observed `TwinStore`, runtime packets, vehicle twin, PlanResult, belief state, and session events are linked by one versioned transaction envelope with mission/site/body/time/provenance/uncertainty. Runtime path done (`WorldStateService`, hash-chained log) + the SIM execute->remember loop (`commit_sim_run` folds terrain into `TerrainMemory` + records belief) + packet/vehicle-twin linkage (`packet_sha`/`vehicle_sha` in the hashed body, backward-compatible, cold-restore bit-exact)."
   },
   {
    "I": "D",
@@ -1099,7 +1099,7 @@
    "I": "D",
    "Q": "NA",
    "V": "P",
-   "X": "N",
+   "X": "D",
    "brief": {
     "goal": "give the Perception pane a typed contract + normalizer consuming the view model (not raw JSON), flipping X from N to D.",
     "kind": "atomic",
@@ -1110,24 +1110,24 @@
    "id": "FS-15",
    "lane": "FS",
    "pri": "P0",
-   "text": "Front-end contract adapters: each cockpit work area owns a typed client adapter, request/response fixture, normalized view model, loading/error/empty mapping, and permission mapping. UI components consume view models, not raw backend JSON. The adapter LAYER is complete: `web/assets/adapters.js` normalizes all 10 FS-02 spine contracts (Ephemeris / World / Vehicle / Fleet / Belief / PlanResult / ExecutionEvent / NavigationFactor / ModelArtifact / ConstructionSkill) to view models, `toViewState` maps every fetch outcome to loading/ok/empty/error, `canAct` maps work-area\u2192role (AG-01), and `ModelArtifact.deploymentReady` mirrors the backend ML-01 gate. Tested by `adapters.test.js` (node) + the CI-gated `test_adapter_contract_parity.py`, which proves every field an adapter reads is a real Pydantic contract field (no fabrication) and fails on backend drift. FS-08 pane wiring is now UNDERWAY (incremental, one pane per step, each Playwright-verified): `adapters.js` is loaded into the cockpit (the `STEWIE_ADAPTERS` global), the `/plan` route returns the typed `PlanResult` contract (built from the same `totals`, additive), and the Report-pane dashboard strip + CONOPS line consume the `normalizePlanResult` view model instead of ad-hoc `totals` keys -- which also fixed a latent bug where the `recharges` chip read a non-existent `totals.recharges` and showed a dash (now the real charge count, Playwright-confirmed). Increment 2 adds the new `TimelineFrame` contract (the activity-gantt motion frames; the /plan timeline frames are tested to conform to it) and the `normalizeTimelineFrame` view model, and the Report-pane ACTIVITY gantt + battery curve now consume it instead of raw frame dicts. Increment 3 adds the `LocalizationFix` contract (the Nav pane's est-vs-truth trace leg: `est`/`true`/`sigma`/`fix`; the /plan trace legs are tested to conform) + `normalizeLocalizationFix`, and the Nav pane's mission-localization plot consumes it. So THREE surfaces are migrated, each Playwright-verified: the Report dashboard (PlanResult), the activity gantt (TimelineFrame), and the Nav est-vs-truth trace (LocalizationFix). X stays N until the Perception pane consumes view models too (its panorama/shadow aggregates need their own contract)."
+   "text": "Front-end contract adapters: each cockpit work area owns a typed client adapter, request/response fixture, normalized view model, loading/error/empty mapping, and permission mapping. UI components consume view models, not raw backend JSON. The adapter LAYER is complete: `web/assets/adapters.js` normalizes all 10 FS-02 spine contracts (Ephemeris / World / Vehicle / Fleet / Belief / PlanResult / ExecutionEvent / NavigationFactor / ModelArtifact / ConstructionSkill) to view models, `toViewState` maps every fetch outcome to loading/ok/empty/error, `canAct` maps work-area\u2192role (AG-01), and `ModelArtifact.deploymentReady` mirrors the backend ML-01 gate. Tested by `adapters.test.js` (node) + the CI-gated `test_adapter_contract_parity.py`, which proves every field an adapter reads is a real Pydantic contract field (no fabrication) and fails on backend drift. FS-08 pane wiring is now UNDERWAY (incremental, one pane per step, each Playwright-verified): `adapters.js` is loaded into the cockpit (the `STEWIE_ADAPTERS` global), the `/plan` route returns the typed `PlanResult` contract (built from the same `totals`, additive), and the Report-pane dashboard strip + CONOPS line consume the `normalizePlanResult` view model instead of ad-hoc `totals` keys -- which also fixed a latent bug where the `recharges` chip read a non-existent `totals.recharges` and showed a dash (now the real charge count, Playwright-confirmed). Increment 2 adds the new `TimelineFrame` contract (the activity-gantt motion frames; the /plan timeline frames are tested to conform to it) and the `normalizeTimelineFrame` view model, and the Report-pane ACTIVITY gantt + battery curve now consume it instead of raw frame dicts. Increment 3 adds the `LocalizationFix` contract (the Nav pane's est-vs-truth trace leg: `est`/`true`/`sigma`/`fix`; the /plan trace legs are tested to conform) + `normalizeLocalizationFix`, and the Nav pane's mission-localization plot consumes it. Increment 4 adds `PerceptionState` for the selected depth/cloud + panorama/shadow health card, `normalizePerception`, node coverage, and CI-gated parity coverage proving the Perception pane calls the view model instead of owning an untyped status shape. X is now D for the wired Plan/Report/Nav/Perception surfaces; V remains P until the remaining non-plan live-runtime panes get their route fixtures, browser render tests, and failure-mode coverage."
   },
   {
    "I": "D",
    "Q": "NA",
-   "V": "P",
+   "V": "D",
    "X": "D",
    "brief": {
     "goal": "add a PYTHON citing test proving the single routeable state model drives desktop + mobile (enum enforcement + hash round-trip), flipping V P\u2192D.",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_cockpit_state_routing.py (`[REQ:FS-16]`; static-read pattern of test_panel_layout_chrome.py)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FS-16",
    "lane": "FS",
    "pri": "P0",
-   "text": "Cockpit state and routing: the app has one routeable state model for selected mission, site, vehicle, body, time, mode, role, work area, selected entity, and live/sim/eval source. Desktop and mobile navigation are alternate views of the same state, not separate logic."
+   "text": "Cockpit state and routing: the app has one routeable state model for selected mission, site, vehicle, body, time, mode, role, work area, selected entity, and live/sim/eval source. Desktop and mobile navigation are alternate views of the same state, not separate logic. Production now loads `cockpit_state.js` before `cockpit.js`; `setView` synchronizes through `window.STEWIE_STATE` using enum-guarded `setState`, `toHash`, and `fromHash`; Python gate `test_cockpit_state_routing.py` cites the row so CI/req_trace counts the existing node-tested model."
   },
   {
    "I": "D",
@@ -1447,7 +1447,7 @@
    "id": "ML-09",
    "lane": "ML",
    "pri": "P0",
-   "text": "Edge deployment envelope: any simultaneous model set intended for IPEx-class hardware must fit the selected compute profile (for example Jetson Orin NX/AGX class) under measured RAM, power, thermal, latency, and sensor-I/O budgets with degraded-mode scheduling."
+   "text": "Edge deployment envelope: any simultaneous model set intended for IPEx-class hardware must fit the selected compute profile (for example Jetson Orin Nano/NX/AGX class) under measured RAM, power, thermal, latency, and sensor-I/O budgets with degraded-mode scheduling. The budget must name the active depth source (stereo SGBM, neural stereo, LiDAR, RGB-D, or replay), image/cloud rate, CPU/GPU split, RAM ceiling, thermal/power ceiling, telemetry bandwidth, and offload boundary to a base station."
   },
   {
    "I": "D",
@@ -1796,7 +1796,7 @@
    "id": "PM-13",
    "lane": "PM",
    "pri": "P1",
-   "text": "Stereo distance/range: rectified stereo pairs yield a calibrated disparity\u2192depth estimate to a selected pixel/target, with per-estimate uncertainty from baseline + disparity noise. Acceptance scores the estimate against the conserved truth depth in sim (no synthetic depth)."
+   "text": "Range/depth source abstraction: the selected sensor profile may provide depth from rectified stereo disparity, LiDAR, RGB-D, or a simulator sensor feed, but every source must emit the same typed `DepthObservation`/point-cloud contract with frame, timestamp, calibration identity, valid mask, range limits, and uncertainty. Stereo remains the default no-LiDAR IPEx path; LiDAR is a swappable upgrade or testbed source when mass/power/sensor availability permits. Acceptance scores each source against conserved truth depth in sim or against surveyed targets on hardware, without allowing simulator truth into estimator code."
   },
   {
    "I": "N",
@@ -1809,7 +1809,7 @@
    "id": "PM-14",
    "lane": "PM",
    "pri": "P1",
-   "text": "3D depth point cloud + recognition: a dense/semi-dense point cloud is reconstructed from stereo, expressed in the world frame with per-point confidence; recognition (ground/rock/berm/pit/lander) operates on the cloud, never on truth masks."
+   "text": "3D point cloud + recognition: a dense/semi-dense cloud is reconstructed from the selected depth source, converted to `sensor_msgs/PointCloud2` or an equivalent STEWIE cloud record, expressed in the world frame with per-point confidence; recognition (ground/rock/berm/pit/lander) operates on the cloud, never on truth masks. Downstream mapping/planning must be unchanged whether the cloud came from stereo, LiDAR, RGB-D, or replay."
   },
   {
    "I": "N",
@@ -1822,7 +1822,7 @@
    "id": "PM-15",
    "lane": "PM",
    "pri": "P1",
-   "text": "Regional target height: over an operator-selected footprint, estimate a height field / max-min relief (berm crest, pad flatness, obstacle height) from the stereo cloud, with uncertainty; acceptance compares to the conserved as-built truth (ties CP-06 flatness/profile and I11 as-built RMSE)."
+   "text": "Regional target height: over an operator-selected footprint, estimate a height field / max-min relief (berm crest, pad flatness, obstacle height) from the selected depth cloud, with uncertainty; acceptance compares to the conserved as-built truth (ties CP-06 flatness/profile and I11 as-built RMSE)."
   },
   {
    "I": "N",
@@ -1835,7 +1835,7 @@
    "id": "PM-16",
    "lane": "PM",
    "pri": "P1",
-   "text": "Regional target volume: over a selected footprint, integrate cut/fill volume (excavated pit, spoil/berm) from the stereo height field vs a reference datum, with an uncertainty band; cross-checked against the conserved mass/volume the authority actually moved (CT-03 conservation)."
+   "text": "Regional target volume: over a selected footprint, integrate cut/fill volume (excavated pit, spoil/berm) from the selected depth-derived height field vs a reference datum, with an uncertainty band; cross-checked against the conserved mass/volume the authority actually moved (CT-03 conservation)."
   },
   {
    "I": "P",
@@ -1882,7 +1882,7 @@
    "I": "P",
    "Q": "NA",
    "V": "P",
-   "X": "N",
+   "X": "P",
    "brief": {
     "goal": "restructure CI to SEPARATELY gate the named tiers (python core / scripts / godot / browser-JS / package smoke / hardware-gated) + a test asserting the workflow declares them; fix the misattributed markers.",
     "kind": "epic",
@@ -2592,9 +2592,9 @@
  "summary": {
   "briefs": 62,
   "buckets": {
-   "buildable": 62,
-   "concurrent": 25,
-   "done": 86,
+   "buildable": 60,
+   "concurrent": 21,
+   "done": 92,
    "gated": 15
   },
   "by_lane": {
@@ -2607,7 +2607,7 @@
     "total": 9
    },
    "AS": {
-    "done": 1,
+    "done": 5,
     "total": 18
    },
    "CP": {
@@ -2619,7 +2619,7 @@
     "total": 7
    },
    "DT": {
-    "done": 1,
+    "done": 2,
     "total": 2
    },
    "EP": {
@@ -2631,7 +2631,7 @@
     "total": 7
    },
    "FS": {
-    "done": 5,
+    "done": 6,
     "total": 24
    },
    "GI": {
@@ -2693,11 +2693,11 @@
   },
   "by_priority": {
    "P0": {
-    "done": 30,
+    "done": 35,
     "total": 61
    },
    "P1": {
-    "done": 56,
+    "done": 57,
     "total": 117
    },
    "P2": {
@@ -2705,10 +2705,10 @@
     "total": 10
    }
   },
-  "cited": 124,
-  "done_pct": 45.7,
+  "cited": 125,
+  "done_pct": 48.9,
   "in_scope": 173,
-  "in_scope_done_pct": 49.7,
+  "in_scope_done_pct": 53.2,
   "total": 188
  },
  "workflow_spine": [
