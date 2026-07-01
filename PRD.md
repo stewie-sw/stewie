@@ -10,17 +10,40 @@ workspace: `design/STEWIE_ATOMIC_EXECUTION_PLAN_2026-06-09.md`.
 
 ## 0. Where we are / what's next (2026-06-11 — read this first)
 
-**Status:** STEWIE is a single live production platform — one integrated system (planner, twin,
-cockpit, navigation), not a platform plus a separate track. The trainer/simulator product (PRD §18 rung 4) is **software-complete**.
+**Status (2026-07-01):** STEWIE is one live production platform, deployed on app.stewie.space
+(Cloudflare / cloudflared / docker), CI green on `main`. The ConOps spine Plan · Rehearse · Validate ·
+Release · Execute · Report is shipped, and the operational world-model loop is now CLOSED: a plan
+executes, its conserved terrain delta folds into TerrainMemory, and the next plan reads the remembered
+surface through CurrentTerrainView, all recorded in one hash-chained world-transaction log (DT-01 / the
+§28 slice). The trainer, planner, and digital-twin product is functionally complete; the flight-autonomy,
+arm, live-pit, and Tier-3 tracks remain hardware and host gated.
 
-**Done (this build cycle):** all three rung-4 gaps — the pluggable RC contract + SF-01 safing
-watchdog (#66, deduced from the frozen CONTRACT.md; a plan exports a reusable GoTo command tape),
-telemetry shaping (#67, downlink latency + per-sol stranded-byte ledger), operator/director roles
-(#68); the COLMAP/triage design + budget ledger (#69); the resync forward-sim (#70); the
-NASA-standards mechanism (§19: requirements-traceability + Power-of-10 gates live in CI; SF-01
-built); the 8-agent full-stack audit (§20: 2 criticals + 2 highs fixed, no known criticals
-remain); the Navigation pose-graph estimator spine (DEM + shadow-outline factors); the cockpit
-(authoring, math worksheet, dashboards, mobile); Moon coordinate chain verified end-to-end.
+**Completion snapshot (§7 requirements = 188).** Raw verification glyphs: 86 verified-done (45%), 41
+partial, 61 not-started; 119 (63%) are cited by a real `[REQ:]` test; 24 are hardware or host gated. The
+glyphs UNDERSTATE reality: the `[REQ:]` marker pass (OPS-04) is incomplete, so about 38 done-in-code rows
+still read partial or not-started (STATUS.md "V!=D flagged"), and this session's closures (DT-01, the
+execute-remember loop, the FS-24 cockpit modularization) are not yet reflected. Excluding the 24 gated
+rows, the in-scope platform is roughly 75 to 80 percent done or done-in-code; the honest remaining work
+splits three ways:
+
+- **Open, in-scope, buildable here:** the §7 `[REQ:]` marker pass (flip the ~38 understated done-in-code
+  rows, one citing test each, to keep req_trace honest); finish FS-24 (5 pure modules extracted this
+  session, the DOM app-shell remainder is by design, not a pure-module candidate); the MO-02 live-execute
+  fault-injection tier; GI-01 deployed-browser GIS smoke.
+- **Gated, deferred (not unfinished):** the live rclpy node + P23 intern-beta traverse (needs a ROS host
+  and a real pit); P7 live Chrono producer + Tier-3 drum forces (needs a PyChrono host); the AS-* flight-
+  autonomy stack (the ARGUS / navigation lane); arm geometry (AM-*, VT-03/05, needs LAC/IPEx data); dense
+  stereo PM-13..16 (GPU); CP-07 slip-band fold-in (blocked on the PyChrono calibration oracle); the
+  STEWIE-Orbit CCSDS comms stack (intent-only).
+- **Bottom line:** the production trainer/planner/twin is essentially finished and live; "finishing the
+  program" past this point is mostly the marker-pass hygiene plus the externally-gated flight stack, not
+  new in-scope product code.
+
+**Done (build history, retained for provenance):** the three rung-4 gaps (pluggable RC contract + SF-01
+safing watchdog #66, telemetry shaping #67, operator/director roles #68); the COLMAP/triage design +
+budget ledger (#69); the resync forward-sim (#70); the NASA-standards mechanism (§19: requirements-
+traceability + Power-of-10 gates in CI); the 8-agent full-stack audit (§20); the Navigation pose-graph
+estimator spine; the cockpit (authoring, worksheet, dashboards, mobile); the Moon coordinate chain.
 
 > **UPDATE 2026-06-14:** item 1 below (**P1 — the navigation bridge**) is **DONE** (§22.3): /localize +
 > /slam endpoints, articulation_bridge on /render, and the cockpit Navigation/Estimation view, all
@@ -160,8 +183,11 @@ remain); the Navigation pose-graph estimator spine (DEM + shadow-outline factors
 > host-gated (rclpy absent) and the P23 "<30 min unassisted Haworth traverse through real RC software" has
 > no evidence artifact → "built + container-verified, deploy-integration pending," not "gate passed."
 > **P7 live Chrono producer — still a STUB** (`scripts/chrono_scm_export.py:2`); **Tier-3 force-accurate
-> drum — OPEN**. **Fleet conflict RESOLUTION + MV precedence-chain splitting — OPEN** (every conflict class
-> is detected/reported; none re-sequenced; a chain can't span vehicles). **STEWIE-Orbit comms stack —
+> drum — OPEN**. (CORRECTED 2026-07-01: **Fleet conflict RESOLUTION + MV precedence-chain splitting is
+> DONE**, not open, contradicting the stale text this block used to carry: `lode/planner_multivehicle.py`
+> `_resolve_spacetime_crowding` re-sequences work-crowding + haul crossings to a fixed point, and
+> `_allocate_precedence_split` / `_resolve_cross_vehicle_precedence` split a chain across vehicles, both
+> wired in `planner_assembly` and tested `[REQ:FL-02]` / `[REQ:FL-04]`; §7 FL-02 = D D D D.) **STEWIE-Orbit comms stack —
 > intent-only** (only the gated CCSDS Space-Packet RC seam exists; no Proximity-1/AOS-USLP/CFDP/SDLS/Yamcs/
 > Foxglove code). **GIS interop GI-03 — PARTIAL** (the in-repo GeoJSON subset is DONE in `lode.gis_export`:
 > plan→GeoJSON/COG export, GeoJSON import (`geojson_to_features`), offline mission-package (`mission_package`),
@@ -182,25 +208,10 @@ remain); the Navigation pose-graph estimator spine (DEM + shadow-outline factors
 > 5. Externally gated (unchanged): Tier-3 drum forces (Chrono::GPU), the live Chrono producer, a
 >    real-traverse reconstruction closing PM-13..16, and the STEWIE-Orbit comms stack.
 
-**Current forward order (SUPERSEDED 2026-06-19 — see the reconciliation block above; original 2026-06-15 list):**
-1. **Stabilize the production web/GIS surface.** Keep WEB-01/SEC-01 live-site hardening load-bearing:
-   self-host Cesium, preserve no-inline-script CSP, remove deploy-key-in-browser paths, run a real
-   Nginx/Cesium/mobile smoke, and verify the declared `server` extra is actually installed in the
-   execution environment. Current local bare-interpreter checks still fail GIS globe/cache tests when
-   `pyproj` is absent, despite `pyproj` being declared in `pyproject.toml` and the server/dev locks.
-2. **Close the data-leak/read-auth tail.** Operational reads are gated, but `/twin/version` still exposes
-   observed-twin version/history without auth. Add a least-privilege version token for ordinary clients
-   and director-only history. Keep browser sessions cookie-based; no automation key may enter the DOM.
-3. **Finish P3 evidence surfacing.** Head-to-head comparison, cross-dataset generalization, photometric
-   render-pair, depth pass, and G1/G2 readout should be visible in System/Perception without implying
-   truth-free operational SLAM parity.
-4. **Finish P2 backend closure.** REG-01 DEM site imports, FORGE populate/remove, berm firming,
-   map-uncertainty coefficient, MV cross-precedence, and site/body/terrain provenance should become
-   normal product paths. The worksite controller seam remains hardware/protocol-gated; the Lyasko
-   correction remains oracle-gated.
-5. **Unify the operational world model.** The conserved authority, `TwinStore`, runtime packets,
-   PlanResult, vehicle twin, and belief state must become one transactionally linked world-state log
-   before the PRD may claim a production-complete digital twin.
+**Forward order:** see the Completion snapshot at the top of §0 (2026-07-01). The 2026-06-15 and
+2026-06-19 forward lists that used to sit here are removed as stale: item 1 (front-end IA) shipped as the
+ConOps-spine reorg, item 3 (fleet resolution) and item 5 / DT-01 (world-model unification) are done, and
+items 2/4/5's residue is the gated tail the snapshot enumerates.
 
 The pre-audit queue (still valid, lower priority): the real-pit `PitBackend` over the UDP/ROS
 transport (awaiting McCardle's link details); the mission-brief packet (§8); the Navigation SE(3)+IMU
@@ -252,34 +263,9 @@ and 3 sim-only rows. The reference architecture using current names is
 large standalone framework: it is the six-layer executable slice loop in §28, organized for parallel
 agents and Graphify-backed status updates.
 
-**NEXT SESSION — plan (2026-06-11):** finish the articulation-instrument tie-in chain, then the queued
-SN slices. Bounded TDD, each gate-byte-identical with a `[REQ:]` marker + a baseline-comparing notebook:
-1. **Planner relocalization stops (#96)** — the autonomy consumer: predict DR drift along a traverse and
-   insert standstill parallax-fix stops where predicted uncertainty exceeds tolerance (like recharge
-   stops), costed in time/energy. Notebook: drift with-vs-without scheduled relocalization.
-2. **Server + cockpit action/display (#97)** — operator-triggered relocalization (perception-gated, like
-   DockWithLander) + a covariance ellipse that shrinks after the fix; trainer metrics (localization σ,
-   relocalization count). Live-verify in headless Chrome.
-3. **SN-07 LED-budget policy (#91)**, **load-aware viewpoint selector (#92)**, **SN-01/04 promotion (#93)**.
-Optional cleanup: fully unify `posture_a3`'s lift basis with `posture_kinematics` (only the parallax dh
-is reconciled so far; the stability model still uses the estimated [CONFIRM] dims).
-Then the bigger #79 frontier: the 8-cam SuperGlue front-end to convert the modelled fixes in the
-ablations into MEASURED ones (the move from characterized to qualified, fresh-session scale).
-The completed plan that produced this session, for reference:
-
-**Completed plan (2026-06-11): the SN / Navigation evidence path.** The trainer product is
-done + gated on John's wire transport, so solo effort goes to the navigation contribution (the SN
-family, 13 rows mostly open). Sequenced, bounded TDD slices (tasks #83-86), each gate-byte-identical
-with a `[REQ:]` marker:
-1. **CP-01 flip** (warm-up) — write the citing test for the produced-once `PlanResult`; clear the stale N.
-2. **SN-03** — the shadow *yaw* factor in `PoseGraphSE2` (this session's shadow factor is positional;
-   SN-03 is the heading-from-shadow-azimuth factor, weak + covariance-weighted from the shadow-sigma
-   envelope). The core navigation instrument, made operational.
-3. **SN-02** — the shadow-vector detection front-end (reject rover/LED/saturation/penumbra) that feeds SN-03.
-4. **SN-05** — illumination-aware route cost (separable visibility/shadow-hazard/map-uncertainty terms).
-The arc: detect shadow -> fuse as a yaw factor -> route by illumination, turning the shadow-sigma
-calibration into a *used* channel end to end. Considered + deferred: the #79 SuperGlue front-end
-(heavier, fresh-session scale) and a PitBackend skeleton (can't verify without John's protocol).
+(The 2026-06-11 "next session" and "completed plan" SN/navigation session logs that used to close §0
+are removed here as stale; they remain in git history and `session_notes/`. Current forward work is the
+Completion snapshot at the top of §0.)
 
 ## 1. Purpose
 
