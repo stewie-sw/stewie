@@ -98,6 +98,28 @@ def plan(prd_path: str = _PRD) -> dict:
             "gated": dict(gated), "concurrent": sorted(concurrent)}
 
 
+def assessment_inventory(specs_path: str = os.path.join(_ROOT, "FANOUT_SPECS.md")) -> dict[str, dict]:
+    """FS-01 codebase-assessment gate: the per-slice inventory of touched files/modules + the test
+    target, parsed from the FANOUT_SPECS.md dispatch briefs. A brief that inventories nothing parses
+    to empty fields so a gate test can FAIL it -- no assessment, no slice."""
+    briefs: dict[str, dict] = {}
+    cur = None
+    for line in open(specs_path, encoding="utf-8"):
+        m = re.match(r"^### ([A-Z]{2}-\d{2})", line)
+        if m:
+            cur = m.group(1)
+            briefs[cur] = {"files": [], "test_target": ""}
+            continue
+        if cur is None:
+            continue
+        ln = line.strip()
+        if ln.startswith("- files:"):
+            briefs[cur]["files"] = [f.strip() for f in ln[len("- files:"):].split(",") if f.strip()]
+        elif ln.startswith("- test_target:"):
+            briefs[cur]["test_target"] = ln[len("- test_target:"):].strip()
+    return briefs
+
+
 def render(p: dict) -> str:
     out = []
     not_done = p["total"] - p["done"]
