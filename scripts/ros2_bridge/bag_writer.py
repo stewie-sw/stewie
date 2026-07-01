@@ -72,6 +72,20 @@ def forbidden_truth_topics(topic_names):
     return sorted(set(topic_names) & EVALUATOR_ONLY_TOPICS)
 
 
+def assert_perception_topics_clean(topic_names):
+    """SLAM-01 injection guard: RAISE if any truth topic rides the perception (SLAM-input) topic set
+    -- the named evaluator-only topics or ANYTHING truth-labeled (the /truth namespace included).
+    :func:`register_connections` runs this on every registration, so an attempted truth-topic
+    injection into the estimator input surface fails validation structurally;
+    :func:`forbidden_truth_topics` stays the report-only release gate."""
+    offenders = sorted(set(forbidden_truth_topics(topic_names))
+                       | {t for t in topic_names if "truth" in t.lower()})
+    if offenders:
+        raise ValueError(
+            f"truth topic(s) injected into the perception (SLAM-input) set (SLAM-01): {offenders}")
+    return True
+
+
 # --- minimal PNG reader (stdlib): supports 8-bit grayscale (ct 0) & RGB/RGBA (ct 2/6) -------
 
 def _read_png(path: str):
@@ -325,6 +339,7 @@ def register_connections(writer, ts, left, right, *, truth_writer=None):
     tw = truth_writer if truth_writer is not None else writer
     conn(tw, truth_conns, TRUTH_POSE_TOPIC, mt["POSE"])
     conn(tw, truth_conns, APRILTAG_TRUTH_TOPIC, mt["POSE"])
+    assert_perception_topics_clean(conns)  # SLAM-01: the estimator input surface refuses truth topics
     return conns, truth_conns
 
 

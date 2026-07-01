@@ -112,6 +112,41 @@ def test_write_frame_routes_true_rover_pose_to_evaluator_bag_not_tf():  # [REQ:S
     assert bag_writer.APRILTAG_TRUTH_TOPIC in truth.written
 
 
+def test_perception_topic_schema_walk_has_no_truth_fields():  # [REQ:SL-01]
+    # schema walk: every topic register_connections places in the perception (SLAM-input) connection
+    # set -- in BOTH bag modes -- is truth-free. The estimator input surface is the returned ``conns``
+    # dict; walking it and finding no truth-labeled name means truth is structurally absent, not
+    # absent by convention.
+    ts = _FakeTS()
+    _sensors, left, right, _baseline = _load()
+    for truth_writer in (_FakeWriter(), None):
+        perc = _FakeWriter()
+        conns, _truth_conns = bag_writer.register_connections(
+            perc, ts, left, right, truth_writer=truth_writer)
+        walked = sorted(conns)
+        assert walked, "schema walk covered no topics (vacuous)"
+        for topic in walked:
+            assert topic not in bag_writer.EVALUATOR_ONLY_TOPICS, topic
+            assert "truth" not in topic.lower(), topic
+        # the same walk through the raising guard: a clean estimator input surface validates
+        assert bag_writer.assert_perception_topics_clean(walked)
+
+
+def test_truth_topic_injection_fails_validation():  # [REQ:SL-01]
+    # an ATTEMPTED truth-field injection into the perception topic set FAILS validation: the guard
+    # raises (structural refusal), it does not merely report like forbidden_truth_topics.
+    clean = ["/front_left/image_raw", "/front_left/camera_info", "/tf", "/tf_static"]
+    assert bag_writer.assert_perception_topics_clean(clean) is True
+    for injected in (bag_writer.TRUTH_POSE_TOPIC, bag_writer.APRILTAG_TRUTH_TOPIC,
+                     "/truth/any_new_field"):
+        try:
+            bag_writer.assert_perception_topics_clean(clean + [injected])
+        except ValueError as e:
+            assert injected in str(e), f"rejection did not name the offender {injected!r}"
+        else:
+            raise AssertionError(f"injection of {injected!r} was NOT rejected")
+
+
 def test_single_bag_mode_still_routes_truth_off_the_tf_channel():
     # back-compat: with no separate truth writer, truth still lands on /truth/* (never /tf), so a
     # SLAM node reading /tf is not handed the answer; the release gate still flags the shared bag.

@@ -85,6 +85,30 @@ def test_rejects_camera_outside_proprioception_window():
         rio.parse_canonical(p)
 
 
+def test_runtime_packet_schema_walk_denies_truth_fields():  # [REQ:SL-01]
+    # structural truth isolation: the estimator input packet is a CLOSED allow-list schema (a novel
+    # key is rejected -- test_rejects_novel_camera_frame_key), so walking every declared field name
+    # and finding no truth-labeled field proves truth structurally CANNOT ride the runtime packet --
+    # isolation by the type/schema, not by convention.
+    from stewie.bridge import proprioception_io as pio
+    surfaces = {
+        "packet": rio._TOP_KEYS, "channels": rio._CHANNEL_NAMES,
+        "camera channel": rio._CAMERA_CHAN_KEYS, "camera frame": rio._FRAME_KEYS,
+        "proprio channel": pio._CHAN_KEYS, "imu sample": pio._IMU_SAMPLE_KEYS,
+        "wheel sample": pio._WHEEL_SAMPLE_KEYS, "joints sample": pio._JOINT_SAMPLE_KEYS,
+        "power sample": pio._POWER_SAMPLE_KEYS,
+    }
+    walked = 0
+    for ctx, keys in surfaces.items():
+        for key in keys:
+            walked += 1
+            low = key.lower()
+            assert "truth" not in low, f"truth-labeled field {key!r} in {ctx} schema"
+            for pat in pio._FORBIDDEN:
+                assert pat not in low, f"forbidden truth field {key!r} (~{pat}) in {ctx} schema"
+    assert walked >= 30, "schema walk covered too few fields (vacuous)"
+
+
 def test_input_dir_truth_isolation(tmp_path):
     (tmp_path / "front_left.png").write_text("x")
     assert rio.assert_input_dir_clean(str(tmp_path))        # clean estimator input -> ok
