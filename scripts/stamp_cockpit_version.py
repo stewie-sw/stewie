@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stamp the CONTENT HASH of each versioned cockpit asset into index.html's <script src> cache-bust query.
+"""Stamp the CONTENT HASH of every versioned asset into each page's cache-bust query.
 
 Why: app.stewie.space is fronted by Cloudflare, which edge-caches /assets/*.js. The cache key is the URL,
 so a CHANGED asset must get a NEW `?v=` or Cloudflare keeps serving the stale bytes (this once shipped
@@ -7,8 +7,11 @@ nothing to users for ~30 days, and again shipped a stale three3d.js). A content 
 cache-bust: it changes iff the bytes change (fresh URL on every edit, stable cacheable URL when
 unchanged). Replaces the error-prone manual `?v=N` bump.
 
-Covers every asset in ASSETS -- add a file here (and reference it as `name?v=...` in index.html) when a
-new cache-busted asset is introduced.
+The asset list is DERIVED FROM EACH PAGE (every `/assets/<name>.js?v=...` reference is stamped), not a
+hand-maintained tuple: the tuple went stale in practice -- cockpit_state.js shipped with a stale hash and
+adapters.js/panel_layout.js/idle_logout.js with hand labels (?v=fs15a1, ?v=1) that no gate checked, which
+is exactly the stale-edge-cache failure this script exists to prevent. Reference an asset with `?v=` and
+it is automatically stamped + CI-gated; nothing to register.
 
 Run before a frontend deploy:  python scripts/stamp_cockpit_version.py
 CI enforces it: stewie/server/test_asset_version_stamp.py fails if any stamp is stale, so a stale-cache
@@ -26,18 +29,12 @@ _ASSET_DIR = _ROOT / "stewie" / "server" / "web" / "assets"
 INDEX_HTML = _ROOT / "stewie" / "server" / "index.html"
 PROGRAM_HTML = _ROOT / "stewie" / "server" / "web" / "program.html"
 
-#: cache-busted assets referenced from index.html as `<name>?v=<hash>`.
-ASSETS = ("cockpit.js", "three3d.js", "geofmt.js", "globe_ellipsoid.js",
-          "htmlesc.js", "icons.js", "role_rank.js", "keepout_geom.js",
-          "navplot.js", "evidence_html.js", "rover_hud.js", "plan_geom.js",
-          "footprint_geom.js",
-          "fleet_render.js", "rehearse_render.js", "construction_render.js", "models_render.js",
-          "plan_stepper.js", "contents_tree.js", "trainer_boards.js", "world_state_html.js",
-          "regolith_estimate.js", "scorecard_chips.js", "terrain_memory_html.js", "nav_stats_html.js",
-          "layouts.js")
+#: every page that cache-busts /assets/*.js with ?v=
+PAGES = (INDEX_HTML, PROGRAM_HTML)
 
-#: cache-busted assets referenced from the standalone /program board page.
-PROGRAM_ASSETS = ("htmlesc.js", "program_board.js")
+#: an /assets/... reference with a ?v= token (group 1 = the asset path relative to assets/, group 2 = up
+#: to the token). Matches nested paths (assets/panes/x.js) too.
+_REF_RE = re.compile(r"assets/([A-Za-z0-9_./-]+?\.js)\?v=([A-Za-z0-9_]+)")
 
 
 def content_hash(name: str) -> str:
@@ -45,17 +42,22 @@ def content_hash(name: str) -> str:
     return hashlib.sha256((_ASSET_DIR / name).read_bytes()).hexdigest()[:12]
 
 
-def _ref(name: str) -> re.Pattern[str]:
-    return re.compile(r"(" + re.escape(name) + r"\?v=)([A-Za-z0-9_]+)")
+def page_assets(page: pathlib.Path) -> list[str]:
+    """Every asset the page references with a ?v= cache-bust, in order of first appearance."""
+    seen: list[str] = []
+    for m in _REF_RE.finditer(page.read_text()):
+        if m.group(1) not in seen:
+            seen.append(m.group(1))
+    return seen
 
 
-def _stamp_page(page: pathlib.Path, assets: tuple[str, ...]) -> list[tuple[str, str, bool]]:
-    """Rewrite each asset's ?v= in one HTML page to its current content hash.
+def _stamp_page(page: pathlib.Path, assets: list[str] | tuple[str, ...] | None = None) -> list[tuple[str, str, bool]]:
+    """Rewrite each referenced asset's ?v= in one HTML page to its current content hash.
     Returns [(name, hash, changed), ...]."""
     html = page.read_text()
     out: list[tuple[str, str, bool]] = []
-    for name in assets:
-        rx = _ref(name)
+    for name in (assets if assets is not None else page_assets(page)):
+        rx = re.compile(r"(" + re.escape(name) + r"\?v=)([A-Za-z0-9_]+)")
         if not rx.search(html):
             raise SystemExit(f"{page.name} has no {name}?v= reference to stamp")
         h = content_hash(name)
@@ -67,8 +69,11 @@ def _stamp_page(page: pathlib.Path, assets: tuple[str, ...]) -> list[tuple[str, 
 
 
 def stamp() -> list[tuple[str, str, bool]]:
-    """Stamp every cache-busted page (the cockpit's index.html + the /program board)."""
-    return _stamp_page(INDEX_HTML, ASSETS) + _stamp_page(PROGRAM_HTML, PROGRAM_ASSETS)
+    """Stamp every ?v=-referenced asset on every cache-busted page."""
+    out: list[tuple[str, str, bool]] = []
+    for page in PAGES:
+        out += _stamp_page(page)
+    return out
 
 
 if __name__ == "__main__":

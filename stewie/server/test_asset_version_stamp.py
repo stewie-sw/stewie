@@ -1,50 +1,43 @@
-"""Enforce the cockpit.js cache-bust stamp. index.html references /assets/cockpit.js?v=<hash>, and that
-hash MUST equal the current cockpit.js content hash. Cloudflare edge-caches /assets/*.js by URL, so a
-changed cockpit.js with an unchanged ?v ships the STALE asset to app.stewie.space (this happened: ~30 days
-of stale JS). If this test fails, run `python scripts/stamp_cockpit_version.py` before deploying. The test
-makes the bump impossible to forget instead of a documented hope (deploy/DEPLOY.md)."""
-import hashlib
-import os
-import re
+"""Enforce the asset cache-bust stamps. Each page references /assets/<name>.js?v=<hash>, and every such
+hash MUST equal the current content hash of that asset. Cloudflare edge-caches /assets/*.js by URL, so a
+changed asset with an unchanged ?v ships the STALE bytes to app.stewie.space (this happened: ~30 days of
+stale JS; then again 2026-07-01 when cockpit_state.js shipped stamped with a stale hash and adapters.js/
+panel_layout.js/idle_logout.js carried unchecked hand labels). The asset list is DERIVED FROM THE PAGES
+(scripts/stamp_cockpit_version.page_assets), so a newly referenced ?v= asset is gated automatically --
+there is no tuple to forget. If this test fails, run `python scripts/stamp_cockpit_version.py` before
+deploying (deploy/DEPLOY.md)."""
+import sys
+from pathlib import Path
 
 import pytest
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_ASSET_DIR = os.path.join(_HERE, "web", "assets")
-_INDEX_HTML = os.path.join(_HERE, "index.html")
-
-# every cache-busted asset referenced from index.html as `<name>?v=<hash>`
-_ASSETS = ("cockpit.js", "three3d.js", "geofmt.js")
+_SCRIPTS = str(Path(__file__).resolve().parents[2] / "scripts")
+if _SCRIPTS not in sys.path:
+    sys.path.insert(0, _SCRIPTS)
+import stamp_cockpit_version as S  # noqa: E402
 
 
-@pytest.mark.parametrize("name", _ASSETS)
-def test_asset_cache_bust_matches_content_hash(name):
-    with open(os.path.join(_ASSET_DIR, name), "rb") as fh:
-        want = hashlib.sha256(fh.read()).hexdigest()[:12]
-    with open(_INDEX_HTML) as fh:
-        html = fh.read()
+def _cases():
+    for page in S.PAGES:
+        for name in S.page_assets(page):
+            yield pytest.param(page, name, id=f"{page.name}:{name}")
+
+
+@pytest.mark.parametrize(("page", "name"), _cases())
+def test_asset_cache_bust_matches_content_hash(page, name):
+    import re
+
+    want = S.content_hash(name)
+    html = page.read_text()
     m = re.search(re.escape(name) + r"\?v=([A-Za-z0-9_]+)", html)
-    assert m, f"index.html must cache-bust {name} with ?v=<hash>"
+    assert m, f"{page.name} must cache-bust {name} with ?v=<hash>"
     assert m.group(1) == want, (
-        f"stale cache-bust stamp: index.html has {name}?v={m.group(1)} but {name} hashes to {want}. "
+        f"stale cache-bust stamp: {page.name} has {name}?v={m.group(1)} but {name} hashes to {want}. "
         f"Run `python scripts/stamp_cockpit_version.py` (Cloudflare would otherwise serve a stale asset)."
     )
 
 
-# the standalone /program board page cache-busts its own module set the same way
-_PROGRAM_HTML = os.path.join(_HERE, "web", "program.html")
-_PROGRAM_ASSETS = ("htmlesc.js", "program_board.js")
-
-
-@pytest.mark.parametrize("name", _PROGRAM_ASSETS)
-def test_program_page_cache_bust_matches_content_hash(name):
-    with open(os.path.join(_ASSET_DIR, name), "rb") as fh:
-        want = hashlib.sha256(fh.read()).hexdigest()[:12]
-    with open(_PROGRAM_HTML) as fh:
-        html = fh.read()
-    m = re.search(re.escape(name) + r"\?v=([A-Za-z0-9_]+)", html)
-    assert m, f"program.html must cache-bust {name} with ?v=<hash>"
-    assert m.group(1) == want, (
-        f"stale cache-bust stamp: program.html has {name}?v={m.group(1)} but {name} hashes to {want}. "
-        f"Run `python scripts/stamp_cockpit_version.py` (Cloudflare would otherwise serve a stale asset)."
-    )
+def test_every_page_references_a_nonempty_stamped_set():
+    # the scan itself must keep finding the pages' assets (an empty scan would silently gate nothing)
+    for page in S.PAGES:
+        assert len(S.page_assets(page)) >= 2, f"{page.name}: ?v= asset scan found almost nothing"
