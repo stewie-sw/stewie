@@ -7,32 +7,54 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/icon-32.png?v=2" />
 <meta name="theme-color" content="#0a0a0c" />
 <style>
-  /* STEWIE brand board: lunar black + graphite ramp, drum-red accent (design/BRAND_UI_ANALYSIS_2026-06-10.md) */
+  /* STEWIE brand board: lunar black + graphite ramp, drum-red accent (design/BRAND_UI_ANALYSIS_2026-06-10.md).
+     Flight-console density: hairline panels, mono data, one hot accent reserved for meaning. */
   @font-face { font-family: "Orbitron"; src: url("/fonts/Orbitron.ttf") format("truetype");
                font-weight: 400 900; font-display: swap; }
-  :root { --bg:#0a0a0c; --panel:#101013; --line:#26262c; --txt:#d6d6da; --muted:#8a8a93;
-          --accent:#ef3a52; }
+  :root { --bg:#0a0a0c; --panel:#101013; --field:#141417; --line:#26262c; --txt:#d6d6da;
+          --muted:#8a8a93; --accent:#ef3a52; }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--txt);
-         font:13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  header { display:flex; align-items:baseline; gap:14px; padding:14px 20px; border-bottom:1px solid var(--line);
-           background:linear-gradient(180deg,#1b1b1f,#101013); }
+  html { scrollbar-color: #34343c var(--bg); }
+  body { margin:0; color:var(--txt); font:13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+         /* console atmosphere: faint drum-red bloom top-left over lunar black; no images */
+         background: radial-gradient(1100px 480px at 12% -8%, rgba(239,58,82,.055), transparent 60%),
+                     radial-gradient(900px 420px at 88% -12%, rgba(120,130,160,.05), transparent 55%),
+                     var(--bg); }
+  header { display:flex; align-items:baseline; flex-wrap:wrap; gap:14px; padding:14px 20px;
+           border-bottom:1px solid var(--line); background:linear-gradient(180deg,#1b1b1f,#101013); }
   header h1 { font-family:Orbitron, system-ui, sans-serif; font-size:17px; letter-spacing:.12em; margin:0; }
   header h1 b { color:var(--accent); }
   header .sub { color:var(--muted); }
-  main { display:grid; grid-template-columns: 1fr 340px; gap:16px; padding:16px 20px; max-width:1400px; }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  main { display:grid; grid-template-columns: minmax(0,1fr) 360px; gap:16px; padding:16px 20px;
+         max-width:1500px; align-items:start; }
+  @media (max-width: 950px) { main { grid-template-columns: 1fr; } .sidecol { position:static !important; } }
   .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
-  h2 { font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 8px; }
+  h2 { font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 8px;
+       font-family:Orbitron, system-ui, sans-serif; font-weight:400; }
   /* summary chips + provenance */
   .chip { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:2px 10px;
-          margin:2px 6px 2px 0; background:#141417; }
+          margin:2px 6px 2px 0; background:var(--field); }
   .prov { color:var(--muted); margin-top:8px; font-size:12px; }
   .prov code { color:var(--txt); }
   /* ConOps spine */
   #program-spine .step { font-family:Orbitron, system-ui, sans-serif; letter-spacing:.08em; padding:2px 4px; }
   #program-spine .arrow { color:var(--muted); padding:0 6px; }
   #program-spine .applink { color:var(--accent); text-decoration:none; margin-left:12px; }
+  #program-spine .applink:hover { text-decoration:underline; }
+  /* filter deck: the legend IS the filter (bucket toggles + priority toggles + live search) */
+  .deck { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; }
+  .deck .lbl { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+               margin-right:2px; }
+  .fbtn { font:12px/1.2 ui-monospace, monospace; border-radius:4px; padding:4px 9px; cursor:pointer;
+          border:1px solid var(--line); background:var(--field); color:var(--txt);
+          transition: transform .08s ease, border-color .12s ease; }
+  .fbtn:hover { transform: translateY(-1px); }
+  .fbtn[aria-pressed="true"] { border-color:var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .fbtn .n { color:var(--muted); }
+  #program-search { font:12px/1.2 ui-monospace, monospace; background:var(--field); color:var(--txt);
+                    border:1px solid var(--line); border-radius:4px; padding:5px 9px; min-width:210px; }
+  #program-search:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  #program-results { color:var(--muted); font-size:12px; margin-left:auto; }
   /* priority table */
   table { border-collapse:collapse; width:100%; }
   th, td { text-align:left; padding:3px 8px 3px 0; border-bottom:1px solid var(--line); }
@@ -41,26 +63,35 @@
   .bar { display:inline-block; height:8px; background:var(--accent); border-radius:4px;
          vertical-align:middle; margin-right:6px; max-width:82%; }
   /* lanes + row chips (bucket colors are semantic; AA-checked on --panel) */
-  .lane { margin-bottom:10px; }
-  .lane h3 { font-size:13px; margin:6px 0 4px; }
+  .lane { margin-bottom:10px; animation: rise .32s ease-out both; }
+  @keyframes rise { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce) { .lane { animation:none; } .fbtn:hover { transform:none; } }
+  .lane h3 { font-size:13px; margin:6px 0 4px; display:flex; align-items:center; gap:8px; }
+  .lanebar { flex:0 0 90px; height:4px; background:var(--field); border:1px solid var(--line);
+             border-radius:2px; overflow:hidden; }
+  .lanebar span { display:block; height:100%; background:var(--accent); opacity:.85; }
   .lanecount { color:var(--muted); font-weight:normal; font-size:11px; }
   .rowchip { font:12px/1.2 ui-monospace, monospace; border-radius:4px; padding:3px 7px; margin:2px 4px 2px 0;
-             cursor:pointer; border:1px solid var(--line); background:#141417; color:var(--txt); }
-  .rowchip:hover, .rowchip:focus { outline:2px solid var(--accent); outline-offset:1px; }
+             cursor:pointer; border:1px solid var(--line); background:var(--field); color:var(--txt);
+             transition: transform .08s ease; }
+  .rowchip:hover { transform: translateY(-1px); }
+  .rowchip:focus-visible, .fbtn:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+  .rowchip.selected { box-shadow: inset 0 0 0 1px currentColor; background:#1a1a1f; }
   .b-done   { border-color:#2f6f3f; color:#7fd191; }
   .b-build  { border-color:var(--accent); color:#ff98a7; }
   .b-gated  { border-color:#8a6a1f; color:#e3b64f; }
   .b-conc   { border-color:#5b4a8a; color:#b9a5ee; }
-  /* detail / inspect panel */
+  .empty { padding:12px 2px; }
+  /* sticky side column: inspect stays in view while scanning lanes */
+  .sidecol { position:sticky; top:16px; }
   #program-detail h3 { margin:2px 0 6px; }
   #program-detail .status { font-weight:bold; }
   #program-detail .glyphs, .muted { color:var(--muted); }
   #program-detail .brief { border-top:1px solid var(--line); margin-top:8px; padding-top:6px; }
   #program-detail .brief h4 { margin:0 0 4px; font-size:12px; text-transform:uppercase;
                               letter-spacing:.08em; color:var(--muted); }
-  code { background:#141417; border:1px solid var(--line); border-radius:3px; padding:0 4px; }
+  code { background:var(--field); border:1px solid var(--line); border-radius:3px; padding:0 4px; }
   .err { color:var(--accent); }
-  .legend span { margin-right:12px; }
 </style>
 </head>
 <body>
@@ -80,19 +111,27 @@
     </div>
     <div class="panel">
       <h2>Lanes — every §7 requirement, colored by state</h2>
-      <div class="legend" style="margin-bottom:8px">
-        <span class="rowchip b-done">verified done</span>
-        <span class="rowchip b-build">buildable now</span>
-        <span class="rowchip b-gated">gated</span>
-        <span class="rowchip b-conc">concurrent-owned</span>
+      <div class="deck" role="group" aria-label="Filter the requirement board">
+        <span class="lbl">state</span>
+        <button class="fbtn b-done" data-bucket="done" aria-pressed="false">verified done</button>
+        <button class="fbtn b-build" data-bucket="buildable" aria-pressed="false">buildable now</button>
+        <button class="fbtn b-gated" data-bucket="gated" aria-pressed="false">gated</button>
+        <button class="fbtn b-conc" data-bucket="concurrent" aria-pressed="false">concurrent-owned</button>
+        <span class="lbl" style="margin-left:8px">priority</span>
+        <button class="fbtn" data-pri="P0" aria-pressed="false">P0</button>
+        <button class="fbtn" data-pri="P1" aria-pressed="false">P1</button>
+        <button class="fbtn" data-pri="P2" aria-pressed="false">P2</button>
+        <input id="program-search" type="search" placeholder="search id or requirement…"
+               aria-label="Search requirements" />
+        <span id="program-results" role="status" aria-live="polite"></span>
       </div>
       <div id="program-lanes"></div>
     </div>
   </div>
-  <div>
+  <div class="sidecol">
     <div class="panel" style="margin-bottom:16px">
       <h2>Inspect</h2>
-      <div id="program-detail"></div>
+      <div id="program-detail" aria-live="polite"></div>
     </div>
     <div class="panel">
       <h2>By priority</h2>
@@ -102,6 +141,6 @@
 </main>
 <!-- CSP: script-src 'self' -- external modules only, stamped for the Cloudflare asset cache -->
 <script src="/assets/htmlesc.js?v=aeb7e4bb4091"></script>
-<script src="/assets/program_board.js?v=f1d628da1953"></script>
+<script src="/assets/program_board.js?v=dc1beff2125a"></script>
 </body>
 </html>

@@ -18,6 +18,30 @@
 
   function pct(part, whole) { return whole ? Math.round((1000 * part) / whole) / 10 : 0; }
 
+  // filter = {bucket: null|key, pri: null|"P0", q: ""}; null/"" = pass-through. q matches the row id
+  // or the requirement text, case-insensitive. Pure -> the filter deck is unit-testable.
+  function applyFilter(rows, f) {
+    var q = (f && f.q ? String(f.q) : "").trim().toLowerCase();
+    return rows.filter(function (r) {
+      if (f && f.bucket && r.bucket !== f.bucket) return false;
+      if (f && f.pri && r.pri !== f.pri) return false;
+      if (q && (r.id + " " + r.text).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+
+  function countsByBucket(rows) {
+    var c = { done: 0, buildable: 0, gated: 0, concurrent: 0 };
+    rows.forEach(function (r) { if (c[r.bucket] !== undefined) c[r.bucket] += 1; });
+    return c;
+  }
+
+  // the live "showing N of M" readout under the filter deck (aria-live region in the page).
+  function resultsLine(shown, total) {
+    return shown === total ? "all " + total + " requirements"
+      : shown + " of " + total + " requirements match";
+  }
+
   // headline stat chips + the provenance line (which committed PRD this board is looking at).
   function summaryHTML(snap, esc) {
     var s = snap.summary, b = s.buckets, p = snap.provenance;
@@ -53,18 +77,28 @@
   }
 
   // the lane board: one group per lane, chips colored by bucket, data-id for the inspect click.
-  function lanesHTML(snap, esc) {
+  // `rows` defaults to the full matrix; pass applyFilter()'s output to render a filtered board.
+  // `selectedId` keeps the inspected chip visibly selected across re-renders. Explicit empty state.
+  function lanesHTML(snap, esc, rows, selectedId) {
+    rows = rows || snap.rows;
+    if (!rows.length) return '<p class="muted empty">No requirements match the current filters.</p>';
     var byLane = {};
-    snap.rows.forEach(function (r) { (byLane[r.lane] = byLane[r.lane] || []).push(r); });
+    rows.forEach(function (r) { (byLane[r.lane] = byLane[r.lane] || []).push(r); });
+    var i = 0;
     return Object.keys(byLane).sort().map(function (lane) {
-      var rows = byLane[lane];
-      var done = rows.filter(function (r) { return r.bucket === "done"; }).length;
-      var chips = rows.map(function (r) {
-        return '<button class="rowchip ' + bucketMeta(r.bucket).cls + '" data-id="' + esc(r.id)
-          + '" title="' + esc(r.text) + '">' + esc(r.id) + "</button>";
+      var laneRows = byLane[lane];
+      var done = laneRows.filter(function (r) { return r.bucket === "done"; }).length;
+      var w = pct(done, laneRows.length);
+      var chips = laneRows.map(function (r) {
+        return '<button class="rowchip ' + bucketMeta(r.bucket).cls
+          + (r.id === selectedId ? " selected" : "") + '" data-id="' + esc(r.id)
+          + '" title="' + esc(r.text) + '" aria-pressed="' + (r.id === selectedId) + '">'
+          + esc(r.id) + "</button>";
       }).join("");
-      return '<section class="lane"><h3>' + esc(lane) + ' <span class="lanecount">' + done + "/"
-        + rows.length + " done</span></h3><div>" + chips + "</div></section>";
+      return '<section class="lane" style="animation-delay:' + (28 * i++) + 'ms"><h3>' + esc(lane)
+        + ' <span class="lanebar" aria-hidden="true"><span style="width:' + w + '%"></span></span>'
+        + '<span class="lanecount">' + done + "/" + laneRows.length + " done</span></h3><div>"
+        + chips + "</div></section>";
     }).join("");
   }
 
@@ -97,30 +131,72 @@
 
   var API = { summaryHTML: summaryHTML, spineHTML: spineHTML, priorityHTML: priorityHTML,
               lanesHTML: lanesHTML, rowDetailHTML: rowDetailHTML, bucketMeta: bucketMeta,
-              findRow: findRow };
+              findRow: findRow, applyFilter: applyFilter, countsByBucket: countsByBucket,
+              resultsLine: resultsLine };
   if (typeof module !== "undefined" && module.exports) module.exports = API;   // node:test
   if (root) root.STEWIE_PROGRAM_BOARD = API;                                    // browser (window)
 
-  // browser boot: fetch the committed snapshot, render every mount, wire click-to-inspect.
+  // browser boot: fetch the committed snapshot, render every mount, wire the filter deck (bucket +
+  // priority toggles, live search) and click-to-inspect. All state lives here; renderers stay pure.
   if (root && root.document && root.document.getElementById("program-summary")) {
+    var doc = root.document;
     var esc = root.STEWIE_HTMLESC.esc;
+    var state = { bucket: null, pri: null, q: "", selected: null };
+
     fetch("/program/snapshot").then(function (r) {
       if (!r.ok) throw new Error("snapshot HTTP " + r.status);
       return r.json();
     }).then(function (snap) {
-      root.document.getElementById("program-summary").innerHTML = summaryHTML(snap, esc);
-      root.document.getElementById("program-spine").innerHTML = spineHTML(snap.workflow_spine, esc);
-      root.document.getElementById("program-priority").innerHTML = priorityHTML(snap, esc);
-      root.document.getElementById("program-lanes").innerHTML = lanesHTML(snap, esc);
-      root.document.getElementById("program-detail").innerHTML = rowDetailHTML(null, esc);
-      root.document.getElementById("program-lanes").addEventListener("click", function (ev) {
+      var counts = countsByBucket(snap.rows);
+      doc.getElementById("program-summary").innerHTML = summaryHTML(snap, esc);
+      doc.getElementById("program-spine").innerHTML = spineHTML(snap.workflow_spine, esc);
+      doc.getElementById("program-priority").innerHTML = priorityHTML(snap, esc);
+      doc.getElementById("program-detail").innerHTML = rowDetailHTML(null, esc);
+      // filter-deck counts on the bucket toggles
+      Array.prototype.forEach.call(doc.querySelectorAll("[data-bucket]"), function (btn) {
+        var n = counts[btn.getAttribute("data-bucket")];
+        if (n !== undefined) btn.innerHTML += ' <span class="n">' + n + "</span>";
+      });
+
+      function redraw() {
+        var rows = applyFilter(snap.rows, state);
+        doc.getElementById("program-lanes").innerHTML = lanesHTML(snap, esc, rows, state.selected);
+        doc.getElementById("program-results").textContent = resultsLine(rows.length, snap.rows.length);
+      }
+
+      function toggle(group, attr, key) {
+        Array.prototype.forEach.call(doc.querySelectorAll(group), function (btn) {
+          btn.addEventListener("click", function () {
+            var v = btn.getAttribute(attr);
+            state[key] = state[key] === v ? null : v;
+            Array.prototype.forEach.call(doc.querySelectorAll(group), function (b) {
+              b.setAttribute("aria-pressed", String(b.getAttribute(attr) === state[key]));
+            });
+            redraw();
+          });
+        });
+      }
+      toggle("[data-bucket]", "data-bucket", "bucket");
+      toggle("[data-pri]", "data-pri", "pri");
+      doc.getElementById("program-search").addEventListener("input", function (ev) {
+        state.q = ev.target.value;
+        redraw();
+      });
+      doc.getElementById("program-lanes").addEventListener("click", function (ev) {
         var id = ev.target && ev.target.getAttribute && ev.target.getAttribute("data-id");
         if (!id) return;
-        root.document.getElementById("program-detail").innerHTML = rowDetailHTML(findRow(snap, id), esc);
+        state.selected = id;
+        doc.getElementById("program-detail").innerHTML = rowDetailHTML(findRow(snap, id), esc);
+        Array.prototype.forEach.call(doc.querySelectorAll("#program-lanes .rowchip"), function (b) {
+          var on = b.getAttribute("data-id") === id;
+          b.classList.toggle("selected", on);
+          b.setAttribute("aria-pressed", String(on));
+        });
       });
+      redraw();
     }).catch(function (e) {
       // explicit error state (design contract: never a silent blank pane)
-      root.document.getElementById("program-summary").innerHTML =
+      doc.getElementById("program-summary").innerHTML =
         '<span class="err">Could not load the program snapshot: ' + esc(e.message) + "</span>";
     });
   }
