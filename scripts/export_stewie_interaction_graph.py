@@ -18,6 +18,24 @@ EXTRACTION_PATH = OUT_DIR / "stewie_interaction_extraction_2026-06-28.json"
 GRAPH_PATH = OUT_DIR / "graph.json"
 SOURCE_FILE = DOC.relative_to(ROOT).as_posix()
 
+# v2: the 60-entry Phase-1 target taxonomy (the committee-facing coverage graph) -> a SECOND graph. The
+# current 51-row graph.json stays the implementation-status view; graph_v2.json is the target taxonomy
+# with legacy_current_id crosswalk. Parsed from the "Phase 1 Interaction Coverage Table" in the v2 doc.
+V2_DOC = ROOT / "docs" / "stewie_interaction_layer_phase1_v2_current_2026-06-29.md"
+V2_EXTRACTION_PATH = OUT_DIR / "stewie_interaction_extraction_v2.json"
+V2_GRAPH_PATH = OUT_DIR / "graph_v2.json"
+V2_SOURCE_FILE = V2_DOC.relative_to(ROOT).as_posix()
+V2_HEADERS = [
+    "v2 ID",
+    "Family",
+    "Current source -> target",
+    "Current variables",
+    "Governing model",
+    "legacy_current_id",
+    "Status",
+    "Next build",
+]
+
 HEADERS = [
     "ID",
     "Trigger / event",
@@ -207,7 +225,8 @@ def build_extraction(rows: list[dict[str, str]]) -> dict[str, Any]:
     }
 
 
-def write_graphify_graph(extraction: dict[str, Any]) -> None:
+def write_graphify_graph(extraction: dict[str, Any], *, out_path: Path = GRAPH_PATH,
+                         built_at: str = "manual-stewie-interaction-map-2026-06-28") -> None:
     _ensure_graphify_importable()
     from graphify.build import build_from_json
     from graphify.export import to_json
@@ -262,26 +281,103 @@ def write_graphify_graph(extraction: dict[str, Any]) -> None:
     to_json(
         graph,
         dict(communities),
-        GRAPH_PATH,
+        out_path,
         force=True,
-        built_at_commit="manual-stewie-interaction-map-2026-06-28",
+        built_at_commit=built_at,
         community_labels=labels,
     )
 
 
+def v2_interaction_rows() -> list[dict[str, str]]:
+    """Parse the 60-row 'Phase 1 Interaction Coverage Table' from the v2 taxonomy doc."""
+    lines = V2_DOC.read_text(encoding="utf-8").splitlines()
+    rows: list[dict[str, str]] = []
+    in_table = False
+    for line in lines:
+        if line.startswith("| v2 ID | Family |"):
+            in_table = True
+            continue
+        if not in_table:
+            continue
+        if line.startswith("## "):
+            break
+        if not line.startswith("|") or re.match(r"^\|\s*-", line):
+            continue
+        cells = _split_row(line)
+        if not cells or not cells[0].startswith("INT-"):
+            continue
+        if len(cells) != len(V2_HEADERS):
+            raise ValueError(f"{cells[0]} has {len(cells)} cells, expected {len(V2_HEADERS)}")
+        rows.append(dict(zip(V2_HEADERS, cells, strict=True)))
+    if not rows:
+        raise ValueError(f"No v2 interaction rows found in {V2_DOC}")
+    return rows
+
+
+def build_extraction_v2(rows: list[dict[str, str]]) -> dict[str, Any]:
+    """Build the v2 target-taxonomy extraction: same interaction-node-as-first-class shape as the current
+    graph (so parallel couplings never collapse), with v2 metadata (family, legacy_current_id, status)."""
+    node_by_label: dict[str, str] = {}
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
+
+    def node_id(label: str) -> str:
+        if label in node_by_label:
+            return node_by_label[label]
+        new_id = f"state_{_slug(label)}"
+        node_by_label[label] = new_id
+        nodes.append({"id": new_id, "label": label, "file_type": "document",
+                      "source_file": V2_SOURCE_FILE, "source_location": "State Block Registry"})
+        return new_id
+
+    for row in rows:
+        source_label, target_label = _edge_blocks(row["Current source -> target"])
+        status = row["Status"]
+        meta = {
+            "interaction_id": row["v2 ID"],
+            "family": row["Family"],
+            "coupled_variables": row["Current variables"],
+            "governing_model": row["Governing model"],
+            "legacy_current_id": row["legacy_current_id"],
+            "status": status,
+            "status_class": _status_class(status),
+            "needed_next": row["Next build"],
+            "source_block": source_label,
+            "target_block": target_label,
+        }
+        inode = f"interaction_{_slug(row['v2 ID'])}"
+        nodes.append({"id": inode, "label": f"{row['v2 ID']}: {row['Family']}", "file_type": "document",
+                      "source_file": V2_SOURCE_FILE, "source_location": row["v2 ID"], **meta})
+        sid, tid = node_id(source_label), node_id(target_label)
+        for src, dst, rel in ((sid, inode, "starts_interaction"), (inode, tid, "couples_to")):
+            edges.append({"source": src, "target": dst, "relation": rel, "confidence": "EXTRACTED",
+                          "confidence_score": 1.0, "source_file": V2_SOURCE_FILE,
+                          "source_location": row["v2 ID"], "weight": 1.0, **meta})
+
+    return {"nodes": nodes, "edges": edges, "hyperedges": [], "input_tokens": 0, "output_tokens": 0,
+            "directed": True, "source": V2_SOURCE_FILE,
+            "description": ("STEWIE Phase-1 TARGET interaction taxonomy (60-entry v2). Interaction rows are "
+                            "first-class nodes (no parallel-coupling collapse); legacy_current_id crosswalks "
+                            "to the 51-row implementation graph.")}
+
+
 def main() -> None:
-    rows = interaction_rows()
-    extraction = build_extraction(rows)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    EXTRACTION_PATH.write_text(json.dumps(extraction, indent=2, ensure_ascii=False), encoding="utf-8")
     (OUT_DIR / ".graphify_root").write_text(str(ROOT), encoding="utf-8")
     (OUT_DIR / ".graphify_python").write_text(sys.executable, encoding="utf-8")
+
+    extraction = build_extraction(interaction_rows())
+    EXTRACTION_PATH.write_text(json.dumps(extraction, indent=2, ensure_ascii=False), encoding="utf-8")
     write_graphify_graph(extraction)
-    print(
-        f"Exported {len(extraction['nodes'])} nodes and {len(extraction['edges'])} directed edges "
-        f"to {GRAPH_PATH.relative_to(ROOT)}"
-    )
-    print(f"Extraction JSON: {EXTRACTION_PATH.relative_to(ROOT)}")
+    print(f"Exported {len(extraction['nodes'])} nodes and {len(extraction['edges'])} directed edges "
+          f"to {GRAPH_PATH.relative_to(ROOT)}")
+
+    v2 = build_extraction_v2(v2_interaction_rows())
+    V2_EXTRACTION_PATH.write_text(json.dumps(v2, indent=2, ensure_ascii=False), encoding="utf-8")
+    write_graphify_graph(v2, out_path=V2_GRAPH_PATH, built_at="manual-stewie-interaction-v2-2026-06-29")
+    print(f"Exported v2 {len(v2['nodes'])} nodes and {len(v2['edges'])} directed edges "
+          f"to {V2_GRAPH_PATH.relative_to(ROOT)}")
+    print(f"Extraction JSON: {EXTRACTION_PATH.relative_to(ROOT)} + {V2_EXTRACTION_PATH.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
