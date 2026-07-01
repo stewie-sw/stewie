@@ -108,9 +108,20 @@ def test_executive_run_records_world_transactions(client):
 
     after = client.get("/world/transaction", headers=H).json()
     assert after["committed"] is True
-    # EXACT: plan(1) + one per executed leg + the terminal event == len(executed_legs) + 2
-    assert after["count"] == len(body["executed_legs"]) + 2
-    assert "SIM" in after["transaction"]["provenance"]     # the run's transactions are SIM-labeled
+    # plan(1) + one per executed leg + terminal + as-built terrain record + final belief (the
+    # execute->REMEMBER loop, gap N1/N2): a completed terrain-changing run remembers what it built.
+    assert after["count"] == len(body["executed_legs"]) + 4
+    assert "SIM" in after["transaction"]["provenance"]
+
+    # the run REMEMBERED its terrain: the site's TerrainMemory now holds the mission, so the NEXT /plan
+    # reads the remembered surface via CurrentTerrainView. This is the loop-close.
+    tm = client.get("/twin/terrain/haworth", headers=H).json()
+    assert tm["recorded"] is True and tm["version"] >= 1
+    # and a world transaction advanced the conserved authority off genesis (the SIM as-built)
+    txns = client.get("/world/transactions?limit=20", headers=H).json()["transactions"]
+    asbuilt = [t for t in txns if "SIM as-built" in t["provenance"]]
+    assert asbuilt and asbuilt[-1]["authority_sha"] != "genesis" and len(asbuilt[-1]["authority_sha"]) == 64
+    assert any("SIM run belief" in t["provenance"] for t in txns)   # final belief committed (was dead code)     # the run's transactions are SIM-labeled
 
 
 def test_executive_run_survives_a_world_log_failure(client, monkeypatch):  # gap G1

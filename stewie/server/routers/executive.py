@@ -119,6 +119,41 @@ class RunRequest(BaseModel):
     revision: int = Field(default=0, ge=0)
 
 
+def _remember_sim_terrain(wss, mission, out, *, site: str, body: str, mission_id: str) -> None:
+    """gap N1/N2: close the execute->remember loop for a COMPLETED SIM run. Fold the mission's conserved
+    terrain delta into the site's TerrainMemory (so the next /plan reads it via CurrentTerrainView),
+    record the advanced authority_sha into the world log, and commit the run's final belief. SIM-labeled.
+    Only a terrain-changing run (mass_moved_kg > 0) is remembered. Uses the SAME per-site lock as POST
+    /twin/terrain so the two record paths cannot lose each other's RMW. Mirrors that route's fold."""
+    import dataclasses as _dc
+    import hashlib as _hl
+
+    import numpy as _np
+
+    from lode.planner_acceptance import mission_terrain_delta
+    from stewie.server.routers.twin import _terrain_lock
+    from stewie.specs.config import data_dir
+    from stewie.twin import terrain_memory as TM
+    d = mission_terrain_delta(mission)
+    if float(d.get("mass_moved_kg", 0.0)) <= 0.0:
+        return                                                   # nothing built -> nothing to remember
+    with _terrain_lock(site):                                    # #278: atomic RMW, shared with /twin/terrain
+        mem = TM.load_site(data_dir(), site)
+        if mem is None:
+            mem = TM.TerrainMemory(site=site, rows=int(d["rows"]), cols=int(d["cols"]),
+                                   cell_m=float(d["cell_m"]), origin=(float(d["x0"]), float(d["y0"])))
+        mem.apply_subgrid(d["delta"], sub_origin=(d["x0"], d["y0"]), cell_m=d["cell_m"],
+                          mission=str(mission.name), mass_moved_kg=d["mass_moved_kg"])
+        TM.save_site(data_dir(), mem)
+        a_sha = _hl.sha256(_np.asarray(mem.cumulative_delta(), dtype=_np.float64).tobytes()).hexdigest()
+    wss.record_terrain(authority_sha=a_sha, mission=str(mission_id), site=str(site), body=str(body),
+                       provenance=f"SIM as-built: {mission_id}")
+    belief = out.get("belief") if isinstance(out, dict) else None
+    if belief is not None:                                       # commit the run's final belief (was dead code)
+        belief_d = _dc.asdict(belief) if (_dc.is_dataclass(belief) and not isinstance(belief, type)) else belief
+        wss.record_belief(belief=belief_d, provenance=f"SIM run belief: {mission_id}")
+
+
 @router.post("/executive/run")
 def executive_run(req: RunRequest, identity: str = Depends(require_director)) -> JSONResponse:
     """#245: execute a RELEASED build plan as a SIM run -- ARMED -> EXECUTING -> (COMPLETED | SAFED) over
@@ -155,11 +190,17 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     OBJ.save_run(run_id, rec, owner=identity)                  # #245: persist the run for later retrieval
     # gap W1: the SIM run is one canonical world-state record -- commit the released plan + per-leg
     # ExecutionEvents through the one DT-01 log so /world/transaction reflects the executed mission.
-    # Best-effort: the run already succeeded and is persisted; a world-log failure must not fail it.
+    # gap N1/N2: and CLOSE the execute->REMEMBER loop -- a completed terrain-changing SIM run folds its
+    # conserved delta into the site's TerrainMemory (so the NEXT /plan reads the remembered surface via
+    # CurrentTerrainView), advances the authority_sha, and commits the run's final belief. All SIM-
+    # labeled; best-effort (the run already succeeded + is persisted); a world-log failure never fails it.
     try:
         from stewie.server.world_state import commit_sim_run
-        commit_sim_run(state.world_state_service(), run, mission=req.mission_id, site=req.site,
-                       body=req.body, plan_id=req.mission_id)
+        wss = state.world_state_service()
+        commit_sim_run(wss, run, mission=req.mission_id, site=req.site, body=req.body,
+                       plan_id=req.mission_id)
+        if not run.get("safed"):
+            _remember_sim_terrain(wss, mission, out, site=req.site, body=req.body, mission_id=req.mission_id)
     except Exception as e:   # noqa: BLE001 -- the world-state record is best-effort, never fail the run
         log.warning("world-state commit for SIM run %s skipped: %s", run_id, e)
     log_event(identity, "executive.run",
