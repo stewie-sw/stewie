@@ -44,10 +44,14 @@ test("drawTrajectory: clears, draws baseline then estimate, legend", () => {
   assert.deepStrictEqual(texts, ["— fused estimate", "— dead reckoning"]);
 });
 
-test("drawDrive: empty payload draws nothing past clear", () => {
+test("drawDrive: empty payload clears then renders the explicit empty state", () => {
   const calls = [];
   N.drawDrive(cv(calls), { waypoints: [], trajectory: [] });
-  assert.deepStrictEqual(calls, [["clearRect", 0, 0, 300, 160]]);
+  assert.deepStrictEqual(calls[0], ["clearRect", 0, 0, 300, 160]);
+  const texts = calls.filter((c) => c[0] === "fillText").map((c) => c[1]);
+  assert.deepStrictEqual(texts, ["No drive yet — press ▶ Run drive preview"]);
+  // the empty state is text-only: no paths, dots, or rings are drawn
+  assert.ok(!calls.some((c) => c[0] === "stroke" || c[0] === "arc"));
 });
 
 test("drawDrive: start green + goal red dots, planned dashed, recovery ring", () => {

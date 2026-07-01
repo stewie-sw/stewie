@@ -35,6 +35,16 @@ jobs:
       - name: Test + coverage gate (the CONFIGURED suite; testpaths = core + planner + scripts)
         run: pytest -n auto --cov --cov-report=term-missing   # CI-OPT #158: parallel across runner cores (pytest-cov combines workers)
 
+  test-js:
+    name: browser-JS tier (node --test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
+      - name: Test the cockpit's pure browser modules (PO-04 JS tier -- the 29 *.test.js were previously ungated)
+        run: |
+          node --version
+          node --test stewie/server/web/assets/
+
   test:
     name: test (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
