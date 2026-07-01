@@ -45,7 +45,8 @@ jobs:
         # directory positional for --test ("Cannot find module .../assets"); explicit files work on all.
         run: |
           node --version
-          node --test stewie/server/web/assets/*.test.js
+          shopt -s globstar
+          node --test stewie/server/web/assets/**/*.test.js
 
   test:
     name: test (py${{ matrix.python-version }})
