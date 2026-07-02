@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "18dd2bced54a0194770c90dd7f9d813f1b340435502b66787d5395bbd270b089",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "eb989fb495624f39a3a625f3f87950aecbc8e3e1",
-  "prd_sha256": "c463fc4ff0c8605699a7404693f882bb28fae26370c672dc799c1c5c6e69de82",
-  "specs_sha256": "793de58e8fdd1ca5d908c4e3c2f77be05176faeb639bcef73ca1a0fa532c6cc8"
+  "prd_commit": "cb0da233ed8a3d3aa34bb4367060bc35d48a7a09",
+  "prd_sha256": "b24191210621946fb8975e8531acf4731030e86abcdb510bad04340500aff37f",
+  "specs_sha256": "238c1d18eacb9073e6c9c672064b9814eac6a9d27c81ceb79bf700861db3ae4d"
  },
  "rows": [
   {
@@ -101,7 +101,7 @@
    "id": "AG-08",
    "lane": "AG",
    "pri": "P0",
-   "text": "**End-goal gate:** real rover instructions (NV-11/NV-12) are emitted ONLY from a `live`-namespace mission, by an `operator`+, under the SF-01 interlock. Sandbox/trainee/guest plans may simulate and output a Plan IR for review but cannot lower to hardware commands."
+   "text": "**End-goal gate:** real rover instructions (NV-11/NV-12) are emitted ONLY from a `live`-namespace mission, by an `operator`+, under the SF-01 interlock. Sandbox/trainee/guest plans may simulate and output a Plan IR for review but cannot lower to hardware commands. **Note (2026-07-02 review, finding 3): a MISSION-LESS `/rc/command` GoTo is currently treated as low-level teleop and skips the published-mission check \u2014 the bounded-teleop/OPERATE-refusal requirement is tracked as SF-02.**"
   },
   {
    "I": "D",
@@ -656,7 +656,7 @@
    "id": "DT-01",
    "lane": "DT",
    "pri": "P0",
-   "text": "Operational digital-twin unification: conserved authority, observed `TwinStore`, runtime packets, vehicle twin, PlanResult, belief state, and session events are linked by one versioned transaction envelope with mission/site/body/time/provenance/uncertainty. Runtime path done (`WorldStateService`, hash-chained log) + the SIM execute->remember loop (`commit_sim_run` folds terrain into `TerrainMemory` + records belief) + packet/vehicle-twin linkage (`packet_sha`/`vehicle_sha` in the hashed body, backward-compatible, cold-restore bit-exact)."
+   "text": "Operational digital-twin unification: conserved authority, observed `TwinStore`, runtime packets, vehicle twin, PlanResult, belief state, and session events are linked by one versioned transaction envelope with mission/site/body/time/provenance/uncertainty. Runtime path done (`WorldStateService`, hash-chained log) + the SIM execute->remember loop (`commit_sim_run` folds terrain into `TerrainMemory` + records belief) + packet/vehicle-twin linkage (`packet_sha`/`vehicle_sha` in the hashed body, backward-compatible, cold-restore bit-exact). **Envelope linkage is verified on the happy path; the ATOMICITY of the mutation<->transaction commit (no swallowed best-effort) is tracked separately as DT-03 (2026-07-02 architectural review, finding 1) \u2014 today `twin.resync`/terrain-record/SIM-execute persist first, then best-effort the WorldTransaction.**"
   },
   {
    "I": "D",
@@ -669,6 +669,57 @@
    "lane": "DT",
    "pri": "P0",
    "text": "Twin audit read security: `/twin/version` exposes only a minimal authenticated version token to ordinary clients; full event history/provenance requires director/admin authorization and audit logging."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "make world-state mutation + WorldTransaction commit atomic (two-phase or compensating), no swallowed best-effort.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_world_transaction_atomic.py citing [REQ:DT-03]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DT-03",
+   "lane": "DT",
+   "pri": "P0",
+   "text": "**Atomic world-state transaction (review finding 1).** A world-state mutation (`twin.resync`, terrain record, SIM-execute remember) and its `WorldTransaction` commit succeed or fail together: either a two-phase commit or a compensating rollback, so `TwinStore`/`TerrainMemory`/run records can never run ahead of `/world/transaction`. No mutation path swallows a world-log failure (the current `try/except Exception: pass` best-effort at `twin.py:80,169`, `executive.py:190` is replaced by an atomic/compensating commit). Acceptance: an injected world-log failure leaves the store and `/world/transaction` consistent (mutation rolled back or transaction retried to durability), proven by a fault-injection test; the canonical-linked-record invariant holds under failure. Buildable on archimedes (pure server logic)."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "key the observed twin + world journal by (site, depth-source profile), not hard-coded haworth.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_twin_per_site.py citing [REQ:DT-04]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DT-04",
+   "lane": "DT",
+   "pri": "P0",
+   "text": "**Per-site / per-source observed twin (review finding 2).** The observed digital-twin overlay and its world journal are keyed by `(site, depth-source profile)` \u2014 not hard-coded to `site == \"haworth\"` / `haworth.journal` (`state.py:77,128`). An imported site or a multi-site operation each carries its own observed twin and journal; switching site/source loads the correct observed surface. Acceptance: a second imported site accumulates and reloads its own observed twin independent of Haworth, verified on a real second DEM bundle. Buildable on archimedes."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "make GET /world the authoritative rich descriptor (geometry + observed/mutated enrichment + provenance + freshness), completeness declared.",
+    "kind": "atomic",
+    "test_target": "extend stewie/server/test_world.py citing [REQ:DT-05]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DT-05",
+   "lane": "DT",
+   "pri": "P1",
+   "text": "**/world is the authoritative rich world descriptor (review finding 6).** `GET /world` returns geometry PLUS observed/mutated enrichment, provenance, and freshness \u2014 not geometry/defaults with enrichment deferred (`world.py:1,29`). A consumer cannot mistake an incomplete descriptor for the full world model: the payload declares its completeness/enrichment state explicitly. Acceptance: `/world` after a mutation reflects the observed enrichment (or explicitly flags it absent), verified against `/world/terrain_view` provenance. Buildable on archimedes."
   },
   {
    "I": "D",
@@ -1136,7 +1187,7 @@
    "id": "FS-16",
    "lane": "FS",
    "pri": "P0",
-   "text": "Cockpit state and routing: the app has one routeable state model for selected mission, site, vehicle, body, time, mode, role, work area, selected entity, and live/sim/eval source. Desktop and mobile navigation are alternate views of the same state, not separate logic. Production now loads `cockpit_state.js` before `cockpit.js`; `setView` synchronizes through `window.STEWIE_STATE` using enum-guarded `setState`, `toHash`, and `fromHash`; Python gate `test_cockpit_state_routing.py` cites the row so CI/req_trace counts the existing node-tested model."
+   "text": "Cockpit state and routing: the app has one routeable state model for selected mission, site, vehicle, body, time, mode, role, work area, selected entity, and live/sim/eval source. Desktop and mobile navigation are alternate views of the same state, not separate logic. Production now loads `cockpit_state.js` before `cockpit.js`; `setView` synchronizes through `window.STEWIE_STATE` using enum-guarded `setState`, `toHash`, and `fromHash`; Python gate `test_cockpit_state_routing.py` cites the row. **Note (2026-07-02 review, finding 4): the state model carries `source`(live/sim/eval)+`mode`(sandbox/live) but NOT the PRD product mode (GIS-PLAN/TRAIN/SIM-OPERATE/EVALUATE/OPERATE) or runnable profile (`desktop_sil`/`digital_twin`/`ros2_replay`/`hil_jetson`/...) as routeable fields \u2014 tracked as FS-25.**"
   },
   {
    "I": "D",
@@ -1258,6 +1309,40 @@
    "lane": "FS",
    "pri": "P1",
    "text": "Front-end module organization: split the cockpit into app shell, route/state store, typed API adapters, domain view models, shared visualization components, work-area views, command/approval rail, and diagnostics/log viewers. The split must preserve CSP/no-inline-script and fixture-driven tests."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "carry product mode + runnable profile as first-class routeable/persisted/shareable state fields.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_mode_profile_state.py citing [REQ:FS-25]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-25",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "**Product mode + runnable profile in the route/state model (review finding 4).** The cockpit route/state model carries the PRD product mode (`GIS-PLAN`/`TRAIN`/`SIM-OPERATE`/`EVALUATE`/future `OPERATE`) and the runnable profile (`desktop_sil`/`digital_twin`/`ros2_replay`/`hil_jetson`/`sensor_bench`/`rover_bench`/`field_traverse`/`monte_carlo`) as first-class routeable, persisted, shareable fields \u2014 beyond today's `source`(live/sim/eval)+`mode`(sandbox/live) (`cockpit_state.js:8`). The persistent mode/profile rail (\u00a726.2) is driven from this state; sim/forecast/replay/HIL/live never share ambiguous styling. Acceptance: a shared link restores mode+profile; the rail reflects them on every screen. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "the public /program board fits the mobile viewport (no horizontal overflow at 390 px).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_program_mobile.py citing [REQ:FS-26] (or a node/Playwright check)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-26",
+   "lane": "FS",
+   "pri": "P2",
+   "text": "**Public /program board fits the mobile viewport (review finding 9).** The `/program` board renders within the viewport at 390 px with no horizontal overflow (today content is ~575 px wide -> horizontal scroll; `program.html:28`). Acceptance: a Playwright check at 390 px asserts `document.scrollingElement.scrollWidth <= innerWidth` and every row/table scrolls inside its own container, not the page body. Buildable on archimedes."
   },
   {
    "I": "P",
@@ -1847,6 +1932,23 @@
    "text": "Regional target volume: over a selected footprint, integrate cut/fill volume (excavated pit, spoil/berm) from the selected depth-derived height field vs a reference datum, with an uncertainty band; cross-checked against the conserved mass/volume the authority actually moved (CT-03 conservation)."
   },
   {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "cockpit depth-source-profile selection + calibration freshness + source health, with Release/Execute blocking on stale/degraded/mismatched.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_sensor_profile_gate.py citing [REQ:PM-17]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PM-17",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "**Sensor-profile selection + health in the cockpit workflow (review finding 5).** The cockpit exposes full depth-source-profile selection (`stereo_sgbm`/neural stereo/`lidar`/`rgbd`/`replay`, \u00a726.3) with calibration freshness and source health, and Release/Execute BLOCK when the selected depth source is stale, degraded, or mismatched to the runtime \u2014 not just the static `stereo_sgbm` default (`cockpit.js:946`, `autonomy_contract.py:157`). Acceptance: selecting each profile updates the perception path; a stale/degraded/mismatched source blocks Release/Execute with an operator-legible reason. Depth-source contracts + sim sources buildable on archimedes; a live LiDAR/RGB-D sensor is the gated leg."
+  },
+  {
    "I": "D",
    "Q": "N",
    "V": "D",
@@ -2055,6 +2157,23 @@
    "text": "Provide deployment documentation and a supported server image; optional Godot/ROS capabilities are explicit profiles."
   },
   {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "scheduled+monitored backup/restore with an RPO/retention policy + mission/runtime/profile admin surfaces.",
+    "kind": "atomic",
+    "test_target": "NEW scripts/test_backup_retention_policy.py citing [REQ:PO-15]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PO-15",
+   "lane": "PO",
+   "pri": "P1",
+   "text": "**Operations governance beyond account admin (review finding 7).** Backup/restore is a scheduled + monitored control with an explicit RPO/retention policy (not a manual director endpoint at `admin_ops.py:18`); mission, runtime, and profile administration exist as first-class operations surfaces (not browser-local display preferences at `index.html:1354`). Acceptance: a retention/RPO policy is declared and enforced by a scheduled job with a monitored last-success/age signal; mission/runtime/profile admin actions are audited. Buildable on archimedes."
+  },
+  {
    "I": "D",
    "Q": "N",
    "V": "D",
@@ -2089,6 +2208,23 @@
    "text": "Full security audit gate: release requires a completed host, container, app, DNS/site, secret, backup/restore, dependency/SBOM/CVE, and external exposure audit. The current non-invasive Archimedes/site review is not sufficient."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "make the training operator-view access model explicit (authenticated OR documented capability-URL with unguessable ids + risk).",
+    "kind": "atomic",
+    "test_target": "extend stewie/server/test_session.py citing [REQ:SE-02]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "SE-02",
+   "lane": "SE",
+   "pri": "P1",
+   "text": "**Explicit access model for the training operator view (review finding 8).** `/session/{sid}/operator` (`session.py:44`) is either authenticated OR a deliberate capability-URL share whose posture is documented (a leaked session id = a bearer token for truth-denylisted training telemetry); truth-denial is not a substitute for the access decision. Acceptance: the security posture (PRD \u00a7security + a test) states and enforces the chosen model \u2014 authenticated, or capability-URL with unguessable ids + documented risk + optional expiry. Buildable on archimedes."
+  },
+  {
    "I": "D",
    "Q": "N",
    "V": "D",
@@ -2099,6 +2235,23 @@
    "lane": "SF",
    "pri": "P0",
    "text": "A command-timeout safing watchdog auto-issues SAFE to any RC backend (sim or real pit) when valid commands stop arriving; resets on each heartbeat. The dead-man interlock on the command path (the \u00a719.0 safety requirement; the moment STEWIE commands hardware, this is its interlock)."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "bound every rover command (incl. mission-less GoTo) to a released mission or an explicit dev/bench teleop grant refused on LIVE/OPERATE.",
+    "kind": "atomic",
+    "test_target": "extend stewie/server/test_rc.py (or NEW test_rc_command_authority.py) citing [REQ:SF-02]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "SF-02",
+   "lane": "SF",
+   "pri": "P0",
+   "text": "**Bounded command authority for all rover commands (review finding 3).** Every low-level rover command \u2014 including a MISSION-LESS `/rc/command` GoTo/teleop \u2014 is bounded by an explicit command-authority context: a released/published (`live`) mission, OR an explicitly-labelled dev/bench teleop authorization that is REFUSED on a `LIVE`/`OPERATE` runnable profile and audited. No path emits motion to a real rover outside a released mission or an explicit, audited teleop grant (`rc.py:43,74`). Acceptance: a mission-less GoTo on a LIVE/OPERATE profile is rejected; a bench/dev profile teleop is allowed only with the explicit grant and is audit-logged. Buildable on archimedes."
   },
   {
    "I": "P",
@@ -2599,9 +2752,9 @@
   }
  ],
  "summary": {
-  "briefs": 62,
+  "briefs": 71,
   "buckets": {
-   "buildable": 43,
+   "buildable": 52,
    "concurrent": 0,
    "done": 121,
    "gated": 24
@@ -2629,7 +2782,7 @@
    },
    "DT": {
     "done": 2,
-    "total": 2
+    "total": 5
    },
    "EP": {
     "done": 6,
@@ -2641,7 +2794,7 @@
    },
    "FS": {
     "done": 13,
-    "total": 24
+    "total": 26
    },
    "GI": {
     "done": 1,
@@ -2661,11 +2814,11 @@
    },
    "PM": {
     "done": 6,
-    "total": 16
+    "total": 17
    },
    "PO": {
     "done": 10,
-    "total": 14
+    "total": 15
    },
    "RL": {
     "done": 1,
@@ -2673,11 +2826,11 @@
    },
    "SE": {
     "done": 0,
-    "total": 1
+    "total": 2
    },
    "SF": {
     "done": 1,
-    "total": 1
+    "total": 2
    },
    "SL": {
     "done": 0,
@@ -2703,22 +2856,22 @@
   "by_priority": {
    "P0": {
     "done": 42,
-    "total": 61
+    "total": 64
    },
    "P1": {
     "done": 79,
-    "total": 117
+    "total": 122
    },
    "P2": {
     "done": 0,
-    "total": 10
+    "total": 11
    }
   },
   "cited": 162,
-  "done_pct": 64.4,
-  "in_scope": 164,
-  "in_scope_done_pct": 73.8,
-  "total": 188
+  "done_pct": 61.4,
+  "in_scope": 173,
+  "in_scope_done_pct": 69.9,
+  "total": 197
  },
  "workflow_spine": [
   "Plan",
