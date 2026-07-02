@@ -715,3 +715,54 @@ is named per row.
 - acceptance: a released revision shows every field; an ineligible command is refused with its reason surfaced.
 - files: stewie/server/web/assets/cockpit.js, stewie/server/index.html, stewie/server/routers/executive.py, stewie/server/routers/rc.py
 - test_target: NEW stewie/server/test_release_execute_evidence.py citing [REQ:FS-28]
+
+## Runtime spine + hazard-perception loop (2026-07-02) -- 9 rows
+
+Briefs for §7.13 perception rows (PM-18/FS-29/PM-19) + §7.14 runtime-spine rows (RS-01..05,07; RS-06 is
+hardware-gated). Buildable on archimedes; each anchors to a real existing file (NEW modules listed too).
+
+### PM-18 (P1) — atomic
+- goal: run the tested dart classifiers/mapper inside the stewie_perception + stewie_mapping ROS2 nodes (not skeletons).
+- acceptance: a container run on a recorded bag yields detections + a map matching the host-side dart output.
+- files: ros2_ws/src/stewie_perception/stewie_perception/node.py, ros2_ws/src/stewie_mapping/stewie_mapping/node.py, dart/rock_detect.py, dart/mapping.py
+- test_target: NEW ros2_ws/test_perception_mapping_nodes.py citing [REQ:PM-18]
+### FS-29 (P1) — atomic
+- goal: cockpit live visual-hazard classifier panel (detections, confidence, accepted/rejected obstacles + reason, hazard overlay, replan consequence).
+- acceptance: the panel renders real detections + accepted/rejected + a hazard-triggered-replan indicator.
+- files: stewie/server/index.html, stewie/server/web/assets/cockpit.js, stewie/server/routers/perception.py
+- test_target: NEW stewie/server/test_hazard_classifier_panel.py citing [REQ:FS-29]
+### PM-19 (P1) — atomic
+- goal: connect camera/depth -> classifier -> observed map -> costmap -> eligibility -> evidence as one host-side runtime path.
+- acceptance: an injected hazard flows end-to-end to a measurably different plan + eligibility/evidence change.
+- files: dart/hazard_map.py, lode/costmap_layers.py, lode/playthrough.py
+- test_target: NEW stewie/eval/test_hazard_perception_loop.py citing [REQ:PM-19]
+### RS-01 (P0) — atomic
+- goal: typed runtime contracts (DepthObservation/VisualHazardObservation/ObservedMapUpdate/HazardMap/CostmapSnapshot/LocalizationState/TrajectoryCommand/CommandEligibility/WorldTransaction) as the only inter-module interface.
+- acceptance: each stage boundary carries+validates its typed payload; a raw-dict/wrong-shape crossing is rejected.
+- files: stewie/contracts/__init__.py, stewie/bridge/autonomy_contract.py
+- test_target: NEW stewie/contracts/test_runtime_spine.py citing [REQ:RS-01]
+### RS-02 (P0) — atomic
+- goal: planner consumes the observed world (observed DEM/occupancy/rock-graph/changed-terrain/uncertainty + provenance), not just static DEM + keepouts.
+- acceptance: an observed hazard absent from the static DEM measurably changes the route/costmap.
+- files: lode/costmap_layers.py, lode/planner_routing.py, lode/map_uncertainty_route.py
+- test_target: NEW lode/test_planner_observed_world.py citing [REQ:RS-02]
+### RS-03 (P0) — atomic
+- goal: receding-horizon nav loop (pose/belief -> local costmap -> global route if needed -> local trajectory/tick -> next bounded command -> replan/recover).
+- acceptance: a per-tick loop drives to goal, emits one bounded command/tick, recovers from an injected block.
+- files: lode/planner_routing.py, dart/drive.py, dart/relocalization.py
+- test_target: NEW stewie/runtime/test_nav_loop.py citing [REQ:RS-03]
+### RS-04 (P0) — epic
+- goal: the ros2_replay/desktop_sil deterministic end-to-end fixture: replay->classify->observed map->plan->issue/refuse bounded command->world transaction->evidence bundle.
+- acceptance: runs deterministically; each RS-01 payload + the evidence bundle asserted; seeded hazard reroutes, seeded ineligibility refuses.
+- files: stewie/server/world_state.py, lode/costmap_layers.py, dart/hazard_map.py, stewie/bridge/autonomy_contract.py
+- test_target: NEW stewie/runtime/test_replay_loop.py citing [REQ:RS-04]
+### RS-05 (P1) — atomic
+- goal: Gazebo as the live sensor producer driving the RS loop; RViz shows robot/cloud/map/costmap/path/command.
+- acceptance: the loop runs on Gazebo-produced sensors in-container; RViz displays the live evidence; inputs truth-denied.
+- files: ros2_ws/src/stewie_bringup/config/gz_bridge.yaml, deploy/ros2/Dockerfile.gazebo, ros2_ws/src/stewie_rviz/rviz/mission.rviz
+- test_target: NEW ros2_ws/test_gazebo_loop.py citing [REQ:RS-05]
+### RS-07 (P1) — atomic
+- goal: two-screen operator display (primary command cockpit + secondary read-only viz/telemetry subdomain embedding Godot/Gazebo/RViz), one state model, no command authority on the secondary.
+- acceptance: the two-screen layout renders console + Godot/Gazebo/RViz evidence; secondary emits no command; both reflect the same run/state.
+- files: stewie/server/index.html, stewie/server/web/assets/cockpit_state.js, deploy/nginx.conf
+- test_target: NEW stewie/server/test_multiscreen_display.py citing [REQ:RS-07]
