@@ -396,6 +396,90 @@ def haul_cumulative_ascent_m(dem, dem_origin, waypoints):
     return float(sum(max(0.0, zs[i + 1] - zs[i]) for i in range(len(zs) - 1)))
 
 
+# ---- NV-02: coverage-route generator (overlapping-loop / outward-spiral) ------------------------
+# A point-to-point leg (route_leg above) drives the SHORTEST corridor between two sites: it sweeps a narrow
+# band and never re-observes ground it already crossed. Map-building (the LAC section-10 objective, scored by
+# dart.map_channel) and drift-bounded SLAM instead want a route that (a) SWEEPS the worksite for coverage and
+# (b) deliberately RE-OBSERVES earlier ground so loop closures (dart.loop_closure) can bound odometry drift.
+# The Stanford NAV Lab LAC entry earns its accuracy exactly this way -- a spiral tracing nested-grid
+# perimeters, "waypoints chosen to maximize mapping coverage while encouraging frequent loop closures"
+# (the NAVLAB26 reference modelled in dart.comparison.coverage_pattern_cost). This generator emits that
+# pattern: nested CLOSED rectangular loops from the region centre outward, spaced by the mapping swath so
+# consecutive loops OVERLAP, each loop closed back to its own start so it is a loop-closure candidate.
+
+
+def _densify_edge(a, b, step):
+    """Points from ``a`` to ``b`` inclusive, spaced <= ``step`` apart -- the along-perimeter sampler that
+    keeps the coverage route's swept footprint gap-free between the loop corners."""
+    ax, ay = a
+    bx, by = b
+    n = max(1, int(math.ceil(math.hypot(bx - ax, by - ay) / step)))
+    return [(ax + (bx - ax) * t / n, ay + (by - ay) * t / n) for t in range(n + 1)]
+
+
+def coverage_spiral_route(bbox, *, swath_m=5.0, spacing_m=None, close_loops=True):
+    """NV-02: an ordered outward-spiral / overlapping-loop coverage route over a rectangular region.
+
+    ``bbox`` is (x0, y0, x1, y1) in the LOCAL order frame [m]. Returns a list of (x, y) waypoints tracing
+    nested rectangular loops from the region CENTRE outward: loop ``k`` is the rectangle at half-extent
+    ``k*swath_m`` (clamped to the region), so consecutive loops sit ``swath_m`` apart and their sensor
+    swaths OVERLAP -> the region is fully covered rather than swept in a single band. With ``close_loops``
+    (default) each loop is CLOSED back to its own start, so it is a deliberate re-observation / loop-closure
+    candidate the pose graph can use to bound drift (dart.loop_closure.detect_revisits picks it up).
+    ``spacing_m`` (default ``swath_m``) is the along-perimeter waypoint spacing, held <= the swath so the
+    swept coverage has no along-track gaps.
+
+    Pure geometry: the terrain feasibility of the emitted route over a real DEM is scored SEPARATELY by
+    ``coverage_route_feasible`` (the same decoupling ``drive_route`` uses between a route and the DEM hazard
+    predicate), so the generator has no DEM dependency and the loop topology is never silently broken by a
+    hazard. Raises on a degenerate region or a non-positive swath."""
+    x0, y0, x1, y1 = (float(v) for v in bbox)
+    if x1 <= x0 or y1 <= y0:
+        raise ValueError(f"bbox must have positive extent (x0<x1, y0<y1); got {bbox}")
+    swath_m = float(swath_m)
+    if swath_m <= 0:
+        raise ValueError("swath_m must be positive")
+    step = min(float(spacing_m) if spacing_m else swath_m, swath_m)
+    step = max(step, 1e-6)
+    cx, cy = 0.5 * (x0 + x1), 0.5 * (y0 + y1)
+    half_w, half_h = 0.5 * (x1 - x0), 0.5 * (y1 - y0)
+    route = [(cx, cy)]                                      # start at the centre and spiral outward
+    n_rings = max(1, int(math.ceil(max(half_w, half_h) / swath_m)))
+    for k in range(1, n_rings + 1):
+        rx = min(k * swath_m, half_w)
+        ry = min(k * swath_m, half_h)
+        corners = [(cx - rx, cy - ry), (cx + rx, cy - ry), (cx + rx, cy + ry), (cx - rx, cy + ry)]
+        if close_loops:
+            corners.append(corners[0])                     # close the loop -> a re-observation candidate
+        ring = []
+        for a, b in zip(corners[:-1], corners[1:]):
+            ring.extend(_densify_edge(a, b, step)[:-1])     # drop the shared corner between consecutive edges
+        ring.append(corners[-1])                            # keep the final vertex (the loop's closing point)
+        route.extend(ring)
+    return route
+
+
+def coverage_route_feasible(waypoints, dem, dem_origin=(0.0, 0.0), *, max_slope_deg=25.0, slip_alpha=2.0):
+    """NV-02 feasibility: the fraction of a coverage route's waypoints on PASSABLE terrain on the real DEM,
+    using the SAME slope/drop-off costmap the point router (``route_leg``) routes against (``slope_costmap``
+    with the ``MAX_DROP_M`` drop-off hazard). A waypoint off the mapped tile, on a cell steeper than
+    ``max_slope_deg``, or over a drop-off is not passable. Returns (passable_frac, passable_flags) so the
+    cockpit / caller can see WHICH loop segments cross a hazard -- the coverage geometry is preserved (loops
+    are not silently broken), the terrain feasibility is reported alongside it."""
+    Z, cell = dem[0], float(dem[1])
+    ox, oy = dem_origin
+    _cost, passable = slope_costmap(Z, cell, max_slope_deg=max_slope_deg, slip_alpha=slip_alpha,
+                                    max_drop_m=MAX_DROP_M)
+    H, W = passable.shape
+    flags = []
+    for x, y in waypoints:
+        c = int(round((ox + x) / cell))
+        r = int(round((oy + y) / cell))
+        flags.append(bool(0 <= r < H and 0 <= c < W and passable[r, c]))
+    frac = (sum(flags) / len(flags)) if flags else 0.0
+    return float(frac), flags
+
+
 # FS-05: each navigation stage maps to a real seam (module.attr). keepouts ride route_leg's keepouts=
 # arg (same module); the live Autoware/Nav2 planner binary is the external (gated) tier.
 _NAV_STAGES = (
