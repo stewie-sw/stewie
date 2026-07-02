@@ -1,8 +1,10 @@
 """[REQ:PO-04] the CI workflow must actually gate the tiers it claims: the traceability gate
-(req_trace), the coverage-gated python suite, the multi-version python matrix, and the browser-JS
+(req_trace), the coverage-gated python suite, the multi-version python matrix, the browser-JS
 `node --test` tier (which was silently unrun until 2026-07-01 -- these asserts make that regression
-impossible to reintroduce quietly). PO-04 stays partial (I=P) until Godot / package-smoke /
-hardware-gated tiers are split out too; this test pins the tiers that exist.
+impossible to reintroduce quietly), the package-smoke tier (lock strict + wheel install +
+stewie-serve boot), and the gated-tier REPORT (chrono / godot / ros skips are a visible, required
+artifact instead of silent -- the honest closeable slice for tiers the CPU runner cannot execute;
+a real Godot render job still needs the binary and stays out, by design not omission).
 
 [REQ:FS-09] the test PYRAMID itself is also pinned here: each layer (unit/contract, backend route,
 frontend adapter JS, UI-to-backend integration) must stay present and non-trivial, with floor counts
@@ -42,6 +44,28 @@ def test_ci_gates_traceability_and_coverage_on_the_core_tier():
     text = _steps_text(_jobs()["lint-type-cov"])
     assert "req_trace.py" in text
     assert "--cov" in text
+
+
+def test_ci_gates_the_package_smoke_tier():
+    """[REQ:PO-04] a dedicated py3.11 job proves the PACKAGE ships: the lock fresh-install smoke in
+    strict mode (CI installs FROM the hashed lock, so zero drift is the contract) plus the opt-in
+    wheel smoke (build the wheel, clean-venv [server] install, stewie-serve boots + /healthz)."""
+    job = _jobs()["package-smoke"]
+    text = _steps_text(job)
+    assert "fresh_install_smoke.py" in text and "--strict" in text
+    assert "requirements-dev.lock" in text, "the smoke audits + installs the hashed lock (SEC-05)"
+    assert "STEWIE_WHEEL_SMOKE=1" in text and "test_fresh_wheel.py" in text
+    withs = "\n".join(str(s.get("with", "")) for s in job["steps"])
+    assert "3.11" in withs, "package smoke is the cheap single-version tier (py3.11 only)"
+
+
+def test_ci_reports_the_gated_tiers_instead_of_silent_skips():
+    """[REQ:PO-04] the tiers CI cannot execute (chrono / godot / ros) are VISIBLE: the core job
+    runs the gated-tier report and --require pins each tier to stay declared in the tree."""
+    text = _steps_text(_jobs()["lint-type-cov"])
+    assert "ci_tier_report.py" in text
+    for tier in ("chrono", "godot", "ros"):
+        assert f"--require {tier}" in text, f"gated tier {tier!r} must be required-visible in CI"
 
 
 def test_ci_runs_the_python_matrix_tier():
