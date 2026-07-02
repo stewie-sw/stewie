@@ -48,7 +48,7 @@
     },
     "DT": {
       "cited": 2,
-      "total": 2
+      "total": 5
     },
     "EP": {
       "cited": 6,
@@ -60,7 +60,7 @@
     },
     "FS": {
       "cited": 23,
-      "total": 24
+      "total": 26
     },
     "GI": {
       "cited": 3,
@@ -80,11 +80,11 @@
     },
     "PM": {
       "cited": 11,
-      "total": 16
+      "total": 17
     },
     "PO": {
       "cited": 14,
-      "total": 14
+      "total": 15
     },
     "RL": {
       "cited": 1,
@@ -92,11 +92,11 @@
     },
     "SE": {
       "cited": 1,
-      "total": 1
+      "total": 2
     },
     "SF": {
       "cited": 1,
-      "total": 1
+      "total": 2
     },
     "SL": {
       "cited": 1,
@@ -119,7 +119,7 @@
       "total": 10
     }
   },
-  "total": 188,
+  "total": 197,
   "unknown_markers": [],
   "v_done_uncited": [],
   "v_ne_d_flagged": [

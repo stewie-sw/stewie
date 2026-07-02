@@ -652,3 +652,55 @@ Build a minimal ROS2 stewie_executive package (new ros2_ws/src/stewie_executive/
 - files: dart/test_factors.py
 - test_target: dart/test_factors.py (existing; add [REQ:AS-18] marker to test_shadow_yaw_allows_measured_heading_but_metric_shadow_is_guarded)
 - type: atomic (host-side slice; live-node leg container-gated)
+
+## Architectural-review remediation (2026-07-02) -- 9 rows
+
+Briefs for the §7.13 rows atomizing the 2026-07-02 review. Each anchors to the review's cited file:line
+(repo-relative). All buildable on archimedes (ROS/Gazebo/RViz/Chrono/GPU run here); the truly-gated leg
+is named per row.
+
+### DT-03 (P0) — atomic
+- goal: make world-state mutation + WorldTransaction commit atomic (two-phase or compensating), no swallowed best-effort.
+- acceptance: an injected world-log failure leaves the store and /world/transaction consistent (fault-injection test).
+- files: stewie/server/routers/twin.py, stewie/server/routers/executive.py, stewie/server/world_state.py
+- test_target: NEW stewie/server/test_world_transaction_atomic.py citing [REQ:DT-03]
+### DT-04 (P0) — atomic
+- goal: key the observed twin + world journal by (site, depth-source profile), not hard-coded haworth.
+- acceptance: a second imported site accumulates + reloads its own observed twin independent of Haworth.
+- files: stewie/server/state.py, stewie/server/world_state.py
+- test_target: NEW stewie/server/test_twin_per_site.py citing [REQ:DT-04]
+### SF-02 (P0) — atomic
+- goal: bound every rover command (incl. mission-less GoTo) to a released mission or an explicit dev/bench teleop grant refused on LIVE/OPERATE.
+- acceptance: mission-less GoTo on a LIVE/OPERATE profile is rejected; bench teleop needs the explicit audited grant.
+- files: stewie/server/routers/rc.py, stewie/bridge/autonomy_contract.py
+- test_target: extend stewie/server/test_rc.py (or NEW test_rc_command_authority.py) citing [REQ:SF-02]
+### DT-05 (P1) — atomic
+- goal: make GET /world the authoritative rich descriptor (geometry + observed/mutated enrichment + provenance + freshness), completeness declared.
+- acceptance: /world after a mutation reflects observed enrichment or explicitly flags it absent.
+- files: stewie/server/routers/world.py
+- test_target: extend stewie/server/test_world.py citing [REQ:DT-05]
+### FS-25 (P1) — atomic
+- goal: carry product mode + runnable profile as first-class routeable/persisted/shareable state fields.
+- acceptance: a shared link restores mode+profile; the §26.2 rail reflects them on every screen.
+- files: stewie/server/web/assets/cockpit_state.js, stewie/server/web/assets/cockpit.js, stewie/server/index.html
+- test_target: NEW stewie/server/test_mode_profile_state.py citing [REQ:FS-25]
+### PM-17 (P1) — atomic
+- goal: cockpit depth-source-profile selection + calibration freshness + source health, with Release/Execute blocking on stale/degraded/mismatched.
+- acceptance: selecting each profile updates the perception path; a bad source blocks Release/Execute with a legible reason.
+- files: stewie/server/web/assets/cockpit.js, stewie/bridge/autonomy_contract.py, stewie/server/routers/perception.py
+- test_target: NEW stewie/server/test_sensor_profile_gate.py citing [REQ:PM-17]
+### PO-15 (P1) — atomic
+- goal: scheduled+monitored backup/restore with an RPO/retention policy + mission/runtime/profile admin surfaces.
+- acceptance: a retention/RPO policy is declared + enforced by a scheduled job with a monitored last-success/age signal; admin actions audited.
+- files: stewie/server/routers/admin_ops.py, stewie/server/routers/operators_admin.py
+- test_target: NEW scripts/test_backup_retention_policy.py citing [REQ:PO-15]
+### SE-02 (P1) — atomic
+- goal: make the training operator-view access model explicit (authenticated OR documented capability-URL with unguessable ids + risk).
+- acceptance: the security posture + a test state and enforce the chosen model.
+- files: stewie/server/routers/session.py
+- test_target: extend stewie/server/test_session.py citing [REQ:SE-02]
+### FS-26 (P2) — atomic
+- goal: the public /program board fits the mobile viewport (no horizontal overflow at 390 px).
+- acceptance: a Playwright check asserts scrollWidth <= innerWidth at 390 px; wide content scrolls in its own container.
+- files: stewie/server/web/program.html, stewie/server/web/assets/program_board.js
+- test_target: NEW stewie/server/test_program_mobile.py citing [REQ:FS-26] (or a node/Playwright check)
