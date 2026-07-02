@@ -1,0 +1,942 @@
+{
+  "experiment": "EZ-RASSOR rig at real Part4 RTK poses on the real Katwijk AHN scene, articulation-parallax absolute-fix path, scored vs RTK truth",
+  "date": "2026-07-02",
+  "honesty_label": "RENDERED-SENSOR SIMULATION, ARGUS G2 tier. Real terrain macro-shape (AHN 0.5 m DTM) + real Katwijk Part4 RTK trajectory + real 8-cam EZ-RASSOR/IPEx rig geometry; ALL sub-0.5 m camera texture is PROCEDURAL Godot infill, NOT real imagery. This tests the articulation-parallax GEOMETRIC cue on real Katwijk geometry; it is NOT a real-image match and does NOT close the real-LocCam VO gap.",
+  "scene_path": "/mnt/projects/stewie/code/out/scenes/katwijk_part4_station50",
+  "scene_world_bounds_m": {
+    "x0": 11.871039,
+    "y0": 30.865635,
+    "x1": 51.871039,
+    "y1": 70.865635
+  },
+  "scene_cell_m": 0.5,
+  "scene_grid": [
+    80,
+    80
+  ],
+  "rtk_source": "/mnt/projects/datasets/katwijk/Part4/gps-latlong.txt",
+  "enu_anchor": {
+    "lat": 52.217259107,
+    "lon": 4.4034692045,
+    "note": "first Part4 fix = start datum"
+  },
+  "enu_transform": "pyproj EPSG:4326 -> EPSG:28992 (RD New), first-fix anchored (== build_katwijk_scene.py)",
+  "chassis_lift_dh_m": 0.1743,
+  "posture_pair": [
+    "TRANSIT (lift 0.0)",
+    "MEERKAT (lift 0.1743)"
+  ],
+  "sun_elev_deg": 5.0,
+  "sun_azim_deg": 215.0,
+  "render_size": "1024x768",
+  "selection": {
+    "margin_m": 3.0,
+    "thin_m": 0.3,
+    "rtk_idx_selected": [
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61
+    ],
+    "rule": "inside footprint (margin) AND >= thin_m from last kept (drops parked tail)"
+  },
+  "aggregate": {
+    "n_selected": 26,
+    "n_resolved": 26,
+    "n_render_failed": 0,
+    "n_unsolvable_skipped": 0,
+    "per_station_fix_error_vs_rendered_m": {
+      "min": 0.596,
+      "max": 13.541,
+      "mean": 3.631,
+      "median": 2.524
+    },
+    "absolute_fix_ate_rms_m": 4.778,
+    "aligned_ate_m": 4.631,
+    "rtk_snap_offset_m": {
+      "median": 0.226,
+      "max": 0.313,
+      "note": "rendered rover pose = RTK snapped to the 0.5 m DEM grid (sidecar takes integer rover-rc); bounded by half a cell diagonal (~0.354 m). Estimator target = rendered pose."
+    },
+    "elapsed_s": 74.9
+  },
+  "stations": [
+    {
+      "k": 0,
+      "rtk_idx": 35,
+      "rover_rc": [
+        8,
+        21
+      ],
+      "rover_yaw_deg": 71.27,
+      "rtk_enu": [
+        22.2934,
+        34.6162
+      ],
+      "rendered_true_enu": [
+        22.371,
+        34.8656
+      ],
+      "snap_offset_m": 0.261,
+      "fix_enu": [
+        24.0987,
+        32.1622
+      ],
+      "fix_error_vs_rendered_m": 3.208,
+      "fix_error_vs_raw_rtk_m": 3.046,
+      "n_features": 100,
+      "n_inliers": 48,
+      "fix_sigma_m": 0.044,
+      "range_span_m": [
+        2.19,
+        4.74
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 1,
+      "rtk_idx": 36,
+      "rover_rc": [
+        10,
+        22
+      ],
+      "rover_yaw_deg": 67.21,
+      "rtk_enu": [
+        22.7314,
+        35.9076
+      ],
+      "rendered_true_enu": [
+        22.871,
+        35.8656
+      ],
+      "snap_offset_m": 0.146,
+      "fix_enu": [
+        20.2041,
+        37.7317
+      ],
+      "fix_error_vs_rendered_m": 3.255,
+      "fix_error_vs_raw_rtk_m": 3.117,
+      "n_features": 30,
+      "n_inliers": 5,
+      "fix_sigma_m": 0.031,
+      "range_span_m": [
+        2.28,
+        3.59
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 2,
+      "rtk_idx": 37,
+      "rover_rc": [
+        13,
+        23
+      ],
+      "rover_yaw_deg": 63.58,
+      "rtk_enu": [
+        23.2518,
+        37.1463
+      ],
+      "rendered_true_enu": [
+        23.371,
+        37.3656
+      ],
+      "snap_offset_m": 0.25,
+      "fix_enu": [
+        19.5647,
+        33.9767
+      ],
+      "fix_error_vs_rendered_m": 5.096,
+      "fix_error_vs_raw_rtk_m": 4.862,
+      "n_features": 64,
+      "n_inliers": 18,
+      "fix_sigma_m": 0.295,
+      "range_span_m": [
+        4.74,
+        11.84
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 3,
+      "rtk_idx": 38,
+      "rover_rc": [
+        15,
+        24
+      ],
+      "rover_yaw_deg": 62.45,
+      "rtk_enu": [
+        23.8573,
+        38.3652
+      ],
+      "rendered_true_enu": [
+        23.871,
+        38.3656
+      ],
+      "snap_offset_m": 0.014,
+      "fix_enu": [
+        28.3665,
+        39.1473
+      ],
+      "fix_error_vs_rendered_m": 4.563,
+      "fix_error_vs_raw_rtk_m": 4.577,
+      "n_features": 102,
+      "n_inliers": 14,
+      "fix_sigma_m": 0.016,
+      "range_span_m": [
+        2.23,
+        3.04
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 4,
+      "rtk_idx": 39,
+      "rover_rc": [
+        17,
+        25
+      ],
+      "rover_yaw_deg": 62.23,
+      "rtk_enu": [
+        24.4706,
+        39.5405
+      ],
+      "rendered_true_enu": [
+        24.371,
+        39.3656
+      ],
+      "snap_offset_m": 0.201,
+      "fix_enu": [
+        23.7762,
+        39.4004
+      ],
+      "fix_error_vs_rendered_m": 0.596,
+      "fix_error_vs_raw_rtk_m": 0.708,
+      "n_features": 85,
+      "n_inliers": 9,
+      "fix_sigma_m": 0.059,
+      "range_span_m": [
+        2.28,
+        4.94
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 5,
+      "rtk_idx": 40,
+      "rover_rc": [
+        20,
+        26
+      ],
+      "rover_yaw_deg": 59.96,
+      "rtk_enu": [
+        25.0992,
+        40.7343
+      ],
+      "rendered_true_enu": [
+        24.871,
+        40.8656
+      ],
+      "snap_offset_m": 0.263,
+      "fix_enu": [
+        23.7113,
+        39.7632
+      ],
+      "fix_error_vs_rendered_m": 1.6,
+      "fix_error_vs_raw_rtk_m": 1.694,
+      "n_features": 56,
+      "n_inliers": 12,
+      "fix_sigma_m": 0.061,
+      "range_span_m": [
+        2.32,
+        11.84
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 6,
+      "rtk_idx": 41,
+      "rover_rc": [
+        22,
+        28
+      ],
+      "rover_yaw_deg": 56.94,
+      "rtk_enu": [
+        25.7674,
+        41.89
+      ],
+      "rendered_true_enu": [
+        25.871,
+        41.8656
+      ],
+      "snap_offset_m": 0.106,
+      "fix_enu": [
+        32.7105,
+        37.7113
+      ],
+      "fix_error_vs_rendered_m": 8.002,
+      "fix_error_vs_raw_rtk_m": 8.104,
+      "n_features": 72,
+      "n_inliers": 9,
+      "fix_sigma_m": 0.041,
+      "range_span_m": [
+        2.32,
+        2.82
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 7,
+      "rtk_idx": 42,
+      "rover_rc": [
+        24,
+        29
+      ],
+      "rover_yaw_deg": 55.55,
+      "rtk_enu": [
+        26.509,
+        43.0294
+      ],
+      "rendered_true_enu": [
+        26.371,
+        42.8656
+      ],
+      "snap_offset_m": 0.214,
+      "fix_enu": [
+        26.1088,
+        41.8293
+      ],
+      "fix_error_vs_rendered_m": 1.069,
+      "fix_error_vs_raw_rtk_m": 1.265,
+      "n_features": 89,
+      "n_inliers": 15,
+      "fix_sigma_m": 0.097,
+      "range_span_m": [
+        1.85,
+        13.16
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 8,
+      "rtk_idx": 43,
+      "rover_rc": [
+        26,
+        31
+      ],
+      "rover_yaw_deg": 55.21,
+      "rtk_enu": [
+        27.2448,
+        44.102
+      ],
+      "rendered_true_enu": [
+        27.371,
+        43.8656
+      ],
+      "snap_offset_m": 0.268,
+      "fix_enu": [
+        40.1077,
+        48.4622
+      ],
+      "fix_error_vs_rendered_m": 13.541,
+      "fix_error_vs_raw_rtk_m": 13.582,
+      "n_features": 84,
+      "n_inliers": 9,
+      "fix_sigma_m": 0.734,
+      "range_span_m": [
+        9.11,
+        14.81
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 9,
+      "rtk_idx": 44,
+      "rover_rc": [
+        29,
+        32
+      ],
+      "rover_yaw_deg": 53.85,
+      "rtk_enu": [
+        27.9768,
+        45.1558
+      ],
+      "rendered_true_enu": [
+        27.871,
+        45.3656
+      ],
+      "snap_offset_m": 0.235,
+      "fix_enu": [
+        25.7837,
+        37.124
+      ],
+      "fix_error_vs_rendered_m": 8.502,
+      "fix_error_vs_raw_rtk_m": 8.326,
+      "n_features": 29,
+      "n_inliers": 9,
+      "fix_sigma_m": 2.95,
+      "range_span_m": [
+        11.84,
+        11.84
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 10,
+      "rtk_idx": 45,
+      "rover_rc": [
+        31,
+        34
+      ],
+      "rover_yaw_deg": 54.0,
+      "rtk_enu": [
+        28.7303,
+        46.187
+      ],
+      "rendered_true_enu": [
+        28.871,
+        46.3656
+      ],
+      "snap_offset_m": 0.227,
+      "fix_enu": [
+        26.6103,
+        38.2968
+      ],
+      "fix_error_vs_rendered_m": 8.38,
+      "fix_error_vs_raw_rtk_m": 8.17,
+      "n_features": 26,
+      "n_inliers": 8,
+      "fix_sigma_m": 4.452,
+      "range_span_m": [
+        13.16,
+        13.16
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 11,
+      "rtk_idx": 46,
+      "rover_rc": [
+        33,
+        35
+      ],
+      "rover_yaw_deg": 55.98,
+      "rtk_enu": [
+        29.4991,
+        47.2452
+      ],
+      "rendered_true_enu": [
+        29.371,
+        47.3656
+      ],
+      "snap_offset_m": 0.176,
+      "fix_enu": [
+        27.6895,
+        46.3604
+      ],
+      "fix_error_vs_rendered_m": 1.959,
+      "fix_error_vs_raw_rtk_m": 2.014,
+      "n_features": 135,
+      "n_inliers": 15,
+      "fix_sigma_m": 0.162,
+      "range_span_m": [
+        3.2,
+        7.9
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 12,
+      "rtk_idx": 47,
+      "rover_rc": [
+        35,
+        37
+      ],
+      "rover_yaw_deg": 64.44,
+      "rtk_enu": [
+        30.1261,
+        48.1741
+      ],
+      "rendered_true_enu": [
+        30.371,
+        48.3656
+      ],
+      "snap_offset_m": 0.311,
+      "fix_enu": [
+        30.9464,
+        48.5492
+      ],
+      "fix_error_vs_rendered_m": 0.604,
+      "fix_error_vs_raw_rtk_m": 0.902,
+      "n_features": 133,
+      "n_inliers": 44,
+      "fix_sigma_m": 0.011,
+      "range_span_m": [
+        0.89,
+        2.75
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 13,
+      "rtk_idx": 49,
+      "rover_rc": [
+        37,
+        38
+      ],
+      "rover_yaw_deg": 57.35,
+      "rtk_enu": [
+        31.0663,
+        49.6097
+      ],
+      "rendered_true_enu": [
+        30.871,
+        49.3656
+      ],
+      "snap_offset_m": 0.313,
+      "fix_enu": [
+        32.5552,
+        47.4087
+      ],
+      "fix_error_vs_rendered_m": 2.582,
+      "fix_error_vs_raw_rtk_m": 2.657,
+      "n_features": 86,
+      "n_inliers": 33,
+      "fix_sigma_m": 0.018,
+      "range_span_m": [
+        1.62,
+        1.88
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 14,
+      "rtk_idx": 50,
+      "rover_rc": [
+        40,
+        40
+      ],
+      "rover_yaw_deg": 61.31,
+      "rtk_enu": [
+        31.871,
+        50.8656
+      ],
+      "rendered_true_enu": [
+        31.871,
+        50.8656
+      ],
+      "snap_offset_m": 0.0,
+      "fix_enu": [
+        29.818,
+        50.9053
+      ],
+      "fix_error_vs_rendered_m": 2.053,
+      "fix_error_vs_raw_rtk_m": 2.053,
+      "n_features": 171,
+      "n_inliers": 26,
+      "fix_sigma_m": 0.057,
+      "range_span_m": [
+        2.52,
+        5.38
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 15,
+      "rtk_idx": 51,
+      "rover_rc": [
+        42,
+        41
+      ],
+      "rover_yaw_deg": 58.31,
+      "rtk_enu": [
+        32.4693,
+        51.959
+      ],
+      "rendered_true_enu": [
+        32.371,
+        51.8656
+      ],
+      "snap_offset_m": 0.136,
+      "fix_enu": [
+        33.3505,
+        51.7456
+      ],
+      "fix_error_vs_rendered_m": 0.987,
+      "fix_error_vs_raw_rtk_m": 0.907,
+      "n_features": 77,
+      "n_inliers": 17,
+      "fix_sigma_m": 0.046,
+      "range_span_m": [
+        1.01,
+        6.23
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 16,
+      "rtk_idx": 52,
+      "rover_rc": [
+        44,
+        43
+      ],
+      "rover_yaw_deg": 56.7,
+      "rtk_enu": [
+        33.1463,
+        53.0555
+      ],
+      "rendered_true_enu": [
+        33.371,
+        52.8656
+      ],
+      "snap_offset_m": 0.294,
+      "fix_enu": [
+        33.8609,
+        50.4259
+      ],
+      "fix_error_vs_rendered_m": 2.488,
+      "fix_error_vs_raw_rtk_m": 2.725,
+      "n_features": 54,
+      "n_inliers": 12,
+      "fix_sigma_m": 0.106,
+      "range_span_m": [
+        2.32,
+        2.75
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 17,
+      "rtk_idx": 53,
+      "rover_rc": [
+        46,
+        44
+      ],
+      "rover_yaw_deg": 54.54,
+      "rtk_enu": [
+        33.8231,
+        54.0858
+      ],
+      "rendered_true_enu": [
+        33.871,
+        53.8656
+      ],
+      "snap_offset_m": 0.225,
+      "fix_enu": [
+        36.1347,
+        56.2898
+      ],
+      "fix_error_vs_rendered_m": 3.317,
+      "fix_error_vs_raw_rtk_m": 3.194,
+      "n_features": 90,
+      "n_inliers": 26,
+      "fix_sigma_m": 0.078,
+      "range_span_m": [
+        2.52,
+        5.92
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 18,
+      "rtk_idx": 54,
+      "rover_rc": [
+        49,
+        45
+      ],
+      "rover_yaw_deg": 54.99,
+      "rtk_enu": [
+        34.5772,
+        55.1446
+      ],
+      "rendered_true_enu": [
+        34.371,
+        55.3656
+      ],
+      "snap_offset_m": 0.302,
+      "fix_enu": [
+        37.4388,
+        59.8679
+      ],
+      "fix_error_vs_rendered_m": 5.448,
+      "fix_error_vs_raw_rtk_m": 5.523,
+      "n_features": 161,
+      "n_inliers": 30,
+      "fix_sigma_m": 0.028,
+      "range_span_m": [
+        2.57,
+        4.39
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 19,
+      "rtk_idx": 55,
+      "rover_rc": [
+        51,
+        47
+      ],
+      "rover_yaw_deg": 54.06,
+      "rtk_enu": [
+        35.3131,
+        56.195
+      ],
+      "rendered_true_enu": [
+        35.371,
+        56.3656
+      ],
+      "snap_offset_m": 0.18,
+      "fix_enu": [
+        28.701,
+        58.3839
+      ],
+      "fix_error_vs_rendered_m": 6.969,
+      "fix_error_vs_raw_rtk_m": 6.965,
+      "n_features": 54,
+      "n_inliers": 11,
+      "fix_sigma_m": 0.097,
+      "range_span_m": [
+        2.23,
+        5.15
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 20,
+      "rtk_idx": 56,
+      "rover_rc": [
+        53,
+        48
+      ],
+      "rover_yaw_deg": 56.71,
+      "rtk_enu": [
+        36.0543,
+        57.2173
+      ],
+      "rendered_true_enu": [
+        35.871,
+        57.3656
+      ],
+      "snap_offset_m": 0.236,
+      "fix_enu": [
+        36.2899,
+        54.8389
+      ],
+      "fix_error_vs_rendered_m": 2.561,
+      "fix_error_vs_raw_rtk_m": 2.39,
+      "n_features": 57,
+      "n_inliers": 11,
+      "fix_sigma_m": 0.093,
+      "range_span_m": [
+        2.28,
+        11.84
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 21,
+      "rtk_idx": 57,
+      "rover_rc": [
+        55,
+        50
+      ],
+      "rover_yaw_deg": 58.44,
+      "rtk_enu": [
+        36.7691,
+        58.3061
+      ],
+      "rendered_true_enu": [
+        36.871,
+        58.3656
+      ],
+      "snap_offset_m": 0.118,
+      "fix_enu": [
+        38.8916,
+        57.1383
+      ],
+      "fix_error_vs_rendered_m": 2.364,
+      "fix_error_vs_raw_rtk_m": 2.422,
+      "n_features": 59,
+      "n_inliers": 14,
+      "fix_sigma_m": 0.049,
+      "range_span_m": [
+        1.97,
+        9.11
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 22,
+      "rtk_idx": 58,
+      "rover_rc": [
+        57,
+        51
+      ],
+      "rover_yaw_deg": 56.08,
+      "rtk_enu": [
+        37.4381,
+        59.3951
+      ],
+      "rendered_true_enu": [
+        37.371,
+        59.3656
+      ],
+      "snap_offset_m": 0.073,
+      "fix_enu": [
+        38.4604,
+        59.3651
+      ],
+      "fix_error_vs_rendered_m": 1.089,
+      "fix_error_vs_raw_rtk_m": 1.023,
+      "n_features": 83,
+      "n_inliers": 19,
+      "fix_sigma_m": 0.001,
+      "range_span_m": [
+        0.42,
+        10.77
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 23,
+      "rtk_idx": 59,
+      "rover_rc": [
+        59,
+        53
+      ],
+      "rover_yaw_deg": 53.01,
+      "rtk_enu": [
+        38.1684,
+        60.4812
+      ],
+      "rendered_true_enu": [
+        38.371,
+        60.3656
+      ],
+      "snap_offset_m": 0.233,
+      "fix_enu": [
+        36.2976,
+        61.3207
+      ],
+      "fix_error_vs_rendered_m": 2.283,
+      "fix_error_vs_raw_rtk_m": 2.051,
+      "n_features": 46,
+      "n_inliers": 15,
+      "fix_sigma_m": 0.014,
+      "range_span_m": [
+        1.5,
+        3.12
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 24,
+      "rtk_idx": 60,
+      "rover_rc": [
+        61,
+        54
+      ],
+      "rover_yaw_deg": 56.68,
+      "rtk_enu": [
+        38.9741,
+        61.551
+      ],
+      "rendered_true_enu": [
+        38.871,
+        61.3656
+      ],
+      "snap_offset_m": 0.212,
+      "fix_enu": [
+        38.2153,
+        61.5224
+      ],
+      "fix_error_vs_rendered_m": 0.674,
+      "fix_error_vs_raw_rtk_m": 0.759,
+      "n_features": 118,
+      "n_inliers": 24,
+      "fix_sigma_m": 0.056,
+      "range_span_m": [
+        2.52,
+        10.77
+      ],
+      "status": "resolved"
+    },
+    {
+      "k": 25,
+      "rtk_idx": 61,
+      "rover_rc": [
+        63,
+        55
+      ],
+      "rover_yaw_deg": 62.85,
+      "rtk_enu": [
+        39.5939,
+        62.4936
+      ],
+      "rendered_true_enu": [
+        39.371,
+        62.3656
+      ],
+      "snap_offset_m": 0.257,
+      "fix_enu": [
+        38.8813,
+        61.2541
+      ],
+      "fix_error_vs_rendered_m": 1.215,
+      "fix_error_vs_raw_rtk_m": 1.43,
+      "n_features": 95,
+      "n_inliers": 28,
+      "fix_sigma_m": 0.056,
+      "range_span_m": [
+        2.32,
+        9.87
+      ],
+      "status": "resolved"
+    }
+  ],
+  "exact_commands": {
+    "build_scene (milestone 1, NOT re-run; scene reused as-is)": ".venv/bin/python benchmarks/katwijk/build_katwijk_scene.py",
+    "per_station_render_A_and_B (row,col from (E-x0)/cell,(N-y0)/cell; lift 0.0 then 0.1743)": "bash stewie/godot/render.sh res://sidecar.tscn -- --scene <SCENE> --cameras --layers terrain,clasts,rover --rover-rc <row,col> --rover-yaw <deg> --chassis-lift <0.0|0.1743> --sun-elev 5 --sun-azim 215 --size 1024x768",
+    "localize": "stewie/godot/articulation_bridge.localize_on_render_pair(<station_dir>, <scene_dir>)",
+    "run": ".venv/bin/python scripts/demo/render_ezrassor_katwijk_parallax.py"
+  },
+  "reused_vs_written": {
+    "reused_verbatim": [
+      "benchmarks/katwijk/build_katwijk_scene.py -> the milestone-1 scene (ENU first-fix anchor, pyproj EPSG:4326->28992, rover-rc mapping); scene NOT rebuilt",
+      "stewie/godot/render.sh + sidecar.tscn -> 8-cam EZ-RASSOR/IPEx render",
+      "stewie/godot/articulation_bridge.localize_on_render_pair -> the articulation-parallax absolute-fix estimator (block-match parallax -> range -> DEM raycast -> RANSAC trilateration)",
+      "dart.depth_truth -> DEM raycast landmark association (via the estimator)",
+      "dart.ablation._align_ate -> Umeyama aligned-ATE primitive (same one the template's fused_render_traverse uses via run_integrated_slam)",
+      "stewie.bridge.katwijk_io.load_gps_real + pyproj ENU transform"
+    ],
+    "written_this_experiment": [
+      "station selection over the real RTK ENU poses inside the footprint (moving-run thinning)",
+      "per-station render invocation at rover-rc + heading yaw",
+      "a documented frame-bookkeeping translation: express emitted sensor camera/rover positions in the scene-local zero-origin frame (subtract world_min) so they match depth_truth's zero-origin heightfield indexing (translation only; orientation unchanged; estimator logic untouched). Root cause: this scene pins world_bounds to the ENU frame while depth_truth._height_at indexes from a zero origin; crater_boulders has world_min=(0,0) so the template never exercised this.",
+      "assembly + scoring (absolute-fix RMS + aligned ATE)"
+    ]
+  },
+  "interpretation": "The absolute-fix ATE (4.778 m RMS) is the accuracy with which the standstill articulation-parallax cue recovers the rover's ABSOLUTE ground position, truth-free, on REAL Katwijk AHN 0.5 m terrain geometry, from the real 8-cam rig. Per-station errors span 0.596-13.541 m. It is a GEOMETRIC-cue result on real terrain shape, NOT a real-image VO result: the sub-0.5 m camera texture is procedural Godot infill, so this does not close the real-LocCam gap."
+}
