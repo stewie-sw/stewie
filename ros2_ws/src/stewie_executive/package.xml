@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>stewie_executive</name>
+  <version>0.1.0</version>
+  <description>mission_executive node: monitor faults/cov/acks/reservations/acceptance -> /stewie/exec/decision (AS-13)</description>
+  <maintainer email="dev@stewie.space">STEWIE</maintainer>
+  <license>SEE LICENSE</license>
+  <depend>rclpy</depend>
+  <depend>stewie_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>grid_map_msgs</depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>
