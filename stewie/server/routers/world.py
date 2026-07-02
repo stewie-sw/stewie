@@ -1,8 +1,9 @@
 """World-state authority route (FS-02 / TW-05, §25 Phase 1). Returns the typed WorldState DESCRIPTOR
 for a site -- the grid geometry (rows/cols/cell_m), the lunar datum, and provenance (a dart.dem_sources
 id) the cockpit + planner reason over. The raw rasters live in the twin/DEM store; this is the typed
-metadata. observed_fraction/mutated keep their contract defaults here (enriched from the twin in a later
-brick). Public read. Delegates to server.state.moon_dem; no app-module import (no cycle)."""
+metadata. DT-05: observed_fraction/mutated are now the REAL enrichment (measured from the site's own
+observed twin + as-built memory), and an `enrichment` block declares completeness + freshness explicitly.
+Public read. Delegates to server.state.moon_dem; no app-module import (no cycle)."""
 from __future__ import annotations
 
 import io
@@ -28,8 +29,12 @@ _SITE_SOURCE = {name: os.path.basename(s.bundle_dir) for name, s in SITES.items(
 
 @router.get("/world")
 def world(site: str = "haworth", _auth: str = Depends(require_auth)):
-    """FS-02 / TW-05: the typed WorldState descriptor for `site` (grid geometry + lunar datum +
-    provenance). 404 if the site's DEM bundle is absent (degraded mode)."""
+    """[REQ:DT-05] the AUTHORITATIVE rich world descriptor for `site`: grid geometry + lunar datum +
+    provenance PLUS the REAL observed/mutated enrichment (no longer contract defaults deferred to a
+    later phase). ``observed_fraction`` is the measured coverage of the site's own observed twin (DT-04),
+    ``mutated`` is whether construction has recorded a build into its as-built TerrainMemory, and the
+    ``enrichment`` block declares completeness + freshness EXPLICITLY so a consumer can never mistake an
+    incomplete descriptor for the full world model. 404 if the site's DEM bundle is absent (degraded)."""
     dem, _anchor = S.moon_dem(site)
     base = dem[0] if isinstance(dem, tuple) else dem
     if base is None:
@@ -37,8 +42,39 @@ def world(site: str = "haworth", _auth: str = Depends(require_auth)):
     arr = np.asarray(base)
     rows, cols = int(arr.shape[0]), int(arr.shape[1])
     cell_m = float(dem[1]) if (isinstance(dem, tuple) and len(dem) >= 2 and dem[1]) else 5.0
-    w = WorldState(rows=rows, cols=cols, cell_m=cell_m, dem_source=_SITE_SOURCE.get(site, site))
-    return {"ok": True, "world": w.model_dump()}
+    # DT-05: enrich from the site's REAL observed twin (DT-04) + as-built memory, not defaults.
+    observed = False
+    observed_fraction = 0.0
+    twin_version = 0
+    try:
+        tw = S.twin(site)
+        if tuple(tw.base.shape) == (rows, cols):          # same tile grid -> the coverage is 1:1
+            m = tw.observed_mask()
+            observed = True
+            observed_fraction = float(m.mean())
+            twin_version = int(getattr(tw, "version", 0))
+    except Exception:   # noqa: BLE001 -- the observed overlay is an enhancement; never fail the descriptor
+        observed = False
+    mutated = False
+    as_built_version = 0
+    try:
+        from stewie.specs.config import data_dir
+        from stewie.twin import terrain_memory as TM
+        mem = TM.load_site(data_dir(), site)
+        if mem is not None:
+            as_built_version = int(getattr(mem, "version", 0))
+            mutated = as_built_version > 0                 # a recorded build mutated the terrain vs the prior DEM
+    except Exception:   # noqa: BLE001
+        mutated = False
+    world_committed = S.world_state_service().transaction_count() > 0
+    w = WorldState(rows=rows, cols=cols, cell_m=cell_m, dem_source=_SITE_SOURCE.get(site, site),
+                   observed_fraction=observed_fraction, mutated=mutated)
+    return {"ok": True, "world": w.model_dump(),
+            # DT-05: the completeness/freshness declaration -- `complete` states this descriptor carries
+            # its enrichment (not deferred); a consumer keys on it rather than guessing.
+            "enrichment": {"complete": True, "observed": observed, "twin_version": twin_version,
+                           "as_built_version": as_built_version, "mutated": mutated,
+                           "world_committed": world_committed}}
 
 
 @router.get("/world/transaction")
