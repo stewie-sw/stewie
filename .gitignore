@@ -172,3 +172,8 @@ validation/ui_*/
 
 # Large real lunar datasets (DEMs/imagery) -- machine-local, never commit
 datasets/
+
+# regenerable presentation composites (83 MB; rebuild: scripts/demo/spiral_composites.py)
+stewie/godot/out/panels/composite_*.gif
+# internal knowledge-graph analysis artifacts (regenerate: scripts/export_stewie_interaction_graph.py)
+graphify-out/

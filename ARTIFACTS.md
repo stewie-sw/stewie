@@ -250,8 +250,8 @@ dense 2 cm tiling of the whole patch — the concrete §4 LOD payoff made legibl
 | `failure_breakdown.png` | 34 KB | LIT 22/80 vs UNLIT 45/80 AprilTag-localization rate — the illumination A/B at 100 m scale, attributed by range / shadow / occlusion | GREEN |
 | `position_slam_lit.gif` / `position_slam_unlit.gif` | 599 KB / 728 KB | truth vs AprilTag SLAM, lander-centered, quadrants shaded by visible face | GREEN |
 | `resource.gif` | 328 KB | ~21 MB resident corridor record vs 3.99 GB dense-2 cm | GREEN |
-| `composite_2x2.gif` | 37.1 MB | lit/unlit top-down + position-SLAM + resource, synced on the 80-frame spiral | GREEN |
-| `composite_3x2.gif` | 42.6 MB | + side-mono rover-cam + stacked LIT-vs-UNLIT failure | GREEN |
+| `composite_2x2.gif` | 37.1 MB | lit/unlit top-down + position-SLAM + resource, synced on the 80-frame spiral | REGENERATE (untracked: 83 MB of presentation bytes; `python scripts/demo/spiral_composites.py`) |
+| `composite_3x2.gif` | 42.6 MB | + side-mono rover-cam + stacked LIT-vs-UNLIT failure | REGENERATE (same script) |
 
 Honesty rails preserved across the battery: idealized **noiseless pinhole** (errors are the
 geometric/subpixel floor + PnP fronto-parallel flips at range, **not** distortion-inclusive); the rover
