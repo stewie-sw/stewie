@@ -1076,6 +1076,12 @@ async function loadFleet() {
 // ranked futures with measured wall_s/energy/feasibility), then render the candidate cards side-by-side
 // FEASIBILITY FIRST via the pure rehearse_render.js module (CSP-safe). Director-gated server-side; an
 // honest empty state shows when there is no queue. No fabricated data -- every number is from the planner.
+// Planning-workflow audit: the pipeline stages now carry REAL evidence gates (pipeline_gates.js reads
+// these via _stageState): LAST_REHEARSE = the last successful /resync/compare payload; VALIDATED_RUN =
+// a Validate-tab run completed; RELEASED_REV = the signed revision from /executive/release-plan;
+// REHEARSE_CHOICE = the candidate the operator adopted (carried into the release request). A NEW solve
+// clears the first three -- their evidence belonged to the previous plan.
+let LAST_REHEARSE = null, VALIDATED_RUN = false, RELEASED_REV = null, REHEARSE_CHOICE = null;
 async function loadRehearse() {
   const RR = window.STEWIE_REHEARSE_RENDER;
   const host = $("rehearsecards");
@@ -1099,7 +1105,18 @@ async function loadRehearse() {
     }
     const j = await r.json();
     if (!j.ok) { host.innerHTML = '<div class="empty">Forward-compare error: ' + esc(j.error || r.status) + "</div>"; return; }
+    LAST_REHEARSE = j;                                      // REHEARSED gate: the forward-compare succeeded
     host.innerHTML = RR.rehearseCardsHTML(j, esc);
+    // adopt (planning-workflow audit): "Use this candidate" sets the E·SOLVE algorithm and carries the
+    // choice into the release request -- the rehearsal outcome becomes actionable, not display-only.
+    host.querySelectorAll("button[data-algo]").forEach((b) => {
+      b.onclick = () => {
+        REHEARSE_CHOICE = b.dataset.algo;
+        if (qel("qalgo")) qel("qalgo").value = REHEARSE_CHOICE;
+        setQ(`candidate adopted: ${REHEARSE_CHOICE} — E·SOLVE algorithm set; the choice is sent with Release`);
+      };
+    });
+    if (typeof renderStepper === "function") renderStepper();   // rehearse stage met -> advance the spine
   } catch (e) {
     host.innerHTML = '<div class="empty">Forward-compare failed — is the server running? (' + esc(String(e)) + ")</div>";
   }
@@ -2186,18 +2203,27 @@ if ($("set-resetws")) $("set-resetws").onclick = () => {
 async function loadRelease() {                                            // RELEASE: director sign-off (POST /executive/release-plan)
   const out = $("releaseout"), btn = $("releasebtn");
   if (!out || !btn) return;
-  out.innerHTML = ORDERS.length
-    ? `<div style="color:var(--muted)">${ORDERS.length} order(s) in the queue. Click <b>Release</b> to drive them through the lifecycle and sign the revision.</div>`
-    : '<div class="empty">No build orders yet — author a plan on the Plan tab first.</div>';
+  // planning-workflow audit: the signer sees the EVIDENCE before signing -- the order queue, the last
+  // solve's totals, and the cached rehearse recommendation (all state already in the page; no fetch).
+  const _releaseAlgo = () => REHEARSE_CHOICE || (qel("qalgo") ? qel("qalgo").value : null);
+  out.innerHTML = window.STEWIE_REHEARSE_RENDER.releaseEvidenceHTML(
+    ORDERS, LAST_TOTALS, LAST_REHEARSE, _releaseAlgo(), esc);
   btn.onclick = async () => {
     if (!ORDERS.length) {
       out.innerHTML = '<div class="empty">No build orders to release — author a plan on the Plan tab first.</div>';
       return;
     }
+    // sign-off is the pipeline's one irreversible action -- confirm it, naming the order count + site
+    // (mirrors the terrain-memory record confirm above).
+    if (!window.confirm(`Release the ${ORDERS.length} queued order(s) for ${CURRENT_SITE}? `
+        + "This drives the plan through the MO-02 lifecycle and SIGNS the revision (director authority).")) return;
     out.innerHTML = '<div class="empty">Driving the plan through the mission lifecycle…</div>';
     try {
+      const algo = _releaseAlgo();       // additive key: the router's pydantic model ignores unknown
+      //                                    fields (no extra config = ignore), so it is echoed LOCALLY below
       const r = await fetch("/executive/release-plan", { method: "POST", headers: apiHeaders(),
-        body: JSON.stringify({ body: sel.value, orders: ORDERS, mission_id: `${BODIES[sel.value].name} release` }) });
+        body: JSON.stringify({ body: sel.value, orders: ORDERS, mission_id: `${BODIES[sel.value].name} release`,
+          ...(algo ? { algorithm: algo } : {}) }) });
       if (r.status === 401 || r.status === 403) {
         out.innerHTML = '<div class="empty">Release is director-only. Sign in with a director key (RELEASED is a '
           + "director-authority signing transition).</div>";
@@ -2206,11 +2232,14 @@ async function loadRelease() {                                            // REL
       const d = await r.json();
       if (!d.ok) { out.innerHTML = `<div class="empty">Cannot release: ${esc(d.error || "uncompilable plan")}</div>`; return; }
       const rev = d.signed_revision, skipped = d.skipped || [], ev = d.evidence || {};
+      RELEASED_REV = rev || null;                          // RELEASED gate: the signed revision (pipeline spine)
+      if (typeof renderStepper === "function") renderStepper();
       const trail = (d.transitions || []).map((t) => `${esc(t.to)} <span style="color:var(--muted)">(${esc(t.role)})</span>`).join(" → ");
       out.innerHTML =
         `<div><b style="color:var(--accent);font-size:13px">${esc(String(d.state).toUpperCase())}</b> — ${d.released_objectives} build objective(s) released <span style="color:var(--muted)">(${esc(d.label)})</span></div>`
         + (rev ? `<div style="margin-top:6px;color:var(--muted)">signed revision <code>${esc(String(rev.content_hash).slice(0, 16))}…</code> by ${esc(rev.signed_by)}</div>` : "")
         + `<div style="margin-top:4px;color:var(--muted)">plan_id <code>${esc(String(ev.plan_id || "—"))}</code></div>`
+        + (algo ? `<div style="margin-top:4px;color:var(--muted)">solver algorithm <code>${esc(algo)}</code>${REHEARSE_CHOICE ? " (adopted from Rehearse)" : ""} — sent with the release request</div>` : "")
         + (trail ? `<div style="margin-top:8px">${trail}</div>` : "")
         + (skipped.length ? `<div style="margin-top:12px;color:#e0a000">${skipped.length} non-build order(s) NOT released (path waypoints are not mission objectives): ${skipped.map((s) => esc(String(s.action || s.kind))).join(", ")}</div>` : "");
     } catch (e) { out.innerHTML = `<div class="empty">Release failed: ${esc(String(e))}</div>`; }
@@ -2458,6 +2487,8 @@ async function navDriveRun() {
     if (!b.ok) { $("navdrivestats").innerHTML = N.errLine(b.error || "drive unavailable", esc); return; }  // SEC-04
     LAST_DRIVE = b; navDrawDrive(b);
     $("navdrivestats").innerHTML = N.driveStatsHTML(b, esc);
+    VALIDATED_RUN = true;                                   // VALIDATE gate: a real Validate run completed
+    if (typeof renderStepper === "function") renderStepper();
   } catch (e) { $("navdrivestats").innerHTML = window.STEWIE_NAV_STATS_HTML.errLine("server unreachable", esc); }
   finally { btn.disabled = false; btn.textContent = "▶ Run drive"; }
 }
@@ -2476,6 +2507,8 @@ async function navRun() {
     navDrawTrajectory(b.trajectory_xy, b.baseline_xy);
     $("navstats").innerHTML = N.slamStatsHTML(b);
     $("navloo").innerHTML = N.leaveOneOutHTML(b);
+    VALIDATED_RUN = true;                                   // VALIDATE gate: a real Validate run completed
+    if (typeof renderStepper === "function") renderStepper();
   } catch (e) { $("navstats").innerHTML = window.STEWIE_NAV_STATS_HTML.errLine("server unreachable", esc); }
   finally { $("navrun").disabled = false; $("navrun").textContent = "▶ Run estimator"; }
 }
@@ -2541,6 +2574,8 @@ async function navReloc() {                            // REAL measured fix on t
     const b = await r.json();
     if (!b.ok) { $("navcovstat").innerHTML = `<span style="color:#e8273f">${esc(b.error)}</span>`; return; }  // SEC-04
     navDrawFix(b);
+    VALIDATED_RUN = true;                                   // VALIDATE gate: a real Validate run completed
+    if (typeof renderStepper === "function") renderStepper();
     $("navcovstat").innerHTML = `<b>real fix</b> (render-pair) · error <b>${b.error_m} m</b> from ${b.drift_m} m drift`
       + ` · σ ${b.fix_sigma_m} m · ${b.n_inliers}/${b.n_features} inliers · features `
       + `${b.range_span_m[0]}–${b.range_span_m[1]} m (inside the TRL-5 rig range) · coordinates in the DEM frame`;
@@ -3318,7 +3353,10 @@ const koLabel = window.STEWIE_KEEPOUT_GEOM.koLabel;     // #178: a human-readabl
 function fillKeepout(ctx, k, X, Y, s) { window.STEWIE_PLAN_GEOM.fillKeepout(ctx, k, X, Y, s, koIsPoly, koIsRect, koBounds); }
 // #170: mission-pipeline WIZARD state -- STEP_DONE holds the steps the operator has CONFIRMED via "Done"
 // (the real red->green gate, replacing the old hardcoded site/fleet="done"); WIZ_STEP is the step in focus.
-const STEP_ORDER = ["site", "fleet", "orders", "solve", "review", "execute"];
+// Planning-workflow audit: ONE spine now -- the strip walks the tab vocabulary (Site/Fleet/Orders/Solve
+// are Plan sub-steps, then Rehearse -> Validate -> Release -> Execute -> Report). The order + the per-stage
+// predicates live in the pure pipeline_gates.js module (unit-tested; loaded before this file).
+const STEP_ORDER = window.STEWIE_PIPELINE_GATES.STEP_ORDER;
 let WIZ_STEP = "site";
 const STEP_DONE = {};
 // #177: AUTO-SAVE the working draft. Orders + keep-outs lived only in memory (the lander already
@@ -4847,11 +4885,16 @@ qel("qplan").onclick = async () => {
       ? ` · ${t.vehicles} rovers, makespan ${(t.makespan_s / 3600).toFixed(1)} h, ${t.vehicle_conflicts} conflicts` : "";
     setQ(`report ready · cut ${(t.cut_kg / 1000).toFixed(1)}t → fill ${(t.fill_kg / 1000).toFixed(1)}t · `
          + `${(t.energy_J / 1e6).toFixed(1)} MJ · ${t.charges} recharges${ftag}${etag}${atag}${rtag}${ktag}${stag}${vtag}${autag}${ptag}${mtag}`);
-    LAST_TIMELINE = j.timeline || null;                    // P5: enable execute + watch
+    LAST_TIMELINE = j.timeline || null;                    // P5: enable the forecast replay
     LAST_PLAN_IR = j.plan_ir || null;                      // the executable plan IR (download via ⤓ Plan IR)
     LAST_ORDERS = ORDERS.slice(); LAST_KEEPOUTS = KEEPOUTS.slice();
+    // pipeline honesty (planning-workflow audit): a NEW solve invalidates the downstream stage
+    // evidence -- the rehearse compare, the Validate runs, and the signed release all belonged to the
+    // PREVIOUS plan. The spine walks Rehearse -> Validate -> Release again for this one.
+    LAST_REHEARSE = null; VALIDATED_RUN = false; RELEASED_REV = null; EXEC_PLAYED = false;
     qel("qexec").disabled = !LAST_TIMELINE;
-    if (typeof renderStepper === "function") renderStepper();  // pipeline spine: Solve done -> unlock Review/Execute
+    if (qel("execplay")) qel("execplay").disabled = !LAST_TIMELINE;   // header ▶ Replay forecast follows qexec
+    if (typeof renderStepper === "function") renderStepper();  // pipeline spine: Solve done -> next is Rehearse
     LAST_TOTALS = t; LAST_PDF = j.pdf;                     // mirror the last plan into the tab-contextual left blocks
     LAST_VALIDATION = j.validation || null;                // FS-03: the as-built acceptance verdict for the Construction pane
     if (typeof renderCtxSummaries === "function") renderCtxSummaries();
@@ -4985,6 +5028,7 @@ function drawGantt(rawFrames) { window.STEWIE_ROVER_HUD.drawGantt($("gantt"), ra
 let LAST_TIMELINE = null, LAST_ORDERS = [], LAST_KEEPOUTS = [], LAST_PLAN_IR = null, EXEC_RAF = 0;
 let EXEC_SPEEDUP = 60;                                     // sim seconds per wall-clock second (B0.3: mutable)
 let EXEC_PAUSED = false;
+let EXEC_PLAYED = false;   // a replay ran for the CURRENT plan (paintExecIdle leaves a played canvas alone)
 function execExtent(tl, orders) {
   // world bounds covering the charger, every order site, and every route waypoint -> canvas transform
   const xs = [tl.charger[0]], ys = [tl.charger[1]];
@@ -5063,13 +5107,27 @@ function execDraw(tl, orders, ext, cv, simT) {
 // council #238: an honest in-canvas placeholder when the Execute view is opened with no mission (the empty
 // dark grid read as "broken"). clearRect leaves the canvas transparent so the faint CSS grid still shows
 // THROUGH, with a centered "No mission loaded" cue; a real run (execDraw) overwrites it.
+// Planning-workflow audit: with a SOLVED plan that has not been replayed yet, the early-return left the
+// STALE "No mission loaded" paint standing next to a left rail that said "feasible" -- the stage the
+// pipeline funnels into looked broken. Now frame 0 of the real forecast is drawn with a press-play cue;
+// once a replay has run (EXEC_PLAYED), that run's canvas is left alone as before.
 function paintExecIdle() {
   const cv = qel("execcanvas"); if (!cv) return;
-  if (LAST_TIMELINE && LAST_TIMELINE.frames && LAST_TIMELINE.frames.length) return;   // a run exists -> leave it
+  const tl = LAST_TIMELINE;
+  if (tl && tl.frames && tl.frames.length) {
+    if (EXEC_PLAYED) return;                               // a replay ran -> leave its canvas
+    execDraw(tl, LAST_ORDERS, execExtent(tl, LAST_ORDERS), cv, 0);   // frame 0 of the REAL solved forecast
+    const g0 = cv.getContext("2d");
+    g0.textAlign = "center"; g0.font = "11px system-ui"; g0.fillStyle = "#cfd8e3";
+    g0.fillText("plan loaded — press ▶ Replay forecast to play", cv.width / 2, 14);
+    g0.textAlign = "left";
+    const ee = qel("execempty"); if (ee) ee.style.display = "none";
+    return;
+  }
   const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
   g.textAlign = "center";
   g.font = "12px system-ui"; g.fillStyle = "#7a8696"; g.fillText("No mission loaded", cv.width / 2, cv.height / 2 - 6);
-  g.font = "10px system-ui"; g.fillStyle = "#5a6472"; g.fillText("plan a mission, then ▶ Execute + watch", cv.width / 2, cv.height / 2 + 11);
+  g.font = "10px system-ui"; g.fillStyle = "#5a6472"; g.fillText("plan a mission, then ▶ Replay forecast", cv.width / 2, cv.height / 2 + 11);
   g.textAlign = "left";
 }
 function runExecution() {
@@ -5079,6 +5137,7 @@ function runExecution() {
   // prior run was paused then closed, it stays true and the new playback's `if (!EXEC_PAUSED)` advance
   // gate never fires -> the run looks frozen. Reset it (and the pause-button icon) at every run start.
   EXEC_PAUSED = false;
+  EXEC_PLAYED = true;                                       // paintExecIdle leaves this run's canvas alone
   const _pb = qel("execpause");
   if (_pb) _pb.innerHTML = window.STEWIE_ICONS ? window.STEWIE_ICONS.icon("pause") : "pause";
   setView("metrics");                                       // swap to the Metrics pane for the telemetry playback
@@ -5125,6 +5184,7 @@ function runExecution() {
   EXEC_RAF = requestAnimationFrame(frame);
 }
 qel("qexec").onclick = runExecution;
+if (qel("execplay")) qel("execplay").onclick = runExecution;   // the Execute pane's primary ▶ Replay forecast
 
 // #245: run the current build queue as a real SIM EXECUTION via POST /executive/run -- the MO-02 executive
 // drives ARMED -> EXECUTING -> (COMPLETED | SAFED) on the conserved sim authority. Distinct from the forecast
@@ -5752,23 +5812,32 @@ qel("qloadsample").onclick = async () => {
   } catch (e) { setQ("sample load failed: " + e); }
 };
 
-// Mission pipeline spine (#131/#132): the always-visible Site->...->Execute stepper above the app.
+// Mission pipeline spine (#131/#132 + planning-workflow audit): the always-visible stepper above the
+// app now walks the SAME vocabulary as the tabs (Site/Fleet/Orders/Solve as Plan sub-steps, then
+// Rehearse -> Validate -> Release -> Execute -> Report) instead of the older six-step list that
+// highlighted SOLVE while the operator stood on the Rehearse tab.
 const STEP_TITLES = {
   site: "Site - choose the landing / work site (Plan, 1·Site)",
   fleet: "Fleet - set the rover count (Plan, 3·Fleet)",
   orders: "Orders - author build orders + keep-outs (Plan, 4·Plan)",
   solve: "Solve - plan the mission (Plan mission -> report)",
-  review: "Review - the mission-control report",
+  rehearse: "Rehearse - forward-compare the candidate futures (Rehearse tab)",
+  validate: "Validate - drive preview / estimator checks vs truth (Validate tab)",
+  release: "Release - director sign-off, signs the revision (Release tab)",
   execute: "Execute - execution forecast, before uplink",
+  review: "Report - the mission-control report + debrief",
 };
 // council #4: the single primary button's label per step -- it NAMES the real next action + jumps to it.
 const STEP_ACTION = {
   site: "Set a site", fleet: "Set the fleet", orders: "Add a build order",
-  solve: "Plan the mission", review: "Open the report", execute: "Execute + watch",
+  solve: "Plan the mission", rehearse: "Rehearse the plan", validate: "Validate the plan",
+  release: "Sign the release", execute: "Replay the forecast", review: "Open the report",
 };
+// the strip/label display name per step key ("review" stayed the key; the tab it opens is Report).
+const _stepLabel = (s) => (s === "review" ? "REPORT" : String(s).toUpperCase());
 // the first step whose REAL prerequisite is not yet satisfied -- data-driven (validateStep is the truth),
 // no manual Done flag. This is the "current" step the primary button + the NEXT label point at.
-function _currentStep() { return STEP_ORDER.find((s) => !validateStep(s).ok) || "execute"; }
+function _currentStep() { return window.STEWIE_PIPELINE_GATES.firstUnmet(_stageState()) || "review"; }
 function stepScrollTo(prefix) {                            // scroll the sidebar to a numbered section, opening it
   for (const h of document.querySelectorAll("#panel h3, #panel summary")) {
     if (h.textContent.trim().startsWith(prefix)) {
@@ -5782,17 +5851,20 @@ function _pulseQplan() {
   const b = $("qplan"); if (!b) return;
   b.classList.add("pulse"); setTimeout(() => b.classList.remove("pulse"), 1700);
 }
-// #170: the wizard step actions. Done VALIDATES + confirms the current step (red->green) and advances;
-// Next just moves on; Reset un-confirms it (without wiping data). validateStep gates each on its real input.
-function validateStep(step) {
-  if (step === "site")    return (typeof CURRENT_SITE !== "undefined" && CURRENT_SITE) ? { ok: true } : { ok: false, msg: "choose a site first (1·Site)" };
-  if (step === "fleet")   return ((+(($("vehcount") || {}).value) || 0) >= 1) ? { ok: true } : { ok: false, msg: "set at least one rover (3·Fleet)" };
-  if (step === "orders")  return (ORDERS.length > 0 || KEEPOUTS.length > 0) ? { ok: true } : { ok: false, msg: "add at least one build order or keep-out" };
-  if (step === "solve")   return (!!LAST_TIMELINE) ? { ok: true } : { ok: false, msg: "press “Plan mission → open report” to solve" };
-  if (step === "review")  return (!!LAST_TIMELINE) ? { ok: true } : { ok: false, msg: "solve a plan before reviewing" };
-  if (step === "execute") return (!!LAST_TIMELINE) ? { ok: true } : { ok: false, msg: "solve + review before execute" };
-  return { ok: true };
+// #170 + planning-workflow audit: per-stage readiness. The predicates are PURE (pipeline_gates.js,
+// unit-tested); this snapshot feeds them the live cockpit state. solve/review/execute no longer share
+// one "!!LAST_TIMELINE" gate -- rehearse needs a successful forward-compare, validate a completed
+// Validate run, release the signed revision, and "Mission ready" is earned only once release is signed.
+function _stageState() {
+  return {
+    hasSite: (typeof CURRENT_SITE !== "undefined" && !!CURRENT_SITE),
+    fleetCount: +((($("vehcount") || {}).value) || 0),
+    orderCount: ORDERS.length, keepoutCount: KEEPOUTS.length,
+    planned: !!LAST_TIMELINE, rehearsed: !!LAST_REHEARSE,
+    validated: !!VALIDATED_RUN, released: !!RELEASED_REV,
+  };
 }
+function validateStep(step) { return window.STEWIE_PIPELINE_GATES.validateStep(step, _stageState()); }
 function setWizStep(step) { WIZ_STEP = step; renderStepper(); }
 // council #4: the manual Done/Next/Reset confirm flow is gone -- steps are data-driven (validateStep), and
 // the single #wizgo primary jumps to _currentStep()'s real action. wizGo is its handler.
@@ -5819,6 +5891,10 @@ function focusStep(step) {
 }
 function goStep(step) {
   setWizStep(step);                                         // #170: focus this step in the wizard
+  // the pipeline stages that ARE tabs open their tab (their panes carry honest empty/gated states).
+  if (step === "rehearse") { setView("rehearse"); return; }
+  if (step === "validate") { setView("validate"); return; }
+  if (step === "release")  { setView("release"); return; }
   const planned = !!LAST_TIMELINE;
   if ((step === "review" || step === "execute") && !planned) {   // can't review/execute before a plan exists
     setView("plan"); if (innerWidth <= 860) $("panel").classList.add("open");
@@ -5836,20 +5912,19 @@ function goStep(step) {
 }
 function renderStepper() {
   const wrap = $("stepper"); if (!wrap) return;
-  // council #4: DATA-DRIVEN -- a step lights green the moment its REAL prerequisite is satisfied
-  // (validateStep), sequentially; the first unsatisfied step is "current", the rest are "locked". No
-  // manual Done/Reset flag. The single #wizgo primary always names + jumps to current's real next action.
-  const state = {}; let current = null;
-  for (const s of STEP_ORDER) {
-    if (!current && validateStep(s).ok) state[s] = "done";
-    else if (!current) { state[s] = "current"; current = s; }
-    else state[s] = "locked";
-  }
-  const allDone = !current;
-  if (!current) current = "execute";
-  const wl = $("wizstep"); if (wl) wl.textContent = allDone ? "READY" : current.toUpperCase();
-  const viewStep = { plan: "orders", rehearse: "solve", report: "review", metrics: "execute",
-                     nav: "review", perception: "review", release: "review" }[VIEW];
+  // council #4 + planning-workflow audit: DATA-DRIVEN -- a step lights green the moment its REAL
+  // prerequisite is satisfied (pipeline_gates.js, sequentially); the first unsatisfied step is
+  // "current", the rest are "locked". No manual Done/Reset flag. The single #wizgo primary always
+  // names + jumps to current's real next action, and "Mission ready ✓" appears ONLY once the release
+  // is signed (execute/report then follow from it) -- never straight off a solve.
+  const gs = window.STEWIE_PIPELINE_GATES.stepStates(_stageState());
+  const state = gs.states, allDone = gs.allDone;
+  const current = gs.current || "review";
+  const wl = $("wizstep"); if (wl) wl.textContent = allDone ? "READY" : _stepLabel(current);
+  // the strip slot each TAB stands on -- rehearse/validate/release own their slots now (the strip used
+  // to light SOLVE on Rehearse and REVIEW on Release, actively mis-signposting the pipeline).
+  const viewStep = { plan: "orders", rehearse: "rehearse", report: "review", metrics: "execute",
+                     nav: "validate", perception: "validate", release: "release" }[VIEW];
   wrap.querySelectorAll(".step").forEach((b) => {
     const s = b.dataset.step;
     b.className = "step " + (state[s] || "todo");
@@ -5859,7 +5934,7 @@ function renderStepper() {
   });
   const go = $("wizgo");
   if (go) go.textContent = allDone ? "Mission ready ✓" : ((STEP_ACTION[current] || "Continue") + " →");
-  const co = $("conops"); if (co) co.textContent = "CONOPS — " + current.toUpperCase();
+  const co = $("conops"); if (co) co.textContent = "CONOPS — " + (allDone ? "MISSION READY" : _stepLabel(current));
 }
 (function initStepper() {
   const wrap = $("stepper"); if (!wrap) return;

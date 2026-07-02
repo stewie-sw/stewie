@@ -59,7 +59,7 @@
     border-bottom: 1px solid var(--line); padding: 0 10px; overflow-x: auto; -webkit-overflow-scrolling: touch;
     scrollbar-width: none; }
   #stepper::-webkit-scrollbar { display: none; }
-  #stepper .step { display: inline-flex; align-items: center; gap: 7px; background: none; border: none;
+  #stepper .step { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; background: none; border: none;
     color: var(--dim); font-family: 'Orbitron', system-ui, sans-serif; font-size: 10px; font-weight: 700;
     letter-spacing: .12em; text-transform: uppercase; padding: 5px 12px; cursor: pointer; white-space: nowrap; }
   #stepper .step:not(:last-child)::after { content: "\2192"; margin-left: 16px; color: var(--line); font-weight: 400; }
@@ -582,7 +582,7 @@
       <!-- #53 declutter: ONE primary, one secondary, everything else in tiers/disclosures -->
       <button id="qplan" class="plan">Plan mission → open report</button><!-- B0.4: busy state set in JS -->
       <div class="ctl" style="margin-top:6px">
-        <button id="qexec" class="site" disabled>▶ Execute + watch</button>
+        <button id="qexec" class="site" disabled title="replay the solved plan's forecast timeline in the Execute tab (a deterministic forecast, not live telemetry)">▶ Replay forecast</button>
         <button id="qreset" class="site" title="clear the queue, keep-outs, path, and annotations">↺ Reset</button>
         <button id="qcompare" class="site">⇅ Compare algorithms</button>
       </div>
@@ -822,8 +822,11 @@
       <button class="step" data-step="fleet"><span class="dot"></span>Fleet</button>
       <button class="step" data-step="orders"><span class="dot"></span>Orders</button>
       <button class="step" data-step="solve"><span class="dot"></span>Solve</button>
-      <button class="step" data-step="review"><span class="dot"></span>Review</button>
+      <button class="step" data-step="rehearse"><span class="dot"></span>Rehearse</button>
+      <button class="step" data-step="validate"><span class="dot"></span>Validate</button>
+      <button class="step" data-step="release"><span class="dot"></span>Release</button>
       <button class="step" data-step="execute"><span class="dot"></span>Execute</button>
+      <button class="step" data-step="review"><span class="dot"></span>Report</button>
       <button id="guidebtn" title="how the planning workflow works" style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-family:'Orbitron',system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;padding:4px 10px;cursor:pointer;white-space:nowrap">&#10067; Guide</button>
     </div>
     <!-- VALIDATE sub-tab strip: shown only when the Validate tab is active (sub-view nav or perception);
@@ -1048,8 +1051,8 @@
         <!-- Loop #2 SSE: play back a SIM run's execution timeline live (cockpit.js playSimRun) -->
         <div id="playback-block" style="margin-bottom:12px">
           <div class="cap"><span>MISSION PLAYBACK — SIM execution</span>
-            <button id="playrun" type="button" style="margin-left:10px;font-size:10px">▶ Play SIM run</button></div>
-          <div id="execplayback" style="font-size:11px;line-height:1.6;max-height:200px;overflow:auto;color:var(--muted)">Queue build orders on the Plan tab, then ▶ Play SIM run to stream the execution here.</div>
+            <button id="playrun" type="button" style="margin-left:10px;font-size:10px" title="a real MO-02 executive run on the conserved sim authority, streamed event-by-event (not the forecast replay)">▶ Execute on sim + stream</button></div>
+          <div id="execplayback" style="font-size:11px;line-height:1.6;max-height:200px;overflow:auto;color:var(--muted)">Queue build orders on the Plan tab, then ▶ Execute on sim + stream to stream the execution here.</div>
         </div>
         <!-- TR-01: trainer A-board scorecard (per-session KPIs, persisted to data_dir/sessions/). Filled
              by renderScorecardBoard() on session start; hidden until a session has run. -->
@@ -1071,6 +1074,7 @@
         <canvas id="cgcanvas" width="420" height="130" style="border:1px solid var(--line);border-radius:6px;width:100%;max-width:460px"></canvas>
         <div id="cgout" style="font-size:11px;font-variant-numeric:tabular-nums;margin:3px 0 10px"></div>
         <div class="cap"><span>METRICS — <span id="exec-mode-lbl">execution top-down</span><span data-epistemic="forecast"></span><!-- FS-03: the replay is a deterministic forecast of the plan; the flowing feed carries its own live chip --><b id="execspeed"> 60×</b>
+          <button id="execplay" class="go" disabled style="margin-left:10px;font-size:10px" title="replay the solved plan's forecast timeline (a deterministic forecast of the plan, not live telemetry)">▶ Replay forecast</button>
           <button id="execpause" title="pause/resume" aria-label="pause / resume" style="margin-left:10px"></button>
           <button id="execspd" title="cycle speed 10/60/600×">speed</button>
           <button id="exec3d" title="toggle the 3D terrain dry-run: the planned path + rover on the real DEM, before uplink" style="margin-left:6px">▦ 3D</button>
@@ -1086,8 +1090,9 @@
           </select>
           <label style="margin-left:6px;font-size:10px" title="GIS-WA2: vertical exaggeration of the 3D relief">×exag <input id="exec3dvex" type="range" min="1" max="8" step="0.5" value="1" style="width:5em;vertical-align:middle" /><span id="exec3dvexv">1.0</span></label>
           <span id="td3dlegend" style="margin-left:8px;font-size:10px;color:var(--muted);white-space:nowrap"></span></span>
-          <button id="execrun" class="site" style="margin-left:6px" title="#245: run the current build queue as a SIM execution — the MO-02 executive drives ARMED → EXECUTING → COMPLETED|SAFED on the conserved sim authority (a real run, not the forecast replay; the real-rover command path stays gated)">▶ Run (SIM)</button>
+          <button id="execrun" class="site" style="margin-left:6px" title="#245: run the current build queue as a SIM execution — the MO-02 executive drives ARMED → EXECUTING → COMPLETED|SAFED on the conserved sim authority (a real run, not the forecast replay; the real-rover command path stays gated)">▶ Execute on sim (MO-02)</button>
           <button id="execclose" title="back to Plan">✕</button></div>
+        <div style="font-size:10px;color:var(--muted);margin:2px 0 4px">▶ Replay forecast = deterministic replay of the solved plan (no commands) · ▶ Execute on sim (MO-02) = real executive run — recorded.</div>
         <canvas id="execcanvas" width="320" height="220"></canvas>
         <div id="execrunout" style="display:none;margin-top:8px;font-size:12px;line-height:1.6"></div>
         <div id="td3d" title="3D terrain dry-run — drag to orbit, wheel to zoom" style="display:none;width:100%;max-width:560px;height:380px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#05060c"></div>
@@ -1103,7 +1108,7 @@
         <!-- #184: rover HUD — azimuth compass, battery, front/rear drum weight, live pose (updates as it drives) -->
         <canvas id="hudcanvas" width="320" height="96" title="rover HUD: azimuth compass · battery · front/rear drum weight · pose" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;margin-top:6px;max-width:340px;width:100%"></canvas>
         <div id="execempty" class="empty">No run yet. Plan a mission, then press
-          <b>▶ Execute + watch</b> (Plan tab) to replay the planned timeline here (a deterministic
+          <b>▶ Replay forecast</b> to replay the planned timeline here (a deterministic
           forecast of the plan, not live rover telemetry).
           <button type="button" class="site" data-go="plan" style="margin-top:6px;font-size:10px">→ Go to Plan</button></div>
       </div>
@@ -1452,10 +1457,11 @@
 <script src="/assets/plan_geom.js?v=bcf37ae566eb"></script><!-- FS-24: pure plan-canvas extent/transform/glyph/precedence math (sets window.STEWIE_PLAN_GEOM) -->
 <script src="/assets/footprint_geom.js?v=0a9f6fa9884c"></script><!-- GIS S-3: pure typed-footprint shape geometry (ring/area/draw; sets window.STEWIE_FOOTPRINT_GEOM) -->
 <script src="/assets/fleet_render.js?v=5ed7cab2cb71"></script><!-- FS-03: pure Fleet-pane roster/allocation HTML builders (sets window.STEWIE_FLEET_RENDER) -->
-<script src="/assets/rehearse_render.js?v=0945308d87e1"></script><!-- REHEARSE: pure candidate-card HTML builder, feasibility first (sets window.STEWIE_REHEARSE_RENDER) -->
+<script src="/assets/rehearse_render.js?v=fc34bf52eee3"></script><!-- REHEARSE: pure candidate-card HTML builder, feasibility first (sets window.STEWIE_REHEARSE_RENDER) -->
 <script src="/assets/construction_render.js?v=2df75b4d7837"></script><!-- FS-03: pure Construction-pane catalog/acceptance HTML builders (sets window.STEWIE_CONSTRUCTION_RENDER) -->
 <script src="/assets/models_render.js?v=bdc68a6cc22e"></script><!-- FS-03: pure Models-pane profile/registry/governance HTML builders (sets window.STEWIE_MODELS_RENDER) -->
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
+<script src="/assets/pipeline_gates.js?v=701c682e4fae"></script><!-- PIPELINE-GATES: pure per-stage readiness predicates for the mission spine (sets window.STEWIE_PIPELINE_GATES) -->
 <script src="/assets/contents_tree.js?v=b9996be65138"></script><!-- GIS S-2: pure Contents tree (orders-as-feature-layer + layer visibility/zoom/remove; sets window.STEWIE_CONTENTS_TREE) -->
 <script src="/assets/trainer_boards.js?v=1e6784c6f706"></script><!-- TR-02/03/04: pure Trainer-pane program/truth/debrief HTML builders (sets window.STEWIE_TRAINER_BOARDS) -->
 <script src="/assets/world_state_html.js?v=391ea4de0c4a"></script><!-- FS-24: pure Report-pane world-state + terrain-provenance HTML builders (sets window.STEWIE_WORLD_STATE_HTML) -->
@@ -1465,6 +1471,6 @@
 <script src="/assets/nav_stats_html.js?v=3dda1aea883a"></script><!-- FS-24: pure Navigation-pane drive/SLAM stat lines (sets window.STEWIE_NAV_STATS_HTML) -->
 <script src="/assets/cockpit_state.js?v=1ed5684da0be"></script><!-- FS-16: pure routeable cockpit state model (sets window.STEWIE_STATE) -->
 <script src="/assets/provenance_label.js?v=e6ec3e5b78b5"></script><!-- FS-03: pure epistemic provenance chips truth/belief/forecast/live (sets window.STEWIE_PROVENANCE) -->
-<script src="/assets/cockpit.js?v=5c02fc5293db"></script>
+<script src="/assets/cockpit.js?v=cd4126fe0d0e"></script>
 </body>
 </html>

@@ -83,6 +83,62 @@ test("rehearseCardsHTML: all-infeasible -> no recommendation, honest banner", ()
   assert.ok(html.includes("No feasible candidate"), "honest no-feasible banner");
 });
 
+test("rehearseCardsHTML: every FEASIBLE card carries an adopt button (data-algo), infeasible never", () => {
+  const html = R.rehearseCardsHTML(FEASIBLE, esc);
+  assert.ok(html.includes('data-algo="nearest"'), "nearest card is adoptable");
+  assert.ok(html.includes('data-algo="two_opt"'), "two_opt card is adoptable");
+  assert.ok(html.includes("Use this candidate"), "adopt affordance labelled");
+  const mixed = {
+    ok: true, objective: "duration", recommended: "a",
+    futures: [
+      { algorithm: "a", time_s: 5, energy_MJ: 1, feasible: true, infeasible_reasons: [],
+        return_to_lander: { feasible: true, margin_J: 1 }, objectives_total: 1, charges: 0,
+        recharges: 0, blocked_legs: 0, hazard_flags: 0, optimality: "heuristic", wall_s: 0.1 },
+      { algorithm: "bad", time_s: 5, energy_MJ: 1, feasible: false, infeasible_reasons: ["stranded"],
+        return_to_lander: { feasible: false, margin_J: -1 }, objectives_total: 1, charges: 0,
+        recharges: 0, blocked_legs: 0, hazard_flags: 0, optimality: "heuristic", wall_s: 0.1 },
+    ],
+  };
+  const h2 = R.rehearseCardsHTML(mixed, esc);
+  assert.ok(h2.includes('data-algo="a"'), "feasible candidate adoptable");
+  assert.ok(!h2.includes('data-algo="bad"'), "an INFEASIBLE candidate is never adoptable");
+});
+
+// RELEASE handoff: the pre-sign evidence card the director sees BEFORE signing (planning-workflow
+// audit: Release used to show only the order count). Built purely from state already in the page.
+const ORDERS_FIX = [
+  { kind: "cut", x: 12, y: 8, footprint_m2: 25 },
+  { kind: "fill", x: 30, y: 14, footprint_m2: 25 },
+];
+const TOTALS_FIX = { cut_kg: 96000, fill_kg: 80000, energy_J: 398.65e6, charges: 92, feasible: true };
+
+test("releaseEvidenceHTML: shows the queue, the solve totals, and the rehearse recommendation", () => {
+  const html = R.releaseEvidenceHTML(ORDERS_FIX, TOTALS_FIX, FEASIBLE, "nearest", esc);
+  assert.ok(html.includes("PRE-SIGN EVIDENCE"), "evidence header");
+  assert.ok(html.includes("cut") && html.includes("fill"), "order kinds listed");
+  assert.ok(html.includes("12") && html.includes("30"), "order coordinates listed");
+  assert.ok(html.includes("96.0 t"), "cut tonnage from the real totals");
+  assert.ok(html.includes("398.6 MJ"), "energy from the real totals (toFixed(1), same as the ctx summary)");
+  assert.ok(html.includes("feasible"), "feasibility verdict shown");
+  assert.ok(html.includes("nearest"), "rehearse recommendation + chosen algorithm surfaced");
+});
+
+test("releaseEvidenceHTML: honest gaps -- no orders / no solve / not rehearsed", () => {
+  assert.ok(R.releaseEvidenceHTML([], TOTALS_FIX, FEASIBLE, null, esc).includes("No build orders"));
+  const noSolve = R.releaseEvidenceHTML(ORDERS_FIX, null, null, null, esc);
+  assert.ok(/no solved plan/i.test(noSolve), "missing totals named, not faked");
+  assert.ok(/not rehearsed/i.test(noSolve), "missing rehearse named, not faked");
+  const infeas = R.releaseEvidenceHTML(ORDERS_FIX, { ...TOTALS_FIX, feasible: false }, null, null, esc);
+  assert.ok(infeas.includes("INFEASIBLE"), "an infeasible solve is shown in red caps, not hidden");
+});
+
+test("releaseEvidenceHTML: escapes order-derived text (no raw injection)", () => {
+  const html = R.releaseEvidenceHTML([{ kind: "<img src=x>", x: 1, y: 2 }], null, null, "<b>", esc);
+  assert.ok(!html.includes("<img src=x>"), "raw kind not injected");
+  assert.ok(html.includes("&lt;img src=x&gt;"), "kind escaped");
+  assert.ok(!html.includes("<b></b>"), "algo escaped");
+});
+
 test("rehearseCardsHTML: escapes candidate-derived text (no raw injection)", () => {
   const payload = {
     ok: true, objective: "duration", recommended: null,
