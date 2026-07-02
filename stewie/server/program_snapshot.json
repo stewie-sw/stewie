@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "e7ef8db757027aabbd3e96c129db271d332f5f44a31612722167e586edd6d8bd",
+  "citations_sha256": "0b34f4881724caeb61a57cd77c77dc11814a2cbbf01872da69ca7ef38e23b5f8",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "4db68d80a63c438fa77c386e2b497a22010836c6",
-  "prd_sha256": "3a631fde67608877f1fd60611c30b50e817282dee5d2971995eb0c665f04fb04",
+  "prd_commit": "c2c4d3ea3e42ef577a7a60099d599d856a5308e7",
+  "prd_sha256": "a624fe5e67676954d149d55a0d90957d6f52caabb365bb00e2baf966e06081bb",
   "specs_sha256": "22b771e49436b8887f2903e373aeeb6c55c9247c17d10cdcc220e7a3673b0c8f"
  },
  "rows": [
@@ -505,17 +505,17 @@
    "text": "**Production identity is strict -- no built-in trust (review P1-3).** `auth.py` hardcodes a `DEFAULT_ALLOWLIST`, falls back to it for unknown emails, makes all allowlisted users directors when `STEWIE_DIRECTORS` is unset, and keeps a raw-key bootstrap that can claim any allowlisted email. Fix: in `STEWIE_TLS_TERMINATED=1` production, REQUIRE explicit `STEWIE_ALLOWED_OPERATORS` + `STEWIE_DIRECTORS` (or a one-time bootstrap director record) and disable the default-allowlist/raw-key-bootstrap trust; keep defaults only for local/dev/desktop; `/healthz`+`/config` report a DEGRADED state when running on built-in defaults. Acceptance: TLS-terminated with no explicit allowlist/directors fails closed (login/bootstrap 403 or startup errors actionably). Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "live-namespace artifact deletion is director-only (missions/structures/objects); self-delete only for sandbox; delete audit names the namespace.",
     "kind": "atomic",
     "test_target": "stewie/server/test_live_delete_policy.py citing [REQ:BP-05]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BP-05",
    "lane": "BP",
    "pri": "P1",
@@ -3289,9 +3289,9 @@
  "summary": {
   "briefs": 101,
   "buckets": {
-   "buildable": 73,
+   "buildable": 72,
    "concurrent": 0,
-   "done": 131,
+   "done": 132,
    "gated": 25
   },
   "by_lane": {
@@ -3308,7 +3308,7 @@
     "total": 18
    },
    "BP": {
-    "done": 0,
+    "done": 1,
     "total": 13
    },
    "CP": {
@@ -3406,7 +3406,7 @@
     "total": 71
    },
    "P1": {
-    "done": 82,
+    "done": 83,
     "total": 140
    },
    "P2": {
@@ -3418,10 +3418,10 @@
     "total": 1
    }
   },
-  "cited": 176,
-  "done_pct": 57.2,
+  "cited": 177,
+  "done_pct": 57.6,
   "in_scope": 204,
-  "in_scope_done_pct": 64.2,
+  "in_scope_done_pct": 64.7,
   "total": 229
  },
  "workflow_spine": [
