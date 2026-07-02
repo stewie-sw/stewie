@@ -34,3 +34,14 @@ test("fromHash ignores junk and keeps defaults", () => {
   assert.strictEqual(s.workArea, "report");
   assert.strictEqual(s.body, "moon");        // default preserved
 });
+
+test("PO-10: the state model enumerates the four provenance classes, distinctly", () => {
+  assert.strictEqual(S.PROVENANCE.length, 4, "not a four-way provenance distinction");
+  const kinds = S.provenanceKinds();
+  const labels = S.PROVENANCE.map((p) => p.label);
+  assert.deepStrictEqual([...new Set(kinds)].sort(), ["belief", "forecast", "live", "truth"]);
+  assert.strictEqual(new Set(labels).size, 4, "provenance human labels are not distinct");
+  // forecast / sim-truth / estimator-belief / live-telemetry are all named
+  ["forecast", "sim-truth", "estimator-belief", "live-telemetry"].forEach((l) =>
+    assert.ok(labels.includes(l), l));
+});

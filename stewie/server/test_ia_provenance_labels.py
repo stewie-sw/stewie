@@ -176,3 +176,61 @@ def test_mobile_breakpoint_applies_at_phone_widths(monkeypatch, tmp_path):
     epis_rules = re.findall(r"\.epis[^{]*\{[^}]*\}", block)
     assert epis_rules and all("display: none" not in r for r in epis_rules), \
         "the epistemic chips must stay visible at phone widths"
+
+
+_STATE_MODULE = os.path.join(_HERE, "web", "assets", "cockpit_state.js")
+
+#: the four PO-10 provenance classes -> (the renderer's data-epistemic key, the human label the state
+#: model enumerates). forecast / sim-truth / estimator-belief / live-telemetry.
+_FOUR_WAY = {
+    "forecast": ("forecast", "forecast"),
+    "sim_truth": ("truth", "sim-truth"),
+    "estimator_belief": ("belief", "estimator-belief"),
+    "live_telemetry": ("live", "live-telemetry"),
+}
+
+
+def test_four_way_provenance_renders_distinctly_and_state_enumerates_them():  # [REQ:PO-10]
+    """PO-10: the cockpit keeps FOUR provenance classes visually distinct -- forecast, sim-truth,
+    estimator-belief, live-telemetry -- and the state model enumerates them (the pre-PO-10 state model
+    only carried a 3-value run-source enum). Two halves, both real:
+      1. the renderer (provenance_label.js) gives each of the four an DISTINCT label AND distinct style;
+      2. the state model (cockpit_state.js) enumerates the four classes, aligned to the renderer's keys.
+    """
+    mod = _read(_MODULE)
+    state = _read(_STATE_MODULE)
+
+    # 1) renderer: four kinds, each with a UNIQUE text label and a UNIQUE colour (never colour alone --
+    #    the text is what the four-way distinction reads by, WCAG 1.4.1; the colour is the second channel).
+    texts, colors = {}, {}
+    for _cls, (kind, _label) in _FOUR_WAY.items():
+        block = re.search(kind + r":\s*\{([^}]*)\}", mod)
+        assert block, f"provenance_label.js has no KINDS entry for {kind!r}"
+        body = block.group(1)
+        t = re.search(r'text:\s*"([^"]+)"', body)
+        c = re.search(r'color:\s*"([^"]+)"', body)
+        assert t and c, f"{kind!r} lacks a text/colour style"
+        texts[kind], colors[kind] = t.group(1), c.group(1)
+    assert len(set(texts.values())) == 4, f"the four provenance labels are not distinct: {texts}"
+    assert len(set(colors.values())) == 4, f"the four provenance styles are not distinct: {colors}"
+
+    # 2) state model: a PROVENANCE enumeration of the four classes, keyed to the SAME renderer vocabulary
+    #    (so the state model and the renderer cannot drift), each with its PO-10 human label.
+    m = re.search(r"var PROVENANCE = \[(.*?)\];", state, re.S)
+    assert m, "cockpit_state.js does not enumerate a four-way PROVENANCE model"
+    prov = m.group(1)
+    for _cls, (kind, label) in _FOUR_WAY.items():
+        assert f'kind: "{kind}"' in prov, f"state PROVENANCE missing kind {kind!r}"
+        assert f'label: "{label}"' in prov, f"state PROVENANCE missing the PO-10 label {label!r}"
+    # the renderer's own vocabulary is exactly these four kinds (alignment lock)
+    assert set(re.findall(r"\b(truth|belief|forecast|live):\s*\{", mod)) == \
+        {kind for kind, _l in _FOUR_WAY.values()}, "renderer kinds drifted from the four-way set"
+
+
+def test_four_way_provenance_state_module_loads_before_cockpit(monkeypatch, tmp_path):  # [REQ:PO-10]
+    # the state model that enumerates the provenance classes is actually served + ordered before the shell.
+    html = _served_html(monkeypatch, tmp_path)
+    i_state = html.find("/assets/cockpit_state.js")
+    i_cockpit = html.find("/assets/cockpit.js")
+    assert i_state != -1 and i_state < i_cockpit, \
+        "cockpit_state.js (the provenance-enumerating state model) must load before cockpit.js"

@@ -8,8 +8,21 @@
   var WORK_AREAS = ["plan", "rehearse", "nav", "navigation", "perception", "release", "metrics",
                     "fleet", "construction", "models", "system", "report", "admin", "settings",
                     "trainer", "validation", "api", "server", "config", "evidence"];
-  var SOURCES = ["live", "sim", "eval"];      // PO-10: which truth source the panes label
+  var SOURCES = ["live", "sim", "eval"];      // which run source drives a pane (mode axis)
   var MODES = ["sandbox", "live"];            // AG-07 namespace
+
+  // PO-10: the FOUR-way epistemic PROVENANCE the cockpit must keep visually distinct -- forecast
+  // (a simulated prediction), sim-truth (the conserved-authority source of record), estimator-belief
+  // (what the estimator believes), and live-telemetry (a flowing feed). `kind` is the SAME vocabulary
+  // provenance_label.js renders (its data-epistemic key), so the state model and the renderer cannot
+  // drift; `label` is the PO-10 human name. This enumerates the classes (renderer applies the styles).
+  var PROVENANCE = [
+    { kind: "forecast", label: "forecast" },
+    { kind: "truth", label: "sim-truth" },
+    { kind: "belief", label: "estimator-belief" },
+    { kind: "live", label: "live-telemetry" },
+  ];
+  function provenanceKinds() { return PROVENANCE.map(function (p) { return p.kind; }); }
 
   function defaultState() {
     return { mission: null, site: "haworth", vehicle: null, body: "moon", timeS: 0,
@@ -50,7 +63,8 @@
     return state;
   }
 
-  var API = { WORK_AREAS: WORK_AREAS, SOURCES: SOURCES, MODES: MODES,
+  var API = { WORK_AREAS: WORK_AREAS, SOURCES: SOURCES, MODES: MODES, PROVENANCE: PROVENANCE,
+              provenanceKinds: provenanceKinds,
               defaultState: defaultState, setState: setState, toHash: toHash, fromHash: fromHash };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (root) root.STEWIE_STATE = API;
