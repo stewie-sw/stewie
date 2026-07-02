@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "18dd2bced54a0194770c90dd7f9d813f1b340435502b66787d5395bbd270b089",
+  "citations_sha256": "70a2bf5431eebea7bc5f38b5133440bb8b8368336ac40435f342d12f290b49f8",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "0d2f6c810835027edb50cffab2ea614f310d8777",
-  "prd_sha256": "fcfb92e62defff96bbb5bb9fbe603d96eec6d14ef66859132f9766a80379b88f",
+  "prd_commit": "394b826db5e0ac1086dfbb22aa8594f788484669",
+  "prd_sha256": "24c29260a76fbcca609b1367aae80a431b5d201e0b474215fafa9d9e756b3fab",
   "specs_sha256": "ff5682251563df1a36d21ff851c38f127bda0e40419c8f356af5e33ac4a11e62"
  },
  "rows": [
@@ -1039,15 +1039,15 @@
   {
    "I": "P",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "P",
    "brief": {
     "goal": "enforce that every new capability ships typed API + schema fixture + cockpit binding + loading/error/empty states + a desktop AND mobile browser regression; cite it.",
     "kind": "epic",
     "test_target": "extend stewie/server/test_ux_clusterb.py with `[REQ:FS-08]`, OR NEW stewie/server/test_fs08_wiring.py"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FS-08",
    "lane": "FS",
    "pri": "P0",
@@ -1544,16 +1544,16 @@
    "text": "Mission Planner LLM: a small language model may convert operator intent into candidate task graphs, but plans must compile to typed goals, pass deterministic validation, and be approved by the mission executive before simulation or command lowering."
   },
   {
-   "I": "N",
+   "I": "P",
    "Q": "N",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "P",
    "brief": {
     "goal": "establish the science/operator assistant as a read-only summarizer with the enforceable invariant of no command path.",
     "kind": "optional",
     "test_target": "extend stewie/contracts/test_contracts.py::test_model_artifact_cannot_be_on_command_path with `[REQ:ML-08]`"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "ML-08",
    "lane": "ML",
@@ -2227,8 +2227,8 @@
   {
    "I": "P",
    "Q": "N",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "P",
    "brief": {
     "goal": "The typed evidence contract is implemented (I=D) and integrated into the estimator (X=D). Verification is partial (V=P) because:",
     "kind": "epic / gated",
@@ -2788,9 +2788,9 @@
  "summary": {
   "briefs": 73,
   "buckets": {
-   "buildable": 54,
+   "buildable": 52,
    "concurrent": 0,
-   "done": 121,
+   "done": 123,
    "gated": 24
   },
   "by_lane": {
@@ -2827,7 +2827,7 @@
     "total": 7
    },
    "FS": {
-    "done": 13,
+    "done": 14,
     "total": 28
    },
    "GI": {
@@ -2835,7 +2835,7 @@
     "total": 3
    },
    "ML": {
-    "done": 5,
+    "done": 6,
     "total": 9
    },
    "MO": {
@@ -2889,11 +2889,11 @@
   },
   "by_priority": {
    "P0": {
-    "done": 42,
+    "done": 43,
     "total": 66
    },
    "P1": {
-    "done": 79,
+    "done": 80,
     "total": 123
    },
    "P2": {
@@ -2901,10 +2901,10 @@
     "total": 10
    }
   },
-  "cited": 162,
-  "done_pct": 60.8,
+  "cited": 163,
+  "done_pct": 61.8,
   "in_scope": 175,
-  "in_scope_done_pct": 69.1,
+  "in_scope_done_pct": 70.3,
   "total": 199
  },
  "workflow_spine": [
