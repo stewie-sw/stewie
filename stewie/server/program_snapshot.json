@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "062b5104a0a15aca6c577d3df21f6a673d60297fa863ecaef37df1a259b0f09e",
+  "citations_sha256": "f09eba0743aac3313cb781afdd1e512b93ca2b1d2a6a41d2c6b7a61cc1afeaac",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "eb2fa8daa0290c2400b5f9b43b0d68ba80e20777",
-  "prd_sha256": "dd297a05ab72b1303713320515f49002aa2b87d7d100b31db02277330dd107bb",
+  "prd_commit": "960c09379ad4bd56187e8e3e6fbe41194f9640df",
+  "prd_sha256": "69ad80baa86788cd3f60ac7c9bb44157ccf97de5083a42b1ef725f777317ae0a",
   "specs_sha256": "4b2c5de33da676744a6a597546e55f8243ee263773643bdad9dafec1a8d63bfb"
  },
  "rows": [
@@ -851,17 +851,17 @@
    "text": "Validate two-rover plans against an exact small-problem oracle before learned/heuristic superiority claims. `plan_multi_oracle` brute-forces the true site-exclusive optimum (every group->vehicle assignment x every per-vehicle order, jointly, same simulator + charger queue) up to MV_ORACLE_MAX_TRIPS; oracle <= heuristic by construction. Verified: heuristic within 0.15% of optimum on the 3-site instance."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "N",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "make Solar/Meerkat raised observation sites reservable fleet resources with an occlusion/collision exclusion.",
     "kind": "optional",
     "test_target": "NEW lode/test_fleet_resources.py::test_fl07_raised_observation_reserves_vantage_no_occlusion (`[REQ:FL-07]`)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FL-07",
    "lane": "FL",
    "pri": "P1",
@@ -1333,14 +1333,14 @@
   {
    "I": "P",
    "Q": "N",
-   "V": "N",
+   "V": "D",
    "X": "N",
    "brief": {
     "goal": "acceptance-GATE the Class-A (>7 cm) rock hazard classification against held-out truth with a pass/fail threshold; move the marker off the tautological binning test to the real held-out eval.",
     "kind": "atomic",
     "test_target": "dart/test_rock_detect.py::test_score_precision_recall_consistency (extend with a >7cm threshold gate + `[REQ:ML-03]`), OR NEW test_class_a_hazard_acceptance_gate"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "ML-03",
    "lane": "ML",
@@ -1365,51 +1365,51 @@
    "text": "Shadow-SLAM / Navigation Model: image pair or sequence plus sun geometry and articulation pose propose pose/landmark factors with covariance; the factor graph accepts them only through residual/observability gates."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
    "V": "P",
-   "X": "N",
+   "X": "D",
    "brief": {
     "goal": "build a unified ExcavationState estimator fusing drum torque/current + slip + IMU + arm/drum + drive current \u2192 {digging_state, fill_fraction, slip, stall_risk, confidence}, advisory until calibrated.",
     "kind": "epic",
     "test_target": "NEW stewie/physics/test_excavation_state.py"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "ML-05",
    "lane": "ML",
    "pri": "P1",
    "text": "Excavation State Model: drum torque/current, wheel slip, IMU, arm/drum state, and drive current estimate digging state, fill fraction, slip, stall risk, and confidence; advisory until calibrated against IPEx/AutoDig-style data."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
    "V": "P",
-   "X": "N",
+   "X": "D",
    "brief": {
     "goal": "build a regolith-volume estimator (moved volume/mass WITH UNCERTAINTY from observed before/after DEM/stereo), cross-checked vs conserved-authority mass + drum-fill.",
     "kind": "epic",
     "test_target": "NEW lode/test_regolith_volume.py"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "ML-06",
    "lane": "ML",
    "pri": "P1",
    "text": "Regolith Volume Estimator: before/after DEM or stereo heightfields estimate moved volume/mass with uncertainty, cross-checked against conserved authority mass and drum-fill sensing."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "N",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "enforce the mission-planner-LLM guardrail \u2014 any candidate task graph MUST compile to typed goals, pass deterministic validation, and be executive-approved before sim/lowering; the LLM itself is optional.",
     "kind": "optional",
     "test_target": "extend lode/test_mission_intent_compiler.py with `[REQ:ML-07]`, OR NEW stewie/contracts/test_ml07_planner_guardrail.py"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "ML-07",
    "lane": "ML",
    "pri": "P1",
@@ -1426,7 +1426,7 @@
     "test_target": "extend stewie/contracts/test_contracts.py::test_model_artifact_cannot_be_on_command_path with `[REQ:ML-08]`"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "ML-08",
    "lane": "ML",
    "pri": "P1",
@@ -1641,9 +1641,9 @@
    "text": "Support the documented IPEx/LAC camera set and a maximum active-camera budget; camera activation/resolution has compute and energy cost."
   },
   {
-   "I": "N",
+   "I": "P",
    "Q": "N",
-   "V": "N",
+   "V": "P",
    "X": "N",
    "brief": {
     "goal": "add an eval-mode segmenter labeling \u2265 ground/rock/lander/fiducial/sky from grayscale without a truth mask.",
@@ -1651,24 +1651,24 @@
     "test_target": "NEW dart/test_eval_segmentation.py"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "PM-03",
    "lane": "PM",
    "pri": "P1",
    "text": "Segment at least ground, rock, lander, fiducial, and sky from grayscale images without truth masks in evaluation mode."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "N",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "P",
    "brief": {
     "goal": "cite + close the illumination-robust feature detect/match row (already exposes confidence/inlier stats).",
     "kind": "atomic",
     "test_target": "dart/test_features.py::test_math_check_at_least_one_method_exceeds_inlier_floor (add `[REQ:PM-04]`)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PM-04",
    "lane": "PM",
    "pri": "P1",
@@ -1750,7 +1750,7 @@
     "test_target": "NEW scripts/ros2_bridge/test_lac_suite.py (or benchmarks/lac_suite/)"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "PM-10",
    "lane": "PM",
    "pri": "P1",
@@ -2046,17 +2046,17 @@
    "text": "Provide deployment documentation and a supported server image; optional Godot/ROS capabilities are explicit profiles."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "enforce (+ mark) the deployed-RL-policy gate (no RL operational without versioned artifact + lineage + card + safety shield + deterministic fallback + OOD report).",
     "kind": "gated",
     "test_target": "stewie/server/test_models_pane.py::test_models_endpoint_serves_the_real_registries (add `[REQ:RL-01]`)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "RL-01",
    "lane": "RL",
    "pri": "P1",
@@ -2242,9 +2242,9 @@
    "text": "Permit a Meerkat observation action for multi-height parallax and shadow/rock disambiguation when stability guards pass. `[PROPOSED]`"
   },
   {
-   "I": "N",
+   "I": "P",
    "Q": "N",
-   "V": "N",
+   "V": "P",
    "X": "N",
    "brief": {
     "goal": "turn the single-trajectory solar-vs-VO/SLAM head-to-head into a real ablation SWEEP across sun angles \u00d7 terrains \u00d7 terrain-change states \u00d7 seeds.",
@@ -2259,34 +2259,34 @@
    "text": "Solar-navigation claims require ablations against VO/SLAM without solar factors across multiple sun angles, terrains, terrain-change states, and seeds."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "N",
-   "V": "N",
+   "V": "D",
    "X": "N",
    "brief": {
     "goal": "add the preregistered acceptance gate for solar-nav claims (improve median yaw/pose error or track survival by a preregistered margin WITHOUT increasing tip events; report energy/time overhead).",
     "kind": "optional",
     "test_target": "NEW dart/test_ablation.py::test_sn13_preregistered_margin_gate (`[REQ:SN-13]`)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "SN-13",
    "lane": "SN",
    "pri": "P1",
    "text": "Acceptance target `[PROPOSED]`: improve median yaw/pose error or feature-track survival by a preregistered margin without increasing tip events; report energy/time overhead."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
+   "V": "D",
    "X": "N",
    "brief": {
     "goal": "build the active-perception objective ranking candidate observation actions by expected info per joule and per second, with stability margin as a HARD constraint.",
     "kind": "atomic",
     "test_target": "NEW dart/test_posture_select.py::test_sn14_info_per_joule_per_second_with_stability_hard_constraint (`[REQ:SN-14]`)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "SN-14",
    "lane": "SN",
    "pri": "P1",
@@ -2546,17 +2546,17 @@
    "text": "Nominal excavation requires balanced front/rear counter-rotation; asymmetric digging exposes reaction, traction, yaw, and pitch risk."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "P",
-   "V": "N",
+   "V": "D",
    "X": "N",
    "brief": {
     "goal": "model drum fill-RATE so effective collection saturates beyond ~half scoop depth (bridging plateau), per the sourced RASSOR behavior.",
     "kind": "atomic (soft)",
     "test_target": "NEW stewie/physics/test_drum_sensing.py::test_vt08_fill_rate_bridging_plateau (`[REQ:VT-08]`)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "VT-08",
    "lane": "VT",
    "pri": "P1",
@@ -2592,9 +2592,9 @@
  "summary": {
   "briefs": 62,
   "buckets": {
-   "buildable": 55,
+   "buildable": 47,
    "concurrent": 21,
-   "done": 97,
+   "done": 105,
    "gated": 15
   },
   "by_lane": {
@@ -2627,7 +2627,7 @@
     "total": 8
    },
    "FL": {
-    "done": 4,
+    "done": 5,
     "total": 7
    },
    "FS": {
@@ -2639,7 +2639,7 @@
     "total": 3
    },
    "ML": {
-    "done": 1,
+    "done": 3,
     "total": 9
    },
    "MO": {
@@ -2651,7 +2651,7 @@
     "total": 12
    },
    "PM": {
-    "done": 5,
+    "done": 6,
     "total": 16
    },
    "PO": {
@@ -2659,7 +2659,7 @@
     "total": 14
    },
    "RL": {
-    "done": 0,
+    "done": 1,
     "total": 1
    },
    "SE": {
@@ -2675,7 +2675,7 @@
     "total": 1
    },
    "SN": {
-    "done": 10,
+    "done": 12,
     "total": 15
    },
    "TM": {
@@ -2687,7 +2687,7 @@
     "total": 10
    },
    "VT": {
-    "done": 3,
+    "done": 4,
     "total": 10
    }
   },
@@ -2697,7 +2697,7 @@
     "total": 61
    },
    "P1": {
-    "done": 57,
+    "done": 65,
     "total": 117
    },
    "P2": {
@@ -2705,10 +2705,10 @@
     "total": 10
    }
   },
-  "cited": 134,
-  "done_pct": 51.6,
+  "cited": 146,
+  "done_pct": 55.9,
   "in_scope": 173,
-  "in_scope_done_pct": 56.1,
+  "in_scope_done_pct": 60.7,
   "total": 188
  },
  "workflow_spine": [
