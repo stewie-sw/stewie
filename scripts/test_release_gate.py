@@ -47,7 +47,14 @@ def test_tier_classification_is_complete_and_honest():
     eligible = set(rep["summary"]["eligible_for_v_done"])
     for r in eligible:
         assert rep["rows"][r]["I"] == "D", f"{r} eligible for V=D but I != D"
-    assert eligible == {"AS-02", "AS-03", "AS-05", "AS-06", "AS-17"}
+    # invariant, not a snapshot (robust to glyph flips): a row is eligible for V=D iff it is cited,
+    # I=D, and either host-verified or a container row with recorded container evidence.
+    for r in AS_ROWS:
+        row = rep["rows"][r]
+        should = row["cited"] and row["I"] == "D" and (TIER[r] == "host" or r in CONTAINER_EVIDENCE_VERIFIED)
+        assert (r in eligible) == should, (
+            f"{r} eligibility wrong: in_eligible={r in eligible} but rule says {should} "
+            f"(cited={row['cited']} I={row['I']} tier={TIER[r]} evidence={r in CONTAINER_EVIDENCE_VERIFIED})")
 
 
 def test_container_rows_are_not_auto_eligible_for_v_done():

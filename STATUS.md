@@ -3,24 +3,22 @@
 Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/release_gate.py`) by `scripts/gen_status.py`. Do NOT hand-edit -- `gen_status.py --check` fails CI if this file drifts from the tools.
 
 - requirements (PRD §7 rows): **188**
-- cited by >=1 test ([REQ:] marker): **161**
-- V!=D flagged (FS-22 audit: cited but not yet V=D): **43**
+- cited by >=1 test ([REQ:] marker): **162**
+- V!=D flagged (FS-22 audit: cited but not yet V=D): **41**
 
 ## V!=D flagged rows (cited, awaiting promotion)
 
 | ID | current V |
 |----|-----------|
 | AM-02 | P |
-| AS-01 | N |
+| AS-01 | P |
 | AS-04 | P |
 | AS-07 | P |
-| AS-08 | P |
 | AS-09 | P |
 | AS-10 | P |
 | AS-11 | P |
 | AS-12 | P |
 | AS-13 | P |
-| AS-14 | N |
 | AS-15 | P |
 | CP-07 | P |
 | FL-05 | P |
@@ -72,7 +70,7 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | MO | 1 | 1 |
 | NV | 12 | 12 |
 | PM | 11 | 16 |
-| PO | 13 | 14 |
+| PO | 14 | 14 |
 | RL | 1 | 1 |
 | SE | 1 | 1 |
 | SF | 1 | 1 |
@@ -86,5 +84,5 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 
 - in matrix: 16/16
 - cited: 16/16
-- currently V=D: ['AS-02', 'AS-03', 'AS-05', 'AS-06', 'AS-17']
-- eligible for V=D: ['AS-02', 'AS-03', 'AS-05', 'AS-06', 'AS-17']
+- currently V=D: ['AS-02', 'AS-03', 'AS-05', 'AS-06', 'AS-08', 'AS-14', 'AS-17']
+- eligible for V=D: ['AS-02', 'AS-03', 'AS-05', 'AS-06', 'AS-07', 'AS-08', 'AS-11', 'AS-14', 'AS-17']

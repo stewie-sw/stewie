@@ -14,13 +14,13 @@ from fastapi.responses import JSONResponse
 router = APIRouter()
 
 
-@router.get("/solar")
+@router.get("/solar", response_model=None)   # returns dict on success or a JSONResponse 400 on a bad posture
 def solar(mission_t_s: float = Query(0.0),
           lat_deg: float = Query(-87.45, ge=-90.0, le=90.0),
           lon_deg: float = Query(0.0, ge=-360.0, le=360.0),
           posture: str = Query("TRANSIT", max_length=64),
           leds_on: bool = Query(False),
-          site: str | None = Query(None, max_length=64)) -> dict:
+          site: str | None = Query(None, max_length=64)) -> dict | JSONResponse:
     """PO-12: resolve the integrated Solar view for (mission_t_s, site, posture, LED state) and return
     the one authority payload -- sun vector, illumination/shadow layers, active cameras/LEDs, arm
     posture, and the SN-02 accepted/rejected shadow evidence. An unknown posture is a clean 400 (the

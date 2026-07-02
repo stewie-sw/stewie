@@ -36,10 +36,12 @@ _SUN_LAYER_KEYS = ("illumination", "incidence", "psr")
 def _sun_layers() -> list[dict]:
     """The real sun-group raster layers (illumination / incidence / psr), read from RASTER_DEFS so the
     Solar view and the map layer picker cannot drift. Each carries its route so the pane can request it."""
+    from typing import cast
+
     from stewie.server.gis_layers import RASTER_DEFS
 
     out = []
-    for d in RASTER_DEFS:
+    for d in cast("list[dict[str, object]]", RASTER_DEFS):
         if d.get("group") == "sun" and d["key"] in _SUN_LAYER_KEYS:
             out.append({"key": d["key"], "name": d["name"],
                         "raster_route": f"/layers/raster/{d['key']}.png"})

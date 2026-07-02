@@ -13,6 +13,8 @@
       "AS-03",
       "AS-05",
       "AS-06",
+      "AS-08",
+      "AS-14",
       "AS-17"
     ],
     "eligible_for_v_done": [
@@ -20,6 +22,10 @@
       "AS-03",
       "AS-05",
       "AS-06",
+      "AS-07",
+      "AS-08",
+      "AS-11",
+      "AS-14",
       "AS-17"
     ],
     "host_verified": [
@@ -68,10 +74,10 @@
     ]
   },
   "req_trace": {
-    "cited": 161,
+    "cited": 162,
     "reconciles": true,
     "total": 188,
-    "understated_count": 43,
+    "understated_count": 41,
     "unknown_markers": [],
     "v_done_uncited": []
   },
