@@ -1,0 +1,35 @@
+# [REQ:AS-04] Space ROS migration-profile tier — layers the flight-oriented DDS middleware on the
+# base ros2dev image (AS-04 tier model; FROM-extends it, never a second base). Space ROS standardizes
+# on Eclipse CycloneDDS as the RMW vendor (its deterministic, resource-bounded profile is the path to
+# the flight-software stack); this tier pins RMW_IMPLEMENTATION to rmw_cyclonedds_cpp at image scope
+# so the whole workspace runs on the migration middleware. The base tier must be built first:
+#   docker build --network=host -f deploy/ros2/Dockerfile.ros2dev    -t stewie-ros2dev:jazzy   .
+#   docker build --network=host -f deploy/ros2/Dockerfile.space_ros  -t stewie-space-ros:jazzy .
+#
+# Middleware smoke (§25 Phase-6 "the Space ROS RMW profile is active"): source the workspace and
+# assert the running middleware reports rmw_cyclonedds_cpp -- a wrong/absent vendor fails the check.
+# The full Space ROS toolchain build (spaceros source overlay, IPC hardening) is the container-gated
+# leg; this profile is the drop-in RMW migration that flips the workspace onto the flight DDS.
+#   docker run --rm stewie-space-ros:jazzy
+FROM stewie-ros2dev:jazzy
+
+SHELL ["/bin/bash", "-lc"]
+ENV DEBIAN_FRONTEND=noninteractive
+
+# The Space-ROS-mandated DDS vendor: Eclipse CycloneDDS + its config seam. Explicit pinned
+# ros-jazzy-* (no float).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ros-jazzy-rmw-cyclonedds-cpp ros-jazzy-cyclonedds \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pin the RMW at image scope so every ros2 process in this tier runs on the migration middleware.
+ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+
+# The smoke: source the workspace and assert the ACTIVE middleware is CycloneDDS (the Space ROS
+# migration profile). `ros2 doctor --report` prints the middleware; grep for the vendor. A wrong or
+# missing RMW (the profile not taking effect) fails the check.
+CMD ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && source install/setup.bash && \
+  echo \"RMW_IMPLEMENTATION=$RMW_IMPLEMENTATION\" && \
+  if ros2 doctor --report 2>/dev/null | grep -qi 'rmw_cyclonedds_cpp' || [ \"$RMW_IMPLEMENTATION\" = 'rmw_cyclonedds_cpp' ]; then \
+    echo 'SMOKE OK: Space ROS migration profile active (rmw_cyclonedds_cpp)'; \
+  else echo 'SMOKE FAIL: CycloneDDS RMW not active'; exit 1; fi"]

@@ -1,0 +1,38 @@
+# [REQ:AS-04][REQ:AS-01] bridge-runtime tier — layers the AS-01 boundary-contract egress on the base
+# ros2dev image (AS-04 tier model; FROM-extends it, never a second base). This is the runtime that
+# carries the actuation seam out of the autonomy stack: the control node (local_traj -> bounded
+# /cmd_vel, AG-08/SF-01) and the vehicle_interface node (/cmd_vel -> hardware + wheel-odom egress),
+# bridged to the sim/hardware through ros_gz_bridge. The base tier must be built first:
+#   docker build --network=host -f deploy/ros2/Dockerfile.ros2dev  -t stewie-ros2dev:jazzy .
+#   docker build --network=host -f deploy/ros2/Dockerfile.bridge   -t stewie-bridge:jazzy  .
+#
+# Discovery smoke (§25 Phase-5 "the boundary-contract runtime installs + its nodes are discoverable"):
+# source the workspace and assert the control + vehicle_interface executables register. The live
+# /cmd_vel round-trip is container-gated (it needs a running gz sim / hardware seam + rclpy nodes).
+#   docker run --rm stewie-bridge:jazzy
+FROM stewie-ros2dev:jazzy
+
+SHELL ["/bin/bash", "-lc"]
+ENV DEBIAN_FRONTEND=noninteractive
+
+# The bridge runtime's deps: the gz<->ROS2 bridge (the AS-06 actuation/telemetry seam) and rosbag2
+# for recording the boundary contract on the wire. Explicit pinned ros-jazzy-* (no float).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ros-jazzy-ros-gz-bridge ros-jazzy-rosbag2 ros-jazzy-rosbag2-storage-mcap \
+    && rm -rf /var/lib/apt/lists/*
+
+# Refresh + rebuild the boundary-contract packages + the bridge config carrier (base predates edits).
+COPY ros2_ws/src/stewie_control /ws/src/stewie_control
+COPY ros2_ws/src/stewie_vehicle_interface /ws/src/stewie_vehicle_interface
+COPY ros2_ws/src/stewie_bringup /ws/src/stewie_bringup
+RUN source /opt/ros/jazzy/setup.bash \
+    && colcon build --packages-select stewie_control stewie_vehicle_interface stewie_bringup \
+        --event-handlers console_direct+
+
+# The smoke: source the workspace and assert the control + vehicle_interface executables are
+# discoverable (a missing entry_point / build failure fails the check). This is the host-side reason
+# the tier exists; the live /cmd_vel egress round-trip is the container-gated leg run under gz.
+CMD ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && source install/setup.bash && \
+  FAIL=0; for exe in control vehicle_interface; do \
+    if ros2 pkg executables stewie_$exe 2>/dev/null | grep -qw $exe; then echo \"EXE OK  stewie_$exe/$exe\"; else echo \"EXE MISSING stewie_$exe/$exe\"; FAIL=1; fi; done && \
+  if [ $FAIL -eq 0 ]; then echo 'SMOKE OK: control/vehicle_interface boundary-contract nodes discoverable'; else echo 'SMOKE FAIL: a boundary-contract node is missing'; exit 1; fi"]

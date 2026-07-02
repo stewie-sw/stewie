@@ -1,0 +1,38 @@
+# [REQ:AS-04][REQ:AS-07] perception/SLAM tier — layers the stereo->points perception node, the
+# odom/imu/points localization node, and the observed-DEM mapping node (the SLAM stack, AS-07/08/10)
+# on the base ros2dev image (AS-04 tier model; FROM-extends it, never a second base). The base tier
+# must be built first:
+#   docker build --network=host -f deploy/ros2/Dockerfile.ros2dev          -t stewie-ros2dev:jazzy         .
+#   docker build --network=host -f deploy/ros2/Dockerfile.perception_slam  -t stewie-perception-slam:jazzy .
+#
+# Discovery smoke (§25 Phase-2 "the SLAM-stack packages are installed + their nodes are discoverable"):
+# source the workspace and assert the perception/localization/mapping executables register. The live
+# stereo->pose->map run itself is container-gated (it needs a running Gazebo/bag feed + rclpy nodes).
+#   docker run --rm stewie-perception-slam:jazzy
+FROM stewie-ros2dev:jazzy
+
+SHELL ["/bin/bash", "-lc"]
+ENV DEBIAN_FRONTEND=noninteractive
+
+# The SLAM stack's runtime deps: the image<->cv seam for stereo perception, image transport, and the
+# TF2 stack the localization/mapping frames publish against. Explicit pinned ros-jazzy-* (no float).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ros-jazzy-cv-bridge ros-jazzy-image-transport ros-jazzy-vision-opencv \
+        ros-jazzy-tf2-ros ros-jazzy-tf2-geometry-msgs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Refresh + rebuild just the SLAM-stack packages (the base image predates node edits).
+COPY ros2_ws/src/stewie_perception /ws/src/stewie_perception
+COPY ros2_ws/src/stewie_localization /ws/src/stewie_localization
+COPY ros2_ws/src/stewie_mapping /ws/src/stewie_mapping
+RUN source /opt/ros/jazzy/setup.bash \
+    && colcon build --packages-select stewie_perception stewie_localization stewie_mapping \
+        --event-handlers console_direct+
+
+# The smoke: source the workspace and assert every SLAM-stack executable is discoverable (a missing
+# entry_point / build failure fails the check). This is the host-side reason the tier exists; the
+# live stereo->pose->map fusion is the container-gated leg run under Gazebo.
+CMD ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && source install/setup.bash && \
+  FAIL=0; for exe in perception localization mapping; do \
+    if ros2 pkg executables stewie_$exe 2>/dev/null | grep -qw $exe; then echo \"EXE OK  stewie_$exe/$exe\"; else echo \"EXE MISSING stewie_$exe/$exe\"; FAIL=1; fi; done && \
+  if [ $FAIL -eq 0 ]; then echo 'SMOKE OK: perception/localization/mapping SLAM-stack nodes discoverable'; else echo 'SMOKE FAIL: a SLAM-stack node is missing'; exit 1; fi"]
