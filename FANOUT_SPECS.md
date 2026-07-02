@@ -801,3 +801,73 @@ Briefs for §7.15 MT-01..05 (Phase-3 runtime contracts/ROS adapters already trac
 - acceptance: gate emits all four metrics and reds on a new large tracked file or new unlisted HTML sink; ADR set + artifact manifest checked in.
 - files: scripts/release_gate.py, scripts/gen_release_manifest.py, docs/repo_bloat_maintainability_audit_2026-07-02.md
 - test_target: NEW scripts/test_continuity_gate.py citing [REQ:MT-05]
+
+## Backend production-grade review remediation (2026-07-02) -- 13 rows (§7.16 BP-01..13)
+
+Briefs for the backend production review findings. Existing-row extensions cross-ref SE-01/SE-02/AG-06/FS-19.
+
+### BP-01 (P0) — atomic
+- goal: SE-01 8-domain security-audit evidence manifest + real SBOM CVE scan + backup/restore drill; gate fails on any missing/undated/env-less domain.
+- acceptance: python scripts/test_se01_audit_gate.py fails on a missing domain, passes only with all eight dated env-identified records.
+- files: scripts/security_audit.py, scripts/test_se01_audit_gate.py, scripts/scan_artifacts.py
+- test_target: scripts/test_se01_audit_gate.py citing [REQ:SE-01]
+### BP-02 (P1) — atomic
+- goal: the production backend image enters the public-bind TLS guard (guarded stewie-serve path or ASGI lifespan enforcement), not a raw uvicorn server:app.
+- acceptance: a deploy test inspects the image command and fails if production starts server:app public without an equivalent guard.
+- files: deploy/Dockerfile.backend, stewie/server/server.py, stewie/server/test_deploy_hardening.py
+- test_target: stewie/server/test_deploy_hardening.py citing [REQ:BP-02]
+### BP-03 (P1) — atomic
+- goal: production requires STEWIE_SESSION_SECRET separate from STEWIE_API_KEY; fail-loud when TLS-terminated + secret absent; separate rotation semantics.
+- acceptance: a deploy-hardening test fails when production omits the secret; auth tests prove API-key vs session-secret rotation differ.
+- files: stewie/server/auth.py, deploy/compose.yml, stewie/server/test_auth.py
+- test_target: stewie/server/test_session_secret.py citing [REQ:BP-03]
+### BP-04 (P1) — atomic
+- goal: TLS-terminated production requires explicit STEWIE_ALLOWED_OPERATORS + STEWIE_DIRECTORS (or bootstrap director), disables default-allowlist/raw-key trust; /healthz+/config DEGRADED on defaults.
+- acceptance: TLS-terminated with no explicit allowlist/directors fails closed (403 or actionable startup error).
+- files: stewie/server/auth.py, stewie/server/routers/auth.py, stewie/server/test_auth.py
+- test_target: stewie/server/test_production_identity_strict.py citing [REQ:BP-04]
+### BP-05 (P1) — atomic
+- goal: live-namespace artifact deletion is director-only (missions/structures/objects); self-delete only for sandbox; delete audit names the namespace.
+- acceptance: operator delete own live -> 403; own sandbox -> ok; director delete live -> ok + audited namespace.
+- files: stewie/server/objects.py, stewie/server/routers/missions.py, stewie/server/routers/structures.py
+- test_target: stewie/server/test_live_delete_policy.py citing [REQ:BP-05]
+### BP-06 (P1) — atomic
+- goal: training operator-view access model (authenticated OR signed expiring capability URL with TTL enforced on get()); documented.
+- acceptance: authenticated -> anon GET 401/403; capability -> unsigned 401/403, signed unexpired ok, expired fails.
+- files: stewie/server/routers/session.py, stewie/server/session.py, stewie/server/test_session.py
+- test_target: stewie/server/test_session.py citing [REQ:SE-02]
+### BP-07 (P2) — atomic
+- goal: critical ops (director admin, live mission mutation, release/execute, rc/command, security settings) refuse 503 on a degraded audit ledger; non-critical best-effort.
+- acceptance: injected audit-write failure makes /admin/operators/create, live-mission delete, release/execute, /rc/command refuse/hard-degrade.
+- files: stewie/server/services.py, stewie/server/routers/admin.py, stewie/server/routers/rc.py
+- test_target: stewie/server/test_audit_critical.py citing [REQ:BP-07]
+### BP-08 (P2) — epic
+- goal: full FS-19 observability ledger -- typed event schema + per-contract-route decorator (correlation id/actor/route/result/latency/error/hashes/mission-site-body-time) + redaction; one assertion per event class.
+- acceptance: [REQ:FS-19] fails if any required event class lacks full-field coverage or redaction misses secrets/truth-denied fields.
+- files: stewie/server/services.py, stewie/server/server.py, stewie/server/test_observability_ledger.py
+- test_target: stewie/server/test_observability_ledger.py citing [REQ:FS-19]
+### BP-09 (P2) — atomic
+- goal: single-worker backend invariant (STEWIE_SINGLE_PROCESS_STATE=1) documented + a deploy test fails if production workers>1 without shared state.
+- acceptance: a test checks the production command + the single-process invariant.
+- files: deploy/Dockerfile.backend, stewie/server/test_deploy_hardening.py, deploy/compose.yml
+- test_target: stewie/server/test_deploy_hardening.py citing [REQ:BP-09]
+### BP-10 (P2) — atomic
+- goal: prune_reports removes old nested render_* dirs (prefix-matched, resolved paths asserted under reports_dir); no arbitrary recursive delete.
+- acceptance: the prune test adds an old render_* dir and proves it is removed while unrelated dirs survive.
+- files: stewie/server/services.py, stewie/specs/config.py, stewie/server/test_report_prune.py
+- test_target: stewie/server/test_report_prune.py citing [REQ:BP-10]
+### BP-11 (P2) — atomic
+- goal: optimistic concurrency for live object stores -- updated_at/revision/sha256 + If-Match/base_revision + 409 on stale save.
+- acceptance: two clients load rev N; first save N+1; second save with N -> 409.
+- files: stewie/server/objects.py, stewie/server/routers/missions.py, stewie/server/test_object_concurrency.py
+- test_target: stewie/server/test_object_concurrency.py citing [REQ:BP-11]
+### BP-12 (P2) — atomic
+- goal: the publish workflow installs from requirements-dev.lock --require-hashes + -e . --no-deps, matching CI (supply-chain parity).
+- acceptance: a workflow-lint test asserts the publish workflow uses requirements-dev.lock with --require-hashes.
+- files: .github/workflows/publish-stewie.yml, .github/workflows/ci.yml, scripts/test_ci_tiers.py
+- test_target: scripts/test_publish_workflow_lock.py citing [REQ:BP-12]
+### BP-13 (P3) — atomic
+- goal: browser login omits the bearer token in JSON (returns role/operator/ttl/must_set_password); token only on an explicit automation path.
+- acceptance: browser login response omits token; automation path includes it only when explicitly requested + tested.
+- files: stewie/server/routers/auth.py, stewie/server/test_auth.py, stewie/server/auth.py
+- test_target: stewie/server/test_login_token_split.py citing [REQ:BP-13]
