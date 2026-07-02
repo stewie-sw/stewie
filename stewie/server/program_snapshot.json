@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "f09eba0743aac3313cb781afdd1e512b93ca2b1d2a6a41d2c6b7a61cc1afeaac",
+  "citations_sha256": "66033b30cf600876b263fc466930ed58e02291cafa2c2d7586738d4c6a6b1a12",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "960c09379ad4bd56187e8e3e6fbe41194f9640df",
-  "prd_sha256": "69ad80baa86788cd3f60ac7c9bb44157ccf97de5083a42b1ef725f777317ae0a",
+  "prd_commit": "0fb597edb403a9a00355adddd83e2deb5c3b66fb",
+  "prd_sha256": "672f668cb7a4fcb97aa25d3a2fb1f1a10bedc900bca52646c3c7df4ea771cfce",
   "specs_sha256": "4b2c5de33da676744a6a597546e55f8243ee263773643bdad9dafec1a8d63bfb"
  },
  "rows": [
@@ -805,16 +805,16 @@
    "text": "Model charger, pit, dump, observation vantage, and constrained corridor as shared resources. Charger = one-server FCFS queue: overlapping recharges serialise, the loser's wait shifts its timeline, the headline makespan reflects it (`makespan_parallel_s` keeps the optimistic value, `charger_wait_s` the cost). Pit/dump/vantage/corridor are declared via `mission.shared_resources` (`[{id, kind, capacity, sites}]`) and modelled as capacity-k FCFS servers keyed on work sites (`ReservationLedger` admission); over-capacity rovers wait, the wait folds into `makespan_s` and is reported as `resource_wait_s` / `resource_waits`. None/empty (or single-vehicle) is byte-identical. The charger AND all declared resources are scheduled JOINTLY by `_resolve_joint_resources`: one per-vehicle delay clock advanced over a single event calendar, every contended segment admitted against ONE multi-server `ReservationLedger`, so the reported makespan/waits are the real coupled FCFS schedule (feasible on every server at once) rather than a sum of independent per-server estimates -- removing the v1 double-count of a rover modelled as queued in two resources at once. A wait on one server now shifts the rover's later events on every server, so the coupled total is usually below (but can exceed) the old per-server sum: it is the true coupled schedule, not a bound. FL-02 crowding + FL-04 cross-vehicle precedence remain separate fixed-point resolvers folded on top. `test_fl03_shared_resources.py` [REQ:FL-03]."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
-   "X": "N",
+   "V": "D",
+   "X": "P",
    "brief": {
     "goal": "implement ACTIVE work-reallocation \u2014 when fleet_needs_replan fires (a stranded rover), reassign its remaining work to healthy rovers, not just flag it.",
     "kind": "atomic",
     "test_target": "NEW lode/test_fl04_precedence_split.py::test_stranded_rover_work_is_reallocated_to_healthy_rovers (`[REQ:FL-04]`)"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "FL-04",
    "lane": "FL",
@@ -1047,15 +1047,15 @@
   {
    "I": "P",
    "Q": "N",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "D",
    "brief": {
     "goal": "enforce ML-01 model governance (no learned model exposed without lineage/split/registry/card/quant profile/calibration/OOD/fallback/rollback); cite it.",
     "kind": "epic",
     "test_target": "extend stewie/contracts/test_contracts.py::test_model_artifact_deployment_requires_declared_schemas_and_budgets with `[REQ:FS-12]`"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "FS-12",
    "lane": "FS",
    "pri": "P1",
@@ -1236,7 +1236,7 @@
   {
    "I": "P",
    "Q": "NA",
-   "V": "N",
+   "V": "P",
    "X": "N",
    "brief": {
     "goal": "add a python citing test locking the cockpit module split (app shell / state / adapters / view models / shared viz / work-area views / command rail / diagnostics) + proving CSP/no-inline + purity.",
@@ -1244,7 +1244,7 @@
     "test_target": "NEW stewie/server/test_cockpit_modularization.py (`[REQ:FS-24]`)"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "FS-24",
    "lane": "FS",
    "pri": "P1",
@@ -1268,17 +1268,17 @@
    "text": "Production GIS runtime gate: the built Nginx/front-end image loads Cesium, Moon/Mars/Earth imagery, worksite overlays, sign-in, and mobile navigation under the actual CSP with zero blocking console errors. Acceptance is a desktop + mobile browser smoke against the deployed headers, not a direct asset curl."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "N",
+   "V": "D",
    "X": "N",
    "brief": {
     "goal": "give each body body-correct ellipsoid/CRS metadata + drive real DEM 3D terrain where a layer claims terrain, labeling any smooth WGS84 drape imagery-only.",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_gi02_body_crs.py (`[REQ:GI-02]`)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "GI-02",
    "lane": "GI",
    "pri": "P1",
@@ -1316,14 +1316,14 @@
   {
    "I": "P",
    "Q": "N",
-   "V": "N",
+   "V": "D",
    "X": "N",
    "brief": {
     "goal": "extend the terrain-assessment hazard layer to emit a hazard CLASS + slope/roughness SUMMARY + per-cell CONFIDENCE alongside the existing traversability/cost.",
     "kind": "atomic",
     "test_target": "dart/test_hazard_map.py::test_hazard_map_marks_steep_and_hard_rocks_nogo (extend, `[REQ:ML-02]` present)"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "ML-02",
    "lane": "ML",
@@ -1350,14 +1350,14 @@
   {
    "I": "P",
    "Q": "N",
-   "V": "P",
+   "V": "D",
    "X": "P",
    "brief": {
     "goal": "harden the shadow-SLAM factor path \u2014 assert factors carry covariance (information) AND the graph rejects factors failing a residual AND an observability gate.",
     "kind": "atomic",
     "test_target": "dart/test_shadow_factors.py::test_shadow_factors_recover_a_perturbed_heading (extend, `[REQ:ML-04]` present)"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "ML-04",
    "lane": "ML",
@@ -1474,17 +1474,17 @@
    "text": "Global routing rejects unreachable goals; it never substitutes an unsafe straight line."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
+   "V": "D",
    "X": "N",
    "brief": {
     "goal": "add a coverage-route generator emitting overlapping-loop / outward-spiral waypoints promoting map coverage + deliberate re-observation / loop closure.",
     "kind": "atomic",
     "test_target": "NEW lode/test_coverage_route.py (`[REQ:NV-02]`)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "NV-02",
    "lane": "NV",
    "pri": "P1",
@@ -1757,9 +1757,9 @@
    "text": "Benchmark on a fixed LAC-style suite: localization RMSE, 5 cm height-cell pass fraction, rock F1, coverage, runtime, and failure count across seeds/light/rocks."
   },
   {
-   "I": "N",
+   "I": "P",
    "Q": "N",
-   "V": "N",
+   "V": "P",
    "X": "N",
    "brief": {
     "goal": "demonstrate repeatable cm-scale localization comparable to the 0.038-0.067 m NAVLAB26 band before any parity claim.",
@@ -1767,7 +1767,7 @@
     "test_target": "NEW benchmarks/lac_suite/test_cm_parity.py (depends on PM-10)"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "PM-11",
    "lane": "PM",
    "pri": "P1",
@@ -1959,41 +1959,41 @@
     "test_target": "NEW stewie/specs/test_profile_migration.py (`[REQ:PO-09]`)"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "PO-09",
    "lane": "PO",
    "pri": "P1",
    "text": "Mission/profile schemas are versioned and migratable."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "give the cockpit one tested four-way visual distinction among forecast / sim-truth / estimator-belief / live-telemetry (concepts exist scattered; state model carries a 3-value source enum).",
     "kind": "atomic",
     "test_target": "extend .../cockpit_state.test.js with `[REQ:PO-10]`, OR NEW .../provenance_label.test.js"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PO-10",
    "lane": "PO",
    "pri": "P1",
    "text": "UI distinguishes forecast, simulation truth, estimator belief, and live telemetry."
   },
   {
-   "I": "N",
+   "I": "P",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "D",
    "brief": {
     "goal": "make fleet playback render EVERY rover + each rover's INDEPENDENT telemetry (today it replays a single-rover forecast; the Fleet pane shows static tables).",
     "kind": "epic",
     "test_target": "extend .../fleet_render.test.js, OR NEW .../fleet_playback.test.js"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "PO-11",
    "lane": "PO",
    "pri": "P1",
@@ -2029,17 +2029,17 @@
    "text": "`CHANGELOG.md` (Keep a Changelog), exported `stewie.__version__` (== pyproject `[project].version`, enforced by `stewie/server/test_version.py`), a SemVer policy (`docs/RELEASE.md`), and a release-evidence manifest (`release_manifest.json`) aggregated from REAL artifacts by `scripts/gen_release_manifest.py` \u2014 version+drift, req_trace reconciliation, autonomy gate, SBOM component count, dep-lock status, changelog/SemVer presence; deterministic surface CI-guarded by `--check` (the gen_status.py honesty pattern), volatile fields (commit, live coverage/tests) written by `--full` to the reports dir at release time. `scripts/test_gen_release_manifest.py` [REQ:PO-13] proves every field IS the live tool output (no hand numbers) + the committed surface is in-sync + volatile-excluded."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "N",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "make optional Godot an explicit deploy PROFILE (ROS is a compose profile; Godot is not) + a test asserting docs + supported image + ros2/godot capability profiles are declared.",
     "kind": "atomic",
     "test_target": "NEW deploy/test_deploy_profiles.py (note deploy/ not in testpaths \u2192 place under scripts/ or add to testpaths)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PO-14",
    "lane": "PO",
    "pri": "P1",
@@ -2367,17 +2367,17 @@
    "text": "One seeded composite generator combines craters, rocks, material, and illumination parameters. `stewie/terrain/scenes.build_from_dem` combines all FOUR families on the real Haworth DEM: craters (DEM corridor, `populate_craters`), material (ChaSTE density), illumination (`horizon_clip`), and ROCKS (a seeded Golombek SFD boulder field via `procgen.sample_boulders` over the corridor window, `rocks_d_min_m`-bounded to resolvable boulders >= 0.30 m, surface-snapped into the non-zero global frame; clasts are metadata refs NOT carved into the conserved mass, so the datum round-trip is preserved). `stewie/terrain/test_scenes.py` [REQ:TW-04]: `test_build_from_dem_roundtrip_and_provenance` validates all four families present + provenance + datum round-trip on one build; `test_build_from_dem_rocks_seeded` validates the rocks family is seeded (fast, sampler-level -- avoids extra ~180 s builds). PERF NOTE (separate item): `build_from_dem`'s ~180 s per-call cost is `dart/illumination.py horizon_clip` -- a per-pixel shadow ray-march over the base heightmap, O(grid*sqrt(grid)), radius-independent -- NOT rocks/craters. `carve_crater` was the original crater bottleneck, now windowed + byte-identical (commit `fe18d91`); `horizon_clip` is NOT byte-identically optimizable (a faster horizon sweep changes the illumination result), so its speedup is tracked separately, not part of this row."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "P",
-   "V": "P",
+   "V": "D",
    "X": "P",
    "brief": {
     "goal": "give the fleet one WorldState carrying all four per-cell fields together (material, traversability, observed/unobserved, calibrated uncertainty) instead of four scattered rasters; prove on real Haworth.",
     "kind": "epic",
     "test_target": "NEW dart/test_world_model_layers.py::test_worldstate_carries_material_traversability_observed_uncertainty (`[REQ:TW-05]`)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "TW-05",
    "lane": "TW",
    "pri": "P1",
@@ -2592,9 +2592,9 @@
  "summary": {
   "briefs": 62,
   "buckets": {
-   "buildable": 47,
+   "buildable": 39,
    "concurrent": 21,
-   "done": 105,
+   "done": 113,
    "gated": 15
   },
   "by_lane": {
@@ -2627,7 +2627,7 @@
     "total": 8
    },
    "FL": {
-    "done": 5,
+    "done": 6,
     "total": 7
    },
    "FS": {
@@ -2635,11 +2635,11 @@
     "total": 24
    },
    "GI": {
-    "done": 0,
+    "done": 1,
     "total": 3
    },
    "ML": {
-    "done": 3,
+    "done": 5,
     "total": 9
    },
    "MO": {
@@ -2647,7 +2647,7 @@
     "total": 1
    },
    "NV": {
-    "done": 11,
+    "done": 12,
     "total": 12
    },
    "PM": {
@@ -2655,7 +2655,7 @@
     "total": 16
    },
    "PO": {
-    "done": 7,
+    "done": 9,
     "total": 14
    },
    "RL": {
@@ -2683,7 +2683,7 @@
     "total": 1
    },
    "TW": {
-    "done": 7,
+    "done": 8,
     "total": 10
    },
    "VT": {
@@ -2697,7 +2697,7 @@
     "total": 61
    },
    "P1": {
-    "done": 65,
+    "done": 73,
     "total": 117
    },
    "P2": {
@@ -2705,10 +2705,10 @@
     "total": 10
    }
   },
-  "cited": 146,
-  "done_pct": 55.9,
+  "cited": 156,
+  "done_pct": 60.1,
   "in_scope": 173,
-  "in_scope_done_pct": 60.7,
+  "in_scope_done_pct": 65.3,
   "total": 188
  },
  "workflow_spine": [
