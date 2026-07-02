@@ -129,6 +129,33 @@ def test_scheduler_env_drum_sensor_optional():
     assert es._obs()[-2] != et._obs()[-2]                             # drum obs (2nd-to-last) reflects sensing
 
 
+def test_vt08_fill_rate_bridging_plateau():
+    """[REQ:VT-08] Drum fill-rate supports the sourced bridging behavior: effective collection need
+    not increase monotonically beyond ~half scoop depth (BDSCALE anti-bridging: cut depth limited to
+    <=50% of the scoop opening for best fill; ipex_specs.MAX_CUT_DEPTH_FRAC). The curve must be
+    non-decreasing up to ~half depth and flat-or-declining beyond, so any beyond-half increment is
+    <= the matching pre-half increment."""
+    from stewie.specs import ipex_specs as ipex
+    knee = ipex.MAX_CUT_DEPTH_FRAC                                      # 0.50 [BDSCALE]
+    depths = [i / 100.0 for i in range(101)]                            # 0.00 .. 1.00 full scoop
+    curve = [RM.drum_fill_rate_factor(d) for d in depths]
+    # non-decreasing up to ~half scoop depth (deeper cut collects more, pre-bridging)
+    pre = [f for d, f in zip(depths, curve) if d <= knee]
+    assert all(b >= a for a, b in zip(pre, pre[1:]))
+    assert pre[-1] > pre[0]                                              # genuinely rises, not flat-zero
+    # flat-or-declining beyond half depth (bridging: extra depth does not add collection)
+    post = [f for d, f in zip(depths, curve) if d >= knee]
+    assert all(b <= a for a, b in zip(post, post[1:]))
+    # acceptance: the beyond-half increment <= the pre-half increment over an equal depth span
+    quarter = knee / 2.0
+    pre_half_increment = RM.drum_fill_rate_factor(quarter) - RM.drum_fill_rate_factor(0.0)
+    beyond_half_increment = RM.drum_fill_rate_factor(knee + quarter) - RM.drum_fill_rate_factor(knee)
+    assert beyond_half_increment <= pre_half_increment
+    assert pre_half_increment > 0.0                                      # the comparison is non-vacuous
+    # peak effective collection is AT the sourced knee: exceeding it never collects more
+    assert RM.drum_fill_rate_factor(1.0) <= RM.drum_fill_rate_factor(knee) == max(curve) == 1.0
+
+
 def _run_all():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for fn in fns:

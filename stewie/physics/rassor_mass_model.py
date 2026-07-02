@@ -80,6 +80,23 @@ def drum_mass_uncertainty_frac(mass_kg, *, include_outliers=False):
     return lo + f * (FDC_MPE_HALF_FULL - lo)
 
 
+def drum_fill_rate_factor(cut_depth_frac, *, knee_frac=_ipex.MAX_CUT_DEPTH_FRAC):
+    """Effective collection (fill-rate) factor [0..1] vs commanded cut depth, as a FRACTION of the
+    scoop opening height. Models the sourced bucket-drum BRIDGING behavior: collection rises with
+    cut depth only up to ~half the scoop opening (deeper cut sweeps more regolith per pass), then
+    PLATEAUS -- regolith bridges across the scoop mouth, so commanding a deeper cut does NOT collect
+    more. Source: the [BDSCALE] anti-bridging limit already in ipex_specs (MAX_CUT_DEPTH_FRAC = 0.50,
+    "cut depth limited to <=50% of scoop opening for best fill"; mirrored by system_profile's
+    drum_cut_depth_frac_max). The knee LOCATION is the sourced value; the linear pre-knee shape is a
+    [CALIB] modeling choice (soft, Q=P): swept volume is ~proportional to cut depth at fixed speed.
+    Non-decreasing up to the knee, flat beyond -- so any beyond-half increment <= the pre-half one."""
+    if cut_depth_frac < 0:
+        raise ValueError("cut_depth_frac must be >= 0")
+    if knee_frac <= 0:
+        raise ValueError("knee_frac must be > 0")
+    return min(cut_depth_frac, knee_frac) / knee_frac
+
+
 def arm_raise_lift_energy_j(mass_kg, g, *, lift_height_m=ARM_LIFT_HEIGHT_M, efficiency=ARM_LIFT_EFFICIENCY):
     """Energy to RAISE a loaded drum -- lift the excavated regolith against gravity: W = m * g * h / eff.
     First-principles gravity work, GRAVITY-AWARE (pass the body g from bodies.py / constants.g). The AR
