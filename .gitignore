@@ -177,3 +177,8 @@ datasets/
 stewie/godot/out/panels/composite_*.gif
 # internal knowledge-graph analysis artifacts (regenerate: scripts/export_stewie_interaction_graph.py)
 graphify-out/
+
+# npm playwright for the ui-smoke tier (CI installs it per-run)
+node_modules/
+package.json
+package-lock.json

@@ -31,6 +31,11 @@ export const SPINE = [
   { view: "release", pane: "#pane_release", landmark: "#releasebtn" },
   { view: "metrics", pane: "#execview", landmark: "#execview" },
   { view: "report", pane: "#pane-report", landmark: "#pane-report" },
+  // the operator-gated More-cluster work areas (same dev-open director grant reveals them); these are
+  // exactly the FS-03/FS-15 panes with recent wiring churn the smoke exists to guard
+  { view: "fleet", pane: "#pane_fleet", landmark: "#pane_fleet" },
+  { view: "construction", pane: "#pane_construction", landmark: "#pane_construction" },
+  { view: "models", pane: "#pane_models", landmark: "#pane_models" },
 ];
 
 // The vendored Cesium bundle is docker-cp'd into server/cesium/ (gitignored; nginx serves it in

@@ -6,8 +6,9 @@ import assert from "node:assert/strict";
 
 import { SPINE, isAllowedConsoleError, consoleViolations, summarize } from "./ui_smoke.mjs";
 
-test("SPINE drives exactly the six ConOps spine tabs, each with a landmark", () => {
-  assert.deepEqual(SPINE.map((t) => t.view), ["plan", "rehearse", "validate", "release", "metrics", "report"]);
+test("SPINE drives the six ConOps spine tabs + the three operator work areas, each with a landmark", () => {
+  assert.deepEqual(SPINE.map((t) => t.view), ["plan", "rehearse", "validate", "release", "metrics", "report",
+    "fleet", "construction", "models"]);
   for (const t of SPINE) assert.ok(t.landmark && t.landmark.startsWith("#"), `${t.view} needs a landmark selector`);
   // plan's stage is the globe under the panes (no VIEW_PANE entry); every other tab names its pane
   assert.equal(SPINE[0].pane, null);
