@@ -122,3 +122,67 @@ def factor_ablation(truth_xy, dr_xy, *, n_keyframes=30, fix_interval=5, fix_sigm
                                            "abs_max_err_m": round(float(np.max(np.linalg.norm(E - T, axis=1))), 4),
                                            "n_fixes": n_fix}
     return out
+
+
+#: preregistered gate axes: margin key -> the (lower-is-better) error metric it constrains.
+_GATE_AXES = {"yaw_deg": "yaw_err_deg", "pose_m": "pose_err_m"}
+
+
+def preregistered_margin_gate(solar_off: dict, solar_on: dict, margins: dict) -> dict:
+    """SN-13 [PROPOSED]: the preregistered acceptance gate for a solar-navigation claim. A claim is
+    ACCEPTED only if all three hold: (1) the MEDIAN yaw and/or pose error improves (solar-on vs
+    solar-off) by at least its PREREGISTERED margin -- the disjunction in the §6 acceptance ('improve
+    median yaw/pose error ... by a preregistered margin'); (2) tip events do NOT increase (the aid
+    must not trade static stability for accuracy); and (3) the energy AND time overhead are REPORTED.
+
+    ``solar_off`` / ``solar_on`` are the baseline (gyro/odometry only) and aided (+shadow/absolute
+    fixes) metric MEDIANS over the preregistered seed set; each carries ``tip_events``, ``energy_j``,
+    ``time_s`` and whichever error metrics are constrained. ``margins`` gives the required improvement
+    MAGNITUDE per axis (``yaw_deg`` on ``yaw_err_deg``, ``pose_m`` on ``pose_err_m``); at least one
+    must be preregistered. Yaw/pose are error metrics (lower is better), so improvement = off - on.
+    A margin preregistered without its metric present in BOTH conditions is a contract violation
+    (ValueError). Returns the per-axis improvements, whether the margin was met, whether tip events
+    increased, the reported energy/time overhead, and the pass/fail verdict."""
+    if not margins:
+        raise ValueError("preregister at least one margin (yaw_deg and/or pose_m)")
+    unknown = set(margins) - set(_GATE_AXES)
+    if unknown:
+        raise ValueError(f"unknown preregistered margin axis: {sorted(unknown)}")
+
+    axes: dict = {}
+    margin_met = False
+    for m_key, metric in _GATE_AXES.items():
+        if m_key not in margins:
+            continue
+        if solar_off.get(metric) is None or solar_on.get(metric) is None:
+            raise ValueError(f"margin '{m_key}' preregistered but '{metric}' missing in a condition")
+        improvement = float(solar_off[metric]) - float(solar_on[metric])   # error: lower is better
+        met = improvement >= float(margins[m_key])
+        axes[m_key] = {"metric": metric, "improvement": improvement,
+                       "margin": float(margins[m_key]), "met": met}
+        margin_met = margin_met or met
+
+    tip_off, tip_on = solar_off.get("tip_events"), solar_on.get("tip_events")
+    if tip_off is None or tip_on is None:
+        raise ValueError("tip_events required in both conditions")
+    tip_events_increased = int(tip_on) > int(tip_off)
+
+    e_off, e_on = solar_off.get("energy_j"), solar_on.get("energy_j")
+    t_off, t_on = solar_off.get("time_s"), solar_on.get("time_s")
+    energy_overhead = (float(e_on) - float(e_off)) if (e_off is not None and e_on is not None) else None
+    time_overhead = (float(t_on) - float(t_off)) if (t_off is not None and t_on is not None) else None
+    overhead_reported = energy_overhead is not None and time_overhead is not None
+
+    passed = bool(margin_met and not tip_events_increased and overhead_reported)
+    return {
+        "passed": passed,
+        "margin_met": margin_met,
+        "axes": axes,
+        "yaw_improvement": axes["yaw_deg"]["improvement"] if "yaw_deg" in axes else None,
+        "pose_improvement": axes["pose_m"]["improvement"] if "pose_m" in axes else None,
+        "tip_events": {"solar_off": int(tip_off), "solar_on": int(tip_on)},
+        "tip_events_increased": tip_events_increased,
+        "energy_overhead": energy_overhead,
+        "time_overhead": time_overhead,
+        "overhead_reported": overhead_reported,
+    }
