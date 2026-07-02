@@ -7,7 +7,9 @@ from dart.evidence_ledger import write_navigation_evidence
 from dart.factors import EvidenceClass, FactorType, Frame, MeasurementFactor
 
 
-def test_measurement_factor_keeps_type_covariance_and_evidence():
+def test_measurement_factor_keeps_type_covariance_and_evidence():  # [REQ:AS-18]
+    # AS-18 typed ARGUS navigation evidence contract: every accepted measurement carries its factor
+    # type, covariance, frame, source, and evidence class, and round-trips through the typed record.
     f = MeasurementFactor(
         factor_type=FactorType.PARALLAX_XY,
         keyframe=4,
