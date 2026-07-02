@@ -164,6 +164,17 @@ def test_model_artifact_cannot_be_on_command_path():  # [REQ:ML-08]
     with pytest.raises(ValidationError):                          # no command path for the assistant either
         C.ModelArtifact(model_id="a2", name="ops-assistant", version="1", task="assistant",
                         dataset_lineage="telemetry-log", eval_split="held-out", command_path=True)
+    # ML-08: the assistant's ONLY surface is its typed read-only estimate -- a fully-declared,
+    # deployment-ready assistant still emits (output_schema) and consumes (input_schema) typed only,
+    # and deployment_ready STRUCTURALLY requires `not command_path`, so a deployed summarizer is off
+    # the command path by construction (its summary is a read-only estimate, never a command).
+    deployed = C.ModelArtifact(model_id="a3", name="ops-assistant", version="1", task="assistant",
+                               dataset_lineage="telemetry-log", eval_split="held-out",
+                               input_schema="TwinSummary", output_schema="OpsSummary",
+                               latency_budget_ms=200.0, memory_budget_mb=256.0,
+                               calibrated=True, ood_detector=True, fallback="terse_template")
+    assert deployed.deployment_ready is True and deployed.command_path is False
+    assert deployed.output_schema and deployed.input_schema     # summary surface is typed read-only I/O
 
 
 def test_model_artifact_deployment_requires_declared_schemas_and_budgets():  # [REQ:ML-01] [REQ:FS-12]
