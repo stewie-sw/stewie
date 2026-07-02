@@ -149,13 +149,21 @@ def test_perception_state_truth_denied_depth_source_card():  # [REQ:FS-15]
         C.PerceptionState(range_min_m=5.0, range_max_m=1.0)
 
 
-def test_model_artifact_cannot_be_on_command_path():
+def test_model_artifact_cannot_be_on_command_path():  # [REQ:ML-08]
     m = C.ModelArtifact(model_id="m1", name="rocknet", version="1", task="rock_classify",
                         dataset_lineage="nac-2024", eval_split="80/20")
     assert m.command_path is False
     with pytest.raises(ValidationError):                          # §25.3: no model on the command path
         C.ModelArtifact(model_id="m2", name="x", version="1", task="llm_planner",
                         dataset_lineage="d", eval_split="s", command_path=True)
+    # ML-08: the science/operator assistant is a read-only summarizer -- registered as task="assistant",
+    # it defaults off the command path and the validator refuses to put it on one
+    a = C.ModelArtifact(model_id="a1", name="ops-assistant", version="1", task="assistant",
+                        dataset_lineage="telemetry-log", eval_split="held-out")
+    assert a.command_path is False
+    with pytest.raises(ValidationError):                          # no command path for the assistant either
+        C.ModelArtifact(model_id="a2", name="ops-assistant", version="1", task="assistant",
+                        dataset_lineage="telemetry-log", eval_split="held-out", command_path=True)
 
 
 def test_model_artifact_deployment_requires_declared_schemas_and_budgets():  # [REQ:ML-01]
