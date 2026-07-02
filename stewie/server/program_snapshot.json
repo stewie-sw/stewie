@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "59b0d496312adc989d8ebed6266d4ad674017db714fc4983a1713d3f9a8860ff",
+  "citations_sha256": "f2ce8d4476e3a18c7a26407f9390a4529f156cbf69ef92017ab9baba7bc23073",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "e6fc24e02f98e31a558868a49ba753fe3aec6158",
-  "prd_sha256": "1c41a650af8bb47aefca2f0da024a253d262aad930b1966ccb74cec1d164a531",
+  "prd_commit": "b537bd877a3299e4d7a118e617ad317fe7108bc0",
+  "prd_sha256": "5508711df976d180008617394b6ba94130b694ce7b2fc42b4731b26766700e73",
   "specs_sha256": "37059633a28f0aaa17e5f419a26a87179ebb0a85d82da450c3ad38af1ffd4b11"
  },
  "rows": [
@@ -2373,17 +2373,17 @@
    "text": "Deployed RL policy gate: no RL capability may be called operational until a versioned policy artifact, training/eval lineage, model card, safety shield, deterministic fallback, and out-of-distribution acceptance report exist. Training scripts/environments alone do not satisfy this row."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "P",
    "brief": {
     "goal": "typed runtime contracts (DepthObservation/VisualHazardObservation/ObservedMapUpdate/HazardMap/CostmapSnapshot/LocalizationState/TrajectoryCommand/CommandEligibility/WorldTransaction) as the only inter-module interface.",
     "kind": "atomic",
     "test_target": "NEW stewie/contracts/test_runtime_spine.py citing [REQ:RS-01]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "RS-01",
    "lane": "RS",
    "pri": "P0",
@@ -3068,9 +3068,9 @@
  "summary": {
   "briefs": 88,
   "buckets": {
-   "buildable": 65,
+   "buildable": 64,
    "concurrent": 0,
-   "done": 126,
+   "done": 127,
    "gated": 25
   },
   "by_lane": {
@@ -3143,7 +3143,7 @@
     "total": 1
    },
    "RS": {
-    "done": 0,
+    "done": 1,
     "total": 8
    },
    "SE": {
@@ -3177,7 +3177,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 45,
+    "done": 46,
     "total": 70
    },
    "P1": {
@@ -3189,10 +3189,10 @@
     "total": 11
    }
   },
-  "cited": 167,
-  "done_pct": 58.3,
+  "cited": 168,
+  "done_pct": 58.8,
   "in_scope": 191,
-  "in_scope_done_pct": 66.0,
+  "in_scope_done_pct": 66.5,
   "total": 216
  },
  "workflow_spine": [
