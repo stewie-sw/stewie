@@ -6,7 +6,6 @@ static-DEM costmap does not have. (The observed-DEM layer is wired + verified he
 observed world -- occupancy / rock-object graph / changed-terrain mask / map-uncertainty with per-cell
 provenance -- is the remaining partial.)"""
 import importlib
-import os
 import tempfile
 
 import numpy as np
