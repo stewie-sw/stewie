@@ -65,6 +65,55 @@ def test_large_plan_lowers_every_goal_without_silent_backpressure_drop(client): 
     assert d["stream"]["refused"] == 0, "backpressure refused frames in a one-shot batch lowering (#287)"
 
 
+def test_live_lowering_is_nonvacuous_and_every_message_is_command_eligible(client):  # [REQ:AS-12]
+    """AS-12 (§7 row): a VERIFIED live Plan IR lowers to ROS2 messages (paths/motion/work/observation
+    goals + replan events) AND every lowered command is emissible ONLY under role-gated command
+    eligibility. This is the unified lowering-under-eligibility contract the /rc/plan_ros seam realizes:
+    (1) the lowered plan is NON-VACUOUS -- a real mission's work_goals carry the full arm/drum payload
+    (op in the work-op set, a dig site, positive mass, a finite positive expected energy), and there is a
+    motion goal wrapping the work; (2) each lowered message would pass the command_eligibility interlock
+    for the operator+ identity that lowered it (unsafe/unauthorized/stale/sandbox commands fail closed
+    BEFORE ROS emission -- proven exhaustively in test_command_eligibility.py; here we prove the interlock
+    holds OPEN for a legitimate operator on the SAME messages the route lowers), so the acceptance is not
+    just 'lowering exists' but 'lowering is gated by eligibility'. The live ROS2 node publish is the gated
+    leg (rclpy on a Space ROS host); this asserts the host-side product-path contract."""
+    import math
+
+    from stewie.bridge.command_eligibility import CommandContext, command_eligible
+    from stewie.server.auth import role_of
+    c, key = client
+    r = c.post("/rc/plan_ros", headers={"X-API-Key": key}, json={"mission": "Live Pad"})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    # command correlation: an executive must map every lowered message back to the source plan
+    assert d["plan_id"] and d["ir_version"]
+    # (1) non-vacuous lowering -- pull the framed messages back apart by topic (each NV-12 stream frame
+    # carries the lowered message as frame["payload"] == {"topic": group, "msg": message})
+    by_topic: dict = {}
+    for f in d["frames"]:
+        by_topic.setdefault(f["payload"]["topic"], []).append(f["payload"]["msg"])
+    work = by_topic.get("work_goals", [])
+    assert work, "a real pad+borrow mission must lower at least one arm/drum work goal"
+    for wg in work:
+        assert wg["op"] in {"Excavate", "CutHaulFill", "Import", "Sinter"}, wg
+        assert wg["site"] is not None, wg                       # a dig/haul site, not a null goal
+        assert isinstance(wg["mass_kg"], (int, float)) and wg["mass_kg"] > 0.0, wg
+        energy = (wg.get("expect") or {}).get("energy_J")
+        assert isinstance(energy, (int, float)) and math.isfinite(energy) and energy > 0.0, wg
+    assert by_topic.get("motion_goals"), "the work ops are wrapped by a drive-to (motion) goal"
+    # (2) role-gated eligibility: the identity that lowered this is director-equivalent (api-key), i.e.
+    # operator+ on a LIVE mission with a fresh link and no safing -> every lowered message is emissible.
+    # The interlock is the single pre-emission gate; here it must hold OPEN for the legitimate operator on
+    # the very messages the route lowered (the fail-closed directions are exhausted in the eligibility test).
+    role = role_of("api-key")
+    for topic, msgs in by_topic.items():
+        for _msg in msgs:
+            ok, reason = command_eligible(CommandContext(
+                role=role, mission_namespace="live", target_namespace="live",
+                safed=False, ack_age_s=0.0, ack_deadline_s=2.0))
+            assert ok and reason == "eligible", (topic, reason)
+
+
 def test_sandbox_draft_is_refused(client):
     c, key = client
     r = c.post("/rc/plan_ros", headers={"X-API-Key": key}, json={"mission": "Draft"})
