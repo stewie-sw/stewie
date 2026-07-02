@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "70a2bf5431eebea7bc5f38b5133440bb8b8368336ac40435f342d12f290b49f8",
+  "citations_sha256": "575a454ce484226511faf8986db6b7c06be99899a25e6be9ed1334961fedf103",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "394b826db5e0ac1086dfbb22aa8594f788484669",
-  "prd_sha256": "24c29260a76fbcca609b1367aae80a431b5d201e0b474215fafa9d9e756b3fab",
+  "prd_commit": "7b3be75adbd08cea3e1fc4b3e86c410aef38db36",
+  "prd_sha256": "85670e36e76f29d89524908c7f5c4ae4fbb8c0bb4ef0edd12e60b1c0036fa8b2",
   "specs_sha256": "ff5682251563df1a36d21ff851c38f127bda0e40419c8f356af5e33ac4a11e62"
  },
  "rows": [
@@ -1328,17 +1328,17 @@
    "text": "**Product mode + runnable profile in the route/state model (review finding 4).** The cockpit route/state model carries the PRD product mode (`GIS-PLAN`/`TRAIN`/`SIM-OPERATE`/`EVALUATE`/future `OPERATE`) and the runnable profile (`desktop_sil`/`digital_twin`/`ros2_replay`/`hil_jetson`/`sensor_bench`/`rover_bench`/`field_traverse`/`monte_carlo`) as first-class routeable, persisted, shareable fields \u2014 beyond today's `source`(live/sim/eval)+`mode`(sandbox/live) (`cockpit_state.js:8`). The persistent mode/profile rail (\u00a726.2) is driven from this state; sim/forecast/replay/HIL/live never share ambiguous styling. Acceptance: a shared link restores mode+profile; the rail reflects them on every screen. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "P",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "P",
    "brief": {
     "goal": "the public /program board fits the mobile viewport (no horizontal overflow at 390 px).",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_program_mobile.py citing [REQ:FS-26] (or a node/Playwright check)"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "FS-26",
    "lane": "FS",
    "pri": "P1",
@@ -2901,7 +2901,7 @@
     "total": 10
    }
   },
-  "cited": 163,
+  "cited": 164,
   "done_pct": 61.8,
   "in_scope": 175,
   "in_scope_done_pct": 70.3,
