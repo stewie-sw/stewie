@@ -53,6 +53,36 @@ def test_shadow_yaw_improves_heading_controlled():
     assert aided < 0.6 * base, f"shadow yaw must clearly improve heading at realistic drift: {aided} vs {base}"
 
 
+def test_sn12_sweep_solar_vs_slam_across_terrains_and_seeds():
+    """[REQ:SN-12] The solar-navigation ablation SWEEP: the add-one shadow-yaw (solar) factor vs the
+    IDENTICAL VO/SLAM-class pose graph WITHOUT solar factors, over a grid of >=2 REAL Katwijk
+    terrains (Part1/Part2 -- different traverse segments) x >=3 seeds, with per-grid-point aligned
+    ATE + absolute drift + heading RMSE for solar-on vs solar-off, and solar-on beating solar-off
+    AGGREGATED on the metrics the solar factor claims (heading + absolute drift). The sun-angle and
+    terrain-change grid axes are GPU-render-gated (see sweep_ablation)."""
+    import os
+    parts = ["/mnt/projects/datasets/katwijk/Part1", "/mnt/projects/datasets/katwijk/Part2"]
+    if not all(os.path.isdir(p) for p in parts):
+        import pytest; pytest.skip("raw Katwijk not present")
+    from dart.integrated_slam import sweep_ablation
+    res = sweep_ablation(parts, seeds=(0, 1, 2))
+    grid = res["grid"]
+    assert set(grid) == {"Part1", "Part2"}                    # >=2 real terrains
+    for part in grid:
+        assert set(grid[part]) == {0, 1, 2}                   # >=3 seeds -> a result per grid point
+        for seed in grid[part]:
+            for arm in ("solar_on", "solar_off"):
+                cell = grid[part][seed][arm]
+                for metric in ("ate_aligned_m", "abs_max_err_m", "heading_rmse_deg"):
+                    assert np.isfinite(cell[metric]) and cell[metric] >= 0.0, (part, seed, arm, metric)
+    agg = res["aggregate"]
+    on, off = agg["solar_on"], agg["solar_off"]
+    # the solar factor is a HEADING fix: it must bound heading error and, through it, global drift
+    assert on["heading_rmse_deg"] < off["heading_rmse_deg"], f"{on} !< {off}"
+    assert on["abs_max_err_m"] < off["abs_max_err_m"], f"{on} !< {off}"
+    assert agg["n_grid_points"] == 6
+
+
 def test_shadow_rejected_when_gyro_better_than_shadow():
     """§6.3 honesty: a cue is KEPT only if it improves the objective. With negligible gyro drift,
     a 3-deg shadow fix does NOT beat the gyro -- the factor must not be force-fit."""

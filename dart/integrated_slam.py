@@ -17,7 +17,7 @@ import math
 
 import numpy as np
 
-from dart.ablation import _align_ate
+from dart.ablation import _align_ate, _heading_rmse_deg
 from dart.factors import FactorType, MeasurementFactor, factor_lookup
 from dart.pose_graph_se2 import PoseGraphSE2
 
@@ -107,9 +107,11 @@ def run_integrated_slam(truth_xy, dr_xy, truth_yaw, gyro_yaw, *, factors=ALL_FAC
             n_fix["dem"] += 1
     est = g.optimize()
     E = np.array([est[k][:2] for k in range(n_keyframes)])
+    Y = np.array([est[k][2] for k in range(n_keyframes)])
     return {"ate_aligned_m": round(_align_ate(E, T), 4),
             "abs_max_err_m": round(float(np.max(np.linalg.norm(E - T, axis=1))), 4),
-            "est_xy": E, "n_fix": n_fix, "measured": n_measured}
+            "heading_rmse_deg": round(_heading_rmse_deg(Y, Ty), 4),
+            "est_xy": E, "est_yaw": Y, "n_fix": n_fix, "measured": n_measured}
 
 
 def load_katwijk_arrays(part_dir):
@@ -163,6 +165,40 @@ def shared_testbed_comparison(truth_xy, dr_xy, truth_yaw, gyro_yaw, *, n_seeds=2
         "Navigation (articulation parallax)": {**stat(("odom", "imu", "shadow", "parallax"), sigma_parallax_m=0.5),
             "note": "standstill parallax fixes ~0.5 m; map-free, heading-free"},
     }
+
+
+def sweep_ablation(parts, *, seeds=(0, 1, 2), baseline_factors=("odom", "imu"),
+                   solar_factors=("shadow",), **kw):
+    """SN-12: the solar-vs-VO/SLAM ablation SWEEP. The add-one comparison (the identical pose graph
+    with vs without the solar factors) run over a grid of REAL Katwijk terrains (each part is a
+    different traverse segment) x seeds (the modeled-factor noise), returning per-grid-point aligned
+    ATE + absolute drift + heading RMSE for both arms plus the grid aggregate. The baseline arm is
+    the VO/SLAM class WITHOUT solar factors; the solar arm adds the shadow-yaw factor at its
+    calibrated sigma against the real Katwijk drift (comparison-of-classes honesty, as in
+    shared_testbed_comparison). HONESTY on the metrics: shadow-yaw is a HEADING fix -- it bounds
+    heading error and global drift; the ALIGNED ATE (relative shape) is not what it claims and may
+    not improve (see dart.ablation module docstring).
+
+    GATED (not fakeable here): the sun-angle axis needs GPU renders at different solar ephemeris
+    (Godot sidecar) and the terrain-change axis needs before/after terrain-mutation renders; neither
+    exists on this CPU-only host, so the grid sweeps the two REAL axes available (terrain x seed)."""
+    grid: dict = {}
+    metrics = ("ate_aligned_m", "abs_max_err_m", "heading_rmse_deg")
+    for part in parts:
+        arrays = load_katwijk_arrays(part)
+        name = str(part).rstrip("/").rsplit("/", 1)[-1]
+        grid[name] = {}
+        for seed in seeds:
+            off = run_integrated_slam(*arrays, factors=tuple(baseline_factors), seed=seed, **kw)
+            on = run_integrated_slam(*arrays, factors=tuple(baseline_factors) + tuple(solar_factors),
+                                     seed=seed, **kw)
+            grid[name][seed] = {"solar_on": {m: on[m] for m in metrics},
+                                "solar_off": {m: off[m] for m in metrics}}
+    cells = [c for by_seed in grid.values() for c in by_seed.values()]
+    agg = {arm: {m: round(float(np.mean([c[arm][m] for c in cells])), 4) for m in metrics}
+           for arm in ("solar_on", "solar_off")}
+    agg["n_grid_points"] = len(cells)
+    return {"grid": grid, "aggregate": agg, "parts": list(grid), "seeds": list(seeds)}
 
 
 def leave_one_out(truth_xy, dr_xy, truth_yaw, gyro_yaw, **kw):
