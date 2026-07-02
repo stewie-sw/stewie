@@ -23,15 +23,23 @@ from stewie.specs import rock_costs
 
 _HARD = math.inf
 
+# discrete hazard class per cell (increasing severity) -- the local planner's terrain-assessment verdict
+SAFE, CAUTION, HAZARD, NOGO = 0, 1, 2, 3
+HAZARD_CLASS_NAMES = {SAFE: "safe", CAUTION: "caution", HAZARD: "hazard", NOGO: "no-go"}
+
 
 @dataclass
 class HazardMap:
     cost: np.ndarray            # (H, W) per-cell traversal cost; inf = no-go
     slope_deg: np.ndarray
+    roughness_m: np.ndarray     # per-cell windowed height std (from the DEM); NaN where nodata
     rock_cost: np.ndarray       # per-cell rock navigation penalty (inf where a hard D/E rock sits)
+    hazard_class: np.ndarray    # per-cell SAFE/CAUTION/HAZARD/NOGO (int8); NOGO exactly where cost=inf
+    confidence: np.ndarray      # per-cell assessment confidence in [0, 1]; 0 where inputs are nodata/UNKNOWN
     cell_m: float
     origin: tuple = (0.0, 0.0)
     meta: dict = field(default_factory=dict)
+    summary: dict = field(default_factory=dict)   # slope/roughness min/mean/max + traversable/no-go counts
 
     def world_to_rc(self, x, y):
         return (int(round((y - self.origin[1]) / self.cell_m)),
@@ -44,14 +52,18 @@ class HazardMap:
 
 def build_hazard_map(dem, dem_origin=(0.0, 0.0), *, rocks_world=(), rock_mask=None, zones=None,
                      max_slope_deg: float = 20.0, slope_hazard_deg: float = 15.0,
-                     roughness_hazard_m: float = 0.075, hard_rock_inflate_cells: int = 1) -> HazardMap:
-    """Build the navigation cost grid. cost = 1 (base) + slope penalty + roughness penalty + rock penalty;
-    inf (no-go) where slope > max_slope OR a hard (D/E) rock sits.
+                     roughness_hazard_m: float = 0.075, slope_caution_deg: float = 10.0,
+                     roughness_caution_m: float = 0.0375, hard_rock_inflate_cells: int = 1) -> HazardMap:
+    """Build the navigation cost grid PLUS the terrain-assessment layers the local planner needs:
+    a per-cell hazard CLASS (SAFE/CAUTION/HAZARD/NOGO), slope/roughness SUMMARY stats, and a per-cell
+    CONFIDENCE in [0, 1]. cost = 1 (base) + slope penalty + roughness penalty + rock penalty; inf (no-go)
+    where slope > max_slope OR inputs are nodata OR a hard (D/E) rock sits.
 
-    DEFAULTS ARE DOC-TRUE (Navigation T6.2, TRL5): no-go above the 20-deg TESTED slope limit, penalty
-    from the 15-deg NOMINAL envelope, roughness hazard at the 7.5 cm obstacle capability. ``rocks_world`` = iterable of
-    (x, y, Rock); ``rock_mask`` = optional dense semantic rock occupancy (same shape as the DEM, the
-    Stanford per-pixel layer)."""
+    DEFAULTS ARE DOC-TRUE (Navigation T6.2, TRL5): no-go above the 20-deg TESTED slope limit, penalty +
+    HAZARD class from the 15-deg NOMINAL envelope, roughness hazard at the 7.5 cm obstacle capability;
+    the CAUTION band sits at ~2/3 of the nominal slope envelope (10 deg) and half the roughness hazard.
+    ``rocks_world`` = iterable of (x, y, Rock); ``rock_mask`` = optional dense semantic rock occupancy
+    (same shape as the DEM, the Stanford per-pixel layer)."""
     rocks_world = list(rocks_world)
     layers = dem_cross.dem_layers(dem, dem_origin)
     slope = layers["slope_deg"]
@@ -65,11 +77,13 @@ def build_hazard_map(dem, dem_origin=(0.0, 0.0), *, rocks_world=(), rock_mask=No
     # (NaN comparisons are all False, so nodata cells previously scored as FLAT/traversable -- a
     # missed-obstacle false negative; audit M20)
     rock_cost = np.zeros((h, w), dtype=float)
+    rock_conf = np.ones((h, w), dtype=float)     # per-cell detection confidence factor (1 = no detection here)
     cell = layers["cell_m"]
     ox, oy = layers["origin"]
     for x, y, rk in rocks_world:
         c = int(round((x - ox) / cell)); r = int(round((y - oy) / cell))
         if 0 <= r < h and 0 <= c < w:
+            rock_conf[r, c] = min(rock_conf[r, c], float(rk.confidence))   # least-certain detection here
             pen = rock_costs.nav_cost(rk.nav_class)
             # T1.3 (TRL5): the 7.5 cm obstacle capability is the HARD limit -- a rock TALLER than
             # the documented envelope is no-go REGARDLESS of nav class (class covers shape/rideover;
@@ -94,8 +108,37 @@ def build_hazard_map(dem, dem_origin=(0.0, 0.0), *, rocks_world=(), rock_mask=No
             zr, zc = (z.y - oy) / cell, (z.x - ox) / cell
             cost[(rr - zr) ** 2 + (cc - zc) ** 2 <= (z.radius_m / cell) ** 2] = _HARD
             n_zone += 1
-    return HazardMap(cost=cost, slope_deg=slope, rock_cost=rock_cost, cell_m=cell, origin=(ox, oy),
-                     meta={"max_slope_deg": max_slope_deg, "n_rocks": len(rocks_world), "n_nogo_zones": n_zone})
+
+    # --- terrain-assessment layers derived from the finalized cost + geometry (for the local planner) ---
+    # (a) discrete hazard class, increasing severity; NOGO is authoritative from the final cost so the
+    # class ALWAYS agrees with traversability (steep / nodata / hard rock / zone are all no-go there).
+    hazard_class = np.full((h, w), SAFE, dtype=np.int8)
+    hazard_class[(slope >= slope_caution_deg) | (rough >= roughness_caution_m) | (rock_cost > 0.0)] = CAUTION
+    _c_pen = rock_costs.nav_cost("C")            # C-class rock = a real (non-soft) obstacle penalty
+    hazard_class[(slope >= slope_hazard_deg) | (rough >= roughness_hazard_m) | (rock_cost >= _c_pen)] = HAZARD
+    hazard_class[~np.isfinite(cost)] = NOGO      # last -> NOGO exactly where the cost is inf
+    # (c) per-cell confidence in [0, 1]: 0 where inputs are nodata/UNKNOWN (drives no-go too), tempered by
+    # the least-certain rock detection at the cell. A no-go from a real rock stays HIGH-confidence; a no-go
+    # from missing data is LOW-confidence -- the distinction the planner needs.
+    finite_in = np.isfinite(slope) & np.isfinite(rough)
+    confidence = np.clip(finite_in.astype(float) * rock_conf, 0.0, 1.0)
+    # (b) slope/roughness summary over the finite (measured) cells + traversable/no-go counts
+    fin_s, fin_r = slope[np.isfinite(slope)], rough[np.isfinite(rough)]
+    trav = np.isfinite(cost)
+    summary = {
+        "slope_deg_min": float(fin_s.min()) if fin_s.size else math.nan,
+        "slope_deg_mean": float(fin_s.mean()) if fin_s.size else math.nan,
+        "slope_deg_max": float(fin_s.max()) if fin_s.size else math.nan,
+        "roughness_m_min": float(fin_r.min()) if fin_r.size else math.nan,
+        "roughness_m_mean": float(fin_r.mean()) if fin_r.size else math.nan,
+        "roughness_m_max": float(fin_r.max()) if fin_r.size else math.nan,
+        "n_cells": int(cost.size), "n_traversable": int(trav.sum()), "n_nogo": int((~trav).sum()),
+        "mean_confidence": float(confidence.mean()),
+    }
+    return HazardMap(cost=cost, slope_deg=slope, roughness_m=rough, rock_cost=rock_cost,
+                     hazard_class=hazard_class, confidence=confidence, cell_m=cell, origin=(ox, oy),
+                     meta={"max_slope_deg": max_slope_deg, "n_rocks": len(rocks_world), "n_nogo_zones": n_zone},
+                     summary=summary)
 
 
 def plan_route(hmap: HazardMap, start_xy, goal_xy):

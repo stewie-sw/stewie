@@ -2,6 +2,7 @@
 import os
 
 import numpy as np
+import pytest
 
 from dart import hazard_map as HM
 from dart import rock_taxonomy as RT
@@ -19,15 +20,62 @@ def _crop():
 
 
 def test_hazard_map_marks_steep_and_hard_rocks_nogo():  # [REQ:ML-02]
-    # the terrain-assessment hazard layer: real-DEM slope + rock classes -> traversability/no-go
+    """Terrain Assessment Model: alongside traversability/cost the hazard layer emits (a) a discrete
+    hazard CLASS per cell, (b) slope/roughness SUMMARY stats, and (c) a per-cell CONFIDENCE in [0,1]
+    that drops where inputs are nodata/UNKNOWN -- and nodata -> low confidence AND no-go. Real Haworth DEM."""
     if not _HAVE:
         return
     dem = _crop()
-    rocks = [(300.0, 250.0, RT.classify(0.8)), (500.0, 250.0, RT.classify(0.05))]  # E no-go + A traversable
+    e_rock = RT.classify(0.8)                          # E-class boulder -> no-go
+    a_rock = RT.classify(0.05, confidence=0.3)         # A-class rock, traversable, LOW-confidence detection
+    rocks = [(300.0, 250.0, e_rock), (500.0, 250.0, a_rock)]
     hm = HM.build_hazard_map(dem, (0.0, 0.0), rocks_world=rocks)
-    assert not np.isfinite(hm.cost[hm.world_to_rc(300, 250)])     # E rock -> no-go
-    assert np.isfinite(hm.cost[hm.world_to_rc(500, 250)])         # A rock -> traversable
-    assert np.all(hm.cost[np.isfinite(hm.cost)] >= 1.0)           # base cost + penalties
+    rc_e, rc_a = hm.world_to_rc(300, 250), hm.world_to_rc(500, 250)
+
+    # --- traversability (original acceptance, unchanged) ---
+    assert not np.isfinite(hm.cost[rc_e])                        # E rock -> no-go
+    assert np.isfinite(hm.cost[rc_a])                            # A rock -> traversable
+    assert np.all(hm.cost[np.isfinite(hm.cost)] >= 1.0)         # base cost + penalties
+
+    # --- (a) discrete hazard CLASS per cell ---
+    assert hm.hazard_class.shape == hm.cost.shape
+    assert set(int(v) for v in np.unique(hm.hazard_class)) <= {HM.SAFE, HM.CAUTION, HM.HAZARD, HM.NOGO}
+    assert np.array_equal(hm.hazard_class == HM.NOGO, ~np.isfinite(hm.cost))   # NOGO class <=> no-go cost
+    assert hm.hazard_class[rc_e] == HM.NOGO                      # E rock cell classed NOGO
+    assert hm.hazard_class[rc_a] != HM.NOGO                      # A rock cell traversable-classed
+    assert (hm.hazard_class == HM.NOGO).any() and (hm.hazard_class != HM.NOGO).any()
+
+    # --- (c) per-cell CONFIDENCE in [0, 1], dropping on input uncertainty ---
+    assert hm.confidence.shape == hm.cost.shape
+    assert np.all(np.isfinite(hm.confidence))
+    assert hm.confidence.min() >= 0.0 and hm.confidence.max() <= 1.0
+    assert np.all(hm.confidence[np.isfinite(hm.cost)] > 0.0)     # traversable cells keep some confidence
+    assert hm.confidence[rc_a] == pytest.approx(0.3)            # low-confidence detection -> lowered confidence
+    assert hm.confidence[rc_e] == pytest.approx(1.0)           # confident this cell is blocked (real rock)
+
+    # nodata -> low confidence AND no-go: inject a real missing-measurement patch into the DEM crop
+    Z, cell = dem
+    Znd = Z.copy(); Znd[98:103, 98:103] = np.nan                # a sensor-gap / nodata patch (real condition)
+    hm_nd = HM.build_hazard_map((Znd, cell), (0.0, 0.0))
+    zero_conf = hm_nd.confidence == 0.0
+    assert zero_conf.any()                                       # the gap dropped confidence to zero somewhere
+    assert not np.isfinite(hm_nd.cost[zero_conf]).any()         # every nodata cell is no-go
+    assert np.all(hm_nd.hazard_class[zero_conf] == HM.NOGO)     # and classed NOGO
+    assert hm_nd.confidence.mean() < 1.0                        # the gap strictly lowers mean confidence
+
+    # --- (b) slope/roughness SUMMARY stats bracket the exposed layers ---
+    s = hm.summary
+    for k in ("slope_deg_min", "slope_deg_mean", "slope_deg_max",
+              "roughness_m_min", "roughness_m_mean", "roughness_m_max"):
+        assert np.isfinite(s[k])
+    assert s["slope_deg_min"] <= s["slope_deg_mean"] <= s["slope_deg_max"]
+    assert s["roughness_m_min"] <= s["roughness_m_mean"] <= s["roughness_m_max"]
+    assert s["slope_deg_min"] == pytest.approx(float(np.nanmin(hm.slope_deg)))
+    assert s["slope_deg_max"] == pytest.approx(float(np.nanmax(hm.slope_deg)))
+    assert s["roughness_m_min"] == pytest.approx(float(np.nanmin(hm.roughness_m)))
+    assert s["roughness_m_max"] == pytest.approx(float(np.nanmax(hm.roughness_m)))
+    assert s["n_traversable"] + s["n_nogo"] == s["n_cells"] == hm.cost.size
+    assert s["n_nogo"] == int((~np.isfinite(hm.cost)).sum())
 
 
 def test_plan_route_avoids_hazards():
