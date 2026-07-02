@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "357cd70f398657e173de9b156f30533cd18cef3bdf8eaa3eb1f7604f98300722",
+  "citations_sha256": "e7ef8db757027aabbd3e96c129db271d332f5f44a31612722167e586edd6d8bd",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "f918ee4b73501ec2e345e31767b5b89776041e94",
-  "prd_sha256": "8b00f593f43fd39de8693861197ce2bd1587de70d472704fc430bf78bafc4adb",
+  "prd_commit": "4fd27e989baf4c34aceccfb269ef1435581b2827",
+  "prd_sha256": "53bcdc8601966a2007cfcf2dd8d8f73e9d93bebc8910e6a8ee54c8a0cb9084a1",
   "specs_sha256": "37059633a28f0aaa17e5f419a26a87179ebb0a85d82da450c3ad38af1ffd4b11"
  },
  "rows": [
@@ -1687,17 +1687,17 @@
    "text": "**Lean package / dependency-profile split.** Split the optional extras into `core` / `perception` / `planning` / `server` / `ros` / `dev` profiles so the DEFAULT install is lean and the heavy CV/GIS/benchmark deps stay out of the minimal runtime. Acceptance: a minimal-profile install boots `stewie-serve` + `/healthz` without the heavy extras, and each profile resolves from the hashed lock. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "P",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "P",
    "brief": {
     "goal": "a continuity-governance release gate reporting tracked-payload size + large-file diff + HTML-sink count + test-tier status; ADRs per boundary; generated-artifact manifest.",
     "kind": "atomic",
     "test_target": "NEW scripts/test_continuity_gate.py citing [REQ:MT-05]"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "MT-05",
    "lane": "MT",
    "pri": "P1",
@@ -3189,7 +3189,7 @@
     "total": 11
    }
   },
-  "cited": 175,
+  "cited": 176,
   "done_pct": 60.6,
   "in_scope": 191,
   "in_scope_done_pct": 68.6,
