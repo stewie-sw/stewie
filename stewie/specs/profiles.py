@@ -14,9 +14,13 @@ import os
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any, Callable, Mapping, MutableMapping, Optional
 
 import numpy as np
+
+#: The schema_version every profile artifact must present to the strict validator. Older artifacts are
+#: upgraded to this by the PO-09 migration chain before validation (see migrate_profile below).
+CURRENT_SCHEMA_VERSION = "solnav_system_profile/1.0"
 
 DEFAULT_PROFILE_ID = "STEWIE_IPEX_V1"
 PROFILE_ENV = "STEWIE_PROFILE"
@@ -140,7 +144,7 @@ def _validate(data: Mapping[str, Any], *, require_verified: bool) -> None:
     missing = sorted(required - set(data))
     if missing:
         raise ProfileError(f"profile missing top-level fields: {missing}")
-    if data["schema_version"] != "solnav_system_profile/1.0":
+    if data["schema_version"] != CURRENT_SCHEMA_VERSION:
         raise ProfileError(f"unsupported schema_version {data['schema_version']!r}")
     if require_verified and data["status"] != "VERIFIED":
         raise ProfileError(
@@ -218,6 +222,66 @@ def _validate(data: Mapping[str, Any], *, require_verified: bool) -> None:
             raise ProfileError(f"vehicle.{key} must be positive")
 
 
+# ---- PO-09: mission/profile schema migration ----------------------------------------------------
+# The profile schema is VERSIONED (schema_version), and the strict validator only accepts the current
+# version. Before PO-09 an artifact tagged with any other version was simply REJECTED. This is the
+# forward-compatibility seam: a migrator is registered per prior schema_version, the loader detects the
+# artifact's version and walks the registered chain up to CURRENT_SCHEMA_VERSION, then the strict
+# validator runs on the upgraded artifact. A version with no registered migrator is rejected with a clear
+# "no migration path" error (version-detecting, not a blunt "unsupported").
+#
+# HONESTY: only the "1.0" schema exists today, so the registry is EMPTY -- there is no real prior profile
+# version to migrate FROM, and fabricating a legacy fixture would violate the no-synthetic-data rule. So
+# the identity path (a current artifact passes through unchanged) and the rejection path (an unregistered
+# version is refused) are the closeable, tested slice; a real cross-version PROFILE migration test is
+# BLOCKED until a second schema_version ships and a migrator is registered for it. The chaining mechanism
+# itself is unit-tested (test_profile_migration) on an explicit local registry so the registry is proven
+# to work, not a stub.
+_PROFILE_MIGRATORS: dict[str, tuple[str, Callable[[MutableMapping[str, Any]], MutableMapping[str, Any]]]] = {}
+
+
+def register_profile_migration(
+    from_version: str,
+    to_version: str,
+    migrate: Callable[[MutableMapping[str, Any]], MutableMapping[str, Any]],
+) -> None:
+    """Register a migrator that upgrades a profile artifact from ``from_version`` to ``to_version``. The
+    migrate callable receives (and may mutate/return) the profile dict; the loader stamps ``to_version``."""
+    _PROFILE_MIGRATORS[from_version] = (to_version, migrate)
+
+
+def _apply_migration_chain(
+    data: MutableMapping[str, Any],
+    current_version: str,
+    registry: Mapping[str, tuple[str, Callable[[MutableMapping[str, Any]], MutableMapping[str, Any]]]],
+) -> MutableMapping[str, Any]:
+    """Walk ``data`` from its declared schema_version up to ``current_version`` through ``registry``.
+    Identity when already current. Raises ProfileError on an unregistered version or a migration cycle."""
+    version = data.get("schema_version")
+    seen: set[str] = set()
+    while version != current_version:
+        if version in seen:
+            raise ProfileError(f"profile migration cycle detected at schema_version {version!r}")
+        seen.add(str(version))
+        step = registry.get(str(version))
+        if step is None:
+            raise ProfileError(
+                f"no migration path from schema_version {version!r} to {current_version!r}; "
+                f"register a migrator (register_profile_migration) for that version"
+            )
+        to_version, migrate = step
+        data = migrate(dict(data))
+        data["schema_version"] = to_version
+        version = to_version
+    return data
+
+
+def migrate_profile(data: Mapping[str, Any]) -> MutableMapping[str, Any]:
+    """Upgrade a profile dict to CURRENT_SCHEMA_VERSION via the registered migration chain (identity if it
+    is already current). The strict validator then runs on the result."""
+    return _apply_migration_chain(dict(data), CURRENT_SCHEMA_VERSION, _PROFILE_MIGRATORS)
+
+
 def load_profile(identifier: Optional[str] = None, *, require_verified: bool = False) -> SystemProfile:
     raw, source = _resolve(identifier)
     try:
@@ -226,6 +290,9 @@ def load_profile(identifier: Optional[str] = None, *, require_verified: bool = F
         raise ProfileError(f"invalid profile JSON in {source}: {exc}") from exc
     if not isinstance(data, dict):
         raise ProfileError(f"profile in {source} must be a JSON object")
+    if "schema_version" not in data:
+        raise ProfileError(f"profile in {source} has no schema_version")
+    data = migrate_profile(data)          # PO-09: upgrade a prior-version artifact before strict validation
     _validate(data, require_verified=require_verified)
     return SystemProfile(data=data, sha256=hashlib.sha256(raw).hexdigest(), source=source)
 
