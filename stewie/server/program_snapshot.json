@@ -1,10 +1,10 @@
 {
  "provenance": {
-  "citations_sha256": "133ad5ccf1f492c41d0eb16a929ee11272acb35e294d544a7e81e2ff97add5e8",
+  "citations_sha256": "18dd2bced54a0194770c90dd7f9d813f1b340435502b66787d5395bbd270b089",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "9c26fbc0a5174117c333a9b5cea9c7df6d3039cf",
-  "prd_sha256": "41fd16cf0c48efb11410bfd506f352df197b023ef253bf2a56896ef063bd4891",
-  "specs_sha256": "ec93ce38d3b6cc13e2094361cb709ae6fba96cb545deaf06ee6ea4dcb3ba0a10"
+  "prd_commit": "8cbc8326ab9c86d750e1ff729f6b825a910bb5fc",
+  "prd_sha256": "10b61a0cef33084df2134a20b9ab27e1c6a9c84b9c994491110885126ad1dd1a",
+  "specs_sha256": "793de58e8fdd1ca5d908c4e3c2f77be05176faeb639bcef73ca1a0fa532c6cc8"
  },
  "rows": [
   {
@@ -222,7 +222,7 @@
   {
    "I": "P",
    "Q": "NA",
-   "V": "N",
+   "V": "P",
    "X": "N",
    "bucket": "buildable",
    "cited": true,
@@ -256,10 +256,10 @@
    "text": "IPEx vehicle description: add URDF/Xacro/SDF describing chassis, wheels, drums, arms, camera rig, IMU, optional swappable LiDAR/RGB-D mounts, collision geometry, inertials, joint limits, TF tree, and frame names derived from STEWIE vehicle specs. Sensor profiles must label absent, simulated, bench, flight, and legacy sensors explicitly."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
    "V": "P",
-   "X": "P",
+   "X": "D",
    "bucket": "buildable",
    "cited": true,
    "id": "AS-04",
@@ -292,10 +292,10 @@
    "text": "Gazebo simulation seam: launch the IPEx description in Gazebo with cameras, selected depth source (stereo pair, depth camera, LiDAR/RGB-D, or replay bridge), IMU, wheel odometry, contact/collision, `/cmd_vel`, `/joint_states`, `/tf`, `/clock`, `/stewie/perception/points` or equivalent `DepthObservation`, and bridgeable terrain/world state. Gazebo sim is robot/sensor sim, not excavation truth; estimator and planner inputs must be truth-denied."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
    "V": "P",
-   "X": "N",
+   "X": "D",
    "bucket": "buildable",
    "cited": true,
    "id": "AS-07",
@@ -304,11 +304,11 @@
    "text": "Stanford/NavLab-derived navigation spine: implement or integrate stereo feature detection/matching, stereo VO, optional LiDAR/depth-cloud odometry or scan-to-DEM registration when a range sensor is selected, robust PnP/triangulation, pose graph optimization, loop-closure gating, terrain/rock mapping, coverage planning, local arc planner, and recovery benchmarks on truth-denied bags."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
-   "X": "N",
-   "bucket": "buildable",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "AS-08",
    "lane": "AS",
@@ -340,10 +340,10 @@
    "text": "Autonomous mapping: maintain observed DEM, occupancy/rock map, object graph, uncertainty, changed-terrain mask, and excavation state as separate layers over the conserved world model; estimator/mapping nodes are denied simulator truth."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
    "V": "P",
-   "X": "N",
+   "X": "D",
    "bucket": "buildable",
    "cited": true,
    "id": "AS-11",
@@ -355,7 +355,7 @@
    "I": "P",
    "Q": "N",
    "V": "P",
-   "X": "P",
+   "X": "D",
    "bucket": "buildable",
    "cited": true,
    "id": "AS-12",
@@ -376,11 +376,11 @@
    "text": "Mission executive node: add a ROS2-side executive that monitors preconditions, acknowledgements, covariance, resource reservations, faults, acceptance state, and safing, then emits continue/pause/replan/relocalize/reverse/SAFE decisions."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "AS-14",
    "lane": "AS",
@@ -2009,17 +2009,17 @@
    "text": "Fleet playback renders every rover and its independent telemetry."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "N",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "build an integrated Solar view (sun vector + illumination/shadow layers + active cameras/LEDs + arm posture + localization evidence accepted/rejected).",
     "kind": "epic",
     "test_target": "NEW .../solar_view.test.js (`[REQ:PO-12]`)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PO-12",
    "lane": "PO",
    "pri": "P1",
@@ -2601,9 +2601,9 @@
  "summary": {
   "briefs": 62,
   "buckets": {
-   "buildable": 46,
+   "buildable": 43,
    "concurrent": 0,
-   "done": 118,
+   "done": 121,
    "gated": 24
   },
   "by_lane": {
@@ -2616,7 +2616,7 @@
     "total": 9
    },
    "AS": {
-    "done": 6,
+    "done": 8,
     "total": 18
    },
    "CP": {
@@ -2664,7 +2664,7 @@
     "total": 16
    },
    "PO": {
-    "done": 9,
+    "done": 10,
     "total": 14
    },
    "RL": {
@@ -2702,11 +2702,11 @@
   },
   "by_priority": {
    "P0": {
-    "done": 41,
+    "done": 42,
     "total": 61
    },
    "P1": {
-    "done": 77,
+    "done": 79,
     "total": 117
    },
    "P2": {
@@ -2714,10 +2714,10 @@
     "total": 10
    }
   },
-  "cited": 161,
-  "done_pct": 62.8,
+  "cited": 162,
+  "done_pct": 64.4,
   "in_scope": 164,
-  "in_scope_done_pct": 72.0,
+  "in_scope_done_pct": 73.8,
   "total": 188
  },
  "workflow_spine": [
