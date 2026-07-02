@@ -69,6 +69,25 @@ services:
       MPLBACKEND: Agg
     command: ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && python3 /work/scripts/ccsds_ros_nav/nodes/rover_executive_node.py"]
     restart: unless-stopped
+  # PO-14: the OPTIONAL Godot render/sensor sidecar. GPU-GATED (headless Vulkan) and NOT part of the
+  # supported server image -> opt-in via the 'godot' profile, exactly like ros2:
+  #   docker compose --profile godot run --rm godot res://sidecar.tscn -- --cameras ...
+  # The Godot 4.6.3 binary (gitignored, under stewie/.tools/godot/) and a real GPU are host-provided at
+  # run time (the repo is mounted read-only; the GPU via the reservation below) -- without both, the
+  # render cannot start, which is the honest gate. On a host without the NVIDIA runtime, drop the
+  # deploy.resources block; the container still builds but render.sh will have no GPU to attach.
+  godot:
+    profiles: [ "godot" ]
+    build: { context: .., dockerfile: deploy/Dockerfile.godot, network: host }
+    volumes: [ "..:/work:ro", "stewie-data:/data" ]
+    environment:
+      GODOT: /work/stewie/.tools/godot/Godot_v4.6.3-stable_linux.x86_64   # host-mounted binary (gitignored)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - { driver: nvidia, count: all, capabilities: [ "gpu" ] }
+    restart: "no"                            # a render job runs to completion; it is not a long-lived service
 
 volumes:
   stewie-data:

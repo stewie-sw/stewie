@@ -1,0 +1,25 @@
+# PO-14: the OPTIONAL Godot render/sensor sidecar image (the `godot` compose profile).
+#
+# This builds the headless-render RUNTIME (Xvfb + the Vulkan loader + Mesa fallback drivers) that
+# stewie/godot/render.sh needs. It is an OPT-IN capability, not part of the supported server image
+# (Dockerfile.backend/frontend): the actual render is GPU-GATED. Two things are provided by the HOST at
+# run time, not baked in, so this image cannot fabricate a render on a CPU-only box:
+#   1. the Godot 4.6.3 binary (gitignored, lives under stewie/.tools/godot/ on the host; mounted in), and
+#   2. a real GPU + its NVIDIA Vulkan ICD (via `gpus`/device reservation in the compose service).
+# Without both, render.sh's per-frame `await frame_post_draw` never fires -- which is the honest gate.
+FROM ubuntu:24.04
+
+# real, installable headless-Vulkan render deps (no Godot binary here -- host-mounted at runtime)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        xvfb \
+        libvulkan1 \
+        mesa-vulkan-drivers \
+        libgl1 \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# the repo (incl. stewie/godot/render.sh + the Godot project) is bind-mounted read-only at /work by the
+# compose service, so no COPY of the gitignored binary is needed. Default to the render wrapper; the
+# compose `command` overrides it with the real scene + camera-rig arguments.
+WORKDIR /work/stewie/godot
+ENTRYPOINT ["bash", "render.sh"]

@@ -51,3 +51,30 @@ curl -s https://app.stewie.space/assets/cockpit.js | grep -c '<a marker from you
 
 A `?v=` bump sidesteps a stale entry without the Cloudflare API. A true edge purge needs the Cloudflare
 dashboard/API token (the cloudflared tunnel credentials are NOT cache-purge credentials).
+
+## Supported server image vs optional capability profiles (PO-14)
+
+The **supported server image** is the two-service stack built from `deploy/Dockerfile.backend`
+(the planner + API) and `deploy/Dockerfile.frontend` (the nginx UI + proxy) — the `backend` and
+`frontend` compose services above. That is what `docker compose up -d backend frontend` deploys and
+what fronts `app.stewie.space`.
+
+Everything heavier is an **opt-in compose profile** (nothing in the default `up` pulls it in):
+
+| Profile | Service | What it adds | Gate |
+|---|---|---|---|
+| `ros2` | `ros2` | ROS2 Jazzy teleop/nav executive (CCSDS demo, Twist teleop) | heavy `osrf/ros:jazzy-desktop` image; DDS wants host networking |
+| `godot` | `godot` | Godot 4.6.3 render/sensor sidecar (8-camera rig, state-field + AprilTag egress) | **GPU-gated** (headless Vulkan) + the gitignored Godot binary, both host-provided |
+
+```bash
+docker compose -f deploy/compose.yml --profile ros2  up -d ros2         # ROS2 executive
+docker compose -f deploy/compose.yml --profile godot run --rm godot \
+    res://sidecar.tscn -- --cameras --layers terrain,clasts,rover ...    # a render job (runs to completion)
+```
+
+The `godot` profile builds the render RUNTIME (`deploy/Dockerfile.godot`: Xvfb + Vulkan loader + Mesa)
+but deliberately does **not** bundle the Godot binary or a GPU: it mounts the repo read-only and expects
+the binary at `stewie/.tools/godot/Godot_v4.6.3-stable_linux.x86_64` (gitignored) plus a real NVIDIA GPU
+via the service's device reservation. On a CPU-only host, drop the `deploy.resources` block — the
+container still builds, but `render.sh` has no GPU to attach and the render will not produce frames. That
+is the intended gate: the profile is DECLARED and documented; a live render needs the GPU host.
