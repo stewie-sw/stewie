@@ -35,12 +35,31 @@ def test_shadow_factors_recover_a_perturbed_heading():  # [REQ:ML-04]
     assert all(f["accepted"] for f in facs)
     for f in facs:                                        # each factor implies ~true yaw
         assert abs(PG._wrap(f["yaw_rad"] - math.radians(true_yaw_deg))) < math.radians(3.0)
+    # covariance propagation: each accepted factor carries the NON-NEGATIVE information (inverse yaw
+    # variance) tied to its sigma_deg, so the graph fuses it covariance-weighted (NavFactor.information
+    # >= 0). sigma_deg=6 -> sigma_rad=radians(6) -> information = 1/sigma_rad^2 ~= 91.2.
+    sig_rad = math.radians(6.0)
+    for f in facs:
+        assert f["information"] >= 0.0                    # NavFactor invariant: information is non-negative
+        assert f["information"] == 1.0 / f["sigma_rad"] ** 2   # tied to sigma, i.e. 1/sigma^2 (inv variance)
+        assert abs(f["information"] - 1.0 / sig_rad ** 2) < 1e-9
+        assert f["information"] >= SF.MIN_HEADING_INFORMATION  # sharp shadow -> heading is observable
     g = PG.PoseGraphSE2()
     g.add_prior(0, (0.0, 0.0, math.radians(-30.0)), sigma_xy=0.05, sigma_yaw=math.radians(90.0))
     n = SF.add_shadow_yaw_factors(g, 0, facs)
     assert n == 3
     est = g.optimize()[0]
     assert abs(PG._wrap(est[2] - math.radians(true_yaw_deg))) < math.radians(3.0)
+
+    # observability gate: a fuzzy near-zenith-sun shadow has a well-defined CONTRAST match yet a heading
+    # 1-sigma so large the anti-solar azimuth is effectively unobservable -- its yaw information falls
+    # below the floor, so the graph must REJECT it even though the residual/contrast gate passes.
+    fuzzy = SF.shadow_yaw_factors(lms, body_bearings, anti_solar_az_deg=anti_solar, sigma_deg=60.0)
+    assert all(f["accepted"] for f in fuzzy)                  # residual/contrast gate passes (good match)
+    assert all(f["information"] < SF.MIN_HEADING_INFORMATION for f in fuzzy)   # but below observability floor
+    g2 = PG.PoseGraphSE2()
+    g2.add_prior(0, (0.0, 0.0, math.radians(-30.0)), sigma_xy=0.05, sigma_yaw=math.radians(90.0))
+    assert SF.add_shadow_yaw_factors(g2, 0, fuzzy) == 0       # low observability -> nothing enters the graph
 
 
 def test_anti_solar_from_sun_azimuth():

@@ -24,6 +24,15 @@ import math
 
 from dart import pose_graph_se2 as PG
 
+# Observability envelope (design threshold): a shadow-heading 1-sigma beyond this is too azimuthally
+# fuzzy to observe heading -- near high sun the anti-solar ray shortens and its azimuth is ill-defined,
+# so the factor carries negligible yaw information (a 2-sigma band spanning ~100 deg is effectively a
+# uniform azimuth prior). MIN_HEADING_INFORMATION is the matching inverse-variance floor the graph
+# gate enforces. Not fabricated data -- a labeled operating limit; the shadow-sigma envelope (sun
+# elevation -> shadow sharpness) supplies the per-factor sigma this floor is compared against.
+MAX_HEADING_SIGMA_DEG = 25.0
+MIN_HEADING_INFORMATION = 1.0 / math.radians(MAX_HEADING_SIGMA_DEG) ** 2
+
 
 def anti_solar_az_deg(sun_az_deg: float) -> float:
     """The anti-solar azimuth (the world direction a cast shadow points) for a sun azimuth, in
@@ -41,9 +50,13 @@ def shadow_yaw_factors(landmarks, body_bearings_deg, *, anti_solar_az_deg: float
     from the shadow operating envelope (sharp low-sun shadow -> small; fuzzy high-sun -> large).
     ``min_contrast`` -- the acceptance gate.
 
-    Returns [{yaw_rad, sigma_rad, accepted, bearing_deg, contrast}] (yaw via yaw_from_shadow). Only
-    ``accepted`` entries are graph-ready; the rest are reported for the audit trail."""
+    Returns [{yaw_rad, sigma_rad, information, accepted, bearing_deg, contrast}] (yaw via
+    yaw_from_shadow). ``information`` is the heading inverse-variance 1/sigma_rad^2 (the covariance the
+    graph fuses the factor with; non-negative by construction, the NavFactor invariant). ``accepted`` is
+    the residual/match gate (contrast). Only ``accepted`` entries clearing the observability gate in
+    ``add_shadow_yaw_factors`` are graph-ready; the rest are reported for the audit trail."""
     sig = math.radians(float(sigma_deg))
+    information = 1.0 / (sig * sig)                       # inverse yaw variance -> the fused covariance
     asol = math.radians(float(anti_solar_az_deg))
     out = []
     for lm, bb in zip(landmarks, body_bearings_deg):
@@ -51,6 +64,7 @@ def shadow_yaw_factors(landmarks, body_bearings_deg, *, anti_solar_az_deg: float
         out.append({
             "yaw_rad": PG.yaw_from_shadow(asol, math.radians(float(bb))),
             "sigma_rad": sig,
+            "information": information,
             "accepted": contrast >= float(min_contrast),
             "bearing_deg": float(bb),
             "contrast": contrast,
@@ -58,13 +72,18 @@ def shadow_yaw_factors(landmarks, body_bearings_deg, *, anti_solar_az_deg: float
     return out
 
 
-def add_shadow_yaw_factors(graph, node_id: int, factors) -> int:
-    """Add the ACCEPTED shadow-yaw factors to ``node_id`` of a PoseGraphSE2. Returns the count added
-    (rejected factors are skipped). The graph still needs a translation anchor (prior/absolute) for a
-    full pose -- this contributes only the heading constraint."""
+def add_shadow_yaw_factors(graph, node_id: int, factors, *,
+                           min_information: float = MIN_HEADING_INFORMATION) -> int:
+    """Add the graph-ready shadow-yaw factors to ``node_id`` of a PoseGraphSE2 through TWO gates, and
+    return the count added (gated factors are skipped, never entering the graph). A factor is admitted
+    only if it clears BOTH: the residual/match gate (``accepted`` -- a below-contrast shadow is an
+    ambiguous match) AND the observability gate (``information >= min_information`` -- a fuzzy high-sun
+    shadow whose heading 1-sigma exceeds MAX_HEADING_SIGMA_DEG carries too little yaw information to
+    observe heading). The graph still needs a translation anchor (prior/absolute) for a full pose --
+    this contributes only the covariance-weighted heading constraint."""
     n = 0
     for f in factors:
-        if f.get("accepted"):
+        if f.get("accepted") and float(f.get("information", 0.0)) >= float(min_information):
             graph.add_shadow_yaw(int(node_id), float(f["yaw_rad"]), float(f["sigma_rad"]))
             n += 1
     return n
