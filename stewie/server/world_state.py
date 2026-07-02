@@ -23,7 +23,10 @@ autonomy, or physics fidelity.
 """
 from __future__ import annotations
 
+import logging
 import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Callable
 
 from stewie.twin import envelope as E
@@ -32,6 +35,29 @@ if TYPE_CHECKING:
     from stewie.contracts import BeliefState
     from stewie.twin.envelope import WorldTransaction
     from stewie.twin.versioned import TwinStore
+
+log = logging.getLogger("stewie.server")
+
+
+@contextmanager
+def compensating(compensate: Callable[[], object], *, what: str) -> Iterator[None]:
+    """DT-03: run a world-state COMMIT for a store mutation that has ALREADY been applied, atomically.
+
+    A world-mutating route applies its store mutation first (a twin patch, a TerrainMemory save) and then
+    must commit the linked ``WorldTransaction`` so the store can never run AHEAD of ``/world/transaction``.
+    If that commit RAISES (e.g. a corrupt world journal, which DT-01 surfaces by raising), the store would
+    otherwise be left ahead. This context manager runs ``compensate`` -- the caller's rollback of its own
+    already-applied mutation (``twin.undo`` / restore the prior TerrainMemory file) -- and then RE-RAISES so
+    the route surfaces the failure honestly. It REPLACES the prior best-effort ``try/except Exception: pass``
+    that swallowed the failure and left the store ahead. On success it is transparent (no compensation)."""
+    try:
+        yield
+    except Exception:
+        try:
+            compensate()
+        except Exception:   # noqa: BLE001 -- a compensation failure must not MASK the original commit error
+            log.exception("DT-03: compensation for %s failed after a world-state commit error", what)
+        raise
 
 
 class WorldStateService:

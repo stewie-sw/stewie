@@ -215,22 +215,29 @@ def test_twin_terrain_record_commits_a_world_transaction(client):  # gap G2
     assert "terrain.record" in txn["provenance"] and txn["mission"] == "pad-A"
 
 
-def test_twin_resync_survives_a_world_log_failure(client, monkeypatch):  # gap G1 sibling / finding C1
-    """Defensive: if the world-state commit raises (e.g. a corrupt world journal, which DT-01 surfaces by
-    raising), POST /twin/resync must STILL return 200 -- the resync mutation is already applied; the
-    best-effort world-log record must never 500 a succeeded mutation."""
+def test_twin_resync_rolls_back_on_a_world_log_failure(client, monkeypatch):  # gap G1 sibling / finding C1 / DT-03
+    """DT-03: if the world-state commit fails (here the service accessor raises, as a corrupt world journal
+    would), POST /twin/resync must NOT leave the observed twin ahead of /world/transaction -- it
+    COMPENSATES (undoes the just-applied patch) and surfaces 500, rather than the old best-effort 200 that
+    left the store ahead."""
     from stewie.server import state as S
+    pre = S.twin().current()[:2, :2].copy()
     monkeypatch.setattr(S, "world_state_service", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
     r = client.post("/twin/resync", headers=H,
                     json={"heights_m": [[0.1, 0.1], [0.1, 0.1]], "origin_rc": [0, 0], "provenance": "p"})
-    assert r.status_code == 200 and r.json()["twin_version"] >= 1   # mutation applied despite world-log failure
+    assert r.status_code == 500                                     # surfaced, not swallowed
+    assert np.array_equal(S.twin().current()[:2, :2], pre)         # the mutation was compensated (rolled back)
 
 
-def test_twin_terrain_survives_a_world_log_failure(client, monkeypatch):  # finding C1
+def test_twin_terrain_rolls_back_on_a_world_log_failure(client, monkeypatch):  # finding C1 / DT-03
+    """DT-03: if the world-state commit fails, POST /twin/terrain must NOT leave the persisted TerrainMemory
+    ahead of /world/transaction -- it COMPENSATES (restores the prior memory) and surfaces 500. (The GET
+    reads TerrainMemory directly, not the patched world-state accessor, so it can confirm the rollback.)"""
     from stewie.server import state as S
     monkeypatch.setattr(S, "world_state_service", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
     r = client.post("/twin/terrain/haworth", headers=H, json={"mission": _TERRAIN_MISSION})
-    assert r.status_code == 200 and r.json()["recorded"] is True    # terrain saved despite world-log failure
+    assert r.status_code == 500                                     # surfaced, not swallowed
+    assert client.get("/twin/terrain/haworth", headers=H).json()["recorded"] is False  # rolled back to no-memory
 
 
 def test_recent_returns_the_window_chronologically():

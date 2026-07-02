@@ -27,6 +27,12 @@ router = APIRouter()
 _TERRAIN_LOCKS: dict = {}
 _TERRAIN_LOCKS_GUARD = threading.Lock()
 
+# DT-03: keep a resync's twin mutation + its world-log commit + a compensating rollback in ONE critical
+# section, so a concurrent resync cannot land a patch between our apply_patch and our compensating undo()
+# (which reverts the MOST-RECENT live patch). apply_patch on the observed twin is called only from this
+# route (verified), so this single lock is sufficient to keep the undo targeted at OUR patch.
+_RESYNC_LOCK = threading.Lock()
+
 
 def _terrain_lock(site: str) -> threading.Lock:
     # #282: key on the SANITIZED site (the same normalization save_site/load_site use for the .npz path), so
@@ -76,21 +82,29 @@ def twin_resync(req: ResyncRequest, identity: str = Depends(require_role("operat
     # guest/trainee (confined elsewhere to read-only / own sandbox) overwrite the world model everyone plans
     # against. Now gated like its sibling twin_terrain_record + audit-logged.
     import numpy as _np
-    try:
-        v = state.twin().apply_patch(_np.array(req.heights_m, dtype=float),
-                                     origin_rc=tuple(req.origin_rc), provenance=req.provenance)
-    except ValueError as e:
-        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+
+    from stewie.server.world_state import compensating
+    with _RESYNC_LOCK:                        # DT-03: apply_patch..commit..compensate is one critical section
+        try:
+            v = state.twin().apply_patch(_np.array(req.heights_m, dtype=float),
+                                         origin_rc=tuple(req.origin_rc), provenance=req.provenance)
+        except ValueError as e:
+            return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+        # gap A1 / DT-01 / DT-03: a resync MUTATES the observed twin -> commit one linked world-state
+        # transaction so the change is captured in the canonical DT-01 log, not only in the twin's own
+        # journal. This is now ATOMIC with the mutation: if the world-log commit fails (e.g. a corrupt
+        # world journal, which DT-01 surfaces by raising), COMPENSATE by undoing the just-applied patch so
+        # the twin can never run ahead of /world/transaction, then surface the failure (no more best-effort
+        # swallow that left the store ahead).
+        try:
+            with compensating(state.twin().undo, what="twin.resync"):
+                state.world_state_service().record_resync(provenance=f"twin.resync: {req.provenance}",
+                                                          site="haworth")
+        except Exception as e:   # noqa: BLE001 -- surfaced honestly AFTER the compensating rollback
+            log.warning("twin.resync rolled back (world-state commit failed): %s", e)
+            return JSONResponse(status_code=500, content={
+                "ok": False, "error": f"resync rolled back: world-state commit failed: {e}"})
     log_event(identity, "twin.resync", str(req.provenance))
-    # gap A1: a resync MUTATES the observed twin -> commit one linked world-state transaction so the
-    # change is captured in the canonical DT-01 log, not only in the twin's own journal. Best-effort:
-    # the resync is already applied + journaled above, so a world-log failure (e.g. a corrupt world
-    # journal, which DT-01 from_journal surfaces by raising) must NOT 500 a succeeded mutation.
-    try:
-        state.world_state_service().record_resync(provenance=f"twin.resync: {req.provenance}",
-                                                  site="haworth")
-    except Exception as e:   # noqa: BLE001 -- the world-log record is best-effort, never fail the resync
-        log.warning("world-state commit for twin.resync skipped: %s", e)
     return {"ok": True, "twin_version": v}
 
 
@@ -155,7 +169,9 @@ def twin_terrain_record(site: str, req: TerrainRecordReq, identity: str = Depend
         d = mission_terrain_delta(mission)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"bad mission: {e}")
+    from stewie.server.world_state import compensating
     with _terrain_lock(site):    # #278: the load->apply->save RMW is atomic per site (no lost-mission race)
+        prior = TM.snapshot_site(data_dir(), site)   # DT-03: prior persisted state for a compensating rollback
         mem = TM.load_site(data_dir(), site)
         if mem is None:
             mem = TM.TerrainMemory(site=site, rows=int(req.rows or d["rows"]), cols=int(req.cols or d["cols"]),
@@ -167,19 +183,25 @@ def twin_terrain_record(site: str, req: TerrainRecordReq, identity: str = Depend
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"cannot place mission on site grid: {e}")
         TM.save_site(data_dir(), mem)
-        log_event(identity, "twin.terrain.record", f"{site}:{mission.name}")
-        # gap A1: fold the conserved terrain change into the one linked world-state log. The
-        # authority identity is a content sha over the as-built cumulative delta (the conserved
-        # surface), so any recorded build moves it -- the DT-01 authority_sha contract. Best-effort:
-        # the terrain is already saved above, so a world-log failure must NOT 500 a succeeded record.
+        # gap A1 / DT-01 / DT-03: fold the conserved terrain change into the one linked world-state log,
+        # ATOMICALLY with the save above. The authority identity is a content sha over the as-built
+        # cumulative delta (the conserved surface), so any recorded build moves it -- the DT-01
+        # authority_sha contract. If the world-log commit fails, COMPENSATE by restoring the prior persisted
+        # TerrainMemory (roll back the save) so the store can never run ahead of /world/transaction, then
+        # surface the failure (no more best-effort swallow that left the store ahead).
+        import hashlib as _hl
+
+        import numpy as _np
+        a_sha = _hl.sha256(_np.asarray(mem.cumulative_delta(), dtype=_np.float64).tobytes()).hexdigest()
         try:
-            import hashlib as _hl
-            import numpy as _np
-            a_sha = _hl.sha256(_np.asarray(mem.cumulative_delta(), dtype=_np.float64).tobytes()).hexdigest()
-            state.world_state_service().record_terrain(authority_sha=a_sha, mission=str(mission.name),
-                                                       site=site, provenance=f"terrain.record:{mission.name}")
-        except Exception as e:   # noqa: BLE001 -- best-effort world-log record, never fail the terrain save
-            log.warning("world-state commit for twin.terrain.record skipped: %s", e)
+            with compensating(lambda: TM.restore_site(data_dir(), site, prior), what="twin.terrain.record"):
+                state.world_state_service().record_terrain(authority_sha=a_sha, mission=str(mission.name),
+                                                           site=site, provenance=f"terrain.record:{mission.name}")
+        except Exception as e:   # noqa: BLE001 -- surfaced honestly AFTER the compensating rollback
+            log.warning("twin.terrain.record rolled back (world-state commit failed): %s", e)
+            raise HTTPException(status_code=500,
+                                detail=f"terrain record rolled back: world-state commit failed: {e}")
+        log_event(identity, "twin.terrain.record", f"{site}:{mission.name}")
         out = mem.summary()
         out.update({"ok": True, "recorded": True, "chain_valid": mem.verify_chain(), **res})
     return out

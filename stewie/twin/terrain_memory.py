@@ -280,3 +280,35 @@ def save_site(data_dir: str, memory: "TerrainMemory") -> str:
     os.makedirs(os.path.dirname(p), exist_ok=True)
     memory.save(p)
     return p
+
+
+def snapshot_site(data_dir: str, site: str) -> bytes | None:
+    """DT-03: capture the raw persisted Terrain-Memory bytes for a site (or None if none exists yet), so a
+    world-log commit failure that FOLLOWS a :func:`save_site` can be COMPENSATED (:func:`restore_site`) --
+    the terrain memory then never runs ahead of the world transaction. Take it under the per-site lock,
+    BEFORE the mutation, so the snapshot is the exact pre-mutation on-disk state."""
+    p = terrain_path(data_dir, site)
+    if not os.path.exists(p):
+        return None
+    with open(p, "rb") as f:
+        return f.read()
+
+
+def restore_site(data_dir: str, site: str, snapshot: bytes | None) -> None:
+    """DT-03: restore a site's persisted Terrain Memory to a prior ``snapshot`` (from :func:`snapshot_site`)
+    -- the compensating rollback of a :func:`save_site` whose world-log commit then failed. A None snapshot
+    means the site had NO memory before, so the file is removed (roll back to no-memory). Written ATOMICALLY
+    (.part -> ``os.replace``, matching :meth:`TerrainMemory.save`) so the canonical path is never torn. Call
+    under the per-site lock (as the save it undoes was)."""
+    p = terrain_path(data_dir, site)
+    if snapshot is None:
+        if os.path.exists(p):
+            os.remove(p)
+        return
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    tmp = p + ".part"
+    with open(tmp, "wb") as f:
+        f.write(snapshot)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, p)

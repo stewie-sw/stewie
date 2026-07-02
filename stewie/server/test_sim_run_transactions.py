@@ -124,10 +124,12 @@ def test_executive_run_records_world_transactions(client):
     assert any("SIM run belief" in t["provenance"] for t in txns)   # final belief committed (was dead code)     # the run's transactions are SIM-labeled
 
 
-def test_executive_run_survives_a_world_log_failure(client, monkeypatch):  # gap G1
-    """Defensive: the SIM run already succeeded and is persisted, so a world-state commit failure must
-    NOT fail the run -- /executive/run still returns 200/ok even when world_state_service raises."""
+def test_executive_run_rolls_back_on_a_world_log_failure(client, monkeypatch):  # gap G1 / DT-03
+    """DT-03: the SIM run's world-state commit is atomic with persisting the run. If the world-state commit
+    fails (here the accessor raises, as a corrupt world journal would), /executive/run surfaces 500 and does
+    NOT persist the run ahead of the failed world log -- nothing runs ahead of /world/transaction (replaces
+    the old best-effort 200 that left the run record ahead)."""
     from stewie.server import state as S
     monkeypatch.setattr(S, "world_state_service", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
     r = client.post("/executive/run", headers=H, json={"orders": _ORDERS, "site": "haworth"})
-    assert r.status_code == 200 and r.json()["ok"] is True
+    assert r.status_code == 500 and r.json()["ok"] is False
