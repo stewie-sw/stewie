@@ -7,9 +7,10 @@ import os
 import numpy as np
 import pytest
 
-from dart.world_model_layers import LAYERS, WorldModelLayers
+from dart.world_model_layers import LAYERS, WorldModelLayers, WorldStateGrid
 
-_DEM = os.path.join(os.path.dirname(__file__), "..", "samples", "crater_boulders", "heightmap.rf32")
+_SAMPLE = os.path.join(os.path.dirname(__file__), "..", "samples", "crater_boulders")
+_DEM = os.path.join(_SAMPLE, "heightmap.rf32")
 
 
 def _real_dem_window(n=64):
@@ -17,6 +18,15 @@ def _real_dem_window(n=64):
         pytest.skip("crater_boulders DEM not present")
     full = np.fromfile(_DEM, dtype="<f4").reshape(256, 256).astype(float)
     return full[96:96 + n, 96:96 + n].copy()      # a real 64x64 crater region
+
+
+def _real_field_window(name, dtype="<f4", n=64):
+    path = os.path.join(_SAMPLE, name)
+    if not os.path.exists(path):
+        pytest.skip(f"crater_boulders {name} not present")
+    kind = np.uint8 if dtype == "u1" else float
+    full = np.fromfile(path, dtype=dtype).reshape(256, 256)
+    return full[96:96 + n, 96:96 + n].astype(kind).copy()
 
 
 def _equal_nan(a, b):
@@ -89,3 +99,69 @@ def test_update_observed_from_real_elevationmap():
     assert n == int(cover.sum())
     assert wm.provenance["observed"] == "stereo_mapper"
     assert np.isfinite(wm.layer("observed")[cover]).all()
+
+
+def test_worldstate_carries_material_traversability_observed_uncertainty():
+    """[REQ:TW-05] ONE WorldState grid carries all four per-cell fields together -- material,
+    traversability (cost + passable), observed/unobserved state, and calibrated uncertainty -- instead
+    of four scattered rasters, proven on the real crater_boulders (Haworth-lineage) DEM window.
+
+    Asserts: all four channels share the grid shape; unobserved cells carry NO uncertainty (NaN sigma,
+    locked to the observed mask); observed cells get a finite, positive sigma; the observed coverage is
+    partial (not the whole tile); and the grid surfaces through the typed stewie.contracts.WorldState
+    descriptor with matching geometry + observed fraction. Every channel is fed by its REAL source
+    object -- ColumnState (material density), lode CompositeCostmap (traversability), WorldModelLayers
+    (observed coverage), dart.mapping.ElevationMap.cell_uncertainty (calibrated sigma)."""
+    from lode.costmap_layers import CostmapContext, compose
+    from stewie.physics.column_state import ColumnState
+
+    from dart.mapping import ElevationMap
+
+    dem = _real_dem_window()
+    # MATERIAL: a real conserved ColumnState from the sample's density/mass/state rasters
+    cs = ColumnState(width=64, height=64, cell_m=0.02,
+                     density=_real_field_window("density.rf32"),
+                     mass_areal=_real_field_window("mass_areal.rf32"),
+                     state_label=_real_field_window("state_label.r8", "u1"))
+    # TRAVERSABILITY: the composed per-cell costmap over the same real DEM window
+    costmap = compose(CostmapContext(Z=dem, cell_m=0.02))
+    # OBSERVED + UNCERTAINTY: a partial central survey fed through the real mapper output type
+    cover = np.zeros(dem.shape, bool); cover[16:48, 16:48] = True
+    em = ElevationMap(elevation=np.where(cover, dem, np.nan), count=cover.astype(int) * 5,
+                      cell_m=0.02, n_points=int(cover.sum()) * 5, n_frames=1)
+    wm = WorldModelLayers(dem.shape, cell_m=0.02)
+    wm.set_truth(dem)
+    wm.update_observed_from_map(em)
+    observed_mask = np.isfinite(wm.layer("observed"))
+
+    ws = WorldStateGrid.assemble(material=cs, traversability=costmap,
+                                 observed_mask=observed_mask, uncertainty=em, cell_m=0.02)
+
+    # (a) all four per-cell channels share the one grid shape
+    assert ws.shape == dem.shape == (64, 64)
+    for grid in (ws.material_density, ws.traversability_cost, ws.traversability_passable,
+                 ws.observed_mask, ws.cell_uncertainty_sigma):
+        assert grid.shape == (64, 64)
+
+    # (b) observed coverage is partial (a real survey, not the whole tile) and matches the mapper
+    assert 0.0 < ws.observed_fraction < 1.0
+    assert np.array_equal(ws.observed_mask, cover)
+
+    # (c) unobserved cells carry NO uncertainty (sigma is locked to the observed mask), observed cells
+    #     get a finite, positive sigma
+    assert np.isnan(ws.cell_uncertainty_sigma[~ws.observed_mask]).all()
+    obs_sigma = ws.cell_uncertainty_sigma[ws.observed_mask]
+    assert np.isfinite(obs_sigma).all()
+    assert (obs_sigma > 0.0).all()
+
+    # (d) the channels carry the REAL source data, not placeholders
+    assert np.array_equal(ws.material_density, cs.density)   # conserved per-cell material density
+    assert ws.traversability_passable.dtype == bool
+    assert ws.impassable.sum() == int((~costmap.passable).sum())
+
+    # (e) it surfaces through the typed WorldState metadata descriptor (FS-02 twin/descriptor split)
+    descriptor = ws.contract(dem_source="crater_boulders")
+    assert (descriptor.rows, descriptor.cols) == (64, 64)
+    assert descriptor.cell_m == 0.02
+    assert descriptor.dem_source == "crater_boulders"
+    assert abs(descriptor.observed_fraction - ws.observed_fraction) < 1e-9
