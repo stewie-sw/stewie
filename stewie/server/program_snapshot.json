@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "f5f8dd8c6caf02120cb2d50beffe5c208893b602a2b7c0d864dcfce0adbafe29",
+  "citations_sha256": "5e7e14e821c32ee32422f577c089267aad6048bee0273b38fd85e67e31aecba6",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "806dfc3ef6529e025a5c0b760e4acd4e10296e23",
-  "prd_sha256": "86c40839b6de47d152cb701ec967a530126ed975454251910967a701b052387c",
+  "prd_commit": "db2d1c90fc37dd75898a9e802c99c98dc839e18c",
+  "prd_sha256": "b2e40b3d63d577c8f239387bb3ed3ba3bb1961bfd733d23eca359f00b3b8c829",
   "specs_sha256": "37059633a28f0aaa17e5f419a26a87179ebb0a85d82da450c3ad38af1ffd4b11"
  },
  "rows": [
@@ -2407,17 +2407,17 @@
    "text": "**Planning consumes the OBSERVED world, not just the static DEM.** The planner reads the current observed DEM layer, occupancy/no-go layer, rock/object graph, changed-terrain mask, and map uncertainty \u2014 each tagged with provenance (prior vs observed vs forecast vs edited) \u2014 instead of only the static DEM + hand-authored keep-outs. Acceptance: an observed hazard absent from the static DEM measurably changes the route/costmap. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "P",
    "brief": {
     "goal": "receding-horizon nav loop (pose/belief -> local costmap -> global route if needed -> local trajectory/tick -> next bounded command -> replan/recover).",
     "kind": "atomic",
     "test_target": "NEW stewie/runtime/test_nav_loop.py citing [REQ:RS-03]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "RS-03",
    "lane": "RS",
    "pri": "P0",
@@ -3068,9 +3068,9 @@
  "summary": {
   "briefs": 88,
   "buckets": {
-   "buildable": 62,
+   "buildable": 61,
    "concurrent": 0,
-   "done": 129,
+   "done": 130,
    "gated": 25
   },
   "by_lane": {
@@ -3143,7 +3143,7 @@
     "total": 1
    },
    "RS": {
-    "done": 1,
+    "done": 2,
     "total": 8
    },
    "SE": {
@@ -3177,7 +3177,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 47,
+    "done": 48,
     "total": 70
    },
    "P1": {
@@ -3189,10 +3189,10 @@
     "total": 11
    }
   },
-  "cited": 172,
-  "done_pct": 59.7,
+  "cited": 173,
+  "done_pct": 60.2,
   "in_scope": 191,
-  "in_scope_done_pct": 67.5,
+  "in_scope_done_pct": 68.1,
   "total": 216
  },
  "workflow_spine": [
