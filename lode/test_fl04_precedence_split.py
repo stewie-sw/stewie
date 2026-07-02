@@ -215,3 +215,72 @@ def test_no_precedence_is_byte_identical_to_site_only_allocation():
     # and plan_multi exposes a zero precedence wait (no key drift, just 0.0)
     _t, _f2, _p, _tl, tot = MP.plan_multi(m_no, dem=dem, dem_origin=origin)
     assert tot["precedence_wait_s"] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# FL-04 ACTIVE work-reallocation: on the stranded-rover trigger, the fleet
+# reassigns the stranded rover's REACHABLE work to a healthy rover (re-sim), and
+# honestly reports the genuinely-unreachable work rather than faking it done.
+# ---------------------------------------------------------------------------
+# A strand needs a >~33 km charger round-trip (past the reserve-reach), which
+# exceeds the 10 km Haworth DEM tile -- so this uses the planner's real no-DEM
+# straight-line geometry (the same mode as test_mission_planner's FL-04 / P-01
+# strand tests) over the real IPEx battery/energy constants -- no fabricated terrain.
+def _realloc_mission():
+    """A 2-rover fleet where site-exclusive LPT lands the HEAVIEST (near) work alone on rover 0
+    (feasible -> healthy) and the 50 km + 100 km sites together on rover 1. Rover 1 visits the nearer
+    50 km site first, strands mid-dig (heavy, unreachable by any single rover) and DROPS the 100 km
+    site -- which is individually feasible, so a healthy rover can pick it up."""
+    # (x, y, footprint_m2, depth_m): a co-located cut+fill pair -> one mass-balanced 'cutfill' trip/site.
+    sites = [(10000.0, 0.0, 11.0, 0.05),     # C: near, HEAVIEST work -> alone on rover 0, feasible (healthy)
+             (50000.0, 0.0, 9.0, 0.05),      # A: 50 km, heavy enough to STRAND mid-dig (unreachable alone)
+             (100000.0, 0.0, 0.5, 0.05)]     # B: 100 km, LIGHT -> feasible alone, dropped after A strands
+    orders = []
+    for i, (x, y, fp, dp) in enumerate(sites):
+        orders += [{"action": f"cut{i}", "kind": "cut", "x": x, "y": y, "footprint_m2": fp, "depth_m": dp},
+                   {"action": f"fill{i}", "kind": "fill", "x": x + 1, "y": y + 1, "footprint_m2": fp,
+                    "depth_m": dp * MP.SWELL}]
+    return MP.mission_from_dict({"name": "realloc", "body": "moon", "charger": [0, 0], "orders": orders})
+
+
+_SITE_A = (50000.0, 0.0)     # the strander: genuinely unreachable by any single rover
+_SITE_B = (100000.0, 0.0)    # the dropped-but-feasible work active reallocation must recover
+
+
+def _completed_mass_at(mission, trips, site):
+    """kg actually dug/deposited at `site` in a re-sim of `trips` (a dropped/never-visited trip -> 0)."""
+    tl, _pt, _core = MP._simulate(mission, trips)
+    return sum(ev.get("mass", 0.0) for ev in tl
+               if abs(ev.get("x0", 1e12) - site[0]) < 2.0 and abs(ev.get("y0", 1e12) - site[1]) < 2.0)
+
+
+def _rover_trips(trips, vehicle):
+    return [tr for tr in trips if tr["vehicle"] == vehicle]
+
+
+def test_stranded_rover_work_is_reallocated_to_healthy_rovers():  # [REQ:FL-04]
+    m = _realloc_mission()
+    # BASELINE (reallocation OFF): rover 1 strands on the 50 km site and the individually-feasible
+    # 100 km site is DROPPED -- zero mass completed there.
+    base_trips, _f, _p, _tl, base = MP.plan_multi(m, vehicles=2, reallocate_stranded=False)
+    assert base["fleet_needs_replan"] is True                       # a rover stranded (the trigger fires)
+    base_bv = {tr["vehicle"] for tr in base_trips if tuple(tr["site"]) == _SITE_B}
+    base_B = sum(_completed_mass_at(m, _rover_trips(base_trips, v), _SITE_B) for v in base_bv)
+    assert base_B == 0.0, f"baseline should DROP the feasible 100 km work, got {base_B} kg"
+
+    # REALLOCATED (default ON): the dropped feasible 100 km work is picked up by a HEALTHY rover and
+    # actually completed; the genuinely-unreachable 50 km site is reported, never silently faked done.
+    re_trips, _f2, _p2, _tl2, re = MP.plan_multi(m, vehicles=2)
+    assert re["fleet_replanned"] is True                           # active reallocation fired on the trigger
+    b_vehicles = {tr["vehicle"] for tr in re_trips if tuple(tr["site"]) == _SITE_B}
+    assert b_vehicles, "the feasible 100 km trip must be reassigned, not dropped"
+    re_B = sum(_completed_mass_at(m, _rover_trips(re_trips, v), _SITE_B) for v in b_vehicles)
+    assert re_B > 0.0, "the reallocated 100 km work must actually be completed by a healthy rover"
+    # the rover that now carries the 100 km work is FEASIBLE (the reachable work genuinely completes)
+    for d in re["vehicles_detail"]:
+        if d["vehicle"] in b_vehicles:
+            assert d["health"]["feasible"] is True
+    # the genuinely-unreachable 50 km site is reported as unreallocatable + dropped from the plan
+    assert re["unreallocatable_trips"] >= 1
+    assert not any(tuple(tr["site"]) == _SITE_A for tr in re_trips), \
+        "the unreachable 50 km work must be dropped + reported, not carried as if doable"

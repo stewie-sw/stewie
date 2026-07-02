@@ -210,8 +210,54 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
         relocalization=_relocalization(mission, core))  # #96 scheduled articulation-parallax relocalization stops
 
 
+def _reallocate_stranded_work(mission, per_vehicle, routes, algorithm, objective):
+    """FL-04 ACTIVE work-reallocation: when a rover STRANDS (its `_rover_health` rollup fires
+    `fleet_needs_replan`), reassign the fleet's REACHABLE work to the HEALTHY rovers and re-simulate,
+    instead of only flagging the strand. Conservative + honest:
+
+    * A trip is REACHABLE iff a single rover can complete it alone (drive out, work, return) -- tested by
+      an actual `_simulate` of that trip. Per-trip feasibility is rover-independent here (every fleet rover
+      shares one vehicle model + charger, and every work drive recharges to full first), so `feasible alone`
+      is exactly `coverable by any healthy rover`; a trip no single rover can finish is GENUINELY infeasible
+      on every rover -> returned as unreallocatable, never silently claimed done.
+    * The reachable trips are redistributed across the HEALTHY rovers only (site-exclusive LPT, the same
+      `_allocate_trips` policy), each healthy rover re-sequenced + re-simulated; a stranded rover is taken
+      OUT of service (idle, no trips). The genuinely-unreachable trips are dropped from the plan and
+      reported so the requested-vs-completed gap stays explicit.
+
+    Returns (new_per_vehicle | None, unreachable_trips). None -> no reallocation applied (no healthy rover,
+    or no reachable work) -> the caller keeps the original plan and its stranded state (genuine infeasibility)."""
+    healthy = [pv["vehicle"] for pv in per_vehicle if pv["core"]["feasible"]]
+    if not healthy:
+        return None, []                          # every rover stranded -> nothing to reassign work to
+    all_trips = [tr for pv in per_vehicle for tr in pv["trips"]]
+    reachable, unreachable = [], []
+    for tr in all_trips:
+        if _simulate(mission, [tr], routes)[2]["feasible"]:
+            reachable.append(tr)                 # a lone rover can complete it -> movable to any healthy rover
+        else:
+            unreachable.append(tr)               # no single rover can finish it -> genuinely infeasible
+    if not reachable:
+        return None, unreachable                 # only unreachable work remains -> keep the honest strand
+    sub = _allocate_trips(reachable, len(healthy))        # site-exclusive LPT across the healthy rovers
+    by_vehicle = {healthy[k]: [reachable[i] for i in idxs] for k, idxs in enumerate(sub)}
+    new_pv = []
+    for pv in per_vehicle:
+        v = pv["vehicle"]
+        vtrips = by_vehicle.get(v, [])           # a still-stranded rover keeps NO trips (idle, out of service)
+        if vtrips:
+            order = optimize_sequence(vtrips, mission, algorithm=algorithm, objective=objective,
+                                      precedence=None, routes=routes)
+            vtrips = [vtrips[k] for k in order]
+        for tr in vtrips:
+            tr["vehicle"] = v
+        tl, per_trip, core = _simulate(mission, vtrips, routes)
+        new_pv.append({"vehicle": v, "trips": vtrips, "tl": tl, "per_trip": per_trip, "core": core})
+    return new_pv, unreachable
+
+
 def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_traverse_slope_deg=25.0,
-               algorithm="nearest", objective="time", vehicles=2):
+               algorithm="nearest", objective="time", vehicles=2, reallocate_stranded=True):
     """MV1-7: plan a multi-vehicle build mission. Build trips once, allocate them site-exclusively across V
     vehicles (load-balanced), sequence + battery-simulate EACH vehicle independently (they work in parallel
     from the shared charger), and aggregate: makespan = max per-vehicle time (the wall-clock the fleet
@@ -227,7 +273,16 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     SPLIT across vehicles and run in parallel -- the dependent leg waits (a per-vehicle delay, the same
     discipline as the charger/crowding resolvers) until its predecessor leg has finished on whichever rover
     does it, so the ordering is honored ACROSS vehicles instead of forcing the whole chain onto one rover.
-    A cyclic precedence still raises (never silently mis-ordered)."""
+    A cyclic precedence still raises (never silently mis-ordered).
+
+    ACTIVE work-reallocation (FL-04): when the initial allocation STRANDS a rover (its `_rover_health`
+    rollup would set `fleet_needs_replan`), `reallocate_stranded` (default on) reassigns the fleet's
+    REACHABLE work to the HEALTHY rovers and re-simulates (`_reallocate_stranded_work`), rather than only
+    flagging the strand. Genuinely-unreachable trips (no single rover can finish them) are dropped +
+    reported (`unreallocatable_trips`), never faked done; `fleet_replanned` records that a reallocation
+    fired. Conservative: skipped when cross-vehicle precedence is present (a precedence-constrained
+    reallocation is future MV work) -- the strand is still reported. `reallocate_stranded=False` keeps the
+    raw allocation (the pre-FL-04 flag-only behavior), and a fleet that never strands is byte-identical."""
     from lode.mission_planner import IDLE_POWER_W   # deferred: the test-patchable survival-draw knob lives on the facade
     if vehicles < 1:
         raise ValueError(f"vehicles must be >= 1 (got {vehicles})")
@@ -256,6 +311,18 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
             tr["vehicle"] = v
         tl, per_trip, core = _simulate(mission, vtrips, routes)
         per_vehicle.append({"vehicle": v, "trips": vtrips, "tl": tl, "per_trip": per_trip, "core": core})
+    # FL-04 ACTIVE reallocation: if the initial allocation stranded a rover, reassign the fleet's REACHABLE
+    # work to the healthy rovers + re-simulate (the whole deconfliction/aggregate below then runs on the
+    # replanned fleet). Conservative: only for the base (no cross-vehicle precedence) case; a genuinely
+    # unreachable trip is dropped + reported, not faked done. No strand (or off) -> byte-identical.
+    unreallocatable_trips = 0
+    fleet_replanned = False
+    if reallocate_stranded and not glob_prec and any(not pv["core"]["feasible"] for pv in per_vehicle):
+        new_pv, unreached = _reallocate_stranded_work(mission, per_vehicle, routes, algorithm, objective)
+        if new_pv is not None:
+            per_vehicle = new_pv
+            unreallocatable_trips = len(unreached)
+            fleet_replanned = True
     conflicts = _vehicle_conflicts(per_vehicle)
     parallel_makespan = max((pv["core"]["time_s"] for pv in per_vehicle), default=0.0)
     # FL-03: schedule the shared CHARGER and all declared resources (pit/dump/vantage/corridor) JOINTLY
@@ -330,6 +397,8 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
                   precedence_split=bool(precedence_wait_s > 0.0),  # FL-04 a chain was split across vehicles
                   vehicle_conflicts=int(conflicts), vehicles_detail=detail,
                   fleet_needs_replan=bool(fleet_needs_replan),
+                  fleet_replanned=bool(fleet_replanned),          # FL-04: active reallocation fired on the trigger
+                  unreallocatable_trips=int(unreallocatable_trips),  # FL-04: genuinely-unreachable trips dropped + reported
                   temporal_conflicts=int(_temporal_conflicts(per_vehicle)),   # FL-02: nearby-site space-time crowding
                   haul_path_conflicts=int(_haul_path_conflicts(per_vehicle)),  # FL-02: moving haul-PATH crossings
                   charger_conflicts=int(_charger_conflicts(per_vehicle, mission)))
