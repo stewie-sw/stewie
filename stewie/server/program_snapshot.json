@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "73b58aa26eec224a3cc98375b2a67bff9b92edf6c0682cc13e40b4b52af5da32",
+  "citations_sha256": "97928541cadf0279b1bffeffb2f3cb09cf75d542eb709070773f225b292798c3",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "f34bf87bc659d9a602d28e988fecfdc46535643f",
-  "prd_sha256": "e4bf03ae1763f1c531828f0a6bb0c03c3145453e6f347f70f2694f6ca55b0140",
+  "prd_commit": "b975f28a00121e80f8e354a6137b22241ebc081d",
+  "prd_sha256": "d56dabc0c3cb80e81d4a17df2c325469fbcea15c8118785c8725b2d9b3cbcc9b",
   "specs_sha256": "37059633a28f0aaa17e5f419a26a87179ebb0a85d82da450c3ad38af1ffd4b11"
  },
  "rows": [
@@ -688,17 +688,17 @@
    "text": "**Atomic world-state transaction (review finding 1).** A world-state mutation (`twin.resync`, terrain record, SIM-execute remember) and its `WorldTransaction` commit succeed or fail together: either a two-phase commit or a compensating rollback, so `TwinStore`/`TerrainMemory`/run records can never run ahead of `/world/transaction`. No mutation path swallows a world-log failure (the current `try/except Exception: pass` best-effort at `twin.py:80,169`, `executive.py:190` is replaced by an atomic/compensating commit). Acceptance: an injected world-log failure leaves the store and `/world/transaction` consistent (mutation rolled back or transaction retried to durability), proven by a fault-injection test; the canonical-linked-record invariant holds under failure. Buildable on archimedes (pure server logic)."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "key the observed twin + world journal by (site, depth-source profile), not hard-coded haworth.",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_twin_per_site.py citing [REQ:DT-04]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "DT-04",
    "lane": "DT",
    "pri": "P0",
@@ -3068,9 +3068,9 @@
  "summary": {
   "briefs": 88,
   "buckets": {
-   "buildable": 64,
+   "buildable": 63,
    "concurrent": 0,
-   "done": 127,
+   "done": 128,
    "gated": 25
   },
   "by_lane": {
@@ -3095,7 +3095,7 @@
     "total": 7
    },
    "DT": {
-    "done": 3,
+    "done": 4,
     "total": 5
    },
    "EP": {
@@ -3177,7 +3177,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 46,
+    "done": 47,
     "total": 70
    },
    "P1": {
@@ -3189,10 +3189,10 @@
     "total": 11
    }
   },
-  "cited": 169,
-  "done_pct": 58.8,
+  "cited": 170,
+  "done_pct": 59.3,
   "in_scope": 191,
-  "in_scope_done_pct": 66.5,
+  "in_scope_done_pct": 67.0,
   "total": 216
  },
  "workflow_spine": [
