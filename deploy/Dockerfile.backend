@@ -36,8 +36,11 @@ USER stewie
 EXPOSE 8770
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=4 \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8770/healthz', timeout=2).status==200 else 1)"
-# BP-02: enter the GUARDED entrypoint (stewie-serve -> server.main), so the public-bind TLS guard
-# (_require_tls_for_public_bind) actually runs in the production image. A raw `uvicorn server:app` imports
-# the ASGI app directly and bypasses main(), letting a plaintext 0.0.0.0 bind escape the guard. stewie-serve
-# runs single-process (uvicorn.run, no workers) -- consistent with the single-worker invariant (BP-09).
-CMD ["stewie-serve", "--host", "0.0.0.0", "--port", "8770"]
+# BP-02: enter the GUARDED entrypoint via `python -m` so the public-bind TLS guard
+# (_require_tls_for_public_bind, called only from main()) actually runs in the production image -- a raw
+# `uvicorn server:app` imports the ASGI app directly and bypasses main(). `python -m stewie.server.server`
+# (NOT the `stewie-serve` console script) is required: `python -m` puts WORKDIR /app on sys.path[0], so the
+# app imports from /app -- which carries the web/*.html + samples/ DATA FILES. The installed site-packages
+# copy has NO data files, so `stewie-serve` (which imports the installed package) 404s /program and loses
+# the Haworth DEM. Single-process (uvicorn.run, no workers) -- consistent with the single-worker invariant.
+CMD ["python", "-m", "stewie.server.server", "--host", "0.0.0.0", "--port", "8770"]

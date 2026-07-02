@@ -43,12 +43,17 @@ def test_backend_entrypoint_enters_the_tls_guard():
     `uvicorn stewie.server.server:app`, which imports the ASGI app directly and bypasses main()."""
     cmd = [ln for ln in _read("deploy/Dockerfile.backend").splitlines()
            if re.match(r"\s*CMD\b", ln)][-1]
-    # it must invoke the guarded path: the stewie-serve console script or `python -m stewie.server.server`.
-    guarded = ("stewie-serve" in cmd) or ("-m" in cmd and "stewie.server.server" in cmd and "uvicorn" not in cmd)
-    assert guarded, f"backend CMD must enter main()'s TLS guard, got: {cmd}"
-    # and it must NOT start the ASGI app object directly (the bypass the review flagged).
+    # It must enter main()'s guard via `python -m stewie.server.server` -- NOT a raw `uvicorn ...server:app`
+    # (bypasses main()) and NOT the bare `stewie-serve` console script: `python -m` puts WORKDIR /app on
+    # sys.path so the app imports from /app (which carries the web/*.html + samples/ DATA FILES), whereas
+    # the console script imports the installed site-packages copy that has NO data files -> /program 404s
+    # and the Haworth DEM disappears (regressed once; this pins the data-file-safe form).
+    assert "-m" in cmd and "stewie.server.server" in cmd and "uvicorn" not in cmd, (
+        f"backend CMD must be `python -m stewie.server.server` (guarded + imports /app data files), got: {cmd}")
     assert "server:app" not in cmd and "server.server:app" not in cmd, (
         "a raw `uvicorn ...server:app` bypasses the public-bind TLS guard (BP-02)")
+    assert '"stewie-serve"' not in cmd, (
+        "the bare stewie-serve console script imports site-packages (no data files) -> /program + DEM 404")
 
 
 def test_the_tls_guard_fails_closed_on_a_plaintext_public_bind(monkeypatch):
