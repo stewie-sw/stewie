@@ -24,7 +24,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 163,
+  "cited": 164,
   "per_family": {
     "AG": {
       "cited": 8,
@@ -59,7 +59,7 @@
       "total": 7
     },
     "FS": {
-      "cited": 24,
+      "cited": 25,
       "total": 28
     },
     "GI": {
@@ -209,6 +209,10 @@
     },
     {
       "id": "FS-24",
+      "v": "P"
+    },
+    {
+      "id": "FS-26",
       "v": "P"
     },
     {

@@ -156,6 +156,14 @@ async function main() {
     }
     checks.push({ ok: chipOk, name: "/program renders one chip per committed PRD-matrix row", detail: chipDetail });
 
+    // FS-26: the public /program board must fit the phone viewport -- no horizontal body scroll at 390 px.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(() => document.querySelectorAll(".rowchip").length > 0, null, { timeout: 15_000 }).catch(() => {});
+    const mob = await page.evaluate(() => ({ sw: document.scrollingElement.scrollWidth, iw: window.innerWidth }));
+    checks.push({ ok: mob.sw <= mob.iw + 1, name: "[FS-26] /program fits the 390px mobile viewport (no horizontal overflow)",
+      detail: mob.sw <= mob.iw + 1 ? `scrollWidth ${mob.sw} <= ${mob.iw}` : `overflow: scrollWidth ${mob.sw} > innerWidth ${mob.iw}` });
+    await page.setViewportSize({ width: 1450, height: 900 });
+
     const violations = consoleViolations(consoleErrors);
     checks.push({
       ok: violations.length === 0,

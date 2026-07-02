@@ -28,6 +28,14 @@
   main { display:grid; grid-template-columns: minmax(0,1fr) 360px; gap:16px; padding:16px 20px;
          max-width:1500px; align-items:start; }
   @media (max-width: 950px) { main { grid-template-columns: 1fr; } .sidecol { position:static !important; } }
+  /* FS-26: the page body must never scroll horizontally at phone widths. Grid/flex children default to
+     min-width:auto (min-content), which let long single-line content (the ConOps spine, the provenance
+     sha, wide chip/lane rows) push the layout past the viewport. Zero the min-width, wrap long strings,
+     and let a genuinely-wide row scroll inside its OWN container -- never the body. */
+  main > div, .sidecol { min-width: 0; }
+  .panel { min-width: 0; overflow-wrap: anywhere; }
+  #program-spine { overflow-x: auto; white-space: nowrap; }
+  #program-summary, .prov { overflow-wrap: anywhere; }
   .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
   h2 { font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 8px;
        font-family:Orbitron, system-ui, sans-serif; font-weight:400; }
