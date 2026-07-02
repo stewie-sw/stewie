@@ -15,6 +15,7 @@ import pytest
 from imageio.v3 import imread
 
 from dart import rock_detect as rd
+from dart import rock_taxonomy as RT
 _REPO_SAMPLES = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "samples"))
 
 HERE = os.path.dirname(__file__)
@@ -131,6 +132,50 @@ def test_perfect_detector_against_truth_scores_unity():
 def test_score_empty_truth_raises():
     with pytest.raises(ValueError):
         rd.score_detections([], [], min_radius_px=4.0)
+
+
+# ---------------------------------------------------------------- acceptance gate (EVAL)
+
+# Class-A hazard acceptance floors on the held-out a6_traverse frame. The pipeline is fully
+# deterministic, so the floors sit one-to-two boulders below the measured operating point
+# (2026-07-02: hazard recall 13/20 = 0.65, in-band precision 14/38 = 0.368) -- a genuine
+# detector regression trips the gate; nothing else moves the numbers.
+CLASS_A_RECALL_FLOOR = 0.60
+IN_BAND_PRECISION_FLOOR = 0.30
+
+
+@needs_inputs
+def test_class_a_hazard_acceptance_gate():  # [REQ:ML-03]
+    """Acceptance gate: Class-A (>7 cm) rock hazards must be recovered from the HELD-OUT
+    a6_traverse render at or above the declared floors, scored against the real
+    crater_boulders truth labels. The hazard class comes from the operational taxonomy
+    (rock_taxonomy.classify -> is_obstacle at the 7 cm avoid threshold), truth enters only
+    the projection/scoring path (I3 firewall), and the gate is falsifiable: a degraded
+    detector on the same frame fails it."""
+    img = np.asarray(imread(FRAME0_L))
+    pose = rd.load_frame_pose(SEQUENCE, TRUTH_POSES, frame=0, camera="front_left")
+    clasts = json.loads(open(CRATER_META).read())["clasts"]
+    dets = rd.detect_rocks(img)
+    proj = rd.project_clast_truth(clasts, pose, img.shape[1], img.shape[0])
+    rep = rd.score_detections(dets, proj, min_radius_px=4.0)
+    # hazard truth = scorable projected clasts whose TAXONOMY class is avoid (>7 cm diameter)
+    scorable = [p for p in proj if p.radius_px >= 4.0]
+    hazards = [p for p in scorable if RT.classify(2.0 * p.radius_m).is_obstacle]
+    assert len(hazards) >= 10  # non-vacuous: a real hazard population is on the frame
+    matched_ids = {cid for _, cid in rep.matched_pairs}
+    tp = sum(1 for p in hazards if p.clast_id in matched_ids)
+    recall = tp / len(hazards)
+    assert recall >= CLASS_A_RECALL_FLOOR, (
+        f"Class-A hazard recall {recall:.3f} ({tp}/{len(hazards)}) "
+        f"below the {CLASS_A_RECALL_FLOOR} acceptance floor")
+    assert rep.precision >= IN_BAND_PRECISION_FLOOR, (
+        f"in-band precision {rep.precision:.3f} below the {IN_BAND_PRECISION_FLOOR} floor")
+    # falsifiability: the SAME gate fails a degraded detector (top-3 detections only) on the
+    # same real frame -- the floors are doing work, not rubber-stamping.
+    rep_bad = rd.score_detections(dets[:3], proj, min_radius_px=4.0)
+    bad_ids = {cid for _, cid in rep_bad.matched_pairs}
+    bad_recall = sum(1 for p in hazards if p.clast_id in bad_ids) / len(hazards)
+    assert bad_recall < CLASS_A_RECALL_FLOOR
 
 
 # -------------------------------------------------------------------------------- visual
