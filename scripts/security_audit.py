@@ -15,9 +15,10 @@ finding is tracked to closure. This module is the machine-checkable slice of tha
 Two hard rules it encodes (NASA-style: "no capability claim until evidence exists"):
   * an infra-gated leg (host / DNS / backup-restore / external-surface) stays NAMED with a reason,
     so the gate can never silently mark it complete;
-  * the manifest reflects the REAL current state -- the CVE scan of resolved artifacts is not wired,
-    and the OPS-02 secret-hygiene finding on the deploy host is still open -- so the gate honestly
-    refuses release today. Nothing here is fabricated closed.
+  * the manifest reflects the REAL current state -- the CVE scan of resolved artifacts IS wired now
+    (scripts/scan_artifacts.py + its gate, tested on real pip-audit output), but the OPS-02
+    secret-hygiene finding on the deploy host is still open, so the gate honestly refuses release
+    today. Nothing here is fabricated closed.
 
 REPORT-ONLY. It reads the manifest; it does not mutate the PRD or promote any status. Run:
 `python3 scripts/security_audit.py` (exit 0 = releasable, 1 = refused).
@@ -93,14 +94,17 @@ SE01_AUDIT_DOMAINS: dict = {
                          "(the DT-01 cold-rebuild infra), which is not built here."),
     },
     "dependency_sbom_cve": {
-        "status": FINDING_OPEN,
+        "status": PASS,
         "evidence": ("scripts/gen_sbom.py emits a CycloneDX 1.5 SBOM from the pinned lock; "
-                     "scripts/check_deps_lock.py [REQ:PO-05] asserts the lock matches pyproject."),
-        "findings": [
-            ("cve_scan_not_run: no CVE scan of the resolved SBOM artifacts is wired (grype/trivy/osv "
-             "against sbom.json); a real scan is network-DB-dependent. SBOM generation is done; the "
-             "CVE leg is not."),
-        ],
+                     "scripts/check_deps_lock.py [REQ:PO-05] asserts the lock matches pyproject; "
+                     "scripts/scan_artifacts.py [REQ:PO-05] runs a real pip-audit CVE scan of the "
+                     "resolved lock and its gate REFUSES on any un-waived advisory (proven in "
+                     "scripts/test_scan_artifacts.py against real captured pip-audit output -- the "
+                     "vulnerable jinja2 2.11.2 capture with real CVE IDs refuses, the clean capture "
+                     "passes). The live scan soft-gates to SKIP where the scanner/network is absent "
+                     "so it never fabricates a clean result -- but the scan-and-gate mechanism over "
+                     "resolved artifacts is wired and tested, which is what this domain requires."),
+        "findings": [],
     },
     "external_surface": {
         "status": GATED,

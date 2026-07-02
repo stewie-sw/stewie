@@ -59,15 +59,17 @@ def test_real_manifest_lists_all_eight_domains_with_typed_entries():
 
 
 def test_real_gate_refuses_release_today_for_real_open_findings():
-    # honest current state: the CVE scan is not run and the OPS-02 secret finding is open, so the
-    # release gate REFUSES. This is the non-vacuous core assertion.
+    # honest current state: the CVE-scan leg is now wired + tested (scripts/scan_artifacts.py), so the
+    # dependency domain no longer blocks -- but the OPS-02 secret finding on the deploy host is still
+    # open (live-host-gated, not closeable from a checkout), so the release gate REFUSES. This is the
+    # non-vacuous core assertion.
     rep = security_audit_report()
     assert rep["releasable"] is False
-    assert "dependency_sbom_cve" in rep["blocking"]
     assert "secret" in rep["blocking"]
-    # the refusal must surface the actual findings, not an opaque boolean
+    # the CVE leg is closed -> it must NOT be among the blockers anymore
+    assert "dependency_sbom_cve" not in rep["blocking"]
+    # the refusal must surface the actual finding, not an opaque boolean
     joined = " ".join(rep["open_findings"]).lower()
-    assert "cve" in joined
     assert "ops-02" in joined
     assert main() == 1  # the CLI exit code refuses release too
 
@@ -125,3 +127,36 @@ def test_a_gated_domain_without_a_reason_cannot_silently_complete():
     rep = security_audit_report(m)
     assert "host" in rep["invalid_gated_no_reason"]
     assert rep["releasable"] is False
+
+
+def test_dependency_sbom_cve_domain_is_backed_by_a_real_wired_cve_scan():
+    # SE-01's dependency/SBOM/CVE domain is only PASS because the "scan resolved artifacts for known
+    # CVEs" step is a REAL, wired, tested mechanism -- not a claim. Prove it non-vacuously against the
+    # actual scanner (scripts/scan_artifacts.py) over its REAL captured pip-audit fixtures: the gate
+    # REFUSES on the genuinely-vulnerable jinja2 2.11.2 capture (real CVE IDs) and passes on the clean
+    # capture. If that gate did not really refuse on real findings, the domain has no business PASSing.
+    import json
+    import os
+
+    from scripts import scan_artifacts
+
+    fix = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       "scripts", "fixtures", "pip_audit")
+    with open(os.path.join(fix, "vulnerable_report.json"), encoding="utf-8") as fh:
+        vuln = scan_artifacts.parse_pip_audit(json.load(fh))
+    with open(os.path.join(fix, "clean_report.json"), encoding="utf-8") as fh:
+        clean = scan_artifacts.parse_pip_audit(json.load(fh))
+    # the scan of resolved artifacts is real: it finds real advisories and its gate refuses on them
+    assert vuln.n_findings >= 1
+    assert any(f.id.startswith(("PYSEC-", "CVE-", "GHSA-")) for f in vuln.findings)
+    assert scan_artifacts.gate(vuln) != 0, "the wired CVE gate must refuse on real findings"
+    assert scan_artifacts.gate(clean) == 0, "the wired CVE gate must pass a clean scan"
+
+    # the SE-01 manifest reflects that this mechanism is wired: the dependency domain PASSes with no
+    # open finding, and its evidence cites the real scanner (no stale 'cve_scan_not_run' finding).
+    dep = SE01_AUDIT_DOMAINS["dependency_sbom_cve"]
+    assert dep["status"] == PASS, dep["status"]
+    assert dep["findings"] == []
+    assert "scan_artifacts" in dep["evidence"]
+    rep = security_audit_report()
+    assert "dependency_sbom_cve" not in rep["blocking"]
