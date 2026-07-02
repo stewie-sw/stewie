@@ -267,11 +267,13 @@ class ModelArtifact(Contract):
 
     @property
     def deployment_ready(self) -> bool:
-        """ML-01 gate: a model may be DEPLOYED only when it has declared both typed schemas, positive
-        latency+memory budgets, calibration, an OOD detector, a deterministic fallback, and is off the
-        command path. Definition without these is allowed; deployment is not."""
+        """ML-01/RL-01 gate: a model may be DEPLOYED only when it has recorded training/eval lineage
+        (non-empty -- RL-01: training scripts alone never make a policy operational), declared both typed
+        schemas, positive latency+memory budgets, calibration, an OOD detector, a deterministic fallback,
+        and is off the command path. Definition without these is allowed; deployment is not."""
         return bool(
-            self.input_schema and self.output_schema
+            self.dataset_lineage and self.eval_split
+            and self.input_schema and self.output_schema
             and self.latency_budget_ms > 0 and self.memory_budget_mb > 0
             and self.calibrated and self.ood_detector
             and (self.fallback or self.rollback_to)

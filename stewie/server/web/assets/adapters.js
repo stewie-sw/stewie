@@ -175,6 +175,7 @@
     var m = payload && payload.model_artifact;
     if (!m) return null;
     var deploymentReady = !!(
+      m.dataset_lineage && m.eval_split &&
       m.input_schema && m.output_schema &&
       m.latency_budget_ms > 0 && m.memory_budget_mb > 0 &&
       m.calibrated && m.ood_detector && (m.fallback || m.rollback_to) && !m.command_path);

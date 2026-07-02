@@ -79,6 +79,42 @@ def test_models_endpoint_serves_the_real_registries(client):
     assert g["deployed_models"] == [], "no learned model should be deployed on the command path"
 
 
+def test_rl01_deployed_rl_policy_gate(client):
+    """[REQ:RL-01] Deployed-RL-policy gate: no learned/RL capability may be called operational until the
+    versioned ModelArtifact carries its FULL deployment set -- training/eval lineage recorded, typed I/O
+    schemas (the model card's contract half), positive inference budgets, calibration, an OOD detector,
+    and a deterministic fallback -- and sits OFF the command path (the §25.3 safety shield, rejected at
+    validation, not merely at the gate). Training scripts/environments alone (stewie/envs/rover_env.py,
+    validation/rl/) never satisfy this row: /models must report deployed_models == [] until a real
+    artifact with all of the above exists."""
+    from pydantic import ValidationError
+
+    from stewie.contracts import ModelArtifact
+
+    full = dict(model_id="rl_traverse", name="rl-traversability-policy", version="0.1.0",
+                task="terrain_assess", dataset_lineage="lac", eval_split="val",
+                input_schema="WorldState", output_schema="Traversability",
+                latency_budget_ms=50.0, memory_budget_mb=512.0,
+                calibrated=True, ood_detector=True, fallback="deterministic_planner")
+    assert ModelArtifact(**full).deployment_ready is True     # the gate is satisfiable, not vacuous
+    # each required condition dropped IN TURN -> the artifact may exist, but is NOT deployment_ready:
+    for drop in (dict(dataset_lineage=""), dict(eval_split=""),         # training/eval lineage
+                 dict(input_schema=""), dict(output_schema=""),         # typed I/O contract (model card)
+                 dict(latency_budget_ms=0.0), dict(memory_budget_mb=0.0),
+                 dict(calibrated=False),
+                 dict(ood_detector=False),                              # OOD acceptance leg
+                 dict(fallback=None)):                                  # deterministic fallback (no rollback_to either)
+        assert ModelArtifact(**{**full, **drop}).deployment_ready is False, \
+            f"deployment_ready held without {drop} -- the RL-01 gate leaks"
+    with pytest.raises(ValidationError):                                # §25.3 shield: rejected outright
+        ModelArtifact(**{**full, "command_path": True})
+    # the live governance surface: the lineage criteria are enumerated and NOTHING is operational.
+    g = client.get("/models").json()["model_governance"]
+    assert any("lineage" in c for c in g["deployment_ready_criteria"]), \
+        "training/eval lineage is not an enumerated deployment-ready criterion"
+    assert g["deployed_models"] == [], "an RL/learned model is reported operational without the RL-01 artifact set"
+
+
 def test_models_endpoint_is_operator_gated(monkeypatch):
     # no key configured and NOT dev-open -> the privileged route is locked (fail-closed).
     monkeypatch.delenv("STEWIE_API_KEY", raising=False)

@@ -15,9 +15,10 @@ truth (nothing fabricated):
     measured/estimated confidence + Bekker regime.
 
   * MODEL GOVERNANCE (stewie.contracts.ModelArtifact, FS-12/ML-01/§25.3): the typed contract every
-    learned model must satisfy to be DEPLOYED -- the ML-01 deployment-ready gate criteria (declared
-    typed I/O schemas, positive latency+memory budgets, calibration, OOD detector, deterministic
-    fallback, off the command path) and the §25.3 INVARIANT that no learned model is on the rover
+    learned model must satisfy to be DEPLOYED -- the ML-01/RL-01 deployment-ready gate criteria
+    (recorded training/eval lineage, declared typed I/O schemas, positive latency+memory budgets,
+    calibration, OOD detector, deterministic fallback, off the command path) and the §25.3 INVARIANT
+    that no learned model is on the rover
     command path. There is no deployed-model instance registry on this build (FS-12 is the gated future
     surface; the contract definition ships via /contracts/schema), so the honest status is NO learned
     model is deployed on the command path -- which the gate reports, rather than fabricating instances.
@@ -104,6 +105,8 @@ def get_models(_auth: str = Depends(require_role("operator"))):
         "schema_endpoint": "/contracts/schema",
         # the ML-01 gate: a learned model may be DEPLOYED only when all of these hold.
         "deployment_ready_criteria": [
+            "dataset_lineage recorded (training-data lineage, RL-01)",
+            "eval_split recorded (evaluation lineage, RL-01)",
             "input_schema declared (typed input contract)",
             "output_schema declared (typed estimate contract)",
             "latency_budget_ms > 0",

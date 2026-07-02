@@ -179,6 +179,12 @@ test("normalizeModelArtifact mirrors the ML-01 deployment_ready gate", () => {
     latency_budget_ms: 0, memory_budget_mb: 0, calibrated: false, ood_detector: false,
     fallback: null, quantization: "fp32", rollback_to: null, command_path: false } });
   assert.strictEqual(undeclared.deploymentReady, false);            // undeclared schemas/budgets -> not deployable
+  const nolineage = A.normalizeModelArtifact({ model_artifact: {
+    model_id: "m3", name: "rl-policy", version: "0.1", task: "terrain_assess",
+    dataset_lineage: "", eval_split: "", input_schema: "WorldState", output_schema: "Traversability",
+    latency_budget_ms: 50, memory_budget_mb: 512, calibrated: true, ood_detector: true,
+    fallback: "deterministic_costmap", quantization: "fp32", rollback_to: null, command_path: false } });
+  assert.strictEqual(nolineage.deploymentReady, false);             // RL-01: no training/eval lineage -> not deployable
   assert.strictEqual(A.normalizeModelArtifact({}), null);
 });
 
