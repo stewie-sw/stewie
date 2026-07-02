@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "575a454ce484226511faf8986db6b7c06be99899a25e6be9ed1334961fedf103",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "3f77a85ea17e8dbe696a4b40c64d50739ee2553f",
-  "prd_sha256": "53650eac8a9e2a31eaf976ea833a755382841ba5facbc35cbb4b2d8f6f47e3f0",
-  "specs_sha256": "85bdce2687464f4ea47f15023ffdb7e565d1773c60bac9b871ba581473614103"
+  "prd_commit": "dad2f9f7010fdb5432c479c468419eee946831cd",
+  "prd_sha256": "7dbc9c99d953cc42cf15a1478db1109d124cdb22d8391804135bac1db1888041",
+  "specs_sha256": "ec7c4cbff11028227cf0a16c6d28bbc5c70e517c70e17ac7deb63506a3397f20"
  },
  "rows": [
   {
@@ -2379,7 +2379,7 @@
    "V": "N",
    "X": "N",
    "brief": {
-    "goal": "two-screen operator display (primary command cockpit + secondary read-only viz/telemetry subdomain embedding Godot/Gazebo/RViz), one state model, no command authority on the secondary.",
+    "goal": "primary command cockpit + a SECONDARY read-only viz that is two-fold (PLAN column = sim-of-record route/forecast/Godot + prior/forecast/edited twin provenance; ACTUAL column = live ROS2 observed map/cloud/pose/executed cmd + observed provenance), co-registered in the site frame on one run/time state.",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_multiscreen_display.py citing [REQ:RS-07]"
    },
@@ -2388,7 +2388,24 @@
    "id": "RS-07",
    "lane": "RS",
    "pri": "P1",
-   "text": "**Multi-screen operator display architecture.** The operator surface is TWO coordinated screens on one route/state model: a PRIMARY command cockpit (`app.stewie.space` \u2014 Plan\u2192\u2026\u2192Report + the bounded software-command console + eligibility/refusal) and a SECONDARY visualization/telemetry surface on its own route/subdomain (e.g. `viz.stewie.space`) embedding the live Godot render + Gazebo/RViz (web ROS bridge / Foxglove) + point cloud + costmap + observed map. The secondary is READ-ONLY with NO independent command authority (\u00a726.4). Acceptance: the two-screen layout renders the console + Godot/Gazebo/RViz evidence, the secondary emits no command, and both reflect the same selected run/state. Buildable on archimedes."
+   "text": "**Multi-screen operator display architecture (primary command + two-fold viz).** The operator surface is a PRIMARY command cockpit (`app.stewie.space` \u2014 Plan\u2192\u2026\u2192Report + the bounded software-command console + eligibility/refusal) and a SECONDARY, READ-ONLY visualization/telemetry surface on its own route/subdomain (e.g. `viz.stewie.space`) that is itself **two-fold** on one shared site-frame + run/time state model: a **PLAN column** (what we INTEND \u2014 the sim-of-record: Rehearse trajectory, planned global route + local arcs, forecast costmap, and the digital-twin `prior`/`forecast`/`edited` provenance layers per RS-02/DT-04, rendered by Godot) and an **ACTUAL column** (what the rover SENSES/DOES \u2014 the live ROS2 runtime via a web ROS bridge/Foxglove or web-RViz: observed DEM/occupancy, point cloud, real pose/belief, executed `cmd_vel`, and the twin's `observed` provenance layer). The ACTUAL column's source escalates across the staged rollout (RS-04 replay \u2192 RS-05 Gazebo \u2192 RS-06 hardware) while PLAN stays fixed. The whole secondary is READ-ONLY with NO independent command authority (\u00a726.4). Acceptance: the two-column layout renders the PLAN (Godot/route/forecast) and ACTUAL (Gazebo/RViz cloud/observed-map/executed-cmd) surfaces co-registered in the site frame on the same selected run/time, and the secondary emits no command. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "the plan-vs-actual DIVERGENCE surface (executed-vs-planned trajectory, observed-vs-forecast hazard/DEM, pose-vs-truth covariance) with a follow-live/scrub-plan time offset; threshold crossing drives the replan indicator; informs only, never commands.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/eval/test_plan_actual_divergence.py citing [REQ:RS-08]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RS-08",
+   "lane": "RS",
+   "pri": "P1",
+   "text": "**Plan-vs-actual divergence surface (the operator payload).** The value of the two-fold viz (RS-07) is the DELTA, not either column alone: PLAN and ACTUAL are co-registered in the site frame and their divergence is a first-class surface \u2014 executed-vs-planned trajectory error, observed-vs-forecast hazard/DEM deltas, and pose-vs-truth covariance growth (the pose-vs-truth discipline STEWIE already runs \u2014 the 12.7 mm/7.15\u00b0 AprilTag eval \u2014 promoted to a live operator surface). A time model exposes PLAN's lead/lag vs ACTUAL (a `follow-live` mode vs a `scrub-plan` mode with a visible offset), since planning runs ahead of execution. When divergence crosses a declared threshold it drives the replan indicator (PM-19) and the operator's attention; it INFORMS only \u2014 never commands (\u00a726.4). Acceptance: a fixture where ACTUAL departs from PLAN produces a measured trajectory/DEM/covariance divergence surface + a threshold-crossing replan indicator, co-registered and read-only. Buildable on archimedes."
   },
   {
    "I": "P",
@@ -2952,9 +2969,9 @@
   }
  ],
  "summary": {
-  "briefs": 82,
+  "briefs": 83,
   "buckets": {
-   "buildable": 61,
+   "buildable": 62,
    "concurrent": 0,
    "done": 123,
    "gated": 25
@@ -3026,7 +3043,7 @@
    },
    "RS": {
     "done": 0,
-    "total": 7
+    "total": 8
    },
    "SE": {
     "done": 0,
@@ -3064,7 +3081,7 @@
    },
    "P1": {
     "done": 80,
-    "total": 129
+    "total": 130
    },
    "P2": {
     "done": 0,
@@ -3072,10 +3089,10 @@
    }
   },
   "cited": 164,
-  "done_pct": 58.9,
-  "in_scope": 184,
-  "in_scope_done_pct": 66.8,
-  "total": 209
+  "done_pct": 58.6,
+  "in_scope": 185,
+  "in_scope_done_pct": 66.5,
+  "total": 210
  },
  "workflow_spine": [
   "Plan",
