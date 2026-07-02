@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "6fc541f0a30668c1961aaf9cc2f375c9eb0e38b17f4c713f8bad38685fb64c1c",
+  "citations_sha256": "59b0d496312adc989d8ebed6266d4ad674017db714fc4983a1713d3f9a8860ff",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "28cd5b7194c8fec3b2cdb0a18d85af9e5d9ca54f",
-  "prd_sha256": "f8c41cb411a591f24773b50daf6472b7b8f1b5f7042a76f7ffd23c80fafe720e",
+  "prd_commit": "e6fc24e02f98e31a558868a49ba753fe3aec6158",
+  "prd_sha256": "1c41a650af8bb47aefca2f0da024a253d262aad930b1966ccb74cec1d164a531",
   "specs_sha256": "37059633a28f0aaa17e5f419a26a87179ebb0a85d82da450c3ad38af1ffd4b11"
  },
  "rows": [
@@ -1394,6 +1394,18 @@
    "lane": "FS",
    "pri": "P1",
    "text": "**Cockpit live visual-hazard classifier evidence panel (2026-07-02 hazard-perception assessment).** A Validate/Perception surface shows the LIVE visual-hazard classifier -- per-frame detections, per-detection confidence, accepted vs REJECTED obstacles with the size-gate/appearance reason, the hazard-class + no-go overlay, and the replan CONSEQUENCE (which detection forced a reroute) -- beyond today's static hazard rasters + keep-outs. Acceptance: the panel renders real detections + accepted/rejected + confidence + a hazard-triggered-replan indicator, no-truth-input labelled. Buildable on archimedes."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "FS-30",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "**Cockpit ConOps de-duplication (2026-07-02 UI review, Screenshot_20260702_131756).** The top tab bar and the mission-pipeline `#stepper` both rendered Rehearse/Validate/Release/Execute/Report -- two stacked rows of the same phase labels. `#stepper` is reduced to the PLAN micro-wizard (Site->Fleet->Orders->Solve, the sub-steps that exist nowhere else) + a single \"-> Rehearse\" hand-off cue; the downstream phases' done/current progress rides as a dot ON each phase tab (`renderStepper` PHASE_TAB). Acceptance: `#stepper` carries no downstream-phase chip, each phase tab carries a progress dot, and the ui-smoke + a [REQ:FS-30] gate pin it. Buildable on archimedes."
   },
   {
    "I": "P",
@@ -3058,7 +3070,7 @@
   "buckets": {
    "buildable": 65,
    "concurrent": 0,
-   "done": 125,
+   "done": 126,
    "gated": 25
   },
   "by_lane": {
@@ -3095,8 +3107,8 @@
     "total": 7
    },
    "FS": {
-    "done": 14,
-    "total": 29
+    "done": 15,
+    "total": 30
    },
    "GI": {
     "done": 1,
@@ -3169,19 +3181,19 @@
     "total": 70
    },
    "P1": {
-    "done": 80,
-    "total": 134
+    "done": 81,
+    "total": 135
    },
    "P2": {
     "done": 0,
     "total": 11
    }
   },
-  "cited": 166,
-  "done_pct": 58.1,
-  "in_scope": 190,
-  "in_scope_done_pct": 65.8,
-  "total": 215
+  "cited": 167,
+  "done_pct": 58.3,
+  "in_scope": 191,
+  "in_scope_done_pct": 66.0,
+  "total": 216
  },
  "workflow_spine": [
   "Plan",
