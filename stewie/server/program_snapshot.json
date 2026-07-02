@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "18dd2bced54a0194770c90dd7f9d813f1b340435502b66787d5395bbd270b089",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "8cbc8326ab9c86d750e1ff729f6b825a910bb5fc",
-  "prd_sha256": "10b61a0cef33084df2134a20b9ab27e1c6a9c84b9c994491110885126ad1dd1a",
+  "prd_commit": "eb989fb495624f39a3a625f3f87950aecbc8e3e1",
+  "prd_sha256": "c463fc4ff0c8605699a7404693f882bb28fae26370c672dc799c1c5c6e69de82",
   "specs_sha256": "793de58e8fdd1ca5d908c4e3c2f77be05176faeb639bcef73ca1a0fa532c6cc8"
  },
  "rows": [
@@ -1907,8 +1907,8 @@
   {
    "I": "P",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "P",
    "brief": {
     "goal": "add the missing \"scan resolved artifacts\" step + wire the lock/SBOM/fresh-install scripts into CI as a real gate (lock+SBOM+fresh-install exist + are tested; only the CVE scan + CI wiring are missing).",
     "kind": "atomic",
