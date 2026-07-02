@@ -13,6 +13,16 @@ APP="$REPO/desktop/dist/STEWIE-0.1.0.AppImage"
 [ -f "$APP" ] || { echo "AppImage not built -- run:  (cd '$REPO/desktop' && npm install && npm run dist)"; exit 1; }
 [ -x "$REPO/.venv/bin/stewie-serve" ] || { echo "repo .venv sidecar missing at $REPO/.venv/bin/stewie-serve"; exit 1; }
 
+# Preflight: the sidecar must actually import its server. A .venv without the stewie package passes
+# the -x check above but dies at launch (real first-launch failure: 40 s health timeout, opaque
+# dialog). Run from a NEUTRAL cwd with the same env main.js uses, so a repo-cwd import can't mask it.
+if ! (cd / && env -u PYTHONPATH PYTHONNOUSERSITE=1 "$REPO/.venv/bin/python" -c "import stewie.server.server"); then
+  echo "sidecar preflight FAILED: $REPO/.venv/bin/python cannot import stewie.server.server"
+  echo "fix it, then re-run this script:"
+  echo "  cd $REPO && PYTHONNOUSERSITE=1 .venv/bin/python -m pip install -e .[server] --no-deps"
+  exit 1
+fi
+
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications"
 install -m755 "$APP" "$HOME/.local/bin/stewie-desktop"
 

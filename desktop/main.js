@@ -25,6 +25,8 @@ const HEALTH_TIMEOUT_MS = 40000;
 
 let serverProc = null;
 let serverPort = 0;
+let serverReady = false; // true once /healthz has answered 200
+let stderrTail = "";     // rolling tail of sidecar stderr, surfaced if it dies before healthy
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -51,7 +53,10 @@ function startServer(port) {
     stdio: ["ignore", "pipe", "pipe"],
   });
   proc.stdout.on("data", (d) => process.stdout.write(`[stewie-serve] ${d}`));
-  proc.stderr.on("data", (d) => process.stderr.write(`[stewie-serve] ${d}`));
+  proc.stderr.on("data", (d) => {
+    process.stderr.write(`[stewie-serve] ${d}`);
+    stderrTail = (stderrTail + d).slice(-4000);
+  });
   return proc;
 }
 
@@ -103,12 +108,26 @@ app.whenReady().then(async () => {
   try {
     serverPort = await freePort();
     serverProc = startServer(serverPort);
-    serverProc.on("exit", (code) => {
-      if (code !== 0 && code !== null) {
-        dialog.showErrorBox("STEWIE server stopped", `stewie-serve exited with code ${code}.`);
-      }
+    // If the sidecar dies BEFORE /healthz ever succeeds (e.g. a venv missing the stewie package),
+    // fail immediately with its stderr tail instead of sitting out the 40 s health timeout and
+    // showing a generic message. After it is healthy, a crash gets the plain "server stopped" box.
+    const earlyExit = new Promise((_resolve, reject) => {
+      serverProc.on("exit", (code) => {
+        if (serverReady) {
+          if (code !== 0 && code !== null) {
+            dialog.showErrorBox("STEWIE server stopped", `stewie-serve exited with code ${code}.`);
+          }
+          return;
+        }
+        const tail = stderrTail.trim();
+        reject(new Error(
+          `stewie-serve exited with code ${code} before becoming healthy.` +
+          (tail ? `\n\nstewie-serve stderr (tail):\n${tail}` : "")
+        ));
+      });
     });
-    await waitHealthz(serverPort, Date.now() + HEALTH_TIMEOUT_MS);
+    await Promise.race([waitHealthz(serverPort, Date.now() + HEALTH_TIMEOUT_MS), earlyExit]);
+    serverReady = true;
     createWindow(serverPort);
   } catch (err) {
     dialog.showErrorBox("STEWIE failed to start", String(err && err.message ? err.message : err));
