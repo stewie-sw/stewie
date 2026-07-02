@@ -280,6 +280,45 @@ class ModelArtifact(Contract):
             and not self.command_path)
 
 
+class ExcavationState(Contract):
+    """ML-05: the unified excavation-state ESTIMATE the estimator layer emits -- digging state, drum
+    fill, wheel slip, stall risk, and the estimator's own confidence, each in a bounded domain so a
+    bad value is rejected at the boundary. HONESTY GATE: the fusion is built on conserved-sim signals
+    and the published ICE-RASSOR FDC uncertainty band (NTRS 20210022781), NOT on real IPEx/AutoDig
+    telemetry (external, gated) -- so while ``calibration`` is "uncalibrated" the estimate MUST stay
+    ``advisory`` (a validator enforces it; no consumer may treat it as flight-calibrated)."""
+    digging_state: str                                    # idle | driving | hauling | digging | offload_due
+    fill_fraction: float = Field(ge=0.0, le=1.0)
+    slip: float = Field(ge=0.0, le=1.0)
+    stall_risk: float = Field(ge=0.0, le=1.0)
+    confidence: float = Field(ge=0.0, le=1.0)
+    advisory: bool = True
+    calibration: str = "uncalibrated"                     # uncalibrated | ipex_autodig
+    source: str = ""
+
+    @field_validator("digging_state")
+    @classmethod
+    def _known_digging_state(cls, v: str) -> str:
+        allowed = {"idle", "driving", "hauling", "digging", "offload_due"}
+        if v not in allowed:
+            raise ValueError(f"unknown digging_state: {v}")
+        return v
+
+    @field_validator("calibration")
+    @classmethod
+    def _known_calibration(cls, v: str) -> str:
+        allowed = {"uncalibrated", "ipex_autodig"}
+        if v not in allowed:
+            raise ValueError(f"unknown calibration: {v}")
+        return v
+
+    @model_validator(mode="after")
+    def _uncalibrated_stays_advisory(self) -> "ExcavationState":
+        if self.calibration == "uncalibrated" and not self.advisory:
+            raise ValueError("ML-05: an uncalibrated excavation-state estimate must stay advisory")
+        return self
+
+
 class ConstructionSkill(Contract):
     """FS-13 / §25.3: a recorded construction/docking movement primitive. `closed_loop` MUST be True --
     no primitive replays open-loop; estimator feedback + safing checks are part of it. Carries the step
