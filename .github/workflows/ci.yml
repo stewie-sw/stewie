@@ -39,7 +39,14 @@ jobs:
       - name: Gated-tier report (PO-04 -- chrono/godot/ros skips VISIBLE, never faked; requires each tier to stay declared)
         run: python scripts/ci_tier_report.py --require chrono --require godot --require ros
       - name: Test + coverage gate (the CONFIGURED suite; testpaths = core + planner + scripts)
-        run: pytest -n auto --cov --cov-report=term-missing   # CI-OPT #158: parallel across runner cores (pytest-cov combines workers)
+        # raise the fd soft limit before the parallel suite. `pytest -n auto` fans across cores and the
+        # suite grew past the runner's default 1024-fd budget -> a worker exhausts fds and its NEXT
+        # fd-opening test fails with OSError [Errno 9] Bad file descriptor (confirmed in CI: rsync-subprocess
+        # replicate + PIL im.getdata BOTH failed on worker gw3; reproduced locally under --cov at ulimit
+        # 1024 -> a loopback-socket test failed). xdist workers inherit this raised limit.
+        run: |
+          ulimit -n 65536
+          pytest -n auto --cov --cov-report=term-missing   # CI-OPT #158: parallel across runner cores (pytest-cov combines workers)
 
   test-js:
     name: browser-JS tier (node --test)
@@ -113,4 +120,8 @@ jobs:
           pip install --require-hashes -r requirements-dev.lock
           pip install -e . --no-deps
       - name: Test (the CONFIGURED suite; gated tiers skip)
-        run: pytest -n auto -p no:cacheprovider   # CI-OPT #158: parallel across runner cores
+        # raise the fd soft limit before the parallel suite (see the coverage job's note): the grown suite
+        # under `pytest -n auto` exhausts a worker's default 1024 fds -> intermittent Bad-file-descriptor.
+        run: |
+          ulimit -n 65536
+          pytest -n auto -p no:cacheprovider   # CI-OPT #158: parallel across runner cores
