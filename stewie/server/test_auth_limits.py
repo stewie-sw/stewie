@@ -54,9 +54,12 @@ def test_overlong_email_rejected(client):
     assert r.status_code in (400, 413, 422), f"over-long email accepted ({r.status_code})"
 
 
-def test_failed_login_burst_is_rate_limited(client):
+def test_failed_login_burst_is_rate_limited(client):  # [REQ:FS-11]
     """Sustained failed logins from one IP must hit a 429 once the per-IP window cap is exceeded
-    (so the single worker / PBKDF2 cannot be monopolized)."""
+    (so the single worker / PBKDF2 cannot be monopolized). This is the FS-11 assertion that rate
+    limiting is WIRED on the auth-sensitive routes: /auth/login consults the per-IP + per-account
+    RateLimiters (routers/auth.py) and maps an exceeded window to HTTP 429; /auth/register is pinned
+    by test_registration_burst_is_rate_limited below."""
     codes = []
     for _ in range(12):
         r = client.post("/auth/login", json={"email": "nobody@example.com", "password": "wrongpassword1"})

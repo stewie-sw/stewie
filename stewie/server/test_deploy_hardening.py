@@ -125,8 +125,9 @@ def test_web01_index_self_hosts_cesium():
         "no window.Cesium guard before the Cesium.* calls (cockpit.js)"
 
 
-def test_web01_nginx_csp_keeps_script_self_and_allowlists_tiles():
-    """WEB-01 (revised, live-site fix): script-src admits the same origin + blob workers + eval (Cesium
+def test_web01_nginx_csp_keeps_script_self_and_allowlists_tiles():  # [REQ:FS-11]
+    """WEB-01 (revised, live-site fix) + the FS-11 CSP/no-inline-script deployment clause: script-src
+    admits the same origin + blob workers + eval (Cesium
     1.119 calls plain runtime eval() -- 'wasm-unsafe-eval' alone is NOT enough and the strict CSP blanked
     the live globe), but never a CDN host and never inline scripts/handlers; worker-src allows Cesium's
     same-origin/blob workers; img-src and connect-src allowlist exactly the read-only NASA/Esri imagery
