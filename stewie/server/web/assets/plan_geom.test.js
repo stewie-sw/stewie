@@ -134,3 +134,25 @@ test("parsePrec: empty / null -> []", () => {
   assert.deepStrictEqual(G.parsePrec(null), []);
   assert.deepStrictEqual(G.parsePrec("no arrow here"), []);
 });
+
+// frontend-audit E2: the lander label lifts above the safe-haven ring (with a leader) only when the
+// ring's top arc would cross the label's text band; otherwise it keeps the just-above-the-body slot.
+test("landerLabelY: default slot when the ring is off or far away", () => {
+  assert.deepStrictEqual(G.landerLabelY(10, 0), { dy: -13, leader: false });      // ring off
+  assert.deepStrictEqual(G.landerLabelY(10, 200), { dy: -13, leader: false });    // ring far outside
+  assert.deepStrictEqual(G.landerLabelY(10, 6), { dy: -13, leader: false });      // ring inside the body
+});
+
+test("landerLabelY: lifts above the ring with a leader when the ring crosses the text band", () => {
+  assert.deepStrictEqual(G.landerLabelY(10, 12), { dy: -18, leader: true });      // ring in the band
+  assert.deepStrictEqual(G.landerLabelY(10, 24), { dy: -30, leader: true });      // band's far edge
+  assert.deepStrictEqual(G.landerLabelY(10, 25), { dy: -13, leader: false });     // just past it
+});
+
+test("landerLabelY: lifts when the text is wider than the ring's chord at the label height", () => {
+  // fr 3 px -> label at dy -6; ring 28 px; text half-width 27.5 px > chord sqrt(28^2-6^2) ~ 27.3
+  const r = G.landerLabelY(3, 28, 27.5);
+  assert.deepStrictEqual(r, { dy: -34, leader: true });
+  // a wide ring leaves the same text comfortably inside -> default slot
+  assert.deepStrictEqual(G.landerLabelY(3, 120, 27.5), { dy: -6, leader: false });
+});

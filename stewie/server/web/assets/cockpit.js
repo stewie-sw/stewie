@@ -130,6 +130,15 @@ const IPEX_FALLBACK = { drum_kg: 30, dig_j_per_kg: 4151, battery_j: 4.79e6, dig_
 function ipex() { return (PHY && PHY._ipex) ? PHY._ipex : IPEX_FALLBACK; }
 let viewer = null, ellipsoid = null, marker = null, picked = null;
 
+// frontend-audit G: two globe-label tiers so the work-site labels don't pile into garble at boot zoom
+// (HAWORTH DEM TILE + WORK AREA + order/pin labels all stacked at the globe center). DETAIL labels
+// (work area, orders, pins, keep-outs, ring radii) render only below ~200 km camera distance; the
+// SITE-tier DEM TILE label renders only above it. Lazy constructors: Cesium may legitimately be
+// absent (CSP/offline), and every call site is already inside a Cesium-guarded path.
+const LABEL_DETAIL_MAX_M = 2.0e5;
+function ddcDetail() { return new Cesium.DistanceDisplayCondition(0, LABEL_DETAIL_MAX_M); }
+function ddcSiteTier() { return new Cesium.DistanceDisplayCondition(LABEL_DETAIL_MAX_M, 1e11); }
+
 fetch("/healthz").then(r => r.json()).then(h => { const v = document.getElementById("stver");
   if (v) v.textContent = "v" + h.version; }).catch(() => {});   // B0.2 version stamp
 function loadBody(key) {
@@ -432,7 +441,8 @@ function dropPin(lat, lon, text, color, ref) {             // #64: pins carry th
     label: { text, font: "10px Orbitron, sans-serif",
              fillColor: Cesium.Color.fromCssColorString("#c7d2e3"),
              pixelOffset: new Cesium.Cartesian2(0, -14), showBackground: true,
-             backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
+             backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb"),
+             distanceDisplayCondition: ddcDetail() },   // frontend-audit G: detail tier
   });
   EDIT_PINS.push(pin);
   if (ref) PIN_REFS.set(pin, ref);
@@ -451,7 +461,8 @@ function dropKeepoutCircle(lat, lon, r, ref) {             // #178: a VISIBLE ci
                outline: true, outlineColor: red.withAlpha(0.9), outlineWidth: 2 },
     label: { text: `keep-out r${r} m`, font: "10px Orbitron, sans-serif",
              fillColor: Cesium.Color.fromCssColorString("#c7d2e3"), pixelOffset: new Cesium.Cartesian2(0, -14),
-             showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
+             showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb"),
+             distanceDisplayCondition: ddcDetail() },   // frontend-audit G: detail tier
   });
   EDIT_PINS.push(ent);
   if (ref) PIN_REFS.set(ent, ref);
@@ -466,7 +477,8 @@ function dropBoxKeepout(lat0, lon0, lat1, lon1, ref) {     // #178: a VISIBLE re
                  material: red.withAlpha(0.22), outline: true, outlineColor: red.withAlpha(0.9) },
     label: { text: "box keep-out", font: "10px Orbitron, sans-serif",
              fillColor: Cesium.Color.fromCssColorString("#c7d2e3"), pixelOffset: new Cesium.Cartesian2(0, -10),
-             showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
+             showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb"),
+             distanceDisplayCondition: ddcDetail() },   // frontend-audit G: detail tier
   });
   EDIT_PINS.push(ent);
   if (ref) PIN_REFS.set(ent, ref);
@@ -483,7 +495,8 @@ function dropPolyKeepout(latlons, ref) {                   // #178: a VISIBLE po
                material: red.withAlpha(0.22), outline: true, outlineColor: red.withAlpha(0.9) },
     label: { text: "⬡ poly keep-out", font: "10px Orbitron, sans-serif",
              fillColor: Cesium.Color.fromCssColorString("#c7d2e3"), pixelOffset: new Cesium.Cartesian2(0, -10),
-             showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
+             showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb"),
+             distanceDisplayCondition: ddcDetail() },   // frontend-audit G: detail tier
   });
   EDIT_PINS.push(ent);
   if (ref) PIN_REFS.set(ent, ref);
@@ -1299,17 +1312,34 @@ document.querySelectorAll("#validate-subtabs .vsub").forEach((b) => { b.onclick 
 // Settings everyone, System operator+, Admin director. The items reuse setView -> same pane switch.
 // FS-24: role-ladder rank now lives in role_rank.js (window.STEWIE_ROLE_RANK); thin binding alias.
 const _rrank = window.STEWIE_ROLE_RANK.rrank;
+let _gateSeenViews = null;   // the role-gated tab views visible on the LAST gate pass (null = first pass)
 function gateChrome(role) {
   const sys = $("prof-system"), adm = $("prof-admin");
   if (sys) sys.style.display = (_rrank(role) >= _rrank("operator")) ? "block" : "none";  // System: operator+
   if (adm) adm.style.display = (role === "director") ? "block" : "none";                 // Admin: director
   // FS-03: role-gate the work-area tabs that declare a minimum role (the Fleet tab is operator+). Same
   // ladder + fail-closed semantics as the chrome above; a sub-operator never sees the fleet command surface.
+  const nowVisible = [];
   document.querySelectorAll(".vtab[data-minrole]").forEach((b) => {
     const ok = _rrank(role) >= _rrank(b.dataset.minrole);
+    if (ok) nowVisible.push(b.dataset.view);
     b.style.display = ok ? "" : "none";
     if (!ok && b.dataset.view === VIEW) setView("plan");   // bounce a demoted operator off the gated tab
   });
+  // frontend-audit F: fail-closed hiding stays, but a role change that REVEALS work areas now SAYS so
+  // on the existing alert rail -- otherwise a newly promoted operator never learns the fleet/
+  // construction/models/trainer surfaces exist (zero-affordance hiding).
+  if (_gateSeenViews !== null && typeof alertMsg === "function") {
+    const MORE_CLUSTER = ["fleet", "construction", "models", "trainer"];
+    const cap = (v) => v.charAt(0).toUpperCase() + v.slice(1);
+    const fresh = nowVisible.filter((v) => !_gateSeenViews.includes(v));
+    if (fresh.length) {
+      const moreHint = fresh.some((v) => MORE_CLUSTER.includes(v))
+        ? " — Fleet · Construction · Models · Trainer live under More ▾" : "";
+      alertMsg("info", "Operator tools unlocked: " + fresh.map(cap).join(" · ") + moreHint);
+    }
+  }
+  _gateSeenViews = nowVisible;
   // #258: the "More ▾" overflow shows iff >=1 of its (role-gated) secondary tabs is permitted; collapse
   // the open menu if the current role has none of them.
   const more = $("vtab-more"), mm = $("moremenu");
@@ -1345,6 +1375,20 @@ function gateChrome(role) {
   menu.querySelectorAll(".vtab[data-view]").forEach((it) => it.addEventListener("click", close));
   document.addEventListener("click", (e) => {
     if (menu.style.display !== "none" && !menu.contains(e.target) && !btn.contains(e.target)) close(); });
+})();
+// MOBILE-05v2 (frontend-audit A): at phone widths the TRAINING/LIVE workspace badge moves OUT of the
+// scrolling tab row (where the old sticky pin floated it over the RELEASE tab / More menu) into
+// #wsslot -- a reserved, non-scrolling slot at the right of the stepper row. Element MOVE, not a
+// rebuild, so renderWorkspace's listeners/state ride along; restored to the header row on desktop.
+(function placeWsBadge() {
+  const badge = $("wsbadge"), slot = $("wsslot");
+  if (!badge || !slot || !window.matchMedia) return;
+  const home = badge.parentNode, homeNext = badge.nextSibling;
+  const mq = window.matchMedia("(max-width: 860px)");
+  const apply = () => { if (mq.matches) slot.appendChild(badge); else home.insertBefore(badge, homeNext); };
+  apply();
+  if (mq.addEventListener) mq.addEventListener("change", apply);
+  else if (mq.addListener) mq.addListener(apply);
 })();
 
 // ---- UI-1/UI-2 (PRD 16.5): operator display settings, persisted ------------------------------
@@ -1447,6 +1491,33 @@ setInterval(() => {
     el.setAttribute("title", label);
   });
 }, 5000);
+
+// frontend-audit C1: the always-visible header HEALTH chip. /healthz was fetched exactly once at boot
+// (version stamp only), so a mid-session audit/revocation degrade changed nothing in the chrome. Poll
+// it every 30 s: green ok / amber degraded / red unreachable, alertMsg on each level transition, and
+// markFresh-stamp the chip so the UI-5 sweeper flags a stalled poll. Formatters are pure (ops_chips.js).
+let _healthPrevLevel = null;
+async function pollHealth() {
+  const chip = $("healthchip"), OPS = window.STEWIE_OPS_CHIPS;
+  if (!chip || !OPS) return;
+  let view;
+  try {
+    const h = await (await fetch("/healthz")).json();
+    view = OPS.healthChipView(h);
+    markFresh(chip);                                       // a successful poll is fresh data; a stall goes STALE
+  } catch (e) { view = OPS.healthChipView(null); }         // unreachable -> red (no fake "ok")
+  chip.textContent = view.text;
+  chip.style.color = view.color;
+  chip.style.borderColor = view.color;
+  const a = OPS.healthTransition(_healthPrevLevel, view.level);
+  if (a && typeof alertMsg === "function") alertMsg(a.sev, a.text);
+  _healthPrevLevel = view.level;
+}
+if ($("healthchip")) {
+  $("healthchip").onclick = () => setView("server");       // the detailed health/metrics readout
+  pollHealth();
+  setInterval(pollHealth, 30000);
+}
 
 // S-1 (GIS pathway): collapsible sidebar sections -- each h3 + its block becomes <details>,
 // default COLLAPSED except the active workflow step (Build queue); open-state persisted.
@@ -2008,10 +2079,11 @@ async function renderAdmin() {
         const actCell = el("td", { style: "display:flex;gap:4px;flex-wrap:wrap" });
         if (o.status === "pending") actCell.appendChild(mkbtn("approve", "approve"));
         actCell.appendChild(mkbtn("role", "→" + flip, { "data-role": flip }));
-        if (o.status !== "revoked") actCell.appendChild(mkbtn("revoke", "revoke"));
-        actCell.appendChild(mkbtn("reset", "reset pw"));
+        // frontend-audit B: red = danger ONLY -- the destructive account actions carry .danger
+        if (o.status !== "revoked") actCell.appendChild(mkbtn("revoke", "revoke", { "class": "site danger" }));
+        actCell.appendChild(mkbtn("reset", "reset pw", { "class": "site danger" }));
         actCell.appendChild(mkbtn("logins", "logins"));     // per-user login history (audit)
-        actCell.appendChild(mkbtn("delete", "delete"));
+        actCell.appendChild(mkbtn("delete", "delete", { "class": "site danger" }));
         const sc = o.status === "active" ? "var(--accent)" : (o.status === "pending" ? "#e0a800" : "var(--muted)");
         rows.appendChild(el("tr", null,
           el("td", null, o.email),
@@ -2449,11 +2521,11 @@ function navDrawMission(loc) {
     g.textAlign = "left"; return;
   }
   const est = traj.map((p) => p.est), tru = traj.map((p) => p.truePose);
-  const all = est.concat(tru), xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
-  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
-  const pad = 26, s = Math.min((cv.width - 2 * pad) / Math.max(1e-6, maxx - minx),
-                               (cv.height - 2 * pad) / Math.max(1e-6, maxy - miny));
-  const X = (x) => pad + (x - minx) * s, Y = (y) => cv.height - pad - (y - miny) * s;
+  const all = est.concat(tru);
+  // frontend-audit E1: this was a stale inline copy of the OLD corner-pinned fit (min-corner at pad,
+  // 1e-6 min span -> a short traverse rendered as one dot bottom-left). Delegate to the shared
+  // navplot _fit, which centers on the data bbox with a 10 m minimum span + 10% padding.
+  const fit = window.STEWIE_NAVPLOT._fit(cv, all), X = fit.X, Y = fit.Y, pad = 26;
   const line = (path, color, w) => { g.strokeStyle = color; g.lineWidth = w; g.beginPath();
     path.forEach((p, i) => (i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1])))); g.stroke(); };
   line(tru, "#8a8a93", 2);                                 // true path (grey)
@@ -2593,6 +2665,19 @@ async function navReloc() {                            // REAL measured fix on t
 // AG-08/SF-01, never a button. The button TOGGLES the live stream (start/stop).
 let rcStream = null;     // the open EventSource while streaming live; null when stopped
 
+// frontend-audit C2: the persistent link-state chip in the Live RC caption -- bound to the rcStream
+// lifecycle so "link down" and "not connected by choice" are visually distinct (NO LINK / CONNECTING /
+// LIVE n Hz / DROPPED). The text/color mapping is pure (ops_chips.js linkChipView).
+function setRcLink(state) {
+  const el = qel("rclink"), OPS = window.STEWIE_OPS_CHIPS;
+  if (!el || !OPS) return;
+  const intervalS = parseFloat((qel("rctlmrate") && qel("rctlmrate").value) || "1.0");
+  const v = OPS.linkChipView(state, intervalS);
+  el.textContent = v.text;
+  el.style.color = v.color;
+  el.style.borderColor = v.color;
+}
+
 // #230 step 3: the LIVE DRIVE MAP state. The RC backend reports a grid (row, col) pose on a cell_m grid;
 // we convert to REP-103 metres EXACTLY as bridge.frames does (x = col*cell_m, y = -row*cell_m) and plot
 // the rover + its travelled path + the last commanded GoTo goal on #rcdrivemap. This is the RC backend's
@@ -2623,6 +2708,8 @@ const _rc_xy = (rc) => ({ x: rc.col * RC_CELL_M, y: -rc.row * RC_CELL_M });   //
 function renderRcTelemetry(b) {                          // render ONE pushed telemetry frame
   const out = qel("rctlmout"), hdr = qel("rctlmhdr");
   if (!out) return;
+  markFresh(out);                                        // frontend-audit C2: the UI-5 sweeper now labels a silently-stalled stream STALE
+  setRcLink("live");                                     // a delivered frame = the link is live (also clears a DROPPED after auto-reconnect)
   const wd = b.watchdog || {};
   if (typeof b.cell_m === "number" && b.cell_m > 0) { RC_CELL_M = b.cell_m; rcGotoEcho(); }   // GIS: keep the metres echo accurate to the live grid scale
   if (hdr) hdr.textContent = `live · SF-01 watchdog: ${wd.tripped ? "TRIPPED (auto-SAFE)" : "armed"} · deadline ${wd.deadline_s}s`;
@@ -2749,6 +2836,7 @@ function stopRcStream() {
   if (rcStream) { rcStream.close(); rcStream = null; }
   if (window.STEWIE_PROVENANCE) STEWIE_PROVENANCE.setLiveState(document, false);   // FS-03: LIVE chip back to idle
   if (window.STEWIE3D && STEWIE3D.clearLiveRover) STEWIE3D.clearLiveRover();   // #144 tier-1: drop the live 3D rover
+  setRcLink("nolink");                                   // frontend-audit C2: stopped by choice = NO LINK
   const btn = qel("rctlm"), hdr = qel("rctlmhdr");
   if (btn) { btn.textContent = "⇄ Live RC telemetry"; btn.classList.remove("active"); }
   if (hdr) hdr.textContent = "stopped";
@@ -2771,17 +2859,19 @@ async function startRcStream() {
   } catch (e) { out.textContent = "live stream unavailable — run server.py (" + e + ")"; return; }
   let es;
   const _rate = (qel("rctlmrate") && qel("rctlmrate").value) || "1.0";  // P4: operator-set push rate (server clamps 0.1-10 s)
+  setRcLink("connecting");                              // frontend-audit C2: opening -> CONNECTING
   try { es = new EventSource(`/rc/telemetry/stream?interval_s=${encodeURIComponent(_rate)}`); }   // cookie auth, same-origin
-  catch (e) { out.textContent = "live stream unavailable — run server.py (" + e + ")"; return; }
+  catch (e) { out.textContent = "live stream unavailable — run server.py (" + e + ")"; setRcLink("nolink"); return; }
   rcStream = es;
   // FS-03: the stream is genuinely open -> flip the epistemic LIVE chip from idle to flowing
   if (window.STEWIE_PROVENANCE) STEWIE_PROVENANCE.setLiveState(document, true);
   if (btn) { btn.textContent = "■ Stop (live)"; btn.classList.add("active"); }
+  es.onopen = () => { if (rcStream === es) setRcLink("live"); };   // frontend-audit C2
   es.onmessage = (ev) => {
     try { renderRcTelemetry(JSON.parse(ev.data)); } catch (e) { /* skip a malformed frame; the next re-renders */ }
   };
   es.onerror = () => {                                  // the browser auto-reconnects SSE; surface the drop
-    if (rcStream === es && hdr) hdr.textContent = "live · reconnecting…";
+    if (rcStream === es) { if (hdr) hdr.textContent = "live · reconnecting…"; setRcLink("dropped"); }
   };
 }
 
@@ -3735,7 +3825,8 @@ function updateLanderRing3D() {                            // #6: draw/update/re
                  material: y.withAlpha(0.10), outline: true, outlineColor: y.withAlpha(0.85) },
       label: { text: LANDER_RING_M + " m", font: "9px Orbitron, sans-serif", fillColor: y,
                pixelOffset: new Cesium.Cartesian2(0, -8), showBackground: true,
-               backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
+               backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb"),
+               distanceDisplayCondition: ddcDetail() },   // frontend-audit G: detail tier
     });
     try { viewer.scene.requestRender(); } catch (e) {}
   }
@@ -3886,7 +3977,8 @@ function loadSiteFootprint(reload) {
       label: { text: label, font: "11px Orbitron, sans-serif",
                fillColor: Cesium.Color.fromCssColorString("#e8273f"),
                pixelOffset: new Cesium.Cartesian2(0, -18), showBackground: true,
-               backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cdd") },
+               backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cdd"),
+               distanceDisplayCondition: ddcSiteTier() },   // frontend-audit G: site tier (zoomed-out only)
     }));
     drawWorkAreaRect();                                    // GIS-WA1: the TRUE operational patch, inside the tile
     setMoonOverlaysVisible(sel.value === "moon");
@@ -3932,7 +4024,8 @@ function drawWorkAreaRect() {
         label: { text: `WORK AREA (${W} m)`, font: "10px Orbitron, sans-serif",
                  fillColor: Cesium.Color.fromCssColorString("#38bdf8"),
                  pixelOffset: new Cesium.Cartesian2(0, 10), showBackground: true,
-                 backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cdd") },
+                 backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cdd"),
+                 distanceDisplayCondition: ddcDetail() },   // frontend-audit G: detail tier
       }));
       try { viewer.scene.requestRender(); } catch (e) {}
     }).catch(() => {});
@@ -4303,7 +4396,18 @@ function drawPlan() {
     for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3, xx = lx + Math.cos(a) * fr, yy = ly + Math.sin(a) * fr; k ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); }
     ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = "#ffd166"; ctx.font = "8px system-ui"; ctx.textAlign = "center";
-    ctx.fillText(LANDER.name + " (" + LANDER.footprint_m + " m)", lx, ly - fr - 3);
+    // frontend-audit E2: when the dashed safe-haven ring would cross the label (top arc through the
+    // text band, or the text wider than the ring's chord at the label height), lift the label above
+    // the ring with a short leader so "Nova-C (4.6 m)" never collides with the ring arc (pure pixel
+    // math in plan_geom.landerLabelY, node-tested).
+    const _ltxt = LANDER.name + " (" + LANDER.footprint_m + " m)";
+    const _ll = window.STEWIE_PLAN_GEOM.landerLabelY(fr, LANDER_RING_ON ? LANDER_RING_M * s : 0,
+      ctx.measureText(_ltxt).width / 2);
+    if (_ll.leader) {
+      ctx.strokeStyle = "rgba(255,209,102,.55)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(lx, ly - fr); ctx.lineTo(lx, ly + _ll.dy + 2); ctx.stroke();
+    }
+    ctx.fillText(_ltxt, lx, ly + _ll.dy);
   }
   if (LANDER_RING_ON) {                                    // #161: toggleable 100 m ring around the lander
     const lx = X(LANDER.x), ly = Y(LANDER.y), rr = LANDER_RING_M * s;
@@ -4372,7 +4476,8 @@ async function _syncPlanToGlobeNow() {
         point: { pixelSize: 6, color: Cesium.Color.fromCssColorString(col), outlineColor: Cesium.Color.BLACK, outlineWidth: 1 },
         label: { text: `${o.kind || "order"} ${o.action || ""}`.trim(), font: "10px Orbitron, sans-serif",
                  fillColor: Cesium.Color.fromCssColorString("#c7d2e3"), pixelOffset: new Cesium.Cartesian2(0, -13),
-                 showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb") },
+                 showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("#0a0a0cbb"),
+                 distanceDisplayCondition: ddcDetail() },   // frontend-audit G: detail tier
       }));
     } else if (p.t === "koc") {
       PLAN_GLOBE_ENTS.push(viewer.entities.add({
@@ -4800,7 +4905,11 @@ qel("qplan").onclick = async () => {
       const hz = (t.hazard_violations || []).length;
       if (hz) alertMsg("warn", `plan has ${hz} hazard flag(s): legs crossing freshly built terrain (repose-angle edges)`);
       alertMsg("info", `plan solved: ${(t.energy_J / 1e6).toFixed(1)} MJ · ${(t.time_s / 3600).toFixed(1)} h · ${t.resolved_algorithm || t.algorithm}`);
+      // frontend-audit C3 (FS-03/PO-10): these headline numbers are a FORECAST -- a provenance chip
+      // leads the strip with the solved-at wall clock (stored with LAST_TOTALS for the sidebar stamp).
+      LAST_TOTALS_TS = Date.now();
       ds.innerHTML =
+        (window.STEWIE_OPS_CHIPS ? chip("provenance", window.STEWIE_OPS_CHIPS.solvedStamp(LAST_TOTALS_TS)) : "") +
         chip("moved", `${(PR ? PR.massMovedT : (t.cut_kg + (t.fill_kg || 0)) / 1000).toFixed(1)} t`) +
         chip("energy", `${(PR ? PR.energyMJ : t.energy_J / 1e6).toFixed(1)} MJ`) +
         chip("recharges", PR ? PR.recharges : (t.recharges ?? "—")) +     // FS-15: now the real count, not "—"
@@ -4895,17 +5004,44 @@ qel("qplan").onclick = async () => {
     qel("qexec").disabled = !LAST_TIMELINE;
     if (qel("execplay")) qel("execplay").disabled = !LAST_TIMELINE;   // header ▶ Replay forecast follows qexec
     if (typeof renderStepper === "function") renderStepper();  // pipeline spine: Solve done -> next is Rehearse
+    // frontend-audit C4: seed the header mission-time chip with the loaded run (T+0h / total); the
+    // forecast replay's frame loop then drives the elapsed side.
+    if (window.STEWIE_OPS_CHIPS && LAST_TIMELINE && $("mtchip")) {
+      $("mtchip").textContent = window.STEWIE_OPS_CHIPS.missionClock(0, LAST_TIMELINE.duration_s);
+      $("mtchip").style.display = "inline-flex";
+    }
     LAST_TOTALS = t; LAST_PDF = j.pdf;                     // mirror the last plan into the tab-contextual left blocks
     LAST_VALIDATION = j.validation || null;                // FS-03: the as-built acceptance verdict for the Construction pane
     if (typeof renderCtxSummaries === "function") renderCtxSummaries();
+    // frontend-audit B: the PDF paints behind a dark "rendering report…" placeholder; the iframe's
+    // .show reveal happens on its load event (wireReportLoading), never as a white void. Belt-and-
+    // suspenders: if a viewer swallows the PDF load event, reveal after 12 s anyway (never wedge).
+    qel("reportframe").classList.remove("show");
+    if (qel("reportloading")) qel("reportloading").style.display = "flex";
     qel("reportframe").src = j.pdf;                        // embed the mission-control PDF in the Report pane
-    qel("reportframe").classList.add("show");
+    setTimeout(() => {
+      const rf = qel("reportframe");
+      if (rf && rf.src && !rf.classList.contains("show")) {
+        rf.classList.add("show");
+        if (qel("reportloading")) qel("reportloading").style.display = "none";
+      }
+    }, 12000);
     qel("reportopen").href = j.pdf;                        // ...with an "open in tab" escape hatch
     qel("reportempty").style.display = "none";
     setView("report");
   } catch (e) { setQ("plan failed — " + (e && e.message ? e.message : e)); }
   finally { const pb = qel("qplan"); pb.disabled = false; pb.textContent = "Plan mission → open report"; }
 };
+// frontend-audit B: the report iframe reveals ONLY once its document actually loads -- until then the
+// dark #reportloading placeholder holds the slot (no white void in the dark cockpit).
+(function wireReportLoading() {
+  const f = qel("reportframe"); if (!f) return;
+  f.addEventListener("load", () => {
+    if (!f.src) return;                                    // ignore a load fired before any PDF was assigned
+    f.classList.add("show");
+    if (qel("reportloading")) qel("reportloading").style.display = "none";
+  });
+})();
 
 // ---- import / export plans (round-trippable designer files) ------------------------------------
 // a PROFILE = the full planning config snapshot (body, soil, fleet, orders, site, optimization).
@@ -5154,6 +5290,11 @@ function runExecution() {
     const fr = execDraw(tl, LAST_ORDERS, ext, cv, simT);
     qel("excphase").textContent = fr.phase;
     qel("exctime").textContent = `${fmtT(simT)} / ${fmtT(dur)}`;
+    // frontend-audit C4: the header mission-time chip rides the same frames as the Execute readout
+    if (window.STEWIE_OPS_CHIPS && $("mtchip")) {
+      $("mtchip").textContent = window.STEWIE_OPS_CHIPS.missionClock(simT, dur);
+      $("mtchip").style.display = "inline-flex";
+    }
     const u = fr.t1 > fr.t0 ? (simT - fr.t0) / (fr.t1 - fr.t0) : 1;
     qel("excpos").textContent = `${(fr.x0 + (fr.x1 - fr.x0) * u).toFixed(0)}, ${(fr.y0 + (fr.y1 - fr.y0) * u).toFixed(0)} m`;
     qel("excmass").textContent = `${(fr.cum_mass_kg / 1000).toFixed(2)} t`;
@@ -5958,6 +6099,7 @@ if ($("guide-sample")) $("guide-sample").onclick = () => {
 // tab-contextual left blocks (#131/#132 follow-up): mirror the last plan into the per-tab left content
 // so #ctx-metrics/report/perception carry live status, not just "look in the pane ->" blurbs.
 let LAST_TOTALS = null, LAST_PDF = null;
+let LAST_TOTALS_TS = null;                                // frontend-audit C3: wall-clock the plan was solved (provenance stamp)
 let LAST_VALIDATION = null;                               // FS-03: the last plan's validate_plan as-built verdict (Construction pane)
 function renderCtxSummaries() {
   const t = LAST_TOTALS, m = $("ctxmet-sum"), r = $("ctxrep-sum"), pp = $("ctxperc-sum");
@@ -5966,6 +6108,9 @@ function renderCtxSummaries() {
       + `<br>${(t.energy_J / 1e6).toFixed(1)} MJ &middot; ${t.charges || 0} recharge(s)`
       + `<br><span style="color:${t.feasible === false ? "#e8273f" : "#39ff14"}">${t.feasible === false ? "INFEASIBLE" : "feasible"}</span>`
       + (t.traverse_cap_deg != null ? ` &middot; &le;${t.traverse_cap_deg}&deg; slope` : "")
+      // frontend-audit C3 (PO-10): the totals are a forecast -- stamp when they were solved
+      + ((LAST_TOTALS_TS && window.STEWIE_OPS_CHIPS)
+          ? `<br><span style="color:var(--muted)">forecast &middot; ${window.STEWIE_OPS_CHIPS.plannedStamp(LAST_TOTALS_TS)}</span>` : "")
     : "Plan a mission to see its totals here.";
   if (r) r.innerHTML = LAST_PDF
     ? `Report ready &mdash; <a href="${LAST_PDF}" target="_blank" rel="noopener" style="color:var(--accent)">open PDF &#8599;</a>`

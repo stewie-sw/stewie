@@ -56,9 +56,14 @@
      the whole app, so the load->author->plan->simulate->review sequence is explicit and a user can't open
      Review/Execute before a plan exists. Additive over the tabs; reuses #conops as the ConOps state. */
   #stepper { flex: 0 0 auto; display: flex; align-items: center; height: 34px; background: var(--head); border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line); padding: 0 10px; overflow-x: auto; -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; }
-  #stepper::-webkit-scrollbar { display: none; }
+    border-bottom: 1px solid var(--line); padding: 0 10px; }
+  /* frontend-audit A: the steps scroll inside their OWN strip (#stepscroll) so the ? Guide button and
+     the phone-relocated workspace badge (#wsslot) keep a fixed, non-scrolling slot on the right --
+     they can never overlay a step. column-gap keeps adjacent steps from ever touching. */
+  #stepscroll { display: flex; align-items: center; flex: 1 1 auto; min-width: 0; column-gap: 4px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  #stepscroll::-webkit-scrollbar { display: none; }
+  #wsslot { display: inline-flex; align-items: center; flex: 0 0 auto; }
   #stepper .step { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; background: none; border: none;
     color: var(--dim); font-family: 'Orbitron', system-ui, sans-serif; font-size: 10px; font-weight: 700;
     letter-spacing: .12em; text-transform: uppercase; padding: 5px 12px; cursor: pointer; white-space: nowrap; }
@@ -90,10 +95,15 @@
      visible area, and compact the stepper so the mobile top is one tidy strip, not a bulky scroller. */
   @media (max-width: 860px) {
     html, body { height: 100vh; height: 100dvh; }
-    #stepper { height: 30px; padding: 0 6px; }
-    #stepper .step { font-size: 9px; letter-spacing: .03em; padding: 4px 7px; gap: 5px; }
+    /* frontend-audit A: auto height -- the Guide button + relocated #wsbadge are 44px touch targets
+       (MOBILE-01), which overflowed the old fixed 30px row upward INTO the tab row. */
+    #stepper { height: auto; min-height: 30px; padding: 0 6px; }
+    #stepper .step { font-size: 10px; letter-spacing: .03em; padding: 4px 7px; gap: 5px; }  /* frontend-audit B: 10px legibility floor (was 9px) */
     #stepper .step:not(:last-child)::after { margin-left: 7px; }
     #stepper .step .dot { width: 6px; height: 6px; }
+    /* frontend-audit A: cue the step overflow with the same soft right-edge fade the tab row uses */
+    #stepscroll { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+                          mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent); }
   }
   #stage { flex: 1 1 auto; min-width: 0; height: 100%; display: flex; flex-direction: column; }
   #viewtabs { position: relative; z-index: 90; flex: 0 0 auto; display: flex; gap: 2px; padding: 6px 8px 0; background: var(--head);
@@ -132,7 +142,7 @@
   #panel details > summary::before { content: "▸ "; color: var(--accent); font-size: 10px; }
   #panel details[open] > summary::before { content: "▾ "; }
   #panel summary h3 { display: inline; }
-  .sysb { font-size: 8px; letter-spacing: .15em; color: var(--accent);
+  .sysb { font-size: 10px; letter-spacing: .08em; color: var(--accent);   /* frontend-audit B: 8px/.15em was below the legibility floor */
     border: 1px solid var(--accent); border-radius: 8px; padding: 0 5px; margin-left: 4px;
     opacity: .8; vertical-align: 1px; }
   /* Visual-appeal council (#234 dim-1, both reviewers' #1): the per-tab subsystem pills are red-confetti
@@ -215,8 +225,8 @@
     .vtab { padding: 11px 13px; }
     /* MOBILE-01: 44x44 minimum touch targets (WCAG 2.5.5 / Apple HIG). Invisible padding keeps the
        visual chrome compact while the tappable box is finger-sized. */
-    button, .site, .go, .vtab, #drawerbtn, #alertbtn, select, input[type="checkbox"] {
-      min-height: 44px; min-width: 44px; }
+    button, .site, .go, .vtab, #drawerbtn, #alertbtn, select, input[type="checkbox"], input[type="range"] {
+      min-height: 44px; min-width: 44px; }   /* frontend-audit B: range sliders join the 44px touch rule (track stays slim) */
     #edittoolbar { top: 8px; right: 50px; flex-wrap: wrap; max-width: 66vw; }   /* #175: keep clear of the on phones too */
     /* the work-area DEM inset must not block a phone screen: shrink it + win over the base
        #workarea rule (declared LATER, so plain #workarea here loses the cascade -- body #workarea
@@ -227,10 +237,10 @@
        bloat each tab's width and cram/garble the label at phone size; the ConOps spine + pipeline read
        cleaner without them (the per-pane readiness dot stays; pane-header .sysb badges are untouched). */
     #viewtabs .sysb, #stepper .sysb, #stepper .substep .sysb, #validate-subtabs .sysb { display: none; }
-    /* MOBILE-05: the TRAINING/LIVE workspace badge is a safety indicator -- it lived after the bell in the
-       scrolling nav and slid off-screen on a phone. Pin it sticky at the right edge so it's always visible
-       (solid background so it reads over anything behind it). */
-    #wsbadge { position: sticky; right: 6px; z-index: 92; margin-left: 6px; background: var(--bg, #0a0a0c); }
+    /* MOBILE-05v2 (frontend-audit A): the old sticky pin floated the TRAINING/LIVE badge OVER the
+       scrolling tab row, where it clipped the RELEASE tab and collided with More/Guide at 390px.
+       cockpit.js (placeWsBadge) now RELOCATES the badge into #wsslot -- a reserved, non-scrolling
+       slot at the right of the stepper row -- at <=860px, so it can never cover a tab. */
     /* MOBILE-06: the wizard/pipeline step descriptions were <small> = 0.83em of 9px = 7.5px, below the
        phone readability floor. Bump them to a legible 10px on mobile. */
     .step small { font-size: 10px; }
@@ -259,12 +269,20 @@
   .ctl label { display: flex; align-items: center; gap: 3px; color: var(--muted); }
   select, input, button {
     background: var(--field); color: var(--txt); border: 1px solid var(--field-bd); border-radius: 6px; padding: 6px 8px; font: inherit; }
+  /* frontend-audit B: native widget chrome joins the brand -- one rule kills every stray Chromium-blue
+     slider/checkbox/radio (the stability sliders, sun time, exag, debrief scrubber, layer toggles). */
+  input[type=range], input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
   input:focus, select:focus { border-color: var(--accent); outline: none; }
   input[type=number] { width: 56px; } input.lbl { width: 100%; } #lat, #lon { width: 64px; }
   select { max-width: 170px; }
   button { cursor: pointer; }
   button:hover { border-color: var(--accent); }
-  button.site { color: var(--accent); border-color: #2f4a78; }
+  /* frontend-audit B: the leftover blue border (#2f4a78 -- "blue retired 2026-06-10") is PURGED, so
+     .site is the neutral secondary (transparent + --field-bd border + --txt text, red on hover).
+     Red chrome at rest now means exactly one thing -- DANGER -- via the .danger modifier applied to
+     the destructive actions only (delete / revoke / reset pw / reset workspace). */
+  button.site.danger { color: var(--accent); border-color: var(--accent); }
+  body.light button.site.danger { color: #c8102e; border-color: #c8102e; }   /* light theme's --accent is blue; danger stays red */
   button.info { width: 28px; padding: 4px 0; border-radius: 50%; color: var(--accent); font-style: italic; font-weight: 700; }
   button.plan { background: var(--fill); border-color: var(--fill); color: #fff; width: 100%; margin-top: 8px; font-weight: 600; }
   button.plan:hover { background: var(--fill-h); border-color: var(--fill-h); }
@@ -346,9 +364,14 @@
                       linear-gradient(90deg, rgba(120,132,150,.06) 1px, transparent 1px) !important;
     background-size: 22px 22px !important;
   }
-  /* REPORT pane: the generated mission-control PDF, embedded */
-  #reportframe { flex: 1 1 auto; width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; display: none; }
+  /* REPORT pane: the generated mission-control PDF, embedded. frontend-audit B: the base background is
+     the dark token (a full-brightness white void read as a rendering failure in the dark cockpit); the
+     iframe reveals (.show) only on its load event, behind the #reportloading placeholder until then. */
+  #reportframe { flex: 1 1 auto; width: 100%; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); display: none; }
   #reportframe.show { display: block; }
+  #reportloading { flex: 1 1 auto; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line); border-radius: 6px; color: var(--dim); font-size: 12px;
+    background: linear-gradient(180deg, var(--head-flat, #131316), var(--bg)); }
   #pane-report .cap a, .pane .cap a { color: var(--accent); text-decoration: none; }
   /* engineer / developer / intern panes */
   .vtsep { color: var(--dim); align-self: center; padding: 0 5px; user-select: none; }
@@ -375,6 +398,14 @@
       <li><b>Review</b> &mdash; read the mission-control report (Report tab) and the metrics; check feasibility and the as-built flatness.</li>
       <li><b>Execute</b> &mdash; watch the dry-run on the real terrain (Metrics &rarr; &#9638; 3D) <i>before</i> any uplink. Live execution is gated to a live mission.</li>
     </ol>
+    <!-- frontend-audit F: the role-gated work areas are fail-closed hidden -- name them here so a viewer
+         or a pre-auth visitor learns these surfaces exist and which role unlocks each. -->
+    <div style="font-size:11px;color:var(--muted);line-height:1.8;margin:0 0 16px;border-top:1px solid var(--line);padding-top:10px">
+      <b style="color:var(--txt)">Role-gated work areas</b> <small>(hidden until your account has the role)</small><br>
+      &#128274; <b>Fleet &middot; Construction &middot; Models &middot; Trainer</b> &mdash; operator+, under <b>More &#9662;</b><br>
+      &#128274; <b>Rehearse &middot; Release</b> &mdash; director (rehearse compare + mission sign-off)<br>
+      &#128274; <b>System</b> &mdash; operator+ &middot; <b>Admin</b> &mdash; director (both in the account menu)
+    </div>
     <div class="guideft">
       <button id="guide-sample" class="site" style="font-size:11px">&#9654; Load a sample mission to follow along</button>
       <button id="guide-close" class="go" style="font-size:11px">Got it</button>
@@ -645,7 +676,7 @@
         <div class="ctxh">Navigation <span class="sysb">LEAP</span></div>
         <div style="font-size:11px;color:var(--muted);line-height:1.55">State estimation — the rover's live pose estimate vs truth, the per-leg fixes (terrain scan-match / AprilTag beacon), and articulation-parallax relocalization. Full controls &amp; plots are in the pane →</div>
         <div id="ctxnav-loc" style="font-size:11px;line-height:1.7;margin-top:10px;color:var(--muted)">Plan a mission (Plan tab) to see the live localization summary.</div>
-        <button id="ctxnav-run" class="go" style="font-size:11px;margin-top:10px;width:100%">▶ Run Katwijk estimator</button>
+        <button id="ctxnav-run" class="go" style="font-size:11px;margin-top:10px;width:100%" title="run the pose-graph estimator on a Katwijk beach traverse — a public planetary-rover dataset used as the real-data validation baseline">▶ Run estimator on Katwijk traverse (real rover dataset)</button>
       </div>
     </div>
     <div id="ctx-perception" class="ctxblock" hidden>
@@ -665,7 +696,7 @@
       <div class="ctxsec">
         <!-- FS-03: the LIVE chip is stream-bound -- it ships IDLE and startRcStream/stopRcStream flip it
              with the real SSE EventSource (never a static claim of a flowing feed). -->
-        <div class="ctxh">Live RC <span class="sysb">RC·SF-01</span><span data-epistemic="live" data-live="idle"></span></div>
+        <div class="ctxh">Live RC <span class="sysb">RC·SF-01</span><span data-epistemic="live" data-live="idle"></span><span id="rclink" title="RC telemetry link state — bound to the live SSE stream lifecycle (NO LINK / CONNECTING / LIVE / DROPPED)" style="font-size:9px;letter-spacing:.06em;font-family:'Orbitron',system-ui,sans-serif;border:1px solid var(--line);border-radius:8px;padding:1px 6px;margin-left:6px;color:var(--muted);vertical-align:1px">NO LINK</span></div>
         <div class="ctl" style="margin-top:6px">
           <button id="rctlm" class="site" style="font-size:11px" title="toggle a LIVE push stream of the RC backend telemetry (Pose/Leg) + the SF-01 watchdog state (server-sent events); the watchdog ticks on every streamed frame, so a stalled operator auto-SAFEs within the deadline">⇄ Live RC telemetry</button>
           <label style="font-size:10px;color:var(--muted);margin-left:6px" title="telemetry push rate — faster gives finer pose resolution when threading a hazard; takes effect immediately while streaming (server-clamped 0.1–10 s)">rate
@@ -797,7 +828,14 @@
            active workspace. TRAINING (green) = safe sandbox; LIVE (red) = commands the real rover. operator+
            can click to switch (renderWorkspace wires the click + the ns= on every mission call); trainees are
            sandbox-pinned server-side, so their badge reads TRAINING and the toggle is inert. -->
-      <button id="alertbtn" title="alerts (UI-6): warnings, errors, info — timestamped" aria-label="alerts: warnings, errors, info" style="margin-left:auto;align-self:center;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:13px;padding:3px 9px;cursor:pointer;display:inline-flex;align-items:center"><span class="ic-slot"></span><span id="alertbadge" style="display:none;background:#e8273f;color:#fff;border-radius:8px;font-size:9px;padding:1px 5px;margin-left:4px"></span></button>
+      <!-- frontend-audit C1: always-visible server-health chip -- /healthz polled every 30 s (dot + uptime;
+           amber on an audit/revocation degrade, red when unreachable; alertMsg fires on each transition;
+           markFresh-stamped so the UI-5 sweeper flags a stalled poll). Click = open the System pane. -->
+      <button id="healthchip" title="server health — /healthz (audit + revocation subsystems), polled every 30 s; click for the System pane" style="margin-left:auto;align-self:center;background:none;border:1px solid var(--line);border-radius:11px;color:var(--muted);font-size:10px;font-family:'Orbitron',system-ui,sans-serif;letter-spacing:.05em;padding:3px 9px;cursor:pointer;white-space:nowrap">● HEALTH …</button>
+      <button id="alertbtn" title="alerts (UI-6): warnings, errors, info — timestamped" aria-label="alerts: warnings, errors, info" style="margin-left:8px;align-self:center;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:13px;padding:3px 9px;cursor:pointer;display:inline-flex;align-items:center"><span class="ic-slot"></span><span id="alertbadge" style="display:none;background:#e8273f;color:#fff;border-radius:8px;font-size:9px;padding:1px 5px;margin-left:4px"></span></button>
+      <!-- frontend-audit C4: compact mission-time chip -- elapsed/total of the active or last-loaded run,
+           driven by the same forecast frames that update the Execute readout. Hidden until a plan exists. -->
+      <span id="mtchip" title="mission time — elapsed / total of the active (or last-loaded) run's forecast timeline" style="display:none;margin-left:8px;align-self:center;border:1px solid var(--line);border-radius:11px;color:var(--muted);font-size:10px;font-family:'Orbitron',system-ui,sans-serif;letter-spacing:.05em;padding:3px 9px;white-space:nowrap;font-variant-numeric:tabular-nums"></span>
       <button id="wsbadge" type="button" title="active workspace" style="margin-left:8px;display:none;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.05em;border-radius:11px;padding:3px 11px;border:1px solid var(--line);background:none;font-family:'Orbitron',system-ui,sans-serif"></button>
       <span id="whoami" title="account" style="display:none;position:relative;align-items:center;padding:0 4px 4px 0;margin-left:8px">
         <button id="profbtn" aria-haspopup="menu" aria-expanded="false" title="account menu" style="display:inline-flex;align-items:center;gap:7px;border:none;background:none;cursor:pointer;padding:2px">
@@ -818,6 +856,10 @@
     <!-- #170: the mission pipeline stepper sits directly UNDER the work-area tab line (Aaron: "should be below
          the Plan/Navigation/Perception/Metrics/Report lines"), in the main column above the view area. -->
     <div id="stepper" role="navigation" aria-label="mission pipeline">
+      <!-- frontend-audit A: the steps live in their own scroll strip; Guide + the phone-relocated
+           workspace badge (#wsslot, filled by cockpit.js placeWsBadge at <=860px) keep reserved,
+           non-scrolling slots on the right so they never overlay a step or a tab. -->
+      <span id="stepscroll">
       <button class="step" data-step="site"><span class="dot"></span>Site</button>
       <button class="step" data-step="fleet"><span class="dot"></span>Fleet</button>
       <button class="step" data-step="orders"><span class="dot"></span>Orders</button>
@@ -827,7 +869,9 @@
       <button class="step" data-step="release"><span class="dot"></span>Release</button>
       <button class="step" data-step="execute"><span class="dot"></span>Execute</button>
       <button class="step" data-step="review"><span class="dot"></span>Report</button>
-      <button id="guidebtn" title="how the planning workflow works" style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-family:'Orbitron',system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;padding:4px 10px;cursor:pointer;white-space:nowrap">&#10067; Guide</button>
+      </span>
+      <button id="guidebtn" title="how the planning workflow works" style="margin-left:auto;flex:0 0 auto;background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-family:'Orbitron',system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;padding:4px 10px;cursor:pointer;white-space:nowrap">&#10067; Guide</button>
+      <span id="wsslot"></span>
     </div>
     <!-- VALIDATE sub-tab strip: shown only when the Validate tab is active (sub-view nav or perception);
          the buttons switch the sub-view via setView('nav'/'perception'), reusing those panes + handlers. -->
@@ -981,7 +1025,7 @@
              via POST /nav/run. Draws the planned route (amber dashed) vs the executed trajectory (cyan)
              + start/goal + recovery backups. The product-path surface of the connected nav spine. -->
         <div style="padding:4px 2px 8px;border-bottom:1px solid var(--line);margin-bottom:8px">
-          <div class="cap" style="font-size:10px">FS-05 DRIVE PREVIEW — route then drive <small>(route_leg → plan_local → track_plan → recovery, on the real DEM)</small></div>
+          <div class="cap" style="font-size:10px">DRIVE PREVIEW — route the corridor, then drive it <small>(FS-05: route_leg → plan_local → track_plan → recovery, on the real DEM)</small></div>
           <div class="ctl" style="font-size:11px;margin-top:4px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px">
             <span style="white-space:nowrap">start <input id="navdsx" type="number" value="4" step="1" style="width:4em" />,
               <input id="navdsy" type="number" value="4" step="1" style="width:4em" /></span>
@@ -1118,7 +1162,7 @@
         <div id="worldstate" style="display:none;margin-bottom:12px"></div>
         <!-- A2 viz: CurrentTerrainView provenance -- measured vs remembered vs modeled terrain -->
         <div id="terrainprov" style="display:none;margin-bottom:12px"></div>
-        <details id="mathsheet" style="display:none;margin-bottom:10px"><summary style="cursor:pointer;font-family:Orbitron,system-ui;font-size:11px;letter-spacing:.08em;color:var(--accent)">▸ PATH-PLANNING MATH — every equation, every number (never assume)</summary>
+        <details id="mathsheet" style="display:none;margin-bottom:10px"><summary style="cursor:pointer;font-family:Orbitron,system-ui;font-size:11px;letter-spacing:.08em;color:var(--accent)">▸ PATH-PLANNING MATH — every equation and number, derived</summary>
           <div id="mathbody" style="font-size:11px;font-variant-numeric:tabular-nums;margin-top:6px"></div></details>
         <div id="dashboards" style="display:none;gap:12px;flex-wrap:wrap;margin-bottom:10px">
           <div><div class="cap" style="margin-bottom:4px">ROUTE — site frame</div>
@@ -1129,6 +1173,9 @@
         <div class="cap"><span>MISSION-CONTROL REPORT<span data-epistemic="forecast"></span><!-- FS-03: the report totals a planned (simulated) mission --></span>
           <a id="reportopen" href="#" target="_blank" rel="noopener">open in tab ↗</a></div>
         <iframe id="reportframe" title="mission-control report"></iframe>
+        <!-- frontend-audit B: dark placeholder while the PDF paints -- shown when a plan assigns the iframe
+             src, swapped out by cockpit.js on the iframe's load event (never a white void). -->
+        <div id="reportloading" style="display:none">rendering report…</div>
         <div id="reportempty" class="empty">No report yet. Build a queue and press
           <b>Plan mission → open report</b> (Plan tab); the PDF appears here.
           <button type="button" class="site" data-go="plan" style="margin-top:6px;font-size:10px">→ Go to Plan</button></div>
@@ -1308,22 +1355,22 @@
             <select id="set-layout-pick" class="site" title="load a saved workspace layout (FS-21: view preference only)" style="min-width:11em"></select>
             <button id="set-layout-save" class="site" title="save the current pane arrangement as a named layout">Save current…</button>
             <button id="set-layout-rename" class="site" title="rename the selected layout">Rename</button>
-            <button id="set-layout-delete" class="site" title="delete the selected layout">Delete</button>
+            <button id="set-layout-delete" class="site danger" title="delete the selected layout">Delete</button>
             <label style="display:flex;align-items:center;gap:5px;font-size:11px;opacity:.85" title="apply this layout automatically on boot">
               <input id="set-layout-default" type="checkbox" /> default
             </label>
             <button id="set-resetlayout" class="site" title="restore the built-in top-tab order + sidebar pane order">Reset</button>
-            <span id="set-layout-msg" style="font-size:11px;opacity:.7" aria-live="polite">drag the top tabs or the sidebar panes to reorder them — view preference only, per operator (FS-21)</span>
+            <span id="set-layout-msg" style="font-size:11px;opacity:.7" aria-live="polite" title="FS-21">drag the top tabs or the sidebar panes to reorder them — view preference only, per operator</span>
           </label>
           <label style="display:flex; align-items:center; gap:10px">
             <b>Auto sign-out</b>
             <input id="set-idle" type="number" min="1" max="240" step="1" value="30" style="width:5em" />
-            <span style="font-size:11px;opacity:.7">sign out after this many minutes of inactivity (#133)</span>
+            <span style="font-size:11px;opacity:.7" title="#133">sign out after this many minutes of inactivity</span>
           </label>
           <label style="display:flex; align-items:center; gap:10px">
             <b>Workspace</b>
-            <button id="set-resetws" class="site">Reset local workspace</button>
-            <span style="font-size:11px;opacity:.7">clear the auto-saved draft (orders, keep-outs, landmarks, lander, rover) from this browser (#179)</span>
+            <button id="set-resetws" class="site danger">Reset local workspace</button>
+            <span style="font-size:11px;opacity:.7" title="#179">clear the auto-saved draft (orders, keep-outs, landmarks, lander, rover) from this browser</span>
           </label>
           <div style="opacity:.75">Settings persist in this browser.</div>
         </div>
@@ -1453,6 +1500,7 @@
 <script src="/assets/keepout_geom.js?v=8e0b54e7d7e5"></script><!-- FS-24: pure keep-out shape/bounds/label (sets window.STEWIE_KEEPOUT_GEOM) -->
 <script src="/assets/navplot.js?v=c75ee6db866c"></script><!-- FS-24: pure nav-pane canvas plotters (sets window.STEWIE_NAVPLOT) -->
 <script src="/assets/evidence_html.js?v=56796cce20c6"></script><!-- FS-24: pure release-evidence HTML builders (sets window.STEWIE_EVIDENCE_HTML) -->
+<script src="/assets/gantt_downsample.js?v=000000000000"></script><!-- frontend-audit D: pure activity-Gantt pixel-column downsampler + battery envelope (sets window.STEWIE_GANTT_DOWNSAMPLE); loads BEFORE rover_hud.js -->
 <script src="/assets/rover_hud.js?v=ed01a404713d"></script><!-- FS-24: pure exec-telemetry renderers HUD/spark/chips/gantt (sets window.STEWIE_ROVER_HUD) -->
 <script src="/assets/plan_geom.js?v=bcf37ae566eb"></script><!-- FS-24: pure plan-canvas extent/transform/glyph/precedence math (sets window.STEWIE_PLAN_GEOM) -->
 <script src="/assets/footprint_geom.js?v=0a9f6fa9884c"></script><!-- GIS S-3: pure typed-footprint shape geometry (ring/area/draw; sets window.STEWIE_FOOTPRINT_GEOM) -->
@@ -1471,6 +1519,7 @@
 <script src="/assets/nav_stats_html.js?v=3dda1aea883a"></script><!-- FS-24: pure Navigation-pane drive/SLAM stat lines (sets window.STEWIE_NAV_STATS_HTML) -->
 <script src="/assets/cockpit_state.js?v=1ed5684da0be"></script><!-- FS-16: pure routeable cockpit state model (sets window.STEWIE_STATE) -->
 <script src="/assets/provenance_label.js?v=e6ec3e5b78b5"></script><!-- FS-03: pure epistemic provenance chips truth/belief/forecast/live (sets window.STEWIE_PROVENANCE) -->
+<script src="/assets/ops_chips.js?v=000000000000"></script><!-- frontend-audit C: pure ops-chip formatters health/link/provenance/mission-time (sets window.STEWIE_OPS_CHIPS) -->
 <script src="/assets/cockpit.js?v=cd4126fe0d0e"></script>
 </body>
 </html>

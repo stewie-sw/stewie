@@ -91,8 +91,28 @@
       .map(s => s.split(">").map(x => x.trim())).filter(p => p.length === 2 && p[0] && p[1]);
   }
 
+  // frontend-audit E2 (2026-07-01): the lander name label ("Nova-C (4.6 m)") sits just above the
+  // hexagon body (dy = -(body radius + 3) px). It collided with the dashed safe-haven ring two ways:
+  // (a) the ring's TOP arc passes through the text band (ring radius within ~[body-2, body+14] px),
+  // (b) the label sits INSIDE the ring but is WIDER than the ring's chord at the label height, so
+  // the text crosses the side arcs. Either way: lift the label above the ring and signal the caller
+  // to draw a short leader line back to the body. Pure pixel math; the cockpit's drawPlan supplies
+  // frPx (body radius, px), ringPx (ring radius, px; 0 = ring off), halfWidthPx (measured text/2).
+  function landerLabelY(frPx, ringPx, halfWidthPx) {
+    var TEXT_BAND_PX = 14;                                   // ~8 px glyphs + the 3 px gap + margin
+    var dy = -(frPx + 3);
+    if (ringPx > 0) {
+      var band = ringPx >= frPx - 2 && ringPx <= frPx + TEXT_BAND_PX;
+      var hw = +halfWidthPx || 0;
+      var chord = ringPx > -dy ? Math.sqrt(ringPx * ringPx - dy * dy) : 0;   // ring half-width at the label height
+      var crossesSides = ringPx > -dy && hw > 0 && chord < hw + 2;
+      if (band || crossesSides) return { dy: -(ringPx + 6), leader: true };
+    }
+    return { dy: dy, leader: false };                        // the default just-above-the-body slot
+  }
+
   var API = { planExtent: planExtent, planXform: planXform, fillKeepout: fillKeepout,
-              drawGlyph: drawGlyph, parsePrec: parsePrec };
+              drawGlyph: drawGlyph, parsePrec: parsePrec, landerLabelY: landerLabelY };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (root) root.STEWIE_PLAN_GEOM = API;
 })(typeof window !== "undefined" ? window : null);
