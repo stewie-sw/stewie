@@ -27,6 +27,17 @@ docker compose -f deploy/compose.yml up -d backend frontend
 # rollback: re-tag rollback->latest + up -d
 ```
 
+## ⚠ Required env: `STEWIE_TLS_TERMINATED=1` (BP-02)
+
+The backend now enters the **guarded** entrypoint (`stewie-serve` -> `server.main`), so the public-bind
+TLS guard actually runs in the container (before BP-02 the raw `uvicorn ...server:app` CMD bypassed it).
+The guard **fails closed** (SystemExit -> crash loop) on a `0.0.0.0` bind unless TLS termination is
+declared. In this deploy TLS is terminated at Cloudflare and the backend is **internal-only** (no host
+port; only the frontend reaches it over the docker network), so `deploy/.env` MUST set
+`STEWIE_TLS_TERMINATED=1`. (A stale `.env` with `=0` crash-loops the backend under the guarded
+entrypoint — this is the intended safety, not a regression.) The compose default is `:-1`, so leaving the
+var unset also yields `1`; do not set it to `0` in production.
+
 ## ⚠ The cache rule (the "redeploy did nothing" trap)
 
 Cloudflare **edge-caches `/assets/*.js`**. `index.html` busts `cockpit.js` with a **manual** query:
