@@ -57,6 +57,38 @@ DEFERRED = {
         "AS-04 perception/SLAM + bridge-runtime container tiers not built.",
 }
 
+# The AS-04 container-tier ledger (deploy/ros2/evidence/README.md: "3 of 6 named tiers ship"). True =
+# a recorded image build + smoke exists; False = the tier is deferred. This is the honest accounting
+# behind the "3 deferred container tiers" the FANOUT expansion asks the gate to keep named.
+AS04_TIERS = {
+    "base": True, "rviz": True, "gazebo": True,      # built + smoked (stewie-{ros2dev,rviz,gazebo}:jazzy)
+    "perception_slam": False, "bridge_runtime": False, "space_ros": False,   # deferred, container-gated
+}
+
+# The deferred set partitions into two named categories the gate reports explicitly, so it can never
+# silently promote a whole class to "done" (the standalone live_chrono_producer host stub is neither):
+#   * container_tier_gaps    -- the 3 deferred AS-04 container tiers (space_ros + perception/SLAM +
+#                               bridge-runtime, the latter two carried by one combined key);
+#   * detection_capability_gaps -- the 2 deferred perception outputs (AprilTag 12.7 mm, dense MVS RMSE).
+CONTAINER_TIER_GAPS = ("space_ros_profile", "perception_bridge_tiers")
+DETECTION_CAPABILITY_GAPS = ("apriltag_12p7mm", "dense_mvs_rmse")
+
+
+def deferred_categories() -> dict:
+    """Partition the DEFERRED keys into the named container-tier / detection-capability gap classes.
+
+    The residue (`live_chrono_producer`) is a host-side PyChrono stub -- neither a container tier nor
+    a detection output -- so it is reported on its own; the three lists together cover DEFERRED exactly.
+    """
+    return {
+        "container_tier_gaps": [k for k in CONTAINER_TIER_GAPS if k in DEFERRED],
+        "detection_capability_gaps": [k for k in DETECTION_CAPABILITY_GAPS if k in DEFERRED],
+        "other_gaps": [
+            k for k in DEFERRED
+            if k not in CONTAINER_TIER_GAPS and k not in DETECTION_CAPABILITY_GAPS
+        ],
+    }
+
 
 def _recommend(row: str, tier: str, i: str, x: str, v: str, cited: bool) -> str:
     if not cited:
@@ -118,6 +150,7 @@ def release_report() -> dict:
         "rows": rows,
         "summary": summary,
         "deferred": dict(DEFERRED),
+        "deferred_categories": deferred_categories(),
         "note": ("report-only; the V column is NOT promoted here. Advancing a row to V=D edits the "
                  "committee scorecard and is a human decision. The deferred set must stay non-empty "
                  "until each named capability is implemented + executed + verified."),
@@ -143,6 +176,10 @@ def _fmt(rep: dict) -> str:
         out.append(f"        -> {x['recommendation']}")
     out.append("")
     out.append("  STILL DEFERRED (named so the gate cannot silently complete them):")
+    cats = rep["deferred_categories"]
+    out.append(f"    container tiers    ({len(cats['container_tier_gaps'])}): {cats['container_tier_gaps']}")
+    out.append(f"    detection outputs  ({len(cats['detection_capability_gaps'])}): {cats['detection_capability_gaps']}")
+    out.append(f"    other (host stub)  ({len(cats['other_gaps'])}): {cats['other_gaps']}")
     for k, why in rep["deferred"].items():
         out.append(f"    - {k}: {why}")
     out.append("")

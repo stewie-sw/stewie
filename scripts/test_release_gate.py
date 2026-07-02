@@ -6,7 +6,16 @@ verification tier each row reports is honest, and the genuinely-deferred capabil
 (the gate can never silently mark them complete). The report itself is read-only -- it must not
 mutate the review scorecard.
 """
-from scripts.release_gate import AS_ROWS, CONTAINER_EVIDENCE_VERIFIED, DEFERRED, TIER, release_report
+from scripts.release_gate import (
+    AS04_TIERS,
+    AS_ROWS,
+    CONTAINER_EVIDENCE_VERIFIED,
+    CONTAINER_TIER_GAPS,
+    DEFERRED,
+    DETECTION_CAPABILITY_GAPS,
+    TIER,
+    release_report,
+)
 from scripts.req_trace import parse_requirements
 
 
@@ -75,3 +84,43 @@ def test_report_is_read_only_does_not_promote_the_scorecard():
     assert promoted <= set(rep["eligible_for_v_done"]), "a V=D row that is NOT V=D-eligible slipped through"
     assert (promoted & set(rep["container_gated"])) <= CONTAINER_EVIDENCE_VERIFIED
     assert {"AS-02", "AS-03", "AS-05", "AS-06", "AS-17"} <= promoted
+
+
+def test_gated_container_tiers_and_detection_capabilities():
+    # The FANOUT expansion: document, mechanically, that the deferred set the gate carries is
+    # partitioned into the *3 deferred container tiers* and the *2 deferred detection capabilities*
+    # the PRD names -- and that the gate can never silently promote either category to complete.
+    rep = release_report()
+    cats = rep["deferred_categories"]
+
+    # AS-04 tier accounting is honest: 6 named tiers, exactly 3 shipped, exactly 3 deferred (the
+    # PRD's own "3 of the 6 named tiers ship" claim -- asserted against the tier ledger, not prose).
+    shipped = {t for t, built in AS04_TIERS.items() if built}
+    deferred_tiers = {t for t, built in AS04_TIERS.items() if not built}
+    assert len(AS04_TIERS) == 6
+    assert shipped == {"base", "rviz", "gazebo"}
+    assert deferred_tiers == {"perception_slam", "bridge_runtime", "space_ros"}, deferred_tiers
+    assert len(deferred_tiers) == 3, "the '3 deferred container tiers' must stay named"
+
+    # The container-tier gaps map to the 3 deferred AS-04 tiers (space_ros_profile alone, plus the
+    # combined perception+bridge key), and the detection-capability gaps to the 2 perception outputs.
+    assert set(cats["container_tier_gaps"]) == set(CONTAINER_TIER_GAPS) == {
+        "space_ros_profile", "perception_bridge_tiers",
+    }
+    assert set(cats["detection_capability_gaps"]) == set(DETECTION_CAPABILITY_GAPS) == {
+        "apriltag_12p7mm", "dense_mvs_rmse",
+    }, "the '2 deferred detection capabilities' must stay named"
+
+    # The two named categories plus the standalone host-side stub (live Chrono producer) partition
+    # DEFERRED exactly -- every deferred key is accounted for, none double-counted, none orphaned.
+    categorised = set(CONTAINER_TIER_GAPS) | set(DETECTION_CAPABILITY_GAPS) | {"live_chrono_producer"}
+    assert categorised == set(DEFERRED), categorised ^ set(DEFERRED)
+    assert not (set(CONTAINER_TIER_GAPS) & set(DETECTION_CAPABILITY_GAPS)), "categories must not overlap"
+
+    # Neither category may silently empty: emptying one is exactly "the gate marked those gaps done".
+    assert cats["container_tier_gaps"], "container-tier gaps went empty without recorded evidence"
+    assert cats["detection_capability_gaps"], "detection-capability gaps went empty without recorded evidence"
+
+    # And each categorised key carries a live, non-empty rationale (it stays *documented* as gated).
+    for key in set(CONTAINER_TIER_GAPS) | set(DETECTION_CAPABILITY_GAPS):
+        assert rep["deferred"][key], f"{key} lost its deferral rationale"
