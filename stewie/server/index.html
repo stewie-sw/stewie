@@ -76,6 +76,18 @@
   #stepper .step.current .dot { background: var(--txt); border-color: var(--txt); box-shadow: 0 0 0 3px rgba(232,39,63,.30); }
   #stepper .step.locked { opacity: .38; cursor: not-allowed; }
   #stepper .step.viewactive { color: var(--accent); }
+  /* the trailing "-> Rehearse" hand-off: a muted exit cue, lit once Plan is complete (no dot, it is not a gate) */
+  #stepper .step.handoff { color: var(--line); font-style: italic; }
+  #stepper .step.handoff:not(:last-child)::after { content: none; }   /* no arrow after the hand-off itself */
+  #stepper .step.handoff.ready { color: var(--accent); }
+  /* 2026-07-02 de-dup: the ConOps phase progress now rides ON the tabs (was a duplicated second row of the
+     same labels below the tabs). A small dot marks each phase tab: filled = that phase's gate is met (done),
+     hollow-accent = the phase the pipeline is waiting on (current). Nav highlight (.active) is unchanged. */
+  .vtab .pdot { display: none; width: 6px; height: 6px; border-radius: 50%; margin-left: 7px; vertical-align: 1px;
+                border: 1px solid var(--line); box-sizing: border-box; }
+  .vtab.pdone .pdot, .vtab.pcurrent .pdot { display: inline-block; }
+  .vtab.pdone .pdot { background: var(--accent); border-color: var(--accent); }
+  .vtab.pcurrent .pdot { background: transparent; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(232,39,63,.28); }
   /* #126: the guided-walkthrough modal (first-run + Guide) */
   #guidemodal { position: fixed; inset: 0; z-index: 300; background: rgba(2,4,8,.72);
     display: flex; align-items: center; justify-content: center; padding: 20px; }
@@ -860,15 +872,16 @@
            workspace badge (#wsslot, filled by cockpit.js placeWsBadge at <=860px) keep reserved,
            non-scrolling slots on the right so they never overlay a step or a tab. -->
       <span id="stepscroll">
+      <!-- 2026-07-02 de-dup: the stepper is the PLAN micro-wizard (Site->Fleet->Orders->Solve) -- the
+           sub-steps that live NOWHERE else. The downstream phases (Rehearse/Validate/Release/Execute/
+           Report) used to be repeated here AND as the top tabs (two stacked rows of the same words);
+           their done/current progress now rides as a dot ON the tabs themselves (renderStepper), so
+           there is exactly one place for each phase. A trailing "-> Rehearse" handoff cues the exit. -->
       <button class="step" data-step="site"><span class="dot"></span>Site</button>
       <button class="step" data-step="fleet"><span class="dot"></span>Fleet</button>
       <button class="step" data-step="orders"><span class="dot"></span>Orders</button>
       <button class="step" data-step="solve"><span class="dot"></span>Solve</button>
-      <button class="step" data-step="rehearse"><span class="dot"></span>Rehearse</button>
-      <button class="step" data-step="validate"><span class="dot"></span>Validate</button>
-      <button class="step" data-step="release"><span class="dot"></span>Release</button>
-      <button class="step" data-step="execute"><span class="dot"></span>Execute</button>
-      <button class="step" data-step="review"><span class="dot"></span>Report</button>
+      <button class="step handoff" data-step="rehearse" title="Plan complete -> continue in the Rehearse tab above">&rarr; Rehearse</button>
       </span>
       <button id="guidebtn" title="how the planning workflow works" style="margin-left:auto;flex:0 0 auto;background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);font-family:'Orbitron',system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;padding:4px 10px;cursor:pointer;white-space:nowrap">&#10067; Guide</button>
       <span id="wsslot"></span>
@@ -1542,6 +1555,6 @@
 <script src="/assets/cockpit_state.js?v=fcaa16f324c4"></script><!-- FS-16: pure routeable cockpit state model (sets window.STEWIE_STATE) -->
 <script src="/assets/provenance_label.js?v=e6ec3e5b78b5"></script><!-- FS-03: pure epistemic provenance chips truth/belief/forecast/live (sets window.STEWIE_PROVENANCE) -->
 <script src="/assets/ops_chips.js?v=956a4ab31cdc"></script><!-- frontend-audit C: pure ops-chip formatters health/link/provenance/mission-time (sets window.STEWIE_OPS_CHIPS) -->
-<script src="/assets/cockpit.js?v=a20d383791e9"></script>
+<script src="/assets/cockpit.js?v=13e055aacc5e"></script>
 </body>
 </html>

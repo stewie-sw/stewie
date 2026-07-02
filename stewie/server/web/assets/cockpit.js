@@ -6140,10 +6140,36 @@ function renderStepper() {
                      nav: "validate", perception: "validate", release: "release" }[VIEW];
   wrap.querySelectorAll(".step").forEach((b) => {
     const s = b.dataset.step;
+    if (b.classList.contains("handoff")) {
+      // the trailing "-> Rehearse" exit cue is NOT a gate: it lights once the Plan sub-steps are all met,
+      // pointing the operator to the Rehearse TAB (no duplicate phase chip here anymore).
+      const planDone = ["site", "fleet", "orders", "solve"].every((k) => state[k] === "done");
+      b.className = "step handoff" + (planDone ? " ready" : "");
+      b.title = "Plan complete -> continue in the Rehearse tab above";
+      return;
+    }
     b.className = "step " + (state[s] || "todo");
     if (s === current && !allDone) b.classList.add("current");
     if (s === viewStep) b.classList.add("viewactive");
     b.title = STEP_TITLES[s] || s;
+  });
+  // 2026-07-02 de-dup: the ConOps phase progress used to be a SECOND row repeating the tab labels
+  // (Rehearse/Validate/Release/Execute/Report shown both as tabs AND as stepper chips). It now rides as a
+  // dot ON each phase tab -- filled = that phase's gate(s) met, hollow-accent = the phase the pipeline is
+  // waiting on. Plan aggregates its four sub-steps; the rest are 1:1 with their step. (.active nav is
+  // untouched.) The Plan sub-steps stay in #stepper because they exist NOWHERE else.
+  const PHASE_TAB = { plan: ["site", "fleet", "orders", "solve"], rehearse: ["rehearse"],
+                      validate: ["validate"], release: ["release"], metrics: ["execute"], report: ["review"] };
+  Object.keys(PHASE_TAB).forEach((view) => {
+    const tab = document.querySelector('.vtab[data-view="' + view + '"]');
+    if (!tab) return;
+    let dot = tab.querySelector(".pdot");
+    if (!dot) { dot = document.createElement("span"); dot.className = "pdot"; tab.appendChild(dot); }
+    const steps = PHASE_TAB[view];
+    const isCurrent = !allDone && steps.indexOf(current) !== -1;
+    const done = steps.every((k) => state[k] === "done");
+    tab.classList.toggle("pcurrent", isCurrent);
+    tab.classList.toggle("pdone", done && !isCurrent);
   });
   const go = $("wizgo");
   if (go) go.textContent = allDone ? "Mission ready ✓" : ((STEP_ACTION[current] || "Continue") + " →");

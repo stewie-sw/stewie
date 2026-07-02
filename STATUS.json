@@ -24,7 +24,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 166,
+  "cited": 167,
   "per_family": {
     "AG": {
       "cited": 8,
@@ -59,8 +59,8 @@
       "total": 7
     },
     "FS": {
-      "cited": 25,
-      "total": 29
+      "cited": 26,
+      "total": 30
     },
     "GI": {
       "cited": 3,
@@ -127,7 +127,7 @@
       "total": 10
     }
   },
-  "total": 215,
+  "total": 216,
   "unknown_markers": [],
   "v_done_uncited": [],
   "v_ne_d_flagged": [
