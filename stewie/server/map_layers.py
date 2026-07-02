@@ -15,6 +15,7 @@ footprint / leg span is an approximate ~4.6 m) and is scaled to the map GSD so i
 from __future__ import annotations
 
 import math
+import os
 
 # Nova-C class delivery lander. Body width + height are documented; the leg-span footprint is approximate.
 LANDER_BODY_W_M = 1.57
@@ -23,10 +24,20 @@ LANDER_FOOTPRINT_M = 4.6
 LANDER_LEGS = 6
 LANDER_KEEPOUT_MARGIN_M = 2.0
 
+# The REAL work-area DEM the terrain rasters (dem, topology) derive their elevation from: the LOLA
+# south-polar Haworth tile on disk (samples/lunar_dem/...). A layer that claims 3D terrain must name
+# this so its elevation is a real measurement, NOT a smooth WGS84 drape. The imagery base layer, by
+# contrast, is a flat orbital-imagery drape (imagery_only) with NO DEM.
+DEM_SOURCE = "lunar_dem/haworth_10km_5m"
+_SAMPLES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "samples")
+
 LAYERS = [
-    {"id": "imagery", "name": "Imagery", "kind": "raster", "group": "base", "default": True},
-    {"id": "dem", "name": "DEM (hillshade)", "kind": "raster", "group": "terrain", "default": True},
-    {"id": "topology", "name": "Topology (slope)", "kind": "raster", "group": "terrain", "default": False},
+    {"id": "imagery", "name": "Imagery", "kind": "raster", "group": "base", "default": True,
+     "imagery_only": True},
+    {"id": "dem", "name": "DEM (hillshade)", "kind": "raster", "group": "terrain", "default": True,
+     "dem_source": DEM_SOURCE},
+    {"id": "topology", "name": "Topology (slope)", "kind": "raster", "group": "terrain", "default": False,
+     "dem_source": DEM_SOURCE},
     {"id": "hazard", "name": "Hazard / keep-outs", "kind": "vector", "group": "nav", "default": True},
     {"id": "excavation", "name": "Excavation history", "kind": "vector", "group": "ops", "default": True},
     {"id": "lander", "name": "Lander", "kind": "vector", "group": "ops", "default": True},
@@ -35,8 +46,16 @@ LAYER_IDS = {d["id"] for d in LAYERS}
 
 
 def layer_defs() -> list:
-    """The selectable layers for the UI panel (id, name, kind, group, default load state)."""
+    """The selectable layers for the UI panel (id, name, kind, group, default load state). Terrain
+    rasters carry a dem_source (real DEM elevation); the imagery base carries imagery_only (flat drape)."""
     return [dict(d) for d in LAYERS]
+
+
+def dem_source_dir(scene: str = DEM_SOURCE) -> str:
+    """Absolute path to the REAL on-disk DEM bundle a terrain layer's dem_source names (the samples/
+    LOLA tile with metadata.json + heightmap.rf32). Lets a caller confirm a 3D-terrain layer resolves
+    to real elevation rather than a smooth drape."""
+    return os.path.join(_SAMPLES_DIR, scene)
 
 
 def lander_marker(x: float, y: float, *, meters_per_pixel: float, name: str = "Nova-C",

@@ -17,6 +17,8 @@
     "g_note": "",
     "role": "Artemis base camp + ISRU water ice (NASA Moon-to-Mars ADD Rev.B 2024).",
     "provenance": "NASA LTV terramechanics white paper NTRS 20220010732 (k_c=1400 N/m^2, k_phi=820000 N/m^3, n=1.0, c=170 Pa); Carrier/Mitchell Lunar Sourcebook 1991; ChaSTE 2025 (rho).",
+    "ellipsoid_radius_m": 1737400.0,
+    "crs": "IAU_2015:30100",
     "ipex_power": {
       "drive_power_w": 4.374,
       "drive_j_per_m": 14.58,
@@ -51,6 +53,8 @@
     "g_note": "",
     "role": "human habitats + ISRU; MOXIE produced O2 in-situ (Hecht 2022).",
     "provenance": "Oravec et al. 2020 NASA GRC (GRC-3 simulant: k_c=23.2 kN/m^2, k_phi=606.7 kN/m^3, n=1.0); Sullivan 2011 (c 0-2 kPa, phi 30-37); Spohn 2022 InSight (duricrust 5.8 kPa).",
+    "ellipsoid_radius_m": 3396190.0,
+    "crs": "IAU_2015:49900",
     "ipex_power": {
       "drive_power_w": 10.017,
       "drive_j_per_m": 33.39,
@@ -80,6 +84,8 @@
     "g_note": "",
     "role": "water/brine mining (Dawn brines) + Janhunen 2021 megasatellite-habitat proposal.",
     "provenance": "Park 2016 / Ermakov 2017 (g, density); Icarus 2024 (repose 34.5+/-2.8); cohesion UNKNOWN -> lunar Bekker analog used (flagged); friction = repose proxy.",
+    "ellipsoid_radius_m": null,
+    "crs": null,
     "ipex_power": {
       "drive_power_w": 0.7668,
       "drive_j_per_m": 2.56,
@@ -106,6 +112,8 @@
     "g_note": "varies ~3e-5 (equatorial ridge) to ~8.5e-5 m/s^2 (poles); Ryugu analog ~1.1-1.5e-4.",
     "role": "C-type asteroid water/volatile mining (Bennu first proposed target, Jin 2021).",
     "provenance": "Scheeres 2019 (g); Lauretta 2019 / Watanabe 2019 (rho 1190); Walsh 2022 (cohesion <=2 Pa, near-fluidized); Robin 2024 (phi ~33). Bekker INVALID -> use DEM/granular.",
+    "ellipsoid_radius_m": null,
+    "crs": null,
     "ipex_power": {
       "drive_power_w": 0.000108,
       "drive_j_per_m": 0.0,
@@ -132,6 +140,8 @@
     "g_note": "mean ~0.0057 m/s^2 but varies ~210% (shape) / ~450% (with Mars tides) across the body.",
     "role": "Mars-system staging waypoint + possible ISRU (NASA NTRS 20160006319; JAXA MMX).",
     "provenance": "Ernst 2023 (rho ~1850); Hurford 2016 (cohesion ~500 Pa surface model, phi ~40); Murdoch 2025 IDEFIX (phi 33.5+/-6.1 analog). Bekker UNKNOWN -> lunar analog (flagged).",
+    "ellipsoid_radius_m": null,
+    "crs": null,
     "ipex_power": {
       "drive_power_w": 0.01539,
       "drive_j_per_m": 0.05,
@@ -162,6 +172,8 @@
     "g_note": "",
     "role": "validation/sanity body (terrestrial dry sand).",
     "provenance": "Wong, Theory of Ground Vehicles (dry sand: k_c=0.99 kN/m^(n+1), k_phi=1528.43 kN/m^(n+2), n=1.1, c=1.04 kPa, phi=28).",
+    "ellipsoid_radius_m": null,
+    "crs": null,
     "ipex_power": {
       "drive_power_w": 26.487,
       "drive_j_per_m": 88.29,
@@ -194,6 +206,8 @@
     "g_note": "",
     "role": "Earth-validation soil: the GMRO bed the real hardware is tested in.",
     "provenance": "BP-1: 1.75 g/cm^3 compacted [WHEELTEST p.4]; Humboldt shear-vane 27-32 kPa, penetrometer 206-226 kPa [BDSCALE]; moduli = Wong dry-sand baseline [ANALOG].",
+    "ellipsoid_radius_m": null,
+    "crs": null,
     "ipex_power": {
       "drive_power_w": 26.487,
       "drive_j_per_m": 88.29,

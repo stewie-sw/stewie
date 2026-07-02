@@ -44,6 +44,8 @@ class Body:
     g_note: str = ""                   # gravity variation note (asteroids/Phobos vary strongly)
     role: str = ""                     # habitat/mining role + citation
     provenance: str = ""               # key citations for the soil constants
+    ellipsoid_radius_m: float | None = None  # body reference-ellipsoid radius (semi-major/mean) [m]
+    crs: str | None = None             # planetary geographic CRS for the map/GIS (IAU_2015:*), NOT Earth WGS84
 
 
 # ---- the registry (constants + citations: docs/bodies_sysrev.md) --------------------------------
@@ -56,6 +58,9 @@ BODIES = {
         role="Artemis base camp + ISRU water ice (NASA Moon-to-Mars ADD Rev.B 2024).",
         provenance="NASA LTV terramechanics white paper NTRS 20220010732 (k_c=1400 N/m^2, k_phi=820000 "
                    "N/m^3, n=1.0, c=170 Pa); Carrier/Mitchell Lunar Sourcebook 1991; ChaSTE 2025 (rho).",
+        # IAU 2015 mean sphere (a=b=c); matches the real LOLA tile (samples/.../metadata.json
+        # sphere_radius_m 1737400, DEM CRS IAU_2015:30135). Geographic CRS = IAU_2015:30100.
+        ellipsoid_radius_m=1737400.0, crs="IAU_2015:30100",
     ),
     "mars": Body(
         "mars", "Mars", 3.71, "gravity-loaded",
@@ -66,6 +71,9 @@ BODIES = {
         role="human habitats + ISRU; MOXIE produced O2 in-situ (Hecht 2022).",
         provenance="Oravec et al. 2020 NASA GRC (GRC-3 simulant: k_c=23.2 kN/m^2, k_phi=606.7 kN/m^3, "
                    "n=1.0); Sullivan 2011 (c 0-2 kPa, phi 30-37); Spohn 2022 InSight (duricrust 5.8 kPa).",
+        # IAU 2015 Mars equatorial (semi-major) radius 3396190 m (polar 3376200); geographic CRS
+        # IAU_2015:49900. Body-correct: NOT the Moon radius, NOT Earth WGS84.
+        ellipsoid_radius_m=3396190.0, crs="IAU_2015:49900",
     ),
     "ceres": Body(
         "ceres", "Ceres", 0.284, "gravity-loaded",
