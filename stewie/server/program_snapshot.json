@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "5e7e14e821c32ee32422f577c089267aad6048bee0273b38fd85e67e31aecba6",
+  "citations_sha256": "f1070ec31b69d2aa14e9a9b94ea352b75450451b99b6dbdab0e6a0e94e1789eb",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "db2d1c90fc37dd75898a9e802c99c98dc839e18c",
-  "prd_sha256": "b2e40b3d63d577c8f239387bb3ed3ba3bb1961bfd733d23eca359f00b3b8c829",
+  "prd_commit": "52b5fab773b4e95883b9bd55d744b29bef16a5c6",
+  "prd_sha256": "66abf695bc12d12ac089b4ff8e909472e31a7f147a60c8489eab9a2214ddee09",
   "specs_sha256": "37059633a28f0aaa17e5f419a26a87179ebb0a85d82da450c3ad38af1ffd4b11"
  },
  "rows": [
@@ -2424,17 +2424,17 @@
    "text": "**Receding-horizon navigation runtime loop.** A runtime tick takes the current pose/belief, updates the local hazard/costmap, produces a global route when needed and a local arc/trajectory EACH tick, lowers ONLY the next bounded command, and replans/recovers when blocked, stale, or uncertain. Acceptance: a per-tick loop over a fixture drives toward goal, emits exactly one bounded command per tick, and recovers from an injected block/stale/uncertain condition. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "P",
    "brief": {
     "goal": "the ros2_replay/desktop_sil deterministic end-to-end fixture: replay->classify->observed map->plan->issue/refuse bounded command->world transaction->evidence bundle.",
     "kind": "epic",
     "test_target": "NEW stewie/runtime/test_replay_loop.py citing [REQ:RS-04]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "RS-04",
    "lane": "RS",
    "pri": "P0",
@@ -3068,9 +3068,9 @@
  "summary": {
   "briefs": 88,
   "buckets": {
-   "buildable": 61,
+   "buildable": 60,
    "concurrent": 0,
-   "done": 130,
+   "done": 131,
    "gated": 25
   },
   "by_lane": {
@@ -3143,7 +3143,7 @@
     "total": 1
    },
    "RS": {
-    "done": 2,
+    "done": 3,
     "total": 8
    },
    "SE": {
@@ -3177,7 +3177,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 48,
+    "done": 49,
     "total": 70
    },
    "P1": {
@@ -3189,10 +3189,10 @@
     "total": 11
    }
   },
-  "cited": 173,
-  "done_pct": 60.2,
+  "cited": 174,
+  "done_pct": 60.6,
   "in_scope": 191,
-  "in_scope_done_pct": 68.1,
+  "in_scope_done_pct": 68.6,
   "total": 216
  },
  "workflow_spine": [
