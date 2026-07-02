@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "575a454ce484226511faf8986db6b7c06be99899a25e6be9ed1334961fedf103",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "7b3be75adbd08cea3e1fc4b3e86c410aef38db36",
-  "prd_sha256": "85670e36e76f29d89524908c7f5c4ae4fbb8c0bb4ef0edd12e60b1c0036fa8b2",
-  "specs_sha256": "ff5682251563df1a36d21ff851c38f127bda0e40419c8f356af5e33ac4a11e62"
+  "prd_commit": "3f77a85ea17e8dbe696a4b40c64d50739ee2553f",
+  "prd_sha256": "53650eac8a9e2a31eaf976ea833a755382841ba5facbc35cbb4b2d8f6f47e3f0",
+  "specs_sha256": "85bdce2687464f4ea47f15023ffdb7e565d1773c60bac9b871ba581473614103"
  },
  "rows": [
   {
@@ -337,7 +337,7 @@
    "id": "AS-10",
    "lane": "AS",
    "pri": "P0",
-   "text": "Autonomous mapping: maintain observed DEM, occupancy/rock map, object graph, uncertainty, changed-terrain mask, and excavation state as separate layers over the conserved world model; estimator/mapping nodes are denied simulator truth."
+   "text": "Autonomous mapping: maintain observed DEM, occupancy/rock map, object graph, uncertainty, changed-terrain mask, and excavation state as separate layers over the conserved world model; estimator/mapping nodes are denied simulator truth. **Note (2026-07-02 hazard-perception assessment): the ROS2 mapping node that would maintain this live is a skeleton -- running the tested `dart.mapping` mapper in it is tracked as PM-18; the connected loop as PM-19.**"
   },
   {
    "I": "D",
@@ -1380,6 +1380,23 @@
   },
   {
    "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "cockpit live visual-hazard classifier panel (detections, confidence, accepted/rejected obstacles + reason, hazard overlay, replan consequence).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_hazard_classifier_panel.py citing [REQ:FS-29]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-29",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "**Cockpit live visual-hazard classifier evidence panel (2026-07-02 hazard-perception assessment).** A Validate/Perception surface shows the LIVE visual-hazard classifier -- per-frame detections, per-detection confidence, accepted vs REJECTED obstacles with the size-gate/appearance reason, the hazard-class + no-go overlay, and the replan CONSEQUENCE (which detection forced a reroute) -- beyond today's static hazard rasters + keep-outs. Acceptance: the panel renders real detections + accepted/rejected + confidence + a hazard-triggered-replan indicator, no-truth-input labelled. Buildable on archimedes."
+  },
+  {
+   "I": "P",
    "Q": "N",
    "V": "P",
    "X": "P",
@@ -1983,6 +2000,40 @@
    "text": "**Sensor-profile selection + health in the cockpit workflow (review finding 5).** The cockpit exposes full depth-source-profile selection (`stereo_sgbm`/neural stereo/`lidar`/`rgbd`/`replay`, \u00a726.3) with calibration freshness and source health, and Release/Execute BLOCK when the selected depth source is stale, degraded, or mismatched to the runtime \u2014 not just the static `stereo_sgbm` default (`cockpit.js:946`, `autonomy_contract.py:157`). Acceptance: selecting each profile updates the perception path; a stale/degraded/mismatched source blocks Release/Execute with an operator-legible reason. Depth-source contracts + sim sources buildable on archimedes; a live LiDAR/RGB-D sensor is the gated leg."
   },
   {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "run the tested dart classifiers/mapper inside the stewie_perception + stewie_mapping ROS2 nodes (not skeletons).",
+    "kind": "atomic",
+    "test_target": "NEW ros2_ws/test_perception_mapping_nodes.py citing [REQ:PM-18]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PM-18",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "**Perception + mapping ROS2 nodes run the tested classifiers/mapper (2026-07-02 hazard-perception assessment).** The `stewie_perception` and `stewie_mapping` nodes (today 28-line skeletons at `ros2_ws/src/stewie_perception/.../node.py`, `.../stewie_mapping/.../node.py`) execute the REAL, already-tested host-side algorithms -- `dart.rock_detect.detect_rocks`, `dart.obstacle_map.classify` (detect->stereo->size-gate), `dart.masking.segment_eval_mode`, and `dart.mapping.build_elevation_map` -- over the sensor-bridge input, publishing detections + an accumulated 2.5D hazard/elevation map with uncertainty. Extends AS-10 (autonomous mapping). Acceptance: a container run of the nodes on a recorded sensor bag yields detections + a map matching the host-side dart output for the same frames (truth-denied). Buildable on archimedes (ROS2 Jazzy containers run here); a live pit/rover is the gated leg."
+  },
+  {
+   "I": "P",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "connect camera/depth -> classifier -> observed map -> costmap -> eligibility -> evidence as one host-side runtime path.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/eval/test_hazard_perception_loop.py citing [REQ:PM-19]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PM-19",
+   "lane": "PM",
+   "pri": "P1",
+   "text": "**Connected live hazard-perception loop (2026-07-02 hazard-perception assessment).** Camera/depth/`PointCloud2` -> classifier (PM-18) -> observed hazard/elevation map (DT-04/AS-10) -> planner costmap (`lode.costmap_layers`) -> command eligibility (AG-08/SF-02) -> cockpit evidence (FS-29) is ONE connected runtime path, not disconnected stages: a newly-detected hazard changes the plan AND the command eligibility AND is reflected in cockpit evidence within the loop. The underlying algorithms (`hazard_map`/`rock_detect`/`obstacle_map`/`playthrough`/`masking`/`mapping`/`costmap_layers`) are built + tested (supporting ML-02/ML-03/PM-03/PM-07); the GAP is the connected productized loop. Acceptance: an injected hazard on a real frame flows end-to-end -> a measurably different plan + a surfaced eligibility/evidence change. Host-side connected path buildable on archimedes; the live-ROS runtime closure is the gated leg."
+  },
+  {
    "I": "D",
    "Q": "N",
    "V": "D",
@@ -2223,6 +2274,121 @@
    "lane": "RL",
    "pri": "P1",
    "text": "Deployed RL policy gate: no RL capability may be called operational until a versioned policy artifact, training/eval lineage, model card, safety shield, deterministic fallback, and out-of-distribution acceptance report exist. Training scripts/environments alone do not satisfy this row."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "typed runtime contracts (DepthObservation/VisualHazardObservation/ObservedMapUpdate/HazardMap/CostmapSnapshot/LocalizationState/TrajectoryCommand/CommandEligibility/WorldTransaction) as the only inter-module interface.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/contracts/test_runtime_spine.py citing [REQ:RS-01]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RS-01",
+   "lane": "RS",
+   "pri": "P0",
+   "text": "**Hard runtime contracts.** Typed payloads \u2014 `DepthObservation`, `VisualHazardObservation`, `ObservedMapUpdate`, `HazardMap`, `CostmapSnapshot`, `LocalizationState`, `TrajectoryCommand`, `CommandEligibility`, `WorldTransaction` \u2014 are the ONLY things passed across the perception\u2194mapping\u2194localization\u2194planning\u2194control\u2194UI boundaries; no module passes a raw ad-hoc dict across a stage boundary. Acceptance: a contract test asserts each boundary carries + validates its typed payload, and a raw-dict / wrong-shape crossing is rejected. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "planner consumes the observed world (observed DEM/occupancy/rock-graph/changed-terrain/uncertainty + provenance), not just static DEM + keepouts.",
+    "kind": "atomic",
+    "test_target": "NEW lode/test_planner_observed_world.py citing [REQ:RS-02]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RS-02",
+   "lane": "RS",
+   "pri": "P0",
+   "text": "**Planning consumes the OBSERVED world, not just the static DEM.** The planner reads the current observed DEM layer, occupancy/no-go layer, rock/object graph, changed-terrain mask, and map uncertainty \u2014 each tagged with provenance (prior vs observed vs forecast vs edited) \u2014 instead of only the static DEM + hand-authored keep-outs. Acceptance: an observed hazard absent from the static DEM measurably changes the route/costmap. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "receding-horizon nav loop (pose/belief -> local costmap -> global route if needed -> local trajectory/tick -> next bounded command -> replan/recover).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/runtime/test_nav_loop.py citing [REQ:RS-03]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RS-03",
+   "lane": "RS",
+   "pri": "P0",
+   "text": "**Receding-horizon navigation runtime loop.** A runtime tick takes the current pose/belief, updates the local hazard/costmap, produces a global route when needed and a local arc/trajectory EACH tick, lowers ONLY the next bounded command, and replans/recovers when blocked, stale, or uncertain. Acceptance: a per-tick loop over a fixture drives toward goal, emits exactly one bounded command per tick, and recovers from an injected block/stale/uncertain condition. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "the ros2_replay/desktop_sil deterministic end-to-end fixture: replay->classify->observed map->plan->issue/refuse bounded command->world transaction->evidence bundle.",
+    "kind": "epic",
+    "test_target": "NEW stewie/runtime/test_replay_loop.py citing [REQ:RS-04]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RS-04",
+   "lane": "RS",
+   "pri": "P0",
+   "text": "**`ros2_replay` deterministic end-to-end loop fixture (the keystone gate).** ONE deterministic fixture on the first runnable profile (`ros2_replay` / `desktop_sil`) proves the whole spine: replay stereo/depth \u2192 classify hazards \u2192 update observed map \u2192 plan around hazards \u2192 issue OR REFUSE a bounded command (via eligibility) \u2192 record a `WorldTransaction` \u2192 produce an evidence bundle. Acceptance: the fixture runs end-to-end deterministically; each stage's typed RS-01 payload and the final evidence bundle are asserted; a seeded hazard forces a reroute and a seeded ineligibility forces a logged refusal. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "Gazebo as the live sensor producer driving the RS loop; RViz shows robot/cloud/map/costmap/path/command.",
+    "kind": "atomic",
+    "test_target": "NEW ros2_ws/test_gazebo_loop.py citing [REQ:RS-05]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RS-05",
+   "lane": "RS",
+   "pri": "P1",
+   "text": "**Gazebo live-sensor loop + RViz.** After RS-04 is stable, Gazebo becomes the live sensor producer (cameras/depth/LiDAR topics, IMU/wheel odom, `/tf`, `/clock`, `/joint_states`, `/cmd_vel`) driving the SAME RS loop; RViz shows robot, point cloud, map, costmap, path, and command state. Acceptance: the loop runs on Gazebo-produced sensors in-container and RViz displays the live evidence; estimator/planner inputs stay truth-denied. Buildable on archimedes (Gazebo + RViz containers)."
+  },
+  {
+   "I": "N",
+   "Q": "G",
+   "V": "N",
+   "X": "N",
+   "bucket": "gated",
+   "cited": false,
+   "gated_reason": "quality/hardware gated",
+   "id": "RS-06",
+   "lane": "RS",
+   "pri": "P1",
+   "text": "**Hardware loop (gated).** ONLY after the replay + Gazebo loop is stable: a Jetson runnable profile, a real stereo/LiDAR bench, calibration, MEASURED latency/RAM/thermal budgets, fault injection, and watchdog proof. Genuinely gated on a real Jetson + sensor hardware bench. Acceptance (when hardware exists): the loop closes on-device within the declared compute/thermal envelope with the watchdog + fault-injection proven."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "two-screen operator display (primary command cockpit + secondary read-only viz/telemetry subdomain embedding Godot/Gazebo/RViz), one state model, no command authority on the secondary.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_multiscreen_display.py citing [REQ:RS-07]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RS-07",
+   "lane": "RS",
+   "pri": "P1",
+   "text": "**Multi-screen operator display architecture.** The operator surface is TWO coordinated screens on one route/state model: a PRIMARY command cockpit (`app.stewie.space` \u2014 Plan\u2192\u2026\u2192Report + the bounded software-command console + eligibility/refusal) and a SECONDARY visualization/telemetry surface on its own route/subdomain (e.g. `viz.stewie.space`) embedding the live Godot render + Gazebo/RViz (web ROS bridge / Foxglove) + point cloud + costmap + observed map. The secondary is READ-ONLY with NO independent command authority (\u00a726.4). Acceptance: the two-screen layout renders the console + Godot/Gazebo/RViz evidence, the secondary emits no command, and both reflect the same selected run/state. Buildable on archimedes."
   },
   {
    "I": "P",
@@ -2786,12 +2952,12 @@
   }
  ],
  "summary": {
-  "briefs": 73,
+  "briefs": 82,
   "buckets": {
-   "buildable": 52,
+   "buildable": 61,
    "concurrent": 0,
    "done": 123,
-   "gated": 24
+   "gated": 25
   },
   "by_lane": {
    "AG": {
@@ -2828,7 +2994,7 @@
    },
    "FS": {
     "done": 14,
-    "total": 28
+    "total": 29
    },
    "GI": {
     "done": 1,
@@ -2848,7 +3014,7 @@
    },
    "PM": {
     "done": 6,
-    "total": 17
+    "total": 19
    },
    "PO": {
     "done": 10,
@@ -2857,6 +3023,10 @@
    "RL": {
     "done": 1,
     "total": 1
+   },
+   "RS": {
+    "done": 0,
+    "total": 7
    },
    "SE": {
     "done": 0,
@@ -2890,11 +3060,11 @@
   "by_priority": {
    "P0": {
     "done": 43,
-    "total": 66
+    "total": 70
    },
    "P1": {
     "done": 80,
-    "total": 123
+    "total": 129
    },
    "P2": {
     "done": 0,
@@ -2902,10 +3072,10 @@
    }
   },
   "cited": 164,
-  "done_pct": 61.8,
-  "in_scope": 175,
-  "in_scope_done_pct": 70.3,
-  "total": 199
+  "done_pct": 58.9,
+  "in_scope": 184,
+  "in_scope_done_pct": 66.8,
+  "total": 209
  },
  "workflow_spine": [
   "Plan",
