@@ -771,3 +771,33 @@ hardware-gated). Buildable on archimedes; each anchors to a real existing file (
 - acceptance: a fixture where ACTUAL departs from PLAN yields a measured divergence surface + a threshold replan indicator, co-registered + read-only.
 - files: dart/relocalization.py, lode/costmap_layers.py, stewie/server/web/assets/cockpit_state.js
 - test_target: NEW stewie/eval/test_plan_actual_divergence.py citing [REQ:RS-08]
+
+## Repository maintainability + continuity governance (2026-07-02 bloat audit) -- 5 rows
+
+Briefs for §7.15 MT-01..05 (Phase-3 runtime contracts/ROS adapters already tracked as RS-01/PM-18/RS-04).
+
+### MT-01 (P1) — atomic
+- goal: CI rejects a newly-tracked large binary unless allowlisted; externalize samples/lunar_dem/*.rf32 to checksum manifest + fetch script, keep one tiny real-derived smoke fixture.
+- acceptance: a large tracked binary reds CI; the DEM resolves via manifest+fetch; suite green on the tiny fixture.
+- files: scripts/gen_release_manifest.py, samples/lunar_dem, stewie/specs/config.py
+- test_target: NEW scripts/test_large_file_policy.py citing [REQ:MT-01]
+### MT-02 (P2) — atomic
+- goal: a safe documented cleaner for local generated/vendor bloat; generated outputs steered to one ignored artifact root; never touches tracked files.
+- acceptance: dry-run lists only ignored/generated paths; removal never touches a git-tracked file (asserted vs git ls-files).
+- files: scripts/gen_status.py, .gitignore, deploy/DEPLOY.md
+- test_target: NEW scripts/test_workspace_cleanup.py citing [REQ:MT-02]
+### MT-03 (P1) — epic
+- goal: continue the cockpit strangler split (api_client / route-state / profile+sensor rail / command rail / diagnostics rail / one pane) into pure node-tested modules; HTML-sink allowlist gate.
+- acceptance: each extraction is a pure node:test module, cockpit.js LOC drops, the HTML-sink gate reds on a new unlisted sink, ui-smoke green.
+- files: stewie/server/web/assets/cockpit.js, stewie/server/web/assets/cockpit_state.js, stewie/server/index.html
+- test_target: NEW stewie/server/web/assets/html_sink_gate.test.js + scripts/test_html_sink_allowlist.py citing [REQ:MT-03]
+### MT-04 (P1) — atomic
+- goal: split optional extras into core/perception/planning/server/ros/dev profiles; default install lean; heavy CV/GIS/benchmark deps out of minimal runtime.
+- acceptance: a minimal-profile install boots stewie-serve + /healthz without heavy extras; each profile resolves from the hashed lock.
+- files: pyproject.toml, scripts/fresh_install_smoke.py, requirements-dev.lock
+- test_target: NEW scripts/test_dependency_profiles.py citing [REQ:MT-04]
+### MT-05 (P1) — atomic
+- goal: a continuity-governance release gate reporting tracked-payload size + large-file diff + HTML-sink count + test-tier status; ADRs per boundary; generated-artifact manifest.
+- acceptance: gate emits all four metrics and reds on a new large tracked file or new unlisted HTML sink; ADR set + artifact manifest checked in.
+- files: scripts/release_gate.py, scripts/gen_release_manifest.py, docs/repo_bloat_maintainability_audit_2026-07-02.md
+- test_target: NEW scripts/test_continuity_gate.py citing [REQ:MT-05]

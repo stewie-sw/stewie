@@ -74,6 +74,10 @@
       "cited": 1,
       "total": 1
     },
+    "MT": {
+      "cited": 0,
+      "total": 5
+    },
     "NV": {
       "cited": 12,
       "total": 12
@@ -123,7 +127,7 @@
       "total": 10
     }
   },
-  "total": 210,
+  "total": 215,
   "unknown_markers": [],
   "v_done_uncited": [],
   "v_ne_d_flagged": [
