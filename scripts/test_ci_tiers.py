@@ -102,3 +102,17 @@ def test_pyramid_browser_js_layer_is_ci_gated():
     node --test job over the recursive asset glob; the deeper shape asserts live under PO-04)."""
     text = _steps_text(_jobs()["test-js"])
     assert "node --test" in text and "*.test.js" in text
+
+
+def test_pyramid_has_a_ci_gated_browser_smoke_tier():
+    """[REQ:FS-09] the cockpit SHELL (the ~5.9k-line wiring layer where the unrun-JS-tier / stale-
+    stamp / pane-wiring regressions all lived) is browser-smoke-gated in CI: a dedicated Playwright
+    job boots the real server, clicks the six spine tabs, and renders the /program board -- with the
+    npm playwright version pinned EXACTLY (no floating browser drift)."""
+    import re
+    job = _jobs()["ui-smoke"]
+    text = _steps_text(job)
+    assert "ui_smoke.mjs" in text, "CI must run the Playwright cockpit smoke (scripts/ui_smoke.mjs)"
+    assert re.search(r"playwright@\d+\.\d+\.\d+", text), "the npm playwright package must be pinned exactly"
+    assert "playwright install" in text and "chromium" in text
+    assert "requirements-dev.lock" in text, "the smoke boots the REAL server from the hashed lock"

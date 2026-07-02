@@ -46,7 +46,28 @@ jobs:
         run: |
           node --version
           shopt -s globstar
-          node --test stewie/server/web/assets/**/*.test.js
+          node --test stewie/server/web/assets/**/*.test.js scripts/*.test.mjs
+
+  ui-smoke:
+    name: cockpit UI smoke (Playwright + real server, py3.11)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install (core + dev, from the hashed lock -- SEC-05)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --require-hashes -r requirements-dev.lock
+          pip install -e . --no-deps
+      - name: Install Playwright (npm API, version pinned EXACTLY -- no python dep, no hashed-lock regen)
+        run: |
+          npm install playwright@1.61.1
+          npx playwright install --with-deps chromium
+      - name: Cockpit smoke ([REQ:FS-09]) -- boot the real server dev-open, click the six spine tabs, zero console errors, /program chips
+        run: node scripts/ui_smoke.mjs python
 
   test:
     name: test (py${{ matrix.python-version }})
