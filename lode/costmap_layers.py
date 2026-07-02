@@ -6,14 +6,23 @@ route that bends or refuses can name the reason. Every layer is wired to a real 
 
   slope          slope_deg_map               cost ~ slip-weighted tan(slope); impassable above cap
   roughness      local RMS-slope window      cost ~ terrain roughness (dem_stats family)
+  sinkage        terramechanics.wheel_...    cost ~ Bekker static wheel sinkage; impassable when burial
+                                             exceeds a depth cap (distinct from slip: soft ground)
   slip           tan(slope)                  cost ~ wheel slip
   tip_risk       stability.tip_tilt_limit    impassable where the tilt exceeds the rover tip limit
   negative_obs   negative_obstacle_mask      impassable at drop-offs / crater rims (don't fall in)
   illumination   illumination.incidence      cost ~ grazing-incidence imaging/charge risk
   psr            illumination.psr_gate        impassable in permanent shadow (no solar, cold trap)
+  shadow_conf    illumination.horizon_clip    cost ~ perception UNreliability in local-horizon shadow
+                                             (a shadowed cell is drivable but low-confidence to map)
   energy         ipex_specs grade power       cost ~ grade-dependent drive energy
   keepout        operator keep-out mask       impassable (operator no-go)
   reservation    fleet reservation mask       impassable (another vehicle holds the cell)
+
+The 12 PRD-named AS-11 layers map to these with three named synonyms: "dynamic rocks" IS
+negative_obstacle (the drop-off / rock-rim hazard), sinkage is its own Bekker layer here (NOT folded
+into slip), and shadow_confidence is its own perception-reliability layer (NOT folded into
+illumination/psr). Nothing is faked: every layer reads a real source.
 
 `compose` returns the summed cost, the passable mask, and a reason grid (the first blocking layer per
 cell). NOT synthetic: costs derive from a real DEM + the sourced models.
@@ -26,7 +35,8 @@ import numpy as np
 
 from dart import illumination as illum
 from lode.planner_routing import negative_obstacle_mask, slope_deg_map
-from stewie.physics import stability
+from stewie.physics import stability, terramechanics
+from stewie.specs import constants as K
 from stewie.specs import ipex_specs
 
 
@@ -42,6 +52,9 @@ class CostmapContext:
     gauge_m: float = 0.3645
     wheelbase_m: float = 0.30
     cg_height_m: float = 0.21
+    payload_kg: float = 0.0                 # drum payload -> per-wheel normal load for the sinkage layer
+    max_sinkage_m: float = 0.10             # burial cap: sinkage past this is impassable (~2/3 wheel r)
+    sinkage_k_phi: "float | None" = None    # Bekker frictional modulus override (softer soil = smaller)
     keepout_mask: "np.ndarray | None" = None
     reserved_mask: "np.ndarray | None" = None
 
@@ -61,6 +74,21 @@ def _roughness(ctx):
     var = uniform_filter(s * s, size=3, mode="nearest") - mean * mean
     rough = np.sqrt(np.maximum(var, 0.0))
     return rough / 10.0, np.zeros_like(s, bool), "roughness"
+
+
+def _sinkage(ctx):
+    # Bekker static wheel sinkage under the rover's per-wheel normal load. Denser (compacted) ground
+    # bears better and sinks less; loose/soft ground sinks more -> higher motion resistance. Density
+    # rises with slope-driven compaction is not modelled per cell, so the layer varies with the soil
+    # bearing modulus (sinkage_k_phi) and the wheel load, not with slope. Sinkage past max_sinkage_m is
+    # a burial hazard (impassable). Cost = sinkage normalized by the cap (deeper burial costs more).
+    load = terramechanics.static_wheel_load_n(ctx.payload_kg, g=K.g)
+    k_phi = terramechanics.K.K_PHI if ctx.sinkage_k_phi is None else float(ctx.sinkage_k_phi)
+    z = terramechanics.wheel_static_sinkage(load, k_phi=k_phi)
+    grid = np.full(ctx.Z.shape, z, float)
+    cost = grid / max(ctx.max_sinkage_m, 1e-6)
+    impass = grid > ctx.max_sinkage_m
+    return cost, impass, "sinkage"
 
 
 def _slip(ctx):
@@ -97,6 +125,16 @@ def _psr(ctx):
     return np.zeros(ctx.Z.shape), impass, "psr"
 
 
+def _shadow_confidence(ctx):
+    # Perception reliability, NOT a hard block: a cell in local-horizon cast shadow is still drivable
+    # but is low-confidence to map/localize in (weak texture, no direct light). psr owns the cold-trap
+    # BLOCK; this layer adds a traversal cost to shadowed-but-passable ground so a route prefers lit
+    # terrain when it can. lit = sees the sun (horizon_clip); shadowed cells pay a flat confidence cost.
+    lit = illum.horizon_clip(ctx.Z, ctx.cell_m, sun_az_deg=ctx.sun_az_deg, sun_el_deg=ctx.sun_el_deg)
+    cost = np.where(np.asarray(lit, bool), 0.0, 1.0)
+    return cost, np.zeros(ctx.Z.shape, bool), "shadow_confidence"
+
+
 def _energy(ctx):
     s = slope_deg_map(ctx.Z, ctx.cell_m)
     # per-cell grade-dependent lunar drive power (sourced ipex_specs), normalized to a cost multiplier
@@ -119,8 +157,8 @@ def _reservation(ctx):
 
 
 # ordered: the first impassable layer (in this order) is the visible reason for a blocked cell
-LAYERS = (_slope, _roughness, _slip, _tip_risk, _negative_obstacle, _illumination, _psr,
-          _energy, _keepout, _reservation)
+LAYERS = (_slope, _roughness, _sinkage, _slip, _tip_risk, _negative_obstacle, _illumination, _psr,
+          _shadow_confidence, _energy, _keepout, _reservation)
 LAYER_NAMES = tuple(fn(CostmapContext(np.zeros((2, 2))))[2] for fn in LAYERS)
 
 

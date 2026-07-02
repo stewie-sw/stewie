@@ -20,9 +20,15 @@ def _ramp(angle_deg, n=24, cell_m=0.1):
 
 
 def test_layer_names_cover_the_prd_set():
-    for name in ("slope", "roughness", "slip", "tip_risk", "negative_obstacle",
-                 "illumination", "psr", "energy", "keepout", "reservation"):
-        assert name in cl.LAYER_NAMES
+    # Every one of the 12 PRD-named AS-11 layers is a distinct, composable layer. Three carry a
+    # controlled synonym so the physical quantity keeps its own name: negative_obstacle IS the
+    # "dynamic rocks" drop-off layer; sinkage is the Bekker burial layer (distinct from slip);
+    # shadow_confidence is the perception-reliability layer (distinct from illumination and psr).
+    prd = ("slope", "roughness", "sinkage", "slip", "tip_risk", "illumination", "psr",
+           "shadow_confidence", "energy", "keepout", "reservation", "negative_obstacle")
+    for name in prd:
+        assert name in cl.LAYER_NAMES, name
+    assert len(cl.LAYER_NAMES) == len(set(cl.LAYER_NAMES))   # each layer is named once
 
 
 def test_slope_layer_rejects_steep_cells_with_reason():
@@ -64,6 +70,36 @@ def test_keepout_and_reservation_block_with_reason():
     out = cl.compose(ctx)
     assert cl.blocking_reason(out, (5, 5)) == "keepout"
     assert cl.blocking_reason(out, (8, 8)) == "reservation"
+
+
+def test_sinkage_layer_costs_soft_ground_and_blocks_burial_with_reason():
+    # A near-flat, low-cohesion plane: no slope/tip block, but the Bekker wheel sinkage is a real
+    # per-cell cost. Isolate the layer so the reason is unambiguously sinkage.
+    z = np.zeros((16, 16))
+    ctx = cl.CostmapContext(Z=z, cell_m=0.5, sun_el_deg=80.0)
+    out = cl.compose(ctx, layers=[cl._sinkage])
+    assert out.per_layer_cost["sinkage"] > 0.0            # soft ground costs to cross
+    # Force a burial block: a bearing-modulus low enough that the wheel sinks past the cap.
+    ctx_soft = cl.CostmapContext(Z=z, cell_m=0.5, sun_el_deg=80.0, sinkage_k_phi=2.0e3,
+                                 max_sinkage_m=0.01)
+    blocked = cl.compose(ctx_soft, layers=[cl._sinkage])
+    assert blocked.per_layer_block["sinkage"] > 0
+    assert "sinkage" in blocked.reason[~blocked.passable].tolist()
+
+
+def test_shadow_confidence_layer_costs_shadowed_perception_with_reason():
+    # A ridge casts a real local-horizon shadow at a low sun; the shadowed cells are perceivable but
+    # low-confidence -> a cost, not a hard block (psr owns the cold-trap block). Isolate the layer.
+    z = np.zeros((32, 32))
+    z[:, 16] = 4.0                                        # a wall the low sun throws a shadow behind
+    ctx = cl.CostmapContext(Z=z, cell_m=0.5, sun_az_deg=90.0, sun_el_deg=6.0)
+    out = cl.compose(ctx, layers=[cl._shadow_confidence])
+    assert out.per_layer_cost["shadow_confidence"] > 0.0  # shadowed perception costs
+    assert float(out.cost.max()) > 1.0                    # some cell is penalised above base
+    # a fully-lit high-sun plane pays no shadow-confidence cost
+    lit = cl.compose(cl.CostmapContext(Z=np.zeros((16, 16)), cell_m=0.5, sun_el_deg=85.0),
+                     layers=[cl._shadow_confidence])
+    assert lit.per_layer_cost["shadow_confidence"] == 0.0
 
 
 def test_cost_layers_raise_cost_on_rough_sloped_terrain():
