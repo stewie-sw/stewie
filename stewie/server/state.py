@@ -73,15 +73,14 @@ def current_terrain_view(site, dem, origin):
         as_built_z, as_built_version = None, 0
     observed_heights = observed_mask = None
     twin_version = 0
-    try:                                                 # layer 2 (#280): observed twin, where measured
-        if site == "haworth":                            # the single global observed/perception twin is Haworth's
-            tw = twin()
-            import numpy as _np
-            if tuple(tw.base.shape) == tuple(_np.asarray(z).shape):   # same tile grid -> 1:1, no resample
-                m = tw.observed_mask()
-                if m.any():
-                    observed_heights, observed_mask = tw.current(), m
-                    twin_version = int(getattr(tw, "version", 0))
+    try:                                                 # layer 2 (#280 / DT-04): the observed twin for THIS
+        tw = twin(site)                                  # site (per-(site,source) keyed; was hard-coded to haworth)
+        import numpy as _np
+        if tuple(tw.base.shape) == tuple(_np.asarray(z).shape):   # same tile grid -> 1:1, no resample
+            m = tw.observed_mask()
+            if m.any():
+                observed_heights, observed_mask = tw.current(), m
+                twin_version = int(getattr(tw, "version", 0))
     except Exception as e:   # noqa: BLE001 -- the observed overlay is an enhancement; never fail a plan
         log.warning("observed-twin overlay skipped for site %r: %s", site, e)
         observed_heights = observed_mask = None
@@ -103,32 +102,67 @@ def as_built_dem(site, dem, origin):
     return (view.heights, view.cell_m)
 
 
-# ---- the lazy, durable digital twin (RC-02 / W-1) --------------------------------------------
+# ---- the lazy, durable digital twin (RC-02 / W-1 / DT-04) ------------------------------------
+#: DT-04: the observed twin is keyed by (site, depth-source profile). The DEFAULT key -- (haworth,
+#: DEFAULT_TWIN_SOURCE) -- keeps its own module global + journal filename ("haworth.journal") so the
+#: existing durable journal and the test fixtures that reset ``_TWIN`` are untouched; every OTHER
+#: (site, source) lives in ``_TWINS`` with its own ``<site>[__<source>].journal``. So an imported site
+#: or a non-default depth source each carries an INDEPENDENT observed twin instead of overwriting Haworth.
+DEFAULT_TWIN_SITE = "haworth"
+DEFAULT_TWIN_SOURCE = "stereo_sgbm"
 _TWIN: "TwinStore | None" = None
-_TWIN_LOCK = threading.Lock()   # RC-02: serialize the lazy cold-restore
+_TWIN_LOCK = threading.Lock()   # RC-02: serialize the lazy cold-restore of the DEFAULT twin
+_TWINS: "dict[tuple[str, str], TwinStore]" = {}   # DT-04: the per-(site, source) non-default twins
+_TWINS_LOCK = threading.Lock()
 
 
-def twin() -> "TwinStore":
-    """Lazy twin over the Haworth observed map (the planner's site); base = the loaded DEM. W-1
-    (PRD 6.2): the server twin is DURABLE -- cold restore from the journal, then journal on."""
-    global _TWIN
+def _safe_site(site: str) -> str:
+    """Sanitize a site name into a stable journal-filename stem (the same normalization idea the
+    TerrainMemory .npz path uses: lowercase, trim, non-alnum -> '_'), so two spellings of one site do
+    not fork its journal and a name can never escape the twin dir."""
+    import re
+    return re.sub(r"[^a-z0-9]+", "_", str(site).strip().lower()).strip("_") or "site"
+
+
+def _build_twin(site: str, source: str):
+    """Cold-restore (or create) the durable observed twin for (site, source): base = that site's loaded
+    DEM (REG-01: moon_dem takes a site), journal = the per-(site, source) file. DURABLE -- restore from
+    the journal, then journal on (W-1)."""
+    from stewie.specs import config as _CFG
     from stewie.twin import versioned as VT
-    if _TWIN is not None:                                 # fast path (no lock once built)
+    import numpy as _np
+    dem, _anchor = moon_dem(site)
+    base = dem[0] if isinstance(dem, tuple) else dem
+    if base is None:
+        base = _np.zeros((64, 64))                        # degraded mode mirrors moon_dem's fallback
+    _jdir = os.path.join(_CFG.data_dir(), "twin")
+    os.makedirs(_jdir, exist_ok=True)
+    stem = _safe_site(site) if source == DEFAULT_TWIN_SOURCE else f"{_safe_site(site)}__{_safe_site(source)}"
+    _jp = os.path.join(_jdir, f"{stem}.journal")
+    return VT.TwinStore.from_journal(_np.asarray(base, dtype=float), cell_m=5.0, journal_path=_jp)
+
+
+def twin(site: str = DEFAULT_TWIN_SITE, source: str = DEFAULT_TWIN_SOURCE) -> "TwinStore":
+    """[REQ:DT-04] Lazy, DURABLE observed twin for ``(site, source)`` -- each keyed independently, so an
+    imported site or a non-default depth source accumulates + reloads its OWN observed surface without
+    overwriting Haworth's. The default key ((haworth, stereo_sgbm)) keeps the original ``_TWIN`` global +
+    ``haworth.journal`` (backward-compatible); every other key lives in ``_TWINS``."""
+    global _TWIN
+    if site == DEFAULT_TWIN_SITE and source == DEFAULT_TWIN_SOURCE:
+        if _TWIN is not None:                            # fast path (no lock once built)
+            return _TWIN
+        with _TWIN_LOCK:                                 # RC-02: only ONE thread runs from_journal
+            if _TWIN is None:
+                _TWIN = _build_twin(DEFAULT_TWIN_SITE, DEFAULT_TWIN_SOURCE)
         return _TWIN
-    with _TWIN_LOCK:                                      # RC-02: only ONE thread runs from_journal
-        if _TWIN is None:
-            dem, _anchor = moon_dem()
-            base = dem[0] if isinstance(dem, tuple) else dem
-            import numpy as _np
-            if base is None:
-                base = _np.zeros((64, 64))              # degraded mode mirrors moon_dem's fallback
-            from stewie.specs import config as _CFG
-            _jdir = os.path.join(_CFG.data_dir(), "twin")
-            os.makedirs(_jdir, exist_ok=True)
-            _jp = os.path.join(_jdir, "haworth.journal")
-            _TWIN = VT.TwinStore.from_journal(_np.asarray(base, dtype=float), cell_m=5.0,
-                                              journal_path=_jp)
-    return _TWIN
+    key = (_safe_site(site), _safe_site(source))
+    tw = _TWINS.get(key)
+    if tw is not None:
+        return tw
+    with _TWINS_LOCK:
+        if key not in _TWINS:
+            _TWINS[key] = _build_twin(site, source)
+        return _TWINS[key]
 
 
 # ---- the lazy, durable world-state authority (gap A1 / DT-01 runtime path) --------------------

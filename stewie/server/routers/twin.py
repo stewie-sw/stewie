@@ -73,6 +73,7 @@ class ResyncRequest(BaseModel):
     origin_rc: tuple[int, int]   # #299: a (row, col) PAIR -- validate at the contour so a 1-elem/non-int
     #                              origin is a 400 (was an uncaught IndexError -> 500 inside apply_patch)
     provenance: str
+    site: str = "haworth"        # DT-04: which site's observed twin this resync patches (default haworth)
 
 
 @router.post("/twin/resync")
@@ -84,10 +85,11 @@ def twin_resync(req: ResyncRequest, identity: str = Depends(require_role("operat
     import numpy as _np
 
     from stewie.server.world_state import compensating
+    tw = state.twin(req.site)                 # DT-04: patch THIS site's observed twin (was hard-coded haworth)
     with _RESYNC_LOCK:                        # DT-03: apply_patch..commit..compensate is one critical section
         try:
-            v = state.twin().apply_patch(_np.array(req.heights_m, dtype=float),
-                                         origin_rc=tuple(req.origin_rc), provenance=req.provenance)
+            v = tw.apply_patch(_np.array(req.heights_m, dtype=float),
+                               origin_rc=tuple(req.origin_rc), provenance=req.provenance)
         except ValueError as e:
             return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
         # gap A1 / DT-01 / DT-03: a resync MUTATES the observed twin -> commit one linked world-state
@@ -97,9 +99,9 @@ def twin_resync(req: ResyncRequest, identity: str = Depends(require_role("operat
         # the twin can never run ahead of /world/transaction, then surface the failure (no more best-effort
         # swallow that left the store ahead).
         try:
-            with compensating(state.twin().undo, what="twin.resync"):
+            with compensating(tw.undo, what="twin.resync"):
                 state.world_state_service().record_resync(provenance=f"twin.resync: {req.provenance}",
-                                                          site="haworth")
+                                                          site=req.site)
         except Exception as e:   # noqa: BLE001 -- surfaced honestly AFTER the compensating rollback
             log.warning("twin.resync rolled back (world-state commit failed): %s", e)
             return JSONResponse(status_code=500, content={
