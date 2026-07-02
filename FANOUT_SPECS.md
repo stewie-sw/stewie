@@ -704,3 +704,14 @@ is named per row.
 - acceptance: a Playwright check asserts scrollWidth <= innerWidth at 390 px; wide content scrolls in its own container.
 - files: stewie/server/web/program.html, stewie/server/web/assets/program_board.js
 - test_target: NEW stewie/server/test_program_mobile.py citing [REQ:FS-26] (or a node/Playwright check)
+
+### FS-27 (P0) — atomic
+- goal: surface ROS/Gazebo/RViz run evidence (lifecycle nodes, /clock, /tf, /joint_states, bridge freshness, RViz status/screenshots, bag links, container profile, no-truth-input) in Validate/System/Report.
+- acceptance: with a ros2/gazebo profile selected, the panes show ROS/Gazebo/RViz status matching the profile and flag a mismatch.
+- files: stewie/server/index.html, stewie/server/web/assets/cockpit.js, stewie/server/routers/health.py
+- test_target: NEW stewie/server/test_ros_evidence_surface.py citing [REQ:FS-27]
+### FS-28 (P0) — atomic
+- goal: Release freezes+shows plan hash/runtime profile/namespace/sensor profile/AG-08 eligibility/SF-01 watchdog/sign-off; Execute shows bounded next command + acks/watchdog/link-ack/covariance/map-freshness/SAFE controls + refusal reason.
+- acceptance: a released revision shows every field; an ineligible command is refused with its reason surfaced.
+- files: stewie/server/web/assets/cockpit.js, stewie/server/index.html, stewie/server/routers/executive.py, stewie/server/routers/rc.py
+- test_target: NEW stewie/server/test_release_execute_evidence.py citing [REQ:FS-28]
