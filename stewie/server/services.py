@@ -270,6 +270,105 @@ def latency_snapshot() -> dict:
     return out
 
 
+# ---- FS-10: resource budgets beyond latency ------------------------------------------------------
+# The latency block above covers ONE budget class (per-route wall-clock). FS-10 also names memory,
+# CPU/GPU, bandwidth, tile/cache, and model-inference budgets across the map-render / planning /
+# fleet-solve / navigation-estimation / cockpit-mobile subsystems. Each class DECLARES an engineering
+# budget + unit + the subsystem it governs; a bounded ring buffer records REAL observed measurements
+# (the same recorded-sample accounting as latency, not a synthetic distribution); resource_budget_snapshot()
+# reports p95/max per class and flags a class whose p95 is over budget. Some sources are live on this host
+# (process RSS, CPU time, response bytes -- recorded from the OS/middleware); GPU frame-time and
+# model-inference latency have no live source here (no GPU traffic, no deployed model), so their budget is
+# DECLARED and the accounting is exercised by recorded samples -- the class is defined, its live producer named.
+_RES_WINDOW = 256
+
+
+class _ResBudget:
+    __slots__ = ("cls", "subsystem", "budget", "unit", "live_source")
+
+    def __init__(self, cls: str, subsystem: str, budget: float, unit: str, live_source: str) -> None:
+        self.cls = cls
+        self.subsystem = subsystem
+        self.budget = float(budget)
+        self.unit = unit
+        self.live_source = live_source
+
+
+# class -> (subsystem it governs, declared budget, unit, where the live measurement comes from)
+_RESOURCE_BUDGETS: dict[str, _ResBudget] = {
+    "memory":          _ResBudget("memory", "navigation_estimation", 2048.0, "MB", "process RSS (resource.getrusage)"),
+    "cpu":             _ResBudget("cpu", "fleet_solve", 60.0, "cpu_seconds", "process CPU time (resource.getrusage)"),
+    "gpu":             _ResBudget("gpu", "map_render", 33.0, "ms_per_frame", "gated: needs a GPU render host (no live source here)"),
+    "bandwidth":       _ResBudget("bandwidth", "cockpit_mobile", 512.0, "KB_per_response", "HTTP response bytes (server middleware)"),
+    "tile_cache":      _ResBudget("tile_cache", "map_render", 4096.0, "KB_per_tile", "globe/tile cache byte size (map_layers)"),
+    "model_inference": _ResBudget("model_inference", "plan", 50.0, "ms", "gated: no learned model deployed (ML-01/FS-12)"),
+}
+_RES_SAMPLES: dict[str, "deque[float]"] = {}
+_LAST_CPU_S: float = 0.0
+
+
+def resource_budget_classes() -> dict:
+    """The declared FS-10 resource budgets (class -> subsystem/budget/unit/live-source), independent of
+    any recorded samples. The cockpit/System pane reads this so the budget contract is visible even before
+    a class has recorded a measurement."""
+    return {k: {"subsystem": b.subsystem, "budget": b.budget, "unit": b.unit, "live_source": b.live_source}
+            for k, b in _RESOURCE_BUDGETS.items()}
+
+
+def record_resource(resource_class: str, value: float) -> None:
+    """Record one REAL observed measurement (in the class's declared unit) into that class's bounded
+    recent-sample window. Unknown classes are ignored (the registry is the finite, declared set)."""
+    if resource_class not in _RESOURCE_BUDGETS:
+        return
+    with _METRICS_LOCK:
+        buf = _RES_SAMPLES.get(resource_class)
+        if buf is None:
+            buf = deque(maxlen=_RES_WINDOW)
+            _RES_SAMPLES[resource_class] = buf
+        buf.append(float(value))
+
+
+def sample_process_resources() -> None:
+    """Record the process's REAL current memory (peak RSS) and CPU-time into the memory/cpu budgets.
+    Uses the stdlib ``resource`` module (no psutil dependency); ru_maxrss is KB on Linux, bytes on macOS.
+    Called on each /metrics read so the memory/cpu budget classes carry live OS measurements, not
+    injected values. A no-op where ``resource`` is unavailable (Windows)."""
+    global _LAST_CPU_S
+    try:
+        import resource as _res
+    except ImportError:                                    # pragma: no cover -- non-POSIX
+        return
+    import sys
+    ru = _res.getrusage(_res.RUSAGE_SELF)
+    maxrss = float(ru.ru_maxrss)
+    rss_mb = maxrss / (1024.0 * 1024.0) if sys.platform == "darwin" else maxrss / 1024.0
+    record_resource("memory", rss_mb)
+    cpu_s = float(ru.ru_utime + ru.ru_stime)
+    record_resource("cpu", cpu_s)
+    _LAST_CPU_S = cpu_s
+
+
+def resource_budget_snapshot() -> dict:
+    """Per-class resource-budget summary from the recent-sample window: count, p95, max, the declared
+    budget/unit/subsystem, and an over_budget flag (p95 over budget). Classes with no recorded sample
+    yet report count=0 with their declared budget so the contract is still visible. A consistent copy
+    under the metrics lock."""
+    with _METRICS_LOCK:
+        samples = {k: list(v) for k, v in _RES_SAMPLES.items()}
+    out: dict[str, dict] = {}
+    for cls, b in _RESOURCE_BUDGETS.items():
+        s = sorted(samples.get(cls, []))
+        row = {"subsystem": b.subsystem, "budget": b.budget, "unit": b.unit,
+               "live_source": b.live_source, "count": len(s)}
+        if s:
+            p95 = _pct(s, 0.95)
+            row.update({"p95": round(p95, 1), "max": round(s[-1], 1), "over_budget": p95 > b.budget})
+        else:
+            row.update({"p95": None, "max": None, "over_budget": False})
+        out[cls] = row
+    return out
+
+
 def uptime_s() -> float:
     """Seconds since the server process started (1 decimal)."""
     return round(time.monotonic() - _START, 1)

@@ -10,7 +10,9 @@ from stewie.server.services import (
     audit_health,
     latency_snapshot,
     metrics_snapshot,
+    resource_budget_snapshot,
     revocation_health,
+    sample_process_resources,
     uptime_s,
 )
 
@@ -38,5 +40,9 @@ def healthz():
 
 @router.get("/metrics")
 def metrics(_auth: str = Depends(require_auth)):
-    # FS-10: the latency block reports p50/p95/max per route against its budget (over_budget flagged).
-    return {"uptime_s": uptime_s(), **metrics_snapshot(), "latency": latency_snapshot()}
+    # FS-10: the latency block reports p50/p95/max per route against its budget (over_budget flagged);
+    # the budgets block extends that accounting to memory/cpu/gpu/bandwidth/tile-cache/model-inference.
+    # sample_process_resources() records the process's REAL current RSS + CPU time before the snapshot.
+    sample_process_resources()
+    return {"uptime_s": uptime_s(), **metrics_snapshot(), "latency": latency_snapshot(),
+            "budgets": resource_budget_snapshot()}

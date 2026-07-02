@@ -66,3 +66,72 @@ def test_metrics_route_returns_a_latency_block(monkeypatch, tmp_path):
     assert "latency" in m, "/metrics does not surface the FS-10 latency budgets"
     # the real /healthz request we just made must be tracked with a budget
     assert any("budget_ms" in v for v in m["latency"].values())
+
+
+# --- FS-10: budget classes BEYOND latency -------------------------------------------------------
+_EXPECTED_CLASSES = {"memory", "cpu", "gpu", "bandwidth", "tile_cache", "model_inference"}
+_EXPECTED_SUBSYSTEMS = {"map_render", "plan", "fleet_solve", "navigation_estimation", "cockpit_mobile"}
+
+
+def test_every_resource_class_declares_a_budget_subsystem_and_unit(svc):  # [REQ:FS-10]
+    classes = svc.resource_budget_classes()
+    assert _EXPECTED_CLASSES <= set(classes), \
+        f"FS-10 named classes missing: {_EXPECTED_CLASSES - set(classes)}"
+    for cls, b in classes.items():
+        assert b["budget"] > 0, f"{cls}: budget not declared (>0)"
+        assert b["unit"], f"{cls}: no unit declared"
+        assert b["subsystem"], f"{cls}: not mapped to a subsystem"
+        assert b["live_source"], f"{cls}: live measurement source not named"
+    # the declared classes span the FS-10 subsystems (map render / planning / fleet / nav / mobile)
+    subs = {b["subsystem"] for b in classes.values()}
+    assert _EXPECTED_SUBSYSTEMS <= subs, f"unmapped FS-10 subsystems: {_EXPECTED_SUBSYSTEMS - subs}"
+
+
+def test_memory_and_cpu_classes_carry_REAL_process_measurements(svc):  # [REQ:FS-10]
+    # no synthetic value: the memory/cpu samples come straight from the OS via resource.getrusage.
+    svc.sample_process_resources()
+    snap = svc.resource_budget_snapshot()
+    mem = snap["memory"]
+    assert mem["count"] >= 1 and mem["max"] is not None and mem["max"] > 0, \
+        "memory budget did not record a real process RSS sample"
+    assert mem["unit"] == "MB" and mem["subsystem"] == "navigation_estimation"
+    cpu = snap["cpu"]
+    assert cpu["count"] >= 1 and cpu["max"] is not None and cpu["max"] >= 0, \
+        "cpu budget did not record a real process CPU-time sample"
+
+
+def test_over_budget_flag_per_class_from_recorded_samples(svc):  # [REQ:FS-10]
+    # feed a recorded measurement above/below each class's declared budget -> the accounting flags it,
+    # exactly like the latency aggregator (the aggregation logic is what's under test, per class).
+    for cls, b in svc.resource_budget_classes().items():
+        svc.record_resource(cls, b["budget"] + 10.0)       # one clear over-budget measurement
+        row = svc.resource_budget_snapshot()[cls]
+        assert row["over_budget"] is True and row["budget"] == b["budget"], (cls, row)
+    # a fresh reload -> an under-budget bandwidth sample is NOT flagged
+    importlib.reload(svc)
+    svc.record_resource("bandwidth", 1.0)                   # 1 KB, well under the 512 KB budget
+    assert svc.resource_budget_snapshot()["bandwidth"]["over_budget"] is False
+
+
+def test_gated_classes_are_declared_but_name_their_missing_live_source(svc):  # [REQ:FS-10]
+    # GPU frame-time + model-inference have no live producer on this host: the budget is DECLARED and the
+    # gap is NAMED honestly (no fabricated GPU/model traffic), and the class reports count=0 until fed.
+    classes = svc.resource_budget_classes()
+    assert "gated" in classes["gpu"]["live_source"].lower()
+    assert "gated" in classes["model_inference"]["live_source"].lower()
+    snap = svc.resource_budget_snapshot()
+    assert snap["gpu"]["count"] == 0 and snap["gpu"]["over_budget"] is False
+
+
+def test_metrics_route_surfaces_the_budgets_block(monkeypatch, tmp_path):  # [REQ:FS-10]
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STEWIE_DEV_OPEN", "1")
+    from fastapi.testclient import TestClient
+    import stewie.server.server as SRV
+    importlib.reload(SRV)
+    c = TestClient(SRV.app)
+    m = c.get("/metrics").json()
+    assert "budgets" in m, "/metrics does not surface the FS-10 resource budgets"
+    assert _EXPECTED_CLASSES <= set(m["budgets"]), "budgets block missing FS-10 classes"
+    # the /metrics read triggered a real process-resource sample -> memory is populated from live RSS
+    assert m["budgets"]["memory"]["count"] >= 1 and m["budgets"]["memory"]["max"] > 0

@@ -232,6 +232,12 @@ async def _access_log(request: Request, call_next):
     sk = str(response.status_code)
     record_request(sk, route_key)                        # RC-04: atomic counter update (server.services)
     record_latency(route_key, dt)                        # FS-10: per-route latency budget tracking
+    try:                                                 # FS-10: real per-response bandwidth (KB) budget sample
+        clen_out = int(response.headers.get("content-length") or 0)
+        if clen_out > 0:
+            record_resource("bandwidth", clen_out / 1024.0)
+    except (ValueError, TypeError):
+        pass
     budget = budget_for(route_key)
     if dt > budget:                                      # FS-10: a real breach surfaces in the logs, not just /metrics
         log.warning("perf budget exceeded: %s %.1fms > %.0fms budget", route_key, dt, budget)
@@ -287,6 +293,7 @@ from stewie.server.services import (  # noqa: E402
     prune_reports as _prune_reports,
     record_latency,
     record_request,
+    record_resource,
     set_correlation_id as _set_correlation_id,
 )
 
