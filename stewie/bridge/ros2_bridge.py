@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 
+from stewie.bridge import diagnostics_ledger as DL
 from stewie.bridge import frames as FR
 from stewie.bridge import rc_contract as RC
 
@@ -159,6 +160,53 @@ def bridge_session_events(commands, *, vehicle_id: str = "ipex"):
             events.append(ExecutionEvent(t_s=float(i), vehicle_id=vehicle_id, kind="command",
                                          detail=f"cmd_vel -> {type(c).__name__}", outcome="ok"))
     return events
+
+
+_SAFE_EVENT_REASON = {
+    RC.SAFE_REASON_OPERATOR: "operator_stop",
+    RC.SAFE_REASON_WATCHDOG: "watchdog_stall",
+    RC.SAFE_REASON_HAZARD: "hazard_stop",
+    RC.SAFE_REASON_LINK_STALL: "link_stall",
+}
+
+
+def emit_bridge_diagnostics(commands, *, correlation_id, extra=(), sink=None):
+    """[REQ:AS-14] Emit the ROS2 bridge node's diagnostics INTO the STEWIE observability ledger.
+
+    This is the rclpy-free emission seam the live node calls (the live rclpy trigger is the gated leg):
+    it turns the bridge's real command stream + the node's health/latency/command-eligibility diagnostics
+    into ``diagnostics_ledger`` events (each carrying a severity + the FS-19 ``correlation_id``) and
+    forwards each through ``sink`` (default ``services.log_event``, the durable audit ledger). Because
+    ``diagnostics_ledger.ledger_event`` redacts BOTH secrets AND eval-only truth-denied fields before the
+    record is built, no credential and no truth channel can ever reach the ledger even if a caller passes
+    one. Each ``Safe`` in the command log becomes a critical ``safe_event`` carrying its TRUE reason (never
+    dropped/relabeled); every other command a ``command`` diagnostic. ``extra`` is an iterable of
+    ``(event, fields)`` for the node's own diagnostics (lifecycle/latency/qos/command_ineligible/health).
+    Returns the number of ledger events emitted. A ``sink`` failure never propagates -- a telemetry-mirror
+    outage must not disrupt control (mirrors ``services.log_event``'s own never-raise contract).
+    """
+    if sink is None:
+        from stewie.server.services import log_event as sink   # the durable observability ledger sink
+    events = []
+    for c in commands:
+        if type(c).__name__ == "Safe":
+            reason = getattr(c, "reason", None)
+            events.append(("safe_event",
+                           {"reason": reason, "reason_name": _SAFE_EVENT_REASON.get(reason, "safe")}))
+        else:
+            events.append(("command", {"kind": type(c).__name__}))
+    events.extend((str(ev), dict(fields)) for ev, fields in extra)
+
+    n = 0
+    for ev, fields in events:
+        rec = DL.ledger_event("ros2_bridge", ev, correlation_id=correlation_id, **fields)
+        try:
+            sink("ros2_bridge", ev, severity=rec["severity"],
+                 correlation_id=rec["correlation_id"], fields=rec["fields"])
+        except Exception:   # noqa: BLE001 -- a diagnostics-mirror outage must never disrupt control
+            continue
+        n += 1
+    return n
 
 
 class RcBridge:

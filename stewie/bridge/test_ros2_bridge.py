@@ -7,6 +7,7 @@ optional, the codebase's gated-dependency pattern); the live node is gated on a 
 Run: <venv>/bin/python -m pytest stewie/bridge/test_ros2_bridge.py -q
 """
 import math
+import os
 
 import pytest
 
@@ -199,3 +200,83 @@ def test_ros_odom_ingest_body_clamps_and_drops_nonfinite():
     body = B.ros_odom_ingest_body(x_m=0.0, y_m=0.0, slip=2.0, soc=float("nan"))
     assert body["slip"] == 1.0          # slip clamped into [0, 1]
     assert "soc" not in body            # a non-finite soc is dropped, never posted
+
+
+# ---- AS-14: the ROS node emits its diagnostics INTO the durable observability ledger ------------
+
+def test_diagnostics_ledger_processes_ros_diagnostics_without_secrets(monkeypatch, tmp_path):
+    """[REQ:AS-14] Every ROS node emits its diagnostics -- lifecycle/health/latency/command-eligibility/
+    SAFE events -- into the STEWIE observability ledger, each carrying its severity + the FS-19
+    correlation id, and NEVER logging a secret or a truth-denied (eval-only) field.
+
+    This exercises the host-side emission seam without rclpy (rclpy is the gated live-node trigger): the
+    bridge's real command stream (a motion GoTo + an SF-01 watchdog SAFE) plus a command-ineligibility
+    and a latency-breach diagnostic are emitted through `emit_bridge_diagnostics` into the ACTUAL durable
+    ledger (services.log_event -> events.jsonl), then the ledger file is read back and asserted:
+      * every diagnostic class lands one ledger line carrying its correlation id + a severity,
+      * the SF-01 watchdog SAFE is recorded as a critical `safe_event` with its true reason,
+      * a secret field (api_key) is redacted and an eval-only truth field (true_pose / rover) is
+        truth-denied -- neither value ever reaches the durable ledger on disk.
+    """
+    import importlib
+    import json
+
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    from stewie.server import services as SVC
+    importlib.reload(SVC)                                     # bind log_event to the scratch data dir
+
+    # a real bridge command stream: a motion command, then the watchdog trips and safes the rover
+    be = RC.RecordingBackend()
+    wd = RC.SafingWatchdog(be, deadline_s=5.0)
+    bridge = B.RcBridge(wd)
+    bridge.on_cmd_vel(0.3, 0.0, now=0.0)                      # a real GoTo forwarded through SF-01
+    assert bridge.tick(now=10.0) is True                     # stalled past 5 s -> real SF-01 SAFE(WATCHDOG)
+
+    cid = "cid-as14"
+    # the extra diagnostics the live node also emits, carrying a secret + truth-denied field that MUST
+    # never reach the ledger, plus legitimate latency/eligibility diagnostics that must pass through:
+    extra = [
+        ("command_ineligible", {"reason": "stale_link", "api_key": "SK-LIVE-9", "ack_age_s": 3.1}),
+        ("latency_breach", {"latency_ms": 812.0, "budget_ms": 200.0}),
+        ("fault", {"detail": "estimator diverged", "true_pose": [1, 2, 3], "rover": {"x": 5.0}}),
+    ]
+    n = B.emit_bridge_diagnostics(be.commands, correlation_id=cid, extra=extra, sink=SVC.log_event)
+    assert n >= 1
+
+    lines = [json.loads(x) for x in open(os.path.join(str(tmp_path), "events.jsonl")).read().splitlines()]
+    assert lines, "the ROS diagnostics never reached the durable observability ledger"
+
+    # every emitted diagnostic carries the FS-19 correlation id (the whole story threads on one id)
+    diag = [r for r in lines if r.get("correlation_id") == cid]
+    assert diag, "no diagnostic carried the correlation id into the ledger"
+    for r in diag:
+        assert r.get("severity") in ("info", "warn", "error", "critical")
+
+    events = {r["action"] for r in diag}
+    # the SF-01 watchdog SAFE lands as a critical safe_event carrying its true reason (never dropped)
+    safe = [r for r in diag if r["action"] == "safe_event"]
+    assert safe and safe[0]["severity"] == "critical"
+    assert safe[0].get("reason") == RC.SAFE_REASON_WATCHDOG or safe[0].get("fields", {}).get("reason") == RC.SAFE_REASON_WATCHDOG
+    # the command-eligibility + latency diagnostics are present as their own ledger classes
+    assert "command_ineligible" in events and "latency_breach" in events and "fault" in events
+
+    # NO secret and NO truth-denied value ever reaches the durable ledger on disk
+    raw = open(os.path.join(str(tmp_path), "events.jsonl")).read()
+    assert "SK-LIVE-9" not in raw                              # the api_key value was redacted before the sink
+    assert "[redacted]" in raw
+    assert "[truth-denied]" in raw                             # the eval-only truth fields were denied
+    ineligible = next(r for r in diag if r["action"] == "command_ineligible")
+    assert _leaf(ineligible, "api_key") == "[redacted]"
+    assert _leaf(ineligible, "ack_age_s") == 3.1              # a legitimate diagnostic passes through
+    fault = next(r for r in diag if r["action"] == "fault")
+    assert _leaf(fault, "true_pose") == "[truth-denied]"
+    assert _leaf(fault, "rover") == "[truth-denied]"
+    assert _leaf(fault, "detail") == "estimator diverged"     # a legitimate diagnostic passes through
+
+
+def _leaf(record: dict, name: str):
+    """Fetch a field value from a ledger record whether it sits at the top level or nested under
+    `fields` (the ledger_event shape)."""
+    if name in record:
+        return record[name]
+    return record.get("fields", {}).get(name)
