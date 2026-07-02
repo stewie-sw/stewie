@@ -28,6 +28,8 @@ jobs:
           pip install -e . --no-deps
       - name: Requirements traceability (PRD 19.2 -- V=D must be test-cited)
         run: python scripts/req_trace.py
+      - name: Large-file / tracked-artifact policy (MT-01 -- a new large binary must be shrunk/externalized/allowlisted)
+        run: python scripts/check_tracked_artifacts.py
       - name: Power-of-10 profile on the conserved core (PRD 19.2; complexity<=10, bounded branching)
         run: ruff check --select C901,PLR0912,PLR0915 stewie/physics stewie/twin --config 'lint.mccabe.max-complexity=10'
       - name: Lint (ruff, pyflakes gate)

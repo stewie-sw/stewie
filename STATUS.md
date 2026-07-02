@@ -3,8 +3,8 @@
 Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/release_gate.py`) by `scripts/gen_status.py`. Do NOT hand-edit -- `gen_status.py --check` fails CI if this file drifts from the tools.
 
 - requirements (PRD §7 rows): **216**
-- cited by >=1 test ([REQ:] marker): **174**
-- V!=D flagged (FS-22 audit: cited but not yet V=D): **43**
+- cited by >=1 test ([REQ:] marker): **175**
+- V!=D flagged (FS-22 audit: cited but not yet V=D): **44**
 
 ## V!=D flagged rows (cited, awaiting promotion)
 
@@ -39,6 +39,7 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | ML-05 | P |
 | ML-06 | P |
 | ML-09 | P |
+| MT-01 | P |
 | PM-01 | P |
 | PM-03 | P |
 | PM-07 | P |
@@ -70,7 +71,7 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | GI | 3 | 3 |
 | ML | 9 | 9 |
 | MO | 1 | 1 |
-| MT | 0 | 5 |
+| MT | 1 | 5 |
 | NV | 12 | 12 |
 | PM | 11 | 19 |
 | PO | 14 | 15 |
