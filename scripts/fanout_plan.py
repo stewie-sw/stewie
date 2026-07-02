@@ -32,10 +32,17 @@ from collections import defaultdict
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _PRD = os.path.join(_ROOT, "PRD.md")
 
-# kept out of the fan-out ready-set. AS = the autonomy/ROS stack: container-buildable (Gazebo/ROS2) but
-# owned by the live AS-lane agent right now, so don't double-dispatch. AM = arms: data-gated on LAC/IPEx
-# geometry. (AS is NOT host-gated -- the container is the host; that earlier call was wrong.)
-CONCURRENT_FAMILIES = {"AS", "AM"}
+# kept out of the fan-out ready-set because a live agent owns them RIGHT NOW (avoid double-dispatch).
+# 2026-07-02: the AS flight-autonomy lane is COMMITTED + CLEAR (no live owner), so AS is no longer
+# concurrent -- it falls through to the normal buckets and is container-buildable (Gazebo/ROS2 via the
+# compose `ros2` profile; osrf/ros:jazzy-desktop / stewie-gazebo:jazzy are on this host). Empty until a
+# real concurrent agent reappears.
+CONCURRENT_FAMILIES: set[str] = set()
+
+# whole families gated on a resource STEWIE cannot self-provide, regardless of per-row glyph. AM = the
+# arm/MEERKAT rows: every one needs the non-public LAC/IPEx arm geometry, so gate the family uniformly
+# (AM-09 has Q=N yet is just as geometry-dependent -- a family gate catches it; a per-glyph gate would not).
+FAMILY_GATED = {"AM": "LAC/IPEx arm geometry"}
 
 # rows the PRD gates in prose rather than with the Q=G glyph, with the reason (curated, verified against
 # §0's gated frontier -- NOT substring-matched, which false-flags e.g. "cockpit" as "pit").
@@ -71,6 +78,8 @@ def classify(r: dict) -> tuple[str, str | None]:
         return "done", None
     if r["fam"] in CONCURRENT_FAMILIES:
         return "concurrent", None
+    if r["fam"] in FAMILY_GATED:
+        return "gated", FAMILY_GATED[r["fam"]]
     if r["id"] in PROSE_GATED:
         return "gated", PROSE_GATED[r["id"]]
     if r["Q"] == "G" or "G" in (r["I"], r["X"], r["V"]):
