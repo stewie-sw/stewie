@@ -8,15 +8,19 @@
 (function (root) {
   "use strict";
 
-  // shared auto-fit: world bounds over `pts` -> a pad-inset canvas transform {X, Y}. minSpan guards a
-  // degenerate (single-point) extent. Matches the inline `pad=26, s=min(...)` transform the plots used.
+  // shared auto-fit: world bounds over `pts` -> a canvas transform {X, Y} CENTERED on the data
+  // bounding box with ~10% padding. 2026-07-01 frontend-audit "live-data plots don't scale": the old
+  // transform anchored the min corner at pad with a 1e-6 minSpan, so a degenerate/near-degenerate
+  // traverse rendered as one dot pinned bottom-left. The default minimum world span is now 10 m
+  // (site-frame plots: drawTrajectory/drawDrive/drawReal); drawFix keeps its tight 0.5 m DEM rig.
   function _fit(cv, pts, pad, minSpan) {
-    pad = pad == null ? 26 : pad; minSpan = minSpan == null ? 1e-6 : minSpan;
+    pad = pad == null ? 26 : pad; minSpan = minSpan == null ? 10 : minSpan;
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
-    const s = Math.min((cv.width - 2 * pad) / Math.max(minSpan, maxx - minx),
-                       (cv.height - 2 * pad) / Math.max(minSpan, maxy - miny));
-    return { s: s, X: (x) => pad + (x - minx) * s, Y: (y) => cv.height - pad - (y - miny) * s };
+    const spanx = Math.max(minSpan, maxx - minx) * 1.1, spany = Math.max(minSpan, maxy - miny) * 1.1;
+    const s = Math.min((cv.width - 2 * pad) / spanx, (cv.height - 2 * pad) / spany);
+    const cx = (minx + maxx) / 2, cy = (miny + maxy) / 2;
+    return { s: s, X: (x) => cv.width / 2 + (x - cx) * s, Y: (y) => cv.height / 2 - (y - cy) * s };
   }
 
   // P1.4: the fused-estimate vs dead-reckoning trajectory (the /slam estimator surface).
