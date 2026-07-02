@@ -62,6 +62,10 @@
       "cited": 7,
       "total": 7
     },
+    "FR": {
+      "cited": 0,
+      "total": 15
+    },
     "FS": {
       "cited": 27,
       "total": 30
@@ -131,7 +135,7 @@
       "total": 10
     }
   },
-  "total": 229,
+  "total": 244,
   "unknown_markers": [],
   "v_done_uncited": [],
   "v_ne_d_flagged": [

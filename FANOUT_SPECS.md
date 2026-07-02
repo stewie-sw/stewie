@@ -871,3 +871,83 @@ Briefs for the backend production review findings. Existing-row extensions cross
 - acceptance: browser login response omits token; automation path includes it only when explicitly requested + tested.
 - files: stewie/server/routers/auth.py, stewie/server/test_auth.py, stewie/server/auth.py
 - test_target: stewie/server/test_login_token_split.py citing [REQ:BP-13]
+
+## Frontend + lunar-mission-systems review remediation (2026-07-02) -- 15 rows (§7.17 FR-01..15)
+
+Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO-15/SE-02/FS-18/FS-26/PM-19/RS-04/TW-05/RS-02/ML-06/FS-19.
+
+### FR-01 (P1) — atomic
+- goal: product mode + runnable profile in the cockpit route/state contract + shell + Release/Execute/eligibility gating.
+- acceptance: mode/profile in the state contract + shell-visible; a mismatched-profile Release/Execute is refused/degraded.
+- files: stewie/server/web/assets/cockpit_state.js, stewie/server/web/assets/cockpit.js, stewie/server/routers/executive.py
+- test_target: stewie/server/test_product_mode_profile.py citing [REQ:FS-25]
+### FR-02 (P1) — atomic
+- goal: depth-source profile selector + health/freshness; Release/Execute refuse/degrade on stale/mismatched/sim-when-live.
+- acceptance: selector shows health/freshness; a stale/mismatched profile blocks Release/Execute with a reason.
+- files: stewie/server/web/assets/cockpit.js, stewie/server/index.html, stewie/server/routers/perception.py
+- test_target: stewie/server/test_sensor_profile_ui.py citing [REQ:PM-17]
+### FR-03 (P1) — atomic
+- goal: full Release/Execute authority-evidence field set.
+- acceptance: released revision shows every field; an ineligible command surfaces its refusal reason.
+- files: stewie/server/web/assets/cockpit.js, stewie/server/routers/executive.py, stewie/server/routers/rc.py
+- test_target: stewie/server/test_authority_evidence_panel.py citing [REQ:FS-28]
+### FR-04 (P1) — atomic
+- goal: admin as governed operations (policy + audit), not loose buttons.
+- acceptance: each admin action shows its policy + writes an audit event; degraded-governance visible.
+- files: stewie/server/web/assets/cockpit.js, stewie/server/routers/admin.py, stewie/server/services.py
+- test_target: stewie/server/test_governed_admin_ui.py citing [REQ:PO-15]
+### FR-05 (P1) — atomic
+- goal: training operator link shows scope/expiry/actions/signed/revocation; signed expiring capability URL or authenticated.
+- acceptance: UI labels scope/expiry/actions/revocation; an expired/unsigned link is refused.
+- files: stewie/server/routers/session.py, stewie/server/session.py, stewie/server/web/assets/cockpit.js
+- test_target: stewie/server/test_operator_link_model.py citing [REQ:SE-02]
+### FR-06 (P1) — atomic
+- goal: a route_pane_registry.js source of truth + a pytest checking route coverage + a node test loading each adapter fixture (render/error/provenance).
+- acceptance: a route-backed pane missing from the registry or missing an evidence/mobile fixture fails the gate.
+- files: stewie/server/web/assets/route_pane_registry.js, stewie/server/web/assets/adapters.js, stewie/server/test_adapter_contract_parity.py
+- test_target: stewie/server/test_route_pane_registry.py citing [REQ:FS-18]
+### FR-07 (P2) — atomic
+- goal: reconcile stale PRD/FANOUT provenance text with the shipped provenance labels.
+- acceptance: a doc-coherence check finds no PRD/FANOUT claim contradicted by the shipped provenance labeling.
+- files: PRD.md, FANOUT_SPECS.md, stewie/server/web/assets/cockpit.js
+- test_target: scripts/test_provenance_doc_coherence.py citing [REQ:FR-07]
+### FR-08 (P2) — atomic
+- goal: the ui-smoke 390px no-overflow check covers all cockpit panes, not only /program.
+- acceptance: any pane overflowing the phone viewport reds the ui-smoke tier.
+- files: scripts/ui_smoke.mjs, stewie/server/index.html, stewie/server/test_program_mobile.py
+- test_target: stewie/server/test_cockpit_mobile_fit.py citing [REQ:FS-26]
+### FR-09 (P1) — epic
+- goal: prove the live hazard-perception->world->planner->eligibility->cockpit loop end-to-end with provenance + refusal/approval evidence.
+- acceptance: the mission-critical loop demonstrated end-to-end with operator evidence.
+- files: stewie/runtime/replay_loop.py, stewie/eval/test_hazard_perception_loop.py, stewie/server/routers/world.py
+- test_target: stewie/eval/test_live_perception_loop_e2e.py citing [REQ:PM-19]
+### FR-10 (P1) — epic
+- goal: unified typed layer-manifest world contract (id/type/CRS/bounds/res/source/provenance/freshness/uncertainty/validity/txn/consumer-eligibility); planner consumes the same manifest.
+- acceptance: material/traversability/observed/uncertainty layers discoverable+typed with consumer eligibility; planner builds costmap from the manifest.
+- files: stewie/contracts/__init__.py, stewie/server/routers/world.py, lode/costmap_layers.py
+- test_target: stewie/server/test_world_layer_manifest.py citing [REQ:TW-05]
+### FR-11 (P1) — atomic
+- goal: observed-world-to-planner end-to-end acceptance gate (DEM+route -> inject hazard -> world txn -> rebuild costmap -> route changes/refuses/justified -> cockpit+release evidence).
+- acceptance: the end-to-end gate passes on real terrain.
+- files: stewie/server/test_planner_observed_world.py, stewie/server/routers/nav.py, stewie/server/world_state.py
+- test_target: stewie/server/test_observed_world_planner_e2e.py citing [REQ:RS-02]
+### FR-12 (P1) — atomic
+- goal: precise GIS/ArcGIS product language + an ArcGIS adapter boundary + per-layer display-eligibility vs planning-eligibility fields.
+- acceptance: precise labels; ArcGIS boundary + per-shape fixtures exist; a displayable-not-planning-valid layer is not treated as planning-valid.
+- files: stewie/server/index.html, stewie/server/gis_layers.py, stewie/server/routers/layers.py
+- test_target: stewie/server/test_gis_platform_claims.py citing [REQ:FR-12]
+### FR-13 (P1) — atomic
+- goal: a RegolithVolumeEstimate contract (before/after source, change mask, cut/fill, uncertainty, drum cross-check, conservation residual, confidence, acceptance, linked txn); LEAP emits it; cockpit/report render it.
+- acceptance: a before/after delta yields a conserved uncertainty-carrying volume estimate cross-checked vs the drum sensor, linked to a world txn.
+- files: leap/siteplan.py, leap/structures.py, stewie/contracts/__init__.py
+- test_target: leap/test_regolith_volume_estimate.py citing [REQ:ML-06]
+### FR-14 (P2) — atomic
+- goal: label navigation preview/rehearsal unless the runnable profile proves a live+authorized autonomy binary.
+- acceptance: nav surfaces labeled preview/rehearsal, flipping to live only on a live+authorized autonomy attestation.
+- files: stewie/server/web/assets/cockpit.js, stewie/server/routers/nav.py, stewie/server/index.html
+- test_target: stewie/server/test_nav_preview_labeling.py citing [REQ:FR-14]
+### FR-15 (P2) — atomic
+- goal: observability records link source assets/freshness/provenance/operator/product-mode/runnable-profile/transaction-id (mission evidence).
+- acceptance: [REQ:FS-19] fails if a required record lacks the source-asset/freshness/provenance/mode/profile/transaction linkage.
+- files: stewie/server/services.py, stewie/server/server.py, stewie/server/test_observability_ledger.py
+- test_target: stewie/server/test_mission_evidence_ledger.py citing [REQ:FS-19]
