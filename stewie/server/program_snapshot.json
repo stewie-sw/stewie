@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "f1070ec31b69d2aa14e9a9b94ea352b75450451b99b6dbdab0e6a0e94e1789eb",
+  "citations_sha256": "357cd70f398657e173de9b156f30533cd18cef3bdf8eaa3eb1f7604f98300722",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "52b5fab773b4e95883b9bd55d744b29bef16a5c6",
-  "prd_sha256": "66abf695bc12d12ac089b4ff8e909472e31a7f147a60c8489eab9a2214ddee09",
+  "prd_commit": "f918ee4b73501ec2e345e31767b5b89776041e94",
+  "prd_sha256": "8b00f593f43fd39de8693861197ce2bd1587de70d472704fc430bf78bafc4adb",
   "specs_sha256": "37059633a28f0aaa17e5f419a26a87179ebb0a85d82da450c3ad38af1ffd4b11"
  },
  "rows": [
@@ -1619,17 +1619,17 @@
    "text": "Mission-executive state machine (`DRAFT->ANALYZED->REHEARSED->REVIEWED->RELEASED->ARMED->EXECUTING->HOLDING/SAFED/COMPLETED/ABORTED->DEBRIEFED`; RELEASED = signed immutable revision). The planning + authorization head (DRAFT->RELEASED) is implemented: `stewie.contracts.executive.MissionExecutive` drives the typed transitions, `lode.mission_lifecycle.run_lifecycle` attaches REAL evidence at each edge (the compiler's deterministic plan_id at ANALYZED; the forward_compare ranking at REHEARSED), and `POST /executive/advance` (`stewie/server/routers/executive.py`, director-gated) exposes it. An uncompilable intent yields a 400 with no fabricated plan_id. Tested by `lode/test_mission_lifecycle.py` + `stewie/server/test_executive_route.py` [REQ:MO-02]. Q stays N: the live ARMED..EXECUTING execution tier is gated (MO-04, SIM/FORECAST-labeled) and not yet qualified against fault injection or hardware."
   },
   {
-   "I": "N",
+   "I": "P",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "P",
    "brief": {
     "goal": "CI rejects a newly-tracked large binary unless allowlisted; externalize samples/lunar_dem/*.rf32 to checksum manifest + fetch script, keep one tiny real-derived smoke fixture.",
     "kind": "atomic",
     "test_target": "NEW scripts/test_large_file_policy.py citing [REQ:MT-01]"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "MT-01",
    "lane": "MT",
    "pri": "P1",
@@ -3189,7 +3189,7 @@
     "total": 11
    }
   },
-  "cited": 174,
+  "cited": 175,
   "done_pct": 60.6,
   "in_scope": 191,
   "in_scope_done_pct": 68.6,
