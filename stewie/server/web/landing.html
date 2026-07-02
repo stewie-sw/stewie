@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>STEWIE — Surface Terrain Engineering &amp; World-Model Integration</title>
 <meta name="description" content="STEWIE — a closed-loop environment for planning, simulating, and operating autonomous systems on planetary surfaces.">
-<meta name="theme-color" content="#0D0F11">
+<meta name="theme-color" content="#0a0a0c">
 <link rel="icon" type="image/png" href="/assets/brand/favicon.png?v=2">
 <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=3">
 <meta property="og:type" content="website">
@@ -19,17 +19,18 @@
   @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(/assets/fonts/inter-400.woff2) format("woff2")}
   @font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(/assets/fonts/inter-600.woff2) format("woff2")}
   :root{
-    --bg:#0D0F11; --text:#E6E8EA; --text-2:#8A9096; --regolith:#646A70;
-    --accent:#C8102E; --accent-bright:#FF1A3D;
+    /* canonical cockpit tokens (index.html/program.html): one brand ramp, no fork */
+    --bg:#0a0a0c; --text:#E6E8EA; --text-2:#8A9096; --regolith:#646A70;
+    --accent:#ef3a52; --accent-bright:#ff6b6b;
     --silver-grad:linear-gradient(180deg,#E6E8EA 0%,#8A9096 100%);
-    --accent-grad:linear-gradient(180deg,#FF1A3D 0%,#C8102E 100%);
-    --glow:0 0 22px rgba(200,16,46,.30);
+    --accent-grad:linear-gradient(180deg,#ff6b6b 0%,#ef3a52 100%);
+    --glow:0 0 22px rgba(239,58,82,.30);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{
     background:
-      radial-gradient(1100px 620px at 50% 8%, rgba(200,16,46,.10), transparent 60%),
+      radial-gradient(1100px 620px at 50% 8%, rgba(239,58,82,.10), transparent 60%),
       radial-gradient(900px 700px at 50% 120%, rgba(120,130,140,.10), transparent 55%),
       var(--bg);
     color:var(--text); font-family:Inter,system-ui,sans-serif;

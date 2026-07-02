@@ -73,7 +73,32 @@ test("findRow + bucketMeta: lookup by id and a stable class per bucket", () => {
   assert.strictEqual(B.findRow(snap, snap.rows[0].id), snap.rows[0]);
   assert.strictEqual(B.findRow(snap, "no-such-id"), null);
   assert.strictEqual(B.bucketMeta("done").cls, "b-done");
+  assert.strictEqual(B.bucketMeta("buildable").cls, "b-build");
+  assert.strictEqual(B.bucketMeta("gated").cls, "b-gated");
+  assert.strictEqual(B.bucketMeta("concurrent").cls, "b-conc");
   assert.strictEqual(B.bucketMeta("weird").cls, "b-unknown");
+});
+
+test("program.html color semantics match the cockpit: red stays danger-only, progress reads green", () => {
+  // the audit finding: buildable (a positive state) must NOT wear the cockpit's danger/CTA red, and the
+  // progress bars must not render completion as a crisis. Assert against the page the classes style.
+  const html = fs.readFileSync(path.join(__dirname, "..", "program.html"), "utf8");
+  const rule = (sel) => {
+    const m = html.match(new RegExp("\n\\s*" + sel.replace(/[.]/g, "\\.") + "\\s+\\{[^}]*\\}"));
+    assert.ok(m, sel + " rule must exist in program.html");
+    return m[0];
+  };
+  assert.ok(!rule(".b-build").includes("var(--accent)"), "buildable must not borrow the danger accent");
+  assert.ok(rule(".b-build").includes("#7fb6cc"), "buildable reads desaturated steel-cyan");
+  assert.ok(!rule(".bar").includes("var(--accent)"), "priority progress must not render in danger red");
+  assert.ok(rule(".bar").includes("#3fa34d"), "priority progress is green-on-graphite");
+  assert.ok(!rule(".lanebar span").includes("var(--accent)"), "lane progress must not render in danger red");
+  assert.ok(rule(".lanebar span").includes("#3fa34d"), "lane progress is green-on-graphite");
+  // the rest of the semantic set holds: done green, gated amber, concurrent violet, .err keeps the red
+  assert.ok(rule(".b-done").includes("#7fd191"));
+  assert.ok(rule(".b-gated").includes("#e3b64f"));
+  assert.ok(rule(".b-conc").includes("#b9a5ee"));
+  assert.ok(rule(".err").includes("var(--accent)"), "danger keeps the accent");
 });
 
 test("applyFilter: bucket, priority, and text terms compose; empty filter passes all", () => {

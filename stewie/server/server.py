@@ -148,6 +148,7 @@ from stewie.server.routers import layers as _layers_router  # noqa: E402
 from stewie.server.routers import missions as _missions_router  # noqa: E402
 from stewie.server.routers import models as _models_router  # noqa: E402
 from stewie.server.routers import operators_admin as _operators_admin_router  # noqa: E402
+from stewie.server.routers import pages as _pages_router  # noqa: E402
 from stewie.server.routers import perception as _perception_router  # noqa: E402
 from stewie.server.routers import nav as _nav_router  # noqa: E402
 from stewie.server.routers import plan as _plan_router  # noqa: E402
@@ -194,6 +195,7 @@ app.include_router(_gis_export_router.router)        # GI-03: GeoJSON/COG GIS ex
 app.include_router(_executive_router.router)         # MO-WIRE: plan->executive advance (director-gated)
 app.include_router(_siteplan_router.router)          # structure-first: site-plan validate-and-advise analysis
 app.include_router(_program_router.router)           # PO-lane program board: /program + the committed PRD-matrix snapshot
+app.include_router(_pages_router.router)             # static public pages: /landing(.html) direct-URL/dev gap (prod nginx serves the apex)
 
 
 @app.middleware("http")

@@ -5,7 +5,8 @@
 (function (root) {
   "use strict";
 
-  // bucket -> {label, chip css class}. Colors are semantic: done graphite-green, buildable accent-ready,
+  // bucket -> {label, chip css class}. Colors are semantic and match the cockpit: done graphite-green,
+  // buildable steel-cyan (a positive/ready state -- the accent red stays reserved for danger/CTA),
   // gated amber (blocked on a real resource), concurrent violet (owned by the live AS-lane agent).
   var BUCKETS = {
     done: { label: "verified done", cls: "b-done" },

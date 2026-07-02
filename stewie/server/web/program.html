@@ -60,16 +60,17 @@
   th, td { text-align:left; padding:3px 8px 3px 0; border-bottom:1px solid var(--line); }
   th { color:var(--muted); font-weight:normal; font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
   .barcell { width:55%; white-space:nowrap; color:var(--muted); }
-  .bar { display:inline-block; height:8px; background:var(--accent); border-radius:4px;
+  .bar { display:inline-block; height:8px; background:#3fa34d; border-radius:4px;
          vertical-align:middle; margin-right:6px; max-width:82%; }
-  /* lanes + row chips (bucket colors are semantic; AA-checked on --panel) */
+  /* lanes + row chips (bucket colors are semantic, matching the cockpit: green done, steel-cyan
+     buildable, amber gated, violet concurrent -- red stays reserved for danger/CTA; AA on --panel) */
   .lane { margin-bottom:10px; animation: rise .32s ease-out both; }
   @keyframes rise { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
   @media (prefers-reduced-motion: reduce) { .lane { animation:none; } .fbtn:hover { transform:none; } }
   .lane h3 { font-size:13px; margin:6px 0 4px; display:flex; align-items:center; gap:8px; }
   .lanebar { flex:0 0 90px; height:4px; background:var(--field); border:1px solid var(--line);
              border-radius:2px; overflow:hidden; }
-  .lanebar span { display:block; height:100%; background:var(--accent); opacity:.85; }
+  .lanebar span { display:block; height:100%; background:#3fa34d; opacity:.85; }
   .lanecount { color:var(--muted); font-weight:normal; font-size:11px; }
   .rowchip { font:12px/1.2 ui-monospace, monospace; border-radius:4px; padding:3px 7px; margin:2px 4px 2px 0;
              cursor:pointer; border:1px solid var(--line); background:var(--field); color:var(--txt);
@@ -78,7 +79,7 @@
   .rowchip:focus-visible, .fbtn:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
   .rowchip.selected { box-shadow: inset 0 0 0 1px currentColor; background:#1a1a1f; }
   .b-done   { border-color:#2f6f3f; color:#7fd191; }
-  .b-build  { border-color:var(--accent); color:#ff98a7; }
+  .b-build  { border-color:#3e6478; color:#7fb6cc; }
   .b-gated  { border-color:#8a6a1f; color:#e3b64f; }
   .b-conc   { border-color:#5b4a8a; color:#b9a5ee; }
   .empty { padding:12px 2px; }
@@ -141,6 +142,6 @@
 </main>
 <!-- CSP: script-src 'self' -- external modules only, stamped for the Cloudflare asset cache -->
 <script src="/assets/htmlesc.js?v=aeb7e4bb4091"></script>
-<script src="/assets/program_board.js?v=dc1beff2125a"></script>
+<script src="/assets/program_board.js?v=f026fa1fe3fa"></script>
 </body>
 </html>
