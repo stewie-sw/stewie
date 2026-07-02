@@ -90,6 +90,10 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("STEWIE_BACKUP_DIR", str(tmp_path / "replica"))
     monkeypatch.setenv("STEWIE_ALLOWED_OPERATORS", "fs19-operator@example.com")
+    # SF-02: the rc.goto coverage row posts a MISSION-LESS GoTo, so pin an explicit dev/bench teleop
+    # posture (the SF-02 authority decision itself is covered in test_rc_command_authority.py).
+    monkeypatch.setenv("STEWIE_RUNNABLE_PROFILE", "bench")
+    monkeypatch.setenv("STEWIE_ALLOW_TELEOP", "1")
     import stewie.server.server as srv
     importlib.reload(srv)
     yield TestClient(srv.app)

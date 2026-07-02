@@ -25,6 +25,12 @@ services:
       # the Katwijk SLAM eval (/slam, /slam/compare) reads its real ESA rover telemetry from here. Without
       # it the deployed endpoint 503s; with it the Navigation pane returns real ATE on the live host.
       STEWIE_KATWIJK_DIR: ${STEWIE_KATWIJK_DIR:-/katwijk}
+      # SF-02: bounded command authority for MISSION-LESS low-level rover commands (teleop). This is a
+      # production/operations deploy, so the runnable profile defaults to OPERATE -> a mission-less GoTo is
+      # REFUSED (only a released/live mission may command the rover). STEWIE_ALLOW_TELEOP is deliberately
+      # UNSET here: a dev/bench teleop grant must never be enabled on a live deploy, and it is ignored on a
+      # LIVE/OPERATE profile in any case. See CONFIG.md §4.
+      STEWIE_RUNNABLE_PROFILE: ${STEWIE_RUNNABLE_PROFILE:-operate}
     volumes:
       - "stewie-data:/data"
       # Mount the real ESA Katwijk dataset READ-ONLY so /slam returns real ATE on the deployed cockpit.

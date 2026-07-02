@@ -76,3 +76,20 @@ config.describe()   # {'config_file': ..., 'overrides': {...}, 'applied': {'terr
 carries its `[FIXED]`/`[CALIB]`/`[UNKNOWN]`/`MEASURED` tag and citation. The overlay changes the *value*
 at runtime; it does not remove the documented default or its source. Override responsibly — the honesty
 tags tell you which values are well-constrained and which are wide-envelope estimates.
+
+## 4. Command-authority flags (SF-02)
+
+These two flags bound a **mission-less** low-level rover command (teleop) on `POST /rc/command`. They are
+read **directly** at request time (not through the numeric overlay of §2), so they can be any string.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `STEWIE_RUNNABLE_PROFILE` | `live` (fail-safe) | The runnable profile. Only `dev`, `bench`, or `test` may authorize mission-less teleop; every other value — including a LIVE/OPERATE operations profile and any unset/unknown value — **refuses** it. |
+| `STEWIE_ALLOW_TELEOP` | unset (deny) | The explicit dev/bench teleop grant. Truthy (`1`/`true`/`yes`/`on`) enables mission-less teleop **only** on a `dev`/`bench`/`test` profile. Ignored on a LIVE/OPERATE profile — the grant is never a bypass. |
+
+A mission-less GoTo is allowed **only** when the profile is `dev`/`bench`/`test` **and** the grant is
+truthy; otherwise it is rejected with `403` and the decision (`rc.teleop_refused` / `rc.teleop_grant`) is
+written to the audit ledger. A mission-**bound** command carries its own release authority (AG-08, the
+published-live-mission check) and is unaffected by these flags. Default-deny: an unprovisioned deploy
+(neither flag set) refuses mission-less teleop, so no path emits motion to a real rover outside a released
+mission or an explicit, audited teleop grant.

@@ -72,6 +72,26 @@ def rc_command(body: dict, identity: str = Depends(require_role("operator"))):
         except (KeyError, ValueError, TypeError) as e:
             raise HTTPException(status_code=400, detail=f"malformed {kind!r} command: {e}") from e
         if kind == "goto":
+            # SF-02 [REQ:SF-02] (review #3): a mission-LESS GoTo is low-level teleop -- AG-08 above only
+            # runs when a `mission` field is present, so without this gate a mission-less command reached
+            # the rover with NO release authority. Bind it to an explicit command-authority context: it is
+            # allowed ONLY on a dev/bench runnable profile WITH an explicit teleop grant, and is REFUSED
+            # (default-deny) on a LIVE/OPERATE or unconfigured profile. Both outcomes are audit-logged. The
+            # two signals are read live from the env (documented in CONFIG.md); STEWIE_RUNNABLE_PROFILE
+            # defaults to a LIVE profile so an unprovisioned deploy fails safe. A mission-BOUND GoTo already
+            # cleared AG-08, so this leg does not apply to it.
+            if mission is None:
+                from stewie.bridge.autonomy_contract import teleop_authority
+                profile = os.environ.get("STEWIE_RUNNABLE_PROFILE", "live")
+                grant = os.environ.get("STEWIE_ALLOW_TELEOP", "").strip().lower() in ("1", "true", "yes", "on")
+                ok_t, reason_t = teleop_authority(profile, grant)
+                if not ok_t:
+                    log_event(identity, "rc.teleop_refused", reason_t, profile=profile)
+                    raise HTTPException(status_code=403, detail=(
+                        f"mission-less teleop refused ({reason_t}): a low-level rover command requires a "
+                        "released (live) mission, or an explicit dev/bench teleop grant "
+                        "(STEWIE_ALLOW_TELEOP) on a non-LIVE/OPERATE runnable profile"))
+                log_event(identity, "rc.teleop_grant", profile)
             # #290 [REQ:AS-12]: the UNIFIED command-eligibility interlock is the single auditable pre-emission
             # gate -- wired here so the SF-01 safed AND NV-12 stale-link gates actually RUN on the live command
             # path (the interlock had zero production callers). Applies to motion (GoTo only); Safe/rearm are

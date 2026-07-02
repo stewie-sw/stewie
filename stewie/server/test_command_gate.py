@@ -17,6 +17,12 @@ from fastapi.testclient import TestClient
 def client(monkeypatch, tmp_path):
     monkeypatch.setenv("STEWIE_API_KEY", "test-key")
     monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    # SF-02: this file exercises the AG-08 / SF-01 / AS-12 gates for a MISSION-LESS GoTo (watchdog,
+    # malformed, stale-link). Those downstream gates only run once the new SF-02 teleop-authority gate
+    # admits a mission-less command, so pin an explicit dev/bench teleop posture here; the SF-02 decision
+    # itself is covered in test_rc_command_authority.py. Mission-BOUND cases are unaffected by these flags.
+    monkeypatch.setenv("STEWIE_RUNNABLE_PROFILE", "bench")
+    monkeypatch.setenv("STEWIE_ALLOW_TELEOP", "1")
     from stewie.server import operators as OPS
     importlib.reload(OPS)
     from stewie.server import objects as OBJ

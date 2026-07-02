@@ -78,6 +78,32 @@ class NavigationStage:
 COMMAND_TOPICS = ("/cmd_vel", "/stewie/plan/action_goal")
 SAFE_STATE_TOPIC = "/stewie/safe_state"
 
+# SF-02 (review #3): the ONLY runnable profiles on which a mission-LESS low-level command (teleop) may be
+# authorized. Every OTHER profile -- a LIVE/OPERATE operations profile, and (default-deny) any unknown or
+# unconfigured value -- REFUSES mission-less teleop, so an unprovisioned or production deploy cannot emit
+# motion to a real rover outside a released (live) mission. A mission-BOUND command carries its own
+# release authority (AG-08) and is unaffected by this gate.
+TELEOP_PROFILES = frozenset({"dev", "bench", "test"})
+
+
+def teleop_authority(profile: str | None, grant: bool) -> tuple[bool, str]:
+    """SF-02: decide whether a mission-LESS low-level rover command (teleop) is authorized.
+
+    A mission-less GoTo/teleop carries NO released-mission authority (AG-08 does not bind it), so it is
+    allowed ONLY on an explicitly-labelled dev/bench runnable ``profile`` (see ``TELEOP_PROFILES``) AND
+    only when an explicit ``grant`` is present. Default-deny: a LIVE/OPERATE profile, or any unknown /
+    unconfigured profile, is REFUSED even if the grant is set -- a production profile can never be
+    teleop-driven. Returns ``(allowed, reason)``; the caller audits BOTH outcomes.
+
+    Pure logic (no rclpy / no I/O), mirroring this module's PURE-DATA + validator ethos.
+    """
+    prof = (profile or "").strip().lower()
+    if prof not in TELEOP_PROFILES:
+        return False, "live_profile_teleop_refused"      # LIVE/OPERATE (or unconfigured) -> no teleop
+    if not grant:
+        return False, "teleop_not_granted"               # a dev/bench profile still needs the explicit grant
+    return True, "teleop_granted"
+
 TOPICS: dict[str, Topic] = {t.name: t for t in (
     Topic("/clock", "rosgraph_msgs/Clock", QOS_SENSOR),
     Topic("/tf", "tf2_msgs/TFMessage", QOS_DEFAULT),
