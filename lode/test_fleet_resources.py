@@ -68,3 +68,84 @@ def test_invalid_inputs_raise():
         led.reserve(Reservation("nope", "a", 0.0, 1.0))                        # unknown resource
     with pytest.raises(ValueError):
         led.reserve(Reservation("chg", "a", 5.0, 5.0))                         # empty window
+
+
+# ------------------------------------------------------------------------------------------------
+# FL-07: raised Solar/Meerkat observation sites are reservable fleet resources (vantage kind), with
+# an occlusion/collision exclusion radius, so two rovers never hold overlapping raised observations
+# at conflicting vantages -- the loser waits, and the wait folds into the fleet makespan.
+# ------------------------------------------------------------------------------------------------
+
+_FL07_ORDERS = [
+    {"action": "cutA", "kind": "cut", "x": 20.0, "y": 0.0, "footprint_m2": 9.0, "depth_m": 0.2},
+    {"action": "cutB", "kind": "cut", "x": -20.0, "y": 0.0, "footprint_m2": 9.0, "depth_m": 0.2},
+]
+
+
+def _fl07_mission(extra=None):
+    import copy
+
+    import lode.mission_planner as MP
+    p = {"name": "F7", "body": "moon", "charger": [0, 0], "orders": copy.deepcopy(_FL07_ORDERS)}
+    if extra:
+        p.update(extra)
+    return MP.mission_from_dict(p)
+
+
+def test_fl07_raised_observation_reserves_vantage_no_occlusion():
+    """[REQ:FL-07] Solar/Meerkat observation sites are reservable fleet resources: a raised observation
+    declares a time-windowed capacity-1 VANTAGE reservation with an occlusion/collision exclusion radius,
+    so two rovers whose raised observations overlap in time at conflicting vantages (sites within the
+    exclusion radius of each other) can NOT hold them simultaneously -- the loser WAITS until the winner's
+    window clears -- and that wait folds into the fleet makespan."""
+    import lode.mission_planner as MP
+    # resolver: rover 0 raises MEERKAT at (0,0) over [0,600); rover 1 raises a solar sight at (4,3) --
+    # 5 m away, INSIDE the 10 m exclusion -> the vantages conflict (occlusion/collision) -> ONE
+    # capacity-1 vantage -> rover 1 (the later arrival) waits the full 500 s until rover 0 clears.
+    obs = [{"vehicle": 0, "x": 0.0, "y": 0.0, "t_start": 0.0, "t_end": 600.0, "kind": "meerkat"},
+           {"vehicle": 1, "x": 4.0, "y": 3.0, "t_start": 100.0, "t_end": 700.0, "kind": "solar"}]
+    delay, bd = MP._resolve_observation_vantages(2, obs, exclusion_radius_m=10.0)
+    assert delay == pytest.approx([0.0, 500.0])               # the loser waits; the winner is untouched
+    r0, r1 = sorted(bd["reservations"], key=lambda r: r["t0"])
+    assert r0["server"] == r1["server"]                       # conflicting vantages -> the SAME resource
+    assert r1["t0"] >= r0["t1"]                               # serialized: no overlapping raised holds
+    led = _ledger(SharedResource(r0["server"], "vantage", capacity=1))
+    assert all(led.reserve(Reservation(r["server"], f"v{r['vehicle']}", r["t0"], r["t1"]))
+               for r in bd["reservations"])                   # replay: the schedule fits capacity 1
+    # an observation OUTSIDE the exclusion radius is its own vantage -> admitted with no wait
+    far = obs + [{"vehicle": 2, "x": 200.0, "y": 0.0, "t_start": 100.0, "t_end": 700.0, "kind": "meerkat"}]
+    delay3, _ = MP._resolve_observation_vantages(3, far, exclusion_radius_m=10.0)
+    assert delay3 == pytest.approx([0.0, 500.0, 0.0])
+    # end-to-end: declared on the mission, the observation wait folds into the fleet MAKESPAN
+    base = MP.plan_and_simulate(_fl07_mission(), vehicles=2)[4]
+    assert "observation_wait_s" not in base                   # undeclared -> byte-identical surface
+    both = [{"vehicle": 0, "x": 5.0, "y": 0.0, "t_start": 0.0, "t_end": 300.0, "kind": "meerkat"},
+            {"vehicle": 1, "x": 8.0, "y": 4.0, "t_start": 0.0, "t_end": 300.0, "kind": "solar"}]
+    wr = MP.plan_and_simulate(_fl07_mission({"observations": both}), vehicles=2)[4]
+    assert wr["observation_wait_s"] == pytest.approx(300.0)   # the loser waited out a full window
+    assert wr["observation_vantages_modeled"] is True
+    assert wr["makespan_s"] > base["makespan_s"]              # ...and the wait folds into the makespan
+    assert wr["makespan_s"] == pytest.approx(base["makespan_s"] + 300.0)   # by exactly the loser's wait
+
+
+def test_fl07_mission_from_dict_validates_observations():
+    import lode.mission_planner as MP
+    ok = _fl07_mission({"observations": [
+        {"vehicle": 0, "x": 1.0, "y": 2.0, "t_start": 0.0, "t_end": 60.0}]})   # kind defaults to meerkat
+    assert ok.observations == [{"vehicle": 0, "x": 1.0, "y": 2.0,
+                                "t_start": 0.0, "t_end": 60.0, "kind": "meerkat"}]
+    assert _fl07_mission().observations is None                                 # undeclared -> None
+    bad = [
+        [{"vehicle": -1, "x": 0, "y": 0, "t_start": 0, "t_end": 1}],            # negative vehicle
+        [{"vehicle": True, "x": 0, "y": 0, "t_start": 0, "t_end": 1}],          # bool is not a vehicle index
+        [{"vehicle": 0, "x": 0, "y": 0, "t_start": 5, "t_end": 5}],             # empty window
+        [{"vehicle": 0, "x": 0, "y": 0, "t_start": 0, "t_end": 1, "kind": "periscope"}],   # unknown kind
+        [{"vehicle": 0, "y": 0, "t_start": 0, "t_end": 1}],                     # missing x
+    ]
+    for b in bad:
+        with pytest.raises(ValueError):
+            _fl07_mission({"observations": b})
+    # the resolver refuses a vehicle index beyond the fleet rather than silently dropping it
+    with pytest.raises(ValueError):
+        MP._resolve_observation_vantages(
+            2, [{"vehicle": 5, "x": 0.0, "y": 0.0, "t_start": 0.0, "t_end": 1.0, "kind": "solar"}])

@@ -426,6 +426,95 @@ def _resolve_joint_resources(per_vehicle, *, charger_capacity=1, shared_resource
     }
 
 
+def _resolve_observation_vantages(n, observations, *, exclusion_radius_m=10.0):
+    """FL-07: raised Solar/Meerkat observations reserve their VANTAGE as a fleet resource so rovers do not
+    occlude or collide during raised observations. Each declared observation {vehicle, x, y, t_start, t_end,
+    kind} is a time-windowed claim on a capacity-1 'vantage' resource; two observation sites within
+    `exclusion_radius_m` of each other CONFLICT (a raised MEERKAT/solar stance at one blocks the sightline /
+    maneuvering envelope of the other -- an Observe action is lowered to the raised MEERKAT posture in
+    stewie.bridge.plan_lowering; the solar class is dart.solar_observation), so conflicting sites are
+    clustered onto the SAME capacity-1 vantage (union-find, transitive, like _allocate_components).
+    Scheduling is the SAME FCFS discipline as the charger queue: by EFFECTIVE arrival (declared t_start +
+    the vehicle's accrued delay) each observation is admitted against a ReservationLedger at the earliest
+    admissible start, and the WAIT bumps that vehicle's single delay so its later observations shift with it
+    -- the delay folds into the makespan exactly like the charger/resource/crowding waits.
+    exclusion_radius_m is an [ASSUMPTION] safe-separation radius, the same class as the FL-02 proximity_m
+    default. No observations -> all-zero delays -> byte-identical to an un-observed fleet. Raises on a
+    vehicle index beyond the fleet or an empty window (never silently drops a declared observation).
+    Returns (per_vehicle_delay, breakdown{observation_wait_s, reservations, vantages}). Pure + deterministic
+    (ties break by earliest effective arrival, then lower vehicle index)."""
+    delay = [0.0] * n
+    if not observations:
+        return delay, {}
+    from lode.fleet_resources import Reservation, ReservationLedger, SharedResource
+    m = len(observations)
+    obs = []                                                # (vehicle, x, y, t0, t1) validated
+    for k, o in enumerate(observations):
+        v = int(o["vehicle"])
+        if v < 0 or v >= n:
+            raise ValueError(f"observations[{k}] vehicle {v} out of range for a {n}-vehicle fleet")
+        t0, t1 = float(o["t_start"]), float(o["t_end"])
+        if t1 <= t0:
+            raise ValueError(f"observations[{k}] window [{t0}, {t1}) is empty/negative")
+        obs.append((v, float(o["x"]), float(o["y"]), t0, t1))
+    parent = list(range(m))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    for i in range(m):
+        for j in range(i + 1, m):
+            if math.hypot(obs[i][1] - obs[j][1], obs[i][2] - obs[j][2]) <= exclusion_radius_m:
+                union(i, j)                                 # within the exclusion -> occlusion/collision
+    members: dict = {}
+    for k in range(m):
+        members.setdefault(find(k), []).append(k)
+    vid_of = {root: f"vantage{c}" for c, root in enumerate(sorted(members))}
+    ledger = ReservationLedger([SharedResource(vid, "vantage", 1) for vid in vid_of.values()])
+
+    def _earliest_start(server_id, dur, after):
+        # smallest tau >= after at which the ledger admits [tau, tau+dur): candidates are `after` and
+        # every held end on this vantage past `after` (same probe as _resolve_joint_resources).
+        cands = {after}
+        for r in ledger.held():
+            if r.resource_id == server_id and r.t_end > after:
+                cands.add(float(r.t_end))
+        for tau in sorted(cands):
+            if ledger.would_admit(Reservation(server_id, "_probe", tau, tau + dur)):
+                return tau
+        return max(cands)                                   # capacity 1 -> always fits after the last hold
+
+    reservations: list = []
+    placed = [False] * m
+    for _ in range(m):                                      # place each declared observation once (FCFS)
+        best, best_key = -1, None
+        for k in range(m):
+            if placed[k]:
+                continue
+            v, _x, _y, t0, _t1 = obs[k]
+            key = (t0 + delay[v], v)                        # earliest effective arrival, then lower vehicle
+            if best_key is None or key < best_key:
+                best, best_key = k, key
+        v, _x, _y, t0, t1 = obs[best]
+        vid = vid_of[find(best)]
+        arr = t0 + delay[v]
+        start = _earliest_start(vid, t1 - t0, arr)
+        delay[v] += start - arr                             # the loser's wait shifts its later timeline
+        ledger.reserve(Reservation(vid, f"v{v}", start, start + (t1 - t0)))
+        reservations.append({"server": vid, "vehicle": v, "t0": float(start), "t1": float(start + (t1 - t0))})
+        placed[best] = True
+    return delay, {"observation_wait_s": float(sum(delay)), "reservations": reservations,
+                   "vantages": {vid_of[root]: idxs for root, idxs in sorted(members.items())}}
+
+
 def _temporal_conflicts(per_vehicle, *, proximity_m: float = 10.0) -> int:
     """FL-02: SPACE-TIME conflicts beyond exact same-site overlap -- two DIFFERENT vehicles working within
     proximity_m of each other at OVERLAPPING times (rovers crowding adjacent sites simultaneously). Uses

@@ -37,7 +37,8 @@ from lode.planner_trips import _build_trips, _make_routes, _precedence_is_feasib
 from lode.planner_multivehicle import (
     _allocate_precedence_split, _allocate_trips, _charger_conflicts, _haul_path_conflicts,
     _resolve_charger_queue, _resolve_cross_vehicle_precedence, _resolve_joint_resources,
-    _resolve_spacetime_crowding, _rover_health, _temporal_conflicts, _vehicle_conflicts,
+    _resolve_observation_vantages, _resolve_spacetime_crowding, _rover_health,
+    _temporal_conflicts, _vehicle_conflicts,
 )
 
 RELOCALIZE_DRIFT_TOL_M = 0.5      # #96: max tolerated DR drift before a parallax fix (was a mission_planner const)
@@ -281,8 +282,14 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     # wait discipline as the charger/crowding resolvers. No cross-vehicle edge -> all 0 -> byte-identical.
     precedence_delays = _resolve_cross_vehicle_precedence(per_vehicle, alloc, glob_prec, trips)
     precedence_wait_s = float(sum(precedence_delays))
+    # FL-07: raised Solar/Meerkat observations reserve their VANTAGE (capacity-1 + occlusion/collision
+    # exclusion radius) -- two rovers cannot hold overlapping raised observations at conflicting vantages;
+    # the loser WAITS (the same per-vehicle FCFS delay discipline as the charger queue) and the wait folds
+    # into the makespan below. No declared observations -> all 0 -> byte-identical.
+    observation_delays, obs_bd = _resolve_observation_vantages(len(per_vehicle), mission.observations)
+    observation_wait_s = float(obs_bd.get("observation_wait_s", 0.0))
     makespan = max((pv["core"]["time_s"] + joint_delays[i]
-                    + crowd_delays[i] + precedence_delays[i]
+                    + crowd_delays[i] + precedence_delays[i] + observation_delays[i]
                     for i, pv in enumerate(per_vehicle)), default=0.0)
     agg = dict(
         time_s=float(makespan),
@@ -293,9 +300,10 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
         avg_power_w=0.0)
     agg["avg_power_w"] = agg["energy_J"] / makespan if makespan > 1e-9 else 0.0
     # idle/survival draw covers active per-vehicle time PLUS time a rover sits idle queueing (charger +
-    # resources + waiting on a cross-vehicle precedence predecessor)
+    # resources + waiting on a cross-vehicle precedence predecessor + waiting on a held vantage, FL-07)
     survival_J = IDLE_POWER_W * (sum(pv["core"]["time_s"] for pv in per_vehicle)
-                                 + charger_wait_s + resource_wait_s + precedence_wait_s)
+                                 + charger_wait_s + resource_wait_s + precedence_wait_s
+                                 + observation_wait_s)
     all_trips = [tr for pv in per_vehicle for tr in pv["trips"]]
     all_per_trip = [pt for pv in per_vehicle for pt in pv["per_trip"]]
     all_tl = [seg for pv in per_vehicle for seg in pv["tl"]]
@@ -330,6 +338,12 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
             d["resource_wait_s"] = float(resource_delays[pv["vehicle"]])
         totals.update(resource_wait_s=resource_wait_s, resource_waits=resource_waits,
                       shared_resources_modeled=True)
+    if mission.observations:        # FL-07: only surface observation fields when declared (else byte-identical)
+        for d, pv in zip(detail, per_vehicle):
+            d["observation_wait_s"] = float(observation_delays[pv["vehicle"]])
+        totals.update(observation_wait_s=observation_wait_s,
+                      observation_vantages=obs_bd.get("vantages", {}),
+                      observation_vantages_modeled=True)
     totals["energy_ledger"] = _energy_ledger(mission, all_trips, all_tl, totals)   # EP-01 separable terms
     return all_trips, flows, all_per_trip, all_tl, totals
 
@@ -362,6 +376,11 @@ def plan_multi_oracle(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
         raise ValueError("plan_multi_oracle does not model declared shared_resources (pit/dump/vantage/"
                          "corridor); it validates the base site-exclusive allocation + shared-charger "
                          "problem only (use plan_multi for resource-laden fleets)")
+    if mission.observations:
+        # FL-07/FL-06: the oracle does NOT model raised-observation vantage reservations either, so its
+        # optimum would be loose for an observation-laden fleet. RAISE (the shared_resources pattern above).
+        raise ValueError("plan_multi_oracle does not model declared observations (raised Solar/Meerkat "
+                         "vantage reservations); use plan_multi for observation-laden fleets")
     trips, _flows, _surplus, _meta = _build_trips(mission, dem, dem_origin, max_traverse_slope_deg)
     routes = _make_routes(mission, dem, dem_origin, max_traverse_slope_deg)
     if len(trips) > MV_ORACLE_MAX_TRIPS:

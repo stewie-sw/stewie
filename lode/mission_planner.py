@@ -149,7 +149,7 @@ from lode.planner_multivehicle import (  # noqa: E402,F401
     _resolve_cross_vehicle_precedence, _vehicle_conflicts,
     _charger_conflicts, _resolve_charger_queue, _resolve_shared_resources, _temporal_conflicts,
     _seg_seg_min_dist, _haul_path_conflicts, _resolve_spacetime_crowding, _rover_health,
-    _resolve_joint_resources,
+    _resolve_joint_resources, _resolve_observation_vantages,
 )
 
 

@@ -229,6 +229,13 @@ class Mission:
     #: `capacity` rovers would occupy it at once the excess WAIT (capacity-k FCFS, like the charger queue).
     #: None/empty -> no extra contention -> single-vehicle AND non-reserved multi-vehicle byte-identical.
     shared_resources: list | None = None
+    #: FL-07: declared RAISED OBSERVATIONS (Solar/Meerkat vantage holds) the fleet deconflicts, as a list
+    #: of {vehicle, x, y, t_start, t_end, kind}. A raised observation (an Observe action is lowered to the
+    #: raised MEERKAT posture -- stewie.bridge.plan_lowering; a solar fix is a raised sun sight --
+    #: dart.solar_observation) claims a capacity-1 VANTAGE for its window; two observations within the
+    #: exclusion radius of each other CONFLICT (occlusion/collision) and the loser WAITS (FCFS, like the
+    #: charger queue), the wait folding into the makespan. None/empty, or single-vehicle -> byte-identical.
+    observations: list | None = None
     #: EP-02: operator material-difficulty multiplier on the dig energy. The baseline dig model is a CONSTANT
     #: J/kg (ipex_specs.dig_energy_per_kg, calibrated to BP-1 dry simulant -- material/density/ice-INDEPENDENT,
     #: with the drum-rate (0.72-1.0)x band the planner already reports as dig_energy_bounds_MJ). Physical
@@ -471,6 +478,33 @@ def mission_from_dict(payload):
             clean_sr.append({"id": rid, "kind": kind, "capacity": int(cap), "sites": sites})
         if clean_sr:
             kwargs["shared_resources"] = clean_sr
+    ob = payload.get("observations")                       # FL-07: declared raised Solar/Meerkat observations
+    if ob is not None:
+        if not isinstance(ob, (list, tuple)):
+            raise ValueError("'observations' must be a list of {vehicle, x, y, t_start, t_end, kind}")
+        allowed_obs = {"meerkat", "solar"}                 # the two raised-observation classes (FL-07)
+        clean_ob = []
+        for n, o in enumerate(ob):
+            if not isinstance(o, dict):
+                raise ValueError(f"observations[{n}] must be an object")
+            veh = o.get("vehicle")
+            if not isinstance(veh, int) or isinstance(veh, bool) or veh < 0:
+                raise ValueError(f"observations[{n}] vehicle must be an int >= 0 (got {veh!r})")
+            okind = o.get("kind", "meerkat")               # an Observe lowers to the raised MEERKAT posture
+            if okind not in allowed_obs:
+                raise ValueError(f"observations[{n}] kind {okind!r}; allowed: {sorted(allowed_obs)}")
+            for key in ("x", "y", "t_start", "t_end"):
+                if key not in o:
+                    raise ValueError(f"observations[{n}] needs '{key}'")
+            ox = VAL.ensure_finite_scalar(o["x"], f"observations[{n}].x")
+            oy = VAL.ensure_finite_scalar(o["y"], f"observations[{n}].y")
+            ot0 = VAL.ensure_finite_scalar(o["t_start"], f"observations[{n}].t_start")
+            ot1 = VAL.ensure_finite_scalar(o["t_end"], f"observations[{n}].t_end")
+            if ot1 <= ot0:
+                raise ValueError(f"observations[{n}] window must have t_end > t_start (got [{ot0}, {ot1}))")
+            clean_ob.append({"vehicle": veh, "x": ox, "y": oy, "t_start": ot0, "t_end": ot1, "kind": okind})
+        if clean_ob:
+            kwargs["observations"] = clean_ob
     df = payload.get("dig_energy_factor")                  # EP-02: operator material-difficulty multiplier
     if df is not None:
         fv = VAL.ensure_finite_scalar(df, "dig_energy_factor")
