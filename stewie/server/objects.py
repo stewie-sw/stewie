@@ -67,13 +67,18 @@ def owner_of(kind: str, name: str, namespace: str = "live", owner: str | None = 
         return "unknown"
 
 
-def deletion_allowed(owner: str | None, identity: str, is_director: bool) -> bool:
-    """AG-06 escalation policy: you may delete your OWN artifact; another operator's -- or an
-    unowned/'unknown' -- artifact requires a director. A missing artifact (owner None) is a
-    harmless no-op (allowed)."""
+def deletion_allowed(owner: str | None, identity: str, is_director: bool,
+                     *, namespace: str = "live") -> bool:
+    """AG-06 escalation policy (BP-05: namespace-aware). A LIVE-namespace artifact is operational/shared,
+    so deleting it requires a DIRECTOR -- even the creator cannot soft-delete their own live mission /
+    shared structure (the review found owner self-delete of live violated AG-06). A SANDBOX artifact
+    keeps self-service delete (your own, or a director). A missing artifact (owner None) is a harmless
+    no-op (allowed)."""
     if owner is None:
         return True
-    return is_director or owner == identity
+    if namespace == "live":
+        return is_director                          # BP-05: live deletion is director-only
+    return is_director or owner == identity          # sandbox: self-service (own or director)
 
 
 def _trash_dir(kind: str, namespace: str = "live", owner: str | None = None) -> str:

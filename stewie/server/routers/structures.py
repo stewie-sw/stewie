@@ -46,9 +46,10 @@ def structure_delete(name: str, identity: str = Depends(require_auth)):
     another operator's (or an unowned) template requires a director."""
     from stewie.server import auth as AUTH
     owner = OBJ.owner_of("structures", name)
-    if not OBJ.deletion_allowed(owner, identity, AUTH.role_of(identity) == "director"):
+    # BP-05: a custom structure template is a shared LIVE artifact -> deletion is director-only.
+    if not OBJ.deletion_allowed(owner, identity, AUTH.role_of(identity) == "director", namespace="live"):
         return JSONResponse(status_code=403, content={
-            "ok": False, "error": "deleting another operator's structure requires a director"})
+            "ok": False, "error": "deleting a shared (live) structure template requires a director"})
     ok = OBJ.delete_structure(name)
-    log_event(identity, "structure.delete", name)
+    log_event(identity, "structure.delete", f"{name} ns=live")
     return {"ok": ok, "recoverable": True}

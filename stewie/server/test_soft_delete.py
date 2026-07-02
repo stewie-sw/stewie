@@ -34,12 +34,18 @@ def test_delete_missing_is_a_noop(obj):
 
 def test_deletion_allowed_policy(obj):
     allow = obj.deletion_allowed
-    assert allow("alice@x.com", "alice@x.com", False) is True           # own -> self-service
-    assert allow("alice@x.com", "bob@x.com", False) is False            # other operator -> needs director
-    assert allow("alice@x.com", "bob@x.com", True) is True              # director escalation
-    assert allow("unknown", "bob@x.com", False) is False                # unowned -> director only
-    assert allow("unknown", "bob@x.com", True) is True
-    assert allow(None, "bob@x.com", False) is True                      # missing artifact -> harmless no-op
+    # BP-05: a LIVE (operational/shared) artifact is director-only to delete -- even for the owner.
+    assert allow("alice@x.com", "alice@x.com", False, namespace="live") is False    # own live -> needs director
+    assert allow("alice@x.com", "alice@x.com", True, namespace="live") is True       # director escalation
+    assert allow("alice@x.com", "bob@x.com", False, namespace="live") is False       # other operator -> director
+    # SANDBOX keeps self-service (your own, or a director).
+    assert allow("alice@x.com", "alice@x.com", False, namespace="sandbox") is True   # own sandbox -> self-service
+    assert allow("alice@x.com", "bob@x.com", False, namespace="sandbox") is False    # other operator -> director
+    assert allow("alice@x.com", "bob@x.com", True, namespace="sandbox") is True       # director escalation
+    # unowned -> director only; missing artifact -> harmless no-op (either namespace).
+    assert allow("unknown", "bob@x.com", False, namespace="sandbox") is False
+    assert allow("unknown", "bob@x.com", True, namespace="live") is True
+    assert allow(None, "bob@x.com", False) is True
 
 
 def test_owner_of(obj):

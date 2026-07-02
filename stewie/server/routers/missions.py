@@ -103,11 +103,14 @@ def mission_delete(name: str, ns: str = "live", identity: str = Depends(require_
     from stewie.server import auth as AUTH
     namespace, owner = namespace_for(identity, ns)
     art_owner = OBJ.owner_of("missions", name, namespace=namespace, owner=owner)
-    if not OBJ.deletion_allowed(art_owner, identity, AUTH.role_of(identity) == "director"):
-        return JSONResponse(status_code=403, content={
-            "ok": False, "error": "deleting another operator's mission requires a director"})
+    if not OBJ.deletion_allowed(art_owner, identity, AUTH.role_of(identity) == "director",
+                                namespace=namespace):
+        # BP-05: a LIVE mission is operational -> director-only; sandbox stays self-service.
+        reason = ("deleting a live (operational) mission requires a director" if namespace == "live"
+                  else "deleting another operator's mission requires a director")
+        return JSONResponse(status_code=403, content={"ok": False, "error": reason})
     ok = OBJ.delete_mission(name, namespace=namespace, owner=owner)
-    log_event(identity, "mission.delete", name)
+    log_event(identity, "mission.delete", f"{name} ns={namespace}")   # BP-05: audit names the namespace
     return {"ok": ok, "recoverable": True}
 
 
