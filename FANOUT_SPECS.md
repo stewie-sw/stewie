@@ -762,7 +762,12 @@ hardware-gated). Buildable on archimedes; each anchors to a real existing file (
 - files: ros2_ws/src/stewie_bringup/config/gz_bridge.yaml, deploy/ros2/Dockerfile.gazebo, ros2_ws/src/stewie_rviz/rviz/mission.rviz
 - test_target: NEW ros2_ws/test_gazebo_loop.py citing [REQ:RS-05]
 ### RS-07 (P1) — atomic
-- goal: two-screen operator display (primary command cockpit + secondary read-only viz/telemetry subdomain embedding Godot/Gazebo/RViz), one state model, no command authority on the secondary.
-- acceptance: the two-screen layout renders console + Godot/Gazebo/RViz evidence; secondary emits no command; both reflect the same run/state.
+- goal: primary command cockpit + a SECONDARY read-only viz that is two-fold (PLAN column = sim-of-record route/forecast/Godot + prior/forecast/edited twin provenance; ACTUAL column = live ROS2 observed map/cloud/pose/executed cmd + observed provenance), co-registered in the site frame on one run/time state.
+- acceptance: the two-column layout renders PLAN + ACTUAL co-registered on the same run/time; secondary emits no command.
 - files: stewie/server/index.html, stewie/server/web/assets/cockpit_state.js, deploy/nginx.conf
 - test_target: NEW stewie/server/test_multiscreen_display.py citing [REQ:RS-07]
+### RS-08 (P1) — atomic
+- goal: the plan-vs-actual DIVERGENCE surface (executed-vs-planned trajectory, observed-vs-forecast hazard/DEM, pose-vs-truth covariance) with a follow-live/scrub-plan time offset; threshold crossing drives the replan indicator; informs only, never commands.
+- acceptance: a fixture where ACTUAL departs from PLAN yields a measured divergence surface + a threshold replan indicator, co-registered + read-only.
+- files: dart/relocalization.py, lode/costmap_layers.py, stewie/server/web/assets/cockpit_state.js
+- test_target: NEW stewie/eval/test_plan_actual_divergence.py citing [REQ:RS-08]

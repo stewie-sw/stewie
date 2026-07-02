@@ -869,14 +869,20 @@ the observed twin/world transaction = **DT-04**/**DT-03**; the cockpit loop card
 (RS-05), then hardware (RS-06); do NOT wire every profile at once. All buildable on archimedes except
 the hardware leg.
 
-**Display / embedding design (RS-07):** the operator surface is planned as TWO coordinated screens on
-one route/state model — a PRIMARY command cockpit (`app.stewie.space`: Plan→…→Report + the bounded
-software-command console + eligibility/refusal) and a SECONDARY visualization/telemetry surface on its
-own route/subdomain (e.g. `viz.stewie.space`) embedding the live Godot render, Gazebo/RViz (via a web
-ROS bridge / Foxglove), point cloud, costmap, and observed map. The secondary is READ-ONLY and carries
-NO independent command authority (§26.4). Godot embeds as its rendered PNG/stream sidecar; Gazebo/RViz
-embed via a containerized web bridge (rosbridge + Foxglove Studio) or a noVNC stream — never as a
-command surface.
+**Display / embedding design (RS-07 + RS-08):** the operator surface is a PRIMARY command cockpit
+(`app.stewie.space`: Plan→…→Report + the bounded software-command console + eligibility/refusal) plus a
+SECONDARY, READ-ONLY visualization/telemetry surface on its own route/subdomain (e.g. `viz.stewie.space`).
+The secondary is **two-fold** on one shared site-frame + run/time state: a **PLAN column** (what we
+intend — the sim-of-record Rehearse/route/forecast + the digital-twin `prior`/`forecast`/`edited`
+provenance, rendered by Godot) beside an **ACTUAL column** (what the rover senses/does — the live ROS2
+runtime, observed map, point cloud, real pose, executed `cmd_vel` + the `observed` provenance), with the
+ACTUAL source escalating replay→Gazebo→hardware (RS-04→05→06) while PLAN stays fixed. The operator
+PAYLOAD is the **divergence** between them (RS-08): executed-vs-planned trajectory, observed-vs-forecast
+hazard/DEM, pose-vs-truth covariance — the same pose-vs-truth discipline STEWIE already runs (12.7 mm/
+7.15° AprilTag eval), promoted to a live surface that drives the replan indicator. Godot embeds as its
+rendered PNG/stream sidecar; Gazebo/RViz embed via a containerized web bridge (rosbridge + Foxglove
+Studio) or a noVNC stream. The whole secondary carries NO independent command authority (§26.4) — the
+divergence informs, it never commands.
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
@@ -886,7 +892,8 @@ command surface.
 | RS-04 | P0 | **`ros2_replay` deterministic end-to-end loop fixture (the keystone gate).** ONE deterministic fixture on the first runnable profile (`ros2_replay` / `desktop_sil`) proves the whole spine: replay stereo/depth → classify hazards → update observed map → plan around hazards → issue OR REFUSE a bounded command (via eligibility) → record a `WorldTransaction` → produce an evidence bundle. Acceptance: the fixture runs end-to-end deterministically; each stage's typed RS-01 payload and the final evidence bundle are asserted; a seeded hazard forces a reroute and a seeded ineligibility forces a logged refusal. Buildable on archimedes. | N | N | N | NA |
 | RS-05 | P1 | **Gazebo live-sensor loop + RViz.** After RS-04 is stable, Gazebo becomes the live sensor producer (cameras/depth/LiDAR topics, IMU/wheel odom, `/tf`, `/clock`, `/joint_states`, `/cmd_vel`) driving the SAME RS loop; RViz shows robot, point cloud, map, costmap, path, and command state. Acceptance: the loop runs on Gazebo-produced sensors in-container and RViz displays the live evidence; estimator/planner inputs stay truth-denied. Buildable on archimedes (Gazebo + RViz containers). | N | N | N | NA |
 | RS-06 | P1 | **Hardware loop (gated).** ONLY after the replay + Gazebo loop is stable: a Jetson runnable profile, a real stereo/LiDAR bench, calibration, MEASURED latency/RAM/thermal budgets, fault injection, and watchdog proof. Genuinely gated on a real Jetson + sensor hardware bench. Acceptance (when hardware exists): the loop closes on-device within the declared compute/thermal envelope with the watchdog + fault-injection proven. | N | N | N | G |
-| RS-07 | P1 | **Multi-screen operator display architecture.** The operator surface is TWO coordinated screens on one route/state model: a PRIMARY command cockpit (`app.stewie.space` — Plan→…→Report + the bounded software-command console + eligibility/refusal) and a SECONDARY visualization/telemetry surface on its own route/subdomain (e.g. `viz.stewie.space`) embedding the live Godot render + Gazebo/RViz (web ROS bridge / Foxglove) + point cloud + costmap + observed map. The secondary is READ-ONLY with NO independent command authority (§26.4). Acceptance: the two-screen layout renders the console + Godot/Gazebo/RViz evidence, the secondary emits no command, and both reflect the same selected run/state. Buildable on archimedes. | N | N | N | NA |
+| RS-07 | P1 | **Multi-screen operator display architecture (primary command + two-fold viz).** The operator surface is a PRIMARY command cockpit (`app.stewie.space` — Plan→…→Report + the bounded software-command console + eligibility/refusal) and a SECONDARY, READ-ONLY visualization/telemetry surface on its own route/subdomain (e.g. `viz.stewie.space`) that is itself **two-fold** on one shared site-frame + run/time state model: a **PLAN column** (what we INTEND — the sim-of-record: Rehearse trajectory, planned global route + local arcs, forecast costmap, and the digital-twin `prior`/`forecast`/`edited` provenance layers per RS-02/DT-04, rendered by Godot) and an **ACTUAL column** (what the rover SENSES/DOES — the live ROS2 runtime via a web ROS bridge/Foxglove or web-RViz: observed DEM/occupancy, point cloud, real pose/belief, executed `cmd_vel`, and the twin's `observed` provenance layer). The ACTUAL column's source escalates across the staged rollout (RS-04 replay → RS-05 Gazebo → RS-06 hardware) while PLAN stays fixed. The whole secondary is READ-ONLY with NO independent command authority (§26.4). Acceptance: the two-column layout renders the PLAN (Godot/route/forecast) and ACTUAL (Gazebo/RViz cloud/observed-map/executed-cmd) surfaces co-registered in the site frame on the same selected run/time, and the secondary emits no command. Buildable on archimedes. | N | N | N | NA |
+| RS-08 | P1 | **Plan-vs-actual divergence surface (the operator payload).** The value of the two-fold viz (RS-07) is the DELTA, not either column alone: PLAN and ACTUAL are co-registered in the site frame and their divergence is a first-class surface — executed-vs-planned trajectory error, observed-vs-forecast hazard/DEM deltas, and pose-vs-truth covariance growth (the pose-vs-truth discipline STEWIE already runs — the 12.7 mm/7.15° AprilTag eval — promoted to a live operator surface). A time model exposes PLAN's lead/lag vs ACTUAL (a `follow-live` mode vs a `scrub-plan` mode with a visible offset), since planning runs ahead of execution. When divergence crosses a declared threshold it drives the replan indicator (PM-19) and the operator's attention; it INFORMS only — never commands (§26.4). Acceptance: a fixture where ACTUAL departs from PLAN produces a measured trajectory/DEM/covariance divergence surface + a threshold-crossing replan indicator, co-registered and read-only. Buildable on archimedes. | N | N | N | NA |
 
 ## 8. User Workflows
 
