@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "f886323f4aa6d9a88db56330ec94ba66e9a7876457403a6a6498d6571c941e82",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "f0f0e47465f4f1aac0ddf58ed47264f307b7ce83",
-  "prd_sha256": "917825246658babed63604e3235021f6dfe7878a1a2e3e2f4493f3578e9996c9",
-  "specs_sha256": "22b771e49436b8887f2903e373aeeb6c55c9247c17d10cdcc220e7a3673b0c8f"
+  "prd_commit": "daae20b94e39d604dd48c9fe84cfdc0e7a11d6bc",
+  "prd_sha256": "9f91328be031325b5d0e88834ffadccfd3c28815e3503da713eb2f3ec0c82bfa",
+  "specs_sha256": "213d6d787043c46f5a56f2d1147cf1784addefa9cf184b9b6b95197d75b9eacd"
  },
  "rows": [
   {
@@ -1147,6 +1147,261 @@
    "lane": "FL",
    "pri": "P1",
    "text": "Solar/Meerkat observation sites are reservable fleet resources so rovers do not occlude or collide during raised observations. `[PROPOSED]`"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "product mode + runnable profile in the cockpit route/state contract + shell + Release/Execute/eligibility gating.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_product_mode_profile.py citing [REQ:FS-25]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-01",
+   "lane": "FR",
+   "pri": "P1",
+   "text": "**Product mode + runnable profile in the frontend state contract AND mission authority (both reviews; extends FS-25).** The cockpit route/state carries the active product mode + runnable profile, the shell always shows them, and Release/Execute + command eligibility KEY on them. Acceptance: mode/profile are in the state contract + visible in the shell, and a Release/Execute on a mismatched profile is refused/degraded. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "depth-source profile selector + health/freshness; Release/Execute refuse/degrade on stale/mismatched/sim-when-live.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_sensor_profile_ui.py citing [REQ:PM-17]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-02",
+   "lane": "FR",
+   "pri": "P1",
+   "text": "**Depth-source profile selector + health/freshness (frontend; extends PM-17).** A perception-source selector (stereo/lidar/rgbd/learned/replay/sim-truth) with health + freshness; Release/Execute REFUSE or DEGRADE when the profile is stale, simulated-when-live-is-required, or incompatible with the runnable profile. Acceptance: the selector shows health/freshness and a stale/mismatched profile blocks Release/Execute with a legible reason. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "full Release/Execute authority-evidence field set.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_authority_evidence_panel.py citing [REQ:FS-28]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-03",
+   "lane": "FR",
+   "pri": "P1",
+   "text": "**Release + Execute complete authority evidence panel (frontend; extends FS-28).** The full authority-evidence field set on Release (plan hash, profile, namespace, sensor profile, eligibility, watchdog, sign-off) + Execute (bounded next command, acks, watchdog/link, covariance, map freshness, SAFE/pause/replan, refusal reason). Acceptance: a released revision shows every field; an ineligible command surfaces its refusal reason. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "admin as governed operations (policy + audit), not loose buttons.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_governed_admin_ui.py citing [REQ:PO-15]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-04",
+   "lane": "FR",
+   "pri": "P1",
+   "text": "**Admin/control moves from manual buttons to GOVERNED operations (frontend; extends PO-15).** The frontend exposes governed backend resources (operators/roles, security settings, retention/RPO, audit health) as governed operations with their policy + audit, not a loose button collection. Acceptance: each admin action shows its governing policy + writes an audit event; a degraded-governance state is visible. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "training operator link shows scope/expiry/actions/signed/revocation; signed expiring capability URL or authenticated.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_operator_link_model.py citing [REQ:SE-02]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-05",
+   "lane": "FR",
+   "pri": "P1",
+   "text": "**Training operator-view access model surfaced in the UI (frontend; extends SE-02/BP-06).** Each generated operator link shows scope, expiry, allowed actions (observe vs command), signed/single-use, and revocation state; the link is a signed expiring capability URL or authenticated session membership. Acceptance: the UI labels scope/expiry/actions/revocation beside each link; an expired/unsigned link is refused. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "a route_pane_registry.js source of truth + a pytest checking route coverage + a node test loading each adapter fixture (render/error/provenance).",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_route_pane_registry.py citing [REQ:FS-18]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-06",
+   "lane": "FR",
+   "pri": "P1",
+   "text": "**Route-to-pane contract registry + coverage gate (frontend; extends FS-18).** A `route_pane_registry.js` is the source of truth (route+method, backend schema, adapter, pane id, required role, provenance requirement, empty-state fixture, failure fixture, mobile fixture); a pytest enumerates backend routes and checks registry coverage for cockpit-visible panes; a node test loads each adapter fixture and verifies render status + error state + provenance labels. Acceptance: a route-backed pane missing from the registry (or missing an evidence/mobile fixture) fails the gate. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "reconcile stale PRD/FANOUT provenance text with the shipped provenance labels.",
+    "kind": "atomic",
+    "test_target": "scripts/test_provenance_doc_coherence.py citing [REQ:FR-07]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-07",
+   "lane": "FR",
+   "pri": "P2",
+   "text": "**Provenance-labeling doc coherence (frontend).** The shipped provenance labels improved past the PRD/FANOUT prose; reconcile the stale text so the docs describe the real provenance surfaces. Acceptance: a doc-coherence check finds no PRD/FANOUT claim contradicted by the shipped provenance labeling. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "the ui-smoke 390px no-overflow check covers all cockpit panes, not only /program.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_cockpit_mobile_fit.py citing [REQ:FS-26]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-08",
+   "lane": "FR",
+   "pri": "P2",
+   "text": "**Mobile fit is a protected regression gate across the cockpit (frontend; extends FS-26).** The ui-smoke 390 px no-horizontal-overflow assertion covers the cockpit panes (Plan..Report) + /program, not only /program. Acceptance: any pane that overflows the phone viewport reds the ui-smoke tier. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "prove the live hazard-perception->world->planner->eligibility->cockpit loop end-to-end with provenance + refusal/approval evidence.",
+    "kind": "epic",
+    "test_target": "stewie/eval/test_live_perception_loop_e2e.py citing [REQ:PM-19]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-09",
+   "lane": "FR",
+   "pri": "P1",
+   "text": "**Prove the live hazard-perception -> world -> planner -> eligibility -> cockpit loop end-to-end (lunar; extends PM-19/RS-04).** A sensor observation changes the world model (with uncertainty + provenance), changes the planner costmap/route, gates command eligibility, and appears to the operator with provenance + refusal/approval evidence -- proven as ONE chain, not per-component. Acceptance: the mission-critical loop is demonstrated end-to-end with the operator evidence; until then the system is described as a planning/simulation scaffold, not a validated operational stack. Buildable on archimedes (host-side); the live-ROS runtime is the gated leg."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "unified typed layer-manifest world contract (id/type/CRS/bounds/res/source/provenance/freshness/uncertainty/validity/txn/consumer-eligibility); planner consumes the same manifest.",
+    "kind": "epic",
+    "test_target": "stewie/server/test_world_layer_manifest.py citing [REQ:TW-05]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-10",
+   "lane": "FR",
+   "pri": "P1",
+   "text": "**Unified typed LAYER MANIFEST world contract (lunar; extends TW-05).** `/world` carries a per-layer manifest -- layer id/type (DEM/imagery/slope/roughness/material/traversability/observed-mask/uncertainty/hazard/illumination/comms), body CRS, site bounds, resolution, source, provenance, timestamp+freshness, uncertainty model, validity mask, transaction id, and CONSUMER ELIGIBILITY (display/planning/release/execute) -- and the planner costmap consumes the SAME manifest the cockpit reads. Acceptance: material/traversability/observed/uncertainty layers are discoverable + typed, each with consumer eligibility, and the planner builds its costmap from that manifest. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "observed-world-to-planner end-to-end acceptance gate (DEM+route -> inject hazard -> world txn -> rebuild costmap -> route changes/refuses/justified -> cockpit+release evidence).",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_observed_world_planner_e2e.py citing [REQ:RS-02]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-11",
+   "lane": "FR",
+   "pri": "P1",
+   "text": "**Observed-world-to-planner END-TO-END acceptance gate (lunar; extends RS-02).** A single test: known DEM + route -> inject an observed hazard/terrain delta -> commit it through a world transaction -> rebuild the costmap from the layer manifest -> prove the route changes, is refused, OR records a justified-unchanged result -> render the impact in the cockpit + release evidence (\"route changed because observed hazard X entered leg Y\"). Acceptance: that end-to-end gate passes on real terrain. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "precise GIS/ArcGIS product language + an ArcGIS adapter boundary + per-layer display-eligibility vs planning-eligibility fields.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_gis_platform_claims.py citing [REQ:FR-12]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-12",
+   "lane": "FR",
+   "pri": "P1",
+   "text": "**GIS/ArcGIS platform claims get stricter boundaries (lunar).** Use precise language (GIS-oriented lunar planning / OGC-WMS + export / body-aware CRS / ArcGIS-compatible concepts where implemented) and STOP implying \"ArcGIS platform complete\"; add an ArcGIS integration adapter BOUNDARY (Feature Service read/query/edit, auth/token, schema mapping, offline package, CRS+vertical datum, round-trip validation) instead of mixing ArcGIS assumptions into generic GIS code; every layer carries SEPARATE display-eligibility and planning-eligibility fields. Acceptance: UI/labels use the precise language, the ArcGIS boundary + per-shape fixtures exist, and a layer displayable-but-not-planning-valid is not treated as planning-valid. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "a RegolithVolumeEstimate contract (before/after source, change mask, cut/fill, uncertainty, drum cross-check, conservation residual, confidence, acceptance, linked txn); LEAP emits it; cockpit/report render it.",
+    "kind": "atomic",
+    "test_target": "leap/test_regolith_volume_estimate.py citing [REQ:ML-06]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-13",
+   "lane": "FR",
+   "pri": "P1",
+   "text": "**Observed before/after volume + uncertainty evidence for surface design (lunar; extends ML-06).** A `RegolithVolumeEstimate` contract (structure/work-order id, before + after terrain source, change mask, estimated cut/fill, uncertainty, drum/load cross-check, conservation residual, confidence class, acceptance status, linked world transaction); LEAP siteplan/structures emit it; the cockpit/report render volume acceptance + uncertainty. Acceptance: a before/after terrain delta produces a conserved, uncertainty-carrying volume estimate cross-checked against the drum sensor, linked to a world transaction. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "label navigation preview/rehearsal unless the runnable profile proves a live+authorized autonomy binary.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_nav_preview_labeling.py citing [REQ:FR-14]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-14",
+   "lane": "FR",
+   "pri": "P2",
+   "text": "**Navigation is labeled preview/rehearsal unless a live autonomy integration is proven (lunar).** The UI + product language mark navigation as preview/rehearsal until the selected runnable profile proves a live autonomy binary is active + authorized. Acceptance: the nav surfaces are labeled preview/rehearsal, flipping to live only when the runnable profile attests a live+authorized autonomy integration. Buildable on archimedes (the live autonomy binary is the gated leg)."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "observability records link source assets/freshness/provenance/operator/product-mode/runnable-profile/transaction-id (mission evidence).",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_mission_evidence_ledger.py citing [REQ:FS-19]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FR-15",
+   "lane": "FR",
+   "pri": "P2",
+   "text": "**Observability records become mission evidence (lunar; extends FS-19/BP-08).** Each observability record links its source assets, source freshness, provenance, operator, product mode, runnable profile, and transaction id -- mission evidence, not just ops telemetry. Acceptance: `[REQ:FS-19]` fails if a required record lacks the source-asset/freshness/provenance/mode/profile/transaction linkage. Buildable on archimedes."
   },
   {
    "I": "D",
@@ -3287,9 +3542,9 @@
   }
  ],
  "summary": {
-  "briefs": 101,
+  "briefs": 116,
   "buckets": {
-   "buildable": 71,
+   "buildable": 86,
    "concurrent": 0,
    "done": 133,
    "gated": 25
@@ -3330,6 +3585,10 @@
    "FL": {
     "done": 6,
     "total": 7
+   },
+   "FR": {
+    "done": 0,
+    "total": 15
    },
    "FS": {
     "done": 15,
@@ -3407,11 +3666,11 @@
    },
    "P1": {
     "done": 84,
-    "total": 140
+    "total": 151
    },
    "P2": {
     "done": 0,
-    "total": 17
+    "total": 21
    },
    "P3": {
     "done": 0,
@@ -3419,10 +3678,10 @@
    }
   },
   "cited": 178,
-  "done_pct": 58.1,
-  "in_scope": 204,
-  "in_scope_done_pct": 65.2,
-  "total": 229
+  "done_pct": 54.5,
+  "in_scope": 219,
+  "in_scope_done_pct": 60.7,
+  "total": 244
  },
  "workflow_spine": [
   "Plan",
