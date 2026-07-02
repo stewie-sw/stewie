@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "6fc541f0a30668c1961aaf9cc2f375c9eb0e38b17f4c713f8bad38685fb64c1c",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "79e325fc6acfeb82e06b14659db9be1f91e273e1",
-  "prd_sha256": "dbe97a7e31ac7d25aae18eb33dd4395cdd83a354473978b139ada44feb778322",
-  "specs_sha256": "ec7c4cbff11028227cf0a16c6d28bbc5c70e517c70e17ac7deb63506a3397f20"
+  "prd_commit": "28cd5b7194c8fec3b2cdb0a18d85af9e5d9ca54f",
+  "prd_sha256": "f8c41cb411a591f24773b50daf6472b7b8f1b5f7042a76f7ffd23c80fafe720e",
+  "specs_sha256": "37059633a28f0aaa17e5f419a26a87179ebb0a85d82da450c3ad38af1ffd4b11"
  },
  "rows": [
   {
@@ -1607,6 +1607,91 @@
    "text": "Mission-executive state machine (`DRAFT->ANALYZED->REHEARSED->REVIEWED->RELEASED->ARMED->EXECUTING->HOLDING/SAFED/COMPLETED/ABORTED->DEBRIEFED`; RELEASED = signed immutable revision). The planning + authorization head (DRAFT->RELEASED) is implemented: `stewie.contracts.executive.MissionExecutive` drives the typed transitions, `lode.mission_lifecycle.run_lifecycle` attaches REAL evidence at each edge (the compiler's deterministic plan_id at ANALYZED; the forward_compare ranking at REHEARSED), and `POST /executive/advance` (`stewie/server/routers/executive.py`, director-gated) exposes it. An uncompilable intent yields a 400 with no fabricated plan_id. Tested by `lode/test_mission_lifecycle.py` + `stewie/server/test_executive_route.py` [REQ:MO-02]. Q stays N: the live ARMED..EXECUTING execution tier is gated (MO-04, SIM/FORECAST-labeled) and not yet qualified against fault injection or hardware."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "CI rejects a newly-tracked large binary unless allowlisted; externalize samples/lunar_dem/*.rf32 to checksum manifest + fetch script, keep one tiny real-derived smoke fixture.",
+    "kind": "atomic",
+    "test_target": "NEW scripts/test_large_file_policy.py citing [REQ:MT-01]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MT-01",
+   "lane": "MT",
+   "pri": "P1",
+   "text": "**Large-file / tracked-artifact policy + CI gate.** A CI check REJECTS a newly-tracked large binary artifact unless it is on an explicit allowlist; the ~225 MB of tracked `samples/lunar_dem/*/*.rf32` DEM fixtures are externalized to checksum manifests + a fetch script, keeping ONE tiny real-derived smoke fixture in git (no synthetic). Acceptance: adding a large tracked binary reds CI; the externalized DEM resolves via manifest+fetch; the suite is green on the tiny fixture. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "a safe documented cleaner for local generated/vendor bloat; generated outputs steered to one ignored artifact root; never touches tracked files.",
+    "kind": "atomic",
+    "test_target": "NEW scripts/test_workspace_cleanup.py citing [REQ:MT-02]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MT-02",
+   "lane": "MT",
+   "pri": "P2",
+   "text": "**Documented workspace-cleanup script.** A SAFE cleaner reclaims the ~4.9 GB of local generated/vendor bloat (`.venv`/`.mypy_cache`/`.claude`/`desktop/dist`/`desktop/node_modules`/`datasets`/root `out`/`stewie/godot/out`) and steers generated outputs toward ONE ignored artifact root. Acceptance: the script previews then removes ONLY ignored/generated paths (a dry-run lists them; it never touches a tracked file \u2014 asserted against `git ls-files`). Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "continue the cockpit strangler split (api_client / route-state / profile+sensor rail / command rail / diagnostics rail / one pane) into pure node-tested modules; HTML-sink allowlist gate.",
+    "kind": "epic",
+    "test_target": "NEW stewie/server/web/assets/html_sink_gate.test.js + scripts/test_html_sink_allowlist.py citing [REQ:MT-03]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MT-03",
+   "lane": "MT",
+   "pri": "P1",
+   "text": "**Frontend strangler split of the cockpit shell (extends FS-24).** Continue extracting the ~6.2k-line `cockpit.js` + ~1.5k-line `index.html` into pure modules one at a time \u2014 `api_client`, route/state, the mode/profile/sensor rail, the command rail, the diagnostics rail, one pane per step \u2014 each with node:test coverage; add an allowlist gate over HTML sinks (the frontend's large blast radius + `innerHTML`/authority/localStorage surface the audit flags). Cross-refs FS-24, FS-09 (pyramid), PM-17 (profile rail). Acceptance: each extraction lands as a pure node-tested module, `cockpit.js` LOC drops measurably, the HTML-sink gate reds on a new unlisted sink, and the ui-smoke stays green. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "split optional extras into core/perception/planning/server/ros/dev profiles; default install lean; heavy CV/GIS/benchmark deps out of minimal runtime.",
+    "kind": "atomic",
+    "test_target": "NEW scripts/test_dependency_profiles.py citing [REQ:MT-04]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MT-04",
+   "lane": "MT",
+   "pri": "P1",
+   "text": "**Lean package / dependency-profile split.** Split the optional extras into `core` / `perception` / `planning` / `server` / `ros` / `dev` profiles so the DEFAULT install is lean and the heavy CV/GIS/benchmark deps stay out of the minimal runtime. Acceptance: a minimal-profile install boots `stewie-serve` + `/healthz` without the heavy extras, and each profile resolves from the hashed lock. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "a continuity-governance release gate reporting tracked-payload size + large-file diff + HTML-sink count + test-tier status; ADRs per boundary; generated-artifact manifest.",
+    "kind": "atomic",
+    "test_target": "NEW scripts/test_continuity_gate.py citing [REQ:MT-05]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MT-05",
+   "lane": "MT",
+   "pri": "P1",
+   "text": "**Continuity-governance release gate + ADRs.** A release gate REPORTS the tracked-payload size, the large-file diff, the HTML-sink count, and the test-tier status; each subsystem boundary gets an architecture decision record; a generated-artifact manifest declares what is regenerable vs tracked. Acceptance: the gate emits all four metrics and reds on a new large tracked file OR a new unlisted HTML sink; the ADR set + artifact manifest exist and are checked in. Buildable on archimedes."
+  },
+  {
    "I": "D",
    "Q": "NA",
    "V": "D",
@@ -2969,9 +3054,9 @@
   }
  ],
  "summary": {
-  "briefs": 83,
+  "briefs": 88,
   "buckets": {
-   "buildable": 60,
+   "buildable": 65,
    "concurrent": 0,
    "done": 125,
    "gated": 25
@@ -3024,6 +3109,10 @@
    "MO": {
     "done": 1,
     "total": 1
+   },
+   "MT": {
+    "done": 0,
+    "total": 5
    },
    "NV": {
     "done": 12,
@@ -3081,18 +3170,18 @@
    },
    "P1": {
     "done": 80,
-    "total": 130
+    "total": 134
    },
    "P2": {
     "done": 0,
-    "total": 10
+    "total": 11
    }
   },
   "cited": 166,
-  "done_pct": 59.5,
-  "in_scope": 185,
-  "in_scope_done_pct": 67.6,
-  "total": 210
+  "done_pct": 58.1,
+  "in_scope": 190,
+  "in_scope_done_pct": 65.8,
+  "total": 215
  },
  "workflow_spine": [
   "Plan",
