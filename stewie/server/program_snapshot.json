@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "e7ef8db757027aabbd3e96c129db271d332f5f44a31612722167e586edd6d8bd",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "4fd27e989baf4c34aceccfb269ef1435581b2827",
-  "prd_sha256": "53bcdc8601966a2007cfcf2dd8d8f73e9d93bebc8910e6a8ee54c8a0cb9084a1",
-  "specs_sha256": "37059633a28f0aaa17e5f419a26a87179ebb0a85d82da450c3ad38af1ffd4b11"
+  "prd_commit": "4db68d80a63c438fa77c386e2b497a22010836c6",
+  "prd_sha256": "3a631fde67608877f1fd60611c30b50e817282dee5d2971995eb0c665f04fb04",
+  "specs_sha256": "22b771e49436b8887f2903e373aeeb6c55c9247c17d10cdcc220e7a3673b0c8f"
  },
  "rows": [
   {
@@ -435,6 +435,227 @@
    "lane": "AS",
    "pri": "P0",
    "text": "Typed ARGUS Navigation evidence contract: every accepted navigation measurement crossing the estimator seam carries factor type, covariance, frame, source, and evidence class; shadow-yaw remains heading-only; metric shadow-length/boundary factors are blocked from calibrated/measured labels until a passing residual artifact replaces the 2026-06-24 negative."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "SE-01 8-domain security-audit evidence manifest + real SBOM CVE scan + backup/restore drill; gate fails on any missing/undated/env-less domain.",
+    "kind": "atomic",
+    "test_target": "scripts/test_se01_audit_gate.py citing [REQ:SE-01]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-01",
+   "lane": "BP",
+   "pri": "P0",
+   "text": "**SE-01 release security-audit EVIDENCE gate (review P0-1, closes SE-01).** A dated `docs/security/se-01/<date>/manifest.json` carries ONE evidence record per required domain -- host, container, app, DNS/site, secret, backup/restore drill, dependency/SBOM/**CVE scan** (run + stored, not just SBOM generation), external exposure -- each naming the environment + the tool/manual procedure. A backup/restore drill restores `/data` into a fresh container and verifies the auth store, audit log, reports, profiles, mission artifacts, terrain memory, and world journal read back. Acceptance: `[REQ:SE-01]` gate fails on any missing/undated/env-less domain and passes only with all eight current records. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "the production backend image enters the public-bind TLS guard (guarded stewie-serve path or ASGI lifespan enforcement), not a raw uvicorn server:app.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_deploy_hardening.py citing [REQ:BP-02]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-02",
+   "lane": "BP",
+   "pri": "P1",
+   "text": "**Backend container entrypoint enters the public-bind TLS guard (review P1-1).** `server.py`'s public-bind guard (refuse plaintext `0.0.0.0` unless TLS-terminated / dev-open) runs only from `main()`, but `deploy/Dockerfile.backend` starts `uvicorn ... server:app` directly, bypassing it. Fix: the production image invokes the guarded `stewie-serve` path OR the invariant moves into ASGI startup/lifespan so a direct `server:app` import must pass it. Acceptance: a deploy test inspects the image command and fails if production starts `server:app` public without an equivalent guard. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "production requires STEWIE_SESSION_SECRET separate from STEWIE_API_KEY; fail-loud when TLS-terminated + secret absent; separate rotation semantics.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_session_secret.py citing [REQ:BP-03]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-03",
+   "lane": "BP",
+   "pri": "P1",
+   "text": "**Production requires a standalone session-signing secret (review P1-2).** `auth.py` falls back to deriving the session key from `STEWIE_API_KEY`; `compose.yml` does not require `STEWIE_SESSION_SECRET`. Fix: production (`STEWIE_TLS_TERMINATED=1`) REQUIRES `STEWIE_SESSION_SECRET` (fail-loud like the API key), startup fails/warns when TLS-terminated + secret absent, and rotation is documented (API-key rotation must not silently invalidate sessions; session-secret rotation must). Acceptance: a deploy-hardening test fails when production omits the secret; auth tests prove API-key vs session-secret rotation have separate effects. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "TLS-terminated production requires explicit STEWIE_ALLOWED_OPERATORS + STEWIE_DIRECTORS (or bootstrap director), disables default-allowlist/raw-key trust; /healthz+/config DEGRADED on defaults.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_production_identity_strict.py citing [REQ:BP-04]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-04",
+   "lane": "BP",
+   "pri": "P1",
+   "text": "**Production identity is strict -- no built-in trust (review P1-3).** `auth.py` hardcodes a `DEFAULT_ALLOWLIST`, falls back to it for unknown emails, makes all allowlisted users directors when `STEWIE_DIRECTORS` is unset, and keeps a raw-key bootstrap that can claim any allowlisted email. Fix: in `STEWIE_TLS_TERMINATED=1` production, REQUIRE explicit `STEWIE_ALLOWED_OPERATORS` + `STEWIE_DIRECTORS` (or a one-time bootstrap director record) and disable the default-allowlist/raw-key-bootstrap trust; keep defaults only for local/dev/desktop; `/healthz`+`/config` report a DEGRADED state when running on built-in defaults. Acceptance: TLS-terminated with no explicit allowlist/directors fails closed (login/bootstrap 403 or startup errors actionably). Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "live-namespace artifact deletion is director-only (missions/structures/objects); self-delete only for sandbox; delete audit names the namespace.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_live_delete_policy.py citing [REQ:BP-05]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-05",
+   "lane": "BP",
+   "pri": "P1",
+   "text": "**Live-namespace artifact deletion is director-only (review P1-4, enforces AG-06).** `missions.py`/`structures.py` delegate to `objects.deletion_allowed` (`is_director or owner==identity`), so an operator can soft-delete their OWN live mission/shared structure -- contrary to AG-06 (director approval for any live-namespace artifact). Fix: live-namespace deletion is director-only; self-service delete stays for the caller's own SANDBOX artifacts; enforce namespace policy in the routes (or `deletion_allowed(kind, namespace, owner, identity, role)`); the delete audit event names the namespace. Acceptance: operator deleting own LIVE mission -> 403; own sandbox mission -> ok; director deleting live -> ok + audited namespace. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "training operator-view access model (authenticated OR signed expiring capability URL with TTL enforced on get()); documented.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_session.py citing [REQ:SE-02]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-06",
+   "lane": "BP",
+   "pri": "P1",
+   "text": "**Training operator-view access model (review P1-5, closes SE-02).** `/session/{sid}/operator` is open-by-contract and expired sessions persist until another `start()` evicts. Fix: pick ONE model -- authenticated (`require_auth` + optional trainer/session ownership) OR a signed expiring capability URL (explicit share token, `get()` enforces TTL) -- and document it. Acceptance `[REQ:SE-02]`: authenticated -> anonymous GET 401/403; capability -> unsigned id-only URL 401/403, signed unexpired ok, expired fails. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "critical ops (director admin, live mission mutation, release/execute, rc/command, security settings) refuse 503 on a degraded audit ledger; non-critical best-effort.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_audit_critical.py citing [REQ:BP-07]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-07",
+   "lane": "BP",
+   "pri": "P2",
+   "text": "**Critical operations fail closed on a degraded audit ledger (review P2-1).** `services.log_event` records audit-write failures but never raises, so a disk-full/permission failure lets privileged changes proceed with a degraded ledger. Fix: a `critical=True` / `require_audit_healthy()` path for director admin, live-mission mutation, release/execute, `/rc/command`, and security-settings changes REFUSES with 503 when the audit sink is degraded; non-critical logs stay best-effort. Acceptance: injecting an audit-write failure makes `/admin/operators/create`, live-mission delete, release/execute, and `/rc/command` refuse or surface a hard degraded result. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "full FS-19 observability ledger -- typed event schema + per-contract-route decorator (correlation id/actor/route/result/latency/error/hashes/mission-site-body-time) + redaction; one assertion per event class.",
+    "kind": "epic",
+    "test_target": "stewie/server/test_observability_ledger.py citing [REQ:FS-19]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-08",
+   "lane": "BP",
+   "pri": "P2",
+   "text": "**Full FS-19 observability ledger (review P2-2, extends FS-19).** The audit trail covers operator actions but not the full FS-19 per-contract observability (correlation id, actor, route contract, result, latency, error code, input/output hashes, mission/site/body/time, per required event class). Fix: a typed observability-event schema (separate from the director audit trail), a decorator/helper for backend contract routes recording all fields with redaction, and one `[REQ:FS-19]` assertion per required event class. Acceptance: `[REQ:FS-19]` fails if any required event class lacks full-field coverage or redaction misses secrets/truth-denied fields. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "single-worker backend invariant (STEWIE_SINGLE_PROCESS_STATE=1) documented + a deploy test fails if production workers>1 without shared state.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_deploy_hardening.py citing [REQ:BP-09]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-09",
+   "lane": "BP",
+   "pri": "P2",
+   "text": "**Single-worker backend is a guarded invariant (review P2-3).** Rate limiters, training sessions, and request metrics are process-local; the deployment is `--workers 1` by design, but accidental scaling would split them. Fix: document \"single-worker backend\" as an architectural invariant (`STEWIE_SINGLE_PROCESS_STATE=1`) and add a deploy-hardening test that fails if production workers > 1 without moving those stores to shared storage. Acceptance: a test checks the production command + the single-process invariant. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "prune_reports removes old nested render_* dirs (prefix-matched, resolved paths asserted under reports_dir); no arbitrary recursive delete.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_report_prune.py citing [REQ:BP-10]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-10",
+   "lane": "BP",
+   "pri": "P2",
+   "text": "**Report pruning removes nested render directories (review P2-4).** `prune_reports()` deletes only files directly under `reports_dir`, so `render_*` subdirs (perception render outputs) accumulate. Fix: prune old generated directories matching known prefixes (`render_*`) with resolved paths asserted to stay under `reports_dir` (no arbitrary recursive delete). Acceptance: the prune test adds an old `render_*` dir and proves it is removed while unrelated dirs survive. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "optimistic concurrency for live object stores -- updated_at/revision/sha256 + If-Match/base_revision + 409 on stale save.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_object_concurrency.py citing [REQ:BP-11]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-11",
+   "lane": "BP",
+   "pri": "P2",
+   "text": "**Optimistic concurrency on live object stores (review P2-5).** `objects.save_*` use atomic replace (no partial writes) but two operators saving the same live mission/profile/shared-structure race last-writer-wins with no conflict. Fix: add `updated_at`/`revision`/`sha256` to shared live artifacts; require `If-Match` or a body `base_revision`; return 409 + the current revision on a stale save. Acceptance: two clients load rev N; first save -> N+1; second save with N -> 409. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "the publish workflow installs from requirements-dev.lock --require-hashes + -e . --no-deps, matching CI (supply-chain parity).",
+    "kind": "atomic",
+    "test_target": "scripts/test_publish_workflow_lock.py citing [REQ:BP-12]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-12",
+   "lane": "BP",
+   "pri": "P2",
+   "text": "**Publish workflow uses the hashed dev lock (review P2-6).** `ci.yml` installs `requirements-dev.lock --require-hashes` but `publish-stewie.yml` installs `pip install -e .[dev]`, so the release gate can run against different dependency versions (supply-chain/reproducibility gap). Fix: the publish gate matches CI (`pip install --require-hashes -r requirements-dev.lock` + `pip install -e . --no-deps`) and optionally runs `req_trace` + the deploy-hardening tests. Acceptance: a workflow-lint test asserts the publish workflow uses `requirements-dev.lock` with `--require-hashes`. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "browser login omits the bearer token in JSON (returns role/operator/ttl/must_set_password); token only on an explicit automation path.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_login_token_split.py citing [REQ:BP-13]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BP-13",
+   "lane": "BP",
+   "pri": "P3",
+   "text": "**Browser login does not echo the bearer token in JSON (review P3-1).** Login sets HttpOnly session + CSRF cookies (correct) but still returns the token in the JSON body for BOTH browser and automation, widening exposure (browser memory/logs/devtools). Fix: a normal browser login returns role/operator/ttl/must_set_password and OMITS `token`; only an explicit automation route/header/flag returns a bearer token. Acceptance: browser login response omits `token`; the automation path includes it only when explicitly requested + tested. Buildable on archimedes."
   },
   {
    "I": "D",
@@ -3066,9 +3287,9 @@
   }
  ],
  "summary": {
-  "briefs": 88,
+  "briefs": 101,
   "buckets": {
-   "buildable": 60,
+   "buildable": 73,
    "concurrent": 0,
    "done": 131,
    "gated": 25
@@ -3085,6 +3306,10 @@
    "AS": {
     "done": 8,
     "total": 18
+   },
+   "BP": {
+    "done": 0,
+    "total": 13
    },
    "CP": {
     "done": 9,
@@ -3178,22 +3403,26 @@
   "by_priority": {
    "P0": {
     "done": 49,
-    "total": 70
+    "total": 71
    },
    "P1": {
     "done": 82,
-    "total": 135
+    "total": 140
    },
    "P2": {
     "done": 0,
-    "total": 11
+    "total": 17
+   },
+   "P3": {
+    "done": 0,
+    "total": 1
    }
   },
   "cited": 176,
-  "done_pct": 60.6,
-  "in_scope": 191,
-  "in_scope_done_pct": 68.6,
-  "total": 216
+  "done_pct": 57.2,
+  "in_scope": 204,
+  "in_scope_done_pct": 64.2,
+  "total": 229
  },
  "workflow_spine": [
   "Plan",
