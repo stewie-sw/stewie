@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "575a454ce484226511faf8986db6b7c06be99899a25e6be9ed1334961fedf103",
+  "citations_sha256": "6fc541f0a30668c1961aaf9cc2f375c9eb0e38b17f4c713f8bad38685fb64c1c",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "dad2f9f7010fdb5432c479c468419eee946831cd",
-  "prd_sha256": "7dbc9c99d953cc42cf15a1478db1109d124cdb22d8391804135bac1db1888041",
+  "prd_commit": "79e325fc6acfeb82e06b14659db9be1f91e273e1",
+  "prd_sha256": "dbe97a7e31ac7d25aae18eb33dd4395cdd83a354473978b139ada44feb778322",
   "specs_sha256": "ec7c4cbff11028227cf0a16c6d28bbc5c70e517c70e17ac7deb63506a3397f20"
  },
  "rows": [
@@ -671,17 +671,17 @@
    "text": "Twin audit read security: `/twin/version` exposes only a minimal authenticated version token to ordinary clients; full event history/provenance requires director/admin authorization and audit logging."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "make world-state mutation + WorldTransaction commit atomic (two-phase or compensating), no swallowed best-effort.",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_world_transaction_atomic.py citing [REQ:DT-03]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "DT-03",
    "lane": "DT",
    "pri": "P0",
@@ -2454,17 +2454,17 @@
    "text": "A command-timeout safing watchdog auto-issues SAFE to any RC backend (sim or real pit) when valid commands stop arriving; resets on each heartbeat. The dead-man interlock on the command path (the \u00a719.0 safety requirement; the moment STEWIE commands hardware, this is its interlock)."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "bound every rover command (incl. mission-less GoTo) to a released mission or an explicit dev/bench teleop grant refused on LIVE/OPERATE.",
     "kind": "atomic",
     "test_target": "extend stewie/server/test_rc.py (or NEW test_rc_command_authority.py) citing [REQ:SF-02]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "SF-02",
    "lane": "SF",
    "pri": "P0",
@@ -2971,9 +2971,9 @@
  "summary": {
   "briefs": 83,
   "buckets": {
-   "buildable": 62,
+   "buildable": 60,
    "concurrent": 0,
-   "done": 123,
+   "done": 125,
    "gated": 25
   },
   "by_lane": {
@@ -2998,7 +2998,7 @@
     "total": 7
    },
    "DT": {
-    "done": 2,
+    "done": 3,
     "total": 5
    },
    "EP": {
@@ -3050,7 +3050,7 @@
     "total": 2
    },
    "SF": {
-    "done": 1,
+    "done": 2,
     "total": 2
    },
    "SL": {
@@ -3076,7 +3076,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 43,
+    "done": 45,
     "total": 70
    },
    "P1": {
@@ -3088,10 +3088,10 @@
     "total": 10
    }
   },
-  "cited": 164,
-  "done_pct": 58.6,
+  "cited": 166,
+  "done_pct": 59.5,
   "in_scope": 185,
-  "in_scope_done_pct": 66.5,
+  "in_scope_done_pct": 67.6,
   "total": 210
  },
  "workflow_spine": [
