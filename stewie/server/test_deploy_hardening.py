@@ -37,6 +37,36 @@ def test_dockerfile_backend_copies_stewie_once():
     assert len(copies) == 1, f"expected exactly one `COPY stewie ./stewie`, found {len(copies)} (O-04)"
 
 
+def test_backend_entrypoint_enters_the_tls_guard():
+    """[REQ:BP-02] the production backend CMD must enter the GUARDED entrypoint so the public-bind TLS
+    guard (server._require_tls_for_public_bind, called only from main()) actually runs -- NOT a raw
+    `uvicorn stewie.server.server:app`, which imports the ASGI app directly and bypasses main()."""
+    cmd = [ln for ln in _read("deploy/Dockerfile.backend").splitlines()
+           if re.match(r"\s*CMD\b", ln)][-1]
+    # it must invoke the guarded path: the stewie-serve console script or `python -m stewie.server.server`.
+    guarded = ("stewie-serve" in cmd) or ("-m" in cmd and "stewie.server.server" in cmd and "uvicorn" not in cmd)
+    assert guarded, f"backend CMD must enter main()'s TLS guard, got: {cmd}"
+    # and it must NOT start the ASGI app object directly (the bypass the review flagged).
+    assert "server:app" not in cmd and "server.server:app" not in cmd, (
+        "a raw `uvicorn ...server:app` bypasses the public-bind TLS guard (BP-02)")
+
+
+def test_the_tls_guard_fails_closed_on_a_plaintext_public_bind(monkeypatch):
+    """[REQ:BP-02] proves the guard main() runs actually refuses a public bind with no TLS declared, so
+    entering it (above) is meaningful: 0.0.0.0 without STEWIE_TLS_TERMINATED / DEV_OPEN -> SystemExit."""
+    import pytest
+
+    from stewie.server import server as SRV
+    monkeypatch.delenv("STEWIE_TLS_TERMINATED", raising=False)
+    monkeypatch.delenv("STEWIE_DEV_OPEN", raising=False)
+    with pytest.raises(SystemExit):
+        SRV._require_tls_for_public_bind("0.0.0.0")
+    # declaring the terminator (as compose does) lets the same public bind through.
+    monkeypatch.setenv("STEWIE_TLS_TERMINATED", "1")
+    SRV._require_tls_for_public_bind("0.0.0.0")     # no raise
+    SRV._require_tls_for_public_bind("127.0.0.1")   # loopback always allowed
+
+
 def test_mkdocs_material_install_is_pinned():
     """S-13: the docs workflow must pin mkdocs-material to a version (no bare `pip install`)."""
     text = _read(".github/workflows/pages.yml")
