@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "18dd2bced54a0194770c90dd7f9d813f1b340435502b66787d5395bbd270b089",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "cb0da233ed8a3d3aa34bb4367060bc35d48a7a09",
-  "prd_sha256": "b24191210621946fb8975e8531acf4731030e86abcdb510bad04340500aff37f",
-  "specs_sha256": "238c1d18eacb9073e6c9c672064b9814eac6a9d27c81ceb79bf700861db3ae4d"
+  "prd_commit": "0d2f6c810835027edb50cffab2ea614f310d8777",
+  "prd_sha256": "fcfb92e62defff96bbb5bb9fbe603d96eec6d14ef66859132f9766a80379b88f",
+  "specs_sha256": "ff5682251563df1a36d21ff851c38f127bda0e40419c8f356af5e33ac4a11e62"
  },
  "rows": [
   {
@@ -1341,8 +1341,42 @@
    "cited": false,
    "id": "FS-26",
    "lane": "FS",
-   "pri": "P2",
-   "text": "**Public /program board fits the mobile viewport (review finding 9).** The `/program` board renders within the viewport at 390 px with no horizontal overflow (today content is ~575 px wide -> horizontal scroll; `program.html:28`). Acceptance: a Playwright check at 390 px asserts `document.scrollingElement.scrollWidth <= innerWidth` and every row/table scrolls inside its own container, not the page body. Buildable on archimedes."
+   "pri": "P1",
+   "text": "**Mobile viewport fit for the public /program board AND the deployed cockpit (review finding 9 + 100%-frontend-audit finding 5).** Neither the `/program` board (today ~575 px wide) nor the deployed cockpit (key controls overflow/clip at 390 px) horizontally overflows the mobile viewport; wide content (tables, plots, 3D) scrolls inside its own `overflow-x:auto` container, never the page body (`program.html:28`, cockpit chrome). Acceptance: a Playwright check at 390 px asserts `document.scrollingElement.scrollWidth <= innerWidth` on both `/program` and the cockpit, with every wide region self-scrolling. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "surface ROS/Gazebo/RViz run evidence (lifecycle nodes, /clock, /tf, /joint_states, bridge freshness, RViz status/screenshots, bag links, container profile, no-truth-input) in Validate/System/Report.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_ros_evidence_surface.py citing [REQ:FS-27]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-27",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "**ROS/Gazebo/RViz as first-class cockpit evidence surfaces (100%-frontend-audit finding 3).** The Validate/System/Report panes surface, for the selected run, the ROS/Gazebo/RViz evidence that proves the run matches its runnable profile: lifecycle nodes, `/clock`, `/tf`, `/joint_states`, bridge-topic freshness, RViz display status + screenshots, Gazebo/bag links, the process/container profile, and a no-truth-input assertion (`index.html:879`). These are engineering-visualization evidence, never a separate command surface. Acceptance: with a `ros2`/`gazebo` profile selected, the panes show live-or-recorded ROS/Gazebo/RViz status matching the profile, and flag a mismatch. Buildable on archimedes (ROS2 Jazzy / Gazebo / RViz containers run here)."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "Release freezes+shows plan hash/runtime profile/namespace/sensor profile/AG-08 eligibility/SF-01 watchdog/sign-off; Execute shows bounded next command + acks/watchdog/link-ack/covariance/map-freshness/SAFE controls + refusal reason.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_release_execute_evidence.py citing [REQ:FS-28]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-28",
+   "lane": "FS",
+   "pri": "P0",
+   "text": "**Release/Execute carry the full command-authority evidence card (100%-frontend-audit finding 4).** Release freezes and displays the immutable plan hash, runtime profile, namespace, sensor profile, AG-08 eligibility, SF-01 watchdog, and sign-off; Execute displays only the bounded NEXT command plus acknowledgements, watchdog/link-ack state, covariance, map freshness, SAFE/pause/replan controls, and a legible REFUSAL REASON when AG-08/NV-12/SF-01 reject a command (`cockpit.js:2366`). Acceptance: a released revision shows every field above; an ineligible command is refused with its reason surfaced. Buildable on archimedes."
   },
   {
    "I": "P",
@@ -2171,7 +2205,7 @@
    "id": "PO-15",
    "lane": "PO",
    "pri": "P1",
-   "text": "**Operations governance beyond account admin (review finding 7).** Backup/restore is a scheduled + monitored control with an explicit RPO/retention policy (not a manual director endpoint at `admin_ops.py:18`); mission, runtime, and profile administration exist as first-class operations surfaces (not browser-local display preferences at `index.html:1354`). Acceptance: a retention/RPO policy is declared and enforced by a scheduled job with a monitored last-success/age signal; mission/runtime/profile admin actions are audited. Buildable on archimedes."
+   "text": "**Operations governance beyond account admin (review finding 7).** Backup/restore is a scheduled + monitored control with an explicit RPO/retention policy (not a manual director endpoint at `admin_ops.py:18`); mission, runtime, and profile administration exist as first-class operations surfaces (not browser-local display preferences at `index.html:1354`). Also covers (100%-frontend-audit finding 6): ROS-runtime administration, hardware/live-command LOCKS (an explicit safety interlock separate from role), and an evidence-retention policy (`index.html:1354,1423`). Acceptance: a retention/RPO policy is declared and enforced by a scheduled job with a monitored last-success/age signal; mission/runtime/profile/ROS-runtime admin + the hardware-live lock are first-class audited surfaces, not browser-local display prefs. Buildable on archimedes."
   },
   {
    "I": "D",
@@ -2752,9 +2786,9 @@
   }
  ],
  "summary": {
-  "briefs": 71,
+  "briefs": 73,
   "buckets": {
-   "buildable": 52,
+   "buildable": 54,
    "concurrent": 0,
    "done": 121,
    "gated": 24
@@ -2794,7 +2828,7 @@
    },
    "FS": {
     "done": 13,
-    "total": 26
+    "total": 28
    },
    "GI": {
     "done": 1,
@@ -2856,22 +2890,22 @@
   "by_priority": {
    "P0": {
     "done": 42,
-    "total": 64
+    "total": 66
    },
    "P1": {
     "done": 79,
-    "total": 122
+    "total": 123
    },
    "P2": {
     "done": 0,
-    "total": 11
+    "total": 10
    }
   },
   "cited": 162,
-  "done_pct": 61.4,
-  "in_scope": 173,
-  "in_scope_done_pct": 69.9,
-  "total": 197
+  "done_pct": 60.8,
+  "in_scope": 175,
+  "in_scope_done_pct": 69.1,
+  "total": 199
  },
  "workflow_spine": [
   "Plan",
