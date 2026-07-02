@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "0b34f4881724caeb61a57cd77c77dc11814a2cbbf01872da69ca7ef38e23b5f8",
+  "citations_sha256": "f886323f4aa6d9a88db56330ec94ba66e9a7876457403a6a6498d6571c941e82",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "c2c4d3ea3e42ef577a7a60099d599d856a5308e7",
-  "prd_sha256": "a624fe5e67676954d149d55a0d90957d6f52caabb365bb00e2baf966e06081bb",
+  "prd_commit": "f0f0e47465f4f1aac0ddf58ed47264f307b7ce83",
+  "prd_sha256": "917825246658babed63604e3235021f6dfe7878a1a2e3e2f4493f3578e9996c9",
   "specs_sha256": "22b771e49436b8887f2903e373aeeb6c55c9247c17d10cdcc220e7a3673b0c8f"
  },
  "rows": [
@@ -454,17 +454,17 @@
    "text": "**SE-01 release security-audit EVIDENCE gate (review P0-1, closes SE-01).** A dated `docs/security/se-01/<date>/manifest.json` carries ONE evidence record per required domain -- host, container, app, DNS/site, secret, backup/restore drill, dependency/SBOM/**CVE scan** (run + stored, not just SBOM generation), external exposure -- each naming the environment + the tool/manual procedure. A backup/restore drill restores `/data` into a fresh container and verifies the auth store, audit log, reports, profiles, mission artifacts, terrain memory, and world journal read back. Acceptance: `[REQ:SE-01]` gate fails on any missing/undated/env-less domain and passes only with all eight current records. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "the production backend image enters the public-bind TLS guard (guarded stewie-serve path or ASGI lifespan enforcement), not a raw uvicorn server:app.",
     "kind": "atomic",
     "test_target": "stewie/server/test_deploy_hardening.py citing [REQ:BP-02]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BP-02",
    "lane": "BP",
    "pri": "P1",
@@ -3289,9 +3289,9 @@
  "summary": {
   "briefs": 101,
   "buckets": {
-   "buildable": 72,
+   "buildable": 71,
    "concurrent": 0,
-   "done": 132,
+   "done": 133,
    "gated": 25
   },
   "by_lane": {
@@ -3308,7 +3308,7 @@
     "total": 18
    },
    "BP": {
-    "done": 1,
+    "done": 2,
     "total": 13
    },
    "CP": {
@@ -3406,7 +3406,7 @@
     "total": 71
    },
    "P1": {
-    "done": 83,
+    "done": 84,
     "total": 140
    },
    "P2": {
@@ -3418,10 +3418,10 @@
     "total": 1
    }
   },
-  "cited": 177,
-  "done_pct": 57.6,
+  "cited": 178,
+  "done_pct": 58.1,
   "in_scope": 204,
-  "in_scope_done_pct": 64.7,
+  "in_scope_done_pct": 65.2,
   "total": 229
  },
  "workflow_spine": [
