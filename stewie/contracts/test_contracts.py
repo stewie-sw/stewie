@@ -166,7 +166,7 @@ def test_model_artifact_cannot_be_on_command_path():  # [REQ:ML-08]
                         dataset_lineage="telemetry-log", eval_split="held-out", command_path=True)
 
 
-def test_model_artifact_deployment_requires_declared_schemas_and_budgets():  # [REQ:ML-01]
+def test_model_artifact_deployment_requires_declared_schemas_and_budgets():  # [REQ:ML-01] [REQ:FS-12]
     # ML-01: a minimally-defined model is NOT deployment-ready (no typed schemas / budgets declared)
     bare = C.ModelArtifact(model_id="m1", name="rocknet", version="1", task="rock_classify",
                            dataset_lineage="nac-2024", eval_split="80/20")
@@ -181,6 +181,42 @@ def test_model_artifact_deployment_requires_declared_schemas_and_budgets():  # [
     with pytest.raises(ValidationError):                          # negative inference budget rejected
         C.ModelArtifact(model_id="m3", name="x", version="1", task="rock_classify",
                         dataset_lineage="d", eval_split="s", latency_budget_ms=-1.0)
+
+    # FS-12 model governance: every governance dimension the row names is a first-class field on the
+    # contract, so no learned model reaches cockpit exposure without it being explicit. Map each FS-12
+    # governance requirement to the field that carries it -- a missing field here would mean a governance
+    # dimension is untracked, not merely un-gated.
+    fields = set(C.ModelArtifact.model_fields)
+    fs12_governance = {
+        "dataset_lineage": "dataset_lineage",       # dataset lineage
+        "train_eval_split": "eval_split",           # train/eval split
+        "artifact_registry_entry": "version",       # versioned registry entry (model_id + version)
+        "model_card_input": "input_schema",         # model card: typed input contract
+        "model_card_output": "output_schema",       # model card: typed estimate contract
+        "quant_deploy_profile": "quantization",     # quantization / deployment profile
+        "latency_budget": "latency_budget_ms",      # inference budget (deployment profile)
+        "memory_budget": "memory_budget_mb",
+        "calibration_report": "calibrated",         # calibration report
+        "ood_detector": "ood_detector",             # OOD detector
+        "safe_fallback": "fallback",                # safe fallback
+        "rollback_plan": "rollback_to",             # rollback plan
+    }
+    for dim, field_name in fs12_governance.items():
+        assert field_name in fields, f"FS-12 governance dimension {dim!r} has no contract field {field_name!r}"
+    # the deployment gate keys on the GOVERNED set: drop any one governed field from the ready artifact
+    # and it is no longer deployment_ready (the gate does not leak).
+    ready_kw = dict(model_id="m1", name="rocknet", version="1", task="rock_classify",
+                    dataset_lineage="nac-2024", eval_split="80/20",
+                    input_schema="GrayFrame", output_schema="RockDetections",
+                    latency_budget_ms=50.0, memory_budget_mb=512.0,
+                    calibrated=True, ood_detector=True, fallback="classical_cv_detector")
+    for drop in (dict(dataset_lineage=""), dict(eval_split=""), dict(input_schema=""),
+                 dict(output_schema=""), dict(latency_budget_ms=0.0), dict(memory_budget_mb=0.0),
+                 dict(calibrated=False), dict(ood_detector=False), dict(fallback=None)):
+        assert C.ModelArtifact(**{**ready_kw, **drop}).deployment_ready is False, \
+            f"FS-12 deployment gate leaked without {drop}"
+    with pytest.raises(ValidationError):                          # §25.3: no learned model on the command path
+        C.ModelArtifact(**{**ready_kw, "command_path": True})
 
 
 def test_construction_skill_must_be_closed_loop():
