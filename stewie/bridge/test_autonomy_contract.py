@@ -85,3 +85,36 @@ def test_as07_navigation_spine_rejects_truth_or_lidar_only_shortcut():  # [REQ:A
         for stage in AC.NAVIGATION_SPINE
     )
     assert any("source_neutral_depth_odometry" in e for e in AC.validate_navigation_spine(stages=lidar_only))
+
+
+def test_depth_sources_feed_one_shared_mapping_localization_contract():
+    """[REQ:AS-01] The row's depth-source-neutrality clause: stereo, LiDAR, RGB-D, and replayed point
+    clouds must feed the SAME mapping/localization contract, not per-source forks.
+
+    Non-vacuous: the source-neutral depth stage carries all four swappable depth families yet emits a
+    SINGLE depth-odometry topic, and mapping + localization both consume the ONE shared point-cloud
+    contract rather than any source-specific topic -- and a per-source fork (a lidar_points topic the
+    mapping node must switch to) is proved to break the contract's closed topic graph."""
+    depth = next(s for s in AC.NAVIGATION_SPINE if s.name == "source_neutral_depth_odometry")
+    # every intended depth family (stereo passive/neural, LiDAR, RGB-D, replay) is a selectable source ...
+    assert set(depth.optional_depth_sources) >= {"stereo_sgbm", "stereo_neural", "lidar", "rgbd", "replay"}
+    # ... but they converge on ONE depth-odometry output and ONE shared point-cloud input, not a fork.
+    assert depth.outputs == ("/stewie/localization/depth_odom",)
+    assert "/stewie/perception/points" in depth.inputs
+
+    shared_cloud = "/stewie/perception/points"
+    assert shared_cloud in AC.NODES["mapping"].subscribes
+    assert shared_cloud in AC.NODES["localization"].subscribes
+    # neither estimator wires a source-specific cloud topic (a lidar/rgbd/replay fork breaks neutrality)
+    forked = {"/stewie/perception/lidar_points", "/stewie/perception/rgbd_points",
+              "/stewie/perception/replay_points"}
+    assert not (set(AC.NODES["mapping"].subscribes) & forked)
+    assert not (set(AC.NODES["localization"].subscribes) & forked)
+
+    # mutation: a mapping node that forks onto a source-specific cloud (not in the shared contract) must
+    # be REJECTED by the gate -- proves the shared-contract assertion above is not vacuous.
+    mp = AC.NODES["mapping"]
+    forked_map = {**AC.NODES, "mapping": dataclasses.replace(
+        mp, subscribes=("/stewie/perception/lidar_points",) + mp.subscribes[1:])}
+    assert any("undefined topic" in e and "lidar_points" in e
+               for e in AC.validate_contract(nodes=forked_map))
