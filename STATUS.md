@@ -44,7 +44,7 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | PM-10 | P |
 | PM-11 | P |
 | PO-04 | P |
-| PO-05 | N |
+| PO-05 | P |
 | PO-09 | P |
 | PO-11 | P |
 | SE-01 | N |

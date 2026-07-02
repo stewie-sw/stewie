@@ -1,0 +1,35 @@
+{
+  "dependencies": [
+    {
+      "name": "affine",
+      "version": "2.4.0",
+      "vulns": []
+    },
+    {
+      "name": "annotated-doc",
+      "version": "0.0.4",
+      "vulns": []
+    },
+    {
+      "name": "annotated-types",
+      "version": "0.7.0",
+      "vulns": []
+    },
+    {
+      "name": "anyio",
+      "version": "4.13.0",
+      "vulns": []
+    },
+    {
+      "name": "attrs",
+      "version": "26.1.0",
+      "vulns": []
+    },
+    {
+      "name": "certifi",
+      "version": "2026.5.20",
+      "vulns": []
+    }
+  ],
+  "fixes": []
+}
