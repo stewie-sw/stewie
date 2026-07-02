@@ -378,11 +378,15 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
     if survival_J > 0.0:
         totals["energy_J"] = agg["energy_J"] + survival_J
         totals["avg_power_w"] = totals["energy_J"] / makespan if makespan > 1e-9 else 0.0
+    charger_xy = [float(mission.charger[0]), float(mission.charger[1])]
     detail = [{"vehicle": pv["vehicle"], "n_trips": len(pv["trips"]), "time_s": pv["core"]["time_s"],
                "energy_J": pv["core"]["energy_J"], "distance_m": pv["core"]["distance_m"],
                "charges": pv["core"]["charges"], "charger_wait_s": float(charger_delays[pv["vehicle"]]),
                "crowd_wait_s": float(crowd_delays[pv["vehicle"]]),  # FL-02 re-sequencing wait (space-time crowding)
                "precedence_wait_s": float(precedence_delays[pv["vehicle"]]),  # FL-04 cross-vehicle precedence wait
+               # PO-11: this rover's OWN route -- charger start + its sequenced site visits (real geometry,
+               # so fleet playback can draw one animated marker per rover on its own track).
+               "track": [charger_xy] + [[float(tr["site"][0]), float(tr["site"][1])] for tr in pv["trips"]],
                "health": _rover_health(pv)}                       # FL-04: per-rover belief/health/resource state
               for pv in per_vehicle]
     fleet_needs_replan = any(d["health"]["health"] == "stranded" for d in detail)   # FL-04 replan trigger

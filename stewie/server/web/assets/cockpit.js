@@ -1082,6 +1082,13 @@ async function loadFleet() {
   }
   if (_FLEET_VM) rosterEl.innerHTML = FR.fleetRosterHTML(_FLEET_VM, esc);
   planEl.innerHTML = FR.fleetPlanHTML(LAST_TOTALS, esc);  // live per-vehicle allocation from the last plan
+  // PO-11: multi-rover playback -- one track + independent telemetry per rover, from the last plan's
+  // vehicles_detail (each carries its own `track`). The pure model + renderer live in fleet_playback.js.
+  const pbEl = $("fleetplayback"), FP = window.STEWIE_FLEET_PLAYBACK;
+  if (pbEl && FP) {
+    const model = FP.fleetPlaybackModel(LAST_TOTALS, [], LAST_TOTALS && LAST_TOTALS.charger);
+    pbEl.innerHTML = FP.fleetPlaybackHTML(model, esc, LAST_TOTALS ? LAST_TOTALS.makespan_s : 0);
+  }
 }
 
 // REHEARSE (mission-ops screen 2): POST the CURRENT build queue to /resync/compare (the conserved

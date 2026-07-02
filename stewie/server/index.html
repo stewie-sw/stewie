@@ -1227,6 +1227,8 @@
             per-vehicle allocation, makespan, and conflicts from that plan appear here.
             <button type="button" class="site" data-go="plan" style="margin-top:6px;font-size:10px">→ Go to Plan</button></div>
         </div>
+        <div class="cap"><span>FLEET PLAYBACK — every rover on its own route + independent telemetry (PO-11)</span><span data-epistemic="forecast"></span></div>
+        <div id="fleetplayback" style="overflow:auto"></div>
       </div>
       <!-- FS-03: the CONSTRUCTION pane (operator+, badge FORGE). Two sections: the static build CATALOG
            (structure templates → cut/fill primitives, from /construction) and the acceptance criteria +
@@ -1505,6 +1507,7 @@
 <script src="/assets/plan_geom.js?v=107e3c617d8d"></script><!-- FS-24: pure plan-canvas extent/transform/glyph/precedence math (sets window.STEWIE_PLAN_GEOM) -->
 <script src="/assets/footprint_geom.js?v=0a9f6fa9884c"></script><!-- GIS S-3: pure typed-footprint shape geometry (ring/area/draw; sets window.STEWIE_FOOTPRINT_GEOM) -->
 <script src="/assets/fleet_render.js?v=5ed7cab2cb71"></script><!-- FS-03: pure Fleet-pane roster/allocation HTML builders (sets window.STEWIE_FLEET_RENDER) -->
+<script src="/assets/fleet_playback.js?v=000000000000"></script><!-- PO-11: pure multi-rover playback model N tracks + N telemetry streams (sets window.STEWIE_FLEET_PLAYBACK) -->
 <script src="/assets/rehearse_render.js?v=fc34bf52eee3"></script><!-- REHEARSE: pure candidate-card HTML builder, feasibility first (sets window.STEWIE_REHEARSE_RENDER) -->
 <script src="/assets/construction_render.js?v=2df75b4d7837"></script><!-- FS-03: pure Construction-pane catalog/acceptance HTML builders (sets window.STEWIE_CONSTRUCTION_RENDER) -->
 <script src="/assets/models_render.js?v=bdc68a6cc22e"></script><!-- FS-03: pure Models-pane profile/registry/governance HTML builders (sets window.STEWIE_MODELS_RENDER) -->
