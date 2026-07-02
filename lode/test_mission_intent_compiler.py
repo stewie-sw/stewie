@@ -513,3 +513,77 @@ def test_compiled_tolerance_is_exercised_on_the_live_rehearse_path():  # [REQ:CP
     fc_none = forward_compare(req_none.mission, candidates=("nearest",))
     for f in fc_none["futures"]:
         assert "as_built_pass" not in f and "as_built_tol_m" not in f
+
+
+# ---------------------------------------------------------------------------------------------------
+# ML-07: the mission-planner-LLM guardrail. A planner front-end (an LLM, an operator, a script) MAY
+# author a candidate task graph, but a candidate is only ever a typed MO-01 MissionIntent: it must
+# compile through the CP-04 typed boundary to a validated Mission, pass the compiler's deterministic
+# validation, and be MO-02 executive-APPROVED (director-signed RELEASED) before any simulation or
+# command lowering runs. No LLM is built here (the row's "may" clause); the guardrail is what binds.
+# ---------------------------------------------------------------------------------------------------
+def test_ml07_candidate_plan_is_gated_on_typed_compile_and_executive_release():  # [REQ:ML-07]
+    # the full guardrail chain on ONE candidate plan: typed compile -> deterministic validation ->
+    # executive approval -> only THEN sim execution. At every pre-release state the sim refuses to run.
+    from lode import mission_lifecycle as LC
+    from lode.sim_execution import run_sim_execution
+    from stewie.contracts.executive import ExecutiveState, MissionExecutive, SignedRevision
+
+    intent = _intent(
+        "ml07-guardrail",
+        [_objective("pad", target_row=8.0, target_col=8.0, material_budget_kg=300.0)])
+
+    # (1) the candidate compiles through the typed MO-01 -> CP-04 path to a validated planner Mission.
+    req = MIC.compile_intent(intent)
+    assert isinstance(req.mission, MP.Mission)
+    assert {o.action for o in req.mission.orders} == {"pad"}
+
+    # (2) sim / command lowering is BLOCKED before executive approval -- even a fully analyzed,
+    # rehearsed AND reviewed plan cannot run until the director signs the release (MO-02).
+    legs = [{"faults": []}]
+    ex = MissionExecutive.start(intent)
+    for step in (None, LC.analyze, LC.rehearse, LC.review):     # DRAFT, ANALYZED, REHEARSED, REVIEWED
+        if step is not None:
+            ex = step(ex).executive
+        assert ex.state is not ExecutiveState.RELEASED
+        with pytest.raises(ValueError, match="RELEASED"):
+            run_sim_execution(ex, legs)
+
+    # (3) director release signs the immutable revision; only the RELEASED plan may be simulated.
+    released = LC.release(ex).executive
+    assert released.state is ExecutiveState.RELEASED
+    rel = released.released_revision
+    assert rel is not None and rel.signed_by == "director"
+    assert rel.content_hash == SignedRevision.hash_intent(intent)
+    run = run_sim_execution(released, legs)
+    assert run["final_state"] == "completed" and run["label"] == "sim"
+
+
+def test_ml07_free_form_candidate_plan_is_rejected_at_the_typed_boundary():  # [REQ:ML-07]
+    # what an unguarded LLM would emit -- free-form prose or a raw task-graph dict -- is REJECTED at the
+    # typed boundary: compile_intent accepts ONLY a canonical MO-01 MissionIntent, so no free-form plan
+    # can reach the planner (or, downstream, the executive) uncompiled.
+    for free_form in (
+        "excavate a pad at (8, 8) then build a berm",                    # prose
+        {"tasks": [{"do": "dig", "where": [8, 8]}]},                     # untyped task-graph dict
+    ):
+        with pytest.raises(ValueError, match="canonical"):
+            MIC.compile_intent(free_form)
+
+
+def test_ml07_invalid_typed_candidate_fails_validation_and_never_reaches_release():  # [REQ:ML-07]
+    # a candidate that IS typed but fails deterministic validation (a soft constraint naming no planner
+    # metric -- free-form intent smuggled into a typed field) is rejected by the compiler, so the
+    # lifecycle refuses to advance: the executive stays DRAFT and nothing can be released or simulated.
+    from lode import mission_lifecycle as LC
+    from stewie.contracts.executive import ExecutiveState, MissionExecutive
+
+    intent = _intent(
+        "ml07-vague",
+        [_objective("pad", target_row=8.0, target_col=8.0, material_budget_kg=300.0)],
+        [Constraint(constraint_id="vibes", kind=ConstraintKind.SOFT,
+                    statement="make it nice", weight=1.0)])
+    ex = MissionExecutive.start(intent)
+    with pytest.raises(ValueError, match="no known planner optimization metric"):
+        LC.analyze(ex)
+    assert ex.state is ExecutiveState.DRAFT and ex.released_revision is None
