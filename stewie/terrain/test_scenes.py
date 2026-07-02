@@ -25,6 +25,13 @@ import os
 import numpy as np
 import pytest
 
+# The module-scoped built_samples fixture builds all 9 legacy scenes + the real-LOLA DEM ONCE;
+# the per-call cost is dart.illumination.horizon_clip (a per-pixel shadow ray-march, ~500-600s
+# single-threaded). Under CI `-n auto` parallel load that wall-clock flakes past the global 600s
+# pytest-timeout cap (the build competes for cores), so this legitimately-slow, pre-existing
+# module gets explicit headroom. Not a regression -- horizon_clip perf is a tracked product item.
+pytestmark = pytest.mark.timeout(1500)
+
 from stewie.specs import constants as K
 from stewie.terrain import scenes
 from stewie.twin.io_fields import load_scene
