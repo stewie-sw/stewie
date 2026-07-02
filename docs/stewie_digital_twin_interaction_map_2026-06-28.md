@@ -1,8 +1,13 @@
+---
+title: "Digital twin interaction map (2026-06-28)"
+nav_order: 49
+---
+
 # STEWIE Digital Twin Interaction Map
 
 Date: 2026-06-28
 
-Scope: STEWIE directly, not the Dissertation workspace. This map treats the digital twin as a directed
+Scope: STEWIE directly. This map treats the digital twin as a directed
 edge set between state blocks. Architecture diagrams, ROS 2 message flows, causal cascades, influence
 graphs, and Graphify exports are all generated views of this same table.
 
@@ -15,7 +20,7 @@ graphs, and Graphify exports are all generated views of this same table.
 | world model | `docs/world_model.md`, `stewie/physics/*`, `stewie/twin/*` | Five-layer terrain-transformation model exists; conserved dynamics are real; learned perception remains the intended thin layer. |
 | bridge and autonomy seam | `stewie/bridge/ros2_bridge.py`, `stewie/bridge/rc_contract.py`, `ros2_ws/src/stewie_msgs/msg/*.msg` | Pure ROS translation and watchdog path are implemented/tested; live ROS node remains host/deploy gated. |
 | planning | `lode/mission_planner.py`, `lode/planner_*`, `lode/autonomy.py` | Deterministic mission planner and belief overlay are implemented. |
-| navigation integration | `docs/argus_navigation_integration.md`, `dart/factors.py`, `dart/evidence_ledger.py` | Typed navigation factor contract exists; measured/de-oracled producers are still the frontier. |
+| navigation integration | `dart/factors.py`, `dart/evidence_ledger.py` | Typed navigation factor contract exists; measured/de-oracled producers are still the frontier. |
 
 ## Status Legend
 
@@ -109,7 +114,7 @@ needed_next
 | INT-023 | camera below operational range | `ThermalEnvironment -> CameraRig` | `camera_temp_c`, `camera_min_operational_c` | operating limit | camera unavailable | camera health | spec variable only | planned | health producer |
 | INT-024 | stereo pair captured | `CameraRig -> PerceptionState` | `front_left`, `front_right`, `fx`, `baseline_m` | stereo disparity | depth estimate | `/front_left/image_raw`, `/camera_info` | file seam and ROS mapping | complete file, partial live | live bag/node |
 | INT-025 | shadows reduce texture | `LightingModel -> PerceptionState` | `contrast`, `valid_disparity_fraction` | stereo confidence | -depth confidence | confidence map | map channel diagnostics | started | covariance propagation |
-| INT-026 | observed patch matched | `TerrainMesh -> PerceptionState` | `observed_patch`, `search_window`, `dem_xy` | DEM scan matching | absolute position cue | `MeasurementFactor(dem_xy)` | ARGUS integration plan | planned | accepted producer |
+| INT-026 | observed patch matched | `TerrainMesh -> PerceptionState` | `observed_patch`, `search_window`, `dem_xy` | DEM scan matching | absolute position cue | `MeasurementFactor(dem_xy)` | navigation integration plan | planned | accepted producer |
 | INT-027 | DEM factor accepted | `PerceptionState -> RoverBelief` | `fix_xy`, `covariance`, `frame` | pose graph / Kalman | -pos covariance | `NavFactorArray` | typed factor contract | partial | covariance-rich message |
 | INT-028 | AprilTag observed | `SurveyedMonuments -> PerceptionState` | `apriltag_id`, `tag_size_m`, `pose_in_lander` | PnP fiducial pose | local fix | `/lander/apriltag_truth` currently eval | sensor bridge | started | runtime detection factor |
 | INT-029 | landmark fix accepted | `PerceptionState -> RoverBelief` | `fix_xy`, `sigma_m`, `factor_type` | measurement update | -pose covariance | `NavFactor` | closed-loop beacon model | partial | runtime measured factor |
@@ -173,6 +178,10 @@ interactions while keeping direction explicit.
 | `graphify-out/stewie_interaction_extraction_2026-06-28.json` | Graphify extraction JSON with 18 state blocks, 51 interaction nodes, and 102 directed graph hops. |
 | `graphify-out/graph.json` | Queryable Graphify graph. |
 | `graphify-out/STEWIE_INTERACTION_TREE.html` | Local HTML tree view of the STEWIE interaction graph. |
+
+The `graphify-out/` files are untracked analysis output (see `.gitignore`); regenerate them with
+`scripts/export_stewie_interaction_graph.py`. The `graphify` commands below are the local
+graph-analysis CLI used for the diagnostics — the export script alone rebuilds the JSON.
 
 Validation:
 

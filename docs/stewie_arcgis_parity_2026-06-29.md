@@ -1,10 +1,15 @@
+---
+title: "ArcGIS capability diff (2026-06-29)"
+nav_order: 54
+---
+
 # STEWIE vs ArcGIS-type GIS — capability diff (2026-06-29)
 
-A graphify-informed LLM-council assessment of STEWIE's *actual* GIS capability (read against the code at
-`/mnt/projects/stewie/code`) versus production ArcGIS-type software (ArcGIS Pro / Enterprise / Online,
+A graphify-informed LLM-council assessment of STEWIE's *actual* GIS capability (read against the
+repo code) versus production ArcGIS-type software (ArcGIS Pro / Enterprise / Online,
 Spatial Analyst, 3D Analyst, GeoEvent). Three reviewers, file:line-grounded, across data/geoprocessing,
 cartography/3D/editing, and web-GIS/real-time/extensibility. This is the cross-compare input that updates the
-graphify schema (`graphify-out/stewie_arcgis_parity_2026-06-29.json`). STEWIE is a purpose-built lunar
+graphify schema (`graphify-out/stewie_arcgis_parity_2026-06-29.json`, untracked analysis output). STEWIE is a purpose-built lunar
 mission-planning GIS (numpy + pyproj, no GDAL/rasterio by default), not a general GIS; verdicts are relative.
 
 ## The moat — where STEWIE meets or EXCEEDS ArcGIS

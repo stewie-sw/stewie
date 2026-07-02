@@ -38,4 +38,5 @@ Production knobs (compose env):
 Verified 2026-06-09: UI + bodies.json from nginx; `/healthz`, a real Tutorial-1 `/plan` -> 63 KB PDF
 fetched back through the proxy; malformed orders -> contracted 400; backend restart -> healthy +
 frontend reconnects; reports survive restart in the volume. Builds use `network: host` (host without
-a working docker bridge for buildkit). The ROS2 bridge service joins this compose file at B1.3-B1.6.
+a working docker bridge for buildkit). An opt-in ROS2 teleop/nav service ships behind the `ros2`
+compose profile (heavy `osrf/ros:jazzy-desktop` base): `docker compose -f deploy/compose.yml --profile ros2 up -d`.

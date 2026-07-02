@@ -56,10 +56,14 @@ Requires Python ≥ 3.11.
 
 ```bash
 # Launch the mission-planning cockpit (FastAPI + Cesium globe)
-stewie-serve                                            # http://localhost:8000
-# or containerized:
-docker compose -f deploy/compose.yml up -d
+stewie-serve                                            # http://127.0.0.1:8770
+# or containerized (nginx frontend + backend):
+docker compose -f deploy/compose.yml up -d              # http://127.0.0.1:8000
 ```
+
+The cockpit is organized as a six-slot ConOps spine — **Plan · Rehearse · Validate · Release ·
+Execute · Report** — plus a role-gated secondary cluster (Fleet / Construction / Models / Trainer)
+and a `/program` requirement board projecting the committed PRD §7 matrix.
 
 ```python
 # Drive a Gymnasium environment on the conserved physics authority
@@ -75,10 +79,10 @@ obs, reward, term, trunc, info = env.step(env.action_space.sample())
 
 ## Documentation
 
-- **`PRD.md`** — the canonical design source (the STEWIE PRD; §16 is the subsystem map + phase gates;
-  §27 is the dated actionable backlog + 2-week sprint).
+- **`PRD.md`** — the canonical design source (the STEWIE PRD; §6 is the target architecture, §7 is
+  the 188-row requirement matrix, §27 is the dated actionable backlog).
 - **`docs/CAPABILITIES.md`** — the honest capability matrix (shipped / training-only / unbuilt).
-- **`docs/ui_overhaul_plan_2026-06-20.md`** — the full-fidelity cockpit overhaul plan.
+- **`STATUS.md`** — the generated §7 traceability status (do not hand-edit).
 - **Docs site** — <https://stewie-sw.github.io/stewie/>
 
 ## Quality gates
@@ -89,7 +93,8 @@ Every push runs the CI gate ([`ci.yml`](.github/workflows/ci.yml)):
 - **Power-of-10** — bounded cyclomatic complexity (≤ 10) on the conserved core (`stewie/physics`, `stewie/twin`).
 - **Types** — `mypy` over the core and planner (a documented ratchet narrows the remaining exclusions).
 - **Requirements traceability** — every `V=D` requirement must be cited by a test.
-- **Tests + coverage** — `pytest` with a coverage floor of **85%**, across Python 3.11–3.13.
+- **Tests + coverage** — `pytest` with a coverage floor of **85%** (py3.11), plus a py3.12/3.13 test matrix.
+- **Browser JS** — the cockpit's pure browser modules run under `node --test` (`stewie/server/web/assets/*.test.js`).
 - **G1/G2 validation** — a frozen, byte-reproducible navigation-evidence gate.
 
 ```bash

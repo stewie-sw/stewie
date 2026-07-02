@@ -1,6 +1,12 @@
+---
+title: "System status synthesis (2026-06-29)"
+nav_order: 53
+---
+
 # STEWIE system status synthesis (2026-06-29)
 
-Derived from the graphify digital-twin interaction graph (`graphify-out/graph.json`, 18 state-blocks /
+Derived from the graphify digital-twin interaction graph (`graphify-out/graph.json` — untracked
+analysis output, regenerate via `scripts/export_stewie_interaction_graph.py`; 18 state-blocks /
 102 interactions) cross-checked against a graphify-informed LLM council review of the live code. This is
 the loop's driving map: it answers what relationships exist, the status, what we need and why, and the
 variables and their interactions. Source graph: `docs/stewie_digital_twin_interaction_map_2026-06-28.md`.

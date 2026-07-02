@@ -26,7 +26,7 @@ learned model only for the expensive perception branch.** Owners: John McCardle 
 | **LODE** | Lunar Operations & Development Environment | Mission planning and operations: sequencing, scheduling, energy budgeting, reports |
 | **LEAP** | Lunar Excavation Analysis & Planning | Earthmoving and execution: excavation skills, worksite construction, terrain-target environments |
 | **FORGE** | Foundation Operations & Regolith Generation Environment | Infrastructure: terrain generation, regolith physics substrate, foundations |
-| **Navigation** | Articulated Rover Geometry for Unified State Estimation | The vehicle digital twin — chassis, drums, arm, camera rig, and work lights as one state. Named in tribute to Jadon Schuler, IPEx Project Manager and Principal Investigator |
+| **Navigation** | — | The vehicle digital twin — chassis, drums, arm, camera rig, and work lights as one state |
 
 The vehicle is **IPEx** (the ISRU Pilot Excavator, the only flight vehicle); RASSOR is its TRL-4
 precursor. See [the modelled vehicle](vehicle_ipex.md).
@@ -60,9 +60,10 @@ obs, info = env.reset(seed=0)
 obs, reward, terminated, truncated, info = env.step(env.action_space.sample())
 ```
 
-Naming: the pip package is `stewie`; the console entry points are `stewie-serve` and
-`stewie-fetch-dem`; the canonical Gymnasium env IDs are `Stewie/*`; environment variables are
-`STEWIE_*`. The on-disk/wire schema strings (e.g. `stewie_runtime/1.0`) are frozen contracts.
+Naming: the pip package is `stewie`; the console entry points are `stewie-serve`,
+`stewie-fetch-dem`, and `stewie-ros2-bridge`; the canonical Gymnasium env IDs are `Stewie/*`;
+environment variables are `STEWIE_*`. The on-disk/wire schema strings (e.g. `stewie_runtime/1.0`)
+are frozen contracts.
 
 ## Documentation map
 
@@ -70,12 +71,18 @@ Naming: the pip package is `stewie`; the console entry points are `stewie-serve`
 
 | Doc | What it is |
 |---|---|
+| [Capability matrix (honest status)](CAPABILITIES.md) | Shipped & load-bearing / training-only / unbuilt & gated, one honest table |
+| [Release policy & evidence](RELEASE.md) | What a release claims and the evidence it must carry |
 | [The five-layer world model](world_model.md) | Geometry / Material / Physics / Task / Uncertainty, and the conserved-vs-learned design decision |
 | [Related work](related_work.md) | Where STEWIE lands across NASA autonomy, lunar mining, world models, autonomous driving, SLAM |
 | [Robotics curriculum diff](robotics_curriculum_diff.md) | Coverage of the standard robotics corpus vs what the software implements |
 | [Implementation plan (2026-06-06)](archive/implementation_plan_2026-06-06.md) | The dependency-ordered execution plan for PRD v6.0 |
 | [UI overhaul plan (2026-06-20)](archive/ui_overhaul_plan_2026-06-20.md) | The full-fidelity cockpit overhaul: stack decision, 8-area IA, 4-screen model, GIS authoring, brand, a11y, phasing |
 | [Full STEWIE frontend design (2026-07-01)](full_stewie_frontend_design_2026-07-01.md) | Operational cockpit contract for Plan/Rehearse/Validate/Release/Execute/Report, depth-source UX, RViz/Gazebo boundaries, and evidence cards |
+| [Layered reference architecture (2026-06-29)](stewie_layered_reference_architecture_current_2026-06-29.md) | The current implementation map by layer, plus the v2 target deltas |
+| [WM/DT architecture gap analysis (2026-06-29)](stewie_wm_dt_architecture_gap_analysis_2026-06-29.md) | World-model / digital-twin gap analysis over the interaction graph |
+| [Interaction layer, Phase 1 v2 (2026-06-29)](stewie_interaction_layer_phase1_v2_current_2026-06-29.md) | Interaction-layer coverage map: current implementation plus planned Phase 1 rows |
+| [System status synthesis (2026-06-29)](stewie_status_synthesis_2026-06-29.md) | The loop-driving status map derived from the digital-twin interaction graph |
 
 **Contracts**
 
@@ -114,6 +121,9 @@ Naming: the pip package is `stewie`; the console entry points are `stewie-serve`
 | [UI/UX audit (2026-06-09)](archive/uiux_audit_2026-06-09.md) | Full frontend audit against the operator KPT |
 | [Mission-ops review (2026-06-20)](archive/architecture_review_2026-06-20_mission_ops.md) | Mission-operations review: the 4-screen operational model, mission intent + executive, provenance |
 | [Architecture review (2026-06-20)](archive/architecture_review_2026-06-20.md) | Local + deployed review against the PRD; done-vs-needed; feeds the PRD §27 backlog |
+| [Cockpit UI/UX audit (2026-06-29)](cockpit_ui_audit_2026-06-29.md) | 3-reviewer decision matrix over the live cockpit, file:line-grounded |
+| [ArcGIS capability diff (2026-06-29)](stewie_arcgis_parity_2026-06-29.md) | STEWIE's actual GIS capability vs production ArcGIS-type software |
+| [Frontend audit (2026-07-01)](frontend_audit_2026-07-01.md) | Visual + engineering audit of the deployed frontend |
 
 Repository-root references (rendered on GitHub):
 [Product requirements (`PRD.md`)](https://github.com/stewie-sw/stewie/blob/main/PRD.md) ·
@@ -131,8 +141,8 @@ the authority **mutates**. Every physical constant carries its source and a prov
 tests, or validation. The energy model is grounded in real IPEx data (Schuler et al., *IPEx TRL-5
 Design Overview*, ASCEND 2024).
 
-Provenance: the `terrain_authority` terramechanics core and the streaming `WorkSite` model are by
-**John McCardle**; STEWIE adds the Gymnasium suite, the per-planet `Body` registry, the world
+Provenance: the conserved terramechanics core (now `stewie/physics`, originally roversim's
+`terrain_authority`) and the streaming `WorkSite` model are by **John McCardle**; STEWIE adds the Gymnasium suite, the per-planet `Body` registry, the world
 model, the mission planner + web UI, the map channel + render integration, the vehicle twin, and
 the self-optimizing pipeline. The repository's license is currently all-rights-reserved (the prior
 CC0 dedication was withdrawn 2026-06-10); see [`LICENSE`](https://github.com/stewie-sw/stewie/blob/main/LICENSE).

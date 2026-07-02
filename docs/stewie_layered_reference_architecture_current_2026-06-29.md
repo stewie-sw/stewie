@@ -1,5 +1,6 @@
 ---
 title: "STEWIE Layered Reference Architecture, Current Names"
+nav_order: 50
 project: STEWIE
 component: ARCH (Reference Architecture)
 status: Current implementation map plus v2 target deltas

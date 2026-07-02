@@ -261,7 +261,7 @@ the highest-value remaining task.
 
 Ranked by value to the dissertation and feasibility.
 
-1. **Validate on the lunar render track (the real ARGUS target).** Run the SE(3) estimator plus the
+1. **Validate on the lunar render track (the real Navigation target).** Run the SE(3) estimator plus the
    shadow-yaw and shadow-parallax channels on the Godot/Chrono lunar render over the LOLA Haworth DEM
    with a grazing sun and the 8-camera rig. This is where the shadow and multi-camera levers actually
    work and where the dissertation's contribution lands. The estimator, the shadow factors, and the

@@ -19,7 +19,7 @@ are the frontend container's. (`webmail.stewie.space -> 127.0.0.1:8001` is unrel
 ## Deploy steps
 
 ```bash
-cd stewie/code
+cd <repo root>
 docker tag stewie-backend:latest  stewie-backend:rollback        # undo target
 docker tag stewie-frontend:latest stewie-frontend:rollback
 docker compose -f deploy/compose.yml build backend frontend

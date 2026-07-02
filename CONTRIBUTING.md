@@ -32,20 +32,21 @@ These are what make a physics simulator citable. They are enforced in review:
 ## Development setup
 
 ```bash
-# from the repo root, with a Python >= 3.10 environment
-pip install -e .[dev]                  # ruff, pytest, planner extras
-PYTHONPATH=. python -m pytest terrain_authority planet_browser -q
-ruff check --select F terrain_authority planet_browser
+# from the repo root, with a Python >= 3.11 environment
+pip install -e .[dev]                  # ruff, mypy, pytest, planner/server extras
+pytest -q                              # the configured suite (stewie/dart/lode/leap/forge/scripts)
+ruff check --select F stewie dart lode leap forge scripts viz
+mypy
 ```
 
-The hot path (`terrain_authority/`) is **NumPy-only** — keep heavy/optional deps (torch, gymnasium,
+The hot path (`stewie/physics/`) is **NumPy-only** — keep heavy/optional deps (torch, gymnasium,
 matplotlib) behind imports or extras so the core stays importable on a bare install.
 
 ## Pull request checklist
 
 Before you open a PR, confirm:
 
-- [ ] The full test suite passes (`pytest terrain_authority planet_browser`).
+- [ ] The full test suite passes (`pytest`).
 - [ ] `ruff check --select F` is clean.
 - [ ] New behavior is covered by a test built from **real** data (TDD: write the failing test first).
 - [ ] New constants are provenance-tagged and cited.

@@ -1,5 +1,12 @@
 # foss_ipex — Artifact Manifest & Verification
 
+> **Historical snapshot (2026-05-30).** This manifest predates the 2026-06-09 STEWIE monorepo
+> restructure and keeps that era's names: `foss_ipex`/`roversim` → this repo (STEWIE),
+> `terrain_authority/` → `stewie/physics/`, `godot_sidecar/` → `stewie/godot/`,
+> `planet_browser/` → `stewie/server/` + `lode/`. The commands and paths below are as run on that
+> commit and are not maintained against the current layout; current verification is the CI gate
+> (`.github/workflows/ci.yml`) plus the generated `STATUS.md`.
+
 **Verified:** 2026-05-30, end-to-end from the committed repo (this commit — the **M1
 camera→ROS2 sensor-bridge milestone**; head `aa058a1`/`573e126` carried the bridge, this pass
 re-renders every reference still under the current pipeline and adds the bridge to the manifest).

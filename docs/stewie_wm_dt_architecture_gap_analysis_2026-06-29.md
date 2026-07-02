@@ -1,9 +1,15 @@
+---
+title: "WM/DT architecture gap analysis (2026-06-29)"
+nav_order: 51
+---
+
 # STEWIE WM / DT Architecture Gap Analysis
 
 Date: 2026-06-29
 
 Scope: STEWIE world model and digital twin directly. This is based on the refreshed Graphify map at
-`graphify-out/graph.json`, the interaction source table at
+`graphify-out/graph.json` (untracked analysis output; regenerate via
+`scripts/export_stewie_interaction_graph.py`), the interaction source table at
 `docs/stewie_digital_twin_interaction_map_2026-06-28.md`, and the current STEWIE code paths.
 
 ## Graphify Baseline

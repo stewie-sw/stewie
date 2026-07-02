@@ -1,3 +1,8 @@
+---
+title: "Cockpit UI/UX audit (2026-06-29)"
+nav_order: 57
+---
+
 # STEWIE cockpit UI/UX audit — decision matrix (2026-06-29)
 
 A 3-reviewer LLM-council audit of the live cockpit (dev-open bypass at :8799 + screenshots in the

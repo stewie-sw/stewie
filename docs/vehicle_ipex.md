@@ -6,20 +6,17 @@ regolith excavator. The **Regolith Advanced Surface Systems Operations Robot
 proof of concept that IPEx evolved from. Where this repo says "the rover", it
 means IPEx; RASSOR appears only as the lineage and as the physical test platform
 the IPEx team used for wheel/drum/auto-dig characterisation. Within STEWIE the
-vehicle digital twin is the **Navigation** subsystem (Articulated Rover Geometry for
-Unified State Estimation), named in tribute to Jadon Schuler, IPEx Project
-Manager and Principal Investigator.
+vehicle digital twin is the **Navigation** subsystem.
 
 All numbers below are sourced. The provenance tags map to the modules that hold
-them: `terrain_authority/ipex_specs.py` (energy/battery/geometry/mobility/drum
-constants, each carrying its tag) and `terrain_authority/test_ipex_specs.py`
+them: `stewie/specs/ipex_specs.py` (energy/battery/geometry/mobility/drum
+constants, each carrying its tag) and `stewie/specs/test_ipex_specs.py`
 (arithmetic checks on these real inputs).
 
 ## Primary sources
 
-The local source corpus is in
-`/mnt/projects/stewie/research/references/library/nasa_lunabotics/` and is
-Git-ignored by the project workspace.
+The local source corpus (the PDFs behind the tags below) lives outside the
+repository; every value used in code is quoted here with its tag.
 
 | Tag | Paper |
 |---|---|
@@ -122,7 +119,7 @@ choice in the `vehicles.py` registry, each entry carrying its own geometry
 - **`ipex`**: wheel r 0.1524 m (sourced), skid-steer track 0.365 m (= 0.7 × the
   RASSOR-2 0.5207 m), wheelbase + CG `[CALIB]` — the flight-scale body. Its render
   mesh is the **CC0 self-authored primitive** (`scripts/gen_ipex_mesh.py` →
-  `godot_sidecar/assets/ipex/`), since no public IPEx CAD exists.
+  `stewie/godot/assets/ipex/`), since no public IPEx CAD exists.
 
 The selection threads through every stage: `RoverSimEnv(vehicle=…)` (RL + tip-over
 physics), `vehicles.geometry_of(name)` (the exact `stability.stability` kwargs),
@@ -138,7 +135,7 @@ Both bodies are **headless-render-verified** (Godot 4.6.3 + xvfb + Vulkan): the
 default assembles the EZ-RASSOR mesh (AABB 1.83×0.66×1.70 m), and `--rover-assets
 res://assets/ipex --rover-gauge 0.3645 --rover-wheelbase 0.30` assembles the CC0
 IPEx primitive at its smaller flight scale (AABB 1.26×0.58×0.99 m). Evidence:
-`godot_sidecar/out/body_ez_rassor.png`, `body_ipex_cc0.png`.
+`stewie/godot/out/body_ez_rassor.png`, `body_ipex_cc0.png`.
 
 ## BP-1 is the terrestrial test simulant, not the lunar surface
 
@@ -176,15 +173,15 @@ now explicitly anchored to the official challenge spec rather than invented.
 
 ## Where this lands in the code
 
-- `terrain_authority/ipex_specs.py` — all sourced constants (energy, battery,
+- `stewie/specs/ipex_specs.py` — all sourced constants (energy, battery,
   geometry, mobility envelope, drum capacity, BP-1 reference) + `spec_record()`
-  provenance dump; `terrain_authority/test_ipex_specs.py` checks the arithmetic.
-- `terrain_authority/stability.py` — tip-over SSA ("don't tip") on the sim rover
+  provenance dump; `stewie/specs/test_ipex_specs.py` checks the arithmetic.
+- `stewie/physics/stability.py` — tip-over SSA ("don't tip") on the sim rover
   geometry; `rover_env.py` adds the tip-over terminal + stability-margin obs.
-- `planet_browser/mission_planner.py` — `DRUM_KG = REGOLITH_PER_CYCLE_KG` (30 kg),
+- `lode/mission_planner.py` — `DRUM_KG = REGOLITH_PER_CYCLE_KG` (30 kg),
   `slip_alpha_to_slip` entrapment ladder, `negative_obstacle_mask` ("don't fall
   in holes"), slope gating.
-- `planet_browser/localization.py` — scan-to-DEM map-relative localisation.
+- `dart/localization.py` — scan-to-DEM map-relative localisation.
 
 ---
 

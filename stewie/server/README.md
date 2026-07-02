@@ -1,9 +1,10 @@
-# planet_browser — lunar build planner front-end + mission-control report
+# stewie.server — mission-planning cockpit + mission-control report
 
-The product face of `foss_ipex`: load a body (Moon / Mars / …), queue build orders, and the planner
+The product face of STEWIE: load a body (Moon / Mars / …), queue build orders, and the planner
 sequences + optimizes them under real terramechanics + battery + time, validates the plan on the
-conserved authority, and returns a 2-3 page mission-control report. This is the SimCity-style planning
-loop, not a thesis. Standalone; imports the conserved Tier-2 core from `../roversim/terrain_authority`.
+conserved authority, and returns a mission-control report. This is the SimCity-style planning
+loop. Everything is in-repo: the conserved core is `stewie/physics`, the planner is `lode/`, and
+this package serves the cockpit UI + API.
 
 **What the planner does** (all grounded, no synthetic data):
 - **Terrain-aware + authority-validated** — sites are slope-gated on the real LOLA DEM; the plan is
@@ -16,43 +17,46 @@ loop, not a thesis. Standalone; imports the conserved Tier-2 core from `../rover
 - **Hazard routing + slip energy** — hauls route around craters on a slope costmap (Dijkstra), drive/haul
   cost is slip-adjusted (`135/(1-slip)`) with exact `m·g·Δh` gravity-lift; **endurance/range** readout
   (per-sortie km, DEM reachability, body-correct day/night timescale).
-- **Closed-loop autonomy (P12)** — `autonomy.py`: an AutoNav-style belief estimator (Kalman, uncertainty)
-  + a plan→execute→estimate→**replan** controller that manages the battery from the estimate.
+- **Closed-loop autonomy (P12)** — `lode/autonomy.py`: an AutoNav-style belief estimator (Kalman,
+  uncertainty) + a plan→execute→estimate→**replan** controller that manages the battery from the estimate.
 
 ## Run
 
 ```bash
-# from this directory, with the runtime venv (deps in requirements.txt: numpy + matplotlib + scipy + pyproj)
-PYTHONPATH=. /mnt/projects/07_runtime_system/venv/bin/python server.py --port 8770
-# then open http://127.0.0.1:8770/ in a browser
+pip install -e .[server]          # or .[dev] for the full toolchain
+stewie-serve                      # http://127.0.0.1:8770  (or: python -m stewie.server.server)
 ```
 
-Non-polar maps: `dem_import.py` reprojects a cylindrical (lat/lon) DEM product to the local metric grid
-via `pyproj` (e.g. LOLA `ldem_4`); see `fixtures/ldem4_equator_*` for a tiny real equatorial fixture.
+The mutating POST routes (`/plan`, `/sense`, …) are auth-gated and **fail closed**: set
+`STEWIE_API_KEY`, or `STEWIE_DEV_OPEN=1` for a keyless loopback-only dev server. A non-loopback
+bind (`--host 0.0.0.0`) is refused unless a TLS terminator is declared in front
+(`STEWIE_TLS_TERMINATED=1`); see [`deploy/README.md`](../../deploy/README.md).
 
 In the browser: pick a body, pan/zoom/tilt, add build orders to the **BUILD QUEUE** (kind, x/y in
-meters, footprint, depth), then **Plan mission** to optimize the sequence and open the report PDF. The
-**DRUM SENSOR** panel (bottom-left) shows the drum-fill inferred from motor current (ICE-RASSOR, no load
+meters, footprint, depth), then **Plan mission** to optimize the sequence and open the report PDF.
+The cockpit is the six-slot ConOps spine (Plan · Rehearse · Validate · Release · Execute · Report)
+plus the role-gated Fleet/Construction/Models/Trainer cluster and the `/program` requirement board.
+The **DRUM SENSOR** panel shows the drum-fill inferred from motor current (ICE-RASSOR, no load
 cell) with an offload decision; the **sensor noise** checkbox toggles seeded noise (off = deterministic).
 
 A plan can also be generated headlessly:
 
 ```bash
-python mission_planner.py            # writes reports/<date>_mission_plan.pdf + .md (demo mission)
+python -m lode.mission_planner       # demo mission -> <data-dir>/reports/..._mission_plan.pdf + .md (path printed)
 ```
 
 ## Pieces
 
 | File | What it is |
 |---|---|
-| `index.html` | CesiumJS browser (NASA Solar System Treks tiles) + build-order queue + live regolith estimate. |
-| `server.py` | FastAPI/uvicorn (ASGI). Serves the front-end + `bodies.json` + `/reports/`; `POST /plan` runs the planner and returns the report URL. |
-| `mission_planner.py` | Cut-fill balancing → **pluggable sequencer × objective** (`optimize_sequence`: nearest/greedy/2-opt/Or-opt/LK/brute/Held-Karp/auto; `compare_algorithms` + Pareto) → terrain-aware + authority-validated (`validate_plan`) → slip-adjusted hazard routing → endurance/range → battery-aware mid-task recharge → 3-page PDF + markdown report. Grounded in `ipex_specs` + `bodies.json`. |
-| `autonomy.py` | Closed-loop autonomy (P12, the AutoNav model): `Belief` + Kalman `estimator` (`predict`/`update_*`), `execute_leg` (slip-adjusted true telemetry), `run_closed_loop` (plan→execute→estimate→replan + reserve-aware recharge). Runs in the conserved-model sim. |
-| `dem_import.py` | Reproject a non-polar (cylindrical lat/lon) DEM product to the local metric grid via `pyproj` (P4); real LOLA `ldem_4` fixture in `fixtures/`. |
-| `gen_bodies_json.py` | Generates `bodies.json` (per-body terramechanics + an `_ipex` energy block) from the `.py` source of truth (`terrain_authority/bodies.py` + `ipex_specs.py` + `constants.py`). Re-run after editing those. |
+| `index.html` + `web/` | The cockpit (CesiumJS globe, NASA Solar System Treks tiles) + build-order queue + live regolith estimate; `web/program.html` is the requirement board; `web/landing.html` the public landing page. |
+| `server.py` | FastAPI/uvicorn (ASGI). Serves the front-end + `bodies.json` + `/reports/`; `POST /plan` runs the planner and returns the report URL. Routers live in `routers/`. |
+| `../../lode/mission_planner.py` | Cut-fill balancing → **pluggable sequencer × objective** (`optimize_sequence`: nearest/greedy/2-opt/Or-opt/LK/brute/Held-Karp/auto; `compare_algorithms` + Pareto) → terrain-aware + authority-validated (`validate_plan`) → slip-adjusted hazard routing → endurance/range → battery-aware mid-task recharge → PDF + markdown report. Grounded in `stewie/specs/ipex_specs.py` + `bodies.json`. |
+| `../../lode/autonomy.py` | Closed-loop autonomy (P12, the AutoNav model): `Belief` + Kalman `estimator` (`predict`/`update_*`), `execute_leg` (slip-adjusted true telemetry), `run_closed_loop` (plan→execute→estimate→replan + reserve-aware recharge). Runs in the conserved-model sim. |
+| `../../dart/dem_import.py` | Reproject a non-polar (cylindrical lat/lon) DEM product to the local metric grid via `pyproj` (P4); real LOLA `ldem_4` fixture in `fixtures/`. |
+| `gen_bodies_json.py` | Generates `bodies.json` (per-body terramechanics + an `_ipex` energy block) from the `.py` source of truth (`stewie/specs/bodies.py` + `ipex_specs.py` + `constants.py`). Re-run after editing those. |
 | `bodies.json` | Generated, read-only mirror (the browser can't import `.py`). |
-| `test_mission_planner.py` | The P1 round-trip tests: the queue→Mission adapter, a queued mission writing a real PDF, the live `/plan` endpoint, and the sinter gate. |
+| `../../lode/test_mission_planner.py` | The round-trip tests: the queue→Mission adapter, a queued mission writing a real PDF, and the sinter gate; the live-endpoint tests are in `test_*.py` here. |
 
 ## The `/plan` contract
 
@@ -70,10 +74,11 @@ Optional fields: `"algorithm"` (`auto` default · `nearest/greedy/two_opt/or_opt
 `"objective"` (`time` default · `energy/power/distance/charges/mass` · or a weighted `"time:0.5,energy:0.5"`),
 and `"precedence": [["Grade road","Build berm"], …]` (before→after by order action).
 
-Returns `{ "ok": true, "pdf": "/reports/...pdf", "md": "...", "totals": {...}, "validation": {...},
-"timeline": {...}, "endurance": {...} }`, or `400` for an unknown body / malformed order / sinter order
-(sinter is a real conserved primitive but **gated off** until its `[CALIB]` energy/density are grounded —
-`terrain_authority.constants.SINTER_ENABLED`). `POST /compare` runs every algorithm and returns them
+Returns `{ "ok": true, "feasible": …, "pdf": "/reports/...pdf", "md": "...", "totals": {...},
+"validation": {...}, "timeline": {...}, "endurance": {...}, "plan_ir": {...}, ... }`, or `400` for
+an unknown body / malformed order / sinter order (sinter is a real conserved primitive but
+**gated off** until its `[CALIB]` energy/density are grounded —
+`stewie.specs.constants.SINTER_ENABLED`). `POST /compare` runs every algorithm and returns them
 ranked by the objective with a Pareto flag.
 
 Coordinates are a **local site frame in meters** (charger at `0,0`); the globe pick selects the site,
@@ -83,14 +88,14 @@ the queue places orders around it. There is no fabricated lat/lon to meter proje
 drum-fill sensing for a given true mass: `{ "current_a", "inferred_kg", "uncertainty_frac", "lower_kg",
 "upper_kg", "offload", ... }`. `noise_frac` is the **noise toggle** (0 = off, deterministic; the seeded
 Gaussian is reproducible). Drum mass is inferred from the motor-current observable (the 2020/2021 RASSOR
-had no load cell); see `terrain_authority/rassor_mass_model.py` (NTRS 20210022781).
+had no load cell); see `stewie/physics/rassor_mass_model.py` (NTRS 20210022781).
 
 ## Lunar DEM (work-area inset + expansion)
 
 The Moon **WORK AREA** inset is the real LOLA polar 5 m Haworth tile already in the sim
-(`roversim/samples/lunar_dem/haworth_10km_5m`, south-polar stereographic), served at `/dem/hillshade.png`
-and auto-shown on Moon. To extend coverage, the sim's `terrain_authority/dem_import` ingests standard
-LOLA products:
+(`samples/lunar_dem/haworth_10km_5m`, south-polar stereographic; Nobile and Shackleton-rim tiles
+sit beside it), rendered as hillshade and auto-shown on Moon. To extend coverage,
+`dart/dem_import.py` ingests standard LOLA products:
 - **SLDEM2015** (PGDA product 54, LOLA + SELENE TC merge): **±60° only** (no pole), ~60–100 m/px, FLOAT IMG
   / JPEG2000 at 128/256/512 ppd — `imbrium.mit.edu/DATA/SLDEM2015/`. Good for mid-latitude sites.
 - **South-pole LOLA DEM** (PGDA product 66, "A New View of the Lunar South Pole from LOLA"): the polar
@@ -104,7 +109,7 @@ draped as globe tiles.
 
 ## Grounding
 
-All constants come from the `.py` source of truth: IPEx energy/battery from `ipex_specs.py`
+All constants come from the `.py` source of truth: IPEx energy/battery from `stewie/specs/ipex_specs.py`
 (Schuler et al., ASCEND 2024, NTRS 20240008162; 12S/30Ah pack), per-body terramechanics from the
-bodies sysrev (`bodies.py`). The recharge power, sinter-head power, and reserve fraction are tagged
-`[CALIB]`. No synthetic data.
+bodies sysrev (`stewie/specs/bodies.py`). The recharge power, sinter-head power, and reserve fraction
+are tagged `[CALIB]`. No synthetic data.
