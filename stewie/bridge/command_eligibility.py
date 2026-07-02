@@ -52,3 +52,27 @@ def command_eligible(ctx: CommandContext | None) -> tuple[bool, str]:
     if ctx.target_namespace != ctx.mission_namespace:
         return False, "namespace_conflict"
     return True, "eligible"
+
+
+def eligibility_report(ctx: CommandContext | None) -> dict:
+    """[REQ:FS-28] the FULL per-gate verdict for the command-authority EVIDENCE card (Execute pane).
+
+    ``command_eligible`` fails closed on the FIRST unmet gate (the right behaviour for the actual
+    interlock); the operator evidence card instead needs EVERY gate's independent pass/fail so a refusal
+    names all that is wrong, not just the first. Returns the overall ``eligible`` + ``reason`` plus each
+    named gate (authorized / live / safe / fresh / namespaced). Fail-closed for a None context."""
+    if ctx is None:
+        return {"eligible": False, "reason": "no_context", "authorized": False, "live": False,
+                "safe": False, "fresh": False, "namespaced": False}
+    authorized = role_rank(ctx.role) >= _OPERATOR and not (
+        ctx.director_only and role_rank(ctx.role) < _DIRECTOR)
+    ok, reason = command_eligible(ctx)
+    return {
+        "eligible": ok,
+        "reason": reason,
+        "authorized": authorized,
+        "live": ctx.mission_namespace == "live",
+        "safe": not ctx.safed,
+        "fresh": ctx.ack_age_s <= ctx.ack_deadline_s,
+        "namespaced": ctx.target_namespace == ctx.mission_namespace,
+    }

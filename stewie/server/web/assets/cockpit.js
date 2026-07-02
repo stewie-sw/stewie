@@ -3032,6 +3032,30 @@ function rcGotoEcho() {
   }
 }
 
+// FS-28: the command-authority EVIDENCE card. Fetches the pre-emission eligibility verdict (GET
+// /rc/eligibility, the RS-01 CommandEligibility contract) for the mission the operator entered, and
+// renders each named gate pass/fail BEFORE a command is sent -- so the operator sees the authority a
+// GoTo has (and, on ineligible, the legible reason) rather than only discovering it on a refusal.
+async function rcEligibility() {
+  const el = $("rceligibility"); if (!el) return;
+  const m = $("rccmdmission") ? $("rccmdmission").value.trim() : "";
+  const q = m ? `?mission=${encodeURIComponent(m)}` : "";
+  try {
+    const r = await fetch(`/rc/eligibility${q}`, { headers: apiHeaders() });
+    if (!r.ok) { el.innerHTML = `<span style="color:var(--muted)">authority — ${r.status === 401 || r.status === 403 ? "operator+ sign-in required" : "unavailable"}</span>`; return; }
+    const d = await r.json();
+    // the command-authority gates (released/SAFE/link/role); perception-freshness fields are FS-27/PM-17.
+    const gates = [["role", d.mode_ok], ["released", d.released], ["SAFE-clear", d.safe_inactive],
+                   ["link", d.link_ack], ["watchdog", d.watchdog_alive]];
+    const chips = gates.map(([name, ok]) =>
+      `<span style="color:${ok ? "var(--accent)" : "var(--muted)"}">${ok ? "✓" : "✗"} ${esc(name)}</span>`).join(" · ");
+    const head = d.eligible
+      ? '<b style="color:var(--accent)">ELIGIBLE</b>'
+      : `<b style="color:var(--muted)">INELIGIBLE</b> <span style="color:var(--muted)">(${esc(String(d.reason))})</span>`;
+    el.innerHTML = `<span title="RS-01 CommandEligibility contract">command authority: ${head}</span> — ${chips}`;
+  } catch (e) { el.innerHTML = '<span style="color:var(--muted)">authority — run server.py</span>'; }
+}
+
 // FS-05 nav contract readout: GET /nav/contract -> render each nav stage's on-host wired status (the
 // auditable navigation contract). Read-only diagnostic; the missing on-host stages render flagged.
 async function navContract() {
@@ -3063,6 +3087,7 @@ if ($("navrun")) {
   if ($("rcsetsim")) $("rcsetsim").onclick = () => rcCommand("setsim");
   ["rcgr", "rcgc"].forEach((id) => { if ($(id)) $(id).addEventListener("input", rcGotoEcho); });  // GIS: live REP-103 metres echo of the GoTo target
   rcGotoEcho();
+  if ($("rccmdmission")) { $("rccmdmission").addEventListener("input", rcEligibility); rcEligibility(); }  // FS-28 authority card
   if ($("navdrive")) $("navdrive").onclick = navDriveRun;     // FS-05 end-to-end route-then-drive preview
   if ($("navreal")) $("navreal").onclick = navRealTraverse;   // #148 real Haworth terrain-fix est-vs-truth
   $("navreloc").onclick = navReloc;

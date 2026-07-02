@@ -737,6 +737,10 @@
           <button id="rcgoto" class="site" data-cmd-authority data-cmd-title="send a GoTo to the live rover (published mission only; confirms first)" title="send a GoTo to the live rover (published mission only; confirms first)" style="font-size:11px">▶ GoTo</button>
         </div>
         <div id="rcgotom" style="font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;margin:0 0 3px" title="where the grid (row, col) GoTo target lands in the RC backend's REP-103 metre frame (x = col·cell, y = -row·cell) — the same frame the drive map plots">target — REP-103 m (enter row, col)</div>
+        <!-- FS-28: the command-authority EVIDENCE card -- the pre-emission eligibility verdict (GET
+             /rc/eligibility, the RS-01 CommandEligibility contract) shown BEFORE a command, not only on a
+             refusal. Populated on mission entry; each gate reads pass (accent) or fail (muted). -->
+        <div id="rceligibility" style="font-size:10px;margin:0 0 4px" title="command-authority evidence: the pre-emission eligibility gates a GoTo must pass (AG-08 released / SF-01 SAFE / NV-12 link / role). Enter a live mission to evaluate."></div>
         <div class="ctl" style="font-size:11px;margin:2px 0">
           set-sim ×<input id="rctf" type="number" value="1" step="0.5" style="width:4em" title="training time-warp (director-only)" />
           <button id="rcsetsim" class="site" data-cmd-authority data-cmd-title="set the training time-warp (director-only)" title="set the training time-warp (director-only)" style="font-size:11px">⏩ SetSim</button>
@@ -1555,6 +1559,6 @@
 <script src="/assets/cockpit_state.js?v=fcaa16f324c4"></script><!-- FS-16: pure routeable cockpit state model (sets window.STEWIE_STATE) -->
 <script src="/assets/provenance_label.js?v=e6ec3e5b78b5"></script><!-- FS-03: pure epistemic provenance chips truth/belief/forecast/live (sets window.STEWIE_PROVENANCE) -->
 <script src="/assets/ops_chips.js?v=956a4ab31cdc"></script><!-- frontend-audit C: pure ops-chip formatters health/link/provenance/mission-time (sets window.STEWIE_OPS_CHIPS) -->
-<script src="/assets/cockpit.js?v=13e055aacc5e"></script>
+<script src="/assets/cockpit.js?v=4429e3a36cb7"></script>
 </body>
 </html>

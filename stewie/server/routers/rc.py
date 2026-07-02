@@ -231,6 +231,36 @@ def rc_telemetry(_auth: None = Depends(require_auth)):
     return _telemetry_payload()
 
 
+@router.get("/rc/eligibility", response_model=None)
+def rc_eligibility(mission: str | None = None, identity: str = Depends(require_auth)) -> dict:
+    """[REQ:FS-28] the full command-authority EVIDENCE the Execute pane shows BEFORE a command (not only
+    on refusal): the pre-emission eligibility verdict as the RS-01 CommandEligibility contract -- every
+    named gate's pass/fail (authorized / released-live / SAFE-inactive / link-ack fresh / watchdog alive),
+    the overall `eligible`, and the legible `reason` a refusal would carry. Read-only; any authenticated
+    identity may inspect what authority a GoTo to `mission` would (or would not) have. The perception-
+    freshness fields (sensor/map/covariance) are the RS-spine's separate perception concern (FS-27/PM-17)
+    and stay at their contract defaults here rather than being faked."""
+    from stewie.bridge.command_eligibility import CommandContext, eligibility_report
+    from stewie.contracts.runtime_spine import CommandEligibility
+    from stewie.server import auth as AUTH
+    from stewie.server import objects as OBJ
+    now = time.monotonic()
+    role = AUTH.role_of(identity)
+    live = mission is not None and OBJ.load_mission(str(mission), namespace="live") is not None
+    ns = "live" if live else ("sandbox" if mission is not None else None)
+    with _RC_LOCK:
+        tripped = _RC_WATCHDOG.tripped
+        idle = _RC_WATCHDOG.seconds_idle(now=now)
+        deadline = _RC_WATCHDOG.deadline_s
+    rep = eligibility_report(CommandContext(role=role, mission_namespace=ns, target_namespace=ns,
+                                            safed=tripped, ack_age_s=idle, ack_deadline_s=deadline))
+    return CommandEligibility(
+        eligible=rep["eligible"], reason=rep["reason"],
+        profile=os.environ.get("STEWIE_RUNNABLE_PROFILE", "live"),
+        mode_ok=rep["authorized"], released=rep["live"], safe_inactive=rep["safe"],
+        link_ack=rep["fresh"], watchdog_alive=not tripped).model_dump()
+
+
 @router.get("/rc/telemetry/stream")
 async def rc_telemetry_stream(interval_s: float = 1.0, max_frames: int | None = None,
                               _auth: None = Depends(require_auth)):
