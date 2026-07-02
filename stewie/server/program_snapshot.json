@@ -1,10 +1,10 @@
 {
  "provenance": {
-  "citations_sha256": "66033b30cf600876b263fc466930ed58e02291cafa2c2d7586738d4c6a6b1a12",
+  "citations_sha256": "fb36d142fd5327a9910c7e52cad43b19a42f291e1467d6908c5196215cfe7814",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "0fb597edb403a9a00355adddd83e2deb5c3b66fb",
-  "prd_sha256": "672f668cb7a4fcb97aa25d3a2fb1f1a10bedc900bca52646c3c7df4ea771cfce",
-  "specs_sha256": "4b2c5de33da676744a6a597546e55f8243ee263773643bdad9dafec1a8d63bfb"
+  "prd_commit": "42a3b3bcc04a68c7324ce0c39b7ee44411e0c7c8",
+  "prd_sha256": "2c3273b881a22452c0bd97be9f4e96fc746124e7f362f10b7d48b457149205a5",
+  "specs_sha256": "ec93ce38d3b6cc13e2094361cb709ae6fba96cb545deaf06ee6ea4dcb3ba0a10"
  },
  "rows": [
   {
@@ -404,8 +404,9 @@
    "Q": "N",
    "V": "P",
    "X": "N",
-   "bucket": "buildable",
+   "bucket": "gated",
    "cited": false,
+   "gated_reason": "moved to the dissertation acceptance extract (research-acceptance, not a STEWIE build target)",
    "id": "AS-16",
    "lane": "AS",
    "pri": "P1",
@@ -924,15 +925,15 @@
   {
    "I": "P",
    "Q": "N",
-   "V": "P",
+   "V": "D",
    "X": "N",
    "brief": {
     "goal": "close multi-vehicle coordination as one umbrella \u2014 per-vehicle state, reservations, corridor deconfliction, cross-vehicle precedence, conflict explanation, safe replan \u2014 with an FS-04 integration test on real Haworth.",
     "kind": "epic",
     "test_target": "extend lode/test_fl04_precedence_split.py with `[REQ:FS-04]`, OR NEW lode/test_fs04_coordination.py"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FS-04",
    "lane": "FS",
    "pri": "P1",
@@ -970,15 +971,15 @@
   {
    "I": "P",
    "Q": "N",
-   "V": "P",
+   "V": "D",
    "X": "P",
    "brief": {
     "goal": "wire the nav seams (articulation pose, camera rig, shadow/parallax obs, pose-graph factor, residual gate, covariance update, evidence view, planner relocalization stop) into one auditable closed loop; cite it.",
     "kind": "epic",
     "test_target": "NEW dart/test_nav_operational_loop.py (`[REQ:FS-07]`); optionally extend dart/test_relocalization.py"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FS-07",
    "lane": "FS",
    "pri": "P1",
@@ -1072,15 +1073,15 @@
   {
    "I": "P",
    "Q": "N",
-   "V": "N",
+   "V": "D",
    "X": "N",
    "brief": {
     "goal": "record/version/replay/compare/approve construction + self-docking primitives (excavate/dump/berm/dock), replay belief-corrected + safety-bounded; cite it.",
     "kind": "epic",
     "test_target": "extend stewie/contracts/test_contracts.py::test_construction_skill_must_be_closed_loop with `[REQ:FS-13]`, OR NEW dart/test_skill_record_replay.py"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FS-13",
    "lane": "FS",
    "pri": "P1",
@@ -1227,15 +1228,15 @@
   {
    "I": "P",
    "Q": "NA",
-   "V": "N",
+   "V": "D",
    "X": "N",
    "brief": {
     "goal": "build the architecture-review traceability ledger \u2014 a living map PRD row \u2192 route/service \u2192 domain module \u2192 FE adapter/view \u2192 tests \u2192 logs \u2014 that exposes missing links without implying done.",
     "kind": "epic",
     "test_target": "NEW scripts/test_arch_ledger.py (`[REQ:FS-23]`), OR extend req_trace to emit the full chain"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FS-23",
    "lane": "FS",
    "pri": "P1",
@@ -2076,9 +2077,9 @@
    "V": "N",
    "X": "N",
    "brief": {
-    "goal": "complete the full release security-audit gate (host / container / app / DNS-site / secret / backup-restore / dependency-SBOM-CVE / external-exposure) with recorded evidence.",
+    "goal": "The typed evidence contract is implemented (I=D) and integrated into the estimator (X=D). Verification is partial (V=P) because:",
     "kind": "epic / gated",
-    "test_target": "NEW scripts/test_se01_audit_gate.py (`[REQ:SE-01]`)"
+    "test_target": "dart/test_factors.py (existing; add [REQ:AS-18] marker to test_shadow_yaw_allows_measured_heading_but_metric_shadow_is_guarded)"
    },
    "bucket": "buildable",
    "cited": true,
@@ -2600,10 +2601,10 @@
  "summary": {
   "briefs": 62,
   "buckets": {
-   "buildable": 52,
+   "buildable": 47,
    "concurrent": 0,
-   "done": 113,
-   "gated": 23
+   "done": 117,
+   "gated": 24
   },
   "by_lane": {
    "AG": {
@@ -2639,7 +2640,7 @@
     "total": 7
    },
    "FS": {
-    "done": 9,
+    "done": 13,
     "total": 24
    },
    "GI": {
@@ -2705,7 +2706,7 @@
     "total": 61
    },
    "P1": {
-    "done": 73,
+    "done": 77,
     "total": 117
    },
    "P2": {
@@ -2713,10 +2714,10 @@
     "total": 10
    }
   },
-  "cited": 156,
-  "done_pct": 60.1,
-  "in_scope": 165,
-  "in_scope_done_pct": 68.5,
+  "cited": 160,
+  "done_pct": 62.2,
+  "in_scope": 164,
+  "in_scope_done_pct": 71.3,
   "total": 188
  },
  "workflow_spine": [
