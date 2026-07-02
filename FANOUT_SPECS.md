@@ -555,3 +555,100 @@ reports it V=D. An agent finishes by adding/extending that test and flipping the
 - files: scripts/gen_sbom.py, scripts/_deps_lock.py, stewie/server/test_deploy_hardening.py, scripts/sec01_cookie_smoke.py, scripts/sec04_xss_smoke.py, SECURITY.md, docs/RELEASE.md
 - test_target: NEW scripts/test_se01_audit_gate.py (`[REQ:SE-01]`)
 - notes: GATED — host/DNS/external-exposure + a real backup/restore drill need live-host/DNS access + a second host (off-host replication unbuilt). Subtasks: CVE-scan the SBOM, build the backup/restore drill (ties DT-01 cold rebuild), an audit-gate manifest test over all eight domains; the infra legs are gated.
+
+## AS lane (flight autonomy / ROS2 -- container-buildable, Codex-cleared 2026-07-02) -- 12 rows
+
+Host-side contract slice buildable here (ros2_ws/ tests run without a live ROS via conftest); the live-node/RViz runtime leg is container-gated. Screens from the 2026-07-02 AS fan-out (verified vs the live tree).
+
+### AS-01 (AS) — atomic
+- goal: the Autoware-shaped node graph + topic contract is frozen in autonomy_contract.py; cite the boundary test.
+- acceptance: a [REQ:AS-01] python test asserts the row's host-side contract non-vacuously (the live-ROS runtime leg is gated).
+- files: stewie/bridge/autonomy_contract.py, ros2_ws/test_ws_skeleton.py
+- test_target: stewie/bridge/test_autonomy_contract.py (extend with [REQ:AS-01] node-graph/topic-contract assertion)
+- type: atomic (host-side slice; live-node leg container-gated)
+
+### AS-04 (AS) — atomic
+- goal: Build Dockerfile.perception_slam, Dockerfile.bridge, Dockerfile.space_ros each FROM stewie-ros2dev:jazzy with pinned packages and smoke commands. Update test_container_tiers.py BUI
+- acceptance: a [REQ:AS-04] python test asserts the row's host-side contract non-vacuously (the live-ROS runtime leg is gated).
+- files: /mnt/projects/stewie/code/deploy/ros2/Dockerfile.perception_slam, /mnt/projects/stewie/code/deploy/ros2/Dockerfile.bridge, /mnt/projects/stewie/code/deploy/ros2/Dockerfile.space_ros, /mnt/projects/stewie/code/ros2_ws/test_container_tiers.py, /mnt/projects/stewie/code/deploy/ros2/evidence/README.md, /mnt/projects/stewie/code/PRD.md, /mnt/projects/stewie/code/STATUS.md
+- test_target: /mnt/projects/stewie/code/ros2_ws/test_container_tiers.py
+- type: atomic (host-side slice; live-node leg container-gated)
+
+### AS-07 (AS) — atomic
+- goal: **Smallest honest closeable slice for AS-07:**
+
+Create stewie/eval/test_nav_spine_integration.py that:
+1. Instantiates mock depth sources (mock stereo point cloud, mock RGB-D, mock
+- acceptance: a [REQ:AS-07] python test asserts the row's host-side contract non-vacuously (the live-ROS runtime leg is gated).
+- files: dart/features.py, dart/integrated_slam.py, stewie/eval/test_nav_spine_integration.py
+- test_target: stewie/eval/test_nav_spine_integration.py
+- type: atomic (host-side slice; live-node leg container-gated)
+
+### AS-08 (AS) — atomic
+- goal: 1. Refactor shadow_factors.py to import MeasurementFactor, FactorType, Frame, EvidenceClass from dart.factors. 2. Update shadow_yaw_factors() to return list[MeasurementFactor] inst
+- acceptance: a [REQ:AS-08] python test asserts the row's host-side contract non-vacuously (the live-ROS runtime leg is gated).
+- files: /mnt/projects/stewie/code/dart/shadow_factors.py, /mnt/projects/stewie/code/dart/test_shadow_factors.py
+- test_target: /mnt/projects/stewie/code/dart/test_shadow_factors.py
+- type: atomic (host-side slice; live-node leg container-gated)
+
+### AS-09 (AS) — atomic
+- goal: 1. Publish accepted navigation factors to /stewie/nav/factors topic (visualization_msgs/Marker array with position, covariance, source, acceptance flag) from stewie/bridge/localiza
+- acceptance: a [REQ:AS-09] python test asserts the row's host-side contract non-vacuously (the live-ROS runtime leg is gated).
+- files: stewie/bridge/localization_node.py, ros2_ws/src/stewie_rviz/rviz/mission.rviz, ros2_ws/test_nav_factor_visualization.py
+- test_target: dart/test_relocalization.py (existing, passing 4/4) cites the core acceptance/rejection/covariance logic; new test ros2_ws/test_nav_factor_visualization.py would cite the RViz visualization slice
+- type: atomic (host-side slice; live-node leg container-gated)
+
+### AS-10 (AS) — atomic
+- goal: The smallest closeable slice is a TDD test that (1) builds a real ElevationMap from stereo pairs (real Godot frames + camera trajectory), (2) updates WorldModelLayers.observed from
+- acceptance: a [REQ:AS-10] python test asserts the row's host-side contract non-vacuously (the live-ROS runtime leg is gated).
+- files: dart/test_world_model_layers.py, dart/mapping.py, dart/world_model_layers.py, stewie/physics/excavation_state.py
+- test_target: dart/test_world_model_layers.py::test_update_observed_from_real_elevationmap (existing test; extend with excavation-state assertion + multi-layer simultaneity proof)
+- type: atomic (host-side slice; live-node leg container-gated)
+
+### AS-11 (AS) — atomic
+- goal: the lunar costmap layers (slope/roughness/sinkage/slip/tip) exist; cite the layer-stack test.
+- acceptance: a [REQ:AS-11] python test asserts the row's host-side contract non-vacuously (the live-ROS runtime leg is gated).
+- files: dart/world_model_layers.py, lode/map_uncertainty_route.py
+- test_target: dart/test_world_model_layers.py (extend with [REQ:AS-11] costmap-layer assertion)
+- type: atomic (host-side slice; live-node leg container-gated)
+
+### AS-12 (AS) — atomic
+- goal: Add a unified [REQ:AS-12] test that proves: (1) a real mission's lowered Plan IR contains work_goals with all fields (op, site, mass_kg, expect energy); (2) each lowered message pa
+- acceptance: a [REQ:AS-12] python test asserts the row's host-side contract non-vacuously (the live-ROS runtime leg is gated).
+- files: /mnt/projects/stewie/code/stewie/server/test_plan_ros_route.py
+- test_target: /mnt/projects/stewie/code/stewie/server/test_plan_ros_route.py (extend existing test file with new [REQ:AS-12] test)
+- type: atomic (host-side slice; live-node leg container-gated)
+
+### AS-13 (AS) — atomic
+- goal: 
+**Smallest honest closeable slice for AS-13:**
+
+Build a minimal ROS2 stewie_executive package (new ros2_ws/src/stewie_executive/) that:
+
+1. **Skeleton structure (ported from stewi
+- acceptance: a [REQ:AS-13] python test asserts the row's host-side contract non-vacuously (the live-ROS runtime leg is gated).
+- files: /mnt/projects/stewie/code/ros2_ws/src/stewie_executive/setup.py, /mnt/projects/stewie/code/ros2_ws/src/stewie_executive/stewie_executive/__init__.py, /mnt/projects/stewie/code/ros2_ws/src/stewie_executive/stewie_executive/node.py, /mnt/projects/stewie/code/ros2_ws/src/stewie_executive/test/test_import_stewie_executive.py, /mnt/projects/stewie/code/ros2_ws/test_container_tiers.py
+- test_target: ros2_ws/test_container_tiers.py (extend existing AS-02/03/05/06 pattern with AS-13 container smoke test)
+- type: atomic (host-side slice; live-node leg container-gated)
+
+### AS-14 (AS) — atomic
+- goal: 1. Extend ros2_bridge.py _StewieRcNode to publish diagnostic_msgs/DiagnosticArray on /diagnostics with DiagnosticStatus messages for: command_eligibility (using command_eligibility
+- acceptance: a [REQ:AS-14] python test asserts the row's host-side contract non-vacuously (the live-ROS runtime leg is gated).
+- files: /mnt/projects/stewie/code/stewie/bridge/ros2_bridge.py, /mnt/projects/stewie/code/stewie/bridge/test_ros2_bridge.py
+- test_target: [REQ:AS-14] test in stewie/bridge/test_ros2_bridge.py (new or extended) that shows _StewieRcNode publishing /diagnostics with lifecycle, latency, command_eligibility, SAFE events, and correlation IDs, and that diagnostics_ledger.ledger_event() correctly processes them without logging secrets or truth-denied fields
+- type: atomic (host-side slice; live-node leg container-gated)
+
+### AS-15 (AS) — atomic
+- goal: AS-15 requires a NASA-style TDD gate: test-first with [REQ:] markers, container smoke, deterministic fixtures, failure-mode tests, Power-of-10/static-analysis, and no capability cl
+- acceptance: a [REQ:AS-15] python test asserts the row's host-side contract non-vacuously (the live-ROS runtime leg is gated).
+- files: stewie/bridge/test_autonomy_contract.py, scripts/test_release_gate.py, ros2_ws/deploy/test_container_tiers.py, conftest.py
+- test_target: scripts/test_release_gate.py (existing, already cites AS-15; expansion: add a test that documents the 3 deferred container tiers and 2 deferred detection capabilities as genuinely gated, verifying the gate never silently marks them complete)
+- type: atomic (host-side slice; live-node leg container-gated)
+
+### AS-18 (AS) — atomic
+- goal: The typed evidence contract is implemented (I=D) and integrated into the estimator (X=D). Verification is partial (V=P) because:
+1. No test cites [REQ:AS-18] to non-vacuously verif
+- acceptance: a [REQ:AS-18] python test asserts the row's host-side contract non-vacuously (the live-ROS runtime leg is gated).
+- files: dart/test_factors.py
+- test_target: dart/test_factors.py (existing; add [REQ:AS-18] marker to test_shadow_yaw_allows_measured_heading_but_metric_shadow_is_guarded)
+- type: atomic (host-side slice; live-node leg container-gated)

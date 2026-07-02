@@ -50,6 +50,7 @@ PROSE_GATED = {
     "PM-13": "GPU/live depth-source pipeline", "PM-14": "GPU/live depth-source pipeline",
     "PM-15": "GPU/live depth-source pipeline", "PM-16": "GPU/live depth-source pipeline",
     "CP-07": "PyChrono calibration oracle", "TM-01": "PyChrono calibration oracle",
+    "AS-16": "moved to the dissertation acceptance extract (research-acceptance, not a STEWIE build target)",
 }
 # reason for a Q=G glyph-gated row, by family (falls back to "quality/hardware gated").
 # (No "AS" entry: AS is caught by the concurrent/owned bucket above and is container-buildable, not gated.)
