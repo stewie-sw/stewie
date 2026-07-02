@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "fb36d142fd5327a9910c7e52cad43b19a42f291e1467d6908c5196215cfe7814",
+  "citations_sha256": "133ad5ccf1f492c41d0eb16a929ee11272acb35e294d544a7e81e2ff97add5e8",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "42a3b3bcc04a68c7324ce0c39b7ee44411e0c7c8",
-  "prd_sha256": "2c3273b881a22452c0bd97be9f4e96fc746124e7f362f10b7d48b457149205a5",
+  "prd_commit": "9c26fbc0a5174117c333a9b5cea9c7df6d3039cf",
+  "prd_sha256": "41fd16cf0c48efb11410bfd506f352df197b023ef253bf2a56896ef063bd4891",
   "specs_sha256": "ec93ce38d3b6cc13e2094361cb709ae6fba96cb545deaf06ee6ea4dcb3ba0a10"
  },
  "rows": [
@@ -427,10 +427,10 @@
   {
    "I": "D",
    "Q": "N",
-   "V": "P",
+   "V": "D",
    "X": "D",
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "AS-18",
    "lane": "AS",
    "pri": "P0",
@@ -2601,9 +2601,9 @@
  "summary": {
   "briefs": 62,
   "buckets": {
-   "buildable": 47,
+   "buildable": 46,
    "concurrent": 0,
-   "done": 117,
+   "done": 118,
    "gated": 24
   },
   "by_lane": {
@@ -2616,7 +2616,7 @@
     "total": 9
    },
    "AS": {
-    "done": 5,
+    "done": 6,
     "total": 18
    },
    "CP": {
@@ -2702,7 +2702,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 40,
+    "done": 41,
     "total": 61
    },
    "P1": {
@@ -2714,10 +2714,10 @@
     "total": 10
    }
   },
-  "cited": 160,
-  "done_pct": 62.2,
+  "cited": 161,
+  "done_pct": 62.8,
   "in_scope": 164,
-  "in_scope_done_pct": 71.3,
+  "in_scope_done_pct": 72.0,
   "total": 188
  },
  "workflow_spine": [
