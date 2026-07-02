@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "f2ce8d4476e3a18c7a26407f9390a4529f156cbf69ef92017ab9baba7bc23073",
+  "citations_sha256": "73b58aa26eec224a3cc98375b2a67bff9b92edf6c0682cc13e40b4b52af5da32",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "b537bd877a3299e4d7a118e617ad317fe7108bc0",
-  "prd_sha256": "5508711df976d180008617394b6ba94130b694ce7b2fc42b4731b26766700e73",
+  "prd_commit": "f34bf87bc659d9a602d28e988fecfdc46535643f",
+  "prd_sha256": "e4bf03ae1763f1c531828f0a6bb0c03c3145453e6f347f70f2694f6ca55b0140",
   "specs_sha256": "37059633a28f0aaa17e5f419a26a87179ebb0a85d82da450c3ad38af1ffd4b11"
  },
  "rows": [
@@ -1362,17 +1362,17 @@
    "text": "**ROS/Gazebo/RViz as first-class cockpit evidence surfaces (100%-frontend-audit finding 3).** The Validate/System/Report panes surface, for the selected run, the ROS/Gazebo/RViz evidence that proves the run matches its runnable profile: lifecycle nodes, `/clock`, `/tf`, `/joint_states`, bridge-topic freshness, RViz display status + screenshots, Gazebo/bag links, the process/container profile, and a no-truth-input assertion (`index.html:879`). These are engineering-visualization evidence, never a separate command surface. Acceptance: with a `ros2`/`gazebo` profile selected, the panes show live-or-recorded ROS/Gazebo/RViz status matching the profile, and flag a mismatch. Buildable on archimedes (ROS2 Jazzy / Gazebo / RViz containers run here)."
   },
   {
-   "I": "N",
+   "I": "P",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "P",
    "brief": {
     "goal": "Release freezes+shows plan hash/runtime profile/namespace/sensor profile/AG-08 eligibility/SF-01 watchdog/sign-off; Execute shows bounded next command + acks/watchdog/link-ack/covariance/map-freshness/SAFE controls + refusal reason.",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_release_execute_evidence.py citing [REQ:FS-28]"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "FS-28",
    "lane": "FS",
    "pri": "P0",
@@ -3189,7 +3189,7 @@
     "total": 11
    }
   },
-  "cited": 168,
+  "cited": 169,
   "done_pct": 58.8,
   "in_scope": 191,
   "in_scope_done_pct": 66.5,
