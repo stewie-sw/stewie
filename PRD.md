@@ -535,7 +535,7 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 | VT-05 | P1 | Compute dynamic CG from chassis, arm pose, drum pose, and fill mass. `[SPEC/PROPOSED model]` | N | N | N | G |
 | VT-06 | P1 | Compute posture-dependent support polygon and static stability margin each step. | P | N | P | G |
 | VT-07 | P1 | Nominal excavation requires balanced front/rear counter-rotation; asymmetric digging exposes reaction, traction, yaw, and pitch risk. | D | D | D | P |
-| VT-08 | P1 | Drum fill-rate supports the sourced bridging behavior: effective collection need not increase monotonically beyond approximately half scoop depth. | N | N | N | P |
+| VT-08 | P1 | Drum fill-rate supports the sourced bridging behavior: effective collection need not increase monotonically beyond approximately half scoop depth. | D | N | D | P |
 | VT-09 | P2 | Arm/drum force and torque model distinguishes horizontal reaction, vertical fill-dependent load, cutting torque, and internal tumble. | N | N | N | G |
 | VT-10 | P1 | Posture-dependent camera extrinsics are derived from vehicle and arm state for every image. | N | N | N | G |
 
@@ -565,8 +565,8 @@ allowed if they meet the acceptance criteria.
 |---|---|---|---|---|---|---|
 | PM-01 | P0 | Time-synchronize camera, IMU, command, arm, and truth/evaluation streams using explicit clocks and frame IDs. | P | P | P | N |
 | PM-02 | P1 | Support the documented IPEx/LAC camera set and a maximum active-camera budget; camera activation/resolution has compute and energy cost. | P | N | N | G |
-| PM-03 | P1 | Segment at least ground, rock, lander, fiducial, and sky from grayscale images without truth masks in evaluation mode. | N | N | N | N |
-| PM-04 | P1 | Detect/match illumination-robust features and expose confidence/inlier statistics. `[NAVLAB26 reference: SuperPoint + LightGlue]` | N | N | N | N |
+| PM-03 | P1 | Segment at least ground, rock, lander, fiducial, and sky from grayscale images without truth masks in evaluation mode. | P | N | P | N |
+| PM-04 | P1 | Detect/match illumination-robust features and expose confidence/inlier statistics. `[NAVLAB26 reference: SuperPoint + LightGlue]` | D | P | D | N |
 | PM-05 | P0 | Stereo VO triangulates landmarks, maintains persistent tracks, and estimates relative SE(3) pose with robust outlier rejection. | D | N | D | N |
 | PM-06 | P0 | Fuse VO/IMU and validated absolute factors in a recursive estimator or factor graph with covariance. | D | N | D | N |
 | PM-07 | P0 | Loop closures are candidate-gated, geometrically verified, and auditable; false closures must not silently enter the graph. | D | P | P | N |
@@ -609,9 +609,9 @@ solar power scheduling.
 | SN-09 | P1 | Use the rover self-shadow LENGTH CHANGE under a COMMANDED articulated posture change as an instrument: the known `dh` cancels the unknown casting height, recovering sun elevation (or local slope) unbiased. `[PROPOSED]` | D | D | D | G |
 | SN-10 | P1 | Triangulate landmark range from the KNOWN articulation baseline `dh` (depression-angle parallax of shadow tips), and fix rover `(x,y)` by heading-free trilateration from a standstill. `[PROPOSED]` | D | D | D | G |
 | SN-11 | P1 | Permit a Meerkat observation action for multi-height parallax and shadow/rock disambiguation when stability guards pass. `[PROPOSED]` | N | N | N | G |
-| SN-12 | P1 | Solar-navigation claims require ablations against VO/SLAM without solar factors across multiple sun angles, terrains, terrain-change states, and seeds. | N | N | N | N |
-| SN-13 | P1 | Acceptance target `[PROPOSED]`: improve median yaw/pose error or feature-track survival by a preregistered margin without increasing tip events; report energy/time overhead. | N | N | N | N |
-| SN-14 | P1 | The active-perception objective maximizes expected localization/map information per joule and second, with stability risk as a hard constraint. | P | N | P | N |
+| SN-12 | P1 | Solar-navigation claims require ablations against VO/SLAM without solar factors across multiple sun angles, terrains, terrain-change states, and seeds. | P | N | P | N |
+| SN-13 | P1 | Acceptance target `[PROPOSED]`: improve median yaw/pose error or feature-track survival by a preregistered margin without increasing tip events; report energy/time overhead. | D | N | D | N |
+| SN-14 | P1 | The active-perception objective maximizes expected localization/map information per joule and second, with stability risk as a hard constraint. | D | N | D | N |
 | SN-15 | P1 | Low/high posture observations must be associated to the same world features through the current arm/camera transforms. | N | N | N | G |
 
 ### 7.7 Navigation, Planning, and Recovery
@@ -674,7 +674,7 @@ EP-04 is enforced in the battery-aware simulator: `Mission.mission_windows` = `{
 | FL-04 | P1 | Maintain one belief/health/resource state per rover and coordinate replans. `_rover_health(pv)` distils each rover's state from its sim (feasibility, lowest battery margin, recharges, health rollup stranded/low_margin/nominal) into `vehicles_detail[].health` + the Fleet report; a stranded rover sets `fleet_needs_replan` (the reallocation trigger). Active work-reallocation on the trigger is future MV work. | P | N | P | N |
 | FL-05 | P2 | Support heterogeneous vehicle capability and physics vectors. | P | N | P | N |
 | FL-06 | P1 | Validate two-rover plans against an exact small-problem oracle before learned/heuristic superiority claims. `plan_multi_oracle` brute-forces the true site-exclusive optimum (every group->vehicle assignment x every per-vehicle order, jointly, same simulator + charger queue) up to MV_ORACLE_MAX_TRIPS; oracle <= heuristic by construction. Verified: heuristic within 0.15% of optimum on the 3-site instance. | D | N | D | NA |
-| FL-07 | P1 | Solar/Meerkat observation sites are reservable fleet resources so rovers do not occlude or collide during raised observations. `[PROPOSED]` | N | N | N | N |
+| FL-07 | P1 | Solar/Meerkat observation sites are reservable fleet resources so rovers do not occlude or collide during raised observations. `[PROPOSED]` | D | D | D | N |
 
 ### 7.11 Product, Packaging, and Operations
 
@@ -730,7 +730,7 @@ DEM. They make the advertised product boundary enforceable.
 | GI-03 | P2 | GIS interoperability scope: define and implement the mission-required subset only -- GeoJSON/COG import, selected OGC/ArcGIS service consumption, feature attributes/query, measurement/profile tools, provenance, and offline mission package export. Do not claim ArcGIS parity. | N | N | N | NA |
 | DT-01 | P0 | Operational digital-twin unification: conserved authority, observed `TwinStore`, runtime packets, vehicle twin, PlanResult, belief state, and session events are linked by one versioned transaction envelope with mission/site/body/time/provenance/uncertainty. Runtime path done (`WorldStateService`, hash-chained log) + the SIM execute->remember loop (`commit_sim_run` folds terrain into `TerrainMemory` + records belief) + packet/vehicle-twin linkage (`packet_sha`/`vehicle_sha` in the hashed body, backward-compatible, cold-restore bit-exact). | D | D | D | N |
 | DT-02 | P0 | Twin audit read security: `/twin/version` exposes only a minimal authenticated version token to ordinary clients; full event history/provenance requires director/admin authorization and audit logging. | D | D | D | NA |
-| RL-01 | P1 | Deployed RL policy gate: no RL capability may be called operational until a versioned policy artifact, training/eval lineage, model card, safety shield, deterministic fallback, and out-of-distribution acceptance report exist. Training scripts/environments alone do not satisfy this row. | P | N | N | N |
+| RL-01 | P1 | Deployed RL policy gate: no RL capability may be called operational until a versioned policy artifact, training/eval lineage, model card, safety shield, deterministic fallback, and out-of-distribution acceptance report exist. Training scripts/environments alone do not satisfy this row. | D | D | D | N |
 | SL-01 | P0 | Truth-isolated SLAM/Navigation benchmark: runtime bags and estimator processes are physically denied truth topics/frames; the full render/sensor/RTAB-Map-or-equivalent/Navigation/pose-graph pipeline is scored by an evaluator-only channel with pass/fail thresholds. | P | P | P | N |
 | SE-01 | P0 | Full security audit gate: release requires a completed host, container, app, DNS/site, secret, backup/restore, dependency/SBOM/CVE, and external exposure audit. The current non-invasive Archimedes/site review is not sufficient. | P | N | N | N |
 | TM-01 | P1 | Calibrated terramechanics/excavation gate: construction forecasts distinguish analytical surrogate, calibrated mission model, and offline oracle; excavation resistance, drum/arm torque, drivetrain/current limits, low-g parameters, and uncertainty are validated before field-confidence claims. | P | P | P | N |
@@ -746,11 +746,11 @@ LLMs may draft plans or explain telemetry, but they do not directly actuate the 
 |---|---|---|---|---|---|---|
 | ML-01 | P0 | Model-orchestration rule: every learned model declares input schema, output schema, latency budget, compute/memory budget, calibration set, uncertainty output, failure modes, and safe fallback. Mission Executive consumes only typed outputs, never free-form model actions. | D | P | D | N |
 | ML-02 | P1 | Terrain Assessment Model: stereo/depth, DEM, slope, shadow, and uncertainty layers produce traversability, hazard class, slope/roughness summaries, and confidence for the local planner. | P | N | N | N |
-| ML-03 | P1 | Rock Classification Model: image/depth observations produce rock size, class, confidence, and navigation/excavation relevance; Class-A `>7 cm` hazard classification is acceptance-gated against held-out truth/evaluation labels. | P | N | N | N |
+| ML-03 | P1 | Rock Classification Model: image/depth observations produce rock size, class, confidence, and navigation/excavation relevance; Class-A `>7 cm` hazard classification is acceptance-gated against held-out truth/evaluation labels. | P | N | D | N |
 | ML-04 | P1 | Shadow-SLAM / Navigation Model: image pair or sequence plus sun geometry and articulation pose propose pose/landmark factors with covariance; the factor graph accepts them only through residual/observability gates. | P | P | P | N |
-| ML-05 | P1 | Excavation State Model: drum torque/current, wheel slip, IMU, arm/drum state, and drive current estimate digging state, fill fraction, slip, stall risk, and confidence; advisory until calibrated against IPEx/AutoDig-style data. | P | N | P | N |
-| ML-06 | P1 | Regolith Volume Estimator: before/after DEM or stereo heightfields estimate moved volume/mass with uncertainty, cross-checked against conserved authority mass and drum-fill sensing. | P | N | P | N |
-| ML-07 | P1 | Mission Planner LLM: a small language model may convert operator intent into candidate task graphs, but plans must compile to typed goals, pass deterministic validation, and be approved by the mission executive before simulation or command lowering. | N | N | N | N |
+| ML-05 | P1 | Excavation State Model: drum torque/current, wheel slip, IMU, arm/drum state, and drive current estimate digging state, fill fraction, slip, stall risk, and confidence; advisory until calibrated against IPEx/AutoDig-style data. | D | D | P | N |
+| ML-06 | P1 | Regolith Volume Estimator: before/after DEM or stereo heightfields estimate moved volume/mass with uncertainty, cross-checked against conserved authority mass and drum-fill sensing. | D | D | P | N |
+| ML-07 | P1 | Mission Planner LLM: a small language model may convert operator intent into candidate task graphs, but plans must compile to typed goals, pass deterministic validation, and be approved by the mission executive before simulation or command lowering. | D | D | D | N |
 | ML-08 | P1 | Science/Operator Assistant: a separate explanatory model may summarize telemetry, faults, and evidence; it has read-only access and no command path. | N | N | N | N |
 | ML-09 | P0 | Edge deployment envelope: any simultaneous model set intended for IPEx-class hardware must fit the selected compute profile (for example Jetson Orin Nano/NX/AGX class) under measured RAM, power, thermal, latency, and sensor-I/O budgets with degraded-mode scheduling. The budget must name the active depth source (stereo SGBM, neural stereo, LiDAR, RGB-D, or replay), image/cloud rate, CPU/GPU split, RAM ceiling, thermal/power ceiling, telemetry bandwidth, and offload boundary to a base station. | P | P | P | N |
 
