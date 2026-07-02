@@ -880,6 +880,7 @@
       <span style="font-size:9px;letter-spacing:.12em;color:var(--muted);font-family:'Orbitron',system-ui,sans-serif">VALIDATE</span>
       <button class="vsub" data-sub="nav" role="tab" style="font-size:11px;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);padding:3px 11px;cursor:pointer">Navigation <span class="sysb">LEAP</span></button>
       <button class="vsub" data-sub="perception" role="tab" style="font-size:11px;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);padding:3px 11px;cursor:pointer">Perception <span class="sysb">DART</span></button>
+      <button class="vsub" data-sub="solar" role="tab" style="font-size:11px;background:none;border:1px solid var(--line);border-radius:6px;color:var(--txt);padding:3px 11px;cursor:pointer" title="PO-12: sun vector, illumination/shadow layers, active cameras/LEDs, arm posture, and the shadow evidence localization accepted vs rejected — one solar authority (/solar)">Solar <span class="sysb">DART·LEAP</span></button>
     </div>
     <div id="viewarea">
       <button id="drawerbtn" title="planning sidebar">☰</button>
@@ -1012,6 +1013,24 @@
             pair then run <code>obs_map_producer.emit_served_pointcloud</code> — the deployed container has
             no GPU, so the committed crater_boulders cloud is the served sample.</div>
         </div>
+      </div>
+      <!-- PO-12: the integrated SOLAR work area (a Validate sub-view, not a top-level tab). One authority
+           (GET /solar) drives all five elements: sun vector, illumination/shadow layers, active cameras +
+           LEDs, arm posture, and the shadow evidence localization accepted vs rejected (the SN-02 gate). -->
+      <div id="pane_solar" class="pane">
+        <div class="cap"><span>SOLAR — sun geometry &amp; shadow evidence <small>(one authority: /solar — ephemeris + illumination layers + camera/LED rig + posture + SN-02 accept/reject)</small></span></div>
+        <div class="ctl" style="font-size:11px;margin:2px 0 8px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px">
+          <label style="white-space:nowrap">mission t <input id="solt" type="number" value="100000" step="1000" style="width:6em" /> s</label>
+          <label style="white-space:nowrap">posture
+            <select id="solposture" style="font-size:11px"><option>TRANSIT</option></select></label>
+          <label style="white-space:nowrap"><input id="solleds" type="checkbox" /> LEDs on</label>
+          <button id="solrefresh" class="site" style="font-size:11px" title="re-resolve the Solar authority for the chosen mission time / posture / LED state">↻ Refresh</button>
+        </div>
+        <div id="solsun" class="solsec" style="margin-bottom:8px"></div>          <!-- sun vector -->
+        <div id="sollayers" class="solsec" style="margin-bottom:8px"></div>       <!-- illumination / shadow layers -->
+        <div id="solcams" class="solsec" style="margin-bottom:8px"></div>         <!-- active cameras + LEDs -->
+        <div id="solposturebox" class="solsec" style="margin-bottom:8px"></div>   <!-- arm posture -->
+        <div id="solevidence" class="solsec" style="margin-bottom:8px"></div>     <!-- accepted / rejected shadow evidence -->
       </div>
       <div id="navview" class="pane">
         <div class="cap"><span>NAVIGATION — state estimation <small>(pose-graph estimate vs dead reckoning; articulation-parallax relocalization)</small><span data-epistemic="belief"></span><!-- FS-03: an estimator's pose is what the system BELIEVES --></span></div>
@@ -1523,6 +1542,6 @@
 <script src="/assets/cockpit_state.js?v=fcaa16f324c4"></script><!-- FS-16: pure routeable cockpit state model (sets window.STEWIE_STATE) -->
 <script src="/assets/provenance_label.js?v=e6ec3e5b78b5"></script><!-- FS-03: pure epistemic provenance chips truth/belief/forecast/live (sets window.STEWIE_PROVENANCE) -->
 <script src="/assets/ops_chips.js?v=956a4ab31cdc"></script><!-- frontend-audit C: pure ops-chip formatters health/link/provenance/mission-time (sets window.STEWIE_OPS_CHIPS) -->
-<script src="/assets/cockpit.js?v=4236364ee733"></script>
+<script src="/assets/cockpit.js?v=a20d383791e9"></script>
 </body>
 </html>

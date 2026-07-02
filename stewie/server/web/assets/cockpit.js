@@ -801,8 +801,9 @@ function el(tag, attrs, ...children) {
 // --- view tabs: swap the stage between Plan (globe) / Perception (render) / Metrics (telemetry) / Report.
 // The globe (#cesium) stays mounted under the panes (no Cesium re-init); the active pane covers it.
 let VIEW = "plan";
-let _validateSub = "nav";        // VALIDATE tab: which sub-view (nav|perception) is shown; setView('validate') uses it
-const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navview", report: "pane-report",
+let _validateSub = "nav";        // VALIDATE tab: which sub-view (nav|perception|solar) is shown; setView('validate') uses it
+const VALIDATE_SUBS = ["nav", "perception", "solar"];   // the Validate tab's sub-views (PO-12 adds solar)
+const VIEW_PANE = { perception: "renderpanel", metrics: "execview", nav: "navview", solar: "pane_solar", report: "pane-report",
                     rehearse: "pane_rehearse",                            // REHEARSE: candidate-compare review surface
                     release: "pane_release",                              // RELEASE: director sign-off (/executive/release-plan)
                     fleet: "pane_fleet",                                  // FS-03: the Fleet work area
@@ -865,7 +866,7 @@ function setView(name, opts) {
   syncRouteState(name, opts || {});
   document.querySelectorAll(".vtab").forEach((b) => {       // UX-04: tab semantics + selected state
     const sel = b.dataset.view === name
-      || (b.dataset.view === "validate" && (name === "nav" || name === "perception"))   // VALIDATE owns nav+perception
+      || (b.dataset.view === "validate" && VALIDATE_SUBS.includes(name))   // VALIDATE owns nav+perception+solar
       || (b.dataset.view === "system" && SYSTEM_VIEWS.includes(name));
     b.classList.toggle("active", sel);
     b.setAttribute("role", "tab");
@@ -876,7 +877,7 @@ function setView(name, opts) {
   if (moreBtn) moreBtn.classList.toggle("active", ["fleet", "construction", "models", "trainer"].includes(name));
   const vsub = document.getElementById("validate-subtabs");   // VALIDATE: show the sub-tab strip + mark the sub
   if (vsub) {
-    const inVal = (name === "nav" || name === "perception");
+    const inVal = VALIDATE_SUBS.includes(name);
     vsub.style.display = inVal ? "flex" : "none";
     if (inVal) {
       _validateSub = name;
@@ -932,6 +933,7 @@ function setView(name, opts) {
   loadPane(name);
   if (name === "perception" && typeof loadPanorama === "function") loadPanorama();  // #183 shadow-nav surround
   if (name === "perception" && typeof loadPointCloud === "function") loadPointCloud();  // #145 stereo points
+  if (name === "solar" && typeof loadSolar === "function") loadSolar();               // PO-12: the integrated Solar authority
   if (typeof renderStepper === "function") renderStepper();  // pipeline spine: reflect the active view
   if (typeof renderCtxSummaries === "function") renderCtxSummaries();  // live per-tab left-block content
 }
@@ -1036,6 +1038,69 @@ async function loadPointCloud() {
     img.style.display = "none"; empty.style.display = "";
   }
 }
+
+// PO-12 SOLAR work area: one authority (GET /solar) drives all five elements -- sun vector,
+// illumination/shadow layers, active cameras + LEDs, arm posture, and the shadow evidence localization
+// ACCEPTED vs REJECTED (the SN-02 gate). The pane reads that single payload; no raw scattering. Honest
+// empty state if the authority is unreachable. The posture picker + LED toggle re-resolve the authority.
+let _SOLAR_PICKER_READY = false;
+async function loadSolar() {
+  const sun = $("solsun");
+  if (!sun) return;
+  const mt = parseFloat(($("solt") || {}).value) || 0;
+  const posture = (($("solposture") || {}).value) || "TRANSIT";
+  const leds = !!(($("solleds") || {}).checked);
+  const qs = `mission_t_s=${mt}&posture=${encodeURIComponent(posture)}&leds_on=${leds ? "true" : "false"}`;
+  try {
+    const r = await fetch(`/solar?${qs}`, { headers: apiHeaders() });
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || j.ok !== true) throw new Error((j && j.error) || ("HTTP " + r.status));
+    const s = j.solar;
+    // (1) sun vector -- az / el / anti-solar, convention named, lit/dark state
+    const sv = s.sun_vector;
+    sun.innerHTML = `<div class="cap" style="font-size:10px">SUN VECTOR <small>(/ephemeris authority — ${esc(sv.azimuth_convention)})</small></div>`
+      + `<div style="font-size:11px;line-height:1.7;color:var(--muted)">az <b style="color:var(--txt)">${sv.sun_az_deg.toFixed(2)}&deg;</b>`
+      + ` · el <b style="color:var(--txt)">${sv.sun_el_deg.toFixed(2)}&deg;</b> · anti-solar <b style="color:var(--txt)">${sv.anti_solar_az_deg.toFixed(2)}&deg;</b>`
+      + ` · <b style="color:${sv.lit ? "#ffd479" : "#7fa8ff"}">${sv.lit ? "sun up (lit)" : "sun down (dark)"}</b>`
+      + ` · site ${sv.site_lat_deg.toFixed(2)}, ${sv.site_lon_deg.toFixed(2)}</div>`;
+    // (2) illumination / shadow layers -- the real gis "sun" group, each a loadable raster
+    $("sollayers").innerHTML = `<div class="cap" style="font-size:10px">ILLUMINATION / SHADOW LAYERS <small>(/layers sun group)</small></div>`
+      + `<div style="font-size:11px;line-height:1.8">` + (s.illumination_layers || []).map((l) =>
+        `<span style="display:inline-block;margin-right:10px"><b>${esc(l.key)}</b> <span style="opacity:.65">${esc(l.name)}</span></span>`).join("") + `</div>`;
+    // (3) active cameras + LEDs -- the 8 LAC cameras (FK world height) + the illuminator state
+    const cams = s.cameras || [];
+    $("solcams").innerHTML = `<div class="cap" style="font-size:10px">ACTIVE CAMERAS &amp; LEDs <small>(${cams.length} LAC cameras — FK world height for the posture)</small></div>`
+      + `<div style="font-size:11px;line-height:1.8">` + cams.map((c) =>
+        `<span style="display:inline-block;margin-right:9px"><span style="color:${c.active ? "#6fe0a0" : "#888"}">&#9679;</span> ${esc(c.name)} <span style="opacity:.6">${c.world_height_m.toFixed(3)} m</span></span>`).join("")
+      + `</div><div style="font-size:11px;margin-top:3px">LEDs: <b style="color:${s.leds.on ? "#ffd479" : "var(--muted)"}">${s.leds.on ? "ON" : "off"}</b> <span style="opacity:.65">${esc(s.leds.note)}</span></div>`;
+    // (4) arm posture -- the reconfigurable-morphology authority, labeled + provenanced
+    const ap = s.arm_posture;
+    $("solposturebox").innerHTML = `<div class="cap" style="font-size:10px">ARM POSTURE <small>(posture authority)</small></div>`
+      + `<div style="font-size:11px;line-height:1.7;color:var(--muted)"><b style="color:var(--txt)">${esc(ap.name)}</b>`
+      + ` · lift ${ap.chassis_lift_m.toFixed(3)} m · stability <b style="color:var(--txt)">${esc(ap.stability)}</b>`
+      + ` · arms ${ap.arm_front_pitch_rad.toFixed(3)}/${ap.arm_back_pitch_rad.toFixed(3)} rad`
+      + `<br><span style="opacity:.6">${esc(ap.provenance)}</span></div>`;
+    // (5) accepted / rejected shadow evidence -- the real SN-02 gate verdict (or idle, with the reason)
+    const ev = s.shadow_evidence;
+    const verdict = !ev.has_evidence ? '<b style="color:var(--muted)">IDLE</b>'
+      : (ev.accepted ? '<b style="color:#6fe0a0">ACCEPTED</b>' : '<b style="color:#e08a8a">REJECTED</b>');
+    $("solevidence").innerHTML = `<div class="cap" style="font-size:10px">SHADOW EVIDENCE — accepted vs rejected <small>(SN-02 localization gate)</small></div>`
+      + `<div style="font-size:11px;line-height:1.7">${verdict} <span style="opacity:.7">${esc(ev.reason)}</span></div>`;
+    // populate the posture picker from the authority's known names (once), preserving the selection
+    if (!_SOLAR_PICKER_READY && Array.isArray(ap.available) && ap.available.length) {
+      const sel = $("solposture");
+      if (sel) { sel.innerHTML = ap.available.map((n) => `<option${n === ap.name ? " selected" : ""}>${esc(n)}</option>`).join(""); }
+      _SOLAR_PICKER_READY = true;
+    }
+  } catch (e) {
+    sun.innerHTML = '<div class="empty">Solar authority unavailable (' + esc(String(e && e.message || e)) + ").</div>";
+    ["sollayers", "solcams", "solposturebox", "solevidence"].forEach((id) => { const el = $(id); if (el) el.innerHTML = ""; });
+  }
+}
+document.addEventListener("DOMContentLoaded", () => {
+  ["solrefresh"].forEach((id) => { const b = $(id); if (b) b.addEventListener("click", loadSolar); });
+  ["solt", "solposture", "solleds"].forEach((id) => { const el = $(id); if (el) el.addEventListener("change", loadSolar); });
+});
 
 // FS-15 registry-pane fetch mapping: GET a pane's route and fold the outcome through the central
 // adapters.toViewState() -> {state: loading|ok|empty|error, data: view model}. The pane loaders below

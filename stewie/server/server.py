@@ -136,6 +136,7 @@ from stewie.server.routers import construction as _construction_router  # noqa: 
 from stewie.server.routers import program as _program_router  # noqa: E402
 from stewie.server.routers import dem as _dem_router  # noqa: E402
 from stewie.server.routers import ephemeris as _ephemeris_router  # noqa: E402
+from stewie.server.routers import solar as _solar_router  # noqa: E402
 from stewie.server.routers import tiles as _tiles_router  # noqa: E402
 from stewie.server.routers import evidence as _evidence_router  # noqa: E402
 from stewie.server.routers import executive as _executive_router  # noqa: E402
@@ -178,6 +179,7 @@ app.include_router(_health_router.router)
 app.include_router(_dem_router.router)
 app.include_router(_tiles_router.router)
 app.include_router(_ephemeris_router.router)
+app.include_router(_solar_router.router)   # PO-12: the integrated Solar work-area authority
 app.include_router(_world_router.router)
 app.include_router(_schema_router.router)
 app.include_router(_figures_router.router)
