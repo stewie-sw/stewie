@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "97928541cadf0279b1bffeffb2f3cb09cf75d542eb709070773f225b292798c3",
+  "citations_sha256": "34a9b4c5ed574c788f9b78c0e46f1d9f98452b59603060f3cfb170696982fcc9",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "b975f28a00121e80f8e354a6137b22241ebc081d",
-  "prd_sha256": "d56dabc0c3cb80e81d4a17df2c325469fbcea15c8118785c8725b2d9b3cbcc9b",
+  "prd_commit": "7d8385371ed592ff3b511606556f298a8932c2be",
+  "prd_sha256": "428939affd18e5258347c609d1f56a4a2d792c04be65c4b2a1f8185f918eb26d",
   "specs_sha256": "37059633a28f0aaa17e5f419a26a87179ebb0a85d82da450c3ad38af1ffd4b11"
  },
  "rows": [
@@ -705,17 +705,17 @@
    "text": "**Per-site / per-source observed twin (review finding 2).** The observed digital-twin overlay and its world journal are keyed by `(site, depth-source profile)` \u2014 not hard-coded to `site == \"haworth\"` / `haworth.journal` (`state.py:77,128`). An imported site or a multi-site operation each carries its own observed twin and journal; switching site/source loads the correct observed surface. Acceptance: a second imported site accumulates and reloads its own observed twin independent of Haworth, verified on a real second DEM bundle. Buildable on archimedes."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "make GET /world the authoritative rich descriptor (geometry + observed/mutated enrichment + provenance + freshness), completeness declared.",
     "kind": "atomic",
     "test_target": "extend stewie/server/test_world.py citing [REQ:DT-05]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "DT-05",
    "lane": "DT",
    "pri": "P1",
@@ -3068,9 +3068,9 @@
  "summary": {
   "briefs": 88,
   "buckets": {
-   "buildable": 63,
+   "buildable": 62,
    "concurrent": 0,
-   "done": 128,
+   "done": 129,
    "gated": 25
   },
   "by_lane": {
@@ -3095,7 +3095,7 @@
     "total": 7
    },
    "DT": {
-    "done": 4,
+    "done": 5,
     "total": 5
    },
    "EP": {
@@ -3181,7 +3181,7 @@
     "total": 70
    },
    "P1": {
-    "done": 81,
+    "done": 82,
     "total": 135
    },
    "P2": {
@@ -3189,10 +3189,10 @@
     "total": 11
    }
   },
-  "cited": 170,
-  "done_pct": 59.3,
+  "cited": 171,
+  "done_pct": 59.7,
   "in_scope": 191,
-  "in_scope_done_pct": 67.0,
+  "in_scope_done_pct": 67.5,
   "total": 216
  },
  "workflow_spine": [
