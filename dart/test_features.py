@@ -5,6 +5,7 @@ Real inputs only. The fundamental-matrix RANSAC and Sampson-distance checks reco
 numeric geometric quantity (epipolar error of inlier correspondences), not a tautology. The
 ground-truth clast count enters ONLY the eval-path helper, never the perception input (invariant I3).
 """
+import importlib.util
 import os
 
 import numpy as np
@@ -107,18 +108,26 @@ def test_learned_method_on_real_stereo():
 
 
 @pytest.mark.skipif(not _pair, reason="rendered stereo pair not present")
-def test_math_check_at_least_one_method_exceeds_inlier_floor():
-    pytest.importorskip("torch")
+def test_math_check_at_least_one_method_exceeds_inlier_floor():  # [REQ:PM-04]
     """MATH: on the REAL stereo, at least one method has a fundamental-RANSAC inlier ratio in
-    [0,1] AND > 0.3, with small median Sampson (epipolar) error on its inliers."""
+    [0,1] AND > 0.3, with a finite sub-few-pixel median Sampson (epipolar) error on its inliers,
+    and genuinely reports n_inliers / inlier_ratio / runtime_s. The classical CPU leg (ORB/SIFT)
+    always runs; the learned DISK+LightGlue leg joins only where torch is installed (GPU-gated)."""
     left, right = _load_pair()
-    results = features.benchmark_all(left, right)
-    assert len(results) >= 3
+    methods = ["orb", "sift"]
+    if importlib.util.find_spec("torch") is not None:
+        methods.append("disk_lightglue")
+    results = [features.benchmark_method(left, right, m) for m in methods]
+    assert len(results) >= 2
     good = [
         r for r in results
-        if 0.0 <= r.inlier_ratio <= 1.0 and r.inlier_ratio > 0.3 and r.median_sampson_px < 3.0
+        if 0.0 <= r.inlier_ratio <= 1.0 and r.inlier_ratio > 0.3
+        and np.isfinite(r.median_sampson_px) and r.median_sampson_px < 3.0
     ]
     assert good, f"no method cleared the inlier/epipolar floor: {[ (r.method, r.inlier_ratio) for r in results]}"
+    for r in good:  # the row's exposed confidence/inlier statistics must be real, reported numbers
+        assert r.n_inliers > 0
+        assert r.runtime_s > 0.0
 
 
 # ---- visual artifact ----
