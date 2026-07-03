@@ -683,7 +683,7 @@ EP-04 is enforced in the battery-aware simulator: `Mission.mission_windows` = `{
 | PO-01 | P0 | `stewie-serve` (alias `stewie-serve`, deprecated) works after a fresh wheel install with one documented product extra. | D | D | D | N |
 | PO-02 | P0 | Reports, profiles, caches, and renders use configurable application-data directories and atomic writes. | D | D | D | NA |
 | PO-03 | P0 | CI installs declared dependencies and runs the configured suite across supported Python versions. | D | D | D | NA |
-| PO-04 | P0 | CI separately gates Python core, scripts, Godot, browser, package smoke, and hardware-gated tiers. | D | D | P | NA |
+| PO-04 | P0 | CI separately gates Python core, scripts, Godot, browser, package smoke, and hardware-gated tiers. | D | D | D | NA |
 | PO-05 | P1 | Commit a dependency lock, build an SBOM, scan resolved artifacts, and run a fresh-install test. | P | P | P | NA |
 | PO-06 | P1 | Server enforces streamed body limits, execution timeouts, bounded concurrency, auth policy, and deployment-safe CORS. | D | D | D | N |
 | PO-07 | P1 | Structured logs include request/event ID, mode, plan ID, route, duration, outcome, and error class. | D | D | D | N |
