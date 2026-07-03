@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "716d6ab2e2980d7d13c2f66cfc34ca6ff9f627668108a59ea999d1540b8eb11a",
+  "citations_sha256": "313268378139293fe272d50e202e41dbede867b5be6b30159489bdb8feac3aa2",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "3c7d32d377663654ca48605e5e19b68d3c97370f",
-  "prd_sha256": "15456324a80eff1339eab4136f07c30061777f45afaf4290381a22b5f6b9bb4c",
+  "prd_commit": "778de325ad7e94e579d9ce506af6c4daa3aece41",
+  "prd_sha256": "35bc67cf777ac3846aa015336fc7c9c9cff2c9015893a696e820b46bee952785",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -624,17 +624,17 @@
    "text": "**Mission-package import/export in open-geospatial formats (extends FR-10/FR-12).** Add `mission_package_export.py`/`mission_package_import.py` producing an ArcGIS-COMPATIBLE open package: GeoTIFF/COG DEM + layers, GeoJSON/FlatGeobuf vectors (keepouts/routes/zones/targets), STAC-style metadata, a manifest, and the authority tuple (body+site+mission+runtime_mode+runnable_profile+source_class+vehicle+role+command_namespace). Acceptance: a Haworth package round-trips (export->import) with identical layer bounds/resolution/CRS and the authority tuple preserved; ArcGIS Feature Service is left as a later adapter (FR-12), not claimed. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "SE-01 8-domain security-audit evidence manifest + real SBOM CVE scan + backup/restore drill; gate fails on any missing/undated/env-less domain.",
     "kind": "atomic",
     "test_target": "scripts/test_se01_audit_gate.py citing [REQ:SE-01]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BP-01",
    "lane": "BP",
    "pri": "P0",
@@ -3168,16 +3168,16 @@
    "text": "**Plan-vs-actual divergence surface (the operator payload).** The value of the two-fold viz (RS-07) is the DELTA, not either column alone: PLAN and ACTUAL are co-registered in the site frame and their divergence is a first-class surface \u2014 executed-vs-planned trajectory error, observed-vs-forecast hazard/DEM deltas, and pose-vs-truth covariance growth (the pose-vs-truth discipline STEWIE already runs \u2014 the 12.7 mm/7.15\u00b0 AprilTag eval \u2014 promoted to a live operator surface). A time model exposes PLAN's lead/lag vs ACTUAL (a `follow-live` mode vs a `scrub-plan` mode with a visible offset), since planning runs ahead of execution. When divergence crosses a declared threshold it drives the replan indicator (PM-19) and the operator's attention; it INFORMS only \u2014 never commands (\u00a726.4). Acceptance: a fixture where ACTUAL departs from PLAN produces a measured trajectory/DEM/covariance divergence surface + a threshold-crossing replan indicator, co-registered and read-only. Buildable on archimedes."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "The typed evidence contract is implemented (I=D) and integrated into the estimator (X=D). Verification is partial (V=P) because:",
     "kind": "epic / gated",
     "test_target": "dart/test_factors.py (existing; add [REQ:AS-18] marker to test_shadow_yaw_allows_measured_heading_but_metric_shadow_is_guarded)"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "SE-01",
    "lane": "SE",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 73,
+   "buildable": 71,
    "concurrent": 0,
-   "done": 157,
+   "done": 159,
    "gated": 25
   },
   "by_lane": {
@@ -3754,7 +3754,7 @@
     "total": 11
    },
    "BP": {
-    "done": 3,
+    "done": 4,
     "total": 13
    },
    "CP": {
@@ -3822,7 +3822,7 @@
     "total": 8
    },
    "SE": {
-    "done": 0,
+    "done": 1,
     "total": 2
    },
    "SF": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 72,
+    "done": 74,
     "total": 76
    },
    "P1": {
@@ -3868,10 +3868,10 @@
     "total": 1
    }
   },
-  "cited": 185,
-  "done_pct": 61.6,
+  "cited": 186,
+  "done_pct": 62.4,
   "in_scope": 230,
-  "in_scope_done_pct": 68.3,
+  "in_scope_done_pct": 69.1,
   "total": 255
  },
  "workflow_spine": [
