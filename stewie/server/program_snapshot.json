@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "028341d95ff4f7b2dfa461194bb30927aa506628",
-  "prd_sha256": "6c86375b47197e63849d677b6c0d97fe47262131fb3c1cc82dd738f02c87a7bf",
+  "prd_commit": "e702a1f9f1708514aa67873dab57a3ccaeed3253",
+  "prd_sha256": "dc2d3709b3fbe3588db94e626eddbd728396807137fe20b5d35ce263d7bea9ee",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -258,9 +258,9 @@
   {
    "I": "D",
    "Q": "NA",
-   "V": "P",
+   "V": "D",
    "X": "D",
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "AS-04",
    "lane": "AS",
@@ -294,9 +294,9 @@
   {
    "I": "D",
    "Q": "N",
-   "V": "P",
+   "V": "D",
    "X": "D",
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "AS-07",
    "lane": "AS",
@@ -1821,14 +1821,14 @@
   {
    "I": "D",
    "Q": "NA",
-   "V": "P",
+   "V": "D",
    "X": "D",
    "brief": {
     "goal": "give the Perception pane a typed contract + normalizer consuming the view model (not raw JSON), flipping X from N to D.",
     "kind": "atomic",
     "test_target": "extend stewie/server/test_adapter_contract_parity.py (add PerceptionState to _ADAPTER_FIELDS + a perception _PANE_CONSUMES entry; existing `[REQ:FS-15]` covers it)"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "FS-15",
    "lane": "FS",
@@ -2837,14 +2837,14 @@
   {
    "I": "D",
    "Q": "NA",
-   "V": "P",
+   "V": "D",
    "X": "D",
    "brief": {
     "goal": "restructure CI to SEPARATELY gate the named tiers (python core / scripts / godot / browser-JS / package smoke / hardware-gated) + a test asserting the workflow declares them; fix the misattributed markers.",
     "kind": "epic",
     "test_target": "NEW scripts/test_ci_tiers.py"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "PO-04",
    "lane": "PO",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 90,
+   "buildable": 86,
    "concurrent": 0,
-   "done": 140,
+   "done": 144,
    "gated": 25
   },
   "by_lane": {
@@ -3746,7 +3746,7 @@
     "total": 9
    },
    "AS": {
-    "done": 9,
+    "done": 11,
     "total": 18
    },
    "BA": {
@@ -3782,7 +3782,7 @@
     "total": 15
    },
    "FS": {
-    "done": 15,
+    "done": 16,
     "total": 30
    },
    "GI": {
@@ -3810,7 +3810,7 @@
     "total": 19
    },
    "PO": {
-    "done": 10,
+    "done": 11,
     "total": 15
    },
    "RL": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 55,
+    "done": 59,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 54.9,
+  "done_pct": 56.5,
   "in_scope": 230,
-  "in_scope_done_pct": 60.9,
+  "in_scope_done_pct": 62.6,
   "total": 255
  },
  "workflow_spine": [
