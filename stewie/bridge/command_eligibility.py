@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from stewie.contracts.governance import mode_from_namespace, permits   # [REQ:EG-02] mode-authority matrix
 from stewie.server.operators import role_rank   # AG-01: the single role-ladder source
 
 _OPERATOR = role_rank("operator")
@@ -43,8 +44,8 @@ def command_eligible(ctx: CommandContext | None) -> tuple[bool, str]:
         return False, "unauthorized_role"                 # AG-02: guest/trainee cannot command
     if ctx.director_only and role_rank(ctx.role) < _DIRECTOR:
         return False, "unauthorized_director_only"
-    if ctx.mission_namespace != "live":
-        return False, "unauthorized_sandbox"              # AG-08: only a live mission commands the rover
+    if not permits(mode_from_namespace(ctx.mission_namespace), "command_real_robot"):
+        return False, "unauthorized_sandbox"              # AG-08 / EG-02: only LIVE mode commands the rover
     if ctx.safed:
         return False, "unsafe_safed"                      # SF-01: SAFE/hazard active
     if not (ctx.ack_age_s <= ctx.ack_deadline_s):

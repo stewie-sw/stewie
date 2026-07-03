@@ -49,3 +49,35 @@ MODE_AUTHORITY: dict[EnvironmentMode, ModeAuthority] = {
 def authority(mode: EnvironmentMode | str) -> ModeAuthority:
     """The authority a mode grants. Accepts an EnvironmentMode or its string value; raises on an unknown mode."""
     return MODE_AUTHORITY[EnvironmentMode(mode)]
+
+
+# ---- [REQ:EG-02] central mode-authority ENFORCEMENT ---------------------------------------------
+class ModeAuthorityError(PermissionError):
+    """Raised when an action is attempted in an environment mode that does not grant it. The single typed
+    rejection the enforcement guard raises, so training can never reach live authority."""
+
+
+def permits(mode: EnvironmentMode | str | None, flag: str) -> bool:
+    """True iff `mode` grants the authority `flag` (a ModeAuthority field name). A None mode grants NOTHING
+    (fail-closed: no mode = no authority). Raises on an unknown mode string or an unknown flag."""
+    if mode is None:
+        return False
+    return bool(getattr(MODE_AUTHORITY[EnvironmentMode(mode)], flag))
+
+
+def require_authority(mode: EnvironmentMode | str | None, flag: str) -> None:
+    """The central enforcement chokepoint: raise ModeAuthorityError unless `mode` grants `flag`. Call this at
+    every world-write / asset-command site so no action crosses a mode boundary it is not authorized for."""
+    if not permits(mode, flag):
+        raise ModeAuthorityError(f"environment mode {getattr(mode, 'value', mode)!r} does not grant {flag!r}")
+
+
+def mode_from_namespace(namespace: str | None) -> EnvironmentMode | None:
+    """Map the operational `mission_namespace` (stewie.bridge.command_eligibility: 'live'/'sandbox'/None) onto a
+    formal EnvironmentMode. 'live' -> LIVE (real authority); 'sandbox' -> REHEARSAL (mission sim on real
+    configs, no hardware writes); None -> None (no context -> no authority)."""
+    if namespace == "live":
+        return EnvironmentMode.LIVE
+    if namespace == "sandbox":
+        return EnvironmentMode.REHEARSAL
+    return None
