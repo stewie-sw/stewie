@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stewie-bodies"
+version = "0.1.0"
+description = "Sourced planetary body / regolith terramechanics constants for STEWIE (zero-dependency registry)."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools]
+packages = ["stewie_bodies"]

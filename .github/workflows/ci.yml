@@ -26,6 +26,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install --require-hashes -r requirements-dev.lock
           pip install -e . --no-deps
+          pip install -e packages/stewie-bodies --no-deps   # PO-17: shim re-exports this standalone package
       - name: Requirements traceability (PRD 19.2 -- V=D must be test-cited)
         run: python scripts/req_trace.py
       - name: Large-file / tracked-artifact policy (MT-01 -- a new large binary must be shrunk/externalized/allowlisted)
@@ -76,6 +77,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install --require-hashes -r requirements-dev.lock
           pip install -e . --no-deps
+          pip install -e packages/stewie-bodies --no-deps   # PO-17: shim re-exports this standalone package
       - name: Install Playwright (npm API, version pinned EXACTLY -- no python dep, no hashed-lock regen)
         run: |
           npm install playwright@1.61.1
@@ -97,6 +99,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install --require-hashes -r requirements-dev.lock
           pip install -e . --no-deps
+          pip install -e packages/stewie-bodies --no-deps   # PO-17: shim re-exports this standalone package
       - name: Lock smoke, STRICT (this env was installed FROM the lock -> hash audit + zero version drift)
         run: python scripts/fresh_install_smoke.py --lock requirements-dev.lock --strict
       - name: Wheel smoke (build the wheel, clean-venv [server] install, stewie-serve boots + /healthz)
@@ -120,6 +123,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install --require-hashes -r requirements-dev.lock
           pip install -e . --no-deps
+          pip install -e packages/stewie-bodies --no-deps   # PO-17: shim re-exports this standalone package
       # Two passes (see the lint-cov job): the parallel pool then the SERIAL fd-sensitive tests, so the
       # co-located xdist worker fd corruption (Errno 9) can't hit the file-I/O victims (test_admin backup).
       - name: Test (parallel pool; fd-sensitive `serial` tests run in the next step)

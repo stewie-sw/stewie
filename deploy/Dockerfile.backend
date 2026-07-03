@@ -24,7 +24,10 @@ COPY leap ./leap
 COPY forge ./forge
 COPY samples ./samples
 COPY validation ./validation
-RUN pip install --no-cache-dir --no-deps . && useradd -r -u 10001 stewie \
+# PO-17: stewie-bodies is a standalone workspace package; stewie/specs/bodies.py is a shim that re-exports it,
+# so the package must be installed alongside the root (--no-deps: it is pure-stdlib, no PyPI resolution).
+COPY packages ./packages
+RUN pip install --no-cache-dir --no-deps packages/stewie-bodies . && useradd -r -u 10001 stewie \
  && mkdir -p /data && chown -R stewie /data \
  && chmod -R a+rX /app
 # Docker COPY preserves the source file mode. Generated artifacts (e.g. bodies.json via

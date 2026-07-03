@@ -81,3 +81,27 @@ def test_po16_forge_imports_only_bodies_and_numeric():  # [REQ:PO-16]
                 elif top == "stewie" and not m.startswith("stewie.specs"):
                     offenders.append(f"{f.name}: {m} (forge may import only stewie.specs bodies)")
     assert not offenders, "stewie-forge DAG violation (forge -> bodies+numeric only): " + "; ".join(offenders)
+
+
+# ---- [REQ:PO-17] stewie-bodies extraction (standalone package + shim identity) ------------------
+def test_po17_stewie_bodies_is_zero_stewie_dependency():  # [REQ:PO-17]
+    """The extracted stewie-bodies package imports NOTHING from the STEWIE monorepo -- standalone + citable."""
+    pkg = _ROOT / "packages" / "stewie-bodies" / "stewie_bodies"
+    offenders = []
+    for f in sorted(pkg.glob("*.py")):
+        for node in ast.parse(f.read_text(encoding="utf-8")).body:
+            mods = ([node.module] if isinstance(node, ast.ImportFrom) and node.module
+                    else [a.name for a in node.names] if isinstance(node, ast.Import) else [])
+            for m in mods:
+                if m.split(".")[0] in ("stewie", "dart", "lode", "leap", "forge"):
+                    offenders.append(f"{f.name}: {m}")
+    assert not offenders, "stewie-bodies is not standalone (imports the monorepo): " + "; ".join(offenders)
+
+
+def test_po17_shim_reexports_the_package_objects():  # [REQ:PO-17]
+    """stewie.specs.bodies (shim) re-exports the SAME objects as stewie_bodies -- single source, no copy/drift."""
+    import stewie_bodies
+    from stewie.specs import bodies as shim
+    assert shim.BODIES is stewie_bodies.BODIES
+    assert shim.get_body is stewie_bodies.get_body
+    assert shim.Body is stewie_bodies.Body
