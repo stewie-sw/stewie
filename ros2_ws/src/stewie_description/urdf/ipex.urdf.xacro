@@ -64,7 +64,7 @@
     <link name="${name}">
       <visual>
         <origin rpy="${pi/2} 0 0"/>
-        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+        <geometry><mesh filename="package://stewie_description/meshes/wheel.stl"/></geometry>
       </visual>
       <collision name="${name}_collision">
         <origin rpy="${pi/2} 0 0"/>
@@ -84,6 +84,9 @@
   <!-- a bucket drum: revolute arm joint (lift) carrying a spinning drum link -->
   <xacro:macro name="drum" params="name x">
     <link name="${name}_arm">
+      <visual>
+        <geometry><mesh filename="package://stewie_description/meshes/drum_arm.stl"/></geometry>
+      </visual>
       <xacro:box_inertial m="0.5" x="${drum_reach}" y="0.05" z="0.05"/>
     </link>
     <joint name="${name}_arm_joint" type="revolute">
@@ -96,7 +99,7 @@
     <link name="${name}">
       <visual>
         <origin rpy="${pi/2} 0 0"/>
-        <geometry><cylinder radius="${drum_radius}" length="${drum_width}"/></geometry>
+        <geometry><mesh filename="package://stewie_description/meshes/drum.stl"/></geometry>
       </visual>
       <collision>
         <origin rpy="${pi/2} 0 0"/>
@@ -154,7 +157,7 @@
   <link name="base_link">
     <visual>
       <origin xyz="0 0 ${cg_height}"/>
-      <geometry><box size="${chassis_len} ${chassis_wid} ${chassis_hgt}"/></geometry>
+      <geometry><mesh filename="package://stewie_description/meshes/rover_body.stl"/></geometry>
     </visual>
     <collision>
       <origin xyz="0 0 ${cg_height}"/>

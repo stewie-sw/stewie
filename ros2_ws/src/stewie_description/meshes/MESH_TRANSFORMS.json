@@ -1,0 +1,58 @@
+{
+  "rover_body": {
+    "stl": "rover_body.stl",
+    "native_extents_m": [
+      0.6283,
+      0.2261,
+      0.3409
+    ],
+    "native_center_m": [
+      -0.0,
+      0.0521,
+      -0.0
+    ],
+    "ipex_target": "chassis (uniform scale to ~0.46 m length)"
+  },
+  "wheel": {
+    "stl": "wheel.stl",
+    "native_extents_m": [
+      0.3582,
+      0.3582,
+      0.2834
+    ],
+    "native_center_m": [
+      -0.0,
+      -0.0001,
+      0.0142
+    ],
+    "ipex_target": "dia 0.305 x width 0.18, axle +Y (rot Z->Y)"
+  },
+  "drum": {
+    "stl": "drum.stl",
+    "native_extents_m": [
+      0.3709,
+      0.3709,
+      1.0048
+    ],
+    "native_center_m": [
+      -0.0018,
+      -0.0084,
+      -0.0001
+    ],
+    "ipex_target": "dia 0.4371 x width 0.3526, axle +Y (rot Z->Y, non-uniform)"
+  },
+  "drum_arm": {
+    "stl": "drum_arm.stl",
+    "native_extents_m": [
+      0.5486,
+      0.2239,
+      0.1883
+    ],
+    "native_center_m": [
+      0.165,
+      0.0,
+      0.0118
+    ],
+    "ipex_target": "reach 0.32, pivot at arm root (offset -X)"
+  }
+}

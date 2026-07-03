@@ -1,0 +1,10 @@
+The rover mesh assets in this directory (rover_body / wheel / drum / drum_arm) are converted from the
+EZ-RASSOR rover model.
+
+  EZ-RASSOR -- Florida Space Institute / UCF / NASA
+  https://github.com/FlaSpaceInst/EZ-RASSOR
+  MIT License, Copyright (c) 2019 [UCF students], The Florida Space Institute, and NASA.
+
+Reused under MIT with attribution (per the EZ-RASSOR docs/LICENSE.txt). The full MIT permission notice
+rides along with these files. Only the rover model is reused; EZ-RASSOR's extra_models/ art (rocks,
+lander, etc.) is NOT reused (unclear third-party provenance).

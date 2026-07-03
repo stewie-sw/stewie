@@ -59,6 +59,19 @@ def test_urdf_mass_split_sums_to_the_sourced_dry_total():  # [REQ:AS-03]
         f"mass split sums to {total}, not the sourced dry total {SPEC.ROVER_MASS_CLASS_KG}"
 
 
+def test_urdf_visual_uses_the_ezrassor_meshes_collision_stays_primitive():  # [REQ:AS-03]
+    # the <visual> shows the articulated EZ-RASSOR meshes (chassis/wheel/drum/arm), scaled to IPEx dims;
+    # <collision> stays primitive (cylinder/box) for fast physics. Meshes verified by RViz-class render.
+    t = _text()
+    meshes = os.path.join(_HERE, "src", "stewie_description", "meshes")
+    for part in ("rover_body", "wheel", "drum", "drum_arm"):
+        assert f"meshes/{part}.stl" in t, f"URDF <visual> does not reference the {part} mesh"
+        assert os.path.exists(os.path.join(meshes, f"{part}.stl")), f"{part}.stl asset missing"
+    assert os.path.exists(os.path.join(meshes, "THIRD_PARTY_LICENSES.txt")), "MIT attribution missing"
+    # collision remains primitive: cylinders (wheels/drums) + boxes (chassis) still present, no mesh collision
+    assert "<cylinder" in t and "<box" in t, "primitive collision geometry was removed"
+
+
 def test_stereo_baseline_is_authoritative_trl5_final_not_hardcoded():
     t = _text()
     m = re.search(r'<xacro:arg name="stereo_baseline" default="([0-9.]+)"/>', t)
