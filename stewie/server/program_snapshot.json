@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "53cfe0189868100c21a5d71933619249b3904ae964eeac6baac0dfd5804a5c37",
+  "citations_sha256": "0200d91241a316ec8dca83d2f4d312b2f921a2a7d0f463351d86cd9ff62094a6",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "9ff8249f9dc7ca504fad650b11804558b8cb2bbf",
-  "prd_sha256": "647f2fa7b6c03d7aaaf235f6cd27acd900fc558b1caef38188e7466681f7354d",
+  "prd_commit": "68143ed0b368688c6ff42fb702fb0427612e67a1",
+  "prd_sha256": "9097aa81fa9684cbaac1200f5229b5d2e030693a71b8c44ab9ef4970384fe706",
   "specs_sha256": "44cb8fe01e084f6a23d3e6927ffffe9d6da653d13649d76df21b06e1d0e18ca6"
  },
  "rows": [
@@ -607,17 +607,17 @@
    "text": "**Live robot / hardware-in-the-loop through the SAME ROS interfaces (Phase 6).** Implement the `ros2_control` hardware interface + sensor drivers + calibration/transforms + time sync + a bounded command namespace + live safety watchdog + live telemetry/bag recording, so the SAME autonomy launch runs `gazebo_sim` and `bench_robot`. Acceptance: the identical stack runs both profiles; live commands are bounded, release-gated, acknowledged, logged, and replayable. GATED: needs a physical bench rover / hardware (no container substitute)."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "mission-package import/export in ArcGIS-compatible open-geospatial formats (GeoTIFF/COG, GeoJSON/FlatGeobuf, STAC metadata, manifest + authority tuple) with round-trip preservation.",
     "kind": "epic",
     "test_target": "NEW stewie/test_mission_package_io.py citing [REQ:BA-11] (export->import bounds/resolution/CRS + authority tuple preserved)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BA-11",
    "lane": "BA",
    "pri": "P1",
@@ -3833,9 +3833,9 @@
  "summary": {
   "briefs": 133,
   "buckets": {
-   "buildable": 59,
+   "buildable": 58,
    "concurrent": 0,
-   "done": 177,
+   "done": 178,
    "gated": 25
   },
   "by_lane": {
@@ -3852,7 +3852,7 @@
     "total": 18
    },
    "BA": {
-    "done": 5,
+    "done": 6,
     "total": 11
    },
    "BP": {
@@ -3958,7 +3958,7 @@
     "total": 76
    },
    "P1": {
-    "done": 97,
+    "done": 98,
     "total": 160
    },
    "P2": {
@@ -3970,10 +3970,10 @@
     "total": 1
    }
   },
-  "cited": 196,
-  "done_pct": 67.8,
+  "cited": 197,
+  "done_pct": 68.2,
   "in_scope": 236,
-  "in_scope_done_pct": 75.0,
+  "in_scope_done_pct": 75.4,
   "total": 261
  },
  "workflow_spine": [
