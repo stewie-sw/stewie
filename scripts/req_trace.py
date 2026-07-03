@@ -66,7 +66,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--prd", default="PRD.md")
     ap.add_argument("--paths", nargs="*",
-                    default=["stewie", "dart", "lode", "scripts", "ros2_ws"])
+                    default=["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws"])
     args = ap.parse_args(argv)
     r = trace(args.prd, args.paths)
     print(f"requirements: {r['total']} · cited by tests: {r['cited']}")

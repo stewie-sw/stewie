@@ -375,7 +375,73 @@ from .executive import (  # noqa: E402  (re-export after the base Contract it bu
 
 # re-export the mission-ops contracts as the public surface of this package (so pyflakes sees the
 # above imports as used and `from stewie.contracts import MissionIntent` works without reaching in).
+class RegolithVolumeEstimate(Contract):
+    """[REQ:FR-13] Observed before/after volume + uncertainty evidence for surface design. A conserved,
+    uncertainty-carrying moved-regolith estimate from a before/after terrain delta, cross-checked against
+    the conserved-authority mass and (when available) the drum sensor, with a confidence class + acceptance
+    status, linked to a world transaction. Extends ML-06's estimate_moved_regolith into a typed contract."""
+    work_order_id: str
+    before_source: str
+    after_source: str
+    change_cells: int = Field(ge=0)
+    observed_mass_kg: float = Field(ge=0.0)
+    fill_mass_kg: float = Field(ge=0.0)
+    uncertainty_kg: float = Field(ge=0.0)
+    uncertainty_frac: float = Field(ge=0.0)
+    lower_kg: float
+    upper_kg: float
+    conserved_err_kg: float | None = None
+    agreement_conserved: bool | None = None
+    drum_inferred_kg: float | None = None
+    agreement_drum: bool | None = None
+    confidence_class: str          # high | medium | low, from uncertainty_frac
+    acceptance: str                # accepted | review, from the cross-check agreements
+    transaction_id: str
+
+    @field_validator("confidence_class")
+    @classmethod
+    def _known_confidence(cls, v: str) -> str:
+        if v not in ("high", "medium", "low"):
+            raise ValueError(f"unknown confidence_class: {v}")
+        return v
+
+    @field_validator("acceptance")
+    @classmethod
+    def _known_acceptance(cls, v: str) -> str:
+        if v not in ("accepted", "review"):
+            raise ValueError(f"unknown acceptance: {v}")
+        return v
+
+    @classmethod
+    def from_delta(cls, before_h, after_h, cell_m, *, work_order_id, before_source, after_source,
+                   transaction_id, density_kg_m3, height_rmse_m=0.0, density_frac=0.0,
+                   conserved_mass_kg=None, drum_inferred_kg=None):
+        """Build the typed evidence from a before/after terrain delta via estimate_moved_regolith (ML-06).
+        ``height_rmse_m`` (observation RMSE) and ``density_frac`` (in-situ density envelope) widen the
+        uncertainty band; confidence_class is derived from the uncertainty fraction; acceptance is
+        'accepted' only when every available cross-check (conservation, drum) AGREES, else 'review'."""
+        import numpy as np
+
+        from lode.regolith_volume import estimate_moved_regolith
+        e = estimate_moved_regolith(before_h, after_h, cell_m, density_kg_m3=density_kg_m3,
+                                    height_rmse_m=height_rmse_m, density_frac=density_frac,
+                                    conserved_mass_kg=conserved_mass_kg, drum_inferred_kg=drum_inferred_kg)
+        change = int(np.count_nonzero(np.asarray(after_h, dtype=float) - np.asarray(before_h, dtype=float)))
+        uf = float(e["uncertainty_frac"])
+        conf = "high" if uf <= 0.05 else ("medium" if uf <= 0.15 else "low")
+        present = [c for c in (e.get("agreement_conserved"), e.get("agreement_drum")) if c is not None]
+        accept = "accepted" if present and all(present) else "review"
+        return cls(work_order_id=work_order_id, before_source=before_source, after_source=after_source,
+                   change_cells=change, observed_mass_kg=float(e["observed_mass_kg"]),
+                   fill_mass_kg=float(e["fill_mass_kg"]), uncertainty_kg=float(e["uncertainty_kg"]),
+                   uncertainty_frac=uf, lower_kg=float(e["lower_kg"]), upper_kg=float(e["upper_kg"]),
+                   conserved_err_kg=e.get("conserved_err_kg"), agreement_conserved=e.get("agreement_conserved"),
+                   drum_inferred_kg=e.get("drum_inferred_kg"), agreement_drum=e.get("agreement_drum"),
+                   confidence_class=conf, acceptance=accept, transaction_id=transaction_id)
+
+
 __all__ = [
+    "RegolithVolumeEstimate",
     "AcceptanceCriterion",
     "CompiledOrder",
     "Constraint",
