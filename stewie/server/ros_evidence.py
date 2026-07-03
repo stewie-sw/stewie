@@ -17,9 +17,19 @@ _ROS2_DEPLOY = os.path.join(_ROOT, "deploy", "ros2")
 _REQUIRED_CLOCK_TF = ("/clock", "/tf", "/tf_static", "/joint_states")
 
 
+def _safe_yaml():
+    """PyYAML if importable, else None -- the deployed backend may not carry it; the evidence surface
+    degrades gracefully (the .rviz/gz configs go empty) rather than 500ing the whole endpoint."""
+    try:
+        import yaml
+        return yaml
+    except ImportError:
+        return None
+
+
 def _rviz_displays() -> list[dict]:
-    import yaml
-    if not os.path.exists(_RVIZ):
+    yaml = _safe_yaml()
+    if yaml is None or not os.path.exists(_RVIZ):
         return []
     cfg = yaml.safe_load(open(_RVIZ, encoding="utf-8")) or {}
     disps = cfg.get("Visualization Manager", {}).get("Displays", []) or []
@@ -32,8 +42,8 @@ def _rviz_displays() -> list[dict]:
 
 
 def _gz_bridged_topics() -> list[str]:
-    import yaml
-    if not os.path.exists(_GZBRIDGE):
+    yaml = _safe_yaml()
+    if yaml is None or not os.path.exists(_GZBRIDGE):
         return []
     data = yaml.safe_load(open(_GZBRIDGE, encoding="utf-8"))
     if not isinstance(data, list):
