@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "8d2ddd5b5d4742ee257e4a6023c5e01f27c0e99b4ec6b76f3a6a8b5caefeaec5",
+  "citations_sha256": "5fb0d2f2786fe7abf0d351e40f1eef0615db1da95836be90895d46f6ba653338",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "f7707278818bb8e3f94778990e8ddbf766063e0c",
-  "prd_sha256": "8cd5025b1ca3b151088b9e4e683deb35393e18b42a58888790e8e343c8cd9628",
+  "prd_commit": "6d6656941d9483f0e350d910f24d0ded5804f684",
+  "prd_sha256": "a7ec6abe980059c2879430e12745979f61af4f7db7979ab213862a010271a5e4",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -3937,17 +3937,17 @@
    "text": "Lock the production physics import boundary: an executable test proves production `stewie/physics` imports no `dart`/`leap` (corrects the stale docs claim); the three coupled *test* files are relocated/marked so the `stewie-forge` unit gate needs no dart/leap."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "break terramechanics->stewie.specs.constants (prereq for PO-18); forge-local geotech defaults + preserve config-overlay via injection at stewie-side call sites; behavior byte-identical.",
     "kind": "atomic",
     "test_target": "NEW/extended [REQ:PX-06] in scripts/test_import_boundaries.py + stewie/physics/test_terramechanics.py"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PX-06",
    "lane": "PX",
    "pri": "P0",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 105,
+   "buildable": 104,
    "concurrent": 0,
-   "done": 185,
+   "done": 186,
    "gated": 25
   },
   "by_lane": {
@@ -4886,7 +4886,7 @@
     "total": 18
    },
    "PX": {
-    "done": 2,
+    "done": 3,
     "total": 6
    },
    "RF": {
@@ -4936,7 +4936,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 82,
+    "done": 83,
     "total": 102
    },
    "P1": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 204,
-  "done_pct": 58.7,
+  "cited": 205,
+  "done_pct": 59.0,
   "in_scope": 290,
-  "in_scope_done_pct": 63.8,
+  "in_scope_done_pct": 64.1,
   "total": 315
  },
  "workflow_spine": [
