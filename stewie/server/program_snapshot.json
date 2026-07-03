@@ -4,7 +4,7 @@
   "generated_by": "scripts/gen_program_snapshot.py",
   "prd_commit": "3a41d20111fe12e65f8f3c6f3e4bacf5d3932379",
   "prd_sha256": "5ac413ec7d6ed9431d12ac3dd5ffd632b76a42316e46719bf6a415e38e2ba57c",
-  "specs_sha256": "a8731139bce1ebb767c6933624153d7e59d968d3119b85665d7109b554836131"
+  "specs_sha256": "ac6304f845e628ca896e0f0c4dbcc35e05c131b1f8531e6890cce0cdd3537827"
  },
  "rows": [
   {
@@ -12,6 +12,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row AC-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW frontend/api/test_route_coverage.test.ts citing [REQ:AC-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "AC-01",
@@ -24,6 +29,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row AC-02 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW frontend/api/test_route_coverage.test.ts citing [REQ:AC-02]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "AC-02",
@@ -669,6 +679,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row BD-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/specs/test_body_profiles.py citing [REQ:BD-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BD-01",
@@ -681,6 +696,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row BD-02 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/specs/test_body_profiles.py citing [REQ:BD-02]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BD-02",
@@ -693,6 +713,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row BD-03 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/specs/test_body_profiles.py citing [REQ:BD-03]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BD-03",
@@ -943,6 +968,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row BR-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/twin/test_world_branches.py citing [REQ:BR-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BR-01",
@@ -955,6 +985,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row CF-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW lode/test_capability_fleet.py citing [REQ:CF-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "CF-01",
@@ -1269,6 +1304,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row DW-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW frontend/src/data/duckdb/test_query.test.tsx citing [REQ:DW-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "DW-01",
@@ -1281,6 +1321,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row DW-02 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW frontend/src/data/duckdb/test_query.test.tsx citing [REQ:DW-02]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "DW-02",
@@ -1293,6 +1338,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row EG-01 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:EG-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "EG-01",
@@ -1305,6 +1355,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row EG-02 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:EG-02]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "EG-02",
@@ -1317,6 +1372,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row EG-03 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:EG-03]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "EG-03",
@@ -1329,6 +1389,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row EG-04 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:EG-04]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "EG-04",
@@ -1341,6 +1406,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row EG-05 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:EG-05]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "EG-05",
@@ -1353,6 +1423,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row EG-06 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:EG-06]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "EG-06",
@@ -1365,6 +1440,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row EG-07 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:EG-07]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "EG-07",
@@ -1377,6 +1457,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row EG-08 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:EG-08]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "EG-08",
@@ -1389,6 +1474,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row EG-09 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:EG-09]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "EG-09",
@@ -1401,6 +1491,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row EG-10 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:EG-10]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "EG-10",
@@ -1413,6 +1508,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row EG-11 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:EG-11]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "EG-11",
@@ -1425,6 +1525,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row EG-12 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:EG-12]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "EG-12",
@@ -2531,6 +2636,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row GL-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW frontend/src/map/test_map.test.tsx citing [REQ:GL-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "GL-01",
@@ -2543,6 +2653,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row GL-02 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW frontend/src/map/test_map.test.tsx citing [REQ:GL-02]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "GL-02",
@@ -2555,6 +2670,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row MG-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_mg_migration.py citing [REQ:MG-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "MG-01",
@@ -2567,6 +2687,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row MG-02 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_mg_migration.py citing [REQ:MG-02]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "MG-02",
@@ -2579,6 +2704,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row MG-03 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/server/test_mg_migration.py citing [REQ:MG-03]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "MG-03",
@@ -2592,9 +2722,9 @@
    "V": "N",
    "X": "N",
    "brief": {
-    "goal": "platform backlog row MP-12 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "goal": "make the /program board mobile-friendly (44px targets, single-column, no overflow, collapsible filter/inspect).",
     "kind": "atomic",
-    "test_target": "NEW test citing [REQ:MP-12]"
+    "test_target": "NEW stewie/server/test_mg04_program_mobile.py citing [REQ:MG-04]"
    },
    "bucket": "buildable",
    "cited": false,
@@ -2608,6 +2738,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row MI-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW frontend/test_multiengine_ide.test.tsx citing [REQ:MI-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "MI-01",
@@ -2780,6 +2915,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row MP-05 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:MP-05]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "MP-05",
@@ -2792,6 +2932,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row MP-06 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:MP-06]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "MP-06",
@@ -2804,6 +2949,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row MP-07 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:MP-07]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "MP-07",
@@ -2816,6 +2966,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row MP-08 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:MP-08]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "MP-08",
@@ -2828,6 +2983,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row MP-09 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:MP-09]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "MP-09",
@@ -2840,6 +3000,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row MP-10 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:MP-10]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "MP-10",
@@ -2852,6 +3017,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row MP-11 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:MP-11]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "MP-11",
@@ -2864,6 +3034,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row MP-12 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:MP-12]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "MP-12",
@@ -3110,6 +3285,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row PG-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/twin/test_postgis_projection.py citing [REQ:PG-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "PG-01",
@@ -3676,6 +3856,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row PX-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/physics/test_physics_backend.py citing [REQ:PX-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "PX-01",
@@ -3688,6 +3873,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row PX-02 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/physics/test_physics_backend.py citing [REQ:PX-02]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "PX-02",
@@ -3700,6 +3890,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row PX-03 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW stewie/physics/test_physics_backend.py citing [REQ:PX-03]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "PX-03",
@@ -3746,6 +3941,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row RF-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "RF-01",
@@ -3758,6 +3958,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row RF-02 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-02]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "RF-02",
@@ -3770,6 +3975,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row RF-03 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-03]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "RF-03",
@@ -4221,6 +4431,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform-restructure backlog row TU-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW desktop/test_tauri_sidecar.test.ts citing [REQ:TU-01]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "TU-01",
@@ -4368,6 +4583,11 @@
    "Q": "N",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "platform backlog row TW-11 (PRD \u00a77 + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:TW-11]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "TW-11",
@@ -4512,7 +4732,7 @@
   }
  ],
  "summary": {
-  "briefs": 142,
+  "briefs": 186,
   "buckets": {
    "buildable": 104,
    "concurrent": 0,
