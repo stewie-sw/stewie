@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "85015be9bcdaa091237d79d90fa41b61ec99f6a75fabca5fc733db91e649b10b",
+  "citations_sha256": "a4aac24e20a3f24965595b9fd13fbebae8b70acadda01590488230e669e454f1",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "762b021d9840c98d988425af33aa79143ee9de71",
-  "prd_sha256": "5655271fa43af6fe1ca9444d448f5643aee96edc8dea6ee3605b21661309e391",
+  "prd_commit": "c5a652fc8ba82ec742338d2dc869d6dc9fda3e88",
+  "prd_sha256": "8c03d664b6a99f0cdb73e40933be3bb4ce1bc28c0be9d8301b898511f059ef40",
   "specs_sha256": "44cb8fe01e084f6a23d3e6927ffffe9d6da653d13649d76df21b06e1d0e18ca6"
  },
  "rows": [
@@ -1540,17 +1540,17 @@
    "text": "**GIS/ArcGIS platform claims get stricter boundaries (lunar).** Use precise language (GIS-oriented lunar planning / OGC-WMS + export / body-aware CRS / ArcGIS-compatible concepts where implemented) and STOP implying \"ArcGIS platform complete\"; add an ArcGIS integration adapter BOUNDARY (Feature Service read/query/edit, auth/token, schema mapping, offline package, CRS+vertical datum, round-trip validation) instead of mixing ArcGIS assumptions into generic GIS code; every layer carries SEPARATE display-eligibility and planning-eligibility fields. Acceptance: UI/labels use the precise language, the ArcGIS boundary + per-shape fixtures exist, and a layer displayable-but-not-planning-valid is not treated as planning-valid. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "P",
    "brief": {
     "goal": "a RegolithVolumeEstimate contract (before/after source, change mask, cut/fill, uncertainty, drum cross-check, conservation residual, confidence, acceptance, linked txn); LEAP emits it; cockpit/report render it.",
     "kind": "atomic",
     "test_target": "leap/test_regolith_volume_estimate.py citing [REQ:ML-06]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FR-13",
    "lane": "FR",
    "pri": "P1",
@@ -3833,9 +3833,9 @@
  "summary": {
   "briefs": 133,
   "buckets": {
-   "buildable": 62,
+   "buildable": 61,
    "concurrent": 0,
-   "done": 174,
+   "done": 175,
    "gated": 25
   },
   "by_lane": {
@@ -3880,7 +3880,7 @@
     "total": 7
    },
    "FR": {
-    "done": 7,
+    "done": 8,
     "total": 21
    },
    "FS": {
@@ -3958,7 +3958,7 @@
     "total": 76
    },
    "P1": {
-    "done": 95,
+    "done": 96,
     "total": 160
    },
    "P2": {
@@ -3970,10 +3970,10 @@
     "total": 1
    }
   },
-  "cited": 193,
-  "done_pct": 66.7,
+  "cited": 194,
+  "done_pct": 67.0,
   "in_scope": 236,
-  "in_scope_done_pct": 73.7,
+  "in_scope_done_pct": 74.2,
   "total": 261
  },
  "workflow_spine": [
