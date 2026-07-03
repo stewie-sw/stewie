@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "85015be9bcdaa091237d79d90fa41b61ec99f6a75fabca5fc733db91e649b10b",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "10c45425191e950723feb7b96d21bfed4214aec3",
-  "prd_sha256": "53b6bf0c8f63eb6da9def2a0f0b6442165a9e22458a318582f91229be09ec5c6",
+  "prd_commit": "762b021d9840c98d988425af33aa79143ee9de71",
+  "prd_sha256": "5655271fa43af6fe1ca9444d448f5643aee96edc8dea6ee3605b21661309e391",
   "specs_sha256": "44cb8fe01e084f6a23d3e6927ffffe9d6da653d13649d76df21b06e1d0e18ca6"
  },
  "rows": [
@@ -2954,16 +2954,16 @@
    "text": "CI separately gates Python core, scripts, Godot, browser, package smoke, and hardware-gated tiers."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "add the missing \"scan resolved artifacts\" step + wire the lock/SBOM/fresh-install scripts into CI as a real gate (lock+SBOM+fresh-install exist + are tested; only the CVE scan + CI wiring are missing).",
     "kind": "atomic",
     "test_target": "NEW scripts/test_scan_artifacts.py + a CI step"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "PO-05",
    "lane": "PO",
@@ -3833,9 +3833,9 @@
  "summary": {
   "briefs": 133,
   "buckets": {
-   "buildable": 63,
+   "buildable": 62,
    "concurrent": 0,
-   "done": 173,
+   "done": 174,
    "gated": 25
   },
   "by_lane": {
@@ -3912,7 +3912,7 @@
     "total": 19
    },
    "PO": {
-    "done": 12,
+    "done": 13,
     "total": 15
    },
    "RL": {
@@ -3958,7 +3958,7 @@
     "total": 76
    },
    "P1": {
-    "done": 94,
+    "done": 95,
     "total": 160
    },
    "P2": {
@@ -3971,9 +3971,9 @@
    }
   },
   "cited": 193,
-  "done_pct": 66.3,
+  "done_pct": 66.7,
   "in_scope": 236,
-  "in_scope_done_pct": 73.3,
+  "in_scope_done_pct": 73.7,
   "total": 261
  },
  "workflow_spine": [
