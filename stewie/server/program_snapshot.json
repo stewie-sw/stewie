@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "a18ef8051477114f6ec4a7996e5ffe5182260b99",
-  "prd_sha256": "89479839e5af08d5281b991545a20ac4338fe887695047fb46f3622cf20d0ffa",
+  "prd_commit": "6d8563bcf284ef8a4e7893c15fd74f3af14eda8f",
+  "prd_sha256": "c1f0856fd237a02b1928030ea77a8964d475fdbf589184d27f1c4438ed95ee20",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -328,11 +328,11 @@
    "text": "Navigation articulation path: convert commanded posture changes, arm/camera kinematics, shadow perturbations, and articulation parallax into standstill relocalization factors; accepted factors must reduce covariance and be visible in cockpit and RViz."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
-   "X": "N",
-   "bucket": "buildable",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "AS-10",
    "lane": "AS",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 76,
+   "buildable": 75,
    "concurrent": 0,
-   "done": 154,
+   "done": 155,
    "gated": 25
   },
   "by_lane": {
@@ -3746,7 +3746,7 @@
     "total": 9
    },
    "AS": {
-    "done": 11,
+    "done": 12,
     "total": 18
    },
    "BA": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 69,
+    "done": 70,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 60.4,
+  "done_pct": 60.8,
   "in_scope": 230,
-  "in_scope_done_pct": 67.0,
+  "in_scope_done_pct": 67.4,
   "total": 255
  },
  "workflow_spine": [
