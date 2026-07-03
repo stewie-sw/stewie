@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "2b87a541510b53d64e4485522063191b6db43fd774a1fff28870260e3da7d479",
+  "citations_sha256": "6c0fbfecc215e6fc25a23e3c583dc4f5491270b97bb6592923e7319efae12eef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "0fe1af820adb1046d73d7da5a78880e16cd628b0",
-  "prd_sha256": "414a104d8e83ed4ae3062b4c337b6c6f43f12d926f093beb70aca1ee0b83e2c8",
+  "prd_commit": "ea615c67326e4e677731eb239e4296b735894e7e",
+  "prd_sha256": "b75e4dea9280290bb10edd49bbcbba05291c50c55118e39e919cb34fad0dc75f",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -505,17 +505,17 @@
    "text": "**Gazebo terrain generated from a real lunar DEM, not a flat plane (extends AS-06).** `ros2_ws/src/stewie_description/worlds/stewie_lunar.sdf` is a flat regolith plane ingesting no DEM/craters/rocks/world-state. Add `dem_to_gazebo_heightfield.py` emitting a Gazebo heightfield collision/visual from a real DEM (the Haworth bundle) + a world that loads it. Acceptance: a Haworth-derived heightfield world loads in the Gazebo container with correct bounds/resolution metadata, and a test validates the generated heightfield against the DEM. Container-buildable (real Haworth DEM on disk)."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "typed CRS transform chain body_crs->site_enu->map->odom->base_link->sensors + a Godot Y-up<->ROS REP-103 converter, validated against control points.",
     "kind": "epic",
     "test_target": "NEW stewie/geospatial/test_crs_transform.py citing [REQ:BA-05] (control-point round-trips)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BA-05",
    "lane": "BA",
    "pri": "P0",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 94,
+   "buildable": 93,
    "concurrent": 0,
-   "done": 136,
+   "done": 137,
    "gated": 25
   },
   "by_lane": {
@@ -3750,7 +3750,7 @@
     "total": 18
    },
    "BA": {
-    "done": 2,
+    "done": 3,
     "total": 11
    },
    "BP": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 51,
+    "done": 52,
     "total": 76
    },
    "P1": {
@@ -3868,10 +3868,10 @@
     "total": 1
    }
   },
-  "cited": 181,
-  "done_pct": 53.3,
+  "cited": 182,
+  "done_pct": 53.7,
   "in_scope": 230,
-  "in_scope_done_pct": 59.1,
+  "in_scope_done_pct": 59.6,
   "total": 255
  },
  "workflow_spine": [
