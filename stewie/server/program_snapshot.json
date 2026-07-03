@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "313268378139293fe272d50e202e41dbede867b5be6b30159489bdb8feac3aa2",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "5f4c349d14c2e1f470752f6447c036562d26915f",
-  "prd_sha256": "fa5b1dab0690efd24d1642f47f94ecb7a425ed46f7f842fccf41f2b0767b6132",
+  "prd_commit": "d360eea154353786be8c4511a35da77a133c7665",
+  "prd_sha256": "66d2f94de0dcf79567fc470513b929f04b5a684458c45a371e3f0055e0f17090",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -3231,16 +3231,16 @@
    "text": "**Bounded command authority for all rover commands (review finding 3).** Every low-level rover command \u2014 including a MISSION-LESS `/rc/command` GoTo/teleop \u2014 is bounded by an explicit command-authority context: a released/published (`live`) mission, OR an explicitly-labelled dev/bench teleop authorization that is REFUSED on a `LIVE`/`OPERATE` runnable profile and audited. No path emits motion to a real rover outside a released mission or an explicit, audited teleop grant (`rc.py:43,74`). Acceptance: a mission-less GoTo on a LIVE/OPERATE profile is rejected; a bench/dev profile teleop is allowed only with the explicit grant and is audit-logged. Buildable on archimedes."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "close the truth-isolated SLAM/Nav benchmark \u2014 keep the built truth-topic denial, add evaluator-only pass/fail thresholds, score the full render\u2192sensor\u2192RTAB-Map\u2192Nav\u2192pose-graph pipeline end to end.",
     "kind": "epic / gated",
     "test_target": "scripts/ros2_bridge/test_bag_truth_split.py (extend, `[REQ:SL-01]` present) with an evaluator-only threshold assertion"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "SL-01",
    "lane": "SL",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 70,
+   "buildable": 69,
    "concurrent": 0,
-   "done": 160,
+   "done": 161,
    "gated": 25
   },
   "by_lane": {
@@ -3830,7 +3830,7 @@
     "total": 2
    },
    "SL": {
-    "done": 0,
+    "done": 1,
     "total": 1
    },
    "SN": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 75,
+    "done": 76,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 186,
-  "done_pct": 62.7,
+  "done_pct": 63.1,
   "in_scope": 230,
-  "in_scope_done_pct": 69.6,
+  "in_scope_done_pct": 70.0,
   "total": 255
  },
  "workflow_spine": [
