@@ -84,9 +84,10 @@ const BODIES = {
     { name: "LRO WAC (visual)", geographic: true, tile: 256, maxLevel: 8,   // z8 is the native ceiling (z9 -> 404)
       url: trekUrl("Moon", "LRO_WAC_Mosaic_Global_303ppd_v02"), credit: "NASA Trek (LRO WAC, 303 ppd)" },
     // whole-planet alternates (Aaron 2026-06-10: "link in other layers for the entire planet"):
-    // ENHANCED TOPOGRAPHIC SET (Aaron 2026-06-10: "ArcGIS fully functional -- enhanced datasets,
-    // topographical overlays of the moon first"). Every product TILE-VERIFIED from the real Trek
-    // catalog before listing (no guessed IDs).
+    // ENHANCED TOPOGRAPHIC SET (Aaron 2026-06-10: enhanced datasets + topographical overlays of the moon
+    // first). These are ArcGIS Online / NASA Trek basemap TILES (imagery), not an ArcGIS platform
+    // integration -- see arcgis_adapter.GIS_PRODUCT_LANGUAGE. Every product TILE-VERIFIED from the real
+    // Trek catalog before listing (no guessed IDs). [REQ:FR-12]
     { name: "Kaguya TC ortho (high-res visual)", geographic: true, tile: 256, maxLevel: 9,
       url: trekUrl("Moon", "Kaguya_TCortho_Mosaic_Global_4096ppd", "png"), credit: "NASA Trek (Kaguya TC 4096 ppd)" },
     { name: "LOLA color shaded-relief (256 ppd)", geographic: true, tile: 256, maxLevel: 8,
