@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "6ecdd86ad03fb19553666b78bece23216427f102",
-  "prd_sha256": "1b2b4edd50504f3a3dd351617b1da6e8b8534c47c3c291f842218ea7e4daefef",
+  "prd_commit": "12c11ede3eac4b79f9050cebb54fb04e19c53e47",
+  "prd_sha256": "5fa383f97ebedc219ddc1c4a20cbdc961060e112adb90eebfdeb23320d96ae3e",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -2606,14 +2606,14 @@
   {
    "I": "D",
    "Q": "N",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "cite + close the loop-closure row (candidate-gated, geometrically verified, auditable, false closures kept out of the graph).",
     "kind": "atomic",
     "test_target": "dart/test_loop_closure_visual.py::test_detect_loops_finds_start_end_revisit_and_chain_matches_vo (add `[REQ:PM-07]`) + a negative-case test"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "PM-07",
    "lane": "PM",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 83,
+   "buildable": 82,
    "concurrent": 0,
-   "done": 147,
+   "done": 148,
    "gated": 25
   },
   "by_lane": {
@@ -3806,7 +3806,7 @@
     "total": 12
    },
    "PM": {
-    "done": 6,
+    "done": 7,
     "total": 19
    },
    "PO": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 62,
+    "done": 63,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 57.6,
+  "done_pct": 58.0,
   "in_scope": 230,
-  "in_scope_done_pct": 63.9,
+  "in_scope_done_pct": 64.3,
   "total": 255
  },
  "workflow_spine": [
