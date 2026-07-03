@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "6d05a2460e1f4994e19991a25f1675436f0db691a53e68e285c40d8dc46dc1e0",
+  "citations_sha256": "cef43bfac4f6c5497795883e53e6288f22fd65eb49d52be7414a995a14fcf02e",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "d775d3094289bd6835913ff017d38a7e4757264c",
-  "prd_sha256": "f441afeec2d7957df807fb7bf2dbd85c6e420a572c34c42b8769cfa22b2cc954",
+  "prd_commit": "5d86ca11dd20737e291607f9d643eb725b8304ee",
+  "prd_sha256": "04b7f9a0020aa5905bccdab5c348945dedfb2f59a96b14f57b458cec0dca150f",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1368,17 +1368,17 @@
    "text": "Central mode-authority ENFORCEMENT: every world-write + asset-command routes through one guard that rejects the action unless the active mode grants it. Acceptance: a TRAINING-mode write to accepted/live world is rejected, a non-LIVE command to a real asset is rejected, and a cross-mode isolation test proves training cannot reach live world state."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row EG-03 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:EG-03]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "EG-03",
    "lane": "EG",
    "pri": "P0",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 100,
+   "buildable": 99,
    "concurrent": 0,
-   "done": 190,
+   "done": 191,
    "gated": 25
   },
   "by_lane": {
@@ -4818,7 +4818,7 @@
     "total": 2
    },
    "EG": {
-    "done": 2,
+    "done": 3,
     "total": 12
    },
    "EP": {
@@ -4936,7 +4936,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 87,
+    "done": 88,
     "total": 102
    },
    "P1": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 209,
-  "done_pct": 60.3,
+  "cited": 210,
+  "done_pct": 60.6,
   "in_scope": 290,
-  "in_scope_done_pct": 65.5,
+  "in_scope_done_pct": 65.9,
   "total": 315
  },
  "workflow_spine": [
