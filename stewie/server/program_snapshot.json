@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "d0113f79b3cbd60f6b7bf19e127cb375e571b0990e5a2c0c11023784e4b4af1a",
+  "citations_sha256": "d2fe960585597c565e08c021cb428c79241d192ddb1fb2231abde23d95ac96f8",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "29e9bca42582391ace937fed18b894d3fe3f2df3",
-  "prd_sha256": "5e77da1f6afdfb0eb26b406dada46481227e8d648d5d44f8ad24b5acb2c5af86",
+  "prd_commit": "15d6a7585c697daa3be1cde6c99c1c512891e3a9",
+  "prd_sha256": "00b4db0f321f8570488f09a4d46ccb0b1f57a37a6138525cb83db0ac8f5a506e",
   "specs_sha256": "44e106abc41becf9f01d5efd897f79b31bc05a82288054ef0bbcd00934cd880e"
  },
  "rows": [
@@ -3468,17 +3468,17 @@
    "text": "The Chrono SCM backend is exposed ONLY as geometry-oracle/hybrid until mass-conservation closure; it cannot be selected for release/execute authority while conserves_mass=false."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "`PhysicsBackend` protocol + `Tier2NumpyBackend` over existing terramechanics/forge.bearing/planner-context.",
     "kind": "atomic",
     "test_target": "NEW stewie/physics/test_physics_backend.py citing [REQ:PX-04]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PX-04",
    "lane": "PX",
    "pri": "P0",
@@ -4274,9 +4274,9 @@
  "summary": {
   "briefs": 142,
   "buckets": {
-   "buildable": 89,
+   "buildable": 88,
    "concurrent": 0,
-   "done": 180,
+   "done": 181,
    "gated": 25
   },
   "by_lane": {
@@ -4401,7 +4401,7 @@
     "total": 18
    },
    "PX": {
-    "done": 0,
+    "done": 1,
     "total": 5
    },
    "RF": {
@@ -4451,7 +4451,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 77,
+    "done": 78,
     "total": 94
    },
    "P1": {
@@ -4467,10 +4467,10 @@
     "total": 2
    }
   },
-  "cited": 199,
-  "done_pct": 61.2,
+  "cited": 200,
+  "done_pct": 61.6,
   "in_scope": 269,
-  "in_scope_done_pct": 66.9,
+  "in_scope_done_pct": 67.3,
   "total": 294
  },
  "workflow_spine": [
