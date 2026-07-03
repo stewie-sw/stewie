@@ -88,7 +88,7 @@ test("uses the planner's per-rover track field when present (charger start + sit
   assert.strictEqual(m.streams.length, 2);
 });
 
-test("fleetPlaybackHTML renders one track + telemetry block per rover", () => {
+test("fleetPlaybackHTML renders one track + telemetry block per rover", () => {  // [REQ:PO-11]
   const m = P.fleetPlaybackModel(TOTALS2, TRIPS2, [0, 0]);
   const html = P.fleetPlaybackHTML(m, (s) => String(s), 600);
   const blocks = (html.match(/class="fbrover"/g) || []).length;
