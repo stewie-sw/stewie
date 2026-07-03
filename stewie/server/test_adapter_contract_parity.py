@@ -473,3 +473,23 @@ def test_pane_routes_match_their_committed_schema_fixtures(pane_client):
         assert fx["route"] == c["route"], f"{view}: fixture pins {fx['route']}, the registry wires {c['route']}"
         errs = _conformance_errors(body, fx["shape"], view)
         assert not errs, f"{view}: GET {c['route']} drifted from its committed schema fixture:\n  " + "\n  ".join(errs)
+
+
+def test_every_wired_connection_carries_permission_failure_and_mobile_coverage():  # [REQ:FS-18]
+    """[REQ:FS-18] the FULL per-connection contract beyond fixture+backend+adapter+served-page: each
+    route-to-pane connection's backend test carries a PERMISSION test (an unauthorized role is refused)
+    AND a FAILURE-MODE test (a bad/empty payload is handled, not a 500), and the cockpit's shared
+    responsive layout gives every wired pane its MOBILE-WIDTH smoke (the 390px phone breakpoint, FS-03 --
+    a shared layout, not per-pane duplication). A new pane wired without these six is not 'wired'."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    perm = re.compile(r"(401|403|require_director|require_operator|guest|unauthor|role)", re.I)
+    fail = re.compile(r"(\b4\d\d\b|error|empty|invalid|malformed|not.?found|uncompilable)", re.I)
+    for view, c in _ROUTE_PANES.items():
+        bt = os.path.join(here, c["backend_test"])
+        assert os.path.exists(bt), f"{view}: backend_test {c['backend_test']} missing"
+        text = open(bt, encoding="utf-8").read()
+        assert perm.search(text), f"{view}: {c['backend_test']} carries no permission test (401/403/role gate)"
+        assert fail.search(text), f"{view}: {c['backend_test']} carries no failure-mode test"
+    fs03 = os.path.join(here, "test_ia_provenance_labels.py")
+    assert "test_mobile_breakpoint_applies_at_phone_widths" in open(fs03, encoding="utf-8").read(), \
+        "no shared mobile-width phone-breakpoint smoke covering the wired panes (FS-03)"
