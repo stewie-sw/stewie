@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "6e07d8b806809ffa99c280e60569462c4b54e76b",
-  "prd_sha256": "c7bceccec12578ea297f9d2e3499b764944dabb5819fa3daa88cb55cf1f6f24f",
+  "prd_commit": "028341d95ff4f7b2dfa461194bb30927aa506628",
+  "prd_sha256": "6c86375b47197e63849d677b6c0d97fe47262131fb3c1cc82dd738f02c87a7bf",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -220,11 +220,11 @@
    "text": "The planner may choose Meerkat only when predicted information gain or recovery value exceeds time, energy, and risk cost. `[PROPOSED]`"
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "N",
-   "bucket": "buildable",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "AS-01",
    "lane": "AS",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 91,
+   "buildable": 90,
    "concurrent": 0,
-   "done": 139,
+   "done": 140,
    "gated": 25
   },
   "by_lane": {
@@ -3746,7 +3746,7 @@
     "total": 9
    },
    "AS": {
-    "done": 8,
+    "done": 9,
     "total": 18
    },
    "BA": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 54,
+    "done": 55,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 54.5,
+  "done_pct": 54.9,
   "in_scope": 230,
-  "in_scope_done_pct": 60.4,
+  "in_scope_done_pct": 60.9,
   "total": 255
  },
  "workflow_spine": [
