@@ -247,6 +247,17 @@
     #edittools label { min-height: 44px; display: inline-flex; align-items: center; gap: 2px; }
     input[type="number"], #koradius { min-height: 44px; }   /* FR-19: the keep-out radius input meets the touch floor (was 52x29) */
     #koradius { width: 4.5em; box-sizing: border-box; }
+    /* FR-16 + FR-21: the status/account chrome that placeStatusCluster() moves into #statuscluster on mobile
+       is a FIXED non-scrolling top status bar -> always in the first viewport (it was scrolling offscreen in
+       #viewtabs). This is the IA control-plane split: a stable status/action plane (#statuscluster + the
+       #drawerbtn) above the scrollable #viewtabs work rail. Left:56 clears the absolute #drawerbtn (left:10);
+       the ToolBox drops below it; #viewtabs shifts down so nothing overlaps the bar. */
+    #statuscluster { position: fixed; top: 0; left: 56px; right: 4px; z-index: 82;
+      display: flex; align-items: center; gap: 6px; padding: 4px 6px; overflow-x: auto;
+      background: var(--head); border-bottom: 1px solid var(--line); }
+    #statuscluster #healthchip { margin-left: 0; }
+    #viewtabs { margin-top: 42px; }
+    #edittoolbar { top: 46px; }
     /* FR-17: More/account menus were position:absolute right:0 inside far-right #viewtabs children, so on
        phones they opened OFFSCREEN (right edges ~624/~881px). Override them to viewport-clamped fixed
        bottom sheets -- left + right insets keep them fully on-screen; !important beats the inline
@@ -1575,6 +1586,6 @@
 <script src="/assets/cockpit_state.js?v=fcaa16f324c4"></script><!-- FS-16: pure routeable cockpit state model (sets window.STEWIE_STATE) -->
 <script src="/assets/provenance_label.js?v=e6ec3e5b78b5"></script><!-- FS-03: pure epistemic provenance chips truth/belief/forecast/live (sets window.STEWIE_PROVENANCE) -->
 <script src="/assets/ops_chips.js?v=956a4ab31cdc"></script><!-- frontend-audit C: pure ops-chip formatters health/link/provenance/mission-time (sets window.STEWIE_OPS_CHIPS) -->
-<script src="/assets/cockpit.js?v=4f47630736ba"></script>
+<script src="/assets/cockpit.js?v=aab233fe1520"></script>
 </body>
 </html>

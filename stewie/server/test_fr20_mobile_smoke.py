@@ -5,10 +5,9 @@ statically and, with a real Chrome, asserts per viewport:
   (b) the primary nav/action controls (.vtab, #drawerbtn, #editmode; /program .fbtn/.rowchip/#program-search)
       meet the 44px touch floor,
   (c) the ToolBox stays viewport-contained when #editmode opens (FR-19),
-  (d) the More/account menus stay in-viewport when opened (FR-17).
-It does NOT yet assert (e) health/alerts visible-in-first-viewport -- FR-16 (the fixed status bar) is not
-built, so that check is deliberately deferred to FR-16 rather than faked. Skips cleanly where a system
-Chrome / Playwright is unavailable (CI without a browser); runs + is verified on-host.
+  (d) the More/account menus stay in-viewport when opened (FR-17),
+  (e) the health/alerts status chrome is visible in the first viewport (FR-16 fixed status bar).
+Skips cleanly where a system Chrome / Playwright is unavailable (CI without a browser); runs + verified on-host.
 """
 import http.server
 import os
@@ -80,8 +79,13 @@ def test_cockpit_mobile_command_surface_smoke():  # [REQ:FR-20]
                 pg.wait_for_selector("#viewtabs .vtab", timeout=15000)
                 pg.eval_on_selector("#editmode", "el => el.click()")   # (c) open the ToolBox
                 r = pg.evaluate(r"""(w) => {
-                    const out = {overflow: false, toolbar: null, menus: [], under44: []};
+                    const out = {overflow: false, toolbar: null, menus: [], under44: [], status_off: []};
                     out.overflow = document.scrollingElement.scrollWidth > w + 1;                 // (a)
+                    for (const id of ['healthchip','alertbtn']) {                                  // (e) FR-16 status bar
+                        const el = document.getElementById(id); if (!el) continue;
+                        const b = el.getBoundingClientRect();
+                        if (b.width && (b.left >= w || b.right <= 0)) out.status_off.push(id);
+                    }
                     const tb = document.getElementById('edittoolbar');                            // (c)
                     if (tb) { const b = tb.getBoundingClientRect(); if (b.right > w + 1 || b.left < -1) out.toolbar = Math.round(b.right); }
                     const wa = document.getElementById('whoami'); if (wa) wa.style.display = 'inline-flex';
@@ -101,6 +105,8 @@ def test_cockpit_mobile_command_surface_smoke():  # [REQ:FR-20]
                 }""", w)
                 if r["overflow"]:
                     problems.append(f"{w}px: body overflow")
+                if r["status_off"]:
+                    problems.append(f"{w}px: status chrome offscreen {r['status_off']}")
                 if r["toolbar"]:
                     problems.append(f"{w}px: ToolBox offscreen right={r['toolbar']}")
                 if r["menus"]:

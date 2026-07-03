@@ -1463,6 +1463,37 @@ function gateChrome(role) {
   else if (mq.addListener) mq.addListener(apply);
 })();
 
+// FR-16 (Aaron mobile review): the operational status/account chrome (#healthchip/#alertbtn/#whoami) scrolls
+// offscreen at the right of the horizontally-scrolling #viewtabs on phones. Gather it + the workspace slot
+// into a FIXED non-scrolling top bar (#statuscluster) so it stays in the first viewport. Element MOVE (keep
+// IDs so the state renderers ride along); dissolved + restored to #viewtabs on desktop, so no desktop change.
+(function placeStatusCluster() {
+  const vt = document.getElementById("viewtabs");
+  if (!vt || !window.matchMedia) return;
+  const els = ["healthchip", "alertbtn", "wsslot", "whoami"].map((id) => document.getElementById(id)).filter(Boolean);
+  if (!els.length) return;
+  const homes = els.map((el) => [el.parentNode, el.nextSibling]);   // captured before any move
+  const cluster = document.createElement("div");
+  cluster.id = "statuscluster";
+  const mq = window.matchMedia("(max-width: 860px)");
+  const apply = () => {
+    if (mq.matches) {
+      if (cluster.parentNode !== vt) vt.appendChild(cluster);
+      els.forEach((el) => cluster.appendChild(el));
+    } else {
+      els.forEach((el, i) => {
+        const [parent, next] = homes[i];
+        if (next && next.parentNode === parent) parent.insertBefore(el, next);
+        else parent.appendChild(el);        // sibling moved too -> append to the home parent
+      });
+      if (cluster.parentNode) cluster.remove();
+    }
+  };
+  apply();
+  if (mq.addEventListener) mq.addEventListener("change", apply);
+  else if (mq.addListener) mq.addListener(apply);
+})();
+
 // ---- UI-1/UI-2 (PRD 16.5): operator display settings, persisted ------------------------------
 function applySettings(s) {
   document.body.classList.toggle("light", s.theme === "light");
