@@ -951,6 +951,36 @@ Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO
 - acceptance: [REQ:FS-19] fails if a required record lacks the source-asset/freshness/provenance/mode/profile/transaction linkage.
 - files: stewie/server/services.py, stewie/server/server.py, stewie/server/test_observability_ledger.py
 - test_target: stewie/server/test_mission_evidence_ledger.py citing [REQ:FS-19]
+### FR-16 (P1) — atomic
+- goal: fixed mobile status/action bar -- move #healthchip/#alertbtn/#wsbadge/#whoami out of the scrolling #viewtabs into a non-scrolling top bar.
+- acceptance: at 320/360/390/430px health/alerts/workspace/account are visible in the first viewport, no body horizontal overflow.
+- files: stewie/server/index.html, stewie/server/web/assets/cockpit.js
+- test_target: stewie/server/test_fr16_mobile_topbar.py citing [REQ:FR-16]
+### FR-17 (P1) — atomic
+- goal: More/profile menus render as position:fixed viewport-clamped mobile sheets (were absolutely positioned in tab-strip children, opened offscreen).
+- acceptance: opening #moremenu/#profmenu at 320/390/430/768 never produces an offscreen menu rect.
+- files: stewie/server/index.html, stewie/server/web/assets/cockpit.js
+- test_target: stewie/server/test_fr17_mobile_menu_sheets.py citing [REQ:FR-17]
+### FR-18 (P1) — atomic
+- goal: /program mobile touch ergonomics -- .fbtn/#program-search/.rowchip to min-height 44px, full-width search.
+- acceptance: at phone widths every /program filter/search/row control >=44px, enforced by a static + runtime check.
+- files: stewie/server/web/program.html, stewie/server/web/assets/program_board.js
+- test_target: stewie/server/test_fr18_program_touch_targets.py citing [REQ:FR-18]
+### FR-19 (P1) — atomic
+- goal: Plan ToolBox is a viewport-contained mobile sheet with a 44px keep-out radius control (#edittoolbar/#edittools/#koradius).
+- acceptance: at 320/390/430/768 every visible #edittoolbar button/input is inside the viewport and >=44px incl the keep-out radius.
+- files: stewie/server/index.html, stewie/server/test_fr19_toolbox_mobile.py, scripts/fr19_toolbox_probe.py
+- test_target: stewie/server/test_fr19_toolbox_mobile.py citing [REQ:FR-19]
+### FR-20 (P2) — atomic
+- goal: mobile command-surface smoke gate across 320/360/390/430/768 (overflow + first-viewport chrome + menus in-viewport + ToolBox contained + all controls >=44x44).
+- acceptance: the gate runs the five viewports and fails on any violation.
+- files: scripts/ux_a11y_smoke.py, scripts/ui_smoke.mjs
+- test_target: scripts/mobile_review_smoke.mjs citing [REQ:FR-20]
+### FR-21 (P2) — atomic
+- goal: mobile IA control-plane split (status bar / workflow rail / subnav / drawer / account sheet).
+- acceptance: the mobile shell separates the stable status/action plane from the scrollable workflow rail (verified via FR-16 + FR-20).
+- files: stewie/server/index.html, stewie/server/web/assets/cockpit.js
+- test_target: stewie/server/test_fr21_mobile_ia.py citing [REQ:FR-21]
 
 ## Bottom-up rover autonomy architecture audit (2026-07-02) -- 11 rows (§7.18 BA-01..11)
 

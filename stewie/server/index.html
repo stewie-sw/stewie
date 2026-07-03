@@ -239,7 +239,14 @@
        visual chrome compact while the tappable box is finger-sized. */
     button, .site, .go, .vtab, #drawerbtn, #alertbtn, select, input[type="checkbox"], input[type="range"] {
       min-height: 44px; min-width: 44px; }   /* frontend-audit B: range sliders join the 44px touch rule (track stays slim) */
-    #edittoolbar { top: 8px; right: 50px; flex-wrap: wrap; max-width: 66vw; }   /* #175: keep clear of the on phones too */
+    /* FR-19: contain the expanded ToolBox within the viewport (was right:50px + max-width:66vw -> the
+       #edittools tray clipped ~2px past the 320px viewport). Anchor 8px from the right and cap the width to
+       the viewport minus 8px margins so the left edge stays >=8px, and wrap the tools into rows. */
+    #edittoolbar { top: 8px; right: 8px; left: auto; max-width: calc(100vw - 16px);
+                   flex-wrap: wrap; justify-content: flex-end; }   /* #175 / FR-19: clear of chrome + contained */
+    #edittools label { min-height: 44px; display: inline-flex; align-items: center; gap: 2px; }
+    input[type="number"], #koradius { min-height: 44px; }   /* FR-19: the keep-out radius input meets the touch floor (was 52x29) */
+    #koradius { width: 4.5em; box-sizing: border-box; }
     /* the work-area DEM inset must not block a phone screen: shrink it + win over the base
        #workarea rule (declared LATER, so plain #workarea here loses the cascade -- body #workarea
        outranks it). MUST also drop the base min-width:180px, which otherwise beats max-width. */
