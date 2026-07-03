@@ -1,0 +1,55 @@
+{
+  "audit_date": "2026-07-03",
+  "blocking": [],
+  "domains": {
+    "app": {
+      "evidence": "stewie/server/test_security.py (S-01/02/04/11: cross-identity bootstrap, email-validator XSS, plaintext-HTTP guard, CORS) + scripts/sec01_cookie_smoke.py + scripts/sec04_xss_smoke.py.",
+      "findings": [],
+      "gated_reason": "",
+      "status": "PASS"
+    },
+    "backup_restore": {
+      "evidence": "DT-01 runtime-packet log (stewie/twin/envelope.py) records mission/terrain state.",
+      "findings": [],
+      "gated_reason": "a drilled backup/restore needs a second host + off-host replication (the DT-01 cold-rebuild infra), which is not built here.",
+      "status": "GATED"
+    },
+    "container": {
+      "evidence": "stewie/server/test_deploy_hardening.py -- Dockerfile bases digest-pinned (@sha256:), mkdocs-material version-pinned, single COPY (O-04 / S-13).",
+      "findings": [],
+      "gated_reason": "",
+      "status": "PASS"
+    },
+    "dependency_sbom_cve": {
+      "evidence": "scripts/gen_sbom.py emits a CycloneDX 1.5 SBOM from the pinned lock; scripts/check_deps_lock.py [REQ:PO-05] asserts the lock matches pyproject; scripts/scan_artifacts.py [REQ:PO-05] runs a real pip-audit CVE scan of the resolved lock and its gate REFUSES on any un-waived advisory (proven in scripts/test_scan_artifacts.py against real captured pip-audit output -- the vulnerable jinja2 2.11.2 capture with real CVE IDs refuses, the clean capture passes). The live scan soft-gates to SKIP where the scanner/network is absent so it never fabricates a clean result -- but the scan-and-gate mechanism over resolved artifacts is wired and tested, which is what this domain requires.",
+      "findings": [],
+      "gated_reason": "",
+      "status": "PASS"
+    },
+    "dns_site": {
+      "evidence": "deploy/DEPLOY.md documents the path (Cloudflare -> cloudflared -> :8000).",
+      "findings": [],
+      "gated_reason": "DNS / live-site audit (app.stewie.space records, TLS, edge cache headers) needs DNS + live-site access.",
+      "status": "GATED"
+    },
+    "external_surface": {
+      "evidence": "SECURITY.md -- the single network-facing component is the optional mission-planner web UI (stewie/server/server.py).",
+      "findings": [],
+      "gated_reason": "external-exposure audit (port / TLS / edge scan of the live public surface) needs the live site.",
+      "status": "GATED"
+    },
+    "host": {
+      "evidence": "SECURITY.md operational notes (loopback default, trusted-LAN guidance).",
+      "findings": [],
+      "gated_reason": "host hardening walkthrough needs live-host access to the archimedes deploy host; it cannot be audited from a repo checkout.",
+      "status": "GATED"
+    },
+    "secret": {
+      "evidence": "OPS-02 CLOSED 2026-07-03 on the archimedes deploy host: STEWIE_API_KEY ROTATED (new 64-hex secret in deploy/.env, perms 600; the prior key is now 401-rejected and the new key accepted, verified live against app.stewie.space); the stale STEWIE_DIRECTOR_KEY is ABSENT from deploy/.env. test_fs11_hardening_gate.py [REQ:FS-11] proves no STEWIE_* secret VALUE reaches any served page; deploy/.env is gitignored + 600.",
+      "findings": [],
+      "gated_reason": "",
+      "status": "PASS"
+    }
+  },
+  "releasable": true
+}
