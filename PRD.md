@@ -597,6 +597,36 @@ platform scope. Design: `docs/prd_reorg_spec_2026-07-03.md` + `docs/backend_/fro
 | PG-01 | P2 | PostgreSQL/PostGIS as a durable persistence/projection layer, NOT authority: `TwinStore` events mirror to a PostGIS projection; the conserved model still mutates truth. | N | N | N | NA |
 | MI-01 | P3 | Multi-engine planetary IDE: the Tauri shell hosts the web cockpit and may orchestrate Godot/RViz as context-synced panels; the web cockpit stays the operator shell; native engines are sidecars. | N | N | N | NA |
 
+### 7.C Environment-governed operations + control backend (2026-07-03, see §29)
+
+| ID | P | Requirement and acceptance | I | X | V | Q |
+|----|---|----------------------------|---|---|---|---|
+| EG-01 | P0 | Environment modes as a typed model: `EnvironmentMode` = DEV/TRAINING/REHEARSAL/LIVE/REPLAY/ARCHIVE + a per-mode authority matrix over 7 flags (command-real-robot / modify-accepted-world / create-branches / publish / delete / simulate / approve-merges), encoded per §29.1. Acceptance: the matrix contract + a test asserting each mode's flags (LIVE alone commands robots; REPLAY/ARCHIVE fully read-only). | N | N | N | NA |
+| EG-02 | P0 | Central mode-authority ENFORCEMENT: every world-write + asset-command routes through one guard that rejects the action unless the active mode grants it. Acceptance: a TRAINING-mode write to accepted/live world is rejected, a non-LIVE command to a real asset is rejected, and a cross-mode isolation test proves training cannot reach live world state. | N | N | N | NA |
+| EG-03 | P0 | Database/branch isolation: `stewie_{dev,training,live,archive}` with per-store branches (actual_world/simulation/training/replay/what_if); LIVE physically separate. Acceptance: a training-branch write cannot land in the live actual_world store (isolation test); the store a session resolves is a function of its mode. | N | N | N | NA |
+| EG-04 | P1 | Role/permission model: Admin/SafetyOfficer/MissionDirector/Operator/Planner/Scientist/Engineer/Trainer/Trainee/Viewer/AIAgent + a per-role permission set + explicit live-command eligibility. Acceptance: role floors enforced (Viewer read-only, Trainee training-only, Engineer non-live-only, SafetyOfficer approves live transitions); test. | N | N | N | NA |
+| EG-05 | P0 | Training-to-live gate: the 8-step sequence (mission→sim branch→rehearsal→physics→safety→human approval→live token→bridge unlock) mints a live-execution TOKEN; execution-service unlocks the command bridge only with a valid token. Acceptance: a mission cannot issue a live command without a token derived from steps 1-7; test. | N | N | N | NA |
+| EG-06 | P0 | Command-safety pipeline: UI→mission-service(validate)→safety-service(constraints)→execution-service(mode)→ROS2 bridge→audit. Invariant: no UI panel commands ROS2 directly; execution-service is the sole egress. Acceptance: a command skipping any stage is rejected; test proves the single egress. | N | N | N | NA |
+| EG-07 | P1 | Immutable audit trail: every critical action records who/what/when/where/mode/reason/before-state/after-state/evidence, append-only + hash-chained (extends the TwinStore journal). Acceptance: a live command, a merge, and a config change each emit a record carrying all 9 fields; tamper is detectable; test. | N | N | N | NA |
+| EG-08 | P1 | Reconciliation lifecycle: `observed→compared→proposed→reviewed→accepted/rejected→applied→archived` with confidence + model/sensor error flags. Acceptance: a proposal advances the states; a rejected proposal never mutates accepted truth; a manual override is logged; test. | N | N | N | NA |
+| EG-09 | P1 | Backend service separation: the 12 bounded services (config/auth/world/mission/asset/physics/sim/execution/reconcile/training/audit/admin) with an explicit import-DAG (extends §7.B); execution-service alone imports the ROS2 bridge. Acceptance: an import-boundary test asserts the DAG (no cross-service back-edges; sole ROS2 egress). | N | N | N | NA |
+| EG-10 | P2 | Admin/control-backend taxonomy: the 13 sections (§29.8) as role-gated admin panels, each reading only its service. Acceptance: each section routes to its service data; a role without authority cannot see/act on a section; test. | N | N | N | NA |
+| EG-11 | P0 | Safety-control layer: e-stop, live-command lock, geofences, speed/dig-depth/slope limits, battery minimums, comms-loss behavior, collision constraints, abort rules. No live execution bypasses it. Acceptance: each limit rejects an out-of-bound command, e-stop halts, comms-loss triggers the defined behavior; test. | N | N | N | NA |
+| EG-12 | P1 | Physics/model control: backend selection (analytical/Chrono, PX-04), model versioning, freeze-validated, per-body/regolith profiles, calibration + validation status. Acceptance: the frozen validated model is the LIVE default; a deprecated/unvalidated model cannot be selected for LIVE; test. | N | N | N | NA |
+
+### 7.D Mission-planning engine (2026-07-03, see §30)
+
+| ID | P | Requirement and acceptance | I | X | V | Q |
+|----|---|----------------------------|---|---|---|---|
+| MP-05 | P1 | Mission-planning object model: intent/mission/task/task_dependency/plan/plan_candidate/assignment/resource_budget/risk_assessment/rehearsal_result/execution_policy/plan_decision as strict typed contracts, provenance + transaction-linked to the world-model store. Acceptance: each is a Contract subclass; a plan round-trips through the store carrying its decision + provenance; test. | N | N | N | NA |
+| MP-06 | P1 | The intent-to-world planning FLOW: Intent→Tasks→Capability matching→Candidate plans→Physics scoring→Rehearsal→Approval→Execution→Reconciliation→Updated world model, deterministic on existing code (ties DE-01). Acceptance: a mission drives the full flow end-to-end producing an updated world + a report; test. | N | N | N | NA |
+| MP-07 | P0 | Plan-executability gate: no plan is executable until it has all 8 of required-capabilities, assigned-assets, physics-score, resource-budget, rehearsal-result, safety-check, approval-record, rollback/abort-rule (the planning mirror of §29.5). Acceptance: a plan missing any one precondition is non-executable; test enumerates all 8. | N | N | N | NA |
+| MP-08 | P1 | Capability matching: required-capabilities × available-assets × assignment-rules select the asset set. Acceptance: an unmet required capability blocks assignment; a met set yields an assignment honoring the rules; test. | N | N | N | NA |
+| MP-09 | P1 | Physics planning/scoring: sinkage/slip/excavation-force/energy/stability scored per candidate via the conserved PhysicsBackend (PX-04). Acceptance: each candidate carries a physics score from the conserved backend; an infeasible candidate is flagged (not silently ranked); test. | N | N | N | NA |
+| MP-10 | P1 | Rehearsal: candidate plans → Gazebo/Chrono simulation → predicted outcomes → risk scoring, on simulation branches in REHEARSAL mode. Acceptance: a rehearsal yields predicted outcomes + a risk score WITHOUT touching live/accepted world (mode-gated per EG-02); test. | N | N | N | NA |
+| MP-11 | P1 | Reconciliation step: prediction vs observation → plan deviation → world-update + model-update proposals (feeds EG-08 / §29.7). Acceptance: an executed plan's predicted-vs-observed diff yields a world-update proposal + a flagged model error; test. | N | N | N | NA |
+| MP-12 | P2 | The 10 planning UI panels: Mission Graph / Map-3D / Capability Board / Physics / Timeline / Resource / Rehearsal / Risk / Execution / Reconcile, each rendering its planning object from the API. Acceptance: each panel renders its object; frontend (GeoLibre rewrite lane). | N | N | N | NA |
+
 ### 7.1 Contracts and Conserved Authority
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
@@ -2075,3 +2105,164 @@ The dissertation/committee claim should use three labels:
 This prevents the common over-claim: STEWIE can validate the mechanism and the autonomy response, while
 vacuum, one-sixth gravity, electrostatic dust, PSR radiometry, multi-week thermal cycles, and long-period
 relay geometry remain simulation/reference-layer claims unless a future testbed can reproduce them.
+
+## 29. Environment-Governed Operations & Control Backend (2026-07-03)
+
+STEWIE operations are governed by the ENVIRONMENT MODE, not by loose admin toggles. Authority (what a
+session may do) is a property of the mode it runs in, enforced centrally, so nothing can accidentally cross
+from training into live. The control backend is organized around four axes: authority (mode + role), intent
+(mission), permission (safety), and truth + accountability (world-state + audit): admin config controls
+authority, mission control controls intent, safety control controls permission, execution control controls
+commands, world control controls truth, audit control records everything.
+
+### 29.1 Core environment modes + mode-authority matrix
+
+| Mode | Purpose | Command real robot? | Modify accepted world? | Create branches? | Publish? | Delete data? | Simulate? | Approve merges? |
+|---|---|---|---|---|---|---|---|---|
+| DEV | local testing, fake robots, disposable data | no | no (dev DB only) | yes | no | yes (dev only) | yes | no |
+| TRAINING | simulated missions, sandboxes, guided workflows | no | no (training branch only) | training branches only | no | sandbox reset only | yes | no |
+| REHEARSAL | mission simulation on REAL configs, no hardware writes | no | no (sim branch only) | simulation branches only | no | no | yes | no |
+| LIVE | real robot / real mission authority | yes | yes (via merge queue) | yes | yes | no | n/a | yes (Safety Officer) |
+| REPLAY | read-only historical reconstruction | no | no | no | no | no | no | no |
+| ARCHIVE | frozen record | no | no | no | export only | no | no | no |
+
+Mode authority rule (the binding invariant): TRAINING may write only to training branches; REHEARSAL only to
+simulation branches; LIVE may command real assets; REPLAY / ARCHIVE are read-only. A write or command is
+rejected unless the active mode grants that authority. No training-mode session can reach live world state.
+
+### 29.2 Backend service separation
+
+Bounded services, each owning one concern, wired by an explicit import-DAG (the packaging boundary of §7.B +
+the interface contracts). The ROS 2 bridge in execution-service is the ONLY path to a real robot.
+
+```
+stewie-backend/
+  config-service       settings, environment mode, feature flags
+  auth-service         users, roles, permissions
+  world-service        world state (bodies, branches, snapshots, accepted truth)
+  mission-service      tasks, plans, assignments, approval gates
+  asset-service        robots, capabilities, health, command locks
+  physics-service      Forge / Chrono predictions (PhysicsBackend, PX-04)
+  sim-service          Gazebo / rehearsal branches
+  execution-service    ROS 2 command bridge (sole real-robot egress)
+  reconcile-service    predicted vs observed merge
+  training-service     lessons, scenarios, scoring, synthetic robots
+  audit-service        immutable logs
+  admin-api            operator / admin controls
+```
+
+### 29.3 Database + branch split
+
+Separate databases (or hard schema isolation); LIVE is physically separate. Early setup:
+`stewie_dev`, `stewie_training`, `stewie_live`, `stewie_archive`. Inside each: `actual_world`,
+`simulation_branch`, `training_branch`, `replay_branch`, `what_if_branch`. Training never touches live tables.
+
+### 29.4 Roles + permissions
+
+Admin, Safety Officer, Mission Director, Operator, Planner, Scientist, Engineer, Trainer, Trainee, Viewer,
+AI Agent. Representative floors: Viewer read-only; Trainee training mode only; Operator executes approved
+missions; Planner creates plans + rehearsals; Scientist runs experiments/analysis; Engineer modifies
+models/configs in non-live modes only; Admin manages users + system settings; Safety Officer approves live
+transitions + critical commands. Each user carries training status + explicit live-command eligibility.
+
+### 29.5 Training-to-live gate
+
+Before a mission goes live, in order: (1) mission created, (2) simulation branch created, (3) rehearsal
+completed, (4) physics checks passed, (5) safety checks passed, (6) human approval recorded, (7) live
+execution token issued, (8) execution-service unlocks the command bridge. No live command executes without a
+valid token.
+
+### 29.6 Command safety model + invariants
+
+```
+UI request -> mission-service validates task -> safety-service checks constraints
+           -> execution-service checks mode -> ROS 2 bridge sends command -> audit-service records everything
+```
+
+Critical invariants: no UI panel sends commands directly to ROS 2; no training mode writes to live world
+state; no live command executes without mode, role, mission, safety, and audit approval.
+
+### 29.7 Reconciliation lifecycle
+
+`observed -> compared -> proposed -> reviewed -> accepted/rejected -> applied -> archived`. Carries prediction
+vs observation, world diffs, confidence scores, and model/sensor error flags; manual override is logged.
+
+### 29.8 Admin / control-backend sections (13)
+
+System Admin (services health, versions, DB/bus/storage status, build SHA, feature flags, maintenance mode);
+Users & Roles (users/teams/roles/permissions/API keys/sessions/access history/approval authority/live-command
+eligibility); Environment Mode Control (the six modes + their authority definitions); Asset Control
+(robots/sensors/actuators/payloads/relays/capabilities/health/limits/command locks; per-asset status/pose/
+battery/thermal/comms/faults/twin link); Mission Control (creation/templates/objectives/task graph/assignment/
+approval gates/execution state/abort criteria; lifecycle draft -> planned -> rehearsed -> approved -> live ->
+completed -> reconciled -> archived); World-State Control (bodies/branches/snapshots/layers/WorldObjects/
+accepted truth/candidate updates; create/lock/snapshot/compare/promote/rollback/archive); Simulation/Training
+Control (scenarios/synthetic robots/lessons/scoring/Gazebo+Chrono runs/rehearsal branches/sandbox reset);
+Physics/Model Control (Forge+Chrono versions/regolith+body profiles/terramechanics params/calibration/
+validation/backend selection/freeze/deprecate); Safety Control (e-stop, live-command lock, geofences, speed/
+dig-depth/slope limits, battery minimums, comms-loss behavior, collision constraints, approval gates, abort
+rules); Reconciliation Control (merge proposals/diffs/confidence/accept-reject/overrides/error flags); Data/
+Artifact Control (DEM/COG-GeoTIFF/GeoParquet/MCAP/images/meshes/glTF-USD/3D-Tiles/reports/checksums/URIs);
+Audit/Compliance (user actions/config changes/approvals/live commands/safety overrides/merge decisions/model
+changes/imports/promotions/exports; each with who/what/when/where/mode/reason/before/after/evidence);
+Developer/Ops Tools (logs/metrics/tracing/event stream/queue status/migrations/import-boundary checks/schema
+validation/API explorer/ROS bridge status/service restart/test scenario runner).
+
+### 29.9 Tracked rows
+
+The buildable core is atomized into the §7.C EG lane (EG-01..EG-12): the mode model + authority matrix, the
+central mode-authority enforcement, the DB/branch isolation, the role/permission model, the training-to-live
+gate + token, the command-safety pipeline, the immutable audit trail, the reconciliation lifecycle, the
+service separation, the admin-console taxonomy, the safety-control layer, and physics/model control.
+
+## 30. Mission-Planning Engine (2026-07-03)
+
+Planning is a MISSION-PLANNING ENGINE, not a path planner. It does not "find a path": it chooses actions that
+transform the world safely, with known resources, known physics, known uncertainty, and traceable
+justification. The engine is a directed flow from intent to an updated world model.
+
+### 30.1 Planning structure
+
+```
+Intent          objective, success criteria, constraints
+Mission         phases, tasks, dependencies, approval gates
+Capabilities    required capabilities, available assets, assignment rules
+Spatial         routes, traversability, hazards, geofences
+Physics         sinkage, slip, excavation force, energy, stability
+Rehearsal       candidate plans, Gazebo/Chrono simulation, predicted outcomes, risk scoring
+Execution       command sequence, behavior tree, monitoring, abort rules
+Reconciliation  prediction vs observation, plan deviation, world update, model update
+Report          mission metrics, evidence, decisions, replay
+```
+
+### 30.2 Core planning flow
+
+`Intent -> Tasks -> Capability matching -> Candidate plans -> Physics scoring -> Rehearsal -> Approval ->
+Execution -> Reconciliation -> Updated world model`.
+
+### 30.3 Plan-executability gate
+
+No plan becomes executable until it has all eight of: (1) required capabilities, (2) assigned assets,
+(3) physics score, (4) resource budget, (5) rehearsal result, (6) safety check, (7) approval record,
+(8) rollback / abort rule. This is the planning-side mirror of the §29.5 training-to-live gate.
+
+### 30.4 Object model
+
+`missions.intent`, `missions.mission`, `missions.task`, `missions.task_dependency`, `missions.plan`,
+`missions.plan_candidate`, `missions.assignment`, `missions.resource_budget`, `missions.risk_assessment`,
+`missions.rehearsal_result`, `missions.execution_policy`, `missions.plan_decision` (typed contracts, provenance
++ transaction-linked per the world-model store).
+
+### 30.5 Planning UI panels
+
+Mission Graph (objectives/tasks/dependencies); Map/3D View (route/terrain/hazards/work area); Capability Board
+(which robot can do what); Physics Panel (slip/sinkage/excavation/energy); Timeline (task order + duration);
+Resource Panel (battery/time/bandwidth/wear); Rehearsal Panel (candidate-plan simulations); Risk Panel
+(confidence/safety/abort triggers); Execution Panel (approved command sequence); Reconcile Panel (predicted vs
+actual outcome).
+
+### 30.6 Tracked rows
+
+The buildable core is atomized into the §7.D MP lane (MP-05..MP-12): the object model, the intent-to-world
+flow, the eight-precondition executability gate, capability matching, physics scoring, rehearsal, the
+reconciliation step, and the ten planning UI panels.

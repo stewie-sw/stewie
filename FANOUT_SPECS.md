@@ -1212,3 +1212,103 @@ Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO
 - goal: platform backlog row TW-11 (PRD §7 + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/twin/terrain_memory.py
 - test_target: NEW test citing [REQ:TW-11]
+
+### EG-01 (design) — atomic
+- goal: platform backlog row EG-01 (PRD §7 + §29/§30 governance+planning specs).
+- files: stewie/contracts/__init__.py
+- test_target: NEW test citing [REQ:EG-01]
+
+### EG-02 (design) — atomic
+- goal: platform backlog row EG-02 (PRD §7 + §29/§30 governance+planning specs).
+- files: stewie/contracts/__init__.py
+- test_target: NEW test citing [REQ:EG-02]
+
+### EG-03 (design) — atomic
+- goal: platform backlog row EG-03 (PRD §7 + §29/§30 governance+planning specs).
+- files: stewie/contracts/__init__.py
+- test_target: NEW test citing [REQ:EG-03]
+
+### EG-04 (design) — atomic
+- goal: platform backlog row EG-04 (PRD §7 + §29/§30 governance+planning specs).
+- files: stewie/contracts/__init__.py
+- test_target: NEW test citing [REQ:EG-04]
+
+### EG-05 (design) — atomic
+- goal: platform backlog row EG-05 (PRD §7 + §29/§30 governance+planning specs).
+- files: stewie/contracts/__init__.py
+- test_target: NEW test citing [REQ:EG-05]
+
+### EG-06 (design) — atomic
+- goal: platform backlog row EG-06 (PRD §7 + §29/§30 governance+planning specs).
+- files: stewie/contracts/__init__.py
+- test_target: NEW test citing [REQ:EG-06]
+
+### EG-07 (design) — atomic
+- goal: platform backlog row EG-07 (PRD §7 + §29/§30 governance+planning specs).
+- files: stewie/contracts/__init__.py
+- test_target: NEW test citing [REQ:EG-07]
+
+### EG-08 (design) — atomic
+- goal: platform backlog row EG-08 (PRD §7 + §29/§30 governance+planning specs).
+- files: stewie/contracts/__init__.py
+- test_target: NEW test citing [REQ:EG-08]
+
+### EG-09 (design) — atomic
+- goal: platform backlog row EG-09 (PRD §7 + §29/§30 governance+planning specs).
+- files: stewie/contracts/__init__.py
+- test_target: NEW test citing [REQ:EG-09]
+
+### EG-10 (design) — atomic
+- goal: platform backlog row EG-10 (PRD §7 + §29/§30 governance+planning specs).
+- files: stewie/contracts/__init__.py
+- test_target: NEW test citing [REQ:EG-10]
+
+### EG-11 (design) — atomic
+- goal: platform backlog row EG-11 (PRD §7 + §29/§30 governance+planning specs).
+- files: stewie/contracts/__init__.py
+- test_target: NEW test citing [REQ:EG-11]
+
+### EG-12 (design) — atomic
+- goal: platform backlog row EG-12 (PRD §7 + §29/§30 governance+planning specs).
+- files: stewie/contracts/__init__.py
+- test_target: NEW test citing [REQ:EG-12]
+
+### MP-05 (design) — atomic
+- goal: platform backlog row MP-05 (PRD §7 + §29/§30 governance+planning specs).
+- files: lode/mission_planner.py
+- test_target: NEW test citing [REQ:MP-05]
+
+### MP-06 (design) — atomic
+- goal: platform backlog row MP-06 (PRD §7 + §29/§30 governance+planning specs).
+- files: lode/mission_planner.py
+- test_target: NEW test citing [REQ:MP-06]
+
+### MP-07 (design) — atomic
+- goal: platform backlog row MP-07 (PRD §7 + §29/§30 governance+planning specs).
+- files: lode/mission_planner.py
+- test_target: NEW test citing [REQ:MP-07]
+
+### MP-08 (design) — atomic
+- goal: platform backlog row MP-08 (PRD §7 + §29/§30 governance+planning specs).
+- files: lode/mission_planner.py
+- test_target: NEW test citing [REQ:MP-08]
+
+### MP-09 (design) — atomic
+- goal: platform backlog row MP-09 (PRD §7 + §29/§30 governance+planning specs).
+- files: lode/mission_planner.py
+- test_target: NEW test citing [REQ:MP-09]
+
+### MP-10 (design) — atomic
+- goal: platform backlog row MP-10 (PRD §7 + §29/§30 governance+planning specs).
+- files: lode/mission_planner.py
+- test_target: NEW test citing [REQ:MP-10]
+
+### MP-11 (design) — atomic
+- goal: platform backlog row MP-11 (PRD §7 + §29/§30 governance+planning specs).
+- files: lode/mission_planner.py
+- test_target: NEW test citing [REQ:MP-11]
+
+### MP-12 (design) — atomic
+- goal: platform backlog row MP-12 (PRD §7 + §29/§30 governance+planning specs).
+- files: lode/mission_planner.py
+- test_target: NEW test citing [REQ:MP-12]
