@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "85dc6aebe5fc5432f7226b6a98ef3da6bc8ccb7c2f0660abeb40d9dd01c2f971",
+  "citations_sha256": "7cfe71547daeb27ce8f5f29b7e08aa5a86eb5368903a90beb482d53678e67a25",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "cfd9c3b094f33e49f55ecc97730901643adad114",
-  "prd_sha256": "eb0a650274b9b15527a75843bac980bc0277fe4a0aec49ecea8805390c5e6114",
+  "prd_commit": "e1cc72d9a48cd52a0e3c1e47e2749b7ff11b5f9b",
+  "prd_sha256": "1c9a00649a725b02dd3e0feebfa4afc7a902e3b7aaf777cb926cdbbf8fcf63e7",
   "specs_sha256": "275af78c3aa598f23f68731802273f5c824e01a7c37444e575c3f2a753fae792"
  },
  "rows": [
@@ -1608,17 +1608,17 @@
    "text": "**Fixed mobile status/action bar -- critical chrome out of the scrolling tab strip (mobile review; extends FR-06/FS-26).** On phones `#healthchip`/`#alertbtn`/`#wsbadge`/`#whoami` live inside the horizontally-scrolling `#viewtabs` (measured x>=570 px) and scroll offscreen. Move them into a FIXED non-scrolling mobile top bar (drawer + health + alerts + workspace + account), leaving `#viewtabs` a work-area rail only; use `env(safe-area-inset-*)`. Acceptance: at 320/360/390/430 px, health/alerts/workspace/account are visible in the first viewport without horizontal tab scrolling and no body horizontal overflow. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "More/profile menus render as position:fixed viewport-clamped mobile sheets (were absolutely positioned in tab-strip children, opened offscreen).",
     "kind": "atomic",
     "test_target": "stewie/server/test_fr17_mobile_menu_sheets.py citing [REQ:FR-17]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FR-17",
    "lane": "FR",
    "pri": "P1",
@@ -3833,9 +3833,9 @@
  "summary": {
   "briefs": 133,
   "buckets": {
-   "buildable": 69,
+   "buildable": 68,
    "concurrent": 0,
-   "done": 167,
+   "done": 168,
    "gated": 25
   },
   "by_lane": {
@@ -3880,7 +3880,7 @@
     "total": 7
    },
    "FR": {
-    "done": 3,
+    "done": 4,
     "total": 21
    },
    "FS": {
@@ -3958,7 +3958,7 @@
     "total": 76
    },
    "P1": {
-    "done": 90,
+    "done": 91,
     "total": 160
    },
    "P2": {
@@ -3970,10 +3970,10 @@
     "total": 1
    }
   },
-  "cited": 189,
-  "done_pct": 64.0,
+  "cited": 190,
+  "done_pct": 64.4,
   "in_scope": 236,
-  "in_scope_done_pct": 70.8,
+  "in_scope_done_pct": 71.2,
   "total": 261
  },
  "workflow_spine": [
