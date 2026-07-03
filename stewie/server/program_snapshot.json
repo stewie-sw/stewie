@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "d2fe960585597c565e08c021cb428c79241d192ddb1fb2231abde23d95ac96f8",
+  "citations_sha256": "11b7c93edf11daa0bcf19b1dcdc8a15c0429bb1d49f5f20c5883519d2d7de78e",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "15d6a7585c697daa3be1cde6c99c1c512891e3a9",
-  "prd_sha256": "00b4db0f321f8570488f09a4d46ccb0b1f57a37a6138525cb83db0ac8f5a506e",
+  "prd_commit": "087f050a838bbfeb94563494e8008ed85fff3a17",
+  "prd_sha256": "599fea777513e8d0dcd1fb1ba1f6f259ba2708c959cae67018f7badef72901a1",
   "specs_sha256": "44e106abc41becf9f01d5efd897f79b31bc05a82288054ef0bbcd00934cd880e"
  },
  "rows": [
@@ -3485,17 +3485,17 @@
    "text": "Define `PhysicsBackend` protocol + `Tier2NumpyBackend` over existing terramechanics/`forge.bearing`/planner-context; Moon/BP-1 `/plan` byte-compatible or diff-reviewed; support verdict reports authority_class + conserves_mass; no learned/client component mutates terrain."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "lock the production physics import boundary; correct the stale docs claim; relocate/mark the 3 coupled test files.",
     "kind": "atomic",
     "test_target": "NEW scripts/test_import_boundaries.py citing [REQ:PX-05]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PX-05",
    "lane": "PX",
    "pri": "P0",
@@ -4274,9 +4274,9 @@
  "summary": {
   "briefs": 142,
   "buckets": {
-   "buildable": 88,
+   "buildable": 87,
    "concurrent": 0,
-   "done": 181,
+   "done": 182,
    "gated": 25
   },
   "by_lane": {
@@ -4401,7 +4401,7 @@
     "total": 18
    },
    "PX": {
-    "done": 1,
+    "done": 2,
     "total": 5
    },
    "RF": {
@@ -4451,7 +4451,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 78,
+    "done": 79,
     "total": 94
    },
    "P1": {
@@ -4467,10 +4467,10 @@
     "total": 2
    }
   },
-  "cited": 200,
-  "done_pct": 61.6,
+  "cited": 201,
+  "done_pct": 61.9,
   "in_scope": 269,
-  "in_scope_done_pct": 67.3,
+  "in_scope_done_pct": 67.7,
   "total": 294
  },
  "workflow_spine": [
