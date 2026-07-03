@@ -951,3 +951,60 @@ Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO
 - acceptance: [REQ:FS-19] fails if a required record lacks the source-asset/freshness/provenance/mode/profile/transaction linkage.
 - files: stewie/server/services.py, stewie/server/server.py, stewie/server/test_observability_ledger.py
 - test_target: stewie/server/test_mission_evidence_ledger.py citing [REQ:FS-19]
+
+## Bottom-up rover autonomy architecture audit (2026-07-02) -- 11 rows (§7.18 BA-01..11)
+
+### BA-01 (P0) — atomic
+- goal: fix/validate the gz_bridge point-cloud topic vs the gpu_lidar publisher (gpu_lidar <topic>X</topic> -> PointCloudPacked on X/points; the bridge is actually correct) + a host-side consistency test asserting every bridged sensor topic has a matching xacro/SDF publisher.
+- files: ros2_ws/src/stewie_bringup/config/gz_bridge.yaml, ros2_ws/src/stewie_description/urdf/ipex.gazebo.xacro
+- test_target: extend ros2_ws/test_gz_bridge.py with a `[REQ:BA-01]` topic-publisher-consistency test
+
+### BA-02 (P0) — atomic
+- goal: add stereo camera_info + the missing rear/side/drum image topics to the Gazebo bridge + the autonomy contract; assert each image topic has a paired camera_info.
+- files: ros2_ws/src/stewie_bringup/config/gz_bridge.yaml, stewie/bridge/autonomy_contract.py
+- test_target: extend ros2_ws/test_gz_bridge.py (or NEW ros2_ws/test_camera_info.py) citing [REQ:BA-02]
+
+### BA-03 (P0) — epic
+- goal: add ros2_control.xacro transmissions + controllers.yaml so Gazebo AND live share one controller_manager actuation interface.
+- files: ros2_ws/src/stewie_description/urdf/ipex.gazebo.xacro, ros2_ws/src/stewie_bringup/config/gz_bridge.yaml
+- test_target: NEW ros2_ws/test_ros2_control.py citing [REQ:BA-03] (loads the controller config)
+
+### BA-04 (P0) — epic
+- goal: generate a Gazebo heightfield world from a real lunar DEM (Haworth) instead of the flat regolith plane.
+- files: ros2_ws/src/stewie_description/worlds/stewie_lunar.sdf, stewie/terrain/site_dem.py
+- test_target: NEW scripts/test_dem_to_gazebo_heightfield.py citing [REQ:BA-04] (validates the heightfield vs the DEM)
+
+### BA-05 (P0) — epic
+- goal: typed CRS transform chain body_crs->site_enu->map->odom->base_link->sensors + a Godot Y-up<->ROS REP-103 converter, validated against control points.
+- files: ipex-terrain-sim-spec.md, stewie/server/test_gi02_body_crs.py
+- test_target: NEW stewie/geospatial/test_crs_transform.py citing [REQ:BA-05] (control-point round-trips)
+
+### BA-06 (P1) — epic
+- goal: interop converters (xacro_to_sdf, urdf_to_godot_scene, dem_to_godot_heightfield, gridmap<->geotiff, rosbag<->world_transactions) with round-trip fixtures.
+- files: lode/gis_export.py, dart/world_model_layers.py
+- test_target: NEW scripts/test_interop_converters.py citing [REQ:BA-06] (bounds/georef/event-count preserved)
+
+### BA-07 (P1) — atomic
+- goal: Phase-0 running-sim smoke gate: one launch brings up Gazebo+RSP+controllers+bridge+RViz+bag; assert contract topics publish, /cmd_vel moves the rover, no estimator subscribes /stewie/truth/*.
+- files: ros2_ws/test_gz_sim_artifacts.py, ros2_ws/src/stewie_bringup/config/gz_bridge.yaml
+- test_target: extend ros2_ws/test_gz_sim_artifacts.py with a container `[REQ:BA-07]` smoke assertion
+
+### BA-08 (P1) — epic
+- goal: stewie_godot_bridge node subscribes ROS state (tf/joints/odom/path/costmap/map/rocks/factors/decision) and renders live in Godot, publishing NO commands (source_class=sim_render).
+- files: stewie/godot/sidecar.gd, stewie/bridge/autonomy_contract.py
+- test_target: NEW ros2_ws/test_godot_bridge.py citing [REQ:BA-08] (subscription set + no command publishers)
+
+### BA-09 (P1) — epic
+- goal: promote the DART/LODE perception/mapping/costmap/planner logic into real ROS 2 nodes (skeletons -> real), reusing the tested Python cores + adding running-sim tests.
+- files: ros2_ws/src/stewie_perception/stewie_perception/node.py, dart/hazard_map.py, lode/costmap_layers.py
+- test_target: NEW ros2_ws/test_perception_node.py citing [REQ:BA-09] (perception->observed-map->costmap->plan chain)
+
+### BA-10 (P2) — gated
+- goal: live robot / HIL through the same ROS interfaces (ros2_control hardware interface + drivers + calibration + time sync + bounded command namespace + safety watchdog); GATED on physical hardware.
+- files: ros2_ws/src/stewie_perception/stewie_perception/node.py, ros2_ws/src/stewie_bringup/config/gz_bridge.yaml
+- test_target: NEW ros2_ws/test_hardware_interface.py citing [REQ:BA-10] (bench_robot profile parity; hardware-gated)
+
+### BA-11 (P1) — epic
+- goal: mission-package import/export in ArcGIS-compatible open-geospatial formats (GeoTIFF/COG, GeoJSON/FlatGeobuf, STAC metadata, manifest + authority tuple) with round-trip preservation.
+- files: lode/gis_export.py, stewie/server/map_layers.py
+- test_target: NEW stewie/test_mission_package_io.py citing [REQ:BA-11] (export->import bounds/resolution/CRS + authority tuple preserved)
