@@ -1,0 +1,24 @@
+# [REQ:BA-03] controller_manager params: the SAME controllers for Gazebo + a live robot. A
+# joint_state_broadcaster publishes /joint_states; a diff_drive_controller drives the 4 skid-steer
+# wheels (left pair + right pair) from /cmd_vel. Drum arm/spin controllers are added as excavation
+# control lands; the ros2_control.xacro already exposes their command interfaces.
+controller_manager:
+  ros__parameters:
+    update_rate: 50
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+    diff_drive_controller:
+      type: diff_drive_controller/DiffDriveController
+
+diff_drive_controller:
+  ros__parameters:
+    left_wheel_names: ["front_left_wheel_joint", "rear_left_wheel_joint"]
+    right_wheel_names: ["front_right_wheel_joint", "rear_right_wheel_joint"]
+    wheel_separation: 0.3645      # track_gauge (ipex.urdf.xacro)
+    wheel_radius: 0.1525          # WHEEL_RADIUS_M (ipex_specs)
+    wheel_separation_multiplier: 1.0
+    wheels_per_side: 2
+    use_stamped_vel: false
+    base_frame_id: base_link
+    odom_frame_id: odom
+    publish_rate: 50.0

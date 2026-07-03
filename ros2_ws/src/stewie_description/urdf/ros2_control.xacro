@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<!-- [REQ:BA-03] ros2_control actuation authority. ONE command/state-interface layer for BOTH Gazebo
+     (gz_ros2_control/GazeboSimSystem) and a live robot (swap the <hardware> plugin, keep the joints +
+     controllers). controller_manager params live in config/controllers.yaml. All 8 actuated joints
+     (4 skid-steer wheels + 2 drum arms + 2 drums) expose a velocity command + position/velocity state. -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="ipex_ros2_control">
+    <ros2_control name="ipex_actuation" type="system">
+      <hardware>
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+      </hardware>
+      <joint name="front_left_wheel_joint">
+        <command_interface name="velocity"/><state_interface name="position"/><state_interface name="velocity"/>
+      </joint>
+      <joint name="front_right_wheel_joint">
+        <command_interface name="velocity"/><state_interface name="position"/><state_interface name="velocity"/>
+      </joint>
+      <joint name="rear_left_wheel_joint">
+        <command_interface name="velocity"/><state_interface name="position"/><state_interface name="velocity"/>
+      </joint>
+      <joint name="rear_right_wheel_joint">
+        <command_interface name="velocity"/><state_interface name="position"/><state_interface name="velocity"/>
+      </joint>
+      <joint name="front_drum_arm_joint">
+        <command_interface name="velocity"/><state_interface name="position"/><state_interface name="velocity"/>
+      </joint>
+      <joint name="rear_drum_arm_joint">
+        <command_interface name="velocity"/><state_interface name="position"/><state_interface name="velocity"/>
+      </joint>
+      <joint name="front_drum_spin_joint">
+        <command_interface name="velocity"/><state_interface name="position"/><state_interface name="velocity"/>
+      </joint>
+      <joint name="rear_drum_spin_joint">
+        <command_interface name="velocity"/><state_interface name="position"/><state_interface name="velocity"/>
+      </joint>
+    </ros2_control>
+    <gazebo>
+      <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+        <parameters>$(find stewie_description)/config/controllers.yaml</parameters>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
+</robot>

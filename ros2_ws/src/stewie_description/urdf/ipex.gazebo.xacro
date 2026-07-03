@@ -5,6 +5,12 @@
      is published by gz's world dynamic_pose (bridged to /stewie/truth/pose only), NOT here. -->
 <robot name="ipex" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:include filename="$(find stewie_description)/urdf/ipex.urdf.xacro"/>
+  <!-- [BA-03] ros2_control actuation authority (gz_ros2_control + config/controllers.yaml): the SAME
+       command/state interface for Gazebo AND a live robot. Its controllers are spawned by the bringup
+       launch (controller_manager); the gz-native DiffDrive below stays the zero-launch sim default, so
+       adding this does not conflict at runtime. -->
+  <xacro:include filename="$(find stewie_description)/urdf/ros2_control.xacro"/>
+  <xacro:ipex_ros2_control/>
 
   <gazebo>
     <!-- 4-wheel skid-steer: front+rear wheels grouped per side (track_gauge 0.3645, r 0.1525). -->
