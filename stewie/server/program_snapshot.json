@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
+  "citations_sha256": "716d6ab2e2980d7d13c2f66cfc34ca6ff9f627668108a59ea999d1540b8eb11a",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "deaf1cffc79161b04adec81e0495ace4f4a52f0f",
-  "prd_sha256": "c4c93b6ecf291fd7e6d4f08595a5eb4501f30e71b9bd70056a28da3f48bfd489",
+  "prd_commit": "3c7d32d377663654ca48605e5e19b68d3c97370f",
+  "prd_sha256": "15456324a80eff1339eab4136f07c30061777f45afaf4290381a22b5f6b9bb4c",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -2008,17 +2008,17 @@
    "text": "**Mobile viewport fit for the public /program board AND the deployed cockpit (review finding 9 + 100%-frontend-audit finding 5).** Neither the `/program` board (today ~575 px wide) nor the deployed cockpit (key controls overflow/clip at 390 px) horizontally overflows the mobile viewport; wide content (tables, plots, 3D) scrolls inside its own `overflow-x:auto` container, never the page body (`program.html:28`, cockpit chrome). Acceptance: a Playwright check at 390 px asserts `document.scrollingElement.scrollWidth <= innerWidth` on both `/program` and the cockpit, with every wide region self-scrolling. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "surface ROS/Gazebo/RViz run evidence (lifecycle nodes, /clock, /tf, /joint_states, bridge freshness, RViz status/screenshots, bag links, container profile, no-truth-input) in Validate/System/Report.",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_ros_evidence_surface.py citing [REQ:FS-27]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FS-27",
    "lane": "FS",
    "pri": "P0",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 74,
+   "buildable": 73,
    "concurrent": 0,
-   "done": 156,
+   "done": 157,
    "gated": 25
   },
   "by_lane": {
@@ -3782,7 +3782,7 @@
     "total": 15
    },
    "FS": {
-    "done": 21,
+    "done": 22,
     "total": 30
    },
    "GI": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 71,
+    "done": 72,
     "total": 76
    },
    "P1": {
@@ -3868,10 +3868,10 @@
     "total": 1
    }
   },
-  "cited": 184,
-  "done_pct": 61.2,
+  "cited": 185,
+  "done_pct": 61.6,
   "in_scope": 230,
-  "in_scope_done_pct": 67.8,
+  "in_scope_done_pct": 68.3,
   "total": 255
  },
  "workflow_spine": [
