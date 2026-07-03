@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "c3b914738dc66a2bf8a18325a7450772bd79d5c5",
-  "prd_sha256": "e13b45dd5bbfb50bdd870659873bb9a6ab488ef6ddf8a4822a50294b06610298",
+  "prd_commit": "a18ef8051477114f6ec4a7996e5ffe5182260b99",
+  "prd_sha256": "89479839e5af08d5281b991545a20ac4338fe887695047fb46f3622cf20d0ffa",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -1865,16 +1865,16 @@
    "text": "Windowing policy: the production operator flow is one browser cockpit. Any second window is read-only engineering/debug context or a separate ROS/RViz/Gazebo tool; it cannot hold independent command authority, hidden state, or unique approval controls. Enforced in `cockpit.js` by a single-authority election (`CMD_AUTH`: a localStorage claim + heartbeat, `BroadcastChannel` + `storage`-event sync); a window without the fresh claim is read-only (`body.dataset.cmdrole`), shows the `#cmd-readonly-banner`, disables `[data-cmd-authority]` command controls, and `guardCommand` refuses the command-tape emit. An explicit Take-over control promotes a window (no silent promotion of a hidden tab). Two-tab behavior Playwright-verified; static wiring guarded by `stewie/server/test_fs17_command_authority.py`."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "build the frontend-backend contract GATE enforcing, per route-to-pane connection, six artifacts (schema fixture, route test, FE render test, permission test, mobile smoke, failure-mode test); cite it.",
     "kind": "epic",
     "test_target": "NEW stewie/server/test_contract_gate.py (`[REQ:FS-18]`)"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "FS-18",
    "lane": "FS",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 77,
+   "buildable": 76,
    "concurrent": 0,
-   "done": 153,
+   "done": 154,
    "gated": 25
   },
   "by_lane": {
@@ -3782,7 +3782,7 @@
     "total": 15
    },
    "FS": {
-    "done": 20,
+    "done": 21,
     "total": 30
    },
    "GI": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 68,
+    "done": 69,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 60.0,
+  "done_pct": 60.4,
   "in_scope": 230,
-  "in_scope_done_pct": 66.5,
+  "in_scope_done_pct": 67.0,
   "total": 255
  },
  "workflow_spine": [
