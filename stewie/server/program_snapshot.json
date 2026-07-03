@@ -1,12 +1,36 @@
 {
  "provenance": {
-  "citations_sha256": "91bbc51f1276a7c0af4174c11368bfcf3a398e99c4783c4085c5de747b46a105",
+  "citations_sha256": "d0113f79b3cbd60f6b7bf19e127cb375e571b0990e5a2c0c11023784e4b4af1a",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "4fc13d32acdd7267fa5a2b5896972e8574dfa174",
-  "prd_sha256": "3bd0307c0ef0d3a004195e33edae8bc4178184f06e56af9934177e7a37d9f394",
-  "specs_sha256": "44cb8fe01e084f6a23d3e6927ffffe9d6da653d13649d76df21b06e1d0e18ca6"
+  "prd_commit": "29e9bca42582391ace937fed18b894d3fe3f2df3",
+  "prd_sha256": "5e77da1f6afdfb0eb26b406dada46481227e8d648d5d44f8ad24b5acb2c5af86",
+  "specs_sha256": "44e106abc41becf9f01d5efd897f79b31bc05a82288054ef0bbcd00934cd880e"
  },
  "rows": [
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "AC-01",
+   "lane": "AC",
+   "pri": "P0",
+   "text": "Generate a TypeScript API client from live `/openapi.json`; CI fails on generated-vs-FastAPI path drift. Every one of the 140 router-owned routes has a registry entry or an explicit static/internal exemption."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "AC-02",
+   "lane": "AC",
+   "pri": "P0",
+   "text": "The route registry records per-route pane ownership, auth/role, response kind, provenance requirement, fixtures, and authority-mutation flag; a pane-backed route missing fixture/role/provenance fails."
+  },
   {
    "I": "D",
    "Q": "NA",
@@ -218,6 +242,23 @@
    "lane": "AM",
    "pri": "P1",
    "text": "The planner may choose Meerkat only when predicted information gain or recovery value exceeds time, energy, and risk cost. `[PROPOSED]`"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "move composing runtime/router code that imports dart/leap out of the future stewie-core boundary into the app layer.",
+    "kind": "atomic",
+    "test_target": "NEW scripts/test_core_import_boundaries.py citing [REQ:AP-01]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "AP-01",
+   "lane": "AP",
+   "pri": "P0",
+   "text": "Move composing runtime/API code that imports `dart`/`leap` (`nav_loop`, `replay_loop`, `evidence`/`siteplan` routers) out of the future `stewie-core` boundary into the app layer; route URLs + RS-04 behavior unchanged; `stewie-core` subset imports no dart/lode/leap."
   },
   {
    "I": "D",
@@ -624,6 +665,59 @@
    "text": "**Mission-package import/export in open-geospatial formats (extends FR-10/FR-12).** Add `mission_package_export.py`/`mission_package_import.py` producing an ArcGIS-COMPATIBLE open package: GeoTIFF/COG DEM + layers, GeoJSON/FlatGeobuf vectors (keepouts/routes/zones/targets), STAC-style metadata, a manifest, and the authority tuple (body+site+mission+runtime_mode+runnable_profile+source_class+vehicle+role+command_namespace). Acceptance: a Haworth package round-trips (export->import) with identical layer bounds/resolution/CRS and the authority tuple preserved; ArcGIS Feature Service is left as a later adapter (FR-12), not claimed. Buildable on archimedes."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BD-01",
+   "lane": "BD",
+   "pri": "P0",
+   "text": "Convert the BODIES constants into versioned BodyProfile records with NO value changes; Moon/Mars/Ceres/Bennu/Phobos/Earth/BP-1 profiles match bodies.py and params_for_body compatibility is test-proven."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BD-02",
+   "lane": "BD",
+   "pri": "P1",
+   "text": "The body registry supports built-in JSON + local profile paths with provenance + duplicate-id rules; invalid/missing provenance or a fabricated numeric field is rejected."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BD-03",
+   "lane": "BD",
+   "pri": "P1",
+   "text": "The body/profile UI (Plan + Models panes) shows body selector + soil override + physics-backend selector + support verdict + regime refusal + a body-by-backend compatibility matrix."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "brief": {
+    "goal": "break the inverted `bodies\u2192physics` edge; raw `BodyProfile`/`RegolithProfile` records; `params_for_body` becomes a compat wrapper.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/specs/test_body_profiles.py citing [REQ:BD-04]"
+   },
+   "bucket": "done",
+   "cited": true,
+   "id": "BD-04",
+   "lane": "BD",
+   "pri": "P0",
+   "text": "Break the inverted `bodies\u2192physics` edge: introduce dependency-neutral `BodyProfile`/`RegolithProfile` raw records; `stewie.specs.bodies` imports no `stewie.physics`; `params_for_body` becomes a compatibility wrapper; built-in body values unchanged; microgravity refusal stays fail-closed; an import-boundary test proves the break."
+  },
+  {
    "I": "D",
    "Q": "NA",
    "V": "D",
@@ -845,6 +939,30 @@
    "text": "**Browser login does not echo the bearer token in JSON (review P3-1).** Login sets HttpOnly session + CSRF cookies (correct) but still returns the token in the JSON body for BOTH browser and automation, widening exposure (browser memory/logs/devtools). Fix: a normal browser login returns role/operator/ttl/must_set_password and OMITS `token`; only an explicit automation route/header/flag returns a bearer token. Acceptance: browser login response omits `token`; the automation path includes it only when explicitly requested + tested. Buildable on archimedes."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BR-01",
+   "lane": "BR",
+   "pri": "P2",
+   "text": "Named world branches generalize the conserved/observed split into actual/observed/predicted/sim/design/what-if with diff/merge/promotion; mass-conservation precondition gates terrain-mutating promotion."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "CF-01",
+   "lane": "CF",
+   "pri": "P2",
+   "text": "Capability-fleet model generalizes the multi-vehicle planner to heterogeneous Asset/Capability; the matrix drives assignment + UI; current `VehicleState`/fleet rows remain the source."
+  },
+  {
    "I": "D",
    "Q": "NA",
    "V": "D",
@@ -1050,6 +1168,23 @@
    "text": "Every artifact records source commit, configuration, mode, seed, schema version, and input hashes."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "Demo 001 \u2014 one IPEx-dig vertical slice proving the platform loop end-to-end from existing code.",
+    "kind": "atomic",
+    "test_target": "NEW tests/demo/test_demo_001_ipex_dig.py citing [REQ:DE-01]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DE-01",
+   "lane": "DE",
+   "pri": "P0",
+   "text": "Demo 001 \u2014 one IPEx-dig vertical slice proving the platform loop end-to-end from existing code: body/profile + selected physics backend \u2192 plan \u2192 conserved execution/terrain-memory transaction \u2192 `RegolithVolumeEstimate` reconcile \u2192 report/evidence artifact, deterministic, `[REQ:DE-01]` test, no synthetic/fabricated values."
+  },
+  {
    "I": "D",
    "Q": "N",
    "V": "D",
@@ -1128,6 +1263,30 @@
    "lane": "DT",
    "pri": "P1",
    "text": "**/world is the authoritative rich world descriptor (review finding 6).** `GET /world` returns geometry PLUS observed/mutated enrichment, provenance, and freshness \u2014 not geometry/defaults with enrichment deferred (`world.py:1,29`). A consumer cannot mistake an incomplete descriptor for the full world model: the payload declares its completeness/enrichment state explicitly. Acceptance: `/world` after a mutation reflects the observed enrichment (or explicitly flags it absent), verified against `/world/terrain_view` provenance. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DW-01",
+   "lane": "DW",
+   "pri": "P1",
+   "text": "DuckDB-WASM loads the FR-10 manifest + a vector mission package into queryable tables carrying display/planning/release/execute eligibility; a display-only layer cannot be marked planning-valid."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DW-02",
+   "lane": "DW",
+   "pri": "P2",
+   "text": "Client query panel supports bbox/provenance/eligibility queries within a defined browser memory + latency budget on Haworth-scale data; degrades to an optional panel if the budget is exceeded."
   },
   {
    "I": "D",
@@ -2224,6 +2383,95 @@
    "text": "GIS interoperability scope: define and implement the mission-required subset only -- GeoJSON/COG import, selected OGC/ArcGIS service consumption, feature attributes/query, measurement/profile tools, provenance, and offline mission package export. Do not claim ArcGIS parity."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GL-01",
+   "lane": "GL",
+   "pri": "P0",
+   "text": "2D MapLibre/deck workbench renders the selected site DEM + FR-10 layers in the local order frame; control points round-trip through `/dem/site_xy` + `/dem/site_lonlat` within tolerance; no WGS84/Earth claim on lunar coordinates."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GL-02",
+   "lane": "GL",
+   "pri": "P1",
+   "text": "Map identify/measure/edit sessions operate on deck layers and write mission edits ONLY through backend routes; a keep-out drawn on the map appears in the mission request and routes around it."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MG-01",
+   "lane": "MG",
+   "pri": "P0",
+   "text": "The vanilla cockpit stays served + deployable until React parity gates pass (`/app` vanilla, `/app2` React); its smoke tests keep passing throughout the migration."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MG-02",
+   "lane": "MG",
+   "pri": "P0",
+   "text": "No pane is flipped vanilla to React without signed-in Playwright parity + fixtures + mobile fit + route-registry coverage + a rollback route."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MG-03",
+   "lane": "MG",
+   "pri": "P2",
+   "text": "Vanilla-cockpit retirement: `/app` flips to React only after the full signed-in Playwright suite passes desktop+mobile, the backend suite stays green, route coverage is 100% for pane-backed routes, and Cesium is removed from the active surface."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "platform backlog row TW-11 (PRD \u00a77 + docs/prd_reorg_spec_2026-07-03.md).",
+    "kind": "atomic",
+    "test_target": "NEW test citing [REQ:TW-11]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MG-04",
+   "lane": "MG",
+   "pri": "P0",
+   "text": "The `/program` requirements board (`program.html` + `program_board.js`) is responsive at phone widths \u2014 >=44px touch targets, single-column row-chip stack, no horizontal overflow, filter deck + inspect panel collapse/stack. Verify via Playwright at 320/360/390/430 px."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MI-01",
+   "lane": "MI",
+   "pri": "P3",
+   "text": "Multi-engine planetary IDE: the Tauri shell hosts the web cockpit and may orchestrate Godot/RViz as context-synced panels; the web cockpit stays the operator shell; native engines are sidecars."
+  },
+  {
    "I": "D",
    "Q": "N",
    "V": "D",
@@ -2616,6 +2864,18 @@
    "lane": "NV",
    "pri": "P1",
    "text": "Live command/telemetry uses a versioned streaming API with timestamps, sequence numbers, backpressure, and safe-stop semantics. `stewie.bridge.stream.StreamSession`: every frame carries `protocol_version` + a monotonic `seq` + a timestamp; a bounded un-acked window applies backpressure (frames past the window are refused + counted, never silently dropped); cumulative `ack` is the heartbeat; and an SF-01-tied safe-stop trips when the oldest un-acked frame stalls past `ack_deadline_s`, submitting `RC.Safe(SAFE_REASON_LINK_STALL)` through the same backend SF-01 uses. Pure (caller supplies `now`, the watchdog pattern; rclpy-optional). Wired into the AG-08-gated `/rc/plan_ros` route, which frames NV-11's lowered messages on a `StreamSession` (sequenced, back-pressured) for a live mission only."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PG-01",
+   "lane": "PG",
+   "pri": "P2",
+   "text": "PostgreSQL/PostGIS as a durable persistence/projection layer, NOT authority: `TwinStore` events mirror to a PostGIS projection; the conserved model still mutates truth."
   },
   {
    "I": "D",
@@ -3121,6 +3381,163 @@
    "text": "**Operations governance beyond account admin (review finding 7).** Backup/restore is a scheduled + monitored control with an explicit RPO/retention policy (not a manual director endpoint at `admin_ops.py:18`); mission, runtime, and profile administration exist as first-class operations surfaces (not browser-local display preferences at `index.html:1354`). Also covers (100%-frontend-audit finding 6): ROS-runtime administration, hardware/live-command LOCKS (an explicit safety interlock separate from role), and an evidence-retention policy (`index.html:1354,1423`). Acceptance: a retention/RPO policy is declared and enforced by a scheduled job with a monitored last-success/age signal; mission/runtime/profile/ROS-runtime admin + the hardware-live lock are first-class audited surfaces, not browser-local display prefs. Buildable on archimedes."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "uv/hatch workspace skeleton after BD/PX/AP boundaries pass; encode the import DAG; public targets = bodies+forge only.",
+    "kind": "atomic",
+    "test_target": "NEW scripts/test_workspace_packaging.py citing [REQ:PO-16]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PO-16",
+   "lane": "PO",
+   "pri": "P0",
+   "text": "uv/hatch workspace skeleton (after BD/PX/AP boundaries pass); editable install + current suite green; import-boundary policy encoded (bodies\u2192none, forge\u2192bodies+numeric, apps\u2192everything); public build targets are `stewie-bodies` + `stewie-forge` ONLY; root stays monorepo."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "extract stewie-bodies as the first public/citable package from the dependency-neutral registry.",
+    "kind": "atomic",
+    "test_target": "NEW packages/stewie-bodies/tests/test_body_profiles.py citing [REQ:PO-17]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PO-17",
+   "lane": "PO",
+   "pri": "P0",
+   "text": "Extract/publish-prep `stewie-bodies` from the dependency-neutral registry: imports no STEWIE internals; JSON/YAML profiles round-trip; Moon/Mars/Earth golden gravity/profile tests pass; no fabricated numeric fields."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "extract stewie-forge from pure geotech/terramechanics + PhysicsBackend; depends only on stewie-bodies + numeric.",
+    "kind": "atomic",
+    "test_target": "NEW packages/stewie-forge/tests/test_forge_public_api.py citing [REQ:PO-18]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PO-18",
+   "lane": "PO",
+   "pri": "P0",
+   "text": "Extract/publish-prep `stewie-forge` from pure geotech/terramechanics + `PhysicsBackend`: depends only on `stewie-bodies` + numeric stack; concept-first API (`estimate_sinkage`/`estimate_bearing_capacity`); Chrono optional, not release authority while `conserves_mass=false`."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PX-01",
+   "lane": "PX",
+   "pri": "P0",
+   "text": "Define the `PhysicsBackend` protocol + a `tier2_numpy` adapter over the existing terramechanics/FORGE/planner-context functions; Moon Tier-2 `/plan` output is byte-compatible or diff-reviewed; microgravity refusal stays fail-closed."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PX-02",
+   "lane": "PX",
+   "pri": "P1",
+   "text": "Mission/profile schema carries `physics_backend_id`; `/physics/backends` exposes backend support/authority-class/conserves_mass; the selected backend appears in plan/report/release evidence."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PX-03",
+   "lane": "PX",
+   "pri": "P2",
+   "text": "The Chrono SCM backend is exposed ONLY as geometry-oracle/hybrid until mass-conservation closure; it cannot be selected for release/execute authority while conserves_mass=false."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "`PhysicsBackend` protocol + `Tier2NumpyBackend` over existing terramechanics/forge.bearing/planner-context.",
+    "kind": "atomic",
+    "test_target": "NEW stewie/physics/test_physics_backend.py citing [REQ:PX-04]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PX-04",
+   "lane": "PX",
+   "pri": "P0",
+   "text": "Define `PhysicsBackend` protocol + `Tier2NumpyBackend` over existing terramechanics/`forge.bearing`/planner-context; Moon/BP-1 `/plan` byte-compatible or diff-reviewed; support verdict reports authority_class + conserves_mass; no learned/client component mutates terrain."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "lock the production physics import boundary; correct the stale docs claim; relocate/mark the 3 coupled test files.",
+    "kind": "atomic",
+    "test_target": "NEW scripts/test_import_boundaries.py citing [REQ:PX-05]"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PX-05",
+   "lane": "PX",
+   "pri": "P0",
+   "text": "Lock the production physics import boundary: an executable test proves production `stewie/physics` imports no `dart`/`leap` (corrects the stale docs claim); the three coupled *test* files are relocated/marked so the `stewie-forge` unit gate needs no dart/leap."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RF-01",
+   "lane": "RF",
+   "pri": "P0",
+   "text": "React shell implements the same 13 pane identities + role visibility as the vanilla cockpit; signed-in browser tests open all 13 panes at desktop + phone widths."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RF-02",
+   "lane": "RF",
+   "pri": "P0",
+   "text": "React workspace state carries mission/site/body/vehicle/physics-backend/product-mode/runnable-profile/source-class/work-area; URL+state round-trip; Release/Execute refuse mismatched profile/backend states."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RF-03",
+   "lane": "RF",
+   "pri": "P1",
+   "text": "Each migrated pane ships empty/error/loading/mobile fixtures + a signed-in Playwright parity test vs the vanilla pane before it is flipped."
+  },
+  {
    "I": "D",
    "Q": "N",
    "V": "D",
@@ -3560,6 +3977,18 @@
    "text": "Calibrated terramechanics/excavation gate: construction forecasts distinguish analytical surrogate, calibrated mission model, and offline oracle; excavation resistance, drum/arm torque, drivetrain/current limits, low-g parameters, and uncertainty are validated before field-confidence claims."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TU-01",
+   "lane": "TU",
+   "pri": "P1",
+   "text": "The Tauri v2 app starts/connects the FastAPI sidecar and surfaces health/logs/version; cold start reaches `/healthz` + `/auth/config`; sidecar failure produces a SystemPane degraded state, never fabricated data."
+  },
+  {
    "I": "D",
    "Q": "P",
    "V": "D",
@@ -3693,6 +4122,18 @@
    "lane": "TW",
    "pri": "P2",
    "text": "Track dust/optical degradation as a state affecting image quality and maintenance decisions. `[PROPOSED]`"
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TW-11",
+   "lane": "TW",
+   "pri": "P2",
+   "text": "Traversal-compaction \"traffic\" layer (the multipass effect): accumulate per-cell rover-pass count + compaction + accumulated shear into the conserved twin; surface as FR-10 `traffic`/`compaction_state`/`shear_state` world layers with a traffic-color heat viz; add a costmap term that PREFERS established firm-compacted haul roads (lower sinkage) and AVOIDS over-sheared/rutted cells \u2014 emergent lunar haul-road / civil-infrastructure mapping from traversal history. Design: `docs/traversal_compaction_layer_2026-07-03.md`. `[PROPOSED]`"
   },
   {
    "I": "D",
@@ -3831,14 +4272,18 @@
   }
  ],
  "summary": {
-  "briefs": 133,
+  "briefs": 142,
   "buckets": {
-   "buildable": 57,
+   "buildable": 89,
    "concurrent": 0,
-   "done": 179,
+   "done": 180,
    "gated": 25
   },
   "by_lane": {
+   "AC": {
+    "done": 0,
+    "total": 2
+   },
    "AG": {
     "done": 8,
     "total": 8
@@ -3846,6 +4291,10 @@
    "AM": {
     "done": 1,
     "total": 9
+   },
+   "AP": {
+    "done": 0,
+    "total": 1
    },
    "AS": {
     "done": 15,
@@ -3855,9 +4304,21 @@
     "done": 6,
     "total": 11
    },
+   "BD": {
+    "done": 1,
+    "total": 4
+   },
    "BP": {
     "done": 4,
     "total": 13
+   },
+   "BR": {
+    "done": 0,
+    "total": 1
+   },
+   "CF": {
+    "done": 0,
+    "total": 1
    },
    "CP": {
     "done": 9,
@@ -3867,9 +4328,17 @@
     "done": 7,
     "total": 7
    },
+   "DE": {
+    "done": 0,
+    "total": 1
+   },
    "DT": {
     "done": 5,
     "total": 5
+   },
+   "DW": {
+    "done": 0,
+    "total": 2
    },
    "EP": {
     "done": 6,
@@ -3891,6 +4360,18 @@
     "done": 2,
     "total": 3
    },
+   "GL": {
+    "done": 0,
+    "total": 2
+   },
+   "MG": {
+    "done": 0,
+    "total": 4
+   },
+   "MI": {
+    "done": 0,
+    "total": 1
+   },
    "ML": {
     "done": 9,
     "total": 9
@@ -3907,13 +4388,25 @@
     "done": 12,
     "total": 12
    },
+   "PG": {
+    "done": 0,
+    "total": 1
+   },
    "PM": {
     "done": 8,
     "total": 19
    },
    "PO": {
     "done": 13,
-    "total": 15
+    "total": 18
+   },
+   "PX": {
+    "done": 0,
+    "total": 5
+   },
+   "RF": {
+    "done": 0,
+    "total": 3
    },
    "RL": {
     "done": 1,
@@ -3943,9 +4436,13 @@
     "done": 0,
     "total": 1
    },
+   "TU": {
+    "done": 0,
+    "total": 1
+   },
    "TW": {
     "done": 8,
-    "total": 10
+    "total": 11
    },
    "VT": {
     "done": 4,
@@ -3954,27 +4451,27 @@
   },
   "by_priority": {
    "P0": {
-    "done": 76,
-    "total": 76
+    "done": 77,
+    "total": 94
    },
    "P1": {
     "done": 99,
-    "total": 160
+    "total": 167
    },
    "P2": {
     "done": 4,
-    "total": 24
+    "total": 31
    },
    "P3": {
     "done": 0,
-    "total": 1
+    "total": 2
    }
   },
-  "cited": 198,
-  "done_pct": 68.6,
-  "in_scope": 236,
-  "in_scope_done_pct": 75.8,
-  "total": 261
+  "cited": 199,
+  "done_pct": 61.2,
+  "in_scope": 269,
+  "in_scope_done_pct": 66.9,
+  "total": 294
  },
  "workflow_spine": [
   "Plan",
