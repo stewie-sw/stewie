@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "640da9f7ed169cf803c66cdaf99102f757120a6ecd0b32c228f4d51fbd05a85f",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "1ff897d256696f2747207bbaa584406633ff2114",
-  "prd_sha256": "f535286678d4e6b3f1b62c74ed3495dcf3623489f1b73ad0bdb1ca672ea5dfc0",
+  "prd_commit": "811d9366d2914560c72b48942525205663c50bd5",
+  "prd_sha256": "3b0ff5a7845bd15c8ba22e4ef277023370518b6f19bf79c4f857ae815bd4f5bf",
   "specs_sha256": "44cb8fe01e084f6a23d3e6927ffffe9d6da653d13649d76df21b06e1d0e18ca6"
  },
  "rows": [
@@ -1543,7 +1543,7 @@
    "I": "D",
    "Q": "NA",
    "V": "D",
-   "X": "P",
+   "X": "D",
    "brief": {
     "goal": "a RegolithVolumeEstimate contract (before/after source, change mask, cut/fill, uncertainty, drum cross-check, conservation residual, confidence, acceptance, linked txn); LEAP emits it; cockpit/report render it.",
     "kind": "atomic",
