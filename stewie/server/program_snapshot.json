@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "f886323f4aa6d9a88db56330ec94ba66e9a7876457403a6a6498d6571c941e82",
+  "citations_sha256": "91b2f29f6740146a2a671307388c3e07275cde8d0a38827a12541da7c602796a",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "daae20b94e39d604dd48c9fe84cfdc0e7a11d6bc",
-  "prd_sha256": "9f91328be031325b5d0e88834ffadccfd3c28815e3503da713eb2f3ec0c82bfa",
+  "prd_commit": "9479630c140874e63557f5f191771e37c5cbff66",
+  "prd_sha256": "04c1ff7a9b2dec21a11b87bba4ecf209baaa31705a3a6405dd436aa7202d9044",
   "specs_sha256": "213d6d787043c46f5a56f2d1147cf1784addefa9cf184b9b6b95197d75b9eacd"
  },
  "rows": [
@@ -624,17 +624,17 @@
    "text": "**Optimistic concurrency on live object stores (review P2-5).** `objects.save_*` use atomic replace (no partial writes) but two operators saving the same live mission/profile/shared-structure race last-writer-wins with no conflict. Fix: add `updated_at`/`revision`/`sha256` to shared live artifacts; require `If-Match` or a body `base_revision`; return 409 + the current revision on a stale save. Acceptance: two clients load rev N; first save -> N+1; second save with N -> 409. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "the publish workflow installs from requirements-dev.lock --require-hashes + -e . --no-deps, matching CI (supply-chain parity).",
     "kind": "atomic",
     "test_target": "scripts/test_publish_workflow_lock.py citing [REQ:BP-12]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BP-12",
    "lane": "BP",
    "pri": "P2",
@@ -3544,9 +3544,9 @@
  "summary": {
   "briefs": 116,
   "buckets": {
-   "buildable": 86,
+   "buildable": 85,
    "concurrent": 0,
-   "done": 133,
+   "done": 134,
    "gated": 25
   },
   "by_lane": {
@@ -3563,7 +3563,7 @@
     "total": 18
    },
    "BP": {
-    "done": 2,
+    "done": 3,
     "total": 13
    },
    "CP": {
@@ -3669,7 +3669,7 @@
     "total": 151
    },
    "P2": {
-    "done": 0,
+    "done": 1,
     "total": 21
    },
    "P3": {
@@ -3677,10 +3677,10 @@
     "total": 1
    }
   },
-  "cited": 178,
-  "done_pct": 54.5,
+  "cited": 179,
+  "done_pct": 54.9,
   "in_scope": 219,
-  "in_scope_done_pct": 60.7,
+  "in_scope_done_pct": 61.2,
   "total": 244
  },
  "workflow_spine": [
