@@ -1092,3 +1092,123 @@ Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO
 - acceptance: Playwright at 320/360/390/430 px — no horizontal overflow, touch targets >=44px.
 - files: stewie/server/web/program.html, stewie/server/web/assets/program_board.js
 - test_target: NEW stewie/server/test_mg04_program_mobile.py citing [REQ:MG-04]
+
+### AC-01 (design) — atomic
+- goal: platform-restructure backlog row AC-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/server/server.py
+- test_target: NEW frontend/api/test_route_coverage.test.ts citing [REQ:AC-01]
+
+### AC-02 (design) — atomic
+- goal: platform-restructure backlog row AC-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/server/server.py
+- test_target: NEW frontend/api/test_route_coverage.test.ts citing [REQ:AC-02]
+
+### RF-01 (design) — atomic
+- goal: platform-restructure backlog row RF-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/server/web/assets/cockpit_state.js
+- test_target: NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-01]
+
+### RF-02 (design) — atomic
+- goal: platform-restructure backlog row RF-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/server/web/assets/cockpit_state.js
+- test_target: NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-02]
+
+### RF-03 (design) — atomic
+- goal: platform-restructure backlog row RF-03 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/server/web/assets/cockpit_state.js
+- test_target: NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-03]
+
+### GL-01 (design) — atomic
+- goal: platform-restructure backlog row GL-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/server/web/assets/cockpit.js
+- test_target: NEW frontend/src/map/test_map.test.tsx citing [REQ:GL-01]
+
+### GL-02 (design) — atomic
+- goal: platform-restructure backlog row GL-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/server/web/assets/cockpit.js
+- test_target: NEW frontend/src/map/test_map.test.tsx citing [REQ:GL-02]
+
+### DW-01 (design) — atomic
+- goal: platform-restructure backlog row DW-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/contracts/__init__.py
+- test_target: NEW frontend/src/data/duckdb/test_query.test.tsx citing [REQ:DW-01]
+
+### DW-02 (design) — atomic
+- goal: platform-restructure backlog row DW-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/contracts/__init__.py
+- test_target: NEW frontend/src/data/duckdb/test_query.test.tsx citing [REQ:DW-02]
+
+### PX-01 (design) — atomic
+- goal: platform-restructure backlog row PX-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/physics/terramechanics.py
+- test_target: NEW stewie/physics/test_physics_backend.py citing [REQ:PX-01]
+
+### PX-02 (design) — atomic
+- goal: platform-restructure backlog row PX-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/physics/terramechanics.py
+- test_target: NEW stewie/physics/test_physics_backend.py citing [REQ:PX-02]
+
+### PX-03 (design) — atomic
+- goal: platform-restructure backlog row PX-03 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/physics/terramechanics.py
+- test_target: NEW stewie/physics/test_physics_backend.py citing [REQ:PX-03]
+
+### BD-01 (design) — atomic
+- goal: platform-restructure backlog row BD-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/specs/bodies.py
+- test_target: NEW stewie/specs/test_body_profiles.py citing [REQ:BD-01]
+
+### BD-02 (design) — atomic
+- goal: platform-restructure backlog row BD-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/specs/bodies.py
+- test_target: NEW stewie/specs/test_body_profiles.py citing [REQ:BD-02]
+
+### BD-03 (design) — atomic
+- goal: platform-restructure backlog row BD-03 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/specs/bodies.py
+- test_target: NEW stewie/specs/test_body_profiles.py citing [REQ:BD-03]
+
+### TU-01 (design) — atomic
+- goal: platform-restructure backlog row TU-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/server/index.html
+- test_target: NEW desktop/test_tauri_sidecar.test.ts citing [REQ:TU-01]
+
+### MG-01 (design) — atomic
+- goal: platform-restructure backlog row MG-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/server/web/program.html
+- test_target: NEW stewie/server/test_mg_migration.py citing [REQ:MG-01]
+
+### MG-02 (design) — atomic
+- goal: platform-restructure backlog row MG-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/server/web/program.html
+- test_target: NEW stewie/server/test_mg_migration.py citing [REQ:MG-02]
+
+### MG-03 (design) — atomic
+- goal: platform-restructure backlog row MG-03 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/server/web/program.html
+- test_target: NEW stewie/server/test_mg_migration.py citing [REQ:MG-03]
+
+### BR-01 (design) — atomic
+- goal: platform-restructure backlog row BR-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/twin/versioned.py
+- test_target: NEW stewie/twin/test_world_branches.py citing [REQ:BR-01]
+
+### CF-01 (design) — atomic
+- goal: platform-restructure backlog row CF-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/contracts/__init__.py
+- test_target: NEW lode/test_capability_fleet.py citing [REQ:CF-01]
+
+### PG-01 (design) — atomic
+- goal: platform-restructure backlog row PG-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/twin/terrain_memory.py
+- test_target: NEW stewie/twin/test_postgis_projection.py citing [REQ:PG-01]
+
+### MI-01 (design) — atomic
+- goal: platform-restructure backlog row MI-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/server/index.html
+- test_target: NEW frontend/test_multiengine_ide.test.tsx citing [REQ:MI-01]
+
+### TW-11 (design) — atomic
+- goal: platform backlog row TW-11 (PRD §7 + docs/prd_reorg_spec_2026-07-03.md).
+- files: stewie/twin/terrain_memory.py
+- test_target: NEW test citing [REQ:TW-11]

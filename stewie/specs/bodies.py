@@ -23,10 +23,13 @@ bekker_regime flags where the gravity-loaded Bekker pressure-sinkage model appli
 """
 from __future__ import annotations
 
-import dataclasses
-import math
+from __future__ import annotations
 
-from stewie.physics.terramechanics import TerramechanicsParams
+import dataclasses
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:                                   # type-only import: NOT executed at runtime, so the
+    from stewie.physics.terramechanics import TerramechanicsParams   # bodies->physics edge stays broken
 
 
 @dataclasses.dataclass(frozen=True)
@@ -155,42 +158,10 @@ def body_in_regime(name) -> bool:
 
 
 def params_for_body(name, *, allow_analog: bool = False) -> TerramechanicsParams:
-    """TerramechanicsParams for a body from its SOURCED constants (bodies_sysrev.md).
-
-    Overrides the repo baseline with the body's sourced cohesion / friction / density / Bekker moduli
-    where the literature provides them. For bodies whose Bekker moduli are UNKNOWN (Ceres) the lunar
-    moduli stand in as a flagged analog; the body-sourced cohesion/friction/density are still applied.
-    Gravity itself is carried separately into the load (see RoverSimEnv(body=...)).
-
-    H-12: for a MICROGRAVITY body (Bennu/Phobos) the gravity-loaded Bekker model is OUT OF REGIME, so
-    this REFUSES to return quantitative traction/sinkage params unless allow_analog=True is passed
-    explicitly -- in which case the lunar Bekker numbers stand in as a flagged analog and any output MUST
-    be labelled analog, NOT predictive. The default fails closed so the planner cannot silently present
-    microgravity results as predictions."""
-    b = get_body(name)
-    if b.bekker_regime == "microgravity" and not allow_analog:
-        raise ValueError(
-            f"{b.name}: the gravity-loaded Bekker pressure-sinkage model is OUT OF REGIME for this "
-            f"microgravity body (g={b.g:.1e} m/s^2); quantitative traction/sinkage planning is refused. "
-            f"Pass allow_analog=True to use the flagged lunar analog (label outputs analog, NOT predictive).")
-    base = TerramechanicsParams.from_constants()
-    kw: dict = {}
-    if b.bekker is not None:
-        kc, kphi, n = b.bekker
-        kw.update(k_c=float(kc), k_phi=float(kphi), n_sinkage=float(n))
-    if b.cohesion_pa is not None:
-        kw["cohesion"] = float(b.cohesion_pa)
-    if b.friction_deg is not None:
-        kw["phi_rad"] = math.radians(float(b.friction_deg))
-    if b.bulk_density is not None:
-        kw["rho_surface"] = float(b.bulk_density)
-    # PHYS-01 RESOLVED (audit 2026-06-11, verified against test_bodies + the bodies_sysrev): do
-    # NOT lyasko-reduce here. The audit flagged the shipped path as "Earth-fit", but each body's
-    # Bekker is ALREADY the body-appropriate SOURCED value -- the Moon's (k_phi 820000) is the
-    # NASA LTV LUNAR measurement, which already encodes the 1/6-g condition. Applying lyasko_reduce
-    # on top would DOUBLE-reduce (the FIX-6 double-Lyasko bug the sysrev already identified and
-    # deliberately avoids by using sourced values directly). The low-g physics IS represented --
-    # via measured-on-Moon constants, not a runtime reduction. The only Earth-fit path is the bare
-    # from_constants() fallback (_TM_PARAMS), used when no mission soil resolves; that is the real
-    # (lesser) gap, documented in the audit writeup.
-    return dataclasses.replace(base, **kw)
+    """[REQ:BD-04] Compatibility wrapper. The body->terramechanics conversion moved to
+    `stewie.physics.body_params` (physics/forge -> bodies, the correct dependency direction); this LAZY
+    delegate keeps `stewie.specs.bodies` free of any `stewie.physics` MODULE-LEVEL import, so `stewie-bodies`
+    can later ship as a zero-STEWIE-dependency package. Values + microgravity fail-closed behaviour unchanged
+    (delegated verbatim)."""
+    from stewie.physics.body_params import params_for_body as _pfb
+    return _pfb(name, allow_analog=allow_analog)
