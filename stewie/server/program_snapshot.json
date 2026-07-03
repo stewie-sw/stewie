@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "8d2ddd5b5d4742ee257e4a6023c5e01f27c0e99b4ec6b76f3a6a8b5caefeaec5",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "bd101565c5e076a759a4a198e5072f5d4ec0fc91",
-  "prd_sha256": "13741f22a65a82a6a6e3f79657c82f8c06db651f8e9b0d8460577809a4361d98",
-  "specs_sha256": "44e106abc41becf9f01d5efd897f79b31bc05a82288054ef0bbcd00934cd880e"
+  "prd_commit": "3a41d20111fe12e65f8f3c6f3e4bacf5d3932379",
+  "prd_sha256": "5ac413ec7d6ed9431d12ac3dd5ffd632b76a42316e46719bf6a415e38e2ba57c",
+  "specs_sha256": "a8731139bce1ebb767c6933624153d7e59d968d3119b85665d7109b554836131"
  },
  "rows": [
   {
@@ -1289,6 +1289,150 @@
    "text": "Client query panel supports bbox/provenance/eligibility queries within a defined browser memory + latency budget on Haworth-scale data; degrades to an optional panel if the budget is exceeded."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EG-01",
+   "lane": "EG",
+   "pri": "P0",
+   "text": "Environment modes as a typed model: `EnvironmentMode` = DEV/TRAINING/REHEARSAL/LIVE/REPLAY/ARCHIVE + a per-mode authority matrix over 7 flags (command-real-robot / modify-accepted-world / create-branches / publish / delete / simulate / approve-merges), encoded per \u00a729.1. Acceptance: the matrix contract + a test asserting each mode's flags (LIVE alone commands robots; REPLAY/ARCHIVE fully read-only)."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EG-02",
+   "lane": "EG",
+   "pri": "P0",
+   "text": "Central mode-authority ENFORCEMENT: every world-write + asset-command routes through one guard that rejects the action unless the active mode grants it. Acceptance: a TRAINING-mode write to accepted/live world is rejected, a non-LIVE command to a real asset is rejected, and a cross-mode isolation test proves training cannot reach live world state."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EG-03",
+   "lane": "EG",
+   "pri": "P0",
+   "text": "Database/branch isolation: `stewie_{dev,training,live,archive}` with per-store branches (actual_world/simulation/training/replay/what_if); LIVE physically separate. Acceptance: a training-branch write cannot land in the live actual_world store (isolation test); the store a session resolves is a function of its mode."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EG-04",
+   "lane": "EG",
+   "pri": "P1",
+   "text": "Role/permission model: Admin/SafetyOfficer/MissionDirector/Operator/Planner/Scientist/Engineer/Trainer/Trainee/Viewer/AIAgent + a per-role permission set + explicit live-command eligibility. Acceptance: role floors enforced (Viewer read-only, Trainee training-only, Engineer non-live-only, SafetyOfficer approves live transitions); test."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EG-05",
+   "lane": "EG",
+   "pri": "P0",
+   "text": "Training-to-live gate: the 8-step sequence (mission\u2192sim branch\u2192rehearsal\u2192physics\u2192safety\u2192human approval\u2192live token\u2192bridge unlock) mints a live-execution TOKEN; execution-service unlocks the command bridge only with a valid token. Acceptance: a mission cannot issue a live command without a token derived from steps 1-7; test."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EG-06",
+   "lane": "EG",
+   "pri": "P0",
+   "text": "Command-safety pipeline: UI\u2192mission-service(validate)\u2192safety-service(constraints)\u2192execution-service(mode)\u2192ROS2 bridge\u2192audit. Invariant: no UI panel commands ROS2 directly; execution-service is the sole egress. Acceptance: a command skipping any stage is rejected; test proves the single egress."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EG-07",
+   "lane": "EG",
+   "pri": "P1",
+   "text": "Immutable audit trail: every critical action records who/what/when/where/mode/reason/before-state/after-state/evidence, append-only + hash-chained (extends the TwinStore journal). Acceptance: a live command, a merge, and a config change each emit a record carrying all 9 fields; tamper is detectable; test."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EG-08",
+   "lane": "EG",
+   "pri": "P1",
+   "text": "Reconciliation lifecycle: `observed\u2192compared\u2192proposed\u2192reviewed\u2192accepted/rejected\u2192applied\u2192archived` with confidence + model/sensor error flags. Acceptance: a proposal advances the states; a rejected proposal never mutates accepted truth; a manual override is logged; test."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EG-09",
+   "lane": "EG",
+   "pri": "P1",
+   "text": "Backend service separation: the 12 bounded services (config/auth/world/mission/asset/physics/sim/execution/reconcile/training/audit/admin) with an explicit import-DAG (extends \u00a77.B); execution-service alone imports the ROS2 bridge. Acceptance: an import-boundary test asserts the DAG (no cross-service back-edges; sole ROS2 egress)."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EG-10",
+   "lane": "EG",
+   "pri": "P2",
+   "text": "Admin/control-backend taxonomy: the 13 sections (\u00a729.8) as role-gated admin panels, each reading only its service. Acceptance: each section routes to its service data; a role without authority cannot see/act on a section; test."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EG-11",
+   "lane": "EG",
+   "pri": "P0",
+   "text": "Safety-control layer: e-stop, live-command lock, geofences, speed/dig-depth/slope limits, battery minimums, comms-loss behavior, collision constraints, abort rules. No live execution bypasses it. Acceptance: each limit rejects an out-of-bound command, e-stop halts, comms-loss triggers the defined behavior; test."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EG-12",
+   "lane": "EG",
+   "pri": "P1",
+   "text": "Physics/model control: backend selection (analytical/Chrono, PX-04), model versioning, freeze-validated, per-body/regolith profiles, calibration + validation status. Acceptance: the frozen validated model is the LIVE default; a deprecated/unvalidated model cannot be selected for LIVE; test."
+  },
+  {
    "I": "D",
    "Q": "P",
    "V": "D",
@@ -2448,9 +2592,9 @@
    "V": "N",
    "X": "N",
    "brief": {
-    "goal": "platform backlog row TW-11 (PRD \u00a77 + docs/prd_reorg_spec_2026-07-03.md).",
+    "goal": "platform backlog row MP-12 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
-    "test_target": "NEW test citing [REQ:TW-11]"
+    "test_target": "NEW test citing [REQ:MP-12]"
    },
    "bucket": "buildable",
    "cited": false,
@@ -2630,6 +2774,102 @@
    "lane": "MO",
    "pri": "P1",
    "text": "Mission-executive state machine (`DRAFT->ANALYZED->REHEARSED->REVIEWED->RELEASED->ARMED->EXECUTING->HOLDING/SAFED/COMPLETED/ABORTED->DEBRIEFED`; RELEASED = signed immutable revision). The planning + authorization head (DRAFT->RELEASED) is implemented: `stewie.contracts.executive.MissionExecutive` drives the typed transitions, `lode.mission_lifecycle.run_lifecycle` attaches REAL evidence at each edge (the compiler's deterministic plan_id at ANALYZED; the forward_compare ranking at REHEARSED), and `POST /executive/advance` (`stewie/server/routers/executive.py`, director-gated) exposes it. An uncompilable intent yields a 400 with no fabricated plan_id. Tested by `lode/test_mission_lifecycle.py` + `stewie/server/test_executive_route.py` [REQ:MO-02]. Q stays N: the live ARMED..EXECUTING execution tier is gated (MO-04, SIM/FORECAST-labeled) and not yet qualified against fault injection or hardware."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MP-05",
+   "lane": "MP",
+   "pri": "P1",
+   "text": "Mission-planning object model: intent/mission/task/task_dependency/plan/plan_candidate/assignment/resource_budget/risk_assessment/rehearsal_result/execution_policy/plan_decision as strict typed contracts, provenance + transaction-linked to the world-model store. Acceptance: each is a Contract subclass; a plan round-trips through the store carrying its decision + provenance; test."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MP-06",
+   "lane": "MP",
+   "pri": "P1",
+   "text": "The intent-to-world planning FLOW: Intent\u2192Tasks\u2192Capability matching\u2192Candidate plans\u2192Physics scoring\u2192Rehearsal\u2192Approval\u2192Execution\u2192Reconciliation\u2192Updated world model, deterministic on existing code (ties DE-01). Acceptance: a mission drives the full flow end-to-end producing an updated world + a report; test."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MP-07",
+   "lane": "MP",
+   "pri": "P0",
+   "text": "Plan-executability gate: no plan is executable until it has all 8 of required-capabilities, assigned-assets, physics-score, resource-budget, rehearsal-result, safety-check, approval-record, rollback/abort-rule (the planning mirror of \u00a729.5). Acceptance: a plan missing any one precondition is non-executable; test enumerates all 8."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MP-08",
+   "lane": "MP",
+   "pri": "P1",
+   "text": "Capability matching: required-capabilities \u00d7 available-assets \u00d7 assignment-rules select the asset set. Acceptance: an unmet required capability blocks assignment; a met set yields an assignment honoring the rules; test."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MP-09",
+   "lane": "MP",
+   "pri": "P1",
+   "text": "Physics planning/scoring: sinkage/slip/excavation-force/energy/stability scored per candidate via the conserved PhysicsBackend (PX-04). Acceptance: each candidate carries a physics score from the conserved backend; an infeasible candidate is flagged (not silently ranked); test."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MP-10",
+   "lane": "MP",
+   "pri": "P1",
+   "text": "Rehearsal: candidate plans \u2192 Gazebo/Chrono simulation \u2192 predicted outcomes \u2192 risk scoring, on simulation branches in REHEARSAL mode. Acceptance: a rehearsal yields predicted outcomes + a risk score WITHOUT touching live/accepted world (mode-gated per EG-02); test."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MP-11",
+   "lane": "MP",
+   "pri": "P1",
+   "text": "Reconciliation step: prediction vs observation \u2192 plan deviation \u2192 world-update + model-update proposals (feeds EG-08 / \u00a729.7). Acceptance: an executed plan's predicted-vs-observed diff yields a world-update proposal + a flagged model error; test."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MP-12",
+   "lane": "MP",
+   "pri": "P2",
+   "text": "The 10 planning UI panels: Mission Graph / Map-3D / Capability Board / Physics / Timeline / Resource / Rehearsal / Risk / Execution / Reconcile, each rendering its planning object from the API. Acceptance: each panel renders its object; frontend (GeoLibre rewrite lane)."
   },
   {
    "I": "P",
@@ -4274,7 +4514,7 @@
  "summary": {
   "briefs": 142,
   "buckets": {
-   "buildable": 84,
+   "buildable": 104,
    "concurrent": 0,
    "done": 185,
    "gated": 25
@@ -4340,6 +4580,10 @@
     "done": 0,
     "total": 2
    },
+   "EG": {
+    "done": 0,
+    "total": 12
+   },
    "EP": {
     "done": 6,
     "total": 8
@@ -4379,6 +4623,10 @@
    "MO": {
     "done": 1,
     "total": 1
+   },
+   "MP": {
+    "done": 0,
+    "total": 8
    },
    "MT": {
     "done": 0,
@@ -4452,15 +4700,15 @@
   "by_priority": {
    "P0": {
     "done": 82,
-    "total": 94
+    "total": 101
    },
    "P1": {
     "done": 99,
-    "total": 167
+    "total": 178
    },
    "P2": {
     "done": 4,
-    "total": 31
+    "total": 33
    },
    "P3": {
     "done": 0,
@@ -4468,10 +4716,10 @@
    }
   },
   "cited": 204,
-  "done_pct": 62.9,
-  "in_scope": 269,
-  "in_scope_done_pct": 68.8,
-  "total": 294
+  "done_pct": 58.9,
+  "in_scope": 289,
+  "in_scope_done_pct": 64.0,
+  "total": 314
  },
  "workflow_spine": [
   "Plan",
