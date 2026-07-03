@@ -38,6 +38,10 @@
       "cited": 17,
       "total": 18
     },
+    "BA": {
+      "cited": 0,
+      "total": 11
+    },
     "BP": {
       "cited": 3,
       "total": 13
@@ -135,7 +139,7 @@
       "total": 10
     }
   },
-  "total": 244,
+  "total": 255,
   "unknown_markers": [],
   "v_done_uncited": [],
   "v_ne_d_flagged": [
