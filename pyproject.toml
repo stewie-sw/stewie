@@ -137,3 +137,8 @@ exclude = '(test_.*\.py|tests\.py)$'
 ignore_missing_imports = true          # gymnasium/torch/pyproj/fastapi/matplotlib ship no/partial stubs here
 no_implicit_optional = true
 warn_redundant_casts = true
+
+# [REQ:PO-16] uv workspace skeleton (dev-tooling metadata only; the build backend stays setuptools, so the
+# Docker `pip install .` + editable install are unchanged). Members appear as packages/* land in PO-17/18.
+[tool.uv.workspace]
+members = ["packages/*"]

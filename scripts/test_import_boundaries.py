@@ -61,3 +61,23 @@ def test_ap01_app_composers_have_no_module_level_dart_leap():  # [REQ:AP-01]
         offenders += _module_level_pkg_imports(_ROOT / rel, {"dart", "leap"})
     assert not offenders, ("app-layer composer has a module-level dart/leap import (core<->dart/leap cycle): "
                            + "; ".join(offenders))
+
+
+# ---- [REQ:PO-16] package import-DAG policy ------------------------------------------------------
+def test_po16_forge_imports_only_bodies_and_numeric():  # [REQ:PO-16]
+    """stewie-forge (forge/* +, later, the pure physics geotech) may import ONLY stewie-bodies + the numeric
+    stack -- never dart/lode/leap or stewie-core/server. Encoded so the PO-17/18 extraction stays acyclic."""
+    offenders = []
+    for f in sorted((_ROOT / "forge").glob("*.py")):
+        if f.name.startswith("test_"):
+            continue
+        for node in ast.parse(f.read_text(encoding="utf-8")).body:
+            mods = ([node.module] if isinstance(node, ast.ImportFrom) and node.module
+                    else [a.name for a in node.names] if isinstance(node, ast.Import) else [])
+            for m in mods:
+                top = m.split(".")[0]
+                if top in ("dart", "lode", "leap"):
+                    offenders.append(f"{f.name}: {m}")
+                elif top == "stewie" and not m.startswith("stewie.specs"):
+                    offenders.append(f"{f.name}: {m} (forge may import only stewie.specs bodies)")
+    assert not offenders, "stewie-forge DAG violation (forge -> bodies+numeric only): " + "; ".join(offenders)
