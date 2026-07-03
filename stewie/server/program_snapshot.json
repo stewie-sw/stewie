@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "d31a15e0f452c40378117095441e594285707b3b4b7b014567d6514bd8440e6f",
+  "citations_sha256": "be5165c35998f3685f2e3a257610d9899e88081d75f8ae85ebf65c3f1782d2ba",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "68e32de75d8d51e9f9a058d79619bb5f7541159a",
-  "prd_sha256": "3355dbf138346f783c5af716343826e95dc856e97b9208cb7e65f7ce38946bd4",
+  "prd_commit": "85e5d164d1cf9a6305237d7a5532287f22de689a",
+  "prd_sha256": "79eff6c024445b8fb500cf4b748e01505209663325a3b3e34595d88d6fdb6a47",
   "specs_sha256": "44e106abc41becf9f01d5efd897f79b31bc05a82288054ef0bbcd00934cd880e"
  },
  "rows": [
@@ -3381,17 +3381,17 @@
    "text": "**Operations governance beyond account admin (review finding 7).** Backup/restore is a scheduled + monitored control with an explicit RPO/retention policy (not a manual director endpoint at `admin_ops.py:18`); mission, runtime, and profile administration exist as first-class operations surfaces (not browser-local display preferences at `index.html:1354`). Also covers (100%-frontend-audit finding 6): ROS-runtime administration, hardware/live-command LOCKS (an explicit safety interlock separate from role), and an evidence-retention policy (`index.html:1354,1423`). Acceptance: a retention/RPO policy is declared and enforced by a scheduled job with a monitored last-success/age signal; mission/runtime/profile/ROS-runtime admin + the hardware-live lock are first-class audited surfaces, not browser-local display prefs. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "uv/hatch workspace skeleton after BD/PX/AP boundaries pass; encode the import DAG; public targets = bodies+forge only.",
     "kind": "atomic",
     "test_target": "NEW scripts/test_workspace_packaging.py citing [REQ:PO-16]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PO-16",
    "lane": "PO",
    "pri": "P0",
@@ -4274,9 +4274,9 @@
  "summary": {
   "briefs": 142,
   "buckets": {
-   "buildable": 86,
+   "buildable": 85,
    "concurrent": 0,
-   "done": 183,
+   "done": 184,
    "gated": 25
   },
   "by_lane": {
@@ -4397,7 +4397,7 @@
     "total": 19
    },
    "PO": {
-    "done": 13,
+    "done": 14,
     "total": 18
    },
    "PX": {
@@ -4451,7 +4451,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 80,
+    "done": 81,
     "total": 94
    },
    "P1": {
@@ -4467,10 +4467,10 @@
     "total": 2
    }
   },
-  "cited": 202,
-  "done_pct": 62.2,
+  "cited": 203,
+  "done_pct": 62.6,
   "in_scope": 269,
-  "in_scope_done_pct": 68.0,
+  "in_scope_done_pct": 68.4,
   "total": 294
  },
  "workflow_spine": [
