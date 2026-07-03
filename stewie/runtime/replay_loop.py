@@ -57,6 +57,9 @@ class EvidenceBundle:
     arrived: bool
     refused: bool
     run_sha: str            # deterministic content hash over the run's typed payloads
+    #: [REQ:RS-02] the observed multi-layer world the planner read this step -- one ObservedMapUpdate per
+    #: active layer (dem/occupancy/rock/changed), each provenance-tagged. The DEM layer is `observed_map`.
+    observed_layers: tuple[ObservedMapUpdate, ...] = ()
 
 
 def _run_sha(*parts: object) -> str:
@@ -69,7 +72,8 @@ def _run_sha(*parts: object) -> str:
 def run_replay(dem_window: np.ndarray, cell_m: float, start_xy: tuple[float, float],
                goal_xy: tuple[float, float], *, wss, site: str = "haworth",
                seed_hazard_rc: tuple[int, int] | None = None,
-               seed_rock_rc: tuple[int, int] | None = None, eligible: bool = True,
+               seed_rock_rc: tuple[int, int] | None = None,
+               seed_uncertainty_rc: tuple[int, int] | None = None, eligible: bool = True,
                v_max: float = 0.3, step_m: float = 2.0) -> EvidenceBundle:
     """Run the deterministic keystone loop over ``dem_window`` (a real DEM slice = the replayed frame).
 
@@ -106,7 +110,15 @@ def run_replay(dem_window: np.ndarray, cell_m: float, start_xy: tuple[float, flo
         # static DEM has no height for), at the window cell's world position (dem_origin (0,0)).
         zones.designate((rc + 4) * cell_m, (rr + 4) * cell_m, 5.0 * cell_m, "no_go",
                         label="observed_rock_occupancy", by="stereo_mapper")
-    hmap = build_hazard_map((z, cell_m), max_slope_deg=25.0, zones=zones)
+    # [REQ:RS-02] the observed MAP-UNCERTAINTY layer: a patch the perception observed with low confidence
+    # lowers the assessment confidence the planner keys on (provenance 'observed'), so the plan knows where
+    # the observed world is weakly seen -- distinct from the DEM/occupancy layers.
+    uncertainty = None
+    if seed_uncertainty_rc is not None:
+        ur, uc = seed_uncertainty_rc
+        uncertainty = np.zeros_like(z, dtype=float)
+        uncertainty[ur:ur + 8, uc:uc + 8] = 0.9        # 90% uncertain over the weakly-observed patch
+    hmap = build_hazard_map((z, cell_m), max_slope_deg=25.0, zones=zones, uncertainty=uncertainty)
     detections: list[HazardDetection] = []
     if seed_hazard_rc is not None:
         hr, hc = seed_hazard_rc
@@ -124,7 +136,21 @@ def run_replay(dem_window: np.ndarray, cell_m: float, start_xy: tuple[float, flo
 
     # (3) observed DEM/hazard map -> ObservedMapUpdate (observed provenance) + HazardMapDescriptor.
     observed_map = ObservedMapUpdate(t_s=0.0, layer="dem", rows=rows, cols=cols, cell_m=cell_m,
-                                     provenance="observed", coverage_fraction=valid)
+                                     provenance="observed", coverage_fraction=valid,
+                                     uncertainty_m=(0.5 if seed_uncertainty_rc is not None else 0.0))
+    # [REQ:RS-02] the observed MULTI-LAYER world the planner read -- one provenance-tagged ObservedMapUpdate
+    # per active layer (dem + changed-terrain + occupancy/no-go + rock/object), so planning consumes the
+    # observed world across layers, not just the static DEM.
+    _obs_layers = [observed_map]
+    if seed_hazard_rc is not None:      # a raised obstacle CHANGED the terrain vs the prior DEM
+        _obs_layers.append(ObservedMapUpdate(t_s=0.0, layer="changed", rows=rows, cols=cols, cell_m=cell_m,
+                                             provenance="observed", coverage_fraction=valid))
+    if seed_rock_rc is not None:        # the segmented rock -> an occupancy no-go AND an object-graph instance
+        _obs_layers.append(ObservedMapUpdate(t_s=0.0, layer="occupancy", rows=rows, cols=cols, cell_m=cell_m,
+                                             provenance="observed", coverage_fraction=valid))
+        _obs_layers.append(ObservedMapUpdate(t_s=0.0, layer="rock", rows=rows, cols=cols, cell_m=cell_m,
+                                             provenance="observed", coverage_fraction=valid))
+    observed_layers = tuple(_obs_layers)
     finite_cost = hmap.cost[np.isfinite(hmap.cost)]
     hazard_descriptor = HazardMapDescriptor(
         rows=rows, cols=cols, cell_m=cell_m, n_classes=int(np.unique(hmap.hazard_class).size),
@@ -170,4 +196,4 @@ def run_replay(dem_window: np.ndarray, cell_m: float, start_xy: tuple[float, flo
     return EvidenceBundle(depth=depth, hazards=hazards, observed_map=observed_map,
                           hazard_descriptor=hazard_descriptor, costmap=costmap, eligibility=eligibility,
                           commands=commands, world_transaction=world_transaction, arrived=arrived,
-                          refused=refused, run_sha=run_sha)
+                          refused=refused, run_sha=run_sha, observed_layers=observed_layers)

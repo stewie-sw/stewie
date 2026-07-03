@@ -51,6 +51,7 @@ class HazardMap:
 
 
 def build_hazard_map(dem, dem_origin=(0.0, 0.0), *, rocks_world=(), rock_mask=None, zones=None,
+                     uncertainty=None,
                      max_slope_deg: float = 20.0, slope_hazard_deg: float = 15.0,
                      roughness_hazard_m: float = 0.075, slope_caution_deg: float = 10.0,
                      roughness_caution_m: float = 0.0375, hard_rock_inflate_cells: int = 1) -> HazardMap:
@@ -122,6 +123,8 @@ def build_hazard_map(dem, dem_origin=(0.0, 0.0), *, rocks_world=(), rock_mask=No
     # from missing data is LOW-confidence -- the distinction the planner needs.
     finite_in = np.isfinite(slope) & np.isfinite(rough)
     confidence = np.clip(finite_in.astype(float) * rock_conf, 0.0, 1.0)
+    if uncertainty is not None:                     # observed map-uncertainty LAYER lowers assessment confidence
+        confidence = confidence * (1.0 - np.clip(np.asarray(uncertainty, dtype=float), 0.0, 1.0))
     # (b) slope/roughness summary over the finite (measured) cells + traversable/no-go counts
     fin_s, fin_r = slope[np.isfinite(slope)], rough[np.isfinite(rough)]
     trav = np.isfinite(cost)

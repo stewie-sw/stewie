@@ -95,6 +95,36 @@ def test_observed_rock_layer_changes_the_routing_costmap_without_a_dem_bump(wind
     assert rock.run_sha != clear.run_sha
 
 
+def test_observed_map_uncertainty_layer_lowers_the_assessment_confidence(window, wss):  # [REQ:RS-02]
+    """[REQ:RS-02] the planner reads the observed MAP-UNCERTAINTY layer: a weakly-observed patch (the
+    perception saw it with low confidence) lowers the per-cell assessment confidence the planner keys on --
+    a distinct observed layer from the DEM/occupancy, provenance 'observed'. Proven by the hazard
+    descriptor's mean_confidence dropping vs the clear (fully-confident) run."""
+    z, cell = window
+    clear = run_replay(z, cell, _START, _GOAL, wss=wss)
+    unc = run_replay(z, cell, _START, _GOAL, wss=wss, seed_uncertainty_rc=(30, 30))
+    assert unc.hazard_descriptor.mean_confidence < clear.hazard_descriptor.mean_confidence
+    assert unc.run_sha != clear.run_sha
+
+
+def test_planning_consumes_the_observed_multilayer_world_with_provenance(window, wss):  # [REQ:RS-02]
+    """[REQ:RS-02] Planning consumes the OBSERVED world, not just the static DEM: one run reads ALL the
+    observed layers -- DEM, changed-terrain, occupancy/no-go, rock/object graph, and map-uncertainty --
+    each tagged 'observed' provenance, and each measurably drives the hazard costmap the planner keys on."""
+    z, cell = window
+    b = run_replay(z, cell, _START, _GOAL, wss=wss,
+                   seed_hazard_rc=(25, 25), seed_rock_rc=(40, 40), seed_uncertainty_rc=(15, 15))
+    layers = {u.layer: u for u in b.observed_layers}
+    # all five observed layers are present + provenance-tagged (not the static DEM alone).
+    assert {"dem", "changed", "occupancy", "rock"} <= set(layers), f"missing observed layers: {set(layers)}"
+    assert all(u.provenance == "observed" for u in b.observed_layers)
+    assert layers["dem"].uncertainty_m > 0.0                                    # map-uncertainty layer recorded
+    # each observed layer measurably drove the costmap the planner keys on:
+    assert any(d.kind == "rock" and d.accepted for d in b.hazards.detections)   # rock/object graph instance
+    assert {"observed_obstacle", "observed_rock"} <= set(b.costmap.blocking_reasons)  # DEM-change + occupancy no-go
+    assert b.hazard_descriptor.no_go_fraction > 0.0                             # observed hazards became NOGO
+
+
 def test_seeded_ineligibility_forces_a_logged_refusal(window, wss):
     z, cell = window
     b = run_replay(z, cell, _START, _GOAL, wss=wss, eligible=False)
