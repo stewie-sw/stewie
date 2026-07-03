@@ -2516,6 +2516,15 @@ async function loadPane(name) {
                                         fetch("/metrics").then((r) => r.json())]);
       $("srvout").textContent = "health\n" + JSON.stringify(h, null, 2)
                               + "\n\nmetrics\n" + JSON.stringify(m, null, 2);
+      // FS-27: surface the ROS/Gazebo/RViz evidence (lifecycle nodes, clock/tf/joint + gz-bridged topics,
+      // RViz displays, Gazebo worlds) that proves a run matches its runnable profile, as a first-class pane.
+      const re = $("rosevidence");
+      if (re) {
+        try {
+          const ev = await (await fetch("/ros/evidence", { headers: apiHeaders() })).json();
+          re.innerHTML = window.STEWIE_ROS_EVIDENCE.rosEvidenceHTML(ev, esc);
+        } catch (_e) { re.innerHTML = '<span style="color:var(--muted)">ROS/Gazebo/RViz evidence — run server.py</span>'; }
+      }
     } else if (name === "config" && !_PANE_LOADED.config) {
       const c = await (await fetch("/config/full")).json();   // #61: the organized one-call state
       const cards = $("cfgcards"); cards.innerHTML = "";

@@ -32,6 +32,15 @@ def get_nav_contract(_auth: None = Depends(require_auth)):
     return {"ok": True, **navigation_contract()}
 
 
+@router.get("/ros/evidence")
+def get_ros_evidence(_auth: None = Depends(require_auth)):  # [REQ:FS-27]
+    """FS-27: the ROS/Gazebo/RViz EVIDENCE surface the Validate/System/Report panes render -- the lifecycle
+    nodes, the clock/tf/joint + gz-bridged topics, the RViz displays, and the Gazebo worlds that prove a run
+    matches its runnable profile. Read from the committed AS-01 contract + configs. Read-only -> require_auth."""
+    from stewie.server.ros_evidence import collect_ros_evidence
+    return {"ok": True, **collect_ros_evidence()}
+
+
 class LocalPlanRequest(BaseModel):
     # NV-03/04 is observation/geometry only -- forbid extra keys so no truth/hidden-state field rides in.
     model_config = ConfigDict(extra="forbid")
