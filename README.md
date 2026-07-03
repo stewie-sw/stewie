@@ -31,6 +31,13 @@ official challenge entry.
 One core paradigm runs through it — **terrain memory**: the excavator physically changes the surface,
 and STEWIE maintains the authoritative world model rather than a rover-centric SLAM view.
 
+Operationally, STEWIE is governed by **environment mode** (DEV / TRAINING / REHEARSAL / LIVE / REPLAY /
+ARCHIVE): authority (what a session may do, up to commanding a real robot) is a property of the mode and is
+enforced centrally, so training can never cross into live. Its planner is a **mission-planning engine** that
+chooses world-transforming actions under known physics, resources, and uncertainty with traceable
+justification, not a path finder. See PRD §29 (environment-governed operations) and §30 (mission-planning
+engine).
+
 ## Subsystems
 
 | Package | Role |
@@ -40,6 +47,13 @@ and STEWIE maintains the authoritative world model rather than a rover-centric S
 | **`lode/`** | Operations and planning — the mission planner, terrain-aware routing, autonomy, and acceptance. |
 | **`leap/`** | Earthmoving — construction skills and scheduling environments. |
 | **`forge/`** | Infrastructure and physics services. |
+
+The monorepo is also a `packages/` **uv workspace** (dev tooling only; the build backend stays setuptools,
+and the Docker + editable installs are unchanged). The first low-coupling package,
+**`stewie-bodies`** (the zero-dependency planetary body and regolith registry), is extracted for standalone
+reuse and citation; `stewie/specs/bodies.py` re-exports it verbatim so every caller is unchanged.
+`stewie-forge` is next. See [`packages/README.md`](packages/README.md) and
+[`docs/packaging_strategy.md`](docs/packaging_strategy.md).
 
 ## Install
 

@@ -12,6 +12,26 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
 ## [Unreleased]
 
 ### Added
+- Platform restructure, phase 1 (2026-07-03): the monorepo dependency graph is now **acyclic** and the
+  first extracted package ships. BD-04 inverted the `bodies → physics` edge (the body → `TerramechanicsParams`
+  conversion moved to `stewie/physics/body_params.py`; `stewie/specs/bodies.py` imports no `stewie.physics`
+  at module level); PX-04 added the `PhysicsBackend` protocol + `Tier2NumpyBackend`
+  (`stewie/physics/backend.py`, byte-identical passthrough); PX-05 added an executable production-physics
+  import guard (`scripts/test_import_boundaries.py`); AP-01 broke the `core ↔ dart/leap` cycle (the composing
+  runtime loops + routers import dart/leap lazily / under `TYPE_CHECKING`; routes + behavior unchanged).
+  PO-16 added the additive `[tool.uv.workspace]` skeleton (dev tooling only; setuptools build + Docker +
+  editable install unchanged) + a `packages/` DAG guard test. **PO-17 extracted `stewie-bodies`** as a
+  standalone zero-dependency package (`packages/stewie-bodies/`); `stewie/specs/bodies.py` is now a verbatim
+  re-export shim (every caller unchanged), verified through the Docker backend image build (in-container
+  import smoke passed); dev venv, `deploy/Dockerfile.backend`, and CI install surfaces updated. Next: PO-18
+  `stewie-forge`. Spec: `docs/packaging_strategy.md`, `packages/README.md`.
+- PRD §29 "Environment-Governed Operations & Control Backend" (six environment modes DEV/TRAINING/REHEARSAL/
+  LIVE/REPLAY/ARCHIVE + a per-mode authority matrix; 12 bounded backend services with the ROS2 bridge as the
+  sole real-robot egress; `stewie_{dev,training,live,archive}` DB/branch isolation; an 11-role model; an
+  8-step training-to-live gate + a live-execution token) and §30 "Mission-Planning Engine" (planning as
+  choosing world-transforming actions, not path finding: intent → tasks → capability match → candidates →
+  physics score → rehearsal → approval → execution → reconcile → world, over an 8-precondition executability
+  gate and a 12-object model). Atomized into the tracked §7.C EG-01..12 and §7.D MP-05..12 lanes.
 - Structure-first base planning (validate-and-advise): `leap/siteplan.py` analyzes a placed-structure
   set for the base-wide mass economy, nearest source→sink routing, inter-structure clearances, and build
   order; exposed via `POST /siteplan/analyze` and a cockpit **Site plan** panel (drop structures on the
@@ -63,6 +83,10 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
   restart cycles in `stewie-ros2-1` (healthy 10-topic graph each time).
 
 ### Changed
+- `/program` board content rewrite: lanes are now grouped by a phase/domain taxonomy (the restructure phases
+  lead: edge-breaks → packaging → data/engines → Frontend GeoLibre → Runtime → Mission/physics → Backend/ops),
+  each group carrying a rollup, with green progress bars (`program_snapshot.json` + `assets/program_board.js`
+  + `web/program.html`).
 - ROS2 image (`stewie-ros2`) now bundles **Nav2** (`ros-jazzy-navigation2` + `nav2_bringup`, 34 packages):
   the FS-05 live nav-binary tier is PRESENT + launchable in-container — verified `planner_server` +
   `global_costmap` launch and register alongside the live `/rover_executive` node. The deep terrain-wired

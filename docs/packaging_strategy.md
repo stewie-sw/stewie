@@ -15,6 +15,28 @@ Governing rule: **if a package needs the STEWIE world model, runtime server, ROS
 make sense, keep it internal. If a planetary-robotics researcher could use it without STEWIE, publish it.**
 Today that means `bodies` and `forge` are publishable; everything else stays workspace-internal.
 
+## Progress (2026-07-03)
+
+Phase 1 of the extraction is landed on `feat/platform-restructure` (committed, NOT pushed, NOT deployed;
+`main` untouched):
+
+- **Edges broken.** BD-04 inverted the `bodies → physics` edge: the body → `TerramechanicsParams`
+  conversion moved to `stewie/physics/body_params.py` (physics → bodies direction), and
+  `stewie/specs/bodies.py` imports no `stewie.physics` at module level. PX-04 added the `PhysicsBackend`
+  protocol + `Tier2NumpyBackend` (`stewie/physics/backend.py`, byte-identical passthrough). PX-05 added an
+  executable production-physics import guard (`scripts/test_import_boundaries.py`). AP-01 broke the
+  `core ↔ dart/leap` cycle: the composing runtime loops + routers now import dart/leap lazily / under
+  `TYPE_CHECKING`. **The dependency graph is now acyclic.**
+- **Workspace skeleton (PO-16).** Additive `[tool.uv.workspace]` in the root `pyproject.toml` (dev tooling
+  only; build backend stays setuptools; Docker + editable install unchanged) + the `packages/README.md` DAG
+  declaration + a forge import-DAG guard test.
+- **`stewie-bodies` extracted (PO-17).** The pure-stdlib body/regolith registry now ships as a standalone
+  zero-dependency package at `packages/stewie-bodies/` (own `pyproject.toml`); `stewie/specs/bodies.py` is a
+  verbatim re-export shim (every caller unchanged) that keeps the physics-dependent `params_for_body`
+  wrapper. Verified through the Docker backend image build (built + in-container import smoke passed); the
+  dev venv, `deploy/Dockerfile.backend`, and CI (×4 jobs) install surfaces are updated.
+- **Next: PO-18** extract `stewie-forge`; then Stage 3 publishes `stewie-bodies` + `stewie-forge`.
+
 ## Target repo structure
 
 ```
@@ -53,6 +75,8 @@ apps/*          → import packages, never the reverse
 
 The DAG above is the target; the current code violates it in three specific places. Contract-first
 extraction must fix these BEFORE any folder move, or the split creates import cycles.
+
+**Update (2026-07-03): all three edges are now broken (BD-04, PX-05, AP-01); see the Progress section above.**
 
 1. **`bodies → forge` is inverted.** `stewie/specs/bodies.py:29` does `from stewie.physics.terramechanics
    import TerramechanicsParams`. Bodies must have ZERO STEWIE deps. **Fix:** `BodyProfile` carries only raw

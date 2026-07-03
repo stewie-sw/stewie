@@ -35,6 +35,24 @@ designed vs. built.
 - **Reject** the universal `WorldObject` base class; precise typed contracts + small protocols; generic in the DB row, typed in the code.
 - The **digital thread already exists** as `req_trace` + evidence bundles — extend it to figures/experiments; don't rebuild it.
 
+## Operational layers (PRD §29 / §30, 2026-07-03)
+
+Two operational layers were specified this session and atomized into tracked §7 rows:
+
+- **Environment-Governed Operations & Control Backend (PRD §29).** Authority is a property of the
+  ENVIRONMENT MODE, not a loose admin toggle: six modes (DEV / TRAINING / REHEARSAL / LIVE / REPLAY /
+  ARCHIVE) with a per-mode authority matrix over seven flags, centrally enforced so training can never cross
+  into live. Twelve bounded backend services, with the ROS2 bridge as the sole real-robot egress;
+  `stewie_{dev,training,live,archive}` DB/branch isolation; an 11-role model; an 8-step training-to-live gate
+  + a live-execution token; command-safety pipeline invariants; and a reconciliation lifecycle. Atomized as
+  the §7.C EG-01..12 lane (EG-12 selects the PX-04 physics backend). Sits at the service level (level 4) with
+  digital-engineering accountability (level 7).
+- **Mission-Planning Engine (PRD §30).** Planning chooses actions that transform the world, not a path:
+  Intent → Tasks → capability match → candidate plans → physics scoring → rehearsal → approval → execution →
+  reconciliation → updated world model, over an 8-precondition executability gate and a 12-object typed model
+  with 10 UI panels. Atomized as the §7.D MP-05..12 lane (MP-06 ties Demo 001 / task #14). This is the
+  execution model (level 5) driving the world engine.
+
 ## Conceptual model (the theory layer, 2026-07-03)
 
 Consolidated from the computational-theory inputs (control loops → engines → state machines → four primitives
@@ -111,8 +129,9 @@ at its periphery — the most publication-useful sentence in the whole cascade.
 
 ## ★ Honest status
 
-- **Design: thorough. Implementation this session: zero lines.** Everything above is captured plan, staged and uncommitted.
-- **The dissertation is ARGUS** — articulated-rover state estimation on ONE rover. STEWIE / bodies / forge / the whole PDEP vision are supporting, citable infrastructure. Foreground ARGUS.
-- **The first real slice is Demo 001** (task #14) — one IPEx dig, full loop, from existing tested code (`RegolithVolumeEstimate` is already the reconcile output). It exercises the digital thread end-to-end.
-- **The two publishable packages** are `stewie-bodies` + `stewie-forge` (task #13), extracted via the PX/BD refactor.
-- The map is complete. The territory — one running slice — is not yet built. That is the open item.
+- **Restructure phase 1 is now landed on `feat/platform-restructure`** (committed, NOT pushed, NOT deployed; `main` untouched): the import edges are broken (BD-04 / PX-04 / PX-05 / AP-01), the dependency graph is **acyclic**, the uv workspace skeleton is in place (PO-16), and the first package **`stewie-bodies` is extracted** and shimmed (PO-17), verified through the Docker backend image build. See `packaging_strategy.md` §Progress.
+- **The rest of the architecture above is still captured plan** (the seven-level map, the data/persistence design, the conceptual/inference-engine frame, the §29/§30 operational layers): design is thorough; those layers are staged, not built.
+- **The dissertation is ARGUS**: articulated-rover state estimation on ONE rover. STEWIE / bodies / forge / the whole PDEP vision are supporting, citable infrastructure. Foreground ARGUS.
+- **The first real slice is Demo 001** (task #14): one IPEx dig, full loop, from existing tested code (`RegolithVolumeEstimate` is already the reconcile output). It exercises the digital thread end-to-end.
+- **The two publishable packages** are `stewie-bodies` (extracted, PO-17) + `stewie-forge` (PO-18, next); publish is Stage 3, after `forge` is out.
+- The map is nearly complete; the territory (one running slice, Demo 001) is not yet built. That is the open item.
