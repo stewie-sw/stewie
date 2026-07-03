@@ -3044,15 +3044,8 @@ async function rcEligibility() {
     const r = await fetch(`/rc/eligibility${q}`, { headers: apiHeaders() });
     if (!r.ok) { el.innerHTML = `<span style="color:var(--muted)">authority — ${r.status === 401 || r.status === 403 ? "operator+ sign-in required" : "unavailable"}</span>`; return; }
     const d = await r.json();
-    // the command-authority gates (released/SAFE/link/role); perception-freshness fields are FS-27/PM-17.
-    const gates = [["role", d.mode_ok], ["released", d.released], ["SAFE-clear", d.safe_inactive],
-                   ["link", d.link_ack], ["watchdog", d.watchdog_alive]];
-    const chips = gates.map(([name, ok]) =>
-      `<span style="color:${ok ? "var(--accent)" : "var(--muted)"}">${ok ? "✓" : "✗"} ${esc(name)}</span>`).join(" · ");
-    const head = d.eligible
-      ? '<b style="color:var(--accent)">ELIGIBLE</b>'
-      : `<b style="color:var(--muted)">INELIGIBLE</b> <span style="color:var(--muted)">(${esc(String(d.reason))})</span>`;
-    el.innerHTML = `<span title="RS-01 CommandEligibility contract">command authority: ${head}</span> — ${chips}`;
+    // FS-28: the pure HTML build lives in command_authority_html.js (node-tested; SEC-04 escaping).
+    el.innerHTML = window.STEWIE_COMMAND_AUTHORITY.commandAuthorityHTML(d, esc);
   } catch (e) { el.innerHTML = '<span style="color:var(--muted)">authority — run server.py</span>'; }
 }
 
