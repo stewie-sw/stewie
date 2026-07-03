@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stewie-forge"
+version = "0.1.0"
+description = "STEWIE FORGE: sourced planetary geotechnics + terramechanics (Bekker/Wong-Reece sinkage, slip, Terzaghi/Vesic bearing) + the PhysicsBackend interface. Analytical, conserved-authority-first."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+# PX-03: the Chrono geometry-oracle backend (advisory only, NOT release authority while conserves_mass=False).
+# Deps are added when that backend is actually built; PyPI `pychrono` is a typosquat -- do not add it here.
+chrono = []
+
+[tool.setuptools]
+packages = ["stewie_forge"]

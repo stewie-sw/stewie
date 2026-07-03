@@ -1,47 +1,26 @@
-"""[REQ:PX-04] The PhysicsBackend seam.
+"""[REQ:PO-18] The concrete Tier-2 physics backend (stewie-core).
 
-A stable interface over the terrain-physics authority so Tier-2 (conserved NumPy) and future engines (Tier-3
-Chrono/hybrid) are selectable per mission WITHOUT the planner or any client mutating terrain directly.
-`Tier2NumpyBackend` is a thin passthrough adapter over the existing terramechanics / FORGE bearing /
-body-params functions -- the numbers are byte-identical, now behind one interface that reports its
-authority_class + conserves_mass. Lives on the physics side (physics/forge -> bodies direction), so
-`stewie-forge` can own the protocol; the conserved authority stays the ONLY terrain mutator.
+The abstract PhysicsBackend PROTOCOL + PhysicsBackendInfo + AuthorityClass live in the `stewie-forge` package
+(`stewie_forge.backend_protocol`). `Tier2NumpyBackend` stays HERE because it resolves body soil params via the
+stewie-core `body_params` adapter (which applies the `stewie.specs.config` overlay), so it is not a
+zero-STEWIE-dependency artifact. The protocol names are re-exported so existing
+`from stewie.physics.backend import PhysicsBackend` callers are unchanged.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING
+
+from stewie_forge.backend_protocol import (  # noqa: F401  (re-exported for existing importers)
+    AuthorityClass,
+    PhysicsBackend,
+    PhysicsBackendInfo,
+)
 
 from stewie.physics import terramechanics as TM
 from stewie.physics.body_params import params_for_body
 
 if TYPE_CHECKING:
-    from stewie.physics.terramechanics import TerramechanicsParams
-
-AuthorityClass = Literal["conserved", "geometry_oracle", "advisory"]
-
-
-@dataclass(frozen=True)
-class PhysicsBackendInfo:
-    id: str
-    label: str
-    authority_class: AuthorityClass    # "conserved" may drive release/execute; others may not
-    conserves_mass: bool
-    fidelity_tier: int                 # 2 = conserved NumPy, 3 = granular/Chrono
-    notes: str = ""
-
-
-@runtime_checkable
-class PhysicsBackend(Protocol):
-    """The contract every physics engine implements. A backend that does not conserve mass cannot be selected
-    for release/execute authority (checked by the caller against `info().conserves_mass`)."""
-
-    def info(self) -> PhysicsBackendInfo: ...
-    def conserves_mass(self) -> bool: ...
-    def resolve_soil_params(self, body_name: str, *, allow_analog: bool = ...) -> "TerramechanicsParams": ...
-    def wheel_static_sinkage(self, *args, **kwargs) -> float: ...
-    def static_wheel_load_n(self, *args, **kwargs) -> float: ...
-    def allowable_bearing_pa(self, *args, **kwargs) -> float: ...
+    from stewie_forge.terramechanics import TerramechanicsParams
 
 
 class Tier2NumpyBackend:
@@ -67,7 +46,7 @@ class Tier2NumpyBackend:
         return TM.static_wheel_load_n(*args, **kwargs)
 
     def allowable_bearing_pa(self, *args, **kwargs) -> float:
-        from forge.bearing import allowable_bearing_pa as _ab
+        from stewie_forge.bearing import allowable_bearing_pa as _ab
         return _ab(*args, **kwargs)
 
 

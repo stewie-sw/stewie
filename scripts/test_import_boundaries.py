@@ -105,3 +105,29 @@ def test_po17_shim_reexports_the_package_objects():  # [REQ:PO-17]
     assert shim.BODIES is stewie_bodies.BODIES
     assert shim.get_body is stewie_bodies.get_body
     assert shim.Body is stewie_bodies.Body
+
+
+# ---- [REQ:PO-18] stewie-forge extraction (standalone geotech package + shim identity) -----------
+def test_po18_stewie_forge_is_bodies_numeric_only():  # [REQ:PO-18]
+    """stewie-forge imports NO dart/lode/leap/stewie-core -- standalone geotech (numeric-only; bodies allowed)."""
+    pkg = _ROOT / "packages" / "stewie-forge" / "stewie_forge"
+    offenders = []
+    for f in sorted(pkg.glob("*.py")):
+        for node in ast.parse(f.read_text(encoding="utf-8")).body:
+            mods = ([node.module] if isinstance(node, ast.ImportFrom) and node.module
+                    else [a.name for a in node.names] if isinstance(node, ast.Import) else [])
+            for m in mods:
+                if m.split(".")[0] in ("dart", "lode", "leap", "stewie"):
+                    offenders.append(f"{f.name}: {m}")
+    assert not offenders, "stewie-forge imports the monorepo (not standalone): " + "; ".join(offenders)
+
+
+def test_po18_shims_reexport_the_package():  # [REQ:PO-18]
+    """The stewie.physics.terramechanics + forge.bearing shims re-export the SAME package objects (no copy)."""
+    import stewie_forge.bearing as SFB
+    import stewie_forge.terramechanics as SFT
+    from forge import bearing
+    from stewie.physics import terramechanics as TM
+    assert TM.TerramechanicsParams is SFT.TerramechanicsParams
+    assert TM.wheel_static_sinkage is SFT.wheel_static_sinkage
+    assert bearing.allowable_bearing_pa is SFB.allowable_bearing_pa
