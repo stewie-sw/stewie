@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "85015be9bcdaa091237d79d90fa41b61ec99f6a75fabca5fc733db91e649b10b",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "0f41efd4eaf592061319a866f4f6c80b0e1bf513",
-  "prd_sha256": "d18b23acf7860b51fd4f736ed4565fd9db3d968b70533b3a024624b54ea4d736",
+  "prd_commit": "10c45425191e950723feb7b96d21bfed4214aec3",
+  "prd_sha256": "53b6bf0c8f63eb6da9def2a0f0b6442165a9e22458a318582f91229be09ec5c6",
   "specs_sha256": "44cb8fe01e084f6a23d3e6927ffffe9d6da653d13649d76df21b06e1d0e18ca6"
  },
  "rows": [
@@ -2093,16 +2093,16 @@
    "text": "**Product mode + runnable profile in the route/state model (review finding 4).** The cockpit route/state model carries the PRD product mode (`GIS-PLAN`/`TRAIN`/`SIM-OPERATE`/`EVALUATE`/future `OPERATE`) and the runnable profile (`desktop_sil`/`digital_twin`/`ros2_replay`/`hil_jetson`/`sensor_bench`/`rover_bench`/`field_traverse`/`monte_carlo`) as first-class routeable, persisted, shareable fields \u2014 beyond today's `source`(live/sim/eval)+`mode`(sandbox/live) (`cockpit_state.js:8`). The persistent mode/profile rail (\u00a726.2) is driven from this state; sim/forecast/replay/HIL/live never share ambiguous styling. Acceptance: a shared link restores mode+profile; the rail reflects them on every screen. Buildable on archimedes."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "the public /program board fits the mobile viewport (no horizontal overflow at 390 px).",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_program_mobile.py citing [REQ:FS-26] (or a node/Playwright check)"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "FS-26",
    "lane": "FS",
@@ -3833,9 +3833,9 @@
  "summary": {
   "briefs": 133,
   "buckets": {
-   "buildable": 64,
+   "buildable": 63,
    "concurrent": 0,
-   "done": 172,
+   "done": 173,
    "gated": 25
   },
   "by_lane": {
@@ -3884,7 +3884,7 @@
     "total": 21
    },
    "FS": {
-    "done": 22,
+    "done": 23,
     "total": 30
    },
    "GI": {
@@ -3958,7 +3958,7 @@
     "total": 76
    },
    "P1": {
-    "done": 93,
+    "done": 94,
     "total": 160
    },
    "P2": {
@@ -3971,9 +3971,9 @@
    }
   },
   "cited": 193,
-  "done_pct": 65.9,
+  "done_pct": 66.3,
   "in_scope": 236,
-  "in_scope_done_pct": 72.9,
+  "in_scope_done_pct": 73.3,
   "total": 261
  },
  "workflow_spine": [
