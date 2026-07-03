@@ -1312,3 +1312,9 @@ Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO
 - goal: platform backlog row MP-12 (PRD §7 + §29/§30 governance+planning specs).
 - files: lode/mission_planner.py
 - test_target: NEW test citing [REQ:MP-12]
+
+### PX-06 (P0) — atomic
+- goal: break terramechanics->stewie.specs.constants (prereq for PO-18); forge-local geotech defaults + preserve config-overlay via injection at stewie-side call sites; behavior byte-identical.
+- acceptance: production stewie/physics/terramechanics imports no stewie.specs.constants (AST guard extends PX-05); from_constants() unchanged; a config override still reaches built params via injection; physics+lode regression green.
+- files: stewie/physics/terramechanics.py, stewie/specs/constants.py, stewie/physics/body_params.py, scripts/test_import_boundaries.py
+- test_target: NEW/extended [REQ:PX-06] in scripts/test_import_boundaries.py + stewie/physics/test_terramechanics.py
