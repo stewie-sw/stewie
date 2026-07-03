@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "aef8fcc6bd2316ec119f366e193f4b69ba6952aa",
-  "prd_sha256": "5627b36bebd9e9320f587fb555325547310b5007f9fbc23997fb1ef795f37883",
+  "prd_commit": "f0d49b95552a55f8c3c3881bd283fcad69ab1af6",
+  "prd_sha256": "bc8316d59c2120cdd9c6160bdff84f1905dbc1aa887b0fa28fa1d4052f22aa2c",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -1620,16 +1620,16 @@
    "text": "Contract spine: define versioned schemas for `WorldState`, `VehicleState`, `FleetState`, `BeliefState`, `PlanResult`, `ExecutionEvent`, `EphemerisObservation`, `NavigationFactor`, `ModelArtifact`, and `ConstructionSkill`. Backend APIs and cockpit views must consume these contracts instead of ad hoc payloads."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "make Plan/Fleet/Navigation/Perception/Construction/Models/Security/Reports first-class cockpit work areas, mobile-safe, with explicit truth/belief/forecast/live provenance labels; cite it.",
     "kind": "epic",
     "test_target": "extend stewie/server/test_ui18_pane_manager.py or test_panel_layout_chrome.py; OR NEW stewie/server/test_ia_provenance_labels.py"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "FS-03",
    "lane": "FS",
@@ -2253,16 +2253,16 @@
    "text": "Science/Operator Assistant: a separate explanatory model may summarize telemetry, faults, and evidence; it has read-only access and no command path."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "define the edge deployment envelope \u2014 a Jetson-Orin-class compute profile (RAM/power/thermal/latency/sensor-IO) + an aggregate check that any SIMULTANEOUS model set fits it + degraded-mode scheduling.",
     "kind": "epic",
     "test_target": "NEW stewie/specs/test_edge_envelope.py"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "ML-09",
    "lane": "ML",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 81,
+   "buildable": 79,
    "concurrent": 0,
-   "done": 149,
+   "done": 151,
    "gated": 25
   },
   "by_lane": {
@@ -3782,7 +3782,7 @@
     "total": 15
    },
    "FS": {
-    "done": 18,
+    "done": 19,
     "total": 30
    },
    "GI": {
@@ -3790,7 +3790,7 @@
     "total": 3
    },
    "ML": {
-    "done": 6,
+    "done": 7,
     "total": 9
    },
    "MO": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 64,
+    "done": 66,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 58.4,
+  "done_pct": 59.2,
   "in_scope": 230,
-  "in_scope_done_pct": 64.8,
+  "in_scope_done_pct": 65.7,
   "total": 255
  },
  "workflow_spine": [
