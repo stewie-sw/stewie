@@ -150,6 +150,7 @@ validation/ui/
 # IPEx body preview (regenerable via scripts/gen_ipex_mesh.py)
 validation/ipex/
 deploy/.env
+deploy/.env.bak*
 stewie/godot/.tools/
 
 # ── Local-only: agent-orientation docs + non-standard working notes (never pushed) ──
