@@ -95,3 +95,10 @@ and stop scheduling (wait for Aaron).
   bridge+runtime) green. NEXT = EG-03 (DB/branch isolation) -- likely more architectural; do the MINIMAL real
   isolation (mode -> store namespace/path + isolation guard), SURFACE+STOP only if it needs a genuine
   persistence-architecture decision from Aaron.
+- 2026-07-03 6646ee4 — EG-03 DONE (wake 6). DB/branch isolation by mode: stewie/twin/store_isolation.py
+  (store_key/store_root/require_live_store_write/save_site_for_mode/load_site_for_mode) -- minimal
+  directory-namespace over the existing file store (NOT a multi-DB fork); only LIVE -> the live store, non-LIVE
+  write to live fails closed (reuses EG-02). Existing raw-data_dir callers byte-identical. Threading the active
+  session mode into every WorldStateService/router call site is the noted [REQ:EG-03] follow-up. [REQ:EG-03]
+  4/4; additive; gate green. GOVERNANCE = model(EG-01)+enforcement(EG-02)+isolation(EG-03). NEXT = EG-05
+  (training-to-live gate + live-execution token).
