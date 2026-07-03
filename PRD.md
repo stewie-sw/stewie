@@ -8,6 +8,22 @@ documents are archived (`docs/archive/`) or are upstream STEWIE architecture/roa
 workspace: `design/STEWIE_ATOMIC_EXECUTION_PLAN_2026-06-09.md`.
 **Baseline commit:** `047331250cf443498c25b5bead4bed167668752c`
 
+> **⚠ ARCHITECTURE PIVOT 2026-07-03 — GeoLibre-style 2D frontend rewrite + pluggable physics/body seams.**
+> Aaron's decision, planned by conferring with Codex (max-reasoning). The full plan is
+> `docs/geolibre_rewrite_plan_2026-07-03.md` (Claude + Codex reconciled); the migration assessment behind it
+> is `docs/geolibre_migration_assessment_2026-07-03.md`. **What changes:** the frontend is rebuilt on a
+> GeoLibre-style stack (React/TypeScript + MapLibre GL JS + deck.gl 2D + DuckDB-WASM + Tauri v2); the map is
+> **2D only** (no Cesium globe — this deliberately defuses the lunar-CRS-on-an-Earth-engine risk); the Python
+> FastAPI backend is **unchanged** and becomes the sidecar (all 140 routes reused); and STEWIE gains two
+> first-class extension seams — a **PhysicsBackend** interface (Tier-2 conserved NumPy / Tier-3 Chrono-hybrid /
+> future engines, swappable per mission) and a **BodyProfile** registry (Moon/Mars/Ceres/… as versioned
+> profiles). **New §7 lanes:** RF (React frontend), GL (GeoLibre 2D map), DW (DuckDB-WASM), AC (API client),
+> PX (physics extensibility), BD (body profiles), TU (Tauri desktop), MG (migration governance) — see §7.A.
+> **Roadmap:** the phased strangler-fig migration is §10.A. **Honesty note:** the pivot RE-OPENS P0 — the
+> pre-pivot backend/cockpit scope's "all P0 complete" still holds, but the rebuild adds NEW P0 foundations
+> (AC/RF/GL/PX/BD/MG). The vanilla cockpit stays live and served until React reaches pane-by-pane parity;
+> nothing is retired until then. §6 Target Architecture below is rewritten for the two-process shape.
+
 ## 0. Where we are / what's next (2026-06-11 — read this first)
 
 **Status (2026-07-01):** STEWIE is one live production platform, deployed on app.stewie.space
@@ -419,30 +435,44 @@ measurement.
 
 ## 6. Target Architecture
 
+The rebuilt system is TWO processes (2026-07-03 pivot): a Python **compute/authority backend** (UNCHANGED --
+the FastAPI sidecar, all 140 routes, DART/LODE/LEAP/FORGE, physics, RL, planner, runtime spine, digital twin)
+and a React **operator frontend** (the 2D GeoLibre-style cockpit). The layered stack below is the backend
+compute stack (L0-L6) plus the new frontend product layers (L7-L8). Physics is now a PLUGGABLE authority (L1)
+and body data is a PROFILE registry (L0). Client state may author intent and view results, but conserved
+terrain mutation happens ONLY through the backend authority path (§6.1, §6.2). Full design:
+`docs/geolibre_rewrite_plan_2026-07-03.md`.
+
 ```text
-L7  Product and operations
-    browser / API / reports / profiles / deployment / observability
+L8  Product shells
+    web deployment + Tauri v2 desktop, both the same React/TypeScript app
+
+L7  Operator cockpit + GIS workbench
+    React ConOps panes / MapLibre + deck.gl 2D projected map (no globe) / DuckDB-WASM query workbench /
+    generated API client / route-to-pane registry / provenance + mode + authority labels
 
 L6  Mission and fleet planning
-    goals / structures / PlanResult / resources / acceptance / Plan IR
+    goals / structures / PlanResult / resources / acceptance / Plan IR / body + physics-backend selection
 
 L5  Navigation and execution
-    coverage planner / local planner / tracker / recovery / executive
+    coverage planner / local planner / tracker / recovery / executive / command eligibility
 
 L4  Perception and localization
-    camera policy / segmentation / stereo VO / SLAM / map / solar factors
+    camera policy / segmentation / stereo VO / SLAM / observed layers / solar factors
 
-L3  Navigation -- articulated vehicle digital twin (PRD 16.3b)
+L3  Vehicle digital twin
     VehicleTwin / ArmState / drums / per-drum load / CG / support polygon / work lights / camera rig
 
 L2  Terrain, illumination, and world state
-    conserved terrain / rocks / uncertainty / sun vector / shadows / mutable illumination
+    FR-10 LayerManifest / conserved terrain / observed twin / rocks / uncertainty / sun vector / shadows
 
-L1  Physical authority
-    terramechanics / mobility / excavation / energy / thermal / power
+L1  Pluggable physics authority  (NEW seam: PhysicsBackend interface)
+    Tier-2 NumPy conserved authority / Tier-3 Chrono-hybrid (geometry-oracle until it conserves mass) /
+    future engines -- selectable per mission/body; a non-conserving backend is refused for release/execute
 
-L0  Contracts
-    units / schemas / time / frames / provenance / invariant enforcement
+L0  Contracts and profiles
+    units / schemas / time / frames / provenance / invariant enforcement /
+    BodyProfile registry (NEW seam) / PhysicsBackend contracts / authority labels
 ```
 
 ### 6.1 Authoritative artifacts
@@ -463,6 +493,17 @@ The architecture must have these single-source runtime artifacts:
 8. `RuntimePacket`: the strict canonical sensor packet (one clock, closed channel set, truth-scan
    enforced) -- the ONLY surface estimators see.
 9. `SessionRecord`: a training session's recorded legs + link accounting + debrief/divergence.
+10. `LayerManifest` (FR-10, implemented): the typed per-layer catalog `/world` carries and the planner +
+    the React map consume; the single layer authority (no client-only catalog).
+11. `BodyProfile` (NEW seam BD): a versioned body/regolith/CRS profile with per-field provenance, replacing
+    direct `BODIES`-dict coupling; missing numeric fields are `null` + labeled, never fabricated.
+12. `PhysicsBackendInfo` + `PhysicsBackendSelection` (NEW seam PX): the selected physics engine per
+    mission/body, recorded in `PlanResult` / report / release evidence; carries `conserves_mass` +
+    `authority_class` so release/execute can refuse a non-conserving backend.
+13. `ApiRouteRegistry` (NEW lane AC): generated typed client coverage for all 140 router-owned routes, with
+    per-route pane ownership, auth, response kind, provenance, and mutation flags.
+14. `SpatialQueryWorkspace` (NEW lane DW): the DuckDB-WASM loaded catalog + query state -- advisory/display
+    only until a result is written back through a backend route.
 
 Reports, Plan IR, playback, validation, and autonomy must be views over these artifacts, not
 independent recomputations.
@@ -496,6 +537,37 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 
 ## 7. Requirements
 
+### 7.A GeoLibre-style frontend rewrite + extensibility seams (2026-07-03 pivot)
+
+These lanes track the 2026-07-03 rewrite (design: `docs/geolibre_rewrite_plan_2026-07-03.md`). The backend
+lanes (§7.1-§7.17) are UNCHANGED — the FastAPI core is reused. The vanilla-cockpit rows (FR-16..21 mobile +
+the pane/shell FR/FS rows) are SUPERSEDED by RF/GL and marked migrated as each React pane reaches parity; they
+are not deleted (history) and stay valid until the vanilla cockpit retires (MG-03). Roadmap: §10.A. Lane keys:
+RF React frontend · GL GeoLibre 2D map · DW DuckDB-WASM · AC API client · PX physics · BD body profiles ·
+TU Tauri desktop · MG migration governance.
+
+| ID | P | Requirement and acceptance | I | X | V | Q |
+| --- | --- | --- | --- | --- | --- | --- |
+| AC-01 | P0 | Generate a TypeScript API client from live `/openapi.json`; CI fails on generated-vs-FastAPI path drift. Every one of the 140 router-owned routes has a registry entry or an explicit static/internal exemption. | N | N | N | NA |
+| AC-02 | P0 | The route registry records per-route pane ownership, auth/role, response kind, provenance requirement, fixtures, and authority-mutation flag; a pane-backed route missing fixture/role/provenance fails. | N | N | N | NA |
+| RF-01 | P0 | React shell implements the same 13 pane identities + role visibility as the vanilla cockpit; signed-in browser tests open all 13 panes at desktop + phone widths. | N | N | N | NA |
+| RF-02 | P0 | React workspace state carries mission/site/body/vehicle/physics-backend/product-mode/runnable-profile/source-class/work-area; URL+state round-trip; Release/Execute refuse mismatched profile/backend states. | N | N | N | NA |
+| RF-03 | P1 | Each migrated pane ships empty/error/loading/mobile fixtures + a signed-in Playwright parity test vs the vanilla pane before it is flipped. | N | N | N | NA |
+| GL-01 | P0 | 2D MapLibre/deck workbench renders the selected site DEM + FR-10 layers in the local order frame; control points round-trip through `/dem/site_xy` + `/dem/site_lonlat` within tolerance; no WGS84/Earth claim on lunar coordinates. | N | N | N | NA |
+| GL-02 | P1 | Map identify/measure/edit sessions operate on deck layers and write mission edits ONLY through backend routes; a keep-out drawn on the map appears in the mission request and routes around it. | N | N | N | NA |
+| DW-01 | P1 | DuckDB-WASM loads the FR-10 manifest + a vector mission package into queryable tables carrying display/planning/release/execute eligibility; a display-only layer cannot be marked planning-valid. | N | N | N | NA |
+| DW-02 | P2 | Client query panel supports bbox/provenance/eligibility queries within a defined browser memory + latency budget on Haworth-scale data; degrades to an optional panel if the budget is exceeded. | N | N | N | NA |
+| PX-01 | P0 | Define the `PhysicsBackend` protocol + a `tier2_numpy` adapter over the existing terramechanics/FORGE/planner-context functions; Moon Tier-2 `/plan` output is byte-compatible or diff-reviewed; microgravity refusal stays fail-closed. | N | N | N | NA |
+| PX-02 | P1 | Mission/profile schema carries `physics_backend_id`; `/physics/backends` exposes backend support/authority-class/conserves_mass; the selected backend appears in plan/report/release evidence. | N | N | N | NA |
+| PX-03 | P2 | The Chrono SCM backend is exposed ONLY as geometry-oracle/hybrid until mass-conservation closure; it cannot be selected for release/execute authority while conserves_mass=false. | N | N | N | NA |
+| BD-01 | P0 | Convert the BODIES constants into versioned BodyProfile records with NO value changes; Moon/Mars/Ceres/Bennu/Phobos/Earth/BP-1 profiles match bodies.py and params_for_body compatibility is test-proven. | N | N | N | NA |
+| BD-02 | P1 | The body registry supports built-in JSON + local profile paths with provenance + duplicate-id rules; invalid/missing provenance or a fabricated numeric field is rejected. | N | N | N | NA |
+| BD-03 | P1 | The body/profile UI (Plan + Models panes) shows body selector + soil override + physics-backend selector + support verdict + regime refusal + a body-by-backend compatibility matrix. | N | N | N | NA |
+| TU-01 | P1 | The Tauri v2 app starts/connects the FastAPI sidecar and surfaces health/logs/version; cold start reaches `/healthz` + `/auth/config`; sidecar failure produces a SystemPane degraded state, never fabricated data. | N | N | N | NA |
+| MG-01 | P0 | The vanilla cockpit stays served + deployable until React parity gates pass (`/app` vanilla, `/app2` React); its smoke tests keep passing throughout the migration. | N | N | N | NA |
+| MG-02 | P0 | No pane is flipped vanilla to React without signed-in Playwright parity + fixtures + mobile fit + route-registry coverage + a rollback route. | N | N | N | NA |
+| MG-03 | P2 | Vanilla-cockpit retirement: `/app` flips to React only after the full signed-in Playwright suite passes desktop+mobile, the backend suite stays green, route coverage is 100% for pane-backed routes, and Cesium is removed from the active surface. | N | N | N | NA |
+
 ### 7.1 Contracts and Conserved Authority
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
@@ -523,6 +595,7 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 | TW-08 | P1 | Recompute affected illumination and navigation layers after excavation changes terrain. No stale pre-build shadow map may remain authoritative. | D | D | D | NA |
 | TW-09 | P2 | Model camera LED contribution separately from solar illumination, including configurable intensity and pose. | P | N | N | N |
 | TW-10 | P2 | Track dust/optical degradation as a state affecting image quality and maintenance decisions. `[PROPOSED]` | N | N | N | N |
+| TW-11 | P2 | Traversal-compaction "traffic" layer (the multipass effect): accumulate per-cell rover-pass count + compaction + accumulated shear into the conserved twin; surface as FR-10 `traffic`/`compaction_state`/`shear_state` world layers with a traffic-color heat viz; add a costmap term that PREFERS established firm-compacted haul roads (lower sinkage) and AVOIDS over-sheared/rutted cells — emergent lunar haul-road / civil-infrastructure mapping from traversal history. Design: `docs/traversal_compaction_layer_2026-07-03.md`. `[PROPOSED]` | N | N | N | N |
 
 ### 7.3 Vehicle, Arms, Drums, and Stability
 
@@ -1072,6 +1145,30 @@ No solar-navigation capability claim is allowed until:
 7. energy/time/risk overhead is reported.
 
 ## 10. Roadmap
+
+### 10.A GeoLibre-style frontend rewrite roadmap (2026-07-03)
+
+Strangler-fig — the vanilla cockpit stays live until pane-by-pane React parity (a React rewrite was reverted
+once at `55c44c6`; never big-bang). Full detail + kill-gates: `docs/geolibre_rewrite_plan_2026-07-03.md` §3.
+Rough order 7-12 months for one focused builder; shorter with parallel lanes after the Phase 2/3 gates.
+
+| Phase | Work | Kill-gate | Est |
+|---|---|---|---|
+| 0 | ADR + route inventory + freeze vanilla parity fixtures; pick `/app2` served path | vanilla `/app` stays default; 140 routes inventoried; no pane flip until inventory exists | 1 wk |
+| 1 | React/TS shell + generated OpenAPI client + route registry + auth/state; SystemPane health first | client covers every router route or explicit exemption; shell loads signed-in/out; `/app` unaffected | 2-3 wk |
+| 2 | 2D map spike (MapLibre local-projected first, deck.gl Ortho fallback) over real Haworth DEM + FR-10 | DEM/layers render non-blank; control points round-trip within tolerance; honest local-frame labels — **if 2D map fails here, STOP the UI rewrite, keep DuckDB/API as additive** | 2-4 wk |
+| P (parallel) | PX + BD backend refactor: PhysicsBackend protocol + tier2_numpy adapter + BodyProfile registry + read/validate endpoints. INDEPENDENT of the UI — benefits the current cockpit too | Moon Tier-2 byte-compatible; microgravity fail-closed; `/models` + registry agree; Chrono not release-eligible | 3-5 wk |
+| 4 | DuckDB-WASM workbench over FR-10 + mission packages | queries a real manifest/package; eligibility survives; within memory/latency budget | 2-3 wk |
+| 5 | First pane: ReportPane (read-heavy, low command risk) side-by-side | opens a real mission's report/dashboard/provenance + empty/error; **record real per-pane hours/LOC → re-plan if >2× estimate** | 3-4 wk |
+| 6 | PlanPane authoring + solve (the densest surface) | a real Haworth mission in React yields an equivalent `/plan` result to vanilla; no client-side terrain mutation | 5-8 wk |
+| 7 | Rehearse / Validate(+Nav/Perc/Solar) / Release / Execute | Release refuses incomplete evidence; Execute never presents sim as live; role gates + SSE hold | 6-10 wk |
+| 8 | Fleet / Construction / Models / Trainer / Admin / Settings / System | all 13 panes React-backed with fixtures + mobile + role + route coverage | 5-8 wk |
+| 9 | Tauri v2 packaging + sidecar supervision + offline/degraded | cold start reaches sidecar health; crash visible in SystemPane; web parity preserved | 3-6 wk |
+| 10 | Vanilla retirement: flip `/app` to React, keep `/legacy-app` one release, remove Cesium | full signed-in Playwright passes desktop+mobile; backend green; 100% pane-route coverage | 1-2 wk |
+
+The "P (parallel)" physics/body track is the reconciled decision (Claude+Codex): it is NOT gated behind the
+Phase-2 map spike, so the extensibility Aaron requires lands early and survives even if the UI rewrite stalls.
+The legacy roadmap (backend/autonomy phases) continues below.
 
 **Current position (2026-07-01):** Phase 0 exit is met (the `RB-*` release blockers are cleared in code,
 see §0). The platform sits across Phase 1 (vehicle/posture twin, partial: geometry gated on LAC/IPEx data)
