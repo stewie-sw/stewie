@@ -63,7 +63,7 @@ def _vo_on_real_frames(n: int = 8, stride: int = 4):
 
 
 @_skip
-def test_vo_runs_on_real_frames():
+def test_vo_runs_on_real_frames():  # [REQ:SL-01]
     res, ts_ns, pairs = _vo_on_real_frames()
     assert len(pairs) >= 6
     assert res.camera_poses.shape[0] == len(pairs)
@@ -73,7 +73,7 @@ def test_vo_runs_on_real_frames():
 
 
 @_skip
-def test_poison_estimation_is_byte_identical_under_gt_corruption():
+def test_poison_estimation_is_byte_identical_under_gt_corruption():  # [REQ:SL-01]
     """Corrupt GT by +1e6 m; both frozen estimates stay byte-identical (the estimator never reads GT)."""
     res, ts_ns, _ = _vo_on_real_frames()
     xyz_cam = res.camera_poses[:, :3, 3].astype(float)
@@ -123,7 +123,7 @@ def test_poison_estimation_is_byte_identical_under_gt_corruption():
 
 
 @_skip
-def test_time_sync_is_the_gt_consumer():
+def test_time_sync_is_the_gt_consumer():  # [REQ:SL-01]
     """The time-sync step DOES read GT (that is its job) and runs on the frozen estimate -- the firewall
     is that estimation does not, which the poison test proves. (Full ATE scoring needs the whole
     trajectory; a few-frame arc is geometrically degenerate for Umeyama, so it is exercised by the
