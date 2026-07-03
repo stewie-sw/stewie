@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "1f5de6077f3e5fdcee7a1a07af0e6f43a718b362926f5970ad3d241468529974",
+  "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "c2c39a5a02fb046c7992e2f9ca91078688320c3d",
-  "prd_sha256": "9d035e05a65ff0963e8b969d52386d6eb10bc4487c7b73cfcd88d73f5ef3543d",
+  "prd_commit": "6e07d8b806809ffa99c280e60569462c4b54e76b",
+  "prd_sha256": "c7bceccec12578ea297f9d2e3499b764944dabb5819fa3daa88cb55cf1f6f24f",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -488,17 +488,17 @@
    "text": "**`ros2_control` is the single actuation authority for sim AND live (extends AS-03/AS-12).** The URDF exists but `ros2_control` transmissions/controllers do not, so Gazebo diff-drive and a future live robot would use different command paths. Add `ros2_control.xacro` (transmissions) + `controllers.yaml` (joint_state_broadcaster + skid/diff-drive controller) so BOTH `gazebo_sim` and `bench_robot`/`live_rover` lower commands through the same `controller_manager`. Acceptance: one controller config drives the Gazebo model and is the declared live-robot path; a launch/param test loads the controllers. Container-buildable (ROS 2 Jazzy + Gazebo)."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "generate a Gazebo heightfield world from a real lunar DEM (Haworth) instead of the flat regolith plane.",
     "kind": "epic",
     "test_target": "NEW scripts/test_dem_to_gazebo_heightfield.py citing [REQ:BA-04] (validates the heightfield vs the DEM)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BA-04",
    "lane": "BA",
    "pri": "P0",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 92,
+   "buildable": 91,
    "concurrent": 0,
-   "done": 138,
+   "done": 139,
    "gated": 25
   },
   "by_lane": {
@@ -3750,7 +3750,7 @@
     "total": 18
    },
    "BA": {
-    "done": 4,
+    "done": 5,
     "total": 11
    },
    "BP": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 53,
+    "done": 54,
     "total": 76
    },
    "P1": {
@@ -3868,10 +3868,10 @@
     "total": 1
    }
   },
-  "cited": 183,
-  "done_pct": 54.1,
+  "cited": 184,
+  "done_pct": 54.5,
   "in_scope": 230,
-  "in_scope_done_pct": 60.0,
+  "in_scope_done_pct": 60.4,
   "total": 255
  },
  "workflow_spine": [
