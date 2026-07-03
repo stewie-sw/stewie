@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "ebf1a7becb45b23e2097780d6b54f7ee49bf9591",
-  "prd_sha256": "a3953bf48f427bbe076aadd70b4fecfb7b0afbaab1f44657d5fba47bb8666785",
+  "prd_commit": "c3b914738dc66a2bf8a18325a7450772bd79d5c5",
+  "prd_sha256": "e13b45dd5bbfb50bdd870659873bb9a6ab488ef6ddf8a4822a50294b06610298",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -3053,16 +3053,16 @@
    "text": "**Hard runtime contracts.** Typed payloads \u2014 `DepthObservation`, `VisualHazardObservation`, `ObservedMapUpdate`, `HazardMap`, `CostmapSnapshot`, `LocalizationState`, `TrajectoryCommand`, `CommandEligibility`, `WorldTransaction` \u2014 are the ONLY things passed across the perception\u2194mapping\u2194localization\u2194planning\u2194control\u2194UI boundaries; no module passes a raw ad-hoc dict across a stage boundary. Acceptance: a contract test asserts each boundary carries + validates its typed payload, and a raw-dict / wrong-shape crossing is rejected. Buildable on archimedes."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "planner consumes the observed world (observed DEM/occupancy/rock-graph/changed-terrain/uncertainty + provenance), not just static DEM + keepouts.",
     "kind": "atomic",
     "test_target": "NEW lode/test_planner_observed_world.py citing [REQ:RS-02]"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "RS-02",
    "lane": "RS",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 78,
+   "buildable": 77,
    "concurrent": 0,
-   "done": 152,
+   "done": 153,
    "gated": 25
   },
   "by_lane": {
@@ -3818,7 +3818,7 @@
     "total": 1
    },
    "RS": {
-    "done": 3,
+    "done": 4,
     "total": 8
    },
    "SE": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 67,
+    "done": 68,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 59.6,
+  "done_pct": 60.0,
   "in_scope": 230,
-  "in_scope_done_pct": 66.1,
+  "in_scope_done_pct": 66.5,
   "total": 255
  },
  "workflow_spine": [
