@@ -2,6 +2,7 @@
   "autonomy_track": {
     "cited": 16,
     "currently_v_done": [
+      "AS-01",
       "AS-02",
       "AS-03",
       "AS-05",
@@ -11,6 +12,7 @@
       "AS-17"
     ],
     "eligible_for_v_done": [
+      "AS-01",
       "AS-02",
       "AS-03",
       "AS-05",
@@ -145,10 +147,6 @@
   "v_ne_d_flagged": [
     {
       "id": "AM-02",
-      "v": "P"
-    },
-    {
-      "id": "AS-01",
       "v": "P"
     },
     {
