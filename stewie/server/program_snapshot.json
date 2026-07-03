@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "313268378139293fe272d50e202e41dbede867b5be6b30159489bdb8feac3aa2",
+  "citations_sha256": "d7e194a5b6904c66c6e15af2bc3e91ba943b753bd92ad60d04b7ad70ba82a2f2",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "2c0e62d5af3bc66a21dafd4eb2a4375b4dde60ea",
-  "prd_sha256": "0e67fffaec900e70f87f60bd684c3341f70f3c5d1fd667040e06eb46aa7caa81",
+  "prd_commit": "9b13461ebdf0e0143d01b47b5a182befb4c7a5c5",
+  "prd_sha256": "625f57630eb48fee63d1cbc32629b32dbe766c84b690b0fa1dfbd4c9c6990d7e",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -1506,17 +1506,17 @@
    "text": "**Unified typed LAYER MANIFEST world contract (lunar; extends TW-05).** `/world` carries a per-layer manifest -- layer id/type (DEM/imagery/slope/roughness/material/traversability/observed-mask/uncertainty/hazard/illumination/comms), body CRS, site bounds, resolution, source, provenance, timestamp+freshness, uncertainty model, validity mask, transaction id, and CONSUMER ELIGIBILITY (display/planning/release/execute) -- and the planner costmap consumes the SAME manifest the cockpit reads. Acceptance: material/traversability/observed/uncertainty layers are discoverable + typed, each with consumer eligibility, and the planner builds its costmap from that manifest. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "observed-world-to-planner end-to-end acceptance gate (DEM+route -> inject hazard -> world txn -> rebuild costmap -> route changes/refuses/justified -> cockpit+release evidence).",
     "kind": "atomic",
     "test_target": "stewie/server/test_observed_world_planner_e2e.py citing [REQ:RS-02]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FR-11",
    "lane": "FR",
    "pri": "P1",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 66,
+   "buildable": 65,
    "concurrent": 0,
-   "done": 164,
+   "done": 165,
    "gated": 25
   },
   "by_lane": {
@@ -3778,7 +3778,7 @@
     "total": 7
    },
    "FR": {
-    "done": 0,
+    "done": 1,
     "total": 15
    },
    "FS": {
@@ -3856,7 +3856,7 @@
     "total": 76
    },
    "P1": {
-    "done": 87,
+    "done": 88,
     "total": 156
    },
    "P2": {
@@ -3868,10 +3868,10 @@
     "total": 1
    }
   },
-  "cited": 186,
-  "done_pct": 64.3,
+  "cited": 187,
+  "done_pct": 64.7,
   "in_scope": 230,
-  "in_scope_done_pct": 71.3,
+  "in_scope_done_pct": 71.7,
   "total": 255
  },
  "workflow_spine": [
