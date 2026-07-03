@@ -44,7 +44,8 @@ def test_urdf_sourced_dims_match_ipex_specs():  # [REQ:AS-03]
 
 
 def test_urdf_arm_effort_matches_the_excavation_load():  # [REQ:AS-03]
-    # the drum-arm revolute joint's effort limit is the published moon excavation load, not a literal.
+    # the drum-arm (continuous, EZ-RASSOR-style dig<->dump) joint's effort limit is the published moon
+    # excavation load, not a literal.
     m = re.search(r"<limit[^>]*effort=\"\$\{([0-9.]+)\}\"", _text())
     assert m, "drum-arm <limit> effort not found in the xacro"
     assert abs(float(m.group(1)) - SPEC.ARM_EXCAVATION_LOAD_NM) < 1e-6, \
