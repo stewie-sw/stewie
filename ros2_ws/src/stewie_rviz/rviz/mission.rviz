@@ -85,6 +85,11 @@ Visualization Manager:
       Enabled: true
       Topic:
         Value: /stewie/nav/factors_markers
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Relocalization Factors
+      Enabled: true
+      Topic:
+        Value: /stewie/localization/relocalization_markers
     - Class: rviz_default_plugins/PoseWithCovariance
       Name: Localization Covariance
       Enabled: true
