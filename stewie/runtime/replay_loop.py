@@ -68,7 +68,8 @@ def _run_sha(*parts: object) -> str:
 
 def run_replay(dem_window: np.ndarray, cell_m: float, start_xy: tuple[float, float],
                goal_xy: tuple[float, float], *, wss, site: str = "haworth",
-               seed_hazard_rc: tuple[int, int] | None = None, eligible: bool = True,
+               seed_hazard_rc: tuple[int, int] | None = None,
+               seed_rock_rc: tuple[int, int] | None = None, eligible: bool = True,
                v_max: float = 0.3, step_m: float = 2.0) -> EvidenceBundle:
     """Run the deterministic keystone loop over ``dem_window`` (a real DEM slice = the replayed frame).
 
@@ -93,13 +94,31 @@ def run_replay(dem_window: np.ndarray, cell_m: float, start_xy: tuple[float, flo
         hr, hc = seed_hazard_rc
         z = z.copy()
         z[hr:hr + 8, hc:hc + 8] += 40.0
-    hmap = build_hazard_map((z, cell_m), max_slope_deg=25.0)
+    # [REQ:RS-02] the observed OCCUPANCY/rock layer -- a NON-DEM observed hazard (a rock the perception
+    # segmented, absent from the static DEM height) fed to the ROUTING costmap as dense semantic occupancy,
+    # so an observed rock over FLAT ground still raises the traversal cost the planner keys on.
+    zones = None
+    if seed_rock_rc is not None:
+        from lode.zones import ZoneRegistry
+        rr, rc = seed_rock_rc
+        zones = ZoneRegistry()
+        # the observed occupancy: a rock/obstacle the perception segmented as impassable (a NO-GO the
+        # static DEM has no height for), at the window cell's world position (dem_origin (0,0)).
+        zones.designate((rc + 4) * cell_m, (rr + 4) * cell_m, 5.0 * cell_m, "no_go",
+                        label="observed_rock_occupancy", by="stereo_mapper")
+    hmap = build_hazard_map((z, cell_m), max_slope_deg=25.0, zones=zones)
     detections: list[HazardDetection] = []
     if seed_hazard_rc is not None:
         hr, hc = seed_hazard_rc
         detections.append(HazardDetection(kind="obstacle", confidence=1.0, accepted=True,
                                           reason="observed +40m obstacle exceeds the 20deg slope limit",
                                           centroid_row=float(hr + 4), centroid_col=float(hc + 4),
+                                          size_m=8.0 * cell_m))
+    if seed_rock_rc is not None:
+        rr, rc = seed_rock_rc
+        detections.append(HazardDetection(kind="rock", confidence=1.0, accepted=True,
+                                          reason="observed rock occupancy (non-DEM layer) raises the traversal cost",
+                                          centroid_row=float(rr + 4), centroid_col=float(rc + 4),
                                           size_m=8.0 * cell_m))
     hazards = VisualHazardObservation(t_s=0.0, source="replay", detections=detections)
 
@@ -114,7 +133,8 @@ def run_replay(dem_window: np.ndarray, cell_m: float, start_xy: tuple[float, flo
         mean_confidence=float(np.nanmean(hmap.confidence)))
 
     # (4) hazard costmap -> CostmapSnapshot (the blocking reasons = the classes that gated cells).
-    reasons = sorted({"slope>limit"} | ({"observed_obstacle"} if seed_hazard_rc is not None else set()))
+    reasons = sorted({"slope>limit"} | ({"observed_obstacle"} if seed_hazard_rc is not None else set())
+                     | ({"observed_rock"} if seed_rock_rc is not None else set()))
     costmap = CostmapSnapshot(t_s=0.0, rows=rows, cols=cols, cell_m=cell_m,
                               layers=["slope", "roughness", "rock"], blocking_reasons=reasons,
                               max_cost=hazard_descriptor.max_cost)

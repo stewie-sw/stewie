@@ -75,6 +75,26 @@ def test_seeded_hazard_forces_a_reroute_and_is_detected(window, wss):
            [(_c.goal_row, _c.goal_col) for _c in clear.commands]
 
 
+def test_observed_rock_layer_changes_the_routing_costmap_without_a_dem_bump(window, wss):  # [REQ:RS-02]
+    """[REQ:RS-02] the ROUTING planner consumes a NON-DEM observed layer. An observed ROCK (dense semantic
+    occupancy the perception segmented, ABSENT from the static DEM height) is fed to the routing hazard
+    costmap as rock_mask; on otherwise-flat ground it MEASURABLY raises the traversal cost the planner keys
+    on -- proving the planner reads the observed occupancy/rock world, not just the static DEM. Provenance
+    is carried as an accepted 'rock' detection + the 'observed_rock' costmap blocking reason."""
+    z, cell = window
+    clear = run_replay(z, cell, _START, _GOAL, wss=wss)
+    rock = run_replay(z, cell, _START, _GOAL, wss=wss, seed_rock_rc=(25, 25))   # a rock on the corridor, flat DEM
+    # the rock is an observed occupancy detection (non-DEM), carried with provenance...
+    assert any(d.kind == "rock" and d.accepted and d.confidence == 1.0 for d in rock.hazards.detections)
+    assert "observed_rock" in rock.costmap.blocking_reasons
+    assert "observed_rock" not in clear.costmap.blocking_reasons
+    # ...and the observed occupancy MEASURABLY changed the costmap the planner keys on: it became NOGO
+    #    cells the static-DEM (clear) run does not have, on ground the DEM shows as flat -- and the evidence
+    #    differs. This is the observed occupancy/no-go LAYER driving traversability, not the DEM height.
+    assert rock.hazard_descriptor.no_go_fraction > clear.hazard_descriptor.no_go_fraction
+    assert rock.run_sha != clear.run_sha
+
+
 def test_seeded_ineligibility_forces_a_logged_refusal(window, wss):
     z, cell = window
     b = run_replay(z, cell, _START, _GOAL, wss=wss, eligible=False)
