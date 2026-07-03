@@ -858,6 +858,21 @@ document.addEventListener("click", (e) => {
   if (j) { e.preventDefault(); setView(j.getAttribute("data-go")); }
 });
 
+// FR-14: the nav surface is a simulated PREVIEW/REHEARSAL until the runnable profile attests a live +
+// authorized autonomy binary. That live binary is the gated leg, so the attestation (window.
+// STEWIE_LIVE_AUTONOMY, set ONLY by a proven live+authorized integration) is absent here and the badge
+// honestly stays PREVIEW; it flips to LIVE only when a real attestation is present.
+function setNavMode() {
+  const el = $("navmode");
+  if (!el) return;
+  const live = window.STEWIE_LIVE_AUTONOMY === true;
+  el.textContent = live ? "LIVE" : "PREVIEW";
+  el.dataset.live = live ? "true" : "false";
+  const c = live ? "#3fa34d" : "#e8a13f";
+  el.style.color = c;
+  el.style.borderColor = c;
+}
+
 function setView(name, opts) {
   if (name === "system") name = LAST_SYSTEM_VIEW;          // #55: the cluster remembers its sub-tab
   if (name === "validate") name = _validateSub || "nav";   // VALIDATE: delegate to the last/default sub-view
@@ -908,6 +923,7 @@ function setView(name, opts) {
   else $("workarea").classList.remove("show");                            // the inset belongs to the Plan tab
   if (name === "nav" && typeof navDrawMission === "function") navDrawMission(LAST_LOCALIZATION);  // #nav-mission: live est-vs-truth
   if (name === "nav" && typeof navDrawDrive === "function") navDrawDrive(LAST_DRIVE || {});       // council #238: drive-preview empty-state (or replay the last drive)
+  if (name === "nav" && typeof setNavMode === "function") setNavMode();                            // FR-14: preview/rehearsal label until live autonomy is attested
   if (name === "metrics" && typeof renderScorecardBoard === "function") renderScorecardBoard();   // TR-01: re-show the last A-board
   if (name === "metrics" && typeof paintExecIdle === "function") paintExecIdle();   // council #238: honest empty-state on the idle Execute canvas
   // tab-contextual left workspace (#131/#132): show THIS tab's context block, hide the others
