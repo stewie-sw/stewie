@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "9d56eec1b4adced70cd76c444dc9996c7e3374bc6ae70d311349c408841e7b80",
+  "citations_sha256": "2374e6c0b2053599d9f48113489d19ac7e1d8794d07ef85e38bb4ba135cd5d35",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "fdcd5f052d06b1c8fa7af2b35ddbd12717cccf37",
-  "prd_sha256": "4f98c541f356885b2e3cf0bd89ca0c96da58652609eda31ceaf6c72f446b9f5e",
+  "prd_commit": "5049ba43f9683bd6e32604df19bb60ddd5deef13",
+  "prd_sha256": "50583b55c56b7b10da0b787636a61fd81279a90cf71f11a0a7a8593875b65344",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1203,17 +1203,17 @@
    "text": "Every artifact records source commit, configuration, mode, seed, schema version, and input hashes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "Demo 001 \u2014 one IPEx-dig vertical slice proving the platform loop end-to-end from existing code.",
     "kind": "atomic",
     "test_target": "NEW tests/demo/test_demo_001_ipex_dig.py citing [REQ:DE-01]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "DE-01",
    "lane": "DE",
    "pri": "P0",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 103,
+   "buildable": 102,
    "concurrent": 0,
-   "done": 187,
+   "done": 188,
    "gated": 25
   },
   "by_lane": {
@@ -4806,7 +4806,7 @@
     "total": 7
    },
    "DE": {
-    "done": 0,
+    "done": 1,
     "total": 1
    },
    "DT": {
@@ -4936,7 +4936,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 84,
+    "done": 85,
     "total": 102
    },
    "P1": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 206,
-  "done_pct": 59.4,
+  "cited": 207,
+  "done_pct": 59.7,
   "in_scope": 290,
-  "in_scope_done_pct": 64.5,
+  "in_scope_done_pct": 64.8,
   "total": 315
  },
  "workflow_spine": [
