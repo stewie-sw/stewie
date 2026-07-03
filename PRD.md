@@ -563,7 +563,7 @@ allowed if they meet the acceptance criteria.
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
-| PM-01 | P0 | Time-synchronize camera, IMU, command, arm, and truth/evaluation streams using explicit clocks and frame IDs. | P | P | P | N |
+| PM-01 | P0 | Time-synchronize camera, IMU, command, arm, and truth/evaluation streams using explicit clocks and frame IDs. | D | D | D | N |
 | PM-02 | P1 | Support the documented IPEx/LAC camera set and a maximum active-camera budget; camera activation/resolution has compute and energy cost. | P | N | N | G |
 | PM-03 | P1 | Segment at least ground, rock, lander, fiducial, and sky from grayscale images without truth masks in evaluation mode. | P | N | P | N |
 | PM-04 | P1 | Detect/match illumination-robust features and expose confidence/inlier statistics. `[NAVLAB26 reference: SuperPoint + LightGlue]` | D | P | D | N |

@@ -4,7 +4,7 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 
 - requirements (PRD §7 rows): **255**
 - cited by >=1 test ([REQ:] marker): **184**
-- V!=D flagged (FS-22 audit: cited but not yet V=D): **36**
+- V!=D flagged (FS-22 audit: cited but not yet V=D): **35**
 
 ## V!=D flagged rows (cited, awaiting promotion)
 
@@ -34,7 +34,6 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | ML-09 | P |
 | MT-01 | P |
 | MT-05 | P |
-| PM-01 | P |
 | PM-03 | P |
 | PM-10 | P |
 | PM-11 | P |
