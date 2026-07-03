@@ -131,3 +131,24 @@ test("lanesHTML: filtered rows render only matching lanes, selected chip is mark
   assert.ok(h.includes("lanebar"));   // per-lane completion bar
   assert.ok(B.lanesHTML(snap, esc, [], null).includes("No requirements match"));
 });
+
+test("lanesHTML: lanes wrap in ordered phase groups; restructure phases lead [board content rewrite]", () => {
+  const h = B.lanesHTML(snap, esc);
+  const labels = B.LANE_GROUPS.map((g) => esc(g.label)).filter((l) => h.includes(l));
+  const positions = labels.map((l) => h.indexOf(l));
+  assert.deepStrictEqual([...positions].sort((a, b) => a - b), positions, "groups render in taxonomy order");
+  assert.ok(h.indexOf(esc("Restructure · edge breaks")) >= 0, "edge-breaks group renders");
+  assert.strictEqual(B.groupOf("BD"), "Restructure · edge breaks");
+  assert.strictEqual(B.groupOf("ZZ"), "Other lanes");   // an unmapped lane is never dropped
+  const edge = snap.rows.filter((r) => ["BD", "PX", "AP"].includes(r.lane));
+  const edgeDone = edge.filter((r) => r.bucket === "done").length;
+  assert.ok(h.includes(edgeDone + "/" + edge.length + " · "), "edge-breaks group rollup present");
+});
+
+test("lanesHTML: every present lane belongs to exactly one rendered group; per-row invariant holds", () => {
+  const h = B.lanesHTML(snap, esc);
+  const lanes = [...new Set(snap.rows.map((r) => r.lane))];
+  const groups = new Set(lanes.map((l) => B.groupOf(l)));
+  assert.strictEqual((h.match(/class="lanegroup"/g) || []).length, groups.size, "one section per present group");
+  assert.strictEqual((h.match(/class="rowchip /g) || []).length, snap.rows.length, "one chip per row under grouping");
+});

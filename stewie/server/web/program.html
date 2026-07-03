@@ -73,6 +73,18 @@
   /* lanes + row chips (bucket colors are semantic, matching the cockpit: green done, steel-cyan
      buildable, amber gated, violet concurrent -- red stays reserved for danger/CTA; AA on --panel) */
   .lane { margin-bottom:10px; animation: rise .32s ease-out both; }
+  /* [board content rewrite] phase/domain group super-headers + group-wide rollups over the lanes */
+  .lanegroup { margin:4px 0 16px; }
+  .grouphdr { font:600 12px/1.3 ui-monospace, monospace; text-transform:uppercase; letter-spacing:.04em;
+              color:var(--txt); margin:0 0 8px; padding:6px 0 5px; border-bottom:1px solid var(--line);
+              display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .grouproll { margin-left:auto; display:flex; align-items:center; gap:8px; }
+  .gbar { flex:0 0 120px; height:5px; background:var(--field); border:1px solid var(--line);
+          border-radius:3px; overflow:hidden; }
+  .gbar > span { display:block; height:100%; background:#3fa34d; }  /* progress = green; red stays reserved */
+  .gcount { color:var(--muted); font-size:11px; white-space:nowrap; }
+  .lanegrid { display:grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap:2px 16px; }
+  @media (max-width: 560px) { .lanegrid { grid-template-columns:1fr; } .grouproll { margin-left:0; } }
   @keyframes rise { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
   @media (prefers-reduced-motion: reduce) { .lane { animation:none; } .fbtn:hover { transform:none; } }
   .lane h3 { font-size:13px; margin:6px 0 4px; display:flex; align-items:center; gap:8px; }
@@ -157,6 +169,6 @@
 </main>
 <!-- CSP: script-src 'self' -- external modules only, stamped for the Cloudflare asset cache -->
 <script src="/assets/htmlesc.js?v=aeb7e4bb4091"></script>
-<script src="/assets/program_board.js?v=f026fa1fe3fa"></script>
+<script src="/assets/program_board.js?v=3d593704b1e6"></script>
 </body>
 </html>
