@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "188477e62a61dc7a3b5babfecf76129ef59799da7656b25644eb0e4f2499c109",
+  "citations_sha256": "85dc6aebe5fc5432f7226b6a98ef3da6bc8ccb7c2f0660abeb40d9dd01c2f971",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "23207d1ab3e7d98f026fabe8107c3f9daa96f336",
-  "prd_sha256": "3698f9122ca69db76a210635308250f11225a81852e993a840f40e8673f1cad2",
+  "prd_commit": "cfd9c3b094f33e49f55ecc97730901643adad114",
+  "prd_sha256": "eb0a650274b9b15527a75843bac980bc0277fe4a0aec49ecea8805390c5e6114",
   "specs_sha256": "275af78c3aa598f23f68731802273f5c824e01a7c37444e575c3f2a753fae792"
  },
  "rows": [
@@ -1625,17 +1625,17 @@
    "text": "**More/profile menus are viewport-clamped mobile sheets (mobile review).** `#moremenu`/`#profmenu` are absolutely positioned inside tab-strip children and open OUTSIDE the viewport on phones (right edges ~624/~881 px). On mobile render them as `position:fixed` overlays / bottom sheets clamped to the viewport (left>=8, right<=innerWidth-8, max-height<=visualViewport-insets). Acceptance: opening More/profile at 320/390/430/768 never produces an offscreen menu rect. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "/program mobile touch ergonomics -- .fbtn/#program-search/.rowchip to min-height 44px, full-width search.",
     "kind": "atomic",
     "test_target": "stewie/server/test_fr18_program_touch_targets.py citing [REQ:FR-18]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FR-18",
    "lane": "FR",
    "pri": "P1",
@@ -3833,9 +3833,9 @@
  "summary": {
   "briefs": 133,
   "buckets": {
-   "buildable": 70,
+   "buildable": 69,
    "concurrent": 0,
-   "done": 166,
+   "done": 167,
    "gated": 25
   },
   "by_lane": {
@@ -3880,7 +3880,7 @@
     "total": 7
    },
    "FR": {
-    "done": 2,
+    "done": 3,
     "total": 21
    },
    "FS": {
@@ -3958,7 +3958,7 @@
     "total": 76
    },
    "P1": {
-    "done": 89,
+    "done": 90,
     "total": 160
    },
    "P2": {
@@ -3970,10 +3970,10 @@
     "total": 1
    }
   },
-  "cited": 188,
-  "done_pct": 63.6,
+  "cited": 189,
+  "done_pct": 64.0,
   "in_scope": 236,
-  "in_scope_done_pct": 70.3,
+  "in_scope_done_pct": 70.8,
   "total": 261
  },
  "workflow_spine": [
