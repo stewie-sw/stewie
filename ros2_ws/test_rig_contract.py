@@ -10,6 +10,7 @@ import os
 import re
 
 from stewie.bridge import autonomy_contract as AC
+from stewie.specs import ipex_specs as SPEC
 from stewie.specs.profiles import load_profile
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -19,6 +20,43 @@ XACRO = os.path.join(_HERE, "src", "stewie_description", "urdf", "ipex.urdf.xacr
 def _text():
     with open(XACRO) as f:
         return f.read()
+
+
+def _props():
+    """The xacro's <xacro:property name=X value=Y/> numeric dimensions."""
+    return {m.group(1): float(m.group(2))
+            for m in re.finditer(r'<xacro:property name="(\w+)"\s+value="([0-9.]+)"/>', _text())}
+
+
+def test_urdf_sourced_dims_match_ipex_specs():  # [REQ:AS-03]
+    # TRL-5 consistency: the URDF's SOURCED dimensions must equal their ipex_specs (SCHULER24 /
+    # WHEELTEST / BDSCALE) values -- a rename in either place must not silently drift the vehicle.
+    p = _props()
+    large = SPEC.DRUM_DIMENSIONS_M["large"]
+    assert abs(p["wheel_radius"] - SPEC.WHEEL_RADIUS_M) < 1e-6, \
+        f"wheel_radius {p['wheel_radius']} != WHEEL_RADIUS_M {SPEC.WHEEL_RADIUS_M}"
+    assert abs(p["drum_radius"] - large["diameter"] / 2.0) < 1e-4, \
+        f"drum_radius {p['drum_radius']} != large drum dia/2 {large['diameter'] / 2.0}"
+    assert abs(p["drum_width"] - large["width"]) < 1e-4, \
+        f"drum_width {p['drum_width']} != large drum width {large['width']}"
+    assert abs(p["dry_mass"] - SPEC.ROVER_MASS_CLASS_KG) < 1e-6, \
+        f"dry_mass {p['dry_mass']} != ROVER_MASS_CLASS_KG {SPEC.ROVER_MASS_CLASS_KG}"
+
+
+def test_urdf_arm_effort_matches_the_excavation_load():  # [REQ:AS-03]
+    # the drum-arm revolute joint's effort limit is the published moon excavation load, not a literal.
+    m = re.search(r"<limit[^>]*effort=\"\$\{([0-9.]+)\}\"", _text())
+    assert m, "drum-arm <limit> effort not found in the xacro"
+    assert abs(float(m.group(1)) - SPEC.ARM_EXCAVATION_LOAD_NM) < 1e-6, \
+        f"arm effort {m.group(1)} != ARM_EXCAVATION_LOAD_NM {SPEC.ARM_EXCAVATION_LOAD_NM}"
+
+
+def test_urdf_mass_split_sums_to_the_sourced_dry_total():  # [REQ:AS-03]
+    # the per-part mass allocation is [ASSUMPTION] but MUST conserve the sourced 30 kg dry total.
+    p = _props()
+    total = p["m_chassis"] + 4 * p["m_wheel"] + 2 * p["m_drum"]
+    assert abs(total - SPEC.ROVER_MASS_CLASS_KG) < 1e-6, \
+        f"mass split sums to {total}, not the sourced dry total {SPEC.ROVER_MASS_CLASS_KG}"
 
 
 def test_stereo_baseline_is_authoritative_trl5_final_not_hardcoded():
