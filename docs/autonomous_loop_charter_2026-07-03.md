@@ -65,3 +65,9 @@ and stop scheduling (wait for Aaron).
 ## Progress log
 
 - 2026-07-03 f28e2a9 — loop CONFIGURED (PX-06 row + brief added; charter written). Queue seeded. First wake = PX-06.
+- 2026-07-03 1b9b64b — PX-06 DONE (wake 1). terramechanics->constants edge broken: forge-local literal defaults +
+  config-overlay re-injected at call time in body_params.params_for_body (byte-identical, more robust for
+  overrides). Fixed the one caller reaching constants via terramechanics.K (lode/costmap_layers.py). TDD 3/3;
+  byte-identical regression green (physics+lode+specs+forge+dart+leap+runtime); ruff+mypy+req_trace+assessment
+  +check_deps green. Note for PO-18: body_params STAYS in stewie-core (imports stewie.specs.constants for the
+  overlay); split the PhysicsBackend protocol (-> forge) from the Tier2 concrete (-> core). NEXT = PO-18.
