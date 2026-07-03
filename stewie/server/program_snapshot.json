@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "640da9f7ed169cf803c66cdaf99102f757120a6ecd0b32c228f4d51fbd05a85f",
+  "citations_sha256": "53cfe0189868100c21a5d71933619249b3904ae964eeac6baac0dfd5804a5c37",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "811d9366d2914560c72b48942525205663c50bd5",
-  "prd_sha256": "3b0ff5a7845bd15c8ba22e4ef277023370518b6f19bf79c4f857ae815bd4f5bf",
+  "prd_commit": "9ff8249f9dc7ca504fad650b11804558b8cb2bbf",
+  "prd_sha256": "647f2fa7b6c03d7aaaf235f6cd27acd900fc558b1caef38188e7466681f7354d",
   "specs_sha256": "44cb8fe01e084f6a23d3e6927ffffe9d6da653d13649d76df21b06e1d0e18ca6"
  },
  "rows": [
@@ -1489,17 +1489,17 @@
    "text": "**Prove the live hazard-perception -> world -> planner -> eligibility -> cockpit loop end-to-end (lunar; extends PM-19/RS-04).** A sensor observation changes the world model (with uncertainty + provenance), changes the planner costmap/route, gates command eligibility, and appears to the operator with provenance + refusal/approval evidence -- proven as ONE chain, not per-component. Acceptance: the mission-critical loop is demonstrated end-to-end with the operator evidence; until then the system is described as a planning/simulation scaffold, not a validated operational stack. Buildable on archimedes (host-side); the live-ROS runtime is the gated leg."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "unified typed layer-manifest world contract (id/type/CRS/bounds/res/source/provenance/freshness/uncertainty/validity/txn/consumer-eligibility); planner consumes the same manifest.",
     "kind": "epic",
     "test_target": "stewie/server/test_world_layer_manifest.py citing [REQ:TW-05]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FR-10",
    "lane": "FR",
    "pri": "P1",
@@ -3833,9 +3833,9 @@
  "summary": {
   "briefs": 133,
   "buckets": {
-   "buildable": 60,
+   "buildable": 59,
    "concurrent": 0,
-   "done": 176,
+   "done": 177,
    "gated": 25
   },
   "by_lane": {
@@ -3880,7 +3880,7 @@
     "total": 7
    },
    "FR": {
-    "done": 9,
+    "done": 10,
     "total": 21
    },
    "FS": {
@@ -3958,7 +3958,7 @@
     "total": 76
    },
    "P1": {
-    "done": 96,
+    "done": 97,
     "total": 160
    },
    "P2": {
@@ -3970,10 +3970,10 @@
     "total": 1
    }
   },
-  "cited": 195,
-  "done_pct": 67.4,
+  "cited": 196,
+  "done_pct": 67.8,
   "in_scope": 236,
-  "in_scope_done_pct": 74.6,
+  "in_scope_done_pct": 75.0,
   "total": 261
  },
  "workflow_spine": [
