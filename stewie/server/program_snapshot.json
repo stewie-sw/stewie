@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "0200d91241a316ec8dca83d2f4d312b2f921a2a7d0f463351d86cd9ff62094a6",
+  "citations_sha256": "91bbc51f1276a7c0af4174c11368bfcf3a398e99c4783c4085c5de747b46a105",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "68143ed0b368688c6ff42fb702fb0427612e67a1",
-  "prd_sha256": "9097aa81fa9684cbaac1200f5229b5d2e030693a71b8c44ab9ef4970384fe706",
+  "prd_commit": "4fc13d32acdd7267fa5a2b5896972e8574dfa174",
+  "prd_sha256": "3bd0307c0ef0d3a004195e33edae8bc4178184f06e56af9934177e7a37d9f394",
   "specs_sha256": "44cb8fe01e084f6a23d3e6927ffffe9d6da653d13649d76df21b06e1d0e18ca6"
  },
  "rows": [
@@ -1523,17 +1523,17 @@
    "text": "**Observed-world-to-planner END-TO-END acceptance gate (lunar; extends RS-02).** A single test: known DEM + route -> inject an observed hazard/terrain delta -> commit it through a world transaction -> rebuild the costmap from the layer manifest -> prove the route changes, is refused, OR records a justified-unchanged result -> render the impact in the cockpit + release evidence (\"route changed because observed hazard X entered leg Y\"). Acceptance: that end-to-end gate passes on real terrain. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "precise GIS/ArcGIS product language + an ArcGIS adapter boundary + per-layer display-eligibility vs planning-eligibility fields.",
     "kind": "atomic",
     "test_target": "stewie/server/test_gis_platform_claims.py citing [REQ:FR-12]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FR-12",
    "lane": "FR",
    "pri": "P1",
@@ -3833,9 +3833,9 @@
  "summary": {
   "briefs": 133,
   "buckets": {
-   "buildable": 58,
+   "buildable": 57,
    "concurrent": 0,
-   "done": 178,
+   "done": 179,
    "gated": 25
   },
   "by_lane": {
@@ -3880,7 +3880,7 @@
     "total": 7
    },
    "FR": {
-    "done": 10,
+    "done": 11,
     "total": 21
    },
    "FS": {
@@ -3958,7 +3958,7 @@
     "total": 76
    },
    "P1": {
-    "done": 98,
+    "done": 99,
     "total": 160
    },
    "P2": {
@@ -3970,10 +3970,10 @@
     "total": 1
    }
   },
-  "cited": 197,
-  "done_pct": 68.2,
+  "cited": 198,
+  "done_pct": 68.6,
   "in_scope": 236,
-  "in_scope_done_pct": 75.4,
+  "in_scope_done_pct": 75.8,
   "total": 261
  },
  "workflow_spine": [
