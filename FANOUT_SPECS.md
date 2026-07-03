@@ -1093,222 +1093,222 @@ Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO
 - files: stewie/server/web/program.html, stewie/server/web/assets/program_board.js
 - test_target: NEW stewie/server/test_mg04_program_mobile.py citing [REQ:MG-04]
 
-### AC-01 (design) — atomic
+### AC-01 (P0) — atomic
 - goal: platform-restructure backlog row AC-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/server/server.py
 - test_target: NEW frontend/api/test_route_coverage.test.ts citing [REQ:AC-01]
 
-### AC-02 (design) — atomic
+### AC-02 (P0) — atomic
 - goal: platform-restructure backlog row AC-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/server/server.py
 - test_target: NEW frontend/api/test_route_coverage.test.ts citing [REQ:AC-02]
 
-### RF-01 (design) — atomic
+### RF-01 (P0) — atomic
 - goal: platform-restructure backlog row RF-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/server/web/assets/cockpit_state.js
 - test_target: NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-01]
 
-### RF-02 (design) — atomic
+### RF-02 (P0) — atomic
 - goal: platform-restructure backlog row RF-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/server/web/assets/cockpit_state.js
 - test_target: NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-02]
 
-### RF-03 (design) — atomic
+### RF-03 (P1) — atomic
 - goal: platform-restructure backlog row RF-03 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/server/web/assets/cockpit_state.js
 - test_target: NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-03]
 
-### GL-01 (design) — atomic
+### GL-01 (P0) — atomic
 - goal: platform-restructure backlog row GL-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/server/web/assets/cockpit.js
 - test_target: NEW frontend/src/map/test_map.test.tsx citing [REQ:GL-01]
 
-### GL-02 (design) — atomic
+### GL-02 (P1) — atomic
 - goal: platform-restructure backlog row GL-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/server/web/assets/cockpit.js
 - test_target: NEW frontend/src/map/test_map.test.tsx citing [REQ:GL-02]
 
-### DW-01 (design) — atomic
+### DW-01 (P1) — atomic
 - goal: platform-restructure backlog row DW-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/contracts/__init__.py
 - test_target: NEW frontend/src/data/duckdb/test_query.test.tsx citing [REQ:DW-01]
 
-### DW-02 (design) — atomic
+### DW-02 (P2) — atomic
 - goal: platform-restructure backlog row DW-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/contracts/__init__.py
 - test_target: NEW frontend/src/data/duckdb/test_query.test.tsx citing [REQ:DW-02]
 
-### PX-01 (design) — atomic
+### PX-01 (P0) — atomic
 - goal: platform-restructure backlog row PX-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/physics/terramechanics.py
 - test_target: NEW stewie/physics/test_physics_backend.py citing [REQ:PX-01]
 
-### PX-02 (design) — atomic
+### PX-02 (P1) — atomic
 - goal: platform-restructure backlog row PX-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/physics/terramechanics.py
 - test_target: NEW stewie/physics/test_physics_backend.py citing [REQ:PX-02]
 
-### PX-03 (design) — atomic
+### PX-03 (P2) — atomic
 - goal: platform-restructure backlog row PX-03 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/physics/terramechanics.py
 - test_target: NEW stewie/physics/test_physics_backend.py citing [REQ:PX-03]
 
-### BD-01 (design) — atomic
+### BD-01 (P0) — atomic
 - goal: platform-restructure backlog row BD-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/specs/bodies.py
 - test_target: NEW stewie/specs/test_body_profiles.py citing [REQ:BD-01]
 
-### BD-02 (design) — atomic
+### BD-02 (P1) — atomic
 - goal: platform-restructure backlog row BD-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/specs/bodies.py
 - test_target: NEW stewie/specs/test_body_profiles.py citing [REQ:BD-02]
 
-### BD-03 (design) — atomic
+### BD-03 (P1) — atomic
 - goal: platform-restructure backlog row BD-03 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/specs/bodies.py
 - test_target: NEW stewie/specs/test_body_profiles.py citing [REQ:BD-03]
 
-### TU-01 (design) — atomic
+### TU-01 (P1) — atomic
 - goal: platform-restructure backlog row TU-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/server/index.html
 - test_target: NEW desktop/test_tauri_sidecar.test.ts citing [REQ:TU-01]
 
-### MG-01 (design) — atomic
+### MG-01 (P0) — atomic
 - goal: platform-restructure backlog row MG-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/server/web/program.html
 - test_target: NEW stewie/server/test_mg_migration.py citing [REQ:MG-01]
 
-### MG-02 (design) — atomic
+### MG-02 (P0) — atomic
 - goal: platform-restructure backlog row MG-02 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/server/web/program.html
 - test_target: NEW stewie/server/test_mg_migration.py citing [REQ:MG-02]
 
-### MG-03 (design) — atomic
+### MG-03 (P2) — atomic
 - goal: platform-restructure backlog row MG-03 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/server/web/program.html
 - test_target: NEW stewie/server/test_mg_migration.py citing [REQ:MG-03]
 
-### BR-01 (design) — atomic
+### BR-01 (P2) — atomic
 - goal: platform-restructure backlog row BR-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/twin/versioned.py
 - test_target: NEW stewie/twin/test_world_branches.py citing [REQ:BR-01]
 
-### CF-01 (design) — atomic
+### CF-01 (P2) — atomic
 - goal: platform-restructure backlog row CF-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/contracts/__init__.py
 - test_target: NEW lode/test_capability_fleet.py citing [REQ:CF-01]
 
-### PG-01 (design) — atomic
+### PG-01 (P2) — atomic
 - goal: platform-restructure backlog row PG-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/twin/terrain_memory.py
 - test_target: NEW stewie/twin/test_postgis_projection.py citing [REQ:PG-01]
 
-### MI-01 (design) — atomic
+### MI-01 (P3) — atomic
 - goal: platform-restructure backlog row MI-01 (see PRD §7.A/§7.B + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/server/index.html
 - test_target: NEW frontend/test_multiengine_ide.test.tsx citing [REQ:MI-01]
 
-### TW-11 (design) — atomic
+### TW-11 (P2) — atomic
 - goal: platform backlog row TW-11 (PRD §7 + docs/prd_reorg_spec_2026-07-03.md).
 - files: stewie/twin/terrain_memory.py
 - test_target: NEW test citing [REQ:TW-11]
 
-### EG-01 (design) — atomic
+### EG-01 (P0) — atomic
 - goal: platform backlog row EG-01 (PRD §7 + §29/§30 governance+planning specs).
 - files: stewie/contracts/__init__.py
 - test_target: NEW test citing [REQ:EG-01]
 
-### EG-02 (design) — atomic
+### EG-02 (P0) — atomic
 - goal: platform backlog row EG-02 (PRD §7 + §29/§30 governance+planning specs).
 - files: stewie/contracts/__init__.py
 - test_target: NEW test citing [REQ:EG-02]
 
-### EG-03 (design) — atomic
+### EG-03 (P0) — atomic
 - goal: platform backlog row EG-03 (PRD §7 + §29/§30 governance+planning specs).
 - files: stewie/contracts/__init__.py
 - test_target: NEW test citing [REQ:EG-03]
 
-### EG-04 (design) — atomic
+### EG-04 (P1) — atomic
 - goal: platform backlog row EG-04 (PRD §7 + §29/§30 governance+planning specs).
 - files: stewie/contracts/__init__.py
 - test_target: NEW test citing [REQ:EG-04]
 
-### EG-05 (design) — atomic
+### EG-05 (P0) — atomic
 - goal: platform backlog row EG-05 (PRD §7 + §29/§30 governance+planning specs).
 - files: stewie/contracts/__init__.py
 - test_target: NEW test citing [REQ:EG-05]
 
-### EG-06 (design) — atomic
+### EG-06 (P0) — atomic
 - goal: platform backlog row EG-06 (PRD §7 + §29/§30 governance+planning specs).
 - files: stewie/contracts/__init__.py
 - test_target: NEW test citing [REQ:EG-06]
 
-### EG-07 (design) — atomic
+### EG-07 (P1) — atomic
 - goal: platform backlog row EG-07 (PRD §7 + §29/§30 governance+planning specs).
 - files: stewie/contracts/__init__.py
 - test_target: NEW test citing [REQ:EG-07]
 
-### EG-08 (design) — atomic
+### EG-08 (P1) — atomic
 - goal: platform backlog row EG-08 (PRD §7 + §29/§30 governance+planning specs).
 - files: stewie/contracts/__init__.py
 - test_target: NEW test citing [REQ:EG-08]
 
-### EG-09 (design) — atomic
+### EG-09 (P1) — atomic
 - goal: platform backlog row EG-09 (PRD §7 + §29/§30 governance+planning specs).
 - files: stewie/contracts/__init__.py
 - test_target: NEW test citing [REQ:EG-09]
 
-### EG-10 (design) — atomic
+### EG-10 (P2) — atomic
 - goal: platform backlog row EG-10 (PRD §7 + §29/§30 governance+planning specs).
 - files: stewie/contracts/__init__.py
 - test_target: NEW test citing [REQ:EG-10]
 
-### EG-11 (design) — atomic
+### EG-11 (P0) — atomic
 - goal: platform backlog row EG-11 (PRD §7 + §29/§30 governance+planning specs).
 - files: stewie/contracts/__init__.py
 - test_target: NEW test citing [REQ:EG-11]
 
-### EG-12 (design) — atomic
+### EG-12 (P1) — atomic
 - goal: platform backlog row EG-12 (PRD §7 + §29/§30 governance+planning specs).
 - files: stewie/contracts/__init__.py
 - test_target: NEW test citing [REQ:EG-12]
 
-### MP-05 (design) — atomic
+### MP-05 (P1) — atomic
 - goal: platform backlog row MP-05 (PRD §7 + §29/§30 governance+planning specs).
 - files: lode/mission_planner.py
 - test_target: NEW test citing [REQ:MP-05]
 
-### MP-06 (design) — atomic
+### MP-06 (P1) — atomic
 - goal: platform backlog row MP-06 (PRD §7 + §29/§30 governance+planning specs).
 - files: lode/mission_planner.py
 - test_target: NEW test citing [REQ:MP-06]
 
-### MP-07 (design) — atomic
+### MP-07 (P0) — atomic
 - goal: platform backlog row MP-07 (PRD §7 + §29/§30 governance+planning specs).
 - files: lode/mission_planner.py
 - test_target: NEW test citing [REQ:MP-07]
 
-### MP-08 (design) — atomic
+### MP-08 (P1) — atomic
 - goal: platform backlog row MP-08 (PRD §7 + §29/§30 governance+planning specs).
 - files: lode/mission_planner.py
 - test_target: NEW test citing [REQ:MP-08]
 
-### MP-09 (design) — atomic
+### MP-09 (P1) — atomic
 - goal: platform backlog row MP-09 (PRD §7 + §29/§30 governance+planning specs).
 - files: lode/mission_planner.py
 - test_target: NEW test citing [REQ:MP-09]
 
-### MP-10 (design) — atomic
+### MP-10 (P1) — atomic
 - goal: platform backlog row MP-10 (PRD §7 + §29/§30 governance+planning specs).
 - files: lode/mission_planner.py
 - test_target: NEW test citing [REQ:MP-10]
 
-### MP-11 (design) — atomic
+### MP-11 (P1) — atomic
 - goal: platform backlog row MP-11 (PRD §7 + §29/§30 governance+planning specs).
 - files: lode/mission_planner.py
 - test_target: NEW test citing [REQ:MP-11]
 
-### MP-12 (design) — atomic
+### MP-12 (P2) — atomic
 - goal: platform backlog row MP-12 (PRD §7 + §29/§30 governance+planning specs).
 - files: lode/mission_planner.py
 - test_target: NEW test citing [REQ:MP-12]
