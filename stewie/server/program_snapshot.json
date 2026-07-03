@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "2374e6c0b2053599d9f48113489d19ac7e1d8794d07ef85e38bb4ba135cd5d35",
+  "citations_sha256": "c308be457c65477b409b7d160194d4bde74c50c4f3441acbea4d784755d41eba",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "5049ba43f9683bd6e32604df19bb60ddd5deef13",
-  "prd_sha256": "50583b55c56b7b10da0b787636a61fd81279a90cf71f11a0a7a8593875b65344",
+  "prd_commit": "fedf2bb5b80765d58574b1c306909c907ffaddfc",
+  "prd_sha256": "1093c4725b8f5c72937069a6be26fcc95891fb32e12eafaa13c31e23d71881f7",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1334,17 +1334,17 @@
    "text": "Client query panel supports bbox/provenance/eligibility queries within a defined browser memory + latency budget on Haworth-scale data; degrades to an optional panel if the budget is exceeded."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row EG-01 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:EG-01]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "EG-01",
    "lane": "EG",
    "pri": "P0",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 102,
+   "buildable": 101,
    "concurrent": 0,
-   "done": 188,
+   "done": 189,
    "gated": 25
   },
   "by_lane": {
@@ -4818,7 +4818,7 @@
     "total": 2
    },
    "EG": {
-    "done": 0,
+    "done": 1,
     "total": 12
    },
    "EP": {
@@ -4936,7 +4936,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 85,
+    "done": 86,
     "total": 102
    },
    "P1": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 207,
-  "done_pct": 59.7,
+  "cited": 208,
+  "done_pct": 60.0,
   "in_scope": 290,
-  "in_scope_done_pct": 64.8,
+  "in_scope_done_pct": 65.2,
   "total": 315
  },
  "workflow_spine": [
