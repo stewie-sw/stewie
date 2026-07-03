@@ -2383,6 +2383,7 @@ async function loadRelease() {                                            // REL
         `<div><b style="color:var(--accent);font-size:13px">${esc(String(d.state).toUpperCase())}</b> — ${d.released_objectives} build objective(s) released <span style="color:var(--muted)">(${esc(d.label)})</span></div>`
         + (rev ? `<div style="margin-top:6px;color:var(--muted)">signed revision <code>${esc(String(rev.content_hash).slice(0, 16))}…</code> by ${esc(rev.signed_by)}</div>` : "")
         + `<div style="margin-top:4px;color:var(--muted)">plan_id <code>${esc(String(ev.plan_id || "—"))}</code></div>`
+        + window.STEWIE_COMMAND_AUTHORITY.releaseAuthorityHTML(d.command_authority, esc)   // [REQ:FS-28] frozen 7-field authority card
         + (algo ? `<div style="margin-top:4px;color:var(--muted)">solver algorithm <code>${esc(algo)}</code>${REHEARSE_CHOICE ? " (adopted from Rehearse)" : ""} — sent with the release request</div>` : "")
         + (trail ? `<div style="margin-top:8px">${trail}</div>` : "")
         + (skipped.length ? `<div style="margin-top:12px;color:#e0a000">${skipped.length} non-build order(s) NOT released (path waypoints are not mission objectives): ${skipped.map((s) => esc(String(s.action || s.kind))).join(", ")}</div>` : "");

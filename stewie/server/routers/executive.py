@@ -72,6 +72,31 @@ class ReleasePlanRequest(BaseModel):
     revision: int = Field(default=0, ge=0)
 
 
+def _command_authority(rel: object) -> dict | None:
+    """[REQ:FS-28] Freeze the Release-pane command-authority card at sign time: the immutable plan hash +
+    director sign-off (from the signed revision), the runtime + sensor profile (from the active system
+    profile -- real values, no fabrication), the live deployment namespace released missions bind to (the
+    rc.py convention), the AG-08 director authorization a released revision carries, and the SF-01 watchdog
+    deadline that governs execution. None when nothing was released."""
+    if rel is None:
+        return None
+    import inspect
+
+    from stewie.bridge.rc_contract import SafingWatchdog
+    from stewie.specs import profiles
+    prof = profiles.load_profile()
+    sf01_deadline_s = inspect.signature(SafingWatchdog.__init__).parameters["deadline_s"].default
+    return {
+        "plan_hash": getattr(rel, "content_hash"),
+        "signed_by": getattr(rel, "signed_by"),
+        "runtime_profile": prof.profile_id,
+        "sensor_profile": str(prof.sensors.get("selected_depth_source")),
+        "namespace": "live",                    # released missions bind to the live namespace (rc.py)
+        "authorized": True,                     # AG-08: a released revision is director-signed
+        "watchdog_deadline_s": float(sf01_deadline_s),   # SF-01 watchdog governs execution
+    }
+
+
 @router.post("/executive/release-plan")
 def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)) -> JSONResponse:
     """Director-gated: build a canonical MO-01 MissionIntent from the cockpit's current build-order queue
@@ -103,6 +128,7 @@ def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)
         "label": "sim",
         "state": res.executive.state.value,
         "signed_revision": rel.model_dump(mode="json") if rel is not None else None,
+        "command_authority": _command_authority(rel),   # [REQ:FS-28] frozen Release-pane authority card
         "evidence": res.evidence,
         "transitions": res.transitions,
         "released_objectives": len(intent.objectives),

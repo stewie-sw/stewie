@@ -3,7 +3,7 @@
 // command's authority (and why it is refused) before sending it. node --test; pure, no DOM.
 const test = require("node:test");
 const assert = require("node:assert");
-const { commandAuthorityHTML } = require("./command_authority_html.js");
+const { commandAuthorityHTML, releaseAuthorityHTML } = require("./command_authority_html.js");
 
 // the same SEC-04 escaper shape the cockpit injects (htmlesc.js): escape the five HTML-significant chars.
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
@@ -37,4 +37,21 @@ test("commandAuthorityHTML: escapes a hostile reason string (SEC-04)", () => {
 test("commandAuthorityHTML: a missing/empty verdict does not crash", () => {
   const h = commandAuthorityHTML(undefined, esc);
   assert.ok(h.includes("INELIGIBLE"), "an absent verdict fails closed to ineligible");
+});
+
+test("releaseAuthorityHTML: a released revision shows every one of the 7 authority fields", () => {
+  const ca = { plan_hash: "abcdef0123456789cafe", signed_by: "director", runtime_profile: "STEWIE_IPEX_V1",
+    sensor_profile: "stereo_front", namespace: "live", authorized: true, watchdog_deadline_s: 5.0 };
+  const h = releaseAuthorityHTML(ca, esc);
+  assert.ok(h.includes("abcdef0123456789"), "1: immutable plan hash");
+  assert.ok(h.includes("director"), "2: director sign-off");
+  assert.ok(h.includes("STEWIE_IPEX_V1"), "3: runtime profile");
+  assert.ok(h.includes("stereo_front"), "4: sensor profile");
+  assert.ok(h.includes("live"), "5: deployment namespace");
+  assert.ok(h.includes("AG-08 authorized"), "6: AG-08 authorization");
+  assert.ok(h.includes("SF-01 watchdog 5") && h.includes("s</div>"), "7: SF-01 watchdog deadline");
+});
+
+test("releaseAuthorityHTML: nothing released -> empty (no fabricated card)", () => {
+  assert.strictEqual(releaseAuthorityHTML(null, esc), "");
 });

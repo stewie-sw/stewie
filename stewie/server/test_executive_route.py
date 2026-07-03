@@ -116,6 +116,24 @@ def test_release_plan_builds_intent_and_reaches_released(client):  # [REQ:MO-02]
     assert rev is not None and len(rev["content_hash"]) == 64
 
 
+def test_release_plan_freezes_the_command_authority_envelope(client):  # [REQ:FS-28]
+    """[REQ:FS-28] a released revision FREEZES the full command-authority card the Release pane shows:
+    plan hash + sign-off (from the signed revision), runtime + sensor profile (from the active system
+    profile, real values -- no fabrication), the 'live' deployment namespace released missions bind to
+    (rc.py convention), the AG-08 director authorization, and the SF-01 watchdog deadline that governs
+    execution -- so a released revision shows EVERY authority field, not just the immutable plan hash."""
+    c, key = client
+    r = c.post("/executive/release-plan", headers={"X-API-Key": key}, json=_plan_payload())
+    assert r.status_code == 200, r.text
+    ca = r.json()["command_authority"]
+    assert len(ca["plan_hash"]) >= 12 and ca["signed_by"]          # immutable plan hash + director sign-off
+    assert ca["runtime_profile"] == "STEWIE_IPEX_V1"               # the real active system profile id
+    assert ca["sensor_profile"] == "stereo_front"                  # the profile's selected depth source
+    assert ca["namespace"] == "live"                               # released missions bind to the live ns
+    assert ca["authorized"] is True                                # AG-08: a released revision is director-signed
+    assert ca["watchdog_deadline_s"] == 5.0                        # SF-01 watchdog governs execution
+
+
 def test_release_plan_requires_director(client):  # [REQ:MO-02]
     c, _key = client
     r = c.post("/executive/release-plan", json=_plan_payload())
