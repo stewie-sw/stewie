@@ -88,3 +88,10 @@ and stop scheduling (wait for Aaron).
   7 flags) in stewie/contracts/governance.py; only-LIVE-commands, REPLAY read-only, ARCHIVE export-only. The
   looser mission_namespace (live/sandbox) + runtime_mode tuple key map onto these (canonical typed def).
   [REQ:EG-01] 7/7; additive; gate green. NEXT = EG-02 (central mode-authority ENFORCEMENT guard).
+- 2026-07-03 64ed122 — EG-02 DONE (wake 5). Central enforcement: require_authority/permits/ModeAuthorityError +
+  mode_from_namespace in governance.py; WIRED at command_eligibility (command_real_robot gate is now
+  matrix-driven, byte-identical). modify_accepted_world write-site wiring DEFERRED (record_terrain carries no
+  mode; EG-03 territory) -- delivered guard + noted, not half-wired. [REQ:EG-02] 3/3; regression (contracts+
+  bridge+runtime) green. NEXT = EG-03 (DB/branch isolation) -- likely more architectural; do the MINIMAL real
+  isolation (mode -> store namespace/path + isolation guard), SURFACE+STOP only if it needs a genuine
+  persistence-architecture decision from Aaron.
