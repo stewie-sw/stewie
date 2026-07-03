@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "5fb0d2f2786fe7abf0d351e40f1eef0615db1da95836be90895d46f6ba653338",
+  "citations_sha256": "9d56eec1b4adced70cd76c444dc9996c7e3374bc6ae70d311349c408841e7b80",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "6d6656941d9483f0e350d910f24d0ded5804f684",
-  "prd_sha256": "a7ec6abe980059c2879430e12745979f61af4f7db7979ab213862a010271a5e4",
+  "prd_commit": "fdcd5f052d06b1c8fa7af2b35ddbd12717cccf37",
+  "prd_sha256": "4f98c541f356885b2e3cf0bd89ca0c96da58652609eda31ceaf6c72f446b9f5e",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -3835,17 +3835,17 @@
    "text": "Extract/publish-prep `stewie-bodies` from the dependency-neutral registry: imports no STEWIE internals; JSON/YAML profiles round-trip; Moon/Mars/Earth golden gravity/profile tests pass; no fabricated numeric fields."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "extract stewie-forge from pure geotech/terramechanics + PhysicsBackend; depends only on stewie-bodies + numeric.",
     "kind": "atomic",
     "test_target": "NEW packages/stewie-forge/tests/test_forge_public_api.py citing [REQ:PO-18]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PO-18",
    "lane": "PO",
    "pri": "P0",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 104,
+   "buildable": 103,
    "concurrent": 0,
-   "done": 186,
+   "done": 187,
    "gated": 25
   },
   "by_lane": {
@@ -4882,7 +4882,7 @@
     "total": 19
    },
    "PO": {
-    "done": 15,
+    "done": 16,
     "total": 18
    },
    "PX": {
@@ -4936,7 +4936,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 83,
+    "done": 84,
     "total": 102
    },
    "P1": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 205,
-  "done_pct": 59.0,
+  "cited": 206,
+  "done_pct": 59.4,
   "in_scope": 290,
-  "in_scope_done_pct": 64.1,
+  "in_scope_done_pct": 64.5,
   "total": 315
  },
  "workflow_spine": [
