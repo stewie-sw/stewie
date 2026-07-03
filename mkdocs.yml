@@ -36,3 +36,4 @@ nav:
       - "FORGE — Chrono integration": chrono_integration.md
       - "FORGE — Chrono bring-up log": chrono_bringup_log.md
       - "LEAP — EZ-RASSOR assets": ezrassor_assets.md
+  - Knowledge graph: knowledge_graph.md
