@@ -4,15 +4,13 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 
 - requirements (PRD §7 rows): **255**
 - cited by >=1 test ([REQ:] marker): **184**
-- V!=D flagged (FS-22 audit: cited but not yet V=D): **43**
+- V!=D flagged (FS-22 audit: cited but not yet V=D): **40**
 
 ## V!=D flagged rows (cited, awaiting promotion)
 
 | ID | current V |
 |----|-----------|
 | AM-02 | P |
-| AS-04 | P |
-| AS-07 | P |
 | AS-09 | P |
 | AS-10 | P |
 | AS-11 | P |
@@ -27,7 +25,6 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | FS-11 | P |
 | FS-12 | P |
 | FS-14 | P |
-| FS-15 | P |
 | FS-18 | P |
 | FS-21 | P |
 | FS-24 | P |
@@ -91,5 +88,5 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 
 - in matrix: 16/16
 - cited: 16/16
-- currently V=D: ['AS-01', 'AS-02', 'AS-03', 'AS-05', 'AS-06', 'AS-08', 'AS-14', 'AS-17']
+- currently V=D: ['AS-01', 'AS-02', 'AS-03', 'AS-04', 'AS-05', 'AS-06', 'AS-07', 'AS-08', 'AS-14', 'AS-17']
 - eligible for V=D: ['AS-01', 'AS-02', 'AS-03', 'AS-05', 'AS-06', 'AS-07', 'AS-08', 'AS-11', 'AS-14', 'AS-17']

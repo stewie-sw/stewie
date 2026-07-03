@@ -12,8 +12,10 @@
       "AS-01",
       "AS-02",
       "AS-03",
+      "AS-04",
       "AS-05",
       "AS-06",
+      "AS-07",
       "AS-08",
       "AS-14",
       "AS-17"
@@ -79,7 +81,7 @@
     "cited": 184,
     "reconciles": true,
     "total": 255,
-    "understated_count": 43,
+    "understated_count": 40,
     "unknown_markers": [],
     "v_done_uncited": []
   },
