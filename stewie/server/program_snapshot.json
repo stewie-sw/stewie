@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "313268378139293fe272d50e202e41dbede867b5be6b30159489bdb8feac3aa2",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "d360eea154353786be8c4511a35da77a133c7665",
-  "prd_sha256": "66d2f94de0dcf79567fc470513b929f04b5a684458c45a371e3f0055e0f17090",
+  "prd_commit": "2c0e62d5af3bc66a21dafd4eb2a4375b4dde60ea",
+  "prd_sha256": "0e67fffaec900e70f87f60bd684c3341f70f3c5d1fd667040e06eb46aa7caa81",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -342,9 +342,9 @@
   {
    "I": "D",
    "Q": "N",
-   "V": "P",
+   "V": "D",
    "X": "D",
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "AS-11",
    "lane": "AS",
@@ -2187,14 +2187,14 @@
   {
    "I": "D",
    "Q": "N",
-   "V": "P",
+   "V": "D",
    "X": "D",
    "brief": {
     "goal": "build a unified ExcavationState estimator fusing drum torque/current + slip + IMU + arm/drum + drive current \u2192 {digging_state, fill_fraction, slip, stall_risk, confidence}, advisory until calibrated.",
     "kind": "epic",
     "test_target": "NEW stewie/physics/test_excavation_state.py"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "ML-05",
    "lane": "ML",
@@ -2204,14 +2204,14 @@
   {
    "I": "D",
    "Q": "N",
-   "V": "P",
+   "V": "D",
    "X": "D",
    "brief": {
     "goal": "build a regolith-volume estimator (moved volume/mass WITH UNCERTAINTY from observed before/after DEM/stereo), cross-checked vs conserved-authority mass + drum-fill.",
     "kind": "epic",
     "test_target": "NEW lode/test_regolith_volume.py"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "ML-06",
    "lane": "ML",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 69,
+   "buildable": 66,
    "concurrent": 0,
-   "done": 161,
+   "done": 164,
    "gated": 25
   },
   "by_lane": {
@@ -3746,7 +3746,7 @@
     "total": 9
    },
    "AS": {
-    "done": 14,
+    "done": 15,
     "total": 18
    },
    "BA": {
@@ -3790,7 +3790,7 @@
     "total": 3
    },
    "ML": {
-    "done": 7,
+    "done": 9,
     "total": 9
    },
    "MO": {
@@ -3856,7 +3856,7 @@
     "total": 76
    },
    "P1": {
-    "done": 84,
+    "done": 87,
     "total": 156
    },
    "P2": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 186,
-  "done_pct": 63.1,
+  "done_pct": 64.3,
   "in_scope": 230,
-  "in_scope_done_pct": 70.0,
+  "in_scope_done_pct": 71.3,
   "total": 255
  },
  "workflow_spine": [
