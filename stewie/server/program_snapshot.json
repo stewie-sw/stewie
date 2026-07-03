@@ -1,10 +1,10 @@
 {
  "provenance": {
-  "citations_sha256": "91b2f29f6740146a2a671307388c3e07275cde8d0a38827a12541da7c602796a",
+  "citations_sha256": "2b87a541510b53d64e4485522063191b6db43fd774a1fff28870260e3da7d479",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "0929eaeae96e238a250b3b40e548f1ba6f65eac7",
-  "prd_sha256": "bd1a657fba5b0cda9b96565ae9e140b15a4f00e2477cf493dab7d51a9eb2acb8",
-  "specs_sha256": "213d6d787043c46f5a56f2d1147cf1784addefa9cf184b9b6b95197d75b9eacd"
+  "prd_commit": "0fe1af820adb1046d73d7da5a78880e16cd628b0",
+  "prd_sha256": "414a104d8e83ed4ae3062b4c337b6c6f43f12d926f093beb70aca1ee0b83e2c8",
+  "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
   {
@@ -437,24 +437,34 @@
    "text": "Typed ARGUS Navigation evidence contract: every accepted navigation measurement crossing the estimator seam carries factor type, covariance, frame, source, and evidence class; shadow-yaw remains heading-only; metric shadow-length/boundary factors are blocked from calibrated/measured labels until a passing residual artifact replaces the 2026-06-24 negative."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "brief": {
+    "goal": "fix/validate the gz_bridge point-cloud topic vs the gpu_lidar publisher (gpu_lidar <topic>X</topic> -> PointCloudPacked on X/points; the bridge is actually correct) + a host-side consistency test asserting every bridged sensor topic has a matching xacro/SDF publisher.",
+    "kind": "atomic",
+    "test_target": "extend ros2_ws/test_gz_bridge.py with a `[REQ:BA-01]` topic-publisher-consistency test"
+   },
+   "bucket": "done",
+   "cited": true,
    "id": "BA-01",
    "lane": "BA",
    "pri": "P0",
-   "text": "**Gazebo bridge point-cloud topic mismatch fixed + consistency-gated (extends AS-06).** `ros2_ws/src/stewie_bringup/config/gz_bridge.yaml:63` bridges `/model/ipex/perception/points` while the Gazebo xacro publishes `/model/ipex/perception` (`ros2_ws/src/stewie_description/urdf/ipex.gazebo.xacro:90`) -- the point cloud never bridges. Fix the naming and add a HOST-side consistency test that parses both files and asserts every bridged sensor topic has a matching publisher (and vice-versa). Acceptance: the mismatch is corrected and a pytest fails if any `gz_bridge.yaml` topic lacks a matching xacro/SDF publisher. Buildable on archimedes."
+   "text": "**Gazebo bridge topic-endpoint consistency gate (extends AS-06).** The audit flagged `gz_bridge.yaml` sourcing `/model/ipex/perception/points` while the xacro `gpu_lidar` sets `<topic>/model/ipex/perception` as a possible mismatch; SCREENING confirmed it is a FALSE POSITIVE -- a `gpu_lidar` publishes its PointCloudPacked on `<topic>/points`, so the bridge is correct (renaming it would break it). Deliverable: a host-side consistency test that parses `gz_bridge.yaml` + the xacro/SDF and asserts every bridged gz topic has a real sensor/plugin/system endpoint (encoding the gpu_lidar `/points`, diff-drive odom/tf, and Physics/JointState/Pose system-plugin conventions), FAILING on a real orphan. Acceptance: `ros2_ws/test_gz_bridge.py` `[REQ:BA-01]` passes on the current config (11/11 bridged topics have endpoints) and fails if any bridged topic lacks one. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "brief": {
+    "goal": "add stereo camera_info + the missing rear/side/drum image topics to the Gazebo bridge + the autonomy contract; assert each image topic has a paired camera_info.",
+    "kind": "atomic",
+    "test_target": "extend ros2_ws/test_gz_bridge.py (or NEW ros2_ws/test_camera_info.py) citing [REQ:BA-02]"
+   },
+   "bucket": "done",
+   "cited": true,
    "id": "BA-02",
    "lane": "BA",
    "pri": "P0",
@@ -465,6 +475,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "add ros2_control.xacro transmissions + controllers.yaml so Gazebo AND live share one controller_manager actuation interface.",
+    "kind": "epic",
+    "test_target": "NEW ros2_ws/test_ros2_control.py citing [REQ:BA-03] (loads the controller config)"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BA-03",
@@ -477,6 +492,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "generate a Gazebo heightfield world from a real lunar DEM (Haworth) instead of the flat regolith plane.",
+    "kind": "epic",
+    "test_target": "NEW scripts/test_dem_to_gazebo_heightfield.py citing [REQ:BA-04] (validates the heightfield vs the DEM)"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BA-04",
@@ -489,6 +509,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "typed CRS transform chain body_crs->site_enu->map->odom->base_link->sensors + a Godot Y-up<->ROS REP-103 converter, validated against control points.",
+    "kind": "epic",
+    "test_target": "NEW stewie/geospatial/test_crs_transform.py citing [REQ:BA-05] (control-point round-trips)"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BA-05",
@@ -501,6 +526,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "interop converters (xacro_to_sdf, urdf_to_godot_scene, dem_to_godot_heightfield, gridmap<->geotiff, rosbag<->world_transactions) with round-trip fixtures.",
+    "kind": "epic",
+    "test_target": "NEW scripts/test_interop_converters.py citing [REQ:BA-06] (bounds/georef/event-count preserved)"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BA-06",
@@ -513,6 +543,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "Phase-0 running-sim smoke gate: one launch brings up Gazebo+RSP+controllers+bridge+RViz+bag; assert contract topics publish, /cmd_vel moves the rover, no estimator subscribes /stewie/truth/*.",
+    "kind": "atomic",
+    "test_target": "extend ros2_ws/test_gz_sim_artifacts.py with a container `[REQ:BA-07]` smoke assertion"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BA-07",
@@ -525,6 +560,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "stewie_godot_bridge node subscribes ROS state (tf/joints/odom/path/costmap/map/rocks/factors/decision) and renders live in Godot, publishing NO commands (source_class=sim_render).",
+    "kind": "epic",
+    "test_target": "NEW ros2_ws/test_godot_bridge.py citing [REQ:BA-08] (subscription set + no command publishers)"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BA-08",
@@ -537,6 +577,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "promote the DART/LODE perception/mapping/costmap/planner logic into real ROS 2 nodes (skeletons -> real), reusing the tested Python cores + adding running-sim tests.",
+    "kind": "epic",
+    "test_target": "NEW ros2_ws/test_perception_node.py citing [REQ:BA-09] (perception->observed-map->costmap->plan chain)"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BA-09",
@@ -549,6 +594,11 @@
    "Q": "N",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "live robot / HIL through the same ROS interfaces (ros2_control hardware interface + drivers + calibration + time sync + bounded command namespace + safety watchdog); GATED on physical hardware.",
+    "kind": "gated",
+    "test_target": "NEW ros2_ws/test_hardware_interface.py citing [REQ:BA-10] (bench_robot profile parity; hardware-gated)"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BA-10",
@@ -561,6 +611,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "mission-package import/export in ArcGIS-compatible open-geospatial formats (GeoTIFF/COG, GeoJSON/FlatGeobuf, STAC metadata, manifest + authority tuple) with round-trip preservation.",
+    "kind": "epic",
+    "test_target": "NEW stewie/test_mission_package_io.py citing [REQ:BA-11] (export->import bounds/resolution/CRS + authority tuple preserved)"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "BA-11",
@@ -3674,11 +3729,11 @@
   }
  ],
  "summary": {
-  "briefs": 116,
+  "briefs": 127,
   "buckets": {
-   "buildable": 96,
+   "buildable": 94,
    "concurrent": 0,
-   "done": 134,
+   "done": 136,
    "gated": 25
   },
   "by_lane": {
@@ -3695,7 +3750,7 @@
     "total": 18
    },
    "BA": {
-    "done": 0,
+    "done": 2,
     "total": 11
    },
    "BP": {
@@ -3797,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 49,
+    "done": 51,
     "total": 76
    },
    "P1": {
@@ -3813,10 +3868,10 @@
     "total": 1
    }
   },
-  "cited": 179,
-  "done_pct": 52.5,
+  "cited": 181,
+  "done_pct": 53.3,
   "in_scope": 230,
-  "in_scope_done_pct": 58.3,
+  "in_scope_done_pct": 59.1,
   "total": 255
  },
  "workflow_spine": [
