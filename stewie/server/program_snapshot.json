@@ -1,10 +1,10 @@
 {
  "provenance": {
-  "citations_sha256": "d7e194a5b6904c66c6e15af2bc3e91ba943b753bd92ad60d04b7ad70ba82a2f2",
+  "citations_sha256": "188477e62a61dc7a3b5babfecf76129ef59799da7656b25644eb0e4f2499c109",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "ec648ffa3cc45b5ba34d36f87253b7e9fdada2bc",
-  "prd_sha256": "4b01034af47a87d218d4b1abdb84982247cee418e5eebe6898fd22612368cede",
-  "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
+  "prd_commit": "23207d1ab3e7d98f026fabe8107c3f9daa96f336",
+  "prd_sha256": "3698f9122ca69db76a210635308250f11225a81852e993a840f40e8673f1cad2",
+  "specs_sha256": "275af78c3aa598f23f68731802273f5c824e01a7c37444e575c3f2a753fae792"
  },
  "rows": [
   {
@@ -1595,6 +1595,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "fixed mobile status/action bar -- move #healthchip/#alertbtn/#wsbadge/#whoami out of the scrolling #viewtabs into a non-scrolling top bar.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_fr16_mobile_topbar.py citing [REQ:FR-16]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "FR-16",
@@ -1607,6 +1612,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "More/profile menus render as position:fixed viewport-clamped mobile sheets (were absolutely positioned in tab-strip children, opened offscreen).",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_fr17_mobile_menu_sheets.py citing [REQ:FR-17]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "FR-17",
@@ -1619,6 +1629,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "/program mobile touch ergonomics -- .fbtn/#program-search/.rowchip to min-height 44px, full-width search.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_fr18_program_touch_targets.py citing [REQ:FR-18]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "FR-18",
@@ -1627,12 +1642,17 @@
    "text": "**/program mobile touch ergonomics (mobile review; extends FS-26).** `/program` fits width but `.fbtn` (~24 px), `#program-search` (~26 px), `.rowchip` (~22 px) are below the 44 px touch floor (263 controls under 44 px). Add a mobile media block: `.fbtn`/`.rowchip`/`#program-search` min-height 44 px, search full-width, filters wrap into 44 px rows, rows tappable; keep the working no-overflow guards. Acceptance: at phone widths every `/program` filter/search/row control >=44 px, enforced by a static guard + a runtime touch-target check. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "brief": {
+    "goal": "Plan ToolBox is a viewport-contained mobile sheet with a 44px keep-out radius control (#edittoolbar/#edittools/#koradius).",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_fr19_toolbox_mobile.py citing [REQ:FR-19]"
+   },
+   "bucket": "done",
+   "cited": true,
    "id": "FR-19",
    "lane": "FR",
    "pri": "P1",
@@ -1643,6 +1663,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "mobile command-surface smoke gate across 320/360/390/430/768 (overflow + first-viewport chrome + menus in-viewport + ToolBox contained + all controls >=44x44).",
+    "kind": "atomic",
+    "test_target": "scripts/mobile_review_smoke.mjs citing [REQ:FR-20]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "FR-20",
@@ -1655,6 +1680,11 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "brief": {
+    "goal": "mobile IA control-plane split (status bar / workflow rail / subnav / drawer / account sheet).",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_fr21_mobile_ia.py citing [REQ:FR-21]"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "FR-21",
@@ -3801,11 +3831,11 @@
   }
  ],
  "summary": {
-  "briefs": 127,
+  "briefs": 133,
   "buckets": {
-   "buildable": 71,
+   "buildable": 70,
    "concurrent": 0,
-   "done": 165,
+   "done": 166,
    "gated": 25
   },
   "by_lane": {
@@ -3850,7 +3880,7 @@
     "total": 7
    },
    "FR": {
-    "done": 1,
+    "done": 2,
     "total": 21
    },
    "FS": {
@@ -3928,7 +3958,7 @@
     "total": 76
    },
    "P1": {
-    "done": 88,
+    "done": 89,
     "total": 160
    },
    "P2": {
@@ -3940,10 +3970,10 @@
     "total": 1
    }
   },
-  "cited": 187,
-  "done_pct": 63.2,
+  "cited": 188,
+  "done_pct": 63.6,
   "in_scope": 236,
-  "in_scope_done_pct": 69.9,
+  "in_scope_done_pct": 70.3,
   "total": 261
  },
  "workflow_spine": [
