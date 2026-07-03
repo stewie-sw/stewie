@@ -102,7 +102,12 @@ def _sim_side_topics():
       `/world/<world>/model/<model>/joint_state`, and `/world/<world>/pose/info`.
     """
     xac = open(_XACRO, encoding="utf-8").read()
-    topics = set(re.findall(r"<(?:topic|odom_topic|tf_topic)>([^<]+)</", xac))
+    topics = set(re.findall(r"<(?:topic|odom_topic|tf_topic|camera_info_topic)>([^<]+)</", xac))
+    # the 8-camera rig is a `gz_camera` xacro macro: expand each instantiation to its image + camera_info
+    for frame in re.findall(r'<xacro:gz_camera frame="(\w+)"', xac):
+        topics.add(f"/model/ipex/camera/{frame}/image")
+        topics.add(f"/model/ipex/camera/{frame}/camera_info")
+    topics = {t for t in topics if "${" not in t}          # drop the unexpanded macro-body placeholders
     for m in re.finditer(r'<sensor[^>]*type="gpu_lidar"[^>]*>(.*?)</sensor>', xac, re.S):
         t = re.search(r"<topic>([^<]+)</", m.group(1))
         if t:
@@ -127,3 +132,21 @@ def test_every_bridged_gz_topic_has_a_sim_endpoint():  # [REQ:BA-01]
         assert gz in endpoints, (
             f"gz_bridge sources {gz!r} but no sensor/plugin/system publisher or subscriber emits it "
             f"(gpu_lidar clouds are on <topic>/points; check ipex.gazebo.xacro / stewie_lunar.sdf)")
+
+
+def test_every_camera_image_has_a_paired_camera_info():  # [REQ:BA-02]
+    # BA-02: the LAC-twin 8-camera rig -- each camera publishes its image AND its camera_info
+    # (intrinsics/extrinsics; perception cannot rectify or triangulate without them), declared in the
+    # AS-01 contract AND bridged GZ_TO_ROS. Guards that no image topic ships without its camera_info.
+    imgs = [t for t in AC.TOPICS if "/camera/" in t and t.endswith("/image")]
+    assert len(imgs) == len(AC.CAMERA_FRAMES) == 8, f"expected an 8-camera rig, got {len(imgs)} images"
+    for img in imgs:
+        ci = img[: -len("/image")] + "/camera_info"
+        assert ci in AC.TOPICS, f"{img} has no paired camera_info topic in the contract"
+        assert AC.TOPICS[ci].msg == "sensor_msgs/CameraInfo", f"{ci} is not a CameraInfo"
+    by_ros = {e["ros_topic_name"]: e for e in _bridge()}
+    for f in AC.CAMERA_FRAMES:
+        for kind in ("image", "camera_info"):
+            rt = f"/stewie/camera/{f}/{kind}"
+            assert rt in by_ros, f"{rt} not bridged"
+            assert by_ros[rt]["direction"] == "GZ_TO_ROS", f"{rt} not GZ_TO_ROS"

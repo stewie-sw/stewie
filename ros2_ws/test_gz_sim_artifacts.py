@@ -38,10 +38,13 @@ def test_diffdrive_groups_the_four_urdf_wheel_joints():
                       "front_right_wheel_joint", "rear_right_wheel_joint"}, joints
 
 
-def test_overlay_has_imu_and_front_stereo_cameras():
+def test_overlay_has_imu_and_the_eight_camera_rig():
     o = _read(OVERLAY)
     assert 'type="imu"' in o
-    assert o.count('type="camera"') == 2
+    # [BA-02] the 8-camera rig is a `gz_camera` macro (one <sensor type="camera"> body) instantiated 8x,
+    # each emitting image + camera_info.
+    assert 'type="camera"' in o and "camera_info_topic" in o
+    assert o.count('<xacro:gz_camera frame="') == 8, "expected the full 8-camera rig instantiated"
 
 
 def test_overlay_has_selected_depth_cloud_source():
@@ -65,7 +68,11 @@ def test_overlay_gz_topics_match_the_bridge():
     o = _read(OVERLAY)
     bridge = {e["gz_topic_name"] for e in yaml.safe_load(_read(BRIDGE))}
     # every absolute gz topic the model declares must be a bridge gz endpoint
-    declared = set(re.findall(r"<(?:topic|odom_topic|tf_topic)>(/[\w/]+)</", o))
+    declared = set(re.findall(r"<(?:topic|odom_topic|tf_topic|camera_info_topic)>(/[\w/]+)</", o))
+    # [BA-02] expand the gz_camera macro: each instantiation declares image + camera_info
+    for _f in re.findall(r'<xacro:gz_camera frame="(\w+)"', o):
+        declared.add(f"/model/ipex/camera/{_f}/image")
+        declared.add(f"/model/ipex/camera/{_f}/camera_info")
     missing = {
         t for t in declared - bridge
         if not (t == "/model/ipex/perception" and "/model/ipex/perception/points" in bridge)

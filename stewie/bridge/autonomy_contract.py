@@ -104,6 +104,12 @@ def teleop_authority(profile: str | None, grant: bool) -> tuple[bool, str]:
         return False, "teleop_not_granted"               # a dev/bench profile still needs the explicit grant
     return True, "teleop_granted"
 
+# [BA-02] the LAC-twin 8-camera rig frame ids (match the ipex.urdf.xacro camera frames + the gz bridge).
+CAMERA_FRAMES: tuple[str, ...] = (
+    "front_left", "front_right", "rear_left", "rear_right",
+    "left_mono", "right_mono", "drum_front", "drum_back",
+)
+
 TOPICS: dict[str, Topic] = {t.name: t for t in (
     Topic("/clock", "rosgraph_msgs/Clock", QOS_SENSOR),
     Topic("/tf", "tf2_msgs/TFMessage", QOS_DEFAULT),
@@ -112,8 +118,9 @@ TOPICS: dict[str, Topic] = {t.name: t for t in (
     Topic("/stewie/imu", "sensor_msgs/Imu", QOS_SENSOR),
     Topic("/stewie/wheel_odom", "nav_msgs/Odometry", QOS_SENSOR),
     Topic("/stewie/contact", "ros_gz_interfaces/Contacts", QOS_SENSOR),
-    Topic("/stewie/camera/front_left/image", "sensor_msgs/Image", QOS_SENSOR),
-    Topic("/stewie/camera/front_right/image", "sensor_msgs/Image", QOS_SENSOR),
+    # [BA-02] each rig camera publishes its image AND its camera_info (intrinsics for rectification).
+    *(Topic(f"/stewie/camera/{f}/image", "sensor_msgs/Image", QOS_SENSOR) for f in CAMERA_FRAMES),
+    *(Topic(f"/stewie/camera/{f}/camera_info", "sensor_msgs/CameraInfo", QOS_SENSOR) for f in CAMERA_FRAMES),
     Topic("/stewie/perception/features", "stewie_msgs/FeatureTrackArray", QOS_SENSOR),
     Topic("/stewie/perception/points", "sensor_msgs/PointCloud2", QOS_SENSOR),
     Topic("/stewie/perception/rocks", "stewie_msgs/RockArray", QOS_DEFAULT),

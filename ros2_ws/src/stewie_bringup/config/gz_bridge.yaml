@@ -49,17 +49,88 @@
   gz_type_name: "gz.msgs.Pose_V"
   direction: GZ_TO_ROS
 
-# ---- exteroception: GZ -> ROS (the front stereo pair; the redundant set bridges identically) ----
+# ---- exteroception: the LAC-twin 8-camera rig, GZ -> ROS (image + camera_info per camera) [BA-02] ----
 - ros_topic_name: "/stewie/camera/front_left/image"
   gz_topic_name: "/model/ipex/camera/front_left/image"
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/front_left/camera_info"
+  gz_topic_name: "/model/ipex/camera/front_left/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
   direction: GZ_TO_ROS
 - ros_topic_name: "/stewie/camera/front_right/image"
   gz_topic_name: "/model/ipex/camera/front_right/image"
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"
   direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/front_right/camera_info"
+  gz_topic_name: "/model/ipex/camera/front_right/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/rear_left/image"
+  gz_topic_name: "/model/ipex/camera/rear_left/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/rear_left/camera_info"
+  gz_topic_name: "/model/ipex/camera/rear_left/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/rear_right/image"
+  gz_topic_name: "/model/ipex/camera/rear_right/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/rear_right/camera_info"
+  gz_topic_name: "/model/ipex/camera/rear_right/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/left_mono/image"
+  gz_topic_name: "/model/ipex/camera/left_mono/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/left_mono/camera_info"
+  gz_topic_name: "/model/ipex/camera/left_mono/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/right_mono/image"
+  gz_topic_name: "/model/ipex/camera/right_mono/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/right_mono/camera_info"
+  gz_topic_name: "/model/ipex/camera/right_mono/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/drum_front/image"
+  gz_topic_name: "/model/ipex/camera/drum_front/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/drum_front/camera_info"
+  gz_topic_name: "/model/ipex/camera/drum_front/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/drum_back/image"
+  gz_topic_name: "/model/ipex/camera/drum_back/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+- ros_topic_name: "/stewie/camera/drum_back/camera_info"
+  gz_topic_name: "/model/ipex/camera/drum_back/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
 - ros_topic_name: "/stewie/perception/points"
   gz_topic_name: "/model/ipex/perception/points"
   ros_type_name: "sensor_msgs/msg/PointCloud2"
