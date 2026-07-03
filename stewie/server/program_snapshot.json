@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "313268378139293fe272d50e202e41dbede867b5be6b30159489bdb8feac3aa2",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "778de325ad7e94e579d9ce506af6c4daa3aece41",
-  "prd_sha256": "35bc67cf777ac3846aa015336fc7c9c9cff2c9015893a696e820b46bee952785",
+  "prd_commit": "5f4c349d14c2e1f470752f6447c036562d26915f",
+  "prd_sha256": "fa5b1dab0690efd24d1642f47f94ecb7a425ed46f7f842fccf41f2b0767b6132",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -388,11 +388,11 @@
    "text": "ROS diagnostics and logging: every ROS node emits diagnostics, lifecycle state, health, latency, dropped frames, QoS warnings, command eligibility, SAFE events, and correlation IDs into the STEWIE observability ledger without logging secrets or truth-denied fields."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
-   "bucket": "buildable",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "AS-15",
    "lane": "AS",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 71,
+   "buildable": 70,
    "concurrent": 0,
-   "done": 159,
+   "done": 160,
    "gated": 25
   },
   "by_lane": {
@@ -3746,7 +3746,7 @@
     "total": 9
    },
    "AS": {
-    "done": 13,
+    "done": 14,
     "total": 18
    },
    "BA": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 74,
+    "done": 75,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 186,
-  "done_pct": 62.4,
+  "done_pct": 62.7,
   "in_scope": 230,
-  "in_scope_done_pct": 69.1,
+  "in_scope_done_pct": 69.6,
   "total": 255
  },
  "workflow_spine": [
