@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "e702a1f9f1708514aa67873dab57a3ccaeed3253",
-  "prd_sha256": "dc2d3709b3fbe3588db94e626eddbd728396807137fe20b5d35ce263d7bea9ee",
+  "prd_commit": "060c4f90f77951d10b2030f0118ac51e26edc133",
+  "prd_sha256": "ceefcd0b88cb940b9a6dbd06861aac9b7949ba54478baf751471dabae1bb6815",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -2071,16 +2071,16 @@
    "text": "**Cockpit ConOps de-duplication (2026-07-02 UI review, Screenshot_20260702_131756).** The top tab bar and the mission-pipeline `#stepper` both rendered Rehearse/Validate/Release/Execute/Report -- two stacked rows of the same phase labels. `#stepper` is reduced to the PLAN micro-wizard (Site->Fleet->Orders->Solve, the sub-steps that exist nowhere else) + a single \"-> Rehearse\" hand-off cue; the downstream phases' done/current progress rides as a dot ON each phase tab (`renderStepper` PHASE_TAB). Acceptance: `#stepper` carries no downstream-phase chip, each phase tab carries a progress dot, and the ui-smoke + a [REQ:FS-30] gate pin it. Buildable on archimedes."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "turn the CSP/runtime smoke into a real desktop + mobile browser check against the DEPLOYED headers asserting Cesium + Moon/Mars/Earth imagery + worksite overlays + sign-in + mobile nav load with zero blocking console errors.",
     "kind": "gated",
     "test_target": "NEW stewie/server/test_gi01_runtime_smoke.py (`[REQ:GI-01]`)"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "GI-01",
    "lane": "GI",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 86,
+   "buildable": 85,
    "concurrent": 0,
-   "done": 144,
+   "done": 145,
    "gated": 25
   },
   "by_lane": {
@@ -3786,7 +3786,7 @@
     "total": 30
    },
    "GI": {
-    "done": 1,
+    "done": 2,
     "total": 3
    },
    "ML": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 59,
+    "done": 60,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 56.5,
+  "done_pct": 56.9,
   "in_scope": 230,
-  "in_scope_done_pct": 62.6,
+  "in_scope_done_pct": 63.0,
   "total": 255
  },
  "workflow_spine": [
