@@ -84,3 +84,7 @@ and stop scheduling (wait for Aaron).
   conserved_err ~2.7e-11. [REQ:DE-01] 2/2 (every-stage payload + determinism); additive; gate green. RESTRUCTURE
   BACKBONE COMPLETE (edges + packaging + demo). NEXT = P0 BROADEN, starting EG-01 (EnvironmentMode enum +
   authority matrix). Screen for an existing runtime_mode/env concept first (BA-11 authority tuple has one).
+- 2026-07-03 cf9072e — EG-01 DONE (wake 4). EnvironmentMode enum (6 modes) + per-mode authority matrix (§29.1,
+  7 flags) in stewie/contracts/governance.py; only-LIVE-commands, REPLAY read-only, ARCHIVE export-only. The
+  looser mission_namespace (live/sandbox) + runtime_mode tuple key map onto these (canonical typed def).
+  [REQ:EG-01] 7/7; additive; gate green. NEXT = EG-02 (central mode-authority ENFORCEMENT guard).
