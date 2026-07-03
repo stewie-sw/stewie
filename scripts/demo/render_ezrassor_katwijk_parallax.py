@@ -188,7 +188,7 @@ agg = {
                 "bounded by half a cell diagonal (~0.354 m). Estimator target = rendered pose."},
     "elapsed_s": round(elapsed, 1),
 }
-print(f"\n=== SCORE ===")
+print("\n=== SCORE ===")
 print(f"per-station fix error (vs rendered/snapped RTK): {agg['per_station_fix_error_vs_rendered_m']}")
 print(f"absolute-fix ATE (RMS, no alignment): {abs_rms:.3f} m")
 print(f"aligned ATE (Umeyama, template primitive): {aligned_ate:.3f} m")
