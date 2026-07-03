@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "f0d49b95552a55f8c3c3881bd283fcad69ab1af6",
-  "prd_sha256": "bc8316d59c2120cdd9c6160bdff84f1905dbc1aa887b0fa28fa1d4052f22aa2c",
+  "prd_commit": "ebf1a7becb45b23e2097780d6b54f7ee49bf9591",
+  "prd_sha256": "a3953bf48f427bbe076aadd70b4fecfb7b0afbaab1f44657d5fba47bb8666785",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -2025,16 +2025,16 @@
    "text": "**ROS/Gazebo/RViz as first-class cockpit evidence surfaces (100%-frontend-audit finding 3).** The Validate/System/Report panes surface, for the selected run, the ROS/Gazebo/RViz evidence that proves the run matches its runnable profile: lifecycle nodes, `/clock`, `/tf`, `/joint_states`, bridge-topic freshness, RViz display status + screenshots, Gazebo/bag links, the process/container profile, and a no-truth-input assertion (`index.html:879`). These are engineering-visualization evidence, never a separate command surface. Acceptance: with a `ros2`/`gazebo` profile selected, the panes show live-or-recorded ROS/Gazebo/RViz status matching the profile, and flag a mismatch. Buildable on archimedes (ROS2 Jazzy / Gazebo / RViz containers run here)."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "Release freezes+shows plan hash/runtime profile/namespace/sensor profile/AG-08 eligibility/SF-01 watchdog/sign-off; Execute shows bounded next command + acks/watchdog/link-ack/covariance/map-freshness/SAFE controls + refusal reason.",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_release_execute_evidence.py citing [REQ:FS-28]"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "FS-28",
    "lane": "FS",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 79,
+   "buildable": 78,
    "concurrent": 0,
-   "done": 151,
+   "done": 152,
    "gated": 25
   },
   "by_lane": {
@@ -3782,7 +3782,7 @@
     "total": 15
    },
    "FS": {
-    "done": 19,
+    "done": 20,
     "total": 30
    },
    "GI": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 66,
+    "done": 67,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 59.2,
+  "done_pct": 59.6,
   "in_scope": 230,
-  "in_scope_done_pct": 65.7,
+  "in_scope_done_pct": 66.1,
   "total": 255
  },
  "workflow_spine": [
