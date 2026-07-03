@@ -5,6 +5,7 @@ boundary-contract ROS names with the right types and directions, and -- the AS-0
 clause 2 -- that the Gazebo ground-truth pose reaches ONLY a TRUTH_TOPICS channel and is never
 bridged into an estimator input. The running-sim topic-publish smoke is container-gated."""
 import os
+import re
 
 import yaml
 
@@ -12,6 +13,9 @@ from stewie.bridge import autonomy_contract as AC
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 BRIDGE = os.path.join(_HERE, "src", "stewie_bringup", "config", "gz_bridge.yaml")
+_DESC = os.path.join(_HERE, "src", "stewie_description")
+_XACRO = os.path.join(_DESC, "urdf", "ipex.gazebo.xacro")
+_WORLD = os.path.join(_DESC, "worlds", "stewie_lunar.sdf")
 # gz source substrings that denote evaluation TRUTH (the simulator's exact state), not a sensor
 _TRUTH_GZ_MARKERS = ("dynamic_pose", "/pose/info", "/pose_static")
 
@@ -84,3 +88,42 @@ def test_truth_channel_present_for_offline_scoring():
     # the truth pose IS bridged (to the truth channel) so the offline scorer has ground truth
     truth = [e for e in _bridge() if e["ros_topic_name"] in AC.TRUTH_TOPICS]
     assert truth and all(e["direction"] == "GZ_TO_ROS" for e in truth)
+
+
+def _sim_side_topics():
+    """Every Gazebo-side topic the sim publishes OR subscribes, per gz-transport conventions -- so a
+    bridged `gz_topic_name` can be checked against a real endpoint:
+    - every sensor/plugin `<topic>` / `<odom_topic>` / `<tf_topic>` value (verbatim -- these cover the
+      diff-drive cmd_vel SUBSCRIBE + odom/tf, the imu/contact/camera sensors, and the lidar base),
+    - a `gpu_lidar` sensor ALSO publishes its PointCloudPacked on `<topic>/points` (this is the key
+      convention: gz_bridge sourcing `/model/ipex/perception/points` from a lidar whose `<topic>` is
+      `/model/ipex/perception` is CORRECT, not a mismatch),
+    - the Physics / JointStatePublisher / PosePublisher system plugins publish `/clock`,
+      `/world/<world>/model/<model>/joint_state`, and `/world/<world>/pose/info`.
+    """
+    xac = open(_XACRO, encoding="utf-8").read()
+    topics = set(re.findall(r"<(?:topic|odom_topic|tf_topic)>([^<]+)</", xac))
+    for m in re.finditer(r'<sensor[^>]*type="gpu_lidar"[^>]*>(.*?)</sensor>', xac, re.S):
+        t = re.search(r"<topic>([^<]+)</", m.group(1))
+        if t:
+            topics.add(t.group(1).strip() + "/points")
+    wm = re.search(r'<world\s+name="([^"]+)"', open(_WORLD, encoding="utf-8").read())
+    world = wm.group(1) if wm else "stewie_lunar"
+    model = "ipex"
+    topics.update({"/clock",
+                   f"/world/{world}/model/{model}/joint_state",
+                   f"/world/{world}/pose/info"})
+    return topics
+
+
+def test_every_bridged_gz_topic_has_a_sim_endpoint():  # [REQ:BA-01]
+    # BA-01: the audit flagged gz_bridge sourcing `/model/ipex/perception/points` while the xacro lidar
+    # sets `<topic>/model/ipex/perception` as a possible mismatch. It is NOT: a gpu_lidar publishes its
+    # cloud on `<topic>/points`. This gate encodes that convention and FAILS on a real orphan -- a
+    # bridged gz topic with no sensor/plugin/system endpoint.
+    endpoints = _sim_side_topics()
+    for e in _bridge():
+        gz = e["gz_topic_name"]
+        assert gz in endpoints, (
+            f"gz_bridge sources {gz!r} but no sensor/plugin/system publisher or subscriber emits it "
+            f"(gpu_lidar clouds are on <topic>/points; check ipex.gazebo.xacro / stewie_lunar.sdf)")
