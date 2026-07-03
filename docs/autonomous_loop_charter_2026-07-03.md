@@ -71,3 +71,9 @@ and stop scheduling (wait for Aaron).
   byte-identical regression green (physics+lode+specs+forge+dart+leap+runtime); ruff+mypy+req_trace+assessment
   +check_deps green. Note for PO-18: body_params STAYS in stewie-core (imports stewie.specs.constants for the
   overlay); split the PhysicsBackend protocol (-> forge) from the Tier2 concrete (-> core). NEXT = PO-18.
+- 2026-07-03 c30d6f2 — PO-18 DONE (wake 2). stewie-forge extracted: terramechanics + bearing + the
+  PhysicsBackend PROTOCOL -> packages/stewie-forge (numpy-only; concept API estimate_sinkage /
+  estimate_bearing_capacity); backend.py SPLIT (protocol->forge, Tier2NumpyBackend->core); verbatim shims at
+  the old paths. Docker build rc=0 + in-container smoke PASSED; byte-identical regression green
+  (physics+lode+specs+forge+dart+leap); CI x4 install; ruff+mypy+req_trace+assessment+check_deps green.
+  PACKAGING PHASE COMPLETE (stewie-bodies + stewie-forge both extracted, shimmed, Docker-verified). NEXT = DE-01.
