@@ -77,3 +77,10 @@ and stop scheduling (wait for Aaron).
   the old paths. Docker build rc=0 + in-container smoke PASSED; byte-identical regression green
   (physics+lode+specs+forge+dart+leap); CI x4 install; ruff+mypy+req_trace+assessment+check_deps green.
   PACKAGING PHASE COMPLETE (stewie-bodies + stewie-forge both extracted, shimmed, Docker-verified). NEXT = DE-01.
+- 2026-07-03 f106454 — DE-01 DONE (wake 3). Demo 001 vertical slice (scripts/demo_001.py) composes the platform
+  loop from EXISTING code: body(moon) -> conserved PhysicsBackend -> plan(mission_planner) -> conserved
+  execution + world/terrain-memory txn (mission_terrain_delta + WorldStateService) -> RegolithVolumeEstimate
+  reconcile (siteplan_volume_evidence) -> deterministic evidence artifact. A real IPEx dig moves 3528 kg,
+  conserved_err ~2.7e-11. [REQ:DE-01] 2/2 (every-stage payload + determinism); additive; gate green. RESTRUCTURE
+  BACKBONE COMPLETE (edges + packaging + demo). NEXT = P0 BROADEN, starting EG-01 (EnvironmentMode enum +
+  authority matrix). Screen for an existing runtime_mode/env concept first (BA-11 authority tuple has one).
