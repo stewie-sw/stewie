@@ -8,8 +8,6 @@ subsystem here), so no router<->app cycle.
 """
 from fastapi import APIRouter
 
-from dart import comparison as CMP
-
 router = APIRouter()
 
 _MODALITY_RANGE_M = 6.0   # near-range landmarks (~shadow-tip distance) where the modalities are compared
@@ -18,6 +16,7 @@ _MODALITY_RANGE_M = 6.0   # near-range landmarks (~shadow-tip distance) where th
 @router.get("/evidence")
 def get_evidence() -> dict:
     """The navigation evidence bundle: comparison / generalization / photometric+depth + op cost."""
+    from dart import comparison as CMP    # [REQ:AP-01] lazy: app-layer router, not a module-level dart edge
     return {
         "ok": True,
         "capability_matrix": CMP.nav_capability_matrix(),               # generalization: 3 approach classes

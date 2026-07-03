@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING
 
-from dart.hazard_map import HazardMap, plan_route
 from stewie.contracts.runtime_spine import TrajectoryCommand
+
+if TYPE_CHECKING:                              # [REQ:AP-01] type-only import: nav_loop is app-layer orchestration
+    from dart.hazard_map import HazardMap      # (it composes DART) so it must not import dart at module load
 
 #: the IPEx-class hard velocity cap [m/s]; a lowered command's speed is bounded to at most this.
 V_CAP_MPS = 0.5
@@ -58,6 +61,7 @@ def nav_tick(state: NavState, hmap: HazardMap, *, v_max: float = 0.3, step_m: fl
 
     route = state.route
     if (not route) or uncertain or blocked or state.recovering:
+        from dart.hazard_map import plan_route    # [REQ:AP-01] lazy: app-layer call, not a module-level dart edge
         route = tuple(plan_route(hmap, (state.x, state.y), (state.goal_x, state.goal_y)))
 
     if len(route) < 2:                                        # no corridor (or already at goal cell) -> recover

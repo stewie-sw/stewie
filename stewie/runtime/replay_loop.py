@@ -24,7 +24,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from dart.hazard_map import build_hazard_map
 from stewie.bridge.command_eligibility import CommandContext, eligibility_report
 from stewie.contracts.runtime_spine import (
     CommandEligibility,
@@ -118,6 +117,7 @@ def run_replay(dem_window: np.ndarray, cell_m: float, start_xy: tuple[float, flo
         ur, uc = seed_uncertainty_rc
         uncertainty = np.zeros_like(z, dtype=float)
         uncertainty[ur:ur + 8, uc:uc + 8] = 0.9        # 90% uncertain over the weakly-observed patch
+    from dart.hazard_map import build_hazard_map    # [REQ:AP-01] lazy: app-layer call, not a module-level dart edge
     hmap = build_hazard_map((z, cell_m), max_slope_deg=25.0, zones=zones, uncertainty=uncertainty)
     detections: list[HazardDetection] = []
     if seed_hazard_rc is not None:

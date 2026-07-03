@@ -4,6 +4,7 @@ production physics imported dart/leap -- verified: only THREE test files couple 
 test_drum_sensing, test_slam04_fk_authority), and test files are outside the package unit gate. This is the
 executable guard: a future production back-edge fails here.
 """
+import ast
 import pathlib
 import re
 
@@ -31,3 +32,32 @@ def test_bodies_registry_imports_no_stewie_physics():  # [REQ:PX-05]
     runtime = [ln for ln in src.splitlines()
                if re.match(r"^(?:from|import)\s+stewie\.physics", ln)]
     assert not runtime, f"stewie.specs.bodies has a runtime stewie.physics import: {runtime}"
+
+
+# ---- [REQ:AP-01] core <-> dart/leap cycle break -------------------------------------------------
+_ROOT = pathlib.Path(__file__).resolve().parent.parent
+_AP01_COMPOSERS = ["stewie/runtime/nav_loop.py", "stewie/runtime/replay_loop.py",
+                   "stewie/server/routers/evidence.py", "stewie/server/routers/siteplan.py"]
+
+
+def _module_level_pkg_imports(path: pathlib.Path, pkgs: set) -> list:
+    """Top-level (module-LOAD) imports of any package in `pkgs`. AST-based on `tree.body`, so docstrings,
+    comments, `if TYPE_CHECKING:` blocks, and function-level lazy imports are all correctly EXCLUDED (none
+    of those live in the module body)."""
+    bad = []
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] in pkgs:
+            bad.append(f"{path.name}: from {node.module}")
+        elif isinstance(node, ast.Import):
+            for a in node.names:
+                if a.name.split(".")[0] in pkgs:
+                    bad.append(f"{path.name}: import {a.name}")
+    return bad
+
+
+def test_ap01_app_composers_have_no_module_level_dart_leap():  # [REQ:AP-01]
+    offenders = []
+    for rel in _AP01_COMPOSERS:
+        offenders += _module_level_pkg_imports(_ROOT / rel, {"dart", "leap"})
+    assert not offenders, ("app-layer composer has a module-level dart/leap import (core<->dart/leap cycle): "
+                           + "; ".join(offenders))

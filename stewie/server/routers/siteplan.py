@@ -12,7 +12,6 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from leap.siteplan import PlacedStructure, analyze_siteplan
 from stewie.server.deps import require_auth
 from stewie.server.services import log_event
 
@@ -37,6 +36,7 @@ class SitePlanRequest(BaseModel):
 def siteplan_analyze(req: SitePlanRequest, _auth: str = Depends(require_auth)):
     """Validate-and-advise: return the base-wide mass economy, routing, clearances, build order, and
     advisories for the placed structures. 400 on an unknown structure name (honest failure)."""
+    from leap.siteplan import PlacedStructure, analyze_siteplan   # [REQ:AP-01] lazy: app-layer router, not a module-level leap edge
     try:
         ps = [PlacedStructure(name=p.name, x=p.x, y=p.y, params=dict(p.params)) for p in req.placements]
         rpt = analyze_siteplan(ps, min_gap_m=req.min_gap_m)
