@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "8d2ddd5b5d4742ee257e4a6023c5e01f27c0e99b4ec6b76f3a6a8b5caefeaec5",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "3a41d20111fe12e65f8f3c6f3e4bacf5d3932379",
-  "prd_sha256": "5ac413ec7d6ed9431d12ac3dd5ffd632b76a42316e46719bf6a415e38e2ba57c",
-  "specs_sha256": "ac6304f845e628ca896e0f0c4dbcc35e05c131b1f8531e6890cce0cdd3537827"
+  "prd_commit": "f7707278818bb8e3f94778990e8ddbf766063e0c",
+  "prd_sha256": "8cd5025b1ca3b151088b9e4e683deb35393e18b42a58888790e8e343c8cd9628",
+  "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
   {
@@ -3942,6 +3942,23 @@
    "V": "N",
    "X": "N",
    "brief": {
+    "goal": "break terramechanics->stewie.specs.constants (prereq for PO-18); forge-local geotech defaults + preserve config-overlay via injection at stewie-side call sites; behavior byte-identical.",
+    "kind": "atomic",
+    "test_target": "NEW/extended [REQ:PX-06] in scripts/test_import_boundaries.py + stewie/physics/test_terramechanics.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PX-06",
+   "lane": "PX",
+   "pri": "P0",
+   "text": "Break the `terramechanics` -> `stewie.specs.constants` edge (prerequisite for PO-18's bodies+numeric-only `stewie-forge`). `terramechanics` carries forge-local literal geotech defaults (the 13 K.* values: K_C/K_PHI/N_SINKAGE/COHESION/PHI/K_SHEAR/SLIP_C1/SLIP_C2/RHO_SURFACE/RHO_DEEP/ROVER_MASS_DRY_KG/N_WHEELS/g); the config-overlay path is PRESERVED by injecting config-overlaid values at the stewie-side call sites (dependency inversion), so runtime behavior is byte-identical. Acceptance: production `stewie/physics/terramechanics` imports no `stewie.specs.constants` at module level ([REQ:PX-06] AST guard, extends PX-05); `TerramechanicsParams.from_constants()` values unchanged; a `config` override of a geotech constant still reaches the built params via the injection path; physics + lode regression green."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
     "goal": "platform-restructure backlog row RF-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-01]"
@@ -4732,9 +4749,9 @@
   }
  ],
  "summary": {
-  "briefs": 186,
+  "briefs": 187,
   "buckets": {
-   "buildable": 104,
+   "buildable": 105,
    "concurrent": 0,
    "done": 185,
    "gated": 25
@@ -4870,7 +4887,7 @@
    },
    "PX": {
     "done": 2,
-    "total": 5
+    "total": 6
    },
    "RF": {
     "done": 0,
@@ -4920,7 +4937,7 @@
   "by_priority": {
    "P0": {
     "done": 82,
-    "total": 101
+    "total": 102
    },
    "P1": {
     "done": 99,
@@ -4936,10 +4953,10 @@
    }
   },
   "cited": 204,
-  "done_pct": 58.9,
-  "in_scope": 289,
-  "in_scope_done_pct": 64.0,
-  "total": 314
+  "done_pct": 58.7,
+  "in_scope": 290,
+  "in_scope_done_pct": 63.8,
+  "total": 315
  },
  "workflow_spine": [
   "Plan",
