@@ -247,6 +247,12 @@
     #edittools label { min-height: 44px; display: inline-flex; align-items: center; gap: 2px; }
     input[type="number"], #koradius { min-height: 44px; }   /* FR-19: the keep-out radius input meets the touch floor (was 52x29) */
     #koradius { width: 4.5em; box-sizing: border-box; }
+    /* FR-17: More/account menus were position:absolute right:0 inside far-right #viewtabs children, so on
+       phones they opened OFFSCREEN (right edges ~624/~881px). Override them to viewport-clamped fixed
+       bottom sheets -- left + right insets keep them fully on-screen; !important beats the inline
+       position:absolute; max-height + scroll caps a tall menu. */
+    #moremenu, #profmenu { position: fixed !important; left: 8px !important; right: 8px !important;
+      bottom: 8px !important; top: auto !important; max-width: none !important; max-height: 60vh; overflow-y: auto; }
     /* the work-area DEM inset must not block a phone screen: shrink it + win over the base
        #workarea rule (declared LATER, so plain #workarea here loses the cascade -- body #workarea
        outranks it). MUST also drop the base min-width:180px, which otherwise beats max-width. */
