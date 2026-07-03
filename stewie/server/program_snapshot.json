@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "91b2f29f6740146a2a671307388c3e07275cde8d0a38827a12541da7c602796a",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "9479630c140874e63557f5f191771e37c5cbff66",
-  "prd_sha256": "04c1ff7a9b2dec21a11b87bba4ecf209baaa31705a3a6405dd436aa7202d9044",
+  "prd_commit": "0929eaeae96e238a250b3b40e548f1ba6f65eac7",
+  "prd_sha256": "bd1a657fba5b0cda9b96565ae9e140b15a4f00e2477cf493dab7d51a9eb2acb8",
   "specs_sha256": "213d6d787043c46f5a56f2d1147cf1784addefa9cf184b9b6b95197d75b9eacd"
  },
  "rows": [
@@ -435,6 +435,138 @@
    "lane": "AS",
    "pri": "P0",
    "text": "Typed ARGUS Navigation evidence contract: every accepted navigation measurement crossing the estimator seam carries factor type, covariance, frame, source, and evidence class; shadow-yaw remains heading-only; metric shadow-length/boundary factors are blocked from calibrated/measured labels until a passing residual artifact replaces the 2026-06-24 negative."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BA-01",
+   "lane": "BA",
+   "pri": "P0",
+   "text": "**Gazebo bridge point-cloud topic mismatch fixed + consistency-gated (extends AS-06).** `ros2_ws/src/stewie_bringup/config/gz_bridge.yaml:63` bridges `/model/ipex/perception/points` while the Gazebo xacro publishes `/model/ipex/perception` (`ros2_ws/src/stewie_description/urdf/ipex.gazebo.xacro:90`) -- the point cloud never bridges. Fix the naming and add a HOST-side consistency test that parses both files and asserts every bridged sensor topic has a matching publisher (and vice-versa). Acceptance: the mismatch is corrected and a pytest fails if any `gz_bridge.yaml` topic lacks a matching xacro/SDF publisher. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BA-02",
+   "lane": "BA",
+   "pri": "P0",
+   "text": "**Stereo `camera_info` + the missing 8-camera image topics (extends AS-05/AS-06).** The bridge/contract carry `front_left/right/image` but no `camera_info`, and the rear/side/drum cameras of the 8-camera rig are absent -- perception cannot rectify or triangulate without intrinsics. Add `/stewie/camera/front_{left,right}/camera_info` and the rear/side/drum image topics to the Gazebo bridge + `stewie/bridge/autonomy_contract.py`. Acceptance: the contract + bridge expose `camera_info` for the stereo pair and the full 8-camera image set, and a test asserts each image topic has a paired `camera_info`. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BA-03",
+   "lane": "BA",
+   "pri": "P0",
+   "text": "**`ros2_control` is the single actuation authority for sim AND live (extends AS-03/AS-12).** The URDF exists but `ros2_control` transmissions/controllers do not, so Gazebo diff-drive and a future live robot would use different command paths. Add `ros2_control.xacro` (transmissions) + `controllers.yaml` (joint_state_broadcaster + skid/diff-drive controller) so BOTH `gazebo_sim` and `bench_robot`/`live_rover` lower commands through the same `controller_manager`. Acceptance: one controller config drives the Gazebo model and is the declared live-robot path; a launch/param test loads the controllers. Container-buildable (ROS 2 Jazzy + Gazebo)."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BA-04",
+   "lane": "BA",
+   "pri": "P0",
+   "text": "**Gazebo terrain generated from a real lunar DEM, not a flat plane (extends AS-06).** `ros2_ws/src/stewie_description/worlds/stewie_lunar.sdf` is a flat regolith plane ingesting no DEM/craters/rocks/world-state. Add `dem_to_gazebo_heightfield.py` emitting a Gazebo heightfield collision/visual from a real DEM (the Haworth bundle) + a world that loads it. Acceptance: a Haworth-derived heightfield world loads in the Gazebo container with correct bounds/resolution metadata, and a test validates the generated heightfield against the DEM. Container-buildable (real Haworth DEM on disk)."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BA-05",
+   "lane": "BA",
+   "pri": "P0",
+   "text": "**Explicit CRS transform chain body_crs->site_enu->map->odom->base_link->sensors + Godot Y-up<->REP-103 (extends FR-10).** The layer manifest (FR-10) carries a body CRS but the frame-transform CHAIN is not a tested contract, and the Godot Y-up vs ROS Z-up conversion is noted only in prose (`ipex-terrain-sim-spec.md:305`). Add `stewie/geospatial/crs_transform.py` with typed transforms per seam + a Godot<->REP-103 converter, validated against known control points. Acceptance: each transform round-trips a control point within tolerance and the Godot<->ROS conversion is tested, not asserted in prose. Buildable on archimedes (pyproj)."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BA-06",
+   "lane": "BA",
+   "pri": "P1",
+   "text": "**Interop conversion scripts (model/terrain/grid/bag round-trips) (extends FR-12).** The import/export interop names formats but lacks converters. Add: `xacro_to_sdf.py`, `urdf_to_godot_scene.py`, `dem_to_godot_heightfield.py`, `gridmap_to_geotiff.py`/`geotiff_to_gridmap.py`, `rosbag_to_world_transactions.py`/`world_transactions_to_replay.py`. Acceptance: each converter round-trips a real fixture (DEM<->heightfield bounds preserved, GridMap<->GeoTIFF georeference preserved, bag<->world-transaction event-count preserved) under test. Buildable on archimedes (the ROS-bag converters are container-gated)."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BA-07",
+   "lane": "BA",
+   "pri": "P1",
+   "text": "**Phase-0 running-sim smoke gate: one launch, real topics, truth-denial (extends AS-06/RS-04).** A single launch brings up Gazebo + `robot_state_publisher` + controllers + `gz_bridge` + RViz + bag recording; a container smoke test asserts the contract topics publish (IMU, wheel odom, camera, points), a short `/cmd_vel` moves the rover into a bag, and NO estimator subscribes a `/stewie/truth/*` topic. Acceptance: the smoke test passes in the Gazebo container and reds if a truth topic gains an estimator subscriber. Container-gated (Gazebo container)."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BA-08",
+   "lane": "BA",
+   "pri": "P1",
+   "text": "**`stewie_godot_bridge`: live ROS->Godot visualization, never command authority (extends RS-07/RS-08).** A ROS 2 node subscribes `/tf`, `/joint_states`, `/stewie/odom`, `/stewie/plan/path`, `/stewie/costmap`, `/stewie/map/*`, `/stewie/perception/rocks`, `/stewie/nav/factors`, `/stewie/exec/decision` and renders the URDF-derived articulated pose + overlays in Godot; it publishes NO commands (`source_class=sim_render` egress only). Acceptance: Gazebo drives ROS, Godot follows pose/articulation + overlays path/costmap/hazards, and killing Godot does not affect ROS autonomy. Container/live-gated."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BA-09",
+   "lane": "BA",
+   "pri": "P1",
+   "text": "**Promote the DART/LODE autonomy logic into REAL ROS 2 nodes phase-by-phase (extends AS-07/AS-10/AS-11/AS-12).** The mature perception/mapping/costmap/planner logic lives in Python modules while `stewie_{perception,localization,mapping,planning,control,vehicle_interface}` nodes are skeletons (`ros2_ws/src/stewie_perception/stewie_perception/node.py:1`). Wrap the tested cores (`dart.hazard_map`, `lode.costmap_layers.compose`, `lode.planner_routing`, the observed-map/world-transaction path) as ROS nodes, keeping the host-side tests AND adding running-sim tests. Acceptance: at least the perception->observed-map->costmap->plan chain runs as ROS nodes in the container against injected Gazebo/Godot frames, reusing the tested Python cores. Container-gated."
+  },
+  {
+   "I": "N",
+   "Q": "N",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BA-10",
+   "lane": "BA",
+   "pri": "P2",
+   "text": "**Live robot / hardware-in-the-loop through the SAME ROS interfaces (Phase 6).** Implement the `ros2_control` hardware interface + sensor drivers + calibration/transforms + time sync + a bounded command namespace + live safety watchdog + live telemetry/bag recording, so the SAME autonomy launch runs `gazebo_sim` and `bench_robot`. Acceptance: the identical stack runs both profiles; live commands are bounded, release-gated, acknowledged, logged, and replayable. GATED: needs a physical bench rover / hardware (no container substitute)."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BA-11",
+   "lane": "BA",
+   "pri": "P1",
+   "text": "**Mission-package import/export in open-geospatial formats (extends FR-10/FR-12).** Add `mission_package_export.py`/`mission_package_import.py` producing an ArcGIS-COMPATIBLE open package: GeoTIFF/COG DEM + layers, GeoJSON/FlatGeobuf vectors (keepouts/routes/zones/targets), STAC-style metadata, a manifest, and the authority tuple (body+site+mission+runtime_mode+runnable_profile+source_class+vehicle+role+command_namespace). Acceptance: a Haworth package round-trips (export->import) with identical layer bounds/resolution/CRS and the authority tuple preserved; ArcGIS Feature Service is left as a later adapter (FR-12), not claimed. Buildable on archimedes."
   },
   {
    "I": "N",
@@ -3544,7 +3676,7 @@
  "summary": {
   "briefs": 116,
   "buckets": {
-   "buildable": 85,
+   "buildable": 96,
    "concurrent": 0,
    "done": 134,
    "gated": 25
@@ -3561,6 +3693,10 @@
    "AS": {
     "done": 8,
     "total": 18
+   },
+   "BA": {
+    "done": 0,
+    "total": 11
    },
    "BP": {
     "done": 3,
@@ -3662,15 +3798,15 @@
   "by_priority": {
    "P0": {
     "done": 49,
-    "total": 71
+    "total": 76
    },
    "P1": {
     "done": 84,
-    "total": 151
+    "total": 156
    },
    "P2": {
     "done": 1,
-    "total": 21
+    "total": 22
    },
    "P3": {
     "done": 0,
@@ -3678,10 +3814,10 @@
    }
   },
   "cited": 179,
-  "done_pct": 54.9,
-  "in_scope": 219,
-  "in_scope_done_pct": 61.2,
-  "total": 244
+  "done_pct": 52.5,
+  "in_scope": 230,
+  "in_scope_done_pct": 58.3,
+  "total": 255
  },
  "workflow_spine": [
   "Plan",
