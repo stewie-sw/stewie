@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "12c11ede3eac4b79f9050cebb54fb04e19c53e47",
-  "prd_sha256": "5fa383f97ebedc219ddc1c4a20cbdc961060e112adb90eebfdeb23320d96ae3e",
+  "prd_commit": "aef8fcc6bd2316ec119f366e193f4b69ba6952aa",
+  "prd_sha256": "5627b36bebd9e9320f587fb555325547310b5007f9fbc23997fb1ef795f37883",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -2516,16 +2516,16 @@
    "text": "Live command/telemetry uses a versioned streaming API with timestamps, sequence numbers, backpressure, and safe-stop semantics. `stewie.bridge.stream.StreamSession`: every frame carries `protocol_version` + a monotonic `seq` + a timestamp; a bounded un-acked window applies backpressure (frames past the window are refused + counted, never silently dropped); cumulative `ack` is the heartbeat; and an SF-01-tied safe-stop trips when the oldest un-acked frame stalls past `ack_deadline_s`, submitting `RC.Safe(SAFE_REASON_LINK_STALL)` through the same backend SF-01 uses. Pure (caller supplies `now`, the watchdog pattern; rclpy-optional). Wired into the AG-08-gated `/rc/plan_ros` route, which frames NV-11's lowered messages on a `StreamSession` (sequenced, back-pressured) for a live mission only."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "provide a unified explicit-clock + frame-ID synchronizer time-aligning camera/IMU/command/arm/truth streams into one estimator-consumable timeline.",
     "kind": "epic",
     "test_target": "extend dart/test_s3li_reader.py with `[REQ:PM-01]`; NEW dart/test_stream_sync.py for the unified aligner"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "PM-01",
    "lane": "PM",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 82,
+   "buildable": 81,
    "concurrent": 0,
-   "done": 148,
+   "done": 149,
    "gated": 25
   },
   "by_lane": {
@@ -3806,7 +3806,7 @@
     "total": 12
    },
    "PM": {
-    "done": 7,
+    "done": 8,
     "total": 19
    },
    "PO": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 63,
+    "done": 64,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 58.0,
+  "done_pct": 58.4,
   "in_scope": 230,
-  "in_scope_done_pct": 64.3,
+  "in_scope_done_pct": 64.8,
   "total": 255
  },
  "workflow_spine": [
