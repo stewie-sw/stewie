@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "be5165c35998f3685f2e3a257610d9899e88081d75f8ae85ebf65c3f1782d2ba",
+  "citations_sha256": "8d2ddd5b5d4742ee257e4a6023c5e01f27c0e99b4ec6b76f3a6a8b5caefeaec5",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "85e5d164d1cf9a6305237d7a5532287f22de689a",
-  "prd_sha256": "79eff6c024445b8fb500cf4b748e01505209663325a3b3e34595d88d6fdb6a47",
+  "prd_commit": "bd101565c5e076a759a4a198e5072f5d4ec0fc91",
+  "prd_sha256": "13741f22a65a82a6a6e3f79657c82f8c06db651f8e9b0d8460577809a4361d98",
   "specs_sha256": "44e106abc41becf9f01d5efd897f79b31bc05a82288054ef0bbcd00934cd880e"
  },
  "rows": [
@@ -3398,17 +3398,17 @@
    "text": "uv/hatch workspace skeleton (after BD/PX/AP boundaries pass); editable install + current suite green; import-boundary policy encoded (bodies\u2192none, forge\u2192bodies+numeric, apps\u2192everything); public build targets are `stewie-bodies` + `stewie-forge` ONLY; root stays monorepo."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "extract stewie-bodies as the first public/citable package from the dependency-neutral registry.",
     "kind": "atomic",
     "test_target": "NEW packages/stewie-bodies/tests/test_body_profiles.py citing [REQ:PO-17]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PO-17",
    "lane": "PO",
    "pri": "P0",
@@ -4274,9 +4274,9 @@
  "summary": {
   "briefs": 142,
   "buckets": {
-   "buildable": 85,
+   "buildable": 84,
    "concurrent": 0,
-   "done": 184,
+   "done": 185,
    "gated": 25
   },
   "by_lane": {
@@ -4397,7 +4397,7 @@
     "total": 19
    },
    "PO": {
-    "done": 14,
+    "done": 15,
     "total": 18
    },
    "PX": {
@@ -4451,7 +4451,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 81,
+    "done": 82,
     "total": 94
    },
    "P1": {
@@ -4467,10 +4467,10 @@
     "total": 2
    }
   },
-  "cited": 203,
-  "done_pct": 62.6,
+  "cited": 204,
+  "done_pct": 62.9,
   "in_scope": 269,
-  "in_scope_done_pct": 68.4,
+  "in_scope_done_pct": 68.8,
   "total": 294
  },
  "workflow_spine": [
