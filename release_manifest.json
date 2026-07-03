@@ -61,7 +61,7 @@
     "semver_declared": true
   },
   "dependencies": {
-    "all_ok": true,
+    "all_ok": false,
     "locks": [
       {
         "extras": [
@@ -76,8 +76,10 @@
           "server"
         ],
         "lock": "requirements-server.lock",
-        "lock_check": "ok",
-        "missing": []
+        "lock_check": "drift",
+        "missing": [
+          "pyyaml"
+        ]
       }
     ]
   },
@@ -85,7 +87,7 @@
     "cited": 185,
     "reconciles": true,
     "total": 255,
-    "understated_count": 28,
+    "understated_count": 27,
     "unknown_markers": [],
     "v_done_uncited": []
   },

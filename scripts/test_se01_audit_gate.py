@@ -58,20 +58,20 @@ def test_real_manifest_lists_all_eight_domains_with_typed_entries():
             assert entry.get("gated_reason"), f"{name} is GATED but names no reason"
 
 
-def test_real_gate_refuses_release_today_for_real_open_findings():
-    # honest current state: the CVE-scan leg is now wired + tested (scripts/scan_artifacts.py), so the
-    # dependency domain no longer blocks -- but the OPS-02 secret finding on the deploy host is still
-    # open (live-host-gated, not closeable from a checkout), so the release gate REFUSES. This is the
-    # non-vacuous core assertion.
+def test_real_gate_is_releasable_with_on_host_domains_closed_and_infra_named():
+    # honest current state (OPS-02 CLOSED 2026-07-03): every on-host-auditable domain is PASS -- container,
+    # app, dependency/SBOM/CVE (scripts/scan_artifacts.py wired), AND secret (STEWIE_API_KEY rotated on the
+    # archimedes deploy host, old key 401-rejected + new key accepted, stale STEWIE_DIRECTOR_KEY absent).
+    # The four infra legs (host/DNS/backup/external-surface) stay GATED with named reasons. So the release
+    # gate is RELEASABLE: no non-gated domain holds an open finding, and every gated leg names why it cannot
+    # be audited from a checkout. (Was: REFUSED, while the secret finding was open.)
     rep = security_audit_report()
-    assert rep["releasable"] is False
-    assert "secret" in rep["blocking"]
-    # the CVE leg is closed -> it must NOT be among the blockers anymore
-    assert "dependency_sbom_cve" not in rep["blocking"]
-    # the refusal must surface the actual finding, not an opaque boolean
-    joined = " ".join(rep["open_findings"]).lower()
-    assert "ops-02" in joined
-    assert main() == 1  # the CLI exit code refuses release too
+    assert rep["releasable"] is True
+    assert not rep["blocking"] and not rep["open_findings"]     # the OPS-02 secret finding is closed
+    gated = {d for d, e in SE01_AUDIT_DOMAINS.items() if e["status"] == "GATED"}
+    assert {"host", "dns_site", "backup_restore", "external_surface"} <= gated
+    assert all(SE01_AUDIT_DOMAINS[d].get("gated_reason") for d in gated)  # no reason-less gated leg
+    assert main() == 0  # the CLI exit code now allows release
 
 
 def test_infra_gated_legs_stay_named_and_do_not_block():

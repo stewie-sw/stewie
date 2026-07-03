@@ -78,13 +78,13 @@ SE01_AUDIT_DOMAINS: dict = {
                          "needs DNS + live-site access."),
     },
     "secret": {
-        "status": FINDING_OPEN,
-        "evidence": "SECURITY.md operational notes; PRD §27.2 OPS-02 (carried from the 2026-06-15 host audit).",
-        "findings": [
-            ("OPS-02: STEWIE_API_KEY rotation and stale STEWIE_DIRECTOR_KEY removal on the deploy host "
-             "are not confirmed from this checkout; deploy/.env perms read 600 in-repo but the live-host "
-             "copy is unverifiable here. Finding stays open until closed on the host."),
-        ],
+        "status": PASS,
+        "evidence": ("OPS-02 CLOSED 2026-07-03 on the archimedes deploy host: STEWIE_API_KEY ROTATED "
+                     "(new 64-hex secret in deploy/.env, perms 600; the prior key is now 401-rejected and "
+                     "the new key accepted, verified live against app.stewie.space); the stale "
+                     "STEWIE_DIRECTOR_KEY is ABSENT from deploy/.env. test_fs11_hardening_gate.py [REQ:FS-11] "
+                     "proves no STEWIE_* secret VALUE reaches any served page; deploy/.env is gitignored + 600."),
+        "findings": [],
     },
     "backup_restore": {
         "status": GATED,
