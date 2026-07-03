@@ -35,7 +35,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 190,
+  "cited": 191,
   "per_family": {
     "AG": {
       "cited": 8,
@@ -78,7 +78,7 @@
       "total": 7
     },
     "FR": {
-      "cited": 4,
+      "cited": 5,
       "total": 21
     },
     "FS": {
@@ -172,6 +172,10 @@
     },
     {
       "id": "FL-05",
+      "v": "P"
+    },
+    {
+      "id": "FR-20",
       "v": "P"
     },
     {

@@ -974,8 +974,8 @@ Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO
 ### FR-20 (P2) — atomic
 - goal: mobile command-surface smoke gate across 320/360/390/430/768 (overflow + first-viewport chrome + menus in-viewport + ToolBox contained + all controls >=44x44).
 - acceptance: the gate runs the five viewports and fails on any violation.
-- files: scripts/ux_a11y_smoke.py, scripts/ui_smoke.mjs
-- test_target: scripts/mobile_review_smoke.mjs citing [REQ:FR-20]
+- files: stewie/server/test_fr20_mobile_smoke.py, stewie/server/index.html, stewie/server/web/program.html
+- test_target: stewie/server/test_fr20_mobile_smoke.py citing [REQ:FR-20]
 ### FR-21 (P2) — atomic
 - goal: mobile IA control-plane split (status bar / workflow rail / subnav / drawer / account sheet).
 - acceptance: the mobile shell separates the stable status/action plane from the scrollable workflow rail (verified via FR-16 + FR-20).
