@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "c308be457c65477b409b7d160194d4bde74c50c4f3441acbea4d784755d41eba",
+  "citations_sha256": "6d05a2460e1f4994e19991a25f1675436f0db691a53e68e285c40d8dc46dc1e0",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "fedf2bb5b80765d58574b1c306909c907ffaddfc",
-  "prd_sha256": "1093c4725b8f5c72937069a6be26fcc95891fb32e12eafaa13c31e23d71881f7",
+  "prd_commit": "d775d3094289bd6835913ff017d38a7e4757264c",
+  "prd_sha256": "f441afeec2d7957df807fb7bf2dbd85c6e420a572c34c42b8769cfa22b2cc954",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1351,17 +1351,17 @@
    "text": "Environment modes as a typed model: `EnvironmentMode` = DEV/TRAINING/REHEARSAL/LIVE/REPLAY/ARCHIVE + a per-mode authority matrix over 7 flags (command-real-robot / modify-accepted-world / create-branches / publish / delete / simulate / approve-merges), encoded per \u00a729.1. Acceptance: the matrix contract + a test asserting each mode's flags (LIVE alone commands robots; REPLAY/ARCHIVE fully read-only)."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row EG-02 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:EG-02]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "EG-02",
    "lane": "EG",
    "pri": "P0",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 101,
+   "buildable": 100,
    "concurrent": 0,
-   "done": 189,
+   "done": 190,
    "gated": 25
   },
   "by_lane": {
@@ -4818,7 +4818,7 @@
     "total": 2
    },
    "EG": {
-    "done": 1,
+    "done": 2,
     "total": 12
    },
    "EP": {
@@ -4936,7 +4936,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 86,
+    "done": 87,
     "total": 102
    },
    "P1": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 208,
-  "done_pct": 60.0,
+  "cited": 209,
+  "done_pct": 60.3,
   "in_scope": 290,
-  "in_scope_done_pct": 65.2,
+  "in_scope_done_pct": 65.5,
   "total": 315
  },
  "workflow_spine": [
