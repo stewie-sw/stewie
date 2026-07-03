@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "6d8563bcf284ef8a4e7893c15fd74f3af14eda8f",
-  "prd_sha256": "c1f0856fd237a02b1928030ea77a8964d475fdbf589184d27f1c4438ed95ee20",
+  "prd_commit": "deaf1cffc79161b04adec81e0495ace4f4a52f0f",
+  "prd_sha256": "c4c93b6ecf291fd7e6d4f08595a5eb4501f30e71b9bd70056a28da3f48bfd489",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -316,11 +316,11 @@
    "text": "ShadowNav factor path: convert ephemeris-controlled sun geometry plus panorama/shadow landmark bearings into typed `NavigationFactor` observations with covariance, residual gates, false-factor rejection, and ablation versus non-shadow VO/SLAM."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
-   "X": "P",
-   "bucket": "buildable",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "AS-09",
    "lane": "AS",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 75,
+   "buildable": 74,
    "concurrent": 0,
-   "done": 155,
+   "done": 156,
    "gated": 25
   },
   "by_lane": {
@@ -3746,7 +3746,7 @@
     "total": 9
    },
    "AS": {
-    "done": 12,
+    "done": 13,
     "total": 18
    },
    "BA": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 70,
+    "done": 71,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 60.8,
+  "done_pct": 61.2,
   "in_scope": 230,
-  "in_scope_done_pct": 67.4,
+  "in_scope_done_pct": 67.8,
   "total": 255
  },
  "workflow_spine": [
