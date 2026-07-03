@@ -143,3 +143,27 @@ def test_run_is_deterministic(window, wss):
     b = run_replay(z, cell, _START, _GOAL, wss=wss, seed_hazard_rc=(25, 25))
     assert a.run_sha == b.run_sha                      # same inputs -> same typed payloads
     assert [c.model_dump() for c in a.commands] == [c.model_dump() for c in b.commands]
+
+
+def test_fr11_observed_hazard_end_to_end_acceptance_gate_with_leg_justified_evidence(window, wss):  # [REQ:FR-11]
+    """FR-11: the full observed-world-to-planner gate on REAL Haworth terrain -- known DEM + route ->
+    inject an observed hazard -> commit through a world transaction -> rebuild the costmap from the layer
+    manifest -> the route changes/refuses, with LEG-attributed release evidence ('route changed because
+    observed hazard X entered leg Y'). One end-to-end acceptance test, extends RS-02."""
+    from stewie.runtime.route_impact import justify_route_change
+    z, cell = window
+    clear = run_replay(z, cell, _START, _GOAL, wss=wss)                             # known DEM + route
+    hazard = run_replay(z, cell, _START, _GOAL, wss=wss, seed_hazard_rc=(25, 25))   # inject observed hazard on the corridor
+    # (a) committed through a world transaction -- the audited chain verifies.
+    assert hazard.world_transaction and wss.verify_chain()
+    # (b) the costmap rebuilt from the layer manifest reflects the observed hazard; the no-go area grew.
+    assert "observed_obstacle" in hazard.costmap.blocking_reasons
+    assert hazard.hazard_descriptor.no_go_fraction > clear.hazard_descriptor.no_go_fraction
+    # (c) the planner read a provenance-tagged OBSERVED multi-layer world (never truth).
+    assert hazard.observed_layers and all(lyr.provenance == "observed" for lyr in hazard.observed_layers)
+    # (d) the acceptance verdict: a REAL impact (reroute OR refusal), attributed to the route leg + the named cause.
+    j = justify_route_change(clear, hazard, (25, 25))
+    assert j["changed"] or j["refused"]
+    assert j["blocking_reason"] == "observed_obstacle"
+    assert isinstance(j["leg_index"], int) and j["leg_index"] >= 0
+    assert "observed_obstacle" in j["justification"] and f"leg {j['leg_index']}" in j["justification"]
