@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "6c0fbfecc215e6fc25a23e3c583dc4f5491270b97bb6592923e7319efae12eef",
+  "citations_sha256": "1f5de6077f3e5fdcee7a1a07af0e6f43a718b362926f5970ad3d241468529974",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "ea615c67326e4e677731eb239e4296b735894e7e",
-  "prd_sha256": "b75e4dea9280290bb10edd49bbcbba05291c50c55118e39e919cb34fad0dc75f",
+  "prd_commit": "c2c39a5a02fb046c7992e2f9ca91078688320c3d",
+  "prd_sha256": "9d035e05a65ff0963e8b969d52386d6eb10bc4487c7b73cfcd88d73f5ef3543d",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -471,17 +471,17 @@
    "text": "**Stereo `camera_info` + the missing 8-camera image topics (extends AS-05/AS-06).** The bridge/contract carry `front_left/right/image` but no `camera_info`, and the rear/side/drum cameras of the 8-camera rig are absent -- perception cannot rectify or triangulate without intrinsics. Add `/stewie/camera/front_{left,right}/camera_info` and the rear/side/drum image topics to the Gazebo bridge + `stewie/bridge/autonomy_contract.py`. Acceptance: the contract + bridge expose `camera_info` for the stereo pair and the full 8-camera image set, and a test asserts each image topic has a paired `camera_info`. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "add ros2_control.xacro transmissions + controllers.yaml so Gazebo AND live share one controller_manager actuation interface.",
     "kind": "epic",
     "test_target": "NEW ros2_ws/test_ros2_control.py citing [REQ:BA-03] (loads the controller config)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BA-03",
    "lane": "BA",
    "pri": "P0",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 93,
+   "buildable": 92,
    "concurrent": 0,
-   "done": 137,
+   "done": 138,
    "gated": 25
   },
   "by_lane": {
@@ -3750,7 +3750,7 @@
     "total": 18
    },
    "BA": {
-    "done": 3,
+    "done": 4,
     "total": 11
    },
    "BP": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 52,
+    "done": 53,
     "total": 76
    },
    "P1": {
@@ -3868,10 +3868,10 @@
     "total": 1
    }
   },
-  "cited": 182,
-  "done_pct": 53.7,
+  "cited": 183,
+  "done_pct": 54.1,
   "in_scope": 230,
-  "in_scope_done_pct": 59.6,
+  "in_scope_done_pct": 60.0,
   "total": 255
  },
  "workflow_spine": [
