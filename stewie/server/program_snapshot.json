@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "85015be9bcdaa091237d79d90fa41b61ec99f6a75fabca5fc733db91e649b10b",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "376921ac5751ee3d950d749651145ae89d9c8282",
-  "prd_sha256": "9acf589d32421951ac31acef0b9674d8f62e3309ef64aabd480c9ba0c876e03b",
+  "prd_commit": "0f41efd4eaf592061319a866f4f6c80b0e1bf513",
+  "prd_sha256": "d18b23acf7860b51fd4f736ed4565fd9db3d968b70533b3a024624b54ea4d736",
   "specs_sha256": "44cb8fe01e084f6a23d3e6927ffffe9d6da653d13649d76df21b06e1d0e18ca6"
  },
  "rows": [
@@ -3041,16 +3041,16 @@
    "text": "UI distinguishes forecast, simulation truth, estimator belief, and live telemetry."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
+   "V": "D",
    "X": "D",
    "brief": {
     "goal": "make fleet playback render EVERY rover + each rover's INDEPENDENT telemetry (today it replays a single-rover forecast; the Fleet pane shows static tables).",
     "kind": "epic",
     "test_target": "extend .../fleet_render.test.js, OR NEW .../fleet_playback.test.js"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "PO-11",
    "lane": "PO",
@@ -3833,9 +3833,9 @@
  "summary": {
   "briefs": 133,
   "buckets": {
-   "buildable": 65,
+   "buildable": 64,
    "concurrent": 0,
-   "done": 171,
+   "done": 172,
    "gated": 25
   },
   "by_lane": {
@@ -3912,7 +3912,7 @@
     "total": 19
    },
    "PO": {
-    "done": 11,
+    "done": 12,
     "total": 15
    },
    "RL": {
@@ -3958,7 +3958,7 @@
     "total": 76
    },
    "P1": {
-    "done": 92,
+    "done": 93,
     "total": 160
    },
    "P2": {
@@ -3971,9 +3971,9 @@
    }
   },
   "cited": 193,
-  "done_pct": 65.5,
+  "done_pct": 65.9,
   "in_scope": 236,
-  "in_scope_done_pct": 72.5,
+  "in_scope_done_pct": 72.9,
   "total": 261
  },
  "workflow_spine": [
