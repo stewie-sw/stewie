@@ -440,8 +440,87 @@ class RegolithVolumeEstimate(Contract):
                    confidence_class=conf, acceptance=accept, transaction_id=transaction_id)
 
 
+#: [FR-10] the base world PRODUCT layers (beyond the costmap planning layers): id, type, and consumer
+#: eligibility (display, planning, release, execute). The costmap planning layers (lode.costmap_layers
+#: LAYER_NAMES) are appended by LayerManifest.for_world as display+planning cost layers.
+_BASE_WORLD_LAYERS = (
+    ("dem", "elevation", (True, True, True, False)),
+    ("imagery", "imagery", (True, False, False, False)),
+    ("material", "material", (True, True, False, False)),
+    ("traversability", "traversability", (True, True, True, False)),
+    ("observed_mask", "mask", (True, True, False, False)),
+    ("uncertainty", "uncertainty", (True, True, True, False)),
+    ("hazard", "hazard", (True, True, True, True)),
+    ("comms", "comms", (True, False, False, True)),
+)
+
+
+class WorldLayer(Contract):
+    """[REQ:FR-10] one typed layer in the unified world manifest: identity + geospatial descriptor +
+    provenance/freshness + CONSUMER ELIGIBILITY (which downstream stages may read it)."""
+    layer_id: str
+    layer_type: str
+    crs: str                                    # body-fixed frame (WorldState.frame)
+    body: str
+    bounds_rows: int = Field(gt=0)
+    bounds_cols: int = Field(gt=0)
+    resolution_m: float = Field(gt=0.0)
+    source: str
+    provenance: str                             # prior | observed | forecast | edited
+    timestamp_s: float = Field(ge=0.0)
+    freshness_s: float = Field(ge=0.0)          # age since timestamp
+    uncertainty_model: str
+    validity: bool = True
+    transaction_id: str
+    display: bool = True                         # consumer eligibility --
+    planning: bool = False
+    release: bool = False
+    execute: bool = False
+
+
+class LayerManifest(Contract):
+    """[REQ:FR-10] the unified typed layer manifest /world carries AND the planner costmap consumes -- every
+    planning-eligible layer the planner reads is discoverable + typed here."""
+    layers: tuple[WorldLayer, ...]
+
+    def layer_ids(self) -> list[str]:
+        return [lyr.layer_id for lyr in self.layers]
+
+    def planning_layers(self) -> list[str]:
+        return [lyr.layer_id for lyr in self.layers if lyr.planning]
+
+    def by_type(self, t: str) -> list[WorldLayer]:
+        return [lyr for lyr in self.layers if lyr.layer_type == t]
+
+    @classmethod
+    def for_world(cls, world, *, transaction_id: str, timestamp_s: float = 0.0,
+                  now_s: float = 0.0) -> "LayerManifest":
+        """Build the manifest from a WorldState (frame/body/geometry/dem_source/observed_fraction) + the
+        costmap planning layers (lode.costmap_layers LAYER_NAMES)."""
+        from lode.costmap_layers import LAYER_NAMES
+        prov = "observed" if float(getattr(world, "observed_fraction", 0.0) or 0.0) > 0.0 else "prior"
+        common = dict(crs=world.frame, body=world.body, bounds_rows=world.rows, bounds_cols=world.cols,
+                      resolution_m=world.cell_m, timestamp_s=float(timestamp_s),
+                      freshness_s=max(0.0, float(now_s) - float(timestamp_s)), transaction_id=transaction_id)
+        layers: list[WorldLayer] = []
+        for lid, ltype, elig in _BASE_WORLD_LAYERS:
+            layers.append(WorldLayer(
+                layer_id=lid, layer_type=ltype,
+                source=world.dem_source if lid == "dem" else lid,
+                provenance=prov if lid in ("dem", "observed_mask", "uncertainty") else "prior",
+                uncertainty_model="observed-band" if lid == "uncertainty" else "none",
+                display=elig[0], planning=elig[1], release=elig[2], execute=elig[3], **common))
+        for name in LAYER_NAMES:                 # the AS-11 costmap planning layers -> display + planning
+            layers.append(WorldLayer(
+                layer_id=name, layer_type="cost", source="costmap:" + name, provenance="prior",
+                uncertainty_model="none", display=True, planning=True, release=False, execute=False, **common))
+        return cls(layers=tuple(layers))
+
+
 __all__ = [
+    "LayerManifest",
     "RegolithVolumeEstimate",
+    "WorldLayer",
     "AcceptanceCriterion",
     "CompiledOrder",
     "Constraint",

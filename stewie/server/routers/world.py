@@ -69,7 +69,11 @@ def world(site: str = "haworth", _auth: str = Depends(require_auth)):
     world_committed = S.world_state_service().transaction_count() > 0
     w = WorldState(rows=rows, cols=cols, cell_m=cell_m, dem_source=_SITE_SOURCE.get(site, site),
                    observed_fraction=observed_fraction, mutated=mutated)
+    from stewie.contracts import LayerManifest   # [REQ:FR-10] the unified typed layer manifest
+    manifest = LayerManifest.for_world(w, transaction_id=f"world:{site}:{S.world_state_service().transaction_count()}")
     return {"ok": True, "world": w.model_dump(),
+            "layer_manifest": manifest.model_dump(),   # [REQ:FR-10] per-layer typed manifest w/ consumer eligibility
+
             # DT-05: the completeness/freshness declaration -- `complete` states this descriptor carries
             # its enrichment (not deferred); a consumer keys on it rather than guessing.
             "enrichment": {"complete": True, "observed": observed, "twin_version": twin_version,

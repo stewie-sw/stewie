@@ -191,6 +191,17 @@ def compose(ctx: CostmapContext, layers=LAYERS) -> CompositeCostmap:
                             per_layer_cost=per_cost, per_layer_block=per_block)
 
 
+_LAYER_BY_NAME = dict(zip(LAYER_NAMES, LAYERS))
+
+
+def compose_from_manifest(ctx: CostmapContext, manifest) -> CompositeCostmap:
+    """[REQ:FR-10] Build the costmap from the SAME layer manifest the cockpit reads: compose exactly the
+    manifest's planning-eligible cost layers (matched by layer id). The planner and the cockpit thus share
+    one source of truth for which layers are in play, in what order."""
+    fns = tuple(_LAYER_BY_NAME[lid] for lid in manifest.planning_layers() if lid in _LAYER_BY_NAME)
+    return compose(ctx, layers=fns)
+
+
 def blocking_reason(cm: CompositeCostmap, rc) -> str:
     """The visible reason a cell is blocked (empty string if passable)."""
     r, c = int(rc[0]), int(rc[1])
