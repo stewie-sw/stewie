@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "d98a3a335dafb9387eccc8100c33d8b3b7138b9d42107ff296e54c0ec8ef38ac",
+  "citations_sha256": "85015be9bcdaa091237d79d90fa41b61ec99f6a75fabca5fc733db91e649b10b",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "92a3c9eef76abbbdb7c74c4b9013df1f8e646d72",
-  "prd_sha256": "10903ca5e8a48dde89674df7ea1acbc02333b378234e3bdec7fd347ee0a1e4d8",
+  "prd_commit": "376921ac5751ee3d950d749651145ae89d9c8282",
+  "prd_sha256": "9acf589d32421951ac31acef0b9674d8f62e3309ef64aabd480c9ba0c876e03b",
   "specs_sha256": "44cb8fe01e084f6a23d3e6927ffffe9d6da653d13649d76df21b06e1d0e18ca6"
  },
  "rows": [
@@ -1591,17 +1591,17 @@
    "text": "**Observability records become mission evidence (lunar; extends FS-19/BP-08).** Each observability record links its source assets, source freshness, provenance, operator, product mode, runnable profile, and transaction id -- mission evidence, not just ops telemetry. Acceptance: `[REQ:FS-19]` fails if a required record lacks the source-asset/freshness/provenance/mode/profile/transaction linkage. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "fixed mobile status/action bar -- move #healthchip/#alertbtn/#wsbadge/#whoami out of the scrolling #viewtabs into a non-scrolling top bar.",
     "kind": "atomic",
     "test_target": "stewie/server/test_fr16_mobile_topbar.py citing [REQ:FR-16]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FR-16",
    "lane": "FR",
    "pri": "P1",
@@ -1661,14 +1661,14 @@
   {
    "I": "D",
    "Q": "NA",
-   "V": "P",
+   "V": "D",
    "X": "D",
    "brief": {
     "goal": "mobile command-surface smoke gate across 320/360/390/430/768 (overflow + first-viewport chrome + menus in-viewport + ToolBox contained + all controls >=44x44).",
     "kind": "atomic",
     "test_target": "stewie/server/test_fr20_mobile_smoke.py citing [REQ:FR-20]"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "FR-20",
    "lane": "FR",
@@ -1676,17 +1676,17 @@
    "text": "**Mobile command-surface smoke gate (mobile review; extends FR-08).** Existing mobile tests check the breakpoint CSS + `.vtab`/`#drawerbtn` + `/program` overflow only -- they pass while offscreen chrome + undersized controls ship. Add `scripts/mobile_review_smoke.mjs` (or expand `scripts/ux_a11y_smoke.py`) asserting at 320/360/390/430/768: no body horizontal overflow; health/alerts/workspace/account visible in the first viewport; More/profile menus in-viewport; ToolBox viewport-contained; all visible cockpit + `/program` controls >=44x44 (or justified-exempt); Plan/Validate/Execute/Report/Settings/System/Admin activate without overflow. Acceptance: the gate runs the five viewports and fails on any violation. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "mobile IA control-plane split (status bar / workflow rail / subnav / drawer / account sheet).",
     "kind": "atomic",
     "test_target": "stewie/server/test_fr21_mobile_ia.py citing [REQ:FR-21]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FR-21",
    "lane": "FR",
    "pri": "P2",
@@ -3833,9 +3833,9 @@
  "summary": {
   "briefs": 133,
   "buckets": {
-   "buildable": 68,
+   "buildable": 65,
    "concurrent": 0,
-   "done": 168,
+   "done": 171,
    "gated": 25
   },
   "by_lane": {
@@ -3880,7 +3880,7 @@
     "total": 7
    },
    "FR": {
-    "done": 4,
+    "done": 7,
     "total": 21
    },
    "FS": {
@@ -3958,11 +3958,11 @@
     "total": 76
    },
    "P1": {
-    "done": 91,
+    "done": 92,
     "total": 160
    },
    "P2": {
-    "done": 1,
+    "done": 3,
     "total": 24
    },
    "P3": {
@@ -3970,10 +3970,10 @@
     "total": 1
    }
   },
-  "cited": 191,
-  "done_pct": 64.4,
+  "cited": 193,
+  "done_pct": 65.5,
   "in_scope": 236,
-  "in_scope_done_pct": 71.2,
+  "in_scope_done_pct": 72.5,
   "total": 261
  },
  "workflow_spine": [
