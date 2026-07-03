@@ -1,10 +1,10 @@
 {
  "provenance": {
-  "citations_sha256": "7cfe71547daeb27ce8f5f29b7e08aa5a86eb5368903a90beb482d53678e67a25",
+  "citations_sha256": "d98a3a335dafb9387eccc8100c33d8b3b7138b9d42107ff296e54c0ec8ef38ac",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "e1cc72d9a48cd52a0e3c1e47e2749b7ff11b5f9b",
-  "prd_sha256": "1c9a00649a725b02dd3e0feebfa4afc7a902e3b7aaf777cb926cdbbf8fcf63e7",
-  "specs_sha256": "275af78c3aa598f23f68731802273f5c824e01a7c37444e575c3f2a753fae792"
+  "prd_commit": "92a3c9eef76abbbdb7c74c4b9013df1f8e646d72",
+  "prd_sha256": "10903ca5e8a48dde89674df7ea1acbc02333b378234e3bdec7fd347ee0a1e4d8",
+  "specs_sha256": "44cb8fe01e084f6a23d3e6927ffffe9d6da653d13649d76df21b06e1d0e18ca6"
  },
  "rows": [
   {
@@ -1659,17 +1659,17 @@
    "text": "**Plan ToolBox is a viewport-contained mobile sheet with a 44 px keep-out radius control (mobile review).** The expanded `#edittools` tray clips ~2 px past the 320 px viewport (`note`/`poly` at right=322) and `#koradius` (keep-out radius, `index.html:952`) is 52x29 -- below the 44 px touch floor. Convert the expanded mobile ToolBox (`#edittoolbar`/`#edittools`/`#editmode`) into a viewport-contained sheet/drawer section (not a free-floating absolute toolbar); make `#koradius` + its radius control a full mobile row with min-height 44 px + explicit label + stepper-friendly sizing; group phone edit tools (Place/Barriers/Measure/Done). Acceptance: opening `#editmode` at 320/390/430/768 keeps every visible `#edittoolbar` button/input inside the viewport and >=44 px incl. the keep-out radius. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "D",
    "brief": {
     "goal": "mobile command-surface smoke gate across 320/360/390/430/768 (overflow + first-viewport chrome + menus in-viewport + ToolBox contained + all controls >=44x44).",
     "kind": "atomic",
-    "test_target": "scripts/mobile_review_smoke.mjs citing [REQ:FR-20]"
+    "test_target": "stewie/server/test_fr20_mobile_smoke.py citing [REQ:FR-20]"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "FR-20",
    "lane": "FR",
    "pri": "P2",
@@ -3970,7 +3970,7 @@
     "total": 1
    }
   },
-  "cited": 190,
+  "cited": 191,
   "done_pct": 64.4,
   "in_scope": 236,
   "in_scope_done_pct": 71.2,
