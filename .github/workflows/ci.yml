@@ -38,15 +38,16 @@ jobs:
         run: mypy
       - name: Gated-tier report (PO-04 -- chrono/godot/ros skips VISIBLE, never faked; requires each tier to stay declared)
         run: python scripts/ci_tier_report.py --require chrono --require godot --require ros
-      - name: Test + coverage gate (the CONFIGURED suite; testpaths = core + planner + scripts)
-        # raise the fd soft limit before the parallel suite. `pytest -n auto` fans across cores and the
-        # suite grew past the runner's default 1024-fd budget -> a worker exhausts fds and its NEXT
-        # fd-opening test fails with OSError [Errno 9] Bad file descriptor (confirmed in CI: rsync-subprocess
-        # replicate + PIL im.getdata BOTH failed on worker gw3; reproduced locally under --cov at ulimit
-        # 1024 -> a loopback-socket test failed). xdist workers inherit this raised limit.
-        run: |
-          ulimit -n 65536
-          pytest -n auto --cov --cov-report=term-missing   # CI-OPT #158: parallel across runner cores (pytest-cov combines workers)
+      # The suite runs in TWO passes: the parallel pool (`-n auto`, most tests) then a small SERIAL pass
+      # (`-m serial`, fd-sensitive tests). A co-located test transiently corrupts an xdist worker's fd
+      # table under `-n auto` (OSError [Errno 9] Bad file descriptor), and file-I/O tests (test_admin's
+      # twin backup/replicate) are the victims -- they pass serially + under xdist alone, only the full
+      # parallel co-location breaks them. Quarantining them to a single-process pass avoids the corruption
+      # while still running them. Coverage is COMBINED (--cov-append) so `fail_under=85` sees the whole run.
+      - name: Test + coverage (parallel pool; fd-sensitive `serial` tests run in the next step)
+        run: pytest -n auto -m "not serial" --cov --cov-report= --cov-fail-under=0   # accumulate, do not gate yet
+      - name: Serial fd-sensitive tests + combined coverage gate (fail_under from pyproject)
+        run: pytest -m serial --cov --cov-append --cov-report=term-missing
 
   test-js:
     name: browser-JS tier (node --test)
@@ -119,9 +120,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install --require-hashes -r requirements-dev.lock
           pip install -e . --no-deps
-      - name: Test (the CONFIGURED suite; gated tiers skip)
-        # raise the fd soft limit before the parallel suite (see the coverage job's note): the grown suite
-        # under `pytest -n auto` exhausts a worker's default 1024 fds -> intermittent Bad-file-descriptor.
-        run: |
-          ulimit -n 65536
-          pytest -n auto -p no:cacheprovider   # CI-OPT #158: parallel across runner cores
+      # Two passes (see the lint-cov job): the parallel pool then the SERIAL fd-sensitive tests, so the
+      # co-located xdist worker fd corruption (Errno 9) can't hit the file-I/O victims (test_admin backup).
+      - name: Test (parallel pool; fd-sensitive `serial` tests run in the next step)
+        run: pytest -n auto -m "not serial" -p no:cacheprovider   # CI-OPT #158: parallel across runner cores
+      - name: Serial fd-sensitive tests (test_admin out of the xdist pool)
+        run: pytest -m serial -p no:cacheprovider

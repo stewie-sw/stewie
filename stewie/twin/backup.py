@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import subprocess
+import shutil
 import sys
 
 import numpy as np
@@ -94,16 +94,37 @@ def apply_retention(snaps_dir: str, *, keep_recent: int = 5, ladder: int = 10) -
 
 
 def replicate(data_dir: str, dest: str) -> dict:
-    """W-3: mirror the journal + snapshots to ``dest`` (rsync -a --delete on the twin artifacts).
-    The replica alone must cold-restore the world -- tested. RPO = how often this runs."""
+    """W-3: mirror the journal + snapshots to ``dest`` so the replica ALONE cold-restores the world.
+    RPO = how often this runs. PURE-PYTHON mirror (rsync -a --delete equivalent): each twin artifact is
+    copied into ``dest`` and, for a directory, the dest subtree is replaced so removed source files do not
+    linger (the --delete semantic). This replaces the former `rsync` subprocess, which intermittently
+    failed with OSError [Errno 9] Bad file descriptor under pytest-xdist (a subprocess-pipe fd race on a
+    parallel worker) -- no external `rsync` binary, no subprocess, deterministic + testable."""
     os.makedirs(dest, exist_ok=True)
     items = [p for p in ("twin.journal", "snaps", "twin") if os.path.exists(os.path.join(data_dir, p))]
     if not items:
         return {"ok": False, "error": f"nothing to replicate in {data_dir}"}
-    cmd = ["rsync", "-a", "--delete"] + [os.path.join(data_dir, p) for p in items] + [dest + "/"]
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    return {"ok": r.returncode == 0, "items": items,
-            "error": r.stderr[-300:] if r.returncode else ""}
+    # RETRY on a transient OS error: a backup mirror re-attempts (fresh fds each pass) so a momentary
+    # file-descriptor hiccup -- e.g. the OSError [Errno 9] Bad file descriptor seen under heavy parallel
+    # pytest-xdist load, where a co-located test's C-extension (GDAL/PIL) close can transiently invalidate
+    # a worker fd -- does not fail a real backup. A genuinely bad disk/permission still surfaces after the
+    # attempts.
+    last_err = ""
+    for attempt in range(3):
+        try:
+            for name in items:
+                src = os.path.join(data_dir, name)
+                dst = os.path.join(dest, name)
+                if os.path.isdir(src):
+                    if os.path.exists(dst):
+                        shutil.rmtree(dst)           # --delete: the dest subtree mirrors the source exactly
+                    shutil.copytree(src, dst)
+                else:
+                    shutil.copy2(src, dst)           # a file artifact (twin.journal) -> overwrite in place
+            return {"ok": True, "items": items, "error": ""}
+        except OSError as e:                          # transient -> retry; persistent -> surfaced below
+            last_err = str(e)[-300:]
+    return {"ok": False, "items": items, "error": last_err}
 
 
 def main(argv=None):

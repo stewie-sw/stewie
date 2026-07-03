@@ -24,6 +24,15 @@ def client(monkeypatch, tmp_path):
 
 H = {"X-API-Key": "test-key"}
 
+import pytest
+
+# [CI] fd-sensitive: test_admin (backup snapshot/replicate + rc watchdog) is a VICTIM of a co-located
+# test that transiently corrupts a worker fd under `pytest -n auto` (Errno 9 Bad file descriptor). It
+# passes serially + under xdist alone; only the full parallel suite co-locates it with the corruptor.
+# Quarantine it to the serial pool until the corruptor is root-caused.
+pytestmark = pytest.mark.serial
+
+
 
 def test_snapshot_then_retention_then_replicate(client, tmp_path):
     r = client.post("/admin/twin/snapshot", headers=H)

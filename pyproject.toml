@@ -95,6 +95,7 @@ testpaths = ["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws"]
 # `--timeout=600` (pytest-timeout) FAILs a hung test fast (stack dumped) -- 600s is far above any real test.
 addopts = "-q --timeout=600"
 markers = [
+    "serial: run OUTSIDE the xdist parallel pool -- fd-sensitive (a co-located test transiently corrupts a worker fd under -n auto; run these single-process)",
     "gpu: needs a GPU (Vulkan/CUDA)",
     "godot: needs the Godot sidecar binary",
     "colmap: needs pycolmap",

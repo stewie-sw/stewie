@@ -24,7 +24,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 178,
+  "cited": 179,
   "per_family": {
     "AG": {
       "cited": 8,
@@ -39,7 +39,7 @@
       "total": 18
     },
     "BP": {
-      "cited": 2,
+      "cited": 3,
       "total": 13
     },
     "CP": {
@@ -178,6 +178,10 @@
     {
       "id": "AS-15",
       "v": "P"
+    },
+    {
+      "id": "BP-12",
+      "v": "N"
     },
     {
       "id": "CP-07",
