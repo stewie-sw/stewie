@@ -20,6 +20,7 @@
       "AS-09",
       "AS-10",
       "AS-14",
+      "AS-15",
       "AS-17"
     ],
     "eligible_for_v_done": [
@@ -34,6 +35,7 @@
       "AS-10",
       "AS-11",
       "AS-14",
+      "AS-15",
       "AS-17"
     ],
     "host_verified": [
@@ -87,7 +89,7 @@
     "cited": 186,
     "reconciles": true,
     "total": 255,
-    "understated_count": 27,
+    "understated_count": 26,
     "unknown_markers": [],
     "v_done_uncited": []
   },
