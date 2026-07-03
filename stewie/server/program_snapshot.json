@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "060c4f90f77951d10b2030f0118ac51e26edc133",
-  "prd_sha256": "ceefcd0b88cb940b9a6dbd06861aac9b7949ba54478baf751471dabae1bb6815",
+  "prd_commit": "53bfce77ef7186b241bfbf2ede4e44b307eaf75f",
+  "prd_sha256": "8ad6e50e195c0fa99b37c5b79d295e19a864ada12530b593677fbdc0ca9a6e38",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -1802,16 +1802,16 @@
    "text": "Recorded construction and self-docking skills: record, version, replay, compare, and approve movement primitives for excavation, dumping, berm shaping, and docking; replay must be corrected by belief feedback and bounded by safety checks."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "code-enforce the atomic-rollout rule (a row can't reach V=D until contracts + FE affordance + route + tests + security + perf budget are complete-or-explicitly-gated); cite it.",
     "kind": "epic",
     "test_target": "NEW scripts/test_atomic_rollout_gate.py (`[REQ:FS-14]`), OR extend scripts/test_release_gate.py"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "FS-14",
    "lane": "FS",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 85,
+   "buildable": 84,
    "concurrent": 0,
-   "done": 145,
+   "done": 146,
    "gated": 25
   },
   "by_lane": {
@@ -3782,7 +3782,7 @@
     "total": 15
    },
    "FS": {
-    "done": 16,
+    "done": 17,
     "total": 30
    },
    "GI": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 60,
+    "done": 61,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 56.9,
+  "done_pct": 57.3,
   "in_scope": 230,
-  "in_scope_done_pct": 63.0,
+  "in_scope_done_pct": 63.5,
   "total": 255
  },
  "workflow_spine": [
