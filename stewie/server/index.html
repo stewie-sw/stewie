@@ -1233,6 +1233,10 @@
           <div style="flex:1;min-width:320px"><div class="cap" style="margin-bottom:4px">ACTIVITY — mission time</div>
             <canvas id="gantt" width="560" height="340" style="border:1px solid var(--line);border-radius:8px;width:100%;max-width:640px"></canvas></div>
         </div>
+        <!-- FR-13: moved-regolith VOLUME EVIDENCE for the current plan -- conserved, uncertainty-carrying,
+             cross-checked against the authority mass + drum, linked to a plan transaction (POST /siteplan/volume). -->
+        <div class="cap"><span>VOLUME EVIDENCE<span data-epistemic="forecast"></span></span></div>
+        <div id="volumeevidence" style="margin-bottom:8px"><div class="empty">No volume evidence yet — analyze a plan.</div></div>
         <div class="cap"><span>MISSION-CONTROL REPORT<span data-epistemic="forecast"></span><!-- FS-03: the report totals a planned (simulated) mission --></span>
           <a id="reportopen" href="#" target="_blank" rel="noopener">open in tab ↗</a></div>
         <iframe id="reportframe" title="mission-control report"></iframe>
@@ -1575,6 +1579,7 @@
 <script src="/assets/fleet_render.js?v=5ed7cab2cb71"></script><!-- FS-03: pure Fleet-pane roster/allocation HTML builders (sets window.STEWIE_FLEET_RENDER) -->
 <script src="/assets/fleet_playback.js?v=d592c026248e"></script><!-- PO-11: pure multi-rover playback model N tracks + N telemetry streams (sets window.STEWIE_FLEET_PLAYBACK) -->
 <script src="/assets/rehearse_render.js?v=fc34bf52eee3"></script><!-- REHEARSE: pure candidate-card HTML builder, feasibility first (sets window.STEWIE_REHEARSE_RENDER) -->
+<script src="/assets/volume_evidence_html.js"></script><!-- FR-13: pure RegolithVolumeEstimate render (sets window.STEWIE_VOLUME_EVIDENCE) -->
 <script src="/assets/construction_render.js?v=2df75b4d7837"></script><!-- FS-03: pure Construction-pane catalog/acceptance HTML builders (sets window.STEWIE_CONSTRUCTION_RENDER) -->
 <script src="/assets/models_render.js?v=bdc68a6cc22e"></script><!-- FS-03: pure Models-pane profile/registry/governance HTML builders (sets window.STEWIE_MODELS_RENDER) -->
 <script src="/assets/plan_stepper.js?v=57bf0e16887d"></script><!-- PLAN-STEPPER: pure step->sidebar-section map (sets window.STEWIE_PLAN_STEPPER) -->
@@ -1589,6 +1594,6 @@
 <script src="/assets/cockpit_state.js?v=fcaa16f324c4"></script><!-- FS-16: pure routeable cockpit state model (sets window.STEWIE_STATE) -->
 <script src="/assets/provenance_label.js?v=e6ec3e5b78b5"></script><!-- FS-03: pure epistemic provenance chips truth/belief/forecast/live (sets window.STEWIE_PROVENANCE) -->
 <script src="/assets/ops_chips.js?v=956a4ab31cdc"></script><!-- frontend-audit C: pure ops-chip formatters health/link/provenance/mission-time (sets window.STEWIE_OPS_CHIPS) -->
-<script src="/assets/cockpit.js?v=99d1f4686842"></script>
+<script src="/assets/cockpit.js?v=b7f8684b3ae7"></script>
 </body>
 </html>

@@ -44,3 +44,36 @@ def siteplan_analyze(req: SitePlanRequest, _auth: str = Depends(require_auth)):
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     log_event(_auth, "siteplan.analyze", f"{len(ps)} structures")
     return {"ok": True, **rpt.to_dict()}
+
+
+class VolumeRequest(BaseModel):
+    """A mission (build orders) to estimate moved-regolith volume evidence for, with the design-time
+    density envelope + optional drum cross-check. Bounded so a malformed body cannot exhaust the server."""
+    orders: list[dict] = Field(min_length=1, max_length=200)
+    body: str = "moon"
+    density_kg_m3: float = Field(gt=0.0)
+    density_frac: float = Field(default=0.0, ge=0.0, le=1.0)
+    drum_inferred_kg: float | None = None
+
+
+@router.post("/siteplan/volume")
+def siteplan_volume(req: VolumeRequest, _auth: str = Depends(require_auth)):
+    """[REQ:FR-13] Emit the RegolithVolumeEstimate for a mission: a conserved, uncertainty-carrying
+    moved-regolith estimate cross-checked against the conserved-authority mass + (optional) drum sensor,
+    linked to a world transaction. Read-only design-time evidence for the cockpit/report volume surface."""
+    import hashlib
+
+    import lode.mission_planner as MP
+
+    from leap.volume_evidence import siteplan_volume_evidence
+    try:
+        mission = MP.mission_from_dict({"name": "volume", "body": req.body, "charger": [0, 0],
+                                        "orders": req.orders})
+        txn = "plan:" + hashlib.sha256(repr(req.orders).encode()).hexdigest()[:12]   # deterministic plan link
+        ev = siteplan_volume_evidence(mission, work_order_id="siteplan", transaction_id=txn,
+                                      density_kg_m3=req.density_kg_m3, density_frac=req.density_frac,
+                                      drum_inferred_kg=req.drum_inferred_kg)
+    except (ValueError, KeyError) as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    log_event(_auth, "siteplan.volume", f"{len(req.orders)} orders -> {ev.acceptance}")
+    return {"ok": True, "volume": ev.model_dump()}

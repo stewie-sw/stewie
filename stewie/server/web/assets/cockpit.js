@@ -858,6 +858,23 @@ document.addEventListener("click", (e) => {
   if (j) { e.preventDefault(); setView(j.getAttribute("data-go")); }
 });
 
+// FR-13: fetch + render the moved-regolith VOLUME EVIDENCE for the current plan queue (ORDERS) into the
+// Report pane -- conserved, uncertainty-carrying, cross-checked against the authority mass + drum, linked to
+// a plan transaction. Honest empty-state when there is no plan or the orders yield no volume delta; no
+// fabricated data (the estimate is the backend's, POST /siteplan/volume).
+async function loadVolumeEvidence() {
+  const el = $("volumeevidence"), V = window.STEWIE_VOLUME_EVIDENCE;
+  if (!el || !V) return;
+  if (!ORDERS.length) { el.innerHTML = V.volumeEvidenceHTML(null, esc); return; }
+  try {
+    const dens = (BODIES[sel.value] && BODIES[sel.value].density) || 1800;
+    const r = await fetch("/siteplan/volume", { method: "POST", headers: apiHeaders(),
+      body: JSON.stringify({ orders: ORDERS, body: sel.value, density_kg_m3: dens, density_frac: 0.1 }) });
+    const j = await r.json().catch(() => null);
+    el.innerHTML = V.volumeEvidenceHTML(j && j.ok ? j.volume : null, esc);
+  } catch (e) { el.innerHTML = V.volumeEvidenceHTML(null, esc); }
+}
+
 // FR-14: the nav surface is a simulated PREVIEW/REHEARSAL until the runnable profile attests a live +
 // authorized autonomy binary. That live binary is the gated leg, so the attestation (window.
 // STEWIE_LIVE_AUTONOMY, set ONLY by a proven live+authorized integration) is absent here and the badge
@@ -926,6 +943,7 @@ function setView(name, opts) {
   if (name === "nav" && typeof setNavMode === "function") setNavMode();                            // FR-14: preview/rehearsal label until live autonomy is attested
   if (name === "metrics" && typeof renderScorecardBoard === "function") renderScorecardBoard();   // TR-01: re-show the last A-board
   if (name === "metrics" && typeof paintExecIdle === "function") paintExecIdle();   // council #238: honest empty-state on the idle Execute canvas
+  if (name === "report" && typeof loadVolumeEvidence === "function") loadVolumeEvidence();   // FR-13: moved-regolith volume evidence for the current plan
   // tab-contextual left workspace (#131/#132): show THIS tab's context block, hide the others
   const CTX = { plan: "ctx-plan", nav: "ctx-nav", perception: "ctx-perception", metrics: "ctx-metrics", report: "ctx-report" };
   document.querySelectorAll(".ctxblock").forEach((bk) => { bk.hidden = (bk.id !== CTX[name]); });

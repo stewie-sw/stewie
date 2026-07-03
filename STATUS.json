@@ -35,7 +35,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 194,
+  "cited": 195,
   "per_family": {
     "AG": {
       "cited": 8,
@@ -78,7 +78,7 @@
       "total": 7
     },
     "FR": {
-      "cited": 8,
+      "cited": 9,
       "total": 21
     },
     "FS": {
@@ -152,9 +152,7 @@
   },
   "total": 261,
   "unknown_markers": [],
-  "v_done_uncited": [
-    "FR-13"
-  ],
+  "v_done_uncited": [],
   "v_ne_d_flagged": [
     {
       "id": "AM-02",
