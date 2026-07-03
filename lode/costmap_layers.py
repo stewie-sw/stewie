@@ -83,7 +83,7 @@ def _sinkage(ctx):
     # bearing modulus (sinkage_k_phi) and the wheel load, not with slope. Sinkage past max_sinkage_m is
     # a burial hazard (impassable). Cost = sinkage normalized by the cap (deeper burial costs more).
     load = terramechanics.static_wheel_load_n(ctx.payload_kg, g=K.g)
-    k_phi = terramechanics.K.K_PHI if ctx.sinkage_k_phi is None else float(ctx.sinkage_k_phi)
+    k_phi = K.K_PHI if ctx.sinkage_k_phi is None else float(ctx.sinkage_k_phi)   # [REQ:PX-06] constants direct, not via terramechanics
     z = terramechanics.wheel_static_sinkage(load, k_phi=k_phi)
     grid = np.full(ctx.Z.shape, z, float)
     cost = grid / max(ctx.max_sinkage_m, 1e-6)

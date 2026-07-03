@@ -42,7 +42,27 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from stewie.specs import constants as K
+# ---------------------------------------------------------------------------
+# [REQ:PX-06] Forge-local geotech default constants (was stewie.specs.constants). Byte-identical to the
+# constants.py literals (provenance: constants.py + docs/bodies_sysrev.md). terramechanics is now self-contained
+# (no stewie.specs dependency) so it can ship in the bodies+numeric-only stewie-forge package. The
+# stewie.specs.config overlay these carry is re-applied on the STEWIE side (body_params.params_for_body injects
+# the config-overlaid values at call time), so a config override still reaches the built params.
+# ---------------------------------------------------------------------------
+_K_C = 1400.0
+_K_PHI = 820000.0
+_N_SINKAGE = 1.0
+_COHESION = 170.0
+_PHI = float(np.deg2rad(37.0))
+_K_SHEAR = 0.018
+_SLIP_C1 = 0.4
+_SLIP_C2 = 0.3
+_RHO_SURFACE = 1300.0
+_RHO_DEEP = 1920.0
+_ROVER_MASS_DRY_KG = 30.0
+_N_WHEELS = 4
+_G = 1.62
+
 
 
 # ---------------------------------------------------------------------------
@@ -57,17 +77,17 @@ class TerramechanicsParams:
     for domain randomization or experiments; serialize with to_json/from_json.
     """
 
-    k_c: float = K.K_C                       # Bekker cohesive modulus [Pa/m^(n-1)]
-    k_phi: float = K.K_PHI                   # Bekker frictional modulus [Pa/m^n]
-    n_sinkage: float = K.N_SINKAGE           # sinkage exponent
-    cohesion: float = K.COHESION             # [Pa]
-    phi_rad: float = float(K.PHI)            # internal friction [rad]
-    k_shear: float = K.K_SHEAR               # Janosi-Hanamoto shear modulus [m]
-    slip_c1: float = K.SLIP_C1               # slip-sinkage c1
-    slip_c2: float = K.SLIP_C2               # slip-sinkage c2
-    rho_surface: float = K.RHO_SURFACE       # loose surface density [kg/m^3]
-    rho_deep: float = K.RHO_DEEP             # compacted ceiling [kg/m^3]
-    rover_mass_dry_kg: float = K.ROVER_MASS_DRY_KG
+    k_c: float = _K_C                       # Bekker cohesive modulus [Pa/m^(n-1)]
+    k_phi: float = _K_PHI                   # Bekker frictional modulus [Pa/m^n]
+    n_sinkage: float = _N_SINKAGE           # sinkage exponent
+    cohesion: float = _COHESION             # [Pa]
+    phi_rad: float = float(_PHI)            # internal friction [rad]
+    k_shear: float = _K_SHEAR               # Janosi-Hanamoto shear modulus [m]
+    slip_c1: float = _SLIP_C1               # slip-sinkage c1
+    slip_c2: float = _SLIP_C2               # slip-sinkage c2
+    rho_surface: float = _RHO_SURFACE       # loose surface density [kg/m^3]
+    rho_deep: float = _RHO_DEEP             # compacted ceiling [kg/m^3]
+    rover_mass_dry_kg: float = _ROVER_MASS_DRY_KG
     contact_len_m: float = 0.10              # nominal wheel contact patch length [m]
     contact_width_m: float = 0.18            # wheel contact width [m] (rover.py)
 
@@ -122,8 +142,8 @@ _DEFAULT_PARAMS = TerramechanicsParams.from_constants()
 # ---------------------------------------------------------------------------
 
 def static_wheel_load_n(payload_kg: float = 0.0, *,
-                        rover_mass_dry_kg: float = K.ROVER_MASS_DRY_KG,
-                        n_wheels: int = K.N_WHEELS, g: float = K.g) -> float:
+                        rover_mass_dry_kg: float = _ROVER_MASS_DRY_KG,
+                        n_wheels: int = _N_WHEELS, g: float = _G) -> float:
     """Static per-wheel normal load [N] at gravity ``g`` (default lunar) for a given drum payload.
 
     (rover_mass_dry_kg + payload_kg) * g / n_wheels. ~12.15 N/wheel dry at lunar g,
@@ -139,7 +159,7 @@ def static_wheel_load_n(payload_kg: float = 0.0, *,
 # Bekker pressure-sinkage.
 # ---------------------------------------------------------------------------
 
-def density_stiffening(density: float, rho_surface: float = K.RHO_SURFACE) -> float:
+def density_stiffening(density: float, rho_surface: float = _RHO_SURFACE) -> float:
     """Bearing-stiffening factor s(rho) >= 1 (denser soil bears better).
 
     [CALIB] linear law s = rho / rho_surface (s=1 at the loose surface; ~1.48 at
@@ -150,8 +170,8 @@ def density_stiffening(density: float, rho_surface: float = K.RHO_SURFACE) -> fl
 
 
 def bekker_pressure_sinkage(pressure_pa: float, *, b_m: float,
-                            k_c: float = K.K_C, k_phi: float = K.K_PHI,
-                            n: float = K.N_SINKAGE, stiffening: float = 1.0) -> float:
+                            k_c: float = _K_C, k_phi: float = _K_PHI,
+                            n: float = _N_SINKAGE, stiffening: float = 1.0) -> float:
     """Bekker static pressure-sinkage z [m] for contact pressure ``pressure_pa``.
 
     z = ( p / (k_c/b + k_phi*stiffening) ) ** (1/n). Reads the (previously
@@ -218,7 +238,7 @@ def sinkage_to_density_factor(z_m: float, thickness_m: float) -> float:
 # migration deepens the rut with wheel slip. [UNKNOWN] magnitude (SLIP_C1/SLIP_C2).
 # ---------------------------------------------------------------------------
 
-def slip_sinkage_multiplier(slip: float, *, c1: float = K.SLIP_C1, c2: float = K.SLIP_C2,
+def slip_sinkage_multiplier(slip: float, *, c1: float = _SLIP_C1, c2: float = _SLIP_C2,
                             s_cap: float = 0.95) -> float:
     """Sinkage multiplier (>=1) from wheel slip ratio s. 1 at s=0; grows with slip and
     diverges near s=1 (clamped at s_cap). Models the theta_m=(c1+c2*s)*theta_f rearward
@@ -302,7 +322,7 @@ def physical_compaction_target_density(mass_areal, load_n: float, *,
 # Lyasko-2010 reduced-gravity correction (1g -> 1/6 g).
 # ---------------------------------------------------------------------------
 
-def lyasko_reduce(params: TerramechanicsParams, *, g: float = K.g, g_earth: float = 9.81,
+def lyasko_reduce(params: TerramechanicsParams, *, g: float = _G, g_earth: float = 9.81,
                   kphi_frac: float = 0.30, c_frac: float = 0.30,
                   n_frac: float = 0.0) -> TerramechanicsParams:
     """Apply the Lyasko-2010 reduced-gravity correction -> a new TerramechanicsParams.

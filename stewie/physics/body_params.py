@@ -33,6 +33,17 @@ def params_for_body(name, *, allow_analog: bool = False) -> TerramechanicsParams
             f"microgravity body (g={b.g:.1e} m/s^2); quantitative traction/sinkage planning is refused. "
             f"Pass allow_analog=True to use the flagged lunar analog (label outputs analog, NOT predictive).")
     base = TerramechanicsParams.from_constants()
+    # [REQ:PX-06] Re-apply the stewie.specs.config overlay that terramechanics (now forge-local, self-contained)
+    # no longer sees: inject the config-overlaid geotech constants at CALL time so a `config` override still
+    # reaches the built params. Byte-identical to the pre-PX-06 import-time binding for the no-override case; more
+    # robust for overrides. (PO-18: body_params is the stewie-side integration adapter -- it stays in stewie-core,
+    # NOT stewie-forge, precisely because of this stewie.specs.config dependency.) The body-specific replace below
+    # then overrides the sourced fields for this body.
+    from stewie.specs import constants as _K
+    base = dataclasses.replace(
+        base, k_c=_K.K_C, k_phi=_K.K_PHI, n_sinkage=_K.N_SINKAGE, cohesion=_K.COHESION, phi_rad=float(_K.PHI),
+        k_shear=_K.K_SHEAR, slip_c1=_K.SLIP_C1, slip_c2=_K.SLIP_C2, rho_surface=_K.RHO_SURFACE,
+        rho_deep=_K.RHO_DEEP, rover_mass_dry_kg=_K.ROVER_MASS_DRY_KG)
     kw: dict = {}
     if b.bekker is not None:
         kc, kphi, n = b.bekker
