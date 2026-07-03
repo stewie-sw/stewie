@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "d7e9156bc57d1d4908d6a14075c4b9ddbb40a7cd8b6d6c000c864e6400563cef",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "53bfce77ef7186b241bfbf2ede4e44b307eaf75f",
-  "prd_sha256": "8ad6e50e195c0fa99b37c5b79d295e19a864ada12530b593677fbdc0ca9a6e38",
+  "prd_commit": "6ecdd86ad03fb19553666b78bece23216427f102",
+  "prd_sha256": "1b2b4edd50504f3a3dd351617b1da6e8b8534c47c3c291f842218ea7e4daefef",
   "specs_sha256": "db5c2b7ee9df6ddb1ed0d821c7606dc74ae8291f3b74e103b0275d7bb01762bb"
  },
  "rows": [
@@ -1751,16 +1751,16 @@
    "text": "Optimization budgets: define and enforce latency, memory, CPU/GPU, bandwidth, tile/cache, and model-inference budgets for map rendering, planning, fleet solving, Navigation estimation, and cockpit mobile performance."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "N",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "consolidate the security-hardening gate into one FS-11 assertion + close the remaining backup/restore sub-item.",
     "kind": "atomic",
     "test_target": "extend stewie/server/test_account_store_failclosed.py, OR NEW stewie/server/test_fs11_hardening_gate.py"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "FS-11",
    "lane": "FS",
@@ -3731,9 +3731,9 @@
  "summary": {
   "briefs": 127,
   "buckets": {
-   "buildable": 84,
+   "buildable": 83,
    "concurrent": 0,
-   "done": 146,
+   "done": 147,
    "gated": 25
   },
   "by_lane": {
@@ -3782,7 +3782,7 @@
     "total": 15
    },
    "FS": {
-    "done": 17,
+    "done": 18,
     "total": 30
    },
    "GI": {
@@ -3852,7 +3852,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 61,
+    "done": 62,
     "total": 76
    },
    "P1": {
@@ -3869,9 +3869,9 @@
    }
   },
   "cited": 184,
-  "done_pct": 57.3,
+  "done_pct": 57.6,
   "in_scope": 230,
-  "in_scope_done_pct": 63.5,
+  "in_scope_done_pct": 63.9,
   "total": 255
  },
  "workflow_spine": [
