@@ -1038,3 +1038,57 @@ Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO
 - goal: mission-package import/export in ArcGIS-compatible open-geospatial formats (GeoTIFF/COG, GeoJSON/FlatGeobuf, STAC metadata, manifest + authority tuple) with round-trip preservation.
 - files: lode/gis_export.py, stewie/server/map_layers.py
 - test_target: NEW stewie/test_mission_package_io.py citing [REQ:BA-11] (export->import bounds/resolution/CRS + authority tuple preserved)
+
+### BD-04 (P0) — atomic
+- goal: break the inverted `bodies→physics` edge; raw `BodyProfile`/`RegolithProfile` records; `params_for_body` becomes a compat wrapper.
+- acceptance: `stewie.specs.bodies` imports no `stewie.physics`; built-in body values unchanged; microgravity fail-closed stays; import-boundary test proves the break.
+- files: stewie/specs/bodies.py, stewie/physics/terramechanics.py, stewie/server/bodies.json
+- test_target: NEW stewie/specs/test_body_profiles.py citing [REQ:BD-04]
+
+### PX-04 (P0) — atomic
+- goal: `PhysicsBackend` protocol + `Tier2NumpyBackend` over existing terramechanics/forge.bearing/planner-context.
+- acceptance: Moon/BP-1 /plan byte-compatible or diff-reviewed; verdict reports authority_class + conserves_mass; no client mutates terrain.
+- files: stewie/physics/terramechanics.py, forge/bearing.py, lode/planner_model.py, stewie/server/routers/plan.py
+- test_target: NEW stewie/physics/test_physics_backend.py citing [REQ:PX-04]
+
+### PX-05 (P0) — atomic
+- goal: lock the production physics import boundary; correct the stale docs claim; relocate/mark the 3 coupled test files.
+- acceptance: executable test proves production stewie/physics imports no dart/leap; forge unit gate needs no dart/leap.
+- files: stewie/physics/test_constrained_skill.py, stewie/physics/test_drum_sensing.py, stewie/physics/test_slam04_fk_authority.py
+- test_target: NEW scripts/test_import_boundaries.py citing [REQ:PX-05]
+
+### AP-01 (P0) — atomic
+- goal: move composing runtime/router code that imports dart/leap out of the future stewie-core boundary into the app layer.
+- acceptance: core subset imports no dart/lode/leap; route URLs + RS-04 behavior unchanged.
+- files: stewie/runtime/nav_loop.py, stewie/runtime/replay_loop.py, stewie/server/routers/evidence.py, stewie/server/routers/siteplan.py, stewie/server/server.py
+- test_target: NEW scripts/test_core_import_boundaries.py citing [REQ:AP-01]
+
+### PO-16 (P0) — atomic
+- goal: uv/hatch workspace skeleton after BD/PX/AP boundaries pass; encode the import DAG; public targets = bodies+forge only.
+- acceptance: editable install + current suite green; import-boundary policy encoded; root stays monorepo.
+- files: pyproject.toml, scripts/fanout_plan.py
+- test_target: NEW scripts/test_workspace_packaging.py citing [REQ:PO-16]
+
+### PO-17 (P0) — atomic
+- goal: extract stewie-bodies as the first public/citable package from the dependency-neutral registry.
+- acceptance: standalone import/build; profiles round-trip; Moon/Mars/Earth golden gravity tests pass; no fabricated fields.
+- files: stewie/specs/bodies.py, stewie/server/bodies.json, pyproject.toml
+- test_target: NEW packages/stewie-bodies/tests/test_body_profiles.py citing [REQ:PO-17]
+
+### PO-18 (P0) — atomic
+- goal: extract stewie-forge from pure geotech/terramechanics + PhysicsBackend; depends only on stewie-bodies + numeric.
+- acceptance: standalone build; concept-first API; Chrono optional/advisory; bearing/sinkage/slip examples pass.
+- files: forge/bearing.py, stewie/physics/terramechanics.py, pyproject.toml
+- test_target: NEW packages/stewie-forge/tests/test_forge_public_api.py citing [REQ:PO-18]
+
+### DE-01 (P0) — atomic
+- goal: Demo 001 — one IPEx-dig vertical slice proving the platform loop end-to-end from existing code.
+- acceptance: body/profile + backend → plan → conserved execution/twin txn → RegolithVolumeEstimate → report/evidence, deterministic, no synthetic values.
+- files: lode/mission_planner.py, stewie/runtime/replay_loop.py, stewie/server/routers/siteplan.py, stewie/twin/terrain_memory.py
+- test_target: NEW tests/demo/test_demo_001_ipex_dig.py citing [REQ:DE-01]
+
+### MG-04 (P0) — atomic
+- goal: make the /program board mobile-friendly (44px targets, single-column, no overflow, collapsible filter/inspect).
+- acceptance: Playwright at 320/360/390/430 px — no horizontal overflow, touch targets >=44px.
+- files: stewie/server/web/program.html, stewie/server/web/assets/program_board.js
+- test_target: NEW stewie/server/test_mg04_program_mobile.py citing [REQ:MG-04]

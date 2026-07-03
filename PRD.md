@@ -567,6 +567,35 @@ TU Tauri desktop · MG migration governance.
 | MG-01 | P0 | The vanilla cockpit stays served + deployable until React parity gates pass (`/app` vanilla, `/app2` React); its smoke tests keep passing throughout the migration. | N | N | N | NA |
 | MG-02 | P0 | No pane is flipped vanilla to React without signed-in Playwright parity + fixtures + mobile fit + route-registry coverage + a rollback route. | N | N | N | NA |
 | MG-03 | P2 | Vanilla-cockpit retirement: `/app` flips to React only after the full signed-in Playwright suite passes desktop+mobile, the backend suite stays green, route coverage is 100% for pane-backed routes, and Cesium is removed from the active surface. | N | N | N | NA |
+| MG-04 | P0 | The `/program` requirements board (`program.html` + `program_board.js`) is responsive at phone widths — >=44px touch targets, single-column row-chip stack, no horizontal overflow, filter deck + inspect panel collapse/stack. Verify via Playwright at 320/360/390/430 px. | N | N | N | NA |
+
+### 7.B Platform restructure backlog (2026-07-03, platform-first, Codex-conferred)
+
+STEWIE is the **planetary digital engineering platform**; ARGUS is a reference estimator component inside it
+(NOT the organizing goal). The 2026-07-03 architecture session found the platform spine is **already built**
+(~80-85% backend, ~70-75% frontend): the conserved authority (§7.1 CT-*, `stewie/physics/column_state.py` +
+`terramechanics.py` + `forge/bearing.py`), the event-sourced twin (§7.2 TW-*, `stewie/twin/versioned.py` +
+`terrain_memory.py`), the runtime/reconcile spine (§7.14 RS-*, `replay_loop.py` + `lode/resync.py`), the 38
+typed `Contract` subclasses, the 35-router/140-route API, and the FS-16 context-first cockpit are done. This
+lane is the genuinely-NEW work: extension seams → packaging → the Demo-001 platform proof, plus later-stage
+platform scope. Design: `docs/prd_reorg_spec_2026-07-03.md` + `docs/backend_/frontend_architectural_review`.
+**Dependency order (strangler-fig, on a branch, full-gate each row):** BD-04 → PX-04 → {PX-05, AP-01 parallel}
+→ PO-16 → PO-17 → PO-18 → DE-01. Frontend lanes (RF/GL/DW/AC/TU/MG) run in parallel (disjoint files).
+
+| ID | P | Requirement and acceptance | I | X | V | Q |
+| --- | --- | --- | --- | --- | --- | --- |
+| BD-04 | P0 | Break the inverted `bodies→physics` edge: introduce dependency-neutral `BodyProfile`/`RegolithProfile` raw records; `stewie.specs.bodies` imports no `stewie.physics`; `params_for_body` becomes a compatibility wrapper; built-in body values unchanged; microgravity refusal stays fail-closed; an import-boundary test proves the break. | N | N | N | NA |
+| PX-04 | P0 | Define `PhysicsBackend` protocol + `Tier2NumpyBackend` over existing terramechanics/`forge.bearing`/planner-context; Moon/BP-1 `/plan` byte-compatible or diff-reviewed; support verdict reports authority_class + conserves_mass; no learned/client component mutates terrain. | N | N | N | NA |
+| PX-05 | P0 | Lock the production physics import boundary: an executable test proves production `stewie/physics` imports no `dart`/`leap` (corrects the stale docs claim); the three coupled *test* files are relocated/marked so the `stewie-forge` unit gate needs no dart/leap. | N | N | N | NA |
+| AP-01 | P0 | Move composing runtime/API code that imports `dart`/`leap` (`nav_loop`, `replay_loop`, `evidence`/`siteplan` routers) out of the future `stewie-core` boundary into the app layer; route URLs + RS-04 behavior unchanged; `stewie-core` subset imports no dart/lode/leap. | N | N | N | NA |
+| PO-16 | P0 | uv/hatch workspace skeleton (after BD/PX/AP boundaries pass); editable install + current suite green; import-boundary policy encoded (bodies→none, forge→bodies+numeric, apps→everything); public build targets are `stewie-bodies` + `stewie-forge` ONLY; root stays monorepo. | N | N | N | NA |
+| PO-17 | P0 | Extract/publish-prep `stewie-bodies` from the dependency-neutral registry: imports no STEWIE internals; JSON/YAML profiles round-trip; Moon/Mars/Earth golden gravity/profile tests pass; no fabricated numeric fields. | N | N | N | NA |
+| PO-18 | P0 | Extract/publish-prep `stewie-forge` from pure geotech/terramechanics + `PhysicsBackend`: depends only on `stewie-bodies` + numeric stack; concept-first API (`estimate_sinkage`/`estimate_bearing_capacity`); Chrono optional, not release authority while `conserves_mass=false`. | N | N | N | NA |
+| DE-01 | P0 | Demo 001 — one IPEx-dig vertical slice proving the platform loop end-to-end from existing code: body/profile + selected physics backend → plan → conserved execution/terrain-memory transaction → `RegolithVolumeEstimate` reconcile → report/evidence artifact, deterministic, `[REQ:DE-01]` test, no synthetic/fabricated values. | N | N | N | NA |
+| BR-01 | P2 | Named world branches generalize the conserved/observed split into actual/observed/predicted/sim/design/what-if with diff/merge/promotion; mass-conservation precondition gates terrain-mutating promotion. | N | N | N | NA |
+| CF-01 | P2 | Capability-fleet model generalizes the multi-vehicle planner to heterogeneous Asset/Capability; the matrix drives assignment + UI; current `VehicleState`/fleet rows remain the source. | N | N | N | NA |
+| PG-01 | P2 | PostgreSQL/PostGIS as a durable persistence/projection layer, NOT authority: `TwinStore` events mirror to a PostGIS projection; the conserved model still mutates truth. | N | N | N | NA |
+| MI-01 | P3 | Multi-engine planetary IDE: the Tauri shell hosts the web cockpit and may orchestrate Godot/RViz as context-synced panels; the web cockpit stays the operator shell; native engines are sidecars. | N | N | N | NA |
 
 ### 7.1 Contracts and Conserved Authority
 
