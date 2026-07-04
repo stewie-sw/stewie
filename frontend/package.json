@@ -1,0 +1,27 @@
+{
+  "name": "stewie-cockpit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "STEWIE operator cockpit — React shell (strangler-fig migration of the vanilla cockpit, ADR-0007).",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router-dom": "6.26.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "@types/react": "18.3.11",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.2",
+    "typescript": "5.5.4",
+    "vite": "5.4.8"
+  }
+}
