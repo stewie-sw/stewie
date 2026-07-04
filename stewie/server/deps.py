@@ -11,6 +11,8 @@ import os
 
 from fastapi import Depends, Header, HTTPException, Request
 
+from stewie.server.ratelimit import RateLimiter
+
 
 def _env(name: str, default=None):
     """Read the STEWIE_<name> environment variable."""
@@ -149,3 +151,31 @@ def namespace_for(identity: str, requested: str = "live") -> tuple[str, str | No
     if requested == "sandbox":
         return "sandbox", identity
     return "live", None
+
+
+# ---- [REQ:EG-09] S-08 heavy-route quota (relocated from routers.plan to shared-core deps) ---------
+# Home here in deps (shared-core, already imported by every auth-gated router) so BOTH the plan
+# (mission-service) and gis_export (world-service) routers depend on it from core, not across services --
+# the world->mission import-DAG back-edge the service-separation guard (EG-09) forbids.
+def _heavy_quota_max() -> int:
+    return int(os.environ.get("STEWIE_HEAVY_QUOTA_MAX", "30"))
+
+
+def _heavy_quota_window() -> float:
+    return float(os.environ.get("STEWIE_HEAVY_QUOTA_WINDOW_S", "60"))
+
+
+_heavy_quota = RateLimiter(_heavy_quota_max(), _heavy_quota_window())
+
+
+def heavy_quota(identity: str = Depends(require_auth)) -> str:
+    """Auth + a per-identity heavy-route quota (S-08). Returns the identity; raises 429 when the
+    identity exceeds its compute budget in the window. The limit is re-read from the env on each check
+    (runtime-tunable; the shared limiter's bucket state persists) -- deps is imported early, so freezing
+    the limit at import would ignore a later env override."""
+    _heavy_quota.max_hits = _heavy_quota_max()
+    _heavy_quota.window_s = _heavy_quota_window()
+    if not _heavy_quota.allow(identity):
+        raise HTTPException(status_code=429,
+                            detail="per-identity compute quota exceeded for heavy planning; slow down")
+    return identity

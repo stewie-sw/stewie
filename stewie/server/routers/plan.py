@@ -10,13 +10,12 @@ import hashlib
 import logging
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from stewie.server import state
-from stewie.server.deps import require_auth, require_director
-from stewie.server.ratelimit import RateLimiter
+from stewie.server.deps import heavy_quota, require_director
 from stewie.server.schemas import Order, _MAX_ORDERS
 from stewie.server.services import log_event, prune_reports, report_lock
 
@@ -24,27 +23,9 @@ router = APIRouter()
 log = logging.getLogger("stewie.server")
 
 
-# S-08: a per-identity quota on the compute-heavy planner routes (routing + algorithm comparison +
-# acceptance + matplotlib PDF render run synchronously in the single worker). One identity cannot
-# monopolize the worker with repeated heavy planning; a normal single plan is unaffected.
-def _heavy_quota_max() -> int:
-    return int(os.environ.get("STEWIE_HEAVY_QUOTA_MAX", "30"))
-
-
-def _heavy_quota_window() -> float:
-    return float(os.environ.get("STEWIE_HEAVY_QUOTA_WINDOW_S", "60"))
-
-
-_heavy_quota = RateLimiter(_heavy_quota_max(), _heavy_quota_window())
-
-
-def heavy_quota(identity: str = Depends(require_auth)) -> str:
-    """Auth + a per-identity heavy-route quota (S-08). Returns the identity; raises 429 when the
-    identity exceeds its compute budget in the window."""
-    if not _heavy_quota.allow(identity):
-        raise HTTPException(status_code=429,
-                            detail="per-identity compute quota exceeded for heavy planning; slow down")
-    return identity
+# S-08 heavy-route quota (the `heavy_quota` dependency + its RateLimiter) moved to stewie.server.deps
+# (EG-09: shared-core home), so gis_export (world-service) imports it from core, not across to this
+# mission-service router. Routes below depend on `heavy_quota` (imported from deps above).
 
 
 # ARCH-01/04: the plan/report compute runs SYNCHRONOUSLY in the worker (the deploy is one uvicorn worker;

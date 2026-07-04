@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from stewie.server import state
 from stewie.server.deps import require_auth
-from stewie.server.routers.plan import heavy_quota   # shared per-identity S-08 quota for heavy routes
+from stewie.server.deps import heavy_quota           # EG-09: shared-core S-08 quota (was routers.plan)
 from stewie.server.services import log_event
 
 router = APIRouter()

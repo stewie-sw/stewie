@@ -30,6 +30,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Callable
 
 from stewie.twin import envelope as E
+from stewie.twin import terrain_memory as TM
 
 if TYPE_CHECKING:
     from stewie.contracts import BeliefState
@@ -217,3 +218,22 @@ def commit_sim_run(wss: WorldStateService, run: dict, *, mission: str, site: str
                                    mission_t_s=ev.t_s)
         n += 1
     return n
+
+
+# ---- [REQ:EG-09] per-site terrain lock (relocated from routers.twin to shared-core world_state) ------
+# The load->apply->save read-modify-write of a site's durable Terrain Memory is atomic per site. This lock
+# lives in world-core so BOTH the twin (world-service) router and the executive (execution-service) node
+# take the SAME lock -- executive already imports world_state, so it imports this from here instead of
+# reaching across into routers.twin (the execution->world router back-edge EG-09 forbids). A meta-lock
+# guards the registry dict; different sites proceed in parallel.
+_TERRAIN_LOCKS: dict = {}
+_TERRAIN_LOCKS_GUARD = threading.Lock()
+
+
+def _terrain_lock(site: str) -> threading.Lock:
+    # #282: key on the SANITIZED site (the same normalization save_site/load_site use for the .npz path), so
+    # two requests whose site spellings collapse to the same file (e.g. "haworth" vs "haworth ") take the
+    # SAME lock -- keying on the raw param re-opened the #278 lost-mission RMW race for such spellings.
+    key = TM.safe_site(site)
+    with _TERRAIN_LOCKS_GUARD:
+        return _TERRAIN_LOCKS.setdefault(key, threading.Lock())

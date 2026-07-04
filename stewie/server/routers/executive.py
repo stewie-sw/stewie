@@ -157,7 +157,7 @@ def _remember_sim_terrain(wss, mission, out, *, site: str, body: str, mission_id
     import numpy as _np
 
     from lode.planner_acceptance import mission_terrain_delta
-    from stewie.server.routers.twin import _terrain_lock
+    from stewie.server.world_state import _terrain_lock
     from stewie.server.world_state import compensating
     from stewie.specs.config import data_dir
     from stewie.twin import terrain_memory as TM

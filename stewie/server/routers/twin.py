@@ -13,19 +13,13 @@ from pydantic import BaseModel, ConfigDict
 
 from stewie.server import state
 from stewie.server.deps import require_auth, require_director, require_role
+from stewie.server.world_state import _terrain_lock
 from stewie.server.services import log_event
 from stewie.specs.config import data_dir
 from stewie.twin import terrain_memory as TM
 
 log = logging.getLogger("stewie.server")
 router = APIRouter()
-
-# #278: serialize the load->apply->save read-modify-write of a site's durable Terrain Memory. Two
-# concurrent POST /twin/terrain/{site} handlers (sync defs -> FastAPI threadpool) would otherwise
-# last-writer-win and silently drop a mission's as-built delta. Per-site lock so different sites proceed
-# in parallel; a meta-lock guards the registry dict itself.
-_TERRAIN_LOCKS: dict = {}
-_TERRAIN_LOCKS_GUARD = threading.Lock()
 
 # DT-03: keep a resync's twin mutation + its world-log commit + a compensating rollback in ONE critical
 # section, so a concurrent resync cannot land a patch between our apply_patch and our compensating undo()
@@ -34,13 +28,8 @@ _TERRAIN_LOCKS_GUARD = threading.Lock()
 _RESYNC_LOCK = threading.Lock()
 
 
-def _terrain_lock(site: str) -> threading.Lock:
-    # #282: key on the SANITIZED site (the same normalization save_site/load_site use for the .npz path), so
-    # two requests whose site spellings collapse to the same file (e.g. "haworth" vs "haworth ") take the
-    # SAME lock -- keying on the raw param re-opened the #278 lost-mission RMW race for such spellings.
-    key = TM.safe_site(site)
-    with _TERRAIN_LOCKS_GUARD:
-        return _TERRAIN_LOCKS.setdefault(key, threading.Lock())
+# _terrain_lock (the per-site RMW lock) moved to stewie.server.world_state (EG-09 shared-core home);
+# imported at the top so this router and the executive node share the SAME lock without a cross-service edge.
 
 
 @router.get("/twin/cg")

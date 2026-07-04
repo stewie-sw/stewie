@@ -30,6 +30,8 @@ def client(monkeypatch, tmp_path):
     importlib.reload(srv)
     from stewie.server.routers import plan as planr
     importlib.reload(planr)
+    from stewie.server.deps import _heavy_quota   # EG-09: the S-08 quota moved to deps (shared-core home);
+    _heavy_quota.reset()                          # reset per-identity buckets so each test starts fresh
     yield TestClient(srv.app), "test-key"
     monkeypatch.undo()
     importlib.reload(srv)
