@@ -294,3 +294,18 @@ and stop scheduling (wait for Aaron).
   publish on .../points/points and break the match. No change. (gpu_lidar headless render segfaulted on
   mesa/EGL in the container -- a GPU-config issue, not a topic issue; the topic name is source-determined,
   confirmed from the installed lib.) H-5 (AS-15 named CI step) done + pushed 61d5f51.
+
+- MT-01 (large-file policy + DEM externalization): GATE DONE (scripts/check_tracked_artifacts.py, 5MB
+  threshold + allowlist, CI-wired ci.yml:52, [REQ:MT-01] tested). PART 2 (externalize the ~225MB tracked
+  samples/lunar_dem/*/*.rf32 DEM fixtures -> checksum manifests + fetch script, keep one tiny smoke fixture)
+  is a REAL GAP, LEDGERED for Aaron: it git-rm's tracked fixtures that many tests + the runtime read (needs
+  fetch-if-missing rewiring across the DEM-consuming tests) AND true size reduction implies a git history
+  rewrite (high-blast, hard to reverse). Not an autonomous flip -- deferred pending Aaron sign-off. Row
+  stays I=P (honest).
+
+- PO-09 (versioned/migratable schemas): honestly V=P, LEDGERED. The migration SEAM is built + tested
+  (identity path + unregistered-version rejection); the cross-version migration is BLOCKED because only
+  schema 1.0 exists -> a real migration test would need a fabricated legacy fixture (violates no-synthetic).
+  Correctly left V=P per its own test docstring. NOT flippable without fabrication.
+- WAVE 4 ASSESSMENT: the remaining V=P rows are honestly partial for REAL reasons (blocked on features/data
+  that don't exist, or high-blast migrations, or ADR/doc bundles) -- NO fake-promote-free quick flips remain.
