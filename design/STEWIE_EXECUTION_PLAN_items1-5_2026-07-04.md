@@ -120,3 +120,18 @@ only Gazebo (container-only, not on Debian apt) needs this docker-CDI fix.
   (workspace state) -> GL-01/GL-02 (MapLibre workbench) + DW-01 -> MG-01/02/04 (migration governance + parity
   gates + responsive /program) -> AC-02 + FR-01..09 + BD-03 + TU-01 + FS-25/PM-17/PO-15 UI. Playwright-verify
   each pane; keep the vanilla cockpit authoritative until a pane's MG parity gate passes (no big-bang).
+
+## GPU item-3 status (2026-07-04, after Aaron's CDI fix)
+- **CDI ENABLED (Aaron applied the sudo fix).** docker features.cdi=true; `--device nvidia.com/gpu=all` now
+  DISPATCHES (nvidia-smi shows the RTX 3090) AND the NVIDIA GL libs MOUNT into the container (at
+  /usr/lib/x86_64-linux-gnu/nvidia/current/, loadable after ldconfig). This is a real step forward from the
+  prior "libs never mount" state.
+- **STILL BLOCKED: OGRE2/Gazebo render.** Even with the nvidia GL libs mounted + loadable + on LD_LIBRARY_PATH,
+  gz sim SEGFAULTS in Ogre2RenderEngine::CreateRenderSystem -> "Unable to load Ogre Plugin RenderSystem_GL3Plus"
+  across EGL (--headless-rendering), forced-nvidia-EGL (__EGL_VENDOR_LIBRARY_FILENAMES=10_nvidia.json), and
+  xvfb+GLX. The container's OGRE2 GL3Plus plugin does not init against the mounted nvidia GL (likely a GL/mesa
+  ABI mismatch in the osrf/ros:jazzy-derived gazebo image).
+- **Real fix = rebuild stewie-gazebo on an nvidia/opengl (or nvidia/cudagl) base** with matching OGRE2/GL, a
+  dedicated infra effort (uncertain, multi-step) -- NOT a quick env tweak. Do NOT re-chase the env-var
+  combinations (CDI/EGL-vendor/xvfb all tried + fail at the same OGRE2 CreateRenderSystem segfault). Item 3
+  (RS-05/BA-07/08/PM-13-16) stays deferred pending that rebuild; the frontend pane-migration is the main track.
