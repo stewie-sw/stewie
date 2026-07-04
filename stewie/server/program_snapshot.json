@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "5f1331d3ebf5f6654f1d23328d5fdd242fd64c0d8649bd9b53fc1b99e173a487",
+  "citations_sha256": "cb693d8ecb5ab5beb2365e58ef4c49c2d9d83d8057541f8b1f009f8e75882290",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "cb8015fe6c16d3cb3c10a8d0a69bc0db6d8db33f",
-  "prd_sha256": "4e206414f74c43fdb0c96ebdfd37ba3da3ae8c0c0bf81c90be2e515212bf8f95",
+  "prd_commit": "abef9d123c0946b9c4c51a2795b21122a30dc2d8",
+  "prd_sha256": "86b8f1e8afaef5e98477e2473fdf666da989320756227f464f7d7abe9c28b036",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -2911,17 +2911,17 @@
    "text": "Mission-executive state machine (`DRAFT->ANALYZED->REHEARSED->REVIEWED->RELEASED->ARMED->EXECUTING->HOLDING/SAFED/COMPLETED/ABORTED->DEBRIEFED`; RELEASED = signed immutable revision). The planning + authorization head (DRAFT->RELEASED) is implemented: `stewie.contracts.executive.MissionExecutive` drives the typed transitions, `lode.mission_lifecycle.run_lifecycle` attaches REAL evidence at each edge (the compiler's deterministic plan_id at ANALYZED; the forward_compare ranking at REHEARSED), and `POST /executive/advance` (`stewie/server/routers/executive.py`, director-gated) exposes it. An uncompilable intent yields a 400 with no fabricated plan_id. Tested by `lode/test_mission_lifecycle.py` + `stewie/server/test_executive_route.py` [REQ:MO-02]. Q stays N: the live ARMED..EXECUTING execution tier is gated (MO-04, SIM/FORECAST-labeled) and not yet qualified against fault injection or hardware."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row MP-05 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:MP-05]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "MP-05",
    "lane": "MP",
    "pri": "P1",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 93,
+   "buildable": 92,
    "concurrent": 0,
-   "done": 197,
+   "done": 198,
    "gated": 25
   },
   "by_lane": {
@@ -4862,7 +4862,7 @@
     "total": 1
    },
    "MP": {
-    "done": 1,
+    "done": 2,
     "total": 8
    },
    "MT": {
@@ -4940,7 +4940,7 @@
     "total": 102
    },
    "P1": {
-    "done": 101,
+    "done": 102,
     "total": 178
    },
    "P2": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 216,
-  "done_pct": 62.5,
+  "cited": 217,
+  "done_pct": 62.9,
   "in_scope": 290,
-  "in_scope_done_pct": 67.9,
+  "in_scope_done_pct": 68.3,
   "total": 315
  },
  "workflow_spine": [
