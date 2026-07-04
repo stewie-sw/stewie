@@ -234,7 +234,8 @@ def test_sec05_docker_installs_from_the_lock_with_require_hashes():
     stewie package --no-deps -- not an unpinned `pip install .[server]`."""
     df = _read("deploy/Dockerfile.backend")
     assert "--require-hashes -r requirements-server.lock" in df, "Dockerfile does not install from the lock"
-    assert "--no-deps ." in df, "Dockerfile does not install the package --no-deps after the lock"
+    assert "--no-deps packages/stewie-bodies packages/stewie-forge ." in df, \
+        "Dockerfile does not install the extracted packages + the root package --no-deps after the lock"
     assert '".[server]"' not in df, "Dockerfile still has the unpinned `.[server]` install (SEC-05)"
 
 
