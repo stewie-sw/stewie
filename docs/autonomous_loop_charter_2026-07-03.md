@@ -269,3 +269,28 @@ and stop scheduling (wait for Aaron).
   P0/P1 queue effectively DRY (remaining = edit-heavy backend-security + frontend/ROS/hardware-gated). LOOP
   COMPLETE — final session note session_notes/2026-07-04_stewie_fanout_waves.md. 20 rows across 5 waves + EG-09.
   No reschedule (clean end). Recommended next: wire the delivered gates into /executive/run.
+
+## Blocker log (v8 campaign, 2026-07-04)
+- C-2 (dup §7.13-7.18 section numbers): LEDGERED / SKIPPED. Parsers (req_trace _ROW, gen_program_snapshot
+  _ROW_RE/_BRIEF_HEAD_RE) key on ROW IDs [A-Z]{2}-\d{2}, so renumbering is parser-safe — BUT real prose
+  cross-refs exist (PRD.md:543 "§7.1-§7.17", PRD.md:578 "§7.14 RS-*", +34 in docs/raw_architecture_inputs)
+  that a renumber would silently break. Cosmetic drift with real breakage risk -> deferred (needs a
+  cross-ref-aware renumber pass, not a mechanical one). Not blocking the campaign.
+
+- C-6 (6 [CALIB]/[ASSUMPTION] constants): LEDGERED. Screened all 6 — none is a fabricatable "real source";
+  each is an HONEST, documented placeholder with a WHY + resolution path (NOT silent), so no drift to fix by
+  fabrication (forbidden): fbm_nu0 (dem_overlay) awaits Wave-2 LDRM_RMSD data (sibling fbm_H already sourced
+  Rosenburg 2011); THERMAL_SURVIVAL_POWER_W (ipex_specs) awaits a real Stefan-Boltzmann heat-balance model;
+  bridge injector/telemetry mission_default awaits rover-team external input; W_MAP_UNCERTAINTY (illumination)
+  awaits a coverage-field feed; DEFAULT_VALUE_PER_J (meerkat) is an intentional tunable mission POLICY default,
+  honest-by-design. Resolution is blocked on real data/model/external-input, not authorable now. Not blocking.
+
+- H-6 (gz_bridge perception topic "mismatch"): VERIFIED NON-BUG (not fixed -- fixing would break it). The
+  xacro sensor is a gpu_lidar with <topic>/model/ipex/perception; gz-sensors appends "/points" for the
+  PointCloudPacked output (confirmed in-container: libgz-sensors8-gpu_lidar.so.8.2.2 carries the bare
+  "/points" literal + FillPointCloudMsg/PointCloudPacked publisher symbols), so it publishes on
+  /model/ipex/perception/points -- which is EXACTLY the bridge's gz_topic_name. The v8 static read missed
+  the gpu_lidar /points suffix convention. Changing the xacro <topic> to .../points would make Gazebo
+  publish on .../points/points and break the match. No change. (gpu_lidar headless render segfaulted on
+  mesa/EGL in the container -- a GPU-config issue, not a topic issue; the topic name is source-determined,
+  confirmed from the installed lib.) H-5 (AS-15 named CI step) done + pushed 61d5f51.
