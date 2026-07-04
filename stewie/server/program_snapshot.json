@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "a2712cf1bcd146c0e231bc3ad888444c8706bf6f7758a84e8771084d9c85dc2c",
+  "citations_sha256": "4d9f5635391f8b1a62558fa426f7c3cb546ecdb2a422e815e040446fe46b8754",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "2e7dc83dfe4738787fdccbe348c39cf8b13a71f4",
-  "prd_sha256": "ed81d6e15f55f700557d6e9d1f10b396c06e79fed531c090b01e389beb29ff67",
+  "prd_commit": "82ad2e81cc0449c47ced062961debf83692e00aa",
+  "prd_sha256": "903ec4ab74e3135a1b7933b0509b39814089625a7c69e0a48eca5b3d57cd84d9",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1385,17 +1385,17 @@
    "text": "Database/branch isolation: `stewie_{dev,training,live,archive}` with per-store branches (actual_world/simulation/training/replay/what_if); LIVE physically separate. Acceptance: a training-branch write cannot land in the live actual_world store (isolation test); the store a session resolves is a function of its mode."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row EG-04 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:EG-04]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "EG-04",
    "lane": "EG",
    "pri": "P1",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 95,
+   "buildable": 94,
    "concurrent": 0,
-   "done": 195,
+   "done": 196,
    "gated": 25
   },
   "by_lane": {
@@ -4818,7 +4818,7 @@
     "total": 2
    },
    "EG": {
-    "done": 6,
+    "done": 7,
     "total": 12
    },
    "EP": {
@@ -4940,7 +4940,7 @@
     "total": 102
    },
    "P1": {
-    "done": 99,
+    "done": 100,
     "total": 178
    },
    "P2": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 214,
-  "done_pct": 61.9,
+  "cited": 215,
+  "done_pct": 62.2,
   "in_scope": 290,
-  "in_scope_done_pct": 67.2,
+  "in_scope_done_pct": 67.6,
   "total": 315
  },
  "workflow_spine": [
