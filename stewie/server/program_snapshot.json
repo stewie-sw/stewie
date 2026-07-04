@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "ed59202964d718f70a86f9b3e0d81571c1f9f1a3e5df5120ccb41e485f431a8b",
+  "citations_sha256": "cc586be17561691f6cba5fca7e8a928e94912acc3511418d7b415ffb92657996",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "fae18089bc9dae18cd73250d3dfdf48ce2fa79d9",
-  "prd_sha256": "97c340bef55e18f6c859c3aaaaae3858a7d465b43530324252ffcbf093e2bb5e",
+  "prd_commit": "44e8d5ac749247e337f1d3f39d3b9ec2c7069c46",
+  "prd_sha256": "b8e922f72b133971eb4667c5664a4c1fdd0ea511b35e32179108f117a05369e1",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -163,26 +163,24 @@
    "text": "Every transition has preconditions for slope, arm range, drum load, support contacts, stability margin, and collision clearance. `posture_machine.can_transition` enforces transition LEGALITY (collision/support-contact structure) and gates a transition INTO a raised/working posture on a caller-supplied stability margin (AM-03). The slope / arm-range / drum-load preconditions plug into the same guard from the on-host posture geometry / gated flight numbers (Q tier)."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "G",
-   "V": "N",
-   "X": "N",
-   "bucket": "gated",
-   "cited": false,
-   "gated_reason": "LAC/IPEx arm geometry",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "AM-03",
    "lane": "AM",
    "pri": "P1",
    "text": "`MEERKAT` raises the camera vantage by lowering arms under the chassis; motion is speed-limited and rejected when stability margin is inadequate."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "G",
-   "V": "N",
-   "X": "N",
-   "bucket": "gated",
-   "cited": false,
-   "gated_reason": "LAC/IPEx arm geometry",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "AM-04",
    "lane": "AM",
    "pri": "P1",
@@ -240,13 +238,12 @@
    "text": "Arm brake allows a validated posture hold with zero or modeled holding power; transition energy remains charged."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "N",
-   "V": "N",
-   "X": "N",
-   "bucket": "gated",
-   "cited": false,
-   "gated_reason": "LAC/IPEx arm geometry",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "AM-09",
    "lane": "AM",
    "pri": "P1",
@@ -4416,13 +4413,12 @@
    "text": "The active-perception objective maximizes expected localization/map information per joule and second, with stability risk as a hard constraint."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "G",
-   "V": "N",
-   "X": "N",
-   "bucket": "gated",
-   "cited": false,
-   "gated_reason": "LED/photometry hardware",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "SN-15",
    "lane": "SN",
    "pri": "P1",
@@ -4748,8 +4744,8 @@
   "buckets": {
    "buildable": 83,
    "concurrent": 0,
-   "done": 212,
-   "gated": 20
+   "done": 216,
+   "gated": 16
   },
   "by_lane": {
    "AC": {
@@ -4761,7 +4757,7 @@
     "total": 8
    },
    "AM": {
-    "done": 2,
+    "done": 5,
     "total": 9
    },
    "AP": {
@@ -4909,7 +4905,7 @@
     "total": 1
    },
    "SN": {
-    "done": 13,
+    "done": 14,
     "total": 15
    },
    "TM": {
@@ -4935,7 +4931,7 @@
     "total": 102
    },
    "P1": {
-    "done": 115,
+    "done": 119,
     "total": 178
    },
    "P2": {
@@ -4947,10 +4943,10 @@
     "total": 2
    }
   },
-  "cited": 232,
-  "done_pct": 67.3,
-  "in_scope": 295,
-  "in_scope_done_pct": 71.9,
+  "cited": 236,
+  "done_pct": 68.6,
+  "in_scope": 299,
+  "in_scope_done_pct": 72.2,
   "total": 315
  },
  "workflow_spine": [

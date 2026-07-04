@@ -34,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 232,
+  "cited": 236,
   "per_family": {
     "AC": {
       "cited": 0,
@@ -45,7 +45,7 @@
       "total": 8
     },
     "AM": {
-      "cited": 3,
+      "cited": 6,
       "total": 9
     },
     "AP": {
@@ -193,7 +193,7 @@
       "total": 1
     },
     "SN": {
-      "cited": 14,
+      "cited": 15,
       "total": 15
     },
     "TM": {
