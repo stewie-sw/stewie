@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "e6700faa21ac2ac7401bd7c8ab9c37c3086d3b43524236eda3c6d10b9887ec25",
+  "citations_sha256": "282f4cc0d1bfadd0835a924c17eec740647d16575e8e3b41bf874f46bdf446c1",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "ddd5a8cb8092d5d62780f7b15905638e8c071ba5",
-  "prd_sha256": "fff8e577fed6f5754fb1817891ca8915ab7f3c5b391461c88aed256b8b500c4a",
+  "prd_commit": "fa987e1459157c7ff2b63c3ea40dfd942d748343",
+  "prd_sha256": "2364a164a9d868fb42fe30ed834f5b46676129c4b81806341c8c32d41e2a7e9b",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -2712,17 +2712,17 @@
    "text": "Vanilla-cockpit retirement: `/app` flips to React only after the full signed-in Playwright suite passes desktop+mobile, the backend suite stays green, route coverage is 100% for pane-backed routes, and Cesium is removed from the active surface."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "make the /program board mobile-friendly (44px targets, single-column, no overflow, collapsible filter/inspect).",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_mg04_program_mobile.py citing [REQ:MG-04]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "MG-04",
    "lane": "MG",
    "pri": "P0",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 69,
+   "buildable": 68,
    "concurrent": 0,
-   "done": 232,
+   "done": 233,
    "gated": 14
   },
   "by_lane": {
@@ -4835,7 +4835,7 @@
     "total": 2
    },
    "MG": {
-    "done": 0,
+    "done": 1,
     "total": 4
    },
    "MI": {
@@ -4925,7 +4925,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 96,
+    "done": 97,
     "total": 102
    },
    "P1": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 250,
-  "done_pct": 73.7,
+  "cited": 251,
+  "done_pct": 74.0,
   "in_scope": 301,
-  "in_scope_done_pct": 77.1,
+  "in_scope_done_pct": 77.4,
   "total": 315
  },
  "workflow_spine": [
