@@ -108,3 +108,9 @@ and stop scheduling (wait for Aaron).
   token (signature-bound to mission+revision); SEPARATE from EG-02 (LIVE authority alone insufficient). Steps
   1-6 = the MO-02 DRAFT..RELEASED SignedRevision chain. Token->/executive/run wiring is the noted follow-up.
   [REQ:EG-05] 4/4; additive; gate green. NEXT = EG-06 (command-safety pipeline + single-ROS2-egress invariant).
+- 2026-07-03 93b632b — EG-06 DONE (wake 8). Command-safety pipeline + single-egress (§29.6):
+  stewie/bridge/command_pipeline.py lower_command (ordered mission-validate -> command_eligible interlock,
+  fail-closed at first unmet stage). SCREEN: the pipeline + single-egress ALREADY hold (rc.py is the sole
+  lower_plan_ir importer; command lowering only via command_eligible) -- formalized as one named function +
+  GUARDED. [REQ:EG-06] 3/3 (stage-order fail-closed + emit + single-ROS2-egress guard); additive; gate green.
+  NEXT = EG-11 (safety-control layer). Remaining on-host P0: EG-11, MP-07.
