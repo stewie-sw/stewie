@@ -95,3 +95,15 @@ before any irreversible/outward action (MT-01 force-push, CI runner registration
 4. Frontend scaffold: AC-01/AC-02 -> then ASK Aaron.
 5. MT-01: prepare -> confirm-gate before force-push.
 Blocked-on-Aaron: CI runner (org setting), RS-06 hardware, D3 vision tier, PKG (names+tests).
+
+## GPU render diagnosis (2026-07-04) — root cause found, host-config fix for Aaron
+The Gazebo/OGRE2 container segfault is NOT a rebuild problem: it is docker not injecting the NVIDIA graphics
+libs. Confirmed: (1) host has libGLX_nvidia/libEGL_nvidia/libnvidia-glcore (driver 535.261.03); (2) the
+nvidia-container-toolkit supports graphics + the CDI spec /var/run/cdi/nvidia.yaml HAS 7 graphics-lib mount
+lines; BUT (3) `--gpus all`, `--runtime=nvidia`, AND `--device nvidia.com/gpu=all` all fail to mount them ->
+the container falls back to mesa -> OGRE2 CreateRenderSystem segfaults. **Cause: docker CDI is not enabled in
+the daemon.** **AARON FIX (sudo):** add `{"features": {"cdi": true}}` to /etc/docker/daemon.json ->
+`sudo systemctl restart docker` -> then `docker run --device nvidia.com/gpu=all -e NVIDIA_DRIVER_CAPABILITIES=all
+stewie-gazebo:jazzy bash -lc 'ls /usr/lib/x86_64-linux-gnu/libGLX_nvidia.so*'` should list the lib. Then item 3
+(RS-05/BA-07/08/PM-13-16) unblocks. NOTE: Godot render already works HOST-NATIVE (xvfb+vulkan on the 3090);
+only Gazebo (container-only, not on Debian apt) needs this docker-CDI fix.
