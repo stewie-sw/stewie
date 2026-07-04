@@ -151,3 +151,9 @@ and stop scheduling (wait for Aaron).
   non-live / SafetyOfficer approves live). Endpoint/pipeline wiring = noted follow-up. [REQ:EG-04] 7/7;
   additive; FULL gate green (mypy 312 files). Branch-local, 2 ahead of main. NEXT = next on-host P1
   (EG-07 audit trail / EG-08 reconciliation lifecycle / EG-09 import-DAG guard / MP-05 object model).
+- 2026-07-03 f7445e9 — EG-07 DONE (P1 wake 2). Immutable audit trail (§7): contracts/audit.py AuditRecord
+  (9 fields who/what/when/where/mode/reason/before/after/evidence + prev_hash + record_hash) + AuditLog
+  (append-only, NO delete/update) + verify_chain (hash-chain tamper detection; caller-provided timestamp keeps
+  the digest deterministic). Wiring audit.append into command/merge/config sites = noted follow-up. [REQ:EG-07]
+  4/4; additive; FULL gate green (mypy 313). Branch-local, 5 ahead of main. NEXT = EG-08 (reconciliation
+  lifecycle) / EG-09 (import-DAG guard) / MP-05 (object model).
