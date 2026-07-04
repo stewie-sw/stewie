@@ -264,3 +264,8 @@ and stop scheduling (wait for Aaron).
   b3dcd2d (first corruption-fix, stale snapshot) failed CI as expected; 8e8d661 (re-regen) superseded it, CI
   in_progress + slow (~40min, runner queueing) but verified green-worthy locally. Held batch (waves 2-4)
   waits on it. NEXT: push when green, FIX EG-09 directly, wave 5 (PX-02/BP-*/MT-04/EP-06 + remaining).
+- 2026-07-04 WAVE 5 + WRAP-UP: EP-06 (posture policy) + VT-06 (already-built + citing test) integrated + pushed
+  (b5c8a3d, board 219/315). PX-02/MT-04 hit the WEEKLY USAGE LIMIT (deferred to the edit-heavy tail). On-host
+  P0/P1 queue effectively DRY (remaining = edit-heavy backend-security + frontend/ROS/hardware-gated). LOOP
+  COMPLETE — final session note session_notes/2026-07-04_stewie_fanout_waves.md. 20 rows across 5 waves + EG-09.
+  No reschedule (clean end). Recommended next: wire the delivered gates into /executive/run.
