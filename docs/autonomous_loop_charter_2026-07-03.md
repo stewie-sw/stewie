@@ -133,3 +133,13 @@ and stop scheduling (wait for Aaron).
   52 commits on feat/platform-restructure, NOT pushed, NOT merged (main = 7247d94); prod app.stewie.space runs
   the a0c98d3 build (rows after that are branch-only). Summary: session_notes/2026-07-03_autonomous_restructure_loop.md.
   No further ScheduleWakeup -- clean end.
+- 2026-07-03 (reconcile) — Aaron: "1 2 3" (merge + deploy-refresh + continue). Deploy-refreshed prod to
+  01d8407 (195/315 live). Pushed the branch; CI surfaced 5 restructure/loop-caused failures (wheel-smoke
+  4edf1d6, full-tree-mypy import* shims ed6c392, deploy-hardening 03a73f4, uncommitted s3li 03a73f4,
+  stale STATUS/manifest 2c22e83) -- ALL fixed + verified locally + pushed. The 6th failure = PRE-EXISTING
+  test_release_gate AS-04 (V=D without container evidence), which main itself was red on 10+ h (concurrent
+  AS-lane work; 7ecf0ed is a main ancestor). Aaron chose "merge now" -> fast-forward 7247d94 -> 2c22e83
+  pushed to origin/main (57 commits). main now == branch; red only on the pre-existing AS-04.
+  LESSON: run the FULL `mypy` (no args) + expect fresh-clone CI to catch uncommitted artifacts + stale
+  generated files the per-row LOCAL gate never exercises. NEXT = P1 loop (EG-04/07/08/09/12, MP-05/06/08..11),
+  branch-local commits, NEVER push/merge unattended.
