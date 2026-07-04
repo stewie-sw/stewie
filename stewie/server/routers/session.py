@@ -42,8 +42,12 @@ def session_start(req: SessionRequest, _auth: str = Depends(require_auth)):
 
 
 @router.get("/session/{sid}/operator")
-def session_operator(sid: str):
-    """OPEN by contract (B3): the operator-trainee sees only telemetry-delivered, truth-denylisted data."""
+def session_operator(sid: str, _auth: str = Depends(require_auth)):
+    """[REQ:BP-06][REQ:SE-02] AUTHENTICATED access model (review P1-5 / finding 8). The operator-trainee
+    view now REQUIRES a valid identity (require_auth), closing the prior open-by-contract hole where a
+    leaked session id was a bearer token for the truth-denylisted training telemetry. Truth-denial (the
+    operator_view shaping) is DEFENSE-IN-DEPTH, not the access decision; the shaped view is safe for any
+    authenticated user (operator or director)."""
     s = SES.get(sid)
     if s is None:
         return JSONResponse(status_code=404, content={"ok": False, "error": "unknown session"})

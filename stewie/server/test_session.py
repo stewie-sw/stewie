@@ -63,7 +63,7 @@ def test_session_start_runs_the_registry_mutation_under_a_lock(client, monkeypat
 def test_operator_view_is_truth_denylisted_and_link_constrained(client):
     sid = client.post("/session/start", json=_mission(),
                       headers={"X-API-Key": "director-key"}).json()["session_id"]
-    op = client.get(f"/session/{sid}/operator")            # operator URL is OPEN (B3 contract)
+    op = client.get(f"/session/{sid}/operator", headers={"X-API-Key": "director-key"})            # operator URL now requires auth (BP-06/SE-02)
     assert op.status_code == 200
     doc = op.json()
     for leg in doc["legs"]:
@@ -88,15 +88,15 @@ def test_debrief_requires_director_key_and_shows_divergence(client):
 def test_fast_forward_does_not_touch_link_accounting(client):
     sid = client.post("/session/start", json=_mission(),
                       headers={"X-API-Key": "director-key"}).json()["session_id"]
-    before = client.get(f"/session/{sid}/operator").json()["link"]["stats"]
+    before = client.get(f"/session/{sid}/operator", headers={"X-API-Key": "director-key"}).json()["link"]["stats"]
     client.get(f"/session/{sid}/debrief", params={"fast_forward": 10},
                headers={"X-API-Key": "director-key"})
-    after = client.get(f"/session/{sid}/operator").json()["link"]["stats"]
+    after = client.get(f"/session/{sid}/operator", headers={"X-API-Key": "director-key"}).json()["link"]["stats"]
     assert before == after
 
 
 def test_unknown_session_404(client):
-    assert client.get("/session/nope/operator").status_code == 404
+    assert client.get("/session/nope/operator", headers={"X-API-Key": "director-key"}).status_code == 404
 
 
 def test_mission_summary_artifact(client):
@@ -160,7 +160,7 @@ def test_t42_sessions_stamp_one_sun_state(client):
     r = client.post("/session/start", json={**_mission(), "mission_t0_s": 600000},
                     headers={"X-API-Key": "director-key"})
     sid = r.json()["session_id"]
-    op = client.get(f"/session/{sid}/operator").json()
+    op = client.get(f"/session/{sid}/operator", headers={"X-API-Key": "director-key"}).json()
     db = client.get(f"/session/{sid}/debrief", headers={"X-API-Key": "director-key"}).json()
     assert op["sun"] == db["sun"]                         # one sun state, both views
     assert op["sun"]["mission_t0_s"] == 600000
@@ -178,7 +178,7 @@ def test_operator_legs_carry_downlink_latency(client):
                                      {"action": "b", "kind": "fill", "x": 20, "y": 0,
                                       "footprint_m2": 16, "depth_m": 0.05}]})
     sid = r.json()["session_id"]
-    op = client.get(f"/session/{sid}/operator").json()
+    op = client.get(f"/session/{sid}/operator", headers={"X-API-Key": "director-key"}).json()
     assert op["legs"], "the link should deliver at least one leg"
     for leg in op["legs"]:
         assert leg["visible_at_s"] >= leg["sent_at_s"] + 2.6 - 1e-9   # the 2600 ms downlink
