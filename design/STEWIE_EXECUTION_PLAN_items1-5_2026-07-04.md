@@ -59,3 +59,17 @@ pyproject; container-verify container-gated; Playwright for frontend) → clean 
 ALL 3 artifacts → post-flip req_trace + row-count-unchanged → commit → gated branch→main ff push. Never
 integrate unverified; never fake-promote; never fabricate/synthetic; gate-green-BEFORE-commit; stop-for-confirm
 before any irreversible/outward action (MT-01 force-push, CI runner registration, deploys stay main-thread).
+
+## Execution update (2026-07-04) — A1 blocked, reordered
+- **A1 (GPU-EGL) DEEPER THAN A FLAG FIX.** `nvidia-ctk` present + RTX 3090 visible in-container with
+  `NVIDIA_DRIVER_CAPABILITIES=all` + `10_nvidia.json` EGL vendor, BUT Gazebo/OGRE2 SEGFAULTS at render-system
+  init on BOTH the headless-EGL and the xvfb-GLX path (Ogre2RenderEngine::CreateRenderSystem / RenderSystem_
+  GL3Plus). Needs the container's NVIDIA GL userspace aligned to host driver 535.261.03 (rebuild stewie-gazebo
+  on an `nvidia/opengl`/`nvidia/cudagl` base, or mount matching libnvidia-gl), OR real display hardware. NOT a
+  quick win → item 3 (GPU render/dense perception) stays blocked on this.
+- **A2 (CI runner)** needs Aaron's GitHub registration token → surface, don't block the loop.
+- **REORDERED loop start** (GPU-independent tracks first): **item 2 (BA-09 ROS2 nodes, on-host, incremental)**
+  → **item 4 backend (MT-05 ADRs)** → **item 1 frontend** (scaffold AC-01/02 then CHECK IN with Aaron on the
+  React approach before the full UI — it is huge + opinionated + must not big-bang the live cockpit).
+  Deferred pending decisions/hardware/deeper-infra: A1/item3 (GPU), A2 (token), RS-06 (Jetson), MT-01 (confirm),
+  D2/D3.
