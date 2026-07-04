@@ -146,3 +146,26 @@ deploy/ros2/render_gpu.env). VERIFIED: the H-6 gpu_lidar world renders + publish
 /model/ipex/perception/points (a real GPU sensor render). Item 3 (RS-05 Gazebo live-sensor loop, BA-07/08,
 PM-13-16) is now BUILDABLE on the box; the container CPU-only default (LIBGL_ALWAYS_SOFTWARE=1) is unchanged
 for CI. Requires Aaron's docker features.cdi=true (applied 2026-07-04).
+
+## RS-05 status (2026-07-04) — GPU render path proven, full lunar world crashes in OGRE2 Hlms
+The LIBGL_ALWAYS_SOFTWARE=0 + CDI + ldconfig(nvidia/current, NOT LD_LIBRARY_PATH which shadows the ROS2/gz
+libs and kills the launch) render path WORKS on a simple world (gpu_lidar -> /model/ipex/perception/points).
+BUT the full `ros2 launch stewie_bringup gz_sim.launch.py` (stewie_lunar.sdf) SEGFAULTS in
+Ogre::Hlms::createDatablock (libOgreNextMain, gz process exit -11) -- the PBR material/shader system crashes on
+the lunar world's terrain+rover materials under headless nvidia GL. This is a deeper OGRE2 material-system
+issue, separate from the (now-solved) LIBGL blocker. RS-05 needs a focused OGRE-Hlms session (likely a shader/
+resource or GL-feature issue on headless EGL/xvfb), NOT more env tweaks. GPU render is UNBLOCKED for simple
+sensor worlds; the full live-sensor loop is gated on the Hlms fix. Favor the frontend track meanwhile.
+
+## OGRE "Hlms crash" FIXED (2026-07-04) — root cause was --headless-rendering (EGL), not a material bug
+Aaron: "fix the ogre hlms crash." ROOT CAUSE: gz_sim.launch.py passed `--headless-rendering` (the EGL headless
+path), which on this stack could NOT obtain an OpenGL 3.3 context ("OpenGL 3.3 is not supported" ->
+GL3PlusRenderSystem::initialiseContext fails -> render-window creation fails after 11 attempts -> segfault
+downstream in ResourceGroupManager/Hlms::createDatablock). The backtrace pointing at Hlms was a red herring --
+the real error is 5 lines up. FIX: drop `--headless-rendering` -> gz renders via GLX on the X display (the
+container already runs under xvfb-run), which DOES get GL 3.3: from the NVIDIA driver when a GPU is present
+(CDI mount), else llvmpipe software GL. VERIFIED after rebuilding stewie-gazebo:jazzy: (1) CPU-only smoke
+(no --device) -> SMOKE OK, and the 8 CAMERA topics that were "gated/absent" for ages now PUB OK (software
+render); (2) GPU (--device nvidia.com/gpu=all + LIBGL_ALWAYS_SOFTWARE=0 + ldconfig nvidia/current) -> all
+camera + points topics PUB OK on the RTX 3090. Item 3 (RS-05 Gazebo live-sensor loop, BA-07/08, PM-13-16) is
+now UNBLOCKED end-to-end (the live camera/depth sensors render). NOT in CI (ros tier is container-gated).

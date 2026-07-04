@@ -19,9 +19,13 @@ def generate_launch_description():
     bridge_cfg = os.path.join(bringup, "config", "gz_bridge.yaml")
 
     return LaunchDescription([
-        # gz server, headless (server-only -s, run -r, headless GL for camera sensors)
+        # gz server (server-only -s, run -r). Render via GLX on the X display (the container runs under
+        # xvfb-run): that path gets a real OpenGL 3.3+ context -- from the NVIDIA driver when a GPU is present
+        # (CDI), else llvmpipe software GL. The former `--headless-rendering` (EGL) path could NOT obtain a
+        # GL 3.3 context ("OpenGL 3.3 is not supported") and crashed OGRE2 at render-window init, so the camera
+        # sensors never rendered (topics reported gated/absent). GLX-on-xvfb renders on both CPU and GPU.
         ExecuteProcess(
-            cmd=["gz", "sim", "-s", "-r", "--headless-rendering", "-v", "2", world],
+            cmd=["gz", "sim", "-s", "-r", "-v", "2", world],
             output="screen"),
         Node(package="robot_state_publisher", executable="robot_state_publisher",
              parameters=[{"robot_description": robot_description, "use_sim_time": True}],
