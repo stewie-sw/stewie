@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "5eab49f11815e5c1fe63b8738506754e1987ff6fc5a9b5eac32ba2bc7983c2c8",
+  "citations_sha256": "e6700faa21ac2ac7401bd7c8ab9c37c3086d3b43524236eda3c6d10b9887ec25",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "4a7384125396c2ffa04bd4eb0fa04b7854757987",
-  "prd_sha256": "21ea8e4de03cf3d99fafe6c18dece9992d29eb54563a4054af218cf3ce0c1b99",
+  "prd_commit": "ddd5a8cb8092d5d62780f7b15905638e8c071ba5",
+  "prd_sha256": "fff8e577fed6f5754fb1817891ca8915ab7f3c5b391461c88aed256b8b500c4a",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -3983,17 +3983,17 @@
    "text": "React workspace state carries mission/site/body/vehicle/physics-backend/product-mode/runnable-profile/source-class/work-area; URL+state round-trip; Release/Execute refuse mismatched profile/backend states."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row RF-03 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-03]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "RF-03",
    "lane": "RF",
    "pri": "P1",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 70,
+   "buildable": 69,
    "concurrent": 0,
-   "done": 231,
+   "done": 232,
    "gated": 14
   },
   "by_lane": {
@@ -4879,7 +4879,7 @@
     "total": 6
    },
    "RF": {
-    "done": 2,
+    "done": 3,
     "total": 3
    },
    "RL": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 131,
+    "done": 132,
     "total": 178
    },
    "P2": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 249,
-  "done_pct": 73.3,
+  "cited": 250,
+  "done_pct": 73.7,
   "in_scope": 301,
-  "in_scope_done_pct": 76.7,
+  "in_scope_done_pct": 77.1,
   "total": 315
  },
  "workflow_spine": [
