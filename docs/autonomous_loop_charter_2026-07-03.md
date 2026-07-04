@@ -181,3 +181,10 @@ and stop scheduling (wait for Aaron).
 - SCOPE: continue through the on-host P1 rows (EG-09/MP-08/MP-09/MP-06/...), THEN pivot to the integration
   follow-ups (wire the delivered gates into /executive/run) — the higher-value next phase.
 - Batch pushed+merged @ 97a75c1: EG-04 + EG-07 + MP-05 + EG-08 + AS-04 un-flip. Board 198/315.
+- 2026-07-03 5a8617b — MP-08 DONE (P1 wake 5). Capability matching (§30): contracts/capability_matching.py
+  effective_capabilities (Vehicle.capabilities ∪ mounted Tool grants, from the REAL vehicles registry) +
+  match_task (Task required-caps × available assets → MP-05 Assignment; rule = most-specialized covering asset;
+  unmet → CapabilityUnmet blocks assignment). [REQ:MP-08] 5/5; additive; FULL gate green (mypy 316). Branch-local,
+  3 ahead of main. PUSH-GATE HELD: prior CI 97a75c1 still in_progress (fast jobs GREEN: package/UI/JS; the 2 test
+  jobs + lint+type+cov still running, zero failures) → MP-08 rides the next batch. NEXT = MP-09 (physics scoring)
+  / EG-09 (import-DAG guard).
