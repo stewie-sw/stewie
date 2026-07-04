@@ -249,6 +249,12 @@ class Mission:
     #: AcceptanceCriterion.tolerance_m, tightest over objectives). None -> validate_plan keeps its
     #: documented default (byte-identical to a pre-CP-04-tolerance plan).
     accept_flatness_tol_m: float | None = None
+    #: PX-02: the SELECTABLE physics backend the plan's terramechanics run on (stewie.physics.backend).
+    #: Default "tier2_numpy" = the conserved Tier-2 NumPy authority, the only registered/selectable engine
+    #: (the PX-03 Chrono oracle is NOT release-authority until it conserves mass, so it is not selectable
+    #: here). Validated against list_backends() at the mission_from_dict boundary; carried into the plan so
+    #: plan/report/release evidence names the physics engine. A default mission is byte-identical.
+    physics_backend_id: str = "tier2_numpy"
     @property
     def density(self): return body_density(self.body)
 
@@ -307,6 +313,15 @@ def mission_from_dict(payload):
             raise ValueError(str(e))
         if _get_body(soil).name == _get_body(body).name:
             soil = ""                                  # same as the body -> no override stored
+    # PX-02: the SELECTABLE physics backend (stewie.physics.backend). Absent -> tier2_numpy (the conserved
+    # default). Validated against the REGISTERED engines here (fail-closed, NO silent default for a bad id):
+    # an unknown or not-yet-registered backend (e.g. the PX-03 Chrono oracle) is a 400 at the route, not 500.
+    from stewie.physics.backend import list_backends as _list_backends
+    pbid = str(payload.get("physics_backend_id") or "tier2_numpy").strip() or "tier2_numpy"
+    if pbid not in _list_backends():
+        raise ValueError(
+            f"unknown/unselectable physics_backend_id {pbid!r}; selectable: {_list_backends()} "
+            f"(the PX-03 Chrono oracle is not a release-authority backend until it conserves mass)")
     raw = payload.get("orders")
     if not isinstance(raw, list) or not raw:
         raise ValueError("mission needs a non-empty 'orders' list")
@@ -350,7 +365,7 @@ def mission_from_dict(payload):
     kwargs = dict(name=str(payload.get("name", "Build Mission")), body=body, orders=orders,
                   charger=_require_xy(c, "charger"),       # #284: shape-validate before indexing (bad shape -> 400)
                   charger_capacity=max(1, min(8, int(payload.get("charger_capacity", 1) or 1))),
-                  vehicle=veh, tools=tools, soil=soil)
+                  vehicle=veh, tools=tools, soil=soil, physics_backend_id=pbid)
     if "date" in payload:
         kwargs["date"] = str(payload["date"])
     if payload.get("lander") is not None:                  # #161: the delivery lander (safe haven)

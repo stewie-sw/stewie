@@ -144,3 +144,34 @@ def get_models(_auth: str = Depends(require_role("operator"))):
                  "ModelArtifact (ML-01) deployment-ready gate + §25.3 no-command-path invariant; no learned "
                  "model is deployed on the command path."),
     }
+
+
+@router.get("/physics/backends")
+def get_physics_backends(_auth: str = Depends(require_role("operator"))):
+    """[REQ:PX-02] The selectable physics-backend registry + the EG-12 model-governance ledger: the engines a
+    mission may run its terramechanics on (``selectable_backends`` = list_backends(); only the conserved
+    tier2_numpy is release-authority) and every registered physics MODEL with its validated / frozen /
+    deprecated status + validated bodies + calibration provenance. This is the read surface behind the mission
+    ``physics_backend_id`` selector: a mission may name any ``selectable_backends`` id; the PX-03 Chrono oracle
+    (tier3_chrono) is listed here for transparency but is NOT selectable until it conserves mass."""
+    from stewie.contracts import physics_model_control as PMC
+    from stewie.physics.backend import list_backends
+
+    models = [
+        {"model_id": m.model_id, "backend_id": m.backend_id, "version": m.version,
+         "validated": m.validated, "frozen": m.frozen, "deprecated": m.deprecated,
+         "calibration": m.calibration, "validated_bodies": list(m.validated_bodies), "notes": m.notes}
+        for m in PMC.MODELS.values()
+    ]
+    return {
+        "ok": True,
+        "selectable_backends": list_backends(),            # a mission physics_backend_id MUST be one of these
+        "backend_count": len(list_backends()),
+        "live_default_model": PMC.LIVE_DEFAULT_MODEL_ID,
+        "models": models,
+        "model_count": len(models),
+        "note": ("A mission's physics_backend_id selects the terramechanics engine; only conserved, "
+                 "release-authority backends are selectable (list_backends()). The models ledger is the EG-12 "
+                 "governance record (validated/frozen/deprecated per version); a not-yet-conserving oracle "
+                 "(tier3_chrono) appears with validated=False and is excluded from the selectable set."),
+    }
