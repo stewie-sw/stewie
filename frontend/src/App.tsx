@@ -1,6 +1,7 @@
 import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { useEligibility } from "./eligibility";
+import { ReportPane } from "./panes/Report";
 import { PANES, RANK, visiblePanes } from "./panes";
 import type { Pane, Role } from "./panes";
 import { useRole } from "./session";
@@ -72,6 +73,7 @@ function PanePlaceholder({ pane }: { pane: Pane }) {
 function PaneRoute({ pane, role }: { pane: Pane; role: Role }) {
   if (RANK[role] < RANK[pane.minRole]) return <Navigate to="/plan" replace />; // fail-closed role gate (RF-01)
   if (pane.id === "release" || pane.id === "metrics") return <GuardedPane pane={pane} />; // RF-02 guard
+  if (pane.id === "report") return <ReportPane />; // RF-03: first migrated pane (real /world evidence)
   return <PanePlaceholder pane={pane} />;
 }
 

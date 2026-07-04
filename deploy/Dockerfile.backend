@@ -2,7 +2,7 @@
 #
 # RF-01/02: the React cockpit (/app SPA) is built in a node stage and copied into the image; the backend
 # serves it from /app/frontend/dist (server.py cockpit_app). The vanilla cockpit stays authoritative at /.
-FROM node:20-slim AS webbuild
+FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS webbuild
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
