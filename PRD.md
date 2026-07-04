@@ -548,7 +548,7 @@ TU Tauri desktop · MG migration governance.
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 | --- | --- | --- | --- | --- | --- | --- |
-| AC-01 | P0 | Generate a TypeScript API client from live `/openapi.json`; CI fails on generated-vs-FastAPI path drift. Every one of the 140 router-owned routes has a registry entry or an explicit static/internal exemption. | N | N | N | NA |
+| AC-01 | P0 | Generate a TypeScript API client from live `/openapi.json`; CI fails on generated-vs-FastAPI path drift. Every one of the 140 router-owned routes has a registry entry or an explicit static/internal exemption. | D | D | D | NA |
 | AC-02 | P0 | The route registry records per-route pane ownership, auth/role, response kind, provenance requirement, fixtures, and authority-mutation flag; a pane-backed route missing fixture/role/provenance fails. | N | N | N | NA |
 | RF-01 | P0 | React shell implements the same 13 pane identities + role visibility as the vanilla cockpit; signed-in browser tests open all 13 panes at desktop + phone widths. | N | N | N | NA |
 | RF-02 | P0 | React workspace state carries mission/site/body/vehicle/physics-backend/product-mode/runnable-profile/source-class/work-area; URL+state round-trip; Release/Execute refuse mismatched profile/backend states. | N | N | N | NA |
