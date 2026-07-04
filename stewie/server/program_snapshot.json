@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "486d3f5c741251b687089269b347978cc17a9cd732d2d417653d0ff62ae29e75",
+  "citations_sha256": "de1a302feb11d2f52884154ed81248fa3b03dac7f5dd082658923d577e939b85",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "2e67d948926ad85bca27085df02ff3c142d92478",
-  "prd_sha256": "a1de68f162dd5e5927e26015687c32326a8cc0c1b506e42a8273f92c7885ab81",
+  "prd_commit": "a0a2bc6fcf40122e51fdd977fc18dc140a4730c2",
+  "prd_sha256": "856850dfc54908784a5eadfe014d5c03bddb5a0cd734be2217cd2acf1aee669d",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -773,17 +773,17 @@
    "text": "**Backend container entrypoint enters the public-bind TLS guard (review P1-1).** `server.py`'s public-bind guard (refuse plaintext `0.0.0.0` unless TLS-terminated / dev-open) runs only from `main()`, but `deploy/Dockerfile.backend` starts `uvicorn ... server:app` directly, bypassing it. Fix: the production image invokes the guarded `stewie-serve` path OR the invariant moves into ASGI startup/lifespan so a direct `server:app` import must pass it. Acceptance: a deploy test inspects the image command and fails if production starts `server:app` public without an equivalent guard. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "production requires STEWIE_SESSION_SECRET separate from STEWIE_API_KEY; fail-loud when TLS-terminated + secret absent; separate rotation semantics.",
     "kind": "atomic",
     "test_target": "stewie/server/test_session_secret.py citing [REQ:BP-03]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BP-03",
    "lane": "BP",
    "pri": "P1",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 81,
+   "buildable": 80,
    "concurrent": 0,
-   "done": 220,
+   "done": 221,
    "gated": 14
   },
   "by_lane": {
@@ -4775,7 +4775,7 @@
     "total": 4
    },
    "BP": {
-    "done": 4,
+    "done": 5,
     "total": 13
    },
    "BR": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 123,
+    "done": 124,
     "total": 178
    },
    "P2": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 239,
-  "done_pct": 69.8,
+  "cited": 240,
+  "done_pct": 70.2,
   "in_scope": 301,
-  "in_scope_done_pct": 73.1,
+  "in_scope_done_pct": 73.4,
   "total": 315
  },
  "workflow_spine": [
