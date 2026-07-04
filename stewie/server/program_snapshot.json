@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "5e5edc6a58ff8cf7842e34a533678718105ccf0df9712c7ce10a539b0f7fd2c2",
+  "citations_sha256": "3de70c84ac3e8a7c947b8409dba9133cdc87ccde270a3ad9a8bc8fe0dc75cff0",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "6165e25eae3c9a89706572d70e391ecc49e30902",
-  "prd_sha256": "631897f7dc633098f93f32873755ec2ece19233052bc9e8216c92e1c9527caf8",
+  "prd_commit": "5fffa2f9f6ad3e68360360d662b7e01ebf53643f",
+  "prd_sha256": "211116ae028980ffb39e6ac60448ff807be9561242b0c4dd981fb3720d27c224",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -3949,17 +3949,17 @@
    "text": "Break the `terramechanics` -> `stewie.specs.constants` edge (prerequisite for PO-18's bodies+numeric-only `stewie-forge`). `terramechanics` carries forge-local literal geotech defaults (the 13 K.* values: K_C/K_PHI/N_SINKAGE/COHESION/PHI/K_SHEAR/SLIP_C1/SLIP_C2/RHO_SURFACE/RHO_DEEP/ROVER_MASS_DRY_KG/N_WHEELS/g); the config-overlay path is PRESERVED by injecting config-overlaid values at the stewie-side call sites (dependency inversion), so runtime behavior is byte-identical. Acceptance: production `stewie/physics/terramechanics` imports no `stewie.specs.constants` at module level ([REQ:PX-06] AST guard, extends PX-05); `TerramechanicsParams.from_constants()` values unchanged; a `config` override of a geotech constant still reaches the built params via the injection path; physics + lode regression green."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row RF-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-01]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "RF-01",
    "lane": "RF",
    "pri": "P0",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 72,
+   "buildable": 71,
    "concurrent": 0,
-   "done": 229,
+   "done": 230,
    "gated": 14
   },
   "by_lane": {
@@ -4879,7 +4879,7 @@
     "total": 6
    },
    "RF": {
-    "done": 0,
+    "done": 1,
     "total": 3
    },
    "RL": {
@@ -4925,7 +4925,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 94,
+    "done": 95,
     "total": 102
    },
    "P1": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 247,
-  "done_pct": 72.7,
+  "cited": 248,
+  "done_pct": 73.0,
   "in_scope": 301,
-  "in_scope_done_pct": 76.1,
+  "in_scope_done_pct": 76.4,
   "total": 315
  },
  "workflow_spine": [
