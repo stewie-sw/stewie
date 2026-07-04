@@ -19,6 +19,18 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #0e1116; color
 .sysb { font-size: 0.65rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.05em; }
 .role-badge { margin-left: auto; font-size: 0.75rem; opacity: 0.7; text-transform: uppercase; }
 
+.workspace-rail {
+  display: flex; gap: 0.9rem; flex-wrap: wrap; align-items: center;
+  padding: 0.35rem 0.8rem; background: #10151c; border-bottom: 1px solid #21262d; font-size: 0.8rem;
+}
+.workspace-rail label { display: flex; gap: 0.35rem; align-items: center; color: #8b949e; }
+.workspace-rail select {
+  background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 5px; padding: 0.15rem 0.3rem;
+}
+.guard { margin-top: 0.6rem; padding: 0.5rem 0.7rem; border-radius: 6px; font-size: 0.9rem; }
+.guard[data-blocked="true"] { background: #4d1f1f33; border: 1px solid #f8514966; color: #ffb4b4; }
+.guard[data-blocked="false"] { background: #1f4d2f33; border: 1px solid #2ea04366; color: #9fe0b0; }
+
 main { padding: 1rem; flex: 1; }
 h1 { font-size: 1.3rem; }
 .migrating { opacity: 0.7; font-size: 0.9rem; }

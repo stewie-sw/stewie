@@ -1,0 +1,95 @@
+// [REQ:RF-02] the cockpit workspace state model. Mirrors the vanilla cockpit_state.js authority tuple (FS-16)
+// + the FS-25 route/state vocabulary (product mode, runnable profile, physics backend) as the AUTHORITY_KEYS
+// the mission package uses (lode/mission_package.py: body/site/mission/runtime_mode/runnable_profile/
+// source_class/vehicle/role/command_namespace). Pure reducer + enum enforcement + URL (de)serialization; the
+// Release/Execute mismatch guard is NOT re-implemented here -- it defers to the real backend /rc/eligibility
+// verdict (eligibility.ts). Defaults match cockpit_state.js (site=haworth, body=moon).
+
+export type SourceClass = "live" | "sim" | "eval"; // cockpit_state.js SOURCES
+export type CommandNamespace = "sandbox" | "live"; // cockpit_state.js MODES (AG-07 namespace)
+// FS-25 product modes (the route/state vocabulary the cockpit carries)
+export type ProductMode = "GIS-PLAN" | "TRAIN" | "SIM-OPERATE" | "EVALUATE" | "OPERATE";
+// FS-25 runnable profiles (desktop_sil + ros2_replay are wired in the backend today; the rest are declared)
+export type RunnableProfile =
+  | "desktop_sil" | "digital_twin" | "ros2_replay" | "hil_jetson"
+  | "sensor_bench" | "rover_bench" | "field_traverse" | "monte_carlo";
+export type PhysicsBackend = "tier2_numpy" | "tier3_chrono"; // PX-02 /physics/backends
+
+export const SOURCE_CLASSES: readonly SourceClass[] = ["live", "sim", "eval"];
+export const COMMAND_NAMESPACES: readonly CommandNamespace[] = ["sandbox", "live"];
+export const PRODUCT_MODES: readonly ProductMode[] = ["GIS-PLAN", "TRAIN", "SIM-OPERATE", "EVALUATE", "OPERATE"];
+export const RUNNABLE_PROFILES: readonly RunnableProfile[] = [
+  "desktop_sil", "digital_twin", "ros2_replay", "hil_jetson",
+  "sensor_bench", "rover_bench", "field_traverse", "monte_carlo",
+];
+export const PHYSICS_BACKENDS: readonly PhysicsBackend[] = ["tier2_numpy", "tier3_chrono"];
+
+export interface WorkspaceState {
+  mission: string | null;
+  site: string;
+  body: string;
+  vehicle: string | null;
+  productMode: ProductMode;
+  runnableProfile: RunnableProfile;
+  sourceClass: SourceClass;
+  physicsBackend: PhysicsBackend;
+  commandNamespace: CommandNamespace;
+  workArea: string;
+}
+
+export function defaultWorkspace(): WorkspaceState {
+  // matches cockpit_state.js defaultState (site=haworth, body=moon) + the FS-25 planning defaults. `role` is
+  // NOT here -- it is session-derived (session.ts useRole), not a routeable workspace field.
+  return {
+    mission: null, site: "haworth", body: "moon", vehicle: null,
+    productMode: "GIS-PLAN", runnableProfile: "desktop_sil", sourceClass: "sim",
+    physicsBackend: "tier2_numpy", commandNamespace: "sandbox", workArea: "plan",
+  };
+}
+
+const ENUMS: Partial<Record<keyof WorkspaceState, readonly string[]>> = {
+  productMode: PRODUCT_MODES, runnableProfile: RUNNABLE_PROFILES, sourceClass: SOURCE_CLASSES,
+  physicsBackend: PHYSICS_BACKENDS, commandNamespace: COMMAND_NAMESPACES,
+};
+
+// pure transition (mirrors cockpit_state.js setState): a patch that names an unknown enum value throws.
+export function applyPatch(state: WorkspaceState, patch: Partial<WorkspaceState>): WorkspaceState {
+  for (const [k, allowed] of Object.entries(ENUMS)) {
+    const v = patch[k as keyof WorkspaceState];
+    if (v !== undefined && !allowed.includes(v as string)) {
+      throw new Error(`unknown ${k} ${String(v)}`);
+    }
+  }
+  return { ...state, ...patch };
+}
+
+// the routeable subset <-> URL query params, so a link restores the view + reload restores state (FS-16).
+const ROUTEABLE: (keyof WorkspaceState)[] = [
+  "mission", "site", "body", "vehicle", "productMode", "runnableProfile",
+  "sourceClass", "physicsBackend", "commandNamespace",
+];
+
+export function toSearchParams(state: WorkspaceState): URLSearchParams {
+  const p = new URLSearchParams();
+  const d = defaultWorkspace();
+  for (const k of ROUTEABLE) {
+    const v = state[k];
+    if (v != null && v !== d[k]) p.set(k, String(v)); // only non-default fields (short, stable links)
+  }
+  return p;
+}
+
+export function fromSearchParams(params: URLSearchParams): WorkspaceState {
+  let state = defaultWorkspace();
+  const patch: Partial<WorkspaceState> = {};
+  for (const k of ROUTEABLE) {
+    const v = params.get(k);
+    if (v != null) (patch as Record<string, string>)[k] = v;
+  }
+  try {
+    state = applyPatch(state, patch); // an invalid URL value is ignored (fail-safe to defaults)
+  } catch {
+    state = defaultWorkspace();
+  }
+  return state;
+}
