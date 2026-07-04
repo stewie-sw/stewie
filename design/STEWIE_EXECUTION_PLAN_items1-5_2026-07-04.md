@@ -73,3 +73,25 @@ before any irreversible/outward action (MT-01 force-push, CI runner registration
   React approach before the full UI — it is huge + opinionated + must not big-bang the live cockpit).
   Deferred pending decisions/hardware/deeper-infra: A1/item3 (GPU), A2 (token), RS-06 (Jetson), MT-01 (confirm),
   D2/D3.
+
+## Aaron's decisions (2026-07-04)
+- **Frontend (item 1): SCAFFOLD + REVIEW** (my recommendation, Aaron: "recommendations?"). Loop builds
+  AC-01/AC-02 (TS API client + route registry from OpenAPI -- concrete/testable), THEN asks Aaron on the React
+  shell approach before the UI rewrite. Do NOT big-bang the live cockpit.
+- **CI runner (A2): SET UP -- done but BLOCKED.** stewie-archimedes registered at org stewie-sw + Listening,
+  BUT org self-hosted runners are blocked from the PUBLIC repo by default -> jobs queued -> reverted CI to
+  ubuntu-latest. **AARON ACTION NEEDED:** org Settings -> Actions -> Runner groups -> Default -> "Allow public
+  repositories" (then I re-apply runs-on: self-hosted for push events), OR give a REPO-level runner token to
+  re-register at repo scope. Runner install persists; for reboot-persistence: `cd ~/actions-runner && sudo
+  ./svc.sh install && sudo ./svc.sh start`.
+- **GPU (item 3): INVEST in the gazebo-nvidia rebuild** (Aaron). Loop rebuilds stewie-gazebo on an
+  nvidia/opengl base (host driver 535.261.03) to unblock OGRE2 render, then does RS-05/BA-07/08/PM-13-16.
+- **PKG (D2): DEFER** until the PyPI names are parked + everything tested (Aaron). Parked.
+
+## Loop work order (post-decisions)
+1. GPU gazebo-nvidia rebuild (A1 deeper fix) -> if it renders, item 3 (RS-05/BA-07/08/PM-13-16).
+2. Item 2: BA-09 ROS2 nodes (on-host, no render needed).
+3. Item 4 backend: MT-05 ADRs.
+4. Frontend scaffold: AC-01/AC-02 -> then ASK Aaron.
+5. MT-01: prepare -> confirm-gate before force-push.
+Blocked-on-Aaron: CI runner (org setting), RS-06 hardware, D3 vision tier, PKG (names+tests).
