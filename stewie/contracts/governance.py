@@ -81,3 +81,70 @@ def mode_from_namespace(namespace: str | None) -> EnvironmentMode | None:
     if namespace == "sandbox":
         return EnvironmentMode.REHEARSAL
     return None
+
+
+# ---- [REQ:EG-04] role / permission model ---------------------------------------------------------
+class Role(str, Enum):
+    """The eleven platform roles (PRD §7 EG-04). WHO a principal is; the environment MODE is WHEN they act.
+    Effective authority = the role's capability set AND the mode's authority (see can_command_live)."""
+    ADMIN = "admin"                      # system administration (users/roles/config), not a live driver
+    SAFETY_OFFICER = "safety_officer"    # approves live transitions; does not drive
+    MISSION_DIRECTOR = "mission_director"  # runs the mission: plan + command + approve
+    OPERATOR = "operator"                # drives the robot (live command), executes plans
+    PLANNER = "planner"                  # authors + rehearses plans
+    SCIENTIST = "scientist"              # analysis + planning
+    ENGINEER = "engineer"                # full workbench EXCEPT live command (non-live)
+    TRAINER = "trainer"                  # runs training/rehearsal
+    TRAINEE = "trainee"                  # training-only
+    VIEWER = "viewer"                    # read-only
+    AI_AGENT = "ai_agent"                # may plan + rehearse; never gets live-command or approve authority
+
+
+@dataclass(frozen=True)
+class RolePermissions:
+    """A role's capability set (WHO can do WHAT), independent of the environment mode (WHEN). Live command +
+    world writes are additionally gated by the mode (EG-01/EG-02); a role granting a capability is necessary,
+    not sufficient. `view` is the read-only floor every role has."""
+    view: bool = False
+    plan: bool = False
+    write_training: bool = False
+    command_real_robot: bool = False
+    modify_accepted_world: bool = False
+    approve_live_transition: bool = False
+    administer: bool = False
+
+
+#: PRD §7 EG-04 per-role permission set. The four named FLOORS are load-bearing: VIEWER = view only;
+#: TRAINEE = view+training only; ENGINEER = everything but live command; SAFETY_OFFICER = approves live.
+ROLE_PERMISSIONS: dict[Role, RolePermissions] = {
+    #                            view   plan   train  cmd    modify appr   admin
+    Role.ADMIN:            RolePermissions(True, True, True, False, True, True, True),
+    Role.SAFETY_OFFICER:   RolePermissions(True, False, True, False, False, True, False),
+    Role.MISSION_DIRECTOR: RolePermissions(True, True, True, True, True, True, False),
+    Role.OPERATOR:         RolePermissions(True, False, True, True, False, False, False),
+    Role.PLANNER:          RolePermissions(True, True, True, False, False, False, False),
+    Role.SCIENTIST:        RolePermissions(True, True, True, False, False, False, False),
+    Role.ENGINEER:         RolePermissions(True, True, True, False, True, False, False),
+    Role.TRAINER:          RolePermissions(True, True, True, False, False, False, False),
+    Role.TRAINEE:          RolePermissions(True, False, True, False, False, False, False),
+    Role.VIEWER:           RolePermissions(True, False, False, False, False, False, False),
+    Role.AI_AGENT:         RolePermissions(True, True, True, False, False, False, False),
+}
+
+
+def role_permissions(role: Role | str) -> RolePermissions:
+    """The capability set a role grants. Accepts a Role or its string value; raises on an unknown role."""
+    return ROLE_PERMISSIONS[Role(role)]
+
+
+def role_permits(role: Role | str, capability: str) -> bool:
+    """True iff `role` grants `capability` (a RolePermissions field name). An unknown capability -> False
+    (fail-closed: an unrecognized permission is never granted)."""
+    return bool(getattr(ROLE_PERMISSIONS[Role(role)], capability, False))
+
+
+def can_command_live(role: Role | str, mode: EnvironmentMode | str | None) -> bool:
+    """Explicit live-command eligibility (EG-04): the role must grant `command_real_robot` AND the mode must
+    permit it (only LIVE does, EG-01). Both floors -- the role floor (Engineer/Trainee/Viewer/AI cannot) AND
+    the mode floor (no live command outside LIVE) -- must clear."""
+    return role_permits(role, "command_real_robot") and permits(mode, "command_real_robot")
