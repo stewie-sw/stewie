@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "714ea457b1833632c3b619fe906c84de2d5a08b9195ab42ca911839f1d99db3f",
+  "citations_sha256": "165fc5a496edb70aec06d08c16a4b79d0aa5707c0c8967173048c6280e6101eb",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "e8d82c88cbdaa576a1cd2f8115b2f95b5a0cf506",
-  "prd_sha256": "8c04ba15689707922da34cc744b2f1cbf92499e5f2713ec2fd5081e90a3cb6d2",
+  "prd_commit": "0f480937cb90892b1b413773c5f70910a6b92fa0",
+  "prd_sha256": "bca389f59d9b24e9f412ecbdbf839bcb8b14202768c1a909806f3960e2221fe7",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -2979,17 +2979,17 @@
    "text": "Capability matching: required-capabilities \u00d7 available-assets \u00d7 assignment-rules select the asset set. Acceptance: an unmet required capability blocks assignment; a met set yields an assignment honoring the rules; test."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row MP-09 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:MP-09]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "MP-09",
    "lane": "MP",
    "pri": "P1",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 91,
+   "buildable": 90,
    "concurrent": 0,
-   "done": 199,
+   "done": 200,
    "gated": 25
   },
   "by_lane": {
@@ -4862,7 +4862,7 @@
     "total": 1
    },
    "MP": {
-    "done": 3,
+    "done": 4,
     "total": 8
    },
    "MT": {
@@ -4940,7 +4940,7 @@
     "total": 102
    },
    "P1": {
-    "done": 104,
+    "done": 105,
     "total": 178
    },
    "P2": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 219,
-  "done_pct": 63.2,
+  "cited": 220,
+  "done_pct": 63.5,
   "in_scope": 290,
-  "in_scope_done_pct": 68.6,
+  "in_scope_done_pct": 69.0,
   "total": 315
  },
  "workflow_spine": [
