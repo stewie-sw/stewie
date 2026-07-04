@@ -35,8 +35,12 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 198,
+  "cited": 214,
   "per_family": {
+    "AC": {
+      "cited": 0,
+      "total": 2
+    },
     "AG": {
       "cited": 8,
       "total": 8
@@ -44,6 +48,10 @@
     "AM": {
       "cited": 2,
       "total": 9
+    },
+    "AP": {
+      "cited": 1,
+      "total": 1
     },
     "AS": {
       "cited": 17,
@@ -53,9 +61,21 @@
       "cited": 6,
       "total": 11
     },
+    "BD": {
+      "cited": 1,
+      "total": 4
+    },
     "BP": {
       "cited": 4,
       "total": 13
+    },
+    "BR": {
+      "cited": 0,
+      "total": 1
+    },
+    "CF": {
+      "cited": 0,
+      "total": 1
     },
     "CP": {
       "cited": 10,
@@ -65,9 +85,21 @@
       "cited": 7,
       "total": 7
     },
+    "DE": {
+      "cited": 1,
+      "total": 1
+    },
     "DT": {
       "cited": 5,
       "total": 5
+    },
+    "DW": {
+      "cited": 0,
+      "total": 2
+    },
+    "EG": {
+      "cited": 6,
+      "total": 12
     },
     "EP": {
       "cited": 6,
@@ -89,6 +121,18 @@
       "cited": 3,
       "total": 3
     },
+    "GL": {
+      "cited": 0,
+      "total": 2
+    },
+    "MG": {
+      "cited": 0,
+      "total": 4
+    },
+    "MI": {
+      "cited": 0,
+      "total": 1
+    },
     "ML": {
       "cited": 9,
       "total": 9
@@ -96,6 +140,10 @@
     "MO": {
       "cited": 1,
       "total": 1
+    },
+    "MP": {
+      "cited": 1,
+      "total": 8
     },
     "MT": {
       "cited": 2,
@@ -105,13 +153,25 @@
       "cited": 12,
       "total": 12
     },
+    "PG": {
+      "cited": 0,
+      "total": 1
+    },
     "PM": {
       "cited": 11,
       "total": 19
     },
     "PO": {
-      "cited": 14,
-      "total": 15
+      "cited": 17,
+      "total": 18
+    },
+    "PX": {
+      "cited": 3,
+      "total": 6
+    },
+    "RF": {
+      "cited": 0,
+      "total": 3
     },
     "RL": {
       "cited": 1,
@@ -141,16 +201,20 @@
       "cited": 0,
       "total": 1
     },
+    "TU": {
+      "cited": 0,
+      "total": 1
+    },
     "TW": {
       "cited": 8,
-      "total": 10
+      "total": 11
     },
     "VT": {
       "cited": 5,
       "total": 10
     }
   },
-  "total": 261,
+  "total": 315,
   "unknown_markers": [],
   "v_done_uncited": [],
   "v_ne_d_flagged": [
