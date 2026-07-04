@@ -48,11 +48,16 @@ print("FRESH WHEEL OK")
 def test_fresh_wheel_server_runs(tmp_path):  # [REQ:PO-01]
     # stewie-serve runs after a fresh wheel install with the one documented [server] product extra
     dist = tmp_path / "dist"
-    # build just the stewie wheel via pip's own backend (no `build`/pyproject_hooks toolchain dep).
-    subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "-w", str(dist), _REPO],
+    # build the stewie wheel + the two extracted standalone packages (stewie-bodies, stewie-forge) that the
+    # stewie.specs.bodies / stewie.physics.terramechanics shims re-export (PO-17/PO-18), via pip's own backend.
+    subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "-w", str(dist), _REPO,
+                    os.path.join(_REPO, "packages", "stewie-bodies"),
+                    os.path.join(_REPO, "packages", "stewie-forge")],
                    check=True, capture_output=True, text=True)
     wheels = glob.glob(str(dist / "stewie-*.whl"))
-    assert wheels, "wheel build produced no .whl"
+    pkg_wheels = glob.glob(str(dist / "stewie_bodies-*.whl")) + glob.glob(str(dist / "stewie_forge-*.whl"))
+    assert wheels, "wheel build produced no root .whl"
+    assert len(pkg_wheels) == 2, f"expected stewie-bodies + stewie-forge wheels, got {pkg_wheels}"
 
     venv_dir = tmp_path / "venv"
     venv.create(str(venv_dir), with_pip=True)
@@ -61,7 +66,7 @@ def test_fresh_wheel_server_runs(tmp_path):  # [REQ:PO-01]
     # PYTHONHOME/VIRTUAL_ENV, and PYTHONNOUSERSITE so the venv python resolves ITS OWN site-packages.
     clean = {k: v for k, v in os.environ.items()
              if k not in ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV", "PYTHONNOUSERSITE")}
-    subprocess.run([py, "-m", "pip", "install", "--quiet", f"{wheels[0]}[server]"],
+    subprocess.run([py, "-m", "pip", "install", "--quiet", f"{wheels[0]}[server]", *pkg_wheels],
                    check=True, capture_output=True, text=True, env=clean)
 
     env = {**clean, "SMOKE_DATA": str(tmp_path / "appdata")}
