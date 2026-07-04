@@ -287,6 +287,26 @@ def get_index(request: Request):
     return resp
 
 
+# [REQ:RF-01] the React cockpit shell (strangler-fig migration, ADR-0007): served at /app while the vanilla
+# cockpit stays authoritative at /. SPA fallback -- /app/assets/* passes through to the built bundle, every
+# other /app/* returns index.html so React Router owns client-side routing. Active only when the vite build
+# output exists (built in CI + the Docker frontend image); absent build -> 404, the vanilla cockpit is unaffected.
+_APP_DIST = os.path.abspath(os.path.join(HERE, "..", "..", "frontend", "dist"))
+
+
+@app.get("/app")
+@app.get("/app/{path:path}")
+def cockpit_app(path: str = ""):
+    idx = os.path.join(_APP_DIST, "index.html")
+    if not os.path.isfile(idx):
+        raise StarletteHTTPException(status_code=404, detail="cockpit app build not present")
+    if path.startswith("assets/"):
+        asset = os.path.abspath(os.path.join(_APP_DIST, path))
+        if os.path.isfile(asset) and os.path.commonpath([_APP_DIST, asset]) == _APP_DIST:
+            return FileResponse(asset, media_type=_CTYPE.get(os.path.splitext(asset)[1]))
+    return FileResponse(idx, media_type=_CTYPE[".html"])
+
+
 
 # ---- #39: the event history (who did what when; actor = the #52 auth identity) ----------------
 # ARCH-3: the audit ledger lives in stewie.server.services so routers can log without importing this app.
