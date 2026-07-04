@@ -34,3 +34,18 @@ def test_eg07_executive_run_appends_a_verified_audit_record(monkeypatch, tmp_pat
         assert last.get(field) not in ("", None), f"audit field {field!r} missing/empty"
     assert last["mode"] == "sim"                                 # SIM-labeled, never live
     assert last["after_state"] in ("completed", "safed")        # the real run terminal state
+
+
+def test_mp07_executive_run_reports_a_plan_executability_card(monkeypatch, tmp_path):  # [REQ:MP-07]
+    # the run carries the MP-07 plan-executability card: the 8 §30.3 preconditions derived from real state.
+    c = _client(monkeypatch, tmp_path)
+    r = c.post("/executive/run", json={"orders": _ORDERS, "site": "haworth"})
+    assert r.status_code == 200, r.text
+    card = r.json()["executability"]
+    assert set(card) == {"executable", "unmet", "preconditions"}
+    pre = card["preconditions"]
+    assert set(pre) == {"required_capabilities", "assigned_assets", "physics_score", "resource_budget",
+                        "rehearsal_result", "safety_check", "approval_record", "rollback_abort_rule"}
+    # a nominal dig on real Haworth: approved + rehearsed + conserved-scored gates provably hold
+    assert pre["approval_record"] is True and pre["rehearsal_result"] is True and pre["physics_score"] is True
+    assert isinstance(card["executable"], bool) and isinstance(card["unmet"], list)

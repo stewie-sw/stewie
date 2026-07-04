@@ -252,7 +252,23 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     record_action(identity, "executive.run", location=f"{req.mission_id}@{req.site}", mode="sim",
                   reason=f"SIM run {run_id}", before_state="released", after_state=str(run["final_state"]),
                   evidence=f"run_id={run_id};legs={run['n_legs_total']};safed={run.get('safed')}")
-    return JSONResponse(content={"ok": True, "run_id": run_id, **rec, "skipped": skipped})
+    # [REQ:MP-07] the plan-executability card: the 8 §30.3 preconditions derived from the REAL released +
+    # rehearsal (closed-loop) + run state -- reported on the run, so an operator sees which gates held.
+    from stewie.contracts.plan_gate import PlanPreconditions, is_executable
+    from stewie.physics.backend import get_backend
+    _pre = PlanPreconditions(
+        required_capabilities=bool(intent.objectives),
+        assigned_assets=bool(intent.objectives),                     # the released plan runs on the site vehicle
+        physics_score=get_backend("tier2_numpy").conserves_mass(),   # the SIM ran on the conserved authority
+        resource_budget=not bool(run.get("safed")),                  # a SAFED run hit a resource/safety stop
+        rehearsal_result=bool(out.get("legs")),                      # the closed-loop rehearsal produced legs
+        safety_check=(run["final_state"] == "completed"),            # completed = as-built acceptance held
+        approval_record=(str(released.state.value) == "released"),   # director-signed RELEASED
+        rollback_abort_rule="safed" in run.get("transitions", []) or run.get("safed") is not None)
+    executability = {"executable": is_executable(_pre), "unmet": _pre.unmet(),
+                     "preconditions": {k: getattr(_pre, k) for k in _pre.__dataclass_fields__}}
+    return JSONResponse(content={"ok": True, "run_id": run_id, **rec,
+                                 "executability": executability, "skipped": skipped})
 
 
 @router.get("/executive/run/{run_id}")
