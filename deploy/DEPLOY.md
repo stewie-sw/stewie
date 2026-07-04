@@ -89,3 +89,14 @@ the binary at `stewie/.tools/godot/Godot_v4.6.3-stable_linux.x86_64` (gitignored
 via the service's device reservation. On a CPU-only host, drop the `deploy.resources` block — the
 container still builds, but `render.sh` has no GPU to attach and the render will not produce frames. That
 is the intended gate: the profile is DECLARED and documented; a live render needs the GPU host.
+
+## Session secret + key rotation (BP-03)
+
+Production (`STEWIE_TLS_TERMINATED=1`) **requires** a standalone `STEWIE_SESSION_SECRET` — the backend refuses
+to boot without it (fail-loud, like the API key). Without it the session-signing key is derived from
+`STEWIE_API_KEY`, so rotating the automation key would silently invalidate every live session.
+
+- **Rotate `STEWIE_API_KEY`** (automation credential): live operator sessions are UNAFFECTED (they are signed
+  with the separate session secret). Safe to rotate anytime.
+- **Rotate `STEWIE_SESSION_SECRET`**: intentionally invalidates all live sessions (operators must sign in
+  again). Use to force a global session reset.

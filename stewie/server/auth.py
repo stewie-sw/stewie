@@ -14,6 +14,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
 import threading
 import time
@@ -70,6 +71,34 @@ def _signing_secret() -> bytes:
     # domain-separated derivation: distinct from the raw automation key, so the key bytes that sign
     # tokens are never the same bytes a client sends as X-API-Key.
     return hashlib.sha256(b"stewie.session.v1\x00" + automation_key()).digest()
+
+
+_log = logging.getLogger("stewie.server.auth")
+
+
+def session_secret_is_derived() -> bool:
+    """[REQ:BP-03] True when STEWIE_SESSION_SECRET is unset, so the session-signing key is DERIVED from the
+    automation key -- meaning an API-key rotation WOULD invalidate every live session. A real deployment
+    must set STEWIE_SESSION_SECRET so the automation key and the session secret rotate independently."""
+    return not os.environ.get("STEWIE_SESSION_SECRET", "")
+
+
+def require_session_secret_for_prod() -> None:
+    """[REQ:BP-03] Refuse to boot a PRODUCTION deployment (STEWIE_TLS_TERMINATED=1) whose session-signing
+    key is derived from STEWIE_API_KEY. Without a standalone STEWIE_SESSION_SECRET, rotating the automation
+    key silently invalidates all live sessions (review P1-2). Fails LOUD at startup, mirroring the API-key
+    and proxy-trust guards -- never a silent fail-open. A non-production boot (TLS not terminated) only WARNS
+    so a local run still starts."""
+    if not session_secret_is_derived():
+        return
+    if os.environ.get("STEWIE_TLS_TERMINATED", "") == "1":
+        raise RuntimeError(
+            "production (STEWIE_TLS_TERMINATED=1) requires a standalone STEWIE_SESSION_SECRET: without it the "
+            "session-signing key is derived from STEWIE_API_KEY, so rotating the automation key would silently "
+            "invalidate all live sessions (BP-03). Set STEWIE_SESSION_SECRET and restart.")
+    _log.warning(
+        "auth: STEWIE_SESSION_SECRET unset -> session key DERIVED from STEWIE_API_KEY; an API-key rotation "
+        "will invalidate live sessions. Set STEWIE_SESSION_SECRET for a real deployment (BP-03).")
 
 
 def _token_aud() -> str:
