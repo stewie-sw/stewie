@@ -9,8 +9,8 @@ fake-promote; never fabricated data or a source.
 
 ## Board
 
-**195 → 224 / 315 V=D (74% in-scope)** this arc. Per-priority at exit: **P0 93/102, P1 127/178, P2 4/33,
-P3 0/2.** `origin/main` = `6cc5955`, every push CI-jobs-green.
+**195 → 227 / 315 V=D (75.4% in-scope)** this arc. Per-priority at exit: **P0 93/102, P1 130/178, P2 4/33,
+P3 0/2.** `origin/main` = `e9377b8`, every push CI-jobs-green.
 
 ## What landed
 
@@ -93,3 +93,25 @@ invariant corrections: link-count is NOT preserved URDF->SDF (fixed-joint lumpin
 is non-fixed joint count), and the rosbag2_py Jazzy TopicMetadata needs an `id=` positional. Also caught +
 fixed a one-commit mypy red (chained gate+commit) -> new discipline: gate-green as a confirmed step BEFORE
 committing. BA-06 flipped honestly with per-converter host-tested/container-verified evidence in the commit.
+
+## MT-04 + BD-02 + campaign conclude (2026-07-04, board 226->227)
+
+After BA-06, two more genuinely-on-host rows (both mis-filed as frontend in the v8 lane, both actually backend):
+- **MT-04** (lean dependency-profile split): pyproject optional-dependencies split into core/perception/
+  planning/server/ros/dev; `core` (fastapi+uvicorn+pyyaml) boots stewie-serve + /healthz with ZERO heavy CV/
+  GIS libs (the heavy libs are lazy-imported); `server` COMPOSES the profiles so `pip install stewie[server]`
+  is unchanged. Verified by a clean-subprocess lean-boot test + the passing WHEEL-SMOKE (built wheel + installed
+  [server] in a clean venv + booted).
+- **BD-02** (body registry, provenance-enforced): stewie/specs/body_registry.py loads built-in + LOCAL profile
+  JSONs with duplicate-id rules and REJECTS soil constants without provenance / a fabricated numeric field --
+  the no-fabrication rule at the data-ingest boundary. Tested on the real built-in bodies.
+
+**Ledgered (Aaron-decision / not clean on-host):** FS-25 (frontend route/state model, D1), PO-15 (broad ops
+governance, partly frontend). MT-01 (DEM externalization, high-blast + git history rewrite), MT-05 (ADRs
+authorship), PO-09 (blocked by no-synthetic), C-2/C-6 (drift/tags).
+
+### Campaign conclusion
+On-host non-frontend, non-blocked, non-decision CLEAN wins are EXHAUSTED. Final board **227/315 (75.4% in-scope;
+P0 93/102, P1 130/178)**. The remainder is structurally decision- or hardware-bound (see the report). Every
+row this session was gated green + real-data-tested; ZERO fake-promotes; the honesty guards (req_trace +
+row-count after every flip) held throughout.
