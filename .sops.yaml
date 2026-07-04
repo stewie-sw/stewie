@@ -1,0 +1,6 @@
+# SOPS config: deploy secrets are age-encrypted so the encrypted file is safe to commit.
+# The age PRIVATE key lives at ~/.config/sops/age/keys.txt (never committed) -- BACK IT UP; if lost, the
+# encrypted secrets are unrecoverable. Edit secrets with:  sops deploy/.env.enc
+creation_rules:
+  - path_regex: deploy/\.env\.enc$
+    age: age1v4g5rursmj4j7fk00teyjqlll9vhnpmh5l4yqwzjxpv958je0ddqxuglq8

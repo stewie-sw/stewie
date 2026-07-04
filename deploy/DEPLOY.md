@@ -100,3 +100,21 @@ to boot without it (fail-loud, like the API key). Without it the session-signing
   with the separate session secret). Safe to rotate anytime.
 - **Rotate `STEWIE_SESSION_SECRET`**: intentionally invalidates all live sessions (operators must sign in
   again). Use to force a global session reset.
+
+## Secrets management (SOPS + age)
+
+Deploy secrets are **age-encrypted with SOPS** so the encrypted file is safe to commit; the plaintext
+`deploy/.env` stays gitignored.
+
+- `deploy/.env.enc` — the SOPS/age-encrypted secrets (committed). dotenv mode: variable NAMES are visible,
+  VALUES are encrypted (`ENC[AES256_GCM,...]`).
+- `deploy/.env` — the decrypted runtime file docker compose reads (gitignored, `chmod 600`).
+- `.sops.yaml` — the encryption config (the age recipient / public key).
+- `~/.config/sops/age/keys.txt` — the age **PRIVATE key**. NEVER committed. **BACK IT UP** (e.g. a password
+  manager): if it is lost, `deploy/.env.enc` is unrecoverable.
+
+**Edit a secret:** `sops deploy/.env.enc` (opens decrypted in `$EDITOR`, re-encrypts on save).
+**Deploy:** `deploy/decrypt-env.sh` (writes `deploy/.env`) then `docker compose -f deploy/compose.yml up -d`.
+**Add another machine/person as a recipient:** add their age public key under `.sops.yaml` `age:`, then
+`sops updatekeys deploy/.env.enc`.
+**Tooling:** `go install filippo.io/age/cmd/age@latest github.com/getsops/sops/v3/cmd/sops@latest` (→ `~/go/bin`).
