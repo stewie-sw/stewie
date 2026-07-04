@@ -34,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 237,
+  "cited": 238,
   "per_family": {
     "AC": {
       "cited": 0,
@@ -101,7 +101,7 @@
       "total": 12
     },
     "EP": {
-      "cited": 6,
+      "cited": 7,
       "total": 8
     },
     "FL": {
@@ -291,10 +291,6 @@
     },
     {
       "id": "SN-12",
-      "v": "P"
-    },
-    {
-      "id": "VT-06",
       "v": "P"
     }
   ]

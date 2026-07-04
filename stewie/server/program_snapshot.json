@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "7b010eb18a66044c208d03c67295576eae083c2c8b6ab5529da75e29567778a5",
+  "citations_sha256": "93c33407897b5a137ddf032f12504af345380b05714e32ff2a2a174680d6dae7",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "5fe1acb3f47b935bdcf2b3cf426dc2743e22b675",
-  "prd_sha256": "7d68798fc5029e4005a6ae751376307c61e05b29346734640c8ff900d17f6f09",
+  "prd_commit": "2be2476e50c4d2f8514bb7a4eb633d3101e29c27",
+  "prd_sha256": "a4cbb21ec5b65b94ff84273e783cc2d61cc8a1b7cfdcc5fc00aeddb87747207b",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1599,13 +1599,12 @@
    "text": "Thermal derating and heater/survival demand affect usable battery and action availability."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "G",
-   "V": "N",
-   "X": "N",
-   "bucket": "gated",
-   "cited": false,
-   "gated_reason": "quality/hardware gated",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "EP-06",
    "lane": "EP",
    "pri": "P1",
@@ -4672,13 +4671,12 @@
    "text": "Compute dynamic CG from chassis, arm pose, drum pose, and fill mass. `[SPEC/PROPOSED model]`"
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "G",
-   "V": "P",
-   "X": "N",
-   "bucket": "gated",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
-   "gated_reason": "LAC/IPEx arm/vehicle geometry",
    "id": "VT-06",
    "lane": "VT",
    "pri": "P1",
@@ -4744,8 +4742,8 @@
   "buckets": {
    "buildable": 82,
    "concurrent": 0,
-   "done": 217,
-   "gated": 16
+   "done": 219,
+   "gated": 14
   },
   "by_lane": {
    "AC": {
@@ -4813,7 +4811,7 @@
     "total": 12
    },
    "EP": {
-    "done": 6,
+    "done": 7,
     "total": 8
    },
    "FL": {
@@ -4921,7 +4919,7 @@
     "total": 11
    },
    "VT": {
-    "done": 8,
+    "done": 9,
     "total": 10
    }
   },
@@ -4931,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 120,
+    "done": 122,
     "total": 178
    },
    "P2": {
@@ -4943,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 237,
-  "done_pct": 68.9,
-  "in_scope": 299,
-  "in_scope_done_pct": 72.6,
+  "cited": 238,
+  "done_pct": 69.5,
+  "in_scope": 301,
+  "in_scope_done_pct": 72.8,
   "total": 315
  },
  "workflow_spine": [
