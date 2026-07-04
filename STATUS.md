@@ -3,8 +3,8 @@
 Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/release_gate.py`) by `scripts/gen_status.py`. Do NOT hand-edit -- `gen_status.py --check` fails CI if this file drifts from the tools.
 
 - requirements (PRD §7 rows): **315**
-- cited by >=1 test ([REQ:] marker): **224**
-- V!=D flagged (FS-22 audit: cited but not yet V=D): **20**
+- cited by >=1 test ([REQ:] marker): **228**
+- V!=D flagged (FS-22 audit: cited but not yet V=D): **21**
 
 ## V!=D flagged rows (cited, awaiting promotion)
 
@@ -21,7 +21,6 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | FS-12 | P |
 | FS-21 | P |
 | FS-24 | P |
-| GI-03 | N |
 | MT-01 | P |
 | MT-05 | P |
 | PM-03 | P |
@@ -29,6 +28,8 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | PM-11 | P |
 | PO-09 | P |
 | SN-12 | P |
+| VT-03 | N |
+| VT-04 | N |
 | VT-06 | P |
 
 ## Per-family rollup (cited / total)
@@ -61,13 +62,13 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | MI | 0 | 1 |
 | ML | 9 | 9 |
 | MO | 1 | 1 |
-| MP | 6 | 8 |
+| MP | 7 | 8 |
 | MT | 2 | 5 |
 | NV | 12 | 12 |
 | PG | 0 | 1 |
 | PM | 11 | 19 |
 | PO | 17 | 18 |
-| PX | 3 | 6 |
+| PX | 4 | 6 |
 | RF | 0 | 3 |
 | RL | 1 | 1 |
 | RS | 4 | 8 |
@@ -78,7 +79,7 @@ Generated from the live traceability tools (`scripts/req_trace.py` + `scripts/re
 | TM | 0 | 1 |
 | TU | 0 | 1 |
 | TW | 8 | 11 |
-| VT | 5 | 10 |
+| VT | 7 | 10 |
 
 ## §25 autonomy track (AS-01..17)
 

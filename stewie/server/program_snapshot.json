@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "47d24a24a2f196c4c46ff91edf5daa8d1f17ff0fe60748ccc8d13df6574e4b37",
+  "citations_sha256": "de251f5e296e1519037d81e2d85af6ce7fb7155618f591858f40d12e0b7b9195",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "dd2cbb60f31e6259354d0256f607b5c5921770b2",
-  "prd_sha256": "2701131a1475c7c266c6115526ad1d361a1527289f904f9d8da8c1c390dbf654",
+  "prd_commit": "32a6da03091aa2ff870e167bf9e2f9b5e9a6165f",
+  "prd_sha256": "bafd936bd6442c3674cf2074fa81205e4afcb8c538fda20a98abe11104246909",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -2484,16 +2484,16 @@
    "text": "Front-end module organization: split the cockpit into app shell, route/state store, typed API adapters, domain view models, shared visualization components, work-area views, command/approval rail, and diagnostics/log viewers. The split must preserve CSP/no-inline-script and fixture-driven tests."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "carry product mode + runnable profile as first-class routeable/persisted/shareable state fields.",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_mode_profile_state.py citing [REQ:FS-25]"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": false,
    "id": "FS-25",
    "lane": "FS",
@@ -2615,16 +2615,16 @@
    "text": "Planetary map correctness: Moon/Mars views use body-correct ellipsoid/CRS metadata and real DEM terrain/elevation where a layer claims 3D terrain. A smooth WGS84 drape must be labeled as imagery-only, not terrain."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "verify + glyph-reconcile the mission-required GIS interop subset (GeoJSON/COG import, feature query, offline mission package) that is already implemented.",
     "kind": "atomic (done-stale)",
     "test_target": "lode/test_gis_export.py::test_export_is_valid_rfc7946_featurecollection_that_parses_back (verify green + reconcile the \u00a77 glyph)"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "GI-03",
    "lane": "GI",
@@ -2928,17 +2928,17 @@
    "text": "Mission-planning object model: intent/mission/task/task_dependency/plan/plan_candidate/assignment/resource_budget/risk_assessment/rehearsal_result/execution_policy/plan_decision as strict typed contracts, provenance + transaction-linked to the world-model store. Acceptance: each is a Contract subclass; a plan round-trips through the store carrying its decision + provenance; test."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row MP-06 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:MP-06]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "MP-06",
    "lane": "MP",
    "pri": "P1",
@@ -3852,17 +3852,17 @@
    "text": "Extract/publish-prep `stewie-forge` from pure geotech/terramechanics + `PhysicsBackend`: depends only on `stewie-bodies` + numeric stack; concept-first API (`estimate_sinkage`/`estimate_bearing_capacity`); Chrono optional, not release authority while `conserves_mass=false`."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row PX-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW stewie/physics/test_physics_backend.py citing [REQ:PX-01]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PX-01",
    "lane": "PX",
    "pri": "P0",
@@ -4642,7 +4642,7 @@
    "V": "N",
    "X": "N",
    "bucket": "gated",
-   "cited": false,
+   "cited": true,
    "gated_reason": "LAC/IPEx arm/vehicle geometry",
    "id": "VT-03",
    "lane": "VT",
@@ -4660,7 +4660,7 @@
     "test_target": "NEW stewie/physics/test_column_state.py::test_vt04_per_drum_fill_conserves_total (`[REQ:VT-04]`)"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "VT-04",
    "lane": "VT",
    "pri": "P1",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 86,
+   "buildable": 82,
    "concurrent": 0,
-   "done": 204,
+   "done": 208,
    "gated": 25
   },
   "by_lane": {
@@ -4834,11 +4834,11 @@
     "total": 21
    },
    "FS": {
-    "done": 23,
+    "done": 24,
     "total": 30
    },
    "GI": {
-    "done": 2,
+    "done": 3,
     "total": 3
    },
    "GL": {
@@ -4862,7 +4862,7 @@
     "total": 1
    },
    "MP": {
-    "done": 6,
+    "done": 7,
     "total": 8
    },
    "MT": {
@@ -4886,7 +4886,7 @@
     "total": 18
    },
    "PX": {
-    "done": 3,
+    "done": 4,
     "total": 6
    },
    "RF": {
@@ -4936,15 +4936,15 @@
   },
   "by_priority": {
    "P0": {
-    "done": 92,
+    "done": 93,
     "total": 102
    },
    "P1": {
-    "done": 108,
+    "done": 110,
     "total": 178
    },
    "P2": {
-    "done": 4,
+    "done": 5,
     "total": 33
    },
    "P3": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 224,
-  "done_pct": 64.8,
+  "cited": 228,
+  "done_pct": 66.0,
   "in_scope": 290,
-  "in_scope_done_pct": 70.3,
+  "in_scope_done_pct": 71.7,
   "total": 315
  },
  "workflow_spine": [

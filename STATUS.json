@@ -34,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 224,
+  "cited": 228,
   "per_family": {
     "AC": {
       "cited": 0,
@@ -141,7 +141,7 @@
       "total": 1
     },
     "MP": {
-      "cited": 6,
+      "cited": 7,
       "total": 8
     },
     "MT": {
@@ -165,7 +165,7 @@
       "total": 18
     },
     "PX": {
-      "cited": 3,
+      "cited": 4,
       "total": 6
     },
     "RF": {
@@ -209,13 +209,15 @@
       "total": 11
     },
     "VT": {
-      "cited": 5,
+      "cited": 7,
       "total": 10
     }
   },
   "total": 315,
   "unknown_markers": [],
-  "v_done_uncited": [],
+  "v_done_uncited": [
+    "FS-25"
+  ],
   "v_ne_d_flagged": [
     {
       "id": "AM-02",
@@ -262,10 +264,6 @@
       "v": "P"
     },
     {
-      "id": "GI-03",
-      "v": "N"
-    },
-    {
       "id": "MT-01",
       "v": "P"
     },
@@ -292,6 +290,14 @@
     {
       "id": "SN-12",
       "v": "P"
+    },
+    {
+      "id": "VT-03",
+      "v": "N"
+    },
+    {
+      "id": "VT-04",
+      "v": "N"
     },
     {
       "id": "VT-06",
