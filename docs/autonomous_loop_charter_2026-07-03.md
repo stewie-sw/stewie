@@ -205,3 +205,17 @@ and stop scheduling (wait for Aaron).
   ALL of {program_snapshot.json (python3 scripts/gen_program_snapshot.py), STATUS.md+STATUS.json (python3
   scripts/gen_status.py), release_manifest.json (.venv/bin/python scripts/gen_release_manifest.py — needs
   stewie_bodies)} and commit them, EVERY row. The snapshot alone is not enough.
+
+## Mode shift 2026-07-03 (Aaron): FAN OUT AGENTS + add P0 + restart net
+- Aaron: "fan out agents, cont this loop until complete; if usage limit met restart at 0315 04 july; add p0 to loops."
+- Cron restart net set: one-shot 1853b3ee @ 03:15 Jul 4 (SESSION-ONLY — dies on full session exit; best-effort).
+- Remaining on-host-buildable rows (screened): P0 = BD-01 (versioned BodyProfile), PX-01 (needs a [REQ:PX-01]
+  test for /plan byte-compat + microgravity refusal; protocol+adapter already exist). P1 = EG-09/EG-12/MP-06
+  (composes MP-10)/MP-10/MP-11 + a longer tail (PX-02, VT-03/04/05/10, BP-03/04/06, MT-04, ...). SKIP: all
+  frontend/GeoLibre (GL/RF/DW/MG/FR/TU/FS-24/MT-03), ROS/Gazebo/hardware (BA/RS-05/06, PM-18/19, AS lane), AS-04.
+- METHOD (fan-out): a Workflow drafts N rows in parallel (agents screen the REAL code + return complete module +
+  [REQ:] test code; NO commits/push/PRD-edits by agents). The MAIN THREAD then INTEGRATES each serially: write
+  files → FULL gate (my authoritative verify: row test + req_trace + assessment + ruff + FULL mypy + regression)
+  → flip glyph → regen ALL 3 artifacts → commit → push+merge gated on origin/main CI green. NEVER integrate an
+  unverified draft; a 'blocked' draft (design fork / real code contradicts acceptance) is surfaced, not forced.
+- WAVE 1 launched: EG-09, EG-12, MP-10, MP-11, BD-01 (Workflow wtmag1our). Integrate on completion.
