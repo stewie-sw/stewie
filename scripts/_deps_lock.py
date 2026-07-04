@@ -106,21 +106,34 @@ def _req_to_name(req: str) -> str | None:
 
 
 def parse_pyproject(path: str) -> PyprojectDeps:
-    """Extract base + optional-dependency names (normalized) + per-dep env markers from pyproject."""
+    """Extract base + optional-dependency names (normalized) + per-dep env markers from pyproject.
+
+    Self-referential extras (PEP 621 recursive optional-deps, e.g. MT-04's ``server = ["stewie[core]", ...]``)
+    are RESOLVED: a ``<project>[<extra>]`` requirement expands to that extra's own deps, so ``server`` reports
+    the transitive fastapi/uvicorn/... it actually installs, not the bare self-reference name.
+    """
     with open(path, "rb") as fh:
         data = tomllib.load(fh)
     proj = data.get("project", {})
     markers: dict[str, str | None] = {}
+    raw_extras: dict[str, list[str]] = proj.get("optional-dependencies", {})
+    self_ref = re.compile(rf"^\s*{re.escape(proj.get('name', ''))}\s*\[\s*([A-Za-z0-9._-]+)\s*\]\s*$", re.I)
 
-    def _names(reqs: list[str]) -> set[str]:
+    def _names(reqs: list[str], seen: frozenset[str]) -> set[str]:
         out: set[str] = set()
         for r in reqs:
+            ref = self_ref.match(r)
+            if ref:                                          # a self-referential extra -> expand it (once)
+                name = ref.group(1)
+                if name in raw_extras and name not in seen:
+                    out |= _names(raw_extras[name], seen | {name})
+                continue
             n = _req_to_name(r)
             if n:
                 out.add(n)
                 markers[n] = req_marker(r)
         return out
 
-    base = _names(proj.get("dependencies", []))
-    extras = {extra: _names(reqs) for extra, reqs in proj.get("optional-dependencies", {}).items()}
+    base = _names(proj.get("dependencies", []), frozenset())
+    extras = {extra: _names(reqs, frozenset({extra})) for extra, reqs in raw_extras.items()}
     return PyprojectDeps(base=base, extras=extras, markers=markers)

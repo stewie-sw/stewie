@@ -4,15 +4,19 @@ A GridMap (the grid_map_msgs geometry: cell resolution, side lengths, center pos
 through a georeferenced GeoTIFF with its GEOREFERENCE preserved -- the GeoTIFF's affine transform encodes the
 pixel size (resolution) and the north-up origin, so reading it back recovers the resolution + center position
 exactly. Pure Python (rasterio, already a dep); NO ROS dependency -- the GridMap is a plain dataclass matching
-grid_map_msgs semantics, so this converter runs on-host (no container).
+grid_map_msgs semantics, so this converter runs on-host (no container). rasterio (the GeoTIFF I/O) is
+LAZY-imported inside the two I/O functions so importing this module needs only numpy (it is in the `server`
+extra, not the lean `dev`/`core` profiles -- ADR-0006); a test that exercises the round-trip importorskip's it.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import numpy as np
-import rasterio
-from rasterio.transform import Affine
+
+if TYPE_CHECKING:
+    from rasterio.transform import Affine
 
 
 @dataclass
@@ -38,6 +42,7 @@ class GridMap:
 
 def _transform(gm: GridMap) -> Affine:
     """North-up affine: the GridMap center + side lengths -> the raster's top-left origin + pixel size."""
+    from rasterio.transform import Affine
     west = gm.position[0] - gm.length_x / 2.0
     north = gm.position[1] + gm.length_y / 2.0
     return Affine.translation(west, north) * Affine.scale(gm.resolution, -gm.resolution)
@@ -46,6 +51,7 @@ def _transform(gm: GridMap) -> Affine:
 def gridmap_to_geotiff(gm: GridMap, layer: str, path: str) -> None:
     """Write one GridMap layer to a georeferenced GeoTIFF. The affine transform carries the georeference
     (resolution + origin); the frame id is stored in a tag so a CRS-less local frame round-trips."""
+    import rasterio
     data = np.asarray(gm.layers[layer], dtype=np.float32)
     if data.shape != (gm.rows, gm.cols):
         raise ValueError(f"layer {layer!r} shape {data.shape} != geometry ({gm.rows}, {gm.cols})")
@@ -60,6 +66,7 @@ def gridmap_to_geotiff(gm: GridMap, layer: str, path: str) -> None:
 def geotiff_to_gridmap(path: str, layer: str | None = None) -> GridMap:
     """Read a georeferenced GeoTIFF back into a GridMap, recovering resolution + center position from the
     affine transform (the inverse of gridmap_to_geotiff)."""
+    import rasterio
     with rasterio.open(path) as src:
         data = src.read(1).astype(np.float32)
         t = src.transform

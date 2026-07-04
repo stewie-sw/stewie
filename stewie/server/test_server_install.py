@@ -9,23 +9,20 @@ from __future__ import annotations
 
 import os
 
-try:
-    import tomllib                                       # py3.11+
-except ModuleNotFoundError:                              # pragma: no cover - py3.10
-    import tomli as tomllib  # type: ignore
-
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def _extras():
-    with open(os.path.join(_ROOT, "pyproject.toml"), "rb") as fh:
-        return tomllib.load(fh)["project"]["optional-dependencies"]
+def _server_extra_deps() -> set[str]:
+    # the RESOLVED server extra: MT-04 made it self-referential (server = [stewie[core], stewie[perception],
+    # stewie[planning], rasterio]), so parse_pyproject expands it to the transitive dep names it installs.
+    from scripts._deps_lock import parse_pyproject
+    return parse_pyproject(os.path.join(_ROOT, "pyproject.toml")).extras["server"]
 
 
 def test_server_extra_covers_the_server_import_graph():
     # RB-06: a fresh `pip install stewie[server]` ImportErrors on `import stewie.server.server`
     # unless the extra carries the planner's import-time deps. matplotlib is required at module load.
-    server = " ".join(_extras()["server"]).lower()
+    server = _server_extra_deps()
     for dep in ("fastapi", "uvicorn", "matplotlib", "pyproj"):
         assert dep in server, f"server extra is missing the import-time dep {dep!r} (RB-06)"
 

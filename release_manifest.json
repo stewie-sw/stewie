@@ -63,7 +63,7 @@
     "semver_declared": true
   },
   "dependencies": {
-    "all_ok": false,
+    "all_ok": true,
     "locks": [
       {
         "extras": [
@@ -78,10 +78,8 @@
           "server"
         ],
         "lock": "requirements-server.lock",
-        "lock_check": "drift",
-        "missing": [
-          "stewie"
-        ]
+        "lock_check": "ok",
+        "missing": []
       }
     ]
   },

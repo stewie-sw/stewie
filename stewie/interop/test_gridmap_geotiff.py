@@ -7,6 +7,8 @@ import os
 import numpy as np
 import pytest
 
+pytest.importorskip("rasterio", reason="GeoTIFF I/O needs rasterio (server extra, not lean dev/core)")
+
 from stewie.interop.gridmap_geotiff import GridMap, geotiff_to_gridmap, gridmap_to_geotiff
 
 _DEM = "samples/lunar_dem/haworth_10km_5m"

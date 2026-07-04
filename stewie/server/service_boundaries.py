@@ -66,6 +66,10 @@ def service_of(module: str) -> str:
         return _ROUTER_SERVICE.get(module.rsplit(".", 1)[1], "admin")
     if module.startswith("stewie.server."):
         return _SERVER_MODULE_SERVICE.get(module.rsplit(".", 1)[1], CORE)
+    if module.startswith("stewie.interop."):
+        # the ROS-bearing interop converter (rosbag world-transaction egress, BA-06) is a ROS2 seam -> the
+        # execution domain (like the bridge); the pure geometry/GIS converters stay CORE leaves.
+        return "execution" if module.rsplit(".", 1)[1] == "rosbag_world_transactions" else CORE
     return CORE                                              # everything else is a shared leaf
 
 
