@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "91402ee5ad329f885862e57aba950cfcde3eb781f020d9e1ecc79af860a2e3d7",
+  "citations_sha256": "c94d895f48cb6c7855864721d850c9e18ce5c40bfe3318dca775f721c31a83a0",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "03048aebdedaf012656e521f5f2881ff79022efc",
-  "prd_sha256": "43b9f4af6e10847818e93d372235f2dd73a937aac89d69c4a5fe790e0dff25de",
+  "prd_commit": "6078912976388cc1f6df846dd5ae77d8d948599d",
+  "prd_sha256": "8b5b74d1957e3a01fd154bceb8cd12ffa800a72dce567428fc96325a174f6067",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -569,17 +569,17 @@
    "text": "**Explicit CRS transform chain body_crs->site_enu->map->odom->base_link->sensors + Godot Y-up<->REP-103 (extends FR-10).** The layer manifest (FR-10) carries a body CRS but the frame-transform CHAIN is not a tested contract, and the Godot Y-up vs ROS Z-up conversion is noted only in prose (`ipex-terrain-sim-spec.md:305`). Add `stewie/geospatial/crs_transform.py` with typed transforms per seam + a Godot<->REP-103 converter, validated against known control points. Acceptance: each transform round-trips a control point within tolerance and the Godot<->ROS conversion is tested, not asserted in prose. Buildable on archimedes (pyproj)."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "interop converters (xacro_to_sdf, urdf_to_godot_scene, dem_to_godot_heightfield, gridmap<->geotiff, rosbag<->world_transactions) with round-trip fixtures.",
     "kind": "epic",
     "test_target": "NEW scripts/test_interop_converters.py citing [REQ:BA-06] (bounds/georef/event-count preserved)"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BA-06",
    "lane": "BA",
    "pri": "P1",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 77,
+   "buildable": 76,
    "concurrent": 0,
-   "done": 224,
+   "done": 225,
    "gated": 14
   },
   "by_lane": {
@@ -4767,7 +4767,7 @@
     "total": 18
    },
    "BA": {
-    "done": 6,
+    "done": 7,
     "total": 11
    },
    "BD": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 127,
+    "done": 128,
     "total": 178
    },
    "P2": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 243,
-  "done_pct": 71.1,
+  "cited": 244,
+  "done_pct": 71.4,
   "in_scope": 301,
-  "in_scope_done_pct": 74.4,
+  "in_scope_done_pct": 74.8,
   "total": 315
  },
  "workflow_spine": [
