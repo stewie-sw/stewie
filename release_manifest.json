@@ -84,14 +84,12 @@
     ]
   },
   "req_trace": {
-    "cited": 228,
-    "reconciles": false,
+    "cited": 232,
+    "reconciles": true,
     "total": 315,
-    "understated_count": 21,
+    "understated_count": 24,
     "unknown_markers": [],
-    "v_done_uncited": [
-      "FS-25"
-    ]
+    "v_done_uncited": []
   },
   "sbom": {
     "component_count": 52,
