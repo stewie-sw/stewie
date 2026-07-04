@@ -233,3 +233,7 @@ and stop scheduling (wait for Aaron).
   clean-drafted): move heavy_quota → stewie/server/ratelimit.py (exists) + move _terrain_lock →
   stewie/server/world_state.py; both small additive relocations, then the service graph is acyclic. NOT done
   (needs Aaron's taxonomy call + it is a code change to other lanes' modules).
+- 2026-07-03 WAVE 2 integrated (fan-out): MP-06 (mission flow), VT-03 (arm joint state), VT-04 (per-drum fill),
+  PX-01 (already-built + [REQ:PX-01] byte-compat/microgravity test). All main-verified (full mypy 324, 25 tests,
+  regression green). Board 208/315 (71.7% in-scope). 8 rows across 2 waves. NEXT: fix EG-09 directly (import
+  cycle refactor); wave 3 (VT-05 dynamic CG / VT-10 camera extrinsics / SN-11 / more).
