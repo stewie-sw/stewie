@@ -171,3 +171,13 @@ and stop scheduling (wait for Aaron).
   logged to the EG-07 audit trail). Composes EG-07; fed by MP-11. [REQ:EG-08] 4/4; additive; FULL gate green
   (mypy 315). Branch-local, 11 ahead of main. NEXT = EG-09 (import-DAG guard) / MP-08 (capability match) /
   MP-09 (physics scoring) / MP-06 (flow).
+
+## Decision update (2026-07-03, Aaron via AskUserQuestion)
+- AS-04 RESOLVED (my recommendation, accepted): un-flipped V=D -> V=P (container-verification evidence not
+  recorded; the firewall's own rule). This cleared the last CI red on branch + main. REVERSIBLE (flips back to
+  V=D when the AS-lane owner records the container evidence). Do NOT re-flip it or touch the AS lane.
+- CADENCE CHANGE: now PUSH + MERGE each batch (was branch-local). After a batch of P1 rows: push the branch,
+  ff main, push main. CI should be GREEN now (all reds resolved) — verify green on each batch push.
+- SCOPE: continue through the on-host P1 rows (EG-09/MP-08/MP-09/MP-06/...), THEN pivot to the integration
+  follow-ups (wire the delivered gates into /executive/run) — the higher-value next phase.
+- Batch pushed+merged @ 97a75c1: EG-04 + EG-07 + MP-05 + EG-08 + AS-04 un-flip. Board 198/315.
