@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "7589d6abecc4fbee525bee02043b77d2724af1afa29cf847114d1c62468bca29",
+  "citations_sha256": "714ea457b1833632c3b619fe906c84de2d5a08b9195ab42ca911839f1d99db3f",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "58bc2fad84e5e13791dde105dff2a84091bdd1a8",
-  "prd_sha256": "ca40320ea9055d3e7bc735d6c6e5b558324aab5acad00698a536a591aa6c1d16",
+  "prd_commit": "e8d82c88cbdaa576a1cd2f8115b2f95b5a0cf506",
+  "prd_sha256": "8c04ba15689707922da34cc744b2f1cbf92499e5f2713ec2fd5081e90a3cb6d2",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -2962,17 +2962,17 @@
    "text": "Plan-executability gate: no plan is executable until it has all 8 of required-capabilities, assigned-assets, physics-score, resource-budget, rehearsal-result, safety-check, approval-record, rollback/abort-rule (the planning mirror of \u00a729.5). Acceptance: a plan missing any one precondition is non-executable; test enumerates all 8."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row MP-08 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:MP-08]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "MP-08",
    "lane": "MP",
    "pri": "P1",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 92,
+   "buildable": 91,
    "concurrent": 0,
-   "done": 198,
+   "done": 199,
    "gated": 25
   },
   "by_lane": {
@@ -4862,7 +4862,7 @@
     "total": 1
    },
    "MP": {
-    "done": 2,
+    "done": 3,
     "total": 8
    },
    "MT": {
@@ -4940,7 +4940,7 @@
     "total": 102
    },
    "P1": {
-    "done": 103,
+    "done": 104,
     "total": 178
    },
    "P2": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 218,
-  "done_pct": 62.9,
+  "cited": 219,
+  "done_pct": 63.2,
   "in_scope": 290,
-  "in_scope_done_pct": 68.3,
+  "in_scope_done_pct": 68.6,
   "total": 315
  },
  "workflow_spine": [
