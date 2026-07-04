@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "de251f5e296e1519037d81e2d85af6ce7fb7155618f591858f40d12e0b7b9195",
+  "citations_sha256": "ed59202964d718f70a86f9b3e0d81571c1f9f1a3e5df5120ccb41e485f431a8b",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "b3dcd2d67e6331766d11b272db93df3f987534aa",
-  "prd_sha256": "accc978a4ff6a54b0fff4df06e73c98ef2902c892d70c014268705ab00a0f46f",
+  "prd_commit": "fae18089bc9dae18cd73250d3dfdf48ce2fa79d9",
+  "prd_sha256": "97c340bef55e18f6c859c3aaaaae3858a7d465b43530324252ffcbf093e2bb5e",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -228,13 +228,12 @@
    "text": "`SELF_RIGHT` is a fault-recovery plan with transient stability/contact checks; it is not available as an unconstrained action."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "G",
-   "V": "N",
-   "X": "N",
-   "bucket": "gated",
-   "cited": false,
-   "gated_reason": "LAC/IPEx arm geometry",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "AM-08",
    "lane": "AM",
    "pri": "P1",
@@ -4354,13 +4353,12 @@
    "text": "Triangulate landmark range from the KNOWN articulation baseline `dh` (depression-angle parallax of shadow tips), and fix rover `(x,y)` by heading-free trilateration from a standstill. `[PROPOSED]`"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "G",
-   "V": "N",
-   "X": "N",
-   "bucket": "gated",
-   "cited": false,
-   "gated_reason": "LED/photometry hardware",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "SN-11",
    "lane": "SN",
    "pri": "P1",
@@ -4666,13 +4664,12 @@
    "text": "Track four drums and per-drum fill rather than one global inventory for IPEx mode."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "G",
-   "V": "N",
-   "X": "N",
-   "bucket": "gated",
-   "cited": false,
-   "gated_reason": "LAC/IPEx arm/vehicle geometry",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "VT-05",
    "lane": "VT",
    "pri": "P1",
@@ -4734,13 +4731,12 @@
    "text": "Arm/drum force and torque model distinguishes horizontal reaction, vertical fill-dependent load, cutting torque, and internal tumble."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "G",
-   "V": "N",
-   "X": "N",
-   "bucket": "gated",
-   "cited": false,
-   "gated_reason": "LAC/IPEx arm/vehicle geometry",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "VT-10",
    "lane": "VT",
    "pri": "P1",
@@ -4752,8 +4748,8 @@
   "buckets": {
    "buildable": 83,
    "concurrent": 0,
-   "done": 208,
-   "gated": 24
+   "done": 212,
+   "gated": 20
   },
   "by_lane": {
    "AC": {
@@ -4765,7 +4761,7 @@
     "total": 8
    },
    "AM": {
-    "done": 1,
+    "done": 2,
     "total": 9
    },
    "AP": {
@@ -4913,7 +4909,7 @@
     "total": 1
    },
    "SN": {
-    "done": 12,
+    "done": 13,
     "total": 15
    },
    "TM": {
@@ -4929,7 +4925,7 @@
     "total": 11
    },
    "VT": {
-    "done": 6,
+    "done": 8,
     "total": 10
    }
   },
@@ -4939,7 +4935,7 @@
     "total": 102
    },
    "P1": {
-    "done": 111,
+    "done": 115,
     "total": 178
    },
    "P2": {
@@ -4951,10 +4947,10 @@
     "total": 2
    }
   },
-  "cited": 228,
-  "done_pct": 66.0,
-  "in_scope": 291,
-  "in_scope_done_pct": 71.5,
+  "cited": 232,
+  "done_pct": 67.3,
+  "in_scope": 295,
+  "in_scope_done_pct": 71.9,
   "total": 315
  },
  "workflow_spine": [
