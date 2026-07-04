@@ -1,24 +1,24 @@
 {
  "provenance": {
-  "citations_sha256": "3a066d9751079aacc387ac08a3b031c3b54861374d4f62ac57c2a06e70083bf2",
+  "citations_sha256": "5e5edc6a58ff8cf7842e34a533678718105ccf0df9712c7ce10a539b0f7fd2c2",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "51b6b409f2a715a2294538ca6a8ab3bc573eba63",
-  "prd_sha256": "d809a12067bef3e7bc60162835cdb4af203c64f3f0baa48898aa46c144b4005c",
+  "prd_commit": "6165e25eae3c9a89706572d70e391ecc49e30902",
+  "prd_sha256": "631897f7dc633098f93f32873755ec2ece19233052bc9e8216c92e1c9527caf8",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row AC-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW frontend/api/test_route_coverage.test.ts citing [REQ:AC-01]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "AC-01",
    "lane": "AC",
    "pri": "P0",
@@ -4740,14 +4740,14 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 73,
+   "buildable": 72,
    "concurrent": 0,
-   "done": 228,
+   "done": 229,
    "gated": 14
   },
   "by_lane": {
    "AC": {
-    "done": 0,
+    "done": 1,
     "total": 2
    },
    "AG": {
@@ -4925,7 +4925,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 93,
+    "done": 94,
     "total": 102
    },
    "P1": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 246,
-  "done_pct": 72.4,
+  "cited": 247,
+  "done_pct": 72.7,
   "in_scope": 301,
-  "in_scope_done_pct": 75.7,
+  "in_scope_done_pct": 76.1,
   "total": 315
  },
  "workflow_spine": [
