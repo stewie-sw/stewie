@@ -188,3 +188,11 @@ and stop scheduling (wait for Aaron).
   3 ahead of main. PUSH-GATE HELD: prior CI 97a75c1 still in_progress (fast jobs GREEN: package/UI/JS; the 2 test
   jobs + lint+type+cov still running, zero failures) → MP-08 rides the next batch. NEXT = MP-09 (physics scoring)
   / EG-09 (import-DAG guard).
+- 2026-07-03 4e60972 — MP-09 DONE (P1 wake 6). Physics scoring (§30): contracts/physics_scoring.py
+  score_candidate via the REAL conserved backend (tier2_numpy) + real vehicle/body/soil inputs: per-wheel load
+  → static sinkage; feasibility = contact pressure <= allowable bearing (else entrapment). PhysicsScore
+  (load/sinkage/pressure/allowable/feasible/score); infeasible FLAGGED (score<0), rank_feasible EXCLUDES it;
+  requires a conserved backend (raises otherwise). [REQ:MP-09] 4/4; additive; FULL gate green (mypy 317).
+  Board 200/315 (crossed 200). Branch-local, 6 ahead of main. PUSH-GATE HELD again: 97a75c1 CI still
+  in_progress (~25min; fast jobs green, test jobs slow but zero failures) → MP-08+MP-09 ride the next batch.
+  NEXT = EG-09 (import-DAG guard) / MP-06 (flow) / MP-10 (rehearsal) / MP-11 (reconciliation feed).
