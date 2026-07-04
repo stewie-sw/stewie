@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "7c76746db7593f9d9da35112aafff8c5cd3a1b325a9269749c0e2b054d3b0816",
+  "citations_sha256": "91402ee5ad329f885862e57aba950cfcde3eb781f020d9e1ecc79af860a2e3d7",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "25839821664d51abcaf7241e12060f78275918a1",
-  "prd_sha256": "4230f27b38a5dccdf5d97efe3f46edce496858189150312d0a6ce512aba24efe",
+  "prd_commit": "03048aebdedaf012656e521f5f2881ff79022efc",
+  "prd_sha256": "43b9f4af6e10847818e93d372235f2dd73a937aac89d69c4a5fe790e0dff25de",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -824,17 +824,17 @@
    "text": "**Live-namespace artifact deletion is director-only (review P1-4, enforces AG-06).** `missions.py`/`structures.py` delegate to `objects.deletion_allowed` (`is_director or owner==identity`), so an operator can soft-delete their OWN live mission/shared structure -- contrary to AG-06 (director approval for any live-namespace artifact). Fix: live-namespace deletion is director-only; self-service delete stays for the caller's own SANDBOX artifacts; enforce namespace policy in the routes (or `deletion_allowed(kind, namespace, owner, identity, role)`); the delete audit event names the namespace. Acceptance: operator deleting own LIVE mission -> 403; own sandbox mission -> ok; director deleting live -> ok + audited namespace. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "training operator-view access model (authenticated OR signed expiring capability URL with TTL enforced on get()); documented.",
     "kind": "atomic",
     "test_target": "stewie/server/test_session.py citing [REQ:SE-02]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BP-06",
    "lane": "BP",
    "pri": "P1",
@@ -4166,17 +4166,17 @@
    "text": "Full security audit gate: release requires a completed host, container, app, DNS/site, secret, backup/restore, dependency/SBOM/CVE, and external exposure audit. The current non-invasive Archimedes/site review is not sufficient."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "make the training operator-view access model explicit (authenticated OR documented capability-URL with unguessable ids + risk).",
     "kind": "atomic",
     "test_target": "extend stewie/server/test_session.py citing [REQ:SE-02]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "SE-02",
    "lane": "SE",
    "pri": "P1",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 79,
+   "buildable": 77,
    "concurrent": 0,
-   "done": 222,
+   "done": 224,
    "gated": 14
   },
   "by_lane": {
@@ -4775,7 +4775,7 @@
     "total": 4
    },
    "BP": {
-    "done": 6,
+    "done": 7,
     "total": 13
    },
    "BR": {
@@ -4891,7 +4891,7 @@
     "total": 8
    },
    "SE": {
-    "done": 1,
+    "done": 2,
     "total": 2
    },
    "SF": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 125,
+    "done": 127,
     "total": 178
    },
    "P2": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 241,
-  "done_pct": 70.5,
+  "cited": 243,
+  "done_pct": 71.1,
   "in_scope": 301,
-  "in_scope_done_pct": 73.8,
+  "in_scope_done_pct": 74.4,
   "total": 315
  },
  "workflow_spine": [
