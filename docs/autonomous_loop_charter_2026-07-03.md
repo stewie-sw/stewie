@@ -164,3 +164,10 @@ and stop scheduling (wait for Aaron).
   FORMAL §30 spine contracts (distinct from operational lode.planner_model); MP-06/08/09/10/11 build on these.
   Plan-persistence wiring = noted follow-up. [REQ:MP-05] 3/3; additive; FULL gate green (mypy 314). Branch-local,
   8 ahead of main. NEXT = EG-08 (reconciliation lifecycle) / EG-09 (import-DAG guard) / MP-06 (intent->world flow).
+- 2026-07-03 03342a6 — EG-08 DONE (P1 wake 4). Reconciliation lifecycle (§29.7): contracts/reconciliation.py
+  ReconcileState (observed→compared→proposed→reviewed→accepted/rejected→applied→archived) + LEGAL_TRANSITIONS
+  DAG + Proposal (confidence + model/sensor error flags) + advance (guarded) + apply_proposal (only ACCEPTED
+  applies → REJECTED never mutates accepted truth, reaches only archived) + manual_override (legal transition,
+  logged to the EG-07 audit trail). Composes EG-07; fed by MP-11. [REQ:EG-08] 4/4; additive; FULL gate green
+  (mypy 315). Branch-local, 11 ahead of main. NEXT = EG-09 (import-DAG guard) / MP-08 (capability match) /
+  MP-09 (physics scoring) / MP-06 (flow).
