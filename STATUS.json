@@ -5,7 +5,6 @@
       "AS-01",
       "AS-02",
       "AS-03",
-      "AS-04",
       "AS-05",
       "AS-06",
       "AS-07",
@@ -35,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 214,
+  "cited": 220,
   "per_family": {
     "AC": {
       "cited": 0,
@@ -98,7 +97,7 @@
       "total": 2
     },
     "EG": {
-      "cited": 6,
+      "cited": 9,
       "total": 12
     },
     "EP": {
@@ -142,7 +141,7 @@
       "total": 1
     },
     "MP": {
-      "cited": 1,
+      "cited": 4,
       "total": 8
     },
     "MT": {
@@ -220,6 +219,10 @@
   "v_ne_d_flagged": [
     {
       "id": "AM-02",
+      "v": "P"
+    },
+    {
+      "id": "AS-04",
       "v": "P"
     },
     {
