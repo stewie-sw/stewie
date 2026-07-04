@@ -49,3 +49,17 @@ def test_mp07_executive_run_reports_a_plan_executability_card(monkeypatch, tmp_p
     # a nominal dig on real Haworth: approved + rehearsed + conserved-scored gates provably hold
     assert pre["approval_record"] is True and pre["rehearsal_result"] is True and pre["physics_score"] is True
     assert isinstance(card["executable"], bool) and isinstance(card["unmet"], list)
+
+
+def test_eg08_executive_run_reports_the_energy_reconciliation(monkeypatch, tmp_path):  # [REQ:EG-08]
+    # the run reconciles predicted (budgeted) vs observed (slip-truth) energy -> EG-08 proposals.
+    c = _client(monkeypatch, tmp_path)
+    r = c.post("/executive/run", json={"orders": _ORDERS, "site": "haworth"})
+    assert r.status_code == 200, r.text
+    rc = r.json()["reconciliation"]
+    assert rc["quantity"] == "energy_J"
+    assert set(rc) >= {"predicted", "observed", "residual", "implicates_model", "proposals"}
+    assert isinstance(rc["proposals"], list)
+    if rc["residual"] != 0.0:                                     # a real slip-energy surprise emits a proposal
+        assert rc["proposals"], "a nonzero energy residual must emit a reconciliation proposal"
+        assert all(p["state"] == "proposed" for p in rc["proposals"])   # walked OBSERVED->COMPARED->PROPOSED

@@ -267,8 +267,28 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
         rollback_abort_rule="safed" in run.get("transitions", []) or run.get("safed") is not None)
     executability = {"executable": is_executable(_pre), "unmet": _pre.unmet(),
                      "preconditions": {k: getattr(_pre, k) for k in _pre.__dataclass_fields__}}
-    return JSONResponse(content={"ok": True, "run_id": run_id, **rec,
-                                 "executability": executability, "skipped": skipped})
+    # [REQ:EG-08] reconciliation: the run's predicted-vs-observed ENERGY residual (budgeted nominal_J vs the
+    # slip-truth true_J) reconciled against the estimator's OWN energy sigma -> a world-update Proposal, plus a
+    # model-update Proposal when the surprise exceeds measurement noise -- feeding the EG-08 lifecycle (MP-11).
+    from stewie.contracts.reconciliation_step import reconcile_prediction
+    _legs = out.get("legs", [])
+    _pred_j = sum(float(lg.get("nominal_J", 0.0)) for lg in _legs)
+    _obs_j = sum(float(lg.get("true_J", 0.0)) for lg in _legs)
+    _tol_j = sum(float(lg.get("energy_sigma_J", 0.0)) for lg in _legs)
+    _recon = reconcile_prediction(_pred_j, _obs_j, quantity="energy_J", sensor_tolerance=_tol_j,
+                                  provenance=f"run:{run_id}", proposal_stem=f"run:{run_id}")
+    reconciliation = {
+        "quantity": "energy_J", "predicted": _pred_j, "observed": _obs_j,
+        "residual": _recon.residual.residual, "implicates_model": _recon.residual.implicates_model,
+        "proposals": [{"proposal_id": p.proposal_id, "state": p.state.value, "confidence": p.confidence,
+                       "model_error": p.model_error, "change": p.change} for p in _recon.proposals]}
+    if _recon.residual.implicates_model:                                                 # [REQ:EG-08] audit
+        record_action(identity, "executive.reconcile", location=f"{req.mission_id}@{req.site}", mode="sim",
+                      reason="energy residual exceeds estimator sigma -> model-update proposed",
+                      before_state=f"predicted={_pred_j:.1f}J", after_state=f"observed={_obs_j:.1f}J",
+                      evidence=f"residual={_recon.residual.residual:.1f}J;proposals={len(_recon.proposals)}")
+    return JSONResponse(content={"ok": True, "run_id": run_id, **rec, "executability": executability,
+                                 "reconciliation": reconciliation, "skipped": skipped})
 
 
 @router.get("/executive/run/{run_id}")
