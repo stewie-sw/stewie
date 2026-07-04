@@ -22,7 +22,7 @@ def test_meerkat_observation_yields_multi_height_plan_from_transit():
     assert obs.to_state == pm.MEERKAT and obs.from_state == pm.TRANSIT
     assert obs.n_heights == 4
     heights = obs.heights_m
-    assert all(b > a for a, b in zip(heights, heights[1:]))          # strictly rising, low -> high
+    assert all(b > a for a, b in zip(heights, heights[1:], strict=False))   # strictly rising, low -> high
     # baseline is a pure kinematic property of the maneuver == MEERKAT lift - TRANSIT lift (0)
     expected = ps._lift(ps.MEERKAT_PITCH_RAD) - ps._lift(0.0)
     assert obs.parallax_baseline_m == pytest.approx(expected, abs=1e-9)

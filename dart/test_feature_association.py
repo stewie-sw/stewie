@@ -40,7 +40,7 @@ def test_sn15_each_observation_carries_the_vt10_pose_at_its_posture():
     obs = MO.meerkat_observation(feature_id="rock_2", target_xy=(7.0, 0.0), rover_xy=(0.0, 0.0),
                                  n_heights=3)
     fset = FA.from_meerkat_observation(obs, camera="drum_front_cam")
-    for sample, o in zip(obs.samples, fset.observations):
+    for sample, o in zip(obs.samples, fset.observations, strict=True):
         assert isinstance(o.camera_pose, CameraExtrinsic) and o.camera == "drum_front_cam"
         arm = ArmState(front_deg=math.degrees(sample.arm_pitch_rad),
                        back_deg=math.degrees(sample.arm_pitch_rad))
