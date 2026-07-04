@@ -11,6 +11,17 @@ on:
   push:
   pull_request:
 
+# CI-OPT: cap BLAS / OpenMP thread pools to 1 per process. The suite is numpy/scipy-heavy and runs under
+# pytest-xdist (`-n auto`); without this each xdist worker spawns its OWN BLAS thread pool, so on the small
+# (2-core) hosted runners `workers x threads` massively oversubscribes the cores and thrashes on context
+# switches (a worker was measured at ~1100% CPU locally). Pinning one BLAS thread per process lets xdist own
+# the parallelism cleanly across workers -- the dominant lever on the long-running test jobs' wall-clock.
+env:
+  OMP_NUM_THREADS: "1"
+  OPENBLAS_NUM_THREADS: "1"
+  MKL_NUM_THREADS: "1"
+  NUMEXPR_NUM_THREADS: "1"
+
 jobs:
   lint-type-cov:
     name: lint + type + coverage gate (py3.11)
