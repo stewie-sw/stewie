@@ -1,4 +1,14 @@
 # STEWIE backend — FastAPI mission planner + physics authority (atomic plan B1.1)
+#
+# RF-01/02: the React cockpit (/app SPA) is built in a node stage and copied into the image; the backend
+# serves it from /app/frontend/dist (server.py cockpit_app). The vanilla cockpit stays authoritative at /.
+FROM node:20-slim AS webbuild
+WORKDIR /web
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend/ ./
+RUN npm run build            # tsc --noEmit + vite build -> /web/dist (base=/app/)
+
 # S-13: the base is pinned by DIGEST (not the mutable python:3.12-slim tag) so a rebuild from the same
 # revision uses identical bytes. Digest = the python:3.12-slim multi-arch index (Docker Hub, 2026-06-14).
 FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e4d27e78f1b0e9 AS base
@@ -27,6 +37,8 @@ COPY validation ./validation
 # PO-17: stewie-bodies is a standalone workspace package; stewie/specs/bodies.py is a shim that re-exports it,
 # so the package must be installed alongside the root (--no-deps: it is pure-stdlib, no PyPI resolution).
 COPY packages ./packages
+# RF-01/02: the built React cockpit (served at /app by server.py cockpit_app; SPA fallback + assets).
+COPY --from=webbuild /web/dist ./frontend/dist
 RUN pip install --no-cache-dir --no-deps packages/stewie-bodies packages/stewie-forge . && useradd -r -u 10001 stewie \
  && mkdir -p /data && chown -R stewie /data \
  && chmod -R a+rX /app
