@@ -28,9 +28,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# MT-04: lean dependency profiles. The DEFAULT install is base-only (numpy/scipy/gymnasium); `core` adds the
+# LEAN ASGI server (stewie-serve + /healthz) with NO heavy CV/GIS deps. The heavy libs are opt-in profiles,
+# lazy-imported at their use site (mission_planner's matplotlib, the cv2 eval graph, rasterio COG export) so
+# the minimal server boots without them. `server` COMPOSES the profiles so `pip install stewie[server]`
+# resolves to the SAME full runtime as before (the Dockerfile.backend + wheel-smoke product extra is unchanged).
+core = ["fastapi>=0.110,<1", "uvicorn>=0.20,<1", "pyyaml>=6,<7"]   # lean server: stewie-serve + /healthz, no CV/GIS
+perception = ["opencv-python-headless>=4.8", "imageio>=2.31", "scipy>=1.10"]   # cv2 eval graph + image IO (lazy)
+planning = ["matplotlib", "pyproj"]                    # mission-planner report figures + non-polar DEM reproject (lazy)
+server = ["stewie[core]", "stewie[perception]", "stewie[planning]", "rasterio>=1.3,<2"]   # FULL ASGI server (PRD N7/N8; RB-06). rasterio (#254): COG export in prod (GDAL bundled in the manylinux wheel). == core+perception+planning+rasterio (unchanged resolution)
+ros = ["stewie[core]"]                                 # the ROS2 bridge builds on the core server; rclpy/rosbag2_py/xacro/gz come from the SYSTEM ROS install / container (not pip)
 rl = ["torch<3", "stable-baselines3>=2.0,<3"]          # PPO / model-free baselines
-planner = ["matplotlib", "pyproj"]                     # the mission-planner product: report figures + non-polar DEM reproject
-server = ["fastapi>=0.110,<1", "uvicorn>=0.20,<1", "matplotlib", "pyproj", "imageio>=2.31", "scipy>=1.10", "opencv-python-headless>=4.8", "rasterio>=1.3,<2", "pyyaml>=6,<7"]   # cv2: the no-terminal gate-validation button runs the full eval graph (#32); rasterio (#254): COG export in prod (GDAL bundled in the manylinux wheel -- no system libgdal)   # the ASGI planner server (stewie-serve; PRD N7/N8). MUST carry the planner's import-time deps (mission_planner imports matplotlib at module load; latlon site-pick uses pyproj) so `pip install stewie[server]` yields a working server (RB-06).
+planner = ["stewie[planning]"]                         # back-compat alias for the pre-MT-04 `planner` extra
 render = ["trimesh>=4,<5"]                             # render-asset tooling (scripts/gen_ipex_mesh.py: the CC0 IPEx body)
 # CI installs .[dev]; it MUST cover every import-time dep of the CONFIGURED test suite (testpaths =
 # terrain_authority + planet_browser + scripts), hence trimesh (scripts/) + pyyaml (requirement manifest test).
