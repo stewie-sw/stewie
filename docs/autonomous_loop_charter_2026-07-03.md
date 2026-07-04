@@ -157,3 +157,10 @@ and stop scheduling (wait for Aaron).
   the digest deterministic). Wiring audit.append into command/merge/config sites = noted follow-up. [REQ:EG-07]
   4/4; additive; FULL gate green (mypy 313). Branch-local, 5 ahead of main. NEXT = EG-08 (reconciliation
   lifecycle) / EG-09 (import-DAG guard) / MP-05 (object model).
+- 2026-07-03 f99f94d — MP-05 DONE (P1 wake 3). Mission-planning object model (§30): contracts/planning_model.py
+  the 12 planning objects (Intent/Mission/Task/TaskDependency/Plan/PlanCandidate/Assignment/ResourceBudget/
+  RiskAssessment/RehearsalResult/ExecutionPolicy/PlanDecision) as strict frozen Contract subclasses; a Plan
+  round-trips through the store (plan_to_record/from_record, JSON) carrying candidate+decision+provenance+txn.
+  FORMAL §30 spine contracts (distinct from operational lode.planner_model); MP-06/08/09/10/11 build on these.
+  Plan-persistence wiring = noted follow-up. [REQ:MP-05] 3/3; additive; FULL gate green (mypy 314). Branch-local,
+  8 ahead of main. NEXT = EG-08 (reconciliation lifecycle) / EG-09 (import-DAG guard) / MP-06 (intent->world flow).
