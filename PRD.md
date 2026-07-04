@@ -666,7 +666,7 @@ platform scope. Design: `docs/prd_reorg_spec_2026-07-03.md` + `docs/backend_/fro
 | VT-03 | P1 | Model front and rear arm joint state, limits, velocity, brake state, and energy. Exact geometry must come from authoritative LAC/IPEx data. | D | D | D | G |
 | VT-04 | P1 | Track four drums and per-drum fill rather than one global inventory for IPEx mode. | D | D | D | P |
 | VT-05 | P1 | Compute dynamic CG from chassis, arm pose, drum pose, and fill mass. `[SPEC/PROPOSED model]` | D | D | D | G |
-| VT-06 | P1 | Compute posture-dependent support polygon and static stability margin each step. | P | N | P | G |
+| VT-06 | P1 | Compute posture-dependent support polygon and static stability margin each step. | D | D | D | G |
 | VT-07 | P1 | Nominal excavation requires balanced front/rear counter-rotation; asymmetric digging exposes reaction, traction, yaw, and pitch risk. | D | D | D | P |
 | VT-08 | P1 | Drum fill-rate supports the sourced bridging behavior: effective collection need not increase monotonically beyond approximately half scoop depth. | D | N | D | P |
 | VT-09 | P2 | Arm/drum force and torque model distinguishes horizontal reaction, vertical fill-dependent load, cutting torque, and internal tumble. | N | N | N | G |
@@ -791,7 +791,7 @@ CP-06 now reports pad flatness (I11), berm crest-profile vs ordered rise, and re
 | EP-03 | P1 | Distinguish PSR lander/tower power from sunlit solar power. | D | D | D | P |
 | EP-04 | P1 | Mission clock enforces power, illumination, thermal, and communications windows on actions/recharge. | D | D | D | N |
 | EP-05 | P1 | Thermal derating and heater/survival demand affect usable battery and action availability. | D | D | D | N |
-| EP-06 | P1 | Meerkat/arm posture and camera/LED policies include transition and dwell energy. | N | N | N | G |
+| EP-06 | P1 | Meerkat/arm posture and camera/LED policies include transition and dwell energy. | D | D | D | G |
 | EP-07 | P2 | Dust accumulation affects optics, joints, thermal surfaces, and maintenance actions. | N | N | N | N |
 | EP-08 | P1 | Endurance and reports use the selected `VehicleModel`, not global IPEx constants. | D | D | D | N |
 
