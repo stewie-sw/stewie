@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "9dbf21ea8c069556f39eff70d769a7b7a28b5aedfc4026abc432e60f66c173d8",
+  "citations_sha256": "3a066d9751079aacc387ac08a3b031c3b54861374d4f62ac57c2a06e70083bf2",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "4a89f86ed53c08a63b5797fb14d48bea4f6c7b81",
-  "prd_sha256": "900d18d1dcb27b49ae3661c9210f02e0216f7e506310585cc8308bba5253c11b",
+  "prd_commit": "a2a06bb55dbff283f5d42aedd4346643644b66b2",
+  "prd_sha256": "6e84a3346cc5298e5adf17d1f2774be140b5bb474e89bc4c8ab70a61e3dcb59e",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -688,17 +688,17 @@
    "text": "Convert the BODIES constants into versioned BodyProfile records with NO value changes; Moon/Mars/Ceres/Bennu/Phobos/Earth/BP-1 profiles match bodies.py and params_for_body compatibility is test-proven."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row BD-02 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW stewie/specs/test_body_profiles.py citing [REQ:BD-02]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BD-02",
    "lane": "BD",
    "pri": "P1",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 75,
+   "buildable": 74,
    "concurrent": 0,
-   "done": 226,
+   "done": 227,
    "gated": 14
   },
   "by_lane": {
@@ -4771,7 +4771,7 @@
     "total": 11
    },
    "BD": {
-    "done": 2,
+    "done": 3,
     "total": 4
    },
    "BP": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 129,
+    "done": 130,
     "total": 178
    },
    "P2": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 245,
-  "done_pct": 71.7,
+  "cited": 246,
+  "done_pct": 72.1,
   "in_scope": 301,
-  "in_scope_done_pct": 75.1,
+  "in_scope_done_pct": 75.4,
   "total": 315
  },
  "workflow_spine": [
