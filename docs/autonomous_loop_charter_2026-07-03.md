@@ -237,3 +237,16 @@ and stop scheduling (wait for Aaron).
   PX-01 (already-built + [REQ:PX-01] byte-compat/microgravity test). All main-verified (full mypy 324, 25 tests,
   regression green). Board 208/315 (71.7% in-scope). 8 rows across 2 waves. NEXT: fix EG-09 directly (import
   cycle refactor); wave 3 (VT-05 dynamic CG / VT-10 camera extrinsics / SN-11 / more).
+
+## ★ CRITICAL PROCESS FIX 2026-07-04 — flip glyphs by EXACT LINE EDIT + re-run req_trace AFTER
+- BUG: the `re.sub(r'\| ID \| P \|.+? \| N \| N \| N \| NA \|', ...)` flip with re.S + non-greedy .+? SPANS
+  across rows when the target row's Q-column != NA. Wave 2: VT-03 (Q=G) + VT-04 (Q=P) did not match "NA", so
+  the regex jumped to the next NA rows and FAKE-PROMOTED FS-25 + GI-03 to D|D|D while VT-03/VT-04 stayed N.
+  Reached main + prod before req_trace (run only BEFORE the flip) caught it. Fixed b3dcd2d/8e8d661.
+- MANDATORY going forward: (1) flip by EXACT line-based edit — find the line starting `| ID |`, replace its
+  exact `| I | X | V | Q |` tail (Q may be NA/P/G/D — preserve it), assert the old tail was present. NEVER a
+  multi-row-spanning regex. (2) RE-RUN `python3 scripts/req_trace.py` AFTER the flip (it flags V=D-without-test)
+  + confirm the snapshot bucket matches. (3) gen_program_snapshot reads `git show HEAD:PRD.md` -> COMMIT the
+  PRD flip BEFORE regen, or regen reads the stale pre-flip PRD (hit this too, 8e8d661).
+- WAVE 3 (VT-05/VT-10/SN-11/AM-08) drafted (Workflow wru43p8ik) — NOT yet integrated. Integrate with the
+  line-based flip + post-flip req_trace.
