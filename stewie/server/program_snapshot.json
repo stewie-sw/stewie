@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "93c33407897b5a137ddf032f12504af345380b05714e32ff2a2a174680d6dae7",
+  "citations_sha256": "486d3f5c741251b687089269b347978cc17a9cd732d2d417653d0ff62ae29e75",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "2be2476e50c4d2f8514bb7a4eb633d3101e29c27",
-  "prd_sha256": "a4cbb21ec5b65b94ff84273e783cc2d61cc8a1b7cfdcc5fc00aeddb87747207b",
+  "prd_commit": "2e67d948926ad85bca27085df02ff3c142d92478",
+  "prd_sha256": "a1de68f162dd5e5927e26015687c32326a8cc0c1b506e42a8273f92c7885ab81",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -3864,17 +3864,17 @@
    "text": "Define the `PhysicsBackend` protocol + a `tier2_numpy` adapter over the existing terramechanics/FORGE/planner-context functions; Moon Tier-2 `/plan` output is byte-compatible or diff-reviewed; microgravity refusal stays fail-closed."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row PX-02 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW stewie/physics/test_physics_backend.py citing [REQ:PX-02]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PX-02",
    "lane": "PX",
    "pri": "P1",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 82,
+   "buildable": 81,
    "concurrent": 0,
-   "done": 219,
+   "done": 220,
    "gated": 14
   },
   "by_lane": {
@@ -4875,7 +4875,7 @@
     "total": 18
    },
    "PX": {
-    "done": 4,
+    "done": 5,
     "total": 6
    },
    "RF": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 122,
+    "done": 123,
     "total": 178
    },
    "P2": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 238,
-  "done_pct": 69.5,
+  "cited": 239,
+  "done_pct": 69.8,
   "in_scope": 301,
-  "in_scope_done_pct": 72.8,
+  "in_scope_done_pct": 73.1,
   "total": 315
  },
  "workflow_spine": [
