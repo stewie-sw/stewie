@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "c94d895f48cb6c7855864721d850c9e18ce5c40bfe3318dca775f721c31a83a0",
+  "citations_sha256": "9dbf21ea8c069556f39eff70d769a7b7a28b5aedfc4026abc432e60f66c173d8",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "6078912976388cc1f6df846dd5ae77d8d948599d",
-  "prd_sha256": "8b5b74d1957e3a01fd154bceb8cd12ffa800a72dce567428fc96325a174f6067",
+  "prd_commit": "4a89f86ed53c08a63b5797fb14d48bea4f6c7b81",
+  "prd_sha256": "900d18d1dcb27b49ae3661c9210f02e0216f7e506310585cc8308bba5253c11b",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -3093,17 +3093,17 @@
    "text": "**Frontend strangler split of the cockpit shell (extends FS-24).** Continue extracting the ~6.2k-line `cockpit.js` + ~1.5k-line `index.html` into pure modules one at a time \u2014 `api_client`, route/state, the mode/profile/sensor rail, the command rail, the diagnostics rail, one pane per step \u2014 each with node:test coverage; add an allowlist gate over HTML sinks (the frontend's large blast radius + `innerHTML`/authority/localStorage surface the audit flags). Cross-refs FS-24, FS-09 (pyramid), PM-17 (profile rail). Acceptance: each extraction lands as a pure node-tested module, `cockpit.js` LOC drops measurably, the HTML-sink gate reds on a new unlisted sink, and the ui-smoke stays green. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "split optional extras into core/perception/planning/server/ros/dev profiles; default install lean; heavy CV/GIS/benchmark deps out of minimal runtime.",
     "kind": "atomic",
     "test_target": "NEW scripts/test_dependency_profiles.py citing [REQ:MT-04]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "MT-04",
    "lane": "MT",
    "pri": "P1",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 76,
+   "buildable": 75,
    "concurrent": 0,
-   "done": 225,
+   "done": 226,
    "gated": 14
   },
   "by_lane": {
@@ -4855,7 +4855,7 @@
     "total": 8
    },
    "MT": {
-    "done": 0,
+    "done": 1,
     "total": 5
    },
    "NV": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 128,
+    "done": 129,
     "total": 178
    },
    "P2": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 244,
-  "done_pct": 71.4,
+  "cited": 245,
+  "done_pct": 71.7,
   "in_scope": 301,
-  "in_scope_done_pct": 74.8,
+  "in_scope_done_pct": 75.1,
   "total": 315
  },
  "workflow_spine": [
