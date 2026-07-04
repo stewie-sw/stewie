@@ -32,7 +32,7 @@ concurrency:
 jobs:
   lint-type-cov:
     name: lint + type + coverage gate (py3.11)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
@@ -75,7 +75,7 @@ jobs:
 
   test-js:
     name: browser-JS tier (node --test)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - name: Test the cockpit's pure browser modules (PO-04 JS tier -- the *.test.js were previously ungated)
@@ -88,7 +88,7 @@ jobs:
 
   ui-smoke:
     name: cockpit UI smoke (Playwright + real server, py3.11)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
@@ -111,7 +111,7 @@ jobs:
 
   cockpit-react:
     name: cockpit React shell ([REQ:RF-01] tsc + vite build + Playwright, py3.11 + node)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
@@ -136,7 +136,7 @@ jobs:
 
   package-smoke:
     name: package smoke (lock strict + wheel boots stewie-serve, py3.11)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
@@ -157,7 +157,7 @@ jobs:
 
   test:
     name: test (py${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
     strategy:
       fail-fast: false
       matrix:
