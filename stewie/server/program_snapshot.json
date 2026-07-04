@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "de251f5e296e1519037d81e2d85af6ce7fb7155618f591858f40d12e0b7b9195",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "32a6da03091aa2ff870e167bf9e2f9b5e9a6165f",
-  "prd_sha256": "bafd936bd6442c3674cf2074fa81205e4afcb8c538fda20a98abe11104246909",
+  "prd_commit": "b3dcd2d67e6331766d11b272db93df3f987534aa",
+  "prd_sha256": "accc978a4ff6a54b0fff4df06e73c98ef2902c892d70c014268705ab00a0f46f",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -2484,16 +2484,16 @@
    "text": "Front-end module organization: split the cockpit into app shell, route/state store, typed API adapters, domain view models, shared visualization components, work-area views, command/approval rail, and diagnostics/log viewers. The split must preserve CSP/no-inline-script and fixture-driven tests."
   },
   {
-   "I": "D",
+   "I": "N",
    "Q": "NA",
-   "V": "D",
-   "X": "D",
+   "V": "N",
+   "X": "N",
    "brief": {
     "goal": "carry product mode + runnable profile as first-class routeable/persisted/shareable state fields.",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_mode_profile_state.py citing [REQ:FS-25]"
    },
-   "bucket": "done",
+   "bucket": "buildable",
    "cited": false,
    "id": "FS-25",
    "lane": "FS",
@@ -2615,16 +2615,16 @@
    "text": "Planetary map correctness: Moon/Mars views use body-correct ellipsoid/CRS metadata and real DEM terrain/elevation where a layer claims 3D terrain. A smooth WGS84 drape must be labeled as imagery-only, not terrain."
   },
   {
-   "I": "D",
+   "I": "N",
    "Q": "NA",
-   "V": "D",
-   "X": "D",
+   "V": "N",
+   "X": "N",
    "brief": {
     "goal": "verify + glyph-reconcile the mission-required GIS interop subset (GeoJSON/COG import, feature query, offline mission package) that is already implemented.",
     "kind": "atomic (done-stale)",
     "test_target": "lode/test_gis_export.py::test_export_is_valid_rfc7946_featurecollection_that_parses_back (verify green + reconcile the \u00a77 glyph)"
    },
-   "bucket": "done",
+   "bucket": "buildable",
    "cited": true,
    "id": "GI-03",
    "lane": "GI",
@@ -4637,29 +4637,28 @@
    "text": "Selecting a vehicle changes all applicable authority/planner numbers; cross-vehicle tests assert expected differences."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "G",
-   "V": "N",
-   "X": "N",
-   "bucket": "gated",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
-   "gated_reason": "LAC/IPEx arm/vehicle geometry",
    "id": "VT-03",
    "lane": "VT",
    "pri": "P1",
    "text": "Model front and rear arm joint state, limits, velocity, brake state, and energy. Exact geometry must come from authoritative LAC/IPEx data."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "P",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "replace the single global drum-inventory scalar with per-drum (four-drum) fill tracking for IPEx while preserving mass conservation.",
     "kind": "atomic",
     "test_target": "NEW stewie/physics/test_column_state.py::test_vt04_per_drum_fill_conserves_total (`[REQ:VT-04]`)"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "VT-04",
    "lane": "VT",
@@ -4751,10 +4750,10 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 82,
+   "buildable": 83,
    "concurrent": 0,
    "done": 208,
-   "gated": 25
+   "gated": 24
   },
   "by_lane": {
    "AC": {
@@ -4834,11 +4833,11 @@
     "total": 21
    },
    "FS": {
-    "done": 24,
+    "done": 23,
     "total": 30
    },
    "GI": {
-    "done": 3,
+    "done": 2,
     "total": 3
    },
    "GL": {
@@ -4930,7 +4929,7 @@
     "total": 11
    },
    "VT": {
-    "done": 4,
+    "done": 6,
     "total": 10
    }
   },
@@ -4940,11 +4939,11 @@
     "total": 102
    },
    "P1": {
-    "done": 110,
+    "done": 111,
     "total": 178
    },
    "P2": {
-    "done": 5,
+    "done": 4,
     "total": 33
    },
    "P3": {
@@ -4954,8 +4953,8 @@
   },
   "cited": 228,
   "done_pct": 66.0,
-  "in_scope": 290,
-  "in_scope_done_pct": 71.7,
+  "in_scope": 291,
+  "in_scope_done_pct": 71.5,
   "total": 315
  },
  "workflow_spine": [
