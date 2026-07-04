@@ -196,3 +196,12 @@ and stop scheduling (wait for Aaron).
   Board 200/315 (crossed 200). Branch-local, 6 ahead of main. PUSH-GATE HELD again: 97a75c1 CI still
   in_progress (~25min; fast jobs green, test jobs slow but zero failures) → MP-08+MP-09 ride the next batch.
   NEXT = EG-09 (import-DAG guard) / MP-06 (flow) / MP-10 (rehearsal) / MP-11 (reconciliation feed).
+- 2026-07-03 d7e0795 — CI-RED FIX + MP-08/MP-09 batch merged. The 97a75c1 CI went RED (NEW, not AS-04):
+  test_gen_status + test_gen_release_manifest failed on the fresh clone. ROOT CAUSE: the per-row loop regen'd
+  program_snapshot.json each row but NOT STATUS.md/STATUS.json/release_manifest.json — they drifted stale from
+  EG-04 through the AS-04 un-flip. Coverage was FINE (90.2% > 85). Fixed: regen'd all three (cited 214→220,
+  AS-04→P). Pushed+merged the held batch (MP-08+MP-09) + the fix to origin/main d7e0795; new CI 28694406604
+  running (expected green). ★ CORRECTED PER-ROW PROTOCOL: after flipping a glyph / editing the PRD, regen
+  ALL of {program_snapshot.json (python3 scripts/gen_program_snapshot.py), STATUS.md+STATUS.json (python3
+  scripts/gen_status.py), release_manifest.json (.venv/bin/python scripts/gen_release_manifest.py — needs
+  stewie_bodies)} and commit them, EVERY row. The snapshot alone is not enough.
