@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "3a066d9751079aacc387ac08a3b031c3b54861374d4f62ac57c2a06e70083bf2",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "a2a06bb55dbff283f5d42aedd4346643644b66b2",
-  "prd_sha256": "6e84a3346cc5298e5adf17d1f2774be140b5bb474e89bc4c8ab70a61e3dcb59e",
+  "prd_commit": "51b6b409f2a715a2294538ca6a8ab3bc573eba63",
+  "prd_sha256": "d809a12067bef3e7bc60162835cdb4af203c64f3f0baa48898aa46c144b4005c",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -3110,16 +3110,16 @@
    "text": "**Lean package / dependency-profile split.** Split the optional extras into `core` / `perception` / `planning` / `server` / `ros` / `dev` profiles so the DEFAULT install is lean and the heavy CV/GIS/benchmark deps stay out of the minimal runtime. Acceptance: a minimal-profile install boots `stewie-serve` + `/healthz` without the heavy extras, and each profile resolves from the hashed lock. Buildable on archimedes."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "a continuity-governance release gate reporting tracked-payload size + large-file diff + HTML-sink count + test-tier status; ADRs per boundary; generated-artifact manifest.",
     "kind": "atomic",
     "test_target": "NEW scripts/test_continuity_gate.py citing [REQ:MT-05]"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "MT-05",
    "lane": "MT",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 74,
+   "buildable": 73,
    "concurrent": 0,
-   "done": 227,
+   "done": 228,
    "gated": 14
   },
   "by_lane": {
@@ -4855,7 +4855,7 @@
     "total": 8
    },
    "MT": {
-    "done": 1,
+    "done": 2,
     "total": 5
    },
    "NV": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 130,
+    "done": 131,
     "total": 178
    },
    "P2": {
@@ -4942,9 +4942,9 @@
    }
   },
   "cited": 246,
-  "done_pct": 72.1,
+  "done_pct": 72.4,
   "in_scope": 301,
-  "in_scope_done_pct": 75.4,
+  "in_scope_done_pct": 75.7,
   "total": 315
  },
  "workflow_spine": [
