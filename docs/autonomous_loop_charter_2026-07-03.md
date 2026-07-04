@@ -219,3 +219,17 @@ and stop scheduling (wait for Aaron).
   → flip glyph → regen ALL 3 artifacts → commit → push+merge gated on origin/main CI green. NEVER integrate an
   unverified draft; a 'blocked' draft (design fork / real code contradicts acceptance) is surfaced, not forced.
 - WAVE 1 launched: EG-09, EG-12, MP-10, MP-11, BD-01 (Workflow wtmag1our). Integrate on completion.
+
+## BLOCKER LOG
+- EG-09 (P1, import-DAG guard) BLOCKED 2026-07-03 (fan-out agent, verified honest). The REAL backend import
+  graph has cross-service reach-throughs forming a world→mission→execution→world cycle, so a faithful
+  "12 bounded services form a DAG" test cannot be written green without a refactor + a taxonomy decision.
+  Exact offending imports: (1) stewie/server/routers/gis_export.py:22 → routers.plan.heavy_quota (world→mission,
+  top-level); (2) stewie/server/routers/executive.py:160 → routers.twin._terrain_lock (execution→world,
+  fn-local); (3) stewie/server/routers/plan.py:190 → stewie.bridge.rc_contract (mission→execution, legit fwd).
+  CLEAN HALF verified today: sole ROS2 egress holds (rclpy only in stewie/bridge/{ros2_bridge,points_egress}.py,
+  one service). FORK for Aaron: (a) the 12-service→35-router ownership manifest is a design call; (b) scope =
+  top-level-only ("packaging DAG") vs all-imports; (c) tolerate vs refactor. AGENT RECOMMENDATION (makes EG-09
+  clean-drafted): move heavy_quota → stewie/server/ratelimit.py (exists) + move _terrain_lock →
+  stewie/server/world_state.py; both small additive relocations, then the service graph is acyclic. NOT done
+  (needs Aaron's taxonomy call + it is a code change to other lanes' modules).
