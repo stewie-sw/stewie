@@ -34,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 220,
+  "cited": 224,
   "per_family": {
     "AC": {
       "cited": 0,
@@ -61,7 +61,7 @@
       "total": 11
     },
     "BD": {
-      "cited": 1,
+      "cited": 2,
       "total": 4
     },
     "BP": {
@@ -97,7 +97,7 @@
       "total": 2
     },
     "EG": {
-      "cited": 9,
+      "cited": 10,
       "total": 12
     },
     "EP": {
@@ -141,7 +141,7 @@
       "total": 1
     },
     "MP": {
-      "cited": 4,
+      "cited": 6,
       "total": 8
     },
     "MT": {

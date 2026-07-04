@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "165fc5a496edb70aec06d08c16a4b79d0aa5707c0c8967173048c6280e6101eb",
+  "citations_sha256": "47d24a24a2f196c4c46ff91edf5daa8d1f17ff0fe60748ccc8d13df6574e4b37",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "0f480937cb90892b1b413773c5f70910a6b92fa0",
-  "prd_sha256": "bca389f59d9b24e9f412ecbdbf839bcb8b14202768c1a909806f3960e2221fe7",
+  "prd_commit": "dd2cbb60f31e6259354d0256f607b5c5921770b2",
+  "prd_sha256": "2701131a1475c7c266c6115526ad1d361a1527289f904f9d8da8c1c390dbf654",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -675,17 +675,17 @@
    "text": "**Mission-package import/export in open-geospatial formats (extends FR-10/FR-12).** Add `mission_package_export.py`/`mission_package_import.py` producing an ArcGIS-COMPATIBLE open package: GeoTIFF/COG DEM + layers, GeoJSON/FlatGeobuf vectors (keepouts/routes/zones/targets), STAC-style metadata, a manifest, and the authority tuple (body+site+mission+runtime_mode+runnable_profile+source_class+vehicle+role+command_namespace). Acceptance: a Haworth package round-trips (export->import) with identical layer bounds/resolution/CRS and the authority tuple preserved; ArcGIS Feature Service is left as a later adapter (FR-12), not claimed. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row BD-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW stewie/specs/test_body_profiles.py citing [REQ:BD-01]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BD-01",
    "lane": "BD",
    "pri": "P0",
@@ -1521,17 +1521,17 @@
    "text": "Safety-control layer: e-stop, live-command lock, geofences, speed/dig-depth/slope limits, battery minimums, comms-loss behavior, collision constraints, abort rules. No live execution bypasses it. Acceptance: each limit rejects an out-of-bound command, e-stop halts, comms-loss triggers the defined behavior; test."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row EG-12 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:EG-12]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "EG-12",
    "lane": "EG",
    "pri": "P1",
@@ -2996,34 +2996,34 @@
    "text": "Physics planning/scoring: sinkage/slip/excavation-force/energy/stability scored per candidate via the conserved PhysicsBackend (PX-04). Acceptance: each candidate carries a physics score from the conserved backend; an infeasible candidate is flagged (not silently ranked); test."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row MP-10 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:MP-10]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "MP-10",
    "lane": "MP",
    "pri": "P1",
    "text": "Rehearsal: candidate plans \u2192 Gazebo/Chrono simulation \u2192 predicted outcomes \u2192 risk scoring, on simulation branches in REHEARSAL mode. Acceptance: a rehearsal yields predicted outcomes + a risk score WITHOUT touching live/accepted world (mode-gated per EG-02); test."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row MP-11 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:MP-11]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "MP-11",
    "lane": "MP",
    "pri": "P1",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 90,
+   "buildable": 86,
    "concurrent": 0,
-   "done": 200,
+   "done": 204,
    "gated": 25
   },
   "by_lane": {
@@ -4782,7 +4782,7 @@
     "total": 11
    },
    "BD": {
-    "done": 1,
+    "done": 2,
     "total": 4
    },
    "BP": {
@@ -4818,7 +4818,7 @@
     "total": 2
    },
    "EG": {
-    "done": 9,
+    "done": 10,
     "total": 12
    },
    "EP": {
@@ -4862,7 +4862,7 @@
     "total": 1
    },
    "MP": {
-    "done": 4,
+    "done": 6,
     "total": 8
    },
    "MT": {
@@ -4936,11 +4936,11 @@
   },
   "by_priority": {
    "P0": {
-    "done": 91,
+    "done": 92,
     "total": 102
    },
    "P1": {
-    "done": 105,
+    "done": 108,
     "total": 178
    },
    "P2": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 220,
-  "done_pct": 63.5,
+  "cited": 224,
+  "done_pct": 64.8,
   "in_scope": 290,
-  "in_scope_done_pct": 69.0,
+  "in_scope_done_pct": 70.3,
   "total": 315
  },
  "workflow_spine": [
