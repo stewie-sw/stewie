@@ -681,13 +681,13 @@ The maneuver vocabulary is sourced from LAC/IPEx/RASSOR capabilities through
 |---|---|---|---|---|---|---|
 | AM-01 | P1 | Implement an explicit posture state machine: `TRANSIT`, `DIG`, `DUMP_Z`, `MEERKAT`, `DRUM_WALK`, `IRON_CROSS`, `SELF_RIGHT`, and `BRAKED_HOLD`. `stewie.specs.posture_machine` is that FSM: the eight states + a legal-transition table + `PostureMachine`. `BRAKED_HOLD` (the SF-01 safe stop) is reachable from every state; `SELF_RIGHT`/`IRON_CROSS` are recovery-only from `BRAKED_HOLD` (AM-06). Consumed in the product command path by NV-11 `lower_plan_ir`: each lowered action declares its required posture (GoTo→TRANSIT, Excavate/CutHaulFill→DIG, Import→DUMP_Z, Observe→MEERKAT) and a `PostureMachine` is driven through the action sequence, emitting the FSM-legal `posture_plan` (inserting TRANSIT / the BRAKED_HOLD safe stance where a direct transition is illegal) so the executive holds a legal posture per action. Pure + on-host; only structural transition legality is enforced at this seam -- the per-posture stability margin (AM-02) and flight-qualified posture geometry are the gated Q tier. | D | D | D | G |
 | AM-02 | P1 | Every transition has preconditions for slope, arm range, drum load, support contacts, stability margin, and collision clearance. `posture_machine.can_transition` enforces transition LEGALITY (collision/support-contact structure) and gates a transition INTO a raised/working posture on a caller-supplied stability margin (AM-03). The slope / arm-range / drum-load preconditions plug into the same guard from the on-host posture geometry / gated flight numbers (Q tier). | P | N | P | G |
-| AM-03 | P1 | `MEERKAT` raises the camera vantage by lowering arms under the chassis; motion is speed-limited and rejected when stability margin is inadequate. | N | N | N | G |
-| AM-04 | P1 | Differential front/rear arm pose may be used as a controlled camera-pitch action only after kinematic and stability validation. `[PROPOSED]` | N | N | N | G |
+| AM-03 | P1 | `MEERKAT` raises the camera vantage by lowering arms under the chassis; motion is speed-limited and rejected when stability margin is inadequate. | D | D | D | G |
+| AM-04 | P1 | Differential front/rear arm pose may be used as a controlled camera-pitch action only after kinematic and stability validation. `[PROPOSED]` | D | D | D | G |
 | AM-05 | P2 | `DRUM_WALK` supports bounded slow translation while raised and records contact/slip/energy separately from wheel drive. | N | N | N | G |
 | AM-06 | P2 | `IRON_CROSS` permits wheel-cleaning/recovery only under explicit raised-posture safety limits. | N | N | N | G |
 | AM-07 | P2 | `SELF_RIGHT` is a fault-recovery plan with transient stability/contact checks; it is not available as an unconstrained action. | N | N | N | G |
 | AM-08 | P1 | Arm brake allows a validated posture hold with zero or modeled holding power; transition energy remains charged. | D | D | D | G |
-| AM-09 | P1 | The planner may choose Meerkat only when predicted information gain or recovery value exceeds time, energy, and risk cost. `[PROPOSED]` | N | N | N | N |
+| AM-09 | P1 | The planner may choose Meerkat only when predicted information gain or recovery value exceeds time, energy, and risk cost. `[PROPOSED]` | D | D | D | N |
 
 ### 7.5 Perception, Mapping, and Localization
 
@@ -745,7 +745,7 @@ solar power scheduling.
 | SN-12 | P1 | Solar-navigation claims require ablations against VO/SLAM without solar factors across multiple sun angles, terrains, terrain-change states, and seeds. | P | N | P | N |
 | SN-13 | P1 | Acceptance target `[PROPOSED]`: improve median yaw/pose error or feature-track survival by a preregistered margin without increasing tip events; report energy/time overhead. | D | N | D | N |
 | SN-14 | P1 | The active-perception objective maximizes expected localization/map information per joule and second, with stability risk as a hard constraint. | D | N | D | N |
-| SN-15 | P1 | Low/high posture observations must be associated to the same world features through the current arm/camera transforms. | N | N | N | G |
+| SN-15 | P1 | Low/high posture observations must be associated to the same world features through the current arm/camera transforms. | D | D | D | G |
 
 ### 7.7 Navigation, Planning, and Recovery
 
