@@ -102,3 +102,9 @@ and stop scheduling (wait for Aaron).
   session mode into every WorldStateService/router call site is the noted [REQ:EG-03] follow-up. [REQ:EG-03]
   4/4; additive; gate green. GOVERNANCE = model(EG-01)+enforcement(EG-02)+isolation(EG-03). NEXT = EG-05
   (training-to-live gate + live-execution token).
+- 2026-07-03 b16c12e — EG-05 DONE (wake 7). Training-to-live gate + live-execution token (§29.5):
+  stewie/contracts/live_gate.py (LivePreconditions / issue_live_token / require_live_token) -- token minted
+  ONLY when the 8-step sequence (steps 1-6) completes; the command bridge rejects a missing/mismatched/forged
+  token (signature-bound to mission+revision); SEPARATE from EG-02 (LIVE authority alone insufficient). Steps
+  1-6 = the MO-02 DRAFT..RELEASED SignedRevision chain. Token->/executive/run wiring is the noted follow-up.
+  [REQ:EG-05] 4/4; additive; gate green. NEXT = EG-06 (command-safety pipeline + single-ROS2-egress invariant).
