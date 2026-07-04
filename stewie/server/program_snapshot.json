@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "cc586be17561691f6cba5fca7e8a928e94912acc3511418d7b415ffb92657996",
+  "citations_sha256": "7b010eb18a66044c208d03c67295576eae083c2c8b6ab5529da75e29567778a5",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "44e8d5ac749247e337f1d3f39d3b9ec2c7069c46",
-  "prd_sha256": "b8e922f72b133971eb4667c5664a4c1fdd0ea511b35e32179108f117a05369e1",
+  "prd_commit": "5fe1acb3f47b935bdcf2b3cf426dc2743e22b675",
+  "prd_sha256": "7d68798fc5029e4005a6ae751376307c61e05b29346734640c8ff900d17f6f09",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1466,17 +1466,17 @@
    "text": "Reconciliation lifecycle: `observed\u2192compared\u2192proposed\u2192reviewed\u2192accepted/rejected\u2192applied\u2192archived` with confidence + model/sensor error flags. Acceptance: a proposal advances the states; a rejected proposal never mutates accepted truth; a manual override is logged; test."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row EG-09 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:EG-09]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "EG-09",
    "lane": "EG",
    "pri": "P1",
@@ -4742,9 +4742,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 83,
+   "buildable": 82,
    "concurrent": 0,
-   "done": 216,
+   "done": 217,
    "gated": 16
   },
   "by_lane": {
@@ -4809,7 +4809,7 @@
     "total": 2
    },
    "EG": {
-    "done": 10,
+    "done": 11,
     "total": 12
    },
    "EP": {
@@ -4931,7 +4931,7 @@
     "total": 102
    },
    "P1": {
-    "done": 119,
+    "done": 120,
     "total": 178
    },
    "P2": {
@@ -4943,10 +4943,10 @@
     "total": 2
    }
   },
-  "cited": 236,
-  "done_pct": 68.6,
+  "cited": 237,
+  "done_pct": 68.9,
   "in_scope": 299,
-  "in_scope_done_pct": 72.2,
+  "in_scope_done_pct": 72.6,
   "total": 315
  },
  "workflow_spine": [
