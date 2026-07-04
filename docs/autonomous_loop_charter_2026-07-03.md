@@ -309,3 +309,13 @@ and stop scheduling (wait for Aaron).
   Correctly left V=P per its own test docstring. NOT flippable without fabrication.
 - WAVE 4 ASSESSMENT: the remaining V=P rows are honestly partial for REAL reasons (blocked on features/data
   that don't exist, or high-blast migrations, or ADR/doc bundles) -- NO fake-promote-free quick flips remain.
+
+- FS-25 (product mode + runnable profile in the route/state model): LEDGERED under D1 (frontend). It is the
+  COCKPIT route/state model (cockpit_state.js) carrying product-mode + runnable-profile as routeable/persisted/
+  shareable fields -- a frontend state-contract change, part of the React/GeoLibre track. Not backend.
+- PO-15 (operations governance beyond account admin): LEDGERED (broad + partly-frontend, I=P). Mixes backend
+  (scheduled/monitored backup with an RPO/retention policy, hardware/live-command safety locks) with frontend
+  admin surfaces (index.html); a multi-part row, not a clean small on-host win. Needs the ops-UI + a scheduler.
+- CAMPAIGN CONCLUDE 2026-07-04: on-host non-frontend non-blocked clean wins EXHAUSTED after BA-06 + MT-04 +
+  BD-02. Remainder = frontend (D1), ROS2-node scope (BA-09/PM-18/19), GPU-render (RS-05/BA-07/08, mesa-EGL),
+  hardware (RS-06), dense-perception GPU (PM-13..16), MT-01 externalization, MT-05 ADRs, D2/D3, CI-infra.
