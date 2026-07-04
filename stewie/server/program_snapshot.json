@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "8f17d637db8a15c9d3ee3ab36ec480e85e144a003187fb07f8dbe1c233283d33",
+  "citations_sha256": "8b4ac9111538fb57e4bf036cfdd9a1d37d7a0a0db1ee9fe2c77e815dece3132e",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "f286034243a9e01d609904d339c115594311fabe",
-  "prd_sha256": "b5bd0925a81c1e5ef292b1a70090f7c3b786e4f3addbcb028cf85bae094b5da4",
+  "prd_commit": "351e9a75955864c0f1073ae1e5d1dcae77f25ef5",
+  "prd_sha256": "1c055441b9de26804db6faa888e579e72f2e38f04b8c3b4bbaea23fb2cfefda9",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1504,17 +1504,17 @@
    "text": "Admin/control-backend taxonomy: the 13 sections (\u00a729.8) as role-gated admin panels, each reading only its service. Acceptance: each section routes to its service data; a role without authority cannot see/act on a section; test."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row EG-11 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:EG-11]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "EG-11",
    "lane": "EG",
    "pri": "P0",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 97,
+   "buildable": 96,
    "concurrent": 0,
-   "done": 193,
+   "done": 194,
    "gated": 25
   },
   "by_lane": {
@@ -4818,7 +4818,7 @@
     "total": 2
    },
    "EG": {
-    "done": 5,
+    "done": 6,
     "total": 12
    },
    "EP": {
@@ -4936,7 +4936,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 90,
+    "done": 91,
     "total": 102
    },
    "P1": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 212,
-  "done_pct": 61.3,
+  "cited": 213,
+  "done_pct": 61.6,
   "in_scope": 290,
-  "in_scope_done_pct": 66.6,
+  "in_scope_done_pct": 66.9,
   "total": 315
  },
  "workflow_spine": [
