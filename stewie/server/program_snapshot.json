@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "cef43bfac4f6c5497795883e53e6288f22fd65eb49d52be7414a995a14fcf02e",
+  "citations_sha256": "55fd6b110dbfea66103f14b47dbe7541775af3b3b324bc06884fa691009838a3",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "5d86ca11dd20737e291607f9d643eb725b8304ee",
-  "prd_sha256": "04b7f9a0020aa5905bccdab5c348945dedfb2f59a96b14f57b458cec0dca150f",
+  "prd_commit": "47cd24051afadd2da73d1df5b4d071f0f073cb28",
+  "prd_sha256": "648473ed588d1a7b8190f4462df1f9ff883876f2adaa2bf9744a62957031f349",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1402,17 +1402,17 @@
    "text": "Role/permission model: Admin/SafetyOfficer/MissionDirector/Operator/Planner/Scientist/Engineer/Trainer/Trainee/Viewer/AIAgent + a per-role permission set + explicit live-command eligibility. Acceptance: role floors enforced (Viewer read-only, Trainee training-only, Engineer non-live-only, SafetyOfficer approves live transitions); test."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row EG-05 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:EG-05]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "EG-05",
    "lane": "EG",
    "pri": "P0",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 99,
+   "buildable": 98,
    "concurrent": 0,
-   "done": 191,
+   "done": 192,
    "gated": 25
   },
   "by_lane": {
@@ -4818,7 +4818,7 @@
     "total": 2
    },
    "EG": {
-    "done": 3,
+    "done": 4,
     "total": 12
    },
    "EP": {
@@ -4936,7 +4936,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 88,
+    "done": 89,
     "total": 102
    },
    "P1": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 210,
-  "done_pct": 60.6,
+  "cited": 211,
+  "done_pct": 61.0,
   "in_scope": 290,
-  "in_scope_done_pct": 65.9,
+  "in_scope_done_pct": 66.2,
   "total": 315
  },
  "workflow_spine": [
