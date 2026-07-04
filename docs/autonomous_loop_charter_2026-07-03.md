@@ -125,3 +125,11 @@ and stop scheduling (wait for Aaron).
   comms-loss -> SAFE. Pipeline-wiring (call check_within_limits in EG-06 lower_command) is the noted follow-up.
   [REQ:EG-11] 6/6; additive; gate green. GOVERNANCE COMPLETE (EG-01/02/03/05/06/11). NEXT = MP-07 (the LAST
   on-host-buildable P0).
+- 2026-07-03 c4d6ae5 — MP-07 DONE (wake 10). Plan-executability gate (§30.3): stewie/contracts/plan_gate.py
+  (PlanPreconditions 8 steps + is_executable + require_executable -> PlanNotExecutable). The planning-domain
+  mirror of EG-05's live gate; each precondition maps to a real PlanResult/executive source. Plan-flow wiring is
+  the noted follow-up. [REQ:MP-07] 4/4; additive; gate green.
+- 2026-07-03 — LOOP COMPLETE. On-host-buildable P0 queue DRY (all 10 rows done). Board 195/315 (67.2% in-scope).
+  52 commits on feat/platform-restructure, NOT pushed, NOT merged (main = 7247d94); prod app.stewie.space runs
+  the a0c98d3 build (rows after that are branch-only). Summary: session_notes/2026-07-03_autonomous_restructure_loop.md.
+  No further ScheduleWakeup -- clean end.
