@@ -567,7 +567,7 @@ TU Tauri desktop · MG migration governance.
 | MG-01 | P0 | The vanilla cockpit stays served + deployable until React parity gates pass (`/app` vanilla, `/app2` React); its smoke tests keep passing throughout the migration. | N | N | N | NA |
 | MG-02 | P0 | No pane is flipped vanilla to React without signed-in Playwright parity + fixtures + mobile fit + route-registry coverage + a rollback route. | N | N | N | NA |
 | MG-03 | P2 | Vanilla-cockpit retirement: `/app` flips to React only after the full signed-in Playwright suite passes desktop+mobile, the backend suite stays green, route coverage is 100% for pane-backed routes, and Cesium is removed from the active surface. | N | N | N | NA |
-| MG-04 | P0 | The `/program` requirements board (`program.html` + `program_board.js`) is responsive at phone widths — >=44px touch targets, single-column row-chip stack, no horizontal overflow, filter deck + inspect panel collapse/stack. Verify via Playwright at 320/360/390/430 px. | N | N | N | NA |
+| MG-04 | P0 | The `/program` requirements board (`program.html` + `program_board.js`) is responsive at phone widths — >=44px touch targets, single-column row-chip stack, no horizontal overflow, filter deck + inspect panel collapse/stack. Verify via Playwright at 320/360/390/430 px. | D | D | D | NA |
 
 ### 7.B Platform restructure backlog (2026-07-03, platform-first, Codex-conferred)
 
