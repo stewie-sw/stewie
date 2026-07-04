@@ -183,3 +183,7 @@ graphify-out/
 node_modules/
 package.json
 package-lock.json
+
+# Regenerable render/analysis outputs (C-9, v8 campaign)
+/out/
+stewie/godot/out/

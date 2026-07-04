@@ -66,7 +66,7 @@ def load_haworth_dem(bundle_dir=None):
         raise FileNotFoundError(
             f"Haworth DEM not found at {bundle}. It is NOT bundled in the wheel -- fetch it "
             "(PGDA Product 78): run `stewie-fetch-dem --source <mirror>` or set STEWIE_DEM_URL "
-            "(see planet_browser/assets_manifest.json).")
+            "(see stewie/server/assets_manifest.json).")
     g = json.load(open(os.path.join(bundle, "metadata.json")))["grid"]
     Z = np.fromfile(os.path.join(bundle, "heightmap.rf32"), dtype="<f4").reshape(g["height"], g["width"])
     return Z.astype(np.float64), float(g["cell_m"])

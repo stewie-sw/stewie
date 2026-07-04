@@ -34,8 +34,8 @@ surface through CurrentTerrainView, all recorded in one hash-chained world-trans
 §28 slice). The trainer, planner, and digital-twin product is functionally complete; the flight-autonomy,
 arm, live-pit, and Tier-3 tracks remain hardware and host gated.
 
-**Completion snapshot (§7 requirements = 188).** Raw verification glyphs: 86 verified-done (45%), 41
-partial, 61 not-started; 119 (63%) are cited by a real `[REQ:]` test; 24 are hardware or host gated. The
+**Completion snapshot (§7 requirements = 315; live machine counts in STATUS.json / program_snapshot.json / release_manifest.json).** Raw verification glyphs (2026-07-04): 220 verified-done, 20
+partial, 75 not-started; 239 are cited by a real `[REQ:]` test; hardware/host-gated rows stay excluded from the in-scope denominator. The
 glyphs are ROUGHLY ACCURATE, not a large undercount (a 2026-07-01 audit corrected the earlier
 "~38 done-stale" optimism): 33 rows are cited but read V!=D (STATUS.md "V!=D flagged"), yet a citation
 does NOT mean done -- the implementation glyph confirms ~32 of those are genuinely partial (I=P/N), a

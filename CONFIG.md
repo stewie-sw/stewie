@@ -5,17 +5,17 @@ most to least dynamic.
 
 ## 1. Per-call / runtime objects (already dynamic)
 
-- **Terramechanics** — `terrain_authority.terramechanics.TerramechanicsParams` is a dataclass you
+- **Terramechanics** — `stewie.physics.body_params.TerramechanicsParams` is a dataclass you
   construct, serialize to/from JSON (`from_json` / `to_json`), or calibrate from the SCM oracle.
   Pass it into the solver to change Bekker/slip behavior per run.
-- **Planetary body** — `terrain_authority.bodies.params_for_body("mars")` returns the gravity-correct,
+- **Planetary body** — `stewie.specs.bodies.params_for_body("mars")` returns the gravity-correct,
   literature-sourced parameter set for a body; `RoverSimEnv(..., body="ceres")` selects it. See
   [docs/bodies_sysrev.md](docs/bodies_sysrev.md).
 
 ## 2. Environment + file overlay over the module constants (PRD N15)
 
-The module-level constants in `terrain_authority/constants.py` (regolith density, Bekker moduli,
-crater/boulder statistics, rover mass, ...) and `terrain_authority/ipex_specs.py` (IPEx mass, speed,
+The module-level constants in `stewie/specs/constants.py` (regolith density, Bekker moduli,
+crater/boulder statistics, rover mass, ...) and `stewie/specs/ipex_specs.py` (IPEx mass, speed,
 battery, planner knobs) are overridable at import time by an overlay. **Environment wins over file.**
 
 ### Environment variables
@@ -23,8 +23,8 @@ battery, planner knobs) are overridable at import time by an overlay. **Environm
 Set `STEWIE_<NAME>` where `<NAME>` is the exact constant name:
 
 ```bash
-STEWIE_RHO_SURFACE=1250 STEWIE_ROVER_MASS_DRY_KG=25 python -m planet_browser.server
-STEWIE_BATTERY_SERIES_CELLS=14 python -c "from terrain_authority import ipex_specs; print(ipex_specs.battery_energy_wh())"
+STEWIE_RHO_SURFACE=1250 STEWIE_ROVER_MASS_DRY_KG=25 python -m stewie.server.server
+STEWIE_BATTERY_SERIES_CELLS=14 python -c "from stewie.specs import ipex_specs; print(ipex_specs.battery_energy_wh())"
 ```
 
 Values are coerced to `bool` (`true`/`false`), then `int`, then `float`, else left as text. A name that
@@ -46,7 +46,7 @@ RECHARGE_POWER_W = 900.0
 ```
 
 ```bash
-STEWIE_CONFIG=my_site.toml python -m planet_browser.server
+STEWIE_CONFIG=my_site.toml python -m stewie.server.server
 ```
 
 (TOML parsing uses the stdlib `tomllib` on Python ≥ 3.11; on 3.10 `tomli` is installed automatically as
@@ -66,8 +66,8 @@ the **primitive**, not the derived value:
 ### Inspect the effective config
 
 ```python
-from terrain_authority import config
-config.describe()   # {'config_file': ..., 'overrides': {...}, 'applied': {'terrain_authority.constants': {'RHO_SURFACE': (1300.0, 1250.0)}}}
+from stewie.specs import config
+config.describe()   # {'config_file': ..., 'overrides': {...}, 'applied': {'stewie.specs.constants': {'RHO_SURFACE': (1300.0, 1250.0)}}}
 ```
 
 ## 3. Source defaults (the provenance of record)
