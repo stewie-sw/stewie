@@ -257,3 +257,9 @@ and stop scheduling (wait for Aaron).
   newline — use `re.sub(r'\| N \| N \| N \| ([A-Za-z]+) \|(\s*)$', lambda m:'| D | D | D | '+m.group(1)+' |'+m.group(2), l)`
   and ASSERT new.endswith(newline). The post-flip req_trace is what caught it — NEVER skip it. Reverted (git
   checkout PRD.md, uncommitted) + re-flipped correctly.
+- 2026-07-04 WAVE 4 integrated: SN-15 (feature association), AM-03 (Meerkat raise), AM-04 (differential pitch),
+  AM-09 (Meerkat decision). All dart/, compose wave-3 Meerkat/arm/camera. Board 216/315 (72.2%). 16 rows /
+  4 waves. Newline-preserving flip + post-flip req_trace = CLEAN (rows 321->321, no fake-promote). CI NOTE:
+  b3dcd2d (first corruption-fix, stale snapshot) failed CI as expected; 8e8d661 (re-regen) superseded it, CI
+  in_progress + slow (~40min, runner queueing) but verified green-worthy locally. Held batch (waves 2-4)
+  waits on it. NEXT: push when green, FIX EG-09 directly, wave 5 (PX-02/BP-*/MT-04/EP-06 + remaining).
