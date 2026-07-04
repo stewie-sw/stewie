@@ -135,3 +135,14 @@ only Gazebo (container-only, not on Debian apt) needs this docker-CDI fix.
   dedicated infra effort (uncertain, multi-step) -- NOT a quick env tweak. Do NOT re-chase the env-var
   combinations (CDI/EGL-vendor/xvfb all tried + fail at the same OGRE2 CreateRenderSystem segfault). Item 3
   (RS-05/BA-07/08/PM-13-16) stays deferred pending that rebuild; the frontend pane-migration is the main track.
+
+## GPU item-3 UNBLOCKED (2026-07-04) — CORRECTION: no rebuild needed, it was LIBGL_ALWAYS_SOFTWARE=1
+The "needs a gazebo-nvidia rebuild" conclusion above is SUPERSEDED. Root cause of the OGRE2 segfault: the
+stewie-gazebo image bakes `ENV LIBGL_ALWAYS_SOFTWARE=1` (deploy/ros2/Dockerfile.gazebo:27) which FORCES
+software mesa GL; with the CDI-mounted nvidia GL libs also present, that conflict segfaults OGRE2 at render-
+system init. FIX (runtime env, no rebuild): --device nvidia.com/gpu=all + LIBGL_ALWAYS_SOFTWARE=0 +
+LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/nvidia/current + __GLX_VENDOR_LIBRARY_NAME=nvidia + xvfb (see
+deploy/ros2/render_gpu.env). VERIFIED: the H-6 gpu_lidar world renders + publishes /model/ipex/perception +
+/model/ipex/perception/points (a real GPU sensor render). Item 3 (RS-05 Gazebo live-sensor loop, BA-07/08,
+PM-13-16) is now BUILDABLE on the box; the container CPU-only default (LIBGL_ALWAYS_SOFTWARE=1) is unchanged
+for CI. Requires Aaron's docker features.cdi=true (applied 2026-07-04).
