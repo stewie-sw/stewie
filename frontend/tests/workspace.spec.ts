@@ -19,6 +19,11 @@ test("workspace state round-trips through the URL across a reload", async ({ pag
   expect(sp.get("runnableProfile")).toBe("ros2_replay");
   expect(sp.get("physicsBackend")).toBe("tier3_chrono");
 
+  // navigating BETWEEN panes preserves the workspace state (the nav links carry the query params)
+  await page.locator('.vtab[data-view="report"]').click();
+  expect(new URL(page.url()).searchParams.get("productMode")).toBe("SIM-OPERATE");
+  await expect(page.locator('[data-testid="ws-productMode"]')).toHaveValue("SIM-OPERATE");
+
   // a reload restores state FROM the URL (the URL is the source of truth)
   await page.reload();
   await expect(page.locator('[data-testid="ws-productMode"]')).toHaveValue("SIM-OPERATE");

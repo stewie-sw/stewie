@@ -1,4 +1,4 @@
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { useEligibility } from "./eligibility";
 import { PANES, RANK, visiblePanes } from "./panes";
@@ -78,13 +78,14 @@ function PaneRoute({ pane, role }: { pane: Pane; role: Role }) {
 function Shell() {
   const role = useRole();
   const nav = visiblePanes(role);
+  const { search } = useLocation(); // preserve the workspace state (URL query) across pane navigation
   return (
     <div className="cockpit-shell">
       <header className="conops-spine">
         <span className="brand">STEWIE</span>
         <nav aria-label="cockpit panes">
           {nav.map((p) => (
-            <NavLink key={p.id} to={`/${p.id}`} data-view={p.id} className="vtab">{p.label}</NavLink>
+            <NavLink key={p.id} to={{ pathname: `/${p.id}`, search }} data-view={p.id} className="vtab">{p.label}</NavLink>
           ))}
         </nav>
         <span className="role-badge" data-role={role} title="current operator role">{role}</span>
