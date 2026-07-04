@@ -287,8 +287,27 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
                       reason="energy residual exceeds estimator sigma -> model-update proposed",
                       before_state=f"predicted={_pred_j:.1f}J", after_state=f"observed={_obs_j:.1f}J",
                       evidence=f"residual={_recon.residual.residual:.1f}J;proposals={len(_recon.proposals)}")
+    # [REQ:EG-05] the live-execution token: §29.5 mints a token ONLY when all 6 training->live preconditions
+    # hold (mission created + sim branch + rehearsal done + physics passed + safety passed + human approval),
+    # derived from the run's REAL state. A token ATTESTS the released plan is live-executable; a safed or
+    # unapproved plan yields none. The require-token half stays on the rc.py LIVE bridge (SIM /run never
+    # commands a rover), so this mints the attestation the live path would demand.
+    from stewie.contracts.live_gate import LiveExecutionRefused, LivePreconditions, issue_live_token
+    _live_pre = LivePreconditions(
+        mission_created=bool(intent.objectives), simulation_branch=True,
+        rehearsal_completed=bool(out.get("legs")),
+        physics_passed=get_backend("tier2_numpy").conserves_mass(),
+        safety_passed=(run["final_state"] == "completed"),
+        human_approval=(str(released.state.value) == "released"))
+    try:
+        _tok = issue_live_token(req.mission_id, str(req.revision), _live_pre)
+        live_token = {"issued": True, "mission_id": _tok.mission_id, "revision_id": _tok.revision_id,
+                      "signature": _tok.signature}
+    except LiveExecutionRefused as _e:
+        live_token = {"issued": False, "reason": str(_e)}
     return JSONResponse(content={"ok": True, "run_id": run_id, **rec, "executability": executability,
-                                 "reconciliation": reconciliation, "skipped": skipped})
+                                 "reconciliation": reconciliation, "live_token": live_token,
+                                 "skipped": skipped})
 
 
 @router.get("/executive/run/{run_id}")

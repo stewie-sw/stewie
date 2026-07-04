@@ -63,3 +63,16 @@ def test_eg08_executive_run_reports_the_energy_reconciliation(monkeypatch, tmp_p
     if rc["residual"] != 0.0:                                     # a real slip-energy surprise emits a proposal
         assert rc["proposals"], "a nonzero energy residual must emit a reconciliation proposal"
         assert all(p["state"] == "proposed" for p in rc["proposals"])   # walked OBSERVED->COMPARED->PROPOSED
+
+
+def test_eg05_executive_run_mints_a_live_execution_token(monkeypatch, tmp_path):  # [REQ:EG-05]
+    # a completed run meets all 6 training->live preconditions -> a signed LiveExecutionToken; a safed run none.
+    c = _client(monkeypatch, tmp_path)
+    r = c.post("/executive/run", json={"orders": _ORDERS, "site": "haworth"})
+    assert r.status_code == 200, r.text
+    j = r.json()
+    tok = j["live_token"]
+    if j["executability"]["preconditions"]["safety_check"]:      # completed-not-safed
+        assert tok["issued"] is True and tok["signature"] and tok["mission_id"]   # all 6 met -> signed token
+    else:
+        assert tok["issued"] is False and tok["reason"]          # a safed run -> refused, with a reason
