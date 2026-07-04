@@ -221,6 +221,7 @@ and stop scheduling (wait for Aaron).
 - WAVE 1 launched: EG-09, EG-12, MP-10, MP-11, BD-01 (Workflow wtmag1our). Integrate on completion.
 
 ## BLOCKER LOG
+- EG-09 RESOLVED 2026-07-04 (fixed directly, commit ~fc92014): relocated heavy_quota->deps + _terrain_lock->world_state (killed the world<->mission<->execution cycle), added service_boundaries.py manifest + test_service_import_dag.py [REQ:EG-09] (service graph ACYCLIC + CORE sink + rclpy execution-only). Server regression + smoke green. Board 217/315.
 - EG-09 (P1, import-DAG guard) BLOCKED 2026-07-03 (fan-out agent, verified honest). The REAL backend import
   graph has cross-service reach-throughs forming a world→mission→execution→world cycle, so a faithful
   "12 bounded services form a DAG" test cannot be written green without a refactor + a taxonomy decision.
