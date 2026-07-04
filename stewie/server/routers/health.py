@@ -27,15 +27,28 @@ def _version() -> str:
         return "0.1.0"
 
 
+def _identity_health() -> dict:
+    # BP-04: identity is DEGRADED when a PRODUCTION (TLS-terminated) deployment runs on BUILT-IN default
+    # identity -- no explicit STEWIE_ALLOWED_OPERATORS / STEWIE_DIRECTORS. allowlist() then fails closed,
+    # and this surfaces the misconfiguration. dev/desktop on defaults is NOT degraded.
+    import os
+
+    from stewie.server import auth as _auth
+    on_defaults = _auth.identity_on_builtin_defaults()
+    prod = os.environ.get("STEWIE_TLS_TERMINATED", "") == "1"
+    return {"on_builtin_defaults": on_defaults, "degraded": bool(on_defaults and prod)}
+
+
 @router.get("/healthz")
 def healthz():
     # S-10 / SEC-02: surface the audit-ledger AND session-revocation health so a silently-stopped
-    # security trail or a fail-closed (unreadable) revocation store is OBSERVABLE. The status flips to
-    # 'degraded' when either subsystem is degraded (audit writes failing, or revocation reads failing).
+    # security trail or a fail-closed (unreadable) revocation store is OBSERVABLE. BP-04 adds identity
+    # health (prod running on built-in defaults). Status flips to 'degraded' when ANY subsystem is degraded.
     ah = audit_health()
     rh = revocation_health()
-    return {"status": "degraded" if (ah["degraded"] or rh["degraded"]) else "ok", "version": _version(),
-            "uptime_s": uptime_s(), "audit": ah, "revocation": rh}
+    ih = _identity_health()
+    return {"status": "degraded" if (ah["degraded"] or rh["degraded"] or ih["degraded"]) else "ok",
+            "version": _version(), "uptime_s": uptime_s(), "audit": ah, "revocation": rh, "identity": ih}
 
 
 @router.get("/metrics")

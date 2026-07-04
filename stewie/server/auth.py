@@ -39,7 +39,21 @@ def allowlist() -> tuple:
     env = os.environ.get("STEWIE_ALLOWED_OPERATORS", "")
     if env.strip():
         return tuple(e.strip().lower() for e in env.split(",") if e.strip())
+    # BP-04: production must not silently trust the built-in staff allowlist. In a TLS-terminated
+    # (public/prod) posture with no explicit STEWIE_ALLOWED_OPERATORS, fail CLOSED (empty -> nobody is
+    # allowlisted) rather than honoring the hardcoded emails. Local/dev/desktop keep the defaults.
+    if os.environ.get("STEWIE_TLS_TERMINATED", "") == "1":
+        return ()
     return DEFAULT_ALLOWLIST
+
+
+def identity_on_builtin_defaults() -> bool:
+    """[REQ:BP-04] True when operator identity runs on BUILT-IN defaults -- no explicit
+    STEWIE_ALLOWED_OPERATORS AND no STEWIE_DIRECTORS. A DEGRADED posture that /healthz + /config surface:
+    in production allowlist() already fails closed on it, but the flag makes the misconfiguration visible
+    (a real deployment sets both explicitly; dev/desktop may run on defaults)."""
+    return (not os.environ.get("STEWIE_ALLOWED_OPERATORS", "").strip()
+            and not os.environ.get("STEWIE_DIRECTORS", "").strip())
 
 
 def is_allowed(email: str) -> bool:

@@ -47,8 +47,11 @@ def get_config(_auth: str = Depends(require_auth)):
     """Runtime config overlay state (intern/dev pane): config_file + overrides + applied (PRD N15).
     SEC-1: describe() redacts secret values at the source; this also passes through _redact_secrets
     (defense in depth) so a future describe() field cannot leak a key. S-06: auth required."""
+    from stewie.server import auth as _authmod
     from stewie.specs import config as _cfg
-    return {"ok": True, **_redact_secrets(_cfg.describe())}
+    # BP-04: surface whether identity is running on built-in defaults (no explicit allowlist/directors).
+    return {"ok": True, "identity": {"on_builtin_defaults": _authmod.identity_on_builtin_defaults()},
+            **_redact_secrets(_cfg.describe())}
 
 
 @router.get("/config/full")
