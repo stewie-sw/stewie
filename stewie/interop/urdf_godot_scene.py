@@ -47,7 +47,7 @@ def _origin(joint: ET.Element) -> tuple[_Vec3, _Vec3]:
 
 
 def _scene_from_root(root: ET.Element) -> GodotScene:
-    links = [ln.get("name") for ln in root.findall("link") if ln.get("name")]
+    links = [name for ln in root.findall("link") if (name := ln.get("name"))]
     joints = root.findall("joint")
     # child link -> (parent link, joint name, type, origin)
     by_child: dict[str, tuple[str, str, str, _Vec3, _Vec3]] = {}
