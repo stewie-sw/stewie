@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "de1a302feb11d2f52884154ed81248fa3b03dac7f5dd082658923d577e939b85",
+  "citations_sha256": "7c76746db7593f9d9da35112aafff8c5cd3a1b325a9269749c0e2b054d3b0816",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "a0a2bc6fcf40122e51fdd977fc18dc140a4730c2",
-  "prd_sha256": "856850dfc54908784a5eadfe014d5c03bddb5a0cd734be2217cd2acf1aee669d",
+  "prd_commit": "25839821664d51abcaf7241e12060f78275918a1",
+  "prd_sha256": "4230f27b38a5dccdf5d97efe3f46edce496858189150312d0a6ce512aba24efe",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -790,17 +790,17 @@
    "text": "**Production requires a standalone session-signing secret (review P1-2).** `auth.py` falls back to deriving the session key from `STEWIE_API_KEY`; `compose.yml` does not require `STEWIE_SESSION_SECRET`. Fix: production (`STEWIE_TLS_TERMINATED=1`) REQUIRES `STEWIE_SESSION_SECRET` (fail-loud like the API key), startup fails/warns when TLS-terminated + secret absent, and rotation is documented (API-key rotation must not silently invalidate sessions; session-secret rotation must). Acceptance: a deploy-hardening test fails when production omits the secret; auth tests prove API-key vs session-secret rotation have separate effects. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "TLS-terminated production requires explicit STEWIE_ALLOWED_OPERATORS + STEWIE_DIRECTORS (or bootstrap director), disables default-allowlist/raw-key trust; /healthz+/config DEGRADED on defaults.",
     "kind": "atomic",
     "test_target": "stewie/server/test_production_identity_strict.py citing [REQ:BP-04]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BP-04",
    "lane": "BP",
    "pri": "P1",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 80,
+   "buildable": 79,
    "concurrent": 0,
-   "done": 221,
+   "done": 222,
    "gated": 14
   },
   "by_lane": {
@@ -4775,7 +4775,7 @@
     "total": 4
    },
    "BP": {
-    "done": 5,
+    "done": 6,
     "total": 13
    },
    "BR": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 124,
+    "done": 125,
     "total": 178
    },
    "P2": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 240,
-  "done_pct": 70.2,
+  "cited": 241,
+  "done_pct": 70.5,
   "in_scope": 301,
-  "in_scope_done_pct": 73.4,
+  "in_scope_done_pct": 73.8,
   "total": 315
  },
  "workflow_spine": [
