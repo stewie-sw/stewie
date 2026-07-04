@@ -1,0 +1,31 @@
+# [REQ:MT-05] generated-artifact manifest.
+#
+# Declares, for every committed artifact that is DERIVED, the generator that re-derives it from source, so a
+# regenerable artifact is never a stale mystery blob: it can always be rebuilt and diffed against what is
+# checked in. The continuity-governance gate (scripts/continuity_gate.py) asserts every `generator` below
+# exists; the regen convention (run the generator, commit its output) keeps these in lockstep with PRD.md.
+#
+# TRACKED entries are the opposite: hand-maintained source of truth, or externally-sourced data that is NOT
+# regenerable from this repo (the real DEM). They are listed so the boundary is explicit, not implied.
+
+regenerable:
+  - path: stewie/server/program_snapshot.json
+    generator: scripts/gen_program_snapshot.py
+    note: the /program board projection of the committed PRD.md §7 matrix + fan-out briefs
+  - path: STATUS.md
+    generator: scripts/gen_status.py
+    note: human-readable board status, derived from git show HEAD:PRD.md
+  - path: STATUS.json
+    generator: scripts/gen_status.py
+    note: machine-readable board status (same source as STATUS.md)
+  - path: release_manifest.json
+    generator: scripts/gen_release_manifest.py
+    note: per-release requirement/artifact manifest, derived from the committed PRD.md
+
+tracked:
+  - path: PRD.md
+    reason: hand-maintained source of truth for the §7 requirement matrix (the generators read it, not vice versa)
+  - path: stewie/server/bodies.json
+    reason: snapshot of the stewie_bodies registry (regenerated in place by its test; committed for the JS frontend)
+  - path: samples/lunar_dem/
+    reason: real PGDA LOLA Haworth DEM (externally sourced, not derivable here); externalization tracked by MT-01
