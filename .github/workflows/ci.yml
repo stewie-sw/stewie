@@ -52,6 +52,8 @@ jobs:
         run: python scripts/check_tracked_artifacts.py
       - name: Power-of-10 profile on the conserved core (PRD 19.2; complexity<=10, bounded branching)
         run: ruff check --select C901,PLR0912,PLR0915 stewie/physics stewie/twin --config 'lint.mccabe.max-complexity=10'
+      - name: AS-15 static-analysis ratchet (H-5 -- a NAMED gate step; exits nonzero on a regression over baseline)
+        run: python scripts/static_analysis_gate.py    # the down-only B905/complexity ratchet over dart/bridge/runtime/contracts; not only via the pytest wrapper (a -k-filtered run would skip that)
       - name: Lint (ruff, pyflakes gate)
         run: ruff check --select F stewie dart lode leap forge scripts viz
       - name: Type check (mypy; mission-planner + core enforced, sim modules ratcheted in pyproject)
