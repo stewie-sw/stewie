@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "cb693d8ecb5ab5beb2365e58ef4c49c2d9d83d8057541f8b1f009f8e75882290",
+  "citations_sha256": "7589d6abecc4fbee525bee02043b77d2724af1afa29cf847114d1c62468bca29",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "abef9d123c0946b9c4c51a2795b21122a30dc2d8",
-  "prd_sha256": "86b8f1e8afaef5e98477e2473fdf666da989320756227f464f7d7abe9c28b036",
+  "prd_commit": "ae518e26bb0698fdd5b0a5f597ecdfa6280df774",
+  "prd_sha256": "7f982aef580c69464df01ae9c272ba8f4b347fffbff456635b45f223f23c3a45",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1453,17 +1453,17 @@
    "text": "Immutable audit trail: every critical action records who/what/when/where/mode/reason/before-state/after-state/evidence, append-only + hash-chained (extends the TwinStore journal). Acceptance: a live command, a merge, and a config change each emit a record carrying all 9 fields; tamper is detectable; test."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row EG-08 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:EG-08]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "EG-08",
    "lane": "EG",
    "pri": "P1",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 92,
+   "buildable": 91,
    "concurrent": 0,
-   "done": 198,
+   "done": 199,
    "gated": 25
   },
   "by_lane": {
@@ -4818,7 +4818,7 @@
     "total": 2
    },
    "EG": {
-    "done": 8,
+    "done": 9,
     "total": 12
    },
    "EP": {
@@ -4940,7 +4940,7 @@
     "total": 102
    },
    "P1": {
-    "done": 102,
+    "done": 103,
     "total": 178
    },
    "P2": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 217,
-  "done_pct": 62.9,
+  "cited": 218,
+  "done_pct": 63.2,
   "in_scope": 290,
-  "in_scope_done_pct": 68.3,
+  "in_scope_done_pct": 68.6,
   "total": 315
  },
  "workflow_spine": [
