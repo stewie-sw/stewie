@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "3de70c84ac3e8a7c947b8409dba9133cdc87ccde270a3ad9a8bc8fe0dc75cff0",
+  "citations_sha256": "5eab49f11815e5c1fe63b8738506754e1987ff6fc5a9b5eac32ba2bc7983c2c8",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "5fffa2f9f6ad3e68360360d662b7e01ebf53643f",
-  "prd_sha256": "211116ae028980ffb39e6ac60448ff807be9561242b0c4dd981fb3720d27c224",
+  "prd_commit": "4a7384125396c2ffa04bd4eb0fa04b7854757987",
+  "prd_sha256": "21ea8e4de03cf3d99fafe6c18dece9992d29eb54563a4054af218cf3ce0c1b99",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -3966,17 +3966,17 @@
    "text": "React shell implements the same 13 pane identities + role visibility as the vanilla cockpit; signed-in browser tests open all 13 panes at desktop + phone widths."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row RF-02 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW frontend/src/app/test_shell.test.tsx citing [REQ:RF-02]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "RF-02",
    "lane": "RF",
    "pri": "P0",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 71,
+   "buildable": 70,
    "concurrent": 0,
-   "done": 230,
+   "done": 231,
    "gated": 14
   },
   "by_lane": {
@@ -4879,7 +4879,7 @@
     "total": 6
    },
    "RF": {
-    "done": 1,
+    "done": 2,
     "total": 3
    },
    "RL": {
@@ -4925,7 +4925,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 95,
+    "done": 96,
     "total": 102
    },
    "P1": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 248,
-  "done_pct": 73.0,
+  "cited": 249,
+  "done_pct": 73.3,
   "in_scope": 301,
-  "in_scope_done_pct": 76.4,
+  "in_scope_done_pct": 76.7,
   "total": 315
  },
  "workflow_spine": [
