@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "8b4ac9111538fb57e4bf036cfdd9a1d37d7a0a0db1ee9fe2c77e815dece3132e",
+  "citations_sha256": "a2712cf1bcd146c0e231bc3ad888444c8706bf6f7758a84e8771084d9c85dc2c",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "351e9a75955864c0f1073ae1e5d1dcae77f25ef5",
-  "prd_sha256": "1c055441b9de26804db6faa888e579e72f2e38f04b8c3b4bbaea23fb2cfefda9",
+  "prd_commit": "2e7dc83dfe4738787fdccbe348c39cf8b13a71f4",
+  "prd_sha256": "ed81d6e15f55f700557d6e9d1f10b396c06e79fed531c090b01e389beb29ff67",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -2945,17 +2945,17 @@
    "text": "The intent-to-world planning FLOW: Intent\u2192Tasks\u2192Capability matching\u2192Candidate plans\u2192Physics scoring\u2192Rehearsal\u2192Approval\u2192Execution\u2192Reconciliation\u2192Updated world model, deterministic on existing code (ties DE-01). Acceptance: a mission drives the full flow end-to-end producing an updated world + a report; test."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row MP-07 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:MP-07]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "MP-07",
    "lane": "MP",
    "pri": "P0",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 96,
+   "buildable": 95,
    "concurrent": 0,
-   "done": 194,
+   "done": 195,
    "gated": 25
   },
   "by_lane": {
@@ -4862,7 +4862,7 @@
     "total": 1
    },
    "MP": {
-    "done": 0,
+    "done": 1,
     "total": 8
    },
    "MT": {
@@ -4936,7 +4936,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 91,
+    "done": 92,
     "total": 102
    },
    "P1": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 213,
-  "done_pct": 61.6,
+  "cited": 214,
+  "done_pct": 61.9,
   "in_scope": 290,
-  "in_scope_done_pct": 66.9,
+  "in_scope_done_pct": 67.2,
   "total": 315
  },
  "workflow_spine": [
