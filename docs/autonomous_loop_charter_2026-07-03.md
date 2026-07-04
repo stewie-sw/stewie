@@ -250,3 +250,10 @@ and stop scheduling (wait for Aaron).
   PRD flip BEFORE regen, or regen reads the stale pre-flip PRD (hit this too, 8e8d661).
 - WAVE 3 (VT-05/VT-10/SN-11/AM-08) drafted (Workflow wru43p8ik) — NOT yet integrated. Integrate with the
   line-based flip + post-flip req_trace.
+- 2026-07-04 WAVE 3 integrated: VT-05 (dynamic CG), VT-10 (camera extrinsics), SN-11 (Meerkat obs), AM-08
+  (braked hold torque). Board 212/315 (71.9%). ★★ SECOND flip-bug caught by the mandatory post-flip req_trace:
+  the line-based flip regex `\| N \| N \| N \| Q \|(\s*)$` with `l[m.end():]` ATE THE TRAILING NEWLINE, merging
+  each flipped row with the next line (315->312, SN-12/VT-06 vanished). FIX: the replace MUST preserve the
+  newline — use `re.sub(r'\| N \| N \| N \| ([A-Za-z]+) \|(\s*)$', lambda m:'| D | D | D | '+m.group(1)+' |'+m.group(2), l)`
+  and ASSERT new.endswith(newline). The post-flip req_trace is what caught it — NEVER skip it. Reverted (git
+  checkout PRD.md, uncommitted) + re-flipped correctly.
