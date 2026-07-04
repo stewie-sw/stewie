@@ -107,3 +107,16 @@ the daemon.** **AARON FIX (sudo):** add `{"features": {"cdi": true}}` to /etc/do
 stewie-gazebo:jazzy bash -lc 'ls /usr/lib/x86_64-linux-gnu/libGLX_nvidia.so*'` should list the lib. Then item 3
 (RS-05/BA-07/08/PM-13-16) unblocks. NOTE: Godot render already works HOST-NATIVE (xvfb+vulkan on the 3090);
 only Gazebo (container-only, not on Debian apt) needs this docker-CDI fix.
+
+## Aaron frontend decisions (2026-07-04, post-AC-01)
+- **Mode: LOOP BUILDS AUTONOMOUSLY, pane-by-pane** (strangler-fig behind parity gates; vanilla cockpit stays live).
+- **Stack: Vite + React + TypeScript + React Router** (MULTI-ROUTE, answering Aaron's "more than one page?" --
+  each ConOps view + /program + admin is its own route/page; binds to the AC-01 api_client.ts). Next.js = the
+  heavier SSR/file-routing alternative, not chosen. A separate Vite bundle only for a genuinely separate app.
+- **Map: MapLibre GL / GeoLibre, 2D-first** (D1; avoids the Cesium-init black-screen that reverted the last rewrite).
+- **AC-02 now unblocked**: pane taxonomy = the ConOps spine routes -> AC-02 route registry can annotate pane
+  ownership against them.
+- **Build order (Phase E):** RF-01 (Vite+React+TS+Router shell, served at /app, vanilla stays at /) -> RF-02/03
+  (workspace state) -> GL-01/GL-02 (MapLibre workbench) + DW-01 -> MG-01/02/04 (migration governance + parity
+  gates + responsive /program) -> AC-02 + FR-01..09 + BD-03 + TU-01 + FS-25/PM-17/PO-15 UI. Playwright-verify
+  each pane; keep the vanilla cockpit authoritative until a pane's MG parity gate passes (no big-bang).
