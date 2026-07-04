@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "4d9f5635391f8b1a62558fa426f7c3cb546ecdb2a422e815e040446fe46b8754",
+  "citations_sha256": "5f1331d3ebf5f6654f1d23328d5fdd242fd64c0d8649bd9b53fc1b99e173a487",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "82ad2e81cc0449c47ced062961debf83692e00aa",
-  "prd_sha256": "903ec4ab74e3135a1b7933b0509b39814089625a7c69e0a48eca5b3d57cd84d9",
+  "prd_commit": "cb8015fe6c16d3cb3c10a8d0a69bc0db6d8db33f",
+  "prd_sha256": "4e206414f74c43fdb0c96ebdfd37ba3da3ae8c0c0bf81c90be2e515212bf8f95",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1436,17 +1436,17 @@
    "text": "Command-safety pipeline: UI\u2192mission-service(validate)\u2192safety-service(constraints)\u2192execution-service(mode)\u2192ROS2 bridge\u2192audit. Invariant: no UI panel commands ROS2 directly; execution-service is the sole egress. Acceptance: a command skipping any stage is rejected; test proves the single egress."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row EG-07 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:EG-07]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "EG-07",
    "lane": "EG",
    "pri": "P1",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 94,
+   "buildable": 93,
    "concurrent": 0,
-   "done": 196,
+   "done": 197,
    "gated": 25
   },
   "by_lane": {
@@ -4818,7 +4818,7 @@
     "total": 2
    },
    "EG": {
-    "done": 7,
+    "done": 8,
     "total": 12
    },
    "EP": {
@@ -4940,7 +4940,7 @@
     "total": 102
    },
    "P1": {
-    "done": 100,
+    "done": 101,
     "total": 178
    },
    "P2": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 215,
-  "done_pct": 62.2,
+  "cited": 216,
+  "done_pct": 62.5,
   "in_scope": 290,
-  "in_scope_done_pct": 67.6,
+  "in_scope_done_pct": 67.9,
   "total": 315
  },
  "workflow_spine": [
