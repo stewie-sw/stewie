@@ -81,3 +81,15 @@ The success criteria (P0 102/102, P1 ≥170/178) are **not met**, and the gap is
 
 `app.stewie.space` redeployed to `6cc5955` (224 board) with the Wave-2 security hardening + the /executive
 attestations + /physics/backends live. Rollback tags staged (`stewie-{backend,frontend}:rollback`).
+
+## BA-06 interop converters — DONE (board 224->225, 2026-07-04 late)
+
+Built the full BA-06 converter set in `stewie/interop/` incrementally (one converter per loop wake, each
+round-trip-tested on REAL data, no synthetic): **GridMap<->GeoTIFF** (georeference), **DEM<->Godot
+heightfield** (bounds), **URDF<->Godot scene** (structure, on the real ipex.expanded.urdf) -- host-tested in
+CI; **xacro->SDF** (articulated-DOF; fixed joints correctly lump) + **rosbag2<->world-transactions**
+(event-count) -- container-gated, skip-visible in CI, CONTAINER-VERIFIED in stewie-gazebo:jazzy. Two honest
+invariant corrections: link-count is NOT preserved URDF->SDF (fixed-joint lumping 29->9; the real invariant
+is non-fixed joint count), and the rosbag2_py Jazzy TopicMetadata needs an `id=` positional. Also caught +
+fixed a one-commit mypy red (chained gate+commit) -> new discipline: gate-green as a confirmed step BEFORE
+committing. BA-06 flipped honestly with per-converter host-tested/container-verified evidence in the commit.
