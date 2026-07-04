@@ -123,6 +123,11 @@ def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)
     rel = res.executive.released_revision
     log_event(_auth, "executive.release_plan",
               f"{req.mission_id}: {len(intent.objectives)} objectives -> {res.executive.state.value}")
+    from stewie.server.audit_log import record_action                                    # [REQ:EG-07]
+    record_action(_auth, "executive.release_plan", location=req.mission_id, mode="sim",
+                  reason=f"{len(intent.objectives)} objectives released",
+                  before_state="planned", after_state=res.executive.state.value,
+                  evidence=str((rel.model_dump(mode="json") if rel is not None else {}).get("plan_hash", "")))
     return JSONResponse(content={
         "ok": True,
         "label": "sim",
@@ -243,6 +248,10 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     OBJ.save_run(run_id, rec, owner=identity)                  # #245: persist the run only after the world state is durable
     log_event(identity, "executive.run",
               f"{run_id} {req.mission_id}: {run['final_state']} ({run['n_legs_total']} legs)")
+    from stewie.server.audit_log import record_action                                    # [REQ:EG-07]
+    record_action(identity, "executive.run", location=f"{req.mission_id}@{req.site}", mode="sim",
+                  reason=f"SIM run {run_id}", before_state="released", after_state=str(run["final_state"]),
+                  evidence=f"run_id={run_id};legs={run['n_legs_total']};safed={run.get('safed')}")
     return JSONResponse(content={"ok": True, "run_id": run_id, **rec, "skipped": skipped})
 
 
@@ -253,6 +262,19 @@ def executive_run_get(run_id: str, identity: str = Depends(require_role("operato
     if rec is None:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no run {run_id!r}"})
     return JSONResponse(content={"ok": True, **rec})
+
+
+@router.get("/executive/audit")
+def executive_audit(identity: str = Depends(require_role("operator"))) -> JSONResponse:
+    """[REQ:EG-07] The executive AUDIT TRAIL: the tamper-evident hash-chained record of director plan releases
+    + SIM runs (who/what/when/where/mode/reason/before/after/evidence), with an integrity flag. Read-only,
+    operator-visible -- the delivered EG-07 audit contract, now POPULATED by the live executive flow."""
+    from dataclasses import asdict
+
+    from stewie.server.audit_log import get_audit_log
+    lg = get_audit_log()
+    return JSONResponse(content={"ok": True, "verified": lg.verify(), "count": len(lg.records()),
+                                 "records": [asdict(r) for r in lg.records()]})
 
 
 @router.get("/executive/run/{run_id}/stream")
