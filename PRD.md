@@ -562,7 +562,7 @@ TU Tauri desktop · MG migration governance.
 | PX-03 | P2 | The Chrono SCM backend is exposed ONLY as geometry-oracle/hybrid until mass-conservation closure; it cannot be selected for release/execute authority while conserves_mass=false. | N | N | N | NA |
 | BD-01 | P0 | Convert the BODIES constants into versioned BodyProfile records with NO value changes; Moon/Mars/Ceres/Bennu/Phobos/Earth/BP-1 profiles match bodies.py and params_for_body compatibility is test-proven. | D | D | D | NA |
 | BD-02 | P1 | The body registry supports built-in JSON + local profile paths with provenance + duplicate-id rules; invalid/missing provenance or a fabricated numeric field is rejected. | D | D | D | NA |
-| BD-03 | P1 | The body/profile UI (Plan + Models panes) shows body selector + soil override + physics-backend selector + support verdict + regime refusal + a body-by-backend compatibility matrix. | N | N | N | NA |
+| BD-03 | P1 | The body/profile UI (Plan + Models panes) shows body selector + soil override + physics-backend selector + support verdict + regime refusal + a body-by-backend compatibility matrix. | D | D | D | NA |
 | TU-01 | P1 | The Tauri v2 app starts/connects the FastAPI sidecar and surfaces health/logs/version; cold start reaches `/healthz` + `/auth/config`; sidecar failure produces a SystemPane degraded state, never fabricated data. | N | N | N | NA |
 | MG-01 | P0 | The vanilla cockpit stays served + deployable until React parity gates pass (`/app` vanilla, `/app2` React); its smoke tests keep passing throughout the migration. | N | N | N | NA |
 | MG-02 | P0 | No pane is flipped vanilla to React without signed-in Playwright parity + fixtures + mobile fit + route-registry coverage + a rollback route. | N | N | N | NA |

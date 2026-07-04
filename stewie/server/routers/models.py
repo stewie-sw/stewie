@@ -175,3 +175,44 @@ def get_physics_backends(_auth: str = Depends(require_role("operator"))):
                  "governance record (validated/frozen/deprecated per version); a not-yet-conserving oracle "
                  "(tier3_chrono) appears with validated=False and is excluded from the selectable set."),
     }
+
+
+@router.get("/physics/compatibility")
+def get_physics_compatibility(allow_analog: bool = False, _auth: str = Depends(require_role("operator"))):
+    """[REQ:BD-03] The body-by-backend compatibility matrix behind the Plan/Models body + physics-backend
+    selectors, plus the SOIL OVERRIDE (``allow_analog``): for each (body, backend) whether the backend SUPPORTS
+    the body + the legible verdict reason. Defers to the REAL rules -- ``body_in_regime`` (a MICROGRAVITY body
+    like Bennu/Phobos is REFUSED fail-closed: Bekker terramechanics is out-of-regime there) and the PMC model
+    ledger's ``validated_bodies``. The soil override mirrors ``params_for_body(allow_analog=True)``: it lets a
+    microgravity body run against an EXPLICIT gravity-loaded analog soil (caveated [UNKNOWN]) instead of being
+    refused -- the same escape hatch a mission uses. No fabricated support claims."""
+    from stewie.contracts import physics_model_control as PMC
+    from stewie.physics.backend import list_backends
+    from stewie.specs.bodies import BODIES, body_in_regime
+
+    backends = list(list_backends())
+    validated: dict[str, set[str]] = {}
+    for m in PMC.MODELS.values():
+        validated.setdefault(m.backend_id, set()).update(m.validated_bodies)
+
+    bodies = sorted(BODIES)
+    matrix: dict[str, dict[str, dict]] = {}
+    for body in bodies:
+        in_regime = body_in_regime(body)
+        row: dict[str, dict] = {}
+        for be in backends:
+            if not in_regime and not allow_analog:
+                row[be] = {"supported": False, "regime_ok": False,
+                           "reason": "microgravity: Bekker terramechanics out-of-regime (refused)"}
+            elif not in_regime and allow_analog:
+                row[be] = {"supported": True, "regime_ok": False,
+                           "reason": "microgravity: supported ONLY via explicit gravity-loaded analog soil "
+                                     "(caveated [UNKNOWN])"}
+            elif body in validated.get(be, set()):
+                row[be] = {"supported": True, "regime_ok": True,
+                           "reason": "gravity-loaded + validated for this backend"}
+            else:
+                row[be] = {"supported": False, "regime_ok": True,
+                           "reason": "gravity-loaded but not validated for this backend"}
+        matrix[body] = row
+    return {"ok": True, "allow_analog": allow_analog, "backends": backends, "bodies": bodies, "matrix": matrix}

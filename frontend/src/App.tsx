@@ -1,11 +1,12 @@
 import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { useEligibility } from "./eligibility";
+import { ModelsPane } from "./panes/Models";
 import { ReportPane } from "./panes/Report";
 import { PANES, RANK, visiblePanes } from "./panes";
 import type { Pane, Role } from "./panes";
 import { useRole } from "./session";
-import { PHYSICS_BACKENDS, PRODUCT_MODES, RUNNABLE_PROFILES } from "./workspace";
+import { BODIES, PHYSICS_BACKENDS, PRODUCT_MODES, RUNNABLE_PROFILES } from "./workspace";
 import type { PhysicsBackend, ProductMode, RunnableProfile } from "./workspace";
 import { WorkspaceProvider, useWorkspace } from "./workspace_context";
 
@@ -25,6 +26,12 @@ function WorkspaceRail() {
         <select data-testid="ws-runnableProfile" value={state.runnableProfile}
           onChange={(e) => patch({ runnableProfile: e.target.value as RunnableProfile })}>
           {RUNNABLE_PROFILES.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+      </label>
+      <label>Body
+        <select data-testid="ws-body" value={state.body}
+          onChange={(e) => patch({ body: e.target.value })}>
+          {BODIES.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
       </label>
       <label>Backend
@@ -74,6 +81,7 @@ function PaneRoute({ pane, role }: { pane: Pane; role: Role }) {
   if (RANK[role] < RANK[pane.minRole]) return <Navigate to="/plan" replace />; // fail-closed role gate (RF-01)
   if (pane.id === "release" || pane.id === "metrics") return <GuardedPane pane={pane} />; // RF-02 guard
   if (pane.id === "report") return <ReportPane />; // RF-03: first migrated pane (real /world evidence)
+  if (pane.id === "models") return <ModelsPane />; // BD-03: body/backend compatibility matrix
   return <PanePlaceholder pane={pane} />;
 }
 

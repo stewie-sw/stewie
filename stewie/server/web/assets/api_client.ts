@@ -84,6 +84,7 @@ export type ApiPath =
   | '/nav/run'
   | '/ogc/wms'
   | '/physics/backends'
+  | '/physics/compatibility'
   | '/plan'
   | '/plan/commands'
   | '/plan/math'
@@ -229,6 +230,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'POST', path: '/nav/run', operationId: 'post_nav_run_nav_run_post', mutatesAuthority: true },
   { method: 'GET', path: '/ogc/wms', operationId: 'wms_ogc_wms_get', mutatesAuthority: false },
   { method: 'GET', path: '/physics/backends', operationId: 'get_physics_backends_physics_backends_get', mutatesAuthority: false },
+  { method: 'GET', path: '/physics/compatibility', operationId: 'get_physics_compatibility_physics_compatibility_get', mutatesAuthority: false },
   { method: 'POST', path: '/plan', operationId: 'post_plan_plan_post', mutatesAuthority: true },
   { method: 'POST', path: '/plan/commands', operationId: 'plan_commands_plan_commands_post', mutatesAuthority: true },
   { method: 'POST', path: '/plan/math', operationId: 'plan_math_endpoint_plan_math_post', mutatesAuthority: true },

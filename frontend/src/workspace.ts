@@ -23,6 +23,9 @@ export const RUNNABLE_PROFILES: readonly RunnableProfile[] = [
   "sensor_bench", "rover_bench", "field_traverse", "monte_carlo",
 ];
 export const PHYSICS_BACKENDS: readonly PhysicsBackend[] = ["tier2_numpy", "tier3_chrono"];
+// BD-03: the selectable bodies (registry keys from stewie_bodies / /physics/compatibility). Moon/Mars/Ceres/
+// Earth/BP-1 are gravity-loaded (Bekker regime); Bennu/Phobos are microgravity (refused fail-closed).
+export const BODIES: readonly string[] = ["moon", "mars", "ceres", "bennu", "phobos", "earth", "bp1_testbed"];
 
 export interface WorkspaceState {
   mission: string | null;
