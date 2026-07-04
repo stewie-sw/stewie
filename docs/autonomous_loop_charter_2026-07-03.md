@@ -114,3 +114,14 @@ and stop scheduling (wait for Aaron).
   lower_plan_ir importer; command lowering only via command_eligible) -- formalized as one named function +
   GUARDED. [REQ:EG-06] 3/3 (stage-order fail-closed + emit + single-ROS2-egress guard); additive; gate green.
   NEXT = EG-11 (safety-control layer). Remaining on-host P0: EG-11, MP-07.
+- 2026-07-03 (deploy) — Aaron requested a full /program rebuild+deploy. The branch (HEAD at the time, a0c98d3)
+  was BUILT + DEPLOYED to app.stewie.space (backend+frontend images; rollback tags stewie-{backend,frontend}:
+  rollback = old main 7247d94). Verified: backend healthy, /program live at 315/193 phase-grouped, restructure
+  endpoints 200, zero board JS errors. NOTE: prod now runs the UNMERGED branch build; main untouched; NOT
+  git-pushed. Loop rows AFTER a0c98d3 (EG-11, MP-07) are NOT in prod until a re-deploy.
+- 2026-07-03 5a29800 — EG-11 DONE (wake 9). Safety-control layer (§29.8): stewie/runtime/safety_limits.py
+  (SafetyLimits / check_within_limits / estop / comms_loss_behavior) -- ALL limit values SOURCED (V_CAP 0.5,
+  slope 20, obstacle 0.075m, dig 0.50, battery 0.10, comms 2.0s), fail-closed; e-stop -> BRAKED_HOLD;
+  comms-loss -> SAFE. Pipeline-wiring (call check_within_limits in EG-06 lower_command) is the noted follow-up.
+  [REQ:EG-11] 6/6; additive; gate green. GOVERNANCE COMPLETE (EG-01/02/03/05/06/11). NEXT = MP-07 (the LAST
+  on-host-buildable P0).
