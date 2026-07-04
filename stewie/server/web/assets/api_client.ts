@@ -3,7 +3,6 @@
 
 
 export type ApiPath =
-  | '/'
   | '/admin/backup/replicate'
   | '/admin/gates/validate'
   | '/admin/invite'
@@ -18,7 +17,6 @@ export type ApiPath =
   | '/admin/trash/missions/{filename}'
   | '/admin/twin/retention'
   | '/admin/twin/snapshot'
-  | '/assets/{path}'
   | '/auth/config'
   | '/auth/invite/redeem'
   | '/auth/login'
@@ -56,14 +54,11 @@ export type ApiPath =
   | '/export/cog/available'
   | '/export/cog/{kind}.tif'
   | '/export/geojson'
-  | '/figure/{key}'
-  | '/figures'
   | '/fleet'
   | '/fonts/{name}'
   | '/gis/import'
   | '/gis/mission-package'
   | '/gis/query'
-  | '/healthz'
   | '/icons/{name}'
   | '/index.html'
   | '/landing'
@@ -76,7 +71,6 @@ export type ApiPath =
   | '/localize'
   | '/localize/render'
   | '/localize/traverse'
-  | '/metrics'
   | '/missions'
   | '/missions/{name}'
   | '/missions/{name}/publish'
@@ -106,7 +100,6 @@ export type ApiPath =
   | '/rc/telemetry/stream'
   | '/render'
   | '/render/parallax'
-  | '/reports/{name}'
   | '/resync/compare'
   | '/ros/evidence'
   | '/sample_mission/{name}'
@@ -152,7 +145,6 @@ export interface ApiRoute {
 }
 
 export const API_ROUTES: readonly ApiRoute[] = [
-  { method: 'GET', path: '/', operationId: 'get_index__get', mutatesAuthority: false },
   { method: 'POST', path: '/admin/backup/replicate', operationId: 'admin_replicate_admin_backup_replicate_post', mutatesAuthority: true },
   { method: 'POST', path: '/admin/gates/validate', operationId: 'admin_gates_admin_gates_validate_post', mutatesAuthority: true },
   { method: 'POST', path: '/admin/invite', operationId: 'invite_mint_admin_invite_post', mutatesAuthority: true },
@@ -167,7 +159,6 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'DELETE', path: '/admin/trash/missions/{filename}', operationId: 'mission_purge_admin_trash_missions__filename__delete', mutatesAuthority: true },
   { method: 'POST', path: '/admin/twin/retention', operationId: 'admin_retention_admin_twin_retention_post', mutatesAuthority: true },
   { method: 'POST', path: '/admin/twin/snapshot', operationId: 'admin_snapshot_admin_twin_snapshot_post', mutatesAuthority: true },
-  { method: 'GET', path: '/assets/{path}', operationId: 'get_asset_assets__path__get', mutatesAuthority: false },
   { method: 'GET', path: '/auth/config', operationId: 'auth_config_auth_config_get', mutatesAuthority: false },
   { method: 'POST', path: '/auth/invite/redeem', operationId: 'invite_redeem_auth_invite_redeem_post', mutatesAuthority: true },
   { method: 'POST', path: '/auth/login', operationId: 'auth_login_auth_login_post', mutatesAuthority: true },
@@ -206,14 +197,11 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/export/cog/available', operationId: 'export_cog_available_export_cog_available_get', mutatesAuthority: false },
   { method: 'GET', path: '/export/cog/{kind}.tif', operationId: 'export_value_cog_export_cog__kind__tif_get', mutatesAuthority: false },
   { method: 'GET', path: '/export/geojson', operationId: 'export_geojson_export_geojson_get', mutatesAuthority: false },
-  { method: 'GET', path: '/figure/{key}', operationId: 'get_figure_figure__key__get', mutatesAuthority: false },
-  { method: 'GET', path: '/figures', operationId: 'get_figures_figures_get', mutatesAuthority: false },
   { method: 'GET', path: '/fleet', operationId: 'get_fleet_fleet_get', mutatesAuthority: false },
   { method: 'GET', path: '/fonts/{name}', operationId: 'get_font_fonts__name__get', mutatesAuthority: false },
   { method: 'POST', path: '/gis/import', operationId: 'gis_import_gis_import_post', mutatesAuthority: true },
   { method: 'GET', path: '/gis/mission-package', operationId: 'gis_mission_package_gis_mission_package_get', mutatesAuthority: false },
   { method: 'POST', path: '/gis/query', operationId: 'gis_query_gis_query_post', mutatesAuthority: true },
-  { method: 'GET', path: '/healthz', operationId: 'healthz_healthz_get', mutatesAuthority: false },
   { method: 'GET', path: '/icons/{name}', operationId: 'get_icon_icons__name__get', mutatesAuthority: false },
   { method: 'GET', path: '/index.html', operationId: 'get_index_index_html_get', mutatesAuthority: false },
   { method: 'GET', path: '/landing', operationId: 'landing_page_landing_get', mutatesAuthority: false },
@@ -226,7 +214,6 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'POST', path: '/localize', operationId: 'post_localize_localize_post', mutatesAuthority: true },
   { method: 'POST', path: '/localize/render', operationId: 'post_localize_render_localize_render_post', mutatesAuthority: true },
   { method: 'GET', path: '/localize/traverse', operationId: 'get_localize_traverse_localize_traverse_get', mutatesAuthority: false },
-  { method: 'GET', path: '/metrics', operationId: 'metrics_metrics_get', mutatesAuthority: false },
   { method: 'GET', path: '/missions', operationId: 'mission_list_missions_get', mutatesAuthority: false },
   { method: 'DELETE', path: '/missions/{name}', operationId: 'mission_delete_missions__name__delete', mutatesAuthority: true },
   { method: 'GET', path: '/missions/{name}', operationId: 'mission_load_missions__name__get', mutatesAuthority: false },
@@ -258,7 +245,6 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/rc/telemetry/stream', operationId: 'rc_telemetry_stream_rc_telemetry_stream_get', mutatesAuthority: false },
   { method: 'POST', path: '/render', operationId: 'post_render_render_post', mutatesAuthority: true },
   { method: 'POST', path: '/render/parallax', operationId: 'post_render_parallax_render_parallax_post', mutatesAuthority: true },
-  { method: 'GET', path: '/reports/{name}', operationId: 'get_report_reports__name__get', mutatesAuthority: false },
   { method: 'POST', path: '/resync/compare', operationId: 'resync_compare_resync_compare_post', mutatesAuthority: true },
   { method: 'GET', path: '/ros/evidence', operationId: 'get_ros_evidence_ros_evidence_get', mutatesAuthority: false },
   { method: 'GET', path: '/sample_mission/{name}', operationId: 'get_sample_mission_sample_mission__name__get', mutatesAuthority: false },

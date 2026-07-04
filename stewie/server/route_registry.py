@@ -10,9 +10,10 @@ deferred with the frontend-shell decision (pane ownership presupposes the pane t
 from __future__ import annotations
 
 #: static file / doc / infra routes that are NOT part of the typed application API surface.
-EXEMPT_EXACT = frozenset({"/", "/healthz", "/metrics", "/docs", "/openapi.json", "/redoc", "/favicon.ico"})
-#: served static/report/figure trees (file responses), exempt by prefix.
-EXEMPT_PREFIX = ("/assets", "/reports", "/figures", "/figure")
+EXEMPT_EXACT = frozenset({"/", "/app", "/healthz", "/metrics", "/docs", "/openapi.json", "/redoc",
+                          "/favicon.ico"})
+#: served static/report/figure trees + the React SPA fallback (file/HTML responses), exempt by prefix.
+EXEMPT_PREFIX = ("/assets", "/reports", "/figures", "/figure", "/app/")
 
 
 def is_exempt(path: str) -> bool:
