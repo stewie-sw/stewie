@@ -143,3 +143,11 @@ and stop scheduling (wait for Aaron).
   LESSON: run the FULL `mypy` (no args) + expect fresh-clone CI to catch uncommitted artifacts + stale
   generated files the per-row LOCAL gate never exercises. NEXT = P1 loop (EG-04/07/08/09/12, MP-05/06/08..11),
   branch-local commits, NEVER push/merge unattended.
+
+## P1 phase (branch-local, one row per wake)
+- 2026-07-03 92d7fc3 — EG-04 DONE (P1 wake 1). Role/permission model (§7): governance.py Role (11 roles) +
+  RolePermissions (7 caps) + ROLE_PERMISSIONS matrix + role_permits (fail-closed) + can_command_live (role
+  floor AND mode floor). The 4 named floors load-bearing (Viewer RO / Trainee training-only / Engineer
+  non-live / SafetyOfficer approves live). Endpoint/pipeline wiring = noted follow-up. [REQ:EG-04] 7/7;
+  additive; FULL gate green (mypy 312 files). Branch-local, 2 ahead of main. NEXT = next on-host P1
+  (EG-07 audit trail / EG-08 reconciliation lifecycle / EG-09 import-DAG guard / MP-05 object model).
