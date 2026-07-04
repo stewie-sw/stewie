@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "55fd6b110dbfea66103f14b47dbe7541775af3b3b324bc06884fa691009838a3",
+  "citations_sha256": "8f17d637db8a15c9d3ee3ab36ec480e85e144a003187fb07f8dbe1c233283d33",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "47cd24051afadd2da73d1df5b4d071f0f073cb28",
-  "prd_sha256": "648473ed588d1a7b8190f4462df1f9ff883876f2adaa2bf9744a62957031f349",
+  "prd_commit": "f286034243a9e01d609904d339c115594311fabe",
+  "prd_sha256": "b5bd0925a81c1e5ef292b1a70090f7c3b786e4f3addbcb028cf85bae094b5da4",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1419,17 +1419,17 @@
    "text": "Training-to-live gate: the 8-step sequence (mission\u2192sim branch\u2192rehearsal\u2192physics\u2192safety\u2192human approval\u2192live token\u2192bridge unlock) mints a live-execution TOKEN; execution-service unlocks the command bridge only with a valid token. Acceptance: a mission cannot issue a live command without a token derived from steps 1-7; test."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform backlog row EG-06 (PRD \u00a77 + \u00a729/\u00a730 governance+planning specs).",
     "kind": "atomic",
     "test_target": "NEW test citing [REQ:EG-06]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "EG-06",
    "lane": "EG",
    "pri": "P0",
@@ -4751,9 +4751,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 98,
+   "buildable": 97,
    "concurrent": 0,
-   "done": 192,
+   "done": 193,
    "gated": 25
   },
   "by_lane": {
@@ -4818,7 +4818,7 @@
     "total": 2
    },
    "EG": {
-    "done": 4,
+    "done": 5,
     "total": 12
    },
    "EP": {
@@ -4936,7 +4936,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 89,
+    "done": 90,
     "total": 102
    },
    "P1": {
@@ -4952,10 +4952,10 @@
     "total": 2
    }
   },
-  "cited": 211,
-  "done_pct": 61.0,
+  "cited": 212,
+  "done_pct": 61.3,
   "in_scope": 290,
-  "in_scope_done_pct": 66.2,
+  "in_scope_done_pct": 66.6,
   "total": 315
  },
  "workflow_spine": [
