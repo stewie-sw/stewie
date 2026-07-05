@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "eae0683c48a0b5af8995f1562db36bc06ad68a36d7e7d7e46b50cc2e6aeb6181",
+  "citations_sha256": "db4834d52da96faa4c346ca63ecdaa590ef909e020bcea55827c92b6c78f2c0e",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "b2ac236c2850dda9b8f66df8878b5b0c7bb918fa",
-  "prd_sha256": "64759fe5b73567022754c0db601e39ea4db061e8d55f3cb1d830303f8e364b98",
+  "prd_commit": "ff2413934d29d01384b9d20dbd61c2099bef3739",
+  "prd_sha256": "d9a4c865de7e018ae20d99e2b8d1ede67bfa5618aedbdeb39558df48ec53ea61",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1773,17 +1773,17 @@
    "text": "**Depth-source profile selector + health/freshness (frontend; extends PM-17).** A perception-source selector (stereo/lidar/rgbd/learned/replay/sim-truth) with health + freshness; Release/Execute REFUSE or DEGRADE when the profile is stale, simulated-when-live-is-required, or incompatible with the runnable profile. Acceptance: the selector shows health/freshness and a stale/mismatched profile blocks Release/Execute with a legible reason. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "full Release/Execute authority-evidence field set.",
     "kind": "atomic",
     "test_target": "stewie/server/test_authority_evidence_panel.py citing [REQ:FS-28]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FR-03",
    "lane": "FR",
    "pri": "P1",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 66,
+   "buildable": 65,
    "concurrent": 0,
-   "done": 235,
+   "done": 236,
    "gated": 14
   },
   "by_lane": {
@@ -4819,7 +4819,7 @@
     "total": 7
    },
    "FR": {
-    "done": 11,
+    "done": 12,
     "total": 21
    },
    "FS": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 134,
+    "done": 135,
     "total": 178
    },
    "P2": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 253,
-  "done_pct": 74.6,
+  "cited": 254,
+  "done_pct": 74.9,
   "in_scope": 301,
-  "in_scope_done_pct": 78.1,
+  "in_scope_done_pct": 78.4,
   "total": 315
  },
  "workflow_spine": [
