@@ -17,7 +17,13 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #0e1116; color
 .vtab:hover { background: #21262d; }
 .vtab.active { background: #1f6feb22; border-color: #1f6feb; color: #fff; }
 .sysb { font-size: 0.65rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.05em; }
-.role-badge { margin-left: auto; font-size: 0.75rem; opacity: 0.7; text-transform: uppercase; }
+.role-badge { margin-left: 0.5rem; font-size: 0.75rem; opacity: 0.7; text-transform: uppercase; }
+
+/* [REQ:AU-01] the global command-authority chrome, clustered right with the role badge; always visible */
+.authority-chrome { margin-left: auto; font-size: 0.75rem; padding: 0.1rem 0.55rem; border-radius: 0.6rem;
+  white-space: nowrap; max-width: 44ch; overflow: hidden; text-overflow: ellipsis; border: 1px solid #333; }
+.authority-chrome.auth-ok { background: #10311c; color: #6ee7a0; border-color: #1c6b3f; }
+.authority-chrome.auth-no { background: #3a1414; color: #f3a6a6; border-color: #7a2626; }
 
 .workspace-rail {
   display: flex; gap: 0.9rem; flex-wrap: wrap; align-items: center;

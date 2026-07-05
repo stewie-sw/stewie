@@ -1,6 +1,6 @@
 import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
-import { AuthorityPane } from "./panes/Authority";
+import { AuthorityChrome, AuthorityPane } from "./panes/Authority";
 import { DepthSourcePane } from "./panes/DepthSource";
 import { ModelsPane } from "./panes/Models";
 import { ReportPane } from "./panes/Report";
@@ -79,6 +79,7 @@ function Shell() {
             <NavLink key={p.id} to={{ pathname: `/${p.id}`, search }} data-view={p.id} className="vtab">{p.label}</NavLink>
           ))}
         </nav>
+        <AuthorityChrome />
         <span className="role-badge" data-role={role} title="current operator role">{role}</span>
       </header>
       <WorkspaceRail />

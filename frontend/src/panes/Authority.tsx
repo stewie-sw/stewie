@@ -101,6 +101,30 @@ function ReleaseSignOff() {
   );
 }
 
+// [REQ:AU-01] the GLOBAL command-authority chrome: a compact, always-present element in the App shell that
+// binds the SAME /rc/eligibility gate set as the AuthorityPane and surfaces the current command authority
+// (AUTHORIZED / REFUSED + the refusal reason) from EVERY command-capable view -- so authority is never out of
+// sight on any pane. The full per-pane AuthorityPane (evidence + sign-off) stays on Release/Execute.
+export function AuthorityChrome() {
+  const elig = useResource<Eligibility>("/rc/eligibility");
+  if (elig.status !== "ready") {
+    return (
+      <span className="authority-chrome" data-testid="authority-chrome" data-eligible="unknown"
+            data-state={elig.status} title="command authority">
+        AUTH {elig.status === "error" ? "—" : "…"}
+      </span>
+    );
+  }
+  const ok = elig.data.eligible;
+  return (
+    <span className={`authority-chrome ${ok ? "auth-ok" : "auth-no"}`} data-testid="authority-chrome"
+          data-eligible={ok} data-state="ready"
+          title={ok ? "command authorized" : `command refused — ${elig.data.reason}`}>
+      <strong>AUTH {ok ? "✓" : "✗"}</strong> {ok ? "authorized" : `refused — ${elig.data.reason}`}
+    </span>
+  );
+}
+
 export function AuthorityPane({ pane }: { pane: Pane }) {
   const { state } = useWorkspace();
   const elig = useResource<Eligibility>("/rc/eligibility");
