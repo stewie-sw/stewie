@@ -1,10 +1,10 @@
 {
  "provenance": {
-  "citations_sha256": "67a7c0eca56aa22fe80afc68fb8841780ae2ef790a4a66f5314cdb5987b65b28",
+  "citations_sha256": "e4966aff6afc6c1844aa74d3d317958afed904b00c0b1fb5a230801dc655b5c1",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "8744895baf53adad9b930023291773937b7387e5",
-  "prd_sha256": "606aed5e45a6eabe3d6820e3f0b1da32e9952cd139d5f943add4d78cb77132e7",
-  "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
+  "prd_commit": "6d39dfddb158500e749db251d09c1f9dd257f183",
+  "prd_sha256": "1e3cd150da80891703f4f64c10e77c95297ae71502314edadec96e47c499032d",
+  "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
   {
@@ -2685,12 +2685,12 @@
    "text": "Map identify/measure/edit sessions operate on deck layers and write mission edits ONLY through backend routes; a keep-out drawn on the map appears in the mission request and routes around it."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "GW-00",
    "lane": "GW",
    "pri": "P0",
@@ -4105,9 +4105,9 @@
    "V": "D",
    "X": "D",
    "brief": {
-    "goal": "break terramechanics->stewie.specs.constants (prereq for PO-18); forge-local geotech defaults + preserve config-overlay via injection at stewie-side call sites; behavior byte-identical.",
+    "goal": "Evidence/Report reproduces plan inputs + selected layers + runtime profile + artifacts + transactions + audit.",
     "kind": "atomic",
-    "test_target": "NEW/extended [REQ:PX-06] in scripts/test_import_boundaries.py + stewie/physics/test_terramechanics.py"
+    "test_target": "NEW stewie/server/test_ev01_evidence_report.py [REQ:EV-01]"
    },
    "bucket": "done",
    "cited": true,
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 87,
+   "buildable": 86,
    "concurrent": 0,
-   "done": 238,
+   "done": 239,
    "gated": 14
   },
   "by_lane": {
@@ -5131,7 +5131,7 @@
     "total": 2
    },
    "GW": {
-    "done": 0,
+    "done": 1,
     "total": 8
    },
    "LY": {
@@ -5241,7 +5241,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 97,
+    "done": 98,
     "total": 116
    },
    "P1": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 256,
-  "done_pct": 70.2,
+  "cited": 257,
+  "done_pct": 70.5,
   "in_scope": 325,
-  "in_scope_done_pct": 73.2,
+  "in_scope_done_pct": 73.5,
   "total": 339
  },
  "workflow_spine": [
