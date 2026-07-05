@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "aee3426c20c19303837e5092ec87b9b477f122f668260eb45e7f3955fe31a555",
+  "citations_sha256": "86973a2ddcfeb3c021fdea1a1738e3691e1476f370a790fcf0e0e03b9a54c574",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "e51d9f67512bf22713c2ee9b16314ea9233b5868",
-  "prd_sha256": "ca224df760ae0306c395bfb5795885a26917176606e6cc5cbd1c852841c28e2b",
+  "prd_commit": "ec5d42d441f4f319835be6f8f7771ecd83f45042",
+  "prd_sha256": "41bfc184f88406cdc238d1df477b7b6b1f96265c75952c77886a964f6b02934e",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -4689,12 +4689,12 @@
    "text": "Calibrated terramechanics/excavation gate: construction forecasts distinguish analytical surrogate, calibrated mission model, and offline oracle; excavation resistance, drum/arm torque, drivetrain/current limits, low-g parameters, and uncertainty are validated before field-confidence claims."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "TM-02",
    "lane": "TM",
    "pri": "P0",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 82,
+   "buildable": 81,
    "concurrent": 0,
-   "done": 243,
+   "done": 244,
    "gated": 14
   },
   "by_lane": {
@@ -5223,7 +5223,7 @@
     "total": 15
    },
    "TM": {
-    "done": 0,
+    "done": 1,
     "total": 4
    },
    "TU": {
@@ -5241,7 +5241,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 102,
+    "done": 103,
     "total": 116
    },
    "P1": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 261,
-  "done_pct": 71.7,
+  "cited": 262,
+  "done_pct": 72.0,
   "in_scope": 325,
-  "in_scope_done_pct": 74.8,
+  "in_scope_done_pct": 75.1,
   "total": 339
  },
  "workflow_spine": [
