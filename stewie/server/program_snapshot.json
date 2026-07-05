@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "aa1e9df655bbaa68a88d4c489c03bdd524a777e53518a3fef9e0bbefd53f05b2",
+  "citations_sha256": "aee3426c20c19303837e5092ec87b9b477f122f668260eb45e7f3955fe31a555",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "fa90416620016cacbb38b3d1bf9a5a1260805cf1",
-  "prd_sha256": "090f37b99cf44d549fa047625f61a9894dfc382c2333ae0997aeb81c8c736f07",
+  "prd_commit": "e51d9f67512bf22713c2ee9b16314ea9233b5868",
+  "prd_sha256": "ca224df760ae0306c395bfb5795885a26917176606e6cc5cbd1c852841c28e2b",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -3437,12 +3437,12 @@
    "text": "PostgreSQL/PostGIS as a durable persistence/projection layer, NOT authority: `TwinStore` events mirror to a PostGIS projection; the conserved model still mutates truth."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "PH-01",
    "lane": "PH",
    "pri": "P0",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 83,
+   "buildable": 82,
    "concurrent": 0,
-   "done": 242,
+   "done": 243,
    "gated": 14
   },
   "by_lane": {
@@ -5171,7 +5171,7 @@
     "total": 1
    },
    "PH": {
-    "done": 0,
+    "done": 1,
     "total": 2
    },
    "PM": {
@@ -5241,7 +5241,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 101,
+    "done": 102,
     "total": 116
    },
    "P1": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 260,
-  "done_pct": 71.4,
+  "cited": 261,
+  "done_pct": 71.7,
   "in_scope": 325,
-  "in_scope_done_pct": 74.5,
+  "in_scope_done_pct": 74.8,
   "total": 339
  },
  "workflow_spine": [
