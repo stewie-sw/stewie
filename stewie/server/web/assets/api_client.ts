@@ -84,6 +84,7 @@ export type ApiPath =
   | '/nav/run'
   | '/ogc/wms'
   | '/perception/depth-sources'
+  | '/physics/authority'
   | '/physics/backends'
   | '/physics/compatibility'
   | '/plan'
@@ -233,6 +234,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'POST', path: '/nav/run', operationId: 'post_nav_run_nav_run_post', mutatesAuthority: true },
   { method: 'GET', path: '/ogc/wms', operationId: 'wms_ogc_wms_get', mutatesAuthority: false },
   { method: 'GET', path: '/perception/depth-sources', operationId: 'depth_sources_perception_depth_sources_get', mutatesAuthority: false },
+  { method: 'GET', path: '/physics/authority', operationId: 'get_physics_authority_physics_authority_get', mutatesAuthority: false },
   { method: 'GET', path: '/physics/backends', operationId: 'get_physics_backends_physics_backends_get', mutatesAuthority: false },
   { method: 'GET', path: '/physics/compatibility', operationId: 'get_physics_compatibility_physics_compatibility_get', mutatesAuthority: false },
   { method: 'POST', path: '/plan', operationId: 'post_plan_plan_post', mutatesAuthority: true },

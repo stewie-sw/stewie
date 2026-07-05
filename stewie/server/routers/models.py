@@ -233,3 +233,20 @@ def get_runtime_profiles(_auth: str = Depends(require_role("operator"))):
                  "authority (can_release/can_execute False); only hil/field_test/live_rover can release/execute "
                  "on real hardware, escalating command_capability none->bounded->full."),
     }
+
+
+@router.get("/physics/authority")
+def get_physics_authority(_auth: str = Depends(require_role("operator"))):
+    """[REQ:PH-01] the physics backend AUTHORITY registry (the PRD2 physics spine): per backend (tier2_numpy /
+    gazebo / chrono / hardware / godot) the authority scope, mass-conservation, per-lifecycle validity (planning
+    / rehearsal / release / execute), and the refusal reason where it is not release/execute-eligible. Every
+    cost/risk/volume value must name its backend (PH-02). Load-bearing invariants: tier2_numpy is the conserved,
+    release-eligible terrain authority; gazebo is robot/sensor sim, NOT the terrain-mutation authority; chrono is
+    not release-eligible until conservation+calibration gates pass; godot is rendering only, never authority.
+    Complements the PX-02 model ledger (/physics/backends) with the authority model."""
+    from stewie.specs.physics_authority import list_backend_authority
+    backends = list_backend_authority()
+    return {"ok": True, "backends": backends, "count": len(backends),
+            "note": ("Every planner/report value must name the backend that produced it. Only tier2_numpy "
+                     "(conserved terrain) + hardware (real) are release/execute-eligible; gazebo/chrono are "
+                     "rehearsal-only; godot renders and never owns physics or command authority.")}
