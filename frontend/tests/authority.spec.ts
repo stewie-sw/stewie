@@ -32,3 +32,16 @@ test("Execute surfaces the refusal reason when ineligible (clause 2)", async ({ 
   await expect(verdict).toContainText("REFUSED");
   await expect(page.locator('[data-testid="gates-metrics"]')).toBeVisible();
 });
+
+test("[FR-01] a runnable-profile mismatch degrades Release; the shell shows mode + profile", async ({ page }) => {
+  // the rail always shows the active product mode + runnable profile (state contract, visible in the shell)
+  await page.goto("/app/plan");
+  await expect(page.locator('.role-badge[data-role="director"]')).toBeVisible();
+  await expect(page.locator('[data-testid="ws-productMode"]')).toBeVisible();
+  await expect(page.locator('[data-testid="ws-runnableProfile"]')).toBeVisible();
+  // default runnable profile (desktop_sil) != the system's active command-authority profile -> degraded
+  await page.locator('.vtab[data-view="release"]').click();
+  const mismatch = page.locator('[data-testid="profile-mismatch-release"]');
+  await expect(mismatch).toBeVisible({ timeout: 10_000 });
+  await expect(mismatch).toContainText("degraded");
+});

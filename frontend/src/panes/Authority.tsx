@@ -120,6 +120,15 @@ export function AuthorityPane({ pane }: { pane: Pane }) {
               <strong>{elig.data.eligible ? "ELIGIBLE" : "REFUSED"}</strong>
               {!elig.data.eligible && <> — {elig.data.reason}</>}
             </p>
+            {/* [REQ:FR-01] command authority KEYS on the runnable profile: if the operator's selected profile
+                differs from the system's active profile, {pane.label} is DEGRADED (it would run under the
+                system profile, not the selection) -- surfaced, never silently mismatched. */}
+            {state.runnableProfile !== elig.data.profile && (
+              <p className="verdict-no" data-testid={`profile-mismatch-${pane.id}`} data-mismatch="true">
+                ⚠ profile mismatch — {pane.label} degraded: selected <strong>{state.runnableProfile}</strong>,
+                but command authority runs under the system profile <strong>{elig.data.profile}</strong>.
+              </p>
+            )}
             <dl className="kv">
               <dt>profile</dt><dd>{elig.data.profile}</dd>
               <dt>namespace</dt><dd>{state.commandNamespace}</dd>
