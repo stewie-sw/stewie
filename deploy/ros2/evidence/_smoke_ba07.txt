@@ -1,0 +1,53 @@
+=== topics ===
+/clock
+/events/write_split
+/joint_states
+/parameter_events
+/robot_description
+/rosout
+/stewie/camera/drum_front/camera_info
+/stewie/camera/drum_front/image
+/stewie/camera/front_left/camera_info
+/stewie/camera/front_left/image
+/stewie/camera/front_right/camera_info
+/stewie/camera/front_right/image
+/stewie/camera/left_mono/camera_info
+/stewie/camera/left_mono/image
+/stewie/camera/rear_left/camera_info
+/stewie/camera/rear_left/image
+/stewie/camera/rear_right/camera_info
+/stewie/camera/rear_right/image
+/stewie/camera/right_mono/camera_info
+/stewie/camera/right_mono/image
+/stewie/contact
+/stewie/costmap
+/stewie/costmap_updates
+/stewie/imu
+/stewie/localization/cov
+/stewie/localization/relocalization_markers
+/stewie/map/dem
+/stewie/map/occupancy
+/stewie/map/occupancy_updates
+/stewie/nav/factors_markers
+/stewie/odom
+/stewie/perception/points
+/stewie/perception/rocks_markers
+/stewie/plan/local_traj_viz
+/stewie/plan/path
+/stewie/status_markers
+/stewie/truth/pose
+/stewie/wheel_odom
+/tf
+/tf_static
+PUB OK  /clock
+PUB OK  /stewie/wheel_odom
+PUB OK  /joint_states
+PUB OK  /stewie/imu
+PUB OK  /stewie/perception/points
+PUB OK  /stewie/camera/front_left/image
+wheel_odom x: 3.0461566468422416e-17 -> 2.3388484642213676
+MOVE OK: /cmd_vel advanced the rover
+BAG OK: 1.2G mcap recorded
+RVIZ OK: loaded (GL init), no plugin-load failure
+TRUTH OK: on /stewie/truth/pose (separate channel)
+SMOKE OK: BA-07 running-sim (contract topics + /cmd_vel move + bag + rviz + truth-denial)

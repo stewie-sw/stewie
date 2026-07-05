@@ -15,14 +15,19 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ros-jazzy-ros-gz ros-jazzy-ros-gz-bridge ros-jazzy-ros-gz-sim \
+        ros-jazzy-rviz2 ros-jazzy-rviz-default-plugins ros-jazzy-grid-map-rviz-plugin \
         xvfb \
     && rm -rf /var/lib/apt/lists/*
 
-# Refresh the description (world + gz overlay) + bringup (launch + bridge cfg); rebuild those packages.
+# Refresh the description (world + gz overlay) + bringup (launch + bridge cfg) + rviz (BA-07 mission.rviz);
+# rebuild those packages.
 COPY ros2_ws/src/stewie_description /ws/src/stewie_description
 COPY ros2_ws/src/stewie_bringup /ws/src/stewie_bringup
+COPY ros2_ws/src/stewie_rviz /ws/src/stewie_rviz
 RUN source /opt/ros/jazzy/setup.bash \
-    && colcon build --packages-select stewie_description stewie_bringup --event-handlers console_direct+
+    && colcon build --packages-select stewie_description stewie_bringup stewie_rviz --event-handlers console_direct+
+COPY deploy/ros2/ba07_smoke.sh /ba07_smoke.sh
+RUN chmod +x /ba07_smoke.sh
 
 ENV LIBGL_ALWAYS_SOFTWARE=1
 
