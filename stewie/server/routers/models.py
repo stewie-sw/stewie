@@ -216,3 +216,20 @@ def get_physics_compatibility(allow_analog: bool = False, _auth: str = Depends(r
                            "reason": "gravity-loaded but not validated for this backend"}
         matrix[body] = row
     return {"ok": True, "allow_analog": allow_analog, "backends": backends, "bodies": bodies, "matrix": matrix}
+
+
+@router.get("/runtime/profiles")
+def get_runtime_profiles(_auth: str = Depends(require_role("operator"))):
+    """[REQ:RT-01] the runtime profile registry: the execution environments a mission can run in (desktop_sil /
+    digital_twin / ros2_replay / gazebo_sim / hil / field_test / live_rover) + each one's command + evidence
+    capabilities. The cockpit keys on this to gate what a profile may do -- a SIL / twin / replay / sim profile
+    can rehearse + produce evidence but NEVER command the real rover (can_release/can_execute = False); only
+    hil / field / live profiles carry live command authority. Sourced from the PRD2 runnable_profile taxonomy."""
+    from stewie.specs.runtime_profiles import list_runtime_profiles
+    profiles = list_runtime_profiles()
+    return {
+        "ok": True, "profiles": profiles, "count": len(profiles),
+        "note": ("A SIL/twin/replay/sim profile rehearses + produces evidence but holds no live command "
+                 "authority (can_release/can_execute False); only hil/field_test/live_rover can release/execute "
+                 "on real hardware, escalating command_capability none->bounded->full."),
+    }

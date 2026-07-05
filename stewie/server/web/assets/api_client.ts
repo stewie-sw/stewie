@@ -104,6 +104,7 @@ export type ApiPath =
   | '/render/parallax'
   | '/resync/compare'
   | '/ros/evidence'
+  | '/runtime/profiles'
   | '/sample_mission/{name}'
   | '/sample_missions'
   | '/sense'
@@ -252,6 +253,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'POST', path: '/render/parallax', operationId: 'post_render_parallax_render_parallax_post', mutatesAuthority: true },
   { method: 'POST', path: '/resync/compare', operationId: 'resync_compare_resync_compare_post', mutatesAuthority: true },
   { method: 'GET', path: '/ros/evidence', operationId: 'get_ros_evidence_ros_evidence_get', mutatesAuthority: false },
+  { method: 'GET', path: '/runtime/profiles', operationId: 'get_runtime_profiles_runtime_profiles_get', mutatesAuthority: false },
   { method: 'GET', path: '/sample_mission/{name}', operationId: 'get_sample_mission_sample_mission__name__get', mutatesAuthority: false },
   { method: 'GET', path: '/sample_missions', operationId: 'get_sample_missions_sample_missions_get', mutatesAuthority: false },
   { method: 'POST', path: '/sense', operationId: 'post_sense_sense_post', mutatesAuthority: true },
