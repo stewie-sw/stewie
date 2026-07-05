@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "ddaf16828fc6fcba104e91e0ca837c3f952ac2ec94c6db7d25749250b52c554f",
+  "citations_sha256": "67a7c0eca56aa22fe80afc68fb8841780ae2ef790a4a66f5314cdb5987b65b28",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "2b5bc20031af0bcae15ac324af7cf80b17ab9b07",
-  "prd_sha256": "fe7458922b95378395bda9d06f3e192a397dc8da707c019295ddf1b1a11c61f7",
+  "prd_commit": "f52f183c35ae64635f88c233d10b774079469708",
+  "prd_sha256": "46301e2f05562514bea3a54d28833ad137dc177d75bf705620f1bbaa051bc413",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1756,17 +1756,17 @@
    "text": "**Product mode + runnable profile in the frontend state contract AND mission authority (both reviews; extends FS-25).** The cockpit route/state carries the active product mode + runnable profile, the shell always shows them, and Release/Execute + command eligibility KEY on them. Acceptance: mode/profile are in the state contract + visible in the shell, and a Release/Execute on a mismatched profile is refused/degraded. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "depth-source profile selector + health/freshness; Release/Execute refuse/degrade on stale/mismatched/sim-when-live.",
     "kind": "atomic",
     "test_target": "stewie/server/test_sensor_profile_ui.py citing [REQ:PM-17]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FR-02",
    "lane": "FR",
    "pri": "P1",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 64,
+   "buildable": 63,
    "concurrent": 0,
-   "done": 237,
+   "done": 238,
    "gated": 14
   },
   "by_lane": {
@@ -4819,7 +4819,7 @@
     "total": 7
    },
    "FR": {
-    "done": 13,
+    "done": 14,
     "total": 21
    },
    "FS": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 136,
+    "done": 137,
     "total": 178
    },
    "P2": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 255,
-  "done_pct": 75.2,
+  "cited": 256,
+  "done_pct": 75.6,
   "in_scope": 301,
-  "in_scope_done_pct": 78.7,
+  "in_scope_done_pct": 79.1,
   "total": 315
  },
  "workflow_spine": [
