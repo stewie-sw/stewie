@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "86973a2ddcfeb3c021fdea1a1738e3691e1476f370a790fcf0e0e03b9a54c574",
+  "citations_sha256": "5c90a915c032b331bdf637d92d4a9801a9262fd5d9d67630a838b583932c2ba9",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "ec5d42d441f4f319835be6f8f7771ecd83f45042",
-  "prd_sha256": "41bfc184f88406cdc238d1df477b7b6b1f96265c75952c77886a964f6b02934e",
+  "prd_commit": "7799c0ac37d7dc6cb71550cd98dbf1278e0e906c",
+  "prd_sha256": "bfa8f7cd143f5e2f93b9d6a802e81291dc598bd095acba8fbc964ad7352bacf6",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -2793,12 +2793,12 @@
    "text": "**Layer catalog/registry (backend).** The ~65 named layers (`base.*`/`terrain.*`/`hazard.*`/`traffic.*`/`regolith.*`/`physics.*`/`mission.*`/`design.*`/`map.*`/`robot.*`/`runtime.*`/`evidence.*`) each declaring type, body/site/frame, source_class, freshness, uncertainty, provenance, planning/release/execute eligibility, and export formats; an imported ArcGIS/OGC/GeoJSON/COG layer passes CRS/frame validation before it can influence planning. Acceptance fixture = the PRD2 catalog table (design doc L204-278). (extends the `/world` layer_manifest)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "LY-02",
    "lane": "LY",
    "pri": "P1",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 81,
+   "buildable": 80,
    "concurrent": 0,
-   "done": 244,
+   "done": 245,
    "gated": 14
   },
   "by_lane": {
@@ -5135,7 +5135,7 @@
     "total": 8
    },
    "LY": {
-    "done": 1,
+    "done": 2,
     "total": 2
    },
    "MG": {
@@ -5245,7 +5245,7 @@
     "total": 116
    },
    "P1": {
-    "done": 137,
+    "done": 138,
     "total": 188
    },
    "P2": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 262,
-  "done_pct": 72.0,
+  "cited": 263,
+  "done_pct": 72.3,
   "in_scope": 325,
-  "in_scope_done_pct": 75.1,
+  "in_scope_done_pct": 75.4,
   "total": 339
  },
  "workflow_spine": [
