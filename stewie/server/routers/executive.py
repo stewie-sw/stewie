@@ -305,9 +305,15 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
                       "signature": _tok.signature}
     except LiveExecutionRefused as _e:
         live_token = {"issued": False, "reason": str(_e)}
+    # [REQ:PH-02] attribute the run's numbers to the physics backend that produced them: the closed-loop sim,
+    # the energy reconciliation, and the terrain fold all ran on tier2_numpy (the conserved authority) -- so the
+    # response names that backend + its calibration model + release-eligibility. No value is left unattributed.
+    from stewie.contracts.physics_model_control import physics_attribution
+    physics = physics_attribution("tier2_numpy",
+                                  quantities=("energy_J", "conserved_terrain_delta_m3", "as_built_acceptance"))
     return JSONResponse(content={"ok": True, "run_id": run_id, **rec, "executability": executability,
                                  "reconciliation": reconciliation, "live_token": live_token,
-                                 "skipped": skipped})
+                                 "physics_attribution": physics, "skipped": skipped})
 
 
 @router.get("/executive/run/{run_id}")

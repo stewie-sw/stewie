@@ -163,3 +163,25 @@ def select_backend(mode: EnvironmentMode | str, model_id: str | None = None, *,
     if model.deprecated:
         raise PhysicsModelRefused(f"model {model.model_id!r} is deprecated -- withdrawn from selection")
     return get_backend(model.backend_id)
+
+
+def physics_attribution(backend_id: str = "tier2_numpy", quantities: tuple[str, ...] = ()) -> dict:
+    """[REQ:PH-02] the physics-backend attribution for a plan's numbers: WHICH backend produced them, its
+    authority scope + mass-conservation + release-eligibility (from the PH-01 physics_authority registry), and
+    the active calibration model (from this ledger). So every cost/volume/energy/risk value the planner emits
+    names its producing physics + calibration -- nothing load-bearing is unattributed. Defers to the real
+    registries; no synthetic values."""
+    from stewie.specs.physics_authority import BACKENDS
+    auth = BACKENDS.get(backend_id)
+    # the live-eligible (validated + frozen) model for this backend is the calibration of record
+    model = next((m for m in MODELS.values() if m.backend_id == backend_id and m.live_eligible), None)
+    return {
+        "backend": backend_id,
+        "conserves_mass": bool(auth and auth["conserves_mass"]),
+        "authority_scope": list(auth["authority_scope"]) if auth else [],
+        "release_eligible": bool(auth and auth["valid_for_release"]),
+        "calibration": (
+            {"model_id": model.model_id, "calibration": model.calibration, "validated": model.validated,
+             "frozen": model.frozen, "live_eligible": model.live_eligible} if model else None),
+        "attributed_quantities": list(quantities),
+    }
