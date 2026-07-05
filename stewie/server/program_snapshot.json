@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "b0dc2fb5f0cb8c4fdc872a1b7b6e94501b012df2334e933ad9ff338199a9e4d4",
+  "citations_sha256": "eae0683c48a0b5af8995f1562db36bc06ad68a36d7e7d7e46b50cc2e6aeb6181",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "e78f5cc1e4f1fd1f7a759081a2fe097a55a6465f",
-  "prd_sha256": "fb2b63d1c076869e7a635df42012ca0c42a0e654c1c9beadd037283c9b9d522e",
+  "prd_commit": "b2ac236c2850dda9b8f66df8878b5b0c7bb918fa",
+  "prd_sha256": "64759fe5b73567022754c0db601e39ea4db061e8d55f3cb1d830303f8e364b98",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -586,17 +586,17 @@
    "text": "**Interop conversion scripts (model/terrain/grid/bag round-trips) (extends FR-12).** The import/export interop names formats but lacks converters. Add: `xacro_to_sdf.py`, `urdf_to_godot_scene.py`, `dem_to_godot_heightfield.py`, `gridmap_to_geotiff.py`/`geotiff_to_gridmap.py`, `rosbag_to_world_transactions.py`/`world_transactions_to_replay.py`. Acceptance: each converter round-trips a real fixture (DEM<->heightfield bounds preserved, GridMap<->GeoTIFF georeference preserved, bag<->world-transaction event-count preserved) under test. Buildable on archimedes (the ROS-bag converters are container-gated)."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "Phase-0 running-sim smoke gate: one launch brings up Gazebo+RSP+controllers+bridge+RViz+bag; assert contract topics publish, /cmd_vel moves the rover, no estimator subscribes /stewie/truth/*.",
     "kind": "atomic",
     "test_target": "extend ros2_ws/test_gz_sim_artifacts.py with a container `[REQ:BA-07]` smoke assertion"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "BA-07",
    "lane": "BA",
    "pri": "P1",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 67,
+   "buildable": 66,
    "concurrent": 0,
-   "done": 234,
+   "done": 235,
    "gated": 14
   },
   "by_lane": {
@@ -4767,7 +4767,7 @@
     "total": 18
    },
    "BA": {
-    "done": 7,
+    "done": 8,
     "total": 11
    },
    "BD": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 133,
+    "done": 134,
     "total": 178
    },
    "P2": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 252,
-  "done_pct": 74.3,
+  "cited": 253,
+  "done_pct": 74.6,
   "in_scope": 301,
-  "in_scope_done_pct": 77.7,
+  "in_scope_done_pct": 78.1,
   "total": 315
  },
  "workflow_spine": [
