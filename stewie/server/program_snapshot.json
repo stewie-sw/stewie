@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "67a7c0eca56aa22fe80afc68fb8841780ae2ef790a4a66f5314cdb5987b65b28",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "f52f183c35ae64635f88c233d10b774079469708",
-  "prd_sha256": "46301e2f05562514bea3a54d28833ad137dc177d75bf705620f1bbaa051bc413",
+  "prd_commit": "8744895baf53adad9b930023291773937b7387e5",
+  "prd_sha256": "606aed5e45a6eabe3d6820e3f0b1da32e9952cd139d5f943add4d78cb77132e7",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -482,6 +482,18 @@
    "lane": "AS",
    "pri": "P0",
    "text": "Typed ARGUS Navigation evidence contract: every accepted navigation measurement crossing the estimator seam carries factor type, covariance, frame, source, and evidence class; shadow-yaw remains heading-only; metric shadow-length/boundary factors are blocked from calibrated/measured labels until a passing residual artifact replaces the 2026-06-24 negative."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "AU-01",
+   "lane": "AU",
+   "pri": "P0",
+   "text": "**Global command-authority card.** Visible from every command-capable view whenever command capability exists, showing every refusal reason; a disabled control names why. (extends FR-03)"
   },
   {
    "I": "D",
@@ -1640,6 +1652,18 @@
    "text": "Endurance and reports use the selected `VehicleModel`, not global IPEx constants."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "EV-01",
+   "lane": "EV",
+   "pri": "P1",
+   "text": "**Evidence/Report reproduces.** A report reproduces plan inputs + selected layers + assumptions + runtime profile + ROS/Gazebo/RViz/Godot artifacts + world transactions + audit trail; a single evidence bundle proves what ran. (extends RF-03/MT-05)"
+  },
+  {
    "I": "D",
    "Q": "NA",
    "V": "D",
@@ -2665,6 +2689,126 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-00",
+   "lane": "GW",
+   "pri": "P0",
+   "text": "**Prerequisite \u2014 Trek imagery + web-panel CSP allowlist.** `deploy/nginx.conf` + backend CSP allow `trek.nasa.gov` (and rosbridge/foxglove origins) so GeoLibre streams real NASA Trek tiles and RViz/Godot web panels load; a test asserts the CSP header lists the allowed hosts. Blocks GW-05, RT-04."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-02",
+   "lane": "GW",
+   "pri": "P0",
+   "text": "**Unified workspace context.** One routeable context (the PRD2 field set: mission/site/body/CRS/local-frame/vehicle/fleet/selection/layers/mode/profile/source/namespace/backend/depth/time/branch/release/run/role) drives map/assets/Godot/RViz/Gazebo-evidence/report/authority; one URL restores all of it. (extends RF-02)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-03",
+   "lane": "GW",
+   "pri": "P0",
+   "text": "**Layer-eligibility UI.** The layer manifest UI differentiates display/planning/release/execute eligibility + exposes freshness/provenance/uncertainty; a display-only layer cannot be marked planning-valid. (extends DW-01; binds LY-01)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-04",
+   "lane": "GW",
+   "pri": "P1",
+   "text": "**Asset Library.** Browse/search/inspect/export/recover durable assets (missions/sites/DEMs/layer-packages/vehicles/plans/rehearsals/runs/reports/evidence/bags/captures), separate from visible layers; every durable object traces to provenance."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-05",
+   "lane": "GW",
+   "pri": "P0",
+   "text": "**GIS map substrate.** MapLibre/GeoLibre in the LOCAL south-polar-stereographic frame renders NASA Trek raster tiles + local LOLA terrain-RGB (`heightmap.rf32`, full 5 m native \u2014 not a downscaled preview); control points round-trip `/dem/site_xy` + `/dem/site_lonlat` within tolerance; no WGS84/Earth claim on lunar coordinates. (extends GL-01; needs GW-00)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-06",
+   "lane": "GW",
+   "pri": "P0",
+   "text": "**Layer tree + legend.** The LY-01 catalog toggles on the map with per-layer swatch + provenance/freshness; a display-only layer is visibly distinct from a planning/release/execute-eligible one. (binds LY-01)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-07",
+   "lane": "GW",
+   "pri": "P0",
+   "text": "**Selection + right inspector.** Click a cell/feature \u2192 attributes + provenance + confidence/freshness + available actions + runtime evidence affecting it. (extends GL-02)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-08",
+   "lane": "GW",
+   "pri": "P0",
+   "text": "**Edit session (= ED-01).** Select/create/modify/delete/measure/snap/undo mission features (keep-outs/waypoints/work-zones) with versioned audit; edits write ONLY through backend routes, never the map layer directly. (extends GL-02)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "LY-01",
+   "lane": "LY",
+   "pri": "P0",
+   "text": "**Layer catalog/registry (backend).** The ~65 named layers (`base.*`/`terrain.*`/`hazard.*`/`traffic.*`/`regolith.*`/`physics.*`/`mission.*`/`design.*`/`map.*`/`robot.*`/`runtime.*`/`evidence.*`) each declaring type, body/site/frame, source_class, freshness, uncertainty, provenance, planning/release/execute eligibility, and export formats; an imported ArcGIS/OGC/GeoJSON/COG layer passes CRS/frame validation before it can influence planning. Acceptance fixture = the PRD2 catalog table (design doc L204-278). (extends the `/world` layer_manifest)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "LY-02",
+   "lane": "LY",
+   "pri": "P1",
+   "text": "**Layer-consumption inspector.** For a selected layer, show where it is consumed: display / planner / costmap / rehearsal / release / execute / report / export."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
    "brief": {
     "goal": "platform-restructure backlog row MG-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
@@ -3291,6 +3435,30 @@
    "lane": "PG",
    "pri": "P2",
    "text": "PostgreSQL/PostGIS as a durable persistence/projection layer, NOT authority: `TwinStore` events mirror to a PostGIS projection; the conserved model still mutates truth."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PH-01",
+   "lane": "PH",
+   "pri": "P0",
+   "text": "**Physics backend registry.** Exposes per backend (tier2_numpy/gazebo/chrono/hardware/godot) the authority scope (terrain/robot/sensor/contact/rendering/hardware), mass-conservation, calibration id, per-profile validity (planning/rehearsal/release/execute), refusal reasons, and evidence artifacts. (extends PX-02)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PH-02",
+   "lane": "PH",
+   "pri": "P1",
+   "text": "**Physics attribution.** The planner + reports attribute every route/volume/risk value to a physics backend + calibration source; a value with no backend attribution is not release-eligible."
   },
   {
    "I": "D",
@@ -4149,6 +4317,90 @@
    "text": "**Plan-vs-actual divergence surface (the operator payload).** The value of the two-fold viz (RS-07) is the DELTA, not either column alone: PLAN and ACTUAL are co-registered in the site frame and their divergence is a first-class surface \u2014 executed-vs-planned trajectory error, observed-vs-forecast hazard/DEM deltas, and pose-vs-truth covariance growth (the pose-vs-truth discipline STEWIE already runs \u2014 the 12.7 mm/7.15\u00b0 AprilTag eval \u2014 promoted to a live operator surface). A time model exposes PLAN's lead/lag vs ACTUAL (a `follow-live` mode vs a `scrub-plan` mode with a visible offset), since planning runs ahead of execution. When divergence crosses a declared threshold it drives the replan indicator (PM-19) and the operator's attention; it INFORMS only \u2014 never commands (\u00a726.4). Acceptance: a fixture where ACTUAL departs from PLAN produces a measured trajectory/DEM/covariance divergence surface + a threshold-crossing replan indicator, co-registered and read-only. Buildable on archimedes."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RT-00",
+   "lane": "RT",
+   "pri": "P0",
+   "text": "**Prerequisite \u2014 ROS image carries the stewie python stack.** `deploy/ros2/Dockerfile.ros2dev` installs pip + the monorepo (numpy/scipy/pydantic/gymnasium + stewie_bodies/dart/lode/forge) so live-spine rclpy nodes import `run_replay`; a container test imports `stewie.runtime.run_replay` and runs it headless on a real DEM slice. Blocks RS-05, RT-03."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RT-01",
+   "lane": "RT",
+   "pri": "P0",
+   "text": "**Runtime profile registry.** A GET endpoint defines desktop_sil/digital_twin/ros2_replay/gazebo_sim/hil/field_test/live_rover and each profile's allowed command + evidence capabilities; the cockpit binds it. (extends PX-02/FR-01; names gazebo_sim)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RT-02",
+   "lane": "RT",
+   "pri": "P0",
+   "text": "**Evidence bound to run/profile.** ROS/Gazebo/RViz/Godot evidence surfaces attach to the selected run/profile and hold no independent command authority; the execution service is the sole command egress. (extends BA-08)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RT-03",
+   "lane": "RT",
+   "pri": "P1",
+   "text": "**Gazebo rehearsal on real DEM.** The gazebo_sim profile launches the selected site's REAL DEM heightfield (not a flat plane) + truth-isolated sensor topics; the cockpit shows `/clock`, bridge freshness, bag path, and the truth-denial assertion; a rehearsal returns predicted path + sensor evidence + divergence. (extends BA-07/RS-05; needs RT-00)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RT-04",
+   "lane": "RT",
+   "pri": "P1",
+   "text": "**RViz/Foxglove engineering panel (evidence-only).** Shows topic freshness/TF/robot-model/path/costmap/perception/covariance/diagnostics/SAFE for the selected run; cannot approve/release/command. (extends RS-07/BA-08; needs GW-00)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RT-05",
+   "lane": "RT",
+   "pri": "P1",
+   "text": "**Godot mission view (sidecar-first).** Renders the selected branch/run (terrain/rover/path/hazards/sensor-cones/shadow/excavation/as-built) using the same site/body/frame as the map; captures carry run/branch id, camera pose, timestamp, source class, asset hashes; never physics or command authority. (extends BA-08)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "SD-01",
+   "lane": "SD",
+   "pri": "P1",
+   "text": "**Surface Design view.** Pads/berms/trenches/cuts/fills/roads/stockpiles/sinter \u2192 typed mission orders with volume/mass/bearing/sinkage/constructability evidence; volume/mass estimates show DEM resolution, material assumption, and uncertainty; a before/after terrain transaction influences the next plan."
+  },
+  {
    "I": "D",
    "Q": "N",
    "V": "D",
@@ -4435,6 +4687,42 @@
    "lane": "TM",
    "pri": "P1",
    "text": "Calibrated terramechanics/excavation gate: construction forecasts distinguish analytical surrogate, calibrated mission model, and offline oracle; excavation resistance, drum/arm torque, drivetrain/current limits, low-g parameters, and uncertainty are validated before field-confidence claims."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TM-02",
+   "lane": "TM",
+   "pri": "P0",
+   "text": "**Terramechanics spine (inspectable terms).** Slope/roughness/regolith/bearing/sinkage/slip/traction-margin/excavation-resistance/energy/uncertainty are exposed as inspectable terms, each classified simulated/sensed/estimated/learned/assumed; a route cost exposes its terms, not only a scalar. (complements the TM-01 calibration gate)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TM-03",
+   "lane": "TM",
+   "pri": "P1",
+   "text": "**Terramechanics output layers.** Terramechanics generates traversability/energy/slip-risk/bearing-sinkage/excavation-feasibility/constructability layers into the LY-01 catalog with source-class + uncertainty."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TM-04",
+   "lane": "TM",
+   "pri": "P1",
+   "text": "**Predicted-vs-observed terramechanics.** A rehearsal/report compares predicted slip/sinkage/energy against observed or replayed telemetry when available; as-built excavation updates terrain memory + future cost layers."
   },
   {
    "I": "N",
@@ -4740,7 +5028,7 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 63,
+   "buildable": 87,
    "concurrent": 0,
    "done": 238,
    "gated": 14
@@ -4765,6 +5053,10 @@
    "AS": {
     "done": 14,
     "total": 18
+   },
+   "AU": {
+    "done": 0,
+    "total": 1
    },
    "BA": {
     "done": 8,
@@ -4814,6 +5106,10 @@
     "done": 7,
     "total": 8
    },
+   "EV": {
+    "done": 0,
+    "total": 1
+   },
    "FL": {
     "done": 6,
     "total": 7
@@ -4831,6 +5127,14 @@
     "total": 3
    },
    "GL": {
+    "done": 0,
+    "total": 2
+   },
+   "GW": {
+    "done": 0,
+    "total": 8
+   },
+   "LY": {
     "done": 0,
     "total": 2
    },
@@ -4866,6 +5170,10 @@
     "done": 0,
     "total": 1
    },
+   "PH": {
+    "done": 0,
+    "total": 2
+   },
    "PM": {
     "done": 8,
     "total": 19
@@ -4890,6 +5198,14 @@
     "done": 4,
     "total": 8
    },
+   "RT": {
+    "done": 0,
+    "total": 6
+   },
+   "SD": {
+    "done": 0,
+    "total": 1
+   },
    "SE": {
     "done": 2,
     "total": 2
@@ -4908,7 +5224,7 @@
    },
    "TM": {
     "done": 0,
-    "total": 1
+    "total": 4
    },
    "TU": {
     "done": 0,
@@ -4926,11 +5242,11 @@
   "by_priority": {
    "P0": {
     "done": 97,
-    "total": 102
+    "total": 116
    },
    "P1": {
     "done": 137,
-    "total": 178
+    "total": 188
    },
    "P2": {
     "done": 4,
@@ -4942,10 +5258,10 @@
    }
   },
   "cited": 256,
-  "done_pct": 75.6,
-  "in_scope": 301,
-  "in_scope_done_pct": 79.1,
-  "total": 315
+  "done_pct": 70.2,
+  "in_scope": 325,
+  "in_scope_done_pct": 73.2,
+  "total": 339
  },
  "workflow_spine": [
   "Plan",
