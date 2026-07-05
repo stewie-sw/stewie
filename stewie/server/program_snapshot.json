@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "5c90a915c032b331bdf637d92d4a9801a9262fd5d9d67630a838b583932c2ba9",
+  "citations_sha256": "2e234d1efacb0f64e7104d78190895af8a50e91ff1dcb9e6e35a26f6d10a14ac",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "7799c0ac37d7dc6cb71550cd98dbf1278e0e906c",
-  "prd_sha256": "bfa8f7cd143f5e2f93b9d6a802e81291dc598bd095acba8fbc964ad7352bacf6",
+  "prd_commit": "31d62cff1e724c94a947c7b4c4b50f8ddfc4f308",
+  "prd_sha256": "990edf70d124cfb5ea007b18b104632615d1ca7f304e76c8e06b8a3c329c1695",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -484,12 +484,12 @@
    "text": "Typed ARGUS Navigation evidence contract: every accepted navigation measurement crossing the estimator seam carries factor type, covariance, frame, source, and evidence class; shadow-yaw remains heading-only; metric shadow-length/boundary factors are blocked from calibrated/measured labels until a passing residual artifact replaces the 2026-06-24 negative."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "AU-01",
    "lane": "AU",
    "pri": "P0",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 80,
+   "buildable": 79,
    "concurrent": 0,
-   "done": 245,
+   "done": 246,
    "gated": 14
   },
   "by_lane": {
@@ -5055,7 +5055,7 @@
     "total": 18
    },
    "AU": {
-    "done": 0,
+    "done": 1,
     "total": 1
    },
    "BA": {
@@ -5241,7 +5241,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 103,
+    "done": 104,
     "total": 116
    },
    "P1": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 263,
-  "done_pct": 72.3,
+  "cited": 264,
+  "done_pct": 72.6,
   "in_scope": 325,
-  "in_scope_done_pct": 75.4,
+  "in_scope_done_pct": 75.7,
   "total": 339
  },
  "workflow_spine": [
