@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "2e234d1efacb0f64e7104d78190895af8a50e91ff1dcb9e6e35a26f6d10a14ac",
+  "citations_sha256": "0c91de05210aa5d49651f4c48f0e16a2c3db1b9e7ef9392767ed3ba524f2967b",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "31d62cff1e724c94a947c7b4c4b50f8ddfc4f308",
-  "prd_sha256": "990edf70d124cfb5ea007b18b104632615d1ca7f304e76c8e06b8a3c329c1695",
+  "prd_commit": "8bfadac67d3278af76b403c6a3c9fceb2ca2152d",
+  "prd_sha256": "5e4272f34ed85210d48d73ef08bcc2fc8043775b45b9d1af1687e8916a79bd1f",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -3449,12 +3449,12 @@
    "text": "**Physics backend registry.** Exposes per backend (tier2_numpy/gazebo/chrono/hardware/godot) the authority scope (terrain/robot/sensor/contact/rendering/hardware), mass-conservation, calibration id, per-profile validity (planning/rehearsal/release/execute), refusal reasons, and evidence artifacts. (extends PX-02)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "PH-02",
    "lane": "PH",
    "pri": "P1",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 79,
+   "buildable": 78,
    "concurrent": 0,
-   "done": 246,
+   "done": 247,
    "gated": 14
   },
   "by_lane": {
@@ -5171,7 +5171,7 @@
     "total": 1
    },
    "PH": {
-    "done": 1,
+    "done": 2,
     "total": 2
    },
    "PM": {
@@ -5245,7 +5245,7 @@
     "total": 116
    },
    "P1": {
-    "done": 138,
+    "done": 139,
     "total": 188
    },
    "P2": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 264,
-  "done_pct": 72.6,
+  "cited": 265,
+  "done_pct": 72.9,
   "in_scope": 325,
-  "in_scope_done_pct": 75.7,
+  "in_scope_done_pct": 76.0,
   "total": 339
  },
  "workflow_spine": [
