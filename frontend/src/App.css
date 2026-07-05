@@ -62,3 +62,13 @@ table.compat td.c-no { color: #e3766d; }
   .vtab { font-size: 0.8rem; padding: 0.25rem 0.45rem; }
 }
 label.soil-override { display: flex; gap: 0.4rem; align-items: center; margin: 0.5rem 0; font-size: 0.85rem; color: #8b949e; }
+
+ul.gates { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.9rem; }
+ul.gates li { display: flex; gap: 0.4rem; align-items: center; }
+ul.gates li.gate-ok { color: #9fe0b0; }
+ul.gates li.gate-no { color: #ffb4b4; }
+.signoff-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; }
+.signoff-row select, .signoff-row button { background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 5px; padding: 0.3rem 0.5rem; }
+.signoff-row button { cursor: pointer; }
+.signoff-row button:disabled { opacity: 0.5; cursor: default; }
+dl.authority-card dt { color: #58a6ff; }

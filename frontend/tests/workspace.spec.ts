@@ -36,14 +36,13 @@ test("Release + Execute defer to the backend eligibility guard (fail-closed with
   await expect(page.locator('.role-badge[data-role="director"]')).toBeVisible();
   await page.locator('.vtab[data-view="release"]').click(); // client-side nav (director role loaded)
 
-  // no mission selected -> the real /rc/eligibility verdict is NOT eligible -> the pane is refused
-  const rel = page.locator('[data-testid="guard-release"]');
-  await expect(rel).toBeVisible();
-  await expect(rel).not.toContainText("checking eligibility"); // the async verdict resolved
+  // no mission selected -> the real /rc/eligibility verdict is NOT eligible -> the pane is refused (FR-03)
+  const rel = page.locator('[data-testid="verdict-release"]');
+  await expect(rel).toBeVisible(); // the async verdict resolved (only rendered when ready)
   await expect(rel).toHaveAttribute("data-blocked", "true");
-  await expect(rel).toContainText("refused");
+  await expect(rel).toContainText("REFUSED");
 
   // Execute (metrics) is guarded by the same verdict
   await page.locator('.vtab[data-view="metrics"]').click();
-  await expect(page.locator('[data-testid="guard-metrics"]')).toHaveAttribute("data-blocked", "true");
+  await expect(page.locator('[data-testid="verdict-metrics"]')).toHaveAttribute("data-blocked", "true");
 });

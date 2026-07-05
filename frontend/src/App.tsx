@@ -1,6 +1,6 @@
 import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
-import { useEligibility } from "./eligibility";
+import { AuthorityPane } from "./panes/Authority";
 import { ModelsPane } from "./panes/Models";
 import { ReportPane } from "./panes/Report";
 import { PANES, RANK, visiblePanes } from "./panes";
@@ -44,27 +44,6 @@ function WorkspaceRail() {
   );
 }
 
-// [REQ:RF-02] Release + Execute defer to the REAL backend eligibility verdict (/rc/eligibility). When the
-// verdict is not eligible (a mismatched profile/backend/lifecycle state), the pane is REFUSED (fail-closed).
-function GuardedPane({ pane }: { pane: Pane }) {
-  const { state } = useWorkspace();
-  const { loading, verdict } = useEligibility(state.mission);
-  const blocked = loading || !verdict.eligible;
-  return (
-    <section data-pane={pane.id} aria-label={pane.label}>
-      <h1>{pane.label}{pane.system ? <span className="sysb"> {pane.system}</span> : null}</h1>
-      <div className="guard" data-testid={`guard-${pane.id}`} data-blocked={blocked}>
-        {loading
-          ? "checking eligibility…"
-          : blocked
-            ? `${pane.label} refused — ${verdict.reason || "not eligible"} `
-              + `(profile ${state.runnableProfile} / backend ${state.physicsBackend})`
-            : `${pane.label} eligible`}
-      </div>
-    </section>
-  );
-}
-
 // a migrating pane's identity placeholder (RF-01); real content lands per pane in later rows.
 function PanePlaceholder({ pane }: { pane: Pane }) {
   return (
@@ -79,7 +58,7 @@ function PanePlaceholder({ pane }: { pane: Pane }) {
 
 function PaneRoute({ pane, role }: { pane: Pane; role: Role }) {
   if (RANK[role] < RANK[pane.minRole]) return <Navigate to="/plan" replace />; // fail-closed role gate (RF-01)
-  if (pane.id === "release" || pane.id === "metrics") return <GuardedPane pane={pane} />; // RF-02 guard
+  if (pane.id === "release" || pane.id === "metrics") return <AuthorityPane pane={pane} />; // FR-03 authority
   if (pane.id === "report") return <ReportPane />; // RF-03: first migrated pane (real /world evidence)
   if (pane.id === "models") return <ModelsPane />; // BD-03: body/backend compatibility matrix
   return <PanePlaceholder pane={pane} />;
