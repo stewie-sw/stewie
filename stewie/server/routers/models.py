@@ -250,3 +250,19 @@ def get_physics_authority(_auth: str = Depends(require_role("operator"))):
             "note": ("Every planner/report value must name the backend that produced it. Only tier2_numpy "
                      "(conserved terrain) + hardware (real) are release/execute-eligible; gazebo/chrono are "
                      "rehearsal-only; godot renders and never owns physics or command authority.")}
+
+
+@router.get("/physics/terramechanics-spine")
+def get_terramechanics_spine(_auth: str = Depends(require_role("operator"))):
+    """[REQ:TM-02] the terramechanics spine: the terms the conserved tier2_numpy solver computes (slope,
+    roughness, regolith density, contact pressure/bearing, sinkage, slip, traction, compaction resistance,
+    drive energy) as inspectable entries -- each with unit, symbol, description, calibration status, and the
+    REAL solver callable that produces it. The cockpit inspects these to explain any cost/risk/energy value.
+    Every computed term is bound to the live stewie.physics function (import-checked), so the spine cannot drift
+    from the solver -- it is not a synthetic catalog."""
+    from stewie.specs.terramechanics_spine import list_terra_spine
+    terms = list_terra_spine()
+    return {"ok": True, "backend": "tier2_numpy", "terms": terms, "count": len(terms),
+            "note": ("Each computed term names the real stewie.physics callable that produces it; input terms "
+                     "(slope/roughness/density) are terrain/body-derived. Calibration status is honest per term "
+                     "(measured vs calibrated Bekker moduli).")}
