@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "0c91de05210aa5d49651f4c48f0e16a2c3db1b9e7ef9392767ed3ba524f2967b",
+  "citations_sha256": "50ab61486004090555dccfaed7818c2e8248124f0f50918102070a461b26a5fd",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "8bfadac67d3278af76b403c6a3c9fceb2ca2152d",
-  "prd_sha256": "5e4272f34ed85210d48d73ef08bcc2fc8043775b45b9d1af1687e8916a79bd1f",
+  "prd_commit": "f4548e324832eb03a440eb9518d75e0e9e783ce6",
+  "prd_sha256": "cff69f5d0057b7cfcacbff8c8b129390d5a1ef6cec1434aa280427cc81f6e750",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -4701,12 +4701,12 @@
    "text": "**Terramechanics spine (inspectable terms).** Slope/roughness/regolith/bearing/sinkage/slip/traction-margin/excavation-resistance/energy/uncertainty are exposed as inspectable terms, each classified simulated/sensed/estimated/learned/assumed; a route cost exposes its terms, not only a scalar. (complements the TM-01 calibration gate)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "TM-03",
    "lane": "TM",
    "pri": "P1",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 78,
+   "buildable": 77,
    "concurrent": 0,
-   "done": 247,
+   "done": 248,
    "gated": 14
   },
   "by_lane": {
@@ -5223,7 +5223,7 @@
     "total": 15
    },
    "TM": {
-    "done": 1,
+    "done": 2,
     "total": 4
    },
    "TU": {
@@ -5245,7 +5245,7 @@
     "total": 116
    },
    "P1": {
-    "done": 139,
+    "done": 140,
     "total": 188
    },
    "P2": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 265,
-  "done_pct": 72.9,
+  "cited": 266,
+  "done_pct": 73.2,
   "in_scope": 325,
-  "in_scope_done_pct": 76.0,
+  "in_scope_done_pct": 76.3,
   "total": 339
  },
  "workflow_spine": [
