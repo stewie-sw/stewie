@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "db4834d52da96faa4c346ca63ecdaa590ef909e020bcea55827c92b6c78f2c0e",
+  "citations_sha256": "ddaf16828fc6fcba104e91e0ca837c3f952ac2ec94c6db7d25749250b52c554f",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "ff2413934d29d01384b9d20dbd61c2099bef3739",
-  "prd_sha256": "d9a4c865de7e018ae20d99e2b8d1ede67bfa5618aedbdeb39558df48ec53ea61",
+  "prd_commit": "2b5bc20031af0bcae15ac324af7cf80b17ab9b07",
+  "prd_sha256": "fe7458922b95378395bda9d06f3e192a397dc8da707c019295ddf1b1a11c61f7",
   "specs_sha256": "293e51d6b104bb8c54a16fa5feeb0e9c96fe9d0ed4d49af8178acdc1f8afc822"
  },
  "rows": [
@@ -1739,17 +1739,17 @@
    "text": "Solar/Meerkat observation sites are reservable fleet resources so rovers do not occlude or collide during raised observations. `[PROPOSED]`"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "product mode + runnable profile in the cockpit route/state contract + shell + Release/Execute/eligibility gating.",
     "kind": "atomic",
     "test_target": "stewie/server/test_product_mode_profile.py citing [REQ:FS-25]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "FR-01",
    "lane": "FR",
    "pri": "P1",
@@ -4740,9 +4740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 65,
+   "buildable": 64,
    "concurrent": 0,
-   "done": 236,
+   "done": 237,
    "gated": 14
   },
   "by_lane": {
@@ -4819,7 +4819,7 @@
     "total": 7
    },
    "FR": {
-    "done": 12,
+    "done": 13,
     "total": 21
    },
    "FS": {
@@ -4929,7 +4929,7 @@
     "total": 102
    },
    "P1": {
-    "done": 135,
+    "done": 136,
     "total": 178
    },
    "P2": {
@@ -4941,10 +4941,10 @@
     "total": 2
    }
   },
-  "cited": 254,
-  "done_pct": 74.9,
+  "cited": 255,
+  "done_pct": 75.2,
   "in_scope": 301,
-  "in_scope_done_pct": 78.4,
+  "in_scope_done_pct": 78.7,
   "total": 315
  },
  "workflow_spine": [
