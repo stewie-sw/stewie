@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "1a2234a26bbc5a01a1b7438f540e1e386c6d4a651e23797b8e00c4833cab253d",
+  "citations_sha256": "aa1e9df655bbaa68a88d4c489c03bdd524a777e53518a3fef9e0bbefd53f05b2",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "4f9f99f6a5d190152d83968b39292f456fc45c42",
-  "prd_sha256": "883011c436c6dad1bbcfe55fd22d055257fd937f0cadb23f4950f8d5a40a25a7",
+  "prd_commit": "fa90416620016cacbb38b3d1bf9a5a1260805cf1",
+  "prd_sha256": "090f37b99cf44d549fa047625f61a9894dfc382c2333ae0997aeb81c8c736f07",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -4329,12 +4329,12 @@
    "text": "**Prerequisite \u2014 ROS image carries the stewie python stack.** `deploy/ros2/Dockerfile.ros2dev` installs pip + the monorepo (numpy/scipy/pydantic/gymnasium + stewie_bodies/dart/lode/forge) so live-spine rclpy nodes import `run_replay`; a container test imports `stewie.runtime.run_replay` and runs it headless on a real DEM slice. Blocks RS-05, RT-03."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "RT-01",
    "lane": "RT",
    "pri": "P0",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 84,
+   "buildable": 83,
    "concurrent": 0,
-   "done": 241,
+   "done": 242,
    "gated": 14
   },
   "by_lane": {
@@ -5199,7 +5199,7 @@
     "total": 8
    },
    "RT": {
-    "done": 0,
+    "done": 1,
     "total": 6
    },
    "SD": {
@@ -5241,7 +5241,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 100,
+    "done": 101,
     "total": 116
    },
    "P1": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 259,
-  "done_pct": 71.1,
+  "cited": 260,
+  "done_pct": 71.4,
   "in_scope": 325,
-  "in_scope_done_pct": 74.2,
+  "in_scope_done_pct": 74.5,
   "total": 339
  },
  "workflow_spine": [

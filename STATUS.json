@@ -34,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 259,
+  "cited": 260,
   "per_family": {
     "AC": {
       "cited": 1,
@@ -201,7 +201,7 @@
       "total": 8
     },
     "RT": {
-      "cited": 0,
+      "cited": 1,
       "total": 6
     },
     "SD": {
