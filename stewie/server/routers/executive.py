@@ -311,9 +311,14 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     from stewie.contracts.physics_model_control import physics_attribution
     physics = physics_attribution("tier2_numpy",
                                   quantities=("energy_J", "conserved_terrain_delta_m3", "as_built_acceptance"))
+    # [REQ:TM-04] the rehearsal predicted-vs-observed terramechanics report from the REAL legs: energy compared
+    # (nominal model vs slip-truth) with a residual, slip observed-only, sinkage honestly marked not-telemetered.
+    from stewie.runtime.replay_loop import terramechanics_comparison
+    terra_compare = terramechanics_comparison(_legs)
     return JSONResponse(content={"ok": True, "run_id": run_id, **rec, "executability": executability,
                                  "reconciliation": reconciliation, "live_token": live_token,
-                                 "physics_attribution": physics, "skipped": skipped})
+                                 "physics_attribution": physics, "terramechanics_comparison": terra_compare,
+                                 "skipped": skipped})
 
 
 @router.get("/executive/run/{run_id}")

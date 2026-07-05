@@ -197,3 +197,35 @@ def run_replay(dem_window: np.ndarray, cell_m: float, start_xy: tuple[float, flo
                           hazard_descriptor=hazard_descriptor, costmap=costmap, eligibility=eligibility,
                           commands=commands, world_transaction=world_transaction, arrived=arrived,
                           refused=refused, run_sha=run_sha, observed_layers=observed_layers)
+
+
+def terramechanics_comparison(legs: list[dict]) -> dict:
+    """[REQ:TM-04] compare the terramechanics terms the SIM/replay legs actually carry -- predicted vs observed
+    -- HONESTLY, never fabricating an observation. Energy has a genuine predicted (nominal model, ``nominal_J``)
+    vs observed (slip-truth, ``true_J``) gap, reconciled against the leg energy sigma. Slip is recorded as the
+    slip-truth model output only (the SIM legs carry no separate nominal-slip prediction to difference it
+    against). Sinkage is not telemetered per leg (TM-02 exposes it as an inspectable term, but the SIM legs do
+    not log it). Each term names the producing backend (tier2_numpy)."""
+    terms: list[dict] = []
+
+    # energy: the real model-vs-truth gap the run produces
+    pred_e = sum(float(lg.get("nominal_J", 0.0)) for lg in legs)
+    obs_e = sum(float(lg.get("true_J", 0.0)) for lg in legs)
+    tol_e = sum(float(lg.get("energy_sigma_J", 0.0)) for lg in legs)
+    terms.append({"term": "energy_J", "available": True, "predicted": pred_e, "observed": obs_e,
+                  "residual": obs_e - pred_e, "within_tolerance": abs(obs_e - pred_e) <= tol_e,
+                  "backend": "tier2_numpy"})
+
+    # slip: observed only (the leg slip IS the truth model; no nominal-slip prediction is telemetered)
+    slips = [float(lg["slip"]) for lg in legs if "slip" in lg]
+    terms.append({"term": "slip", "available": "observed_only", "predicted": None,
+                  "observed": (sum(slips) / len(slips)) if slips else None,
+                  "note": "SIM slip is the slip-truth model output; no separate nominal-slip prediction is logged per leg",
+                  "backend": "tier2_numpy"})
+
+    # sinkage: not telemetered per leg -- stated, not fabricated
+    terms.append({"term": "sinkage", "available": False, "predicted": None, "observed": None,
+                  "note": "not telemetered per leg in the current SIM; TM-02 exposes sinkage as an inspectable term",
+                  "backend": "tier2_numpy"})
+
+    return {"backend": "tier2_numpy", "n_legs": len(legs), "terms": terms}

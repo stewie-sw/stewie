@@ -85,10 +85,12 @@ TERRA_DERIVED: dict[str, list[str]] = {
     "traffic.cost_global": ["drive_energy", "slope"],
 }
 
-# validate at import: every source term is a real TM-02 spine term (the mapping cannot drift from the spine)
+# validate at import: every source term is a real TM-02 spine term (the mapping cannot drift from the spine).
+# An explicit raise, not a bare assert (CT-06: asserts are stripped under `python -O`, silencing the check).
 _SPINE_IDS = {t["id"] for t in TERRA_SPINE}
-assert all(t in _SPINE_IDS for terms in TERRA_DERIVED.values() for t in terms), \
-    "TERRA_DERIVED references a term not in the terramechanics spine"
+_UNKNOWN_TERMS = sorted({t for terms in TERRA_DERIVED.values() for t in terms if t not in _SPINE_IDS})
+if _UNKNOWN_TERMS:
+    raise ValueError(f"TERRA_DERIVED references terms not in the terramechanics spine: {_UNKNOWN_TERMS}")
 
 
 def terra_derived_layers() -> list[dict]:
