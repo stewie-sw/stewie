@@ -3,7 +3,7 @@
 // the mission package uses (lode/mission_package.py: body/site/mission/runtime_mode/runnable_profile/
 // source_class/vehicle/role/command_namespace). Pure reducer + enum enforcement + URL (de)serialization; the
 // Release/Execute mismatch guard is NOT re-implemented here -- it defers to the real backend /rc/eligibility
-// verdict (eligibility.ts). Defaults match cockpit_state.js (site=haworth, body=moon).
+// verdict (the AuthorityPane binds it directly). Defaults match cockpit_state.js (site=haworth, body=moon).
 
 export type SourceClass = "live" | "sim" | "eval"; // cockpit_state.js SOURCES
 export type CommandNamespace = "sandbox" | "live"; // cockpit_state.js MODES (AG-07 namespace)
@@ -39,6 +39,17 @@ export interface WorkspaceState {
   commandNamespace: CommandNamespace;
   depthSource: string; // FR-02: the selected perception depth source (a /perception/depth-sources name)
   workArea: string;
+  // [REQ:GW-02] the rest of the unified PRD2 workspace context — spatial CRS/frame, selection, and the
+  // mission-lifecycle cursor (branch/release/run/time). One routeable context drives every view.
+  siteCrs: string;               // site_crs — the site's geographic/body-fixed frame (e.g. MOON_ME)
+  localFrame: string;            // local_frame_id — the site-local XY order frame
+  fleet: string | null;          // fleet_id
+  selectedEntity: string | null; // selected_entity — the inspected feature/asset
+  selectedLayers: string[];      // selected_layers — active layer ids (from the LY-01 catalog)
+  timeCursor: string | null;     // time_cursor — the mission time cursor
+  branch: string | null;         // branch_id — the sim/replay/live branch
+  release: string | null;        // release_id
+  run: string | null;            // run_id
 }
 
 export function defaultWorkspace(): WorkspaceState {
@@ -48,6 +59,8 @@ export function defaultWorkspace(): WorkspaceState {
     mission: null, site: "haworth", body: "moon", vehicle: null,
     productMode: "GIS-PLAN", runnableProfile: "desktop_sil", sourceClass: "sim",
     physicsBackend: "tier2_numpy", commandNamespace: "sandbox", depthSource: "stereo_front", workArea: "plan",
+    siteCrs: "MOON_ME", localFrame: "site_xy", fleet: null, selectedEntity: null, selectedLayers: [],
+    timeCursor: null, branch: null, release: null, run: null,
   };
 }
 
@@ -68,9 +81,11 @@ export function applyPatch(state: WorkspaceState, patch: Partial<WorkspaceState>
 }
 
 // the routeable subset <-> URL query params, so a link restores the view + reload restores state (FS-16).
+// scalar routeable fields (selectedLayers is an array, handled separately below).
 const ROUTEABLE: (keyof WorkspaceState)[] = [
   "mission", "site", "body", "vehicle", "productMode", "runnableProfile",
   "sourceClass", "physicsBackend", "commandNamespace", "depthSource",
+  "siteCrs", "localFrame", "fleet", "selectedEntity", "timeCursor", "branch", "release", "run",
 ];
 
 export function toSearchParams(state: WorkspaceState): URLSearchParams {
@@ -80,6 +95,7 @@ export function toSearchParams(state: WorkspaceState): URLSearchParams {
     const v = state[k];
     if (v != null && v !== d[k]) p.set(k, String(v)); // only non-default fields (short, stable links)
   }
+  if (state.selectedLayers.length) p.set("layers", state.selectedLayers.join(",")); // [REQ:GW-02] array field
   return p;
 }
 
@@ -90,6 +106,8 @@ export function fromSearchParams(params: URLSearchParams): WorkspaceState {
     const v = params.get(k);
     if (v != null) (patch as Record<string, string>)[k] = v;
   }
+  const layers = params.get("layers");
+  if (layers) patch.selectedLayers = layers.split(",").filter(Boolean); // [REQ:GW-02] array field
   try {
     state = applyPatch(state, patch); // an invalid URL value is ignored (fail-safe to defaults)
   } catch {

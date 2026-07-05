@@ -31,6 +31,25 @@ test("workspace state round-trips through the URL across a reload", async ({ pag
   await expect(page.locator('[data-testid="ws-physicsBackend"]')).toHaveValue("tier3_chrono");
 });
 
+// [REQ:GW-02] the FULL PRD2 unified context (branch/release/run/selection/layers) round-trips through the URL,
+// even though these fields have no rail selector — the URL is the source of truth. Injecting them via the URL
+// then changing a rail field re-serializes the WHOLE state, so the injected context must persist (proving
+// fromSearchParams parsed it into state and toSearchParams wrote it back).
+test("[GW-02] URL-injected mission-lifecycle context survives a rail change", async ({ page }) => {
+  await page.goto("/app/plan?branch=sim-1&release=rel-2&run=run-3&selectedEntity=wp-1&layers=base.dem,hazard.rocks");
+  await expect(page.locator('.role-badge[data-role="director"]')).toBeVisible();
+
+  await page.locator('[data-testid="ws-productMode"]').selectOption("SIM-OPERATE");
+  await expect.poll(() => new URL(page.url()).searchParams.get("productMode")).toBe("SIM-OPERATE");
+
+  const sp = new URL(page.url()).searchParams;
+  expect(sp.get("branch")).toBe("sim-1");
+  expect(sp.get("release")).toBe("rel-2");
+  expect(sp.get("run")).toBe("run-3");
+  expect(sp.get("selectedEntity")).toBe("wp-1");
+  expect(sp.get("layers")).toBe("base.dem,hazard.rocks");
+});
+
 test("Release + Execute defer to the backend eligibility guard (fail-closed with no mission)", async ({ page }) => {
   await page.goto("/app/plan");
   await expect(page.locator('.role-badge[data-role="director"]')).toBeVisible();
