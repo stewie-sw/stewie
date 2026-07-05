@@ -1,6 +1,7 @@
 import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { AuthorityPane } from "./panes/Authority";
+import { DepthSourcePane } from "./panes/DepthSource";
 import { ModelsPane } from "./panes/Models";
 import { ReportPane } from "./panes/Report";
 import { PANES, RANK, visiblePanes } from "./panes";
@@ -61,6 +62,7 @@ function PaneRoute({ pane, role }: { pane: Pane; role: Role }) {
   if (pane.id === "release" || pane.id === "metrics") return <AuthorityPane pane={pane} />; // FR-03 authority
   if (pane.id === "report") return <ReportPane />; // RF-03: first migrated pane (real /world evidence)
   if (pane.id === "models") return <ModelsPane />; // BD-03: body/backend compatibility matrix
+  if (pane.id === "validate") return <DepthSourcePane />; // FR-02: depth-source selector + health
   return <PanePlaceholder pane={pane} />;
 }
 

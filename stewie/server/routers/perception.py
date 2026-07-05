@@ -25,6 +25,21 @@ from stewie.server.schemas import Order, _MAX_ORDERS
 from stewie.server.services import log_event, prune_reports, report_lock
 
 router = APIRouter()
+
+
+@router.get("/perception/depth-sources")
+def depth_sources(_auth: str = Depends(require_auth)):
+    """[REQ:FR-02] the perception depth-source registry the Validate pane's selector binds: every configured
+    source (stereo / lidar / rgbd) with its kind + health STATUS (flight / simulated / absent / bench / legacy)
+    + output topic, plus the profile's currently selected source. Read-only from the active system profile; no
+    fabricated health -- the status is exactly what the profile declares."""
+    from stewie.specs import profiles as P
+    sensors = P.load_profile().sensors
+    sources = [
+        {"name": s["name"], "kind": s["kind"], "status": s["status"], "output_topic": s.get("output_topic")}
+        for s in sensors.get("depth_sources", [])
+    ]
+    return {"ok": True, "selected": sensors.get("selected_depth_source"), "sources": sources}
 log = logging.getLogger("stewie.server")
 
 # the server package dir (server/), one level up from routers/ -- the bundled assets sit above it

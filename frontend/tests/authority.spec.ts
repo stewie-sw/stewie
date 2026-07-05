@@ -33,6 +33,23 @@ test("Execute surfaces the refusal reason when ineligible (clause 2)", async ({ 
   await expect(page.locator('[data-testid="gates-metrics"]')).toBeVisible();
 });
 
+test("[FR-02] depth-source selector + health; an absent source degrades Release", async ({ page }) => {
+  await page.goto("/app/plan");
+  await expect(page.locator('.role-badge[data-role="director"]')).toBeVisible();
+  // the Validate pane shows the depth-source table with real health + the selector
+  await page.locator('.vtab[data-view="validate"]').click();
+  await expect(page.locator('[data-testid="depth-sources"]')).toHaveAttribute("data-state", "ready", { timeout: 10_000 });
+  const table = page.locator('[data-testid="depth-table"]');
+  await expect(table).toContainText("stereo_front");
+  await expect(table).toContainText("absent"); // lidar_front health
+  // pick an absent source -> Release is degraded/blocked with a legible reason
+  await page.selectOption('[data-testid="ws-depthSource"]', "lidar_front");
+  await page.locator('.vtab[data-view="release"]').click();
+  const degraded = page.locator('[data-testid="depth-degraded-release"]');
+  await expect(degraded).toBeVisible({ timeout: 10_000 });
+  await expect(degraded).toContainText("absent");
+});
+
 test("[FR-01] a runnable-profile mismatch degrades Release; the shell shows mode + profile", async ({ page }) => {
   // the rail always shows the active product mode + runnable profile (state contract, visible in the shell)
   await page.goto("/app/plan");

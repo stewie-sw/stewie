@@ -37,6 +37,7 @@ export interface WorkspaceState {
   sourceClass: SourceClass;
   physicsBackend: PhysicsBackend;
   commandNamespace: CommandNamespace;
+  depthSource: string; // FR-02: the selected perception depth source (a /perception/depth-sources name)
   workArea: string;
 }
 
@@ -46,7 +47,7 @@ export function defaultWorkspace(): WorkspaceState {
   return {
     mission: null, site: "haworth", body: "moon", vehicle: null,
     productMode: "GIS-PLAN", runnableProfile: "desktop_sil", sourceClass: "sim",
-    physicsBackend: "tier2_numpy", commandNamespace: "sandbox", workArea: "plan",
+    physicsBackend: "tier2_numpy", commandNamespace: "sandbox", depthSource: "stereo_front", workArea: "plan",
   };
 }
 
@@ -69,7 +70,7 @@ export function applyPatch(state: WorkspaceState, patch: Partial<WorkspaceState>
 // the routeable subset <-> URL query params, so a link restores the view + reload restores state (FS-16).
 const ROUTEABLE: (keyof WorkspaceState)[] = [
   "mission", "site", "body", "vehicle", "productMode", "runnableProfile",
-  "sourceClass", "physicsBackend", "commandNamespace",
+  "sourceClass", "physicsBackend", "commandNamespace", "depthSource",
 ];
 
 export function toSearchParams(state: WorkspaceState): URLSearchParams {

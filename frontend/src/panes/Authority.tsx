@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useResource } from "../fetchState";
 import type { Pane } from "../panes";
 import { useWorkspace } from "../workspace_context";
+import { depthSourceUsable } from "./DepthSource";
 
 // [REQ:FR-03] the Release + Execute complete authority-evidence panel (extends FS-28). It binds the REAL
 // /rc/eligibility gate set (all 11 fields) and surfaces, per pane, the full authority evidence + refusal
@@ -103,6 +104,7 @@ function ReleaseSignOff() {
 export function AuthorityPane({ pane }: { pane: Pane }) {
   const { state } = useWorkspace();
   const elig = useResource<Eligibility>("/rc/eligibility");
+  const depth = useResource<{ sources: { name: string; status: string }[] }>("/perception/depth-sources");
   const isRelease = pane.id === "release";
   const gates = isRelease ? RELEASE_GATES : EXECUTE_GATES;
 
@@ -129,6 +131,18 @@ export function AuthorityPane({ pane }: { pane: Pane }) {
                 but command authority runs under the system profile <strong>{elig.data.profile}</strong>.
               </p>
             )}
+            {/* [REQ:FR-02] the depth source gates command authority too: a stale / simulated-when-live /
+                absent source blocks Release/Execute with a legible reason. */}
+            {depth.status === "ready" && (() => {
+              const sel = depth.data.sources.find((s) => s.name === state.depthSource);
+              const u = sel ? depthSourceUsable(sel.status, state.sourceClass, elig.data.sensor_fresh)
+                            : { ok: false, note: "unknown depth source" };
+              return u.ok ? null : (
+                <p className="verdict-no" data-testid={`depth-degraded-${pane.id}`} data-degraded="true">
+                  ⚠ depth source degraded — {pane.label} blocked: <strong>{state.depthSource}</strong> ({u.note}).
+                </p>
+              );
+            })()}
             <dl className="kv">
               <dt>profile</dt><dd>{elig.data.profile}</dd>
               <dt>namespace</dt><dd>{state.commandNamespace}</dd>
