@@ -41,6 +41,22 @@ def layer_catalog(_auth: str = Depends(require_auth)):
         return json.load(fh)
 
 
+@router.get("/world/layer-consumption")
+def layer_consumption(_auth: str = Depends(require_auth)):
+    """[REQ:LY-02] the layer-consumption inspector: for each LY-01 catalog layer, WHERE it is consumed across
+    the mission surface (display / planner / costmap / rehearsal / release / execute / report / export).
+    Consumption is DERIVED from the catalog eligibility (planning/release-execute + domain + source class), so
+    it is a faithful projection of LY-01, never a drifting hand-map -- a layer feeds the planner only if it is
+    planning-eligible, and feeds release/execute only if it is release/execute-eligible."""
+    import json
+
+    from stewie.server.layer_consumption import CONSUMERS, consumers_for
+    with open(_LAYER_CATALOG_PATH, encoding="utf-8") as fh:
+        cat = json.load(fh)
+    rows = [{"id": ly["id"], "domain": ly["domain"], "consumers": consumers_for(ly)} for ly in cat["layers"]]
+    return {"ok": True, "consumers": CONSUMERS, "layers": rows, "count": len(rows)}
+
+
 @router.get("/world")
 def world(site: str = "haworth", _auth: str = Depends(require_auth)):
     """[REQ:DT-05] the AUTHORITATIVE rich world descriptor for `site`: grid geometry + lunar datum +
