@@ -4,6 +4,26 @@ The persistent memory + guardrails for the unattended STEWIE platform-restructur
 does the NEXT buildable row, updates the progress log, commits on the branch, and re-schedules. Configured
 with Aaron 2026-07-03 (three decisions recorded below). Branch: `feat/platform-restructure`.
 
+## ★ PRIMARY TRACK (2026-07-04): §7.B GIS Mission Workbench (PRD2 fold)
+
+STEWIE is now a **GIS-first lunar mission workbench** — one persistent GeoLibre map; layers/selection/editing/
+analysis are the primary surface; Plan/Rehearse/Validate/Release/Execute are mission-lifecycle overlays;
+ROS2/Gazebo/RViz/Godot are runtime/evidence engines behind ONE workspace context, never independent command
+surfaces. Product spec: `design/STEWIE_PRD2_gis_mission_workbench_2026-07-04.md`; the 24 folded rows are §7.B in
+`PRD.md`. **Loop pick order (GIS-first, prerequisites first):** GW-00 · RT-00 → GW-02 → LY-01 → GW-05 →
+GW-06 · GW-03 → GW-07 → RT-01 → LY-02 → GW-08/ED-01 → PH-01 → TM-02 → GW-04 → AU-01 → SD-01 → PH-02 · TM-03 →
+RT-03 → RT-02 → TM-04 → RT-04 → RT-05 → EV-01.
+- **Build the two prerequisites first** (they gate the rest): **GW-00** = Trek + web-panel CSP allowlist
+  (`deploy/nginx.conf` + backend CSP allow `trek.nasa.gov`/rosbridge/foxglove); **RT-00** = pip + the stewie
+  python monorepo into `deploy/ros2/Dockerfile.ros2dev` so live-spine rclpy nodes import `run_replay`.
+- **Patterns (proven this session):** backend GET deferring to the real rule → `scripts/gen_ts_api_client.py`
+  → `useResource` (`frontend/src/fetchState.ts`) pane wired in `App.tsx` PaneRoute → Playwright (role-gate:
+  goto `/app/plan`, wait `.role-badge[data-role=director]`, click `.vtab[data-view=X]`) + screenshot + Python
+  contract test; a released revision via a REAL `/sample_mission`'s orders → `/executive/release-plan`;
+  container-verify ROS/gz/rviz MYSELF (mount `-v host.sh:/x.sh:ro`, NO `set -u`, bake `COPY` at end).
+- **Open-decision defaults:** web-first · Godot sidecar-first · RViz/Foxglove evidence-first · gazebo_sim named.
+- §7.A + the domain blocks stay live in parallel (campaign hardening); PRD2 is the product target they converge to.
+
 ## Decisions (locked with Aaron)
 
 1. **PX-06 approach = PRESERVE OVERLAY (inject).** `terramechanics` carries forge-local literal geotech
