@@ -1318,3 +1318,125 @@ Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO
 - acceptance: production stewie/physics/terramechanics imports no stewie.specs.constants (AST guard extends PX-05); from_constants() unchanged; a config override still reaches built params via injection; physics+lode regression green.
 - files: stewie/physics/terramechanics.py, stewie/specs/constants.py, stewie/physics/body_params.py, scripts/test_import_boundaries.py
 - test_target: NEW/extended [REQ:PX-06] in scripts/test_import_boundaries.py + stewie/physics/test_terramechanics.py
+
+## §7.B GIS Mission Workbench briefs (PRD2 fold, 2026-07-04)
+
+### GW-00
+- goal: Trek + web-panel CSP allowlist pinned for GeoLibre (prerequisite for GW-05/RT-04).
+- files: deploy/nginx.conf
+- test_target: stewie/server/test_gw00_geolibre_csp.py [REQ:GW-00]
+
+### RT-00
+- goal: install pip + the stewie python monorepo into the ROS image so live-spine rclpy nodes import run_replay.
+- files: deploy/ros2/Dockerfile.ros2dev, deploy/ros2/Dockerfile.gazebo
+- test_target: NEW ros2_ws/test_rt00_stewie_stack.py [REQ:RT-00]
+
+### GW-05
+- goal: MapLibre map substrate in the local polar-stereo frame (Trek tiles + LOLA terrain-RGB); /dem/site_xy round-trip.
+- files: frontend/src/App.tsx, frontend/package.json, stewie/server/routers/dem.py
+- test_target: NEW stewie/server/test_gw05_map_substrate.py [REQ:GW-05]
+
+### GW-06
+- goal: layer tree + legend toggling the LY-01 catalog on the map.
+- files: frontend/src/App.tsx, frontend/src/fetchState.ts
+- test_target: NEW stewie/server/test_gw06_layer_tree.py [REQ:GW-06]
+
+### GW-07
+- goal: selection + right inspector (attributes/provenance/freshness/actions/runtime evidence).
+- files: frontend/src/App.tsx
+- test_target: NEW stewie/server/test_gw07_inspector.py [REQ:GW-07]
+
+### GW-08
+- goal: edit session (create/modify/delete/measure/snap/undo mission features) writing only via backend routes.
+- files: frontend/src/App.tsx, stewie/server/routers/missions.py
+- test_target: NEW stewie/server/test_gw08_edit_session.py [REQ:GW-08]
+
+### GW-02
+- goal: unified routeable workspace context (PRD2 field set) drives every view; one URL restores all.
+- files: frontend/src/workspace.ts, frontend/src/workspace_context.tsx
+- test_target: NEW stewie/server/test_gw02_context.py [REQ:GW-02]
+
+### GW-03
+- goal: layer-eligibility UI (display/planning/release/execute + freshness/provenance/uncertainty).
+- files: frontend/src/App.tsx, frontend/src/panes/DepthSource.tsx
+- test_target: NEW stewie/server/test_gw03_layer_eligibility.py [REQ:GW-03]
+
+### GW-04
+- goal: Asset Library (browse/search/inspect/export/recover durable assets, separate from visible layers).
+- files: frontend/src/App.tsx, stewie/server/routers/missions.py
+- test_target: NEW stewie/server/test_gw04_assets.py [REQ:GW-04]
+
+### LY-01
+- goal: backend layer catalog/registry — the ~65 named layers with type/frame/source-class/eligibility/provenance.
+- files: stewie/server/routers/world.py, stewie/server/routers/dem.py
+- test_target: NEW stewie/server/test_ly01_layer_catalog.py [REQ:LY-01]
+
+### LY-02
+- goal: layer-consumption inspector (display/planner/costmap/rehearsal/release/execute/report/export).
+- files: stewie/server/routers/world.py
+- test_target: NEW stewie/server/test_ly02_consumption.py [REQ:LY-02]
+
+### PH-01
+- goal: physics backend registry (authority scope/conservation/calibration/compatibility/refusal/evidence); extends PX-02.
+- files: stewie/server/routers/models.py, stewie/contracts/physics_model_control.py
+- test_target: NEW stewie/server/test_ph01_physics_registry.py [REQ:PH-01]
+
+### PH-02
+- goal: attribute every route/volume/risk value to a physics backend + calibration source.
+- files: stewie/server/routers/executive.py, stewie/contracts/physics_model_control.py
+- test_target: NEW stewie/server/test_ph02_attribution.py [REQ:PH-02]
+
+### TM-02
+- goal: terramechanics spine exposes terms (slope/roughness/bearing/sinkage/slip/traction/energy/uncertainty) inspectable.
+- files: stewie/physics/terramechanics.py, stewie/server/routers/models.py
+- test_target: NEW stewie/server/test_tm02_terra_spine.py [REQ:TM-02]
+
+### TM-03
+- goal: terramechanics outputs generate the derived catalog layers (traversability/energy/slip-risk/bearing-sinkage/...).
+- files: stewie/physics/terramechanics.py, stewie/server/routers/world.py
+- test_target: NEW stewie/server/test_tm03_terra_layers.py [REQ:TM-03]
+
+### TM-04
+- goal: rehearsal/report compares predicted slip/sinkage/energy vs observed/replayed telemetry.
+- files: stewie/runtime/replay_loop.py, stewie/server/routers/evidence.py
+- test_target: NEW stewie/server/test_tm04_predicted_observed.py [REQ:TM-04]
+
+### SD-01
+- goal: Surface Design view (pads/berms/cuts/fills/roads -> typed mission orders + volume/constructability evidence).
+- files: frontend/src/App.tsx, stewie/server/routers/missions.py
+- test_target: NEW stewie/server/test_sd01_surface_design.py [REQ:SD-01]
+
+### RT-01
+- goal: runtime profile registry endpoint (desktop_sil/digital_twin/ros2_replay/gazebo_sim/hil/field_test/live_rover + capabilities).
+- files: stewie/server/routers/models.py
+- test_target: NEW stewie/server/test_rt01_runtime_profiles.py [REQ:RT-01]
+
+### RT-02
+- goal: evidence bound to run/profile; execution service the sole command egress.
+- files: stewie/server/routers/evidence.py
+- test_target: NEW stewie/server/test_rt02_evidence_binding.py [REQ:RT-02]
+
+### RT-03
+- goal: Gazebo rehearsal on real site DEM + truth-isolated sensors; cockpit shows /clock/bridge-freshness/bag/truth-denial.
+- files: ros2_ws/src/stewie_bringup/launch/gz_sim.launch.py, deploy/ros2/Dockerfile.gazebo
+- test_target: NEW ros2_ws/test_rt03_gazebo_rehearsal.py [REQ:RT-03]
+
+### RT-04
+- goal: RViz/Foxglove engineering panel (evidence-only) served via web bridge.
+- files: deploy/nginx.conf, frontend/src/App.tsx
+- test_target: NEW stewie/server/test_rt04_rviz_panel.py [REQ:RT-04]
+
+### RT-05
+- goal: Godot mission view (sidecar-first) rendering the selected branch/run + capture metadata.
+- files: ros2_ws/src/stewie_bringup/launch/gz_sim.launch.py, deploy/ros2/Dockerfile.gazebo
+- test_target: NEW ros2_ws/test_rt05_godot_view.py [REQ:RT-05]
+
+### AU-01
+- goal: global command-authority card visible from every command-capable view; every refusal reason.
+- files: frontend/src/panes/Authority.tsx, frontend/src/App.tsx
+- test_target: NEW stewie/server/test_au01_global_authority.py [REQ:AU-01]
+
+### EV-01
+- goal: Evidence/Report reproduces plan inputs + selected layers + runtime profile + artifacts + transactions + audit.
+- files: frontend/src/panes/Report.tsx, stewie/server/routers/evidence.py
+- test_target: NEW stewie/server/test_ev01_evidence_report.py [REQ:EV-01]
