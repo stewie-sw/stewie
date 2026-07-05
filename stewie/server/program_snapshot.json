@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "796fbd2aeafe3379540a430be6646574f2b65930429663ef0673b0556ba95a5b",
+  "citations_sha256": "1a2234a26bbc5a01a1b7438f540e1e386c6d4a651e23797b8e00c4833cab253d",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "e508be05601cd09f3c4296109b7fb9acae74d83f",
-  "prd_sha256": "a9b2ffec1e7556ae3023cc7af302109174ca6522b62edfda81d57e2cd1f4c70e",
+  "prd_commit": "4f9f99f6a5d190152d83968b39292f456fc45c42",
+  "prd_sha256": "883011c436c6dad1bbcfe55fd22d055257fd937f0cadb23f4950f8d5a40a25a7",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -2781,12 +2781,12 @@
    "text": "**Edit session (= ED-01).** Select/create/modify/delete/measure/snap/undo mission features (keep-outs/waypoints/work-zones) with versioned audit; edits write ONLY through backend routes, never the map layer directly. (extends GL-02)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "LY-01",
    "lane": "LY",
    "pri": "P0",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 85,
+   "buildable": 84,
    "concurrent": 0,
-   "done": 240,
+   "done": 241,
    "gated": 14
   },
   "by_lane": {
@@ -5135,7 +5135,7 @@
     "total": 8
    },
    "LY": {
-    "done": 0,
+    "done": 1,
     "total": 2
    },
    "MG": {
@@ -5241,7 +5241,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 99,
+    "done": 100,
     "total": 116
    },
    "P1": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 258,
-  "done_pct": 70.8,
+  "cited": 259,
+  "done_pct": 71.1,
   "in_scope": 325,
-  "in_scope_done_pct": 73.8,
+  "in_scope_done_pct": 74.2,
   "total": 339
  },
  "workflow_spine": [
