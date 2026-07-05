@@ -133,6 +133,7 @@ export type ApiPath =
   | '/twin/terrain/{site}'
   | '/twin/version'
   | '/world'
+  | '/world/layer-catalog'
   | '/world/terrain_view'
   | '/world/terrain_view.png'
   | '/world/transaction'
@@ -282,6 +283,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'POST', path: '/twin/terrain/{site}', operationId: 'twin_terrain_record_twin_terrain__site__post', mutatesAuthority: true },
   { method: 'GET', path: '/twin/version', operationId: 'twin_version_twin_version_get', mutatesAuthority: false },
   { method: 'GET', path: '/world', operationId: 'world_world_get', mutatesAuthority: false },
+  { method: 'GET', path: '/world/layer-catalog', operationId: 'layer_catalog_world_layer_catalog_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terrain_view', operationId: 'world_terrain_view_world_terrain_view_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terrain_view.png', operationId: 'world_terrain_view_png_world_terrain_view_png_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/transaction', operationId: 'world_transaction_world_transaction_get', mutatesAuthority: false },
