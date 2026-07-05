@@ -66,3 +66,34 @@ TERRA_SOLVERS: dict[str, Callable] = {t["id"]: fn for t, fn in _TERMS if fn is n
 
 def list_terra_spine() -> list[TerraTerm]:
     return list(TERRA_SPINE)
+
+
+# [REQ:TM-03] the derived LY-01 catalog layers each terramechanics term feeds: every derived physics/traffic/
+# terrain layer is COMPUTED FROM one or more TM-02 spine terms, on the conserved tier2_numpy backend -- so a
+# traversability/slip-risk/energy-cost/costmap layer names the terramechanics it is built from.
+TERRA_DERIVED: dict[str, list[str]] = {
+    "terrain.slope": ["slope"],
+    "terrain.roughness": ["roughness"],
+    "physics.bearing": ["contact_pressure"],
+    "physics.sinkage": ["sinkage"],
+    "physics.slip_risk": ["slip", "slope"],
+    "physics.traction_margin": ["traction", "slip"],
+    "physics.energy_cost": ["drive_energy"],
+    "physics.excavation_resistance": ["compaction_resistance"],
+    "physics.compaction": ["compaction_resistance", "sinkage"],
+    "traffic.traversability": ["slip", "slope", "traction"],
+    "traffic.cost_global": ["drive_energy", "slope"],
+}
+
+# validate at import: every source term is a real TM-02 spine term (the mapping cannot drift from the spine)
+_SPINE_IDS = {t["id"] for t in TERRA_SPINE}
+assert all(t in _SPINE_IDS for terms in TERRA_DERIVED.values() for t in terms), \
+    "TERRA_DERIVED references a term not in the terramechanics spine"
+
+
+def terra_derived_layers() -> list[dict]:
+    """Each derived catalog layer + the TM-02 spine terms it is computed from + which of those are real solver
+    outputs (TERRA_SOLVERS callables) + the producing backend."""
+    return [{"layer": layer_id, "from_terms": terms, "backend": "tier2_numpy",
+             "computed_terms": [t for t in terms if t in TERRA_SOLVERS]}
+            for layer_id, terms in TERRA_DERIVED.items()]

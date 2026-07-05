@@ -57,6 +57,18 @@ def layer_consumption(_auth: str = Depends(require_auth)):
     return {"ok": True, "consumers": CONSUMERS, "layers": rows, "count": len(rows)}
 
 
+@router.get("/world/terramechanics-layers")
+def terramechanics_layers(_auth: str = Depends(require_auth)):
+    """[REQ:TM-03] the derived catalog layers the terramechanics spine generates: each LY-01 physics/traffic/
+    terrain layer + the TM-02 spine terms it is computed FROM + which of those are real solver outputs + the
+    producing backend. Every derived layer id is a real LY-01 catalog layer and every source term is a real
+    TM-02 spine term (validated at import), so a slip-risk / traversability / energy-cost / costmap layer is
+    provably built from the terramechanics, not a fabricated map."""
+    from stewie.specs.terramechanics_spine import terra_derived_layers
+    rows = terra_derived_layers()
+    return {"ok": True, "backend": "tier2_numpy", "derived_layers": rows, "count": len(rows)}
+
+
 @router.get("/world")
 def world(site: str = "haworth", _auth: str = Depends(require_auth)):
     """[REQ:DT-05] the AUTHORITATIVE rich world descriptor for `site`: grid geometry + lunar datum +
