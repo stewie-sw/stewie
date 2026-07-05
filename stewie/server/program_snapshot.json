@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "50ab61486004090555dccfaed7818c2e8248124f0f50918102070a461b26a5fd",
+  "citations_sha256": "33f9bba4c11a4838dff2f920d71e09fb6efb04b66687f8c9d59acca51aeba22e",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "f4548e324832eb03a440eb9518d75e0e9e783ce6",
-  "prd_sha256": "cff69f5d0057b7cfcacbff8c8b129390d5a1ef6cec1434aa280427cc81f6e750",
+  "prd_commit": "7495ccdd153b5008793084a3a74eb1a05a5515b3",
+  "prd_sha256": "41157f7d45218c675cf214f56ef6c81edb95a76823e58db0fc9956e20b0c994f",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -4713,12 +4713,12 @@
    "text": "**Terramechanics output layers.** Terramechanics generates traversability/energy/slip-risk/bearing-sinkage/excavation-feasibility/constructability layers into the LY-01 catalog with source-class + uncertainty."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "TM-04",
    "lane": "TM",
    "pri": "P1",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 77,
+   "buildable": 76,
    "concurrent": 0,
-   "done": 248,
+   "done": 249,
    "gated": 14
   },
   "by_lane": {
@@ -5223,7 +5223,7 @@
     "total": 15
    },
    "TM": {
-    "done": 2,
+    "done": 3,
     "total": 4
    },
    "TU": {
@@ -5245,7 +5245,7 @@
     "total": 116
    },
    "P1": {
-    "done": 140,
+    "done": 141,
     "total": 188
    },
    "P2": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 266,
-  "done_pct": 73.2,
+  "cited": 267,
+  "done_pct": 73.5,
   "in_scope": 325,
-  "in_scope_done_pct": 76.3,
+  "in_scope_done_pct": 76.6,
   "total": 339
  },
  "workflow_spine": [
