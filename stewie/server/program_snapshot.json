@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "e4966aff6afc6c1844aa74d3d317958afed904b00c0b1fb5a230801dc655b5c1",
+  "citations_sha256": "796fbd2aeafe3379540a430be6646574f2b65930429663ef0673b0556ba95a5b",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "6d39dfddb158500e749db251d09c1f9dd257f183",
-  "prd_sha256": "1e3cd150da80891703f4f64c10e77c95297ae71502314edadec96e47c499032d",
+  "prd_commit": "e508be05601cd09f3c4296109b7fb9acae74d83f",
+  "prd_sha256": "a9b2ffec1e7556ae3023cc7af302109174ca6522b62edfda81d57e2cd1f4c70e",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -2697,12 +2697,12 @@
    "text": "**Prerequisite \u2014 Trek imagery + web-panel CSP allowlist.** `deploy/nginx.conf` + backend CSP allow `trek.nasa.gov` (and rosbridge/foxglove origins) so GeoLibre streams real NASA Trek tiles and RViz/Godot web panels load; a test asserts the CSP header lists the allowed hosts. Blocks GW-05, RT-04."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "GW-02",
    "lane": "GW",
    "pri": "P0",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 86,
+   "buildable": 85,
    "concurrent": 0,
-   "done": 239,
+   "done": 240,
    "gated": 14
   },
   "by_lane": {
@@ -5131,7 +5131,7 @@
     "total": 2
    },
    "GW": {
-    "done": 1,
+    "done": 2,
     "total": 8
    },
    "LY": {
@@ -5241,7 +5241,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 98,
+    "done": 99,
     "total": 116
    },
    "P1": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 257,
-  "done_pct": 70.5,
+  "cited": 258,
+  "done_pct": 70.8,
   "in_scope": 325,
-  "in_scope_done_pct": 73.5,
+  "in_scope_done_pct": 73.8,
   "total": 339
  },
  "workflow_spine": [
