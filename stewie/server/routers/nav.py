@@ -41,6 +41,192 @@ def get_ros_evidence(_auth: None = Depends(require_auth)):  # [REQ:FS-27]
     return {"ok": True, **collect_ros_evidence()}
 
 
+# --- ROS egress export (advisory, read-only): lower the numpy backend's ALREADY-computed hazard /
+# 12-layer costmap / routed-traverse products onto the frozen /stewie/* contract message shapes, each with
+# a latched MapMeta selenographic georef anchor. These NEVER command (require_auth, evidence tier -- the
+# command/actuation seam stays behind SF-01 + AG-08); they mint contract-shaped messages a Nav2/RViz
+# consumer reads. Fills autonomy_contract.py:134,136,137 (the three "Missing (ROS)" egress rows).
+def _dem_window(site: str, window_m: float):
+    """Crop the site's REAL DEM to a work-area window at the flattest anchor + resolve the selenographic
+    georef of that anchor. Returns (Zwin, cell, order_origin_xy, tile_x0, tile_y1, dem_sha256, origin_lonlat)
+    or a JSONResponse error (unknown / absent site DEM). No fabricated terrain: a missing bundle is a 404."""
+    import hashlib
+    import json
+    import os
+
+    import numpy as np
+
+    from stewie.server import state
+    from stewie.terrain.site_dem import bundle_for_site, dem_origin_to_latlon
+    try:
+        bundle = bundle_for_site(site)
+    except (KeyError, FileNotFoundError) as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    dem, origin = state.moon_dem(site)
+    if dem is None:
+        return JSONResponse(status_code=400,
+                            content={"ok": False, "error": f"no DEM bundle for site {site!r}"})
+    Z, cell = dem
+    Z = np.asarray(Z, dtype=float)
+    h, w = Z.shape
+    ox, oy = float(origin[0]), float(origin[1])
+    r0, c0 = int(round(oy / cell)), int(round(ox / cell))
+    npx = max(2, int(round(window_m / cell)) + 1)
+    Zwin = np.ascontiguousarray(Z[r0:min(h, r0 + npx), c0:min(w, c0 + npx)])
+    order_origin = (float(c0 * cell), float(r0 * cell))     # the map (0,0) cell in the full order frame
+    x0 = y1 = 0.0
+    try:
+        meta = json.load(open(os.path.join(bundle, "metadata.json")))
+        b = meta["world_bounds_m"]
+        x0, y1 = float(b["x0"]), float(b["y1"])
+    except (OSError, KeyError, ValueError):
+        x0, y1 = 0.0, 0.0                                   # no tile bounds -> affine origin degrades to 0
+    sha = hashlib.sha256(Zwin.astype(np.float32).tobytes()).hexdigest()   # DT-01 provenance of the crop
+    lonlat = None
+    try:                                                    # pyproj-gated selenographic anchor (honest NaN otherwise)
+        lat, lon = dem_origin_to_latlon(order_origin[0], order_origin[1], bundle_dir=bundle)
+        lonlat = (lon, lat)
+    except (ImportError, ValueError):
+        lonlat = None
+    return Zwin, float(cell), order_origin, x0, y1, sha, lonlat
+
+
+def _keepout_mask(shape, cell: float, keepouts):
+    """Rasterize operator keep-out circles (x, y, r) [local order metres] into a boolean grid mask."""
+    import numpy as np
+    m = np.zeros(shape, dtype=bool)
+    if not keepouts:
+        return m
+    rr = np.arange(shape[0])[:, None]
+    cc = np.arange(shape[1])[None, :]
+    for x, y, r in keepouts:
+        kc, kr = float(x) / cell, float(y) / cell
+        m |= (rr - kr) ** 2 + (cc - kc) ** 2 <= (float(r) / cell) ** 2
+    return m
+
+
+def _map_meta_record(site: str, cell: float, order_origin, x0: float, y1: float, sha: str, lonlat):
+    """The latched MapMeta georef record co-published with every map/occupancy/costmap (§B): a Nav2/RViz
+    consumer works off info.origin/resolution unchanged; a GIS consumer recovers IAU_2015 coords."""
+    from stewie.bridge import autonomy_contract as AC
+    from stewie.bridge import ros_export as RX
+    mm = RX.map_meta_msg(dem_name=site, dem_sha256=sha, cell_m=cell, order_origin_xy=order_origin,
+                         tile_x0=x0, tile_y1=y1, origin_lonlat=lonlat)
+    return RX.rosbridge_record("/stewie/map/meta", "stewie_msgs/MapMeta", mm, qos=AC.QOS_STATE)
+
+
+class RosGridRequest(BaseModel):
+    # advisory export request: which real site, the work-area window, and optional operator keep-outs.
+    model_config = ConfigDict(extra="forbid")
+    site: str = Field(default="haworth", max_length=64)
+    window_m: float = Field(default=300.0, gt=0.0, le=2000.0)
+    max_slope_deg: float = Field(default=20.0, gt=0.0, le=89.0)
+    keepouts: list[tuple[float, float, float]] = Field(default_factory=list, max_length=_MAX_OBSTACLES)
+
+
+@router.post("/ros/export/occupancy")
+def post_export_occupancy(req: RosGridRequest, _auth: str = Depends(require_auth)):  # [REQ:AS-10]
+    """Lower the DART hazard/keepout grid (real DEM, `dart.hazard_map.build_hazard_map`) to a
+    `nav_msgs/OccupancyGrid` (0 free / 100 lethal / -1 unknown) on the contract topic `/stewie/map/occupancy`
+    (autonomy_contract.py:134), with a latched MapMeta georef anchor. Advisory/read-only -> require_auth."""
+    import numpy as np
+
+    from dart import hazard_map as HM
+    from stewie.bridge import autonomy_contract as AC
+    from stewie.bridge import ros_export as RX
+    win = _dem_window(req.site, req.window_m)
+    if isinstance(win, JSONResponse):
+        return win
+    Zwin, cell, order_origin, x0, y1, sha, lonlat = win
+    hm = HM.build_hazard_map((Zwin, cell), (0.0, 0.0), max_slope_deg=req.max_slope_deg)
+    unknown = ~np.isfinite(hm.roughness_m)
+    keep = _keepout_mask(Zwin.shape, cell, req.keepouts)
+    occ = RX.occupancy_values(hm.hazard_class, unknown_mask=unknown, keepout_mask=keep)
+    topic = "/stewie/map/occupancy"
+    t = AC.TOPICS[topic]
+    rec = RX.rosbridge_record(topic, t.msg, RX.occupancy_grid_msg(occ, resolution_m=cell), qos=t.qos)
+    rec["map_meta"] = _map_meta_record(req.site, cell, order_origin, x0, y1, sha, lonlat)
+    rec["ok"] = True
+    log_event(_auth, "ros.export.occupancy", f"{req.site}: {occ.shape[0]}x{occ.shape[1]}")   # FS-19
+    return rec
+
+
+@router.post("/ros/export/costmap")
+def post_export_costmap(req: RosGridRequest, _auth: str = Depends(require_auth)):  # [REQ:AS-11]
+    """Lower the 12-layer FORGE costmap (`lode.costmap_layers.compose`, real DEM) to a 0-100
+    `nav_msgs/OccupancyGrid` on `/stewie/costmap` (autonomy_contract.py:136) PLUS a `grid_map_msgs/GridMap`
+    `blocking_reason` layer (on `/stewie/map/dem`) that PRESERVES the per-cell reason a route bent/refused
+    (AS-11). Latched MapMeta georef. Advisory/read-only -> require_auth."""
+    from lode import costmap_layers as CL
+    from stewie.bridge import autonomy_contract as AC
+    from stewie.bridge import ros_export as RX
+    win = _dem_window(req.site, req.window_m)
+    if isinstance(win, JSONResponse):
+        return win
+    Zwin, cell, order_origin, x0, y1, sha, lonlat = win
+    keep = _keepout_mask(Zwin.shape, cell, req.keepouts)
+    ctx = CL.CostmapContext(Z=Zwin, cell_m=cell, max_slope_deg=req.max_slope_deg, keepout_mask=keep)
+    cm = CL.compose(ctx)
+    out = RX.costmap_msgs(cm.cost, cm.passable, cm.reason, resolution_m=cell, layer_names=CL.LAYER_NAMES)
+    topic = "/stewie/costmap"
+    t = AC.TOPICS[topic]
+    dem_t = AC.TOPICS["/stewie/map/dem"]
+    rec = RX.rosbridge_record(topic, t.msg, out["occupancy"], qos=t.qos)
+    rec["blocking_reason"] = RX.rosbridge_record("/stewie/map/dem", dem_t.msg, out["blocking_reason"],
+                                                 qos=dem_t.qos)
+    rec["reason_legend"] = {str(k): v for k, v in out["reason_legend"].items()}
+    rec["map_meta"] = _map_meta_record(req.site, cell, order_origin, x0, y1, sha, lonlat)
+    rec["ok"] = True
+    log_event(_auth, "ros.export.costmap", f"{req.site}: {cm.cost.shape[0]}x{cm.cost.shape[1]}")  # FS-19
+    return rec
+
+
+class RosPathRequest(BaseModel):
+    # advisory routed-traverse export: the mission (same JSON as /export/geojson) + the real site.
+    model_config = ConfigDict(extra="forbid")
+    mission: dict = Field(..., description="the mission/plan as a JSON object (orders, keepouts, charger)")
+    site: str = Field(default="haworth", max_length=64)
+    algorithm: str = Field(default="nearest", max_length=40)
+    objective: str = Field(default="time", max_length=40)
+    max_traverse_slope_deg: float = Field(default=25.0, ge=5.0, le=45.0)
+
+
+@router.post("/ros/export/path")
+def post_export_path(req: RosPathRequest, _auth: str = Depends(require_auth)):  # [REQ:NV-11]
+    """Export the REAL routed traverse (the canonical Plan IR's DEM-aware GoTo waypoint polylines,
+    `mission_planner.plan_ir`) as a `nav_msgs/Path` on `/stewie/plan/path` (autonomy_contract.py:137) --
+    the RViz 'Planned Path' display binds it. The traverse polyline is lowered via the pure frames seam
+    (REP-103), NOT the command-goal egress (EG-06). Latched MapMeta georef. Advisory/read-only ->
+    require_auth (no command authority; the command/actuation seam stays behind AG-08/SF-01)."""
+    from lode import mission_planner as MP
+    from stewie.bridge import autonomy_contract as AC
+    from stewie.bridge import ros_export as RX
+    from stewie.server import state
+    try:
+        m = MP.mission_from_dict(req.mission)
+    except (ValueError, KeyError, TypeError) as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": f"bad mission: {e}"})
+    if m.body != "moon":
+        return JSONResponse(status_code=400, content={"ok": False, "error":
+                            f"path export needs a georeferenced lunar DEM; body {m.body!r} has none"})
+    win = _dem_window(req.site, 100.0)                       # georef the anchor (map frame) for MapMeta
+    if isinstance(win, JSONResponse):
+        return win
+    _Zwin, cell, order_origin, x0, y1, sha, lonlat = win
+    dem, origin = state.moon_dem(req.site)
+    ir = MP.plan_ir(m, dem=dem, dem_origin=origin, max_traverse_slope_deg=req.max_traverse_slope_deg,
+                    algorithm=req.algorithm, objective=req.objective)
+    path = RX.path_from_plan_ir(ir)
+    topic = "/stewie/plan/path"
+    t = AC.TOPICS[topic]
+    rec = RX.rosbridge_record(topic, t.msg, path, qos=t.qos)
+    rec["map_meta"] = _map_meta_record(req.site, cell, order_origin, x0, y1, sha, lonlat)
+    rec["feasible"] = bool(ir.get("feasible", True))
+    rec["ok"] = True
+    log_event(_auth, "ros.export.path", f"{req.site}: {len(path['poses'])} poses")   # FS-19
+    return rec
+
+
 class LocalPlanRequest(BaseModel):
     # NV-03/04 is observation/geometry only -- forbid extra keys so no truth/hidden-state field rides in.
     model_config = ConfigDict(extra="forbid")
