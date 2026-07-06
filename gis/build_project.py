@@ -38,6 +38,9 @@ import argparse
 import datetime as _dt
 import os
 import sys
+import zipfile
+
+import scene3d   # shared 3D local-scene (P1.7) XML authoring; no QGIS import at module load
 
 # ---------------------------------------------------------------------------
 # Constants (importable without side effects; QGIS is only touched inside main).
@@ -308,6 +311,34 @@ def polar_stereo_scale_bound(lat_deg: float) -> float:
     return 2.0 / (1.0 + math.sin(math.radians(abs(lat_deg)))) - 1.0
 
 
+def inject_3d_views(qgz_path: str, mapviewdocks_xml: str) -> None:
+    """Insert the ``<mapViewDocks3D>`` element (the P1.7 3D local scenes) into the
+    already-written ``.qgz``, as the last child of the root ``<qgis>`` element.
+
+    QGIS 3.22's PyQGIS cannot persist a 3D view headlessly (no ``viewsManager()``;
+    ``Qgs3DMapSettings.writeXml`` segfaults here), so the view XML -- authored to the
+    exact QGIS ``release-3_22`` schema in ``scene3d`` -- is spliced into the project
+    XML. Reads/rewrites the zip preserving every member (e.g. the ``.qgd`` auxiliary
+    store) so nothing else is disturbed.
+    """
+    with zipfile.ZipFile(qgz_path, "r") as zin:
+        order = zin.namelist()
+        members = {n: zin.read(n) for n in order}
+    qgs_name = next((n for n in order if n.endswith(".qgs")), None)
+    if qgs_name is None:
+        raise RuntimeError(f"no .qgs member inside {qgz_path}")
+    text = members[qgs_name].decode("utf-8")
+    idx = text.rfind("</qgis>")
+    if idx == -1:
+        raise RuntimeError(f"no </qgis> root close in {qgs_name}")
+    members[qgs_name] = (text[:idx] + mapviewdocks_xml + text[idx:]).encode("utf-8")
+    tmp = qgz_path + ".tmp"
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+        for n in order:
+            zout.writestr(n, members[n])
+    os.replace(tmp, qgz_path)
+
+
 # ---------------------------------------------------------------------------
 # Build.
 # ---------------------------------------------------------------------------
@@ -321,6 +352,8 @@ def main(argv=None) -> int:
                     help="Output .qgz path (default: %(default)s).")
     ap.add_argument("--no-proof", action="store_true",
                     help="Skip writing the Gate-1 proof PNGs.")
+    ap.add_argument("--no-3d", action="store_true",
+                    help="Skip persisting the P1.7 3D local scenes into the .qgz.")
     args = ap.parse_args(argv)
 
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -480,6 +513,7 @@ def main(argv=None) -> int:
     print(f"[build] project CRS={PROJ_CRS} ellipsoid={project.ellipsoid()} date={args.date}")
     site_extents = {}
     site_stats = {}   # site -> (dem_min, dem_max) for the vector properties (P1.4)
+    site_layer_ids = {}   # site -> {dem,hillshade,slope} layer ids for the 3D scenes (P1.7)
 
     # P1.5: the authoritative terrain COGs live under one catalog parent group; the
     # per-site groups (unchanged) nest inside it. Sibling GRP_BASE / GRP_VECTORS
@@ -518,6 +552,7 @@ def main(argv=None) -> int:
         add_grouped(grp, slope)
         site_extents[site] = dem.extent()
         site_stats[site] = (mn, mx)
+        site_layer_ids[site] = {"dem": dem.id(), "hillshade": hs.id(), "slope": slope.id()}
         print(f"[build] {site}: DEM min={mn:.1f} max={mx:.1f} m; hillshade+slope grouped")
 
     # ---- Haworth (DEM only) ----------------------------------------------
@@ -804,6 +839,16 @@ def main(argv=None) -> int:
             "external_added": n_ext_added,
             "total_layers": len(project.mapLayers()),
         },
+        "scenes_3d": {
+            "enabled": not args.no_3d,
+            "sites": [s for s in scene3d.SITES_3D if s in site_layer_ids],
+            "deferred": scene3d.SCENE3D_DEFERRED,
+            "terrain": "DEM generator (per-site dem.tif) in IAU_2015:30135 local scene",
+            "drape": "slope / DEM / hillshade (same stack as the 2D render)",
+            "exaggeration": scene3d.DEFAULT_EXAGGERATION,
+            "note": ("persisted as <mapViewDocks3D> in the .qgz (openable in QGIS "
+                     "Desktop); PyQGIS 3.22 cannot writeXml 3D settings headlessly."),
+        },
     }
     status_json = os.path.join(CODE_GIS_DIR, "layer_status.json")
     with open(status_json, "w") as fh:
@@ -822,6 +867,36 @@ def main(argv=None) -> int:
         return 2
     n_layers = len(project.mapLayers())
     print(f"[build] wrote {args.output} ({n_layers} layers)")
+
+    # ---- P1.7 persist the 3D local scenes into the .qgz -------------------
+    # DEM-based terrain + slope/DEM/hillshade drape per 3200^2 site, in the
+    # projected IAU_2015:30135 CRS (a local scene -- the supported non-Earth 3D
+    # path). Authored as exact QGIS 3.22 <mapViewDocks3D> XML and spliced in, since
+    # PyQGIS here cannot persist a 3D view (Qgs3DMapSettings.writeXml segfaults; no
+    # viewsManager() until 3.24). Openable in QGIS Desktop 3.22+ (Scene > the dock).
+    if not args.no_3d:
+        from qgis.PyQt.QtXml import QDomDocument as _QDom
+        crs_inner = scene3d.crs_inner_xml(crs, _QDom)
+        views_xml, scene_ids = [], []
+        for site in scene3d.SITES_3D:
+            ids = site_layer_ids.get(site)
+            ext = site_extents.get(site)
+            if not ids or ext is None:
+                continue
+            mn, mx = site_stats[site]
+            cx = (ext.xMinimum() + ext.xMaximum()) / 2.0
+            cy = (ext.yMinimum() + ext.yMaximum()) / 2.0
+            mid_elev = (mn + mx) / 2.0
+            drape = [ids["slope"], ids["dem"], ids["hillshade"]]   # top -> bottom
+            views_xml.append(scene3d.build_view_xml(
+                f"{site} 3D (local scene)", ids["dem"], drape,
+                cx, cy, mid_elev, ext.width(), ext.height(), crs_inner))
+            scene_ids.append(site)
+        if views_xml:
+            inject_3d_views(args.output, scene3d.build_mapviewdocks3d_xml(views_xml))
+            print(f"[build] P1.7 persisted {len(views_xml)} 3D local scenes "
+                  f"({', '.join(scene_ids)}) into {os.path.basename(args.output)}; "
+                  f"exaggeration={scene3d.DEFAULT_EXAGGERATION:g}x, DEM terrain generator")
 
     # ---- Gate 1 proof renders --------------------------------------------
     if not args.no_proof:
