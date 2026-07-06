@@ -151,6 +151,9 @@ services:
     volumes:
       - "../gis/web:/usr/share/nginx/html:ro"                             # ../ from deploy/ == code/
       - "./artemis-nginx.conf:/etc/nginx/conf.d/default.conf:ro"
+      # Gitignored key snippet (proxy_set_header X-API-Key ...) included by the /api/plan block, so the
+      # committed nginx conf carries no secret. Regenerate from deploy/.env's STEWIE_API_KEY if missing.
+      - "./artemis-api-key.conf:/etc/nginx/api-key.conf:ro"
       # Real site vectors (pins + footprints), single source of truth, read-only.
       - "${STEWIE_GIS_DATA_DIR:-/mnt/projects/stewie/data/gis}/vectors:/io/vectors:ro"
     depends_on:

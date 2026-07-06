@@ -349,6 +349,331 @@
     'south-polar moon; the site DEMs sit near the pole.</div>';
   list.appendChild(legend);
 
+  // =========================================================================
+  // MISSION AUTHORING (Phase-2) — place cut/dig + fill/build orders on the map,
+  // submit them to the REAL STEWIE mission backend (same-origin /api/plan, which
+  // nginx proxies to the FastAPI planner), and draw the REAL returned plan.
+  //
+  // Coordinate frames:
+  //   * The map is IAU_2015:30135 (polar stereographic metres).
+  //   * The planner works in an ORDER FRAME: metres East/North from the site's
+  //     flattest-anchor origin. A map click -> selenographic lon/lat (proj4) ->
+  //     backend /api/dem/site_xy (absolute tile metres) -> order (x,y) = tile - anchor.
+  //   * To draw the returned order-frame route back on the map we build a small
+  //     LOCAL AFFINE (order -> 30135) once per site from three /api/dem/site_lonlat
+  //     samples; verified accurate to < 0.02 m over the work area.
+  // =========================================================================
+  var API = '/api';
+  var mission = {
+    site: 'haworth', anchor: null, affine: null, activeKind: null,
+    footprint: 60, depth: 0.4, orders: []
+  };
+
+  var KIND_COLOR = { cut: '#e0563a', fill: '#4fd1ff' };
+
+  // Order-queue markers (pending, pre-plan) and the rendered plan (routes + sites + charger).
+  var orderSource = new ol.source.Vector();
+  var orderLayer = new ol.layer.Vector({ source: orderSource, zIndex: 20 });
+  var planSource = new ol.source.Vector();
+  var planLayer = new ol.layer.Vector({ source: planSource, zIndex: 19 });
+  map.addLayer(planLayer);
+  map.addLayer(orderLayer);
+
+  function orderMarkerStyle(feature) {
+    var kind = feature.get('kind');
+    var color = KIND_COLOR[kind] || '#ffd24a';
+    return new ol.style.Style({
+      image: new ol.style.RegularShape({
+        points: kind === 'cut' ? 4 : 3,               // cut = square, fill = triangle
+        radius: 7, angle: kind === 'cut' ? Math.PI / 4 : 0,
+        fill: new ol.style.Fill({ color: color }),
+        stroke: new ol.style.Stroke({ color: '#0a0d12', width: 1.5 })
+      }),
+      text: new ol.style.Text({
+        text: String(feature.get('label') || ''), offsetY: -14,
+        font: '600 11px system-ui, sans-serif',
+        fill: new ol.style.Fill({ color: '#e8edf4' }),
+        stroke: new ol.style.Stroke({ color: '#000', width: 3 })
+      })
+    });
+  }
+  orderLayer.setStyle(orderMarkerStyle);
+
+  // --- Affine: order-frame (m) -> 30135 (m), built from 3 backend samples ----
+  function calibrateAffine(site, anchor) {
+    var pts = [[0, 0], [100, 0], [0, 100]];
+    return Promise.all(pts.map(function (p) {
+      var tx = anchor[0] + p[0], ty = anchor[1] + p[1];
+      return fetch(API + '/dem/site_lonlat?site=' + encodeURIComponent(site) + '&x=' + tx + '&y=' + ty)
+        .then(function (r) { if (!r.ok) throw new Error('site_lonlat HTTP ' + r.status); return r.json(); })
+        .then(function (j) {
+          if (!j.ok) throw new Error(j.error || 'site_lonlat failed');
+          return ol.proj.transform([j.lon, j.lat], 'IAU_2015:30100', proj30135);
+        });
+    })).then(function (m) {
+      var m0 = m[0], m1 = m[1], m2 = m[2];
+      return {
+        M: [(m1[0] - m0[0]) / 100, (m2[0] - m0[0]) / 100,
+            (m1[1] - m0[1]) / 100, (m2[1] - m0[1]) / 100],
+        t: [m0[0], m0[1]]
+      };
+    });
+  }
+  function orderToMap(aff, ox, oy) {
+    return [aff.t[0] + aff.M[0] * ox + aff.M[1] * oy,
+            aff.t[1] + aff.M[2] * ox + aff.M[3] * oy];
+  }
+
+  var hintEl = document.getElementById('au-hint');
+  function setHint(msg, isErr) { hintEl.textContent = msg; hintEl.classList.toggle('err', !!isErr); }
+
+  function flyToWorkArea() {
+    if (!mission.affine) return;
+    view.animate({ center: orderToMap(mission.affine, 0, 0), resolution: 0.5, duration: 500 });
+  }
+
+  // --- Site select: fetch anchor georef + calibrate. `fly` (a deliberate user action:
+  // changing the site, or first activating a tool) zooms to the work area; on initial
+  // load we calibrate WITHOUT touching the view, so the viewer's site-cluster landing
+  // view (and its pins) is unchanged.
+  function selectSite(site, fly) {
+    mission.site = site;
+    mission.anchor = null; mission.affine = null;
+    mission.orders = []; refreshQueue(); planSource.clear();
+    document.getElementById('au-result').innerHTML = '';
+    setHint('Loading ' + site + ' work-area frame…');
+    return fetch(API + '/dem/georef?site=' + encodeURIComponent(site))
+      .then(function (r) { if (!r.ok) throw new Error('georef HTTP ' + r.status); return r.json(); })
+      .then(function (j) {
+        if (!j.ok || !j.anchor_xy) throw new Error(j.error || 'no anchor for site');
+        mission.anchor = j.anchor_xy;
+        return calibrateAffine(site, j.anchor_xy);
+      })
+      .then(function (aff) {
+        mission.affine = aff;
+        if (fly) flyToWorkArea();
+        setHint('Pick a tool, then click the map near the work area to place an order.');
+      })
+      .catch(function (e) { setHint('Could not load site frame: ' + e.message, true); });
+  }
+
+  // --- Tool selection --------------------------------------------------------
+  var cutBtn = document.getElementById('au-cut');
+  var fillBtn = document.getElementById('au-fill');
+  function setTool(kind) {
+    mission.activeKind = (mission.activeKind === kind) ? null : kind;
+    cutBtn.classList.toggle('active-cut', mission.activeKind === 'cut');
+    fillBtn.classList.toggle('active-fill', mission.activeKind === 'fill');
+    if (mission.activeKind) {
+      // First time an operator starts authoring, drop into the work area (deliberate action).
+      if (view.getResolution() > 3) flyToWorkArea();
+      setHint('Click the map to place a ' + (kind === 'cut' ? 'CUT (dig)' : 'FILL (build)') +
+        ' order. Click the tool again to stop placing.');
+    } else {
+      setHint('Placing off. Pick a tool to place more orders, or Plan the mission.');
+    }
+  }
+  cutBtn.addEventListener('click', function () { setTool('cut'); });
+  fillBtn.addEventListener('click', function () { setTool('fill'); });
+  document.getElementById('au-fp').addEventListener('change', function () {
+    mission.footprint = Math.max(1, parseFloat(this.value) || 60);
+  });
+  document.getElementById('au-depth').addEventListener('change', function () {
+    mission.depth = Math.max(0.05, parseFloat(this.value) || 0.4);
+  });
+  document.getElementById('au-site').addEventListener('change', function () { selectSite(this.value, true); });
+
+  // --- Placement: map click -> /api/dem/site_xy -> order (x,y) ----------------
+  function placeOrder(coord) {
+    if (!mission.activeKind || !mission.anchor) return;
+    var kind = mission.activeKind, fp = mission.footprint, dp = mission.depth;
+    var ll = ol.proj.transform(coord, proj30135, 'IAU_2015:30100');   // [lon, lat]
+    var url = API + '/dem/site_xy?site=' + encodeURIComponent(mission.site) +
+      '&lat=' + ll[1] + '&lon=' + ll[0];
+    setHint('Converting click to the ' + mission.site + ' order frame…');
+    fetch(url)
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) { setHint('Placement failed: ' + (j.error || 'site_xy'), true); return; }
+        var ox = Math.round((j.x_m - mission.anchor[0]) * 10) / 10;
+        var oy = Math.round((j.y_m - mission.anchor[1]) * 10) / 10;
+        mission.orders.push({
+          action: kind + ' ' + (mission.orders.length + 1), kind: kind,
+          x: ox, y: oy, footprint_m2: fp, depth_m: dp, coord: coord
+        });
+        refreshQueue();
+        setHint('Placed ' + kind + ' at order (' + ox + ', ' + oy + ') m. ' +
+          mission.orders.length + ' order(s) queued.');
+      })
+      .catch(function (e) { setHint('Placement request failed: ' + e.message, true); });
+  }
+
+  // --- Order queue rendering -------------------------------------------------
+  var queueEl = document.getElementById('au-queue');
+  var planBtn = document.getElementById('au-plan');
+  function refreshQueue() {
+    queueEl.innerHTML = '';
+    mission.orders.forEach(function (o, i) {
+      var li = document.createElement('li');
+      var sw = document.createElement('span'); sw.className = 'q-sw ' + o.kind;
+      var txt = document.createElement('span'); txt.className = 'q-txt';
+      txt.textContent = o.kind + ' (' + o.x + ', ' + o.y + ') · ' + o.footprint_m2 + ' m² · ' + o.depth_m + ' m';
+      var del = document.createElement('span'); del.className = 'q-del'; del.textContent = '×';
+      del.title = 'remove'; del.addEventListener('click', function () {
+        mission.orders.splice(i, 1); refreshQueue();
+      });
+      li.appendChild(sw); li.appendChild(txt); li.appendChild(del);
+      queueEl.appendChild(li);
+    });
+    planBtn.disabled = mission.orders.length === 0;
+    // Redraw pending order markers from the stored click coordinates.
+    orderSource.clear();
+    mission.orders.forEach(function (o, i) {
+      var f = new ol.Feature({ geometry: new ol.geom.Point(o.coord) });
+      f.set('kind', o.kind); f.set('label', String(i + 1));
+      orderSource.addFeature(f);
+    });
+  }
+
+  document.getElementById('au-clear').addEventListener('click', function () {
+    mission.orders = []; refreshQueue(); planSource.clear();
+    document.getElementById('au-result').innerHTML = '';
+    setHint('Cleared. Pick a tool and click the map to place orders.');
+  });
+
+  // --- Plan submit -----------------------------------------------------------
+  function fmtDur(s) {
+    s = Math.round(s);
+    if (s < 3600) return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+    var h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+    if (h < 48) return h + 'h ' + m + 'm';
+    return (s / 86400).toFixed(1) + ' days';
+  }
+  function fmtEnergy(j) {
+    var kwh = j / 3.6e6;
+    if (kwh < 1) return (j / 1e3).toFixed(0) + ' kJ';
+    if (kwh < 1000) return kwh.toFixed(1) + ' kWh';
+    return (kwh / 1000).toFixed(2) + ' MWh';
+  }
+  function fmtMass(kg) { return kg >= 1000 ? (kg / 1000).toFixed(1) + ' t' : kg.toFixed(0) + ' kg'; }
+
+  function runPlan() {
+    if (!mission.orders.length) { setHint('Add at least one order first.', true); return; }
+    var payload = {
+      name: 'artemis-web mission', body: 'moon', site: mission.site,
+      algorithm: 'nearest', objective: 'time',
+      orders: mission.orders.map(function (o) {
+        return { action: o.action, kind: o.kind, x: o.x, y: o.y,
+                 footprint_m2: o.footprint_m2, depth_m: o.depth_m };
+      })
+    };
+    planBtn.disabled = true; planBtn.textContent = 'Planning…';
+    document.getElementById('au-result').innerHTML = '<div class="r-kv">Running planner on the real DEM…</div>';
+    return fetch(API + '/plan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    })
+      .then(function (r) { return r.json().then(function (b) { return { status: r.status, body: b }; }); })
+      .then(function (res) {
+        planBtn.disabled = false; planBtn.textContent = 'Plan mission';
+        if (!res.body || !res.body.ok) {
+          var err = (res.body && res.body.error) || ('HTTP ' + res.status);
+          document.getElementById('au-result').innerHTML =
+            '<div class="r-head r-bad">Plan rejected</div><div class="r-reasons">' + err + '</div>';
+          return res.body;
+        }
+        renderPlan(res.body);
+        return res.body;
+      })
+      .catch(function (e) {
+        planBtn.disabled = false; planBtn.textContent = 'Plan mission';
+        document.getElementById('au-result').innerHTML =
+          '<div class="r-head r-bad">Plan request failed</div><div class="r-reasons">' + e.message + '</div>';
+      });
+  }
+  planBtn.addEventListener('click', runPlan);
+
+  // --- Render the REAL returned plan on the map + in the panel ---------------
+  function renderPlan(resp) {
+    planSource.clear();
+    var aff = mission.affine;
+    var pir = resp.plan_ir || {};
+    var routeStyle = new ol.style.Style({
+      stroke: new ol.style.Stroke({ color: '#ffd24a', width: 2.5,
+        lineDash: pir.feasible === false ? [6, 5] : undefined })
+    });
+    var haulStyle = new ol.style.Style({
+      stroke: new ol.style.Stroke({ color: '#8fb8ff', width: 2, lineDash: [2, 4] })
+    });
+    (pir.actions || []).forEach(function (a) {
+      if (a.op === 'GoTo' && a.waypoints && a.waypoints.length > 1) {
+        var line = a.waypoints.map(function (w) { return orderToMap(aff, w[0], w[1]); });
+        var f = new ol.Feature({ geometry: new ol.geom.LineString(line) });
+        f.setStyle(routeStyle); planSource.addFeature(f);
+      } else if (a.op === 'CutHaulFill' && a.site && a.dest) {
+        var s = orderToMap(aff, a.site[0], a.site[1]);
+        var d = orderToMap(aff, a.dest[0], a.dest[1]);
+        var hf = new ol.Feature({ geometry: new ol.geom.LineString([s, d]) });
+        hf.setStyle(haulStyle); planSource.addFeature(hf);
+      }
+    });
+    // Charger (order origin 0,0) marker.
+    var charger = new ol.Feature({ geometry: new ol.geom.Point(orderToMap(aff, 0, 0)) });
+    charger.setStyle(new ol.style.Style({
+      image: new ol.style.RegularShape({ points: 4, radius: 6, angle: 0,
+        fill: new ol.style.Fill({ color: '#7fe0a8' }),
+        stroke: new ol.style.Stroke({ color: '#0a0d12', width: 1.5 }) }),
+      text: new ol.style.Text({ text: 'charger', offsetY: 14, font: '600 10px system-ui',
+        fill: new ol.style.Fill({ color: '#7fe0a8' }), stroke: new ol.style.Stroke({ color: '#000', width: 3 }) })
+    }));
+    planSource.addFeature(charger);
+
+    // Fit to the plan (work-area scale) so the route is visible.
+    var ext = planSource.getExtent();
+    if (ext && isFinite(ext[0])) view.fit(ext, { padding: [60, 60, 60, 60], maxZoom: 20, duration: 400 });
+
+    // Summary panel from the REAL response (plan_result + totals).
+    var pr = resp.plan_result || {}, t = resp.totals || {};
+    var feasible = resp.feasible;
+    var rows = [];
+    rows.push('<div class="r-head ' + (feasible ? 'r-ok' : 'r-bad') + '">' +
+      (feasible ? '✓ Feasible plan' : '✗ Infeasible plan') + '</div>');
+    rows.push(kv('Orders', pr.n_orders != null ? pr.n_orders : mission.orders.length));
+    rows.push(kv('Vehicles', pr.vehicles != null ? pr.vehicles : 1));
+    rows.push(kv('Makespan', fmtDur(pr.makespan_s || t.makespan_s || t.time_s || 0)));
+    rows.push(kv('Energy', fmtEnergy(pr.energy_j || t.energy_J || 0)));
+    rows.push(kv('Mass moved', fmtMass(pr.mass_moved_kg != null ? pr.mass_moved_kg
+      : (t.cut_kg || 0) + (t.fill_kg || 0))));
+    rows.push(kv('Distance', ((t.distance_m || 0) / 1000).toFixed(2) + ' km'));
+    rows.push(kv('Recharges', pr.recharges != null ? pr.recharges : (t.charges || 0)));
+    rows.push(kv('Drum cycles', pr.drum_cycles != null ? pr.drum_cycles : (t.drum_cycles || 0)));
+    rows.push(kv('Algorithm', pr.resolved_algorithm || t.resolved_algorithm || t.algorithm || '—'));
+    if (!feasible && (resp.infeasible_reasons || []).length) {
+      rows.push('<div class="r-reasons">' + resp.infeasible_reasons.join('<br>') + '</div>');
+    }
+    if (resp.pdf) {
+      rows.push('<a class="r-pdf" href="' + API + resp.pdf + '" target="_blank" rel="noopener">' +
+        '↓ Mission report (PDF)</a>');
+    }
+    document.getElementById('au-result').innerHTML = rows.join('');
+    setHint('Plan rendered on the map. Route = gold, haul = blue-dashed, charger = green.');
+  }
+  function kv(k, v) { return '<div class="r-kv"><span>' + k + '</span><b>' + v + '</b></div>'; }
+
+  // Placement fires on a genuine map click when a tool is active (kept separate from
+  // the MA-01 readout handler so the point-value readout is unchanged).
+  map.on('singleclick', function (evt) { placeOrder(evt.coordinate); });
+
+  // Initialise on the default site WITHOUT flying (preserve the site-cluster landing view).
+  selectSite(mission.site, false);
+  document.getElementById('au-site').value = mission.site;
+
+  // Authoring handles for the headless verification harness (same code paths as the UI).
+  window.stewieAuthor = {
+    setSite: selectSite, setTool: setTool,
+    placeAt: function (coord) { placeOrder(coord); },
+    plan: runPlan, state: mission
+  };
+
   // Global error surface so a JS fault is not silently "clean".
   window.addEventListener('error', function (e) {
     setStatus('Viewer error: ' + (e.message || e.type), true);

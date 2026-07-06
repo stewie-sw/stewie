@@ -117,9 +117,70 @@
     .ol-attribution { background: rgba(18,23,31,0.8) !important; }
     .ol-attribution ul { color: var(--ink-dim); }
 
+    /* Mission authoring panel — left column, below the point-value readout. Same dark QGIS
+       theme as .panel / #readout. Scrolls internally when the order queue + result grow. */
+    #authoring { position: absolute; top: 232px; left: 12px; width: 256px; z-index: 15;
+      max-height: calc(100% - 300px); display: flex; flex-direction: column;
+      background: rgba(18,23,31,0.94); border: 1px solid var(--edge); border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5); backdrop-filter: blur(6px); overflow: hidden; }
+    #authoring h2 { margin: 0; padding: 9px 12px; font-size: 12px; text-transform: uppercase;
+      letter-spacing: 0.9px; color: var(--ink-dim); background: var(--panel-2);
+      border-bottom: 1px solid var(--edge); flex: 0 0 auto; }
+    #authoring .body { padding: 9px 12px 11px; font-size: 12px; overflow-y: auto; }
+    .au-row { margin: 7px 0; }
+    .au-lbl { display: block; font-size: 11px; color: var(--ink-dim); margin-bottom: 3px;
+      text-transform: uppercase; letter-spacing: 0.5px; }
+    #au-site { width: 100%; background: #0c1017; color: var(--ink); border: 1px solid var(--edge);
+      border-radius: 6px; padding: 5px 7px; font-size: 12px; }
+    .au-tools { display: flex; gap: 6px; }
+    .au-tool { flex: 1 1 0; background: #0c1017; color: var(--ink-dim); border: 1px solid var(--edge);
+      border-radius: 6px; padding: 6px 4px; font-size: 12px; cursor: pointer; font-weight: 600; }
+    .au-tool:hover { background: #151b24; color: var(--ink); }
+    .au-tool.active-cut { border-color: #e0563a; color: #ffb9a6; background: rgba(224,86,58,0.14); }
+    .au-tool.active-fill { border-color: var(--cyan); color: #bfeeff; background: rgba(79,209,255,0.14); }
+    .au-params { display: flex; gap: 8px; }
+    .au-params label { flex: 1 1 0; font-size: 10px; color: var(--ink-dim); text-transform: uppercase;
+      letter-spacing: 0.4px; }
+    .au-params input { width: 100%; margin-top: 3px; background: #0c1017; color: var(--ink);
+      border: 1px solid var(--edge); border-radius: 5px; padding: 4px 6px; font-size: 12px;
+      font-variant-numeric: tabular-nums; }
+    .au-hint { font-size: 11px; color: var(--ink-dim); line-height: 1.4; margin: 6px 0; }
+    .au-hint.err { color: #ffb4a8; }
+    .au-queue { list-style: none; margin: 6px 0; padding: 0; max-height: 132px; overflow-y: auto; }
+    .au-queue li { display: flex; align-items: center; gap: 6px; padding: 4px 6px; font-size: 11px;
+      border: 1px solid var(--edge); border-radius: 6px; margin-bottom: 4px; background: #0e131a;
+      font-variant-numeric: tabular-nums; }
+    .au-queue .q-sw { width: 10px; height: 10px; border-radius: 2px; flex: 0 0 auto; }
+    .au-queue .q-sw.cut { background: #e0563a; }
+    .au-queue .q-sw.fill { background: var(--cyan); }
+    .au-queue .q-txt { flex: 1 1 auto; color: var(--ink); }
+    .au-queue .q-del { color: var(--ink-dim); cursor: pointer; font-size: 14px; line-height: 1;
+      padding: 0 2px; }
+    .au-queue .q-del:hover { color: #ffb4a8; }
+    .au-actions { display: flex; gap: 6px; margin-top: 8px; }
+    .au-plan { flex: 2 1 0; background: var(--accent); color: #14181f; border: none; border-radius: 6px;
+      padding: 7px 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .au-plan:hover { background: #ffdd70; }
+    .au-plan:disabled { background: #3a3f45; color: #8a8f96; cursor: default; }
+    .au-clear { flex: 1 1 0; background: #0c1017; color: var(--ink-dim); border: 1px solid var(--edge);
+      border-radius: 6px; padding: 7px 6px; font-size: 12px; cursor: pointer; }
+    .au-clear:hover { color: var(--ink); background: #151b24; }
+    .au-result { margin-top: 9px; font-size: 11px; }
+    .au-result .r-head { font-size: 12px; font-weight: 700; margin-bottom: 5px; }
+    .au-result .r-ok { color: #7fe0a8; }
+    .au-result .r-bad { color: #ffb4a8; }
+    .au-result .r-kv { display: flex; justify-content: space-between; color: var(--ink-dim);
+      padding: 1px 0; font-variant-numeric: tabular-nums; }
+    .au-result .r-kv b { color: var(--ink); font-weight: 600; }
+    .au-result .r-reasons { color: #ffcaa0; margin-top: 5px; line-height: 1.4; }
+    .au-result a.r-pdf { display: inline-block; margin-top: 7px; color: var(--cyan);
+      text-decoration: none; font-weight: 600; }
+    .au-result a.r-pdf:hover { text-decoration: underline; }
+
     @media (max-width: 640px) {
       .panel { width: calc(100vw - 24px); top: auto; right: 12px; bottom: 12px; }
       #status { display: none; }
+      #authoring { display: none; }
     }
   </style>
 </head>
@@ -148,6 +209,36 @@
         </div>
       </div>
 
+      <div id="authoring">
+        <h2>Mission authoring</h2>
+        <div class="body">
+          <div class="au-row">
+            <label class="au-lbl" for="au-site">Work site (planner DEM)</label>
+            <select id="au-site">
+              <option value="haworth">Haworth crater</option>
+              <option value="nobile_rim">Nobile Rim 1</option>
+              <option value="shackleton_rim">Shackleton Rim</option>
+            </select>
+          </div>
+          <div class="au-row au-tools">
+            <button id="au-cut" class="au-tool" type="button">Cut / dig</button>
+            <button id="au-fill" class="au-tool" type="button">Fill / build</button>
+          </div>
+          <div class="au-row au-params">
+            <label>Footprint m²<input id="au-fp" type="number" value="60" min="1" step="10" /></label>
+            <label>Depth m<input id="au-depth" type="number" value="0.4" min="0.1" step="0.1" /></label>
+          </div>
+          <div class="au-hint" id="au-hint">Pick a tool, then click the map near the work
+            area (the charger) to place an order.</div>
+          <ul id="au-queue" class="au-queue"></ul>
+          <div class="au-row au-actions">
+            <button id="au-plan" class="au-plan" type="button" disabled>Plan mission</button>
+            <button id="au-clear" class="au-clear" type="button">Clear</button>
+          </div>
+          <div id="au-result" class="au-result"></div>
+        </div>
+      </div>
+
       <div id="popup">
         <span class="close" id="popup-close">×</span>
         <div class="site" id="popup-site"></div>
@@ -163,6 +254,6 @@
   <!-- ?v = content hash of app.js: index.html is served DYNAMIC (never edge-cached),
        so bumping this query busts the Cloudflare edge cache of app.js on the next
        page load without touching cloudflared. Update when app.js changes. -->
-  <script src="app.js?v=a4b57b67"></script>
+  <script src="app.js?v=5da78652"></script>
 </body>
 </html>
