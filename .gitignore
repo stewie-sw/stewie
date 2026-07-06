@@ -188,3 +188,5 @@ package-lock.json
 /out/
 stewie/godot/out/
 deploy/artemis-api-key.conf
+deploy/artemis-htpasswd
+deploy/artemis-credentials.txt
