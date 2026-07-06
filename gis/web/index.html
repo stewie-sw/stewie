@@ -177,6 +177,37 @@
       text-decoration: none; font-weight: 600; }
     .au-result a.r-pdf:hover { text-decoration: underline; }
 
+    /* MISSION EXECUTION (SIM run) — the Run button + live-telemetry + evidence block. */
+    .au-run-btn { width: 100%; margin-top: 8px; background: #7fe0a8; color: #0a1f14; border: none;
+      border-radius: 6px; padding: 8px 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .au-run-btn:hover { background: #9bedbd; }
+    .au-run-btn:disabled { background: #26332b; color: #6f8a7a; cursor: default; }
+    #au-run { margin-top: 9px; font-size: 11px; }
+    #au-run .x-head { font-size: 12px; font-weight: 700; margin-bottom: 5px; display: flex;
+      align-items: center; gap: 7px; }
+    #au-run .x-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: #7fe0a8; }
+    #au-run .x-dot.run { background: #ffd24a; animation: xpulse 1s ease-in-out infinite; }
+    #au-run .x-dot.safed { background: #ffb4a8; }
+    #au-run .x-dot.err { background: #ff7a6a; }
+    @keyframes xpulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    #au-run .x-ok { color: #7fe0a8; } #au-run .x-run { color: #ffd24a; }
+    #au-run .x-bad { color: #ffb4a8; }
+    #au-run .x-kv { display: flex; justify-content: space-between; color: var(--ink-dim);
+      padding: 1px 0; font-variant-numeric: tabular-nums; }
+    #au-run .x-kv b { color: var(--ink); font-weight: 600; }
+    #au-run .x-bar { height: 6px; border-radius: 3px; background: #0e131a; border: 1px solid var(--edge);
+      overflow: hidden; margin: 6px 0 4px; }
+    #au-run .x-bar > i { display: block; height: 100%; width: 0; background: #ffd24a;
+      transition: width 0.35s ease; }
+    #au-run .x-bar > i.done { background: #7fe0a8; }
+    #au-run .x-ev { color: #9aa7b6; margin-top: 4px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+    #au-run .x-evi { margin-top: 8px; border-top: 1px solid var(--edge); padding-top: 7px; }
+    #au-run .x-evi .x-t { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px;
+      color: var(--ink-dim); margin-bottom: 4px; }
+    #au-run a.x-link { display: inline-block; margin: 3px 8px 0 0; color: var(--cyan);
+      text-decoration: none; font-weight: 600; }
+    #au-run a.x-link:hover { text-decoration: underline; }
+
     @media (max-width: 640px) {
       .panel { width: calc(100vw - 24px); top: auto; right: 12px; bottom: 12px; }
       #status { display: none; }
@@ -236,6 +267,8 @@
             <button id="au-clear" class="au-clear" type="button">Clear</button>
           </div>
           <div id="au-result" class="au-result"></div>
+          <button id="au-execute" class="au-run-btn" type="button" disabled>Run mission (SIM)</button>
+          <div id="au-run" aria-live="polite"></div>
         </div>
       </div>
 
@@ -254,6 +287,6 @@
   <!-- ?v = content hash of app.js: index.html is served DYNAMIC (never edge-cached),
        so bumping this query busts the Cloudflare edge cache of app.js on the next
        page load without touching cloudflared. Update when app.js changes. -->
-  <script src="app.js?v=5da78652"></script>
+  <script src="app.js?v=7fa5712d"></script>
 </body>
 </html>

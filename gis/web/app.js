@@ -440,6 +440,7 @@
     mission.site = site;
     mission.anchor = null; mission.affine = null;
     mission.orders = []; refreshQueue(); planSource.clear();
+    mission.lastPlan = null; mission.route = null; resetRun();
     document.getElementById('au-result').innerHTML = '';
     setHint('Loading ' + site + ' work-area frame…');
     return fetch(API + '/dem/georef?site=' + encodeURIComponent(site))
@@ -537,6 +538,7 @@
 
   document.getElementById('au-clear').addEventListener('click', function () {
     mission.orders = []; refreshQueue(); planSource.clear();
+    mission.lastPlan = null; mission.route = null; resetRun();
     document.getElementById('au-result').innerHTML = '';
     setHint('Cleared. Pick a tool and click the map to place orders.');
   });
@@ -595,6 +597,7 @@
   // --- Render the REAL returned plan on the map + in the panel ---------------
   function renderPlan(resp) {
     planSource.clear();
+    resetRun();                       // a fresh plan clears any prior run's rover/trail/telemetry
     var aff = mission.affine;
     var pir = resp.plan_ir || {};
     var routeStyle = new ol.style.Style({
@@ -604,9 +607,14 @@
     var haulStyle = new ol.style.Style({
       stroke: new ol.style.Stroke({ color: '#8fb8ff', width: 2, lineDash: [2, 4] })
     });
+    var routeMap = [];                 // the ordered drive route in map coords, for the SIM-run rover animation
     (pir.actions || []).forEach(function (a) {
       if (a.op === 'GoTo' && a.waypoints && a.waypoints.length > 1) {
         var line = a.waypoints.map(function (w) { return orderToMap(aff, w[0], w[1]); });
+        line.forEach(function (p) {    // append, dropping a duplicate shared endpoint between legs
+          var last = routeMap[routeMap.length - 1];
+          if (!last || last[0] !== p[0] || last[1] !== p[1]) routeMap.push(p);
+        });
         var f = new ol.Feature({ geometry: new ol.geom.LineString(line) });
         f.setStyle(routeStyle); planSource.addFeature(f);
       } else if (a.op === 'CutHaulFill' && a.site && a.dest) {
@@ -655,9 +663,262 @@
         '↓ Mission report (PDF)</a>');
     }
     document.getElementById('au-result').innerHTML = rows.join('');
-    setHint('Plan rendered on the map. Route = gold, haul = blue-dashed, charger = green.');
+
+    // Retain the REAL plan + its drive route so the operator can now RUN it as a SIM mission.
+    mission.lastPlan = resp;
+    mission.route = routeMap;
+    execBtn.disabled = false;
+    setHint('Plan rendered. Route = gold, haul = blue-dashed, charger = green. ' +
+      'Press "Run mission (SIM)" to execute it non-destructively and watch the rover.');
   }
   function kv(k, v) { return '<div class="r-kv"><span>' + k + '</span><b>' + v + '</b></div>'; }
+
+  // =========================================================================
+  // MISSION EXECUTION (Phase-2) — RUN the planned mission as a NON-DESTRUCTIVE SIM (desktop_sil) via the
+  // REAL backend (POST /api/executive/run, key injected server-side by nginx), then subscribe to the run's
+  // Server-Sent-Events telemetry (/api/executive/run/{id}/stream) and animate the rover along its REAL
+  // planned route as each execution leg arrives. The backend stream carries per-leg execution events
+  // (kind/detail/outcome/t_s), NOT x/y telemetry, so the rover marker is placed on the mission's REAL
+  // planned trajectory and advanced by REAL leg events -- no synthetic coordinates. On completion we fetch
+  // and link the run evidence (executability + physics attribution from the run, and the /api/evidence
+  // navigation-evidence bundle). SIM-labeled throughout; never a rover command (MO-04 gates the live path).
+  // =========================================================================
+  var execBtn = document.getElementById('au-execute');
+  var runEl = document.getElementById('au-run');
+
+  // The rover marker + its traversed trail, drawn above the plan route.
+  var trailSource = new ol.source.Vector();
+  var trailLayer = new ol.layer.Vector({ source: trailSource, zIndex: 21 });
+  var roverSource = new ol.source.Vector();
+  var roverLayer = new ol.layer.Vector({ source: roverSource, zIndex: 22 });
+  map.addLayer(trailLayer);
+  map.addLayer(roverLayer);
+  trailLayer.setStyle(new ol.style.Style({
+    stroke: new ol.style.Stroke({ color: '#7fe0a8', width: 3 })
+  }));
+  roverLayer.setStyle(new ol.style.Style({
+    image: new ol.style.Circle({ radius: 6,
+      fill: new ol.style.Fill({ color: '#eafff4' }),
+      stroke: new ol.style.Stroke({ color: '#1c6b45', width: 2 }) }),
+    text: new ol.style.Text({ text: 'IPEx', offsetY: -15, font: '700 11px system-ui, sans-serif',
+      fill: new ol.style.Fill({ color: '#bff4d8' }), stroke: new ol.style.Stroke({ color: '#000', width: 3 }) })
+  }));
+
+  var run = { es: null, id: null, legsSeen: 0, total: 0, terminal: null, raf: 0, cumdist: null, len: 0 };
+
+  function resetRun() {
+    if (run.es) { try { run.es.close(); } catch (e) {} run.es = null; }
+    if (run.raf) { cancelAnimationFrame(run.raf); run.raf = 0; }
+    roverSource.clear(); trailSource.clear();
+    run.id = null; run.legsSeen = 0; run.total = 0; run.terminal = null; run.cumdist = null; run.len = 0;
+    runEl.innerHTML = '';
+    execBtn.disabled = !(mission.lastPlan && mission.route && mission.route.length);
+  }
+
+  // Cumulative arc-length of the route so a 0..1 fraction maps to a real point ON the planned path.
+  function buildArcLength() {
+    var r = mission.route || [];
+    var cum = [0];
+    for (var i = 1; i < r.length; i++) {
+      var dx = r[i][0] - r[i - 1][0], dy = r[i][1] - r[i - 1][1];
+      cum.push(cum[i - 1] + Math.sqrt(dx * dx + dy * dy));
+    }
+    run.cumdist = cum; run.len = cum[cum.length - 1] || 0;
+  }
+  function pointAtFraction(f) {
+    var r = mission.route || [];
+    if (!r.length) return null;
+    if (r.length === 1 || run.len === 0) return r[0].slice();
+    f = Math.max(0, Math.min(1, f));
+    var target = f * run.len, cum = run.cumdist;
+    for (var i = 1; i < r.length; i++) {
+      if (cum[i] >= target) {
+        var seg = cum[i] - cum[i - 1];
+        var t = seg > 0 ? (target - cum[i - 1]) / seg : 0;
+        return [r[i - 1][0] + (r[i][0] - r[i - 1][0]) * t,
+                r[i - 1][1] + (r[i][1] - r[i - 1][1]) * t];
+      }
+    }
+    return r[r.length - 1].slice();
+  }
+  // Trail = the real planned route resampled from 0 up to the current fraction.
+  function trailUpTo(f) {
+    var r = mission.route || [];
+    if (r.length < 2 || run.len === 0) return r.slice();
+    var target = Math.max(0, Math.min(1, f)) * run.len, cum = run.cumdist, out = [r[0]];
+    for (var i = 1; i < r.length; i++) {
+      if (cum[i] < target) { out.push(r[i]); }
+      else { out.push(pointAtFraction(f)); break; }
+    }
+    return out;
+  }
+
+  var roverFeat = null, trailFeat = null, animFrom = 0, animTo = 0, animStart = 0, animDur = 400;
+  function setRoverFraction(f) {
+    var pt = pointAtFraction(f);
+    if (!pt) return;
+    if (!roverFeat) { roverFeat = new ol.Feature(); roverSource.addFeature(roverFeat); }
+    roverFeat.setGeometry(new ol.geom.Point(pt));
+    var trail = trailUpTo(f);
+    if (!trailFeat) { trailFeat = new ol.Feature(); trailSource.addFeature(trailFeat); }
+    if (trail.length >= 2) trailFeat.setGeometry(new ol.geom.LineString(trail));
+    run.lastPose = pt;
+  }
+  // Smoothly tween the rover from its current fraction to `f` over animDur so the motion reads as driving.
+  function animateRoverTo(f) {
+    if (run.raf) cancelAnimationFrame(run.raf);
+    animFrom = animTo; animTo = f; animStart = performance.now();
+    function step(now) {
+      var t = Math.min(1, (now - animStart) / animDur);
+      setRoverFraction(animFrom + (animTo - animFrom) * t);
+      if (t < 1) { run.raf = requestAnimationFrame(step); } else { run.raf = 0; }
+    }
+    run.raf = requestAnimationFrame(step);
+  }
+
+  function xkv(k, v) { return '<div class="x-kv"><span>' + k + '</span><b>' + v + '</b></div>'; }
+  function renderRunStatus() {
+    var t = run.terminal, running = !t;
+    var cls = running ? 'run' : (t === 'safed' ? 'safed' : (t === 'error' ? 'err' : ''));
+    var label = running ? 'Executing (SIM)…' :
+      (t === 'completed' ? 'SIM run COMPLETED' : t === 'safed' ? 'SIM run SAFED (watchdog)' :
+       t === 'error' ? 'Run error' : 'Done');
+    var headCls = running ? 'x-run' : (t === 'completed' ? 'x-ok' : 'x-bad');
+    var frac = run.total ? Math.min(1, run.legsSeen / run.total) : (t ? 1 : 0);
+    var rows = ['<div class="x-head"><span class="x-dot ' + cls + '"></span>' +
+      '<span class="' + headCls + '">' + label + '</span></div>'];
+    rows.push('<div class="x-bar"><i class="' + (running ? '' : 'done') +
+      '" style="width:' + Math.round(frac * 100) + '%"></i></div>');
+    if (run.id) rows.push(xkv('Run id', run.id));
+    rows.push(xkv('Legs', run.legsSeen + ' / ' + (run.total || '—')));
+    if (run.result) {
+      var rr = run.result;
+      rows.push(xkv('Final state', rr.final_state || '—'));
+      if (rr.executability) rows.push(xkv('Executable', rr.executability.executable ? 'yes' : 'no'));
+      if (rr.physics_attribution) rows.push(xkv('Physics', rr.physics_attribution.backend +
+        (rr.physics_attribution.conserves_mass ? ' · mass-conserving' : '')));
+      if (rr.live_token) rows.push(xkv('Live token', rr.live_token.issued ? 'issued' : 'refused'));
+      if (rr.reconciliation) rows.push(xkv('Energy residual',
+        Math.abs(rr.reconciliation.residual || 0).toFixed(0) + ' J'));
+    }
+    if (run.lastEvent) rows.push('<div class="x-ev">' + run.lastEvent + '</div>');
+    if (run.evidence) rows.push(run.evidence);
+    runEl.innerHTML = rows.join('');
+  }
+
+  function loadEvidence() {
+    return fetch(API + '/evidence')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.ok) return;
+        var cmp = j.accuracy_precision || {}, keys = Object.keys(cmp);
+        var blurb = '';
+        if (keys.length) {
+          var k0 = keys[0], m = cmp[k0] || {};
+          var acc = (m.accuracy_m != null) ? m.accuracy_m + ' m' : (m.rmse_m != null ? m.rmse_m + ' m' : '');
+          blurb = '<div class="x-kv"><span>' + k0 + '</span><b>' + (acc || '—') + '</b></div>';
+        }
+        var blob = new Blob([JSON.stringify(j, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        run.evidence = '<div class="x-evi"><div class="x-t">Evidence bundle</div>' + blurb +
+          '<a class="x-link" href="' + url + '" target="_blank" rel="noopener">↓ Nav evidence (JSON)</a>' +
+          (mission.lastPlan && mission.lastPlan.pdf ?
+            '<a class="x-link" href="' + API + mission.lastPlan.pdf + '" target="_blank" rel="noopener">↓ Mission report (PDF)</a>' : '') +
+          '</div>';
+        renderRunStatus();
+      })
+      .catch(function () {});
+  }
+
+  function onStreamEvent(ev) {
+    var d;
+    try { d = JSON.parse(ev.data); } catch (e) { return; }
+    if (d.done) {
+      run.terminal = d.safed ? 'safed' : (d.final_state === 'completed' ? 'completed' : (d.final_state || 'done'));
+      run.legsSeen = run.total || run.legsSeen;
+      if (run.terminal === 'completed') animateRoverTo(1);      // finish the traverse to the route end
+      if (run.es) { try { run.es.close(); } catch (e) {} run.es = null; }
+      execBtn.disabled = false;
+      renderRunStatus();
+      loadEvidence();
+      return;
+    }
+    if (d.kind === 'leg') {
+      run.legsSeen = Math.max(run.legsSeen, (typeof d.t_s === 'number' ? d.t_s + 1 : run.legsSeen + 1));
+      run.lastEvent = 'leg ' + (run.legsSeen - 1) + ': ' + (d.outcome || '') +
+        (d.detail ? ' · ' + d.detail : '');
+      if (run.total) animateRoverTo(Math.min(1, run.legsSeen / run.total));
+    } else if (d.kind === 'safe') {
+      run.lastEvent = d.detail || 'watchdog safed';
+    } else if (d.kind === 'acceptance') {
+      run.lastEvent = d.detail || 'as-built acceptance';
+    }
+    renderRunStatus();
+  }
+
+  function runMission() {
+    if (!mission.lastPlan || !mission.route || !mission.route.length) {
+      setHint('Plan a mission first, then run it.', true); return;
+    }
+    resetRun();
+    buildArcLength();
+    setRoverFraction(0);                       // rover starts at the charger / route origin
+    execBtn.disabled = true;
+    run.terminal = null; run.legsSeen = 0; run.result = null; run.evidence = null; run.lastEvent = '';
+    runEl.innerHTML = '<div class="x-head"><span class="x-dot run"></span>' +
+      '<span class="x-run">Submitting SIM run…</span></div>';
+    var payload = {
+      orders: mission.orders.map(function (o) {
+        return { action: o.action, kind: o.kind, x: o.x, y: o.y,
+                 footprint_m2: o.footprint_m2, depth_m: o.depth_m };
+      }),
+      body: 'moon', site: mission.site, mission_id: 'artemis-web run'
+    };
+    return fetch(API + '/executive/run', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    })
+      .then(function (r) { return r.json().then(function (b) { return { status: r.status, body: b }; }); })
+      .then(function (res) {
+        if (!res.body || !res.body.ok || !res.body.run_id) {
+          run.terminal = 'error';
+          run.lastEvent = (res.body && res.body.error) || ('HTTP ' + res.status);
+          execBtn.disabled = false; renderRunStatus();
+          return res.body;
+        }
+        run.id = res.body.run_id;
+        run.total = res.body.n_legs_total || 0;
+        run.result = res.body;
+        renderRunStatus();
+        // Subscribe to the run's live telemetry. interval_s paces the replay so the rover visibly drives;
+        // the key is injected by nginx (same-origin GET, browser never holds it). EventSource carries the
+        // page's basic-auth credentials automatically.
+        var es = new EventSource(API + '/executive/run/' + encodeURIComponent(run.id) + '/stream?interval_s=0.5');
+        run.es = es;
+        es.onmessage = onStreamEvent;
+        es.onerror = function () {
+          // A normal end-of-stream also fires onerror after the server closes; only surface a real failure
+          // (no terminal reached yet).
+          if (!run.terminal) {
+            run.terminal = 'error'; run.lastEvent = 'telemetry stream interrupted';
+            renderRunStatus();
+          }
+          if (es.readyState === 2 && run.es === es) { run.es = null; execBtn.disabled = false; }
+        };
+        return res.body;
+      })
+      .catch(function (e) {
+        run.terminal = 'error'; run.lastEvent = e.message;
+        execBtn.disabled = false; renderRunStatus();
+      });
+  }
+  execBtn.addEventListener('click', runMission);
+
+  // Execution handles for the headless verification harness (same code paths as the UI).
+  window.stewieRun = {
+    run: runMission, reset: resetRun, state: run,
+    roverCoord: function () { return run.lastPose ? run.lastPose.slice() : null; },
+    routeLen: function () { return (mission.route || []).length; }
+  };
 
   // Placement fires on a genuine map click when a tool is active (kept separate from
   // the MA-01 readout handler so the point-value readout is unchanged).
