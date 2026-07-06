@@ -191,6 +191,35 @@ def _remember_sim_terrain(wss, mission, out, *, site: str, body: str, mission_id
         wss.record_belief(belief=belief_d, provenance=f"SIM run belief: {mission_id}")
 
 
+def _remember_sim_traffic(wss, mission, out, *, site: str, body: str, mission_id: str, dem) -> dict | None:
+    """[REQ:TW-11] fold a completed SIM run's REAL executed drive path into the site's persistent TrafficMemory
+    (per-cell traversal hardening: cumulative-load densification toward the conserved Bekker equilibrium,
+    H-09-safe), persist it, and record ONE DT-01 world-log event -- but ONLY when NEW load actually hardened
+    the road (the hash advances only on new load, per the accumulator's idempotent apply). BEST-EFFORT: the
+    traffic layer is an enhancement over the conserved terrain fold, so a failure here is logged and swallowed,
+    never failing an otherwise-good run (unlike the mass-conserving terrain fold, which is correctness-critical
+    and surfaces). Uses the same per-site lock + DT-03 compensating rollback pattern as the terrain fold."""
+    try:
+        from stewie.server import traffic_fold as TF
+        from stewie.server.world_state import _terrain_lock, compensating
+        from stewie.specs.config import data_dir
+        from stewie.twin import traffic_memory as TW
+        with _terrain_lock(site):                                # share the per-site RMW lock with the terrain fold
+            prior = TW.snapshot_site(data_dir(), site)           # DT-03 pre-mutation snapshot for a compensating rollback
+            mem = TF.traffic_from_run(out, charger=tuple(mission.charger), dem=dem, site=site,
+                                      data_dir=data_dir(), mission_id=mission_id)
+            if mem is None:
+                return None                                      # nothing new hardened (idempotent re-commit / off-crop)
+            TW.save_site(data_dir(), mem)
+            with compensating(lambda: TW.restore_site(data_dir(), site, prior), what="SIM traffic"):
+                wss.record_execution_event(authority_sha=None, provenance=f"SIM traffic hardening: {mission_id}",
+                                           mission=str(mission_id), site=str(site), body=str(body))
+        return mem.summary()
+    except Exception as e:   # noqa: BLE001 -- TW-11 traffic hardening is an enhancement; never fail a good run
+        log.warning("SIM traffic fold for %s failed (non-fatal): %s", mission_id, e)
+        return None
+
+
 @router.post("/executive/run")
 def executive_run(req: RunRequest, identity: str = Depends(require_director)) -> JSONResponse:
     """#245: execute a RELEASED build plan as a SIM run -- ARMED -> EXECUTING -> (COMPLETED | SAFED) over
@@ -240,6 +269,9 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
                        plan_id=req.mission_id)
         if not run.get("safed"):
             _remember_sim_terrain(wss, mission, out, site=req.site, body=req.body, mission_id=req.mission_id)
+            # [REQ:TW-11] fold the run's driven path into the per-site TrafficMemory (best-effort, non-fatal).
+            _remember_sim_traffic(wss, mission, out, site=req.site, body=req.body,
+                                  mission_id=req.mission_id, dem=dem)
     except Exception as e:   # noqa: BLE001 -- DT-03: world-state commit failed; the terrain fold self-
         # compensated and the run is NOT persisted ahead of the failed log -- surfaced, not swallowed.
         log.warning("world-state commit for SIM run %s failed; run not persisted: %s", run_id, e)

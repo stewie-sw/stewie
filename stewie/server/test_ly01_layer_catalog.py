@@ -18,7 +18,7 @@ def test_ly01_catalog_json_is_in_sync_with_the_prd2_table():  # [REQ:LY-01]
     live = G.build()
     with open(os.path.join(_ROOT, "stewie", "server", "layer_catalog.json"), encoding="utf-8") as fh:
         committed = json.load(fh)
-    assert committed["count"] == live["count"] == 65
+    assert committed["count"] == live["count"] == 66   # 65 + traffic.compaction (TW-11)
     assert committed["layers"] == live["layers"], "layer_catalog.json is stale -- run scripts/gen_layer_catalog.py"
 
 
@@ -26,7 +26,7 @@ def test_ly01_endpoint_serves_the_catalog_with_eligibility_rules(monkeypatch):  
     monkeypatch.setenv("STEWIE_DEV_OPEN", "1")
     c = TestClient(app, base_url="http://127.0.0.1")
     j = c.get("/world/layer-catalog").json()
-    assert j["count"] == 65 and len(j["layers"]) == 65
+    assert j["count"] == 66 and len(j["layers"]) == 66   # 65 + traffic.compaction (TW-11)
     by = {ly["id"]: ly for ly in j["layers"]}
     # display-only + truth/runtime-evidence layers must NOT be planning-eligible (truth can't drive autonomy)
     assert by["base.imagery"]["planning_eligible"] is False

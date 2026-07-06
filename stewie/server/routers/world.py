@@ -57,6 +57,28 @@ def layer_consumption(_auth: str = Depends(require_auth)):
     return {"ok": True, "consumers": CONSUMERS, "layers": rows, "count": len(rows)}
 
 
+@router.get("/world/traffic-layer")
+def traffic_layer(site: str = "haworth", _auth: str = Depends(require_auth)):
+    """[REQ:TW-11] the traversal-hardening readout for a site: the per-cell traffic.compaction Dr field the
+    persistent TrafficMemory has accumulated -- how much of the work area is trafficked, the peak relative
+    density, cells hardened past Dr>0.5, the bearing UPLIFT the traffic produced (a compacted haul road is a
+    firmer future pad), and the accumulator's version + provenance-chain head. ``committed: False`` before any
+    SIM run has folded traffic for the site. The raster is served at /layers/raster/traffic.png. Public read."""
+    from stewie.specs.config import data_dir
+    from stewie.twin import traffic_memory as TW
+    mem = TW.load_site(data_dir(), site)
+    if mem is None:
+        return {"ok": True, "site": site, "committed": False,
+                "note": "no traffic hardening recorded for this site yet"}
+    s = mem.summary()
+    chain_head = mem.chain[-1]["hash"] if mem.chain else ""
+    return {"ok": True, "site": site, "committed": True, "summary": s,
+            "grid": {"rows": mem.rows, "cols": mem.cols, "cell_m": mem.cell_m, "origin": list(mem.origin)},
+            "provenance": {"version": mem.version, "chain_head": chain_head, "verified": mem.verify_chain(),
+                           "sigma_c_n": mem.sigma_c_n, "mass_areal_kg_m2": mem.mass_areal,
+                           "calibration": {"sigma_c_n": "[CALIB]", "road_layer_mass_areal": "[CALIB]"}}}
+
+
 @router.get("/world/terramechanics-layers")
 def terramechanics_layers(_auth: str = Depends(require_auth)):
     """[REQ:TM-03] the derived catalog layers the terramechanics spine generates: each LY-01 physics/traffic/

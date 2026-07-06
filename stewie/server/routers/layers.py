@@ -90,6 +90,14 @@ def layers_legend():
                 "text": "violet = permanently shadowed region (PSR) candidate -- never sunlit; "
                         "the cold traps where water ice survives"},
         "dem": {"text": "cartographic hillshade (315°/45°) from the raw 5 m heightmap"},
+        "traffic": {"bands": [{"dr": "0.0-0.2", "hex": "#f7f7f7", "label": "pristine / lightly trafficked"},
+                              {"dr": "0.2-0.4", "hex": "#cccccc", "label": "compacted"},
+                              {"dr": "0.4-0.6", "hex": "#969696", "label": "firm road"},
+                              {"dr": "0.6-0.8", "hex": "#636363", "label": "firm road"},
+                              {"dr": "0.8-1.0", "hex": "#252525", "label": "paved (RHO_DEEP)"}],
+                    "text": "traversal hardening (relative density Dr) accumulated from repeated traffic "
+                            "(TW-11); color = Dr band, opacity = normalized traversal intensity; Sigma_c "
+                            "characteristic cumulative load is [CALIB]"},
     }
 
 

@@ -19,7 +19,7 @@ def test_ly02_every_layer_has_consumers(monkeypatch):  # [REQ:LY-02]
     c = TestClient(app, base_url="http://127.0.0.1")
     j = c.get("/world/layer-consumption").json()
     by = {r["id"]: r["consumers"] for r in j["layers"]}
-    assert len(by) == 65 and all(cons for cons in by.values())  # every layer is consumed somewhere
+    assert len(by) == 66 and all(cons for cons in by.values())  # every layer is consumed somewhere (65 + traffic.compaction)
 
     # a display-only layer (base.imagery: not planning/release-eligible) never feeds planning or command
     assert "display" in by["base.imagery"]

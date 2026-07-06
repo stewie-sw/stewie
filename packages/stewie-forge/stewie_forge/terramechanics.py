@@ -272,11 +272,16 @@ def physical_compaction_field(density, mass_areal, load_n: float, *,
     cl = p.contact_len_m if contact_len_m is None else contact_len_m
     cw = p.contact_width_m if contact_width_m is None else contact_width_m
     density = np.asarray(density, dtype=np.float64)
-    if load_n <= 0.0 or density.size == 0:
+    # TW-11: accept load_n as a SCALAR (the conserved drive-loop path) OR a per-cell load FIELD [N] (the
+    # traffic accumulator, which has a different wheel load per driven cell). For a scalar load the whole
+    # function is byte-identical to the prior behaviour (the np.where at the end is an identity when the
+    # single load is positive, and a scalar load <= 0 short-circuits to zeros exactly as before).
+    load = np.asarray(load_n, dtype=np.float64)
+    if density.size == 0 or bool(np.all(load <= 0.0)):
         return np.zeros_like(density)
     area = max(1e-9, cl * cw)
     b = min(cl, cw)
-    pressure = load_n / area
+    pressure = load / area                                # scalar/0-d or per-cell; broadcasts with density
     s_stiff = np.maximum(1.0, density / p.rho_surface)    # per-cell stiffening (paving)
     k = p.k_c / b + p.k_phi * s_stiff
     z = (pressure / k) ** (1.0 / p.n_sinkage)             # per-cell static sinkage [m]
@@ -288,8 +293,11 @@ def physical_compaction_field(density, mass_areal, load_n: float, *,
     # so they yield f=0 instead of NaN. (Found live driving on crater_boulders.)
     z = np.minimum(z, 0.999 * thickness)                  # clamp below thickness
     denom = thickness - z
-    return np.divide(z, denom, out=np.zeros_like(z, dtype=np.float64),
-                     where=(denom > 1e-12))
+    f = np.divide(z, denom, out=np.zeros_like(z, dtype=np.float64),
+                  where=(denom > 1e-12))
+    # a per-cell load FIELD may leave some cells unvisited (load <= 0) -> no compaction there. For a scalar
+    # positive load this is an identity, so the conserved drive-loop call is unchanged.
+    return np.where(load > 0.0, f, 0.0)
 
 
 def physical_compaction_target_density(mass_areal, load_n: float, *,
@@ -310,7 +318,10 @@ def physical_compaction_target_density(mass_areal, load_n: float, *,
     p = params or _DEFAULT_PARAMS
     mass_areal = np.asarray(mass_areal, dtype=np.float64)
     rho0 = float(p.rho_surface)
-    if load_n <= 0.0 or mass_areal.size == 0:
+    # TW-11: load_n may be a scalar (drive-loop) or a per-cell load FIELD (traffic accumulator); a cell with
+    # non-positive load stays at rho_surface (no compaction). Scalar behaviour is unchanged.
+    load = np.asarray(load_n, dtype=np.float64)
+    if mass_areal.size == 0 or bool(np.all(load <= 0.0)):
         return np.full_like(mass_areal, rho0)
     f0 = physical_compaction_field(np.full_like(mass_areal, rho0), mass_areal, load_n,
                                    params=p, contact_len_m=contact_len_m,

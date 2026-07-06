@@ -83,6 +83,10 @@ TERRA_DERIVED: dict[str, list[str]] = {
     "physics.compaction": ["compaction_resistance", "sinkage"],
     "traffic.traversability": ["slip", "slope", "traction"],
     "traffic.cost_global": ["drive_energy", "slope"],
+    # [REQ:TW-11] the traversal-hardening layer: repeated traffic drives per-cell density toward the conserved
+    # Bekker equilibrium (contact_pressure is the equilibrium driver; sinkage is its mass-conserving density
+    # coupling), served as the traffic.compaction Dr raster from the TrafficMemory accumulator.
+    "traffic.compaction": ["contact_pressure", "sinkage"],
 }
 
 # validate at import: every source term is a real TM-02 spine term (the mapping cannot drift from the spine).

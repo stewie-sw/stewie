@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "source": "PRD2 explicit layer catalog",
-  "count": 65,
+  "count": 66,
   "domains": [
     "base",
     "design",
@@ -280,6 +280,17 @@
       "planning_note": "yes",
       "release_execute_eligible": false,
       "release_execute_note": "evidence only"
+    },
+    {
+      "id": "traffic.compaction",
+      "domain": "traffic",
+      "type": "raster",
+      "purpose": "traversal-hardening (Dr) from repeated traffic",
+      "source_class": "observed/derived",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if measured or approved"
     },
     {
       "id": "regolith.class",

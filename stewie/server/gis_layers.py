@@ -50,6 +50,20 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
     if mp is None:
         from lode import mission_planner as mp
     bundle_dir = mp.bundle_for_site(site)                # raises KeyError/FileNotFoundError -> route 404
+
+    if kind == "traffic":
+        # [REQ:TW-11] the traversal-hardening (Dr) layer from the site's persistent TrafficMemory -- WHERE the
+        # rover drove and HOW MUCH the repeated traffic hardened the regolith (color = the physics Dr band;
+        # opacity = the per-layer normalized hardening, so a repeatedly-driven haul road reads darker/opaque).
+        # NOT cached: it changes as each SIM run folds new traffic (a cache would serve a stale corridor).
+        from stewie.specs.config import data_dir
+        from stewie.twin import traffic_memory as _TW
+        mem = _TW.load_site(data_dir(), site)
+        if mem is None:                                  # no traffic recorded yet -> a transparent (not blank-404) layer
+            dem, _rc, _cm = _work_area(mp, bundle_dir)
+            return _to_png(_upscale(np.zeros((*dem.shape, 4))))
+        return _to_png(_upscale(_traffic_rgba(mem)))
+
     # #283: quantize the sun to INT degrees + bound it, and key the cache on it ONLY for sun-sensitive kinds
     # (slope/hazard/psr ignore the sun -- keying on sub-degree sun would bust the cache + grow _CACHE without
     # bound on the /layers/raster route, mirroring the dem.py /dem/workarea.png treatment, #239). Quantizing
@@ -101,6 +115,30 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
     return png
 
 
+# [REQ:TW-11] the traversal-hardening Dr band ramp (design section 7 §1.8): loose -> paved.
+_TRAFFIC_THRESHOLDS = (0.2, 0.4, 0.6, 0.8)
+_TRAFFIC_COLORS = ((247, 247, 247), (204, 204, 204), (150, 150, 150), (99, 99, 99), (37, 37, 37))
+
+
+def _traffic_rgba(mem) -> np.ndarray:
+    """RGBA for the TW-11 traffic layer: COLOR = the physics Dr band (loose #f7f7f7 -> paved #252525);
+    OPACITY = per-layer normalized hardening on the driven cells (transparent where pristine), so a
+    repeatedly driven haul road reads darker + more opaque than a single pass. Honest to the modest IPEx-wheel
+    Dr regime -- it shows WHERE traffic hardened and the RELATIVE intensity; the /world/traffic-layer readout
+    carries the absolute Dr + bearing uplift."""
+    dr = mem.relative_density()
+    passes = np.asarray(mem._passes)
+    rgba = np.zeros((*dr.shape, 4), dtype=np.float64)
+    idx = np.digitize(dr, _TRAFFIC_THRESHOLDS)           # 0..4 -> the Dr band
+    for k, col in enumerate(_TRAFFIC_COLORS):
+        rgba[idx == k, :3] = col
+    trafficked = passes > 0
+    peak = float(dr.max()) if dr.size else 0.0
+    norm = (dr / peak) if peak > 0.0 else np.zeros_like(dr)
+    rgba[..., 3] = np.where(trafficked, 60.0 + 180.0 * norm, 0.0)   # min-visible + intensity ramp
+    return rgba
+
+
 RASTER_DEFS = [
     {"key": "slope", "name": "Slope (deg, from the real DEM)", "kind": "raster", "group": "terrain"},
     {"key": "hazard", "name": "Hazard / no-go (nav cost)", "kind": "raster", "group": "safety",
@@ -111,6 +149,7 @@ RASTER_DEFS = [
     {"key": "incidence", "name": "Sun incidence (grazing-angle, from the DEM)", "kind": "raster", "group": "sun"},
     {"key": "psr", "name": "Permanently shadowed regions (PSR, never lit)", "kind": "raster", "group": "sun"},
     {"key": "grid", "name": "Site grid (100 m / 500 m)", "kind": "raster", "group": "reference", "default": True},
+    {"key": "traffic", "name": "Traffic hardening (Dr, TW-11)", "kind": "raster", "group": "terrain"},   # traversal-compaction
 ]
 
 

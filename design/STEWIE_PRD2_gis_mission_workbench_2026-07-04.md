@@ -227,6 +227,7 @@ Explicit layer catalog:
 | `traffic.cost_global` | costmap | global route cost | derived/forecast | yes | yes if reproducible |
 | `traffic.cost_local` | costmap | local planner cost | observed/belief | yes | execute-profile dependent |
 | `traffic.backlink` | raster | accumulated-cost backlink/allocation | derived | yes | evidence only |
+| `traffic.compaction` | raster | traversal-hardening (Dr) from repeated traffic | observed/derived | yes | yes if measured or approved |
 | `regolith.class` | raster/vector | soil/regolith class | prior/observed | yes | yes if sourced |
 | `physics.bearing` | raster | bearing capacity | derived/estimated | yes | yes if calibrated |
 | `physics.sinkage` | raster | predicted wheel/tool sinkage | derived/estimated | yes | yes if calibrated |
