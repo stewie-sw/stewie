@@ -30,7 +30,7 @@ _LAYER_CATALOG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "
 
 
 @router.get("/world/layer-catalog")
-def layer_catalog(_auth: str = Depends(require_auth)):
+def layer_catalog():   # public read (map-data catalog); nginx proxies /api/ without a key by design
     """[REQ:LY-01] the GIS layer catalog/registry — the ~65 named layers (`base.*`…`evidence.*`) each declaring
     type, source_class, planning-eligibility, and release/execute-eligibility. This is the SUPERSET the GIS
     workbench layer tree (GW-06) binds; the per-site /world layer_manifest is the live subset carrying real
@@ -42,7 +42,7 @@ def layer_catalog(_auth: str = Depends(require_auth)):
 
 
 @router.get("/world/layer-consumption")
-def layer_consumption(_auth: str = Depends(require_auth)):
+def layer_consumption():   # public read (catalog projection)
     """[REQ:LY-02] the layer-consumption inspector: for each LY-01 catalog layer, WHERE it is consumed across
     the mission surface (display / planner / costmap / rehearsal / release / execute / report / export).
     Consumption is DERIVED from the catalog eligibility (planning/release-execute + domain + source class), so
@@ -58,7 +58,7 @@ def layer_consumption(_auth: str = Depends(require_auth)):
 
 
 @router.get("/world/traffic-layer")
-def traffic_layer(site: str = "haworth", _auth: str = Depends(require_auth)):
+def traffic_layer(site: str = "haworth"):   # public read (TW-11 traffic layer, map data)
     """[REQ:TW-11] the traversal-hardening readout for a site: the per-cell traffic.compaction Dr field the
     persistent TrafficMemory has accumulated -- how much of the work area is trafficked, the peak relative
     density, cells hardened past Dr>0.5, the bearing UPLIFT the traffic produced (a compacted haul road is a
@@ -80,7 +80,7 @@ def traffic_layer(site: str = "haworth", _auth: str = Depends(require_auth)):
 
 
 @router.get("/world/terramechanics-layers")
-def terramechanics_layers(_auth: str = Depends(require_auth)):
+def terramechanics_layers():   # public read (physics-layer provenance, map data)
     """[REQ:TM-03] the derived catalog layers the terramechanics spine generates: each LY-01 physics/traffic/
     terrain layer + the TM-02 spine terms it is computed FROM + which of those are real solver outputs + the
     producing backend. Every derived layer id is a real LY-01 catalog layer and every source term is a real
