@@ -383,7 +383,7 @@ def test_value_readout_fidelity():
 def test_measurement_polar_tolerance():
     _need_qgis()
     from qgis.core import (QgsCoordinateReferenceSystem, QgsCoordinateTransform,
-                           QgsDistanceArea, QgsPointXY, QgsProject)
+                           QgsDistanceArea, QgsPointXY)
     p = _project()
     crs = QgsCoordinateReferenceSystem(B.PROJ_CRS)
     geo = QgsCoordinateReferenceSystem(B.GEO_CRS)
