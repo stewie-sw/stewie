@@ -47,12 +47,12 @@ def test_replication_mirrors_journal_and_snapshots(tmp_path):
         pytest.skip("rsync not available")
     tw = _store(tmp_path)
     tw.apply_patch(np.full((2, 2), 1.0), origin_rc=(1, 1), provenance="e")
-    snaps = str(tmp_path / "snaps")
+    snaps = str(tmp_path / "snapshots")                   # C1: the REAL production dir name (admin_ops.py writes snapshots here); the old "snaps" name here is what let the DR bug ship
     B.snapshot(tw, snaps)
     dest = str(tmp_path / "offhost")                      # stands in for the second volume/host
     out = B.replicate(str(tmp_path), dest)
     assert out["ok"] and os.path.exists(os.path.join(dest, "twin.journal"))
-    assert os.listdir(os.path.join(dest, "snaps"))
+    assert os.listdir(os.path.join(dest, "snapshots"))    # C1: the replica MUST carry the snapshots to cold-restore
     # the replica alone is enough to cold-restore the world (the W-3 point)
     cold = vt.TwinStore.from_journal(_base(), cell_m=0.5,
                                      journal_path=os.path.join(dest, "twin.journal"))
