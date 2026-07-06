@@ -129,6 +129,38 @@ services:
     command: ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && exec python3 /work/deploy/ros2/rosbridge_feeder.py"]
     depends_on: [ "rosbridge" ]
     restart: unless-stopped
+  # RT-03: the OPTIONAL headless Gazebo camera VIEW render + read-only frame relay behind the browser
+  # "Gazebo View" pane. Opt-in via its OWN 'gzcam' profile (NOT the default 'ros2' profile) because it
+  # is CPU-HEAVY: this host's nvidia-container-runtime injects compute but NOT the graphics driver, so
+  # gz-sim's ogre2 cannot use the GPU and renders on Mesa llvmpipe (~4 cores, a few Hz). Bring it up with:
+  #   docker compose -f deploy/compose.yml --profile gzcam up -d gz-render
+  #
+  # ISOLATION: host-net on ROS_DOMAIN_ID 7 so it NEVER perturbs the live domain-0 rover/nav stack behind
+  # RT-04. gz + the read-only camera feeder run in this ONE container (shared /dev/shm -> DDS SHM works),
+  # and the feeder pushes base64 JPEG frames to the SAME RT-04 collector ingest (127.0.0.1:9091) the
+  # telemetry feeder uses -> reuses the whole RT-04 relay (nginx /rosbridge + collector) UNCHANGED.
+  #
+  # READ-ONLY BY CONSTRUCTION: the feeder holds ZERO ROS publishers -- it only subscribes to the rendered
+  # image and relays pixels. There is NO code path from the pane to /cmd_vel, /cmd/nav_goal, /cmd/safe or
+  # any service. NO GPU is requested (no deploy.resources / no /dev/dri): a visible-but-undriveable GPU
+  # makes ogre2 pick EGL and segfault, so hiding it is what lets Mesa llvmpipe render cleanly.
+  gz-render:
+    profiles: [ "gzcam" ]
+    image: stewie-gazebo:jazzy                     # built from deploy/ros2/Dockerfile.gazebo (gz + ros_gz + xvfb)
+    container_name: stewie-gz-render
+    network_mode: host                             # reach the collector ingest on 127.0.0.1:9091
+    environment:
+      ROS_DOMAIN_ID: "7"                           # isolate from the live domain-0 RT-04 stack
+      LIBGL_ALWAYS_SOFTWARE: "1"                    # Mesa llvmpipe (no GPU graphics driver in-container)
+      GALLIUM_DRIVER: llvmpipe
+      GZ_SIM_RESOURCE_PATH: /ws/src:/ws/install/stewie_description/share   # resolve the rover STL meshes
+      STEWIE_CAM_TOPIC: /stewie/camera/front_left/image
+      STEWIE_CAM_OUT_TOPIC: /stewie/camera/front_left/jpeg
+    volumes:
+      - "./ros2/gz_render_entrypoint.sh:/gz_render_entrypoint.sh:ro"
+      - "./ros2/camera_feeder.py:/camera_feeder.py:ro"
+    command: [ "bash", "/gz_render_entrypoint.sh" ]
+    restart: unless-stopped
   # PO-14: the OPTIONAL Godot render/sensor sidecar. GPU-GATED (headless Vulkan) and NOT part of the
   # supported server image -> opt-in via the 'godot' profile, exactly like ros2:
   #   docker compose --profile godot run --rm godot res://sidecar.tscn -- --cameras ...

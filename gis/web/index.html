@@ -262,11 +262,34 @@
     .eng-foot { margin-top: 9px; border-top: 1px solid var(--edge); padding-top: 7px;
       font-size: 10px; color: #6f7b8a; font-variant-numeric: tabular-nums; }
 
+    /* RT-03 Gazebo VIEW pane — live, READ-ONLY camera render of the headless gz-sim lunar sim.
+       Docks bottom-right, left of the RT-04 engine pane. Same dark QGIS theme + eng-head reuse. */
+    #gzview { position: absolute; right: 324px; bottom: 12px; width: 384px; z-index: 16;
+      max-width: calc(100vw - 24px);
+      background: rgba(18,23,31,0.96); border: 1px solid var(--edge); border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.55); backdrop-filter: blur(6px);
+      display: flex; flex-direction: column; overflow: hidden; }
+    #gzview.hidden { display: none; }
+    .gz-frame { position: relative; width: 100%; background: #05070a; aspect-ratio: 4 / 3; }
+    .gz-frame img { display: none; width: 100%; height: 100%; object-fit: cover; }
+    .gz-nosig { position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 4px; text-align: center;
+      color: var(--ink-dim); font-size: 12px; }
+    .gz-nosig span { font-size: 10px; color: #6f7b8a; }
+    .gz-nosig code { color: #bfeeff; }
+    .gz-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 6px 12px; font-size: 10px; color: var(--ink-dim);
+      border-top: 1px solid var(--edge); font-variant-numeric: tabular-nums; }
+    .gz-meta b { color: #7fe0a8; font-weight: 600; }
+    .gz-cap { padding: 0 12px 9px; font-size: 10px; color: #6f7b8a; line-height: 1.4;
+      font-family: ui-monospace, monospace; }
+
     @media (max-width: 640px) {
       .panel { width: calc(100vw - 24px); top: auto; right: 12px; bottom: 12px; }
       #status { display: none; }
       #authoring { display: none; }
       #engine { display: none; }
+      #gzview { display: none; }
     }
   </style>
 </head>
@@ -276,6 +299,8 @@
       <div class="brand">STEWIE <span class="dot">—</span> Artemis South Pole</div>
       <div class="sub">Lunar polar-stereographic <code>IAU_2015:30135</code> · Moon 2015 sphere R=1737.4&nbsp;km</div>
       <div class="spacer"></div>
+      <button id="gz-toggle" class="hdr-btn" type="button" title="Live read-only camera render of the headless Gazebo lunar sim (evidence-only, no command authority)">
+        <span class="b-dot"></span>Gazebo View</button>
       <button id="engine-toggle" class="hdr-btn" type="button" title="Live read-only ROS2 telemetry from the STEWIE sim/nav stack">
         <span class="b-dot"></span>ROS2 Engine</button>
       <div class="source">Terrain: LOLA 5&nbsp;m / SfS 1&nbsp;m DEM + hillshade + slope · LROC context<br/>
@@ -335,6 +360,29 @@
         <div id="popup-body"></div>
       </div>
 
+      <!-- RT-03: live, READ-ONLY Gazebo camera VIEW. A real headless gz-sim (ogre2) render of the IPEx
+           rover on lunar regolith, relayed as base64 JPEG over the SAME same-origin wss://…/rosbridge
+           read-only chain as RT-04 (a subscribe-only camera feeder -> collector -> browser). Evidence-
+           only: the pane renders frames into an <img>; it holds no command authority over the rover. -->
+      <div id="gzview" class="hidden" aria-live="polite">
+        <div class="eng-head">
+          <span class="eng-dot wait" id="gz-dot"></span>
+          <span class="eng-title">Gazebo View · RT-03</span>
+          <span class="eng-ro" title="Evidence-only camera render. This pane can only observe; it cannot publish cmd_vel or call any acting service.">READ-ONLY</span>
+          <span class="eng-x" id="gz-close" title="Hide">×</span>
+        </div>
+        <div class="gz-frame">
+          <img id="gz-img" alt="Live Gazebo camera render of the IPEx rover on lunar regolith" />
+          <div class="gz-nosig" id="gz-nosig">Awaiting Gazebo render…
+            <span>bring up the <code>gzcam</code> compose profile</span></div>
+        </div>
+        <div class="gz-meta">
+          <span id="gz-conn">connecting to rosbridge…</span>
+          <span class="eng-hz" id="gz-hz"></span>
+        </div>
+        <div class="gz-cap" id="gz-cap">IPEx front-left camera · headless gz-sim (ogre2) · lunar regolith world</div>
+      </div>
+
       <!-- RT-04: live, READ-ONLY ROS2 telemetry from the STEWIE sim/nav stack (rover_executive).
            Fed via same-origin wss://…/rosbridge (nginx -> read-only collector). No command authority. -->
       <div id="engine" class="hidden" aria-live="polite">
@@ -383,6 +431,6 @@
   <!-- ?v = content hash of app.js: index.html is served DYNAMIC (never edge-cached),
        so bumping this query busts the Cloudflare edge cache of app.js on the next
        page load without touching cloudflared. Update when app.js changes. -->
-  <script src="app.js?v=0fb252e6"></script>
+  <script src="app.js?v=66aba545"></script>
 </body>
 </html>

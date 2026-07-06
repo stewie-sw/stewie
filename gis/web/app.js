@@ -1073,4 +1073,70 @@
 
     connect();
   })();
+
+  // ---- RT-03: live, READ-ONLY Gazebo camera VIEW pane --------------------------------------
+  // Renders a real headless gz-sim (ogre2) camera render of the IPEx rover on lunar regolith.
+  // Frames arrive as base64 JPEG over the SAME same-origin /rosbridge read-only chain as RT-04
+  // (a subscribe-only camera feeder -> collector -> browser). This pane can ONLY observe: it
+  // subscribes to the image topic and never advertises/publishes, so it holds no command
+  // authority over the rover. It only ever sets an <img> src from the relayed pixels.
+  (function initGazeboPane() {
+    if (typeof ROSLIB === 'undefined') return;                 // vendored lib must be present
+    var toggle = document.getElementById('gz-toggle');
+    var pane = document.getElementById('gzview');
+    if (!toggle || !pane) return;
+    var byId = function (id) { return document.getElementById(id); };
+    var img = byId('gz-img'), nosig = byId('gz-nosig');
+    var dot = byId('gz-dot'), conn = byId('gz-conn'), hz = byId('gz-hz'), cap = byId('gz-cap');
+    var topic = '/stewie/camera/front_left/jpeg';
+
+    var userClosed = false, autoOpened = false, stamps = [];
+    function show(v) { pane.classList.toggle('hidden', !v); }
+    toggle.addEventListener('click', function () {
+      var willShow = pane.classList.contains('hidden');
+      show(willShow); if (!willShow) userClosed = true;
+    });
+    byId('gz-close').addEventListener('click', function () { show(false); userClosed = true; });
+
+    var wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/rosbridge';
+
+    function connect() {
+      var ros = new ROSLIB.Ros({ url: wsUrl });
+      ros.on('connection', function () {
+        dot.className = 'eng-dot ok';
+        conn.innerHTML = 'rosbridge <b>connected</b> (read-only)';
+        toggle.classList.add('live');
+      });
+      ros.on('error', function () {
+        dot.className = 'eng-dot err';
+        conn.textContent = 'rosbridge error — retrying…';
+        toggle.classList.remove('live');
+      });
+      ros.on('close', function () {
+        dot.className = 'eng-dot wait';
+        conn.textContent = 'reconnecting…';
+        toggle.classList.remove('live');
+        setTimeout(connect, 2500);                             // resilient reconnect
+      });
+
+      new ROSLIB.Topic({ ros: ros, name: topic, messageType: 'stewie/CameraFrameJPEG' })
+        .subscribe(function (msg) {
+          if (!msg || !msg.data) return;
+          img.src = 'data:image/' + (msg.format || 'jpeg') + ';base64,' + msg.data;
+          img.style.display = 'block';
+          nosig.style.display = 'none';
+          if (!autoOpened && !userClosed) { show(true); autoOpened = true; }   // pop when frames are live
+          var t = Date.now() / 1000;                            // browser-side arrival rate
+          stamps.push(t); if (stamps.length > 6) stamps.shift();
+          if (stamps.length > 1) {
+            var span = stamps[stamps.length - 1] - stamps[0];
+            if (span > 0) hz.textContent = ((stamps.length - 1) / span).toFixed(1) + ' Hz';
+          }
+          cap.textContent = 'IPEx front-left camera · ' + (msg.src_w || '?') + '×' + (msg.src_h || '?')
+            + ' → ' + (msg.width || '?') + '×' + (msg.height || '?') + ' jpeg · headless gz-sim (ogre2)';
+        });
+    }
+
+    connect();
+  })();
 })();
