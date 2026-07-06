@@ -393,8 +393,13 @@ def main(argv=None) -> int:
         QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings,
         QgsVectorLayerSimpleLabeling, QgsSettings,
     )
+    from qgis.core import (
+        QgsPrintLayout, QgsLayoutItemPage, QgsLayoutItemMap, QgsLayoutItemLabel,
+        QgsLayoutItemLegend, QgsLayoutItemScaleBar, QgsLayoutItemPicture,
+        QgsLayoutPoint, QgsLayoutSize, QgsUnitTypes,
+    )
     from qgis.PyQt.QtCore import QSize
-    from qgis.PyQt.QtGui import QColor
+    from qgis.PyQt.QtGui import QColor, QFont
     import json as _json
 
     # Bound network waits so an unreachable service cannot stall the build.
@@ -905,6 +910,98 @@ def main(argv=None) -> int:
 
     _write_layer_status_md(os.path.join(CODE_GIS_DIR, "LAYER_STATUS.md"), status)
     print(f"[build] P1.5 wrote {os.path.join(CODE_GIS_DIR, 'LAYER_STATUS.md')}")
+
+    # ======================================================================
+    # P1 print layout ("Mission Map", A4 landscape) -- unblocks QWC2 GetPrint.
+    # STRICTLY ADDITIVE: a QgsPrintLayout in the project's layout manager; it
+    # touches no layer, style, CRS, or the layer tree. The map item id "map0"
+    # is the prefix the QWC2 Print tool sends for the GetPrint map params
+    # (map0:extent / map0:LAYERS / map0:scale), and TEMPLATE="Mission Map"
+    # selects the layout. keepLayerSet is left False (the QGIS default) so the
+    # map FOLLOWS the project's layers -- a direct GetPrint with no LAYERS param
+    # still renders the real lunar map, and QWC2 overrides map0:LAYERS at print
+    # time with the viewer's currently-visible layers. Metric scale bar (map
+    # units are metres in IAU_2015:30135), north arrow (library SVG present in
+    # both the host builder + the qgis-server container), auto-model legend, a
+    # title, and a provenance/attribution label. Full-pole default extent.
+    # ======================================================================
+    LAYOUT_NAME = "Mission Map"
+    MAP_ID = "map0"
+    MAP_W_MM, MAP_H_MM = 200.0, 176.0   # map item size (mm) -> mirrored into themes.json print.map
+    MM = QgsUnitTypes.LayoutMillimeters
+    FULL_EXTENT = QgsRectangle(-457440.0, -457440.0, 457440.0, 457440.0)  # theme/basemap extent
+
+    layout = QgsPrintLayout(project)
+    layout.initializeDefaults()
+    layout.setName(LAYOUT_NAME)
+    layout.pageCollection().page(0).setPageSize("A4", QgsLayoutItemPage.Landscape)  # 297 x 210 mm
+
+    lmap = QgsLayoutItemMap(layout)
+    lmap.setId(MAP_ID)
+    lmap.setCrs(crs)
+    lmap.setExtent(FULL_EXTENT)
+    lmap.setBackgroundColor(QColor(0, 0, 0))       # black canvas, matching the viewers
+    lmap.setFrameEnabled(True)
+    layout.addLayoutItem(lmap)
+    lmap.attemptMove(QgsLayoutPoint(8, 22, MM))
+    lmap.attemptResize(QgsLayoutSize(MAP_W_MM, MAP_H_MM, MM))
+
+    def _layout_label(text, x, y, w, h, pt, bold=False):
+        it = QgsLayoutItemLabel(layout)
+        it.setText(text)
+        fnt = QFont()
+        fnt.setPointSize(pt)
+        fnt.setBold(bold)
+        it.setFont(fnt)
+        layout.addLayoutItem(it)
+        it.attemptMove(QgsLayoutPoint(x, y, MM))
+        it.attemptResize(QgsLayoutSize(w, h, MM))
+        return it
+
+    _layout_label("STEWIE - Lunar South Pole Mission Map", 8, 5, 200, 12, 20, bold=True)
+
+    # Auto-model legend (reflects the project layer tree), linked to the map, fixed frame.
+    legend = QgsLayoutItemLegend(layout)
+    legend.setTitle("Legend")
+    legend.setLinkedMap(lmap)
+    legend.setAutoUpdateModel(True)
+    legend.setResizeToContents(False)              # fixed frame; clips rather than overrunning the page
+    legend.setFrameEnabled(True)
+    layout.addLayoutItem(legend)
+    legend.attemptMove(QgsLayoutPoint(212, 22, MM))
+    legend.attemptResize(QgsLayoutSize(79, 176, MM))
+
+    # Metric scale bar (map units = metres in IAU_2015:30135), linked to the map.
+    sbar = QgsLayoutItemScaleBar(layout)
+    sbar.setLinkedMap(lmap)
+    sbar.setStyle("Single Box")
+    sbar.setUnits(QgsUnitTypes.DistanceMeters)
+    sbar.applyDefaultSize(QgsUnitTypes.DistanceMeters)
+    sbar.setUnitLabel("m")
+    layout.addLayoutItem(sbar)
+    sbar.attemptMove(QgsLayoutPoint(12, 188, MM))
+
+    # North arrow (QGIS library SVG; the same path resolves in host + container QGIS).
+    north = QgsLayoutItemPicture(layout)
+    north.setPicturePath("/usr/share/qgis/svg/arrows/NorthArrow_04.svg",
+                         QgsLayoutItemPicture.FormatSVG)
+    north.setLinkedMap(lmap)
+    north.setNorthMode(QgsLayoutItemPicture.GridNorth)
+    layout.addLayoutItem(north)
+    north.attemptMove(QgsLayoutPoint(192, 26, MM))
+    north.attemptResize(QgsLayoutSize(12, 12, MM))
+
+    _layout_label(
+        "Selenographic frame IAU_2015:30135 (Moon 2015 South Polar Stereographic, "
+        "R=1737400 m); no terrestrial datum. Terrain: PGDA LOLA Product 78 5 m DEM/slope "
+        "+ USGS Haworth 1 m SfS DEM + LOLA LDEM_75S_120M basemap. Context imagery: LROC "
+        f"Lunaserv. STEWIE / McCardle & Storey. Built {args.date}.",
+        8, 200, 200, 9, 7)
+
+    project.layoutManager().addLayout(layout)
+    print(f"[build] P1 print layout '{LAYOUT_NAME}' added "
+          f"(map id={MAP_ID}, A4 landscape, map item {MAP_W_MM:g}x{MAP_H_MM:g} mm, "
+          f"legend+scalebar+north+title+attribution)")
 
     # ---- write .qgz -------------------------------------------------------
     if os.path.exists(args.output):
