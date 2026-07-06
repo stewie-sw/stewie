@@ -72,6 +72,24 @@ SRC_SITE_SLOPE = ("slope in degrees, derived from the site LOLA 5 m DEM "
 SRC_HAWORTH_DEM = ("USGS Haworth 1 m Shape-from-Shading DEM (LROC NAC SfS), "
                    "native IAU_2015:30135")
 
+# Continuous south-polar basemap (context UNDER the site DEMs so the map reads as a
+# whole moon, not 8 DEMs on black). Real LOLA LDEM polar shape map -> hillshade -> COG.
+BASEMAP_SUBDIR = os.path.join("cog", "basemap_south_polar.tif")
+BASEMAP_NAME = "South Polar Basemap"
+BASEMAP_URL = ("https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/"
+               "lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_120m.img")
+SRC_BASEMAP = (
+    "LOLA LDEM_75S_120M polar shape map (LRO-L-LOLA-4-GDR-V1.0, 120 m/px, 75-90S, "
+    "polar stereographic true-at-pole, sphere R=1737400 m; David E. Smith / LRO LOLA "
+    f"Team, GSFC), PDS Geosciences Node {BASEMAP_URL} -> gdaldem hillshade (z=0.5 "
+    "unscales the 0.5 m/DN shape map to true metres; az 315, alt 45, -compute_edges) "
+    "-> COG. Continuous CONTEXT basemap (not an authoritative measurement surface).")
+BASEMAP_CMD = (
+    "gdaldem hillshade -z 0.5 -az 315 -alt 45 -compute_edges ldem_75s_120m.lbl "
+    "basemap_hs_tmp.tif ; gdal_translate -of COG -a_srs IAU_2015:30135 -a_nodata none "
+    "-co COMPRESS=DEFLATE -co PREDICTOR=2 -co BLOCKSIZE=512 -co OVERVIEWS=AUTO "
+    "-co OVERVIEW_RESAMPLING=AVERAGE basemap_hs_tmp.tif cog/basemap_south_polar.tif")
+
 # Hypsometric elevation palette (fraction, R, G, B) interpolated across real min..max.
 HYPSO_STOPS = [
     (0.00, 44, 66, 110),    # crater floor  -> deep blue
@@ -105,6 +123,7 @@ GPKG_SUBDIR = os.path.join("derived", "lunar_south_pole.gpkg")
 GRP_BASE = "Base & imagery - external context (non-authoritative frame)"
 GRP_TERRAIN = "Terrain & hazard - authoritative (IAU_2015:30135)"
 GRP_VECTORS = "Site vectors (IAU_2015:30100)"
+GRP_BASEMAP = "South-polar basemap - LOLA LDEM context (IAU_2015:30135)"
 
 # Pin marker + footprint fill (translucent so the terrain reads through).
 PIN_RGB = (255, 210, 60)
@@ -195,6 +214,9 @@ ARTEMIS_ROWS = [
          layer="stewie.terrain.<site>.dem x8 (core)"),
     dict(row="B/LOLA 5 m polar", disposition="loaded",
          layer="== the 8 site DEMs (PGDA Product 78, 5 m/px polar-stereo)"),
+    dict(row="B/LOLA LDEM 75S continuous south-polar basemap (120 m)", disposition="loaded",
+         layer="stewie.base.south_polar_basemap (LDEM_75S_120M hillshade COG, 75-90S, "
+               "bottom of the layer tree - continuous context under the site DEMs)"),
     dict(row="B/LOLA 20 m polar", disposition="deferred",
          reason="broader-area 20 m context tiles not downloaded (the 5 m site DEMs carry the "
                 "mission zone); additive fetch when wider-area context is needed.",
@@ -813,11 +835,36 @@ def main(argv=None) -> int:
                 r["server_tile_note"] = f"server-tile check skipped: {exc}"
 
     # ======================================================================
+    # Continuous south-polar basemap (LOLA LDEM hillshade COG). Placed at the
+    # BOTTOM of the layer tree so the whole 75-90S region reads as one continuous
+    # moon UNDER the authoritative site DEMs (Aaron: "whole moon ... dont load").
+    # A local COG (the container has no serve-time egress); relabelled to 30135
+    # exactly like the site COGs (label assignment, not a reprojection).
+    # ======================================================================
+    basemap_path = os.path.join(data_root, BASEMAP_SUBDIR)
+    basemap_added = False
+    if os.path.exists(basemap_path):
+        basemap_group = root.addGroup(GRP_BASEMAP)   # appended -> bottom of the tree
+        bm = load_raster(basemap_path, BASEMAP_NAME)
+        style_hillshade(bm)                          # grayscale stretch (continuous relief)
+        set_provenance(bm, "stewie.base.south_polar_basemap",
+                       "South-polar LOLA LDEM hillshade basemap", SRC_BASEMAP,
+                       command=BASEMAP_CMD)
+        project.addMapLayer(bm, addToLegend=False)
+        basemap_group.insertLayer(0, bm)
+        basemap_added = True
+        print(f"[build] basemap: '{BASEMAP_NAME}' at bottom of tree "
+              f"({bm.crs().authid()}, {bm.width()}x{bm.height()}, "
+              f"extent {bm.extent().toString(0)})")
+    else:
+        print(f"WARNING: basemap COG missing at {basemap_path}; skipped", file=sys.stderr)
+
+    # ======================================================================
     # P1.5 -- catalog provenance + machine/human status artifacts.
     # ======================================================================
     pmd2 = project.metadata()
     kw = dict(pmd2.keywords())
-    kw["catalog_groups"] = [GRP_BASE, GRP_TERRAIN, GRP_VECTORS]
+    kw["catalog_groups"] = [GRP_BASE, GRP_TERRAIN, GRP_VECTORS, GRP_BASEMAP]
     kw["catalog_ids"] = ["stewie.base.*", "stewie.terrain.*", "stewie.vector.*"]
     pmd2.setKeywords(kw)
     project.setMetadata(pmd2)
@@ -959,6 +1006,38 @@ def main(argv=None) -> int:
         imagery_png = os.path.join(proof_dir, "site01_with_imagery.png")
         _, frac = render_site01_with_imagery(imagery_png)
         print(f"[proof] rendered {imagery_png} (non-black frac={frac})")
+
+        # Whole-moon proof: the continuous LOLA basemap UNDER every site DEM +
+        # hillshade + Haworth + the site pins/footprints, over the full 75-90S
+        # extent. Shows the region is one continuous moon, not DEMs on black.
+        def render_whole_moon(out_png, ext, size=1600):
+            names_top_to_bottom = ["Artemis site pins", "Artemis site footprints"]
+            for s in SITES:
+                names_top_to_bottom += [f"{s} DEM", f"{s} Hillshade"]
+            names_top_to_bottom += ["Haworth DEM (1 m)", "Haworth Hillshade", BASEMAP_NAME]
+            layers = []
+            for nm in names_top_to_bottom:
+                found = project.mapLayersByName(nm)
+                if found:
+                    layers.append(found[0])
+            ms = QgsMapSettings()
+            ms.setLayers(layers)
+            ms.setDestinationCrs(crs)
+            ms.setExtent(ext)
+            ms.setOutputSize(QSize(size, size))
+            ms.setBackgroundColor(QColor(0, 0, 0))
+            job = QgsMapRendererParallelJob(ms)
+            job.start()
+            job.waitForFinished()
+            img = job.renderedImage()
+            img.save(out_png)
+            return out_png, _nonblank_frac(img)
+
+        if basemap_added:
+            bm_extent = project.mapLayersByName(BASEMAP_NAME)[0].extent()
+            wm_png = os.path.join(proof_dir, "whole_moon.png")
+            _, wmfrac = render_whole_moon(wm_png, bm_extent)
+            print(f"[proof] rendered {wm_png} (non-black frac={wmfrac})")
 
     qgs.exitQgis()
     return 0

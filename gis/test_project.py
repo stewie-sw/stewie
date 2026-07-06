@@ -161,9 +161,10 @@ def test_project_crs_and_no_earth_claim():
         assert aid.startswith("IAU_2015:"), f"{lyr.name()} tagged {aid!r}, not a lunar CRS"
         assert "4326" not in aid and "WGS" not in aid.upper(), f"{lyr.name()} tagged {aid!r} (Earth)"
 
-    # Authoritative terrain COGs: 26 gdal rasters, all IAU_2015:30135.
+    # gdal rasters: 26 authoritative terrain COGs + 1 continuous LOLA basemap COG
+    # (context under the site DEMs) = 27, all relabelled to IAU_2015:30135.
     gdal = by_prov.get("gdal", [])
-    assert len(gdal) == 26, f"expected 26 authoritative gdal rasters, got {len(gdal)}"
+    assert len(gdal) == 27, f"expected 27 gdal rasters (26 terrain + 1 basemap), got {len(gdal)}"
     for lyr in gdal:
         assert lyr.crs().authid() == B.PROJ_CRS, f"{lyr.name()} tagged {lyr.crs().authid()}"
 
@@ -179,10 +180,10 @@ def test_project_crs_and_no_earth_claim():
     for lyr in wms:
         assert lyr.crs().authid() == B.GEO_CRS, f"{lyr.name()} WMS tagged {lyr.crs().authid()}"
 
-    assert len(layers) == 26 + 2 + len(wms), \
-        f"layer accounting: {len(layers)} != 26 gdal + 2 ogr + {len(wms)} wms"
+    assert len(layers) == 27 + 2 + len(wms), \
+        f"layer accounting: {len(layers)} != 27 gdal + 2 ogr + {len(wms)} wms"
     print(f"[gate-crs] project CRS={p.crs().authid()} ellipsoid={p.ellipsoid()} "
-          f"layers={len(layers)} = 26 terrain(30135) + 2 vectors(30100) + "
+          f"layers={len(layers)} = 26 terrain + 1 basemap (30135) + 2 vectors(30100) + "
           f"{len(wms)} external(30100); none EPSG:4326/WGS")
 
 
@@ -335,6 +336,35 @@ def test_site_vectors_roundtrip():
 
 
 # ---------------------------------------------------------------------------
+# Continuous south-polar basemap: a real LOLA LDEM hillshade COG loaded at the
+# bottom of the tree, relabelled 30135, spanning ~75-90S (fills under the sites).
+# ---------------------------------------------------------------------------
+def test_south_polar_basemap_present():
+    _need_qgis()
+    p = _project()
+    found = p.mapLayersByName(B.BASEMAP_NAME)
+    assert found, f"basemap layer {B.BASEMAP_NAME!r} not in project"
+    bm = found[0]
+    assert bm.providerType() == "gdal", bm.providerType()
+    assert bm.crs().authid() == B.PROJ_CRS, bm.crs().authid()
+    assert bm.source().endswith("basemap_south_polar.tif"), bm.source()
+    # 75-90S native LDEM square is ~915 km across (pole-centred), so its extent must
+    # reach well beyond the ~305 km site-cluster block -> it truly fills under+around.
+    ext = bm.dataProvider().extent()
+    assert ext.width() > 800000.0, f"basemap extent too small: {ext.width():.0f} m"
+    assert ext.xMinimum() < -400000.0 and ext.xMaximum() > 400000.0, ext.toString(0)
+    # Bottom of the tree (rendered first / underneath the authoritative DEMs).
+    root = p.layerTreeRoot()
+    last = root.children()[-1]
+    from qgis.core import QgsLayerTreeGroup
+    assert isinstance(last, QgsLayerTreeGroup), type(last)
+    assert bm.id() in [n.layerId() for n in last.findLayers()], \
+        "basemap is not in the bottom-most layer-tree group"
+    print(f"[basemap] {B.BASEMAP_NAME}: gdal {bm.crs().authid()} "
+          f"{bm.width()}x{bm.height()} extent_w={ext.width():.0f} m; bottom of tree")
+
+
+# ---------------------------------------------------------------------------
 # Gate 3: value readout fidelity (QGIS sample == gdallocationinfo, Float32)
 # ---------------------------------------------------------------------------
 def test_value_readout_fidelity():
@@ -483,9 +513,10 @@ def test_pole_renders_not_black():
 # ---------------------------------------------------------------------------
 def _standalone():
     tests = [test_gate5_artemis_rows_all_accounted, test_gate6_status_json_consistency,
-             test_project_crs_and_no_earth_claim, test_value_readout_fidelity,
-             test_measurement_polar_tolerance, test_pole_renders_not_black,
-             test_gate6_connections_render_from_saved_project, test_site_vectors_roundtrip]
+             test_project_crs_and_no_earth_claim, test_south_polar_basemap_present,
+             test_value_readout_fidelity, test_measurement_polar_tolerance,
+             test_pole_renders_not_black, test_gate6_connections_render_from_saved_project,
+             test_site_vectors_roundtrip]
     failures = 0
     for t in tests:
         try:

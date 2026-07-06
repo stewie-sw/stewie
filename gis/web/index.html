@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>STEWIE — Artemis South Pole</title>
+  <link rel="stylesheet" href="vendor/ol.css" />
+  <style>
+    :root {
+      --bg: #0a0d12;
+      --panel: #12171f;
+      --panel-2: #1a212c;
+      --edge: #2a3441;
+      --ink: #e8edf4;
+      --ink-dim: #9aa7b6;
+      --accent: #ffd24a;      /* Artemis pin gold */
+      --cyan: #4fd1ff;        /* footprint cyan */
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    #app { display: flex; flex-direction: column; height: 100vh; }
+
+    header {
+      display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+      padding: 10px 16px; background: linear-gradient(180deg, #12171f, #0d1117);
+      border-bottom: 1px solid var(--edge); z-index: 20;
+    }
+    header .brand { font-size: 17px; font-weight: 700; letter-spacing: 0.2px; }
+    header .brand .dot { color: var(--accent); }
+    header .sub { font-size: 12px; color: var(--ink-dim); }
+    header .sub code { color: #c3cedb; background: #0c1017; padding: 1px 5px;
+      border-radius: 4px; border: 1px solid var(--edge); font-size: 11px; }
+    header .spacer { flex: 1 1 auto; }
+    header .source { font-size: 11px; color: var(--ink-dim); text-align: right; }
+
+    #main { position: relative; flex: 1 1 auto; min-height: 0; }
+    #map { position: absolute; inset: 0; background: #05070a; }
+
+    /* Layers / legend panel */
+    .panel {
+      position: absolute; top: 12px; right: 12px; width: 246px; z-index: 15;
+      background: rgba(18,23,31,0.94); border: 1px solid var(--edge); border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5); backdrop-filter: blur(6px); overflow: hidden;
+    }
+    .panel h2 { margin: 0; padding: 9px 12px; font-size: 12px; text-transform: uppercase;
+      letter-spacing: 0.9px; color: var(--ink-dim); background: var(--panel-2);
+      border-bottom: 1px solid var(--edge); }
+    .panel .body { padding: 8px 12px 12px; }
+    .layer-row { display: flex; align-items: center; gap: 9px; padding: 6px 2px; cursor: pointer;
+      user-select: none; border-radius: 6px; }
+    .layer-row:hover { background: rgba(255,255,255,0.04); }
+    .layer-row input { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+    .layer-row .name { font-size: 13px; }
+    .layer-row .swatch { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
+    .hint { font-size: 11px; color: var(--ink-dim); margin: 8px 2px 2px; line-height: 1.45; }
+
+    .legend { margin-top: 12px; border-top: 1px solid var(--edge); padding-top: 10px; }
+    .legend .title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--ink-dim); margin-bottom: 6px; }
+    .rampbar { height: 10px; border-radius: 5px;
+      background: linear-gradient(90deg,#4a6b8a,#6f9ac4,#c9d6c0,#e8d9a0,#e0a24a,#c0563a,#7a2d2d); }
+    .ramplabels { display: flex; justify-content: space-between; font-size: 10px;
+      color: var(--ink-dim); margin-top: 3px; }
+    .legend .vrow { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-top: 8px; }
+    .legend .pin-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent);
+      border: 1.5px solid #1a1a1a; }
+    .legend .foot-box { width: 14px; height: 11px; border: 1.5px solid var(--cyan);
+      background: rgba(79,209,255,0.10); border-radius: 2px; }
+
+    /* MA-01 value readout HUD — top-left, below the zoom control, clear of the
+       Layers panel (top-right), scale-line + status (bottom-left) and attribution. */
+    #readout { position: absolute; top: 86px; left: 12px; width: 244px; z-index: 15;
+      background: rgba(18,23,31,0.94); border: 1px solid var(--edge); border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5); backdrop-filter: blur(6px); overflow: hidden; }
+    #readout h2 { margin: 0; padding: 9px 12px; font-size: 12px; text-transform: uppercase;
+      letter-spacing: 0.9px; color: var(--ink-dim); background: var(--panel-2);
+      border-bottom: 1px solid var(--edge); }
+    #readout .body { padding: 9px 12px 11px; font-size: 12px; }
+    #readout .ro-line { color: var(--ink-dim); margin: 2px 0; }
+    #readout .ro-line b { color: var(--ink); font-weight: 600; }
+    #readout .ro-elev { color: var(--ink); font-size: 14px; margin-bottom: 3px; }
+    #readout .ro-elev b { color: var(--accent); font-size: 16px; }
+    #readout .ro-nodem { color: var(--ink-dim); font-size: 12px; }
+    #readout .ro-coord { color: var(--ink-dim); font-size: 11px; margin-top: 5px;
+      font-variant-numeric: tabular-nums; }
+    #readout .ro-coord b { color: #c3cedb; font-weight: 600; }
+    #readout .ro-dim { color: #6f7b8a; }
+    #readout .ro-err { color: #ffb4a8; }
+    #readout .ro-hint { color: var(--ink-dim); font-size: 11px; line-height: 1.45; }
+
+    /* Popup */
+    #popup { position: absolute; background: rgba(18,23,31,0.97); border: 1px solid var(--edge);
+      border-radius: 9px; padding: 10px 12px; min-width: 180px; font-size: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.55); transform: translate(-50%, calc(-100% - 12px));
+      pointer-events: auto; display: none; }
+    #popup:after { content: ""; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%);
+      border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 7px solid var(--edge); }
+    #popup .site { font-weight: 700; font-size: 13px; color: var(--accent); margin-bottom: 4px; }
+    #popup .kv { color: var(--ink-dim); }
+    #popup .kv b { color: var(--ink); font-weight: 600; }
+    #popup .close { position: absolute; top: 5px; right: 8px; color: var(--ink-dim); cursor: pointer;
+      font-size: 15px; line-height: 1; }
+
+    /* status / error toast */
+    #status { position: absolute; left: 12px; bottom: 12px; z-index: 15; font-size: 11px;
+      color: var(--ink-dim); background: rgba(18,23,31,0.9); border: 1px solid var(--edge);
+      border-radius: 8px; padding: 6px 10px; max-width: 60vw; }
+    #status.err { color: #ffb4a8; border-color: #6b2b2b; }
+
+    .ol-scale-line { background: rgba(18,23,31,0.85); border: 1px solid var(--edge);
+      left: 12px; bottom: 44px; }
+    .ol-scale-line-inner { color: var(--ink); border-color: var(--ink-dim); }
+    .ol-zoom { top: 12px; left: 12px; }
+    .ol-control button { background: rgba(26,33,44,0.92); }
+    .ol-control button:hover { background: rgba(42,52,65,0.95); }
+    .ol-attribution { background: rgba(18,23,31,0.8) !important; }
+    .ol-attribution ul { color: var(--ink-dim); }
+
+    @media (max-width: 640px) {
+      .panel { width: calc(100vw - 24px); top: auto; right: 12px; bottom: 12px; }
+      #status { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="brand">STEWIE <span class="dot">—</span> Artemis South Pole</div>
+      <div class="sub">Lunar polar-stereographic <code>IAU_2015:30135</code> · Moon 2015 sphere R=1737.4&nbsp;km</div>
+      <div class="spacer"></div>
+      <div class="source">Terrain: LOLA 5&nbsp;m / SfS 1&nbsp;m DEM + hillshade + slope · LROC context<br/>
+        Served by QGIS Server (WMS 1.3.0) · 8 Artemis III candidate sites</div>
+    </header>
+    <div id="main">
+      <div id="map"></div>
+
+      <div class="panel">
+        <h2>Layers</h2>
+        <div class="body" id="layer-list"><!-- built by app.js --></div>
+      </div>
+
+      <div id="readout" aria-live="polite">
+        <h2>Point value</h2>
+        <div class="body" id="readout-body">
+          <div class="ro-hint">Click anywhere on the map to sample the real
+            elevation &amp; slope (WMS GetFeatureInfo).</div>
+        </div>
+      </div>
+
+      <div id="popup">
+        <span class="close" id="popup-close">×</span>
+        <div class="site" id="popup-site"></div>
+        <div id="popup-body"></div>
+      </div>
+
+      <div id="status">Loading lunar terrain…</div>
+    </div>
+  </div>
+
+  <script src="vendor/proj4.js"></script>
+  <script src="vendor/ol.js"></script>
+  <!-- ?v = content hash of app.js: index.html is served DYNAMIC (never edge-cached),
+       so bumping this query busts the Cloudflare edge cache of app.js on the next
+       page load without touching cloudflared. Update when app.js changes. -->
+  <script src="app.js?v=a4b57b67"></script>
+</body>
+</html>

@@ -6,7 +6,7 @@ Authoritative measurement stays on the `IAU_2015:30135` LOLA/USGS COGs (and `IAU
 
 ## Gate 5 - every ARTEMIS_LAYERS row is loaded or deferred
 
-Gate 5 self-check: **PASS** (16 rows).
+Gate 5 self-check: **PASS** (17 rows).
 
 | ARTEMIS row | status | layer / reason | note / URL |
 |---|---|---|---|
@@ -17,6 +17,7 @@ Gate 5 self-check: **PASS** (16 rows).
 | B/Haworth SfS 1 m DEM | LOADED | stewie.terrain.haworth.dem (core) |  |
 | B/8x Artemis site DEMs (PGDA Product 78, 5 m) | LOADED | stewie.terrain.<site>.dem x8 (core) |  |
 | B/LOLA 5 m polar | LOADED | == the 8 site DEMs (PGDA Product 78, 5 m/px polar-stereo) |  |
+| B/LOLA LDEM 75S continuous south-polar basemap (120 m) | LOADED | stewie.base.south_polar_basemap (LDEM_75S_120M hillshade COG, 75-90S, bottom of the layer tree - continuous context under the site DEMs) |  |
 | B/LOLA 20 m polar | DEFERRED | broader-area 20 m context tiles not downloaded (the 5 m site DEMs carry the mission zone); additive fetch when wider-area context is needed. | https://pgda.gsfc.nasa.gov/products/78 |
 | B/LROC NAC South Pole mosaic (imagery drape) | LOADED | stewie.base.lroc_nac_sp | catalogued URL data.lroc.im-ldi.com/lroc/view_rdr/NAC_POLE_SOUTH is an HTML browse viewer, not a raster service; the same mosaic is served as a WMS layer (luna_nac_2m_sp_mosaic) via Lunaserv and renders 0.68 over Site01. |
 | C/Artemis III LOLA-5m site pins (8) | LOADED | stewie.vector.sites.pins (artemis_sites.geojson points, DEM centres) |  |
@@ -37,5 +38,5 @@ Gate 5 self-check: **PASS** (16 rows).
 | STEWIE /ogc dem drape (live backend) | http://127.0.0.1:8000/ogc/wms | True | 0.0 (server tile 0.5479) | valid-blank (in-canvas render culled/empty) | True |
 | Moon Trek WMTS (LRO WAC global) | https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0/WMTSCapabilities.xml | True | 0.0 | valid-blank (in-canvas render culled/empty) | False |
 
-Counts: 26 authoritative rasters, 2 vector layers, 4 external context layers added, 32 layers total.
+Counts: 26 authoritative rasters, 2 vector layers, 4 external context layers added, 33 layers total.
 
