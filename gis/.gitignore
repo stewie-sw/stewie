@@ -1,0 +1,4 @@
+proof/
+*.pyc
+__pycache__/
+layer_status.json

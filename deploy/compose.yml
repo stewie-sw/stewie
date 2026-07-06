@@ -94,6 +94,49 @@ services:
           devices:
             - { driver: nvidia, count: all, capabilities: [ "gpu" ] }
     restart: "no"                            # a render job runs to completion; it is not a long-lived service
+  # P1.8: QGIS Server publishing the shared-core lunar project (stewie_south_pole.qgz) as OGC
+  # WMS/WMTS/WFS -- the web-render foundation and the "one project, two clients" promise: QGIS
+  # Desktop opens the SAME .qgz this service publishes. LOCAL-ONLY + opt-in via the 'gis' profile,
+  # so it never starts with a default `up` and never touches the app.stewie.space backend/frontend.
+  #   docker compose -f deploy/compose.yml --profile gis up -d qgis-server
+  # Verified GetMap (Site01, IAU_2015:30135, pole-truthful -- byte-identical to the QGIS Desktop
+  # proof render, gate 2):
+  #   http://127.0.0.1:8082/ows/?MAP=/io/data/code/gis/stewie_south_pole.qgz&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=Site01%20Hillshade,Site01%20DEM,Site01%20Slope&CRS=IAU_2015:30135&BBOX=-19000,-20000,-3000,-4000&WIDTH=1400&HEIGHT=1400&FORMAT=image/png&STYLES=
+  #
+  # Image pin -- qgis/qgis-server:3.34, NOT :3.22: the exact-version 3.22 image ships PROJ 6.3.1
+  # whose proj.db carries ZERO IAU rows, so it cannot resolve the project CRS IAU_2015:30135. The
+  # 3.34 image bundles PROJ 9.4 (IAU registry present) and reads the 3.22 project forward-compatibly,
+  # rendering Site01 byte-identically to QGIS Desktop 3.22 (verified P1.8). See gis/SERVER.md.
+  qgis-server:
+    profiles: [ "gis" ]
+    image: qgis/qgis-server:3.34
+    container_name: stewie-qgis-server
+    # LOCAL-ONLY: loopback bind, no public route (edge gating is Phase 3). nginx serves inside on :80.
+    ports: [ "127.0.0.1:8082:80" ]
+    environment:
+      # Drop layers whose source is unreachable at load rather than fail the whole request: the
+      # backend /ogc drape (http://127.0.0.1:8000 -- host loopback, not reachable from a bridged
+      # container until the P2.0 host.docker.internal wiring) and the Lunaserv WMS drapes if this
+      # host's docker bridge cannot egress. The authoritative on-disk COG/vector layers render regardless.
+      QGIS_SERVER_IGNORE_BAD_LAYERS: "1"
+      QGIS_SERVER_PARALLEL_RENDERING: "true"
+      QGIS_SERVER_MAX_THREADS: "2"
+    # CRITICAL: the .qgz uses project-relative datasource paths (../../data/gis/... from code/gis/).
+    # Mount so <projectdir>/../../data/gis resolves to the real data INSIDE the container:
+    #   project at /io/data/code/gis/stewie_south_pole.qgz  ->  ../../data/gis == /io/data/data/gis
+    # READ-ONLY (the service never writes mission data).
+    volumes:
+      - "../gis:/io/data/code/gis:ro"                                     # ../ from deploy/ == code/ ; carries the .qgz
+      - "${STEWIE_GIS_DATA_DIR:-/mnt/projects/stewie/data/gis}:/io/data/data/gis:ro"
+    extra_hosts:
+      # Lets a future backend-drape reach the host's :8000 as host.docker.internal (wired in P2.0).
+      - "host.docker.internal:host-gateway"
+      # If THIS host's docker bridge cannot egress to the Lunaserv WMS (wms.im-ldi.com) -- as on the
+      # archimedes sandbox -- the offline drapes stall project load ~60 s before IGNORE_BAD_LAYERS
+      # drops them. Fast-fail them by resolving the host to loopback (instant 404 -> dropped). REMOVE
+      # this line on a host whose bridge CAN reach Lunaserv, so the imagery drapes actually render.
+      - "wms.im-ldi.com:127.0.0.1"
+    restart: unless-stopped
 
 volumes:
   stewie-data:
