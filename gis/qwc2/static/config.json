@@ -303,6 +303,9 @@
         "name": "MissionLayers"
       },
       {
+        "name": "WholeMoon"
+      },
+      {
         "name": "Redlining"
       },
       {
@@ -333,6 +336,7 @@
             ]},
             {"key": "Print", "icon": "print", "shortcut": "alt+shift+p"},
             {"key": "Help", "icon": "info", "shortcut": "alt+shift+h"},
+            {"key": "WholeMoon", "title": "Whole Moon", "icon": "sphere"},
             {"key": "MissionLayers", "title": "Mission Layers", "icon": "layers"},
             {"key": "MissionHUD", "title": "Rover HUD", "icon": "routing-car"},
             {"key": "Settings", "icon": "cog"},

@@ -43,11 +43,28 @@ npx qwc_build_iconfont
 echo "[build] webpack (production, publicPath=/ide/) ..."
 npx webpack --mode production --progress
 
+# 3b. Vendor Cesium (self-hosted, no CDN) into prod/cesium/ for the "Whole Moon" 3-D overview. Reuses the
+#     repo's already-vendored Cesium 1.119 build (the SAME one the app.stewie.space cockpit serves) so there
+#     is one Cesium of record and no 20 MB duplicated into git. Copied AFTER webpack because webpack's
+#     output.clean wipes prod/ at the start of the bundle step (this is mount-safe: it empties the dir, it
+#     does not remove the bind-mount point). Served by nginx `location /ide/` at /ide/cesium/ (CESIUM_BASE_URL
+#     in js/mission/wholeMoonGlobe.js). prod/ is gitignored, so this stays out of version control.
+CESIUM_SRC="../../stewie/server/cesium"
+if [ ! -f "$CESIUM_SRC/Cesium.js" ]; then
+  echo "FAIL: vendored Cesium not found at $CESIUM_SRC (needed for the Whole Moon overview)"; exit 1
+fi
+echo "[build] vendoring Cesium 1.119 -> prod/cesium/ (self-hosted, no CDN) ..."
+rm -rf prod/cesium
+cp -r "$CESIUM_SRC" prod/cesium
+
 # 4. Sanity assertions — fail loudly rather than deploy a broken /ide/.
 test -f prod/index.html            || { echo "FAIL: prod/index.html missing"; exit 1; }
 test -f prod/dist/QWC2App.js       || { echo "FAIL: prod/dist/QWC2App.js missing"; exit 1; }
+test -f prod/cesium/Cesium.js      || { echo "FAIL: prod/cesium/Cesium.js missing (Whole Moon overview)"; exit 1; }
+test -f prod/cesium/Widgets/widgets.css || { echo "FAIL: prod/cesium/Widgets/widgets.css missing"; exit 1; }
 grep -q '/ide/dist/QWC2App.js' prod/index.html || { echo "FAIL: prod/index.html not built for /ide/"; exit 1; }
 grep -q 'stewie_lunar' prod/themes.json  || { echo "FAIL: lunar theme missing from prod/themes.json"; exit 1; }
 grep -q 'IAU_2015:30135' prod/config.json || { echo "FAIL: lunar proj4 missing from prod/config.json"; exit 1; }
+grep -q '"WholeMoon"' prod/config.json || { echo "FAIL: WholeMoon plugin missing from prod/config.json"; exit 1; }
 
 echo "[build] OK — prod/ ready. Mounted by deploy/compose.yml at nginx /ide/."

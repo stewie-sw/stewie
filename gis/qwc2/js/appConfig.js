@@ -70,6 +70,7 @@ import BufferSupport from 'qwc2/plugins/redlining/RedliningBufferSupport';
 
 import MissionHUDPlugin from './plugins/MissionHUD';   // STEWIE: live read-only rover HUD side panel
 import MissionLayersPlugin from './plugins/MissionLayers';   // STEWIE: mission layer-catalog panel (T6)
+import WholeMoonPlugin from './plugins/WholeMoon';   // STEWIE: whole-Moon 3D overview (both hemispheres) + dive-to-site
 
 import defaultLocaleData from '../static/translations/en-US.json';
 import {customAttributeCalculator, attributeTransform, customExporters} from './IdentifyExtensions';
@@ -161,6 +162,7 @@ export default {
             ZoomOutPlugin: ZoomOutPlugin,
             MissionHUDPlugin: MissionHUDPlugin,   // STEWIE: live read-only rover HUD
             MissionLayersPlugin: MissionLayersPlugin,   // STEWIE: mission layer-catalog panel (T6)
+            WholeMoonPlugin: WholeMoonPlugin,   // STEWIE: whole-Moon 3D overview + dive-to-site
         },
         cfg: {
             IdentifyPlugin: {
