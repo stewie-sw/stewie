@@ -106,3 +106,24 @@ def test_m11_snapshot_leaves_no_tmp_visible_to_retention(tmp_path):
     names = os.listdir(snaps)
     assert not any(n.endswith(".tmp") for n in names)
     assert [n for n in names if n.startswith("twin_v")] == ["twin_v000001.npz"]
+
+
+_HAWORTH = os.path.join(os.path.dirname(__file__), "..", "..",
+                        "samples", "lunar_dem", "haworth_10km_5m", "heightmap.rf32")
+
+
+@pytest.mark.skipif(not os.path.exists(_HAWORTH), reason="haworth DEM not present")
+def test_perf_p4_uncompressed_snapshot_round_trip_is_byte_preserved_on_haworth(tmp_path):
+    """P4: snapshot() switched from savez_compressed (breached the 1000 ms budget on the full base) to the
+    uncompressed savez. The on-disk format changes but restore() (np.load auto-detects) must yield a
+    byte-identical twin. Proven on a REAL Haworth base sub-tile (a 300x300 window of the committed DEM)."""
+    base = np.fromfile(_HAWORTH, dtype="<f4").reshape(2000, 2000).astype(float)[500:800, 500:800].copy()
+    tw = vt.TwinStore(base, cell_m=5.0, journal_path=str(tmp_path / "twin.journal"))
+    tw.apply_patch(np.full((4, 4), 0.3), origin_rc=(3, 3), provenance="edit-1")
+    tw.apply_patch(np.full((2, 2), -0.1), origin_rc=(10, 10), provenance="edit-2")
+    p = B.snapshot(tw, str(tmp_path / "snaps"))
+    cold = B.restore(p)                                   # np.load reads uncompressed and compressed .npz
+    assert cold.current().tobytes() == tw.current().tobytes()      # the twin, byte-for-byte
+    assert np.asarray(cold.base).tobytes() == np.asarray(tw.base).tobytes()
+    assert cold.version == tw.version and cold.events == tw.events and cold.cell_m == tw.cell_m
+    assert cold.verify_chain()

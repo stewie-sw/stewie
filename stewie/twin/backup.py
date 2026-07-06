@@ -42,10 +42,14 @@ def snapshot(tw: TwinStore, snaps_dir: str) -> str:
     chk = _content_checksum(tw.base, tw.cell_m, tw.events)
     try:
         with open(tmp, "wb") as fh:
-            np.savez_compressed(fh, base=np.asarray(tw.base),
-                                cell_m=np.array([tw.cell_m]),
-                                events=np.frombuffer(json.dumps(tw.events).encode(), dtype=np.uint8),
-                                checksum=np.frombuffer(chk.encode(), dtype=np.uint8))
+            # P4: UNCOMPRESSED savez. zlib-deflating the full float64 base grid breached the 1000 ms
+            # snapshot budget (2000x2000 base ~= 1.38 s; baseline recorded 1300 ms); savez is ~25 ms.
+            # restore() reads via np.load, which auto-detects stored vs deflated .npz, so the on-disk
+            # format change is transparent and the snapshot->restore round-trip is byte-preserved.
+            np.savez(fh, base=np.asarray(tw.base),
+                     cell_m=np.array([tw.cell_m]),
+                     events=np.frombuffer(json.dumps(tw.events).encode(), dtype=np.uint8),
+                     checksum=np.frombuffer(chk.encode(), dtype=np.uint8))
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp, path)                             # atomic rename within the filesystem

@@ -119,3 +119,80 @@ def test_real_terrain_composite_blocks_have_reasons():
     blocked = out.reason[~out.passable].tolist()
     assert blocked, "real crater terrain should block some cells"
     assert all(r in cl.LAYER_NAMES for r in blocked)   # every blocked cell names a real layer
+
+
+# --- PERF byte-equivalence (P1/P2/P3): outputs UNCHANGED, only fewer redundant passes -----------------
+# The hot-path optimizations must not move a single bit. Proven on a REAL rover-scale work-area on the
+# committed LOLA Haworth tile (a 96x96 subsample of the 2000x2000 DEM -- real data, not synthetic).
+_HAWORTH = os.path.join(os.path.dirname(__file__), "..", "samples", "lunar_dem",
+                        "haworth_10km_5m", "heightmap.rf32")
+
+
+def _haworth_work_area():
+    full = np.fromfile(_HAWORTH, dtype="<f4").reshape(2000, 2000).astype(float)
+    return full[900:996, 900:996].copy(), 5.0
+
+
+def _compose_by_independent_recompute(ctx, layers=cl.LAYERS):
+    """The pre-P1/P3 combine: every layer computes its OWN slope/lit (call each fn(ctx), no shared arg),
+    combined with compose's exact per-layer logic. This is the 'before' path for P1 (slope x5) and P3
+    (horizon_clip x2)."""
+    H, W = ctx.Z.shape
+    total = np.ones((H, W), float)
+    passable = np.ones((H, W), bool)
+    per_cost, per_block = {}, {}
+    for fn in layers:
+        cost_delta, impass, name = fn(ctx)             # no shared slope/lit -> each layer recomputes
+        total = total + np.asarray(cost_delta, float)
+        impass = np.asarray(impass, bool)
+        passable = passable & ~impass
+        per_cost[name] = float(np.nansum(cost_delta))
+        per_block[name] = int(np.count_nonzero(impass))
+    return total, passable, per_cost, per_block
+
+
+@pytest.mark.skipif(not os.path.exists(_HAWORTH), reason="haworth DEM not present")
+def test_perf_p1_p3_shared_precompute_is_byte_identical_on_haworth():
+    """P1 (slope computed once, not 5x) + P3 (horizon_clip once, not 2x): compose's shared-precompute path
+    is byte-identical to every layer recomputing its own slope/lit, on the real Haworth work-area."""
+    from dart import illumination as illum
+    from stewie.terrain.site_dem import slope_deg_map
+    Z, cm = _haworth_work_area()
+    ctx = cl.CostmapContext(Z=Z, cell_m=cm, sun_el_deg=12.0, sun_az_deg=200.0)
+    slope = slope_deg_map(Z, cm)
+    lit = illum.horizon_clip(Z, cm, sun_az_deg=ctx.sun_az_deg, sun_el_deg=ctx.sun_el_deg)
+    # each shared-consumer layer: handing it the shared array == it recomputing, bit for bit
+    for fn in (cl._slope, cl._roughness, cl._slip, cl._tip_risk, cl._energy):
+        sh, re = fn(ctx, slope), fn(ctx)
+        assert np.array_equal(np.asarray(sh[0], float), np.asarray(re[0], float)), fn.__name__
+        assert np.array_equal(np.asarray(sh[1], bool), np.asarray(re[1], bool)), fn.__name__
+    for fn in (cl._psr, cl._shadow_confidence):
+        sh, re = fn(ctx, lit), fn(ctx)
+        assert np.array_equal(np.asarray(sh[0], float), np.asarray(re[0], float)), fn.__name__
+        assert np.array_equal(np.asarray(sh[1], bool), np.asarray(re[1], bool)), fn.__name__
+    # and the whole compose is byte-identical to the independent-recompute 'before'
+    got = cl.compose(ctx)
+    ref_cost, ref_pass, ref_pc, ref_pb = _compose_by_independent_recompute(ctx)
+    assert np.array_equal(got.cost, ref_cost)
+    assert np.array_equal(got.passable, ref_pass)
+    assert got.per_layer_cost == ref_pc
+    assert got.per_layer_block == ref_pb
+
+
+@pytest.mark.skipif(not os.path.exists(_HAWORTH), reason="haworth DEM not present")
+def test_perf_p2_energy_vectorization_is_byte_identical_on_haworth():
+    """P2: the vectorized _energy equals the pre-P2 nested per-cell scalar loop over lunar_drive_power_w,
+    byte-for-byte, on the real Haworth work-area (the closed form is branch-free so it vectorizes exactly)."""
+    from stewie.specs import ipex_specs
+    from stewie.terrain.site_dem import slope_deg_map
+    Z, cm = _haworth_work_area()
+    ctx = cl.CostmapContext(Z=Z, cell_m=cm)
+    s = slope_deg_map(Z, cm)
+    base = ipex_specs.lunar_drive_power_w(slope_deg=0.0)
+    old_grade = np.array([[ipex_specs.lunar_drive_power_w(slope_deg=float(min(abs(v), 30.0)))
+                           for v in row] for row in s])           # the exact code _energy replaced
+    old_energy = old_grade / base - 1.0
+    new_energy, new_block, name = cl._energy(ctx)
+    assert name == "energy"
+    assert np.array_equal(old_energy, new_energy)
+    assert not new_block.any()

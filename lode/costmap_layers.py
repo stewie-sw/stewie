@@ -59,16 +59,18 @@ class CostmapContext:
     reserved_mask: "np.ndarray | None" = None
 
 
-def _slope(ctx):
-    s = slope_deg_map(ctx.Z, ctx.cell_m)
+def _slope(ctx, slope=None):
+    # P1: reuse compose's single shared slope pass when given; recompute (byte-identical, slope_deg_map
+    # is deterministic) only when the layer is invoked standalone (slope=None).
+    s = slope_deg_map(ctx.Z, ctx.cell_m) if slope is None else slope
     cost = ctx.slip_alpha * np.tan(np.radians(np.minimum(s, 89.0)))
     return cost, (s > ctx.max_slope_deg), "slope"
 
 
-def _roughness(ctx):
+def _roughness(ctx, slope=None):
     # per-cell roughness = local std of the slope field over a 3x3 window (the dem_stats RMS-slope idea,
     # localized): rough terrain costs more even below the slope cap.
-    s = slope_deg_map(ctx.Z, ctx.cell_m)
+    s = slope_deg_map(ctx.Z, ctx.cell_m) if slope is None else slope
     from scipy.ndimage import uniform_filter
     mean = uniform_filter(s, size=3, mode="nearest")
     var = uniform_filter(s * s, size=3, mode="nearest") - mean * mean
@@ -91,13 +93,13 @@ def _sinkage(ctx):
     return cost, impass, "sinkage"
 
 
-def _slip(ctx):
-    s = slope_deg_map(ctx.Z, ctx.cell_m)
+def _slip(ctx, slope=None):
+    s = slope_deg_map(ctx.Z, ctx.cell_m) if slope is None else slope
     return np.tan(np.radians(np.minimum(s, 89.0))), np.zeros_like(s, bool), "slip"
 
 
-def _tip_risk(ctx):
-    s = slope_deg_map(ctx.Z, ctx.cell_m)
+def _tip_risk(ctx, slope=None):
+    s = slope_deg_map(ctx.Z, ctx.cell_m) if slope is None else slope
     limit = stability.tip_tilt_limit_deg(gauge_m=ctx.gauge_m, wheelbase_m=ctx.wheelbase_m,
                                          cg_height_m=ctx.cg_height_m)
     return np.zeros_like(s), (s > limit), "tip_risk"
@@ -116,31 +118,41 @@ def _illumination(ctx):
     return cost, np.zeros(ctx.Z.shape, bool), "illumination"
 
 
-def _psr(ctx):
+def _psr(ctx, lit=None):
     # local-horizon illuminated mask (True = sees the sun); psr_gate returns the shadowed cold-trap
     # candidates (True = permanently/this-epoch shadowed) -> impassable. On a flat plane at high sun
     # everything is lit -> no PSR block.
-    lit = illum.horizon_clip(ctx.Z, ctx.cell_m, sun_az_deg=ctx.sun_az_deg, sun_el_deg=ctx.sun_el_deg)
+    # P3: reuse compose's single shared horizon sweep when given (byte-identical, horizon_clip is
+    # deterministic); recompute only when invoked standalone (lit=None).
+    if lit is None:
+        lit = illum.horizon_clip(ctx.Z, ctx.cell_m, sun_az_deg=ctx.sun_az_deg, sun_el_deg=ctx.sun_el_deg)
     impass = np.asarray(illum.psr_gate(lit), bool)
     return np.zeros(ctx.Z.shape), impass, "psr"
 
 
-def _shadow_confidence(ctx):
+def _shadow_confidence(ctx, lit=None):
     # Perception reliability, NOT a hard block: a cell in local-horizon cast shadow is still drivable
     # but is low-confidence to map/localize in (weak texture, no direct light). psr owns the cold-trap
     # BLOCK; this layer adds a traversal cost to shadowed-but-passable ground so a route prefers lit
     # terrain when it can. lit = sees the sun (horizon_clip); shadowed cells pay a flat confidence cost.
-    lit = illum.horizon_clip(ctx.Z, ctx.cell_m, sun_az_deg=ctx.sun_az_deg, sun_el_deg=ctx.sun_el_deg)
+    # P3: reuse compose's single shared horizon sweep when given; recompute only standalone (lit=None).
+    if lit is None:
+        lit = illum.horizon_clip(ctx.Z, ctx.cell_m, sun_az_deg=ctx.sun_az_deg, sun_el_deg=ctx.sun_el_deg)
     cost = np.where(np.asarray(lit, bool), 0.0, 1.0)
     return cost, np.zeros(ctx.Z.shape, bool), "shadow_confidence"
 
 
-def _energy(ctx):
-    s = slope_deg_map(ctx.Z, ctx.cell_m)
+def _energy(ctx, slope=None):
+    s = slope_deg_map(ctx.Z, ctx.cell_m) if slope is None else slope
     # per-cell grade-dependent lunar drive power (sourced ipex_specs), normalized to a cost multiplier
     base = ipex_specs.lunar_drive_power_w(slope_deg=0.0)
-    grade = np.array([[ipex_specs.lunar_drive_power_w(slope_deg=float(min(abs(v), 30.0)))
-                       for v in row] for row in s])
+    # P2: lunar_drive_power_w is a BRANCH-FREE closed form (ipex_specs.py:186-196), so the per-cell scalar
+    # loop vectorizes EXACTLY. Reproduce it on the clamped slope array with the SAME module defaults the
+    # scalar call uses (mass/g/crr/v/efficiency), in the SAME operation order -- byte-identical, one op.
+    th = np.radians(np.minimum(np.abs(s), 30.0))
+    f_tractive = (ipex_specs.ROVER_MASS_CLASS_KG * ipex_specs.LUNAR_G_MS2
+                  * (ipex_specs.ROLLING_RESISTANCE_COEFF * np.cos(th) + np.sin(th)))
+    grade = f_tractive * ipex_specs.DRIVE_SPEED_MS / ipex_specs.DRIVETRAIN_EFFICIENCY
     return (grade / base - 1.0), np.zeros_like(s, bool), "energy"
 
 
@@ -161,6 +173,13 @@ LAYERS = (_slope, _roughness, _sinkage, _slip, _tip_risk, _negative_obstacle, _i
           _shadow_confidence, _energy, _keepout, _reservation)
 LAYER_NAMES = tuple(fn(CostmapContext(np.zeros((2, 2))))[2] for fn in LAYERS)
 
+# P1/P3: the layers that consume, respectively, a full-grid slope map or the local-horizon `lit` mask.
+# compose computes each shared quantity ONCE and hands it to its consumers, so one compose does a single
+# slope pass (not five) and a single horizon sweep (not two). Byte-identical: slope_deg_map / horizon_clip
+# are deterministic, so a shared array equals a per-layer recompute exactly.
+_SLOPE_LAYERS = frozenset({_slope, _roughness, _slip, _tip_risk, _energy})
+_LIT_LAYERS = frozenset({_psr, _shadow_confidence})
+
 
 @dataclass
 class CompositeCostmap:
@@ -178,8 +197,19 @@ def compose(ctx: CostmapContext, layers=LAYERS) -> CompositeCostmap:
     passable = np.ones((H, W), bool)
     reason = np.full((H, W), "", dtype=object)
     per_cost, per_block = {}, {}
+    # P1/P3: compute the shared slope map + local-horizon lit mask ONCE for the whole compose (only when a
+    # layer in play actually needs each), then hand them to their consumers instead of recomputing per layer.
+    slope = (slope_deg_map(ctx.Z, ctx.cell_m)
+             if any(fn in _SLOPE_LAYERS for fn in layers) else None)
+    lit = (illum.horizon_clip(ctx.Z, ctx.cell_m, sun_az_deg=ctx.sun_az_deg, sun_el_deg=ctx.sun_el_deg)
+           if any(fn in _LIT_LAYERS for fn in layers) else None)
     for fn in layers:
-        cost_delta, impass, name = fn(ctx)
+        if fn in _SLOPE_LAYERS:
+            cost_delta, impass, name = fn(ctx, slope)
+        elif fn in _LIT_LAYERS:
+            cost_delta, impass, name = fn(ctx, lit)
+        else:
+            cost_delta, impass, name = fn(ctx)
         total = total + np.asarray(cost_delta, float)
         impass = np.asarray(impass, bool)
         newly = impass & passable                 # cells this layer is the FIRST to block

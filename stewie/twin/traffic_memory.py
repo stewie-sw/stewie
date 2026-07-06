@@ -182,12 +182,10 @@ class TrafficMemory:
         RHO_DEEP), the traffic.compaction map field."""
         return material.relative_density(self.densified_density())
 
-    def bearing_uplift_pa(self, *, width_m: float = 0.30, g: float = float(K.g),
-                          factor_of_safety: float = 3.0) -> np.ndarray:
-        """Per-cell allowable-bearing UPLIFT [Pa] the traffic produced: q_allow(rho_N) - q_allow(RHO_SURFACE),
-        via `material.cell_strength` -> `bearing.allowable_bearing_pa` (the SAME bearing solver the release
-        gate uses). A firmer haul road bears more -> a compacted road is a firmer future pad. ``width_m`` is
-        the footprint width for the readout (a rover contact patch / a small pad); default 0.30 m."""
+    def _bearing_q_fn(self, *, width_m: float, g: float, factor_of_safety: float):
+        """The allowable-bearing readout q_allow(rho) [Pa] for this site's material model: `material.
+        cell_strength` -> `bearing.allowable_bearing_pa` (the SAME solver the release gate uses). Shared by
+        the full-grid `bearing_uplift_pa` and the peak-only summary path so the two can never drift apart."""
         from stewie_forge.bearing import allowable_bearing_pa
 
         def _q(rho: float) -> float:
@@ -195,10 +193,31 @@ class TrafficMemory:
             return allowable_bearing_pa(c, phi, rho * float(g), float(width_m),
                                         factor_of_safety=factor_of_safety)
 
+        return _q
+
+    def bearing_uplift_pa(self, *, width_m: float = 0.30, g: float = float(K.g),
+                          factor_of_safety: float = 3.0) -> np.ndarray:
+        """Per-cell allowable-bearing UPLIFT [Pa] the traffic produced: q_allow(rho_N) - q_allow(RHO_SURFACE).
+        A firmer haul road bears more -> a compacted road is a firmer future pad. ``width_m`` is the footprint
+        width for the readout (a rover contact patch / a small pad); default 0.30 m."""
+        _q = self._bearing_q_fn(width_m=width_m, g=g, factor_of_safety=factor_of_safety)
         rho_n = self.densified_density()
         q_base = _q(float(K.RHO_SURFACE))
         q_field = np.vectorize(_q)(rho_n)
         return np.maximum(q_field - q_base, 0.0)
+
+    def _peak_bearing_uplift_pa(self, *, width_m: float = 0.30, g: float = float(K.g),
+                                factor_of_safety: float = 3.0) -> float:
+        """P5: `summary()` only needs ``bearing_uplift_pa().max()``. q_allow is monotone non-decreasing in
+        density, so the peak uplift is at the peak-density cell; evaluate the (Python) bearing solver ONCE
+        there instead of np.vectorize-ing it over the whole grid. Byte-identical to
+        ``float(bearing_uplift_pa(...).max())`` (proven on real Haworth traffic in test_traffic_memory)."""
+        rho_n = self.densified_density()
+        if rho_n.size == 0:
+            return 0.0
+        _q = self._bearing_q_fn(width_m=width_m, g=g, factor_of_safety=factor_of_safety)
+        q_base = _q(float(K.RHO_SURFACE))
+        return float(max(_q(float(rho_n.max())) - q_base, 0.0))
 
     # ---- reporting + provenance ----------------------------------------------------------------------
     def summary(self) -> dict:
@@ -213,7 +232,7 @@ class TrafficMemory:
             "max_load_cycles_n": round(float(self._load_cycles.max()) if self._load_cycles.size else 0.0, 3),
             "peak_relative_density": round(float(dr.max()) if dr.size else 0.0, 4),
             "cells_firm_dr_gt_0p5": int(np.count_nonzero(dr > 0.5)),
-            "peak_bearing_uplift_pa": round(float(self.bearing_uplift_pa().max()) if dr.size else 0.0, 3),
+            "peak_bearing_uplift_pa": round(self._peak_bearing_uplift_pa() if dr.size else 0.0, 3),
             "missions": [c["mission"] for c in self.chain],
         }
 

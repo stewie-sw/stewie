@@ -183,3 +183,22 @@ def test_load_site_store_roundtrip(tmp_path):
     back = TW.load_site(str(tmp_path), "haworth")
     assert back is not None and back.version == 1
     assert np.allclose(back.relative_density(), tmem.relative_density())
+
+
+# --- PERF byte-equivalence (P5): summary's peak_bearing_uplift_pa readout unchanged --------------------
+
+def test_perf_p5_peak_bearing_uplift_is_byte_identical_to_full_grid_max():
+    """P5: summary() only needs bearing_uplift_pa().max(). q_allow is monotone in density, so the peak is at
+    the peak-density cell -- evaluate the bearing solver ONCE there instead of vectorizing the whole grid.
+    Byte-identical to float(bearing_uplift_pa().max()), on a REAL Haworth haul corridor (real IPEx wheel
+    load, real driven-cell geometry, varied pass counts so cell densities differ)."""
+    tmem = TrafficMemory(site="haworth", rows=40, cols=40, cell_m=5.0)
+    load = _real_wheel_load()
+    corridor = [(r, c) for r in range(3, 37) for c in (18, 19, 20)]
+    for i in range(9):                                    # tapering corridor -> a spread of per-cell Dr
+        tmem.apply_path(corridor[: len(corridor) - 2 * i], load, mission=f"haul-{i}", event_id=f"h:{i}")
+    fast = tmem._peak_bearing_uplift_pa()
+    full = float(tmem.bearing_uplift_pa().max())
+    assert fast == full                                   # bit-for-bit, not approx
+    # the summary field is exactly the same rounded value the pre-P5 full-grid path produced
+    assert tmem.summary()["peak_bearing_uplift_pa"] == round(full, 3)
