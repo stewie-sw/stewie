@@ -69,6 +69,7 @@ import SnappingSupport from 'qwc2/plugins/map/SnappingSupport';
 import BufferSupport from 'qwc2/plugins/redlining/RedliningBufferSupport';
 
 import MissionHUDPlugin from './plugins/MissionHUD';   // STEWIE: live read-only rover HUD side panel
+import MissionLayersPlugin from './plugins/MissionLayers';   // STEWIE: mission layer-catalog panel (T6)
 
 import defaultLocaleData from '../static/translations/en-US.json';
 import {customAttributeCalculator, attributeTransform, customExporters} from './IdentifyExtensions';
@@ -159,6 +160,7 @@ export default {
             ZoomInPlugin: ZoomInPlugin,
             ZoomOutPlugin: ZoomOutPlugin,
             MissionHUDPlugin: MissionHUDPlugin,   // STEWIE: live read-only rover HUD
+            MissionLayersPlugin: MissionLayersPlugin,   // STEWIE: mission layer-catalog panel (T6)
         },
         cfg: {
             IdentifyPlugin: {
