@@ -208,10 +208,65 @@
       text-decoration: none; font-weight: 600; }
     #au-run a.x-link:hover { text-decoration: underline; }
 
+    /* RT-04 ROS2 engine pane — dockable/toggleable live telemetry. Same dark QGIS theme.
+       Bottom-right dock, clear of the Layers panel (top-right) and authoring (left). */
+    .hdr-btn { font-size: 12px; font-weight: 600; color: var(--ink-dim); cursor: pointer;
+      background: #0c1017; border: 1px solid var(--edge); border-radius: 6px; padding: 5px 10px; }
+    .hdr-btn:hover { color: var(--ink); background: #151b24; }
+    .hdr-btn .b-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: #6f7b8a; margin-right: 6px; vertical-align: middle; }
+    .hdr-btn.live .b-dot { background: #7fe0a8; box-shadow: 0 0 6px rgba(127,224,168,0.8); }
+
+    #engine { position: absolute; right: 12px; bottom: 12px; width: 300px; z-index: 16;
+      max-height: calc(100% - 24px); display: flex; flex-direction: column;
+      background: rgba(18,23,31,0.96); border: 1px solid var(--edge); border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.55); backdrop-filter: blur(6px); overflow: hidden; }
+    #engine.hidden { display: none; }
+    .eng-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px;
+      background: var(--panel-2); border-bottom: 1px solid var(--edge); flex: 0 0 auto; }
+    .eng-dot { width: 9px; height: 9px; border-radius: 50%; background: #6f7b8a; flex: 0 0 auto; }
+    .eng-dot.ok { background: #7fe0a8; box-shadow: 0 0 6px rgba(127,224,168,0.8); }
+    .eng-dot.err { background: #ff7a6a; }
+    .eng-dot.wait { background: #ffd24a; animation: xpulse 1s ease-in-out infinite; }
+    .eng-title { font-size: 12px; font-weight: 700; letter-spacing: 0.4px; color: var(--ink);
+      text-transform: uppercase; }
+    .eng-ro { font-size: 9px; font-weight: 700; letter-spacing: 0.7px; color: #bfeeff;
+      border: 1px solid #2f6b7f; background: rgba(79,209,255,0.12); border-radius: 4px;
+      padding: 2px 5px; }
+    .eng-x { margin-left: auto; color: var(--ink-dim); cursor: pointer; font-size: 16px;
+      line-height: 1; padding: 0 2px; }
+    .eng-x:hover { color: var(--ink); }
+    .eng-body { padding: 10px 12px 11px; font-size: 12px; overflow-y: auto; }
+    .eng-conn { font-size: 11px; color: var(--ink-dim); margin-bottom: 9px;
+      font-variant-numeric: tabular-nums; }
+    .eng-conn b { color: #7fe0a8; font-weight: 600; }
+    .eng-conn.err b { color: #ffb4a8; }
+    .eng-sec { margin-top: 10px; border-top: 1px solid var(--edge); padding-top: 8px; }
+    .eng-sec:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+    .eng-sec-t { font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px;
+      color: var(--ink-dim); margin-bottom: 6px; display: flex; align-items: baseline; gap: 6px; }
+    .eng-hz { color: #7fe0a8; font-size: 10px; font-variant-numeric: tabular-nums; }
+    .eng-topics { list-style: none; margin: 0; padding: 0; }
+    .eng-topics li { display: flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 11px;
+      font-variant-numeric: tabular-nums; }
+    .eng-topics .t-dot { width: 7px; height: 7px; border-radius: 50%; background: #3a4653;
+      flex: 0 0 auto; }
+    .eng-topics li.live .t-dot { background: #7fe0a8; }
+    .eng-topics .t-name { color: var(--ink); font-family: ui-monospace, monospace; }
+    .eng-topics .t-type { color: #6f7b8a; margin-left: auto; font-size: 10px; }
+    .eng-kv { display: flex; justify-content: space-between; color: var(--ink-dim); padding: 2px 0;
+      font-variant-numeric: tabular-nums; }
+    .eng-kv b { color: var(--ink); font-weight: 600; }
+    .eng-kv b.warn { color: #ffd24a; }
+    .eng-kv b.bad { color: #ffb4a8; }
+    .eng-foot { margin-top: 9px; border-top: 1px solid var(--edge); padding-top: 7px;
+      font-size: 10px; color: #6f7b8a; font-variant-numeric: tabular-nums; }
+
     @media (max-width: 640px) {
       .panel { width: calc(100vw - 24px); top: auto; right: 12px; bottom: 12px; }
       #status { display: none; }
       #authoring { display: none; }
+      #engine { display: none; }
     }
   </style>
 </head>
@@ -221,6 +276,8 @@
       <div class="brand">STEWIE <span class="dot">—</span> Artemis South Pole</div>
       <div class="sub">Lunar polar-stereographic <code>IAU_2015:30135</code> · Moon 2015 sphere R=1737.4&nbsp;km</div>
       <div class="spacer"></div>
+      <button id="engine-toggle" class="hdr-btn" type="button" title="Live read-only ROS2 telemetry from the STEWIE sim/nav stack">
+        <span class="b-dot"></span>ROS2 Engine</button>
       <div class="source">Terrain: LOLA 5&nbsp;m / SfS 1&nbsp;m DEM + hillshade + slope · LROC context<br/>
         Served by QGIS Server (WMS 1.3.0) · 8 Artemis III candidate sites</div>
     </header>
@@ -278,15 +335,54 @@
         <div id="popup-body"></div>
       </div>
 
+      <!-- RT-04: live, READ-ONLY ROS2 telemetry from the STEWIE sim/nav stack (rover_executive).
+           Fed via same-origin wss://…/rosbridge (nginx -> read-only collector). No command authority. -->
+      <div id="engine" class="hidden" aria-live="polite">
+        <div class="eng-head">
+          <span class="eng-dot wait" id="eng-dot"></span>
+          <span class="eng-title">ROS2 Engine · RT-04</span>
+          <span class="eng-ro" title="This pane can only observe. It cannot publish cmd_vel or call any acting service.">READ-ONLY</span>
+          <span class="eng-x" id="eng-close" title="Hide">×</span>
+        </div>
+        <div class="eng-body">
+          <div class="eng-conn" id="eng-conn">Connecting to rosbridge…</div>
+          <div class="eng-sec">
+            <div class="eng-sec-t">Live topics <span style="color:#6f7b8a">(rosapi)</span></div>
+            <ul class="eng-topics" id="eng-topics"><li><span class="t-dot"></span><span class="t-name">—</span></li></ul>
+          </div>
+          <div class="eng-sec">
+            <div class="eng-sec-t">/odom · pose (map frame)<span class="eng-hz" id="eng-odom-hz"></span></div>
+            <div class="eng-kv"><span>x (East)</span><b id="eng-x">—</b></div>
+            <div class="eng-kv"><span>y (North)</span><b id="eng-y">—</b></div>
+            <div class="eng-kv"><span>z (elev)</span><b id="eng-z">—</b></div>
+            <div class="eng-kv"><span>heading</span><b id="eng-yaw">—</b></div>
+            <div class="eng-kv"><span>speed</span><b id="eng-v">—</b></div>
+          </div>
+          <div class="eng-sec">
+            <div class="eng-sec-t">/rover/state · flight model</div>
+            <div class="eng-kv"><span>leg / cell</span><b id="eng-leg">—</b></div>
+            <div class="eng-kv"><span>slip</span><b id="eng-slip">—</b></div>
+            <div class="eng-kv"><span>sinkage</span><b id="eng-sink">—</b></div>
+            <div class="eng-kv"><span>slope</span><b id="eng-slope">—</b></div>
+            <div class="eng-kv"><span>battery SOC</span><b id="eng-soc">—</b></div>
+            <div class="eng-kv"><span>status</span><b id="eng-entrap">—</b></div>
+          </div>
+          <div class="eng-foot" id="eng-foot">awaiting stream…</div>
+        </div>
+      </div>
+
       <div id="status">Loading lunar terrain…</div>
     </div>
   </div>
 
   <script src="vendor/proj4.js"></script>
   <script src="vendor/ol.js"></script>
+  <!-- roslib.js vendored locally (no CDN), same as OL/proj4. Drives the RT-04 read-only
+       ROS2 engine pane over same-origin wss://…/rosbridge. -->
+  <script src="vendor/roslib.js"></script>
   <!-- ?v = content hash of app.js: index.html is served DYNAMIC (never edge-cached),
        so bumping this query busts the Cloudflare edge cache of app.js on the next
        page load without touching cloudflared. Update when app.js changes. -->
-  <script src="app.js?v=7fa5712d"></script>
+  <script src="app.js?v=0fb252e6"></script>
 </body>
 </html>

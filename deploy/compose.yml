@@ -73,7 +73,61 @@ services:
     volumes: [ "..:/work:ro", "stewie-data:/data" ]
     environment:
       MPLBACKEND: Agg
+      # PYTHONPATH: the Dockerfile bakes `/work:/work/scripts/ccsds_ros_nav`, but the DDD restructure
+      # (PO-17 bd10156 + BD-04) extracted first-party modules into standalone packages under packages/
+      # (stewie_bodies, stewie_forge). `stewie.specs.bodies` / `stewie.physics.terramechanics` are now shims
+      # that import those, so the rover node crash-loops on restart (ModuleNotFoundError) unless each package
+      # dir is importable. Set here (BEFORE `source setup.bash`, which PREPENDS the ROS site-packages so rclpy
+      # stays importable) so the mounted repo stays the single source of truth and the rover survives a restart
+      # with no image rebuild. Add a line here if a future `packages/*` module is extracted; upstream follow-up
+      # is to bake the same into the ccsds_ros_nav Dockerfile ENV.
+      PYTHONPATH: /work:/work/scripts/ccsds_ros_nav:/work/packages/stewie-bodies:/work/packages/stewie-forge
     command: ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && python3 /work/scripts/ccsds_ros_nav/nodes/rover_executive_node.py"]
+    restart: unless-stopped
+  # RT-04: the read-only ROS2 -> browser telemetry bridge behind the live "engine" pane. TWO services,
+  # both opt-in via the SAME 'ros2' profile as the rover node above:
+  #   docker compose -f deploy/compose.yml --profile ros2 up -d ros2 rosbridge rosbridge-feeder
+  #
+  # WHY TWO PROCESSES, not stock rosbridge_server: the rover runs network_mode: host, so a stock
+  # rosbridge would bind the HOST namespace, which the artemis-web nginx (on stewie_default) cannot
+  # reach -- this host drops container->host traffic and plain DDS does not cross bridge<->host-net.
+  #   * rosbridge (COLLECTOR) sits on stewie_default; nginx reaches it container->container as
+  #     stewie-rosbridge:9090 (WS). It ingests telemetry on the host loopback 127.0.0.1:9091.
+  #   * rosbridge-feeder runs host-net, sees the rover DDS graph, SUBSCRIBES to the read-only topics
+  #     and PUSHES them to the collector's published 127.0.0.1:9091 (host->published-port always
+  #     works, unlike container->host on the bridge gateway which this host firewalls).
+  # READ-ONLY BY CONSTRUCTION: the feeder holds ZERO ROS publishers and the collector refuses every
+  # browser advertise/publish/call_service (bar /rosapi/topics introspection) -- there is no code
+  # path from the pane to /cmd_vel, /cmd/nav_goal, /cmd/safe or any service. Sole-egress preserved.
+  rosbridge:
+    profiles: [ "ros2" ]
+    image: python:3.12-slim                       # stdlib-only collector; no pip, no build
+    container_name: stewie-rosbridge              # nginx upstream resolves THIS exact name on stewie_default
+    command: [ "python", "/collector.py" ]
+    volumes:
+      - "./ros2/rosbridge_collector.py:/collector.py:ro"   # ./ from deploy/ ; the repo-committed script
+    # Ingest published on the host loopback so the host-net feeder can reach it. The WS :9090 is
+    # deliberately NOT published -- nginx reaches it container->container; keeping it off the host is
+    # part of the read-only edge (no public rosbridge surface).
+    ports: [ "127.0.0.1:9091:9091" ]
+    restart: unless-stopped
+  rosbridge-feeder:
+    profiles: [ "ros2" ]
+    build: { context: ../scripts/ccsds_ros_nav, dockerfile: Dockerfile, network: host }  # SAME ROS2 image as the rover
+    network_mode: host                            # needs the rover's DDS graph (host-net, ROS_DOMAIN_ID 0)
+    volumes: [ "..:/work:ro", "stewie-data:/data" ]        # ..=code/ ; feeder script at /work/deploy/ros2/
+    environment:
+      MPLBACKEND: Agg
+      # DDS TRANSPORT: force UDP-only (disable builtin SHM). The rover runs in a SEPARATE container with a
+      # PRIVATE /dev/shm, so FastDDS's default shared-memory data path cannot cross the container boundary --
+      # discovery works over UDP multicast (the node/topics are visible) but samples never arrive, so the pane
+      # goes blank after the rover is recreated. Announcing only UDPv4 makes the rover deliver over UDP loopback
+      # instead -> deterministic cross-container telemetry with NO rover change. (Both env names set for
+      # FastDDS version compat.) This is transport-only; the zero-publisher read-only feeder contract is unchanged.
+      FASTRTPS_DEFAULT_PROFILES_FILE: /work/deploy/ros2/fastdds_udp_only.xml
+      FASTDDS_DEFAULT_PROFILES_FILE: /work/deploy/ros2/fastdds_udp_only.xml
+    command: ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && exec python3 /work/deploy/ros2/rosbridge_feeder.py"]
+    depends_on: [ "rosbridge" ]
     restart: unless-stopped
   # PO-14: the OPTIONAL Godot render/sensor sidecar. GPU-GATED (headless Vulkan) and NOT part of the
   # supported server image -> opt-in via the 'godot' profile, exactly like ros2:

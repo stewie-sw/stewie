@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- RT-04 feeder DDS profile: UDP-only (builtin SHM transport DISABLED). The rover runs in a
+     separate container with a PRIVATE /dev/shm, so FastDDS's default shared-memory data path cannot
+     cross the container boundary (discovery still works over UDP multicast, but samples never arrive).
+     Announcing only a UDPv4 transport makes the rover deliver /odom, /rover/state, /rover/leg, /tf over
+     UDP loopback instead. Read-only: this changes transport, not the zero-publisher feeder contract. -->
+<dds xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <profiles>
+    <transport_descriptors>
+      <transport_descriptor>
+        <transport_id>rt04_udp</transport_id>
+        <type>UDPv4</type>
+      </transport_descriptor>
+    </transport_descriptors>
+    <participant profile_name="rt04_udp_only" is_default_profile="true">
+      <rtps>
+        <userTransports>
+          <transport_id>rt04_udp</transport_id>
+        </userTransports>
+        <useBuiltinTransports>false</useBuiltinTransports>
+      </rtps>
+    </participant>
+  </profiles>
+</dds>

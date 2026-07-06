@@ -949,4 +949,128 @@
   };
   // MA-01 readout sampler — exposed for the headless verification harness.
   window.stewieSampleAt = sampleAt;
+
+  // ---- RT-04: live, READ-ONLY ROS2 engine pane -----------------------------------------
+  // Connects to the same-origin rosbridge WS (nginx -> read-only collector, fed by a host-net
+  // rclpy subscriber to the STEWIE sim/nav stack) and shows live telemetry. This pane can ONLY
+  // observe: it subscribes, never advertises/publishes, so it holds no command authority over
+  // the rover (/cmd_vel, /cmd/nav_goal, /cmd/safe are never touched).
+  (function initEnginePane() {
+    if (typeof ROSLIB === 'undefined') return;                 // vendored lib must be present
+    var toggle = document.getElementById('engine-toggle');
+    var pane = document.getElementById('engine');
+    if (!toggle || !pane) return;
+    var byId = function (id) { return document.getElementById(id); };
+    var dot = byId('eng-dot'), conn = byId('eng-conn'), foot = byId('eng-foot');
+    var topicsEl = byId('eng-topics');
+
+    var userClosed = false, autoOpened = false;
+    function show(v) { pane.classList.toggle('hidden', !v); }
+    toggle.addEventListener('click', function () {
+      var willShow = pane.classList.contains('hidden');
+      show(willShow); if (!willShow) userClosed = true;
+    });
+    byId('eng-close').addEventListener('click', function () { show(false); userClosed = true; });
+
+    var wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/rosbridge';
+    var live = {}, total = 0, odomStamps = [];
+
+    function fmt(v, d) {
+      return (v === undefined || v === null || isNaN(v)) ? '—' : Number(v).toFixed(d);
+    }
+    function bump() {
+      total++;
+      foot.textContent = 'messages: ' + total + ' · last ' + new Date().toLocaleTimeString();
+    }
+    function markLive(topic) {
+      live[topic] = true;
+      var li = topicsEl.querySelector('li[data-topic="' + topic + '"]');
+      if (li) li.classList.add('live');
+    }
+    function renderTopics(names, types) {
+      if (!names || !names.length) return;
+      topicsEl.innerHTML = '';
+      names.forEach(function (n, i) {
+        var li = document.createElement('li');
+        li.setAttribute('data-topic', n);
+        if (live[n]) li.className = 'live';
+        li.innerHTML = '<span class="t-dot"></span><span class="t-name"></span><span class="t-type"></span>';
+        li.querySelector('.t-name').textContent = n;
+        li.querySelector('.t-type').textContent = (types && types[i]) ? types[i] : '';
+        topicsEl.appendChild(li);
+      });
+    }
+
+    function connect() {
+      var ros = new ROSLIB.Ros({ url: wsUrl });
+
+      ros.on('connection', function () {
+        dot.className = 'eng-dot ok';
+        conn.classList.remove('err');
+        conn.innerHTML = 'rosbridge <b>connected</b> · same-origin /rosbridge (read-only)';
+        toggle.classList.add('live');
+        if (!autoOpened && !userClosed) { show(true); autoOpened = true; }
+        ros.getTopics(function (res) {
+          var r = res && res.topics ? res : (res && res.values ? res.values : { topics: [], types: [] });
+          renderTopics(r.topics, r.types);
+        }, function () {});
+      });
+      ros.on('error', function () {
+        dot.className = 'eng-dot err';
+        conn.classList.add('err');
+        conn.innerHTML = 'rosbridge <b>error</b> — retrying…';
+        toggle.classList.remove('live');
+      });
+      ros.on('close', function () {
+        dot.className = 'eng-dot wait';
+        conn.classList.add('err');
+        conn.innerHTML = 'rosbridge <b>reconnecting…</b>';
+        toggle.classList.remove('live');
+        setTimeout(connect, 2500);                             // resilient reconnect
+      });
+
+      new ROSLIB.Topic({ ros: ros, name: '/odom', messageType: 'nav_msgs/Odometry' })
+        .subscribe(function (msg) {
+          markLive('/odom'); bump();
+          var p = msg.pose.pose.position, o = msg.pose.pose.orientation;
+          byId('eng-x').textContent = fmt(p.x, 2) + ' m';
+          byId('eng-y').textContent = fmt(p.y, 2) + ' m';
+          byId('eng-z').textContent = fmt(p.z, 2) + ' m';
+          var yaw = Math.atan2(2 * (o.w * o.z + o.x * o.y), 1 - 2 * (o.y * o.y + o.z * o.z));
+          byId('eng-yaw').textContent = fmt(yaw * 180 / Math.PI, 1) + '°';
+          byId('eng-v').textContent = fmt(msg.twist.twist.linear.x, 3) + ' m/s';
+          var s = msg.header.stamp, t = s.sec + s.nanosec * 1e-9;   // real rate from ROS stamps
+          odomStamps.push(t); if (odomStamps.length > 8) odomStamps.shift();
+          if (odomStamps.length > 1) {
+            var span = odomStamps[odomStamps.length - 1] - odomStamps[0];
+            if (span > 0) byId('eng-odom-hz').textContent =
+              (odomStamps.length - 1) / span >= 0 ? ((odomStamps.length - 1) / span).toFixed(1) + ' Hz' : '';
+          }
+        });
+
+      new ROSLIB.Topic({ ros: ros, name: '/rover/state', messageType: 'std_msgs/String' })
+        .subscribe(function (msg) {
+          markLive('/rover/state'); bump();
+          var d; try { d = JSON.parse(msg.data); } catch (e) { return; }
+          byId('eng-leg').textContent = 'leg ' + d.leg_id + ' · (' + fmt(d.row, 1) + ', ' + fmt(d.col, 1) + ')';
+          var slip = byId('eng-slip');
+          slip.textContent = fmt(d.slip, 3);
+          slip.className = d.slip > 0.6 ? 'bad' : (d.slip > 0.3 ? 'warn' : '');
+          byId('eng-sink').textContent = fmt(d.sinkage_m, 3) + ' m';
+          byId('eng-slope').textContent = fmt(d.slope_rad * 180 / Math.PI, 1) + '°';
+          byId('eng-soc').textContent = (d.soc === undefined || d.soc === null) ? '—' : fmt(d.soc * 100, 1) + ' %';
+          var ent = byId('eng-entrap');
+          if (d.entrapped) { ent.textContent = 'ENTRAPPED'; ent.className = 'bad'; }
+          else if (Math.abs(d.v_achieved_mps) > 1e-3) { ent.textContent = 'DRIVING'; ent.className = 'warn'; }
+          else { ent.textContent = 'idle'; ent.className = ''; }
+        });
+
+      new ROSLIB.Topic({ ros: ros, name: '/tf', messageType: 'tf2_msgs/TFMessage' })
+        .subscribe(function () { markLive('/tf'); bump(); });
+      new ROSLIB.Topic({ ros: ros, name: '/rover/leg', messageType: 'std_msgs/String' })
+        .subscribe(function () { markLive('/rover/leg'); bump(); });
+    }
+
+    connect();
+  })();
 })();
