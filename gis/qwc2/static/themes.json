@@ -1,0 +1,989 @@
+{
+  "themes": {
+    "title": "root",
+    "subdirs": [],
+    "items": [
+      {
+        "url": "/ows/?MAP=/io/data/code/gis/stewie_south_pole.qgz",
+        "id": "stewie_lunar",
+        "name": "STEWIE shared core - lunar south pole",
+        "title": "STEWIE Lunar South Pole",
+        "description": "",
+        "attribution": {
+          "Title": "STEWIE / NASA LOLA / LROC",
+          "OnlineResource": ""
+        },
+        "abstract": "",
+        "keywords": "",
+        "onlineResource": "/ows/?MAP=%2Fio%2Fdata%2Fcode%2Fgis%2Fstewie_south_pole.qgz",
+        "contact": {
+          "person": "",
+          "organization": "",
+          "position": "",
+          "phone": "",
+          "email": ""
+        },
+        "availableFormats": [
+          "image/jpeg",
+          "image/png",
+          "image/png; mode=16bit",
+          "image/png; mode=8bit",
+          "image/png; mode=1bit",
+          "application/dxf"
+        ],
+        "version": "1.3.0",
+        "infoFormats": [
+          "text/plain",
+          "text/html",
+          "text/xml",
+          "application/vnd.ogc.gml",
+          "application/vnd.ogc.gml/3.1.1",
+          "application/json",
+          "application/geo+json"
+        ],
+        "bbox": {
+          "crs": "IAU_2015:30135",
+          "bounds": [
+            -457440,
+            -457440,
+            457440,
+            457440
+          ]
+        },
+        "initialBbox": {
+          "crs": "IAU_2015:30135",
+          "bounds": [
+            -457440,
+            -457440,
+            457440,
+            457440
+          ]
+        },
+        "printResolutions": [
+          96,
+          300
+        ],
+        "sublayers": [
+          {
+            "name": "Base & imagery - external context (non-authoritative frame)",
+            "title": "Base & imagery - external context (non-authoritative frame)",
+            "mutuallyExclusive": false,
+            "visibility": true,
+            "sublayers": [
+              {
+                "name": "STEWIE /ogc dem drape (live backend)",
+                "title": "STEWIE /ogc dem drape (live backend)",
+                "visibility": true,
+                "queryable": true,
+                "abstract": "provenance=STEWIE FastAPI backend WMS 1.3.0 /ogc/wms (live globe drape, IAU_2015:30100); endpoint=http://127.0.0.1:8000/ogc/wms; wire_crs=IAU_2015:30100; relabelled_to=(native); render_frac=0.0; status=valid-blank (in-canvas render culled/empty); loaded=2026-07-05. External NASA/STEWIE service = CONTEXT, non-authoritative frame (authoritative measurement stays on the IAU_2015:30135 COGs).",
+                "opacity": 255,
+                "styles": {
+                  "default": "default"
+                },
+                "style": "default",
+                "dimensions": []
+              },
+              {
+                "name": "LROC PSR south (Lunaserv)",
+                "title": "LROC PSR south (Lunaserv)",
+                "visibility": true,
+                "queryable": true,
+                "abstract": "provenance=LROC Lunaserv WMS (wms.im-ldi.com) layer luna_nac_pole_psr_south (permanently-shadowed-region overlay; sparse by nature); endpoint=http://wms.im-ldi.com/; wire_crs=EPSG:4326; relabelled_to=IAU_2015:30100; render_frac=0.0335; status=renders; loaded=2026-07-05. External NASA/STEWIE service = CONTEXT, non-authoritative frame (authoritative measurement stays on the IAU_2015:30135 COGs).",
+                "opacity": 255,
+                "styles": {
+                  "default": "default"
+                },
+                "style": "default",
+                "dimensions": []
+              },
+              {
+                "name": "LROC WAC global mosaic (Lunaserv)",
+                "title": "LROC WAC global mosaic (Lunaserv)",
+                "visibility": true,
+                "queryable": true,
+                "abstract": "provenance=LROC Lunaserv WMS (wms.im-ldi.com) layer luna_wac_global; endpoint=http://wms.im-ldi.com/; wire_crs=EPSG:4326; relabelled_to=IAU_2015:30100; render_frac=0.6095; status=renders; loaded=2026-07-05. External NASA/STEWIE service = CONTEXT, non-authoritative frame (authoritative measurement stays on the IAU_2015:30135 COGs).",
+                "opacity": 255,
+                "styles": {
+                  "default": "default"
+                },
+                "style": "default",
+                "dimensions": []
+              },
+              {
+                "name": "LROC NAC South Pole mosaic (Lunaserv)",
+                "title": "LROC NAC South Pole mosaic (Lunaserv)",
+                "visibility": true,
+                "queryable": true,
+                "abstract": "provenance=LROC Lunaserv WMS (wms.im-ldi.com) layer luna_nac_2m_sp_mosaic; endpoint=http://wms.im-ldi.com/; wire_crs=EPSG:4326; relabelled_to=IAU_2015:30100; render_frac=0.6733; status=renders; loaded=2026-07-05. External NASA/STEWIE service = CONTEXT, non-authoritative frame (authoritative measurement stays on the IAU_2015:30135 COGs).",
+                "opacity": 255,
+                "styles": {
+                  "default": "default"
+                },
+                "style": "default",
+                "dimensions": []
+              }
+            ],
+            "expanded": true
+          },
+          {
+            "name": "Site vectors (IAU_2015:30100)",
+            "title": "Site vectors (IAU_2015:30100)",
+            "mutuallyExclusive": false,
+            "visibility": true,
+            "sublayers": [
+              {
+                "name": "Artemis site pins",
+                "title": "Artemis site pins",
+                "geometryType": "Point",
+                "visibility": true,
+                "queryable": true,
+                "displayField": "site",
+                "opacity": 255,
+                "styles": {
+                  "default": "default"
+                },
+                "style": "default",
+                "bbox": {
+                  "crs": "EPSG:4326",
+                  "bounds": [
+                    -179.847212,
+                    -89.966996,
+                    177.70939,
+                    -84.976283
+                  ]
+                },
+                "dimensions": []
+              },
+              {
+                "name": "Artemis site footprints",
+                "title": "Artemis site footprints",
+                "geometryType": "Polygon",
+                "visibility": true,
+                "queryable": true,
+                "displayField": "site",
+                "opacity": 255,
+                "styles": {
+                  "default": "default"
+                },
+                "style": "default",
+                "bbox": {
+                  "crs": "EPSG:4326",
+                  "bounds": [
+                    -179.847212,
+                    -89.966996,
+                    177.70939,
+                    -84.976283
+                  ]
+                },
+                "dimensions": []
+              }
+            ],
+            "expanded": true
+          },
+          {
+            "name": "Terrain & hazard - authoritative (IAU_2015:30135)",
+            "title": "Terrain & hazard - authoritative (IAU_2015:30135)",
+            "mutuallyExclusive": false,
+            "visibility": true,
+            "sublayers": [
+              {
+                "name": "Haworth 1 m",
+                "title": "Haworth 1 m",
+                "mutuallyExclusive": false,
+                "visibility": true,
+                "sublayers": [
+                  {
+                    "name": "Haworth DEM (1 m)",
+                    "title": "Haworth DEM (1 m)",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Haworth_1m_dem.tif; provenance=USGS Haworth 1 m Shape-from-Shading DEM (LROC NAC SfS), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 153,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -40120,
+                        83260,
+                        -28460,
+                        95320
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Haworth Hillshade",
+                    "title": "Haworth Hillshade",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/derived/hillshade/Haworth_hillshade.tif; provenance=USGS Haworth 1 m Shape-from-Shading DEM (LROC NAC SfS), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -40120,
+                        83260,
+                        -28460,
+                        95320
+                      ]
+                    },
+                    "dimensions": []
+                  }
+                ],
+                "expanded": true
+              },
+              {
+                "name": "Site42",
+                "title": "Site42",
+                "mutuallyExclusive": false,
+                "visibility": true,
+                "sublayers": [
+                  {
+                    "name": "Site42 Slope",
+                    "title": "Site42 Slope",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site42/slope.tif; provenance=slope in degrees, derived from the site LOLA 5 m DEM (PGDA Product 78), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -123400,
+                        -66100,
+                        -103400,
+                        -46100
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site42 DEM",
+                    "title": "Site42 DEM",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site42/dem.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 153,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -123400,
+                        -66100,
+                        -103400,
+                        -46100
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site42 Hillshade",
+                    "title": "Site42 Hillshade",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/derived/hillshade/Site42_hillshade.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -123400,
+                        -66100,
+                        -103400,
+                        -46100
+                      ]
+                    },
+                    "dimensions": []
+                  }
+                ],
+                "expanded": true
+              },
+              {
+                "name": "Site23",
+                "title": "Site23",
+                "mutuallyExclusive": false,
+                "visibility": true,
+                "sublayers": [
+                  {
+                    "name": "Site23 Slope",
+                    "title": "Site23 Slope",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site23/slope.tif; provenance=slope in degrees, derived from the site LOLA 5 m DEM (PGDA Product 78), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -11000,
+                        111000,
+                        10000,
+                        132000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site23 DEM",
+                    "title": "Site23 DEM",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site23/dem.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 153,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -11000,
+                        111000,
+                        10000,
+                        132000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site23 Hillshade",
+                    "title": "Site23 Hillshade",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/derived/hillshade/Site23_hillshade.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -11000,
+                        111000,
+                        10000,
+                        132000
+                      ]
+                    },
+                    "dimensions": []
+                  }
+                ],
+                "expanded": true
+              },
+              {
+                "name": "Site20",
+                "title": "Site20",
+                "mutuallyExclusive": false,
+                "visibility": true,
+                "sublayers": [
+                  {
+                    "name": "Site20 Slope",
+                    "title": "Site20 Slope",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site20/slope.tif; provenance=slope in degrees, derived from the site LOLA 5 m DEM (PGDA Product 78), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        65000,
+                        110000,
+                        81000,
+                        126000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site20 DEM",
+                    "title": "Site20 DEM",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site20/dem.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 153,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        65000,
+                        110000,
+                        81000,
+                        126000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site20 Hillshade",
+                    "title": "Site20 Hillshade",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/derived/hillshade/Site20_hillshade.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        65000,
+                        110000,
+                        81000,
+                        126000
+                      ]
+                    },
+                    "dimensions": []
+                  }
+                ],
+                "expanded": true
+              },
+              {
+                "name": "Site11",
+                "title": "Site11",
+                "mutuallyExclusive": false,
+                "visibility": true,
+                "sublayers": [
+                  {
+                    "name": "Site11 Slope",
+                    "title": "Site11 Slope",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site11/slope.tif; provenance=slope in degrees, derived from the site LOLA 5 m DEM (PGDA Product 78), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -45000,
+                        7000,
+                        -29000,
+                        23000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site11 DEM",
+                    "title": "Site11 DEM",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site11/dem.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 153,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -45000,
+                        7000,
+                        -29000,
+                        23000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site11 Hillshade",
+                    "title": "Site11 Hillshade",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/derived/hillshade/Site11_hillshade.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -45000,
+                        7000,
+                        -29000,
+                        23000
+                      ]
+                    },
+                    "dimensions": []
+                  }
+                ],
+                "expanded": true
+              },
+              {
+                "name": "Site07",
+                "title": "Site07",
+                "mutuallyExclusive": false,
+                "visibility": true,
+                "sublayers": [
+                  {
+                    "name": "Site07 Slope",
+                    "title": "Site07 Slope",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site07/slope.tif; provenance=slope in degrees, derived from the site LOLA 5 m DEM (PGDA Product 78), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        22000,
+                        -28000,
+                        38000,
+                        -12000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site07 DEM",
+                    "title": "Site07 DEM",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site07/dem.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 153,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        22000,
+                        -28000,
+                        38000,
+                        -12000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site07 Hillshade",
+                    "title": "Site07 Hillshade",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/derived/hillshade/Site07_hillshade.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        22000,
+                        -28000,
+                        38000,
+                        -12000
+                      ]
+                    },
+                    "dimensions": []
+                  }
+                ],
+                "expanded": true
+              },
+              {
+                "name": "Site06",
+                "title": "Site06",
+                "mutuallyExclusive": false,
+                "visibility": true,
+                "sublayers": [
+                  {
+                    "name": "Site06 Slope",
+                    "title": "Site06 Slope",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site06/slope.tif; provenance=slope in degrees, derived from the site LOLA 5 m DEM (PGDA Product 78), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        74000,
+                        100000,
+                        94000,
+                        120000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site06 DEM",
+                    "title": "Site06 DEM",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site06/dem.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 153,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        74000,
+                        100000,
+                        94000,
+                        120000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site06 Hillshade",
+                    "title": "Site06 Hillshade",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/derived/hillshade/Site06_hillshade.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        74000,
+                        100000,
+                        94000,
+                        120000
+                      ]
+                    },
+                    "dimensions": []
+                  }
+                ],
+                "expanded": true
+              },
+              {
+                "name": "Site04",
+                "title": "Site04",
+                "mutuallyExclusive": false,
+                "visibility": true,
+                "sublayers": [
+                  {
+                    "name": "Site04 Slope",
+                    "title": "Site04 Slope",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site04/slope.tif; provenance=slope in degrees, derived from the site LOLA 5 m DEM (PGDA Product 78), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -9000,
+                        -15000,
+                        7000,
+                        1000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site04 DEM",
+                    "title": "Site04 DEM",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site04/dem.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 153,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -9000,
+                        -15000,
+                        7000,
+                        1000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site04 Hillshade",
+                    "title": "Site04 Hillshade",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/derived/hillshade/Site04_hillshade.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -9000,
+                        -15000,
+                        7000,
+                        1000
+                      ]
+                    },
+                    "dimensions": []
+                  }
+                ],
+                "expanded": true
+              },
+              {
+                "name": "Site01",
+                "title": "Site01",
+                "mutuallyExclusive": false,
+                "visibility": true,
+                "sublayers": [
+                  {
+                    "name": "Site01 Slope",
+                    "title": "Site01 Slope",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site01/slope.tif; provenance=slope in degrees, derived from the site LOLA 5 m DEM (PGDA Product 78), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -19000,
+                        -20000,
+                        -3000,
+                        -4000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site01 DEM",
+                    "title": "Site01 DEM",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/Site01/dem.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 153,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -19000,
+                        -20000,
+                        -3000,
+                        -4000
+                      ]
+                    },
+                    "dimensions": []
+                  },
+                  {
+                    "name": "Site01 Hillshade",
+                    "title": "Site01 Hillshade",
+                    "visibility": true,
+                    "queryable": true,
+                    "abstract": "source_file=/mnt/projects/stewie/data/gis/derived/hillshade/Site01_hillshade.tif; provenance=PGDA LOLA Product 78 (5 m/px polar-stereographic LOLA DEM), native IAU_2015:30135; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                    "opacity": 255,
+                    "styles": {
+                      "default": "default"
+                    },
+                    "style": "default",
+                    "bbox": {
+                      "crs": "EPSG:4326",
+                      "bounds": [
+                        -19000,
+                        -20000,
+                        -3000,
+                        -4000
+                      ]
+                    },
+                    "dimensions": []
+                  }
+                ],
+                "expanded": true
+              }
+            ],
+            "expanded": true
+          },
+          {
+            "name": "South-polar basemap - LOLA LDEM context (IAU_2015:30135)",
+            "title": "South-polar basemap - LOLA LDEM context (IAU_2015:30135)",
+            "mutuallyExclusive": false,
+            "visibility": true,
+            "sublayers": [
+              {
+                "name": "South Polar Basemap",
+                "title": "South Polar Basemap",
+                "visibility": true,
+                "queryable": true,
+                "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/basemap_south_polar.tif; provenance=LOLA LDEM_75S_120M polar shape map (LRO-L-LOLA-4-GDR-V1.0, 120 m/px, 75-90S, polar stereographic true-at-pole, sphere R=1737400 m; David E. Smith / LRO LOLA Team, GSFC), PDS Geosciences Node https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_120m.img -> gdaldem hillshade (z=0.5 unscales the 0.5 m/DN shape map to true metres; az 315, alt 45, -compute_edges) -> COG. Continuous CONTEXT basemap (not an authoritative measurement surface).; loaded=2026-07-05; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                "opacity": 255,
+                "styles": {
+                  "default": "default"
+                },
+                "style": "default",
+                "bbox": {
+                  "crs": "EPSG:4326",
+                  "bounds": [
+                    -457440,
+                    -457440,
+                    457440,
+                    457440
+                  ]
+                },
+                "dimensions": []
+              }
+            ],
+            "expanded": true
+          }
+        ],
+        "expanded": true,
+        "externalLayers": [],
+        "backgroundLayers": [],
+        "searchProviders": [
+          "coordinates"
+        ],
+        "additionalMouseCrs": ["IAU_2015:30100"],
+        "defaultDisplayCrs": "IAU_2015:30100",
+        "print": [
+          {
+            "name": "Mission Map",
+            "map": {"name": "map0", "width": 200, "height": 176},
+            "labels": []
+          }
+        ],
+        "mapCrs": "IAU_2015:30135",
+        "drawingOrder": [
+          "South Polar Basemap",
+          "Site01 Hillshade",
+          "Site01 DEM",
+          "Site01 Slope",
+          "Site04 Hillshade",
+          "Site04 DEM",
+          "Site04 Slope",
+          "Site06 Hillshade",
+          "Site06 DEM",
+          "Site06 Slope",
+          "Site07 Hillshade",
+          "Site07 DEM",
+          "Site07 Slope",
+          "Site11 Hillshade",
+          "Site11 DEM",
+          "Site11 Slope",
+          "Site20 Hillshade",
+          "Site20 DEM",
+          "Site20 Slope",
+          "Site23 Hillshade",
+          "Site23 DEM",
+          "Site23 Slope",
+          "Site42 Hillshade",
+          "Site42 DEM",
+          "Site42 Slope",
+          "Haworth Hillshade",
+          "Haworth DEM (1 m)",
+          "Artemis site footprints",
+          "Artemis site pins",
+          "LROC NAC South Pole mosaic (Lunaserv)",
+          "LROC WAC global mosaic (Lunaserv)",
+          "LROC PSR south (Lunaserv)",
+          "STEWIE /ogc dem drape (live backend)"
+        ],
+        "legendUrl": "/ows/?MAP=%2Fio%2Fdata%2Fcode%2Fgis%2Fstewie_south_pole.qgz&?",
+        "featureInfoUrl": "/ows/?MAP=%2Fio%2Fdata%2Fcode%2Fgis%2Fstewie_south_pole.qgz&?",
+        "printUrl": "/ows/?MAP=%2Fio%2Fdata%2Fcode%2Fgis%2Fstewie_south_pole.qgz&?",
+        "editConfig": null,
+        "thumbnail": "img/mapthumbs/"
+      }
+    ],
+    "defaultTheme": "stewie_lunar",
+    "defaultMapCrs": "IAU_2015:30135",
+    "defaultScales": [
+      5000000,
+      2000000,
+      1000000,
+      500000,
+      250000,
+      100000,
+      50000,
+      25000,
+      10000,
+      5000,
+      2500,
+      1000,
+      500,
+      250,
+      100
+    ],
+    "defaultPrintGrid": [
+      {
+        "s": 1000000,
+        "x": 100000,
+        "y": 100000
+      },
+      {
+        "s": 100000,
+        "x": 10000,
+        "y": 10000
+      },
+      {
+        "s": 10000,
+        "x": 1000,
+        "y": 1000
+      },
+      {
+        "s": 1000,
+        "x": 100,
+        "y": 100
+      },
+      {
+        "s": 100,
+        "x": 10,
+        "y": 10
+      }
+    ],
+    "defaultSearchProviders": [
+      "coordinates"
+    ],
+    "defaultBackgroundLayers": [],
+    "externalLayers": [],
+    "backgroundLayers": [],
+    "defaultWMSVersion": "1.3.0"
+  }
+}

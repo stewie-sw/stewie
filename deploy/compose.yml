@@ -236,6 +236,9 @@ services:
     ports: [ "127.0.0.1:8083:80" ]
     volumes:
       - "../gis/web:/usr/share/nginx/html:ro"                             # ../ from deploy/ == code/
+      # QWC2 QGIS web IDE spike, served COEXISTING at /ide/ (built for publicPath=/ide/). The
+      # nginx `location /ide/` aliases here; the OL viewer at / is untouched. Read-only.
+      - "../gis/qwc2/prod:/usr/share/nginx/ide:ro"                        # QWC2 web IDE -> /ide/
       - "./artemis-nginx.conf:/etc/nginx/conf.d/default.conf:ro"
       # Gitignored key snippet (proxy_set_header X-API-Key ...) included by the /api/plan block, so the
       # committed nginx conf carries no secret. Regenerate from deploy/.env's STEWIE_API_KEY if missing.

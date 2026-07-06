@@ -1,0 +1,12 @@
+node_modules/
+dist/
+prod/
+icons/build
+npm-debug.log
+# NOTE (STEWIE): upstream ignores themes.json because `qwc_gen_themesconfig` regenerates it from a
+# LIVE QGIS WMS. We deliberately TRACK static/themes.json as a vendored artifact so the build is
+# offline/deterministic (build.sh does NOT run themesconfig). Regenerate it only when the .qgz layer
+# set changes -- see README_STEWIE.md "Regenerating themes.json". Hence no `themes.json` line here.
+static/assets/img/genmapthumbs/*
+static/assets/forms/autogen/*
+yarn-error.log
