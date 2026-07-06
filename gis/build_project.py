@@ -59,6 +59,26 @@ SITES = ["Site01", "Site04", "Site06", "Site07", "Site11", "Site20", "Site23", "
 # Haworth carries a DEM COG only (no slope COG on disk).
 HAWORTH = "Haworth_1m_dem.tif"
 
+# DISPLAY-ONLY region names for each site id. The SiteNN ids stay the stable keys
+# (COG filenames cog/<Site>/dem.tif, layer names "<Site> DEM"/layer_catalog ids
+# stewie.terrain.<site>.*, backend routes, the geojson "site" round-trip property);
+# these strings are ONLY the human-readable marker/label text on the maps. Grounded in
+# the authoritative PGDA Product 78 site index (Barker 2021), corroborated by the repo's
+# own scripts/fetch_dem_data.py SITE_DIRS + docs/data_book.md + docs/map_reference.md, and
+# coordinate-confirmed against the site DEM centroids (see design/gis_reference/
+# ARTEMIS_LUNAR_DATA.md for the 13 Artemis III candidate regions). Each name is one of the
+# 13 NASA (Aug 2022) Artemis III candidate landing regions.
+SITE_NAMES = {
+    "Site01": "Connecting Ridge",
+    "Site04": "Shackleton Rim",
+    "Site06": "Nobile Rim 1",
+    "Site07": "Peak near Shackleton",
+    "Site11": "de Gerlache Rim",
+    "Site20": "Leibnitz Beta Plateau",
+    "Site23": "Malapert Massif",
+    "Site42": "de Gerlache-Kocher Massif",
+}
+
 # Hillshade parameters (gdal:hillshade). Recorded verbatim in provenance.
 HS_AZIMUTH = 315.0
 HS_ALTITUDE = 45.0
@@ -638,7 +658,11 @@ def main(argv=None) -> int:
         c = ct_135_100.transform(QgsPointXY(cx, cy))
         w_m, h_m = ext.width(), ext.height()
         props_common = {
-            "site": site, "dem_min_m": round(mn, 2), "dem_max_m": round(mx, 2),
+            "site": site,
+            # DISPLAY-ONLY region name (additive; "site" stays the stable SiteNN key).
+            "name": SITE_NAMES.get(site, site),
+            "label": SITE_NAMES.get(site, site),
+            "dem_min_m": round(mn, 2), "dem_max_m": round(mx, 2),
             "center_lon": round(c.x(), 6), "center_lat": round(c.y(), 6),
             "extent_m": [round(ext.xMinimum(), 1), round(ext.yMinimum(), 1),
                          round(ext.xMaximum(), 1), round(ext.yMaximum(), 1)],
@@ -708,9 +732,10 @@ def main(argv=None) -> int:
         "color": f"{PIN_RGB[0]},{PIN_RGB[1]},{PIN_RGB[2]},255",
         "outline_color": "20,20,20,255", "outline_width": "0.4"})
     pins.setRenderer(QgsSingleSymbolRenderer(psym))
-    # Labels: the site id next to each pin.
+    # Labels: the real Artemis III region name next to each pin (DISPLAY only; the
+    # stable SiteNN key lives on in the "site" property + the "<Site> DEM" layer names).
     pal = QgsPalLayerSettings()
-    pal.fieldName = "site"
+    pal.fieldName = "label"
     pal.enabled = True
     try:
         pal.placement = QgsPalLayerSettings.OverPoint

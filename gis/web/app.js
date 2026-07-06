@@ -120,7 +120,7 @@
       return new ol.style.Style({
         image: new ol.style.Circle({ radius: 6, fill: pinFill, stroke: pinStroke }),
         text: new ol.style.Text({
-          text: feature.get('site') || '',
+          text: feature.get('label') || feature.get('site') || '',
           offsetY: -15,
           font: '600 12px system-ui, sans-serif',
           fill: new ol.style.Fill({ color: '#ffe9a8' }),
