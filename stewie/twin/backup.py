@@ -101,7 +101,7 @@ def replicate(data_dir: str, dest: str) -> dict:
     failed with OSError [Errno 9] Bad file descriptor under pytest-xdist (a subprocess-pipe fd race on a
     parallel worker) -- no external `rsync` binary, no subprocess, deterministic + testable."""
     os.makedirs(dest, exist_ok=True)
-    items = [p for p in ("twin.journal", "snaps", "twin") if os.path.exists(os.path.join(data_dir, p))]
+    items = [p for p in ("twin.journal", "snapshots", "twin") if os.path.exists(os.path.join(data_dir, p))]
     if not items:
         return {"ok": False, "error": f"nothing to replicate in {data_dir}"}
     # RETRY on a transient OS error: a backup mirror re-attempts (fresh fds each pass) so a momentary

@@ -43,6 +43,11 @@ def test_snapshot_then_retention_then_replicate(client, tmp_path):
     assert r2.json()["ok"] and isinstance(r2.json()["removed"], list)
     r3 = client.post("/admin/backup/replicate", headers=H)
     assert r3.json()["ok"] and os.path.isdir(tmp_path / "replica")
+    # T1 (C1 regression guard): the replica must ALONE cold-restore the world, so the snapshot file
+    # itself must be present IN the replica. Asserting only that the replica dir exists (above) is the
+    # exact gap that let C1 ship -- replicate() mirrored "snaps", the writer uses "snapshots".
+    rep_snap = tmp_path / "replica" / "snapshots" / os.path.basename(snap)
+    assert rep_snap.exists(), f"snapshot {os.path.basename(snap)} missing from replica ({rep_snap}); replica cannot cold-restore the world"
 
 
 def test_gate_validation_reports_byte_identity(client):
