@@ -51,6 +51,11 @@
         }
         </style>
         <script type="text/javascript" src="assets/searchProviders.js" ></script>
+        <!-- roslib vendored locally (no CDN), verbatim from gis/web/vendor/roslib.js. Loaded as a raw
+             global (window.ROSLIB) exactly like the OL viewer's RT-04 pane; the MissionHUD plugin's
+             rt04Client.js reads window.ROSLIB. NOT bundled through babel (that breaks its browserify
+             prototype chains). Read-only rosbridge client. -->
+        <script type="text/javascript" src="assets/roslib.js" ></script>
         <script type="text/javascript">
         window.addEventListener("load", function(ev) {
             document.getElementById('splash').style.display = 'none';
