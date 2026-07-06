@@ -14,8 +14,18 @@ def generate_launch_description():
     desc = get_package_share_directory("stewie_description")
     bringup = get_package_share_directory("stewie_bringup")
     world = os.path.join(desc, "worlds", "stewie_lunar.sdf")
+
+    # SWAPPABLE MODEL OF RECORD. STEWIE_SIM_MODEL selects urdf/<model>.gazebo.xacro (default ezrassor;
+    # `ipex` and future vehicles load the same way). The gz ENTITY name is kept = STEWIE_SIM_MODEL_NAME
+    # (default `ipex`), which is the FROZEN gz_bridge.yaml + RT-04 telemetry contract KEY -- so the vehicle
+    # can be swapped with NO bridge edit and the ROS-facing topics (/joint_states, /stewie/imu, cameras)
+    # stay model-agnostic. The overlay's gz_ns arg tracks the same name so the gz-side topics line up.
+    model = os.environ.get("STEWIE_SIM_MODEL", "ezrassor")
+    model_name = os.environ.get("STEWIE_SIM_MODEL_NAME", "ipex")
+    gz_ns = "/model/%s" % model_name
     robot_description = xacro.process_file(
-        os.path.join(desc, "urdf", "ipex.gazebo.xacro")).toxml()
+        os.path.join(desc, "urdf", "%s.gazebo.xacro" % model),
+        mappings={"gz_ns": gz_ns}).toxml()
     bridge_cfg = os.path.join(bringup, "config", "gz_bridge.yaml")
 
     return LaunchDescription([
@@ -31,7 +41,7 @@ def generate_launch_description():
              parameters=[{"robot_description": robot_description, "use_sim_time": True}],
              output="screen"),
         Node(package="ros_gz_sim", executable="create",
-             arguments=["-topic", "robot_description", "-z", "0.30", "-name", "ipex"],
+             arguments=["-topic", "robot_description", "-z", "0.30", "-name", model_name],
              output="screen"),
         Node(package="ros_gz_bridge", executable="parameter_bridge",
              parameters=[{"config_file": bridge_cfg, "use_sim_time": True}],

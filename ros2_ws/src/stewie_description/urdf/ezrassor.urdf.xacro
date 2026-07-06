@@ -1,0 +1,169 @@
+<?xml version="1.0"?>
+<!-- [REQ:AS-03] EZ-RASSOR vehicle description (gz-sim8 / ROS2 Jazzy port), the STEWIE model of record.
+     PROVENANCE: joint names, link topology, joint origins, wheel/arm/drum geometry, masses and the
+     0.35 mesh scale are taken VERBATIM from the upstream EZ-RASSOR ROS1/Gazebo-Classic description
+     (FlaSpaceInst/EZ-RASSOR @ 0c5911b, packages/simulation/ezrassor_sim_description/urdf/ezrassor.xacro
+     + macros.xacro). MIT-licensed (meshes/ezrassor/THIRD_PARTY_LICENSES.txt).
+
+     ADAPTATIONS for gz-sim8 (documented, nothing fabricated):
+       * ROS1 <transmission> blocks + gazebo_ros_control are DROPPED (the gz overlay uses gz DiffDrive +
+         gz JointStatePublisher; see ezrassor.gazebo.xacro). The joint NAMES are preserved exactly.
+       * base_link carries the body mesh + a box collision + the upstream body inertia (single-chassis
+         pattern, mirroring the proven ipex.urdf.xacro), instead of the upstream empty-base_link + fixed
+         `body` child. Functionally identical (fixed-lumped), more robust for the gz-sim8 URDF->SDF path.
+       * COLLISION uses primitives (cylinder wheels/drums, box body) for headless-physics robustness;
+         the .dae meshes are VISUAL-only (upstream already used a cylinder collision for the drums).
+       * Inertias use exact rigid-body formulas on the upstream masses+dims (wheel/drum spin about +Y). -->
+<robot name="ezrassor" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ============================ authoritative dimensions (upstream EZ-RASSOR) ============================ -->
+  <xacro:property name="wheel_x"      value="0.20"/>      <!-- |x| of every wheel hinge (wheelbase 0.40) -->
+  <xacro:property name="wheel_y"      value="0.285"/>     <!-- |y| of every wheel hinge (track 0.57) -->
+  <xacro:property name="wheel_radius" value="0.18"/>      <!-- upstream wheel cylinder_inertia r -->
+  <xacro:property name="wheel_width"  value="0.20"/>      <!-- upstream wheel cylinder_inertia h -->
+  <xacro:property name="arm_x"        value="0.20"/>      <!-- |x| of arm hinge on base_link -->
+  <xacro:property name="drum_x"       value="0.388245"/>  <!-- drum hinge offset along the arm -->
+  <xacro:property name="drum_radius"  value="0.1839"/>    <!-- upstream drum collision cylinder r -->
+  <xacro:property name="drum_width"   value="1.0"/>       <!-- upstream drum collision cylinder length -->
+  <xacro:property name="mesh_scale"   value="0.35 0.35 0.35"/>  <!-- upstream macros.xacro mesh scale -->
+  <xacro:property name="cam_size"     value="0.02"/>
+
+  <!-- body box collision approximating the base_unit hull (encloses wheelbase/track). [ASSUMPTION] -->
+  <xacro:property name="body_len"     value="0.50"/>
+  <xacro:property name="body_wid"     value="0.40"/>
+  <xacro:property name="body_hgt"     value="0.20"/>
+
+  <xacro:property name="mesh_dir" value="package://stewie_description/meshes/ezrassor"/>
+
+  <!-- ============================ reusable macros ============================ -->
+  <!-- cylinder spinning about its local +Y (wheel/drum axle along body +Y) -->
+  <xacro:macro name="wheel_inertial" params="m r w">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${m*(3*r*r+w*w)/12.0}" iyy="${m*r*r/2.0}" izz="${m*(3*r*r+w*w)/12.0}"
+               ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- a skid-steer drive wheel: continuous joint about body +Y. mesh visual + cylinder collision. -->
+  <xacro:macro name="wheel" params="name x y">
+    <link name="${name}">
+      <visual>
+        <geometry><mesh filename="${mesh_dir}/wheel.dae" scale="${mesh_scale}"/></geometry>
+      </visual>
+      <collision name="${name}_collision">
+        <origin rpy="${pi/2} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+        <surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface>
+      </collision>
+      <xacro:wheel_inertial m="5.0" r="${wheel_radius}" w="${wheel_width}"/>
+    </link>
+    <joint name="${name}_hinge" type="continuous">
+      <parent link="base_link"/>
+      <child link="${name}"/>
+      <origin xyz="${x} ${y} 0"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="100.0" velocity="100.0"/>   <!-- upstream EZ-RASSOR joint limits -->
+      <dynamics damping="0.0" friction="0.0"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- a bucket drum arm (revolute-lift, continuous per upstream) carrying a spinning drum link. -->
+  <xacro:macro name="drum_assembly" params="side x_arm x_drum arm_rpy">
+    <link name="arm_${side}">
+      <visual>
+        <geometry><mesh filename="${mesh_dir}/drum_arm.dae" scale="${mesh_scale}"/></geometry>
+      </visual>
+      <xacro:wheel_inertial m="5.0" r="0.05" w="0.30"/>
+    </link>
+    <joint name="arm_${side}_hinge" type="continuous">
+      <parent link="base_link"/>
+      <child link="arm_${side}"/>
+      <origin xyz="${x_arm} 0 0" rpy="${arm_rpy}"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="100.0" velocity="100.0"/>
+      <dynamics damping="0.0" friction="0.0"/>
+    </joint>
+    <link name="drum_${side}">
+      <visual>
+        <geometry><mesh filename="${mesh_dir}/drum.dae" scale="${mesh_scale}"/></geometry>
+      </visual>
+      <collision>
+        <origin rpy="0 1.5707 1.5707"/>
+        <geometry><cylinder radius="${drum_radius}" length="${drum_width}"/></geometry>
+      </collision>
+      <xacro:wheel_inertial m="5.0" r="${drum_radius}" w="${drum_width}"/>
+    </link>
+    <joint name="drum_${side}_hinge" type="continuous">
+      <parent link="arm_${side}"/>
+      <child link="drum_${side}"/>
+      <origin xyz="${x_drum} 0 0" rpy="3.1415 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="100.0" velocity="100.0"/>
+      <dynamics damping="0.0" friction="0.0"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- ============================ the robot ============================ -->
+  <!-- base_link: the chassis body (REP-103 x-forward, y-left, z-up). Carries the base_unit hull mesh,
+       a box collision, and the body inertia at the upstream mass (15 kg).
+       NOTE: the upstream EZ-RASSOR body inertia (ixx 0.5 / iyy 1.0 / izz 0.1) is a physically-INVALID
+       placeholder (violates the inertia triangle inequality: ixx+izz=0.6 < iyy=1.0). Gazebo-Classic
+       tolerated it; gz-sim8 REJECTS it (Error Code 19: invalid inertia -> model never enters physics).
+       Replaced with the exact solid-box inertia for the 0.5x0.4x0.2 m body at 15 kg (valid + consistent
+       with the box collision): ixx=m(y^2+z^2)/12, iyy=m(x^2+z^2)/12, izz=m(x^2+y^2)/12. -->
+  <link name="base_link">
+    <visual>
+      <geometry><mesh filename="${mesh_dir}/base_unit.dae" scale="${mesh_scale}"/></geometry>
+    </visual>
+    <collision>
+      <geometry><box size="${body_len} ${body_wid} ${body_hgt}"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="15.0"/>
+      <inertia ixx="${15.0*(body_wid*body_wid+body_hgt*body_hgt)/12.0}" ixy="0" ixz="0"
+               iyy="${15.0*(body_len*body_len+body_hgt*body_hgt)/12.0}" iyz="0"
+               izz="${15.0*(body_len*body_len+body_wid*body_wid)/12.0}"/>
+    </inertial>
+  </link>
+
+  <!-- IMU frame at the chassis origin (REP-103 imu_link; matches autonomy_contract.FRAMES). -->
+  <link name="imu_link"/>
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0"/>
+  </joint>
+
+  <!-- four skid-steer wheels (upstream hinge names + positions) -->
+  <xacro:wheel name="left_wheel_front"  x="${ wheel_x}" y="${ wheel_y}"/>
+  <xacro:wheel name="right_wheel_front" x="${ wheel_x}" y="${-wheel_y}"/>
+  <xacro:wheel name="left_wheel_back"   x="${-wheel_x}" y="${ wheel_y}"/>
+  <xacro:wheel name="right_wheel_back"  x="${-wheel_x}" y="${-wheel_y}"/>
+
+  <!-- two counter-rotating bucket-drum arms (front + back; bidirectional excavator) -->
+  <xacro:drum_assembly side="front" x_arm="${ arm_x}" x_drum="${ drum_x}" arm_rpy="3.1415 0 0"/>
+  <xacro:drum_assembly side="back"  x_arm="${-arm_x}" x_drum="${-drum_x}" arm_rpy="0 0 0"/>
+
+  <!-- front camera (upstream depth_camera_front at 0.3 0 -0.1) + REP-103 optical frame. EZ-RASSOR has
+       ONE physical camera; the 8-frame IPEx rig is a follow-on reconciliation (see gz overlay). -->
+  <link name="depth_camera_front">
+    <visual><geometry><box size="${cam_size} ${cam_size} ${cam_size}"/></geometry></visual>
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+  <joint name="camera_front_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="depth_camera_front"/>
+    <origin xyz="0.30 0 -0.10" rpy="0 0 0"/>
+  </joint>
+  <link name="depth_camera_optical_frame"/>
+  <joint name="depth_camera_optical_joint" type="fixed">
+    <parent link="depth_camera_front"/>
+    <child link="depth_camera_optical_frame"/>
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+  </joint>
+
+</robot>

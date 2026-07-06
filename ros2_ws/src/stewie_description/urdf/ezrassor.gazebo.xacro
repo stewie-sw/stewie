@@ -1,0 +1,105 @@
+<?xml version="1.0"?>
+<!-- [REQ:AS-06] Gazebo (gz-sim8 / Harmonic) overlay for the EZ-RASSOR model (STEWIE model of record).
+     Includes the single-source AS-03 EZ-RASSOR URDF and adds ONLY the gz plugins/sensors for the sim
+     seam. All gz topic names sit under the `gz_ns` namespace (default /model/ipex) so the FROZEN
+     stewie_bringup/config/gz_bridge.yaml wires straight through with NO bridge change; the gz entity
+     is spawned as `ipex` (the bridge/telemetry contract key), independent of which vehicle URDF is loaded.
+     Swap the vehicle via STEWIE_SIM_MODEL / the launch; keep the same namespace so downstream is unaffected.
+
+     ROS1 -> gz-sim8 adaptation: the upstream EZ-RASSOR gz plugins (libgazebo_ros_control.so,
+     libgazebo_ros_imu.so, libgazebo_ros_openni_kinect.so, all Gazebo-Classic/ROS1) are REPLACED by
+     the gz-sim8 systems below (DiffDrive, JointStatePublisher, PosePublisher, gz imu/camera/gpu_lidar
+     sensors). The truth pose comes from the world pose_publisher (bridged to /stewie/truth/pose only). -->
+<robot name="ezrassor" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="gz_ns" default="/model/ipex"/>
+  <xacro:include filename="$(find stewie_description)/urdf/ezrassor.urdf.xacro"/>
+
+  <gazebo>
+    <!-- 4-wheel skid-steer: front+rear wheels grouped per side (track 0.57, r 0.18). Upstream EZ-RASSOR
+         hinge names. -->
+    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+      <left_joint>left_wheel_front_hinge</left_joint>
+      <left_joint>left_wheel_back_hinge</left_joint>
+      <right_joint>right_wheel_front_hinge</right_joint>
+      <right_joint>right_wheel_back_hinge</right_joint>
+      <wheel_separation>0.57</wheel_separation>
+      <wheel_radius>0.18</wheel_radius>
+      <max_linear_velocity>0.3</max_linear_velocity>
+      <topic>$(arg gz_ns)/cmd_vel</topic>
+      <odom_topic>$(arg gz_ns)/odometry</odom_topic>
+      <tf_topic>$(arg gz_ns)/tf</tf_topic>
+      <frame_id>odom</frame_id>
+      <child_frame_id>base_link</child_frame_id>
+    </plugin>
+    <!-- proprioception: publishes ALL model joints (4 wheels + 2 arms + 2 drums) as JointState on
+         /world/<world>/model/<name>/joint_state (bridged to /joint_states). -->
+    <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher"/>
+    <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+      <publish_link_pose>true</publish_link_pose>
+      <use_pose_vector_msg>true</use_pose_vector_msg>
+      <static_publisher>true</static_publisher>
+    </plugin>
+  </gazebo>
+
+  <!-- IMU on imu_link -> <gz_ns>/imu (no rendering; works headless). Upstream EZ-RASSOR ran a 50 Hz
+       gaussianNoise=0.05 imu; gz-sim8 imu is clean by default (noise can be added later). -->
+  <gazebo reference="imu_link">
+    <sensor name="imu" type="imu">
+      <always_on>1</always_on>
+      <update_rate>50</update_rate>
+      <topic>$(arg gz_ns)/imu</topic>
+    </sensor>
+  </gazebo>
+
+  <!-- Contact evidence on the front-left wheel (gz appends "_collision" to the URDF collision name). -->
+  <gazebo reference="left_wheel_front">
+    <sensor name="left_wheel_front_contact" type="contact">
+      <always_on>1</always_on>
+      <update_rate>20</update_rate>
+      <contact>
+        <collision>left_wheel_front_collision_collision</collision>
+        <topic>$(arg gz_ns)/contact</topic>
+      </contact>
+    </sensor>
+  </gazebo>
+
+  <!-- [BA-02] Front camera on depth_camera_front (upstream EZ-RASSOR optics: hfov 1.29154, 640x480).
+       Mapped to the bridge's front_left channel (the RT-03 render + primary nav camera). RENDERING needs
+       a GL backend (GPU/EGL headless is blocked -> RT-03 uses CPU llvmpipe under xvfb); the description
+       declares it regardless. NOTE (follow-on): EZ-RASSOR has ONE camera vs the IPEx 8-cam rig; the
+       other 7 bridge camera channels simply carry no gz publisher until a multi-camera rig is added. -->
+  <gazebo reference="depth_camera_front">
+    <sensor name="camera_front_left" type="camera">
+      <always_on>1</always_on>
+      <update_rate>10</update_rate>
+      <topic>$(arg gz_ns)/camera/front_left/image</topic>
+      <camera_info_topic>$(arg gz_ns)/camera/front_left/camera_info</camera_info_topic>
+      <camera>
+        <horizontal_fov>1.29154</horizontal_fov>
+        <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+        <clip><near>0.105</near><far>100.0</far></clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- Simulated depth source: front gpu_lidar-style cloud on the camera mount -> <gz_ns>/perception
+       (gpu_lidar publishes its cloud on <topic>/points, bridged to /stewie/perception/points). Also
+       render-gated (needs the sensors system + GL), like the camera. -->
+  <gazebo reference="depth_camera_front">
+    <sensor name="front_points" type="gpu_lidar">
+      <always_on>1</always_on>
+      <update_rate>5</update_rate>
+      <topic>$(arg gz_ns)/perception</topic>
+      <lidar>
+        <scan>
+          <horizontal><samples>64</samples><resolution>1</resolution>
+            <min_angle>-0.785398</min_angle><max_angle>0.785398</max_angle></horizontal>
+          <vertical><samples>8</samples><resolution>1</resolution>
+            <min_angle>-0.261799</min_angle><max_angle>0.261799</max_angle></vertical>
+        </scan>
+        <range><min>0.20</min><max>20.0</max><resolution>0.02</resolution></range>
+        <noise><type>gaussian</type><mean>0.0</mean><stddev>0.01</stddev></noise>
+      </lidar>
+    </sensor>
+  </gazebo>
+</robot>
