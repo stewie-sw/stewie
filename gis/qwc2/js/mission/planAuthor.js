@@ -238,7 +238,11 @@ export default class PlanAuthor {
                 // Read-only readback of the exact /api/plan POST body + the last plan summary (for verifying
                 // the chosen levers rode the POST and the resolved algorithm/objective came back).
                 lastPlanPayload: () => (this._lastPlanPayload ? JSON.parse(JSON.stringify(this._lastPlanPayload)) : null),
-                planResult: () => (this.result ? JSON.parse(JSON.stringify(this.result)) : null)
+                planResult: () => (this.result ? JSON.parse(JSON.stringify(this.result)) : null),
+                // DEPTH-5 read-only: the Schedule/Gantt view-model (phase runs + per-vehicle swim-lanes) so a
+                // headless proof can assert the lanes/colours match the routes without pixel inspection.
+                scheduleView: () => ((this.result && this.result.detail && this.result.detail.schedule)
+                    ? JSON.parse(JSON.stringify(this.result.detail.schedule)) : null)
             };
         }
         this._attached = true;
@@ -847,7 +851,75 @@ export default class PlanAuthor {
             fits_in_window: (en.timescale ? en.timescale.fits_in_window : null),
             day_label: (en.timescale ? en.timescale.day_label : null)
         } : null;
-        return {ir, validation, ordered, timeline, endurance};
+        const schedule = this._schedule(resp);
+        return {ir, validation, ordered, timeline, endurance, schedule};
+    }
+
+    // --- Schedule / Gantt (DEPTH-5): the mission timeline as a phase-coloured schedule the panel draws.
+    // PURE REBIND of data already in the /plan response — nothing recomputed or fabricated. Two views:
+    //   • single-vehicle -> the aggregate MISSION TIMELINE: the sim's per-segment frames (resp.timeline.frames,
+    //     lode/mission_planner.build_timeline:330-338 — each carries t0/t1/phase/batt0_frac/batt1_frac; phase
+    //     ∈ drive/charge/wait/dig/offload/sinter, lode/planner_sim.py:53,79,140,171-178) reduced to phase RUNS
+    //     (consecutive same-phase frames merged) on a monotonic 0->makespan axis + a downsampled battery-
+    //     fraction envelope. Faithful: the frames ARE the executed sim, incl. the charge phases.
+    //   • fleet (vehicles>1) -> per-vehicle SWIM-LANES: the plan IR actions (resp.plan_ir.actions,
+    //     lode/planner_views.py:456-504) grouped by their 0-based `vehicle` id (:440,492), each segment sized by
+    //     expect.duration_s (:459,499) and coloured by op. A fleet's timeline frames are per-vehicle-LOCAL and
+    //     concatenated (lode/planner_assembly.py:376 all_tl), i.e. NOT one monotonic clock, so the honest
+    //     per-rover view is the IR-action lanes, each laid from t=0 to its own total (recharges are
+    //     precondition-driven, NOT positional IR actions, so a lane shows drive+work; the charge phases live in
+    //     the single-vehicle aggregate timeline). Each lane's colour = vehicleColor(veh) = the SAME map route.
+    _schedule(resp) {
+        const pir = resp.plan_ir || {};
+        const tl = resp.timeline || null;
+        const pr = resp.plan_result || {}, t = resp.totals || {};
+        const vehicles = pir.vehicles || t.vehicles || pr.vehicles || 1;
+        // axis extent: the fleet wall-clock makespan (max per-vehicle time, planner_assembly.py:397) if given,
+        // else totals.time_s, else the aggregate timeline duration.
+        const makespanS = (pr.makespan_s != null) ? pr.makespan_s
+            : (t.makespan_s != null ? t.makespan_s
+                : (t.time_s != null ? t.time_s : (tl && tl.duration_s != null ? tl.duration_s : 0)));
+        // aggregate mission-timeline phase runs + battery envelope (one monotonic clock; faithful for 1 vehicle)
+        let timeline = null;
+        if (tl && Array.isArray(tl.frames) && tl.frames.length) {
+            const frames = tl.frames;
+            const segments = [];
+            frames.forEach((f) => {   // RLE: merge consecutive same-phase frames into one run
+                const last = segments[segments.length - 1];
+                if (last && last.phase === f.phase && Math.abs(last.t1 - f.t0) < 1e-3) { last.t1 = f.t1; }
+                else { segments.push({phase: f.phase, t0: f.t0, t1: f.t1}); }
+            });
+            // battery envelope: downsample frames to <=120 time-groups, each carrying its time width + min frac.
+            const N = frames.length, CAP = 120, step = Math.max(1, Math.ceil(N / CAP));
+            const batt = [];
+            for (let i = 0; i < N; i += step) {
+                let w = 0, lo = 1;
+                for (let j = i; j < Math.min(N, i + step); j++) {
+                    w += Math.max(0, frames[j].t1 - frames[j].t0);
+                    lo = Math.min(lo, frames[j].batt0_frac, frames[j].batt1_frac);
+                }
+                batt.push({w: w, frac: lo});
+            }
+            timeline = {
+                duration_s: (tl.duration_s != null ? tl.duration_s
+                    : (segments.length ? segments[segments.length - 1].t1 : 0)),
+                segments: segments, batt: batt
+            };
+        }
+        // per-vehicle swim-lanes from the plan IR actions (grouped by the 0-based vehicle id)
+        const byVeh = {}; const order = [];
+        (pir.actions || []).forEach((a) => {
+            const veh = Number.isFinite(a.vehicle) ? a.vehicle : 0;
+            if (!(veh in byVeh)) { byVeh[veh] = []; order.push(veh); }
+            const dur = (a.expect && a.expect.duration_s != null) ? a.expect.duration_s : 0;
+            byVeh[veh].push({op: a.op, dur_s: dur});
+        });
+        const lanes = order.sort((x, y) => x - y).map((veh) => ({
+            vehicle: veh, color: vehicleColor(veh),
+            total_s: byVeh[veh].reduce((sum, x) => sum + (x.dur_s || 0), 0),
+            segments: byVeh[veh]
+        }));
+        return {makespan_s: makespanS, vehicles: vehicles, timeline: timeline, lanes: lanes};
     }
 
     // =====================================================================================================

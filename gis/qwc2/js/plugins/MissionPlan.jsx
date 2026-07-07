@@ -91,7 +91,8 @@ class MissionPlan extends React.Component {
     state = {
         ready: false,
         ctrl: null,  // the controller's emitted UI state {site, activeKind, footprint, depth, orders, hint, hintErr, result, planning}
-        detailOpen: false   // DEPTH-4: the "Plan detail" expander (Plan IR / validation / timeline+endurance)
+        detailOpen: false,  // DEPTH-4: the "Plan detail" expander (Plan IR / validation / timeline+endurance)
+        scheduleOpen: true  // DEPTH-5: the "Schedule / Gantt" expander (open by default — the headline of a plan)
     };
     constructor(props) {
         super(props);
@@ -159,6 +160,8 @@ class MissionPlan extends React.Component {
     onChargerCapacity = (e) => { if (this.ctrl) { this.ctrl.setChargerCapacity(e.target.value); } };
     // DEPTH-4 plan-detail expander
     onToggleDetail = () => { this.setState((st) => ({detailOpen: !st.detailOpen})); };
+    // DEPTH-5 schedule / Gantt expander
+    onToggleSchedule = () => { this.setState((st) => ({scheduleOpen: !st.scheduleOpen})); };
 
     renderTools(s) {
         const btn = (kind, label, color) => {
@@ -606,6 +609,161 @@ class MissionPlan extends React.Component {
         );
     }
 
+    // --- Schedule / Gantt (DEPTH-5): a compact, dark-themed timeline drawn with CSS flex bars (no SVG path,
+    // no canvas) from the read-only view-model planAuthor._schedule attached to result.detail.schedule.
+    //   • single-vehicle -> the aggregate MISSION TIMELINE: phase-coloured runs (drive/charge/dig/…) on a
+    //     0->makespan axis + the battery-fraction envelope (dips on work/drive, recovers at each recharge).
+    //   • fleet (vehicles>1) -> one SWIM-LANE per rover, coloured to match its map route (vehicleColor), each
+    //     built from that rover's plan-IR action durations. Every value is projected straight from the real
+    //     /plan response (timeline frames + plan_ir action durations) — nothing recomputed or fabricated.
+    static PHASE_COLOR = {drive: '#8fb8ff', charge: '#7fe0a8', wait: '#3f4653',
+        dig: '#e0563a', offload: '#4fd1ff', sinter: '#b47cff', work: '#ffd24a'};
+    static OP_COLOR = {GoTo: '#8fb8ff', Excavate: '#e0563a', CutHaulFill: '#ffd24a', Import: '#7cff5e', Sinter: '#b47cff'};
+
+    // A phase/op bar: flex segments sized by duration (flexGrow), colour by phase (timeline) or op (lane), with
+    // a trailing spacer out to the axis so a lane that finishes before the makespan reads as ending early.
+    scheduleBar(segments, total, axisMax) {
+        const track = {display: 'flex', width: '100%', height: '15px', borderRadius: '3px',
+            overflow: 'hidden', background: '#0c1017'};
+        return (
+            <div style={track}>
+                {segments.map((seg, i) => {
+                    const dur = seg.t1 != null ? (seg.t1 - seg.t0) : (seg.dur_s || 0);
+                    if (!(dur > 0)) { return null; }
+                    const color = seg.phase ? (MissionPlan.PHASE_COLOR[seg.phase] || '#8a93a3')
+                        : (MissionPlan.OP_COLOR[seg.op] || '#8a93a3');
+                    return (
+                        <div
+                            key={i} data-phase={seg.phase || seg.op}
+                            style={{flexGrow: dur, flexBasis: 0, minWidth: '1.5px', background: color}}
+                            title={(seg.phase || seg.op) + ' · ' + MissionPlan.fmtSs(dur)}
+                        />
+                    );
+                })}
+                {(axisMax > total + 1e-6)
+                    ? <div style={{flexGrow: (axisMax - total), flexBasis: 0}} /> : null}
+            </div>
+        );
+    }
+
+    // The battery-fraction envelope as time-proportional flex columns (height = min SoC over the column),
+    // green>50% -> amber>20% -> red. Single-vehicle only (a fleet's frames are per-vehicle-local, not one clock).
+    scheduleBattery(batt) {
+        return (
+            <div style={{display: 'flex', alignItems: 'flex-end', width: '100%', height: '22px',
+                marginTop: '3px', background: '#0c1017', borderRadius: '3px', overflow: 'hidden'}}
+            >
+                {batt.map((b, i) => {
+                    const frac = Math.max(0, Math.min(1, b.frac));
+                    const col = frac > 0.5 ? '#7fe0a8' : (frac > 0.2 ? '#ffd24a' : '#e0563a');
+                    return (
+                        <div key={i} style={{flexGrow: Math.max(b.w, 1e-6), flexBasis: 0,
+                            display: 'flex', alignItems: 'flex-end', height: '100%'}}
+                        >
+                            <div style={{width: '100%', height: Math.round(frac * 100) + '%', background: col}} />
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    renderSchedule(s) {
+        const r = s.result;
+        const sch = r && r.detail && r.detail.schedule;
+        if (!sch) { return null; }
+        const open = this.state.scheduleOpen !== false;
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        const lanes = sch.lanes || [];
+        const fleet = (sch.vehicles || 1) > 1 && lanes.length > 1;
+        const tlDur = (sch.timeline && sch.timeline.duration_s) || 0;
+        const laneMax = lanes.reduce((m, l) => Math.max(m, l.total_s || 0), 0);
+        // axis extent = makespan, floored so a slight a-priori-model overshoot (IR vs sim) never overflows.
+        const axisMax = Math.max(sch.makespan_s || 0, fleet ? laneMax : tlDur, 1e-9);
+        // legend items: the ops present (fleet) or phases present (single timeline).
+        const legend = fleet
+            ? Array.from(new Set(lanes.reduce((acc, l) => acc.concat(l.segments.map((x) => x.op)), [])))
+                .map((op) => ({label: op, color: MissionPlan.OP_COLOR[op] || '#8a93a3'}))
+            : Array.from(new Set((sch.timeline ? sch.timeline.segments.map((x) => x.phase) : [])))
+                .map((ph) => ({label: ph, color: MissionPlan.PHASE_COLOR[ph] || '#8a93a3'}));
+        const axisLabels = (
+            <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '9px',
+                color: '#5a6270', marginTop: '3px'}}
+            >
+                <span>0</span><span>{MissionPlan.fmtSs(axisMax / 2)}</span><span>{MissionPlan.fmtSs(axisMax)}</span>
+            </div>
+        );
+        return (
+            <div style={{marginTop: '10px', borderTop: '1px solid #1c1c26', paddingTop: '8px'}}>
+                <div
+                    data-stewie-schedule-toggle="1" onClick={this.onToggleSchedule}
+                    style={{display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', userSelect: 'none'}}
+                >
+                    <span style={{fontSize: '10px', color: '#39c6ff', width: '10px'}}>{open ? '▾' : '▸'}</span>
+                    <span style={{...lbl, color: '#c7d2e3'}}>Schedule / Gantt</span>
+                    <span style={{flex: '1 1 auto'}} />
+                    <span style={{fontSize: '9px', color: '#7a8290'}}>makespan {MissionPlan.fmtSs(sch.makespan_s)}</span>
+                </div>
+                {open ? (
+                    <div data-stewie-gantt="1" style={{marginTop: '6px'}}>
+                        {fleet ? (
+                            <div>
+                                <div style={{fontSize: '9px', color: '#7a8290', margin: '0 0 6px', lineHeight: 1.35}}>
+                                    One swim-lane per rover (colour matches its map route); segments are the
+                                    per-action durations from the plan IR. Axis 0 → makespan. Recharges are
+                                    precondition-driven (folded into the makespan), not drawn as lane segments.
+                                </div>
+                                {lanes.map((l) => (
+                                    <div key={l.vehicle} data-stewie-gantt-lane={l.vehicle} style={{margin: '5px 0'}}>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '6px',
+                                            fontSize: '10px', marginBottom: '2px'}}
+                                        >
+                                            <span
+                                                data-lane-color={l.color}
+                                                style={{width: '11px', height: '4px', borderRadius: '2px', background: l.color}}
+                                            />
+                                            <span style={{color: '#c7d2e3', fontWeight: 600}}>Rover {l.vehicle + 1}</span>
+                                            <span style={{flex: '1 1 auto'}} />
+                                            <span style={{color: '#8a93a3'}}>{MissionPlan.fmtSs(l.total_s)}</span>
+                                        </div>
+                                        <div style={{borderLeft: '3px solid ' + l.color, paddingLeft: '4px'}}>
+                                            {this.scheduleBar(l.segments, l.total_s, axisMax)}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div>
+                                <div style={{fontSize: '9px', color: '#7a8290', margin: '0 0 6px', lineHeight: 1.35}}>
+                                    Mission timeline — per-phase segments from the sim on a 0 → makespan axis; the
+                                    battery envelope below dips on work/drive and recovers at each recharge.
+                                </div>
+                                {sch.timeline
+                                    ? this.scheduleBar(sch.timeline.segments, tlDur, axisMax)
+                                    : <div style={{fontSize: '10px', color: '#7a8290'}}>No timeline in this plan.</div>}
+                                {sch.timeline && sch.timeline.batt && sch.timeline.batt.length
+                                    ? this.scheduleBattery(sch.timeline.batt) : null}
+                            </div>
+                        )}
+                        {axisLabels}
+                        {legend.length ? (
+                            <div style={{display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: '6px'}}>
+                                {legend.map((it) => (
+                                    <span key={it.label} style={{display: 'flex', alignItems: 'center', gap: '4px',
+                                        fontSize: '9px', color: '#8a93a3'}}
+                                    >
+                                        <span style={{width: '8px', height: '8px', borderRadius: '2px', background: it.color}} />
+                                        {it.label}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
     renderResult(s) {
         const r = s.result;
         if (!r) { return null; }
@@ -840,6 +998,7 @@ class MissionPlan extends React.Component {
                 </div>
 
                 {this.renderResult(s)}
+                {this.renderSchedule(s)}
                 {this.renderPlanDetail(s)}
                 {this.renderRun(s)}
             </div>
