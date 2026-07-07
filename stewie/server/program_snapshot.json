@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "096b51fd153e3cfe548e2d02783b89e4f85ad9d2e0a1857a4977c20773a78844",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "062115c38642d664468094030c8807753f74ced4",
-  "prd_sha256": "c21780a8333a095ab9898e99a190eb303729b912a9f91f5576edcab95aea50ad",
+  "prd_commit": "a880ec854cfa670ff2326c8b2582c5b79e0287de",
+  "prd_sha256": "0d1e0c4e8a44dc05f60dcdacd7c76ff8f87043f277db4566dd066181146b56a6",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -4389,16 +4389,16 @@
    "text": "**Godot mission view (sidecar-first).** Renders the selected branch/run (terrain/rover/path/hazards/sensor-cones/shadow/excavation/as-built) using the same site/body/frame as the map; captures carry run/branch id, camera pose, timestamp, source class, asset hashes; never physics or command authority. (extends BA-08)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "SD-01",
    "lane": "SD",
    "pri": "P1",
-   "text": "**Surface Design view.** Pads/berms/trenches/cuts/fills/roads/stockpiles/sinter \u2192 typed mission orders with volume/mass/bearing/sinkage/constructability evidence; volume/mass estimates show DEM resolution, material assumption, and uncertainty; a before/after terrain transaction influences the next plan."
+   "text": "**Surface Design view.** [REQ:SD-01] Pads/berms/trenches/cuts/fills/roads/stockpiles/sinter \u2192 typed mission orders with volume/mass/bearing/sinkage/constructability evidence; volume/mass estimates show DEM resolution, material assumption, and uncertainty; a before/after terrain transaction influences the next plan."
   },
   {
    "I": "D",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 74,
+   "buildable": 73,
    "concurrent": 0,
-   "done": 251,
+   "done": 252,
    "gated": 14
   },
   "by_lane": {
@@ -5203,7 +5203,7 @@
     "total": 6
    },
    "SD": {
-    "done": 0,
+    "done": 1,
     "total": 1
    },
    "SE": {
@@ -5245,7 +5245,7 @@
     "total": 116
    },
    "P1": {
-    "done": 141,
+    "done": 142,
     "total": 188
    },
    "P2": {
@@ -5258,9 +5258,9 @@
    }
   },
   "cited": 271,
-  "done_pct": 74.0,
+  "done_pct": 74.3,
   "in_scope": 325,
-  "in_scope_done_pct": 77.2,
+  "in_scope_done_pct": 77.5,
   "total": 339
  },
  "workflow_spine": [
