@@ -92,6 +92,12 @@ class StructureRequest(BaseModel):
     x: float = 0.0
     y: float = 0.0
     params: dict = Field(default_factory=dict)
+    # SD-01: the work site + selenographic placement, so the constructability evidence samples the REAL DEM
+    # slope at the structure's location (the terramechanics bearing/sinkage verdict). Optional -- absent -> the
+    # evidence carries earthwork only (no fabricated slope).
+    site: str | None = Field(default=None, max_length=80)
+    lat: float | None = Field(default=None, ge=-90.0, le=90.0)
+    lon: float | None = Field(default=None, ge=-360.0, le=360.0)
 
 
 class RenderRequest(BaseModel):
@@ -377,8 +383,12 @@ def post_localize_render(req: LocalizeRenderRequest, _auth: None = Depends(requi
 
 @router.post("/structure")
 def post_structure(req: StructureRequest, _auth: None = Depends(require_auth)):
-    """Decompose a named structure (Landing Pad / Haul Road / Berm / ...) at (x,y) into mass-balanced
-    cut/fill orders (structures.decompose). Returns orders the build queue can adopt."""
+    """[REQ:SD-01] Decompose a named structure (Landing Pad / Haul Road / Berm / ...) at (x,y) into
+    mass-balanced cut/fill orders (structures.decompose), and return the per-structure CONSTRUCTABILITY
+    EVIDENCE: volume/mass from the decomposed orders + the local terramechanics (bearing capacity + expected
+    sinkage from the spine at the site slope) + a derived constructability verdict + the material assumption,
+    DEM resolution, and calibration status. Real numbers from the decompose + spine -- nothing fabricated."""
+    from stewie.server import constructability as CB
     from leap import structures as ST
     if len(req.params or {}) > 32:                      # N8: cap the param dict (decompose also rejects unknown keys)
         return JSONResponse(status_code=400, content={"ok": False, "error": "too many structure params (max 32)"})
@@ -386,8 +396,11 @@ def post_structure(req: StructureRequest, _auth: None = Depends(require_auth)):
         orders = ST.decompose(req.name, req.x, req.y, **(req.params or {}))
     except (ValueError, TypeError) as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    slope, cell, src = CB.site_slope_deg(req.site, req.lat, req.lon)   # REAL DEM slope at the placement (or None)
+    evidence = CB.structure_evidence(req.name, orders, site=req.site, site_slope_deg=slope,
+                                     dem_resolution_m=cell, slope_source=src)
     log_event("api", "structure", f"{req.name}: {len(orders)} orders")  # FS-19: decompose-call audit
-    return {"ok": True, "name": req.name, "orders": orders}
+    return {"ok": True, "name": req.name, "orders": orders, "evidence": evidence}
 
 
 @router.post("/sense")

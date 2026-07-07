@@ -301,6 +301,11 @@ export default class PlanAuthor {
                 setStructParam: (k, v) => this.setStructParam(k, v),
                 placeStructure: (coord) => this.placeStructure(coord),
                 structureCount: () => this.structures.length,
+                // SD-01 read-only: the per-structure constructability evidence (volume/mass + terramechanics
+                // bearing/sinkage + verdict) the backend derived, so a headless proof can assert the evidence
+                // is real (matches the decompose + spine) without scraping the panel DOM.
+                structureEvidence: () => this.structures.map((s) => (s.evidence
+                    ? JSON.parse(JSON.stringify(s.evidence)) : null)),
                 // Read-only readback of the exact /api/plan POST body + the last plan summary (for verifying
                 // the chosen levers rode the POST and the resolved algorithm/objective came back).
                 lastPlanPayload: () => (this._lastPlanPayload ? JSON.parse(JSON.stringify(this._lastPlanPayload)) : null),
@@ -359,7 +364,8 @@ export default class PlanAuthor {
             templates: this.templates, templatesErr: this.templatesErr,
             structKind: this.structKind, structParams: {...this.structParams},
             structures: this.structures.map((st, i) => ({
-                idx: i, structId: st.idx, name: st.name, nOrders: st.nOrders
+                idx: i, structId: st.idx, name: st.name, nOrders: st.nOrders,
+                evidence: st.evidence || null   // SD-01: the per-structure constructability evidence for the panel
             })),
             // DEPTH-2 plan controls (mirrored to the panel so the selects/inputs reflect the chosen levers).
             algorithm: this.algorithm, objective: this.objective, maxSlopeDeg: this.maxSlopeDeg,
@@ -590,7 +596,11 @@ export default class PlanAuthor {
         this._setHint('Decomposing ' + name.replace(/_/g, ' ') + ' into mass-balanced orders…');
         return fetch('/api/structure', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name: name, x: 0, y: 0, params: params})
+            // SD-01: carry the work site + selenographic placement so the backend samples the REAL DEM slope at
+            // the structure's location for the constructability evidence (bearing/sinkage verdict). originLonlat
+            // = [lon, lat] from the click reproject above; off-tile/absent -> the backend defers (no fake slope).
+            body: JSON.stringify({name: name, x: 0, y: 0, params: params,
+                site: this.site, lon: originLonlat[0], lat: originLonlat[1]})
         })
             .then((r) => r.text().then((t) => {
                 let b = null; try { b = JSON.parse(t); } catch (e) { b = null; }
@@ -605,6 +615,10 @@ export default class PlanAuthor {
                 }
                 this._structSeq += 1;
                 const structId = this._structSeq;
+                // SD-01: the per-structure CONSTRUCTABILITY EVIDENCE the backend derived from the REAL decompose
+                // (volume/mass) + the terramechanics spine at the site slope (bearing/sinkage) + a derived
+                // verdict. null on an older backend (pre-SD-01) -> the panel simply shows no evidence card.
+                const evidence = (res.body && res.body.evidence) || null;
                 const added = [];
                 for (const o of orders) {
                     const mapX = coord[0] + o.x;      // local East offset -> map East (30135 is metric, north-up)
@@ -620,7 +634,7 @@ export default class PlanAuthor {
                 }
                 this.structures.push({
                     idx: structId, name: name, params: {...params},
-                    coord: [coord[0], coord[1]], nOrders: added.length
+                    coord: [coord[0], coord[1]], nOrders: added.length, evidence: evidence
                 });
                 this._addStructureFootprint(structId, name, added);
                 this._refreshOrderMarkers();

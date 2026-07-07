@@ -303,25 +303,94 @@ class MissionPlan extends React.Component {
                 {structs.length ? (
                     <div style={{marginTop: '8px'}}>
                         <div style={{...lbl, marginBottom: '2px'}}>Placed structures ({structs.length})</div>
-                        <ul data-stewie-struct-list="1" style={{listStyle: 'none', margin: '2px 0', padding: 0, maxHeight: '110px', overflowY: 'auto'}}>
+                        <ul data-stewie-struct-list="1" style={{listStyle: 'none', margin: '2px 0', padding: 0, maxHeight: '380px', overflowY: 'auto'}}>
                             {structs.map((st) => (
-                                <li key={st.structId} style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0', fontSize: '11px'}}>
-                                    <span style={{
-                                        width: '10px', height: '10px', flex: '0 0 auto', borderRadius: '2px',
-                                        border: '1px dashed #7cc6ff', background: 'rgba(124,198,255,0.12)'
-                                    }} />
-                                    <span style={{flex: '1 1 auto', color: '#c7d2e3'}}>{STRUCTURE_LABELS[st.name] || st.name}</span>
-                                    <span style={{flex: '0 0 auto', color: '#8a93a3', fontSize: '10px'}}>{st.nOrders} order{st.nOrders === 1 ? '' : 's'}</span>
-                                    <span
-                                        onClick={() => this.onRemoveStructure(st.idx)}
-                                        style={{flex: '0 0 auto', cursor: 'pointer', color: '#e0564b', fontWeight: 700, padding: '0 4px'}}
-                                        title="remove structure + its orders"
-                                    >×</span>
+                                <li key={st.structId} style={{padding: '3px 0', fontSize: '11px', borderBottom: '1px solid #12141a'}}>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                        <span style={{
+                                            width: '10px', height: '10px', flex: '0 0 auto', borderRadius: '2px',
+                                            border: '1px dashed #7cc6ff', background: 'rgba(124,198,255,0.12)'
+                                        }} />
+                                        <span style={{flex: '1 1 auto', color: '#c7d2e3'}}>{STRUCTURE_LABELS[st.name] || st.name}</span>
+                                        <span style={{flex: '0 0 auto', color: '#8a93a3', fontSize: '10px'}}>{st.nOrders} order{st.nOrders === 1 ? '' : 's'}</span>
+                                        <span
+                                            onClick={() => this.onRemoveStructure(st.idx)}
+                                            style={{flex: '0 0 auto', cursor: 'pointer', color: '#e0564b', fontWeight: 700, padding: '0 4px'}}
+                                            title="remove structure + its orders"
+                                        >×</span>
+                                    </div>
+                                    {this.renderConstructability(st.evidence)}
                                 </li>
                             ))}
                         </ul>
                     </div>
                 ) : null}
+            </div>
+        );
+    }
+
+    // --- Constructability evidence (SD-01): per placed structure, the REAL evidence the backend derived --
+    // volume/mass from the decomposed cut/fill orders + the local terramechanics (applied wheel contact
+    // pressure vs the allowable soil bearing capacity + expected sinkage/slip from the spine at the site
+    // slope) + a DERIVED constructability verdict + the material assumption, DEM resolution, and calibration
+    // status (the honest uncertainty). Every number is projected straight from /api/structure -> evidence;
+    // nothing here recomputes or fabricates. Absent (older backend) -> no card. (Named distinctly from the SIM
+    // run's renderEvidence, which renders the /executive run's evidence-bundle links.)
+    renderConstructability(ev) {
+        if (!ev) { return null; }
+        const ew = ev.earthwork || {};
+        const tm = ev.terramechanics;
+        const vd = ev.verdict;
+        const unc = ev.uncertainty || {};
+        const mat = ev.material || {};
+        const lbl = {fontSize: '8.5px', letterSpacing: '.05em', color: '#6a7280', textTransform: 'uppercase'};
+        const ok = !!(vd && vd.constructable);
+        const badge = vd ? (ok ? '#39ff14' : '#e0564b') : '#8a93a3';
+        const fmtVol = (v) => (v == null ? '—' : (v >= 100 ? v.toFixed(0) : v.toFixed(2)) + ' m³');
+        return (
+            <div
+                data-stewie-evidence="1"
+                style={{marginTop: '4px', border: '1px solid #16202a', borderRadius: '4px', padding: '6px 7px', background: '#0a0f15'}}
+            >
+                <div style={{...lbl, marginBottom: '3px'}}>Constructability evidence</div>
+                <div style={{fontSize: '10px', color: '#8a93a3', display: 'flex', flexWrap: 'wrap', gap: '2px 10px'}}>
+                    <span>Cut <b style={{color: '#e0a06a'}}>{fmtVol(ew.cut_volume_m3)} · {fmtMass(ew.cut_mass_kg)}</b></span>
+                    {ew.fill_volume_m3 > 0 ? (
+                        <span>Fill <b style={{color: '#6ac6e0'}}>{fmtVol(ew.fill_volume_m3)} · {fmtMass(ew.fill_mass_kg)}</b></span>
+                    ) : null}
+                    {ew.mass_balanced
+                        ? <span style={{color: '#4fd1ff'}}>✓ mass-balanced</span>
+                        : <span style={{color: '#e0a04f'}}>source / grade</span>}
+                </div>
+                {tm ? (
+                    <div
+                        data-stewie-terra="1"
+                        style={{fontSize: '10px', color: '#8a93a3', marginTop: '2px', display: 'flex', flexWrap: 'wrap', gap: '2px 10px'}}
+                    >
+                        <span>Bearing <b style={{color: tm.bearing_ok ? '#9dff8a' : '#e0564b'}}>
+                            {Math.round(tm.contact_pressure_pa)} ≤ {Math.round(tm.bearing_capacity_pa)} Pa</b></span>
+                        <span>Sinkage <b style={{color: '#c7d2e3'}}>{(tm.sinkage_m * 1000).toFixed(1)} mm</b></span>
+                        <span>Slip <b style={{color: '#c7d2e3'}}>{tm.slip.toFixed(2)}</b></span>
+                        <span>@ <b style={{color: '#c7d2e3'}}>{tm.slope_deg.toFixed(0)}°</b>{ev.slope_source ? ' (' + ev.slope_source + ')' : ''}</span>
+                    </div>
+                ) : (
+                    <div style={{fontSize: '9px', color: '#7a8290', marginTop: '2px'}}>
+                        Terramechanics deferred — no site DEM slope at this placement.
+                    </div>
+                )}
+                {vd ? (
+                    <div data-stewie-verdict="1" style={{marginTop: '4px', display: 'flex', alignItems: 'baseline', gap: '6px'}}>
+                        <span style={{flex: '0 0 auto', fontSize: '9px', fontWeight: 700, letterSpacing: '.04em', color: badge}}>
+                            {ok ? '✓ CONSTRUCTABLE' : '✗ NOT CONSTRUCTABLE'}
+                        </span>
+                        <span style={{flex: '1 1 auto', fontSize: '9.5px', color: '#9aa3b2', lineHeight: 1.3}}>{vd.status}</span>
+                    </div>
+                ) : null}
+                <div style={{fontSize: '8.5px', color: '#5a6270', marginTop: '4px', lineHeight: 1.35}}>
+                    DEM {unc.dem_resolution_m != null ? unc.dem_resolution_m + ' m' : '—'} ·
+                    {' '}ρ {mat.cut_density_kg_m3 != null ? mat.cut_density_kg_m3 : '—'} / {mat.fill_density_kg_m3 != null ? mat.fill_density_kg_m3 : '—'} kg/m³ ·
+                    {' '}sinkage {unc.sinkage_calibration || '—'} · slope {unc.slope_calibration || '—'}
+                </div>
             </div>
         );
     }
