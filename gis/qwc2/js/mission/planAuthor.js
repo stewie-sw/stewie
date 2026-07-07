@@ -63,6 +63,15 @@ function vehicleColor(veh) {
 
 function round1(n) { return Math.round(n * 10) / 10; }
 
+// PLAN ANYWHERE: the deterministic ad-hoc site id for an OFF-SITE pick, MATCHING the backend
+// (stewie/terrain/adhoc_dem.py adhoc_site_id) exactly -- milli-degree ints, lon wrapped to [-180,180).
+// The backend recognises `adhoc_<lat>_<lon>` and crops the global LDEM there on demand; the SAME string
+// then drives the globe drape (site=) + the /api/plan POST, so an off-site spot behaves like a curated one.
+function adhocSiteId(lat, lon) {
+    const wl = ((Number(lon) + 180) % 360 + 360) % 360 - 180;
+    return 'adhoc_' + Math.round(Number(lat) * 1000) + '_' + Math.round(wl * 1000);
+}
+
 export default class PlanAuthor {
     /**
      * @param {object} opts
@@ -264,7 +273,8 @@ export default class PlanAuthor {
 
     _emit() {
         this.onState({
-            site: this.site, activeKind: this.activeKind, footprint: this.footprint, depth: this.depth,
+            site: this.site, adhoc: (this.site || '').startsWith('adhoc_'),
+            activeKind: this.activeKind, footprint: this.footprint, depth: this.depth,
             orders: this.orders.map((o, i) => ({
                 idx: i, kind: o.kind, x: round1(o.coord[0]), y: round1(o.coord[1]),
                 footprint_m2: o.footprint_m2, depth_m: o.depth_m
@@ -314,6 +324,19 @@ export default class PlanAuthor {
                 this._setHint('Pick a tool (Cut / Fill), then click the map near the work area to place an order.');
             })
             .catch((e) => this._setHint('Could not load the ' + site + ' work area: ' + e.message, true));
+    }
+
+    // PLAN ANYWHERE: adopt an arbitrary off-site (lat, lon) as the work site. Derives the ad-hoc id
+    // (matching the backend) and reuses selectSite -- the backend crops the global LDEM there, so the
+    // globe drape + planner run on the real cropped DEM instead of the off-site 404 / flat fallback.
+    planHere(lat, lon) {
+        const la = Number(lat);
+        const lo = Number(lon);
+        if (!Number.isFinite(la) || !Number.isFinite(lo) || Math.abs(la) > 89.9) {
+            this._setHint('Enter a lat in [-89.9, 89.9] and a lon to plan off-site.', true);
+            return Promise.resolve();
+        }
+        return this.selectSite(adhocSiteId(la, lo), {fly: true});
     }
 
     // Fit the view to the site's globe footprint. Reproject the 4 selenographic corners to the map CRS and

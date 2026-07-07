@@ -29,7 +29,11 @@ def _haworth_bundle(bundle_dir=None):
 def load_site_dem(site: str = "haworth"):
     """#77 REG-01: load the real LOLA 5 m DEM for ANY imported site (not just Haworth). Resolves the
     bundle via the SITES registry (stewie.specs.sites); returns (heightmap [m], cell_m). Raises if the
-    site is unknown or not imported -- no fabricated terrain."""
+    site is unknown or not imported -- no fabricated terrain. PLAN-ANYWHERE: an ad-hoc lat/lon-derived
+    ``adhoc_*`` id crops the global LDEM on demand (stewie.terrain.adhoc_dem)."""
+    if _is_adhoc(site):
+        from stewie.terrain.adhoc_dem import parse_adhoc_site, resolve_adhoc_bundle
+        return load_haworth_dem(bundle_dir=resolve_adhoc_bundle(*parse_adhoc_site(site)))
     from stewie.specs.sites import SITES
     s = SITES.get(site)
     if s is None:
@@ -46,7 +50,11 @@ def bundle_for_site(site: str = "haworth") -> str:
     that take a ``bundle_dir`` (dem_georef_corners, latlon_to_dem_origin, the preview PNGs, the globe drape).
     Haworth honors the $STEWIE_DEM_DIR deployment override; other sites come from the SITES registry. Raises
     KeyError for an unknown site and FileNotFoundError for a known-but-not-imported one -- never points at a
-    fabricated or wrong-site surface (the caller maps these to 404)."""
+    fabricated or wrong-site surface (the caller maps these to 404). PLAN-ANYWHERE: an ad-hoc
+    ``adhoc_<lat>_<lon>`` id crops the global LDEM on demand (stewie.terrain.adhoc_dem)."""
+    if _is_adhoc(site):
+        from stewie.terrain.adhoc_dem import parse_adhoc_site, resolve_adhoc_bundle
+        return resolve_adhoc_bundle(*parse_adhoc_site(site))
     from stewie.specs.sites import SITES
     s = SITES.get(site)
     if s is None:
@@ -56,6 +64,29 @@ def bundle_for_site(site: str = "haworth") -> str:
     if not s.bundle_dir:
         raise FileNotFoundError(f"site {site!r} is not imported (no DEM bundle); fetch it first")
     return s.bundle_dir
+
+
+def _is_adhoc(site: str) -> bool:
+    """True for a PLAN-ANYWHERE ad-hoc lat/lon-derived site id (kept as a light local check so this module
+    does not import adhoc_dem at import time -- the crop path is imported lazily only when one is resolved)."""
+    return isinstance(site, str) and site.startswith("adhoc_")
+
+
+def bundle_crs(bundle_dir=None):
+    """The tile's CRS. A PLAN-ANYWHERE ad-hoc bundle carries a LOCAL azimuthal-equidistant frame in its
+    ``metadata.json`` ``georeference.proj4`` (centred on the pick -- ~0 warp at any latitude); a curated
+    site has none, so this returns the shared south-polar-stereographic IAU_2015:30135. This is the ONE
+    place the georeference helpers below + the globe drape resolve the frame, so the 8 curated sites stay
+    byte-identical while an ad-hoc tile georeferences through its own local frame."""
+    from pyproj import CRS
+    try:
+        meta = json.load(open(os.path.join(_haworth_bundle(bundle_dir), "metadata.json")))
+        proj4 = (meta.get("georeference") or {}).get("proj4")
+        if proj4:
+            return CRS.from_user_input(proj4)
+    except (OSError, ValueError, KeyError):
+        pass
+    return CRS.from_user_input("IAU_2015:30135")
 
 
 def load_haworth_dem(bundle_dir=None):
@@ -159,13 +190,13 @@ def latlon_to_dem_origin(lat, lon, *, bundle_dir=None):
     clicked instead of the auto flattest site. The DEM is south-polar stereographic on the R=1737400 m Moon
     sphere (IAU_2015:30135; see dem_import). Raises ValueError if the point falls outside the committed
     tile, ImportError if pyproj (the [planner] extra) is absent so the caller can fall back to the anchor."""
-    from pyproj import CRS, Transformer
+    from pyproj import Transformer
     meta = json.load(open(os.path.join(_haworth_bundle(bundle_dir), "metadata.json")))
     g, b = meta["grid"], meta["world_bounds_m"]
     cell, W, H = float(g["cell_m"]), int(g["width"]), int(g["height"])
-    crs = CRS.from_user_input("IAU_2015:30135")
+    crs = bundle_crs(bundle_dir)                                         # REG-01 / PLAN-ANYWHERE: the tile's own frame
     fwd = Transformer.from_crs(crs.geodetic_crs, crs, always_xy=True)
-    xs, ys = fwd.transform(float(lon), float(lat))                       # selenographic -> polar-stereographic m
+    xs, ys = fwd.transform(float(lon), float(lat))                       # selenographic -> tile-frame m
     ax0, ay0 = float(b["x0"]) + cell / 2.0, float(b["y1"]) - cell / 2.0  # pixel(0,0) CENTER (north-up raster)
     col, row = (xs - ax0) / cell, (ay0 - ys) / cell
     if not (-0.5 <= col <= W - 0.5 and -0.5 <= row <= H - 0.5):
@@ -183,15 +214,15 @@ def dem_origin_to_latlon(x, y, *, bundle_dir=None):
     pixel-center convention as the forward transform. Raises ValueError if (x, y) falls outside the
     committed tile, ImportError if pyproj (the [planner] extra) is absent so the caller can degrade to
     metres-only."""
-    from pyproj import CRS, Transformer
+    from pyproj import Transformer
     meta = json.load(open(os.path.join(_haworth_bundle(bundle_dir), "metadata.json")))
     g, b = meta["grid"], meta["world_bounds_m"]
     cell, W, H = float(g["cell_m"]), int(g["width"]), int(g["height"])
     col, row = float(x) / cell, float(y) / cell
     if not (-0.5 <= col <= W - 0.5 and -0.5 <= row <= H - 0.5):
         raise ValueError(f"site (x, y) = ({x:.0f}, {y:.0f}) m is outside the mapped tile "
-                         f"({W}x{H} @ {cell:g} m, IAU_2015:30135)")
-    crs = CRS.from_user_input("IAU_2015:30135")
+                         f"({W}x{H} @ {cell:g} m)")
+    crs = bundle_crs(bundle_dir)                                         # REG-01 / PLAN-ANYWHERE: the tile's own frame
     inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
     ax0, ay0 = float(b["x0"]) + cell / 2.0, float(b["y1"]) - cell / 2.0  # pixel(0,0) CENTER (north-up raster)
     xs, ys = ax0 + col * cell, ay0 - row * cell                          # order-frame metres -> polar-stereographic m
@@ -228,10 +259,11 @@ def dem_georef_corners(bundle_dir=None) -> dict:
     stereographic) inverse-projected to selenographic lat/lon -- so the cockpit can OVERLAY the
     Haworth work area on the Cesium globe at its true location (Aaron 2026-06-10: 'doesn't overlay
     the haworth site, this is the primary location')."""
-    from pyproj import CRS, Transformer
+    from pyproj import Transformer
     meta = json.load(open(os.path.join(_haworth_bundle(bundle_dir), "metadata.json")))
     b = meta["world_bounds_m"]
-    crs = CRS.from_user_input("IAU_2015:30135")
+    crs = bundle_crs(bundle_dir)                                         # REG-01 / PLAN-ANYWHERE: the tile's own frame
+    crs_label = (meta.get("georeference") or {}).get("crs_kind") or "IAU_2015:30135"
     inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
     corners = []
     for xs, ys in ((b["x0"], b["y0"]), (b["x1"], b["y0"]), (b["x1"], b["y1"]), (b["x0"], b["y1"])):
@@ -239,8 +271,9 @@ def dem_georef_corners(bundle_dir=None) -> dict:
         corners.append({"lat": float(lat), "lon": float(lon)})
     cx, cy = (b["x0"] + b["x1"]) / 2.0, (b["y0"] + b["y1"]) / 2.0
     lon, lat = inv.transform(cx, cy)
+    tile_km = round(abs(float(b["x1"]) - float(b["x0"])) / 1000.0, 3)
     return {"corners": corners, "center": {"lat": float(lat), "lon": float(lon)},
-            "crs": "IAU_2015:30135", "tile_km": 10.0}
+            "crs": crs_label, "tile_km": tile_km}
 
 
 def dem_terrain_grid(n: int = 64, *, bundle_dir=None) -> dict:
@@ -252,7 +285,7 @@ def dem_terrain_grid(n: int = 64, *, bundle_dir=None) -> dict:
     point transform -- so an n=64 grid is one transform, not 4096. Row-major y-then-x like
     /dem/heightfield: index ``j*n + i`` is the node at DEM row ``ri[j]`` (North), col ``ci[i]`` (East).
     Raises ImportError if pyproj (the [planner] extra) is absent."""
-    from pyproj import CRS, Transformer
+    from pyproj import Transformer
     bundle = _haworth_bundle(bundle_dir)
     meta = json.load(open(os.path.join(bundle, "metadata.json")))
     g, b = meta["grid"], meta["world_bounds_m"]
@@ -263,10 +296,10 @@ def dem_terrain_grid(n: int = 64, *, bundle_dir=None) -> dict:
     ri = np.linspace(0, H - 1, n).round().astype(int)
     heights = np.asarray(Z, dtype=float)[np.ix_(ri, ci)]            # n x n, row = y (North), col = x (East)
     ax0, ay0 = float(b["x0"]) + cell / 2.0, float(b["y1"]) - cell / 2.0   # pixel(0,0) CENTER (north-up raster)
-    xs = ax0 + ci * cell                                            # polar-stereographic x per col
-    ys = ay0 - ri * cell                                            # polar-stereographic y per row
+    xs = ax0 + ci * cell                                            # tile-frame x per col
+    ys = ay0 - ri * cell                                            # tile-frame y per row
     XS, YS = np.meshgrid(xs, ys)                                    # n x n projected coords
-    crs = CRS.from_user_input("IAU_2015:30135")
+    crs = bundle_crs(bundle_dir)                                    # REG-01 / PLAN-ANYWHERE: the tile's own frame
     inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
     lon, lat = inv.transform(XS.ravel(), YS.ravel())               # ONE vectorized projected -> selenographic call
     lon = np.asarray(lon).reshape(n * n)

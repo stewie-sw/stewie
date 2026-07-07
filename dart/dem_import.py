@@ -617,10 +617,18 @@ def _bilinear(A: np.ndarray, frow: np.ndarray, fcol: np.ndarray) -> np.ndarray:
 
 
 def reproject_cylindrical(heights_m, *, lat_top, lat_bottom, lon_left, lon_right, radius_m,
-                          target_cell_m=None):
+                          target_cell_m=None, return_frame=False):
     """Reproject a cylindrical (equirectangular lat/lon) height patch [m] to a LOCAL metric grid centred on
     the patch (azimuthal-equidistant). Returns (Z_local [m], cell_m). The source grid is row 0 = lat_top
-    .. row H-1 = lat_bottom, col 0 = lon_left .. col W-1 = lon_right (PDS convention)."""
+    .. row H-1 = lat_bottom, col 0 = lon_left .. col W-1 = lon_right (PDS convention).
+
+    ``return_frame=True`` additionally returns the LOCAL frame descriptor as a third element -- the AEQD
+    ``proj4`` (+lat_0/+lon_0/+R), the projected extent (x0/x1/y0/y1 = the min/max of the projected patch
+    corners), the grid size (nx/ny), and the pixel-registered first-pixel (0,0) CENTRE (gx0=x0, gy0=y1;
+    row 0 = north). A caller (the PLAN-ANYWHERE ad-hoc resolver) uses this to write a Haworth-format
+    ``world_bounds_m`` + a ``georeference`` block in the SAME local frame, so the globe drape + planner
+    georeference the tile through THIS local CRS instead of the south-polar one (accuracy: ~0 warp at any
+    latitude). This exposes what the function already computes -- it is NOT a second reprojection path."""
     heights_m = np.asarray(heights_m, dtype=np.float64)
     H, W = heights_m.shape
     lat0 = 0.5 * (lat_top + lat_bottom)
@@ -628,8 +636,9 @@ def reproject_cylindrical(heights_m, *, lat_top, lat_bottom, lon_left, lon_right
     if lat_top <= lat_bottom or lon_right == lon_left:
         raise ValueError(f"degenerate lat/lon patch (lat {lat_top}..{lat_bottom}, lon {lon_left}.."
                          f"{lon_right}): zero extent divided to NaN indices (audit L06/L52)")
-    fwd = Transformer.from_crs(_geographic_crs(radius_m), _local_aeqd_crs(lat0, lon0, radius_m), always_xy=True)
-    inv = Transformer.from_crs(_local_aeqd_crs(lat0, lon0, radius_m), _geographic_crs(radius_m), always_xy=True)
+    aeqd = _local_aeqd_crs(lat0, lon0, radius_m)
+    fwd = Transformer.from_crs(_geographic_crs(radius_m), aeqd, always_xy=True)
+    inv = Transformer.from_crs(aeqd, _geographic_crs(radius_m), always_xy=True)
     # local metric extent = the projected patch corners
     cx, cy = fwd.transform([lon_left, lon_right, lon_left, lon_right],
                            [lat_top, lat_top, lat_bottom, lat_bottom])
@@ -649,7 +658,16 @@ def reproject_cylindrical(heights_m, *, lat_top, lat_bottom, lon_left, lon_right
     LON = lon_left + np.mod(LON - lon_left, 360.0)
     fcol = (LON - lon_left) / (lon_right - lon_left) * (W - 1)
     frow = (lat_top - LAT) / (lat_top - lat_bottom) * (H - 1)
-    return _bilinear(heights_m, frow, fcol), float(target_cell_m)
+    Z_local = _bilinear(heights_m, frow, fcol)
+    if not return_frame:
+        return Z_local, float(target_cell_m)
+    frame = {
+        "proj4": f"+proj=aeqd +lat_0={lat0} +lon_0={lon0} +R={radius_m} +units=m +no_defs",
+        "lat0": float(lat0), "lon0": float(lon0), "radius_m": float(radius_m),
+        "x0": float(x0), "x1": float(x1), "y0": float(y0), "y1": float(y1),
+        "nx": int(nx), "ny": int(ny), "cell_m": float(target_cell_m),
+    }
+    return Z_local, float(target_cell_m), frame
 
 
 def load_cylindrical_fixture(npy_path, json_path):

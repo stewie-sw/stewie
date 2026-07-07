@@ -139,6 +139,12 @@ class MissionPlan extends React.Component {
     };
 
     onSite = (e) => { if (this.ctrl) { this.ctrl.selectSite(e.target.value, {fly: true}); } };
+    // PLAN ANYWHERE: adopt an arbitrary off-site lat/lon as the work area (backend crops the global LDEM there).
+    _ahLat = -86.0;   // the off-site lat/lon entry (defaults match the inputs; onChange keeps them live)
+    _ahLon = -30.0;
+    onPlanHere = () => { if (this.ctrl) { this.ctrl.planHere(parseFloat(this._ahLat), parseFloat(this._ahLon)); } };
+    onAhLat = (e) => { this._ahLat = e.target.value; };
+    onAhLon = (e) => { this._ahLon = e.target.value; };
     onTool = (kind) => { if (this.ctrl) { this.ctrl.setTool(kind); } };
     onFootprint = (e) => { if (this.ctrl) { this.ctrl.setFootprint(e.target.value); } };
     onDepth = (e) => { if (this.ctrl) { this.ctrl.setDepth(e.target.value); } };
@@ -936,10 +942,48 @@ class MissionPlan extends React.Component {
                 <label style={lbl} htmlFor="mp-site">Work site (planner DEM)</label>
                 <select
                     data-stewie-site="1" id="mp-site" onChange={this.onSite}
-                    style={{...inputStyle, marginBottom: '8px'}} value={s.site}
+                    style={{...inputStyle, marginBottom: '6px'}} value={s.adhoc ? '' : s.site}
                 >
                     {SITES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {s.adhoc ? <option value="">Off-site (custom lat/lon)</option> : null}
                 </select>
+
+                {/* PLAN ANYWHERE: pick any lunar lat/lon; the backend crops the global LDEM there on demand
+                    (native ~118 m/px, honestly coarse vs the curated 5 m sites) so the layers + planner run. */}
+                <div style={{marginBottom: '8px', border: '1px solid #1c1c26', borderRadius: '4px', padding: '6px'}}>
+                    <div style={{...lbl, marginBottom: '4px'}}>Plan anywhere (off-site)</div>
+                    <div style={{display: 'flex', gap: '6px', alignItems: 'flex-end'}}>
+                        <div style={{flex: '1 1 0'}}>
+                            <label htmlFor="mp-ah-lat" style={lbl}>Lat °</label>
+                            <input
+                                data-stewie-adhoc-lat="1" defaultValue={-86.0} id="mp-ah-lat" max="89.9" min="-89.9"
+                                onChange={this.onAhLat} step="0.01" style={inputStyle} type="number"
+                            />
+                        </div>
+                        <div style={{flex: '1 1 0'}}>
+                            <label htmlFor="mp-ah-lon" style={lbl}>Lon °</label>
+                            <input
+                                data-stewie-adhoc-lon="1" defaultValue={-30.0} id="mp-ah-lon" max="360" min="-360"
+                                onChange={this.onAhLon} step="0.01" style={inputStyle} type="number"
+                            />
+                        </div>
+                        <button
+                            data-stewie-adhoc-go="1" onClick={this.onPlanHere}
+                            style={{
+                                flex: '0 0 auto', cursor: 'pointer', font: '600 11px system-ui, sans-serif',
+                                padding: '7px 8px', borderRadius: '4px', border: '1px solid #39c6ff66',
+                                color: '#39c6ff', background: '#39c6ff18'
+                            }}
+                            type="button"
+                        >Set here</button>
+                    </div>
+                    {s.adhoc ? (
+                        <div style={{fontSize: '9px', color: '#7a8290', marginTop: '4px', lineHeight: 1.35}}>
+                            Off-site work area <b style={{color: '#c7d2e3'}}>{s.site}</b> — global LOLA DEM
+                            cropped to a local frame (~118 m/px, coarse vs the curated sites).
+                        </div>
+                    ) : null}
+                </div>
 
                 <div style={{display: 'flex', gap: '8px', marginBottom: '4px'}}>
                     <div style={{flex: '1 1 0'}}>

@@ -169,33 +169,38 @@ def _np_load_rgba(path):
 
 
 def _tile_geo(mp, bundle_dir=None):
-    """(heightmap, cell_m, world_bounds dict, the pyproj fwd transformer). ``bundle_dir`` selects the
-    chosen site's tile (REG-01); None = the Haworth default / $STEWIE_DEM_DIR."""
+    """(heightmap, cell_m, world_bounds dict, the pyproj fwd transformer, the tile CRS). ``bundle_dir``
+    selects the chosen site's tile (REG-01); None = the Haworth default / $STEWIE_DEM_DIR. PLAN-ANYWHERE:
+    the CRS is the tile's OWN frame -- IAU_2015:30135 for the curated sites, a local AEQD frame for an
+    ad-hoc crop -- so the globe reproject georeferences an off-site tile through its own frame (~0 warp)."""
     import json as _json
     import os as _os
 
-    from pyproj import CRS, Transformer
+    from pyproj import Transformer
+    from stewie.terrain.site_dem import bundle_crs
     pair = mp.load_haworth_dem(bundle_dir=bundle_dir)
     meta = _json.load(open(_os.path.join(mp._haworth_bundle(bundle_dir), "metadata.json")))
-    crs = CRS.from_user_input("IAU_2015:30135")
+    crs = bundle_crs(bundle_dir)
     fwd = Transformer.from_crs(crs.geodetic_crs, crs, always_xy=True)
-    return pair[0], float(pair[1]), meta["world_bounds_m"], fwd
+    return pair[0], float(pair[1]), meta["world_bounds_m"], fwd, crs
 
 
-def _geographic_bbox_of_extent(x0, y0, x1, y1):
-    """Project an extent's boundary ring from the polar-stereo frame (IAU_2015:30135) to selenographic
-    lat/lon, returning bbox{south,north,west,east}. Ring (not just corners) because the projection bows
-    the edges. Shared by the globe reproject and the OGC WMS capabilities extent (no raster needed).
-    CAVEAT (off-pole assumption): a simple lon/lat min/max box. Valid for an OFF-POLE work-site tile
-    (Haworth: west~-29 east~-22 south~-86.5 north~-86.1). A tile that ENCLOSES the pole or crosses the
-    +/-180 antimeridian would collapse lon to ~[-180,180] and need a split bbox -- the existing globe
-    drape shares this assumption, so this helper does not regress it."""
+def _geographic_bbox_of_extent(x0, y0, x1, y1, crs=None):
+    """Project an extent's boundary ring from the TILE frame to selenographic lat/lon, returning
+    bbox{south,north,west,east}. ``crs`` is the tile's frame (default IAU_2015:30135 south-polar
+    stereographic for the curated sites; a local AEQD frame for a PLAN-ANYWHERE ad-hoc tile). Ring (not
+    just corners) because the projection bows the edges. Shared by the globe reproject and the OGC WMS
+    capabilities extent (no raster needed). CAVEAT (off-pole assumption): a simple lon/lat min/max box.
+    Valid for an OFF-POLE work-site tile (Haworth: west~-29 east~-22 south~-86.5 north~-86.1) and for a
+    small local-frame ad-hoc tile. A tile that ENCLOSES the pole or crosses the +/-180 antimeridian would
+    collapse lon to ~[-180,180] and need a split bbox -- the existing globe drape shares this assumption."""
     import numpy as _np
     from pyproj import CRS, Transformer
+    if crs is None:
+        crs = CRS.from_user_input("IAU_2015:30135")
     t = _np.linspace(0.0, 1.0, 64)
     ring_x = _np.concatenate([x0 + (x1 - x0) * t, _np.full(64, x1), x1 - (x1 - x0) * t, _np.full(64, x0)])
     ring_y = _np.concatenate([_np.full(64, y0), y0 + (y1 - y0) * t, _np.full(64, y1), y1 - (y1 - y0) * t])
-    crs = CRS.from_user_input("IAU_2015:30135")
     inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
     lons, lats = inv.transform(ring_x, ring_y)
     return {"south": float(lats.min()), "north": float(lats.max()),
@@ -212,18 +217,20 @@ def geographic_bbox(site: str = "haworth", mp=None):
     bundle_dir = mp.bundle_for_site(site)                    # raises KeyError/FileNotFoundError
     meta = _json.load(open(_os.path.join(mp._haworth_bundle(bundle_dir), "metadata.json")))
     b = meta["world_bounds_m"]
-    return _geographic_bbox_of_extent(b["x0"], b["y0"], b["x1"], b["y1"])
+    from stewie.terrain.site_dem import bundle_crs
+    return _geographic_bbox_of_extent(b["x0"], b["y0"], b["x1"], b["y1"], bundle_crs(bundle_dir))
 
 
-def _reproject(source_rgba, b, fwd, *, out_px: int = 1024, sub=None):
-    """Resample an RGBA raster (north-up in the stereo frame, extent = b or the sub-window) onto a
-    geographic grid. Returns (rgba_geo uint8, bbox{south,north,west,east})."""
+def _reproject(source_rgba, b, fwd, *, out_px: int = 1024, sub=None, crs=None):
+    """Resample an RGBA raster (north-up in the tile frame, extent = b or the sub-window) onto a
+    geographic grid. Returns (rgba_geo uint8, bbox{south,north,west,east}). ``crs`` = the tile's frame
+    (fwd maps lon/lat -> that frame); default IAU_2015:30135 for the curated sites."""
     import numpy as _np
     if sub is not None:
         x0, y0, x1, y1 = sub
     else:
         x0, y0, x1, y1 = b["x0"], b["y0"], b["x1"], b["y1"]
-    bbox = _geographic_bbox_of_extent(x0, y0, x1, y1)        # the geographic extent (shared helper)
+    bbox = _geographic_bbox_of_extent(x0, y0, x1, y1, crs)   # the geographic extent (shared helper)
     # the output grid -> stereo coords -> source pixel indices
     H = out_px
     W = max(64, int(out_px * (bbox["east"] - bbox["west"])
@@ -640,14 +647,14 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         return out
 
     import numpy as _np
-    dem_full, cell_m, b, fwd = _tile_geo(mp, bundle_dir)
+    dem_full, cell_m, b, fwd, tile_crs = _tile_geo(mp, bundle_dir)
     if kind == "dem":
         # CLEAN cartographic hillshade (315/45 lambertian) computed from the RAW heightmap via the shared
         # _layer_rgba helper (the order-frame work-area drape uses the same). The real-sun SHADOW layer is
         # separate. R-1 (#234): drape at the DEM's NATIVE resolution, not a fixed 1024 (which ~2x-downsampled
         # the 2000-px / 5 m Haworth tile). Cap at 2048 so an oversized DEM can't blow up the reproject.
         rgba = _layer_rgba(dem_full, cell_m, "dem")
-        out = _reproject(rgba, b, fwd, out_px=min(int(_np.asarray(dem_full).shape[0]), 2048))
+        out = _reproject(rgba, b, fwd, out_px=min(int(_np.asarray(dem_full).shape[0]), 2048), crs=tile_crs)
     else:
         # FULL-TILE analysis rasters for the globe (Aaron 2026-06-10: "when hazard is clicked the
         # full tile isn't loaded") -- computed from the whole heightmap at a working downsample;
@@ -677,7 +684,7 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
                     rgba[i, :, ch] = v; rgba[:, i, ch] = v
                 rgba[i, :, 3] = _np.maximum(rgba[i, :, 3], a)
                 rgba[:, i, 3] = _np.maximum(rgba[:, i, 3], a)
-            out = _reproject(rgba, b, fwd, out_px=1024)
+            out = _reproject(rgba, b, fwd, out_px=1024, crs=tile_crs)
             _GLOBE_CACHE[key] = out
             return out
         # cost/blocking compose the full 12-layer costmap (one shared horizon sweep, like psr) so they
@@ -710,7 +717,7 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
                                slope_vmax=slope_vmax, slope_classes=slope_classes, grid_north_bearing=gnb)
         if rgba is None:
             return None
-        out = _reproject(rgba, b, fwd, out_px=1024)   # _layer_rgba already returns uint8
+        out = _reproject(rgba, b, fwd, out_px=1024, crs=tile_crs)   # _layer_rgba already returns uint8
     _GLOBE_CACHE[key] = out
     # RC-03 (audit 2026-06-11): write ATOMICALLY (.part -> os.replace) so a concurrent reader /
     # the startup warm thread never sees a torn .npy; the JSON sidecar lands LAST as the commit
