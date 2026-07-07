@@ -37,8 +37,16 @@ services:
       # synthetic surface) if the LDEM is absent, so a mis-mount fails loud rather than fabricating terrain.
       STEWIE_GLOBAL_LDEM: ${STEWIE_GLOBAL_LDEM:-/mnt/projects/datasets/argus_dem_nav/lunar_dem/Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif}
       STEWIE_ADHOC_DEM_DIR: ${STEWIE_ADHOC_DEM_DIR:-/data/adhoc_dem}
+      # PUBLIC site markers (GET /world/site-markers, keyless): the drawn-pin subset the /ide/ click-a-site-to-
+      # zoom + Whole-Moon dive bind. Points at the SAME artemis_sites.geojson the artemis-web viewer draws the
+      # main-map pins from (mounted read-only just below), so a click resolves to the pin. Absent -> empty
+      # markers (honest no-op), never a fabricated position. NOT the auth-gated /sites registry (S-06 stays gated).
+      STEWIE_SITE_VECTORS: ${STEWIE_SITE_VECTORS:-/io/vectors/artemis_sites.geojson}
     volumes:
       - "stewie-data:/data"
+      # Real Artemis site vectors (the VISIBLE-pin geojson), READ-ONLY, single source of truth -- the SAME
+      # mount the artemis-web viewer uses (no copy, no drift). Feeds the keyless GET /world/site-markers only.
+      - "${STEWIE_GIS_DATA_DIR:-/mnt/projects/stewie/data/gis}/vectors:/io/vectors:ro"
       # PLAN ANYWHERE (#30): the real global LOLA LDEM (8.5 GB), READ-ONLY, so the resolver can crop any
       # lat/lon. Overridable host path (no baked machine path, cf. ARCH-05); only cropped windows are read.
       - "${STEWIE_GLOBAL_LDEM_HOST_DIR:-/mnt/projects/datasets/argus_dem_nav/lunar_dem}:/mnt/projects/datasets/argus_dem_nav/lunar_dem:ro"

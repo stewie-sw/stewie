@@ -7,6 +7,7 @@ Public read. Delegates to server.state.moon_dem; no app-module import (no cycle)
 from __future__ import annotations
 
 import io
+import json
 import os
 from dataclasses import asdict
 
@@ -148,6 +149,87 @@ def terramechanics_layers():   # public read (physics-layer provenance, map data
     from stewie.specs.terramechanics_spine import terra_derived_layers
     rows = terra_derived_layers()
     return {"ok": True, "backend": "tier2_numpy", "derived_layers": rows, "count": len(rows)}
+
+
+# --- PUBLIC site MARKERS (keyless): the VISIBLE main-map pins, for click-a-site-to-zoom + Whole-Moon dive --
+# The auth-gated /sites operational registry (routers.config, S-06) stays gated -- the browser cannot read it,
+# and (verified) it differs from the drawn pins by 2-90 km. So SiteZoom.jsx + WholeMoon.jsx bind THIS public
+# subset instead: markers sourced from the SAME artemis_sites.geojson that draws the pins (gis/build_project.py),
+# so a click on a pin resolves. Public read like /world/layer-manifest (nginx proxies /api/ without a key).
+_VECTORS_ENV = "STEWIE_SITE_VECTORS"     # explicit path to artemis_sites.geojson (deploy sets this)
+_GIS_DATA_ENV = "STEWIE_GIS_DATA_DIR"    # the GIS data root (the vectors/ dir lives under it)
+
+
+def _site_vectors_path() -> str | None:
+    """Resolve the Artemis-site GeoJSON path (the SAME artemis_sites.geojson that draws the VISIBLE main-map
+    pins). Order: explicit STEWIE_SITE_VECTORS, then STEWIE_GIS_DATA_DIR/vectors/, then the repo-relative
+    data/ sibling (source/editable run). Returns the first path that exists, else None (degraded -> honest
+    empty markers, never a fabricated position). The geojson is NOT in the backend image (build context is
+    code/, data/ is a sibling); the docker deploy mounts it read-only + points STEWIE_SITE_VECTORS at it."""
+    cands: list[str] = []
+    p = os.environ.get(_VECTORS_ENV)
+    if p:
+        cands.append(p)
+    gis = os.environ.get(_GIS_DATA_ENV)
+    if gis:
+        cands.append(os.path.join(gis, "vectors", "artemis_sites.geojson"))
+    # routers/ -> server -> stewie -> code (repo root); data/ is a sibling of code/ (source/editable run).
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    cands.append(os.path.join(repo_root, "..", "data", "gis", "vectors", "artemis_sites.geojson"))
+    for c in cands:
+        if c and os.path.isfile(c):
+            return c
+    return None
+
+
+def site_markers() -> list[dict]:
+    """The PUBLIC-SAFE Artemis-site markers, sourced from the VISIBLE-pin GeoJSON (NOT the sites.py registry).
+    Each pin (a Point feature) -> {name, label, lon, lat, extent_m} ONLY -- the public subset. No operational
+    registry field (imported / bundle / note / candidate / area) is exposed. Positions ARE the drawn pin's
+    geometry, so a marker sits exactly on the pin a click must resolve. Footprint (Polygon) features are
+    skipped -- one marker per site. Returns [] when the geojson is absent (honest: the map click then no-ops)."""
+    path = _site_vectors_path()
+    if not path:
+        return []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return []
+    out: list[dict] = []
+    for feat in (doc.get("features") or []):
+        geom = feat.get("geometry") or {}
+        if geom.get("type") != "Point":
+            continue
+        coords = geom.get("coordinates") or []
+        if len(coords) < 2:
+            continue
+        props = feat.get("properties") or {}
+        key = props.get("site") or props.get("name")
+        if not key:
+            continue
+        try:
+            lon, lat = float(coords[0]), float(coords[1])
+        except (TypeError, ValueError):
+            continue
+        ext = props.get("extent_m")
+        extent = [float(v) for v in ext] if isinstance(ext, list) and len(ext) == 4 else None
+        out.append({"name": key, "label": props.get("label") or props.get("name") or key,
+                    "lon": lon, "lat": lat, "extent_m": extent})
+    return out
+
+
+@router.get("/world/site-markers")
+def world_site_markers():   # public read (map-data markers, like /world/layer-manifest) -- KEYLESS by design
+    """PUBLIC, keyless Artemis-site MARKERS for the lunar IDE's click-a-site-to-zoom (SiteZoom.jsx) + the
+    Whole-Moon dive (WholeMoon.jsx). Returns ONLY the public-safe subset per VISIBLE pin --
+    {name, label, lon, lat, extent_m} -- read from the SAME artemis_sites.geojson that draws the main-map pins
+    (gis/build_project.py), so a click on a pin resolves to it. This is deliberately NOT the auth-gated /sites
+    operational registry: S-06 keeps the full registry gated (director-equivalent), and the registry's centers
+    differ from the drawn pins by 2-90 km. No key required -- nginx proxies /api/ without a credential (same as
+    /world/layer-manifest), so the keyless public /ide/ can bind it. Empty ``sites`` if the vectors file is
+    absent on the host (honest degrade -- the click no-ops rather than flying to a fabricated position)."""
+    return {"ok": True, "sites": site_markers()}
 
 
 def _site_enrichment(site: str) -> dict | None:

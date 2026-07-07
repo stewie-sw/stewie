@@ -7,10 +7,11 @@
  * click on one did nothing. This plugin makes a main-map singleclick that lands on an Artemis site FLY the
  * workbench to that site's footprint, using the SAME dive as the overlay.
  *
- * REUSE, not reinvent: the site registry is the same real /api/sites payload the overlay's markers come from
- * (stewie/specs/sites.py site_rows(): {name, label, lat, lon, imported, ...}); the framing box + CRS +
- * zoomToExtent are IDENTICAL to WholeMoon.dive (via js/mission/siteZoom.js, which keeps HALF_M/GEO_CRS in
- * lockstep with WholeMoon.jsx). So a click on the main map flies to EXACTLY the box the overlay dives to.
+ * REUSE, not reinvent: the site markers are the SAME public /api/world/site-markers payload the Whole Moon
+ * overlay's markers come from ({name, label, lon, lat, extent_m}, sourced from the artemis_sites.geojson that
+ * draws the VISIBLE main-map pins); the framing box + CRS + zoomToExtent are IDENTICAL to WholeMoon.dive (via
+ * js/mission/siteZoom.js, which keeps HALF_M/GEO_CRS in lockstep with WholeMoon.jsx). So a click on the main
+ * map flies to EXACTLY the box the overlay dives to, and lands on the pin the operator clicked.
  *
  * A THIN, ALWAYS-MOUNTED MAP LISTENER (renders null): like SelectionInspector.jsx it grabs the raw OpenLayers
  * map (MapUtils.GET_MAP) and listens for a `singleclick`, reprojecting the site centers to the map CRS
@@ -69,7 +70,7 @@ class SiteZoom extends React.Component {
     constructor(props) {
         super(props);
         this.map = null;
-        this.sites = [];          // the real /api/sites rows ({name, label, lat, lon, imported, ...})
+        this.sites = [];          // the public /api/world/site-markers rows ({name, label, lon, lat, extent_m})
         this._clickKey = null;
         this._raf = 0;
     }
@@ -94,10 +95,12 @@ class SiteZoom extends React.Component {
         if (typeof window !== 'undefined' && window.__stewieSiteZoom) { delete window.__stewieSiteZoom; }
     }
 
-    // The real Artemis-site registry — the SAME same-origin /api/ proxy (key-injected at the artemis edge) the
-    // Whole Moon overlay + Mission Layers use, so the browser is already past the gate.
+    // The PUBLIC Artemis-site markers — the keyless same-origin GET /api/world/site-markers (NOT the auth-gated
+    // /api/sites, which 401s to the browser: nginx forwards no key on the generic /api/ block, and S-06 keeps
+    // the operational registry gated). site-markers is sourced from the SAME artemis_sites.geojson that draws
+    // the VISIBLE main-map pins, so a click lands on the box a pin marks. Rows: {name, label, lon, lat, extent_m}.
     _loadSites = () => {
-        fetch('/api/sites').then((r) => r.json()).then((j) => {
+        fetch('/api/world/site-markers').then((r) => r.json()).then((j) => {
             this.sites = (j && Array.isArray(j.sites)) ? j.sites : [];
         }).catch(() => { this.sites = []; });   // no sites -> every click is a miss -> default behavior stands
     };

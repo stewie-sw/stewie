@@ -10,7 +10,8 @@
  * REBIND, not rewrite: the globe itself is the framework-agnostic js/mission/wholeMoonGlobe.js controller,
  * which reuses the app.stewie.space cockpit's proven Cesium 1.119 + Trek WAC setup. This plugin is a thin
  * task-gated React shell: it mounts a full-screen overlay (via a portal to <body>), lazily builds the globe
- * on first open, fetches the real /api/sites registry for the markers, and dispatches the dive.
+ * on first open, fetches the public /api/world/site-markers (keyless -- the drawn-pin subset, NOT the auth-
+ * gated /api/sites the browser cannot read) for the markers, and dispatches the dive.
  *
  * Registration:
  *   - js/appConfig.js     -> pluginsDef.plugins.WholeMoonPlugin
@@ -92,9 +93,10 @@ class WholeMoon extends React.Component {
         });
     };
     loadSites = () => {
-        // Real Artemis-site registry (Haworth work site + the Artemis III candidate regions). Same
-        // same-origin /api/ proxy the cockpit + MissionLayers use; the browser is already past the gate.
-        fetch('/api/sites').then((r) => r.json()).then((j) => {
+        // PUBLIC Artemis-site markers via the keyless GET /api/world/site-markers (NOT the auth-gated
+        // /api/sites, which 401s to the browser -- nginx forwards no key and S-06 keeps the registry gated).
+        // Sourced from the SAME artemis_sites.geojson that draws the main-map pins, so a dive lands on a pin.
+        fetch('/api/world/site-markers').then((r) => r.json()).then((j) => {
             const sites = (j && Array.isArray(j.sites)) ? j.sites : [];
             if (this.ctrl && this.cesium) {
                 WholeMoonGlobe.addSites(this.cesium, this.ctrl, sites);
