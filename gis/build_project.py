@@ -1008,7 +1008,6 @@ def main(argv=None) -> int:
     # the layer is off until explicitly enabled. Native 30135 COG (no runtime reprojection).
     # ======================================================================
     wac_path = os.path.join(data_root, WAC_SUBDIR)
-    wac_added = False
     if os.path.exists(wac_path):
         # Insert directly above the topmost relief basemap group (so WAC draws over the
         # relief); fall back to the very bottom if no basemap group was added.
