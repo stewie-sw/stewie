@@ -22,6 +22,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPo
 from rosidl_runtime_py import message_to_ordereddict
 
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import Imu, JointState
 from std_msgs.msg import String
 from tf2_msgs.msg import TFMessage
 
@@ -29,12 +30,28 @@ INGEST_HOST = "127.0.0.1"
 INGEST_PORT = 9091
 
 # (topic, msg_type, ros_type_string) -- ALL read-only telemetry; NONE of the /cmd* command topics.
+# /joint_states + /stewie/imu are the URDF-declared proprioception the MissionHUD renders as a faithful
+# EZ-RASSOR/IPEx instrument (8 actuated joints + IMU attitude); joints/imu are CPU physics so they flow
+# headless with NO GPU render. The 8 camera image channels + /stewie/perception/points are DEFERRED here:
+# they are render-gated (GL/GPU) and the "Gazebo View" pane relays them through its OWN gzcam feeder
+# (deploy/ros2/camera_feeder.py) -- not this telemetry feeder.
 TOPICS = [
     ("/odom", Odometry, "nav_msgs/msg/Odometry"),
     ("/rover/state", String, "std_msgs/msg/String"),
     ("/rover/leg", String, "std_msgs/msg/String"),
     ("/tf", TFMessage, "tf2_msgs/msg/TFMessage"),
+    ("/joint_states", JointState, "sensor_msgs/msg/JointState"),
+    ("/stewie/imu", Imu, "sensor_msgs/msg/Imu"),
 ]
+
+# Per-topic relay-rate cap (Hz). The gz JointStatePublisher runs at the physics step (~390 Hz) and the
+# IMU at 50 Hz -- far faster than a HUD needs, and an uncapped relay would thrash the browser's per-frame
+# React redraw. Cap the two proprioception streams at 20 Hz (plenty for an instrument readout); the
+# original four topics stay UNCAPPED (unchanged behavior).
+THROTTLE_HZ = {
+    "/joint_states": 20.0,
+    "/stewie/imu": 20.0,
+}
 
 
 class Feeder(Node):
@@ -42,6 +59,7 @@ class Feeder(Node):
         super().__init__("rt04_telemetry_feeder")
         self._lock = threading.Lock()
         self._sock: socket.socket | None = None
+        self._last_sent: dict[str, float] = {}   # topic -> monotonic ts of last relayed frame (throttle)
         self._connect()
         # best-effort, keep-last sub so a reliable OR best-effort publisher both match
         qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -63,6 +81,13 @@ class Feeder(Node):
             self.get_logger().warn("ingest connect failed (%s); will retry" % e)
 
     def _on(self, topic: str, tystr: str, msg) -> None:
+        cap = THROTTLE_HZ.get(topic)
+        if cap:                                   # drop frames arriving faster than the per-topic cap
+            now = time.monotonic()
+            last = self._last_sent.get(topic, 0.0)
+            if now - last < 1.0 / cap:
+                return
+            self._last_sent[topic] = now
         try:
             d = message_to_ordereddict(msg)
         except Exception as e:

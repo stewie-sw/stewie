@@ -105,6 +105,57 @@ class MissionHUD extends React.Component {
             RoverHUD.teleChip(rail, 'odom', fmt(s.odomHz, 1) + ' Hz', true);
         }
     };
+    // The faithful URDF instrument block: the 8 actuated joints (4 wheels as RPM, 2 drum-arm hinges +
+    // 2 drum spins) + the IMU (attitude / angular rate / linear accel), derived by the pure, node-tested
+    // roverInstruments view-model (via rt04Client). Read-only; '—' honestly where no telemetry has arrived.
+    renderInstruments = () => {
+        const s = this.state.telem;
+        const j = s && s.joints;
+        const im = s && s.imu;
+        const sect = {margin: '12px 0 3px', fontSize: '9px', color: '#7a8290', letterSpacing: '.08em'};
+        const row = {display: 'flex', gap: '4px', marginBottom: '4px'};
+        const cell = (label, val, color) => (
+            <div
+                key={label}
+                style={{
+                    flex: '1 1 0', minWidth: '48px', padding: '3px 5px', border: '1px solid #2a2a36',
+                    borderRadius: '4px', background: '#111119'
+                }}
+            >
+                <div style={{fontSize: '8px', color: '#7a8290', letterSpacing: '.05em', whiteSpace: 'nowrap'}}>{label}</div>
+                <div style={{fontSize: '11px', color: color || '#c7d2e3', fontVariantNumeric: 'tabular-nums'}}>{val}</div>
+            </div>
+        );
+        const wheels = j ? j.wheels : [{label: 'FL'}, {label: 'FR'}, {label: 'RL'}, {label: 'RR'}];
+        const arms = j ? j.arms : [{label: 'FRONT ARM'}, {label: 'REAR ARM'}];
+        const drums = j ? j.drums : [{label: 'FRONT DRUM'}, {label: 'REAR DRUM'}];
+        return (
+            <div>
+                <div style={sect}>URDF JOINTS · 4 WHEELS (RPM)</div>
+                <div style={row}>
+                    {wheels.map((w) => cell(w.label, j ? fmt(w.rpm, 1) : '—',
+                        j && Math.abs(w.rpm) > 0.1 ? '#39ff14' : '#c7d2e3'))}
+                </div>
+                <div style={sect}>DRUM ARMS (deg) · DRUMS (rpm)</div>
+                <div style={row}>
+                    {arms.map((a) => cell(a.label, j ? fmt(a.positionWrappedDeg, 1) + '°' : '—'))}
+                    {drums.map((d) => cell(d.label, j ? fmt(d.rpm, 1) : '—'))}
+                </div>
+                <div style={sect}>IMU · ATTITUDE / RATE / ACCEL</div>
+                <div style={row}>
+                    {cell('ROLL', im ? fmt(im.rollDeg, 1) + '°' : '—')}
+                    {cell('PITCH', im ? fmt(im.pitchDeg, 1) + '°' : '—')}
+                    {cell('YAW', im ? fmt(im.yawDeg, 1) + '°' : '—')}
+                </div>
+                <div style={row}>
+                    {cell('ωx rad/s', im ? fmt(im.angularVel.x, 2) : '—')}
+                    {cell('ωy rad/s', im ? fmt(im.angularVel.y, 2) : '—')}
+                    {cell('ωz rad/s', im ? fmt(im.angularVel.z, 2) : '—')}
+                    {cell('|g| m/s²', im ? fmt(im.gravityMag, 2) : '—')}
+                </div>
+            </div>
+        );
+    };
     connLabel() {
         const s = this.state.telem;
         if (!s) return {text: 'connecting…', color: '#e0b300'};
@@ -152,6 +203,7 @@ class MissionHUD extends React.Component {
                     ref={this.railRef}
                     style={{display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '10px'}}
                 />
+                {this.renderInstruments()}
                 <div style={{marginTop: '10px', fontSize: '9px', color: '#7a8290'}}>
                     {s
                         ? 'messages: ' + s.messages + (s.lastMsgTs ? ' · last ' + new Date(s.lastMsgTs).toLocaleTimeString() : '')

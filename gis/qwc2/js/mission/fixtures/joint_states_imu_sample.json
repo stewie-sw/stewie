@@ -1,0 +1,226 @@
+{
+  "_provenance": "REAL /joint_states (sensor_msgs/msg/JointState) + /stewie/imu (sensor_msgs/msg/Imu) frames captured verbatim from the live STEWIE Gazebo sim (gz-sim8 Harmonic, world stewie_lunar = real LOLA Haworth, model ipex) on 2026-07-07, serialized with rosidl_runtime_py.message_to_ordereddict -- the IDENTICAL transform deploy/ros2/rosbridge_feeder.py applies, so these frames are byte-faithful to what the rosbridge collector broadcasts and the browser rt04Client receives. Capture script: scratchpad/capture_fixture.py, run inside an ISOLATED throwaway stewie-gazebo:jazzy container (ROS_DOMAIN_ID 42/43, not host-net) so prod (domain 7) was never touched. NO synthetic data.",
+  "_scenarios": {
+    "straight": "/cmd_vel linear.x=0.25 (drive forward) -> all 4 wheels spin forward (+velocity); drums free-spin; arms settled under lunar gravity at +/-0.42554 rad.",
+    "turning": "/cmd_vel angular.z=0.6 (skid-steer turn in place) -> LEFT wheels -velocity, RIGHT wheels +velocity (opposite signs). Chassis attitude stays level/identity: on flat Haworth the skid-steer slips in place, so the IMU HONESTLY reports yaw~0, roll~0, pitch~0 and the real lunar gravity 1.62 m/s^2 on +z. Not fabricated."
+  },
+  "joint_names_note": "gz JointStatePublisher emits all 8 actuated ipex joints alphabetically: 4 wheels (front/rear x left/right)_wheel_joint, 2 arm hinges (front/rear)_drum_arm_joint, 2 drum spins (front/rear)_drum_spin_joint.",
+  "straight": {
+    "joint_states": {
+      "header": {
+        "stamp": {
+          "sec": 36,
+          "nanosec": 868000000
+        },
+        "frame_id": ""
+      },
+      "name": [
+        "front_drum_arm_joint",
+        "front_drum_spin_joint",
+        "front_left_wheel_joint",
+        "front_right_wheel_joint",
+        "rear_drum_arm_joint",
+        "rear_drum_spin_joint",
+        "rear_left_wheel_joint",
+        "rear_right_wheel_joint"
+      ],
+      "position": [
+        -0.42553979816256676,
+        3.076515734271855,
+        4.1547802103679645,
+        4.1547802103682026,
+        0.42553979799352837,
+        2.394247623524987,
+        4.153699245589203,
+        4.153699245589141
+      ],
+      "velocity": [
+        -1.4501909452673427e-12,
+        1.143902997028306,
+        1.639344262297519,
+        1.639344262297515,
+        -2.028326775420679e-11,
+        1.1439029970414476,
+        1.6393442622950833,
+        1.639344262295082
+      ],
+      "effort": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "imu": {
+      "header": {
+        "stamp": {
+          "sec": 36,
+          "nanosec": 860000000
+        },
+        "frame_id": "ipex/base_link/imu"
+      },
+      "orientation": {
+        "x": 1.3325160484363734e-16,
+        "y": 1.3263740601058872e-11,
+        "z": 8.689443753950006e-16,
+        "w": 1
+      },
+      "orientation_covariance": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "angular_velocity": {
+        "x": -2.677768247243692e-16,
+        "y": 4.621912849793935e-12,
+        "z": -4.98822983849141e-18
+      },
+      "angular_velocity_covariance": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "linear_acceleration": {
+        "x": 2.403064443183537e-9,
+        "y": -8.640785187475359e-10,
+        "z": 1.6200000009615414
+      },
+      "linear_acceleration_covariance": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "turning": {
+    "joint_states": {
+      "header": {
+        "stamp": {
+          "sec": 37,
+          "nanosec": 165000000
+        },
+        "frame_id": ""
+      },
+      "name": [
+        "front_drum_arm_joint",
+        "front_drum_spin_joint",
+        "front_left_wheel_joint",
+        "front_right_wheel_joint",
+        "rear_drum_arm_joint",
+        "rear_drum_spin_joint",
+        "rear_left_wheel_joint",
+        "rear_right_wheel_joint"
+      ],
+      "position": [
+        -0.4255397981625698,
+        0.3456667089163618,
+        -2.6150783603804446,
+        2.615078360380439,
+        0.42553979799352964,
+        -0.34531077756702483,
+        -2.615078360388802,
+        2.6150783603888015
+      ],
+      "velocity": [
+        -1.7050524514114077e-11,
+        0.00006389185058679107,
+        -0.71704918025255,
+        0.7170491802525499,
+        -2.028239992880752e-11,
+        0.00006389185283937688,
+        -0.7170491802549246,
+        0.7170491802549247
+      ],
+      "effort": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "imu": {
+      "header": {
+        "stamp": {
+          "sec": 37,
+          "nanosec": 160000000
+        },
+        "frame_id": "ipex/base_link/imu"
+      },
+      "orientation": {
+        "x": 4.018722253793131e-17,
+        "y": 1.3263062560508137e-11,
+        "z": 1.3005733109856557e-8,
+        "w": 0.9999999999999999
+      },
+      "orientation_covariance": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "angular_velocity": {
+        "x": -7.894951404933007e-18,
+        "y": -2.9569921909726564e-12,
+        "z": 9.120833966483228e-9
+      },
+      "angular_velocity_covariance": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "linear_acceleration": {
+        "x": -4.641516285831157e-9,
+        "y": -2.2192404194706081e-13,
+        "z": 1.6199999988631348
+      },
+      "linear_acceleration_covariance": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  }
+}

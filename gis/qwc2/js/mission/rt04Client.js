@@ -12,6 +12,8 @@
  * vendored lib the OL viewer's RT-04 pane uses. It is deliberately NOT bundled through babel, which
  * breaks its browserify prototype chains; this client reads window.ROSLIB lazily at connect() time.
  */
+import RoverInstruments from './roverInstruments';   // pure, node-tested proprioception view-model
+
 const WS_PATH = '/rosbridge';
 
 function freshState() {
@@ -22,10 +24,16 @@ function freshState() {
         // terrain interaction (std_msgs/String JSON -> /rover/state)
         slip: null, sinkage: null, slopeDeg: null, soc: null,
         legId: null, row: null, col: null, entrapped: false, status: 'no data',
+        // URDF proprioception (sensor_msgs/JointState -> /joint_states): the 8 actuated joints,
+        // classified into {wheels, arms, drums} with RPM + hinge-degree readouts (roverInstruments)
+        joints: null,
+        // IMU (sensor_msgs/Imu -> /stewie/imu): attitude (quat->roll/pitch/yaw), angular velocity,
+        // linear acceleration, and |linear_acceleration| (the sensed gravity, ~1.62 m/s^2 lunar)
+        imu: null,
         // liveness bookkeeping
         messages: 0, lastMsgTs: null, odomHz: null,
         // per-channel counters so consumers can push exactly one sparkline sample per data frame
-        odomSeq: 0, stateSeq: 0,
+        odomSeq: 0, stateSeq: 0, jointSeq: 0, imuSeq: 0,
         // topic liveness map (topic name -> true once a message has arrived)
         topics: {}
     };
@@ -131,6 +139,26 @@ export default class RT04Client {
                 else if (Math.abs(d.v_achieved_mps || 0) > 1e-3) this.state.status = 'driving';
                 else this.state.status = 'idle';
                 this.state.stateSeq += 1;
+                this._emit();
+            });
+
+        // /joint_states (sensor_msgs/JointState) -> the 8 actuated URDF joints (4 wheels as RPM, 2 arm
+        // hinges + 2 drum spins). Parsed by the pure, node-tested roverInstruments view-model.
+        new ROSLIB.Topic({ros, name: '/joint_states', messageType: 'sensor_msgs/JointState'})
+            .subscribe((msg) => {
+                this._bump('/joint_states');
+                const j = RoverInstruments.parseJointStates(msg);
+                if (j) { this.state.joints = j; this.state.jointSeq += 1; }
+                this._emit();
+            });
+
+        // /stewie/imu (sensor_msgs/Imu) -> attitude (quat -> roll/pitch/yaw), angular velocity, linear
+        // acceleration + sensed gravity magnitude.
+        new ROSLIB.Topic({ros, name: '/stewie/imu', messageType: 'sensor_msgs/Imu'})
+            .subscribe((msg) => {
+                this._bump('/stewie/imu');
+                const im = RoverInstruments.parseImu(msg);
+                if (im) { this.state.imu = im; this.state.imuSeq += 1; }
                 this._emit();
             });
 
