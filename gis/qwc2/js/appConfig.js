@@ -70,6 +70,7 @@ import BufferSupport from 'qwc2/plugins/redlining/RedliningBufferSupport';
 
 import MissionAssetsPlugin from './plugins/MissionAssets';   // STEWIE: [REQ:GW-04] durable-asset library registry
 import MissionEngPanelPlugin from './plugins/MissionEngPanel';   // STEWIE: [REQ:RT-04] read-only RViz/Foxglove eng panel
+import MissionEvidencePlugin from './plugins/MissionEvidence';   // STEWIE: [REQ:EV-01] evidence/report bundle view
 import MissionHUDPlugin from './plugins/MissionHUD';   // STEWIE: live read-only rover HUD side panel
 import MissionLayersPlugin from './plugins/MissionLayers';   // STEWIE: mission layer-catalog panel (T6)
 import MissionPlanPlugin from './plugins/MissionPlan';   // STEWIE: mission-authoring plan panel (T9)
@@ -167,6 +168,7 @@ export default {
             ZoomOutPlugin: ZoomOutPlugin,
             MissionAssetsPlugin: MissionAssetsPlugin,   // STEWIE: [REQ:GW-04] durable-asset library registry
             MissionEngPanelPlugin: MissionEngPanelPlugin,   // STEWIE: [REQ:RT-04] read-only RViz/Foxglove eng panel
+            MissionEvidencePlugin: MissionEvidencePlugin,   // STEWIE: [REQ:EV-01] evidence/report bundle view
             MissionHUDPlugin: MissionHUDPlugin,   // STEWIE: live read-only rover HUD
             MissionLayersPlugin: MissionLayersPlugin,   // STEWIE: mission layer-catalog panel (T6)
             MissionPlanPlugin: MissionPlanPlugin,   // STEWIE: mission-authoring plan panel (T9)

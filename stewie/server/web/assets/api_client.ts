@@ -51,6 +51,7 @@ export type ApiPath =
   | '/ephemeris'
   | '/events'
   | '/evidence'
+  | '/evidence/bundle'
   | '/executive/advance'
   | '/executive/audit'
   | '/executive/release-plan'
@@ -219,6 +220,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/ephemeris', operationId: 'ephemeris_ephemeris_get', mutatesAuthority: false },
   { method: 'GET', path: '/events', operationId: 'get_events_events_get', mutatesAuthority: false },
   { method: 'GET', path: '/evidence', operationId: 'get_evidence_evidence_get', mutatesAuthority: false },
+  { method: 'GET', path: '/evidence/bundle', operationId: 'evidence_bundle_evidence_bundle_get', mutatesAuthority: false },
   { method: 'POST', path: '/executive/advance', operationId: 'advance_executive_executive_advance_post', mutatesAuthority: true },
   { method: 'GET', path: '/executive/audit', operationId: 'executive_audit_executive_audit_get', mutatesAuthority: false },
   { method: 'POST', path: '/executive/release-plan', operationId: 'release_plan_executive_release_plan_post', mutatesAuthority: true },

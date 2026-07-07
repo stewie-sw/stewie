@@ -304,6 +304,9 @@
         "name": "MissionAssets"
       },
       {
+        "name": "MissionEvidence"
+      },
+      {
         "name": "MissionLayers"
       },
       {
@@ -354,6 +357,7 @@
             {"key": "MissionPlan", "title": "Mission Plan", "icon": "draw"},
             {"key": "MissionLayers", "title": "Mission Layers", "icon": "layers"},
             {"key": "MissionAssets", "title": "Asset Library", "icon": "folder"},
+            {"key": "MissionEvidence", "title": "Evidence / Report", "icon": "info"},
             {"key": "SelectionInspector", "title": "Inspector", "icon": "info"},
             {"key": "MissionHUD", "title": "Rover HUD", "icon": "routing-car"},
             {"key": "MissionEngPanel", "title": "Eng Panel", "icon": "plot_info"},
