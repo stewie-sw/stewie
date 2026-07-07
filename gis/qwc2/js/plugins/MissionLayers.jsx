@@ -43,6 +43,11 @@ const PROV_COLOR = {
     learned: '#e0b300', belief: '#ff9d3c', forecast: '#c58cff', user: '#c7d2e3', prior: '#7a8290'
 };
 
+// [REQ:GW-03] per-layer UNCERTAINTY accent: the source_class-implied confidence TIER colour (high = measured/
+// trustworthy cyan, medium = computed amber, low = predicted orange, n/a = muted). Distinct from the
+// provenance badge so a reader sees both "where it came from" and "how much to trust it".
+const TIER_COLOR = {high: '#4fd1ff', medium: '#e0b300', low: '#ff9d3c', 'n/a': '#7a8290', unknown: '#7a8290'};
+
 class MissionLayers extends React.Component {
     static propTypes = {
         addLayer: PropTypes.func,
@@ -135,10 +140,45 @@ class MissionLayers extends React.Component {
                 color: on ? onColor : '#565b66', background: on ? onColor + '22' : 'transparent'
             }}>{txt}</span>
         );
+        // [REQ:GW-03] eligibility DIFFERENTIATION, made explicit as display / planning / release-execute.
+        // `disp` is always lit (every catalog layer is display-eligible — it renders in the tree); a
+        // DISPLAY-ONLY layer therefore shows only `disp` lit while a planning layer lights `plan` too and a
+        // releasable one lights `rel` — so a display-only row is visibly distinct from a planning-eligible one.
         return (
             <span style={{display: 'inline-flex', gap: '3px', flex: '0 0 auto'}}>
+                {chip('disp', true, '#8a93a3')}
                 {chip('plan', row.planningEligible, '#39c6ff')}
                 {chip('rel', row.releaseEligible, '#39ff14')}
+            </span>
+        );
+    }
+    // [REQ:GW-03] the per-layer UNCERTAINTY readout: the source_class-implied confidence class + tier, carried
+    // on every catalog row (from the backend `confidence`, else derived locally from the same real source_class
+    // — never a fabricated number). For a CONDITIONAL layer (a live-measurement token over a prior/derived
+    // baseline, e.g. a `prior/observed` DEM) the high tier only holds once the site is freshly observed, so
+    // when the site's real freshness is prior/unobserved we show the honest DOWNGRADED baseline confidence
+    // (prior -> reference, forecast -> predicted) rather than overstating it as measured.
+    renderConfidence(row) {
+        let c = row.confidence;
+        if (!c || !c.cls) return null;
+        const f = this.state.freshness;
+        const notFresh = !f || f.provClass !== 'observed';
+        const downgraded = !!c.conditional && notFresh;
+        if (downgraded) c = CL.confidenceBaseline(c.basis || row.sourceClass);
+        const col = TIER_COLOR[c.tier] || '#7a8290';
+        const title = 'confidence (source_class-implied uncertainty): ' + c.cls + ' / ' + c.tier
+            + ' · basis ' + (c.basis || row.sourceClass || 'n/a')
+            + (row.confidence.conditional
+                ? ' · measured-grade only when freshly observed'
+                    + (downgraded ? ' — this site is prior/unobserved, so shown as its baseline' : '')
+                : '');
+        return (
+            <span style={{
+                fontSize: '8px', letterSpacing: '.02em', padding: '0 3px', borderRadius: '3px',
+                border: '1px solid ' + col + '55', color: col, flex: '0 0 auto', whiteSpace: 'nowrap',
+                display: 'inline-flex', alignItems: 'center', gap: '2px'
+            }} title={title}>
+                <span aria-hidden>◈</span>{c.cls}{downgraded ? '~' : ''}
             </span>
         );
     }
@@ -235,6 +275,7 @@ class MissionLayers extends React.Component {
                         fontSize: '8px', letterSpacing: '.02em', padding: '0 3px', borderRadius: '3px',
                         border: '1px solid ' + provCol + '55', color: provCol, flex: '0 0 auto', whiteSpace: 'nowrap'
                     }} title={'provenance (source_class): ' + row.sourceClass}>{row.sourceClass}</span>
+                    {this.renderConfidence(row)}
                     {this.renderChips(row)}
                 </div>
                 {this.renderFreshness(row)}
@@ -287,7 +328,9 @@ class MissionLayers extends React.Component {
             <div style={wrapStyle}>
                 <div style={{fontSize: '10px', color: '#8a93a3', marginBottom: '6px', lineHeight: 1.4}}>
                     STEWIE mission layer catalog · <b>/api/world/layer-catalog</b>. Grouped by domain;
-                    badge = provenance (source_class); chips = planning / release-execute eligibility.
+                    badge = provenance (source_class); <b>◈ pill = confidence</b> (source_class-implied
+                    per-layer uncertainty: measured / derived / reference / predicted); chips =
+                    <b> disp / plan / rel</b> eligibility (a display-only layer lights only <b>disp</b>).
                     Checked rows drape the backend raster onto the map (reprojected to the lunar CRS).
                     Under each servable row: <b>◷ freshness</b> — the real observed-twin coverage of this
                     site + dem_sources provenance (<b>/api/world/layer-manifest</b>, DT-05).

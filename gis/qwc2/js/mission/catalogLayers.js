@@ -120,6 +120,50 @@
     return (parts.length > 1 ? parts[1] : parts[0]).replace(/_/g, " ");
   }
 
+  // [REQ:GW-03] Per-layer UNCERTAINTY as a source_class-implied CONFIDENCE class + tier. The catalog declares
+  // each layer's source_class (observed/prior/derived/forecast/belief/...) and THAT provenance IS the honest
+  // per-layer confidence signal — a directly-observed layer is trustworthy, a forecast/belief layer is not. So
+  // this classifies the REAL declared source_class; it never fabricates a numeric uncertainty. This mirrors the
+  // backend layer_confidence() in stewie/server/routers/world.py exactly (the endpoint may also serve a
+  // `confidence` field once the backend is rebuilt; the panel prefers that and falls back to this local
+  // derivation so per-layer uncertainty renders on the currently-deployed catalog with no backend change).
+  var CONF_TOKEN = {
+    live: ["measured", "high"], observed: ["measured", "high"], measured: ["measured", "high"],
+    reconciled: ["measured", "high"], sim_truth: ["measured", "high"], released: ["approved", "high"],
+    derived: ["derived", "medium"], estimated: ["modeled", "medium"], learned: ["modeled", "medium"],
+    forecast: ["predicted", "low"], belief: ["predicted", "low"],
+    prior: ["reference", "medium"], user: ["authored", "n/a"],
+    sim: ["evidence", "n/a"], replay: ["evidence", "n/a"], evidence: ["evidence", "n/a"]
+  };
+  // grounding strength, strongest first — the strongest provenance token sets the confidence class (mirrors
+  // the provClass badge). Kept identical to _CONF_RANK in stewie/server/routers/world.py.
+  var CONF_RANK = ["live", "observed", "measured", "reconciled", "sim_truth", "released",
+                   "derived", "estimated", "learned", "forecast", "belief", "prior", "user",
+                   "sim", "replay", "evidence"];
+  var CONF_MEASURED = { live: 1, observed: 1, measured: 1, reconciled: 1 };
+  var CONF_BASELINE = { prior: 1, derived: 1, estimated: 1, learned: 1, forecast: 1, belief: 1 };
+
+  function confidenceFromSourceClass(sourceClass) {
+    var toks = String(sourceClass || "").split("/").filter(function (t) { return !!t; });
+    var best = null, bestRank = CONF_RANK.length;
+    toks.forEach(function (t) {
+      var r = CONF_RANK.indexOf(t);
+      if (r >= 0 && r < bestRank) { bestRank = r; best = t; }
+    });
+    if (best === null) return { cls: "unknown", tier: "n/a", basis: sourceClass || "", conditional: false };
+    var ct = CONF_TOKEN[best];
+    var conditional = !!CONF_MEASURED[best] && toks.some(function (t) { return !!CONF_BASELINE[t]; });
+    return { cls: ct[0], tier: ct[1], basis: sourceClass, conditional: conditional };
+  }
+
+  // The confidence a CONDITIONAL layer falls back to when it is NOT freshly observed: strip the live
+  // measurement tokens and classify the remaining baseline (a `prior/observed` DEM -> prior/reference; a
+  // `forecast/observed` layer -> forecast/predicted). Uses the site's REAL observed coverage as the gate.
+  function confidenceBaseline(sourceClass) {
+    var toks = String(sourceClass || "").split("/").filter(function (t) { return t && !CONF_MEASURED[t]; });
+    return confidenceFromSourceClass(toks.join("/"));
+  }
+
   // Build the ordered, grouped tree from the raw /world/layer-catalog payload. PURE.
   //   catalog = { layers: [ {id, domain, type, purpose, source_class, planning_eligible,
   //                          release_execute_eligible, ...}, ... ] }  (or the bare array)
@@ -140,6 +184,9 @@
         provClass: provClass(l.source_class),
         planningEligible: !!l.planning_eligible,
         releaseEligible: !!l.release_execute_eligible,
+        // [REQ:GW-03] per-layer uncertainty: prefer the backend's served `confidence` (once rebuilt), else
+        // derive it locally from the same real source_class so the panel renders it on the deployed catalog.
+        confidence: l.confidence || confidenceFromSourceClass(l.source_class),
         servable: !!kind,
         kind: kind,
         legendKey: kind ? (LEGEND_KEY[kind] || null) : null,
@@ -284,6 +331,8 @@
     LEGEND_KEY: LEGEND_KEY,
     LUNAR_GEOG_CRS: LUNAR_GEOG_CRS,
     provClass: provClass,
+    confidenceFromSourceClass: confidenceFromSourceClass,   // [REQ:GW-03]
+    confidenceBaseline: confidenceBaseline,                 // [REQ:GW-03]
     shortName: shortName,
     groupCatalog: groupCatalog,
     servableSummary: servableSummary,
