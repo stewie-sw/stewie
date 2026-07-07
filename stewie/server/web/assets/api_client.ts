@@ -47,6 +47,8 @@ export type ApiPath =
   | '/edit/session/{sid}/audit'
   | '/edit/session/{sid}/keepout'
   | '/edit/session/{sid}/keepout/{fid}'
+  | '/edit/session/{sid}/marker'
+  | '/edit/session/{sid}/marker/{fid}'
   | '/edit/session/{sid}/undo'
   | '/ephemeris'
   | '/events'
@@ -217,6 +219,8 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'POST', path: '/edit/session/{sid}/keepout', operationId: 'create_keepout_edit_session__sid__keepout_post', mutatesAuthority: true },
   { method: 'DELETE', path: '/edit/session/{sid}/keepout/{fid}', operationId: 'delete_keepout_edit_session__sid__keepout__fid__delete', mutatesAuthority: true },
   { method: 'PATCH', path: '/edit/session/{sid}/keepout/{fid}', operationId: 'modify_keepout_edit_session__sid__keepout__fid__patch', mutatesAuthority: true },
+  { method: 'POST', path: '/edit/session/{sid}/marker', operationId: 'create_marker_edit_session__sid__marker_post', mutatesAuthority: true },
+  { method: 'DELETE', path: '/edit/session/{sid}/marker/{fid}', operationId: 'delete_marker_edit_session__sid__marker__fid__delete', mutatesAuthority: true },
   { method: 'POST', path: '/edit/session/{sid}/undo', operationId: 'undo_edit_edit_session__sid__undo_post', mutatesAuthority: true },
   { method: 'GET', path: '/ephemeris', operationId: 'ephemeris_ephemeris_get', mutatesAuthority: false },
   { method: 'GET', path: '/events', operationId: 'get_events_events_get', mutatesAuthority: false },

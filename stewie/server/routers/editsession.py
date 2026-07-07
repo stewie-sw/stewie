@@ -40,6 +40,16 @@ class KeepoutIn(BaseModel):
     ring: list | None = None
 
 
+class MarkerIn(BaseModel):
+    """A place-object marker in the map frame (IAU_2015:30135, metres): a POINT {x,y} plus an object type
+    (beacon/cache/instrument/sample/antenna) and an optional label. Validated in the store (bad type -> 400)."""
+    model_config = ConfigDict(extra="forbid")
+    x: float
+    y: float
+    otype: str
+    label: str | None = None
+
+
 def _not_found(sid: str) -> JSONResponse:
     return JSONResponse(status_code=404, content={"ok": False, "error": f"no edit session {sid!r}"})
 
@@ -112,6 +122,37 @@ def delete_keepout(sid: str, fid: str):
     except KeyError:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no keep-out {fid!r}"})
     log_event("ide", "edit.keepout.delete", f"{sess.id}:{fid}")
+    return {"ok": True, **sess.state()}
+
+
+@router.post("/edit/session/{sid}/marker")
+def create_marker(sid: str, req: MarkerIn):
+    """Create a place-object marker (a mission object -- beacon/cache/instrument/sample/antenna) in the
+    session. Persists through the SAME versioned-audit store the keep-outs use, but as a POINT feature kept
+    SEPARATE from the keep-out set (a marker annotates the map; it never routes the planner around it).
+    Returns the new marker + the authoritative post-edit state (version + features + markers)."""
+    sess = ES.get_session(sid)
+    if sess is None:
+        return _not_found(sid)
+    try:
+        marker = sess.create_marker(req.model_dump())
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    log_event("ide", "edit.marker.create", f"{sess.id}:{marker['fid']}")
+    return {"ok": True, "marker": marker, **sess.state()}
+
+
+@router.delete("/edit/session/{sid}/marker/{fid}")
+def delete_marker(sid: str, fid: str):
+    """Delete a place-object marker (the audit records its before, so an undo can restore it). Returns state."""
+    sess = ES.get_session(sid)
+    if sess is None:
+        return _not_found(sid)
+    try:
+        sess.delete_marker(fid)
+    except KeyError:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no marker {fid!r}"})
+    log_event("ide", "edit.marker.delete", f"{sess.id}:{fid}")
     return {"ok": True, **sess.state()}
 
 

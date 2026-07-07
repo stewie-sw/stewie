@@ -42,6 +42,13 @@ from typing import Any
 MAX_KEEPOUT_VERTS = 256
 MAX_FEATURES_PER_SESSION = 200       # matches the /plan STEWIE_MAX_KEEPOUTS default input cap
 MAX_SESSIONS = 512                   # global bound; oldest session evicted past this
+MAX_MARKERS_PER_SESSION = 200        # place-object markers are point features; bound them like keep-outs
+
+# Place-object marker types: a small, bounded vocabulary of mission objects an operator drops on the map
+# (a nav/comm beacon, a spoil/sample cache, a science instrument, a sample tube, a relay antenna). Kept a
+# frozenset so an unknown type is a clean 400 at the boundary (no arbitrary attacker-chosen strings stored).
+ALLOWED_MARKER_TYPES = frozenset({"beacon", "cache", "instrument", "sample", "antenna"})
+MAX_MARKER_LABEL_LEN = 80
 
 
 def _finite(v: Any, what: str) -> float:
@@ -83,6 +90,20 @@ def _normalize_geometry(kind: str, body: dict) -> dict:
     raise ValueError(f"unknown keep-out kind {kind!r} (want 'circle' or 'polygon')")
 
 
+def _normalize_marker(body: dict) -> dict:
+    """Validate + normalize a place-object marker in the map frame (30135 metres) into the stored schema:
+    ``{"kind": "marker", "x", "y", "otype", "label"}``. A marker is a POINT feature (an operator-dropped
+    mission object). The type must be in ALLOWED_MARKER_TYPES; a blank label defaults to the type. Raises
+    ValueError on a bad shape/type (surfaced by the route as a 400)."""
+    x = _finite(body.get("x"), "marker x")
+    y = _finite(body.get("y"), "marker y")
+    otype = str(body.get("otype") or "").strip().lower()
+    if otype not in ALLOWED_MARKER_TYPES:
+        raise ValueError(f"unknown object type {otype!r} (want one of {sorted(ALLOWED_MARKER_TYPES)})")
+    label = str(body.get("label") or "").strip()[:MAX_MARKER_LABEL_LEN] or otype.capitalize()
+    return {"kind": "marker", "x": x, "y": y, "otype": otype, "label": label}
+
+
 class EditSession:
     """One operator's mission-feature edit session: an ordered keep-out set + a monotonic version + an
     append-only before/after audit log + a linear undo. Thread-safe (one re-entrant lock guards the whole
@@ -92,15 +113,21 @@ class EditSession:
         self.id = session_id
         self.created_at = time.time()
         self.version = 0                         # monotonic; bumped once per edit (incl. undo)
-        self._features: dict[str, dict] = {}     # fid -> {"fid", "kind", ...geometry (map frame)}
+        self._features: dict[str, dict] = {}     # fid -> {"fid", "kind", ...geometry (map frame)} -- keep-outs
+        self._markers: dict[str, dict] = {}      # fid -> {"fid", "kind":"marker", "x", "y", "otype", "label"}
         self._audit: list[dict] = []             # {version, op, fid, kind, before, after, ts}
         self._fid_seq = 0
+        self._marker_seq = 0
         self._lock = threading.RLock()
 
     # ---- internal --------------------------------------------------------------------------------
     def _next_fid(self) -> str:
         self._fid_seq += 1
         return f"ko{self._fid_seq}"
+
+    def _next_marker_fid(self) -> str:
+        self._marker_seq += 1
+        return f"mk{self._marker_seq}"
 
     def _record(self, op: str, fid: str, kind: str, before: dict | None, after: dict | None) -> int:
         """Bump the version and append one audit record. Caller holds the lock."""
@@ -145,25 +172,51 @@ class EditSession:
             self._record("delete", fid, old["kind"], before=dict(old), after=None)
             return dict(old)
 
+    # ---- place-object markers (POINT features; kept SEPARATE from the keep-out set so a marker never
+    #      becomes a planner keep-out) -- create/delete write through the SAME versioned audit + undo ----
+    def create_marker(self, body: dict) -> dict:
+        """Create a place-object marker from a map-frame point. Returns the stored feature (with its fid)."""
+        geom = _normalize_marker(body)
+        with self._lock:
+            if len(self._markers) >= MAX_MARKERS_PER_SESSION:
+                raise ValueError(f"session is full ({MAX_MARKERS_PER_SESSION} markers); delete some first")
+            fid = self._next_marker_fid()
+            feature = {"fid": fid, **geom}
+            self._markers[fid] = feature
+            self._record("marker.create", fid, "marker", before=None, after=dict(feature))
+            return dict(feature)
+
+    def delete_marker(self, fid: str) -> dict:
+        """Delete a marker (audit records its before, so an undo can restore it). Returns the deleted feature."""
+        with self._lock:
+            old = self._markers.pop(fid, None)
+            if old is None:
+                raise KeyError(fid)
+            self._record("marker.delete", fid, "marker", before=dict(old), after=None)
+            return dict(old)
+
     def undo(self) -> dict:
         """Revert the last live edit (create/modify/delete) not already undone -- the DT-03 compensating
         idea applied locally: apply the inverse of the recorded before/after, append an ``undo`` audit
         record, and bump the version. History is never deleted. Raises ValueError if nothing to undo."""
+        _UNDOABLE = ("create", "modify", "delete", "marker.create", "marker.delete")
         with self._lock:
             undone_targets = {rec["target"] for rec in self._audit if rec["op"] == "undo"}
             live = [rec for rec in self._audit
-                    if rec["op"] in ("create", "modify", "delete") and rec["version"] not in undone_targets]
+                    if rec["op"] in _UNDOABLE and rec["version"] not in undone_targets]
             if not live:
                 raise ValueError("nothing to undo")
             target = live[-1]
             fid = target["fid"]
             op = target["op"]
-            if op == "create":                       # compensate a create -> remove the feature
+            if op == "create":                       # compensate a keep-out create -> remove the feature
                 self._features.pop(fid, None)
-            elif op == "delete":                     # compensate a delete -> restore the feature
+            elif op in ("delete", "modify"):         # restore the prior keep-out geometry / feature
                 self._features[fid] = dict(target["before"])
-            else:                                    # modify -> restore the prior geometry
-                self._features[fid] = dict(target["before"])
+            elif op == "marker.create":              # compensate a marker create -> remove the marker
+                self._markers.pop(fid, None)
+            elif op == "marker.delete":              # compensate a marker delete -> restore the marker
+                self._markers[fid] = dict(target["before"])
             self.version += 1
             self._audit.append({
                 "version": self.version, "op": "undo", "target": target["version"],
@@ -174,9 +227,16 @@ class EditSession:
 
     # ---- reads -----------------------------------------------------------------------------------
     def current_features(self) -> list[dict]:
-        """The live keep-out set (insertion order), each {fid, kind, ...map-frame geometry}."""
+        """The live keep-out set (insertion order), each {fid, kind, ...map-frame geometry}. Markers are a
+        SEPARATE class (current_markers) and are deliberately excluded here, so a marker never leaks into the
+        planner keep-outs the planner reads via to_planner_keepouts."""
         with self._lock:
             return [dict(f) for f in self._features.values()]
+
+    def current_markers(self) -> list[dict]:
+        """The live place-object marker set (insertion order), each {fid, kind:'marker', x, y, otype, label}."""
+        with self._lock:
+            return [dict(m) for m in self._markers.values()]
 
     def audit(self, limit: int | None = None) -> list[dict]:
         """The versioned audit log (oldest-first). ``limit`` returns only the most recent ``limit`` records."""
@@ -202,9 +262,11 @@ class EditSession:
         return out
 
     def state(self, audit_limit: int | None = 50) -> dict:
-        """The full session view the routes return: id, version, live features, and the audit tail."""
+        """The full session view the routes return: id, version, live keep-out features + place-object
+        markers, and the audit tail."""
         return {"session": self.id, "version": self.version,
-                "features": self.current_features(), "audit": self.audit(limit=audit_limit)}
+                "features": self.current_features(), "markers": self.current_markers(),
+                "audit": self.audit(limit=audit_limit)}
 
 
 # ---- the process-wide bounded session registry (capability-gated by opaque id) --------------------

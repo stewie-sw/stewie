@@ -44,9 +44,14 @@ import Stroke from 'ol/style/Stroke';
 import Style from 'ol/style/Style';
 import Text from 'ol/style/Text';
 
+import PlanTools from './planTools';   // pure tool-palette logic (traverse/goto, return-to-lander, place-object)
+
 const MAP_CRS = 'IAU_2015:30135';   // the lunar polar-stereographic workbench CRS (state.map.projection)
 const GEO_CRS = 'IAU_2015:30100';   // selenographic lon/lat (order-anchor + globe bbox frame)
-const KIND_COLOR = {cut: '#e0563a', fill: '#4fd1ff'};   // Frontend A's palette (cut = drum-down, fill = berm)
+const KIND_COLOR = {cut: '#e0563a', fill: '#4fd1ff', goto: '#ffd24a'};   // cut = drum-down, fill = berm, goto = traverse waypoint (amber)
+// Place-object marker palette (one hue per mission-object type). Keys MUST match planTools.OBJECT_TYPES /
+// the server ALLOWED_MARKER_TYPES; an unknown type falls back to the compare-accent violet.
+const MARKER_COLOR = {beacon: '#39ff14', cache: '#ffd24a', instrument: '#4affd2', sample: '#ff8f4a', antenna: '#b47cff'};
 
 // DEPTH-3 fleet: a per-vehicle categorical route palette. Index 0 = the legacy single-vehicle gold, so a
 // single-rover plan renders BYTE-IDENTICALLY to before; index >0 gives each fleet rover a distinct colour.
@@ -155,6 +160,21 @@ export default class PlanAuthor {
         this._structSeq = 0;        // monotonic structure id (tags each structure's orders so it removes cleanly)
         this._lastPlanPayload = null;   // the exact JSON POSTed to /api/plan (headless-proof readback)
         this.orders = [];          // {kind, footprint_m2, depth_m, coord:[x,y]30135, lonlat:[lon,lat], structId?}
+        // --- TOOL PALETTE (traverse / return-to-lander / place-object). The palette adds discoverable tools on
+        // top of the Cut/Fill/Structure authoring, all sharing the SAME map-click owner (activeKind/structKind/
+        // objectType are mutually exclusive placing modes).
+        //   TRAVERSE   — a click drops a `goto` waypoint into the order queue; the backend auto-chains
+        //                consecutive gotos into a path (lode planner_model, zero-mass sequenced visits). No new
+        //                order kind: goto is already first-class. Rendered as an ordered polyline (traverseLayer).
+        //   RETURN-TO-LANDER — appends a goto at the lander/charger anchor (the order centroid), so the drive
+        //                ends back at base (reuses the SAME anchor /api/plan derives).
+        //   PLACE OBJECT — a click drops a mission-object MARKER (beacon/cache/instrument/sample/antenna) that
+        //                persists through the backend edit-session (versioned audit + undo, /api/edit/session/
+        //                {sid}/marker), kept SEPARATE from the keep-out set so it never routes the planner
+        //                around it. this.markers is the render MIRROR of the backend marker set.
+        this.objectType = null;    // active place-object type ('beacon'|... ) — exclusive with cut/fill/structure/no-go
+        this.markers = [];         // [{fid, otype, label, coord:[x,y]30135, feature}] — MIRROR of the backend markers
+        this._locMarkerSeq = 0;    // client-only fallback marker id (no backend session)
         this.result = null;        // last plan summary (for the panel)
         this.planning = false;
         this.hint = 'Pick a work site, then a tool, then click the map to place orders.';
@@ -169,6 +189,21 @@ export default class PlanAuthor {
         this.orderLayer.setStyle((f) => this._orderMarkerStyle(f));
         this.planSource = new VectorSource();
         this.planLayer = new VectorLayer({source: this.planSource, zIndex: 19});
+
+        // TRAVERSE path: the ordered polyline connecting the dropped goto waypoints (pre-plan preview), drawn
+        // UNDER the order markers so each waypoint's number still reads. A dashed amber line = the drive path.
+        this.traverseSource = new VectorSource();
+        this.traverseLayer = new VectorLayer({source: this.traverseSource, zIndex: 16});
+        this.traverseLayer.setStyle(new Style({
+            stroke: new Stroke({color: '#ffd24a', width: 2, lineDash: [6, 5]})
+        }));
+
+        // PLACE-OBJECT markers: point features (a mission object dropped on the map), drawn ABOVE the plan with
+        // a type-coloured diamond + a label. The backend edit-session is the source of truth; this layer is a
+        // render mirror rebuilt from each edit-session response (_adoptEditState) or a local fallback.
+        this.markerSource = new VectorSource();
+        this.markerLayer = new VectorLayer({source: this.markerSource, zIndex: 20});
+        this.markerLayer.setStyle((f) => this._markerStyle(f));
 
         // Structure footprints (T11): a dashed steel-cyan bounding outline + name label per placed structure,
         // drawn UNDER the cut/fill order markers (zIndex 17 < orderLayer 20) so both the whole-structure
@@ -242,16 +277,20 @@ export default class PlanAuthor {
     attach() {
         if (this._attached) { return; }
         this.map.addLayer(this.structureLayer);
+        this.map.addLayer(this.traverseLayer);
         this.map.addLayer(this.keepoutLayer);
         this.map.addLayer(this.planLayer);
         this.map.addLayer(this.trailLayer);
         this.map.addLayer(this.roverLayer);
         this.map.addLayer(this.orderLayer);
+        this.map.addLayer(this.markerLayer);
         this._clickKey = this.map.on('singleclick', (evt) => {
-            // A map click places whatever authoring mode is active. The three placing modes are mutually
-            // exclusive (a Cut/Fill tool, a structure template, or a no-go Draw interaction — never two at once).
+            // A map click places whatever authoring mode is active. The placing modes are mutually exclusive
+            // (a Cut/Fill/Traverse tool, a structure template, a place-object type, or a no-go Draw interaction
+            // — never two at once), so exactly one branch fires.
             if (this.activeKind) { this.placeAt(evt.coordinate); }
             else if (this.structKind) { this.placeStructure(evt.coordinate); }
+            else if (this.objectType) { this.placeObject(evt.coordinate); }
         });
         // Read-only harness handles for the headless LIVE proof (same code paths as the UI) -- mirrors
         // Frontend A's window.stewieRun (gis/web/app.js:916). No command authority; state readback only.
@@ -267,6 +306,20 @@ export default class PlanAuthor {
                 // exact map coords without pixel-quantised clicks. No command authority (authoring only).
                 setTool: (kind) => this.setTool(kind),
                 placeAt: (coord) => this.placeAt(coord),
+                // TOOL PALETTE drivers (traverse / return-to-lander / place-object) — the SAME controller code
+                // paths the palette buttons + map singleclick call, so a headless proof can drop a traverse
+                // waypoint, return to the lander, and place a mission object at exact map coords without pixel-
+                // quantised clicks. placeObject returns the fetch promise so the proof can await the backend
+                // marker round-trip. Authoring only (no command authority).
+                traverseCount: () => this.orders.filter((o) => PlanTools.isTraverse(o)).length,
+                returnToLander: () => this.returnToLander(),
+                setObjectTool: (otype) => this.setObjectTool(otype),
+                objectType: () => this.objectType,
+                placeObject: (coord) => this.placeObject(coord),
+                removeMarker: (fid) => this.removeMarker(fid),
+                markerCount: () => this.markers.length,
+                markers: () => this.markers.map((m) => ({fid: m.fid, otype: m.otype, label: m.label,
+                    coord: m.coord.slice()})),
                 // No-go authoring drivers (same code path as the Draw tool's drawend + the panel buttons),
                 // so a proof can place a no-go region across the route at exact MAP coords without simulating
                 // Draw pointer events. No command authority (authoring only).
@@ -358,11 +411,13 @@ export default class PlanAuthor {
         this._resetRun();
         if (typeof window !== 'undefined' && window.__stewieRun) { delete window.__stewieRun; }
         if (this._clickKey) { this.map.un('singleclick', this._clickKey.listener); this._clickKey = null; }
+        this.map.removeLayer(this.markerLayer);
         this.map.removeLayer(this.orderLayer);
         this.map.removeLayer(this.roverLayer);
         this.map.removeLayer(this.trailLayer);
         this.map.removeLayer(this.planLayer);
         this.map.removeLayer(this.keepoutLayer);
+        this.map.removeLayer(this.traverseLayer);
         this.map.removeLayer(this.structureLayer);
         this._attached = false;
     }
@@ -396,6 +451,12 @@ export default class PlanAuthor {
             compareCandidates: this.compareCandidates.slice(),
             compareResult: this.compareResult, comparing: this.comparing, compareErr: this.compareErr,
             koTool: this.koTool,
+            // TOOL PALETTE state (traverse / return-to-lander / place-object), mirrored to the panel so the
+            // palette shows which tool is active + the dropped waypoints/objects.
+            objectType: this.objectType, objectTypes: PlanTools.OBJECT_TYPES,
+            traverseCount: this.orders.filter((o) => PlanTools.isTraverse(o)).length,
+            canReturnToLander: this.orders.length > 0,
+            markers: this.markers.map((m) => ({fid: m.fid, otype: m.otype, label: m.label})),
             // GW-08: the keep-out idx is now the backend feature id (fid), the remove/undo handle. The panel
             // also reads the edit-session version + audit tail + whether an undo is available.
             keepouts: this.keepouts.map((k) => ({idx: k.fid, fid: k.fid, kind: k.kind, label: this._koSummary(k)})),
@@ -429,12 +490,15 @@ export default class PlanAuthor {
         this.route = null; this._planOrders = null;
         this._deactivateDraw();                       // a site change resets authoring incl. any drawn no-go
         this.keepouts = []; this.keepoutSource.clear();
+        this.markers = []; this.markerSource.clear();   // place-object markers are per-session -> reset with the site
+        this.objectType = null;                         // and any active place-object tool
         this.editSession = null; this.editVersion = 0; this.editAudit = [];   // GW-08: fresh edit session per site
         this._ensureSession();
         this.structKind = null; this.structParams = {};   // and any active structure template + placed structures
         this.structures = []; this.structureSource.clear();
         this.orderSource.clear();
         this.planSource.clear();
+        this.traverseSource.clear();
         this._setHint('Loading ' + site + ' work area…');
         return fetch('/api/layers/globe/dem/bbox?site=' + encodeURIComponent(site))
             .then((r) => { if (!r.ok) { throw new Error('bbox HTTP ' + r.status); } return r.json(); })
@@ -474,15 +538,20 @@ export default class PlanAuthor {
     }
 
     setTool(kind) {
-        this._deactivateDraw();                       // picking a cut/fill tool leaves no-go draw mode
+        this._deactivateDraw();                       // picking a cut/fill/traverse tool leaves no-go draw mode
         this.structKind = null;                       // and leaves structure-template placing
+        this.objectType = null;                       // and leaves place-object mode
         this.activeKind = (this.activeKind === kind) ? null : kind;
         if (this.activeKind) {
-            this._setHint('Click the map to place a ' + (kind === 'cut' ? 'CUT (dig)' : 'FILL (build)') +
-                ' order. Click the tool again to stop placing.');
+            const what = kind === 'cut' ? 'a CUT (dig) order'
+                : kind === 'fill' ? 'a FILL (build) order'
+                    : kind === 'traverse' ? 'a TRAVERSE waypoint (the rover drives them in order)'
+                        : 'an order';
+            this._setHint('Click the map to drop ' + what + '. Click the tool again to stop placing.');
         } else {
             this._setHint('Placing off. Pick a tool to place more orders, or Plan the mission.');
         }
+        this._emit();
     }
     setFootprint(v) { this.footprint = Math.max(1, parseFloat(v) || 60); this._emit(); }
     setDepth(v) { this.depth = Math.max(0.05, parseFloat(v) || 0.4); this._emit(); }
@@ -778,6 +847,9 @@ export default class PlanAuthor {
             this.keepoutSource.addFeature(feat);
             this.keepouts.push({idx: f.fid, fid: f.fid, kind: f.kind, feature: feat});
         }
+        // Every edit-session response also carries the place-object marker set (state() includes markers), so
+        // re-render the marker mirror from the authoritative set alongside the keep-outs.
+        this._adoptMarkers(body.markers || []);
     }
 
     // The map-frame geometry (IAU_2015:30135 metres) for the backend create/modify body, read off an OL feature.
@@ -985,6 +1057,16 @@ export default class PlanAuthor {
         let lonlat;
         try { lonlat = this.reproject(coord, MAP_CRS, GEO_CRS); }
         catch (e) { this._setHint('Could not reproject the click: ' + e.message, true); return; }
+        if (this.activeKind === 'traverse') {
+            // A traverse waypoint = a backend `goto` order (zero mass; the planner auto-chains consecutive
+            // gotos into a path). Shares the SAME order queue + /api/plan path as cut/fill.
+            this.orders.push(PlanTools.traverseOrder([coord[0], coord[1]], lonlat));
+            this._refreshOrderMarkers();
+            const nwp = this.orders.filter((o) => PlanTools.isTraverse(o)).length;
+            this._setHint('Dropped traverse waypoint ' + nwp + '. Drop more to extend the path, use ' +
+                'Return to lander to close it, or press Plan mission.');
+            return;
+        }
         this.orders.push({
             kind: this.activeKind, footprint_m2: this.footprint, depth_m: this.depth,
             coord: [coord[0], coord[1]], lonlat: lonlat
@@ -1000,8 +1082,9 @@ export default class PlanAuthor {
         this._resetRun();
         this.route = null; this._planOrders = null;
         this.structures = []; this.structureSource.clear();   // placed structures + their footprints go too
-        this.orderSource.clear(); this.planSource.clear();
-        this._setHint('Cleared. Pick a tool or structure and click the map to place orders.');
+        this.orderSource.clear(); this.planSource.clear(); this.traverseSource.clear();
+        this._setHint('Cleared. Pick a tool or structure and click the map to place orders. ' +
+            '(Placed objects are kept — clear them from the palette.)');
     }
 
     _refreshOrderMarkers() {
@@ -1011,22 +1094,171 @@ export default class PlanAuthor {
             f.set('kind', o.kind); f.set('label', String(i + 1));
             this.orderSource.addFeature(f);
         });
+        // TRAVERSE path: connect the dropped goto waypoints in authorship order (the drive the planner chains).
+        this.traverseSource.clear();
+        const path = PlanTools.traversePath(this.orders);
+        if (path.length > 1) {
+            this.traverseSource.addFeature(new Feature({geometry: new LineString(path)}));
+        }
         this._emit();
     }
 
     _orderMarkerStyle(feature) {
         const kind = feature.get('kind');
         const color = KIND_COLOR[kind] || '#ffd24a';
-        return new Style({
-            image: new RegularShape({
-                points: kind === 'cut' ? 4 : 3,               // cut = square, fill = triangle
+        // cut = square, fill = triangle, goto = small circle waypoint dot (the traverse path connects them).
+        const image = kind === 'goto'
+            ? new CircleStyle({radius: 5, fill: new Fill({color: color}), stroke: new Stroke({color: '#0a0d12', width: 1.5})})
+            : new RegularShape({
+                points: kind === 'cut' ? 4 : 3,
                 radius: 7, angle: kind === 'cut' ? Math.PI / 4 : 0,
                 fill: new Fill({color: color}), stroke: new Stroke({color: '#0a0d12', width: 1.5})
-            }),
+            });
+        return new Style({
+            image: image,
             text: new Text({
                 text: String(feature.get('label') || ''), offsetY: -14,
                 font: '600 11px system-ui, sans-serif',
                 fill: new Fill({color: '#e8edf4'}), stroke: new Stroke({color: '#000', width: 3})
+            })
+        });
+    }
+
+    // --- TRAVERSE: return-to-lander ------------------------------------------------------------------
+    // Append a goto waypoint at the lander/charger anchor (the order centroid) so the drive ends back at base.
+    // The anchor = the SAME centroid /api/plan derives (planTools.centroidLonLat -> reproject), computed over
+    // the CURRENT orders BEFORE appending, so the appended leg is a real "return" from the last waypoint home.
+    returnToLander() {
+        if (!this.orders.length) {
+            this._setHint('Drop at least one order/waypoint first — the lander anchors at the work-area centre.', true);
+            return;
+        }
+        const ll = PlanTools.centroidLonLat(this.orders);   // [meanLon, meanLat] = the lander/charger anchor
+        if (!ll) { this._setHint('No orders to anchor the lander to.', true); return; }
+        let coord;
+        try { coord = this.reproject(ll, GEO_CRS, MAP_CRS); }
+        catch (e) { this._setHint('Could not locate the lander: ' + e.message, true); return; }
+        this.orders.push(PlanTools.traverseOrder([coord[0], coord[1]], ll));
+        this._refreshOrderMarkers();
+        this._setHint('Return-to-lander leg appended: the rover drives from the last waypoint back to the ' +
+            'charger/lander at the work-area centre. Press Plan mission to route it.');
+    }
+
+    // --- PLACE OBJECT: drop a mission-object marker (persisted through the backend edit-session) ------
+    // A place-object type is exclusive with the Cut/Fill/Traverse tools, the structure templates, and the
+    // no-go Draw tool (only one placing mode owns the map click at a time).
+    setObjectTool(otype) {
+        this.activeKind = null;
+        this.structKind = null;
+        this._deactivateDraw();
+        this.objectType = (this.objectType === otype) ? null : otype;
+        if (this.objectType) {
+            this._setHint('Click the map to place a ' + this.objectType +
+                '. Click the button again to stop placing.');
+        } else {
+            this._setHint('Place-object off. Pick a tool, or Plan the mission.');
+        }
+        this._emit();
+    }
+
+    // Place the active object at a map click: POST /api/edit/session/{sid}/marker (versioned + audited through
+    // the SAME edit-session store the keep-outs use, but as a POINT marker kept SEPARATE from the keep-out set
+    // so it never routes the planner around it). Adopts the authoritative marker set on the response. FALLBACK:
+    // with no backend session, keep the marker locally so the IDE still annotates (degraded, not dead). Returns
+    // the fetch promise so a headless proof can await the round-trip.
+    placeObject(coord) {
+        if (!this.objectType) { return Promise.resolve(); }
+        const otype = this.objectType;
+        const label = otype.charAt(0).toUpperCase() + otype.slice(1) + ' ' + (this.markers.length + 1);
+        let body;
+        try { body = PlanTools.markerBody([coord[0], coord[1]], otype, label); }
+        catch (e) { this._setHint('Could not place object: ' + e.message, true); return Promise.resolve(); }
+        if (!this.editSession) { return this._localMarkerAdd(body); }
+        return fetch('/api/edit/session/' + encodeURIComponent(this.editSession) + '/marker', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+        })
+            .then((r) => r.json().then((d) => ({status: r.status, body: d})))
+            .then((res) => {
+                if (!res.body || res.body.ok === false) {
+                    throw new Error((res.body && res.body.error) || ('HTTP ' + res.status));
+                }
+                this._adoptEditState(res.body);   // backend is the source of truth -> re-render keep-outs + markers
+                this._setHint('Placed a ' + otype + ' through the backend (' + this.markers.length +
+                    ' object' + (this.markers.length === 1 ? '' : 's') + '). Place more, or Plan the mission.');
+                this._emit();
+                return res.body;
+            })
+            .catch((e) => {
+                this._localMarkerAdd(body);
+                this._setHint('Object saved locally (backend edit-session unavailable: ' + e.message + ').', true);
+            });
+    }
+
+    _localMarkerAdd(body) {
+        this._locMarkerSeq += 1;
+        const fid = 'locmk' + this._locMarkerSeq;
+        const feat = new Feature({geometry: new Point([body.x, body.y])});
+        feat.set('otype', body.otype); feat.set('label', body.label || body.otype); feat.set('fid', fid);
+        this.markerSource.addFeature(feat);
+        this.markers.push({fid: fid, otype: body.otype, label: body.label || body.otype,
+            coord: [body.x, body.y], feature: feat});
+        this._setHint('Object placed (' + this.markers.length + '). Place more, or Plan the mission.');
+        this._emit();
+        return Promise.resolve(null);
+    }
+
+    // Authoring driver (headless proof): drop an object of `otype` at exact MAP coords (same path as a click).
+    placeObjectAt(otype, coord) { this.objectType = otype; return this.placeObject(coord); }
+
+    // Delete a placed object through the backend DELETE route (by its backend fid); re-adopt the authoritative
+    // set. A local-fallback marker ('locmk…', no backend row) is just removed from the mirror.
+    removeMarker(fid) {
+        const m = this.markers.find((x) => x.fid === fid);
+        if (!m) { return Promise.resolve(); }
+        if (!this.editSession || String(fid).startsWith('locmk')) {
+            try { this.markerSource.removeFeature(m.feature); } catch (e) { /* already gone */ }
+            this.markers = this.markers.filter((x) => x.fid !== fid);
+            this._setHint('Object removed (' + this.markers.length + ' left).');
+            this._emit();
+            return Promise.resolve();
+        }
+        return fetch('/api/edit/session/' + encodeURIComponent(this.editSession) + '/marker/' +
+            encodeURIComponent(fid), {method: 'DELETE'})
+            .then((r) => r.json())
+            .then((d) => {
+                if (!d || d.ok === false) { throw new Error((d && d.error) || 'delete failed'); }
+                this._adoptEditState(d);
+                this._setHint('Object deleted through the backend (' + this.markers.length + ' left).');
+                this._emit();
+            })
+            .catch((e) => this._setHint('Could not delete the object: ' + e.message, true));
+    }
+
+    // Re-render the marker MIRROR (this.markers + the OL layer) from an authoritative edit-session response
+    // (body.markers). The backend is the source of truth; the map is a pure render of the marker set.
+    _adoptMarkers(list) {
+        this.markerSource.clear();
+        this.markers = [];
+        for (const m of (list || [])) {
+            const feat = new Feature({geometry: new Point([m.x, m.y])});
+            feat.set('otype', m.otype); feat.set('label', m.label || m.otype); feat.set('fid', m.fid);
+            this.markerSource.addFeature(feat);
+            this.markers.push({fid: m.fid, otype: m.otype, label: m.label || m.otype,
+                coord: [m.x, m.y], feature: feat});
+        }
+    }
+
+    _markerStyle(feature) {
+        const otype = feature.get('otype') || 'object';
+        const color = MARKER_COLOR[otype] || '#b47cff';
+        return new Style({
+            image: new RegularShape({
+                points: 4, radius: 7, angle: Math.PI / 4,   // a diamond glyph
+                fill: new Fill({color: color}), stroke: new Stroke({color: '#0a0d12', width: 1.5})
+            }),
+            text: new Text({
+                text: feature.get('label') || otype, offsetY: -13, font: '600 10px system-ui, sans-serif',
+                fill: new Fill({color: color}), stroke: new Stroke({color: '#000', width: 3})
             })
         });
     }
@@ -1040,12 +1272,9 @@ export default class PlanAuthor {
         const meanLon = this.orders.reduce((s, o) => s + o.lonlat[0], 0) / this.orders.length;
         const meanLat = this.orders.reduce((s, o) => s + o.lonlat[1], 0) / this.orders.length;
         const wc = this.reproject([meanLon, meanLat], GEO_CRS, MAP_CRS);
-        const orders = this.orders.map((o, i) => ({
-            action: o.kind + ' ' + (i + 1), kind: o.kind,
-            x: round1(o.coord[0] - wc[0]),      // 30135 East offset from the anchor
-            y: round1(wc[1] - o.coord[1]),      // 30135 North offset, y-flipped to the raster-down order frame
-            footprint_m2: o.footprint_m2, depth_m: o.depth_m
-        }));
+        // cut / fill / goto all serialize through the ONE shared order-frame entry (planTools.orderFrameEntry),
+        // so a traverse waypoint rides the exact same anchor affine + /api/plan path as a cut order.
+        const orders = this.orders.map((o, i) => PlanTools.orderFrameEntry(o, i, wc));
         return {wc, meanLat, meanLon, orders};
     }
 

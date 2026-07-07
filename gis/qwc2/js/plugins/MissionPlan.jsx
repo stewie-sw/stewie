@@ -127,6 +127,8 @@ class MissionPlan extends React.Component {
         this.ctrl.attach();
         this.setState({ready: true, ctrl: {
             site: 'haworth', activeKind: null, footprint: 60, depth: 0.4, orders: [],
+            objectType: null, objectTypes: ['beacon', 'cache', 'instrument', 'sample', 'antenna'],
+            markers: [], traverseCount: 0, canReturnToLander: false,
             koTool: null, keepouts: [],
             editSession: null, editVersion: 0, editAudit: [], canUndo: false,
             templates: null, templatesErr: null, structKind: null, structParams: {}, structures: [],
@@ -168,6 +170,10 @@ class MissionPlan extends React.Component {
     onClear = () => { if (this.ctrl) { this.ctrl.clearOrders(); } };
     onRemove = (i) => { if (this.ctrl) { this.ctrl.removeOrder(i); } };
     onRun = () => { if (this.ctrl) { this.ctrl.runMission(); } };
+    // TOOL PALETTE: traverse (goto waypoints) / return-to-lander / place-object (mission marker).
+    onReturnToLander = () => { if (this.ctrl) { this.ctrl.returnToLander(); } };
+    onObjectTool = (otype) => { if (this.ctrl) { this.ctrl.setObjectTool(otype); } };
+    onRemoveMarker = (fid) => { if (this.ctrl) { this.ctrl.removeMarker(fid); } };
     onKeepoutTool = (kind) => { if (this.ctrl) { this.ctrl.setKeepoutTool(kind); } };
     onRemoveKeepout = (fid) => { if (this.ctrl) { this.ctrl.removeKeepout(fid); } };
     onClearKeepouts = () => { if (this.ctrl) { this.ctrl.clearKeepouts(); } };
@@ -191,27 +197,112 @@ class MissionPlan extends React.Component {
     // DEPTH-5 schedule / Gantt expander
     onToggleSchedule = () => { this.setState((st) => ({scheduleOpen: !st.scheduleOpen})); };
 
+    // --- TOOL PALETTE (GW-09): the discoverable set of selectable tools; the ACTIVE tool drives the map
+    // click. Earthworks tools (Cut / Fill) place mass orders; Traverse drops ordered goto waypoints (a drive
+    // path); Return to lander appends a leg home; Place object drops a persisted mission marker. Every tool
+    // shows its active state, and a live status line names the current tool so the operator always knows what
+    // a click will do. Cut/Fill are UNCHANGED (same setTool path); the palette just makes the modes legible.
     renderTools(s) {
-        const btn = (kind, label, color) => {
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        const OBJECT_COLOR = {beacon: '#39ff14', cache: '#ffd24a', instrument: '#4affd2',
+            sample: '#ff8f4a', antenna: '#b47cff'};
+        // A placing-tool button (Cut/Fill/Traverse) — active tool inverts to a filled chip.
+        const toolBtn = (kind, label, color) => {
             const on = s.activeKind === kind;
             return (
                 <button
-                    data-stewie-tool={kind}
-                    onClick={() => this.onTool(kind)}
+                    data-stewie-tool={kind} onClick={() => this.onTool(kind)} type="button"
                     style={{
                         flex: '1 1 0', cursor: 'pointer', font: '600 11px system-ui, sans-serif',
                         padding: '7px 4px', borderRadius: '4px',
                         border: '1px solid ' + (on ? color : '#2a2a36'),
                         color: on ? '#0a0a0c' : color, background: on ? color : color + '18'
                     }}
-                    type="button"
                 >{label}</button>
             );
         };
+        // A place-object type chip.
+        const objBtn = (otype) => {
+            const on = s.objectType === otype;
+            const color = OBJECT_COLOR[otype] || '#b47cff';
+            return (
+                <button
+                    key={otype} data-stewie-object={otype} onClick={() => this.onObjectTool(otype)} type="button"
+                    title={'place a ' + otype} style={{
+                        flex: '1 1 30%', cursor: 'pointer', font: '600 10px system-ui, sans-serif',
+                        padding: '6px 4px', borderRadius: '10px', textTransform: 'capitalize',
+                        border: '1px solid ' + (on ? color : '#2a2a36'),
+                        color: on ? '#0a0a0c' : color, background: on ? color : color + '14'
+                    }}
+                >{otype}</button>
+            );
+        };
+        // The active-tool status line — what a map click will do RIGHT NOW.
+        const active = s.activeKind === 'cut' ? 'Cut (dig) order'
+            : s.activeKind === 'fill' ? 'Fill (build) order'
+                : s.activeKind === 'traverse' ? 'Traverse waypoint'
+                    : s.structKind ? ('Structure: ' + (STRUCTURE_LABELS[s.structKind] || s.structKind))
+                        : s.objectType ? ('Place ' + s.objectType)
+                            : s.koTool ? ('No-go ' + s.koTool)
+                                : null;
+        const objectTypes = s.objectTypes || ['beacon', 'cache', 'instrument', 'sample', 'antenna'];
+        const markers = s.markers || [];
         return (
-            <div style={{display: 'flex', gap: '6px', margin: '8px 0'}}>
-                {btn('cut', 'Cut (dig)', '#e0563a')}
-                {btn('fill', 'Fill (build)', '#4fd1ff')}
+            <div data-stewie-palette="1" style={{margin: '8px 0 0'}}>
+                <div style={{...lbl, marginBottom: '4px'}}>Tool palette</div>
+                <div style={{...lbl, fontSize: '8.5px', color: '#6a7280', margin: '0 0 3px'}}>Earthworks · drive · objects</div>
+                <div style={{display: 'flex', gap: '6px', marginBottom: '6px'}}>
+                    {toolBtn('cut', 'Cut (dig)', '#e0563a')}
+                    {toolBtn('fill', 'Fill (build)', '#4fd1ff')}
+                    {toolBtn('traverse', '⤳ Traverse', '#ffd24a')}
+                </div>
+                <div style={{display: 'flex', gap: '6px', marginBottom: '6px'}}>
+                    <button
+                        data-stewie-return-lander="1" disabled={!s.canReturnToLander}
+                        onClick={this.onReturnToLander} type="button"
+                        title="append a drive leg from the last waypoint back to the lander/charger (work-area centre)"
+                        style={{
+                            flex: '1 1 0', cursor: s.canReturnToLander ? 'pointer' : 'default',
+                            font: '600 11px system-ui, sans-serif', padding: '7px 4px', borderRadius: '4px',
+                            border: '1px solid ' + (s.canReturnToLander ? '#7fe0a8' : '#2a2a36'),
+                            color: s.canReturnToLander ? '#7fe0a8' : '#3a5a4a',
+                            background: s.canReturnToLander ? '#7fe0a818' : '#0d141a'
+                        }}
+                    >⌂ Return to lander</button>
+                    <span style={{flex: '1 1 0', fontSize: '9px', color: '#7a8290', alignSelf: 'center', lineHeight: 1.3}}>
+                        {s.traverseCount ? (s.traverseCount + ' waypoint' + (s.traverseCount === 1 ? '' : 's') + ' on the path') : 'Drive path: drop Traverse waypoints'}
+                    </span>
+                </div>
+                <div style={{...lbl, fontSize: '8.5px', color: '#6a7280', margin: '2px 0 3px'}}>Place object (mission marker)</div>
+                <div data-stewie-object-palette="1" style={{display: 'flex', flexWrap: 'wrap', gap: '5px'}}>
+                    {objectTypes.map((o) => objBtn(o))}
+                </div>
+                {markers.length ? (
+                    <ul data-stewie-marker-list="1" style={{listStyle: 'none', margin: '6px 0 0', padding: 0, maxHeight: '110px', overflowY: 'auto'}}>
+                        {markers.map((m) => (
+                            <li key={m.fid} style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0', fontSize: '11px'}}>
+                                <span style={{
+                                    width: '9px', height: '9px', flex: '0 0 auto', transform: 'rotate(45deg)',
+                                    background: OBJECT_COLOR[m.otype] || '#b47cff'
+                                }} />
+                                <span style={{flex: '1 1 auto', color: '#c7d2e3'}}>{m.label || m.otype}</span>
+                                <span
+                                    onClick={() => this.onRemoveMarker(m.fid)}
+                                    style={{flex: '0 0 auto', cursor: 'pointer', color: '#e0564b', fontWeight: 700, padding: '0 4px'}}
+                                    title="remove object"
+                                >×</span>
+                            </li>
+                        ))}
+                    </ul>
+                ) : null}
+                <div data-stewie-active-tool={s.activeKind || s.objectType || s.structKind || s.koTool || ''}
+                    style={{
+                        fontSize: '9px', marginTop: '6px', padding: '4px 6px', borderRadius: '4px',
+                        background: active ? '#14140f' : 'transparent', color: active ? '#e0c86a' : '#5a6270'
+                    }}>
+                    {active ? ('Active tool: ' + active + ' — click the map to place; click the tool again to stop.')
+                        : 'No tool active — pick a tool above, then click the map.'}
+                </div>
             </div>
         );
     }
@@ -406,11 +497,14 @@ class MissionPlan extends React.Component {
                 {s.orders.map((o) => (
                     <li key={o.idx} style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0', fontSize: '11px'}}>
                         <span style={{
-                            width: '9px', height: '9px', flex: '0 0 auto', borderRadius: o.kind === 'cut' ? '1px' : '50%',
-                            background: o.kind === 'cut' ? '#e0563a' : '#4fd1ff'
+                            width: '9px', height: '9px', flex: '0 0 auto',
+                            borderRadius: o.kind === 'cut' ? '1px' : '50%',
+                            background: o.kind === 'cut' ? '#e0563a' : (o.kind === 'goto' ? '#ffd24a' : '#4fd1ff')
                         }} />
                         <span style={{flex: '1 1 auto', color: '#c7d2e3'}}>
-                            {o.kind} · {o.footprint_m2} m² · {o.depth_m} m
+                            {o.kind === 'goto'
+                                ? 'traverse waypoint'
+                                : (o.kind + ' · ' + o.footprint_m2 + ' m² · ' + o.depth_m + ' m')}
                             {o.struct ? (
                                 <span style={{color: '#7cc6ff', fontSize: '9px', marginLeft: '5px'}}>
                                     ⬡ {(STRUCTURE_LABELS[o.struct] || o.struct)}
