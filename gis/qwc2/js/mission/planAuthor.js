@@ -119,6 +119,20 @@ export default class PlanAuthor {
         // legacy plan (no fleet allocation, no charger contention).
         this.vehicles = 1;
         this.chargerCapacity = 1;
+        // --- Forward-compare (CP-05). The director-side "which strategy wins?" surface. The operator picks
+        // 2..5 candidate SEQUENCERS (the SAME algorithm keys the Algorithm select uses, lode/planner_optimize.py:48)
+        // and STEWIE re-simulates the CURRENT mission under each at wall speed, ranking the resulting plan
+        // FUTURES feasible-first with a recommendation (lode/resync.forward_compare, exposed at POST
+        // /resync/compare, stewie/server/routers/plan.py:204 -> {ok, objective, futures:[{algorithm, time_s,
+        // energy_MJ, feasible, wall_s, ...}], recommended}). It reuses the EXACT order-frame orders the plan()
+        // serializer builds for /api/plan (the anchor-relative x/y offsets); the mission carries a charger at the
+        // (0,0) anchor -- the same {name,body,charger,orders} shape the endpoint's mission_from_dict expects
+        // (test_admin.py::test_resync_compare_endpoint_ranks_futures). The backend caps candidates at 5 ([:5]).
+        this.compareCandidates = [];   // selected SEQUENCERS keys (2..5) to forward-compare
+        this.compareResult = null;     // last /resync/compare response {objective, futures:[...], recommended}
+        this.comparing = false;        // request in flight
+        this.compareErr = null;        // last compare error message (surfaced in the panel)
+        this._lastComparePayload = null;   // the exact JSON POSTed to /api/resync/compare (headless-proof readback)
         // --- Structure-template authoring (T11). Place a whole STRUCTURE (landing pad / blast berm / haul
         // road / solar pad / habitat foundation / borrow pit / crater fill / trench) and the backend
         // decomposes it into REAL mass-balanced cut/fill orders that flow into the SAME queue the manual
@@ -294,7 +308,19 @@ export default class PlanAuthor {
                 // DEPTH-5 read-only: the Schedule/Gantt view-model (phase runs + per-vehicle swim-lanes) so a
                 // headless proof can assert the lanes/colours match the routes without pixel inspection.
                 scheduleView: () => ((this.result && this.result.detail && this.result.detail.schedule)
-                    ? JSON.parse(JSON.stringify(this.result.detail.schedule)) : null)
+                    ? JSON.parse(JSON.stringify(this.result.detail.schedule)) : null),
+                // CP-05 forward-compare drivers — the SAME controller code paths the candidate chips + Compare
+                // button call (toggleCompareCandidate -> compareFutures -> adoptRecommended), so a headless proof
+                // can select candidates + run the real /api/resync/compare round-trip and read back the ranked
+                // futures + recommendation without simulating DOM events. compareFutures returns the fetch promise
+                // (so the proof can await it). No command authority (authoring/analysis only).
+                toggleCompareCandidate: (k) => this.toggleCompareCandidate(k),
+                compareCandidates: () => this.compareCandidates.slice(),
+                compareFutures: () => this.compareFutures(),
+                adoptRecommended: () => this.adoptRecommended(),
+                compareResult: () => (this.compareResult ? JSON.parse(JSON.stringify(this.compareResult)) : null),
+                lastComparePayload: () => (this._lastComparePayload
+                    ? JSON.parse(JSON.stringify(this._lastComparePayload)) : null)
             };
         }
         this._attached = true;
@@ -340,6 +366,10 @@ export default class PlanAuthor {
             budgets: {...this.budgets},
             // DEPTH-3 fleet controls (mirrored to the panel).
             vehicles: this.vehicles, chargerCapacity: this.chargerCapacity,
+            // CP-05 forward-compare (mirrored to the panel): the selected candidate keys + the ranked-futures
+            // response + the in-flight/error flags. compareResult is the raw /resync/compare body the panel renders.
+            compareCandidates: this.compareCandidates.slice(),
+            compareResult: this.compareResult, comparing: this.comparing, compareErr: this.compareErr,
             koTool: this.koTool,
             keepouts: this.keepouts.map((k, i) => ({idx: i, kind: k.kind, label: this._koSummary(k)})),
             run: this._runView(),
@@ -819,17 +849,34 @@ export default class PlanAuthor {
         });
     }
 
+    // The order-frame serialization shared by plan() (-> /api/plan) and compareFutures() (-> /api/resync/compare).
+    // Anchor (order-frame origin / charger) = the centroid of the placed orders in selenographic lon/lat,
+    // reprojected to map coords so we know exactly where order-frame (0,0) sits on the map; every order is then an
+    // anchor-relative x/y offset in metres (30135 East / y-flipped North -> the raster-down order frame the backend
+    // planner expects). Throws if the anchor reprojection fails (each caller sets its own hint).
+    _anchorAndOrders() {
+        const meanLon = this.orders.reduce((s, o) => s + o.lonlat[0], 0) / this.orders.length;
+        const meanLat = this.orders.reduce((s, o) => s + o.lonlat[1], 0) / this.orders.length;
+        const wc = this.reproject([meanLon, meanLat], GEO_CRS, MAP_CRS);
+        const orders = this.orders.map((o, i) => ({
+            action: o.kind + ' ' + (i + 1), kind: o.kind,
+            x: round1(o.coord[0] - wc[0]),      // 30135 East offset from the anchor
+            y: round1(wc[1] - o.coord[1]),      // 30135 North offset, y-flipped to the raster-down order frame
+            footprint_m2: o.footprint_m2, depth_m: o.depth_m
+        }));
+        return {wc, meanLat, meanLon, orders};
+    }
+
     // --- Plan: anchor at the order centroid, POST /api/plan, render the returned plan -----------------
     plan() {
         if (!this.orders.length) { this._setHint('Add at least one order first.', true); return Promise.resolve(); }
         // Anchor (order-frame origin / charger) = the centroid of the placed orders, in selenographic
         // lon/lat. Passed to /plan as M11 lat/lon so the planner anchors there; reprojected to map coords
         // so we know exactly where order-frame (0,0) sits on the map for both the POST offsets and the redraw.
-        const meanLon = this.orders.reduce((s, o) => s + o.lonlat[0], 0) / this.orders.length;
-        const meanLat = this.orders.reduce((s, o) => s + o.lonlat[1], 0) / this.orders.length;
-        let wc;
-        try { wc = this.reproject([meanLon, meanLat], GEO_CRS, MAP_CRS); }
+        let frame;
+        try { frame = this._anchorAndOrders(); }
         catch (e) { this._setHint('Could not anchor the work frame: ' + e.message, true); return Promise.resolve(); }
+        const {wc, meanLat, meanLon, orders} = frame;
         const payload = {
             name: 'artemis-ide mission', body: 'moon', site: this.site,
             // DEPTH-2: the chosen solver + objective + slope budget (the /api/plan levers, plan.py:68,69,74),
@@ -841,12 +888,7 @@ export default class PlanAuthor {
             // mission_from_dict, planner_model.py:367). Both default to 1 (== the legacy single-vehicle plan).
             vehicles: this.vehicles, charger_capacity: this.chargerCapacity,
             lat: meanLat, lon: meanLon,
-            orders: this.orders.map((o, i) => ({
-                action: o.kind + ' ' + (i + 1), kind: o.kind,
-                x: round1(o.coord[0] - wc[0]),      // 30135 East offset from the anchor
-                y: round1(wc[1] - o.coord[1]),      // 30135 North offset, y-flipped to the raster-down order frame
-                footprint_m2: o.footprint_m2, depth_m: o.depth_m
-            }))
+            orders: orders   // CP-05: the anchor-relative order-frame orders (shared with compareFutures)
         };
         // DEPTH-1: fold the drawn no-go regions into the SAME /api/plan POST, in the SAME order frame as the
         // orders. The backend parses them (planner_routing.py:147) + routes around them (_apply_keepouts).
@@ -891,6 +933,90 @@ export default class PlanAuthor {
                 this._setHint('Plan request failed: ' + e.message, true);
             });
     }
+
+    // --- Forward-compare (CP-05): pick 2..5 candidate SEQUENCERS, re-simulate the CURRENT mission under each,
+    // and rank the resulting plan FUTURES feasible-first with a recommendation. See the constructor block for
+    // the endpoint contract. ----------------------------------------------------------------------------------
+
+    // Toggle a candidate SEQUENCERS key in/out of the compare set (the backend caps candidates at 5, [:5]).
+    toggleCompareCandidate(key) {
+        const k = String(key);
+        const i = this.compareCandidates.indexOf(k);
+        if (i >= 0) {
+            this.compareCandidates.splice(i, 1);
+        } else {
+            if (this.compareCandidates.length >= 5) {
+                this._setHint('Forward-compare accepts up to 5 strategies at once.', true); return;
+            }
+            this.compareCandidates.push(k);
+        }
+        this._emit();
+    }
+
+    // Re-simulate the CURRENT authored orders under every selected candidate and rank the futures. Reuses the
+    // EXACT order-frame orders plan() serializes for /api/plan; the mission carries a charger at the (0,0)
+    // anchor -- the {name,body,charger,orders} shape /resync/compare's mission_from_dict expects. The endpoint
+    // does not take a site DEM (it holds every lever but the sequencer constant), so this is a fast
+    // strategy-only forward comparison, not the site-anchored full plan.
+    compareFutures() {
+        if (!this.orders.length) { this._setHint('Add at least one order first.', true); return Promise.resolve(); }
+        const cands = this.compareCandidates.slice();
+        if (cands.length < 2) { this._setHint('Pick at least 2 strategies to compare.', true); return Promise.resolve(); }
+        let frame;
+        try { frame = this._anchorAndOrders(); }
+        catch (e) { this._setHint('Could not anchor the work frame: ' + e.message, true); return Promise.resolve(); }
+        const body = {
+            mission: {name: 'artemis-ide compare', body: 'moon', charger: [0, 0], orders: frame.orders},
+            candidates: cands, objective: this.objective
+        };
+        this._lastComparePayload = body;   // exact POST body for the headless LIVE proof readback
+        this.comparing = true; this.compareResult = null; this.compareErr = null;
+        this._setHint('Forward-comparing ' + cands.length + ' strategies on the conserved planner…');
+        return fetch('/api/resync/compare', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+        })
+            .then((r) => r.text().then((t) => {
+                let b = null;
+                try { b = JSON.parse(t); } catch (e) { b = null; }
+                return {status: r.status, body: b};
+            }))
+            .then((res) => {
+                this.comparing = false;
+                if (!res.body || !res.body.ok) {
+                    const err = (res.body && res.body.error) ||
+                        (res.status >= 500 ? 'compare error (HTTP ' + res.status + ')' : 'HTTP ' + res.status);
+                    this.compareErr = err;
+                    this._setHint('Compare rejected: ' + err, true);
+                    this._emit();
+                    return res.body;
+                }
+                this.compareResult = res.body;   // {objective, futures:[...], recommended}
+                const rec = res.body.recommended;
+                this._setHint(rec
+                    ? ('Forward-compare: ' + rec + ' recommended (feasible-first over ' + (res.body.futures || []).length + ' futures).')
+                    : 'Forward-compare complete — no candidate was feasible.', !rec);
+                this._emit();
+                return res.body;
+            })
+            .catch((e) => {
+                this.comparing = false; this.compareErr = e.message;
+                this._setHint('Compare request failed: ' + e.message, true);
+                this._emit();
+            });
+    }
+
+    // Adopt the recommended algorithm into the Plan controls (this.algorithm), so the next Plan routes it. The
+    // recommendation is the feasible-first head (a real SEQUENCERS key), so it is a valid Algorithm-select value.
+    adoptRecommended() {
+        const rec = this.compareResult && this.compareResult.recommended;
+        if (!rec) { return; }
+        this.algorithm = String(rec);
+        this._setHint('Adopted ' + rec + ' into the plan controls — hit Plan mission to route it.');
+        this._emit();
+    }
+
+    // Clear the compare result (keeps the selected candidates so the operator can re-run).
+    clearCompare() { this.compareResult = null; this.compareErr = null; this._emit(); }
 
     _orderToMap(wc, ox, oy) { return [wc[0] + ox, wc[1] - oy]; }
 

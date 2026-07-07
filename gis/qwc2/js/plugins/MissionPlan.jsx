@@ -132,6 +132,7 @@ class MissionPlan extends React.Component {
             algorithm: 'nearest', objective: 'time', maxSlopeDeg: 25,
             budgets: {max_time_s: '', max_energy_J: '', max_charges: '', max_distance_m: '', risk_weight: ''},
             vehicles: 1, chargerCapacity: 1,
+            compareCandidates: [], compareResult: null, comparing: false, compareErr: null,
             hint: 'Pick a work site, then a tool, then click the map to place orders.', hintErr: false,
             result: null, planning: false,
             run: {active: false, id: null, legsSeen: 0, total: 0, terminal: null, lastEvent: '',
@@ -178,6 +179,11 @@ class MissionPlan extends React.Component {
     // DEPTH-3 fleet controls
     onVehicles = (e) => { if (this.ctrl) { this.ctrl.setVehicles(e.target.value); } };
     onChargerCapacity = (e) => { if (this.ctrl) { this.ctrl.setChargerCapacity(e.target.value); } };
+    // CP-05 forward-compare controls
+    onToggleCandidate = (key) => { if (this.ctrl) { this.ctrl.toggleCompareCandidate(key); } };
+    onCompare = () => { if (this.ctrl) { this.ctrl.compareFutures(); } };
+    onAdoptRecommended = () => { if (this.ctrl) { this.ctrl.adoptRecommended(); } };
+    onClearCompare = () => { if (this.ctrl) { this.ctrl.clearCompare(); } };
     // DEPTH-4 plan-detail expander
     onToggleDetail = () => { this.setState((st) => ({detailOpen: !st.detailOpen})); };
     // DEPTH-5 schedule / Gantt expander
@@ -463,6 +469,150 @@ class MissionPlan extends React.Component {
                           'charge at once (the rest queue FCFS). Each rover\'s route draws in its own colour.'
                         : 'One rover (single-vehicle plan). Raise Rovers > 1 to allocate the orders across a fleet.'}
                 </div>
+            </div>
+        );
+    }
+
+    // --- Forward-compare (CP-05): author orders, pick 2..5 candidate strategies, and rank the resulting plan
+    // FUTURES feasible-first with a recommendation, via POST /api/resync/compare (lode.resync.forward_compare,
+    // stewie/server/routers/plan.py:204 -> {ok, objective, futures:[{algorithm, time_s, energy_MJ, feasible,
+    // wall_s, ...}], recommended}). Every number (makespan / energy / feasibility / measured wall time) is read
+    // straight from the conserved planner totals — no synthetic ranking. "Adopt" writes the recommended
+    // algorithm into the Plan controls above. The endpoint holds every lever but the sequencer constant (it
+    // takes no site DEM), so this is a fast strategy-only forward comparison, not the site-anchored full plan.
+    renderCompare(s) {
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        const sel = s.compareCandidates || [];
+        const cmp = s.compareResult;
+        const canCompare = !!(s.orders.length && sel.length >= 2 && !s.comparing);
+        const chip = (o) => {
+            const on = sel.indexOf(o.value) >= 0;
+            const color = '#b47cff';   // STEWIE forward-compare accent (matches the Plan-IR Sinter op hue)
+            return (
+                <button
+                    key={o.value} data-stewie-cand={o.value} onClick={() => this.onToggleCandidate(o.value)}
+                    title={o.label} type="button"
+                    style={{
+                        cursor: 'pointer', font: '600 10px system-ui, sans-serif', padding: '5px 8px', borderRadius: '10px',
+                        border: '1px solid ' + (on ? color : '#2a2a36'),
+                        color: on ? '#0a0a0c' : color, background: on ? color : color + '14'
+                    }}
+                >{o.value}</button>
+            );
+        };
+        return (
+            <div style={{marginTop: '10px', borderTop: '1px solid #1c1c26', paddingTop: '8px'}}>
+                <div style={{...lbl, marginBottom: '2px'}}>Compare futures (forward simulation)</div>
+                <div style={{fontSize: '9px', color: '#7a8290', margin: '0 0 5px', lineHeight: 1.35}}>
+                    Pick 2+ strategies; STEWIE re-simulates the authored orders under each on the conserved planner
+                    and ranks the futures <b style={{color: '#c7d2e3'}}>feasible-first</b>, then recommends the winner.
+                    Objective = <b style={{color: '#c7d2e3'}}>{s.objective}</b>.
+                </div>
+                <div data-stewie-cand-palette="1" style={{display: 'flex', flexWrap: 'wrap', gap: '5px', margin: '4px 0'}}>
+                    {ALGORITHMS.map((o) => chip(o))}
+                </div>
+                <div style={{display: 'flex', gap: '6px', marginTop: '4px'}}>
+                    <button
+                        data-stewie-compare="1" disabled={!canCompare} onClick={this.onCompare}
+                        style={{
+                            flex: '2 1 0', cursor: canCompare ? 'pointer' : 'default',
+                            font: '700 11px system-ui, sans-serif', padding: '8px', borderRadius: '4px',
+                            border: '1px solid ' + (canCompare ? '#b47cff66' : '#2a2a36'),
+                            color: canCompare ? '#c9a6ff' : '#4a4560',
+                            background: canCompare ? '#b47cff18' : '#14121a'
+                        }}
+                        type="button"
+                    >{s.comparing ? 'Comparing…' : 'Compare ' + sel.length + ' future' + (sel.length === 1 ? '' : 's')}</button>
+                    {cmp ? (
+                        <button
+                            data-stewie-compare-clear="1" onClick={this.onClearCompare}
+                            style={{
+                                flex: '1 1 0', cursor: 'pointer', font: '600 11px system-ui, sans-serif',
+                                padding: '8px', borderRadius: '4px', border: '1px solid #2a2a36',
+                                color: '#c7d2e3', background: '#12141a'
+                            }}
+                            type="button"
+                        >Clear</button>
+                    ) : null}
+                </div>
+                {sel.length < 2 && !cmp ? (
+                    <div style={{fontSize: '9px', color: '#7a8290', marginTop: '4px'}}>Select at least two strategies to compare.</div>
+                ) : null}
+                {s.compareErr ? (
+                    <div style={{fontSize: '10px', color: '#e0564b', marginTop: '4px'}}>{s.compareErr}</div>
+                ) : null}
+                {cmp ? this.renderFutures(cmp) : null}
+            </div>
+        );
+    }
+
+    // The ranked-futures readout: one card per candidate (order = the backend's feasible-first ranking), the
+    // recommended one highlighted, each row's makespan / energy / recharges / measured sim wall-time read
+    // verbatim from the /resync/compare response. Adopt writes the recommended algorithm into the Plan controls.
+    renderFutures(cmp) {
+        const futures = cmp.futures || [];
+        if (!futures.length) { return null; }
+        const rec = cmp.recommended;
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        return (
+            <div data-stewie-futures="1" style={{marginTop: '8px'}}>
+                <div style={{...lbl, marginBottom: '3px'}}>
+                    Ranked futures ({futures.length}) ·{' '}
+                    {rec
+                        ? <b style={{color: '#39ff14'}}>★ {rec} recommended</b>
+                        : <b style={{color: '#e0564b'}}>no feasible candidate</b>}
+                </div>
+                <ul style={{listStyle: 'none', margin: 0, padding: 0}}>
+                    {futures.map((f, i) => {
+                        const isRec = rec && f.algorithm === rec;
+                        const feas = f.feasible !== false;
+                        return (
+                            <li
+                                key={f.algorithm} data-stewie-future={f.algorithm}
+                                style={{
+                                    border: '1px solid ' + (isRec ? '#39ff1466' : '#1c2630'),
+                                    background: isRec ? '#0f1c0c' : '#0b1016',
+                                    borderRadius: '4px', padding: '6px 7px', margin: '4px 0'
+                                }}
+                            >
+                                <div style={{display: 'flex', alignItems: 'baseline', gap: '6px'}}>
+                                    <span style={{flex: '0 0 auto', fontSize: '10px', color: '#7a8290'}}>#{i + 1}</span>
+                                    <b style={{flex: '1 1 auto', color: isRec ? '#9dff8a' : '#c7d2e3', fontSize: '11px'}}>
+                                        {f.algorithm}{(f.resolved && f.resolved !== f.algorithm) ? ' → ' + f.resolved : ''}{isRec ? ' ★' : ''}
+                                    </b>
+                                    <span style={{
+                                        flex: '0 0 auto', fontSize: '9px', fontWeight: 700, letterSpacing: '.04em',
+                                        color: feas ? '#39ff14' : '#e0564b'
+                                    }}>{feas ? 'FEASIBLE' : 'INFEASIBLE'}</span>
+                                </div>
+                                <div style={{
+                                    display: 'flex', flexWrap: 'wrap', gap: '2px 10px', marginTop: '3px',
+                                    fontSize: '10px', color: '#8a93a3'
+                                }}>
+                                    <span>Makespan <b style={{color: '#c7d2e3'}}>{fmtDur(f.time_s)}</b></span>
+                                    <span>Energy <b style={{color: '#c7d2e3'}}>{fmtEnergy((f.energy_MJ || 0) * 1e6)}</b></span>
+                                    {f.charges != null ? <span>Recharges <b style={{color: '#c7d2e3'}}>{f.charges}</b></span> : null}
+                                    <span>Sim <b style={{color: '#c7d2e3'}}>{f.wall_s != null ? f.wall_s.toFixed(3) : '—'} s</b></span>
+                                    {f.optimality ? <span style={{color: '#7a8290'}}>{f.optimality}</span> : null}
+                                </div>
+                                {(f.infeasible_reasons || []).length ? (
+                                    <div style={{fontSize: '9px', color: '#e0b300', marginTop: '2px'}}>{f.infeasible_reasons.join(' · ')}</div>
+                                ) : null}
+                            </li>
+                        );
+                    })}
+                </ul>
+                {rec ? (
+                    <button
+                        data-stewie-adopt="1" onClick={this.onAdoptRecommended}
+                        style={{
+                            marginTop: '4px', cursor: 'pointer', font: '600 10px system-ui, sans-serif',
+                            padding: '6px 8px', borderRadius: '4px', border: '1px solid #39ff1466',
+                            color: '#39ff14', background: '#39ff1418'
+                        }}
+                        type="button"
+                    >Adopt {rec} into plan controls</button>
+                ) : null}
             </div>
         );
     }
@@ -1173,6 +1323,8 @@ class MissionPlan extends React.Component {
                         type="button"
                     >Clear</button>
                 </div>
+
+                {this.renderCompare(s)}
 
                 {this.renderResult(s)}
                 {this.renderSchedule(s)}
