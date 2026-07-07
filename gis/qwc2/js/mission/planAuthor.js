@@ -746,6 +746,11 @@ export default class PlanAuthor {
             charger_wait_s: t.charger_wait_s != null ? t.charger_wait_s : null,
             charger_capacity: this.chargerCapacity
         };
+        // DEPTH-4: read-only "Plan detail" view-model of what /api/plan ALREADY returns but the panel
+        // ignored -- the executable Plan IR, the acceptance/validation block, and the timeline/endurance.
+        // Pure surfacing: no extra POST, no synthetic fields; every value is projected straight from the
+        // real /plan response (stewie/server/routers/plan.py:371-393). Attached to result so _emit carries it.
+        this.result.detail = this._planDetail(resp);
         const nVeh = (this.result && this.result.vehicles) || 1;
         this._setHint(feasible
             ? (nVeh > 1
@@ -753,6 +758,96 @@ export default class PlanAuthor {
                   'haul = blue-dashed, charger = green. Press Run mission (SIM) to execute it.'
                 : 'Plan rendered: route = gold, haul = blue-dashed, charger = green. Press Run mission (SIM) to execute it.')
             : 'Infeasible plan rendered (route dashed). See the reasons below.', !feasible);
+    }
+
+    // --- Plan detail (DEPTH-4): read-only projection of the /plan response fields the panel didn't surface.
+    // Compact + serializable (dropped the GoTo waypoint polyline the map already draws). Cited keys:
+    //   PLAN IR      resp.plan_ir            (stewie/server/routers/plan.py:390; built lode/planner_views.py:413-533)
+    //                  .plan_id/.schema_version/.feasible/.expect + .actions[] (typed GoTo/Excavate/CutHaulFill/
+    //                  Import/Sinter, planner_views.py:456-504) + .precedence[] (planner_views.py:508). When the
+    //                  plan is infeasible the backend suppresses the IR (plan.py:342-345): {executable:false,
+    //                  feasible:false, infeasible_reasons[], actions:[], note}.
+    //   VALIDATION   resp.validation         (plan.py:385; lode/planner_acceptance.validate_plan:224-269 return)
+    //   ORDERED      resp.ordered_acceptance (plan.py:391; H-07 ordered IR-replay verdict)
+    //   TIMELINE     resp.timeline           (plan.py:386; lode/mission_planner.build_timeline:330-338 frames)
+    //   ENDURANCE    resp.endurance          (plan.py:387; lode/planner_endurance.endurance:148-192 return)
+    _planDetail(resp) {
+        const pir = resp.plan_ir || {};
+        const v = resp.validation || null;
+        const oa = resp.ordered_acceptance || null;
+        const tl = resp.timeline || null;
+        const en = resp.endurance || null;
+        // PLAN IR: the ordered typed-action step list + plan_id + precedence DAG + headline expect.
+        const ir = {
+            plan_id: pir.plan_id || null,
+            schema_version: pir.schema_version || null,
+            executable: pir.executable !== false && pir.feasible !== false,   // suppressed IR sets executable:false
+            note: pir.note || null,
+            infeasible_reasons: pir.infeasible_reasons || [],
+            vehicles: pir.vehicles || 1,
+            algorithm: pir.algorithm || null,
+            objective: pir.objective || null,
+            expect: pir.expect || null,
+            precedence: pir.precedence || [],
+            steps: (pir.actions || []).map((a) => ({
+                id: a.id, op: a.op, vehicle: (a.vehicle != null ? a.vehicle : 0),
+                mass_kg: (a.mass_kg != null ? a.mass_kg : null),
+                loads: (a.loads || 0), haul_m: (a.haul_m != null ? a.haul_m : null),
+                orders: (a.actions || []),
+                distance_m: (a.expect && a.expect.distance_m != null ? a.expect.distance_m : null),
+                duration_s: (a.expect ? a.expect.duration_s : null),
+                energy_J: (a.expect ? a.expect.energy_J : null),
+                reached: (a.reached != null ? a.reached : null)
+            }))
+        };
+        // VALIDATION: the as-built acceptance checklist (pass/fail booleans + the mass ledger).
+        const validation = v ? {
+            feasible: v.feasible, mass_conserved: v.mass_conserved,
+            as_built_pass: v.as_built_pass, as_built_flatness_rmse_m: v.as_built_flatness_rmse_m,
+            as_built_tol_m: v.as_built_tol_m, as_built_on_real_dem: v.as_built_on_real_dem,
+            repose_pass: v.repose_pass, repose_limit_deg: v.repose_limit_deg,
+            berm_profile_pass: v.berm_profile_pass, bearing_pass: v.bearing_pass,
+            slope_violations: (v.slope_violations || []).length,
+            off_dem_orders: (v.off_dem_orders || []).length,
+            planned_cut_kg: v.planned_cut_kg, executed_cut_kg: v.executed_cut_kg,
+            planned_fill_kg: v.planned_fill_kg, executed_fill_kg: v.executed_fill_kg,
+            drum_capacity_kg: v.drum_capacity_kg, shuttle_cycles_est: v.shuttle_cycles_est
+        } : null;
+        const ordered = oa ? {
+            executes_ordered_ir: oa.executes_ordered_ir, feasible: oa.feasible,
+            mass_conserved: oa.mass_conserved, shuttle_cycles: oa.shuttle_cycles, placed_kg: oa.placed_kg,
+            max_simultaneous_drum_kg: oa.max_simultaneous_drum_kg
+        } : null;
+        // TIMELINE: makespan + per-phase duration breakdown (drive/work/charge) + battery-fraction envelope,
+        // reduced from the real per-segment sim frames (each carries t0/t1/phase/batt0_frac/batt1_frac).
+        let timeline = null;
+        if (tl && Array.isArray(tl.frames)) {
+            const byPhase = {}; const order = [];
+            let bmin = null, bmax = null;
+            tl.frames.forEach((f) => {
+                if (!(f.phase in byPhase)) { byPhase[f.phase] = 0; order.push(f.phase); }
+                byPhase[f.phase] += (f.t1 - f.t0);
+                const lo = Math.min(f.batt0_frac, f.batt1_frac), hi = Math.max(f.batt0_frac, f.batt1_frac);
+                bmin = (bmin == null) ? lo : Math.min(bmin, lo);
+                bmax = (bmax == null) ? hi : Math.max(bmax, hi);
+            });
+            timeline = {
+                duration_s: tl.duration_s, n_frames: tl.frames.length,
+                phases: order.map((p) => ({phase: p, dur_s: byPhase[p]})),
+                batt_min_frac: bmin, batt_max_frac: bmax
+            };
+        }
+        // ENDURANCE: single-sortie reachability + the energy-driver verdict (conops.drums_dominate).
+        const endurance = en ? {
+            range_flat_reserve_km: (en.range_flat_reserve_km != null ? en.range_flat_reserve_km : null),
+            range_slopeslip_km: (en.range_slopeslip_km != null ? en.range_slopeslip_km : null),
+            duration_flat_h: (en.duration_flat_h != null ? en.duration_flat_h : null),
+            work_area_median_slope_deg: (en.work_area_median_slope_deg != null ? en.work_area_median_slope_deg : null),
+            drums_dominate: (en.conops ? en.conops.drums_dominate : null),
+            fits_in_window: (en.timescale ? en.timescale.fits_in_window : null),
+            day_label: (en.timescale ? en.timescale.day_label : null)
+        } : null;
+        return {ir, validation, ordered, timeline, endurance};
     }
 
     // =====================================================================================================

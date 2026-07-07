@@ -90,7 +90,8 @@ function fmtMass(kg) { kg = kg || 0; return kg >= 1000 ? (kg / 1000).toFixed(1) 
 class MissionPlan extends React.Component {
     state = {
         ready: false,
-        ctrl: null   // the controller's emitted UI state {site, activeKind, footprint, depth, orders, hint, hintErr, result, planning}
+        ctrl: null,  // the controller's emitted UI state {site, activeKind, footprint, depth, orders, hint, hintErr, result, planning}
+        detailOpen: false   // DEPTH-4: the "Plan detail" expander (Plan IR / validation / timeline+endurance)
     };
     constructor(props) {
         super(props);
@@ -156,6 +157,8 @@ class MissionPlan extends React.Component {
     // DEPTH-3 fleet controls
     onVehicles = (e) => { if (this.ctrl) { this.ctrl.setVehicles(e.target.value); } };
     onChargerCapacity = (e) => { if (this.ctrl) { this.ctrl.setChargerCapacity(e.target.value); } };
+    // DEPTH-4 plan-detail expander
+    onToggleDetail = () => { this.setState((st) => ({detailOpen: !st.detailOpen})); };
 
     renderTools(s) {
         const btn = (kind, label, color) => {
@@ -426,6 +429,183 @@ class MissionPlan extends React.Component {
         );
     }
 
+    // --- Plan detail (DEPTH-4): read-only views of what /api/plan ALREADY returns but the panel ignored -----
+    // A collapsible "Plan detail" section surfacing the executable Plan IR (resp.plan_ir), the as-built
+    // validation block (resp.validation + resp.ordered_acceptance), and the timeline/endurance
+    // (resp.timeline + resp.endurance). Pure rebind — planAuthor._planDetail projects these straight from the
+    // real /plan response; nothing here recomputes or fabricates. Dark-theme, compact.
+    static fmtJ(j) {
+        if (j == null) { return '—'; }
+        return j >= 1e6 ? (j / 1e6).toFixed(1) + ' MJ' : (j / 1e3).toFixed(0) + ' kJ';
+    }
+    static fmtSs(s) {
+        if (s == null) { return '—'; }
+        if (s < 3600) { return Math.round(s) + ' s'; }
+        if (s < 172800) { return (s / 3600).toFixed(1) + ' h'; }
+        return (s / 86400).toFixed(1) + ' d';
+    }
+    detailRow(k, v, color) {
+        return (
+            <div key={k} style={{display: 'flex', justifyContent: 'space-between', fontSize: '10px', padding: '1px 0'}}>
+                <span style={{color: '#8a93a3'}}>{k}</span><b style={{color: color || '#c7d2e3'}}>{v}</b>
+            </div>
+        );
+    }
+
+    // PLAN IR: the ordered typed-action step list (GoTo/Excavate/CutHaulFill/Import/Sinter), each with its
+    // expected metrics; the plan_id; the precedence DAG; and the headline expectations. Suppressed → the note.
+    renderIR(ir) {
+        if (!ir) { return null; }
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        const OP_COLOR = {GoTo: '#8fb8ff', Excavate: '#e0563a', CutHaulFill: '#ffd24a', Import: '#7cff5e', Sinter: '#b47cff'};
+        const multi = (ir.vehicles || 1) > 1;
+        const steps = ir.steps || [];
+        return (
+            <div style={{marginBottom: '8px'}}>
+                <div style={{...lbl, marginBottom: '3px'}}>Plan IR · {steps.length} action{steps.length === 1 ? '' : 's'}</div>
+                {ir.executable === false ? (
+                    <div style={{fontSize: '10px', color: '#e0b300', lineHeight: 1.35, margin: '2px 0'}}>
+                        {ir.note || 'Executable IR suppressed (infeasible plan).'}
+                        {(ir.infeasible_reasons || []).length ? (
+                            <div style={{color: '#e0b3b0', marginTop: '2px'}}>{ir.infeasible_reasons.join(' · ')}</div>
+                        ) : null}
+                    </div>
+                ) : (
+                    <ol data-stewie-ir-steps="1" style={{listStyle: 'none', margin: '2px 0', padding: 0, maxHeight: '176px', overflowY: 'auto'}}>
+                        {steps.map((a) => (
+                            <li key={a.id} style={{display: 'flex', gap: '6px', alignItems: 'baseline', padding: '2px 0', fontSize: '10px', borderBottom: '1px solid #14141c'}}>
+                                <span style={{flex: '0 0 15px', color: '#5a6270', textAlign: 'right'}}>{a.id}</span>
+                                <span style={{flex: '0 0 auto', fontWeight: 700, color: OP_COLOR[a.op] || '#c7d2e3'}}>{a.op}</span>
+                                {multi ? <span style={{flex: '0 0 auto', color: '#7a8290'}}>R{(a.vehicle || 0) + 1}</span> : null}
+                                <span style={{flex: '1 1 auto', color: '#8a93a3', textAlign: 'right'}}>
+                                    {a.op === 'GoTo'
+                                        ? (a.distance_m != null ? a.distance_m.toFixed(1) + ' m · ' + MissionPlan.fmtSs(a.duration_s) : '—')
+                                        : ((a.mass_kg != null ? a.mass_kg.toFixed(0) + ' kg' : '') +
+                                           (a.loads ? ' · ' + a.loads + ' loads' : '') + ' · ' + MissionPlan.fmtJ(a.energy_J))}
+                                </span>
+                            </li>
+                        ))}
+                    </ol>
+                )}
+                {ir.expect ? this.detailRow('IR expect',
+                    MissionPlan.fmtSs(ir.expect.duration_s) + ' · ' + MissionPlan.fmtJ(ir.expect.energy_J) +
+                    ' · ' + (ir.expect.distance_m != null ? (ir.expect.distance_m / 1000).toFixed(2) + ' km' : '—') +
+                    ' · ' + (ir.expect.charges || 0) + ' rech') : null}
+                {(ir.precedence || []).length ? this.detailRow('Precedence',
+                    ir.precedence.map((p) => p[0] + '→' + p[1]).join(', ')) : null}
+            </div>
+        );
+    }
+
+    // VALIDATION: the as-built acceptance block as a pass/fail checklist + the ordered IR-replay verdict.
+    renderValidation(v, oa) {
+        if (!v && !oa) { return null; }
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        const check = (label, ok, note) => (
+            <div key={label} style={{display: 'flex', justifyContent: 'space-between', fontSize: '10px', padding: '1px 0'}}>
+                <span style={{color: '#8a93a3'}}>{label}{note ? <span style={{color: '#5a6270'}}> · {note}</span> : null}</span>
+                <b style={{color: ok ? '#39ff14' : '#e0564b', fontWeight: 700}}>{ok ? '✓ pass' : '✗ fail'}</b>
+            </div>
+        );
+        return (
+            <div style={{marginBottom: '8px', borderTop: '1px solid #14141c', paddingTop: '6px'}}>
+                <div style={{...lbl, marginBottom: '3px'}}>Validation (as-built acceptance)</div>
+                {v ? (
+                    <div>
+                        {check('Material feasible', v.feasible)}
+                        {check('Mass conserved', v.mass_conserved)}
+                        {check('As-built flat', v.as_built_pass,
+                            (v.as_built_flatness_rmse_m != null ? v.as_built_flatness_rmse_m.toFixed(3) + 'm ≤ ' + v.as_built_tol_m + 'm' : '') +
+                            (v.as_built_on_real_dem ? '' : ' (flat mantle)'))}
+                        {check('Repose stable', v.repose_pass, '≤' + v.repose_limit_deg + '°')}
+                        {check('Berm profile', v.berm_profile_pass)}
+                        {check('Bearing', v.bearing_pass)}
+                        {v.slope_violations ? this.detailRow('Slope-siting rejects', v.slope_violations, '#e0564b') : null}
+                        {v.off_dem_orders ? this.detailRow('Off-DEM rejects', v.off_dem_orders, '#e0564b') : null}
+                        {this.detailRow('Cut kg (exec / plan)', Math.round(v.executed_cut_kg) + ' / ' + Math.round(v.planned_cut_kg))}
+                        {this.detailRow('Fill kg (exec / plan)', Math.round(v.executed_fill_kg) + ' / ' + Math.round(v.planned_fill_kg))}
+                    </div>
+                ) : null}
+                {oa ? check('Ordered IR-replay',
+                    oa.feasible, (oa.shuttle_cycles != null ? oa.shuttle_cycles + ' shuttle cycles' : '') +
+                    (oa.placed_kg != null ? ' · ' + Math.round(oa.placed_kg) + ' kg placed' : '')) : null}
+            </div>
+        );
+    }
+
+    // TIMELINE / ENDURANCE: the sim timeline reduced to a per-phase makespan breakdown + battery envelope,
+    // and the single-sortie endurance (range flat + slope/slip) with the energy-driver verdict.
+    renderTimelineEndurance(tl, en) {
+        if (!tl && !en) { return null; }
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        const PHASE_COLOR = {drive: '#8fb8ff', charge: '#7fe0a8', work: '#ffd24a', dig: '#e0563a'};
+        return (
+            <div style={{borderTop: '1px solid #14141c', paddingTop: '6px'}}>
+                <div style={{...lbl, marginBottom: '3px'}}>Timeline / endurance</div>
+                {tl ? (
+                    <div>
+                        {this.detailRow('Makespan', MissionPlan.fmtSs(tl.duration_s) + ' · ' + tl.n_frames + ' frames')}
+                        {(tl.phases || []).map((p) => (
+                            <div key={p.phase} style={{display: 'flex', justifyContent: 'space-between', fontSize: '10px', padding: '1px 0'}}>
+                                <span style={{color: '#8a93a3'}}>
+                                    <span style={{
+                                        display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px',
+                                        marginRight: '5px', background: PHASE_COLOR[p.phase] || '#8a93a3'
+                                    }} />{p.phase}
+                                </span>
+                                <b style={{color: '#c7d2e3'}}>{MissionPlan.fmtSs(p.dur_s)}</b>
+                            </div>
+                        ))}
+                        {tl.batt_min_frac != null ? this.detailRow('Battery trace',
+                            Math.round(tl.batt_min_frac * 100) + '–' + Math.round(tl.batt_max_frac * 100) + '%') : null}
+                    </div>
+                ) : null}
+                {en ? (
+                    <div style={{marginTop: '3px'}}>
+                        {this.detailRow('Sortie range',
+                            (en.range_flat_reserve_km != null ? en.range_flat_reserve_km.toFixed(0) + ' km flat' : '—') +
+                            (en.range_slopeslip_km != null ? ' · ' + en.range_slopeslip_km.toFixed(0) + ' km slope/slip' : ''))}
+                        {en.work_area_median_slope_deg != null ? this.detailRow('Work-area slope (median)',
+                            en.work_area_median_slope_deg.toFixed(1) + '°') : null}
+                        {en.drums_dominate != null ? this.detailRow('Energy driver',
+                            en.drums_dominate ? 'drums (dig-dominated)' : 'drive') : null}
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
+    // The collapsible "Plan detail" wrapper. Reads the read-only view-model planAuthor attached to result.detail.
+    renderPlanDetail(s) {
+        const r = s.result;
+        const d = r && r.detail;
+        if (!d) { return null; }
+        const open = !!this.state.detailOpen;
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        return (
+            <div style={{marginTop: '10px', borderTop: '1px solid #1c1c26', paddingTop: '8px'}}>
+                <div
+                    data-stewie-detail-toggle="1" onClick={this.onToggleDetail}
+                    style={{display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', userSelect: 'none'}}
+                >
+                    <span style={{fontSize: '10px', color: '#39c6ff', width: '10px'}}>{open ? '▾' : '▸'}</span>
+                    <span style={{...lbl, color: '#c7d2e3'}}>Plan detail</span>
+                    <span style={{flex: '1 1 auto'}} />
+                    {d.ir && d.ir.plan_id ? (
+                        <span style={{fontSize: '9px', color: '#7a8290', fontFamily: 'ui-monospace, monospace'}}>plan {d.ir.plan_id}</span>
+                    ) : null}
+                </div>
+                {open ? (
+                    <div data-stewie-detail="1" style={{marginTop: '6px'}}>
+                        {this.renderIR(d.ir)}
+                        {this.renderValidation(d.validation, d.ordered)}
+                        {this.renderTimelineEndurance(d.timeline, d.endurance)}
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
     renderResult(s) {
         const r = s.result;
         if (!r) { return null; }
@@ -660,6 +840,7 @@ class MissionPlan extends React.Component {
                 </div>
 
                 {this.renderResult(s)}
+                {this.renderPlanDetail(s)}
                 {this.renderRun(s)}
             </div>
         );
