@@ -341,6 +341,115 @@ def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0, *, slope_vmax=30.0, 
     return None
 
 
+# ---- the costmap ANALYSIS drape (AS-11): make the planner's real cost surface + veto reasons VISIBLE ----
+# Two globe kinds computed from the REAL 12-layer FORGE costmap (lode.costmap_layers.compose) on the
+# site's real DEM.  cost = a green(low)->red(high) heatmap of the PLAN-INDEPENDENT traversability cost
+# (the summed slope/roughness/sinkage/slip/illumination/shadow-confidence/energy the planner routes on,
+# MINUS the goal-specific distance-to-goal); blocking = the categorical veto grid (transparent where
+# passable, one hue per reason a cell is impassable).  Single source of truth for the colours so the
+# /layers/legend endpoint and the renderer never drift.
+COST_RAMP = (
+    (0.0, (33, 145, 80)),      # low cost  -- green (easy going)
+    (0.5, (241, 196, 15)),     # mid cost  -- amber
+    (1.0, (192, 40, 40)),      # high cost -- red (costly to cross)
+)
+BLOCKING_COLORS = {
+    # veto-capable layers (a cell can be impassable for these) -- each a distinct hue
+    "slope": (214, 40, 40),               # too steep to traverse (slope cap)
+    "sinkage": (0, 158, 158),             # Bekker wheel burial past the depth cap
+    "tip_risk": (190, 30, 160),           # static-stability tip-over limit
+    "negative_obstacle": (150, 82, 24),   # drop-off / crater-rim / pit edge
+    "psr": (124, 74, 214),                # shadowed this epoch (cold-trap candidate, no solar)
+    "keepout": (110, 110, 110),           # operator no-go
+    "reservation": (30, 128, 224),        # held by another vehicle
+    # cost-only layers (never veto) -- carried so ANY reason has a colour, kept muted
+    "roughness": (150, 150, 60),
+    "slip": (150, 96, 60),
+    "illumination": (60, 128, 150),
+    "shadow_confidence": (86, 86, 128),
+    "energy": (176, 116, 44),
+}
+# the veto-capable reasons, in compose's reason-priority order (the legend enumerates these)
+BLOCKING_LEGEND_ORDER = ("slope", "sinkage", "tip_risk", "negative_obstacle", "psr", "keepout", "reservation")
+
+
+def blocking_legend():
+    """The categorical blocking-reason legend: each veto reason -> its hex colour (matches _blocking_rgba)."""
+    return [{"reason": n, "hex": "#%02x%02x%02x" % BLOCKING_COLORS[n]} for n in BLOCKING_LEGEND_ORDER]
+
+
+def _costmap_compose(dem, cell, sun_az, sun_el, *, grid_north_bearing=None, max_slope_deg=25.0):
+    """Compose the REAL 12-layer FORGE costmap (`lode.costmap_layers`) on a DEM patch at THIS cell size,
+    returning the CompositeCostmap (plan-independent cost + passable mask + per-cell blocking reason).
+    The negative-obstacle drop cap is SCALED to the cell (a drop steeper than the traversable slope cap
+    over one cell) so a coarse globe tile is not blanket-blocked by the rover-scale 0.15 m step. The sun
+    layers (illumination/psr/shadow) read the DEM-grid azimuth (grid_sun_az), like the other sun drapes."""
+    import math
+
+    import numpy as np
+
+    from lode import costmap_layers as CL
+    saz = grid_sun_az(sun_az, grid_north_bearing) if grid_north_bearing is not None else float(sun_az)
+    max_drop = float(cell) * math.tan(math.radians(float(max_slope_deg)))
+    ctx = CL.CostmapContext(Z=np.asarray(dem, dtype=float), cell_m=float(cell),
+                            max_slope_deg=float(max_slope_deg), max_drop_m=max_drop,
+                            sun_az_deg=saz, sun_el_deg=float(sun_el))
+    return CL.compose(ctx)
+
+
+def _ramp_rgb(t, stops):
+    """Piecewise-linear RGB along an ordered (t, (r,g,b)) ramp; t in [0,1]. Returns (...,3) float."""
+    import numpy as np
+    t = np.clip(np.asarray(t, dtype=float), 0.0, 1.0)
+    ts = [s[0] for s in stops]
+    chans = [np.interp(t, ts, [s[1][k] for s in stops]) for k in range(3)]
+    return np.stack(chans, axis=-1)
+
+
+def _cost_heatmap_rgba(cost):
+    """Green(low) -> red(high) heatmap of the plan-independent traversability cost. Robustly stretched
+    between the 2nd/98th percentiles so outliers don't wash out the ramp; alpha rises with cost."""
+    import numpy as np
+    c = np.asarray(cost, dtype=float)
+    finite = np.isfinite(c)
+    vals = c[finite]
+    lo = float(np.percentile(vals, 2.0)) if vals.size else 0.0
+    hi = float(np.percentile(vals, 98.0)) if vals.size else 1.0
+    if hi <= lo:
+        hi = lo + 1e-6
+    t = np.clip((np.where(finite, c, lo) - lo) / (hi - lo), 0.0, 1.0)
+    rgba = np.zeros((*c.shape, 4), dtype=float)
+    rgba[..., :3] = _ramp_rgb(t, COST_RAMP)
+    rgba[..., 3] = 110.0 + 120.0 * t
+    return rgba.astype("uint8")
+
+
+def _blocking_rgba(reason, passable):
+    """Categorical veto overlay: transparent where passable, one distinct hue per blocking reason (which
+    costmap layer FIRST vetoes the cell). Opaque EXACTLY on the impassable cells (AS-11 visibility)."""
+    import numpy as np
+    r = np.asarray(reason, dtype=object)
+    pas = np.asarray(passable, dtype=bool)
+    blocked = ~pas
+    rgba = np.zeros((*r.shape, 4), dtype=float)
+    for name, col in BLOCKING_COLORS.items():
+        m = blocked & (r == name)
+        if m.any():
+            rgba[m, 0], rgba[m, 1], rgba[m, 2], rgba[m, 3] = col[0], col[1], col[2], 205.0
+    return rgba.astype("uint8")
+
+
+def _costmap_rgba(dem, cell, kind, sun_az, sun_el, *, grid_north_bearing=None):
+    """RGBA for the costmap analysis drape: 'cost' = the traversability-cost heatmap, 'blocking' = the
+    categorical veto grid. Both from ONE real compose on the DEM patch. None for any other kind."""
+    cm = _costmap_compose(dem, cell, sun_az, sun_el, grid_north_bearing=grid_north_bearing)
+    if kind == "cost":
+        return _cost_heatmap_rgba(cm.cost)
+    if kind == "blocking":
+        return _blocking_rgba(cm.reason, cm.passable)
+    return None
+
+
 def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=None,
                  grid_color: str = "39ff14", site: str = "haworth",
                  slope_vmax: float = 30.0, slope_classes: int = 0):
@@ -417,22 +526,30 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
             out = _reproject(rgba, b, fwd, out_px=1024)
             _GLOBE_CACHE[key] = out
             return out
-        px = 384 if kind == "psr" else 768
+        # cost/blocking compose the full 12-layer costmap (one shared horizon sweep, like psr) so they
+        # render at the cheaper psr resolution; the slope-family kinds keep 768.
+        px = 384 if kind in ("psr", "cost", "blocking") else 768
         stride = max(1, dem_full.shape[0] // px)
         dem = _np.asarray(dem_full, dtype=float)[::stride, ::stride]
         cm = cell_m * stride
         # the per-kind colouring is the shared _layer_rgba helper (same formulas the order-frame
         # work-area drape uses); here it runs on the downsampled full tile + is reprojected for the globe.
         gnb = None
-        if kind in ("illumination", "incidence"):    # #266: re-express the TRUE sun az in the grid frame
+        # #266: re-express the TRUE sun az in the grid frame for every kind whose illumination/psr/shadow
+        # layers march the DEM horizon (illumination/incidence + the costmap's cost/blocking composites).
+        if kind in ("illumination", "incidence", "cost", "blocking"):
             try:
                 from stewie.terrain.site_dem import grid_north_bearing_deg
                 _h, _w = dem_full.shape[:2]           # native-frame tile centre (orientation, stride-invariant)
                 gnb = grid_north_bearing_deg((_w / 2.0) * cell_m, (_h / 2.0) * cell_m, bundle_dir=bundle_dir)
             except (ImportError, ValueError):
                 gnb = None
-        rgba = _layer_rgba(dem, cm, kind, sun_az, sun_el,
-                           slope_vmax=slope_vmax, slope_classes=slope_classes, grid_north_bearing=gnb)
+        if kind in ("cost", "blocking"):
+            # the AS-11 costmap analysis drape (real lode.costmap_layers.compose on the full tile)
+            rgba = _costmap_rgba(dem, cm, kind, sun_az, sun_el, grid_north_bearing=gnb)
+        else:
+            rgba = _layer_rgba(dem, cm, kind, sun_az, sun_el,
+                               slope_vmax=slope_vmax, slope_classes=slope_classes, grid_north_bearing=gnb)
         if rgba is None:
             return None
         out = _reproject(rgba, b, fwd, out_px=1024)   # _layer_rgba already returns uint8

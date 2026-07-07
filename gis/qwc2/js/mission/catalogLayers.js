@@ -15,14 +15,17 @@
  * (/ogc/wms) advertises only CRS:84 / EPSG:4326 / IAU_2015:30100 and returns InvalidCRS for a 30135
  * GetMap, so a QWC2 `wms` layer (which requests in the map CRS) cannot render it. See README/report.
  *
- * SERVABILITY is grounded in the LIVE backend (verified by curl 2026-07-06), never faked:
- *   servable  = /layers/globe/{kind}.png returns a real PNG for these 7 globe kinds:
- *               dem, slope, hazard, illumination, incidence, psr, grid.
- *   NOT served on the live backend = every other catalog row (physics.*, traffic.*, map.*, design.*,
+ * SERVABILITY is grounded in the backend endpoint's _GLOBE_KINDS allow-list, never faked:
+ *   servable  = /layers/globe/{kind}.png returns a real PNG for these 9 globe kinds:
+ *               dem, slope, hazard, illumination, incidence, psr, grid, cost, blocking.
+ *               (dem..grid verified live by curl 2026-07-06; cost + blocking added 2026-07-06 -- the
+ *               plan-independent traversability-COST heatmap + the categorical BLOCKING-reason grid,
+ *               both from the REAL lode.costmap_layers costmap on the site DEM; live after a backend rebuild.)
+ *   NOT served = every other catalog row (physics.*, the remaining traffic.*, map.*, design.*,
  *               vector/mission/robot/runtime/evidence rows) has no independent raster endpoint;
- *               /layers/raster/traffic.png -> 404 "unknown layer 'traffic'" and /world/traffic-layer
- *               -> 404 "no route". These rows are SHOWN in the tree (with provenance + eligibility)
- *               but carry no map layer, and the plugin reports the gap rather than fabricating one.
+ *               /world/traffic-layer -> 404 "no route". These rows are SHOWN in the tree (with
+ *               provenance + eligibility) but carry no map layer, and the plugin reports the gap
+ *               rather than fabricating one.
  *
  * Node-testable + CSP-safe: pure data/logic + fetch helpers, no DOM, no React, no module globals.
  */
@@ -55,8 +58,11 @@
     { id: "evidence", name: "Evidence/Runtime", section: "6" }
   ];
 
-  // catalog id -> served globe kind (/layers/globe/{kind}.png + /bbox). ONLY these 7 render; grounded
-  // in the live backend's _GLOBE_KINDS. Everything else is catalog-only (no raster endpoint).
+  // catalog id -> served globe kind (/layers/globe/{kind}.png + /bbox). ONLY these 9 render; grounded
+  // in the backend's _GLOBE_KINDS allow-list. Everything else is catalog-only (no raster endpoint).
+  //   cost     = traffic.cost_global   -> the plan-independent traversability-cost heatmap (green->red)
+  //   blocking = traffic.traversability -> the categorical blocking-reason grid (why a cell is no-go)
+  // both are the REAL lode.costmap_layers costmap surfaced as map layers (AS-11 "visible blocking reason").
   var SERVABLE = {
     "base.dem": "dem",
     "base.grid": "grid",
@@ -64,14 +70,16 @@
     "terrain.illumination": "illumination",
     "terrain.incidence": "incidence",
     "terrain.psr": "psr",
-    "hazard.slope_nogo": "hazard"
+    "hazard.slope_nogo": "hazard",
+    "traffic.cost_global": "cost",
+    "traffic.traversability": "blocking"
   };
 
-  // globe kind -> key in the /layers/legend physics-legend payload (grid is a bare reference grid,
-  // no physics legend entry).
+  // globe kind -> key in the /layers/legend payload (grid is a bare reference grid, no legend entry).
   var LEGEND_KEY = {
     dem: "dem", slope: "slope", hazard: "hazard",
-    illumination: "illumination", incidence: "incidence", psr: "psr"
+    illumination: "illumination", incidence: "incidence", psr: "psr",
+    cost: "cost", blocking: "blocking"
   };
 
   // Coarse provenance class from a source_class string (e.g. "prior/observed" -> "observed"), used
@@ -148,8 +156,9 @@
     return { total: total, servable: servable, nonServable: total - servable };
   }
 
-  // The sun query string for the sun-parameterized drapes (illumination/incidence/psr/hazard). Manual
-  // el/az default matches the backend defaults; `b` is a cache-bust. T7 (sun-time slider) rebinds this.
+  // The sun query string for the sun-parameterized drapes (illumination/incidence/psr/hazard + the
+  // costmap cost/blocking, whose illumination/psr/shadow layers follow the sun). Manual el/az default
+  // matches the backend defaults; `b` is a cache-bust. T7 (sun-time slider) rebinds this.
   function sunQS(opts) {
     opts = opts || {};
     var el = (opts.sunEl != null) ? opts.sunEl : 15;

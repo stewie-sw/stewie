@@ -35,7 +35,7 @@ def globe_quota(request: Request) -> str:
 # growth (DoS). Sun angles quantize to integer degrees (sub-degree changes are not visible in the
 # drape and would otherwise multiply the cache key space); `color` becomes a cache-FILE component for
 # kind='grid', so it is restricted to 6 hex digits (rejecting length/path abuse); `kind` is allow-listed.
-_GLOBE_KINDS = ("dem", "slope", "hazard", "illumination", "incidence", "psr", "grid")
+_GLOBE_KINDS = ("dem", "slope", "hazard", "illumination", "incidence", "psr", "grid", "cost", "blocking")
 _HEX6 = re.compile(r"^[0-9a-fA-F]{6}$")
 _DEFAULT_GRID = "39ff14"
 _MISSION_T_MAX_S = 3.156e10            # +/- ~1000 yr: finite-bounds an arbitrary mission_t_s
@@ -71,10 +71,22 @@ def layers_legend():
     import inspect
 
     from dart.hazard_map import build_hazard_map
+    from stewie.server.gis_layers import blocking_legend
     from stewie.specs.ipex_specs import OBSTACLE_HEIGHT_M
     sig = inspect.signature(build_hazard_map)
     return {
         "ok": True,
+        # AS-11 costmap analysis drape: the plan-independent traversability COST heatmap + the categorical
+        # BLOCKING-REASON grid, both from the REAL 12-layer FORGE costmap (lode.costmap_layers.compose).
+        "cost": {"ramp": "green (low) → amber → red (high)",
+                 "text": "plan-independent traversability cost -- the summed FORGE costmap "
+                         "(slope + roughness + sinkage + slip + illumination + shadow-confidence + energy) "
+                         "the planner routes on, MINUS the goal-specific distance-to-goal; redder = costlier "
+                         "to cross. Sun-dependent (the illumination/shadow layers follow the sun slider)."},
+        "blocking": {"reasons": blocking_legend(),
+                     "text": "impassable cells coloured by the FIRST costmap layer that vetoes them "
+                             "(transparent where passable): why a route bends or refuses. Sun-dependent "
+                             "(the psr veto follows the sun slider)."},
         "slope": {"max_deg": 30.0, "ramp": "green 0° → red 30° (opacity rises with steepness)"},
         "hazard": {"nogo_deg": sig.parameters["max_slope_deg"].default,
                    "penalty_deg": sig.parameters["slope_hazard_deg"].default,

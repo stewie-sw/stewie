@@ -11,10 +11,11 @@
  * reprojects it onto the 30135 map) — so the raster RENDERS on the map AND appears as a toggleable
  * row in the stock QWC2 LayerTree. The base .qgz theme layers + MissionHUD are untouched.
  *
- * Honesty: only the 7 backend globe kinds (dem/slope/hazard/illumination/incidence/psr/grid) are
- * servable; every other catalog row is shown WITHOUT a map layer (no raster endpoint on the live
- * backend — traffic.png 404s, /world/traffic-layer 404s, physics.* are metadata not rasters) and the
- * panel says so rather than fabricating a layer.
+ * Honesty: only the 9 backend globe kinds (dem/slope/hazard/illumination/incidence/psr/grid + the
+ * costmap cost/blocking analysis drapes) are servable; every other catalog row is shown WITHOUT a map
+ * layer (no raster endpoint on the live backend — /world/traffic-layer 404s, physics.* are metadata
+ * not rasters) and the panel says so rather than fabricating a layer. (cost + blocking added 2026-07-06;
+ * live after a backend rebuild.)
  *
  * Registration:
  *   - js/appConfig.js       -> pluginsDef.plugins.MissionLayersPlugin
@@ -136,10 +137,23 @@ class MissionLayers extends React.Component {
         const entry = CL.legendFor(row, this.state.legend);
         if (!entry) return null;
         const txt = entry.text || entry.ramp || entry.sweep || entry.sun || '';
-        if (!txt) return null;
+        // categorical layers (the blocking-reason grid) enumerate reason -> hex colour: render swatches
+        const reasons = Array.isArray(entry.reasons) ? entry.reasons : null;
+        if (!txt && !reasons) return null;
         return (
             <div style={{margin: '1px 0 4px 26px', fontSize: '9px', color: '#8a93a3', lineHeight: 1.35}}>
                 {txt}
+                {reasons ? (
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '3px 8px', marginTop: '3px'}}>
+                        {reasons.map((r) => (
+                            <span key={r.reason} style={{display: 'inline-flex', alignItems: 'center', gap: '3px'}}>
+                                <span style={{width: '9px', height: '9px', borderRadius: '2px', flex: '0 0 auto',
+                                    background: r.hex, border: '1px solid #00000066'}} />
+                                {String(r.reason).replace(/_/g, ' ')}
+                            </span>
+                        ))}
+                    </div>
+                ) : null}
             </div>
         );
     }
@@ -239,7 +253,7 @@ class MissionLayers extends React.Component {
                 {s.summary ? (
                     <div style={{fontSize: '10px', color: '#c7d2e3', marginBottom: '6px'}}>
                         <b style={{color: '#39ff14'}}>{s.summary.servable}</b> of {s.summary.total} catalog
-                        layers are servable as map rasters (7 backend globe kinds); the rest are catalog-only.
+                        layers are servable as map rasters (9 backend globe kinds); the rest are catalog-only.
                     </div>
                 ) : null}
                 {s.error ? (
