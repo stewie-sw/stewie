@@ -28,6 +28,13 @@ stems). The store is bounded (per-session feature cap + a global session cap wit
 so an unauthenticated authoring client cannot grow it without bound. It holds EPHEMERAL mission-authoring
 state only -- never the conserved authority, the observed twin, or a rover command -- exactly the class of
 state the client already mutated unauthenticated before GW-08.
+
+PERSISTENCE (GW-08 Phase 0, 2026-07-07): the session registry was a process-wide dict LOST on every
+restart. It is now backed by ``server.db`` (Postgres/PostGIS in production via ``$STEWIE_DATABASE_URL``, a
+per-data-dir SQLite file otherwise) -- every session, its versioned before/after audit, and its undo state
+SURVIVE a restart. The public API here is UNCHANGED (the routes + tests are untouched): each mutation
+write-throughs to the store, and ``get_session`` reloads a session from the store on a cache miss (the
+post-restart path). See ``design/STEWIE_persistence_db_design_2026-07-07.md``.
 """
 from __future__ import annotations
 
@@ -35,6 +42,8 @@ import secrets
 import threading
 import time
 from typing import Any
+
+from stewie.server import db
 
 # The planner already caps polygon vertices at this bound (lode.planner_model._MAX_KEEPOUT_VERTS) so a
 # keep-out cannot drive an O(cells x verts) routing DoS; the edit session refuses the same at authoring
@@ -118,7 +127,33 @@ class EditSession:
         self._audit: list[dict] = []             # {version, op, fid, kind, before, after, ts}
         self._fid_seq = 0
         self._marker_seq = 0
+        self._persisted_len = 0                  # audit records already written to the durable store
         self._lock = threading.RLock()
+
+    # ---- durable persistence (GW-08 Phase 0) -----------------------------------------------------
+    @classmethod
+    def _from_snapshot(cls, snap: dict) -> "EditSession":
+        """Rebuild a session from a durable snapshot (``db.load_session``) -- the reload path that makes a
+        session survive a restart. Repopulates the live keep-outs/markers, the audit trail, the version +
+        fid counters, and marks the whole audit as already-persisted so a reload never re-inserts."""
+        sess = cls(snap["opaque_id"])
+        sess.created_at = snap["created_at"]
+        sess.version = snap["version"]
+        sess._fid_seq = snap["fid_seq"]
+        sess._marker_seq = snap["marker_seq"]
+        sess._features = dict(snap["features"])
+        sess._markers = dict(snap["markers"])
+        sess._audit = list(snap["audit"])
+        sess._persisted_len = len(sess._audit)
+        return sess
+
+    def _persist(self) -> None:
+        """Write-through the current snapshot + any not-yet-persisted audit records to the durable store.
+        Called under the lock at every mutation choke point, so the store never lags the in-memory state."""
+        new = self._audit[self._persisted_len:]
+        db.persist_session(self.id, self.version, self._fid_seq, self._marker_seq,
+                           dict(self._features), dict(self._markers), new)
+        self._persisted_len = len(self._audit)
 
     # ---- internal --------------------------------------------------------------------------------
     def _next_fid(self) -> str:
@@ -136,6 +171,7 @@ class EditSession:
             "version": self.version, "op": op, "fid": fid, "kind": kind,
             "before": before, "after": after, "ts": time.time(),
         })
+        self._persist()                          # write-through: this mutation now survives a restart
         return self.version
 
     # ---- edits (each writes through here; the routes are thin wrappers) ---------------------------
@@ -223,6 +259,7 @@ class EditSession:
                 "reverted_op": op, "fid": fid, "kind": target["kind"],
                 "before": target["after"], "after": target["before"], "ts": time.time(),
             })
+            self._persist()                      # write-through: the undo (and reverted state) persists
             return {"undone_version": target["version"], "reverted_op": op, "fid": fid}
 
     # ---- reads -----------------------------------------------------------------------------------
@@ -269,30 +306,63 @@ class EditSession:
                 "audit": self.audit(limit=audit_limit)}
 
 
-# ---- the process-wide bounded session registry (capability-gated by opaque id) --------------------
-_SESSIONS: "dict[str, EditSession]" = {}
-_SESSIONS_LOCK = threading.Lock()
+# ---- the durable, cache-backed session registry (GW-08 Phase 0) -----------------------------------
+# The store is now Postgres/SQLite-backed (``server.db``): sessions + audit + undo SURVIVE A RESTART. The
+# in-memory ``_CACHE`` keeps ONE live EditSession instance per opaque id within a process (so its RLock
+# coordinates concurrent edits and object identity is preserved across a request's route calls); a cache
+# MISS -- the case right after a restart -- reloads the session from the durable store. The capability-gated
+# opaque id and the global MAX_SESSIONS bound (now enforced at the DB, oldest evicted) are unchanged.
+_CACHE: "dict[str, EditSession]" = {}
+_CACHE_LOCK = threading.Lock()
 
 
 def new_session() -> EditSession:
-    """Mint a fresh edit session with an unguessable opaque id; evict the oldest if the store is full."""
+    """Mint a fresh edit session (unguessable opaque id), persist its initial row, and cache it. The global
+    bound is enforced at the durable store (oldest session evicted past MAX_SESSIONS)."""
     sid = secrets.token_hex(8)
     sess = EditSession(sid)
-    with _SESSIONS_LOCK:
-        if len(_SESSIONS) >= MAX_SESSIONS:
-            oldest = min(_SESSIONS.values(), key=lambda s: s.created_at)
-            _SESSIONS.pop(oldest.id, None)
-        _SESSIONS[sid] = sess
+    evicted = db.create_session_row(sid, sess.created_at, MAX_SESSIONS)
+    with _CACHE_LOCK:
+        if evicted:
+            _CACHE.pop(evicted, None)
+        if len(_CACHE) >= MAX_SESSIONS:                     # bound the in-memory cache too (oldest-first)
+            oldest = min(_CACHE.values(), key=lambda s: s.created_at)
+            _CACHE.pop(oldest.id, None)
+        _CACHE[sid] = sess
     return sess
 
 
 def get_session(session_id: str) -> EditSession | None:
-    """The session for an opaque id, or None if unknown/expired (the caller decides how to degrade)."""
-    with _SESSIONS_LOCK:
-        return _SESSIONS.get(str(session_id))
+    """The live session for an opaque id, or None if unknown. A cache miss reloads from the durable store
+    (the post-restart path), so a session authored before a restart is found again with its audit + undo."""
+    sid = str(session_id)
+    with _CACHE_LOCK:
+        cached = _CACHE.get(sid)
+    if cached is not None:
+        return cached
+    snap = db.load_session(sid)                             # DB read outside the cache lock
+    if snap is None:
+        return None
+    sess = EditSession._from_snapshot(snap)
+    with _CACHE_LOCK:
+        existing = _CACHE.get(sid)                          # a concurrent loader may have won the race
+        if existing is not None:
+            return existing
+        _CACHE[sid] = sess
+        return sess
 
 
 def reset() -> None:
-    """Drop every session (test isolation / process reset)."""
-    with _SESSIONS_LOCK:
-        _SESSIONS.clear()
+    """Drop every session -- clears the in-memory cache AND truncates the durable store (test isolation)."""
+    with _CACHE_LOCK:
+        _CACHE.clear()
+    db.reset_store()
+
+
+def drop_in_memory_cache() -> None:
+    """Simulate a process restart: forget every cached EditSession instance and drop the DB engine +
+    connection pool, WITHOUT touching the durable rows. The next ``get_session`` must reload from the store
+    -- what the survives-restart proof exercises (``test_edit_session_persistence.py``)."""
+    with _CACHE_LOCK:
+        _CACHE.clear()
+    db.dispose()

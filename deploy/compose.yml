@@ -42,6 +42,14 @@ services:
       # main-map pins from (mounted read-only just below), so a click resolves to the pin. Absent -> empty
       # markers (honest no-op), never a fabricated position. NOT the auth-gated /sites registry (S-06 stays gated).
       STEWIE_SITE_VECTORS: ${STEWIE_SITE_VECTORS:-/io/vectors/artemis_sites.geojson}
+      # GW-08 PERSISTENCE (Phase 0): the durable edit-session store (server.db). UNSET by default, so the
+      # backend falls back to a SQLite file at $STEWIE_DATA_DIR/edit_session.db on the stewie-data volume
+      # (backward-compatible -- the server still boots with no DB, and the file itself survives a restart
+      # because /data is a named volume). To run the real Postgres/PostGIS store, stand up the `db`-profile
+      # `postgres` service below and set the FULL async URL in deploy/.env (NO password in git; .env is
+      # gitignored, chmod 600 -- same posture as STEWIE_API_KEY):
+      #   STEWIE_DATABASE_URL=postgresql+asyncpg://stewie:<password>@postgres:5432/stewie
+      STEWIE_DATABASE_URL: ${STEWIE_DATABASE_URL:-}
     volumes:
       - "stewie-data:/data"
       # Real Artemis site vectors (the VISIBLE-pin geojson), READ-ONLY, single source of truth -- the SAME
@@ -80,6 +88,36 @@ services:
     tmpfs: [ "/var/cache/nginx", "/var/run", "/tmp" ]
     depends_on:
       backend: { condition: service_healthy }
+    restart: unless-stopped
+  # GW-08 PERSISTENCE (Phase 0): the durable Postgres + PostGIS store (design doc: ONE Postgres+PostGIS,
+  # hybrid). Phase 0 uses only the `stewie` schema's edit_session/edit_audit tables (no geometry yet); the
+  # PostGIS image is the forward foundation for the Phase-1 `stewie` index/provenance schema + the Phase-2
+  # qwc-data-service WFS-T feature tables. OPT-IN via the `db` profile (like ros2/gis) so the DEFAULT
+  # `docker compose up -d backend frontend` is UNCHANGED (SQLite fallback) and does NOT require a DB secret:
+  #   1. set STEWIE_DB_PASSWORD + STEWIE_DATABASE_URL in deploy/.env (NO secret in git; .env is gitignored)
+  #   2. docker compose -f deploy/compose.yml --profile db up -d postgres
+  #   3. one-time schema-init:  docker compose -f deploy/compose.yml exec backend python -m stewie.server.db
+  #   4. docker compose -f deploy/compose.yml up -d --force-recreate backend   # picks up STEWIE_DATABASE_URL
+  # LOCAL-ONLY: no host port is published -- only the backend reaches it over the internal compose network.
+  postgres:
+    profiles: [ "db" ]
+    image: postgis/postgis:16-3.4
+    container_name: stewie-postgres
+    environment:
+      POSTGRES_USER: ${STEWIE_DB_USER:-stewie}
+      POSTGRES_DB: ${STEWIE_DB_NAME:-stewie}
+      # REQUIRED when the db profile is up: the password is a SECRET, kept in deploy/.env, never in git.
+      # `:?` fails the `up` loudly rather than booting Postgres with an empty/guessable password.
+      POSTGRES_PASSWORD: ${STEWIE_DB_PASSWORD:?set STEWIE_DB_PASSWORD in deploy/.env (the postgres password; never commit it)}
+    volumes:
+      - "stewie-db:/var/lib/postgresql/data"
+    # No host port: the store is internal to the compose network (the backend connects as `postgres:5432`).
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${STEWIE_DB_USER:-stewie} -d ${STEWIE_DB_NAME:-stewie}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    security_opt: [ "no-new-privileges:true" ]
     restart: unless-stopped
   # B1: the ROS2 teleop/nav service (John's CCSDS demo + the B1.6 Twist teleop). Heavy image
   # (osrf/ros:jazzy-desktop) -> opt-in via the 'ros2' profile: docker compose --profile ros2 up -d
@@ -277,3 +315,5 @@ services:
 
 volumes:
   stewie-data:
+  # GW-08 PERSISTENCE (Phase 0): the Postgres/PostGIS data dir (db profile). Durable across restarts.
+  stewie-db:
