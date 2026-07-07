@@ -132,8 +132,7 @@ def costmap_values(cost, passable, *, cost_max: float | None = None) -> np.ndarr
     cmax = float(cost_max) if cost_max is not None else (float(c[lit].max()) if lit.any() else 1.0)
     cmax = max(cmax, 1e-9)
     scaled = np.clip(np.rint(np.where(finite, c, 0.0) / cmax * float(_HAZARD_OCC)), 0, _HAZARD_OCC)
-    occ = np.where(lit, scaled, float(OCC_LETHAL)).astype(np.int8)
-    return occ
+    return np.where(lit, scaled, float(OCC_LETHAL)).astype(np.int8)
 
 
 def reason_enum_grid(reason, layer_names) -> tuple[np.ndarray, dict[int, str]]:

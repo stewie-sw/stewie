@@ -91,7 +91,10 @@ def test_overlay_gz_topics_match_the_bridge():
 def test_launch_wires_world_spawn_and_bridge():
     lx = _read(LAUNCH)
     assert "stewie_lunar.sdf" in lx
-    assert "ipex.gazebo.xacro" in lx
+    # SWAPPABLE model of record: the launch loads urdf/<model>.gazebo.xacro selected by STEWIE_SIM_MODEL
+    # (default ezrassor; ipex + future vehicles load the same way, the gz entity name stays the frozen
+    # bridge/telemetry key). The overlay itself (ipex.gazebo.xacro) is asserted by test_overlay_* above.
+    assert ".gazebo.xacro" in lx and "STEWIE_SIM_MODEL" in lx
     assert "robot_state_publisher" in lx
     assert "ros_gz_sim" in lx and "create" in lx          # spawn from /robot_description
     assert "ros_gz_bridge" in lx and "gz_bridge.yaml" in lx

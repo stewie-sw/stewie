@@ -106,6 +106,9 @@ export type ApiPath =
   | '/render/parallax'
   | '/resync/compare'
   | '/ros/evidence'
+  | '/ros/export/costmap'
+  | '/ros/export/occupancy'
+  | '/ros/export/path'
   | '/runtime/profiles'
   | '/sample_mission/{name}'
   | '/sample_missions'
@@ -138,9 +141,11 @@ export type ApiPath =
   | '/world'
   | '/world/layer-catalog'
   | '/world/layer-consumption'
+  | '/world/layer-manifest'
   | '/world/terrain_view'
   | '/world/terrain_view.png'
   | '/world/terramechanics-layers'
+  | '/world/traffic-layer'
   | '/world/transaction'
   | '/world/transactions'
   | '/{path}';
@@ -259,6 +264,9 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'POST', path: '/render/parallax', operationId: 'post_render_parallax_render_parallax_post', mutatesAuthority: true },
   { method: 'POST', path: '/resync/compare', operationId: 'resync_compare_resync_compare_post', mutatesAuthority: true },
   { method: 'GET', path: '/ros/evidence', operationId: 'get_ros_evidence_ros_evidence_get', mutatesAuthority: false },
+  { method: 'POST', path: '/ros/export/costmap', operationId: 'post_export_costmap_ros_export_costmap_post', mutatesAuthority: true },
+  { method: 'POST', path: '/ros/export/occupancy', operationId: 'post_export_occupancy_ros_export_occupancy_post', mutatesAuthority: true },
+  { method: 'POST', path: '/ros/export/path', operationId: 'post_export_path_ros_export_path_post', mutatesAuthority: true },
   { method: 'GET', path: '/runtime/profiles', operationId: 'get_runtime_profiles_runtime_profiles_get', mutatesAuthority: false },
   { method: 'GET', path: '/sample_mission/{name}', operationId: 'get_sample_mission_sample_mission__name__get', mutatesAuthority: false },
   { method: 'GET', path: '/sample_missions', operationId: 'get_sample_missions_sample_missions_get', mutatesAuthority: false },
@@ -293,9 +301,11 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/world', operationId: 'world_world_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/layer-catalog', operationId: 'layer_catalog_world_layer_catalog_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/layer-consumption', operationId: 'layer_consumption_world_layer_consumption_get', mutatesAuthority: false },
+  { method: 'GET', path: '/world/layer-manifest', operationId: 'world_layer_manifest_world_layer_manifest_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terrain_view', operationId: 'world_terrain_view_world_terrain_view_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terrain_view.png', operationId: 'world_terrain_view_png_world_terrain_view_png_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terramechanics-layers', operationId: 'terramechanics_layers_world_terramechanics_layers_get', mutatesAuthority: false },
+  { method: 'GET', path: '/world/traffic-layer', operationId: 'traffic_layer_world_traffic_layer_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/transaction', operationId: 'world_transaction_world_transaction_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/transactions', operationId: 'world_transactions_world_transactions_get', mutatesAuthority: false },
   { method: 'GET', path: '/{path}', operationId: '_no_get__path__get', mutatesAuthority: false },
