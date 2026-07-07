@@ -84,7 +84,7 @@ jobs:
         run: |
           node --version
           shopt -s globstar
-          node --test stewie/server/web/assets/**/*.test.js scripts/*.test.mjs
+          node --test stewie/server/web/assets/**/*.test.js scripts/*.test.mjs gis/qwc2/js/**/*.test.js
 
   ui-smoke:
     name: cockpit UI smoke (Playwright + real server, py3.11)
