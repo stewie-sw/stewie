@@ -78,6 +78,47 @@ def map_channel_score(mission, stations, *, cell_m=1.0, sensor_radius_m=SENSOR_R
     }
 
 
+def map_channel_observed_score(observed, truth, *, valid_mask=None, cell_m=1.0, tol_m=0.10):
+    """DENSE-tier map-channel reward (P6 / CP-09): score a REAL OBSERVED heightfield (from a render, via
+    ``dart.observed_map`` or ``scripts/ros2_bridge/obs_map_producer``) against the conserved truth-at-t.
+
+    Where ``map_channel_score`` scores ONBOARD OBSERVABILITY (which worksite cells the route brings within
+    sensor range, computed from the conserved truth), THIS consumes an actual observation, so the reward
+    reflects PERCEPTION -- the observed-vs-truth divergence, not just coverage. Scored against the STALE
+    pre-dig truth the RMSE spikes at the cells the rover reshaped (the self-made-hazard signal); scored
+    against the fresh as-built truth it is small (perception is accurate). ``dense_rmse_available`` is
+    therefore True: this is the reconstructed-heightfield tier the onboard tier deferred to.
+
+    Returns coverage (observed fraction), map_rmse_m + map_cell_pass_frac (LAC §10 metrics) over the
+    observed cells, and a bounded ``reward`` = coverage * cell_pass_frac in [0, 1] (a divergence the map
+    does not match drops it). (None RMSE / 0 reward when nothing is observed -- an empty map is not 0-error.)
+    """
+    obs = np.asarray(observed, dtype=np.float64)
+    tru = np.asarray(truth, dtype=np.float64)
+    if obs.shape != tru.shape:
+        raise ValueError(f"observed {obs.shape} and truth {tru.shape} must have the same shape")
+    mask = np.ones(obs.shape, dtype=bool) if valid_mask is None else np.asarray(valid_mask, dtype=bool)
+    mask = mask & np.isfinite(obs) & np.isfinite(tru)
+    coverage = float(mask.mean())
+    if not mask.any():
+        return {"coverage": 0.0, "observed_cells": 0, "total_cells": int(obs.size),
+                "map_rmse_m": None, "map_cell_pass_frac": None, "mean_abs_err_m": None,
+                "reward": 0.0, "tol_m": float(tol_m), "cell_m": float(cell_m),
+                "dense_rmse_available": True}
+    err = obs[mask] - tru[mask]
+    rmse = float(np.sqrt(np.mean(err * err)))
+    pass_frac = float(np.mean(np.abs(err) <= tol_m))
+    return {
+        "coverage": coverage,
+        "observed_cells": int(mask.sum()), "total_cells": int(obs.size),
+        "map_rmse_m": rmse, "map_cell_pass_frac": pass_frac,
+        "mean_abs_err_m": float(np.mean(np.abs(err))),
+        "reward": float(coverage * pass_frac),
+        "tol_m": float(tol_m), "cell_m": float(cell_m),
+        "dense_rmse_available": True,   # the reconstructed-heightfield tier is now present
+    }
+
+
 def local_coverage(stations, site, *, radius_m=SENSOR_RADIUS_M, sensor_radius_m=SENSOR_RADIUS_M, cell_m=1.0):
     """Fraction of a disk of `radius_m` around `site` already observed by `stations` -- the signal the
     autonomy loop gates a dig on (don't commit to digging terrain you haven't mapped well enough yet)."""

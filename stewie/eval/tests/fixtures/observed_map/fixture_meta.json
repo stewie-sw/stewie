@@ -1,0 +1,17 @@
+{
+  "scene": "samples/crater_boulders",
+  "cut_rc": [
+    60,
+    60,
+    100,
+    100
+  ],
+  "cut_depth_m": 0.1,
+  "berm_rc": [
+    150,
+    150,
+    172,
+    172
+  ],
+  "note": "REAL nadir Godot depth renders; the test re-applies the same conserved dig."
+}

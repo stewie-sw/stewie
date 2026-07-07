@@ -1,0 +1,13 @@
+{
+  "cam_height_m": 0.609194613993168,
+  "cell_m": 0.02,
+  "d_hi_m": 0.814372251927853,
+  "d_lo_m": 0.45,
+  "encoding": "grayscale 8-bit, sRGB-stored; t=(depth-d_lo)/(d_hi-d_lo); depth=cam_height-world_y",
+  "height": 256,
+  "note": "REAL nadir ortho render of the displaced terrain mesh; pixel[row,col]==cell[row,col].",
+  "scene": "/mnt/projects/stewie/code/samples/crater_boulders",
+  "width": 256,
+  "x0": 0.0,
+  "y0": 0.0
+}
