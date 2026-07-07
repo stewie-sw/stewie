@@ -44,10 +44,10 @@
         "bbox": {
           "crs": "IAU_2015:30135",
           "bounds": [
-            -457440,
-            -457440,
-            457440,
-            457440
+            -3474800,
+            -3474800,
+            3474800,
+            3474800
           ]
         },
         "initialBbox": {
@@ -872,6 +872,37 @@
               }
             ],
             "expanded": true
+          },
+          {
+            "name": "Global basemap - LOLA LDEM southern hemisphere (IAU_2015:30135)",
+            "title": "Global basemap - LOLA LDEM southern hemisphere (IAU_2015:30135)",
+            "mutuallyExclusive": false,
+            "visibility": true,
+            "sublayers": [
+              {
+                "name": "Global South Basemap",
+                "title": "Global South Basemap",
+                "visibility": true,
+                "queryable": true,
+                "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/basemap_global_south.tif; provenance=LOLA Global LDEM 118 m (Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014, LRO LOLA Team / USGS Astrogeology, sphere R=1737400 m) gdalwarp'd equirectangular->IAU_2015:30135 south-polar over the whole southern hemisphere (+-3,474,800 m, 500 m/px), hillshaded (z=0.5, az 315, alt 45); GLOBAL-fill CONTEXT basemap so the polar frame is never black; loaded=2026-07-06; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                "opacity": 255,
+                "styles": {
+                  "default": "default"
+                },
+                "style": "default",
+                "bbox": {
+                  "crs": "EPSG:4326",
+                  "bounds": [
+                    -3474800,
+                    -3474800,
+                    3474800,
+                    3474800
+                  ]
+                },
+                "dimensions": []
+              }
+            ],
+            "expanded": true
           }
         ],
         "expanded": true,
@@ -891,6 +922,7 @@
         ],
         "mapCrs": "IAU_2015:30135",
         "drawingOrder": [
+          "Global South Basemap",
           "South Polar Basemap",
           "Site01 Hillshade",
           "Site01 DEM",

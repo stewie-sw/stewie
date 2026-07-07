@@ -110,6 +110,36 @@ BASEMAP_CMD = (
     "-co COMPRESS=DEFLATE -co PREDICTOR=2 -co BLOCKSIZE=512 -co OVERVIEWS=AUTO "
     "-co OVERVIEW_RESAMPLING=AVERAGE basemap_hs_tmp.tif cog/basemap_south_polar.tif")
 
+# GLOBAL southern-hemisphere basemap (the VERY bottom layer, UNDER the 75-90S basemap).
+# The 75-90S basemap above only fills |lat|>=75S (+-457440 m); zoom out past that and the
+# frame goes BLACK, and the Lunaserv global WMS drapes cannot reproject into 30135 in
+# qgis-server 3.34 ("No transform available between IAU_2015:30135 and EPSG:4326"). This
+# COG is the reliable, network-free, projection-NATIVE fill: the real LOLA global LDEM
+# (118 m/px equirectangular, Int16 0.5 m/DN) gdalwarp'd into the 30135 south-polar frame
+# over the WHOLE southern hemisphere (+-3,474,800 m == equator at the edges, +-19.5N at
+# the corners; 100% valid, no nodata holes) at 500 m/px, then hillshaded (z=0.5) -> COG.
+# Native 30135 like the site COGs, so qgis-server renders it with NO runtime reprojection.
+BASEMAP_GLOBAL_SUBDIR = os.path.join("cog", "basemap_global_south.tif")
+BASEMAP_GLOBAL_NAME = "Global South Basemap"
+BASEMAP_GLOBAL_URL = ("https://astrogeology.usgs.gov/search/map/"
+                      "Moon_LRO_LOLA_Global_LDEM_118m_Mar2014")
+SRC_BASEMAP_GLOBAL = (
+    "LOLA Global LDEM 118 m (Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014, LRO LOLA Team / "
+    "USGS Astrogeology, sphere R=1737400 m, Int16 0.5 m/DN elevation, SimpleCylindrical "
+    f"equirectangular) {BASEMAP_GLOBAL_URL} -> gdalwarp (eqc R=1737400 -> stere lat_0=-90 "
+    "R=1737400, -te +-3474800 m == the whole southern hemisphere, -tr 500 m, bilinear) -> "
+    "gdaldem hillshade (z=0.5 unscales the 0.5 m/DN elevation to metres; az 315, alt 45, "
+    "-compute_edges) -> COG. GLOBAL-fill CONTEXT basemap under the 75-90S basemap so the "
+    "frame is never black (any spot has base relief); not an authoritative measurement surface.")
+BASEMAP_GLOBAL_CMD = (
+    "gdalwarp -s_srs '+proj=eqc +R=1737400' -t_srs '+proj=stere +lat_0=-90 +R=1737400' "
+    "-te -3474800 -3474800 3474800 3474800 -tr 500 500 -r bilinear -srcnodata -32768 "
+    "-dstnodata -32768 Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif global_ldem_30135.tif ; "
+    "gdaldem hillshade -z 0.5 -az 315 -alt 45 -compute_edges global_ldem_30135.tif "
+    "global_hs.tif ; gdal_translate -of COG -a_srs IAU_2015:30135 -a_nodata none "
+    "-co COMPRESS=DEFLATE -co PREDICTOR=2 -co BLOCKSIZE=512 -co OVERVIEWS=AUTO "
+    "-co OVERVIEW_RESAMPLING=AVERAGE global_hs.tif cog/basemap_global_south.tif")
+
 # Hypsometric elevation palette (fraction, R, G, B) interpolated across real min..max.
 HYPSO_STOPS = [
     (0.00, 44, 66, 110),    # crater floor  -> deep blue
@@ -144,6 +174,7 @@ GRP_BASE = "Base & imagery - external context (non-authoritative frame)"
 GRP_TERRAIN = "Terrain & hazard - authoritative (IAU_2015:30135)"
 GRP_VECTORS = "Site vectors (IAU_2015:30100)"
 GRP_BASEMAP = "South-polar basemap - LOLA LDEM context (IAU_2015:30135)"
+GRP_BASEMAP_GLOBAL = "Global basemap - LOLA LDEM southern hemisphere (IAU_2015:30135)"
 
 # Pin marker + footprint fill (translucent so the terrain reads through).
 PIN_RGB = (255, 210, 60)
@@ -888,6 +919,32 @@ def main(argv=None) -> int:
               f"extent {bm.extent().toString(0)})")
     else:
         print(f"WARNING: basemap COG missing at {basemap_path}; skipped", file=sys.stderr)
+
+    # ======================================================================
+    # GLOBAL southern-hemisphere basemap (the VERY bottom layer). Added AFTER the
+    # 75-90S basemap so this addGroup appends even lower in the tree -> drawn first
+    # (under everything), giving continuous relief out to the equator so the frame
+    # is never black when the operator zooms out or picks an off-site spot. Native
+    # 30135 COG (like the site COGs) -> qgis-server renders it with no reprojection.
+    # ======================================================================
+    basemap_global_path = os.path.join(data_root, BASEMAP_GLOBAL_SUBDIR)
+    basemap_global_added = False
+    if os.path.exists(basemap_global_path):
+        basemap_global_group = root.addGroup(GRP_BASEMAP_GLOBAL)   # appended -> very bottom
+        bmg = load_raster(basemap_global_path, BASEMAP_GLOBAL_NAME)
+        style_hillshade(bmg)                          # grayscale stretch (continuous relief)
+        set_provenance(bmg, "stewie.base.global_south_basemap",
+                       "Global southern-hemisphere LOLA LDEM hillshade basemap",
+                       SRC_BASEMAP_GLOBAL, command=BASEMAP_GLOBAL_CMD)
+        project.addMapLayer(bmg, addToLegend=False)
+        basemap_global_group.insertLayer(0, bmg)
+        basemap_global_added = True
+        print(f"[build] global basemap: '{BASEMAP_GLOBAL_NAME}' at very bottom of tree "
+              f"({bmg.crs().authid()}, {bmg.width()}x{bmg.height()}, "
+              f"extent {bmg.extent().toString(0)})")
+    else:
+        print(f"WARNING: global basemap COG missing at {basemap_global_path}; skipped",
+              file=sys.stderr)
 
     # ======================================================================
     # P1.5 -- catalog provenance + machine/human status artifacts.
