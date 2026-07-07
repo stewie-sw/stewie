@@ -119,8 +119,28 @@ export default class PlanAuthor {
         // legacy plan (no fleet allocation, no charger contention).
         this.vehicles = 1;
         this.chargerCapacity = 1;
+        // --- Structure-template authoring (T11). Place a whole STRUCTURE (landing pad / blast berm / haul
+        // road / solar pad / habitat foundation / borrow pit / crater fill / trench) and the backend
+        // decomposes it into REAL mass-balanced cut/fill orders that flow into the SAME queue the manual
+        // Cut/Fill tools fill, so the existing /api/plan routing runs them UNCHANGED. Two real routes (both
+        // now key-injected at the artemis /api/ proxy, 200/400 not 401):
+        //   catalog     GET  /api/construction (stewie/server/routers/construction.py:66) -> {templates:[{id,
+        //               doc, defaults:{param:number}, n_cut, n_fill, balanced}], ...}. The template's
+        //               `defaults` IS the real inspect.signature default-param schema (construction.py:44),
+        //               so the param editor is seeded from the backend, not a synthetic list.
+        //   decompose   POST /api/structure {name,x,y,params} (perception.py:378 -> structures.decompose:123)
+        //               -> {ok, name, orders:[{action,kind,x,y,footprint_m2,depth_m,note}]} in the LOCAL site
+        //               frame (metres). We POST at local origin (0,0) so the returned x/y are pure offsets
+        //               from the placement click; a fill consumes EXACTLY the paired cut volume (structures.py
+        //               §mass-balance), so the queued orders are mass-balanced by construction (verified live).
+        this.templates = null;      // cached catalog rows from GET /api/construction (null = not loaded yet)
+        this.templatesErr = null;   // last catalog fetch error message (surfaced in the panel)
+        this.structKind = null;     // active structure id — mutually exclusive with the Cut/Fill + no-go tools
+        this.structParams = {};     // current param values for the selected template (seeded from its defaults)
+        this.structures = [];       // placed structures [{idx, name, params, coord:[x,y]30135, nOrders}]
+        this._structSeq = 0;        // monotonic structure id (tags each structure's orders so it removes cleanly)
         this._lastPlanPayload = null;   // the exact JSON POSTed to /api/plan (headless-proof readback)
-        this.orders = [];          // {kind, footprint_m2, depth_m, coord:[x,y]30135, lonlat:[lon,lat]}
+        this.orders = [];          // {kind, footprint_m2, depth_m, coord:[x,y]30135, lonlat:[lon,lat], structId?}
         this.result = null;        // last plan summary (for the panel)
         this.planning = false;
         this.hint = 'Pick a work site, then a tool, then click the map to place orders.';
@@ -135,6 +155,14 @@ export default class PlanAuthor {
         this.orderLayer.setStyle((f) => this._orderMarkerStyle(f));
         this.planSource = new VectorSource();
         this.planLayer = new VectorLayer({source: this.planSource, zIndex: 19});
+
+        // Structure footprints (T11): a dashed steel-cyan bounding outline + name label per placed structure,
+        // drawn UNDER the cut/fill order markers (zIndex 17 < orderLayer 20) so both the whole-structure
+        // footprint and its individual decomposed orders read on the map. The orders themselves are ordinary
+        // cut/fill features on orderLayer (existing _orderMarkerStyle), so nothing about the plan/run path changes.
+        this.structureSource = new VectorSource();
+        this.structureLayer = new VectorLayer({source: this.structureSource, zIndex: 17});
+        this.structureLayer.setStyle((f) => this._structureStyle(f));
 
         // --- Keep-out / no-go authoring (DEPTH-1). The operator draws avoid-regions (polygon or circle) on
         // the SAME OL map; on Plan they serialize into payload.keepouts -- the EXACT schema the backend parses
@@ -189,13 +217,17 @@ export default class PlanAuthor {
 
     attach() {
         if (this._attached) { return; }
+        this.map.addLayer(this.structureLayer);
         this.map.addLayer(this.keepoutLayer);
         this.map.addLayer(this.planLayer);
         this.map.addLayer(this.trailLayer);
         this.map.addLayer(this.roverLayer);
         this.map.addLayer(this.orderLayer);
         this._clickKey = this.map.on('singleclick', (evt) => {
+            // A map click places whatever authoring mode is active. The three placing modes are mutually
+            // exclusive (a Cut/Fill tool, a structure template, or a no-go Draw interaction — never two at once).
             if (this.activeKind) { this.placeAt(evt.coordinate); }
+            else if (this.structKind) { this.placeStructure(evt.coordinate); }
         });
         // Read-only harness handles for the headless LIVE proof (same code paths as the UI) -- mirrors
         // Frontend A's window.stewieRun (gis/web/app.js:916). No command authority; state readback only.
@@ -244,6 +276,17 @@ export default class PlanAuthor {
                 // set the vehicle/charger counts without simulating DOM events. Authoring only.
                 setVehicles: (v) => this.setVehicles(v),
                 setChargerCapacity: (v) => this.setChargerCapacity(v),
+                // Structure-template drivers (T11) — the SAME controller code paths the palette buttons/inputs
+                // + map click call (loadTemplates -> setStructure -> setStructParam -> placeStructure), so a
+                // headless proof can place a real structure at exact map coords and adopt its backend-decomposed
+                // mass-balanced orders without pixel-quantised clicks. placeStructure returns the fetch promise
+                // (the /api/structure POST) so the proof can await the decomposition. Authoring only.
+                loadTemplates: () => this.loadTemplates(),
+                templates: () => (this.templates ? JSON.parse(JSON.stringify(this.templates)) : null),
+                setStructure: (name) => this.setStructure(name),
+                setStructParam: (k, v) => this.setStructParam(k, v),
+                placeStructure: (coord) => this.placeStructure(coord),
+                structureCount: () => this.structures.length,
                 // Read-only readback of the exact /api/plan POST body + the last plan summary (for verifying
                 // the chosen levers rode the POST and the resolved algorithm/objective came back).
                 lastPlanPayload: () => (this._lastPlanPayload ? JSON.parse(JSON.stringify(this._lastPlanPayload)) : null),
@@ -255,6 +298,8 @@ export default class PlanAuthor {
             };
         }
         this._attached = true;
+        // Prefetch the real build catalog (GET /api/construction) so the palette is populated on first open.
+        this.loadTemplates();
     }
 
     detach() {
@@ -268,6 +313,7 @@ export default class PlanAuthor {
         this.map.removeLayer(this.trailLayer);
         this.map.removeLayer(this.planLayer);
         this.map.removeLayer(this.keepoutLayer);
+        this.map.removeLayer(this.structureLayer);
         this._attached = false;
     }
 
@@ -277,9 +323,18 @@ export default class PlanAuthor {
             activeKind: this.activeKind, footprint: this.footprint, depth: this.depth,
             orders: this.orders.map((o, i) => ({
                 idx: i, kind: o.kind, x: round1(o.coord[0]), y: round1(o.coord[1]),
-                footprint_m2: o.footprint_m2, depth_m: o.depth_m
+                footprint_m2: o.footprint_m2, depth_m: o.depth_m,
+                struct: o.structName || null   // a structure-decomposed order carries its parent structure's name
             })),
             hint: this.hint, hintErr: this.hintErr, result: this.result, planning: this.planning,
+            // Structure-template authoring (T11): the fetched catalog + the active template + its param
+            // editor + the placed-structure list, mirrored to the panel. `structures[i].idx` is the array
+            // index (the remove handle); `structId` is the stable sequence id (React key).
+            templates: this.templates, templatesErr: this.templatesErr,
+            structKind: this.structKind, structParams: {...this.structParams},
+            structures: this.structures.map((st, i) => ({
+                idx: i, structId: st.idx, name: st.name, nOrders: st.nOrders
+            })),
             // DEPTH-2 plan controls (mirrored to the panel so the selects/inputs reflect the chosen levers).
             algorithm: this.algorithm, objective: this.objective, maxSlopeDeg: this.maxSlopeDeg,
             budgets: {...this.budgets},
@@ -313,6 +368,8 @@ export default class PlanAuthor {
         this.route = null; this._planOrders = null;
         this._deactivateDraw();                       // a site change resets authoring incl. any drawn no-go
         this.keepouts = []; this.keepoutSource.clear();
+        this.structKind = null; this.structParams = {};   // and any active structure template + placed structures
+        this.structures = []; this.structureSource.clear();
         this.orderSource.clear();
         this.planSource.clear();
         this._setHint('Loading ' + site + ' work area…');
@@ -355,6 +412,7 @@ export default class PlanAuthor {
 
     setTool(kind) {
         this._deactivateDraw();                       // picking a cut/fill tool leaves no-go draw mode
+        this.structKind = null;                       // and leaves structure-template placing
         this.activeKind = (this.activeKind === kind) ? null : kind;
         if (this.activeKind) {
             this._setHint('Click the map to place a ' + (kind === 'cut' ? 'CUT (dig)' : 'FILL (build)') +
@@ -422,12 +480,181 @@ export default class PlanAuthor {
         return oc;
     }
 
+    // --- Structure-template authoring (T11) ----------------------------------------------------------
+    // Fetch the real build catalog (GET /api/construction) once and cache it. The rows carry each template's
+    // id/doc + its default-param schema (inspect.signature defaults, construction.py:44) + the cut/fill count
+    // + the balanced flag, so the palette is driven by the backend (no synthetic template list). Same-origin;
+    // the artemis nginx injects the shared key (the route is operator-gated but now key-injected at the proxy).
+    loadTemplates() {
+        if (this.templates) { return Promise.resolve(this.templates); }
+        return fetch('/api/construction')
+            .then((r) => { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
+            .then((d) => {
+                if (!d || d.ok === false || !Array.isArray(d.templates)) {
+                    throw new Error((d && d.error) || 'no templates');
+                }
+                this.templates = d.templates.map((t) => ({
+                    id: t.id, doc: t.doc || '', defaults: t.defaults || {},
+                    n_cut: t.n_cut, n_fill: t.n_fill, n_orders: t.n_orders, balanced: !!t.balanced
+                }));
+                this.templatesErr = null;
+                this._emit();
+                return this.templates;
+            })
+            .catch((e) => { this.templatesErr = e.message; this._emit(); });
+    }
+
+    // Toggle the active structure template. Structure placing is mutually exclusive with the Cut/Fill tools
+    // and the no-go Draw interaction. Selecting a template seeds the param editor from its REAL default schema
+    // (the catalog `defaults`), so an untouched placement POSTs the backend defaults (params omitted -> the
+    // decompose() signature defaults, structures.py).
+    setStructure(name) {
+        this.activeKind = null;                       // structure placing and Cut/Fill placing are exclusive
+        this._deactivateDraw();                       // and leave no-go drawing
+        const next = (this.structKind === name) ? null : name;
+        this.structKind = next;
+        this.structParams = {};
+        if (next) {
+            const tpl = (this.templates || []).find((t) => t.id === next);
+            if (tpl && tpl.defaults) {
+                for (const k of Object.keys(tpl.defaults)) {
+                    const v = tpl.defaults[k];
+                    if (typeof v === 'number') { this.structParams[k] = String(v); }
+                }
+            }
+            this._setHint('Click the map to place a ' + next.replace(/_/g, ' ') +
+                '. The backend decomposes it into mass-balanced cut/fill orders. Click the button again to stop.');
+        } else {
+            this._setHint('Structure placing off. Pick a tool or structure, or Plan the mission.');
+        }
+        this._emit();
+    }
+
+    // Update one template param (kept as a raw string; blank -> omitted at POST so the backend default applies).
+    setStructParam(key, v) {
+        if (!this.structParams) { this.structParams = {}; }
+        this.structParams[key] = (v == null ? '' : String(v));
+        this._emit();
+    }
+
+    // Place the active structure at a map click: POST /api/structure at LOCAL origin (0,0) so the returned
+    // order x/y are pure offsets from the click, map each decomposed order back to map coords (order frame is
+    // raster-DOWN: +y = South, so mapY = clickY - oy in the north-up 30135 map), and ADOPT them into the same
+    // order queue the manual tools fill. The fill consumes exactly the paired cut volume (structures.py mass
+    // balance), so the queued orders are mass-balanced by construction; the plan() round-trip preserves each
+    // order's footprint*depth and the cut<->fill separation vector exactly (up to 0.1 m coord rounding).
+    placeStructure(coord) {
+        if (!this.structKind) { return Promise.resolve(); }
+        const name = this.structKind;
+        let originLonlat;
+        try { originLonlat = this.reproject(coord, MAP_CRS, GEO_CRS); }
+        catch (e) { this._setHint('Could not reproject the click: ' + e.message, true); return Promise.resolve(); }
+        // Build the params payload: finite numeric values only (blank -> omitted -> backend default).
+        const params = {};
+        for (const k of Object.keys(this.structParams || {})) {
+            const raw = this.structParams[k];
+            if (raw === '' || raw == null) { continue; }
+            const n = Number(raw);
+            if (Number.isFinite(n)) { params[k] = n; }
+        }
+        this._setHint('Decomposing ' + name.replace(/_/g, ' ') + ' into mass-balanced orders…');
+        return fetch('/api/structure', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: name, x: 0, y: 0, params: params})
+        })
+            .then((r) => r.text().then((t) => {
+                let b = null; try { b = JSON.parse(t); } catch (e) { b = null; }
+                return {status: r.status, body: b};
+            }))
+            .then((res) => {
+                const orders = res.body && res.body.orders;
+                if (!res.body || !res.body.ok || !Array.isArray(orders) || !orders.length) {
+                    const err = (res.body && res.body.error) || ('HTTP ' + res.status);
+                    this._setHint('Structure rejected: ' + err, true);
+                    return res.body;
+                }
+                this._structSeq += 1;
+                const structId = this._structSeq;
+                const added = [];
+                for (const o of orders) {
+                    const mapX = coord[0] + o.x;      // local East offset -> map East (30135 is metric, north-up)
+                    const mapY = coord[1] - o.y;      // local raster-down offset -> map North (y flips)
+                    let ll;
+                    try { ll = this.reproject([mapX, mapY], MAP_CRS, GEO_CRS); } catch (e) { ll = originLonlat; }
+                    const ord = {
+                        kind: o.kind, footprint_m2: o.footprint_m2, depth_m: o.depth_m,
+                        coord: [mapX, mapY], lonlat: ll,
+                        structId: structId, structName: name, action: o.action, note: o.note || ''
+                    };
+                    this.orders.push(ord); added.push(ord);
+                }
+                this.structures.push({
+                    idx: structId, name: name, params: {...params},
+                    coord: [coord[0], coord[1]], nOrders: added.length
+                });
+                this._addStructureFootprint(structId, name, added);
+                this._refreshOrderMarkers();
+                const nCut = added.filter((o) => o.kind === 'cut').length;
+                const nFill = added.filter((o) => o.kind === 'fill').length;
+                this._setHint('Placed ' + name.replace(/_/g, ' ') + ' -> ' + added.length +
+                    ' mass-balanced order' + (added.length === 1 ? '' : 's') +
+                    ' (' + nCut + ' cut / ' + nFill + ' fill) added to the queue. Place more, or press Plan mission.');
+                return res.body;
+            })
+            .catch((e) => { this._setHint('Structure request failed: ' + e.message, true); });
+    }
+
+    // Draw the structure's footprint: a dashed steel-cyan bounding box (over its decomposed orders, each
+    // padded by its footprint radius) with the structure name, so the whole build reads as one placed unit.
+    _addStructureFootprint(structId, name, orders) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        orders.forEach((o) => {
+            const r = Math.sqrt(Math.max(o.footprint_m2, 1) / Math.PI);
+            minX = Math.min(minX, o.coord[0] - r); maxX = Math.max(maxX, o.coord[0] + r);
+            minY = Math.min(minY, o.coord[1] - r); maxY = Math.max(maxY, o.coord[1] + r);
+        });
+        if (!isFinite(minX)) { return; }
+        const pad = 2.0;
+        minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+        const ring = [[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY], [minX, minY]];
+        const f = new Feature({geometry: new Polygon([ring])});
+        f.set('structId', structId); f.set('label', name.replace(/_/g, ' '));
+        this.structureSource.addFeature(f);
+    }
+
+    _structureStyle(feature) {
+        return new Style({
+            stroke: new Stroke({color: '#7cc6ff', width: 1.5, lineDash: [4, 4]}),
+            fill: new Fill({color: 'rgba(124,198,255,0.06)'}),
+            text: new Text({
+                text: feature.get('label') || 'structure', offsetY: -7, overflow: true,
+                font: '600 10px system-ui, sans-serif',
+                fill: new Fill({color: '#9fd4ff'}), stroke: new Stroke({color: '#000', width: 3})
+            })
+        });
+    }
+
+    // Remove a placed structure (by array index) and every order it decomposed into, plus its footprint.
+    removeStructure(i) {
+        const st = this.structures[i];
+        if (!st) { return; }
+        this.orders = this.orders.filter((o) => o.structId !== st.idx);
+        this.structures.splice(i, 1);
+        this.structureSource.getFeatures().slice().forEach((f) => {
+            if (f.get('structId') === st.idx) { this.structureSource.removeFeature(f); }
+        });
+        this._refreshOrderMarkers();
+        this._setHint('Removed ' + st.name.replace(/_/g, ' ') + ' and its orders (' +
+            this.structures.length + ' structure' + (this.structures.length === 1 ? '' : 's') + ' left).');
+    }
+
     // --- Keep-out / no-go authoring ------------------------------------------------------------------
     // Toggle the no-go draw tool. Turning it on stops order-placing (map clicks now draw a shape, not an
     // order) and adds an OL Draw interaction of the matching geometry; the tool stays active for multiple
     // draws (click the tool again to stop), mirroring the cut/fill placing UX.
     setKeepoutTool(kind) {
         this.activeKind = null;                       // no-go drawing and order-placing are mutually exclusive
+        this.structKind = null;                       // (as is structure-template placing)
         const next = (this.koTool === kind) ? null : kind;
         this._deactivateDraw();                       // remove any prior interaction; sets koTool = null
         this.koTool = next;
@@ -560,8 +787,9 @@ export default class PlanAuthor {
         this.orders = []; this.result = null; this.wc = null;
         this._resetRun();
         this.route = null; this._planOrders = null;
+        this.structures = []; this.structureSource.clear();   // placed structures + their footprints go too
         this.orderSource.clear(); this.planSource.clear();
-        this._setHint('Cleared. Pick a tool and click the map to place orders.');
+        this._setHint('Cleared. Pick a tool or structure and click the map to place orders.');
     }
 
     _refreshOrderMarkers() {

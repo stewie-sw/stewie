@@ -70,6 +70,15 @@ const BUDGETS = [
     {key: 'max_charges', label: 'Max recharges', unit: '#', step: '1'},
     {key: 'risk_weight', label: 'Risk weight', unit: '×', step: '0.1'}
 ];
+// STRUCTURE TEMPLATES (T11): friendly display names for the 8 backend structure ids (leap.structures.STRUCTURES).
+// The buttons + their default-param editor are DRIVEN by the fetched catalog (GET /api/construction); this map
+// is display-only (an id with no entry falls back to its raw id, so a new backend template still renders).
+const STRUCTURE_LABELS = {
+    landing_pad: 'Landing pad', habitat_foundation: 'Habitat foundation',
+    blast_berm: 'Blast berm', crater_fill: 'Crater fill',
+    borrow_pit: 'Borrow pit', haul_road: 'Haul road',
+    solar_pad: 'Solar pad', trench: 'Trench'
+};
 
 function fmtDur(s) {
     s = Math.round(s || 0);
@@ -119,6 +128,7 @@ class MissionPlan extends React.Component {
         this.setState({ready: true, ctrl: {
             site: 'haworth', activeKind: null, footprint: 60, depth: 0.4, orders: [],
             koTool: null, keepouts: [],
+            templates: null, templatesErr: null, structKind: null, structParams: {}, structures: [],
             algorithm: 'nearest', objective: 'time', maxSlopeDeg: 25,
             budgets: {max_time_s: '', max_energy_J: '', max_charges: '', max_distance_m: '', risk_weight: ''},
             vehicles: 1, chargerCapacity: 1,
@@ -146,6 +156,10 @@ class MissionPlan extends React.Component {
     onAhLat = (e) => { this._ahLat = e.target.value; };
     onAhLon = (e) => { this._ahLon = e.target.value; };
     onTool = (kind) => { if (this.ctrl) { this.ctrl.setTool(kind); } };
+    // STRUCTURE templates (T11): pick a template, edit its params, place it -> backend-decomposed orders.
+    onStructure = (name) => { if (this.ctrl) { this.ctrl.setStructure(name); } };
+    onStructParam = (k, e) => { if (this.ctrl) { this.ctrl.setStructParam(k, e.target.value); } };
+    onRemoveStructure = (i) => { if (this.ctrl) { this.ctrl.removeStructure(i); } };
     onFootprint = (e) => { if (this.ctrl) { this.ctrl.setFootprint(e.target.value); } };
     onDepth = (e) => { if (this.ctrl) { this.ctrl.setDepth(e.target.value); } };
     onPlan = () => { if (this.ctrl) { this.ctrl.plan(); } };
@@ -194,6 +208,118 @@ class MissionPlan extends React.Component {
         );
     }
 
+    // --- Structure templates (T11): the operator picks a structure type (landing pad / berm / haul road /
+    // solar pad / habitat foundation / borrow pit / crater fill / trench), sets its params from the REAL
+    // template schema (GET /api/construction defaults), and places it on the map. placeStructure POSTs
+    // /api/structure -> the backend decompose() returns mass-balanced cut/fill orders that are adopted into
+    // the SAME order queue below, so Plan routes them unchanged. Palette + params are DRIVEN by the fetched
+    // catalog (no synthetic template list); a placement is a real backend round-trip (no fabricated orders).
+    renderStructures(s) {
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        const inputStyle = {
+            width: '100%', boxSizing: 'border-box', background: '#0c1017', color: '#c7d2e3',
+            border: '1px solid #2a2a36', borderRadius: '4px', padding: '5px 6px', font: '11px system-ui, sans-serif'
+        };
+        const tpls = s.templates;
+        const structs = s.structures || [];
+        const active = s.structKind;
+        const activeTpl = (tpls && active) ? tpls.find((t) => t.id === active) : null;
+        const params = s.structParams || {};
+        const prettyKey = (k) => k.replace(/_m$/, '').replace(/_/g, ' ');
+        const unitOf = (k) => (k.endsWith('_m') ? 'm' : '');
+        // A template button: cyan = balanced (paired cut<->fill), amber = source/grade (cut-only).
+        const sbtn = (t) => {
+            const on = active === t.id;
+            const color = t.balanced ? '#4fd1ff' : '#e0a04f';
+            return (
+                <button
+                    key={t.id} data-stewie-structure={t.id} onClick={() => this.onStructure(t.id)}
+                    title={t.doc || t.id} type="button"
+                    style={{
+                        flex: '1 1 44%', cursor: 'pointer', font: '600 10px system-ui, sans-serif',
+                        padding: '6px 4px', borderRadius: '4px',
+                        border: '1px solid ' + (on ? color : '#2a2a36'),
+                        color: on ? '#0a0a0c' : color, background: on ? color : color + '14'
+                    }}
+                >{STRUCTURE_LABELS[t.id] || t.id}</button>
+            );
+        };
+        return (
+            <div style={{marginTop: '10px', borderTop: '1px solid #1c1c26', paddingTop: '8px'}}>
+                <div style={{...lbl, marginBottom: '2px'}}>Structure templates (auto mass-balanced)</div>
+                <div style={{fontSize: '9px', color: '#7a8290', margin: '0 0 5px', lineHeight: 1.35}}>
+                    Pick a structure, set its size, then click the map to place it. The backend decomposes it into
+                    REAL mass-balanced cut/fill orders (cyan = balanced cut↔fill · amber = source/grade cut).
+                </div>
+                {s.templatesErr ? (
+                    <div style={{fontSize: '10px', color: '#e0564b'}}>Could not load the build catalog: {s.templatesErr}</div>
+                ) : !tpls ? (
+                    <div style={{fontSize: '10px', color: '#7a8290'}}>Loading build catalog…</div>
+                ) : (
+                    <div data-stewie-struct-palette="1" style={{display: 'flex', flexWrap: 'wrap', gap: '5px'}}>
+                        {tpls.map((t) => sbtn(t))}
+                    </div>
+                )}
+                {activeTpl ? (
+                    <div
+                        data-stewie-struct-params="1"
+                        style={{marginTop: '8px', border: '1px solid #1c2630', borderRadius: '4px', padding: '7px', background: '#0b1016'}}
+                    >
+                        <div style={{display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px', flexWrap: 'wrap'}}>
+                            <b style={{color: '#9fd4ff', fontSize: '11px'}}>{STRUCTURE_LABELS[active] || active}</b>
+                            <span style={{fontSize: '9px', color: activeTpl.balanced ? '#4fd1ff' : '#e0a04f'}}>
+                                {activeTpl.balanced
+                                    ? activeTpl.n_cut + ' cut ↔ ' + activeTpl.n_fill + ' fill (mass-balanced)'
+                                    : activeTpl.n_cut + ' cut (source/grade)'}
+                            </span>
+                        </div>
+                        {activeTpl.doc ? (
+                            <div style={{fontSize: '9px', color: '#7a8290', margin: '0 0 6px', lineHeight: 1.35}}>{activeTpl.doc}</div>
+                        ) : null}
+                        <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px'}}>
+                            {Object.keys(activeTpl.defaults || {}).map((k) => (
+                                <div key={k} style={{flex: '1 1 42%'}}>
+                                    <label style={lbl} htmlFor={'mp-sp-' + k}>{prettyKey(k)}{unitOf(k) ? ' · ' + unitOf(k) : ''}</label>
+                                    <input
+                                        data-stewie-struct-param={k} id={'mp-sp-' + k} min="0"
+                                        onChange={(e) => this.onStructParam(k, e)} step="0.05"
+                                        style={inputStyle} type="number"
+                                        value={params[k] != null ? params[k] : ''}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        <div style={{fontSize: '9px', color: '#7a8290', marginTop: '6px', lineHeight: 1.35}}>
+                            Click the map to place · click <b>{STRUCTURE_LABELS[active] || active}</b> again to stop.
+                        </div>
+                    </div>
+                ) : null}
+                {structs.length ? (
+                    <div style={{marginTop: '8px'}}>
+                        <div style={{...lbl, marginBottom: '2px'}}>Placed structures ({structs.length})</div>
+                        <ul data-stewie-struct-list="1" style={{listStyle: 'none', margin: '2px 0', padding: 0, maxHeight: '110px', overflowY: 'auto'}}>
+                            {structs.map((st) => (
+                                <li key={st.structId} style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0', fontSize: '11px'}}>
+                                    <span style={{
+                                        width: '10px', height: '10px', flex: '0 0 auto', borderRadius: '2px',
+                                        border: '1px dashed #7cc6ff', background: 'rgba(124,198,255,0.12)'
+                                    }} />
+                                    <span style={{flex: '1 1 auto', color: '#c7d2e3'}}>{STRUCTURE_LABELS[st.name] || st.name}</span>
+                                    <span style={{flex: '0 0 auto', color: '#8a93a3', fontSize: '10px'}}>{st.nOrders} order{st.nOrders === 1 ? '' : 's'}</span>
+                                    <span
+                                        onClick={() => this.onRemoveStructure(st.idx)}
+                                        style={{flex: '0 0 auto', cursor: 'pointer', color: '#e0564b', fontWeight: 700, padding: '0 4px'}}
+                                        title="remove structure + its orders"
+                                    >×</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
     renderQueue(s) {
         if (!s.orders.length) {
             return <div style={{fontSize: '10px', color: '#7a8290', padding: '4px 0'}}>No orders yet — pick a tool and click the map.</div>;
@@ -208,6 +334,11 @@ class MissionPlan extends React.Component {
                         }} />
                         <span style={{flex: '1 1 auto', color: '#c7d2e3'}}>
                             {o.kind} · {o.footprint_m2} m² · {o.depth_m} m
+                            {o.struct ? (
+                                <span style={{color: '#7cc6ff', fontSize: '9px', marginLeft: '5px'}}>
+                                    ⬡ {(STRUCTURE_LABELS[o.struct] || o.struct)}
+                                </span>
+                            ) : null}
                         </span>
                         <span
                             onClick={() => this.onRemove(o.idx)}
@@ -1004,8 +1135,10 @@ class MissionPlan extends React.Component {
 
                 {this.renderTools(s)}
 
+                {this.renderStructures(s)}
+
                 <div style={{
-                    fontSize: '10px', margin: '2px 0 8px', minHeight: '26px', lineHeight: 1.35,
+                    fontSize: '10px', margin: '10px 0 8px', minHeight: '26px', lineHeight: 1.35,
                     color: s.hintErr ? '#e0564b' : '#8a93a3'
                 }}>{s.hint}</div>
 
