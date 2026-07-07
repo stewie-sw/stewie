@@ -48,6 +48,19 @@ const MAP_CRS = 'IAU_2015:30135';   // the lunar polar-stereographic workbench C
 const GEO_CRS = 'IAU_2015:30100';   // selenographic lon/lat (order-anchor + globe bbox frame)
 const KIND_COLOR = {cut: '#e0563a', fill: '#4fd1ff'};   // Frontend A's palette (cut = drum-down, fill = berm)
 
+// DEPTH-3 fleet: a per-vehicle categorical route palette. Index 0 = the legacy single-vehicle gold, so a
+// single-rover plan renders BYTE-IDENTICALLY to before; index >0 gives each fleet rover a distinct colour.
+// The backend tags every plan_ir action with a 0-based `vehicle` id (lode/planner_views.py:440,457,492 —
+// veh = int(tr.get("vehicle", 0))) and lists per-vehicle allocation in totals.vehicles_detail[i].vehicle
+// (lode/planner_assembly.py:382; both 0-based from _allocate_trips's range(vehicles), planner_multivehicle.py),
+// so the same index keys the map route colour AND the panel legend swatch. Colours are picked distinct from
+// the cut/fill markers (#e0563a/#4fd1ff), the blue-dashed haul (#8fb8ff), and the green charger (#7fe0a8).
+const VEHICLE_COLORS = ['#ffd24a', '#ff5ec7', '#7cff5e', '#ff8f4a', '#b47cff', '#4affd2', '#ff6b6b', '#6ba3ff'];
+function vehicleColor(veh) {
+    const i = Number.isFinite(veh) ? veh : 0;
+    return VEHICLE_COLORS[((i % VEHICLE_COLORS.length) + VEHICLE_COLORS.length) % VEHICLE_COLORS.length];
+}
+
 function round1(n) { return Math.round(n * 10) / 10; }
 
 export default class PlanAuthor {
@@ -84,6 +97,19 @@ export default class PlanAuthor {
         this.objective = 'time';
         this.maxSlopeDeg = 25;
         this.budgets = {max_time_s: '', max_energy_J: '', max_charges: '', max_distance_m: '', risk_weight: ''};
+        // DEPTH-3 fleet controls. The REAL /api/plan fleet levers (both ride the SAME POST):
+        //   vehicles          -> PlanRequest.vehicles (stewie/server/routers/plan.py:72; int 1..16). vehicles!=1
+        //                        dispatches plan_and_simulate -> plan_multi (lode/planner_assembly.py:500) =
+        //                        site-exclusive LPT allocation, per-vehicle parallel battery sim, makespan=max,
+        //                        fleet-summed energy, space-time/charger conflict detection (planner_multivehicle).
+        //   charger_capacity  -> PlanRequest.charger_capacity (plan.py:75; int 1..8). Consumed via
+        //                        mission_from_dict -> Mission.charger_capacity (planner_model.py:367,194) ->
+        //                        _resolve_joint_resources / _resolve_charger_queue (planner_assembly.py:337,479):
+        //                        how many rovers may charge at once (FCFS queue when the fleet exceeds it).
+        // Defaults 1/1 MATCH the PlanRequest + Mission defaults, so a single-vehicle plan is semantically the
+        // legacy plan (no fleet allocation, no charger contention).
+        this.vehicles = 1;
+        this.chargerCapacity = 1;
         this._lastPlanPayload = null;   // the exact JSON POSTed to /api/plan (headless-proof readback)
         this.orders = [];          // {kind, footprint_m2, depth_m, coord:[x,y]30135, lonlat:[lon,lat]}
         this.result = null;        // last plan summary (for the panel)
@@ -185,6 +211,19 @@ export default class PlanAuthor {
                 clearKeepouts: () => this.clearKeepouts(),
                 keepoutCount: () => this.keepouts.length,
                 route: () => (this.route ? this.route.map((p) => p.slice()) : []),
+                // DEPTH-3 read-only: the rendered per-vehicle DRIVE-route features on the map (each tagged
+                // with its 0-based vehicle id + the stroke colour actually drawn), so a headless proof can
+                // assert distinct-colour routes exist per rover without pixel inspection.
+                routeFeatures: () => this.planSource.getFeatures()
+                    .filter((f) => f.get('vehicle') != null)
+                    .map((f) => {
+                        let color = null;
+                        try { const st = f.getStyle(); color = (st && st.getStroke) ? st.getStroke().getColor() : null; }
+                        catch (e) { color = null; }
+                        const g = f.getGeometry();
+                        return {vehicle: f.get('vehicle'), color: color,
+                            vertices: (g && g.getCoordinates) ? g.getCoordinates().length : 0};
+                    }),
                 // Plan-control drivers (DEPTH-2) — the SAME controller code paths the panel selects/inputs call,
                 // so a proof can pick a solver/objective/budget without simulating DOM events. Authoring only.
                 setAlgorithm: (v) => this.setAlgorithm(v),
@@ -192,6 +231,10 @@ export default class PlanAuthor {
                 setMaxSlope: (v) => this.setMaxSlope(v),
                 setBudget: (k, v) => this.setBudget(k, v),
                 clearBudgets: () => this.clearBudgets(),
+                // Fleet drivers (DEPTH-3) — same controller code paths the fleet inputs call, so a proof can
+                // set the vehicle/charger counts without simulating DOM events. Authoring only.
+                setVehicles: (v) => this.setVehicles(v),
+                setChargerCapacity: (v) => this.setChargerCapacity(v),
                 // Read-only readback of the exact /api/plan POST body + the last plan summary (for verifying
                 // the chosen levers rode the POST and the resolved algorithm/objective came back).
                 lastPlanPayload: () => (this._lastPlanPayload ? JSON.parse(JSON.stringify(this._lastPlanPayload)) : null),
@@ -226,6 +269,8 @@ export default class PlanAuthor {
             // DEPTH-2 plan controls (mirrored to the panel so the selects/inputs reflect the chosen levers).
             algorithm: this.algorithm, objective: this.objective, maxSlopeDeg: this.maxSlopeDeg,
             budgets: {...this.budgets},
+            // DEPTH-3 fleet controls (mirrored to the panel).
+            vehicles: this.vehicles, chargerCapacity: this.chargerCapacity,
             koTool: this.koTool,
             keepouts: this.keepouts.map((k, i) => ({idx: i, kind: k.kind, label: this._koSummary(k)})),
             run: this._runView(),
@@ -315,6 +360,27 @@ export default class PlanAuthor {
     clearBudgets() {
         this.budgets = {max_time_s: '', max_energy_J: '', max_charges: '', max_distance_m: '', risk_weight: ''};
         this._setHint('Resource budgets cleared — plan is unconstrained.');
+    }
+
+    // --- Fleet controls (DEPTH-3): vehicles + charger_capacity, clamped to the PlanRequest bounds ------
+    // The counts ride the SAME /api/plan POST (vehicles as a top-level field, charger_capacity through the
+    // mission dict). Clamped to the backend bounds so a bad value is corrected client-side before the POST;
+    // the backend re-validates (plan.py:72 ge=1 le=16 / :75 ge=1 le=8).
+    setVehicles(v) {
+        const n = parseInt(v, 10);
+        this.vehicles = Number.isFinite(n) ? Math.max(1, Math.min(16, n)) : 1;
+        if (this.vehicles > 1) {
+            this._setHint('Fleet: ' + this.vehicles + ' rovers. Plan allocates orders across the fleet; ' +
+                'each rover\'s route renders in its own colour.');
+        } else {
+            this._setHint('Single rover. Add orders, or Plan the mission.');
+        }
+        this._emit();
+    }
+    setChargerCapacity(v) {
+        const n = parseInt(v, 10);
+        this.chargerCapacity = Number.isFinite(n) ? Math.max(1, Math.min(8, n)) : 1;
+        this._emit();
     }
     // Serialize the SET budgets into the planner's objective_constraints schema: only finite, >= 0 entries
     // (lode/planner_model.py:431-433); a blank field is omitted so that constraint is simply not applied.
@@ -515,6 +581,10 @@ export default class PlanAuthor {
             // replacing the former hardcoded nearest/time.
             algorithm: this.algorithm, objective: this.objective,
             max_traverse_slope_deg: this.maxSlopeDeg,
+            // DEPTH-3: the fleet levers on the SAME POST. vehicles is a typed PlanRequest field (plan.py:72,
+            // passed as MP.plan(vehicles=...)); charger_capacity is read off the mission dict (plan.py:75 ->
+            // mission_from_dict, planner_model.py:367). Both default to 1 (== the legacy single-vehicle plan).
+            vehicles: this.vehicles, charger_capacity: this.chargerCapacity,
             lat: meanLat, lon: meanLon,
             orders: this.orders.map((o, i) => ({
                 action: o.kind + ' ' + (i + 1), kind: o.kind,
@@ -575,26 +645,44 @@ export default class PlanAuthor {
         this._resetRun();                 // a fresh plan clears any prior run's rover/trail/telemetry
         const pir = resp.plan_ir || {};
         const feasible = resp.feasible !== false && pir.feasible !== false;
-        const routeStyle = new Style({
-            stroke: new Stroke({color: '#ffd24a', width: 2.5, lineDash: feasible ? undefined : [6, 5]})
+        // DEPTH-3: colour each GoTo drive leg by its vehicle id (plan_ir action `vehicle`, 0-based). A route
+        // dash marks an infeasible plan. vehicleColor(0) == the legacy gold, so a single-rover plan is
+        // rendered exactly as before; a fleet gets one distinct colour per rover.
+        const routeStyleFor = (veh) => new Style({
+            stroke: new Stroke({color: vehicleColor(veh), width: 2.5, lineDash: feasible ? undefined : [6, 5]})
         });
         const haulStyle = new Style({stroke: new Stroke({color: '#8fb8ff', width: 2, lineDash: [2, 4]})});
-        const routeMap = [];              // the ordered drive route in map coords, for the SIM-run rover animation
+        // The SIM-run rover animates one marker; keep a per-vehicle route array so the primary rover (vehicle 0)
+        // drives its OWN track, and fall back to the stitched order for a single-vehicle plan (byte-identical).
+        const routeByVeh = {};            // vehicle id -> ordered drive route in map coords
         (pir.actions || []).forEach((a) => {
             if (a.op === 'GoTo' && Array.isArray(a.waypoints) && a.waypoints.length > 1) {
+                const veh = Number.isFinite(a.vehicle) ? a.vehicle : 0;
                 const line = a.waypoints.map((w) => this._orderToMap(wc, w[0], w[1]));
-                line.forEach((p) => {     // append, dropping a duplicate shared endpoint between legs
-                    const last = routeMap[routeMap.length - 1];
-                    if (!last || last[0] !== p[0] || last[1] !== p[1]) { routeMap.push(p); }
+                const rm = (routeByVeh[veh] = routeByVeh[veh] || []);
+                line.forEach((p) => {     // append, dropping a duplicate shared endpoint between this rover's legs
+                    const last = rm[rm.length - 1];
+                    if (!last || last[0] !== p[0] || last[1] !== p[1]) { rm.push(p); }
                 });
                 const f = new Feature({geometry: new LineString(line)});
-                f.setStyle(routeStyle); this.planSource.addFeature(f);
+                f.set('vehicle', veh);
+                f.setStyle(routeStyleFor(veh)); this.planSource.addFeature(f);
             } else if (a.op === 'CutHaulFill' && a.site && a.dest) {
                 const s = this._orderToMap(wc, a.site[0], a.site[1]);
                 const d = this._orderToMap(wc, a.dest[0], a.dest[1]);
                 const hf = new Feature({geometry: new LineString([s, d])});
                 hf.setStyle(haulStyle); this.planSource.addFeature(hf);
             }
+        });
+        // Stitch the per-vehicle routes (vehicle order) into the single SIM-run animation track. For a
+        // single-vehicle plan this is exactly the legacy route (one vehicle -> one polyline); for a fleet the
+        // SIM rover drives the concatenated tracks (Run-SIM stays a single-marker desktop_sil, unchanged).
+        const routeMap = [];
+        Object.keys(routeByVeh).map(Number).sort((a, b) => a - b).forEach((veh) => {
+            routeByVeh[veh].forEach((p) => {
+                const last = routeMap[routeMap.length - 1];
+                if (!last || last[0] !== p[0] || last[1] !== p[1]) { routeMap.push(p); }
+            });
         });
         this.route = routeMap;            // retained so the operator can now RUN the plan as a SIM mission
         // Charger = order-frame origin (plan_ir.frame.charger, [0,0]) = the anchor.
@@ -641,10 +729,29 @@ export default class PlanAuthor {
             budgets: this._objectiveConstraints(),
             infeasible_reasons: resp.infeasible_reasons || [],
             pdf: resp.pdf ? ('/api' + resp.pdf) : null,
-            terrain_source: resp.terrain_source || ''
+            terrain_source: resp.terrain_source || '',
+            // DEPTH-3 fleet summary — VIEWS of the real plan_multi aggregate (lode/planner_assembly.py). The
+            // per-vehicle allocation is totals.vehicles_detail (:382): each rover's own trip count / time /
+            // energy / distance / charges + its charger-queue wait. makespan_s is the fleet wall-clock = MAX
+            // per-vehicle time (:397); energy_j (the headline above) is the fleet-summed energy. charger_*
+            // fields surface shared-charger contention (:398,408). Each row carries the SAME vehicleColor()
+            // the map route uses, so the panel legend swatch matches the drawn route. Empty for 1 vehicle.
+            vehicles_detail: (t.vehicles_detail || []).map((d) => ({
+                vehicle: d.vehicle, n_trips: d.n_trips, time_s: d.time_s, energy_J: d.energy_J,
+                distance_m: d.distance_m, charges: d.charges, charger_wait_s: d.charger_wait_s,
+                color: vehicleColor(d.vehicle)
+            })),
+            makespan_parallel_s: t.makespan_parallel_s != null ? t.makespan_parallel_s : null,
+            charger_conflicts: t.charger_conflicts != null ? t.charger_conflicts : null,
+            charger_wait_s: t.charger_wait_s != null ? t.charger_wait_s : null,
+            charger_capacity: this.chargerCapacity
         };
+        const nVeh = (this.result && this.result.vehicles) || 1;
         this._setHint(feasible
-            ? 'Plan rendered: route = gold, haul = blue-dashed, charger = green. Press Run mission (SIM) to execute it.'
+            ? (nVeh > 1
+                ? 'Plan rendered: ' + nVeh + ' rovers, each route in its own colour (see the fleet summary); ' +
+                  'haul = blue-dashed, charger = green. Press Run mission (SIM) to execute it.'
+                : 'Plan rendered: route = gold, haul = blue-dashed, charger = green. Press Run mission (SIM) to execute it.')
             : 'Infeasible plan rendered (route dashed). See the reasons below.', !feasible);
     }
 

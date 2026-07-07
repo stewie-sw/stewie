@@ -119,6 +119,7 @@ class MissionPlan extends React.Component {
             koTool: null, keepouts: [],
             algorithm: 'nearest', objective: 'time', maxSlopeDeg: 25,
             budgets: {max_time_s: '', max_energy_J: '', max_charges: '', max_distance_m: '', risk_weight: ''},
+            vehicles: 1, chargerCapacity: 1,
             hint: 'Pick a work site, then a tool, then click the map to place orders.', hintErr: false,
             result: null, planning: false,
             run: {active: false, id: null, legsSeen: 0, total: 0, terminal: null, lastEvent: '',
@@ -152,6 +153,9 @@ class MissionPlan extends React.Component {
     onMaxSlope = (e) => { if (this.ctrl) { this.ctrl.setMaxSlope(e.target.value); } };
     onBudget = (key, e) => { if (this.ctrl) { this.ctrl.setBudget(key, e.target.value); } };
     onClearBudgets = () => { if (this.ctrl) { this.ctrl.clearBudgets(); } };
+    // DEPTH-3 fleet controls
+    onVehicles = (e) => { if (this.ctrl) { this.ctrl.setVehicles(e.target.value); } };
+    onChargerCapacity = (e) => { if (this.ctrl) { this.ctrl.setChargerCapacity(e.target.value); } };
 
     renderTools(s) {
         const btn = (kind, label, color) => {
@@ -278,6 +282,48 @@ class MissionPlan extends React.Component {
         );
     }
 
+    // --- Fleet controls (DEPTH-3): vehicles + charger capacity, folded into the SAME /api/plan POST --------
+    // `vehicles` is the typed PlanRequest field (plan.py:72, 1..16); `charger_capacity` rides the mission
+    // dict (plan.py:75 -> mission_from_dict, 1..8). vehicles>1 makes the backend run plan_multi
+    // (site-exclusive allocation, per-vehicle parallel sim, makespan=max, fleet-summed energy). No new route.
+    renderFleet(s) {
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        const inputStyle = {
+            width: '100%', boxSizing: 'border-box', background: '#0c1017', color: '#c7d2e3',
+            border: '1px solid #2a2a36', borderRadius: '4px', padding: '5px 6px', font: '11px system-ui, sans-serif'
+        };
+        const fleet = (s.vehicles || 1) > 1;
+        return (
+            <div style={{marginTop: '10px', borderTop: '1px solid #1c1c26', paddingTop: '8px'}}>
+                <div style={{...lbl, marginBottom: '4px'}}>Fleet</div>
+                <div style={{display: 'flex', gap: '8px'}}>
+                    <div style={{flex: '1 1 0'}}>
+                        <label style={lbl} htmlFor="mp-vehicles">Rovers</label>
+                        <input
+                            data-stewie-vehicles="1" id="mp-vehicles" max="16" min="1" onChange={this.onVehicles}
+                            step="1" style={inputStyle} type="number" value={s.vehicles != null ? s.vehicles : 1}
+                        />
+                    </div>
+                    <div style={{flex: '1 1 0'}}>
+                        <label style={lbl} htmlFor="mp-chargers">Chargers</label>
+                        <input
+                            data-stewie-chargers="1" id="mp-chargers" max="8" min="1" onChange={this.onChargerCapacity}
+                            step="1" style={inputStyle} value={s.chargerCapacity != null ? s.chargerCapacity : 1}
+                            type="number"
+                        />
+                    </div>
+                </div>
+                <div style={{fontSize: '9px', color: '#7a8290', margin: '4px 0 0', lineHeight: 1.35}}>
+                    {fleet
+                        ? 'Orders are allocated site-exclusively across the fleet; each rover routes + battery-sims in ' +
+                          'parallel from the shared charger (makespan = the slowest rover). Chargers = how many may ' +
+                          'charge at once (the rest queue FCFS). Each rover\'s route draws in its own colour.'
+                        : 'One rover (single-vehicle plan). Raise Rovers > 1 to allocate the orders across a fleet.'}
+                </div>
+            </div>
+        );
+    }
+
     // --- No-go / keep-out authoring: draw avoid-regions the planner routes around (payload.keepouts) ------
     renderKeepouts(s) {
         const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
@@ -345,6 +391,41 @@ class MissionPlan extends React.Component {
         );
     }
 
+    // DEPTH-3 fleet summary: the per-vehicle allocation the backend plan_multi returns (totals.vehicles_detail
+    // -> planAuthor result.vehicles_detail). Each row's swatch colour is the SAME vehicleColor() the map route
+    // uses, so the operator can read which coloured route belongs to which rover. Rendered only for a fleet.
+    renderFleetSummary(r) {
+        const vd = (r && r.vehicles_detail) || [];
+        if (!(r && r.vehicles > 1 && vd.length)) { return null; }
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        return (
+            <div style={{marginTop: '8px', borderTop: '1px solid #1c1c26', paddingTop: '6px'}}>
+                <div style={{...lbl, marginBottom: '4px'}}>Fleet allocation · {r.vehicles} rovers</div>
+                <div style={{fontSize: '9px', color: '#7a8290', margin: '0 0 4px', lineHeight: 1.35}}>
+                    Makespan = the slowest rover ({fmtDur(r.makespan_s)}); energy = fleet-summed ({fmtEnergy(r.energy_j)}).
+                </div>
+                <ul style={{listStyle: 'none', margin: '2px 0', padding: 0}}>
+                    {vd.map((d) => (
+                        <li key={d.vehicle} style={{display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0', fontSize: '11px'}}>
+                            <span style={{width: '11px', height: '4px', flex: '0 0 auto', borderRadius: '2px', background: d.color}} />
+                            <span style={{flex: '0 0 58px', color: '#c7d2e3', fontWeight: 600}}>Rover {d.vehicle + 1}</span>
+                            <span style={{flex: '1 1 auto', color: '#8a93a3'}}>
+                                {d.n_trips} order{d.n_trips === 1 ? '' : 's'} · {fmtDur(d.time_s)} · {fmtEnergy(d.energy_J)}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+                {(r.charger_conflicts != null || r.charger_wait_s != null) ? (
+                    <div style={{fontSize: '10px', color: '#8a93a3', marginTop: '2px'}}>
+                        Chargers: {r.charger_capacity != null ? r.charger_capacity : 1} ·
+                        {' '}{r.charger_conflicts || 0} queue overlap{(r.charger_conflicts || 0) === 1 ? '' : 's'}
+                        {r.charger_wait_s ? ' · +' + fmtDur(r.charger_wait_s) + ' queue wait' : ''}
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
     renderResult(s) {
         const r = s.result;
         if (!r) { return null; }
@@ -380,6 +461,7 @@ class MissionPlan extends React.Component {
                 {r.budgets && Object.keys(r.budgets).length ? kv('Budgets',
                     Object.entries(r.budgets).map(([k, v]) => k.replace(/^max_/, '≤').replace(/_[sJm]$/, '') + ' ' + v).join(' · ')) : null}
                 {kv('Terrain', r.terrain_source || '—')}
+                {this.renderFleetSummary(r)}
                 {(r.infeasible_reasons || []).length ? (
                     <div style={{fontSize: '10px', color: '#e0b300', marginTop: '4px'}}>
                         {r.infeasible_reasons.join(' · ')}
@@ -551,6 +633,8 @@ class MissionPlan extends React.Component {
                 {this.renderKeepouts(s)}
 
                 {this.renderPlanControls(s)}
+
+                {this.renderFleet(s)}
 
                 <div style={{display: 'flex', gap: '6px', marginTop: '8px'}}>
                     <button
