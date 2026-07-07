@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "eb452213d8bdd513614411ea9c99a9d4aa6e032984a5336e6579d8affb5223cd",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "176fd0dbc6ae7fbab2a4b3537525db8b82f6e72b",
-  "prd_sha256": "a023ec99f8543eaefc81a9159205ff27850b5750bdc96dc552cfc86e71043bd7",
+  "prd_commit": "78abd4d0745de5521d2d442ea2c3d9cc86706da9",
+  "prd_sha256": "45e12ba7b80f474d65c1a541d64b6c6b39ed4eac9f03016d0fcd4340111582e0",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -2721,16 +2721,16 @@
    "text": "**Layer-eligibility UI.** [REQ:GW-03] The layer manifest UI differentiates display/planning/release/execute eligibility + exposes freshness/provenance/uncertainty; a display-only layer cannot be marked planning-valid. (extends DW-01; binds LY-01)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "GW-04",
    "lane": "GW",
    "pri": "P1",
-   "text": "**Asset Library.** Browse/search/inspect/export/recover durable assets (missions/sites/DEMs/layer-packages/vehicles/plans/rehearsals/runs/reports/evidence/bags/captures), separate from visible layers; every durable object traces to provenance."
+   "text": "**Asset Library.** [REQ:GW-04] Browse/search/inspect/export/recover durable assets (missions/sites/DEMs/layer-packages/vehicles/plans/rehearsals/runs/reports/evidence/bags/captures), separate from visible layers; every durable object traces to provenance."
   },
   {
    "I": "N",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 72,
+   "buildable": 71,
    "concurrent": 0,
-   "done": 253,
+   "done": 254,
    "gated": 14
   },
   "by_lane": {
@@ -5131,7 +5131,7 @@
     "total": 2
    },
    "GW": {
-    "done": 5,
+    "done": 6,
     "total": 8
    },
    "LY": {
@@ -5245,7 +5245,7 @@
     "total": 116
    },
    "P1": {
-    "done": 142,
+    "done": 143,
     "total": 188
    },
    "P2": {
@@ -5258,9 +5258,9 @@
    }
   },
   "cited": 274,
-  "done_pct": 74.6,
+  "done_pct": 74.9,
   "in_scope": 325,
-  "in_scope_done_pct": 77.8,
+  "in_scope_done_pct": 78.2,
   "total": 339
  },
  "workflow_spine": [
