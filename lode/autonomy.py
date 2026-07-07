@@ -258,7 +258,8 @@ def _beacon_fix(beacon_xy, true_pose, *, max_range_m=60.0, fx_px=900.0, sigma_px
 
 
 def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto", objective="time",
-                    max_traverse_slope_deg=25.0, perception_sigma_m=None, dig_sigma_gate_m=0.20, seed=0):
+                    max_traverse_slope_deg=25.0, perception_sigma_m=None, dig_sigma_gate_m=0.20, seed=0,
+                    dense_perception=None, dense_hazard_rmse_m=0.15):
     """Run the AutoNav-style loop as an OVERLAY on the ONE canonical plant (A-03). The plan, vehicle,
     routing, energy, and reserve all come from the planner (``_canonical_plant`` -> ``plan_and_simulate``
     -> ``_simulate``), so the closed-loop execution and the planner simulation describe the SAME mission:
@@ -286,6 +287,8 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
     perception_fixes = observe_more = 0
     map_observe_more = 0                                   # P6: digs gated on local map coverage
     survey_time_s = 0.0                                    # P6: real time the survey-before-dig gate costs
+    dense_hazard_defers = 0                                # P6 live-loop: digs deferred on a PERCEIVED self-made hazard
+    dense_obs: list = []                                   # P6 live-loop: per-dig dense observed-vs-belief records
     stations = [tuple(mission.charger)]                   # P6: where the rover has observed the worksite from
     legs = []
     # Task #25 (Aaron: "everything is precision ops -- a high berm will flip the rover"): terrain
@@ -326,9 +329,33 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
         # time -- before the (irreversible) excavation; the survey observation then raises coverage. This is
         # an action with a measurable cost, not just a counter.
         site = tuple(leg["site"])
-        if leg.get("dig_e", 0.0) > 0.0 and MC.local_coverage(stations, site) < MC.COVERAGE_DIG_GATE:
+        is_dig = leg.get("dig_e", 0.0) > 0.0
+        if is_dig and MC.local_coverage(stations, site) < MC.COVERAGE_DIG_GATE:
             survey_time_s += MC.OBSERVE_DWELL_S
             map_observe_more += 1
+        # DENSE-PERCEPTION-IN-THE-LOOP gate (P6 live loop / CP-09 'I': observability CONSUMED in the live
+        # loop, not just as a tested producer). Before committing a dig, if a PRIOR dig has reshaped the
+        # terrain (`built` non-empty), the rover OBSERVES the mutated as-built through a REAL nadir depth
+        # render (dart.observed_map) and the dense map-channel scores the observed map against the belief
+        # AT the dig site. If the observed map DIVERGES beyond the hazard threshold -- a self-made berm/pit
+        # the stale belief does not carry -- the loop DEFERS: it re-surveys (a real OBSERVE_DWELL_S dwell)
+        # before the irreversible excavation instead of digging blind. This is the perception loop closed:
+        # the in-loop decision changes because the rover SEES its own terrain change. Guarded so the render
+        # cost (~1 s/frame) is paid only here, only for a dig, only when a provider is wired (the default
+        # fast path renders nothing) and only when the provider yields an observation (else the cheap tier).
+        dense_deferred = False
+        if is_dig and dense_perception is not None:
+            dobs = dense_perception.observe(site=site, built=built, leg=leg)
+            if dobs is not None:
+                score = MC.map_channel_observed_score(dobs.observed, dobs.belief, valid_mask=dobs.site_mask)
+                rmse = score["map_rmse_m"]
+                rec = {"leg": leg["label"], "map_rmse_m": rmse, "reward": score["reward"],
+                       "observed_cells": score["observed_cells"], "deferred": False}
+                if rmse is not None and rmse > dense_hazard_rmse_m:
+                    survey_time_s += MC.OBSERVE_DWELL_S       # re-survey before the irreversible dig
+                    dense_hazard_defers += 1
+                    dense_deferred = rec["deferred"] = True
+                dense_obs.append(rec)
         stations.append(site)                             # the rover observes the worksite from each station
         nominal_J = nominal_leg_energy_J((belief.x, belief.y), leg, ctx=ctx)
         # #25: the leg's path check uses the CANONICAL plant departure pose (where the rover actually drives
@@ -404,7 +431,11 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
                      # (was always [] -> the cascade could never fire). tip-margin needs the support-polygon
                      # geometry not computed in this loop, so it stays None (no fabricated margin).
                      "faults": classify_faults(slip=float(telem["slip"]), battery_frac=belief.soc_frac(),
-                                               loc_sigma_m=float(belief.pos_sigma_m))})
+                                               loc_sigma_m=float(belief.pos_sigma_m)),
+                     # P6 live-loop: did the dense observed-vs-belief divergence defer this dig (a
+                     # perceived self-made hazard the belief did not carry)? False when dense perception
+                     # is off or no hazard was perceived.
+                     "dense_deferred": dense_deferred})
     # A-03: reconcile the belief overlay to the canonical plant end state -- the canonical sim drives HOME
     # at mission end and the believed mission time IS the canonical plant time (the overlay does not invent
     # a location/energy the plant never had). Drive home through the SAME dead-reckoning machinery as a work
@@ -429,6 +460,10 @@ def run_closed_loop(mission, *, dem=None, dem_origin=(0.0, 0.0), algorithm="auto
             "recharges": recharges, "replans": replans, "legs": legs,
             "perception_fixes": perception_fixes, "observe_more": observe_more,
             "map_observe_more": map_observe_more, "survey_time_s": survey_time_s, "map_channel": map_channel,
+            # P6 live-loop (CP-09 'I'): digs deferred because the rover PERCEIVED a self-made hazard via the
+            # in-loop render, and the per-dig dense observed-vs-belief records. Empty/0 when the fast path
+            # ran no render. A server-layer fold (the traffic_fold pattern) is DT-04's home for these.
+            "dense_hazard_defers": dense_hazard_defers, "dense_obs": dense_obs,
             # A-03: the ONE canonical plant ledger + the canonical Plan IR -- so the closed loop and the
             # planner simulation are provably the same mission (no second inconsistent simulator).
             "plant_energy_J": plant_energy_J, "plant_time_s": plant_time_s,

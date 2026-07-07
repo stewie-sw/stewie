@@ -29,6 +29,7 @@ CC0-1.0 (see ../LICENSE).
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import subprocess
@@ -209,3 +210,96 @@ def load_columnstate(scene_dir: str):
         disturbance=fields["disturbance"].astype(np.float64),
         datum=datum,
     )
+
+
+def scene_heightmap(scene_dir: str) -> np.ndarray:
+    """The scene's stored (pre-mutation) derived heightfield -- the rover's BELIEF before its own dig."""
+    from stewie.twin.io_fields import load_scene
+    fields, _meta = load_scene(scene_dir)
+    return fields["heightmap"].astype(np.float64)
+
+
+# ------------------------------------------------- P6 LIVE-LOOP dense perception (CP-09 'I' consumer)
+# The producer above renders + scores an observed map as a TESTED tier. This section lets the CLOSED
+# LOOP (`lode.autonomy.run_closed_loop`) CONSUME it at the dig decision point: render the mutated
+# as-built the rover has built so far, OBSERVE it, and hand the loop the observed-vs-belief divergence
+# over the dig site so a self-made hazard the stale belief does not carry can change the in-loop decision.
+# The render is guarded (see RenderedDensePerception.observe): only when a dig has already reshaped the
+# terrain (`built` non-empty) and only on a host with Godot -- the default fast loop path renders nothing.
+
+
+@dataclasses.dataclass
+class DenseObservation:
+    """A REAL dense observed heightfield of the (possibly self-mutated) worksite plus the belief it is
+    scored against. ``observed`` / ``belief`` / ``valid_mask`` are HxW on the render grid; ``site_mask``
+    selects the dig-site cells the loop scores over; ``manifest`` carries the grid geometry. Produced by a
+    live on-host render (``RenderedDensePerception``) or, in tests, injected from the committed real-render
+    fixture -- never fabricated."""
+
+    observed: np.ndarray
+    belief: np.ndarray
+    valid_mask: np.ndarray
+    site_mask: np.ndarray
+    manifest: dict
+
+
+def site_cell_mask(manifest: str | dict, site_xy: tuple[float, float], half_m: float) -> np.ndarray:
+    """Boolean HxW mask of the render-grid cells within +/-``half_m`` (world) of ``site_xy``, using the
+    manifest grid geometry (x0, y0, cell_m). This is the dig-site region the dense reward is scored over."""
+    m = load_manifest(manifest)
+    W, H = int(m["width"]), int(m["height"])
+    cell, x0, y0 = float(m["cell_m"]), float(m["x0"]), float(m["y0"])
+    cols = x0 + (np.arange(W) + 0.5) * cell
+    rows = y0 + (np.arange(H) + 0.5) * cell
+    XX, YY = np.meshgrid(cols, rows)
+    return (np.abs(XX - float(site_xy[0])) <= half_m) & (np.abs(YY - float(site_xy[1])) <= half_m)
+
+
+class RenderedDensePerception:
+    """LIVE on-host dense-perception provider for the closed loop (P6 / CP-09).
+
+    When the loop reaches a dig decision AND a prior dig has already reshaped the terrain (the loop's
+    ``built`` list is non-empty), ``observe`` materializes that as-built as a conserved cut+berm on a
+    ColumnState loaded from ``base_scene_dir``, renders a nadir depth frame on-host, decodes it, and
+    returns the observed map vs the PRE-mutation belief over the dig site. The as-built the provider
+    materializes is a REAL mass-conserving cut+berm (``apply_as_built_cut_fill``); nothing is fabricated,
+    and the depth is a real Godot render of the displaced mesh.
+
+    Guarded: ``observe`` returns None when Godot is unavailable (bare CI runner -> the loop falls back to
+    the cheap onboard-coverage tier) or when nothing has been built yet (no self-made change to observe),
+    so a render happens at most once per reshaped dig site, never on the default fast path."""
+
+    def __init__(self, base_scene_dir: str, *, cut_rc=(60, 60, 100, 100), cut_depth_m: float = 0.10,
+                 berm_rc=(150, 150, 172, 172), site_half_m: float = 0.30,
+                 out_stem: str = "_p6_liveloop", work_dir: str | None = None):
+        self.base_scene_dir = base_scene_dir
+        self.cut_rc = tuple(cut_rc)
+        self.cut_depth_m = float(cut_depth_m)
+        self.berm_rc = tuple(berm_rc)
+        self.site_half_m = float(site_half_m)
+        self.out_stem = out_stem
+        self.work_dir = work_dir
+        self._belief: np.ndarray | None = None
+
+    def _belief_map(self) -> np.ndarray:
+        if self._belief is None:
+            self._belief = scene_heightmap(self.base_scene_dir)
+        return self._belief
+
+    def observe(self, *, site, built, leg=None) -> DenseObservation | None:
+        """Render the mutated as-built and return the observed-vs-belief dense observation over the site,
+        or None when no render is available / nothing has been built (the loop then uses the cheap tier)."""
+        if not built or not godot_available():
+            return None
+        cs = load_columnstate(self.base_scene_dir)
+        OM_dug = apply_as_built_cut_fill(cs, cut_rc=self.cut_rc, cut_depth_m=self.cut_depth_m,
+                                         berm_rc=self.berm_rc)   # REAL conserved as-built (mass -> berm)
+        work_dir = self.work_dir or os.path.join(_GODOT_DIR, "out")
+        scene = os.path.join(work_dir, self.out_stem + "_scene")
+        write_scene_snapshot(cs, self.base_scene_dir, scene)
+        observed, valid, man = observe_scene(scene, self.out_stem + "_depth", work_dir=work_dir)
+        site_mask = site_cell_mask(man, site, self.site_half_m) & valid
+        if not site_mask.any():                                 # the dig site is off the render patch ->
+            site_mask = OM_dug & valid                          # score over the observed as-built footprint
+        return DenseObservation(observed=observed, belief=self._belief_map(), valid_mask=valid,
+                                site_mask=site_mask, manifest=man)
