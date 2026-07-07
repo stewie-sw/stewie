@@ -12,25 +12,28 @@
 > hardware, and does not claim to be. The deployed planner is deterministic on purpose; reinforcement
 > learning is training-only; the Execute playback is a simulated run (no live telemetry).
 >
-> **Baseline.** The requirement matrix (product requirements, section 7, 339 rows) reads **251 verified
-> done** (about 74 percent overall; 77 percent of the 325 in-scope rows, with hardware and host gated
-> rows excluded from that denominator). By priority: P0 106/116, P1 141/188, P2 4/33. The CI coverage
-> floor is 85 percent; CI is green on the working branch. Both public hosts are up: the GIS IDE at
-> `artemis.stewie.space/ide/` and the single-page cockpit at `app.stewie.space`. The committed matrix is
-> projected read-only onto the in-IDE requirement board, and the generated traceability file is written
-> by the traceability tools. This narrative matrix is hand-maintained; the code wins on any disagreement.
+> **Baseline.** The requirement matrix (product requirements, section 7, 339 rows) reads **254 verified
+> done** (about 75 percent overall; 78 percent of the 325 in-scope rows, with hardware and host gated
+> rows excluded from that denominator). By priority: P0 107/116, P1 143/188, P2 4/33. These are the live
+> tool output (`STATUS.json`, `release_manifest.json`), not hand counts. The CI coverage floor is 85
+> percent; CI is green on the working branch. Both public hosts are up: the GIS IDE at
+> `artemis.stewie.space/ide/` (the bare `artemis.stewie.space` redirects there) and the single-page
+> cockpit at `app.stewie.space`. The committed matrix is projected read-only onto the in-IDE requirement
+> board, and the generated traceability file is written by the traceability tools. This narrative matrix
+> is hand-maintained; the code wins on any disagreement.
 
 ## GIS mission-control IDE
 
 | Shipped and load-bearing | Training-only or offline | Unbuilt and gated |
 |---|---|---|
-| One persistent lunar map (QGIS Web Client 2 over QGIS Server) in the Moon south-polar stereographic frame (`IAU_2015:30135`); pole-truthful, no WGS84 or Earth claim on lunar coordinates | The full QWC2 migration is incremental; the earlier single-page cockpit stays live at `app.stewie.space` for panes not yet ported | Full multi-panel GIS parity with a production desktop GIS (measure, snap, undo, and edit history exist; the deep editing surface is still being adopted) |
-| Real terrain: 8 Artemis III candidate-site DEMs (LOLA 5 m polar) plus a 1 m Haworth shape-from-shading DEM, with slope, hillshade, and LROC imagery context drapes | | Some external OGC drapes are deferred with reasons (Moon Trek WMTS CRS, QuickMap SPA, and the in-canvas STEWIE OGC render pending a caps extension) |
-| Mission authoring on the map: cut and fill orders, structures, keep-out barriers, planner controls, and a multi-vehicle fleet, written only through backend routes | | |
+| One persistent lunar map (QGIS Web Client 2 over QGIS Server) in the Moon south-polar stereographic frame (`IAU_2015:30135`); pole-truthful, no WGS84 or Earth claim on lunar coordinates; the bare `artemis.stewie.space` redirects to `/ide/` | The full QWC2 migration is incremental; the earlier single-page cockpit stays live at `app.stewie.space` for panes not yet ported | Full multi-panel GIS parity with a production desktop GIS (measure, snap, undo, and edit history exist; the deep editing surface is still being adopted) |
+| Real terrain: 8 Artemis III candidate-site DEMs (LOLA 5 m polar) plus a 1 m Haworth shape-from-shading DEM, with slope, hillshade, and LROC imagery context drapes; nine candidate-site pins (Haworth included) zoom on click; a WAC-albedo drape and a whole-Moon globe give context | | Some external OGC drapes are deferred with reasons (Moon Trek WMTS CRS, QuickMap SPA, and the in-canvas STEWIE OGC render pending a caps extension) |
+| Mission-authoring tool palette on the map: cut and fill build orders, structures, keep-out barriers, traverse-by-waypoints, return-to-lander, and place-objects (beacon, cache, instrument, sample, antenna), plus planner controls and a multi-vehicle fleet — every edit written only through a server-owned, versioned edit-session (monotonic version, before/after audit, linear undo) | | |
+| Plan-anywhere: pick any lat/lon (typed or by map-click); a request-time DEM resolver crops the global LOLA to plan in that local frame, not only at the fixed sites | | The pole itself (`|lat| > 89.9`) is served by the curated polar tiles, not an ad-hoc equirectangular crop |
 | Plan inspection: candidate-future compare, plan detail, a Gantt schedule, and a simulated run | | |
-| Layer catalog with per-layer provenance, freshness, uncertainty, and display versus planning, release, and execute eligibility | | |
+| The roughly 65-layer catalog (66 with the traversal-compaction traffic layer) with per-layer provenance, freshness, uncertainty, and display versus planning, release, and execute eligibility; a selection inspector, an asset library, and an evidence and report bundle | | |
 | Analysis layers: route cost, blocking, the terramechanics terms (slope, bearing, sinkage, slip, traction, energy), and traversal-compaction traffic | | |
-| A rover HUD, an in-IDE requirement board, and plan-anywhere over the global DEM | | |
+| A rover HUD (an IPEx instrument: 8 URDF joints plus IMU from live `/joint_states`, and an animated kinematic wireframe with sensor and field-of-view markers), a read-only RViz/Foxglove-style engineering panel, an in-IDE requirement board, and plan-anywhere over the global DEM | | |
 
 ## Mission planning
 
@@ -58,8 +61,9 @@
 
 | Shipped and load-bearing | Training-only or offline | Unbuilt and gated |
 |---|---|---|
-| The cheap onboard-observability map channel (route coverage and uncertainty from conserved truth) | `dart/stereo_depth.py` (real cv2 SGBM), consumed by the eval gates, not a live producer | The dense render to depth to point-cloud perception producer |
-| Terrain scan-match and AprilTag-beacon localization fixes in the closed loop (`lode/autonomy.py`) | AprilTag 12.7 mm / 7.15 degrees end to end, container-gated, not reproducible in default CI | The dense-tier map-channel RMSE (reconstructed map versus truth) |
+| The perception loop (the differentiator): the observed-map producer closes the loop on perception, not just action — a rover observes its own terrain change through a real render (`dart/observed_map.py`) and the map-channel scores the observed map against the conserved truth, so the localized observed-versus-truth divergence is a self-made hazard an open-loop generator cannot produce; the deterministic end-to-end replay loop (`stewie/runtime/replay_loop.py`, RS-04) reacts to a seeded hazard with a reroute or a logged refusal, path-dependent and mass-conserving | Forward passive stereo (`dart/stereo_depth.py`, real cv2 SGBM) consumed by the eval gates, sparse and container-gated, not a live producer | The dense reconstruction tier (render to stereo or COLMAP RMSE, reconstructed map versus truth); the live-ROS closure (RS-05/RS-06) |
+| The cheap in-loop observability map channel (route coverage and per-cell uncertainty from conserved truth; a low-coverage dig site triggers observe-more before it commits) | AprilTag 12.7 mm / 7.15 degrees end to end, container-gated, not reproducible in default CI | The dense render to depth to point-cloud perception producer |
+| Terrain scan-match and AprilTag-beacon localization fixes in the closed loop (`lode/autonomy.py`) | | |
 | A typed navigation factor contract: accepted estimator evidence carries factor type, covariance, frame, source, and evidence class (`dart/factors.py`, `dart/evidence_ledger.py`); metric shadow-length and boundary claims are blocked behind a negative-residual artifact | | Truth-free operational SLAM at centimeter parity (the real Katwijk ATE is 3.35 m; map visibility is not operational parity) |
 
 ## Cockpit and UI
@@ -88,5 +92,11 @@ and the translation layer are done and tested; what remains is the live rclpy no
 transport, both gated externally on the pit link details (an integration, not a design unknown). The
 end-to-end intern beta is therefore not claimable today.
 
+**On the roadmap (planned, not shipped):** persistence is moving to a hybrid Postgres plus PostGIS store.
+Today the edit-session is a server-owned, versioned, in-memory source of truth (before/after audit plus
+undo); the durable, database-backed layer (Phase 0) is in progress. It is named here as a direction, not
+a claim of a shipped datastore.
+
 **What not to claim:** RL beating greedy on single-objective tasks; the 3D dry-run as live; map
-visibility as operational SLAM parity. These are the three honesty traps the matrix above guards.
+visibility as operational SLAM parity; the dense reconstruction RMSE tier as in-loop; a durable database
+as shipped. These are the honesty traps the matrix above guards.

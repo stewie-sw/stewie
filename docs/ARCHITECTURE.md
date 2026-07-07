@@ -12,11 +12,15 @@ A single Python FastAPI backend is the authority and the sidecar at once. It own
 world model, the planner, the digital twin, the evaluation gates, and roughly 140 HTTP routes. Two web
 front ends consume it today:
 
-- **The GIS mission-control IDE** (QGIS Web Client 2), served at `artemis.stewie.space/ide/`. It is the
-  front door: one persistent lunar map with layers, selection, editing, and analysis as the primary
-  surface, and Plan, Rehearse, Validate, Release, Execute as mission-lifecycle overlays on that map. A
-  QGIS Server renders the pole-truthful raster and vector layers; the browser reaches the backend
-  through same-origin `/api/*` routes and reads read-only ROS2 telemetry over a rosbridge WebSocket.
+- **The GIS mission-control IDE** (QGIS Web Client 2), served at `artemis.stewie.space/ide/` (the bare
+  `artemis.stewie.space` redirects there, so the IDE is the single front door). One persistent lunar map
+  with layers, selection, editing, and analysis is the primary surface, and Plan, Rehearse, Validate,
+  Release, Execute are mission-lifecycle overlays on that map. Mission edits (cut/fill build orders,
+  structures, keep-outs, traverse waypoints, return-to-lander, placed objects) are written only through
+  a server-owned, versioned edit-session (before/after audit plus linear undo); the map layer is not the
+  authority. A QGIS Server renders the pole-truthful raster and vector layers; the browser reaches the
+  backend through same-origin `/api/*` routes and reads read-only ROS2 telemetry over a rosbridge
+  WebSocket (the RViz/Foxglove-style engineering panel is evidence-only, no command egress).
 - **The single-page cockpit**, served at `app.stewie.space`. It is the earlier operational surface (the
   ConOps spine plus the requirement board) and stays live while the migration onto the GIS IDE proceeds
   pane by pane.
@@ -95,15 +99,19 @@ core of the platform rather than at its periphery.
 
 - **Live and load-bearing:** the GIS IDE, mission authoring and planning, the conserved-physics core,
   the analysis layers, the digital twin (a completed simulated run folds its conserved terrain delta
-  into terrain memory and records belief and authority in one hash-chained world-transaction log), and
-  plan-anywhere over the global DEM. The deploy is simulation-only and mission Release is director-gated.
-- **Progress:** the requirement matrix (product requirements, section 7) reads 251 of 339 verified done
-  (about 74 percent overall; 77 percent of the 325 in-scope rows). The full split is the
-  [capability matrix](CAPABILITIES.md).
+  into terrain memory and records belief and authority in one hash-chained world-transaction log), the
+  perception loop (a rover observes its own terrain change through a real render and reacts to the
+  self-made hazard, path-dependent and mass-conserving, at the cheap in-loop tier), and plan-anywhere
+  over the global DEM. The deploy is simulation-only and mission Release is director-gated.
+- **Progress:** the requirement matrix (product requirements, section 7) reads 254 of 339 verified done
+  (about 75 percent overall; 78 percent of the 325 in-scope rows; the counts are the live tool output in
+  `STATUS.json` and `release_manifest.json`). The full split is the [capability matrix](CAPABILITIES.md).
+- **On the roadmap (planned, not built):** a hybrid Postgres plus PostGIS persistence layer; the durable
+  edit-session (Phase 0) is in progress.
 - **Designed, not built:** a live ROS2 and Gazebo pit with a real rover (the containers build; there is
   no live pit link yet), the live Project Chrono producer and the Tier-3 drum-force track (the PyChrono
-  force oracle is a stub), dense-range and point-cloud perception, and the dense map-channel reward. The
-  STEWIE-Orbit CCSDS comms stack is intent-only.
+  force oracle is a stub), dense-stereo GPU and point-cloud perception, the dense map-channel RMSE tier,
+  LAC/IPEx arm geometry, and camera video. The STEWIE-Orbit CCSDS comms stack is intent-only.
 
 ## Where to read next
 

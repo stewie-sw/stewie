@@ -34,23 +34,33 @@ stack, with its own physics, GIS, planner, and render seams, and is not the offi
 
 ## The front door: a GIS mission-control IDE
 
-The primary surface is a GIS mission workbench, live at **<https://artemis.stewie.space/ide/>**. It is
-one persistent lunar map (QGIS Web Client 2 over a QGIS Server backend) in the Moon south-polar
-stereographic frame, so the pole sits in the middle of the canvas and coordinates stay pole-truthful
-(no Earth or WGS84 claim on lunar positions). On that map you can:
+The primary surface is a GIS mission workbench, live at **<https://artemis.stewie.space/ide/>** — the
+bare **<https://artemis.stewie.space>** redirects to it, so the IDE is the single front door. It is one
+persistent lunar map (QGIS Web Client 2 over a QGIS Server backend) in the Moon south-polar stereographic
+frame, so the pole sits in the middle of the canvas and coordinates stay pole-truthful (no Earth or WGS84
+claim on lunar positions). On that map you can:
 
 - **browse the real terrain** — 8 Artemis III candidate-site DEMs (LOLA 5 m polar) plus a 1 m Haworth
-  shape-from-shading DEM, with slope, hillshade, and LROC imagery context drapes;
-- **author a mission** — cut and fill orders, structures, and keep-out barriers, with planner controls
-  and a multi-vehicle fleet;
+  shape-from-shading DEM, with slope, hillshade, and LROC imagery context drapes; nine candidate-site
+  pins (Haworth included) zoom on click;
+- **author a mission with a tool palette** — cut and fill build orders, structures, and keep-out
+  barriers, plus traverse-by-waypoints, return-to-lander, and place-objects (beacon, cache, instrument,
+  sample, antenna). Every edit is written through the backend edit-session, a server-owned, versioned
+  source of truth with a before/after audit trail and linear undo. Planner controls and a multi-vehicle
+  fleet round it out;
+- **plan anywhere** — pick any lat/lon on the Moon (typed or map-click); a request-time DEM resolver
+  crops the global LOLA so you plan in that local frame, not only at the fixed sites;
 - **inspect the plan** — candidate-future compare, plan detail, and a Gantt schedule, then run a
   simulated execution;
-- **read the layer catalog** — per-layer provenance, freshness, and uncertainty, with display-only
-  layers visibly distinct from planning, release, and execute eligible ones;
+- **read the layer catalog** — the roughly 65-layer catalog with per-layer provenance, freshness, and
+  uncertainty, with display-only layers visibly distinct from planning, release, and execute eligible
+  ones; plus a selection inspector, an asset library, and an evidence and report bundle;
 - **work the analysis layers** — route cost, blocking, the terramechanics terms (slope, bearing,
-  sinkage, slip, traction, energy), and traversal-compaction traffic;
-- **keep situational awareness** — a rover HUD, an in-IDE requirement board, and plan-anywhere over the
-  global DEM.
+  sinkage, slip, traction, energy), and traversal-compaction traffic; a WAC-albedo drape and a
+  whole-Moon globe give context;
+- **keep situational awareness** — a rover HUD (an IPEx instrument: eight URDF joints plus IMU from live
+  `/joint_states`, and an animated kinematic wireframe with sensor and field-of-view markers), a
+  read-only RViz/Foxglove-style engineering panel, and an in-IDE requirement board.
 
 The earlier single-page cockpit stays live at **<https://app.stewie.space>** (the ConOps spine Plan,
 Rehearse, Validate, Release, Execute, Report, plus the requirement board). The GIS IDE is the direction
@@ -83,19 +93,32 @@ provenance tag, and no synthetic values stand in for measured ones.
 ## Capability state (honest)
 
 **Live and load-bearing:** the GIS IDE, mission authoring and planning, the conserved-physics core, the
-analysis layers, and plan-anywhere over the global DEM. The public deploy is **simulation-only**, and
-mission Release is **director-gated**.
+analysis layers, the versioned digital twin, and plan-anywhere over the global DEM. The public deploy is
+**simulation-only**, and mission Release is **director-gated**.
 
-**Progress:** the requirement matrix (product requirements, section 7) reads **251 of 339 requirements
-verified done** (about 74 percent overall; 77 percent of the 325 in-scope rows, with hardware and host
-gated rows excluded from that denominator). By priority: P0 106/116, P1 141/188, P2 4/33. The matrix is
-projected read-only onto the in-IDE requirement board.
+**The perception loop (the differentiator):** the observed-map producer closes STEWIE's loop on
+perception, not just action. A rover observes its own terrain change through a real render, and the
+map-channel scores the observed map against the conserved truth; that localized observed-versus-truth
+divergence is the self-made hazard an open-loop terrain generator cannot produce. The rover reacts to it
+(reroute or a logged refusal) in a deterministic, path-dependent, mass-conserving loop. Shipped and
+host-verified today: the cheap in-loop observability channel plus the deterministic end-to-end replay
+loop. The dense reconstruction tier (render to stereo or COLMAP RMSE) stays gated.
+
+**Progress:** the requirement matrix (product requirements, section 7) reads **254 of 339 requirements
+verified done** (about 75 percent overall; 78 percent of the 325 in-scope rows, with hardware and host
+gated rows excluded from that denominator). By priority: P0 107/116, P1 143/188, P2 4/33. The counts are
+the live tool output (`STATUS.json`, `release_manifest.json`); the matrix is projected read-only onto the
+in-IDE requirement board.
+
+**On the roadmap (honest):** persistence is moving to a hybrid Postgres plus PostGIS store; the durable
+edit-session (Phase 0) is in progress, and the map layer is no longer the authority (the server-owned
+edit-session is). The direction is planned, not shipped.
 
 **Gated or not yet built (named, not hidden):** a live ROS2 and Gazebo pit with a real rover (the
 containers build, but there is no live pit link yet); the PyChrono force oracle (a stub; the Tier-3
-drum-force track needs a PyChrono host); dense-stereo GPU perception; the dense map-channel reward; and
-any live hardware. STEWIE makes no flight claims and never presents simulated truth as a live
-measurement.
+drum-force track needs a PyChrono host); dense-stereo GPU perception; the dense map-channel reward;
+LAC/IPEx arm geometry; and camera video (render-gated). STEWIE makes no flight claims and never presents
+simulated truth as a live measurement.
 
 ## Quickstart
 

@@ -19,16 +19,25 @@ Owners: John McCardle & Aaron Storey ([github.com/stewie-sw/stewie](https://gith
 ## The front door: a GIS mission-control IDE
 
 The primary surface is a GIS mission workbench, live at
-[artemis.stewie.space/ide/](https://artemis.stewie.space/ide/). It is one persistent lunar map (QGIS
-Web Client 2 over a QGIS Server backend) in the Moon south-polar stereographic frame
-(`IAU_2015:30135`), so the pole sits in the middle of the canvas and coordinates stay pole-truthful (no
-Earth or WGS84 claim on lunar positions). It carries the real terrain (8 Artemis III candidate-site
-DEMs at LOLA 5 m polar, a 1 m Haworth shape-from-shading DEM, slope, hillshade, and LROC imagery
-context), full mission authoring (cut and fill orders, structures, keep-outs, planner controls, and a
-multi-vehicle fleet), plan inspection (candidate-future compare, plan detail, Gantt, and a simulated
-run), the layer catalog with provenance, freshness, uncertainty, and eligibility, the analysis layers
-(cost, blocking, and the terramechanics terms slope, bearing, sinkage, slip, traction, energy, plus
-traversal-compaction traffic), a rover HUD, and an in-IDE requirement board.
+[artemis.stewie.space/ide/](https://artemis.stewie.space/ide/); the bare
+[artemis.stewie.space](https://artemis.stewie.space) redirects to it, so the IDE is the single front
+door. It is one persistent lunar map (QGIS Web Client 2 over a QGIS Server backend) in the Moon
+south-polar stereographic frame (`IAU_2015:30135`), so the pole sits in the middle of the canvas and
+coordinates stay pole-truthful (no Earth or WGS84 claim on lunar positions). It carries the real terrain
+(8 Artemis III candidate-site DEMs at LOLA 5 m polar, a 1 m Haworth shape-from-shading DEM, slope,
+hillshade, and LROC imagery context, with nine candidate-site pins that zoom on click); a full
+mission-authoring tool palette (cut and fill build orders, structures, keep-outs, traverse-by-waypoints,
+return-to-lander, and place-objects — beacon, cache, instrument, sample, antenna — all written through a
+server-owned, versioned edit-session with a before/after audit trail and linear undo, plus planner
+controls and a multi-vehicle fleet); plan-anywhere (pick any lat/lon, typed or by map-click; a
+request-time DEM resolver crops the global LOLA to plan in that local frame); plan inspection
+(candidate-future compare, plan detail, Gantt, and a simulated run); the roughly 65-layer catalog with
+provenance, freshness, uncertainty, and eligibility, plus a selection inspector, an asset library, an
+evidence and report bundle, a WAC-albedo drape, and a whole-Moon globe; the analysis layers (cost,
+blocking, and the terramechanics terms slope, bearing, sinkage, slip, traction, energy, plus
+traversal-compaction traffic); a rover HUD (an IPEx instrument — eight URDF joints plus IMU from live
+`/joint_states`, and an animated kinematic wireframe with sensor and field-of-view markers); a read-only
+RViz/Foxglove-style engineering panel; and an in-IDE requirement board.
 
 The earlier single-page cockpit stays live at [app.stewie.space](https://app.stewie.space): the ConOps
 spine Plan, Rehearse, Validate, Release, Execute, Report, plus the requirement board. The GIS IDE is
@@ -60,14 +69,20 @@ RASSOR is its TRL-4 precursor (see [the modelled vehicle](vehicle_ipex.md)).
 
 ## Where it is (honest)
 
-The requirement matrix (product requirements, section 7) reads **251 of 339 requirements verified done**
-(about 74 percent overall; 77 percent of the 325 in-scope rows, with hardware and host gated rows
-excluded from that denominator). By priority: P0 106/116, P1 141/188, P2 4/33. The public deploy is
-**simulation-only**, and mission Release is **director-gated**. Named and not yet built: a live ROS2 and
-Gazebo pit with a real rover (the containers build; there is no live pit link yet), the PyChrono force
-oracle (a stub; the Tier-3 drum-force track needs a PyChrono host), dense-stereo GPU perception, the
-dense map-channel reward, and any live hardware. STEWIE makes no flight claims and never presents
-simulated truth as a live measurement. The full breakdown is the
+The requirement matrix (product requirements, section 7) reads **254 of 339 requirements verified done**
+(about 75 percent overall; 78 percent of the 325 in-scope rows, with hardware and host gated rows
+excluded from that denominator; the counts are the live tool output in `STATUS.json` and
+`release_manifest.json`). By priority: P0 107/116, P1 143/188, P2 4/33. The public deploy is
+**simulation-only**, and mission Release is **director-gated**. The perception loop is closed on a real
+render: a rover observes its own terrain change and reacts to the self-made hazard (reroute or a logged
+refusal) in a deterministic, mass-conserving loop; the cheap in-loop observability channel and the
+end-to-end replay loop are shipped, while the dense reconstruction RMSE tier stays gated. On the roadmap
+(planned, not shipped): a hybrid Postgres plus PostGIS persistence layer, with the durable edit-session
+(Phase 0) in progress. Named and not yet built: a live ROS2 and Gazebo pit with a real rover (the
+containers build; there is no live pit link yet), the PyChrono force oracle (a stub; the Tier-3
+drum-force track needs a PyChrono host), dense-stereo GPU perception, the dense map-channel reward,
+LAC/IPEx arm geometry, camera video, and any live hardware. STEWIE makes no flight claims and never
+presents simulated truth as a live measurement. The full breakdown is the
 [capability matrix](CAPABILITIES.md).
 
 ## Quickstart
