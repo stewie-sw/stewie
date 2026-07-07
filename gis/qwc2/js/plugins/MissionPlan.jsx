@@ -126,7 +126,7 @@ class MissionPlan extends React.Component {
         });
         this.ctrl.attach();
         this.setState({ready: true, ctrl: {
-            site: 'haworth', activeKind: null, footprint: 60, depth: 0.4, orders: [],
+            site: 'haworth', adhoc: false, activeKind: null, planHereMode: false, footprint: 60, depth: 0.4, orders: [],
             objectType: null, objectTypes: ['beacon', 'cache', 'instrument', 'sample', 'antenna'],
             markers: [], traverseCount: 0, canReturnToLander: false,
             koTool: null, keepouts: [],
@@ -159,6 +159,9 @@ class MissionPlan extends React.Component {
     onPlanHere = () => { if (this.ctrl) { this.ctrl.planHere(parseFloat(this._ahLat), parseFloat(this._ahLon)); } };
     onAhLat = (e) => { this._ahLat = e.target.value; };
     onAhLon = (e) => { this._ahLon = e.target.value; };
+    // PLAN ANYWHERE (map-click pick): toggle the mode where a map CLICK sets the off-site work area at the
+    // clicked lon/lat (an alternative to typing lat/lon above) — the controller crops the global LDEM there.
+    onPlanHereMode = () => { if (this.ctrl) { this.ctrl.setPlanHereMode(); } };
     onTool = (kind) => { if (this.ctrl) { this.ctrl.setTool(kind); } };
     // STRUCTURE templates (T11): pick a template, edit its params, place it -> backend-decomposed orders.
     onStructure = (name) => { if (this.ctrl) { this.ctrl.setStructure(name); } };
@@ -1435,6 +1438,22 @@ class MissionPlan extends React.Component {
                     (native ~118 m/px, honestly coarse vs the curated 5 m sites) so the layers + planner run. */}
                 <div style={{marginBottom: '8px', border: '1px solid #1c1c26', borderRadius: '4px', padding: '6px'}}>
                     <div style={{...lbl, marginBottom: '4px'}}>Plan anywhere (off-site)</div>
+                    {/* PLAN ANYWHERE by MAP CLICK: pick the work area by clicking the map instead of typing
+                        lat/lon. The controller reprojects the click to selenographic lon/lat and crops the
+                        global LOLA DEM there (#30) — the SAME ad-hoc site the lat/lon entry below resolves. */}
+                    <button
+                        data-stewie-planhere-mode={s.planHereMode ? '1' : '0'} onClick={this.onPlanHereMode}
+                        title="click any point on the map to set the work area there (crops the global LOLA DEM)"
+                        style={{
+                            width: '100%', boxSizing: 'border-box', marginBottom: '6px', cursor: 'pointer',
+                            font: '600 11px system-ui, sans-serif', padding: '7px 8px', borderRadius: '4px',
+                            border: '1px solid ' + (s.planHereMode ? '#39c6ff' : '#39c6ff66'),
+                            color: s.planHereMode ? '#0a0a0c' : '#39c6ff',
+                            background: s.planHereMode ? '#39c6ff' : '#39c6ff14'
+                        }}
+                        type="button"
+                    >{s.planHereMode ? '⌖ Click the map to set the work area…' : '⌖ Pick on map'}</button>
+                    <div style={{...lbl, marginBottom: '4px'}}>…or enter a lat/lon</div>
                     <div style={{display: 'flex', gap: '6px', alignItems: 'flex-end'}}>
                         <div style={{flex: '1 1 0'}}>
                             <label htmlFor="mp-ah-lat" style={lbl}>Lat °</label>

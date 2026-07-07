@@ -91,3 +91,43 @@ test("markerBody builds a valid place-object feature for the edit-session route"
 test("markerBody rejects an object type outside the vocabulary", () => {
     assert.throws(() => PT.markerBody(C0, "death-ray"), /unknown object type/);
 });
+
+// --- PLAN ANYWHERE (map-click pick): clickToLonLat + isPlannableLatLon -------------------------------
+// The pure logic behind the Mission-Plan "Plan here (click the map)" mode: a workbench-map click coord
+// (IAU_2015:30135) reprojects to selenographic [lon, lat] (IAU_2015:30100), validated against the SAME
+// domain the backend request-time crop serves (stewie/terrain/adhoc_dem._MAX_ABS_LAT = 89.9).
+
+test("MAX_ABS_LAT is in lockstep with the backend crop domain (adhoc_dem._MAX_ABS_LAT drift guard)", () => {
+    assert.strictEqual(PT.MAX_ABS_LAT, 89.9);
+});
+
+test("clickToLonLat reprojects a map-CRS click to selenographic [lon, lat] via the injected transform", () => {
+    // Stub reproject: assert it is called map-CRS -> geo-CRS with the click coord, and return the known pair
+    // (the real CoordinatesUtils.reproject does the polar-stereographic -> longlat transform in the browser).
+    const calls = [];
+    const reproject = (coord, src, dst) => { calls.push([coord.slice(), src, dst]); return LL0.slice(); };
+    const ll = PT.clickToLonLat(C0, reproject, "IAU_2015:30135", "IAU_2015:30100");
+    assert.deepStrictEqual(ll, LL0);
+    assert.strictEqual(calls.length, 1);
+    assert.deepStrictEqual(calls[0][0], C0);                 // reprojected the clicked coord
+    assert.strictEqual(calls[0][1], "IAU_2015:30135");       // FROM the workbench map CRS
+    assert.strictEqual(calls[0][2], "IAU_2015:30100");       // TO selenographic lon/lat
+});
+
+test("clickToLonLat returns null on a throwing or non-finite reproject (no NaN pick)", () => {
+    assert.strictEqual(PT.clickToLonLat(C0, () => { throw new Error("off-projection"); }, "a", "b"), null);
+    assert.strictEqual(PT.clickToLonLat(C0, () => [NaN, -85], "a", "b"), null);
+    assert.strictEqual(PT.clickToLonLat(C0, () => [10, Infinity], "a", "b"), null);
+    assert.strictEqual(PT.clickToLonLat(null, () => LL0.slice(), "a", "b"), null);
+    assert.strictEqual(PT.clickToLonLat(C0, null, "a", "b"), null);
+});
+
+test("isPlannableLatLon accepts an off-site pick but refuses the exact pole (curated tiles serve there)", () => {
+    assert.ok(PT.isPlannableLatLon(-86.0, -30.0));           // a real off-site south-polar pick
+    assert.ok(PT.isPlannableLatLon(0.0, 137.0));             // equatorial far-side is plannable too
+    assert.ok(PT.isPlannableLatLon(89.9, 10.0));             // the domain boundary is inclusive
+    assert.ok(!PT.isPlannableLatLon(89.95, 10.0));           // past the boundary -> the curated polar tile serves
+    assert.ok(!PT.isPlannableLatLon(-90.0, 0.0));            // the pole itself
+    assert.ok(!PT.isPlannableLatLon(NaN, 0.0));              // non-finite -> not plannable
+    assert.ok(!PT.isPlannableLatLon(-85.0, NaN));
+});

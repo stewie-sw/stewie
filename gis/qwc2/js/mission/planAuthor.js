@@ -173,6 +173,11 @@ export default class PlanAuthor {
         //                {sid}/marker), kept SEPARATE from the keep-out set so it never routes the planner
         //                around it. this.markers is the render MIRROR of the backend marker set.
         this.objectType = null;    // active place-object type ('beacon'|... ) — exclusive with cut/fill/structure/no-go
+        // PLAN ANYWHERE (map-click pick): when true, a map click SETS THE WORK AREA at the clicked lon/lat (the
+        // backend crops the global LOLA LDEM there on demand -- #30) instead of placing an order. Mutually
+        // exclusive with every placing mode (activeKind/structKind/objectType/koTool). One-shot: the pick
+        // adopts the ad-hoc site via planHere() -> selectSite(), which resets authoring and clears this flag.
+        this.planHereMode = false;
         this.markers = [];         // [{fid, otype, label, coord:[x,y]30135, feature}] — MIRROR of the backend markers
         this._locMarkerSeq = 0;    // client-only fallback marker id (no backend session)
         this.result = null;        // last plan summary (for the panel)
@@ -286,9 +291,11 @@ export default class PlanAuthor {
         this.map.addLayer(this.markerLayer);
         this._clickKey = this.map.on('singleclick', (evt) => {
             // A map click places whatever authoring mode is active. The placing modes are mutually exclusive
-            // (a Cut/Fill/Traverse tool, a structure template, a place-object type, or a no-go Draw interaction
-            // — never two at once), so exactly one branch fires.
-            if (this.activeKind) { this.placeAt(evt.coordinate); }
+            // (a Cut/Fill/Traverse tool, a structure template, a place-object type, a no-go Draw interaction,
+            // or the plan-anywhere pick — never two at once), so exactly one branch fires. Plan-anywhere is
+            // checked FIRST: it is a higher-level "set the work area here" action, not an in-frame placement.
+            if (this.planHereMode) { this.pickPlanHere(evt.coordinate); }
+            else if (this.activeKind) { this.placeAt(evt.coordinate); }
             else if (this.structKind) { this.placeStructure(evt.coordinate); }
             else if (this.objectType) { this.placeObject(evt.coordinate); }
         });
@@ -306,6 +313,15 @@ export default class PlanAuthor {
                 // exact map coords without pixel-quantised clicks. No command authority (authoring only).
                 setTool: (kind) => this.setTool(kind),
                 placeAt: (coord) => this.placeAt(coord),
+                // PLAN ANYWHERE drivers: toggle the map-click pick mode and drive a pick at an EXACT map coord
+                // (the SAME controller path the "Plan here" button + map singleclick call), so a headless proof
+                // can set the work area at an arbitrary lon/lat off the fixed sites without a pixel-quantised
+                // click. pickPlanHere returns the planHere() promise so the proof can await the crop + re-frame.
+                setPlanHereMode: () => this.setPlanHereMode(),
+                planHereMode: () => this.planHereMode,
+                pickPlanHere: (coord) => this.pickPlanHere(coord),
+                planHere: (lat, lon) => this.planHere(lat, lon),
+                site: () => this.site,
                 // TOOL PALETTE drivers (traverse / return-to-lander / place-object) — the SAME controller code
                 // paths the palette buttons + map singleclick call, so a headless proof can drop a traverse
                 // waypoint, return to the lander, and place a mission object at exact map coords without pixel-
@@ -425,7 +441,7 @@ export default class PlanAuthor {
     _emit() {
         this.onState({
             site: this.site, adhoc: (this.site || '').startsWith('adhoc_'),
-            activeKind: this.activeKind, footprint: this.footprint, depth: this.depth,
+            activeKind: this.activeKind, planHereMode: this.planHereMode, footprint: this.footprint, depth: this.depth,
             orders: this.orders.map((o, i) => ({
                 idx: i, kind: o.kind, x: round1(o.coord[0]), y: round1(o.coord[1]),
                 footprint_m2: o.footprint_m2, depth_m: o.depth_m,
@@ -492,6 +508,7 @@ export default class PlanAuthor {
         this.keepouts = []; this.keepoutSource.clear();
         this.markers = []; this.markerSource.clear();   // place-object markers are per-session -> reset with the site
         this.objectType = null;                         // and any active place-object tool
+        this.planHereMode = false;                      // adopting a site (incl. an ad-hoc plan-here pick) ends the pick mode
         this.editSession = null; this.editVersion = 0; this.editAudit = [];   // GW-08: fresh edit session per site
         this._ensureSession();
         this.structKind = null; this.structParams = {};   // and any active structure template + placed structures
@@ -523,6 +540,49 @@ export default class PlanAuthor {
         return this.selectSite(adhocSiteId(la, lo), {fly: true});
     }
 
+    // PLAN ANYWHERE (map-click pick): toggle the mode where a MAP CLICK sets the work area at the clicked spot
+    // (instead of placing an order). Mutually exclusive with every placing mode, so turning it on leaves the
+    // Cut/Fill/Traverse tools, the structure templates, place-object, and no-go drawing. While MissionPlan is
+    // the active task its controller OWNS the map click (SiteZoom stands down, CLICK_OWNED_BY MissionPlan), so
+    // the pick never fights the fixed-site click-to-zoom. Turning it off returns to ordinary order placing.
+    setPlanHereMode() {
+        this.activeKind = null;
+        this.structKind = null;
+        this.objectType = null;
+        this._deactivateDraw();
+        this.planHereMode = !this.planHereMode;
+        if (this.planHereMode) {
+            this._setHint('Plan anywhere: click ANY point on the map to set the work area there — the global ' +
+                'LOLA DEM is cropped to a local frame at that lon/lat (native ~118 m/px, coarse vs the curated ' +
+                'sites). Click the button again to cancel.');
+        } else {
+            this._setHint('Plan-anywhere pick off. Pick a work site, or a tool to place orders.');
+        }
+        this._emit();
+    }
+
+    // A map click while plan-here mode is on: reproject the clicked map coord (IAU_2015:30135) to selenographic
+    // lon/lat (IAU_2015:30100) with the SAME reproject the order path uses, refuse a pole-adjacent pick (the
+    // curated polar tiles serve there) with the SAME domain the backend crop enforces, then adopt that spot as
+    // an ad-hoc site via planHere() -> selectSite(adhoc id) -> the backend crops the global LDEM there on demand
+    // (#30). One-shot: planHere -> selectSite clears planHereMode, so the next click places an order once a tool
+    // is picked. Returns the planHere() promise (the crop + re-frame) for the headless proof.
+    pickPlanHere(coord) {
+        const ll = PlanTools.clickToLonLat(coord, this.reproject, MAP_CRS, GEO_CRS);
+        if (!ll) {
+            this._setHint('Could not resolve that map point to a lunar lon/lat — try a point on the surface.', true);
+            return Promise.resolve();
+        }
+        const lon = ll[0], lat = ll[1];
+        if (!PlanTools.isPlannableLatLon(lat, lon)) {
+            this._setHint('That point is at the pole (|lat| > ' + PlanTools.MAX_ABS_LAT + '°); the curated polar ' +
+                'tiles serve there. Pick a spot away from the exact pole to crop the global DEM.', true);
+            return Promise.resolve();
+        }
+        this._setHint('Plan anywhere: cropping the global LOLA DEM at ' + round1(lat) + '°, ' + round1(lon) + '° …');
+        return this.planHere(lat, lon);
+    }
+
     // Fit the view to the site's globe footprint. Reproject the 4 selenographic corners to the map CRS and
     // fit their extent -- robust even at the pole (a lon/lat AABB is not axis-aligned in polar-stereographic).
     _zoomToBbox(bb) {
@@ -541,6 +601,7 @@ export default class PlanAuthor {
         this._deactivateDraw();                       // picking a cut/fill/traverse tool leaves no-go draw mode
         this.structKind = null;                       // and leaves structure-template placing
         this.objectType = null;                       // and leaves place-object mode
+        this.planHereMode = false;                    // and leaves the plan-anywhere pick mode
         this.activeKind = (this.activeKind === kind) ? null : kind;
         if (this.activeKind) {
             const what = kind === 'cut' ? 'a CUT (dig) order'
@@ -642,6 +703,7 @@ export default class PlanAuthor {
     // decompose() signature defaults, structures.py).
     setStructure(name) {
         this.activeKind = null;                       // structure placing and Cut/Fill placing are exclusive
+        this.planHereMode = false;                    // and leave the plan-anywhere pick mode
         this._deactivateDraw();                       // and leave no-go drawing
         const next = (this.structKind === name) ? null : name;
         this.structKind = next;
@@ -795,6 +857,7 @@ export default class PlanAuthor {
     setKeepoutTool(kind) {
         this.activeKind = null;                       // no-go drawing and order-placing are mutually exclusive
         this.structKind = null;                       // (as is structure-template placing)
+        this.planHereMode = false;                    // (as is the plan-anywhere pick mode)
         const next = (this.koTool === kind) ? null : kind;
         this._deactivateDraw();                       // remove any prior interaction; sets koTool = null
         this.koTool = next;
@@ -1150,6 +1213,7 @@ export default class PlanAuthor {
     setObjectTool(otype) {
         this.activeKind = null;
         this.structKind = null;
+        this.planHereMode = false;                    // place-object and the plan-anywhere pick are exclusive
         this._deactivateDraw();
         this.objectType = (this.objectType === otype) ? null : otype;
         if (this.objectType) {

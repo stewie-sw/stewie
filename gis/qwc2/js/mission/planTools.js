@@ -28,8 +28,35 @@
     // A positive placeholder footprint so the goto order passes the pydantic Order schema (footprint_m2 gt=0,
     // stewie/server/schemas.py); mission_from_dict FORCES footprint/depth to 0 for a goto, so this is ignored.
     var GOTO_FOOTPRINT_M2 = 1;
+    // PLAN ANYWHERE (map-click pick): the max |lat| a request-time crop can serve, MATCHING the backend
+    // resolver (stewie/terrain/adhoc_dem.py _MAX_ABS_LAT) -- a local equirectangular crop degenerates at the
+    // pole itself, where the curated polar-stereographic tiles serve instead. Kept in lockstep here so a
+    // map-click pick is refused with the same reason the backend would give, BEFORE the network round-trip.
+    var MAX_ABS_LAT = 89.9;
 
     function round1(n) { return Math.round(n * 10) / 10; }
+
+    // PLAN ANYWHERE: is a selenographic (lat, lon) plannable via a request-time global-LDEM crop? True when
+    // both are finite and |lat| <= MAX_ABS_LAT (the backend's own domain). The pole itself (|lat| > 89.9) is
+    // served by the curated polar tiles, not an ad-hoc crop -- so a click there is refused, not faked.
+    function isPlannableLatLon(lat, lon) {
+        return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= MAX_ABS_LAT;
+    }
+
+    // PLAN ANYWHERE: turn a MAP-CLICK coord (in the workbench CRS, IAU_2015:30135 polar-stereographic) into
+    // selenographic [lon, lat] (IAU_2015:30100) via the injected reproject(coord, srcCrs, dstCrs) -> [x, y]
+    // (CoordinatesUtils.reproject) -- the SAME reproject the order-placement path already uses (planAuthor
+    // placeAt/placeStructure). Returns [lon, lat] on a clean finite reproject, else null (a reproject that
+    // throws or yields a non-finite coord -> no pick, so the controller hints instead of planning a NaN spot).
+    // Pure: the reproject is injected, so this unit-tests in bare node with a stub transform.
+    function clickToLonLat(coord, reproject, mapCrs, geoCrs) {
+        if (!coord || typeof reproject !== "function") { return null; }
+        var ll;
+        try { ll = reproject([coord[0], coord[1]], mapCrs, geoCrs); }
+        catch (e) { return null; }
+        if (!ll || !Number.isFinite(ll[0]) || !Number.isFinite(ll[1])) { return null; }
+        return [ll[0], ll[1]];
+    }
 
     // A traverse waypoint as a client ORDER object -- the SAME shape as the cut/fill orders, so the existing
     // order queue, the pre-plan markers, and _anchorAndOrders serialize it with no special-casing.
@@ -98,13 +125,16 @@
         TRAVERSE_KIND: TRAVERSE_KIND,
         OBJECT_TYPES: OBJECT_TYPES,
         GOTO_FOOTPRINT_M2: GOTO_FOOTPRINT_M2,
+        MAX_ABS_LAT: MAX_ABS_LAT,
         round1: round1,
         traverseOrder: traverseOrder,
         isTraverse: isTraverse,
         traversePath: traversePath,
         centroidLonLat: centroidLonLat,
         orderFrameEntry: orderFrameEntry,
-        markerBody: markerBody
+        markerBody: markerBody,
+        isPlannableLatLon: isPlannableLatLon,
+        clickToLonLat: clickToLonLat
     };
     if (typeof module !== "undefined" && module.exports) { module.exports = API; }   // node:test + `import X from`
     if (root) { root.STEWIE_PLAN_TOOLS = API; }                                       // browser (window)
