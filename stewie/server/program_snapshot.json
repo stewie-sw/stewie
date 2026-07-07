@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "33f9bba4c11a4838dff2f920d71e09fb6efb04b66687f8c9d59acca51aeba22e",
+  "citations_sha256": "86976e8c42a5c1836c55dbf6adbe68c8744fe299b5c93dcac9a3143aef9aa5d0",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "7495ccdd153b5008793084a3a74eb1a05a5515b3",
-  "prd_sha256": "41157f7d45218c675cf214f56ef6c81edb95a76823e58db0fc9956e20b0c994f",
+  "prd_commit": "3bc2d38a270bc03154b2cf9df113a41ee7963a90",
+  "prd_sha256": "3e43a74f8b64872f5784c90310bba466a3e268de9bc5ade6f1302e43b57161a1",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -2745,16 +2745,16 @@
    "text": "**GIS map substrate.** MapLibre/GeoLibre in the LOCAL south-polar-stereographic frame renders NASA Trek raster tiles + local LOLA terrain-RGB (`heightmap.rf32`, full 5 m native \u2014 not a downscaled preview); control points round-trip `/dem/site_xy` + `/dem/site_lonlat` within tolerance; no WGS84/Earth claim on lunar coordinates. (extends GL-01; needs GW-00)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "GW-06",
    "lane": "GW",
    "pri": "P0",
-   "text": "**Layer tree + legend.** The LY-01 catalog toggles on the map with per-layer swatch + provenance/freshness; a display-only layer is visibly distinct from a planning/release/execute-eligible one. (binds LY-01)"
+   "text": "**Layer tree + legend.** [REQ:GW-06] The LY-01 catalog toggles on the map with per-layer swatch + provenance/freshness; a display-only layer is visibly distinct from a planning/release/execute-eligible one. (binds LY-01)"
   },
   {
    "I": "N",
@@ -4887,7 +4887,7 @@
     "test_target": "NEW test citing [REQ:TW-11]"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "TW-11",
    "lane": "TW",
    "pri": "P2",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 76,
+   "buildable": 75,
    "concurrent": 0,
-   "done": 249,
+   "done": 250,
    "gated": 14
   },
   "by_lane": {
@@ -5131,7 +5131,7 @@
     "total": 2
    },
    "GW": {
-    "done": 2,
+    "done": 3,
     "total": 8
    },
    "LY": {
@@ -5241,7 +5241,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 104,
+    "done": 105,
     "total": 116
    },
    "P1": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 267,
-  "done_pct": 73.5,
+  "cited": 269,
+  "done_pct": 73.7,
   "in_scope": 325,
-  "in_scope_done_pct": 76.6,
+  "in_scope_done_pct": 76.9,
   "total": 339
  },
  "workflow_spine": [

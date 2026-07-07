@@ -34,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 267,
+  "cited": 269,
   "per_family": {
     "AC": {
       "cited": 1,
@@ -133,7 +133,7 @@
       "total": 2
     },
     "GW": {
-      "cited": 2,
+      "cited": 3,
       "total": 8
     },
     "LY": {
@@ -233,7 +233,7 @@
       "total": 1
     },
     "TW": {
-      "cited": 8,
+      "cited": 9,
       "total": 11
     },
     "VT": {
@@ -316,6 +316,10 @@
     {
       "id": "SN-12",
       "v": "P"
+    },
+    {
+      "id": "TW-11",
+      "v": "N"
     }
   ]
 }
