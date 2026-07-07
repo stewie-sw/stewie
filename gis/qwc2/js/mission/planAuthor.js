@@ -185,10 +185,20 @@ export default class PlanAuthor {
         // IMPASSABLE, so the least-cost router (route_leg, planner_views.py:448 for the rendered GoTo legs)
         // bends the route AROUND them. Geometry is kept in the map CRS on the OL feature and converted to the
         // order frame at Plan time through the SAME y-flipped anchor affine the orders use.
-        this.keepouts = [];        // [{idx, kind:'polygon'|'circle', feature}]
+        this.keepouts = [];        // [{idx:fid, fid, kind:'polygon'|'circle', feature}] -- MIRROR of the backend set
         this.koTool = null;        // active no-go draw tool: 'polygon' | 'circle' | null
         this._draw = null;         // the live OL Draw interaction (on the map only while a ko tool is active)
         this._koSeq = 0;
+        // --- Mission-feature EDIT SESSION (GW-08 / ED-01). The keep-out set is now OWNED BY THE BACKEND, not
+        // this client array: every create/delete/undo writes through the /api/edit/session routes, which keep a
+        // MONOTONIC version + a before/after AUDIT log, and /api/plan reads the session's current set (by id +
+        // the order-frame anchor) instead of a client-serialized payload.keepouts. this.keepouts is a render
+        // MIRROR rebuilt from each route response (the backend is the source of truth). If the backend session
+        // is unavailable (offline), authoring falls back to client-only (this.keepouts + _keepoutsForFrame at
+        // plan time), so the IDE never breaks -- degraded, not dead.
+        this.editSession = null;   // opaque backend session id (secrets.token_hex); null = client-only fallback
+        this.editVersion = 0;      // the session's monotonic version (surfaced in the panel)
+        this.editAudit = [];       // the recent audit tail [{version, op, fid, ...}] (surfaced in the panel)
         this._hatch = undefined;   // lazily-built diagonal-hatch CanvasPattern for the no-go fill
         this.keepoutSource = new VectorSource();
         this.keepoutLayer = new VectorLayer({source: this.keepoutSource, zIndex: 18});
@@ -265,6 +275,12 @@ export default class PlanAuthor {
                 addKeepoutPolygon: (ring) => this.addKeepoutPolygon(ring),
                 clearKeepouts: () => this.clearKeepouts(),
                 keepoutCount: () => this.keepouts.length,
+                // GW-08 read/authoring drivers: the backend edit-session id + version + audit tail, and undo,
+                // so a headless proof can assert a keep-out persisted through the backend with a version/audit
+                // and that undo reverts it -- without scraping the panel DOM.
+                undoEdit: () => this.undoEdit(),
+                editState: () => ({session: this.editSession, version: this.editVersion,
+                    audit: this.editAudit.map((a) => ({version: a.version, op: a.op, fid: a.fid}))}),
                 route: () => (this.route ? this.route.map((p) => p.slice()) : []),
                 // DEPTH-3 read-only: the rendered per-vehicle DRIVE-route features on the map (each tagged
                 // with its 0-based vehicle id + the stroke colour actually drawn), so a headless proof can
@@ -331,6 +347,9 @@ export default class PlanAuthor {
         this._attached = true;
         // Prefetch the real build catalog (GET /api/construction) so the palette is populated on first open.
         this.loadTemplates();
+        // GW-08: mint the backend mission-feature edit session so keep-out authoring writes through the routes
+        // (versioned audit + undo). Best-effort: on failure the panel stays in client-only fallback mode.
+        this._ensureSession();
     }
 
     detach() {
@@ -377,7 +396,13 @@ export default class PlanAuthor {
             compareCandidates: this.compareCandidates.slice(),
             compareResult: this.compareResult, comparing: this.comparing, compareErr: this.compareErr,
             koTool: this.koTool,
-            keepouts: this.keepouts.map((k, i) => ({idx: i, kind: k.kind, label: this._koSummary(k)})),
+            // GW-08: the keep-out idx is now the backend feature id (fid), the remove/undo handle. The panel
+            // also reads the edit-session version + audit tail + whether an undo is available.
+            keepouts: this.keepouts.map((k) => ({idx: k.fid, fid: k.fid, kind: k.kind, label: this._koSummary(k)})),
+            editSession: this.editSession, editVersion: this.editVersion,
+            editAudit: this.editAudit.slice(-8).map((a) => ({version: a.version, op: a.op, fid: a.fid,
+                reverted_op: a.reverted_op || null})),
+            canUndo: this._undoableCount() > 0,
             run: this._runView(),
             // The SIM run is offered only once a FEASIBLE plan with a drive route is rendered and no run is live.
             canRun: !!(this.route && this.route.length && this.result && this.result.feasible === true &&
@@ -404,6 +429,8 @@ export default class PlanAuthor {
         this.route = null; this._planOrders = null;
         this._deactivateDraw();                       // a site change resets authoring incl. any drawn no-go
         this.keepouts = []; this.keepoutSource.clear();
+        this.editSession = null; this.editVersion = 0; this.editAudit = [];   // GW-08: fresh edit session per site
+        this._ensureSession();
         this.structKind = null; this.structParams = {};   // and any active structure template + placed structures
         this.structures = []; this.structureSource.clear();
         this.orderSource.clear();
@@ -719,41 +746,182 @@ export default class PlanAuthor {
         this.koTool = null;
     }
 
-    // A finished (drawn or programmatic) no-go feature -> the keep-out list. The Draw interaction already
-    // added the feature to keepoutSource (its `source` option); the programmatic adders add it explicitly.
+    // GW-08: mint the backend edit session (idempotent). On success the keep-out set is owned by the server;
+    // on failure we stay in client-only fallback (this.editSession = null).
+    _ensureSession() {
+        if (this.editSession) { return Promise.resolve(this.editSession); }
+        return fetch('/api/edit/session', {method: 'POST'})
+            .then((r) => { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
+            .then((d) => {
+                if (!d || d.ok === false || !d.session) { throw new Error((d && d.error) || 'no session'); }
+                this.editSession = d.session;
+                this._adoptEditState(d);
+                return this.editSession;
+            })
+            .catch(() => { this.editSession = null; /* client-only fallback */ return null; });
+    }
+
+    // Rebuild the render MIRROR (this.keepouts + the OL layer) from an authoritative edit-session response --
+    // the backend is the source of truth, so the map is a pure render of body.features. Also mirrors the
+    // monotonic version + audit tail into the panel state.
+    _adoptEditState(body) {
+        this.editVersion = Number(body.version) || 0;
+        this.editAudit = Array.isArray(body.audit) ? body.audit : [];
+        this.keepoutSource.clear();
+        this.keepouts = [];
+        for (const f of (body.features || [])) {
+            let geom;
+            if (f.kind === 'circle') { geom = new CircleGeom([f.cx, f.cy], f.r); }
+            else { geom = new Polygon([f.ring]); }
+            const feat = new Feature({geometry: geom});
+            feat.set('label', f.fid); feat.set('fid', f.fid);
+            this.keepoutSource.addFeature(feat);
+            this.keepouts.push({idx: f.fid, fid: f.fid, kind: f.kind, feature: feat});
+        }
+    }
+
+    // The map-frame geometry (IAU_2015:30135 metres) for the backend create/modify body, read off an OL feature.
+    _geomBody(feature, kind) {
+        const g = feature.getGeometry();
+        if (kind === 'circle') {
+            const c = g.getCenter();
+            return {kind: 'circle', cx: c[0], cy: c[1], r: g.getRadius()};
+        }
+        const ring = g.getCoordinates()[0] || [];
+        const n = ring.length;
+        const open = (n > 1 && ring[0][0] === ring[n - 1][0] && ring[0][1] === ring[n - 1][1])
+            ? ring.slice(0, -1) : ring;                // OL closes the ring; the store wants an open ring
+        return {kind: 'polygon', ring: open.map((p) => [p[0], p[1]])};
+    }
+
+    // A finished (drawn or programmatic) no-go feature WRITES THROUGH the backend edit-session create route
+    // (GW-08): the server versions + audits it and becomes the source of truth; on the response we re-adopt
+    // the authoritative set. If there is no session (offline), fall back to keeping the drawn feature locally
+    // so the IDE still plans (client-only) -- degraded, not dead.
     _onDrawEnd(feature, kind) {
+        return this._createKeepout(kind, this._geomBody(feature, kind), feature);
+    }
+    _createKeepout(kind, body, olFeature) {
+        if (!this.editSession) {                       // client-only fallback (no backend session)
+            return this._localFallbackAdd(kind, olFeature, body);
+        }
+        return fetch('/api/edit/session/' + encodeURIComponent(this.editSession) + '/keepout', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+        })
+            .then((r) => r.json().then((d) => ({status: r.status, body: d})))
+            .then((res) => {
+                if (!res.body || res.body.ok === false) {
+                    throw new Error((res.body && res.body.error) || ('HTTP ' + res.status));
+                }
+                this._adoptEditState(res.body);        // backend is the source of truth -> re-render the mirror
+                this._setHint('No-go region added through the backend (v' + this.editVersion +
+                    ', ' + this.keepouts.length + ' active). Draw more, undo, or press Plan mission.');
+                this._emit();
+                return res.body;
+            })
+            .catch((e) => {
+                this._localFallbackAdd(kind, olFeature, body);   // keep the region locally so a plan still routes around it
+                this._setHint('No-go saved locally (backend edit-session unavailable: ' + e.message + ').', true);
+            });
+    }
+    // Client-only fallback: keep the region in the local mirror (and the OL layer) so plan()'s _keepoutsForFrame
+    // path still serializes it into payload.keepouts. Used when there is no backend session.
+    _localFallbackAdd(kind, olFeature, body) {
         this._koSeq += 1;
-        feature.set('label', 'no-go ' + this._koSeq);
-        this.keepouts.push({idx: this._koSeq, kind: kind, feature: feature});
+        const fid = 'loc' + this._koSeq;
+        let feat = olFeature;
+        if (!feat) {
+            const geom = kind === 'circle'
+                ? new CircleGeom([body.cx, body.cy], body.r) : new Polygon([body.ring]);
+            feat = new Feature({geometry: geom});
+            this.keepoutSource.addFeature(feat);
+        }
+        feat.set('label', fid); feat.set('fid', fid);
+        this.keepouts.push({idx: fid, fid: fid, kind: kind, feature: feat});
         this._setHint('No-go region added (' + this.keepouts.length + ' drawn). Draw more, or press Plan mission.');
         this._emit();
+        return Promise.resolve(null);
     }
 
-    // Authoring drivers (headless proof + faithful to the Draw path): add a no-go at exact MAP coords.
+    // Authoring drivers (headless proof + faithful to the Draw path): add a no-go at exact MAP coords. Return
+    // the create promise so a proof can await the backend round-trip before reading keepoutCount/editState.
     addKeepoutCircle(center, radius) {
-        const f = new Feature({geometry: new CircleGeom([center[0], center[1]], radius)});
-        this.keepoutSource.addFeature(f);
-        this._onDrawEnd(f, 'circle');
-        return this.keepouts.length;
+        return this._createKeepout('circle', {kind: 'circle', cx: center[0], cy: center[1], r: radius}, null);
     }
     addKeepoutPolygon(ring) {
-        const f = new Feature({geometry: new Polygon([ring])});
-        this.keepoutSource.addFeature(f);
-        this._onDrawEnd(f, 'polygon');
-        return this.keepouts.length;
+        const open = ring.map((p) => [p[0], p[1]]);
+        return this._createKeepout('polygon', {kind: 'polygon', ring: open}, null);
     }
 
-    removeKeepout(i) {
-        const k = this.keepouts[i];
-        if (!k) { return; }
-        try { this.keepoutSource.removeFeature(k.feature); } catch (e) { /* already removed */ }
-        this.keepouts.splice(i, 1);
-        this._setHint('No-go region removed (' + this.keepouts.length + ' left).');
+    // Delete a keep-out through the backend DELETE route (by its backend fid); re-adopt the authoritative set.
+    // A local-fallback region (fid 'loc…', no backend row) is just removed from the mirror.
+    removeKeepout(fid) {
+        const k = this.keepouts.find((x) => x.fid === fid);
+        if (!k) { return Promise.resolve(); }
+        if (!this.editSession || String(fid).startsWith('loc')) {
+            try { this.keepoutSource.removeFeature(k.feature); } catch (e) { /* already gone */ }
+            this.keepouts = this.keepouts.filter((x) => x.fid !== fid);
+            this._setHint('No-go region removed (' + this.keepouts.length + ' left).');
+            this._emit();
+            return Promise.resolve();
+        }
+        return fetch('/api/edit/session/' + encodeURIComponent(this.editSession) + '/keepout/' +
+            encodeURIComponent(fid), {method: 'DELETE'})
+            .then((r) => r.json())
+            .then((d) => {
+                if (!d || d.ok === false) { throw new Error((d && d.error) || 'delete failed'); }
+                this._adoptEditState(d);
+                this._setHint('No-go region deleted through the backend (v' + this.editVersion + ', ' +
+                    this.keepouts.length + ' left).');
+                this._emit();
+            })
+            .catch((e) => this._setHint('Could not delete the no-go region: ' + e.message, true));
     }
+
+    // Undo the LAST edit through the backend undo route (GW-08): the server applies the compensating inverse
+    // from the audit's before/after and bumps the version; we re-adopt the authoritative set.
+    undoEdit() {
+        if (!this.editSession) { this._setHint('Undo needs the backend edit-session (unavailable).', true); return Promise.resolve(); }
+        return fetch('/api/edit/session/' + encodeURIComponent(this.editSession) + '/undo', {method: 'POST'})
+            .then((r) => r.json())
+            .then((d) => {
+                if (!d || d.ok === false) { this._setHint((d && d.error) || 'Nothing to undo.', true); return; }
+                this._adoptEditState(d);
+                const rv = d.undone ? d.undone.reverted_op : 'edit';
+                this._setHint('Undid the last ' + rv + ' (v' + this.editVersion + ', ' +
+                    this.keepouts.length + ' active).');
+                this._emit();
+            })
+            .catch((e) => this._setHint('Undo failed: ' + e.message, true));
+    }
+
     clearKeepouts() {
-        this.keepouts = [];
-        this.keepoutSource.clear();
-        this._setHint('All no-go regions cleared.');
+        // Delete every keep-out through the backend (each auditable + individually undoable), then re-adopt;
+        // a local-only set is just cleared. Serial to keep the audit order deterministic.
+        const backendFids = this.editSession ? this.keepouts.filter((k) => !String(k.fid).startsWith('loc'))
+            .map((k) => k.fid) : [];
+        this.keepouts = this.keepouts.filter((k) => String(k.fid).startsWith('loc') && this.editSession);
+        if (!this.editSession || !backendFids.length) {
+            this.keepouts = [];
+            this.keepoutSource.clear();
+            this._setHint('All no-go regions cleared.');
+            this._emit();
+            return Promise.resolve();
+        }
+        return backendFids.reduce((p, fid) => p.then(() =>
+            fetch('/api/edit/session/' + encodeURIComponent(this.editSession) + '/keepout/' +
+                encodeURIComponent(fid), {method: 'DELETE'}).then((r) => r.json()).then((d) => {
+                if (d && d.ok !== false) { this._adoptEditState(d); }
+            })), Promise.resolve())
+            .then(() => { this._setHint('All no-go regions cleared (v' + this.editVersion + ').'); this._emit(); })
+            .catch((e) => this._setHint('Could not clear all no-go regions: ' + e.message, true));
+    }
+
+    // The count of undoable edits (live create/modify/delete not yet undone) -> drives the panel Undo button.
+    _undoableCount() {
+        const undone = new Set(this.editAudit.filter((a) => a.op === 'undo').map((a) => a.target));
+        return this.editAudit.filter((a) => ['create', 'modify', 'delete'].includes(a.op)
+            && !undone.has(a.version)).length;
     }
 
     _koSummary(k) {
@@ -904,10 +1072,19 @@ export default class PlanAuthor {
             lat: meanLat, lon: meanLon,
             orders: orders   // CP-05: the anchor-relative order-frame orders (shared with compareFutures)
         };
-        // DEPTH-1: fold the drawn no-go regions into the SAME /api/plan POST, in the SAME order frame as the
-        // orders. The backend parses them (planner_routing.py:147) + routes around them (_apply_keepouts).
-        const kos = this._keepoutsForFrame(wc);
-        if (kos.length) { payload.keepouts = kos; }
+        // GW-08 / ED-01: the keep-out set is owned by the backend edit session, so /plan READS it server-side
+        // by the session id + the order-frame anchor (payload.anchor_xy = the map-coord anchor wc). The server
+        // projects the session's map-frame keep-outs into the order frame (the same _keepoutsForFrame affine)
+        // and folds them into the planner keep-outs -- so an edit-session keep-out routes the mission around it
+        // through the EXACT same _apply_keepouts path as before. FALLBACK: with no backend session, serialize
+        // the local mirror client-side into payload.keepouts (the pre-GW-08 behavior), so the IDE still routes.
+        if (this.editSession && this.keepouts.length) {
+            payload.edit_session = this.editSession;
+            payload.anchor_xy = [wc[0], wc[1]];
+        } else {
+            const kos = this._keepoutsForFrame(wc);
+            if (kos.length) { payload.keepouts = kos; }
+        }
         // DEPTH-2: fold the resource budgets into the SAME POST as objective_constraints (the planner accepts
         // it via PlanRequest extra="allow", plan.py:64; parsed lode/planner_model.py:422-436). An empty set is
         // omitted so an unbudgeted plan is byte-identical to before.

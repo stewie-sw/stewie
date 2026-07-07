@@ -73,6 +73,31 @@ class PlanRequest(BaseModel):
     site: str = Field(default="haworth", max_length=40)        # REG-01: which imported site DEM to plan on
     max_traverse_slope_deg: float = Field(default=25.0, ge=5.0, le=45.0)   # operator slope budget: the routing traversability gate (planner default 25 deg)
     charger_capacity: int = Field(default=1, ge=1, le=8)   # FL-03: how many rovers can charge at once (multi-vehicle contention; default 1 = single shared charger)
+    edit_session: str | None = Field(default=None, max_length=64)   # GW-08/ED-01: read this session's keep-out set (source of truth)
+    anchor_xy: tuple[float, float] | None = None                    # GW-08: order-frame anchor in map metres, to project the session keep-outs
+
+
+def _merge_session_keepouts(payload: dict) -> None:
+    """GW-08/ED-01: fold a mission-feature EDIT SESSION's current keep-out set into ``payload["keepouts"]``
+    IN PLACE, so the planner routes around an edit-session keep-out through the exact same
+    ``planner_routing._apply_keepouts`` path as a client-supplied one (behavior preserved -- only the SOURCE
+    moved from the client array to the server-owned session store). The session is the source of truth; this
+    is where ``/plan`` READS it. Session keep-outs are stored in the stable map frame and projected into the
+    order frame with the request's ``anchor_xy`` (the same y-flipped translation planAuthor.js applies). An
+    unknown/empty session is a no-op (a stale id never breaks planning); a session WITH features but no
+    anchor_xy raises ValueError (surfaced as a 400) because it cannot be projected."""
+    sid = payload.get("edit_session")
+    if not sid:
+        return
+    from stewie.server.edit_session import get_session
+    sess = get_session(str(sid))
+    if sess is None or not sess.current_features():
+        return
+    anchor = payload.get("anchor_xy")
+    if anchor is None or len(anchor) != 2:
+        raise ValueError("edit_session requires anchor_xy [x, y] to project its keep-outs into the order frame")
+    converted = sess.to_planner_keepouts((float(anchor[0]), float(anchor[1])))
+    payload["keepouts"] = list(payload.get("keepouts") or []) + converted
 
 
 def _totals_json(totals):
@@ -170,6 +195,10 @@ def plan_commands(req: PlanRequest, _auth: str = Depends(heavy_quota)):
     from lode import mission_planner as MP
     from stewie.bridge import rc_contract as RC
     payload = req.model_dump()
+    try:
+        _merge_session_keepouts(payload)             # GW-08/ED-01: read the edit session's keep-outs
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     over = _oversized_plan(payload)                  # ARCH-01/04 input-size cap (this routes on the DEM)
     if over is not None:
         return over
@@ -190,6 +219,10 @@ def plan_math_endpoint(req: PlanRequest, _auth: str = Depends(heavy_quota)):
     + per-identity heavy-route quota (it re-derives the routed plan on the real DEM)."""
     from lode import mission_planner as MP
     payload = req.model_dump()
+    try:
+        _merge_session_keepouts(payload)             # GW-08/ED-01: read the edit session's keep-outs
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     over = _oversized_plan(payload)                  # ARCH-01/04 input-size cap (re-derives the routed plan)
     if over is not None:
         return over
@@ -265,7 +298,11 @@ def post_plan(req: PlanRequest, _auth: str = Depends(heavy_quota)):
     # ARCH-01/04: reject an oversized mission UP FRONT, then run the heavy compute under a wall-clock
     # deadline so one request cannot monopolize the single worker (see the cap helpers above).
     payload = req.model_dump(exclude_unset=True)
-    over = _oversized_plan(payload)
+    try:
+        _merge_session_keepouts(payload)              # GW-08/ED-01: read the edit session's keep-outs
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    over = _oversized_plan(payload)                   # counts the merged session keep-outs against the cap
     if over is not None:
         return over
     try:

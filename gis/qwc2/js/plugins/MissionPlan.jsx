@@ -128,6 +128,7 @@ class MissionPlan extends React.Component {
         this.setState({ready: true, ctrl: {
             site: 'haworth', activeKind: null, footprint: 60, depth: 0.4, orders: [],
             koTool: null, keepouts: [],
+            editSession: null, editVersion: 0, editAudit: [], canUndo: false,
             templates: null, templatesErr: null, structKind: null, structParams: {}, structures: [],
             algorithm: 'nearest', objective: 'time', maxSlopeDeg: 25,
             budgets: {max_time_s: '', max_energy_J: '', max_charges: '', max_distance_m: '', risk_weight: ''},
@@ -168,8 +169,9 @@ class MissionPlan extends React.Component {
     onRemove = (i) => { if (this.ctrl) { this.ctrl.removeOrder(i); } };
     onRun = () => { if (this.ctrl) { this.ctrl.runMission(); } };
     onKeepoutTool = (kind) => { if (this.ctrl) { this.ctrl.setKeepoutTool(kind); } };
-    onRemoveKeepout = (i) => { if (this.ctrl) { this.ctrl.removeKeepout(i); } };
+    onRemoveKeepout = (fid) => { if (this.ctrl) { this.ctrl.removeKeepout(fid); } };
     onClearKeepouts = () => { if (this.ctrl) { this.ctrl.clearKeepouts(); } };
+    onUndoEdit = () => { if (this.ctrl) { this.ctrl.undoEdit(); } };   // GW-08: revert the last keep-out edit
     // DEPTH-2 plan controls
     onAlgorithm = (e) => { if (this.ctrl) { this.ctrl.setAlgorithm(e.target.value); } };
     onObjective = (e) => { if (this.ctrl) { this.ctrl.setObjective(e.target.value); } };
@@ -713,6 +715,43 @@ class MissionPlan extends React.Component {
                 <div style={{fontSize: '9px', color: '#7a8290', margin: '0 0 4px', lineHeight: 1.35}}>
                     Draw avoid-regions over the red-cost / blocking layers; the planner routes the mission around them.
                 </div>
+                {/* GW-08 / ED-01: the backend edit session versions + audits every keep-out edit and is the
+                    source of truth the planner reads; an Undo reverts the last edit through the backend. */}
+                <div data-stewie-editsession={s.editSession || ''}
+                    style={{display: 'flex', alignItems: 'center', gap: '6px', margin: '2px 0 4px'}}>
+                    {s.editSession ? (
+                        <span data-stewie-ko-version={s.editVersion}
+                            title="backend mission-feature edit session: every create/delete/undo bumps this version and is audited"
+                            style={{fontSize: '9px', letterSpacing: '.04em', color: '#7fb0c8'}}>
+                            edit session · v{s.editVersion}
+                        </span>
+                    ) : (
+                        <span style={{fontSize: '9px', color: '#c8a24a'}}>local-only (backend edit-session offline)</span>
+                    )}
+                    <span style={{flex: '1 1 auto'}} />
+                    <button
+                        data-stewie-ko-undo="1"
+                        disabled={!s.canUndo}
+                        onClick={this.onUndoEdit}
+                        title="undo the last keep-out edit (create / delete) — reverts through the backend"
+                        style={{
+                            cursor: s.canUndo ? 'pointer' : 'default', font: '600 10px system-ui, sans-serif',
+                            padding: '3px 8px', borderRadius: '4px', border: '1px solid #2a3a4a',
+                            color: s.canUndo ? '#9fd4ff' : '#4a5560',
+                            background: s.canUndo ? '#12324610' : 'transparent'
+                        }}
+                        type="button"
+                    >↶ Undo</button>
+                </div>
+                {s.editAudit && s.editAudit.length ? (
+                    <div data-stewie-ko-audit="1"
+                        style={{fontSize: '9px', color: '#6f7a86', margin: '0 0 4px', lineHeight: 1.3,
+                            fontFamily: 'ui-monospace, monospace'}}>
+                        {s.editAudit.slice(-3).map((a) => (
+                            <div key={a.version}>v{a.version} · {a.op}{a.reverted_op ? ' (' + a.reverted_op + ')' : ''} · {a.fid}</div>
+                        ))}
+                    </div>
+                ) : null}
                 <div style={{display: 'flex', gap: '6px', margin: '4px 0'}}>
                     {kbtn('polygon', '⬡ No-go polygon')}
                     {kbtn('circle', '◯ No-go circle')}

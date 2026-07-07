@@ -42,6 +42,12 @@ export type ApiPath =
   | '/dem/workarea.png'
   | '/dem/{name}'
   | '/draft'
+  | '/edit/session'
+  | '/edit/session/{sid}'
+  | '/edit/session/{sid}/audit'
+  | '/edit/session/{sid}/keepout'
+  | '/edit/session/{sid}/keepout/{fid}'
+  | '/edit/session/{sid}/undo'
   | '/ephemeris'
   | '/events'
   | '/evidence'
@@ -198,6 +204,13 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/dem/{name}', operationId: 'get_dem_dem__name__get', mutatesAuthority: false },
   { method: 'GET', path: '/draft', operationId: 'draft_load_draft_get', mutatesAuthority: false },
   { method: 'PUT', path: '/draft', operationId: 'draft_save_draft_put', mutatesAuthority: true },
+  { method: 'POST', path: '/edit/session', operationId: 'create_session_edit_session_post', mutatesAuthority: true },
+  { method: 'GET', path: '/edit/session/{sid}', operationId: 'get_session_edit_session__sid__get', mutatesAuthority: false },
+  { method: 'GET', path: '/edit/session/{sid}/audit', operationId: 'get_audit_edit_session__sid__audit_get', mutatesAuthority: false },
+  { method: 'POST', path: '/edit/session/{sid}/keepout', operationId: 'create_keepout_edit_session__sid__keepout_post', mutatesAuthority: true },
+  { method: 'DELETE', path: '/edit/session/{sid}/keepout/{fid}', operationId: 'delete_keepout_edit_session__sid__keepout__fid__delete', mutatesAuthority: true },
+  { method: 'PATCH', path: '/edit/session/{sid}/keepout/{fid}', operationId: 'modify_keepout_edit_session__sid__keepout__fid__patch', mutatesAuthority: true },
+  { method: 'POST', path: '/edit/session/{sid}/undo', operationId: 'undo_edit_edit_session__sid__undo_post', mutatesAuthority: true },
   { method: 'GET', path: '/ephemeris', operationId: 'ephemeris_ephemeris_get', mutatesAuthority: false },
   { method: 'GET', path: '/events', operationId: 'get_events_events_get', mutatesAuthority: false },
   { method: 'GET', path: '/evidence', operationId: 'get_evidence_evidence_get', mutatesAuthority: false },

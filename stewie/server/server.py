@@ -134,6 +134,7 @@ from stewie.server.routers import assets as _assets_router  # noqa: E402
 from stewie.server.routers import auth as _auth_router  # noqa: E402
 from stewie.server.routers import config as _config_router  # noqa: E402
 from stewie.server.routers import construction as _construction_router  # noqa: E402
+from stewie.server.routers import editsession as _editsession_router  # noqa: E402
 from stewie.server.routers import program as _program_router  # noqa: E402
 from stewie.server.routers import dem as _dem_router  # noqa: E402
 from stewie.server.routers import ephemeris as _ephemeris_router  # noqa: E402
@@ -191,6 +192,7 @@ app.include_router(_session_router.router)
 app.include_router(_plan_router.router)
 app.include_router(_fleet_router.router)
 app.include_router(_construction_router.router)      # FS-03: Construction work area (build catalog + acceptance)
+app.include_router(_editsession_router.router)       # GW-08/ED-01: mission-feature edit session (keep-outs, versioned audit, undo)
 app.include_router(_models_router.router)            # FS-03: Models work area (registries + ML-01 governance)
 app.include_router(_perception_router.router)
 app.include_router(_nav_router.router)
