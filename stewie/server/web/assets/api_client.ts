@@ -154,6 +154,7 @@ export type ApiPath =
   | '/world/layer-consumption'
   | '/world/layer-manifest'
   | '/world/point'
+  | '/world/site-markers'
   | '/world/terrain_view'
   | '/world/terrain_view.png'
   | '/world/terramechanics-layers'
@@ -327,6 +328,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/world/layer-consumption', operationId: 'layer_consumption_world_layer_consumption_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/layer-manifest', operationId: 'world_layer_manifest_world_layer_manifest_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/point', operationId: 'world_point_world_point_get', mutatesAuthority: false },
+  { method: 'GET', path: '/world/site-markers', operationId: 'world_site_markers_world_site_markers_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terrain_view', operationId: 'world_terrain_view_world_terrain_view_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terrain_view.png', operationId: 'world_terrain_view_png_world_terrain_view_png_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terramechanics-layers', operationId: 'terramechanics_layers_world_terramechanics_layers_get', mutatesAuthority: false },
