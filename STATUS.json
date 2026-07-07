@@ -34,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 274,
+  "cited": 275,
   "per_family": {
     "AC": {
       "cited": 1,
@@ -109,7 +109,7 @@
       "total": 8
     },
     "EV": {
-      "cited": 0,
+      "cited": 1,
       "total": 1
     },
     "FL": {
@@ -264,6 +264,10 @@
     {
       "id": "CP-07",
       "v": "P"
+    },
+    {
+      "id": "EV-01",
+      "v": "N"
     },
     {
       "id": "FL-05",
