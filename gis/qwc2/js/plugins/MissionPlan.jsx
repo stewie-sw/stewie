@@ -37,6 +37,40 @@ const SITES = [
     {value: 'shackleton_rim', label: 'Shackleton Rim'}
 ];
 
+// DEPTH-2 plan controls — the REAL planner levers /api/plan accepts. These option VALUES are the exact
+// backend strings (no synthetic choices); the backend validates them (a bad name is a 400).
+//   ALGORITHMS = SEQUENCERS (lode/planner_optimize.py:48): auto/nearest/greedy/two_opt/or_opt/lk/brute/held_karp.
+const ALGORITHMS = [
+    {value: 'auto', label: 'Auto (strongest for size)'},
+    {value: 'nearest', label: 'Nearest-neighbour'},
+    {value: 'greedy', label: 'Greedy (objective-scored)'},
+    {value: 'two_opt', label: '2-opt local search'},
+    {value: 'or_opt', label: 'Or-opt local search'},
+    {value: 'lk', label: 'Lin-Kernighan-style'},
+    {value: 'brute', label: 'Brute force (exact, ≤7)'},
+    {value: 'held_karp', label: 'Held-Karp (exact dist, ≤16)'}
+];
+//   OBJECTIVES = OBJECTIVES table (lode/planner_optimize.py:27-40). duration (==time) and power
+//   (==average_power) aliases are omitted so the menu has no duplicate-meaning entries.
+const OBJECTIVES = [
+    {value: 'time', label: 'Time / makespan'},
+    {value: 'energy', label: 'Energy'},
+    {value: 'average_power', label: 'Average power'},
+    {value: 'distance', label: 'Drive distance'},
+    {value: 'charges', label: 'Recharge stops'},
+    {value: 'mass', label: 'Mass moved'}
+];
+//   BUDGETS = Mission.objective_constraints keys (_CONSTRAINT_CAPS | {risk_weight},
+//   lode/planner_constants.py:30 / planner_model.py:426). Each is an OPTIONAL hard cap (blank = not applied);
+//   overshooting a cap penalizes the ordering below any feasible one (planner_optimize.py:131 _constraint_penalty).
+const BUDGETS = [
+    {key: 'max_time_s', label: 'Max time', unit: 's', step: '600'},
+    {key: 'max_energy_J', label: 'Max energy', unit: 'J', step: '100000'},
+    {key: 'max_distance_m', label: 'Max distance', unit: 'm', step: '100'},
+    {key: 'max_charges', label: 'Max recharges', unit: '#', step: '1'},
+    {key: 'risk_weight', label: 'Risk weight', unit: '×', step: '0.1'}
+];
+
 function fmtDur(s) {
     s = Math.round(s || 0);
     if (s < 3600) { return Math.floor(s / 60) + 'm ' + (s % 60) + 's'; }
@@ -83,6 +117,8 @@ class MissionPlan extends React.Component {
         this.setState({ready: true, ctrl: {
             site: 'haworth', activeKind: null, footprint: 60, depth: 0.4, orders: [],
             koTool: null, keepouts: [],
+            algorithm: 'nearest', objective: 'time', maxSlopeDeg: 25,
+            budgets: {max_time_s: '', max_energy_J: '', max_charges: '', max_distance_m: '', risk_weight: ''},
             hint: 'Pick a work site, then a tool, then click the map to place orders.', hintErr: false,
             result: null, planning: false,
             run: {active: false, id: null, legsSeen: 0, total: 0, terminal: null, lastEvent: '',
@@ -110,6 +146,12 @@ class MissionPlan extends React.Component {
     onKeepoutTool = (kind) => { if (this.ctrl) { this.ctrl.setKeepoutTool(kind); } };
     onRemoveKeepout = (i) => { if (this.ctrl) { this.ctrl.removeKeepout(i); } };
     onClearKeepouts = () => { if (this.ctrl) { this.ctrl.clearKeepouts(); } };
+    // DEPTH-2 plan controls
+    onAlgorithm = (e) => { if (this.ctrl) { this.ctrl.setAlgorithm(e.target.value); } };
+    onObjective = (e) => { if (this.ctrl) { this.ctrl.setObjective(e.target.value); } };
+    onMaxSlope = (e) => { if (this.ctrl) { this.ctrl.setMaxSlope(e.target.value); } };
+    onBudget = (key, e) => { if (this.ctrl) { this.ctrl.setBudget(key, e.target.value); } };
+    onClearBudgets = () => { if (this.ctrl) { this.ctrl.clearBudgets(); } };
 
     renderTools(s) {
         const btn = (kind, label, color) => {
@@ -159,6 +201,80 @@ class MissionPlan extends React.Component {
                     </li>
                 ))}
             </ul>
+        );
+    }
+
+    // --- Plan controls (DEPTH-2): the planner levers folded into the SAME /api/plan POST -----------------
+    // Algorithm + objective are controlled selects (the exact SEQUENCERS / OBJECTIVES strings); the slope
+    // budget is a 5..45 deg range (max_traverse_slope_deg); the resource budgets are optional hard caps
+    // (objective_constraints). All ride the one /api/plan POST — no new backend, no new route.
+    renderPlanControls(s) {
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        const inputStyle = {
+            width: '100%', boxSizing: 'border-box', background: '#0c1017', color: '#c7d2e3',
+            border: '1px solid #2a2a36', borderRadius: '4px', padding: '5px 6px', font: '11px system-ui, sans-serif'
+        };
+        const budgets = s.budgets || {};
+        const anyBudget = BUDGETS.some((b) => (budgets[b.key] != null && budgets[b.key] !== ''));
+        return (
+            <div style={{marginTop: '10px', borderTop: '1px solid #1c1c26', paddingTop: '8px'}}>
+                <div style={{...lbl, marginBottom: '4px'}}>Plan controls</div>
+                <div style={{display: 'flex', gap: '8px', marginBottom: '6px'}}>
+                    <div style={{flex: '1 1 0'}}>
+                        <label style={lbl} htmlFor="mp-algo">Algorithm</label>
+                        <select
+                            data-stewie-algo="1" id="mp-algo" onChange={this.onAlgorithm}
+                            style={inputStyle} value={s.algorithm}
+                        >
+                            {ALGORITHMS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                    </div>
+                    <div style={{flex: '1 1 0'}}>
+                        <label style={lbl} htmlFor="mp-obj">Objective</label>
+                        <select
+                            data-stewie-obj="1" id="mp-obj" onChange={this.onObjective}
+                            style={inputStyle} value={s.objective}
+                        >
+                            {OBJECTIVES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                    </div>
+                </div>
+
+                <label style={lbl} htmlFor="mp-slope">Slope budget · <b style={{color: '#c7d2e3'}}>{s.maxSlopeDeg}°</b> (traversability gate)</label>
+                <input
+                    data-stewie-slope="1" id="mp-slope" max="45" min="5" onChange={this.onMaxSlope}
+                    step="1" style={{width: '100%', accentColor: '#39c6ff'}} type="range" value={s.maxSlopeDeg}
+                />
+
+                <div style={{...lbl, margin: '8px 0 2px'}}>Resource budgets (optional caps)</div>
+                <div style={{fontSize: '9px', color: '#7a8290', margin: '0 0 4px', lineHeight: 1.35}}>
+                    Soft caps the sequencer optimizes toward — an overshooting order is penalized so the
+                    least-overshoot sequence wins (honored by greedy / 2-opt / or-opt / brute; nearest &amp;
+                    held-karp are order-fixed and ignore them). risk weight adds a recharge-exposure cost. Blank = not applied.
+                </div>
+                {BUDGETS.map((b) => (
+                    <div key={b.key} style={{display: 'flex', alignItems: 'center', gap: '6px', margin: '3px 0'}}>
+                        <span style={{flex: '0 0 90px', fontSize: '10px', color: '#8a93a3'}}>{b.label}</span>
+                        <input
+                            data-stewie-budget={b.key} min="0" onChange={(e) => this.onBudget(b.key, e)}
+                            placeholder="—" step={b.step} style={{...inputStyle, flex: '1 1 auto'}}
+                            type="number" value={budgets[b.key] != null ? budgets[b.key] : ''}
+                        />
+                        <span style={{flex: '0 0 14px', fontSize: '9px', color: '#7a8290'}}>{b.unit}</span>
+                    </div>
+                ))}
+                {anyBudget ? (
+                    <button
+                        data-stewie-budget-clear="1" onClick={this.onClearBudgets}
+                        style={{
+                            marginTop: '4px', cursor: 'pointer', font: '600 10px system-ui, sans-serif',
+                            padding: '5px 8px', borderRadius: '4px', border: '1px solid #2a2a36',
+                            color: '#c7d2e3', background: '#12141a'
+                        }}
+                        type="button"
+                    >Clear budgets</button>
+                ) : null}
+            </div>
         );
     }
 
@@ -258,7 +374,11 @@ class MissionPlan extends React.Component {
                 {kv('Distance', ((r.distance_m || 0) / 1000).toFixed(2) + ' km')}
                 {kv('Recharges', r.recharges)}
                 {kv('Drum cycles', r.drum_cycles)}
-                {kv('Algorithm', r.algorithm)}
+                {kv('Algorithm', r.algorithm + (r.optimality ? ' · ' + r.optimality : ''))}
+                {kv('Objective', r.objective || '—')}
+                {kv('Slope gate', (r.max_slope_deg != null ? r.max_slope_deg + '°' : '—'))}
+                {r.budgets && Object.keys(r.budgets).length ? kv('Budgets',
+                    Object.entries(r.budgets).map(([k, v]) => k.replace(/^max_/, '≤').replace(/_[sJm]$/, '') + ' ' + v).join(' · ')) : null}
                 {kv('Terrain', r.terrain_source || '—')}
                 {(r.infeasible_reasons || []).length ? (
                     <div style={{fontSize: '10px', color: '#e0b300', marginTop: '4px'}}>
@@ -429,6 +549,8 @@ class MissionPlan extends React.Component {
                 {this.renderQueue(s)}
 
                 {this.renderKeepouts(s)}
+
+                {this.renderPlanControls(s)}
 
                 <div style={{display: 'flex', gap: '6px', marginTop: '8px'}}>
                     <button

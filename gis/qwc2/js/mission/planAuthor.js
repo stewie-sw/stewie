@@ -65,6 +65,26 @@ export default class PlanAuthor {
         this.activeKind = null;
         this.footprint = 60;       // m^2 (Frontend A default)
         this.depth = 0.4;          // m
+
+        // --- Plan controls (DEPTH-2). The planner LEVERS /api/plan already accepts, exposed as UI so the
+        // operator picks the solver + objective + budgets instead of the former hardcoded nearest/time. The
+        // defaults MATCH the PlanRequest defaults (stewie/server/routers/plan.py:68,69,74), so an untouched
+        // panel POSTs the byte-identical legacy payload. Grounded (no synthetic options):
+        //   algorithm  -> optimize_sequence, validated against SEQUENCERS (lode/planner_optimize.py:48):
+        //                 auto/nearest/greedy/two_opt/or_opt/lk/brute/held_karp.
+        //   objective  -> parse_objective, validated against OBJECTIVES (lode/planner_optimize.py:27-40):
+        //                 time/energy/average_power/distance/charges/mass (duration==time, power==average_power).
+        //   maxSlopeDeg-> PlanRequest.max_traverse_slope_deg (plan.py:74): the routing traversability gate,
+        //                 clamped to the backend bound 5..45 deg (planner default 25).
+        //   budgets    -> Mission.objective_constraints (lode/planner_model.py:218; parsed :422-436): the hard
+        //                 sequencing caps {max_time_s, max_energy_J, max_charges, max_distance_m} + risk_weight
+        //                 (planner_constants.py:30 _CONSTRAINT_CAPS | {risk_weight}); each a finite value >= 0
+        //                 (planner_model.py:431-433). '' = unset -> the key is omitted -> that budget unconstrained.
+        this.algorithm = 'nearest';
+        this.objective = 'time';
+        this.maxSlopeDeg = 25;
+        this.budgets = {max_time_s: '', max_energy_J: '', max_charges: '', max_distance_m: '', risk_weight: ''};
+        this._lastPlanPayload = null;   // the exact JSON POSTed to /api/plan (headless-proof readback)
         this.orders = [];          // {kind, footprint_m2, depth_m, coord:[x,y]30135, lonlat:[lon,lat]}
         this.result = null;        // last plan summary (for the panel)
         this.planning = false;
@@ -164,7 +184,18 @@ export default class PlanAuthor {
                 addKeepoutPolygon: (ring) => this.addKeepoutPolygon(ring),
                 clearKeepouts: () => this.clearKeepouts(),
                 keepoutCount: () => this.keepouts.length,
-                route: () => (this.route ? this.route.map((p) => p.slice()) : [])
+                route: () => (this.route ? this.route.map((p) => p.slice()) : []),
+                // Plan-control drivers (DEPTH-2) — the SAME controller code paths the panel selects/inputs call,
+                // so a proof can pick a solver/objective/budget without simulating DOM events. Authoring only.
+                setAlgorithm: (v) => this.setAlgorithm(v),
+                setObjective: (v) => this.setObjective(v),
+                setMaxSlope: (v) => this.setMaxSlope(v),
+                setBudget: (k, v) => this.setBudget(k, v),
+                clearBudgets: () => this.clearBudgets(),
+                // Read-only readback of the exact /api/plan POST body + the last plan summary (for verifying
+                // the chosen levers rode the POST and the resolved algorithm/objective came back).
+                lastPlanPayload: () => (this._lastPlanPayload ? JSON.parse(JSON.stringify(this._lastPlanPayload)) : null),
+                planResult: () => (this.result ? JSON.parse(JSON.stringify(this.result)) : null)
             };
         }
         this._attached = true;
@@ -192,6 +223,9 @@ export default class PlanAuthor {
                 footprint_m2: o.footprint_m2, depth_m: o.depth_m
             })),
             hint: this.hint, hintErr: this.hintErr, result: this.result, planning: this.planning,
+            // DEPTH-2 plan controls (mirrored to the panel so the selects/inputs reflect the chosen levers).
+            algorithm: this.algorithm, objective: this.objective, maxSlopeDeg: this.maxSlopeDeg,
+            budgets: {...this.budgets},
             koTool: this.koTool,
             keepouts: this.keepouts.map((k, i) => ({idx: i, kind: k.kind, label: this._koSummary(k)})),
             run: this._runView(),
@@ -259,6 +293,41 @@ export default class PlanAuthor {
     }
     setFootprint(v) { this.footprint = Math.max(1, parseFloat(v) || 60); this._emit(); }
     setDepth(v) { this.depth = Math.max(0.05, parseFloat(v) || 0.4); this._emit(); }
+
+    // --- Plan controls (DEPTH-2): algorithm / objective / slope budget / resource budgets --------------
+    // The dropdown/input values are the EXACT backend strings; validation lives server-side (a bad name is a
+    // 400 from optimize_sequence/parse_objective/mission_from_dict), so the UI just carries the operator's
+    // choice into the /api/plan POST. No client-side allow-list duplication of the backend enums.
+    setAlgorithm(v) { this.algorithm = String(v || 'nearest'); this._emit(); }
+    setObjective(v) { this.objective = String(v || 'time'); this._emit(); }
+    setMaxSlope(v) {
+        const n = parseFloat(v);
+        // clamp to the PlanRequest bound (plan.py:74 ge=5.0 le=45.0); a blank/NaN keeps the planner default.
+        this.maxSlopeDeg = Number.isFinite(n) ? Math.max(5, Math.min(45, Math.round(n))) : 25;
+        this._emit();
+    }
+    setBudget(key, v) {
+        if (Object.prototype.hasOwnProperty.call(this.budgets, key)) {
+            this.budgets[key] = (v == null ? '' : String(v));
+            this._emit();
+        }
+    }
+    clearBudgets() {
+        this.budgets = {max_time_s: '', max_energy_J: '', max_charges: '', max_distance_m: '', risk_weight: ''};
+        this._setHint('Resource budgets cleared — plan is unconstrained.');
+    }
+    // Serialize the SET budgets into the planner's objective_constraints schema: only finite, >= 0 entries
+    // (lode/planner_model.py:431-433); a blank field is omitted so that constraint is simply not applied.
+    _objectiveConstraints() {
+        const oc = {};
+        for (const k of Object.keys(this.budgets)) {
+            const raw = this.budgets[k];
+            if (raw === '' || raw == null) { continue; }
+            const n = parseFloat(raw);
+            if (Number.isFinite(n) && n >= 0) { oc[k] = n; }
+        }
+        return oc;
+    }
 
     // --- Keep-out / no-go authoring ------------------------------------------------------------------
     // Toggle the no-go draw tool. Turning it on stops order-placing (map clicks now draw a shape, not an
@@ -442,7 +511,11 @@ export default class PlanAuthor {
         catch (e) { this._setHint('Could not anchor the work frame: ' + e.message, true); return Promise.resolve(); }
         const payload = {
             name: 'artemis-ide mission', body: 'moon', site: this.site,
-            algorithm: 'nearest', objective: 'time', lat: meanLat, lon: meanLon,
+            // DEPTH-2: the chosen solver + objective + slope budget (the /api/plan levers, plan.py:68,69,74),
+            // replacing the former hardcoded nearest/time.
+            algorithm: this.algorithm, objective: this.objective,
+            max_traverse_slope_deg: this.maxSlopeDeg,
+            lat: meanLat, lon: meanLon,
             orders: this.orders.map((o, i) => ({
                 action: o.kind + ' ' + (i + 1), kind: o.kind,
                 x: round1(o.coord[0] - wc[0]),      // 30135 East offset from the anchor
@@ -454,6 +527,12 @@ export default class PlanAuthor {
         // orders. The backend parses them (planner_routing.py:147) + routes around them (_apply_keepouts).
         const kos = this._keepoutsForFrame(wc);
         if (kos.length) { payload.keepouts = kos; }
+        // DEPTH-2: fold the resource budgets into the SAME POST as objective_constraints (the planner accepts
+        // it via PlanRequest extra="allow", plan.py:64; parsed lode/planner_model.py:422-436). An empty set is
+        // omitted so an unbudgeted plan is byte-identical to before.
+        const oc = this._objectiveConstraints();
+        if (Object.keys(oc).length) { payload.objective_constraints = oc; }
+        this._lastPlanPayload = payload;   // exact POST body for the headless LIVE proof readback
         // Reuse the EXACT order-frame orders for the SIM run (POST /executive/run is anchored at the site DEM;
         // it carries no lat/lon field, so the run reuses these order-frame offsets -- the same queue shape the
         // OL viewer runs, gis/web/app.js:870-876). The rover animates on THIS plan's route regardless.
@@ -551,7 +630,15 @@ export default class PlanAuthor {
             distance_m: t.distance_m || 0,
             recharges: pr.recharges != null ? pr.recharges : (t.charges || 0),
             drum_cycles: pr.drum_cycles != null ? pr.drum_cycles : (t.drum_cycles || 0),
+            // DEPTH-2: echo the RESOLVED levers straight from the response. resolved_algorithm is the solver
+            // the planner actually ran (e.g. auto -> brute/held_karp_lk/lk, plan.py:370 / planner_assembly.py:540);
+            // totals.objective is the objective it optimized (planner_assembly.py:545). optimality is the
+            // exact/heuristic label. max_slope_deg + budgets echo the operator's request for verification.
             algorithm: pr.resolved_algorithm || t.resolved_algorithm || t.algorithm || '—',
+            objective: t.objective || this.objective || '—',
+            optimality: t.optimality || '',
+            max_slope_deg: this.maxSlopeDeg,
+            budgets: this._objectiveConstraints(),
             infeasible_reasons: resp.infeasible_reasons || [],
             pdf: resp.pdf ? ('/api' + resp.pdf) : null,
             terrain_source: resp.terrain_source || ''
