@@ -220,6 +220,40 @@ def world_layer_manifest(site: str = "haworth"):   # public read (per-site map-d
             "layer_manifest": manifest.model_dump()}   # [REQ:FR-10] per-layer typed manifest w/ provenance + eligibility
 
 
+@router.get("/world/point")
+def world_point(site: str = "haworth", x: float | None = None, y: float | None = None,
+                lat: float | None = None, lon: float | None = None):   # public read (per-cell map data)
+    """[REQ:GW-07] the SELECTION INSPECTOR's per-cell point query. A clicked map location -- order-frame
+    (x, y) metres OR selenographic (lat, lon) degrees -- resolves to the site DEM cell and returns the
+    servable layers' ACTUAL values there (elevation / slope / the six terramechanics-spine fields / plan-
+    independent traversal cost + blocking reason), each from the SAME functions the drapes render (so the
+    reading IS the drape value at that cell), plus the cell's runtime evidence (as-built / observed
+    provenance) and the mission actions the cell affords. Public (map-data read, like /world/layer-manifest)
+    so the keyless public /ide/ inspector can bind it. Honest: a layer with no per-cell scalar (sun-
+    parameterized / reference grid / observed-only) reports available=false with a reason, never a fabricated
+    value; an out-of-tile click is in_bounds=false with no values. 404 if the site DEM bundle is absent."""
+    from lode import mission_planner as MP
+    from stewie.server import gis_layers as GL
+    if x is None or y is None:
+        if lat is None or lon is None:
+            return JSONResponse(status_code=400, content={
+                "ok": False, "error": "provide x & y (order-frame metres) or lat & lon (selenographic degrees)"})
+        try:
+            x, y = MP.latlon_to_dem_origin(float(lat), float(lon), bundle_dir=MP.bundle_for_site(site))
+        except KeyError as e:
+            return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+        except ValueError as e:
+            return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+        except (FileNotFoundError, ImportError) as e:
+            return JSONResponse(status_code=503, content={"ok": False, "error": f"DEM/pyproj absent: {e}"})
+    try:
+        return GL.point_values(site, float(x), float(y))
+    except (KeyError, FileNotFoundError) as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    except (ImportError, ValueError) as e:
+        return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
+
+
 @router.get("/world")
 def world(site: str = "haworth", _auth: str = Depends(require_auth)):
     """[REQ:DT-05] the AUTHORITATIVE rich world descriptor for `site`: grid geometry + lunar datum +

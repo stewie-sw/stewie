@@ -73,6 +73,7 @@ import MissionHUDPlugin from './plugins/MissionHUD';   // STEWIE: live read-only
 import MissionLayersPlugin from './plugins/MissionLayers';   // STEWIE: mission layer-catalog panel (T6)
 import MissionPlanPlugin from './plugins/MissionPlan';   // STEWIE: mission-authoring plan panel (T9)
 import MissionProgramPlugin from './plugins/MissionProgram';   // STEWIE: PRD §7 program board (GIS-workbench default)
+import SelectionInspectorPlugin from './plugins/SelectionInspector';   // STEWIE: [REQ:GW-07] per-cell selection inspector
 import WholeMoonPlugin from './plugins/WholeMoon';   // STEWIE: whole-Moon 3D overview (both hemispheres) + dive-to-site
 
 import defaultLocaleData from '../static/translations/en-US.json';
@@ -168,6 +169,7 @@ export default {
             MissionLayersPlugin: MissionLayersPlugin,   // STEWIE: mission layer-catalog panel (T6)
             MissionPlanPlugin: MissionPlanPlugin,   // STEWIE: mission-authoring plan panel (T9)
             MissionProgramPlugin: MissionProgramPlugin,   // STEWIE: PRD §7 program board (GIS-workbench default)
+            SelectionInspectorPlugin: SelectionInspectorPlugin,   // STEWIE: [REQ:GW-07] per-cell selection inspector
             WholeMoonPlugin: WholeMoonPlugin,   // STEWIE: whole-Moon 3D overview + dive-to-site
         },
         cfg: {

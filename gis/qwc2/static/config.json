@@ -304,6 +304,9 @@
         "name": "MissionLayers"
       },
       {
+        "name": "SelectionInspector"
+      },
+      {
         "name": "MissionPlan"
       },
       {
@@ -347,6 +350,7 @@
             {"key": "MissionProgram", "title": "Program", "icon": "list-alt"},
             {"key": "MissionPlan", "title": "Mission Plan", "icon": "draw"},
             {"key": "MissionLayers", "title": "Mission Layers", "icon": "layers"},
+            {"key": "SelectionInspector", "title": "Inspector", "icon": "info"},
             {"key": "MissionHUD", "title": "Rover HUD", "icon": "routing-car"},
             {"key": "MissionEngPanel", "title": "Eng Panel", "icon": "plot_info"},
             {"key": "Settings", "icon": "cog"},

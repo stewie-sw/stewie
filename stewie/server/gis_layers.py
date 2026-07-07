@@ -567,6 +567,163 @@ def physics_legend() -> dict:
     return {k: {"unit": v["unit"], "ramp": v["ramp"], "text": v["text"]} for k, v in PHYSICS_LAYERS.items()}
 
 
+# ---- [REQ:GW-07] the SELECTION-INSPECTOR per-cell point query -------------------------------------
+# One clicked map location -> the servable layers' ACTUAL values at that DEM cell, computed by the SAME
+# functions the drapes render with (slope_deg_map, _terra_fields, _costmap_compose) so the inspector value
+# IS the drape value at that cell. Every layer carries its catalog id + unit; a layer with no plan-
+# independent per-cell scalar (sun-parameterized / reference grid / observed-only) is reported available=
+# False with an honest reason, never a fabricated number. Runtime evidence (as-built / observed) comes from
+# the composed CurrentTerrainView's per-cell provenance.
+_POINT_SUN_EL = 6.0     # the globe cost drape's default sun (deg elevation); cost is plan-independent so a
+_POINT_SUN_AZ = 90.0    # fixed default is honest for a point cost. Reported in the payload so it is legible.
+
+# each servable catalog row -> how the inspector fills its per-cell attribute. `scalar` rows have a real
+# per-cell value; `none` rows are honestly not point-queryable here (with a reason). label/unit are shown.
+_POINT_NODATA = {
+    "terrain.illumination": "sun-parameterized (horizon shadowing) -- set the sun to query per cell",
+    "terrain.incidence": "sun-parameterized (solar incidence angle) -- set the sun to query per cell",
+    "terrain.psr": "permanently-shadowed sweep -- an area classification, not a per-cell scalar here",
+    "base.grid": "reference grid overlay -- no measured cell value",
+    "traffic.compaction": "observed traversal compaction -- only where the rover has driven",
+}
+
+
+def point_values(site: str, x_m: float, y_m: float) -> dict:
+    """[REQ:GW-07] Resolve an order-frame (x, y) [m] on ``site`` to its DEM cell and return the servable
+    layers' per-cell values + the cell's runtime evidence. Reuses the drape field functions so the reading
+    matches the map. Raises KeyError/FileNotFoundError for an unknown/unimported site (the route -> 404).
+    An out-of-tile click returns cell.in_bounds=False and every attribute available=False (honest no-data).
+    """
+    from stewie.server import state
+    from stewie.terrain.site_dem import slope_deg_map
+
+    dem, origin = state.moon_dem(site)
+    if dem is None:
+        raise FileNotFoundError(f"no DEM bundle for site {site!r}")
+    Z, cell = dem
+    Z = np.asarray(Z, dtype=float)
+    ox, oy = float(origin[0]), float(origin[1])
+    height, width = Z.shape
+    col = int(round((ox + float(x_m)) / cell))
+    row = int(round((oy + float(y_m)) / cell))
+    in_bounds = (0 <= row < height) and (0 <= col < width)
+
+    # every servable row's presentation shell (catalog id -> label/unit). The scalar rows get filled below.
+    def _attr(lid, label, unit, value=None, available=False, note=None, reason=None):
+        a = {"id": lid, "label": label, "unit": unit, "value": value, "available": bool(available)}
+        if note is not None:
+            a["note"] = note
+        if reason is not None or lid == "traffic.traversability":
+            a["reason"] = reason
+        return a
+
+    order = [
+        ("base.dem", "Elevation", "m"), ("terrain.slope", "Slope", "deg"),
+        ("hazard.slope_nogo", "Slope no-go", ""),
+        ("physics.bearing", "Bearing (contact pressure)", "Pa"),
+        ("physics.sinkage", "Sinkage", "m"), ("physics.slip_risk", "Slip risk", "slip ratio"),
+        ("physics.traction_margin", "Traction margin", "fraction"),
+        ("physics.energy_cost", "Drive power", "W"),
+        ("physics.excavation_resistance", "Excavation resistance", "N"),
+        ("traffic.cost_global", "Traversal cost", ""),
+        ("traffic.traversability", "Passable", ""),
+        ("terrain.illumination", "Illumination", ""), ("terrain.incidence", "Incidence", "deg"),
+        ("terrain.psr", "PSR", ""), ("base.grid", "Reference grid", ""),
+        ("traffic.compaction", "Traversal compaction", "Dr"),
+    ]
+    meta: dict = {
+        "ok": True, "site": site,
+        "cell": {"row": row, "col": col, "cell_m": float(cell), "in_bounds": in_bounds,
+                 "grid_rows": int(height), "grid_cols": int(width)},
+        "position": {"x_m": round(float(x_m), 2), "y_m": round(float(y_m), 2),
+                     "dem_origin_m": [round(ox, 2), round(oy, 2)]},
+        "sun": {"el_deg": _POINT_SUN_EL, "az_deg": _POINT_SUN_AZ},
+    }
+    attributes: list[dict] = []
+
+    if not in_bounds:
+        # honest no-data everywhere: never invent a reading off the tile.
+        for lid, lab, unit in order:
+            attributes.append(_attr(lid, lab, unit, note="outside the site tile -- no data at this location"))
+        return {**meta, "attributes": attributes,
+                "runtime_evidence": {"cell_source": "out_of_bounds", "as_built_delta_m": 0.0,
+                                     "as_built_version": 0, "twin_version": 0, "observed_fraction": 0.0,
+                                     "observed_at_cell": False},
+                "actions": _point_actions(in_bounds=False, passable=False)}
+
+    # a local window around the cell -> the drape field functions (exact at the centre, fast on a patch).
+    half = 48
+    r0, r1 = max(0, row - half), min(height, row + half + 1)
+    c0, c1 = max(0, col - half), min(width, col + half + 1)
+    patch = Z[r0:r1, c0:c1]
+    lr, lc = row - r0, col - c0
+
+    elevation = float(Z[row, col])
+    slope = float(np.asarray(slope_deg_map(patch, cell))[lr, lc])
+    fields = _terra_fields(patch, cell)                                   # the six terramechanics-spine fields
+    cm = _costmap_compose(patch, cell, _POINT_SUN_AZ, _POINT_SUN_EL)      # plan-independent cost + veto
+    cost = float(cm.cost[lr, lc])
+    passable = bool(cm.passable[lr, lc])
+    reason = str(cm.reason[lr, lc]) or None
+
+    scalars = {
+        "base.dem": elevation, "terrain.slope": slope,
+        "physics.bearing": float(fields["bearing"][lr, lc]),
+        "physics.sinkage": float(fields["sinkage"][lr, lc]),
+        "physics.slip_risk": float(fields["slip_risk"][lr, lc]),
+        "physics.traction_margin": float(fields["traction_margin"][lr, lc]),
+        "physics.energy_cost": float(fields["energy_cost"][lr, lc]),
+        "physics.excavation_resistance": float(fields["excavation_resistance"][lr, lc]),
+        "traffic.cost_global": cost,
+    }
+    for lid, lab, unit in order:
+        if lid in scalars:
+            attributes.append(_attr(lid, lab, unit, value=round(scalars[lid], 4), available=True))
+        elif lid == "hazard.slope_nogo":
+            attributes.append(_attr(lid, lab, unit, value=bool(slope > 20.0), available=True,
+                                    note="slope > 20 deg tested-envelope no-go [WHEELTEST]"))
+        elif lid == "traffic.traversability":
+            attributes.append(_attr(lid, lab, unit, value=passable, available=True, reason=reason))
+        else:
+            attributes.append(_attr(lid, lab, unit, note=_POINT_NODATA.get(lid, "no per-cell value")))
+
+    # runtime evidence: the composed CurrentTerrainView's per-cell provenance (as-built / observed) at the cell.
+    view = state.current_terrain_view(site, dem, origin)
+    if view is not None:
+        src = int(np.asarray(view.source)[row, col])
+        src_label = {0: "pristine", 1: "as_built", 2: "observed"}.get(src, "pristine")
+        delta = float(np.asarray(view.heights)[row, col] - elevation)
+        runtime = {"cell_source": src_label, "as_built_delta_m": round(delta, 4),
+                   "as_built_version": int(view.as_built_version), "twin_version": int(view.twin_version),
+                   "observed_fraction": float(view.observed_fraction), "observed_at_cell": src == 2}
+    else:
+        runtime = {"cell_source": "pristine", "as_built_delta_m": 0.0, "as_built_version": 0,
+                   "twin_version": 0, "observed_fraction": 0.0, "observed_at_cell": False}
+
+    return {**meta, "attributes": attributes, "runtime_evidence": runtime,
+            "actions": _point_actions(in_bounds=True, passable=passable)}
+
+
+def _point_actions(*, in_bounds: bool, passable: bool) -> list:
+    """[REQ:GW-07] The mission actions a clicked cell affords, each with an enabled flag + a reason so a
+    disabled control names WHY (the FR-03 / AU-01 command-authority discipline, at the map-cell scale).
+    plan-here anchors a plan; place-structure + add-keepout author mission features -- all gated on real
+    state (an out-of-tile or impassable cell cannot host a structure)."""
+    if not in_bounds:
+        why = "outside the site tile"
+        return [
+            {"id": "plan_here", "label": "Plan here", "enabled": False, "reason": why},
+            {"id": "place_structure", "label": "Place structure", "enabled": False, "reason": why},
+            {"id": "add_keepout", "label": "Add keep-out", "enabled": False, "reason": why},
+        ]
+    return [
+        {"id": "plan_here", "label": "Plan here", "enabled": True, "reason": None},
+        {"id": "place_structure", "label": "Place structure", "enabled": bool(passable),
+         "reason": None if passable else "cell is impassable (blocked terrain)"},
+        {"id": "add_keepout", "label": "Add keep-out", "enabled": True, "reason": None},
+    ]
+
+
 def _terra_fields(dem, cell):
     """Per-cell terramechanics-spine fields on a DEM patch, each a REAL solver output as a pure function of
     the per-cell slope. Evaluated via a 512-sample slope LUT (scalar spine solves) then interpolated onto the
