@@ -31,8 +31,17 @@ services:
       # UNSET here: a dev/bench teleop grant must never be enabled on a live deploy, and it is ignored on a
       # LIVE/OPERATE profile in any case. See CONFIG.md §4.
       STEWIE_RUNNABLE_PROFILE: ${STEWIE_RUNNABLE_PROFILE:-operate}
+      # PLAN ANYWHERE (#30): the request-time DEM resolver crops the REAL global LOLA LDEM for an arbitrary
+      # lat/lon (adhoc_ sites). The LDEM is mounted read-only below; the cropped bundles cache in the writable
+      # /data volume (rootfs is read_only:true, so the cache MUST live under /data). The resolver RAISES (no
+      # synthetic surface) if the LDEM is absent, so a mis-mount fails loud rather than fabricating terrain.
+      STEWIE_GLOBAL_LDEM: ${STEWIE_GLOBAL_LDEM:-/mnt/projects/datasets/argus_dem_nav/lunar_dem/Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif}
+      STEWIE_ADHOC_DEM_DIR: ${STEWIE_ADHOC_DEM_DIR:-/data/adhoc_dem}
     volumes:
       - "stewie-data:/data"
+      # PLAN ANYWHERE (#30): the real global LOLA LDEM (8.5 GB), READ-ONLY, so the resolver can crop any
+      # lat/lon. Overridable host path (no baked machine path, cf. ARCH-05); only cropped windows are read.
+      - "${STEWIE_GLOBAL_LDEM_HOST_DIR:-/mnt/projects/datasets/argus_dem_nav/lunar_dem}:/mnt/projects/datasets/argus_dem_nav/lunar_dem:ro"
       # Mount the real ESA Katwijk dataset READ-ONLY so /slam returns real ATE on the deployed cockpit.
       # Host path is overridable (no baked machine path, cf. ARCH-05); only ~8.6 MB of telemetry per
       # segment is read, never the raw imagery, and the endpoint stays auth-gated.

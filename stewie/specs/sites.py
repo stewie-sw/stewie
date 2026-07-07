@@ -65,6 +65,12 @@ def site_latlon(name: str) -> tuple:
     name. Used by the raster-overlay + globe-layer sun resolution so mission-time shadows follow the
     CHOSEN site (REG-01) instead of a hardcoded Haworth latitude -- mirrors ephemeris.py's correct usage
     (both lat AND lon feed sun_az_el's hour angle)."""
+    if name and name.startswith("adhoc_"):
+        # PLAN ANYWHERE (#30): an ad-hoc site's sun geometry must use ITS OWN lat/lon, not fall back to
+        # Haworth -- else off-site shadows/illumination are computed at the wrong latitude. Deferred import
+        # to avoid a sites<->adhoc_dem cycle.
+        from stewie.terrain.adhoc_dem import parse_adhoc_site
+        return parse_adhoc_site(name)
     s = SITES.get(name) or SITES["haworth"]
     return s.lat_deg, s.lon_deg
 
