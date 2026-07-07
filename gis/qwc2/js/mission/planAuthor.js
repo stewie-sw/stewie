@@ -30,8 +30,11 @@
  * the initial zoom.
  */
 import Feature from 'ol/Feature';
+import CircleGeom from 'ol/geom/Circle';
 import LineString from 'ol/geom/LineString';
 import Point from 'ol/geom/Point';
+import Polygon from 'ol/geom/Polygon';
+import Draw from 'ol/interaction/Draw';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import CircleStyle from 'ol/style/Circle';
@@ -78,6 +81,22 @@ export default class PlanAuthor {
         this.planSource = new VectorSource();
         this.planLayer = new VectorLayer({source: this.planSource, zIndex: 19});
 
+        // --- Keep-out / no-go authoring (DEPTH-1). The operator draws avoid-regions (polygon or circle) on
+        // the SAME OL map; on Plan they serialize into payload.keepouts -- the EXACT schema the backend parses
+        // (lode/planner_routing.py:147 point_in_keepout / :158 _apply_keepouts): a {points:[[x,y],...]}
+        // polygon or an {x,y,r} circle in the ORDER FRAME (metres). _apply_keepouts marks those cells
+        // IMPASSABLE, so the least-cost router (route_leg, planner_views.py:448 for the rendered GoTo legs)
+        // bends the route AROUND them. Geometry is kept in the map CRS on the OL feature and converted to the
+        // order frame at Plan time through the SAME y-flipped anchor affine the orders use.
+        this.keepouts = [];        // [{idx, kind:'polygon'|'circle', feature}]
+        this.koTool = null;        // active no-go draw tool: 'polygon' | 'circle' | null
+        this._draw = null;         // the live OL Draw interaction (on the map only while a ko tool is active)
+        this._koSeq = 0;
+        this._hatch = undefined;   // lazily-built diagonal-hatch CanvasPattern for the no-go fill
+        this.keepoutSource = new VectorSource();
+        this.keepoutLayer = new VectorLayer({source: this.keepoutSource, zIndex: 18});
+        this.keepoutLayer.setStyle(() => this._keepoutStyle());
+
         // --- Run-SIM (T10, design §D-3 tier-3 analog run as a NON-DESTRUCTIVE desktop_sil). The rover marker
         // + its traversed trail draw ABOVE the plan route; the run is a verbatim port of Frontend A's
         // gis/web/app.js:676-914 execution loop (POST /executive/run -> SSE /executive/run/{id}/stream ->
@@ -115,6 +134,7 @@ export default class PlanAuthor {
 
     attach() {
         if (this._attached) { return; }
+        this.map.addLayer(this.keepoutLayer);
         this.map.addLayer(this.planLayer);
         this.map.addLayer(this.trailLayer);
         this.map.addLayer(this.roverLayer);
@@ -135,7 +155,16 @@ export default class PlanAuthor {
                 // the tool button + map singleclick call (setTool -> placeAt), so a proof can place orders at
                 // exact map coords without pixel-quantised clicks. No command authority (authoring only).
                 setTool: (kind) => this.setTool(kind),
-                placeAt: (coord) => this.placeAt(coord)
+                placeAt: (coord) => this.placeAt(coord),
+                // No-go authoring drivers (same code path as the Draw tool's drawend + the panel buttons),
+                // so a proof can place a no-go region across the route at exact MAP coords without simulating
+                // Draw pointer events. No command authority (authoring only).
+                setKeepoutTool: (kind) => this.setKeepoutTool(kind),
+                addKeepoutCircle: (center, radius) => this.addKeepoutCircle(center, radius),
+                addKeepoutPolygon: (ring) => this.addKeepoutPolygon(ring),
+                clearKeepouts: () => this.clearKeepouts(),
+                keepoutCount: () => this.keepouts.length,
+                route: () => (this.route ? this.route.map((p) => p.slice()) : [])
             };
         }
         this._attached = true;
@@ -143,6 +172,7 @@ export default class PlanAuthor {
 
     detach() {
         if (!this._attached) { return; }
+        this._deactivateDraw();
         this._resetRun();
         if (typeof window !== 'undefined' && window.__stewieRun) { delete window.__stewieRun; }
         if (this._clickKey) { this.map.un('singleclick', this._clickKey.listener); this._clickKey = null; }
@@ -150,6 +180,7 @@ export default class PlanAuthor {
         this.map.removeLayer(this.roverLayer);
         this.map.removeLayer(this.trailLayer);
         this.map.removeLayer(this.planLayer);
+        this.map.removeLayer(this.keepoutLayer);
         this._attached = false;
     }
 
@@ -161,6 +192,8 @@ export default class PlanAuthor {
                 footprint_m2: o.footprint_m2, depth_m: o.depth_m
             })),
             hint: this.hint, hintErr: this.hintErr, result: this.result, planning: this.planning,
+            koTool: this.koTool,
+            keepouts: this.keepouts.map((k, i) => ({idx: i, kind: k.kind, label: this._koSummary(k)})),
             run: this._runView(),
             // The SIM run is offered only once a FEASIBLE plan with a drive route is rendered and no run is live.
             canRun: !!(this.route && this.route.length && this.result && this.result.feasible === true &&
@@ -185,6 +218,8 @@ export default class PlanAuthor {
         this.wc = null;
         this._resetRun();
         this.route = null; this._planOrders = null;
+        this._deactivateDraw();                       // a site change resets authoring incl. any drawn no-go
+        this.keepouts = []; this.keepoutSource.clear();
         this.orderSource.clear();
         this.planSource.clear();
         this._setHint('Loading ' + site + ' work area…');
@@ -213,6 +248,7 @@ export default class PlanAuthor {
     }
 
     setTool(kind) {
+        this._deactivateDraw();                       // picking a cut/fill tool leaves no-go draw mode
         this.activeKind = (this.activeKind === kind) ? null : kind;
         if (this.activeKind) {
             this._setHint('Click the map to place a ' + (kind === 'cut' ? 'CUT (dig)' : 'FILL (build)') +
@@ -223,6 +259,124 @@ export default class PlanAuthor {
     }
     setFootprint(v) { this.footprint = Math.max(1, parseFloat(v) || 60); this._emit(); }
     setDepth(v) { this.depth = Math.max(0.05, parseFloat(v) || 0.4); this._emit(); }
+
+    // --- Keep-out / no-go authoring ------------------------------------------------------------------
+    // Toggle the no-go draw tool. Turning it on stops order-placing (map clicks now draw a shape, not an
+    // order) and adds an OL Draw interaction of the matching geometry; the tool stays active for multiple
+    // draws (click the tool again to stop), mirroring the cut/fill placing UX.
+    setKeepoutTool(kind) {
+        this.activeKind = null;                       // no-go drawing and order-placing are mutually exclusive
+        const next = (this.koTool === kind) ? null : kind;
+        this._deactivateDraw();                       // remove any prior interaction; sets koTool = null
+        this.koTool = next;
+        if (next) {
+            this._draw = new Draw({source: this.keepoutSource, type: next === 'circle' ? 'Circle' : 'Polygon'});
+            this._draw.on('drawend', (evt) => this._onDrawEnd(evt.feature, next));
+            this.map.addInteraction(this._draw);
+            this._setHint(next === 'circle'
+                ? 'Draw a no-go CIRCLE: click the centre, move out, click again for the radius. Click the tool again to stop.'
+                : 'Draw a no-go POLYGON: click each vertex, double-click to finish. Click the tool again to stop.');
+        } else {
+            this._setHint('No-go drawing off. Place orders, or Plan to route around the drawn no-go regions.');
+        }
+        this._emit();
+    }
+    _deactivateDraw() {
+        if (this._draw) { this.map.removeInteraction(this._draw); this._draw = null; }
+        this.koTool = null;
+    }
+
+    // A finished (drawn or programmatic) no-go feature -> the keep-out list. The Draw interaction already
+    // added the feature to keepoutSource (its `source` option); the programmatic adders add it explicitly.
+    _onDrawEnd(feature, kind) {
+        this._koSeq += 1;
+        feature.set('label', 'no-go ' + this._koSeq);
+        this.keepouts.push({idx: this._koSeq, kind: kind, feature: feature});
+        this._setHint('No-go region added (' + this.keepouts.length + ' drawn). Draw more, or press Plan mission.');
+        this._emit();
+    }
+
+    // Authoring drivers (headless proof + faithful to the Draw path): add a no-go at exact MAP coords.
+    addKeepoutCircle(center, radius) {
+        const f = new Feature({geometry: new CircleGeom([center[0], center[1]], radius)});
+        this.keepoutSource.addFeature(f);
+        this._onDrawEnd(f, 'circle');
+        return this.keepouts.length;
+    }
+    addKeepoutPolygon(ring) {
+        const f = new Feature({geometry: new Polygon([ring])});
+        this.keepoutSource.addFeature(f);
+        this._onDrawEnd(f, 'polygon');
+        return this.keepouts.length;
+    }
+
+    removeKeepout(i) {
+        const k = this.keepouts[i];
+        if (!k) { return; }
+        try { this.keepoutSource.removeFeature(k.feature); } catch (e) { /* already removed */ }
+        this.keepouts.splice(i, 1);
+        this._setHint('No-go region removed (' + this.keepouts.length + ' left).');
+    }
+    clearKeepouts() {
+        this.keepouts = [];
+        this.keepoutSource.clear();
+        this._setHint('All no-go regions cleared.');
+    }
+
+    _koSummary(k) {
+        const g = k.feature.getGeometry();
+        if (k.kind === 'circle') { return 'circle · r ' + Math.round(g.getRadius()) + ' m'; }
+        const ring = g.getCoordinates()[0] || [];
+        return 'polygon · ' + Math.max(0, ring.length - 1) + ' pts';
+    }
+
+    // Convert the drawn no-go regions (map-CRS geometry) into the planner keep-out schema in the ORDER FRAME
+    // -- the SAME y-flipped anchor affine the orders use (ox = X30135 - wc[0]; oy = wc[1] - Y30135). Matches
+    // EXACTLY what lode/planner_routing.py:147 point_in_keepout / :158 _apply_keepouts parse:
+    //   circle  -> {x, y, r}           (r is a distance -> unchanged by the y-flip)
+    //   polygon -> {points:[[x,y],..]} (>= 3 verts; the even-odd test is affine-invariant so the flip is safe)
+    _keepoutsForFrame(wc) {
+        const out = [];
+        for (const k of this.keepouts) {
+            const g = k.feature.getGeometry();
+            if (k.kind === 'circle') {
+                const c = g.getCenter(), r = g.getRadius();
+                if (r > 0) { out.push({x: round1(c[0] - wc[0]), y: round1(wc[1] - c[1]), r: round1(r)}); }
+            } else {
+                const ring = g.getCoordinates()[0] || [];
+                const n = ring.length;
+                // OL closes the ring (last vertex == first); drop the duplicate so the vertex count is honest.
+                const open = (n > 1 && ring[0][0] === ring[n - 1][0] && ring[0][1] === ring[n - 1][1])
+                    ? ring.slice(0, -1) : ring;
+                const pts = open.map((p) => [round1(p[0] - wc[0]), round1(wc[1] - p[1])]);
+                if (pts.length >= 3) { out.push({points: pts}); }
+            }
+        }
+        return out;
+    }
+
+    // Lazily build a diagonal-hatch CanvasPattern for the distinct no-go fill (falls back to a translucent
+    // red if the canvas is unavailable). Solid red stroke outlines the region.
+    _keepoutStyle() {
+        if (this._hatch === undefined) {
+            try {
+                const cv = document.createElement('canvas');
+                cv.width = 8; cv.height = 8;
+                const g = cv.getContext('2d');
+                g.strokeStyle = 'rgba(224,64,58,0.85)'; g.lineWidth = 1.4;
+                g.beginPath();
+                g.moveTo(0, 8); g.lineTo(8, 0);
+                g.moveTo(-2, 2); g.lineTo(2, -2);
+                g.moveTo(6, 10); g.lineTo(10, 6);
+                g.stroke();
+                this._hatch = g.createPattern(cv, 'repeat');
+            } catch (e) { this._hatch = null; }
+        }
+        return new Style({
+            fill: new Fill({color: this._hatch || 'rgba(224,64,58,0.22)'}),
+            stroke: new Stroke({color: '#e0403a', width: 2})
+        });
+    }
 
     // --- Placement: a map click -> a queued order (map coords + selenographic lon/lat) ----------------
     placeAt(coord) {
@@ -296,6 +450,10 @@ export default class PlanAuthor {
                 footprint_m2: o.footprint_m2, depth_m: o.depth_m
             }))
         };
+        // DEPTH-1: fold the drawn no-go regions into the SAME /api/plan POST, in the SAME order frame as the
+        // orders. The backend parses them (planner_routing.py:147) + routes around them (_apply_keepouts).
+        const kos = this._keepoutsForFrame(wc);
+        if (kos.length) { payload.keepouts = kos; }
         // Reuse the EXACT order-frame orders for the SIM run (POST /executive/run is anchored at the site DEM;
         // it carries no lat/lon field, so the run reuses these order-frame offsets -- the same queue shape the
         // OL viewer runs, gis/web/app.js:870-876). The rover animates on THIS plan's route regardless.
