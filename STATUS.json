@@ -34,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 273,
+  "cited": 274,
   "per_family": {
     "AC": {
       "cited": 1,
@@ -133,7 +133,7 @@
       "total": 2
     },
     "GW": {
-      "cited": 6,
+      "cited": 7,
       "total": 8
     },
     "LY": {
@@ -291,6 +291,10 @@
     },
     {
       "id": "GI-03",
+      "v": "N"
+    },
+    {
+      "id": "GW-04",
       "v": "N"
     },
     {

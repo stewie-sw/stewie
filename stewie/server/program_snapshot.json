@@ -1,6 +1,6 @@
 {
  "provenance": {
-  "citations_sha256": "8966c80c9b09d3e645813cf42e0c21f3db0caea61742c2a2e743898f2ab5166b",
+  "citations_sha256": "eb452213d8bdd513614411ea9c99a9d4aa6e032984a5336e6579d8affb5223cd",
   "generated_by": "scripts/gen_program_snapshot.py",
   "prd_commit": "176fd0dbc6ae7fbab2a4b3537525db8b82f6e72b",
   "prd_sha256": "a023ec99f8543eaefc81a9159205ff27850b5750bdc96dc552cfc86e71043bd7",
@@ -2726,7 +2726,7 @@
    "V": "N",
    "X": "N",
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "GW-04",
    "lane": "GW",
    "pri": "P1",
@@ -5257,7 +5257,7 @@
     "total": 2
    }
   },
-  "cited": 273,
+  "cited": 274,
   "done_pct": 74.6,
   "in_scope": 325,
   "in_scope_done_pct": 77.8,
