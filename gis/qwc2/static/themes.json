@@ -843,6 +843,37 @@
             "expanded": true
           },
           {
+            "name": "LROC WAC albedo - optional imagery toggle (IAU_2015:30135)",
+            "title": "LROC WAC albedo - optional imagery toggle (IAU_2015:30135)",
+            "mutuallyExclusive": false,
+            "visibility": false,
+            "sublayers": [
+              {
+                "name": "LROC WAC Albedo",
+                "title": "LROC WAC Albedo",
+                "visibility": false,
+                "queryable": true,
+                "abstract": "source_file=/mnt/projects/stewie/data/gis/cog/wac_albedo_south.tif; provenance=LROC WAC Global Morphology Mosaic 100 m (Moon_LRO_LROC-WAC_Mosaic_global_100m_June2013, LROC Team / ASU / USGS Astrogeology, sphere R=1737400 m, 8-bit Byte reflectance, SimpleCylindrical equirectangular, 109164x54582) https://astrogeology.usgs.gov/search/map/Moon_LRO_LROC-WAC_Mosaic_global_100m_June2013 -> gdalwarp (eqc R=1737400 -> stere lat_0=-90 R=1737400, whole southern hemisphere +-3,474,800 m, 500 m/px, bilinear, srcnodata/dstnodata 0) -> COG (8-bit grayscale albedo imagery, NO hillshade, nodata 0). OPTIONAL imagery toggle (DEFAULT OFF) drawn ABOVE the relief basemaps; real surface reflectance, not an authoritative measurement surface. DN 0 (PSR / unimaged) is nodata -> transparent, so the relief reads through unseen ground.; loaded=2026-07-07; frame=selenographic IAU_2015:30135 (no terrestrial datum).",
+                "opacity": 255,
+                "styles": {
+                  "default": "default"
+                },
+                "style": "default",
+                "bbox": {
+                  "crs": "EPSG:4326",
+                  "bounds": [
+                    -3474800,
+                    -3474800,
+                    3474800,
+                    3474800
+                  ]
+                },
+                "dimensions": []
+              }
+            ],
+            "expanded": true
+          },
+          {
             "name": "South-polar basemap - LOLA LDEM context (IAU_2015:30135)",
             "title": "South-polar basemap - LOLA LDEM context (IAU_2015:30135)",
             "mutuallyExclusive": false,
@@ -924,6 +955,7 @@
         "drawingOrder": [
           "Global South Basemap",
           "South Polar Basemap",
+          "LROC WAC Albedo",
           "Site01 Hillshade",
           "Site01 DEM",
           "Site01 Slope",

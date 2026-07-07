@@ -161,10 +161,10 @@ def test_project_crs_and_no_earth_claim():
         assert aid.startswith("IAU_2015:"), f"{lyr.name()} tagged {aid!r}, not a lunar CRS"
         assert "4326" not in aid and "WGS" not in aid.upper(), f"{lyr.name()} tagged {aid!r} (Earth)"
 
-    # gdal rasters: 26 authoritative terrain COGs + 1 continuous LOLA basemap COG
-    # (context under the site DEMs) = 27, all relabelled to IAU_2015:30135.
+    # gdal rasters: 26 authoritative terrain COGs + 3 context/basemap COGs (the LOLA relief
+    # basemaps + the LROC WAC albedo toggle) = 29, all relabelled to IAU_2015:30135.
     gdal = by_prov.get("gdal", [])
-    assert len(gdal) == 27, f"expected 27 gdal rasters (26 terrain + 1 basemap), got {len(gdal)}"
+    assert len(gdal) == 29, f"expected 29 gdal rasters (26 terrain + 3 basemap/context), got {len(gdal)}"
     for lyr in gdal:
         assert lyr.crs().authid() == B.PROJ_CRS, f"{lyr.name()} tagged {lyr.crs().authid()}"
 
@@ -180,10 +180,10 @@ def test_project_crs_and_no_earth_claim():
     for lyr in wms:
         assert lyr.crs().authid() == B.GEO_CRS, f"{lyr.name()} WMS tagged {lyr.crs().authid()}"
 
-    assert len(layers) == 27 + 2 + len(wms), \
-        f"layer accounting: {len(layers)} != 27 gdal + 2 ogr + {len(wms)} wms"
+    assert len(layers) == 29 + 2 + len(wms), \
+        f"layer accounting: {len(layers)} != 29 gdal + 2 ogr + {len(wms)} wms"
     print(f"[gate-crs] project CRS={p.crs().authid()} ellipsoid={p.ellipsoid()} "
-          f"layers={len(layers)} = 26 terrain + 1 basemap (30135) + 2 vectors(30100) + "
+          f"layers={len(layers)} = 26 terrain + 3 basemap/context (30135) + 2 vectors(30100) + "
           f"{len(wms)} external(30100); none EPSG:4326/WGS")
 
 

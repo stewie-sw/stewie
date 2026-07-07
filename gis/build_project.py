@@ -140,6 +140,39 @@ BASEMAP_GLOBAL_CMD = (
     "-co COMPRESS=DEFLATE -co PREDICTOR=2 -co BLOCKSIZE=512 -co OVERVIEWS=AUTO "
     "-co OVERVIEW_RESAMPLING=AVERAGE global_hs.tif cog/basemap_global_south.tif")
 
+# LROC WAC albedo -- OPTIONAL imagery toggle (DEFAULT OFF). The grayscale LOLA relief
+# stays the default base; this real LROC WAC global morphology/reflectance mosaic drapes
+# ACTUAL lunar surface brightness over the same southern-hemisphere frame when the operator
+# toggles it on. Same warp path as the global basemap (equirectangular sphere R=1737400 ->
+# 30135 south-polar, same -te/-tr grid so it aligns pixel-for-pixel), but NO hillshade: the
+# WAC DN *is* the imagery, rendered as an 8-bit grayscale stretch. Native 30135 COG (like the
+# site COGs + basemaps), so qgis-server renders it with NO runtime reprojection. Real product
+# only (USGS Astrogeology / PDS). The mosaic marks DN 0 as NoData (source metadata), so PSRs
+# and any unimaged ground near the pole warp to nodata -> transparent, letting the relief
+# read through where WAC cannot see -- honest, not fabricated fill.
+WAC_SUBDIR = os.path.join("cog", "wac_albedo_south.tif")
+WAC_NAME = "LROC WAC Albedo"
+WAC_URL = ("https://astrogeology.usgs.gov/search/map/"
+           "Moon_LRO_LROC-WAC_Mosaic_global_100m_June2013")
+SRC_WAC = (
+    "LROC WAC Global Morphology Mosaic 100 m (Moon_LRO_LROC-WAC_Mosaic_global_100m_June2013, "
+    "LROC Team / ASU / USGS Astrogeology, sphere R=1737400 m, 8-bit Byte reflectance, "
+    f"SimpleCylindrical equirectangular, 109164x54582) {WAC_URL} "
+    "https://planetarymaps.usgs.gov/mosaic/Lunar_LRO_LROC-WAC_Mosaic_global_100m_June2013.tif "
+    "-> gdalwarp (eqc R=1737400 -> stere lat_0=-90 R=1737400, -te +-3474800 m == the whole "
+    "southern hemisphere, -tr 500 m, bilinear, srcnodata/dstnodata 0) -> COG (8-bit grayscale "
+    "albedo imagery, NO hillshade, nodata 0). OPTIONAL imagery toggle (DEFAULT OFF) drawn ABOVE "
+    "the relief basemaps; real surface reflectance, not an authoritative measurement surface. "
+    "DN 0 (PSR / unimaged) is nodata -> transparent, so the relief reads through unseen ground.")
+WAC_CMD = (
+    "gdalwarp -overwrite -s_srs '+proj=eqc +R=1737400' -t_srs '+proj=stere +lat_0=-90 "
+    "+R=1737400' -te -3474800 -3474800 3474800 3474800 -tr 500 500 -r bilinear "
+    "-srcnodata 0 -dstnodata 0 -multi -wo NUM_THREADS=ALL_CPUS "
+    "Moon_LRO_LROC-WAC_Mosaic_global_100m_June2013.tif wac_albedo_30135.tif ; "
+    "gdal_translate -of COG -a_srs IAU_2015:30135 -a_nodata 0 "
+    "-co COMPRESS=DEFLATE -co PREDICTOR=2 -co BLOCKSIZE=512 -co OVERVIEWS=AUTO "
+    "-co OVERVIEW_RESAMPLING=AVERAGE wac_albedo_30135.tif cog/wac_albedo_south.tif")
+
 # Hypsometric elevation palette (fraction, R, G, B) interpolated across real min..max.
 HYPSO_STOPS = [
     (0.00, 44, 66, 110),    # crater floor  -> deep blue
@@ -175,6 +208,7 @@ GRP_TERRAIN = "Terrain & hazard - authoritative (IAU_2015:30135)"
 GRP_VECTORS = "Site vectors (IAU_2015:30100)"
 GRP_BASEMAP = "South-polar basemap - LOLA LDEM context (IAU_2015:30135)"
 GRP_BASEMAP_GLOBAL = "Global basemap - LOLA LDEM southern hemisphere (IAU_2015:30135)"
+GRP_WAC = "LROC WAC albedo - optional imagery toggle (IAU_2015:30135)"
 
 # Pin marker + footprint fill (translucent so the terrain reads through).
 PIN_RGB = (255, 210, 60)
@@ -559,6 +593,26 @@ def main(argv=None) -> int:
         ce.setMaximumValue(255.0)
         rnd.setContrastEnhancement(ce)
         layer.setRenderer(rnd)
+
+    def style_albedo(layer):
+        # 8-bit LROC WAC reflectance -> grayscale imagery stretch. A mean +-2.5 sigma
+        # window (clamped to the real min/max) so illuminated terrain reads with contrast
+        # and the near-pole PSR darks do not wash the highlands flat.
+        st = layer.dataProvider().bandStatistics(
+            1, QgsRasterBandStats.Min | QgsRasterBandStats.Max
+            | QgsRasterBandStats.Mean | QgsRasterBandStats.StdDev)
+        lo = max(st.minimumValue, st.mean - 2.5 * st.stdDev)
+        hi = min(st.maximumValue, st.mean + 2.5 * st.stdDev)
+        if hi <= lo:
+            lo, hi = st.minimumValue, st.maximumValue
+        rnd = QgsSingleBandGrayRenderer(layer.dataProvider(), 1)
+        ce = QgsContrastEnhancement(layer.dataProvider().dataType(1))
+        ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
+        ce.setMinimumValue(lo)
+        ce.setMaximumValue(hi)
+        rnd.setContrastEnhancement(ce)
+        layer.setRenderer(rnd)
+        return lo, hi
 
     def make_hillshade(dem_path, out_path):
         if os.path.exists(out_path):
@@ -945,6 +999,47 @@ def main(argv=None) -> int:
     else:
         print(f"WARNING: global basemap COG missing at {basemap_global_path}; skipped",
               file=sys.stderr)
+
+    # ======================================================================
+    # LROC WAC albedo -- OPTIONAL imagery toggle (DEFAULT OFF). Inserted ABOVE the
+    # relief basemap group(s) so real surface reflectance draws OVER the grayscale relief
+    # when the operator toggles it on, but below the authoritative terrain + vectors. The
+    # grayscale LOLA relief stays the default base: this group's node is left UNCHECKED so
+    # the layer is off until explicitly enabled. Native 30135 COG (no runtime reprojection).
+    # ======================================================================
+    wac_path = os.path.join(data_root, WAC_SUBDIR)
+    wac_added = False
+    if os.path.exists(wac_path):
+        # Insert directly above the topmost relief basemap group (so WAC draws over the
+        # relief); fall back to the very bottom if no basemap group was added.
+        anchor_idx = None
+        for grp in (basemap_group if basemap_added else None,
+                    basemap_global_group if basemap_global_added else None):
+            if grp is not None:
+                i = root.children().index(grp)
+                anchor_idx = i if anchor_idx is None else min(anchor_idx, i)
+        if anchor_idx is not None:
+            wac_group = root.insertGroup(anchor_idx, GRP_WAC)
+        else:
+            wac_group = root.addGroup(GRP_WAC)
+        wac = load_raster(wac_path, WAC_NAME)
+        lo, hi = style_albedo(wac)                    # 8-bit grayscale albedo stretch
+        set_provenance(wac, "stewie.base.lroc_wac_albedo",
+                       "LROC WAC albedo southern-hemisphere imagery toggle",
+                       SRC_WAC, command=WAC_CMD)
+        project.addMapLayer(wac, addToLegend=False)
+        wac_group.insertLayer(0, wac)
+        # DEFAULT OFF: leave the toggle unchecked (the grayscale relief stays the base).
+        wac_group.setItemVisibilityChecked(False)
+        wac_node = root.findLayer(wac.id())
+        if wac_node is not None:
+            wac_node.setItemVisibilityChecked(False)
+        wac_added = True
+        print(f"[build] WAC albedo toggle: '{WAC_NAME}' above the relief, DEFAULT OFF "
+              f"({wac.crs().authid()}, {wac.width()}x{wac.height()}, "
+              f"stretch {lo:.0f}..{hi:.0f}, extent {wac.extent().toString(0)})")
+    else:
+        print(f"WARNING: WAC albedo COG missing at {wac_path}; skipped", file=sys.stderr)
 
     # ======================================================================
     # P1.5 -- catalog provenance + machine/human status artifacts.
