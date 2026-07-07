@@ -68,6 +68,7 @@ import RedliningSupport from 'qwc2/plugins/map/RedliningSupport';
 import SnappingSupport from 'qwc2/plugins/map/SnappingSupport';
 import BufferSupport from 'qwc2/plugins/redlining/RedliningBufferSupport';
 
+import MissionAssetsPlugin from './plugins/MissionAssets';   // STEWIE: [REQ:GW-04] durable-asset library registry
 import MissionEngPanelPlugin from './plugins/MissionEngPanel';   // STEWIE: [REQ:RT-04] read-only RViz/Foxglove eng panel
 import MissionHUDPlugin from './plugins/MissionHUD';   // STEWIE: live read-only rover HUD side panel
 import MissionLayersPlugin from './plugins/MissionLayers';   // STEWIE: mission layer-catalog panel (T6)
@@ -164,6 +165,7 @@ export default {
             }),
             ZoomInPlugin: ZoomInPlugin,
             ZoomOutPlugin: ZoomOutPlugin,
+            MissionAssetsPlugin: MissionAssetsPlugin,   // STEWIE: [REQ:GW-04] durable-asset library registry
             MissionEngPanelPlugin: MissionEngPanelPlugin,   // STEWIE: [REQ:RT-04] read-only RViz/Foxglove eng panel
             MissionHUDPlugin: MissionHUDPlugin,   // STEWIE: live read-only rover HUD
             MissionLayersPlugin: MissionLayersPlugin,   // STEWIE: mission layer-catalog panel (T6)

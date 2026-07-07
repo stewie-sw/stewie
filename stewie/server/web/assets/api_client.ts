@@ -74,6 +74,10 @@ export type ApiPath =
   | '/layers/globe/{kind}/bbox'
   | '/layers/legend'
   | '/layers/raster/{kind}.png'
+  | '/library'
+  | '/library/{atype}/{aid}'
+  | '/library/{atype}/{aid}/export'
+  | '/library/{atype}/{aid}/recover'
   | '/localize'
   | '/localize/render'
   | '/localize/traverse'
@@ -238,6 +242,10 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/layers/globe/{kind}/bbox', operationId: 'globe_layer_bbox_layers_globe__kind__bbox_get', mutatesAuthority: false },
   { method: 'GET', path: '/layers/legend', operationId: 'layers_legend_layers_legend_get', mutatesAuthority: false },
   { method: 'GET', path: '/layers/raster/{kind}.png', operationId: 'get_raster_layer_layers_raster__kind__png_get', mutatesAuthority: false },
+  { method: 'GET', path: '/library', operationId: 'library_list_library_get', mutatesAuthority: false },
+  { method: 'GET', path: '/library/{atype}/{aid}', operationId: 'library_inspect_library__atype___aid__get', mutatesAuthority: false },
+  { method: 'GET', path: '/library/{atype}/{aid}/export', operationId: 'library_export_library__atype___aid__export_get', mutatesAuthority: false },
+  { method: 'POST', path: '/library/{atype}/{aid}/recover', operationId: 'library_recover_library__atype___aid__recover_post', mutatesAuthority: true },
   { method: 'POST', path: '/localize', operationId: 'post_localize_localize_post', mutatesAuthority: true },
   { method: 'POST', path: '/localize/render', operationId: 'post_localize_render_localize_render_post', mutatesAuthority: true },
   { method: 'GET', path: '/localize/traverse', operationId: 'get_localize_traverse_localize_traverse_get', mutatesAuthority: false },

@@ -148,6 +148,7 @@ from stewie.server.routers import gis_export as _gis_export_router  # noqa: E402
 from stewie.server.routers import health as _health_router  # noqa: E402
 from stewie.server.routers import invites as _invites_router  # noqa: E402
 from stewie.server.routers import layers as _layers_router  # noqa: E402
+from stewie.server.routers import library as _library_router  # noqa: E402  [REQ:GW-04] asset library
 from stewie.server.routers import missions as _missions_router  # noqa: E402
 from stewie.server.routers import models as _models_router  # noqa: E402
 from stewie.server.routers import operators_admin as _operators_admin_router  # noqa: E402
@@ -169,6 +170,7 @@ app.include_router(_rc_router.router)
 app.include_router(_auth_router.router)
 app.include_router(_invites_router.router)
 app.include_router(_missions_router.router)
+app.include_router(_library_router.router)           # [REQ:GW-04] asset library (durable-asset registry)
 app.include_router(_structures_router.router)
 app.include_router(_operators_admin_router.router)
 app.include_router(_profiles_router.router)

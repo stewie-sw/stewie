@@ -301,6 +301,9 @@
         "name": "MissionEngPanel"
       },
       {
+        "name": "MissionAssets"
+      },
+      {
         "name": "MissionLayers"
       },
       {
@@ -350,6 +353,7 @@
             {"key": "MissionProgram", "title": "Program", "icon": "list-alt"},
             {"key": "MissionPlan", "title": "Mission Plan", "icon": "draw"},
             {"key": "MissionLayers", "title": "Mission Layers", "icon": "layers"},
+            {"key": "MissionAssets", "title": "Asset Library", "icon": "folder"},
             {"key": "SelectionInspector", "title": "Inspector", "icon": "info"},
             {"key": "MissionHUD", "title": "Rover HUD", "icon": "routing-car"},
             {"key": "MissionEngPanel", "title": "Eng Panel", "icon": "plot_info"},
