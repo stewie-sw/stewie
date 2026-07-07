@@ -22,9 +22,9 @@ Reproduces P1 acceptance-gate items 1 / 3 / 4 on real data, no synthetic values:
           render_from_saved_project (QGIS) - the external connections recorded as
           "renders" carry a real non-blank render_frac, are added to the saved .qgz,
           and the site01_with_imagery proof PNG is non-black.
-  (P1.4)  test_site_vectors_roundtrip (QGIS) - the 8 site pins load in 30100, ids
-          match the backend naming, and each pin round-trips 30100->30135 inside its
-          own DEM footprint.
+  (P1.4)  test_site_vectors_roundtrip (QGIS) - the 9 site pins (8 SiteNN + Haworth)
+          load in 30100, ids match the backend naming, and each pin round-trips
+          30100->30135 inside its own DEM footprint.
 
 QGIS-dependent tests are guarded with ``pytest.importorskip("qgis")`` so they SKIP
 cleanly where QGIS is not installed (STEWIE CI has no QGIS lane yet) and RUN on this
@@ -310,11 +310,17 @@ def test_site_vectors_roundtrip():
     pins, foots = pins[0], foots[0]
     assert pins.crs().authid() == B.GEO_CRS, pins.crs().authid()
     assert foots.crs().authid() == B.GEO_CRS, foots.crs().authid()
-    assert pins.featureCount() == len(B.SITES), pins.featureCount()
-    assert foots.featureCount() == len(B.SITES), foots.featureCount()
+    # The 8 SiteNN pins + the Haworth 1 m SfS tile (its own DEM, not a SiteNN).
+    expected_ids = set(B.SITES) | {"Haworth"}
+    assert pins.featureCount() == len(expected_ids), pins.featureCount()
+    assert foots.featureCount() == len(expected_ids), foots.featureCount()
 
     ids = {f["site"] for f in pins.getFeatures()}
-    assert ids == set(B.SITES), f"pin site ids {ids} != {set(B.SITES)}"
+    assert ids == expected_ids, f"pin site ids {ids} != {expected_ids}"
+
+    # Each pin's DEM layer name: SiteNN -> "<Site> DEM"; Haworth -> "Haworth DEM (1 m)".
+    dem_name = {s: f"{s} DEM" for s in B.SITES}
+    dem_name["Haworth"] = "Haworth DEM (1 m)"
 
     geo = QgsCoordinateReferenceSystem(B.GEO_CRS)
     prj = QgsCoordinateReferenceSystem(B.PROJ_CRS)
@@ -322,7 +328,7 @@ def test_site_vectors_roundtrip():
     checked = 0
     for f in pins.getFeatures():
         site = f["site"]
-        dem = p.mapLayersByName(f"{site} DEM")
+        dem = p.mapLayersByName(dem_name[site])
         assert dem, f"no DEM layer for {site}"
         ext = dem[0].dataProvider().extent()      # 30135 metric
         g = f.geometry().asPoint()                # 30100 lon/lat
@@ -330,7 +336,7 @@ def test_site_vectors_roundtrip():
         assert ext.contains(xy), \
             f"{site} pin {xy} not inside its DEM extent {ext.toString(0)}"
         checked += 1
-    assert checked == len(B.SITES)
+    assert checked == len(expected_ids)
     print(f"[p1.4] {checked} site pins round-trip 30100->30135 inside their DEM "
           f"footprints; ids match backend naming {sorted(ids)}")
 

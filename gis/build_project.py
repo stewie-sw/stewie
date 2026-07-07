@@ -11,7 +11,8 @@ Scope of THIS builder:
   * P1.2/P1.6 (core, VERIFIED): DEM + hillshade + slope COGs, per-site groups.
   * P1.4 (added): real site vectors derived from the COG extents -- labeled pins
     at each DEM centre + translucent footprint polygons, in IAU_2015:30100, site
-    ids matching the backend naming (Site01/04/06/07/11/20/23/42). Network-free.
+    ids matching the backend naming (Site01/04/06/07/11/20/23/42 + the Haworth 1 m
+    SfS tile, labeled "Haworth"). Network-free.
   * P1.3 (added, best-effort): external imagery/OGC services as QGIS raster/WMS
     layers, each render-probed headlessly; renderable ones are added to the
     project, unreachable/unrenderable ones are DEFERRED with a reason + URL.
@@ -688,6 +689,8 @@ def main(argv=None) -> int:
         print(f"[build] {site}: DEM min={mn:.1f} max={mx:.1f} m; hillshade+slope grouped")
 
     # ---- Haworth (DEM only) ----------------------------------------------
+    haw_extent = None   # captured for the P1.4 site pin/footprint below (real 1 m SfS extent)
+    haw_stats = None
     haw_dem_path = os.path.join(data_root, "cog", HAWORTH)
     if os.path.exists(haw_dem_path):
         haw_hs_path = os.path.join(hillshade_dir, "Haworth_hillshade.tif")
@@ -703,6 +706,8 @@ def main(argv=None) -> int:
                        SRC_HAWORTH_DEM, command=hs_cmd)
         add_grouped(grp, hs)
         add_grouped(grp, dem)
+        haw_extent = dem.extent()     # real 1 m SfS DEM extent (IAU_2015:30135), for the P1.4 pin
+        haw_stats = (mn, mx)
         print(f"[build] Haworth: DEM min={mn:.1f} max={mx:.1f} m; hillshade grouped")
     else:
         print(f"WARNING: Haworth DEM missing at {haw_dem_path}; skipped", file=sys.stderr)
@@ -761,6 +766,38 @@ def main(argv=None) -> int:
         features.append({"type": "Feature",
                          "geometry": {"type": "Polygon", "coordinates": [_ring_30100(ext)]},
                          "properties": dict(props_common, kind="footprint")})
+
+    # Haworth is loaded as its OWN 1 m SfS tile (not a SiteNN), so it is not in SITES and
+    # was previously absent from the pins. Emit its pin + footprint from the SAME real DEM
+    # extent (same schema as the 8 sites) so the visible map AND the keyless
+    # /world/site-markers both carry a labeled "Haworth" marker (click-to-zoom resolves).
+    if haw_extent is not None and haw_stats is not None:
+        ext = haw_extent
+        mn, mx = haw_stats
+        cx = (ext.xMinimum() + ext.xMaximum()) / 2.0
+        cy = (ext.yMinimum() + ext.yMaximum()) / 2.0
+        c = ct_135_100.transform(QgsPointXY(cx, cy))
+        w_m, h_m = ext.width(), ext.height()
+        props_common = {
+            "site": "Haworth",
+            "name": "Haworth",
+            "label": "Haworth",
+            "dem_min_m": round(mn, 2), "dem_max_m": round(mx, 2),
+            "center_lon": round(c.x(), 6), "center_lat": round(c.y(), 6),
+            "extent_m": [round(ext.xMinimum(), 1), round(ext.yMinimum(), 1),
+                         round(ext.xMaximum(), 1), round(ext.yMaximum(), 1)],
+            "width_m": round(w_m, 1), "height_m": round(h_m, 1),
+            "area_km2": round(w_m * h_m / 1.0e6, 2),
+            "source": ("USGS Haworth 1 m Shape-from-Shading DEM (LROC NAC SfS) extent "
+                       "(gdalinfo), native IAU_2015:30135, reprojected 30135->30100"),
+        }
+        features.append({"type": "Feature",
+                         "geometry": {"type": "Point", "coordinates": [round(c.x(), 8), round(c.y(), 8)]},
+                         "properties": dict(props_common, kind="pin")})
+        features.append({"type": "Feature",
+                         "geometry": {"type": "Polygon", "coordinates": [_ring_30100(ext)]},
+                         "properties": dict(props_common, kind="footprint")})
+
     geojson = {
         "type": "FeatureCollection",
         "name": "artemis_sites",
@@ -773,8 +810,10 @@ def main(argv=None) -> int:
     }
     with open(vectors_path, "w") as fh:
         _json.dump(geojson, fh, indent=1)
+    n_pins = sum(1 for f in features if f["properties"].get("kind") == "pin")
+    n_foot = sum(1 for f in features if f["properties"].get("kind") == "footprint")
     print(f"[build] P1.4 wrote {vectors_path} "
-          f"({len(SITES)} pins + {len(SITES)} footprints, IAU_2015:30100)")
+          f"({n_pins} pins + {n_foot} footprints, IAU_2015:30100)")
 
     # Load the ONE geojson as two styled layers (OGR geometrytype filter).
     def _vec_provenance(layer, ident, title, src):
