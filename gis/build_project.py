@@ -1034,7 +1034,6 @@ def main(argv=None) -> int:
         wac_node = root.findLayer(wac.id())
         if wac_node is not None:
             wac_node.setItemVisibilityChecked(False)
-        wac_added = True
         print(f"[build] WAC albedo toggle: '{WAC_NAME}' above the relief, DEFAULT OFF "
               f"({wac.crs().authid()}, {wac.width()}x{wac.height()}, "
               f"stretch {lo:.0f}..{hi:.0f}, extent {wac.extent().toString(0)})")
