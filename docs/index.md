@@ -6,50 +6,78 @@ nav_order: 1
 # STEWIE
 
 **Surface Terrain Engineering & World-model Integration Environment.**
-*IPEx builds the Moon. STEWIE plans the build.* — in silico → in situ.
+*IPEx builds the Moon. STEWIE plans the build.* (in silico, then in situ.)
 
-STEWIE is a lunar construction-planning and digital-twin platform for the IPEx/RASSOR-lineage
-excavator. At its core is a conserved, mass-exact terramechanics authority (John McCardle's
-provenance): Bekker pressure-sinkage, the Janosi–Hanamoto slip ladder, Lyasko low-g correction,
-and mass-conserving cut/haul/dump/grade — the simulator and the reward source in one. On top of
-that authority sit a mission planner with an energy-budgeted Plan IR and mission-control report, a
-Gymnasium environment suite, per-planet body registries, a Godot render/sensor seam, and a ROS2
-bridge. The design rule throughout: **conserved physics for the dynamics (exact, unhackable), a
-learned model only for the expensive perception branch.** Owners: John McCardle & Aaron Storey
-([github.com/stewie-sw/stewie](https://github.com/stewie-sw/stewie)).
+STEWIE is a platform for planning and rehearsing lunar surface construction. It brings the pieces an
+off-world earthmoving mission needs into one workspace: a GIS mission map over real lunar terrain, a
+versioned digital twin of the worksite, a conserved-physics terramechanics core, an energy-aware
+mission planner, and an autonomy and runtime middleware layer. IPEx (NASA's ISRU Pilot Excavator) is
+the first vehicle STEWIE plans for, not a component of it. The lineage is NASA's IPEx program and the
+JHU APL Lunar Autonomy Challenge; STEWIE is an independent stack, not the official challenge entry.
+Owners: John McCardle & Aaron Storey ([github.com/stewie-sw/stewie](https://github.com/stewie-sw/stewie)).
+
+## The front door: a GIS mission-control IDE
+
+The primary surface is a GIS mission workbench, live at
+[artemis.stewie.space/ide/](https://artemis.stewie.space/ide/). It is one persistent lunar map (QGIS
+Web Client 2 over a QGIS Server backend) in the Moon south-polar stereographic frame
+(`IAU_2015:30135`), so the pole sits in the middle of the canvas and coordinates stay pole-truthful (no
+Earth or WGS84 claim on lunar positions). It carries the real terrain (8 Artemis III candidate-site
+DEMs at LOLA 5 m polar, a 1 m Haworth shape-from-shading DEM, slope, hillshade, and LROC imagery
+context), full mission authoring (cut and fill orders, structures, keep-outs, planner controls, and a
+multi-vehicle fleet), plan inspection (candidate-future compare, plan detail, Gantt, and a simulated
+run), the layer catalog with provenance, freshness, uncertainty, and eligibility, the analysis layers
+(cost, blocking, and the terramechanics terms slope, bearing, sinkage, slip, traction, energy, plus
+traversal-compaction traffic), a rover HUD, and an in-IDE requirement board.
+
+The earlier single-page cockpit stays live at [app.stewie.space](https://app.stewie.space): the ConOps
+spine Plan, Rehearse, Validate, Release, Execute, Report, plus the requirement board. The GIS IDE is
+the direction of travel; the migration onto it is incremental.
+
+## The conserved-physics core
+
+At the center is a conserved, mass-exact terramechanics authority (John McCardle's provenance): Bekker
+pressure-sinkage, the Janosi-Hanamoto slip ladder, a Lyasko low-gravity correction, and mass-conserving
+cut, haul, dump, and grade, all in one. It is the simulator and the reward source at once, exact,
+deterministic, and sub-millisecond per step, so a searched or learned policy only commands while the
+authority mutates the world. The design rule throughout: conserved physics for the dynamics (exact,
+unhackable), a learned model only for the expensive perception branch. The energy model is grounded in
+real IPEx data (Schuler et al., *IPEx TRL-5 Design Overview*, ASCEND 2024).
 
 ## Subsystems
 
-| Subsystem | Expansion | Role |
+| Subsystem | Package | What the code does |
 |---|---|---|
-| **DART** | Digital Analysis of Regolith & Terrain | Perception: DEM ingest, stereo/depth, localization, mapping, hazard and shadow analysis |
-| **LODE** | Lunar Operations & Development Environment | Mission planning and operations: sequencing, scheduling, energy budgeting, reports |
-| **LEAP** | Lunar Excavation Analysis & Planning | Earthmoving and execution: excavation skills, worksite construction, terrain-target environments |
-| **FORGE** | Foundation Operations & Regolith Generation Environment | Infrastructure: terrain generation, regolith physics substrate, foundations |
-| **Navigation** | — | The vehicle digital twin — chassis, drums, arm, camera rig, and work lights as one state |
+| **DART** | `dart/` | Perception, estimation, and localization: DEM anchoring, stereo and shadow geometry, articulated parallax, the pose-graph estimator, the evidence ledger |
+| **LODE** | `lode/` | Operations and planning: the mission planner, hazard-aware routing, the executive and mission lifecycle, fleet coordination, autonomy, acceptance |
+| **LEAP** | `leap/` | Earthmoving and construction: excavation skills, worksite and terrain-target environments, structures, site plans, volume evidence |
+| **FORGE** | `forge/` | Physics and terramechanics services; the conserved core itself lives in `stewie/physics` |
+| **`stewie/`** | platform core | Conserved physics, terrain, the versioned twin, specs, the Gymnasium envs, the FastAPI server, the sensor and runtime bridges, the Godot render sidecar, and the evaluation gates |
 
-The vehicle is **IPEx** (the ISRU Pilot Excavator, the only flight vehicle); RASSOR is its TRL-4
-precursor. See [the modelled vehicle](vehicle_ipex.md).
+**STEWIE-Orbit** (communications and observation: relay, shadow prediction) is the planned orbital
+layer and is design-stage, not built. The modelled vehicle is **IPEx**, the only flight vehicle;
+RASSOR is its TRL-4 precursor (see [the modelled vehicle](vehicle_ipex.md)).
 
-## Product modes (PRD §5)
+## Where it is (honest)
 
-| Mode | What it is |
-|---|---|
-| `GIS-PLAN` | 2D layered planning on the real Haworth DEM: slope/hazard/shadow/PSR rasters, build-queue authoring, fleet and vehicle selection; output is a routed, energy-budgeted Plan IR plus the mission-control report |
-| `TRAIN` | Operator/director sessions over the real closed loop; the operator sees only telemetry-delivered, truth-denylisted state under a mission link profile; the director gets full state and debrief |
-| `SIM-OPERATE` | The live loop on the conserved authority: a persistent runtime owning one world, ROS2 teleop and goal-level CCSDS tasks, strict truth-free producer packets, bit-exact checkpoint/restore |
-| `EVALUATE` | The honesty machinery: hash-anchored evidence corpora, role-isolated produce→estimate→evaluate, geometric depth truth, dated code-enforced gate artifacts; the only mode with truth access |
-| `OPERATE` | Consume real telemetry and command hardware. **Future** — unavailable until command, timing, safety, and fault requirements pass |
-
-The API and reports label the active mode; simulated truth is never presented as a live measurement.
+The requirement matrix (product requirements, section 7) reads **251 of 339 requirements verified done**
+(about 74 percent overall; 77 percent of the 325 in-scope rows, with hardware and host gated rows
+excluded from that denominator). By priority: P0 106/116, P1 141/188, P2 4/33. The public deploy is
+**simulation-only**, and mission Release is **director-gated**. Named and not yet built: a live ROS2 and
+Gazebo pit with a real rover (the containers build; there is no live pit link yet), the PyChrono force
+oracle (a stub; the Tier-3 drum-force track needs a PyChrono host), dense-stereo GPU perception, the
+dense map-channel reward, and any live hardware. STEWIE makes no flight claims and never presents
+simulated truth as a live measurement. The full breakdown is the
+[capability matrix](CAPABILITIES.md).
 
 ## Quickstart
 
 ```bash
 git clone https://github.com/stewie-sw/stewie && cd stewie
 pip install -e .[dev,server]
-stewie-serve                                   # the mission planner + web UI
-docker compose -f deploy/compose.yml up -d     # or: the containerized stack
+stewie-serve                                                    # the planner API and cockpit
+docker compose -f deploy/compose.yml up -d backend frontend     # or the containerized cockpit
+docker compose -f deploy/compose.yml --profile gis up -d qgis-server artemis-web   # the GIS IDE at /ide/
 ```
 
 ```python
@@ -60,10 +88,9 @@ obs, info = env.reset(seed=0)
 obs, reward, terminated, truncated, info = env.step(env.action_space.sample())
 ```
 
-Naming: the pip package is `stewie`; the console entry points are `stewie-serve`,
-`stewie-fetch-dem`, and `stewie-ros2-bridge`; the canonical Gymnasium env IDs are `Stewie/*`;
-environment variables are `STEWIE_*`. The on-disk/wire schema strings (e.g. `stewie_runtime/1.0`)
-are frozen contracts.
+Naming: the pip package is `stewie`; the console entry points are `stewie-serve`, `stewie-fetch-dem`,
+and `stewie-ros2-bridge`; the canonical Gymnasium env IDs are `Stewie/*`; environment variables are
+`STEWIE_*`. The on-disk and wire schema strings (for example `stewie_runtime/1.0`) are frozen contracts.
 
 ## Documentation map
 
@@ -71,86 +98,58 @@ are frozen contracts.
 
 | Doc | What it is |
 |---|---|
-| [Capability matrix (honest status)](CAPABILITIES.md) | Shipped & load-bearing / training-only / unbuilt & gated, one honest table |
+| [Architecture (honest index)](ARCHITECTURE.md) | The GIS-IDE-first two-process shape, the design levels, and what is designed versus built |
+| [Capability matrix (honest status)](CAPABILITIES.md) | Live and load-bearing / training-only or offline / unbuilt and gated, in one table |
 | [Release policy & evidence](RELEASE.md) | What a release claims and the evidence it must carry |
-| [The five-layer world model](world_model.md) | Geometry / Material / Physics / Task / Uncertainty, and the conserved-vs-learned design decision |
-| [Related work](related_work.md) | Where STEWIE lands across NASA autonomy, lunar mining, world models, autonomous driving, SLAM |
-| [Robotics curriculum diff](robotics_curriculum_diff.md) | Coverage of the standard robotics corpus vs what the software implements |
-| [Implementation plan (2026-06-06)](archive/implementation_plan_2026-06-06.md) | The dependency-ordered execution plan for PRD v6.0 |
-| [UI overhaul plan (2026-06-20)](archive/ui_overhaul_plan_2026-06-20.md) | The full-fidelity cockpit overhaul: stack decision, 8-area IA, 4-screen model, GIS authoring, brand, a11y, phasing |
-| [Full STEWIE frontend design (2026-07-01)](full_stewie_frontend_design_2026-07-01.md) | Operational cockpit contract for Plan/Rehearse/Validate/Release/Execute/Report, depth-source UX, RViz/Gazebo boundaries, and evidence cards |
-| [Layered reference architecture (2026-06-29)](stewie_layered_reference_architecture_current_2026-06-29.md) | The current implementation map by layer, plus the v2 target deltas |
-| [WM/DT architecture gap analysis (2026-06-29)](stewie_wm_dt_architecture_gap_analysis_2026-06-29.md) | World-model / digital-twin gap analysis over the interaction graph |
-| [Interaction layer, Phase 1 v2 (2026-06-29)](stewie_interaction_layer_phase1_v2_current_2026-06-29.md) | Interaction-layer coverage map: current implementation plus planned Phase 1 rows |
-| [System status synthesis (2026-06-29)](stewie_status_synthesis_2026-06-29.md) | The loop-driving status map derived from the digital-twin interaction graph |
+| [The world model](world_model.md) | Geometry, material, physics, task, and uncertainty, and the conserved-vs-learned decision |
+| [Related work](related_work.md) | Where STEWIE lands across NASA autonomy, lunar mining, world models, autonomous driving, and SLAM |
+| [Robotics curriculum diff](robotics_curriculum_diff.md) | Coverage of the standard robotics corpus versus what the software implements |
 
 **Contracts**
 
 | Doc | What it is |
 |---|---|
-| [Sensor-bridge contract](sensor_bridge_contract.md) | Seam 2: the Godot → ROS2 `sensors.json` + PNG contract |
-| [DEM terrain contract](dem_terrain_contract.md) | The real-DEM 10 km terrain + corridor-LOD seam |
-| [WorkSite contract](worksite_contract.md) | Streaming coarse-base + rover-following fine window |
-| [Demo spiral contract](demo_spiral_contract.md) | AprilTag localization vs ground truth, with observed failure modes |
-| [Render fidelity spec](render_fidelity_spec.md) | The Godot render / sensor-model fidelity targets |
-| [Sun-sweep manifest](sun_sweep_manifest.md) | The `sun_sweep/1.0` manifest contract |
-| [Spec coverage scorecard](spec_coverage.md) | Section-by-section: built / partial / surrogate / left out, with file:line evidence |
+| [Sensor-bridge contract](sensor_bridge_contract.md) | The Godot to ROS2 sensor and image contract |
+| [DEM terrain contract](dem_terrain_contract.md) | The real-DEM 10 km terrain and corridor-LOD seam |
+| [WorkSite contract](worksite_contract.md) | Streaming coarse base plus a rover-following fine window |
+| [Demo spiral contract](demo_spiral_contract.md) | AprilTag localization versus ground truth, with observed failure modes |
+| [Render fidelity spec](render_fidelity_spec.md) | The Godot render and sensor-model fidelity targets |
+| [Sun-sweep manifest](sun_sweep_manifest.md) | The sun-sweep manifest contract |
+| [Spec coverage scorecard](spec_coverage.md) | Section by section: built, partial, surrogate, or left out, with file and line evidence |
 
 **Subsystems**
 
 | Doc | What it is |
 |---|---|
-| [Navigation: the modelled vehicle — IPEx](vehicle_ipex.md) | The ISRU Pilot Excavator, grounded in the six NASA IPEx papers; the digital-twin architecture and the excavation gap |
-| [DART: SLAM pipeline analysis](slam_pipeline_analysis.md) | Map-relative localization vs SLAM-from-scratch; the P15 build path |
-| [DART: 10 km lunar DEM evaluation](archive/lunar_dem_10km_eval.md) | Real south-polar DEM ingest, data sources, and the procgen infill plan |
+| [The modelled vehicle: IPEx](vehicle_ipex.md) | The ISRU Pilot Excavator, grounded in the NASA IPEx papers; the digital-twin architecture and the excavation gap |
+| [DART: SLAM pipeline analysis](slam_pipeline_analysis.md) | Map-relative localization versus SLAM-from-scratch |
 | [FORGE: per-planet constants](bodies_sysrev.md) | Literature-sourced terramechanics per body, every value tagged |
 | [FORGE: Chrono integration](chrono_integration.md) | Project Chrono as the physics-authority producer |
-| [LODE: power calibration (2026-06-09)](archive/power_calibration_2026-06-09.md) | The IPEx power model's lunar-environment fidelity |
-| [LEAP: EZ-RASSOR assets](ezrassor_assets.md) | The EZ-RASSOR asset/integration assessment |
-
-**Reviews**
-
-| Doc | What it is |
-|---|---|
-| [Architecture review (2026-06-04)](archive/architecture_review.md) | Production-readiness assessment |
-| [Deep code review (2026-06-05)](archive/architecture_review_2026-06-05.md) | 8-agent run-verified review + mission-readiness analysis |
-| [Real-world-mission review (2026-06-05)](archive/architecture_review_2026-06-05_realworld.md) | Gap analysis for real-world mission execution |
-| [Full architectural review (2026-06-06)](archive/architecture_review_2026-06-06_full.md) | The complete static-scope review at commit `0473312` |
-| [PRD gap analysis (2026-06-06)](archive/prd_gap_analysis_2026-06-06.md) | Requirement-by-requirement PRD-vs-code diff |
-| [Autonomous planning review](archive/autonomous_planning_review.md) | Single- and multi-vehicle planning limits |
-| [UI/UX audit (2026-06-09)](archive/uiux_audit_2026-06-09.md) | Full frontend audit against the operator KPT |
-| [Mission-ops review (2026-06-20)](archive/architecture_review_2026-06-20_mission_ops.md) | Mission-operations review: the 4-screen operational model, mission intent + executive, provenance |
-| [Architecture review (2026-06-20)](archive/architecture_review_2026-06-20.md) | Local + deployed review against the PRD; done-vs-needed; feeds the PRD §27 backlog |
-| [Cockpit UI/UX audit (2026-06-29)](cockpit_ui_audit_2026-06-29.md) | 3-reviewer decision matrix over the live cockpit, file:line-grounded |
-| [ArcGIS capability diff (2026-06-29)](stewie_arcgis_parity_2026-06-29.md) | STEWIE's actual GIS capability vs production ArcGIS-type software |
-| [Frontend audit (2026-07-01)](frontend_audit_2026-07-01.md) | Visual + engineering audit of the deployed frontend |
+| [LEAP: EZ-RASSOR assets](ezrassor_assets.md) | The EZ-RASSOR asset and integration assessment |
 
 Repository-root references (rendered on GitHub):
-[Product requirements (`PRD.md`)](https://github.com/stewie-sw/stewie/blob/main/PRD.md) ·
-[Master technical spec](https://github.com/stewie-sw/stewie/blob/main/ipex-terrain-sim-spec.md) ·
-[Building taxonomy](https://github.com/stewie-sw/stewie/blob/main/docs/archive/building_taxonomy.md) ·
+[Product requirements (PRD)](https://github.com/stewie-sw/stewie/blob/main/PRD.md) ·
+[Deploy runbook](https://github.com/stewie-sw/stewie/blob/main/deploy/DEPLOY.md) ·
+[Lunar QGIS project](https://github.com/stewie-sw/stewie/tree/main/gis) ·
 [Contributing](https://github.com/stewie-sw/stewie/blob/main/CONTRIBUTING.md) ·
 [Security policy](https://github.com/stewie-sw/stewie/blob/main/SECURITY.md)
 
 ## Why it is trustworthy
 
-The terramechanics authority is exact, deterministic, mass-conserving, and sub-millisecond — it is
-both the simulator *and* the reward source, so learned or searched policies only **command** while
-the authority **mutates**. Every physical constant carries its source and a provenance tag
-(`MEASURED` / `ESTIMATED` / `[CALIB]` / `[UNKNOWN]`); there is no synthetic data in the figures,
-tests, or validation. The energy model is grounded in real IPEx data (Schuler et al., *IPEx TRL-5
-Design Overview*, ASCEND 2024).
-
-Provenance: the conserved terramechanics core (now `stewie/physics`, originally roversim's
-`terrain_authority`) and the streaming `WorkSite` model are by **John McCardle**; STEWIE adds the Gymnasium suite, the per-planet `Body` registry, the world
-model, the mission planner + web UI, the map channel + render integration, the vehicle twin, and
-the self-optimizing pipeline. The repository's license is currently all-rights-reserved (the prior
-CC0 dedication was withdrawn 2026-06-10); see [`LICENSE`](https://github.com/stewie-sw/stewie/blob/main/LICENSE).
+The terramechanics authority is exact, deterministic, mass-conserving, and sub-millisecond. It is both
+the simulator and the reward source, so learned or searched policies only command while the authority
+mutates. Every physical constant carries its source and a provenance tag (`MEASURED`, `ESTIMATED`,
+`[CALIB]`, or `[UNKNOWN]`); there is no synthetic data in the figures, tests, or validation. The
+conserved terramechanics core and the streaming WorkSite model are by John McCardle; STEWIE adds the
+Gymnasium suite, the per-planet body registry, the world model, the mission planner, the GIS IDE and
+cockpit, the render integration, the vehicle twin, and the self-optimizing pipeline. The repository is
+currently all-rights-reserved (the prior CC0 dedication was withdrawn on 2026-06-10); see
+[LICENSE](https://github.com/stewie-sw/stewie/blob/main/LICENSE).
 
 ## Citation
 
 If you use STEWIE, please cite it (GitHub renders a "Cite this repository" button from
-[`CITATION.cff`](https://github.com/stewie-sw/stewie/blob/main/CITATION.cff)):
+[CITATION.cff](https://github.com/stewie-sw/stewie/blob/main/CITATION.cff)):
 
 ```bibtex
 @software{stewie,

@@ -12,6 +12,7 @@ site_url: https://stewie-sw.github.io/stewie/
 nav:
   - Home: index.md
   - Platform:
+      - Architecture (honest index): ARCHITECTURE.md
       - Capability matrix (honest status): CAPABILITIES.md
       - Release policy & evidence: RELEASE.md
       - World model: world_model.md
