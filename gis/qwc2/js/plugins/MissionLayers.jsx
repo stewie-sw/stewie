@@ -11,13 +11,13 @@
  * reprojects it onto the 30135 map) — so the raster RENDERS on the map AND appears as a toggleable
  * row in the stock QWC2 LayerTree. The base .qgz theme layers + MissionHUD are untouched.
  *
- * Honesty: only the 15 backend globe kinds (dem/slope/hazard/illumination/incidence/psr/grid + the
+ * Honesty: only the 16 backend globe kinds (dem/slope/hazard/illumination/incidence/psr/grid + the
  * costmap cost/blocking analysis drapes + the six T12 PHYSICS (TM) terramechanics-spine drapes
- * bearing/sinkage/slip_risk/traction_margin/energy_cost/excavation_resistance) are servable; every other
- * catalog row is shown WITHOUT a map layer (no raster endpoint on the live backend — /world/traffic-layer
- * 404s, physics.compaction is an OBSERVED support state not a per-cell DEM field) and the panel says so
- * rather than fabricating a layer. (cost + blocking + the 6 physics drapes added 2026-07-06; live after a
- * backend rebuild.)
+ * bearing/sinkage/slip_risk/traction_margin/energy_cost/excavation_resistance + the TW-11 traffic
+ * traversal-compaction drape) are servable; every other catalog row is shown WITHOUT a map layer (no raster
+ * endpoint on the live backend — physics.compaction re-labels the SAME TrafficMemory Dr under the Physics
+ * group, so it is not doubled) and the panel says so rather than fabricating a layer. (cost + blocking + the
+ * 6 physics drapes added 2026-07-06; the traffic drape added 2026-07-07; live after a backend rebuild.)
  *
  * Registration:
  *   - js/appConfig.js       -> pluginsDef.plugins.MissionLayersPlugin
@@ -91,10 +91,10 @@ class MissionLayers extends React.Component {
         CL.fetchLayerManifest(SITE)
             .then((m) => this.setState({freshness: CL.freshnessFromManifest(m)}))
             .catch(() => {});
-        // NOTE: /world/traffic-layer is deliberately NOT probed — it returns 404 ("no route") on the
-        // live backend (TW-11 not deployed), which would log a console error. Traffic servability is
-        // already known from the catalog (no traffic.* row is a globe kind), so the gap is reported
-        // statically from the grouped tree (Traffic group -> 0 servable) instead of a network probe.
+        // NOTE: /world/traffic-layer (the auth-gated absolute-Dr + bearing-uplift readout) is deliberately
+        // NOT probed here — the traffic map layer is the PUBLIC /layers/globe/traffic.png drape (TW-11),
+        // bound like every other globe kind from the catalog's SERVABLE map (traffic.compaction -> traffic).
+        // Servability is known statically from the catalog, so no network probe is needed.
     }
     layerId(row) { return 'stewie-mission:' + row.id; }
     isActive(row) {
@@ -189,7 +189,9 @@ class MissionLayers extends React.Component {
         const txt = entry.text || entry.ramp || entry.sweep || entry.sun || '';
         // categorical layers (the blocking-reason grid) enumerate reason -> hex colour: render swatches
         const reasons = Array.isArray(entry.reasons) ? entry.reasons : null;
-        if (!txt && !reasons) return null;
+        // the TW-11 traffic drape enumerates a SEQUENTIAL Dr ramp band -> hex colour (loose -> paved): swatches
+        const bands = Array.isArray(entry.bands) ? entry.bands : null;
+        if (!txt && !reasons && !bands) return null;
         return (
             <div style={{margin: '1px 0 4px 26px', fontSize: '9px', color: '#8a93a3', lineHeight: 1.35}}>
                 {txt}
@@ -200,6 +202,18 @@ class MissionLayers extends React.Component {
                                 <span style={{width: '9px', height: '9px', borderRadius: '2px', flex: '0 0 auto',
                                     background: r.hex, border: '1px solid #00000066'}} />
                                 {String(r.reason).replace(/_/g, ' ')}
+                            </span>
+                        ))}
+                    </div>
+                ) : null}
+                {bands ? (
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '3px 8px', marginTop: '3px'}}>
+                        {bands.map((band) => (
+                            <span key={band.dr} style={{display: 'inline-flex', alignItems: 'center', gap: '3px'}}
+                                title={'Dr ' + band.dr + ' — ' + (band.label || '')}>
+                                <span style={{width: '9px', height: '9px', borderRadius: '2px', flex: '0 0 auto',
+                                    background: band.hex, border: '1px solid #ffffff33'}} />
+                                {band.dr}
                             </span>
                         ))}
                     </div>
@@ -317,12 +331,13 @@ class MissionLayers extends React.Component {
             font: '11px system-ui, sans-serif', '--txt': '#c7d2e3', '--line': '#2a2a36'
         };
         const s = this.state;
-        // The TW-11 traffic layers are catalog rows with no served raster on this backend (traffic.png
-        // 404s, /world/traffic-layer 404s). Report the gap from the grouped tree rather than faking one.
+        // The Traffic group's compaction/cost/traversability rows drape as globe rasters (TW-11 traffic +
+        // AS-11 cost/blocking); the remaining traffic.* rows (cost_local/backlink) have no raster endpoint.
+        // If a backend ever serves NONE of them, report the gap from the grouped tree rather than faking one.
         const trafficGroup = (s.tree || []).filter((g) => g.id === 'traffic')[0];
         const trafficNote = trafficGroup && trafficGroup.rows.every((r) => !r.servable)
             ? 'traffic.* (TW-11): ' + trafficGroup.rows.length + ' catalog rows, 0 served as rasters on this '
-              + 'backend (no /layers/raster/traffic.png, no /world/traffic-layer) — shown, not rendered.'
+              + 'backend — shown, not rendered.'
             : null;
         return (
             <div style={wrapStyle}>
@@ -338,7 +353,7 @@ class MissionLayers extends React.Component {
                 {s.summary ? (
                     <div style={{fontSize: '10px', color: '#c7d2e3', marginBottom: '6px'}}>
                         <b style={{color: '#39ff14'}}>{s.summary.servable}</b> of {s.summary.total} catalog
-                        layers are servable as map rasters (9 backend globe kinds); the rest are catalog-only.
+                        layers are servable as map rasters (16 backend globe kinds); the rest are catalog-only.
                     </div>
                 ) : null}
                 {s.error ? (

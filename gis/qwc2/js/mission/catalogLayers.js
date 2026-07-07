@@ -16,21 +16,21 @@
  * GetMap, so a QWC2 `wms` layer (which requests in the map CRS) cannot render it. See README/report.
  *
  * SERVABILITY is grounded in the backend endpoint's _GLOBE_KINDS allow-list, never faked:
- *   servable  = /layers/globe/{kind}.png returns a real PNG for these 15 globe kinds:
- *               dem, slope, hazard, illumination, incidence, psr, grid, cost, blocking, and the six T12
+ *   servable  = /layers/globe/{kind}.png returns a real PNG for these 16 globe kinds:
+ *               dem, slope, hazard, illumination, incidence, psr, grid, cost, blocking, the six T12
  *               PHYSICS (TM) drapes bearing, sinkage, slip_risk, traction_margin, energy_cost,
- *               excavation_resistance.
+ *               excavation_resistance, and the TW-11 traffic drape.
  *               (dem..grid verified live by curl 2026-07-06; cost + blocking added 2026-07-06 -- the
  *               plan-independent traversability-COST heatmap + the categorical BLOCKING-reason grid,
  *               both from the REAL lode.costmap_layers costmap on the site DEM; the 6 physics drapes added
- *               2026-07-06 -- each a REAL terramechanics-spine per-cell field on the site DEM slope; all
- *               live after a backend rebuild.)
+ *               2026-07-06 -- each a REAL terramechanics-spine per-cell field on the site DEM slope; the
+ *               traffic drape added 2026-07-07 -- the OBSERVED traversal-compaction (Dr) from the site's
+ *               persistent TrafficMemory over the work-area crop; all live after a backend rebuild.)
  *   NOT served = every other catalog row (physics.compaction [OBSERVED support state, not a per-cell DEM
- *               field], the remaining traffic.*, map.*, design.*,
- *               vector/mission/robot/runtime/evidence rows) has no independent raster endpoint;
- *               /world/traffic-layer -> 404 "no route". These rows are SHOWN in the tree (with
- *               provenance + eligibility) but carry no map layer, and the plugin reports the gap
- *               rather than fabricating one.
+ *               field], the remaining traffic.* [cost_local/backlink], map.*, design.*,
+ *               vector/mission/robot/runtime/evidence rows) has no independent raster endpoint. These rows
+ *               are SHOWN in the tree (with provenance + eligibility) but carry no map layer, and the
+ *               plugin reports the gap rather than fabricating one.
  *
  * Node-testable + CSP-safe: pure data/logic + fetch helpers, no DOM, no React, no module globals.
  */
@@ -63,7 +63,7 @@
     { id: "evidence", name: "Evidence/Runtime", section: "6" }
   ];
 
-  // catalog id -> served globe kind (/layers/globe/{kind}.png + /bbox). ONLY these 9 render; grounded
+  // catalog id -> served globe kind (/layers/globe/{kind}.png + /bbox). ONLY these render; grounded
   // in the backend's _GLOBE_KINDS allow-list. Everything else is catalog-only (no raster endpoint).
   //   cost     = traffic.cost_global   -> the plan-independent traversability-cost heatmap (green->red)
   //   blocking = traffic.traversability -> the categorical blocking-reason grid (why a cell is no-go)
@@ -71,8 +71,11 @@
   //   The 6 physics.* rows below are the T12 PHYSICS (TM) drape -- each the REAL terramechanics-spine
   //   per-cell field (stewie.specs.terramechanics_spine binds each row to a live solver in
   //   stewie.physics.sinkage / slip), draped on the map (added 2026-07-06; live after a backend rebuild).
-  //   physics.compaction is deliberately absent: it is an OBSERVED compaction/support STATE (TrafficMemory
-  //   Dr family), not a plan-independent per-cell DEM field, so it stays catalog-only (honest 6/7).
+  //   traffic  = traffic.compaction -> the TW-11 OBSERVED traversal-compaction (Dr) from the site's
+  //   persistent TrafficMemory, draped over the work-area crop (added 2026-07-07): real where the rover has
+  //   driven, transparent where it has not. This is the OBSERVED-state sibling of the plan-independent
+  //   physics rows; physics.compaction stays deliberately absent (it re-labels the SAME TrafficMemory Dr
+  //   family under the Physics group, so it is not doubled as a second raster -- honest 6/7).
   var SERVABLE = {
     "base.dem": "dem",
     "base.grid": "grid",
@@ -88,7 +91,8 @@
     "physics.slip_risk": "slip_risk",
     "physics.traction_margin": "traction_margin",
     "physics.energy_cost": "energy_cost",
-    "physics.excavation_resistance": "excavation_resistance"
+    "physics.excavation_resistance": "excavation_resistance",
+    "traffic.compaction": "traffic"
   };
 
   // globe kind -> key in the /layers/legend payload (grid is a bare reference grid, no legend entry).
@@ -98,7 +102,8 @@
     cost: "cost", blocking: "blocking",
     bearing: "bearing", sinkage: "sinkage", slip_risk: "slip_risk",
     traction_margin: "traction_margin", energy_cost: "energy_cost",
-    excavation_resistance: "excavation_resistance"
+    excavation_resistance: "excavation_resistance",
+    traffic: "traffic"
   };
 
   // Coarse provenance class from a source_class string (e.g. "prior/observed" -> "observed"), used

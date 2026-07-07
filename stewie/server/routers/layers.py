@@ -38,7 +38,11 @@ def globe_quota(request: Request) -> str:
 _GLOBE_KINDS = ("dem", "slope", "hazard", "illumination", "incidence", "psr", "grid", "cost", "blocking",
                 # T12 PHYSICS (TM) drape: the terramechanics-spine per-cell fields (physics.compaction is
                 # OBSERVED state, not a plan-independent per-cell field -> deliberately absent, catalog-only)
-                "bearing", "sinkage", "slip_risk", "traction_margin", "energy_cost", "excavation_resistance")
+                "bearing", "sinkage", "slip_risk", "traction_margin", "energy_cost", "excavation_resistance",
+                # TW-11 TRAFFIC drape: the OBSERVED traversal-compaction state (traffic.compaction, the
+                # per-site TrafficMemory Dr) draped over the fixed work-area crop -- real where the rover has
+                # driven, transparent where it has not (public map data, uncached: it changes as runs fold).
+                "traffic")
 _HEX6 = re.compile(r"^[0-9a-fA-F]{6}$")
 _DEFAULT_GRID = "39ff14"
 _MISSION_T_MAX_S = 3.156e10            # +/- ~1000 yr: finite-bounds an arbitrary mission_t_s

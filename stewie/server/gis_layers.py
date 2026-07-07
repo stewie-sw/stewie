@@ -139,6 +139,46 @@ def _traffic_rgba(mem) -> np.ndarray:
     return rgba
 
 
+def _render_globe_traffic(mp, bundle_dir, site):
+    """[REQ:TW-11] the GEOGRAPHIC globe drape of the site's persistent TrafficMemory traversal-compaction (Dr):
+    the REAL per-cell hardening the SIM execute->remember loop folded in (traffic_fold -> traffic_memory),
+    reprojected over the FIXED work-area crop the TrafficMemory grid lives on (the SAME 128x128 @ cell_m frame
+    every /layers/raster layer + traffic_fold.work_grid_frame use), so it CO-REGISTERS with the dem/slope/hazard
+    drapes. Where the rover has driven it shows the real compaction (_traffic_rgba over Dr); where it has not it
+    is transparent (honest -- no fabricated compaction). Returns (rgba uint8, bbox). Uncached (each SIM run folds
+    new traffic; a cache would serve a stale road)."""
+    import numpy as _np
+
+    from stewie.specs.config import data_dir
+    from stewie.twin import traffic_memory as _TW
+    dem_full, _cell_m, b, fwd, tile_crs = _tile_geo(mp, bundle_dir)
+    H, W = _np.asarray(dem_full).shape[:2]
+    mem = _TW.load_site(data_dir(), site)
+    if mem is not None:
+        # the crop offset is the mem's OWN order-frame origin (c0*cell_m, r0*cell_m) -- exactly where the fold
+        # placed it -- so the drape is self-consistent with the accumulator grid.
+        rows, cols = int(mem.rows), int(mem.cols)
+        c0 = int(round(float(mem.origin[0]) / float(mem.cell_m)))
+        r0 = int(round(float(mem.origin[1]) / float(mem.cell_m)))
+        rgba = _traffic_rgba(mem)
+    else:
+        # no traffic recorded yet -> a fully transparent drape over the work-area crop (not a blank 404).
+        crop, (r0, c0), _cm = _work_area(mp, bundle_dir)
+        rows, cols = int(crop.shape[0]), int(crop.shape[1])
+        rgba = _np.zeros((rows, cols, 4), dtype=_np.float64)
+    # the crop's tile-frame extent, using the SAME (W-1)/(H-1) linear map the full-tile drape (_reproject over
+    # b) uses, so the traffic sub-window lands exactly on DEM rows [r0, r0+rows) cols [c0, c0+cols) -- the work
+    # area -- aligned with the dem/slope/hazard globe drapes. Crop row 0 = north (max tile Y), like every drape.
+    bx0, by0, bx1, by1 = b["x0"], b["y0"], b["x1"], b["y1"]
+    sx0 = bx0 + c0 / (W - 1) * (bx1 - bx0)
+    sx1 = bx0 + (c0 + cols - 1) / (W - 1) * (bx1 - bx0)
+    sy1 = by1 - r0 / (H - 1) * (by1 - by0)
+    sy0 = by1 - (r0 + rows - 1) / (H - 1) * (by1 - by0)
+    # out_px modest: the source is a 128-cell crop, so a 512-px geographic grid is already oversampled and keeps
+    # this UNCACHED path light while co-registering with the cached full-tile drapes.
+    return _reproject(rgba, b, fwd, out_px=512, sub=(sx0, sy0, sx1, sy1), crs=tile_crs)
+
+
 RASTER_DEFS = [
     {"key": "slope", "name": "Slope (deg, from the real DEM)", "kind": "raster", "group": "terrain"},
     {"key": "hazard", "name": "Hazard / no-go (nav cost)", "kind": "raster", "group": "safety",
@@ -621,6 +661,10 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
     if mp is None:
         from lode import mission_planner as mp
     bundle_dir = mp.bundle_for_site(site)                # raises KeyError/FileNotFoundError -> route 404
+    if kind == "traffic":
+        # [REQ:TW-11] the OBSERVED traversal-compaction drape from the site's persistent TrafficMemory (Dr).
+        # NOT cached: it changes as each SIM run folds new traffic (a cache would drape a stale road).
+        return _render_globe_traffic(mp, bundle_dir, site)
     # G5 symbology key: a 2-tuple always (the (30.0,0) default for non-slope is constant -> no fragmentation)
     sym = (round(float(slope_vmax), 2), int(slope_classes)) if kind == "slope" else (30.0, 0)
     key = ("globe", kind, site, round(float(sun_el), 2), round(float(sun_az), 2),
