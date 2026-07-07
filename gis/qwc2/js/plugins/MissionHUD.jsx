@@ -20,6 +20,7 @@ import {connect} from 'react-redux';
 import SideBar from 'qwc2/components/SideBar';
 
 import RoverHUD from '../mission/rover_hud';   // verbatim FS-24 renderer (window.STEWIE_ROVER_HUD + default export)
+import RoverWireframe from '../mission/roverWireframe';   // pure, node-tested URDF kinematic-skeleton view-model
 import RT04Client from '../mission/rt04Client';
 
 // IPEx large-drum capacity (kg) used only to scale the drum-load bars. The live RT-04 stream does not
@@ -28,6 +29,71 @@ const DRUM_CAP_KG = 30;
 
 function fmt(v, d) {
     return (v === undefined || v === null || Number.isNaN(v)) ? '—' : Number(v).toFixed(d);
+}
+
+// ---- kinematic-wireframe styling: dark graphite skeleton, cyan #4fd1ff structure, amber spin marks,
+//      sensor markers colour-coded operational=cyan / redundant=dim. Keyed by roverWireframe primitive cls. ----
+const WF_COLORS = {
+    'chassis': {stroke: '#3f4c5f', fill: 'none', w: 1.1},
+    'ground': {stroke: '#2c3340', w: 1, dash: '3 3'},
+    'mast': {stroke: '#3f4c5f', w: 1},
+    'wheel': {stroke: '#4fd1ff', fill: 'none', w: 1.3},
+    'wheel-spoke': {stroke: '#ffcc55', w: 1.5},
+    'arm': {stroke: '#6ee7ff', w: 1.7},
+    'drum': {stroke: '#4fd1ff', fill: 'none', w: 1.3},
+    'drum-spoke': {stroke: '#ffcc55', w: 1.5},
+    'cam-op': {fill: '#4fd1ff', stroke: '#dff6ff'},
+    'cam-red': {fill: '#55606e', stroke: '#3a424e'},
+    'fov-op': {fill: 'rgba(79,209,255,0.14)', stroke: 'rgba(79,209,255,0.45)', w: 0.8},
+    'fov-red': {fill: 'rgba(120,132,148,0.07)', stroke: 'rgba(120,132,148,0.28)', w: 0.8},
+    'imu': {stroke: '#ffcc55', w: 1.3},
+    'depth': {fill: '#8894a5', stroke: '#5a6472'},
+    'label-op': {fill: '#7fdcff'},
+    'label-red': {fill: '#6b7484'},
+    'label-dim': {fill: '#7a8290'}
+};
+
+// Fit one roverWireframe panel {primitives, bounds} (world metres, u=right/v=up) into a w x h px SVG,
+// flipping v so world-up is screen-up. Pure: returns an <svg>. showLabels gates the tiny sensor text so the
+// small FRONT/BACK panels stay uncluttered.
+function wireframeSvg(panel, w, h, showLabels) {
+    const b = panel.bounds;
+    const pad = 10;
+    const du = Math.max(b.maxU - b.minU, 1e-6);
+    const dv = Math.max(b.maxV - b.minV, 1e-6);
+    const scale = Math.min((w - 2 * pad) / du, (h - 2 * pad) / dv);
+    const ox = (w - du * scale) / 2;
+    const oy = (h - dv * scale) / 2;
+    const px = (u) => ox + (u - b.minU) * scale;
+    const py = (v) => h - (oy + (v - b.minV) * scale);   // flip: +v up
+    const els = [];
+    panel.primitives.forEach((p, i) => {
+        const c = WF_COLORS[p.cls] || {stroke: '#4fd1ff'};
+        const key = p.cls + i;
+        if (p.type === 'circle') {
+            els.push(<circle cx={px(p.u)} cy={py(p.v)} fill={c.fill || 'none'} key={key} r={p.r * scale} stroke={c.stroke} strokeWidth={c.w || 1} />);
+        } else if (p.type === 'line') {
+            els.push(<line key={key} stroke={c.stroke} strokeDasharray={c.dash} strokeWidth={c.w || 1} x1={px(p.u1)} x2={px(p.u2)} y1={py(p.v1)} y2={py(p.v2)} />);
+        } else if (p.type === 'poly') {
+            const pts = p.pts.map((q) => px(q.u) + ',' + py(q.v)).join(' ');
+            els.push(<polygon fill={c.fill || 'none'} key={key} points={pts} stroke={c.stroke} strokeWidth={c.w || 1} />);
+        } else if (p.type === 'cone') {
+            const pts = p.pts.map((q) => px(q.u) + ',' + py(q.v)).join(' ');
+            els.push(<polygon fill={c.fill} key={key} points={pts} stroke={c.stroke} strokeWidth={c.w || 0.8} />);
+        } else if (p.type === 'node') {
+            const x = px(p.u), y = py(p.v);
+            if (p.shape === 'diamond') {
+                els.push(<polygon fill={c.fill} key={key} points={`${x},${y - 2.6} ${x + 2.6},${y} ${x},${y + 2.6} ${x - 2.6},${y}`} stroke={c.stroke} strokeWidth={0.6} />);
+            } else if (p.shape === 'cross') {
+                els.push(<g key={key} stroke={c.stroke} strokeWidth={c.w || 1.2}><line x1={x - 3} x2={x + 3} y1={y} y2={y} /><line x1={x} x2={x} y1={y - 3} y2={y + 3} /></g>);
+            } else {
+                els.push(<rect fill={c.fill} height={4.4} key={key} stroke={c.stroke} strokeWidth={0.6} width={4.4} x={x - 2.2} y={y - 2.2} />);
+            }
+        } else if (p.type === 'label' && showLabels) {
+            els.push(<text fill={c.fill} fontFamily="ui-monospace, monospace" fontSize={6.5} key={key} x={px(p.u) + 3} y={py(p.v) - 3}>{p.text}</text>);
+        }
+    });
+    return <svg height={h} style={{display: 'block'}} width={w}>{els}</svg>;
 }
 
 /**
@@ -156,6 +222,50 @@ class MissionHUD extends React.Component {
             </div>
         );
     };
+    // The LIVE KINEMATIC WIREFRAME: the URDF IPEx skeleton (roverWireframe.js, dimension-faithful to
+    // ipex.urdf.xacro) posed from the REAL /joint_states position angles flowing through rt04Client. Four
+    // orthographic panels (SIDE/FRONT/BACK/TOP): the wheel spokes, drum-arm arcs and drum-spin marks animate
+    // as `joints` changes; the 8 nav cameras are drawn as role-coloured nodes + yaw-direction FOV wedges, plus
+    // the IMU + forward depth/LiDAR/RGB-D hardpoints. No live camera video (GPU render is on-demand only) --
+    // the rig shows sensor POSITIONS + pointing, with an honest render-gated affordance below.
+    renderWireframe = () => {
+        const s = this.state.telem;
+        const joints = s && s.joints ? s.joints : null;   // parsed roverInstruments model, or null (neutral pose)
+        const all = RoverWireframe.buildAll(joints);
+        const panelBox = {border: '1px solid #2a2a36', borderRadius: '4px', background: '#0d0d13', overflow: 'hidden'};
+        const cap = {fontSize: '7.5px', color: '#7a8290', letterSpacing: '.06em', padding: '2px 4px 0'};
+        const wideW = 296, smallW = 144;
+        const panel = (view, w, hgt, title, showLabels) => (
+            <div style={{...panelBox, width: w + 'px'}}>
+                <div style={cap}>{title}</div>
+                {wireframeSvg(all[view], w, hgt, showLabels)}
+            </div>
+        );
+        return (
+            <div>
+                <div style={{margin: '14px 0 4px', fontSize: '9px', color: '#7a8290', letterSpacing: '.08em'}}>
+                    KINEMATIC WIREFRAME · URDF ipex · live /joint_states
+                </div>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '6px'}}>
+                    {panel('side', wideW, 150, 'SIDE · x→ z↑', true)}
+                    <div style={{display: 'flex', gap: '6px'}}>
+                        {panel('front', smallW, 128, 'FRONT · look −x', false)}
+                        {panel('back', smallW, 128, 'BACK · look +x', false)}
+                    </div>
+                    {panel('top', wideW, 160, 'TOP · plan, nose ↑', true)}
+                </div>
+                <div style={{marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '8px', color: '#7a8290', alignItems: 'center'}}>
+                    <span><span style={{color: '#4fd1ff'}}>■</span> cam operational</span>
+                    <span><span style={{color: '#55606e'}}>■</span> redundant</span>
+                    <span><span style={{color: '#8894a5'}}>◆</span> depth/LiDAR</span>
+                    <span><span style={{color: '#ffcc55'}}>+</span> IMU</span>
+                </div>
+                <div style={{marginTop: '4px', fontSize: '8px', color: '#6b7484', fontStyle: 'italic'}}>
+                    8-cam nav rig: positions + FOV shown · live video render-gated (GPU on-demand, not streamed)
+                </div>
+            </div>
+        );
+    };
     connLabel() {
         const s = this.state.telem;
         if (!s) return {text: 'connecting…', color: '#e0b300'};
@@ -204,6 +314,7 @@ class MissionHUD extends React.Component {
                     style={{display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '10px'}}
                 />
                 {this.renderInstruments()}
+                {this.renderWireframe()}
                 <div style={{marginTop: '10px', fontSize: '9px', color: '#7a8290'}}>
                     {s
                         ? 'messages: ' + s.messages + (s.lastMsgTs ? ' · last ' + new Date(s.lastMsgTs).toLocaleTimeString() : '')
