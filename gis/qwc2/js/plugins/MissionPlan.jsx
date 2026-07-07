@@ -83,7 +83,10 @@ class MissionPlan extends React.Component {
         this.setState({ready: true, ctrl: {
             site: 'haworth', activeKind: null, footprint: 60, depth: 0.4, orders: [],
             hint: 'Pick a work site, then a tool, then click the map to place orders.', hintErr: false,
-            result: null, planning: false
+            result: null, planning: false,
+            run: {active: false, id: null, legsSeen: 0, total: 0, terminal: null, lastEvent: '',
+                result: null, evidence: null},
+            canRun: false
         }});
     };
     onShow = () => {
@@ -102,6 +105,7 @@ class MissionPlan extends React.Component {
     onPlan = () => { if (this.ctrl) { this.ctrl.plan(); } };
     onClear = () => { if (this.ctrl) { this.ctrl.clearOrders(); } };
     onRemove = (i) => { if (this.ctrl) { this.ctrl.removeOrder(i); } };
+    onRun = () => { if (this.ctrl) { this.ctrl.runMission(); } };
 
     renderTools(s) {
         const btn = (kind, label, color) => {
@@ -202,6 +206,101 @@ class MissionPlan extends React.Component {
         );
     }
 
+    // --- Run-SIM (T10): the button + live run status/summary/evidence, once a feasible plan is rendered ----
+    runKv(k, v) {
+        return (
+            <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '2px 0'}}>
+                <span style={{color: '#8a93a3'}}>{k}</span><b style={{color: '#c7d2e3'}}>{v}</b>
+            </div>
+        );
+    }
+
+    renderEvidence(ev) {
+        if (!ev) { return null; }
+        const link = (href, label) => (
+            <a
+                href={href} rel="noopener"
+                style={{display: 'block', fontSize: '11px', color: '#39c6ff', marginTop: '3px'}}
+                target="_blank"
+            >{label}</a>
+        );
+        return (
+            <div style={{marginTop: '6px', borderTop: '1px solid #1c1c26', paddingTop: '6px'}}>
+                <div style={{
+                    fontSize: '9px', letterSpacing: '.06em', color: '#7a8290',
+                    textTransform: 'uppercase', marginBottom: '2px'
+                }}>Evidence bundle</div>
+                {ev.blurbKey ? this.runKv(ev.blurbKey, ev.blurbVal) : null}
+                {ev.navUrl ? link(ev.navUrl, '↓ Nav evidence (JSON)') : null}
+                {ev.pdfUrl ? link(ev.pdfUrl, '↓ Mission report (PDF)') : null}
+            </div>
+        );
+    }
+
+    renderRunStatus(run) {
+        if (!run || (!run.active && !run.id && !run.terminal)) { return null; }
+        const t = run.terminal, running = run.active && !t;
+        const label = running ? 'Executing (SIM)…'
+            : (t === 'completed' ? 'SIM run COMPLETED'
+                : t === 'safed' ? 'SIM run SAFED (watchdog)'
+                    : t === 'error' ? 'Run error' : 'Done');
+        const headColor = running ? '#39c6ff' : (t === 'completed' ? '#39ff14' : '#e0564b');
+        const frac = run.total ? Math.min(1, run.legsSeen / run.total) : (t ? 1 : 0);
+        const rr = run.result || {};
+        return (
+            <div style={{marginTop: '8px'}}>
+                <div style={{fontSize: '12px', fontWeight: 700, color: headColor, marginBottom: '4px'}}>{label}</div>
+                <div style={{height: '5px', background: '#12141a', borderRadius: '3px', overflow: 'hidden', margin: '4px 0'}}>
+                    <div style={{
+                        height: '100%', width: Math.round(frac * 100) + '%',
+                        background: running ? '#39c6ff' : '#39ff14', transition: 'width .3s'
+                    }} />
+                </div>
+                {run.id ? this.runKv('Run id', run.id) : null}
+                {this.runKv('Legs', run.legsSeen + ' / ' + (run.total || '—'))}
+                {rr.final_state ? this.runKv('Final state', rr.final_state) : null}
+                {rr.executability ? this.runKv('Executable', rr.executability.executable ? 'yes' : 'no') : null}
+                {rr.physics_attribution ? this.runKv('Physics', rr.physics_attribution.backend +
+                    (rr.physics_attribution.conserves_mass ? ' · mass-conserving' : '')) : null}
+                {rr.live_token ? this.runKv('Live token', rr.live_token.issued ? 'issued' : 'refused') : null}
+                {rr.reconciliation ? this.runKv('Energy residual',
+                    Math.abs(rr.reconciliation.residual || 0).toFixed(0) + ' J') : null}
+                {run.lastEvent ? (
+                    <div style={{fontSize: '10px', color: '#8a93a3', marginTop: '4px'}}>{run.lastEvent}</div>
+                ) : null}
+                {this.renderEvidence(run.evidence)}
+            </div>
+        );
+    }
+
+    renderRun(s) {
+        // Only a rendered, FEASIBLE plan can be run (the button appears with the feasible-plan card).
+        if (!s.result || !s.result.feasible) { return null; }
+        const run = s.run || {};
+        const running = run.active;
+        const canRun = s.canRun && !running;
+        return (
+            <div style={{marginTop: '10px', borderTop: '1px solid #1c1c26', paddingTop: '8px'}}>
+                <button
+                    data-stewie-run="1" disabled={!canRun} onClick={this.onRun}
+                    style={{
+                        width: '100%', cursor: canRun ? 'pointer' : 'default',
+                        font: '700 11px system-ui, sans-serif', padding: '8px', borderRadius: '4px',
+                        border: '1px solid #39c6ff66',
+                        color: canRun ? '#39c6ff' : '#3a5a6a',
+                        background: canRun ? '#39c6ff18' : '#0d141a'
+                    }}
+                    type="button"
+                >{running ? 'Running SIM…' : 'Run mission (SIM)'}</button>
+                <div style={{fontSize: '9px', color: '#7a8290', margin: '4px 0 0', lineHeight: 1.35}}>
+                    Non-destructive desktop-SIL run on the real DEM. The rover drives the planned route as
+                    live leg telemetry arrives; a validation summary + evidence bundle follow.
+                </div>
+                {this.renderRunStatus(run)}
+            </div>
+        );
+    }
+
     renderBody = () => {
         const s = this.state.ctrl;
         const wrapStyle = {
@@ -282,6 +381,7 @@ class MissionPlan extends React.Component {
                 </div>
 
                 {this.renderResult(s)}
+                {this.renderRun(s)}
             </div>
         );
     };

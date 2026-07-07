@@ -77,24 +77,78 @@ export default class PlanAuthor {
         this.orderLayer.setStyle((f) => this._orderMarkerStyle(f));
         this.planSource = new VectorSource();
         this.planLayer = new VectorLayer({source: this.planSource, zIndex: 19});
+
+        // --- Run-SIM (T10, design §D-3 tier-3 analog run as a NON-DESTRUCTIVE desktop_sil). The rover marker
+        // + its traversed trail draw ABOVE the plan route; the run is a verbatim port of Frontend A's
+        // gis/web/app.js:676-914 execution loop (POST /executive/run -> SSE /executive/run/{id}/stream ->
+        // animate the rover along the REAL planned route by leg events -> run summary + /evidence bundle).
+        this.trailSource = new VectorSource();
+        this.trailLayer = new VectorLayer({source: this.trailSource, zIndex: 21});
+        this.trailLayer.setStyle(new Style({stroke: new Stroke({color: '#7fe0a8', width: 3})}));
+        this.roverSource = new VectorSource();
+        this.roverLayer = new VectorLayer({source: this.roverSource, zIndex: 22});
+        this.roverLayer.setStyle(new Style({
+            image: new CircleStyle({
+                radius: 6, fill: new Fill({color: '#eafff4'}),
+                stroke: new Stroke({color: '#1c6b45', width: 2})
+            }),
+            text: new Text({
+                text: 'IPEx', offsetY: -15, font: '700 11px system-ui, sans-serif',
+                fill: new Fill({color: '#bff4d8'}), stroke: new Stroke({color: '#000', width: 3})
+            })
+        }));
+
+        this.route = null;         // ordered drive route in map coords (from the rendered plan) for the SIM rover
+        this._planOrders = null;   // the order-frame orders POSTed to /plan -- reused verbatim for /executive/run
+        this.run = this._emptyRun();
+        this._roverFeat = null; this._trailFeat = null;
+        this._animFrom = 0; this._animTo = 0; this._animStart = 0; this._animDur = 400; this._animRaf = 0;
+
         this._clickKey = null;
         this._attached = false;
+    }
+
+    _emptyRun() {
+        return {es: null, id: null, legsSeen: 0, total: 0, terminal: null, running: false,
+            cumdist: null, len: 0, result: null, evidence: null, lastEvent: '', lastPose: null};
     }
 
     attach() {
         if (this._attached) { return; }
         this.map.addLayer(this.planLayer);
+        this.map.addLayer(this.trailLayer);
+        this.map.addLayer(this.roverLayer);
         this.map.addLayer(this.orderLayer);
         this._clickKey = this.map.on('singleclick', (evt) => {
             if (this.activeKind) { this.placeAt(evt.coordinate); }
         });
+        // Read-only harness handles for the headless LIVE proof (same code paths as the UI) -- mirrors
+        // Frontend A's window.stewieRun (gis/web/app.js:916). No command authority; state readback only.
+        if (typeof window !== 'undefined') {
+            window.__stewieRun = {
+                state: () => this._runView(),
+                roverPose: () => (this.run.lastPose ? this.run.lastPose.slice() : null),
+                routeLen: () => (this.route || []).length,
+                orderCount: () => this.orders.length,
+                pixelOf: (coord) => this.map.getPixelFromCoordinate(coord),   // read-only map-coord -> pixel
+                // Authoring drivers for the headless verification harness -- the SAME controller code paths
+                // the tool button + map singleclick call (setTool -> placeAt), so a proof can place orders at
+                // exact map coords without pixel-quantised clicks. No command authority (authoring only).
+                setTool: (kind) => this.setTool(kind),
+                placeAt: (coord) => this.placeAt(coord)
+            };
+        }
         this._attached = true;
     }
 
     detach() {
         if (!this._attached) { return; }
+        this._resetRun();
+        if (typeof window !== 'undefined' && window.__stewieRun) { delete window.__stewieRun; }
         if (this._clickKey) { this.map.un('singleclick', this._clickKey.listener); this._clickKey = null; }
         this.map.removeLayer(this.orderLayer);
+        this.map.removeLayer(this.roverLayer);
+        this.map.removeLayer(this.trailLayer);
         this.map.removeLayer(this.planLayer);
         this._attached = false;
     }
@@ -106,8 +160,20 @@ export default class PlanAuthor {
                 idx: i, kind: o.kind, x: round1(o.coord[0]), y: round1(o.coord[1]),
                 footprint_m2: o.footprint_m2, depth_m: o.depth_m
             })),
-            hint: this.hint, hintErr: this.hintErr, result: this.result, planning: this.planning
+            hint: this.hint, hintErr: this.hintErr, result: this.result, planning: this.planning,
+            run: this._runView(),
+            // The SIM run is offered only once a FEASIBLE plan with a drive route is rendered and no run is live.
+            canRun: !!(this.route && this.route.length && this.result && this.result.feasible === true &&
+                !this.run.running)
         });
+    }
+    // A serializable snapshot of the live run for React (the panel reads this; never the live EventSource).
+    _runView() {
+        const r = this.run;
+        return {
+            active: r.running, id: r.id, legsSeen: r.legsSeen, total: r.total,
+            terminal: r.terminal, lastEvent: r.lastEvent, result: r.result, evidence: r.evidence
+        };
     }
     _setHint(msg, isErr) { this.hint = msg; this.hintErr = !!isErr; this._emit(); }
 
@@ -117,6 +183,8 @@ export default class PlanAuthor {
         this.orders = [];
         this.result = null;
         this.wc = null;
+        this._resetRun();
+        this.route = null; this._planOrders = null;
         this.orderSource.clear();
         this.planSource.clear();
         this._setHint('Loading ' + site + ' work area…');
@@ -174,6 +242,8 @@ export default class PlanAuthor {
     removeOrder(i) { this.orders.splice(i, 1); this._refreshOrderMarkers(); this._emit(); }
     clearOrders() {
         this.orders = []; this.result = null; this.wc = null;
+        this._resetRun();
+        this.route = null; this._planOrders = null;
         this.orderSource.clear(); this.planSource.clear();
         this._setHint('Cleared. Pick a tool and click the map to place orders.');
     }
@@ -226,6 +296,10 @@ export default class PlanAuthor {
                 footprint_m2: o.footprint_m2, depth_m: o.depth_m
             }))
         };
+        // Reuse the EXACT order-frame orders for the SIM run (POST /executive/run is anchored at the site DEM;
+        // it carries no lat/lon field, so the run reuses these order-frame offsets -- the same queue shape the
+        // OL viewer runs, gis/web/app.js:870-876). The rover animates on THIS plan's route regardless.
+        this._planOrders = payload.orders;
         this.planning = true;
         this._setHint('Running the planner on the real ' + this.site + ' DEM…');
         return fetch('/api/plan', {
@@ -261,15 +335,21 @@ export default class PlanAuthor {
     _renderPlan(resp, wc) {
         this.wc = wc;
         this.planSource.clear();
+        this._resetRun();                 // a fresh plan clears any prior run's rover/trail/telemetry
         const pir = resp.plan_ir || {};
         const feasible = resp.feasible !== false && pir.feasible !== false;
         const routeStyle = new Style({
             stroke: new Stroke({color: '#ffd24a', width: 2.5, lineDash: feasible ? undefined : [6, 5]})
         });
         const haulStyle = new Style({stroke: new Stroke({color: '#8fb8ff', width: 2, lineDash: [2, 4]})});
+        const routeMap = [];              // the ordered drive route in map coords, for the SIM-run rover animation
         (pir.actions || []).forEach((a) => {
             if (a.op === 'GoTo' && Array.isArray(a.waypoints) && a.waypoints.length > 1) {
                 const line = a.waypoints.map((w) => this._orderToMap(wc, w[0], w[1]));
+                line.forEach((p) => {     // append, dropping a duplicate shared endpoint between legs
+                    const last = routeMap[routeMap.length - 1];
+                    if (!last || last[0] !== p[0] || last[1] !== p[1]) { routeMap.push(p); }
+                });
                 const f = new Feature({geometry: new LineString(line)});
                 f.setStyle(routeStyle); this.planSource.addFeature(f);
             } else if (a.op === 'CutHaulFill' && a.site && a.dest) {
@@ -279,6 +359,7 @@ export default class PlanAuthor {
                 hf.setStyle(haulStyle); this.planSource.addFeature(hf);
             }
         });
+        this.route = routeMap;            // retained so the operator can now RUN the plan as a SIM mission
         // Charger = order-frame origin (plan_ir.frame.charger, [0,0]) = the anchor.
         const ch = (pir.frame && pir.frame.charger) || [0, 0];
         const charger = new Feature({geometry: new Point(this._orderToMap(wc, ch[0], ch[1]))});
@@ -318,7 +399,199 @@ export default class PlanAuthor {
             terrain_source: resp.terrain_source || ''
         };
         this._setHint(feasible
-            ? 'Plan rendered: route = gold, haul = blue-dashed, charger = green.'
+            ? 'Plan rendered: route = gold, haul = blue-dashed, charger = green. Press Run mission (SIM) to execute it.'
             : 'Infeasible plan rendered (route dashed). See the reasons below.', !feasible);
+    }
+
+    // =====================================================================================================
+    // RUN-SIM (T10) — run the rendered plan as a NON-DESTRUCTIVE desktop_sil execution via the REAL backend
+    // (POST /api/executive/run, key injected server-side by the artemis nginx), subscribe to the run's
+    // Server-Sent-Events telemetry (/api/executive/run/{id}/stream), and animate the rover along the REAL
+    // planned route as each execution leg arrives. The stream carries per-leg EVENTS (kind/detail/outcome/
+    // t_s), NOT x/y telemetry, so the rover is placed on the plan's REAL trajectory and advanced by real leg
+    // events -- no synthetic coordinates. On completion the panel shows the run summary (executability /
+    // physics tier / energy residual / live token) + the /api/evidence bundle. SIM-labeled throughout; the
+    // whole /executive surface is director-gated on the backend and this never touches the live-rover path.
+    // Verbatim port of Frontend A's gis/web/app.js:676-914. See §D-3 (read-only evidence vs command).
+    // =====================================================================================================
+
+    _resetRun() {
+        if (this.run.es) { try { this.run.es.close(); } catch (e) { /* already closed */ } }
+        if (this._animRaf) { cancelAnimationFrame(this._animRaf); this._animRaf = 0; }
+        this.roverSource.clear(); this.trailSource.clear();
+        this._roverFeat = null; this._trailFeat = null;
+        this._animFrom = 0; this._animTo = 0;
+        this.run = this._emptyRun();
+    }
+
+    // Cumulative arc-length of the route so a 0..1 fraction maps to a real point ON the planned path.
+    _buildArcLength() {
+        const r = this.route || [];
+        const cum = [0];
+        for (let i = 1; i < r.length; i++) {
+            const dx = r[i][0] - r[i - 1][0], dy = r[i][1] - r[i - 1][1];
+            cum.push(cum[i - 1] + Math.sqrt(dx * dx + dy * dy));
+        }
+        this.run.cumdist = cum; this.run.len = cum[cum.length - 1] || 0;
+    }
+    _pointAtFraction(f) {
+        const r = this.route || [];
+        if (!r.length) { return null; }
+        if (r.length === 1 || this.run.len === 0) { return r[0].slice(); }
+        f = Math.max(0, Math.min(1, f));
+        const target = f * this.run.len, cum = this.run.cumdist;
+        for (let i = 1; i < r.length; i++) {
+            if (cum[i] >= target) {
+                const seg = cum[i] - cum[i - 1];
+                const t = seg > 0 ? (target - cum[i - 1]) / seg : 0;
+                return [r[i - 1][0] + (r[i][0] - r[i - 1][0]) * t,
+                    r[i - 1][1] + (r[i][1] - r[i - 1][1]) * t];
+            }
+        }
+        return r[r.length - 1].slice();
+    }
+    // Trail = the real planned route resampled from 0 up to the current fraction.
+    _trailUpTo(f) {
+        const r = this.route || [];
+        if (r.length < 2 || this.run.len === 0) { return r.slice(); }
+        const target = Math.max(0, Math.min(1, f)) * this.run.len, cum = this.run.cumdist, out = [r[0]];
+        for (let i = 1; i < r.length; i++) {
+            if (cum[i] < target) { out.push(r[i]); } else { out.push(this._pointAtFraction(f)); break; }
+        }
+        return out;
+    }
+
+    _setRoverFraction(f) {
+        const pt = this._pointAtFraction(f);
+        if (!pt) { return; }
+        if (!this._roverFeat) { this._roverFeat = new Feature(); this.roverSource.addFeature(this._roverFeat); }
+        this._roverFeat.setGeometry(new Point(pt));
+        const trail = this._trailUpTo(f);
+        if (!this._trailFeat) { this._trailFeat = new Feature(); this.trailSource.addFeature(this._trailFeat); }
+        if (trail.length >= 2) { this._trailFeat.setGeometry(new LineString(trail)); }
+        this.run.lastPose = pt;
+    }
+    // Smoothly tween the rover from its current fraction to `f` over _animDur so the motion reads as driving.
+    _animateRoverTo(f) {
+        if (this._animRaf) { cancelAnimationFrame(this._animRaf); }
+        this._animFrom = this._animTo; this._animTo = f; this._animStart = performance.now();
+        const step = (now) => {
+            const t = Math.min(1, (now - this._animStart) / this._animDur);
+            this._setRoverFraction(this._animFrom + (this._animTo - this._animFrom) * t);
+            if (t < 1) { this._animRaf = requestAnimationFrame(step); } else { this._animRaf = 0; }
+        };
+        this._animRaf = requestAnimationFrame(step);
+    }
+
+    _onStreamEvent(ev) {
+        let d;
+        try { d = JSON.parse(ev.data); } catch (e) { return; }
+        if (d.done) {
+            this.run.terminal = d.safed ? 'safed'
+                : (d.final_state === 'completed' ? 'completed' : (d.final_state || 'done'));
+            this.run.legsSeen = this.run.total || this.run.legsSeen;
+            this.run.running = false;
+            if (this.run.terminal === 'completed') { this._animateRoverTo(1); }   // finish the traverse to the end
+            if (this.run.es) { try { this.run.es.close(); } catch (e) { /* closed */ } this.run.es = null; }
+            this._emit();
+            this._loadEvidence();
+            return;
+        }
+        if (d.kind === 'leg') {
+            this.run.legsSeen = Math.max(this.run.legsSeen,
+                (typeof d.t_s === 'number' ? d.t_s + 1 : this.run.legsSeen + 1));
+            this.run.lastEvent = 'leg ' + (this.run.legsSeen - 1) + ': ' + (d.outcome || '') +
+                (d.detail ? ' · ' + d.detail : '');
+            if (this.run.total) { this._animateRoverTo(Math.min(1, this.run.legsSeen / this.run.total)); }
+        } else if (d.kind === 'safe') {
+            this.run.lastEvent = d.detail || 'watchdog safed';
+        } else if (d.kind === 'acceptance') {
+            this.run.lastEvent = d.detail || 'as-built acceptance';
+        }
+        this._emit();
+    }
+
+    // On completion, link the keyless /api/evidence navigation-evidence bundle (accuracy/precision blurb +
+    // a downloadable JSON) alongside the mission-report PDF. Structured for the React panel (no HTML string).
+    _loadEvidence() {
+        return fetch('/api/evidence')
+            .then((r) => (r.ok ? r.json() : null))
+            .then((j) => {
+                if (!j || !j.ok) { return; }
+                const cmp = j.accuracy_precision || {}, keys = Object.keys(cmp);
+                let blurbKey = null, blurbVal = null;
+                if (keys.length) {
+                    const k0 = keys[0], m = cmp[k0] || {};
+                    const acc = (m.accuracy_m != null) ? m.accuracy_m + ' m'
+                        : (m.rmse_m != null ? m.rmse_m + ' m' : '');
+                    blurbKey = k0; blurbVal = acc || '—';
+                }
+                let navUrl = null;
+                try {
+                    const blob = new Blob([JSON.stringify(j, null, 2)], {type: 'application/json'});
+                    navUrl = URL.createObjectURL(blob);
+                } catch (e) { navUrl = null; }
+                this.run.evidence = {
+                    blurbKey, blurbVal, navUrl,
+                    pdfUrl: (this.result && this.result.pdf) ? this.result.pdf : null
+                };
+                this._emit();
+            })
+            .catch(() => { /* evidence is a bonus over the run summary; never fail the run on it */ });
+    }
+
+    runMission() {
+        if (!this.route || !this.route.length || !this._planOrders) {
+            this._setHint('Plan a feasible mission first, then run it.', true); return Promise.resolve();
+        }
+        this._resetRun();
+        this._buildArcLength();
+        this._setRoverFraction(0);                 // rover starts at the charger / route origin
+        this.run.running = true;
+        this._setHint('Submitting the SIM run to the executive…');
+        this._emit();
+        const payload = {
+            orders: this._planOrders, body: 'moon', site: this.site, mission_id: 'artemis-ide run'
+        };
+        return fetch('/api/executive/run', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        })
+            .then((r) => r.json().then((b) => ({status: r.status, body: b})))
+            .then((res) => {
+                if (!res.body || !res.body.ok || !res.body.run_id) {
+                    this.run.running = false; this.run.terminal = 'error';
+                    this.run.lastEvent = (res.body && res.body.error) || ('HTTP ' + res.status);
+                    this._setHint('SIM run rejected: ' + this.run.lastEvent, true);
+                    return res.body;
+                }
+                this.run.id = res.body.run_id;
+                this.run.total = res.body.n_legs_total || 0;
+                this.run.result = res.body;
+                this._setHint('SIM run ' + this.run.id + ' executing — watch the rover drive the route.');
+                // Subscribe to the run's live telemetry. interval_s paces the replay so the rover visibly
+                // drives; the key is injected by nginx (same-origin GET, the browser never holds it).
+                const url = '/api/executive/run/' + encodeURIComponent(this.run.id) + '/stream?interval_s=0.5';
+                const es = new EventSource(url);
+                this.run.es = es;
+                es.onmessage = (ev) => this._onStreamEvent(ev);
+                es.onerror = () => {
+                    // A normal end-of-stream also fires onerror after the server closes; only surface a real
+                    // failure (no terminal reached yet).
+                    if (!this.run.terminal) {
+                        this.run.terminal = 'error'; this.run.running = false;
+                        this.run.lastEvent = 'telemetry stream interrupted';
+                        this._emit();
+                    }
+                    if (es.readyState === 2 && this.run.es === es) {
+                        this.run.es = null; this.run.running = false; this._emit();
+                    }
+                };
+                this._emit();
+                return res.body;
+            })
+            .catch((e) => {
+                this.run.running = false; this.run.terminal = 'error'; this.run.lastEvent = e.message;
+                this._setHint('SIM run failed: ' + e.message, true);
+            });
     }
 }
