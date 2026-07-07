@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "4cfdddd995bd627c3c6c74537fe412c5af8646b64f3f2b2fa149046bfb3537f4",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "78abd4d0745de5521d2d442ea2c3d9cc86706da9",
-  "prd_sha256": "45e12ba7b80f474d65c1a541d64b6c6b39ed4eac9f03016d0fcd4340111582e0",
+  "prd_commit": "aa614d0b78c5973b29b71e87c33e866ac875801e",
+  "prd_sha256": "8c743d4f5f7b5962e2b5789b9c2d660f7f7a40458cebab897108497b7fa9d6d3",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -1103,7 +1103,7 @@
    "text": "Planner objectives support hard constraints and risk terms, not only unconstrained weighted metrics."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
    "V": "D",
    "X": "P",
@@ -1112,7 +1112,7 @@
    "id": "CP-09",
    "lane": "CP",
    "pri": "P1",
-   "text": "Construction actions mutate `WorldState`; routing, illumination, observability, and acceptance consume the updated terrain. Three consumers read the MUTATED as-built in the product `/plan` path: routing (`run_closed_loop` re-hazards a leg crossing a freshly EXECUTED cut/fill at the repose slope -- `test_berm_rehazard`), acceptance (`validate_plan` flatness/berm/repose on `as_built` -- CP-06), and illumination (shadow recompute after excavation -- TW-08 `test_shadow_predict`). Observability (the onboard map-channel coverage) consuming the as-built remains render/onboard-gated, so I stays partial."
+   "text": "Construction actions mutate `WorldState`; routing, illumination, observability, and acceptance consume the updated terrain. Three consumers read the MUTATED as-built in the product `/plan` path: routing (`run_closed_loop` re-hazards a leg crossing a freshly EXECUTED cut/fill at the repose slope -- `test_berm_rehazard`), acceptance (`validate_plan` flatness/berm/repose on `as_built` -- CP-06), and illumination (shadow recompute after excavation -- TW-08 `test_shadow_predict`). Observability now CONSUMES the as-built in the live loop: at the dig gate `run_closed_loop` (opt-in `dense_perception`) renders the executed as-built, scores observed-vs-belief, and DEFERS/re-surveys on a perceived self-made hazard (`test_dense_perception_loop` -- verified on a CI real-render fixture AND a live on-host render). Remaining (X partial): per-mission local-patch extraction from an arbitrary DEM + default-on integration."
   },
   {
    "I": "D",
