@@ -71,6 +71,7 @@ import BufferSupport from 'qwc2/plugins/redlining/RedliningBufferSupport';
 import MissionHUDPlugin from './plugins/MissionHUD';   // STEWIE: live read-only rover HUD side panel
 import MissionLayersPlugin from './plugins/MissionLayers';   // STEWIE: mission layer-catalog panel (T6)
 import MissionPlanPlugin from './plugins/MissionPlan';   // STEWIE: mission-authoring plan panel (T9)
+import MissionProgramPlugin from './plugins/MissionProgram';   // STEWIE: PRD §7 program board (GIS-workbench default)
 import WholeMoonPlugin from './plugins/WholeMoon';   // STEWIE: whole-Moon 3D overview (both hemispheres) + dive-to-site
 
 import defaultLocaleData from '../static/translations/en-US.json';
@@ -164,6 +165,7 @@ export default {
             MissionHUDPlugin: MissionHUDPlugin,   // STEWIE: live read-only rover HUD
             MissionLayersPlugin: MissionLayersPlugin,   // STEWIE: mission layer-catalog panel (T6)
             MissionPlanPlugin: MissionPlanPlugin,   // STEWIE: mission-authoring plan panel (T9)
+            MissionProgramPlugin: MissionProgramPlugin,   // STEWIE: PRD §7 program board (GIS-workbench default)
             WholeMoonPlugin: WholeMoonPlugin,   // STEWIE: whole-Moon 3D overview + dive-to-site
         },
         cfg: {
