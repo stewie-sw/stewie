@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "86976e8c42a5c1836c55dbf6adbe68c8744fe299b5c93dcac9a3143aef9aa5d0",
+  "citations_sha256": "a17fda531c7ffd638c41117ac6a2bcdb497824488471ce2860ebff51ac6f96c6",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "3bc2d38a270bc03154b2cf9df113a41ee7963a90",
-  "prd_sha256": "3e43a74f8b64872f5784c90310bba466a3e268de9bc5ade6f1302e43b57161a1",
+  "prd_commit": "062115c38642d664468094030c8807753f74ced4",
+  "prd_sha256": "c21780a8333a095ab9898e99a190eb303729b912a9f91f5576edcab95aea50ad",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -2709,16 +2709,16 @@
    "text": "**Unified workspace context.** One routeable context (the PRD2 field set: mission/site/body/CRS/local-frame/vehicle/fleet/selection/layers/mode/profile/source/namespace/backend/depth/time/branch/release/run/role) drives map/assets/Godot/RViz/Gazebo-evidence/report/authority; one URL restores all of it. (extends RF-02)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "GW-03",
    "lane": "GW",
    "pri": "P0",
-   "text": "**Layer-eligibility UI.** The layer manifest UI differentiates display/planning/release/execute eligibility + exposes freshness/provenance/uncertainty; a display-only layer cannot be marked planning-valid. (extends DW-01; binds LY-01)"
+   "text": "**Layer-eligibility UI.** [REQ:GW-03] The layer manifest UI differentiates display/planning/release/execute eligibility + exposes freshness/provenance/uncertainty; a display-only layer cannot be marked planning-valid. (extends DW-01; binds LY-01)"
   },
   {
    "I": "N",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 75,
+   "buildable": 74,
    "concurrent": 0,
-   "done": 250,
+   "done": 251,
    "gated": 14
   },
   "by_lane": {
@@ -5131,7 +5131,7 @@
     "total": 2
    },
    "GW": {
-    "done": 3,
+    "done": 4,
     "total": 8
    },
    "LY": {
@@ -5241,7 +5241,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 105,
+    "done": 106,
     "total": 116
    },
    "P1": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 269,
-  "done_pct": 73.7,
+  "cited": 270,
+  "done_pct": 74.0,
   "in_scope": 325,
-  "in_scope_done_pct": 76.9,
+  "in_scope_done_pct": 77.2,
   "total": 339
  },
  "workflow_spine": [
