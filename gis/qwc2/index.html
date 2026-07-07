@@ -1,26 +1,25 @@
 <!-- Build version  <%= htmlWebpackPlugin.options.build %> -->
 <!DOCTYPE html>
-<html>
+<html class="stewie_lunar">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui" />
         <meta name="HandheldFriendly" content="true" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <title>QGIS Web Client</title>
+        <title>STEWIE — Lunar IDE</title>
         <link rel="stylesheet" type="text/css" href="assets/css/qwc2.css" />
         <link rel="stylesheet" type="text/css" href="assets/css/colorschemes.css" />
-        <link rel="apple-touch-icon" href="assets/img/app_icon.png"/>
-        <link rel="apple-touch-icon" sizes="72x72" href="assets/img/app_icon_72.png"/>
-        <link rel="apple-touch-icon" sizes="114x114" href="assets/img/app_icon_114.png"/>
-        <link rel="apple-touch-icon" sizes="144x144" href="assets/img/app_icon_144.png"/>
-        <link rel="icon" href="assets/img/favicon.ico" />
+        <link rel="apple-touch-icon" href="assets/img/stewie-favicon.png"/>
+        <link rel="icon" type="image/png" href="assets/img/stewie-favicon.png" />
         <style type="text/css">
+        html, body { background-color: #0b0e13; }
         div#splash {
             position: fixed;
             left: 0;
             right: 0;
             top: 0;
             bottom: 0;
+            background-color: #0b0e13;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -37,8 +36,8 @@
             height: 64px;
             margin: 8px;
             border-radius: 50%;
-            border: 6px solid #595959;
-            border-color: #595959 transparent #595959 transparent;
+            border: 6px solid #4db6d4;
+            border-color: #4db6d4 transparent #4db6d4 transparent;
             animation: lds-dual-ring 1.2s linear infinite;
         }
         @keyframes lds-dual-ring {

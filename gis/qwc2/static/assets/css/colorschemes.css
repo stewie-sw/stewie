@@ -120,3 +120,82 @@
     --app-submenu-text-color-hover: white;
 }
 
+
+/* =========================================================================
+   STEWIE LUNAR DARK — the default scheme for the artemis.stewie.space/ide/
+   lunar mission-control IDE. Set via config.json "defaultColorScheme":
+   "stewie_lunar" (and offered in the Settings theme switcher). Applied as a
+   class on :root (<html>) by the QWC2 color-scheme reducer.
+
+   Palette (grounds the whole chrome to the dark Mission* plugins + cost-layer):
+     graphite ground  #0b0e13     panels  #12171f / deeper #0e1219
+     hairlines        #1e2733     ink     #e7edf3 / dim #93a1b0 / faint #5f6d7c
+     ACCENT steel-cyan #4db6d4 (deep #2b8ba8) — the ONLY accent.
+   Semantic/data colors (green/amber/red status chips, layer legends) are left
+   to the components; the accent never stands in for them.
+
+   Non-color chrome polish (typography, shadows, map letterboxing, scrollbars,
+   focus rings, reduced-motion) lives in qwc2.css, scoped to :root.stewie_lunar.
+   ========================================================================= */
+:root.stewie_lunar {
+    /* Base colors */
+    --text-color: #e7edf3;
+    --text-color-hover: #ffffff;
+    --text-color-link: #4db6d4;
+    --text-color-disabled: #5f6d7c;
+    --container-bg-color: #12171f;
+    --input-bg-color: #0e1219;
+    --input-bg-color-disabled: #0b0e13;
+    --border-color: #1e2733;
+    --color-active: #4db6d4;
+    --focus-outline: 2px solid #4db6d4;
+    /* Tooltips */
+    --tooltip-bg-color: rgba(11, 14, 19, 0.96);
+    --tooltip-text-color: #e7edf3;
+    --tooltip-border-color: #2b8ba8;
+    /* Map buttons (zoom / home / locate / layers / filter on the right) */
+    --map-button-bg-color: #12171f;
+    --map-button-text-color: #cdd8e2;
+    --map-button-hover-bg-color: #1c2634;
+    --map-button-hover-text-color: #ffffff;
+    --map-button-active-bg-color: #4db6d4;
+    --map-button-active-text-color: #07141b;
+    /* Panels (top bar and bottom bar) */
+    --panel-bg-color: rgba(14, 18, 25, 0.92);
+    --panel-text-color: #e7edf3;
+    /* Titlebars (side-panel headers) */
+    --titlebar-bg-color: #0d1219;
+    --titlebar-text-color: #e7edf3;
+    /* Buttons */
+    --button-bg-color: #1a212c;
+    --button-bg-color-hover: #232e3c;
+    --button-bg-color-active: #4db6d4;
+    --button-bg-color-active-hover: #2b8ba8;
+    --button-bg-color-disabled: #12171f;
+    --button-text-color: #dbe4ec;
+    --button-text-color-hover: #ffffff;
+    --button-text-color-active: #07141b;
+    --button-text-color-active-hover: #eafaff;
+    --button-text-color-disabled: #5f6d7c;
+    /* Lists (LayerTree, search results, app menu, theme list) */
+    --list-bg-color: #0e1219;
+    --list-section-bg-color: #0b0e13;
+    --list-section-bg-color-hover: #12171f;
+    --list-section-text-color: #93a1b0;
+    --list-item-bg-color-even: #10151d;
+    --list-item-bg-color-hover: #1a2230;
+    --list-item-bg-color-active: #14313d;
+    --list-item-bg-color-active-hover: #1a4152;
+    --list-item-text-color-hover: #ffffff;
+    --list-item-text-color-active: #eafaff;
+    --list-item-text-color-active-hover: #ffffff;
+    /* App menu (the Map & Tools dropdown) */
+    --app-menu-bg-color: #12171f;
+    --app-menu-text-color: #e7edf3;
+    --app-menu-bg-color-hover: #1c2634;
+    --app-menu-text-color-hover: #ffffff;
+    --app-submenu-bg-color: #0d1219;
+    --app-submenu-text-color: #cdd8e2;
+    --app-submenu-bg-color-hover: #1c2634;
+    --app-submenu-text-color-hover: #ffffff;
+}

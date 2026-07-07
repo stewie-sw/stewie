@@ -1,0 +1,168 @@
+/* =========================================================================
+   STEWIE LUNAR DARK — chrome polish for the artemis.stewie.space/ide/ IDE.
+
+   The color SCHEME (all QWC2 CSS custom properties) lives in colorschemes.css
+   under :root.stewie_lunar. THIS file carries the non-variable chrome polish
+   that the custom-property system can't reach: typography, map letterboxing,
+   dark drop-shadows (upstream hardcodes light-gray glows), themed scrollbars,
+   keyboard focus rings, reduced-motion, and a handful of text-on-accent
+   contrast fixes.
+
+   Everything is scoped to :root.stewie_lunar so it (a) applies only to the
+   lunar scheme and (b) out-specifies the QWC2 component CSS, which style-loader
+   injects as <style> AFTER these linked stylesheets. steel-cyan #4db6d4 is the
+   only accent; green/amber/red status colors and layer legends are left alone.
+   ========================================================================= */
+
+/* --- Typography: clean system sans for the chrome, mono for coordinate/scale
+       readouts (data). Chrome elements use font-family:inherit upstream, so
+       setting it on <body> flows to inputs/buttons/menus. -------------------- */
+:root.stewie_lunar,
+:root.stewie_lunar body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+:root.stewie_lunar #BottomBar input.bottombar-mousepos,
+:root.stewie_lunar #BottomBar div.bottombar-scale-combo input,
+:root.stewie_lunar #BottomBar div.bottombar-scalebar,
+:root.stewie_lunar #BottomBar span.bottombar-scale-combo-prefix {
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    letter-spacing: 0.01em;
+}
+
+/* --- Map viewport + letterboxing: graphite ground behind the tiles so any
+       out-of-extent area reads as lunar night, never stock white. ----------- */
+:root.stewie_lunar,
+:root.stewie_lunar body,
+:root.stewie_lunar #container {
+    background-color: #0b0e13;
+}
+
+:root.stewie_lunar div.map-contents,
+:root.stewie_lunar div.map,
+:root.stewie_lunar .ol-viewport {
+    background-color: #0b0e13;
+}
+
+/* --- Drop shadows: upstream hardcodes 0 0 Npx rgba(136,136,136,0.5) (a light
+       glow that reads as a smudge on dark). Replace with a real dark shadow +
+       a hairline seam so panels sit above the map. ------------------------- */
+:root.stewie_lunar div.TopBar {
+    box-shadow: 0 1px 0 var(--border-color), 0 5px 16px rgba(0, 0, 0, 0.55);
+}
+
+:root.stewie_lunar #BottomBar {
+    box-shadow: 0 -1px 0 var(--border-color), 0 -5px 16px rgba(0, 0, 0, 0.55);
+}
+
+:root.stewie_lunar button.map-button {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--border-color);
+}
+
+:root.stewie_lunar div.AppMenu div.appmenu-menu-container,
+:root.stewie_lunar div.AppMenu.appmenu-compact div.appmenu-menu-container {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--border-color);
+}
+
+:root.stewie_lunar div.searchbox-filter-options {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+:root.stewie_lunar div.map-bottom-tool-container,
+:root.stewie_lunar div.app-info {
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+}
+
+:root.stewie_lunar span.map-loading-indicator {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+:root.stewie_lunar div.messagebar {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+    border-top: 1px solid var(--border-color);
+}
+
+:root.stewie_lunar img.layertree-item-legend-tooltip {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+}
+
+/* --- Bottom bar scale ruler: upstream paints a translucent-white plate; make
+       it a dark plate so the black rule + text read on graphite. ----------- */
+:root.stewie_lunar #BottomBar div.bottombar-scalebar {
+    background-color: rgba(11, 14, 19, 0.55);
+    color: var(--panel-text-color);
+}
+
+/* --- Text-on-accent contrast: a few components hardcode white text on the
+       steel-cyan --color-active fill (fails contrast on a light accent). Use
+       dark ink instead. ---------------------------------------------------- */
+:root.stewie_lunar #LayerTree span.layertree-item-menubutton-active,
+:root.stewie_lunar div.ThemeList div.theme-item-info-menu-active,
+:root.stewie_lunar div.maplight3d-title.maplight3d-title-active,
+:root.stewie_lunar div.layertree3d-item-menubutton-active {
+    color: #07141b;
+}
+
+/* --- Range slider track: upstream #ddd → hairline graphite. --------------- */
+:root.stewie_lunar input[type=range]::-webkit-slider-runnable-track {
+    background: #1e2733;
+}
+:root.stewie_lunar input[type=range]::-moz-range-track {
+    background: #1e2733;
+}
+
+/* --- Map button "engaged" (a tool actively capturing): upstream raw `yellow`
+       clashes with the cyan chrome. Retint to a semantic amber (a status
+       color, deliberately NOT the accent) with dark ink. ------------------- */
+:root.stewie_lunar button.map-button-engaged {
+    background-color: #e0b300;
+    color: #0b0e13;
+}
+
+/* --- Scrollbars: dark, thin, graphite track + steel thumb. ---------------- */
+:root.stewie_lunar * {
+    scrollbar-width: thin;
+    scrollbar-color: #26323f #0b0e13;
+}
+:root.stewie_lunar ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+:root.stewie_lunar ::-webkit-scrollbar-track {
+    background: #0b0e13;
+}
+:root.stewie_lunar ::-webkit-scrollbar-thumb {
+    background: #26323f;
+    border-radius: 5px;
+    border: 2px solid #0b0e13;
+}
+:root.stewie_lunar ::-webkit-scrollbar-thumb:hover {
+    background: #34475a;
+}
+:root.stewie_lunar ::-webkit-scrollbar-corner {
+    background: #0b0e13;
+}
+
+/* --- Visible keyboard focus rings (accent, offset so they clear dark fills).
+       Pointer clicks stay ring-free via :focus-visible. -------------------- */
+:root.stewie_lunar :focus-visible {
+    outline: 2px solid #4db6d4;
+    outline-offset: 1px;
+}
+
+/* --- Respect reduced-motion: kill the panel/menu/map-button transitions and
+       the splash spinner animation for users who ask for it. --------------- */
+@media (prefers-reduced-motion: reduce) {
+    :root.stewie_lunar *,
+    :root.stewie_lunar *::before,
+    :root.stewie_lunar *::after {
+        transition-duration: 0.001ms !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+    }
+}

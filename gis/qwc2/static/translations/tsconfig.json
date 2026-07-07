@@ -23,6 +23,9 @@
     "colorschemes.dark",
     "colorschemes.highcontrast"
   ],
-  "overrides": [],
+  "overrides": [
+    "share.shareTitle",
+    "bottombar.viewertitle_label"
+  ],
   "strings": []
 }

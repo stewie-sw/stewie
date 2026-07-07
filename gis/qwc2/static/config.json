@@ -43,7 +43,7 @@
   "wmsHidpi": false,
   "wmsMaxGetUrlLength": 2048,
   "qgisServerVersion": 3,
-  "defaultColorScheme": "default",
+  "defaultColorScheme": "stewie_lunar",
   "username": "admin",
   "defaultFeatureStyle": {
     "strokeColor": [0, 0, 255, 1],
@@ -90,8 +90,7 @@
       {
         "name": "BottomBar",
         "cfg": {
-          "viewertitleUrl": "https://qwc-services.github.io/",
-          "termsUrl": "https://qwc-services.github.io/",
+          "viewertitleUrl": "https://stewie.space",
           "viewertitleUrlTarget": "_blank"
         }
       },
@@ -265,20 +264,19 @@
       {
         "name": "Portal",
         "cfg": {
-          "logo": "logo.svg",
+          "logo": "stewie-logo.svg",
           "topBarText": "",
           "showMenuOnStartup": false,
           "keepMenuOpen": false,
           "bottomBarLinks": [
-              {"href": "https://qwc-services.github.io/", "label": "Homepage", "target": "iframe"},
-              {"href": "https://qgis.org", "label": "QGIS.org"}
+              {"href": "https://stewie.space", "label": "stewie.space", "target": "_blank"},
+              {"href": "https://app.stewie.space", "label": "Operator console", "target": "_blank"}
           ],
           "menuItems": [
-              {"title": "Homepage", "icon": "info", "url": "https://qwc-services.github.io/", "target": "iframe"},
+              {"title": "About STEWIE", "icon": "info", "url": "https://stewie.space", "target": "_blank"},
               {"key": "Tools", "icon": "tools", "title": "Links", "subitems": [
-                {"icon": "link", "title": "qwc2", "url": "https://github.com/qgis/qwc2/"},
-                {"icon": "link", "title": "qwc-docker", "url": "https://github.com/qwc-services/qwc-docker"},
-                {"icon": "link", "title": "qgis.org", "url": "https://qgis.org"}
+                {"icon": "link", "title": "Operator console", "url": "https://app.stewie.space"},
+                {"icon": "link", "title": "stewie.space", "url": "https://stewie.space"}
               ]}
           ]
         }
@@ -348,7 +346,7 @@
             {"key": "MissionLayers", "title": "Mission Layers", "icon": "layers"},
             {"key": "MissionHUD", "title": "Rover HUD", "icon": "routing-car"},
             {"key": "Settings", "icon": "cog"},
-            {"title": "Homepage", "icon": "link", "url": "https://qwc-services.github.io/", "target": "iframe"}
+            {"title": "stewie.space", "icon": "link", "url": "https://stewie.space", "target": "_blank"}
           ],
           "searchOptions": {
             "allowSearchFilters": false,
@@ -367,6 +365,7 @@
           "appMenuFilterField": true,
           "appMenuVisibleOnStartup": false,
           "logoUrl": "/",
+          "logoSrc": "/ide/assets/img/stewie-logo.svg",
           "appMenuShortcut": "alt+shift+m",
           "toolbarItemsShortcutPrefix": "alt+shift"
         }
@@ -378,6 +377,10 @@
         "name": "Settings",
         "cfg": {
           "colorSchemes": [
+            {
+              "title": "STEWIE Lunar",
+              "value": "stewie_lunar"
+            },
             {
               "titleMsgId": "colorschemes.default",
               "value": "default"
