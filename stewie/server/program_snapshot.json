@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "1777cb7b0dc773662b626a8e835b5be95a8a8dbab1e40046fde933cfa89df90e",
+  "citations_sha256": "8966c80c9b09d3e645813cf42e0c21f3db0caea61742c2a2e743898f2ab5166b",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "a880ec854cfa670ff2326c8b2582c5b79e0287de",
-  "prd_sha256": "0d1e0c4e8a44dc05f60dcdacd7c76ff8f87043f277db4566dd066181146b56a6",
+  "prd_commit": "176fd0dbc6ae7fbab2a4b3537525db8b82f6e72b",
+  "prd_sha256": "a023ec99f8543eaefc81a9159205ff27850b5750bdc96dc552cfc86e71043bd7",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -2757,16 +2757,16 @@
    "text": "**Layer tree + legend.** [REQ:GW-06] The LY-01 catalog toggles on the map with per-layer swatch + provenance/freshness; a display-only layer is visibly distinct from a planning/release/execute-eligible one. (binds LY-01)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "GW-07",
    "lane": "GW",
    "pri": "P0",
-   "text": "**Selection + right inspector.** Click a cell/feature \u2192 attributes + provenance + confidence/freshness + available actions + runtime evidence affecting it. (extends GL-02)"
+   "text": "**Selection + right inspector.** [REQ:GW-07] Click a cell/feature \u2192 attributes + provenance + confidence/freshness + available actions + runtime evidence affecting it. (extends GL-02)"
   },
   {
    "I": "N",
@@ -5028,9 +5028,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 73,
+   "buildable": 72,
    "concurrent": 0,
-   "done": 252,
+   "done": 253,
    "gated": 14
   },
   "by_lane": {
@@ -5131,7 +5131,7 @@
     "total": 2
    },
    "GW": {
-    "done": 4,
+    "done": 5,
     "total": 8
    },
    "LY": {
@@ -5241,7 +5241,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 106,
+    "done": 107,
     "total": 116
    },
    "P1": {
@@ -5257,10 +5257,10 @@
     "total": 2
    }
   },
-  "cited": 272,
-  "done_pct": 74.3,
+  "cited": 273,
+  "done_pct": 74.6,
   "in_scope": 325,
-  "in_scope_done_pct": 77.5,
+  "in_scope_done_pct": 77.8,
   "total": 339
  },
  "workflow_spine": [
