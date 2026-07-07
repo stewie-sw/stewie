@@ -195,6 +195,9 @@
   function legendUrl() { return API_BASE + "/layers/legend"; }
   function terramechUrl() { return API_BASE + "/world/terramechanics-layers"; }
   function trafficUrl(site) { return API_BASE + "/world/traffic-layer?site=" + encodeURIComponent(site || "haworth"); }
+  // [REQ:GW-06] the PUBLIC per-site layer manifest -> the REAL freshness/provenance the layer tree shows.
+  // The auth-gated /world 401s for the keyless public /ide/, so the panel binds this key-free projection.
+  function layerManifestUrl(site) { return API_BASE + "/world/layer-manifest?site=" + encodeURIComponent(site || "haworth"); }
   function globePngUrl(kind, opts) { return API_BASE + "/layers/globe/" + kind + ".png?" + sunQS(opts); }
   function globeBboxUrl(kind, opts) { return API_BASE + "/layers/globe/" + kind + "/bbox?" + sunQS(opts); }
 
@@ -250,7 +253,30 @@
   function fetchLegend() { return _getJson(legendUrl()); }
   function fetchTerramechanics() { return _getJson(terramechUrl()); }
   function fetchTraffic(site) { return _getJson(trafficUrl(site)); }
+  function fetchLayerManifest(site) { return _getJson(layerManifestUrl(site)); }   // [REQ:GW-06]
   function fetchBbox(kind, opts) { return _getJson(globeBboxUrl(kind, opts)); }
+
+  // [REQ:GW-06] PURE freshness/provenance projection from the /world/layer-manifest payload, for the
+  // layer tree's per-layer freshness readout. Returns null (no claim) when the manifest is absent, so a
+  // panel binding it degrades to "no freshness yet" rather than fabricating one. The freshness (observed
+  // coverage) + provenance (dem_source id + observed|prior class) are SITE-level: every servable globe
+  // layer is derived from the same site DEM at the same observed-twin coverage, so this readout is the
+  // honest, shared freshness of that DEM-derived layer family (not a per-layer fabricated timestamp).
+  function freshnessFromManifest(manifest) {
+    var f = manifest && manifest.freshness;
+    if (!f) return null;
+    var frac = (typeof f.observed_fraction === "number") ? f.observed_fraction : null;
+    return {
+      observed: !!f.observed,
+      observedFraction: frac,
+      observedPct: (frac == null) ? null : Math.round(frac * 100),
+      provClass: f.provenance_class || (frac && frac > 0 ? "observed" : "prior"),
+      demSource: f.dem_source || null,
+      twinVersion: f.twin_version || 0,
+      asBuiltVersion: f.as_built_version || 0,
+      mutated: !!f.mutated
+    };
+  }
 
   var API = {
     GROUPS: GROUPS,
@@ -268,14 +294,17 @@
     legendUrl: legendUrl,
     terramechUrl: terramechUrl,
     trafficUrl: trafficUrl,
+    layerManifestUrl: layerManifestUrl,
     globePngUrl: globePngUrl,
     globeBboxUrl: globeBboxUrl,
     imageLayerFor: imageLayerFor,
     legendFor: legendFor,
+    freshnessFromManifest: freshnessFromManifest,
     fetchCatalog: fetchCatalog,
     fetchLegend: fetchLegend,
     fetchTerramechanics: fetchTerramechanics,
     fetchTraffic: fetchTraffic,
+    fetchLayerManifest: fetchLayerManifest,
     fetchBbox: fetchBbox
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;   // node:test + `import X from`

@@ -91,22 +91,21 @@ def terramechanics_layers():   # public read (physics-layer provenance, map data
     return {"ok": True, "backend": "tier2_numpy", "derived_layers": rows, "count": len(rows)}
 
 
-@router.get("/world")
-def world(site: str = "haworth", _auth: str = Depends(require_auth)):
-    """[REQ:DT-05] the AUTHORITATIVE rich world descriptor for `site`: grid geometry + lunar datum +
-    provenance PLUS the REAL observed/mutated enrichment (no longer contract defaults deferred to a
-    later phase). ``observed_fraction`` is the measured coverage of the site's own observed twin (DT-04),
-    ``mutated`` is whether construction has recorded a build into its as-built TerrainMemory, and the
-    ``enrichment`` block declares completeness + freshness EXPLICITLY so a consumer can never mistake an
-    incomplete descriptor for the full world model. 404 if the site's DEM bundle is absent (degraded)."""
+def _site_enrichment(site: str) -> dict | None:
+    """DT-05 shared core: measure the REAL per-site freshness + provenance from the site's own observed
+    twin (DT-04) + as-built memory. Returns grid geometry + ``dem_source`` (the dart.dem_sources bundle
+    id = provenance), ``observed_fraction`` (measured coverage of the observed twin -- the freshness),
+    ``observed`` (an observed twin exists), and the twin / as-built versions + ``mutated`` flag. Returns
+    ``None`` when the site's DEM bundle is absent (degraded). Both the auth-gated rich /world descriptor
+    and the PUBLIC /world/layer-manifest read this SAME core, so the freshness the two report can never
+    drift. No synthetic timestamps -- a site with no fresh observation reports observed_fraction 0.0."""
     dem, _anchor = S.moon_dem(site)
     base = dem[0] if isinstance(dem, tuple) else dem
     if base is None:
-        return JSONResponse(status_code=404, content={"ok": False, "error": f"no DEM bundle for site {site!r}"})
+        return None
     arr = np.asarray(base)
     rows, cols = int(arr.shape[0]), int(arr.shape[1])
     cell_m = float(dem[1]) if (isinstance(dem, tuple) and len(dem) >= 2 and dem[1]) else 5.0
-    # DT-05: enrich from the site's REAL observed twin (DT-04) + as-built memory, not defaults.
     observed = False
     observed_fraction = 0.0
     twin_version = 0
@@ -130,9 +129,52 @@ def world(site: str = "haworth", _auth: str = Depends(require_auth)):
             mutated = as_built_version > 0                 # a recorded build mutated the terrain vs the prior DEM
     except Exception:   # noqa: BLE001
         mutated = False
+    return {"rows": rows, "cols": cols, "cell_m": cell_m, "dem_source": _SITE_SOURCE.get(site, site),
+            "observed": observed, "observed_fraction": observed_fraction,
+            "twin_version": twin_version, "as_built_version": as_built_version, "mutated": mutated}
+
+
+@router.get("/world/layer-manifest")
+def world_layer_manifest(site: str = "haworth"):   # public read (per-site map-data freshness/provenance)
+    """[REQ:GW-06] the PUBLIC per-site layer manifest the GIS workbench layer tree (GW-06) binds for its
+    per-layer FRESHNESS + PROVENANCE. It is the key-free projection of the auth-gated /world descriptor's
+    DT-05 enrichment (same ``_site_enrichment`` core -> no drift): ``freshness`` carries the REAL measured
+    ``observed_fraction`` of the site's observed twin, the ``provenance_class`` (``observed`` iff the site
+    has fresh coverage, else ``prior``), the ``dem_source`` provenance id, and the observed / mutated +
+    twin / as-built versions; ``layer_manifest`` is the typed per-layer manifest (each layer's provenance +
+    consumer eligibility). Public (map-data read, like /world/traffic-layer) so the public /ide/ can bind
+    it without a key. No synthetic timestamps -- a site with no fresh observation reports observed_fraction
+    0.0 + provenance 'prior', never a faked age. 404 if the site's DEM bundle is absent (degraded)."""
+    enr = _site_enrichment(site)
+    if enr is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no DEM bundle for site {site!r}"})
+    w = WorldState(rows=enr["rows"], cols=enr["cols"], cell_m=enr["cell_m"], dem_source=enr["dem_source"],
+                   observed_fraction=enr["observed_fraction"], mutated=enr["mutated"])
+    from stewie.contracts import LayerManifest   # [REQ:FR-10] the unified typed layer manifest
+    manifest = LayerManifest.for_world(w, transaction_id=f"world:{site}")
+    prov_class = "observed" if enr["observed_fraction"] > 0.0 else "prior"
+    return {"ok": True, "site": site,
+            "freshness": {"observed": enr["observed"], "observed_fraction": enr["observed_fraction"],
+                          "provenance_class": prov_class, "dem_source": enr["dem_source"],
+                          "twin_version": enr["twin_version"], "as_built_version": enr["as_built_version"],
+                          "mutated": enr["mutated"]},
+            "layer_manifest": manifest.model_dump()}   # [REQ:FR-10] per-layer typed manifest w/ provenance + eligibility
+
+
+@router.get("/world")
+def world(site: str = "haworth", _auth: str = Depends(require_auth)):
+    """[REQ:DT-05] the AUTHORITATIVE rich world descriptor for `site`: grid geometry + lunar datum +
+    provenance PLUS the REAL observed/mutated enrichment (no longer contract defaults deferred to a
+    later phase). ``observed_fraction`` is the measured coverage of the site's own observed twin (DT-04),
+    ``mutated`` is whether construction has recorded a build into its as-built TerrainMemory, and the
+    ``enrichment`` block declares completeness + freshness EXPLICITLY so a consumer can never mistake an
+    incomplete descriptor for the full world model. 404 if the site's DEM bundle is absent (degraded)."""
+    enr = _site_enrichment(site)
+    if enr is None:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no DEM bundle for site {site!r}"})
     world_committed = S.world_state_service().transaction_count() > 0
-    w = WorldState(rows=rows, cols=cols, cell_m=cell_m, dem_source=_SITE_SOURCE.get(site, site),
-                   observed_fraction=observed_fraction, mutated=mutated)
+    w = WorldState(rows=enr["rows"], cols=enr["cols"], cell_m=enr["cell_m"], dem_source=enr["dem_source"],
+                   observed_fraction=enr["observed_fraction"], mutated=enr["mutated"])
     from stewie.contracts import LayerManifest   # [REQ:FR-10] the unified typed layer manifest
     manifest = LayerManifest.for_world(w, transaction_id=f"world:{site}:{S.world_state_service().transaction_count()}")
     return {"ok": True, "world": w.model_dump(),
@@ -140,8 +182,8 @@ def world(site: str = "haworth", _auth: str = Depends(require_auth)):
 
             # DT-05: the completeness/freshness declaration -- `complete` states this descriptor carries
             # its enrichment (not deferred); a consumer keys on it rather than guessing.
-            "enrichment": {"complete": True, "observed": observed, "twin_version": twin_version,
-                           "as_built_version": as_built_version, "mutated": mutated,
+            "enrichment": {"complete": True, "observed": enr["observed"], "twin_version": enr["twin_version"],
+                           "as_built_version": enr["as_built_version"], "mutated": enr["mutated"],
                            "world_committed": world_committed}}
 
 

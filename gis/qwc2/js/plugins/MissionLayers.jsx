@@ -60,6 +60,7 @@ class MissionLayers extends React.Component {
         tree: null,        // grouped catalog tree (CL.groupCatalog)
         legend: null,      // /layers/legend payload
         terramech: null,   // /world/terramechanics-layers (physics-layer provenance)
+        freshness: null,   // [REQ:GW-06] /world/layer-manifest -> per-layer freshness/provenance
         summary: null,     // {total, servable, nonServable}
         error: null,
         collapsed: {}      // domainId -> true (default: base/terrain/hazard/physics/traffic expanded)
@@ -78,6 +79,13 @@ class MissionLayers extends React.Component {
         }).catch((e) => this.setState({error: 'layer-catalog: ' + e.message}));
         CL.fetchLegend().then((legend) => this.setState({legend})).catch(() => {});
         CL.fetchTerramechanics().then((tm) => this.setState({terramech: tm})).catch(() => {});
+        // [REQ:GW-06] the REAL per-site freshness/provenance (DT-05 observed-twin coverage + dem_source
+        // provenance) for the layer tree, from the PUBLIC /world/layer-manifest projection (the auth-gated
+        // /world 401s for the keyless public /ide/). Failures degrade SILENTLY to "no freshness yet" — the
+        // catalog tree still renders — so a backend that predates this route never reds the panel.
+        CL.fetchLayerManifest(SITE)
+            .then((m) => this.setState({freshness: CL.freshnessFromManifest(m)}))
+            .catch(() => {});
         // NOTE: /world/traffic-layer is deliberately NOT probed — it returns 404 ("no route") on the
         // live backend (TW-11 not deployed), which would log a console error. Traffic servability is
         // already known from the catalog (no traffic.* row is a globe kind), so the gap is reported
@@ -159,6 +167,35 @@ class MissionLayers extends React.Component {
             </div>
         );
     }
+    // [REQ:GW-06] the REAL freshness + provenance readout for a servable row, from the per-site
+    // /world/layer-manifest (DT-05 enrichment). Every servable globe layer is derived from the same site
+    // DEM at the same observed-twin coverage, so the freshness (observed coverage) + provenance (dem_source
+    // id + observed|prior class) are the shared, honest state of that DEM-derived layer — not a fabricated
+    // per-layer timestamp. Returns null (renders nothing) when the manifest is unavailable, so the panel
+    // degrades gracefully rather than inventing a freshness.
+    renderFreshness(row) {
+        if (!row.servable) return null;
+        const f = this.state.freshness;
+        if (!f) return null;
+        const fresh = f.provClass === 'observed';
+        const col = fresh ? '#4fd1ff' : '#6f7684';          // observed = cyan (measured); prior = muted
+        const pct = (typeof f.observedPct !== 'number') ? null : f.observedPct + '% obs';
+        return (
+            <div style={{margin: '0 0 3px 26px', fontSize: '8px', color: '#6f7684', display: 'flex',
+                alignItems: 'center', flexWrap: 'wrap', gap: '4px', lineHeight: 1.3}}
+            title={'freshness: ' + (fresh ? 'observed twin' : 'prior DEM, no fresh observation')
+                + (pct ? ' (' + pct + ' of the site observed)' : '') + ' · provenance (dem_sources): '
+                + (f.demSource || 'n/a')}>
+                <span aria-hidden style={{color: col}}>◷</span>
+                <span style={{color: col, letterSpacing: '.02em'}}>{f.provClass}</span>
+                {pct ? <span style={{color: '#565b66'}}>· {pct}</span> : null}
+                {f.demSource ? (
+                    <span style={{color: '#565b66', fontFamily: 'ui-monospace, monospace'}}>· {f.demSource}</span>
+                ) : <span style={{color: '#565b66'}}>· n/a</span>}
+                {f.mutated ? <span style={{color: '#ff9d3c'}}>· built v{f.asBuiltVersion}</span> : null}
+            </div>
+        );
+    }
     // The terramechanics-spine terms a derived layer is COMPUTED FROM (/world/terramechanics-layers),
     // shown as real provenance on the physics/terrain/traffic rows that declare it.
     terramechFor(row) {
@@ -200,6 +237,7 @@ class MissionLayers extends React.Component {
                     }} title={'provenance (source_class): ' + row.sourceClass}>{row.sourceClass}</span>
                     {this.renderChips(row)}
                 </div>
+                {this.renderFreshness(row)}
                 {active ? this.renderLegend(row) : null}
                 {(() => {
                     const terms = this.terramechFor(row);
@@ -251,6 +289,8 @@ class MissionLayers extends React.Component {
                     STEWIE mission layer catalog · <b>/api/world/layer-catalog</b>. Grouped by domain;
                     badge = provenance (source_class); chips = planning / release-execute eligibility.
                     Checked rows drape the backend raster onto the map (reprojected to the lunar CRS).
+                    Under each servable row: <b>◷ freshness</b> — the real observed-twin coverage of this
+                    site + dem_sources provenance (<b>/api/world/layer-manifest</b>, DT-05).
                 </div>
                 {s.summary ? (
                     <div style={{fontSize: '10px', color: '#c7d2e3', marginBottom: '6px'}}>
