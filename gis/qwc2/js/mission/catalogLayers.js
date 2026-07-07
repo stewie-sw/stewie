@@ -16,12 +16,17 @@
  * GetMap, so a QWC2 `wms` layer (which requests in the map CRS) cannot render it. See README/report.
  *
  * SERVABILITY is grounded in the backend endpoint's _GLOBE_KINDS allow-list, never faked:
- *   servable  = /layers/globe/{kind}.png returns a real PNG for these 9 globe kinds:
- *               dem, slope, hazard, illumination, incidence, psr, grid, cost, blocking.
+ *   servable  = /layers/globe/{kind}.png returns a real PNG for these 15 globe kinds:
+ *               dem, slope, hazard, illumination, incidence, psr, grid, cost, blocking, and the six T12
+ *               PHYSICS (TM) drapes bearing, sinkage, slip_risk, traction_margin, energy_cost,
+ *               excavation_resistance.
  *               (dem..grid verified live by curl 2026-07-06; cost + blocking added 2026-07-06 -- the
  *               plan-independent traversability-COST heatmap + the categorical BLOCKING-reason grid,
- *               both from the REAL lode.costmap_layers costmap on the site DEM; live after a backend rebuild.)
- *   NOT served = every other catalog row (physics.*, the remaining traffic.*, map.*, design.*,
+ *               both from the REAL lode.costmap_layers costmap on the site DEM; the 6 physics drapes added
+ *               2026-07-06 -- each a REAL terramechanics-spine per-cell field on the site DEM slope; all
+ *               live after a backend rebuild.)
+ *   NOT served = every other catalog row (physics.compaction [OBSERVED support state, not a per-cell DEM
+ *               field], the remaining traffic.*, map.*, design.*,
  *               vector/mission/robot/runtime/evidence rows) has no independent raster endpoint;
  *               /world/traffic-layer -> 404 "no route". These rows are SHOWN in the tree (with
  *               provenance + eligibility) but carry no map layer, and the plugin reports the gap
@@ -63,6 +68,11 @@
   //   cost     = traffic.cost_global   -> the plan-independent traversability-cost heatmap (green->red)
   //   blocking = traffic.traversability -> the categorical blocking-reason grid (why a cell is no-go)
   // both are the REAL lode.costmap_layers costmap surfaced as map layers (AS-11 "visible blocking reason").
+  //   The 6 physics.* rows below are the T12 PHYSICS (TM) drape -- each the REAL terramechanics-spine
+  //   per-cell field (stewie.specs.terramechanics_spine binds each row to a live solver in
+  //   stewie.physics.sinkage / slip), draped on the map (added 2026-07-06; live after a backend rebuild).
+  //   physics.compaction is deliberately absent: it is an OBSERVED compaction/support STATE (TrafficMemory
+  //   Dr family), not a plan-independent per-cell DEM field, so it stays catalog-only (honest 6/7).
   var SERVABLE = {
     "base.dem": "dem",
     "base.grid": "grid",
@@ -72,14 +82,23 @@
     "terrain.psr": "psr",
     "hazard.slope_nogo": "hazard",
     "traffic.cost_global": "cost",
-    "traffic.traversability": "blocking"
+    "traffic.traversability": "blocking",
+    "physics.bearing": "bearing",
+    "physics.sinkage": "sinkage",
+    "physics.slip_risk": "slip_risk",
+    "physics.traction_margin": "traction_margin",
+    "physics.energy_cost": "energy_cost",
+    "physics.excavation_resistance": "excavation_resistance"
   };
 
   // globe kind -> key in the /layers/legend payload (grid is a bare reference grid, no legend entry).
   var LEGEND_KEY = {
     dem: "dem", slope: "slope", hazard: "hazard",
     illumination: "illumination", incidence: "incidence", psr: "psr",
-    cost: "cost", blocking: "blocking"
+    cost: "cost", blocking: "blocking",
+    bearing: "bearing", sinkage: "sinkage", slip_risk: "slip_risk",
+    traction_margin: "traction_margin", energy_cost: "energy_cost",
+    excavation_resistance: "excavation_resistance"
   };
 
   // Coarse provenance class from a source_class string (e.g. "prior/observed" -> "observed"), used

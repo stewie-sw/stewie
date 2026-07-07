@@ -35,7 +35,10 @@ def globe_quota(request: Request) -> str:
 # growth (DoS). Sun angles quantize to integer degrees (sub-degree changes are not visible in the
 # drape and would otherwise multiply the cache key space); `color` becomes a cache-FILE component for
 # kind='grid', so it is restricted to 6 hex digits (rejecting length/path abuse); `kind` is allow-listed.
-_GLOBE_KINDS = ("dem", "slope", "hazard", "illumination", "incidence", "psr", "grid", "cost", "blocking")
+_GLOBE_KINDS = ("dem", "slope", "hazard", "illumination", "incidence", "psr", "grid", "cost", "blocking",
+                # T12 PHYSICS (TM) drape: the terramechanics-spine per-cell fields (physics.compaction is
+                # OBSERVED state, not a plan-independent per-cell field -> deliberately absent, catalog-only)
+                "bearing", "sinkage", "slip_risk", "traction_margin", "energy_cost", "excavation_resistance")
 _HEX6 = re.compile(r"^[0-9a-fA-F]{6}$")
 _DEFAULT_GRID = "39ff14"
 _MISSION_T_MAX_S = 3.156e10            # +/- ~1000 yr: finite-bounds an arbitrary mission_t_s
@@ -71,11 +74,14 @@ def layers_legend():
     import inspect
 
     from dart.hazard_map import build_hazard_map
-    from stewie.server.gis_layers import blocking_legend
+    from stewie.server.gis_layers import blocking_legend, physics_legend
     from stewie.specs.ipex_specs import OBSTACLE_HEIGHT_M
     sig = inspect.signature(build_hazard_map)
     return {
         "ok": True,
+        # T12 PHYSICS (TM) drape: the terramechanics-spine per-cell fields, each a real solver output on the
+        # DEM slope (built from the SAME PHYSICS_LAYERS spec the renderer colours with -- one source of truth).
+        **physics_legend(),
         # AS-11 costmap analysis drape: the plan-independent traversability COST heatmap + the categorical
         # BLOCKING-REASON grid, both from the REAL 12-layer FORGE costmap (lode.costmap_layers.compose).
         "cost": {"ramp": "green (low) → amber → red (high)",

@@ -450,6 +450,160 @@ def _costmap_rgba(dem, cell, kind, sun_az, sun_el, *, grid_north_bearing=None):
     return None
 
 
+# ---- the PHYSICS (TM) analysis drape (T12): the terramechanics-spine per-cell fields draped -----------
+# The "Physics (TM)" catalog group's rows (physics.bearing/sinkage/slip_risk/traction_margin/energy_cost/
+# excavation_resistance) are each COMPUTED FROM the REAL terramechanics spine: stewie.specs.terramechanics_
+# spine binds every row to a live solver callable in stewie.physics.sinkage / stewie.physics.slip (the same
+# conserved tier2_numpy solver the drive loop uses). Every field is a pure function of the per-cell DEM slope
+# (the IPEx mass / lunar g / soil moduli / contact patch are fixed constants), so it is evaluated EXACTLY via
+# a fine slope LUT (a few hundred scalar spine solves) then interpolated onto the DEM's slope map -- no
+# re-implementation of the physics, no synthetic data. Sequential ColorBrewer ramps; ONE colour source per
+# kind (PHYSICS_LAYERS), shared by _physics_rgba (renderer) and the /layers/legend endpoint (physics_legend).
+#
+# HONEST 6/7: physics.compaction is deliberately NOT here. Its catalog source_class is `observed/derived`
+# (the compaction/sinter/support STATE where the rover has actually driven/worked -- the TrafficMemory Dr
+# family, same as traffic.compaction), so it has no plan-independent per-cell value on the bare DEM. It is
+# reported as catalog-only rather than fabricated (task/no-synthetic rule).
+_PHYS_BLUES = ((0.0, (222, 235, 247)), (0.5, (66, 146, 198)), (1.0, (8, 48, 107)))       # bearing (load)
+_PHYS_BROWNS = ((0.0, (243, 232, 210)), (0.5, (191, 138, 80)), (1.0, (94, 55, 18)))      # sinkage (burial)
+_PHYS_GYR = ((0.0, (33, 145, 80)), (0.5, (241, 196, 15)), (1.0, (192, 40, 40)))          # slip / traction
+_PHYS_PURPLES = ((0.0, (239, 237, 245)), (0.5, (158, 154, 200)), (1.0, (84, 39, 143)))   # excavation R_c
+_PHYS_YLORRD = ((0.0, (255, 237, 160)), (0.5, (253, 141, 60)), (1.0, (153, 0, 13)))      # drive energy
+
+# ONE source of truth per physics kind: the spine field it renders, its unit, the sequential ramp (low ->
+# high end), whether the "risky/constrained" end is the LOW field value (invert), a short ramp label, and the
+# legend text. `invert` orients the ramp+opacity so the HIGH (redder/more-opaque) end is always the risky one.
+PHYSICS_LAYERS = {
+    "bearing": {
+        "field": "contact_pressure", "unit": "Pa", "ramp_stops": _PHYS_BLUES, "invert": False,
+        "ramp": "pale (low) -> deep blue (high pressure)",
+        "text": "ground contact pressure p = wheel normal load / contact patch -- the Bekker bearing driver "
+                "(stewie.physics.sinkage.contact_pressure); highest on flat ground, easing where the normal "
+                "load tilts off-normal on a grade."},
+    "sinkage": {
+        "field": "sinkage", "unit": "m", "ramp_stops": _PHYS_BROWNS, "invert": False,
+        "ramp": "pale (firm) -> dark brown (deep burial)",
+        "text": "slip-coupled wheel sinkage z the rover would settle to per cell (Bekker static solve "
+                "stewie.physics.sinkage.bekker_sinkage deepened by the slip.slip_sinkage equilibrium); "
+                "grows on steep/loose ground toward burial."},
+    "slip_risk": {
+        "field": "slip_risk", "unit": "slip ratio", "ramp_stops": _PHYS_GYR, "invert": False,
+        "ramp": "green (grip) -> amber -> red (entrapment)",
+        "text": "wheel slip ratio for the demanded thrust (stewie.physics.slip.slip_for_demand at the "
+                "per-cell slip-sinkage equilibrium); red = the traction budget is exceeded and the wheel "
+                "digs in (Spirit-mode entrapment)."},
+    "traction_margin": {
+        "field": "traction_margin", "unit": "fraction", "ramp_stops": _PHYS_GYR, "invert": True,
+        "ramp": "green (ample) -> amber -> red (no margin)",
+        "text": "traction headroom (H_max - demand) / H_max from the Coulomb-Mohr budget "
+                "(stewie.physics.slip.traction_budget) vs the along-slope demand; red = little margin left "
+                "before slip runaway."},
+    "energy_cost": {
+        "field": "energy_cost", "unit": "W", "ramp_stops": _PHYS_YLORRD, "invert": False,
+        "ramp": "pale yellow (cheap) -> deep red (costly)",
+        "text": "steady drive power on the grade from the Bekker motion resistance "
+                "(stewie.physics.slip.bekker_drive_power_w); rises steeply with slope and diverges at "
+                "entrapment (energy per traverse)."},
+    "excavation_resistance": {
+        "field": "excavation_resistance", "unit": "N", "ramp_stops": _PHYS_PURPLES, "invert": False,
+        "ramp": "pale (easy) -> deep purple (resistant)",
+        "text": "Bekker compaction (motion) resistance R_c the wheel must climb out of its own sinkage rut "
+                "(stewie.physics.slip.compaction_resistance); the excavation/rolling resistance, rising with "
+                "sinkage on steeper ground."},
+}
+_PHYSICS_KINDS = frozenset(PHYSICS_LAYERS)
+
+
+def physics_legend() -> dict:
+    """The PHYSICS (TM) legend: each servable physics kind -> its unit + colour ramp + text, built from the
+    SAME PHYSICS_LAYERS spec the renderer colours with (one source of truth, like blocking_legend())."""
+    return {k: {"unit": v["unit"], "ramp": v["ramp"], "text": v["text"]} for k, v in PHYSICS_LAYERS.items()}
+
+
+def _terra_fields(dem, cell):
+    """Per-cell terramechanics-spine fields on a DEM patch, each a REAL solver output as a pure function of
+    the per-cell slope. Evaluated via a 512-sample slope LUT (scalar spine solves) then interpolated onto the
+    DEM slope map -- exact to the LUT resolution, the same values the drive-loop solver produces. Returns a
+    dict of (H,W) float fields keyed by physics kind (bearing/sinkage/slip_risk/traction_margin/
+    excavation_resistance/energy_cost)."""
+    import math
+
+    import numpy as np
+
+    from lode.planner_routing import slope_deg_map
+    from stewie.physics import sinkage as SK
+    from stewie.physics import slip as SL
+    from stewie.specs import constants as K
+    from stewie.specs import ipex_specs
+
+    slope = np.asarray(slope_deg_map(dem, cell), dtype=float)
+    smax = float(min(89.0, np.nanmax(slope))) if slope.size else 1.0
+    grid = np.linspace(0.0, max(smax, 1.0), 512)          # fine theta LUT [deg]; interp is exact for a monotone f
+    mass = float(ipex_specs.ROVER_MASS_CLASS_KG)
+    g = float(ipex_specs.LUNAR_G_MS2)
+    weight = mass * g
+    n = int(K.N_WHEELS)
+    cl_m, cw_m = 0.10, 0.18                                # slip-module contact patch (matches the profile wheel)
+    bearing = np.empty_like(grid)
+    sink = np.empty_like(grid)
+    slp = np.empty_like(grid)
+    margin = np.empty_like(grid)
+    resist = np.empty_like(grid)
+    power = np.empty_like(grid)
+    for i in range(grid.size):
+        th = math.radians(float(grid[i]))
+        n_cell = weight * math.cos(th) / n                # per-wheel normal load [N] on the grade
+        bearing[i] = SK.contact_pressure(n_cell, cw_m, cl_m)                     # spine: contact_pressure
+        eq = SL.slip_sinkage_equilibrium(weight, th)                            # ONE spine slip-sinkage solve
+        sink[i] = eq["sinkage_m"]                                               # spine: bekker_sinkage (+slip)
+        slp[i] = eq["slip"]                                                     # spine: slip_for_demand
+        b, d = eq["budget_n"], eq["demand_n"]                                   # spine: traction_budget
+        margin[i] = max(0.0, (b - d) / b) if b > 0.0 else 0.0
+        resist[i] = eq["resistance_n"]                                          # spine: compaction_resistance
+        power[i] = SL.bekker_drive_power_w(mass_kg=mass, g_ms2=g,
+                                           slope_deg=float(grid[i]))["drive_power_w"]   # spine: drive_energy
+
+    def _interp(vals):
+        return np.interp(slope, grid, vals)
+
+    return {"bearing": _interp(bearing), "sinkage": _interp(sink), "slip_risk": _interp(slp),
+            "traction_margin": _interp(margin), "excavation_resistance": _interp(resist),
+            "energy_cost": _interp(power)}
+
+
+def _physics_heatmap_rgba(field, stops, *, invert=False):
+    """Sequential heatmap of a physics field along ``stops``, robustly stretched between the 2nd/98th
+    percentiles so the entrapment-tail outliers (drive power / sinkage spike near entrapment) don't wash out
+    the ramp. ``invert`` orients so the ramp HIGH end (redder) + the opacity peak land on the risky value
+    (low traction margin)."""
+    import numpy as np
+    f = np.asarray(field, dtype=float)
+    finite = np.isfinite(f)
+    vals = f[finite]
+    lo = float(np.percentile(vals, 2.0)) if vals.size else 0.0
+    hi = float(np.percentile(vals, 98.0)) if vals.size else 1.0
+    if hi <= lo:
+        hi = lo + 1e-9
+    t = np.clip((np.where(finite, f, lo) - lo) / (hi - lo), 0.0, 1.0)
+    if invert:
+        t = 1.0 - t
+    rgba = np.zeros((*f.shape, 4), dtype=float)
+    rgba[..., :3] = _ramp_rgb(t, stops)
+    rgba[..., 3] = 110.0 + 120.0 * t                       # alpha rises toward the risky end (like the cost drape)
+    return rgba.astype("uint8")
+
+
+def _physics_rgba(dem, cell, kind):
+    """RGBA for one PHYSICS (TM) drape kind: the real terramechanics-spine field (bearing/sinkage/slip_risk/
+    traction_margin/energy_cost/excavation_resistance) coloured by its PHYSICS_LAYERS ramp. None for any
+    non-physics or observed-only kind (physics.compaction has no plan-independent per-cell field)."""
+    spec = PHYSICS_LAYERS.get(kind)
+    if spec is None:
+        return None
+    fields = _terra_fields(dem, cell)
+    return _physics_heatmap_rgba(fields[kind], spec["ramp_stops"], invert=spec["invert"])
+
+
 def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=None,
                  grid_color: str = "39ff14", site: str = "haworth",
                  slope_vmax: float = 30.0, slope_classes: int = 0):
@@ -547,6 +701,10 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         if kind in ("cost", "blocking"):
             # the AS-11 costmap analysis drape (real lode.costmap_layers.compose on the full tile)
             rgba = _costmap_rgba(dem, cm, kind, sun_az, sun_el, grid_north_bearing=gnb)
+        elif kind in _PHYSICS_KINDS:
+            # the T12 PHYSICS (TM) drape: the terramechanics-spine per-cell field (sun-independent -- a pure
+            # function of the DEM slope + fixed vehicle/soil constants)
+            rgba = _physics_rgba(dem, cm, kind)
         else:
             rgba = _layer_rgba(dem, cm, kind, sun_az, sun_el,
                                slope_vmax=slope_vmax, slope_classes=slope_classes, grid_north_bearing=gnb)

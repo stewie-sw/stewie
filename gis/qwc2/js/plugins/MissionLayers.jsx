@@ -11,11 +11,13 @@
  * reprojects it onto the 30135 map) — so the raster RENDERS on the map AND appears as a toggleable
  * row in the stock QWC2 LayerTree. The base .qgz theme layers + MissionHUD are untouched.
  *
- * Honesty: only the 9 backend globe kinds (dem/slope/hazard/illumination/incidence/psr/grid + the
- * costmap cost/blocking analysis drapes) are servable; every other catalog row is shown WITHOUT a map
- * layer (no raster endpoint on the live backend — /world/traffic-layer 404s, physics.* are metadata
- * not rasters) and the panel says so rather than fabricating a layer. (cost + blocking added 2026-07-06;
- * live after a backend rebuild.)
+ * Honesty: only the 15 backend globe kinds (dem/slope/hazard/illumination/incidence/psr/grid + the
+ * costmap cost/blocking analysis drapes + the six T12 PHYSICS (TM) terramechanics-spine drapes
+ * bearing/sinkage/slip_risk/traction_margin/energy_cost/excavation_resistance) are servable; every other
+ * catalog row is shown WITHOUT a map layer (no raster endpoint on the live backend — /world/traffic-layer
+ * 404s, physics.compaction is an OBSERVED support state not a per-cell DEM field) and the panel says so
+ * rather than fabricating a layer. (cost + blocking + the 6 physics drapes added 2026-07-06; live after a
+ * backend rebuild.)
  *
  * Registration:
  *   - js/appConfig.js       -> pluginsDef.plugins.MissionLayersPlugin
