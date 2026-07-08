@@ -15,6 +15,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libvulkan1 \
         mesa-vulkan-drivers \
         libgl1 \
+        libfontconfig1 \
+        libx11-6 \
+        libxcursor1 \
+        libxinerama1 \
+        libxrandr2 \
+        libxi6 \
+        libxext6 \
+        libxfixes3 \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
