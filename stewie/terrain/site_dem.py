@@ -184,20 +184,38 @@ def flattest_anchor(dem, *, window_m=20.0):
     return float(col * cell), float(row * cell)
 
 
+_PROJ_CACHE: dict = {}
+
+
+def _proj_ctx(bundle_dir=None):
+    """council #55 pass2 [7]: cache the per-bundle projection context (metadata + both pyproj Transformers) so a
+    transect (up to 512 latlon_to_dem_origin calls) does NOT reload metadata.json + rebuild the Transformer per
+    sample. Keyed by the resolved bundle path. Raises ImportError if pyproj (the [planner] extra) is absent."""
+    bd = _haworth_bundle(bundle_dir)
+    hit = _PROJ_CACHE.get(bd)
+    if hit is not None:
+        return hit
+    from pyproj import Transformer
+    meta = json.load(open(os.path.join(bd, "metadata.json")))
+    g, b = meta["grid"], meta["world_bounds_m"]
+    cell, W, H = float(g["cell_m"]), int(g["width"]), int(g["height"])
+    crs = bundle_crs(bundle_dir)                                         # REG-01 / PLAN-ANYWHERE: the tile's own frame
+    ax0, ay0 = float(b["x0"]) + cell / 2.0, float(b["y1"]) - cell / 2.0  # pixel(0,0) CENTER (north-up raster)
+    fwd = Transformer.from_crs(crs.geodetic_crs, crs, always_xy=True)    # selenographic -> tile-frame m
+    inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)    # tile-frame m -> selenographic
+    out = (cell, W, H, ax0, ay0, fwd, inv)
+    _PROJ_CACHE[bd] = out
+    return out
+
+
 def latlon_to_dem_origin(lat, lon, *, bundle_dir=None):
     """M11: project a selenographic lat/lon (deg) to the Haworth DEM order-frame origin (x, y) [m] -- the
     SAME pixel-meter frame flattest_anchor returns -- so a globe site-pick anchors the plan where the user
     clicked instead of the auto flattest site. The DEM is south-polar stereographic on the R=1737400 m Moon
     sphere (IAU_2015:30135; see dem_import). Raises ValueError if the point falls outside the committed
     tile, ImportError if pyproj (the [planner] extra) is absent so the caller can fall back to the anchor."""
-    from pyproj import Transformer
-    meta = json.load(open(os.path.join(_haworth_bundle(bundle_dir), "metadata.json")))
-    g, b = meta["grid"], meta["world_bounds_m"]
-    cell, W, H = float(g["cell_m"]), int(g["width"]), int(g["height"])
-    crs = bundle_crs(bundle_dir)                                         # REG-01 / PLAN-ANYWHERE: the tile's own frame
-    fwd = Transformer.from_crs(crs.geodetic_crs, crs, always_xy=True)
+    cell, W, H, ax0, ay0, fwd, _inv = _proj_ctx(bundle_dir)
     xs, ys = fwd.transform(float(lon), float(lat))                       # selenographic -> tile-frame m
-    ax0, ay0 = float(b["x0"]) + cell / 2.0, float(b["y1"]) - cell / 2.0  # pixel(0,0) CENTER (north-up raster)
     col, row = (xs - ax0) / cell, (ay0 - ys) / cell
     if not (-0.5 <= col <= W - 0.5 and -0.5 <= row <= H - 0.5):
         raise ValueError(f"site lat/lon ({lat:.3f}, {lon:.3f}) is outside the mapped Haworth tile "
@@ -214,17 +232,11 @@ def dem_origin_to_latlon(x, y, *, bundle_dir=None):
     pixel-center convention as the forward transform. Raises ValueError if (x, y) falls outside the
     committed tile, ImportError if pyproj (the [planner] extra) is absent so the caller can degrade to
     metres-only."""
-    from pyproj import Transformer
-    meta = json.load(open(os.path.join(_haworth_bundle(bundle_dir), "metadata.json")))
-    g, b = meta["grid"], meta["world_bounds_m"]
-    cell, W, H = float(g["cell_m"]), int(g["width"]), int(g["height"])
+    cell, W, H, ax0, ay0, _fwd, inv = _proj_ctx(bundle_dir)             # council #55 pass2 [7]: cached per bundle
     col, row = float(x) / cell, float(y) / cell
     if not (-0.5 <= col <= W - 0.5 and -0.5 <= row <= H - 0.5):
         raise ValueError(f"site (x, y) = ({x:.0f}, {y:.0f}) m is outside the mapped tile "
                          f"({W}x{H} @ {cell:g} m)")
-    crs = bundle_crs(bundle_dir)                                         # REG-01 / PLAN-ANYWHERE: the tile's own frame
-    inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
-    ax0, ay0 = float(b["x0"]) + cell / 2.0, float(b["y1"]) - cell / 2.0  # pixel(0,0) CENTER (north-up raster)
     xs, ys = ax0 + col * cell, ay0 - row * cell                          # order-frame metres -> polar-stereographic m
     lon, lat = inv.transform(xs, ys)                                     # -> selenographic deg
     return float(lat), float(lon)

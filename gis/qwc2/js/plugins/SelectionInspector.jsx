@@ -88,7 +88,11 @@ class SelectionInspector extends React.Component {
         // in-flight point query so an old-site cell can't resolve into the new site's inspector.
         this._unsubWS = WS.subscribe(() => {
             if (this._rg) { this._rg.bump(); }
-            this.setState({point: null, clickLonLat: null});   // council #55 [2]: clear the stale per-cell readout on a site switch
+            // council #55 [2] + pass2 [0]: clear the stale per-cell readout AND loading/error/freshness on a site
+            // switch. The stale-guarded fetch resolution early-returns WITHOUT clearing loading, so without
+            // loading:false the panel is stuck on the 'querying cell…' spinner (MissionCrossSection already does
+            // this); freshness:null avoids briefly badging a site-B cell with site-A's freshness before manifest B lands.
+            this.setState({point: null, clickLonLat: null, loading: false, error: null, freshness: null});
             this._loadManifest();
         });
     }

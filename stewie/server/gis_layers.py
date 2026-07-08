@@ -111,7 +111,10 @@ def render(kind: str, *, cell_m: float = 5.0, sun_el: float = 6.0, sun_az: float
     png = _to_png(_upscale(rgba))
     _CACHE[key] = png
     if len(_CACHE) > _CACHE_MAX:
-        _CACHE.pop(next(iter(_CACHE)), None)             # #283: FIFO evict (mirror _WORKAREA_CACHE)
+        try:                                             # #283: FIFO evict. council #55 pass2 [1]: guard iter+next
+            _CACHE.pop(next(iter(_CACHE)), None)         # against a concurrent insert (render() runs in the sync
+        except (RuntimeError, StopIteration):            # threadpool) -- 'dict changed size' would else 500 a tile
+            pass
     return png
 
 
@@ -627,11 +630,18 @@ def point_values(site: str, x_m: float, y_m: float, *, _ctx: dict | None = None)
 
     ctx = _ctx if _ctx is not None else _point_setup(site)   # #59: shared once-per-batch by points_values()
     Z, cell, origin, view = ctx["Z"], ctx["cell"], ctx["origin"], ctx["view"]
+    import math
     ox, oy = float(origin[0]), float(origin[1])   # Z stays native; only the 97x97 patch is upcast to float64 below
     height, width = Z.shape
-    col = int(round((ox + float(x_m)) / cell))
-    row = int(round((oy + float(y_m)) / cell))
-    in_bounds = (0 <= row < height) and (0 <= col < width)
+    xf, yf = float(x_m), float(y_m)
+    finite = math.isfinite(xf) and math.isfinite(yf)
+    if not finite:                                       # council #55 pass2 [2]: pydantic accepts inf/nan; the raw
+        col, row, in_bounds = -1, -1, False              # int(round) OverflowErrors AND an inf echoed in position
+    else:                                                # breaks FastAPI's JSON -> HTTP 500. Honest out-of-tile.
+        col = int(round((ox + xf) / cell))
+        row = int(round((oy + yf) / cell))
+        in_bounds = (0 <= row < height) and (0 <= col < width)
+    px, py = (round(xf, 2), round(yf, 2)) if finite else (None, None)
 
     # every servable row's presentation shell (catalog id -> label/unit). The scalar rows get filled below.
     def _attr(lid, label, unit, value=None, available=False, note=None, reason=None):
@@ -660,7 +670,7 @@ def point_values(site: str, x_m: float, y_m: float, *, _ctx: dict | None = None)
         "ok": True, "site": site,
         "cell": {"row": row, "col": col, "cell_m": float(cell), "in_bounds": in_bounds,
                  "grid_rows": int(height), "grid_cols": int(width)},
-        "position": {"x_m": round(float(x_m), 2), "y_m": round(float(y_m), 2),
+        "position": {"x_m": px, "y_m": py,   # council #55 pass2 [2]: px/py are None for a non-finite input (no inf in JSON)
                      "dem_origin_m": [round(ox, 2), round(oy, 2)]},
         "sun": {"el_deg": _POINT_SUN_EL, "az_deg": _POINT_SUN_AZ},
     }

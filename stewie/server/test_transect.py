@@ -97,6 +97,16 @@ def test_transect_lonlat_partial_tile_returns_mixed_rows_not_422(client):
     assert isinstance(inb["elevation_m"], (int, float))   # the in-tile sample carries real data
 
 
+def test_point_non_finite_coord_is_out_of_bounds_not_500(client):
+    # council #55 pass2 [2]: pydantic accepts x=inf; the raw int(round((ox+x)/cell)) would OverflowError -> HTTP
+    # 500. The finiteness guard turns a non-finite order coord into an honest out-of-tile 200 (in_bounds=False,
+    # no fabricated values), the same as a far-off cell.
+    r = client.get("/world/point?site=haworth&x=inf&y=1")
+    assert r.status_code == 200, r.text
+    assert r.json()["cell"]["in_bounds"] is False
+    assert all(a["available"] is False for a in r.json()["attributes"])
+
+
 def test_transect_route_400_bad_frame(client):
     r = client.post("/world/transect", json={"site": "haworth", "points": [[0.0, 0.0], [1.0, 1.0]], "frame": "wgs84"})
     assert r.status_code == 400
