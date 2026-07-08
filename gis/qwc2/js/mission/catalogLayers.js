@@ -37,6 +37,11 @@
 (function (root) {
   "use strict";
 
+  // GW-02: the site default now comes from the shared workspace (workspace.js) -- ONE source, not a
+  // per-builder "haworth" literal. require() under node/webpack, window global in a raw browser bundle.
+  var WS = (typeof module !== "undefined" && module.exports) ? require("./workspace.js") : (root && root.STEWIEWorkspace);
+  function _site(s) { return s || (WS ? WS.site() : "haworth"); }
+
   // Same-origin mission API. The IDE is served at /ide/; the FastAPI backend is reverse-proxied at
   // /api/ on the same origin (deploy/artemis-nginx.conf `location /api/`). Overridable for tests.
   var API_BASE = "/api";
@@ -234,7 +239,7 @@
     opts = opts || {};
     var el = (opts.sunEl != null) ? opts.sunEl : 15;
     var az = (opts.sunAz != null) ? opts.sunAz : 90;
-    var site = opts.site || "haworth";
+    var site = _site(opts.site);
     var b = (opts.bust != null) ? opts.bust : Date.now();
     return "sun_el=" + el + "&sun_az=" + az + "&site=" + encodeURIComponent(site) + "&b=" + b;
   }
@@ -246,10 +251,10 @@
   function catalogUrl() { return API_BASE + "/world/layer-catalog"; }
   function legendUrl() { return API_BASE + "/layers/legend"; }
   function terramechUrl() { return API_BASE + "/world/terramechanics-layers"; }
-  function trafficUrl(site) { return API_BASE + "/world/traffic-layer?site=" + encodeURIComponent(site || "haworth"); }
+  function trafficUrl(site) { return API_BASE + "/world/traffic-layer?site=" + encodeURIComponent(_site(site)); }
   // [REQ:GW-06] the PUBLIC per-site layer manifest -> the REAL freshness/provenance the layer tree shows.
   // The auth-gated /world 401s for the keyless public /ide/, so the panel binds this key-free projection.
-  function layerManifestUrl(site) { return API_BASE + "/world/layer-manifest?site=" + encodeURIComponent(site || "haworth"); }
+  function layerManifestUrl(site) { return API_BASE + "/world/layer-manifest?site=" + encodeURIComponent(_site(site)); }
   function globePngUrl(kind, opts) { return API_BASE + "/layers/globe/" + kind + ".png?" + sunQS(opts); }
   function globeBboxUrl(kind, opts) { return API_BASE + "/layers/globe/" + kind + "/bbox?" + sunQS(opts); }
 

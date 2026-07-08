@@ -19,6 +19,9 @@
 (function (root) {
   "use strict";
 
+  // GW-02: the site default comes from the shared workspace (workspace.js) -- one source, not a literal.
+  var WS = (typeof module !== "undefined" && module.exports) ? require("./workspace.js") : (root && root.STEWIEWorkspace);
+
   // Same-origin mission API (the IDE is served at /ide/; FastAPI is reverse-proxied at /api/). Overridable.
   var API_BASE = "/api";
 
@@ -36,7 +39,7 @@
 
   function bundleUrl(opts) {
     opts = opts || {};
-    var qs = ["site=" + encodeURIComponent(opts.site || "haworth")];
+    var qs = ["site=" + encodeURIComponent(opts.site || (WS ? WS.site() : "haworth"))];
     if (opts.mission) qs.push("mission=" + encodeURIComponent(opts.mission));
     if (opts.session) qs.push("session=" + encodeURIComponent(opts.session));
     if (opts.limit) qs.push("limit=" + encodeURIComponent(opts.limit));

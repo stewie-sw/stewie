@@ -10,7 +10,12 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import StandardApp from 'qwc2/components/StandardApp';
 import appConfig from './appConfig';
+import WS from './mission/workspace.js';
 import '../icons/build/qwc2-icons.css';
+
+// GW-02: hydrate the shared workspace context from the URL (?site=&body=&mission=) BEFORE the app mounts,
+// so every plugin's initial state reads the linked workspace instead of a per-module "haworth" default.
+WS.hydrateFromQuery(window.location.search);
 
 const container = document.getElementById('container');
 const root = createRoot(container);

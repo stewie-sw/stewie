@@ -25,6 +25,8 @@
   var CL = (typeof module !== "undefined" && module.exports)
     ? require("./catalogLayers.js")
     : (root && root.STEWIE_CATALOG_LAYERS);
+  // GW-02: the shared workspace default site (workspace.js) -- one source, not a per-builder literal.
+  var WS = (typeof module !== "undefined" && module.exports) ? require("./workspace.js") : (root && root.STEWIEWorkspace);
 
   var API_BASE = "/api";                      // same-origin mission API (nginx proxies /api/). Overridable for tests.
   function base() { return API_BASE; }
@@ -34,7 +36,7 @@
   // The click arrives as selenographic lon/lat (the OpenLayers 30135 view coordinate reprojected to
   // IAU_2015:30100); the backend resolves it to the site DEM cell. `coords` = {lon, lat} or {x, y}.
   function pointUrl(site, coords) {
-    var s = "site=" + encodeURIComponent(site || "haworth");
+    var s = "site=" + encodeURIComponent(site || (WS ? WS.site() : "haworth"));
     var c = coords || {};
     if (c.lon != null && c.lat != null) {
       return API_BASE + "/world/point?" + s + "&lon=" + encodeURIComponent(c.lon) + "&lat=" + encodeURIComponent(c.lat);

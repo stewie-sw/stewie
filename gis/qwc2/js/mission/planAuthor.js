@@ -29,6 +29,7 @@
  * /api/layers/globe/{kind}/bbox (the SAME endpoint MissionLayers drapes) supplies the work-area extent for
  * the initial zoom.
  */
+import WS from './workspace.js';   // GW-02: the shared workspace-context store (site/body/mission)
 import Feature from 'ol/Feature';
 import CircleGeom from 'ol/geom/Circle';
 import LineString from 'ol/geom/LineString';
@@ -88,7 +89,7 @@ export default class PlanAuthor {
         this.map = map;
         this.reproject = reproject;
         this.onState = onState || (() => {});
-        this.site = 'haworth';
+        this.site = WS.site();   // GW-02: the shared workspace site (hydrated from ?site= on load), not a literal
         this.activeKind = null;
         this.footprint = 60;       // m^2 (Frontend A default)
         this.depth = 0.4;          // m
@@ -499,6 +500,7 @@ export default class PlanAuthor {
     // --- Site select: fetch the keyless work-area bbox + frame the view on it -------------------------
     selectSite(site, {fly} = {}) {
         this.site = site;
+        WS.set({site: site});   // GW-02: propagate the pick to the shared workspace (URL + every other consumer)
         this.orders = [];
         this.result = null;
         this.wc = null;
