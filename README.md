@@ -14,7 +14,7 @@
 [![Lint: ruff](https://img.shields.io/badge/lint-ruff-orange.svg)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-all%20rights%20reserved-lightgrey.svg)](LICENSE)
 
-**Live:** [GIS mission-control IDE](https://artemis.stewie.space/ide/) &nbsp;·&nbsp; [planner cockpit](https://app.stewie.space)
+**Live:** [GIS mission-control IDE](https://artemis.stewie.space/ide/)
 
 </div>
 
