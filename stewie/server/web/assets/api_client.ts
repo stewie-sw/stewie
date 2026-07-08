@@ -156,6 +156,7 @@ export type ApiPath =
   | '/world/layer-consumption'
   | '/world/layer-manifest'
   | '/world/point'
+  | '/world/points'
   | '/world/site-markers'
   | '/world/terrain_view'
   | '/world/terrain_view.png'
@@ -163,6 +164,7 @@ export type ApiPath =
   | '/world/traffic-layer'
   | '/world/transaction'
   | '/world/transactions'
+  | '/world/transect'
   | '/{path}';
 
 export interface ApiRoute {
@@ -332,6 +334,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/world/layer-consumption', operationId: 'layer_consumption_world_layer_consumption_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/layer-manifest', operationId: 'world_layer_manifest_world_layer_manifest_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/point', operationId: 'world_point_world_point_get', mutatesAuthority: false },
+  { method: 'POST', path: '/world/points', operationId: 'world_points_world_points_post', mutatesAuthority: true },
   { method: 'GET', path: '/world/site-markers', operationId: 'world_site_markers_world_site_markers_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terrain_view', operationId: 'world_terrain_view_world_terrain_view_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terrain_view.png', operationId: 'world_terrain_view_png_world_terrain_view_png_get', mutatesAuthority: false },
@@ -339,6 +342,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/world/traffic-layer', operationId: 'traffic_layer_world_traffic_layer_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/transaction', operationId: 'world_transaction_world_transaction_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/transactions', operationId: 'world_transactions_world_transactions_get', mutatesAuthority: false },
+  { method: 'POST', path: '/world/transect', operationId: 'world_transect_world_transect_post', mutatesAuthority: true },
   { method: 'GET', path: '/{path}', operationId: '_no_get__path__get', mutatesAuthority: false },
   { method: 'POST', path: '/{path}', operationId: '_no_post__path__post', mutatesAuthority: true },
 ];

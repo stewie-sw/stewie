@@ -34,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 275,
+  "cited": 276,
   "per_family": {
     "AC": {
       "cited": 1,
@@ -245,7 +245,7 @@
       "total": 2
     },
     "SD": {
-      "cited": 1,
+      "cited": 2,
       "total": 3
     },
     "SE": {
@@ -380,6 +380,10 @@
     {
       "id": "PO-09",
       "v": "P"
+    },
+    {
+      "id": "SD-03",
+      "v": "N"
     },
     {
       "id": "SN-12",
