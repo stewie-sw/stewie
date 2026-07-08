@@ -334,38 +334,48 @@
         "name": "TopBar",
         "cfg": {
           "menuItems": [
-            {"key": "Portal", "icon": "themes"},
-            {"key": "ThemeSwitcher", "icon": "themes", "shortcut": "alt+shift+t"},
-            {"key": "LayerTree", "icon": "layers", "shortcut": "alt+shift+l"},
-            {"key": "MapLegend", "icon": "list-alt"},
-            {"key": "LayerCatalog", "icon": "catalog", "shortcut": "alt+shift+c"},
-            {"key": "FeatureSearch", "icon": "search"},
-            {"key": "Share", "icon": "share", "shortcut": "alt+shift+s"},
-            {"key": "Bookmark", "icon": "bookmark", "shortcut": "alt+shift+b"},
-            {"key": "Tools", "icon": "tools", "subitems": [
+            {"key": "SecView", "title": "View & Navigate", "icon": "sphere", "subitems": [
+              {"key": "WholeMoon", "title": "Whole Moon", "icon": "sphere"},
+              {"key": "LayerCatalog", "icon": "catalog", "shortcut": "alt+shift+c"},
+              {"key": "Portal", "icon": "themes"},
+              {"key": "ThemeSwitcher", "icon": "themes", "shortcut": "alt+shift+t"},
+              {"key": "FeatureSearch", "icon": "search"},
+              {"key": "Bookmark", "icon": "bookmark", "shortcut": "alt+shift+b"},
+              {"key": "Share", "icon": "share", "shortcut": "alt+shift+s"}
+            ]},
+            {"key": "SecLayers", "title": "Layers & Legend", "icon": "layers", "subitems": [
+              {"key": "MissionLayers", "title": "Mission Layers", "icon": "layers"},
+              {"key": "MapLegend", "icon": "list-alt"},
+              {"key": "LayerTree", "icon": "layers", "shortcut": "alt+shift+l"}
+            ]},
+            {"key": "SecAnalyze", "title": "Inspect & Analyze", "icon": "identify_region", "subitems": [
+              {"key": "SelectionInspector", "title": "Inspector", "icon": "info"},
               {"key": "Identify", "icon": "identify_region", "mode": "Region"},
-              {"key": "TimeManager", "icon": "clock"},
               {"key": "Measure", "icon": "measure"},
+              {"key": "Routing", "icon": "routing"},
+              {"key": "TimeManager", "icon": "clock"}
+            ]},
+            {"key": "SecDesign", "title": "Design & Plan", "icon": "draw", "subitems": [
+              {"key": "MissionPlan", "title": "Mission Plan", "icon": "draw"},
               {"key": "Redlining", "icon": "draw"},
               {"key": "Editing", "icon": "editing"},
               {"key": "FeatureForm", "icon": "featureform"},
-              {"key": "AttributeTable", "icon": "editing"},
-              {"key": "MapExport", "icon": "rasterexport"},
-              {"key": "Routing", "icon": "routing"}
+              {"key": "AttributeTable", "icon": "editing"}
             ]},
-            {"key": "Print", "icon": "print", "shortcut": "alt+shift+p"},
-            {"key": "Help", "icon": "info", "shortcut": "alt+shift+h"},
-            {"key": "WholeMoon", "title": "Whole Moon", "icon": "sphere"},
-            {"key": "MissionProgram", "title": "Program", "icon": "list-alt"},
-            {"key": "MissionPlan", "title": "Mission Plan", "icon": "draw"},
-            {"key": "MissionLayers", "title": "Mission Layers", "icon": "layers"},
-            {"key": "MissionAssets", "title": "Asset Library", "icon": "folder"},
-            {"key": "MissionEvidence", "title": "Evidence / Report", "icon": "info"},
-            {"key": "SelectionInspector", "title": "Inspector", "icon": "info"},
-            {"key": "MissionHUD", "title": "Rover HUD", "icon": "routing-car"},
-            {"key": "MissionEngPanel", "title": "Eng Panel", "icon": "plot_info"},
-            {"key": "Settings", "icon": "cog"},
-            {"title": "stewie.space", "icon": "link", "url": "https://stewie.space", "target": "_blank"}
+            {"key": "SecRover", "title": "Rover & Runtime", "icon": "routing-car", "subitems": [
+              {"key": "MissionHUD", "title": "Rover HUD", "icon": "routing-car"},
+              {"key": "MissionEngPanel", "title": "Eng Panel", "icon": "plot_info"},
+              {"key": "MissionAssets", "title": "Asset Library", "icon": "folder"},
+              {"key": "MissionEvidence", "title": "Evidence / Report", "icon": "info"}
+            ]},
+            {"key": "SecProgram", "title": "Program & Output", "icon": "list-alt", "subitems": [
+              {"key": "MissionProgram", "title": "Program", "icon": "list-alt"},
+              {"key": "Print", "icon": "print", "shortcut": "alt+shift+p"},
+              {"key": "MapExport", "icon": "rasterexport"},
+              {"key": "Settings", "icon": "cog"},
+              {"key": "Help", "icon": "info", "shortcut": "alt+shift+h"},
+              {"title": "stewie.space", "icon": "link", "url": "https://stewie.space", "target": "_blank"}
+            ]}
           ],
           "searchOptions": {
             "allowSearchFilters": false,
