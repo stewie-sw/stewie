@@ -52,7 +52,7 @@ import WS from '../mission/workspace.js';   // #50: propagate the clicked site t
 // is additive on top of the default identify click; and a benign side panel (MissionHUD/MissionLayers/
 // LayerTree/...) is absent too, so a site click still zooms while one is open.
 const CLICK_OWNED_BY = {
-    SelectionInspector: true, MissionPlan: true,
+    SelectionInspector: true, MissionPlan: true, MissionCrossSection: true,   // council #55 [4]: transect-draw owns clicks
     Measure: true, Redlining: true, Editing: true, Routing: true,
     GeometryDigitizer: true, ScratchDrawing: true, FeatureForm: true
 };

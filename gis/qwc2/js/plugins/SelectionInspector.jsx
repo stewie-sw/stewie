@@ -86,7 +86,11 @@ class SelectionInspector extends React.Component {
         this._loadManifest();
         // #57 (was mount-only): re-fetch the per-site freshness manifest on a site change, and invalidate any
         // in-flight point query so an old-site cell can't resolve into the new site's inspector.
-        this._unsubWS = WS.subscribe(() => { if (this._rg) { this._rg.bump(); } this._loadManifest(); });
+        this._unsubWS = WS.subscribe(() => {
+            if (this._rg) { this._rg.bump(); }
+            this.setState({point: null, clickLonLat: null});   // council #55 [2]: clear the stale per-cell readout on a site switch
+            this._loadManifest();
+        });
     }
     _loadManifest = () => {
         if (SI.fetchLayerManifest && SI.freshnessFromManifest) {
