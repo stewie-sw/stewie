@@ -393,10 +393,7 @@ async def executive_run_stream(run_id: str, request: Request, interval_s: float 
     # only the legs AFTER it (each event carries `id: <leg>`), so a transient network blip does not re-play the
     # whole run from leg 0. A non-numeric id ("done" / absent) resumes from the start (harmless -- idempotent).
     _leid = request.headers.get("last-event-id")
-    try:
-        resume_after = int(_leid)
-    except (TypeError, ValueError):
-        resume_after = -1
+    resume_after = int(_leid) if (_leid is not None and _leid.isdigit()) else -1   # None/non-numeric -> from start
 
     async def _gen():
         for i, ev in enumerate(events):
