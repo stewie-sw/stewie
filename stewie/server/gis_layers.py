@@ -723,6 +723,88 @@ def points_values(site: str, coords) -> list:
     return [point_values(site, float(x), float(y), _ctx=ctx) for (x, y) in coords]
 
 
+_PSR_MASK_CACHE: dict = {}   # site -> never-lit bool mask; the horizon sweep is DEM-fixed, so cache per site
+
+
+def _site_psr_mask(site, ctx):
+    """[REQ:SD-03] REAL per-cell PSR (permanently-shadowed) mask for a site: cells never illuminated across a
+    0..360 deg sun-azimuth sweep at 3 deg polar elevation (dart.illumination.horizon_clip on the site DEM) --
+    the same physics the `psr` raster layer draws. The DEM is strided to ~384 px before the sweep (as the psr
+    RASTER layer does) so the 12-azimuth horizon march is fast; PSR is a large-scale cold-trap classification,
+    so a coarse mask is faithful. Returns (step, never_lit_mask); cache-safe (horizon geometry is DEM-fixed)."""
+    cached = _PSR_MASK_CACHE.get(site)
+    if cached is not None:
+        return cached
+    import numpy as np
+
+    from dart.illumination import horizon_clip
+    dem_full = np.asarray(ctx["Z"], dtype=float)
+    cell = ctx["cell"]
+    h, w = dem_full.shape
+    step = max(1, int(round(max(h, w) / 384)))    # stride so the sweep runs on ~384 px (the psr-raster budget)
+    dem = dem_full[::step, ::step]
+    ever_lit = np.zeros(dem.shape, dtype=bool)
+    for az in range(0, 360, 30):
+        ever_lit |= horizon_clip(dem, cell * step, float(az), 3.0)
+    result = (step, ~ever_lit)
+    _PSR_MASK_CACHE[site] = result
+    return result
+
+
+def transect_profile(site: str, points) -> dict:
+    """[REQ:SD-03] The #45 resource-exploration cross-section: sample the REAL per-cell layers along a drawn
+    transect (a densified list of order-frame (x, y) [m] samples). Each sample carries elevation (LOLA DEM),
+    slope + bearing + sinkage (the terramechanics spine), PSR (horizon-computed cold-trap), and the cumulative
+    along-transect distance. Ice-stability (thermal depth-to-ice) is NOT included -- terrain.thermal has no real
+    producer (catalog-only, no Diviner raster wired); it is reported as an explicit data gap, never fabricated.
+    Reuses the once-per-site setup + point_values math (byte-identical to /world/point per cell)."""
+    import math
+
+    ctx = _point_setup(site)
+    step, psr = _site_psr_mask(site, ctx)
+    Z, cell, origin = ctx["Z"], ctx["cell"], ctx["origin"]
+    ox, oy = float(origin[0]), float(origin[1])
+    h, w = Z.shape
+    ph, pw = psr.shape
+    samples = []
+    prev = None
+    dist = 0.0
+    for (x, y) in points:
+        x, y = float(x), float(y)
+        if prev is not None:
+            dist += math.hypot(x - prev[0], y - prev[1])
+        prev = (x, y)
+        a = {at["id"]: at for at in point_values(site, x, y, _ctx=ctx)["attributes"]}
+        col = int(round((ox + x) / cell))
+        row = int(round((oy + y) / cell))
+        in_b = (0 <= row < h) and (0 <= col < w)
+        dr, dc = row // step, col // step                       # full-res cell -> strided PSR grid
+        samples.append({
+            "dist_m": round(dist, 2), "x_m": round(x, 2), "y_m": round(y, 2), "in_bounds": in_b,
+            "elevation_m": a.get("base.dem", {}).get("value"),
+            "slope_deg": a.get("terrain.slope", {}).get("value"),
+            "bearing_pa": a.get("physics.bearing", {}).get("value"),
+            "sinkage_m": a.get("physics.sinkage", {}).get("value"),
+            "psr": (bool(psr[dr, dc]) if (in_b and 0 <= dr < ph and 0 <= dc < pw) else None),
+        })
+    return {
+        "site": site, "n": len(samples), "samples": samples,
+        "sources": {
+            "elevation_m": "LOLA DEM (base.dem, prior/observed)",
+            "slope_deg": "derived from the DEM gradient",
+            "bearing_pa": "terramechanics spine (physics.bearing, derived/estimated)",
+            "sinkage_m": "terramechanics spine (physics.sinkage, derived/estimated)",
+            "psr": "permanently-shadowed = never lit across a 0..360 deg sun-azimuth sweep at 3 deg elevation "
+                   "(dart.illumination horizon-clip on the real DEM)",
+        },
+        "unavailable": {
+            "ice_stability": "NO real per-cell producer -- terrain.thermal is catalog-only (no Diviner/thermal "
+                             "ice-stability raster wired). NOT fabricated. PSR (cold-trap candidate) is the real "
+                             "ice-relevant proxy; a quantitative depth-to-ice needs a Diviner/LOLA thermal dataset.",
+        },
+    }
+
+
 def _point_actions(*, in_bounds: bool, passable: bool) -> list:
     """[REQ:GW-07] The mission actions a clicked cell affords, each with an enabled flag + a reason so a
     disabled control names WHY (the FR-03 / AU-01 command-authority discipline, at the map-cell scale).

@@ -362,6 +362,33 @@ def world_points(req: PointsReq):   # public read (batch per-cell map data, exac
         return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
 
 
+class TransectReq(BaseModel):
+    """[REQ:SD-03] Cross-section transect body: one site + a densified list of order-frame (x, y) [m] samples."""
+    model_config = ConfigDict(extra="forbid")
+    site: str = "haworth"
+    points: list[tuple[float, float]]
+
+
+@router.post("/world/transect")
+def world_transect(req: TransectReq):   # public read (resource cross-section, like /world/points)
+    """[REQ:SD-03] The #45 resource-exploration cross-section reader: a drawn transect (densified sample points)
+    -> per-sample elevation + slope + bearing + sinkage + PSR + cumulative along-transect distance, each traced
+    to its REAL producer (DEM / terramechanics spine / horizon-computed PSR); ice-stability is reported as an
+    explicit data gap in `unavailable` (never fabricated). Public, 2..512 sample points (400/413 otherwise)."""
+    from stewie.server import gis_layers as GL
+    if len(req.points) < 2:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "a transect needs >= 2 sample points"})
+    if len(req.points) > 512:
+        return JSONResponse(status_code=413,
+                            content={"ok": False, "error": "too many points (max 512 per transect)"})
+    try:
+        return {"ok": True, **GL.transect_profile(req.site, req.points)}
+    except (KeyError, FileNotFoundError) as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    except (ImportError, ValueError) as e:
+        return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
+
+
 @router.get("/world")
 def world(site: str = "haworth", _auth: str = Depends(require_auth)):
     """[REQ:DT-05] the AUTHORITATIVE rich world descriptor for `site`: grid geometry + lunar datum +
