@@ -22,6 +22,7 @@ class MissionTerramech extends React.Component {
     };
     state = {
         model: null,
+        authority: null,
         error: null,
         site: WS.site()
     };
@@ -31,26 +32,53 @@ class MissionTerramech extends React.Component {
     }
     componentWillUnmount() { if (this._unsubWS) { this._unsubWS(); } }
     load = () => {
-        this.setState({model: null, error: null});
+        this.setState({model: null, authority: null, error: null});
         TM.fetchSpine(this.state.site)
             .then((d) => this.setState({model: TM.buildSpineModel(d)}))
             .catch((e) => this.setState({error: 'terramechanics: ' + e.message}));
+        // The physics-authority registry is site-independent + supplementary -> degrade silently if it fails.
+        TM.fetchAuthority()
+            .then((d) => this.setState({authority: TM.buildAuthorityModel(d)}))
+            .catch(() => {});
     };
+    renderAuthority() {
+        const {authority} = this.state;
+        if (!authority || !authority.ok) { return null; }
+        return (
+            <div style={{marginBottom: '0.85em'}}>
+                <div style={{color: '#8a9096', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.72em', marginBottom: '4px'}}>Physics authority · {authority.count} backends</div>
+                {authority.backends.map((b) => (
+                    <div key={b.id} style={{padding: '3px 0', borderBottom: '1px solid #17171b'}}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline'}}>
+                            <span style={{color: '#e6e8ea', fontWeight: 600}}>{b.id}</span>
+                            <span style={{color: b.release ? '#4db6d4' : '#8a9096', fontSize: '0.74em'}}>{b.tier}</span>
+                        </div>
+                        <div style={{color: '#8a9096', fontSize: '0.73em'}}>
+                            {['planning', 'rehearsal', 'release', 'execute'].filter((k) => b[k]).join(' · ') || 'no lifecycle authority'}
+                            {b.conserves ? ' · conserves mass' : ''}
+                        </div>
+                        {b.refusal ? (<div style={{color: '#c98a8a', fontSize: '0.71em'}}>{b.refusal}</div>) : null}
+                    </div>
+                ))}
+            </div>
+        );
+    }
     renderBody() {
         const {model, error, site} = this.state;
         if (error) {
             return (<div style={{padding: '0.75em', color: '#ff6b6b'}}>{error}</div>);
         }
         if (!model) {
-            return (<div style={{padding: '0.75em', color: '#8a9096'}}>Loading terramechanics spine…</div>);
+            return (<div style={{padding: '0.75em', color: '#8a9096'}}>{this.renderAuthority()}Loading terramechanics spine…</div>);
         }
         if (!model.ok) {
-            return (<div style={{padding: '0.75em', color: '#ff6b6b'}}>{model.error}</div>);
+            return (<div style={{padding: '0.75em', color: '#ff6b6b'}}>{this.renderAuthority()}{model.error}</div>);
         }
         const groups = {};
         model.layers.forEach((l) => { (groups[l.group] = groups[l.group] || []).push(l); });
         return (
             <div style={{padding: '0.75em', fontSize: '0.85em'}}>
+                {this.renderAuthority()}
                 <div style={{marginBottom: '0.7em'}}>
                     <div style={{color: '#8a9096', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.72em'}}>Authority backend</div>
                     <div style={{color: '#4db6d4', fontWeight: 700}}>{model.backend || 'unknown'}</div>

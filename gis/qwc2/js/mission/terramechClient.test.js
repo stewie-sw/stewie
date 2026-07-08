@@ -39,3 +39,28 @@ test("buildSpineModel surfaces an error honestly (no fabrication)", () => {
   const empty = T.buildSpineModel(null);
   assert.strictEqual(empty.ok, false);
 });
+
+const AUTH = {   // real shape from GET /api/physics/authority?  (public, 2026-07-08)
+  ok: true, backends: [
+    { id: "tier2_numpy", authority_scope: ["terrain", "terramechanics"], conserves_mass: true, valid_for_planning: true, valid_for_rehearsal: true, valid_for_release: true, valid_for_execute: true, refusal_reason: null, description: "conserved authority" },
+    { id: "gazebo", authority_scope: ["robot", "sensor"], conserves_mass: false, valid_for_planning: false, valid_for_rehearsal: true, valid_for_release: false, valid_for_execute: false, refusal_reason: "robot/sensor sim only; NOT terrain authority", description: "sim" },
+    { id: "godot", authority_scope: [], conserves_mass: false, valid_for_planning: false, valid_for_rehearsal: false, valid_for_release: false, valid_for_execute: false, refusal_reason: "rendering only", description: "render" }
+  ]
+};
+
+test("authorityUrl + buildAuthorityModel derive the tier + eligibility per backend", () => {
+  assert.strictEqual(T.authorityUrl(), "/api/physics/authority");
+  const m = T.buildAuthorityModel(AUTH);
+  assert.strictEqual(m.ok, true);
+  assert.strictEqual(m.count, 3);
+  const t2 = m.backends.find((b) => b.id === "tier2_numpy");
+  assert.strictEqual(t2.tier, "release authority");
+  assert.strictEqual(t2.conserves, true);
+  assert.strictEqual(t2.release, true);
+  const gz = m.backends.find((b) => b.id === "gazebo");
+  assert.strictEqual(gz.tier, "rehearsal only");
+  assert.match(gz.refusal, /sim only/);
+  const gd = m.backends.find((b) => b.id === "godot");
+  assert.strictEqual(gd.tier, "render only");
+  assert.strictEqual(T.buildAuthorityModel({ ok: false }).ok, false);
+});

@@ -42,7 +42,39 @@
     return { ok: true, backend: data.backend || null, count: layers.length, layers: layers };
   }
 
-  var API = { base: base, setApiBase: setApiBase, spineUrl: spineUrl, fetchSpine: fetchSpine, buildSpineModel: buildSpineModel };
+  // The PUBLIC physics-authority registry: per backend (tier2_numpy/gazebo/chrono/hardware/godot) the
+  // authority scope, mass-conservation, per-lifecycle validity, and the refusal reason. (PH-01, now keyless.)
+  function authorityUrl() { return API_BASE + "/physics/authority"; }
+  function fetchAuthority() {
+    return fetch(authorityUrl()).then(function (r) {
+      if (!r.ok) { throw new Error("physics-authority HTTP " + r.status); }
+      return r.json();
+    });
+  }
+  // Derive the authority TIER from the lifecycle-validity flags (what the backend is trusted to own).
+  function _tier(b) {
+    if (b.valid_for_release || b.valid_for_execute) { return "release authority"; }
+    if (b.valid_for_rehearsal) { return "rehearsal only"; }
+    if (b.valid_for_planning) { return "planning only"; }
+    return "render only";
+  }
+  function buildAuthorityModel(data) {
+    if (!data || data.ok === false) {
+      return { ok: false, error: (data && data.error) || "physics authority unavailable" };
+    }
+    var backends = (data.backends || []).map(function (b) {
+      return {
+        id: b.id, tier: _tier(b), scope: b.authority_scope || [], conserves: !!b.conserves_mass,
+        planning: !!b.valid_for_planning, rehearsal: !!b.valid_for_rehearsal,
+        release: !!b.valid_for_release, execute: !!b.valid_for_execute,
+        refusal: b.refusal_reason || null, desc: b.description || ""
+      };
+    });
+    return { ok: true, count: backends.length, backends: backends };
+  }
+
+  var API = { base: base, setApiBase: setApiBase, spineUrl: spineUrl, fetchSpine: fetchSpine, buildSpineModel: buildSpineModel,
+              authorityUrl: authorityUrl, fetchAuthority: fetchAuthority, buildAuthorityModel: buildAuthorityModel };
   if (typeof module !== "undefined" && module.exports) { module.exports = API; }   // node:test + `import X from`
   if (root) { root.STEWIE_TERRAMECH = API; }                                       // browser (window)
 })(typeof window !== "undefined" ? window : null);
