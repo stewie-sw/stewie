@@ -37,3 +37,33 @@ test("selenographic: meridians + parallels combined", () => {
   assert.strictEqual(s.filter((l) => l.kind === "meridian").length, 12);
   assert.strictEqual(s.filter((l) => l.kind === "parallel").length, 7);
 });
+
+// #60 hardening: bad step / bad reproject must degrade safely, never hang or crash.
+test("#60 _range guard: bad step/bounds degrade to a bounded range, never hang", () => {
+  assert.deepStrictEqual(G._range(0, 10, 2), [0, 2, 4, 6, 8, 10]);   // happy path unchanged
+  assert.ok(G._range(0, 10, 0).length <= 1);          // zero step -> degenerate single point, no infinite loop
+  assert.ok(G._range(0, 10, -1).length <= 1);         // negative step (truthy, slips past ||default) -> degenerate
+  assert.ok(G._range(0, 10, NaN).length <= 1);        // NaN step -> degenerate
+  assert.deepStrictEqual(G._range(NaN, 10, 1), []);   // non-finite bound -> empty
+  assert.ok(G._range(0, 1e12, 1e-6).length <= 100000);  // pathological span/tiny-step -> hard-capped
+});
+
+test("#60 reproject guard: a NaN-returning reproject skips the gridlines (no malformed polyline)", () => {
+  const nanRe = () => [NaN, NaN];
+  assert.strictEqual(G.meridians(nanRe, { lonStep: 30, latMin: -89, latMax: -55 }).length, 0);
+  assert.strictEqual(G.parallels(nanRe, { latStep: 5, latMin: -85, latMax: -55 }).length, 0);
+});
+
+test("#60 reproject guard: a THROWING reproject is caught, not a crash", () => {
+  const throwRe = () => { throw new Error("proj4 boom"); };
+  assert.doesNotThrow(() => G.meridians(throwRe, {}));
+  assert.strictEqual(G.meridians(throwRe, {}).length, 0);
+});
+
+test("#60 reproject guard: a partial-finite reproject keeps only the finite points", () => {
+  const partial = (lon, lat) => (lat >= -70 ? [lon, lat] : [NaN, NaN]);   // finite only for lat >= -70
+  const m = G.meridians(partial, { lonStep: 30, latMin: -89, latMax: -55, latSample: 1 });
+  assert.strictEqual(m.length, 12);                  // still 12 meridians (each keeps >=2 finite pts: -70..-55)
+  assert.ok(m[0].coords.every((p) => isFinite(p[0]) && isFinite(p[1])));   // no NaN points survive
+  assert.ok(m[0].coords[0][1] >= -70);               // the -89..-71 points were dropped
+});
