@@ -804,8 +804,10 @@ def transect_profile(site: str, points, frame: str = "order") -> dict:
                 order_pts.append(latlon_to_order(site, float(p[0]), float(p[1]), _ctx=ctx))
             except ValueError:
                 order_pts.append(None)
-    else:
-        order_pts = [(float(p[0]), float(p[1])) for p in points]
+    else:                                                # council #55 pass3: route a non-finite order coord to None
+        order_pts = [((float(p[0]), float(p[1]))         # (symmetric with the lonlat branch) -- the duplicate col/row
+                      if math.isfinite(float(p[0])) and math.isfinite(float(p[1])) else None)   # math below is
+                     for p in points]                    # unguarded, and round(inf) OverflowErrors -> HTTP 500
     samples = []
     prev = None
     dist = 0.0

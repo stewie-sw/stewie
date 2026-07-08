@@ -107,6 +107,19 @@ def test_point_non_finite_coord_is_out_of_bounds_not_500(client):
     assert all(a["available"] is False for a in r.json()["attributes"])
 
 
+def test_transect_order_non_finite_sample_is_out_of_bounds_not_500(client):
+    # council #55 pass3: a non-finite order coord in a transect must be an honest out-of-bounds row -- the
+    # duplicate cell math round(inf) would OverflowError -> HTTP 500 (the pass-2 point_values finiteness guard
+    # had a twin in transect_profile's order branch). Symmetric with the lonlat out-of-tile handling.
+    # sent as a RAW body -- [1e999] overflows to inf when the server's json.loads parses it; httpx's json= uses
+    # allow_nan=False and refuses to serialize inf in the request, so we bypass it with content=.
+    body = '{"site": "haworth", "frame": "order", "points": [[200.0, 100.0], [1e999, 0.0]]}'
+    r = client.post("/world/transect", content=body, headers={"Content-Type": "application/json"})
+    assert r.status_code == 200, r.text
+    s = r.json()["samples"]
+    assert s[0]["in_bounds"] is True and s[1]["in_bounds"] is False and s[1]["elevation_m"] is None
+
+
 def test_transect_route_400_bad_frame(client):
     r = client.post("/world/transect", json={"site": "haworth", "points": [[0.0, 0.0], [1.0, 1.0]], "frame": "wgs84"})
     assert r.status_code == 400
