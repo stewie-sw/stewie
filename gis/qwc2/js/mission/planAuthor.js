@@ -1957,16 +1957,19 @@ export default class PlanAuthor {
                 this.run.es = es;
                 es.onmessage = (ev) => this._onStreamEvent(ev);
                 es.onerror = () => {
-                    // A normal end-of-stream also fires onerror after the server closes; only surface a real
-                    // failure (no terminal reached yet).
+                    // #58.2: a TRANSIENT blip fires onerror with readyState 0 (CONNECTING) and the browser
+                    // auto-reconnects (resuming via Last-Event-ID) -- do NOT mark the run failed then (that
+                    // flashed a false 'error' mid-run). Only readyState 2 (CLOSED) is terminal: a normal
+                    // end-of-stream (a terminal already arrived) or a real failure before completion.
+                    if (es.readyState !== 2) { return; }   // reconnecting -> wait it out
+                    if (this.run.es === es) { this.run.es = null; }
                     if (!this.run.terminal) {
                         this.run.terminal = 'error'; this.run.running = false;
-                        this.run.lastEvent = 'telemetry stream interrupted';
-                        this._emit();
+                        this.run.lastEvent = 'telemetry stream closed before completion';
+                    } else {
+                        this.run.running = false;
                     }
-                    if (es.readyState === 2 && this.run.es === es) {
-                        this.run.es = null; this.run.running = false; this._emit();
-                    }
+                    this._emit();
                 };
                 this._emit();
                 return res.body;

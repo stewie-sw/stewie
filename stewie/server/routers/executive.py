@@ -23,7 +23,7 @@ import json
 import logging
 import secrets
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -376,7 +376,7 @@ def executive_audit(identity: str = Depends(require_role("operator"))) -> JSONRe
 
 
 @router.get("/executive/run/{run_id}/stream")
-async def executive_run_stream(run_id: str, interval_s: float = 0.6,
+async def executive_run_stream(run_id: str, request: Request, interval_s: float = 0.6,
                                identity: str = Depends(require_role("operator"))):
     """SSE playback: replay a persisted SIM run's FS-04 ExecutionEvent timeline as Server-Sent Events --
     one event per leg + a terminal ``done`` -- paced by ``interval_s`` so the cockpit Execute pane plays
@@ -389,16 +389,28 @@ async def executive_run_stream(run_id: str, interval_s: float = 0.6,
     from lode.sim_execution import execution_events
     events = execution_events(rec)
     interval = max(0.0, min(float(interval_s), 5.0))
+    # #58.2: SSE resume. A reconnecting EventSource sends Last-Event-ID = the last leg id it received; replay
+    # only the legs AFTER it (each event carries `id: <leg>`), so a transient network blip does not re-play the
+    # whole run from leg 0. A non-numeric id ("done" / absent) resumes from the start (harmless -- idempotent).
+    _leid = request.headers.get("last-event-id")
+    try:
+        resume_after = int(_leid)
+    except (TypeError, ValueError):
+        resume_after = -1
 
     async def _gen():
-        for ev in events:
-            yield ("data: " + json.dumps({"kind": ev.kind, "detail": ev.detail, "outcome": ev.outcome,
-                                          "t_s": ev.t_s, "vehicle_id": ev.vehicle_id}) + "\n\n")
+        for i, ev in enumerate(events):
+            if i <= resume_after:
+                continue
+            yield ("id: " + str(i) + "\n"
+                   + "data: " + json.dumps({"kind": ev.kind, "detail": ev.detail, "outcome": ev.outcome,
+                                            "t_s": ev.t_s, "vehicle_id": ev.vehicle_id, "leg": i}) + "\n\n")
             if interval:
                 await asyncio.sleep(interval)
-        yield ("data: " + json.dumps({"done": True, "final_state": rec.get("final_state"),
-                                      "n_legs_total": rec.get("n_legs_total"),
-                                      "safed": rec.get("safed")}) + "\n\n")
+        yield ("id: " + str(len(events)) + "\n"
+               + "data: " + json.dumps({"done": True, "final_state": rec.get("final_state"),
+                                        "n_legs_total": rec.get("n_legs_total"),
+                                        "safed": rec.get("safed")}) + "\n\n")
 
     return StreamingResponse(_gen(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

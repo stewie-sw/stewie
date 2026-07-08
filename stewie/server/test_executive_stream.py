@@ -57,3 +57,19 @@ def test_run_stream_requires_auth(client, monkeypatch):
                          json={"orders": _ORDERS, "site": "haworth"}).json()["run_id"]
     monkeypatch.delenv("STEWIE_DEV_OPEN", raising=False)
     assert client.get(f"/executive/run/{run_id}/stream?interval_s=0").status_code in (401, 403)
+
+
+def test_run_stream_resumes_from_last_event_id(client):
+    """[concurrency council] Each SSE event carries `id: <leg>`, so a reconnecting EventSource (Last-Event-ID)
+    replays only the legs AFTER the one it saw -- a transient blip no longer re-plays the whole run from leg 0."""
+    run_id = client.post("/executive/run", headers=H,
+                         json={"orders": _ORDERS, "site": "haworth"}).json()["run_id"]
+    full = client.get(f"/executive/run/{run_id}/stream?interval_s=0", headers=H).text
+    ids = [ln[4:] for ln in full.splitlines() if ln.startswith("id: ")]
+    assert ids[0] == "0"                                     # legs are id'd from 0
+    assert len(ids) >= 2                                     # >=1 leg + the terminal done
+    resumed = client.get(f"/executive/run/{run_id}/stream?interval_s=0",
+                         headers={**H, "Last-Event-ID": "0"}).text
+    resumed_ids = [ln[4:] for ln in resumed.splitlines() if ln.startswith("id: ")]
+    assert "0" not in resumed_ids                            # the already-seen leg is skipped
+    assert len(resumed_ids) == len(ids) - 1                  # exactly one fewer event (leg 0 dropped)
