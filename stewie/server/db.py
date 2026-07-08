@@ -219,7 +219,8 @@ async def _ensure_ready() -> async_sessionmaker[AsyncSession]:
                     await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {_SCHEMA}"))
                 await conn.run_sync(Base.metadata.create_all)
             _ready = True
-        assert _sessionmaker is not None
+        if _sessionmaker is None:   # set in the block above; an explicit raise, never a bare assert (CT-06:
+            raise RuntimeError("edit-session store: sessionmaker was not initialized")  # -O strips asserts)
         return _sessionmaker
 
 

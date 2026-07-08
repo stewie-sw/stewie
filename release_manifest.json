@@ -92,7 +92,7 @@
     "v_done_uncited": []
   },
   "sbom": {
-    "component_count": 52,
+    "component_count": 56,
     "source": "scripts.gen_sbom.parse_lock (CycloneDX via scripts/gen_sbom.py)",
     "source_lock": "requirements-dev.lock",
     "spec_version": "1.5"
