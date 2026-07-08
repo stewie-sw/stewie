@@ -77,6 +77,7 @@ import MissionPlanPlugin from './plugins/MissionPlan';   // STEWIE: mission-auth
 import MissionProgramPlugin from './plugins/MissionProgram';   // STEWIE: PRD §7 program board (GIS-workbench default)
 import SelectionInspectorPlugin from './plugins/SelectionInspector';   // STEWIE: [REQ:GW-07] per-cell selection inspector
 import MissionTerramechPlugin from './plugins/MissionTerramech';   // STEWIE: Analyze▸Terramechanics spine inspector
+import MissionRuntimePlugin from './plugins/MissionRuntime';   // STEWIE: [REQ:RT-01] runtime-context rail (profiles + authority)
 import SiteZoomPlugin from './plugins/SiteZoom';   // STEWIE: click-a-site-to-zoom on the main map (WholeMoon dive)
 import WholeMoonPlugin from './plugins/WholeMoon';   // STEWIE: whole-Moon 3D overview (both hemispheres) + dive-to-site
 import GraticulePlugin from './plugins/Graticule';   // STEWIE: [REQ:#40] lunar graticule (lon/lat + polar km grid) map button
@@ -181,6 +182,7 @@ export default {
             WholeMoonPlugin: WholeMoonPlugin,   // STEWIE: whole-Moon 3D overview + dive-to-site
             GraticulePlugin: GraticulePlugin,   // STEWIE: [REQ:#40] lunar graticule map button
             MissionTerramechPlugin: MissionTerramechPlugin,   // STEWIE: Analyze▸Terramechanics spine inspector
+            MissionRuntimePlugin: MissionRuntimePlugin,   // STEWIE: [REQ:RT-01] runtime-context rail
         },
         cfg: {
             IdentifyPlugin: {

@@ -316,6 +316,9 @@
         "name": "MissionTerramech"
       },
       {
+        "name": "MissionRuntime"
+      },
+      {
         "name": "MissionLayers"
       },
       {
@@ -376,7 +379,8 @@
               {"key": "MissionHUD", "title": "Rover HUD", "icon": "routing-car"},
               {"key": "MissionEngPanel", "title": "Eng Panel", "icon": "plot_info"},
               {"key": "MissionAssets", "title": "Asset Library", "icon": "folder"},
-              {"key": "MissionEvidence", "title": "Evidence / Report", "icon": "info"}
+              {"key": "MissionEvidence", "title": "Evidence / Report", "icon": "info"},
+              {"key": "MissionRuntime", "title": "Runtime Context", "icon": "cog"}
             ]},
             {"key": "SecProgram", "title": "Program & Output", "icon": "list-alt", "subitems": [
               {"key": "MissionProgram", "title": "Program", "icon": "list-alt"},
