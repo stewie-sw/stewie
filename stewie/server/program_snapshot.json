@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "4cfdddd995bd627c3c6c74537fe412c5af8646b64f3f2b2fa149046bfb3537f4",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "039846ee2e5721c480be30d551a8531c5e0d8b2b",
-  "prd_sha256": "87e1652713003cfc8388671a32b93f35fa6fe6aac9091515b9ecf60edb4c6afc",
+  "prd_commit": "5dc999f7bfe3d1789f63ef86682b4a107bf56d70",
+  "prd_sha256": "35660ea665aed011e43a12461f9f623b5768bd5a7e54f3537efa59ce91bea5d3",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -2751,7 +2751,7 @@
    "id": "GL-01",
    "lane": "GL",
    "pri": "P0",
-   "text": "2D MapLibre/deck workbench renders the selected site DEM + FR-10 layers in the local order frame; control points round-trip through `/dem/site_xy` + `/dem/site_lonlat` within tolerance; no WGS84/Earth claim on lunar coordinates."
+   "text": "2D map workbench renders the selected site DEM + FR-10 layers in the local order frame; control points round-trip /dem/site_xy + /dem/site_lonlat within tolerance; no WGS84/Earth claim on lunar coords. FRAMING: shipped as QWC2/OpenLayers at /ide (QW-01/GW-05), NOT the originally-scoped MapLibre/deck lane, which was never adopted."
   },
   {
    "I": "N",
@@ -2768,7 +2768,7 @@
    "id": "GL-02",
    "lane": "GL",
    "pri": "P1",
-   "text": "Map identify/measure/edit sessions operate on deck layers and write mission edits ONLY through backend routes; a keep-out drawn on the map appears in the mission request and routes around it."
+   "text": "Map identify/measure/edit sessions operate on the map's vector layers and write mission edits ONLY through backend routes; a keep-out drawn on the map appears in the mission request and routes around it. FRAMING: shipped as QWC2/OpenLayers (not deck); the keep-out->routes-around behavior shipped as GW-08."
   },
   {
    "I": "D",
@@ -2840,7 +2840,7 @@
    "id": "GW-05",
    "lane": "GW",
    "pri": "P0",
-   "text": "**GIS map substrate.** MapLibre/GeoLibre in the LOCAL south-polar-stereographic frame renders NASA Trek raster tiles + local LOLA terrain-RGB (`heightmap.rf32`, full 5 m native \u2014 not a downscaled preview); control points round-trip `/dem/site_xy` + `/dem/site_lonlat` within tolerance; no WGS84/Earth claim on lunar coordinates. (extends GL-01; needs GW-00)"
+   "text": "**GIS map substrate.** The QWC2/OpenLayers map in the LOCAL south-polar-stereographic frame (IAU_2015:30135) renders NASA Trek raster tiles + local LOLA terrain-RGB (heightmap.rf32, full 5 m native, not a downscaled preview); control points round-trip /dem/site_xy + /dem/site_lonlat within tolerance; no WGS84/Earth claim on lunar coords. (realized at /ide by QW-01; the MapLibre/GeoLibre lane was never adopted; needs GW-00)"
   },
   {
    "I": "D",
@@ -2978,7 +2978,7 @@
    "id": "MG-01",
    "lane": "MG",
    "pri": "P0",
-   "text": "The vanilla cockpit stays served + deployable until React parity gates pass (`/app` vanilla, `/app2` React); its smoke tests keep passing throughout the migration."
+   "text": "The vanilla cockpit at /app stays served + deployable and its smoke tests keep passing. FRAMING/RETIRED: the /app->/app2 React migration this row governs was never adopted -- there is no /app2. Real topology: / (OpenLayers viewer) + /ide (QWC2 workbench = the product front door) + frontend/ (React cockpit, a separate surface)."
   },
   {
    "I": "N",
@@ -2995,7 +2995,7 @@
    "id": "MG-02",
    "lane": "MG",
    "pri": "P0",
-   "text": "No pane is flipped vanilla to React without signed-in Playwright parity + fixtures + mobile fit + route-registry coverage + a rollback route."
+   "text": "RETIRED: the per-pane vanilla->React flip-with-parity-gates this row governs was never adopted (no /app2). The product front door is the QWC2 /ide (b833069); the React frontend/ cockpit is a separate surface, not a pane-by-pane flip of the vanilla cockpit."
   },
   {
    "I": "N",
@@ -3012,7 +3012,7 @@
    "id": "MG-03",
    "lane": "MG",
    "pri": "P2",
-   "text": "Vanilla-cockpit retirement: `/app` flips to React only after the full signed-in Playwright suite passes desktop+mobile, the backend suite stays green, route coverage is 100% for pane-backed routes, and Cesium is removed from the active surface."
+   "text": "RETIRED: the /app-flips-to-React cockpit-retirement plan this row describes was never adopted (no /app2). Real topology: / OL viewer + /ide QWC2 + frontend/ React. Cockpit consolidation now lives in the ConOps /ide menu (b833069) + the operational-OS reframe (WS-*/TP-*, task #64)."
   },
   {
    "I": "D",
@@ -3355,7 +3355,7 @@
    "id": "MP-12",
    "lane": "MP",
    "pri": "P2",
-   "text": "The 10 planning UI panels: Mission Graph / Map-3D / Capability Board / Physics / Timeline / Resource / Rehearsal / Risk / Execution / Reconcile, each rendering its planning object from the API. Acceptance: each panel renders its object; frontend (GeoLibre rewrite lane)."
+   "text": "The 10 planning UI panels (Mission Graph / Map-3D / Capability Board / Physics / Timeline / Resource / Rehearsal / Risk / Execution / Reconcile), each rendering its planning object from the API. FRAMING: NOT the GeoLibre rewrite lane (never adopted); these panels land in the QWC2 /ide + the operational-OS console rows WS-01/02/04/05 + TP-01..04 -- cross-ref those."
   },
   {
    "I": "N",
@@ -5170,7 +5170,7 @@
    "id": "TT-01",
    "lane": "TT",
    "pri": "P2",
-   "text": "**TiTiler raster serving.** A TiTiler dynamic-COG tiler serves site DEM/imagery raster tiles on demand as an alternative to QGIS-Server WMS; a tile request returns a correct lunar-frame tile within tolerance; adopt-vs-keep-WMS is a recorded decision. (extends GW-05/FR-12)"
+   "text": "**TiTiler raster serving (alternative, not adopted).** A TiTiler dynamic-COG tiler would serve site DEM/imagery raster tiles on demand as an ALTERNATIVE to the DEPLOYED QGIS-Server WMS (QG-02, deploy/compose.yml:251); a tile request returns a correct lunar-frame tile within tolerance; adopt-vs-keep-WMS is a recorded decision (WMS is the incumbent). (extends GW-05/FR-12)"
   },
   {
    "I": "N",
