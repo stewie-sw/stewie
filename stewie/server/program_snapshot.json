@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "4cfdddd995bd627c3c6c74537fe412c5af8646b64f3f2b2fa149046bfb3537f4",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "9c995eb08965731206ffaff40c2aa01f4f47faf0",
-  "prd_sha256": "73fbc5d344e1e2a6e5dccb2f0c99b43d9f243d72de58d311bcbe122de6a3783c",
+  "prd_commit": "a3b2ccd917d59659d838e87081299330ccf0df00",
+  "prd_sha256": "167ebe6c26ee524a843975169f63cdfb58aa59c749d1a8f130aad5346104cf34",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -993,6 +993,18 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "BR-02",
+   "lane": "BR",
+   "pri": "P1",
+   "text": "Mission-snapshot versioning as the branchable replay/ML unit (Moon->Mission 000->001->...->N): a completed mission writes an immutable snapshot to a lineage; a snapshot replays deterministically and is selectable as a branch parent for what-if/retrain (no mission_snapshot producer exists today). (extends BR-01/EG-03)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
    "brief": {
     "goal": "platform-restructure backlog row CF-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
@@ -1332,6 +1344,18 @@
    "lane": "DT",
    "pri": "P1",
    "text": "**/world is the authoritative rich world descriptor (review finding 6).** `GET /world` returns geometry PLUS observed/mutated enrichment, provenance, and freshness \u2014 not geometry/defaults with enrichment deferred (`world.py:1,29`). A consumer cannot mistake an incomplete descriptor for the full world model: the payload declares its completeness/enrichment state explicitly. Acceptance: `/world` after a mutation reflects the observed enrichment (or explicitly flags it absent), verified against `/world/terrain_view` provenance. Buildable on archimedes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DT-06",
+   "lane": "DT",
+   "pri": "P1",
+   "text": "Twin dirty-read consistency under concurrent resync: a /world read concurrent with a /resync write returns one consistent (mask, heights, version) triple, never a torn read mixing pre-/post-resync state. (extends DT-03) [SHIPPED: stewie/server/state.py _RESYNC_LOCK]"
   },
   {
    "I": "N",
@@ -1787,6 +1811,18 @@
    "lane": "FL",
    "pri": "P1",
    "text": "Solar/Meerkat observation sites are reservable fleet resources so rovers do not occlude or collide during raised observations. `[PROPOSED]`"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FL-08",
+   "lane": "FL",
+   "pri": "P1",
+   "text": "A Fleet SCADA supervisor dashboard shows per-rover live status/battery/drum-fill(bucket)/health/ETA from real PlanResult/runtime telemetry; a test asserts each rover row binds real per-vehicle state (no global-inventory fallback). (extends FL-04/PO-11)"
   },
   {
    "I": "D",
@@ -2626,6 +2662,30 @@
    "text": "**Cockpit ConOps de-duplication (2026-07-02 UI review, Screenshot_20260702_131756).** The top tab bar and the mission-pipeline `#stepper` both rendered Rehearse/Validate/Release/Execute/Report -- two stacked rows of the same phase labels. `#stepper` is reduced to the PLAN micro-wizard (Site->Fleet->Orders->Solve, the sub-steps that exist nowhere else) + a single \"-> Rehearse\" hand-off cue; the downstream phases' done/current progress rides as a dot ON each phase tab (`renderStepper` PHASE_TAB). Acceptance: `#stepper` carries no downstream-phase chip, each phase tab carries a progress dot, and the ui-smoke + a [REQ:FS-30] gate pin it. Buildable on archimedes."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-31",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "Execute-and-watch mission SSE stream + resume: GET /executive/run/{id}/stream emits text/event-stream legs each carrying id: <leg>; a reconnecting EventSource sending Last-Event-ID replays ONLY legs after that id. [SHIPPED: stewie/server/routers/executive.py:378 + #58.2]"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "FS-32",
+   "lane": "FS",
+   "pri": "P1",
+   "text": "A RESEARCH/OPERATE/TRAIN persona-lens as a routeable+persisted field over ONE world model: switching re-foregrounds researcher/operator/ML-engineer control clusters WITHOUT changing selected mission/world/authority; a shared link restores the lens; a test asserts the lens changes foregrounded panels but not world/authority state. (extends FS-25/FR-01 + EG-04)"
+  },
+  {
    "I": "D",
    "Q": "N",
    "V": "D",
@@ -2723,6 +2783,18 @@
    "text": "**Prerequisite \u2014 Trek imagery + web-panel CSP allowlist.** `deploy/nginx.conf` + backend CSP allow `trek.nasa.gov` (and rosbridge/foxglove origins) so GeoLibre streams real NASA Trek tiles and RViz/Godot web panels load; a test asserts the CSP header lists the allowed hosts. Blocks GW-05, RT-04."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-01",
+   "lane": "GW",
+   "pri": "P1",
+   "text": "1 m LROC NAC regional imagery: a site NAC drape (0.5-2 m) loads as a Trek-WMTS/COG layer in the local polar-stereographic frame, registered to the LOLA DEM within tolerance; whole-moon basemap stays WAC/Kaguya. (extends GW-05; task #47)"
+  },
+  {
    "I": "D",
    "Q": "NA",
    "V": "D",
@@ -2811,6 +2883,30 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-09",
+   "lane": "GW",
+   "pri": "P2",
+   "text": "A dual-mode planning graticule (selenographic lon/lat densely sampled + reprojected so it curves in polar-stereographic, plus a straight metric km-grid with labels) overlays the lunar map given an injected reproject(lon,lat)->[x,y]; a node test asserts gridline + label generation. (extends GW-05) [SHIPPED: gis/qwc2/js/mission/graticule.js + graticule.test.js]"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-10",
+   "lane": "GW",
+   "pri": "P1",
+   "text": "A per-component monotonic request guard drops a stale in-flight response so a slow site-A load resolving after a switch to site-B cannot overwrite B's raster/physics/inspector state. (hardens GW-02) [SHIPPED: gis/qwc2/js/mission/reqGuard.js + reqGuard.test.js]"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
    "bucket": "gated",
    "cited": false,
    "gated_reason": "deck-forward roadmap (\u00a77.E; learned-ML, design-gated)",
@@ -2842,6 +2938,30 @@
    "lane": "LY",
    "pri": "P1",
    "text": "**Layer-consumption inspector.** For a selected layer, show where it is consumed: display / planner / costmap / rehearsal / release / execute / report / export."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "LY-03",
+   "lane": "LY",
+   "pri": "P1",
+   "text": "User-created/imported layers with an Earth-CRS reject gate: an imported GeoJSON declaring an Earth CRS (EPSG:4326/3857/CRS84/WGS84) is rejected with a legible reason before it touches the map or is promoted planning-eligible; a valid lunar-frame (IAU_2015:30135/30100) layer is accepted. (extends LY-01) [SHIPPED: gis/qwc2/js/mission/userLayers.js + userLayers.test.js]"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "LY-04",
+   "lane": "LY",
+   "pri": "P1",
+   "text": "The missing layer kinds (ice-probability, localization-confidence, sensor-coverage, digital-twin-difference) each register in the LY-01 catalog with a REAL backend producer + provenance/eligibility, or are explicitly marked unavailable (no fabricated drape); a test asserts each is typed+registered or explicitly absent. (extends LY-01)"
   },
   {
    "I": "N",
@@ -3236,6 +3356,18 @@
    "lane": "MP",
    "pri": "P2",
    "text": "The 10 planning UI panels: Mission Graph / Map-3D / Capability Board / Physics / Timeline / Resource / Rehearsal / Risk / Execution / Reconcile, each rendering its planning object from the API. Acceptance: each panel renders its object; frontend (GeoLibre rewrite lane)."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "MP-13",
+   "lane": "MP",
+   "pri": "P2",
+   "text": "Simulation failure-injection / stress-test: a REHEARSAL-mode run accepts a declared scenario (night-ops/comm-loss/wheel-or-sensor-failure/dust), runs mode-gated without touching live/accepted world (EG-02), and produces the fault classification + plan response; a test drives each injection and asserts the executive's defined response fires. (extends MP-10/NV-08/EG-11)"
   },
   {
    "I": "P",
@@ -4221,6 +4353,54 @@
    "text": "**Quantized shared backbone.** A single quantized shared vision backbone feeds the onboard perception heads (rock/depth/hazard/VO) within the ML-09 edge envelope; acceptance measures shared-backbone RAM/latency on the named compute profile and asserts head outputs match the separate-model baseline. (governed by FS-12/RL-01)"
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "QG-01",
+   "lane": "QG",
+   "pri": "P2",
+   "text": "A STEWIE QGIS Processing provider registers the STEWIE analyses (StewieTerramechanics/StewieSamplePoint) as Processing algorithms runnable from the QGIS GUI, qgis_process CLI, batch, and Models over the public backend; the QGIS-free stewie_backend fetch+parse is unit-tested in CI with no qgis.* in the test path. [SHIPPED: stewie_qgis/, test_stewie_backend.py]"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "QG-02",
+   "lane": "QG",
+   "pri": "P1",
+   "text": "QGIS-Server publishes the shared-core .qgz as OGC WMS/WMTS/WFS (one project, two clients): a --profile gis GetMap on a site in IAU_2015:30135 returns a pole-truthful tile matching QGIS Desktop. [SHIPPED: gis/stewie_south_pole.qgz + deploy/compose.yml:251 P1.8]"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "QG-03",
+   "lane": "QG",
+   "pri": "P1",
+   "text": "QGIS Desktop authoring/analysis workbench over the SAME FastAPI/PostGIS backend as the web IDE: thematic .qgz templates open the STEWIE layer catalog from the backend; a Model Builder model chains >=3 STEWIE Processing algorithms and reruns headless via qgis_process with identical params; selecting a mission Analysis Profile filters the toolbox to that profile's algorithms."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "QW-01",
+   "lane": "QW",
+   "pri": "P0",
+   "text": "The served /ide/ front door is a QWC2 (qwc2-demo-app) SPA whose appConfig registers the STEWIE Mission* plugins over an OpenLayers map; a signed-in browser smoke opens each Mission* plugin at desktop+phone widths with zero blocking console errors. [SHIPPED: gis/qwc2/js/appConfig.js, deployed read-only from gis/qwc2/prod, deploy/compose.yml:294]"
+  },
+  {
    "I": "D",
    "Q": "NA",
    "V": "D",
@@ -4542,6 +4722,30 @@
    "lane": "SD",
    "pri": "P1",
    "text": "**Surface Design view.** [REQ:SD-01] Pads/berms/trenches/cuts/fills/roads/stockpiles/sinter \u2192 typed mission orders with volume/mass/bearing/sinkage/constructability evidence; volume/mass estimates show DEM resolution, material assumption, and uncertainty; a before/after terrain transaction influences the next plan."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "SD-02",
+   "lane": "SD",
+   "pri": "P1",
+   "text": "Cut/fill material-balance: for cut+fill orders materialBalance returns bank cut volume, loose spoil (RHO_DEEP->RHO_SPOIL bulking), compacted fill demand, and net borrow/spoil in kg with mass conserved (cut-only => net spoil, fill-only => net borrow). (extends SD-01) [SHIPPED: gis/qwc2/js/mission/planTools.js + planTools.test.js; densities moon-hardcoded, body-aware is task #62]"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "SD-03",
+   "lane": "SD",
+   "pri": "P2",
+   "text": "Resource-exploration cross-section: a drawn transect returns an elevation profile with PSR/ice-stability + regolith/bearing draped along it, each value traced to its source layer + uncertainty. (extends SD-01; task #45)"
   },
   {
    "I": "D",
@@ -4898,6 +5102,54 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TP-01",
+   "lane": "TP",
+   "pri": "P1",
+   "text": "A Mission Tasks palette leads with work-packages (LandingPad/HaulRoad/Berm/...) grouped into 6 functional groups (Earthworks/Transportation/Construction/Survey/Science/Fleet), two-level (Primitive Ops + Templates); selecting a work-package emits a typed order that decomposes to mass-balanced cut/fill via SD-01; Playwright asserts the 6 groups render and a template selection produces a decomposed order. (extends SD-01/CP-04; task #64)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TP-02",
+   "lane": "TP",
+   "pri": "P1",
+   "text": "An intelligent template wizard: selecting e.g. Landing Pad collects (Length/Width/Bearing/Finish/Flatness/Elevation/Material/Priority), computes cut+fill polygons+equipment+routes+time+energy+risk, and expands to the Survey->Excavate->Move->Grade->Compact->Inspect->Approve work order; a test asserts a parameterized template yields the expected mass-balanced volumes + ordered steps. (distinct from FS-30 plan wizard)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TP-03",
+   "lane": "TP",
+   "pri": "P2",
+   "text": "A context-aware palette: available tools filter to the SELECTED vehicle's capabilities from the real VehicleModel registry AND to a selected existing feature's type/state (a berm -> Inspect/Extend/Repair/Remove/Compact/Survey); a test asserts an Excavator exposes Dig/Dump/Compact/Grade (a Survey rover does not) and selecting a berm yields its action set. (extends VT-01)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TP-04",
+   "lane": "TP",
+   "pri": "P2",
+   "text": "An object palette writes an expanded place-object vocabulary (Beacon/Instrument/Sample/Antenna/Habitat/PowerStation/Relay/Charger/StorageBin/ProcessingPlant/NavMarker) as durable first-class world objects in the versioned twin (survive reload, carry provenance); a test asserts a placed object round-trips through the twin store."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
    "bucket": "gated",
    "cited": false,
    "gated_reason": "deck-forward roadmap (\u00a77.E; design-gated)",
@@ -5089,6 +5341,18 @@
    "text": "Traversal-compaction \"traffic\" layer (the multipass effect): accumulate per-cell rover-pass count + compaction + accumulated shear into the conserved twin; surface as FR-10 `traffic`/`compaction_state`/`shear_state` world layers with a traffic-color heat viz; add a costmap term that PREFERS established firm-compacted haul roads (lower sinkage) and AVOIDS over-sheared/rutted cells \u2014 emergent lunar haul-road / civil-infrastructure mapping from traversal history. Design: `docs/traversal_compaction_layer_2026-07-03.md`. `[PROPOSED]`"
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TW-12",
+   "lane": "TW",
+   "pri": "P1",
+   "text": "A viewshed/LOS layer producer fills terrain.los: an r.viewshed-class viewshed from the site DEM + a localization anchor writes the terrain.los raster that SN-05's visibility term consumes (today SN-05 marches dart.visibility.is_visible per-route with no terrain.los producer). (extends SN-05)"
+  },
+  {
    "I": "D",
    "Q": "P",
    "V": "D",
@@ -5218,12 +5482,60 @@
    "lane": "VT",
    "pri": "P1",
    "text": "Posture-dependent camera extrinsics are derived from vehicle and arm state for every image."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "WS-01",
+   "lane": "WS",
+   "pri": "P1",
+   "text": "A permanent top World-State header strip on every IDE screen shows mission, twin-sync, terrain-version, changed-since-last-mission, confidence, learning-dataset-size, pending-validation, sourced from /twin/version + DT-05 observed-fraction + mission-time; the 2 new counters bind real endpoints or are marked unavailable (no fabricated count); a test asserts the fields render with real values. (extends DT-05)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "WS-02",
+   "lane": "WS",
+   "pri": "P1",
+   "text": "A Digital-Twin Health panel shows per-model agreement/trust (localization/map-agreement/terrain/wheel/battery/excavation) computed from real predicted-vs-observed telemetry (TM-04) or explicitly flagged not-yet-surfaced; a test asserts each shown percent traces to a real computation (no fabricated value). (wires TM-04)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "WS-04",
+   "lane": "WS",
+   "pri": "P1",
+   "text": "A Learning-lifecycle panel lists collect-experience -> generate-dataset -> retrain(traversability/slip/energy) -> evaluate-policy from REAL roversim RL-stack artifacts (no synthetic), and blocks any policy from an operational label until it carries the RL-01 card; a test asserts real lineage renders and an RL-01-incomplete policy is blocked. (UI complement to CR-01 + RL-01)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "WS-05",
+   "lane": "WS",
+   "pri": "P1",
+   "text": "A future-comparison tradeoff card renders >=2 candidate futures side-by-side (kWh/hours/slip/recharge/completion) bound to real lode.resync.forward_compare / FL-06 output; a test asserts the card binds real forward-compare rows (no synthetic). (surfaces FL-06)"
   }
  ],
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 71,
+   "buildable": 97,
    "concurrent": 0,
    "done": 254,
    "gated": 29
@@ -5267,7 +5579,7 @@
    },
    "BR": {
     "done": 0,
-    "total": 1
+    "total": 2
    },
    "CF": {
     "done": 0,
@@ -5295,7 +5607,7 @@
    },
    "DT": {
     "done": 5,
-    "total": 5
+    "total": 6
    },
    "DW": {
     "done": 0,
@@ -5315,7 +5627,7 @@
    },
    "FL": {
     "done": 6,
-    "total": 7
+    "total": 8
    },
    "FR": {
     "done": 14,
@@ -5323,7 +5635,7 @@
    },
    "FS": {
     "done": 23,
-    "total": 30
+    "total": 32
    },
    "GI": {
     "done": 2,
@@ -5335,7 +5647,7 @@
    },
    "GW": {
     "done": 6,
-    "total": 8
+    "total": 11
    },
    "HF": {
     "done": 0,
@@ -5343,7 +5655,7 @@
    },
    "LY": {
     "done": 2,
-    "total": 2
+    "total": 4
    },
    "MG": {
     "done": 1,
@@ -5363,7 +5675,7 @@
    },
    "MP": {
     "done": 7,
-    "total": 8
+    "total": 9
    },
    "MT": {
     "done": 2,
@@ -5405,6 +5717,14 @@
     "done": 0,
     "total": 1
    },
+   "QG": {
+    "done": 0,
+    "total": 3
+   },
+   "QW": {
+    "done": 0,
+    "total": 1
+   },
    "RF": {
     "done": 3,
     "total": 3
@@ -5431,7 +5751,7 @@
    },
    "SD": {
     "done": 1,
-    "total": 1
+    "total": 3
    },
    "SE": {
     "done": 2,
@@ -5461,6 +5781,10 @@
     "done": 3,
     "total": 4
    },
+   "TP": {
+    "done": 0,
+    "total": 4
+   },
    "TS": {
     "done": 0,
     "total": 1
@@ -5475,25 +5799,29 @@
    },
    "TW": {
     "done": 8,
-    "total": 11
+    "total": 12
    },
    "VT": {
     "done": 9,
     "total": 10
+   },
+   "WS": {
+    "done": 0,
+    "total": 4
    }
   },
   "by_priority": {
    "P0": {
     "done": 107,
-    "total": 116
+    "total": 117
    },
    "P1": {
     "done": 143,
-    "total": 191
+    "total": 210
    },
    "P2": {
     "done": 4,
-    "total": 45
+    "total": 51
    },
    "P3": {
     "done": 0,
@@ -5501,10 +5829,10 @@
    }
   },
   "cited": 275,
-  "done_pct": 71.8,
-  "in_scope": 325,
-  "in_scope_done_pct": 78.2,
-  "total": 354
+  "done_pct": 66.8,
+  "in_scope": 351,
+  "in_scope_done_pct": 72.4,
+  "total": 380
  },
  "workflow_spine": [
   "Plan",

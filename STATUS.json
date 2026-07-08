@@ -74,7 +74,7 @@
     },
     "BR": {
       "cited": 0,
-      "total": 1
+      "total": 2
     },
     "CF": {
       "cited": 0,
@@ -102,7 +102,7 @@
     },
     "DT": {
       "cited": 5,
-      "total": 5
+      "total": 6
     },
     "DW": {
       "cited": 0,
@@ -122,7 +122,7 @@
     },
     "FL": {
       "cited": 7,
-      "total": 7
+      "total": 8
     },
     "FR": {
       "cited": 14,
@@ -130,7 +130,7 @@
     },
     "FS": {
       "cited": 28,
-      "total": 30
+      "total": 32
     },
     "GI": {
       "cited": 3,
@@ -142,7 +142,7 @@
     },
     "GW": {
       "cited": 7,
-      "total": 8
+      "total": 11
     },
     "HF": {
       "cited": 0,
@@ -150,7 +150,7 @@
     },
     "LY": {
       "cited": 2,
-      "total": 2
+      "total": 4
     },
     "MG": {
       "cited": 1,
@@ -170,7 +170,7 @@
     },
     "MP": {
       "cited": 7,
-      "total": 8
+      "total": 9
     },
     "MT": {
       "cited": 3,
@@ -212,6 +212,14 @@
       "cited": 0,
       "total": 1
     },
+    "QG": {
+      "cited": 0,
+      "total": 3
+    },
+    "QW": {
+      "cited": 0,
+      "total": 1
+    },
     "RF": {
       "cited": 3,
       "total": 3
@@ -238,7 +246,7 @@
     },
     "SD": {
       "cited": 1,
-      "total": 1
+      "total": 3
     },
     "SE": {
       "cited": 2,
@@ -268,6 +276,10 @@
       "cited": 3,
       "total": 4
     },
+    "TP": {
+      "cited": 0,
+      "total": 4
+    },
     "TS": {
       "cited": 0,
       "total": 1
@@ -282,14 +294,18 @@
     },
     "TW": {
       "cited": 9,
-      "total": 11
+      "total": 12
     },
     "VT": {
       "cited": 9,
       "total": 10
+    },
+    "WS": {
+      "cited": 0,
+      "total": 4
     }
   },
-  "total": 354,
+  "total": 380,
   "unknown_markers": [],
   "v_done_uncited": [],
   "v_ne_d_flagged": [
