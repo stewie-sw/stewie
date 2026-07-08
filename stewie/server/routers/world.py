@@ -14,6 +14,7 @@ from dataclasses import asdict
 import numpy as np
 from fastapi import APIRouter, Depends, Response
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict
 
 from stewie.contracts import WorldState
 from stewie.server import state as S
@@ -330,6 +331,31 @@ def world_point(site: str = "haworth", x: float | None = None, y: float | None =
             return JSONResponse(status_code=503, content={"ok": False, "error": f"DEM/pyproj absent: {e}"})
     try:
         return GL.point_values(site, float(x), float(y))
+    except (KeyError, FileNotFoundError) as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    except (ImportError, ValueError) as e:
+        return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
+
+
+class PointsReq(BaseModel):
+    """[REQ:GW-07] Batch point-query body: one site, up to 512 order-frame (x, y) [m] cells (a transect)."""
+    model_config = ConfigDict(extra="forbid")
+    site: str = "haworth"
+    points: list[tuple[float, float]]
+
+
+@router.post("/world/points")
+def world_points(req: PointsReq):   # public read (batch per-cell map data, exactly like /world/point)
+    """[REQ:GW-07] Batch of /world/point on ONE site -- the #45 cross-section / transect reader. Resolves the
+    site DEM + composes the CurrentTerrainView ONCE for the whole batch (vs once per point), returning per-cell
+    values BYTE-IDENTICAL to N /world/point calls (the per-cell terramechanics LUT stays per-patch). Capped at
+    512 points (413 over). Public, like /world/point. 404 if the site DEM bundle is absent."""
+    from stewie.server import gis_layers as GL
+    if len(req.points) > 512:
+        return JSONResponse(status_code=413,
+                            content={"ok": False, "error": "too many points (max 512 per batch)"})
+    try:
+        return {"ok": True, "site": req.site, "points": GL.points_values(req.site, req.points)}
     except (KeyError, FileNotFoundError) as e:
         return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
     except (ImportError, ValueError) as e:

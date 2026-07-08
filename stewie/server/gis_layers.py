@@ -588,21 +588,31 @@ _POINT_NODATA = {
 }
 
 
-def point_values(site: str, x_m: float, y_m: float) -> dict:
+def _point_setup(site: str) -> dict:
+    """#59: the per-SITE invariant part of point_values -- resolve the DEM + compose the CurrentTerrainView
+    ONCE. points_values() shares one ctx across a whole batch of cells (a cross-section) instead of redoing the
+    DEM resolve + the 2000x2000 terrain-view compose per point. Raises KeyError/FileNotFoundError for an
+    unknown/absent site (the route -> 404), exactly as the inline resolve did."""
+    from stewie.server import state
+    dem, origin = state.moon_dem(site)
+    if dem is None:
+        raise FileNotFoundError(f"no DEM bundle for site {site!r}")
+    Z, cell = dem
+    return {"Z": np.asarray(Z), "cell": cell, "origin": origin,   # Z native; the 97x97 patch is upcast per-cell
+            "view": state.current_terrain_view(site, dem, origin)}
+
+
+def point_values(site: str, x_m: float, y_m: float, *, _ctx: dict | None = None) -> dict:
     """[REQ:GW-07] Resolve an order-frame (x, y) [m] on ``site`` to its DEM cell and return the servable
     layers' per-cell values + the cell's runtime evidence. Reuses the drape field functions so the reading
     matches the map. Raises KeyError/FileNotFoundError for an unknown/unimported site (the route -> 404).
     An out-of-tile click returns cell.in_bounds=False and every attribute available=False (honest no-data).
     """
-    from stewie.server import state
     from stewie.terrain.site_dem import slope_deg_map
 
-    dem, origin = state.moon_dem(site)
-    if dem is None:
-        raise FileNotFoundError(f"no DEM bundle for site {site!r}")
-    Z, cell = dem
-    Z = np.asarray(Z)                        # #59: keep native dtype; only the 97x97 patch is upcast to
-    ox, oy = float(origin[0]), float(origin[1])   # float64 below (was: upcasting the whole 2000x2000 DEM per call)
+    ctx = _ctx if _ctx is not None else _point_setup(site)   # #59: shared once-per-batch by points_values()
+    Z, cell, origin, view = ctx["Z"], ctx["cell"], ctx["origin"], ctx["view"]
+    ox, oy = float(origin[0]), float(origin[1])   # Z stays native; only the 97x97 patch is upcast to float64 below
     height, width = Z.shape
     col = int(round((ox + float(x_m)) / cell))
     row = int(round((oy + float(y_m)) / cell))
@@ -688,7 +698,7 @@ def point_values(site: str, x_m: float, y_m: float) -> dict:
             attributes.append(_attr(lid, lab, unit, note=_POINT_NODATA.get(lid, "no per-cell value")))
 
     # runtime evidence: the composed CurrentTerrainView's per-cell provenance (as-built / observed) at the cell.
-    view = state.current_terrain_view(site, dem, origin)
+    # 'view' is the CurrentTerrainView composed once in _point_setup (shared across a points_values batch)
     if view is not None:
         src = int(np.asarray(view.source)[row, col])
         src_label = {0: "pristine", 1: "as_built", 2: "observed"}.get(src, "pristine")
@@ -702,6 +712,15 @@ def point_values(site: str, x_m: float, y_m: float) -> dict:
 
     return {**meta, "attributes": attributes, "runtime_evidence": runtime,
             "actions": _point_actions(in_bounds=True, passable=passable)}
+
+
+def points_values(site: str, coords) -> list:
+    """[REQ:GW-07] Batch of point_values on ONE site (the #45 cross-section transect): resolve the DEM +
+    compose the CurrentTerrainView ONCE (_point_setup), then read each (x, y) [order-frame metres]. Each
+    element is byte-identical to a standalone point_values(site, x, y) call -- only the per-site setup is
+    shared, the per-cell terramechanics LUT stays per-patch (guarded by test_points_batch)."""
+    ctx = _point_setup(site)
+    return [point_values(site, float(x), float(y), _ctx=ctx) for (x, y) in coords]
 
 
 def _point_actions(*, in_bounds: bool, passable: bool) -> list:
