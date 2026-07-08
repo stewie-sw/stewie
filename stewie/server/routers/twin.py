@@ -5,7 +5,6 @@ import, no cycle); resync is auth-gated."""
 from __future__ import annotations
 
 import logging
-import threading
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
@@ -21,11 +20,10 @@ from stewie.twin import terrain_memory as TM
 log = logging.getLogger("stewie.server")
 router = APIRouter()
 
-# DT-03: keep a resync's twin mutation + its world-log commit + a compensating rollback in ONE critical
-# section, so a concurrent resync cannot land a patch between our apply_patch and our compensating undo()
-# (which reverts the MOST-RECENT live patch). apply_patch on the observed twin is called only from this
-# route (verified), so this single lock is sufficient to keep the undo targeted at OUR patch.
-_RESYNC_LOCK = threading.Lock()
+# DT-03 / #58.3: the resync critical-section lock now lives in state.py (state._RESYNC_LOCK) so the twin
+# READERS (state.current_terrain_view) share it and can't observe an uncommitted patch mid-rollback. This
+# route holds it across apply_patch..world-log-commit..compensating undo(); apply_patch on the observed twin
+# is called only from here (verified), so the undo stays targeted at OUR patch.
 
 
 # _terrain_lock (the per-site RMW lock) moved to stewie.server.world_state (EG-09 shared-core home);
@@ -75,7 +73,7 @@ def twin_resync(req: ResyncRequest, identity: str = Depends(require_role("operat
 
     from stewie.server.world_state import compensating
     tw = state.twin(req.site)                 # DT-04: patch THIS site's observed twin (was hard-coded haworth)
-    with _RESYNC_LOCK:                        # DT-03: apply_patch..commit..compensate is one critical section
+    with state._RESYNC_LOCK:                  # DT-03/#58.3: apply_patch..commit..compensate is one critical section
         try:
             v = tw.apply_patch(_np.array(req.heights_m, dtype=float),
                                origin_rc=tuple(req.origin_rc), provenance=req.provenance)

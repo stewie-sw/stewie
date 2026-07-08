@@ -37,6 +37,31 @@ def test_view_tags_as_built_cells_and_retains_version(monkeypatch, tmp_path):
     assert np.allclose(base_z, 100.0)                     # caller's base never mutated
 
 
+def test_current_terrain_view_reads_the_twin_under_the_resync_lock(monkeypatch, tmp_path):
+    """[concurrency council #58.3] The observed-twin read holds state._RESYNC_LOCK, so a concurrent
+    twin_resync (apply_patch..world-log-commit..compensating undo) can't be observed mid-rollback -- a dirty
+    read of a patch that is about to be undone. We spy on the lock inside the twin read to prove it is held."""
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    from stewie.server import state
+    z = np.zeros((4, 4))
+    held = {"locked": None}
+
+    class _FakeTwin:
+        base = z
+        version = 0
+
+        def observed_mask(self):
+            held["locked"] = state._RESYNC_LOCK.locked()   # the resync lock MUST be held while reading the twin
+            return np.zeros((4, 4), dtype=bool)
+
+        def current(self):
+            return z
+
+    monkeypatch.setattr(state, "twin", lambda *a, **k: _FakeTwin())
+    state.current_terrain_view("rb", (z, 5.0), (0.0, 0.0))
+    assert held["locked"] is True
+
+
 def test_as_built_dem_matches_the_view_heights(monkeypatch, tmp_path):
     """as_built_dem (z, cell) parity: it IS the view's composed heights -- one composition path."""
     monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))

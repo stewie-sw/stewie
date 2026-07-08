@@ -43,6 +43,12 @@ def moon_dem(site: str = "haworth"):
     return out
 
 
+# DT-03 / #58.3: the resync critical-section lock. twin_resync (routers/twin.py) holds it across
+# apply_patch..world-log-commit..compensating-undo; current_terrain_view holds it while reading the twin's
+# mask+heights+version, so a planner can never observe an uncommitted patch that is about to be rolled back.
+_RESYNC_LOCK = threading.Lock()
+
+
 def current_terrain_view(site, dem, origin):
     """#242/#267/#280 + gap A2: the ONE composed planning surface every consumer (planner + 3D as-built
     mesh + cockpit) reads, as a typed ``CurrentTerrainView`` that RETAINS provenance -- the precedence
@@ -77,10 +83,11 @@ def current_terrain_view(site, dem, origin):
         tw = twin(site)                                  # site (per-(site,source) keyed; was hard-coded to haworth)
         import numpy as _np
         if tuple(tw.base.shape) == tuple(_np.asarray(z).shape):   # same tile grid -> 1:1, no resample
-            m = tw.observed_mask()
-            if m.any():
-                observed_heights, observed_mask = tw.current(), m
-                twin_version = int(getattr(tw, "version", 0))
+            with _RESYNC_LOCK:   # #58.3: read mask+heights+version as ONE consistent triple so a concurrent
+                m = tw.observed_mask()   # twin_resync (apply_patch..commit..undo) can't be observed mid-rollback
+                if m.any():
+                    observed_heights, observed_mask = tw.current(), m
+                    twin_version = int(getattr(tw, "version", 0))
     except Exception as e:   # noqa: BLE001 -- the observed overlay is an enhancement; never fail a plan
         log.warning("observed-twin overlay skipped for site %r: %s", site, e)
         observed_heights = observed_mask = None
