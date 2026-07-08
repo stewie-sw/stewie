@@ -116,6 +116,7 @@ class MissionPlan extends React.Component {
     }
     componentWillUnmount() {
         if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0; }
+        if (this._unsubWS) { this._unsubWS(); }
         if (this.ctrl) { this.ctrl.detach(); this.ctrl = null; }
     }
     _resolveMap = () => {
@@ -127,6 +128,8 @@ class MissionPlan extends React.Component {
             onState: (s) => this.setState({ctrl: s})
         });
         this.ctrl.attach();
+        // #50: MissionPlan read WS.site() at mount only; now follow a site change from the map / Whole Moon.
+        this._unsubWS = WS.subscribe((s) => { if (this.ctrl && s.site !== this.ctrl.site) { this.ctrl.selectSite(s.site, {fly: true}); } });
         this.setState({ready: true, ctrl: {
             site: WS.site(), adhoc: false, activeKind: null, planHereMode: false, footprint: 60, depth: 0.4, orders: [],
             objectType: null, objectTypes: ['beacon', 'cache', 'instrument', 'sample', 'antenna'],

@@ -43,6 +43,7 @@ import CoordinatesUtils from 'qwc2/utils/CoordinatesUtils';
 import MapUtils from 'qwc2/utils/MapUtils';
 
 import SZ from '../mission/siteZoom';   // pure hit-test + WholeMoon-identical framing box (node-tested)
+import WS from '../mission/workspace.js';   // #50: propagate the clicked site to the shared workspace
 
 // The tasks that OWN a map singleclick (each reads it or attaches its own Draw/Modify interaction). While any
 // is the current task, the site-zoom default stands down so it never steals their click or flies the view out
@@ -69,6 +70,7 @@ class SiteZoom extends React.Component {
     };
     constructor(props) {
         super(props);
+        this.state = {site: WS.site()};   // #50: the active workspace site, for the always-on chip
         this.map = null;
         this.sites = [];          // the public /api/world/site-markers rows ({name, label, lon, lat, extent_m})
         this._clickKey = null;
@@ -77,6 +79,7 @@ class SiteZoom extends React.Component {
     componentDidMount() {
         this._loadSites();
         this._attachClick();
+        this._unsubWS = WS.subscribe((s) => { this.setState({site: s.site}); });   // #50: keep the chip live
         // Read-only headless harness handle for the Playwright verify (same hit-test the click runs, but with
         // NO side effect): report the loaded site count + which site a given map coord would fly to. No command
         // authority — the interactive proof drives a real click for the actual zoom.
@@ -92,6 +95,7 @@ class SiteZoom extends React.Component {
     }
     componentWillUnmount() {
         this._detachClick();
+        if (this._unsubWS) { this._unsubWS(); }
         if (typeof window !== 'undefined' && window.__stewieSiteZoom) { delete window.__stewieSiteZoom; }
     }
 
@@ -102,6 +106,7 @@ class SiteZoom extends React.Component {
     _loadSites = () => {
         fetch('/api/world/site-markers').then((r) => r.json()).then((j) => {
             this.sites = (j && Array.isArray(j.sites)) ? j.sites : [];
+            this.forceUpdate();   // the chip resolves the site NAME -> friendly label once the markers load
         }).catch(() => { this.sites = []; });   // no sites -> every click is a miss -> default behavior stands
     };
 
@@ -130,11 +135,23 @@ class SiteZoom extends React.Component {
             this.props.mapCrs, SZ.HALF_M);
         if (hit && hit.extent) {
             this.props.zoomToExtent(hit.extent, this.props.mapCrs);   // the SAME dive as WholeMoon.dive
+            if (hit.site && hit.site.name) { WS.set({site: hit.site.name}); }   // #50: propagate the site (was the silent wrong-site bug)
         }
     };
 
     render() {
-        return null;   // a passive map listener — no UI
+        // #50: an always-visible chip so the active work site is never ambiguous (it appeared nowhere before).
+        const site = this.state.site;
+        if (!site) { return null; }
+        const match = (this.sites || []).find((x) => x.name === site);
+        const disp = (match && match.label) || site;   // friendly label once site-markers load, else the id
+        return (
+            <div className="stewie-site-chip" style={{position: 'absolute', top: '52px', left: '8px', zIndex: 20,
+                background: 'rgba(16,16,19,0.92)', color: '#e6e8ea', border: '1px solid #26262c', borderRadius: '4px',
+                padding: '3px 9px', fontSize: '12px', pointerEvents: 'none', letterSpacing: '0.02em'}}>
+                <span style={{color: '#8a9096'}}>Site: </span><span style={{color: '#4db6d4', fontWeight: 600}}>{disp}</span>
+            </div>
+        );
     }
 }
 

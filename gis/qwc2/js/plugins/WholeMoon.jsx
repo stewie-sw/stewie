@@ -30,6 +30,7 @@ import {setCurrentTask} from 'qwc2/actions/task';
 import CoordinatesUtils from 'qwc2/utils/CoordinatesUtils';
 
 import WholeMoonGlobe from '../mission/wholeMoonGlobe';
+import WS from '../mission/workspace.js';   // #50: propagate the dived-to site to the shared workspace
 
 // The lunar geographic CRS (selenographic lon/lat, +proj=longlat +R=1737400) — registered from
 // config.json `projections`. Site coords come from /api/sites in this frame; we reproject to the map's
@@ -125,6 +126,7 @@ class WholeMoon extends React.Component {
         if (extent) {
             this.props.zoomToExtent(extent, mapCrs);
         }
+        if (site.name) { WS.set({site: site.name}); }   // #50: propagate the site (was the silent wrong-site bug)
         this.props.setCurrentTask(null);
     };
     close = () => {
