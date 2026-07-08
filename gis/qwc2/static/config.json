@@ -319,6 +319,9 @@
         "name": "MissionRuntime"
       },
       {
+        "name": "MissionUserLayer"
+      },
+      {
         "name": "MissionLayers"
       },
       {
@@ -357,6 +360,7 @@
             ]},
             {"key": "SecLayers", "title": "Layers & Legend", "icon": "layers", "subitems": [
               {"key": "MissionLayers", "title": "Mission Layers", "icon": "layers"},
+              {"key": "MissionUserLayer", "title": "User Layer", "icon": "draw"},
               {"key": "MapLegend", "icon": "list-alt"},
               {"key": "LayerTree", "icon": "layers", "shortcut": "alt+shift+l"}
             ]},
