@@ -74,23 +74,6 @@ def test_transect_route_404_unknown_site(client):
     assert r.status_code == 404
 
 
-def test_transect_lonlat_frame_round_trips_an_in_tile_point(client):
-    # take an in-bounds ORDER point, convert to selenographic lon/lat (the /ide's frame), POST frame='lonlat',
-    # and assert it round-trips back to real data near the order-frame /world/point (guards the lon/lat order).
-    from lode import mission_planner as MP
-    bundle = MP.bundle_for_site("haworth")
-    lat, lon = MP.dem_origin_to_latlon(200.0, 100.0, bundle_dir=bundle)
-    r = client.post("/world/transect", json={"site": "haworth", "points": [[lon, lat], [lon, lat]], "frame": "lonlat"})
-    assert r.status_code == 200, r.text
-    prof = r.json()
-    assert prof["ok"] is True and prof["n"] == 2
-    s0 = prof["samples"][0]
-    assert s0["in_bounds"] is True and isinstance(s0["elevation_m"], (int, float))   # real data via the lon/lat path
-    pt = client.get("/world/point?site=haworth&x=200&y=100").json()
-    dem_val = [a["value"] for a in pt["attributes"] if a["id"] == "base.dem"][0]
-    assert abs(s0["elevation_m"] - dem_val) < 20.0   # same cell or an adjacent one (lon/lat round-trip rounding)
-
-
 def test_transect_lonlat_out_of_tile_is_422_not_503(client):
     # a lon/lat outside the Haworth tile is an honest bad-input 422 -- the conversion runs and rejects cleanly
     r = client.post("/world/transect", json={"site": "haworth", "points": [[116.56505, -88.43925], [116.6, -88.4]], "frame": "lonlat"})
@@ -100,3 +83,24 @@ def test_transect_lonlat_out_of_tile_is_422_not_503(client):
 def test_transect_route_400_bad_frame(client):
     r = client.post("/world/transect", json={"site": "haworth", "points": [[0.0, 0.0], [1.0, 1.0]], "frame": "wgs84"})
     assert r.status_code == 400
+
+
+def test_latlon_resolves_true_interior_cell_not_anchor_offset(client):
+    """[council #55, HIGH] An interior lat/lon must resolve to its TRUE DEM cell, NOT a cell offset by the
+    flattest-anchor origin. latlon_to_dem_origin returns ABSOLUTE pixel-metres while point_values adds the
+    anchor, so feeding one into the other double-counts the anchor (interior clicks land ~anchor/cell cells
+    off -- usually out of bounds). Independent ground truth: pixel (1000,1000)'s real lat/lon (via
+    dem_origin_to_latlon of its absolute pixel-metres) must resolve back to cell (1000,1000) -- BOTH through
+    /world/point (the GW-07 inspector) and the frame='lonlat' transect (the #45 cross-section)."""
+    from stewie.terrain.site_dem import dem_origin_to_latlon
+    lat, lon = dem_origin_to_latlon(1000 * 5.0, 1000 * 5.0)   # centre of pixel (1000,1000) @ 5 m/cell
+    pt = client.get(f"/world/point?site=haworth&lat={lat}&lon={lon}")
+    assert pt.status_code == 200, pt.text
+    cell = pt.json()["cell"]
+    assert cell["in_bounds"] is True, "interior lat/lon resolved out of bounds -- anchor double-counted"
+    assert cell["row"] == 1000 and cell["col"] == 1000, f"resolved r{cell['row']} c{cell['col']}, want r1000 c1000"
+    dem_val = [a["value"] for a in pt.json()["attributes"] if a["id"] == "base.dem"][0]
+    tr = client.post("/world/transect", json={"site": "haworth", "frame": "lonlat", "points": [[lon, lat], [lon, lat]]})
+    assert tr.status_code == 200, tr.text
+    s0 = tr.json()["samples"][0]
+    assert s0["in_bounds"] is True and s0["elevation_m"] == dem_val   # same true cell -> same DEM value

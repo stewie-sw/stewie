@@ -602,6 +602,21 @@ def _point_setup(site: str) -> dict:
             "view": state.current_terrain_view(site, dem, origin)}
 
 
+def latlon_to_order(site: str, lon: float, lat: float, *, _ctx: dict | None = None) -> tuple[float, float]:
+    """[council #55, HIGH correctness] Convert a selenographic lon/lat (deg) to the ORDER frame (anchor-relative
+    m) that point_values + transect_profile expect. MP.latlon_to_dem_origin returns ABSOLUTE DEM-pixel-metres
+    (from pixel (0,0) -- the flattest_anchor frame), but point_values resolves a cell as round((origin+xy)/cell)
+    where origin is the site's NONZERO flattest anchor; feeding the absolute value straight in double-counts the
+    anchor, so an interior click lands ~origin/cell cells off (usually out of bounds). Subtracting the origin
+    here maps a lat/lon to its TRUE cell. Raises ValueError (out-of-tile) / ImportError (no pyproj) /
+    KeyError|FileNotFoundError (unknown or unimported site)."""
+    from lode import mission_planner as MP
+    ctx = _ctx if _ctx is not None else _point_setup(site)
+    ox, oy = float(ctx["origin"][0]), float(ctx["origin"][1])
+    ax, ay = MP.latlon_to_dem_origin(float(lat), float(lon), bundle_dir=MP.bundle_for_site(site))
+    return ax - ox, ay - oy
+
+
 def point_values(site: str, x_m: float, y_m: float, *, _ctx: dict | None = None) -> dict:
     """[REQ:GW-07] Resolve an order-frame (x, y) [m] on ``site`` to its DEM cell and return the servable
     layers' per-cell values + the cell's runtime evidence. Reuses the drape field functions so the reading
@@ -769,9 +784,10 @@ def transect_profile(site: str, points, frame: str = "order") -> dict:
     h, w = Z.shape
     ph, pw = psr.shape
     if frame == "lonlat":                                # public /ide: reproject 30135 click -> 30100 lon/lat,
-        from lode import mission_planner as MP           # POST here; convert to order metres like /world/point.
-        bundle = MP.bundle_for_site(site)
-        order_pts = [tuple(MP.latlon_to_dem_origin(float(p[1]), float(p[0]), bundle_dir=bundle)) for p in points]
+        # POST here; convert to the ORDER frame point_values uses. council #55 (HIGH): the raw
+        # MP.latlon_to_dem_origin is ABSOLUTE pixel-metres, so passing it straight in double-counted the
+        # flattest anchor and resolved interior clicks out of bounds -- latlon_to_order subtracts the origin.
+        order_pts = [latlon_to_order(site, float(p[0]), float(p[1]), _ctx=ctx) for p in points]
     else:
         order_pts = [(float(p[0]), float(p[1])) for p in points]
     samples = []

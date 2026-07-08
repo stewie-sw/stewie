@@ -22,9 +22,11 @@ from fastapi.testclient import TestClient
 import stewie.server.server as _srv
 
 _MUTATING_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
-# the catch-all 404 envelope (server.py _no_post) matches only UNROUTED paths and mutates nothing --
-# the one principled exemption from the walk (it is a rejection surface, not a command surface).
-_EXEMPT_PATHS = {"/{path:path}"}
+# the catch-all 404 envelope (server.py _no_post) matches only UNROUTED paths and mutates nothing (a rejection
+# surface, not a command surface); /world/points + /world/transect are POST *only* to carry a coordinate-list
+# body -- they are the read-only batch siblings of GET /world/point (per-cell map-data queries) and mutate
+# nothing, so they belong out of the mutating-route ledger walk exactly like the GET reader. [council #55]
+_EXEMPT_PATHS = {"/{path:path}", "/world/points", "/world/transect"}
 
 
 def _flatten(routes) -> list:

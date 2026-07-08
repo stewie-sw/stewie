@@ -118,13 +118,21 @@ def test_point_available_actions_from_eligibility(client):  # [REQ:GW-07]
 
 
 def test_point_latlon_input_resolves_the_same_cell_as_xy(client):  # [REQ:GW-07]
-    # the map click can arrive as selenographic lat/lon (the OpenLayers view CRS reprojected); it resolves
-    # to the SAME DEM cell as the order-frame metres path. This lat/lon is the real inverse of (x=60, y=60)
-    # on the Haworth tile (MP.dem_origin_to_latlon), so the two inputs must land on one in-bounds cell.
-    by_xy = client.get("/world/point?site=haworth&x=60&y=60").json()
-    by_ll = client.get("/world/point?site=haworth&lat=-86.1152&lon=-26.6384").json()
+    # a map click can arrive as selenographic lat/lon (the OpenLayers view CRS reprojected); it must resolve to
+    # the SAME DEM cell as the ORDER-frame metres that GEOGRAPHICALLY correspond to it, and to its true pixel.
+    # council #55 (HIGH): lat/lon is ABSOLUTE pixel-metres while the order frame is anchor-relative, so the
+    # equivalent order coords subtract the flattest anchor -- the resolver must not double-count it (which sent
+    # interior clicks out of bounds). Independent ground truth: pixel (200,200)'s centre lat/lon.
+    from stewie.server import state
+    from stewie.terrain.site_dem import dem_origin_to_latlon
+    _, origin = state.moon_dem("haworth")
+    ox, oy = float(origin[0]), float(origin[1])
+    ax, ay = 200 * 5.0, 200 * 5.0                          # absolute pixel-metres of pixel (200,200)
+    lat, lon = dem_origin_to_latlon(ax, ay)
+    by_xy = client.get(f"/world/point?site=haworth&x={ax - ox}&y={ay - oy}").json()   # equivalent order coords
+    by_ll = client.get(f"/world/point?site=haworth&lat={lat}&lon={lon}").json()
     assert by_ll["ok"] is True and by_ll["cell"]["in_bounds"] is True
-    assert (by_ll["cell"]["row"], by_ll["cell"]["col"]) == (by_xy["cell"]["row"], by_xy["cell"]["col"])
+    assert (by_ll["cell"]["row"], by_ll["cell"]["col"]) == (by_xy["cell"]["row"], by_xy["cell"]["col"]) == (200, 200)
 
 
 def test_point_out_of_tile_is_honest_no_data_not_fabricated(client):  # [REQ:GW-07]

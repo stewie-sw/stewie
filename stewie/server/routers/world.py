@@ -315,20 +315,23 @@ def world_point(site: str = "haworth", x: float | None = None, y: float | None =
     so the keyless public /ide/ inspector can bind it. Honest: a layer with no per-cell scalar (sun-
     parameterized / reference grid / observed-only) reports available=false with a reason, never a fabricated
     value; an out-of-tile click is in_bounds=false with no values. 404 if the site DEM bundle is absent."""
-    from lode import mission_planner as MP
     from stewie.server import gis_layers as GL
     if x is None or y is None:
         if lat is None or lon is None:
             return JSONResponse(status_code=400, content={
                 "ok": False, "error": "provide x & y (order-frame metres) or lat & lon (selenographic degrees)"})
         try:
-            x, y = MP.latlon_to_dem_origin(float(lat), float(lon), bundle_dir=MP.bundle_for_site(site))
-        except KeyError as e:
+            # council #55 (HIGH): latlon_to_order subtracts the flattest anchor so a selenographic click
+            # resolves to its TRUE cell. The raw latlon_to_dem_origin returns ABSOLUTE pixel-metres and
+            # point_values re-adds the anchor, so passing it straight in double-counted the anchor -> the
+            # inspector showed 'outside the tile' or a cell km away for valid interior clicks.
+            x, y = GL.latlon_to_order(site, float(lon), float(lat))
+        except (KeyError, FileNotFoundError) as e:   # unknown or not-yet-imported site -> 404 (council #55: was 503)
             return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
-        except ValueError as e:
+        except ValueError as e:                       # lon/lat outside the mapped tile -> honest bad-input
             return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
-        except (FileNotFoundError, ImportError) as e:
-            return JSONResponse(status_code=503, content={"ok": False, "error": f"DEM/pyproj absent: {e}"})
+        except ImportError as e:                       # pyproj (the [planner] extra) absent
+            return JSONResponse(status_code=503, content={"ok": False, "error": f"pyproj absent: {e}"})
     try:
         return GL.point_values(site, float(x), float(y))
     except (KeyError, FileNotFoundError) as e:
