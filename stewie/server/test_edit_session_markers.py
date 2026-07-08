@@ -39,6 +39,18 @@ def test_marker_create_bumps_version_and_is_audited():
     assert rec["before"] is None and rec["after"]["x"] == 12.0
 
 
+def test_markerin_accepts_the_frontend_markerbody_shape_and_forbids_a_stray_kind():
+    """[wiring council] planTools.markerBody now posts {x,y,otype,label}; MarkerIn is extra='forbid', so the
+    OLD body that also sent kind:'marker' RequestValidationError'd -> the route 400'd EVERY marker POST and
+    markers silently fell back to local-only, never entering the versioned/audited session. Pin both ways so
+    the store's own tests (which bypass MarkerIn) can't hide a re-added 'kind' regression."""
+    from stewie.server.routers.editsession import MarkerIn
+    m = MarkerIn(x=12.0, y=-4.0, otype="beacon", label="Nav B1")   # the FIXED frontend shape validates
+    assert m.otype == "beacon" and m.label == "Nav B1"
+    with pytest.raises(Exception):                                 # the OLD shape (a stray 'kind') is rejected
+        MarkerIn(x=1.0, y=2.0, otype="cache", kind="marker")
+
+
 def test_marker_is_kept_out_of_the_keepout_set_and_the_planner_projection():
     """A marker must NEVER become a planner keep-out (it annotates; it is not a hazard)."""
     sess = ES.new_session()

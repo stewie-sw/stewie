@@ -116,7 +116,10 @@
         if (OBJECT_TYPES.indexOf(otype) < 0) {
             throw new Error("unknown object type " + otype + " (want one of " + OBJECT_TYPES.join("/") + ")");
         }
-        var body = { kind: "marker", x: coord[0], y: coord[1], otype: otype };
+        // NO `kind`: the backend MarkerIn model is extra="forbid" with fields {x,y,otype,label} only, and the
+        // store re-adds kind:"marker" on normalize (edit_session._normalize_marker). Sending `kind` here 400'd
+        // EVERY marker POST -> markers silently fell back to local-only, never entering the versioned session.
+        var body = { x: coord[0], y: coord[1], otype: otype };
         if (label) { body.label = String(label); }
         return body;
     }

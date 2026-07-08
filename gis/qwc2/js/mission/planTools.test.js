@@ -79,7 +79,7 @@ test("orderFrameEntry: a cut order matches the legacy _anchorAndOrders formula (
 
 test("markerBody builds a valid place-object feature for the edit-session route", () => {
     const b = PT.markerBody(C1, "beacon", "Nav B1");
-    assert.strictEqual(b.kind, "marker");
+    assert.strictEqual(b.kind, undefined);   // MarkerIn is extra="forbid" with NO kind; sending it 400'd every POST. The store re-adds kind:"marker" on normalize.
     assert.strictEqual(b.x, C1[0]);
     assert.strictEqual(b.y, C1[1]);
     assert.strictEqual(b.otype, "beacon");
