@@ -126,6 +126,12 @@
         }
       },
       {
+        "name": "Graticule",
+        "cfg": {
+          "position": 6
+        }
+      },
+      {
         "name": "Identify",
         "cfg": {
           "params": {
