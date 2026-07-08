@@ -56,7 +56,7 @@
     "textFont": "11pt sans-serif"
   },
   "importLayerUrlPresets": [
-    {"label": "Swisstopo WMTS", "value": "https://wmts10.geo.admin.ch/EPSG/2056/1.0.0/WMTSCapabilities.xml"}
+    {"label": "LROC Lunaserv WMS (Moon)", "value": "http://wms.im-ldi.com/"}
   ],
   "projections": [
     {
