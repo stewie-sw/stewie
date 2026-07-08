@@ -313,6 +313,9 @@
         "name": "MissionEvidence"
       },
       {
+        "name": "MissionTerramech"
+      },
+      {
         "name": "MissionLayers"
       },
       {
@@ -356,6 +359,7 @@
             ]},
             {"key": "SecAnalyze", "title": "Inspect & Analyze", "icon": "identify_region", "subitems": [
               {"key": "SelectionInspector", "title": "Inspector", "icon": "info"},
+              {"key": "MissionTerramech", "title": "Terramechanics", "icon": "measure"},
               {"key": "Identify", "icon": "identify_region", "mode": "Region"},
               {"key": "Measure", "icon": "measure"},
               {"key": "Routing", "icon": "routing"},
