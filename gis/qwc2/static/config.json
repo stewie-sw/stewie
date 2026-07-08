@@ -362,9 +362,6 @@
               {"key": "FeatureForm", "icon": "featureform"},
               {"key": "AttributeTable", "icon": "editing"}
             ]},
-            {"key": "SecRehearse", "title": "Rehearse", "icon": "folder", "subitems": [
-              {"key": "MissionAssets", "title": "Asset Library", "icon": "folder"}
-            ]},
             {"key": "SecValidate", "title": "Validate", "icon": "identify_region", "subitems": [
               {"key": "SelectionInspector", "title": "Inspector", "icon": "info"},
               {"key": "MissionTerramech", "title": "Terramechanics", "icon": "measure"},
@@ -383,6 +380,7 @@
             {"key": "SecReport", "title": "Report", "icon": "list-alt", "subitems": [
               {"key": "MissionEvidence", "title": "Evidence / Report", "icon": "info"},
               {"key": "MissionProgram", "title": "Program", "icon": "list-alt"},
+              {"key": "MissionAssets", "title": "Asset Library", "icon": "folder"},
               {"key": "Print", "icon": "print", "shortcut": "alt+shift+p"},
               {"key": "MapExport", "icon": "rasterexport"}
             ]},
