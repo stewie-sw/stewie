@@ -147,7 +147,7 @@ def get_models(_auth: str = Depends(require_role("operator"))):
 
 
 @router.get("/physics/backends")
-def get_physics_backends(_auth: str = Depends(require_role("operator"))):
+def get_physics_backends():   # public read (informational backend/model registry; nginx proxies /api/ keyless, like /world/layer-catalog)
     """[REQ:PX-02] The selectable physics-backend registry + the EG-12 model-governance ledger: the engines a
     mission may run its terramechanics on (``selectable_backends`` = list_backends(); only the conserved
     tier2_numpy is release-authority) and every registered physics MODEL with its validated / frozen /
@@ -219,7 +219,7 @@ def get_physics_compatibility(allow_analog: bool = False, _auth: str = Depends(r
 
 
 @router.get("/runtime/profiles")
-def get_runtime_profiles(_auth: str = Depends(require_role("operator"))):
+def get_runtime_profiles():   # public read (informational runtime-profile registry; keyless like /world/layer-catalog)
     """[REQ:RT-01] the runtime profile registry: the execution environments a mission can run in (desktop_sil /
     digital_twin / ros2_replay / gazebo_sim / hil / field_test / live_rover) + each one's command + evidence
     capabilities. The cockpit keys on this to gate what a profile may do -- a SIL / twin / replay / sim profile
@@ -236,7 +236,7 @@ def get_runtime_profiles(_auth: str = Depends(require_role("operator"))):
 
 
 @router.get("/physics/authority")
-def get_physics_authority(_auth: str = Depends(require_role("operator"))):
+def get_physics_authority():   # public read (informational authority registry; keyless like /world/layer-catalog)
     """[REQ:PH-01] the physics backend AUTHORITY registry (the PRD2 physics spine): per backend (tier2_numpy /
     gazebo / chrono / hardware / godot) the authority scope, mass-conservation, per-lifecycle validity (planning
     / rehearsal / release / execute), and the refusal reason where it is not release/execute-eligible. Every
@@ -253,7 +253,7 @@ def get_physics_authority(_auth: str = Depends(require_role("operator"))):
 
 
 @router.get("/physics/terramechanics-spine")
-def get_terramechanics_spine(_auth: str = Depends(require_role("operator"))):
+def get_terramechanics_spine():   # public read (informational terramechanics-spine registry; keyless like /world/layer-catalog)
     """[REQ:TM-02] the terramechanics spine: the terms the conserved tier2_numpy solver computes (slope,
     roughness, regolith density, contact pressure/bearing, sinkage, slip, traction, compaction resistance,
     drive energy) as inspectable entries -- each with unit, symbol, description, calibration status, and the
