@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "4cfdddd995bd627c3c6c74537fe412c5af8646b64f3f2b2fa149046bfb3537f4",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "a3b2ccd917d59659d838e87081299330ccf0df00",
-  "prd_sha256": "167ebe6c26ee524a843975169f63cdfb58aa59c749d1a8f130aad5346104cf34",
+  "prd_commit": "039846ee2e5721c480be30d551a8531c5e0d8b2b",
+  "prd_sha256": "87e1652713003cfc8388671a32b93f35fa6fe6aac9091515b9ecf60edb4c6afc",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -1702,10 +1702,10 @@
    "text": "Endurance and reports use the selected `VehicleModel`, not global IPEx constants."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "D",
    "bucket": "buildable",
    "cited": true,
    "id": "EV-01",
@@ -2720,10 +2720,10 @@
    "text": "Planetary map correctness: Moon/Mars views use body-correct ellipsoid/CRS metadata and real DEM terrain/elevation where a layer claims 3D terrain. A smooth WGS84 drape must be labeled as imagery-only, not terrain."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "D",
    "brief": {
     "goal": "verify + glyph-reconcile the mission-required GIS interop subset (GeoJSON/COG import, feature query, offline mission package) that is already implemented.",
     "kind": "atomic (done-stale)",
@@ -2867,11 +2867,11 @@
    "text": "**Selection + right inspector.** [REQ:GW-07] Click a cell/feature \u2192 attributes + provenance + confidence/freshness + available actions + runtime evidence affecting it. (extends GL-02)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "GW-08",
    "lane": "GW",
@@ -4662,12 +4662,13 @@
    "text": "**Gazebo rehearsal on real DEM.** The gazebo_sim profile launches the selected site's REAL DEM heightfield (not a flat plane) + truth-isolated sensor topics; the cockpit shows `/clock`, bridge freshness, bag path, and the truth-denial assertion; a rehearsal returns predicted path + sensor evidence + divergence. (extends BA-07/RS-05; needs RT-00)"
   },
   {
-   "I": "N",
-   "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
+   "I": "D",
+   "Q": "G",
+   "V": "P",
+   "X": "D",
+   "bucket": "gated",
    "cited": false,
+   "gated_reason": "quality/hardware gated",
    "id": "RT-04",
    "lane": "RT",
    "pri": "P1",
@@ -5535,10 +5536,10 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 97,
+   "buildable": 95,
    "concurrent": 0,
-   "done": 254,
-   "gated": 29
+   "done": 255,
+   "gated": 30
   },
   "by_lane": {
    "AC": {
@@ -5646,7 +5647,7 @@
     "total": 2
    },
    "GW": {
-    "done": 6,
+    "done": 7,
     "total": 11
    },
    "HF": {
@@ -5812,7 +5813,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 107,
+    "done": 108,
     "total": 117
    },
    "P1": {
@@ -5829,9 +5830,9 @@
    }
   },
   "cited": 275,
-  "done_pct": 66.8,
-  "in_scope": 351,
-  "in_scope_done_pct": 72.4,
+  "done_pct": 67.1,
+  "in_scope": 350,
+  "in_scope_done_pct": 72.9,
   "total": 380
  },
  "workflow_spine": [
