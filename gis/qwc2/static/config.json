@@ -308,6 +308,9 @@
         "name": "MissionAssets"
       },
       {
+        "name": "MissionCrossSection"
+      },
+      {
         "name": "MissionEvidence"
       },
       {
@@ -364,6 +367,7 @@
             ]},
             {"key": "SecValidate", "title": "Validate", "icon": "identify_region", "subitems": [
               {"key": "SelectionInspector", "title": "Inspector", "icon": "info"},
+              {"key": "MissionCrossSection", "title": "Cross-section", "icon": "plot_info"},
               {"key": "MissionTerramech", "title": "Terramechanics", "icon": "measure"},
               {"key": "Identify", "icon": "identify_region", "mode": "Region"},
               {"key": "Measure", "icon": "measure"},
