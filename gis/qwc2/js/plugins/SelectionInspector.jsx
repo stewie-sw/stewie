@@ -33,8 +33,10 @@ import CoordinatesUtils from 'qwc2/utils/CoordinatesUtils';
 import MapUtils from 'qwc2/utils/MapUtils';
 
 import SI from '../mission/selectionInspect';   // pure per-cell query + provenance/confidence/freshness merge
+import WS from '../mission/workspace.js';        // GW-02: the shared workspace-context store (active site)
 
-const SITE = 'haworth';                  // the theme's authoritative site (matches MissionLayers)
+// GW-02: the active site comes from the shared workspace (WS.site()), read at query time so every click
+// inspects the current work site without a per-plugin literal or a re-render.
 const GEO_CRS = 'IAU_2015:30100';        // selenographic lon/lat (the backend point-query frame)
 
 // provenance accent per coarse source_class token (matches MissionLayers PROV_COLOR).
@@ -80,7 +82,7 @@ class SelectionInspector extends React.Component {
             SI.fetchCatalog().then((cat) => this.setState({catalog: cat})).catch(() => {});
         }
         if (SI.fetchLayerManifest && SI.freshnessFromManifest) {
-            SI.fetchLayerManifest(SITE)
+            SI.fetchLayerManifest(WS.site())
                 .then((m) => this.setState({freshness: SI.freshnessFromManifest(m)}))
                 .catch(() => {});   // degrade silently to "no freshness" — the inspector still renders values
         }
@@ -112,7 +114,7 @@ class SelectionInspector extends React.Component {
         const lon = lonlat[0];
         const lat = lonlat[1];
         this.setState({loading: true, error: null, clickLonLat: [lon, lat]});
-        SI.fetchPoint(SITE, {lon, lat})
+        SI.fetchPoint(WS.site(), {lon, lat})
             .then((point) => this.setState({point, loading: false}))
             .catch((e) => this.setState({error: 'point query: ' + e.message, loading: false, point: null}));
     };

@@ -33,8 +33,9 @@ import {addLayer, removeLayer} from 'qwc2/actions/layers';
 import SideBar from 'qwc2/components/SideBar';
 
 import CL from '../mission/catalogLayers';   // pure catalog->layer bridge (window.STEWIE_CATALOG_LAYERS)
+import WS from '../mission/workspace.js';     // GW-02: the shared workspace-context store (active site)
 
-const SITE = 'haworth';   // the theme's authoritative site; the globe drape + bbox follow it (T6 default)
+// GW-02: the active site comes from the shared workspace (WS.site()), read at fetch/drape time -- one source.
 
 // provenance accent per coarse source_class token (badge colour only).
 const PROV_COLOR = {
@@ -88,14 +89,22 @@ class MissionLayers extends React.Component {
         // provenance) for the layer tree, from the PUBLIC /world/layer-manifest projection (the auth-gated
         // /world 401s for the keyless public /ide/). Failures degrade SILENTLY to "no freshness yet" — the
         // catalog tree still renders — so a backend that predates this route never reds the panel.
-        CL.fetchLayerManifest(SITE)
+        CL.fetchLayerManifest(WS.site())
             .then((m) => this.setState({freshness: CL.freshnessFromManifest(m)}))
             .catch(() => {});
         // NOTE: /world/traffic-layer (the auth-gated absolute-Dr + bearing-uplift readout) is deliberately
         // NOT probed here — the traffic map layer is the PUBLIC /layers/globe/traffic.png drape (TW-11),
         // bound like every other globe kind from the catalog's SERVABLE map (traffic.compaction -> traffic).
         // Servability is known statically from the catalog, so no network probe is needed.
+        // GW-02: when the workspace site changes (a Mission Plan site pick), invalidate the site-specific
+        // bbox, re-fetch the freshness manifest, and drop now-stale drapes (they show the previous site).
+        this._unsubWS = WS.subscribe(() => {
+            this.bbox = null; this.bboxPending = null;
+            CL.fetchLayerManifest(WS.site()).then((m) => this.setState({freshness: CL.freshnessFromManifest(m)})).catch(() => {});
+            (this.props.layers || []).forEach((l) => { if (l.id && l.id.indexOf('stewie-mission:') === 0) { this.props.removeLayer(l.id); } });
+        });
     }
+    componentWillUnmount() { if (this._unsubWS) { this._unsubWS(); } }
     layerId(row) { return 'stewie-mission:' + row.id; }
     isActive(row) {
         const id = this.layerId(row);
@@ -105,7 +114,7 @@ class MissionLayers extends React.Component {
         // The geographic bbox is the same for every globe kind of a site, so fetch it once and reuse.
         if (this.bbox) return Promise.resolve(this.bbox);
         if (this.bboxPending) return this.bboxPending;
-        this.bboxPending = CL.fetchBbox('dem', {site: SITE}).then((bb) => {
+        this.bboxPending = CL.fetchBbox('dem', {site: WS.site()}).then((bb) => {
             if (!bb || bb.ok === false) throw new Error(bb && bb.error ? bb.error : 'bbox unavailable');
             this.bbox = bb;
             this.bboxPending = null;
@@ -121,7 +130,7 @@ class MissionLayers extends React.Component {
             return;
         }
         this.ensureBbox().then((bb) => {
-            const layer = CL.imageLayerFor(row, bb, {site: SITE});
+            const layer = CL.imageLayerFor(row, bb, {site: WS.site()});
             if (layer) this.props.addLayer(layer);
         }).catch((e) => this.setState({error: row.id + ': ' + e.message}));
     };

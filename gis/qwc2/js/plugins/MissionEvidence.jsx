@@ -25,6 +25,7 @@ import {connect} from 'react-redux';
 import SideBar from 'qwc2/components/SideBar';
 
 import EV from '../mission/evidenceReport';   // pure evidence-bundle bridge (window.STEWIE_EVIDENCE_REPORT)
+import WS from '../mission/workspace.js';      // GW-02: the shared workspace-context store (active site)
 
 const C = {
     bg: '#0a0a0c', panel: '#0d0f15', line: '#1c1c26', card: '#12151d', border: '#2a2a36',
@@ -43,10 +44,15 @@ class MissionEvidence extends React.Component {
     state = {
         model: null,      // normalized view model from EV.buildModel
         error: null,
-        site: 'haworth',
+        site: WS.site(),   // GW-02: the shared workspace site, not a per-plugin literal
         collapsed: {}      // sectionId -> true
     };
-    componentDidMount() { this.load(); }
+    componentDidMount() {
+        this.load();
+        // GW-02: re-fetch the evidence bundle when the workspace site changes (a Mission Plan site pick).
+        this._unsubWS = WS.subscribe((s) => { if (s.site !== this.state.site) { this.setState({site: s.site}, this.load); } });
+    }
+    componentWillUnmount() { if (this._unsubWS) { this._unsubWS(); } }
     load = () => {
         this.setState({model: null, error: null});
         EV.fetchBundle({site: this.state.site}).then((d) => {

@@ -28,6 +28,7 @@ import CoordinatesUtils from 'qwc2/utils/CoordinatesUtils';
 import MapUtils from 'qwc2/utils/MapUtils';
 
 import PlanAuthor from '../mission/planAuthor';
+import WS from '../mission/workspace.js';        // GW-02: the shared workspace-context store (active site)
 
 // The three imported work-site DEMs the planner backs (matches Frontend A's site dropdown). Haworth is the
 // theme's authoritative work site (the T6 default the globe drape + layer catalog also use).
@@ -126,7 +127,7 @@ class MissionPlan extends React.Component {
         });
         this.ctrl.attach();
         this.setState({ready: true, ctrl: {
-            site: 'haworth', adhoc: false, activeKind: null, planHereMode: false, footprint: 60, depth: 0.4, orders: [],
+            site: WS.site(), adhoc: false, activeKind: null, planHereMode: false, footprint: 60, depth: 0.4, orders: [],
             objectType: null, objectTypes: ['beacon', 'cache', 'instrument', 'sample', 'antenna'],
             markers: [], traverseCount: 0, canReturnToLander: false,
             koTool: null, keepouts: [],
