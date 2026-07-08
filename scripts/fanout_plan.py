@@ -51,6 +51,20 @@ PROSE_GATED = {
     "PM-15": "GPU/live depth-source pipeline", "PM-16": "GPU/live depth-source pipeline",
     "CP-07": "PyChrono calibration oracle", "TM-01": "PyChrono calibration oracle",
     "AS-16": "moved to the dissertation acceptance extract (research-acceptance, not a STEWIE build target)",
+    # §7.E deck-forward architecture (2026-07-07): the walkthrough's forward layers -- roadmap that needs a
+    # design pass before it is a dispatchable slice, so it stays OUT of the buildable ready-set (no brief
+    # yet). Design-gated, not resource-gated. Promote to buildable + add a brief when a layer is scoped.
+    "SC-01": "deck-forward roadmap (§7.E; design-gated)", "SC-02": "deck-forward roadmap (§7.E; design-gated)",
+    "TS-01": "deck-forward roadmap (§7.E; design-gated)", "PD-01": "deck-forward roadmap (§7.E; design-gated)",
+    "TT-01": "deck-forward roadmap (§7.E; design-gated)", "OF-01": "deck-forward roadmap (§7.E; design-gated)",
+    "SV-01": "deck-forward roadmap (§7.E; design-gated)", "RO-01": "deck-forward roadmap (§7.E; design-gated)",
+    "HF-01": "deck-forward roadmap (§7.E; learned-ML, design-gated)",
+    "ML-10": "deck-forward roadmap (§7.E; learned-ML, design-gated)",
+    "PX-07": "deck-forward roadmap (§7.E; learned-ML, design-gated)",
+    "CG-01": "deck-forward roadmap (§7.E; learned-ML, design-gated)",
+    "QB-01": "deck-forward roadmap (§7.E; learned-ML/edge-hardware, design-gated)",
+    "CR-01": "deck-forward roadmap (§7.E; learned-ML, design-gated)",
+    "TF-01": "deck-forward roadmap (§7.E; onboard hardware, design-gated)",
 }
 # reason for a Q=G glyph-gated row, by family (falls back to "quality/hardware gated").
 # (No "AS" entry: AS is caught by the concurrent/owned bucket above and is container-buildable, not gated.)
