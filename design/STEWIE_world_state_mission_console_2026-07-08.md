@@ -24,6 +24,16 @@ review is mostly about CENTERING that in the UI, not building new world-state ma
 → `📈 Mission Review`. Collapsible phases mirroring the mission-engineering workflow. (Today the Plan sidebar is
 7→4 sections + the ConOps spine; this is a fuller reorg around the world model.)
 
+**RECONCILIATION (2026-07-08, post-b833069):** the artemis /ide Map & Tools menu is NOW the ConOps spine itself
+— Plan → Rehearse → Validate → Release → Execute → Report → Support (shipped b833069). So this 7-phase reorg is
+NOT a menu re-structure to build — the ConOps spine is the delivered surface. The world-state thesis lands as
+(1) the World-State header strip + the panels below as ADDITIONS foregrounded within the existing ConOps stages
+(World State / Layers / Timeline → Plan+Validate; Simulation → Rehearse; Twin Health / Playback → Execute;
+Learning / Report / Future-comparison → Report), and (2) the RESEARCH / OPERATE / TRAIN mode-lens (PRD FS-32)
+RE-FOREGROUNDS which of these ConOps panels are prominent per mode WITHOUT changing the selected mission / world
+/ authority or re-structuring the menu. Do not rebuild the spine; layer the world-state panels + the mode-lens
+over it.
+
 ## Section-by-section: proposed vs EXISTING vs action
 
 | Section | Proposed | Live-code status (audited) | Action |
