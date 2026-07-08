@@ -131,3 +131,23 @@ test("isPlannableLatLon accepts an off-site pick but refuses the exact pole (cur
     assert.ok(!PT.isPlannableLatLon(NaN, 0.0));              // non-finite -> not plannable
     assert.ok(!PT.isPlannableLatLon(-85.0, NaN));
 });
+
+test("materialBalance sums cut/fill bank volumes + flags surplus/deficit", () => {
+    const orders = [
+        { kind: "cut", footprint_m2: 60, depth_m: 0.4 },    // 24 m3
+        { kind: "cut", footprint_m2: 40, depth_m: 0.5 },    // 20 m3
+        { kind: "fill", footprint_m2: 30, depth_m: 0.3 },   // 9 m3
+        { kind: "goto", footprint_m2: 0, depth_m: 0 }        // ignored (zero-mass visit)
+    ];
+    const b = PT.materialBalance(orders);
+    assert.strictEqual(b.cut_m3, 44);
+    assert.strictEqual(b.fill_m3, 9);
+    assert.strictEqual(b.balance_m3, 35);
+    assert.strictEqual(b.status, "surplus");
+    assert.strictEqual(b.cut_count, 2);
+    assert.strictEqual(b.fill_count, 1);
+    const deficit = PT.materialBalance([{ kind: "fill", footprint_m2: 100, depth_m: 1 }]);
+    assert.strictEqual(deficit.balance_m3, -100);
+    assert.strictEqual(deficit.status, "deficit");
+    assert.strictEqual(PT.materialBalance([]).balance_m3, 0);            // empty -> 0 balance
+});

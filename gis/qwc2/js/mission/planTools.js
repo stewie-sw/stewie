@@ -121,6 +121,21 @@
         return body;
     }
 
+    // Cut/fill MATERIAL BALANCE (civil earthwork economy): the placed cut/fill orders' bank volumes
+    // (footprint_m2 x depth_m). Cut supplies fill; balance >= 0 is surplus spoil, < 0 a deficit to import.
+    function materialBalance(orders) {
+        var cut = 0, fill = 0, nCut = 0, nFill = 0;
+        (orders || []).forEach(function (o) {
+            var v = (Number(o.footprint_m2) || 0) * (Number(o.depth_m) || 0);
+            if (o.kind === "cut") { cut += v; nCut += 1; }
+            else if (o.kind === "fill") { fill += v; nFill += 1; }
+        });
+        return {
+            cut_m3: round1(cut), fill_m3: round1(fill), balance_m3: round1(cut - fill),
+            status: (cut - fill) >= 0 ? "surplus" : "deficit", cut_count: nCut, fill_count: nFill
+        };
+    }
+
     var API = {
         TRAVERSE_KIND: TRAVERSE_KIND,
         OBJECT_TYPES: OBJECT_TYPES,
@@ -134,7 +149,8 @@
         orderFrameEntry: orderFrameEntry,
         markerBody: markerBody,
         isPlannableLatLon: isPlannableLatLon,
-        clickToLonLat: clickToLonLat
+        clickToLonLat: clickToLonLat,
+        materialBalance: materialBalance
     };
     if (typeof module !== "undefined" && module.exports) { module.exports = API; }   // node:test + `import X from`
     if (root) { root.STEWIE_PLAN_TOOLS = API; }                                       // browser (window)

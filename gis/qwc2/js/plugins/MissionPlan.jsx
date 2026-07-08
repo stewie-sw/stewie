@@ -29,6 +29,7 @@ import MapUtils from 'qwc2/utils/MapUtils';
 
 import PlanAuthor from '../mission/planAuthor';
 import WS from '../mission/workspace.js';        // GW-02: the shared workspace-context store (active site)
+import PT from '../mission/planTools';           // civil #41: materialBalance (cut/fill earthwork economy)
 
 // The three imported work-site DEMs the planner backs (matches Frontend A's site dropdown). Haworth is the
 // theme's authoritative work site (the T6 default the globe drape + layer catalog also use).
@@ -492,6 +493,20 @@ class MissionPlan extends React.Component {
         );
     }
 
+    // Civil #41: the cut/fill material-balance readout -- do the placed cuts supply the fills, or is there a
+    // deficit to import? Bank volumes from the REAL placed orders (footprint_m2 x depth_m), before Plan runs.
+    renderMaterialBalance(orders) {
+        const b = PT.materialBalance(orders);
+        if (!b.cut_count && !b.fill_count) { return null; }
+        return (
+            <div style={{fontSize: '10px', color: '#8a93a3', margin: '2px 0 6px'}}>
+                <span style={{color: '#e0563a'}}>cut {b.cut_m3} m³</span>
+                {' · '}<span style={{color: '#4fd1ff'}}>fill {b.fill_m3} m³</span>
+                {' · balance '}
+                <span style={{color: b.status === 'deficit' ? '#ff8a8a' : '#7fe0a8'}}>{b.balance_m3 >= 0 ? '+' : ''}{b.balance_m3} m³ {b.status}</span>
+            </div>
+        );
+    }
     renderQueue(s) {
         if (!s.orders.length) {
             return <div style={{fontSize: '10px', color: '#7a8290', padding: '4px 0'}}>No orders yet — pick a tool and click the map.</div>;
@@ -1515,6 +1530,7 @@ class MissionPlan extends React.Component {
                 }}>{s.hint}</div>
 
                 <div style={{...lbl, marginBottom: '2px'}}>Order queue ({s.orders.length})</div>
+                {this.renderMaterialBalance(s.orders)}
                 {this.renderQueue(s)}
 
                 {this.renderKeepouts(s)}
