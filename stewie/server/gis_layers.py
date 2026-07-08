@@ -751,9 +751,11 @@ def _site_psr_mask(site, ctx):
     return result
 
 
-def transect_profile(site: str, points) -> dict:
+def transect_profile(site: str, points, frame: str = "order") -> dict:
     """[REQ:SD-03] The #45 resource-exploration cross-section: sample the REAL per-cell layers along a drawn
-    transect (a densified list of order-frame (x, y) [m] samples). Each sample carries elevation (LOLA DEM),
+    transect. `points` are order-frame (x, y) [m] samples when frame='order', or selenographic [lon, lat] deg
+    when frame='lonlat' (what the public /ide sends -- a 30135 click reprojected to 30100, converted to order
+    metres here via the same MP.latlon_to_dem_origin /world/point uses). Each sample carries elevation (LOLA DEM),
     slope + bearing + sinkage (the terramechanics spine), PSR (horizon-computed cold-trap), and the cumulative
     along-transect distance. Ice-stability (thermal depth-to-ice) is NOT included -- terrain.thermal has no real
     producer (catalog-only, no Diviner raster wired); it is reported as an explicit data gap, never fabricated.
@@ -766,10 +768,16 @@ def transect_profile(site: str, points) -> dict:
     ox, oy = float(origin[0]), float(origin[1])
     h, w = Z.shape
     ph, pw = psr.shape
+    if frame == "lonlat":                                # public /ide: reproject 30135 click -> 30100 lon/lat,
+        from lode import mission_planner as MP           # POST here; convert to order metres like /world/point.
+        bundle = MP.bundle_for_site(site)
+        order_pts = [tuple(MP.latlon_to_dem_origin(float(p[1]), float(p[0]), bundle_dir=bundle)) for p in points]
+    else:
+        order_pts = [(float(p[0]), float(p[1])) for p in points]
     samples = []
     prev = None
     dist = 0.0
-    for (x, y) in points:
+    for (x, y) in order_pts:
         x, y = float(x), float(y)
         if prev is not None:
             dist += math.hypot(x - prev[0], y - prev[1])

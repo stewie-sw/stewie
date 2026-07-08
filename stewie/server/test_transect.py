@@ -72,3 +72,31 @@ def test_transect_route_413_over_cap(client):
 def test_transect_route_404_unknown_site(client):
     r = client.post("/world/transect", json={"site": "definitely_not_a_site_zzz", "points": [[0.0, 0.0], [1.0, 1.0]]})
     assert r.status_code == 404
+
+
+def test_transect_lonlat_frame_round_trips_an_in_tile_point(client):
+    # take an in-bounds ORDER point, convert to selenographic lon/lat (the /ide's frame), POST frame='lonlat',
+    # and assert it round-trips back to real data near the order-frame /world/point (guards the lon/lat order).
+    from lode import mission_planner as MP
+    bundle = MP.bundle_for_site("haworth")
+    lat, lon = MP.dem_origin_to_latlon(200.0, 100.0, bundle_dir=bundle)
+    r = client.post("/world/transect", json={"site": "haworth", "points": [[lon, lat], [lon, lat]], "frame": "lonlat"})
+    assert r.status_code == 200, r.text
+    prof = r.json()
+    assert prof["ok"] is True and prof["n"] == 2
+    s0 = prof["samples"][0]
+    assert s0["in_bounds"] is True and isinstance(s0["elevation_m"], (int, float))   # real data via the lon/lat path
+    pt = client.get("/world/point?site=haworth&x=200&y=100").json()
+    dem_val = [a["value"] for a in pt["attributes"] if a["id"] == "base.dem"][0]
+    assert abs(s0["elevation_m"] - dem_val) < 20.0   # same cell or an adjacent one (lon/lat round-trip rounding)
+
+
+def test_transect_lonlat_out_of_tile_is_422_not_503(client):
+    # a lon/lat outside the Haworth tile is an honest bad-input 422 -- the conversion runs and rejects cleanly
+    r = client.post("/world/transect", json={"site": "haworth", "points": [[116.56505, -88.43925], [116.6, -88.4]], "frame": "lonlat"})
+    assert r.status_code == 422
+
+
+def test_transect_route_400_bad_frame(client):
+    r = client.post("/world/transect", json={"site": "haworth", "points": [[0.0, 0.0], [1.0, 1.0]], "frame": "wgs84"})
+    assert r.status_code == 400

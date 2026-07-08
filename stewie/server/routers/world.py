@@ -363,29 +363,36 @@ def world_points(req: PointsReq):   # public read (batch per-cell map data, exac
 
 
 class TransectReq(BaseModel):
-    """[REQ:SD-03] Cross-section transect body: one site + a densified list of order-frame (x, y) [m] samples."""
+    """[REQ:SD-03] Cross-section transect body: one site + a densified sample list. frame='order' -> points are
+    order-frame (x, y) [m]; frame='lonlat' -> points are selenographic [lon, lat] deg (the public /ide path)."""
     model_config = ConfigDict(extra="forbid")
     site: str = "haworth"
     points: list[tuple[float, float]]
+    frame: str = "order"
 
 
 @router.post("/world/transect")
 def world_transect(req: TransectReq):   # public read (resource cross-section, like /world/points)
-    """[REQ:SD-03] The #45 resource-exploration cross-section reader: a drawn transect (densified sample points)
-    -> per-sample elevation + slope + bearing + sinkage + PSR + cumulative along-transect distance, each traced
-    to its REAL producer (DEM / terramechanics spine / horizon-computed PSR); ice-stability is reported as an
-    explicit data gap in `unavailable` (never fabricated). Public, 2..512 sample points (400/413 otherwise)."""
+    """[REQ:SD-03] The #45 resource-exploration cross-section reader: a drawn transect (densified sample points,
+    order-frame metres or selenographic lon/lat per `frame`) -> per-sample elevation + slope + bearing + sinkage
+    + PSR + cumulative along-transect distance, each traced to its REAL producer (DEM / terramechanics spine /
+    horizon-computed PSR); ice-stability is reported as an explicit data gap in `unavailable` (never fabricated).
+    Public, 2..512 sample points (400/413 otherwise)."""
     from stewie.server import gis_layers as GL
+    if req.frame not in ("order", "lonlat"):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "frame must be 'order' or 'lonlat'"})
     if len(req.points) < 2:
         return JSONResponse(status_code=400, content={"ok": False, "error": "a transect needs >= 2 sample points"})
     if len(req.points) > 512:
         return JSONResponse(status_code=413,
                             content={"ok": False, "error": "too many points (max 512 per transect)"})
     try:
-        return {"ok": True, **GL.transect_profile(req.site, req.points)}
+        return {"ok": True, **GL.transect_profile(req.site, req.points, frame=req.frame)}
     except (KeyError, FileNotFoundError) as e:
         return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
-    except (ImportError, ValueError) as e:
+    except ValueError as e:   # e.g. a lon/lat sample outside the site tile -- honest bad-input, not a 503
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    except ImportError as e:
         return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
 
 
