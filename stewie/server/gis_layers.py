@@ -601,8 +601,8 @@ def point_values(site: str, x_m: float, y_m: float) -> dict:
     if dem is None:
         raise FileNotFoundError(f"no DEM bundle for site {site!r}")
     Z, cell = dem
-    Z = np.asarray(Z, dtype=float)
-    ox, oy = float(origin[0]), float(origin[1])
+    Z = np.asarray(Z)                        # #59: keep native dtype; only the 97x97 patch is upcast to
+    ox, oy = float(origin[0]), float(origin[1])   # float64 below (was: upcasting the whole 2000x2000 DEM per call)
     height, width = Z.shape
     col = int(round((ox + float(x_m)) / cell))
     row = int(round((oy + float(y_m)) / cell))
@@ -655,7 +655,7 @@ def point_values(site: str, x_m: float, y_m: float) -> dict:
     half = 48
     r0, r1 = max(0, row - half), min(height, row + half + 1)
     c0, c1 = max(0, col - half), min(width, col + half + 1)
-    patch = Z[r0:r1, c0:c1]
+    patch = np.asarray(Z[r0:r1, c0:c1], dtype=float)   # #59: upcast only the 97x97 window (exact from float32)
     lr, lc = row - r0, col - c0
 
     elevation = float(Z[row, col])
