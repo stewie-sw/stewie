@@ -121,18 +121,27 @@
         return body;
     }
 
-    // Cut/fill MATERIAL BALANCE (civil earthwork economy): the placed cut/fill orders' bank volumes
-    // (footprint_m2 x depth_m). Cut supplies fill; balance >= 0 is surplus spoil, < 0 a deficit to import.
-    function materialBalance(orders) {
-        var cut = 0, fill = 0, nCut = 0, nFill = 0;
+    // Cut/fill MATERIAL BALANCE (civil earthwork economy). Cut is excavated at BANK density (RHO_DEEP=1920)
+    // and the placed spoil BULKS to LOOSE density (RHO_SPOIL=1300 -> +~48% volume). So the honest balance is the
+    // MASS the backend conserves (cut_bank*1920 vs fill_bank*1300), NOT bank-volume minus bank-volume -- the
+    // latter ignores the swell and disagrees with the backend's mass-balanced certification (fill_vol ~= 1.48*
+    // cut_vol). We also surface the loose spoil volume (what actually drives drum loads + haul cycles).
+    function materialBalance(orders, opts) {
+        opts = opts || {};
+        var rhoBank = opts.rhoBank || 1920, rhoLoose = opts.rhoLoose || 1300;   // constants.py RHO_DEEP / RHO_SPOIL
+        var cutBank = 0, fillBank = 0, nCut = 0, nFill = 0;
         (orders || []).forEach(function (o) {
             var v = (Number(o.footprint_m2) || 0) * (Number(o.depth_m) || 0);
-            if (o.kind === "cut") { cut += v; nCut += 1; }
-            else if (o.kind === "fill") { fill += v; nFill += 1; }
+            if (o.kind === "cut") { cutBank += v; nCut += 1; }
+            else if (o.kind === "fill") { fillBank += v; nFill += 1; }
         });
+        var looseSpoil = cutBank * (rhoBank / rhoLoose);
+        var cutMassKg = cutBank * rhoBank, fillMassKg = fillBank * rhoLoose;
+        var balanceKg = cutMassKg - fillMassKg;
         return {
-            cut_m3: round1(cut), fill_m3: round1(fill), balance_m3: round1(cut - fill),
-            status: (cut - fill) >= 0 ? "surplus" : "deficit", cut_count: nCut, fill_count: nFill
+            cut_m3: round1(cutBank), fill_m3: round1(fillBank), loose_spoil_m3: round1(looseSpoil),
+            cut_mass_kg: round1(cutMassKg), fill_mass_kg: round1(fillMassKg), balance_kg: round1(balanceKg),
+            status: balanceKg >= 0 ? "surplus" : "deficit", cut_count: nCut, fill_count: nFill
         };
     }
 

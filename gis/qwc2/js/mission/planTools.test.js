@@ -139,15 +139,18 @@ test("materialBalance sums cut/fill bank volumes + flags surplus/deficit", () =>
         { kind: "fill", footprint_m2: 30, depth_m: 0.3 },   // 9 m3
         { kind: "goto", footprint_m2: 0, depth_m: 0 }        // ignored (zero-mass visit)
     ];
-    const b = PT.materialBalance(orders);
+    const b = PT.materialBalance(orders);   // cut 44 m3 bank, fill 9 m3 bank
     assert.strictEqual(b.cut_m3, 44);
     assert.strictEqual(b.fill_m3, 9);
-    assert.strictEqual(b.balance_m3, 35);
+    assert.strictEqual(b.loose_spoil_m3, 65);          // 44 * 1920/1300 = +~48% swell
+    assert.strictEqual(b.cut_mass_kg, 84480);          // 44 * 1920
+    assert.strictEqual(b.fill_mass_kg, 11700);         // 9 * 1300
+    assert.strictEqual(b.balance_kg, 72780);           // mass surplus (the conserved quantity)
     assert.strictEqual(b.status, "surplus");
     assert.strictEqual(b.cut_count, 2);
-    assert.strictEqual(b.fill_count, 1);
-    const deficit = PT.materialBalance([{ kind: "fill", footprint_m2: 100, depth_m: 1 }]);
-    assert.strictEqual(deficit.balance_m3, -100);
-    assert.strictEqual(deficit.status, "deficit");
-    assert.strictEqual(PT.materialBalance([]).balance_m3, 0);            // empty -> 0 balance
+    // equal BANK volumes are a mass SURPLUS, not balance -- cut@1920 supplies more mass than loose fill@1300 needs:
+    const eq = PT.materialBalance([{ kind: "cut", footprint_m2: 100, depth_m: 1 }, { kind: "fill", footprint_m2: 100, depth_m: 1 }]);
+    assert.strictEqual(eq.cut_m3, eq.fill_m3);
+    assert.ok(eq.balance_kg > 0 && eq.status === "surplus");
+    assert.strictEqual(PT.materialBalance([]).balance_kg, 0);            // empty -> 0 balance
 });

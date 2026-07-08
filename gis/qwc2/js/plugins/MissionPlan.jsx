@@ -498,12 +498,13 @@ class MissionPlan extends React.Component {
     renderMaterialBalance(orders) {
         const b = PT.materialBalance(orders);
         if (!b.cut_count && !b.fill_count) { return null; }
+        const bt = (b.balance_kg / 1000).toFixed(1);
         return (
-            <div style={{fontSize: '10px', color: '#8a93a3', margin: '2px 0 6px'}}>
-                <span style={{color: '#e0563a'}}>cut {b.cut_m3} m³</span>
+            <div style={{fontSize: '10px', color: '#8a93a3', margin: '2px 0 6px', lineHeight: 1.45}}>
+                <span style={{color: '#e0563a'}}>cut {b.cut_m3} m³ bank → {b.loose_spoil_m3} m³ spoil</span>
                 {' · '}<span style={{color: '#4fd1ff'}}>fill {b.fill_m3} m³</span>
-                {' · balance '}
-                <span style={{color: b.status === 'deficit' ? '#ff8a8a' : '#7fe0a8'}}>{b.balance_m3 >= 0 ? '+' : ''}{b.balance_m3} m³ {b.status}</span>
+                <br />mass balance <span style={{color: b.status === 'deficit' ? '#ff8a8a' : '#7fe0a8'}}>{b.balance_kg >= 0 ? '+' : ''}{bt} t {b.status}</span>
+                <span style={{color: '#6a6a78'}}> (cut@1920 vs fill@1300 kg/m³)</span>
             </div>
         );
     }
