@@ -55,9 +55,11 @@ class MissionEvidence extends React.Component {
     componentWillUnmount() { if (this._unsubWS) { this._unsubWS(); } }
     load = () => {
         this.setState({model: null, error: null});
-        EV.fetchBundle({site: this.state.site}).then((d) => {
+        const site = this.state.site;   // #57: drop a stale resolve if the site changed while this was in flight
+        EV.fetchBundle({site: site}).then((d) => {
+            if (WS.site() !== site) { return; }
             this.setState({model: EV.buildModel(d)});
-        }).catch((e) => this.setState({error: 'evidence: ' + e.message}));
+        }).catch((e) => { if (WS.site() !== site) { return; } this.setState({error: 'evidence: ' + e.message}); });
     };
     toggle = (id) => { this.setState((s) => ({collapsed: {...s.collapsed, [id]: !s.collapsed[id]}})); };
     isOpen(id, dflt) {

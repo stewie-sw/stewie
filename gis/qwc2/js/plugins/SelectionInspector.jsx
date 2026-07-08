@@ -34,6 +34,7 @@ import MapUtils from 'qwc2/utils/MapUtils';
 
 import SI from '../mission/selectionInspect';   // pure per-cell query + provenance/confidence/freshness merge
 import WS from '../mission/workspace.js';        // GW-02: the shared workspace-context store (active site)
+import RG from '../mission/reqGuard.js';         // #57: last-click-wins / stale-site request guard
 
 // GW-02: the active site comes from the shared workspace (WS.site()), read at query time so every click
 // inspects the current work site without a per-plugin literal or a re-render.
@@ -77,21 +78,29 @@ class SelectionInspector extends React.Component {
         this._raf = 0;
     }
     componentDidMount() {
-        // one-shot: the provenance/confidence (catalog) + freshness (manifest) sources — same as the panel.
+        this._rg = RG.makeReqGuard();   // #57: last-click-wins guard for the point query
+        // the provenance/confidence (catalog) source — site-independent, fetched once.
         if (SI.fetchCatalog) {
             SI.fetchCatalog().then((cat) => this.setState({catalog: cat})).catch(() => {});
         }
+        this._loadManifest();
+        // #57 (was mount-only): re-fetch the per-site freshness manifest on a site change, and invalidate any
+        // in-flight point query so an old-site cell can't resolve into the new site's inspector.
+        this._unsubWS = WS.subscribe(() => { if (this._rg) { this._rg.bump(); } this._loadManifest(); });
+    }
+    _loadManifest = () => {
         if (SI.fetchLayerManifest && SI.freshnessFromManifest) {
-            SI.fetchLayerManifest(WS.site())
-                .then((m) => this.setState({freshness: SI.freshnessFromManifest(m)}))
+            const site = WS.site();
+            SI.fetchLayerManifest(site)
+                .then((m) => { if (WS.site() !== site) { return; } this.setState({freshness: SI.freshnessFromManifest(m)}); })
                 .catch(() => {});   // degrade silently to "no freshness" — the inspector still renders values
         }
-    }
+    };
     componentDidUpdate(prevProps) {
         if (this.props.active && !prevProps.active) { this._attachClick(); }
         else if (!this.props.active && prevProps.active) { this._detachClick(); }
     }
-    componentWillUnmount() { this._detachClick(); }
+    componentWillUnmount() { if (this._rg) { this._rg.bump(); } if (this._unsubWS) { this._unsubWS(); } this._detachClick(); }
 
     _attachClick = () => {
         const map = MapUtils.getHook(MapUtils.GET_MAP);
@@ -114,9 +123,11 @@ class SelectionInspector extends React.Component {
         const lon = lonlat[0];
         const lat = lonlat[1];
         this.setState({loading: true, error: null, clickLonLat: [lon, lat]});
-        SI.fetchPoint(WS.site(), {lon, lat})
-            .then((point) => this.setState({point, loading: false}))
-            .catch((e) => this.setState({error: 'point query: ' + e.message, loading: false, point: null}));
+        const site = WS.site();
+        const tok = this._rg.next();   // #57: last-click-wins + drop if the site changed while in flight
+        SI.fetchPoint(site, {lon, lat})
+            .then((point) => { if (!this._rg.current(tok) || WS.site() !== site) { return; } this.setState({point, loading: false}); })
+            .catch((e) => { if (!this._rg.current(tok) || WS.site() !== site) { return; } this.setState({error: 'point query: ' + e.message, loading: false, point: null}); });
     };
 
     _rows() {

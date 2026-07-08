@@ -89,8 +89,9 @@ class MissionLayers extends React.Component {
         // provenance) for the layer tree, from the PUBLIC /world/layer-manifest projection (the auth-gated
         // /world 401s for the keyless public /ide/). Failures degrade SILENTLY to "no freshness yet" — the
         // catalog tree still renders — so a backend that predates this route never reds the panel.
-        CL.fetchLayerManifest(WS.site())
-            .then((m) => this.setState({freshness: CL.freshnessFromManifest(m)}))
+        const mSite = WS.site();   // #57: drop a stale manifest if the site changed mid-flight
+        CL.fetchLayerManifest(mSite)
+            .then((m) => { if (WS.site() !== mSite) { return; } this.setState({freshness: CL.freshnessFromManifest(m)}); })
             .catch(() => {});
         // NOTE: /world/traffic-layer (the auth-gated absolute-Dr + bearing-uplift readout) is deliberately
         // NOT probed here — the traffic map layer is the PUBLIC /layers/globe/traffic.png drape (TW-11),
@@ -100,7 +101,8 @@ class MissionLayers extends React.Component {
         // bbox, re-fetch the freshness manifest, and drop now-stale drapes (they show the previous site).
         this._unsubWS = WS.subscribe(() => {
             this.bbox = null; this.bboxPending = null;
-            CL.fetchLayerManifest(WS.site()).then((m) => this.setState({freshness: CL.freshnessFromManifest(m)})).catch(() => {});
+            const s = WS.site();   // #57: guard the re-fetched manifest against a rapid second switch
+            CL.fetchLayerManifest(s).then((m) => { if (WS.site() !== s) { return; } this.setState({freshness: CL.freshnessFromManifest(m)}); }).catch(() => {});
             (this.props.layers || []).forEach((l) => { if (l.id && l.id.indexOf('stewie-mission:') === 0) { this.props.removeLayer(l.id); } });
         });
     }
@@ -114,8 +116,10 @@ class MissionLayers extends React.Component {
         // The geographic bbox is the same for every globe kind of a site, so fetch it once and reuse.
         if (this.bbox) return Promise.resolve(this.bbox);
         if (this.bboxPending) return this.bboxPending;
-        this.bboxPending = CL.fetchBbox('dem', {site: WS.site()}).then((bb) => {
+        const site = WS.site();   // #57: a bbox resolving AFTER a site switch must NOT be cached — it would drape the new site's raster at the OLD site's geographic extent (the wrong-location bug)
+        this.bboxPending = CL.fetchBbox('dem', {site: site}).then((bb) => {
             if (!bb || bb.ok === false) throw new Error(bb && bb.error ? bb.error : 'bbox unavailable');
+            if (WS.site() !== site) { this.bboxPending = null; throw new Error('bbox stale (site changed to ' + WS.site() + ')'); }
             this.bbox = bb;
             this.bboxPending = null;
             return bb;
@@ -129,8 +133,10 @@ class MissionLayers extends React.Component {
             this.props.removeLayer(id);
             return;
         }
+        const site = WS.site();   // #57: don't add a drape whose site changed between the bbox resolve and addLayer
         this.ensureBbox().then((bb) => {
-            const layer = CL.imageLayerFor(row, bb, {site: WS.site()});
+            if (WS.site() !== site) { return; }
+            const layer = CL.imageLayerFor(row, bb, {site: site});
             if (layer) this.props.addLayer(layer);
         }).catch((e) => this.setState({error: row.id + ': ' + e.message}));
     };

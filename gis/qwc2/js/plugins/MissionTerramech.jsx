@@ -33,9 +33,10 @@ class MissionTerramech extends React.Component {
     componentWillUnmount() { if (this._unsubWS) { this._unsubWS(); } }
     load = () => {
         this.setState({model: null, authority: null, error: null});
-        TM.fetchSpine(this.state.site)
-            .then((d) => this.setState({model: TM.buildSpineModel(d)}))
-            .catch((e) => this.setState({error: 'terramechanics: ' + e.message}));
+        const site = this.state.site;   // #57: drop a resolve whose site is no longer active (stale wrong-site race)
+        TM.fetchSpine(site)
+            .then((d) => { if (WS.site() !== site) { return; } this.setState({model: TM.buildSpineModel(d)}); })
+            .catch((e) => { if (WS.site() !== site) { return; } this.setState({error: 'terramechanics: ' + e.message}); });
         // The physics-authority registry is site-independent + supplementary -> degrade silently if it fails.
         TM.fetchAuthority()
             .then((d) => this.setState({authority: TM.buildAuthorityModel(d)}))
