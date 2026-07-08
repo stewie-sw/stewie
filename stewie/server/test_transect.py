@@ -74,10 +74,27 @@ def test_transect_route_404_unknown_site(client):
     assert r.status_code == 404
 
 
-def test_transect_lonlat_out_of_tile_is_422_not_503(client):
-    # a lon/lat outside the Haworth tile is an honest bad-input 422 -- the conversion runs and rejects cleanly
+def test_transect_lonlat_fully_out_of_tile_is_honest_all_out_rows(client):
+    # council #55 [3]: a transect entirely outside the tile no longer 422s the whole request -- it returns 200
+    # with every sample in_bounds=False + null fields (the chart shows its 'drawn outside the tile' empty-state).
     r = client.post("/world/transect", json={"site": "haworth", "points": [[116.56505, -88.43925], [116.6, -88.4]], "frame": "lonlat"})
-    assert r.status_code == 422
+    assert r.status_code == 200, r.text
+    s = r.json()["samples"]
+    assert len(s) == 2 and all(x["in_bounds"] is False and x["elevation_m"] is None for x in s)
+
+
+def test_transect_lonlat_partial_tile_returns_mixed_rows_not_422(client):
+    # council #55 [3]: a transect that only PARTIALLY crosses the tile returns its in-tile samples + honest
+    # out-of-bounds rows for the rest, not a 422 for the whole draw.
+    from stewie.terrain.site_dem import dem_origin_to_latlon
+    lat_in, lon_in = dem_origin_to_latlon(200 * 5.0, 200 * 5.0)   # in-tile (pixel 200,200)
+    r = client.post("/world/transect", json={"site": "haworth", "frame": "lonlat",
+                    "points": [[lon_in, lat_in], [116.56505, -88.43925]]})   # 2nd point far outside the tile
+    assert r.status_code == 200, r.text
+    s = r.json()["samples"]
+    assert any(x["in_bounds"] for x in s) and any(not x["in_bounds"] for x in s)   # mixed in + out rows
+    inb = next(x for x in s if x["in_bounds"])
+    assert isinstance(inb["elevation_m"], (int, float))   # the in-tile sample carries real data
 
 
 def test_transect_route_400_bad_frame(client):

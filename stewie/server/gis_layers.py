@@ -783,18 +783,30 @@ def transect_profile(site: str, points, frame: str = "order") -> dict:
     ox, oy = float(origin[0]), float(origin[1])
     h, w = Z.shape
     ph, pw = psr.shape
+    order_pts: list = []
     if frame == "lonlat":                                # public /ide: reproject 30135 click -> 30100 lon/lat,
-        # POST here; convert to the ORDER frame point_values uses. council #55 (HIGH): the raw
-        # MP.latlon_to_dem_origin is ABSOLUTE pixel-metres, so passing it straight in double-counted the
-        # flattest anchor and resolved interior clicks out of bounds -- latlon_to_order subtracts the origin.
-        order_pts = [latlon_to_order(site, float(p[0]), float(p[1]), _ctx=ctx) for p in points]
+        # POST here; convert to the ORDER frame point_values uses (latlon_to_order subtracts the flattest anchor
+        # -- council #55 HIGH). council #55 [3]: an out-of-tile sample raises ValueError -- catch it PER-POINT so
+        # a transect that only PARTIALLY crosses the tile still returns its in-tile samples (None = no-data row)
+        # instead of 422-ing the whole draw.
+        for p in points:
+            try:
+                order_pts.append(latlon_to_order(site, float(p[0]), float(p[1]), _ctx=ctx))
+            except ValueError:
+                order_pts.append(None)
     else:
         order_pts = [(float(p[0]), float(p[1])) for p in points]
     samples = []
     prev = None
     dist = 0.0
-    for (x, y) in order_pts:
-        x, y = float(x), float(y)
+    for op in order_pts:
+        if op is None:                                   # council #55 [3]: out-of-tile lonlat sample -> honest
+            samples.append({                             # no-data row (position unknown, so distance is carried,
+                "dist_m": round(dist, 2), "x_m": None, "y_m": None, "in_bounds": False,   # not advanced)
+                "elevation_m": None, "slope_deg": None, "bearing_pa": None, "sinkage_m": None, "psr": None,
+            })
+            continue
+        x, y = float(op[0]), float(op[1])
         if prev is not None:
             dist += math.hypot(x - prev[0], y - prev[1])
         prev = (x, y)
