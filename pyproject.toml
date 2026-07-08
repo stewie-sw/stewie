@@ -94,7 +94,7 @@ target-version = "py310"
 select = ["F"]
 
 [tool.pytest.ini_options]
-testpaths = ["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws"]
+testpaths = ["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws", "stewie_qgis"]
 # #122: serial by default. pytest-xdist `-n auto` parallelizes across all cores (1074s -> ~720s on a
 # 32-core box) and is in the `dev` extra, so the clean .venv has it -- run it explicitly for the local
 # speedup:  PYTHONNOUSERSITE=1 python -m pytest -n auto  (PYTHONNOUSERSITE=1 so the repo `.venv` numpy

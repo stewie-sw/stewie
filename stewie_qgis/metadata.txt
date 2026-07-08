@@ -1,0 +1,11 @@
+[general]
+name=STEWIE
+qgisMinimumVersion=3.22
+description=STEWIE lunar mission-planning Processing algorithms (call the live STEWIE FastAPI backend)
+version=0.1.0
+author=STEWIE (McCardle & Storey)
+about=Registers STEWIE analyses -- the terramechanics spine and a per-cell terramechanics sample -- as QGIS Processing algorithms over the public STEWIE backend endpoints (/world/terramechanics-layers, /world/point). Runnable from the QGIS GUI, the qgis_process CLI, batch, and Models. All rights reserved.
+hasProcessingProvider=yes
+tags=lunar,terramechanics,stewie,isru
+category=Analysis
+experimental=True
