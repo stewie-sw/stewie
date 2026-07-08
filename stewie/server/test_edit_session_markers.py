@@ -51,6 +51,27 @@ def test_markerin_accepts_the_frontend_markerbody_shape_and_forbids_a_stray_kind
         MarkerIn(x=1.0, y=2.0, otype="cache", kind="marker")
 
 
+def test_a_persist_failure_rolls_back_the_in_memory_edit(monkeypatch):
+    """[concurrency council] A mutation is ATOMIC with its write-through: if db.persist_session raises, the
+    in-memory session must be UNCHANGED (version, features, audit) -- otherwise in-memory LEADS the durable
+    store (the source of truth on restart) and a later GET /state returns an edit the durable store never
+    accepted (a three-way client/memory/disk inconsistency)."""
+    sess = ES.new_session()
+    sess.create("circle", {"cx": 0.0, "cy": 0.0, "r": 5.0})     # one good keep-out (persisted)
+    v0, nf0, na0 = sess.version, len(sess.current_features()), len(sess.audit())
+
+    def _boom(*a, **k):
+        raise RuntimeError("durable store down")
+    monkeypatch.setattr(ES.db, "persist_session", _boom)         # the NEXT persist fails
+
+    with pytest.raises(RuntimeError):
+        sess.create("circle", {"cx": 9.0, "cy": 9.0, "r": 2.0})
+
+    assert sess.version == v0                                    # version not bumped
+    assert len(sess.current_features()) == nf0                   # the failed feature was rolled back
+    assert len(sess.audit()) == na0                              # no orphan audit record left behind
+
+
 def test_marker_is_kept_out_of_the_keepout_set_and_the_planner_projection():
     """A marker must NEVER become a planner keep-out (it annotates; it is not a hazard)."""
     sess = ES.new_session()

@@ -38,6 +38,7 @@ post-restart path). See ``design/STEWIE_persistence_db_design_2026-07-07.md``.
 """
 from __future__ import annotations
 
+import contextlib
 import secrets
 import threading
 import time
@@ -155,6 +156,23 @@ class EditSession:
                            dict(self._features), dict(self._markers), new)
         self._persisted_len = len(self._audit)
 
+    @contextlib.contextmanager
+    def _atomic(self):
+        """All-or-nothing around a mutation + its write-through: if _persist() (or any step) raises, restore
+        the in-memory state so it can never LEAD the durable store (the store is the source of truth on a
+        restart). Caller holds _lock. The snapshot is shallow because every edit REPLACES a feature/marker
+        value wholesale (never mutates one in place) and only APPENDS audit records -- so a shallow copy of the
+        two dicts + the audit list is a correct point-in-time snapshot to roll back to."""
+        snap = (self.version, self._fid_seq, self._marker_seq,
+                dict(self._features), dict(self._markers), list(self._audit), self._persisted_len)
+        try:
+            yield
+        except Exception:
+            (self.version, self._fid_seq, self._marker_seq,
+             self._features, self._markers, self._audit, self._persisted_len) = (
+                snap[0], snap[1], snap[2], snap[3], snap[4], snap[5], snap[6])
+            raise
+
     # ---- internal --------------------------------------------------------------------------------
     def _next_fid(self) -> str:
         self._fid_seq += 1
@@ -178,7 +196,7 @@ class EditSession:
     def create(self, kind: str, body: dict) -> dict:
         """Create a keep-out from a map-frame geometry. Returns the stored feature (with its new fid)."""
         geom = _normalize_geometry(kind, body)
-        with self._lock:
+        with self._lock, self._atomic():
             if len(self._features) >= MAX_FEATURES_PER_SESSION:
                 raise ValueError(f"session is full ({MAX_FEATURES_PER_SESSION} keep-outs); delete some first")
             fid = self._next_fid()
@@ -190,7 +208,7 @@ class EditSession:
     def modify(self, fid: str, kind: str, body: dict) -> dict:
         """Replace an existing keep-out's geometry (audit records the before + after). Returns the new feature."""
         geom = _normalize_geometry(kind, body)
-        with self._lock:
+        with self._lock, self._atomic():
             old = self._features.get(fid)
             if old is None:
                 raise KeyError(fid)
@@ -201,7 +219,7 @@ class EditSession:
 
     def delete(self, fid: str) -> dict:
         """Delete a keep-out (audit records its before). Returns the deleted feature."""
-        with self._lock:
+        with self._lock, self._atomic():
             old = self._features.pop(fid, None)
             if old is None:
                 raise KeyError(fid)
@@ -213,7 +231,7 @@ class EditSession:
     def create_marker(self, body: dict) -> dict:
         """Create a place-object marker from a map-frame point. Returns the stored feature (with its fid)."""
         geom = _normalize_marker(body)
-        with self._lock:
+        with self._lock, self._atomic():
             if len(self._markers) >= MAX_MARKERS_PER_SESSION:
                 raise ValueError(f"session is full ({MAX_MARKERS_PER_SESSION} markers); delete some first")
             fid = self._next_marker_fid()
@@ -224,7 +242,7 @@ class EditSession:
 
     def delete_marker(self, fid: str) -> dict:
         """Delete a marker (audit records its before, so an undo can restore it). Returns the deleted feature."""
-        with self._lock:
+        with self._lock, self._atomic():
             old = self._markers.pop(fid, None)
             if old is None:
                 raise KeyError(fid)
@@ -236,7 +254,7 @@ class EditSession:
         idea applied locally: apply the inverse of the recorded before/after, append an ``undo`` audit
         record, and bump the version. History is never deleted. Raises ValueError if nothing to undo."""
         _UNDOABLE = ("create", "modify", "delete", "marker.create", "marker.delete")
-        with self._lock:
+        with self._lock, self._atomic():
             undone_targets = {rec["target"] for rec in self._audit if rec["op"] == "undo"}
             live = [rec for rec in self._audit
                     if rec["op"] in _UNDOABLE and rec["version"] not in undone_targets]
