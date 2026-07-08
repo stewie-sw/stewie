@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "4cfdddd995bd627c3c6c74537fe412c5af8646b64f3f2b2fa149046bfb3537f4",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "aa614d0b78c5973b29b71e87c33e866ac875801e",
-  "prd_sha256": "8c743d4f5f7b5962e2b5789b9c2d660f7f7a40458cebab897108497b7fa9d6d3",
+  "prd_commit": "9c995eb08965731206ffaff40c2aa01f4f47faf0",
+  "prd_sha256": "73fbc5d344e1e2a6e5dccb2f0c99b43d9f243d72de58d311bcbe122de6a3783c",
   "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
  },
  "rows": [
@@ -1006,6 +1006,18 @@
    "text": "Capability-fleet model generalizes the multi-vehicle planner to heterogeneous Asset/Capability; the matrix drives assignment + UI; current `VehicleState`/fleet rows remain the source."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "CG-01",
+   "lane": "CG",
+   "pri": "P2",
+   "text": "**Learned cost-fusion.** A learned model produces costmap term-weights from recorded operator/demonstrated paths; every learned weight is attributable to its training source and the fused cost decomposes into inspectable terms; the deterministic rule-weighted costmap remains the fallback. (extends SN-05/AS-11)"
+  },
+  {
    "I": "D",
    "Q": "NA",
    "V": "D",
@@ -1125,6 +1137,18 @@
    "lane": "CP",
    "pri": "P1",
    "text": "Sinter remains unavailable for baseline IPEx; enabling it requires a distinct tool/power model and capability-qualified vehicle."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "CR-01",
+   "lane": "CR",
+   "pri": "P2",
+   "text": "**Scheduled retraining trigger.** A scheduled trigger turns EG-08/MP-11 divergence + execution-feedback logs into a curated (no-synthetic) training set, retrains the fine-tuned nodes, and gates every candidate through RL-01 + FS-12 before redeploy; a divergence threshold enqueues a retrain job blocked until the gates pass. (extends EG-08/MP-11)"
   },
   {
    "I": "D",
@@ -2781,6 +2805,18 @@
    "text": "**Edit session (= ED-01).** Select/create/modify/delete/measure/snap/undo mission features (keep-outs/waypoints/work-zones) with versioned audit; edits write ONLY through backend routes, never the map layer directly. (extends GL-02)"
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "HF-01",
+   "lane": "HF",
+   "pri": "P1",
+   "text": "**Bayesian hazard fusion.** Hazard/costmap fusion combines rock/slope/sinkage/slip/illumination/change cues via a probabilistic (Bayesian) posterior hazard map with calibrated per-cell uncertainty, not only a rule/physics-weighted sum; the posterior + uncertainty drive the costmap. (extends AS-11)"
+  },
+  {
    "I": "D",
    "Q": "NA",
    "V": "D",
@@ -3036,6 +3072,18 @@
    "lane": "ML",
    "pri": "P0",
    "text": "Edge deployment envelope: any simultaneous model set intended for IPEx-class hardware must fit the selected compute profile (for example Jetson Orin Nano/NX/AGX class) under measured RAM, power, thermal, latency, and sensor-I/O budgets with degraded-mode scheduling. The budget must name the active depth source (stereo SGBM, neural stereo, LiDAR, RGB-D, or replay), image/cloud rate, CPU/GPU split, RAM ceiling, thermal/power ceiling, telemetry bandwidth, and offload boundary to a base station."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "ML-10",
+   "lane": "ML",
+   "pri": "P1",
+   "text": "**Crater / negative-obstacle detector.** An image/depth model produces crater/pit location, size, and confidence for navigation, acceptance-gated against held-out truth; complements the geometric `negative_obstacle_mask` + PM-14 pit recognition. (extends ML-03/PM-14)"
   },
   {
    "I": "D",
@@ -3418,6 +3466,30 @@
    "lane": "NV",
    "pri": "P1",
    "text": "Live command/telemetry uses a versioned streaming API with timestamps, sequence numbers, backpressure, and safe-stop semantics. `stewie.bridge.stream.StreamSession`: every frame carries `protocol_version` + a monotonic `seq` + a timestamp; a bounded un-acked window applies backpressure (frames past the window are refused + counted, never silently dropped); cumulative `ack` is the heartbeat; and an SF-01-tied safe-stop trips when the oldest un-acked frame stalls past `ack_deadline_s`, submitting `RC.Safe(SAFE_REASON_LINK_STALL)` through the same backend SF-01 uses. Pure (caller supplies `now`, the watchdog pattern; rclpy-optional). Wired into the AG-08-gated `/rc/plan_ros` route, which frames NV-11's lowered messages on a `StreamSession` (sequenced, back-pressured) for a live mission only."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "OF-01",
+   "lane": "OF",
+   "pri": "P2",
+   "text": "**OGC API Features serving.** An OGC API Features endpoint serves mission vector layers (keep-outs/routes/zones/targets) as standards Features in the lunar CRS, augmenting the custom `/world` routes; a client fetches features by bbox/collection. (extends BA-11/GI-03)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PD-01",
+   "lane": "PD",
+   "pri": "P2",
+   "text": "**PDAL point-cloud ingestion.** PDAL loads external point-cloud products (LAS/LAZ/PLY) into the source-neutral cloud contract with CRS/frame validation, feeding the PM-13/PM-14 DepthObservation path; a real point-cloud fixture round-trips bounds/CRS. (extends PM-14)"
   },
   {
    "I": "N",
@@ -4117,6 +4189,30 @@
    "text": "Break the `terramechanics` -> `stewie.specs.constants` edge (prerequisite for PO-18's bodies+numeric-only `stewie-forge`). `terramechanics` carries forge-local literal geotech defaults (the 13 K.* values: K_C/K_PHI/N_SINKAGE/COHESION/PHI/K_SHEAR/SLIP_C1/SLIP_C2/RHO_SURFACE/RHO_DEEP/ROVER_MASS_DRY_KG/N_WHEELS/g); the config-overlay path is PRESERVED by injecting config-overlaid values at the stewie-side call sites (dependency inversion), so runtime behavior is byte-identical. Acceptance: production `stewie/physics/terramechanics` imports no `stewie.specs.constants` at module level ([REQ:PX-06] AST guard, extends PX-05); `TerramechanicsParams.from_constants()` values unchanged; a `config` override of a geotech constant still reaches the built params via the injection path; physics + lode regression green."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "PX-07",
+   "lane": "PX",
+   "pri": "P2",
+   "text": "**Learned terramechanics surrogate.** A learned surrogate implements the PhysicsBackend protocol (sinkage/slip/traversability/energy faster than the analytical Bekker solve), calibrated to the analytical/Chrono oracle with bounded uncertainty + a deterministic analytical fallback; advisory/planning-only until validated (RL-01/TM-01), never sole release authority. (extends PX-04/TM-01)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "QB-01",
+   "lane": "QB",
+   "pri": "P2",
+   "text": "**Quantized shared backbone.** A single quantized shared vision backbone feeds the onboard perception heads (rock/depth/hazard/VO) within the ML-09 edge envelope; acceptance measures shared-backbone RAM/latency on the named compute profile and asserts head outputs match the separate-model baseline. (governed by FS-12/RL-01)"
+  },
+  {
    "I": "D",
    "Q": "NA",
    "V": "D",
@@ -4183,6 +4279,18 @@
    "lane": "RL",
    "pri": "P1",
    "text": "Deployed RL policy gate: no RL capability may be called operational until a versioned policy artifact, training/eval lineage, model card, safety shield, deterministic fallback, and out-of-distribution acceptance report exist. Training scripts/environments alone do not satisfy this row."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "RO-01",
+   "lane": "RO",
+   "pri": "P2",
+   "text": "**Reorient primitive.** A reorient primitive (commanded in-place heading/posture change as an authorable order) lowers to a bounded twist (NV-04) under stability guards (VT-06); acceptance emits a reorient with no net translation and a validated stability margin. (extends CP-04)"
   },
   {
    "I": "D",
@@ -4387,6 +4495,30 @@
    "lane": "RT",
    "pri": "P1",
    "text": "**Godot mission view (sidecar-first).** Renders the selected branch/run (terrain/rover/path/hazards/sensor-cones/shadow/excavation/as-built) using the same site/body/frame as the map; captures carry run/branch id, camera pose, timestamp, source class, asset hashes; never physics or command authority. (extends BA-08)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "SC-01",
+   "lane": "SC",
+   "pri": "P2",
+   "text": "**STAC catalog/index.** A STAC catalog indexes terrain/DEM/imagery/layer assets (items+collections with provenance/CRS/freshness) backing the LY-01 registry; a bbox/time/collection query returns matching asset records. (extends BA-11/PG-01)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "SC-02",
+   "lane": "SC",
+   "pri": "P2",
+   "text": "**STAC object store.** Ingested rasters/vectors persist to a STAC-indexed object store (COG/asset blobs + catalog) so a layer resolves by STAC item id; a durable projection, never authority. (extends SC-01/PG-01)"
   },
   {
    "I": "D",
@@ -4676,6 +4808,30 @@
    "text": "Low/high posture observations must be associated to the same world features through the current arm/camera transforms."
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "SV-01",
+   "lane": "SV",
+   "pri": "P1",
+   "text": "**Survey mission order.** A first-class typed survey order in the goal grammar (footprint + coverage/re-observation intent) compiles to a coverage route (NV-02) + Observe/MEERKAT actions (AM-01); acceptance authors a survey order and drives it end-to-end. (extends CP-04/NV-02)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TF-01",
+   "lane": "TF",
+   "pri": "P2",
+   "text": "**Onboard TSDF fusion.** An nvblox-style TSDF accumulates the selected depth source (PM-13) into a 3D SDF within the ML-09 Jetson envelope, reconciled against the conserved 2.5D elevation map (PM-08/AS-10); truth-denied; the live device is the gated leg (RS-06)."
+  },
+  {
    "I": "P",
    "Q": "N",
    "V": "P",
@@ -4723,6 +4879,30 @@
    "lane": "TM",
    "pri": "P1",
    "text": "**Predicted-vs-observed terramechanics.** A rehearsal/report compares predicted slip/sinkage/energy against observed or replayed telemetry when available; as-built excavation updates terrain memory + future cost layers."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TS-01",
+   "lane": "TS",
+   "pri": "P2",
+   "text": "**TimescaleDB telemetry.** A TimescaleDB (or equivalent hypertable) durably persists mission/rover telemetry time-series with a retention policy; a time-window query returns telemetry within a latency budget; a projection, never authority. (extends PG-01)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TT-01",
+   "lane": "TT",
+   "pri": "P2",
+   "text": "**TiTiler raster serving.** A TiTiler dynamic-COG tiler serves site DEM/imagery raster tiles on demand as an alternative to QGIS-Server WMS; a tile request returns a correct lunar-frame tile within tolerance; adopt-vs-keep-WMS is a recorded decision. (extends GW-05/FR-12)"
   },
   {
    "I": "N",
@@ -5028,7 +5208,7 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 71,
+   "buildable": 86,
    "concurrent": 0,
    "done": 254,
    "gated": 14
@@ -5078,9 +5258,17 @@
     "done": 0,
     "total": 1
    },
+   "CG": {
+    "done": 0,
+    "total": 1
+   },
    "CP": {
     "done": 9,
     "total": 10
+   },
+   "CR": {
+    "done": 0,
+    "total": 1
    },
    "CT": {
     "done": 7,
@@ -5134,6 +5322,10 @@
     "done": 6,
     "total": 8
    },
+   "HF": {
+    "done": 0,
+    "total": 1
+   },
    "LY": {
     "done": 2,
     "total": 2
@@ -5148,7 +5340,7 @@
    },
    "ML": {
     "done": 9,
-    "total": 9
+    "total": 10
    },
    "MO": {
     "done": 1,
@@ -5165,6 +5357,14 @@
    "NV": {
     "done": 12,
     "total": 12
+   },
+   "OF": {
+    "done": 0,
+    "total": 1
+   },
+   "PD": {
+    "done": 0,
+    "total": 1
    },
    "PG": {
     "done": 0,
@@ -5184,7 +5384,11 @@
    },
    "PX": {
     "done": 5,
-    "total": 6
+    "total": 7
+   },
+   "QB": {
+    "done": 0,
+    "total": 1
    },
    "RF": {
     "done": 3,
@@ -5194,6 +5398,10 @@
     "done": 1,
     "total": 1
    },
+   "RO": {
+    "done": 0,
+    "total": 1
+   },
    "RS": {
     "done": 4,
     "total": 8
@@ -5201,6 +5409,10 @@
    "RT": {
     "done": 1,
     "total": 6
+   },
+   "SC": {
+    "done": 0,
+    "total": 2
    },
    "SD": {
     "done": 1,
@@ -5222,9 +5434,25 @@
     "done": 14,
     "total": 15
    },
+   "SV": {
+    "done": 0,
+    "total": 1
+   },
+   "TF": {
+    "done": 0,
+    "total": 1
+   },
    "TM": {
     "done": 3,
     "total": 4
+   },
+   "TS": {
+    "done": 0,
+    "total": 1
+   },
+   "TT": {
+    "done": 0,
+    "total": 1
    },
    "TU": {
     "done": 0,
@@ -5246,11 +5474,11 @@
    },
    "P1": {
     "done": 143,
-    "total": 188
+    "total": 191
    },
    "P2": {
     "done": 4,
-    "total": 33
+    "total": 45
    },
    "P3": {
     "done": 0,
@@ -5258,10 +5486,10 @@
    }
   },
   "cited": 275,
-  "done_pct": 74.9,
-  "in_scope": 325,
-  "in_scope_done_pct": 78.2,
-  "total": 339
+  "done_pct": 71.8,
+  "in_scope": 340,
+  "in_scope_done_pct": 74.7,
+  "total": 354
  },
  "workflow_spine": [
   "Plan",
