@@ -37,13 +37,9 @@ def test_earthwork_volume_mass_match_the_decompose():
     orders = ST.decompose("landing_pad", 0.0, 0.0)
     ew = CB.order_earthwork(orders)
     # independent recomputation straight off the order dicts
-    from lode.planner_balance import insitu_bank_density
     exp_cut_vol = sum(o["footprint_m2"] * o["depth_m"] for o in orders if o["kind"] == "cut")
     exp_fill_vol = sum(o["footprint_m2"] * o["depth_m"] for o in orders if o["kind"] == "fill")
-    # task #78: the cut is costed at its PER-CUT depth-averaged in-situ bank density (not a flat RHO_BANK),
-    # the same density lode.planner_balance uses -- so a balanced structure's cut mass == fill mass.
-    exp_cut_mass = sum(o["footprint_m2"] * o["depth_m"] * insitu_bank_density(o["depth_m"], CB.RHO_LOOSE)
-                       for o in orders if o["kind"] == "cut")
+    exp_cut_mass = exp_cut_vol * CB.RHO_BANK
     exp_fill_mass = exp_fill_vol * CB.RHO_LOOSE
     # the evidence rounds volume to 4 dp / mass to 1 dp for display; assert to that precision
     assert ew["cut_volume_m3"] == pytest.approx(exp_cut_vol, abs=1e-4)
@@ -122,11 +118,7 @@ def test_evidence_carries_material_and_uncertainty_from_the_spine():
     orders = ST.decompose("landing_pad", 0.0, 0.0)
     ev = CB.structure_evidence("landing_pad", orders, site="haworth", site_slope_deg=8.0,
                                dem_resolution_m=5.0, slope_source="placement")
-    # task #78: the material block reports the EFFECTIVE per-cut in-situ bank density actually used (a shallow
-    # landing_pad cut is loose surface material ~RHO_LOOSE, not the flat deep RHO_BANK ceiling).
-    from lode.planner_balance import insitu_bank_density
-    assert ev["material"]["cut_density_kg_m3"] == ev["earthwork"]["cut_density_kg_m3"]
-    assert ev["material"]["cut_density_kg_m3"] == pytest.approx(insitu_bank_density(0.05, CB.RHO_LOOSE), abs=0.1)
+    assert ev["material"]["cut_density_kg_m3"] == CB.RHO_BANK
     assert ev["material"]["fill_density_kg_m3"] == CB.RHO_LOOSE
     assert ev["uncertainty"]["dem_resolution_m"] == 5.0
     # the calibration tags are the REAL spine tags (not invented), so they cannot drift from the spine

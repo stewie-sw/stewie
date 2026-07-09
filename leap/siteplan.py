@@ -24,10 +24,9 @@ import math
 from dataclasses import dataclass, field
 
 from leap import structures as S
-from lode.planner_balance import insitu_bank_density   # task #78: per-cut depth-averaged in-situ bank density
 from stewie.specs import constants as K
 
-RHO_BANK = K.RHO_DEEP     # in-situ density of cut material [kg/m^3] -- the DEEP-cut ceiling (see per-cut note)
+RHO_BANK = K.RHO_DEEP     # in-situ density of cut material [kg/m^3]
 RHO_LOOSE = K.RHO_SPOIL   # placed-loose density of fill material [kg/m^3]
 
 
@@ -102,10 +101,7 @@ class SitePlanReport:
 
 
 def _order_mass(kind: str, footprint_m2: float, depth_m: float) -> float:
-    # task #78: a CUT yields bank mass at its PER-CUT depth-averaged in-situ density (shallow surface cut
-    # ~RHO_LOOSE, deep cut -> RHO_BANK ceiling) -- the SAME density structures.py sizes the fill by and the
-    # planner routes on, so a self-balanced structure still nets ~0 here. A FILL demands loose spoil (RHO_LOOSE).
-    rho = insitu_bank_density(depth_m, RHO_LOOSE) if kind == "cut" else RHO_LOOSE
+    rho = RHO_BANK if kind == "cut" else RHO_LOOSE
     return rho * footprint_m2 * depth_m
 
 

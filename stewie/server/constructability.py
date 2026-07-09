@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import math
 
-from lode.planner_balance import insitu_bank_density   # task #78: per-cut depth-averaged in-situ bank density
 from stewie.specs import constants as K
 from stewie.specs import ipex_specs as IPX
 
@@ -60,10 +59,7 @@ def order_earthwork(orders: list[dict]) -> dict:
         depth = float(o["depth_m"])
         vol = footprint * depth
         is_cut = o["kind"] == "cut"
-        # task #78: cost a CUT at its PER-CUT depth-averaged in-situ bank density (shallow surface cut ~RHO_LOOSE,
-        # deep cut -> RHO_BANK ceiling), the SAME density the planner (lode.planner_balance) uses -- not a flat
-        # RHO_BANK that over-states a shallow scrape and reads a balanced structure as a phantom deficit.
-        rho = insitu_bank_density(depth, RHO_LOOSE) if is_cut else RHO_LOOSE
+        rho = RHO_BANK if is_cut else RHO_LOOSE
         mass = vol * rho
         per.append({
             "action": o.get("action", ""), "kind": o["kind"],
@@ -78,14 +74,10 @@ def order_earthwork(orders: list[dict]) -> dict:
             fill_mass += mass
     balanced = bool(cut_mass > 0.0 and fill_mass > 0.0
                     and abs(cut_mass - fill_mass) <= 1e-6 * max(cut_mass, fill_mass))
-    # the EFFECTIVE (volume-weighted) in-situ bank density actually used for the cut(s) -- honest per-cut
-    # value (== RHO_LOOSE for an all-shallow structure, -> RHO_BANK for a deep one), for the material block.
-    cut_density = round(cut_mass / cut_vol, 1) if cut_vol > 0.0 else 0.0
     return {
         "orders": per,
         "cut_volume_m3": round(cut_vol, 4), "fill_volume_m3": round(fill_vol, 4),
         "cut_mass_kg": round(cut_mass, 1), "fill_mass_kg": round(fill_mass, 1),
-        "cut_density_kg_m3": cut_density,
         "excavated_volume_m3": round(cut_vol, 4), "excavated_mass_kg": round(cut_mass, 1),
         "mass_balanced": balanced,
     }
@@ -190,12 +182,10 @@ def structure_evidence(name: str | None, orders: list[dict], *, site: str | None
         "terramechanics": terra,
         "verdict": verdict,
         "material": {
-            "cut_density_kg_m3": earthwork["cut_density_kg_m3"],
+            "cut_density_kg_m3": RHO_BANK,
             "fill_density_kg_m3": RHO_LOOSE,
-            "assumption": ("conserved regolith: the cut is costed at its PER-CUT depth-averaged in-situ bank "
-                           "density (task #78: shallow surface cut ~loose, deep cut -> RHO_DEEP ceiling); the "
-                           "fill places loose spoil (RHO_SPOIL); mass = volume × density"),
-            "provenance": "lode.planner_balance.insitu_bank_density over stewie.specs.constants RHO_SURFACE/RHO_DEEP/RHO_SPOIL",
+            "assumption": "conserved Apollo-profile bank(cut)/loose(fill) regolith density; mass = volume × density",
+            "provenance": "stewie.specs.constants RHO_DEEP / RHO_SPOIL",
         },
         "uncertainty": {
             "dem_resolution_m": (round(float(dem_resolution_m), 3) if dem_resolution_m is not None else None),
