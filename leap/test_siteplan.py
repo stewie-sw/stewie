@@ -17,7 +17,11 @@ from stewie.specs import constants as K
 
 
 def _bank_mass(footprint_m2: float, depth_m: float) -> float:
-    return K.RHO_DEEP * footprint_m2 * depth_m
+    # task #78: a cut yields bank mass at its PER-CUT depth-averaged in-situ density (siteplan._order_mass),
+    # not the flat deep RHO_DEEP ceiling. Matches siteplan's own per-cut model so a self-balanced structure
+    # nets ~0 and a borrow pit's surplus is its real per-cut bank mass.
+    from lode.planner_balance import insitu_bank_density
+    return insitu_bank_density(depth_m, K.RHO_SPOIL) * footprint_m2 * depth_m
 
 
 def test_single_balanced_structure_nets_to_zero():

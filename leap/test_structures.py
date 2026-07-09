@@ -28,22 +28,40 @@ def test_registry_has_the_taxonomy_structures():
 
 
 def test_balanced_structures_conserve_mass_with_bulking():
-    # I7: MASS is conserved, not volume. A cut removes BANK material (RHO_BANK) and the fill places it as
-    # LOOSE spoil (RHO_LOOSE), which bulks to MORE volume. Pin cut_mass == fill_mass on the balanced pairs.
+    # I7 + task #78: MASS is conserved, not volume. A cut removes bank material at its PER-CUT in-situ density
+    # (depth-dependent: shallow surface cuts are already loose, deep cuts denser) and the fill places it as
+    # LOOSE spoil (RHO_LOOSE). Pin cut_mass == fill_mass on the balanced pairs using the SAME per-cut density
+    # model lode.planner_balance uses -- so the structure also balances in the planner (no phantom deficit).
+    # (Supersedes the old flat cut_v*RHO_BANK == fill_v*RHO_LOOSE, which mis-costed shallow surface cuts.)
+    from lode.planner_balance import insitu_bank_density
     for name in ("landing_pad", "habitat_foundation", "blast_berm", "crater_fill"):
         orders = ST.decompose(name, 40.0, 30.0)
-        cut_v, fill_v = _vol(orders, "cut"), _vol(orders, "fill")
-        assert cut_v > 0 and fill_v > 0, name
-        assert math.isclose(cut_v * ST.RHO_BANK, fill_v * ST.RHO_LOOSE, rel_tol=1e-9), \
-            f"{name}: cut {cut_v * ST.RHO_BANK:.1f} != fill {fill_v * ST.RHO_LOOSE:.1f} kg"
+        cut_m = sum(o["footprint_m2"] * o["depth_m"] * insitu_bank_density(o["depth_m"], ST.RHO_LOOSE)
+                    for o in orders if o["kind"] == "cut")
+        fill_m = sum(o["footprint_m2"] * o["depth_m"] * ST.RHO_LOOSE for o in orders if o["kind"] == "fill")
+        assert cut_m > 0 and fill_m > 0, name
+        assert math.isclose(cut_m, fill_m, rel_tol=1e-9), f"{name}: cut {cut_m:.1f} != fill {fill_m:.1f} kg"
 
 
 def test_loose_fill_bulks_above_bank_cut():
-    # a cut->fill structure: the loose fill volume exceeds the bank cut volume by exactly SWELL (>1)
-    orders = ST.decompose("landing_pad", 0.0, 0.0)
+    # task #78: bulking is DEPTH-DEPENDENT. A DEEP cut (below the loose surface mantle Z_T) excavates denser
+    # bank material that bulks when placed loose -> fill_v > cut_v, by exactly the per-cut swell (at/below the
+    # flat RHO_BANK/RHO_LOOSE ceiling). (A shallow surface cut does NOT bulk; see the next test.)
+    from lode.planner_balance import insitu_bank_density
+    orders = ST.decompose("landing_pad", 0.0, 0.0, cut_depth_m=0.30)
     cut_v, fill_v = _vol(orders, "cut"), _vol(orders, "fill")
-    assert ST.SWELL > 1.0
-    assert fill_v > cut_v and math.isclose(fill_v / cut_v, ST.SWELL, rel_tol=1e-9)
+    swell = insitu_bank_density(0.30, ST.RHO_LOOSE) / ST.RHO_LOOSE
+    assert 1.0 < swell <= ST.SWELL
+    assert fill_v > cut_v and math.isclose(fill_v / cut_v, swell, rel_tol=1e-9)
+
+
+def test_shallow_surface_cut_does_not_bulk():
+    # task #78: a shallow surface cut (depth <= Z_T) excavates already-loose surface regolith, so it does NOT
+    # bulk -- fill_v == cut_v (swell 1.0), not the old flat RHO_DEEP/RHO_SPOIL (~1.48). This is the shallow
+    # (0.05 m) landing_pad default that used to read as a ~1116 kg phantom deficit in the planner.
+    orders = ST.decompose("landing_pad", 0.0, 0.0, cut_depth_m=0.05)
+    cut_v, fill_v = _vol(orders, "cut"), _vol(orders, "fill")
+    assert math.isclose(fill_v, cut_v, rel_tol=1e-9)
 
 
 def test_source_or_sink_only_structures_are_cut_only():

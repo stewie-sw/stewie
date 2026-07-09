@@ -220,10 +220,22 @@ def commands_from_plan(mission, *, cell_m: float = DEFAULT_CELL_M, dem=None, dem
         site = tr.get("site")
         if not site:
             continue
-        x, y = float(site[0]), float(site[1])
-        cmds.append(GoTo(leg_id=leg_id, goal_row=y / cell_m, goal_col=x / cell_m,
-                         v_max_mps=v_max_mps, goal_radius_cells=1.0))
-        leg_id += 1
+        # A trip replays as its physical drive PATH: go to the work site, and when the trip hauls material
+        # to a DISTINCT dest (a cutfill trip carries dest=(fill.x, fill.y)), also drive there. A co-located
+        # cut+fill trip is therefore a 2-leg tape (drive-to-cut, haul-to-fill), so a genuine multi-order
+        # mission stays a reusable multi-leg GoTo sequence even after task #78 mass-balances it (removing the
+        # old surplus-spoil second trip that used to supply the extra leg). goto/import/dig/sinter trips have
+        # no distinct dest -> one leg each, unchanged.
+        waypoints = [(float(site[0]), float(site[1]))]
+        dest = tr.get("dest")
+        if dest is not None:
+            dxy = (float(dest[0]), float(dest[1]))
+            if dxy != waypoints[0]:
+                waypoints.append(dxy)
+        for x, y in waypoints:
+            cmds.append(GoTo(leg_id=leg_id, goal_row=y / cell_m, goal_col=x / cell_m,
+                             v_max_mps=v_max_mps, goal_radius_cells=1.0))
+            leg_id += 1
     return cmds
 
 

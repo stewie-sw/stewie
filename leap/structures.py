@@ -25,10 +25,25 @@ from stewie.specs import constants as _K  # noqa: E402
 
 # Bulking/swell (I7): excavation removes BANK (in-situ) material and places it as LOOSE spoil, which
 # occupies MORE volume -> MASS is conserved, not volume. SWELL = loose fill volume per bank cut volume.
-RHO_BANK = _K.RHO_DEEP        # in-situ (excavated) density [kg/m^3] (~1920)
+RHO_BANK = _K.RHO_DEEP        # in-situ (excavated) density [kg/m^3] (~1920) -- the DEEP-cut ceiling
 RHO_LOOSE = _K.RHO_SPOIL      # loose placed spoil density [kg/m^3] (~1300)
-SWELL = RHO_BANK / RHO_LOOSE  # ~1.48 (lunar): loose fill bulks above the bank cut. Planner-side
-#                               approximation; the conserved authority (P8/I8) gives the exact per-column mass.
+SWELL = RHO_BANK / RHO_LOOSE  # ~1.48: MAX bulking (deepest compacted cut). Kept as the deep-cut ceiling;
+#                               the fill sizing now uses the PER-CUT swell (below), not this flat max.
+
+# task #78: bulking is DEPTH-DEPENDENT, so a structure must size its fill with the SAME per-cut in-situ bank
+# density the planner (lode.planner_balance) costs the cut at. A shallow surface cut (depth <= Z_T) excavates
+# already-loose surface regolith (swell ~1.0, no bulking); a deep cut approaches the compacted RHO_BANK
+# ceiling (swell ~1.48). Sizing the fill by this per-cut swell (not the flat SWELL) makes cut BANK mass ==
+# fill LOOSE mass under the planner's model, so a shallow structure cut no longer reads as a phantom deficit.
+from lode.planner_balance import insitu_bank_density  # noqa: E402
+
+
+def _cut_swell(depth_m):
+    """Loose-fill volume per unit bank-cut volume for a cut of THIS depth: the depth-averaged in-situ bank
+    density (task #78, :func:`lode.planner_balance.insitu_bank_density`) over the loose spoil density. The
+    ratio is body-independent (the loose density cancels), so RHO_LOOSE here matches the planner's per-cut
+    swell on any body. Shallow (<=Z_T) -> ~1.0 (no bulk); deep -> RHO_BANK/RHO_LOOSE (~1.48)."""
+    return insitu_bank_density(depth_m, RHO_LOOSE) / RHO_LOOSE
 
 
 def _require_positive(**kw):
@@ -50,7 +65,7 @@ def _o(action, kind, x, y, footprint_m2, depth_m, note=""):
 def landing_pad(x, y, *, side_m=6.0, cut_depth_m=0.05, berm_height_m=0.12):
     """Level a square pad (bank cut) and build a perimeter blast berm from that material (loose fill, bulked)."""
     _require_positive(side_m=side_m, cut_depth_m=cut_depth_m, berm_height_m=berm_height_m)
-    fill_vol = (side_m * side_m) * cut_depth_m * SWELL          # bank cut -> bulked loose fill (mass-conserved)
+    fill_vol = (side_m * side_m) * cut_depth_m * _cut_swell(cut_depth_m)   # per-cut bank->loose (mass-conserved, #78)
     return [
         _o("Level landing pad", "cut", x, y, side_m * side_m, cut_depth_m, f"{side_m:.0f}x{side_m:.0f} m"),
         _o("Perimeter blast berm", "fill",
@@ -62,7 +77,7 @@ def landing_pad(x, y, *, side_m=6.0, cut_depth_m=0.05, berm_height_m=0.12):
 def habitat_foundation(x, y, *, side_m=5.0, cut_depth_m=0.06, fill_height_m=0.06):
     """Cut a level footing (bank) and place a compacted raised pad from the spoil (loose fill, bulked)."""
     _require_positive(side_m=side_m, cut_depth_m=cut_depth_m, fill_height_m=fill_height_m)
-    fill_vol = (side_m * side_m) * cut_depth_m * SWELL
+    fill_vol = (side_m * side_m) * cut_depth_m * _cut_swell(cut_depth_m)   # per-cut bank->loose (#78)
     return [
         _o("Cut habitat footing", "cut", x, y, side_m * side_m, cut_depth_m),
         _o("Compacted foundation fill", "fill",
@@ -74,7 +89,7 @@ def habitat_foundation(x, y, *, side_m=5.0, cut_depth_m=0.06, fill_height_m=0.06
 def blast_berm(x, y, *, length_m=15.0, width_m=3.0, height_m=0.5, borrow_depth_m=0.3):
     """A loose fill ridge supplied by a nearby borrow pit; the bank cut is sized so MASS balances."""
     _require_positive(length_m=length_m, width_m=width_m, height_m=height_m, borrow_depth_m=borrow_depth_m)
-    borrow_vol = ((length_m * width_m) * height_m) / SWELL     # bank cut to supply the loose berm (mass-conserved)
+    borrow_vol = ((length_m * width_m) * height_m) / _cut_swell(borrow_depth_m)   # per-cut bank cut supplies the berm (#78)
     return [
         _o("Borrow pit (berm)", "cut",
            x - (width_m / 2 + math.sqrt(borrow_vol / borrow_depth_m) / 2 + 2.0), y,
@@ -87,7 +102,7 @@ def crater_fill(x, y, *, radius_m=8.0, depth_m=0.4, borrow_depth_m=0.3):
     """Fill a crater dip to grade from a nearby borrow pit; the bank cut is sized so MASS balances."""
     _require_positive(radius_m=radius_m, depth_m=depth_m, borrow_depth_m=borrow_depth_m)
     fill_area = math.pi * radius_m * radius_m
-    borrow_vol = (fill_area * depth_m) / SWELL                 # bank cut to supply the loose fill (mass-conserved)
+    borrow_vol = (fill_area * depth_m) / _cut_swell(borrow_depth_m)   # per-cut bank cut supplies the loose fill (#78)
     return [
         _o("Borrow pit (crater)", "cut",
            x - (radius_m + math.sqrt(borrow_vol / borrow_depth_m) / 2 + 2.0), y,
