@@ -58,7 +58,7 @@ staged web-2D decision — that conflict is the one real fork to resolve.
 
 ## The one real fork: web-2D cockpit vs. desktop multi-engine IDE
 
-- **Staged decision** (`geolibre_rewrite_plan_2026-07-03.md`): a GeoLibre-style **2D React WEB cockpit**;
+- **Staged decision** (`frontend_rewrite_plan_2026-07-03.md`): a GeoLibre-style **2D React WEB cockpit**;
   Python backend as sidecar; Godot as a sim/render sidecar. Lean, web-first, single stack.
 - **This proposal**: a **desktop Planetary IDE** that orchestrates native **Godot (3D render) + RViz (ROS
   debug) + GeoLibre (GIS) + panels**, all context-synchronized.

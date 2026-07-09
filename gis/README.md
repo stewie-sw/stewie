@@ -58,8 +58,8 @@ overviews). Site DEM/slope are 5 m/px; Haworth is 1 m/px.
 - **Haworth 1 m DEM** — USGS Haworth **Shape-from-Shading** DEM (LROC NAC SfS).
 
 Re-derivation inputs (pre-COG GeoTIFFs: `SiteNN_surf.tif`, `SiteNN_slp.tif`,
-`Haworth_1m_sfs.tif`) live in `../raw/`; the COGs are produced from them with
-`code/scripts/gis/cogify.sh`.
+`Haworth_1m_sfs.tif`) live in `../raw/`; the COGs are committed derived artifacts,
+re-derived from those raw GeoTIFFs with GDAL (`gdal_translate -of COG` + `gdaldem slope`).
 
 | Layer group | file (`data/gis/cog/`) | px | dims | center (lon, lat) | DEM min / max (m) |
 |---|---|---|---|---|---|

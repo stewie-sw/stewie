@@ -99,7 +99,7 @@
     { label: "Restructure · edge breaks",              lanes: ["BD", "PX", "AP"] },
     { label: "Restructure · packaging & demo",         lanes: ["PO", "DE"] },
     { label: "Restructure · data, branches & engines", lanes: ["BR", "CF", "PG", "MI", "TW"] },
-    { label: "Frontend · GeoLibre 2D rewrite",         lanes: ["RF", "GL", "DW", "AC", "TU", "MG"] },
+    { label: "Frontend · QWC2 / OpenLayers IDE",       lanes: ["RF", "GL", "DW", "AC", "TU", "MG"] },
     { label: "Runtime & autonomy",                     lanes: ["RS", "AS", "NV", "SL", "ML", "RL", "SF"] },
     { label: "Mission planning & physics",             lanes: ["PM", "FL", "FR", "GI", "VT", "SN", "BA", "DT", "AM", "CP", "CT"] },
     { label: "Backend, ops & security",                lanes: ["BP", "SE", "FS", "EP", "AG", "MO", "MT"] }

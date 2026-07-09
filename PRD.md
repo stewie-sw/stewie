@@ -8,16 +8,16 @@ documents are archived (`docs/archive/`) or are upstream STEWIE architecture/roa
 workspace: `design/STEWIE_ATOMIC_EXECUTION_PLAN_2026-06-09.md`.
 **Baseline commit:** `047331250cf443498c25b5bead4bed167668752c`
 
-> **⚠ ARCHITECTURE PIVOT 2026-07-03 — GeoLibre-style 2D frontend rewrite + pluggable physics/body seams.**
+> **⚠ ARCHITECTURE PIVOT 2026-07-03 — 2D GIS frontend + pluggable physics/body seams (frontend stack SUPERSEDED: the frontend shipped as QWC2/OpenLayers, not the MapLibre rewrite this banner originally proposed).**
 > Aaron's decision, planned by conferring with Codex (max-reasoning). The full plan is
-> `docs/geolibre_rewrite_plan_2026-07-03.md` (Claude + Codex reconciled); the migration assessment behind it
-> is `docs/geolibre_migration_assessment_2026-07-03.md`. **What changes:** the frontend is rebuilt on a
-> GeoLibre-style stack (React/TypeScript + MapLibre GL JS + deck.gl 2D + DuckDB-WASM + Tauri v2); the map is
+> `docs/frontend_rewrite_plan_2026-07-03.md` (Claude + Codex reconciled — HISTORICAL; the React/MapLibre stack it proposed was never adopted and was reverted at 55c44c6); the migration assessment behind it
+> is `docs/frontend_migration_assessment_2026-07-03.md` (historical). **What changes:** the frontend is rebuilt as a
+> 2D GIS map surface — shipped as QWC2 (QGIS Web Client 2) / OpenLayers over QGIS Server WMS, NOT the originally-scoped React/MapLibre GL JS + deck.gl + DuckDB-WASM + Tauri v2 stack (never adopted, reverted at 55c44c6); the map is
 > **2D only** (no Cesium globe — this deliberately defuses the lunar-CRS-on-an-Earth-engine risk); the Python
 > FastAPI backend is **unchanged** and becomes the sidecar (all 140 routes reused); and STEWIE gains two
 > first-class extension seams — a **PhysicsBackend** interface (Tier-2 conserved NumPy / Tier-3 Chrono-hybrid /
 > future engines, swappable per mission) and a **BodyProfile** registry (Moon/Mars/Ceres/… as versioned
-> profiles). **New §7 lanes:** RF (React frontend), GL (GeoLibre 2D map), DW (DuckDB-WASM), AC (API client),
+> profiles). **New §7 lanes:** RF (React frontend), GL (GIS 2D map), DW (DuckDB-WASM), AC (API client),
 > PX (physics extensibility), BD (body profiles), TU (Tauri desktop), MG (migration governance) — see §7.A.
 > **Roadmap:** the phased strangler-fig migration is §10.A. **Honesty note:** the pivot RE-OPENS P0 — the
 > pre-pivot backend/cockpit scope's "all P0 complete" still holds, but the rebuild adds NEW P0 foundations
@@ -437,11 +437,11 @@ measurement.
 
 The rebuilt system is TWO processes (2026-07-03 pivot): a Python **compute/authority backend** (UNCHANGED --
 the FastAPI sidecar, all 140 routes, DART/LODE/LEAP/FORGE, physics, RL, planner, runtime spine, digital twin)
-and a React **operator frontend** (the 2D GeoLibre-style cockpit). The layered stack below is the backend
+and a React **operator frontend** (the 2D GIS cockpit). The layered stack below is the backend
 compute stack (L0-L6) plus the new frontend product layers (L7-L8). Physics is now a PLUGGABLE authority (L1)
 and body data is a PROFILE registry (L0). Client state may author intent and view results, but conserved
 terrain mutation happens ONLY through the backend authority path (§6.1, §6.2). Full design:
-`docs/geolibre_rewrite_plan_2026-07-03.md`.
+`docs/frontend_rewrite_plan_2026-07-03.md` (historical two-process design; the adopted GIS frontend is QWC2/OpenLayers per `design/STEWIE_PRD2_gis_mission_workbench_2026-07-04.md`).
 
 ```text
 L8  Product shells
@@ -537,13 +537,13 @@ planned there); W-1 and W-4 are small and should land with the next runtime slic
 
 ## 7. Requirements
 
-### 7.A GeoLibre-style frontend rewrite + extensibility seams (2026-07-03 pivot)
+### 7.A Frontend rewrite (QWC2/OpenLayers) + extensibility seams (2026-07-03 pivot)
 
-These lanes track the 2026-07-03 rewrite (design: `docs/geolibre_rewrite_plan_2026-07-03.md`). The backend
+These lanes track the 2026-07-03 rewrite (design: `docs/frontend_rewrite_plan_2026-07-03.md`, historical — the frontend shipped as QWC2/OpenLayers, not the MapLibre stack it proposed). The backend
 lanes (§7.1-§7.17) are UNCHANGED — the FastAPI core is reused. The vanilla-cockpit rows (FR-16..21 mobile +
 the pane/shell FR/FS rows) are SUPERSEDED by RF/GL and marked migrated as each React pane reaches parity; they
 are not deleted (history) and stay valid until the vanilla cockpit retires (MG-03). Roadmap: §10.A. Lane keys:
-RF React frontend · GL GeoLibre 2D map · DW DuckDB-WASM · AC API client · PX physics · BD body profiles ·
+RF React frontend · GL GIS 2D map · DW DuckDB-WASM · AC API client · PX physics · BD body profiles ·
 TU Tauri desktop · MG migration governance.
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
@@ -628,20 +628,20 @@ platform scope. Design: `docs/prd_reorg_spec_2026-07-03.md` + `docs/backend_/fro
 | MP-09 | P1 | Physics planning/scoring: sinkage/slip/excavation-force/energy/stability scored per candidate via the conserved PhysicsBackend (PX-04). Acceptance: each candidate carries a physics score from the conserved backend; an infeasible candidate is flagged (not silently ranked); test. | D | D | D | NA |
 | MP-10 | P1 | Rehearsal: candidate plans → Gazebo/Chrono simulation → predicted outcomes → risk scoring, on simulation branches in REHEARSAL mode. Acceptance: a rehearsal yields predicted outcomes + a risk score WITHOUT touching live/accepted world (mode-gated per EG-02); test. | D | D | D | NA |
 | MP-11 | P1 | Reconciliation step: prediction vs observation → plan deviation → world-update + model-update proposals (feeds EG-08 / §29.7). Acceptance: an executed plan's predicted-vs-observed diff yields a world-update proposal + a flagged model error; test. | D | D | D | NA |
-| MP-12 | P2 | The 10 planning UI panels (Mission Graph / Map-3D / Capability Board / Physics / Timeline / Resource / Rehearsal / Risk / Execution / Reconcile), each rendering its planning object from the API. FRAMING: NOT the GeoLibre rewrite lane (never adopted); these panels land in the QWC2 /ide + the operational-OS console rows WS-01/02/04/05 + TP-01..04 -- cross-ref those. | N | N | N | NA |
+| MP-12 | P2 | The 10 planning UI panels (Mission Graph / Map-3D / Capability Board / Physics / Timeline / Resource / Rehearsal / Risk / Execution / Reconcile), each rendering its planning object from the API. FRAMING: NOT the never-adopted MapLibre rewrite lane (never adopted); these panels land in the QWC2 /ide + the operational-OS console rows WS-01/02/04/05 + TP-01..04 -- cross-ref those. | N | N | N | NA |
 | MP-13 | P2 | Simulation failure-injection / stress-test: a REHEARSAL-mode run accepts a declared scenario (night-ops/comm-loss/wheel-or-sensor-failure/dust), runs mode-gated without touching live/accepted world (EG-02), and produces the fault classification + plan response; a test drives each injection and asserts the executive's defined response fires. (extends MP-10/NV-08/EG-11) | N | N | N | NA |
 
 ### 7.B GIS Mission Workbench — PRD2 product target (2026-07-04 fold)
 
-**Product target.** STEWIE is a GIS-first lunar mission workbench (`design/STEWIE_PRD2_gis_mission_workbench_2026-07-04.md`): one persistent GeoLibre map with layers/selection/editing/analysis as the primary surface; Plan/Rehearse/Validate/Release/Execute are mission-lifecycle overlays; ROS2/Gazebo/RViz/Godot are runtime/evidence engines behind ONE workspace context, never independent command surfaces. These rows are ADDITIVE over the §7.A campaign lanes — they extend, not replace, the verified RF/GL/DW/AC/BA/RS/FR/PX rows (the `(extends X)` tags show the rollup). Open-decision defaults: web-first · Godot sidecar-first · RViz/Foxglove evidence-first · gazebo_sim named now.
+**Product target.** STEWIE is a GIS-first lunar mission workbench (`design/STEWIE_PRD2_gis_mission_workbench_2026-07-04.md`): one persistent QWC2/OpenLayers map with layers/selection/editing/analysis as the primary surface; Plan/Rehearse/Validate/Release/Execute are mission-lifecycle overlays; ROS2/Gazebo/RViz/Godot are runtime/evidence engines behind ONE workspace context, never independent command surfaces. These rows are ADDITIVE over the §7.A campaign lanes — they extend, not replace, the verified RF/GL/DW/AC/BA/RS/FR/PX rows (the `(extends X)` tags show the rollup). Open-decision defaults: web-first · Godot sidecar-first · RViz/Foxglove evidence-first · gazebo_sim named now.
 
 **Loop pick order (GIS-first, prerequisites first):** GW-00 · RT-00 → GW-02 → LY-01 → GW-05 → GW-06 · GW-03 → GW-07 → RT-01 → LY-02 → GW-08/ED-01 → PH-01 → TM-02 → GW-04 → AU-01 → SD-01 → PH-02 · TM-03 → RT-03 → RT-02 → TM-04 → RT-04 → RT-05 → EV-01.
 
 | ID | P | Requirement and acceptance | I | X | V | Q |
 |---|---|---|---|---|---|---|
-| GW-00 | P0 | **Prerequisite — Trek imagery + web-panel CSP allowlist.** `deploy/nginx.conf` + backend CSP allow `trek.nasa.gov` (and rosbridge/foxglove origins) so GeoLibre streams real NASA Trek tiles and RViz/Godot web panels load; a test asserts the CSP header lists the allowed hosts. Blocks GW-05, RT-04. | D | D | D | NA |
+| GW-00 | P0 | **Prerequisite — Trek imagery + web-panel CSP allowlist.** `deploy/nginx.conf` + backend CSP allow `trek.nasa.gov` (and rosbridge/foxglove origins) so the QWC2/OpenLayers map streams real NASA Trek tiles and RViz/Godot web panels load; a test asserts the CSP header lists the allowed hosts. Blocks GW-05, RT-04. | D | D | D | NA |
 | RT-00 | P0 | **Prerequisite — ROS image carries the stewie python stack.** `deploy/ros2/Dockerfile.ros2dev` installs pip + the monorepo (numpy/scipy/pydantic/gymnasium + stewie_bodies/dart/lode/forge) so live-spine rclpy nodes import `run_replay`; a container test imports `stewie.runtime.run_replay` and runs it headless on a real DEM slice. Blocks RS-05, RT-03. | N | N | N | NA |
-| GW-05 | P0 | **GIS map substrate.** The QWC2/OpenLayers map in the LOCAL south-polar-stereographic frame (IAU_2015:30135) renders NASA Trek raster tiles + local LOLA terrain-RGB (heightmap.rf32, full 5 m native, not a downscaled preview); control points round-trip /dem/site_xy + /dem/site_lonlat within tolerance; no WGS84/Earth claim on lunar coords. (realized at /ide by QW-01; the MapLibre/GeoLibre lane was never adopted; needs GW-00) | N | N | N | NA |
+| GW-05 | P0 | **GIS map substrate.** The QWC2/OpenLayers map in the LOCAL south-polar-stereographic frame (IAU_2015:30135) renders NASA Trek raster tiles + local LOLA terrain-RGB (heightmap.rf32, full 5 m native, not a downscaled preview); control points round-trip /dem/site_xy + /dem/site_lonlat within tolerance; no WGS84/Earth claim on lunar coords. (realized at /ide by QW-01; the MapLibre lane was never adopted; needs GW-00) | N | N | N | NA |
 | GW-06 | P0 | **Layer tree + legend.** [REQ:GW-06] The LY-01 catalog toggles on the map with per-layer swatch + provenance/freshness; a display-only layer is visibly distinct from a planning/release/execute-eligible one. (binds LY-01) | D | D | D | NA |
 | GW-07 | P0 | **Selection + right inspector.** [REQ:GW-07] Click a cell/feature → attributes + provenance + confidence/freshness + available actions + runtime evidence affecting it. (extends GL-02) | D | D | D | NA |
 | GW-08 | P0 | **Edit session (= ED-01).** Select/create/modify/delete/measure/snap/undo mission features (keep-outs/waypoints/work-zones) with versioned audit; edits write ONLY through backend routes, never the map layer directly. (extends GL-02) | D | D | D | NA |
@@ -1295,10 +1295,10 @@ No solar-navigation capability claim is allowed until:
 
 ## 10. Roadmap
 
-### 10.A GeoLibre-style frontend rewrite roadmap (2026-07-03)
+### 10.A Frontend rewrite roadmap (2026-07-03, SUPERSEDED by the QWC2/OpenLayers IDE)
 
 Strangler-fig — the vanilla cockpit stays live until pane-by-pane React parity (a React rewrite was reverted
-once at `55c44c6`; never big-bang). Full detail + kill-gates: `docs/geolibre_rewrite_plan_2026-07-03.md` §3.
+once at `55c44c6`; never big-bang). Full detail + kill-gates: `docs/frontend_rewrite_plan_2026-07-03.md` §3 (historical; the frontend shipped as QWC2/OpenLayers, not the MapLibre stack this roadmap describes).
 Rough order 7-12 months for one focused builder; shorter with parallel lanes after the Phase 2/3 gates.
 
 | Phase | Work | Kill-gate | Est |

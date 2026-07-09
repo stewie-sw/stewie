@@ -6898,7 +6898,7 @@ stewie/
 ├─ pyproject.toml              # workspace root: uv/hatch, shared tooling
 ├─ uv.lock
 ├─ docs/
-│  ├─ geolibre_rewrite_plan_2026-07-03.md
+│  ├─ frontend_rewrite_plan_2026-07-03.md
 │  ├─ packaging_strategy.md
 │  └─ architecture/
 ├─ packages/
@@ -7260,7 +7260,7 @@ stewie/
 ├─ pyproject.toml              # workspace root: uv/hatch, shared tooling
 ├─ uv.lock
 ├─ docs/
-│  ├─ geolibre_rewrite_plan_2026-07-03.md
+│  ├─ frontend_rewrite_plan_2026-07-03.md
 │  ├─ packaging_strategy.md
 │  └─ architecture/
 ├─ packages/

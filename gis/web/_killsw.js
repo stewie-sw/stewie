@@ -1,14 +1,14 @@
 // STEWIE kill-switch service worker.
 //
-// The subdomain artemis.stewie.space previously served GeoLibre, a Vite PWA that
+// The subdomain artemis.stewie.space previously served an interim Vite PWA (the reverted 2D map rewrite) that
 // registered a service worker (default path /sw.js, scope /). That SW serves the whole
-// cached GeoLibre app offline-first, so browsers that visited the old site keep seeing
-// GeoLibre even though the origin now serves the new QGIS/OpenLayers viewer.
+// cached that PWA offline-first, so browsers that visited the old site keep seeing
+// the stale app even though the origin now serves the QWC2/OpenLayers viewer.
 //
 // nginx serves THIS file at /sw.js (and /service-worker.js) with no-cache. On the next
 // navigation the browser update-checks the SW script, sees new bytes, installs this one,
 // which immediately unregisters itself, deletes all Cache Storage, and reloads every open
-// tab to the live origin content. Net effect: the stale GeoLibre PWA evicts itself.
+// tab to the live origin content. Net effect: the stale PWA evicts itself.
 self.addEventListener("install", () => self.skipWaiting());
 
 self.addEventListener("activate", (event) => {

@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "208c734314fb6c7b2a39cbae0be8fab052b63769ab5d18821fe9f7e31aa19c7d",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "b886f94794c47a2100ddc6ca1a60d35b1b8ecfcf",
-  "prd_sha256": "2fe05db60323b8141f9e37a4a28cb535039c2b94173f8948d6b5a69fb5f0f5ec",
+  "prd_commit": "803e1d1758f143d07597471957cd73d226060c38",
+  "prd_sha256": "be2f18813febd911c698c6620b8369daaf593b12886af8ec6f425467a8b6b9c0",
   "specs_sha256": "dc6c30f1ddea52c2f58b46a0166eb2feb7e33ea9496d84119a892a6ced9a629a"
  },
  "rows": [
@@ -2780,7 +2780,7 @@
    "id": "GW-00",
    "lane": "GW",
    "pri": "P0",
-   "text": "**Prerequisite \u2014 Trek imagery + web-panel CSP allowlist.** `deploy/nginx.conf` + backend CSP allow `trek.nasa.gov` (and rosbridge/foxglove origins) so GeoLibre streams real NASA Trek tiles and RViz/Godot web panels load; a test asserts the CSP header lists the allowed hosts. Blocks GW-05, RT-04."
+   "text": "**Prerequisite \u2014 Trek imagery + web-panel CSP allowlist.** `deploy/nginx.conf` + backend CSP allow `trek.nasa.gov` (and rosbridge/foxglove origins) so the QWC2/OpenLayers map streams real NASA Trek tiles and RViz/Godot web panels load; a test asserts the CSP header lists the allowed hosts. Blocks GW-05, RT-04."
   },
   {
    "I": "N",
@@ -2840,7 +2840,7 @@
    "id": "GW-05",
    "lane": "GW",
    "pri": "P0",
-   "text": "**GIS map substrate.** The QWC2/OpenLayers map in the LOCAL south-polar-stereographic frame (IAU_2015:30135) renders NASA Trek raster tiles + local LOLA terrain-RGB (heightmap.rf32, full 5 m native, not a downscaled preview); control points round-trip /dem/site_xy + /dem/site_lonlat within tolerance; no WGS84/Earth claim on lunar coords. (realized at /ide by QW-01; the MapLibre/GeoLibre lane was never adopted; needs GW-00)"
+   "text": "**GIS map substrate.** The QWC2/OpenLayers map in the LOCAL south-polar-stereographic frame (IAU_2015:30135) renders NASA Trek raster tiles + local LOLA terrain-RGB (heightmap.rf32, full 5 m native, not a downscaled preview); control points round-trip /dem/site_xy + /dem/site_lonlat within tolerance; no WGS84/Earth claim on lunar coords. (realized at /ide by QW-01; the MapLibre lane was never adopted; needs GW-00)"
   },
   {
    "I": "D",
@@ -3415,7 +3415,7 @@
    "id": "MP-12",
    "lane": "MP",
    "pri": "P2",
-   "text": "The 10 planning UI panels (Mission Graph / Map-3D / Capability Board / Physics / Timeline / Resource / Rehearsal / Risk / Execution / Reconcile), each rendering its planning object from the API. FRAMING: NOT the GeoLibre rewrite lane (never adopted); these panels land in the QWC2 /ide + the operational-OS console rows WS-01/02/04/05 + TP-01..04 -- cross-ref those."
+   "text": "The 10 planning UI panels (Mission Graph / Map-3D / Capability Board / Physics / Timeline / Resource / Rehearsal / Risk / Execution / Reconcile), each rendering its planning object from the API. FRAMING: NOT the never-adopted MapLibre rewrite lane (never adopted); these panels land in the QWC2 /ide + the operational-OS console rows WS-01/02/04/05 + TP-01..04 -- cross-ref those."
   },
   {
    "I": "N",

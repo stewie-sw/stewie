@@ -129,7 +129,7 @@ interfaces first; the folder move is then mechanical and verified.
 - GitHub repo stays `stewie`; publish workflow builds ONLY `packages/stewie-bodies` + `packages/stewie-forge`.
 
 Sequencing note: this is Stage 1-4 of the packaging track; it composes with — does not replace — the GeoLibre
-frontend rewrite (`geolibre_rewrite_plan_2026-07-03.md`). Stage 1 (PX/BD) is shared with the rewrite's
+frontend rewrite (`frontend_rewrite_plan_2026-07-03.md`). Stage 1 (PX/BD) is shared with the rewrite's
 parallel physics/body track, so it is done once and serves both. Interface contracts:
 `docs/interface_contracts.md`.
 

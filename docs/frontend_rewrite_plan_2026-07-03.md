@@ -30,11 +30,11 @@ Binding acceptance constraints are in §5 below. The PRD (§6 Target Architectur
 
 Confirmed from the tree:
 
-- The earlier assessment frames "GeoLibre" as a frontend migration: the Python DART/LODE/LEAP/FORGE core and FastAPI API stay intact behind a sidecar, while the cost is the cockpit rewrite and map migration (`docs/geolibre_migration_assessment_2026-07-03.md:8-18`, `docs/geolibre_migration_assessment_2026-07-03.md:30-34`).
-- That same assessment measured the frontend work: `cockpit.js` is 6,321 LOC, `index.html` is 1,599 LOC, the ConOps pane set is STEWIE-specific, and GeoLibre supplies none of those mission-ops panes (`docs/geolibre_migration_assessment_2026-07-03.md:13-14`, `docs/geolibre_migration_assessment_2026-07-03.md:42-45`, `docs/geolibre_migration_assessment_2026-07-03.md:58-62`).
-- The main previous risk was lunar/non-Earth CRS in Cesium -> MapLibre/deck; 2D polar/projected lunar map is now accepted, which removes the hardest 3D-globe requirement but not every CRS/frame risk (`docs/geolibre_migration_assessment_2026-07-03.md:50-56`).
-- A React+Vite rewrite was previously reverted at `55c44c6` after a Cesium init black screen; the documented lesson was "strangler-fig the vanilla cockpit" rather than big-bang rewrite (`docs/geolibre_migration_assessment_2026-07-03.md:20-22`, `PRD.md:154-165`, `PRD.md:1677-1681`).
-- The backend is already routerized. `stewie/server/server.py` imports and includes 35 router modules plus app-level routes (`stewie/server/server.py:129-200`). `ls stewie/server/routers/` shows 36 files including `__init__.py`. Command inventory found 140 `@router.*` route decorators in `stewie/server/routers/*`, 145 total route decorators when `server.py` app routes are counted, and 146 FastAPI app routes when the generated `/openapi.json` route is included. The assessment's "140 API routes (36 routers)" is therefore correct for router-owned API routes (`docs/geolibre_migration_assessment_2026-07-03.md:40-41`).
+- The earlier assessment frames "GeoLibre" as a frontend migration: the Python DART/LODE/LEAP/FORGE core and FastAPI API stay intact behind a sidecar, while the cost is the cockpit rewrite and map migration (`docs/frontend_migration_assessment_2026-07-03.md:8-18`, `docs/frontend_migration_assessment_2026-07-03.md:30-34`).
+- That same assessment measured the frontend work: `cockpit.js` is 6,321 LOC, `index.html` is 1,599 LOC, the ConOps pane set is STEWIE-specific, and GeoLibre supplies none of those mission-ops panes (`docs/frontend_migration_assessment_2026-07-03.md:13-14`, `docs/frontend_migration_assessment_2026-07-03.md:42-45`, `docs/frontend_migration_assessment_2026-07-03.md:58-62`).
+- The main previous risk was lunar/non-Earth CRS in Cesium -> MapLibre/deck; 2D polar/projected lunar map is now accepted, which removes the hardest 3D-globe requirement but not every CRS/frame risk (`docs/frontend_migration_assessment_2026-07-03.md:50-56`).
+- A React+Vite rewrite was previously reverted at `55c44c6` after a Cesium init black screen; the documented lesson was "strangler-fig the vanilla cockpit" rather than big-bang rewrite (`docs/frontend_migration_assessment_2026-07-03.md:20-22`, `PRD.md:154-165`, `PRD.md:1677-1681`).
+- The backend is already routerized. `stewie/server/server.py` imports and includes 35 router modules plus app-level routes (`stewie/server/server.py:129-200`). `ls stewie/server/routers/` shows 36 files including `__init__.py`. Command inventory found 140 `@router.*` route decorators in `stewie/server/routers/*`, 145 total route decorators when `server.py` app routes are counted, and 146 FastAPI app routes when the generated `/openapi.json` route is included. The assessment's "140 API routes (36 routers)" is therefore correct for router-owned API routes (`docs/frontend_migration_assessment_2026-07-03.md:40-41`).
 - The current frontend loads self-hosted Cesium before the cockpit scripts (`stewie/server/index.html:19-25`) and then loads many extracted pure modules plus `cockpit.js` (`stewie/server/index.html:1560-1597`). The assets directory currently contains 41 non-test JS modules and 38 top-level `*.test.js` files.
 - The current ConOps/work-area shell is DOM-first: the top tabs are Plan, Rehearse, Validate, Release, Execute, Report, plus role-gated Fleet, Construction, Models, Trainer and account-menu Settings/System/Admin (`stewie/server/index.html:811-890`). `cockpit.js` maps those names to pane IDs in `VIEW_PANE` (`stewie/server/web/assets/cockpit.js:803-814`) and drives `setView`/pipeline state (`stewie/server/web/assets/cockpit.js:894-972`, `stewie/server/web/assets/cockpit.js:6122-6270`).
 - FR-10 already exists: `/world` returns `layer_manifest` from `LayerManifest.for_world(...)` (`stewie/server/routers/world.py:30-81`), and `LayerManifest`/`WorldLayer` already carry layer id/type, CRS/body, bounds, resolution, source/provenance, freshness, uncertainty, validity, transaction id, and display/planning/release/execute eligibility (`stewie/contracts/__init__.py:443-517`).
@@ -200,7 +200,7 @@ interface SiteProjection {
 }
 ```
 
-Because MapLibre/deck are Earth/WebMercator-oriented per the assessment (`docs/geolibre_migration_assessment_2026-07-03.md:50-56`), the target should avoid presenting WGS84-looking coordinates as body-correct unless the transform is explicit. For the first production target, render local projected metres as the operational map and show body CRS metadata in the coordinate readout.
+Because MapLibre/deck are Earth/WebMercator-oriented per the assessment (`docs/frontend_migration_assessment_2026-07-03.md:50-56`), the target should avoid presenting WGS84-looking coordinates as body-correct unless the transform is explicit. For the first production target, render local projected metres as the operational map and show body CRS metadata in the coordinate readout.
 
 ### 1.4 The 13 Pane React Component Set
 
@@ -251,7 +251,7 @@ This is the React version of PRD FR-06's route-to-pane registry requirement (`PR
 
 ### 1.5 DuckDB-WASM Spatial Over FR-10
 
-Confirmed gain: the prior assessment identifies DuckDB-WASM client-side spatial queries over FR-10 as the genuine GeoLibre benefit (`docs/geolibre_migration_assessment_2026-07-03.md:69-76`).
+Confirmed gain: the prior assessment identifies DuckDB-WASM client-side spatial queries over FR-10 as the genuine GeoLibre benefit (`docs/frontend_migration_assessment_2026-07-03.md:69-76`).
 
 Target shape:
 
@@ -946,7 +946,7 @@ Reason:
 
 - It is read-heavy, lower command risk, and already consumes `PlanResult`, report PDF, world transactions, and volume evidence.
 - It exercises the typed API, provenance labels, iframe/download/binary handling, and prior-plan state without authoring or command authority.
-- This matches the earlier assessment's recommendation to begin with Report or Program board as a side-by-side pane (`docs/geolibre_migration_assessment_2026-07-03.md:88-90`).
+- This matches the earlier assessment's recommendation to begin with Report or Program board as a side-by-side pane (`docs/frontend_migration_assessment_2026-07-03.md:88-90`).
 
 Work:
 
@@ -1071,10 +1071,10 @@ Kill-gate:
 ### Confirmed Risks
 
 1. Frontend rewrite size is real and large.
-   Confirmed by measured `cockpit.js`/`index.html` sizes and 13 domain panes (`docs/geolibre_migration_assessment_2026-07-03.md:13-14`, `docs/geolibre_migration_assessment_2026-07-03.md:42-45`, `stewie/server/web/assets/cockpit.js` 6,321 LOC, `stewie/server/index.html` 1,599 LOC).
+   Confirmed by measured `cockpit.js`/`index.html` sizes and 13 domain panes (`docs/frontend_migration_assessment_2026-07-03.md:13-14`, `docs/frontend_migration_assessment_2026-07-03.md:42-45`, `stewie/server/web/assets/cockpit.js` 6,321 LOC, `stewie/server/index.html` 1,599 LOC).
 
 2. MapLibre/deck do not remove all CRS/frame risk.
-   The 3D lunar-globe risk is defused by the 2D decision, but the assessment still establishes MapLibre/deck as Earth/WebMercator-oriented (`docs/geolibre_migration_assessment_2026-07-03.md:50-56`). STEWIE still must be honest about body CRS, order frame, and transforms.
+   The 3D lunar-globe risk is defused by the 2D decision, but the assessment still establishes MapLibre/deck as Earth/WebMercator-oriented (`docs/frontend_migration_assessment_2026-07-03.md:50-56`). STEWIE still must be honest about body CRS, order frame, and transforms.
 
 3. Current body support is not a plugin seam.
    Body values and regime rules are hard-coded in `BODIES` and helper functions (`stewie/specs/bodies.py:51-196`). A registry refactor touches planner validation, `/models`, `/bodies.json`, UI dropdowns, and tests.
@@ -1121,7 +1121,7 @@ Kill-gate:
 | 9 Tauri packaging | 3-6 weeks | Medium |
 | 10 Vanilla retirement | 1-2 weeks | Medium; rollback/deploy |
 
-Total rough order: 7-12 months for one focused senior builder, shorter with parallel frontend/API/backend lanes after Phase 2/3 gates. The earlier assessment's 3-5 months covered the pane rewrite only (`docs/geolibre_migration_assessment_2026-07-03.md:13-14`); adding 2D map, API generation, DuckDB, Tauri, BodyProfile, and PhysicsBackend makes the full program larger.
+Total rough order: 7-12 months for one focused senior builder, shorter with parallel frontend/API/backend lanes after Phase 2/3 gates. The earlier assessment's 3-5 months covered the pane rewrite only (`docs/frontend_migration_assessment_2026-07-03.md:13-14`); adding 2D map, API generation, DuckDB, Tauri, BodyProfile, and PhysicsBackend makes the full program larger.
 
 ### Top Unknowns That Could Sink the Plan
 
