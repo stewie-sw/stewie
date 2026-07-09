@@ -19,18 +19,21 @@ def test_catalog_has_the_known_real_products():
         assert expected in ids, expected
 
 
-def test_bundled_sources_match_the_eleven_on_disk_tiles_rest_gated():
-    # #43/#150: 11 real LOLA tiles are carved into samples/lunar_dem (Haworth work site + 10
-    # Artemis-candidate site tiles); every other catalog entry is a real-data-gated download (you
-    # supply the product). The bundled set must match exactly the on-disk tiles.
+def test_bundled_sources_are_the_repo_committed_tiles_rest_gated():
+    # #43/#150 + P0 reconcile 2026-07-09: `bundled` means REPO-COMMITTED on-disk (CI must have the bytes,
+    # see test_every_bundled_source_has_a_real_on_disk_bundle). Only the 3 primary LOLA tiles are committed;
+    # the 8 Artemis-candidate tiles (47 MB each, 376 MB) are host-provided / pending host-mount (task #76),
+    # so they stay catalog entries with bundled=False -- exactly the "you supply the product" gated semantics.
+    # (The old expectation demanded all 11 bundled, which CI's clean tree -- with only 3 tiles carried in git
+    # -- can never satisfy without committing 376 MB; that is deferred to #76 / a git-lfs decision.)
     bundled = {s.id for s in S.list_dem_sources() if s.bundled}
-    assert bundled == {
-        "haworth_10km_5m", "nobile_rim1_10km_5m", "shackleton_rim_10km_5m",
+    assert bundled == {"haworth_10km_5m", "nobile_rim1_10km_5m", "shackleton_rim_10km_5m"}, bundled
+    gated = {s.id for s in S.list_dem_sources() if not s.bundled}
+    assert {
         "connecting_ridge_10km_5m", "de_gerlache_rim_10km_5m", "leibnitz_beta_10km_5m",
         "malapert_massif_10km_5m", "nobile_rim2_10km_5m", "peak_near_shackleton_10km_5m",
         "shoemaker_10km_5m", "de_gerlache_kocher_10km_5m",
-    }, bundled
-    assert [s for s in S.list_dem_sources() if not s.bundled], "catalog should still list gated products"
+    } <= gated, gated                                     # the 8 host-gated Artemis tiles remain in the catalog
 
 
 def test_every_source_is_lunar_framed_and_provenanced():

@@ -40,6 +40,7 @@ export type ApiPath =
   | '/dem/heightfield_full/layer.png'
   | '/dem/heightfield_full/meta'
   | '/dem/site_lonlat'
+  | '/dem/site_meta'
   | '/dem/site_xy'
   | '/dem/sources'
   | '/dem/terrain_grid'
@@ -221,6 +222,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/dem/heightfield_full/layer.png', operationId: 'dem_heightfield_full_layer_dem_heightfield_full_layer_png_get', mutatesAuthority: false },
   { method: 'GET', path: '/dem/heightfield_full/meta', operationId: 'dem_heightfield_full_meta_dem_heightfield_full_meta_get', mutatesAuthority: false },
   { method: 'GET', path: '/dem/site_lonlat', operationId: 'dem_site_lonlat_dem_site_lonlat_get', mutatesAuthority: false },
+  { method: 'GET', path: '/dem/site_meta', operationId: 'dem_site_meta_dem_site_meta_get', mutatesAuthority: false },
   { method: 'GET', path: '/dem/site_xy', operationId: 'dem_site_xy_dem_site_xy_get', mutatesAuthority: false },
   { method: 'GET', path: '/dem/sources', operationId: 'dem_sources_catalog_dem_sources_get', mutatesAuthority: false },
   { method: 'GET', path: '/dem/terrain_grid', operationId: 'dem_terrain_grid_route_dem_terrain_grid_get', mutatesAuthority: false },
