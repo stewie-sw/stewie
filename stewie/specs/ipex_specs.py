@@ -187,12 +187,15 @@ def lunar_drive_power_w(*, slope_deg: float = 0.0, crr: float = ROLLING_RESISTAN
                         mass_kg: float = ROVER_MASS_CLASS_KG, g_ms2: float = LUNAR_G_MS2,
                         v_ms: float = DRIVE_SPEED_MS, efficiency: float = DRIVETRAIN_EFFICIENCY) -> float:
     """Physical steady-drive electrical power at a given gravity/slope: tractive force
-    F = m*g*(crr*cos th + sin th); P_elec = F*v / efficiency. At lunar g + flat this is ~6x below the
+    F = m*g*(crr*cos|th| + sin|th|); P_elec = F*v / efficiency. At lunar g + flat this is ~6x below the
     Earth-test Table-3 drive_power_w(). [PHYSICS] for the force; crr + efficiency are tagged estimates.
     This is the LIGHTWEIGHT estimate (constant crr); slip.bekker_drive_power_w is the rigorous version
-    that replaces crr with the Bekker compaction resistance + slip-sinkage equilibrium (soil-aware)."""
-    th = math.radians(slope_deg)
-    f_tractive_n = mass_kg * g_ms2 * (crr * math.cos(th) + math.sin(th))
+    that replaces crr with the Bekker compaction resistance + slip-sinkage equilibrium (soil-aware).
+    Slope sign: a DESCENDING grade demands braking traction of the same magnitude as the equal ascending
+    grade (no regen model), so use |slope| and clamp the tractive force >= 0 -- the abs() defect audit L16
+    already fixed in slip.bekker_drive_power_w (a signed slope made downhill power negative)."""
+    th = math.radians(abs(slope_deg))
+    f_tractive_n = max(0.0, mass_kg * g_ms2 * (crr * math.cos(th) + math.sin(th)))
     return f_tractive_n * v_ms / efficiency
 
 

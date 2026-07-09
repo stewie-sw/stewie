@@ -126,6 +126,18 @@ def test_lunar_drive_power_far_below_earth_test_figure():
     assert s.lunar_drive_power_w(slope_deg=15) > flat         # grade resistance raises it
 
 
+def test_drive_power_symmetric_in_slope_sign():  # F19
+    """A DESCENDING grade must demand braking traction of the SAME magnitude as the equal ascending
+    grade, not a negative / under-counted power. This is the abs(slope) defect slip.bekker_drive_power_w
+    already fixed (audit L16): lunar_drive_power_w must use |slope| and clamp the tractive force >= 0."""
+    down = ix.lunar_drive_power_w(slope_deg=-20.0)
+    up = ix.lunar_drive_power_w(slope_deg=20.0)
+    flat = ix.lunar_drive_power_w(slope_deg=0.0)
+    assert math.isclose(down, up, rel_tol=1e-12)              # sign-symmetric magnitude
+    assert down > flat and up > flat                          # a grade (either sign) costs MORE than flat
+    assert down > 0.0                                         # never negative (no regen model)
+
+
 def test_system_power_includes_housekeeping_and_it_dominates_drive():
     from stewie.specs import ipex_specs as s
     sysp = s.system_power_w()                                 # driving flat, idle housekeeping

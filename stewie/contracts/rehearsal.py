@@ -64,11 +64,19 @@ def rehearse(candidate: RehearsalCandidate, *, mode: EnvironmentMode | str,
             f"feasible: per-wheel sinkage {score.sinkage_m:.4f} m, contact pressure "
             f"{score.contact_pressure_pa:.1f} Pa <= allowable bearing {score.allowable_bearing_pa:.1f} Pa "
             f"(utilization {risk_score:.2f})")
-    else:
+    elif score.contact_pressure_pa > score.allowable_bearing_pa:
         predicted_outcome = (
             f"entrapment risk: contact pressure {score.contact_pressure_pa:.1f} Pa exceeds allowable "
             f"bearing {score.allowable_bearing_pa:.1f} Pa (utilization {util:.2f}); the wheel bears more "
             f"than the regolith can carry")
+    else:
+        # infeasible with the STATIC bearing satisfied -> the slip-sinkage entrapment gate is what bound
+        # (the dominant trafficability failure for the light IPEx); report the true cause, not a false
+        # bearing-exceeded message.
+        predicted_outcome = (
+            f"slip-sinkage entrapment risk: contact pressure {score.contact_pressure_pa:.1f} Pa is within "
+            f"the {score.allowable_bearing_pa:.1f} Pa static bearing limit, but the wheels slip-entrap on "
+            f"the representative leg slope (the binding trafficability failure runs away)")
 
     return RehearsalResult(
         rehearsal_id=f"rh-{candidate.candidate_id}-{body}",

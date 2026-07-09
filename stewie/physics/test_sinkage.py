@@ -12,6 +12,28 @@ def test_moon_moduli_match_stewie_nasa_ltv():
     assert sk.MOON.k_c == 1400.0 and sk.MOON.k_phi == 820000.0 and sk.MOON.n == 1.0
 
 
+def test_sinkage_cross_body_mars():  # F21
+    """MARS_GRC3 is a LIVE cross-body check, not a dead constant: the sinkage spec-layer Bekker sinkage
+    under MARS_GRC3 must equal the physics drive-loop Bekker sinkage from the Mars body params
+    (params_for_body('mars')). Both are the same Oravec et al. 2020 NASA GRC GRC-3 moduli, so on an
+    identical (square) contact patch -- where both layers use the same Bekker plate width b = min(len,
+    width) = width -- they must agree exactly. This asserts the two Bekker parameter sources have not
+    drifted apart."""
+    import math
+
+    from stewie.physics import terramechanics as tm
+    from stewie.specs.bodies import params_for_body
+
+    mars = params_for_body("mars")
+    # the two parameter SOURCES are the same GRC-3 moduli
+    assert (mars.k_c, mars.k_phi, mars.n_sinkage) == (sk.MARS_GRC3.k_c, sk.MARS_GRC3.k_phi, sk.MARS_GRC3.n)
+    load_n, b = 25.0, 0.15                       # square patch: b = min(len,width) = width for both layers
+    z_spec = sk.wheel_sinkage(load_n, wheel_width_m=b, contact_len_m=b, params=sk.MARS_GRC3)
+    z_core = tm.wheel_static_sinkage(load_n, params=mars, contact_len_m=b, contact_width_m=b)
+    assert z_spec > 0.0
+    assert math.isclose(z_spec, z_core, rel_tol=1e-9)
+
+
 def test_bekker_inversion_known_answer():
     # z = (p / (k_c/b + k_phi*s))^(1/n); with p=1000, b=0.18, s=1, Moon moduli, n=1
     p, b = 1000.0, 0.18
