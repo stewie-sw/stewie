@@ -265,13 +265,9 @@ function setVertExag(k) {
   if (S._plotGroup) {
     S._plotGroup.children.forEach((mk) => { mk.position.y = heightAt(mk.userData.lx, mk.userData.ly) * k + mk.userData.r; });
   }
-  // task #79: same cheap re-lift for the measure markers (the connecting polyline itself is NOT rebuilt here --
-  // see _redrawMeasure's header comment for why that's an accepted, flagged trade-off).
-  if (S._measureGroup) {
-    S._measureGroup.children.forEach((mk) => {
-      if (mk.userData && mk.userData.lx != null) { mk.position.y = heightAt(mk.userData.lx, mk.userData.ly) * k + mk.userData.r; }
-    });
-  }
+  // task #79: full rebuild so BOTH the markers AND the connecting polyline re-drape onto the re-exaggerated
+  // surface (the grid + graticule do the same on a vex change; markers-only would leave the line stale).
+  if (S._measureGroup) _redrawMeasure();
 }
 
 function setWireframe(on) {
