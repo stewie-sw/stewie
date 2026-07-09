@@ -134,23 +134,13 @@ class MissionPlan extends React.Component {
     }
     componentDidMount() {
         this._resolveMap();
-        // task #77: a Shift+click on the 3D terrain (MissionTerrain3D) emits a plotted point on the SAME
-        // shared workspace channel; adopt it into the order queue exactly like the 2D map's singleclick ->
-        // placeAt(coord). No active Cut/Fill/Traverse tool -> hint the operator instead of silently dropping it.
-        this._unsubPlot = WS.onPlot((pt) => {
-            const c = this.ctrl;
-            if (!c || !c.activeKind) {
-                if (c) { c._setHint('Pick a Cut/Fill/Traverse tool, then Shift+click the 3D terrain.'); }
-                return;
-            }
-            if (pt == null || pt.lat == null || pt.lon == null) { return; }
-            try {
-                const mapCoord = c.reproject([pt.lon, pt.lat], 'IAU_2015:30100', 'IAU_2015:30135');
-                c.placeAt(mapCoord);
-            } catch (e) {
-                if (c) { c._setHint('Could not place the plotted point: ' + e.message, true); }
-            }
-        });
+        // task #77 / council F32: a Shift+click on the 3D terrain (MissionTerrain3D) emits a plotted point on
+        // the SAME shared workspace channel; adopt it into the order queue exactly like the 2D map's singleclick.
+        // PT.plotDispatch (node-tested) dispatches across ALL THREE placing modes — cut/fill/traverse
+        // (activeKind -> placeAt), a structure template (structKind -> placeStructure), and place-object
+        // (objectType -> placeObject) — mirroring the 2D map singleclick precedence, so the 3D "plot the active
+        // tool" button works for every tool (not just earthworks); no active tool -> it hints the operator.
+        this._unsubPlot = WS.onPlot((pt) => PT.plotDispatch(this.ctrl, pt, 'IAU_2015:30100', 'IAU_2015:30135'));
         // task #80: the 3D measure tool's "Send to plan (route)" button (MissionTerrain3D.jsx) pushes its
         // waypoints on this SAME shared workspace channel; adopt them as a Traverse route.
         this._unsubRoute = WS.onRoute((points) => this._adoptRoute(points));
@@ -162,36 +152,13 @@ class MissionPlan extends React.Component {
         if (this._unsubRoute) { this._unsubRoute(); }
         if (this.ctrl) { this.ctrl.detach(); this.ctrl = null; }
     }
-    // task #80: adopt a route pushed from the 3D measure tool (MissionTerrain3D's "Send to plan (route)"
-    // button, WS.emitRoute) as a batch of Traverse waypoints -- the same reproject(30100->30135) -> placeAt()
-    // pipeline the #77 onPlot handler above uses for a single Shift+click point, but with the Traverse tool
-    // forced active first so every dropped point becomes a `goto` order (planAuthor.placeAt only queues a
-    // waypoint while this.activeKind === 'traverse'; planAuthor.js setTool()/placeAt()).
-    //
-    // setTool('traverse') TOGGLES (planAuthor.js: `this.activeKind = (this.activeKind === kind) ? null : kind`):
-    // calling it while Traverse is ALREADY the active tool would flip activeKind back to null, silently
-    // no-op-ing every subsequent placeAt() (placeAt returns immediately when !this.activeKind). Guarded below
-    // (only call setTool when Traverse isn't already active) so "Send to plan" is idempotent regardless of the
-    // operator's current tool state -- see the task report for the read-through that found this.
-    _adoptRoute = (points) => {
-        const c = this.ctrl;
-        if (!c) { return; }
-        if (!Array.isArray(points) || points.length < 2) {
-            if (c._setHint) { c._setHint('Measure at least 2 waypoints in the 3D card first.', true); }
-            return;
-        }
-        try {
-            if (c.setTool && c.activeKind !== 'traverse') { c.setTool('traverse'); }
-            for (const q of points) {
-                if (q.lat == null || q.lon == null) { continue; }
-                const mapCoord = c.reproject([q.lon, q.lat], 'IAU_2015:30100', 'IAU_2015:30135');
-                c.placeAt(mapCoord);
-            }
-            if (c._setHint) { c._setHint('Added ' + points.length + ' traverse waypoints from the 3D measure route.'); }
-        } catch (e) {
-            if (c._setHint) { c._setHint('Could not adopt the route: ' + e.message, true); }
-        }
-    };
+    // task #80 / council F17: adopt a route pushed from the 3D measure tool (MissionTerrain3D's "Send to plan
+    // (route)" button, WS.emitRoute) as a batch of Traverse waypoints. PT.adoptRoute (node-tested) forces the
+    // Traverse tool active for the batch (placeAt only queues a `goto` while activeKind === 'traverse';
+    // planAuthor.js:1149), then RESTORES the operator's prior tool afterward — F17: the old inline path never
+    // restored it, so the 2D map was left stuck in Traverse placing mode and the next map click dropped a stray
+    // waypoint. The setTool TOGGLE is guarded (no double-toggle when Traverse is already active).
+    _adoptRoute = (points) => PT.adoptRoute(this.ctrl, points, 'IAU_2015:30100', 'IAU_2015:30135');
     _resolveMap = () => {
         const map = MapUtils.getHook(MapUtils.GET_MAP);
         if (!map) { this._raf = requestAnimationFrame(this._resolveMap); return; }   // map not mounted yet

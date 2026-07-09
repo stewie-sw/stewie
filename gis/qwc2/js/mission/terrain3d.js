@@ -57,8 +57,39 @@
     };
   }
 
+  // F29 — the "send measured route to plan" decision. A 3D measure point only carries lon/lat once its async
+  // /dem/site_lonlat lookup resolves; a point without lon/lat cannot reproject into the planner's order frame.
+  // The old _sendRoute SILENTLY filtered those out and emitted the survivors, so a route with an unresolved
+  // INTERIOR waypoint cut a straight leg PAST the dropped point while the confirmation still said "Sent N".
+  // This refuses to send when ANY point is still unresolved (reporting the count) rather than thinning the
+  // route; only a fully-resolved route of >=2 points emits. Pure/node-tested -> the controller just applies the
+  // decision. Returns { emit:boolean, points:Array, unresolved:number, msg:string }.
+  function routeSendDecision(points) {
+    var pts = Array.isArray(points) ? points : [];
+    var usable = [];
+    for (var i = 0; i < pts.length; i++) {
+      var q = pts[i];
+      if (q && q.lat != null && q.lon != null) { usable.push(q); }
+    }
+    var unresolved = pts.length - usable.length;
+    if (unresolved > 0) {
+      return {
+        emit: false, points: [], unresolved: unresolved,
+        msg: unresolved + " waypoint" + (unresolved === 1 ? "" : "s") +
+          " unresolved — none sent (sending would skip an interior point). Wait for the lon/lat readout, then resend."
+      };
+    }
+    if (usable.length >= 2) {
+      return { emit: true, points: usable, unresolved: 0, msg: "Sent " + usable.length + " waypoints to plan." };
+    }
+    return {
+      emit: false, points: [], unresolved: 0,
+      msg: "Need at least 2 waypoints with resolved lon/lat — measure a bit more."
+    };
+  }
+
   return {
     DRAPE_KINDS: DRAPE_KINDS, isKnownDrape: isKnownDrape, shouldReload: shouldReload,
-    fmt: fmt, formatHover: formatHover
+    fmt: fmt, formatHover: formatHover, routeSendDecision: routeSendDecision
   };
 });

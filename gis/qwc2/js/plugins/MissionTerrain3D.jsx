@@ -154,7 +154,10 @@ class MissionTerrain3D extends React.Component {
     // real different site (T.shouldReload guards body/profile/source churn + same-site re-emits).
     _onWsChange = (s) => {
         if (s && s.site !== this.state.site) { this.setState({site: s.site}); }
-        if (this.props.active && this._mounted && T.shouldReload(this._loadedSite, s && s.site)) {
+        // F18: a FLOATING card (opened via WS.requestFloat without setCurrentTask, so props.active===false while
+        // it is mounted + visible) must ALSO follow a site change — otherwise it shows a stale wrong-site relief
+        // while its header claims the new site. Gate on active OR floating (both mean the panel is on-screen).
+        if ((this.props.active || this.state.floating) && this._mounted && T.shouldReload(this._loadedSite, s && s.site)) {
             this._loadSite(s.site);
         }
     };
@@ -243,19 +246,18 @@ class MissionTerrain3D extends React.Component {
     _setWire = (e) => { const wire = e.target.checked; this.setState({wire}); if (this._viz) { this._viz.setWireframe(wire); } };
     _setMeasure = (e) => { const measure = e.target.checked; this.setState({measure}); if (this._viz) { this._viz.setMeasureMode(measure); } };
     _clearMeasure = () => { if (this._viz) { this._viz.clearMeasure(); } };
-    // task #80: push the measured waypoints into Mission Plan as a Traverse route over the shared workspace
-    // WS.emitRoute() channel (MissionPlan._adoptRoute subscribes). Only "usable" points -- ones whose async
-    // /dem/site_lonlat lookup already resolved lat/lon -- can reproject into the planner's map frame, so an
-    // unresolved point is dropped here rather than forwarded as a null-coordinate waypoint.
+    // task #80 / council F29: push the measured waypoints into Mission Plan as a Traverse route over the shared
+    // workspace WS.emitRoute() channel (MissionPlan._adoptRoute subscribes). A waypoint only carries lon/lat
+    // once its async /dem/site_lonlat lookup resolves; a point without it cannot reproject into the planner
+    // frame. The old path SILENTLY filtered those out and emitted the survivors, so an unresolved INTERIOR
+    // point cut a straight leg past the dropped waypoint while the confirmation still said "Sent N".
+    // T.routeSendDecision (node-tested) now REFUSES to send when any point is still unresolved and reports the
+    // count, instead of thinning the route.
     _sendRoute = () => {
         const pts = (this._viz && this._viz.getMeasurePoints) ? this._viz.getMeasurePoints() : [];
-        const usable = pts.filter((q) => q.lat != null && q.lon != null);
-        if (usable.length >= 2) {
-            WS.emitRoute(usable);
-            this.setState({sentRouteMsg: 'Sent ' + usable.length + ' waypoints to plan.'});
-        } else {
-            this.setState({sentRouteMsg: 'Need at least 2 waypoints with resolved lon/lat — measure a bit more.'});
-        }
+        const d = T.routeSendDecision(pts);
+        if (d.emit) { WS.emitRoute(d.points); }
+        this.setState({sentRouteMsg: d.msg});
     };
 
     renderStatus() {

@@ -73,6 +73,11 @@ class MissionCrossSection extends React.Component {
             if (this._rg) { this._rg.bump(); }
             this.setState({picks: [], profile: null, loading: false, error: null});
         });
+        // F28: if we mount ALREADY-active (task restored from URL / startup task / a remount while current),
+        // attach the transect singleclick handler NOW. componentDidUpdate only fires on a false->true active
+        // transition, so a mount-active would otherwise leave the tool silently dead ("click the START point"
+        // forever). _attachClick is idempotent (no-ops if this._clickKey already exists), mirroring didUpdate.
+        if (this.props.active) { this._attachClick(); }
     }
     componentDidUpdate(prevProps) {
         if (this.props.active && !prevProps.active) { this._attachClick(); }

@@ -62,3 +62,43 @@ test("formatHover: E/N present but lon/lat not yet resolved -> 'lat — lon —'
   assert.match(out.lonlat, /lat —/);
   assert.match(out.lonlat, /lon —/);
 });
+
+// F29: _sendRoute used to SILENTLY filter out measure points whose async /dem/site_lonlat lookup had not
+// resolved (lat/lon still null) and emit only the survivors -- so a route with an unresolved INTERIOR point
+// cut a straight leg past the dropped waypoint while the confirmation still said "Sent N". The decision now
+// REFUSES to send when any point is still unresolved and reports the count, instead of thinning the route.
+test("routeSendDecision: all points resolved -> emit them with a 'Sent N' confirmation", () => {
+  const d = T.routeSendDecision([{ lat: -88.1, lon: 45.6 }, { lat: -88.2, lon: 45.7 }, { lat: -88.3, lon: 45.8 }]);
+  assert.strictEqual(d.emit, true);
+  assert.strictEqual(d.points.length, 3);
+  assert.strictEqual(d.unresolved, 0);
+  assert.match(d.msg, /Sent 3/);
+});
+
+test("routeSendDecision: an unresolved INTERIOR point REFUSES the send (F29 — no silent thinning)", () => {
+  const d = T.routeSendDecision([{ lat: -88.1, lon: 45.6 }, { lat: null, lon: null }, { lat: -88.3, lon: 45.8 }]);
+  assert.strictEqual(d.emit, false, "must NOT emit a 2-point route past the dropped middle waypoint");
+  assert.strictEqual(d.points.length, 0, "nothing is sent");
+  assert.strictEqual(d.unresolved, 1);
+  assert.match(d.msg, /unresolved/, "surfaces the unresolved count, not a false 'Sent 2'");
+  assert.match(d.msg, /1 waypoint/);
+});
+
+test("routeSendDecision: an unresolved TRAILING point also refuses (any drop is a refusal)", () => {
+  const d = T.routeSendDecision([{ lat: -88.1, lon: 45.6 }, { lat: -88.2, lon: 45.7 }, { lat: null, lon: null }]);
+  assert.strictEqual(d.emit, false);
+  assert.strictEqual(d.unresolved, 1);
+});
+
+test("routeSendDecision: fewer than 2 resolved points -> refuse with the 'measure more' hint", () => {
+  const d = T.routeSendDecision([{ lat: -88.1, lon: 45.6 }]);
+  assert.strictEqual(d.emit, false);
+  assert.strictEqual(d.unresolved, 0);
+  assert.match(d.msg, /at least 2/);
+});
+
+test("routeSendDecision: empty / non-array input -> refuse, no throw", () => {
+  assert.strictEqual(T.routeSendDecision([]).emit, false);
+  assert.strictEqual(T.routeSendDecision(null).emit, false);
+  assert.strictEqual(T.routeSendDecision(undefined).emit, false);
+});

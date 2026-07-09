@@ -148,6 +148,75 @@
         };
     }
 
+    // F32 — dispatch a 3D-terrain plotted point {lon,lat} (from MissionTerrain3D's Shift+click, forwarded on
+    // the shared WS.onPlot channel) to the ACTIVE placing tool. The old MissionPlan onPlot handler dispatched
+    // only on `activeKind` (cut/fill/traverse -> placeAt), so a structure template (structKind) or a
+    // place-object (objectType) tool could not be plotted from the 3D relief even though the 3D button tooltip
+    // says "plot the active tool". This broadens the dispatch across all three mutually-exclusive placing modes,
+    // mirroring the 2D map singleclick precedence (planAuthor.attach: activeKind -> structKind -> objectType).
+    // Pure + node-tested: `ctrl` (reproject + placeAt/placeStructure/placeObject + _setHint) is injected, so a
+    // fake controller unit-tests it with no OpenLayers / React / DOM. Returns the dispatched mode
+    // ("place" | "structure" | "object") or null (no active tool / bad point -> hinted, nothing placed).
+    function plotDispatch(ctrl, pt, geoCrs, mapCrs) {
+        if (!ctrl) { return null; }
+        var mode = ctrl.activeKind ? "place"
+            : (ctrl.structKind ? "structure"
+                : (ctrl.objectType ? "object" : null));
+        if (!mode) {
+            if (ctrl._setHint) {
+                ctrl._setHint("Pick a Cut/Fill/Traverse tool, a structure, or a place-object type, then Shift+click the 3D terrain.");
+            }
+            return null;
+        }
+        if (pt == null || pt.lat == null || pt.lon == null) { return null; }
+        var mapCoord;
+        try { mapCoord = ctrl.reproject([pt.lon, pt.lat], geoCrs, mapCrs); }
+        catch (e) {
+            if (ctrl._setHint) { ctrl._setHint("Could not place the plotted point: " + e.message, true); }
+            return null;
+        }
+        if (mode === "place") { ctrl.placeAt(mapCoord); }
+        else if (mode === "structure") { ctrl.placeStructure(mapCoord); }
+        else { ctrl.placeObject(mapCoord); }
+        return mode;
+    }
+
+    // F17 — adopt a 3D-measure route (the [{lon,lat},...] points MissionTerrain3D pushes on WS.emitRoute) as a
+    // batch of Traverse waypoints, then RESTORE the operator's prior tool. The bug: _adoptRoute forced the
+    // Traverse tool active to place the route (placeAt only queues a `goto` while activeKind==='traverse',
+    // planAuthor.js:1149) and NEVER restored it, so the 2D map was left in Traverse placing mode and the
+    // operator's next map click dropped a stray waypoint. `prev` is snapshotted before the batch and re-selected
+    // after via setTool (which TOGGLES), so a 'cut'/'fill'/null prior mode is exactly restored; a prior mode
+    // already 'traverse' is left untouched (the guard skips both the initial and the restoring toggle). Pure +
+    // node-tested with an injected fake controller. Returns the number of waypoints placed (0 on refuse/empty).
+    function adoptRoute(ctrl, points, geoCrs, mapCrs) {
+        if (!ctrl) { return 0; }
+        if (!Array.isArray(points) || points.length < 2) {
+            if (ctrl._setHint) { ctrl._setHint("Measure at least 2 waypoints in the 3D card first.", true); }
+            return 0;
+        }
+        var prev = ctrl.activeKind;   // snapshot the operator's tool so we can restore it after the batch (F17)
+        var placed = 0;
+        try {
+            if (typeof ctrl.setTool === "function" && ctrl.activeKind !== "traverse") { ctrl.setTool("traverse"); }
+            for (var i = 0; i < points.length; i++) {
+                var q = points[i];
+                if (!q || q.lat == null || q.lon == null) { continue; }
+                ctrl.placeAt(ctrl.reproject([q.lon, q.lat], geoCrs, mapCrs));
+                placed += 1;
+            }
+            // F17: restore the prior tool so the 2D map is NOT left stuck in Traverse placing mode.
+            if (typeof ctrl.setTool === "function" && ctrl.activeKind !== prev) { ctrl.setTool(prev); }
+            if (ctrl._setHint) {
+                ctrl._setHint("Added " + placed + " traverse waypoint" + (placed === 1 ? "" : "s") +
+                    " from the 3D measure route" + (prev ? " (tool restored to " + prev + ")" : "") + ".");
+            }
+        } catch (e) {
+            if (ctrl._setHint) { ctrl._setHint("Could not adopt the route: " + e.message, true); }
+        }
+        return placed;
+    }
+
     var API = {
         TRAVERSE_KIND: TRAVERSE_KIND,
         OBJECT_TYPES: OBJECT_TYPES,
@@ -162,7 +231,9 @@
         markerBody: markerBody,
         isPlannableLatLon: isPlannableLatLon,
         clickToLonLat: clickToLonLat,
-        materialBalance: materialBalance
+        materialBalance: materialBalance,
+        plotDispatch: plotDispatch,
+        adoptRoute: adoptRoute
     };
     if (typeof module !== "undefined" && module.exports) { module.exports = API; }   // node:test + `import X from`
     if (root) { root.STEWIE_PLAN_TOOLS = API; }                                       // browser (window)

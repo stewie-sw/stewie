@@ -154,3 +154,117 @@ test("materialBalance sums cut/fill bank volumes + flags surplus/deficit", () =>
     assert.ok(eq.balance_kg > 0 && eq.status === "surplus");
     assert.strictEqual(PT.materialBalance([]).balance_kg, 0);            // empty -> 0 balance
 });
+
+// --- F17 / F32: a minimal fake PlanAuthor controller for the pure dispatch/adopt helpers -----------------
+// Mirrors the REAL controller contract the helpers touch: the three mutually-exclusive placing modes
+// (activeKind/structKind/objectType), setTool()'s TOGGLE + clear-siblings semantics (planAuthor.js
+// setTool/setStructure/setObjectTool), placeAt()'s "queue a goto only while traverse is active" rule
+// (planAuthor.js:1149), and reproject() as an identity stub (the 30100->30135 affine is Playwright-checked).
+function fakeCtrl(initialTool) {
+    return {
+        activeKind: initialTool || null,
+        structKind: null,
+        objectType: null,
+        orders: [],
+        structCalls: [],
+        objectCalls: [],
+        placeAtCalls: [],
+        hints: [],
+        // identity reproject: [lon,lat] in -> the same pair back (the helpers pass it straight to place*).
+        reproject(coord) { return [coord[0], coord[1]]; },
+        // setTool TOGGLES activeKind and clears the sibling placing modes, exactly like planAuthor.setTool.
+        setTool(kind) {
+            this.structKind = null; this.objectType = null;
+            this.activeKind = (this.activeKind === kind) ? null : kind;
+        },
+        // placeAt queues a goto ONLY while traverse is the active tool (planAuthor.js:1149); otherwise a
+        // cut/fill order. A call with no active tool is a no-op (matches placeAt's `if (!this.activeKind) return`).
+        placeAt(coord) {
+            this.placeAtCalls.push(coord);
+            if (this.activeKind === "traverse") { this.orders.push({ kind: "goto", coord: coord }); }
+            else if (this.activeKind) { this.orders.push({ kind: this.activeKind, coord: coord }); }
+        },
+        placeStructure(coord) { this.structCalls.push(coord); },
+        placeObject(coord) { this.objectCalls.push(coord); },
+        _setHint(msg, isErr) { this.hints.push({ msg: msg, isErr: !!isErr }); }
+    };
+}
+function lastHint(c) { return c.hints.length ? c.hints[c.hints.length - 1] : null; }
+
+// F17: _adoptRoute forced Traverse active to place the 3D-measured route and NEVER restored the prior tool,
+// leaving the 2D map stuck in Traverse placing mode (the operator's next click dropped a stray waypoint).
+test("adoptRoute: queues the goto waypoints AND restores the prior 'cut' tool (F17)", () => {
+    const c = fakeCtrl("cut");
+    const placed = PT.adoptRoute(c, [LL1, LL2].map((ll) => ({ lon: ll[0], lat: ll[1] })),
+        "IAU_2015:30100", "IAU_2015:30135");
+    assert.strictEqual(placed, 2, "both waypoints placed");
+    assert.strictEqual(c.orders.filter((o) => o.kind === "goto").length, 2, "two goto waypoints queued");
+    assert.strictEqual(c.activeKind, "cut", "prior 'cut' tool restored — NOT left in traverse (F17)");
+});
+
+test("adoptRoute: no prior tool -> restores to null (next map click is inert, not a stray waypoint)", () => {
+    const c = fakeCtrl(null);
+    const placed = PT.adoptRoute(c, [{ lon: 1, lat: 2 }, { lon: 3, lat: 4 }], "IAU_2015:30100", "IAU_2015:30135");
+    assert.strictEqual(placed, 2);
+    assert.strictEqual(c.orders.filter((o) => o.kind === "goto").length, 2);
+    assert.strictEqual(c.activeKind, null, "restored to no-tool (no stray-waypoint mode left behind)");
+});
+
+test("adoptRoute: prior tool already 'traverse' -> stays traverse, no double-toggle no-op", () => {
+    const c = fakeCtrl("traverse");
+    const placed = PT.adoptRoute(c, [{ lon: 1, lat: 2 }, { lon: 3, lat: 4 }], "IAU_2015:30100", "IAU_2015:30135");
+    assert.strictEqual(placed, 2, "guard skips the re-toggle so placeAt still queues both gotos");
+    assert.strictEqual(c.orders.filter((o) => o.kind === "goto").length, 2);
+    assert.strictEqual(c.activeKind, "traverse");
+});
+
+test("adoptRoute: fewer than 2 waypoints is refused (no tool mutation, error hint)", () => {
+    const c = fakeCtrl("cut");
+    const placed = PT.adoptRoute(c, [{ lon: 1, lat: 2 }], "IAU_2015:30100", "IAU_2015:30135");
+    assert.strictEqual(placed, 0);
+    assert.strictEqual(c.orders.length, 0);
+    assert.strictEqual(c.activeKind, "cut", "a refused route never touches the tool");
+    assert.ok(lastHint(c) && lastHint(c).isErr, "surfaces an error hint");
+});
+
+// F32: the 3D 'plot the active tool' onPlot channel only fired for cut/fill/traverse (activeKind); a
+// structure template (structKind) or place-object (objectType) tool could not be plotted and only nagged.
+test("plotDispatch: structure tool active -> placeStructure (F32)", () => {
+    const c = fakeCtrl(null); c.structKind = "landing_pad";
+    const mode = PT.plotDispatch(c, { lon: LL0[0], lat: LL0[1] }, "IAU_2015:30100", "IAU_2015:30135");
+    assert.strictEqual(mode, "structure");
+    assert.strictEqual(c.structCalls.length, 1, "the structure was placed at the plotted point");
+    assert.strictEqual(c.objectCalls.length, 0);
+    assert.strictEqual(c.placeAtCalls.length, 0);
+});
+
+test("plotDispatch: place-object tool active -> placeObject (F32)", () => {
+    const c = fakeCtrl(null); c.objectType = "beacon";
+    const mode = PT.plotDispatch(c, { lon: LL0[0], lat: LL0[1] }, "IAU_2015:30100", "IAU_2015:30135");
+    assert.strictEqual(mode, "object");
+    assert.strictEqual(c.objectCalls.length, 1, "the marker was placed at the plotted point");
+    assert.strictEqual(c.structCalls.length, 0);
+});
+
+test("plotDispatch: cut/fill/traverse tool -> placeAt (the unchanged earthworks path)", () => {
+    const c = fakeCtrl("cut");
+    const mode = PT.plotDispatch(c, { lon: LL0[0], lat: LL0[1] }, "IAU_2015:30100", "IAU_2015:30135");
+    assert.strictEqual(mode, "place");
+    assert.strictEqual(c.placeAtCalls.length, 1);
+    assert.strictEqual(c.orders.filter((o) => o.kind === "cut").length, 1);
+});
+
+test("plotDispatch: no tool active -> hint, no placement", () => {
+    const c = fakeCtrl(null);
+    const mode = PT.plotDispatch(c, { lon: 1, lat: 2 }, "IAU_2015:30100", "IAU_2015:30135");
+    assert.strictEqual(mode, null);
+    assert.strictEqual(c.placeAtCalls.length + c.structCalls.length + c.objectCalls.length, 0);
+    assert.ok(lastHint(c) && !lastHint(c).isErr, "hints the operator to pick a tool");
+});
+
+test("plotDispatch: null point payload is ignored (no throw, no placement)", () => {
+    const c = fakeCtrl("cut");
+    assert.strictEqual(PT.plotDispatch(c, null, "IAU_2015:30100", "IAU_2015:30135"), null);
+    assert.strictEqual(PT.plotDispatch(c, { lon: null, lat: null }, "IAU_2015:30100", "IAU_2015:30135"), null);
+    assert.strictEqual(c.placeAtCalls.length, 0);
+});
