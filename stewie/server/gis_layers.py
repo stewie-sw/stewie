@@ -678,13 +678,17 @@ PHYSICS_LAYERS = {
         "ramp": "pale yellow (cheap) -> deep red (costly)",
         "text": "steady drive power on the grade from the Bekker motion resistance "
                 "(stewie.physics.slip.bekker_drive_power_w); rises steeply with slope and diverges at "
-                "entrapment (energy per traverse)."},
+                "entrapment. A power (Watts) reading, not an energy total (task #53 honesty fix)."},
+    # HONEST id note (task #53 Finding 1): "excavation_resistance" is LEGACY. The field below is the
+    # Bekker wheel compaction/motion resistance R_c (the resistance a wheel climbs out of its own
+    # sinkage rut), NOT a dig/draft (excavation) force -- the id is kept stable to avoid catalog/
+    # frontend/snapshot churn. A real excavation draft-force (FEE) model is a follow-up (task #78).
     "excavation_resistance": {
         "field": "excavation_resistance", "unit": "N", "ramp_stops": _PHYS_PURPLES, "invert": False,
         "ramp": "pale (easy) -> deep purple (resistant)",
         "text": "Bekker compaction (motion) resistance R_c the wheel must climb out of its own sinkage rut "
-                "(stewie.physics.slip.compaction_resistance); the excavation/rolling resistance, rising with "
-                "sinkage on steeper ground."},
+                "(stewie.physics.slip.compaction_resistance); the wheel's own rolling/motion resistance, "
+                "rising with sinkage on steeper ground."},
 }
 _PHYSICS_KINDS = frozenset(PHYSICS_LAYERS)
 

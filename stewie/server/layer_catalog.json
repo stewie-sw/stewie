@@ -384,7 +384,7 @@
       "id": "physics.excavation_resistance",
       "domain": "physics",
       "type": "raster",
-      "purpose": "cutting/excavation difficulty",
+      "purpose": "wheel compaction (motion) resistance R_c -- legacy id, not a dig/draft force (task #78)",
       "source_class": "derived/estimated",
       "planning_eligible": true,
       "planning_note": "yes",

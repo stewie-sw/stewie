@@ -154,10 +154,14 @@ THETA_R = np.deg2rad(35.0)
 THETA_R_MIN = np.deg2rad(30.0)
 THETA_R_MAX = np.deg2rad(47.0)
 
-#: Bulking / swell factor SF [dimensionless]. [CALIB] spec §5.2 (1.1-1.3). In-situ ->
-#: loose density drop on excavation; "closes the cut/fill loop" (spec §7 bulking). We
-#: define spoil (dumped, loose) density = RHO_DEEP-cut / SF -> looser, taller per kg.
-SWELL_FACTOR = 1.2
+#: Bulking / swell factor SF [dimensionless]. HONESTY (task #53 Finding 2): this now TRACKS the
+#: EFFECTIVE swell the cut/fill planner actually applies -- RHO_DEEP / RHO_SPOIL (~1.477, the same
+#: ratio lode.planner_balance.SWELL computes) -- not a value nothing reads. The spec §5.2 measured
+#: swell (1.1-1.3, nominal 1.2, [CALIB]) DIFFERS from that effective in-code ratio; the discrepancy is
+#: FLAGGED for physics review, not silently resolved (task #78). The literal below is a placeholder;
+#: it is recomputed from RHO_DEEP/RHO_SPOIL further down (after the config overlay), mirroring the
+#: RHO_GRAIN/RHO_SPOIL recompute pattern, so it can never silently diverge from planner_balance.SWELL.
+SWELL_FACTOR = 1.2  # placeholder; recomputed below as RHO_DEEP / RHO_SPOIL -- zero behavior change
 
 #: Loose spoil density [kg/m^3] — what freshly dumped material settles to (SPOIL state).
 #: Derived so a dense in-situ cut bulks to a lower density when redeposited (spec §7
@@ -592,7 +596,12 @@ if "RHO_GRAIN" not in _applied:
     RHO_GRAIN = G_s * RHO_WATER    # derived: solid grain density tracks G_s
 if "RHO_SPOIL" not in _applied:
     # derived: loose spoil density EQUALS the surface-layer density. Bulking/swell EMERGES from the
-    # RHO_DEEP -> RHO_SPOIL density gap when deep material is cut and re-deposited loose -- it is NOT
-    # the documented-elsewhere RHO_DEEP/SWELL_FACTOR formula (audit L07: doc/code disagreed; the code
-    # is the conserved behavior the suite validates).
+    # RHO_DEEP -> RHO_SPOIL density gap when deep material is cut and re-deposited loose -- RHO_SPOIL
+    # itself is NOT derived from SWELL_FACTOR (audit L07: doc/code disagreed; the code below is the
+    # conserved behavior the suite validates). SWELL_FACTOR instead tracks THIS gap (see below).
     RHO_SPOIL = RHO_SURFACE / 1.0
+if "SWELL_FACTOR" not in _applied:
+    # task #53 Finding 2: SWELL_FACTOR tracks the EFFECTIVE swell (RHO_DEEP/RHO_SPOIL, post any config
+    # override) so it can never silently diverge from lode.planner_balance.SWELL -- same recompute
+    # pattern as RHO_GRAIN/RHO_SPOIL above. Pinned by lode/test_planner_balance.py.
+    SWELL_FACTOR = RHO_DEEP / RHO_SPOIL

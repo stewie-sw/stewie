@@ -40,6 +40,24 @@ def test_tm03_derived_layers_map_to_real_terms_and_catalog(monkeypatch):  # [REQ
     assert set(by["traffic.traversability"]["from_terms"]) >= {"slip", "traction"}
 
 
+def test_tm03_excavation_resistance_is_honestly_a_motion_resistance():  # [REQ:TM-03] task #53 Finding 1
+    """physics.excavation_resistance's bound term (compaction_resistance) is the Bekker wheel
+    compaction/motion resistance R_c, NOT a dig/draft (excavation) force. The layer id stays stable
+    (task #78 tracks a real excavation draft-force model), but the operator-facing legend text and the
+    catalog purpose must not claim it measures excavation/cutting difficulty."""
+    from stewie.server import gis_layers as G
+
+    legend_text = G.PHYSICS_LAYERS["excavation_resistance"]["text"].lower()
+    assert "excavation" not in legend_text
+    assert "cutting" not in legend_text
+
+    with open(os.path.join(_ROOT, "stewie", "server", "layer_catalog.json"), encoding="utf-8") as fh:
+        catalog = json.load(fh)["layers"]
+    purpose = next(ly["purpose"] for ly in catalog if ly["id"] == "physics.excavation_resistance").lower()
+    assert "excavation" not in purpose
+    assert "cutting" not in purpose
+
+
 def test_tm03_computed_terms_are_real_solver_outputs():  # [REQ:TM-03]
     from stewie.specs.terramechanics_spine import terra_derived_layers
     for r in terra_derived_layers():

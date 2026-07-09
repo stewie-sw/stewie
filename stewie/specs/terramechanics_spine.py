@@ -55,7 +55,8 @@ _TERMS: list[tuple[TerraTerm, Callable | None]] = [
       "backend": "tier2_numpy", "calibration": "calibrated",
       "source": "stewie.physics.slip.compaction_resistance"}, slip.compaction_resistance),
     ({"id": "drive_energy", "name": "Drive power", "symbol": "P", "unit": "W",
-      "description": "Terramechanics drive power at the commanded speed on the slope (energy per traverse).",
+      "description": "Terramechanics drive power at the commanded speed on the slope: a steady-state "
+                      "Watts figure (task #53 Finding 3 honesty fix).",
       "backend": "tier2_numpy", "calibration": "calibrated",
       "source": "stewie.physics.slip.bekker_drive_power_w"}, slip.bekker_drive_power_w),
 ]
@@ -79,6 +80,10 @@ TERRA_DERIVED: dict[str, list[str]] = {
     "physics.slip_risk": ["slip", "slope"],
     "physics.traction_margin": ["traction", "slip"],
     "physics.energy_cost": ["drive_energy"],
+    # HONEST id note (task #53 Finding 1): "excavation_resistance" is LEGACY -- the bound term
+    # (compaction_resistance) is the Bekker wheel compaction/motion resistance R_c, not a dig/draft
+    # force. The id is kept stable (avoids catalog/frontend/snapshot churn); a real excavation
+    # draft-force (FEE) model is tracked as a follow-up (task #78).
     "physics.excavation_resistance": ["compaction_resistance"],
     "physics.compaction": ["compaction_resistance", "sinkage"],
     "traffic.traversability": ["slip", "slope", "traction"],

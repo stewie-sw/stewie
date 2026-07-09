@@ -27,6 +27,20 @@ def test_tm02_spine_lists_the_real_terms(monkeypatch):  # [REQ:TM-02]
     assert by["sinkage"]["calibration"] == "calibrated"
 
 
+def test_tm02_drive_power_term_is_honestly_labeled_as_power():  # [REQ:TM-02] task #53 Finding 3
+    """drive_energy's source is bekker_drive_power_w -- a steady-state POWER (Watts), not an energy
+    total. Its unit must stay W and its description must not claim to be an energy-per-traverse
+    quantity (the mislabel the physics council flagged)."""
+    from stewie.specs.terramechanics_spine import TERRA_SPINE
+
+    by_source = {t["source"]: t for t in TERRA_SPINE}
+    term = by_source["stewie.physics.slip.bekker_drive_power_w"]
+    assert term["unit"] == "W"
+    desc = term["description"].lower()
+    assert "energy per traverse" not in desc
+    assert "energy" not in desc
+
+
 def test_tm02_computed_terms_defer_to_the_real_solver():  # [REQ:TM-02]
     from stewie.specs.terramechanics_spine import TERRA_SOLVERS
     assert TERRA_SOLVERS, "no computed terms bound"

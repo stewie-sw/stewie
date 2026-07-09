@@ -29,6 +29,16 @@ def test_mission_planner_reexports_balance_block():
     assert MP.SWELL == PB.SWELL
 
 
+def test_swell_factor_never_silently_diverges_from_planner_balance():
+    """task #53 Finding 2 (honesty): constants.SWELL_FACTOR used to be a dead literal (1.2) that
+    disagreed with the swell the planner ACTUALLY applies (RHO_DEEP/RHO_SPOIL, ~1.477). It is now
+    derived from the same constants, so the two can never silently diverge again."""
+    from lode import planner_balance as PB
+    from stewie.specs import constants as C
+
+    assert C.SWELL_FACTOR == PB.SWELL == C.RHO_DEEP / C.RHO_SPOIL
+
+
 def test_mincost_transport_is_pure_and_min_cost():
     """_mincost_transport routes over the cheapest FEASIBLE arcs and never over an unreachable (inf) one.
     Behaviour-preserving smoke check on the extracted solver (no DEM, no planner state needed)."""

@@ -236,7 +236,7 @@ Explicit layer catalog:
 | `physics.slip_risk` | raster | slip probability/risk | derived/estimated/learned | yes | yes if calibrated |
 | `physics.traction_margin` | raster | traction/drawbar margin | derived | yes | yes if calibrated |
 | `physics.energy_cost` | raster | drive/work energy cost | derived/forecast | yes | yes if calibrated |
-| `physics.excavation_resistance` | raster | cutting/excavation difficulty | derived/estimated | yes | yes if calibrated |
+| `physics.excavation_resistance` | raster | wheel compaction (motion) resistance R_c -- legacy id, not a dig/draft force (task #78) | derived/estimated | yes | yes if calibrated |
 | `physics.compaction` | raster | compaction/sinter/support state | observed/derived | yes | yes if measured or approved |
 | `mission.waypoints` | vector | planned traverse points | user/prior | yes | yes if released |
 | `mission.route_candidates` | vector | candidate routes | forecast | yes | evidence only |
