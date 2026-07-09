@@ -12,6 +12,11 @@ import * as THREE from "/assets/three.module.min.js";
 
 const S = { ready: false, vex: 1, layerKind: "elevation", site: "haworth", meta: null, z: null };
 const WIRE = { color: 0x35e0d0, base: 0.10, dim: 0.04 };
+// Above this per-side vertex count, THREE.WireframeGeometry's internal edge Set overflows V8's 2^24
+// element cap (a full-res 2000x2000 grid has ~24M edges -> "Set maximum size exceeded"), and a wireframe
+// that dense is an opaque mass anyway. So the wire is built LAZILY (only when toggled on) and skipped
+// above this size. The relief mesh itself renders fine at full res (Uint32 indices); only the wire is capped.
+const WIRE_MAX_N = 1200;
 
 function mount(container) {
   const w = container.clientWidth || 900, h = container.clientHeight || 600;
@@ -144,11 +149,24 @@ function _buildMesh() {
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0.0 });
   S.mesh = new THREE.Mesh(geo, mat);
   S.group.add(S.mesh);
-  S.wire = new THREE.LineSegments(new THREE.WireframeGeometry(geo),
-    new THREE.LineBasicMaterial({ color: WIRE.color, transparent: true, opacity: S._wireOn ? WIRE.base : 0 }));
-  S.wire.visible = !!S._wireOn;
-  S.group.add(S.wire);
+  S.wire = null;                     // built lazily + size-guarded (_buildWire) -- see WIRE_MAX_N
+  if (S._wireOn) _buildWire();
   setSun(S._sunAz ?? 135, S._sunEl ?? 20);
+}
+
+// Build the wireframe overlay from the current mesh geometry, but ONLY when it is small enough that
+// WireframeGeometry's edge Set stays under V8's cap (WIRE_MAX_N). Returns whether a wire now exists.
+function _buildWire() {
+  if (S.wire) { S.group.remove(S.wire); S.wire.geometry.dispose(); S.wire.material.dispose(); S.wire = null; }
+  if (!S.mesh || !S.meta || S.meta.n > WIRE_MAX_N) return false;
+  try {
+    const op = (S.layerKind !== "elevation") ? WIRE.dim : WIRE.base;
+    S.wire = new THREE.LineSegments(new THREE.WireframeGeometry(S.mesh.geometry),
+      new THREE.LineBasicMaterial({ color: WIRE.color, transparent: true, opacity: op }));
+    S.wire.visible = !!S._wireOn;
+    S.group.add(S.wire);
+    return true;
+  } catch (_) { S.wire = null; return false; }   // belt-and-suspenders if the Set still overflows
 }
 
 // bilinear height (metres above z_min) at order-local (lx, ly)
@@ -192,15 +210,16 @@ function setVertExag(k) {
   const pos = S.mesh.geometry.attributes.position, bh = S.baseH;
   for (let i = 0; i < bh.length; i++) pos.array[i * 3 + 1] = bh[i] * k;
   pos.needsUpdate = true; S.mesh.geometry.computeVertexNormals();
-  if (S.wire) { S.group.remove(S.wire); S.wire.geometry.dispose(); S.wire.material.dispose();
-    S.wire = new THREE.LineSegments(new THREE.WireframeGeometry(S.mesh.geometry),
-      new THREE.LineBasicMaterial({ color: WIRE.color, transparent: true, opacity: S._wireOn ? WIRE.base : 0 }));
-    S.wire.visible = !!S._wireOn; S.group.add(S.wire); }
+  if (S._wireOn) _buildWire();          // rebuild the wire against the re-lifted geometry (size-guarded)
   if (S._gridOn) buildMetricGrid();     // re-drape the grid at the new relief
   if (S._gratGroup) _redrapeGraticule();
 }
 
-function setWireframe(on) { S._wireOn = !!on; if (S.wire) { S.wire.visible = on; S.wire.material.opacity = on ? ((S.layerKind !== "elevation") ? WIRE.dim : WIRE.base) : 0; } }
+function setWireframe(on) {
+  S._wireOn = !!on;
+  if (on && !S.wire) _buildWire();      // lazy: only pay the WireframeGeometry cost when first toggled on
+  if (S.wire) { S.wire.visible = on; S.wire.material.opacity = on ? ((S.layerKind !== "elevation") ? WIRE.dim : WIRE.base) : 0; }
+}
 
 function setSun(azDeg, elDeg) {
   S._sunAz = azDeg; S._sunEl = elDeg;
