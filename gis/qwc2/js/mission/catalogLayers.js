@@ -266,6 +266,13 @@
   function layerManifestUrl(site) { return API_BASE + "/world/layer-manifest?site=" + encodeURIComponent(_site(site)); }
   function globePngUrl(kind, opts) { return API_BASE + "/layers/globe/" + kind + ".png?" + sunQS(opts); }
   function globeBboxUrl(kind, opts) { return API_BASE + "/layers/globe/" + kind + "/bbox?" + sunQS(opts); }
+  // Task #81: the lunar DEM SOURCE catalog (dart.dem_sources -> GET /dem/sources, routers/dem.py) for the
+  // "DEM sources" provenance section (which tiles ship bundled vs need a real download, product/resolution/
+  // license/notes). NOT under API_BASE: unlike /world/* and /layers/*, the DEM egress routes are absolute
+  // same-origin /dem/* paths (see viz3d.js's /dem/site_lonlat, /dem/heightfield_full) proxied directly by
+  // deploy/artemis-nginx.conf (an exact-match `location = /dem/sources` server-side key-injects the shared
+  // key the same way as /dem/site_lonlat, since the backend route stays require_auth per #246).
+  function demSourcesUrl() { return "/dem/sources"; }
 
   // Build the QWC2 `image` layer object for a servable row. PURE (no dispatch, no OL). `bbox` is the
   // /bbox payload {west,south,east,north} in selenographic degrees; the ImageStatic is declared in
@@ -325,6 +332,7 @@
   function fetchTraffic(site) { return _getJson(trafficUrl(site)); }
   function fetchLayerManifest(site) { return _getJson(layerManifestUrl(site)); }   // [REQ:GW-06]
   function fetchBbox(kind, opts) { return _getJson(globeBboxUrl(kind, opts)); }
+  function fetchDemSources() { return _getJson(demSourcesUrl()); }   // Task #81: {ok, sources:[...]}
 
   // [REQ:GW-06] PURE freshness/provenance projection from the /world/layer-manifest payload, for the
   // layer tree's per-layer freshness readout. Returns null (no claim) when the manifest is absent, so a
@@ -369,6 +377,7 @@
     layerManifestUrl: layerManifestUrl,
     globePngUrl: globePngUrl,
     globeBboxUrl: globeBboxUrl,
+    demSourcesUrl: demSourcesUrl,
     imageLayerFor: imageLayerFor,
     legendFor: legendFor,
     freshnessFromManifest: freshnessFromManifest,
@@ -377,7 +386,8 @@
     fetchTerramechanics: fetchTerramechanics,
     fetchTraffic: fetchTraffic,
     fetchLayerManifest: fetchLayerManifest,
-    fetchBbox: fetchBbox
+    fetchBbox: fetchBbox,
+    fetchDemSources: fetchDemSources
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;   // node:test + `import X from`
   if (root) root.STEWIE_CATALOG_LAYERS = API;                                  // browser (window)

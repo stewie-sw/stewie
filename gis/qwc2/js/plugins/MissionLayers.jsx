@@ -20,6 +20,12 @@
  * fabricating a layer. (cost + blocking + the 6 physics drapes added 2026-07-06; the traffic drape added
  * 2026-07-07; the 3 LY-05 DEM-derivative drapes added 2026-07-08; live after a backend rebuild.)
  *
+ * Task #81: also renders a read-only "DEM sources" section -- the lunar DEM-tile PROVENANCE catalog (which
+ * tiles ship bundled vs need a real download, product/resolution/license/notes), from the backend's
+ * dart.dem_sources registry (GET /dem/sources, routers/dem.py, require_auth -- reached through the artemis
+ * edge's server-side key-injection, same pattern as /dem/site_lonlat). This is catalog metadata, not a map
+ * layer: no toggle, no raster, no world mutation.
+ *
  * Registration:
  *   - js/appConfig.js       -> pluginsDef.plugins.MissionLayersPlugin
  *   - static/config.json    -> plugins.common [{"name": "MissionLayers"}] + a TopBar menu item
@@ -69,6 +75,7 @@ class MissionLayers extends React.Component {
         terramech: null,   // /world/terramechanics-layers (physics-layer provenance)
         freshness: null,   // [REQ:GW-06] /world/layer-manifest -> per-layer freshness/provenance
         summary: null,     // {total, servable, nonServable}
+        demSources: null,  // Task #81: /dem/sources -> the DEM-tile provenance catalog (null until fetched)
         error: null,
         collapsed: {}      // domainId -> true (default: base/terrain/hazard/physics/traffic expanded)
     };
@@ -86,6 +93,10 @@ class MissionLayers extends React.Component {
         }).catch((e) => this.setState({error: 'layer-catalog: ' + e.message}));
         CL.fetchLegend().then((legend) => this.setState({legend})).catch(() => {});
         CL.fetchTerramechanics().then((tm) => this.setState({terramech: tm})).catch(() => {});
+        // Task #81: the DEM-tile provenance catalog (bundled vs real-data-gated, product/resolution/license).
+        // Non-critical annotation -- on failure `demSources` stays null and the section shows "loading" rather
+        // than crashing the panel (same silent-catch convention as legend/terramech above).
+        CL.fetchDemSources().then((d) => this.setState({demSources: (d && d.sources) || []})).catch(() => {});
         // [REQ:GW-06] the REAL per-site freshness/provenance (DT-05 observed-twin coverage + dem_source
         // provenance) for the layer tree, from the PUBLIC /world/layer-manifest projection (the auth-gated
         // /world 401s for the keyless public /ide/). Failures degrade SILENTLY to "no freshness yet" — the
@@ -341,6 +352,66 @@ class MissionLayers extends React.Component {
             </div>
         );
     }
+    // Task #81: the read-only DEM-SOURCES provenance catalog (dart.dem_sources via GET /dem/sources) -- which
+    // lunar DEM tiles ship bundled vs need a real download, with product/instrument, resolution, license, and
+    // notes. Reuses the same collapsible-section chrome as renderGroup (this.state.collapsed / toggleGroup /
+    // isGroupOpen, keyed "demSources"), but this is catalog metadata, not a domain of the layer tree: no
+    // checkbox, no map layer, no toggle -- plain text rows.
+    renderDemSources() {
+        const sources = this.state.demSources;
+        const open = this.isGroupOpen('demSources');
+        return (
+            <div style={{borderTop: '1px solid #1c1c26'}}>
+                <div
+                    onClick={() => this.toggleGroup('demSources')}
+                    style={{display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
+                        padding: '5px 2px', fontWeight: 600, fontSize: '11px', color: '#aeb8c6', userSelect: 'none'}}
+                >
+                    <span style={{width: '10px', color: '#7a8290'}}>{open ? '▾' : '▸'}</span>
+                    <span style={{flex: '1 1 auto'}}>DEM sources</span>
+                    <span style={{fontSize: '9px', color: '#565b66'}}>
+                        {sources ? sources.length : '…'}
+                    </span>
+                </div>
+                {open ? (
+                    sources === null ? (
+                        <div style={{fontSize: '11px', color: '#7a8290', padding: '4px 6px 8px'}}>
+                            loading DEM sources…
+                        </div>
+                    ) : sources.length === 0 ? (
+                        <div style={{fontSize: '11px', color: '#7a8290', padding: '4px 6px 8px'}}>
+                            no DEM sources reported.
+                        </div>
+                    ) : sources.map((s) => this.renderDemSourceRow(s))
+                ) : null}
+            </div>
+        );
+    }
+    renderDemSourceRow(s) {
+        return (
+            <div key={s.id} data-stewie-dem-source={s.id}
+                style={{padding: '4px 6px 6px 12px', borderBottom: '1px solid #16161d'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px'}}>
+                    <span style={{flex: '1 1 auto', color: '#c7d2e3'}}>{s.name}</span>
+                    <span style={{
+                        fontSize: '8px', letterSpacing: '.02em', padding: '0 3px', borderRadius: '3px',
+                        border: '1px solid ' + (s.bundled ? '#39ff1455' : '#e0b30055'),
+                        color: s.bundled ? '#39ff14' : '#e0b300', flex: '0 0 auto', whiteSpace: 'nowrap'
+                    }} title={s.bundled ? 'ships bundled (loads offline)' : 'real-data-gated -- supply the downloaded product'}>
+                        {s.bundled ? 'bundled' : 'download required'}
+                    </span>
+                </div>
+                <div style={{fontSize: '9px', color: '#8a93a3', margin: '2px 0 0 0'}}>
+                    {s.instrument} · {s.resolution_m} m · {s.license}
+                </div>
+                {s.notes ? (
+                    <div style={{fontSize: '9px', color: '#6f7684', margin: '2px 0 0 0', lineHeight: 1.35}}>
+                        {s.notes}
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
     renderBody = () => {
         const wrapStyle = {
             background: '#0a0a0c', color: '#c7d2e3', padding: '8px',
@@ -383,6 +454,9 @@ class MissionLayers extends React.Component {
                         {trafficNote}
                     </div>
                 ) : null}
+                <div style={{marginTop: '10px'}}>
+                    {this.renderDemSources()}
+                </div>
             </div>
         );
     };

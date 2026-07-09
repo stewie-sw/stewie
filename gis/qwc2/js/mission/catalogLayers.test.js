@@ -226,6 +226,10 @@ test("URL builders: globe png + bbox carry the sun query string", () => {
     "/api/layers/globe/slope/bbox?sun_el=15&sun_az=90&site=haworth&b=2");
 });
 
+test("demSourcesUrl: Task #81 -- an absolute /dem/* path (NOT under API_BASE, unlike /world+/layers)", () => {
+  assert.strictEqual(C.demSourcesUrl(), "/dem/sources");
+});
+
 test("setApiBase re-bases every endpoint URL (restored to /api after)", () => {
   try {
     C.setApiBase("https://h/api");
