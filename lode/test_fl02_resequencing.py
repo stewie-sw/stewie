@@ -7,6 +7,8 @@ to 0. No crowding -> all-zero delays (byte-identical fleet). Hand-built timeline
 + real detectors; the integration test drives a real mission through plan_multi (no fabricated metrics)."""
 import copy
 
+import pytest
+
 import lode.mission_planner as MP
 
 
@@ -99,3 +101,26 @@ def test_plan_multi_exposes_crowd_wait_and_resequences():  # [REQ:FL-02]
 def test_single_vehicle_has_no_crowd_wait_key():
     tot = MP.plan_and_simulate(_mk())[4]
     assert "crowd_wait_s" not in tot               # single-vehicle never enters plan_multi -> byte-identical
+
+
+# ---- council F26: crowd_wait folds into the idle/survival energy (it extends makespan) ----------
+_CROWD_ORDERS = [
+    {"action": "cA", "kind": "cut", "x": 10.0, "y": 0.0, "footprint_m2": 16.0, "depth_m": 0.3},
+    {"action": "cB", "kind": "cut", "x": 10.0, "y": 2.0, "footprint_m2": 16.0, "depth_m": 0.3},   # 2 m apart
+    {"action": "fA", "kind": "fill", "x": 10.0, "y": 1.0, "footprint_m2": 16.0, "depth_m": 0.3},
+]
+
+
+def test_crowd_wait_folds_into_survival_energy(monkeypatch):  # [REQ:FL-02]
+    """Council F26: FL-02 space-time crowding waits EXTEND the fleet makespan (they are added into it), so
+    the idle-draw survival energy must cover them too. The prior sum omitted crowd_wait_s, undercounting
+    idle energy for crowded fleets. With IDLE_POWER_W > 0 and a real crowd wait, survival_energy_J must
+    equal idle power times (active per-vehicle time + every queue/crowd/precedence wait)."""
+    monkeypatch.setattr(MP, "IDLE_POWER_W", 50.0)                # [ASSUMPTION] 50 W survival load
+    m = MP.mission_from_dict({"name": "S", "body": "moon", "charger": [0, 0],
+                              "orders": copy.deepcopy(_CROWD_ORDERS)})
+    tot = MP.plan_and_simulate(m, vehicles=2)[4]
+    assert tot["crowd_wait_s"] > 0.0                             # premise: crowding actually occurred
+    active_time = sum(d["time_s"] for d in tot["vehicles_detail"])
+    idle_time = (active_time + tot["charger_wait_s"] + tot["crowd_wait_s"] + tot["precedence_wait_s"])
+    assert tot["survival_energy_J"] == pytest.approx(50.0 * idle_time)   # crowd_wait_s included

@@ -2327,3 +2327,91 @@ def test_malformed_charger_or_lander_is_a_value_error_not_500():
             MP.mission_from_dict({**base, "charger": [0, 0], "lander": bad})
     m = MP.mission_from_dict({**base, "charger": [3.0, 4.0], "lander": [5.0, 6.0]})   # well-formed still builds
     assert tuple(m.charger) == (3.0, 4.0) and tuple(m.lander) == (5.0, 6.0)
+
+
+# ================= council findings 2026-07-09 (F8 / F9 / F10; TDD RED first) ======================
+def _surplus_mission():
+    """A cut FAR larger than its fill (10 m^2 x 1 m cut vs 1 m^2 x 0.2 m fill): most excavated mass is
+    surplus SPOIL, emitted as a kind=='dig' excavation trip (dug in place), plus a tiny kind=='cutfill'
+    haul that feeds the fill. A real over-excavation the drum must still cycle out."""
+    return MP.mission_from_dict({"name": "surplus", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "bigcut", "kind": "cut", "x": 5.0, "y": 5.0, "footprint_m2": 10.0, "depth_m": 1.0},
+        {"action": "tinyfill", "kind": "fill", "x": 8.0, "y": 5.0, "footprint_m2": 1.0, "depth_m": 0.2}]})
+
+
+def test_drum_cycles_count_surplus_spoil_dig_trips():  # [REQ:CP-07]
+    """Council F8: drum_cycles (and the CP-07 drum-fill band it feeds) must count the surplus-spoil
+    kind=='dig' excavation, not only the kind=='cutfill' haul. When a cut far exceeds its fill, most
+    excavated mass is spoil dug in place; each drum load out is still a cycle. Counting cutfill-only
+    undercounts by up to ~70x."""
+    m = _surplus_mission()
+    trips, _flows, _pt, _tl, tot = MP.plan_and_simulate(m)
+    drum_kg = MP._drum_kg(m)
+    dig_trips = [t for t in trips if t["kind"] == "dig"]
+    assert dig_trips, "test setup: a cut>>fill mission must produce a surplus-spoil dig trip"
+    surplus_kg = tot["surplus_kg"]
+    assert surplus_kg > 0.0
+    # drum_cycles must cover at least the surplus-spoil loads (ceil(surplus/drum)); the cutfill-only count
+    # (the OLD behaviour) misses these entirely.
+    assert tot["drum_cycles"] >= math.ceil(surplus_kg / drum_kg)
+    # exact: the per-trip drum loads over BOTH the cutfill haul AND the dig spoil.
+    expect = sum(max(1, math.ceil(t["mass"] / drum_kg)) for t in trips if t["kind"] in ("cutfill", "dig"))
+    assert tot["drum_cycles"] == expect
+    # and the plan-uncertainty drum-fill band derives from the SAME (now-correct) cycle count.
+    assert tot["plan_uncertainty"]["sources"]["drum_fill"]["cycles"] == float(tot["drum_cycles"])
+
+
+def test_dig_energy_band_excludes_import_and_sinter_mass():  # [REQ:CP-07]
+    """Council F9: dig_energy_bounds_MJ (the CP-07 energy_MJ_band) must sum ONLY dug mass (kind in
+    cutfill|dig), not imported fill (never excavated) or sinter mass. An import-only plan digs nothing ->
+    a ZERO dig-energy band; the prior code summed every non-goto trip mass and reported a nonzero band
+    for material it never dug."""
+    imp = MP.mission_from_dict({"name": "imp", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "fillImp", "kind": "fill", "x": 10.0, "y": 0.0, "footprint_m2": 40.0, "depth_m": 0.20}]})
+    _t, _f, _pt, _tl, tot = MP.plan_and_simulate(imp)
+    assert tot["import_kg"] > 0.0                                    # it IS an import (no cut source)
+    assert tot["dig_energy_bounds_MJ"] == (0.0, 0.0)                # nothing dug -> zero dig-energy band
+    assert tot["plan_uncertainty"]["energy_MJ_band"] == [0.0, 0.0]   # the CP-07 block carries the same zeros
+    # a mixed plan: the band must BRACKET the ledger's dug-energy term (cutfill+dig dig_e), nothing else.
+    mix = MP.mission_from_dict({"name": "mix", "body": "moon", "charger": [0, 0], "orders": [
+        {"action": "cut", "kind": "cut", "x": 0.0, "y": 0.0, "footprint_m2": 40.0, "depth_m": 0.20},
+        {"action": "fill", "kind": "fill", "x": 2.0, "y": 0.0, "footprint_m2": 40.0, "depth_m": 0.05}]})
+    _t2, _f2, _pt2, _tl2, tot2 = MP.plan_and_simulate(mix)
+    lo, hi = tot2["dig_energy_bounds_MJ"]
+    ledger_dig_MJ = tot2["energy_ledger"]["terms_J"]["dig"] / 1e6
+    assert hi > 0.0                                                  # there IS dug mass here
+    assert lo - 0.05 <= ledger_dig_MJ <= hi + 0.05                   # band brackets the actual dug energy (+-round)
+
+
+def test_reachable_radius_scales_inversely_with_drive_cost():  # [REQ:H-01]
+    """Council F10 (physics): the DEM reachable-radius field shrinks as the per-metre drive cost rises.
+    Same real Haworth DEM, same usable energy -> a costlier-to-drive vehicle reaches strictly less far."""
+    from lode import planner_endurance as PE
+    dem = MP.load_haworth_dem(); origin = (5000.0, 5000.0)
+    g = MP.body_gravity("moon")
+    usable = 2.0e5   # small enough that the 10 km tile is only PARTIALLY reachable (radius depends on cost)
+    cheap = PE.reachable_radius_on_dem(dem, origin, usable, g, drive_j_per_m=20.0)
+    dear = PE.reachable_radius_on_dem(dem, origin, usable, g, drive_j_per_m=60.0)
+    assert cheap["tile_fully_reachable"] is False and dear["tile_fully_reachable"] is False
+    assert dear["radius_m"] < cheap["radius_m"]                      # costlier driving -> strictly smaller reach
+
+
+def test_endurance_reach_uses_selected_vehicle_drive_cost():  # [REQ:H-01]
+    """Council F10 (wiring): endurance() must price the reachable-radius field with the SELECTED
+    vehicle/body's ctx.drive_j_per_m, not the IPEx module-global DRIVE_J_PER_M. On Mars (higher g) the
+    ctx drive cost exceeds the Moon global, so the reach energy must reflect the higher cost -- today it
+    silently uses the global, an optimistic (unsafe) over-estimate of reach."""
+    from lode import planner_endurance as PE
+    dem = MP.load_haworth_dem(); origin = (5000.0, 5000.0)
+    mars = MP.mission_from_dict({"name": "m", "body": "mars", "charger": [0, 0], "orders": [
+        {"action": "c", "kind": "cut", "x": 1, "y": 1, "footprint_m2": 9, "depth_m": 0.02}]})
+    ctx = MP.plan_context(mars)
+    assert ctx.drive_j_per_m > PE.DRIVE_J_PER_M                      # premise: Mars costs more per metre
+    out = MP.endurance(mars, dem=dem, dem_origin=origin)["reach"]
+    g = MP.body_gravity("mars")
+    correct = PE.reachable_radius_on_dem(dem, origin, ctx.usable_j, g,
+                                         rover_mass_kg=ctx.rover_mass_kg, drive_j_per_m=ctx.drive_j_per_m)
+    # worst-cell reach ENERGY scales with the drive cost even when the whole tile is reachable; today it is
+    # computed with the Moon global -> a mismatch against the selected vehicle's true field.
+    assert out["worst_cell_J"] == pytest.approx(correct["worst_cell_J"], rel=1e-9)
+    assert out["radius_m"] == pytest.approx(correct["radius_m"], rel=1e-9)

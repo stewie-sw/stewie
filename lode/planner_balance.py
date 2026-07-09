@@ -2,8 +2,9 @@
 (extracted from lode.mission_planner).
 
 The solver pair that turns a set of CUT and FILL orders into mass flows:
-  * ``_mincost_transport`` — a pure min-cost transportation solver (successive-cheapest-arc) over a
-    bipartite cut->fill graph; no dependency on the planner core (only ``math``).
+  * ``_mincost_transport`` — a real min-cost transportation solver (a linear program over the finite
+    arcs, ``scipy.optimize.linprog`` / HiGHS) over a bipartite cut->fill graph; no dependency on the
+    planner core.
   * ``balance`` — wraps it with the bulking/swell density model and (with a DEM) a routed,
     feasibility-aware cost matrix; without a DEM it falls back to straight-line nearest-first.
 
@@ -18,6 +19,9 @@ from __future__ import annotations
 
 import math
 from typing import TYPE_CHECKING
+
+import numpy as np
+from scipy.optimize import linprog
 
 from stewie.specs import constants as C            # materials: bank/loose density for the swell ratio
 
@@ -63,29 +67,45 @@ def cut_bank_density(order, body_loose_density):
 
 
 def _mincost_transport(supplies, demands, cost):
-    """P-03: min-cost transportation over a bipartite cut->fill graph by successive-cheapest-augmenting
-    (SSP). `supplies[i]` = cut i bank mass, `demands[j]` = fill j loose mass, `cost[i][j]` = the per-unit
-    haul cost (math.inf = UNREACHABLE, no arc). Returns flow[i][j] (mass cut i -> fill j) minimizing total
-    cost while never routing over an unreachable arc. Demand left unmet (no feasible reachable supply) is
-    returned as `unmet[j]`; supply left over as `leftover[i]`. Globally min-cost over the FEASIBLE arcs --
-    it never prefers a cheaper-but-blocked donor (inf cost) over a feasible one, the P-03 fix."""
+    """P-03: EXACT min-cost transportation over a bipartite cut->fill graph, solved as a linear program
+    over the finite (reachable) arcs. `supplies[i]` = cut i bank mass, `demands[j]` = fill j loose mass,
+    `cost[i][j]` = the per-unit haul cost (math.inf = UNREACHABLE, no arc). Returns flow[i][j] (mass cut i
+    -> fill j) that routes the MAXIMUM reachable mass to fills and, among all such maximum-throughput
+    routings, MINIMIZES the total haul cost. Demand left unmet (no reachable supply) is returned as
+    `unmet[j]`; supply left over as `leftover[i]` (surplus spoil, un-penalised).
+
+    This is the P-03 fix: the previous greedy cheapest-arc pass was NOT globally optimal (it could pay a
+    forced expensive arc after committing a cheap one -- e.g. supplies=[10,5], demands=[5,10],
+    cost=[[1,2],[3,9]] gave 60 vs the true optimum 35, and it could even STRAND meetable demand by
+    consuming a shared donor). The LP objective is (cost_ij - M) per unit of flow with M larger than every
+    finite arc cost: the -M term makes each unit of routed mass strictly reduce the objective (so the LP
+    first maximises throughput), and the cost_ij term breaks ties by cheapest haul -- exactly max reachable
+    flow, then min cost. Unreachable (inf) arcs are simply absent from the LP, so they never carry flow."""
     nI, nJ = len(supplies), len(demands)
     flow = [[0.0] * nJ for _ in range(nI)]
-    sup = list(supplies)
-    dem = list(demands)
-    # candidate arcs by increasing cost; SSP for a transportation problem with no negative costs reduces
-    # to repeatedly pushing as much as possible along the globally cheapest residual arc (a min-cost flow
-    # is optimal when augmenting along shortest residual paths; with a single bipartite layer + nonneg
-    # costs the shortest residual path is the single cheapest remaining direct arc).
-    arcs = sorted(((cost[i][j], i, j) for i in range(nI) for j in range(nJ)
-                   if math.isfinite(cost[i][j])), key=lambda a: a[0])
-    for c, i, j in arcs:
-        if sup[i] <= 1e-9 or dem[j] <= 1e-9:
-            continue
-        push = min(sup[i], dem[j])
-        flow[i][j] += push
-        sup[i] -= push
-        dem[j] -= push
+    sup = [float(s) for s in supplies]
+    dem = [float(d) for d in demands]
+    # finite (reachable) arcs only -> the LP variables; an inf arc is simply absent (no flow crosses it).
+    arcs = [(i, j) for i in range(nI) for j in range(nJ) if math.isfinite(cost[i][j])]
+    if arcs and any(s > 1e-12 for s in sup) and any(d > 1e-12 for d in dem):
+        cmax = max(cost[i][j] for (i, j) in arcs)
+        big_m = cmax + 1.0                          # M > every finite arc cost -> flow-maximising, cost tie-break
+        obj = [cost[i][j] - big_m for (i, j) in arcs]
+        n = len(arcs)
+        a_ub = np.zeros((nI + nJ, n))
+        for k, (i, j) in enumerate(arcs):
+            a_ub[i, k] = 1.0                        # sum_j f_ij <= supply_i
+            a_ub[nI + j, k] = 1.0                   # sum_i f_ij <= demand_j
+        b_ub = np.array([*sup, *dem], dtype=float)
+        res = linprog(obj, A_ub=a_ub, b_ub=b_ub, bounds=(0.0, None), method="highs")
+        if not res.success:
+            raise RuntimeError(f"min-cost transport LP did not solve: {res.message}")
+        for k, (i, j) in enumerate(arcs):
+            f = float(res.x[k])
+            if f > 1e-9:
+                flow[i][j] = f
+                sup[i] -= f
+                dem[j] -= f
     unmet = [d if d > 1e-9 else 0.0 for d in dem]
     leftover = [s if s > 1e-9 else 0.0 for s in sup]
     return flow, unmet, leftover

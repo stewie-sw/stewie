@@ -120,8 +120,15 @@ def _real_dem():
 # Each cluster is a single work SITE, so site-exclusive allocation keeps it whole on one rover and the
 # two clusters land on the two rovers. The precedence chain digA -> dumpB then STRADDLES the two rovers.
 # (digA2 is the matching fill that lets digA become a real conserved dig leg, not surplus.)
+# cutA's in-situ density is pinned to the body LOOSE density so cutA (bank) exactly balances fillA (loose)
+# with NO exportable surplus -- otherwise a deep cut's depth-averaged bank density exceeds the loose fill
+# density (task #78) and the surplus, under the EXACT min-cost transport solver (P-03), is legitimately
+# hauled to satisfy dumpB at site B, which would collapse the cross-SITE chain onto site A. Self-balancing
+# keeps dumpB a genuine site-B import so digA -> dumpB truly straddles the two sites/rovers.
+_LOOSE_KG_M3 = MP.body_density("moon")
 _ORDERS = [
-    {"action": "cutA", "kind": "cut", "x": 10.0, "y": 10.0, "footprint_m2": 16.0, "depth_m": 0.3},
+    {"action": "cutA", "kind": "cut", "x": 10.0, "y": 10.0, "footprint_m2": 16.0, "depth_m": 0.3,
+     "insitu_density_kg_m3": _LOOSE_KG_M3},
     {"action": "fillA", "kind": "fill", "x": 10.0, "y": 10.0, "footprint_m2": 16.0, "depth_m": 0.3},
     {"action": "digA", "kind": "cut", "x": 10.0, "y": 10.0, "footprint_m2": 0.5, "depth_m": 0.02},
     {"action": "digA2", "kind": "fill", "x": 10.0, "y": 10.0, "footprint_m2": 0.5, "depth_m": 0.02},

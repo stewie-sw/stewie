@@ -167,10 +167,15 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
     """The mission / material / routing / keep-out totals shared by the single- and multi-vehicle planners.
     `core` carries the simulated time/energy/distance/charges/mass; the caller applies survival + algorithm
     + vehicle fields. Kept DRY so the multi-vehicle aggregate reports the same fields as single-vehicle."""
-    dig_bounds_mj = tuple(round(b * sum(tr["mass"] for tr in trips if tr["kind"] != "goto") / 1e6, 1)
+    # F9: the dig-energy band sums only DUG mass (cutfill haul + dig spoil), NOT imported fill (never
+    # excavated) or sinter mass -- an import-only plan digs nothing, so its dig-energy band is zero.
+    dig_bounds_mj = tuple(round(b * sum(tr["mass"] for tr in trips if tr["kind"] in ("cutfill", "dig")) / 1e6, 1)
                           for b in S.dig_energy_bounds_j_per_kg())   # T2.4 dig-rate band; CP-07 reuses it
+    # F8: drum_cycles counts the drum loads over BOTH the cutfill haul AND the surplus-spoil dig excavation
+    # (kind=='dig' when cuts exceed fills) -- counting cutfill-only undercounts by up to ~70x on a
+    # spoil-heavy plan. CP-07's drum-fill cycle band reuses this count.
     n_drum_cycles = sum(max(1, math.ceil(tr["mass"] / _drum_kg(mission)))
-                        for tr in trips if tr["kind"] == "cutfill")   # CP-07: drum-fill cycle band reuses this
+                        for tr in trips if tr["kind"] in ("cutfill", "dig"))
     return dict(
         core,
         # task #78 Part C: the excavated total is costed at each cut's ACTUAL in-situ bank density (per-cut,
@@ -370,10 +375,11 @@ def plan_multi(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_travers
         avg_power_w=0.0)
     agg["avg_power_w"] = agg["energy_J"] / makespan if makespan > 1e-9 else 0.0
     # idle/survival draw covers active per-vehicle time PLUS time a rover sits idle queueing (charger +
-    # resources + waiting on a cross-vehicle precedence predecessor + waiting on a held vantage, FL-07)
+    # resources + waiting on a cross-vehicle precedence predecessor + waiting on a held vantage, FL-07 +
+    # F26: FL-02 space-time crowding re-sequencing waits, which also extend the makespan)
     survival_J = IDLE_POWER_W * (sum(pv["core"]["time_s"] for pv in per_vehicle)
                                  + charger_wait_s + resource_wait_s + precedence_wait_s
-                                 + observation_wait_s)
+                                 + observation_wait_s + crowd_wait_s)
     all_trips = [tr for pv in per_vehicle for tr in pv["trips"]]
     all_per_trip = [pt for pv in per_vehicle for pt in pv["per_trip"]]
     all_tl = [seg for pv in per_vehicle for seg in pv["tl"]]

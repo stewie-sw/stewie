@@ -5,6 +5,8 @@ MP.SWELL / MP._mincost_transport call sites are unchanged). The numerical behavi
 already covered by test_mission_planner.py; here we only assert the move is structure-preserving."""
 from __future__ import annotations
 
+import pytest
+
 from lode import mission_planner as MP
 
 
@@ -116,3 +118,76 @@ def test_mincost_transport_is_pure_and_min_cost():
     # conservation: total shipped == total supplied == total demanded
     shipped = sum(flow[i][j] for i in range(2) for j in range(2))
     assert abs(shipped - sum(supplies)) < 1e-6
+
+
+# ---- P-03 / council F0: _mincost_transport is a TRUE min-cost transportation solve, not greedy --------
+def _lp_transport_optimum(supplies, demands, cost):
+    """Independent oracle for the min-cost transportation optimum over the FINITE arcs: route the MAX
+    feasible mass (stage 1: maximise total flow), then MINIMIZE total haul cost at that flow (stage 2).
+    Built from scratch with scipy.optimize.linprog -- NOT via _mincost_transport -- so the property test
+    checks the solver against a genuinely independent optimum. Returns (min_total_cost, max_flow)."""
+    import math as _m
+
+    import numpy as np
+    from scipy.optimize import linprog
+
+    nI, nJ = len(supplies), len(demands)
+    arcs = [(i, j) for i in range(nI) for j in range(nJ) if _m.isfinite(cost[i][j])]
+    N = len(arcs)
+    A_ub = np.zeros((nI + nJ, N))
+    b_ub = np.zeros(nI + nJ)
+    for k, (i, j) in enumerate(arcs):
+        A_ub[i, k] = 1.0                      # sum_j f_ij <= supply_i
+        A_ub[nI + j, k] = 1.0                 # sum_i f_ij <= demand_j
+    for i in range(nI):
+        b_ub[i] = supplies[i]
+    for j in range(nJ):
+        b_ub[nI + j] = demands[j]
+    s1 = linprog([-1.0] * N, A_ub=A_ub, b_ub=b_ub, bounds=(0.0, None), method="highs")   # max total flow
+    assert s1.success
+    max_flow = -float(s1.fun)
+    s2 = linprog([cost[i][j] for (i, j) in arcs], A_ub=A_ub, b_ub=b_ub,
+                 A_eq=np.ones((1, N)), b_eq=[max_flow], bounds=(0.0, None), method="highs")   # min cost @ max flow
+    assert s2.success
+    return float(s2.fun), max_flow
+
+
+def _total_cost(flow, cost):
+    return sum(flow[i][j] * cost[i][j]
+               for i in range(len(flow)) for j in range(len(flow[0])) if flow[i][j] > 0.0)
+
+
+def test_mincost_transport_pinned_regression_is_true_optimum():  # [REQ:P-03]
+    """The pinned adversarial instance where the OLD greedy cheapest-arc pass was suboptimal:
+    supplies=[10,5], demands=[5,10], cost=[[1,2],[3,9]]. Greedy fills d0 from the cheapest arc (s0->d0 @1)
+    and is then forced onto the 9-cost arc: total 60. The true optimum routes s1->d0 @3 and s0->d1 @2:
+    total 35. A real transportation solver must return 35."""
+    from lode import planner_balance as PB
+    cost = [[1.0, 2.0], [3.0, 9.0]]
+    flow, unmet, leftover = PB._mincost_transport([10.0, 5.0], [5.0, 10.0], cost)
+    assert abs(sum(unmet)) < 1e-6 and abs(sum(leftover)) < 1e-6      # balanced -> all met, nothing left over
+    assert _total_cost(flow, cost) == pytest.approx(35.0, abs=1e-6)
+
+
+def test_mincost_transport_matches_lp_optimum_on_random_instances():  # [REQ:P-03]
+    """Property: on random small transportation instances (2-4 cuts x 2-4 fills, random finite costs,
+    UNEQUAL total masses so import/surplus both occur) the solver routes the MAX reachable mass at the
+    minimum haul cost -- matching the independent scipy LP optimum, not a greedy approximation."""
+    import random
+
+    from lode import planner_balance as PB
+    rng = random.Random(20260709)
+    for _ in range(100):
+        nI, nJ = rng.randint(2, 4), rng.randint(2, 4)
+        supplies = [rng.uniform(1.0, 20.0) for _ in range(nI)]
+        demands = [rng.uniform(1.0, 20.0) for _ in range(nJ)]           # unequal totals
+        cost = [[rng.uniform(0.1, 50.0) for _ in range(nJ)] for _ in range(nI)]
+        flow, unmet, leftover = PB._mincost_transport(supplies, demands, cost)
+        opt_cost, max_flow = _lp_transport_optimum(supplies, demands, cost)
+        shipped = sum(flow[i][j] for i in range(nI) for j in range(nJ))
+        assert shipped == pytest.approx(max_flow, abs=1e-6)                    # routes the MAX reachable mass
+        assert _total_cost(flow, cost) == pytest.approx(opt_cost, abs=1e-5)    # ... at minimum haul cost
+        for i in range(nI):
+            assert sum(flow[i]) <= supplies[i] + 1e-6                          # never over-ships a cut
+        for j in range(nJ):
+            assert sum(flow[i][j] for i in range(nI)) <= demands[j] + 1e-6     # never over-fills a demand

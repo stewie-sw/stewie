@@ -188,7 +188,8 @@ def endurance(mission, *, dem=None, dem_origin=(0.0, 0.0), power_site="psr_tower
         out["work_area_median_slope_deg"] = med_slope
         out["range_slopeslip_km"] = single_charge_range_m(g, slope_deg=med_slope, slip=slip, **_rk) / 1000.0
         out["reach"] = reachable_radius_on_dem(dem, dem_origin, BATTERY_J * (1 - RESERVE_FRAC), g,
-                                               rover_mass_kg=ROVER_MASS_KG)   # H-01: vehicle usable + mass
+                                               drive_j_per_m=DRIVE_J_PER_M,   # F10: the SELECTED vehicle's per-metre
+                                               rover_mass_kg=ROVER_MASS_KG)   # H-01: vehicle usable + mass + drive cost
     return out
 
 
