@@ -1675,3 +1675,41 @@ Briefs for the 6 §7.B rows added folding Aaron's multi-level DEM viz + QGIS/QGI
 - current_state: gis/SERVER.md proves WMS 1.3.0 GetMap byte-identical to Desktop; WFS/WMTS are NOT proven though QG-02's text claims all three; the only WMTS in-tree is the consumed NASA Trek WMTS (deferred for a CRS reason, build_project.py:258-294).
 - files: gis/test_server.py, gis/SERVER.md
 - test_target: gis/test_server.py
+
+
+## AUTODIG + sensor-ingest fold dispatch briefs (2026-07-08)
+
+### AD-01 — atomic
+- goal: AUTODIG autonomous-excavation controller (torque-regulated dig/bite/drum/lift/dump/traverse) beneath the berm FSM.
+- acceptance: torque regulates to a setpoint across densities, cut-depth bound respected, stall abort, offload handoff, emits the AD-02 effort log.
+- current_state: AUTODIG documented (docs/vehicle_ipex.md) not coded; cycle FSM lode/berm_fsm.py + cut-depth bound system_profile.py exist; no torque-regulated dig controller.
+- files: stewie/lode/berm_fsm.py, stewie/physics/excavation_state.py, stewie/specs/system_profile.py
+- test_target: stewie/physics/test_autodig_controller.py
+
+### AD-02 — atomic
+- goal: per-actuator electrical observables (I,V,tau,P,E) synthesized from conserved effort, generalizing DrumSensor, on the truth-firewalled proprioception channel.
+- acceptance: two regolith densities give distinguishable I/V/tau/P/E logs whose energy reconciles with dig_energy_per_kg.
+- current_state: drum current modeled (rassor_mass_model.py), tau is an input slot only, V/P schema validated (proprioception) but no producer.
+- files: stewie/physics/rassor_mass_model.py, stewie/bridge/proprioception_io.py
+- test_target: stewie/physics/test_actuator_observables.py
+
+### AD-03 — atomic
+- goal: inverse effort-proxy estimator: excavation-effort residual -> observed rho_eff/R_dig/k_terrain/E_specific with uncertainty into EG-08; distinct from the forward excavation_resistance drape.
+- acceptance: seeded dense pocket -> a localized accepted belief update the next plan re-costs over; typed proxy=True, never surfaced as density.
+- current_state: reconciliation_step.py + EG-08 fully exist; ML-05 excavation_state.py fuses effort; no k_terrain estimation; physics.excavation_resistance catalog entry (layer_catalog.json:362) is a FORWARD drape (mislabel tracked by task #53).
+- files: stewie/contracts/reconciliation_step.py, stewie/physics/excavation_state.py, stewie/server/layer_catalog.json
+- test_target: stewie/physics/test_effort_proxy_estimator.py
+
+### IN-01 — atomic
+- goal: live ROS2 Sensor Ingest Node routing sensor topics through the existing validation gate into the estimators.
+- acceptance: a replayed bag feeds the mapper + AD-03; malformed messages rejected legibly; truth-denial holds.
+- current_state: /cmd_vel in + odom out (ros2_bridge.py) + one PointCloud2 sub; the gate exists file-mediated (sensor_io.py truth firewall + PM-01, proprioception_io.py validation, frames.py single TF site); no general live sensor-topic ingest node.
+- files: stewie/bridge/ros2_bridge.py, stewie/bridge/sensor_io.py, stewie/bridge/frames.py
+- test_target: stewie/bridge/test_sensor_ingest_node.py
+
+### IN-02 — atomic
+- goal: closed tier {raw,derived,belief,world,mission} on every LY-01 entry + twin surface with promotion enforcement.
+- acceptance: a raw-tier layer marked planning-valid fails validation; promotion only advances raw->derived->belief->world via EG-08.
+- current_state: 66-layer LY-01 catalog source_class approximates the tiers but is free-form + unenforced (layer_catalog.json); GW-03 eligibility exists (verify JS enforcement before scoping).
+- files: stewie/server/layer_catalog.json, stewie/server/routers/layers.py
+- test_target: stewie/server/test_layer_tier_enforcement.py

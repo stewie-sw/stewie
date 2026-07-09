@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "208c734314fb6c7b2a39cbae0be8fab052b63769ab5d18821fe9f7e31aa19c7d",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "803e1d1758f143d07597471957cd73d226060c38",
-  "prd_sha256": "be2f18813febd911c698c6620b8369daaf593b12886af8ec6f425467a8b6b9c0",
-  "specs_sha256": "dc6c30f1ddea52c2f58b46a0166eb2feb7e33ea9496d84119a892a6ced9a629a"
+  "prd_commit": "be991aa6c65f8a5f5325f7bbe87cff22281b2b3e",
+  "prd_sha256": "18e4741b75b653025a1ef84eb943ae9aa4b5e1f0267d66c8fbb37864459b6617",
+  "specs_sha256": "ef3cd4aa6bc3955973a4785418d86dfbc9c6b604450d5c061eaf55de82735164"
  },
  "rows": [
   {
@@ -40,6 +40,42 @@
    "lane": "AC",
    "pri": "P0",
    "text": "The route registry records per-route pane ownership, auth/role, response kind, provenance requirement, fixtures, and authority-mutation flag; a pane-backed route missing fixture/role/provenance fails."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "AD-01",
+   "lane": "AD",
+   "pri": "P1",
+   "text": "**AUTODIG behavior layer.** An autonomous-excavation controller (drum torque = process variable, arm/bite-depth = control variable, per docs/vehicle_ipex.md) sequences dig/bite/drum-speed/lift/dump/traverse beneath lode/berm_fsm; torque regulates to a setpoint across regolith densities, the cut-depth bound is respected, a stall aborts, the offload handoff fires, and it emits the AD-02 effort log. (extends berm_fsm + arm_state + WorkSite)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "AD-02",
+   "lane": "AD",
+   "pri": "P1",
+   "text": "**Per-actuator electrical observables (I, V, tau, P, E).** Excavation/drive actuators synthesize current/voltage/torque/power/energy from the conserved effort (generalizing the DrumSensor FDC model), published on the validated proprioception power channel and truth-firewalled; two regolith densities produce distinguishable logs whose energy reconciles with dig_energy_per_kg. (extends rassor_mass_model + twin.proprioception; needs AD-01)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "AD-03",
+   "lane": "AD",
+   "pri": "P1",
+   "text": "**Effective-regolith-state estimator (inverse effort-proxy).** The predicted-vs-observed excavation-effort residual yields per-cell OBSERVED rho_eff/R_dig/k_terrain/E_specific with uncertainty via MP-11 proposals into EG-08; typed proxy=True, NEVER surfaced as measured density; a DISTINCT belief-layer product from the existing FORWARD excavation_resistance drape (whose mislabel is tracked by the physics council, task #53), reconciled against the forward prediction; a seeded dense pocket yields a localized accepted update the next plan re-costs over. (extends reconciliation_step + EG-08 + LY-01; needs AD-01/02)"
   },
   {
    "I": "D",
@@ -2940,6 +2976,30 @@
    "text": "**Bayesian hazard fusion.** Hazard/costmap fusion combines rock/slope/sinkage/slip/illumination/change cues via a probabilistic (Bayesian) posterior hazard map with calibrated per-cell uncertainty, not only a rule/physics-weighted sum; the posterior + uncertainty drive the costmap. (extends AS-11)"
   },
   {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "IN-01",
+   "lane": "IN",
+   "pri": "P1",
+   "text": "**Live ROS2 Sensor Ingest Node.** Sensor topics (stereo/IMU/odom/joints/drum-current/battery/thermal) flow into the existing validated packets through the existing gate (PM-01 time-sync, frames.py single TF site, calibration check, uncertainty required, truth-denial) -> the state/terrain/excavation estimators; a replayed bag feeds the mapper + AD-03, and malformed messages are rejected legibly (never silently accepted as truth). (extends ros2_bridge + sensor_io + proprioception_io)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "IN-02",
+   "lane": "IN",
+   "pri": "P1",
+   "text": "**Enforced raw/derived/belief/world/mission layer taxonomy.** A closed tier in {raw, derived, belief, world, mission} on every LY-01 catalog entry + twin surface (beside source_class); planning/release require world/mission (or belief carrying uncertainty), and promotion only advances raw->derived->belief->world through EG-08; a raw-tier layer marked planning-valid fails validation. (extends LY-01 + GW-03 + EG-08)"
+  },
+  {
    "I": "D",
    "Q": "NA",
    "V": "D",
@@ -4375,9 +4435,9 @@
    "V": "D",
    "X": "D",
    "brief": {
-    "goal": "Prove (or honestly retract) QG-02's WFS + WMTS legs on the --profile gis QGIS Server, completing its \"WMS/WMTS/WFS\" claim which today has WMS-only evidence.",
+    "goal": "closed tier {raw,derived,belief,world,mission} on every LY-01 entry + twin surface with promotion enforcement.",
     "kind": "atomic",
-    "test_target": "gis/test_server.py"
+    "test_target": "stewie/server/test_layer_tier_enforcement.py"
    },
    "bucket": "done",
    "cited": true,
@@ -5608,7 +5668,7 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 101,
+   "buildable": 106,
    "concurrent": 0,
    "done": 255,
    "gated": 30
@@ -5617,6 +5677,10 @@
    "AC": {
     "done": 1,
     "total": 2
+   },
+   "AD": {
+    "done": 0,
+    "total": 3
    },
    "AG": {
     "done": 8,
@@ -5725,6 +5789,10 @@
    "HF": {
     "done": 0,
     "total": 1
+   },
+   "IN": {
+    "done": 0,
+    "total": 2
    },
    "LY": {
     "done": 2,
@@ -5890,7 +5958,7 @@
    },
    "P1": {
     "done": 143,
-    "total": 213
+    "total": 218
    },
    "P2": {
     "done": 4,
@@ -5902,10 +5970,10 @@
    }
   },
   "cited": 276,
-  "done_pct": 66.1,
-  "in_scope": 356,
-  "in_scope_done_pct": 71.6,
-  "total": 386
+  "done_pct": 65.2,
+  "in_scope": 361,
+  "in_scope_done_pct": 70.6,
+  "total": 391
  },
  "workflow_spine": [
   "Plan",
