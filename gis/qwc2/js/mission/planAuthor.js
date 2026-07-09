@@ -47,6 +47,7 @@ import Text from 'ol/style/Text';
 
 import PlanTools from './planTools';   // pure tool-palette logic (traverse/goto, return-to-lander, place-object)
 import FT from './fetchWithTimeout';   // [systems-eng] bounded reads: abort a hung backend GET, never hang the panel
+import RG from './reqGuard.js';        // [council #57] monotonic request guard: drop a stale site-A load that resolves after switching to site-B
 
 const MAP_CRS = 'IAU_2015:30135';   // the lunar polar-stereographic workbench CRS (state.map.projection)
 const GEO_CRS = 'IAU_2015:30100';   // selenographic lon/lat (order-anchor + globe bbox frame)
@@ -274,6 +275,12 @@ export default class PlanAuthor {
 
         this._clickKey = null;
         this._attached = false;
+        // [council #57] Monotonic request guard, the SAME pattern MissionTerrain3D / SelectionInspector /
+        // MissionCrossSection use (reqGuard.js). Each async load (selectSite bbox, plan()) takes a token from
+        // next(); on resolve it keeps its result only if current(token) is still latest. Starting a new load
+        // (a site switch) or detach() invalidates every in-flight token, so a slow site-A response that lands
+        // after the operator switched to site-B is dropped instead of drawing the old site over the new one.
+        this._rg = RG.makeReqGuard();
     }
 
     _emptyRun() {
@@ -427,6 +434,9 @@ export default class PlanAuthor {
         if (!this._attached) { return; }
         this._deactivateDraw();
         this._resetRun();
+        // [council #57] invalidate every in-flight fetch so a plan()/bbox response resolving after unmount
+        // bails at its token guard (never re-renders / never pushes state onto the dead panel).
+        if (this._rg) { this._rg.bump(); }
         if (typeof window !== 'undefined' && window.__stewieRun) { delete window.__stewieRun; }
         if (this._clickKey) { this.map.un('singleclick', this._clickKey.listener); this._clickKey = null; }
         this.map.removeLayer(this.markerLayer);
@@ -441,6 +451,10 @@ export default class PlanAuthor {
     }
 
     _emit() {
+        // [council #57] never push state onto an unmounted panel: detach() sets _attached=false, so a fetch that
+        // resolves after MissionPlan unmounts (its retained onState closes over the dead React component) no-ops
+        // here instead of calling setState on it.
+        if (!this._attached) { return; }
         this.onState({
             site: this.site, adhoc: (this.site || '').startsWith('adhoc_'),
             activeKind: this.activeKind, planHereMode: this.planHereMode, footprint: this.footprint, depth: this.depth,
@@ -504,6 +518,7 @@ export default class PlanAuthor {
         WS.set({site: site});   // GW-02: propagate the pick to the shared workspace (URL + every other consumer)
         this.orders = [];
         this.result = null;
+        this.planning = false;   // [council #57] a site switch aborts any in-flight plan (its stale response is dropped below)
         this.wc = null;
         this._resetRun();
         this.route = null; this._planOrders = null;
@@ -520,14 +535,21 @@ export default class PlanAuthor {
         this.planSource.clear();
         this.traverseSource.clear();
         this._setHint('Loading ' + site + ' work area…');
+        const tok = this._rg.next();   // [council #57] a new site invalidates any in-flight plan/bbox from the prior site
         return FT.fetchWithTimeout('/api/layers/globe/dem/bbox?site=' + encodeURIComponent(site), {}, FT.DEFAULT_MS)
             .then((r) => { if (!r.ok) { throw new Error('bbox HTTP ' + r.status); } return r.json(); })
             .then((bb) => {
+                // [council #57] Drop a superseded site's bbox: if the operator switched sites (or detached) while
+                // this was in flight, this token is no longer current -> do NOT fly/hint the wrong site's extent.
+                if (!this._rg.current(tok) || this.site !== site) { return; }
                 if (!bb || bb.ok === false) { throw new Error((bb && bb.error) || 'no bbox'); }
                 if (fly) { this._zoomToBbox(bb); }
                 this._setHint('Pick a tool (Cut / Fill), then click the map near the work area to place an order.');
             })
-            .catch((e) => this._setHint('Could not load the ' + site + ' work area: ' + e.message, true));
+            .catch((e) => {
+                if (!this._rg.current(tok) || this.site !== site) { return; }   // a superseded site's error must not clobber the current one
+                this._setHint('Could not load the ' + site + ' work area: ' + e.message, true);
+            });
     }
 
     // PLAN ANYWHERE: adopt an arbitrary off-site (lat, lon) as the work site. Derives the ad-hoc id
@@ -1074,9 +1096,10 @@ export default class PlanAuthor {
     // EXACTLY what lode/planner_routing.py:147 point_in_keepout / :158 _apply_keepouts parse:
     //   circle  -> {x, y, r}           (r is a distance -> unchanged by the y-flip)
     //   polygon -> {points:[[x,y],..]} (>= 3 verts; the even-odd test is affine-invariant so the flip is safe)
-    _keepoutsForFrame(wc) {
+    _keepoutsForFrame(wc, predicate) {
         const out = [];
         for (const k of this.keepouts) {
+            if (predicate && !predicate(k)) { continue; }   // caller may restrict to a subset (e.g. local-fallback 'loc…' fids)
             const g = k.feature.getGeometry();
             if (k.kind === 'circle') {
                 const c = g.getCenter(), r = g.getRadius();
@@ -1377,6 +1400,12 @@ export default class PlanAuthor {
         if (this.editSession && this.keepouts.length) {
             payload.edit_session = this.editSession;
             payload.anchor_xy = [wc[0], wc[1]];
+            // [council correctness] Local-fallback keep-outs ('loc…' fids, drawn during a backend blip when a
+            // /keepout POST failed) live ONLY in this client mirror -- the backend session never received them.
+            // Fold them into payload.keepouts so the planner still routes AROUND an operator-drawn no-go; the
+            // backend merges BOTH the session set and payload.keepouts (plan.py:_merge_session_keepouts:100).
+            const localKos = this._keepoutsForFrame(wc, (k) => String(k.fid).startsWith('loc'));
+            if (localKos.length) { payload.keepouts = localKos; }
         } else {
             const kos = this._keepoutsForFrame(wc);
             if (kos.length) { payload.keepouts = kos; }
@@ -1392,6 +1421,12 @@ export default class PlanAuthor {
         // OL viewer runs, gis/web/app.js:870-876). The rover animates on THIS plan's route regardless.
         this._planOrders = payload.orders;
         this.planning = true;
+        // [council #57] Guard the plan against a site switch (or detach) landing before it resolves: capture the
+        // request token + the site NOW. selectSite()/detach() bump the guard, so if either changed by the time the
+        // planner returns, drop the response -- a stale plan can NEVER draw the old site's routes over the new site
+        // or arm Run on a wrong-site plan. The site switch already reset this.planning, so bailing touches nothing.
+        const tok = this._rg.next();
+        const planSite = this.site;
         this._setHint('Running the planner on the real ' + this.site + ' DEM…');
         return fetch('/api/plan', {
             method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
@@ -1402,6 +1437,7 @@ export default class PlanAuthor {
                 return {status: r.status, body: body, raw: t};
             }))
             .then((res) => {
+                if (!this._rg.current(tok) || this.site !== planSite) { return res.body; }   // superseded plan -> drop
                 this.planning = false;
                 if (!res.body || !res.body.ok) {
                     const err = (res.body && res.body.error) ||
@@ -1415,6 +1451,7 @@ export default class PlanAuthor {
                 return res.body;
             })
             .catch((e) => {
+                if (!this._rg.current(tok) || this.site !== planSite) { return; }   // superseded plan -> don't clobber the current site
                 this.planning = false;
                 this.result = {feasible: false, error: e.message};
                 this._setHint('Plan request failed: ' + e.message, true);
@@ -1801,6 +1838,11 @@ export default class PlanAuthor {
     _resetRun() {
         if (this.run.es) { try { this.run.es.close(); } catch (e) { /* already closed */ } }
         if (this._animRaf) { cancelAnimationFrame(this._animRaf); this._animRaf = 0; }
+        // [council bug] revoke the prior run's evidence object URL before dropping the reference, else the backing
+        // Blob is pinned for the page lifetime (a leak per SIM-run / per _resetRun that replaces this.run).
+        if (this.run.evidence && this.run.evidence.navUrl) {
+            try { URL.revokeObjectURL(this.run.evidence.navUrl); } catch (e) { /* noop */ }
+        }
         this.roverSource.clear(); this.trailSource.clear();
         this._roverFeat = null; this._trailFeat = null;
         this._animFrom = 0; this._animTo = 0;
@@ -1911,6 +1953,11 @@ export default class PlanAuthor {
                 }
                 let navUrl = null;
                 try {
+                    // [council bug] revoke a prior evidence URL (if any) before minting a new one, so repeated
+                    // plan/run cycles don't accumulate blob URLs pinned for the page lifetime.
+                    if (this.run.evidence && this.run.evidence.navUrl) {
+                        try { URL.revokeObjectURL(this.run.evidence.navUrl); } catch (e2) { /* noop */ }
+                    }
                     const blob = new Blob([JSON.stringify(j, null, 2)], {type: 'application/json'});
                     navUrl = URL.createObjectURL(blob);
                 } catch (e) { navUrl = null; }
