@@ -55,6 +55,12 @@
     padding:13px 30px;text-decoration:none;box-shadow:var(--glow);
   }
   .cta::after{content:"\2192";font-size:15px;opacity:.9}
+  .cta.ghost{
+    color:var(--text-2);background:transparent;border:1px solid var(--edge, #242a33);
+    box-shadow:none;font-weight:600;
+  }
+  .cta.ghost::after{content:"\2197"}
+  .actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center}
   .sub{margin-top:16px;font-size:12px;letter-spacing:.05em;color:var(--regolith)}
   footer{position:fixed;bottom:0;left:0;right:0;padding:18px;font-size:11px;letter-spacing:.08em;color:var(--regolith)}
   @media(max-width:560px){
@@ -72,8 +78,11 @@
     <div class="wordmark">STEWIE</div>
     <div class="eyebrow">Surface Terrain Engineering &middot; World&#8209;Model Integration</div>
     <p class="blurb">A closed&#8209;loop environment for planning, simulating, and operating autonomous systems on planetary surfaces.</p>
-    <a class="cta" href="https://artemis.stewie.space/ide/">Operator Access</a>
-    <div class="sub">Authorized operators only.</div>
+    <div class="actions">
+      <a class="cta" href="https://artemis.stewie.space/ide/">Operator Access</a>
+      <a class="cta ghost" href="/viz">3D Terrain Preview</a>
+    </div>
+    <div class="sub">Operator Access is authorized-only. The 3D terrain preview is open.</div>
   </div>
   <footer>&copy; 2026 STEWIE &middot; Kymera Systems</footer>
 </body>

@@ -1,4 +1,4 @@
-/* viz.stewie.space -- standalone FULL-RESOLUTION lunar 3D terrain viewer (Haworth default; site-parametrized).
+/* artemis.stewie.space/viz -- standalone FULL-RESOLUTION lunar 3D terrain viewer (Haworth default; site-parametrized).
  *
  * Aaron's reference pattern (rasterio DEM -> height grid -> Three.js PlaneGeometry vertices), at NATIVE
  * resolution: fetch /dem/heightfield_full (compact float32 BINARY, not the decimated n<=257 /dem/heightfield),

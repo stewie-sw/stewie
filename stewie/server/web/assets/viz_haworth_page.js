@@ -1,4 +1,4 @@
-/* viz.stewie.space page controller: wires the DOM controls to the STEWIE_VIZ full-res 3D viewer.
+/* artemis.stewie.space/viz page controller: wires the DOM controls to the STEWIE_VIZ full-res 3D viewer.
  * External module (CSP: script-src 'self' -- no inline handlers). Site-parametrized via ?site= (Haworth
  * default); the analysis-drape kinds + gridlines + coordinate readout are the mission-planning surface.
  */
