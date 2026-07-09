@@ -12,16 +12,31 @@ import os
 from dataclasses import asdict
 
 import numpy as np
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 
 from stewie.contracts import WorldState
 from stewie.server import state as S
 from stewie.server.deps import require_auth
+from stewie.server.ratelimit import RateLimiter, client_ip
 from stewie.specs.sites import SITES
 
 router = APIRouter()
+
+# F6: the public, unauth, compute-heavy /world read routes (point / points / transect / site-suitability /
+# keepouts-from-hazard) run real terramechanics + costmap composites, so -- exactly like the other public
+# heavy routes (layers.globe_quota, dem._viz_quota) -- they are rate-limited PER CLIENT IP so an anonymous
+# client cannot hammer them. Tunable via STEWIE_WORLD_QUOTA_MAX/_WINDOW_S.
+_world_ratelimiter = RateLimiter(int(os.environ.get("STEWIE_WORLD_QUOTA_MAX", "240")),
+                                 float(os.environ.get("STEWIE_WORLD_QUOTA_WINDOW_S", "60")))
+
+
+def _world_quota(request: Request) -> str:
+    ip = client_ip(request)
+    if not _world_ratelimiter.allow(ip):
+        raise HTTPException(status_code=429, detail="world read quota exceeded; slow down")
+    return ip
 
 # site -> dart.dem_sources id, derived from the imported-bundle registry so EVERY imported site reports
 # its real bundle id as provenance (not just Haworth). The bundle dir basename IS the dem_sources id
@@ -305,7 +320,8 @@ def world_layer_manifest(site: str = "haworth"):   # public read (per-site map-d
 
 @router.get("/world/point")
 def world_point(site: str = "haworth", x: float | None = None, y: float | None = None,
-                lat: float | None = None, lon: float | None = None):   # public read (per-cell map data)
+                lat: float | None = None, lon: float | None = None,
+                _rl: str = Depends(_world_quota)):   # public read (per-cell map data), F6 per-IP quota
     """[REQ:GW-07] the SELECTION INSPECTOR's per-cell point query. A clicked map location -- order-frame
     (x, y) metres OR selenographic (lat, lon) degrees -- resolves to the site DEM cell and returns the
     servable layers' ACTUAL values there (elevation / slope / the six terramechanics-spine fields / plan-
@@ -349,7 +365,7 @@ class PointsReq(BaseModel):
 
 
 @router.post("/world/points")
-def world_points(req: PointsReq):   # public read (batch per-cell map data, exactly like /world/point)
+def world_points(req: PointsReq, _rl: str = Depends(_world_quota)):   # public read (batch per-cell), F6 per-IP quota
     """[REQ:GW-07] Batch of /world/point on ONE site -- the #45 cross-section / transect reader. Resolves the
     site DEM + composes the CurrentTerrainView ONCE for the whole batch (vs once per point), returning per-cell
     values BYTE-IDENTICAL to N /world/point calls (the per-cell terramechanics LUT stays per-patch). Capped at
@@ -362,12 +378,15 @@ def world_points(req: PointsReq):   # public read (batch per-cell map data, exac
         return {"ok": True, "site": req.site, "points": GL.points_values(req.site, req.points)}
     except (KeyError, FileNotFoundError) as e:
         return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
-    except (ImportError, ValueError) as e:
+    except ValueError as e:   # F23: a bad order coord is honest BAD INPUT -> 422 (parity with /world/transect, /world/point)
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    except ImportError as e:  # pyproj / the [planner] extra absent -> 503
         return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
 
 
 @router.get("/world/site-suitability")
-def world_site_suitability(site: str = "haworth"):   # public read (site-survey summary, like /world/point)
+def world_site_suitability(site: str = "haworth",
+                           _rl: str = Depends(_world_quota)):   # public read (site-survey), F6 per-IP quota
     """SS-01 SITE-SURVEY SUITABILITY: a per-site landing/construction suitability SCORE aggregated from
     the REAL FORGE costmap (the same passability the planner routes on) over the site's framed work-area crop,
     with the binding constraint (the dominant first-blocking veto reason) + the descriptive terrain sub-fields
@@ -386,7 +405,8 @@ def world_site_suitability(site: str = "haworth"):   # public read (site-survey 
 
 @router.get("/world/keepouts-from-hazard")
 def world_keepouts_from_hazard(site: str = "haworth", min_area_m2: float = 100.0,
-                               max_slope_deg: float = 25.0):   # public read (derived vector product)
+                               max_slope_deg: float = 25.0,
+                               _rl: str = Depends(_world_quota)):   # public read (derived vector), F6 per-IP quota
     """Council #52 DERIVE KEEP-OUTS FROM HAZARD: auto-derive keep-out POLYGONS from the real terrain-hazard
     NOGO mask over ``site``'s framed work-area crop, as a GeoJSON FeatureCollection of Polygons in
     selenographic lon/lat (OGC:CRS84 -- the SAME frame the contours + graticule use). The hazard mask is the
@@ -423,7 +443,7 @@ class TransectReq(BaseModel):
 
 
 @router.post("/world/transect")
-def world_transect(req: TransectReq):   # public read (resource cross-section, like /world/points)
+def world_transect(req: TransectReq, _rl: str = Depends(_world_quota)):   # public read (cross-section), F6 per-IP quota
     """[REQ:SD-03] The #45 resource-exploration cross-section reader: a drawn transect (densified sample points,
     order-frame metres or selenographic lon/lat per `frame`) -> per-sample elevation + slope + bearing + sinkage
     + PSR + cumulative along-transect distance, each traced to its REAL producer (DEM / terramechanics spine /

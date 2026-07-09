@@ -127,7 +127,7 @@ def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)
     record_action(_auth, "executive.release_plan", location=req.mission_id, mode="sim",
                   reason=f"{len(intent.objectives)} objectives released",
                   before_state="planned", after_state=res.executive.state.value,
-                  evidence=str((rel.model_dump(mode="json") if rel is not None else {}).get("plan_hash", "")))
+                  evidence=(getattr(rel, "content_hash", "") if rel is not None else ""))   # F5: SignedRevision.content_hash (there is no plan_hash key)
     return JSONResponse(content={
         "ok": True,
         "label": "sim",
@@ -220,6 +220,16 @@ def _remember_sim_traffic(wss, mission, out, *, site: str, body: str, mission_id
         return None
 
 
+def _rollback_abort_rule(run: dict) -> bool:
+    """[REQ:MP-07] F24: the §30.3 rollback/abort-rule precondition, as a REAL predicate. The abort/safing
+    rule is defined + was in force exactly when the run reached a GOVERNED terminal of the abort-capable
+    executive -- COMPLETED (nominal) or SAFED (the abort rule fired). A run stuck mid-lifecycle or a
+    malformed record (no governed terminal) cannot attest a rollback/abort rule, so it returns False. This
+    replaces the prior ``"safed" in transitions or run.get("safed") is not None``, whose second clause was a
+    tautology (``safed`` is always a bool) that made the precondition constant-True."""
+    return run.get("final_state") in ("completed", "safed")
+
+
 @router.post("/executive/run")
 def executive_run(req: RunRequest, identity: str = Depends(require_director)) -> JSONResponse:
     """#245: execute a RELEASED build plan as a SIM run -- ARMED -> EXECUTING -> (COMPLETED | SAFED) over
@@ -296,7 +306,7 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
         rehearsal_result=bool(out.get("legs")),                      # the closed-loop rehearsal produced legs
         safety_check=(run["final_state"] == "completed"),            # completed = as-built acceptance held
         approval_record=(str(released.state.value) == "released"),   # director-signed RELEASED
-        rollback_abort_rule="safed" in run.get("transitions", []) or run.get("safed") is not None)
+        rollback_abort_rule=_rollback_abort_rule(run))               # F24: governed terminal, not a tautology
     executability = {"executable": is_executable(_pre), "unmet": _pre.unmet(),
                      "preconditions": {k: getattr(_pre, k) for k in _pre.__dataclass_fields__}}
     # [REQ:EG-08] reconciliation: the run's predicted-vs-observed ENERGY residual (budgeted nominal_J vs the

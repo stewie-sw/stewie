@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -232,10 +233,22 @@ def dem_asbuilt(req: AsBuiltRequest, _auth: str = Depends(require_auth)):
 
 # #239 DoS cache: /dem/workarea.png is unauthenticated and the psr/illumination layers run an O(P^2..P^3)
 # horizon sweep (kind=psr = 12 azimuths). Cache the rendered PNG bytes per quantized key so repeats are O(1).
-# Plain dict + FIFO cap, matching the unlocked gis_layers._GLOBE_CACHE precedent (values are a deterministic
-# pure function of the key, so a concurrent miss-miss just recomputes identical bytes -- no lock needed).
+# F22: the insert+evict below runs under FastAPI's sync-route THREADPOOL, so a plain-dict FIFO eviction
+# (next(iter(dict)) while another thread inserts) can raise "dictionary changed size during iteration" -> a
+# 500. Guard the insert+evict with a lock via _fifo_put (the pure-function value recompute on a miss-miss is
+# still harmless; only the shared-dict mutation needs serializing).
 _WORKAREA_CACHE: dict = {}
 _WORKAREA_CACHE_MAX = 256
+_WORKAREA_CACHE_LOCK = threading.Lock()
+
+
+def _fifo_put(cache: dict, lock: threading.Lock, key, value, cap: int) -> None:
+    """F22: insert ``key->value`` into ``cache`` under a FIFO size cap, thread-safely. The lock serializes the
+    insert + eviction so a concurrent insert cannot resize the dict while ``next(iter(cache))`` iterates it."""
+    with lock:
+        cache[key] = value
+        if len(cache) > cap:
+            cache.pop(next(iter(cache)), None)   # FIFO: evict the oldest entry
 
 
 @router.get("/dem/workarea.png")
@@ -304,9 +317,7 @@ def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str =
                             content={"ok": False, "error": f"unknown layer kind {kind!r}"})
     rgba = np.flipud(rgba)                               # image row 0 = top = max y (North) = the plan canvas's top
     png = _to_png(rgba)
-    _WORKAREA_CACHE[ckey] = png
-    if len(_WORKAREA_CACHE) > _WORKAREA_CACHE_MAX:
-        _WORKAREA_CACHE.pop(next(iter(_WORKAREA_CACHE)), None)   # FIFO: evict the oldest entry
+    _fifo_put(_WORKAREA_CACHE, _WORKAREA_CACHE_LOCK, ckey, png, _WORKAREA_CACHE_MAX)   # F22: thread-safe FIFO
     return Response(content=png, media_type="image/png")
 
 
@@ -384,9 +395,11 @@ def dem_heightfield_full(site: str = "haworth", window_m: float = -1.0, x0: floa
 
 
 # analysis-drape cache (same FIFO pattern as _WORKAREA_CACHE): the drape is a deterministic pure function
-# of the key, so a concurrent miss-miss just recomputes identical bytes -- no lock needed.
+# of the key, so a concurrent miss-miss just recomputes identical bytes; F22: the insert+evict is guarded
+# by a lock (via _fifo_put) so concurrent threadpool inserts cannot resize the dict mid-eviction -> 500.
 _FULL_LAYER_CACHE: dict = {}
 _FULL_LAYER_CACHE_MAX = 128
+_FULL_LAYER_CACHE_LOCK = threading.Lock()
 
 
 @router.get("/dem/heightfield_full/layer.png")
@@ -446,9 +459,7 @@ def dem_heightfield_full_layer(site: str = "haworth", window_m: float = -1.0, x0
         return JSONResponse(status_code=400, content={"ok": False, "error": f"unknown layer kind {kind!r}"})
     rgba = np.flipud(rgba)                                          # row 0 = top = max y (North), three3d UV convention
     png = _to_png(rgba)
-    _FULL_LAYER_CACHE[ckey] = png
-    if len(_FULL_LAYER_CACHE) > _FULL_LAYER_CACHE_MAX:
-        _FULL_LAYER_CACHE.pop(next(iter(_FULL_LAYER_CACHE)), None)
+    _fifo_put(_FULL_LAYER_CACHE, _FULL_LAYER_CACHE_LOCK, ckey, png, _FULL_LAYER_CACHE_MAX)   # F22: thread-safe FIFO
     return Response(content=png, media_type="image/png")
 
 

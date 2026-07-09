@@ -51,6 +51,26 @@ def test_mp07_executive_run_reports_a_plan_executability_card(monkeypatch, tmp_p
     assert isinstance(card["executable"], bool) and isinstance(card["unmet"], list)
 
 
+def test_eg07_release_plan_audit_records_the_signed_content_hash(monkeypatch, tmp_path):  # [REQ:EG-07] F5
+    # F5: the EG-07 release-plan audit record must carry the REAL evidence hash -- the SignedRevision's
+    # content_hash -- not an empty string read from a non-existent `plan_hash` key.
+    c = _client(monkeypatch, tmp_path)
+    r = c.post("/executive/release-plan", json={"orders": _ORDERS})
+    assert r.status_code == 200, r.text
+    sig = r.json()["signed_revision"]
+    assert sig is not None, "a released plan must return a signed revision"
+    ch = sig["content_hash"]
+    assert ch and len(ch) == 64 and all(x in "0123456789abcdef" for x in ch), f"bad content_hash {ch!r}"
+
+    aud = c.get("/executive/audit")
+    assert aud.status_code == 200, aud.text
+    recs = [rec for rec in aud.json()["records"] if rec["action"] == "executive.release_plan"]
+    assert recs, "the release-plan did not append an executive.release_plan audit record"
+    assert recs[-1]["evidence"] == ch, (
+        "the release-plan audit evidence must be the signed revision content_hash "
+        f"(got {recs[-1]['evidence']!r}, expected {ch!r})")
+
+
 def test_eg08_executive_run_reports_the_energy_reconciliation(monkeypatch, tmp_path):  # [REQ:EG-08]
     # the run reconciles predicted (budgeted) vs observed (slip-truth) energy -> EG-08 proposals.
     c = _client(monkeypatch, tmp_path)

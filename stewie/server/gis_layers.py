@@ -10,6 +10,7 @@ PSR candidates (never lit across a sweep of sun azimuths at polar elevation). Ra
 from __future__ import annotations
 
 import io
+import threading
 
 import numpy as np
 
@@ -201,9 +202,29 @@ RASTER_DEFS = [
 # ROTATED/misaligned. The standard GIS fix: resample onto a lat/lon grid server-side; every layer
 # carries ITS OWN bbox. Implementation: build the output lat/lon grid, forward-project each output
 # pixel into the polar-stereo frame (pyproj, IAU_2015:30135 -- the SAME CRS as the tile bounds),
-# and sample the source raster. Vectorized numpy; cached by (kind, sun params).
+# and sample the source raster. Vectorized numpy; cached by (kind, site, [sun params for sun-dependent kinds]).
 
 _GLOBE_CACHE: dict = {}
+_GLOBE_CACHE_MAX = 256                   # F7: FIFO cap (like dem._WORKAREA_CACHE) so key churn can't grow it unbounded
+_GLOBE_CACHE_LOCK = threading.Lock()     # F7: guard insert+evict (sync routes run in a threadpool)
+
+# F7: the drape kinds whose RASTER actually depends on the sun position (a real-sun horizon march). Only
+# these key on (sun_el, sun_az); every other kind is sun-INDEPENDENT (dem is a fixed 315/45 lambertian
+# hillshade; slope/hazard/aspect/curvature/roughness + the terramechanics-spine physics fields are pure
+# functions of the DEM), so keying them on the sun would re-render + permanently re-cache identical drapes
+# every time the sun/time slider moves.
+_SUN_DEPENDENT_GLOBE_KINDS = ("illumination", "incidence", "psr", "cost", "blocking")
+
+
+def _globe_cache_put(key, out):
+    """F7: store a globe drape under a FIFO size cap, thread-safely. Mirrors dem._WORKAREA_CACHE's
+    insert+evict, guarded by a lock so a concurrent insert cannot resize the dict mid-eviction."""
+    with _GLOBE_CACHE_LOCK:
+        _GLOBE_CACHE[key] = out
+        if len(_GLOBE_CACHE) > _GLOBE_CACHE_MAX:
+            _GLOBE_CACHE.pop(next(iter(_GLOBE_CACHE)), None)   # FIFO: evict the oldest entry
+    return out
+
 
 def _np_load_rgba(path):
     import numpy as _np
@@ -1217,7 +1238,12 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         return _render_globe_traffic(mp, bundle_dir, site)
     # G5 symbology key: a 2-tuple always (the (30.0,0) default for non-slope is constant -> no fragmentation)
     sym = (round(float(slope_vmax), 2), int(slope_classes)) if kind == "slope" else (30.0, 0)
-    key = ("globe", kind, site, round(float(sun_el), 2), round(float(sun_az), 2),
+    # F7: only sun-DEPENDENT kinds key on the sun; the rest key on (kind, site[, grid_color][, sym]) so
+    # dragging the sun/time slider does not fragment the cache for a drape whose pixels never change.
+    sun_dep = kind in _SUN_DEPENDENT_GLOBE_KINDS
+    _sel, _saz = round(float(sun_el), 2), round(float(sun_az), 2)
+    sun_key = (_sel, _saz) if sun_dep else ()
+    key = ("globe", kind, site, sun_key,
            grid_color if kind == "grid" else "", sym)
     if key in _GLOBE_CACHE:
         return _GLOBE_CACHE[key]
@@ -1233,12 +1259,14 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
     # G5: a non-default slope symbology gets its own cache file; the default (30/continuous) keeps the
     # original stem so existing cached slope tiles are reused.
     sym_tag = f"_v{sym[0]}_c{sym[1]}" if (kind == "slope" and sym != (30.0, 0)) else ""
-    stem = _oss.path.join(cdir, f"{kind}_{site}_{key[3]}_{key[4]}_r2"
+    # F7: the sun tokens are part of the disk stem ONLY for sun-dependent kinds (parity with the in-memory key),
+    # so a sun-independent drape (dem/slope/hazard/...) commits ONE file per (kind,site) instead of one per sun.
+    sun_tag = f"_{_sel}_{_saz}" if sun_dep else ""
+    stem = _oss.path.join(cdir, f"{kind}_{site}{sun_tag}_r2"
                           + (f"_{grid_color}" if kind == "grid" else "") + sym_tag)
     if _oss.path.exists(stem + ".npy") and _oss.path.exists(stem + ".json"):
         out = (_np_load_rgba(stem + ".npy"), _json.load(open(stem + ".json")))
-        _GLOBE_CACHE[key] = out
-        return out
+        return _globe_cache_put(key, out)
 
     import numpy as _np
     dem_full, cell_m, b, fwd, tile_crs = _tile_geo(mp, bundle_dir)
@@ -1279,8 +1307,7 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
                 rgba[i, :, 3] = _np.maximum(rgba[i, :, 3], a)
                 rgba[:, i, 3] = _np.maximum(rgba[:, i, 3], a)
             out = _reproject(rgba, b, fwd, out_px=1024, crs=tile_crs)
-            _GLOBE_CACHE[key] = out
-            return out
+            return _globe_cache_put(key, out)
         # cost/blocking compose the full 12-layer costmap (one shared horizon sweep, like psr) so they
         # render at the cheaper psr resolution; the slope-family kinds keep 768.
         px = 384 if kind in ("psr", "cost", "blocking") else 768
@@ -1312,7 +1339,7 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         if rgba is None:
             return None
         out = _reproject(rgba, b, fwd, out_px=1024, crs=tile_crs)   # _layer_rgba already returns uint8
-    _GLOBE_CACHE[key] = out
+    _globe_cache_put(key, out)
     # RC-03 (audit 2026-06-11): write ATOMICALLY (.part -> os.replace) so a concurrent reader /
     # the startup warm thread never sees a torn .npy; the JSON sidecar lands LAST as the commit
     # marker (a reader checks .npy AND .json, so a half-written pair is never both-present).

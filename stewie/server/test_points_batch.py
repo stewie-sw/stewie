@@ -62,3 +62,17 @@ def test_world_points_rejects_extra_fields(client):
 def test_world_points_404_unknown_site(client):
     r = client.post("/world/points", json={"site": "definitely_not_a_site_zzz", "points": [[0.0, 0.0]]})
     assert r.status_code == 404
+
+
+def test_world_points_valueerror_maps_to_422_not_503(client, monkeypatch):
+    # F23: a ValueError from the producer is honest BAD INPUT (4xx), like the sibling reads /world/point
+    # (line 338) and /world/transect (line 444) -- NOT a 503 (which means a missing [planner] extra /
+    # ImportError). Split the except so ValueError -> 422 (parity), ImportError -> 503.
+    import stewie.server.gis_layers as GL
+
+    def _boom(site, coords):
+        raise ValueError("order coord outside the mapped tile")
+
+    monkeypatch.setattr(GL, "points_values", _boom)
+    r = client.post("/world/points", json={"site": "haworth", "points": [[60.0, 60.0]]})
+    assert r.status_code == 422, f"ValueError must map to 422 (parity with /world/transect), got {r.status_code}: {r.text}"
