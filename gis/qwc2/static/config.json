@@ -353,46 +353,45 @@
             {"key": "SecPlan", "title": "Plan", "icon": "draw", "subitems": [
               {"key": "WholeMoon", "title": "Whole Moon", "icon": "sphere"},
               {"key": "FeatureSearch", "icon": "search"},
-              {"key": "ThemeSwitcher", "icon": "themes", "shortcut": "alt+shift+t"},
-              {"key": "LayerCatalog", "icon": "catalog", "shortcut": "alt+shift+c"},
               {"key": "MissionLayers", "title": "Mission Layers", "icon": "layers"},
-              {"key": "MissionUserLayer", "title": "User Layer", "icon": "draw"},
-              {"key": "LayerTree", "icon": "layers", "shortcut": "alt+shift+l"},
-              {"key": "MapLegend", "icon": "list-alt"},
-              {"key": "MissionPlan", "title": "Mission Plan", "icon": "draw"},
-              {"key": "Redlining", "icon": "draw"},
+              {"key": "LayerTree", "icon": "tree", "shortcut": "alt+shift+l"},
+              {"key": "MissionUserLayer", "title": "User Layer", "icon": "dataimport"},
+              {"key": "MissionPlan", "title": "Mission Plan", "icon": "editdraw"},
+              {"key": "Redlining", "icon": "pen"},
               {"key": "Editing", "icon": "editing"},
               {"key": "FeatureForm", "icon": "featureform"},
-              {"key": "AttributeTable", "icon": "editing"}
+              {"key": "AttributeTable", "icon": "text"}
             ]},
-            {"key": "SecValidate", "title": "Validate", "icon": "identify_region", "subitems": [
-              {"key": "SelectionInspector", "title": "Inspector", "icon": "info"},
-              {"key": "MissionCrossSection", "title": "Cross-section", "icon": "plot_info"},
-              {"key": "MissionTerramech", "title": "Terramechanics", "icon": "measure"},
+            {"key": "SecValidate", "title": "Validate", "icon": "eye", "subitems": [
+              {"key": "SelectionInspector", "title": "Inspector", "icon": "pick"},
               {"key": "Identify", "icon": "identify_region", "mode": "Region"},
+              {"key": "MissionCrossSection", "title": "Cross-section", "icon": "plot_info"},
+              {"key": "MissionTerramech", "title": "Terramechanics", "icon": "scale"},
               {"key": "Measure", "icon": "measure"},
               {"key": "Routing", "icon": "routing"},
               {"key": "TimeManager", "icon": "clock"}
             ]},
-            {"key": "SecRelease", "title": "Release", "icon": "cog", "subitems": [
-              {"key": "MissionRuntime", "title": "Runtime Context", "icon": "cog"}
+            {"key": "SecRelease", "title": "Release", "icon": "confirm", "subitems": [
+              {"key": "MissionRuntime", "title": "Runtime Context", "icon": "lock"}
             ]},
-            {"key": "SecExecute", "title": "Execute", "icon": "routing-car", "subitems": [
+            {"key": "SecExecute", "title": "Execute", "icon": "routing-truck", "subitems": [
               {"key": "MissionHUD", "title": "Rover HUD", "icon": "routing-car"},
-              {"key": "MissionEngPanel", "title": "Eng Panel", "icon": "plot_info"}
+              {"key": "MissionEngPanel", "title": "Eng Panel", "icon": "view"}
             ]},
-            {"key": "SecReport", "title": "Report", "icon": "list-alt", "subitems": [
-              {"key": "MissionEvidence", "title": "Evidence / Report", "icon": "info"},
+            {"key": "SecReport", "title": "Report", "icon": "report", "subitems": [
+              {"key": "MissionEvidence", "title": "Evidence / Report", "icon": "pdf"},
               {"key": "MissionProgram", "title": "Program", "icon": "list-alt"},
-              {"key": "MissionAssets", "title": "Asset Library", "icon": "folder"},
+              {"key": "MissionAssets", "title": "Asset Library", "icon": "folder-open"},
               {"key": "Print", "icon": "print", "shortcut": "alt+shift+p"},
               {"key": "MapExport", "icon": "rasterexport"}
             ]},
-            {"key": "SecSupport", "title": "Support & Settings", "icon": "info", "subitems": [
-              {"key": "Portal", "icon": "themes"},
+            {"key": "SecSettings", "title": "Settings", "icon": "cog", "subitems": [
+              {"key": "ThemeSwitcher", "icon": "themes", "shortcut": "alt+shift+t"},
+              {"key": "MapLegend", "icon": "bglayer"},
+              {"key": "Settings", "title": "Appearance", "icon": "paint"},
               {"key": "Bookmark", "icon": "bookmark", "shortcut": "alt+shift+b"},
               {"key": "Share", "icon": "share", "shortcut": "alt+shift+s"},
-              {"key": "Settings", "icon": "cog"},
+              {"key": "Portal", "icon": "home"},
               {"key": "Help", "icon": "info", "shortcut": "alt+shift+h"},
               {"title": "stewie.space", "icon": "link", "url": "https://stewie.space", "target": "_blank"}
             ]}
