@@ -1,6 +1,6 @@
 {
  "provenance": {
-  "citations_sha256": "208c734314fb6c7b2a39cbae0be8fab052b63769ab5d18821fe9f7e31aa19c7d",
+  "citations_sha256": "ae8b6737b03334715f77c0c078e5283e2d9a3bddf26f6188969c069614001cf9",
   "generated_by": "scripts/gen_program_snapshot.py",
   "prd_commit": "1290b6c4155da98636475bb4876c7233e8a93ae9",
   "prd_sha256": "1df1f1fc3423fc4990213ee4e899f6aede3bedfe9c2ab442c49e88890451bd4d",
@@ -3125,7 +3125,7 @@
    "V": "N",
    "X": "N",
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "LY-05",
    "lane": "LY",
    "pri": "P1",
@@ -6045,7 +6045,7 @@
     "total": 2
    }
   },
-  "cited": 276,
+  "cited": 277,
   "done_pct": 64.2,
   "in_scope": 367,
   "in_scope_done_pct": 69.5,
