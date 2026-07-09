@@ -1628,3 +1628,50 @@ Retroactive dispatch briefs for the 26 buildable ready-set §7 rows the FS-01 as
 - files: stewie/server/test_current_terrain_view.py, stewie/server/state.py, stewie/server/routers/twin.py, stewie/server/routers/world.py
 - test_target: stewie/server/test_current_terrain_view.py::test_current_terrain_view_reads_the_twin_under_the_resync_lock (extend: add the [REQ:DT-06] marker and strengthen from a lock-held proxy to a real concurrent-resync torn-read assertion on the composed triple)
 
+
+
+## DEM-viz + GIS-architecture fold dispatch briefs (2026-07-08)
+
+Briefs for the 6 §7.B rows added folding Aaron's multi-level DEM viz + QGIS/QGIS-Server/QWC2/OpenLayers+Three.js architecture vision (design/STEWIE_multilevel_dem_viz_design_2026-07-08.md). Parser scripts/fanout_plan.py assessment_inventory reads `### ID` + `- files:` + `- test_target:`.
+
+### GW-11 — atomic
+- goal: A Three.js 3D terrain panel INSIDE the QWC2 /ide (not only the cockpit), rendering the selected site's real DEM window synced to the 2D GIS map (click-3D -> map coord, 2D-authored feature -> visible in 3D, 3D pick -> same order-frame serializer).
+- acceptance: Playwright opens the 3D panel, picks a point, the 2D map centers on the returned IAU_2015:30135/selenographic coord; a 2D-authored keep-out renders in 3D within one refresh.
+- current_state: three3d.js (659 lines, Three.js r170) already ships in the cockpit (stewie/server/web/index.html:1563) with orbit/pick/shadows/drape over /dem/heightfield; the QWC2 IDE has NO three.js (no `three` in gis/qwc2/package.json). This is a PORT + 2D<->3D sync contract, not a new renderer.
+- files: gis/qwc2/js/plugins/Mission3D.jsx, stewie/server/web/assets/three3d.js, stewie/server/routers/dem.py
+- test_target: gis/qwc2/js/mission/terrain3dSync.test.js
+
+### GW-12 — atomic
+- goal: One named, tested planet-fixed-authoritative + local-render-origin coordinate contract so every renderer (cockpit 3D, /ide 3D, Cesium globe, Godot) renders float32-relative to a local origin and converts back through site_dem.py before persisting (never storing a renderer-local frame).
+- acceptance: a [REQ:GW-12] test asserts coordinate round-trip error under 1 cm at the 30135 theme-extent corners, each site anchor, and an ad-hoc tile center; the largest magnitude handed to a float32 path stays under a documented ulp bound.
+- current_state: 30135/30100 authoritative + per-site order-frame transforms already centralized in site_dem.py:211-266; convert-back-on-save exists in planTools.js:99-115; single-precision safety is currently only IMPLICIT (windowed <=640 m crops), never stated or tested.
+- files: stewie/terrain/site_dem.py, gis/qwc2/js/mission/planTools.js
+- test_target: stewie/terrain/test_coord_contract.py
+
+### LY-05 — atomic
+- goal: DEM-derivative analysis rasters aspect + curvature + a standalone roughness drape + real contour vectors, joining the existing 16 _GLOBE_KINDS as real producers with legends, registered in the LY-01 catalog.
+- acceptance: each new kind renders via /layers/globe/{kind}.png + bbox on a real site, appears in the /ide layer tree with a legend, and a test asserts aspect/curvature values on a real-DEM fixture crop (no synthetic).
+- current_state: slope/hillshade/illumination/psr/cost etc. already produced in gis_layers.py:316-400; aspect/curvature/contours have NO producer (grep); roughness exists only inside the costmap sum (lode/costmap_layers.py:70-78), not as its own drape; base.contours is catalog-only.
+- files: stewie/server/gis_layers.py, stewie/server/routers/layers.py, gis/build_project.py
+- test_target: stewie/server/test_derivative_rasters.py
+
+### LY-06 — atomic
+- goal: A real line-of-sight / comms-visibility producer for the catalog-only terrain.los/terrain.comms: observer point + mast height -> horizon-marched visibility raster + point queries, reusing the dart illumination horizon machinery.
+- acceptance: a [REQ:LY-06] test asserts a cell behind a ridge from the observer is not-visible and a same-slope open cell is visible, on a real DEM crop.
+- current_state: terrain.los/terrain.comms are catalog-declared with no producer; the horizon-march core exists in the illumination/psr path (gis_layers.py:363+) and is the reusable basis.
+- files: stewie/server/gis_layers.py, stewie/server/routers/layers.py
+- test_target: stewie/server/test_los_layer.py
+
+### LY-07 — atomic
+- goal: A signed terrain-change / dig-fill-depth drape (base DEM minus as-built/observed compose) with a diverging cut/fill legend + per-cell depth readout, the visual producer for the catalog rows map.changed_terrain + evidence.before_after_dem.
+- acceptance: after a conserved cut+fill transaction on a real site the drape shows the cut region negative and the berm positive with depths matching the transaction volumes; [REQ:LY-07] test.
+- current_state: the difference DATA exists (stewie/twin/terrain_view.compose_terrain_view + /world/terrain_view + /dem/asbuilt) but no signed-difference drape is registered in _GLOBE_KINDS; the two catalog rows are unproduced.
+- files: stewie/server/gis_layers.py, stewie/twin/terrain_view.py, stewie/server/routers/layers.py
+- test_target: stewie/server/test_change_drape.py
+
+### QG-04 — atomic
+- goal: Prove (or honestly retract) QG-02's WFS + WMTS legs on the --profile gis QGIS Server, completing its "WMS/WMTS/WFS" claim which today has WMS-only evidence.
+- acceptance: gis/test_server.py asserts WFS GetCapabilities lists the site vectors + GetFeature returns them in IAU_2015:30135, and WMTS GetCapabilities advertises a lunar-CRS tile matrix + GetTile returns a pole-truthful tile (or the WMTS leg is recorded infeasible on the pinned version with a reason); skip-clean when no server is up.
+- current_state: gis/SERVER.md proves WMS 1.3.0 GetMap byte-identical to Desktop; WFS/WMTS are NOT proven though QG-02's text claims all three; the only WMTS in-tree is the consumed NASA Trek WMTS (deferred for a CRS reason, build_project.py:258-294).
+- files: gis/test_server.py, gis/SERVER.md
+- test_target: gis/test_server.py

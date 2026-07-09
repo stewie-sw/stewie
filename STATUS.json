@@ -142,7 +142,7 @@
     },
     "GW": {
       "cited": 7,
-      "total": 11
+      "total": 13
     },
     "HF": {
       "cited": 0,
@@ -150,7 +150,7 @@
     },
     "LY": {
       "cited": 2,
-      "total": 4
+      "total": 7
     },
     "MG": {
       "cited": 1,
@@ -214,7 +214,7 @@
     },
     "QG": {
       "cited": 0,
-      "total": 3
+      "total": 4
     },
     "QW": {
       "cited": 0,
@@ -305,7 +305,7 @@
       "total": 4
     }
   },
-  "total": 380,
+  "total": 386,
   "unknown_markers": [],
   "v_done_uncited": [],
   "v_ne_d_flagged": [

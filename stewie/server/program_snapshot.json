@@ -1,10 +1,10 @@
 {
  "provenance": {
-  "citations_sha256": "4cfdddd995bd627c3c6c74537fe412c5af8646b64f3f2b2fa149046bfb3537f4",
+  "citations_sha256": "208c734314fb6c7b2a39cbae0be8fab052b63769ab5d18821fe9f7e31aa19c7d",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "5dc999f7bfe3d1789f63ef86682b4a107bf56d70",
-  "prd_sha256": "35660ea665aed011e43a12461f9f623b5768bd5a7e54f3537efa59ce91bea5d3",
-  "specs_sha256": "d6ca70a12ea58f3c681615128167ac69bb4f12a1734945ecae6108990dcf2111"
+  "prd_commit": "b886f94794c47a2100ddc6ca1a60d35b1b8ecfcf",
+  "prd_sha256": "2fe05db60323b8141f9e37a4a28cb535039c2b94173f8948d6b5a69fb5f0f5ec",
+  "specs_sha256": "dc6c30f1ddea52c2f58b46a0166eb2feb7e33ea9496d84119a892a6ced9a629a"
  },
  "rows": [
   {
@@ -2907,6 +2907,30 @@
    "Q": "NA",
    "V": "N",
    "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-11",
+   "lane": "GW",
+   "pri": "P1",
+   "text": "**3D terrain view in the /ide, synced to the GIS map.** A Three.js 3D terrain panel in the QWC2 IDE renders the selected site's REAL DEM window (via `/dem/heightfield`) in the site-local frame with a vertical-exaggeration control (1-5x, labeled display choice); it reuses/ports the cockpit `three3d.js` capabilities (orbit/fly, sun shadows, layer-texture drape) rather than a new renderer. Click-3D returns the exact map coordinate (IAU_2015:30135 + selenographic, via the shared `/dem/site_lonlat` transforms) into the IDE coordinate display; a mission feature authored on the 2D map (waypoint/keep-out/work-zone) appears in the 3D view from the same backend state within one refresh, and a 3D waypoint pick lands in the same order-frame serializer the 2D path uses. (extends QW-01/GW-05/GW-02; reuses stewie/server/web/assets/three3d.js + routers/dem.py heightfield)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-12",
+   "lane": "GW",
+   "pri": "P0",
+   "text": "**Planet-fixed-authoritative + local-render-origin coordinate contract (single-precision safe).** One documented, tested contract: authoritative coordinates exist ONLY in the lunar CRSs (IAU_2015:30135/30100, or the ad-hoc tile's local CRS) on the server; every render surface (cockpit 3D, /ide 3D, Cesium globe, Godot) declares a local origin near the work area and renders float32-relative to it; every pick/edit/measure converts back through `site_dem.py` transforms (latlon_to_dem_origin/dem_origin_to_latlon) before persisting, never storing a renderer-local frame. Acceptance: an executable [REQ:GW-12] test asserts (a) coordinate round-trip error under 1 cm at the 30135 theme-extent corners, at each imported site anchor, and at an ad-hoc tile center; (b) the largest coordinate magnitude handed to a float32 render path stays under a stated bound (documented ulp budget); (c) a guard that no gis/qwc2/js or web/assets module persists coordinates without the shared serializer. (formalizes site_dem.py:211-266 + planTools.js:99-115; extends GW-02/GW-05)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
    "bucket": "gated",
    "cited": false,
    "gated_reason": "deck-forward roadmap (\u00a77.E; learned-ML, design-gated)",
@@ -2962,6 +2986,42 @@
    "lane": "LY",
    "pri": "P1",
    "text": "The missing layer kinds (ice-probability, localization-confidence, sensor-coverage, digital-twin-difference) each register in the LY-01 catalog with a REAL backend producer + provenance/eligibility, or are explicitly marked unavailable (no fabricated drape); a test asserts each is typed+registered or explicitly absent. (extends LY-01)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "LY-05",
+   "lane": "LY",
+   "pri": "P1",
+   "text": "**DEM-derivative analysis rasters: aspect, curvature, roughness drape, contours.** Aspect (gradient azimuth) + curvature (profile/plan or Laplacian, stated) join `_GLOBE_KINDS` as real producers with legend entries computed from the same heightfield gradient the slope drape uses; roughness is exposed as a standalone drape (same window-RMS-slope definition as lode/costmap_layers._roughness, one source of truth); contours generate as a REAL vector product (QGIS-Desktop gdal_contour layers persisted into the .qgz at stated intervals, and/or a backend GeoJSON endpoint) registered in the LY-01 catalog with provenance + eligibility (display-only by default). Acceptance: each new kind renders via `/layers/globe/{kind}.png` + bbox on a real site, appears in the /ide layer tree with a legend, and a test asserts aspect/curvature values on a real-DEM fixture crop. (extends LY-01/GW-06; producers land in stewie/server/gis_layers.py + gis/build_project.py)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "LY-06",
+   "lane": "LY",
+   "pri": "P2",
+   "text": "**Line-of-sight / comms-visibility layer.** A real producer for terrain.los/terrain.comms: given an observer point + mast height on the site DEM, a horizon-marched visibility raster (reusing the dart.illumination horizon machinery) renders as a drape and answers point queries; registered in LY-01 with provenance; planning-eligibility only after validation. Acceptance: a [REQ:LY-06] test asserts a cell behind a ridge from the observer is not-visible and a same-slope open cell is visible, on a real DEM crop. (extends LY-01; fills the catalog-only terrain.los row)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "LY-07",
+   "lane": "LY",
+   "pri": "P1",
+   "text": "**Terrain-change / dig-fill-depth drape (before-vs-after DEM difference).** A signed elevation-difference drape (base DEM vs the as-built/observed compose from stewie/twin/terrain_view.compose_terrain_view) renders cut (below base) vs fill (above base) with a diverging legend and per-cell depth readout via `/world/point`; zero-change is transparent; the drape carries the as_built/twin versions it was computed from. This is the visual producer for the catalog rows map.changed_terrain + evidence.before_after_dem. Acceptance: after a conserved cut+fill transaction on a real site, the drape shows the cut region negative and the berm positive with depths matching the transaction volumes; [REQ:LY-07] test. (extends LY-01/DT-04/SD-01; data path already exists at /world/terrain_view + /dem/asbuilt)"
   },
   {
    "I": "N",
@@ -4315,9 +4375,9 @@
    "V": "D",
    "X": "D",
    "brief": {
-    "goal": "Evidence/Report reproduces plan inputs + selected layers + runtime profile + artifacts + transactions + audit.",
+    "goal": "Prove (or honestly retract) QG-02's WFS + WMTS legs on the --profile gis QGIS Server, completing its \"WMS/WMTS/WFS\" claim which today has WMS-only evidence.",
     "kind": "atomic",
-    "test_target": "NEW stewie/server/test_ev01_evidence_report.py [REQ:EV-01]"
+    "test_target": "gis/test_server.py"
    },
    "bucket": "done",
    "cited": true,
@@ -4387,6 +4447,18 @@
    "lane": "QG",
    "pri": "P1",
    "text": "QGIS Desktop authoring/analysis workbench over the SAME FastAPI/PostGIS backend as the web IDE: thematic .qgz templates open the STEWIE layer catalog from the backend; a Model Builder model chains >=3 STEWIE Processing algorithms and reruns headless via qgis_process with identical params; selecting a mission Analysis Profile filters the toolbox to that profile's algorithms."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "QG-04",
+   "lane": "QG",
+   "pri": "P2",
+   "text": "**QGIS Server WFS + WMTS proven (completes QG-02's claim).** The --profile gis QGIS Server serves (a) WFS: GetCapabilities lists the project's site vectors and a GetFeature returns them in IAU_2015:30135; (b) WMTS: GetCapabilities advertises a lunar-CRS tile matrix and a GetTile returns a correct pole-truthful tile, or the WMTS leg is explicitly recorded infeasible on the pinned server version with the reason (like the Trek WMTS deferral). gis/test_server.py extends to assert both (skip-clean when no server is up). QG-02's shipped evidence is WMS-only (gis/SERVER.md); this row makes the WFS/WMTS words in QG-02 true or honestly retracts them. (extends QG-02; alternative raster path already tracked as TT-01)"
   },
   {
    "I": "N",
@@ -4742,7 +4814,7 @@
    "V": "N",
    "X": "N",
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "SD-03",
    "lane": "SD",
    "pri": "P2",
@@ -5536,7 +5608,7 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 95,
+   "buildable": 101,
    "concurrent": 0,
    "done": 255,
    "gated": 30
@@ -5648,7 +5720,7 @@
    },
    "GW": {
     "done": 7,
-    "total": 11
+    "total": 13
    },
    "HF": {
     "done": 0,
@@ -5656,7 +5728,7 @@
    },
    "LY": {
     "done": 2,
-    "total": 4
+    "total": 7
    },
    "MG": {
     "done": 1,
@@ -5720,7 +5792,7 @@
    },
    "QG": {
     "done": 0,
-    "total": 3
+    "total": 4
    },
    "QW": {
     "done": 0,
@@ -5814,26 +5886,26 @@
   "by_priority": {
    "P0": {
     "done": 108,
-    "total": 117
+    "total": 118
    },
    "P1": {
     "done": 143,
-    "total": 210
+    "total": 213
    },
    "P2": {
     "done": 4,
-    "total": 51
+    "total": 53
    },
    "P3": {
     "done": 0,
     "total": 2
    }
   },
-  "cited": 275,
-  "done_pct": 67.1,
-  "in_scope": 350,
-  "in_scope_done_pct": 72.9,
-  "total": 380
+  "cited": 276,
+  "done_pct": 66.1,
+  "in_scope": 356,
+  "in_scope_done_pct": 71.6,
+  "total": 386
  },
  "workflow_spine": [
   "Plan",
