@@ -165,6 +165,7 @@ export type ApiPath =
   | '/world/point'
   | '/world/points'
   | '/world/site-markers'
+  | '/world/site-suitability'
   | '/world/terrain_view'
   | '/world/terrain_view.png'
   | '/world/terramechanics-layers'
@@ -350,6 +351,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/world/point', operationId: 'world_point_world_point_get', mutatesAuthority: false },
   { method: 'POST', path: '/world/points', operationId: 'world_points_world_points_post', mutatesAuthority: true },
   { method: 'GET', path: '/world/site-markers', operationId: 'world_site_markers_world_site_markers_get', mutatesAuthority: false },
+  { method: 'GET', path: '/world/site-suitability', operationId: 'world_site_suitability_world_site_suitability_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terrain_view', operationId: 'world_terrain_view_world_terrain_view_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terrain_view.png', operationId: 'world_terrain_view_png_world_terrain_view_png_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/terramechanics-layers', operationId: 'terramechanics_layers_world_terramechanics_layers_get', mutatesAuthority: false },

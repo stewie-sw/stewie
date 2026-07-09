@@ -30,6 +30,7 @@ import MapUtils from 'qwc2/utils/MapUtils';
 import PlanAuthor from '../mission/planAuthor';
 import WS from '../mission/workspace.js';        // GW-02: the shared workspace-context store (active site)
 import PT from '../mission/planTools';           // civil #41: materialBalance (cut/fill earthwork economy)
+import SS from '../mission/siteSuitability';     // SS-01: per-site landing/construction suitability score
 
 // The imported work-site DEMs the planner backs (#51 3-DEM reconciliation): every site that carries a real
 // LOLA DEM bundle -- the plannable set -- with real-area labels matching the map pins (/world/site-markers)
@@ -113,7 +114,10 @@ class MissionPlan extends React.Component {
         ready: false,
         ctrl: null,  // the controller's emitted UI state {site, activeKind, footprint, depth, orders, hint, hintErr, result, planning}
         detailOpen: false,  // DEPTH-4: the "Plan detail" expander (Plan IR / validation / timeline+endurance)
-        scheduleOpen: true  // DEPTH-5: the "Schedule / Gantt" expander (open by default — the headline of a plan)
+        scheduleOpen: true,  // DEPTH-5: the "Schedule / Gantt" expander (open by default — the headline of a plan)
+        // SS-01: the site-survey suitability card. `suitSite` pins the score to the site it was computed for,
+        // so a later site change auto-invalidates the display (the card falls back to the Survey button).
+        suit: null, suitLoading: false, suitErr: null, suitSite: null
     };
     constructor(props) {
         super(props);
@@ -214,6 +218,105 @@ class MissionPlan extends React.Component {
     onToggleDetail = () => { this.setState((st) => ({detailOpen: !st.detailOpen})); };
     // DEPTH-5 schedule / Gantt expander
     onToggleSchedule = () => { this.setState((st) => ({scheduleOpen: !st.scheduleOpen})); };
+
+    // SS-01: survey the CURRENT site's landing/construction suitability (public GET /world/site-suitability).
+    // A per-site read independent of the authored orders; the result is pinned to `suitSite` so a later site
+    // change auto-invalidates it. Failures (e.g. an unimported site -> 404) surface honestly, never a score.
+    onSurveySite = () => {
+        const site = this.state.ctrl && this.state.ctrl.site;
+        if (!site || this.state.suitLoading) { return; }
+        this.setState({suitLoading: true, suitErr: null, suit: null, suitSite: site});
+        SS.fetchSuitability(site)
+            .then((d) => this.setState({suit: SS.buildModel(d), suitLoading: false, suitSite: site}))
+            .catch((e) => this.setState({suitErr: e.message, suitLoading: false, suitSite: site}));
+    };
+
+    // --- Site-survey suitability (SS-01): a per-site landing/construction suitability score for the SELECTED
+    // work site, aggregated server-side from the REAL FORGE costmap over the framed work-area crop (the same
+    // passability the planner routes on). The score = the fraction of real cells that pass the real physics
+    // gates (no invented weighting); the binding constraint names the dominant veto reason; the sub-fields are
+    // the real slope/roughness/traction/bearing readings. On-demand (it composes physics), pinned to the site
+    // it was computed for so a site change falls the card back to the Survey button (no stale score). Every
+    // number is projected straight from GET /world/site-suitability — nothing here recomputes or fabricates.
+    renderSuitability(s) {
+        const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
+        const btnStyle = (accent) => ({
+            width: '100%', boxSizing: 'border-box', cursor: 'pointer', font: '600 11px system-ui, sans-serif',
+            padding: '7px 8px', borderRadius: '4px', border: '1px solid ' + accent + '66',
+            color: accent, background: accent + '14'
+        });
+        // the card is only valid for the CURRENT site; a site change invalidates it (fall back to the button).
+        const forThisSite = this.state.suitSite === s.site;
+        const m = (forThisSite && this.state.suit && this.state.suit.ok) ? this.state.suit : null;
+        const loading = this.state.suitLoading && forThisSite;
+        const err = (forThisSite && this.state.suitErr) ? this.state.suitErr : null;
+        return (
+            <div style={{margin: '8px 0', border: '1px solid #1c1c26', borderRadius: '4px', padding: '6px'}}>
+                <div style={{...lbl, marginBottom: '4px'}}>Site suitability (survey)</div>
+                {!m ? (
+                    <div>
+                        <button
+                            data-stewie-survey="1" disabled={loading} onClick={this.onSurveySite}
+                            style={btnStyle(loading ? '#5a6270' : '#39c6ff')} type="button"
+                        >{loading ? 'Surveying the work area…' : '⌖ Survey site suitability'}</button>
+                        {err ? (
+                            <div data-stewie-suit-err="1" style={{fontSize: '10px', color: '#e0564b', marginTop: '4px'}}>{err}</div>
+                        ) : (
+                            <div style={{fontSize: '9px', color: '#7a8290', marginTop: '4px', lineHeight: 1.35}}>
+                                Rates the framed work area for landing/construction: the % of cells that pass the
+                                real physics gates (slope · roughness · shadow/PSR · bearing) + the binding constraint.
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div data-stewie-suit-score={m.score}>
+                        <div style={{display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '3px'}}>
+                            <b style={{fontSize: '22px', color: m.color, lineHeight: 1}}>{m.score}</b>
+                            <span style={{fontSize: '10px', color: '#7a8290'}}>/ 100</span>
+                            <span data-stewie-suit-grade={m.grade}
+                                style={{fontSize: '10px', fontWeight: 700, letterSpacing: '.04em',
+                                    textTransform: 'uppercase', color: m.color}}>{m.grade}</span>
+                            <span style={{flex: '1 1 auto'}} />
+                            <button
+                                data-stewie-survey="1" onClick={this.onSurveySite}
+                                title="re-survey this site" style={{
+                                    flex: '0 0 auto', cursor: 'pointer', font: '600 9px system-ui, sans-serif',
+                                    padding: '3px 7px', borderRadius: '4px', border: '1px solid #2a3a4a',
+                                    color: '#9fd4ff', background: 'transparent'
+                                }} type="button"
+                            >↻ Re-survey</button>
+                        </div>
+                        <div style={{fontSize: '10px', color: '#8a93a3', marginBottom: '4px'}}>
+                            <b style={{color: '#c7d2e3'}}>{m.suitablePct}%</b> of the work area passes the physics gates
+                            {m.bindingLabel ? (
+                                <span> · binding: <b data-stewie-suit-binding={m.binding} style={{color: '#e0a04f'}}>{m.bindingLabel}</b></span>
+                            ) : <span style={{color: '#7fe0a8'}}> · no binding constraint</span>}
+                        </div>
+                        {m.blocking.length ? (
+                            <ul data-stewie-suit-blocking="1" style={{listStyle: 'none', margin: '2px 0 4px', padding: 0}}>
+                                {m.blocking.map((b) => (
+                                    <li key={b.reason} style={{display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', padding: '1px 0'}}>
+                                        <span style={{flex: '1 1 auto', color: '#9aa3b2'}}>{b.label}</span>
+                                        <span style={{flex: '0 0 46px', textAlign: 'right', color: '#c7d2e3'}}>{b.pct}%</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : null}
+                        {m.fields && m.fields.slope_deg ? (
+                            <div style={{fontSize: '9px', color: '#8a93a3', display: 'flex', flexWrap: 'wrap', gap: '2px 10px'}}>
+                                <span>Slope <b style={{color: '#c7d2e3'}}>{m.fields.slope_deg.mean}° avg · {m.fields.slope_deg.max}° max</b></span>
+                                {m.fields.traction_margin ? <span>Traction <b style={{color: '#c7d2e3'}}>{m.fields.traction_margin.mean}</b></span> : null}
+                                {m.fields.roughness ? <span>Roughness <b style={{color: '#c7d2e3'}}>{m.fields.roughness.mean}</b></span> : null}
+                            </div>
+                        ) : null}
+                        <div style={{fontSize: '8.5px', color: '#5a6270', marginTop: '4px', lineHeight: 1.35}}>
+                            FORGE costmap over the real work-area crop{m.sun ? ' · shadow/PSR at sun el ' + m.sun.el_deg + '°/az ' + m.sun.az_deg + '°' : ''}.
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     // --- TOOL PALETTE (GW-09): the discoverable set of selectable tools; the ACTIVE tool drives the map
     // click. Earthworks tools (Cut / Fill) place mass orders; Traverse drops ordered goto waypoints (a drive
@@ -1516,6 +1619,8 @@ class MissionPlan extends React.Component {
                         </div>
                     ) : null}
                 </div>
+
+                {this.renderSuitability(s)}
 
                 <div style={{display: 'flex', gap: '8px', marginBottom: '4px'}}>
                     <div style={{flex: '1 1 0'}}>

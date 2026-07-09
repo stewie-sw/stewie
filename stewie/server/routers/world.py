@@ -366,6 +366,24 @@ def world_points(req: PointsReq):   # public read (batch per-cell map data, exac
         return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
 
 
+@router.get("/world/site-suitability")
+def world_site_suitability(site: str = "haworth"):   # public read (site-survey summary, like /world/point)
+    """SS-01 SITE-SURVEY SUITABILITY: a per-site landing/construction suitability SCORE aggregated from
+    the REAL FORGE costmap (the same passability the planner routes on) over the site's framed work-area crop,
+    with the binding constraint (the dominant first-blocking veto reason) + the descriptive terrain sub-fields
+    (slope / roughness / bearing / traction / sinkage). The score is literally the fraction of the real
+    work-area cells that pass the real physics gates -- no invented weighting. Public (map-data summary, like
+    /world/point) so the keyless public /ide/ Mission-Plan panel can bind it. 404 if the site DEM bundle is
+    absent (no fabricated score for an unimported site)."""
+    from stewie.server import gis_layers as GL
+    try:
+        return GL.site_suitability(site)
+    except (KeyError, FileNotFoundError) as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    except (ImportError, ValueError) as e:
+        return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
+
+
 class TransectReq(BaseModel):
     """[REQ:SD-03] Cross-section transect body: one site + a densified sample list. frame='order' -> points are
     order-frame (x, y) [m]; frame='lonlat' -> points are selenographic [lon, lat] deg (the public /ide path)."""

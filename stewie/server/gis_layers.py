@@ -873,6 +873,115 @@ def points_values(site: str, coords) -> list:
     return [point_values(site, float(x), float(y), _ctx=ctx) for (x, y) in coords]
 
 
+# ---- SS-01: site-survey suitability ---------------------------------------------------------------
+# The veto reasons compose can attribute a blocked cell to, in compose's first-blocking priority order
+# (mirrors BLOCKING_LEGEND_ORDER). Kept here so the aggregate never invents a reason the costmap can't emit.
+_SUITABILITY_REASONS = ("slope", "sinkage", "tip_risk", "negative_obstacle", "psr", "keepout", "reservation")
+
+
+def _suitability_grade(score: int) -> str:
+    """A STATED rating band on the (real, weight-free) suitable-fraction score -- a decision-support label,
+    like the SD-01 constructability verdict's status string, NOT a physical measurement. Documented so the
+    band boundaries are legible and no hidden weighting hides behind a single number."""
+    if score >= 90:
+        return "excellent"
+    if score >= 75:
+        return "good"
+    if score >= 50:
+        return "marginal"
+    if score >= 25:
+        return "poor"
+    return "unsuitable"
+
+
+def site_suitability(site: str) -> dict:
+    """SS-01 Site-survey suitability for landing/construction: AGGREGATE the REAL 12-layer FORGE costmap
+    (`lode.costmap_layers.compose`, the SAME passability the planner routes on + the GW-07 point inspector
+    reads) over the site's framed work-area crop into a suitability SCORE, its binding constraint (the
+    dominant first-blocking veto reason), and the descriptive terrain sub-fields (slope / roughness / bearing
+    / traction / sinkage). The score is literally the fraction of the real work-area cells that pass the real
+    physics gates -- there is NO invented weighting; the only stated policy is the human-readable grade band
+    (_suitability_grade). Every field is composed from the real site DEM via the SAME producers the map drapes
+    use (_costmap_compose / _terra_fields / slope_deg_map / costmap_layers._roughness), so nothing here
+    fabricates a reading. Raises KeyError/FileNotFoundError for an unknown/unimported site (route -> 404)."""
+    import math
+
+    from lode import mission_planner as mp
+    from lode.costmap_layers import CostmapContext
+    from lode.costmap_layers import _roughness as _lode_roughness
+    from stewie.terrain.site_dem import slope_deg_map
+    bundle_dir = mp.bundle_for_site(site)                         # raises KeyError/FileNotFoundError -> route 404
+    dem, (r0, c0), cell_m = _work_area(mp, bundle_dir)            # the 128x128 @ cell_m planner-framed work-area crop
+    demf = np.asarray(dem, dtype=float)
+
+    # #266: re-express the fixed cost-drape sun azimuth in the DEM grid frame (as the illumination/psr drapes
+    # do), so the psr veto matches the map. Best-effort: pyproj absent / off-tile -> uncorrected (None).
+    gnb = None
+    try:
+        from stewie.terrain.site_dem import grid_north_bearing_deg
+        cx = (c0 + demf.shape[1] / 2.0) * cell_m
+        cy = (r0 + demf.shape[0] / 2.0) * cell_m
+        gnb = grid_north_bearing_deg(cx, cy, bundle_dir=bundle_dir)
+    except (ImportError, ValueError):
+        gnb = None
+
+    # The ONE real compose (plan-independent cost + passable mask + first-blocking reason per cell), at the
+    # SAME fixed cost-drape sun the point inspector uses (reported so the reading is legible, not hidden).
+    cm = _costmap_compose(demf, cell_m, _POINT_SUN_AZ, _POINT_SUN_EL, grid_north_bearing=gnb)
+    passable = np.asarray(cm.passable, dtype=bool)
+    reason = np.asarray(cm.reason, dtype=object)
+    n = int(passable.size)
+    n_suitable = int(passable.sum())
+    suitable_fraction = (n_suitable / n) if n else 0.0
+    score = round(100.0 * suitable_fraction)
+
+    # first-blocking reason histogram over the BLOCKED cells (mutually exclusive -> counts + suitable sum to n).
+    blocked = ~passable
+    counts: list[tuple[str, int]] = []
+    for name in _SUITABILITY_REASONS:
+        cnt = int((blocked & (reason == name)).sum())
+        if cnt:
+            counts.append((name, cnt))
+    counts.sort(key=lambda kv: -kv[1])                            # descending -> head is the binding constraint
+    blocking = [{"reason": nm, "count": c, "fraction": round(c / n, 6)} for nm, c in counts]
+    binding_constraint = counts[0][0] if counts else None
+
+    # descriptive sub-fields (real readings off the crop; each from the SAME producer a drape/inspector uses).
+    slope = np.asarray(slope_deg_map(demf, cell_m), dtype=float)
+    rough, _rm, _rn = _lode_roughness(CostmapContext(Z=demf, cell_m=float(cell_m)))   # LY-05 single source of truth
+    rough = np.asarray(rough, dtype=float)
+    terra = _terra_fields(demf, cell_m)                          # the terramechanics spine (bearing/sinkage/margin)
+
+    def _f(v) -> float:
+        return round(float(v), 4)
+
+    fields = {
+        "slope_deg": {"mean": _f(np.nanmean(slope)), "p95": _f(np.nanpercentile(slope, 95.0)),
+                      "max": _f(np.nanmax(slope))},
+        "roughness": {"mean": _f(np.nanmean(rough)), "p95": _f(np.nanpercentile(rough, 95.0))},
+        "bearing_pa": {"mean": _f(np.nanmean(terra["bearing"]))},                 # contact pressure (Pa)
+        "traction_margin": {"mean": _f(np.nanmean(terra["traction_margin"])),
+                            "min": _f(np.nanmin(terra["traction_margin"]))},
+        "sinkage_m": {"mean": _f(np.nanmean(terra["sinkage"])), "max": _f(np.nanmax(terra["sinkage"]))},
+    }
+    return {
+        "ok": True, "site": site,
+        "score": int(score), "grade": _suitability_grade(int(score)),
+        "suitable_fraction": round(suitable_fraction, 6),
+        "n_cells": n, "n_suitable": n_suitable,
+        "binding_constraint": binding_constraint,
+        "blocking": blocking,
+        "fields": fields,
+        "thresholds": {"max_slope_deg": 25.0, "max_sinkage_m": 0.10,
+                       "max_drop_m": round(float(cell_m) * math.tan(math.radians(25.0)), 4)},
+        "grid": {"rows": int(demf.shape[0]), "cols": int(demf.shape[1]), "cell_m": float(cell_m)},
+        "sun": {"el_deg": _POINT_SUN_EL, "az_deg": _POINT_SUN_AZ},
+        "provenance": ("FORGE costmap compose (lode.costmap_layers) + terramechanics spine (_terra_fields) "
+                       "+ LY-05 roughness over the real site work-area crop; score = passable fraction, no "
+                       "invented weighting; grade band is a stated decision-support label"),
+    }
+
+
 _PSR_MASK_CACHE: dict = {}   # site -> never-lit bool mask; the horizon sweep is DEM-fixed, so cache per site
 
 
