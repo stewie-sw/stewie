@@ -116,6 +116,76 @@ def dem_site_lonlat(x: float, y: float, site: str = "haworth", _auth: str = Depe
     return {"ok": True, "site": site, "lat": round(lat, 6), "lon": round(lon, 6)}
 
 
+@router.get("/dem/site_meta")
+def dem_site_meta(site: str = "haworth", _auth: str = Depends(require_auth)):
+    """viz3d geospatial upgrade (design §5): the tile's REAL georeference metadata so the 3D viewer's
+    frame manager (viz3d/frame.js) can place the DEM on the body-fixed globe + build its coarse
+    metres->lonlat grid WITHOUT re-deriving the CRS transform in the browser (the #1 offset trap). Every
+    field comes from the committed bundle's metadata.json (grid / world_bounds_m / dem_provenance) or the
+    authoritative pyproj reproject -- nothing fabricated:
+
+    - ``crs``          the tile's CRS id (IAU_2015:30135 south-polar stereographic).
+    - ``bounds_m``     the tile's projected extent {x0,y0,x1,y1} [m] in that CRS (metadata.world_bounds_m).
+    - ``pixel_size_m`` the native cell size (metadata.grid.cell_m).
+    - ``width/height`` the native grid dimensions; ``tile_m`` the order-frame native span ((dim-1)*cell,
+                       == native_full_window_m -- the [0, tile_m] extent the viewer's coarse grid covers).
+    - ``nodata``       the value the served heightfield encodes nodata as. dart.dem_import replaces the
+                       source GDAL_NODATA sentinel with float NaN on ingest (dem_import.py: Z=where(==nd, nan)),
+                       so /dem/heightfield_full streams NaN for a nodata cell -> the viewer masks Number.isNaN.
+    - ``vertical_datum`` the height datum: the MOON_ME sphere (R from dem_provenance.sphere_radius_m) + the
+                       z semantics (height above the sphere, NOT absolute radius).
+    - ``origin_lonlat`` the selenographic lon/lat of the order-frame origin (0,0), via dem_origin_to_latlon
+                       (the same reproject the hover/plot readout uses); null if pyproj ([planner]) is absent.
+
+    require_auth-gated like the other /dem transform routes (/dem/site_xy, /dem/site_lonlat). Declared
+    BEFORE /dem/{name} so the literal path wins. 404 on an unknown / unimported site."""
+    from stewie.terrain.site_dem import bundle_for_site, dem_origin_to_latlon
+    try:
+        bundle = bundle_for_site(site)
+    except KeyError as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    except FileNotFoundError as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    meta_path = os.path.join(bundle, "metadata.json")
+    if not os.path.isfile(meta_path):
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"no DEM metadata for site {site!r}"})
+    with open(meta_path) as f:
+        meta = json.load(f)
+    grid = meta.get("grid") or {}
+    wb = meta.get("world_bounds_m") or {}
+    prov = meta.get("dem_provenance") or {}
+    cell = float(grid["cell_m"])
+    width, height = int(grid["width"]), int(grid["height"])
+    # crs: the tile's own frame label (mirror dem_georef_corners) -- IAU_2015:30135 for the curated sites,
+    # an ad-hoc local frame carries its own georeference.crs_kind. No pyproj needed for the label.
+    crs = (meta.get("georeference") or {}).get("crs_kind") or "IAU_2015:30135"
+    # nodata: an explicit sentinel if the bundle records one, else the ingest convention (NaN) the served
+    # heightfield actually carries (dart.dem_import converts the source GDAL_NODATA to NaN). NOT fabricated.
+    nd = meta.get("nodata")
+    if nd is None:
+        nd = ((meta.get("fields") or {}).get("heightmap") or {}).get("nodata")
+    nodata = nd if nd is not None else "NaN"
+    out = {
+        "ok": True, "site": site, "crs": crs,
+        "bounds_m": {"x0": float(wb["x0"]), "y0": float(wb["y0"]),
+                     "x1": float(wb["x1"]), "y1": float(wb["y1"])},
+        "pixel_size_m": cell, "width": width, "height": height,
+        "tile_m": {"x": (width - 1) * cell, "y": (height - 1) * cell},   # order-frame native extent [0, tile_m]
+        "nodata": nodata,
+        "vertical_datum": {
+            "name": "MOON_ME",
+            "sphere_radius_m": float(prov.get("sphere_radius_m", 1737400.0)),
+            "z_semantics": prov.get("z_semantics", "height above sphere [m]"),
+        },
+    }
+    try:                                                # origin lon/lat via the authoritative reproject
+        lat0, lon0 = dem_origin_to_latlon(0.0, 0.0, bundle_dir=bundle)
+        out["origin_lonlat"] = {"lon": round(lon0, 6), "lat": round(lat0, 6)}
+    except ImportError:                                 # pyproj ([planner] extra) absent -> metadata still useful
+        out["origin_lonlat"] = None
+    return out
+
+
 @router.get("/dem/sources")
 def dem_sources_catalog(_auth: str = Depends(require_auth)):
     """#150: the lunar DEM source catalog -- every selectable base layer with provenance, license, and
