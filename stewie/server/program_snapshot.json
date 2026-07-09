@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "208c734314fb6c7b2a39cbae0be8fab052b63769ab5d18821fe9f7e31aa19c7d",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "be991aa6c65f8a5f5325f7bbe87cff22281b2b3e",
-  "prd_sha256": "18e4741b75b653025a1ef84eb943ae9aa4b5e1f0267d66c8fbb37864459b6617",
-  "specs_sha256": "ef3cd4aa6bc3955973a4785418d86dfbc9c6b604450d5c061eaf55de82735164"
+  "prd_commit": "1290b6c4155da98636475bb4876c7233e8a93ae9",
+  "prd_sha256": "1df1f1fc3423fc4990213ee4e899f6aede3bedfe9c2ab442c49e88890451bd4d",
+  "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
   {
@@ -1283,6 +1283,78 @@
    "lane": "CT",
    "pri": "P1",
    "text": "Every artifact records source commit, configuration, mode, seed, schema version, and input hashes."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DA-01",
+   "lane": "DA",
+   "pri": "P2",
+   "text": "**Central file-server folder taxonomy + mount convention.** A documented shared-server layout ({maps, dem, imagery, missions, telemetry, world_model, planning, simulation, exports, training, archive, backups}) that the deploy mounts reflect, so shared data lives ONCE on the server (no per-workstation copies); the compose raster/vector mounts + `$STEWIE_DATA_DIR` map onto the taxonomy, and a deploy-doc section states which artifact class lives in which folder. (extends deploy/compose.yml mounts + deploy/DEPLOY.md; the plan-anywhere LDEM read-only mount is already this shape)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DA-02",
+   "lane": "DA",
+   "pri": "P2",
+   "text": "**Shared GeoPackage interchange store (Phase 1).** Vectors (mission features, keep-outs, site polygons) round-trip to/from a `.gpkg` on the shared server via the QGIS Processing provider + a backend export/import path, with CRS/frame validation on import; a `.gpkg` written by QGIS and re-imported preserves geometry + attributes in the lunar CRS. (extends the QGIS Processing provider #46 + gis import/export)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DA-03",
+   "lane": "DA",
+   "pri": "P1",
+   "text": "**PostGIS vector + world-state store (Phase 2).** The `postgres`/`db`-profile PostGIS service stands up and `STEWIE_DATABASE_URL` (async) is wired so vector layers + a world-state index persist in PostGIS (concurrent edits, transactions, versioning); the backend boots against Postgres AND still boots with no DB (file fallback), and a vector feature written by one session is transactionally visible to another. (extends compose postgres + persistence design + objects.py)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DA-04",
+   "lane": "DA",
+   "pri": "P1",
+   "text": "**Durable edit sessions (GW-08 -> persistent store).** The GW-08 keep-out/mission-feature edit session moves off the process-memory `_SESSIONS` dict into the durable store (SQLite fallback or PostGIS), so an in-progress edit session + its versioned before/after audit + undo SURVIVE a backend restart; a session created, mutated, then reloaded after a simulated restart replays identically. (extends stewie/server/edit_session.py; the clearest persistence defect)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DA-05",
+   "lane": "DA",
+   "pri": "P2",
+   "text": "**Automated backups + user permissions (Phase 2).** Scheduled backups (PostGIS dumps + file-store snapshots -> `/backups`, dated, restorable) and per-role read/write permissions (viewer/editor/director, mission sign-off director-gated) so multi-user WRITE is safe; a restore from a backup reproduces the vector + world-state, and a viewer-role write is refused. (extends deploy + the \u00a77.12 access/identity governance lane)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DA-06",
+   "lane": "DA",
+   "pri": "P2",
+   "text": "**Phase-3 live world model -- ROS2 writes + near-real-time QGIS.** The central world-model DB is authoritative mutable state: ROS2 writes mission updates through the gated ingest bridge (IN-01), STEWIE folds terrain after every mission (the SIM execute->remember loop, already built), and QGIS/QWC2 renders the latest world state within one refresh off the same store; a replayed mission updates the world model and the next map read reflects it. (extends IN-01 + the SIM execute->remember loop + DT-04 Terrain Memory)"
   },
   {
    "I": "D",
@@ -4435,9 +4507,9 @@
    "V": "D",
    "X": "D",
    "brief": {
-    "goal": "closed tier {raw,derived,belief,world,mission} on every LY-01 entry + twin surface with promotion enforcement.",
+    "goal": "Phase-3 live world model -- ROS2 writes mission updates through the gated ingest; terrain folds after each mission; QGIS near-real-time.",
     "kind": "atomic",
-    "test_target": "stewie/server/test_layer_tier_enforcement.py"
+    "test_target": "stewie/twin/test_world_model_live_update.py"
    },
    "bucket": "done",
    "cited": true,
@@ -5668,7 +5740,7 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 106,
+   "buildable": 112,
    "concurrent": 0,
    "done": 255,
    "gated": 30
@@ -5737,6 +5809,10 @@
    "CT": {
     "done": 7,
     "total": 7
+   },
+   "DA": {
+    "done": 0,
+    "total": 6
    },
    "DE": {
     "done": 1,
@@ -5958,11 +6034,11 @@
    },
    "P1": {
     "done": 143,
-    "total": 218
+    "total": 220
    },
    "P2": {
     "done": 4,
-    "total": 53
+    "total": 57
    },
    "P3": {
     "done": 0,
@@ -5970,10 +6046,10 @@
    }
   },
   "cited": 276,
-  "done_pct": 65.2,
-  "in_scope": 361,
-  "in_scope_done_pct": 70.6,
-  "total": 391
+  "done_pct": 64.2,
+  "in_scope": 367,
+  "in_scope_done_pct": 69.5,
+  "total": 397
  },
  "workflow_spine": [
   "Plan",
