@@ -27,6 +27,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from stewie.server.cache_control import classify as _cache_directive  # [systems-eng] public-GET Cache-Control policy
+
 # PRD N10: structured logging + observability. Used for access logs, startup, and the additive
 # failure paths. Level via $STEWIE_LOG_LEVEL.
 log = logging.getLogger("stewie.server")
@@ -125,6 +127,27 @@ async def _security_headers(request: Request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+    return response
+
+
+@app.middleware("http")
+async def _cache_control(request: Request, call_next):
+    """[systems-eng] Cache-Control on the KEYLESS PUBLIC GETs the /ide binds. DYNAMIC world/planner reads
+    (site markers, per-cell/transect reads, layer manifest/catalog/consumption, traffic + terramechanics
+    layers, site suitability, hazard keep-outs, and the mutable ``traffic`` drape) get ``no-store`` -- a
+    stale edge/browser cache would show WRONG data. STATIC LOLA-DEM-derived products (the full-res
+    heightfield + meta + analysis drape, graticule, legend, globe drape PNGs + bbox, OGC WMS) get a short
+    ``public, max-age`` -- safe to edge-cache; no-store would kill the viz. The path->policy table lives in
+    ``stewie.server.cache_control``; a route's own longer max-age (``/dem/heightfield_full`` = 3600) is
+    preserved (setdefault)."""
+    response = await call_next(request)
+    directive = _cache_directive(request.url.path, request.query_params)
+    if directive is not None:
+        value, overwrite = directive
+        if overwrite:
+            response.headers["Cache-Control"] = value                      # dynamic: never store (errors too)
+        elif response.status_code == 200:
+            response.headers.setdefault("Cache-Control", value)            # static 2xx: keep a longer route header
     return response
 
 # ARCH-3: per-concern routers (the RC command path first, per §21). Each owns its own state + imports

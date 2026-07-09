@@ -32,6 +32,7 @@ import SideBar from 'qwc2/components/SideBar';
 
 import HtmlEsc from '../mission/htmlesc';   // verbatim FS-24 esc (window.STEWIE_HTMLESC + default export)
 import PB from '../mission/programBoard';   // lifted /program renderers (window.STEWIE_PROGRAM_BOARD)
+import FT from '../mission/fetchWithTimeout';   // [systems-eng] bounded read: abort a hung /program/snapshot
 
 const esc = HtmlEsc.esc;
 const GIS_LANES = PB.GIS_LANES;
@@ -140,7 +141,7 @@ class MissionProgram extends React.Component {
     componentDidMount() {
         // fetch the SAME committed snapshot the cockpit serves, through the keyless /api proxy (public,
         // GET-only). Errors surface in the panel rather than a blank board.
-        fetch('/api/program/snapshot')
+        FT.fetchWithTimeout('/api/program/snapshot', {}, FT.DEFAULT_MS)
             .then((r) => { if (!r.ok) { throw new Error('snapshot HTTP ' + r.status); } return r.json(); })
             .then((snap) => this.setState({snap}))
             .catch((e) => this.setState({error: e.message}));

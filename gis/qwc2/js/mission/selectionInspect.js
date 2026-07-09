@@ -48,11 +48,15 @@
   }
 
   // --- async fetch helpers (guard the global fetch so the module still imports under node) ------------
+  // the bounded-fetch wrapper: require() under node:test/webpack, window global in a raw browser bundle.
+  var FT = (typeof module !== "undefined" && module.exports)
+    ? require("./fetchWithTimeout.js") : (root && root.STEWIE_FETCH_TIMEOUT);
   function _fetch() { return (typeof fetch !== "undefined") ? fetch : null; }
   function _getJson(url) {
     var f = _fetch();
     if (!f) return Promise.reject(new Error("no fetch"));
-    return f(url, { credentials: "same-origin" }).then(function (r) {
+    // bounded read: a hung backend aborts after DEFAULT_MS and surfaces a legible error, never hangs the panel.
+    return FT.fetchWithTimeout(url, { credentials: "same-origin" }, FT.DEFAULT_MS, f).then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status + " for " + url);
       return r.json();
     });

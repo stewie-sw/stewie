@@ -31,6 +31,7 @@ import CoordinatesUtils from 'qwc2/utils/CoordinatesUtils';
 
 import WholeMoonGlobe from '../mission/wholeMoonGlobe';
 import WS from '../mission/workspace.js';   // #50: propagate the dived-to site to the shared workspace
+import FT from '../mission/fetchWithTimeout';   // [systems-eng] bounded read: abort a hung /world/site-markers
 
 // The lunar geographic CRS (selenographic lon/lat, +proj=longlat +R=1737400) — registered from
 // config.json `projections`. Site coords come from /api/sites in this frame; we reproject to the map's
@@ -97,7 +98,7 @@ class WholeMoon extends React.Component {
         // PUBLIC Artemis-site markers via the keyless GET /api/world/site-markers (NOT the auth-gated
         // /api/sites, which 401s to the browser -- nginx forwards no key and S-06 keeps the registry gated).
         // Sourced from the SAME artemis_sites.geojson that draws the main-map pins, so a dive lands on a pin.
-        fetch('/api/world/site-markers').then((r) => r.json()).then((j) => {
+        FT.fetchWithTimeout('/api/world/site-markers', {}, FT.DEFAULT_MS).then((r) => r.json()).then((j) => {
             const sites = (j && Array.isArray(j.sites)) ? j.sites : [];
             if (this.ctrl && this.cesium) {
                 WholeMoonGlobe.addSites(this.cesium, this.ctrl, sites);

@@ -24,11 +24,15 @@
   function base() { return API_BASE; }
   function setApiBase(b) { API_BASE = b; }
 
+  // the bounded-fetch wrapper: require() under node:test/webpack, window global in a raw browser bundle.
+  var FT = (typeof module !== "undefined" && module.exports)
+    ? require("./fetchWithTimeout.js") : (root && root.STEWIE_FETCH_TIMEOUT);
+
   // The PUBLIC derive-keep-outs-from-hazard endpoint (per-site work-area hazard vector product).
   function url(site) { return API_BASE + "/world/keepouts-from-hazard?site=" + encodeURIComponent(site); }
 
   function fetchKeepouts(site) {
-    return fetch(url(site)).then(function (r) {
+    return FT.fetchWithTimeout(url(site), {}, FT.DEFAULT_MS).then(function (r) {
       if (!r.ok) {
         // 404 = the site has no imported DEM bundle; surface the backend reason if present.
         return r.json().then(function (b) {

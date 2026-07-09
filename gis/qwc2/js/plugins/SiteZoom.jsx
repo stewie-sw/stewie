@@ -44,6 +44,7 @@ import MapUtils from 'qwc2/utils/MapUtils';
 
 import SZ from '../mission/siteZoom';   // pure hit-test + WholeMoon-identical framing box (node-tested)
 import WS from '../mission/workspace.js';   // #50: propagate the clicked site to the shared workspace
+import FT from '../mission/fetchWithTimeout';   // [systems-eng] bounded read: abort a hung /world/site-markers
 
 // The tasks that OWN a map singleclick (each reads it or attaches its own Draw/Modify interaction). While any
 // is the current task, the site-zoom default stands down so it never steals their click or flies the view out
@@ -104,7 +105,7 @@ class SiteZoom extends React.Component {
     // the operational registry gated). site-markers is sourced from the SAME artemis_sites.geojson that draws
     // the VISIBLE main-map pins, so a click lands on the box a pin marks. Rows: {name, label, lon, lat, extent_m}.
     _loadSites = () => {
-        fetch('/api/world/site-markers').then((r) => r.json()).then((j) => {
+        FT.fetchWithTimeout('/api/world/site-markers', {}, FT.DEFAULT_MS).then((r) => r.json()).then((j) => {
             this.sites = (j && Array.isArray(j.sites)) ? j.sites : [];
             this.forceUpdate();   // the chip resolves the site NAME -> friendly label once the markers load
         }).catch(() => { this.sites = []; });   // no sites -> every click is a miss -> default behavior stands

@@ -12,10 +12,14 @@
   function base() { return API_BASE; }
   function setApiBase(b) { API_BASE = b; }
 
+  // the bounded-fetch wrapper: require() under node:test/webpack, window global in a raw browser bundle.
+  var FT = (typeof module !== "undefined" && module.exports)
+    ? require("./fetchWithTimeout.js") : (root && root.STEWIE_FETCH_TIMEOUT);
+
   function profilesUrl() { return API_BASE + "/runtime/profiles"; }
 
   function fetchProfiles() {
-    return fetch(profilesUrl()).then(function (r) {
+    return FT.fetchWithTimeout(profilesUrl(), {}, FT.DEFAULT_MS).then(function (r) {
       if (!r.ok) { throw new Error("runtime-profiles HTTP " + r.status); }
       return r.json();
     });

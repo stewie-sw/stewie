@@ -12,11 +12,15 @@
   function base() { return API_BASE; }
   function setApiBase(b) { API_BASE = b; }
 
+  // the bounded-fetch wrapper: require() under node:test/webpack, window global in a raw browser bundle.
+  var FT = (typeof module !== "undefined" && module.exports)
+    ? require("./fetchWithTimeout.js") : (root && root.STEWIE_FETCH_TIMEOUT);
+
   // The PUBLIC terramechanics-spine endpoint (the per-site physics decomposition).
   function spineUrl(site) { return API_BASE + "/world/terramechanics-layers?site=" + encodeURIComponent(site); }
 
   function fetchSpine(site) {
-    return fetch(spineUrl(site)).then(function (r) {
+    return FT.fetchWithTimeout(spineUrl(site), {}, FT.DEFAULT_MS).then(function (r) {
       if (!r.ok) { throw new Error("terramechanics-spine HTTP " + r.status); }
       return r.json();
     });
@@ -46,7 +50,7 @@
   // authority scope, mass-conservation, per-lifecycle validity, and the refusal reason. (PH-01, now keyless.)
   function authorityUrl() { return API_BASE + "/physics/authority"; }
   function fetchAuthority() {
-    return fetch(authorityUrl()).then(function (r) {
+    return FT.fetchWithTimeout(authorityUrl(), {}, FT.DEFAULT_MS).then(function (r) {
       if (!r.ok) { throw new Error("physics-authority HTTP " + r.status); }
       return r.json();
     });

@@ -31,6 +31,7 @@ import MapUtils from 'qwc2/utils/MapUtils';
 import CS from '../mission/crossSection.js';    // #45: pure densify + profile series / PSR bands (node-tested)
 import WS from '../mission/workspace.js';        // GW-02: the shared workspace-context store (active site)
 import RG from '../mission/reqGuard.js';         // #57: last-request-wins / stale-site guard
+import FT from '../mission/fetchWithTimeout';    // [systems-eng] bounded read: abort a hung /world/transect
 
 const GEO_CRS = 'IAU_2015:30100';                // selenographic lon/lat (the backend transect frame)
 const N_SAMPLES = 128;                           // densified transect samples (<=512; backend caps)
@@ -108,10 +109,10 @@ class MissionCrossSection extends React.Component {
         const site = WS.site();
         const tok = this._rg.next();   // #57: last-transect-wins + drop if the site changed while in flight
         this.setState({loading: true, error: null});
-        fetch('/api/world/transect', {
+        FT.fetchWithTimeout('/api/world/transect', {
             method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({site: site, frame: 'lonlat', points: lonlat})
-        }).then((r) => { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
+        }, FT.DEFAULT_MS).then((r) => { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
             .then((profile) => {
                 if (!this._rg.current(tok) || WS.site() !== site) { return; }
                 this.setState({profile, loading: false});

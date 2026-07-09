@@ -21,6 +21,9 @@
 
   // GW-02: the site default comes from the shared workspace (workspace.js) -- one source, not a literal.
   var WS = (typeof module !== "undefined" && module.exports) ? require("./workspace.js") : (root && root.STEWIEWorkspace);
+  // the bounded-fetch wrapper: require() under node:test/webpack, window global in a raw browser bundle.
+  var FT = (typeof module !== "undefined" && module.exports)
+    ? require("./fetchWithTimeout.js") : (root && root.STEWIE_FETCH_TIMEOUT);
 
   // Same-origin mission API (the IDE is served at /ide/; FastAPI is reverse-proxied at /api/). Overridable.
   var API_BASE = "/api";
@@ -182,7 +185,8 @@
     var f = _fetch();
     if (!f) return Promise.reject(new Error("no fetch"));
     var url = bundleUrl(opts);
-    return f(url, { credentials: "same-origin" }).then(function (r) {
+    // bounded read: a hung backend aborts after DEFAULT_MS and surfaces a legible error, never hangs the panel.
+    return FT.fetchWithTimeout(url, { credentials: "same-origin" }, FT.DEFAULT_MS, f).then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status + " for " + url);
       return r.json();
     });

@@ -46,6 +46,7 @@ import Style from 'ol/style/Style';
 import Text from 'ol/style/Text';
 
 import PlanTools from './planTools';   // pure tool-palette logic (traverse/goto, return-to-lander, place-object)
+import FT from './fetchWithTimeout';   // [systems-eng] bounded reads: abort a hung backend GET, never hang the panel
 
 const MAP_CRS = 'IAU_2015:30135';   // the lunar polar-stereographic workbench CRS (state.map.projection)
 const GEO_CRS = 'IAU_2015:30100';   // selenographic lon/lat (order-anchor + globe bbox frame)
@@ -519,7 +520,7 @@ export default class PlanAuthor {
         this.planSource.clear();
         this.traverseSource.clear();
         this._setHint('Loading ' + site + ' work area…');
-        return fetch('/api/layers/globe/dem/bbox?site=' + encodeURIComponent(site))
+        return FT.fetchWithTimeout('/api/layers/globe/dem/bbox?site=' + encodeURIComponent(site), {}, FT.DEFAULT_MS)
             .then((r) => { if (!r.ok) { throw new Error('bbox HTTP ' + r.status); } return r.json(); })
             .then((bb) => {
                 if (!bb || bb.ok === false) { throw new Error((bb && bb.error) || 'no bbox'); }
@@ -682,7 +683,7 @@ export default class PlanAuthor {
     // the artemis nginx injects the shared key (the route is operator-gated but now key-injected at the proxy).
     loadTemplates() {
         if (this.templates) { return Promise.resolve(this.templates); }
-        return fetch('/api/construction')
+        return FT.fetchWithTimeout('/api/construction', {}, FT.DEFAULT_MS)
             .then((r) => { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
             .then((d) => {
                 if (!d || d.ok === false || !Array.isArray(d.templates)) {
@@ -1896,7 +1897,7 @@ export default class PlanAuthor {
     // On completion, link the keyless /api/evidence navigation-evidence bundle (accuracy/precision blurb +
     // a downloadable JSON) alongside the mission-report PDF. Structured for the React panel (no HTML string).
     _loadEvidence() {
-        return fetch('/api/evidence')
+        return FT.fetchWithTimeout('/api/evidence', {}, FT.DEFAULT_MS)
             .then((r) => (r.ok ? r.json() : null))
             .then((j) => {
                 if (!j || !j.ok) { return; }

@@ -18,6 +18,34 @@ const WIRE = { color: 0x35e0d0, base: 0.10, dim: 0.04 };
 // above this size. The relief mesh itself renders fine at full res (Uint32 indices); only the wire is capped.
 const WIRE_MAX_N = 1200;
 
+// [systems-eng] bounded fetch: a hung/slow backend read (heightfield_full is a few MB) must ABORT after
+// `ms` and reject legibly, never hang the viewer forever. Self-contained here -- viz3d.js is a standalone
+// /assets ES module, separate from the qwc2 mission bundle's fetchWithTimeout.js (same contract, no shared
+// import across the two bundles). The timer clears the instant the request settles; on timeout it aborts the
+// socket AND rejects on its own so the bound holds even if the runtime's fetch ignores the signal.
+const HEIGHTFIELD_TIMEOUT_MS = 60000;   // few-MB native-resolution binary: a generous bound for a big transfer
+const DEM_READ_TIMEOUT_MS = 20000;      // graticule (JSON polylines)
+const HOVER_TIMEOUT_MS = 15000;         // debounced selenographic lon/lat lookup
+function _fetchT(url, ms) {
+  const ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      if (ctrl) { try { ctrl.abort(); } catch (e) { /* free the socket */ } }
+      reject(new Error("request timed out after " + ms + " ms: " + url));
+    }, ms);
+    fetch(url, ctrl ? { signal: ctrl.signal } : {}).then((r) => {
+      if (settled) return;
+      settled = true; clearTimeout(timer); resolve(r);
+    }, (e) => {
+      if (settled) return;
+      settled = true; clearTimeout(timer); reject(e);
+    });
+  });
+}
+
 function mount(container) {
   const w = container.clientWidth || 900, h = container.clientHeight || 600;
   S.container = container;
@@ -91,7 +119,7 @@ async function loadSite(site, opts) {
   if (opts.x0 != null) qp.set("x0", String(opts.x0));
   if (opts.y0 != null) qp.set("y0", String(opts.y0));
   if (opts.max_dim != null) qp.set("max_dim", String(opts.max_dim));
-  const r = await fetch("/dem/heightfield_full?" + qp.toString());
+  const r = await _fetchT("/dem/heightfield_full?" + qp.toString(), HEIGHTFIELD_TIMEOUT_MS);
   if (!r.ok) { throw new Error("heightfield_full " + r.status + " for site " + S.site); }
   const meta = {
     site: r.headers.get("X-Dem-Site") || S.site,
@@ -262,7 +290,7 @@ async function loadGraticule() {
   if (!S.meta) return;
   const qp = new URLSearchParams({ site: S.site, window_m: S.meta.window_m, x0: S.meta.x0, y0: S.meta.y0 });
   try {
-    const r = await fetch("/dem/graticule?" + qp.toString());
+    const r = await _fetchT("/dem/graticule?" + qp.toString(), DEM_READ_TIMEOUT_MS);
     if (!r.ok) { S._gratData = null; return; }
     const body = await r.json();
     S._gratData = (body && body.ok) ? body.lines : null;
@@ -306,7 +334,7 @@ function _hoverPick(el, e) {
   const gen = ++_llGen;
   _llTimer = setTimeout(async () => {
     try {
-      const r = await fetch("/dem/site_lonlat?x=" + (m.x0 + lx) + "&y=" + (m.y0 + ly) + "&site=" + encodeURIComponent(S.site));
+      const r = await _fetchT("/dem/site_lonlat?x=" + (m.x0 + lx) + "&y=" + (m.y0 + ly) + "&site=" + encodeURIComponent(S.site), HOVER_TIMEOUT_MS);
       const d = await r.json();
       if (gen !== _llGen || !S._onHover) return;
       if (d && d.ok) { out.lat = d.lat; out.lon = d.lon; S._onHover(out); }
