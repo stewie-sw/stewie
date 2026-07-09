@@ -36,6 +36,7 @@ import React from 'react';
 import {connect} from 'react-redux';
 
 import PropTypes from 'prop-types';
+import ResizeableWindow from 'qwc2/components/ResizeableWindow';
 import SideBar from 'qwc2/components/SideBar';
 
 import RG from '../mission/reqGuard.js';    // #57: last-load-wins / stale-site guard
@@ -107,7 +108,8 @@ class MissionTerrain3D extends React.Component {
         error: null,
         meta: null,       // last loaded X-Dem-* meta (resolution / relief), for the status line
         site: WS.site(),  // the active workspace site (drives the header)
-        hover: null       // last onHover payload, coalesced to <=1 setState/frame
+        hover: null,      // last onHover payload, coalesced to <=1 setState/frame
+        floating: false   // task #56: pop out of the SideBar into a draggable/resizable ResizeableWindow
     };
     constructor(props) {
         super(props);
@@ -255,10 +257,24 @@ class MissionTerrain3D extends React.Component {
             </div>
         );
     }
+    // task #56: float control -- pops the panel out of the SideBar into a draggable/resizable ResizeableWindow
+    // (see render()). Shown only while docked; the floating window's own titlebar close returns it to the SideBar.
+    _setFloating = () => { this.setState({floating: true}); };
     renderBody = () => {
         const s = this.state;
         return (
             <div style={{background: '#0a0a0c', color: '#c7d2e3', padding: '8px', font: '11px system-ui, sans-serif'}}>
+                {!s.floating && (
+                    <button
+                        data-stewie-float="1" onClick={this._setFloating} type="button"
+                        title="pop out into a floating, draggable/resizable window"
+                        style={{
+                            display: 'block', marginBottom: '6px', cursor: 'pointer',
+                            font: '600 10px system-ui, sans-serif', padding: '4px 8px', borderRadius: '4px',
+                            border: '1px solid #39c6ff66', color: '#39c6ff', background: '#39c6ff14'
+                        }}
+                    >⤢ Float</button>
+                )}
                 <div style={{fontSize: '10px', color: '#8a93a3', marginBottom: '6px', lineHeight: 1.4}}>
                     Full-resolution 3D terrain for the active site — <b style={{color: '#4db6d4'}}>{s.site}</b> — synced
                     to the 2D map. Drag to orbit, scroll to zoom; hover for coordinates.
@@ -310,7 +326,24 @@ class MissionTerrain3D extends React.Component {
             </div>
         );
     };
+    // task #56: while floating, render() returns a ResizeableWindow instead of the SideBar. This plugin's
+    // render() runs unconditionally regardless of state.task.id (the SideBar self-hides on task, not the
+    // plugin), so the floating window shows independent of whichever task is "current" -- the mechanism that
+    // lets this float alongside a floating MissionPlan. The container ref inside renderBody() (mount/dispose
+    // of window.STEWIE_VIZ) is unaffected: exactly one of the two branches renders at a time, so there is
+    // still only ever one container in the tree -> no double-mount.
     render() {
+        if (this.state.floating) {
+            return (
+                <ResizeableWindow
+                    dockable="right" icon="map3d" initialHeight={560} initialWidth={440}
+                    initialX={480} initialY={70} maximizeable minimizeable
+                    onClose={() => this.setState({floating: false})} scrollable title="Terrain 3D"
+                >
+                    {this.renderBody()}
+                </ResizeableWindow>
+            );
+        }
         return (
             <SideBar icon="map3d" id="MissionTerrain3D" side={this.props.side} title="Terrain 3D" width="26em">
                 {() => ({body: this.renderBody()})}

@@ -24,6 +24,7 @@ import React from 'react';
 import {connect} from 'react-redux';
 
 import {setCurrentTask} from 'qwc2/actions/task';
+import ResizeableWindow from 'qwc2/components/ResizeableWindow';
 import SideBar from 'qwc2/components/SideBar';
 import CoordinatesUtils from 'qwc2/utils/CoordinatesUtils';
 import MapUtils from 'qwc2/utils/MapUtils';
@@ -121,7 +122,8 @@ class MissionPlan extends React.Component {
         // so a later site change auto-invalidates the display (the card falls back to the Survey button).
         suit: null, suitLoading: false, suitErr: null, suitSite: null,
         // council #52: the "Derive keep-outs from hazard" action state (fetch -> add to the mission keep-outs).
-        deriveKO: false, deriveKOMsg: null, deriveKOErr: null
+        deriveKO: false, deriveKOMsg: null, deriveKOErr: null,
+        floating: false  // task #56: pop out of the SideBar into a draggable/resizable ResizeableWindow
     };
     constructor(props) {
         super(props);
@@ -208,6 +210,9 @@ class MissionPlan extends React.Component {
     // app-menu entry uses (WholeMoon/SelectionInspector/MissionCrossSection), just fired from a panel button
     // instead of the TopBar menu.
     onOpen3D = () => { if (this.props.setCurrentTask) { this.props.setCurrentTask('MissionTerrain3D'); } };
+    // task #56: float control -- pops the panel out of the SideBar into a draggable/resizable ResizeableWindow
+    // (see render()), so it can stay open alongside a floating MissionTerrain3D.
+    _setFloating = () => { this.setState({floating: true}); };
     // STRUCTURE templates (T11): pick a template, edit its params, place it -> backend-decomposed orders.
     onStructure = (name) => { if (this.ctrl) { this.ctrl.setStructure(name); } };
     onStructParam = (k, e) => { if (this.ctrl) { this.ctrl.setStructParam(k, e.target.value); } };
@@ -1632,6 +1637,17 @@ class MissionPlan extends React.Component {
         const lbl = {fontSize: '9px', letterSpacing: '.06em', color: '#7a8290', textTransform: 'uppercase'};
         return (
             <div style={wrapStyle}>
+                {!this.state.floating && (
+                    <button
+                        data-stewie-float="1" onClick={this._setFloating} type="button"
+                        title="pop out into a floating, draggable/resizable window"
+                        style={{
+                            display: 'block', marginBottom: '6px', cursor: 'pointer',
+                            font: '600 10px system-ui, sans-serif', padding: '4px 8px', borderRadius: '4px',
+                            border: '1px solid #39c6ff66', color: '#39c6ff', background: '#39c6ff14'
+                        }}
+                    >⤢ Float</button>
+                )}
                 <div style={{fontSize: '10px', color: '#8a93a3', marginBottom: '8px', lineHeight: 1.4}}>
                     Place cut/fill orders on the map, then <b>Plan</b> to route them on the real DEM via the
                     STEWIE planner (<b>/api/plan</b>). Route = gold, haul = blue-dashed, charger = green.
@@ -1770,7 +1786,22 @@ class MissionPlan extends React.Component {
         );
     };
 
+    // task #56: while floating, render() returns a ResizeableWindow instead of the SideBar. Like
+    // MissionTerrain3D, this plugin's render() runs unconditionally regardless of state.task.id (the SideBar
+    // self-hides on task, not the plugin), so a floating Mission Plan shows independent of whichever task is
+    // "current" -- the mechanism that lets it coexist with a floating MissionTerrain3D at the same time.
     render() {
+        if (this.state.floating) {
+            return (
+                <ResizeableWindow
+                    dockable="right" icon="draw" initialHeight={620} initialWidth={380}
+                    initialX={70} initialY={70} maximizeable minimizeable
+                    onClose={() => this.setState({floating: false})} scrollable title="Mission Plan"
+                >
+                    {this.renderBody()}
+                </ResizeableWindow>
+            );
+        }
         return (
             <SideBar
                 icon="draw"
