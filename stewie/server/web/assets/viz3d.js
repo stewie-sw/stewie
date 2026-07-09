@@ -29,6 +29,7 @@ const WIRE_MAX_N = 1200;
 const HEIGHTFIELD_TIMEOUT_MS = 60000;   // few-MB native-resolution binary: a generous bound for a big transfer
 const DEM_READ_TIMEOUT_MS = 20000;      // graticule (JSON polylines)
 const HOVER_TIMEOUT_MS = 15000;         // debounced selenographic lon/lat lookup
+const LAYER_TIMEOUT_MS = 45000;         // draped analysis raster (server-side O(P^2..P^3) illumination/PSR render can stall)
 function _fetchT(url, ms) {
   const ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
   return new Promise((resolve, reject) => {
@@ -49,7 +50,15 @@ function _fetchT(url, ms) {
   });
 }
 
+// [GW-11] a monotonically-incrementing session generation for the async plot/measure lonlat emits, plus a
+// render-loop token. `_plotGen` is bumped on every loadSite (site switch) and dispose so an in-flight
+// /dem/site_lonlat lookup started against the OLD site/context is dropped instead of emitting a wrong-site
+// waypoint (mirrors the _llGen hover guard). `_rafToken` ensures only the latest _loop() rAF chain survives a
+// re-mount, so a second mount (or a mount racing a pre-dispose pending rAF) never double-runs the loop.
+let _plotGen = 0, _rafToken = 0;
+
 function mount(container) {
+  if (S.ready || S.renderer) { dispose(); }   // already mounted (or a pre-dispose remount) -> tear the old renderer/loop down first, so exactly one exists
   const w = container.clientWidth || 900, h = container.clientHeight || 600;
   S.container = container;
   S.scene = new THREE.Scene();
@@ -75,7 +84,7 @@ function mount(container) {
   S._ro = new ResizeObserver(() => _resize());
   S._ro.observe(container);
   S.ready = true;
-  _loop();
+  _loop(++_rafToken);            // token-gated: a superseded loop (older token) bails instead of double-rendering
   return true;
 }
 
@@ -89,7 +98,15 @@ function _resize() {
 function _bindControls(el) {
   let drag = false, px = 0, py = 0, dx0 = 0, dy0 = 0;
   el.style.cursor = "grab";
-  el.addEventListener("pointerdown", (e) => { drag = true; px = e.clientX; py = e.clientY; dx0 = e.clientX; dy0 = e.clientY; el.style.cursor = "grabbing"; el.setPointerCapture(e.pointerId); });
+  // [GW-11] scope every listener to an AbortController so dispose() removes them all at once (ctrl.abort()) --
+  // an embedded host (the /ide floating card) that mounts/unmounts on task change must not accumulate a fresh
+  // pointer/wheel handler set on the container per re-mount. (Older runtimes without AbortController: no signal,
+  // same pre-existing behavior; jsdom + evergreen browsers support it.)
+  const ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+  S._ctrlAbort = ctrl;
+  const sig = ctrl ? ctrl.signal : undefined;
+  const opt = sig ? { signal: sig } : undefined;
+  el.addEventListener("pointerdown", (e) => { drag = true; px = e.clientX; py = e.clientY; dx0 = e.clientX; dy0 = e.clientY; el.style.cursor = "grabbing"; el.setPointerCapture(e.pointerId); }, opt);
   el.addEventListener("pointerup", (e) => {
     drag = false; el.style.cursor = "grab"; try { el.releasePointerCapture(e.pointerId); } catch (_) { /* */ }
     // "Stay the spin" (task #77): the drag-orbit above stays fully active even with Shift held -- no mode
@@ -104,19 +121,19 @@ function _bindControls(el) {
     } else if (S._measureOn && moved < 5) {
       _measureAt(el, e);
     }
-  });
+  }, opt);
   el.addEventListener("pointermove", (e) => {
     if (!drag) { if (S._onHover) _hoverPick(el, e); return; }
     S.az -= (e.clientX - px) * 0.006;
     S.el = Math.max(0.05, Math.min(1.5, S.el - (e.clientY - py) * 0.006));
     px = e.clientX; py = e.clientY;
-  });
-  el.addEventListener("wheel", (e) => { e.preventDefault(); S.dist = Math.max(30, Math.min(3000000, S.dist * (1 + Math.sign(e.deltaY) * 0.12))); }, { passive: false });
+  }, opt);
+  el.addEventListener("wheel", (e) => { e.preventDefault(); S.dist = Math.max(30, Math.min(3000000, S.dist * (1 + Math.sign(e.deltaY) * 0.12))); }, sig ? { passive: false, signal: sig } : { passive: false });
 }
 
-function _loop() {
-  if (!S.ready) return;
-  requestAnimationFrame(_loop);
+function _loop(token) {
+  if (!S.ready || token !== _rafToken) return;   // stopped (dispose set ready=false) or superseded by a newer mount's loop
+  requestAnimationFrame(() => _loop(token));
   const cx = S.target.x + S.dist * Math.cos(S.el) * Math.cos(S.az);
   const cy = S.target.y + S.dist * Math.sin(S.el);
   const cz = S.target.z + S.dist * Math.cos(S.el) * Math.sin(S.az);
@@ -131,6 +148,7 @@ function _loop() {
 async function loadSite(site, opts) {
   opts = opts || {};
   S.site = site || S.site || "haworth";
+  _plotGen++;            // site/context switch: invalidate any in-flight plot/measure lonlat emit from the prior site
   const qp = new URLSearchParams({ site: S.site });
   if (opts.window_m != null) qp.set("window_m", String(opts.window_m));
   if (opts.x0 != null) qp.set("x0", String(opts.x0));
@@ -191,7 +209,10 @@ function _buildMesh() {
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
   geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-  geo.setIndex(idx.length > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : idx);
+  // 32-bit indices are only needed when a VERTEX INDEX can exceed 65535, i.e. when the vertex count n*n > 65536
+  // -- not when the index COUNT (6*(n-1)^2) does. Gate on n*n so medium grids (~n=105..255) keep a 2-byte Uint16
+  // buffer (half the index VRAM/upload); a plain array lets three pick Uint16 whenever the max index fits.
+  geo.setIndex(n * n > 65536 ? new THREE.Uint32BufferAttribute(idx, 1) : idx);
   geo.computeVertexNormals();
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0.0 });
   S.mesh = new THREE.Mesh(geo, mat);
@@ -239,15 +260,35 @@ function setLayer(kind) {
     return;
   }
   const m = S.meta;
+  // The "dem" drape is labeled "Hillshade (315/45)" in the picker (viz_haworth_page.js), and dem.py renders
+  // layer.png?kind=dem at whatever sun it is handed -- so pin dem's sun to 315/45 to match the label. The other
+  // sun-following kinds (illumination/cost) use the LIVE sun sliders (default 135/20, set by _buildMesh->setSun
+  // before any layer request). The old `?? 315`/`?? 45` fallbacks were dead (setSun always runs first).
+  const fixedHill = (S.layerKind === "dem");
   const qp = new URLSearchParams({ site: S.site, window_m: m.window_m, x0: m.x0, y0: m.y0, kind: S.layerKind,
-    sun_az: Math.round(S._sunAz ?? 315), sun_el: Math.round(S._sunEl ?? 45) });
-  new THREE.TextureLoader().load("/dem/heightfield_full/layer.png?" + qp.toString(), (tex) => {
-    if (!S.mesh || S.layerKind !== kind) { tex.dispose(); return; }
-    tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
-    const mm = S.mesh.material;
-    if (mm.map) mm.map.dispose();
-    mm.map = tex; mm.vertexColors = false; mm.color.setHex(0xffffff); mm.needsUpdate = true;
-  }, undefined, () => { if (S.layerKind === kind) { if (S._onLayerError) S._onLayerError(kind); setLayer("elevation"); } });
+    sun_az: fixedHill ? 315 : Math.round(S._sunAz ?? 135), sun_el: fixedHill ? 45 : Math.round(S._sunEl ?? 20) });
+  // [systems-eng] bounded layer read: layer.png can trigger a server-side O(P^2..P^3) illumination/PSR render
+  // that stalls -- route the fetch through _fetchT (LAYER_TIMEOUT_MS) so a hang ABORTS and reverts to elevation
+  // (the onError path), mirroring every other read in this module. The fetched bytes are then decoded via a blob
+  // object URL + TextureLoader (preserves the exact flipY/colorSpace drape orientation); the local decode can't
+  // hang, and the object URL is revoked either way so nothing leaks.
+  const url = "/dem/heightfield_full/layer.png?" + qp.toString();
+  const onErr = () => { if (S.layerKind === kind) { if (S._onLayerError) S._onLayerError(kind); setLayer("elevation"); } };
+  _fetchT(url, LAYER_TIMEOUT_MS)
+    .then((r) => { if (!r.ok) throw new Error("layer.png " + r.status + " for kind " + kind); return r.blob(); })
+    .then((blob) => {
+      const obj = URL.createObjectURL(blob);
+      const revoke = () => { try { URL.revokeObjectURL(obj); } catch (_) { /* */ } };
+      new THREE.TextureLoader().load(obj, (tex) => {
+        revoke();
+        if (!S.mesh || S.layerKind !== kind) { tex.dispose(); return; }
+        tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
+        const mm = S.mesh.material;
+        if (mm.map) mm.map.dispose();
+        mm.map = tex; mm.vertexColors = false; mm.color.setHex(0xffffff); mm.needsUpdate = true;
+      }, undefined, () => { revoke(); onErr(); });
+    })
+    .catch(onErr);
 }
 
 function setVertExag(k) {
@@ -283,7 +324,9 @@ function setSun(azDeg, elDeg) {
   const win = S.meta.window_m, R = win * 2, cx = win / 2, cz = win / 2;
   S.sun.position.set(cx + R * Math.cos(e) * Math.sin(a), R * Math.sin(e), cz + R * Math.cos(e) * Math.cos(a));
   if (S.sun.target) { S.sun.target.position.set(cx, 0, cz); S.sun.target.updateMatrixWorld(); }
-  if (S.layerKind === "dem" || S.layerKind === "hillshade" || S.layerKind === "illumination") setLayer(S.layerKind);
+  // the "dem" drape is sun-pinned to 315/45 (see setLayer) so a sun move no longer re-requests it; only the
+  // genuinely sun-following drapes re-render on a sun change.
+  if (S.layerKind === "hillshade" || S.layerKind === "illumination") setLayer(S.layerKind);
 }
 
 // ---- gridlines: metric km grid (pure STEWIE_VIZGRID) draped on the surface ------------------------
@@ -426,10 +469,12 @@ function _plotAt(el, e) {
   const p = _raycastSurface(el, e);
   if (!p || !S.meta) return;                    // no terrain under the click -- nothing to plot
   const m = S.meta, lx = p.x, ly = p.z, elev_m = p.y / S.vex + m.z_min;
+  const gen = _plotGen, site0 = S.site;         // capture the session gen + site; drop the emit if either changed mid-lookup
   _plotMarkerAt(lx, ly);
   _fetchT("/dem/site_lonlat?x=" + (m.x0 + lx) + "&y=" + (m.y0 + ly) + "&site=" + encodeURIComponent(S.site), HOVER_TIMEOUT_MS)
     .then((r) => r.json())
     .then((d) => {
+      if (gen !== _plotGen || S.site !== site0) return;   // a site switch/dispose superseded this click -- no stale wrong-site emit
       if (d && d.ok && S._onPlot) { S._onPlot({ e_m: lx, n_m: ly, elev_m: elev_m, lat: d.lat, lon: d.lon }); }
     })
     .catch(() => { /* the lonlat lookup failed -- skip the emit; the consumer requires a real lat/lon */ });
@@ -450,13 +495,14 @@ function _measureAt(el, e) {
   const p = _raycastSurface(el, e);
   if (!p || !S.meta) return;                    // no terrain under the click -- nothing to measure
   const m = S.meta, lx = p.x, ly = p.z, elev_m = p.y / S.vex + m.z_min;
+  const gen = _plotGen, site0 = S.site;         // capture the session gen + site; drop the async fill if either changed mid-lookup
   const pt = { lx: lx, ly: ly, elev_m: elev_m, lat: null, lon: null };
   S._measurePts.push(pt);
   _redrawMeasure();
   _emitMeasure();
   _fetchT("/dem/site_lonlat?x=" + (m.x0 + lx) + "&y=" + (m.y0 + ly) + "&site=" + encodeURIComponent(S.site), HOVER_TIMEOUT_MS)
     .then((r) => r.json())
-    .then((d) => { if (d && d.ok) { pt.lat = d.lat; pt.lon = d.lon; _emitMeasure(); } })
+    .then((d) => { if (gen !== _plotGen || S.site !== site0) return; if (d && d.ok) { pt.lat = d.lat; pt.lon = d.lon; _emitMeasure(); } })
     .catch(() => { /* lonlat lookup failed -- keep the point with lat/lon null; distance still works from lx/ly */ });
 }
 
@@ -542,8 +588,9 @@ function _disposeGroup(g) {
 // observer. Idempotent + never throws. (The standalone /viz page never calls this; it is additive.)
 function dispose() {
   S.ready = false;                                            // stops _loop() on its next frame
-  if (_llTimer) { clearTimeout(_llTimer); _llTimer = 0; } _llGen++;   // drop the in-flight site_lonlat lookup
+  if (_llTimer) { clearTimeout(_llTimer); _llTimer = 0; } _llGen++; _plotGen++;   // drop in-flight hover + plot/measure lonlat lookups
   S._onHover = null; S._onLayerError = null; S._onPlot = null; S._onMeasure = null;
+  if (S._ctrlAbort) { try { S._ctrlAbort.abort(); } catch (_) { /* */ } S._ctrlAbort = null; }   // remove the pointer/wheel listeners bound in _bindControls
   if (S._ro) { try { S._ro.disconnect(); } catch (_) { /* */ } S._ro = null; }
   _disposeGroup(S._gridGroup); S._gridGroup = null;          // uses S.group -> must run before S.group is dropped
   _disposeGroup(S._gratGroup); S._gratGroup = null;
