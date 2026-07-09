@@ -27,7 +27,7 @@ function mount(container) {
   S.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
   S.renderer.setSize(w, h);
   S.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  container.innerHTML = "";
+  container.replaceChildren();          // safe DOM clear (MT-03: no HTML-injection sink)
   container.appendChild(S.renderer.domElement);
 
   S.sun = new THREE.DirectionalLight(0xfff4e8, 2.4);

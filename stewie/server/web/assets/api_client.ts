@@ -34,7 +34,11 @@ export type ApiPath =
   | '/contracts/schema'
   | '/dem/asbuilt'
   | '/dem/georef'
+  | '/dem/graticule'
   | '/dem/heightfield'
+  | '/dem/heightfield_full'
+  | '/dem/heightfield_full/layer.png'
+  | '/dem/heightfield_full/meta'
   | '/dem/site_lonlat'
   | '/dem/site_xy'
   | '/dem/sources'
@@ -151,6 +155,8 @@ export type ApiPath =
   | '/twin/resync'
   | '/twin/terrain/{site}'
   | '/twin/version'
+  | '/viz'
+  | '/viz_haworth.html'
   | '/world'
   | '/world/layer-catalog'
   | '/world/layer-consumption'
@@ -206,7 +212,11 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/contracts/schema', operationId: 'contracts_schema_contracts_schema_get', mutatesAuthority: false },
   { method: 'POST', path: '/dem/asbuilt', operationId: 'dem_asbuilt_dem_asbuilt_post', mutatesAuthority: true },
   { method: 'GET', path: '/dem/georef', operationId: 'dem_georef_dem_georef_get', mutatesAuthority: false },
+  { method: 'GET', path: '/dem/graticule', operationId: 'dem_graticule_dem_graticule_get', mutatesAuthority: false },
   { method: 'GET', path: '/dem/heightfield', operationId: 'dem_heightfield_dem_heightfield_get', mutatesAuthority: false },
+  { method: 'GET', path: '/dem/heightfield_full', operationId: 'dem_heightfield_full_dem_heightfield_full_get', mutatesAuthority: false },
+  { method: 'GET', path: '/dem/heightfield_full/layer.png', operationId: 'dem_heightfield_full_layer_dem_heightfield_full_layer_png_get', mutatesAuthority: false },
+  { method: 'GET', path: '/dem/heightfield_full/meta', operationId: 'dem_heightfield_full_meta_dem_heightfield_full_meta_get', mutatesAuthority: false },
   { method: 'GET', path: '/dem/site_lonlat', operationId: 'dem_site_lonlat_dem_site_lonlat_get', mutatesAuthority: false },
   { method: 'GET', path: '/dem/site_xy', operationId: 'dem_site_xy_dem_site_xy_get', mutatesAuthority: false },
   { method: 'GET', path: '/dem/sources', operationId: 'dem_sources_catalog_dem_sources_get', mutatesAuthority: false },
@@ -329,6 +339,8 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/twin/terrain/{site}', operationId: 'twin_terrain_twin_terrain__site__get', mutatesAuthority: false },
   { method: 'POST', path: '/twin/terrain/{site}', operationId: 'twin_terrain_record_twin_terrain__site__post', mutatesAuthority: true },
   { method: 'GET', path: '/twin/version', operationId: 'twin_version_twin_version_get', mutatesAuthority: false },
+  { method: 'GET', path: '/viz', operationId: 'viz_haworth_page_viz_get', mutatesAuthority: false },
+  { method: 'GET', path: '/viz_haworth.html', operationId: 'viz_haworth_page_viz_haworth_html_get', mutatesAuthority: false },
   { method: 'GET', path: '/world', operationId: 'world_world_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/layer-catalog', operationId: 'layer_catalog_world_layer_catalog_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/layer-consumption', operationId: 'layer_consumption_world_layer_consumption_get', mutatesAuthority: false },

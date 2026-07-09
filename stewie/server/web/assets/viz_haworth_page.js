@@ -34,7 +34,7 @@ function fmt(v, d) { return (v == null || isNaN(v)) ? "—" : (+v).toFixed(d == 
 function setStatus(msg) { const s = $("viz-status"); if (s) s.textContent = msg; }
 
 function fillSelect(sel, items, current) {
-  sel.innerHTML = "";
+  sel.replaceChildren();                 // MT-03: safe DOM clear
   items.forEach((it) => {
     const o = document.createElement("option");
     o.value = it.id; o.textContent = it.label;
@@ -57,6 +57,9 @@ async function loadSite(site) {
   }
 }
 
+function _bold(s) { const b = document.createElement("b"); b.textContent = s; return b; }
+function _txt(s) { return document.createTextNode(s); }
+
 function updateHud(h) {
   const el = $("viz-hud");
   if (!el) return;
@@ -64,8 +67,13 @@ function updateHud(h) {
   el.classList.remove("dim");
   const ll = (h.lat != null && h.lon != null)
     ? ("lat " + fmt(h.lat, 5) + "°  lon " + fmt(h.lon, 5) + "°") : "lat —  lon —";
-  el.innerHTML = "<b>E</b> " + fmt(h.e_m, 1) + " m &nbsp; <b>N</b> " + fmt(h.n_m, 1)
-    + " m &nbsp; <b>elev</b> " + fmt(h.elev_m, 1) + " m<br>" + ll;
+  el.replaceChildren(                    // MT-03: safe DOM build, same rendered HUD
+    _bold("E"), _txt(" " + fmt(h.e_m, 1) + " m   "),
+    _bold("N"), _txt(" " + fmt(h.n_m, 1) + " m   "),
+    _bold("elev"), _txt(" " + fmt(h.elev_m, 1) + " m"),
+    document.createElement("br"),
+    _txt(ll),
+  );
 }
 
 function init() {
