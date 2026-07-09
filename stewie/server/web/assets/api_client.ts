@@ -159,6 +159,7 @@ export type ApiPath =
   | '/viz'
   | '/viz_haworth.html'
   | '/world'
+  | '/world/keepouts-from-hazard'
   | '/world/layer-catalog'
   | '/world/layer-consumption'
   | '/world/layer-manifest'
@@ -345,6 +346,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/viz', operationId: 'viz_haworth_page_viz_get', mutatesAuthority: false },
   { method: 'GET', path: '/viz_haworth.html', operationId: 'viz_haworth_page_viz_haworth_html_get', mutatesAuthority: false },
   { method: 'GET', path: '/world', operationId: 'world_world_get', mutatesAuthority: false },
+  { method: 'GET', path: '/world/keepouts-from-hazard', operationId: 'world_keepouts_from_hazard_world_keepouts_from_hazard_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/layer-catalog', operationId: 'layer_catalog_world_layer_catalog_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/layer-consumption', operationId: 'layer_consumption_world_layer_consumption_get', mutatesAuthority: false },
   { method: 'GET', path: '/world/layer-manifest', operationId: 'world_layer_manifest_world_layer_manifest_get', mutatesAuthority: false },

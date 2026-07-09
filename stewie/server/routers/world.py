@@ -384,6 +384,35 @@ def world_site_suitability(site: str = "haworth"):   # public read (site-survey 
         return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
 
 
+@router.get("/world/keepouts-from-hazard")
+def world_keepouts_from_hazard(site: str = "haworth", min_area_m2: float = 100.0,
+                               max_slope_deg: float = 25.0):   # public read (derived vector product)
+    """Council #52 DERIVE KEEP-OUTS FROM HAZARD: auto-derive keep-out POLYGONS from the real terrain-hazard
+    NOGO mask over ``site``'s framed work-area crop, as a GeoJSON FeatureCollection of Polygons in
+    selenographic lon/lat (OGC:CRS84 -- the SAME frame the contours + graticule use). The hazard mask is the
+    OR of the SAME FORGE costmap layers the planner routes on (`lode.costmap_layers`), scoped to physical
+    terrain barriers (slope / sinkage / tip-over / negative-obstacle drop-offs) and EXCLUDING the PSR-shadow
+    veto + operator keepout + fleet reservation layers; each region is traced by contourpy and reprojected.
+    The Mission-Plan panel adds these to the current mission's keep-outs so the planner routes around them.
+    Public (map-data read, like /world/site-suitability) so the keyless public /ide can bind it -- a
+    NON-DESTRUCTIVE read (nothing is written to any session or authority). 404 if the site DEM bundle is
+    absent (no fabricated geometry for an unimported site). ``min_area_m2`` (speck gate) clamps to
+    [0, 1e9]; ``max_slope_deg`` (the traversable-slope cap that defines the hazard) clamps to [1, 45]."""
+    import math
+    from stewie.server import gis_layers as GL
+    ma = float(min_area_m2) if math.isfinite(min_area_m2) else 100.0
+    ma = max(0.0, min(1e9, ma))                              # clamp the speck gate
+    ms = float(max_slope_deg) if math.isfinite(max_slope_deg) else 25.0
+    ms = max(1.0, min(45.0, ms))                             # clamp the slope cap to a sane rover envelope
+    try:
+        fc = GL.hazard_keepouts_geojson(site, min_area_m2=ma, max_slope_deg=ms)
+    except (KeyError, FileNotFoundError) as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    except (ImportError, ValueError) as e:
+        return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
+    return JSONResponse(content=fc, media_type="application/geo+json")
+
+
 class TransectReq(BaseModel):
     """[REQ:SD-03] Cross-section transect body: one site + a densified sample list. frame='order' -> points are
     order-frame (x, y) [m]; frame='lonlat' -> points are selenographic [lon, lat] deg (the public /ide path)."""

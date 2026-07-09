@@ -1394,3 +1394,157 @@ def contour_geojson(site: str = "haworth", interval: float = 50.0, *, mp=None,
                            "source": "LOLA DEM elevation isolines (contourpy on the real heightfield)",
                            "eligibility": "display-only (base.contours, LY-01 catalog)"},
             "features": features}
+
+
+# --- Council #52: DERIVE KEEP-OUTS FROM HAZARD --------------------------------------------------------
+# A REAL vector product: the FORGE costmap's PHYSICAL terrain-hazard NOGO mask over the site's framed
+# work-area crop, traced into keep-out POLYGONS (contourpy filled boundary, the SAME engine LY-05's
+# contour_geojson uses) and reprojected from the tile frame to selenographic lon/lat (the map's geodetic
+# CRS), so the mission planner can route around them. The hazard mask is the OR of the SAME costmap layer
+# functions the planner routes on (`lode.costmap_layers`), scoped to physical terrain barriers -- slope,
+# sinkage, tip-over, and negative-obstacle drop-offs -- and DELIBERATELY EXCLUDING the illumination/PSR
+# shadow veto (a lit/unlit condition, not a terrain barrier: at a low-sun polar site PSR alone vetoes
+# ~99% of the crop) as well as the operator keepout / fleet reservation layers (deriving keep-outs from
+# keep-outs would be circular). No fabricated geometry -- every vertex is a boundary of the real NOGO
+# mask on the real DEM.
+_HAZARD_KEEPOUT_LAYERS = ("slope", "sinkage", "tip_risk", "negative_obstacle")
+
+
+def _hazard_nogo_mask(demf, cell_m: float, *, max_slope_deg: float = 25.0):
+    """The PHYSICAL terrain-hazard NOGO boolean mask over a work-area crop: the OR of the FORGE costmap's
+    terrain-hazard impassable layers (slope / sinkage / tip_risk / negative_obstacle) -- the SAME layer
+    functions the planner routes on (``lode.costmap_layers``), scoped to physical terrain barriers. The
+    illumination/PSR shadow veto is EXCLUDED (a lit/unlit operational condition, not a terrain barrier),
+    as are the operator keepout + fleet reservation layers (a keep-out is not a hazard). Returns the
+    ``(nogo bool mask, per_layer_block dict)``; the negative-obstacle drop cap scales to the cell exactly
+    as ``_costmap_compose`` (so a coarse crop is not blanket-blocked by the rover-scale step)."""
+    import math
+
+    from lode import costmap_layers as CL
+    max_drop = float(cell_m) * math.tan(math.radians(float(max_slope_deg)))
+    # the terrain-hazard layers read no sun; the sun args are inert here (kept for the shared context type).
+    ctx = CL.CostmapContext(Z=np.asarray(demf, dtype=float), cell_m=float(cell_m),
+                            max_slope_deg=float(max_slope_deg), max_drop_m=max_drop,
+                            sun_az_deg=_POINT_SUN_AZ, sun_el_deg=_POINT_SUN_EL)
+    layers = tuple(CL._LAYER_BY_NAME[n] for n in _HAZARD_KEEPOUT_LAYERS)
+    cm = CL.compose(ctx, layers=layers)
+    return ~np.asarray(cm.passable, dtype=bool), dict(cm.per_layer_block)
+
+
+def _ring_area_m2(ring) -> float:
+    """Absolute shoelace area (m^2) of a ring given as an (N,2) array of tile-frame metres (a metric
+    projection, so the area is true square-metres). Sign-agnostic -- used only to gate tiny specks."""
+    a = np.asarray(ring, dtype=float)
+    if a.shape[0] < 3:
+        return 0.0
+    x, y = a[:, 0], a[:, 1]
+    return float(abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1))) / 2.0)
+
+
+def _dedup_collinear(ring):
+    """Drop interior vertices that are exactly collinear with their neighbours (contourpy emits one vertex
+    per cell edge along a straight run, so an axis-aligned staircase edge carries redundant collinear
+    points). Lossless -- the polygon boundary is unchanged; it just removes points on a straight segment.
+    ``ring`` is an (N,2) array (open or closed); returns a list of [x, y]."""
+    a = np.asarray(ring, dtype=float)
+    n = a.shape[0]
+    if n <= 3:
+        return [[float(p[0]), float(p[1])] for p in a]
+    closed = bool(np.allclose(a[0], a[-1]))
+    pts = a[:-1] if closed else a          # work on the distinct vertices, re-close at the end
+    m = pts.shape[0]
+    keep = []
+    for i in range(m):
+        prev = pts[(i - 1) % m]
+        cur = pts[i]
+        nxt = pts[(i + 1) % m]
+        cross = (cur[0] - prev[0]) * (nxt[1] - prev[1]) - (cur[1] - prev[1]) * (nxt[0] - prev[0])
+        if abs(cross) > 1e-6:              # a genuine corner (not on the straight line prev->nxt)
+            keep.append([float(cur[0]), float(cur[1])])
+    if len(keep) < 3:                      # degenerate after dedup -> fall back to the raw distinct vertices
+        keep = [[float(p[0]), float(p[1])] for p in pts]
+    keep.append([keep[0][0], keep[0][1]])  # re-close the ring
+    return keep
+
+
+def hazard_keepouts_geojson(site: str = "haworth", *, min_area_m2: float = 100.0, max_polys: int = 400,
+                            max_vertices: int = 100_000, max_slope_deg: float = 25.0, mp=None) -> dict:
+    """Council #52: AUTO-DERIVE keep-out POLYGONS from the real terrain-hazard NOGO mask over ``site``'s
+    framed work-area crop, as a GeoJSON FeatureCollection of Polygons in selenographic lon/lat (the map's
+    geodetic CRS, lon-lat order -- the SAME frame ``contour_geojson`` + ``/dem/graticule`` emit). Each
+    Feature is one hazard region (exterior ring + any interior holes); its geometry is the boundary of the
+    real ``_hazard_nogo_mask`` traced by contourpy's filled-contour engine, reprojected from the tile frame.
+    Specks smaller than ``min_area_m2`` (exterior area) are dropped (stated + counted); the total vertex
+    count is bounded (``truncated`` flag when hit) and the region count capped at ``max_polys``. Raises
+    KeyError/FileNotFoundError for an unknown/unimported site (the route -> 404). A site with no hazard
+    returns an empty ``features`` list honestly (a valid FeatureCollection, not an error)."""
+    from contourpy import contour_generator
+    from pyproj import Transformer
+    if mp is None:
+        from lode import mission_planner as mp
+    bundle_dir = mp.bundle_for_site(site)                 # raises KeyError/FileNotFoundError -> route 404
+    dem, (r0, c0), cell_m = _work_area(mp, bundle_dir)    # the 128x128 @ cell_m planner-framed work-area crop
+    demf = np.asarray(dem, dtype=float)
+    H, W = demf.shape
+    nogo, per_block = _hazard_nogo_mask(demf, cell_m, max_slope_deg=max_slope_deg)
+    n_nogo = int(nogo.sum())
+
+    # crop pixel -> FULL-tile-frame metres (linspace over the full tile, point-registered -- EXACTLY the
+    # pixel->metre map contour_geojson uses), indexed at the crop offset (r0, c0). Then reproject the tile
+    # frame -> selenographic lon/lat via the tile CRS's geodetic base (the SAME inverse contour_geojson uses).
+    dem_full, _cm2, b, _fwd, tile_crs = _tile_geo(mp, bundle_dir)
+    Hf, Wf = np.asarray(dem_full).shape
+    x0, y0, x1, y1 = b["x0"], b["y0"], b["x1"], b["y1"]
+    xs = x0 + (x1 - x0) * (c0 + np.arange(W)) / max(1, Wf - 1)   # tile-frame East metres per crop column
+    ys = y1 - (y1 - y0) * (r0 + np.arange(H)) / max(1, Hf - 1)   # north-up: crop row 0 = the max-north edge
+    inv = Transformer.from_crs(tile_crs, tile_crs.geodetic_crs, always_xy=True)   # tile frame -> lon/lat
+
+    features: list[dict] = []
+    n_vertices = 0
+    n_specks = 0
+    truncated = False
+    if n_nogo:
+        from typing import Any, cast
+        gen = contour_generator(xs, ys, nogo.astype(float), fill_type="OuterOffset")
+        # OuterOffset -> (list of per-outer point arrays, list of per-outer ring-offset arrays); the cast pins
+        # the 2-tuple shape (contourpy types filled() as a fill_type-dependent union) for the static checker.
+        points_list, offsets_list = cast("tuple[Any, Any]", gen.filled(0.5, 2.0))   # region where mask >= 0.5 (NOGO)
+        for pts, offs in zip(points_list, offsets_list):
+            pts = np.asarray(pts, dtype=float)
+            offs = np.asarray(offs, dtype=int)
+            rings = [pts[offs[j]:offs[j + 1]] for j in range(len(offs) - 1)]
+            if not rings or _ring_area_m2(rings[0]) < float(min_area_m2):   # gate specks on the EXTERIOR area
+                n_specks += 1
+                continue
+            coords: list = []
+            for ring in rings:
+                simple = _dedup_collinear(ring)               # drop redundant collinear staircase points
+                lon, lat = inv.transform([p[0] for p in simple], [p[1] for p in simple])
+                line = [[round(float(a), 6), round(float(o), 6)] for a, o in zip(lon, lat)]
+                if len(line) >= 4:                            # a valid ring (>=3 distinct + close)
+                    coords.append(line)
+                    n_vertices += len(line)
+            if not coords:
+                continue
+            ext_area = _ring_area_m2(rings[0])
+            features.append({"type": "Feature",
+                             "properties": {"kind": "hazard_keepout", "area_m2": round(ext_area, 2),
+                                            "holes": len(coords) - 1},
+                             "geometry": {"type": "Polygon", "coordinates": coords}})
+            if len(features) >= int(max_polys) or n_vertices >= int(max_vertices):
+                truncated = True
+                break
+    return {"type": "FeatureCollection",
+            "properties": {"site": site, "crs": "OGC:CRS84", "n_features": len(features),
+                           "n_specks_dropped": n_specks, "nogo_cells": n_nogo, "grid_cells": int(nogo.size),
+                           "nogo_fraction": round(n_nogo / nogo.size, 6) if nogo.size else 0.0,
+                           "hazard_gate": list(_HAZARD_KEEPOUT_LAYERS), "per_layer_block": per_block,
+                           "thresholds": {"max_slope_deg": float(max_slope_deg), "min_area_m2": float(min_area_m2)},
+                           "grid": {"rows": int(H), "cols": int(W), "cell_m": float(cell_m)},
+                           "truncated": truncated,
+                           "source": ("FORGE costmap terrain-hazard impassable mask (lode.costmap_layers: "
+                                      "slope/sinkage/tip_risk/negative_obstacle; PSR-shadow + operator "
+                                      "keepout + reservation EXCLUDED) traced by contourpy over the real "
+                                      "work-area crop, reprojected to selenographic lon/lat"),
+                           "eligibility": "mission keep-outs (the planner routes around them)"},
+            "features": features}

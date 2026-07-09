@@ -31,6 +31,7 @@ import PlanAuthor from '../mission/planAuthor';
 import WS from '../mission/workspace.js';        // GW-02: the shared workspace-context store (active site)
 import PT from '../mission/planTools';           // civil #41: materialBalance (cut/fill earthwork economy)
 import SS from '../mission/siteSuitability';     // SS-01: per-site landing/construction suitability score
+import HK from '../mission/hazardKeepouts';       // council #52: derive keep-out polygons from the hazard NOGO mask
 
 // The imported work-site DEMs the planner backs (#51 3-DEM reconciliation): every site that carries a real
 // LOLA DEM bundle -- the plannable set -- with real-area labels matching the map pins (/world/site-markers)
@@ -117,7 +118,9 @@ class MissionPlan extends React.Component {
         scheduleOpen: true,  // DEPTH-5: the "Schedule / Gantt" expander (open by default — the headline of a plan)
         // SS-01: the site-survey suitability card. `suitSite` pins the score to the site it was computed for,
         // so a later site change auto-invalidates the display (the card falls back to the Survey button).
-        suit: null, suitLoading: false, suitErr: null, suitSite: null
+        suit: null, suitLoading: false, suitErr: null, suitSite: null,
+        // council #52: the "Derive keep-outs from hazard" action state (fetch -> add to the mission keep-outs).
+        deriveKO: false, deriveKOMsg: null, deriveKOErr: null
     };
     constructor(props) {
         super(props);
@@ -200,6 +203,25 @@ class MissionPlan extends React.Component {
     onRemoveKeepout = (fid) => { if (this.ctrl) { this.ctrl.removeKeepout(fid); } };
     onClearKeepouts = () => { if (this.ctrl) { this.ctrl.clearKeepouts(); } };
     onUndoEdit = () => { if (this.ctrl) { this.ctrl.undoEdit(); } };   // GW-08: revert the last keep-out edit
+    // council #52: DERIVE KEEP-OUTS FROM HAZARD. Fetch the derived hazard polygons for the ACTIVE site (public
+    // GET /world/keepouts-from-hazard), reproject each lon/lat ring to the map frame, and ADD them to the
+    // current mission through the EXISTING keep-out path (ctrl.addKeepoutPolygon) so the planner routes around
+    // them + they render like drawn keep-outs. Failures (e.g. an unimported site -> 404) surface honestly.
+    onDeriveKeepouts = () => {
+        if (!this.ctrl || this.state.deriveKO) { return; }
+        const site = this.ctrl.site;
+        this.setState({deriveKO: true, deriveKOMsg: null, deriveKOErr: null});
+        HK.fetchKeepouts(site)
+            .then((fc) => HK.addToMission(fc, this.ctrl, this.ctrl.reproject))
+            .then((res) => {
+                const msg = res.added
+                    ? ('Added ' + res.added + ' hazard keep-out' + (res.added === 1 ? '' : 's') +
+                       (res.skipped ? ' (' + res.skipped + ' too complex, skipped)' : '') + '. Press Plan mission.')
+                    : 'No hazard keep-outs to add for this site (the work area is clear).';
+                this.setState({deriveKO: false, deriveKOMsg: msg, deriveKOErr: null});
+            })
+            .catch((e) => this.setState({deriveKO: false, deriveKOErr: e.message}));
+    };
     // DEPTH-2 plan controls
     onAlgorithm = (e) => { if (this.ctrl) { this.ctrl.setAlgorithm(e.target.value); } };
     onObjective = (e) => { if (this.ctrl) { this.ctrl.setObjective(e.target.value); } };
@@ -986,6 +1008,28 @@ class MissionPlan extends React.Component {
                     {kbtn('polygon', '⬡ No-go polygon')}
                     {kbtn('circle', '◯ No-go circle')}
                 </div>
+                {/* council #52: auto-derive keep-outs from the real terrain-hazard NOGO mask (slope / sinkage /
+                    tip-over / drop-offs) over the framed work area; adds them through the SAME keep-out path so
+                    the planner routes around them + they render like drawn no-go regions. */}
+                <button
+                    data-stewie-derive-keepouts="1"
+                    disabled={this.state.deriveKO}
+                    onClick={this.onDeriveKeepouts}
+                    title="trace the real terrain-hazard no-go mask (slope / sinkage / tip-over / drop-offs) into keep-out polygons and add them to this mission"
+                    style={{
+                        width: '100%', boxSizing: 'border-box', margin: '2px 0 2px',
+                        cursor: this.state.deriveKO ? 'default' : 'pointer', font: '600 11px system-ui, sans-serif',
+                        padding: '7px 8px', borderRadius: '4px',
+                        border: '1px solid ' + (this.state.deriveKO ? '#4a2a2a' : '#e0563a66'),
+                        color: this.state.deriveKO ? '#7a5a52' : '#f0a090', background: '#e0563a14'
+                    }}
+                    type="button"
+                >{this.state.deriveKO ? 'Deriving from hazard…' : '⚠ Derive keep-outs from hazard'}</button>
+                {this.state.deriveKOErr ? (
+                    <div data-stewie-derive-err="1" style={{fontSize: '10px', color: '#e0564b', margin: '0 0 4px'}}>{this.state.deriveKOErr}</div>
+                ) : this.state.deriveKOMsg ? (
+                    <div data-stewie-derive-msg="1" style={{fontSize: '10px', color: '#7fb0c8', margin: '0 0 4px'}}>{this.state.deriveKOMsg}</div>
+                ) : null}
                 {kos.length ? (
                     <ul style={{listStyle: 'none', margin: '4px 0', padding: 0, maxHeight: '110px', overflowY: 'auto'}}>
                         {kos.map((k) => (
