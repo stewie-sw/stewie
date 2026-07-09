@@ -143,6 +143,7 @@ async function loadSite(site, opts) {
   const z = new Float32Array(await r.arrayBuffer());
   if (z.length !== meta.n * meta.n) { throw new Error("heightfield payload " + z.length + " != n^2 " + meta.n); }
   S.meta = meta; S.z = z;
+  clearPlots();          // task #77: plot markers are site-local (order-frame lx/ly) -> drop stale ones on a site switch
   _buildMesh();
   // frame the whole tile
   S.target.set(meta.window_m / 2, ((meta.z_max - meta.z_min) * S.vex) * 0.3, meta.window_m / 2);
