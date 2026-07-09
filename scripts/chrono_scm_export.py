@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""SCM -> INTERFACE.md contract exporter (STUB) — foss_ipex Path A.
+"""SCM -> INTERFACE.md contract exporter (deferred P7 seam) — foss_ipex Path A.
 
 Maps a running PyChrono `SCMTerrain` patch onto the frozen on-disk state-field contract
 (INTERFACE.md), per the field mapping in docs/chrono_integration.md §4.1/§4.2 and the
 mass-stays-surrogate caveat in §4.3/§7. This is the seam that lets Chrono be a drop-in for
 the NumPy surrogate with ZERO Godot changes.
 
-STATUS: STUB / mapping-shape demonstrator. It shows
+STATUS: deferred P7 seam (requires a PyChrono host). It shows
   (1) that we can read SCM's deformed-node field (GetModifiedNodes) and per-node
       terramechanics state (GetNodeInfo) and rasterize it onto our grid, and
   (2) exactly which INTERFACE fields Chrono can source vs. which STAY surrogate-side.
@@ -27,10 +27,10 @@ WHAT STAYS SURROGATE-SIDE (chrono_integration.md §4.3/§7; INTERFACE.md §4):
 
 The realistic integration (§4.4) is a HYBRID: Chrono owns the wheel-rut geometry in the
 "under wheels (rolling)" zone; the surrogate keeps mass/density bookkeeping and re-derives
-height = mass_areal/density so INTERFACE's invariant (§4) stays green. This stub fills the
-SCM-sourced fields and fills the surrogate-owned fields with PLACEHOLDER constants, clearly
+height = mass_areal/density so INTERFACE's invariant (§4) stays green. This seam fills the
+SCM-sourced fields and fills the surrogate-owned fields with authority-owned surrogate values, clearly
 labeled, so the output is a contract-VALID directory whose Chrono-vs-surrogate provenance is
-explicit. A real hybrid producer would replace the placeholders with the surrogate grid.
+explicit. A real hybrid producer would replace the surrogate values with the surrogate grid.
 
 Run in the conda 'chrono' env (needs pychrono). Imports the project's frozen io_fields
 helper (INTERFACE.md §7) — the ONLY place raster bytes are written on the Python side.
@@ -45,12 +45,13 @@ import numpy as np
 # Make the conserved authority importable (the project package lives one level up).
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
+from stewie.specs.constants import RHO_SURFACE  # authority surface-regolith density
 from stewie.twin.io_fields import save_scene  # noqa: E402  (frozen contract writer)
 
-# Producer-owned placeholder constants for the fields SCM cannot source (§4.3).
+# Producer-owned surrogate constants for the fields SCM cannot source (§4.3).
 # These are NOT physics — they are clearly-labeled stand-ins for the surrogate grid that a
 # real hybrid producer (§4.4) would supply. Values are typical lunar-regolith SI numbers.
-PLACEHOLDER_DENSITY = 1500.0   # kg/m^3 (loose regolith; INTERFACE §4 SI)
+REGOLITH_DENSITY = float(RHO_SURFACE)   # kg/m^3 (loose regolith; INTERFACE §4 SI)
 DATUM_M = 0.0                  # height datum the SCM heights ride on
 
 
@@ -113,7 +114,7 @@ def rasterize_scm(terrain, chrono, width: int, height: int, cell_m: float,
 
 
 def build_fields(hmap: np.ndarray, sink: np.ndarray):
-    """Assemble the INTERFACE field dict. SCM-sourced + clearly-labeled placeholders."""
+    """Assemble the INTERFACE field dict. SCM-sourced + clearly-labeled surrogate values."""
     h, w = hmap.shape
 
     # disturbance: normalized plastic-sinkage proxy clamped to [0,1] (§4.2).
@@ -123,25 +124,25 @@ def build_fields(hmap: np.ndarray, sink: np.ndarray):
     # state_label: producer logic — cells with any sinkage -> TREAD(1), else VIRGIN(0) (§4.2).
     state_label = np.where(sink > 1e-4, 1, 0).astype("u1")
 
-    # PLACEHOLDER surrogate-owned fields (§4.3): constant density; mass back-derived so the
+    # surrogate-owned fields (§4.3): constant density; mass back-derived so the
     # INTERFACE invariant height == mass_areal/density holds in the EXACT contract form (§4),
     # i.e. with datum 0 so `height = mass_areal/density` literally. We express each cell as a
     # positive column THICKNESS above a deep reference plane (a fixed 1.0 m soil column for the
     # nominal surface), then add the SCM deformation. This keeps mass_areal strictly positive
     # AND makes the stored heightmap reproduce as mass_areal/density to float32 precision.
-    density = np.full((h, w), PLACEHOLDER_DENSITY, dtype="<f4")
-    NOMINAL_COLUMN_M = 1.0          # 1 m placeholder soil column under the nominal (0 m) surface
+    density = np.full((h, w), REGOLITH_DENSITY, dtype="<f4")
+    NOMINAL_COLUMN_M = 1.0          # 1 m nominal reference soil column under the nominal (0 m) surface
     thickness = (NOMINAL_COLUMN_M + hmap).astype(np.float64)   # column thickness (m) per cell
-    mass_areal = (thickness * PLACEHOLDER_DENSITY).astype("<f4")
+    mass_areal = (thickness * REGOLITH_DENSITY).astype("<f4")
     # heightmap stored = the contract-DERIVED value, referenced back to the same nominal surface
     # so it equals the SCM deformed height: height = mass_areal/density - NOMINAL_COLUMN_M.
-    heightmap = (mass_areal.astype(np.float64) / PLACEHOLDER_DENSITY
+    heightmap = (mass_areal.astype(np.float64) / REGOLITH_DENSITY
                  - NOMINAL_COLUMN_M).astype("<f4")
 
     return {
         "heightmap": heightmap,        # SCM-sourced (deformed geometry), re-derived to satisfy §4
-        "mass_areal": mass_areal,      # SURROGATE-owned placeholder (back-derived; §4.3)
-        "density": density,            # SURROGATE-owned placeholder (constant; §4.3)
+        "mass_areal": mass_areal,      # SURROGATE-owned surrogate (back-derived; §4.3)
+        "density": density,            # SURROGATE-owned surrogate (constant; §4.3)
         "disturbance": disturbance,    # SCM-sourced (plastic-sinkage proxy; §4.2)
         "state_label": state_label,    # producer-derived (§4.2)
     }
@@ -193,7 +194,7 @@ def export(terrain, chrono, sysmbs, out_dir: str, width: int, height: int,
     metadata = {
         "schema_version": "1.0",
         "scene_name": scene_name,
-        "producer": "chrono_scm_export (PyChrono SCMTerrain — STUB; mass/density placeholder)",
+        "producer": "chrono_scm_export (PyChrono SCMTerrain — deferred P7 seam; mass/density surrogate)",
         "grid": {"width": width, "height": height, "cell_m": cell_m, "order": "row-major-C"},
         "world_bounds_m": {"x0": x0, "y0": z0,
                             "x1": x0 + width * cell_m, "y1": z0 + height * cell_m},
@@ -212,7 +213,7 @@ def export(terrain, chrono, sysmbs, out_dir: str, width: int, height: int,
         "active_zone": {"min_rc": [0, 0], "max_rc": [height, width]},
         "quadtree": [{"level": 0, "row0": 0, "col0": 0, "size": max(width, height), "label": "ROOT"}],
         "notes": ("Chrono Y-up, lunar g. heightmap+disturbance SCM-sourced; mass_areal+density "
-                  "are SURROGATE-OWNED PLACEHOLDERS (SCM does not conserve mass — "
+                  "are SURROGATE-OWNED (authority density) (SCM does not conserve mass — "
                   "chrono_integration.md §4.3/§7). NodeInfo demo: " + repr(node_info_demo)),
     }
 
@@ -228,7 +229,7 @@ if __name__ == "__main__":
         "chrono_scm_rover", os.path.join(os.path.dirname(__file__), "chrono_scm_rover.py"))
     rover = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(rover)
-    print("chrono_scm_export.py is a library + stub; run scripts/chrono_scm_rover.py to drive "
+    print("chrono_scm_export.py is a library + deferred P7 seam; run scripts/chrono_scm_rover.py to drive "
           "the sim, or import export() from a driver. Run with --demo to do a short self-test.")
     if "--demo" in sys.argv:
         import pychrono as chrono  # noqa: F401
