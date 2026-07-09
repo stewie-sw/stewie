@@ -11,13 +11,14 @@
  * reprojects it onto the 30135 map) — so the raster RENDERS on the map AND appears as a toggleable
  * row in the stock QWC2 LayerTree. The base .qgz theme layers + MissionHUD are untouched.
  *
- * Honesty: only the 16 backend globe kinds (dem/slope/hazard/illumination/incidence/psr/grid + the
- * costmap cost/blocking analysis drapes + the six T12 PHYSICS (TM) terramechanics-spine drapes
- * bearing/sinkage/slip_risk/traction_margin/energy_cost/excavation_resistance + the TW-11 traffic
- * traversal-compaction drape) are servable; every other catalog row is shown WITHOUT a map layer (no raster
- * endpoint on the live backend — physics.compaction re-labels the SAME TrafficMemory Dr under the Physics
- * group, so it is not doubled) and the panel says so rather than fabricating a layer. (cost + blocking + the
- * 6 physics drapes added 2026-07-06; the traffic drape added 2026-07-07; live after a backend rebuild.)
+ * Honesty: only the 19 backend globe kinds (dem/slope/hazard/illumination/incidence/psr/grid + the LY-05
+ * DEM-derivative drapes aspect/curvature/roughness + the costmap cost/blocking analysis drapes + the six
+ * T12 PHYSICS (TM) terramechanics-spine drapes bearing/sinkage/slip_risk/traction_margin/energy_cost/
+ * excavation_resistance + the TW-11 traffic traversal-compaction drape) are servable; every other catalog
+ * row is shown WITHOUT a map layer (no raster endpoint on the live backend — physics.compaction re-labels
+ * the SAME TrafficMemory Dr under the Physics group, so it is not doubled) and the panel says so rather than
+ * fabricating a layer. (cost + blocking + the 6 physics drapes added 2026-07-06; the traffic drape added
+ * 2026-07-07; the 3 LY-05 DEM-derivative drapes added 2026-07-08; live after a backend rebuild.)
  *
  * Registration:
  *   - js/appConfig.js       -> pluginsDef.plugins.MissionLayersPlugin
@@ -368,7 +369,7 @@ class MissionLayers extends React.Component {
                 {s.summary ? (
                     <div style={{fontSize: '10px', color: '#c7d2e3', marginBottom: '6px'}}>
                         <b style={{color: '#39ff14'}}>{s.summary.servable}</b> of {s.summary.total} catalog
-                        layers are servable as map rasters (16 backend globe kinds); the rest are catalog-only.
+                        layers are servable as map rasters (19 backend globe kinds); the rest are catalog-only.
                     </div>
                 ) : null}
                 {s.error ? (

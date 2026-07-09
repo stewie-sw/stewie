@@ -36,6 +36,10 @@ def globe_quota(request: Request) -> str:
 # drape and would otherwise multiply the cache key space); `color` becomes a cache-FILE component for
 # kind='grid', so it is restricted to 6 hex digits (rejecting length/path abuse); `kind` is allow-listed.
 _GLOBE_KINDS = ("dem", "slope", "hazard", "illumination", "incidence", "psr", "grid", "cost", "blocking",
+                # LY-05 DEM-derivative analysis drapes: aspect (gradient azimuth) + curvature (Laplacian) from
+                # the SAME heightfield gradient the slope drape uses, and roughness (window-RMS-slope, reusing
+                # lode.costmap_layers._roughness as the one source of truth). All three render via _layer_rgba.
+                "aspect", "curvature", "roughness",
                 # T12 PHYSICS (TM) drape: the terramechanics-spine per-cell fields (physics.compaction is
                 # OBSERVED state, not a plan-independent per-cell field -> deliberately absent, catalog-only)
                 "bearing", "sinkage", "slip_risk", "traction_margin", "energy_cost", "excavation_resistance",
@@ -98,6 +102,23 @@ def layers_legend():
                              "(transparent where passable): why a route bends or refuses. Sun-dependent "
                              "(the psr veto follows the sun slider)."},
         "slope": {"max_deg": 30.0, "ramp": "green 0° → red 30° (opacity rises with steepness)"},
+        # LY-05 DEM-derivative analysis drapes: aspect + curvature from the SAME heightfield gradient the
+        # slope drape uses; roughness from lode.costmap_layers._roughness (one source of truth).
+        "aspect": {"ramp": "cyclic hue wheel: N red → E chartreuse → S cyan → W violet (0–360°)",
+                   "text": "gradient azimuth -- the compass direction the surface faces downhill (steepest "
+                           "descent), from the same DEM gradient the slope drape uses; 0°=grid-north, "
+                           "90°=east, clockwise. Near-flat cells fade out (aspect is undefined there)."},
+        "curvature": {"ramp": "diverging: blue (convex-up ridge, ∇²z<0) → white (planar) → red "
+                              "(concave-up hollow, ∇²z>0)",
+                      "text": "Laplacian curvature ∇²z = ∂²z/∂x² + ∂²z/∂y² [1/m] from the DEM gradient; "
+                              "convex-up ridges/mounds are negative, concave-up hollows/valleys positive; "
+                              "near-planar ground is transparent (robustly scaled by the 98th percentile "
+                              "of |∇²z|)."},
+        "roughness": {"ramp": "sequential: pale (smooth) → deep (rough)",
+                      "text": "local RMS-slope roughness -- the 3×3-window standard deviation of the slope "
+                              "field, the same definition as the FORGE costmap roughness layer "
+                              "(lode.costmap_layers._roughness, one source of truth); higher = rougher "
+                              "terrain / mobility risk below the slope cap."},
         "hazard": {"nogo_deg": sig.parameters["max_slope_deg"].default,
                    "penalty_deg": sig.parameters["slope_hazard_deg"].default,
                    "obstacle_m": OBSTACLE_HEIGHT_M,
@@ -170,3 +191,24 @@ def globe_layer_bbox(kind: str, sun_el: float = 6.0, sun_az: float = 90.0,
     if out is None:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"unknown layer {kind!r}"})
     return {"ok": True, **out[1]}
+
+
+@router.get("/layers/contours.geojson")
+def layers_contours_geojson(site: str = "haworth", interval: float = 50.0,
+                            _auth: str = Depends(globe_quota)):
+    """[REQ:LY-05] The DEM elevation CONTOURS as a REAL GeoJSON vector product -- isolines traced by
+    contourpy on the site's real LOLA heightfield at ``interval`` metres, reprojected to selenographic
+    lon/lat (OGC:CRS84). One MultiLineString Feature per level. Display-only (LY-01 base.contours):
+    an interpretation overlay, never a planning/release input. PUBLIC + per-IP rate-limited like the
+    globe drapes; the interval is clamped so a tiny value cannot explode the trace."""
+    import math
+    from stewie.server.gis_layers import contour_geojson
+    iv = float(interval) if math.isfinite(interval) else 50.0
+    iv = max(1.0, min(1000.0, iv))                        # clamp the stated interval to [1, 1000] m
+    try:
+        fc = contour_geojson(site, iv)
+    except KeyError as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    except FileNotFoundError as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": f"DEM absent: {e}"})
+    return JSONResponse(content=fc, media_type="application/geo+json")

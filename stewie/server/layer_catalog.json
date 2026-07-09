@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "source": "PRD2 explicit layer catalog",
-  "count": 66,
+  "count": 68,
   "domains": [
     "base",
     "design",
@@ -104,6 +104,28 @@
       "planning_note": "yes",
       "release_execute_eligible": true,
       "release_execute_note": "yes if calibrated"
+    },
+    {
+      "id": "terrain.aspect",
+      "domain": "terrain",
+      "type": "raster",
+      "purpose": "slope aspect (gradient azimuth)",
+      "source_class": "derived",
+      "planning_eligible": false,
+      "planning_note": "no by default",
+      "release_execute_eligible": false,
+      "release_execute_note": "no"
+    },
+    {
+      "id": "terrain.curvature",
+      "domain": "terrain",
+      "type": "raster",
+      "purpose": "surface curvature (Laplacian)",
+      "source_class": "derived",
+      "planning_eligible": false,
+      "planning_note": "no by default",
+      "release_execute_eligible": false,
+      "release_execute_note": "no"
     },
     {
       "id": "terrain.incidence",

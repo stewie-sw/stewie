@@ -313,6 +313,125 @@ def grid_sun_az(sun_az_true_deg, grid_north_bearing_deg):
     return (float(grid_north_bearing_deg) - float(sun_az_true_deg)) % 360.0
 
 
+# ---- LY-05 DEM-derivative analysis drapes: aspect, curvature, roughness -----------------------------
+# aspect + curvature are computed from the SAME numpy.gradient the slope drape uses (one heightfield
+# gradient); roughness reuses lode.costmap_layers._roughness (the window-RMS-slope definition) as the ONE
+# source of truth (imported + called, never reimplemented). Colours: aspect = a cyclic hue wheel (azimuth
+# is periodic, so 0deg and 360deg share a colour), curvature = a diverging blue<->red ramp about zero
+# (near-planar transparent), roughness = a sequential pale->deep ramp. All three are sun-independent (pure
+# DEM derivatives), so their globe/3D-drape cache keys carry the sun but the pixels never vary with it.
+_CURV_DIVERGING = ((0.0, (33, 102, 172)),    # convex-up ridge/mound (Laplacian < 0) -- blue
+                   (0.5, (247, 247, 247)),   # ~planar (Laplacian ~ 0)                -- white
+                   (1.0, (178, 24, 43)))     # concave-up hollow/valley (Laplacian > 0) -- red
+_ROUGH_SEQUENTIAL = ((0.0, (255, 255, 217)),  # smooth   -- pale
+                     (0.5, (65, 182, 196)),   # moderate
+                     (1.0, (34, 39, 110)))    # rough    -- deep
+
+
+def _hsv_to_rgb(h, s, v):
+    """Vectorised HSV->RGB (all inputs broadcast in [0,1]); returns (...,3) float in [0,1]. Used for the
+    cyclic aspect hue wheel so the azimuth wraps continuously (0deg and 360deg share a colour)."""
+    import numpy as np
+    h = np.asarray(h, dtype=float) % 1.0
+    s = np.clip(np.asarray(s, dtype=float), 0.0, 1.0)
+    v = np.clip(np.asarray(v, dtype=float), 0.0, 1.0)
+    h6 = h * 6.0
+    i = np.floor(h6).astype(int) % 6
+    f = h6 - np.floor(h6)
+    p = v * (1.0 - s); q = v * (1.0 - f * s); t = v * (1.0 - (1.0 - f) * s)
+    cond = [i == 0, i == 1, i == 2, i == 3, i == 4, i == 5]
+    r = np.select(cond, [v, q, p, p, t, v])
+    g = np.select(cond, [t, v, v, q, p, p])
+    b = np.select(cond, [p, p, t, v, v, q])
+    return np.stack([r, g, b], axis=-1)
+
+
+def aspect_deg(dem, cell):
+    """[REQ:LY-05] the gradient AZIMUTH field [deg, 0..360) -- the compass direction the surface faces
+    DOWNHILL (steepest descent), from the SAME numpy.gradient the slope drape uses. 0deg = grid-north
+    (north-up raster, row 0 = north), 90deg = east (+col), measured clockwise. This is the raw value the
+    aspect drape colours (exposed so a test can assert it against the real DEM)."""
+    import numpy as np
+    dem = np.asarray(dem, dtype=float)
+    gy, gx = np.gradient(dem, cell)                      # gy = dz/drow, gx = dz/dcol (== the slope drape)
+    # downslope (steepest-descent) direction = -(gx, gy); express as a compass azimuth CW from grid-north.
+    # north-up raster: going north = decreasing row, so the downslope NORTH component is +gy, and the EAST
+    # (+col) component is -gx. azimuth CW from north = atan2(east, north) = atan2(-gx, gy).
+    return np.degrees(np.arctan2(-gx, gy)) % 360.0
+
+
+def curvature_laplacian(dem, cell):
+    """[REQ:LY-05] the Laplacian curvature field grad^2 z = d2z/dx2 + d2z/dy2 [1/m], from the SAME
+    numpy.gradient the slope drape uses (differentiated a second time). Sign: convex-up ridges/mounds are
+    NEGATIVE, concave-up hollows/valleys POSITIVE. The raw value the curvature drape colours (exposed so a
+    test can assert it against the real DEM)."""
+    import numpy as np
+    dem = np.asarray(dem, dtype=float)
+    gy, gx = np.gradient(dem, cell)
+    gyy, _ = np.gradient(gy, cell)                       # d2z/dy2
+    _, gxx = np.gradient(gx, cell)                       # d2z/dx2
+    return gxx + gyy
+
+
+def _aspect_rgba(dem, cell):
+    """LY-05 aspect drape: colour the gradient-azimuth field (aspect_deg) on a cyclic hue wheel so the
+    0/360 wrap is seamless; near-flat cells fade out (aspect is undefined where the gradient vanishes)."""
+    import numpy as np
+    dem = np.asarray(dem, dtype=float)
+    gy, gx = np.gradient(dem, cell)                      # for the flat-cell fade (same gradient as aspect_deg)
+    aspect = aspect_deg(dem, cell)
+    slope_deg = np.degrees(np.arctan(np.hypot(gx, gy)))
+    a = np.clip(slope_deg / 5.0, 0.0, 1.0)               # fade near-flat; opaque by ~5deg slope
+    rgb = _hsv_to_rgb(aspect / 360.0, np.full(aspect.shape, 0.85), np.full(aspect.shape, 0.95))
+    rgba = np.zeros((*aspect.shape, 4))
+    rgba[..., :3] = rgb * 255.0
+    rgba[..., 3] = 35.0 + 185.0 * a
+    return rgba.astype("uint8")
+
+
+def _curvature_rgba(dem, cell):
+    """LY-05 curvature drape: colour the Laplacian-curvature field (curvature_laplacian) on a diverging
+    ramp about zero -- convex-up ridges (negative) blue, concave-up hollows (positive) red; near-planar
+    ground transparent. Robustly scaled by the 98th percentile of |Laplacian|."""
+    import numpy as np
+    lap = curvature_laplacian(dem, cell)
+    finite = np.isfinite(lap)
+    vals = np.abs(lap[finite])
+    scale = float(np.percentile(vals, 98.0)) if vals.size else 1.0
+    if scale <= 0.0:
+        scale = 1e-9
+    t = np.clip(lap / scale, -1.0, 1.0)                  # -1..1 diverging
+    rgba = np.zeros((*lap.shape, 4))
+    rgba[..., :3] = _ramp_rgb((t + 1.0) / 2.0, _CURV_DIVERGING)
+    rgba[..., 3] = 45.0 + 180.0 * np.abs(t)              # transparent near planar, opaque at the extremes
+    return rgba.astype("uint8")
+
+
+def _roughness_rgba(dem, cell):
+    """LY-05 roughness drape: the window-RMS-slope roughness, reusing lode.costmap_layers._roughness (the
+    3x3-window std of the slope field) as the ONE source of truth -- imported + called, NOT reimplemented,
+    so this drape and the FORGE costmap roughness layer can never drift. Sequential pale->deep ramp,
+    robustly stretched between the 2nd/98th percentiles."""
+    import numpy as np
+
+    from lode.costmap_layers import CostmapContext
+    from lode.costmap_layers import _roughness as _lode_roughness
+    ctx = CostmapContext(Z=np.asarray(dem, dtype=float), cell_m=float(cell))
+    rough, _mask, _name = _lode_roughness(ctx)           # the SAME window-RMS-slope roughness the costmap uses
+    r = np.asarray(rough, dtype=float)
+    finite = np.isfinite(r)
+    vals = r[finite]
+    lo = float(np.percentile(vals, 2.0)) if vals.size else 0.0
+    hi = float(np.percentile(vals, 98.0)) if vals.size else 1.0
+    if hi <= lo:
+        hi = lo + 1e-9
+    t = np.clip((np.where(finite, r, lo) - lo) / (hi - lo), 0.0, 1.0)
+    rgba = np.zeros((*r.shape, 4))
+    rgba[..., :3] = _ramp_rgb(t, _ROUGH_SEQUENTIAL)
+    rgba[..., 3] = 70.0 + 150.0 * t
+    return rgba.astype("uint8")
+
+
 def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0, *, slope_vmax=30.0, slope_classes=0,
                 grid_north_bearing=None):
     """GIS-WA2: each layer's colouring as a PURE function of a DEM patch + its cell size -- the single
@@ -388,6 +507,12 @@ def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0, *, slope_vmax=30.0, 
         rgba[..., 0] = 255; rgba[..., 1] = 200 * (1 - t); rgba[..., 2] = 40
         rgba[..., 3] = 40 + 170 * t
         return rgba.astype("uint8")
+    if kind == "aspect":                                  # LY-05: gradient azimuth (cyclic)
+        return _aspect_rgba(dem, cell)
+    if kind == "curvature":                               # LY-05: Laplacian curvature (diverging)
+        return _curvature_rgba(dem, cell)
+    if kind == "roughness":                               # LY-05: window-RMS-slope roughness (lode source of truth)
+        return _roughness_rgba(dem, cell)
     return None
 
 
@@ -1086,3 +1211,77 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
     except OSError:
         pass
     return out
+
+
+# ---- [REQ:LY-05] the CONTOURS vector product: real elevation isolines of the site DEM ----------------
+# A REAL vector product (not a raster drape): contourpy (matplotlib's contour engine) traces the elevation
+# isolines of the site's LOLA heightfield at a stated interval, and each polyline is reprojected from the
+# tile frame to selenographic lon/lat (OGC CRS84, lon-lat order) so it co-registers with the globe drapes.
+# Served as GeoJSON. Registered in the LY-01 catalog as base.contours (display-only by default). No
+# fabricated geometry -- every vertex comes from the real DEM. (osgeo.gdal / gdal_contour into the .qgz is
+# the QGIS-side alternative the PRD names; it is unavailable in this venv -- osgeo is not importable -- so
+# the GeoJSON endpoint is the real, tested vector producer here.)
+def contour_geojson(site: str = "haworth", interval: float = 50.0, *, mp=None,
+                    max_levels: int = 400, target_px: int = 512, max_vertices: int = 200_000) -> dict:
+    """[REQ:LY-05] REAL elevation contours of the site DEM at ``interval`` metres as a GeoJSON
+    FeatureCollection -- one MultiLineString Feature per elevation level, coordinates in selenographic
+    lon/lat (OGC:CRS84). The DEM is strided to ~``target_px`` before tracing (a coarse isoline is faithful
+    for a display contour and keeps the trace light); the level count is capped and the total vertex count
+    is bounded (``truncated`` flag when hit). Raises KeyError/FileNotFoundError for an unknown/unimported
+    site (the route -> 404)."""
+    import math
+
+    import numpy as np
+    from contourpy import contour_generator
+    from pyproj import Transformer
+    if mp is None:
+        from lode import mission_planner as mp
+    bundle_dir = mp.bundle_for_site(site)                 # raises KeyError/FileNotFoundError -> route 404
+    dem_full, cell_m, b, _fwd, tile_crs = _tile_geo(mp, bundle_dir)
+    Z = np.asarray(dem_full, dtype=float)
+    H, W = Z.shape
+    stride = max(1, int(round(max(H, W) / max(2, int(target_px)))))
+    Zd = Z[::stride, ::stride]
+    hd, wd = Zd.shape
+    x0, y0, x1, y1 = b["x0"], b["y0"], b["x1"], b["y1"]
+    xs = np.linspace(x0, x1, wd)                          # tile-frame East metres per column
+    ys = np.linspace(y1, y0, hd)                          # north-up raster: row 0 = y1 (max north)
+    zmin = float(np.nanmin(Zd)); zmax = float(np.nanmax(Zd))
+    iv = float(interval)
+    if not math.isfinite(iv) or iv <= 0.0:
+        iv = 50.0
+    lo = math.ceil(zmin / iv) * iv
+    levels: list[float] = []
+    v = lo
+    while v <= zmax and len(levels) < int(max_levels):
+        levels.append(round(v, 3)); v += iv
+    inv = Transformer.from_crs(tile_crs, tile_crs.geodetic_crs, always_xy=True)   # tile frame -> lon/lat
+    gen = contour_generator(xs, ys, Zd, line_type="Separate")
+    features: list[dict] = []
+    n_vertices = 0
+    truncated = False
+    for lev in levels:
+        coords: list = []
+        for pl in gen.lines(float(lev)):                 # each pl = (N,2) polyline in (tile East, tile North) m
+            arr = np.asarray(pl, dtype=float)
+            if arr.shape[0] < 2:
+                continue
+            lon, lat = inv.transform(arr[:, 0], arr[:, 1])
+            line = [[round(float(a), 6), round(float(o), 6)] for a, o in zip(lon, lat)]
+            coords.append(line)
+            n_vertices += len(line)
+            if n_vertices >= int(max_vertices):
+                truncated = True
+                break
+        if coords:
+            features.append({"type": "Feature", "properties": {"elevation_m": float(lev)},
+                             "geometry": {"type": "MultiLineString", "coordinates": coords}})
+        if truncated:
+            break
+    return {"type": "FeatureCollection",
+            "properties": {"site": site, "interval_m": iv, "levels": len(features),
+                           "z_min_m": round(zmin, 2), "z_max_m": round(zmax, 2),
+                           "vertices": n_vertices, "truncated": truncated, "crs": "OGC:CRS84",
+                           "source": "LOLA DEM elevation isolines (contourpy on the real heightfield)",
+                           "eligibility": "display-only (base.contours, LY-01 catalog)"},
+            "features": features}

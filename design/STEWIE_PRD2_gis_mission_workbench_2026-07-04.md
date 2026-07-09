@@ -211,6 +211,8 @@ Explicit layer catalog:
 | `base.crs_control` | vector | CRS/frame control points | prior | yes for validation | yes if verified |
 | `terrain.slope` | raster | slope angle | derived | yes | yes if DEM valid |
 | `terrain.roughness` | raster | terrain roughness/mobility proxy | derived/observed | yes | yes if calibrated |
+| `terrain.aspect` | raster | slope aspect (gradient azimuth) | derived | no by default | no |
+| `terrain.curvature` | raster | surface curvature (Laplacian) | derived | no by default | no |
 | `terrain.incidence` | raster | solar incidence | derived | yes | yes if ephemeris valid |
 | `terrain.illumination` | raster/time | lit/shadow state by mission time | forecast/observed | yes | yes if time-bound |
 | `terrain.shadow` | raster/time | shadow hazard | forecast/observed | yes | yes if time-bound |

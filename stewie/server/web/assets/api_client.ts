@@ -77,6 +77,7 @@ export type ApiPath =
   | '/landing'
   | '/landing.html'
   | '/layers'
+  | '/layers/contours.geojson'
   | '/layers/globe/{kind}.png'
   | '/layers/globe/{kind}/bbox'
   | '/layers/legend'
@@ -257,6 +258,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'GET', path: '/landing', operationId: 'landing_page_landing_get', mutatesAuthority: false },
   { method: 'GET', path: '/landing.html', operationId: 'landing_page_landing_html_get', mutatesAuthority: false },
   { method: 'GET', path: '/layers', operationId: 'get_layers_layers_get', mutatesAuthority: false },
+  { method: 'GET', path: '/layers/contours.geojson', operationId: 'layers_contours_geojson_layers_contours_geojson_get', mutatesAuthority: false },
   { method: 'GET', path: '/layers/globe/{kind}.png', operationId: 'globe_layer_png_layers_globe__kind__png_get', mutatesAuthority: false },
   { method: 'GET', path: '/layers/globe/{kind}/bbox', operationId: 'globe_layer_bbox_layers_globe__kind__bbox_get', mutatesAuthority: false },
   { method: 'GET', path: '/layers/legend', operationId: 'layers_legend_layers_legend_get', mutatesAuthority: false },

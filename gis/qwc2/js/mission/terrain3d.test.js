@@ -5,9 +5,10 @@ const assert = require("node:assert");
 const { test } = require("node:test");
 const T = require("./terrain3d.js");
 
-test("DRAPE_KINDS: the 7 analysis drapes with unique ids, elevation first", () => {
+test("DRAPE_KINDS: the 10 analysis drapes with unique ids, elevation first", () => {
   const ids = T.DRAPE_KINDS.map((d) => d.id);
-  assert.deepStrictEqual(ids, ["elevation", "dem", "slope", "hazard", "illumination", "psr", "cost"]);
+  assert.deepStrictEqual(ids, ["elevation", "dem", "slope", "aspect", "curvature", "roughness",
+    "hazard", "illumination", "psr", "cost"]);
   assert.strictEqual(new Set(ids).size, ids.length, "drape ids must be unique");
   T.DRAPE_KINDS.forEach((d) => assert.ok(d.label && typeof d.label === "string", "every drape has a label"));
 });

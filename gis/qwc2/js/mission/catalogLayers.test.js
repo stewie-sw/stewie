@@ -10,13 +10,17 @@ const assert = require("node:assert");
 const C = require("./catalogLayers.js");
 
 // --- constant tables -------------------------------------------------------------------------------
-test("SERVABLE: 16 globe-kind mappings grounded in the backend _GLOBE_KINDS allow-list", () => {
-  assert.strictEqual(Object.keys(C.SERVABLE).length, 16);
+test("SERVABLE: 19 globe-kind mappings grounded in the backend _GLOBE_KINDS allow-list", () => {
+  assert.strictEqual(Object.keys(C.SERVABLE).length, 19);
   assert.strictEqual(C.SERVABLE["base.dem"], "dem");
   assert.strictEqual(C.SERVABLE["traffic.cost_global"], "cost");
   assert.strictEqual(C.SERVABLE["traffic.traversability"], "blocking");
   assert.strictEqual(C.SERVABLE["physics.excavation_resistance"], "excavation_resistance");
   assert.strictEqual(C.SERVABLE["traffic.compaction"], "traffic");
+  // LY-05 DEM-derivative drapes: aspect + curvature + roughness are servable globe kinds
+  assert.strictEqual(C.SERVABLE["terrain.aspect"], "aspect");
+  assert.strictEqual(C.SERVABLE["terrain.curvature"], "curvature");
+  assert.strictEqual(C.SERVABLE["terrain.roughness"], "roughness");
   // physics.compaction is DELIBERATELY absent (it re-labels the same TrafficMemory Dr family)
   assert.strictEqual(Object.prototype.hasOwnProperty.call(C.SERVABLE, "physics.compaction"), false);
 });
@@ -35,6 +39,9 @@ test("LEGEND_KEY: grid has no legend entry; each servable kind maps to its legen
   assert.strictEqual(C.LEGEND_KEY.dem, "dem");
   assert.strictEqual(C.LEGEND_KEY.slip_risk, "slip_risk");
   assert.strictEqual(C.LEGEND_KEY.traffic, "traffic");
+  assert.strictEqual(C.LEGEND_KEY.aspect, "aspect");
+  assert.strictEqual(C.LEGEND_KEY.curvature, "curvature");
+  assert.strictEqual(C.LEGEND_KEY.roughness, "roughness");
   assert.strictEqual(Object.prototype.hasOwnProperty.call(C.LEGEND_KEY, "grid"), false);
 });
 

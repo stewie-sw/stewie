@@ -44,7 +44,7 @@ def test_layer_confidence_is_faithful_to_the_declared_source_class():  # [REQ:GW
 
 def test_catalog_endpoint_carries_per_layer_uncertainty(monkeypatch):  # [REQ:GW-03]
     cat = _catalog(monkeypatch)
-    assert cat["count"] == 66 and len(cat["layers"]) == 66
+    assert cat["count"] == 68 and len(cat["layers"]) == 68
     tiers = {"high", "medium", "low", "n/a"}
     for ly in cat["layers"]:
         c = ly.get("confidence")

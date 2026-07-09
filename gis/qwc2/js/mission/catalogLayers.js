@@ -2,7 +2,7 @@
  * catalogLayers — the PURE, framework-agnostic bridge from the STEWIE mission LAYER CATALOG to
  * QWC2 map layers, for the lunar IDE (artemis.stewie.space/ide/).
  *
- * REBIND, not invent: it fetches the backend's own 65-row semantic catalog + the served raster
+ * REBIND, not invent: it fetches the backend's own 68-row semantic catalog + the served raster
  * drapes + the physics legend, groups the catalog the way stewie/server/web/assets/contents_tree.js
  * groups the cockpit's layer tree (ordered, section-coherent groups + a row shape carrying a badge),
  * and turns each SERVABLE catalog row into a QWC2 `image` layer object the plugin adds to the map.
@@ -16,10 +16,11 @@
  * GetMap, so a QWC2 `wms` layer (which requests in the map CRS) cannot render it. See README/report.
  *
  * SERVABILITY is grounded in the backend endpoint's _GLOBE_KINDS allow-list, never faked:
- *   servable  = /layers/globe/{kind}.png returns a real PNG for these 16 globe kinds:
- *               dem, slope, hazard, illumination, incidence, psr, grid, cost, blocking, the six T12
- *               PHYSICS (TM) drapes bearing, sinkage, slip_risk, traction_margin, energy_cost,
- *               excavation_resistance, and the TW-11 traffic drape.
+ *   servable  = /layers/globe/{kind}.png returns a real PNG for these 19 globe kinds:
+ *               dem, slope, hazard, illumination, incidence, psr, grid, cost, blocking, the LY-05
+ *               DEM-derivative drapes aspect, curvature, roughness, the six T12 PHYSICS (TM) drapes
+ *               bearing, sinkage, slip_risk, traction_margin, energy_cost, excavation_resistance, and the
+ *               TW-11 traffic drape.
  *               (dem..grid verified live by curl 2026-07-06; cost + blocking added 2026-07-06 -- the
  *               plan-independent traversability-COST heatmap + the categorical BLOCKING-reason grid,
  *               both from the REAL lode.costmap_layers costmap on the site DEM; the 6 physics drapes added
@@ -81,10 +82,17 @@
   //   driven, transparent where it has not. This is the OBSERVED-state sibling of the plan-independent
   //   physics rows; physics.compaction stays deliberately absent (it re-labels the SAME TrafficMemory Dr
   //   family under the Physics group, so it is not doubled as a second raster -- honest 6/7).
+  //   The three LY-05 DEM-derivative analysis drapes (added 2026-07-08): aspect (gradient azimuth) +
+  //   curvature (Laplacian) from the SAME heightfield gradient the slope drape uses, and roughness (the
+  //   window-RMS-slope, reusing lode.costmap_layers._roughness as the one source of truth). All render via
+  //   /layers/globe/{kind}.png like slope; aspect/curvature are display-only, roughness is planning-eligible.
   var SERVABLE = {
     "base.dem": "dem",
     "base.grid": "grid",
     "terrain.slope": "slope",
+    "terrain.aspect": "aspect",
+    "terrain.curvature": "curvature",
+    "terrain.roughness": "roughness",
     "terrain.illumination": "illumination",
     "terrain.incidence": "incidence",
     "terrain.psr": "psr",
@@ -103,6 +111,7 @@
   // globe kind -> key in the /layers/legend payload (grid is a bare reference grid, no legend entry).
   var LEGEND_KEY = {
     dem: "dem", slope: "slope", hazard: "hazard",
+    aspect: "aspect", curvature: "curvature", roughness: "roughness",
     illumination: "illumination", incidence: "incidence", psr: "psr",
     cost: "cost", blocking: "blocking",
     bearing: "bearing", sinkage: "sinkage", slip_risk: "slip_risk",
