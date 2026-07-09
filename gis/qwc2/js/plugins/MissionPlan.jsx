@@ -31,12 +31,22 @@ import PlanAuthor from '../mission/planAuthor';
 import WS from '../mission/workspace.js';        // GW-02: the shared workspace-context store (active site)
 import PT from '../mission/planTools';           // civil #41: materialBalance (cut/fill earthwork economy)
 
-// The three imported work-site DEMs the planner backs (matches Frontend A's site dropdown). Haworth is the
-// theme's authoritative work site (the T6 default the globe drape + layer catalog also use).
+// The imported work-site DEMs the planner backs (#51 3-DEM reconciliation): every site that carries a real
+// LOLA DEM bundle -- the plannable set -- with real-area labels matching the map pins (/world/site-markers)
+// and the /viz + /ide 3D viewers. Haworth is the theme's authoritative work site (the T6 default the globe
+// drape + layer catalog also use). Map pins without a DEM bundle (e.g. de Gerlache-Kocher Massif) are not
+// plannable and are correctly absent; DEM sites without a drawn pin (nobile_rim2, shoemaker) stay plannable.
 const SITES = [
-    {value: 'haworth', label: 'Haworth crater'},
+    {value: 'haworth', label: 'Haworth'},
+    {value: 'connecting_ridge', label: 'Connecting Ridge'},
+    {value: 'de_gerlache_rim', label: 'de Gerlache Rim'},
+    {value: 'leibnitz_beta', label: 'Leibnitz Beta Plateau'},
+    {value: 'malapert_massif', label: 'Malapert Massif'},
     {value: 'nobile_rim', label: 'Nobile Rim 1'},
-    {value: 'shackleton_rim', label: 'Shackleton Rim'}
+    {value: 'nobile_rim2', label: 'Nobile Rim 2'},
+    {value: 'peak_near_shackleton', label: 'Peak near Shackleton'},
+    {value: 'shackleton_rim', label: 'Shackleton Rim'},
+    {value: 'shoemaker', label: 'Shoemaker'}
 ];
 
 // DEPTH-2 plan controls — the REAL planner levers /api/plan accepts. These option VALUES are the exact
