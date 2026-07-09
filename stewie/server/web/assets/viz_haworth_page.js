@@ -109,6 +109,17 @@ function init() {
   $("viz-grat").addEventListener("change", (e) => VIZ.setGraticule(e.target.checked));
   $("viz-wire").addEventListener("change", (e) => VIZ.setWireframe(e.target.checked));
 
+  // task #79: measure/waypoints tool -- toggle + clear + a live count/distance readout (textContent only,
+  // MT-03 safe-DOM convention: never a raw-HTML sink).
+  $("viz-measure").addEventListener("change", (e) => VIZ.setMeasureMode(e.target.checked));
+  $("viz-measure-clear").addEventListener("click", () => VIZ.clearMeasure());
+  VIZ.onMeasure((m) => {
+    const out = $("viz-measure-out");
+    if (!out) return;
+    out.textContent = m.count ? (m.count + " pts · " + (m.totalDist_m >= 1000
+      ? (m.totalDist_m / 1000).toFixed(2) + " km" : m.totalDist_m.toFixed(1) + " m")) : "—";
+  });
+
   // task #77: the lon/lat graticule checkbox now defaults checked (viz_haworth.html); set the flag before
   // loadSite() builds the mesh -- loadGraticule() guards on S.meta, so calling it pre-mesh is a safe no-op,
   // and loadSite's own `if (S._gratOn) loadGraticule();` then loads it once the mesh is ready.

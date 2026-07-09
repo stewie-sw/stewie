@@ -10,7 +10,10 @@
  */
 import * as THREE from "/assets/three.module.min.js";
 
-const S = { ready: false, vex: 1, layerKind: "elevation", site: "haworth", meta: null, z: null };
+const S = { ready: false, vex: 1, layerKind: "elevation", site: "haworth", meta: null, z: null,
+  // task #79: measure/waypoints tool -- click-to-add points (order-local lx/ly + absolute elev_m + lat/lon,
+  // filled in a beat later by the debounced /dem/site_lonlat lookup, same as the hover + plot tools).
+  _measureOn: false, _measurePts: [], _measureGroup: null, _onMeasure: null };
 const WIRE = { color: 0x35e0d0, base: 0.10, dim: 0.04 };
 // Above this per-side vertex count, THREE.WireframeGeometry's internal edge Set overflows V8's 2^24
 // element cap (a full-res 2000x2000 grid has ~24M edges -> "Set maximum size exceeded"), and a wireframe
@@ -92,10 +95,14 @@ function _bindControls(el) {
     // "Stay the spin" (task #77): the drag-orbit above stays fully active even with Shift held -- no mode
     // toggle. A Shift+CLICK that did not drag (pointer moved < 5px since pointerdown) plots the active
     // Mission-Plan tool at the raycast point; a Shift+DRAG only orbits (the pointermove handler already ran),
-    // it never plots.
+    // it never plots. (task #79) A plain (non-Shift) click-without-drag while measure mode is on instead
+    // drops a measure/waypoint point -- mutually exclusive on the shift key, so a #77 plot-click never also
+    // measures and a measure-click never also plots. Either way a real orbit-drag does neither.
+    const moved = Math.hypot(e.clientX - dx0, e.clientY - dy0);
     if (e.shiftKey) {
-      const moved = Math.hypot(e.clientX - dx0, e.clientY - dy0);
       if (moved < 5) { _plotAt(el, e); }
+    } else if (S._measureOn && moved < 5) {
+      _measureAt(el, e);
     }
   });
   el.addEventListener("pointermove", (e) => {
@@ -144,6 +151,7 @@ async function loadSite(site, opts) {
   if (z.length !== meta.n * meta.n) { throw new Error("heightfield payload " + z.length + " != n^2 " + meta.n); }
   S.meta = meta; S.z = z;
   clearPlots();          // task #77: plot markers are site-local (order-frame lx/ly) -> drop stale ones on a site switch
+  clearMeasure();        // task #79: measure waypoints are also site-local (order-frame lx/ly) -> drop stale ones
   _buildMesh();
   // frame the whole tile
   S.target.set(meta.window_m / 2, ((meta.z_max - meta.z_min) * S.vex) * 0.3, meta.window_m / 2);
@@ -257,6 +265,13 @@ function setVertExag(k) {
   if (S._plotGroup) {
     S._plotGroup.children.forEach((mk) => { mk.position.y = heightAt(mk.userData.lx, mk.userData.ly) * k + mk.userData.r; });
   }
+  // task #79: same cheap re-lift for the measure markers (the connecting polyline itself is NOT rebuilt here --
+  // see _redrawMeasure's header comment for why that's an accepted, flagged trade-off).
+  if (S._measureGroup) {
+    S._measureGroup.children.forEach((mk) => {
+      if (mk.userData && mk.userData.lx != null) { mk.position.y = heightAt(mk.userData.lx, mk.userData.ly) * k + mk.userData.r; }
+    });
+  }
 }
 
 function setWireframe(on) {
@@ -314,14 +329,46 @@ async function loadGraticule() {
   _redrapeGraticule();
 }
 
+// Small offscreen-canvas text label (task #79): rasterizes `text` in `color` onto a CanvasTexture-backed
+// THREE.Sprite (screen-facing, depthTest off so it never z-fights/disappears behind the relief). One label
+// per graticule line is all that's needed here, so this stays a minimal one-off, not a general text system.
+// Returns {sprite, aspect} so the caller can scale it to a readable world size without distorting the text.
+function _textSprite(text, color) {
+  const px = 64;                                      // rasterize at a fixed pixel size, scale in world-space
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const font = "600 " + px + "px Inter, system-ui, sans-serif";
+  ctx.font = font;
+  const pad = px * 0.3;
+  canvas.width = Math.max(1, Math.ceil(ctx.measureText(text).width + pad * 2));
+  canvas.height = Math.ceil(px * 1.4);
+  ctx.font = font;                                     // canvas resize resets 2D context state -- reapply
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#" + ("000000" + color.toString(16)).slice(-6);
+  ctx.fillText(text, pad, canvas.height / 2);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
+  return { sprite: new THREE.Sprite(mat), aspect: canvas.width / canvas.height };
+}
+
 function _redrapeGraticule() {
   _disposeGroup(S._gratGroup); S._gratGroup = null;
   if (!S._gratData || !S._gratOn) return;
   const grp = new THREE.Group();
+  const win = (S.meta && S.meta.window_m) ? S.meta.window_m : 1000;
+  const labelW = win * 0.05;                            // readable world size relative to the tile window
   S._gratData.forEach((ln) => {
     if (!ln.coords || ln.coords.length < 2) return;
     const color = ln.kind === "meridian" ? 0x6cd8ff : 0xffd27a;
     grp.add(_lineOnSurface(ln.coords, 1, color, 2.0));      // graticule is already densely sampled
+    if (ln.label) {
+      const [x0, y0] = ln.coords[0];
+      const t = _textSprite(ln.label, color);
+      t.sprite.scale.set(labelW, labelW / t.aspect, 1);
+      t.sprite.position.set(x0, heightAt(x0, y0) * S.vex + 6.0, y0);   // a small offset above the line's yLift
+      grp.add(t.sprite);
+    }
   });
   S._gratGroup = grp; S.group.add(grp);
 }
@@ -395,6 +442,90 @@ function _plotAt(el, e) {
 function onPlot(cb) { S._onPlot = cb; }
 function clearPlots() { _disposeGroup(S._plotGroup); S._plotGroup = null; }
 
+// ---- measure / waypoints tool (task #79): plain click-without-drag (measure mode on, no Shift) drops a
+// waypoint; consecutive waypoints are joined by a draped polyline and the running PLANAR horizontal distance
+// (order-frame lx/ly, ignoring elevation) is reported via onMeasure(cb). Reuses the same raycast + lx/ly/
+// elev_m derivation as _hoverPick/_plotAt, and the same bounded /dem/site_lonlat lookup (_fetchT +
+// HOVER_TIMEOUT_MS) for the selenographic lat/lon of each waypoint (best-effort: a failed lookup keeps the
+// point with lat/lon null -- distance is computed from lx/ly and does not depend on it).
+function setMeasureMode(on) { S._measureOn = !!on; }
+
+function _measureAt(el, e) {
+  const p = _raycastSurface(el, e);
+  if (!p || !S.meta) return;                    // no terrain under the click -- nothing to measure
+  const m = S.meta, lx = p.x, ly = p.z, elev_m = p.y / S.vex + m.z_min;
+  const pt = { lx: lx, ly: ly, elev_m: elev_m, lat: null, lon: null };
+  S._measurePts.push(pt);
+  _redrawMeasure();
+  _emitMeasure();
+  _fetchT("/dem/site_lonlat?x=" + (m.x0 + lx) + "&y=" + (m.y0 + ly) + "&site=" + encodeURIComponent(S.site), HOVER_TIMEOUT_MS)
+    .then((r) => r.json())
+    .then((d) => { if (d && d.ok) { pt.lat = d.lat; pt.lon = d.lon; _emitMeasure(); } })
+    .catch(() => { /* lonlat lookup failed -- keep the point with lat/lon null; distance still works from lx/ly */ });
+}
+
+// Per-consecutive-pair PLANAR horizontal distances (metres), ignoring elevation -- shared by the polyline's
+// drape subdivision (denser sampling over a longer segment) and _emitMeasure's per-segment/cumulative report.
+function _measureSegDists() {
+  const pts = S._measurePts, out = [];
+  for (let i = 1; i < pts.length; i++) { out.push(Math.hypot(pts[i].lx - pts[i - 1].lx, pts[i].ly - pts[i - 1].ly)); }
+  return out;
+}
+
+// Dispose + rebuild the measure group: a draped polyline through the waypoints (_lineOnSurface, like the km
+// grid/graticule) plus a small sphere marker at each point (styled like the task #77 plot marker). NOTE: on a
+// setVertExag() change only the markers are re-lifted (cheap position.y trick, see that function) -- the
+// polyline itself is only re-draped here, on the next _redrawMeasure() (a new point, or clearMeasure()). This
+// matches the literal task #79 spec (reuse the marker re-lift pattern) but is a known, flagged trade-off: the
+// connecting line can go slightly stale relative to the markers if vertical exaggeration changes with 2+
+// points already placed. See the CLAUDE-facing report for the alternative (call _redrawMeasure() itself from
+// setVertExag, matching the grid/graticule's full-rebuild pattern) if that staleness proves visually confusing.
+function _redrawMeasure() {
+  _disposeGroup(S._measureGroup); S._measureGroup = null;
+  if (!S._measurePts.length) return;
+  const grp = new THREE.Group();
+  const win = (S.meta && S.meta.window_m) ? S.meta.window_m : 1000;
+  const cell = (S.meta && S.meta.cell_m) ? S.meta.cell_m : Math.max(1, win / 200);
+  const r = Math.max(1, win * 0.004);
+  if (S._measurePts.length > 1) {
+    const dists = _measureSegDists();
+    const maxSeg = Math.max.apply(null, dists);
+    const sub = Math.max(8, Math.min(200, Math.round(maxSeg / cell)));   // denser drape over a longer segment
+    const coords2 = S._measurePts.map((pt) => [pt.lx, pt.ly]);
+    grp.add(_lineOnSurface(coords2, sub, 0xffcc33, 3.0));
+  }
+  S._measurePts.forEach((pt) => {
+    const geo = new THREE.SphereGeometry(r, 10, 8);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffcc33, emissive: 0x4a3400, emissiveIntensity: 0.6, roughness: 0.5 });
+    const mk = new THREE.Mesh(geo, mat);
+    mk.userData.lx = pt.lx; mk.userData.ly = pt.ly; mk.userData.r = r;
+    mk.position.set(pt.lx, heightAt(pt.lx, pt.ly) * S.vex + r, pt.ly);
+    grp.add(mk);
+  });
+  S._measureGroup = grp; S.group.add(grp);
+}
+
+function _emitMeasure() {
+  if (!S._onMeasure) return;
+  const pts = S._measurePts, segments = _measureSegDists();
+  let total = 0; segments.forEach((d) => { total += d; });
+  const last = pts.length ? pts[pts.length - 1] : null;
+  S._onMeasure({
+    count: pts.length,
+    totalDist_m: total,
+    lastLat: last ? last.lat : null,
+    lastLon: last ? last.lon : null,
+    segments: segments,
+  });
+}
+
+function onMeasure(cb) { S._onMeasure = cb; }
+
+function clearMeasure() {
+  _disposeGroup(S._measureGroup); S._measureGroup = null; S._measurePts = [];
+  if (S._onMeasure) { S._onMeasure({ count: 0, totalDist_m: 0, lastLat: null, lastLon: null, segments: [] }); }
+}
+
 function _disposeGroup(g) {
   if (!g) return;
   S.group.remove(g);
@@ -409,12 +540,13 @@ function _disposeGroup(g) {
 function dispose() {
   S.ready = false;                                            // stops _loop() on its next frame
   if (_llTimer) { clearTimeout(_llTimer); _llTimer = 0; } _llGen++;   // drop the in-flight site_lonlat lookup
-  S._onHover = null; S._onLayerError = null; S._onPlot = null;
+  S._onHover = null; S._onLayerError = null; S._onPlot = null; S._onMeasure = null;
   if (S._ro) { try { S._ro.disconnect(); } catch (_) { /* */ } S._ro = null; }
   _disposeGroup(S._gridGroup); S._gridGroup = null;          // uses S.group -> must run before S.group is dropped
   _disposeGroup(S._gratGroup); S._gratGroup = null;
   _disposeGroup(S._plotGroup); S._plotGroup = null;
-  S._gridOn = false; S._gratOn = false; S._wireOn = false;
+  _disposeGroup(S._measureGroup); S._measureGroup = null; S._measurePts = [];
+  S._gridOn = false; S._gratOn = false; S._wireOn = false; S._measureOn = false;
   if (S.wire) { if (S.group) S.group.remove(S.wire); S.wire.geometry.dispose(); S.wire.material.dispose(); S.wire = null; }
   if (S.mesh) {
     if (S.group) S.group.remove(S.mesh);
@@ -437,6 +569,7 @@ function dispose() {
 window.STEWIE_VIZ = {
   mount, dispose, loadSite, setLayer, setVertExag, setWireframe, setSun, setMetricGrid, setGraticule,
   onHover, onLayerError, onPlot, clearPlots, heightAt,
+  setMeasureMode, clearMeasure, onMeasure,
   get meta() { return S.meta; }, get layerKind() { return S.layerKind; }, get vertExag() { return S.vex; },
   get ready() { return !!S.ready; }, get hasMesh() { return !!S.mesh; },
 };

@@ -104,6 +104,8 @@ class MissionTerrain3D extends React.Component {
         grid: false,
         grat: true,       // task #77: lon/lat graticule shows by default (was off) -- oriented plotting context
         wire: false,
+        measure: false,       // task #79: measure/waypoints tool toggle
+        measureInfo: null,    // task #79: last onMeasure payload ({count, totalDist_m, lastLat, lastLon, segments})
         loading: false,
         error: null,
         meta: null,       // last loaded X-Dem-* meta (resolution / relief), for the status line
@@ -174,6 +176,9 @@ class MissionTerrain3D extends React.Component {
             // raycast point (e_m/n_m/elev_m/lat/lon) into the SAME shared workspace channel MissionPlan
             // subscribes to, so it feeds the identical order queue the 2D map's singleclick fills.
             VIZ.onPlot((pt) => WS.emitPlot(pt));
+            // task #79: the measure/waypoints tool -- viz3d owns the click handling + polyline/marker drawing;
+            // this panel just mirrors the running count/distance into React state for the readout.
+            VIZ.onMeasure((m) => this.setState({measureInfo: m}));
             this._mounted = true;
             this._loadSite(WS.site());
         }).catch((e) => {
@@ -235,6 +240,8 @@ class MissionTerrain3D extends React.Component {
     _setGrid = (e) => { const grid = e.target.checked; this.setState({grid}); if (this._viz) { this._viz.setMetricGrid(grid); } };
     _setGrat = (e) => { const grat = e.target.checked; this.setState({grat}); if (this._viz) { this._viz.setGraticule(grat); } };
     _setWire = (e) => { const wire = e.target.checked; this.setState({wire}); if (this._viz) { this._viz.setWireframe(wire); } };
+    _setMeasure = (e) => { const measure = e.target.checked; this.setState({measure}); if (this._viz) { this._viz.setMeasureMode(measure); } };
+    _clearMeasure = () => { if (this._viz) { this._viz.clearMeasure(); } };
 
     renderStatus() {
         const s = this.state;
@@ -259,6 +266,26 @@ class MissionTerrain3D extends React.Component {
                 <div><span data-stewie-hud-en style={{color: '#c7d2e3'}}>{f ? f.en : 'E — m N — m'}</span>
                     {'  '}<span data-stewie-hud-elev style={{color: '#4fd1ff'}}>{f ? f.elev : 'elev — m'}</span></div>
                 <div data-stewie-hud-ll style={{color: '#e0b300'}}>{f ? f.lonlat : 'lat — lon —'}</div>
+            </div>
+        );
+    }
+    // task #79: the measure/waypoints readout (count + running planar distance) + a Clear button. viz3d
+    // reports {count, totalDist_m, ...} via onMeasure(); this just formats it as plain JSX text -- no raw-HTML sink.
+    renderMeasure() {
+        const m = this.state.measureInfo;
+        const count = m ? m.count : 0;
+        const totalM = m ? m.totalDist_m : 0;
+        const distTxt = totalM >= 1000 ? (totalM / 1000).toFixed(2) + ' km' : totalM.toFixed(1) + ' m';
+        return (
+            <div style={{display: 'flex', alignItems: 'center', gap: '8px', margin: '3px 0 6px'}}>
+                <span data-stewie-measure-out style={{color: '#aeb8c6'}}>{count ? (count + ' pts · ' + distTxt) : '—'}</span>
+                <button
+                    data-stewie-measure-clear onClick={this._clearMeasure} type="button"
+                    style={{
+                        cursor: 'pointer', font: '600 10px system-ui, sans-serif', padding: '2px 8px',
+                        borderRadius: '4px', border: '1px solid #39c6ff44', color: '#39c6ff', background: '#39c6ff10'
+                    }}
+                >Clear</button>
             </div>
         );
     }
@@ -325,8 +352,10 @@ class MissionTerrain3D extends React.Component {
                     <label><input checked={s.grid} data-stewie-grid onChange={this._setGrid} type="checkbox" /> km grid</label>
                     <label><input checked={s.grat} data-stewie-grat onChange={this._setGrat} type="checkbox" /> lon/lat</label>
                     <label><input checked={s.wire} data-stewie-wire onChange={this._setWire} type="checkbox" /> wireframe</label>
+                    <label><input checked={s.measure} data-stewie-measure onChange={this._setMeasure} type="checkbox" /> 📏 Measure</label>
                 </div>
 
+                {this.renderMeasure()}
                 {this.renderHover()}
             </div>
         );

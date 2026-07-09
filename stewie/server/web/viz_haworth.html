@@ -34,6 +34,9 @@
   .toggles{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:2px}
   .toggles label{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text);cursor:pointer}
   .toggles input{accent-color:var(--cyan)}
+  #viz-measure-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--text-2)}
+  #viz-measure-out{color:var(--cyan);font-variant-numeric:tabular-nums}
+  #viz-measure-clear{background:#0c0e13;color:var(--text);border:1px solid var(--edge);border-radius:6px;padding:3px 10px;font-size:11px;font-family:inherit;cursor:pointer}
   #viz-hud{position:absolute;left:14px;bottom:14px;background:rgba(8,11,15,.86);border:1px solid var(--edge);border-radius:8px;padding:9px 12px;font-size:12px;font-variant-numeric:tabular-nums;line-height:1.5;z-index:4}
   #viz-hud b{color:var(--cyan);font-weight:600}
   #viz-hud.dim{opacity:.4}
@@ -63,6 +66,11 @@
         <label><input type="checkbox" id="viz-grid"> km grid</label>
         <label><input type="checkbox" id="viz-grat" checked> lon/lat</label>
         <label><input type="checkbox" id="viz-wire"> wire</label>
+        <label><input type="checkbox" id="viz-measure"> &#128207; measure</label>
+      </div>
+      <div class="row" id="viz-measure-row">
+        <span id="viz-measure-out">&mdash;</span>
+        <button type="button" id="viz-measure-clear">clear</button>
       </div>
     </section>
     <div id="viz-hud" class="dim"><b>E</b> — &nbsp; <b>N</b> — &nbsp; <b>elev</b> —<br>lat —  lon —</div>
