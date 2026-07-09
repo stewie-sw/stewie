@@ -311,6 +311,9 @@
         "name": "MissionCrossSection"
       },
       {
+        "name": "MissionTerrain3D"
+      },
+      {
         "name": "MissionEvidence"
       },
       {
@@ -366,6 +369,7 @@
               {"key": "SelectionInspector", "title": "Inspector", "icon": "pick"},
               {"key": "Identify", "icon": "identify_region", "mode": "Region"},
               {"key": "MissionCrossSection", "title": "Cross-section", "icon": "plot_info"},
+              {"key": "MissionTerrain3D", "title": "Terrain 3D", "icon": "map3d"},
               {"key": "MissionTerramech", "title": "Terramechanics", "icon": "scale"},
               {"key": "Measure", "icon": "measure"},
               {"key": "Routing", "icon": "routing"},

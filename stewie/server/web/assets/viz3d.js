@@ -323,8 +323,40 @@ function _disposeGroup(g) {
   g.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); if (o.material.dispose) o.material.dispose(); } });
 }
 
+// [GW-11] Tear the viewer down for an embedded host (the QWC2 MissionTerrain3D SideBar) that mounts/unmounts
+// on task change: stop the RAF loop, drop the ResizeObserver + debounced lon/lat timer + hover callbacks,
+// dispose every mesh/wire/grid/graticule + the WebGL renderer (forceContextLoss), and detach the canvas. The
+// singleton S is left in a clean re-mountable state so a later mount() starts fresh with no leaked context or
+// observer. Idempotent + never throws. (The standalone /viz page never calls this; it is additive.)
+function dispose() {
+  S.ready = false;                                            // stops _loop() on its next frame
+  if (_llTimer) { clearTimeout(_llTimer); _llTimer = 0; } _llGen++;   // drop the in-flight site_lonlat lookup
+  S._onHover = null; S._onLayerError = null;
+  if (S._ro) { try { S._ro.disconnect(); } catch (_) { /* */ } S._ro = null; }
+  _disposeGroup(S._gridGroup); S._gridGroup = null;          // uses S.group -> must run before S.group is dropped
+  _disposeGroup(S._gratGroup); S._gratGroup = null;
+  S._gridOn = false; S._gratOn = false; S._wireOn = false;
+  if (S.wire) { if (S.group) S.group.remove(S.wire); S.wire.geometry.dispose(); S.wire.material.dispose(); S.wire = null; }
+  if (S.mesh) {
+    if (S.group) S.group.remove(S.mesh);
+    S.mesh.geometry.dispose();
+    if (S.mesh.material.map) S.mesh.material.map.dispose();
+    S.mesh.material.dispose();
+    S.mesh = null;
+  }
+  if (S.renderer) {
+    S.renderer.dispose();
+    try { S.renderer.forceContextLoss(); } catch (_) { /* */ }
+    const dom = S.renderer.domElement;
+    if (dom && dom.parentNode) { dom.parentNode.removeChild(dom); }
+    S.renderer = null;
+  }
+  S.z = null; S.baseH = null; S.meta = null;
+  S.scene = null; S.camera = null; S.group = null; S.sun = null; S.raycaster = null; S.container = null;
+}
+
 window.STEWIE_VIZ = {
-  mount, loadSite, setLayer, setVertExag, setWireframe, setSun, setMetricGrid, setGraticule,
+  mount, dispose, loadSite, setLayer, setVertExag, setWireframe, setSun, setMetricGrid, setGraticule,
   onHover, onLayerError, heightAt,
   get meta() { return S.meta; }, get layerKind() { return S.layerKind; }, get vertExag() { return S.vex; },
   get ready() { return !!S.ready; }, get hasMesh() { return !!S.mesh; },

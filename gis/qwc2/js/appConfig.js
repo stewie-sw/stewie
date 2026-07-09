@@ -70,6 +70,7 @@ import BufferSupport from 'qwc2/plugins/redlining/RedliningBufferSupport';
 
 import MissionAssetsPlugin from './plugins/MissionAssets';   // STEWIE: [REQ:GW-04] durable-asset library registry
 import MissionCrossSectionPlugin from './plugins/MissionCrossSection';   // STEWIE: [REQ:SD-03] resource cross-section (transect profile)
+import MissionTerrain3DPlugin from './plugins/MissionTerrain3D';   // STEWIE: [REQ:GW-11] full-res 3D terrain panel (site-synced, viz3d)
 import MissionEngPanelPlugin from './plugins/MissionEngPanel';   // STEWIE: [REQ:RT-04] read-only RViz/Foxglove eng panel
 import MissionEvidencePlugin from './plugins/MissionEvidence';   // STEWIE: [REQ:EV-01] evidence/report bundle view
 import MissionHUDPlugin from './plugins/MissionHUD';   // STEWIE: live read-only rover HUD side panel
@@ -174,6 +175,7 @@ export default {
             ZoomOutPlugin: ZoomOutPlugin,
             MissionAssetsPlugin: MissionAssetsPlugin,   // STEWIE: [REQ:GW-04] durable-asset library registry
             MissionCrossSectionPlugin: MissionCrossSectionPlugin,   // STEWIE: [REQ:SD-03] resource cross-section
+            MissionTerrain3DPlugin: MissionTerrain3DPlugin,   // STEWIE: [REQ:GW-11] full-res 3D terrain panel (site-synced)
             MissionEngPanelPlugin: MissionEngPanelPlugin,   // STEWIE: [REQ:RT-04] read-only RViz/Foxglove eng panel
             MissionEvidencePlugin: MissionEvidencePlugin,   // STEWIE: [REQ:EV-01] evidence/report bundle view
             MissionHUDPlugin: MissionHUDPlugin,   // STEWIE: live read-only rover HUD
