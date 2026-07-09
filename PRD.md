@@ -731,6 +731,27 @@ effort-proxy + live ingest + tier enforcement that are genuinely new.
 | IN-01 | P1 | **Live ROS2 Sensor Ingest Node.** Sensor topics (stereo/IMU/odom/joints/drum-current/battery/thermal) flow into the existing validated packets through the existing gate (PM-01 time-sync, frames.py single TF site, calibration check, uncertainty required, truth-denial) -> the state/terrain/excavation estimators; a replayed bag feeds the mapper + AD-03, and malformed messages are rejected legibly (never silently accepted as truth). (extends ros2_bridge + sensor_io + proprioception_io) | N | N | N | NA |
 | IN-02 | P1 | **Enforced raw/derived/belief/world/mission layer taxonomy.** A closed tier in {raw, derived, belief, world, mission} on every LY-01 catalog entry + twin surface (beside source_class); planning/release require world/mission (or belief carrying uncertainty), and promotion only advances raw->derived->belief->world through EG-08; a raw-tier layer marked planning-valid fails validation. (extends LY-01 + GW-03 + EG-08) | N | N | N | NA |
 
+### 7.G Multi-user GIS data architecture + lab deployment topology (2026-07-08 fold)
+
+Aaron's 2026-07-08 directive (design/STEWIE_multiuser_gis_data_architecture_2026-07-08.md): for a research
+lab, install QGIS locally on every workstation and keep all shared data on a central file server, with a
+PostGIS spatial database for the concurrently-edited vector + world-state layers. Split rule: large rasters
+(DEMs, imagery) stay as files on the server; vectors + world-state go in PostGIS (transactions, versioning,
+fewer file conflicts). Staged as a TRL progression -- Phase 1 (files + shared GeoPackages + Git), Phase 2
+(PostGIS + backups + permissions), Phase 3 (central world-model DB, ROS2 writes mission updates, near-real-time
+QGIS). STEWIE already ships a `postgres`/`db`-profile service + optional `STEWIE_DATABASE_URL`, so these are
+DEPLOYS + convention, not a rewrite; the one concrete defect they close is the in-memory GW-08 edit session.
+Lane key: DA data architecture + multi-user deployment.
+
+| ID | P | Requirement and acceptance | I | X | V | Q |
+| --- | --- | --- | --- | --- | --- | --- |
+| DA-01 | P2 | **Central file-server folder taxonomy + mount convention.** A documented shared-server layout ({maps, dem, imagery, missions, telemetry, world_model, planning, simulation, exports, training, archive, backups}) that the deploy mounts reflect, so shared data lives ONCE on the server (no per-workstation copies); the compose raster/vector mounts + `$STEWIE_DATA_DIR` map onto the taxonomy, and a deploy-doc section states which artifact class lives in which folder. (extends deploy/compose.yml mounts + deploy/DEPLOY.md; the plan-anywhere LDEM read-only mount is already this shape) | N | N | N | NA |
+| DA-02 | P2 | **Shared GeoPackage interchange store (Phase 1).** Vectors (mission features, keep-outs, site polygons) round-trip to/from a `.gpkg` on the shared server via the QGIS Processing provider + a backend export/import path, with CRS/frame validation on import; a `.gpkg` written by QGIS and re-imported preserves geometry + attributes in the lunar CRS. (extends the QGIS Processing provider #46 + gis import/export) | N | N | N | NA |
+| DA-03 | P1 | **PostGIS vector + world-state store (Phase 2).** The `postgres`/`db`-profile PostGIS service stands up and `STEWIE_DATABASE_URL` (async) is wired so vector layers + a world-state index persist in PostGIS (concurrent edits, transactions, versioning); the backend boots against Postgres AND still boots with no DB (file fallback), and a vector feature written by one session is transactionally visible to another. (extends compose postgres + persistence design + objects.py) | N | N | N | NA |
+| DA-04 | P1 | **Durable edit sessions (GW-08 -> persistent store).** The GW-08 keep-out/mission-feature edit session moves off the process-memory `_SESSIONS` dict into the durable store (SQLite fallback or PostGIS), so an in-progress edit session + its versioned before/after audit + undo SURVIVE a backend restart; a session created, mutated, then reloaded after a simulated restart replays identically. (extends stewie/server/edit_session.py; the clearest persistence defect) | N | N | N | NA |
+| DA-05 | P2 | **Automated backups + user permissions (Phase 2).** Scheduled backups (PostGIS dumps + file-store snapshots -> `/backups`, dated, restorable) and per-role read/write permissions (viewer/editor/director, mission sign-off director-gated) so multi-user WRITE is safe; a restore from a backup reproduces the vector + world-state, and a viewer-role write is refused. (extends deploy + the §7.12 access/identity governance lane) | N | N | N | NA |
+| DA-06 | P2 | **Phase-3 live world model -- ROS2 writes + near-real-time QGIS.** The central world-model DB is authoritative mutable state: ROS2 writes mission updates through the gated ingest bridge (IN-01), STEWIE folds terrain after every mission (the SIM execute->remember loop, already built), and QGIS/QWC2 renders the latest world state within one refresh off the same store; a replayed mission updates the world model and the next map read reflects it. (extends IN-01 + the SIM execute->remember loop + DT-04 Terrain Memory) | N | N | N | NA |
+
 ### 7.1 Contracts and Conserved Authority
 
 | ID | P | Requirement and acceptance | I | X | V | Q |

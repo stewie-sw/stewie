@@ -1713,3 +1713,48 @@ Briefs for the 6 §7.B rows added folding Aaron's multi-level DEM viz + QGIS/QGI
 - current_state: 66-layer LY-01 catalog source_class approximates the tiers but is free-form + unenforced (layer_catalog.json); GW-03 eligibility exists (verify JS enforcement before scoping).
 - files: stewie/server/layer_catalog.json, stewie/server/routers/layers.py
 - test_target: stewie/server/test_layer_tier_enforcement.py
+
+
+## Multi-user GIS data architecture fold dispatch briefs (2026-07-08)
+
+### DA-01 — atomic
+- goal: documented central file-server folder taxonomy the deploy mounts reflect; shared data lives ONCE on the server (no per-workstation copies).
+- acceptance: DEPLOY.md documents which artifact class lives in which of {maps,dem,imagery,missions,telemetry,world_model,planning,simulation,exports,training,archive,backups}; the compose raster/vector mounts + $STEWIE_DATA_DIR align with it.
+- current_state: the plan-anywhere LDEM + /io/vectors are already read-only server mounts and samples/lunar_dem is baked; there is no documented taxonomy convention yet.
+- files: deploy/compose.yml, deploy/DEPLOY.md, design/STEWIE_multiuser_gis_data_architecture_2026-07-08.md
+- test_target: deploy/test_data_taxonomy.py
+
+### DA-02 — atomic
+- goal: GeoPackage interchange store -- vectors round-trip to/from a .gpkg on the shared server, CRS/frame-validated on import.
+- acceptance: a .gpkg written then re-imported preserves geometry + attributes in the lunar CRS (IAU_2015:30135).
+- current_state: gis_export.py provides an export path and the QGIS Processing provider (#46) exists; there is no first-class shared .gpkg store convention or import-validation round-trip.
+- files: stewie/server/routers/gis_export.py
+- test_target: stewie/server/test_gpkg_interchange.py
+
+### DA-03 — atomic
+- goal: PostGIS vector + world-state store (Phase 2); STEWIE_DATABASE_URL wired; concurrent transactional vector edits.
+- acceptance: the backend boots against Postgres AND still boots with no DB (file fallback); a vector feature written by one session is transactionally visible to another.
+- current_state: compose ships a postgres/db-profile service + a STEWIE_DATABASE_URL slot; objects.py persists JSON docs to the filesystem; GW-08 sessions are in-memory.
+- files: deploy/compose.yml, stewie/server/objects.py
+- test_target: stewie/server/test_postgis_store.py
+
+### DA-04 — atomic
+- goal: durable GW-08 edit sessions -- move the process-memory _SESSIONS into the persistent store (SQLite fallback or PostGIS).
+- acceptance: a session created + mutated then reloaded after a simulated restart replays identically, with its versioned before/after audit + undo intact.
+- current_state: edit_session.py keeps sessions in a process-wide _SESSIONS dict, lost on every restart -- the clearest persistence defect.
+- files: stewie/server/edit_session.py
+- test_target: stewie/server/test_edit_session_durable.py
+
+### DA-05 — atomic
+- goal: automated backups (PostGIS dumps + file-store snapshots -> /backups, dated + restorable) + per-role read/write permissions.
+- acceptance: a restore from a backup reproduces the vector + world-state; a viewer-role write is refused.
+- current_state: no backup automation; the §7.12 access/identity governance lane provides auth roles; the rootfs is read_only with writes only to /data.
+- files: deploy/compose.yml, deploy/DEPLOY.md
+- test_target: deploy/test_backup_restore.py
+
+### DA-06 — atomic
+- goal: Phase-3 live world model -- ROS2 writes mission updates through the gated ingest; terrain folds after each mission; QGIS near-real-time.
+- acceptance: a replayed mission updates the world model and the next map read reflects it within one refresh.
+- current_state: the SIM execute->remember loop + terrain_memory.py already fold terrain after a run; ros2_bridge.py has /cmd_vel + odom; IN-01 (general live ingest) is the gated seam.
+- files: stewie/bridge/ros2_bridge.py, stewie/twin/terrain_memory.py
+- test_target: stewie/twin/test_world_model_live_update.py
