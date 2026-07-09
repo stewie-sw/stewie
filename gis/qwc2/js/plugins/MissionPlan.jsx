@@ -209,7 +209,10 @@ class MissionPlan extends React.Component {
     // task #77: open the 3D terrain panel (MissionTerrain3D) — the SAME setCurrentTask dispatch every other
     // app-menu entry uses (WholeMoon/SelectionInspector/MissionCrossSection), just fired from a panel button
     // instead of the TopBar menu.
-    onOpen3D = () => { if (this.props.setCurrentTask) { this.props.setCurrentTask('MissionTerrain3D'); } };
+    // task #56 auto-float: pop the 3D terrain out as a FLOATING card that coexists with this plan (instead of
+    // setCurrentTask, which would take over the SideBar and hide the plan). WS.requestFloat flips
+    // MissionTerrain3D's floating flag; its render() then shows the ResizeableWindow regardless of the task.
+    onOpen3D = () => { WS.requestFloat('MissionTerrain3D'); };
     // task #56: float control -- pops the panel out of the SideBar into a draggable/resizable ResizeableWindow
     // (see render()), so it can stay open alongside a floating MissionTerrain3D.
     _setFloating = () => { this.setState({floating: true}); };

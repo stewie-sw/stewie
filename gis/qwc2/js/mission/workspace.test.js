@@ -89,3 +89,22 @@ test("a throwing onPlot() subscriber does not break emitPlot() delivery to other
   assert.strictEqual(goodCalls, 1);
   unsubBad(); unsubGood();
 });
+
+test("task #56: requestFloat() delivers the plugin id to onFloatRequest() subscribers", () => {
+  const seen = [];
+  const unsub = W.onFloatRequest((id) => seen.push(id));
+  W.requestFloat("MissionTerrain3D");
+  assert.deepStrictEqual(seen, ["MissionTerrain3D"]);
+  unsub();
+  W.requestFloat("MissionTerrain3D");
+  assert.strictEqual(seen.length, 1, "unsubscribe stops further delivery");
+});
+
+test("task #56: a throwing onFloatRequest() subscriber does not break delivery to others", () => {
+  let good = 0;
+  const bad = W.onFloatRequest(() => { throw new Error("boom"); });
+  const ok = W.onFloatRequest(() => { good += 1; });
+  assert.doesNotThrow(() => W.requestFloat("MissionPlan"));
+  assert.strictEqual(good, 1);
+  bad(); ok();
+});

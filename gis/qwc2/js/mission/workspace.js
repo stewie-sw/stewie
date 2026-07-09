@@ -82,9 +82,23 @@
     return function () { var i = _plotSubs.indexOf(fn); if (i >= 0) { _plotSubs.splice(i, 1); } };
   }
 
+  // task #56 auto-float: one plugin (e.g. MissionPlan's "3D" button) asks another plugin (by id) to pop
+  // itself into a floating ResizeableWindow card. A transient event channel like emitPlot -- NOT routed
+  // through set()/KEYS (floating is UI state, not durable workspace state).
+  var _floatSubs = [];
+  function requestFloat(id) {
+    _floatSubs.slice().forEach(function (fn) { try { fn(id); } catch (e) { /* a bad subscriber never breaks requestFloat() */ } });
+  }
+  function onFloatRequest(fn) {
+    if (typeof fn !== "function") { return function () {}; }
+    _floatSubs.push(fn);
+    return function () { var i = _floatSubs.indexOf(fn); if (i >= 0) { _floatSubs.splice(i, 1); } };
+  }
+
   return {
     get: get, site: site, set: set, subscribe: subscribe,
     hydrateFromQuery: hydrateFromQuery, toQuery: toQuery, reset: reset, DEFAULT: DEFAULT,
     emitPlot: emitPlot, onPlot: onPlot,
+    requestFloat: requestFloat, onFloatRequest: onFloatRequest,
   };
 });

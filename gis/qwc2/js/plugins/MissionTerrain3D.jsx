@@ -123,6 +123,10 @@ class MissionTerrain3D extends React.Component {
     componentDidMount() {
         this._rg = RG.makeReqGuard();
         this._unsubWS = WS.subscribe(this._onWsChange);
+        // task #56 auto-float: MissionPlan's "3D" button asks this panel to pop itself into a floating card
+        // (coexisting with the plan) instead of taking over the SideBar. Since render() shows the
+        // ResizeableWindow whenever floating is true (independent of the current task), just flip the flag.
+        this._unsubFloat = WS.onFloatRequest((id) => { if (id === 'MissionTerrain3D' && !this.state.floating) { this.setState({floating: true}); } });
         // Read-only harness handle for the Playwright verify (no command authority): report the mounted state,
         // the site the relief shows, the active drape, and the loaded DEM meta.
         if (typeof window !== 'undefined') {
@@ -137,6 +141,7 @@ class MissionTerrain3D extends React.Component {
     componentWillUnmount() {
         if (this._rg) { this._rg.bump(); }
         if (this._unsubWS) { this._unsubWS(); }
+        if (this._unsubFloat) { this._unsubFloat(); }
         this._teardown();
         if (typeof window !== 'undefined' && window.__stewieTerrain3D) { delete window.__stewieTerrain3D; }
     }
