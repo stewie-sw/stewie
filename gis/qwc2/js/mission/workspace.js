@@ -12,6 +12,10 @@
   var KEYS = ["site", "body", "mission", "profile", "source"];
   var _state = Object.assign({}, DEFAULT);
   var _subs = [];
+  // task #77: a SEPARATE plot-event channel (3D terrain Shift+click -> Mission Plan order queue). Deliberately
+  // NOT routed through set()/KEYS -- a plotted point is a transient event (an order to place), not a piece of
+  // durable, URL-hydratable workspace state, so it gets its own pub/sub instead of joining the whitelisted store.
+  var _plotSubs = [];
 
   function get() { return Object.assign({}, _state); }
   function site() { return _state.site; }
@@ -66,8 +70,21 @@
 
   function reset() { _state = Object.assign({}, DEFAULT); }
 
+  // task #77: emit a plotted point (from the 3D terrain Shift+click) to every subscriber. A throwing
+  // subscriber never breaks delivery to the rest (same defensive try/catch as set()'s notify loop).
+  function emitPlot(point) {
+    _plotSubs.slice().forEach(function (fn) { try { fn(point); } catch (e) { /* a bad subscriber never breaks emitPlot() */ } });
+  }
+
+  function onPlot(fn) {
+    if (typeof fn !== "function") { return function () {}; }
+    _plotSubs.push(fn);
+    return function () { var i = _plotSubs.indexOf(fn); if (i >= 0) { _plotSubs.splice(i, 1); } };
+  }
+
   return {
     get: get, site: site, set: set, subscribe: subscribe,
     hydrateFromQuery: hydrateFromQuery, toQuery: toQuery, reset: reset, DEFAULT: DEFAULT,
+    emitPlot: emitPlot, onPlot: onPlot,
   };
 });

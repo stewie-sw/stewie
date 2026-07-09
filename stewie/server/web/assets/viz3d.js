@@ -87,7 +87,17 @@ function _bindControls(el) {
   let drag = false, px = 0, py = 0, dx0 = 0, dy0 = 0;
   el.style.cursor = "grab";
   el.addEventListener("pointerdown", (e) => { drag = true; px = e.clientX; py = e.clientY; dx0 = e.clientX; dy0 = e.clientY; el.style.cursor = "grabbing"; el.setPointerCapture(e.pointerId); });
-  el.addEventListener("pointerup", (e) => { drag = false; el.style.cursor = "grab"; try { el.releasePointerCapture(e.pointerId); } catch (_) { /* */ } });
+  el.addEventListener("pointerup", (e) => {
+    drag = false; el.style.cursor = "grab"; try { el.releasePointerCapture(e.pointerId); } catch (_) { /* */ }
+    // "Stay the spin" (task #77): the drag-orbit above stays fully active even with Shift held -- no mode
+    // toggle. A Shift+CLICK that did not drag (pointer moved < 5px since pointerdown) plots the active
+    // Mission-Plan tool at the raycast point; a Shift+DRAG only orbits (the pointermove handler already ran),
+    // it never plots.
+    if (e.shiftKey) {
+      const moved = Math.hypot(e.clientX - dx0, e.clientY - dy0);
+      if (moved < 5) { _plotAt(el, e); }
+    }
+  });
   el.addEventListener("pointermove", (e) => {
     if (!drag) { if (S._onHover) _hoverPick(el, e); return; }
     S.az -= (e.clientX - px) * 0.006;
@@ -241,6 +251,11 @@ function setVertExag(k) {
   if (S._wireOn) _buildWire();          // rebuild the wire against the re-lifted geometry (size-guarded)
   if (S._gridOn) buildMetricGrid();     // re-drape the grid at the new relief
   if (S._gratGroup) _redrapeGraticule();
+  // task #77: lift each plotted marker back onto the re-exaggerated surface (cheaper than a full rebuild --
+  // a marker only needs its y repositioned, its lx/ly ground position is unchanged by vex).
+  if (S._plotGroup) {
+    S._plotGroup.children.forEach((mk) => { mk.position.y = heightAt(mk.userData.lx, mk.userData.ly) * k + mk.userData.r; });
+  }
 }
 
 function setWireframe(on) {
@@ -345,6 +360,40 @@ function _hoverPick(el, e) {
 function onHover(cb) { S._onHover = cb; }
 function onLayerError(cb) { S._onLayerError = cb; }
 
+// ---- plot-to-plan (task #77): Shift+click drops a visible marker + emits the plotted point ---------------
+// (e_m/n_m/elev_m/lat/lon) via onPlot(cb). The QWC2 MissionPlan controller (js/mission/workspace.js
+// WS.emitPlot) turns this into a queued order, mirroring the 2D map's singleclick -> placeAt(coord). Reuses
+// the SAME raycast + e_m/n_m/elev_m derivation _hoverPick uses, and the SAME bounded /dem/site_lonlat fetch
+// (_fetchT + HOVER_TIMEOUT_MS) -- so a hung lookup can never hang the viewer.
+function _plotMarkerAt(lx, ly) {
+  if (!S._plotGroup) { S._plotGroup = new THREE.Group(); S.group.add(S._plotGroup); }
+  const win = (S.meta && S.meta.window_m) ? S.meta.window_m : 1000;
+  const r = Math.max(1, win * 0.006);           // a few px world size relative to the window
+  const geo = new THREE.SphereGeometry(r, 10, 8);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x39ff14, emissive: 0x123a0c, emissiveIntensity: 0.7, roughness: 0.5 });
+  const mk = new THREE.Mesh(geo, mat);
+  mk.userData.lx = lx; mk.userData.ly = ly; mk.userData.r = r;
+  mk.position.set(lx, heightAt(lx, ly) * S.vex + r, ly);
+  S._plotGroup.add(mk);
+  return mk;
+}
+
+function _plotAt(el, e) {
+  const p = _raycastSurface(el, e);
+  if (!p || !S.meta) return;                    // no terrain under the click -- nothing to plot
+  const m = S.meta, lx = p.x, ly = p.z, elev_m = p.y / S.vex + m.z_min;
+  _plotMarkerAt(lx, ly);
+  _fetchT("/dem/site_lonlat?x=" + (m.x0 + lx) + "&y=" + (m.y0 + ly) + "&site=" + encodeURIComponent(S.site), HOVER_TIMEOUT_MS)
+    .then((r) => r.json())
+    .then((d) => {
+      if (d && d.ok && S._onPlot) { S._onPlot({ e_m: lx, n_m: ly, elev_m: elev_m, lat: d.lat, lon: d.lon }); }
+    })
+    .catch(() => { /* the lonlat lookup failed -- skip the emit; the consumer requires a real lat/lon */ });
+}
+
+function onPlot(cb) { S._onPlot = cb; }
+function clearPlots() { _disposeGroup(S._plotGroup); S._plotGroup = null; }
+
 function _disposeGroup(g) {
   if (!g) return;
   S.group.remove(g);
@@ -359,10 +408,11 @@ function _disposeGroup(g) {
 function dispose() {
   S.ready = false;                                            // stops _loop() on its next frame
   if (_llTimer) { clearTimeout(_llTimer); _llTimer = 0; } _llGen++;   // drop the in-flight site_lonlat lookup
-  S._onHover = null; S._onLayerError = null;
+  S._onHover = null; S._onLayerError = null; S._onPlot = null;
   if (S._ro) { try { S._ro.disconnect(); } catch (_) { /* */ } S._ro = null; }
   _disposeGroup(S._gridGroup); S._gridGroup = null;          // uses S.group -> must run before S.group is dropped
   _disposeGroup(S._gratGroup); S._gratGroup = null;
+  _disposeGroup(S._plotGroup); S._plotGroup = null;
   S._gridOn = false; S._gratOn = false; S._wireOn = false;
   if (S.wire) { if (S.group) S.group.remove(S.wire); S.wire.geometry.dispose(); S.wire.material.dispose(); S.wire = null; }
   if (S.mesh) {
@@ -385,7 +435,7 @@ function dispose() {
 
 window.STEWIE_VIZ = {
   mount, dispose, loadSite, setLayer, setVertExag, setWireframe, setSun, setMetricGrid, setGraticule,
-  onHover, onLayerError, heightAt,
+  onHover, onLayerError, onPlot, clearPlots, heightAt,
   get meta() { return S.meta; }, get layerKind() { return S.layerKind; }, get vertExag() { return S.vex; },
   get ready() { return !!S.ready; }, get hasMesh() { return !!S.mesh; },
 };

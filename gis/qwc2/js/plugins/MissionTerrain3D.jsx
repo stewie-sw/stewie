@@ -101,7 +101,7 @@ class MissionTerrain3D extends React.Component {
         sunAz: 315,
         sunEl: 45,
         grid: false,
-        grat: false,
+        grat: true,       // task #77: lon/lat graticule shows by default (was off) -- oriented plotting context
         wire: false,
         loading: false,
         error: null,
@@ -163,6 +163,10 @@ class MissionTerrain3D extends React.Component {
             VIZ.mount(this.container);
             VIZ.onHover((h) => this._onHover(h));
             VIZ.onLayerError((kind) => this._onLayerError(kind));
+            // task #77: a Shift+click on the relief plots the active Mission-Plan tool there -- forward the
+            // raycast point (e_m/n_m/elev_m/lat/lon) into the SAME shared workspace channel MissionPlan
+            // subscribes to, so it feeds the identical order queue the 2D map's singleclick fills.
+            VIZ.onPlot((pt) => WS.emitPlot(pt));
             this._mounted = true;
             this._loadSite(WS.site());
         }).catch((e) => {
@@ -258,6 +262,9 @@ class MissionTerrain3D extends React.Component {
                 <div style={{fontSize: '10px', color: '#8a93a3', marginBottom: '6px', lineHeight: 1.4}}>
                     Full-resolution 3D terrain for the active site — <b style={{color: '#4db6d4'}}>{s.site}</b> — synced
                     to the 2D map. Drag to orbit, scroll to zoom; hover for coordinates.
+                </div>
+                <div style={{fontSize: '10px', color: '#7fe0a8', marginBottom: '6px', lineHeight: 1.4}}>
+                    ⇧ Shift+click the terrain to drop the active Mission Plan tool here.
                 </div>
                 <div data-stewie-terrain3d ref={this._setContainer}
                     style={{width: '100%', height: '340px', background: '#05060c', border: '1px solid #14141c',

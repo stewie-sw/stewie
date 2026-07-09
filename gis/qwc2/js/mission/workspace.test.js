@@ -57,3 +57,35 @@ test("GW-02 integration: catalogLayers builders read the SHARED workspace site (
   assert.strictEqual(C.layerManifestUrl(), "/api/world/layer-manifest?site=nobile_rim");
   W.reset();                                 // restore the default so other tests see haworth
 });
+
+// task #77: the plot-event channel (3D terrain Shift+click -> Mission Plan order queue) is a SEPARATE
+// pub/sub from set()/subscribe() -- it must never touch the whitelisted (site/body/mission/profile/source)
+// state store.
+test("emitPlot() delivers the point to onPlot() subscribers", () => {
+  const seen = [];
+  const unsub = W.onPlot((pt) => seen.push(pt));
+  const point = { e_m: 12.5, n_m: -3.2, elev_m: 1840.1, lat: -89.1, lon: 42.0 };
+  W.emitPlot(point);
+  assert.strictEqual(seen.length, 1);
+  assert.deepStrictEqual(seen[0], point);
+  unsub();
+});
+
+test("onPlot() unsubscribe function stops further delivery", () => {
+  let calls = 0;
+  const unsub = W.onPlot(() => { calls += 1; });
+  W.emitPlot({ e_m: 1, n_m: 1, elev_m: 1, lat: 1, lon: 1 });
+  assert.strictEqual(calls, 1);
+  unsub();
+  W.emitPlot({ e_m: 2, n_m: 2, elev_m: 2, lat: 2, lon: 2 });
+  assert.strictEqual(calls, 1);              // unsubscribed -> not called again
+});
+
+test("a throwing onPlot() subscriber does not break emitPlot() delivery to others", () => {
+  let goodCalls = 0;
+  const unsubBad = W.onPlot(() => { throw new Error("boom"); });
+  const unsubGood = W.onPlot(() => { goodCalls += 1; });
+  assert.doesNotThrow(() => W.emitPlot({ e_m: 0, n_m: 0, elev_m: 0, lat: 0, lon: 0 }));
+  assert.strictEqual(goodCalls, 1);
+  unsubBad(); unsubGood();
+});

@@ -109,6 +109,10 @@ function init() {
   $("viz-grat").addEventListener("change", (e) => VIZ.setGraticule(e.target.checked));
   $("viz-wire").addEventListener("change", (e) => VIZ.setWireframe(e.target.checked));
 
+  // task #77: the lon/lat graticule checkbox now defaults checked (viz_haworth.html); set the flag before
+  // loadSite() builds the mesh -- loadGraticule() guards on S.meta, so calling it pre-mesh is a safe no-op,
+  // and loadSite's own `if (S._gratOn) loadGraticule();` then loads it once the mesh is ready.
+  VIZ.setGraticule($("viz-grat").checked);
   loadSite(site);
 }
 

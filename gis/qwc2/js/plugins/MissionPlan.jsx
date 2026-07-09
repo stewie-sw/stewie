@@ -23,6 +23,7 @@ import React from 'react';
 
 import {connect} from 'react-redux';
 
+import {setCurrentTask} from 'qwc2/actions/task';
 import SideBar from 'qwc2/components/SideBar';
 import CoordinatesUtils from 'qwc2/utils/CoordinatesUtils';
 import MapUtils from 'qwc2/utils/MapUtils';
@@ -130,10 +131,28 @@ class MissionPlan extends React.Component {
     }
     componentDidMount() {
         this._resolveMap();
+        // task #77: a Shift+click on the 3D terrain (MissionTerrain3D) emits a plotted point on the SAME
+        // shared workspace channel; adopt it into the order queue exactly like the 2D map's singleclick ->
+        // placeAt(coord). No active Cut/Fill/Traverse tool -> hint the operator instead of silently dropping it.
+        this._unsubPlot = WS.onPlot((pt) => {
+            const c = this.ctrl;
+            if (!c || !c.activeKind) {
+                if (c) { c._setHint('Pick a Cut/Fill/Traverse tool, then Shift+click the 3D terrain.'); }
+                return;
+            }
+            if (pt == null || pt.lat == null || pt.lon == null) { return; }
+            try {
+                const mapCoord = c.reproject([pt.lon, pt.lat], 'IAU_2015:30100', 'IAU_2015:30135');
+                c.placeAt(mapCoord);
+            } catch (e) {
+                if (c) { c._setHint('Could not place the plotted point: ' + e.message, true); }
+            }
+        });
     }
     componentWillUnmount() {
         if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0; }
         if (this._unsubWS) { this._unsubWS(); }
+        if (this._unsubPlot) { this._unsubPlot(); }
         if (this.ctrl) { this.ctrl.detach(); this.ctrl = null; }
     }
     _resolveMap = () => {
@@ -185,6 +204,10 @@ class MissionPlan extends React.Component {
     // clicked lon/lat (an alternative to typing lat/lon above) — the controller crops the global LDEM there.
     onPlanHereMode = () => { if (this.ctrl) { this.ctrl.setPlanHereMode(); } };
     onTool = (kind) => { if (this.ctrl) { this.ctrl.setTool(kind); } };
+    // task #77: open the 3D terrain panel (MissionTerrain3D) — the SAME setCurrentTask dispatch every other
+    // app-menu entry uses (WholeMoon/SelectionInspector/MissionCrossSection), just fired from a panel button
+    // instead of the TopBar menu.
+    onOpen3D = () => { if (this.props.setCurrentTask) { this.props.setCurrentTask('MissionTerrain3D'); } };
     // STRUCTURE templates (T11): pick a template, edit its params, place it -> backend-decomposed orders.
     onStructure = (name) => { if (this.ctrl) { this.ctrl.setStructure(name); } };
     onStructParam = (k, e) => { if (this.ctrl) { this.ctrl.setStructParam(k, e.target.value); } };
@@ -392,7 +415,19 @@ class MissionPlan extends React.Component {
         const markers = s.markers || [];
         return (
             <div data-stewie-palette="1" style={{margin: '8px 0 0'}}>
-                <div style={{...lbl, marginBottom: '4px'}}>Tool palette</div>
+                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px'}}>
+                    <span style={lbl}>Tool palette</span>
+                    {/* task #77: open the 3D terrain panel; Shift+click there plots the active tool below. */}
+                    <button
+                        data-stewie-open3d="1" onClick={this.onOpen3D} type="button"
+                        title="open the 3D terrain panel — Shift+click the relief to plot the active tool there"
+                        style={{
+                            cursor: 'pointer', font: '700 10px system-ui, sans-serif', padding: '3px 8px',
+                            borderRadius: '10px', border: '1px solid #39c6ff66',
+                            color: '#39c6ff', background: '#39c6ff14'
+                        }}
+                    >3D</button>
+                </div>
                 <div style={{...lbl, fontSize: '8.5px', color: '#6a7280', margin: '0 0 3px'}}>Earthworks · drive · objects</div>
                 <div style={{display: 'flex', gap: '6px', marginBottom: '6px'}}>
                     {toolBtn('cut', 'Cut (dig)', '#e0563a')}
@@ -1751,4 +1786,4 @@ class MissionPlan extends React.Component {
     }
 }
 
-export default connect(() => ({}), {})(MissionPlan);
+export default connect(() => ({}), {setCurrentTask: setCurrentTask})(MissionPlan);
