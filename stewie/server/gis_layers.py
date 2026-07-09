@@ -679,16 +679,17 @@ PHYSICS_LAYERS = {
         "text": "steady drive power on the grade from the Bekker motion resistance "
                 "(stewie.physics.slip.bekker_drive_power_w); rises steeply with slope and diverges at "
                 "entrapment. A power (Watts) reading, not an energy total (task #53 honesty fix)."},
-    # HONEST id note (task #53 Finding 1): "excavation_resistance" is LEGACY. The field below is the
-    # Bekker wheel compaction/motion resistance R_c (the resistance a wheel climbs out of its own
-    # sinkage rut), NOT a dig/draft (excavation) force -- the id is kept stable to avoid catalog/
-    # frontend/snapshot churn. A real excavation draft-force (FEE) model is a follow-up (task #78).
+    # task #78 Finding 1 (RESOLVED): "excavation_resistance" now renders the REAL excavation DRAFT force --
+    # the McKyes/Reece Fundamental Earthmoving Equation over the bucket-drum cut (stewie.physics.excavation.
+    # draft_force), NOT the Bekker wheel compaction/motion resistance it carried as a #53 relabel proxy. The
+    # drape kind id is kept stable to avoid catalog/frontend/snapshot churn; only the bound physics changed.
     "excavation_resistance": {
         "field": "excavation_resistance", "unit": "N", "ramp_stops": _PHYS_PURPLES, "invert": False,
-        "ramp": "pale (easy) -> deep purple (resistant)",
-        "text": "Bekker compaction (motion) resistance R_c the wheel must climb out of its own sinkage rut "
-                "(stewie.physics.slip.compaction_resistance); the wheel's own rolling/motion resistance, "
-                "rising with sinkage on steeper ground."},
+        "ramp": "pale (easy dig) -> deep purple (high draft force)",
+        "text": "excavation draft (cutting) force from the McKyes/Reece Fundamental Earthmoving Equation "
+                "F=(gamma*g*d^2*N_gamma + c*d*N_c + q*d*N_q)*w over the bucket-drum cut "
+                "(stewie.physics.excavation.draft_force); the first-principles dig difficulty of the "
+                "in-situ regolith (rake/soil-tool-friction defaults [CALIB-PENDING])."},
 }
 _PHYSICS_KINDS = frozenset(PHYSICS_LAYERS)
 
@@ -788,7 +789,7 @@ def point_values(site: str, x_m: float, y_m: float, *, _ctx: dict | None = None)
         ("physics.sinkage", "Sinkage", "m"), ("physics.slip_risk", "Slip risk", "slip ratio"),
         ("physics.traction_margin", "Traction margin", "fraction"),
         ("physics.energy_cost", "Drive power", "W"),
-        ("physics.excavation_resistance", "Compaction resistance", "N"),
+        ("physics.excavation_resistance", "Excavation draft force", "N"),
         ("traffic.cost_global", "Traversal cost", ""),
         ("traffic.traversability", "Passable", ""),
         ("terrain.illumination", "Illumination", ""), ("terrain.incidence", "Incidence", "deg"),
@@ -1122,6 +1123,7 @@ def _terra_fields(dem, cell):
     import numpy as np
 
     from lode.planner_routing import slope_deg_map
+    from stewie.physics import excavation as EX
     from stewie.physics import sinkage as SK
     from stewie.physics import slip as SL
     from stewie.specs import constants as K
@@ -1139,7 +1141,6 @@ def _terra_fields(dem, cell):
     sink = np.empty_like(grid)
     slp = np.empty_like(grid)
     margin = np.empty_like(grid)
-    resist = np.empty_like(grid)
     power = np.empty_like(grid)
     for i in range(grid.size):
         th = math.radians(float(grid[i]))
@@ -1150,15 +1151,20 @@ def _terra_fields(dem, cell):
         slp[i] = eq["slip"]                                                     # spine: slip_for_demand
         b, d = eq["budget_n"], eq["demand_n"]                                   # spine: traction_budget
         margin[i] = max(0.0, (b - d) / b) if b > 0.0 else 0.0
-        resist[i] = eq["resistance_n"]                                          # spine: compaction_resistance
         power[i] = SL.bekker_drive_power_w(mass_kg=mass, g_ms2=g,
                                            slope_deg=float(grid[i]))["drive_power_w"]   # spine: drive_energy
 
     def _interp(vals):
         return np.interp(slope, grid, vals)
 
+    # task #78: physics.excavation_resistance is now the REAL excavation DRAFT force (McKyes/Reece FEE,
+    # stewie.physics.excavation.draft_force), a per-material dig-difficulty [N], NOT the slope-dependent
+    # wheel compaction resistance it carried as a #53 proxy. It is a function of the in-situ material +
+    # drum geometry (not the DEM slope), so on the bare DEM it is UNIFORM where the material is uniform.
+    draft_n = EX.representative_draft_n()                                        # spine: excavation.draft_force
     return {"bearing": _interp(bearing), "sinkage": _interp(sink), "slip_risk": _interp(slp),
-            "traction_margin": _interp(margin), "excavation_resistance": _interp(resist),
+            "traction_margin": _interp(margin),
+            "excavation_resistance": np.full_like(slope, float(draft_n)),
             "energy_cost": _interp(power)}
 
 

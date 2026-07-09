@@ -578,13 +578,16 @@ def test_unknown_algorithm_or_objective_raises():
 
 
 def _pairs_mission(sites, precedence=None):
-    # co-located cut+fill pairs -> one trip per site (a pure TSP/SOP over the sites). The fill is deepened
-    # by SWELL so it consumes the FULL bulked cut (mass-balanced, no surplus spoil) -> exactly one trip.
+    # co-located cut+fill pairs -> one trip per site (a pure TSP/SOP over the sites). task #78 Part C: a
+    # shallow (0.05 m < Z_T) cut excavates LOOSE surface material, so its in-situ bank density == the loose
+    # dump density (swell ~1.0); an equal-depth fill therefore consumes the FULL cut (mass-balanced, no
+    # surplus spoil) -> exactly one trip. (Previously the fill was deepened by SWELL to soak up a bank cut
+    # wrongly costed at the deep RHO_DEEP density; the shallow surface cut no longer bulks from RHO_DEEP.)
     orders = []
     for i, (x, y) in enumerate(sites):
         orders += [{"action": f"cut{i}", "kind": "cut", "x": x, "y": y, "footprint_m2": 40, "depth_m": 0.05},
                    {"action": f"fill{i}", "kind": "fill", "x": x + 1, "y": y + 1, "footprint_m2": 40,
-                    "depth_m": 0.05 * MP.SWELL}]
+                    "depth_m": 0.05}]
     p = {"name": "p", "body": "moon", "charger": [0, 0], "orders": orders}
     if precedence:
         p["precedence"] = precedence
@@ -690,7 +693,10 @@ def test_cut_only_mission_plans_the_dominant_dig_cost():
     # the dominant term) must still enter the plan -- a cut with no fill previously planned ZERO trips.
     m = MP.mission_from_dict({"name": "pit", "body": "moon", "charger": [0, 0], "orders": [
         {"action": "Dig borrow pit", "kind": "cut", "x": 10, "y": 10, "footprint_m2": 36, "depth_m": 0.20}]})
-    cut_kg = m.orders[0].mass_kg(m.density * MP.SWELL)
+    from lode import planner_balance as PB
+    # task #78 Part C: the excavated (bank) mass is costed at the cut's ACTUAL depth-averaged in-situ density
+    # (deeper -> denser, toward RHO_DEEP), not a flat mission.density * SWELL (RHO_DEEP for every cut).
+    cut_kg = m.orders[0].mass_kg(PB.cut_bank_density(m.orders[0], m.density))
     trips, _, _, _, totals = MP.plan_and_simulate(m)
     assert len(trips) >= 1                                       # excavation is a real trip, not invisible
     assert totals["surplus_kg"] == pytest.approx(cut_kg, rel=1e-6)   # all cut mass is spoil (no fill)

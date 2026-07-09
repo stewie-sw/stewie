@@ -40,22 +40,27 @@ def test_tm03_derived_layers_map_to_real_terms_and_catalog(monkeypatch):  # [REQ
     assert set(by["traffic.traversability"]["from_terms"]) >= {"slip", "traction"}
 
 
-def test_tm03_excavation_resistance_is_honestly_a_motion_resistance():  # [REQ:TM-03] task #53 Finding 1
-    """physics.excavation_resistance's bound term (compaction_resistance) is the Bekker wheel
-    compaction/motion resistance R_c, NOT a dig/draft (excavation) force. The layer id stays stable
-    (task #78 tracks a real excavation draft-force model), but the operator-facing legend text and the
-    catalog purpose must not claim it measures excavation/cutting difficulty."""
+def test_tm03_excavation_resistance_is_a_real_draft_force():  # [REQ:TM-03] task #78 Finding 1 (RESOLVED)
+    """physics.excavation_resistance now binds a REAL excavation draft-force model -- the McKyes/Reece
+    Fundamental Earthmoving Equation (stewie.physics.excavation.draft_force), NOT the Bekker wheel
+    compaction/motion resistance it carried as a #53 honesty-relabel proxy. The layer id stays stable, but
+    the bound source term, the operator-facing legend, and the catalog purpose must now describe a dig/draft
+    (excavation) force -- the #53 'must not say excavation/cutting' assertion is inverted."""
     from stewie.server import gis_layers as G
+    from stewie.specs.terramechanics_spine import TERRA_DERIVED
+
+    # the derived layer's bound spine SOURCE term changed from compaction_resistance -> excavation_draft
+    assert TERRA_DERIVED["physics.excavation_resistance"] == ["excavation_draft"]
 
     legend_text = G.PHYSICS_LAYERS["excavation_resistance"]["text"].lower()
-    assert "excavation" not in legend_text
-    assert "cutting" not in legend_text
+    assert "draft" in legend_text
+    assert "excavation" in legend_text or "earthmoving" in legend_text
+    assert G.PHYSICS_LAYERS["excavation_resistance"]["unit"] == "N"
 
     with open(os.path.join(_ROOT, "stewie", "server", "layer_catalog.json"), encoding="utf-8") as fh:
         catalog = json.load(fh)["layers"]
     purpose = next(ly["purpose"] for ly in catalog if ly["id"] == "physics.excavation_resistance").lower()
-    assert "excavation" not in purpose
-    assert "cutting" not in purpose
+    assert "draft" in purpose
 
 
 def test_tm03_computed_terms_are_real_solver_outputs():  # [REQ:TM-03]

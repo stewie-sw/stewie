@@ -20,6 +20,7 @@ import copy
 
 import lode.mission_planner as MP
 import lode.planner_multivehicle as PM
+from stewie.specs import constants as C
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +238,12 @@ def _realloc_mission():
              (100000.0, 0.0, 0.5, 0.05)]     # B: 100 km, LIGHT -> feasible alone, dropped after A strands
     orders = []
     for i, (x, y, fp, dp) in enumerate(sites):
-        orders += [{"action": f"cut{i}", "kind": "cut", "x": x, "y": y, "footprint_m2": fp, "depth_m": dp},
+        # these are HEAVY digs into dense (deep) regolith -> mark the cut material RHO_DEEP explicitly so the
+        # bank mass (and the tuned stranding energy) is the deep-density excavation this scenario needs
+        # (task #78 Part C: absent this, balance() would cost the shallow 0.05 m cut at the loose surface
+        # density and the fleet would no longer strand). The fill (swelled by SWELL) balances the bank cut.
+        orders += [{"action": f"cut{i}", "kind": "cut", "x": x, "y": y, "footprint_m2": fp, "depth_m": dp,
+                    "insitu_density_kg_m3": C.RHO_DEEP},
                    {"action": f"fill{i}", "kind": "fill", "x": x + 1, "y": y + 1, "footprint_m2": fp,
                     "depth_m": dp * MP.SWELL}]
     return MP.mission_from_dict({"name": "realloc", "body": "moon", "charger": [0, 0], "orders": orders})

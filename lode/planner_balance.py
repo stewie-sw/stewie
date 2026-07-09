@@ -27,8 +27,39 @@ if TYPE_CHECKING:                                    # static only -- never runs
 
 # ---- cut-fill balance: route excavated material to fills, nearest-first ------------------------
 # Bulking/swell (I7, planner side): a CUT excavates BANK (in-situ) material; a FILL places LOOSE spoil,
-# which bulks. Mass is conserved: cut at rho_bank = bulk*SWELL, fill at rho_loose = bulk (bodies.json).
+# which bulks. Mass is conserved: cut at rho_bank (the ACTUAL cut-cell in-situ density), fill at
+# rho_loose = the body loose density (bodies.json). SWELL is the MAXIMUM bulking (deepest/compacted cut):
+# rho_deep / rho_spoil ~1.477. Kept for the SWELL_FACTOR-tracking invariant + as the deep-cut bank ceiling.
 SWELL = C.RHO_DEEP / C.RHO_SPOIL
+
+
+def insitu_bank_density(depth_m, body_loose_density):
+    """[task #78 Part C] Depth-averaged IN-SITU bank density [kg/m^3] of a cut column from the surface to
+    ``depth_m``, on the loose-over-dense two-layer regolith profile (C.RHO_SURFACE over C.RHO_DEEP, transition
+    at C.Z_T), scaled to the body's loose surface density ``body_loose_density``.
+
+    A shallow cut (depth <= Z_T) excavates loose near-surface material (~body_loose_density, bulking ~1.0); a
+    deep cut approaches the compacted ceiling (~body_loose_density * SWELL, bulking ~1.477). This replaces the
+    flat ``body_loose_density * SWELL`` that costed EVERY cut at the deep RHO_DEEP density regardless of depth
+    (so a shallow near-surface dig is no longer over-costed as deeply-buried, compacted regolith). For the
+    Moon (body_loose_density == C.RHO_SURFACE) the scale factor is 1, so this returns the raw profile average.
+    """
+    d = max(0.0, float(depth_m))
+    if d <= C.Z_T:
+        avg = C.RHO_SURFACE                                      # entirely in the loose surface mantle
+    else:
+        avg = (C.RHO_SURFACE * C.Z_T + C.RHO_DEEP * (d - C.Z_T)) / d   # depth-averaged loose-over-dense
+    return float(body_loose_density) * (avg / C.RHO_SURFACE)    # body-generic; == avg on the Moon
+
+
+def cut_bank_density(order, body_loose_density):
+    """The bank (in-situ) density [kg/m^3] to cost a CUT order at: the order's ACTUAL cut-cell density when
+    the authority knows it (``order.insitu_density_kg_m3`` from the conserved column_state / a compacted cell
+    / a DEM material sample), else the depth-averaged loose-over-dense profile (:func:`insitu_bank_density`)."""
+    explicit = getattr(order, "insitu_density_kg_m3", None)
+    if explicit is not None:
+        return float(explicit)
+    return insitu_bank_density(order.depth_m, body_loose_density)
 
 
 def _mincost_transport(supplies, demands, cost):
@@ -72,8 +103,11 @@ def balance(mission: "Mission", *, dem=None, dem_origin=(0.0, 0.0), max_traverse
     # time (deferred import) so this module imports without a cycle (mission_planner imports balance back).
     from lode.mission_planner import _d, _make_routes
 
-    rho_bank, rho_loose = mission.density * SWELL, mission.density
-    cuts = [(o, o.mass_kg(rho_bank)) for o in mission.orders if o.kind == "cut"]
+    # task #78 Part C: cost each CUT at its ACTUAL in-situ bank density (per-cut, depth/authority-aware),
+    # not a flat mission.density * SWELL that treats every cut as the deep RHO_DEEP density. Fills place LOOSE
+    # spoil at the body loose density. Mass is conserved by the per-order densities.
+    rho_loose = mission.density
+    cuts = [(o, o.mass_kg(cut_bank_density(o, mission.density))) for o in mission.orders if o.kind == "cut"]
     fills = [(o, o.mass_kg(rho_loose)) for o in mission.orders if o.kind == "fill"]
 
     if dem is not None and cuts and fills:

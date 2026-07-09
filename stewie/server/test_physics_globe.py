@@ -8,8 +8,9 @@ committed LOLA Haworth tile (a native-resolution subsample of samples/lunar_dem/
 not synthetic).
 
 Asserts: the render helpers emit valid RGBA PNGs; each field is physically sensible on real terrain (slip /
-sinkage / drive-energy / excavation-resistance RISE on steeper ground, traction margin and contact pressure
-FALL); the kinds are globe kinds with legends whose colour ramp is the SAME single source the renderer uses;
+sinkage / drive-energy RISE on steeper ground, traction margin and contact pressure FALL; the excavation
+DRAFT force is slope-INDEPENDENT -- a per-material dig difficulty, task #78); the kinds are globe kinds with
+legends whose colour ramp is the SAME single source the renderer uses;
 and physics.compaction -- an OBSERVED (traffic/support) state, not a plan-independent per-cell DEM field -- is
 NOT fabricated (the honest 6/7).
 """
@@ -26,11 +27,15 @@ pytestmark = pytest.mark.skipif(not os.path.exists(_HAWORTH), reason="haworth DE
 
 _CELL = 5.0            # native tile resolution (m/px)
 
-# the six terramechanics-spine fields that ARE a plan-independent per-cell function of the DEM slope
+# the six terramechanics-spine physics fields the drape serves
 _SERVABLE = ("bearing", "sinkage", "slip_risk", "traction_margin", "energy_cost", "excavation_resistance")
 # fields that RISE on steeper ground vs those that FALL (physical sanity, robust to the entrapment tail)
-_RISING = {"sinkage", "slip_risk", "energy_cost", "excavation_resistance"}
+_RISING = {"sinkage", "slip_risk", "energy_cost"}
 _FALLING = {"bearing", "traction_margin"}
+# task #78: excavation_resistance is now the excavation DRAFT force (McKyes/Reece FEE) -- a per-material dig
+# difficulty, a function of the in-situ material + drum geometry, NOT the DEM slope, so it is slope-INDEPENDENT
+# (uniform where the material is uniform). It is checked separately below, not in the slope-sensitivity loop.
+_SLOPE_INDEPENDENT = {"excavation_resistance"}
 
 
 def _haworth_window():
@@ -67,6 +72,12 @@ def test_terra_fields_are_real_and_slope_sensible():
     for kind in _SERVABLE:
         f = np.asarray(fields[kind], float)
         assert f.shape == dem.shape and np.all(np.isfinite(f)), kind
+        if kind in _SLOPE_INDEPENDENT:
+            # the excavation draft force is a per-material dig difficulty, not a slope function: positive and
+            # UNIFORM over the (uniform-material) bare DEM (task #78).
+            assert np.all(f > 0.0), kind
+            assert float(f.max() - f.min()) < 1e-9, f"{kind}: expected a slope-independent (uniform) field"
+            continue
         sm, gm = f[steep].mean(), f[gentle].mean()
         if kind in _RISING:
             assert sm > gm, f"{kind}: expected steeper ground to raise the field ({sm} !> {gm})"

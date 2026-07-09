@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TypedDict
 
-from stewie.physics import sinkage, slip
+from stewie.physics import excavation, sinkage, slip
 
 
 class TerraTerm(TypedDict):
@@ -54,6 +54,11 @@ _TERMS: list[tuple[TerraTerm, Callable | None]] = [
       "description": "Bekker motion resistance from the sinkage the wheel must climb out of.",
       "backend": "tier2_numpy", "calibration": "calibrated",
       "source": "stewie.physics.slip.compaction_resistance"}, slip.compaction_resistance),
+    ({"id": "excavation_draft", "name": "Excavation draft force", "symbol": "F_draft", "unit": "N",
+      "description": "First-principles dig draft force from the McKyes/Reece Fundamental Earthmoving "
+                     "Equation over the drum/blade cut (task #78 Finding 1).",
+      "backend": "tier2_numpy", "calibration": "calibrated",
+      "source": "stewie.physics.excavation.draft_force"}, excavation.draft_force),
     ({"id": "drive_energy", "name": "Drive power", "symbol": "P", "unit": "W",
       "description": "Terramechanics drive power at the commanded speed on the slope: a steady-state "
                       "Watts figure (task #53 Finding 3 honesty fix).",
@@ -80,11 +85,11 @@ TERRA_DERIVED: dict[str, list[str]] = {
     "physics.slip_risk": ["slip", "slope"],
     "physics.traction_margin": ["traction", "slip"],
     "physics.energy_cost": ["drive_energy"],
-    # HONEST id note (task #53 Finding 1): "excavation_resistance" is LEGACY -- the bound term
-    # (compaction_resistance) is the Bekker wheel compaction/motion resistance R_c, not a dig/draft
-    # force. The id is kept stable (avoids catalog/frontend/snapshot churn); a real excavation
-    # draft-force (FEE) model is tracked as a follow-up (task #78).
-    "physics.excavation_resistance": ["compaction_resistance"],
+    # task #78 Finding 1 (RESOLVED): "physics.excavation_resistance" now binds a REAL excavation draft
+    # force -- the McKyes/Reece Fundamental Earthmoving Equation (stewie.physics.excavation.draft_force),
+    # NOT the Bekker wheel compaction/motion resistance it carried as a #53 honesty-relabel proxy. The
+    # layer id is kept stable (avoids catalog/frontend/snapshot churn); only the bound SOURCE term changed.
+    "physics.excavation_resistance": ["excavation_draft"],
     "physics.compaction": ["compaction_resistance", "sinkage"],
     "traffic.traversability": ["slip", "slope", "traction"],
     "traffic.cost_global": ["drive_energy", "slope"],

@@ -185,6 +185,11 @@ class BuildOrder:
     #: local order frame. When present, footprint_m2 is DERIVED from its area; a bare scalar footprint_m2
     #: (no shape) is the legacy square-equivalent input. The shape carries orientation for acceptance.
     shape: dict | None = None
+    #: task #78 Part C: the ACTUAL in-situ bulk density [kg/m^3] of the cut material at this cell, when the
+    #: conserved authority knows it (column_state per-cell density / a compacted haul-road cell / a DEM
+    #: material sample). None -> lode.planner_balance falls back to the depth-averaged loose-over-dense
+    #: in-situ profile, so a shallow near-surface cut is NOT costed at the deep RHO_DEEP density.
+    insitu_density_kg_m3: float | None = None
     def mass_kg(self, rho): return self.footprint_m2 * self.depth_m * rho
 
 
@@ -360,7 +365,10 @@ def mission_from_dict(payload):
             depth_m=(0.0 if o.get("kind") == "goto" else
                      VAL.ensure_positive_scalar(o["depth_m"], f"order {i} depth_m")),
             note=str(o.get("note", "")),
-            shape=(o.get("shape") if o.get("kind") != "goto" else None)))
+            shape=(o.get("shape") if o.get("kind") != "goto" else None),
+            insitu_density_kg_m3=(   # task #78 Part C: optional real in-situ density of the cut material
+                VAL.ensure_positive_scalar(o["insitu_density_kg_m3"], f"order {i} insitu_density_kg_m3")
+                if o.get("insitu_density_kg_m3") is not None else None)))
     c = payload.get("charger", (0.0, 0.0))
     kwargs = dict(name=str(payload.get("name", "Build Mission")), body=body, orders=orders,
                   charger=_require_xy(c, "charger"),       # #284: shape-validate before indexing (bad shape -> 400)

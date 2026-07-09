@@ -27,7 +27,7 @@ from lode.planner_constants import (
     LOCALIZATION_MARGIN_M, ROVER_MASS_KG,   # #297: BATTERY_J/DRIVE_J_PER_M/RESERVE_FRAC now via plan_context
 )
 from lode.planner_model import Mission, _drum_kg, body_gravity, plan_context
-from lode.planner_balance import SWELL
+from lode.planner_balance import cut_bank_density
 from lode.planner_routing import point_in_keepout
 from lode.planner_sim import _simulate
 from lode.planner_optimize import (
@@ -173,7 +173,10 @@ def _mission_totals(mission, trips, flows, surplus_kg, meta, core):
                         for tr in trips if tr["kind"] == "cutfill")   # CP-07: drum-fill cycle band reuses this
     return dict(
         core,
-        cut_kg=sum(o.mass_kg(mission.density * SWELL) for o in mission.orders if o.kind == "cut"),
+        # task #78 Part C: the excavated total is costed at each cut's ACTUAL in-situ bank density (per-cut,
+        # depth/authority-aware, consistent with lode.planner_balance.balance), NOT a flat mission.density *
+        # SWELL that over-costs a shallow near-surface cut as deeply-buried RHO_DEEP material.
+        cut_kg=sum(o.mass_kg(cut_bank_density(o, mission.density)) for o in mission.orders if o.kind == "cut"),
         fill_kg=sum(o.mass_kg(mission.density) for o in mission.orders if o.kind == "fill"),
         sinter_kg=sum(o.mass_kg(mission.density) for o in mission.orders if o.kind == "sinter"),
         surplus_kg=surplus_kg,

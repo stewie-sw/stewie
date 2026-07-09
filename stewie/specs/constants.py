@@ -154,18 +154,32 @@ THETA_R = np.deg2rad(35.0)
 THETA_R_MIN = np.deg2rad(30.0)
 THETA_R_MAX = np.deg2rad(47.0)
 
-#: Bulking / swell factor SF [dimensionless]. HONESTY (task #53 Finding 2): this now TRACKS the
-#: EFFECTIVE swell the cut/fill planner actually applies -- RHO_DEEP / RHO_SPOIL (~1.477, the same
-#: ratio lode.planner_balance.SWELL computes) -- not a value nothing reads. The spec §5.2 measured
-#: swell (1.1-1.3, nominal 1.2, [CALIB]) DIFFERS from that effective in-code ratio; the discrepancy is
-#: FLAGGED for physics review, not silently resolved (task #78). The literal below is a placeholder;
-#: it is recomputed from RHO_DEEP/RHO_SPOIL further down (after the config overlay), mirroring the
-#: RHO_GRAIN/RHO_SPOIL recompute pattern, so it can never silently diverge from planner_balance.SWELL.
+#: Bulking / swell factor SF [dimensionless]. Tracks the EFFECTIVE swell RHO_DEEP / RHO_SPOIL (~1.477,
+#: the same ratio lode.planner_balance.SWELL computes), recomputed below after the config overlay so it
+#: can never silently diverge from planner_balance.SWELL.
+#:
+#: task #78 Finding 2 (RESOLVED, cited): the earlier note flagged a "discrepancy" between this ~1.477 and
+#: the spec §5.2 measured nominal bulking of 1.2. There is NO real conflict -- they are bulking ratios for
+#: DIFFERENT in-situ source densities:
+#:   * SWELL_FACTOR = RHO_DEEP / RHO_SPOIL = 1920 / 1300 = 1.477 is the MAXIMUM bulking: excavating the
+#:     DENSEST deep (~1 m) regolith (RHO_DEEP) and dumping it to the loose surface-fines state (RHO_SPOIL).
+#:   * The spec's nominal 1.2 is the bulking for a TYPICAL shallow-to-moderate in-situ source (~1560 kg/m^3
+#:     = 1.2 * 1300), i.e. the near-surface material an IPEx shallow dig (~2-3 cm/pass) actually cuts.
+#: RHO_SPOIL is kept at the loose surface-fines density (1300, NOT RHO_DEEP/1.2 = 1600) because freshly
+#: DUMPED lunar regolith settles to its LOOSEST (minimum-density) state ~1100-1300 kg/m^3 (Carrier & Mitchell,
+#: Lunar Sourcebook 1991, Ch.9 physical properties; a 1600 loose density would be DENSER than the in-situ
+#: surface fines, which excavated-and-dumped material does not reach). The measured 1.2 is therefore NOT
+#: superseded; it is REPRODUCED per-cut once lode.planner_balance costs each cut at its ACTUAL in-situ
+#: density (task #78 Part C) instead of the flat RHO_DEEP, so the per-cut swell spans 1.0 (loose surface
+#: cut) .. 1.477 (deep compacted cut), centred ~1.2 for typical shallow-moderate digs. [CALIB]
 SWELL_FACTOR = 1.2  # placeholder; recomputed below as RHO_DEEP / RHO_SPOIL -- zero behavior change
 
-#: Loose spoil density [kg/m^3] — what freshly dumped material settles to (SPOIL state).
-#: Derived so a dense in-situ cut bulks to a lower density when redeposited (spec §7
-#: "a bucket deposits more volume than the hole it left"). Kept at/near RHO_SURFACE.
+#: Loose spoil density [kg/m^3] — what freshly dumped material settles to (SPOIL state). A dense in-situ
+#: cut bulks to this LOWER density when redeposited (spec §7 "a bucket deposits more volume than the hole
+#: it left"). KEPT at the loose surface-fines density (1300), NOT raised to RHO_DEEP/1.2 = 1600: freshly
+#: dumped lunar regolith relaxes to its LOOSEST (minimum-density) packing ~1100-1300 kg/m^3 (Carrier &
+#: Mitchell, Lunar Sourcebook 1991, Ch.9), so a 1600 loose density (denser than the in-situ surface fines)
+#: is unphysical for dumped spoil. See SWELL_FACTOR above for the full bulking reconciliation (task #78).
 RHO_SPOIL = RHO_SURFACE / 1.0  # 1300; loose like the surface layer (spec §7 ~1.3 g/cm^3)
 
 # ---------------------------------------------------------------------------
