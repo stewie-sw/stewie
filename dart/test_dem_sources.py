@@ -1,8 +1,8 @@
 """DEM source registry (TW-01/02/03, M11): the catalog of REAL public lunar DEM products selectable as
-base layers -- LRO LOLA global, LOLA south-pole, LROC NAC SfS, PDS radar, PGDA COGs, CGI Moon Kit. Only
-three real LOLA tiles are bundled (Haworth + the Nobile/Shackleton rim tiles, #150); every other source
-is real-data-gated (you supply a downloaded file, like dem_import / Katwijk -- no synthetic terrain).
-Every source carries provenance + license so
+base layers -- LRO LOLA global, LOLA south-pole, LROC NAC SfS, PDS radar, PGDA COGs, CGI Moon Kit. 11
+real LOLA tiles are bundled (Haworth + 10 Artemis III candidate site tiles, #43/#150); every other
+source is real-data-gated (you supply a downloaded file, like dem_import / Katwijk -- no synthetic
+terrain). Every source carries provenance + license so
 the THIRD_PARTY audit (#124) and the cockpit layer selector have a single source of truth.
 
 Run: <venv>/bin/python -m pytest dart/test_dem_sources.py -q
@@ -19,12 +19,17 @@ def test_catalog_has_the_known_real_products():
         assert expected in ids, expected
 
 
-def test_bundled_sources_match_the_three_on_disk_tiles_rest_gated():
-    # #150: three real LOLA tiles are carved into samples/lunar_dem (Haworth work site + the
-    # Artemis-candidate Nobile/Shackleton rim tiles); every other catalog entry is a real-data-gated
-    # download (you supply the product). The bundled set must match exactly the on-disk tiles.
+def test_bundled_sources_match_the_eleven_on_disk_tiles_rest_gated():
+    # #43/#150: 11 real LOLA tiles are carved into samples/lunar_dem (Haworth work site + 10
+    # Artemis-candidate site tiles); every other catalog entry is a real-data-gated download (you
+    # supply the product). The bundled set must match exactly the on-disk tiles.
     bundled = {s.id for s in S.list_dem_sources() if s.bundled}
-    assert bundled == {"haworth_10km_5m", "nobile_rim1_10km_5m", "shackleton_rim_10km_5m"}, bundled
+    assert bundled == {
+        "haworth_10km_5m", "nobile_rim1_10km_5m", "shackleton_rim_10km_5m",
+        "connecting_ridge_10km_5m", "de_gerlache_rim_10km_5m", "leibnitz_beta_10km_5m",
+        "malapert_massif_10km_5m", "nobile_rim2_10km_5m", "peak_near_shackleton_10km_5m",
+        "shoemaker_10km_5m", "de_gerlache_kocher_10km_5m",
+    }, bundled
     assert [s for s in S.list_dem_sources() if not s.bundled], "catalog should still list gated products"
 
 

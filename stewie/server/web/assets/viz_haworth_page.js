@@ -10,6 +10,7 @@ const KNOWN_SITES = [
   { id: "haworth", label: "Haworth (10 km, 5 m)" },
   { id: "connecting_ridge", label: "Connecting Ridge" },
   { id: "de_gerlache_rim", label: "de Gerlache Rim" },
+  { id: "de_gerlache_kocher", label: "de Gerlache-Kocher Massif" },
   { id: "leibnitz_beta", label: "Leibnitz Beta" },
   { id: "malapert_massif", label: "Malapert Massif" },
   { id: "nobile_rim", label: "Nobile Rim" },

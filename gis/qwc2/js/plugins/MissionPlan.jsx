@@ -38,12 +38,13 @@ import HK from '../mission/hazardKeepouts';       // council #52: derive keep-ou
 // The imported work-site DEMs the planner backs (#51 3-DEM reconciliation): every site that carries a real
 // LOLA DEM bundle -- the plannable set -- with real-area labels matching the map pins (/world/site-markers)
 // and the /viz + /ide 3D viewers. Haworth is the theme's authoritative work site (the T6 default the globe
-// drape + layer catalog also use). Map pins without a DEM bundle (e.g. de Gerlache-Kocher Massif) are not
-// plannable and are correctly absent; DEM sites without a drawn pin (nobile_rim2, shoemaker) stay plannable.
+// drape + layer catalog also use). DEM sites without a drawn pin (nobile_rim2, shoemaker) stay plannable.
+// de Gerlache-Kocher Massif (Site42, #43) was ingested 2026-07-09 and is now plannable too.
 const SITES = [
     {value: 'haworth', label: 'Haworth'},
     {value: 'connecting_ridge', label: 'Connecting Ridge'},
     {value: 'de_gerlache_rim', label: 'de Gerlache Rim'},
+    {value: 'de_gerlache_kocher', label: 'de Gerlache-Kocher Massif'},
     {value: 'leibnitz_beta', label: 'Leibnitz Beta Plateau'},
     {value: 'malapert_massif', label: 'Malapert Massif'},
     {value: 'nobile_rim', label: 'Nobile Rim 1'},

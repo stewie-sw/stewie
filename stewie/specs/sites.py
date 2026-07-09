@@ -70,6 +70,9 @@ SITES: dict = {s.name: s for s in (
     Site("shoemaker", "Shoemaker Crater", -87.0462, 56.8443, artemis_candidate=True,
          bundle_dir=_bundle("shoemaker_10km_5m"),
          note="PGDA Product 78 Shoemaker; 10 km / 5 m tile, imported 2026-07-07"),
+    Site("de_gerlache_kocher", "de Gerlache-Kocher Massif (Site42)", -86.0495, -115.2393,
+         artemis_candidate=True, bundle_dir=_bundle("de_gerlache_kocher_10km_5m"),
+         note="PGDA Product 78 Site42; 10 km / 5 m tile, imported 2026-07-09"),
 )}
 
 
