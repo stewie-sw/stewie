@@ -108,3 +108,37 @@ test("task #56: a throwing onFloatRequest() subscriber does not break delivery t
   assert.strictEqual(good, 1);
   bad(); ok();
 });
+
+// task #80: the route-event channel (the 3D measure tool's waypoints -> Mission Plan's Traverse authoring)
+// is a SEPARATE pub/sub, same shape as emitPlot/onPlot and requestFloat/onFloatRequest.
+test("task #80: emitRoute() delivers the points array to onRoute() subscribers", () => {
+  const seen = [];
+  const unsub = W.onRoute((pts) => seen.push(pts));
+  const points = [
+    {lx: 1, ly: 2, elev_m: 1840.1, lat: -89.1, lon: 42.0},
+    {lx: 3, ly: 4, elev_m: 1841.7, lat: -89.2, lon: 42.3}
+  ];
+  W.emitRoute(points);
+  assert.strictEqual(seen.length, 1);
+  assert.deepStrictEqual(seen[0], points);
+  unsub();
+});
+
+test("task #80: onRoute() unsubscribe function stops further delivery", () => {
+  let calls = 0;
+  const unsub = W.onRoute(() => { calls += 1; });
+  W.emitRoute([{lx: 0, ly: 0, elev_m: 0, lat: 0, lon: 0}]);
+  assert.strictEqual(calls, 1);
+  unsub();
+  W.emitRoute([{lx: 1, ly: 1, elev_m: 1, lat: 1, lon: 1}]);
+  assert.strictEqual(calls, 1);              // unsubscribed -> not called again
+});
+
+test("task #80: a throwing onRoute() subscriber does not break emitRoute() delivery to others", () => {
+  let goodCalls = 0;
+  const unsubBad = W.onRoute(() => { throw new Error("boom"); });
+  const unsubGood = W.onRoute(() => { goodCalls += 1; });
+  assert.doesNotThrow(() => W.emitRoute([{lx: 0, ly: 0, elev_m: 0, lat: 0, lon: 0}]));
+  assert.strictEqual(goodCalls, 1);
+  unsubBad(); unsubGood();
+});

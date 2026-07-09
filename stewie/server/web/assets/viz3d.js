@@ -517,6 +517,13 @@ function _emitMeasure() {
 
 function onMeasure(cb) { S._onMeasure = cb; }
 
+// task #80: a defensive-copy snapshot of the measured waypoints, for a consumer (the MissionTerrain3D "send
+// route" button) that wants the raw points rather than the onMeasure() summary (count/totalDist_m/segments).
+// Each point is copied so the caller cannot mutate S._measurePts by reference.
+function getMeasurePoints() {
+  return (S._measurePts || []).map((q) => ({ lx: q.lx, ly: q.ly, elev_m: q.elev_m, lat: q.lat, lon: q.lon }));
+}
+
 function clearMeasure() {
   _disposeGroup(S._measureGroup); S._measureGroup = null; S._measurePts = [];
   if (S._onMeasure) { S._onMeasure({ count: 0, totalDist_m: 0, lastLat: null, lastLon: null, segments: [] }); }
@@ -565,7 +572,7 @@ function dispose() {
 window.STEWIE_VIZ = {
   mount, dispose, loadSite, setLayer, setVertExag, setWireframe, setSun, setMetricGrid, setGraticule,
   onHover, onLayerError, onPlot, clearPlots, heightAt,
-  setMeasureMode, clearMeasure, onMeasure,
+  setMeasureMode, clearMeasure, onMeasure, getMeasurePoints,
   get meta() { return S.meta; }, get layerKind() { return S.layerKind; }, get vertExag() { return S.vex; },
   get ready() { return !!S.ready; }, get hasMesh() { return !!S.mesh; },
 };

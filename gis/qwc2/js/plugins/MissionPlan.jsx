@@ -150,13 +150,47 @@ class MissionPlan extends React.Component {
                 if (c) { c._setHint('Could not place the plotted point: ' + e.message, true); }
             }
         });
+        // task #80: the 3D measure tool's "Send to plan (route)" button (MissionTerrain3D.jsx) pushes its
+        // waypoints on this SAME shared workspace channel; adopt them as a Traverse route.
+        this._unsubRoute = WS.onRoute((points) => this._adoptRoute(points));
     }
     componentWillUnmount() {
         if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0; }
         if (this._unsubWS) { this._unsubWS(); }
         if (this._unsubPlot) { this._unsubPlot(); }
+        if (this._unsubRoute) { this._unsubRoute(); }
         if (this.ctrl) { this.ctrl.detach(); this.ctrl = null; }
     }
+    // task #80: adopt a route pushed from the 3D measure tool (MissionTerrain3D's "Send to plan (route)"
+    // button, WS.emitRoute) as a batch of Traverse waypoints -- the same reproject(30100->30135) -> placeAt()
+    // pipeline the #77 onPlot handler above uses for a single Shift+click point, but with the Traverse tool
+    // forced active first so every dropped point becomes a `goto` order (planAuthor.placeAt only queues a
+    // waypoint while this.activeKind === 'traverse'; planAuthor.js setTool()/placeAt()).
+    //
+    // setTool('traverse') TOGGLES (planAuthor.js: `this.activeKind = (this.activeKind === kind) ? null : kind`):
+    // calling it while Traverse is ALREADY the active tool would flip activeKind back to null, silently
+    // no-op-ing every subsequent placeAt() (placeAt returns immediately when !this.activeKind). Guarded below
+    // (only call setTool when Traverse isn't already active) so "Send to plan" is idempotent regardless of the
+    // operator's current tool state -- see the task report for the read-through that found this.
+    _adoptRoute = (points) => {
+        const c = this.ctrl;
+        if (!c) { return; }
+        if (!Array.isArray(points) || points.length < 2) {
+            if (c._setHint) { c._setHint('Measure at least 2 waypoints in the 3D card first.', true); }
+            return;
+        }
+        try {
+            if (c.setTool && c.activeKind !== 'traverse') { c.setTool('traverse'); }
+            for (const q of points) {
+                if (q.lat == null || q.lon == null) { continue; }
+                const mapCoord = c.reproject([q.lon, q.lat], 'IAU_2015:30100', 'IAU_2015:30135');
+                c.placeAt(mapCoord);
+            }
+            if (c._setHint) { c._setHint('Added ' + points.length + ' traverse waypoints from the 3D measure route.'); }
+        } catch (e) {
+            if (c._setHint) { c._setHint('Could not adopt the route: ' + e.message, true); }
+        }
+    };
     _resolveMap = () => {
         const map = MapUtils.getHook(MapUtils.GET_MAP);
         if (!map) { this._raf = requestAnimationFrame(this._resolveMap); return; }   // map not mounted yet

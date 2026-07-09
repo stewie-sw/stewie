@@ -106,6 +106,7 @@ class MissionTerrain3D extends React.Component {
         wire: false,
         measure: false,       // task #79: measure/waypoints tool toggle
         measureInfo: null,    // task #79: last onMeasure payload ({count, totalDist_m, lastLat, lastLon, segments})
+        sentRouteMsg: null,   // task #80: brief on-panel confirmation/hint after "Send to plan (route)"
         loading: false,
         error: null,
         meta: null,       // last loaded X-Dem-* meta (resolution / relief), for the status line
@@ -242,6 +243,20 @@ class MissionTerrain3D extends React.Component {
     _setWire = (e) => { const wire = e.target.checked; this.setState({wire}); if (this._viz) { this._viz.setWireframe(wire); } };
     _setMeasure = (e) => { const measure = e.target.checked; this.setState({measure}); if (this._viz) { this._viz.setMeasureMode(measure); } };
     _clearMeasure = () => { if (this._viz) { this._viz.clearMeasure(); } };
+    // task #80: push the measured waypoints into Mission Plan as a Traverse route over the shared workspace
+    // WS.emitRoute() channel (MissionPlan._adoptRoute subscribes). Only "usable" points -- ones whose async
+    // /dem/site_lonlat lookup already resolved lat/lon -- can reproject into the planner's map frame, so an
+    // unresolved point is dropped here rather than forwarded as a null-coordinate waypoint.
+    _sendRoute = () => {
+        const pts = (this._viz && this._viz.getMeasurePoints) ? this._viz.getMeasurePoints() : [];
+        const usable = pts.filter((q) => q.lat != null && q.lon != null);
+        if (usable.length >= 2) {
+            WS.emitRoute(usable);
+            this.setState({sentRouteMsg: 'Sent ' + usable.length + ' waypoints to plan.'});
+        } else {
+            this.setState({sentRouteMsg: 'Need at least 2 waypoints with resolved lon/lat — measure a bit more.'});
+        }
+    };
 
     renderStatus() {
         const s = this.state;
@@ -286,6 +301,32 @@ class MissionTerrain3D extends React.Component {
                         borderRadius: '4px', border: '1px solid #39c6ff44', color: '#39c6ff', background: '#39c6ff10'
                     }}
                 >Clear</button>
+            </div>
+        );
+    }
+    // task #80: the "send measured route to plan" control -- only makes sense where a planner exists (the
+    // /ide Mission Plan panel this button targets via WS.emitRoute), which is exactly where this SideBar
+    // plugin lives (the standalone /viz page never mounts MissionTerrain3D.jsx, so it never gets this button).
+    // Shown once measuring is active OR at least 2 waypoints are already down (this.state.measureInfo.count),
+    // so it stays out of the way before there is anything useful to send. The confirmation/hint line is plain
+    // JSX text -- rendered through React children, not any raw-markup DOM sink.
+    renderSendRoute() {
+        const s = this.state;
+        const count = s.measureInfo ? s.measureInfo.count : 0;
+        if (!s.measure && count < 2) { return null; }
+        return (
+            <div style={{display: 'flex', flexDirection: 'column', gap: '4px', margin: '0 0 6px'}}>
+                <button
+                    data-stewie-send-route="1" onClick={this._sendRoute} type="button"
+                    style={{
+                        cursor: 'pointer', font: '600 10px system-ui, sans-serif', padding: '3px 8px',
+                        borderRadius: '4px', border: '1px solid #7fe0a866', color: '#7fe0a8', background: '#7fe0a814',
+                        alignSelf: 'flex-start'
+                    }}
+                >→ Send to plan (route)</button>
+                {s.sentRouteMsg && (
+                    <span data-stewie-send-route-msg style={{color: '#8a93a3', fontSize: '10px'}}>{s.sentRouteMsg}</span>
+                )}
             </div>
         );
     }
@@ -356,6 +397,7 @@ class MissionTerrain3D extends React.Component {
                 </div>
 
                 {this.renderMeasure()}
+                {this.renderSendRoute()}
                 {this.renderHover()}
             </div>
         );
