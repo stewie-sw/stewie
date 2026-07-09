@@ -95,7 +95,14 @@ def dem_site_xy(lat: float, lon: float, site: str = "haworth", _auth: str = Depe
 def dem_site_lonlat(x: float, y: float, site: str = "haworth", _auth: str = Depends(require_auth)):
     """#174: the chosen site's order-frame (x, y) [m] -> selenographic lat/lon (deg) -- the INVERSE of
     /dem/site_xy, so the cockpit can show the actual coordinates next to the site metres for the lander,
-    the rover's pose, and placed landmarks (Aaron: "why are these in meters vs actual coordinates?")."""
+    the rover's pose, and placed landmarks (Aaron: "why are these in meters vs actual coordinates?").
+
+    GATED (require_auth) per #246 test_egress_auth -- this DEM egress route stays fail-closed on the
+    backend. The public /viz viewer's hover lon/lat readout reaches it through the artemis edge, which
+    server-side-injects the shared key for THIS exact route only (the /api/structure pattern), so the
+    page is public but the backend surface does not silently re-open. (The newer viz render routes
+    -- /dem/heightfield_full[/meta,/layer.png], /dem/graticule -- are instead public + per-IP
+    rate-limited, like the public globe base map, since they only egress public-domain LOLA terrain.)"""
     from lode import mission_planner as MP
     try:
         lat, lon = MP.dem_origin_to_latlon(x, y, bundle_dir=MP.bundle_for_site(site))

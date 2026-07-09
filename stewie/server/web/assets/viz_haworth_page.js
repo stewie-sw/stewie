@@ -8,8 +8,15 @@ const VIZ = window.STEWIE_VIZ;
 // render ANY registry site; a ?site= not in this list is added so a freshly-imported site is still reachable.
 const KNOWN_SITES = [
   { id: "haworth", label: "Haworth (10 km, 5 m)" },
-  { id: "shackleton_rim", label: "Shackleton Rim" },
+  { id: "connecting_ridge", label: "Connecting Ridge" },
+  { id: "de_gerlache_rim", label: "de Gerlache Rim" },
+  { id: "leibnitz_beta", label: "Leibnitz Beta" },
+  { id: "malapert_massif", label: "Malapert Massif" },
   { id: "nobile_rim", label: "Nobile Rim" },
+  { id: "nobile_rim2", label: "Nobile Rim 2" },
+  { id: "peak_near_shackleton", label: "Peak near Shackleton" },
+  { id: "shackleton_rim", label: "Shackleton Rim" },
+  { id: "shoemaker", label: "Shoemaker" },
 ];
 const LAYERS = [
   { id: "elevation", label: "Elevation (height ramp)" },
