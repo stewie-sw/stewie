@@ -788,7 +788,7 @@ def point_values(site: str, x_m: float, y_m: float, *, _ctx: dict | None = None)
         ("physics.sinkage", "Sinkage", "m"), ("physics.slip_risk", "Slip risk", "slip ratio"),
         ("physics.traction_margin", "Traction margin", "fraction"),
         ("physics.energy_cost", "Drive power", "W"),
-        ("physics.excavation_resistance", "Excavation resistance", "N"),
+        ("physics.excavation_resistance", "Compaction resistance", "N"),
         ("traffic.cost_global", "Traversal cost", ""),
         ("traffic.traversability", "Passable", ""),
         ("terrain.illumination", "Illumination", ""), ("terrain.incidence", "Incidence", "deg"),

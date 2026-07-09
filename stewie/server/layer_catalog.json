@@ -373,7 +373,7 @@
       "id": "physics.energy_cost",
       "domain": "physics",
       "type": "raster",
-      "purpose": "drive/work energy cost",
+      "purpose": "steady drive power (W), not an energy total -- legacy id (task #53)",
       "source_class": "derived/forecast",
       "planning_eligible": true,
       "planning_note": "yes",
