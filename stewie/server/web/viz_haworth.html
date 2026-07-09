@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STEWIE — Haworth 3D Terrain</title>
+<meta name="description" content="Full-resolution lunar 3D terrain view — real LOLA DEM, draped analysis rasters, accurate selenographic coordinates and gridlines for mission planning.">
+<meta name="theme-color" content="#0a0a0c">
+<link rel="icon" type="image/png" href="/assets/brand/favicon.png?v=2">
+<style>
+  @font-face{font-family:Orbitron;font-weight:700;font-display:swap;src:url(/assets/fonts/orbitron-700.woff2) format("woff2")}
+  @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(/assets/fonts/inter-400.woff2) format("woff2")}
+  @font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(/assets/fonts/inter-600.woff2) format("woff2")}
+  :root{--bg:#0a0a0c;--panel:#12141a;--edge:#242a33;--text:#E6E8EA;--text-2:#8A9096;--accent:#ef3a52;--cyan:#35e0d0;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;overflow:hidden}
+  #viz-app{position:fixed;inset:0;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:12px;padding:9px 16px;border-bottom:1px solid var(--edge);background:#0c0e13;z-index:5}
+  header .mark{width:20px;height:20px}
+  header .word{font-family:Orbitron,sans-serif;font-weight:700;letter-spacing:.32em;font-size:14px}
+  header .tag{font-size:10px;letter-spacing:.14em;color:var(--text-2)}
+  #viz-status{margin-left:auto;font-size:11px;color:var(--text-2);letter-spacing:.02em;text-align:right;max-width:52vw}
+  main{position:relative;flex:1;min-height:0}
+  #viz-root{position:absolute;inset:0}
+  #viz-panel{position:absolute;top:14px;left:14px;width:250px;background:rgba(18,20,26,.92);border:1px solid var(--edge);border-radius:10px;padding:13px 14px;backdrop-filter:blur(6px);z-index:4}
+  #viz-panel h2{font-family:Orbitron,sans-serif;font-size:10px;letter-spacing:.2em;color:var(--text-2);text-transform:uppercase;margin-bottom:10px}
+  .row{margin-bottom:11px}
+  .row label{display:block;font-size:11px;color:var(--text-2);margin-bottom:4px;letter-spacing:.03em}
+  .row .val{float:right;color:var(--cyan);font-variant-numeric:tabular-nums}
+  select,input[type=range]{width:100%;font-family:inherit}
+  select{background:#0c0e13;color:var(--text);border:1px solid var(--edge);border-radius:6px;padding:6px 8px;font-size:12px}
+  input[type=range]{accent-color:var(--accent);margin-top:2px}
+  .toggles{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:2px}
+  .toggles label{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text);cursor:pointer}
+  .toggles input{accent-color:var(--cyan)}
+  #viz-hud{position:absolute;left:14px;bottom:14px;background:rgba(8,11,15,.86);border:1px solid var(--edge);border-radius:8px;padding:9px 12px;font-size:12px;font-variant-numeric:tabular-nums;line-height:1.5;z-index:4}
+  #viz-hud b{color:var(--cyan);font-weight:600}
+  #viz-hud.dim{opacity:.4}
+  #viz-legend{position:absolute;right:14px;bottom:14px;font-size:10px;color:var(--text-2);letter-spacing:.04em;text-align:right;z-index:4}
+  #viz-legend .k{color:var(--cyan)} #viz-legend .m{color:#6cd8ff} #viz-legend .p{color:#ffd27a}
+  @media(max-width:640px){#viz-panel{width:min(250px,72vw)}#viz-status{display:none}}
+</style>
+</head>
+<body>
+<div id="viz-app">
+  <header>
+    <img class="mark" src="/assets/brand/wheel.png?v=2" alt="">
+    <span class="word">STEWIE</span>
+    <span class="tag">FULL-RESOLUTION 3D TERRAIN &middot; IN SILICO &rarr; IN SITU</span>
+    <span id="viz-status">initializing…</span>
+  </header>
+  <main>
+    <div id="viz-root"></div>
+    <section id="viz-panel">
+      <h2>Terrain View</h2>
+      <div class="row"><label for="viz-site">Site</label><select id="viz-site"></select></div>
+      <div class="row"><label for="viz-layer">Analysis drape</label><select id="viz-layer"></select></div>
+      <div class="row"><label for="viz-vex">Vertical exaggeration <span class="val" id="viz-vex-out">1.0×</span></label><input type="range" id="viz-vex" min="1" max="5" step="0.1" value="1"></div>
+      <div class="row"><label for="viz-sun-az">Sun azimuth <span class="val" id="viz-sun-az-out">135°</span></label><input type="range" id="viz-sun-az" min="0" max="360" step="1" value="135"></div>
+      <div class="row"><label for="viz-sun-el">Sun elevation <span class="val" id="viz-sun-el-out">20°</span></label><input type="range" id="viz-sun-el" min="1" max="60" step="1" value="20"></div>
+      <div class="row toggles">
+        <label><input type="checkbox" id="viz-grid"> km grid</label>
+        <label><input type="checkbox" id="viz-grat"> lon/lat</label>
+        <label><input type="checkbox" id="viz-wire"> wire</label>
+      </div>
+    </section>
+    <div id="viz-hud" class="dim"><b>E</b> — &nbsp; <b>N</b> — &nbsp; <b>elev</b> —<br>lat —  lon —</div>
+    <div id="viz-legend">drag orbit · scroll zoom · hover for coordinates<br><span class="k">km grid</span> · <span class="m">meridians</span> · <span class="p">parallels</span></div>
+  </main>
+</div>
+<script src="/assets/viz_grid.js?v=03b79fecddd3"></script>
+<script type="module" src="/assets/viz3d.js?v=9a98c85bf6a4"></script>
+<script type="module" src="/assets/viz_haworth_page.js?v=f5fefe82bcf6"></script>
+</body>
+</html>

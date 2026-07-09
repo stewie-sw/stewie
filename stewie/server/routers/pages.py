@@ -15,6 +15,7 @@ router = APIRouter()
 
 _SERVER_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _LANDING = os.path.join(_SERVER_DIR, "web", "landing.html")
+_VIZ_HAWORTH = os.path.join(_SERVER_DIR, "web", "viz_haworth.html")
 
 
 @router.get("/landing")
@@ -23,3 +24,14 @@ def landing_page():
     if not os.path.exists(_LANDING):
         raise HTTPException(status_code=404, detail="landing page missing from this build")
     return FileResponse(_LANDING, media_type="text/html; charset=utf-8")
+
+
+@router.get("/viz")
+@router.get("/viz_haworth.html")
+def viz_haworth_page():
+    """The standalone FULL-RESOLUTION 3D terrain viewer (viz.stewie.space). Site-parametrized via ?site=
+    (Haworth default); every imported site renders. GET-only, static, no secrets -> open, like /landing +
+    /program. In prod nginx serves the apex document; this backend route covers a direct /viz hit + dev."""
+    if not os.path.exists(_VIZ_HAWORTH):
+        raise HTTPException(status_code=404, detail="viz page missing from this build")
+    return FileResponse(_VIZ_HAWORTH, media_type="text/html; charset=utf-8")

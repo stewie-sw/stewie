@@ -8,15 +8,29 @@ from __future__ import annotations
 import json
 import os
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
 from stewie.server.deps import require_auth
+from stewie.server.ratelimit import RateLimiter, client_ip
 from stewie.server.services import log_event
 from stewie.specs.config import data_dir
 
 router = APIRouter()
+
+# viz.stewie.space serves public-domain LOLA terrain (the same real DEM the public globe drape exposes),
+# so the full-res 3D endpoints are PUBLIC read (no auth) but rate-limited PER CLIENT IP -- mirroring the
+# /layers/globe drape's posture (a terrain view you cannot see is worse than the DoS the quota covers).
+_viz_ratelimiter = RateLimiter(int(os.environ.get("STEWIE_VIZ_QUOTA_MAX", "240")),
+                               float(os.environ.get("STEWIE_VIZ_QUOTA_WINDOW_S", "60")))
+
+
+def _viz_quota(request: Request) -> str:
+    ip = client_ip(request)
+    if not _viz_ratelimiter.allow(ip):
+        raise HTTPException(status_code=429, detail="viz terrain render quota exceeded; slow down")
+    return ip
 
 
 @router.get("/clasts/scene")
@@ -287,6 +301,196 @@ def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str =
     if len(_WORKAREA_CACHE) > _WORKAREA_CACHE_MAX:
         _WORKAREA_CACHE.pop(next(iter(_WORKAREA_CACHE)), None)   # FIFO: evict the oldest entry
     return Response(content=png, media_type="image/png")
+
+
+# --- viz.stewie.space full-resolution 3D terrain view -------------------------------------------------
+# The standalone Haworth (any-site) 3D viewer samples the site's real LOLA DEM at NATIVE resolution over an
+# order-frame window (default: the whole tile), draped with a registered analysis raster + a curved lon/lat
+# graticule. The height data is streamed as compact float32 BINARY (not millions of JSON floats).
+
+def _full_load(site: str):
+    """Shared load: (Z, cell, W, H) for a site's real DEM, or a JSONResponse error (404). No fabrication:
+    a missing bundle 404s exactly like the other DEM routes."""
+    from stewie.server import state
+    from stewie.terrain.site_dem import bundle_for_site
+    try:
+        bundle_for_site(site)                               # validate the site (404 on unknown / unimported)
+    except (KeyError, FileNotFoundError) as e:
+        return None, JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+    dem, _origin = state.moon_dem(site)
+    if dem is None:
+        return None, JSONResponse(status_code=404, content={"ok": False, "error": f"no DEM for site {site!r}"})
+    return dem, None
+
+
+@router.get("/dem/heightfield_full/meta")
+def dem_heightfield_full_meta(site: str = "haworth", window_m: float = -1.0, x0: float = 0.0,
+                              y0: float = 0.0, max_dim: int = 2048,
+                              _rl: str = Depends(_viz_quota)):
+    """The full-res height-grid META (rows/cols=n, cell_m, window origin, step, z_min/z_max, LOD stride) so
+    the viewer can size the mesh + build the coordinate overlay BEFORE the binary fetch. ``window_m<=0``
+    defaults to the whole native tile. Declared BEFORE /dem/{name} so the literal path wins."""
+    from stewie.terrain.heightfield_full import heightfield_full, native_full_window_m
+    dem, err = _full_load(site)
+    if err is not None:
+        return err
+    Z, cell = dem
+    H, W = Z.shape
+    win = native_full_window_m(W, H, cell) if window_m <= 0 else window_m
+    _grid, meta = heightfield_full(Z, cell, x0, y0, win, max_dim)
+    meta["ok"] = True
+    meta["site"] = site
+    return meta
+
+
+@router.get("/dem/heightfield_full")
+def dem_heightfield_full(site: str = "haworth", window_m: float = -1.0, x0: float = 0.0, y0: float = 0.0,
+                         max_dim: int = 2048, _rl: str = Depends(_viz_quota)):
+    """FULL-RESOLUTION heightfield as raw little-endian float32 BINARY (row-major y-then-x), with the grid
+    metadata in ``X-Dem-*`` response headers so ONE fetch yields both. Samples the site's real LOLA DEM at
+    NATIVE cell resolution over the order-frame window (default: the whole tile); ``max_dim`` caps the mesh
+    dimension with an LOD stride. Registers cell-for-cell with /dem/heightfield_full/layer.png over the same
+    window. NOT decimated to n<=257 like /dem/heightfield. Declared BEFORE /dem/{name} so the literal path
+    wins."""
+    import numpy as np
+
+    from stewie.terrain.heightfield_full import heightfield_full, native_full_window_m
+    dem, err = _full_load(site)
+    if err is not None:
+        return err
+    Z, cell = dem
+    H, W = Z.shape
+    win = native_full_window_m(W, H, cell) if window_m <= 0 else window_m
+    grid, meta = heightfield_full(Z, cell, x0, y0, win, max_dim)
+    body = np.ascontiguousarray(grid, dtype="<f4").tobytes()   # row-major LE float32 -> browser Float32Array
+    headers = {
+        "X-Dem-Site": str(site), "X-Dem-N": str(meta["n"]), "X-Dem-Native-N": str(meta["native_n"]),
+        "X-Dem-Cell-M": repr(meta["cell_m"]), "X-Dem-Window-M": repr(meta["window_m"]),
+        "X-Dem-Step-M": repr(meta["step_m"]), "X-Dem-Stride": repr(meta["stride"]),
+        "X-Dem-X0": repr(meta["x0"]), "X-Dem-Y0": repr(meta["y0"]),
+        "X-Dem-Z-Min": repr(meta["z_min"]), "X-Dem-Z-Max": repr(meta["z_max"]),
+        "X-Dem-Width": str(meta["width"]), "X-Dem-Height": str(meta["height"]),
+        "X-Dem-Lod": "1" if meta["lod"] else "0",
+        "Cache-Control": "public, max-age=3600",
+    }
+    return Response(content=body, media_type="application/octet-stream", headers=headers)
+
+
+# analysis-drape cache (same FIFO pattern as _WORKAREA_CACHE): the drape is a deterministic pure function
+# of the key, so a concurrent miss-miss just recomputes identical bytes -- no lock needed.
+_FULL_LAYER_CACHE: dict = {}
+_FULL_LAYER_CACHE_MAX = 128
+
+
+@router.get("/dem/heightfield_full/layer.png")
+def dem_heightfield_full_layer(site: str = "haworth", window_m: float = -1.0, x0: float = 0.0,
+                               y0: float = 0.0, kind: str = "dem", sun_az: float = 315.0,
+                               sun_el: float = 45.0, out_px: int = -1,
+                               _rl: str = Depends(_viz_quota)):
+    """The analysis raster (slope/hillshade/hazard/illumination/psr/cost/... via the SAME gis_layers helpers
+    the globe + cockpit drape use) rendered in the ORDER FRAME over the SAME window as /dem/heightfield_full,
+    so it registers cell-for-cell as a texture on the full-res relief. North-up (row 0 = max y). The drape is
+    a texture (UV 0..1 over the window) so its ``out_px`` is bounded independently of the mesh vertex count;
+    expensive horizon-sweep kinds render small. Declared BEFORE /dem/{name} so the literal path wins."""
+    import numpy as np
+
+    from stewie.server.gis_layers import (
+        _PHYSICS_KINDS, _costmap_rgba, _layer_rgba, _physics_rgba, _to_png,
+    )
+    from stewie.terrain.heightfield_full import full_grid_spec, native_full_window_m, suggested_layer_px
+    from stewie.terrain.site_dem import bundle_for_site
+
+    dem, err = _full_load(site)
+    if err is not None:
+        return err
+    Z, cell = dem
+    H, W = Z.shape
+    win = native_full_window_m(W, H, cell) if window_m <= 0 else window_m
+    spec = full_grid_spec(W, H, cell, x0, y0, win, max_dim=W + H)   # reuse the SAME window clamp for registration
+    px = suggested_layer_px(kind, spec["n"]) if out_px <= 0 else max(2, min(int(out_px), 2048))
+    az = round(float(sun_az)) % 360
+    el = max(-90, min(90, round(float(sun_el))))
+    sun_part = (az, el) if kind in ("dem", "hillshade", "illumination", "incidence", "cost", "blocking") else None
+    ckey = (site, kind, round(spec["x0"], 1), round(spec["y0"], 1), round(spec["window_m"], 1), px, sun_part)
+    cached = _FULL_LAYER_CACHE.get(ckey)
+    if cached is not None:
+        return Response(content=cached, media_type="image/png")
+    # sample the DEM over the SAME window at the drape's own resolution (texture, not the mesh)
+    xs = np.linspace(0.0, spec["window_m"], px)
+    cols = np.clip(np.round((spec["x0"] + xs) / cell).astype(int), 0, W - 1)
+    rows = np.clip(np.round((spec["y0"] + xs) / cell).astype(int), 0, H - 1)
+    patch = np.asarray(Z, dtype=float)[np.ix_(rows, cols)]         # [row=y(North as j incr), col=x(East)]
+    gnb = None
+    if kind in ("illumination", "incidence", "cost", "blocking"):  # re-express the TRUE sun az in the grid frame
+        try:
+            from stewie.terrain.site_dem import grid_north_bearing_deg
+            gnb = grid_north_bearing_deg(spec["x0"] + spec["window_m"] / 2.0,
+                                         spec["y0"] + spec["window_m"] / 2.0, bundle_dir=bundle_for_site(site))
+        except (ImportError, ValueError):
+            gnb = None
+    cm = spec["window_m"] / (px - 1) if px > 1 else cell           # effective metre spacing of the drape sampling
+    if kind in ("cost", "blocking"):
+        rgba = _costmap_rgba(patch, cm, kind, az, el, grid_north_bearing=gnb)
+    elif kind in _PHYSICS_KINDS:
+        rgba = _physics_rgba(patch, cm, kind)
+    else:
+        rgba = _layer_rgba(patch, cm, kind, az, el, grid_north_bearing=gnb)
+    if rgba is None:
+        return JSONResponse(status_code=400, content={"ok": False, "error": f"unknown layer kind {kind!r}"})
+    rgba = np.flipud(rgba)                                          # row 0 = top = max y (North), three3d UV convention
+    png = _to_png(rgba)
+    _FULL_LAYER_CACHE[ckey] = png
+    if len(_FULL_LAYER_CACHE) > _FULL_LAYER_CACHE_MAX:
+        _FULL_LAYER_CACHE.pop(next(iter(_FULL_LAYER_CACHE)), None)
+    return Response(content=png, media_type="image/png")
+
+
+@router.get("/dem/graticule")
+def dem_graticule(site: str = "haworth", window_m: float = -1.0, x0: float = 0.0, y0: float = 0.0,
+                  target_lines: int = 6, _rl: str = Depends(_viz_quota)):
+    """The selenographic lon/lat graticule for the 3D view, in ORDER-LOCAL metres over the window, curved
+    correctly in the polar-stereographic frame (mirrors gis/qwc2/js/mission/graticule.js, reprojected via
+    the real IAU_2015:30135 forward transform). Returns meridian/parallel polylines the viewer drapes onto
+    the surface. 503 when pyproj (the [planner] extra) is absent. Declared BEFORE /dem/{name}."""
+    import numpy as np
+
+    from stewie.terrain.graticule_order import auto_steps, graticule_order_polylines
+    from stewie.terrain.heightfield_full import full_grid_spec, native_full_window_m
+    from stewie.terrain.site_dem import bundle_for_site
+
+    dem, err = _full_load(site)
+    if err is not None:
+        return err
+    Z, cell = dem
+    H, W = Z.shape
+    win = native_full_window_m(W, H, cell) if window_m <= 0 else window_m
+    spec = full_grid_spec(W, H, cell, x0, y0, win, max_dim=W + H)
+    try:
+        from stewie.terrain.site_dem import _proj_ctx, dem_georef_corners
+        bundle = bundle_for_site(site)
+        _cell, _W, _H, ax0, ay0, fwd, _inv = _proj_ctx(bundle)
+        geo = dem_georef_corners(bundle_dir=bundle)
+    except ImportError as e:
+        return JSONResponse(status_code=503, content={"ok": False, "error": f"DEM/pyproj absent: {e}"})
+    except (KeyError, FileNotFoundError, ValueError) as e:
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+
+    def reproject(lons, lats):
+        xs_proj, ys_proj = fwd.transform(np.asarray(lons, dtype=float), np.asarray(lats, dtype=float))
+        return np.asarray(xs_proj) - ax0, ay0 - np.asarray(ys_proj)   # -> tile-pixel metres (col*cell)
+
+    lons = [c["lon"] for c in geo["corners"]]
+    lats = [c["lat"] for c in geo["corners"]]
+    lon_min, lon_max = min(lons), max(lons)
+    lat_min, lat_max = min(lats), max(lats)
+    st = auto_steps(lon_min, lon_max, lat_min, lat_max, target_lines=max(2, min(int(target_lines), 20)))
+    lines = graticule_order_polylines(
+        reproject, x0=spec["x0"], y0=spec["y0"], window_m=spec["window_m"],
+        lon_min=lon_min, lon_max=lon_max, lat_min=lat_min, lat_max=lat_max,
+        lon_step=st["lon_step"], lat_step=st["lat_step"],
+        lon_sample=st["lon_sample"], lat_sample=st["lat_sample"], pad=spec["window_m"] * 0.02)
+    return {"ok": True, "site": site, "x0": spec["x0"], "y0": spec["y0"], "window_m": spec["window_m"],
+            "crs": geo.get("crs"), "lines": lines}
 
 
 @router.get("/dem/terrain_grid")

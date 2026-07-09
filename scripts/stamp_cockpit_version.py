@@ -28,9 +28,10 @@ _ROOT = pathlib.Path(__file__).resolve().parent.parent
 _ASSET_DIR = _ROOT / "stewie" / "server" / "web" / "assets"
 INDEX_HTML = _ROOT / "stewie" / "server" / "index.html"
 PROGRAM_HTML = _ROOT / "stewie" / "server" / "web" / "program.html"
+VIZ_HAWORTH_HTML = _ROOT / "stewie" / "server" / "web" / "viz_haworth.html"
 
 #: every page that cache-busts /assets/*.js with ?v=
-PAGES = (INDEX_HTML, PROGRAM_HTML)
+PAGES = (INDEX_HTML, PROGRAM_HTML, VIZ_HAWORTH_HTML)
 
 #: an /assets/... reference with a ?v= token (group 1 = the asset path relative to assets/, group 2 = up
 #: to the token). Matches nested paths (assets/panes/x.js) too.
