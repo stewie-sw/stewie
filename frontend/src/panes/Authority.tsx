@@ -129,7 +129,13 @@ export function AuthorityChrome() {
 
 export function AuthorityPane({ pane }: { pane: Pane }) {
   const { state } = useWorkspace();
-  const elig = useResource<Eligibility>("/rc/eligibility");
+  // [dispatch-audit R7c] the per-pane verdict must reflect the SELECTED mission: the backend /rc/eligibility
+  // keys its released-live gate on ?mission=, so a bare fetch judged a mission-LESS command (always refused).
+  // A mission-less workspace still fetches the bare path (the generic no-mission verdict, unchanged).
+  const eligUrl = state.mission
+    ? `/rc/eligibility?mission=${encodeURIComponent(state.mission)}`
+    : "/rc/eligibility";
+  const elig = useResource<Eligibility>(eligUrl);
   const depth = useResource<{ sources: { name: string; status: string }[] }>("/perception/depth-sources");
   const isRelease = pane.id === "release";
   const gates = isRelease ? RELEASE_GATES : EXECUTE_GATES;

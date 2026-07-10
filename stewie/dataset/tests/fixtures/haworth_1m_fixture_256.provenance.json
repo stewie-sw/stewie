@@ -1,0 +1,30 @@
+{
+  "source_dem": "Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif",
+  "source_resolved_path": "/mnt/projects/stewie/code/datasets/lunar_dem/Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif",
+  "window_row0_col0_size": [
+    5000,
+    5000,
+    256
+  ],
+  "px_m": 1.0,
+  "sphere_radius_m": 1737400.0,
+  "nodata": "-3.40282265508890445e+38",
+  "fixture_tiepoint_nw_corner_m": [
+    -35120.0,
+    90320.0
+  ],
+  "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+  "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+  "note": "REAL subsampled window of the PGDA LOLA Haworth 1 m v3 DEM; real pixel values + real geolocation. Regenerate via `python -m stewie.dataset.tests._make_fixture`.",
+  "verified": {
+    "load_lola_geotiff_shape": [
+      256,
+      256
+    ],
+    "affine_first_pixel_center_m": [
+      -35119.5,
+      90319.5
+    ],
+    "meta_frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)"
+  }
+}

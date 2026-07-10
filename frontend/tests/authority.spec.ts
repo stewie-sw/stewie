@@ -38,6 +38,16 @@ test("[dispatch-audit R7a] the release POST echoes the double-submit CSRF token"
   expect(req.headers()["x-csrf-token"]).toBe("csrf-r7a-token");
 });
 
+test("[dispatch-audit R7c] the authority-pane eligibility fetch carries the selected mission", async ({ page }) => {
+  // the /rc/eligibility verdict must key on the SELECTED mission (the workspace routes it via ?mission=),
+  // not a mission-less generic verdict. Intercept the pane's eligibility request and assert the query.
+  const reqP = page.waitForRequest((r) => r.url().includes("/rc/eligibility") && r.url().includes("mission="));
+  await page.goto("/app/metrics?mission=test-mission-x");   // metrics = the Execute AuthorityPane
+  await expect(page.locator('.role-badge[data-role="director"]')).toBeVisible();
+  const req = await reqP;
+  expect(req.url()).toContain("mission=test-mission-x");
+});
+
 test("Execute surfaces the refusal reason when ineligible (clause 2)", async ({ page }) => {
   await toPane(page, "metrics");
   const verdict = page.locator('[data-testid="verdict-metrics"]');
