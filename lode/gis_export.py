@@ -106,7 +106,7 @@ def _footprint_ring_xy(order, *, n: int = 32) -> list[tuple[float, float]] | Non
 
 
 def plan_to_geojson(mission, *, dem, dem_origin, algorithm: str = "nearest", objective: str = "time",
-                    max_traverse_slope_deg: float = 25.0, bundle_dir=None) -> dict[str, Any]:
+                    max_traverse_slope_deg: float = 25.0, bundle_dir=None, markers=None) -> dict[str, Any]:
     """Serialize a mission plan to an RFC-7946 GeoJSON FeatureCollection in selenographic lon/lat.
 
     Features (each tagged with a ``feature`` property so a GIS client can style by layer):
@@ -164,6 +164,18 @@ def plan_to_geojson(mission, *, dem, dem_origin, algorithm: str = "nearest", obj
             {"type": "LineString", "coordinates": line},
             {"feature": "route", "leg_id": a.get("id"), "vehicle": a.get("vehicle"),
              "reached": bool(a.get("reached", True))}))
+
+    # place-object markers (cockpit-toolbox annotations: beacon/cache/instrument/sample/antenna + a label)
+    # -> Points. GI-03: a marker ANNOTATES the map (it never routes the planner), and was the one authored
+    # feature absent from the export. Order-frame {x,y} like the orders, projected through the same transform.
+    for m in (markers or []):
+        if not isinstance(m, dict) or m.get("x") is None or m.get("y") is None:
+            continue
+        pt = _xy_to_lonlat(float(m["x"]), float(m["y"]), dem_origin, bundle_dir=bundle_dir)
+        props = {"feature": "marker", "otype": str(m.get("otype", "marker"))}
+        if m.get("label") is not None:
+            props["label"] = str(m["label"])
+        features.append(_feature({"type": "Point", "coordinates": pt}, props))
 
     return {
         "type": "FeatureCollection",

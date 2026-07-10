@@ -73,7 +73,8 @@ def export_geojson(
             log.warning("pyproj absent ([planner] extra); export lat/lon ignored, using flattest anchor")
     try:
         fc = GE.plan_to_geojson(m, dem=dem, dem_origin=origin, algorithm=algorithm, objective=objective,
-                                max_traverse_slope_deg=max_traverse_slope_deg, bundle_dir=bundle)
+                                max_traverse_slope_deg=max_traverse_slope_deg, bundle_dir=bundle,
+                                markers=payload.get("markers"))   # GI-03: place-object annotations -> Point features
     except ImportError as e:                                   # pyproj missing -> cannot project
         return JSONResponse(status_code=503, content={"ok": False, "error":
                             f"coordinate transform unavailable (install the [planner] extra): {e}"})

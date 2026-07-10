@@ -126,3 +126,35 @@ def test_gis_query_route_filters_by_layer_and_attribute():
     assert body["count"] == 1 and all(f["properties"]["feature"] == "keepout" for f in body["features"])
     r2 = c.post("/gis/query", json={"featurecollection": fc, "feature": "order", "attrs": {"kind": "cut"}})
     assert r2.status_code == 200 and r2.json()["count"] == 1
+
+
+def test_export_geojson_serializes_place_object_markers_as_annotations():  # [REQ:GI-03]
+    """GI-03 cockpit-toolbox annotation: a place-object marker (beacon/cache/instrument/sample/antenna + a
+    label) rides the export mission and serializes as a Point Feature with feature='marker' + otype + label,
+    in selenographic lon/lat inside the tile -- the authored annotation previously ABSENT from the export."""
+    c = _client()
+    mission = dict(_MISSION, markers=[
+        {"x": 30, "y": 25, "otype": "beacon", "label": "LZ beacon"},
+        {"x": 60, "y": 40, "otype": "sample"},                 # label omitted -> no label property
+    ])
+    r = c.get("/export/geojson", params={"mission": json.dumps(mission)})
+    assert r.status_code == 200, r.text
+    fc = r.json()
+    markers = [f for f in fc["features"] if f["properties"].get("feature") == "marker"]
+    assert len(markers) == 2, f"expected 2 marker Points, got {len(markers)}"
+    beacon = next(f for f in markers if f["properties"]["otype"] == "beacon")
+    assert beacon["geometry"]["type"] == "Point"
+    assert beacon["properties"]["label"] == "LZ beacon"
+    lon, lat = beacon["geometry"]["coordinates"]
+    assert -180.0 <= lon <= 180.0 and lat < -80.0              # selenographic south-polar lon/lat
+    sample = next(f for f in markers if f["properties"]["otype"] == "sample")
+    assert "label" not in sample["properties"]                 # an unlabelled marker carries no label prop
+
+
+def test_export_geojson_without_markers_is_unchanged():  # [REQ:GI-03]
+    """Backward-compatible: a mission with no markers key yields no marker features (the orders/keep-outs/
+    route export is byte-identical to before -- markers are purely additive)."""
+    c = _client()
+    r = c.get("/export/geojson", params={"mission": json.dumps(_MISSION)})
+    assert r.status_code == 200, r.text
+    assert not [f for f in r.json()["features"] if f["properties"].get("feature") == "marker"]

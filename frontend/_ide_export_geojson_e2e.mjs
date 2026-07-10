@@ -9,8 +9,13 @@ const p = await b.newPage({ viewport: { width: 1600, height: 1000 } });
 const errs = [];
 p.on("pageerror", (e) => errs.push(String(e.message || e).slice(0, 140)));
 
-// capture the /api/export/geojson response the button triggers.
-let exportResp = null;
+// capture the /api/export/geojson request + response the button triggers.
+let exportResp = null, reqMissionMarkers = "unseen";
+p.on("request", (r) => {
+  if (r.url().includes("/api/export/geojson")) {
+    try { const m = JSON.parse(new URLSearchParams(r.url().split("?")[1]).get("mission")); reqMissionMarkers = JSON.stringify(m.markers || "absent"); } catch (e) { reqMissionMarkers = "parse-err"; }
+  }
+});
 p.on("response", async (r) => {
   if (r.url().includes("/api/export/geojson")) {
     try { exportResp = { status: r.status(), body: await r.text() }; } catch (e) { exportResp = { status: r.status(), body: null }; }
@@ -43,6 +48,16 @@ if (box) {
 const orderCount = await p.evaluate(() => (window.__stewieRun ? window.__stewieRun.orderCount() : -1));
 steps.push("orders=" + orderCount);
 
+// [REQ:GI-03] also drop a place-object marker (annotation) -> it must appear in the exported GeoJSON.
+await p.locator('[data-stewie-object="beacon"]').first().click({ timeout: 5000 }).then(() => steps.push("beacon-tool")).catch(() => steps.push("beacon-tool-FAIL"));
+await p.waitForTimeout(800);
+if (box) {
+  await p.mouse.click(box.x + box.width * 0.45, box.y + box.height * 0.48);
+  await p.waitForTimeout(1500);   // the marker POSTs through the edit session
+}
+const markerCount = await p.evaluate(() => (window.__stewieRun && window.__stewieRun.markers ? window.__stewieRun.markers().length : -1));
+steps.push("markers=" + markerCount);
+
 // Plan mission -> the planner runs on the real Haworth DEM; the export control appears once a plan exists.
 await p.locator('[data-stewie-plan="1"]').first().click({ timeout: 5000 }).then(() => steps.push("plan")).catch(() => steps.push("plan-FAIL"));
 let planned = false;
@@ -63,13 +78,21 @@ await p.screenshot({ path: SCR + "/ide_export_geojson.png" }).catch(() => {});
 await b.close().catch(() => {});
 
 // verify: the export returned a real GeoJSON FeatureCollection.
-let fcOk = false, features = 0;
+let fcOk = false, features = 0, markerFeatures = 0, markerLabel = null;
 if (exportResp && exportResp.status === 200 && exportResp.body) {
-  try { const fc = JSON.parse(exportResp.body); fcOk = fc.type === "FeatureCollection"; features = (fc.features || []).length; } catch (e) { /* */ }
+  try {
+    const fc = JSON.parse(exportResp.body);
+    fcOk = fc.type === "FeatureCollection";
+    features = (fc.features || []).length;
+    const ms = (fc.features || []).filter((f) => (f.properties || {}).feature === "marker");
+    markerFeatures = ms.length;
+    markerLabel = ms.length ? ms[0].properties.label : null;   // [REQ:GI-03] the annotation rode the export
+  } catch (e) { /* */ }
 }
 console.log(JSON.stringify({
-  pass: !!(planned && clicked && fcOk && features > 0),
+  pass: !!(planned && clicked && fcOk && features > 0 && markerFeatures > 0),
   steps, orderCount, exportButtonRendered: planned, clicked,
   exportStatus: exportResp ? exportResp.status : null, isFeatureCollection: fcOk, features,
+  markerFeatures, markerLabel, reqMissionMarkers,
   pageerrs: errs.slice(0, 5),
 }, null, 2));

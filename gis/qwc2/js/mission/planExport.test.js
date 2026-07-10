@@ -35,6 +35,17 @@ test("buildExportUrl targets /api/export/geojson with the mission + the plan lev
   assert.strictEqual(r.filename, "haworth_plan.geojson");
 });
 
+test("[REQ:GI-03] place-object markers (annotations) ride the export mission through the URL", () => {
+  const withMarkers = { ...MISSION, markers: [{ x: 30, y: 25, otype: "beacon", label: "LZ beacon" }, { x: 60, y: 40, otype: "sample" }] };
+  const r = PE.buildExportUrl(withMarkers);
+  assert.strictEqual(r.ok, true);
+  const mission = JSON.parse(new URLSearchParams(r.url.split("?")[1]).get("mission"));
+  assert.strictEqual(mission.markers.length, 2, "the markers are carried to the backend for Point serialization");
+  assert.strictEqual(mission.markers[0].otype, "beacon");
+  assert.strictEqual(mission.markers[0].label, "LZ beacon");
+  assert.strictEqual(mission.markers[1].label, undefined);   // an unlabelled marker carries no label
+});
+
 test("a mission with no orders is refused (nothing planned to export), not a broken URL", () => {
   assert.strictEqual(PE.buildExportUrl({ body: "moon", site: "haworth", orders: [] }).ok, false);
   assert.strictEqual(PE.buildExportUrl({ body: "moon", site: "haworth" }).ok, false);

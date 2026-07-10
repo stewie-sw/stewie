@@ -1424,6 +1424,9 @@ export default class PlanAuthor {
         const oc = this._objectiveConstraints();
         if (Object.keys(oc).length) { payload.objective_constraints = oc; }
         this._lastPlanPayload = payload;   // exact POST body for the headless LIVE proof readback
+        this.wc = wc;                      // [REQ:GI-03] store the anchor NOW (not only in _renderPlan after the
+        //                                    fetch) so _exportMission can order-frame the markers the moment the
+        //                                    export control appears (canExportGeojson is set with _lastPlanPayload).
         // Reuse the EXACT order-frame orders for the SIM run (POST /executive/run is anchored at the site DEM;
         // it carries no lat/lon field, so the run reuses these order-frame offsets -- the same queue shape the
         // OL viewer runs, gis/web/app.js:870-876). The rover animates on THIS plan's route regardless.
@@ -1984,8 +1987,27 @@ export default class PlanAuthor {
     // /api/export/geojson proxy supplies the auth server-side. Guard: nothing to export before a plan runs
     // (_lastPlanPayload is set only inside plan()). Verifies the response IS a FeatureCollection before saving,
     // so a backend error never lands a junk file. Returns a promise for the Playwright verify.
+    // [REQ:GI-03] the export mission = the /api/plan payload PLUS the place-object markers (annotations),
+    // converted to the order frame (X-wc, wc-Y -- the SAME anchor-relative transform orderFrameEntry uses)
+    // so the backend serializes them as GeoJSON Point features. this.wc is the anchor the last plan() used
+    // (set at plan time); without it (no plan yet) markers are omitted (can't place them in the order frame).
+    // Non-mutating -- returns a shallow copy so _lastPlanPayload is untouched.
+    _exportMission() {
+        const p = this._lastPlanPayload;
+        if (!p) { return null; }
+        const wc = this.wc;
+        if (wc && Array.isArray(this.markers) && this.markers.length) {
+            const markers = this.markers.map((m) => ({
+                x: round1(m.coord[0] - wc[0]), y: round1(wc[1] - m.coord[1]),
+                otype: m.otype, label: m.label
+            }));
+            return {...p, markers: markers};
+        }
+        return p;
+    }
+
     downloadPlanGeoJSON() {
-        const built = PE.buildExportUrl(this._lastPlanPayload);
+        const built = PE.buildExportUrl(this._exportMission());
         if (!built.ok) { this._setHint(built.error); return Promise.resolve({ok: false, error: built.error}); }
         return FT.fetchWithTimeout(built.url, {}, FT.DEFAULT_MS)
             .then((r) => (r.ok ? r.text() : Promise.reject(new Error('export HTTP ' + r.status))))

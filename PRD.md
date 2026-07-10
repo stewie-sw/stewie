@@ -217,7 +217,11 @@ estimator spine; the cockpit (authoring, worksheet, dashboards, mobile); the Moo
 > planExport.js `buildExportUrl`, node-tested [REQ:GI-03]) hits the key-injected `/api/export/geojson` proxy
 > (deploy/artemis-nginx.conf, mirrors /api/plan) and downloads the RFC-7946 FeatureCollection; live-verified on
 > the deployed /ide (author orders → Plan → download → 200 + FeatureCollection, frontend/_ide_export_geojson_e2e.mjs).
-> GI-03 stays P (COG/GeoTIFF import, OGC/ArcGIS consumption, annotation, measurement/profile still OPEN).
+> The export now also carries the **place-object markers (cockpit-toolbox annotations: beacon/cache/instrument/
+> sample/antenna + label) as GeoJSON Point features** (lode.gis_export.plan_to_geojson `markers=`, backend
+> [REQ:GI-03] test_gis_export; the /ide adds order-frame markers to the export mission via planAuthor `_exportMission`;
+> e2e: drop a beacon → Plan → download → a marker Point feature with the label). GI-03 stays P (COG/GeoTIFF import,
+> OGC/ArcGIS consumption, richer annotation styling, measurement/profile still OPEN).
 >
 > **Strongest, fully DONE + tested:** the AG-01..08 governance ladder (whole family), SF-01 safing, NV-11/12
 > Plan-IR lowering + stream under AG-08, FS-17 windowing, FS-20 chrome, server hardening (PO-06/07/08),
