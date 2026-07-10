@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "e592d2b43377a60e0a25668c88df49f105189163ad14b1d408f7e7dc0464c4d6",
+  "citations_sha256": "a73b8721d33b61699449ff3f04388f622500691d31fb6ae99f146404c473bee2",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "b156ef4c4aee3d507588cfce85229a7f62075757",
-  "prd_sha256": "5ed042072afb7fd0553df6cdb26a62eb5f85f029858fb46d228fd51f56b75526",
+  "prd_commit": "e1d306e8a2e4c0acc59584ceb00fff24487e9349",
+  "prd_sha256": "0c909ebe010f77677c4377db650ad6a436b7df95defecf762fab69d4ef02a8a4",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -2999,16 +2999,16 @@
    "text": "A dual-mode planning graticule (selenographic lon/lat densely sampled + reprojected so it curves in polar-stereographic, plus a straight metric km-grid with labels) overlays the lunar map given an injected reproject(lon,lat)->[x,y]; a node test asserts gridline + label generation. (extends GW-05) [SHIPPED: gis/qwc2/js/mission/graticule.js + graticule.test.js]"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "GW-10",
    "lane": "GW",
    "pri": "P1",
-   "text": "A per-component monotonic request guard drops a stale in-flight response so a slow site-A load resolving after a switch to site-B cannot overwrite B's raster/physics/inspector state. (hardens GW-02) [SHIPPED: gis/qwc2/js/mission/reqGuard.js + reqGuard.test.js]"
+   "text": "A per-component monotonic request guard drops a stale in-flight response so a slow site-A load resolving after a switch to site-B cannot overwrite B's raster/physics/inspector state. (hardens GW-02) [REQ:GW-10] `stewie/server/test_gw10_request_guard.py` (the python static gate req_trace counts) + `gis/qwc2/js/mission/reqGuard.test.js` (the node runtime proof, 4/4): the guard is a monotonic token guard (next issues a rising token; current(tok) is true only for the latest; bump/next invalidate every in-flight token), the wrong-site race is dropped (a slow site-A load resolving after a switch to site-B returns current=false \u2192 not applied), and it is HELD per-component by the three surfaces GW-10 names \u2014 the raster (MissionTerrain3D.jsx), the physics/profile (MissionCrossSection.jsx), and the inspector (SelectionInspector.jsx), each with its OWN makeReqGuard()/next()/current-or-bump (seq local to the factory, no shared singleton). I=D (gis/qwc2/js/mission/reqGuard.js makeReqGuard exposes next/current/bump with a per-component seq; hardens GW-02), X=D (wired into the raster/physics/inspector loads + planAuthor's plan/bbox fetch, all dropping a stale prior-site resolve; the node test runs in the CI JS tier, the static gate in the python suite), V=D (the node test proves the wrong-site race + per-component isolation at runtime; the python static gate asserts the guard shape + the three-surface wiring, so req_trace's python scan counts it). [SHIPPED: gis/qwc2/js/mission/reqGuard.js + reqGuard.test.js]"
   },
   {
    "I": "D",
@@ -5740,9 +5740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 107,
+   "buildable": 106,
    "concurrent": 0,
-   "done": 260,
+   "done": 261,
    "gated": 30
   },
   "by_lane": {
@@ -5859,7 +5859,7 @@
     "total": 2
    },
    "GW": {
-    "done": 9,
+    "done": 10,
     "total": 13
    },
    "HF": {
@@ -6033,7 +6033,7 @@
     "total": 118
    },
    "P1": {
-    "done": 147,
+    "done": 148,
     "total": 220
    },
    "P2": {
@@ -6045,10 +6045,10 @@
     "total": 2
    }
   },
-  "cited": 281,
-  "done_pct": 65.5,
+  "cited": 282,
+  "done_pct": 65.7,
   "in_scope": 367,
-  "in_scope_done_pct": 70.8,
+  "in_scope_done_pct": 71.1,
   "total": 397
  },
  "workflow_spine": [
