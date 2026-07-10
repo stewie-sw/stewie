@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "f87ca9b9aa6d4458d876f6c8a049a7d1f6813110d37163013c133adf3f86b458",
+  "citations_sha256": "f915748925b4087ad0d29c31cf8a342193949467cadad3344b24ab1d446bd63a",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "1dfb347a738cd42c1352716446832bb1d54502ed",
-  "prd_sha256": "2fb9325b17e695c367436ccee855e4cc0077c7e1dd26efab1241e2e0d46d12db",
+  "prd_commit": "1dad3e5bd77797a6c9be397ee34112a99c16a237",
+  "prd_sha256": "9a5f8408efee49a50316263a691601204fd44009eaf025562ee914cbfbe71449",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -3108,16 +3108,16 @@
    "text": "User-created/imported layers with an Earth-CRS reject gate: an imported GeoJSON declaring an Earth CRS (EPSG:4326/3857/CRS84/WGS84) is rejected with a legible reason before it touches the map or is promoted planning-eligible; a valid lunar-frame (IAU_2015:30135/30100) layer is accepted. (extends LY-01) [SHIPPED: gis/qwc2/js/mission/userLayers.js + userLayers.test.js]"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "LY-04",
    "lane": "LY",
    "pri": "P1",
-   "text": "The missing layer kinds (ice-probability, localization-confidence, sensor-coverage, digital-twin-difference) each register in the LY-01 catalog with a REAL backend producer + provenance/eligibility, or are explicitly marked unavailable (no fabricated drape); a test asserts each is typed+registered or explicitly absent. (extends LY-01)"
+   "text": "The missing layer kinds (ice-probability, localization-confidence, sensor-coverage, digital-twin-difference) each register in the LY-01 catalog with a REAL backend producer + provenance/eligibility, or are explicitly marked unavailable (no fabricated drape); a test asserts each is typed+registered or explicitly absent. (extends LY-01) [REQ:LY-04] `stewie/server/test_ly04_missing_layer_kinds.py` binds each of the four PRD-named kinds to an honest status via `gis_layers.missing_layer_kinds()` and proves it: digital-twin-difference is AVAILABLE with a REAL producer (the LY-07 `changed_terrain` signed as-built-minus-base drape, allow-listed in `_GLOBE_KINDS` with a legend and bound to the catalog rows map.changed_terrain + evidence.before_after_dem), verified by rendering a NON-transparent worked change on the REAL Haworth DEM after a conserved cut+fill (no synthetic terrain); the other three are EXPLICITLY UNAVAILABLE with no fabricated drape \u2014 ice-probability (terrain.thermal catalog-only, no Diviner/thermal ice raster; terrain.psr is the real cold-trap proxy), localization-confidence (robot.covariance/map.uncertainty are belief/live SLAM/EKF channels, no per-cell producer over the fixed prior DEM), sensor-coverage (robot.sensor_frustums is a live/sim channel; the LOS/viewshed producer is tracked as the still-unbuilt LY-06). I=D (the registry + the four honest statuses live in `stewie/server/gis_layers.py::missing_layer_kinds`, provenance/eligibility read from the committed catalog, never fabricated), X=D (surfaced additively on `/world/layer-catalog` as `missing_layer_kinds` so the status is discoverable at the LY-01 catalog surface; the LY-01 count/sync is untouched), V=D (the [REQ:LY-04] test asserts exactly the four kinds, each producer-real-rendering-on-the-real-DEM or explicitly-unavailable-no-drape, and that unavailable kinds are neither allow-listed nor claim a producer)."
   },
   {
    "I": "D",
@@ -5740,9 +5740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 109,
+   "buildable": 108,
    "concurrent": 0,
-   "done": 258,
+   "done": 259,
    "gated": 30
   },
   "by_lane": {
@@ -5871,7 +5871,7 @@
     "total": 2
    },
    "LY": {
-    "done": 4,
+    "done": 5,
     "total": 7
    },
    "MG": {
@@ -6033,7 +6033,7 @@
     "total": 118
    },
    "P1": {
-    "done": 145,
+    "done": 146,
     "total": 220
    },
    "P2": {
@@ -6045,10 +6045,10 @@
     "total": 2
    }
   },
-  "cited": 279,
-  "done_pct": 65.0,
+  "cited": 280,
+  "done_pct": 65.2,
   "in_scope": 367,
-  "in_scope_done_pct": 70.3,
+  "in_scope_done_pct": 70.6,
   "total": 397
  },
  "workflow_spine": [
