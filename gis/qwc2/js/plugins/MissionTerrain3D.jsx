@@ -125,6 +125,8 @@ class MissionTerrain3D extends React.Component {
         grat: true,       // task #77: lon/lat graticule shows by default (was off) -- oriented plotting context
         wire: false,
         measure: false,       // task #79: measure/waypoints tool toggle
+        hasVizLayers: false,  // [GW-11] viz3d/layers.js loaded -> show the draped layer-stack panel
+        layerState: {},       // [GW-11] per-drape-kind {on, opacity} for the draped layer stack
         measureInfo: null,    // task #79: last onMeasure payload ({count, totalDist_m, lastLat, lastLon, segments})
         sentRouteMsg: null,   // task #80: brief on-panel confirmation/hint after "Send to plan (route)"
         loading: false,
@@ -205,6 +207,7 @@ class MissionTerrain3D extends React.Component {
             // this panel just mirrors the running count/distance into React state for the readout.
             VIZ.onMeasure((m) => this.setState({measureInfo: m}));
             this._mounted = true;
+            if (window.STEWIEViz3DLayers && !this.state.hasVizLayers) { this.setState({hasVizLayers: true}); }   // [GW-11] layer panel
             this._loadSite(WS.site());
         }).catch((e) => {
             if (this.container) { this.setState({loading: false, error: 'viewer load failed: ' + (e && e.message ? e.message : e)}); }
@@ -239,6 +242,7 @@ class MissionTerrain3D extends React.Component {
             this._viz.setGraticule(this.state.grat);
             this._viz.setWireframe(this.state.wire);
             if (this.state.globe && this._viz.setGlobe) { this._viz.setGlobe(true); }   // [GW-11] re-curve after a flat load
+            this._applyLayers();                                                        // [GW-11] re-drape the layer stack for the new site
             this.setState({loading: false, meta, site});
         }).catch((e) => {
             if (!this._rg.current(tok) || WS.site() !== site) { return; }
@@ -267,6 +271,28 @@ class MissionTerrain3D extends React.Component {
     _setGrat = (e) => { const grat = e.target.checked; this.setState({grat}); if (this._viz) { this._viz.setGraticule(grat); } };
     _setWire = (e) => { const wire = e.target.checked; this.setState({wire}); if (this._viz) { this._viz.setWireframe(wire); } };
     _setGlobe = (e) => { const globe = e.target.checked; this.setState({globe}); if (this._viz && this._viz.setGlobe) { this._viz.setGlobe(globe); } };
+    // [GW-11] draped layer stack: build the stack from the per-kind {on,opacity} React state + render it.
+    _applyLayers = () => {
+        const LS = (typeof window !== 'undefined') ? window.STEWIEViz3DLayers : null;
+        if (!LS || !this._viz || !this._viz.renderLayerStack) { return; }
+        const meta = this._viz.meta; if (!meta) { return; }
+        const ctx = {site: meta.site, window_m: meta.window_m, x0: meta.x0, y0: meta.y0};
+        const stack = LS.makeLayerStack();
+        const ls = this.state.layerState;
+        LS.LAYER_CATALOG.filter((e) => e.available && e.render === 'drape').forEach((e) => {
+            const st = ls[e.kind];
+            if (st && st.on) { const spec = LS.layerFromCatalog(e.kind, ctx); if (spec) { spec.opacity = (st.opacity != null) ? st.opacity : 1; try { stack.add(spec); } catch { /* dup */ } } }
+        });
+        this._viz.renderLayerStack(stack.visibleOrdered());
+    };
+    _toggleLayer = (kind) => (e) => {
+        const on = e.target.checked;
+        this.setState((s) => ({layerState: {...s.layerState, [kind]: {on, opacity: (s.layerState[kind] && s.layerState[kind].opacity != null) ? s.layerState[kind].opacity : 1}}}), this._applyLayers);
+    };
+    _setLayerOpacity = (kind) => (e) => {
+        const opacity = +e.target.value;
+        this.setState((s) => ({layerState: {...s.layerState, [kind]: {on: !!(s.layerState[kind] && s.layerState[kind].on), opacity}}}), this._applyLayers);
+    };
     _setMeasure = (e) => { const measure = e.target.checked; this.setState({measure}); if (this._viz) { this._viz.setMeasureMode(measure); } };
     _clearMeasure = () => { if (this._viz) { this._viz.clearMeasure(); } };
     // task #80 / council F29: push the measured waypoints into Mission Plan as a Traverse route over the shared
@@ -430,6 +456,26 @@ class MissionTerrain3D extends React.Component {
                     <label><input checked={s.wire} data-stewie-wire onChange={this._setWire} type="checkbox" /> wireframe</label>
                     <label><input checked={s.measure} data-stewie-measure onChange={this._setMeasure} type="checkbox" /> 📏 Measure</label>
                 </div>
+
+                {s.hasVizLayers && typeof window !== 'undefined' && window.STEWIEViz3DLayers && (
+                    <div data-stewie-layerstack>
+                        <div style={SECTION}>layer stack (draped)</div>
+                        {window.STEWIEViz3DLayers.LAYER_CATALOG.filter((e) => e.available && e.render === 'drape').map((e) => {
+                            const st = s.layerState[e.kind] || {on: false, opacity: 1};
+                            return (
+                                <div key={e.kind} style={{display: 'flex', alignItems: 'center', gap: '6px', margin: '2px 0', fontSize: '10px'}}>
+                                    <label style={{flex: 1, display: 'flex', alignItems: 'center', gap: '5px', color: '#aeb8c6',
+                                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}} title={e.label}>
+                                        <input checked={st.on} data-stewie-layer={e.kind} onChange={this._toggleLayer(e.kind)} type="checkbox" />
+                                        {e.label}
+                                    </label>
+                                    <input disabled={!st.on} max="1" min="0" onChange={this._setLayerOpacity(e.kind)} step="0.05"
+                                        style={{width: '54px'}} type="range" value={st.opacity != null ? st.opacity : 1} />
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {this.renderMeasure()}
                 {this.renderSendRoute()}
