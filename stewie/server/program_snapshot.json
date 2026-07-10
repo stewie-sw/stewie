@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "10ec176fe2682b83e8aea18de29c6d2770043853b02088586aafb3033f86e9c4",
+  "citations_sha256": "66e0729788ecf25771edb4b3d053e2416c15b2818dea8b5bb9c3d38ea04c2820",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "f73f276909e67d5e7fd54dda1ce651aa608851b4",
-  "prd_sha256": "413c1e97c7483d8d6163f6a6b6c43bb8f04c5a22302c8d96dcb5a353cdbb7066",
+  "prd_commit": "5979e8b91d06fbdf298ae89d5677037d903c2843",
+  "prd_sha256": "cacc3e9981397ec138a647be4a7601db7f70e461dafff1ac9cac37a875b7ecaa",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -4545,16 +4545,16 @@
    "text": "**Quantized shared backbone.** A single quantized shared vision backbone feeds the onboard perception heads (rock/depth/hazard/VO) within the ML-09 edge envelope; acceptance measures shared-backbone RAM/latency on the named compute profile and asserts head outputs match the separate-model baseline. (governed by FS-12/RL-01)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "QG-01",
    "lane": "QG",
    "pri": "P2",
-   "text": "A STEWIE QGIS Processing provider registers the STEWIE analyses (StewieTerramechanics/StewieSamplePoint) as Processing algorithms runnable from the QGIS GUI, qgis_process CLI, batch, and Models over the public backend; the QGIS-free stewie_backend fetch+parse is unit-tested in CI with no qgis.* in the test path. [SHIPPED: stewie_qgis/, test_stewie_backend.py]"
+   "text": "A STEWIE QGIS Processing provider registers the STEWIE analyses (StewieTerramechanics/StewieSamplePoint) as Processing algorithms runnable from the QGIS GUI, qgis_process CLI, batch, and Models over the public backend; the QGIS-free stewie_backend fetch+parse is unit-tested in CI with no qgis.* in the test path. [REQ:QG-01] `stewie_qgis/test_stewie_backend.py` (in the CI testpaths per pyproject.toml, runs WITHOUT a qgis runtime): the QGIS-free stewie_backend fetch+parse is unit-tested (url builders encode the site, terramechanics-spine + point-attribute normalization, honest ValueError on !ok) against REAL backend curl fixtures, and \u2014 by reading the provider source, still qgis-free \u2014 StewieProvider.loadAlgorithms registers BOTH StewieTerramechanics + StewieSamplePoint as QgsProcessingAlgorithms. I=D (stewie_qgis/: stewie_backend.py the QGIS-free fetch+parse, stewie_provider.py registers the 2 algorithms, stewie_algorithms.py the Processing algorithms runnable from GUI/qgis_process/batch/Models), X=D (the provider + algorithms run on the host via a headless pyQGIS smoke; the qgis-free backend is in the CI python testpaths), V=D (the [REQ:QG-01] test proves the fetch+parse on real fixtures + the two-algorithm registration, with no qgis.* in the CI test path). [SHIPPED: stewie_qgis/, test_stewie_backend.py]"
   },
   {
    "I": "N",
@@ -4929,16 +4929,16 @@
    "text": "**Surface Design view.** [REQ:SD-01] Pads/berms/trenches/cuts/fills/roads/stockpiles/sinter \u2192 typed mission orders with volume/mass/bearing/sinkage/constructability evidence; volume/mass estimates show DEM resolution, material assumption, and uncertainty; a before/after terrain transaction influences the next plan."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "SD-02",
    "lane": "SD",
    "pri": "P1",
-   "text": "Cut/fill material-balance: for cut+fill orders materialBalance returns bank cut volume, loose spoil (RHO_DEEP->RHO_SPOIL bulking), compacted fill demand, and net borrow/spoil in kg with mass conserved (cut-only => net spoil, fill-only => net borrow). (extends SD-01) [SHIPPED: gis/qwc2/js/mission/planTools.js + planTools.test.js; densities moon-hardcoded, body-aware is task #62]"
+   "text": "Cut/fill material-balance: for cut+fill orders materialBalance returns bank cut volume, loose spoil (RHO_DEEP->RHO_SPOIL bulking), compacted fill demand, and net borrow/spoil in kg with mass conserved (cut-only => net spoil, fill-only => net borrow). (extends SD-01) [REQ:SD-02] `stewie/server/test_sd02_material_balance.py` (the python static gate req_trace counts) + `gis/qwc2/js/mission/planTools.test.js` (the node runtime proof, 24/24): materialBalance conserves MASS \u2014 cut excavated at bank density (RHO_DEEP=1920), placed spoil bulks to loose (RHO_SPOIL=1300, +~48% volume) \u2014 returning bank cut/fill volumes, loose spoil, cut/fill mass, and the net balance_kg with the surplus/deficit direction (cut-only \u21d2 net spoil surplus; fill-only \u21d2 net borrow deficit, both asserted). I=D (planTools.js materialBalance: conserved-mass balance + RHO_DEEP/RHO_SPOIL bulking + net direction, exported for the mission panel), X=D (surfaced in the plan-tools panel; the node test runs in the CI JS tier, the static gate in the python suite), V=D (the node test proves the swell + surplus/deficit + cut-only/fill-only net cases at runtime; the python gate asserts the conserved-mass formula + the moon-density defaults). HONEST SCOPE: densities are MOON-hardcoded (constants.py RHO_DEEP/RHO_SPOIL); body-aware densities are deferred (task #62), so V=D is for LUNAR planning only. [SHIPPED: gis/qwc2/js/mission/planTools.js + planTools.test.js; densities moon-hardcoded, body-aware is task #62]"
   },
   {
    "I": "N",
@@ -5740,9 +5740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 101,
+   "buildable": 99,
    "concurrent": 0,
-   "done": 266,
+   "done": 268,
    "gated": 30
   },
   "by_lane": {
@@ -5935,7 +5935,7 @@
     "total": 1
    },
    "QG": {
-    "done": 0,
+    "done": 1,
     "total": 4
    },
    "QW": {
@@ -5967,7 +5967,7 @@
     "total": 2
    },
    "SD": {
-    "done": 1,
+    "done": 2,
     "total": 3
    },
    "SE": {
@@ -6033,11 +6033,11 @@
     "total": 118
    },
    "P1": {
-    "done": 151,
+    "done": 152,
     "total": 220
    },
    "P2": {
-    "done": 5,
+    "done": 6,
     "total": 57
    },
    "P3": {
@@ -6045,10 +6045,10 @@
     "total": 2
    }
   },
-  "cited": 287,
-  "done_pct": 67.0,
+  "cited": 289,
+  "done_pct": 67.5,
   "in_scope": 367,
-  "in_scope_done_pct": 72.5,
+  "in_scope_done_pct": 73.0,
   "total": 397
  },
  "workflow_spine": [
