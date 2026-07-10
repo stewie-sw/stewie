@@ -294,6 +294,11 @@ services:
       # QWC2 QGIS web IDE spike, served COEXISTING at /ide/ (built for publicPath=/ide/). The
       # nginx `location /ide/` aliases here; the OL viewer at / is untouched. Read-only.
       - "../gis/qwc2/prod:/usr/share/nginx/ide:ro"                        # QWC2 web IDE -> /ide/
+      # WEB-01: self-hosted Cesium bundle (gitignored, ~20 MB on the host) for the Whole-Moon 3-D globe
+      # overview (cockpit.js). artemis serves /cesium/* statically from here (nginx `location /cesium/`
+      # alias below), mirroring the app.stewie.space frontend; the backend has NO /cesium route (dev-only),
+      # so proxying there would 404. Without this mount `window.Cesium` is undefined -> globe unavailable.
+      - "../stewie/server/cesium:/usr/share/nginx/cesium:ro"              # Cesium bundle -> /cesium/
       - "./artemis-nginx.conf:/etc/nginx/conf.d/default.conf:ro"
       # Gitignored key snippet (proxy_set_header X-API-Key ...) included by the /api/plan block, so the
       # committed nginx conf carries no secret. Regenerate from deploy/.env's STEWIE_API_KEY if missing.
