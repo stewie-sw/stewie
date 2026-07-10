@@ -188,12 +188,14 @@ class RunRequest(BaseModel):
     revision_hash: str | None = Field(default=None, max_length=64)   # [R2] bind to an immutable revision
 
 
-def _remember_sim_terrain(wss, mission, out, *, site: str, body: str, mission_id: str) -> None:
-    """gap N1/N2: close the execute->remember loop for a COMPLETED SIM run. Fold the mission's conserved
-    terrain delta into the site's TerrainMemory (so the next /plan reads it via CurrentTerrainView),
-    record the advanced authority_sha into the world log, and commit the run's final belief. SIM-labeled.
-    Only a terrain-changing run (mass_moved_kg > 0) is remembered. Uses the SAME per-site lock as POST
-    /twin/terrain so the two record paths cannot lose each other's RMW. Mirrors that route's fold."""
+def _fold_sim_terrain(mission, out, *, site: str, mission_id: str) -> dict | None:
+    """[dispatch-audit R6a] PREPARE half of the SIM execute->remember fold: compute the mission's conserved
+    terrain delta and fold it into the site's TerrainMemory FILE (the fallible numpy + file-IO work), returning
+    what the COMMIT half needs -- the ``prior`` snapshot (for a DT-03 compensating restore), the advanced
+    ``a_sha``, and the run's final ``belief`` -- or None when there is nothing to remember (mass_moved <= 0).
+    NO world-journal write happens here, so a fold failure leaves the APPEND-ONLY journal untouched: the run
+    then 500s without any orphan plan/leg records (audit finding #6). Uses the per-site lock (shared with
+    POST /twin/terrain) for the load->apply->save RMW."""
     import dataclasses as _dc
     import hashlib as _hl
 
@@ -201,12 +203,11 @@ def _remember_sim_terrain(wss, mission, out, *, site: str, body: str, mission_id
 
     from lode.planner_acceptance import mission_terrain_delta
     from stewie.server.world_state import _terrain_lock
-    from stewie.server.world_state import compensating
     from stewie.specs.config import data_dir
     from stewie.twin import terrain_memory as TM
     d = mission_terrain_delta(mission)
     if float(d.get("mass_moved_kg", 0.0)) <= 0.0:
-        return                                                   # nothing built -> nothing to remember
+        return None                                              # nothing built -> nothing to remember
     with _terrain_lock(site):                                    # #278: atomic RMW, shared with /twin/terrain
         prior = TM.snapshot_site(data_dir(), site)               # DT-03: prior state for a compensating rollback
         mem = TM.load_site(data_dir(), site)
@@ -217,16 +218,37 @@ def _remember_sim_terrain(wss, mission, out, *, site: str, body: str, mission_id
                           mission=str(mission.name), mass_moved_kg=d["mass_moved_kg"])
         TM.save_site(data_dir(), mem)
         a_sha = _hl.sha256(_np.asarray(mem.cumulative_delta(), dtype=_np.float64).tobytes()).hexdigest()
-        # DT-03: the terrain fold is persisted; its as-built world-log record must be ATOMIC with it. On a
-        # commit failure, COMPENSATE (restore the prior TerrainMemory file) so the store never runs ahead of
-        # /world/transaction, then re-raise so the caller surfaces it (no best-effort swallow).
-        with compensating(lambda: TM.restore_site(data_dir(), site, prior), what="SIM remember"):
-            wss.record_terrain(authority_sha=a_sha, mission=str(mission_id), site=str(site), body=str(body),
-                               provenance=f"SIM as-built: {mission_id}")
     belief = out.get("belief") if isinstance(out, dict) else None
-    if belief is not None:                                       # commit the run's final belief (a separate snapshot)
-        belief_d = _dc.asdict(belief) if (_dc.is_dataclass(belief) and not isinstance(belief, type)) else belief
-        wss.record_belief(belief=belief_d, provenance=f"SIM run belief: {mission_id}")
+    belief_d = _dc.asdict(belief) if (_dc.is_dataclass(belief) and not isinstance(belief, type)) else belief
+    return {"prior": prior, "a_sha": a_sha, "belief": belief_d}
+
+
+def _commit_sim_terrain(wss, folded: dict, *, site: str, body: str, mission_id: str) -> None:
+    """[dispatch-audit R6a] COMMIT half: journal the as-built terrain record + the run's final belief for an
+    ALREADY-folded terrain (from ``_fold_sim_terrain``). On a journal failure COMPENSATE by restoring the prior
+    TerrainMemory file (under the per-site lock) so the durable store never runs ahead of /world/transaction,
+    then re-raise so the caller surfaces it (no best-effort swallow)."""
+    from stewie.server.world_state import _terrain_lock, compensating
+    from stewie.specs.config import data_dir
+    from stewie.twin import terrain_memory as TM
+    with _terrain_lock(site):
+        with compensating(lambda: TM.restore_site(data_dir(), site, folded["prior"]), what="SIM remember"):
+            wss.record_terrain(authority_sha=folded["a_sha"], mission=str(mission_id), site=str(site),
+                               body=str(body), provenance=f"SIM as-built: {mission_id}")
+            if folded["belief"] is not None:                     # commit the run's final belief (a separate snapshot)
+                wss.record_belief(belief=folded["belief"], provenance=f"SIM run belief: {mission_id}")
+
+
+def _remember_sim_terrain(wss, mission, out, *, site: str, body: str, mission_id: str) -> None:
+    """gap N1/N2: close the execute->remember loop for a COMPLETED SIM run -- fold the conserved terrain delta
+    into the site's TerrainMemory + journal the as-built record + belief. This is the combined
+    fold-then-commit form (the [dispatch-audit R6a] PREPARE + COMMIT halves back-to-back); the /executive/run
+    flow instead calls the two halves SEPARATELY (fold BEFORE the plan/leg journal, commit AFTER) so a fold
+    failure orphans no journal records. Kept as the single-call form for callers that don't interleave a plan
+    commit."""
+    folded = _fold_sim_terrain(mission, out, site=site, mission_id=mission_id)
+    if folded is not None:
+        _commit_sim_terrain(wss, folded, site=site, body=body, mission_id=mission_id)
 
 
 def _remember_sim_traffic(wss, mission, out, *, site: str, body: str, mission_id: str, dem) -> dict | None:
@@ -344,10 +366,16 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     try:
         from stewie.server.world_state import commit_sim_run
         wss = state.world_state_service()
+        # [dispatch-audit R6a] PREPARE the fallible terrain fold FIRST (numpy delta + TerrainMemory file write,
+        # DT-03-compensatable) BEFORE any world-journal write, so a fold failure leaves the append-only journal
+        # untouched -- the run 500s with ZERO orphan plan/leg records (audit finding #6). Then COMMIT the
+        # journal records: the plan + per-leg events, then the as-built terrain record + belief.
+        folded = (_fold_sim_terrain(mission, out, site=req.site, mission_id=req.mission_id)
+                  if not run.get("safed") else None)
         commit_sim_run(wss, run, mission=req.mission_id, site=req.site, body=body,
                        plan_id=req.mission_id)
-        if not run.get("safed"):
-            _remember_sim_terrain(wss, mission, out, site=req.site, body=body, mission_id=req.mission_id)
+        if folded is not None:
+            _commit_sim_terrain(wss, folded, site=req.site, body=body, mission_id=req.mission_id)
             # [REQ:TW-11] fold the run's driven path into the per-site TrafficMemory (best-effort, non-fatal).
             _remember_sim_traffic(wss, mission, out, site=req.site, body=body,
                                   mission_id=req.mission_id, dem=dem)
