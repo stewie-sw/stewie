@@ -114,6 +114,12 @@ def layer_catalog():   # public read (map-data catalog); nginx proxies /api/ wit
         cat = json.load(fh)
     for ly in cat.get("layers", []):
         ly["confidence"] = layer_confidence(ly.get("source_class", ""))   # [REQ:GW-03] per-layer uncertainty
+    # [REQ:LY-04] the four PRD-named "missing layer kinds" (ice-probability / localization-confidence /
+    # sensor-coverage / digital-twin-difference), each bound to a REAL producer registered here or declared
+    # explicitly UNAVAILABLE (no fabricated drape) -- surfaced additively so the status is discoverable at the
+    # catalog surface. Additive-only: the committed layer_catalog.json + the LY-01 count/sync test are untouched.
+    from stewie.server.gis_layers import missing_layer_kinds
+    cat["missing_layer_kinds"] = missing_layer_kinds()
     return cat
 
 

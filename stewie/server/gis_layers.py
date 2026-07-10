@@ -534,6 +534,91 @@ def _changed_terrain_rgba(changed) -> np.ndarray:
     return rgba.astype("uint8")
 
 
+# ---- [REQ:LY-04] the four "missing layer kinds" -> real-producer-or-explicitly-unavailable registry -------
+# PRD §7.B LY-04 (extends LY-01): four kinds the reviewer's world-state console names but that are NOT drawn
+# as their own drape -- ice-probability, localization-confidence, sensor-coverage, digital-twin-difference --
+# must EACH either bind a REAL backend producer (registered in the LY-01 catalog with provenance/eligibility)
+# or be declared EXPLICITLY UNAVAILABLE (no fabricated raster). This registry is that honest mapping. It reads
+# provenance/eligibility from the committed catalog (never fabricated) and, for the one kind with a producer,
+# names it. The /world/layer-catalog endpoint surfaces it so the status is discoverable at the catalog surface.
+#
+# Screened status (each confirmed against the real code, not fabricated):
+#   - digital-twin-difference -> AVAILABLE. Real producer = the LY-07 signed as-built/observed-minus-base
+#     elevation-difference drape (render_globe "changed_terrain", _render_globe_changed_terrain above); the
+#     visual producer for the catalog rows map.changed_terrain + evidence.before_after_dem.
+#   - ice-probability -> UNAVAILABLE. terrain.thermal is catalog-only (no Diviner/LOLA thermal ice-stability
+#     raster wired); the real ice-RELEVANT proxy that IS available is terrain.psr (a permanently-shadowed
+#     cold-trap CLASSIFICATION, not a per-cell ice probability). Same honest gap as transect_profile's
+#     ice_stability entry. NOT fabricated.
+#   - localization-confidence -> UNAVAILABLE. robot.covariance (localization covariance) / map.uncertainty are
+#     belief/live channels that only exist during a live run/replay (SLAM/EKF), not a per-cell raster over the
+#     fixed prior DEM this GIS server serves. Typed + registered in the catalog, but no producer here. NOT fabricated.
+#   - sensor-coverage -> UNAVAILABLE. robot.sensor_frustums is a live/sim/replay channel; the horizon-marched
+#     line-of-sight visibility producer for terrain.los/terrain.comms is tracked as the still-unbuilt LY-06.
+#     NOT fabricated.
+def _catalog_provenance(*ids):
+    """Read {source_class, planning_eligible, release_execute_eligible} for the given catalog ids straight from
+    the committed layer_catalog.json (the LY-01 source of truth) -- never a fabricated eligibility."""
+    import json as _json
+    import os as _os
+    path = _os.path.join(_os.path.dirname(__file__), "layer_catalog.json")
+    with open(path, encoding="utf-8") as fh:
+        rows = {r["id"]: r for r in _json.load(fh)["layers"]}
+    return {cid: {"source_class": rows[cid]["source_class"],
+                  "planning_eligible": rows[cid]["planning_eligible"],
+                  "release_execute_eligible": rows[cid]["release_execute_eligible"]} for cid in ids}
+
+
+def missing_layer_kinds() -> list[dict]:
+    """[REQ:LY-04] The four PRD-named "missing layer kinds", each bound to EITHER a real backend producer
+    (registered in the LY-01 catalog with provenance/eligibility) OR an explicit UNAVAILABLE declaration with
+    an honest reason (no fabricated drape). Provenance/eligibility for the available kind is read from the
+    committed catalog (layer_catalog.json); each unavailable kind names the real proxy / catalog row / future
+    producer so the data gap is legible. Surfaced additively on /world/layer-catalog."""
+    return [
+        {
+            "kind": "digital-twin-difference",
+            "available": True,
+            "producer": "changed_terrain",            # render_globe kind: the LY-07 signed as-built-minus-base drape
+            "catalog_ids": ["map.changed_terrain", "evidence.before_after_dem"],
+            "provenance": _catalog_provenance("map.changed_terrain", "evidence.before_after_dem"),
+            "note": "the LY-07 signed as-built/observed-minus-base elevation-difference drape (render_globe "
+                    "'changed_terrain'): excavation (cut) negative/red, deposited material (fill/berm) "
+                    "positive/blue, unworked ground transparent; per-cell depth via /world/point "
+                    "runtime_evidence.as_built_delta_m; the drape carries the as_built/twin versions it was "
+                    "computed from.",
+        },
+        {
+            "kind": "ice-probability",
+            "available": False,
+            "catalog_ids": ["terrain.psr", "terrain.thermal"],
+            "reason": "NO quantitative per-cell ice-probability producer -- terrain.thermal is catalog-only (no "
+                      "Diviner/LOLA thermal ice-stability raster wired). NOT fabricated. The real ice-relevant "
+                      "proxy that IS available is terrain.psr (permanently-shadowed cold-trap candidate, "
+                      "horizon-computed on the real DEM), a distinct classification rather than an ice "
+                      "probability; a quantitative depth-to-ice needs a Diviner/thermal dataset (the same gap "
+                      "transect_profile declares for ice_stability).",
+        },
+        {
+            "kind": "localization-confidence",
+            "available": False,
+            "catalog_ids": ["robot.covariance", "map.uncertainty"],
+            "reason": "NO producer on the static-prior GIS server -- localization covariance (robot.covariance) "
+                      "and map/pose uncertainty (map.uncertainty) are belief/live channels that only exist "
+                      "during a live run/replay (SLAM/EKF), not a per-cell raster over the fixed prior DEM. "
+                      "Typed + registered in the LY-01 catalog but not rendered here. NOT fabricated.",
+        },
+        {
+            "kind": "sensor-coverage",
+            "available": False,
+            "catalog_ids": ["robot.sensor_frustums", "terrain.los"],
+            "reason": "NO viewshed/coverage producer wired -- robot.sensor_frustums is a live/sim/replay "
+                      "channel; the horizon-marched line-of-sight visibility producer for "
+                      "terrain.los/terrain.comms is tracked as LY-06 (not yet built). NOT fabricated.",
+        },
+    ]
+
+
 def _layer_rgba(dem, cell, kind, sun_az=315.0, sun_el=45.0, *, slope_vmax=30.0, slope_classes=0,
                 grid_north_bearing=None):
     """GIS-WA2: each layer's colouring as a PURE function of a DEM patch + its cell size -- the single
