@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "f915748925b4087ad0d29c31cf8a342193949467cadad3344b24ab1d446bd63a",
+  "citations_sha256": "e592d2b43377a60e0a25668c88df49f105189163ad14b1d408f7e7dc0464c4d6",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "1dad3e5bd77797a6c9be397ee34112a99c16a237",
-  "prd_sha256": "9a5f8408efee49a50316263a691601204fd44009eaf025562ee914cbfbe71449",
+  "prd_commit": "b156ef4c4aee3d507588cfce85229a7f62075757",
+  "prd_sha256": "5ed042072afb7fd0553df6cdb26a62eb5f85f029858fb46d228fd51f56b75526",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -3011,16 +3011,16 @@
    "text": "A per-component monotonic request guard drops a stale in-flight response so a slow site-A load resolving after a switch to site-B cannot overwrite B's raster/physics/inspector state. (hardens GW-02) [SHIPPED: gis/qwc2/js/mission/reqGuard.js + reqGuard.test.js]"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "GW-11",
    "lane": "GW",
    "pri": "P1",
-   "text": "**3D terrain view in the /ide, synced to the GIS map.** A Three.js 3D terrain panel in the QWC2 IDE renders the selected site's REAL DEM window (via `/dem/heightfield`) in the site-local frame with a vertical-exaggeration control (1-5x, labeled display choice); it reuses/ports the cockpit `three3d.js` capabilities (orbit/fly, sun shadows, layer-texture drape) rather than a new renderer. Click-3D returns the exact map coordinate (IAU_2015:30135 + selenographic, via the shared `/dem/site_lonlat` transforms) into the IDE coordinate display; a mission feature authored on the 2D map (waypoint/keep-out/work-zone) appears in the 3D view from the same backend state within one refresh, and a 3D waypoint pick lands in the same order-frame serializer the 2D path uses. (extends QW-01/GW-05/GW-02; reuses stewie/server/web/assets/three3d.js + routers/dem.py heightfield)"
+   "text": "**3D terrain view in the /ide, synced to the GIS map.** A Three.js 3D terrain panel in the QWC2 IDE renders the selected site's REAL DEM window (via `/dem/heightfield`) in the site-local frame with a vertical-exaggeration control (1-5x, labeled display choice); it reuses/ports the cockpit `three3d.js` capabilities (orbit/fly, sun shadows, layer-texture drape) rather than a new renderer. Click-3D returns the exact map coordinate (IAU_2015:30135 + selenographic, via the shared `/dem/site_lonlat` transforms) into the IDE coordinate display; a mission feature authored on the 2D map (waypoint/keep-out/work-zone) appears in the 3D view from the same backend state within one refresh, and a 3D waypoint pick lands in the same order-frame serializer the 2D path uses. [REQ:GW-11] `stewie/server/test_gw11_terrain3d_ide.py` + `gis/qwc2/js/mission/gw11_terrain3d_acceptance.test.js` assert the acceptance on the REAL Haworth 5 m DEM (no synthetic terrain): the backend test proves the three /dem contracts the panel composes \u2014 (a) /dem/heightfield_full[/meta] serves the real site-local DEM window (native 5 m, whole-tile order frame, >1 km relief, binary == n\u00b7n float32), (c/e) /dem/site_lonlat maps an order-frame point to a real south-polar selenographic lat/lon (agreeing with dem_origin_to_latlon; 422 out-of-window) \u2014 the shared transform the hover readout AND the 3D pick both call, and (d) /dem/site_meta.bounds_m is the IAU_2015:30135 anchor {x0=-52900 min X, y1=105400 max Y} the 2D-authored features convert THROUGH (order_x=X\u2212x0; order_y=y1\u2212Y, the pixel-vs-node one-cell offset asserted); the node test binds the three pure serializers \u2014 formatHover (order metres E/N + selenographic lon/lat, dash never fabricated), featuresToSpecs (30135 keep-out/marker \u2192 exact order-frame ring/point), and the WS features+plot channels (the authored set HELD + notified within one refresh; a 3D pick reaches the SAME WS.emitPlot channel the 2D singleclick fills). I=D (viz3d.js \u2192 window.STEWIE_VIZ embedded via gis/qwc2/js/plugins/MissionTerrain3D.jsx: full-res /dem/heightfield_full relief in the site-local frame, 1-5x vex, ported three3d.js caps \u2014 orbit/fly, sun az/el shadows, draped layer stack; hover/plot raycast the mesh for UV-derived order-local e_m/n_m \u2014 flat/globe-invariant \u2014 + selenographic lon/lat; 2D features drape as red keep-out rings + markers via renderMissionFeatures), X=D (the panel mounts in the QWC2 IDE, syncs to the GW-02 workspace site, wires WS.onFeatures for 2D\u21923D + VIZ.onPlot\u2192WS.emitPlot for 3D\u2192plan; both [REQ:GW-11] tests run in CI \u2014 the python suite + the JS tier), V=D (the deployed /ide is Playwright-verified on real GPU: hover reports `E 5579.2 m N 5579.2 m` / elev / `lat -86.35829\u00b0 lon -25.36303\u00b0` \u2014 frontend/_ide_hover_e2e.mjs; 24 keep-outs authored on the 2D map render as 24 rings in the 3D view within one refresh \u2014 frontend/_ide_features_e2e.mjs). (extends QW-01/GW-05/GW-02; reuses stewie/server/web/assets/three3d.js + routers/dem.py heightfield)"
   },
   {
    "I": "D",
@@ -5740,9 +5740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 108,
+   "buildable": 107,
    "concurrent": 0,
-   "done": 259,
+   "done": 260,
    "gated": 30
   },
   "by_lane": {
@@ -5859,7 +5859,7 @@
     "total": 2
    },
    "GW": {
-    "done": 8,
+    "done": 9,
     "total": 13
    },
    "HF": {
@@ -6033,7 +6033,7 @@
     "total": 118
    },
    "P1": {
-    "done": 146,
+    "done": 147,
     "total": 220
    },
    "P2": {
@@ -6045,10 +6045,10 @@
     "total": 2
    }
   },
-  "cited": 280,
-  "done_pct": 65.2,
+  "cited": 281,
+  "done_pct": 65.5,
   "in_scope": 367,
-  "in_scope_done_pct": 70.6,
+  "in_scope_done_pct": 70.8,
   "total": 397
  },
  "workflow_spine": [
