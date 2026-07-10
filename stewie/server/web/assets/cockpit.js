@@ -2514,8 +2514,10 @@ async function playSimRun() {
   let runId;
   try {
     const site = (typeof CURRENT_SITE !== "undefined" && CURRENT_SITE) ? CURRENT_SITE : "haworth";
+    const _runBody = { orders: ORDERS, site, mission_id: "cockpit playback" };
+    if (RELEASED_REV && RELEASED_REV.content_hash) _runBody.revision_hash = RELEASED_REV.content_hash;  // [R7b] bind the signed revision (R2/F1)
     const r = await fetch("/executive/run", { method: "POST", headers: apiHeaders(),
-      body: JSON.stringify({ orders: ORDERS, site, mission_id: "cockpit playback" }) });
+      body: JSON.stringify(_runBody) });
     if (r.status === 401 || r.status === 403) {
       out.innerHTML = '<div class="empty">SIM run is director-only. Sign in with a director key.</div>';
       return;
@@ -5503,9 +5505,11 @@ async function runExecutiveSim() {
   if (out) { out.style.display = ""; out.textContent = "running SIM execution…"; }
   if (btn) btn.disabled = true;
   try {
+    const _runBody = { orders: ORDERS, site: CURRENT_SITE };
+    if (RELEASED_REV && RELEASED_REV.content_hash) _runBody.revision_hash = RELEASED_REV.content_hash;  // [R7b] bind the signed revision (R2/F1)
     const r = await fetch("/executive/run", {
       method: "POST", headers: apiHeaders(),   // already sets Content-Type+CSRF; a 2nd content-type key collides -> 400
-      body: JSON.stringify({ orders: ORDERS, site: CURRENT_SITE }) });
+      body: JSON.stringify(_runBody) });
     const j = await r.json();
     if (!r.ok || !j.ok) { if (out) out.textContent = "run rejected: " + esc(String(j.error || r.status)); return; }
     const chain = (j.transitions || []).join(" → ");
