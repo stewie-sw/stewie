@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "ae8b6737b03334715f77c0c078e5283e2d9a3bddf26f6188969c069614001cf9",
+  "citations_sha256": "61f1268b99120c708054b2531a0be2e8466edbc77fde794242742c0e69a84f30",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "1290b6c4155da98636475bb4876c7233e8a93ae9",
-  "prd_sha256": "1df1f1fc3423fc4990213ee4e899f6aede3bedfe9c2ab442c49e88890451bd4d",
+  "prd_commit": "e7d5e9db563c9373f0d4d2d5687712e0591bb85b",
+  "prd_sha256": "4117efaccecf388320a9c47cca12d1de0d9d42757a82cb26ee64f2b6f7ec85cf",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -3023,16 +3023,16 @@
    "text": "**3D terrain view in the /ide, synced to the GIS map.** A Three.js 3D terrain panel in the QWC2 IDE renders the selected site's REAL DEM window (via `/dem/heightfield`) in the site-local frame with a vertical-exaggeration control (1-5x, labeled display choice); it reuses/ports the cockpit `three3d.js` capabilities (orbit/fly, sun shadows, layer-texture drape) rather than a new renderer. Click-3D returns the exact map coordinate (IAU_2015:30135 + selenographic, via the shared `/dem/site_lonlat` transforms) into the IDE coordinate display; a mission feature authored on the 2D map (waypoint/keep-out/work-zone) appears in the 3D view from the same backend state within one refresh, and a 3D waypoint pick lands in the same order-frame serializer the 2D path uses. (extends QW-01/GW-05/GW-02; reuses stewie/server/web/assets/three3d.js + routers/dem.py heightfield)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "GW-12",
    "lane": "GW",
    "pri": "P0",
-   "text": "**Planet-fixed-authoritative + local-render-origin coordinate contract (single-precision safe).** One documented, tested contract: authoritative coordinates exist ONLY in the lunar CRSs (IAU_2015:30135/30100, or the ad-hoc tile's local CRS) on the server; every render surface (cockpit 3D, /ide 3D, Cesium globe, Godot) declares a local origin near the work area and renders float32-relative to it; every pick/edit/measure converts back through `site_dem.py` transforms (latlon_to_dem_origin/dem_origin_to_latlon) before persisting, never storing a renderer-local frame. Acceptance: an executable [REQ:GW-12] test asserts (a) coordinate round-trip error under 1 cm at the 30135 theme-extent corners, at each imported site anchor, and at an ad-hoc tile center; (b) the largest coordinate magnitude handed to a float32 render path stays under a stated bound (documented ulp budget); (c) a guard that no gis/qwc2/js or web/assets module persists coordinates without the shared serializer. (formalizes site_dem.py:211-266 + planTools.js:99-115; extends GW-02/GW-05)"
+   "text": "**Planet-fixed-authoritative + local-render-origin coordinate contract (single-precision safe).** One documented, tested contract: authoritative coordinates exist ONLY in the lunar CRSs (IAU_2015:30135/30100, or the ad-hoc tile's local CRS) on the server; every render surface (cockpit 3D, /ide 3D, Cesium globe, Godot) declares a local origin near the work area and renders float32-relative to it; every pick/edit/measure converts back through `site_dem.py` transforms (latlon_to_dem_origin/dem_origin_to_latlon) before persisting, never storing a renderer-local frame. Acceptance: an executable [REQ:GW-12] test asserts (a) coordinate round-trip error under 1 cm at the 30135 theme-extent corners, at each imported site anchor, and at an ad-hoc tile center; (b) the largest coordinate magnitude handed to a float32 render path stays under a stated bound (documented ulp budget); (c) a guard that no gis/qwc2/js or web/assets module persists coordinates without the shared serializer. [REQ:GW-12] `stewie/server/test_gw12_coordinate_contract.py` verifies all three on REAL committed DEM metadata: (a) the render->pick->persist round-trip is 0.0 mm (< 1 cm) at the theme-extent corners, tile center, and site anchor of every curated tile (haworth/shackleton_rim/nobile_rim/de_gerlache_kocher) AND at an ad-hoc local-AEQD tile center; (b) the worst render-origin-relative extent (~15.1 km incl. relief) has a float32 ULP of 0.98 mm < 1 cm, under the documented 2^17 m (131 km) 1cm-safe bound with an 8.69x margin; (c) the grep/AST guard finds 0 renderer-local persists (the one render-origin producer viz3d/frame.js never persists; the shared orderFrameEntry/markerBody serializers consume map-CRS coords; the 3D-pick bridges reproject lon/lat->map CRS). I=D (site_dem transforms + the shared serializer are the sole persistence path, live on /api/plan + the cockpit/ide picks), X=D (the contract governs the delivered cockpit 3D, /ide frame.js, and the plan-tool serializers), V=D (the [REQ:GW-12] test is non-vacuous: the guard fires on a raw render-origin persist and clears once a metresToLonLat/reproject bridge is inserted). (formalizes site_dem.py:211-266 + planTools.js:99-115; extends GW-02/GW-05)"
   },
   {
    "I": "N",
@@ -5740,9 +5740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 112,
+   "buildable": 111,
    "concurrent": 0,
-   "done": 255,
+   "done": 256,
    "gated": 30
   },
   "by_lane": {
@@ -5859,7 +5859,7 @@
     "total": 2
    },
    "GW": {
-    "done": 7,
+    "done": 8,
     "total": 13
    },
    "HF": {
@@ -6029,7 +6029,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 108,
+    "done": 109,
     "total": 118
    },
    "P1": {
@@ -6045,10 +6045,10 @@
     "total": 2
    }
   },
-  "cited": 277,
-  "done_pct": 64.2,
+  "cited": 278,
+  "done_pct": 64.5,
   "in_scope": 367,
-  "in_scope_done_pct": 69.5,
+  "in_scope_done_pct": 69.8,
   "total": 397
  },
  "workflow_spine": [
