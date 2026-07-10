@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "eb2636dcd0db30d0b02b93318e644ba81599054222497f7897381124bd1b5331",
+  "citations_sha256": "23d3b66a7c280bb9e6ca2febcbe54fe5caafc790de619a805cf557a7ff4e89cd",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "f537cdffc1d5416bbf2cb329dac8388671835edd",
-  "prd_sha256": "31cb2c05430785fd0685b15088714126f698a9c5470de1959afde271e5d6a8da",
+  "prd_commit": "cdd066004f779823bde381f6460d9175f6751a56",
+  "prd_sha256": "1dd434019e07ff63eaf828904933dd0a341e493a855157aafb20ab12b31c5705",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -4593,16 +4593,16 @@
    "text": "**QGIS Server WFS + WMTS proven (completes QG-02's claim).** The --profile gis QGIS Server serves (a) WFS: GetCapabilities lists the project's site vectors and a GetFeature returns them in IAU_2015:30135; (b) WMTS: GetCapabilities advertises a lunar-CRS tile matrix and a GetTile returns a correct pole-truthful tile, or the WMTS leg is explicitly recorded infeasible on the pinned server version with the reason (like the Trek WMTS deferral). gis/test_server.py extends to assert both (skip-clean when no server is up). QG-02's shipped evidence is WMS-only (gis/SERVER.md); this row makes the WFS/WMTS words in QG-02 true or honestly retracts them. (extends QG-02; alternative raster path already tracked as TT-01)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "QW-01",
    "lane": "QW",
    "pri": "P0",
-   "text": "The served /ide/ front door is a QWC2 (qwc2-demo-app) SPA whose appConfig registers the STEWIE Mission* plugins over an OpenLayers map; a signed-in browser smoke opens each Mission* plugin at desktop+phone widths with zero blocking console errors. [SHIPPED: gis/qwc2/js/appConfig.js, deployed read-only from gis/qwc2/prod, deploy/compose.yml:294]"
+   "text": "The served /ide/ front door is a QWC2 (qwc2-demo-app) SPA whose appConfig registers the STEWIE Mission* plugins over an OpenLayers map; a signed-in browser smoke opens each Mission* plugin at desktop+phone widths with zero blocking console errors. [REQ:QW-01] `stewie/server/test_qw01_ide_appconfig.py` (the python static gate req_trace counts) + `frontend/_ide_qw01_smoke.mjs` (the runtime smoke): appConfig.js imports + registers all 13 STEWIE Mission* plugins (Mission Plan/Program/Layers/UserLayer/Assets/Terrain3D/CrossSection/Terramech/Runtime/Evidence/EngPanel/HUD + SelectionInspector) in pluginsDef over the QWC2 OpenLayers Map plugin, and the signed-in browser smoke (deployed artemis /ide, real GPU) opens EACH via window.qwc2.setCurrentTask at desktop (1600px) AND phone (390px) widths with the OpenLayers map present and ZERO blocking console errors (an external LROC/Trek WMS tile 404 is a non-blocking network warning; an uncaught JS exception would fail). I=D (the /ide front door is the QWC2 SPA served read-only from gis/qwc2/prod per deploy/compose.yml:294; appConfig registers the Mission* plugin suite over the OL Map plugin), X=D (each plugin activates via the qwc2 API task system + mounts its SideBar; the static gate runs in the CI python suite), V=D (the runtime smoke opens all 13 plugins at both widths with 0 blocking errors \u2014 pass:true, allActivated:true, zeroBlocking:true \u2014 and the python gate asserts the registration + the smoke's two-width zero-blocking shape). [SHIPPED: gis/qwc2/js/appConfig.js, deployed read-only from gis/qwc2/prod, deploy/compose.yml:294]"
   },
   {
    "I": "D",
@@ -5740,9 +5740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 104,
+   "buildable": 103,
    "concurrent": 0,
-   "done": 263,
+   "done": 264,
    "gated": 30
   },
   "by_lane": {
@@ -5939,7 +5939,7 @@
     "total": 4
    },
    "QW": {
-    "done": 0,
+    "done": 1,
     "total": 1
    },
    "RF": {
@@ -6029,7 +6029,7 @@
   },
   "by_priority": {
    "P0": {
-    "done": 109,
+    "done": 110,
     "total": 118
    },
    "P1": {
@@ -6045,10 +6045,10 @@
     "total": 2
    }
   },
-  "cited": 284,
-  "done_pct": 66.2,
+  "cited": 285,
+  "done_pct": 66.5,
   "in_scope": 367,
-  "in_scope_done_pct": 71.7,
+  "in_scope_done_pct": 71.9,
   "total": 397
  },
  "workflow_spine": [
