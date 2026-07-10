@@ -34,6 +34,44 @@ _ROS_ODOM: dict | None = None
 _ROS_ODOM_RECV = 0.0
 
 
+def _live_exec_enabled() -> bool:
+    """[dispatch-audit R3b] Whether real live-rover execution is enabled ($STEWIE_ALLOW_LIVE_EXEC). Default
+    OFF (fail-safe / MO-04 SIM posture): an unprovisioned deploy does NOT require a live-execution token for a
+    SIM-backed command, so the existing SIM command flow is unchanged. When ON, a mission-bound live command
+    MUST carry a valid training-to-live token. Mirrors the SF-02 STEWIE_ALLOW_TELEOP default-deny pattern."""
+    return os.environ.get("STEWIE_ALLOW_LIVE_EXEC", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _enforce_live_token(body: dict, *, required: bool) -> None:
+    """[dispatch-audit R3b] The EG-05 command-bridge unlock check on the live-write path. A PRESENTED
+    ``live_token`` + ``revision_hash`` is ALWAYS verified fail-closed: the revision_hash must be a real
+    released revision (the R1 durable store) and the token must be valid, unforged, unexpired, and BOUND to
+    it (require_live_token). When ``required`` (live exec enabled), a MISSING token is refused too -- a real
+    live rover write cannot proceed without the training-to-live gate having passed. A no-op only when the
+    gate is off AND no token was presented (the SIM posture). Raises HTTPException(403) on any failure."""
+    from stewie.contracts.live_gate import LiveExecutionRefused, LiveExecutionToken, require_live_token
+    from stewie.server import db
+    tok_d = body.get("live_token")
+    if tok_d is None:
+        if required:
+            raise HTTPException(status_code=403, detail=(
+                "live execution enabled: a mission-bound rover command requires a live-execution token "
+                "bound to a released revision (POST /executive/run to obtain one)"))
+        return
+    rev_hash = body.get("revision_hash")
+    if not rev_hash or db.read_release_revision(str(rev_hash)) is None:
+        raise HTTPException(status_code=403,
+                            detail="live_token requires a revision_hash of a released revision")
+    try:
+        token = LiveExecutionToken(
+            mission_id=str(tok_d.get("mission_id")), revision_id=str(tok_d.get("revision_id")),
+            issued_at=float(tok_d.get("issued_at")), ttl_s=float(tok_d.get("ttl_s")),
+            signature=str(tok_d.get("signature")))
+        require_live_token(token, token.mission_id, str(rev_hash), now=time.time())
+    except (LiveExecutionRefused, TypeError, ValueError, KeyError) as e:
+        raise HTTPException(status_code=403, detail=f"live-execution token rejected: {e}") from e
+
+
 @router.post("/rc/command")
 def rc_command(body: dict, identity: str = Depends(require_role("operator"))):
     """#66 / AG-02: submit an RC command (GoTo/Safe/SetSim) to the active backend through the SF-01
@@ -49,6 +87,10 @@ def rc_command(body: dict, identity: str = Depends(require_role("operator"))):
         raise HTTPException(status_code=403, detail=f"mission {mission!r} is not published (live); only a "
                             "live mission can be commanded to the rover")
     kind = str(body.get("kind", "")).lower()
+    if kind == "goto" and mission is not None:
+        # [dispatch-audit R3b] a live rover command FOR a released mission requires the EG-05 training-to-live
+        # token (bound to the immutable revision), verified fail-closed; mandatory when live exec is enabled.
+        _enforce_live_token(body, required=_live_exec_enabled())
     now = time.monotonic()
     with _RC_LOCK:
         if kind == "rearm":              # #286 [REQ:SF-01]: the deliberate operator re-arm after a safe-stop
