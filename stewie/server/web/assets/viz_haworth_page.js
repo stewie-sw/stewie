@@ -3,6 +3,8 @@
  * default); the analysis-drape kinds + gridlines + coordinate readout are the mission-planning surface.
  */
 const VIZ = window.STEWIE_VIZ;
+const LSTACK = window.STEWIEViz3DLayers;   // [GW-11] draped layer-stack model (viz3d/layers.js)
+let layerStack = null;
 
 // the imported sites that carry a real LOLA DEM bundle (stewie.specs.sites, bundle_dir set). The endpoints
 // render ANY registry site; a ?site= not in this list is added so a freshly-imported site is still reachable.
@@ -80,6 +82,43 @@ function updateHud(h) {
   );
 }
 
+// [GW-11] draped layer-stack panel: each available drape kind (viz3d/layers.js LAYER_CATALOG) gets a row --
+// visibility checkbox + opacity slider + reorder. The page owns the makeLayerStack model; every edit re-renders
+// VIZ.renderLayerStack(visibleOrdered()). Layers bake a per-site sourceUrl, so a site switch rebuilds the stack.
+function _layerCtx() { const m = VIZ.meta; return m ? { site: m.site, window_m: m.window_m, x0: m.x0, y0: m.y0 } : null; }
+function _applyLayers() {
+  if (!layerStack) return;
+  const vis = layerStack.visibleOrdered().filter((l) => l.render !== "base");
+  VIZ.renderLayerStack(vis);
+  const c = $("viz-layers-count"); if (c) c.textContent = String(vis.length);
+}
+function buildLayerPanel() {
+  if (!LSTACK) return;
+  layerStack = LSTACK.makeLayerStack();
+  const host = $("viz-layers"); if (!host) return;
+  host.replaceChildren();
+  LSTACK.LAYER_CATALOG.filter((e) => e.available && e.render === "drape").forEach((e) => {
+    const row = document.createElement("div"); row.className = "lyr-row";
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.title = "show " + e.label;
+    const lab = document.createElement("span"); lab.className = "lyr-lab"; lab.textContent = e.label; lab.title = e.label;
+    const op = document.createElement("input"); op.type = "range"; op.min = "0"; op.max = "1"; op.step = "0.05"; op.value = "1"; op.className = "lyr-op"; op.title = "opacity"; op.disabled = true;
+    const up = document.createElement("button"); up.type = "button"; up.textContent = "↑"; up.className = "lyr-mv"; up.title = "move up";
+    const dn = document.createElement("button"); dn.type = "button"; dn.textContent = "↓"; dn.className = "lyr-mv"; dn.title = "move down";
+    cb.addEventListener("change", () => {
+      const ctx = _layerCtx(); if (!ctx) { cb.checked = false; return; }
+      if (cb.checked) { const spec = LSTACK.layerFromCatalog(e.kind, ctx); if (spec) { try { layerStack.add(spec); } catch (_) { /* dup */ } op.disabled = false; } }
+      else { layerStack.remove(e.kind); op.disabled = true; }
+      _applyLayers();
+    });
+    op.addEventListener("input", () => { if (layerStack.setOpacity(e.kind, +op.value)) _applyLayers(); });
+    up.addEventListener("click", () => { if (layerStack.move(e.kind, "up")) _applyLayers(); });
+    dn.addEventListener("click", () => { if (layerStack.move(e.kind, "down")) _applyLayers(); });
+    row.append(cb, lab, op, up, dn);
+    host.appendChild(row);
+  });
+}
+function clearLayerPanel() { buildLayerPanel(); VIZ.clearLayerStack(); const c = $("viz-layers-count"); if (c) c.textContent = "0"; }
+
 function init() {
   if (!VIZ) { setStatus("viewer failed to load (STEWIE_VIZ missing)"); return; }
   const params = new URLSearchParams(location.search);
@@ -95,7 +134,7 @@ function init() {
   const siteSel = $("viz-site"); fillSelect(siteSel, sites, site);
   const layerSel = $("viz-layer"); fillSelect(layerSel, LAYERS, "elevation");
 
-  siteSel.addEventListener("change", () => { site = siteSel.value; loadSite(site); });
+  siteSel.addEventListener("change", () => { site = siteSel.value; clearLayerPanel(); loadSite(site); });
   layerSel.addEventListener("change", () => VIZ.setLayer(layerSel.value));
 
   const vex = $("viz-vex"), vexOut = $("viz-vex-out");
@@ -126,6 +165,7 @@ function init() {
   // task #77: the lon/lat graticule checkbox now defaults checked (viz_haworth.html); set the flag before
   // loadSite() builds the mesh -- loadGraticule() guards on S.meta, so calling it pre-mesh is a safe no-op,
   // and loadSite's own `if (S._gratOn) loadGraticule();` then loads it once the mesh is ready.
+  buildLayerPanel();                     // [GW-11] draped layer-stack panel
   VIZ.setGraticule($("viz-grat").checked);
   loadSite(site);
 }

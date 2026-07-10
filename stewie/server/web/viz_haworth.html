@@ -23,7 +23,7 @@
   #viz-status{margin-left:auto;font-size:11px;color:var(--text-2);letter-spacing:.02em;text-align:right;max-width:52vw}
   main{position:relative;flex:1;min-height:0}
   #viz-root{position:absolute;inset:0}
-  #viz-panel{position:absolute;top:14px;left:14px;width:250px;background:rgba(18,20,26,.92);border:1px solid var(--edge);border-radius:10px;padding:13px 14px;backdrop-filter:blur(6px);z-index:4}
+  #viz-panel{position:absolute;top:14px;left:14px;width:250px;max-height:calc(100vh - 92px);overflow-y:auto;background:rgba(18,20,26,.92);border:1px solid var(--edge);border-radius:10px;padding:13px 14px;backdrop-filter:blur(6px);z-index:4}
   #viz-panel h2{font-family:Orbitron,sans-serif;font-size:10px;letter-spacing:.2em;color:var(--text-2);text-transform:uppercase;margin-bottom:10px}
   .row{margin-bottom:11px}
   .row label{display:block;font-size:11px;color:var(--text-2);margin-bottom:4px;letter-spacing:.03em}
@@ -44,6 +44,11 @@
   #viz-legend .k{color:var(--cyan)} #viz-legend .m{color:#6cd8ff} #viz-legend .p{color:#ffd27a}
   #viz-scale{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);z-index:4;pointer-events:none}
   #viz-compass{position:absolute;right:14px;top:14px;display:flex;gap:8px;align-items:flex-start;z-index:4;pointer-events:none;background:rgba(8,11,15,.55);border:1px solid var(--edge);border-radius:8px;padding:6px 9px}
+  #viz-layers-row{border-top:1px solid var(--edge);padding-top:9px;margin-top:2px}
+  .lyr-row{display:flex;align-items:center;gap:5px;margin-top:5px}
+  .lyr-lab{flex:1;font-size:10px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lyr-op{width:46px;accent-color:var(--cyan)}
+  .lyr-mv{background:#0c0e13;color:var(--text-2);border:1px solid var(--edge);border-radius:4px;width:18px;height:18px;font-size:10px;line-height:1;padding:0;cursor:pointer}
   @media(max-width:640px){#viz-panel{width:min(250px,72vw)}#viz-status{display:none}}
 </style>
 </head>
@@ -75,6 +80,10 @@
         <span id="viz-measure-out">&mdash;</span>
         <button type="button" id="viz-measure-clear">clear</button>
       </div>
+      <div class="row" id="viz-layers-row">
+        <label>Layer stack <span class="val" id="viz-layers-count">0</span></label>
+        <div id="viz-layers"></div>
+      </div>
     </section>
     <div id="viz-hud" class="dim"><b>E</b> — &nbsp; <b>N</b> — &nbsp; <b>elev</b> —<br>lat —  lon —</div>
     <div id="viz-scale"></div>
@@ -85,7 +94,8 @@
 <script src="/assets/viz_grid.js?v=03b79fecddd3"></script>
 <script src="/assets/viz3d/frame.js"></script>
 <script src="/assets/viz3d/scalebar.js"></script>
-<script type="module" src="/assets/viz3d.js?v=c4c3b4ad1d18"></script>
-<script type="module" src="/assets/viz_haworth_page.js?v=f13f21644b15"></script>
+<script src="/assets/viz3d/layers.js"></script>
+<script type="module" src="/assets/viz3d.js?v=fc4419d20278"></script>
+<script type="module" src="/assets/viz_haworth_page.js?v=9f3c6ba5c786"></script>
 </body>
 </html>

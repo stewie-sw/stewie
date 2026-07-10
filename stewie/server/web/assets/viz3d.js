@@ -431,7 +431,65 @@ function setSun(azDeg, elDeg) {
   // the "dem" drape is sun-pinned to 315/45 (see setLayer) so a sun move no longer re-requests it; only the
   // genuinely sun-following drapes re-render on a sun change.
   if (S.layerKind === "hillshade" || S.layerKind === "illumination") setLayer(S.layerKind);
+  // [GW-11] sun-dependent draped overlays (illumination/cost/hillshade) re-fetch at the new sun geometry.
+  if (S._layerList && S._layerList.some((l) => l && l.sunDependent)) _buildOverlays();
 }
+
+// ---- [GW-11] draped LAYER STACK: N transparent analysis-raster overlays composited over the base relief.
+// The page owns the stack MODEL (viz3d/layers.js makeLayerStack) + the panel; viz3d renders whatever ordered,
+// visible layer list it is handed. Each overlay SHARES the base mesh geometry (so it follows a vex/globe
+// re-place for free) with its own MeshBasicMaterial{map,transparent,opacity,depthWrite:false,polygonOffset
+// -(i+1)} at renderOrder i+1 -> it draws over the relief (renderOrder 0) in stack order. Textures are cached
+// by (id + sun for sun-dependent kinds) so panel edits / globe toggles never re-hit the backend.
+let _layerGen = 0;
+function _layerKey(lyr) {
+  return lyr.id + (lyr.sunDependent ? "|" + Math.round(S._sunAz ?? 135) + "," + Math.round(S._sunEl ?? 20) : "");
+}
+function _disposeLayerGroup() {
+  if (!S._layerGroup) return;
+  S.group.remove(S._layerGroup);
+  S._layerGroup.children.forEach((o) => { if (o.material) o.material.dispose(); });   // shared geometry + cached textures survive
+  S._layerGroup = null;
+}
+function _buildOverlays() {
+  _disposeLayerGroup();
+  if (!S.mesh || !S._layerList) return;
+  const drapes = S._layerList.filter((l) => l && l.render !== "base" && l.sourceUrl);
+  if (!drapes.length) return;
+  setLayer("elevation");                          // any active stack -> base stays the relief; overlays composite on top
+  const grp = new THREE.Group(); S._layerGroup = grp; S.group.add(grp);
+  if (!S._layerTex) S._layerTex = {};
+  const gen = ++_layerGen;
+  drapes.forEach((lyr, i) => {
+    const place = (tex) => {
+      if (gen !== _layerGen || !S.mesh || S._layerGroup !== grp) return;    // superseded by a newer _buildOverlays
+      const om = new THREE.Mesh(S.mesh.geometry, new THREE.MeshBasicMaterial({
+        map: tex, transparent: true, opacity: lyr.opacity, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: -(i + 1), polygonOffsetUnits: -(i + 1), side: THREE.DoubleSide }));
+      om.renderOrder = i + 1;
+      grp.add(om);
+    };
+    const key = _layerKey(lyr);
+    if (S._layerTex[key]) { place(S._layerTex[key]); return; }
+    let url = lyr.sourceUrl;
+    if (lyr.sunDependent) url += "&sun_az=" + Math.round(S._sunAz ?? 135) + "&sun_el=" + Math.round(S._sunEl ?? 20);
+    _fetchT(url, LAYER_TIMEOUT_MS)
+      .then((r) => { if (!r.ok) throw new Error("layer.png " + r.status + " for " + lyr.kind); return r.blob(); })
+      .then((blob) => {
+        const obj = URL.createObjectURL(blob);
+        new THREE.TextureLoader().load(obj, (tex) => {
+          try { URL.revokeObjectURL(obj); } catch (_) { /* */ }
+          tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
+          S._layerTex[key] = tex;
+          place(tex);
+        }, undefined, () => { try { URL.revokeObjectURL(obj); } catch (_) { /* */ } if (S._onLayerError) S._onLayerError(lyr.kind); });
+      })
+      .catch(() => { if (S._onLayerError) S._onLayerError(lyr.kind); });
+  });
+}
+// Public: render an ordered, visible list of layer models (viz3d/layers.js visibleOrdered()) as the drape stack.
+function renderLayerStack(layers) { S._layerList = Array.isArray(layers) ? layers.slice() : []; _buildOverlays(); }
+function clearLayerStack() { S._layerList = null; _disposeLayerGroup(); }
 
 // ---- gridlines: metric km grid (pure STEWIE_VIZGRID) draped on the surface ------------------------
 function _lineOnSurface(coords2, subdiv, color, yLift) {
@@ -712,6 +770,8 @@ function dispose() {
   _disposeGroup(S._gratGroup); S._gratGroup = null;
   _disposeGroup(S._plotGroup); S._plotGroup = null;
   _disposeGroup(S._measureGroup); S._measureGroup = null; S._measurePts = [];
+  _disposeLayerGroup(); S._layerList = null;                 // [GW-11] drop draped overlays
+  if (S._layerTex) { Object.keys(S._layerTex).forEach((k) => { try { S._layerTex[k].dispose(); } catch (_) { /* */ } }); S._layerTex = null; }
   S._gridOn = false; S._gratOn = false; S._wireOn = false; S._measureOn = false;
   if (S.wire) { if (S.group) S.group.remove(S.wire); S.wire.geometry.dispose(); S.wire.material.dispose(); S.wire = null; }
   if (S.mesh) {
@@ -739,8 +799,10 @@ function setGlobe(on) {
   FRAME.setMode(on && S._frameReady ? "globe" : "enu");
   if (!S.mesh) return;
   const layer = S.layerKind;
-  _buildMesh();                                          // re-place all verts in the new mode
-  if (layer && layer !== "elevation") setLayer(layer);   // re-apply the active drape (rebuild reset it)
+  _disposeLayerGroup();                                  // overlays share the about-to-be-rebuilt geometry -> drop first
+  _buildMesh();                                          // re-place all verts in the new mode (new geometry object)
+  if (S._layerList && S._layerList.length) _buildOverlays();          // re-drape overlays onto the new geometry (cached textures)
+  else if (layer && layer !== "elevation") setLayer(layer);           // else re-apply the single drape (rebuild reset it)
   if (S._gridOn) buildMetricGrid();
   if (S._gratGroup) _redrapeGraticule();
   if (S._plotGroup) {
@@ -755,6 +817,7 @@ function setGlobe(on) {
 
 window.STEWIE_VIZ = {
   mount, dispose, loadSite, setLayer, setVertExag, setWireframe, setSun, setMetricGrid, setGraticule, setGlobe, setHud,
+  renderLayerStack, clearLayerStack,
   onHover, onLayerError, onPlot, clearPlots, heightAt,
   setMeasureMode, clearMeasure, onMeasure, getMeasurePoints,
   get meta() { return S.meta; }, get layerKind() { return S.layerKind; }, get vertExag() { return S.vex; },
@@ -773,6 +836,7 @@ window.STEWIE_VIZ = {
       target: R([S.target.x, S.target.y, S.target.z]),
       sun: S.sun ? R([S.sun.position.x, S.sun.position.y, S.sun.position.z]) : null,
       normal0: nrm ? [nrm.getX(0), nrm.getY(0), nrm.getZ(0)].map((v) => +v.toFixed(3)) : null,
+      layerOverlays: S._layerGroup ? S._layerGroup.children.length : 0,
     };
   },
 };
