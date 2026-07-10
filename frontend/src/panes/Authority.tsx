@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { csrfHeader } from "../csrf";
 import { useResource } from "../fetchState";
 import type { Pane } from "../panes";
 import { useWorkspace } from "../workspace_context";
@@ -71,7 +72,8 @@ function ReleaseSignOff() {
     try {
       const m = await fetch(`/sample_mission/${name}`, { credentials: "same-origin" }).then((r) => r.json());
       const res = await fetch("/executive/release-plan", {
-        method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
+        method: "POST", credentials: "same-origin",
+        headers: { "content-type": "application/json", ...csrfHeader() },   // [R7a] SEC-01 double-submit CSRF
         body: JSON.stringify({ orders: m.orders ?? [], mission_id: `release:${name}`, body: m.body ?? "moon" }),
       });
       const j = await res.json();

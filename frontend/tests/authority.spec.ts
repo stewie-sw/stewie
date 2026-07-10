@@ -24,6 +24,20 @@ test("Release: gate evidence + a released revision shows every authority field",
   }
 });
 
+test("[dispatch-audit R7a] the release POST echoes the double-submit CSRF token", async ({ page, context }) => {
+  // SEC-01: a cookie-authenticated state-changing POST must echo the readable stewie_csrf cookie in the
+  // X-CSRF-Token header (the backend guard 403s otherwise). dev-open loopback bypasses the guard, so this
+  // asserts the FRONTEND sends the header by intercepting the outgoing /executive/release-plan request.
+  await context.addCookies([{ name: "stewie_csrf", value: "csrf-r7a-token", url: "http://127.0.0.1:8391" }]);
+  await toPane(page, "release");
+  await expect(page.locator('[data-testid="authority-release"]')).toHaveAttribute("data-state", "ready", { timeout: 10_000 });
+  const reqP = page.waitForRequest((r) => r.url().includes("/executive/release-plan") && r.method() === "POST");
+  await page.selectOption('[data-testid="release-mission"]', "01_flatten_pad");
+  await page.locator('[data-testid="release-btn"]').click();
+  const req = await reqP;
+  expect(req.headers()["x-csrf-token"]).toBe("csrf-r7a-token");
+});
+
 test("Execute surfaces the refusal reason when ineligible (clause 2)", async ({ page }) => {
   await toPane(page, "metrics");
   const verdict = page.locator('[data-testid="verdict-metrics"]');
