@@ -22,8 +22,11 @@ def _ws_enum(name: str) -> set[str]:
 
 
 def test_rf02_physics_backends_match_the_mission_registry():  # [REQ:RF-02]
+    # [dispatch-audit R4] the frontend advertises ONLY the server's selectable backends; the PX-03 Chrono
+    # oracle is NOT selectable until it conserves mass (was wrongly advertised as "tier3_chrono", which is
+    # not even a real backend_id). The dynamic UI<->registry parity is test_r4_chrono_backend_ui_parity.
     backends = _ws_enum("PHYSICS_BACKENDS")
-    assert backends == {"tier2_numpy", "tier3_chrono"}, f"frontend backends drift: {backends}"
+    assert backends == {"tier2_numpy"}, f"frontend backends drift: {backends}"
     default = {f.name: f for f in dataclasses.fields(Mission)}["physics_backend_id"].default
     assert default in backends and default == "tier2_numpy"   # the fail-closed default (PX-02)
 

@@ -13,7 +13,11 @@ export type ProductMode = "GIS-PLAN" | "TRAIN" | "SIM-OPERATE" | "EVALUATE" | "O
 export type RunnableProfile =
   | "desktop_sil" | "digital_twin" | "ros2_replay" | "hil_jetson"
   | "sensor_bench" | "rover_bench" | "field_traverse" | "monte_carlo";
-export type PhysicsBackend = "tier2_numpy" | "tier3_chrono"; // PX-02 /physics/backends
+// [dispatch-audit R4] ONLY the ids the backend /physics/backends declares selectable_backends -- tier2_numpy
+// (the conserved release authority). The PX-03 Chrono oracle is listed in /physics/backends models for
+// transparency but is NOT selectable until it conserves mass, so the UI must not advertise it as a backend a
+// mission can pick (the old "tier3_chrono" was also the wrong id -- the ledger backend_id is "tier2_chrono").
+export type PhysicsBackend = "tier2_numpy"; // PX-02 /physics/backends selectable_backends
 
 export const SOURCE_CLASSES: readonly SourceClass[] = ["live", "sim", "eval"];
 export const COMMAND_NAMESPACES: readonly CommandNamespace[] = ["sandbox", "live"];
@@ -22,7 +26,7 @@ export const RUNNABLE_PROFILES: readonly RunnableProfile[] = [
   "desktop_sil", "digital_twin", "ros2_replay", "hil_jetson",
   "sensor_bench", "rover_bench", "field_traverse", "monte_carlo",
 ];
-export const PHYSICS_BACKENDS: readonly PhysicsBackend[] = ["tier2_numpy", "tier3_chrono"];
+export const PHYSICS_BACKENDS: readonly PhysicsBackend[] = ["tier2_numpy"];
 // BD-03: the selectable bodies (registry keys from stewie_bodies / /physics/compatibility). Moon/Mars/Ceres/
 // Earth/BP-1 are gravity-loaded (Bekker regime); Bennu/Phobos are microgravity (refused fail-closed).
 export const BODIES: readonly string[] = ["moon", "mars", "ceres", "bennu", "phobos", "earth", "bp1_testbed"];
