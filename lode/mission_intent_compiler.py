@@ -372,6 +372,12 @@ def intent_from_orders(orders, *, mission_id, approver, body="moon", statement="
 
     Returns ``(intent, skipped)``."""
     density = MP.body_density(body)
+    # [dispatch-audit R4] the objective coordinate FRAME must reflect the mission body, not the MOON_ME
+    # default -- otherwise a non-lunar body (e.g. mars) silently compiles to a moon plan (wrong gravity +
+    # terrain anchor). A lunar body -> MOON_ME (the only frame the objective/execute machinery supports);
+    # any other body -> a body-specific frame that _intent_body REJECTS before release (fail-closed), so the
+    # body/frame integrity is preserved through Release/Run rather than lost.
+    _frame = "MOON_ME" if str(body).lower() == "moon" else str(body).upper() + "_ME"
     objectives: list[Objective] = []
     skipped: list[dict] = []
     for i, o in enumerate(orders):
@@ -385,7 +391,7 @@ def intent_from_orders(orders, *, mission_id, approver, body="moon", statement="
         oid = str(o.get("action") or f"obj-{i}")
         x, y = float(o.get("x") or 0.0), float(o.get("y") or 0.0)
         objectives.append(Objective(
-            objective_id=oid, revision=revision,
+            objective_id=oid, revision=revision, frame=_frame,   # [R4] body-derived, not the MOON_ME default
             statement=o.get("note") or f"{kind} at ({x:g}, {y:g})",
             rationale="operator-authored build order",
             priority=PriorityTier.PRIMARY, mandatory=True,

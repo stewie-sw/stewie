@@ -590,3 +590,21 @@ def test_ml07_invalid_typed_candidate_fails_validation_and_never_reaches_release
     with pytest.raises(ValueError, match="no known planner optimization metric"):
         LC.analyze(ex)
     assert ex.state is ExecutiveState.DRAFT and ex.released_revision is None
+
+
+def test_r4_non_lunar_body_carries_its_frame_and_is_rejected_not_silently_moon():
+    """[dispatch-audit R4] Mars->Moon frame bug: a non-lunar body's objectives must carry the body's OWN
+    coordinate frame (not the MOON_ME default), so _intent_body REJECTS them before release rather than
+    silently compiling a mars mission to a moon plan (which would use Moon gravity + a lunar terrain anchor).
+    Direct-verification regression for the audit finding input_body='mars' -> objective_frame='MOON_ME'."""
+    orders = [{"kind": "cut", "action": "cut 1", "x": 10, "y": 20, "footprint_m2": 36, "depth_m": 0.1}]
+    # moon (unchanged): MOON_ME frame, compiles to the moon planner.
+    im, _ = MIC.intent_from_orders(orders, mission_id="m", approver="op", body="moon")
+    assert {o.frame for o in im.objectives} == {"MOON_ME"}
+    assert MIC._intent_body(im) == "moon"
+    # mars: the objectives now carry MARS_ME (the R4 fix, not the MOON_ME default), and _intent_body REJECTS
+    # the non-lunar frame instead of silently returning "moon" -- body/frame integrity preserved.
+    imm, _ = MIC.intent_from_orders(orders, mission_id="m", approver="op", body="mars")
+    assert {o.frame for o in imm.objectives} == {"MARS_ME"}
+    with pytest.raises(ValueError, match="MARS_ME|not a known lunar"):
+        MIC._intent_body(imm)
