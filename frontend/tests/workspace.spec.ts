@@ -9,7 +9,10 @@ test("workspace state round-trips through the URL across a reload", async ({ pag
 
   await page.locator('[data-testid="ws-productMode"]').selectOption("SIM-OPERATE");
   await page.locator('[data-testid="ws-runnableProfile"]').selectOption("ros2_replay");
-  await page.locator('[data-testid="ws-physicsBackend"]').selectOption("tier3_chrono");
+  // [dispatch-audit R4] physicsBackend has ONE selectable value now (tier2_numpy = the default; Chrono is
+  // not selectable until it conserves mass), so it cannot demonstrate a NON-default URL round-trip -- the
+  // round-trip is proven by productMode + runnableProfile below; physicsBackend's default-restore is asserted
+  // after reload. (toSearchParams only writes non-default fields, so a default value is never in the URL.)
 
   // the routeable state is written to the URL query params
   await expect
@@ -17,7 +20,7 @@ test("workspace state round-trips through the URL across a reload", async ({ pag
     .toBe("SIM-OPERATE");
   const sp = new URL(page.url()).searchParams;
   expect(sp.get("runnableProfile")).toBe("ros2_replay");
-  expect(sp.get("physicsBackend")).toBe("tier3_chrono");
+  expect(sp.get("physicsBackend")).toBeNull();   // the default backend is not serialized (non-default-only)
 
   // navigating BETWEEN panes preserves the workspace state (the nav links carry the query params)
   await page.locator('.vtab[data-view="report"]').click();
@@ -28,7 +31,7 @@ test("workspace state round-trips through the URL across a reload", async ({ pag
   await page.reload();
   await expect(page.locator('[data-testid="ws-productMode"]')).toHaveValue("SIM-OPERATE");
   await expect(page.locator('[data-testid="ws-runnableProfile"]')).toHaveValue("ros2_replay");
-  await expect(page.locator('[data-testid="ws-physicsBackend"]')).toHaveValue("tier3_chrono");
+  await expect(page.locator('[data-testid="ws-physicsBackend"]')).toHaveValue("tier2_numpy");
 });
 
 // [REQ:GW-02] the FULL PRD2 unified context (branch/release/run/selection/layers) round-trips through the URL,
