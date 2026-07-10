@@ -125,19 +125,44 @@ def rc_plan_ros(body: dict, identity: str = Depends(require_role("operator"))):
     operator+ is enforced by the route gate; AG-08 bars the sandbox -- the mission MUST be a PUBLISHED
     (live) mission, so a trainee's draft can be simulated but is structurally unable to lower to a real
     rover. rclpy is not required here: the lowering returns message-shaped dicts the live ROS2 node
-    publishes; this route is the product-path seam (NV-11/NV-12 egress under the AG-08 interlock)."""
+    publishes; this route is the product-path seam (NV-11/NV-12 egress under the AG-08 interlock).
+
+    [dispatch-audit R2 / F3] Alternatively a ``revision_hash`` binds the lowering to a durable R1 IMMUTABLE
+    released revision: the frozen signed intent is fetched + lowered, and the response reports its
+    ``content_hash`` -- so release / run / ROS-lowering all report the SAME immutable identity, and an edited
+    saved mission cannot lower different rover commands than what was signed. A director-signed revision is a
+    signed authorization (AG-08-equivalent). The legacy mission-name path reports ``content_hash`` null."""
     from lode import mission_planner as MP
     from lode import planner_views as PV
     from stewie.bridge.plan_lowering import lower_plan_ir
     from stewie.bridge.stream import StreamSession
     name = body.get("mission")
-    if name is None:
-        raise HTTPException(status_code=400, detail="plan_ros requires a 'mission' (the live mission to lower)")
-    saved = OBJ.load_mission(str(name), namespace="live")
-    if saved is None:                                     # AG-08: only a published (live) mission lowers to ROS
-        raise HTTPException(status_code=403, detail=f"mission {name!r} is not published (live); only a live "
-                            "mission can be lowered to rover ROS commands")
-    lowered = lower_plan_ir(PV.plan_ir(MP.mission_from_dict(saved)))
+    rev_hash = body.get("revision_hash")
+    content_hash: str | None = None
+    if rev_hash:
+        # [dispatch-audit R2 / F3] BIND: lower the FROZEN released revision, not a mutable saved mission, so
+        # ROS-lowering reports the SAME immutable content_hash that release + run report (the R2 acceptance:
+        # release / run / ROS-lowering all agree on one identity). A director-signed revision IS a signed
+        # authorization, so it is authority-equivalent to the AG-08 published-live gate below.
+        from stewie.contracts import MissionIntent
+        from stewie.server import db
+        art = db.read_release_revision(str(rev_hash))
+        if art is None:
+            raise HTTPException(status_code=400, detail=f"revision_hash {rev_hash!r} is not a released "
+                                "revision (release the plan first)")
+        from lode.mission_intent_compiler import compile_intent
+        mission = compile_intent(MissionIntent.model_validate(art["signed_revision"]["intent"])).mission
+        content_hash = art["content_hash"]
+    elif name is not None:
+        saved = OBJ.load_mission(str(name), namespace="live")
+        if saved is None:                                 # AG-08: only a published (live) mission lowers to ROS
+            raise HTTPException(status_code=403, detail=f"mission {name!r} is not published (live); only a "
+                                "live mission can be lowered to rover ROS commands")
+        mission = MP.mission_from_dict(saved)
+    else:
+        raise HTTPException(status_code=400, detail="plan_ros requires a 'mission' (a published live mission) "
+                            "or a 'revision_hash' (a released immutable revision)")
+    lowered = lower_plan_ir(PV.plan_ir(mission))
     groups = ("paths", "motion_goals", "work_goals", "observation_goals", "replan_events")
     now = time.monotonic()
     # #287 [REQ:NV-12]: this route is a ONE-SHOT batch lowering -- it frames the whole plan and returns it
@@ -151,8 +176,9 @@ def rc_plan_ros(body: dict, identity: str = Depends(require_role("operator"))):
     frames = [sess.send({"topic": g, "msg": m}, now=now) for g in groups for m in lowered[g]]
     if sess.refused or any(f is None for f in frames):   # #287 tripwire: lowering must never silently drop a goal
         raise HTTPException(status_code=500, detail="plan lowering refused frames (backpressure window misconfigured)")
-    log_event(identity, "rc.plan_ros", str(name))
+    log_event(identity, "rc.plan_ros", str(rev_hash) if rev_hash else str(name))
     return {"ok": True, "plan_id": lowered["plan_id"], "ir_version": lowered["ir_version"],
+            "content_hash": content_hash,   # [dispatch-audit R2/F3] the bound immutable revision (None on legacy path)
             "frames": frames, "stream": sess.status(),
             "counts": {g: len(lowered[g]) for g in groups}}
 
