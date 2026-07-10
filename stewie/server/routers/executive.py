@@ -367,10 +367,14 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     # rehearsal (closed-loop) + run state -- reported on the run, so an operator sees which gates held.
     from stewie.contracts.plan_gate import PlanPreconditions, is_executable
     from stewie.physics.backend import get_backend
+    # [dispatch-audit R4] execute/attribute against the REVIEWED physics backend the executed mission declares
+    # (PX-02 mission.physics_backend_id, validated at mission_from_dict), NOT a hardcoded literal -- so a future
+    # second selectable backend cannot be silently ignored. Today this is tier2_numpy (the only selectable one).
+    _pbid = mission.physics_backend_id
     _pre = PlanPreconditions(
         required_capabilities=bool(intent.objectives),
         assigned_assets=bool(intent.objectives),                     # the released plan runs on the site vehicle
-        physics_score=get_backend("tier2_numpy").conserves_mass(),   # the SIM ran on the conserved authority
+        physics_score=get_backend(_pbid).conserves_mass(),           # the SIM ran on the conserved authority
         resource_budget=not bool(run.get("safed")),                  # a SAFED run hit a resource/safety stop
         rehearsal_result=bool(out.get("legs")),                      # the closed-loop rehearsal produced legs
         safety_check=(run["final_state"] == "completed"),            # completed = as-built acceptance held
@@ -409,7 +413,7 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     _live_pre = LivePreconditions(
         mission_created=bool(intent.objectives), simulation_branch=True,
         rehearsal_completed=bool(out.get("legs")),
-        physics_passed=get_backend("tier2_numpy").conserves_mass(),
+        physics_passed=get_backend(_pbid).conserves_mass(),          # [dispatch-audit R4] the reviewed backend
         safety_passed=(run["final_state"] == "completed"),
         human_approval=(str(released.state.value) == "released"))
     # [dispatch-audit R3] bind the token to the released revision's IMMUTABLE content_hash (not the mutable
@@ -429,7 +433,7 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     # the energy reconciliation, and the terrain fold all ran on tier2_numpy (the conserved authority) -- so the
     # response names that backend + its calibration model + release-eligibility. No value is left unattributed.
     from stewie.contracts.physics_model_control import physics_attribution
-    physics = physics_attribution("tier2_numpy",
+    physics = physics_attribution(_pbid,                             # [dispatch-audit R4] the reviewed mission's backend
                                   quantities=("energy_J", "conserved_terrain_delta_m3", "as_built_acceptance"))
     # [REQ:TM-04] the rehearsal predicted-vs-observed terramechanics report from the REAL legs: energy compared
     # (nominal model vs slip-truth) with a residual, slip observed-only, sinkage honestly marked not-telemetered.
