@@ -353,7 +353,13 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     run_id = secrets.token_hex(6)
     rec = {"label": run["label"], "final_state": run["final_state"], "transitions": run["transitions"],
            "n_legs_total": run["n_legs_total"], "safed": run["safed"], "nonnominal_legs": run["nonnominal_legs"],
-           "executed_legs": run["executed_legs"], "mission_id": req.mission_id, "site": req.site}
+           "executed_legs": run["executed_legs"], "mission_id": req.mission_id, "site": req.site,
+           # [dispatch-audit R6b] reproducibility + HONEST playback provenance (finding #10): the immutable
+           # signed revision this run executed (R2 content_hash -- re-fetchable + re-runnable), the reviewed
+           # physics backend (R4), and trajectory_kind -- the per-leg SSE/QWC2 playback is a plan-interpolated
+           # FORECAST, NOT executed per-vehicle pose telemetry (real pose telemetry is the larger deferred piece).
+           "bound_revision": bound_revision, "physics_backend": mission.physics_backend_id,
+           "trajectory_kind": "forecast"}
     # gap W1: the SIM run is one canonical world-state record -- commit the released plan + per-leg
     # ExecutionEvents through the one DT-01 log so /world/transaction reflects the executed mission.
     # gap N1/N2: and CLOSE the execute->REMEMBER loop -- a completed terrain-changing SIM run folds its
@@ -544,6 +550,7 @@ async def executive_run_stream(run_id: str, request: Request, interval_s: float 
         yield ("id: " + str(len(events)) + "\n"
                + "data: " + json.dumps({"done": True, "final_state": rec.get("final_state"),
                                         "n_legs_total": rec.get("n_legs_total"),
+                                        "trajectory_kind": rec.get("trajectory_kind"),   # [R6b] honest playback label
                                         "safed": rec.get("safed")}) + "\n\n")
 
     return StreamingResponse(_gen(), media_type="text/event-stream",
