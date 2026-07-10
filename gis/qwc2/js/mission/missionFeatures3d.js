@@ -17,23 +17,20 @@
 
     var CIRCLE_SEGS = 48;   // segments approximating a circle keep-out as a draped closed ring
 
-    function _circleRing(cx, cy, r, x0, y0) {
-        var ring = [];
-        for (var i = 0; i <= CIRCLE_SEGS; i++) {
-            var t = (i / CIRCLE_SEGS) * Math.PI * 2;
-            ring.push([cx + r * Math.cos(t) - x0, cy + r * Math.sin(t) - y0]);
-        }
-        return ring;   // closed by construction (i=CIRCLE_SEGS repeats i=0)
-    }
+    // 30135 map metres -> viz3d order-frame. The order frame is a Y-FLIPPED affine of the 30135 raster
+    // (planAuthor.js: order_x = X30135 - x0 ; order_y = y1 - Y30135, raster-down), anchored at the DEM window's
+    // top-left corner (x0 = min X, y1 = max Y). NOT the heightfield header x0/y0 (those are the order origin = 0).
+    function _toOrder(X, Y, x0, y1) { return [X - x0, y1 - Y]; }
 
-    // featuresToSpecs(state, meta) -> { keepouts:[{fid,kind,ring:[[lx,ly],...]}], markers:[{fid,lx,ly,otype,label}] }
-    //   state = { features:[...], markers:[...] } from GET /edit/session/{sid}
-    //   meta  = { x0, y0, window_m } from the viz3d heightfield_full headers (STEWIE_VIZ.meta)
+    // featuresToSpecs(state, frame) -> { keepouts:[{fid,kind,ring:[[lx,ly],...]}], markers:[{fid,lx,ly,otype,label}] }
+    //   state = { features:[...], markers:[...] } from GET /edit/session/{sid} (geometry in IAU_2015:30135 metres)
+    //   frame = { x0, y1, window_m } -- the DEM window's 30135 bounds (x0=min X, y1=max Y) from GET /dem/site_meta.
     // A feature wholly outside the rendered window [0,window_m]^2 is dropped (nothing to draw on this tile).
-    function featuresToSpecs(state, meta) {
+    function featuresToSpecs(state, frame) {
         var out = { keepouts: [], markers: [] };
-        if (!state || !meta) { return out; }
-        var x0 = +meta.x0 || 0, y0 = +meta.y0 || 0, W = +meta.window_m;
+        if (!state || !frame) { return out; }
+        var x0 = +frame.x0, y1 = +frame.y1, W = +frame.window_m;
+        if (!isFinite(x0) || !isFinite(y1)) { return out; }
         var inWin = function (lx, ly) {
             return !(W > 0) || (lx >= -1e-6 && lx <= W + 1e-6 && ly >= -1e-6 && ly <= W + 1e-6);
         };
@@ -41,9 +38,13 @@
             if (!f) { return; }
             var ring = null;
             if (f.kind === "circle" && isFinite(f.cx) && isFinite(f.cy) && +f.r > 0) {
-                ring = _circleRing(+f.cx, +f.cy, +f.r, x0, y0);
+                ring = [];
+                for (var i = 0; i <= CIRCLE_SEGS; i++) {
+                    var t = (i / CIRCLE_SEGS) * Math.PI * 2;
+                    ring.push(_toOrder(+f.cx + +f.r * Math.cos(t), +f.cy + +f.r * Math.sin(t), x0, y1));
+                }
             } else if (f.kind === "polygon" && Array.isArray(f.ring) && f.ring.length >= 3) {
-                ring = f.ring.map(function (p) { return [+p[0] - x0, +p[1] - y0]; });
+                ring = f.ring.map(function (p) { return _toOrder(+p[0], +p[1], x0, y1); });
                 ring.push(ring[0].slice());   // close the open ring the store holds
             }
             if (!ring) { return; }
@@ -52,9 +53,9 @@
         });
         (state.markers || []).forEach(function (m) {
             if (!m || !isFinite(+m.x) || !isFinite(+m.y)) { return; }
-            var lx = +m.x - x0, ly = +m.y - y0;
-            if (!inWin(lx, ly)) { return; }
-            out.markers.push({ fid: m.fid, lx: lx, ly: ly, otype: m.otype || "marker", label: (m.label != null ? m.label : null) });
+            var o = _toOrder(+m.x, +m.y, x0, y1);
+            if (!inWin(o[0], o[1])) { return; }
+            out.markers.push({ fid: m.fid, lx: o[0], ly: o[1], otype: m.otype || "marker", label: (m.label != null ? m.label : null) });
         });
         return out;
     }

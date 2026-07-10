@@ -938,6 +938,10 @@ export default class PlanAuthor {
         // Every edit-session response also carries the place-object marker set (state() includes markers), so
         // re-render the marker mirror from the authoritative set alongside the keep-outs.
         this._adoptMarkers(body.markers || []);
+        // [GW-11 clause 4] publish the authoritative feature set on the shared WS features channel so the 3D
+        // terrain panel (MissionTerrain3D) renders these keep-outs + markers in 3D within one refresh of any 2D
+        // edit -- _adoptEditState runs on session load AND after every create / modify / delete / undo.
+        WS.emitFeatures({features: body.features || [], markers: body.markers || []});
     }
 
     // The map-frame geometry (IAU_2015:30135 metres) for the backend create/modify body, read off an OL feature.

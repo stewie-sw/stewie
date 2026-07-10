@@ -108,11 +108,31 @@
     return function () { var i = _routeSubs.indexOf(fn); if (i >= 0) { _routeSubs.splice(i, 1); } };
   }
 
+  // [GW-11 clause 4] a STORED mission-features channel: the authored keep-outs + place markers (the GW-08
+  // edit-session's authoritative set, IAU_2015:30135 metres) that planAuthor emits after every load / create /
+  // modify / delete / undo. UNLIKE emitPlot/emitRoute (transient events) this HOLDS the last value, so a
+  // consumer that opens later (the 3D terrain panel) reads the current set on mount via getFeatures(), then
+  // follows onFeatures() for updates -> a feature authored on the 2D map appears in 3D within one refresh.
+  var _features = { features: [], markers: [] };
+  var _featureSubs = [];
+  function emitFeatures(state) {
+    _features = { features: (state && state.features) || [], markers: (state && state.markers) || [] };
+    var snap = getFeatures();
+    _featureSubs.slice().forEach(function (fn) { try { fn(snap); } catch (e) { /* a bad subscriber never breaks emitFeatures() */ } });
+  }
+  function getFeatures() { return { features: _features.features.slice(), markers: _features.markers.slice() }; }
+  function onFeatures(fn) {
+    if (typeof fn !== "function") { return function () {}; }
+    _featureSubs.push(fn);
+    return function () { var i = _featureSubs.indexOf(fn); if (i >= 0) { _featureSubs.splice(i, 1); } };
+  }
+
   return {
     get: get, site: site, set: set, subscribe: subscribe,
     hydrateFromQuery: hydrateFromQuery, toQuery: toQuery, reset: reset, DEFAULT: DEFAULT,
     emitPlot: emitPlot, onPlot: onPlot,
     requestFloat: requestFloat, onFloatRequest: onFloatRequest,
     emitRoute: emitRoute, onRoute: onRoute,
+    emitFeatures: emitFeatures, getFeatures: getFeatures, onFeatures: onFeatures,
   };
 });

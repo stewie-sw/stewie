@@ -42,6 +42,7 @@ import SideBar from 'qwc2/components/SideBar';
 import RG from '../mission/reqGuard.js';    // #57: last-load-wins / stale-site guard
 import T from '../mission/terrain3d.js';   // GW-11: drape list + site-sync decision + hover formatting (node-tested)
 import WS from '../mission/workspace.js';   // GW-02: the shared workspace-context store (active site)
+import MF from '../mission/missionFeatures3d.js';   // GW-11 clause 4: edit-session features -> viz3d order-frame specs
 
 // One-time loader for the shipped full-res viewer. viz3d.js is an ES module that registers window.STEWIE_VIZ
 // as a side effect and vendors THREE from /assets/three.module.min.js (both same-origin, CSP script-src
@@ -148,6 +149,9 @@ class MissionTerrain3D extends React.Component {
     componentDidMount() {
         this._rg = RG.makeReqGuard();
         this._unsubWS = WS.subscribe(this._onWsChange);
+        // [GW-11 clause 4] a 2D-authored mission feature (keep-out / marker) appears in the 3D view: follow the
+        // shared WS features channel + re-render the 3D overlays whenever the authored set changes.
+        this._unsubFeat = WS.onFeatures(() => this._renderFeatures());
         // task #56 auto-float: MissionPlan's "3D" button asks this panel to pop itself into a floating card
         // (coexisting with the plan) instead of taking over the SideBar. Since render() shows the
         // ResizeableWindow whenever floating is true (independent of the current task), just flip the flag.
@@ -159,13 +163,18 @@ class MissionTerrain3D extends React.Component {
                 mounted: () => this._mounted,
                 loadedSite: () => this._loadedSite,
                 drape: () => this.state.drape,
-                meta: () => (this._viz && this._viz.meta) ? this._viz.meta : null
+                meta: () => (this._viz && this._viz.meta) ? this._viz.meta : null,
+                ws: () => WS.getFeatures(),                                       // [GW-11 clause 4] the authored feature set on WS
+                specs: () => this._demFrame ? MF.featuresToSpecs(WS.getFeatures(), this._demFrame) : null,
+                demFrame: () => this._demFrame || null,
+                dbg: () => (this._viz && this._viz._dbg) ? this._viz._dbg : null
             };
         }
     }
     componentWillUnmount() {
         if (this._rg) { this._rg.bump(); }
         if (this._unsubWS) { this._unsubWS(); }
+        if (this._unsubFeat) { this._unsubFeat(); }
         if (this._unsubFloat) { this._unsubFloat(); }
         this._teardown();
         if (typeof window !== 'undefined' && window.__stewieTerrain3D) { delete window.__stewieTerrain3D; }
@@ -243,6 +252,7 @@ class MissionTerrain3D extends React.Component {
             this._viz.setWireframe(this.state.wire);
             if (this.state.globe && this._viz.setGlobe) { this._viz.setGlobe(true); }   // [GW-11] re-curve after a flat load
             this._applyLayers();                                                        // [GW-11] re-drape the layer stack for the new site
+            this._fetchDemFrame(site);                                                  // [GW-11 clause 4] fetch the 30135 anchor + render authored features in 3D
             this.setState({loading: false, meta, site});
         }).catch((e) => {
             if (!this._rg.current(tok) || WS.site() !== site) { return; }
@@ -271,6 +281,25 @@ class MissionTerrain3D extends React.Component {
     _setGrat = (e) => { const grat = e.target.checked; this.setState({grat}); if (this._viz) { this._viz.setGraticule(grat); } };
     _setWire = (e) => { const wire = e.target.checked; this.setState({wire}); if (this._viz) { this._viz.setWireframe(wire); } };
     _setGlobe = (e) => { const globe = e.target.checked; this.setState({globe}); if (this._viz && this._viz.setGlobe) { this._viz.setGlobe(globe); } };
+    // [GW-11 clause 4] render the authored mission features (WS features channel, the GW-08 edit-session set)
+    // as 3D overlays on the relief -- keep-outs as draped rings, place markers as spheres.
+    _renderFeatures = () => {
+        if (!this._viz || !this._viz.renderMissionFeatures || !this._demFrame) { return; }
+        this._viz.renderMissionFeatures(MF.featuresToSpecs(WS.getFeatures(), this._demFrame));
+    };
+    // [GW-11 clause 4] the DEM window's 30135 bounds (x0=min X, y1=max Y from /dem/site_meta) are the order-frame
+    // anchor the 30135 authored features convert THROUGH (order_x = X-x0 ; order_y = y1-Y). Fetched once per site.
+    _fetchDemFrame(site) {
+        fetch('/dem/site_meta?site=' + encodeURIComponent(site))
+            .then((r) => (r.ok ? r.json() : null))
+            .then((sm) => {
+                if (!sm || !sm.bounds_m) { return; }
+                const w = (sm.tile_m && sm.tile_m.x) || (this._viz && this._viz.meta ? this._viz.meta.window_m : 0);
+                this._demFrame = {x0: sm.bounds_m.x0, y1: sm.bounds_m.y1, window_m: w};
+                this._renderFeatures();
+            })
+            .catch(() => { /* features stay unrendered until the DEM frame is known */ });
+    }
     // [GW-11] draped layer stack: build the stack from the per-kind {on,opacity} React state + render it.
     _applyLayers = () => {
         const LS = (typeof window !== 'undefined') ? window.STEWIEViz3DLayers : null;

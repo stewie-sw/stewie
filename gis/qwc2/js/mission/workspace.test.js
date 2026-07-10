@@ -142,3 +142,32 @@ test("task #80: a throwing onRoute() subscriber does not break emitRoute() deliv
   assert.strictEqual(goodCalls, 1);
   unsubBad(); unsubGood();
 });
+
+test("[GW-11 clause 4] features channel: STORED value + getFeatures + onFeatures notify + unsub", () => {
+  W.reset();
+  assert.deepStrictEqual(W.getFeatures(), {features: [], markers: []});   // starts empty
+  let last = null, calls = 0;
+  const unsub = W.onFeatures((s) => { last = s; calls += 1; });
+  const state = {features: [{fid: "ko1", kind: "circle", cx: 1, cy: 2, r: 3}], markers: [{fid: "m1", x: 4, y: 5, otype: "beacon"}]};
+  W.emitFeatures(state);
+  // STORED -> a LATER reader (the 3D panel on mount) sees the current set via getFeatures()
+  assert.deepStrictEqual(W.getFeatures().features, state.features);
+  assert.deepStrictEqual(W.getFeatures().markers, state.markers);
+  assert.strictEqual(calls, 1);
+  assert.deepStrictEqual(last.features, state.features);
+  W.getFeatures().features.push({fid: "x"});                              // getFeatures returns a COPY
+  assert.strictEqual(W.getFeatures().features.length, 1);
+  unsub();
+  W.emitFeatures({features: [], markers: []});
+  assert.strictEqual(calls, 1);                                           // unsubscribed -> no further calls
+});
+
+test("[GW-11 clause 4] emitFeatures: a throwing subscriber never breaks delivery to the rest", () => {
+  W.reset();
+  let good = 0;
+  const ub = W.onFeatures(() => { throw new Error("boom"); });
+  const ug = W.onFeatures(() => { good += 1; });
+  assert.doesNotThrow(() => W.emitFeatures({features: [], markers: []}));
+  assert.strictEqual(good, 1);
+  ub(); ug();
+});
