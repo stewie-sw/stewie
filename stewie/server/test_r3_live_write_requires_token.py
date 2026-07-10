@@ -67,9 +67,19 @@ def _goto(mission="Live Pad", **extra):
     return {"kind": "goto", "goal_row": 5, "goal_col": 6, "mission": mission, **extra}
 
 
+def _fresh_link():
+    """Feed the SF-01 watchdog so the link is NON-stale at command time. The R3b token gate is orthogonal to
+    the NV-12 stale-link interlock; slow setup (release+run, ~seconds) can age the link past its 5 s deadline
+    on a slow CI runner -> a spurious `stale_link` 409 before the command is judged. Feeding right before the
+    command isolates the R3b decision (an operator issuing a command has a live link)."""
+    from stewie.server.routers import rc as RCR
+    RCR._RC_WATCHDOG.feed(now=time.monotonic())
+
+
 def test_valid_presented_token_is_accepted(client):  # [dispatch-audit R3b]
     c, key = client
     ch, tok = _release_and_run(c, key)
+    _fresh_link()   # setup (release+run) aged the link; refresh it so this asserts the R3b gate, not NV-12
     r = c.post("/rc/command", headers={"X-API-Key": key},
                json=_goto(live_token=tok, revision_hash=ch))
     assert r.status_code == 200, r.text
@@ -121,6 +131,7 @@ def test_gate_off_default_token_less_goto_still_works(client):  # [dispatch-audi
     """Backward compatibility / MO-04 SIM posture: with the gate OFF (default) a token-less mission-bound
     GoTo keeps working -- it drives the SIM backend, not a real rover."""
     c, key = client
+    _fresh_link()
     r = c.post("/rc/command", headers={"X-API-Key": key}, json=_goto())   # no token, gate OFF (default)
     assert r.status_code == 200, r.text
     assert r.json()["accepted"] == "goto"
