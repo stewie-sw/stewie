@@ -38,7 +38,7 @@ from scripts.gen_sbom import _project_version, parse_lock
 from scripts.release_gate import release_report
 from scripts.req_trace import trace
 
-_PATHS = ["stewie", "dart", "lode", "scripts", "ros2_ws"]
+_PATHS = ["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws", "stewie_qgis"]
 # (lock file, the pyproject optional-dependency extras it must cover) -- the pairs CI already checks.
 _LOCKS = [("requirements-dev.lock", ["dev"]), ("requirements-server.lock", ["server"])]
 _SBOM_LOCK = "requirements-dev.lock"      # the superset lock the SBOM component count is taken from

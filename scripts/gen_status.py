@@ -29,7 +29,7 @@ from scripts.release_gate import release_report
 from scripts.req_trace import parse_requirements, trace
 
 # the same scan roots req_trace + release_gate use (the autonomy tests live in ros2_ws too)
-_PATHS = ["stewie", "dart", "lode", "scripts", "ros2_ws"]
+_PATHS = ["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws", "stewie_qgis"]
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 

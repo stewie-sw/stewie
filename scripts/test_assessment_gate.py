@@ -8,7 +8,7 @@ import fanout_plan as F  # noqa: E402  (scripts/ sibling import; pytest prepend 
 from scripts.req_trace import trace
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PATHS = ["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws"]
+PATHS = ["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws", "stewie_qgis"]
 
 
 def test_every_buildable_slice_has_a_file_and_test_inventory():  # [REQ:FS-01]

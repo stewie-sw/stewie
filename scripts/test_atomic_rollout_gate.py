@@ -22,7 +22,7 @@ from scripts.release_gate import release_report
 from scripts.req_trace import _ROW, main, parse_requirements, trace
 
 # the same scan roots the CI gates use (the autonomy tests live in ros2_ws too)
-PATHS = ["stewie", "dart", "lode", "scripts", "ros2_ws"]
+PATHS = ["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws", "stewie_qgis"]
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _PRD = os.path.join(_REPO_ROOT, "PRD.md")
 

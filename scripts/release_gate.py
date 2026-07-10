@@ -19,7 +19,7 @@ from __future__ import annotations
 from scripts.req_trace import parse_requirements, scan_markers
 
 AS_ROWS = [f"AS-{n:02d}" for n in range(1, 18) if n != 16]   # AS-16 (cross-method benchmark suite) is research-acceptance, tracked in the dissertation extract
-_PATHS = ["stewie", "dart", "lode", "scripts", "ros2_ws"]
+_PATHS = ["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws", "stewie_qgis"]
 
 # WHERE each row's execution + verification evidence lives:
 #   host      -- pure-Python autonomy logic; host `pytest` IS the execution + verification.
