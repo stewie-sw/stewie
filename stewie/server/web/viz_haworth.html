@@ -42,6 +42,8 @@
   #viz-hud.dim{opacity:.4}
   #viz-legend{position:absolute;right:14px;bottom:14px;font-size:10px;color:var(--text-2);letter-spacing:.04em;text-align:right;z-index:4}
   #viz-legend .k{color:var(--cyan)} #viz-legend .m{color:#6cd8ff} #viz-legend .p{color:#ffd27a}
+  #viz-scale{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);z-index:4;pointer-events:none}
+  #viz-compass{position:absolute;right:14px;top:14px;display:flex;gap:8px;align-items:flex-start;z-index:4;pointer-events:none;background:rgba(8,11,15,.55);border:1px solid var(--edge);border-radius:8px;padding:6px 9px}
   @media(max-width:640px){#viz-panel{width:min(250px,72vw)}#viz-status{display:none}}
 </style>
 </head>
@@ -75,12 +77,15 @@
       </div>
     </section>
     <div id="viz-hud" class="dim"><b>E</b> — &nbsp; <b>N</b> — &nbsp; <b>elev</b> —<br>lat —  lon —</div>
+    <div id="viz-scale"></div>
+    <div id="viz-compass"><div id="viz-north"></div><div id="viz-sun"></div></div>
     <div id="viz-legend">drag orbit · scroll zoom · hover for coordinates<br><span class="k">km grid</span> · <span class="m">meridians</span> · <span class="p">parallels</span></div>
   </main>
 </div>
 <script src="/assets/viz_grid.js?v=03b79fecddd3"></script>
 <script src="/assets/viz3d/frame.js"></script>
-<script type="module" src="/assets/viz3d.js?v=173811887542"></script>
-<script type="module" src="/assets/viz_haworth_page.js?v=ab71ece28bb2"></script>
+<script src="/assets/viz3d/scalebar.js"></script>
+<script type="module" src="/assets/viz3d.js?v=c4c3b4ad1d18"></script>
+<script type="module" src="/assets/viz_haworth_page.js?v=f13f21644b15"></script>
 </body>
 </html>

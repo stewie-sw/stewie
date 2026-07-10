@@ -89,6 +89,7 @@ function init() {
 
   VIZ.mount($("viz-root"));
   VIZ.onHover(updateHud);
+  VIZ.setHud({ scale: $("viz-scale"), north: $("viz-north"), sun: $("viz-sun") });   // [GW-11] scale bar + north + sun HUD
   VIZ.onLayerError((kind) => { setStatus("layer '" + kind + "' unavailable for this window — reverted to elevation"); const ls = $("viz-layer"); if (ls) ls.value = "elevation"; });
 
   const siteSel = $("viz-site"); fillSelect(siteSel, sites, site);

@@ -162,7 +162,30 @@ function _loop(token) {
   S.camera.position.set(cx, cy, cz);
   S.camera.lookAt(S.target);
   S.renderer.render(S.scene, S.camera);
+  _renderHud();
 }
+
+// [GW-11] scale bar + north + sun HUD (viz3d/scalebar.js, window.STEWIE_SCALEBAR). Throttled to ~6 Hz -- the
+// perspective math is cheap + the DOM writers are idempotent, but per-frame DOM churn is wasteful. No-op when
+// no HUD is wired (an embedded host that never called setHud) or scalebar.js didn't load.
+function _renderHud() {
+  const SB = (typeof window !== "undefined") ? window.STEWIE_SCALEBAR : null;
+  if (!S._hud || !SB || !S.camera || !S.container) return;
+  if (((S._hudTick = (S._hudTick || 0) + 1) % 10) !== 0) return;   // ~6 Hz at 60fps
+  const mpp = SB.metresPerPixel({ cameraDistance_m: S.dist, fovYRad: S.camera.fov * Math.PI / 180,
+    viewportHeightPx: S.container.clientHeight || 600 });
+  if (S._hud.scale) SB.renderScaleBar(S._hud.scale, SB.niceScaleBar(mpp, 120));
+  // north: ground-projected camera forward is (-cos az, -sin az) in (E=+x, N=+z); bearing = atan2(fwdE, fwdN).
+  const heading = Math.atan2(-Math.cos(S.az), -Math.sin(S.az));
+  if (S._hud.north) SB.renderNorthArrow(S._hud.north, heading);
+  // sun arrow in the SAME camera-relative rose as north (subtract heading; renderSunArrow is North-up otherwise)
+  // so it aligns with the cast shadows the operator sees as the view orbits.
+  if (S._hud.sun) SB.renderSunArrow(S._hud.sun, (S._sunAz ?? 135) * Math.PI / 180 - heading, (S._sunEl ?? 20) * Math.PI / 180);
+}
+
+// [GW-11] wire the HUD container nodes {scale, north, sun}. The page owns the DOM; viz3d only renders into
+// whatever it is given (decoupled from any specific page). Pass null/{} to clear.
+function setHud(dom) { S._hud = dom || null; }
 
 // ---- full-res load + mesh ------------------------------------------------------------------------
 // Fetch the native float32 heightfield BINARY + its X-Dem-* header meta, then build the relief. Returns the
@@ -682,7 +705,7 @@ function _disposeGroup(g) {
 function dispose() {
   S.ready = false;                                            // stops _loop() on its next frame
   if (_llTimer) { clearTimeout(_llTimer); _llTimer = 0; } _llGen++; _plotGen++;   // drop in-flight hover + plot/measure lonlat lookups
-  S._onHover = null; S._onLayerError = null; S._onPlot = null; S._onMeasure = null;
+  S._onHover = null; S._onLayerError = null; S._onPlot = null; S._onMeasure = null; S._hud = null;
   if (S._ctrlAbort) { try { S._ctrlAbort.abort(); } catch (_) { /* */ } S._ctrlAbort = null; }   // remove the pointer/wheel listeners bound in _bindControls
   if (S._ro) { try { S._ro.disconnect(); } catch (_) { /* */ } S._ro = null; }
   _disposeGroup(S._gridGroup); S._gridGroup = null;          // uses S.group -> must run before S.group is dropped
@@ -731,7 +754,7 @@ function setGlobe(on) {
 }
 
 window.STEWIE_VIZ = {
-  mount, dispose, loadSite, setLayer, setVertExag, setWireframe, setSun, setMetricGrid, setGraticule, setGlobe,
+  mount, dispose, loadSite, setLayer, setVertExag, setWireframe, setSun, setMetricGrid, setGraticule, setGlobe, setHud,
   onHover, onLayerError, onPlot, clearPlots, heightAt,
   setMeasureMode, clearMeasure, onMeasure, getMeasurePoints,
   get meta() { return S.meta; }, get layerKind() { return S.layerKind; }, get vertExag() { return S.vex; },
