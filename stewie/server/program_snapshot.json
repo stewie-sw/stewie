@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "61f1268b99120c708054b2531a0be2e8466edbc77fde794242742c0e69a84f30",
+  "citations_sha256": "f87ca9b9aa6d4458d876f6c8a049a7d1f6813110d37163013c133adf3f86b458",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "05139f6ef67d5b6d5b05488af3372a60251099be",
-  "prd_sha256": "5e9a7579f32b7880086a38ecace926ad9d0ccee8e83b69355f7c6d66fe7bfa6f",
+  "prd_commit": "1dfb347a738cd42c1352716446832bb1d54502ed",
+  "prd_sha256": "2fb9325b17e695c367436ccee855e4cc0077c7e1dd26efab1241e2e0d46d12db",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -3144,16 +3144,16 @@
    "text": "**Line-of-sight / comms-visibility layer.** A real producer for terrain.los/terrain.comms: given an observer point + mast height on the site DEM, a horizon-marched visibility raster (reusing the dart.illumination horizon machinery) renders as a drape and answers point queries; registered in LY-01 with provenance; planning-eligibility only after validation. Acceptance: a [REQ:LY-06] test asserts a cell behind a ridge from the observer is not-visible and a same-slope open cell is visible, on a real DEM crop. (extends LY-01; fills the catalog-only terrain.los row)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "LY-07",
    "lane": "LY",
    "pri": "P1",
-   "text": "**Terrain-change / dig-fill-depth drape (before-vs-after DEM difference).** A signed elevation-difference drape (base DEM vs the as-built/observed compose from stewie/twin/terrain_view.compose_terrain_view) renders cut (below base) vs fill (above base) with a diverging legend and per-cell depth readout via `/world/point`; zero-change is transparent; the drape carries the as_built/twin versions it was computed from. This is the visual producer for the catalog rows map.changed_terrain + evidence.before_after_dem. Acceptance: after a conserved cut+fill transaction on a real site, the drape shows the cut region negative and the berm positive with depths matching the transaction volumes; [REQ:LY-07] test. (extends LY-01/DT-04/SD-01; data path already exists at /world/terrain_view + /dem/asbuilt)"
+   "text": "**Terrain-change / dig-fill-depth drape (before-vs-after DEM difference).** A signed elevation-difference drape (base DEM vs the as-built/observed compose from stewie/twin/terrain_view.compose_terrain_view) renders cut (below base) vs fill (above base) with a diverging legend and per-cell depth readout via `/world/point`; zero-change is transparent; the drape carries the as_built/twin versions it was computed from. This is the visual producer for the catalog rows map.changed_terrain + evidence.before_after_dem. Acceptance: after a conserved cut+fill transaction on a real site, the drape shows the cut region negative and the berm positive with depths matching the transaction volumes; [REQ:LY-07] test. [REQ:LY-07] `stewie/server/test_ly07_changed_terrain_drape.py` proves the drape on the REAL LOLA Haworth 5 m DEM (no synthetic terrain): a conserved cut+fill SIM run (`POST /executive/run` folds the mass-conserving cut/fill into the site TerrainMemory, the SD-01 path) makes the signed as-built-minus-base difference show the cut region NEGATIVE (red) and the berm POSITIVE (blue) with the deepest cut equal to the authority's max_cut_m and the imprinted net volume equal to the conserved net_volume_m3, an unworked cell fully transparent, and /world/point reporting the SAME per-cell depth (runtime_evidence.as_built_delta_m). I=D (the producer lives in stewie/server/gis_layers.py: `_changed_terrain_rgba` + `_render_globe_changed_terrain`, a diverging red\u2194blue ramp about zero, zero-change transparent), X=D (registered as the `changed_terrain` globe kind in `_GLOBE_KINDS` with a `/layers/legend` entry, bound to the LY-01 catalog rows map.changed_terrain + evidence.before_after_dem, the render carrying the as_built/twin versions it was computed from), V=D (the [REQ:LY-07] test asserts cut-negative/berm-positive with depths matching the transaction + the per-cell /world/point readout, not just array shapes). (extends LY-01/DT-04/SD-01; data path already exists at /world/terrain_view + /dem/asbuilt)"
   },
   {
    "I": "N",
@@ -5740,9 +5740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 110,
+   "buildable": 109,
    "concurrent": 0,
-   "done": 257,
+   "done": 258,
    "gated": 30
   },
   "by_lane": {
@@ -5871,7 +5871,7 @@
     "total": 2
    },
    "LY": {
-    "done": 3,
+    "done": 4,
     "total": 7
    },
    "MG": {
@@ -6033,7 +6033,7 @@
     "total": 118
    },
    "P1": {
-    "done": 144,
+    "done": 145,
     "total": 220
    },
    "P2": {
@@ -6045,10 +6045,10 @@
     "total": 2
    }
   },
-  "cited": 278,
-  "done_pct": 64.7,
+  "cited": 279,
+  "done_pct": 65.0,
   "in_scope": 367,
-  "in_scope_done_pct": 70.0,
+  "in_scope_done_pct": 70.3,
   "total": 397
  },
  "workflow_spine": [
