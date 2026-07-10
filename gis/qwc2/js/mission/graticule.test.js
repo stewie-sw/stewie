@@ -1,6 +1,9 @@
-// #40 graticule: pure meridian/parallel/km-grid line generation. Given an injected reproject(lon,lat)->[x,y]
-// (proj4 IAU_2015:30100 -> 30135 in the app; identity here), it yields the polyline coords + labels the OL
-// vector layer draws. Pure + node-testable -- no OL/DOM.
+// [REQ:GW-09] dual-mode planning graticule (extends GW-05): selenographic lon/lat densely sampled +
+// reprojected so it curves in polar-stereographic, plus a straight metric km-grid with labels, overlaid on
+// the lunar map given an injected reproject(lon,lat)->[x,y]. These node tests prove gridline + label
+// generation (proj4 IAU_2015:30100 -> 30135 in the app; identity here) + the off-map reproject guards; the
+// static wiring gate — that Graticule.jsx injects the reproject + overlays the map — is
+// stewie/server/test_gw09_graticule.py, the python [REQ:GW-09] citation req_trace.py counts.
 const assert = require("node:assert");
 const { test } = require("node:test");
 const G = require("./graticule.js");
