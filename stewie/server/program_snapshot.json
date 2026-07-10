@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "a73b8721d33b61699449ff3f04388f622500691d31fb6ae99f146404c473bee2",
+  "citations_sha256": "eb2636dcd0db30d0b02b93318e644ba81599054222497f7897381124bd1b5331",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "e1d306e8a2e4c0acc59584ceb00fff24487e9349",
-  "prd_sha256": "0c909ebe010f77677c4377db650ad6a436b7df95defecf762fab69d4ef02a8a4",
+  "prd_commit": "f537cdffc1d5416bbf2cb329dac8388671835edd",
+  "prd_sha256": "31cb2c05430785fd0685b15088714126f698a9c5470de1959afde271e5d6a8da",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -2987,16 +2987,16 @@
    "text": "**Edit session (= ED-01).** Select/create/modify/delete/measure/snap/undo mission features (keep-outs/waypoints/work-zones) with versioned audit; edits write ONLY through backend routes, never the map layer directly. (extends GL-02)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "GW-09",
    "lane": "GW",
    "pri": "P2",
-   "text": "A dual-mode planning graticule (selenographic lon/lat densely sampled + reprojected so it curves in polar-stereographic, plus a straight metric km-grid with labels) overlays the lunar map given an injected reproject(lon,lat)->[x,y]; a node test asserts gridline + label generation. (extends GW-05) [SHIPPED: gis/qwc2/js/mission/graticule.js + graticule.test.js]"
+   "text": "A dual-mode planning graticule (selenographic lon/lat densely sampled + reprojected so it curves in polar-stereographic, plus a straight metric km-grid with labels) overlays the lunar map given an injected reproject(lon,lat)->[x,y]; a node test asserts gridline + label generation. (extends GW-05) [REQ:GW-09] `stewie/server/test_gw09_graticule.py` (the python static gate req_trace counts) + `gis/qwc2/js/mission/graticule.test.js` (the node runtime proof, 8/8): graticule.js generates BOTH modes \u2014 selenographic meridians/parallels sampled densely then reprojected through an injected reproject(lon,lat)\u2192[x,y] (so they curve in polar-stereographic) with degree labels, and a straight metric km-grid with km labels \u2014 and guards an off-map reproject (NaN/undefined/throw via `_safe`, dropping the point + any <2-point line) so no malformed polyline reaches the pole; Graticule.jsx overlays it as an OL vector layer injecting the real proj4 IAU_2015:30100\u219230135 (NOT OL's Earth-datum graticule). I=D (graticule.js meridians/parallels/kmGrid + _safe/_range guards, pure + node-testable), X=D (Graticule.jsx cycles off\u2192selenographic\u2192metric via G.selenographic/G.kmGrid + map.addLayer; the node test runs in the CI JS tier, the static gate in the python suite), V=D (the node test proves gridline + label generation + the reproject guards at runtime; the python static gate asserts both generators + the labels + the guard + the plugin's lunar-reproject overlay, so req_trace's python scan counts it). [SHIPPED: gis/qwc2/js/mission/graticule.js + graticule.test.js]"
   },
   {
    "I": "D",
@@ -3096,16 +3096,16 @@
    "text": "**Layer-consumption inspector.** For a selected layer, show where it is consumed: display / planner / costmap / rehearsal / release / execute / report / export."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "LY-03",
    "lane": "LY",
    "pri": "P1",
-   "text": "User-created/imported layers with an Earth-CRS reject gate: an imported GeoJSON declaring an Earth CRS (EPSG:4326/3857/CRS84/WGS84) is rejected with a legible reason before it touches the map or is promoted planning-eligible; a valid lunar-frame (IAU_2015:30135/30100) layer is accepted. (extends LY-01) [SHIPPED: gis/qwc2/js/mission/userLayers.js + userLayers.test.js]"
+   "text": "User-created/imported layers with an Earth-CRS reject gate: an imported GeoJSON declaring an Earth CRS (EPSG:4326/3857/CRS84/WGS84) is rejected with a legible reason before it touches the map or is promoted planning-eligible; a valid lunar-frame (IAU_2015:30135/30100) layer is accepted. (extends LY-01) [REQ:LY-03] `stewie/server/test_ly03_user_layer_crs_gate.py` (the python static gate req_trace counts) + `gis/qwc2/js/mission/userLayers.test.js` (the node runtime proof, 4/4): validateLayerCrs REJECTS the Earth CRSs (EPSG:4326/3857/CRS84/WGS84 + 2056/generic-EPSG) with a legible reason pointing at the lunar frame and ACCEPTS the lunar frame (IAU_2015:30135/30100); MissionUserLayer.jsx runs parseUserLayer + validateLayerCrs and RETURNS on a failed validation BEFORE map.addLayer, so an Earth-CRS import can never misplace features on the lunar map or be promoted planning-eligible. I=D (userLayers.js validateLayerCrs: Earth-reject / lunar-accept / no-crs-soft-note / unknown-reject, pure + node-testable), X=D (wired into MissionUserLayer.jsx's import flow \u2014 the gate blocks before the OL vector layer + the promote-to-planning path; the node test runs in the CI JS tier, the static gate in the python suite), V=D (the node test proves the reject/accept at runtime; the python static gate asserts the reject/accept branches + the block-before-map wiring, so req_trace's python scan counts it). [SHIPPED: gis/qwc2/js/mission/userLayers.js + userLayers.test.js]"
   },
   {
    "I": "D",
@@ -5740,9 +5740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 106,
+   "buildable": 104,
    "concurrent": 0,
-   "done": 261,
+   "done": 263,
    "gated": 30
   },
   "by_lane": {
@@ -5859,7 +5859,7 @@
     "total": 2
    },
    "GW": {
-    "done": 10,
+    "done": 11,
     "total": 13
    },
    "HF": {
@@ -5871,7 +5871,7 @@
     "total": 2
    },
    "LY": {
-    "done": 5,
+    "done": 6,
     "total": 7
    },
    "MG": {
@@ -6033,11 +6033,11 @@
     "total": 118
    },
    "P1": {
-    "done": 148,
+    "done": 149,
     "total": 220
    },
    "P2": {
-    "done": 4,
+    "done": 5,
     "total": 57
    },
    "P3": {
@@ -6045,10 +6045,10 @@
     "total": 2
    }
   },
-  "cited": 282,
-  "done_pct": 65.7,
+  "cited": 284,
+  "done_pct": 66.2,
   "in_scope": 367,
-  "in_scope_done_pct": 71.1,
+  "in_scope_done_pct": 71.7,
   "total": 397
  },
  "workflow_spine": [
