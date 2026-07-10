@@ -62,6 +62,7 @@ export type ApiPath =
   | '/executive/advance'
   | '/executive/audit'
   | '/executive/release-plan'
+  | '/executive/revision/{content_hash}'
   | '/executive/run'
   | '/executive/run/{run_id}'
   | '/executive/run/{run_id}/stream'
@@ -246,6 +247,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'POST', path: '/executive/advance', operationId: 'advance_executive_executive_advance_post', mutatesAuthority: true },
   { method: 'GET', path: '/executive/audit', operationId: 'executive_audit_executive_audit_get', mutatesAuthority: false },
   { method: 'POST', path: '/executive/release-plan', operationId: 'release_plan_executive_release_plan_post', mutatesAuthority: true },
+  { method: 'GET', path: '/executive/revision/{content_hash}', operationId: 'executive_revision_executive_revision__content_hash__get', mutatesAuthority: false },
   { method: 'POST', path: '/executive/run', operationId: 'executive_run_executive_run_post', mutatesAuthority: true },
   { method: 'GET', path: '/executive/run/{run_id}', operationId: 'executive_run_get_executive_run__run_id__get', mutatesAuthority: false },
   { method: 'GET', path: '/executive/run/{run_id}/stream', operationId: 'executive_run_stream_executive_run__run_id__stream_get', mutatesAuthority: false },
