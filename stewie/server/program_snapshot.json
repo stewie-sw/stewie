@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "66e0729788ecf25771edb4b3d053e2416c15b2818dea8b5bb9c3d38ea04c2820",
+  "citations_sha256": "0e45308f85d66b63926eca60b588f45b7223981498c3c4aed78175b260b208ba",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "5979e8b91d06fbdf298ae89d5677037d903c2843",
-  "prd_sha256": "cacc3e9981397ec138a647be4a7601db7f70e461dafff1ac9cac37a875b7ecaa",
+  "prd_commit": "8f4547b4d42529a40ec04d4c1045a07c43d3fc11",
+  "prd_sha256": "a95a9f66b0bbe287a97e033f43e03a1ee5d3ee50c23f29d2ab28e2b0cbfcc249",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -4557,16 +4557,16 @@
    "text": "A STEWIE QGIS Processing provider registers the STEWIE analyses (StewieTerramechanics/StewieSamplePoint) as Processing algorithms runnable from the QGIS GUI, qgis_process CLI, batch, and Models over the public backend; the QGIS-free stewie_backend fetch+parse is unit-tested in CI with no qgis.* in the test path. [REQ:QG-01] `stewie_qgis/test_stewie_backend.py` (in the CI testpaths per pyproject.toml, runs WITHOUT a qgis runtime): the QGIS-free stewie_backend fetch+parse is unit-tested (url builders encode the site, terramechanics-spine + point-attribute normalization, honest ValueError on !ok) against REAL backend curl fixtures, and \u2014 by reading the provider source, still qgis-free \u2014 StewieProvider.loadAlgorithms registers BOTH StewieTerramechanics + StewieSamplePoint as QgsProcessingAlgorithms. I=D (stewie_qgis/: stewie_backend.py the QGIS-free fetch+parse, stewie_provider.py registers the 2 algorithms, stewie_algorithms.py the Processing algorithms runnable from GUI/qgis_process/batch/Models), X=D (the provider + algorithms run on the host via a headless pyQGIS smoke; the qgis-free backend is in the CI python testpaths), V=D (the [REQ:QG-01] test proves the fetch+parse on real fixtures + the two-algorithm registration, with no qgis.* in the CI test path). [SHIPPED: stewie_qgis/, test_stewie_backend.py]"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "QG-02",
    "lane": "QG",
    "pri": "P1",
-   "text": "QGIS-Server publishes the shared-core .qgz as OGC WMS/WMTS/WFS (one project, two clients): a --profile gis GetMap on a site in IAU_2015:30135 returns a pole-truthful tile matching QGIS Desktop. [SHIPPED: gis/stewie_south_pole.qgz + deploy/compose.yml:251 P1.8]"
+   "text": "QGIS-Server publishes the shared-core .qgz as OGC WMS/WMTS/WFS (one project, two clients): a --profile gis GetMap on a site in IAU_2015:30135 returns a pole-truthful tile matching QGIS Desktop. [REQ:QG-02] `stewie/server/test_qg02_qgis_server_wms.py` (the python gate req_trace counts) asserts the one-project-two-clients contract at rest: gis/stewie_south_pole.qgz (the SAME .qgz QGIS Desktop opens) declares the pole CRS IAU_2015:30135 (269 refs, the project working frame) + the STEWIE layer set (36 layers incl Haworth DEM/Hillshade + the Artemis Site layers the GetMap LAYERS= names), and deploy/compose.yml wires the qgis-server service (image qgis/qgis-server:3.34 for PROJ 9.4 / the IAU registry, opt-in 'gis' profile, the .qgz mounted at the MAP= path). RUNTIME evidence (the acceptance's live GetMap): verified 2026-07-10 against the :8082 container \u2014 `--profile gis` WMS GetMap Site01 in IAU_2015:30135 returned a real 1400\u00d71400 non-blank pole-truthful relief tile (16709 unique colors), byte-identical to the QGIS Desktop proof render (gate P1.8, gis/SERVER.md). I=D (the .qgz + the qgis-server compose service publish the shared-core project as OGC WMS/WMTS/WFS), X=D (the same .qgz is the QGIS Desktop + QGIS-Server surface; the gate runs in the CI python suite, the GetMap is opt-in local per the 'gis' profile), V=D (the [REQ:QG-02] gate asserts the .qgz CRS + layers + the compose service, and a live GetMap renders a non-blank pole tile matching Desktop). [SHIPPED: gis/stewie_south_pole.qgz + deploy/compose.yml:251 P1.8]"
   },
   {
    "I": "N",
@@ -5740,9 +5740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 99,
+   "buildable": 98,
    "concurrent": 0,
-   "done": 268,
+   "done": 269,
    "gated": 30
   },
   "by_lane": {
@@ -5935,7 +5935,7 @@
     "total": 1
    },
    "QG": {
-    "done": 1,
+    "done": 2,
     "total": 4
    },
    "QW": {
@@ -6033,7 +6033,7 @@
     "total": 118
    },
    "P1": {
-    "done": 152,
+    "done": 153,
     "total": 220
    },
    "P2": {
@@ -6045,10 +6045,10 @@
     "total": 2
    }
   },
-  "cited": 289,
-  "done_pct": 67.5,
+  "cited": 290,
+  "done_pct": 67.8,
   "in_scope": 367,
-  "in_scope_done_pct": 73.0,
+  "in_scope_done_pct": 73.3,
   "total": 397
  },
  "workflow_spine": [
