@@ -1,5 +1,11 @@
 // User-layers #44: the CRS gate. A lunar-frame layer is accepted; an Earth-CRS import (the #40 trap) is
 // rejected with a reason. Fixtures are real GeoJSON shapes (RFC 7946 + the legacy crs member).
+// [REQ:LY-03] user-created/imported layers with an Earth-CRS reject gate (extends LY-01): an imported GeoJSON
+// declaring an Earth CRS (EPSG:4326/3857/CRS84/WGS84) is rejected with a legible reason BEFORE it touches the
+// map or is promoted planning-eligible; a valid lunar-frame (IAU_2015:30135/30100) layer is accepted. These
+// node tests prove the validateLayerCrs runtime behavior; the static wiring gate — that MissionUserLayer.jsx
+// blocks on !v.ok before map.addLayer — is stewie/server/test_ly03_user_layer_crs_gate.py, the python
+// [REQ:LY-03] citation req_trace.py counts (it scans python test_*.py, not the JS tier).
 const assert = require("node:assert");
 const { test } = require("node:test");
 const UL = require("./userLayers.js");
