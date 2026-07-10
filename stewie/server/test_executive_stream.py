@@ -60,8 +60,9 @@ def test_run_stream_requires_auth(client, monkeypatch):
 
 
 def test_run_stream_resumes_from_last_event_id(client):
-    """[concurrency council] Each SSE event carries `id: <leg>`, so a reconnecting EventSource (Last-Event-ID)
-    replays only the legs AFTER the one it saw -- a transient blip no longer re-plays the whole run from leg 0."""
+    """[REQ:FS-31] Execute-and-watch SSE stream + resume: GET /executive/run/{id}/stream emits
+    text/event-stream legs each carrying `id: <leg>`, so a reconnecting EventSource sending Last-Event-ID
+    replays ONLY the legs AFTER that id -- a transient blip no longer re-plays the whole run from leg 0."""
     run_id = client.post("/executive/run", headers=H,
                          json={"orders": _ORDERS, "site": "haworth"}).json()["run_id"]
     full = client.get(f"/executive/run/{run_id}/stream?interval_s=0", headers=H).text
