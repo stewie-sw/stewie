@@ -105,7 +105,10 @@
     "physics.traction_margin": "traction_margin",
     "physics.energy_cost": "energy_cost",
     "physics.excavation_resistance": "excavation_resistance",
-    "traffic.compaction": "traffic"
+    "traffic.compaction": "traffic",
+    // LY-07 the SIGNED terrain-change / dig-fill-depth drape: the composed as-built/observed surface minus
+    // the pristine base DEM (cut red / fill blue / zero transparent), the producer for map.changed_terrain.
+    "map.changed_terrain": "changed_terrain"
   };
 
   // globe kind -> key in the /layers/legend payload (grid is a bare reference grid, no legend entry).
@@ -117,7 +120,8 @@
     bearing: "bearing", sinkage: "sinkage", slip_risk: "slip_risk",
     traction_margin: "traction_margin", energy_cost: "energy_cost",
     excavation_resistance: "excavation_resistance",
-    traffic: "traffic"
+    traffic: "traffic",
+    changed_terrain: "changed_terrain"
   };
 
   // Coarse provenance class from a source_class string (e.g. "prior/observed" -> "observed"), used
