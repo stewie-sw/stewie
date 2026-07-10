@@ -413,6 +413,7 @@ function setVertExag(k) {
   }
   // task #79: full rebuild so BOTH the markers AND the connecting polyline re-drape onto the re-exaggerated surface.
   if (S._measureGroup) _redrawMeasure();
+  if (S._featSpecs) _buildFeatures();   // [GW-11] re-drape mission features onto the re-exaggerated surface
 }
 
 function setWireframe(on) {
@@ -490,6 +491,38 @@ function _buildOverlays() {
 // Public: render an ordered, visible list of layer models (viz3d/layers.js visibleOrdered()) as the drape stack.
 function renderLayerStack(layers) { S._layerList = Array.isArray(layers) ? layers.slice() : []; _buildOverlays(); }
 function clearLayerStack() { S._layerList = null; _disposeLayerGroup(); }
+
+// ---- [GW-11 clause 4] draped MISSION FEATURES: authored keep-outs (rings) + place markers, from the GW-08
+// edit-session -- the SAME backend state the 2D map renders (via missionFeatures3d.featuresToSpecs, order-frame).
+// Keep-out rings drape via _lineOnSurface (red, closed); markers are cyan spheres on the relief. A THREE.Group
+// re-drapes on a vex/globe re-place like the plot/measure groups, so a feature authored on the 2D map appears
+// in the 3D view (the GW-11 "within one refresh" clause).
+function renderMissionFeatures(specs) { S._featSpecs = specs || null; _buildFeatures(); }
+function clearMissionFeatures() { S._featSpecs = null; _disposeGroup(S._featGroup); S._featGroup = null; }
+function _buildFeatures() {
+  _disposeGroup(S._featGroup); S._featGroup = null;
+  if (!S.mesh || !S._featSpecs) return;
+  const sp = S._featSpecs, zmin = (S.meta && S.meta.z_min) || 0;
+  const cell = (S.meta && S.meta.cell_m) ? S.meta.cell_m : 5;
+  const grp = new THREE.Group();
+  (sp.keepouts || []).forEach((ko) => {
+    if (!ko || !ko.ring || ko.ring.length < 2) return;
+    let maxSeg = 0;
+    for (let i = 1; i < ko.ring.length; i++) { maxSeg = Math.max(maxSeg, Math.hypot(ko.ring[i][0] - ko.ring[i - 1][0], ko.ring[i][1] - ko.ring[i - 1][1])); }
+    const sub = Math.max(2, Math.min(60, Math.round(maxSeg / Math.max(1, cell))));   // densify so the ring hugs the relief
+    grp.add(_lineOnSurface(ko.ring, sub, 0xff5a4d, 3.0));                              // keep-out = red closed ring
+  });
+  (sp.markers || []).forEach((mk) => {
+    if (!mk) return;
+    const win = (S.meta && S.meta.window_m) ? S.meta.window_m : 1000, r = Math.max(1, win * 0.006);
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0x39c6ff, emissive: 0x0a2a3a, emissiveIntensity: 0.7, roughness: 0.5 }));
+    const p = FRAME.place(mk.lx, mk.ly, heightAt(mk.lx, mk.ly) + zmin);               // marker = cyan sphere on the surface
+    m.position.set(p.x, p.y + r, p.z);
+    grp.add(m);
+  });
+  S._featGroup = grp; S.group.add(grp);
+}
 
 // ---- gridlines: metric km grid (pure STEWIE_VIZGRID) draped on the surface ------------------------
 function _lineOnSurface(coords2, subdiv, color, yLift) {
@@ -770,6 +803,7 @@ function dispose() {
   _disposeGroup(S._gratGroup); S._gratGroup = null;
   _disposeGroup(S._plotGroup); S._plotGroup = null;
   _disposeGroup(S._measureGroup); S._measureGroup = null; S._measurePts = [];
+  _disposeGroup(S._featGroup); S._featGroup = null; S._featSpecs = null;   // [GW-11] drop mission-feature overlays
   _disposeLayerGroup(); S._layerList = null;                 // [GW-11] drop draped overlays
   if (S._layerTex) { Object.keys(S._layerTex).forEach((k) => { try { S._layerTex[k].dispose(); } catch (_) { /* */ } }); S._layerTex = null; }
   S._gridOn = false; S._gratOn = false; S._wireOn = false; S._measureOn = false;
@@ -812,12 +846,13 @@ function setGlobe(on) {
     });
   }
   if (S._measureGroup) _redrawMeasure();
+  if (S._featSpecs) _buildFeatures();   // [GW-11] re-drape mission features onto the new-mode geometry
   _frameCamera();
 }
 
 window.STEWIE_VIZ = {
   mount, dispose, loadSite, setLayer, setVertExag, setWireframe, setSun, setMetricGrid, setGraticule, setGlobe, setHud,
-  renderLayerStack, clearLayerStack,
+  renderLayerStack, clearLayerStack, renderMissionFeatures, clearMissionFeatures,
   onHover, onLayerError, onPlot, clearPlots, heightAt,
   setMeasureMode, clearMeasure, onMeasure, getMeasurePoints,
   get meta() { return S.meta; }, get layerKind() { return S.layerKind; }, get vertExag() { return S.vex; },
@@ -837,6 +872,7 @@ window.STEWIE_VIZ = {
       sun: S.sun ? R([S.sun.position.x, S.sun.position.y, S.sun.position.z]) : null,
       normal0: nrm ? [nrm.getX(0), nrm.getY(0), nrm.getZ(0)].map((v) => +v.toFixed(3)) : null,
       layerOverlays: S._layerGroup ? S._layerGroup.children.length : 0,
+      missionFeatures: S._featGroup ? S._featGroup.children.length : 0,
     };
   },
 };
