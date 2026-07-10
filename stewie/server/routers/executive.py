@@ -173,12 +173,19 @@ def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)
 
 
 class RunRequest(BaseModel):
-    """#245: run a released build plan as a SIM execution. Same queue shape as release-plan + the site."""
-    orders: list[dict] = Field(max_length=1000)
+    """#245: run a released build plan as a SIM execution. Same queue shape as release-plan + the site.
+
+    [dispatch-audit R2 / F1] ``revision_hash`` BINDS the run to a durable R1 released revision: when set,
+    the executed plan is the FROZEN signed intent (``compile_intent`` of the stored intent) and the client
+    ``orders`` are IGNORED, so the run provably executes exactly what was signed -- not a rebuild from mutable
+    browser orders. When unset, the legacy orders path runs (unbound; the cockpit migrates to revision_hash
+    in R7). ``orders`` is optional so a bound run carries no plan geometry at all."""
+    orders: list[dict] = Field(default_factory=list, max_length=1000)
     body: str = "moon"
     site: str = Field("haworth", max_length=40)
     mission_id: str = "cockpit-run"
     revision: int = Field(default=0, ge=0)
+    revision_hash: str | None = Field(default=None, max_length=64)   # [R2] bind to an immutable revision
 
 
 def _remember_sim_terrain(wss, mission, out, *, site: str, body: str, mission_id: str) -> None:
@@ -274,22 +281,47 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     from lode import autonomy as AUT
     from lode import mission_lifecycle as LC
     from lode import mission_planner as MP
-    from lode.mission_intent_compiler import intent_from_orders
+    from lode.mission_intent_compiler import compile_intent, intent_from_orders
     from lode.sim_execution import run_sim_execution
+    skipped: list = []
+    bound_revision: str | None = None
     try:
-        intent, skipped = intent_from_orders(
-            list(req.orders), mission_id=req.mission_id, approver=identity, body=req.body, revision=req.revision)
-        if not intent.objectives:
-            return JSONResponse(status_code=400, content={
-                "ok": False, "skipped": skipped, "error": "no build orders to run (cut/fill/sinter)"})
-        released = LC.run_lifecycle(MissionExecutive.start(intent)).executive
-        mission = MP.mission_from_dict({"name": req.mission_id, "body": req.body,
-                                        "orders": list(req.orders), "charger": [0.0, 0.0]})
-        dem, origin = state.moon_dem(req.site) if req.body == "moon" else (None, (0.0, 0.0))
+        if req.revision_hash:
+            # [dispatch-audit R2 / F1] BIND: execute the FROZEN signed revision, never the mutable client
+            # orders. Fetch the durable R1 artifact; an unknown hash is refused (release it first). The
+            # executed mission is compile_intent(signed_intent).mission -- the exact signed content -- so the
+            # run provably runs what was released. The client's ``orders`` (if any) are ignored.
+            from stewie.server import db
+            art = db.read_release_revision(req.revision_hash)
+            if art is None:
+                return JSONResponse(status_code=400, content={
+                    "ok": False, "error": f"revision_hash {req.revision_hash!r} is not a released revision "
+                    "(release the plan first)"})
+            intent = MissionIntent.model_validate(art["signed_revision"]["intent"])
+            released = LC.run_lifecycle(MissionExecutive.start(intent)).executive
+            rel = released.released_revision
+            if rel is None or rel.content_hash != req.revision_hash:   # tamper-evident re-derivation
+                return JSONResponse(status_code=409, content={
+                    "ok": False, "error": "released revision hash mismatch (store integrity)"})
+            mission = compile_intent(intent).mission                   # the SIGNED content -> executed mission
+            body = mission.body                                        # body from the signed intent (R4 frame)
+            bound_revision = req.revision_hash
+        else:
+            intent, skipped = intent_from_orders(
+                list(req.orders), mission_id=req.mission_id, approver=identity, body=req.body,
+                revision=req.revision)
+            if not intent.objectives:
+                return JSONResponse(status_code=400, content={
+                    "ok": False, "skipped": skipped, "error": "no build orders to run (cut/fill/sinter)"})
+            released = LC.run_lifecycle(MissionExecutive.start(intent)).executive
+            mission = MP.mission_from_dict({"name": req.mission_id, "body": req.body,
+                                            "orders": list(req.orders), "charger": [0.0, 0.0]})
+            body = req.body
+        dem, origin = state.moon_dem(req.site) if body == "moon" else (None, (0.0, 0.0))
         out = AUT.run_closed_loop(mission, dem=dem, dem_origin=origin)
         run = run_sim_execution(released, out.get("legs", []))
     except (ValueError, KeyError, TypeError) as e:    # #300: malformed order field -> 400, not an uncaught 500
-        return JSONResponse(status_code=400, content={"ok": False, "error": str(e), "skipped": []})
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e), "skipped": skipped})
     run_id = secrets.token_hex(6)
     rec = {"label": run["label"], "final_state": run["final_state"], "transitions": run["transitions"],
            "n_legs_total": run["n_legs_total"], "safed": run["safed"], "nonnominal_legs": run["nonnominal_legs"],
@@ -306,12 +338,12 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     try:
         from stewie.server.world_state import commit_sim_run
         wss = state.world_state_service()
-        commit_sim_run(wss, run, mission=req.mission_id, site=req.site, body=req.body,
+        commit_sim_run(wss, run, mission=req.mission_id, site=req.site, body=body,
                        plan_id=req.mission_id)
         if not run.get("safed"):
-            _remember_sim_terrain(wss, mission, out, site=req.site, body=req.body, mission_id=req.mission_id)
+            _remember_sim_terrain(wss, mission, out, site=req.site, body=body, mission_id=req.mission_id)
             # [REQ:TW-11] fold the run's driven path into the per-site TrafficMemory (best-effort, non-fatal).
-            _remember_sim_traffic(wss, mission, out, site=req.site, body=req.body,
+            _remember_sim_traffic(wss, mission, out, site=req.site, body=body,
                                   mission_id=req.mission_id, dem=dem)
     except Exception as e:   # noqa: BLE001 -- DT-03: world-state commit failed; the terrain fold self-
         # compensated and the run is NOT persisted ahead of the failed log -- surfaced, not swallowed.
@@ -391,6 +423,7 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     return JSONResponse(content={"ok": True, "run_id": run_id, **rec, "executability": executability,
                                  "reconciliation": reconciliation, "live_token": live_token,
                                  "physics_attribution": physics, "terramechanics_comparison": terra_compare,
+                                 "bound_revision": bound_revision,   # [dispatch-audit R2] the immutable revision executed
                                  "skipped": skipped})
 
 
