@@ -46,7 +46,11 @@ _GLOBE_KINDS = ("dem", "slope", "hazard", "illumination", "incidence", "psr", "g
                 # TW-11 TRAFFIC drape: the OBSERVED traversal-compaction state (traffic.compaction, the
                 # per-site TrafficMemory Dr) draped over the fixed work-area crop -- real where the rover has
                 # driven, transparent where it has not (public map data, uncached: it changes as runs fold).
-                "traffic")
+                "traffic",
+                # LY-07 CHANGED-TERRAIN drape: the SIGNED as-built-minus-base elevation difference (cut/fill
+                # depth) from the composed CurrentTerrainView -- the producer for map.changed_terrain +
+                # evidence.before_after_dem (public map data, uncached: it changes as each SIM run folds terrain).
+                "changed_terrain")
 _HEX6 = re.compile(r"^[0-9a-fA-F]{6}$")
 _DEFAULT_GRID = "39ff14"
 _MISSION_T_MAX_S = 3.156e10            # +/- ~1000 yr: finite-bounds an arbitrary mission_t_s
@@ -141,6 +145,18 @@ def layers_legend():
                     "text": "traversal hardening (relative density Dr) accumulated from repeated traffic "
                             "(TW-11); color = Dr band, opacity = normalized traversal intensity; Sigma_c "
                             "characteristic cumulative load is [CALIB]"},
+        # LY-07 the SIGNED terrain-change / dig-fill-depth drape: the composed as-built/observed surface
+        # (compose_terrain_view) minus the pristine base DEM. The producer for map.changed_terrain +
+        # evidence.before_after_dem; per-cell depth via /world/point (runtime_evidence.as_built_delta_m).
+        "changed_terrain": {"ramp": "diverging: red (cut, as-built below base) → white (no change, "
+                                    "transparent) → blue (fill / berm, above base)",
+                            "text": "signed terrain change -- the composed as-built/observed surface "
+                                    "(compose_terrain_view) minus the pristine base DEM [m]: excavation (cut) "
+                                    "is negative/red, deposited material (fill / berm) positive/blue, unworked "
+                                    "ground transparent; opacity rises with |change| (robust 98th-pct scale). "
+                                    "Per-cell depth via /world/point (as_built_delta_m). The visual producer "
+                                    "for the catalog rows map.changed_terrain + evidence.before_after_dem; "
+                                    "uncached (it changes as each SIM run folds terrain)."},
     }
 
 

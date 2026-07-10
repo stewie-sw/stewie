@@ -183,6 +183,52 @@ def _render_globe_traffic(mp, bundle_dir, site):
     return _reproject(rgba, b, fwd, out_px=512, sub=(sx0, sy0, sx1, sy1), crs=tile_crs)
 
 
+def _render_globe_changed_terrain(mp, bundle_dir, site):
+    """[REQ:LY-07] the GEOGRAPHIC globe drape of the site's SIGNED terrain change -- the composed as-built/
+    observed CurrentTerrainView (state.current_terrain_view = compose_terrain_view) MINUS the pristine base
+    DEM, coloured cut(red)/fill(blue) with zero-change transparent (_changed_terrain_rgba). Reprojected over
+    the CHANGED region's tile-frame sub-window (bbox of the worked cells + a small margin) at a high
+    oversample so a small pad/berm survives nearest-neighbour resampling to the geographic grid (mirrors the
+    traffic drape's crop approach). The returned bbox CARRIES the as_built/twin versions the diff was computed
+    from. Uncached (each SIM run folds new terrain; a cache would drape a stale change). Fully transparent
+    full-tile drape when nothing has been built (honest -- no fabricated change)."""
+    import numpy as _np
+
+    from stewie.server import state
+    _dem_full, _cell_m, b, fwd, tile_crs = _tile_geo(mp, bundle_dir)   # b/fwd/crs: the tile georeferencing for the reproject
+    dem, origin = state.moon_dem(site)
+    base = _np.asarray(dem[0], dtype=float)          # the EXACT base current_terrain_view composes against (no loader drift)
+    view = state.current_terrain_view(site, dem, origin)
+    heights = _np.asarray(view.heights, dtype=float)
+    versions = {"as_built_version": int(view.as_built_version), "twin_version": int(view.twin_version)}
+    H, W = base.shape
+    if heights.shape != base.shape:                          # defensive: a mismatched view -> transparent full tile
+        out = _reproject(_np.zeros((H, W, 4), dtype="uint8"), b, fwd, out_px=1024, crs=tile_crs)
+        return out[0], {**out[1], **versions}
+    changed = heights - base
+    moved = _np.abs(changed) > _CHANGED_EPS_M
+    rgba = _changed_terrain_rgba(changed)
+    if not moved.any():
+        # nothing built -> a fully transparent full-tile drape (not a 404), like the traffic no-memory branch.
+        out = _reproject(rgba, b, fwd, out_px=1024, crs=tile_crs)
+        return out[0], {**out[1], **versions}
+    # reproject over the worked region's sub-window (+ a small margin) so the small pad/berm is oversampled and
+    # survives the geographic resample. Crop row 0 = DEM row r0 = north (the DEM is north-up), so the sub-window
+    # extent uses the SAME (W-1)/(H-1) linear map + row0=y1 (north) convention as the traffic drape.
+    rr, cc = _np.where(moved)
+    m = 3
+    r0, r1 = max(0, int(rr.min()) - m), min(H, int(rr.max()) + 1 + m)
+    c0, c1 = max(0, int(cc.min()) - m), min(W, int(cc.max()) + 1 + m)
+    sub_rgba = rgba[r0:r1, c0:c1]
+    bx0, by0, bx1, by1 = b["x0"], b["y0"], b["x1"], b["y1"]
+    sx0 = bx0 + c0 / (W - 1) * (bx1 - bx0)
+    sx1 = bx0 + (c1 - 1) / (W - 1) * (bx1 - bx0)
+    sy1 = by1 - r0 / (H - 1) * (by1 - by0)
+    sy0 = by1 - (r1 - 1) / (H - 1) * (by1 - by0)
+    out = _reproject(sub_rgba, b, fwd, out_px=512, sub=(sx0, sy0, sx1, sy1), crs=tile_crs)
+    return out[0], {**out[1], **versions}
+
+
 RASTER_DEFS = [
     {"key": "slope", "name": "Slope (deg, from the real DEM)", "kind": "raster", "group": "terrain"},
     {"key": "hazard", "name": "Hazard / no-go (nav cost)", "kind": "raster", "group": "safety",
@@ -450,6 +496,41 @@ def _roughness_rgba(dem, cell):
     rgba = np.zeros((*r.shape, 4))
     rgba[..., :3] = _ramp_rgb(t, _ROUGH_SEQUENTIAL)
     rgba[..., 3] = 70.0 + 150.0 * t
+    return rgba.astype("uint8")
+
+
+# ---- [REQ:LY-07] the signed terrain-change / dig-fill-depth drape (before-vs-after DEM difference) --------
+# The visual producer for the LY-01 catalog rows map.changed_terrain + evidence.before_after_dem: a SIGNED
+# elevation-difference drape of the composed as-built/observed surface (stewie.twin.terrain_view.
+# compose_terrain_view, read via state.current_terrain_view) MINUS the pristine base DEM. CUT (as-built below
+# base) is negative, FILL/berm (above base) positive, on a diverging red<->blue ramp about zero; a cell with
+# NO change is fully transparent (honest -- an unworked surface shows nothing). The per-cell depth readout is
+# /world/point's runtime_evidence.as_built_delta_m (the SAME view.heights - base at the clicked cell), so the
+# inspector reading IS the drape value at that cell. Colour convention documented in the /layers/legend entry.
+_CHANGED_DIVERGING = ((0.0, (178, 24, 43)),    # deepest CUT (most below base)   -- red
+                      (0.5, (247, 247, 247)),  # ~zero change (transparent)      -- white
+                      (1.0, (33, 102, 172)))   # highest FILL/berm (most above)  -- blue
+_CHANGED_EPS_M = 1e-6                            # |delta| <= this -> the cell is UNCHANGED (transparent)
+
+
+def _changed_terrain_rgba(changed) -> np.ndarray:
+    """[REQ:LY-07] colourise a SIGNED per-cell elevation-change field (as-built minus base, metres: CUT<0 /
+    FILL>0) on the diverging cut<->fill ramp -- CUT red, FILL/berm blue, ~zero white. Zero-change cells
+    (|delta| <= _CHANGED_EPS_M) are FULLY TRANSPARENT; any real change is opaque with intensity rising with
+    magnitude, robustly scaled by the 98th percentile of |delta| over the CHANGED cells (so a small-but-real
+    cut still reads and one deep cell does not wash the rest out). Pure function of the field -- testable
+    against a known conserved transaction, and the SAME diff /world/point reports per cell."""
+    import numpy as np
+    d = np.asarray(changed, dtype=float)
+    moved = np.abs(d) > _CHANGED_EPS_M
+    vals = np.abs(d[moved])
+    scale = float(np.percentile(vals, 98.0)) if vals.size else 1.0
+    if scale <= 0.0:
+        scale = 1e-9
+    t = np.clip(d / scale, -1.0, 1.0)                     # -1 (deepest cut) .. 0 (no change) .. +1 (highest fill)
+    rgba = np.zeros((*d.shape, 4))
+    rgba[..., :3] = _ramp_rgb((t + 1.0) / 2.0, _CHANGED_DIVERGING)   # 0->red(cut) .. 0.5->white .. 1->blue(fill)
+    rgba[..., 3] = np.where(moved, 90.0 + 165.0 * np.abs(t), 0.0)    # unworked transparent; a change is min-visible
     return rgba.astype("uint8")
 
 
@@ -1236,6 +1317,10 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
         # [REQ:TW-11] the OBSERVED traversal-compaction drape from the site's persistent TrafficMemory (Dr).
         # NOT cached: it changes as each SIM run folds new traffic (a cache would drape a stale road).
         return _render_globe_traffic(mp, bundle_dir, site)
+    if kind == "changed_terrain":
+        # [REQ:LY-07] the SIGNED terrain-change drape: the composed as-built view minus the base DEM (cut red /
+        # fill blue / zero transparent). NOT cached: it changes as each SIM run folds new terrain.
+        return _render_globe_changed_terrain(mp, bundle_dir, site)
     # G5 symbology key: a 2-tuple always (the (30.0,0) default for non-slope is constant -> no fragmentation)
     sym = (round(float(slope_vmax), 2), int(slope_classes)) if kind == "slope" else (30.0, 0)
     # F7: only sun-DEPENDENT kinds key on the sun; the rest key on (kind, site[, grid_color][, sym]) so
