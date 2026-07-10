@@ -50,10 +50,31 @@ import WS from '../mission/workspace.js';   // GW-02: the shared workspace-conte
 // whereas a createElement('script') is invisible to webpack and lets the browser load the real module. The
 // promise is cached module-wide so re-opening the panel (or two instances) never double-injects.
 let _vizPromise = null;
+// [GW-11] The UMD companion modules viz3d.js reads at eval time for the geospatial upgrade: frame.js (the
+// flat<->globe placement frame), scalebar.js (the scale/north/sun HUD), layers.js (the draped layer stack).
+// Best-effort classic-script injects (viz3d degrades to a flat, no-HUD, single-drape viewer if one 404s),
+// loaded BEFORE the viz3d module so its window.STEWIE* reads see them. Idempotent via the window global + a
+// data-attr guard. Cache-bust each: /assets/*.js is Cloudflare edge-cached and these bare paths carry no ?v=.
+function _loadDep(src, globalName, attr) {
+    if (typeof window !== 'undefined' && window[globalName]) { return Promise.resolve(); }
+    return new Promise((resolve) => {
+        if (typeof document === 'undefined' || document.querySelector('script[' + attr + ']')) { resolve(); return; }
+        const s = document.createElement('script');
+        s.src = src + '?t=' + Date.now();
+        s.setAttribute(attr, '1');
+        s.addEventListener('load', () => resolve());
+        s.addEventListener('error', () => resolve());   // best-effort: viz3d still loads (flat fallback)
+        document.head.appendChild(s);
+    });
+}
 function ensureVizLoaded() {
     if (typeof window !== 'undefined' && window.STEWIE_VIZ) { return Promise.resolve(window.STEWIE_VIZ); }
     if (_vizPromise) { return _vizPromise; }
-    _vizPromise = new Promise((resolve, reject) => {
+    _vizPromise = Promise.all([
+        _loadDep('/assets/viz3d/frame.js', 'STEWIEFrame', 'data-stewie-frame'),
+        _loadDep('/assets/viz3d/scalebar.js', 'STEWIE_SCALEBAR', 'data-stewie-scalebar'),
+        _loadDep('/assets/viz3d/layers.js', 'STEWIEViz3DLayers', 'data-stewie-vizlayers')
+    ]).then(() => new Promise((resolve, reject) => {
         if (typeof document === 'undefined') { reject(new Error('no document')); return; }
         const done = () => (window.STEWIE_VIZ ? resolve(window.STEWIE_VIZ) : reject(new Error('STEWIE_VIZ missing after viz3d.js load')));
         const existing = document.querySelector('script[data-stewie-viz3d]');
@@ -65,16 +86,14 @@ function ensureVizLoaded() {
         }
         const s = document.createElement('script');
         s.type = 'module';
-        // Cache-bust: /assets/*.js is Cloudflare edge-cached, and this bare (un-versioned) path would
-        // otherwise pin to a stale copy (the /viz page busts it with the stamped ?v=, but this runtime
-        // inject can't see that hash). viz3d.js loads lazily on first panel-open and once per page-load
-        // (_vizPromise), so a per-load cache-bust always fetches the current module at negligible cost.
+        // viz3d.js loads lazily on first panel-open and once per page-load (_vizPromise), so a per-load
+        // cache-bust always fetches the current module at negligible cost (the /viz page uses the stamped ?v=).
         s.src = '/assets/viz3d.js?t=' + Date.now();
         s.setAttribute('data-stewie-viz3d', '1');
         s.addEventListener('load', done);
         s.addEventListener('error', () => { _vizPromise = null; reject(new Error('viz3d.js failed to load')); });
         document.head.appendChild(s);
-    });
+    }));
     return _vizPromise;
 }
 
@@ -102,6 +121,7 @@ class MissionTerrain3D extends React.Component {
         sunAz: 315,
         sunEl: 45,
         grid: false,
+        globe: false,     // [GW-11] flat<->3D globe (needs frame.js; falls back to flat if the module didn't load)
         grat: true,       // task #77: lon/lat graticule shows by default (was off) -- oriented plotting context
         wire: false,
         measure: false,       // task #79: measure/waypoints tool toggle
@@ -174,6 +194,7 @@ class MissionTerrain3D extends React.Component {
             if (!this.container || this._mounted) { return; }   // panel closed while viz3d.js loaded
             this._viz = VIZ;
             VIZ.mount(this.container);
+            if (VIZ.setHud) { VIZ.setHud({scale: this._scaleEl, north: this._northEl, sun: this._sunEl}); }   // [GW-11] scale/north/sun HUD
             VIZ.onHover((h) => this._onHover(h));
             VIZ.onLayerError((kind) => this._onLayerError(kind));
             // task #77: a Shift+click on the relief plots the active Mission-Plan tool there -- forward the
@@ -217,6 +238,7 @@ class MissionTerrain3D extends React.Component {
             this._viz.setMetricGrid(this.state.grid);
             this._viz.setGraticule(this.state.grat);
             this._viz.setWireframe(this.state.wire);
+            if (this.state.globe && this._viz.setGlobe) { this._viz.setGlobe(true); }   // [GW-11] re-curve after a flat load
             this.setState({loading: false, meta, site});
         }).catch((e) => {
             if (!this._rg.current(tok) || WS.site() !== site) { return; }
@@ -244,6 +266,7 @@ class MissionTerrain3D extends React.Component {
     _setGrid = (e) => { const grid = e.target.checked; this.setState({grid}); if (this._viz) { this._viz.setMetricGrid(grid); } };
     _setGrat = (e) => { const grat = e.target.checked; this.setState({grat}); if (this._viz) { this._viz.setGraticule(grat); } };
     _setWire = (e) => { const wire = e.target.checked; this.setState({wire}); if (this._viz) { this._viz.setWireframe(wire); } };
+    _setGlobe = (e) => { const globe = e.target.checked; this.setState({globe}); if (this._viz && this._viz.setGlobe) { this._viz.setGlobe(globe); } };
     _setMeasure = (e) => { const measure = e.target.checked; this.setState({measure}); if (this._viz) { this._viz.setMeasureMode(measure); } };
     _clearMeasure = () => { if (this._viz) { this._viz.clearMeasure(); } };
     // task #80 / council F29: push the measured waypoints into Mission Plan as a Traverse route over the shared
@@ -357,9 +380,18 @@ class MissionTerrain3D extends React.Component {
                 <div style={{fontSize: '10px', color: '#7fe0a8', marginBottom: '6px', lineHeight: 1.4}}>
                     ⇧ Shift+click the terrain to drop the active Mission Plan tool here.
                 </div>
-                <div data-stewie-terrain3d ref={this._setContainer}
-                    style={{width: '100%', height: '340px', background: '#05060c', border: '1px solid #14141c',
-                        borderRadius: '4px', position: 'relative', overflow: 'hidden'}} />
+                <div style={{position: 'relative', width: '100%', height: '340px'}}>
+                    <div data-stewie-terrain3d ref={this._setContainer}
+                        style={{position: 'absolute', inset: 0, background: '#05060c', border: '1px solid #14141c',
+                            borderRadius: '4px', overflow: 'hidden'}} />
+                    <div data-stewie-scale ref={(el) => { this._scaleEl = el; }}
+                        style={{position: 'absolute', left: '50%', bottom: '6px', transform: 'translateX(-50%)', pointerEvents: 'none', zIndex: 2}} />
+                    <div style={{position: 'absolute', right: '6px', top: '6px', display: 'flex', gap: '6px', pointerEvents: 'none',
+                        zIndex: 2, background: 'rgba(8,11,15,.5)', border: '1px solid #1c1c24', borderRadius: '6px', padding: '4px 6px'}}>
+                        <div data-stewie-north ref={(el) => { this._northEl = el; }} />
+                        <div data-stewie-sun ref={(el) => { this._sunEl = el; }} />
+                    </div>
+                </div>
                 <div style={{fontSize: '10px', margin: '4px 0 2px', minHeight: '13px'}}>{this.renderStatus()}</div>
 
                 <div style={SECTION}>analysis drape</div>
@@ -391,7 +423,8 @@ class MissionTerrain3D extends React.Component {
                 </div>
 
                 <div style={SECTION}>overlays</div>
-                <div style={{display: 'flex', gap: '14px', fontSize: '11px', color: '#aeb8c6', margin: '3px 0'}}>
+                <div style={{display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '11px', color: '#aeb8c6', margin: '3px 0'}}>
+                    <label><input checked={s.globe} data-stewie-globe onChange={this._setGlobe} type="checkbox" /> 🌕 globe</label>
                     <label><input checked={s.grid} data-stewie-grid onChange={this._setGrid} type="checkbox" /> km grid</label>
                     <label><input checked={s.grat} data-stewie-grat onChange={this._setGrat} type="checkbox" /> lon/lat</label>
                     <label><input checked={s.wire} data-stewie-wire onChange={this._setWire} type="checkbox" /> wireframe</label>
