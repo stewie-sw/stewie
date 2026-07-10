@@ -52,6 +52,7 @@ def advance_executive(intent: MissionIntent, _auth: str = Depends(require_direct
         # an uncompilable intent (no work geometry, bad frame, ...) -> 400; nothing advanced, no fabrication.
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     rel = res.executive.released_revision
+    persisted = _persist_released_revision(rel, res)     # [dispatch-audit R1] freeze it in the durable store
     log_event(_auth, "executive.advance",
               f"{intent.mission_id} rev {intent.revision} -> {res.executive.state.value}")
     return JSONResponse(content={
@@ -59,6 +60,7 @@ def advance_executive(intent: MissionIntent, _auth: str = Depends(require_direct
         "label": "sim",                                   # MO-04: planned/rehearsed on the sim authority
         "state": res.executive.state.value,
         "signed_revision": rel.model_dump(mode="json") if rel is not None else None,
+        "revision_persisted": persisted,                  # [dispatch-audit R1] durably frozen by content_hash
         "evidence": res.evidence,
         "transitions": res.transitions,
     })
@@ -97,6 +99,33 @@ def _command_authority(rel: object) -> dict | None:
     }
 
 
+def _persist_released_revision(rel: object, res: object) -> bool:
+    """[dispatch-audit R1] Freeze the just-signed release into the durable revision store, keyed by its
+    immutable content_hash, so a later run / RC can BIND the exact signed artifact (the R2 foundation)
+    instead of rebuilding from mutable orders. Stores the whole frozen artifact: the SignedRevision (incl.
+    the full intent), the analyze/rehearse evidence (plan_ir hash + forward_compare), and the ordered
+    approval transitions. BEST-EFFORT: the SIGNING already happened and is authoritative in the response;
+    a durable-store hiccup must not 500 a valid release -- it is surfaced honestly as ``revision_persisted:
+    false`` and logged. Returns whether the revision is now durably present."""
+    if rel is None:
+        return False
+    from stewie.server import db
+    art = {
+        "content_hash": getattr(rel, "content_hash"),
+        "revision": getattr(rel, "revision", 0),
+        "mission_id": getattr(getattr(rel, "intent", None), "mission_id", ""),
+        "signed_by": getattr(rel, "signed_by", ""),
+        "signed_revision": getattr(rel, "model_dump")(mode="json"),   # the full frozen SignedRevision
+        "evidence": getattr(res, "evidence", {}) or {},
+        "transitions": getattr(res, "transitions", []) or [],
+    }
+    try:
+        return bool(db.persist_release_revision(art))
+    except Exception as e:   # noqa: BLE001 -- R1: durability is a projection of the authoritative signature;
+        log.warning("release-revision persist failed (release still valid): %s", e)   # never fail a valid release
+        return False
+
+
 @router.post("/executive/release-plan")
 def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)) -> JSONResponse:
     """Director-gated: build a canonical MO-01 MissionIntent from the cockpit's current build-order queue
@@ -121,6 +150,7 @@ def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)
         # uncaught TypeError -> 500. an uncompilable plan (no work geometry, bad frame, ...) -> 400 too.
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e), "skipped": []})
     rel = res.executive.released_revision
+    persisted = _persist_released_revision(rel, res)     # [dispatch-audit R1] freeze it in the durable store
     log_event(_auth, "executive.release_plan",
               f"{req.mission_id}: {len(intent.objectives)} objectives -> {res.executive.state.value}")
     from stewie.server.audit_log import record_action                                    # [REQ:EG-07]
@@ -134,6 +164,7 @@ def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)
         "state": res.executive.state.value,
         "signed_revision": rel.model_dump(mode="json") if rel is not None else None,
         "command_authority": _command_authority(rel),   # [REQ:FS-28] frozen Release-pane authority card
+        "revision_persisted": persisted,                 # [dispatch-audit R1] durably frozen by content_hash
         "evidence": res.evidence,
         "transitions": res.transitions,
         "released_objectives": len(intent.objectives),
@@ -370,6 +401,22 @@ def executive_run_get(run_id: str, identity: str = Depends(require_role("operato
     if rec is None:
         return JSONResponse(status_code=404, content={"ok": False, "error": f"no run {run_id!r}"})
     return JSONResponse(content={"ok": True, **rec})
+
+
+@router.get("/executive/revision/{content_hash}")
+def executive_revision(content_hash: str,
+                       identity: str = Depends(require_role("operator"))) -> JSONResponse:
+    """[dispatch-audit R1] Fetch a durably-frozen released revision by its immutable content_hash -- the
+    whole signed artifact (SignedRevision incl. intent, the analyze/rehearse evidence, the approval
+    transitions). This is the canonical store a later run / RC BINDS to (R2), so the executed plan is
+    provably the one that was signed, not a rebuild from mutable orders. Read-gated (operator+): a released
+    revision is director-signed but operator-readable (operators execute against it); 404 if never released."""
+    from stewie.server import db
+    rec = db.read_release_revision(content_hash)
+    if rec is None:
+        return JSONResponse(status_code=404,
+                            content={"ok": False, "error": f"no released revision {content_hash!r}"})
+    return JSONResponse(content={"ok": True, "revision": rec})
 
 
 @router.get("/executive/audit")

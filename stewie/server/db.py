@@ -156,6 +156,36 @@ class WorldTxnRow(Base):
     created_at: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)             # mirror wall-clock
 
 
+class ReleaseRevisionRow(Base):
+    """[dispatch-audit R1] The DURABLE, IMMUTABLE store of a canonical released mission revision. When the
+    executive enters RELEASED it signs an MO-02 ``SignedRevision`` (the frozen intent + a deterministic
+    ``content_hash`` + the director sign-off); before R1 that artifact lived only in the release HTTP
+    response and was discarded with the in-process executive, so no later run/RC could BIND what was signed.
+    This freezes it: one row per ``content_hash`` (the primary key), holding the whole frozen artifact --
+    the signed revision (JSON, incl. the full intent), the analyze/rehearse ``evidence`` (the plan_ir
+    content-hash + forward_compare), and the ordered approval ``transitions`` (the authority evidence).
+
+    IMMUTABLE by construction: ``content_hash`` is a pure SHA-256 of the intent, so the same plan always
+    freezes to the same hash; the store is FIRST-WRITE-WINS (a re-persist of an existing hash is a no-op),
+    so a released revision can never be mutated in place. Same backend story as the rest of db.py (Postgres/
+    PostGIS in prod via ``$STEWIE_DATABASE_URL``, per-data-dir SQLite in CI/dev)."""
+
+    __tablename__ = "release_revision"
+
+    content_hash: Mapped[str] = mapped_column(String(64), primary_key=True)   # SHA-256 of the frozen intent
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    mission_id: Mapped[str] = mapped_column(String(160), nullable=False, default="")
+    signed_by: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    signed_revision: Mapped[dict[str, Any]] = mapped_column(_json(), nullable=False, default=dict)  # full SignedRevision
+    evidence: Mapped[dict[str, Any]] = mapped_column(_json(), nullable=False, default=dict)          # plan_id + forward_compare
+    transitions: Mapped[list] = mapped_column(_json(), nullable=False, default=list)                 # approval evidence
+    created_at: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)                     # first-persist wall-clock
+
+
+# index for the newest-first index scan (R2/UI listing of released revisions)
+Index("ix_release_revision_created", ReleaseRevisionRow.created_at)
+
+
 # ---- the dedicated background event loop (sync facade over the async engine) ----------------------
 _loop: Optional[asyncio.AbstractEventLoop] = None
 _loop_lock = threading.Lock()
@@ -363,6 +393,7 @@ async def _reset_store() -> None:
             await s.execute(delete(EditAuditRow))
             await s.execute(delete(EditSessionRow))
             await s.execute(delete(WorldTxnRow))
+            await s.execute(delete(ReleaseRevisionRow))
 
 
 async def _mirror_world_txn(txn: dict) -> None:
@@ -393,6 +424,48 @@ async def _mirror_world_txn(txn: dict) -> None:
             row.uncertainty_m = float(txn.get("uncertainty_m", 0.0) or 0.0)
             row.linked = dict(txn)
             row.created_at = time.time()
+
+
+async def _persist_release_revision(art: dict) -> bool:
+    """[dispatch-audit R1] Freeze one released revision into the durable store, keyed by ``content_hash``.
+    FIRST-WRITE-WINS: if a row already exists for this hash the write is a NO-OP (the signed revision is
+    immutable -- a re-release of the same plan, or any later write under an existing hash, must never mutate
+    what was signed). Returns True once the hash is durably present (freshly inserted OR already there)."""
+    import time
+    ch = str(art["content_hash"])
+    sm = await _ensure_ready()
+    async with sm() as s:
+        async with s.begin():
+            existing = await s.get(ReleaseRevisionRow, ch)
+            if existing is not None:
+                return True                                   # immutable: never overwrite the frozen artifact
+            s.add(ReleaseRevisionRow(
+                content_hash=ch,
+                revision=int(art.get("revision", 0) or 0),
+                mission_id=str(art.get("mission_id", "")),
+                signed_by=str(art.get("signed_by", "")),
+                signed_revision=dict(art.get("signed_revision", {}) or {}),
+                evidence=dict(art.get("evidence", {}) or {}),
+                transitions=list(art.get("transitions", []) or []),
+                created_at=time.time(),
+            ))
+    return True
+
+
+async def _read_release_revision(content_hash: str) -> Optional[dict]:
+    """[dispatch-audit R1] Fetch the frozen released revision for ``content_hash`` (the whole immutable
+    artifact), or None if no such revision was ever released."""
+    sm = await _ensure_ready()
+    async with sm() as s:
+        row = await s.get(ReleaseRevisionRow, str(content_hash))
+        if row is None:
+            return None
+        return {
+            "content_hash": row.content_hash, "revision": row.revision, "mission_id": row.mission_id,
+            "signed_by": row.signed_by, "signed_revision": dict(row.signed_revision or {}),
+            "evidence": dict(row.evidence or {}), "transitions": list(row.transitions or []),
+            "created_at": row.created_at,
+        }
 
 
 async def _read_world_txns(limit: int) -> list[dict]:
@@ -450,6 +523,17 @@ def mirror_world_txn(txn: dict) -> None:
 def read_world_txns(limit: int = 100) -> list[dict]:
     """[PG-01] Read the durable world-txn projection (newest first)."""
     return _run(_read_world_txns(limit))
+
+
+def persist_release_revision(art: dict) -> bool:
+    """[dispatch-audit R1] Durably freeze a released revision (immutable, first-write-wins by content_hash).
+    ``art`` = {content_hash, revision, mission_id, signed_by, signed_revision, evidence, transitions}."""
+    return _run(_persist_release_revision(art))
+
+
+def read_release_revision(content_hash: str) -> Optional[dict]:
+    """[dispatch-audit R1] Fetch the frozen released revision by content_hash (None if never released)."""
+    return _run(_read_release_revision(content_hash))
 
 
 if __name__ == "__main__":       # convenience: `python -m stewie.server.db` runs the idempotent schema-init
