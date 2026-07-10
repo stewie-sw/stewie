@@ -109,6 +109,7 @@ function init() {
   $("viz-grid").addEventListener("change", (e) => VIZ.setMetricGrid(e.target.checked));
   $("viz-grat").addEventListener("change", (e) => VIZ.setGraticule(e.target.checked));
   $("viz-wire").addEventListener("change", (e) => VIZ.setWireframe(e.target.checked));
+  $("viz-globe").addEventListener("change", (e) => VIZ.setGlobe(e.target.checked));   // [GW-11] flat<->3D globe
 
   // task #79: measure/waypoints tool -- toggle + clear + a live count/distance readout (textContent only,
   // MT-03 safe-DOM convention: never a raw-HTML sink).

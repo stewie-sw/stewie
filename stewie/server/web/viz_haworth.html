@@ -63,6 +63,7 @@
       <div class="row"><label for="viz-sun-az">Sun azimuth <span class="val" id="viz-sun-az-out">135°</span></label><input type="range" id="viz-sun-az" min="0" max="360" step="1" value="135"></div>
       <div class="row"><label for="viz-sun-el">Sun elevation <span class="val" id="viz-sun-el-out">20°</span></label><input type="range" id="viz-sun-el" min="1" max="60" step="1" value="20"></div>
       <div class="row toggles">
+        <label><input type="checkbox" id="viz-globe"> &#127765; globe</label>
         <label><input type="checkbox" id="viz-grid"> km grid</label>
         <label><input type="checkbox" id="viz-grat" checked> lon/lat</label>
         <label><input type="checkbox" id="viz-wire"> wire</label>
@@ -78,7 +79,8 @@
   </main>
 </div>
 <script src="/assets/viz_grid.js?v=03b79fecddd3"></script>
-<script type="module" src="/assets/viz3d.js?v=7ed922480e3f"></script>
-<script type="module" src="/assets/viz_haworth_page.js?v=21880071aca3"></script>
+<script src="/assets/viz3d/frame.js"></script>
+<script type="module" src="/assets/viz3d.js?v=173811887542"></script>
+<script type="module" src="/assets/viz_haworth_page.js?v=ab71ece28bb2"></script>
 </body>
 </html>

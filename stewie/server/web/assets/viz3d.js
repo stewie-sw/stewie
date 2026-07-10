@@ -21,6 +21,28 @@ const WIRE = { color: 0x35e0d0, base: 0.10, dim: 0.04 };
 // above this size. The relief mesh itself renders fine at full res (Uint32 indices); only the wire is capped.
 const WIRE_MAX_N = 1200;
 
+// [GW-11 geospatial] THE placement transform (viz3d/frame.js, UMD global window.STEWIEFrame). Every
+// renderable position (mesh verts, km grid, graticule, markers, measure) routes through
+// FRAME.place(e_m, n_m, absolute_elev_m) so a flat<->globe toggle is a pure re-place() and overlays never
+// de-register (design STEWIE_viz3d_geospatial_upgrade §8). frame.js exaggerates ABOUT the mean elevation,
+// so place() ENU returns an ABSOLUTE-datum render Y (meanElev + vex*(elev-meanElev)), NOT the old
+// zmin-relative hh*vex. If the module never loaded (script tag absent) a minimal ENU-identity fallback keeps
+// the viewer rendering flat (globe disabled). NOTE: /dem/site_meta is 401 on the live backend (not
+// key-injected), so the coarse metres->lonlat grid is sampled over the RENDERED WINDOW via /dem/site_lonlat
+// (key-injected, already used by _hoverPick) -- see _configureFrame; no client-side proj4.
+const FRAME = (typeof window !== "undefined" && window.STEWIEFrame && window.STEWIEFrame.makeFrame)
+  ? window.STEWIEFrame.makeFrame({ bodyRadius: 1737400 })   // MOON_ME sphere (IAU_2015:30135)
+  : (function () {                       // fallback: a REAL flat frame (vex + meanElev honoured; no globe) so a
+      let _vex = 1, _mean = 0;           // host that hasn't loaded frame.js yet (e.g. the /ide plugin) keeps a
+      return {                            // fully working flat viewer -- exaggeration + hover intact, no regression.
+        place: function (e, n, el) { return { x: e, y: _mean + _vex * (el - _mean), z: n }; },
+        exaggerate: function (h) { return _mean + _vex * (h - _mean); },
+        setVex: function (k) { _vex = +k; }, setMeanElev: function (m) { _mean = +m; },
+        setOrigin: function () {}, setLonLatGrid: function () {}, setMode: function () {}, mode: "enu",
+      };
+    })();
+const FRAME_LOADED = !!(typeof window !== "undefined" && window.STEWIEFrame && window.STEWIEFrame.makeFrame);
+
 // [systems-eng] bounded fetch: a hung/slow backend read (heightfield_full is a few MB) must ABORT after
 // `ms` and reject legibly, never hang the viewer forever. Self-contained here -- viz3d.js is a standalone
 // /assets ES module, separate from the qwc2 mission bundle's fetchWithTimeout.js (same contract, no shared
@@ -168,41 +190,84 @@ async function loadSite(site, opts) {
   const z = new Float32Array(await r.arrayBuffer());
   if (z.length !== meta.n * meta.n) { throw new Error("heightfield payload " + z.length + " != n^2 " + meta.n); }
   S.meta = meta; S.z = z;
+  await _configureFrame(meta);   // [GW-11] window-grid metres->lonlat + FRAME origin/meanElev/vex (globe-ready)
   clearPlots();          // task #77: plot markers are site-local (order-frame lx/ly) -> drop stale ones on a site switch
   clearMeasure();        // task #79: measure waypoints are also site-local (order-frame lx/ly) -> drop stale ones
   _buildMesh();
-  // frame the whole tile
-  S.target.set(meta.window_m / 2, ((meta.z_max - meta.z_min) * S.vex) * 0.3, meta.window_m / 2);
-  S.dist = meta.window_m * 1.35;
+  _frameCamera();        // [GW-11] frame the tile CENTER via FRAME.place (mode-agnostic: flat or globe)
   setLayer(S.layerKind);
   if (S._gridOn) buildMetricGrid();
   if (S._gratOn) loadGraticule();
   return meta;
 }
 
+// [GW-11] Configure FRAME for the loaded tile. site_meta is 401 on the live backend (and not key-injected),
+// so the coarse K×K metres->lonlat grid is sampled over the RENDERED WINDOW via /dem/site_lonlat (which IS
+// key-injected + already used by _hoverPick) -- no client proj4. Cached per (site,window). Flat mode never
+// reads the grid, so a fetch failure only disables globe (S._frameReady=false); the flat viewer still renders.
+async function _configureFrame(meta) {
+  FRAME.setOrigin(meta.x0, meta.y0);
+  FRAME.setMeanElev((meta.z_min + meta.z_max) / 2);
+  FRAME.setVex(S.vex);
+  if (!FRAME_LOADED) { S._frameReady = false; return; }
+  if (!S._frameGridCache) S._frameGridCache = {};
+  const key = S.site + "@" + meta.x0 + "," + meta.y0 + "," + meta.window_m;
+  if (S._frameGridCache[key]) { FRAME.setLonLatGrid(S._frameGridCache[key]); S._frameReady = true; return; }
+  const K = 9, win = meta.window_m, lon = new Array(K * K), lat = new Array(K * K);
+  try {
+    const jobs = [];
+    for (let j = 0; j < K; j++) for (let i = 0; i < K; i++) {
+      const X = meta.x0 + (i / (K - 1)) * win, Y = meta.y0 + (j / (K - 1)) * win, idx = j * K + i;
+      jobs.push(_fetchT("/dem/site_lonlat?x=" + X + "&y=" + Y + "&site=" + encodeURIComponent(S.site), HOVER_TIMEOUT_MS)
+        .then((r) => r.json())
+        .then((d) => { if (!d || !d.ok) throw new Error("site_lonlat !ok"); lon[idx] = d.lon; lat[idx] = d.lat; }));
+    }
+    await Promise.all(jobs);
+    const grid = { x0: meta.x0, y0: meta.y0, dE: win / (K - 1), dN: win / (K - 1), cols: K, rows: K, lon: lon, lat: lat };
+    S._frameGridCache[key] = grid;
+    FRAME.setLonLatGrid(grid);
+    S._frameReady = true;
+  } catch (_) {
+    S._frameReady = false;   // globe unavailable; flat ENU still renders (place() flat path ignores the grid)
+  }
+}
+
+// [GW-11] Point the camera at the tile CENTER through FRAME.place so framing is correct in BOTH flat
+// (y=meanElev) and globe (recentred cap) modes, at the same 1.35x window standoff.
+function _frameCamera() {
+  const m = S.meta; if (!m) return;
+  const c = FRAME.place(m.window_m / 2, m.window_m / 2, (m.z_min + m.z_max) / 2);
+  S.target.set(c.x, c.y, c.z);
+  S.dist = m.window_m * 1.35;
+}
+
 function _buildMesh() {
   const m = S.meta, z = S.z, n = m.n, step = m.step_m, zmin = m.z_min;
-  const span = Math.max(1e-6, m.z_max - m.z_min), vex = S.vex;
+  const span = Math.max(1e-6, m.z_max - m.z_min);
   if (S.mesh) { S.group.remove(S.mesh); S.mesh.geometry.dispose(); S.mesh.material.dispose(); S.mesh = null; }
   if (S.wire) { S.group.remove(S.wire); S.wire.geometry.dispose(); S.wire.material.dispose(); S.wire = null; }
   const pos = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3), uv = new Float32Array(n * n * 2);
   const baseH = new Float32Array(n * n);
+  const nanMask = new Uint8Array(n * n);   // [GW-11] 1 where z is nodata (NaN) -> its triangles are dropped
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
-      const k = j * n + i, hh = z[k] - zmin;
-      baseH[k] = hh;
-      pos[k * 3] = i * step; pos[k * 3 + 1] = hh * vex; pos[k * 3 + 2] = j * step;   // x=E, y=up, z=N
+      const k = j * n + i, zk = z[k], isNan = !(zk === zk), hh = isNan ? 0 : zk - zmin;
+      baseH[k] = hh; nanMask[k] = isNan ? 1 : 0;
+      const p = FRAME.place(i * step, j * step, isNan ? zmin : zk);   // [GW-11] absolute elev; exaggerate-about-mean
+      pos[k * 3] = p.x; pos[k * 3 + 1] = p.y; pos[k * 3 + 2] = p.z;   // flat: x=E,y=up,z=N | globe: curved cap
       uv[k * 2] = i / (n - 1); uv[k * 2 + 1] = j / (n - 1);                            // North-up drape (flipud raster)
       const t = hh / span;
       col[k * 3] = 0.26 + 0.50 * t; col[k * 3 + 1] = 0.27 + 0.36 * t; col[k * 3 + 2] = 0.30 + 0.12 * t;
     }
   }
-  S.baseH = baseH;
+  S.baseH = baseH; S._nanMask = nanMask;
   const idx = [];
   for (let j = 0; j < n - 1; j++) {
     for (let i = 0; i < n - 1; i++) {
       const a = j * n + i, b = a + 1, c = a + n, d = c + 1;
-      idx.push(a, c, b, b, c, d);
+      // [GW-11] drop a triangle touching a nodata vertex (masked terrain edge); Haworth has none -> no-op there
+      if (!nanMask[a] && !nanMask[c] && !nanMask[b]) idx.push(a, c, b);
+      if (!nanMask[b] && !nanMask[c] && !nanMask[d]) idx.push(b, c, d);
     }
   }
   const geo = new THREE.BufferGeometry();
@@ -214,7 +279,11 @@ function _buildMesh() {
   // buffer (half the index VRAM/upload); a plain array lets three pick Uint16 whenever the max index fits.
   geo.setIndex(n * n > 65536 ? new THREE.Uint32BufferAttribute(idx, 1) : idx);
   geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0.0 });
+  // [GW-11] DoubleSide: the globe cap's ENU->(x,y,z) mapping is left-handed relative to the flat frame, which
+  // flips the effective triangle winding so single-sided normals would face INTO the body (terrain goes black
+  // in globe mode). DoubleSide lights whichever face the camera sees, in both modes; a heightfield is never
+  // meaningfully viewed from beneath, so the cost is nil.
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0.0, side: THREE.DoubleSide });
   S.mesh = new THREE.Mesh(geo, mat);
   S.group.add(S.mesh);
   S.wire = null;                     // built lazily + size-guarded (_buildWire) -- see WIRE_MAX_N
@@ -294,20 +363,32 @@ function setLayer(kind) {
 function setVertExag(k) {
   k = Math.max(1, Math.min(5, +k || 1));
   S.vex = k;
+  FRAME.setVex(k);                                  // [GW-11] keep the frame's exaggeration in lockstep
   if (!S.mesh || !S.baseH) return;
-  const pos = S.mesh.geometry.attributes.position, bh = S.baseH;
-  for (let i = 0; i < bh.length; i++) pos.array[i * 3 + 1] = bh[i] * k;
+  const pos = S.mesh.geometry.attributes.position, bh = S.baseH, zmin = S.meta.z_min;
+  if (FRAME.mode === "globe") {
+    // globe: radial displacement scales x,y,z -> re-place every vertex (in place, keeps geometry + drape)
+    const n = S.meta.n, step = S.meta.step_m;
+    for (let j = 0, kk = 0; j < n; j++) for (let i = 0; i < n; i++, kk++) {
+      const pp = FRAME.place(i * step, j * step, bh[kk] + zmin);
+      pos.array[kk * 3] = pp.x; pos.array[kk * 3 + 1] = pp.y; pos.array[kk * 3 + 2] = pp.z;
+    }
+  } else {
+    // flat: only Y changes -> cheap per-vertex re-lift through the frame's (absolute-datum) exaggeration
+    for (let i = 0; i < bh.length; i++) pos.array[i * 3 + 1] = FRAME.exaggerate(bh[i] + zmin);
+  }
   pos.needsUpdate = true; S.mesh.geometry.computeVertexNormals();
   if (S._wireOn) _buildWire();          // rebuild the wire against the re-lifted geometry (size-guarded)
   if (S._gridOn) buildMetricGrid();     // re-drape the grid at the new relief
   if (S._gratGroup) _redrapeGraticule();
-  // task #77: lift each plotted marker back onto the re-exaggerated surface (cheaper than a full rebuild --
-  // a marker only needs its y repositioned, its lx/ly ground position is unchanged by vex).
+  // task #77: re-place each plotted marker onto the re-exaggerated surface (full place() -- globe needs x,z too).
   if (S._plotGroup) {
-    S._plotGroup.children.forEach((mk) => { mk.position.y = heightAt(mk.userData.lx, mk.userData.ly) * k + mk.userData.r; });
+    S._plotGroup.children.forEach((mk) => {
+      const pp = FRAME.place(mk.userData.lx, mk.userData.ly, heightAt(mk.userData.lx, mk.userData.ly) + zmin);
+      mk.position.set(pp.x, pp.y + mk.userData.r, pp.z);
+    });
   }
-  // task #79: full rebuild so BOTH the markers AND the connecting polyline re-drape onto the re-exaggerated
-  // surface (the grid + graticule do the same on a vex change; markers-only would leave the line stale).
+  // task #79: full rebuild so BOTH the markers AND the connecting polyline re-drape onto the re-exaggerated surface.
   if (S._measureGroup) _redrawMeasure();
 }
 
@@ -331,12 +412,13 @@ function setSun(azDeg, elDeg) {
 
 // ---- gridlines: metric km grid (pure STEWIE_VIZGRID) draped on the surface ------------------------
 function _lineOnSurface(coords2, subdiv, color, yLift) {
-  const pts = [];
+  const pts = [], zmin = (S.meta && S.meta.z_min) || 0, lift = (yLift || 1.0);
   for (let s = 0; s < coords2.length - 1; s++) {
     const [ax, ay] = coords2[s], [bx, by] = coords2[s + 1];
     for (let t = 0; t <= subdiv; t++) {
       const f = t / subdiv, lx = ax + (bx - ax) * f, ly = ay + (by - ay) * f;
-      pts.push(new THREE.Vector3(lx, heightAt(lx, ly) * S.vex + (yLift || 1.0), ly));
+      const p = FRAME.place(lx, ly, heightAt(lx, ly) + zmin);   // [GW-11] absolute elev through the frame
+      pts.push(new THREE.Vector3(p.x, p.y + lift, p.z));         // lift along local render up (drape above surface)
     }
   }
   const g = new THREE.BufferGeometry().setFromPoints(pts);
@@ -405,7 +487,8 @@ function _redrapeGraticule() {
       const [x0, y0] = ln.coords[0];
       const t = _textSprite(ln.label, color);
       t.sprite.scale.set(labelW, labelW / t.aspect, 1);
-      t.sprite.position.set(x0, heightAt(x0, y0) * S.vex + 6.0, y0);   // a small offset above the line's yLift
+      const lp = FRAME.place(x0, y0, heightAt(x0, y0) + ((S.meta && S.meta.z_min) || 0));   // [GW-11]
+      t.sprite.position.set(lp.x, lp.y + 6.0, lp.z);   // a small offset above the line's yLift
       grp.add(t.sprite);
     }
   });
@@ -416,19 +499,27 @@ function setGraticule(on) { S._gratOn = !!on; if (on) { if (S._gratData) _redrap
 
 // ---- accurate coordinate readout (order metres + selenographic lon/lat) ---------------------------
 function _raycastSurface(el, e) {
-  if (!S.mesh || !S.raycaster) return null;
+  if (!S.mesh || !S.raycaster || !S.meta) return null;
   const rect = el.getBoundingClientRect();
   const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
   S.raycaster.setFromCamera(ndc, S.camera);
   const hits = S.raycaster.intersectObject(S.mesh, false);
-  return hits.length ? hits[0].point : null;
+  if (!hits.length) return null;
+  // [GW-11] recover ORDER-LOCAL (e_m,n_m) + absolute elev from the hit's interpolated UV -- invariant to
+  // flat/globe placement, so hover/plot/measure need no place() inverse (frame.js has none; the globe-cap
+  // inverse is ill-posed). uv.x=i/(n-1), uv.y=j/(n-1) -> e_m=uv.x*(n-1)*step, n_m=uv.y*(n-1)*step.
+  const h = hits[0], m = S.meta, span = (m.n - 1) * m.step_m;
+  let e_m, n_m;
+  if (h.uv) { e_m = h.uv.x * span; n_m = h.uv.y * span; }
+  else { e_m = h.point.x; n_m = h.point.z; }   // fallback (flat, S=1): world x/z are e/n
+  return { e_m: e_m, n_m: n_m, elev_m: heightAt(e_m, n_m) + m.z_min, point: h.point };
 }
 
 let _llTimer = 0, _llGen = 0;
 function _hoverPick(el, e) {
-  const p = _raycastSurface(el, e);
-  if (!p) { if (S._onHover) S._onHover(null); return; }
-  const m = S.meta, lx = p.x, ly = p.z, elev = p.y / S.vex + m.z_min;   // order-local E/N + absolute elevation
+  const hit = _raycastSurface(el, e);
+  if (!hit) { if (S._onHover) S._onHover(null); return; }
+  const m = S.meta, lx = hit.e_m, ly = hit.n_m, elev = hit.elev_m;   // [GW-11] UV-derived order-local E/N + absolute elev
   const out = { e_m: lx, n_m: ly, elev_m: elev, lat: null, lon: null };
   if (S._onHover) S._onHover(out);
   // debounced selenographic lookup (tile-pixel metres = x0+lx, y0+ly -> /dem/site_lonlat)
@@ -460,15 +551,16 @@ function _plotMarkerAt(lx, ly) {
   const mat = new THREE.MeshStandardMaterial({ color: 0x39ff14, emissive: 0x123a0c, emissiveIntensity: 0.7, roughness: 0.5 });
   const mk = new THREE.Mesh(geo, mat);
   mk.userData.lx = lx; mk.userData.ly = ly; mk.userData.r = r;
-  mk.position.set(lx, heightAt(lx, ly) * S.vex + r, ly);
+  const mp = FRAME.place(lx, ly, heightAt(lx, ly) + ((S.meta && S.meta.z_min) || 0));   // [GW-11]
+  mk.position.set(mp.x, mp.y + r, mp.z);
   S._plotGroup.add(mk);
   return mk;
 }
 
 function _plotAt(el, e) {
-  const p = _raycastSurface(el, e);
-  if (!p || !S.meta) return;                    // no terrain under the click -- nothing to plot
-  const m = S.meta, lx = p.x, ly = p.z, elev_m = p.y / S.vex + m.z_min;
+  const hit = _raycastSurface(el, e);
+  if (!hit || !S.meta) return;                  // no terrain under the click -- nothing to plot
+  const m = S.meta, lx = hit.e_m, ly = hit.n_m, elev_m = hit.elev_m;   // [GW-11] UV-derived
   const gen = _plotGen, site0 = S.site;         // capture the session gen + site; drop the emit if either changed mid-lookup
   _plotMarkerAt(lx, ly);
   _fetchT("/dem/site_lonlat?x=" + (m.x0 + lx) + "&y=" + (m.y0 + ly) + "&site=" + encodeURIComponent(S.site), HOVER_TIMEOUT_MS)
@@ -492,9 +584,9 @@ function clearPlots() { _disposeGroup(S._plotGroup); S._plotGroup = null; }
 function setMeasureMode(on) { S._measureOn = !!on; }
 
 function _measureAt(el, e) {
-  const p = _raycastSurface(el, e);
-  if (!p || !S.meta) return;                    // no terrain under the click -- nothing to measure
-  const m = S.meta, lx = p.x, ly = p.z, elev_m = p.y / S.vex + m.z_min;
+  const hit = _raycastSurface(el, e);
+  if (!hit || !S.meta) return;                  // no terrain under the click -- nothing to measure
+  const m = S.meta, lx = hit.e_m, ly = hit.n_m, elev_m = hit.elev_m;   // [GW-11] UV-derived
   const gen = _plotGen, site0 = S.site;         // capture the session gen + site; drop the async fill if either changed mid-lookup
   const pt = { lx: lx, ly: ly, elev_m: elev_m, lat: null, lon: null };
   S._measurePts.push(pt);
@@ -541,7 +633,8 @@ function _redrawMeasure() {
     const mat = new THREE.MeshStandardMaterial({ color: 0xffcc33, emissive: 0x4a3400, emissiveIntensity: 0.6, roughness: 0.5 });
     const mk = new THREE.Mesh(geo, mat);
     mk.userData.lx = pt.lx; mk.userData.ly = pt.ly; mk.userData.r = r;
-    mk.position.set(pt.lx, heightAt(pt.lx, pt.ly) * S.vex + r, pt.ly);
+    const wp = FRAME.place(pt.lx, pt.ly, heightAt(pt.lx, pt.ly) + ((S.meta && S.meta.z_min) || 0));   // [GW-11]
+    mk.position.set(wp.x, wp.y + r, wp.z);
     grp.add(mk);
   });
   S._measureGroup = grp; S.group.add(grp);
@@ -616,10 +709,47 @@ function dispose() {
   S.scene = null; S.camera = null; S.group = null; S.sun = null; S.raycaster = null; S.container = null;
 }
 
+// [GW-11] flat<->globe toggle. Globe needs the metres->lonlat grid (S._frameReady); if it never loaded, stay
+// flat. Re-place the mesh + re-drape every overlay through FRAME (a pure re-place, design §8), re-apply the
+// active analysis drape (the mesh rebuild resets it to elevation), then reframe the camera on the tile center.
+function setGlobe(on) {
+  FRAME.setMode(on && S._frameReady ? "globe" : "enu");
+  if (!S.mesh) return;
+  const layer = S.layerKind;
+  _buildMesh();                                          // re-place all verts in the new mode
+  if (layer && layer !== "elevation") setLayer(layer);   // re-apply the active drape (rebuild reset it)
+  if (S._gridOn) buildMetricGrid();
+  if (S._gratGroup) _redrapeGraticule();
+  if (S._plotGroup) {
+    S._plotGroup.children.forEach((mk) => {
+      const pp = FRAME.place(mk.userData.lx, mk.userData.ly, heightAt(mk.userData.lx, mk.userData.ly) + S.meta.z_min);
+      mk.position.set(pp.x, pp.y + mk.userData.r, pp.z);
+    });
+  }
+  if (S._measureGroup) _redrawMeasure();
+  _frameCamera();
+}
+
 window.STEWIE_VIZ = {
-  mount, dispose, loadSite, setLayer, setVertExag, setWireframe, setSun, setMetricGrid, setGraticule,
+  mount, dispose, loadSite, setLayer, setVertExag, setWireframe, setSun, setMetricGrid, setGraticule, setGlobe,
   onHover, onLayerError, onPlot, clearPlots, heightAt,
   setMeasureMode, clearMeasure, onMeasure, getMeasurePoints,
   get meta() { return S.meta; }, get layerKind() { return S.layerKind; }, get vertExag() { return S.vex; },
+  get globe() { return FRAME.mode === "globe"; }, get globeAvailable() { return !!S._frameReady; },
   get ready() { return !!S.ready; }, get hasMesh() { return !!S.mesh; },
+  // [GW-11] debug snapshot (mesh bbox / camera / sun / sample normal) for headless verification.
+  get _dbg() {
+    if (!S.mesh || !S.camera) return null;
+    S.mesh.geometry.computeBoundingBox();
+    const bb = S.mesh.geometry.boundingBox, nrm = S.mesh.geometry.attributes.normal;
+    const R = (v) => v.map((x) => Math.round(x));
+    return {
+      mode: FRAME.mode,
+      bbox_min: R([bb.min.x, bb.min.y, bb.min.z]), bbox_max: R([bb.max.x, bb.max.y, bb.max.z]),
+      cam: R([S.camera.position.x, S.camera.position.y, S.camera.position.z]),
+      target: R([S.target.x, S.target.y, S.target.z]),
+      sun: S.sun ? R([S.sun.position.x, S.sun.position.y, S.sun.position.z]) : null,
+      normal0: nrm ? [nrm.getX(0), nrm.getY(0), nrm.getZ(0)].map((v) => +v.toFixed(3)) : null,
+    };
+  },
 };
