@@ -2,8 +2,8 @@
  "provenance": {
   "citations_sha256": "61f1268b99120c708054b2531a0be2e8466edbc77fde794242742c0e69a84f30",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "e7d5e9db563c9373f0d4d2d5687712e0591bb85b",
-  "prd_sha256": "4117efaccecf388320a9c47cca12d1de0d9d42757a82cb26ee64f2b6f7ec85cf",
+  "prd_commit": "05139f6ef67d5b6d5b05488af3372a60251099be",
+  "prd_sha256": "5e9a7579f32b7880086a38ecace926ad9d0ccee8e83b69355f7c6d66fe7bfa6f",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -3120,16 +3120,16 @@
    "text": "The missing layer kinds (ice-probability, localization-confidence, sensor-coverage, digital-twin-difference) each register in the LY-01 catalog with a REAL backend producer + provenance/eligibility, or are explicitly marked unavailable (no fabricated drape); a test asserts each is typed+registered or explicitly absent. (extends LY-01)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
    "cited": true,
    "id": "LY-05",
    "lane": "LY",
    "pri": "P1",
-   "text": "**DEM-derivative analysis rasters: aspect, curvature, roughness drape, contours.** Aspect (gradient azimuth) + curvature (profile/plan or Laplacian, stated) join `_GLOBE_KINDS` as real producers with legend entries computed from the same heightfield gradient the slope drape uses; roughness is exposed as a standalone drape (same window-RMS-slope definition as lode/costmap_layers._roughness, one source of truth); contours generate as a REAL vector product (QGIS-Desktop gdal_contour layers persisted into the .qgz at stated intervals, and/or a backend GeoJSON endpoint) registered in the LY-01 catalog with provenance + eligibility (display-only by default). Acceptance: each new kind renders via `/layers/globe/{kind}.png` + bbox on a real site, appears in the /ide layer tree with a legend, and a test asserts aspect/curvature values on a real-DEM fixture crop. (extends LY-01/GW-06; producers land in stewie/server/gis_layers.py + gis/build_project.py)"
+   "text": "**DEM-derivative analysis rasters: aspect, curvature, roughness drape, contours.** Aspect (gradient azimuth) + curvature (profile/plan or Laplacian, stated) join `_GLOBE_KINDS` as real producers with legend entries computed from the same heightfield gradient the slope drape uses; roughness is exposed as a standalone drape (same window-RMS-slope definition as lode/costmap_layers._roughness, one source of truth); contours generate as a REAL vector product (QGIS-Desktop gdal_contour layers persisted into the .qgz at stated intervals, and/or a backend GeoJSON endpoint) registered in the LY-01 catalog with provenance + eligibility (display-only by default). Acceptance: each new kind renders via `/layers/globe/{kind}.png` + bbox on a real site, appears in the /ide layer tree with a legend, and a test asserts aspect/curvature values on a real-DEM fixture crop. [REQ:LY-05] `stewie/server/test_ly05_dem_derivatives.py` verifies all four on the REAL LOLA Haworth 5 m DEM crop (relief std 103.85 m, no synthetic data): aspect_deg + curvature_laplacian are computed from the SAME numpy.gradient the slope drape uses (the aspect field points downhill on 99.99% of interior sloped cells; the Laplacian \u2207\u00b2z sign matches concave-up(+)/convex-up(-), corr -0.88 vs centre-minus-neighbour, low-point +0.032 / high-point -0.0004), the roughness drape colours lode.costmap_layers._roughness (the ONE window-RMS-slope source of truth, imported not re-derived), aspect/curvature/roughness each render a non-degenerate PNG via `/layers/globe/{kind}.png` + bbox on haworth while the allow-list still 404s an unknown kind, `/layers/legend` carries all three ramps, and `/layers/contours.geojson` is a real contourpy isoline product reprojected to selenographic lon/lat in the Haworth footprint at the stated interval (osgeo/gdal is absent in this venv, so the GeoJSON endpoint is the PRD's named alternative to gdal_contour-into-.qgz). I=D (the four producers live in gis_layers.py: aspect_deg/curvature_laplacian/_roughness_rgba + contour_geojson), X=D (registered in the LY-01 catalog as terrain.aspect/terrain.curvature/terrain.roughness/base.contours, drape in /viz + the /ide layer tree via catalogLayers.js, and carry /layers/legend entries), V=D (the [REQ:LY-05] test asserts the aspect azimuth + curvature sign on the real-DEM crop, not just array shapes). (extends LY-01/GW-06; producers land in stewie/server/gis_layers.py + gis/build_project.py)"
   },
   {
    "I": "N",
@@ -5740,9 +5740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 111,
+   "buildable": 110,
    "concurrent": 0,
-   "done": 256,
+   "done": 257,
    "gated": 30
   },
   "by_lane": {
@@ -5871,7 +5871,7 @@
     "total": 2
    },
    "LY": {
-    "done": 2,
+    "done": 3,
     "total": 7
    },
    "MG": {
@@ -6033,7 +6033,7 @@
     "total": 118
    },
    "P1": {
-    "done": 143,
+    "done": 144,
     "total": 220
    },
    "P2": {
@@ -6046,9 +6046,9 @@
    }
   },
   "cited": 278,
-  "done_pct": 64.5,
+  "done_pct": 64.7,
   "in_scope": 367,
-  "in_scope_done_pct": 69.8,
+  "in_scope_done_pct": 70.0,
   "total": 397
  },
  "workflow_spine": [
