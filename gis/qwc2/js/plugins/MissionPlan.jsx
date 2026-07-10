@@ -225,6 +225,8 @@ class MissionPlan extends React.Component {
     onFootprint = (e) => { if (this.ctrl) { this.ctrl.setFootprint(e.target.value); } };
     onDepth = (e) => { if (this.ctrl) { this.ctrl.setDepth(e.target.value); } };
     onPlan = () => { if (this.ctrl) { this.ctrl.plan(); } };
+    // [REQ:GI-03] download the planned mission as RFC-7946 GeoJSON via the backend /export/geojson.
+    onDownloadGeoJSON = () => { if (this.ctrl) { this.ctrl.downloadPlanGeoJSON(); } };
     onClear = () => { if (this.ctrl) { this.ctrl.clearOrders(); } };
     onRemove = (i) => { if (this.ctrl) { this.ctrl.removeOrder(i); } };
     onRun = () => { if (this.ctrl) { this.ctrl.runMission(); } };
@@ -1780,6 +1782,16 @@ class MissionPlan extends React.Component {
                         type="button"
                     >Clear</button>
                 </div>
+
+                {s.canExportGeojson ? (
+                    <button
+                        data-stewie-export-geojson="1" onClick={this.onDownloadGeoJSON} type="button"
+                        title="download the planned mission as RFC-7946 GeoJSON (build orders + keep-outs + routed traverse) for QGIS / ArcGIS"
+                        style={{display: 'block', width: '100%', marginTop: '6px', cursor: 'pointer',
+                            font: '600 11px system-ui, sans-serif', padding: '6px 8px', borderRadius: '4px',
+                            border: '1px solid #7fe0a866', color: '#7fe0a8', background: '#7fe0a814'}}
+                    >⤓ Download plan GeoJSON</button>
+                ) : null}
 
                 {this.renderCompare(s)}
 

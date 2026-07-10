@@ -212,7 +212,12 @@ estimator spine; the cockpit (authoring, worksheet, dashboards, mobile); the Moo
 > Foxglove code). **GIS interop GI-03 — PARTIAL** (the in-repo GeoJSON subset is DONE in `lode.gis_export`:
 > plan→GeoJSON/COG export, GeoJSON import (`geojson_to_features`), offline mission-package (`mission_package`),
 > and feature query (`query_features`); the cockpit-toolbox annotation, COG/GeoTIFF feature import,
-> OGC/ArcGIS service consumption, and measurement/profile tools stay OPEN).
+> OGC/ArcGIS service consumption, and measurement/profile tools stay OPEN). **2026-07-10: the plan-GeoJSON
+> export is now SURFACED in the /ide Mission Plan** — a "⤓ Download plan GeoJSON" control (gis/qwc2/js/mission/
+> planExport.js `buildExportUrl`, node-tested [REQ:GI-03]) hits the key-injected `/api/export/geojson` proxy
+> (deploy/artemis-nginx.conf, mirrors /api/plan) and downloads the RFC-7946 FeatureCollection; live-verified on
+> the deployed /ide (author orders → Plan → download → 200 + FeatureCollection, frontend/_ide_export_geojson_e2e.mjs).
+> GI-03 stays P (COG/GeoTIFF import, OGC/ArcGIS consumption, annotation, measurement/profile still OPEN).
 >
 > **Strongest, fully DONE + tested:** the AG-01..08 governance ladder (whole family), SF-01 safing, NV-11/12
 > Plan-IR lowering + stream under AG-08, FS-17 windowing, FS-20 chrome, server hardening (PO-06/07/08),

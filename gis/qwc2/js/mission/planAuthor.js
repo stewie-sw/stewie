@@ -30,6 +30,7 @@
  * the initial zoom.
  */
 import WS from './workspace.js';   // GW-02: the shared workspace-context store (site/body/mission)
+import PE from './planExport.js';  // [REQ:GI-03] build the /api/export/geojson download URL from the plan payload
 import Feature from 'ol/Feature';
 import CircleGeom from 'ol/geom/Circle';
 import LineString from 'ol/geom/LineString';
@@ -464,6 +465,9 @@ export default class PlanAuthor {
                 struct: o.structName || null   // a structure-decomposed order carries its parent structure's name
             })),
             hint: this.hint, hintErr: this.hintErr, result: this.result, planning: this.planning,
+            // [REQ:GI-03] the plan-GeoJSON export is offered once a plan has run (the payload POSTed to /api/plan
+            // exists with >=1 order) -- the panel shows the "Download GeoJSON" control then.
+            canExportGeojson: !!(this._lastPlanPayload && Array.isArray(this._lastPlanPayload.orders) && this._lastPlanPayload.orders.length),
             // Structure-template authoring (T11): the fetched catalog + the active template + its param
             // editor + the placed-structure list, mirrored to the panel. `structures[i].idx` is the array
             // index (the remove handle); `structId` is the stable sequence id (React key).
@@ -1972,6 +1976,36 @@ export default class PlanAuthor {
                 this._emit();
             })
             .catch(() => { /* evidence is a bonus over the run summary; never fail the run on it */ });
+    }
+
+    // [REQ:GI-03] download the CURRENT planned mission as RFC-7946 GeoJSON (build orders + keep-outs + routed
+    // traverse + typed footprints, reprojected to selenographic lon/lat) via the backend /export/geojson --
+    // the real GIS interchange a QGIS/ArcGIS consumer loads. Uses the EXACT /api/plan payload; the key-injected
+    // /api/export/geojson proxy supplies the auth server-side. Guard: nothing to export before a plan runs
+    // (_lastPlanPayload is set only inside plan()). Verifies the response IS a FeatureCollection before saving,
+    // so a backend error never lands a junk file. Returns a promise for the Playwright verify.
+    downloadPlanGeoJSON() {
+        const built = PE.buildExportUrl(this._lastPlanPayload);
+        if (!built.ok) { this._setHint(built.error); return Promise.resolve({ok: false, error: built.error}); }
+        return FT.fetchWithTimeout(built.url, {}, FT.DEFAULT_MS)
+            .then((r) => (r.ok ? r.text() : Promise.reject(new Error('export HTTP ' + r.status))))
+            .then((txt) => {
+                let fc = null; try { fc = JSON.parse(txt); } catch (e) { fc = null; }
+                if (!fc || fc.type !== 'FeatureCollection') { throw new Error('export did not return GeoJSON'); }
+                const blob = new Blob([txt], {type: 'application/geo+json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = built.filename;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) { /* noop */ } }, 1000);
+                const n = Array.isArray(fc.features) ? fc.features.length : 0;
+                this._setHint('Downloaded ' + built.filename + ' (' + n + ' features)');
+                return {ok: true, filename: built.filename, features: n};
+            })
+            .catch((e) => {
+                this._setHint('GeoJSON export failed: ' + (e && e.message ? e.message : e));
+                return {ok: false, error: String(e && e.message ? e.message : e)};
+            });
     }
 
     runMission() {
