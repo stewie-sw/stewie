@@ -318,6 +318,12 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
                                             "orders": list(req.orders), "charger": [0.0, 0.0]})
             body = req.body
         dem, origin = state.moon_dem(req.site) if body == "moon" else (None, (0.0, 0.0))
+        if body == "moon":
+            # [dispatch-audit R2/F4] execute on the SAME composed as-built surface the plan/review used
+            # (state.as_built_dem = remembered/observed terrain over the raw DEM, plan.py:208), so an
+            # as-built or observed hazard present during planning is present during SIM execution too --
+            # not the pristine raw site DEM the run previously loaded (audit finding 3: inputs diverge).
+            dem = state.as_built_dem(req.site, dem, origin)
         out = AUT.run_closed_loop(mission, dem=dem, dem_origin=origin)
         run = run_sim_execution(released, out.get("legs", []))
     except (ValueError, KeyError, TypeError) as e:    # #300: malformed order field -> 400, not an uncaught 500
