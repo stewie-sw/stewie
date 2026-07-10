@@ -127,6 +127,35 @@ class EditAuditRow(Base):
 Index("ix_edit_audit_session_version", EditAuditRow.session_id, EditAuditRow.version)
 
 
+class WorldTxnRow(Base):
+    """[PG-01] The DURABLE PROJECTION of a linked world-state transaction (DT-01). NOT authority: the
+    conserved TransactionLog (its journal) remains the source of truth; this is a queryable read-model that
+    mirrors each committed WorldTransaction so a durable store (Postgres/PostGIS in prod, the SQLite fallback
+    in dev/CI) holds the provenance chain for querying. ``seq`` is the monotonic transaction sequence (primary
+    key -> idempotent re-mirror). The mirror is best-effort: a projection write NEVER breaks the authoritative
+    commit (WorldStateService catches + logs a mirror failure). The full linked identity body is kept in
+    ``linked`` (JSON) so a consumer reads the exact DT-01 stamp; the flat columns are for indexed queries."""
+
+    __tablename__ = "world_txn"
+
+    seq: Mapped[int] = mapped_column(Integer, primary_key=True)                 # monotonic txn sequence
+    world_sha: Mapped[str] = mapped_column(String(64), nullable=False)
+    chain_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    prev_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    authority_sha: Mapped[str] = mapped_column(String(64), nullable=False, default="genesis")
+    twin_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    twin_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="genesis")
+    plan_id: Mapped[str] = mapped_column(String(64), nullable=False, default="none")
+    mission: Mapped[str] = mapped_column(String(160), nullable=False, default="none")
+    site: Mapped[str] = mapped_column(String(64), nullable=False, default="haworth")
+    body: Mapped[str] = mapped_column(String(32), nullable=False, default="moon")
+    mission_t_s: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    provenance: Mapped[str] = mapped_column(String(240), nullable=False, default="")
+    uncertainty_m: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    linked: Mapped[dict[str, Any]] = mapped_column(_json(), nullable=False, default=dict)   # the full DT-01 stamp
+    created_at: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)             # mirror wall-clock
+
+
 # ---- the dedicated background event loop (sync facade over the async engine) ----------------------
 _loop: Optional[asyncio.AbstractEventLoop] = None
 _loop_lock = threading.Lock()
@@ -333,6 +362,52 @@ async def _reset_store() -> None:
         async with s.begin():
             await s.execute(delete(EditAuditRow))
             await s.execute(delete(EditSessionRow))
+            await s.execute(delete(WorldTxnRow))
+
+
+async def _mirror_world_txn(txn: dict) -> None:
+    """[PG-01] Upsert one linked world-state transaction into the durable projection, idempotent by ``seq``
+    (a re-mirror of the same seq updates in place). NOT authority -- the caller's TransactionLog journal is
+    the source of truth; this is the queryable read-model."""
+    import time
+    sm = await _ensure_ready()
+    async with sm() as s:
+        async with s.begin():
+            seq = int(txn.get("seq", 0))
+            row = await s.get(WorldTxnRow, seq)
+            if row is None:
+                row = WorldTxnRow(seq=seq)
+                s.add(row)
+            row.world_sha = str(txn.get("world_sha", ""))
+            row.chain_hash = str(txn.get("chain_hash", ""))
+            row.prev_hash = str(txn.get("prev_hash", ""))
+            row.authority_sha = str(txn.get("authority_sha", "genesis"))
+            row.twin_version = int(txn.get("twin_version", 0) or 0)
+            row.twin_hash = str(txn.get("twin_hash", "genesis"))
+            row.plan_id = str(txn.get("plan_id", "none"))
+            row.mission = str(txn.get("mission", "none"))
+            row.site = str(txn.get("site", "haworth"))
+            row.body = str(txn.get("body", "moon"))
+            row.mission_t_s = float(txn.get("mission_t_s", 0.0) or 0.0)
+            row.provenance = str(txn.get("provenance", ""))
+            row.uncertainty_m = float(txn.get("uncertainty_m", 0.0) or 0.0)
+            row.linked = dict(txn)
+            row.created_at = time.time()
+
+
+async def _read_world_txns(limit: int) -> list[dict]:
+    """[PG-01] Read the durable world-txn projection, newest first (a queryable provenance chain)."""
+    sm = await _ensure_ready()
+    async with sm() as s:
+        rows = (await s.execute(
+            select(WorldTxnRow).order_by(WorldTxnRow.seq.desc()).limit(int(limit))
+        )).scalars().all()
+        return [{
+            "seq": r.seq, "world_sha": r.world_sha, "chain_hash": r.chain_hash,
+            "authority_sha": r.authority_sha, "twin_version": r.twin_version, "twin_hash": r.twin_hash,
+            "plan_id": r.plan_id, "mission": r.mission, "site": r.site, "body": r.body,
+            "provenance": r.provenance, "linked": dict(r.linked or {}),
+        } for r in rows]
 
 
 # ---- public sync API (called by edit_session.py; all block on the background loop) ----------------
@@ -363,6 +438,18 @@ def dispose() -> None:
     """Drop the in-process engine + connection pool WITHOUT touching the durable rows -- the truest
     simulation of a process restart for the survives-restart proof."""
     _run(_dispose_engine())
+
+
+def mirror_world_txn(txn: dict) -> None:
+    """[PG-01] Mirror one committed WorldTransaction (its ``linked_body()`` dict) into the durable
+    projection. Wire this as the WorldStateService projection_sink; it is NON-AUTHORITATIVE and blocks
+    only briefly on the DB write (SQLite/Postgres)."""
+    _run(_mirror_world_txn(txn))
+
+
+def read_world_txns(limit: int = 100) -> list[dict]:
+    """[PG-01] Read the durable world-txn projection (newest first)."""
+    return _run(_read_world_txns(limit))
 
 
 if __name__ == "__main__":       # convenience: `python -m stewie.server.db` runs the idempotent schema-init

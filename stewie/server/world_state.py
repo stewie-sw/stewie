@@ -67,8 +67,13 @@ class WorldStateService:
 
     def __init__(self, *, twin: "TwinStore | Callable[[], TwinStore]",
                  log: "E.TransactionLog | None" = None, journal_path: str | None = None,
-                 body: str = "moon", site: str = "haworth") -> None:
+                 body: str = "moon", site: str = "haworth",
+                 projection_sink: "Callable[[dict], object] | None" = None) -> None:
         self._twin = twin                                    # a TwinStore or a zero-arg accessor
+        # [PG-01] optional DURABLE PROJECTION sink: called best-effort with each committed transaction's
+        # linked_body() so a Postgres/PostGIS (or SQLite) read-model mirrors the provenance chain. It is
+        # NON-AUTHORITATIVE -- a sink failure is caught + logged, never breaking the authoritative commit.
+        self._projection_sink = projection_sink
         if log is not None:
             self._log = log
         elif journal_path is not None:
@@ -122,11 +127,22 @@ class WorldStateService:
             t_ver = int(getattr(tw, "version", 0))
             events = getattr(tw, "events", None)
             t_hash = events[-1]["hash"] if events else "genesis"
-        return self._log.commit_snapshot(
+        txn = self._log.commit_snapshot(
             authority_sha=self._authority_sha, twin_version=t_ver, twin_hash=t_hash,
             plan_id=self._plan_id, belief=self._belief, mission=self._mission, site=self._site,
             body=self._body, mission_t_s=self._mission_t_s, provenance=provenance,
             uncertainty_m=uncertainty_m)
+        # [PG-01] mirror the just-committed transaction to the durable projection, BEST-EFFORT. The authority
+        # (the TransactionLog + its journal) has already committed above; a projection failure is logged and
+        # swallowed so the read-model can never break the authoritative write.
+        if self._projection_sink is not None:
+            try:
+                # linked_body() is the hashed content (everything EXCEPT chain_hash, which is its digest);
+                # add chain_hash back so the projection stores the COMPLETE tamper-evident record.
+                self._projection_sink({**txn.linked_body(), "chain_hash": txn.chain_hash})
+            except Exception as e:   # noqa: BLE001 -- the projection is NON-AUTHORITATIVE by design
+                log.warning("PG-01: world-txn projection mirror failed (non-authoritative): %s", e)
+        return txn
 
     # ---- transitions (the facade) ---------------------------------------------------------------
     def record_plan(self, *, plan_id: str, provenance: str, mission: str | None = None,

@@ -177,6 +177,17 @@ _WSS = None
 _WSS_LOCK = threading.Lock()
 
 
+def _world_txn_projection_sink():
+    """[PG-01] The durable-projection sink for the WorldStateService: mirror each committed WorldTransaction
+    to the Postgres/PostGIS read-model ONLY when a durable store is configured (``STEWIE_DATABASE_URL`` set)
+    -- so prod persists the provenance chain while CI/dev (no URL, in-memory/SQLite fallback) adds no per-
+    transaction DB write. Best-effort + non-authoritative (WorldStateService swallows a mirror failure)."""
+    if not os.environ.get("STEWIE_DATABASE_URL"):
+        return None
+    from stewie.server import db
+    return db.mirror_world_txn
+
+
 def world_state_service():
     """Lazy, process-wide WorldStateService -- the one route-level facade that commits a
     ``WorldTransaction`` for every meaningful world-state transition (plan / terrain record / resync /
@@ -193,5 +204,6 @@ def world_state_service():
             _jdir = os.path.join(_CFG.data_dir(), "twin")
             os.makedirs(_jdir, exist_ok=True)
             _jp = os.path.join(_jdir, "world.journal")
-            _WSS = WorldStateService(twin=twin, journal_path=_jp)
+            _WSS = WorldStateService(twin=twin, journal_path=_jp,
+                                     projection_sink=_world_txn_projection_sink())   # PG-01 durable projection
     return _WSS
