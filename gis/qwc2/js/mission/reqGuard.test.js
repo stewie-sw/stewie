@@ -1,3 +1,9 @@
+// [REQ:GW-10] the per-component monotonic request guard (hardens GW-02): a slow site-A load resolving
+// after a switch to site-B must NOT overwrite B's raster/physics/inspector state. These node tests prove
+// the guard's runtime behavior (the wrong-site race + per-component isolation); the static wiring gate —
+// that reqGuard is actually held by the raster (MissionTerrain3D), physics/profile (MissionCrossSection),
+// and inspector (SelectionInspector) surfaces — is stewie/server/test_gw10_request_guard.py, the python
+// [REQ:GW-10] citation req_trace.py counts (req_trace scans python test_*.py, not the JS tier).
 "use strict";
 const assert = require("node:assert");
 const { test } = require("node:test");
