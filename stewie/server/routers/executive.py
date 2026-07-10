@@ -403,6 +403,8 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     # derived from the run's REAL state. A token ATTESTS the released plan is live-executable; a safed or
     # unapproved plan yields none. The require-token half stays on the rc.py LIVE bridge (SIM /run never
     # commands a rover), so this mints the attestation the live path would demand.
+    import time as _time
+
     from stewie.contracts.live_gate import LiveExecutionRefused, LivePreconditions, issue_live_token
     _live_pre = LivePreconditions(
         mission_created=bool(intent.objectives), simulation_branch=True,
@@ -410,10 +412,17 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
         physics_passed=get_backend("tier2_numpy").conserves_mass(),
         safety_passed=(run["final_state"] == "completed"),
         human_approval=(str(released.state.value) == "released"))
+    # [dispatch-audit R3] bind the token to the released revision's IMMUTABLE content_hash (not the mutable
+    # revision int), and mint it EXPIRING (issue_live_token stamps issued_at=now + a bounded ttl). So the
+    # attestation authorizes exactly the signed plan for a bounded window -- the live-write path (rc_command)
+    # requires an unexpired, hash-matching token before a real rover command (the R3 gated-live-writes seam).
+    _rev_id = released.released_revision.content_hash if released.released_revision is not None \
+        else str(req.revision)
     try:
-        _tok = issue_live_token(req.mission_id, str(req.revision), _live_pre)
+        _tok = issue_live_token(req.mission_id, _rev_id, _live_pre, now=_time.time())
         live_token = {"issued": True, "mission_id": _tok.mission_id, "revision_id": _tok.revision_id,
-                      "signature": _tok.signature}
+                      "signature": _tok.signature, "issued_at": _tok.issued_at, "ttl_s": _tok.ttl_s,
+                      "expires_at": _tok.issued_at + _tok.ttl_s}
     except LiveExecutionRefused as _e:
         live_token = {"issued": False, "reason": str(_e)}
     # [REQ:PH-02] attribute the run's numbers to the physics backend that produced them: the closed-loop sim,
