@@ -1,7 +1,13 @@
-"""Pure-logic CI gate for the STEWIE QGIS Processing backend layer — runs WITHOUT a QGIS runtime. The
-fixtures are real curls of the live backend (artemis.stewie.space/api, 2026-07-08), not synthetic. The QGIS
-algorithms (stewie_algorithms.py) are exercised on the host via a headless pyQGIS smoke, not here.
+"""[REQ:QG-01] Pure-logic CI gate for the STEWIE QGIS Processing backend layer — runs WITHOUT a QGIS runtime
+(no qgis.* import in this test path; it is in the CI testpaths per pyproject.toml). The fixtures are real
+curls of the live backend (artemis.stewie.space/api, 2026-07-08), not synthetic. It proves the QGIS-free
+stewie_backend fetch+parse (url builders + terramechanics/point normalization + honest errors) AND — by
+reading the provider source, still qgis-free — that the STEWIE Processing provider registers the two named
+algorithms (StewieTerramechanics/StewieSamplePoint). The algorithms themselves are exercised on the host via
+a headless pyQGIS smoke, not here.
 """
+from pathlib import Path
+
 import pytest
 
 from stewie_qgis import stewie_backend as B
@@ -58,3 +64,19 @@ def test_point_attributes_carries_values_and_units():
 def test_point_attributes_errors_honestly():
     with pytest.raises(ValueError):
         B.point_attributes({"ok": False, "error": "422 out of bounds"})
+
+
+def test_provider_registers_the_two_named_processing_algorithms():  # [REQ:QG-01]
+    """The STEWIE Processing provider registers StewieTerramechanics + StewieSamplePoint as QGIS Processing
+    algorithms (runnable from the GUI / qgis_process CLI / batch / Models). qgis.* is not importable in CI, so
+    assert the registration from the provider SOURCE (loadAlgorithms adds both) — no qgis runtime needed."""
+    root = Path(__file__).parent
+    provider = (root / "stewie_provider.py").read_text(encoding="utf-8")
+    algos = (root / "stewie_algorithms.py").read_text(encoding="utf-8")
+    # the provider's loadAlgorithms registers BOTH algorithms.
+    assert "def loadAlgorithms" in provider
+    assert "self.addAlgorithm(StewieTerramechanicsAlgorithm())" in provider
+    assert "self.addAlgorithm(StewieSamplePointAlgorithm())" in provider
+    # each is a real QgsProcessingAlgorithm (the GUI/CLI/batch/Models Processing contract).
+    assert "class StewieTerramechanicsAlgorithm(QgsProcessingAlgorithm)" in algos
+    assert "class StewieSamplePointAlgorithm(QgsProcessingAlgorithm)" in algos

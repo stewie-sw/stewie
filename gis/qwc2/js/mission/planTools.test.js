@@ -155,6 +155,21 @@ test("materialBalance sums cut/fill bank volumes + flags surplus/deficit", () =>
     assert.strictEqual(PT.materialBalance([]).balance_kg, 0);            // empty -> 0 balance
 });
 
+// [REQ:SD-02] the net direction the acceptance names: cut-only => net SPOIL (surplus), fill-only => net
+// BORROW (deficit), with the RHO_DEEP(1920 bank)->RHO_SPOIL(1300 loose) bulking + mass conserved. Densities
+// are moon-hardcoded (constants.py RHO_DEEP/RHO_SPOIL); body-aware densities are deferred (task #62).
+test("[REQ:SD-02] materialBalance: cut-only => net spoil (surplus), fill-only => net borrow (deficit)", () => {
+    const cutOnly = PT.materialBalance([{ kind: "cut", footprint_m2: 50, depth_m: 1 }]);   // 50 m3 bank
+    assert.strictEqual(cutOnly.fill_m3, 0);
+    assert.strictEqual(cutOnly.cut_mass_kg, 96000);          // 50 * 1920 (RHO_DEEP bank)
+    assert.strictEqual(cutOnly.loose_spoil_m3, 73.8);        // 50 * 1920/1300 loose bulking (+~48%)
+    assert.ok(cutOnly.balance_kg > 0 && cutOnly.status === "surplus", "cut-only is a net spoil surplus");
+    const fillOnly = PT.materialBalance([{ kind: "fill", footprint_m2: 50, depth_m: 1 }]);  // 50 m3 bank
+    assert.strictEqual(fillOnly.cut_m3, 0);
+    assert.strictEqual(fillOnly.fill_mass_kg, 65000);        // 50 * 1300 (RHO_SPOIL loose fill)
+    assert.ok(fillOnly.balance_kg < 0 && fillOnly.status === "deficit", "fill-only is a net borrow deficit");
+});
+
 // --- F17 / F32: a minimal fake PlanAuthor controller for the pure dispatch/adopt helpers -----------------
 // Mirrors the REAL controller contract the helpers touch: the three mutually-exclusive placing modes
 // (activeKind/structKind/objectType), setTool()'s TOGGLE + clear-siblings semantics (planAuthor.js

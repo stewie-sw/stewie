@@ -8,7 +8,7 @@ import os
 from scripts.req_trace import main, parse_requirements, scan_markers, trace
 
 # the autonomy-track tests live in ros2_ws too (AS-02/03/04/05/06), so the trace must scan it
-PATHS = ["stewie", "dart", "lode", "scripts", "ros2_ws"]
+PATHS = ["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws", "stewie_qgis"]
 
 
 def test_parses_the_prd_matrix():

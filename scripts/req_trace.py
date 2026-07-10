@@ -66,7 +66,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--prd", default="PRD.md")
     ap.add_argument("--paths", nargs="*",
-                    default=["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws"])
+                    # aligned with pyproject testpaths so every CI-run test package is scanned for [REQ:]
+                    # markers (stewie_qgis was missing -> its [REQ:QG-01] citation was invisible to the tracer).
+                    default=["stewie", "dart", "lode", "leap", "forge", "scripts", "ros2_ws", "stewie_qgis"])
     args = ap.parse_args(argv)
     r = trace(args.prd, args.paths)
     print(f"requirements: {r['total']} · cited by tests: {r['cited']}")
