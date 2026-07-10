@@ -34,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 291,
+  "cited": 292,
   "per_family": {
     "AC": {
       "cited": 1,
@@ -201,7 +201,7 @@
       "total": 1
     },
     "PG": {
-      "cited": 0,
+      "cited": 1,
       "total": 1
     },
     "PH": {
@@ -375,6 +375,10 @@
     },
     {
       "id": "MT-01",
+      "v": "P"
+    },
+    {
+      "id": "PG-01",
       "v": "P"
     },
     {

@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "642d3d55d48b438665b0927fb7daca1c8f8c50b7d0ce62a67da4d6d489b82522",
+  "citations_sha256": "b43c31fa666c7973650458123a2863da8b60b3dede9c399f055625a9cdc63b30",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "95b6766035f88e28412c94368d89f3224b9ffb71",
-  "prd_sha256": "62b8625ff48275e4de1ae2677b5998ef1856ee50d7657eb16f7ae41ee2ff6a3a",
+  "prd_commit": "3aa2e8f22b162ac93f51138436f7000635a9f07b",
+  "prd_sha256": "9ce5b7645a8a0e9658597692fc80048d6bcc8ade89214d7bd33dfe6fdefe3b38",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -3822,21 +3822,21 @@
    "text": "**PDAL point-cloud ingestion.** PDAL loads external point-cloud products (LAS/LAZ/PLY) into the source-neutral cloud contract with CRS/frame validation, feeding the PM-13/PM-14 DepthObservation path; a real point-cloud fixture round-trips bounds/CRS. (extends PM-14)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "P",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row PG-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW stewie/twin/test_postgis_projection.py citing [REQ:PG-01]"
    },
    "bucket": "buildable",
-   "cited": false,
+   "cited": true,
    "id": "PG-01",
    "lane": "PG",
    "pri": "P2",
-   "text": "PostgreSQL/PostGIS as a durable persistence/projection layer, NOT authority: `TwinStore` events mirror to a PostGIS projection; the conserved model still mutates truth."
+   "text": "PostgreSQL/PostGIS as a durable persistence/projection layer, NOT authority: `TwinStore` events mirror to a PostGIS projection; the conserved model still mutates truth. [REQ:PG-01] `stewie/server/test_pg01_world_txn_projection.py` (4 functional tests on the URL-agnostic db.py \u2014 the SQLite fallback is the SAME SQLAlchemy code prod runs on Postgres/PostGIS via STEWIE_DATABASE_URL): each committed linked world-state transaction (DT-01 \u2014 carrying the TwinStore version+hash + the conserved authority sha + plan + belief) mirrors to a durable `world_txn` projection (queryable by seq/world_sha, holding the full tamper-evident chain), while the in-process TransactionLog journal stays AUTHORITY; the mirror is best-effort (a projection failure is caught + logged, never breaking the authoritative commit) and is wired into world_state_service() ONLY when a durable store is configured (STEWIE_DATABASE_URL set), so CI/dev adds no per-transaction write. I=D (db.py WorldTxnRow + mirror_world_txn/read_world_txns + the WorldStateService projection_sink hook), X=D (wired into world_state_service gated on the DB being configured; tests in the CI python suite), V=P (the projection + non-authority + wiring-gate are verified on the SQLite code path; the LIVE Postgres/PostGIS end-to-end + a PostGIS-GEOMETRY (vs the current relational) projection remain \u2014 the deploy's Postgres is not host-reachable to smoke this build's code, and no deploy runs it yet)."
   },
   {
    "I": "D",
@@ -6045,7 +6045,7 @@
     "total": 2
    }
   },
-  "cited": 291,
+  "cited": 292,
   "done_pct": 68.0,
   "in_scope": 367,
   "in_scope_done_pct": 73.6,
