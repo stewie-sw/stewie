@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "23d3b66a7c280bb9e6ca2febcbe54fe5caafc790de619a805cf557a7ff4e89cd",
+  "citations_sha256": "10ec176fe2682b83e8aea18de29c6d2770043853b02088586aafb3033f86e9c4",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "cdd066004f779823bde381f6460d9175f6751a56",
-  "prd_sha256": "1dd434019e07ff63eaf828904933dd0a341e493a855157aafb20ab12b31c5705",
+  "prd_commit": "f73f276909e67d5e7fd54dda1ce651aa608851b4",
+  "prd_sha256": "413c1e97c7483d8d6163f6a6b6c43bb8f04c5a22302c8d96dcb5a353cdbb7066",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -1454,16 +1454,16 @@
    "text": "**/world is the authoritative rich world descriptor (review finding 6).** `GET /world` returns geometry PLUS observed/mutated enrichment, provenance, and freshness \u2014 not geometry/defaults with enrichment deferred (`world.py:1,29`). A consumer cannot mistake an incomplete descriptor for the full world model: the payload declares its completeness/enrichment state explicitly. Acceptance: `/world` after a mutation reflects the observed enrichment (or explicitly flags it absent), verified against `/world/terrain_view` provenance. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "DT-06",
    "lane": "DT",
    "pri": "P1",
-   "text": "Twin dirty-read consistency under concurrent resync: a /world read concurrent with a /resync write returns one consistent (mask, heights, version) triple, never a torn read mixing pre-/post-resync state. (extends DT-03) [SHIPPED: stewie/server/state.py _RESYNC_LOCK]"
+   "text": "Twin dirty-read consistency under concurrent resync: a /world read concurrent with a /resync write returns one consistent (mask, heights, version) triple, never a torn read mixing pre-/post-resync state. (extends DT-03) [REQ:DT-06] `stewie/server/test_dt06_resync_consistency.py` (the WRITE half + same-lock proof) + `stewie/server/test_current_terrain_view.py`::reads_the_twin_under_the_resync_lock (the READ half): the no-torn-read guarantee is a single mutex state._RESYNC_LOCK held by BOTH sides \u2014 the observed-twin read samples (mask, heights, version) as one triple under the lock (functionally spied: locked==True during the read), and the /twin/resync WRITE holds the SAME lock across apply_patch..world-commit..compensate (functionally spied: locked==True during both the mutation and the world-state commit), so a /world read concurrent with a resync sees pre- or post- state, never a torn mix. I=D (state.py:86 read + routers/twin.py:76 write both `with state._RESYNC_LOCK`, one critical section each), X=D (the read is state.current_terrain_view's twin overlay; the write is the operator-gated POST /twin/resync; both run in the CI python suite), V=D (the [REQ:DT-06] tests prove BOTH sides hold the lock during their critical section + that it is the same module-level mutex). [SHIPPED: stewie/server/state.py _RESYNC_LOCK]"
   },
   {
    "I": "N",
@@ -2770,16 +2770,16 @@
    "text": "**Cockpit ConOps de-duplication (2026-07-02 UI review, Screenshot_20260702_131756).** The top tab bar and the mission-pipeline `#stepper` both rendered Rehearse/Validate/Release/Execute/Report -- two stacked rows of the same phase labels. `#stepper` is reduced to the PLAN micro-wizard (Site->Fleet->Orders->Solve, the sub-steps that exist nowhere else) + a single \"-> Rehearse\" hand-off cue; the downstream phases' done/current progress rides as a dot ON each phase tab (`renderStepper` PHASE_TAB). Acceptance: `#stepper` carries no downstream-phase chip, each phase tab carries a progress dot, and the ui-smoke + a [REQ:FS-30] gate pin it. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "FS-31",
    "lane": "FS",
    "pri": "P1",
-   "text": "Execute-and-watch mission SSE stream + resume: GET /executive/run/{id}/stream emits text/event-stream legs each carrying id: <leg>; a reconnecting EventSource sending Last-Event-ID replays ONLY legs after that id. [SHIPPED: stewie/server/routers/executive.py:378 + #58.2]"
+   "text": "Execute-and-watch mission SSE stream + resume: GET /executive/run/{id}/stream emits text/event-stream legs each carrying id: <leg>; a reconnecting EventSource sending Last-Event-ID replays ONLY legs after that id. [REQ:FS-31] `stewie/server/test_executive_stream.py` (4 real-run functional tests, no mocks): GET /executive/run/{id}/stream returns text/event-stream, replays each persisted leg as an SSE event carrying `id: <leg>` then a terminal done, 404s an unknown run, requires operator auth, and \u2014 the resume clause \u2014 a reconnecting request sending Last-Event-ID:\"0\" replays ONLY the legs after leg 0 (leg 0 skipped, exactly one fewer event). I=D (executive.py::executive_run_stream: per-leg `id: <i>` SSE + Last-Event-ID\u2192resume_after skip, one-way push, owner-scoped), X=D (the Execute pane plays a run back via EventSource; the tests run in the CI python suite), V=D (the [REQ:FS-31] test proves the id-carrying stream + the Last-Event-ID replay-after semantics on a REAL persisted run). [SHIPPED: stewie/server/routers/executive.py:378 + #58.2]"
   },
   {
    "I": "N",
@@ -5740,9 +5740,9 @@
  "summary": {
   "briefs": 187,
   "buckets": {
-   "buildable": 103,
+   "buildable": 101,
    "concurrent": 0,
-   "done": 264,
+   "done": 266,
    "gated": 30
   },
   "by_lane": {
@@ -5819,7 +5819,7 @@
     "total": 1
    },
    "DT": {
-    "done": 5,
+    "done": 6,
     "total": 6
    },
    "DW": {
@@ -5847,7 +5847,7 @@
     "total": 21
    },
    "FS": {
-    "done": 23,
+    "done": 24,
     "total": 32
    },
    "GI": {
@@ -6033,7 +6033,7 @@
     "total": 118
    },
    "P1": {
-    "done": 149,
+    "done": 151,
     "total": 220
    },
    "P2": {
@@ -6045,10 +6045,10 @@
     "total": 2
    }
   },
-  "cited": 285,
-  "done_pct": 66.5,
+  "cited": 287,
+  "done_pct": 67.0,
   "in_scope": 367,
-  "in_scope_done_pct": 71.9,
+  "in_scope_done_pct": 72.5,
   "total": 397
  },
  "workflow_spine": [
