@@ -9,7 +9,10 @@ On each ``WS /ws`` connection:
   5. relay: Godot JPEG frames -> WS binary; WS input JSON -> Godot control frames.
 On disconnect (either side) the session tears down every process + temp dir cleanly.
 
-Binds 0.0.0.0:8900 (tailnet-private; reached via Tailscale). No auth for v1 (private deploy).
+Binds 0.0.0.0:8900. On the tailnet it runs open (private); to expose it PUBLICLY (Cloudflare)
+set ``VIZ2_STREAM_TOKEN`` so every route + the WS require a ``?token=<T>`` link, plus the always-on
+``VIZ2_STREAM_MAX_SESSIONS`` (GPU concurrency cap) and ``VIZ2_STREAM_MAX_CONN_PER_MIN`` (per-IP
+connection rate-limit) guards in ``stewie.stream.security``.
 Run: ``scripts/run_viz2_stream.sh`` (or ``uvicorn stewie.stream.app:app --host 0.0.0.0 --port 8900``).
 """
 from __future__ import annotations
@@ -28,7 +31,7 @@ from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnec
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from stewie.stream import previews, protocol
+from stewie.stream import previews, protocol, security
 from stewie.stream.framing import pack_frame, read_frame
 
 # repo root: stewie/stream/app.py -> stewie/stream -> stewie -> <repo>
@@ -233,8 +236,15 @@ class StreamSession:
 
 app = FastAPI(title="STEWIE viz2 pixel-stream", version="1.0")
 
+# Public-exposure guard: token auth (when VIZ2_STREAM_TOKEN is set) + per-IP connection rate-limit.
+# No-op for the token gate when the env var is unset (tailnet mode behaves exactly as before); the
+# rate-limit + concurrency cap are always-on GPU protections. The WS /ws is guarded in its endpoint.
+security.install_http_guard(app)
+
 # Self-hosted three.js + any other static asset (NO external CDN, so the setup screen works on the
 # tailnet). StaticFiles blocks path escapes; the vendored three.module.min.js lives under vendor/.
+# /vendor/* is EXEMPT from the token gate (see security._is_exempt) so the ES-module import works
+# from a single ?token=T link without rewriting the import URL.
 app.mount("/vendor", StaticFiles(directory=str(STATIC_DIR / "vendor")), name="vendor")
 
 
@@ -296,7 +306,9 @@ async def preview_procedural(
 
 @app.websocket("/ws")
 async def ws_stream(ws: WebSocket) -> None:
-    await ws.accept()
+    # 0) public-exposure guard: token + per-IP rate-limit (accepts the socket, or closes 4401/4429).
+    if not await security.ws_guard_admit(ws):
+        return
     # 1) the first message is the session config
     try:
         cfg_raw = await ws.receive_text()
@@ -308,33 +320,45 @@ async def ws_stream(ws: WebSocket) -> None:
         await ws.close(code=1003)
         return
 
-    session = StreamSession(cfg)
-    try:
-        await session.start()
-    except Exception as exc:  # bundle / runtime / godot launch failure -> report + close
-        await ws.send_text(json.dumps({"type": "error", "error": f"{type(exc).__name__}: {exc}"}))
-        await session.stop()
-        await ws.close(code=1011)
+    # 2) concurrency cap: reserve a live-GPU session slot BEFORE spawning Godot/Viz2Runtime. The
+    #    (cap+1)th connection is refused with an at-capacity close and NO GPU process is spawned.
+    if not security.acquire_session():
+        await ws.send_text(json.dumps({"type": "error", "error": "at capacity, try again shortly"}))
+        await ws.close(code=security.WS_CLOSE_AT_CAPACITY, reason="at capacity")
         return
 
-    await ws.send_text(json.dumps({"type": "ready", "mode": cfg["mode"],
-                                   "site": cfg.get("site"), "fine_cell_m": cfg["fine_cell_m"]}))
-    frames = asyncio.create_task(session.pump_frames(ws))
-    inputs = asyncio.create_task(session.pump_input(ws))
     try:
-        done, pending = await asyncio.wait({frames, inputs},
-                                           return_when=asyncio.FIRST_COMPLETED)
-        for t in pending:
-            t.cancel()
-        await asyncio.gather(*pending, return_exceptions=True)
-    except WebSocketDisconnect:
-        pass
-    finally:
-        for t in (frames, inputs):
-            t.cancel()
-        await asyncio.gather(frames, inputs, return_exceptions=True)
-        await session.stop()
+        session = StreamSession(cfg)
         try:
-            await ws.close()
-        except Exception:
+            await session.start()
+        except Exception as exc:  # bundle / runtime / godot launch failure -> report + close
+            await ws.send_text(json.dumps({"type": "error",
+                                           "error": f"{type(exc).__name__}: {exc}"}))
+            await session.stop()
+            await ws.close(code=1011)
+            return
+
+        await ws.send_text(json.dumps({"type": "ready", "mode": cfg["mode"],
+                                       "site": cfg.get("site"), "fine_cell_m": cfg["fine_cell_m"]}))
+        frames = asyncio.create_task(session.pump_frames(ws))
+        inputs = asyncio.create_task(session.pump_input(ws))
+        try:
+            done, pending = await asyncio.wait({frames, inputs},
+                                               return_when=asyncio.FIRST_COMPLETED)
+            for t in pending:
+                t.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+        except WebSocketDisconnect:
             pass
+        finally:
+            for t in (frames, inputs):
+                t.cancel()
+            await asyncio.gather(frames, inputs, return_exceptions=True)
+            await session.stop()
+            try:
+                await ws.close()
+            except Exception:
+                pass
+    finally:
+        # always free the reserved GPU slot, whatever tore the session down.
+        security.release_session()

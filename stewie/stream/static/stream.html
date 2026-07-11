@@ -68,7 +68,12 @@ const ctx = canvas.getContext("2d");
 const statusEl = document.getElementById("status");
 const fpsEl = document.getElementById("fps");
 const proto = location.protocol === "https:" ? "wss" : "ws";
-const ws = new WebSocket(`${proto}://${location.host}/ws`);
+// When the service is public the setup page navigated here as `/stream?token=T#cfg=...`. Carry that
+// token onto the WS URL so a single `?token=T` link works setup -> preview -> stream -> WS. No token
+// in the URL (tailnet mode) -> the WS URL is exactly `.../ws` as before.
+const TOKEN = new URLSearchParams(location.search).get("token");
+const wsUrl = `${proto}://${location.host}/ws` + (TOKEN ? `?token=${encodeURIComponent(TOKEN)}` : "");
+const ws = new WebSocket(wsUrl);
 ws.binaryType = "arraybuffer";
 
 let frames = 0, lastT = performance.now();

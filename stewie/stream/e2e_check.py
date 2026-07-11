@@ -65,6 +65,12 @@ async def run_check(port: int = DEFAULT_PORT, site: str = "haworth_sfs_2km_1m",
                     want: int = 6) -> dict:
     import websockets
     uri = f"ws://127.0.0.1:{port}/ws"
+    # if the public-exposure guard is on (VIZ2_STREAM_TOKEN set), pass the token so /ws admits us;
+    # unset -> connect exactly as before (the guard is off). /healthz is exempt, so the readiness
+    # poll needs no token either way.
+    token = os.environ.get("VIZ2_STREAM_TOKEN", "")
+    if token:
+        uri += f"?token={token}"
     async with websockets.connect(uri, max_size=None, open_timeout=20) as ws:
         await ws.send(json.dumps({"mode": "real", "site": site, "sun": {"az": 135, "el": 18}}))
         await ws.send(json.dumps({"v": 1.0, "omega": 0.12}))   # drive forward + gentle left
