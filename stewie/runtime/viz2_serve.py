@@ -40,6 +40,17 @@ def main() -> None:
         end = time.monotonic() + float(args.seconds)
         while time.monotonic() < end and not os.path.exists(stop_path):
             time.sleep(0.1)
+    # E3: on session end (actor stopped by the `with` exit — a race-free world read), emit the REAL
+    # RegolithVolumeEstimate over the worked window: conserved_mass_kg = cut_total_kg (CUT mass ONLY),
+    # with placed_total_kg / inventory_kg reported SEPARATELY (the round-3 contract).
+    if rt.ws.cut_total_kg > 0.0 or rt.ws.placed_total_kg > 0.0:
+        ev = rt.emit_volume_evidence()
+        e = ev["estimate"]
+        print(f"viz2_serve: E3 volume evidence — observed_mass={e.observed_mass_kg:.2f} kg "
+              f"cut_total={ev['cut_total_kg']:.2f} kg agreement_conserved={e.agreement_conserved} "
+              f"acceptance={e.acceptance} | placed_total={ev['placed_total_kg']:.2f} kg "
+              f"inventory={ev['inventory_kg']:.2f} kg (SEPARATE) dig_energy={ev['dig_energy_j']:.0f} J",
+              flush=True)
     print("viz2_serve: stopped", flush=True)
 
 
