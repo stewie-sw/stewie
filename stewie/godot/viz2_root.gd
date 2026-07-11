@@ -33,6 +33,8 @@ const Viz2WindowScript := preload("res://viz2_terrain_window.gd")
 # Phase C: the interactive sun az/el HUD. Preloaded (not reached by class_name) so it compiles
 # with THIS script, mirroring how sun_sweep.gd reaches boulder_manifest.gd.
 const Viz2SunHudScript := preload("res://viz2_hud.gd")
+# Phase F (F2): the planned mission-route polyline overlay (mission_planner.plan() detour display).
+const Viz2PathScript := preload("res://viz2_path.gd")
 
 # ── EZ-RASSOR rig geometry (SOURCED from the URDF via ezrassor_assets.md §3; the SAME
 # constants sidecar.gd::_build_rover uses — Y-up, unscaled metres; only the meshes carry
@@ -82,6 +84,7 @@ var _sun_azim_deg := 135.0
 var _view_size := Vector2i(1280, 720)
 var _hud_selfcheck := false           # Phase C: headless proof the HUD slider drives the sun
 var _clasts_path := ""                # Phase D: JSON rock field (spatial-k Golombek) to display
+var _path_path := ""                  # Phase F: JSON planned-route polyline (mission_planner.plan detour)
 
 # ── Phase B3 live mode (--live): drive THROUGH the Viz2Runtime over TCP ───────────────────
 var _live := false
@@ -100,6 +103,7 @@ var _hud                               # Viz2SunHud instance (interactive az/el 
 var _clast_mmi: MultiMeshInstance3D    # Phase D: the rendered spatial-k rock field
 var _clast_center := Vector3.ZERO      # rock-field bbox center (for the display capture framing)
 var _clast_span := 0.0                 # rock-field bbox horizontal span (m)
+var _path_node: Node3D                 # Phase F: the Viz2Path route-polyline overlay
 var _cam: Camera3D                      # main viewport (chase) camera
 var _rig_cams: Array = []              # camera_rig.gd 8-cam sensor rig (mounted on the rover)
 var _root_lift := 0.0                  # wheel-bottom -> surface ground-snap offset (yaw-invariant)
@@ -148,6 +152,9 @@ func _ready() -> void:
 	# Phase D: display the spatial-k Golombek rock field over the real terrain (if --clasts given).
 	if _clasts_path != "":
 		_build_clasts_display()
+	# Phase F: overlay the planned mission-route polyline (mission_planner.plan detour) if --path given.
+	if _path_path != "":
+		_build_path_display()
 	_setup_chase_camera()
 
 	if _live:
@@ -161,7 +168,11 @@ func _ready() -> void:
 			set_process(true)
 			print("viz2: LIVE interactive drive — WASD/gamepad THROUGH the Viz2Runtime")
 	elif _auto_frames > 0:
-		if _clasts_path != "" and _clast_mmi != null:
+		if _path_path != "" and _path_node != null:
+			# Phase F verification: frame the planned route so the DETOUR around the rock cluster reads
+			# (a near-nadir plan + a low oblique), rocks + route both in view.
+			_run_path_capture()   # coroutine
+		elif _clasts_path != "" and _clast_mmi != null:
 			# Phase D verification: frame the rendered spatial-k rock field so the density gradient
 			# (rockier near the rim, sparse on the flat) reads under a grazing sun.
 			_run_clast_capture()   # coroutine
@@ -202,6 +213,8 @@ func _parse_args() -> void:
 				_hud_selfcheck = true
 			"--clasts":
 				i += 1; _clasts_path = String(args[i])
+			"--path":
+				i += 1; _path_path = String(args[i])
 			"--size":
 				i += 1
 				var wh := String(args[i]).split("x")
@@ -381,6 +394,19 @@ func _build_clasts_display() -> void:
 		tag = String(man.get("honesty_tags", {}).get("spatial_abundance_k", "?"))
 	print("viz2: displayed %d spatial-k Golombek clasts over the real DEM (abundance %s)" % [
 		clasts.size(), tag])
+
+
+# ── Phase F: planned mission-route polyline overlay (mission_planner.plan detour display) ──
+# Instantiates viz2_path.gd on a --path JSON whose waypoints are the REAL planner route (over the
+# real DEM, bending around the rock-hazard keep-outs) in the SAME scene world frame the clasts use.
+func _build_path_display() -> void:
+	_path_node = Viz2PathScript.new()
+	_path_node.name = "RoutePath"
+	add_child(_path_node)
+	if not _path_node.build_from_file(_path_path):
+		push_error("viz2: --path route overlay failed to build from %s" % _path_path)
+		remove_child(_path_node)
+		_path_node = null
 
 
 # ── terrain (frozen TerrainNode, LIT_PBR) ─────────────────────────────────────────────────
@@ -702,6 +728,35 @@ func _run_clast_capture() -> void:
 	print("viz2: rock-field capture — %d clasts, center=(%.1f,%.1f,%.1f) span=%.1f m, sun(az=%.0f,el=%.0f) -> %s" % [
 		_clast_mmi.multimesh.instance_count, center.x, center.y, center.z, span,
 		_sun_azim_deg, _sun_elev_deg, ProjectSettings.globalize_path(_out_dir)])
+	get_tree().quit(0)
+
+
+# ── Phase F: frame the planned route so its DETOUR around the rock cluster reads ──────────
+# A near-nadir PLAN view (the detour is unambiguous from above: the bright route bends around the
+# rock clump) + a low oblique (the boulders cast grazing shadows, the route threads past them). The
+# framing spans BOTH the route bbox and the rock field so start, goal, cluster, and detour are in view.
+func _run_path_capture() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out_dir))
+	var center: Vector3 = _path_node.center
+	if _clast_mmi != null:
+		center = (_path_node.center + _clast_center) * 0.5   # frame route + rocks together
+	var span: float = maxf(_path_node.span, _clast_span)
+	span = maxf(span, 24.0)
+
+	# near-nadir plan: the detour is clearest looking straight down.
+	var eye_plan := center + Vector3(0.001, span * 1.05, 0.001)
+	_cam.global_transform = _look_at_xf(eye_plan, center, Vector3(0.0, 0.0, -1.0))
+	await _settle_and_capture("viz2_path_plan.png")
+
+	# low oblique: grazing-sun shadows resolve the boulders; the route threads past them.
+	var eye_obl := center + Vector3(-span * 0.10, span * 0.42, span * 0.62)
+	_cam.global_transform = _look_at_xf(eye_obl, center, Vector3.UP)
+	await _settle_and_capture("viz2_path_oblique.png")
+
+	var n_rocks := 0 if _clast_mmi == null else _clast_mmi.multimesh.instance_count
+	print("viz2: path capture — route %d wp / %.1f m detouring %d clasts, center=(%.1f,%.1f,%.1f) span=%.1f m -> %s" % [
+		_path_node.n_waypoints, _path_node.route_length_m, n_rocks,
+		center.x, center.y, center.z, span, ProjectSettings.globalize_path(_out_dir)])
 	get_tree().quit(0)
 
 
