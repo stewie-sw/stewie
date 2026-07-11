@@ -127,9 +127,9 @@ _CATALOG: tuple[DemSource, ...] = (
         instrument="LOLA", resolution_m=5.0, coverage="Nobile Rim 2 (Artemis III candidate), ~10 km",
         crs="south_polar_stereographic", fmt="geotiff_cog",
         access_url="https://pgda.gsfc.nasa.gov/products/78",
-        license="public domain (US Gov)", ingest="dem_import", bundled=False,
+        license="public domain (US Gov)", ingest="dem_import", bundled=True,
         notes="PGDA Product 78 DM2; real LOLA polar-stereographic 10 km / 5 m tile carved by "
-              "scripts/build_from_dem.py (Lane A), imported 2026-07-07. See stewie.specs.sites."),
+              "scripts/build_from_dem.py (Lane A), built + tiled 2026-07-11. See stewie.specs.sites."),
     DemSource(
         id="peak_near_shackleton_10km_5m", name="Peak near Shackleton (Site07) 10 km tile",
         instrument="LOLA", resolution_m=5.0, coverage="Peak near Shackleton (Artemis III candidate), ~10 km",
