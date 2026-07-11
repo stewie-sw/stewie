@@ -27,7 +27,12 @@ def test_bundled_sources_are_the_repo_committed_tiles_rest_gated():
     # (The old expectation demanded all 11 bundled, which CI's clean tree -- with only 3 tiles carried in git
     # -- can never satisfy without committing 376 MB; that is deferred to #76 / a git-lfs decision.)
     bundled = {s.id for s in S.list_dem_sources() if s.bundled}
-    assert bundled == {"haworth_10km_5m", "nobile_rim1_10km_5m", "shackleton_rim_10km_5m"}, bundled
+    # viz2 A2 (2026-07-10): a 4th real bundle is now committed -- the 2 km @ 1 m LRO NAC Shape-from-
+    # Shading (photoclinometry) drive-site crop of Haworth (NOT a LOLA Product-78 tile). Its ~68 MB
+    # rasters ARE carried in git (CI has the bytes; see test_every_bundled_source_has_a_real_on_disk_bundle),
+    # so it is a bundled=True catalog entry alongside the 3 primary LOLA tiles.
+    assert bundled == {"haworth_10km_5m", "nobile_rim1_10km_5m", "shackleton_rim_10km_5m",
+                       "haworth_sfs_2km_1m"}, bundled
     gated = {s.id for s in S.list_dem_sources() if not s.bundled}
     assert {
         "connecting_ridge_10km_5m", "de_gerlache_rim_10km_5m", "leibnitz_beta_10km_5m",

@@ -40,6 +40,13 @@ SITES: dict = {s.name: s for s in (
     Site("haworth", "Haworth (work site)", -86.33, -25.51, artemis_candidate=True,
          bundle_dir=_bundle("haworth_10km_5m"),
          note="the imported 10 km / 5 m LOLA bundle; the committed STEWIE work site"),
+    # viz2 A2: the high-res driveable work site -- a 2 km @ 1 m crop of the real LRO NAC Shape-from-
+    # Shading (photoclinometry) DEM, cropped INSIDE the SfS footprint (NOT LOLA). Center below is the
+    # tile's true selenographic center (world_bounds inverse-projected, IAU_2015:30135).
+    Site("haworth_sfs", "Haworth SfS (1 m drive site)", -86.8465, -21.0083, artemis_candidate=False,
+         bundle_dir=_bundle("haworth_sfs_2km_1m"),
+         note="real LRO NAC Shape-from-Shading 1 m DEM; 2 km @ 1 m crop inside the SfS footprint; the "
+              "driveable viz2 work site (Alexandrov & Beyer 2018), imported 2026-07-10"),
     # centers below are the BUNDLES' true tile centers (world_bounds inverse-projected)
     Site("shackleton_rim", "Shackleton rim (Site04)", -89.823, 158.213, artemis_candidate=True,
          bundle_dir=_bundle("shackleton_rim_10km_5m"),
