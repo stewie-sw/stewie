@@ -30,6 +30,8 @@ const CameraRigScript := preload("res://camera_rig.gd")
 # Phase B3 (live): the runtime drive client + the live moving-window terrain node.
 const Viz2DriveClientScript := preload("res://viz2_drive_client.gd")
 const Viz2WindowScript := preload("res://viz2_terrain_window.gd")
+# Pixel-stream (--stream): the Godot<->stream-server frame socket (JPEG out / control in).
+const Viz2StreamScript := preload("res://viz2_stream.gd")
 # Phase C: the interactive sun az/el HUD. Preloaded (not reached by class_name) so it compiles
 # with THIS script, mirroring how sun_sweep.gd reaches boulder_manifest.gd.
 const Viz2SunHudScript := preload("res://viz2_hud.gd")
@@ -93,6 +95,16 @@ var _drive_client                       # Viz2DriveClient instance
 var _window                             # Viz2TerrainWindow instance (live moving-window mesh)
 var _applied_gen := 0
 var _far_context: MeshInstance3D
+
+# ── Pixel-stream mode (--stream): drive live from a browser over the FastAPI stream server ────
+var _stream := false
+var _stream_port := 0
+var _stream_fps := 24
+var _stream_quality := 0.72
+var _stream_io                          # Viz2Stream frame-socket helper (RefCounted)
+var _stream_v := 0.0                     # scaled twist held between browser commands (m/s)
+var _stream_omega := 0.0                 # scaled twist held between browser commands (rad/s)
+var _stream_max_seconds := 900.0         # hard wall-clock cap on the stream loop (safety)
 
 # ── runtime state ────────────────────────────────────────────────────────────────────────
 var sf                                 # StateFields instance (read-only library)
@@ -165,7 +177,9 @@ func _ready() -> void:
 		if not _setup_live():
 			get_tree().quit(5)
 			return
-		if _auto_frames > 0:
+		if _stream:
+			_run_stream()      # coroutine: continuous browser-driven live loop + JPEG frame stream
+		elif _auto_frames > 0:
 			_run_live_auto()   # coroutine: drive THROUGH the Viz2Runtime, carve, capture
 		else:
 			_build_sun_hud()   # Phase C: interactive az/el sliders
@@ -228,6 +242,14 @@ func _parse_args() -> void:
 				_live = true
 			"--session-dir":
 				i += 1; _session_dir = String(args[i])
+			"--stream":
+				_stream = true; _live = true      # streaming implies the live conserved drive
+			"--stream-port":
+				i += 1; _stream_port = int(args[i])
+			"--stream-fps":
+				i += 1; _stream_fps = maxi(1, int(args[i]))
+			"--stream-quality":
+				i += 1; _stream_quality = clampf(float(args[i]), 0.1, 1.0)
 		i += 1
 
 
@@ -1075,6 +1097,91 @@ func _run_live_auto() -> void:
 	if _drive_client != null:
 		_drive_client.close()
 	get_tree().quit(0)
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════
+# Pixel-stream — continuous browser-driven LIVE loop + JPEG frame stream to the FastAPI server
+# ══════════════════════════════════════════════════════════════════════════════════════════
+#
+# Reuses the ENTIRE B3 live path (Viz2Runtime drive client + moving-window mesh + chase cam). Each
+# loop iteration drains browser control frames from the stream socket, drives ONE conserved step
+# THROUGH the runtime (_live_tick), renders a fresh frame, captures the chase-cam viewport,
+# JPEG-encodes it, and sends it length-prefixed to the server (which relays it to the browser as a
+# binary WS frame). The awaited frame_post_draw paces the loop to the render rate (bounded by
+# Engine.max_fps), so every streamed frame is a REAL render AFTER the drive step — the pixels change
+# as the browser drives. No faked frames: get_viewport().get_texture().get_image() is the live GPU frame.
+func _run_stream() -> void:
+	# Drive the loop manually; _process() must NOT also run (it would re-seat the chase cam and
+	# double-drive), exactly as _run_live_auto documents for the capture coroutine.
+	set_process(false)
+	if _stream_port <= 0:
+		push_error("viz2: --stream requires --stream-port <server frame-seam port>")
+		get_tree().quit(7)
+		return
+	_stream_io = Viz2StreamScript.new()
+	if not _stream_io.connect_server(_stream_port):
+		push_error("viz2: stream connect failed: %s" % _stream_io.error_msg)
+		get_tree().quit(7)
+		return
+	print("viz2: STREAM connected to server frame seam on 127.0.0.1:%d" % _stream_port)
+
+	# 1) wait for the runtime's connect keyframe -> initialize the live window node
+	var tries := 0
+	while (_window == null or not _window.is_ready()) and tries < 1200:
+		_live_tick(0.0, 0.0)
+		OS.delay_msec(5)
+		tries += 1
+	if _window == null or not _window.is_ready():
+		push_error("viz2: stream — live window never initialized (no keyframe within timeout)")
+		get_tree().quit(6)
+		return
+	_place_rover_live()
+	Engine.max_fps = _stream_fps
+	print("viz2: STREAM live — fps<=%d quality=%.2f window=gen%d — awaiting browser drive" % [
+		_stream_fps, _stream_quality, _applied_gen])
+
+	# 2) the continuous stream loop: input -> conserved drive -> render -> capture -> send
+	var t_stop := Time.get_ticks_msec() + int(_stream_max_seconds * 1000.0)
+	var sent := 0
+	while _stream_io.connected and Time.get_ticks_msec() < t_stop:
+		for msg in _stream_io.poll_input():
+			_apply_stream_input(msg)
+		_live_tick(_stream_v, _stream_omega)
+		await RenderingServer.frame_post_draw
+		await RenderingServer.frame_post_draw
+		var img := get_viewport().get_texture().get_image()
+		if img.get_format() != Image.FORMAT_RGB8:
+			img.convert(Image.FORMAT_RGB8)     # JPEG has no alpha; encode a clean RGB frame
+		var jpg := img.save_jpg_to_buffer(_stream_quality)
+		if not _stream_io.send_frame(jpg):
+			break
+		sent += 1
+	_stream_io.close()
+	if _drive_client != null:
+		_drive_client.close()
+	print("viz2: STREAM ended — %d frames sent, final gen=%d pose=(%.2f,%.2f)" % [
+		sent, _applied_gen, _pose_x, _pose_z])
+	get_tree().quit(0)
+
+
+# Apply one browser control frame to the live drive. Twist is NORMALIZED intent [-1,1], scaled here
+# to the runtime's IPEx envelope via the SAME LIVE_LIN/LIVE_ANG ceilings the interactive live path
+# uses (so a browser command can never exceed the runtime's M-04 twist bound). dig/dump are one-shot
+# conserved actions; sun_az/sun_el drive the single hard sun live.
+func _apply_stream_input(msg: Dictionary) -> void:
+	if msg.has("v") or msg.has("omega"):
+		var v := clampf(float(msg.get("v", 0.0)), -1.0, 1.0)
+		var om := clampf(float(msg.get("omega", 0.0)), -1.0, 1.0)
+		_stream_v = v * LIVE_LIN
+		_stream_omega = om * LIVE_ANG
+	if bool(msg.get("dig", false)) and _drive_client != null:
+		_drive_client.send_dig()
+	if bool(msg.get("dump", false)) and _drive_client != null:
+		_drive_client.send_dump()
+	if _sun != null and msg.has("sun_az"):
+		_sun.rotation_degrees.y = float(msg["sun_az"])
+	if _sun != null and msg.has("sun_el"):
+		_sun.rotation_degrees.x = -float(msg["sun_el"])
 
 
 # Robust capture: a full idle+draw cycle (process_frame) pushes any camera-transform change to

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STEWIE viz2 — live pixel stream</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #05070c; color: #cdd6e3;
+         font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  header { padding: 8px 12px; border-bottom: 1px solid #1b2434; display: flex;
+           gap: 14px; align-items: center; flex-wrap: wrap; }
+  header b { color: #7fd0ff; }
+  #wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px; }
+  #view { background: #000; border: 1px solid #1b2434; max-width: 100%; image-rendering: auto; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  button { background: #142033; color: #cdd6e3; border: 1px solid #26364c;
+           border-radius: 5px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  button:hover { background: #1c2c44; }
+  button:active { background: #24405f; }
+  label { display: inline-flex; gap: 6px; align-items: center; }
+  input[type=range] { width: 130px; }
+  #status { color: #8ea0b8; }
+  .ok { color: #6fe08a; } .err { color: #ff7a6b; }
+  kbd { background:#142033; border:1px solid #26364c; border-radius:3px; padding:1px 5px; }
+</style>
+</head>
+<body>
+<header>
+  <span><b>STEWIE viz2</b> live pixel stream</span>
+  <span id="status">connecting…</span>
+  <span id="fps"></span>
+</header>
+<div id="wrap">
+  <canvas id="view" width="960" height="540"></canvas>
+  <div class="row">
+    <span>drive: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows &nbsp;·&nbsp; hold to move</span>
+    <button id="dig">dig</button>
+    <button id="dump">dump</button>
+  </div>
+  <div class="row">
+    <label>sun az <input id="az" type="range" min="0" max="360" value="135"><span id="azv">135°</span></label>
+    <label>sun el <input id="el" type="range" min="-5" max="90" value="18"><span id="elv">18°</span></label>
+  </div>
+</div>
+<script>
+"use strict";
+// ── config contract (the three.js setup screen sends the SAME first message) ──────────────
+// First WS message = session config. Subsequent messages = per-frame control (normalized intent).
+const CONFIG = { mode: "real", site: "haworth_sfs_2km_1m", fine: 0.05, sun: { az: 135, el: 18 } };
+
+const canvas = document.getElementById("view");
+const ctx = canvas.getContext("2d");
+const statusEl = document.getElementById("status");
+const fpsEl = document.getElementById("fps");
+const proto = location.protocol === "https:" ? "wss" : "ws";
+const ws = new WebSocket(`${proto}://${location.host}/ws`);
+ws.binaryType = "arraybuffer";
+
+let frames = 0, lastT = performance.now();
+function setStatus(t, cls) { statusEl.textContent = t; statusEl.className = cls || ""; }
+
+ws.onopen = () => { setStatus("sending config…"); ws.send(JSON.stringify(CONFIG)); };
+ws.onclose = () => setStatus("disconnected", "err");
+ws.onerror = () => setStatus("socket error", "err");
+
+ws.onmessage = (ev) => {
+  if (typeof ev.data === "string") {
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.type === "ready") setStatus(`live · ${m.mode} · ${m.site || "procedural"}`, "ok");
+    else if (m.type === "error") setStatus("error: " + m.error, "err");
+    return;
+  }
+  // binary = one JPEG frame → blit to the canvas
+  const blob = new Blob([ev.data], { type: "image/jpeg" });
+  createImageBitmap(blob).then((bmp) => {
+    if (canvas.width !== bmp.width || canvas.height !== bmp.height) {
+      canvas.width = bmp.width; canvas.height = bmp.height;
+    }
+    ctx.drawImage(bmp, 0, 0);
+    bmp.close();
+    frames++;
+    const now = performance.now();
+    if (now - lastT > 1000) { fpsEl.textContent = frames + " fps"; frames = 0; lastT = now; }
+  });
+};
+
+// ── drive input: WASD / arrows → normalized {v, omega} intent (Godot scales to IPEx envelope) ─
+const keys = new Set();
+const KEYMAP = { w:"fwd", arrowup:"fwd", s:"back", arrowdown:"back",
+                 a:"left", arrowleft:"left", d:"right", arrowright:"right" };
+let lastV = 0, lastO = 0;
+function sendTwist() {
+  if (ws.readyState !== WebSocket.OPEN) return;
+  let v = 0, o = 0;
+  if (keys.has("fwd")) v += 1; if (keys.has("back")) v -= 1;
+  if (keys.has("left")) o += 1; if (keys.has("right")) o -= 1;
+  if (v === lastV && o === lastO) return;   // only send on change
+  lastV = v; lastO = o;
+  ws.send(JSON.stringify({ v, omega: o }));
+}
+window.addEventListener("keydown", (e) => {
+  const k = KEYMAP[e.key.toLowerCase()];
+  if (k) { e.preventDefault(); if (!keys.has(k)) { keys.add(k); sendTwist(); } }
+});
+window.addEventListener("keyup", (e) => {
+  const k = KEYMAP[e.key.toLowerCase()];
+  if (k) { e.preventDefault(); keys.delete(k); sendTwist(); }
+});
+window.addEventListener("blur", () => { keys.clear(); sendTwist(); });
+
+document.getElementById("dig").onclick = () => ws.send(JSON.stringify({ dig: true }));
+document.getElementById("dump").onclick = () => ws.send(JSON.stringify({ dump: true }));
+
+const az = document.getElementById("az"), el = document.getElementById("el");
+const azv = document.getElementById("azv"), elv = document.getElementById("elv");
+az.oninput = () => { azv.textContent = az.value + "°"; ws.send(JSON.stringify({ sun_az: +az.value })); };
+el.oninput = () => { elv.textContent = el.value + "°"; ws.send(JSON.stringify({ sun_el: +el.value })); };
+</script>
+</body>
+</html>
