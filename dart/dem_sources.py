@@ -20,6 +20,14 @@ from dataclasses import dataclass
 
 _MOON_ME_RADIUS_M = 1737400        # mean lunar radius (MOON_ME); the lunar vertical datum
 
+# R-M7 (A3a): the LRO NAC Shape-from-Shading (photoclinometry) citation, verified against
+# design/DEM_CROSSREF_2026-06-11.md row 4 (Alexandrov & Beyer 2018, Earth & Space Sci. 5, 652).
+# This is the SfS DEM's authoritative provenance -- it is NOT the LOLA Product-78 (Barker/Mazarico)
+# citation the LOLA tiles carry (a different instrument + method entirely). Shared by the 1 m source
+# row and the committed 2 km drive-site crop so both name the same product + method.
+_SFS_CITATION = ("USGS Astrogeology LRO NAC photoclinometry (Shape-from-Shading) DEM 1 m; "
+                 "method Alexandrov & Beyer 2018 (Earth & Space Sci. 5:652)")
+
 
 @dataclass(frozen=True)
 class DemSource:
@@ -37,6 +45,11 @@ class DemSource:
     body: str = "moon"
     frame_radius_m: int = _MOON_ME_RADIUS_M
     notes: str = ""
+    #: R-M7 (A3a): the authoritative product/method citation. Additive + default-empty, so every
+    #: pre-existing row and its tests are unaffected until populated. Carried verbatim into a built
+    #: bundle's ``dem_provenance.citation`` (scripts/build_from_dem.build_from_source), so the map's
+    #: "About this DEM" provenance is machine-sourced from the registry, not hand-typed per bundle.
+    citation: str = ""
 
     @property
     def planning_grade(self) -> bool:
@@ -169,9 +182,20 @@ _CATALOG: tuple[DemSource, ...] = (
         instrument="LROC NAC", resolution_m=1.0, coverage="local site (e.g. Haworth)",
         crs="south_polar_stereographic", fmt="geotiff_cog",
         access_url="https://astrogeology.usgs.gov/search/map/lunar_lro_nac_haworth_photoclinometry_dem_1m",
-        license="public domain (US Gov)", ingest="dem_import",
-        notes="Absolutely controlled (tied to the LOLA geodetic frame). High-res local detail above "
-              "the LOLA backbone -- register to the global frame on import."),
+        license="public domain (US Gov)", ingest="dem_import", citation=_SFS_CITATION,
+        notes="Absolutely controlled (registered to the global geodetic frame). High-res local detail "
+              "above the coarse polar backbone -- register to the global frame on import. Method is "
+              "photoclinometry / Shape-from-Shading (Alexandrov & Beyer 2018), NOT LOLA altimetry."),
+    DemSource(
+        id="haworth_sfs_2km_1m", name="Haworth SfS 2 km drive-site tile (1 m)",
+        instrument="LROC NAC", resolution_m=1.0, coverage="Haworth crater drive site, ~2 km",
+        crs="south_polar_stereographic", fmt="geotiff_cog",
+        access_url="https://astrogeology.usgs.gov/search/map/lunar_lro_nac_haworth_photoclinometry_dem_1m",
+        license="public domain (US Gov)", ingest="dem_import", bundled=True, citation=_SFS_CITATION,
+        notes="Real LRO NAC Shape-from-Shading (photoclinometry) 1 m DEM; a 2 km @ 1 m crop taken "
+              "INSIDE the SfS footprint (Haworth) by scripts/build_from_dem.py --source-id "
+              "lroc_nac_sfs_1m, imported 2026-07-10. The driveable viz2 work-site base (SfS method "
+              "Alexandrov & Beyer 2018) -- NOT a LOLA Product-78 tile. See stewie.specs.sites."),
     DemSource(
         id="pds_radar_sp", name="PDS Lunar Radar Altimetry South Pole DEM",
         instrument="Mini-RF / radar altimetry", resolution_m=150.0, coverage="south pole",
