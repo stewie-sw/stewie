@@ -22,6 +22,7 @@ extends Node3D
 # instantiates NO frozen seam.
 
 const WindowShader := preload("res://viz2_window.gdshader")
+const DiffShader := preload("res://viz2_diff.gdshader")   # E2: the signed cut/berm difference drape
 
 # Hard cap on per-side mesh subdivisions (one vertex per fine cell up to this). 600^2 (2 cm window)
 # = 360k verts is inside the RTX 3090 envelope (plan §2b.5.4); 240^2 (5 cm) is the B3 default.
@@ -29,12 +30,16 @@ const MAX_SUBDIV := 640
 
 var _mi: MeshInstance3D
 var _mat: ShaderMaterial
+var _mat_diff: ShaderMaterial   # E2: swapped in for _mat when the diff drape is toggled on
+var _diff_mode := false
 var _img_height: Image      # FORMAT_RF, absolute elevation (m)
 var _img_state: Image       # FORMAT_R8, label 0..4
 var _img_disturbance: Image # FORMAT_RF, [0,1]
+var _img_diff: Image        # FORMAT_RF, signed h_now - h_virgin (m) — E2
 var _tex_height: ImageTexture
 var _tex_state: ImageTexture
 var _tex_disturbance: ImageTexture
+var _tex_diff: ImageTexture
 
 var _shape := Vector2i(0, 0)          # (W, H) in fine cells
 var _fine_cell_m := 0.05
@@ -96,6 +101,7 @@ func apply_manifest_file(manifest_path: String) -> bool:
 	_apply_field(fields, "height", gdir, _img_height, _tex_height, c0, r0, c1 - c0, r1 - r0, true)
 	_apply_field(fields, "state_label", gdir, _img_state, _tex_state, c0, r0, c1 - c0, r1 - r0, false)
 	_apply_field(fields, "disturbance", gdir, _img_disturbance, _tex_disturbance, c0, r0, c1 - c0, r1 - r0, true)
+	_apply_field(fields, "diff", gdir, _img_diff, _tex_diff, c0, r0, c1 - c0, r1 - r0, true)   # E2
 	applied_generation = gen
 	return true
 
@@ -126,9 +132,11 @@ func _build(origin: Vector2) -> void:
 	_img_height = Image.create(W, H, false, Image.FORMAT_RF)
 	_img_state = Image.create(W, H, false, Image.FORMAT_R8)
 	_img_disturbance = Image.create(W, H, false, Image.FORMAT_RF)
+	_img_diff = Image.create(W, H, false, Image.FORMAT_RF)       # E2: signed diff drape field
 	_tex_height = ImageTexture.create_from_image(_img_height)
 	_tex_state = ImageTexture.create_from_image(_img_state)
 	_tex_disturbance = ImageTexture.create_from_image(_img_disturbance)
+	_tex_diff = ImageTexture.create_from_image(_img_diff)
 
 	var side_m := float(W) * _fine_cell_m
 	var pm := PlaneMesh.new()
@@ -143,10 +151,18 @@ func _build(origin: Vector2) -> void:
 	_mat.set_shader_parameter("disturbance_tex", _tex_disturbance)
 	_mat.set_shader_parameter("lod_step_m", _fine_cell_m)
 
+	# E2: the diff-drape material — same vertex displacement from height_tex, diverging falsecolor of
+	# diff_tex. Swapped in by set_diff_mode(); binds the SAME live textures so toggling is instant.
+	_mat_diff = ShaderMaterial.new()
+	_mat_diff.shader = DiffShader
+	_mat_diff.set_shader_parameter("height_tex", _tex_height)
+	_mat_diff.set_shader_parameter("diff_tex", _tex_diff)
+	_mat_diff.set_shader_parameter("lod_step_m", _fine_cell_m)
+
 	_mi = MeshInstance3D.new()
 	_mi.name = "Viz2Window"
 	_mi.mesh = pm
-	_mi.material_override = _mat
+	_mi.material_override = _mat_diff if _diff_mode else _mat
 	_reposition(origin)
 	add_child(_mi)
 
@@ -177,6 +193,16 @@ func height_at_world(x: float, z: float) -> float:
 	var h01 := _img_height.get_pixel(c0, r1).r; var h11 := _img_height.get_pixel(c1, r1).r
 	return lerp(lerp(h00, h10, tx), lerp(h01, h11, tx), ty)
 
+
+# E2: toggle the signed cut/berm difference drape on the live window mesh. When ON, the diverging
+# falsecolor viz2_diff.gdshader replaces the lit window shader (same displaced geometry, recolored by
+# diff = h_now - h_virgin). Safe to call before the window is built — the choice is honored in _build.
+func set_diff_mode(enabled: bool) -> void:
+	_diff_mode = enabled
+	if _mi != null and _mat != null and _mat_diff != null:
+		_mi.material_override = _mat_diff if enabled else _mat
+
+func diff_mode() -> bool: return _diff_mode
 
 func window_origin() -> Vector2: return _window_origin
 func fine_cell_m() -> float: return _fine_cell_m

@@ -176,6 +176,13 @@ class WorkSite:
         self.window_world_origin: tuple[float, float] | None = None  # global (x,y) m of window (0,0)
         self.inventory_kg: float = 0.0                      # GLOBAL drum ledger [kg]
         self.peak_inventory_kg: float = 0.0
+        # viz2 E1: cumulative MOVED-mass counters (additive; NOT the residual `inventory_kg` ledger,
+        # which returns to ~0 after a dig-then-dump — verified plan §0.5). `cut_total_kg` is the total
+        # mass ever cut into the drum (flatten); `placed_total_kg` the total ever deposited (dump). E3's
+        # RegolithVolumeEstimate.from_delta takes `conserved_mass_kg = cut_total_kg` (CUT mass ONLY);
+        # `placed_total_kg`/`inventory_kg` are reported SEPARATELY, never summed in (the round-3 fix).
+        self.cut_total_kg: float = 0.0
+        self.placed_total_kg: float = 0.0
         self._baseline_mass: float | None = None            # single-window baseline (open_window path)
 
         # Streaming state (recenter path): a persistent WORKED store keyed by base-tile (tr,tc),
@@ -187,6 +194,14 @@ class WorkSite:
         self.seen_tiles: set[tuple[int, int]] = set()
         self._baseline_virgin_kg: float = 0.0
         self.recenters: int = 0
+
+        # viz2 E2: deterministic VIRGIN height over the current active window, cached per window
+        # position (recompute only when the window slides). The virgin surface is regenerated per
+        # base-tile via `_virgin_tile_fields` (the SAME deterministic mosaic regen `recenter` seeds a
+        # first-visit tile with), so `diff_field()` = derive_height() - virgin is the signed cut/berm
+        # drape independent of how the window was worked. See `window_virgin_height`.
+        self._virgin_height: np.ndarray | None = None
+        self._virgin_height_key: tuple | None = None
 
         # Per-tick drive-seam state (WorkSite.step). The rover pose is tracked in GLOBAL metres so the
         # boundary clamp is a plain box test and it survives a window recenter (the fine-cell rc is
@@ -306,6 +321,7 @@ class WorkSite:
         moved, hi = flatten_to_level(cs, mask, target_m)
         self.inventory_kg += cs.drum_inventory
         cs.drum_inventory = 0.0                     # window drum is a transient register
+        self.cut_total_kg += moved                  # E1: cumulative CUT mass (never resets on dump)
         if relabel and hi.any():
             cs.state_label[hi] = np.uint8(StateLabel.EXCAVATED)
             cs.disturbance[hi] = np.clip(cs.disturbance[hi] + 0.4, 0.0, 1.0)
@@ -325,6 +341,7 @@ class WorkSite:
         placed = cs.dump_from_inventory(mask, total_kg=want, spoil_density=spoil_density)
         cs.drum_inventory = 0.0                     # discard the register; real mass is in the ledger
         self.inventory_kg -= placed                 # ledger loses exactly what landed on the grid
+        self.placed_total_kg += placed              # E1: cumulative PLACED mass (a SEPARATE quantity)
         return placed
 
     def relax(self, *, max_steps: int = 400, capture: bool = False, capture_every: int = 4,
@@ -509,6 +526,50 @@ class WorkSite:
             raise RuntimeError("active_rc_for_xy() requires an open active window (call open_window first)")
         ox, oy = self.window_world_origin
         return ((y - oy) / self.fine_cell_m, (x - ox) / self.fine_cell_m)
+
+    # -- viz2 E2: signed before/after difference field (h_now - h_virgin) ------
+
+    def window_virgin_height(self) -> np.ndarray:
+        """Deterministic VIRGIN heightmap [m] over the CURRENT active fine window — the un-worked
+        surface the window would have shown before any dig/dump/drive. Each active base-tile's virgin
+        fields are regenerated via ``_virgin_tile_fields`` (the same deterministic mosaic regen that
+        seeds a first-visit tile in ``recenter``) and assembled with ``recenter``'s exact offset math,
+        so this is BYTE-IDENTICAL to ``derive_height()`` on a freshly-recentered, un-worked window
+        (verified). Cached per window position (recomputed only when the window slides).
+
+        Requires the streaming (``recenter``) entry path — ``active_origin_base_rc`` must be set. The
+        single-window ``open_window`` slice does not register the per-tile bookkeeping, so a virgin
+        drape is not defined there; viz2 always streams via ``recenter``."""
+        if self.fine is None or self.active_origin_base_rc is None:
+            raise RuntimeError(
+                "window_virgin_height() requires a streaming active window (call recenter first); it "
+                "is not defined on the open_window single-window slice.")
+        key = (self.active_origin_base_rc, frozenset(self.active_blocks),
+               int(self.fine.height), int(self.fine.width))
+        if self._virgin_height_key == key and self._virgin_height is not None:
+            return self._virgin_height
+        br0, bc0 = self.active_origin_base_rc
+        k = self.k
+        H, W = int(self.fine.height), int(self.fine.width)
+        virgin = np.zeros((H, W), dtype=np.float64)
+        for (tr, tc) in self.active_blocks:
+            r0, c0, r1, c1 = self._tile_region(tr, tc)
+            tf = self._virgin_tile_fields(tr, tc)            # deterministic regen (worked state ignored)
+            rr0, cc0 = (r0 - br0) * k, (c0 - bc0) * k
+            th, tw = (r1 - r0) * k, (c1 - c0) * k
+            h = np.asarray(tf["datum"], dtype=np.float64) + (
+                np.asarray(tf["mass_areal"], dtype=np.float64)
+                / np.asarray(tf["density"], dtype=np.float64))
+            virgin[rr0:rr0 + th, cc0:cc0 + tw] = h
+        self._virgin_height = virgin
+        self._virgin_height_key = key
+        return virgin
+
+    def diff_field(self) -> np.ndarray:
+        """Signed height difference ``h_now - h_virgin`` [m] over the active window: NEGATIVE where the
+        terrain was CUT (a dug trench sits below virgin), POSITIVE where SPOIL/berm was placed above it,
+        ~0 on undisturbed ground. This is the field the viz2 diff drape falsecolors (E2)."""
+        return self._require_fine().derive_height() - self.window_virgin_height()
 
     # -- per-tick conserved drive seam (WorkSite.step; NM-7 safety) -----------
 

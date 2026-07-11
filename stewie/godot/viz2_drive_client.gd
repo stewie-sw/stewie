@@ -88,6 +88,10 @@ func send_dig() -> void:
 	_send({"cmd": "dig"})
 
 
+func send_dump() -> void:
+	_send({"cmd": "dump"})
+
+
 func ack(seq: int) -> void:
 	if seq >= 0:
 		_send({"cmd": "ack", "seq": seq})

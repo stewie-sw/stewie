@@ -56,8 +56,10 @@ import time
 import numpy as np
 
 from stewie.bridge.stream import PROTOCOL_VERSION, StreamSession
+from stewie.contracts import RegolithVolumeEstimate
 from stewie.contracts.physics_model_control import LIVE_DEFAULT_MODEL_ID, resolve_live_backend
 from stewie.physics.worksite import WorkSite
+from stewie.specs.ipex_specs import dig_energy_per_kg
 from stewie.twin.io_fields import atomic_write_bytes
 
 # Reused DISCIPLINE (not the class): the RuntimeProcess bounded request-line ceiling (M-03). A real
@@ -167,10 +169,19 @@ class Viz2Runtime:
         self._safe_stopped = False
         self._force_keyframe = False
         self._pending_dig = False
+        self._pending_dump = False
         self._rejected_stale = 0
         self._rejected_bounds = 0
         self._dig_count = 0
+        self._dump_count = 0
         self._last_applied_twist: tuple[float, float] = (0.0, 0.0)
+        # E1: excavation energy — every kg cut costs the grounded IPEx dig figure (Schuler et al 2024,
+        # 4151 J/kg via ipex_specs.dig_energy_per_kg). Accumulated on the actor thread as the drum cuts;
+        # streamed on telemetry so the HUD energy budget decreases by the real J/kg. Dump is passive
+        # (spoil is dropped) — no grounded dump-energy constant exists, so it debits nothing (honest).
+        self._dig_energy_per_kg = float(dig_energy_per_kg())
+        self._dig_energy_j = 0.0
+        self._last_dig_moved_kg = 0.0
 
         # --- generation / union-coverage bookkeeping (actor-thread owned) ---
         self._generation = 0
@@ -391,9 +402,11 @@ class Viz2Runtime:
                 self._force_keyframe = False
                 do_dig = self._pending_dig and not self._safe_stopped
                 self._pending_dig = False
+                do_dump = self._pending_dump and not self._safe_stopped
+                self._pending_dump = False
                 v, omega = (0.0, 0.0) if self._safe_stopped else self._latest_twist
             if sess is not None:
-                self._step_and_publish(sess, outbound, epoch, v, omega, force_kf, do_dig)
+                self._step_and_publish(sess, outbound, epoch, v, omega, force_kf, do_dig, do_dump)
             # maintain the fixed rate (real timing, no faking)
             rest = self._period - (time.monotonic() - t0)
             if rest > 0:
@@ -401,7 +414,7 @@ class Viz2Runtime:
 
     def _step_and_publish(self, sess: StreamSession, outbound: queue.Queue | None,
                           epoch: int, v: float, omega: float, force_kf: bool,
-                          do_dig: bool = False) -> None:
+                          do_dig: bool = False, do_dump: bool = False) -> None:
         telem, dirty = self.ws.step(v, omega, self.dt)       # the conserved single-mutator drive
         self._last_applied_twist = (v, omega)
         if do_dig:
@@ -410,10 +423,22 @@ class Viz2Runtime:
             dig_dirty = self._apply_dig()
             dirty = dirty + dig_dirty
             telem["dug"] = bool(dig_dirty)
+        if do_dump:
+            # a conserved dump at the current pose (WorkSite.dump -> spoil onto the footprint); its
+            # dirty region rides THIS generation, so the bermed height/state carry downstream.
+            dump_dirty = self._apply_dump()
+            dirty = dirty + dump_dirty
+            telem["dumped"] = bool(dump_dirty)
         keyframe = (force_kf or bool(telem.get("recentered"))
                     or (self._generation + 1 - self._last_keyframe_gen) >= self.keyframe_interval)
         gen = self._advance_generation(dirty, keyframe)
         residual_frac = self._residual_frac()
+        # E1: moved-mass ledgers + grounded excavation energy on every telemetry frame (HUD budget).
+        telem["cut_total_kg"] = float(self.ws.cut_total_kg)
+        telem["placed_total_kg"] = float(self.ws.placed_total_kg)
+        telem["inventory_kg"] = float(self.ws.inventory_kg)
+        telem["dig_energy_j"] = float(self._dig_energy_j)
+        telem["dig_energy_per_kg"] = float(self._dig_energy_per_kg)
         payload = {
             "type": "telemetry", "generation": gen, "keyframe": keyframe,
             "telem": telem, "dirty": [list(b) for b in dirty],
@@ -460,6 +485,9 @@ class Viz2Runtime:
             elif cmd == "dig":
                 # arm a conserved dig for the next actor tick (applied on the actor thread only).
                 self._pending_dig = True
+            elif cmd == "dump":
+                # arm a conserved dump for the next actor tick (applied on the actor thread only).
+                self._pending_dump = True
             elif cmd == "ack" and sess is not None:
                 seq_raw = msg.get("seq")
                 if seq_raw is None:
@@ -509,8 +537,34 @@ class Viz2Runtime:
         mask = np.zeros((H, W), dtype=bool)
         mask[r0:r1, c0:c1] = True
         target = float(f.derive_height()[r0:r1, c0:c1].min()) - self.dig_depth_m
-        self.ws.flatten(mask, target)                        # cells above target -> cut (conserved)
+        moved = self.ws.flatten(mask, target)                # cells above target -> cut (conserved)
+        self._last_dig_moved_kg = float(moved)
+        self._dig_energy_j += float(moved) * self._dig_energy_per_kg   # E1: grounded 4151 J/kg debit
         self._dig_count += 1
+        return [[r0, c0, r1, c1]]
+
+    def _apply_dump(self) -> list[list[int]]:
+        """Conserved deposit at the current pose (actor thread only): dump the whole drum ledger as
+        bulked SPOIL over a footprint-sized box, so a berm rises (a real height gain the window mesh's
+        vertex shader displaces — the positive side of the E2 diff drape). Returns the dump's dirty bbox
+        (fine-cell ``[r0,c0,r1,c1]``) or ``[]`` when the pose is unseated / the drum is empty."""
+        if self.ws.pose_xy is None or self.ws.inventory_kg <= 0.0:
+            return []
+        H, W = self._window_shape
+        rc = self.ws.active_rc_for_xy(self.ws.pose_xy)
+        r = int(round(rc[0]))
+        c = int(round(rc[1]))
+        hc = self.dig_half_cells
+        r0, r1 = max(0, r - hc), min(H, r + hc + 1)
+        c0, c1 = max(0, c - hc), min(W, c + hc + 1)
+        if r1 <= r0 or c1 <= c0:
+            return []
+        mask = np.zeros((H, W), dtype=bool)
+        mask[r0:r1, c0:c1] = True
+        placed = self.ws.dump(mask)                          # whole ledger -> bulked spoil (conserved)
+        if placed <= 0.0:
+            return []
+        self._dump_count += 1
         return [[r0, c0, r1, c1]]
 
     # -- generation-namespaced patch manifests (plan §2b.4) ------------------------------------
@@ -551,6 +605,9 @@ class Viz2Runtime:
             "density": (f.density, _RF32, "density.rf32"),
             "state_label": (f.state_label, _R8, "state_label.r8"),
             "disturbance": (f.disturbance, _RF32, "disturbance.rf32"),
+            # E2: the signed before/after difference drape field (h_now - h_virgin), streamed every
+            # generation so the client's diff shader falsecolors the live cut(-)/berm(+) as it carves.
+            "diff": (self.ws.diff_field(), _RF32, "diff.rf32"),
         }
         if keyframe:
             arrs["mass_areal"] = (f.mass_areal, _RF32, "mass_areal.rf32")   # full-resync set
@@ -632,6 +689,53 @@ class Viz2Runtime:
             "state_label": np.asarray(f.state_label, dtype="u1"),
             "disturbance": np.asarray(f.disturbance, dtype="<f4"),
             "mass_areal": np.asarray(f.mass_areal, dtype="<f4"),
+        }
+
+    def emit_volume_evidence(self, *, density_kg_m3: float | None = None,
+                             work_order_id: str = "viz2-session",
+                             transaction_id: str = "viz2-session",
+                             height_rmse_m: float = 0.0, density_frac: float = 0.0) -> dict:
+        """E3: on session/dig end, emit the REAL RegolithVolumeEstimate over the worked active window.
+
+        ``before`` = the deterministic VIRGIN surface (E2's ``window_virgin_height``), ``after`` = the
+        as-built ``derive_height()``; the conserved cross-check is ``conserved_mass_kg = cut_total_kg``
+        — the cumulative CUT mass ONLY. ``from_delta`` compares it against the cut-volume mass
+        ``observed = cut_volume_m3 * density``; on the conserved authority these agree exactly (the cut
+        releases height ``removed_areal/density``), so ``agreement_conserved`` is True with a
+        cut-then-dump-in-place run passing (the round-3 regression the old ``cut+placed`` argument would
+        have falsely failed — verified plan §9/E3).
+
+        ``placed_total_kg`` and the drum residual ``inventory_kg`` are returned as SEPARATE quantities,
+        NEVER summed into ``conserved_mass_kg``. ``density_kg_m3`` defaults to the in-situ (virgin)
+        density of the CUT cells (uniform on the default mantle); pass a sourced value to override."""
+        f = self.ws._require_fine()
+        before = self.ws.window_virgin_height()
+        after = np.asarray(f.derive_height(), dtype=float)
+        if density_kg_m3 is None:
+            # in-situ density of the CUT material: cut cells (below virgin) keep their original density
+            # (flatten reduces mass_areal only; dump — not flatten — is what changes a cell's density),
+            # so their density is the honest in-situ figure `observed = cut_volume*density` must use.
+            dens = np.asarray(f.density, dtype=float)
+            cut_mask = (after - before) < -1e-9
+            density_kg_m3 = float(dens[cut_mask].mean()) if cut_mask.any() else float(dens.mean())
+        est = RegolithVolumeEstimate.from_delta(
+            before, after, float(self.ws.fine_cell_m),
+            work_order_id=work_order_id,
+            before_source="viz2:window_virgin",
+            after_source="viz2:as_built",
+            transaction_id=transaction_id,
+            density_kg_m3=float(density_kg_m3),
+            height_rmse_m=float(height_rmse_m),
+            density_frac=float(density_frac),
+            conserved_mass_kg=float(self.ws.cut_total_kg),   # CUT mass ONLY (E3 round-3 contract)
+        )
+        return {
+            "estimate": est,
+            "cut_total_kg": float(self.ws.cut_total_kg),
+            "placed_total_kg": float(self.ws.placed_total_kg),   # SEPARATE, never summed in
+            "inventory_kg": float(self.ws.inventory_kg),         # SEPARATE, never summed in
+            "density_kg_m3": float(density_kg_m3),
+            "dig_energy_j": float(self._dig_energy_j),
         }
 
     def latest_manifest_path(self) -> str:

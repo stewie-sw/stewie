@@ -618,11 +618,16 @@ func _apply_pose() -> void:
 
 func _process(delta: float) -> void:
 	if _live:
-		# LIVE interactive: drive THROUGH the runtime (bounded twist), dig on viz2_dig.
+		# LIVE interactive: drive THROUGH the runtime (bounded twist), dig on viz2_dig, dump on
+		# viz2_dump, toggle the signed cut/berm diff drape on viz2_diff (E2).
 		var lt := _read_twist_live()
 		_live_tick(lt.x, lt.y)
 		if Input.is_action_just_pressed("viz2_dig"):
 			_drive_client.send_dig()
+		if Input.is_action_just_pressed("viz2_dump"):
+			_drive_client.send_dump()
+		if _window != null and Input.is_action_just_pressed("viz2_diff"):
+			_window.set_diff_mode(not _window.diff_mode())
 		return
 	var tw := _read_twist()
 	if tw != Vector2.ZERO:
@@ -867,12 +872,43 @@ func _run_live_auto() -> void:
 		OS.delay_msec(20)
 	_place_rover_live()
 	await _settle_and_capture("viz2_live_dig_chase.png")
+	var dig_pose: Vector2 = _drive_client.latest_pose
+
+	# 3b) DRIVE AWAY from the trench, then DUMP — spoil lands as a SEPARATE berm (a real height GAIN
+	# the window mesh displaces upward). Separating the cut from the berm is the E3 contract: the diff
+	# drape then shows cut(-) and berm(+) at distinct places, and observed cut-volume == cut_total_kg.
+	Input.action_press("viz2_forward", 1.0)
+	var haul_end := Time.get_ticks_msec() + 2600
+	while Time.get_ticks_msec() < haul_end:
+		var ht := _read_twist_live()
+		_live_tick(ht.x, ht.y)
+		OS.delay_msec(15)
+	Input.action_release("viz2_forward")
+	for k in range(8):
+		_live_tick(0.0, 0.0)
+		OS.delay_msec(15)
+	_drive_client.send_dump()
+	for k in range(20):
+		_live_tick(0.0, 0.0)
+		OS.delay_msec(20)
+	_place_rover_live()
+	var berm_pose: Vector2 = _drive_client.latest_pose
 
 	# 4) the money shots: ISOLATE the live physics window (the static 4x-decimated context
 	# plane would occlude it where its coarser height exceeds the window) and frame it tightly
-	# so the carved TREAD rut path + the dug EXCAVATED trench are unambiguous.
+	# so the carved TREAD rut path + the dug EXCAVATED trench + the placed berm are unambiguous.
 	await _capture_window_closeup("viz2_live_window.png")
 	await _capture_window_topdown("viz2_live_topdown.png")
+
+	# 5) E2: the SIGNED DIFFERENCE DRAPE — toggle the diverging cut(blue)/berm(orange) falsecolor on
+	# the SAME displaced window mesh and capture. This is the "dig and see the dispersion/cut-fill
+	# patterns" deliverable; the frozen seams are untouched (a viz2-owned drape material swap).
+	_window.set_diff_mode(true)
+	await _capture_window_topdown("viz2_live_diff_topdown.png")
+	await _capture_window_closeup("viz2_live_diff_closeup.png")
+	_window.set_diff_mode(false)
+	print("viz2: E2 diff drape captured — dig_pose=(%.2f,%.2f) berm_pose=(%.2f,%.2f)" % [
+		dig_pose.x, dig_pose.y, berm_pose.x, berm_pose.y])
 
 	# pose-tracking gate: rendered pose vs the runtime's reported pose (< 1 fine cell)
 	var rp := Vector2(_pose_x, _pose_z)
