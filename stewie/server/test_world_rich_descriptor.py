@@ -66,5 +66,5 @@ def test_world_mutated_reflects_a_recorded_build(client):
 
 
 def test_world_404s_a_site_without_a_dem_bundle(client):
-    r = client.get("/world?site=de_gerlache_rim", headers=H)   # a real site id whose bundle is not on disk
+    r = client.get("/world?site=amundsen_rim", headers=H)   # a real site id whose bundle is not on disk
     assert r.status_code == 404

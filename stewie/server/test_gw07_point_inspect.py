@@ -145,5 +145,5 @@ def test_point_out_of_tile_is_honest_no_data_not_fabricated(client):  # [REQ:GW-
 
 
 def test_point_unknown_site_404(client):  # [REQ:GW-07]
-    r = client.get("/world/point?site=de_gerlache_rim&x=60&y=60")       # real site id, no bundle on disk
+    r = client.get("/world/point?site=amundsen_rim&x=60&y=60")       # real site id, no bundle on disk
     assert r.status_code == 404

@@ -31,7 +31,7 @@ def test_bundle_for_site_rejects_unknown_and_unimported():
     with pytest.raises(KeyError):
         bundle_for_site("not_a_real_site")
     with pytest.raises(FileNotFoundError):           # known site, no DEM bundle imported
-        bundle_for_site("de_gerlache_rim")
+        bundle_for_site("amundsen_rim")
 
 
 def test_dem_preview_is_served_per_site():
