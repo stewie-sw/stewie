@@ -674,10 +674,18 @@ func _process(delta: float) -> void:
 		print("viz2: dump (viz2_dump) — conserved deposition is Phase B (not wired in Phase A)")
 
 
+# Coerce a metadata value to a String, mapping null/absent to "" (JSON null would crash String()).
+func _meta_str(v) -> String:
+	if v == null:
+		return ""
+	return String(v)
+
+
 # ── Phase G / G4: "About this DEM" provenance pane ────────────────────────────────────────
 # Reads the loaded bundle's metadata.json dem_provenance block and shows the source + citation
 # VERBATIM in a bottom-left overlay (rides the headless capture). The citation is echoed, never
 # composed — a LOLA Product-78 tile shows Barker/Mazarico; the SfS tile shows Alexandrov & Beyer.
+# A SYNTHETIC procedural bundle (citation=null) instead shows the red guardrail banner.
 func _build_provenance_pane() -> void:
 	var meta_path := _site_dir + "/metadata.json"
 	var f := FileAccess.open(meta_path, FileAccess.READ)
@@ -687,15 +695,23 @@ func _build_provenance_pane() -> void:
 	f.close()
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return
-	var region := String(parsed.get("region", ""))
+	var region := _meta_str(parsed.get("region", ""))
 	var source := ""
 	var citation := ""
 	var frame := ""
 	var prov = parsed.get("dem_provenance", {})
 	if typeof(prov) == TYPE_DICTIONARY:
-		source = String(prov.get("source", ""))
-		citation = String(prov.get("citation", ""))
-		frame = String(prov.get("frame", ""))
+		# NULL-SAFE: a procedural bundle sets citation=null (JSON null) — String(null) throws, so
+		# coerce a missing/null field to "" (a real DEM's fields are strings and pass through).
+		source = _meta_str(prov.get("source", ""))
+		citation = _meta_str(prov.get("citation", ""))
+		frame = _meta_str(prov.get("frame", ""))
+	# SYNTHETIC guardrail: a procedural bundle carries synthetic=true (top-level and/or in
+	# dem_provenance) with a null citation. Render it UNMISTAKABLY so a synthetic frame can never
+	# be mistaken for a real DEM (segregation guardrail; matches procedural_bundle metadata).
+	var is_synth := bool(parsed.get("synthetic", false))
+	if typeof(prov) == TYPE_DICTIONARY:
+		is_synth = is_synth or bool(prov.get("synthetic", false))
 
 	var layer := CanvasLayer.new()
 	layer.name = "AboutThisDEM"
@@ -707,15 +723,34 @@ func _build_provenance_pane() -> void:
 	col.custom_minimum_size = Vector2(minf(760.0, float(_view_size.x) - 24.0), 0)
 	panel.add_child(col)
 
+	# A red SYNTHETIC banner at the TOP of the pane for procedural terrain (only). Real DEMs get
+	# none, so the two are visually unmistakable in the capture.
+	if is_synth:
+		var banner := Label.new()
+		banner.text = "⚠ SYNTHETIC — PROCEDURAL TERRAIN (fbm_global; NO real citation)"
+		banner.modulate = Color(1.0, 0.35, 0.30)
+		col.add_child(banner)
+		# Also stamp a large top-center watermark so a cropped screenshot still reads SYNTHETIC.
+		var top := Label.new()
+		top.name = "SyntheticWatermark"
+		top.text = "SYNTHETIC PROCEDURAL TERRAIN"
+		top.modulate = Color(1.0, 0.35, 0.30, 0.85)
+		top.position = Vector2(maxf(0.0, float(_view_size.x) * 0.5 - 170.0), 14.0)
+		layer.add_child(top)
+		print("viz2: SYNTHETIC bundle — rendered with the procedural-terrain guardrail banner")
+
 	var title := Label.new()
-	title.text = "About this DEM — %s" % region
+	title.text = ("SYNTHETIC terrain — %s" % region) if is_synth else ("About this DEM — %s" % region)
 	col.add_child(title)
 	var src := Label.new()
 	src.text = "source: %s" % source
 	src.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(src)
 	var cite := Label.new()
-	cite.text = "citation: %s" % citation
+	if is_synth and citation == "":
+		cite.text = "citation: (none — SYNTHETIC procedural terrain, no real source)"
+	else:
+		cite.text = "citation: %s" % citation
 	cite.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(cite)
 	if frame != "":

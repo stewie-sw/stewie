@@ -54,14 +54,40 @@ DEFAULT_HAWORTH_5M_SRC = os.path.join(_LOLA_5MPP_DIR, "Haworth_final_adj_5mpp_su
 # Bundle enumeration + metadata.
 # ---------------------------------------------------------------------------
 
+def is_synthetic_bundle(bundle: str) -> bool:
+    """True if ``bundle``'s metadata marks it SYNTHETIC (procedural terrain).
+
+    A procedural bundle (stewie.terrain.procedural_bundle) carries a top-level ``synthetic: true``
+    AND ``dem_provenance.synthetic: true`` with ``citation: null``. Such a bundle must NEVER enter
+    the cross-site table (which echoes REAL citations) — this is the segregation guardrail. Real
+    bundles have no ``synthetic`` marker, so they are unaffected. A metadata that cannot be read is
+    treated as non-synthetic (fail-open for enumeration; a genuinely synthetic bundle always writes
+    valid JSON)."""
+    try:
+        meta = _load_meta(bundle)
+    except Exception:
+        return False
+    if bool(meta.get("synthetic", False)):
+        return True
+    prov = meta.get("dem_provenance", {}) or {}
+    return bool(prov.get("synthetic", False))
+
+
 def list_site_bundles(root: str = DEFAULT_SITE_ROOT) -> list[str]:
-    """Absolute paths of the on-disk DEM bundle DIRECTORIES under ``root`` (a bundle == a directory
-    that carries a ``metadata.json``), sorted by name. This is the ONE enumeration the cross-site
-    comparator and the viz2 site switcher share, so the compare table's rows are exactly the bundles
-    on disk — no hard-coded site list to drift out of sync."""
+    """Absolute paths of the on-disk REAL DEM bundle DIRECTORIES under ``root`` (a bundle == a
+    directory that carries a ``metadata.json``), sorted by name. This is the ONE enumeration the
+    cross-site comparator and the viz2 site switcher share, so the compare table's rows are exactly
+    the REAL bundles on disk — no hard-coded site list to drift out of sync.
+
+    SYNTHETIC bundles (``metadata.synthetic``/``dem_provenance.synthetic`` true — the
+    stewie.terrain.procedural_bundle output) are EXCLUDED here: a procedural bundle must never enter
+    the real cross-site table, so even if one were dropped under ``samples/lunar_dem/`` it can never
+    masquerade as a real site or borrow a real citation (segregation guardrail)."""
     out = []
     for d in sorted(glob.glob(os.path.join(root, "*"))):
         if os.path.isdir(d) and os.path.exists(os.path.join(d, "metadata.json")):
+            if is_synthetic_bundle(d):
+                continue                         # never list synthetic terrain (guardrail)
             out.append(os.path.abspath(d))
     return out
 
