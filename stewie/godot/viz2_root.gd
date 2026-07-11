@@ -1,0 +1,482 @@
+extends Node3D
+# viz2_root.gd — STEWIE viz2 Phase A: the driveable Godot scene FOUNDATION.
+#
+# Loads the REAL 1 m Haworth Shape-from-Shading site
+# (samples/lunar_dem/haworth_sfs_2km_1m, 2000² @ 1.0 m) through the FROZEN state-field
+# loader (state_fields.gd), builds the terrain with the FROZEN TerrainNode (terrain.gd,
+# LIT_PBR / Hapke), assembles the EZ-RASSOR rig from the MIT-licensed glb meshes and seats
+# it on the real heightfield, mounts the 8-camera sensor rig (camera_rig.gd), and wires
+# WASD + gamepad drive input through the project InputMap (viz2_* actions — read via
+# Input.get_action_strength / is_action_pressed, NEVER raw key polling).
+#
+# This is a SEPARATE scene/script family from the frozen sidecar.gd and from the OLD
+# no-physics intern prototype drive_controller.gd (which is NOT extended). Phase A is the
+# scene + rig + input ONLY. The conserved-terramechanics drive loop is Phase B and is NOT
+# built here: the pose below is a plain kinematic unicycle re-seated on the surface each
+# tick (a viewing prototype, honestly labelled — not a physics integrator).
+#
+# The frozen seams (state_fields.gd / terrain.gd / terrain.gdshader) are used READ-ONLY,
+# as libraries; none are edited.
+#
+# ── MIT NOTICE (docs/ezrassor_assets.md §1; THIRD_PARTY.md) ─────────────────────────────
+# The rover meshes assets/{rover_body,wheel,drum,drum_arm}.glb are converted from
+# FlaSpaceInst/EZ-RASSOR, licensed MIT, Copyright (c) 2019 [10 named UCF students], The
+# Florida Space Institute, and The National Aeronautics and Space Administration. The MIT
+# copyright + permission notice rides along with any shipped/converted mesh (THIRD_PARTY.md).
+
+const StateFieldsScript := preload("res://state_fields.gd")
+const TerrainScript := preload("res://terrain.gd")
+const CameraRigScript := preload("res://camera_rig.gd")
+
+# ── EZ-RASSOR rig geometry (SOURCED from the URDF via ezrassor_assets.md §3; the SAME
+# constants sidecar.gd::_build_rover uses — Y-up, unscaled metres; only the meshes carry
+# the URDF 0.35 scale, baked into the glbs). Joint origins are absolute. ──────────────────
+const ROVER_ASSETS := "res://assets"
+const ROVER_JOINT_AXIS := Vector3(0, 0, -1)          # URDF (0,1,0)_zup -> (0,0,-1)_yup
+const WHEEL_ORIGINS := {
+	"LF": Vector3(0.20, 0.0, -0.285), "RF": Vector3(0.20, 0.0, 0.285),
+	"LB": Vector3(-0.20, 0.0, -0.285), "RB": Vector3(-0.20, 0.0, 0.285),
+}
+const ARM_FRONT_ORIGIN := Vector3(0.20, 0.0, 0.0)
+const ARM_BACK_ORIGIN := Vector3(-0.20, 0.0, 0.0)
+const DRUM_FRONT_REL := Vector3(0.388245, 0.0, 0.0)
+const DRUM_BACK_REL := Vector3(-0.388245, 0.0, 0.0)
+const ARM_FRONT_PITCH := 0.20                        # front arm lowered (digging approach)
+const ARM_BACK_PITCH := 0.65                         # back arm raised clear (transport)
+const DRUM_FRONT_SPIN := 0.5                         # counter-rotation convention (control-layer)
+const DRUM_BACK_SPIN := -0.5
+
+# ── Drive kinematics (Phase-A prototype — NOT physics) ───────────────────────────────────
+const LIN_SPEED := 0.6      # m/s at full forward action
+const ANG_SPEED := 0.7      # rad/s at full turn action
+
+# ── Chase camera framing (frames the rover in the foreground with the real relief behind) ─
+const CHASE_BACK := 11.0    # m behind the rover along -forward
+const CHASE_UP := 5.5       # m above
+const CAM_FOV := 55.0
+
+# ── Sun / environment (§8: single hard sun, no atmosphere). Phase-A inspection defaults use
+# a mid-low elevation so the whole 2 km reads; overridable via --sun-elev / --sun-azim. ───
+const SUN_ENERGY := 3.0
+const SHADOW_MAX_DIST_M := 300.0   # overview scale (sidecar's 16 m is tuned for a 5 m patch)
+const AMBIENT_FILL := 0.06         # tiny inspection-only fill so the shadow side is not pure black
+
+# ── parsed CLI (OS.get_cmdline_user_args(), everything after '--') ────────────────────────
+var _site_dir := ""
+var _out_dir := "res://out/viz2"
+var _auto_frames := 0
+var _rover_rc := Vector2i(-1, -1)     # (row,col); default -> field center
+var _sun_elev_deg := 22.0
+var _sun_azim_deg := 135.0
+var _view_size := Vector2i(1280, 720)
+
+# ── runtime state ────────────────────────────────────────────────────────────────────────
+var sf                                 # StateFields instance (read-only library)
+var _terrain: Node3D                   # TerrainNode (class_name not relied on in headless ad-hoc load)
+var _rover_root: Node3D
+var _cam: Camera3D                      # main viewport (chase) camera
+var _rig_cams: Array = []              # camera_rig.gd 8-cam sensor rig (mounted on the rover)
+var _root_lift := 0.0                  # wheel-bottom -> surface ground-snap offset (yaw-invariant)
+var _pose_x := 0.0
+var _pose_z := 0.0
+var _pose_yaw := 0.0
+var _field_center := Vector3.ZERO
+
+
+func _ready() -> void:
+	_parse_args()
+	get_window().size = _view_size
+
+	if _site_dir == "":
+		# Default: the merged 1 m Haworth SfS bundle at the repo-root samples/ (res:// is
+		# stewie/godot, so ../../samples resolves to code/samples).
+		_site_dir = ProjectSettings.globalize_path(
+			"res://../../samples/lunar_dem/haworth_sfs_2km_1m")
+
+	sf = StateFieldsScript.new()
+	if not sf.load_scene(_site_dir):
+		push_error("viz2: failed to load site '%s': %s" % [_site_dir, sf.error_msg])
+		get_tree().quit(3)
+		return
+	print("viz2: loaded site '%s' (%dx%d @ %.3f m, height_range=[%.1f, %.1f])" % [
+		sf.scene_name, sf.width, sf.height, sf.cell_m, sf.height_range.x, sf.height_range.y])
+
+	var ext: Vector2 = sf.extent_m()
+	_field_center = Vector3(sf.world_min.x + ext.x * 0.5, sf.height_range.x,
+							sf.world_min.y + ext.y * 0.5)
+
+	_setup_environment()
+	_build_terrain()
+	_build_rover()
+	_build_camera_rig()
+	_setup_chase_camera()
+
+	if _auto_frames > 0:
+		# Headless verification: scripted drive THROUGH the InputMap (Input.action_press ->
+		# the SAME _read_twist() path interactive mode uses -> proves the A5 action wiring),
+		# capturing N frames + a wide overview to out/viz2/.
+		_run_auto()   # coroutine
+	else:
+		# Interactive: WASD / gamepad drive via the project InputMap.
+		set_process(true)
+		print("viz2: interactive drive — WASD or gamepad (viz2_forward/back/left/right/brake/dig/dump)")
+
+
+# ── CLI ─────────────────────────────────────────────────────────────────────────────────
+func _parse_args() -> void:
+	var args := OS.get_cmdline_user_args()   # everything after '--'
+	var i := 0
+	while i < args.size():
+		match args[i]:
+			"--site":
+				i += 1; _site_dir = String(args[i])
+			"--out":
+				i += 1; _out_dir = _abs_out(String(args[i]))
+			"--auto":
+				i += 1; _auto_frames = maxi(1, int(args[i]))
+			"--rover-rc":
+				i += 1
+				var rc := String(args[i]).split(",")
+				if rc.size() == 2:
+					_rover_rc = Vector2i(int(rc[0]), int(rc[1]))
+			"--sun-elev":
+				i += 1; _sun_elev_deg = float(args[i])
+			"--sun-azim":
+				i += 1; _sun_azim_deg = float(args[i])
+			"--size":
+				i += 1
+				var wh := String(args[i]).split("x")
+				if wh.size() == 2:
+					_view_size = Vector2i(int(wh[0]), int(wh[1]))
+		i += 1
+
+
+func _abs_out(p: String) -> String:
+	if p.begins_with("res://") or p.begins_with("/"):
+		return p
+	return "res://out/" + p
+
+
+# ── environment ───────────────────────────────────────────────────────────────────────────
+func _setup_environment() -> void:
+	var sun := DirectionalLight3D.new()
+	sun.name = "Sun"
+	sun.rotation_degrees = Vector3(-_sun_elev_deg, _sun_azim_deg, 0.0)
+	sun.light_energy = SUN_ENERGY
+	sun.light_angular_distance = 0.5          # ~0.5° solar disc -> PCSS penumbra
+	sun.shadow_enabled = true
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	sun.directional_shadow_max_distance = SHADOW_MAX_DIST_M
+	add_child(sun)
+
+	var we := WorldEnvironment.new()
+	var e := Environment.new()
+	e.background_mode = Environment.BG_COLOR
+	e.background_color = Color(0.01, 0.01, 0.015)   # near-black vacuum sky
+	# A faint ambient fill — inspection-only (Phase A is a viewing prototype). The calibrated
+	# zero-ambient sensor look lives in the frozen sidecar; here we just guarantee the rover
+	# and shadow-side relief stay legible in the verification capture.
+	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	e.ambient_light_color = Color(0.55, 0.55, 0.6)
+	e.ambient_light_energy = AMBIENT_FILL
+	e.ssil_enabled = false
+	e.sdfgi_enabled = false
+	e.glow_enabled = false
+	e.ssao_enabled = false
+	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	we.environment = e
+	add_child(we)
+
+
+# ── terrain (frozen TerrainNode, LIT_PBR) ─────────────────────────────────────────────────
+func _build_terrain() -> void:
+	_terrain = TerrainScript.new()
+	_terrain.name = "Terrain"
+	add_child(_terrain)
+	_terrain.build(sf, 0)   # 0 == TerrainNode.Mode.LIT_PBR (active fine mesh + far-field LOD plane)
+
+
+# ── EZ-RASSOR rig (assembled from the MIT glbs; mirrors sidecar.gd::_build_rover faithfully) ─
+func _build_rover() -> void:
+	var have_parts := FileAccess.file_exists(ROVER_ASSETS + "/rover_body.glb") \
+		and FileAccess.file_exists(ROVER_ASSETS + "/wheel.glb") \
+		and FileAccess.file_exists(ROVER_ASSETS + "/drum.glb") \
+		and FileAccess.file_exists(ROVER_ASSETS + "/drum_arm.glb")
+	if not have_parts:
+		push_error("viz2: EZ-RASSOR glbs missing under %s" % ROVER_ASSETS)
+		get_tree().quit(4)
+		return
+
+	var root := Node3D.new()
+	root.name = "RASSOR"
+
+	var body := _load_glb(ROVER_ASSETS + "/rover_body.glb")
+	if body == null:
+		push_error("viz2: rover_body.glb failed to load")
+		get_tree().quit(4)
+		return
+	body.name = "body"
+	root.add_child(body)
+
+	for key in WHEEL_ORIGINS.keys():
+		var w := _make_joint("wheel_" + String(key), ROVER_ASSETS + "/wheel.glb",
+			WHEEL_ORIGINS[key], Basis.IDENTITY, 0.0, Basis.IDENTITY)
+		if w != null:
+			root.add_child(w)
+
+	# Arms: URDF origin rpy bakes into the pivot REST basis; the link visual rpy bakes into
+	# the mesh-child basis (mirrors sidecar.gd exactly so the arms/drums read correctly).
+	var arm_front := _make_joint("arm_front", ROVER_ASSETS + "/drum_arm.glb",
+		ARM_FRONT_ORIGIN, Basis(Vector3.RIGHT, PI), ARM_FRONT_PITCH, Basis.IDENTITY)
+	var arm_back := _make_joint("arm_back", ROVER_ASSETS + "/drum_arm.glb",
+		ARM_BACK_ORIGIN, Basis.IDENTITY, ARM_BACK_PITCH,
+		Basis(Vector3(0, 0, 1), PI) * Basis(Vector3.RIGHT, PI))
+	if arm_front != null:
+		var drum_front := _make_joint("drum_front", ROVER_ASSETS + "/drum.glb",
+			DRUM_FRONT_REL, Basis(Vector3.RIGHT, PI), DRUM_FRONT_SPIN, Basis.IDENTITY)
+		if drum_front != null:
+			arm_front.add_child(drum_front)
+		root.add_child(arm_front)
+	if arm_back != null:
+		var drum_back := _make_joint("drum_back", ROVER_ASSETS + "/drum.glb",
+			DRUM_BACK_REL, Basis(Vector3.RIGHT, PI), DRUM_BACK_SPIN,
+			Basis(Vector3(0, 0, 1), PI) * Basis(Vector3.RIGHT, PI))
+		if drum_back != null:
+			arm_back.add_child(drum_back)
+		root.add_child(arm_back)
+
+	_apply_material_recursive(root, _rover_material())
+
+	# Placement: a valid pose on the real surface. Default = field center (interior of the
+	# Haworth crop, gentle relief); --rover-rc overrides. Ground-snap ONCE at the root: seat
+	# the lowest point (wheel bottoms) at the sampled surface height.
+	var place_rc := _rover_rc
+	if place_rc.x < 0:
+		place_rc = Vector2i(int(sf.height / 2), int(sf.width / 2))
+	place_rc.x = clampi(place_rc.x, 0, sf.height - 1)
+	place_rc.y = clampi(place_rc.y, 0, sf.width - 1)
+
+	_pose_x = sf.world_min.x + place_rc.y * sf.cell_m   # col -> +X
+	_pose_z = sf.world_min.y + place_rc.x * sf.cell_m   # row -> +Z
+	_pose_yaw = deg_to_rad(35.0)                        # 3/4 view heading
+
+	var u: float = clampf(float(place_rc.y) / float(sf.width - 1), 0.0, 1.0)
+	var v: float = clampf(float(place_rc.x) / float(sf.height - 1), 0.0, 1.0)
+	var surf_y: float = sf.height_uv(u, v)
+
+	root.transform = Transform3D(Basis(Vector3.UP, _pose_yaw), Vector3(_pose_x, surf_y, _pose_z))
+	add_child(root)
+	var aabb := _node_world_aabb(root)
+	_root_lift = surf_y - aabb.position.y            # yaw-invariant (rotation about +Y)
+	root.position.y += _root_lift
+	_rover_root = root
+	print("viz2: seated EZ-RASSOR (MIT) at rc=(%d,%d) world=(%.1f, %.3f, %.1f); " % [
+			place_rc.x, place_rc.y, _pose_x, root.position.y, _pose_z],
+		"AABB size=(%.2f,%.2f,%.2f) lift=%.3f surf=%.3f" % [
+			aabb.size.x, aabb.size.y, aabb.size.z, _root_lift, surf_y])
+
+
+func _make_joint(node_name: String, glb_res: String, origin: Vector3,
+		rest_basis: Basis, angle: float, mesh_basis: Basis) -> Node3D:
+	var mesh := _load_glb(glb_res)
+	if mesh == null:
+		return null
+	var pivot := Node3D.new()
+	pivot.name = node_name
+	pivot.transform = Transform3D(rest_basis * Basis(ROVER_JOINT_AXIS, angle), origin)
+	mesh.transform = Transform3D(mesh_basis, Vector3.ZERO)
+	pivot.add_child(mesh)
+	return pivot
+
+
+func _load_glb(res_path: String) -> Node3D:
+	var doc := GLTFDocument.new()
+	var state := GLTFState.new()
+	var err := doc.append_from_file(ProjectSettings.globalize_path(res_path), state)
+	if err != OK:
+		push_warning("viz2: glTF load failed for %s (%d)" % [res_path, err])
+		return null
+	var scene := doc.generate_scene(state)
+	return scene as Node3D
+
+
+func _rover_material() -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://rover.gdshader")   # worn-metal PBR (default PBR, not Hapke)
+	return m
+
+
+func _apply_material_recursive(node: Node, mat: Material) -> void:
+	if node is MeshInstance3D:
+		(node as MeshInstance3D).material_override = mat
+	for ch in node.get_children():
+		_apply_material_recursive(ch, mat)
+
+
+func _node_world_aabb(node: Node) -> AABB:
+	var acc := AABB()
+	var first := true
+	for mi in _collect_mesh_instances(node):
+		if mi.mesh == null:
+			continue
+		var local: AABB = mi.mesh.get_aabb()
+		var gx: Transform3D = mi.global_transform
+		for ci in range(8):
+			var corner := local.position + Vector3(
+				local.size.x if (ci & 1) else 0.0,
+				local.size.y if (ci & 2) else 0.0,
+				local.size.z if (ci & 4) else 0.0)
+			var wc: Vector3 = gx * corner
+			if first:
+				acc = AABB(wc, Vector3.ZERO); first = false
+			else:
+				acc = acc.expand(wc)
+	return acc
+
+
+func _collect_mesh_instances(node: Node) -> Array:
+	var out: Array = []
+	if node is MeshInstance3D:
+		out.append(node)
+	for ch in node.get_children():
+		out.append_array(_collect_mesh_instances(ch))
+	return out
+
+
+# ── 8-camera sensor rig (camera_rig.gd) mounted on the rover ──────────────────────────────
+func _build_camera_rig() -> void:
+	if _rover_root == null:
+		return
+	# Small offscreen SubViewports (the sensor egress rig); UPDATE_ONCE keeps the Phase-A
+	# overview render cheap — the rig is WIRED (rides the rover) but is not the capture path.
+	_rig_cams = CameraRigScript.build(self, _rover_root, get_viewport().world_3d,
+		Vector2i(320, 240), 0.0)
+	for e in _rig_cams:
+		e["sv"].render_target_update_mode = SubViewport.UPDATE_ONCE
+	print("viz2: mounted %d-camera sensor rig on the rover (camera_rig.gd)" % _rig_cams.size())
+
+
+# ── main chase camera ─────────────────────────────────────────────────────────────────────
+func _setup_chase_camera() -> void:
+	_cam = Camera3D.new()
+	_cam.name = "ChaseCam"
+	_cam.fov = CAM_FOV
+	_cam.near = 0.05
+	_cam.far = 6000.0
+	add_child(_cam)
+	_cam.current = true
+	_update_chase_cam()
+
+
+func _update_chase_cam() -> void:
+	if _cam == null or _rover_root == null:
+		return
+	var fwd := (Basis(Vector3.UP, _pose_yaw) * Vector3(1, 0, 0)).normalized()
+	var rover_pos: Vector3 = _rover_root.global_transform.origin
+	var eye := rover_pos - fwd * CHASE_BACK + Vector3.UP * CHASE_UP
+	_cam.global_transform = _look_at_xf(eye, rover_pos + Vector3.UP * 0.4, Vector3.UP)
+
+
+func _look_at_xf(eye: Vector3, target: Vector3, up_hint: Vector3) -> Transform3D:
+	var dir := (target - eye)
+	if dir.length() < 1e-6:
+		dir = Vector3(0, 0, -1)
+	dir = dir.normalized()
+	var u := up_hint
+	if absf(dir.dot(u.normalized())) > 0.999:
+		u = Vector3(0, 0, 1)
+	var z_axis := -dir
+	var x_axis := u.cross(z_axis).normalized()
+	var y_axis := z_axis.cross(x_axis).normalized()
+	return Transform3D(Basis(x_axis, y_axis, z_axis), eye)
+
+
+# ── drive input (project InputMap; NO raw key polling) ────────────────────────────────────
+# v (m/s), omega (rad/s) from the viz2_* actions. Gamepad axes are analog (get_action_strength
+# in [0,1]); keys read as full strength. Brake zeroes the twist.
+func _read_twist() -> Vector2:
+	var v := Input.get_action_strength("viz2_forward") - Input.get_action_strength("viz2_back")
+	var om := Input.get_action_strength("viz2_left") - Input.get_action_strength("viz2_right")
+	if Input.is_action_pressed("viz2_brake"):
+		return Vector2.ZERO
+	return Vector2(clampf(v, -1.0, 1.0) * LIN_SPEED, clampf(om, -1.0, 1.0) * ANG_SPEED)
+
+
+func _integrate(v: float, omega: float, dt: float) -> void:
+	_pose_yaw += omega * dt
+	var fwd := Basis(Vector3.UP, _pose_yaw) * Vector3(1, 0, 0)
+	_pose_x += v * fwd.x * dt
+	_pose_z += v * fwd.z * dt
+	_pose_x = clampf(_pose_x, sf.world_min.x, sf.world_max.x)
+	_pose_z = clampf(_pose_z, sf.world_min.y, sf.world_max.y)
+
+
+func _apply_pose() -> void:
+	if _rover_root == null:
+		return
+	var u: float = clampf((_pose_x - sf.world_min.x) / sf.extent_m().x, 0.0, 1.0)
+	var v: float = clampf((_pose_z - sf.world_min.y) / sf.extent_m().y, 0.0, 1.0)
+	var surf_y: float = sf.height_uv(u, v)
+	_rover_root.transform = Transform3D(Basis(Vector3.UP, _pose_yaw),
+		Vector3(_pose_x, surf_y + _root_lift, _pose_z))
+
+
+func _process(delta: float) -> void:
+	var tw := _read_twist()
+	if tw != Vector2.ZERO:
+		_integrate(tw.x, tw.y, delta)
+		_apply_pose()
+		_update_chase_cam()
+	# Dig / dump are recognized here so the full command surface (viz2_dig / viz2_dump) is
+	# wired end-to-end. The conserved excavation/deposition physics is Phase B and is
+	# deliberately NOT built in Phase A, so a press is acknowledged on the log — it is NEVER
+	# faked as a terrain edit.
+	if Input.is_action_just_pressed("viz2_dig"):
+		print("viz2: dig (viz2_dig) — conserved excavation is Phase B (not wired in Phase A)")
+	if Input.is_action_just_pressed("viz2_dump"):
+		print("viz2: dump (viz2_dump) — conserved deposition is Phase B (not wired in Phase A)")
+
+
+# ── headless auto-drive + capture ─────────────────────────────────────────────────────────
+func _run_auto() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out_dir))
+	# Drive forward with a gentle left turn — pressed on the InputMap so _read_twist() (the
+	# interactive path) is what actually moves the rover (A5 verification).
+	Input.action_press("viz2_forward", 0.85)
+	Input.action_press("viz2_left", 0.30)
+	var dt := 0.2   # scripted step: ~0.10 m/frame forward so motion is visible across N frames
+	for i in range(_auto_frames):
+		var tw := _read_twist()
+		_integrate(tw.x, tw.y, dt)
+		_apply_pose()
+		_update_chase_cam()
+		await RenderingServer.frame_post_draw
+		await RenderingServer.frame_post_draw     # first buffer can be stale (render_test.gd)
+		_save_main("viz2_frame_%03d.png" % i)
+	Input.action_release("viz2_forward")
+	Input.action_release("viz2_left")
+
+	# A wide oblique OVERVIEW of the whole 2 km site (relief, unambiguous), rover still in it.
+	var ext: Vector2 = sf.extent_m()
+	var span := maxf(ext.x, ext.y)
+	var eye := _field_center + Vector3(0.0, span * 0.55, span * 0.62)
+	var look_target := _field_center + Vector3(0, sf.height_range.y - sf.height_range.x, 0)
+	_cam.global_transform = _look_at_xf(eye, look_target, Vector3.UP)
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	_save_main("viz2_overview.png")
+
+	print("viz2: auto — wrote %d drive frames + overview to %s; final pose=(%.1f, %.1f) yaw=%.0f°" % [
+		_auto_frames, ProjectSettings.globalize_path(_out_dir), _pose_x, _pose_z, rad_to_deg(_pose_yaw)])
+	get_tree().quit(0)
+
+
+func _save_main(fname: String) -> void:
+	var path := _out_dir + "/" + fname
+	var img := get_viewport().get_texture().get_image()
+	var err := img.save_png(path)
+	if err != OK:
+		push_error("viz2: save_png failed (%d) for %s" % [err, path])
+	else:
+		print("viz2: wrote %s (%dx%d)" % [
+			ProjectSettings.globalize_path(path), img.get_width(), img.get_height()])
