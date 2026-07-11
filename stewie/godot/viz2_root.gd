@@ -30,6 +30,9 @@ const CameraRigScript := preload("res://camera_rig.gd")
 # Phase B3 (live): the runtime drive client + the live moving-window terrain node.
 const Viz2DriveClientScript := preload("res://viz2_drive_client.gd")
 const Viz2WindowScript := preload("res://viz2_terrain_window.gd")
+# Phase C: the interactive sun az/el HUD. Preloaded (not reached by class_name) so it compiles
+# with THIS script, mirroring how sun_sweep.gd reaches boulder_manifest.gd.
+const Viz2SunHudScript := preload("res://viz2_hud.gd")
 
 # ── EZ-RASSOR rig geometry (SOURCED from the URDF via ezrassor_assets.md §3; the SAME
 # constants sidecar.gd::_build_rover uses — Y-up, unscaled metres; only the meshes carry
@@ -77,6 +80,8 @@ var _rover_rc := Vector2i(-1, -1)     # (row,col); default -> field center
 var _sun_elev_deg := 22.0
 var _sun_azim_deg := 135.0
 var _view_size := Vector2i(1280, 720)
+var _hud_selfcheck := false           # Phase C: headless proof the HUD slider drives the sun
+var _clasts_path := ""                # Phase D: JSON rock field (spatial-k Golombek) to display
 
 # ── Phase B3 live mode (--live): drive THROUGH the Viz2Runtime over TCP ───────────────────
 var _live := false
@@ -90,6 +95,11 @@ var _far_context: MeshInstance3D
 var sf                                 # StateFields instance (read-only library)
 var _terrain: Node3D                   # TerrainNode (class_name not relied on in headless ad-hoc load)
 var _rover_root: Node3D
+var _sun: DirectionalLight3D           # the single hard sun (Phase C HUD + --sun-az/--sun-el drive it)
+var _hud                               # Viz2SunHud instance (interactive az/el sliders)
+var _clast_mmi: MultiMeshInstance3D    # Phase D: the rendered spatial-k rock field
+var _clast_center := Vector3.ZERO      # rock-field bbox center (for the display capture framing)
+var _clast_span := 0.0                 # rock-field bbox horizontal span (m)
 var _cam: Camera3D                      # main viewport (chase) camera
 var _rig_cams: Array = []              # camera_rig.gd 8-cam sensor rig (mounted on the rover)
 var _root_lift := 0.0                  # wheel-bottom -> surface ground-snap offset (yaw-invariant)
@@ -122,12 +132,22 @@ func _ready() -> void:
 							sf.world_min.y + ext.y * 0.5)
 
 	_setup_environment()
+
+	# Phase C: a headless proof the HUD slider actually drives the sun (real Godot runtime, no fake).
+	# Runs right after the sun exists — no terrain/rover/capture needed — and quits with a status code.
+	if _hud_selfcheck:
+		_run_hud_selfcheck()
+		return
+
 	if _live:
 		_build_far_context()   # viz2-owned context (the frozen terrain.gd is NOT instantiated in live mode)
 	else:
 		_build_terrain()
 	_build_rover()
 	_build_camera_rig()
+	# Phase D: display the spatial-k Golombek rock field over the real terrain (if --clasts given).
+	if _clasts_path != "":
+		_build_clasts_display()
 	_setup_chase_camera()
 
 	if _live:
@@ -137,15 +157,22 @@ func _ready() -> void:
 		if _auto_frames > 0:
 			_run_live_auto()   # coroutine: drive THROUGH the Viz2Runtime, carve, capture
 		else:
+			_build_sun_hud()   # Phase C: interactive az/el sliders
 			set_process(true)
 			print("viz2: LIVE interactive drive — WASD/gamepad THROUGH the Viz2Runtime")
 	elif _auto_frames > 0:
-		# Headless verification: scripted drive THROUGH the InputMap (Input.action_press ->
-		# the SAME _read_twist() path interactive mode uses -> proves the A5 action wiring),
-		# capturing N frames + a wide overview to out/viz2/.
-		_run_auto()   # coroutine
+		if _clasts_path != "" and _clast_mmi != null:
+			# Phase D verification: frame the rendered spatial-k rock field so the density gradient
+			# (rockier near the rim, sparse on the flat) reads under a grazing sun.
+			_run_clast_capture()   # coroutine
+		else:
+			# Headless verification: scripted drive THROUGH the InputMap (Input.action_press ->
+			# the SAME _read_twist() path interactive mode uses -> proves the A5 action wiring),
+			# capturing N frames + a wide overview to out/viz2/.
+			_run_auto()   # coroutine
 	else:
 		# Interactive: WASD / gamepad drive via the project InputMap.
+		_build_sun_hud()   # Phase C: interactive az/el sliders (grazing-band annotation)
 		set_process(true)
 		print("viz2: interactive drive — WASD or gamepad (viz2_forward/back/left/right/brake/dig/dump)")
 
@@ -167,10 +194,14 @@ func _parse_args() -> void:
 				var rc := String(args[i]).split(",")
 				if rc.size() == 2:
 					_rover_rc = Vector2i(int(rc[0]), int(rc[1]))
-			"--sun-elev":
+			"--sun-elev", "--sun-el":
 				i += 1; _sun_elev_deg = float(args[i])
-			"--sun-azim":
+			"--sun-azim", "--sun-az":
 				i += 1; _sun_azim_deg = float(args[i])
+			"--hud-selfcheck":
+				_hud_selfcheck = true
+			"--clasts":
+				i += 1; _clasts_path = String(args[i])
 			"--size":
 				i += 1
 				var wh := String(args[i]).split("x")
@@ -200,6 +231,7 @@ func _setup_environment() -> void:
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = SHADOW_MAX_DIST_M
 	add_child(sun)
+	_sun = sun          # Phase C: the HUD sliders + --sun-az/--sun-el drive THIS light
 
 	var we := WorldEnvironment.new()
 	var e := Environment.new()
@@ -218,6 +250,137 @@ func _setup_environment() -> void:
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	we.environment = e
 	add_child(we)
+
+
+# ── Phase C: interactive sun az/el HUD (viz2_hud.gd) ──────────────────────────────────────
+# Built ONLY in the interactive paths — the headless capture paths drive the same _sun through
+# --sun-az/--sun-el so a capture is reproducible and HUD-free. The HUD owns the light's rotation.
+func _build_sun_hud() -> void:
+	if _sun == null:
+		return
+	_hud = Viz2SunHudScript.new()
+	_hud.build(self, _sun, _sun_azim_deg, _sun_elev_deg)
+	print("viz2: sun HUD ready — azimuth 0-360 / elevation -5..+90 sliders drive the ",
+		"DirectionalLight (Vector3(-el, az, 0)); grazing polar band <= 7 deg annotated")
+
+
+# Phase C headless proof: build the HUD, move the az/el sliders (which re-fire the SAME handlers a
+# human drag uses), and assert the sun's rotation follows the Vector3(-el, az, 0) convention. Uses
+# the (215,5)->(35,5) pair so it also proves the shadow-flip sun poses the capture verify uses. Real
+# Godot runtime; nothing faked. Quits 0 on PASS, 1 on FAIL.
+func _run_hud_selfcheck() -> void:
+	_build_sun_hud()
+	if _hud == null:
+		push_error("viz2: HUD selfcheck — no sun/HUD built")
+		get_tree().quit(1)
+		return
+	var ok := true
+	_hud.set_azimuth(215.0)
+	_hud.set_elevation(5.0)
+	var r: Vector3 = _sun.rotation_degrees
+	if absf(r.x - (-5.0)) > 1e-3 or absf(r.y - 215.0) > 1e-3 or absf(r.z) > 1e-3:
+		ok = false
+	# a second az proves the slider drives the sun LIVE (not a one-shot); this is the flip target
+	_hud.set_azimuth(35.0)
+	var r2: Vector3 = _sun.rotation_degrees
+	if absf(r2.y - 35.0) > 1e-3 or absf(r2.x - (-5.0)) > 1e-3:
+		ok = false
+	print("viz2: HUD selfcheck %s — set(az=215,el=5)->sun(%.2f,%.2f,%.2f); set(az=35)->sun(%.2f,%.2f,%.2f)" % [
+		"PASS" if ok else "FAIL", -5.0, 215.0, 0.0, r2.x, r2.y, r2.z])
+	get_tree().quit(0 if ok else 1)
+
+
+# ── Phase D: spatial-k Golombek rock-field DISPLAY (clasts as a lit sphere MultiMesh) ─────
+# Loads a --clasts JSON (produced by scripts/viz2_rockfield_clasts.py from stewie.terrain.rockfield
+# over the REAL DEM) whose clasts carry center_m in the SCENE WORLD frame [x, height, z], radius_m,
+# buried_frac, stratum. Renders them with the SAME clast.gdshader / triaxial-shape path the frozen
+# sidecar._build_clasts uses (INTERFACE.md §5 clasts schema), so the rocks read as lit angular rock,
+# not CG spheres, and the spatial-k density (rockier near rims, sparse on the flat) is visible.
+func _build_clasts_display() -> void:
+	var f := FileAccess.open(_clasts_path, FileAccess.READ)
+	if f == null:
+		push_error("viz2: --clasts file not readable: %s" % _clasts_path)
+		return
+	var parsed = JSON.parse_string(f.get_as_text())
+	f.close()
+	if typeof(parsed) != TYPE_DICTIONARY or not parsed.has("clasts"):
+		push_error("viz2: --clasts JSON missing a 'clasts' array")
+		return
+	var clasts: Array = parsed["clasts"]
+	if clasts.is_empty():
+		print("viz2: rock field carries 0 clasts")
+		return
+
+	var sphere := SphereMesh.new()
+	sphere.radius = 1.0
+	sphere.height = 2.0
+	sphere.radial_segments = 20
+	sphere.rings = 12
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://clast.gdshader")
+	mat.set_shader_parameter("hapke_enabled", sf.hapke_enabled)
+	mat.set_shader_parameter("hapke_b", sf.hapke_b)
+	mat.set_shader_parameter("hapke_c", sf.hapke_c)
+	mat.set_shader_parameter("hapke_B0", sf.hapke_B0)
+	mat.set_shader_parameter("hapke_h", sf.hapke_h)
+	mat.set_shader_parameter("hapke_gain", sf.hapke_gain)
+	mat.set_shader_parameter("surf_amp", 0.34)
+	mat.set_shader_parameter("surf_freq", 1.9)
+	mat.set_shader_parameter("facet_levels", 3.0)
+	mat.set_shader_parameter("ridge_mix", 0.95)
+	mat.set_shader_parameter("detail_amp", 1.1)
+	mat.set_shader_parameter("detail_freq", 16.0)
+	sphere.material = mat
+
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.mesh = sphere
+	mm.instance_count = clasts.size()
+	var lo := Vector3(INF, INF, INF)
+	var hi := Vector3(-INF, -INF, -INF)
+	for i in range(clasts.size()):
+		var c: Dictionary = clasts[i]
+		var ctr = c.get("center_m", [0.0, 0.0, 0.0])
+		var rad := float(c.get("radius_m", 0.05))
+		var pos := Vector3(float(ctr[0]), float(ctr[1]), float(ctr[2]))
+		lo = Vector3(minf(lo.x, pos.x), minf(lo.y, pos.y), minf(lo.z, pos.z))
+		hi = Vector3(maxf(hi.x, pos.x), maxf(hi.y, pos.y), maxf(hi.z, pos.z))
+		var cid: int = int(c.get("id", i))
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash(cid)
+		# Triaxial lunar-fragment axial ratios (Tsuchiyama 2022), renormalized to geo-mean 1 so the
+		# Golombek radius is preserved (identical to sidecar.gd:1090-1097).
+		var b_ratio := rng.randf_range(0.65, 0.90)
+		var c_ratio := rng.randf_range(0.50, 0.75)
+		var gmean := pow(1.0 * b_ratio * c_ratio, 1.0 / 3.0)
+		var sa := 1.0 / gmean
+		var sb := b_ratio / gmean
+		var sc := c_ratio / gmean
+		var yaw := rng.randf_range(0.0, TAU)
+		var tilt := rng.randf_range(-0.20, 0.20)
+		var tilt_dir := rng.randf_range(0.0, TAU)
+		var rot := Basis(Vector3.UP, yaw)
+		rot = Basis(Vector3(cos(tilt_dir), 0.0, sin(tilt_dir)), tilt) * rot
+		var basis := rot.scaled(Vector3(rad * sa, rad * sc, rad * sb))
+		mm.set_instance_transform(i, Transform3D(basis, pos))
+		var seed_f := float(absi(hash(cid)) % 100000) / 100000.0
+		var elong := clampf(sa / maxf(sc, 1e-3), 1.0, 4.0)
+		var void_gate := 1.0 if rng.randf() < 0.35 else 0.0
+		mm.set_instance_custom_data(i, Color(seed_f, elong, void_gate, 0.0))
+
+	_clast_mmi = MultiMeshInstance3D.new()
+	_clast_mmi.name = "RockField"
+	_clast_mmi.multimesh = mm
+	add_child(_clast_mmi)
+	_clast_center = (lo + hi) * 0.5
+	_clast_span = maxf(hi.x - lo.x, hi.z - lo.z)
+	var tag := "?"
+	if parsed.has("manifest") and typeof(parsed["manifest"]) == TYPE_DICTIONARY:
+		var man: Dictionary = parsed["manifest"]
+		tag = String(man.get("honesty_tags", {}).get("spatial_abundance_k", "?"))
+	print("viz2: displayed %d spatial-k Golombek clasts over the real DEM (abundance %s)" % [
+		clasts.size(), tag])
 
 
 # ── terrain (frozen TerrainNode, LIT_PBR) ─────────────────────────────────────────────────
@@ -507,6 +670,33 @@ func _run_auto() -> void:
 
 	print("viz2: auto — wrote %d drive frames + overview to %s; final pose=(%.1f, %.1f) yaw=%.0f°" % [
 		_auto_frames, ProjectSettings.globalize_path(_out_dir), _pose_x, _pose_z, rad_to_deg(_pose_yaw)])
+	get_tree().quit(0)
+
+
+# ── Phase D: frame the rendered spatial-k rock field so the density gradient reads ────────
+# Three framings of the rock window over the REAL terrain: an oblique aerial + a low oblique
+# (grazing-sun shadows resolve individual rocks + the rover for scale) + a near-nadir plan (the
+# density MAP — dense near the rim, sparse on the flat: the spatial-k, not a uniform sprinkle).
+func _run_clast_capture() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out_dir))
+	var center := _clast_center
+	var span: float = maxf(_clast_span, 20.0)
+
+	var eye1 := center + Vector3(-span * 0.14, span * 0.60, span * 0.60)
+	_cam.global_transform = _look_at_xf(eye1, center, Vector3.UP)
+	await _settle_and_capture("viz2_rockfield_aerial.png")
+
+	var eye2 := center + Vector3(-span * 0.06, span * 0.16, span * 0.34)
+	_cam.global_transform = _look_at_xf(eye2, center, Vector3.UP)
+	await _settle_and_capture("viz2_rockfield_closeup.png")
+
+	var eye3 := center + Vector3(0.001, span * 0.92, 0.001)
+	_cam.global_transform = _look_at_xf(eye3, center, Vector3(0.0, 0.0, -1.0))
+	await _settle_and_capture("viz2_rockfield_plan.png")
+
+	print("viz2: rock-field capture — %d clasts, center=(%.1f,%.1f,%.1f) span=%.1f m, sun(az=%.0f,el=%.0f) -> %s" % [
+		_clast_mmi.multimesh.instance_count, center.x, center.y, center.z, span,
+		_sun_azim_deg, _sun_elev_deg, ProjectSettings.globalize_path(_out_dir)])
 	get_tree().quit(0)
 
 

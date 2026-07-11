@@ -194,6 +194,13 @@ class WorkSite:
         # (0=+col/+X, +pi/2=+row/+Z — the drive_step / wheel_contact_points convention).
         self.pose_xy: tuple[float, float] | None = None
         self.yaw: float = 0.0
+        # viz2 D4: the rock field the per-tick drive rides over / is blocked by, in GLOBAL metres —
+        # each clast center_m = [global_x, absolute_height_m, global_y] (the render frame), so a single
+        # global list survives every window recenter. step() converts them to the window-local frame
+        # drive_step/conform_pose expect (world_x0=0: x=col*fine_cell, z=row*fine_cell, y absolute) each
+        # tick, so a >wheel-radius rock physically rides-over/blocks per conform_pose. None => no rocks
+        # (drive_step(clasts=None) is byte-identical to the pre-D4 seam — the clast-free gates unchanged).
+        self.clasts: list[dict] | None = None
         self._last_rover_xy: tuple[float, float] | None = None   # where the last recenter placed the rover
         # Per-tick command bounds (M-04). v_max = the IPEx drive-envelope ceiling (<=30 cm/s, SCHULER24
         # via ipex_specs.DRIVE_SPEED_MS); omega_max = the max skid-steer yaw rate that ceiling develops
@@ -512,6 +519,35 @@ class WorkSite:
         ox, oy = self.window_world_origin
         return (ox + float(rc[1]) * self.fine_cell_m, oy + float(rc[0]) * self.fine_cell_m)
 
+    def _window_local_clasts(self) -> "list[dict] | None":
+        """The GLOBAL rock field (:attr:`clasts`) re-expressed in the CURRENT active-window frame
+        drive_step/conform_pose read (viz2 D4). conform_pose runs at ``world_x0=world_y0=0`` (window-
+        local metres: x=col*fine_cell, z=row*fine_cell) against the fine window's absolute
+        ``derive_height()``, so a global clast center_m ``[gx, cy, gy]`` maps to
+        ``[gx - origin_x, cy, gy - origin_y]`` (the height ``cy`` is already absolute and stays). Only
+        clasts whose footprint intersects the window (+ one footprint's slack) are kept, so the per-
+        wheel ride-over scan in conform_pose stays O(nearby clasts), not O(whole field). Returns None
+        when there is no rock field (drive_step(clasts=None) == the pre-D4 byte-identical seam)."""
+        if not self.clasts or self.window_world_origin is None:
+            return None
+        ox, oy = self.window_world_origin
+        fine = self._require_fine()
+        span_x = fine.width * self.fine_cell_m
+        span_y = fine.height * self.fine_cell_m
+        slack = self._footprint_radius_m(0.18)               # one footprint of edge tolerance
+        out: list[dict] = []
+        for c in self.clasts:
+            ctr = c.get("center_m")
+            if ctr is None:
+                continue
+            lx = float(ctr[0]) - ox
+            lz = float(ctr[2]) - oy
+            r = float(c.get("radius_m", 0.0)) + slack
+            if lx < -r or lx > span_x + r or lz < -r or lz > span_y + r:
+                continue                                     # clast footprint is outside this window
+            out.append({**c, "center_m": [lx, float(ctr[1]), lz]})
+        return out or None
+
     def _footprint_radius_m(self, wheel_width_m: float) -> float:
         """Circumscribing radius [m] of the 4-wheel contact footprint about the rover centre: the
         farthest wheel centre (hypot of half-wheelbase, half-gauge) plus that wheel's disc half-width.
@@ -639,12 +675,17 @@ class WorkSite:
         fine = self._require_fine()                          # window may have slid
 
         rc = self.active_rc_for_xy(pose_xy)
+        # viz2 D4: the GLOBAL rock field re-expressed in this (possibly just-recentered) window's frame,
+        # so conform_pose rides the wheels over / is blocked by a >wheel-radius clast PHYSICALLY. None
+        # when no rocks are set -> drive_step(clasts=None) is the byte-identical pre-D4 seam.
+        local_clasts = self._window_local_clasts()
         # The conserved per-tick loop: slip/sinkage/entrapment equilibrium + slip-deepened ruts, payload
         # = live drum fill. drive_step carves at the achieved pose; the bounded displacement + interior
         # margin keep that pose inside the window, so the 4-wheel _wheel_mask is never empty (clause 4).
         new_rc, new_yaw, telem = D.drive_step(
             fine, rc, self.yaw, float(v_cmd), float(omega_cmd), dt=dt,
-            params=params, payload_kg=self.inventory_kg, wheel_width_m=wheel_width_m, g=g)
+            params=params, payload_kg=self.inventory_kg, wheel_width_m=wheel_width_m, g=g,
+            clasts=local_clasts)
 
         dirty = self._dirty_bbox(new_rc, new_yaw, wheel_width_m)
 
