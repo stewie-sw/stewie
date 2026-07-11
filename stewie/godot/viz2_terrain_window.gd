@@ -45,6 +45,7 @@ var _shape := Vector2i(0, 0)          # (W, H) in fine cells
 var _fine_cell_m := 0.05
 var _window_origin := Vector2.ZERO    # (ox, oy) global metres of fine cell (0,0)
 var _initialized := false
+var _aabb_set := false
 var applied_generation := 0
 var error_msg := ""
 
@@ -102,6 +103,11 @@ func apply_manifest_file(manifest_path: String) -> bool:
 	_apply_field(fields, "state_label", gdir, _img_state, _tex_state, c0, r0, c1 - c0, r1 - r0, false)
 	_apply_field(fields, "disturbance", gdir, _img_disturbance, _tex_disturbance, c0, r0, c1 - c0, r1 - r0, true)
 	_apply_field(fields, "diff", gdir, _img_diff, _tex_diff, c0, r0, c1 - c0, r1 - r0, true)   # E2
+	# The heights are displaced in the VERTEX SHADER, which does NOT update the mesh AABB — Godot would
+	# frustum-cull the (flat, Y=0) mesh while the real geometry sits at absolute elevation. Give the
+	# MeshInstance a custom AABB that spans the live height range so it is never wrongly culled.
+	if keyframe or not _aabb_set:
+		_update_custom_aabb()
 	applied_generation = gen
 	return true
 
@@ -167,6 +173,33 @@ func _build(origin: Vector2) -> void:
 	add_child(_mi)
 
 
+# Give the shader-displaced mesh a custom AABB spanning its live absolute-height range (+ margin),
+# so Godot's frustum culler keeps it when the camera views the elevated geometry (the mesh's own AABB
+# stays flat at Y=0 because the displacement is vertex-shader-only).
+func _update_custom_aabb() -> void:
+	if _mi == null or _img_height == null:
+		return
+	var hmin := INF
+	var hmax := -INF
+	var stepx := maxi(1, _shape.x / 48)
+	var stepy := maxi(1, _shape.y / 48)
+	for r in range(0, _shape.y, stepy):
+		for c in range(0, _shape.x, stepx):
+			var h := _img_height.get_pixel(c, r).r
+			hmin = minf(hmin, h)
+			hmax = maxf(hmax, h)
+	if not is_finite(hmin) or not is_finite(hmax):
+		return
+	var side_x := float(_shape.x) * _fine_cell_m
+	var side_z := float(_shape.y) * _fine_cell_m
+	var m := 1.0   # height margin (m) — covers the coarse-sample miss + window_lift + a dug trench
+	# Local frame: PlaneMesh centered at origin (X,Z in [-side/2, side/2]); vertices displaced to
+	# absolute Y in the shader, so the local AABB Y spans [hmin, hmax].
+	_mi.custom_aabb = AABB(Vector3(-0.5 * side_x, hmin - m, -0.5 * side_z),
+		Vector3(side_x, (hmax - hmin) + 2.0 * m, side_z))
+	_aabb_set = true
+
+
 func _reposition(origin: Vector2) -> void:
 	if _mi == null:
 		return
@@ -203,6 +236,22 @@ func set_diff_mode(enabled: bool) -> void:
 		_mi.material_override = _mat_diff if enabled else _mat
 
 func diff_mode() -> bool: return _diff_mode
+
+# Diagnostic: global AABB of the displaced window mesh + the live height/diff texture ranges.
+func debug_stats() -> String:
+	if _mi == null or _img_height == null:
+		return "window not built"
+	var aabb := _mi.get_aabb()
+	var gpos := _mi.global_position
+	var hmin := INF; var hmax := -INF; var dmin := INF; var dmax := -INF
+	for r in range(0, _shape.y, maxi(1, _shape.y / 32)):
+		for c in range(0, _shape.x, maxi(1, _shape.x / 32)):
+			var h := _img_height.get_pixel(c, r).r
+			hmin = minf(hmin, h); hmax = maxf(hmax, h)
+			var d := _img_diff.get_pixel(c, r).r
+			dmin = minf(dmin, d); dmax = maxf(dmax, d)
+	return "mesh gpos=%s local_aabb.pos.y=%.2f size=%s | height_tex=[%.2f,%.2f] diff_tex=[%.4f,%.4f] diff_mode=%s" % [
+		str(gpos), aabb.position.y, str(aabb.size), hmin, hmax, dmin, dmax, str(_diff_mode)]
 
 func window_origin() -> Vector2: return _window_origin
 func fine_cell_m() -> float: return _fine_cell_m

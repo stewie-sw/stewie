@@ -823,6 +823,11 @@ func _place_rover_live() -> void:
 # real height trench) -> capture. The rut+trench are read from the LIVE manifest textures the window
 # mesh vertex-displaces (the NB-2 gate: v2's frozen mesh would have shown a static surface here).
 func _run_live_auto() -> void:
+	# This coroutine drives the runtime MANUALLY via _live_tick in its own loops. _process() must NOT
+	# also run in live mode (Godot auto-enables it because the script defines it) — during a capture's
+	# awaited frames it would re-run _live_tick + _update_chase_cam and STOMP the capture camera back to
+	# the chase view (the window-capture-showed-the-chase-frame bug). Turn it off for the whole coroutine.
+	set_process(false)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out_dir))
 	# 1) wait for the connect keyframe -> initialize the live window node
 	var tries := 0

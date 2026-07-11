@@ -19,14 +19,15 @@ uniform sampler2D diff_tex : filter_linear;     // R = signed diff h_now - h_vir
 
 uniform float lod_step_m = 0.05;                // world metres per texel (= fine_cell_m)
 uniform float window_lift_m = 0.03;             // coplanar-overdraw z-bias vs the far context plane
-uniform float diff_range_m = 0.15;              // |diff| at full colour saturation
-uniform float emission_gain = 0.55;             // how much the falsecolor self-illuminates (shadow legibility)
-uniform float neutral_band_m = 0.005;           // |diff| below this reads as undisturbed (no colour)
+uniform float diff_range_m = 0.13;              // |diff| at full colour saturation
+uniform float emission_gain = 0.85;             // the falsecolor self-illuminates (data map, not a lit surface)
+uniform float albedo_gain = 0.18;               // small albedo so the sun barely shades (keeps the map flat-read)
+uniform float neutral_band_m = 0.004;           // |diff| below this reads as undisturbed (no colour)
 
 // Diverging endpoints (perceptually cool -> neutral -> warm).
-uniform vec3 cut_color : source_color = vec3(0.13, 0.40, 0.95);    // negative: excavated / below virgin
-uniform vec3 neutral_color : source_color = vec3(0.62, 0.62, 0.60); // ~0: undisturbed
-uniform vec3 berm_color : source_color = vec3(0.98, 0.48, 0.12);   // positive: spoil / above virgin
+uniform vec3 cut_color : source_color = vec3(0.10, 0.42, 0.98);    // negative: excavated / below virgin
+uniform vec3 neutral_color : source_color = vec3(0.34, 0.34, 0.33); // ~0: undisturbed (mid-grey)
+uniform vec3 berm_color : source_color = vec3(1.00, 0.46, 0.06);   // positive: spoil / above virgin
 
 varying float vdiff;
 
@@ -54,8 +55,8 @@ void fragment() {
 		col = (t < 0.0) ? mix(neutral_color, cut_color, -t)
 		                : mix(neutral_color, berm_color, t);
 	}
-	ALBEDO = col;
-	EMISSION = col * emission_gain;   // keep the cut/berm colour legible in shadow
+	ALBEDO = col * albedo_gain;        // muted albedo -> the sun barely shades the falsecolor map
+	EMISSION = col * emission_gain;    // the cut/berm colour reads consistently regardless of sun angle
 	ROUGHNESS = 0.98;
 	METALLIC = 0.0;
 }
