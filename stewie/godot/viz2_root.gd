@@ -27,6 +27,9 @@ extends Node3D
 const StateFieldsScript := preload("res://state_fields.gd")
 const TerrainScript := preload("res://terrain.gd")
 const CameraRigScript := preload("res://camera_rig.gd")
+# Phase B3 (live): the runtime drive client + the live moving-window terrain node.
+const Viz2DriveClientScript := preload("res://viz2_drive_client.gd")
+const Viz2WindowScript := preload("res://viz2_terrain_window.gd")
 
 # ── EZ-RASSOR rig geometry (SOURCED from the URDF via ezrassor_assets.md §3; the SAME
 # constants sidecar.gd::_build_rover uses — Y-up, unscaled metres; only the meshes carry
@@ -49,6 +52,11 @@ const DRUM_BACK_SPIN := -0.5
 # ── Drive kinematics (Phase-A prototype — NOT physics) ───────────────────────────────────
 const LIN_SPEED := 0.6      # m/s at full forward action
 const ANG_SPEED := 0.7      # rad/s at full turn action
+# LIVE-mode twist ceilings: the Viz2Runtime REFUSES a twist above the IPEx envelope
+# (v_max = ipex_specs.DRIVE_SPEED_MS = 0.30 m/s; omega_max ~ 1.05 rad/s), so the live drive is
+# scaled to sit just inside those bounds (a Phase-A 0.6 m/s command would be rejected, M-04).
+const LIVE_LIN := 0.29     # m/s at full forward action (< runtime v_max 0.30)
+const LIVE_ANG := 0.90     # rad/s at full turn action (< runtime omega_max ~1.05)
 
 # ── Chase camera framing (frames the rover in the foreground with the real relief behind) ─
 const CHASE_BACK := 11.0    # m behind the rover along -forward
@@ -69,6 +77,14 @@ var _rover_rc := Vector2i(-1, -1)     # (row,col); default -> field center
 var _sun_elev_deg := 22.0
 var _sun_azim_deg := 135.0
 var _view_size := Vector2i(1280, 720)
+
+# ── Phase B3 live mode (--live): drive THROUGH the Viz2Runtime over TCP ───────────────────
+var _live := false
+var _session_dir := ""
+var _drive_client                       # Viz2DriveClient instance
+var _window                             # Viz2TerrainWindow instance (live moving-window mesh)
+var _applied_gen := 0
+var _far_context: MeshInstance3D
 
 # ── runtime state ────────────────────────────────────────────────────────────────────────
 var sf                                 # StateFields instance (read-only library)
@@ -106,12 +122,24 @@ func _ready() -> void:
 							sf.world_min.y + ext.y * 0.5)
 
 	_setup_environment()
-	_build_terrain()
+	if _live:
+		_build_far_context()   # viz2-owned context (the frozen terrain.gd is NOT instantiated in live mode)
+	else:
+		_build_terrain()
 	_build_rover()
 	_build_camera_rig()
 	_setup_chase_camera()
 
-	if _auto_frames > 0:
+	if _live:
+		if not _setup_live():
+			get_tree().quit(5)
+			return
+		if _auto_frames > 0:
+			_run_live_auto()   # coroutine: drive THROUGH the Viz2Runtime, carve, capture
+		else:
+			set_process(true)
+			print("viz2: LIVE interactive drive — WASD/gamepad THROUGH the Viz2Runtime")
+	elif _auto_frames > 0:
 		# Headless verification: scripted drive THROUGH the InputMap (Input.action_press ->
 		# the SAME _read_twist() path interactive mode uses -> proves the A5 action wiring),
 		# capturing N frames + a wide overview to out/viz2/.
@@ -148,6 +176,10 @@ func _parse_args() -> void:
 				var wh := String(args[i]).split("x")
 				if wh.size() == 2:
 					_view_size = Vector2i(int(wh[0]), int(wh[1]))
+			"--live":
+				_live = true
+			"--session-dir":
+				i += 1; _session_dir = String(args[i])
 		i += 1
 
 
@@ -422,6 +454,13 @@ func _apply_pose() -> void:
 
 
 func _process(delta: float) -> void:
+	if _live:
+		# LIVE interactive: drive THROUGH the runtime (bounded twist), dig on viz2_dig.
+		var lt := _read_twist_live()
+		_live_tick(lt.x, lt.y)
+		if Input.is_action_just_pressed("viz2_dig"):
+			_drive_client.send_dig()
+		return
 	var tw := _read_twist()
 	if tw != Vector2.ZERO:
 		_integrate(tw.x, tw.y, delta)
@@ -480,3 +519,229 @@ func _save_main(fname: String) -> void:
 	else:
 		print("viz2: wrote %s (%dx%d)" % [
 			ProjectSettings.globalize_path(path), img.get_width(), img.get_height()])
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════
+# Phase B3 — LIVE drive THROUGH the Viz2Runtime (conserved terramechanics + live rutting)
+# ══════════════════════════════════════════════════════════════════════════════════════════
+
+# Twist from the InputMap, scaled to the runtime's IPEx envelope (a Phase-A 0.6 m/s command would
+# be M-04-refused). Same actions as _read_twist(), different ceilings.
+func _read_twist_live() -> Vector2:
+	var v := Input.get_action_strength("viz2_forward") - Input.get_action_strength("viz2_back")
+	var om := Input.get_action_strength("viz2_left") - Input.get_action_strength("viz2_right")
+	if Input.is_action_pressed("viz2_brake"):
+		return Vector2.ZERO
+	return Vector2(clampf(v, -1.0, 1.0) * LIVE_LIN, clampf(om, -1.0, 1.0) * LIVE_ANG)
+
+
+# viz2-owned far CONTEXT plane (the frozen terrain.gd is NOT instantiated in live mode). Mirrors
+# terrain.gd::_build_far_field: one low-poly PlaneMesh displaced in terrain_farfield.gdshader from a
+# decimated height texture read through the FROZEN loader (read-only). The live window overdraws it.
+func _build_far_context() -> void:
+	var ext: Vector2 = sf.extent_m()
+	var pm := PlaneMesh.new()
+	pm.size = ext
+	pm.subdivide_width = 128
+	pm.subdivide_depth = 128
+	_far_context = MeshInstance3D.new()
+	_far_context.name = "FarContext"
+	_far_context.mesh = pm
+	_far_context.position = Vector3(sf.world_min.x + ext.x * 0.5, 0.0, sf.world_min.y + ext.y * 0.5)
+	var sm := ShaderMaterial.new()
+	sm.shader = load("res://terrain_farfield.gdshader")
+	sm.set_shader_parameter("height_lowres", sf.tex_height_lowres(4))
+	var lw := int(ceil(float(sf.width) / 4.0))
+	sm.set_shader_parameter("lod_step_m", ext.x / float(maxi(lw, 1)))
+	sm.set_shader_parameter("state_tex", sf.tex_state())
+	sm.set_shader_parameter("disturbance_tex", sf.tex_disturbance())
+	sm.set_shader_parameter("mass_areal_tex", sf.tex_mass_areal())
+	sm.set_shader_parameter("cut_depth_enabled", sf.has_uniform_mantle)
+	sm.set_shader_parameter("mantle_areal_m0", sf.mantle_areal_m0)
+	sm.set_shader_parameter("surface_density_cd", sf.mantle_surface_density)
+	sm.set_shader_parameter("cut_depth_full_m", sf.cut_depth_full_m)
+	sm.set_shader_parameter("fresh_albedo_gain", sf.maturity_albedo_ratio)
+	sm.set_shader_parameter("hapke_enabled", sf.hapke_enabled)
+	sm.set_shader_parameter("hapke_b", sf.hapke_b)
+	sm.set_shader_parameter("hapke_c", sf.hapke_c)
+	sm.set_shader_parameter("hapke_B0", sf.hapke_B0)
+	sm.set_shader_parameter("hapke_h", sf.hapke_h)
+	sm.set_shader_parameter("hapke_gain", sf.hapke_gain)
+	_far_context.material_override = sm
+	add_child(_far_context)
+
+
+# Connect the drive client to the running Viz2Runtime (token handshake) + create the live window node.
+func _setup_live() -> bool:
+	if _session_dir == "":
+		push_error("viz2: --live requires --session-dir <runtime session dir>")
+		return false
+	_window = Viz2WindowScript.new()
+	_window.name = "Viz2TerrainWindow"
+	add_child(_window)
+	_drive_client = Viz2DriveClientScript.new()
+	if not _drive_client.connect_runtime(_session_dir):
+		push_error("viz2: live connect failed: %s" % _drive_client.error_msg)
+		return false
+	print("viz2: LIVE connected to Viz2Runtime (epoch %d) session=%s" % [_drive_client.epoch, _session_dir])
+	return true
+
+
+func _manifest_path(gen: int) -> String:
+	return _session_dir.path_join("generations").path_join("gen_%08d" % gen).path_join("manifest.json")
+
+
+# One live step: send the twist, drain telemetry, apply the NEWEST generation's manifest to the
+# window (union coverage), THEN ack that generation (§2b.4 discipline), then seat the rover.
+func _live_tick(v: float, omega: float) -> void:
+	if _drive_client == null or not _drive_client.connected:
+		return
+	_drive_client.send_twist(v, omega)
+	var n: int = _drive_client.poll_frames()
+	if n > 0:
+		if _drive_client.latest_generation > _applied_gen:
+			if _window.apply_manifest_file(_manifest_path(_drive_client.latest_generation)):
+				_applied_gen = _drive_client.latest_generation
+		_drive_client.ack(_drive_client.latest_seq)
+		_place_rover_live()
+
+
+# Seat the rover at the runtime's REPORTED pose (the pose-tracking gate: rendered == telemetry),
+# on the LIVE carved window surface where it covers the pose, else the static DEM.
+func _place_rover_live() -> void:
+	if _rover_root == null or not _drive_client.have_pose():
+		return
+	_pose_x = _drive_client.latest_pose.x
+	_pose_z = _drive_client.latest_pose.y
+	_pose_yaw = _drive_client.latest_yaw
+	var surf_y: float = _window.height_at_world(_pose_x, _pose_z)
+	if is_nan(surf_y):
+		var u: float = clampf((_pose_x - sf.world_min.x) / sf.extent_m().x, 0.0, 1.0)
+		var vv: float = clampf((_pose_z - sf.world_min.y) / sf.extent_m().y, 0.0, 1.0)
+		surf_y = sf.height_uv(u, vv)
+	_rover_root.transform = Transform3D(Basis(Vector3.UP, _pose_yaw),
+		Vector3(_pose_x, surf_y + _root_lift, _pose_z))
+	_update_chase_cam()
+
+
+# Headless live capture: connect -> drive forward (carving a TREAD/disturbance rut) -> DIG (carving a
+# real height trench) -> capture. The rut+trench are read from the LIVE manifest textures the window
+# mesh vertex-displaces (the NB-2 gate: v2's frozen mesh would have shown a static surface here).
+func _run_live_auto() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out_dir))
+	# 1) wait for the connect keyframe -> initialize the live window node
+	var tries := 0
+	while (_window == null or not _window.is_ready()) and tries < 1200:
+		_live_tick(0.0, 0.0)
+		OS.delay_msec(5)
+		tries += 1
+	if _window == null or not _window.is_ready():
+		push_error("viz2: live window never initialized (no keyframe within timeout)")
+		get_tree().quit(6)
+		return
+	print("viz2: live window ready gen=%d origin=(%.1f,%.1f) side=%.2f m cell=%.3f" % [
+		_applied_gen, _window.window_origin().x, _window.window_origin().y,
+		_window.window_side_m().x, _window.fine_cell_m()])
+	_place_rover_live()
+	var start_pose: Vector2 = _drive_client.latest_pose
+
+	# 2) drive a gentle left arc THROUGH the runtime for a fixed wall-duration, capturing periodically
+	Input.action_press("viz2_forward", 1.0)
+	Input.action_press("viz2_left", 0.10)
+	var drive_ms := 7000
+	var t_end := Time.get_ticks_msec() + drive_ms
+	var next_cap := Time.get_ticks_msec()
+	var i := 0
+	while Time.get_ticks_msec() < t_end and i < _auto_frames:
+		var lt := _read_twist_live()
+		_live_tick(lt.x, lt.y)
+		OS.delay_msec(15)
+		if Time.get_ticks_msec() >= next_cap:
+			await RenderingServer.frame_post_draw
+			await RenderingServer.frame_post_draw
+			_save_main("viz2_live_%03d.png" % i)
+			i += 1
+			next_cap += 550
+	Input.action_release("viz2_forward")
+	Input.action_release("viz2_left")
+	# coast to a stop (zero twist), keep the link heartbeat alive
+	for k in range(12):
+		_live_tick(0.0, 0.0)
+		OS.delay_msec(15)
+	var drive_pose: Vector2 = _drive_client.latest_pose
+
+	# 3) DIG — carve a real geometric trench under the rover (height drops; the window mesh displaces it)
+	_drive_client.send_dig()
+	for k in range(20):
+		_live_tick(0.0, 0.0)
+		OS.delay_msec(20)
+	_place_rover_live()
+	await _settle_and_capture("viz2_live_dig_chase.png")
+
+	# 4) the money shots: ISOLATE the live physics window (the static 4x-decimated context
+	# plane would occlude it where its coarser height exceeds the window) and frame it tightly
+	# so the carved TREAD rut path + the dug EXCAVATED trench are unambiguous.
+	await _capture_window_closeup("viz2_live_window.png")
+	await _capture_window_topdown("viz2_live_topdown.png")
+
+	# pose-tracking gate: rendered pose vs the runtime's reported pose (< 1 fine cell)
+	var rp := Vector2(_pose_x, _pose_z)
+	var dcell: float = rp.distance_to(_drive_client.latest_pose) / _window.fine_cell_m()
+	print("viz2: LIVE auto done — start=(%.2f,%.2f) after-drive=(%.2f,%.2f) after-dig=(%.2f,%.2f) gen=%d" % [
+		start_pose.x, start_pose.y, drive_pose.x, drive_pose.y,
+		_drive_client.latest_pose.x, _drive_client.latest_pose.y, _applied_gen])
+	print("viz2: drive distance=%.2f m  slip=%.3f  entrapped=%s" % [
+		start_pose.distance_to(drive_pose), _drive_client.slip, str(_drive_client.entrapped)])
+	print("viz2: POSE-TRACK rendered=(%.3f,%.3f) telemetry=(%.3f,%.3f) delta=%.3f cells" % [
+		rp.x, rp.y, _drive_client.latest_pose.x, _drive_client.latest_pose.y, dcell])
+	if _drive_client != null:
+		_drive_client.close()
+	get_tree().quit(0)
+
+
+# Robust capture: a full idle+draw cycle (process_frame) pushes any camera-transform change to
+# the RenderingServer BEFORE the draw, then two post-draw waits ensure the new frame is on the
+# GPU before get_image (a camera-only move otherwise samples the stale prior frame).
+func _settle_and_capture(fname: String) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	_save_main(fname)
+
+
+func _window_center() -> Vector3:
+	var o: Vector2 = _window.window_origin()
+	var side: Vector2 = _window.window_side_m()
+	var cx := o.x + 0.5 * side.x
+	var cz := o.y + 0.5 * side.y
+	var h: float = _window.height_at_world(cx, cz)
+	if is_nan(h):
+		var u: float = clampf((cx - sf.world_min.x) / sf.extent_m().x, 0.0, 1.0)
+		var vv: float = clampf((cz - sf.world_min.y) / sf.extent_m().y, 0.0, 1.0)
+		h = sf.height_uv(u, vv)
+	return Vector3(cx, h, cz)
+
+
+# An oblique 3/4 aerial close-up of the LIVE window (far context hidden): the TREAD rut path +
+# the dug EXCAVATED trench read as real vertex-displaced relief.
+func _capture_window_closeup(fname: String) -> void:
+	if _far_context != null:
+		_far_context.visible = false
+	var center := _window_center()
+	var span: float = maxf(_window.window_side_m().x, _window.window_side_m().y)
+	var eye := center + Vector3(-span * 0.30, span * 0.72, span * 0.60)
+	_cam.global_transform = _look_at_xf(eye, center, Vector3.UP)
+	await _settle_and_capture(fname)
+
+
+# A near-nadir plan view of the whole LIVE window (far context hidden): the rut path + trench
+# read as plan-view geometry against the vacuum background.
+func _capture_window_topdown(fname: String) -> void:
+	if _far_context != null:
+		_far_context.visible = false
+	var center := _window_center()
+	var span: float = maxf(_window.window_side_m().x, _window.window_side_m().y)
+	var eye := center + Vector3(0.001, span * 1.05, 0.001)
+	_cam.global_transform = _look_at_xf(eye, center, Vector3(0.0, 0.0, -1.0))
+	await _settle_and_capture(fname)

@@ -102,6 +102,7 @@ class Viz2Runtime:
                  rate_hz: float = 15.0, dt: float = 0.1,
                  ack_deadline_s: float = 2.0, window: int = 64,
                  keyframe_interval: int = 90, retain_generations: int = 256,
+                 dig_depth_m: float = 0.12, dig_half_cells: int = 8,
                  host: str = "127.0.0.1"):
         # --- backend governance FIRST (R-M3): resolve mutation authority ONLY through the strict LIVE
         # resolver; a refused model raises PhysicsModelRefused before any world/socket is built. The
@@ -128,6 +129,14 @@ class Viz2Runtime:
         self.window = int(window)
         self.keyframe_interval = int(keyframe_interval)
         self.retain_generations = int(retain_generations)
+        # B3 dig: a conserved excavation the driver can trigger to CARVE the terrain (a real height
+        # drop). On this real bundle a straight drive only compacts (density-only, TREAD) — the
+        # surface density is already ~1456 kg/m^3, above the light IPEx wheel's Bekker firming target,
+        # so derive_height() does not move on a drive. The dig removes areal mass (WorkSite.flatten,
+        # mass into the drum ledger), so derive_height() drops and the window mesh's VERTEX shader
+        # displaces the trench — the visible carved rut the NB-2 render-geometry contract proves.
+        self.dig_depth_m = float(dig_depth_m)
+        self.dig_half_cells = int(dig_half_cells)
         self.host = str(host)
 
         # --- session directory + generation store ---
@@ -157,8 +166,10 @@ class Viz2Runtime:
         self._latest_twist: tuple[float, float] = (0.0, 0.0)
         self._safe_stopped = False
         self._force_keyframe = False
+        self._pending_dig = False
         self._rejected_stale = 0
         self._rejected_bounds = 0
+        self._dig_count = 0
         self._last_applied_twist: tuple[float, float] = (0.0, 0.0)
 
         # --- generation / union-coverage bookkeeping (actor-thread owned) ---
@@ -378,18 +389,27 @@ class Viz2Runtime:
                 epoch = self._current_epoch
                 force_kf = self._force_keyframe
                 self._force_keyframe = False
+                do_dig = self._pending_dig and not self._safe_stopped
+                self._pending_dig = False
                 v, omega = (0.0, 0.0) if self._safe_stopped else self._latest_twist
             if sess is not None:
-                self._step_and_publish(sess, outbound, epoch, v, omega, force_kf)
+                self._step_and_publish(sess, outbound, epoch, v, omega, force_kf, do_dig)
             # maintain the fixed rate (real timing, no faking)
             rest = self._period - (time.monotonic() - t0)
             if rest > 0:
                 time.sleep(rest)
 
     def _step_and_publish(self, sess: StreamSession, outbound: queue.Queue | None,
-                          epoch: int, v: float, omega: float, force_kf: bool) -> None:
+                          epoch: int, v: float, omega: float, force_kf: bool,
+                          do_dig: bool = False) -> None:
         telem, dirty = self.ws.step(v, omega, self.dt)       # the conserved single-mutator drive
         self._last_applied_twist = (v, omega)
+        if do_dig:
+            # a conserved dig at the current pose (WorkSite.flatten -> the drum ledger); its dirty
+            # region rides THIS generation, so height/state/disturbance carry the trench downstream.
+            dig_dirty = self._apply_dig()
+            dirty = dirty + dig_dirty
+            telem["dug"] = bool(dig_dirty)
         keyframe = (force_kf or bool(telem.get("recentered"))
                     or (self._generation + 1 - self._last_keyframe_gen) >= self.keyframe_interval)
         gen = self._advance_generation(dirty, keyframe)
@@ -437,6 +457,9 @@ class Viz2Runtime:
             cmd = str(msg.get("cmd", ""))
             if cmd == "twist":
                 self._ingest_twist(msg)
+            elif cmd == "dig":
+                # arm a conserved dig for the next actor tick (applied on the actor thread only).
+                self._pending_dig = True
             elif cmd == "ack" and sess is not None:
                 seq_raw = msg.get("seq")
                 if seq_raw is None:
@@ -464,6 +487,31 @@ class Viz2Runtime:
         with self._lock:
             if not self._safe_stopped:
                 self._latest_twist = (float(v), float(omega))
+
+    def _apply_dig(self) -> list[list[int]]:
+        """Conserved excavation at the current pose (actor thread only): flatten a footprint-sized
+        box down to ``dig_depth_m`` below its lowest cell, so every masked cell is a pure CUT into the
+        drum ledger (mass exact). Returns the dig's dirty bbox (fine-cell ``[r0,c0,r1,c1]``) or ``[]``
+        when the pose is unseated. The height drop is what the window mesh's vertex shader displaces —
+        the visibly carved rut."""
+        if self.ws.pose_xy is None:
+            return []
+        H, W = self._window_shape
+        rc = self.ws.active_rc_for_xy(self.ws.pose_xy)
+        r = int(round(rc[0]))
+        c = int(round(rc[1]))
+        hc = self.dig_half_cells
+        r0, r1 = max(0, r - hc), min(H, r + hc + 1)
+        c0, c1 = max(0, c - hc), min(W, c + hc + 1)
+        if r1 <= r0 or c1 <= c0:
+            return []
+        f = self.ws._require_fine()
+        mask = np.zeros((H, W), dtype=bool)
+        mask[r0:r1, c0:c1] = True
+        target = float(f.derive_height()[r0:r1, c0:c1].min()) - self.dig_depth_m
+        self.ws.flatten(mask, target)                        # cells above target -> cut (conserved)
+        self._dig_count += 1
+        return [[r0, c0, r1, c1]]
 
     # -- generation-namespaced patch manifests (plan §2b.4) ------------------------------------
 
