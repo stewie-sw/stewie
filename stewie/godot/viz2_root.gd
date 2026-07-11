@@ -156,6 +156,10 @@ func _ready() -> void:
 	if _path_path != "":
 		_build_path_display()
 	_setup_chase_camera()
+	# Phase G / G4: the "About this DEM" provenance pane — reads THIS bundle's
+	# metadata.json dem_provenance.citation VERBATIM (Barker/Mazarico for a LOLA tile,
+	# Alexandrov & Beyer for the SfS tile). Built for every mode so it rides the capture.
+	_build_provenance_pane()
 
 	if _live:
 		if not _setup_live():
@@ -668,6 +672,59 @@ func _process(delta: float) -> void:
 		print("viz2: dig (viz2_dig) — conserved excavation is Phase B (not wired in Phase A)")
 	if Input.is_action_just_pressed("viz2_dump"):
 		print("viz2: dump (viz2_dump) — conserved deposition is Phase B (not wired in Phase A)")
+
+
+# ── Phase G / G4: "About this DEM" provenance pane ────────────────────────────────────────
+# Reads the loaded bundle's metadata.json dem_provenance block and shows the source + citation
+# VERBATIM in a bottom-left overlay (rides the headless capture). The citation is echoed, never
+# composed — a LOLA Product-78 tile shows Barker/Mazarico; the SfS tile shows Alexandrov & Beyer.
+func _build_provenance_pane() -> void:
+	var meta_path := _site_dir + "/metadata.json"
+	var f := FileAccess.open(meta_path, FileAccess.READ)
+	if f == null:
+		return
+	var parsed = JSON.parse_string(f.get_as_text())
+	f.close()
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return
+	var region := String(parsed.get("region", ""))
+	var source := ""
+	var citation := ""
+	var frame := ""
+	var prov = parsed.get("dem_provenance", {})
+	if typeof(prov) == TYPE_DICTIONARY:
+		source = String(prov.get("source", ""))
+		citation = String(prov.get("citation", ""))
+		frame = String(prov.get("frame", ""))
+
+	var layer := CanvasLayer.new()
+	layer.name = "AboutThisDEM"
+	add_child(layer)
+	var panel := PanelContainer.new()
+	panel.position = Vector2(12, maxf(0.0, float(_view_size.y) - 150.0))
+	layer.add_child(panel)
+	var col := VBoxContainer.new()
+	col.custom_minimum_size = Vector2(minf(760.0, float(_view_size.x) - 24.0), 0)
+	panel.add_child(col)
+
+	var title := Label.new()
+	title.text = "About this DEM — %s" % region
+	col.add_child(title)
+	var src := Label.new()
+	src.text = "source: %s" % source
+	src.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(src)
+	var cite := Label.new()
+	cite.text = "citation: %s" % citation
+	cite.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(cite)
+	if frame != "":
+		var fr := Label.new()
+		fr.text = "frame: %s" % frame
+		fr.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		fr.modulate = Color(0.72, 0.74, 0.80)
+		col.add_child(fr)
+	print("viz2: About-this-DEM pane — region='%s' citation='%s'" % [region, citation])
 
 
 # ── headless auto-drive + capture ─────────────────────────────────────────────────────────
