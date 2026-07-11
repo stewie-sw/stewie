@@ -19,9 +19,12 @@ G2 worked-tile streaming, G3 Godot base-only render, G4 drum-arm pose, G5 berm p
 """
 from __future__ import annotations
 
+import math
+
 import numpy as np
 
 from stewie.specs import constants as K
+from stewie.specs import ipex_specs as IX
 from stewie.physics import rover as R
 from stewie.physics import drive as D
 from stewie.physics.column_state import ColumnState, StateLabel
@@ -29,6 +32,31 @@ from stewie.physics.sandpile import Sandpile
 from stewie.twin.io_fields import load_scene, save_scene
 from stewie.terrain.dem_io import ArrayBaseReader, BASE_FIELD_NAMES
 from stewie.terrain.tiles_mosaic import TileMosaic
+
+
+# ---------------------------------------------------------------------------
+# Typed refusals for the per-tick drive seam (WorkSite.step).
+# These REPLACE the bare-ValueError crash paths the NM-7 review flagged: a
+# refusal a caller can catch and act on (safe-stop / reconnect), never an
+# unhandled crash that corrupts the shared session state.
+# ---------------------------------------------------------------------------
+
+class WorkSiteError(RuntimeError):
+    """Base for the WorkSite drive-seam typed refusals (NM-7)."""
+
+
+class WorkSiteCommandError(WorkSiteError):
+    """A step twist that is non-finite or exceeds the per-tick command bound (M-04)."""
+
+
+class WorkSiteBoundsError(WorkSiteError):
+    """A recenter target fully outside the site — replaces the bare ``ValueError``
+    from ``min()`` over an empty tile set (NM-7)."""
+
+
+class WorkSiteDatumError(WorkSiteError):
+    """``step()`` called before a datum-verified load (the coarse DEM round-trip
+    that ``coarse_base_from_bundle`` asserts was never confirmed)."""
 
 
 # ---------------------------------------------------------------------------
@@ -94,12 +122,21 @@ class WorkSite:
     def __init__(self, base: ColumnState, *, world_x0: float, world_y0: float,
                  fine_cell_m: float = 0.05, tile_base_cells: int = 4,
                  world_seed: int = 0, page_dir: str | None = None,
-                 smooth_datum: bool = True):
+                 smooth_datum: bool = True, datum_verified: bool = False):
         self.base = base
         self.base_cell_m = float(base.cell_m)
         self.fine_cell_m = float(fine_cell_m)
         self.world_x0 = float(world_x0)
         self.world_y0 = float(world_y0)
+        # The site's global max corner (world_bounds_m x1/y1): the base spans width/height cells at
+        # base_cell_m from the (world_x0,world_y0) min corner (dem_io row-major-C: x grows with col,
+        # y with row). The step() boundary clamp keeps the rover inside [x0,x1]x[y0,y1].
+        self.world_x1 = float(world_x0) + int(base.width) * self.base_cell_m
+        self.world_y1 = float(world_y0) + int(base.height) * self.base_cell_m
+        # NM-7 clause 2 (datum verified before the first step): only the datum-verified load path
+        # (coarse_base_from_bundle, which asserts derive_height()==saved heightmap, CT-06) sets this.
+        # step() refuses to mutate terrain whose DEM round-trip was never confirmed.
+        self.datum_verified = bool(datum_verified)
         # T-08 (default ON since 2026-06-14): continuous (BILINEAR) resample of the coarse base datum at
         # fine resolution, replacing the piecewise-constant np.repeat DEM datum (5 m terraces with ~88 deg
         # sub-cell cliffs that saturate drive slip and pollute repose/rendering). Datum carries NO mass
@@ -151,6 +188,20 @@ class WorkSite:
         self._baseline_virgin_kg: float = 0.0
         self.recenters: int = 0
 
+        # Per-tick drive-seam state (WorkSite.step). The rover pose is tracked in GLOBAL metres so the
+        # boundary clamp is a plain box test and it survives a window recenter (the fine-cell rc is
+        # window-relative and shifts when the window slides). yaw is the FIELD travel-heading
+        # (0=+col/+X, +pi/2=+row/+Z — the drive_step / wheel_contact_points convention).
+        self.pose_xy: tuple[float, float] | None = None
+        self.yaw: float = 0.0
+        self._last_rover_xy: tuple[float, float] | None = None   # where the last recenter placed the rover
+        # Per-tick command bounds (M-04). v_max = the IPEx drive-envelope ceiling (<=30 cm/s, SCHULER24
+        # via ipex_specs.DRIVE_SPEED_MS); omega_max = the max skid-steer yaw rate that ceiling develops
+        # across the IPEx track gauge (2*v_max/gauge) — both grounded, not invented. They keep one tick's
+        # displacement (|v|*dt) tiny so the recenter margin can guarantee the footprint stays interior.
+        self.v_max: float = float(IX.DRIVE_SPEED_MS)
+        self.omega_max: float = 2.0 * self.v_max / R.WHEEL_GAUGE_M
+
     # -- construction --------------------------------------------------------
 
     @classmethod
@@ -162,11 +213,12 @@ class WorkSite:
         ``world_x0/world_y0`` come from the bundle ``world_bounds_m`` (global placement).
         ``smooth_datum`` (T-08: DEFAULT True) selects continuous bilinear datum sampling; pass
         ``False`` only for the legacy piecewise-constant refine/coarsen bit-exactness check."""
-        base, meta = coarse_base_from_bundle(bundle_dir)
+        base, meta = coarse_base_from_bundle(bundle_dir)   # asserts derive_height()==heightmap (CT-06)
         wb = meta.get("world_bounds_m", {"x0": 0.0, "y0": 0.0})
         return cls(base, world_x0=float(wb["x0"]), world_y0=float(wb["y0"]),
                    fine_cell_m=fine_cell_m, tile_base_cells=tile_base_cells,
-                   world_seed=world_seed, page_dir=page_dir, smooth_datum=smooth_datum)
+                   world_seed=world_seed, page_dir=page_dir, smooth_datum=smooth_datum,
+                   datum_verified=True)   # NM-7 clause 2: loaded through the datum round-trip check
 
     # -- streaming window ----------------------------------------------------
 
@@ -399,6 +451,16 @@ class WorkSite:
                      for tc in range(ctr_tc - radius_tiles, ctr_tc + radius_tiles + 1)
                      if 0 <= tr < self._n_tile_rows and 0 <= tc < self._n_tile_cols]
         new_set = set(new_tiles)
+        # NM-7 clause 2: a target whose whole ``radius_tiles`` box lies off the base yields an EMPTY
+        # tile set; the old region-assembly then did ``min(... for r in regions.values())`` over an empty
+        # dict and raised a bare ValueError (worksite.py OOB crash). Refuse it with a TYPED error BEFORE
+        # any mutation (_commit_active pages worked state), so the session is left byte-for-byte unchanged.
+        if not new_tiles:
+            raise WorkSiteBoundsError(
+                f"recenter target {rover_xy} is fully outside the site bounds "
+                f"[{self.world_x0}, {self.world_y0}]..[{self.world_x1}, {self.world_y1}] "
+                f"(no base tile covers it at radius_tiles={radius_tiles})")
+        self._last_rover_xy = (float(x), float(y))          # a valid in-site rover position
         if self.fine is not None and new_set == self.active_blocks:
             return False                                    # rover still inside the window
 
@@ -440,6 +502,163 @@ class WorkSite:
             raise RuntimeError("active_rc_for_xy() requires an open active window (call open_window first)")
         ox, oy = self.window_world_origin
         return ((y - oy) / self.fine_cell_m, (x - ox) / self.fine_cell_m)
+
+    # -- per-tick conserved drive seam (WorkSite.step; NM-7 safety) -----------
+
+    def _active_rc_to_xy(self, rc: tuple[float, float]) -> tuple[float, float]:
+        """Inverse of :meth:`active_rc_for_xy`: CURRENT-window fine (row,col) -> global metres (x,y)."""
+        if self.window_world_origin is None:
+            raise RuntimeError("_active_rc_to_xy() requires an open active window")
+        ox, oy = self.window_world_origin
+        return (ox + float(rc[1]) * self.fine_cell_m, oy + float(rc[0]) * self.fine_cell_m)
+
+    def _footprint_radius_m(self, wheel_width_m: float) -> float:
+        """Circumscribing radius [m] of the 4-wheel contact footprint about the rover centre: the
+        farthest wheel centre (hypot of half-wheelbase, half-gauge) plus that wheel's disc half-width.
+        The boundary/recenter margin must clear this so no wheel disc ever falls off the active window
+        (an empty ``_wheel_mask`` = silent physics loss, ``rover.py`` — NM-7 clause 4)."""
+        return math.hypot(0.5 * R.WHEEL_BASE_M, 0.5 * R.WHEEL_GAUGE_M) + 0.5 * float(wheel_width_m)
+
+    def _bounds_margin_m(self, dt: float, v_max: float, wheel_width_m: float) -> float:
+        """Interior margin [m] the rover centre keeps from the site edge: the footprint radius PLUS one
+        tick's max displacement (``|v_max|*dt``). Then even a full-speed tick toward a CLIPPED site edge
+        (where the streaming window cannot extend past the base) still leaves the whole footprint inside
+        the window — NM-7 clause 4 is unreachable by construction, not merely usually-true. It is about a
+        wheelbase in magnitude for the IPEx geometry."""
+        return self._footprint_radius_m(wheel_width_m) + abs(float(v_max)) * abs(float(dt))
+
+    def _clamp_to_bounds(self, xy: tuple[float, float], margin: float) -> tuple[tuple[float, float], bool]:
+        """Clamp global (x,y) into ``[x0+margin, x1-margin] x [y0+margin, y1-margin]``. Returns
+        ``((cx,cy), clamped_bool)``. A site narrower than ``2*margin`` clamps to the box centre."""
+        def _c(v: float, lo: float, hi: float) -> float:
+            if lo > hi:
+                return 0.5 * (lo + hi)
+            return min(max(v, lo), hi)
+        x, y = float(xy[0]), float(xy[1])
+        cx = _c(x, self.world_x0 + margin, self.world_x1 - margin)
+        cy = _c(y, self.world_y0 + margin, self.world_y1 - margin)
+        return (cx, cy), (cx != x or cy != y)
+
+    def set_pose(self, xy: tuple[float, float] | None = None, yaw: float = 0.0) -> tuple[float, float]:
+        """Seat the drive-seam pose. ``xy`` None -> the last recenter's rover position, else the active
+        window centre. Returns the resolved global (x,y). :meth:`step` lazily calls this on the first tick.
+        """
+        fine = self._require_fine()
+        if xy is None:
+            if self._last_rover_xy is not None:
+                xy = self._last_rover_xy
+            else:
+                ox, oy = self.window_world_origin  # type: ignore[misc]
+                xy = (ox + 0.5 * fine.width * self.fine_cell_m,
+                      oy + 0.5 * fine.height * self.fine_cell_m)
+        self.pose_xy = (float(xy[0]), float(xy[1]))
+        self.yaw = float(yaw)
+        return self.pose_xy
+
+    def _dirty_bbox(self, center_rc: tuple[float, float], yaw: float,
+                    wheel_width_m: float) -> list[int]:
+        """Fine-cell bbox ``[r0,c0,r1,c1]`` (current window, half-open, clipped to the grid) of the
+        4-wheel footprint carved at one pose — the dirty region :meth:`step` reports for the patch stream."""
+        fine = self._require_fine()
+        pts = R.wheel_contact_points(center_rc, yaw, cell_m=self.fine_cell_m)
+        half_w = max(0.5, 0.5 * float(wheel_width_m) / self.fine_cell_m)
+        rows = [p[0] for p in pts.values()]
+        cols = [p[1] for p in pts.values()]
+        r0 = max(0, int(math.floor(min(rows) - half_w)))
+        c0 = max(0, int(math.floor(min(cols) - half_w)))
+        r1 = min(fine.height, int(math.ceil(max(rows) + half_w)) + 1)
+        c1 = min(fine.width, int(math.ceil(max(cols) + half_w)) + 1)
+        return [r0, c0, r1, c1]
+
+    def step(self, v_cmd: float, omega_cmd: float, dt: float = 0.1, *,
+             v_max: float | None = None, omega_max: float | None = None,
+             params=None, g: float = K.g, wheel_width_m: float = 0.18
+             ) -> tuple[dict, list[list[int]]]:
+        """One per-tick conserved drive. Runs :func:`drive.drive_step` on the active fine window at the
+        current pose (``payload_kg=self.inventory_kg`` — a fuller drum sinks/slips more), recenters the
+        streaming window when the rover nears its edge, and clamps the pose to the site bounds. Returns
+        ``(telemetry, dirty_regions)`` where ``dirty_regions`` is a list of fine-cell bbox rects the
+        wheels carved this tick.
+
+        Terrain is mutated ONLY through drive_step's conserved ``four_wheel_pass`` (density-only, mass
+        exact). FORGE stays point-eval-only — no mutating method is added to the FORGE protocol; the
+        mutation lives here in the WorkSite session (round-1 BLOCKER-2).
+
+        NM-7 boundary/displacement safety (all four clauses):
+          1. the resulting pose is clamped to ``world_bounds_m`` minus a footprint margin, with a
+             ``bounds_clamped`` telemetry flag;
+          2. ``step`` refuses (:class:`WorkSiteDatumError`) unless the terrain came through the
+             datum-verified load, so the DEM round-trip is confirmed before the first mutation;
+          3. non-finite / ``|v|>v_max`` / ``|omega|>omega_max`` commands are refused
+             (:class:`WorkSiteCommandError`, the ``process.py`` M-04 pattern) BEFORE any state changes,
+             so one tick can never teleport the footprint;
+          4. the start pose is held >= a footprint margin inside the site and one tick's displacement is
+             bounded, so the recentered window always contains the whole 4-wheel footprint (a non-empty
+             ``_wheel_mask`` is guaranteed — no silent physics loss).
+
+        Streaming-path only: it recenters (paging worked tiles), which the single-window ``open_window``
+        entry does not support (the open_window/recenter mutual exclusion).
+        """
+        fine = self._require_fine()
+        if not self.datum_verified:                          # clause 2
+            raise WorkSiteDatumError(
+                "step() requires a datum-verified load (WorkSite.from_haworth_bundle): the coarse-base "
+                "DEM round-trip (derive_height()==saved heightmap) was never confirmed on this WorkSite")
+        if self._baseline_mass is not None:
+            raise WorkSiteError(
+                "step() is streaming-path only (it recenters, paging worked tiles); this WorkSite was "
+                "opened via open_window() — construct a fresh WorkSite and recenter() to stream")
+
+        v_max = self.v_max if v_max is None else float(v_max)
+        omega_max = self.omega_max if omega_max is None else float(omega_max)
+        # M-04 input bounds — refuse BEFORE touching pose / window / terrain (clause 3), so a rejected
+        # command leaves the session byte-for-byte unchanged.
+        if not (isinstance(v_cmd, (int, float)) and math.isfinite(v_cmd)
+                and isinstance(omega_cmd, (int, float)) and math.isfinite(omega_cmd)):
+            raise WorkSiteCommandError(
+                f"step v_cmd/omega_cmd must be finite (got {v_cmd!r}, {omega_cmd!r})")
+        if abs(float(v_cmd)) > v_max:
+            raise WorkSiteCommandError(f"|v_cmd|={abs(float(v_cmd))} exceeds v_max={v_max} m/s (M-04)")
+        if abs(float(omega_cmd)) > omega_max:
+            raise WorkSiteCommandError(
+                f"|omega_cmd|={abs(float(omega_cmd))} exceeds omega_max={omega_max} rad/s (M-04)")
+
+        # Seat the pose (lazy, at the last recenter's rover_xy) — set_pose returns the resolved (x,y).
+        pose_xy = self.pose_xy if self.pose_xy is not None else self.set_pose(None)
+
+        margin = self._bounds_margin_m(dt, v_max, wheel_width_m)
+        # Normalize the start pose to the interior margin (idempotent; covers the first tick and any
+        # changed dt) so this tick's carve is guaranteed to land inside the window (clause 4).
+        pose_xy, _ = self._clamp_to_bounds(pose_xy, margin)
+        self.pose_xy = pose_xy
+
+        # Recenter the streaming window onto the current pose BEFORE carving (clause 4): the existing
+        # recenter is a no-op while the rover is inside its tile set, and re-centers the moment the tile
+        # set would shift — always well before the footprint could reach the window edge.
+        recentered = self.recenter(pose_xy)
+        fine = self._require_fine()                          # window may have slid
+
+        rc = self.active_rc_for_xy(pose_xy)
+        # The conserved per-tick loop: slip/sinkage/entrapment equilibrium + slip-deepened ruts, payload
+        # = live drum fill. drive_step carves at the achieved pose; the bounded displacement + interior
+        # margin keep that pose inside the window, so the 4-wheel _wheel_mask is never empty (clause 4).
+        new_rc, new_yaw, telem = D.drive_step(
+            fine, rc, self.yaw, float(v_cmd), float(omega_cmd), dt=dt,
+            params=params, payload_kg=self.inventory_kg, wheel_width_m=wheel_width_m, g=g)
+
+        dirty = self._dirty_bbox(new_rc, new_yaw, wheel_width_m)
+
+        new_xy = self._active_rc_to_xy(new_rc)
+        clamped_xy, bounds_clamped = self._clamp_to_bounds(new_xy, margin)   # clause 1
+        self.pose_xy = clamped_xy
+        self.yaw = float(new_yaw)
+
+        telem["bounds_clamped"] = bool(bounds_clamped)
+        telem["recentered"] = bool(recentered)
+        telem["pose_xy"] = [clamped_xy[0], clamped_xy[1]]
+        telem["window_world_origin"] = (list(self.window_world_origin)
+                                        if self.window_world_origin is not None else None)
+        return telem, [dirty]
 
     # -- invariant + IO ------------------------------------------------------
 
