@@ -24,10 +24,11 @@ import tempfile
 import time
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-from stewie.stream import protocol
+from stewie.stream import previews, protocol
 from stewie.stream.framing import pack_frame, read_frame
 
 # repo root: stewie/stream/app.py -> stewie/stream -> stewie -> <repo>
@@ -232,9 +233,21 @@ class StreamSession:
 
 app = FastAPI(title="STEWIE viz2 pixel-stream", version="1.0")
 
+# Self-hosted three.js + any other static asset (NO external CDN, so the setup screen works on the
+# tailnet). StaticFiles blocks path escapes; the vendored three.module.min.js lives under vendor/.
+app.mount("/vendor", StaticFiles(directory=str(STATIC_DIR / "vendor")), name="vendor")
+
 
 @app.get("/")
 async def index() -> FileResponse:
+    """The three.js SETUP screen (mode toggle + site/params + live preview + Launch)."""
+    return FileResponse(str(STATIC_DIR / "index.html"))
+
+
+@app.get("/stream")
+async def stream_view() -> FileResponse:
+    """The live pixel-stream view the setup screen's "Launch drive" opens (reads the assembled
+    config from the URL hash; still standalone-usable with its built-in default config)."""
     return FileResponse(str(STATIC_DIR / "stream.html"))
 
 
@@ -242,6 +255,43 @@ async def index() -> FileResponse:
 async def healthz() -> dict:
     return {"ok": True, "service": "viz2-stream", "godot": _resolve_godot(),
             "godot_project": str(GODOT_PROJECT)}
+
+
+@app.get("/bundles")
+async def bundles() -> dict:
+    """The real-site dropdown data: every REAL ``samples/lunar_dem/`` bundle (synthetic EXCLUDED),
+    each with its VERBATIM citation. ``default`` marks the real-mode default site."""
+    rows = previews.list_real_bundles()
+    return {"bundles": rows, "default": previews.DEFAULT_SITE}
+
+
+@app.get("/preview/heightmap")
+async def preview_heightmap(site: str = Query(previews.DEFAULT_SITE)) -> dict:
+    """A REAL, decimated heightmap (~128²) for the setup preview mesh + the site's REAL citation."""
+    try:
+        return previews.real_heightmap_preview(site)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/preview/procedural")
+async def preview_procedural(
+    seed: int = Query(0),
+    H: float = Query(previews._normalize_params({})["H"]),
+    wavelength: float = Query(previews._normalize_params({})["feature_wavelength_m"]),
+    amplitude: float = Query(previews._normalize_params({})["amplitude_m"]),
+    octaves: int = Query(previews._normalize_params({})["octaves"]),
+) -> dict:
+    """The SYNTHETIC preview: the REAL ``fbm_global`` field for (seed, H, wavelength, amplitude,
+    octaves), labelled SYNTHETIC (citation null). Bit-exact with a direct ``fbm_global`` call."""
+    params = {"H": H, "feature_wavelength_m": wavelength,
+              "amplitude_m": amplitude, "octaves": octaves}
+    try:
+        return previews.procedural_heightmap_preview(seed, params)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.websocket("/ws")

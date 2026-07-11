@@ -47,7 +47,21 @@
 "use strict";
 // ── config contract (the three.js setup screen sends the SAME first message) ──────────────
 // First WS message = session config. Subsequent messages = per-frame control (normalized intent).
-const CONFIG = { mode: "real", site: "haworth_sfs_2km_1m", fine: 0.05, sun: { az: 135, el: 18 } };
+// The setup screen (GET /) assembles a config and opens this view as /stream#cfg=<base64(JSON)>.
+// Absent that (opened standalone), fall back to the built-in real-Haworth default.
+const DEFAULT_CONFIG = { mode: "real", site: "haworth_sfs_2km_1m", fine: 0.05, sun: { az: 135, el: 18 } };
+function readConfig() {
+  try {
+    const h = new URLSearchParams(location.hash.slice(1));
+    const raw = h.get("cfg");
+    if (raw) {
+      const cfg = JSON.parse(atob(raw));
+      if (cfg && typeof cfg === "object") return cfg;
+    }
+  } catch (e) { /* malformed hash -> default */ }
+  return DEFAULT_CONFIG;
+}
+const CONFIG = readConfig();
 
 const canvas = document.getElementById("view");
 const ctx = canvas.getContext("2d");
@@ -114,6 +128,11 @@ document.getElementById("dump").onclick = () => ws.send(JSON.stringify({ dump: t
 
 const az = document.getElementById("az"), el = document.getElementById("el");
 const azv = document.getElementById("azv"), elv = document.getElementById("elv");
+// reflect the launched config's sun on the sliders (setup screen may have moved it)
+if (CONFIG.sun) {
+  if (Number.isFinite(+CONFIG.sun.az)) { az.value = +CONFIG.sun.az; azv.textContent = az.value + "°"; }
+  if (Number.isFinite(+CONFIG.sun.el)) { el.value = +CONFIG.sun.el; elv.textContent = el.value + "°"; }
+}
 az.oninput = () => { azv.textContent = az.value + "°"; ws.send(JSON.stringify({ sun_az: +az.value })); };
 el.oninput = () => { elv.textContent = el.value + "°"; ws.send(JSON.stringify({ sun_el: +el.value })); };
 </script>
