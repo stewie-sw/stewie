@@ -21,8 +21,21 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Protocol, runtime_checkable
 
 import numpy as np
+
+
+@runtime_checkable
+class WindowReader(Protocol):
+    """A windowed pixel reader: ``reader(r0, c0, h, w) -> float32`` over a co-registered raster.
+
+    The structural type the annotations pass reads a tile's window through. ``GeoTiffWindowReader``
+    (raw GeoTIFF strips) satisfies it, and so does any bundle-backed ``.rf32`` reader -- both are real
+    co-registered elevation, so the tiling core is agnostic to which real raster backs a window."""
+
+    def __call__(self, r0: int, c0: int, h: int, w: int) -> np.ndarray: ...
+
 
 # The real LOLA Haworth 1 m v3 DEM. Not bundled (562 MB, gitignored); resolved at runtime.
 _DEM_BASENAME = "Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif"

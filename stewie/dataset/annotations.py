@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from stewie.dataset.dem_source import DemGeometry, GeoTiffWindowReader, geographic_crs_authority
+from stewie.dataset.dem_source import DemGeometry, WindowReader, geographic_crs_authority
 from stewie.dataset.tile_grid import Tile
 
 # The real DEM's published provenance (from the PGDA Product 78 metadata / bundle dem_provenance).
@@ -113,7 +113,7 @@ def _provenance(geometry: DemGeometry, tile_m: float, sub_m: float) -> dict:
     }
 
 
-def tile_annotation(tile: Tile, reader: GeoTiffWindowReader, geometry: DemGeometry, *,
+def tile_annotation(tile: Tile, reader: WindowReader, geometry: DemGeometry, *,
                     split: str | None = None, layers=_DEFAULT_LAYERS) -> TileAnnotation:
     """Annotate one tile: read its real pixel window, compute per-layer stats, record provenance."""
     z = reader(tile.px_row0, tile.px_col0, tile.px_h, tile.px_w)
@@ -134,7 +134,7 @@ def tile_annotation(tile: Tile, reader: GeoTiffWindowReader, geometry: DemGeomet
     )
 
 
-def annotate_tiles(tiles, reader: GeoTiffWindowReader, geometry: DemGeometry, *,
+def annotate_tiles(tiles, reader: WindowReader, geometry: DemGeometry, *,
                    split_result=None, layers=_DEFAULT_LAYERS) -> list[TileAnnotation]:
     """Annotate a batch of tiles; ``split_result`` (a ``SplitResult``) supplies each tile's label."""
     out: list[TileAnnotation] = []

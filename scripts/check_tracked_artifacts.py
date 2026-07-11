@@ -25,6 +25,8 @@ THRESHOLD_BYTES = 5 * 1024 * 1024        # 5 MB: above this a tracked binary mus
 ALLOWLIST: tuple[tuple[str, str], ...] = (
     ("samples/lunar_dem/*/*.rf32", "KEEP-EXTERNALIZE: real LOLA DEM bundle (MT-01 follow-on: manifest+fetch)"),
     ("samples/lunar_dem/*/*.r8", "KEEP-EXTERNALIZE: real DEM state-label raster (MT-01 follow-on)"),
+    ("samples/lunar_dem/*/tiling/annotations.geojson",
+     "KEEP-EXTERNALIZE: derived per-tile GeoJSON annotations (regenerable via scripts/tile_bundle.py; MT-01 follow-on)"),
     ("stewie/godot/assets/*/*.glb", "KEEP: real CC0 rover mesh (EZ-RASSOR / IPEx)"),
     ("benchmarks/*/fixtures/*.tif", "KEEP: real NAC shadow benchmark fixture"),
     ("stewie/godot/out/*.gif", "TRIAGE: generated render GIF (untrack once doc refs checked)"),
