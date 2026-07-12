@@ -84,6 +84,20 @@ def test_input_dump_and_sun():
     assert cmd["sun_el"] == 90.0              # clamped to the elevation ceiling
 
 
+def test_input_plan_true_routes_the_waypoints():
+    """council #14 planning->render: plan=True is the verb to draw a route through the plotted waypoints."""
+    assert protocol.normalize_input({"plan": True}) == {"plan": True}
+
+
+def test_input_plan_route_dict_passes_valid_world_points():
+    """A {route:[[x,z],...]} plan (the mission_planner push) passes with finite world points only."""
+    cmd = protocol.normalize_input({"plan": {"route": [[1.5, 2.5], [3.0, 4.0], [5.0, 6.0]]}})
+    assert cmd == {"plan": {"route": [[1.5, 2.5], [3.0, 4.0], [5.0, 6.0]]}}
+    # a malformed route (non-list, or points < 2 coords) yields no plan key (never crashes Godot)
+    assert protocol.normalize_input({"plan": {"route": "nope"}}) == {}
+    assert protocol.normalize_input({"plan": {"route": [[1.0]]}}) == {}
+
+
 def test_input_garbage_returns_empty():
     assert protocol.normalize_input("not json") == {}
     assert protocol.normalize_input(42) == {}

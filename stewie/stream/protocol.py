@@ -158,4 +158,18 @@ def normalize_input(msg: str | bytes | dict) -> dict[str, Any]:
     ov = m.get("overlay")
     if isinstance(ov, str):
         out["overlay"] = ov
+    # planning->render seam (council #14): draw a live mission ROUTE. `plan` is either True (route the
+    # currently-plotted waypoints) or a dict {"route": [[x,z], ...]} of world points (the mission_planner
+    # push). Only the shape is validated here; Godot seats the route on the live DEM + builds the ribbon.
+    if "plan" in m:
+        pv = m["plan"]
+        if pv is True:
+            out["plan"] = True
+        elif isinstance(pv, dict):
+            route = pv.get("route")
+            if isinstance(route, list):
+                pts = [[_finite_float(p[0], 0.0), _finite_float(p[1], 0.0)]
+                       for p in route if isinstance(p, (list, tuple)) and len(p) >= 2]
+                if pts:
+                    out["plan"] = {"route": pts}
     return out

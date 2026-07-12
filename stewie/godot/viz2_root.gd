@@ -535,6 +535,29 @@ func _build_path_display() -> void:
 		_path_node = null
 
 
+# council #14 planning->render: build a LIVE emissive route ribbon (replaces the offline-only --path
+# capture). `plan == true` routes the currently-plotted waypoints; a {route:[[x,z],...]} dict is a
+# world-coord route (the mission_planner push), each point seated on the live DEM via _ground_h.
+func _build_route_from_plan(plan) -> void:
+	var pts: Array = []
+	if plan is Dictionary and plan.has("route"):
+		for p in plan["route"]:
+			if p is Array and p.size() >= 2:
+				var x := float(p[0])
+				var z := float(p[1])
+				pts.append(Vector3(x, _ground_h(x, z), z))
+	else:
+		for w in _waypoints:
+			pts.append(w)
+	if pts.size() < 2:
+		return   # a route needs >= 2 points; a lone waypoint just shows its marker
+	if _path_node == null:
+		_path_node = Viz2PathScript.new()
+		_path_node.name = "RoutePath"
+		add_child(_path_node)
+	_path_node.build(pts)
+
+
 # ── terrain (frozen TerrainNode, LIT_PBR) ─────────────────────────────────────────────────
 func _build_terrain() -> void:
 	_terrain = TerrainScript.new()
@@ -1638,6 +1661,8 @@ func _apply_stream_input(msg: Dictionary) -> void:
 			_wp_index = 0
 	if bool(msg.get("clear_wp", false)):
 		_clear_waypoints()
+	if msg.has("plan"):
+		_build_route_from_plan(msg["plan"])   # council #14: planning -> render, live route ribbon
 	# analysis overlays: 0 = normal photoreal, 1 = slope heatmap, 2 = MONOLITH topo (hypsometric +
 	# contours + grid + scan). The topo look is a toggleable PLANNING overlay; mode 0 = the photoreal drive view.
 	if msg.has("overlay"):
