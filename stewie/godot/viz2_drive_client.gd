@@ -26,6 +26,7 @@ var latest_pose := Vector2.ZERO
 var latest_yaw := 0.0
 var latest_generation := 0
 var latest_keyframe := false
+var latest_keyframe_gen := 0             # highest generation that was a KEYFRAME (recenter resync, #9)
 var latest_seq := -1
 var slip := 0.0
 var entrapped := false
@@ -136,6 +137,8 @@ func poll_frames() -> int:
 			count += 1
 			latest_generation = int(payload.get("generation", latest_generation))
 			latest_keyframe = bool(payload.get("keyframe", false))
+			if latest_keyframe:
+				latest_keyframe_gen = latest_generation   # remember the recenter keyframe even if coalesced
 			safe_stopped = bool(payload.get("safe_stop", false))
 			var telem = payload.get("telem", {})
 			if typeof(telem) == TYPE_DICTIONARY:

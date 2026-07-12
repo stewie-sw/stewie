@@ -1199,6 +1199,12 @@ func _live_tick(v: float, omega: float) -> void:
 		# window never rendered, dropping them from every future bbox until the next keyframe. (council #3)
 		var applied_ok := true
 		if _drive_client.latest_generation > _applied_gen:
+			# origin-aware resync: if we coalesced PAST a recenter KEYFRAME, apply that keyframe FIRST so
+			# the window repositions before the newest delta blits into it -- else the crop lands in the
+			# old-origin texture and corrupts / mis-seats the rover on drive-away. (council #9)
+			var kf: int = _drive_client.latest_keyframe_gen
+			if kf > _applied_gen and kf < _drive_client.latest_generation:
+				_window.apply_manifest_file(_manifest_path(kf))
 			if _window.apply_manifest_file(_manifest_path(_drive_client.latest_generation)):
 				_applied_gen = _drive_client.latest_generation
 			else:
