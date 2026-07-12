@@ -1246,6 +1246,19 @@ func _seat_rover(dt: float) -> void:
 	_update_stream_cam()
 
 
+# Keep the far-field shader's window-rect uniforms in sync so it discards the coarse plane under the
+# live fine window (no poke-through on slopes). (council #13)
+func _update_farfield_window_uniforms() -> void:
+	if _far_context == null or _window == null:
+		return
+	var mat := _far_context.material_override
+	if mat is ShaderMaterial and _window.is_ready():
+		var sm := mat as ShaderMaterial
+		sm.set_shader_parameter("window_origin", _window.window_origin())
+		sm.set_shader_parameter("window_side", _window.window_side_m())
+		sm.set_shader_parameter("window_active", true)
+
+
 # Headless live capture: connect -> drive forward (carving a TREAD/disturbance rut) -> DIG (carving a
 # real height trench) -> capture. The rut+trench are read from the LIVE manifest textures the window
 # mesh vertex-displaces (the NB-2 gate: v2's frozen mesh would have shown a static surface here).
@@ -1418,6 +1431,7 @@ func _run_stream() -> void:
 		else:
 			_live_tick(_stream_v, _stream_omega)
 		_seat_rover(dt)                          # glide the rendered pose toward telemetry (smooth motion)
+		_update_farfield_window_uniforms()       # discard the coarse plane under the fine window (#13)
 		_animate_rover(dt)
 		# ONE post-draw wait: in a continuous loop the previous iteration already flushed state, so the
 		# second wait (a one-shot-capture idiom for a stale first buffer) just halves fps. (council #1)

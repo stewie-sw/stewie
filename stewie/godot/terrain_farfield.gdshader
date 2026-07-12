@@ -62,6 +62,10 @@ uniform float hapke_gain = 1.4;    // radiance calibration -> Lambert-comparable
 varying vec2 fuv;   // UV (0..1 across the field) carried to the fragment stage
 varying float v_slope;                    // world-normal slope angle [rad], for the analysis overlay
 uniform int analysis_mode = 0;            // 0 = normal shading, 1 = slope heatmap (path analysis)
+uniform vec2 window_origin = vec2(0.0);   // world XZ min corner of the live fine window
+uniform vec2 window_side = vec2(0.0);     // world XZ extent of the live fine window
+uniform bool window_active = false;       // discard the coarse plane inside the window rect (no poke-through)
+varying vec2 v_world_xz;                   // fragment world XZ (for the window-rect discard)
 
 // --- simplex noise (Ashima Arts / Stefan Gustavson "webgl-noise", MIT; mirror of terrain.gdshader) ---
 // Replaces the prior square-lattice value noise (axis-aligned diamond artifacts) with isotropic
@@ -127,9 +131,18 @@ void vertex() {
 	float hU = texture(height_lowres, UV + vec2(0.0, ts.y)).r;
 	NORMAL = normalize(vec3(hL - hR, 2.0 * lod_step_m, hD - hU));
 	v_slope = acos(clamp(NORMAL.y, -1.0, 1.0));   // 0 = flat, larger = steeper (for the slope overlay)
+	v_world_xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;   // world XZ (for the fine-window discard)
 }
 
 void fragment() {
+	// The live fine window owns its footprint -> discard the coarse far plane inside it (minus a 0.3 m
+	// rim the window's z-bias hides) so the coarse surface can't punch through the window on slopes. (#13)
+	if (window_active) {
+		vec2 rel = v_world_xz - window_origin;
+		if (rel.x > 0.3 && rel.x < window_side.x - 0.3 && rel.y > 0.3 && rel.y < window_side.y - 0.3) {
+			discard;
+		}
+	}
 	// Macro albedo mottle (#2): field span = lowres_width * lod_step_m == world extent.
 	float span = float(textureSize(height_lowres, 0).x) * lod_step_m;
 	vec2 mp = fuv * (span / max(macro_scale_m, 1e-3));
