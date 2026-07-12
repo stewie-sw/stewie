@@ -70,6 +70,8 @@ uniform vec2 region_uv_offset = vec2(0.0); // map plane UV -> the mission region
 uniform vec2 region_uv_scale = vec2(1.0);
 varying vec2 v_suv;                         // region-mapped sample UV (height / state / disturbance)
 varying float v_height;                      // world elevation (m), for the topo hypsometric ramp + contours
+varying vec2 v_scan_rel;                      // fragment pos RELATIVE to the scan centre (small coords ->
+                                             // avoids catastrophic cancellation of ~1e5 polar-stereo world XZ)
 
 // TOPO overlay (analysis_mode == 2): MONOLITH-style shaded-relief topographic map — hypsometric
 // gradient + contour isolines + survey grid + an expanding radar scan wave. Ported from
@@ -94,7 +96,7 @@ uniform float topo_scan_span = 120.0;                // max scan radius (m); R =
 uniform float topo_scan_t = -1.0;                    // 0..1 progress, < 0 = scan off
 uniform float topo_scan_width = 3.0;
 uniform float topo_scan_blur = 1.5;
-uniform vec3  topo_scan_color : source_color = vec3(0.35, 0.95, 0.85);
+uniform vec3  topo_scan_color : source_color = vec3(1.0, 0.55, 0.12);   // amber sweep, high-contrast on teal topo
 uniform float topo_ambient = 0.4;   // self-lit map floor so grazing-PSR shadows still read the topo
 
 // --- simplex noise (Ashima Arts / Stefan Gustavson "webgl-noise", MIT; mirror of terrain.gdshader) ---
@@ -164,6 +166,7 @@ void vertex() {
 	vec4 wpos = MODEL_MATRIX * vec4(VERTEX, 1.0);
 	v_world_xz = wpos.xz;   // world XZ (for the fine-window discard + topo grid/scan)
 	v_height = wpos.y;      // world elevation (m), for the topo hypsometric ramp + contours
+	v_scan_rel = wpos.xz - topo_scan_center;   // scan distance in a LOCAL frame (huge-coord-safe)
 }
 
 void fragment() {
@@ -255,12 +258,13 @@ void fragment() {
 		EMISSION = col * topo_ambient;   // self-lit map floor (readable in shadow); Hapke relief adds on top
 		// expanding radar scan wave (bright emissive wavefront sweeping the site)
 		if (topo_scan_t >= 0.0) {
-			float d = length(v_world_xz - topo_scan_center);
+			float d = length(v_scan_rel);   // relative-to-centre distance (precision-safe at 1e5 world XZ)
 			float R = topo_scan_t * topo_scan_span;
-			float band = 1.0 - smoothstep(0.0, max(topo_scan_blur, fwidth(d)), abs(d - R) - topo_scan_width * 0.5);
+			// clean triangular ring: peaks at d==R, falls to 0 at |d-R|==topo_scan_width (no fwidth noise)
+			float band = smoothstep(topo_scan_width, 0.0, abs(d - R));
 			float fade = 1.0 - smoothstep(0.6, 1.0, topo_scan_t);
-			col = mix(col, topo_scan_color, band * fade * 0.7);
-			EMISSION += topo_scan_color * band * fade;
+			col = mix(col, topo_scan_color, band * fade * 0.85);
+			EMISSION += topo_scan_color * band * fade * 1.8;
 		}
 	}
 	ALBEDO = col;

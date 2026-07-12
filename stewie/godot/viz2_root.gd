@@ -1146,10 +1146,10 @@ func _read_twist_live() -> Vector2:
 # MONOLITH topo overlay: set the far-field topo uniforms from the real DEM + the mission region.
 func _apply_topo_uniforms(fm: ShaderMaterial) -> void:
 	# scan ring expands from the region centre out to its far corner; grid/contours scaled to the region.
-	var span := (_region_size * 0.75) if _region_size > 0.0 else 120.0
+	var span := (_region_size * 0.55) if _region_size > 0.0 else 90.0   # ring sweeps through the visible frame
 	fm.set_shader_parameter("topo_scan_center", Vector2(_region_cx, _region_cz))
 	fm.set_shader_parameter("topo_scan_span", span)
-	fm.set_shader_parameter("topo_scan_width", maxf(2.0, span * 0.03))
+	fm.set_shader_parameter("topo_scan_width", maxf(5.0, span * 0.06))   # thick enough to read at top-down zoom
 	fm.set_shader_parameter("topo_grid_step", maxf(5.0, (_region_size / 12.0) if _region_size > 0.0 else 10.0))
 	var hr := _topo_height_range()
 	fm.set_shader_parameter("topo_height_range", hr)
@@ -1339,14 +1339,21 @@ func _seat_rover(dt: float) -> void:
 # Keep the far-field shader's window-rect uniforms in sync so it discards the coarse plane under the
 # live fine window (no poke-through on slopes). (council #13)
 func _update_farfield_window_uniforms() -> void:
-	if _far_context == null or _window == null:
+	if _far_context == null:
 		return
 	var mat := _far_context.material_override
-	if mat is ShaderMaterial and _window.is_ready():
-		var sm := mat as ShaderMaterial
+	if not (mat is ShaderMaterial):
+		return
+	var sm := mat as ShaderMaterial
+	if _window != null and _window.is_ready():
 		sm.set_shader_parameter("window_origin", _window.window_origin())
 		sm.set_shader_parameter("window_side", _window.window_side_m())
 		sm.set_shader_parameter("window_active", true)
+	# C2: animate the MONOLITH radar scan wave — a looping 0..1 sweep from the wall clock, whenever the
+	# topo overlay (analysis_mode 2) is live. fmod on ticks_msec avoids threading dt through the stream loop.
+	if _topo_active:
+		var period_s := 4.0
+		sm.set_shader_parameter("topo_scan_t", fmod(float(Time.get_ticks_msec()) / 1000.0, period_s) / period_s)
 
 
 # Headless live capture: connect -> drive forward (carving a TREAD/disturbance rut) -> DIG (carving a
