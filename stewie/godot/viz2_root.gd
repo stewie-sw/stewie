@@ -87,6 +87,9 @@ var _rover_rc := Vector2i(-1, -1)     # (row,col); default -> field center
 var _sun_elev_deg := 22.0
 var _sun_azim_deg := 135.0
 var _view_size := Vector2i(1280, 720)
+var _region_cx := 0.0        # mission-region centre X (world m)
+var _region_cz := 0.0        # mission-region centre Z (world m)
+var _region_size := 0.0      # mission size (m); 0 = render the whole tile (legacy)
 var _hud_selfcheck := false           # Phase C: headless proof the HUD slider drives the sun
 var _clasts_path := ""                # Phase D: JSON rock field (spatial-k Golombek) to display
 var _path_path := ""                  # Phase F: JSON planned-route polyline (mission_planner.plan detour)
@@ -301,6 +304,12 @@ func _parse_args() -> void:
 				i += 1; _stream_fps = maxi(1, int(args[i]))
 			"--stream-quality":
 				i += 1; _stream_quality = clampf(float(args[i]), 0.1, 1.0)
+			"--region-cx":
+				i += 1; _region_cx = float(args[i])
+			"--region-cz":
+				i += 1; _region_cz = float(args[i])
+			"--region-size":
+				i += 1; _region_size = float(args[i])
 		i += 1
 
 
@@ -1136,19 +1145,38 @@ func _read_twist_live() -> Vector2:
 # decimated height texture read through the FROZEN loader (read-only). The live window overdraws it.
 func _build_far_context() -> void:
 	var ext: Vector2 = sf.extent_m()
+	# MISSION REGION: cover only a sub-area around the spawn (big rover ratio + fine terrain) instead of
+	# the whole tile. _region_size==0 -> legacy full-tile render. 256 subdivisions over a ~100 m mission
+	# = ~0.4 m/vertex (finer than the DEM), and the small plane is cheap.
+	var use_region := _region_size > 0.0
+	var rsize := clampf(_region_size, 60.0, minf(ext.x, ext.y))
+	var rcenter := Vector2(_region_cx, _region_cz)
+	if use_region:
+		rcenter.x = clampf(rcenter.x, sf.world_min.x + rsize * 0.5, sf.world_max.x - rsize * 0.5)
+		rcenter.y = clampf(rcenter.y, sf.world_min.y + rsize * 0.5, sf.world_max.y - rsize * 0.5)
 	var pm := PlaneMesh.new()
-	pm.size = ext
-	pm.subdivide_width = 256   # was 128 (~78 m/vertex over a 10 km tile) -> ~39 m/vertex distance detail
-	pm.subdivide_depth = 256   # (512 looked great but ~9 fps; 256 keeps interactive fps + real relief)
+	pm.size = Vector2(rsize, rsize) if use_region else ext
+	pm.subdivide_width = 256
+	pm.subdivide_depth = 256
 	_far_context = MeshInstance3D.new()
 	_far_context.name = "FarContext"
 	_far_context.mesh = pm
-	_far_context.position = Vector3(sf.world_min.x + ext.x * 0.5, 0.0, sf.world_min.y + ext.y * 0.5)
+	if use_region:
+		_far_context.position = Vector3(rcenter.x, 0.0, rcenter.y)
+	else:
+		_far_context.position = Vector3(sf.world_min.x + ext.x * 0.5, 0.0, sf.world_min.y + ext.y * 0.5)
 	var sm := ShaderMaterial.new()
 	sm.shader = load("res://terrain_farfield.gdshader")
 	sm.set_shader_parameter("height_lowres", sf.tex_height_lowres(2))   # was /4 -> 2x finer far height
 	var lw := int(ceil(float(sf.width) / 2.0))
 	sm.set_shader_parameter("lod_step_m", ext.x / float(maxi(lw, 1)))
+	# region UV: map the plane's [0,1] UV to the mission region's slice of the full height/state textures
+	if use_region:
+		sm.set_shader_parameter("region_uv_offset", (rcenter - Vector2(rsize, rsize) * 0.5 - sf.world_min) / ext)
+		sm.set_shader_parameter("region_uv_scale", Vector2(rsize / ext.x, rsize / ext.y))
+	else:
+		sm.set_shader_parameter("region_uv_offset", Vector2.ZERO)
+		sm.set_shader_parameter("region_uv_scale", Vector2.ONE)
 	sm.set_shader_parameter("state_tex", sf.tex_state())
 	sm.set_shader_parameter("disturbance_tex", sf.tex_disturbance())
 	sm.set_shader_parameter("mass_areal_tex", sf.tex_mass_areal())

@@ -66,6 +66,9 @@ uniform vec2 window_origin = vec2(0.0);   // world XZ min corner of the live fin
 uniform vec2 window_side = vec2(0.0);     // world XZ extent of the live fine window
 uniform bool window_active = false;       // discard the coarse plane inside the window rect (no poke-through)
 varying vec2 v_world_xz;                   // fragment world XZ (for the window-rect discard)
+uniform vec2 region_uv_offset = vec2(0.0); // map plane UV -> the mission region's slice of the textures
+uniform vec2 region_uv_scale = vec2(1.0);
+varying vec2 v_suv;                         // region-mapped sample UV (height / state / disturbance)
 
 // --- simplex noise (Ashima Arts / Stefan Gustavson "webgl-noise", MIT; mirror of terrain.gdshader) ---
 // Replaces the prior square-lattice value noise (axis-aligned diamond artifacts) with isotropic
@@ -116,19 +119,19 @@ float hg_phase(float cg, float b, float c) {
 
 void vertex() {
 	fuv = UV;
-	// PlaneMesh lies in XZ; UV runs 0..1. Sample the low-res tile and push Y up.
-	float h = texture(height_lowres, UV).r;
+	// map the plane UV to the MISSION region's slice of the textures (region_uv_* = identity when off)
+	vec2 suv = region_uv_offset + UV * region_uv_scale;
+	v_suv = suv;
+	// PlaneMesh lies in XZ; UV runs 0..1. Sample the (region-mapped) low-res tile and push Y up.
+	float h = texture(height_lowres, suv).r;
 	VERTEX.y += h;
 
 	// Recompute the NORMAL from the heightmap gradient (central differences).
-	// PlaneMesh ships flat (all-up) normals; without this the displaced far field
-	// shades flat-grey and its relief vanishes (the boulder field sits on far-field
-	// terrain, so this is what makes that render read as terrain, not a slab).
 	vec2 ts = 1.0 / vec2(textureSize(height_lowres, 0));
-	float hL = texture(height_lowres, UV - vec2(ts.x, 0.0)).r;
-	float hR = texture(height_lowres, UV + vec2(ts.x, 0.0)).r;
-	float hD = texture(height_lowres, UV - vec2(0.0, ts.y)).r;
-	float hU = texture(height_lowres, UV + vec2(0.0, ts.y)).r;
+	float hL = texture(height_lowres, suv - vec2(ts.x, 0.0)).r;
+	float hR = texture(height_lowres, suv + vec2(ts.x, 0.0)).r;
+	float hD = texture(height_lowres, suv - vec2(0.0, ts.y)).r;
+	float hU = texture(height_lowres, suv + vec2(0.0, ts.y)).r;
 	NORMAL = normalize(vec3(hL - hR, 2.0 * lod_step_m, hD - hU));
 	v_slope = acos(clamp(NORMAL.y, -1.0, 1.0));   // 0 = flat, larger = steeper (for the slope overlay)
 	v_world_xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;   // world XZ (for the fine-window discard)
@@ -152,10 +155,10 @@ void fragment() {
 	// State-driven track look (mirror of terrain.gdshader §6), so the rut reads as a
 	// continuous band on the coarse far field. disturbance darkens churned fines; the label
 	// tints the band. This is what makes the track a track and not a row of shadowed pits.
-	float dist = clamp(texture(disturbance_tex, fuv).r, 0.0, 1.0);
+	float dist = clamp(texture(disturbance_tex, v_suv).r, 0.0, 1.0);
 	col *= (1.0 - 0.18 * dist);
 	float rough = 0.97;
-	int lbl = int(round(texture(state_tex, fuv).r * 255.0));
+	int lbl = int(round(texture(state_tex, v_suv).r * 255.0));
 	float state_grain = state_grain_factor(lbl);
 	if (lbl == 1) {            // TREAD: compacted rut -> darker, a touch smoother
 		col *= 0.82;
@@ -183,7 +186,7 @@ void fragment() {
 
 	// Cut-depth / exposed-sublayer albedo (continuous; mirror of terrain.gdshader).
 	if (cut_depth_enabled) {
-		float ma = texture(mass_areal_tex, fuv).r;
+		float ma = texture(mass_areal_tex, v_suv).r;
 		float removed_m = max(mantle_areal_m0 - ma, 0.0) / max(surface_density_cd, 1.0);
 		float expo = clamp(removed_m / max(cut_depth_full_m, 1e-4), 0.0, 1.0);
 		vec3 fresh = col * fresh_albedo_gain;

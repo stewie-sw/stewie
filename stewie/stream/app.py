@@ -207,6 +207,14 @@ class StreamSession:
         ]
         if clasts_path:
             args += ["--clasts", clasts_path]
+        # region-render: render only a sub-area of the DEM around the spawn (bigger rover ratio + finer
+        # terrain) instead of the whole tile. Centre on the resolved spawn the runtime wrote.
+        args += ["--region-size", str(self.cfg.get("region_size", 200.0))]
+        try:
+            tok = json.loads(Path(self.session_dir, "viz2_session.json").read_text().splitlines()[0])
+            args += ["--region-cx", str(tok["start_xy"][0]), "--region-cz", str(tok["start_xy"][1])]
+        except Exception:
+            pass
         self._godot = await asyncio.create_subprocess_exec(
             *args, env=_subproc_env(), start_new_session=True)
 

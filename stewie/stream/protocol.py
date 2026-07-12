@@ -75,6 +75,12 @@ def parse_config(raw: str | bytes | dict) -> dict[str, Any]:
         "fine_cell_m": _resolve_fine(cfg.get("fine")),
         "sun_az": _finite_float(sun.get("az"), DEFAULT_SUN_AZ),
         "sun_el": _finite_float(sun.get("el"), DEFAULT_SUN_EL),
+        # MISSION SIZE (m): render + operate only over this sub-area of the DEM around the spawn instead
+        # of the whole tile, so the rover is a large fraction of the frame + the terrain is finer, and it
+        # bounds the mission/work area. Accepts "mission_size" or legacy "region_size". Default 100 m; 60 m
+        # floor (the live physics window), 500 m ceiling.
+        "region_size": max(60.0, min(500.0, _finite_float(
+            cfg.get("mission_size", cfg.get("region_size")), 100.0))),
     }
 
     if mode == "real":
