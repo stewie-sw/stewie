@@ -1473,6 +1473,13 @@ func _apply_stream_input(msg: Dictionary) -> void:
 			_wp_index = 0
 	if bool(msg.get("clear_wp", false)):
 		_clear_waypoints()
+	# analysis: toggle the slope-heatmap overlay on the terrain (path analysis vs grade)
+	if msg.has("overlay"):
+		var mode := 1 if String(msg["overlay"]) == "slope" else 0
+		if _far_context != null and _far_context.material_override is ShaderMaterial:
+			(_far_context.material_override as ShaderMaterial).set_shader_parameter("analysis_mode", mode)
+		if _window != null:
+			_window.set_analysis_mode(mode)
 	if _sun != null and msg.has("sun_az"):
 		_sun.rotation_degrees.y = float(msg["sun_az"])
 	if _sun != null and msg.has("sun_el"):

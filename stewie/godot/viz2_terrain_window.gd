@@ -237,6 +237,11 @@ func set_diff_mode(enabled: bool) -> void:
 
 func diff_mode() -> bool: return _diff_mode
 
+# Analysis overlay on the fine window (mirror of the far-context): 0 = off, 1 = slope heatmap.
+func set_analysis_mode(mode: int) -> void:
+	if _mat != null:
+		_mat.set_shader_parameter("analysis_mode", mode)
+
 # Diagnostic: global AABB of the displaced window mesh + the live height/diff texture ranges.
 func debug_stats() -> String:
 	if _mi == null or _img_height == null:

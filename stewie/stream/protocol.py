@@ -149,4 +149,7 @@ def normalize_input(msg: str | bytes | dict) -> dict[str, Any]:
         out["traverse"] = bool(m.get("traverse"))
     if bool(m.get("clear_wp", False)):
         out["clear_wp"] = True
+    ov = m.get("overlay")
+    if isinstance(ov, str):
+        out["overlay"] = ov
     return out

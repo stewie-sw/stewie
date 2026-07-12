@@ -48,6 +48,8 @@ uniform float hapke_h  = 0.06;
 uniform float hapke_gain = 1.4;
 
 varying vec2 fuv;   // UV (0..1 across the window) carried to the fragment stage
+varying float v_slope;                    // world-normal slope angle [rad], for the analysis overlay
+uniform int analysis_mode = 0;            // 0 = normal shading, 1 = slope heatmap (path analysis)
 
 // --- simplex noise (Ashima Arts / Stefan Gustavson "webgl-noise", MIT; mirror of terrain_farfield) ---
 vec2 _sx_mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -106,6 +108,7 @@ void vertex() {
 	float hD = texture(height_tex, UV - vec2(0.0, ts.y)).r;
 	float hU = texture(height_tex, UV + vec2(0.0, ts.y)).r;
 	NORMAL = normalize(vec3(hL - hR, 2.0 * lod_step_m, hD - hU));
+	v_slope = acos(clamp(NORMAL.y, -1.0, 1.0));   // 0 = flat, larger = steeper (for the slope overlay)
 }
 
 void fragment() {
@@ -143,6 +146,12 @@ void fragment() {
 		col *= (1.0 + grain_albedo_amp * state_grain * (spk * 2.0 - 1.0));
 	}
 
+	if (analysis_mode == 1) {              // slope heatmap: flat green -> ~17deg yellow -> >=35deg red
+		float s = clamp(v_slope / 0.61, 0.0, 1.0);
+		vec3 heat = mix(vec3(0.15, 0.7, 0.2), vec3(0.9, 0.8, 0.12), clamp(s * 2.0, 0.0, 1.0));
+		heat = mix(heat, vec3(0.95, 0.15, 0.1), clamp(s * 2.0 - 1.0, 0.0, 1.0));
+		col = mix(col, heat, 0.6);
+	}
 	ALBEDO = col;
 	ROUGHNESS = rough;
 	METALLIC = 0.0;

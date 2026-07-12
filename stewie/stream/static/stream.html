@@ -62,6 +62,7 @@
     <button id="traverse">▶ traverse</button>
     <button id="stoptrav">⏸ stop</button>
     <button id="clearwp">✕ clear</button>
+    <button id="overlay">🗺 slope overlay</button>
     <span style="color:#8ea0b8">switch to top-down, plot, then traverse</span>
   </div>
   <div class="row">
@@ -196,6 +197,9 @@ canvas.addEventListener("click", (e) => {
 document.getElementById("traverse").onclick = () => artic({ traverse: true });
 document.getElementById("stoptrav").onclick = () => artic({ traverse: false });
 document.getElementById("clearwp").onclick = () => artic({ clear_wp: true });
+let overlayOn = false;
+const ovBtn = document.getElementById("overlay");
+ovBtn.onclick = () => { overlayOn = !overlayOn; ovBtn.textContent = overlayOn ? "🗺 slope: ON" : "🗺 slope overlay"; artic({ overlay: overlayOn ? "slope" : "off" }); };
 
 const az = document.getElementById("az"), el = document.getElementById("el");
 const azv = document.getElementById("azv"), elv = document.getElementById("elv");
