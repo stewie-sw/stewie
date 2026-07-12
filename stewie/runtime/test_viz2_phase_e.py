@@ -84,6 +84,25 @@ def test_dig_specific_energy_rises_with_bite_depth_and_density(tmp_path):
         rt.stop()
 
 
+# -- #2: a single-front-drum dig arms an unbalanced draft reaction that feeds the drive -------
+
+def test_apply_dig_arms_reaction_that_reaches_the_drive(tmp_path):
+    """council #2: a single-front-drum dig arms a NONZERO unbalanced draft reaction (a counter-rotating
+    pair would net ~0); feeding it through the runtime's own WorkSite.step carries it into the drive
+    telemetry -- the excavation reaction now enters the wheel-soil traction budget."""
+    rt = _runtime(tmp_path)
+    try:
+        assert rt._active_dig_reaction_n == 0.0
+        rt._apply_dig()
+        react = rt._active_dig_reaction_n
+        assert react > 0.0                                # single drum => uncancelled FEE draft on the chassis
+        assert rt._last_dig_reaction_n == react
+        telem, _ = rt.ws.step(0.1, 0.0, rt.dt, dig_reaction_n=react)   # the drive resists the reaction
+        assert telem["dig_reaction_n"] == react           # reaction reached the drive step
+    finally:
+        rt.stop()
+
+
 # -- E2: the signed diff drape is streamed as an absolute-value patch field ------------------
 
 def test_diff_field_is_streamed_and_matches_the_authority(tmp_path):

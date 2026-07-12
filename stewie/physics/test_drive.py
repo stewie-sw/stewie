@@ -95,6 +95,16 @@ def test_closed_loop_mass_conserved():
     assert math.isclose(cs.total_mass(), m0, rel_tol=1e-9)
 
 
+def test_drive_step_dig_reaction_raises_slip():
+    """council #2: dig_reaction_n adds to the drive_step traction demand, so slip rises vs no reaction on
+    the SAME flat terrain + pose; default 0 is unchanged; telemetry reports the reaction."""
+    _, _, base = drive.drive_step(_flat(), (48.0, 48.0), 0.0, 0.2, 0.0, dt=0.1)
+    _, _, react = drive.drive_step(_flat(), (48.0, 48.0), 0.0, 0.2, 0.0, dt=0.1, dig_reaction_n=200.0)
+    assert react["slip"] > base["slip"]
+    assert react["dig_reaction_n"] == 200.0
+    assert base["dig_reaction_n"] == 0.0
+
+
 def test_closed_loop_determinism():
     twists = [(0.2, 0.05)] * 12
     a = drive.closed_loop_drive(_flat(), (48.0, 40.0), 0.2, twists, dt=0.1)

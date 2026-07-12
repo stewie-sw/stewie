@@ -106,6 +106,24 @@ def test_equilibrium_slip_monotone_in_slope():
     assert s30 > s10
 
 
+def test_equilibrium_extra_demand_raises_slip_default_unchanged():
+    """council #2: an external draft reaction (extra_demand_n) adds to the traction demand, so demand + slip
+    rise vs the gravity-only solve; the default 0.0 is byte-identical to the pre-#2 call."""
+    w = _rover_weight_n()
+    base = slip.slip_sinkage_equilibrium(w, 0.0)                        # flat, gravity only
+    react = slip.slip_sinkage_equilibrium(w, 0.0, extra_demand_n=40.0)  # + external draft reaction
+    assert react["demand_n"] > base["demand_n"]
+    assert react["slip"] >= base["slip"]
+    assert slip.slip_sinkage_equilibrium(w, 0.0, extra_demand_n=0.0)["slip"] == base["slip"]
+
+
+def test_equilibrium_large_extra_demand_entraps_on_flat():
+    """A draft reaction beyond the flat-ground traction budget entraps a rover gravity alone never would."""
+    w = _rover_weight_n()
+    assert not slip.slip_sinkage_equilibrium(w, 0.0)["entrapped"]
+    assert slip.slip_sinkage_equilibrium(w, 0.0, extra_demand_n=1.0e4)["entrapped"]
+
+
 def _run_all():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for fn in fns:

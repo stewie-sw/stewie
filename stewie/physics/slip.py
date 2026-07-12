@@ -119,18 +119,22 @@ def slip_sinkage_equilibrium(total_weight_n: float, slope_rad: float, *,
                              params: "tm.TerramechanicsParams | None" = None,
                              density: float | None = None,
                              demand_frac: float = 1.0,
+                             extra_demand_n: float = 0.0,
                              s_entrap: float = 0.95, z_entrap_m: float | None = None,
                              max_iter: int = 200, tol: float = 1e-7) -> dict:
     """Per-wheel fixed-point slip-sinkage solve on a slope.
 
-    Iterates: demand = demand_frac*(along-slope gravity) + compaction_resistance(sinkage)
+    Iterates: demand = demand_frac*(along-slope gravity) + extra_demand + compaction_resistance(sinkage)
     -> slip = slip_for_demand(demand, budget) -> sinkage = static * slip_multiplier(slip)
     -> recompute resistance ... until the sinkage converges, or the loop diverges
     (slip >= s_entrap, sinkage >= z_entrap, or demand >= budget) = the Spirit-mode runaway.
 
     ``demand_frac`` < 1 models the operator backing off the commanded climb thrust
-    (the recovery lever). Returns {slip, sinkage_m, resistance_n, demand_n, budget_n,
-    entrapped, iters, static_sinkage_m}.
+    (the recovery lever). ``extra_demand_n`` is a TOTAL-vehicle external horizontal traction demand
+    beyond along-slope gravity (e.g. an unbalanced excavation draft reaction, council #2); it is split
+    per wheel (``/n_wheels``) and added to the demand, so a dig that shoves the chassis develops more
+    slip / trips entrapment. Default 0.0 -> byte-identical to the pre-#2 gravity-only demand. Returns
+    {slip, sinkage_m, resistance_n, demand_n, budget_n, entrapped, iters, static_sinkage_m}.
     """
     p = params or tm.TerramechanicsParams.from_constants()
     normal = total_weight_n * math.cos(slope_rad) / n_wheels       # per-wheel normal load
@@ -144,17 +148,18 @@ def slip_sinkage_equilibrium(total_weight_n: float, slope_rad: float, *,
                             contact_area_m2=area)
     z_static = tm.wheel_static_sinkage(normal, params=p, contact_len_m=contact_len_m,
                                        contact_width_m=contact_width_m, density=density)
+    extra_per_wheel = float(extra_demand_n) / n_wheels             # external draft reaction, per wheel (#2)
     sink = z_static
     slip = 0.0
     resistance = 0.0
-    demand = demand_frac * along
+    demand = demand_frac * along + extra_per_wheel
     entrapped = False
     iters = 0
     for i in range(max_iter):
         iters = i + 1
         resistance = compaction_resistance(sink, contact_width_m=contact_width_m,
                                            k_c=p.k_c, k_phi=p.k_phi, n=p.n_sinkage)
-        demand = demand_frac * along + resistance
+        demand = demand_frac * along + extra_per_wheel + resistance
         slip, ent = slip_for_demand(demand, h_max, contact_len_m=contact_len_m,
                                     k_shear=p.k_shear)
         if ent:

@@ -687,7 +687,8 @@ class WorkSite:
 
     def step(self, v_cmd: float, omega_cmd: float, dt: float = 0.1, *,
              v_max: float | None = None, omega_max: float | None = None,
-             params=None, g: float = K.g, wheel_width_m: float = 0.18
+             params=None, g: float = K.g, wheel_width_m: float = 0.18,
+             dig_reaction_n: float = 0.0
              ) -> tuple[dict, list[list[int]]]:
         """One per-tick conserved drive. Runs :func:`drive.drive_step` on the active fine window at the
         current pose (``payload_kg=self.inventory_kg`` — a fuller drum sinks/slips more), recenters the
@@ -764,7 +765,7 @@ class WorkSite:
         new_rc, new_yaw, telem = D.drive_step(
             fine, rc, self.yaw, float(v_cmd), float(omega_cmd), dt=dt,
             params=params, payload_kg=self.inventory_kg, wheel_width_m=wheel_width_m, g=g,
-            clasts=local_clasts)
+            clasts=local_clasts, dig_reaction_n=float(dig_reaction_n))
 
         dirty = self._dirty_bbox(new_rc, new_yaw, wheel_width_m)
 

@@ -63,6 +63,7 @@ from stewie.specs.ipex_specs import (
     DRUM_DIMENSIONS_M, LUNAR_G_MS2, dig_energy_per_kg, max_cut_per_pass_m)
 from stewie.physics.excavation import earthmoving_report, representative_dig
 from stewie.physics.material import cell_strength
+from stewie.specs.arm_state import net_dig_reaction_n
 from stewie.twin.io_fields import atomic_write_bytes
 
 # Reused DISCIPLINE (not the class): the RuntimeProcess bounded request-line ceiling (M-03). A real
@@ -164,6 +165,7 @@ class Viz2Runtime:
         # excavation-force model (tool width w) and its scoop height sets the <=50% anti-bridging cut cap.
         self.drum = str(drum) if str(drum) in DRUM_DIMENSIONS_M else "large"
         self._drum_width_m = float(DRUM_DIMENSIONS_M[self.drum]["width"])
+        self._drum_radius_m = 0.5 * float(DRUM_DIMENSIONS_M[self.drum]["diameter"])
         self._max_cut_per_pass_m = float(max_cut_per_pass_m(self.drum))
         self.host = str(host)
 
@@ -222,6 +224,11 @@ class Viz2Runtime:
         self._dig_energy_j = 0.0
         self._last_dig_moved_kg = 0.0
         self._last_dig_j_per_kg = float(self._dig_energy_per_kg)
+        # #2: the unbalanced horizontal draft reaction from a dig, fed to the NEXT drive tick's traction
+        # demand (a single-front-drum cut is uncancelled; a counter-rotating pair would net ~0). _active is
+        # the pending impulse the drive consumes then clears; _last is the HUD/telemetry value.
+        self._active_dig_reaction_n = 0.0
+        self._last_dig_reaction_n = 0.0
 
         # --- generation / union-coverage bookkeeping (actor-thread owned) ---
         self._generation = 0
@@ -461,7 +468,10 @@ class Viz2Runtime:
     def _step_and_publish(self, sess: StreamSession, outbound: queue.Queue | None,
                           epoch: int, v: float, omega: float, force_kf: bool,
                           do_dig: bool = False, do_dump: bool = False) -> None:
-        telem, dirty = self.ws.step(v, omega, self.dt)       # the conserved single-mutator drive
+        # #2: the drive resists any pending unbalanced dig reaction from the PRIOR tick's dig (raises slip /
+        # can entrap), then the single-tick impulse is consumed. A dig LATER in this same tick re-arms it.
+        telem, dirty = self.ws.step(v, omega, self.dt, dig_reaction_n=self._active_dig_reaction_n)
+        self._active_dig_reaction_n = 0.0
         self._last_applied_twist = (v, omega)
         if do_dig:
             # a conserved dig at the current pose (WorkSite.flatten -> the drum ledger); its dirty
@@ -486,6 +496,7 @@ class Viz2Runtime:
         telem["dig_energy_j"] = float(self._dig_energy_j)
         telem["dig_energy_per_kg"] = float(self._dig_energy_per_kg)     # grounded electrical anchor
         telem["dig_j_per_kg"] = float(self._last_dig_j_per_kg)          # FEE-modulated cost of the last pass
+        telem["dig_reaction_n"] = float(self._last_dig_reaction_n)      # #2: unbalanced draft reaction (last dig)
         payload = {
             "type": "telemetry", "generation": gen, "keyframe": keyframe,
             "telem": telem, "dirty": [list(b) for b in dirty],
@@ -629,48 +640,63 @@ class Viz2Runtime:
         target = float(f.derive_height()[r0:r1, c0:c1].min()) - self.dig_depth_m
         moved = self.ws.flatten(mask, target)                # cells above target -> cut (conserved)
         self._last_dig_moved_kg = float(moved)
-        # FEE-grounded per-kg dig cost for THIS pass (depth^2/density-dependent), not the old flat constant.
-        j_per_kg = self._dig_specific_energy(r0, r1, c0, c1, float(moved), f)
-        self._last_dig_j_per_kg = float(j_per_kg)
-        self._dig_energy_j += float(moved) * j_per_kg                  # E1: FEE-modulated dig energy debit
+        # ONE FEE solve -> the depth^2/density-dependent per-kg energy (council #1) AND the unbalanced draft
+        # reaction on the chassis (council #2), not the old flat constant / zero reaction.
+        fee = self._dig_fee(r0, r1, c0, c1, float(moved), f)
+        self._last_dig_j_per_kg = float(fee["j_per_kg"])
+        self._dig_energy_j += float(moved) * float(fee["j_per_kg"])    # E1: FEE-modulated dig energy debit
+        self._last_dig_reaction_n = float(fee["reaction_n"])
+        self._active_dig_reaction_n = float(fee["reaction_n"])         # #2: the NEXT drive tick resists it
         self._dig_count += 1
         return [[r0, c0, r1, c1]]
 
-    def _dig_specific_energy(self, r0: int, r1: int, c0: int, c1: int,
-                             moved_kg: float, f) -> float:
-        """FEE-grounded specific dig energy [J/kg] for ONE excavation pass (council #1).
+    def _dig_fee(self, r0: int, r1: int, c0: int, c1: int, moved_kg: float, f) -> dict:
+        """ONE McKyes/Reece FEE solve for ONE excavation pass -> ``{j_per_kg, reaction_n}`` (councils #1 + #2).
 
-        The McKyes/Reece FEE (``excavation.earthmoving_report``) gives the MECHANICAL cutting work per kg
-        at the real per-pass BITE depth, the selected drum's tool width, and the LOCAL in-situ regolith
-        density + strength -- so it rises with cut depth^2 and density, the terramechanics the old flat
-        4151 J/kg constant erased. It is scaled by a constant excavation efficiency (ASSUMPTION) that pins
-        the representative IPEx dig to the grounded electrical figure, so the returned electrical J/kg is
-        ``anchor * FEE(this pass) / FEE(representative)``. Falls back to the flat grounded figure when the
-        pass has no bite (moved==0), the footprint is degenerate, or the FEE wedge is degenerate."""
+        ``excavation.earthmoving_report`` over the real per-pass BITE depth, the selected drum's tool width,
+        and the LOCAL in-situ regolith density + strength gives the MECHANICAL cutting work per kg (rising
+        with cut depth^2 and density) AND the horizontal draft force. Energy: scaled by a constant excavation
+        efficiency (ASSUMPTION) pinning the representative IPEx dig to the grounded electrical figure, so
+        ``j_per_kg = anchor * FEE(this pass) / FEE(representative)``. Reaction: the live model cuts with a
+        SINGLE (front) drum, so ``net_dig_reaction_n`` leaves the FULL draft on the chassis (a future
+        counter-rotating both-drum dig would net ~0) -> fed to the next drive tick's traction demand.
+        Falls back to ``{flat energy, 0 reaction}`` on no-bite / degenerate footprint / degenerate wedge."""
+        flat = {"j_per_kg": float(self._dig_energy_per_kg), "reaction_n": 0.0}
         if moved_kg <= 0.0 or self._fee_ref_j_per_kg <= 0.0:
-            return self._dig_energy_per_kg
+            return flat
         cell = float(self.ws.fine_cell_m)
         area_m2 = float((r1 - r0) * (c1 - c0)) * cell * cell
         if area_m2 <= 0.0:
-            return self._dig_energy_per_kg
+            return flat
         # LOCAL in-situ bulk density of the cut cells (real per-cell density field, not a constant).
         rho = float(np.mean(np.asarray(f.density[r0:r1, c0:c1], dtype=float)))
         if rho <= 0.0:
-            return self._dig_energy_per_kg
+            return flat
         # Characteristic per-pass BITE depth = mean height removed = moved / (rho * area); capped at the
         # <=50%-scoop anti-bridging limit so the FEE depth stays in the physical single-pass regime.
         d_eff = min(moved_kg / (rho * area_m2), self._max_cut_per_pass_m)
         if d_eff <= 0.0:
-            return self._dig_energy_per_kg
+            return flat
         phi_rad, cohesion_pa = cell_strength(rho)
         try:
-            fee = float(earthmoving_report(
+            rep = earthmoving_report(
                 depth_m=d_eff, width_m=self._drum_width_m, cohesion_pa=cohesion_pa,
-                bulk_density_kg_m3=rho, gravity_ms2=LUNAR_G_MS2, phi_rad=phi_rad,
-            )["specific_energy_j_per_kg"])
+                bulk_density_kg_m3=rho, gravity_ms2=LUNAR_G_MS2, phi_rad=phi_rad)
         except ValueError:
-            return self._dig_energy_per_kg
-        return float(self._dig_energy_per_kg) * (fee / self._fee_ref_j_per_kg)
+            return flat
+        j_per_kg = float(self._dig_energy_per_kg) * (float(rep["specific_energy_j_per_kg"]) / self._fee_ref_j_per_kg)
+        # single front drum digging => no counter-rotation cancellation => the full FEE draft reacts on the
+        # chassis. Route through net_dig_reaction_n (torque=draft*r) so the counter-rotation semantics are
+        # explicit + future-proof: switching drums=("front","back") for a balanced both-drum dig nets ~0.
+        draft_n = float(rep["draft_n"])
+        reaction_n = abs(net_dig_reaction_n(draft_n * self._drum_radius_m, self._drum_radius_m,
+                                            drums=("front",)))
+        return {"j_per_kg": j_per_kg, "reaction_n": reaction_n}
+
+    def _dig_specific_energy(self, r0: int, r1: int, c0: int, c1: int,
+                             moved_kg: float, f) -> float:
+        """Thin wrapper -> the FEE-grounded specific dig energy [J/kg] for ONE pass (council #1). See _dig_fee."""
+        return float(self._dig_fee(r0, r1, c0, c1, moved_kg, f)["j_per_kg"])
 
     def _apply_dump(self) -> list[list[int]]:
         """Conserved deposit at the current pose (actor thread only): dump the whole drum ledger as
