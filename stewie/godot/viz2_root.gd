@@ -160,6 +160,13 @@ var _root_lift := 0.0                  # wheel-bottom -> surface ground-snap off
 var _pose_x := 0.0
 var _pose_z := 0.0
 var _pose_yaw := 0.0
+# pose interpolation: the RENDERED pose glides toward the newest 15 Hz telemetry TARGET so motion is
+# smooth at 20-60 fps instead of snapping 15x/s (council #15).
+const POSE_SMOOTH := 14.0
+var _target_x := 0.0
+var _target_z := 0.0
+var _target_yaw := 0.0
+var _pose_init := false
 var _field_center := Vector3.ZERO
 
 
@@ -1198,20 +1205,37 @@ func _live_tick(v: float, omega: float) -> void:
 		if applied_ok:
 			_drive_client.ack(_drive_client.latest_seq)
 		_place_rover_live()
+		if not _stream:
+			_seat_rover(1.0)          # non-stream (auto / interactive): seat immediately at the target
 
 
 # Seat the rover at the runtime's REPORTED pose (the pose-tracking gate: rendered == telemetry),
 # on the LIVE carved window surface where it covers the pose, else the static DEM.
 func _place_rover_live() -> void:
-	if _rover_root == null or not _drive_client.have_pose():
+	if not _drive_client.have_pose():
 		return
-	_pose_x = _drive_client.latest_pose.x
-	_pose_z = _drive_client.latest_pose.y
-	# The runtime heading is math-convention (0=+x, +90=+z, CCW in the x-z plane); Godot's
-	# Basis(UP, yaw) rotates the OPPOSITE sense in x-z, so the mesh + chase cam pointed 180deg-mirrored
-	# in the turn axis (rover visibly turned one way while travelling the other). Negate so the mesh
-	# nose + camera track the ACTUAL travel direction. (user-reported steering bug)
-	_pose_yaw = -_drive_client.latest_yaw
+	_target_x = _drive_client.latest_pose.x
+	_target_z = _drive_client.latest_pose.y
+	# runtime heading is math-convention (0=+x,+90=+z, CCW); Godot Basis(UP,yaw) rotates the OPPOSITE
+	# sense in x-z, so negate so the mesh nose + camera track the ACTUAL travel direction (steering fix).
+	_target_yaw = -_drive_client.latest_yaw
+	if not _pose_init:                       # snap on the first pose (no glide from origin)
+		_pose_x = _target_x
+		_pose_z = _target_z
+		_pose_yaw = _target_yaw
+		_pose_init = true
+
+
+# Glide the rendered pose toward the telemetry TARGET (dt-scaled; dt>=~0.07 s snaps), seat the rover on
+# the live/DEM surface, and update the camera. Called every render frame in the stream for smooth motion
+# between 15 Hz telemetry; called with dt=1.0 off-stream to snap immediately. (council #15)
+func _seat_rover(dt: float) -> void:
+	if _rover_root == null or not _pose_init:
+		return
+	var k := clampf(POSE_SMOOTH * dt, 0.0, 1.0)
+	_pose_x = lerpf(_pose_x, _target_x, k)
+	_pose_z = lerpf(_pose_z, _target_z, k)
+	_pose_yaw = lerp_angle(_pose_yaw, _target_yaw, k)
 	var surf_y: float = _window.height_at_world(_pose_x, _pose_z)
 	if is_nan(surf_y):
 		var u: float = clampf((_pose_x - sf.world_min.x) / sf.extent_m().x, 0.0, 1.0)
@@ -1393,8 +1417,8 @@ func _run_stream() -> void:
 			_live_tick(vo.x, vo.y)
 		else:
 			_live_tick(_stream_v, _stream_omega)
+		_seat_rover(dt)                          # glide the rendered pose toward telemetry (smooth motion)
 		_animate_rover(dt)
-		_update_stream_cam()
 		# ONE post-draw wait: in a continuous loop the previous iteration already flushed state, so the
 		# second wait (a one-shot-capture idiom for a stale first buffer) just halves fps. (council #1)
 		await RenderingServer.frame_post_draw
@@ -1404,7 +1428,8 @@ func _run_stream() -> void:
 		var cam_xf := _cam.global_transform if _cam != null else Transform3D()
 		var active_anim := _dig_anim_t > 0.0 or _dump_anim_t > 0.0 or absf(_manual_drum) > 1e-3
 		var moving := absf(_stream_v) > 1e-4 or absf(_stream_omega) > 1e-4 or _auto_traverse
-		var changed := had_input or moving or active_anim or _applied_gen != prev_gen \
+		var gliding := absf(_pose_x - _target_x) > 0.02 or absf(_pose_z - _target_z) > 0.02
+		var changed := had_input or moving or active_anim or gliding or _applied_gen != prev_gen \
 			or not cam_xf.is_equal_approx(prev_cam)
 		if not changed:
 			continue
