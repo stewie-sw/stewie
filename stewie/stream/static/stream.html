@@ -136,20 +136,42 @@ const proto = location.protocol === "https:" ? "wss" : "ws";
 const TOKEN = new URLSearchParams(location.search).get("token");
 const PLAY = new URLSearchParams(location.search).get("play");   // ?play=<bag> -> replay a saved session
 const wsUrl = `${proto}://${location.host}/ws` + (TOKEN ? `?token=${encodeURIComponent(TOKEN)}` : "");
-const ws = new WebSocket(wsUrl);
-ws.binaryType = "arraybuffer";
-
 let frames = 0, lastT = performance.now();
 function setStatus(t, cls) { statusEl.textContent = t; statusEl.className = cls || ""; }
 
-ws.onopen = () => {
-  if (PLAY) { setStatus("replaying “" + PLAY + "”…"); ws.send(JSON.stringify({ play: PLAY })); }
-  else { setStatus("sending config…"); ws.send(JSON.stringify(CONFIG)); }
-};
-ws.onclose = () => setStatus("disconnected", "err");
-ws.onerror = () => setStatus("socket error", "err");
+// resilient WS: mobile links drop on backgrounding / cell handoff, so auto-reconnect with capped
+// exponential backoff + jitter, and reconnect immediately when a backgrounded tab returns to view.
+let ws = null, backoff = 500, reconnectTimer = null, wsGen = 0;
+function connect() {
+  clearTimeout(reconnectTimer); reconnectTimer = null;
+  const myGen = ++wsGen;                         // a socket we've already replaced goes silent
+  ws = new WebSocket(wsUrl);
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => {
+    if (myGen !== wsGen) return;
+    backoff = 500;                               // healthy link -> reset backoff
+    if (PLAY) { setStatus("replaying “" + PLAY + "”…"); ws.send(JSON.stringify({ play: PLAY })); }
+    else { setStatus("sending config…"); ws.send(JSON.stringify(CONFIG)); }
+  };
+  ws.onclose = () => { if (myGen === wsGen) { setStatus("reconnecting…", "err"); scheduleReconnect(); } };
+  ws.onerror = () => { if (myGen === wsGen) setStatus("socket error — reconnecting…", "err"); };
+  ws.onmessage = onWsMessage;
+}
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+  const wait = Math.min(backoff, 10000) + Math.floor(Math.random() * 300);   // capped + jittered
+  reconnectTimer = setTimeout(() => { reconnectTimer = null; connect(); }, wait);
+  backoff = Math.min(backoff * 2, 10000);
+}
+function kickReconnect() {   // reconnect NOW (skip the backoff wait) when the device likely regained the link
+  if (!ws || ws.readyState > WebSocket.OPEN) {
+    backoff = 500; clearTimeout(reconnectTimer); reconnectTimer = null; connect();
+  }
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") kickReconnect(); });
+window.addEventListener("online", kickReconnect);
 
-ws.onmessage = (ev) => {
+function onWsMessage(ev) {
   if (typeof ev.data === "string") {
     let m; try { m = JSON.parse(ev.data); } catch { return; }
     if (m.type === "status") {
@@ -183,7 +205,8 @@ ws.onmessage = (ev) => {
     const now = performance.now();
     if (now - lastT > 1000) { fpsEl.textContent = frames + " fps"; frames = 0; lastT = now; }
   });
-};
+}
+connect();
 
 // ── drive input: WASD / arrows → normalized {v, omega} intent (Godot scales to IPEx envelope) ─
 const keys = new Set();
