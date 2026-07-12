@@ -41,7 +41,10 @@ def _patch_session_no_gpu(monkeypatch, started: list | None = None) -> None:
         if started is not None:
             started.append(1)
 
-    async def _frames(self, ws) -> None:
+    async def _read_seam(self) -> None:
+        await asyncio.Event().wait()          # park until cancelled by teardown
+
+    async def _send_ws(self, ws) -> None:
         await asyncio.Event().wait()          # park until cancelled by teardown
 
     async def _input(self, ws) -> None:
@@ -49,7 +52,11 @@ def _patch_session_no_gpu(monkeypatch, started: list | None = None) -> None:
             await ws.receive_text()           # raises WebSocketDisconnect on client close
 
     monkeypatch.setattr(app_mod.StreamSession, "start", _start)
-    monkeypatch.setattr(app_mod.StreamSession, "pump_frames", _frames)
+    # the single frame pump was split into _read_seam (drain the Godot seam) + _send_ws (deliver the
+    # latest frame to the browser) in the drop-latest relay refactor (cc8e4461); stub BOTH so the WS
+    # security lifecycle (token admit / slot free / rate-limit) runs without real GPU frames.
+    monkeypatch.setattr(app_mod.StreamSession, "_read_seam", _read_seam)
+    monkeypatch.setattr(app_mod.StreamSession, "_send_ws", _send_ws)
     monkeypatch.setattr(app_mod.StreamSession, "pump_input", _input)
 
 

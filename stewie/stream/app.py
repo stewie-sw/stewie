@@ -327,7 +327,7 @@ class StreamSession:
 
     async def pump_playback(self, events: list[dict]) -> None:
         """Replay a saved bag's control frames to Godot at their recorded relative timestamps — the
-        deterministic record->replay seam. Frames keep streaming (pump_frames) so the browser watches
+        deterministic record->replay seam. Frames keep streaming (_read_seam/_send_ws) so the browser watches
         the replay; after the last command the session holds until the browser disconnects."""
         assert self._writer is not None
         t0 = time.monotonic()
