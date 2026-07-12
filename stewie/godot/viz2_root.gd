@@ -1193,8 +1193,13 @@ func _apply_topo_uniforms(fm: ShaderMaterial) -> void:
 	fm.set_shader_parameter("topo_grid_step", maxf(5.0, (_region_size / 12.0) if _region_size > 0.0 else 10.0))
 	var hr := _topo_height_range()
 	fm.set_shader_parameter("topo_height_range", hr)
-	# minor contour interval ~ 1/25 of the relief, clamped to a legible floor (real elevation spacing)
-	fm.set_shader_parameter("topo_contour_interval", maxf(0.25, (hr.y - hr.x) / 25.0))
+	# vertical-exaggeration EFFECT for the near-flat crater floor: spread the subtle relief across the
+	# hypsometric ramp (higher contrast) + draw finer contours, so a gentle sub-metre grade still READS as
+	# a topo map instead of one flat teal band. Scaled by how flat the region is (flatter -> more push).
+	var relief := maxf(hr.y - hr.x, 0.05)
+	var vex := clampf(6.0 / relief, 2.0, 12.0)                # flatter region -> stronger exaggeration
+	fm.set_shader_parameter("topo_height_contrast", vex)
+	fm.set_shader_parameter("topo_contour_interval", maxf(0.05, relief / 40.0))   # ~40 minor bands of relief
 
 # Real elevation min/max (m) over the MISSION REGION slice of the height texture (R = elevation m). Sampling
 # only the region (not the whole 2 km tile) is what makes the hypsometric ramp + contours span the LOCAL
