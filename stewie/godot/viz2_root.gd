@@ -558,6 +558,14 @@ func _build_route_from_plan(plan) -> void:
 	_path_node.build(pts)
 
 
+# #33 planning metric: total planned route length [m] (the built Viz2Path ribbon's terrain-following
+# length; 0 when no route is plotted). wp count is _waypoints.size(); inter-wp distance = route_m/(n-1).
+func _route_length_m() -> float:
+	if _path_node != null:
+		return float(_path_node.route_length_m)
+	return 0.0
+
+
 # ── terrain (frozen TerrainNode, LIT_PBR) ─────────────────────────────────────────────────
 func _build_terrain() -> void:
 	_terrain = TerrainScript.new()
@@ -1627,7 +1635,9 @@ func _run_stream() -> void:
 				"odo_err_m": snappedf(_drive_client.odometry_error_m, 0.01),
 				"avg_slope": snappedf(_drive_client.avg_slope_deg, 0.1),
 				"imu_a": snappedf(_drive_client.imu_accel_long, 0.01),   # #32 faithful IMU on the HUD
-				"imu_w": snappedf(_drive_client.imu_gyro_z, 0.001)}
+				"imu_w": snappedf(_drive_client.imu_gyro_z, 0.001),
+				"wp_n": _waypoints.size(),                               # #33 planning metrics
+				"route_m": snappedf(_route_length_m(), 0.1)}
 			_stream_io.send_frame(JSON.stringify(st).to_utf8_buffer())
 	_stream_io.close()
 	if _drive_client != null:
