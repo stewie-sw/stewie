@@ -138,6 +138,11 @@ var _dump_anim_t := 0.0
 var _manual_drum := 0.0            # drum spin command (-1..1), 0 = hold
 var _arm_front_offset := 0.0       # manual front-arm angle offset (rad), added to the gesture
 var _arm_back_offset := 0.0        # manual back-arm angle offset (rad)
+# planning: click-plotted waypoints + autonomous traverse
+var _waypoints: Array = []         # Array[Vector3] world positions
+var _wp_index := 0
+var _auto_traverse := false
+var _wp_root: Node3D               # holds the waypoint marker meshes
 
 # ── runtime state ────────────────────────────────────────────────────────────────────────
 var sf                                 # StateFields instance (read-only library)
@@ -769,6 +774,79 @@ func _ground_h(x: float, z: float) -> float:
 	return 0.0
 
 
+# ── planning: click-to-plot waypoints + autonomous traverse ───────────────────────────────
+# The browser sends a canvas-pixel click; the main-viewport camera unprojects a ray and intersects a
+# ground plane at the rover's height to get a world waypoint, dropped as a bright marker.
+func _add_waypoint_from_click(px: float, py: float) -> void:
+	if _cam == null:
+		return
+	var sp := Vector2(px, py)
+	var origin := _cam.project_ray_origin(sp)
+	var dir := _cam.project_ray_normal(sp)
+	if absf(dir.y) < 1e-5:
+		return
+	var ground_y := _ground_h(_pose_x, _pose_z)
+	var t := (ground_y - origin.y) / dir.y
+	if t <= 0.0:
+		return
+	var hit := origin + dir * t
+	hit.y = _ground_h(hit.x, hit.z)                  # snap the marker to the terrain there
+	_waypoints.append(hit)
+	_add_wp_marker(hit)
+
+
+func _add_wp_marker(pos: Vector3) -> void:
+	if _wp_root == null:
+		_wp_root = Node3D.new()
+		_wp_root.name = "Waypoints"
+		add_child(_wp_root)
+	var m := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.25
+	cyl.bottom_radius = 0.25
+	cyl.height = 1.2
+	m.mesh = cyl
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.85, 0.2)         # bright plotting-marker yellow
+	mat.emission_enabled = true
+	mat.emission = Color(0.9, 0.7, 0.1)
+	m.material_override = mat
+	m.position = pos + Vector3(0.0, 0.6, 0.0)
+	_wp_root.add_child(m)
+
+
+func _clear_waypoints() -> void:
+	_waypoints.clear()
+	_wp_index = 0
+	_auto_traverse = false
+	if _wp_root != null:
+		for c in _wp_root.get_children():
+			c.queue_free()
+
+
+# Autonomous waypoint follower: steer the runtime twist toward the current waypoint, advance when
+# reached, stop at the end. Returns the SCALED (v, omega) for the runtime (computed in the runtime's
+# heading convention, bypassing the browser's A=left omega flip).
+func _traverse_step() -> Vector2:
+	if _wp_index >= _waypoints.size():
+		_auto_traverse = false
+		return Vector2.ZERO
+	var wp: Vector3 = _waypoints[_wp_index]
+	var dx := wp.x - _pose_x
+	var dz := wp.z - _pose_z
+	if sqrt(dx * dx + dz * dz) < 1.0:                # reached this waypoint
+		_wp_index += 1
+		if _wp_index >= _waypoints.size():
+			_auto_traverse = false
+		return Vector2.ZERO
+	var bearing := atan2(dz, dx)                     # runtime heading convention (0=+x, +90=+z)
+	var yaw: float = _drive_client.latest_yaw if _drive_client != null else 0.0
+	var err := wrapf(bearing - yaw, -PI, PI)
+	var omega := clampf(err * 2.0, -1.0, 1.0)
+	var v := clampf(1.0 - absf(err) / 1.5, 0.2, 1.0)  # ease the throttle on a hard turn
+	return Vector2(v * LIVE_LIN, omega * LIVE_ANG)
+
+
 func _look_at_xf(eye: Vector3, target: Vector3, up_hint: Vector3) -> Transform3D:
 	var dir := (target - eye)
 	if dir.length() < 1e-6:
@@ -1310,7 +1388,11 @@ func _run_stream() -> void:
 		for msg in _stream_io.poll_input():
 			_apply_stream_input(msg)
 			had_input = true
-		_live_tick(_stream_v, _stream_omega)
+		if _auto_traverse and not _waypoints.is_empty():
+			var vo := _traverse_step()           # autonomous: steer toward the plotted waypoints
+			_live_tick(vo.x, vo.y)
+		else:
+			_live_tick(_stream_v, _stream_omega)
 		_animate_rover(dt)
 		_update_stream_cam()
 		# ONE post-draw wait: in a continuous loop the previous iteration already flushed state, so the
@@ -1321,7 +1403,7 @@ func _run_stream() -> void:
 		# readback + JPEG + bandwidth on identical frames. (council n==0 + idle)
 		var cam_xf := _cam.global_transform if _cam != null else Transform3D()
 		var active_anim := _dig_anim_t > 0.0 or _dump_anim_t > 0.0 or absf(_manual_drum) > 1e-3
-		var moving := absf(_stream_v) > 1e-4 or absf(_stream_omega) > 1e-4
+		var moving := absf(_stream_v) > 1e-4 or absf(_stream_omega) > 1e-4 or _auto_traverse
 		var changed := had_input or moving or active_anim or _applied_gen != prev_gen \
 			or not cam_xf.is_equal_approx(prev_cam)
 		if not changed:
@@ -1381,6 +1463,16 @@ func _apply_stream_input(msg: Dictionary) -> void:
 		_arm_front_offset = clampf(_arm_front_offset + float(msg["arm_front_d"]), -0.4, 1.0)
 	if msg.has("arm_back_d"):
 		_arm_back_offset = clampf(_arm_back_offset + float(msg["arm_back_d"]), -0.4, 1.0)
+	# planning: plot a waypoint from a canvas click, run/stop the autonomous traverse, clear the route
+	if msg.has("click_px"):
+		var p = msg["click_px"]
+		_add_waypoint_from_click(float(p[0]), float(p[1]))
+	if msg.has("traverse"):
+		_auto_traverse = bool(msg["traverse"])
+		if _auto_traverse and _wp_index >= _waypoints.size():
+			_wp_index = 0
+	if bool(msg.get("clear_wp", false)):
+		_clear_waypoints()
 	if _sun != null and msg.has("sun_az"):
 		_sun.rotation_degrees.y = float(msg["sun_az"])
 	if _sun != null and msg.has("sun_el"):

@@ -141,4 +141,12 @@ def normalize_input(msg: str | bytes | dict) -> dict[str, Any]:
     for k in ("arm_front_d", "arm_back_d"):
         if k in m:
             out[k] = max(-0.5, min(0.5, _finite_float(m.get(k), 0.0)))
+    # planning: click-to-plot a waypoint (canvas pixel), start/stop autonomous traverse, clear route
+    click = m.get("click_px")
+    if isinstance(click, (list, tuple)) and len(click) == 2:
+        out["click_px"] = [_finite_float(click[0], 0.0), _finite_float(click[1], 0.0)]
+    if "traverse" in m:
+        out["traverse"] = bool(m.get("traverse"))
+    if bool(m.get("clear_wp", False)):
+        out["clear_wp"] = True
     return out

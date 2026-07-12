@@ -58,6 +58,13 @@
     <button id="abu">▲</button>
   </div>
   <div class="row">
+    <button id="plot">📍 plot waypoints</button>
+    <button id="traverse">▶ traverse</button>
+    <button id="stoptrav">⏸ stop</button>
+    <button id="clearwp">✕ clear</button>
+    <span style="color:#8ea0b8">switch to top-down, plot, then traverse</span>
+  </div>
+  <div class="row">
     <button id="save">💾 Save session</button>
     <span style="color:#8ea0b8">records every command · replay via <kbd>?play=&lt;name&gt;</kbd></span>
   </div>
@@ -175,6 +182,20 @@ document.getElementById("afd").onclick = () => artic({ arm_front_d: 0.12 });
 document.getElementById("afu").onclick = () => artic({ arm_front_d: -0.12 });
 document.getElementById("abd").onclick = () => artic({ arm_back_d: 0.12 });
 document.getElementById("abu").onclick = () => artic({ arm_back_d: -0.12 });
+// planning: click-to-plot waypoints (in top-down), then autonomous traverse
+let plotting = false;
+const plotBtn = document.getElementById("plot");
+plotBtn.onclick = () => { plotting = !plotting; plotBtn.textContent = plotting ? "📍 plotting… (click map)" : "📍 plot waypoints"; };
+canvas.addEventListener("click", (e) => {
+  if (!plotting || ws.readyState !== WebSocket.OPEN) return;
+  const r = canvas.getBoundingClientRect();
+  const cx = (e.clientX - r.left) * (canvas.width / r.width);
+  const cy = (e.clientY - r.top) * (canvas.height / r.height);
+  ws.send(JSON.stringify({ click_px: [cx, cy] }));
+});
+document.getElementById("traverse").onclick = () => artic({ traverse: true });
+document.getElementById("stoptrav").onclick = () => artic({ traverse: false });
+document.getElementById("clearwp").onclick = () => artic({ clear_wp: true });
 
 const az = document.getElementById("az"), el = document.getElementById("el");
 const azv = document.getElementById("azv"), elv = document.getElementById("elv");
