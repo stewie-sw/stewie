@@ -21,20 +21,21 @@
            display: flex; flex-direction: column; gap: 16px; }
   #stage { flex: 1 1 480px; min-width: 320px; position: relative; background:
            radial-gradient(120% 90% at 50% 0%, #0a0f18 0%, #05070c 70%); }
-  #view { display: block; width: 100%; height: 100%; }
+  #view { display: block; width: 100%; height: 100%; touch-action: none; }
   .grp { display: flex; flex-direction: column; gap: 9px; }
   .grp > h2 { margin: 0; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
               color: #5294c9; font-weight: 600; }
   .seg { display: flex; border: 1px solid #26364c; border-radius: 6px; overflow: hidden; }
   .seg button { flex: 1; background: #0c141f; color: #9fb0c6; border: 0; padding: 9px 8px;
+                min-height: 44px; touch-action: manipulation;
                 cursor: pointer; font: inherit; letter-spacing: 0.04em; }
   .seg button[aria-pressed="true"] { background: #16324a; color: #bfe6ff; box-shadow: inset 0 -2px 0 #7fd0ff; }
   .seg button:focus-visible { outline: 2px solid #7fd0ff; outline-offset: -2px; }
   label { display: flex; flex-direction: column; gap: 4px; color: #9fb0c6; }
   label .lv { color: #cdd6e3; }
   select, input[type=number] { background: #0c141f; color: #cdd6e3; border: 1px solid #26364c;
-           border-radius: 5px; padding: 7px 8px; font: inherit; width: 100%; }
-  input[type=range] { width: 100%; accent-color: #7fd0ff; }
+           border-radius: 5px; padding: 10px 8px; min-height: 44px; font: inherit; width: 100%; }
+  input[type=range] { width: 100%; height: 44px; accent-color: #7fd0ff; touch-action: manipulation; }
   .rowline { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .rowline .lv { color: #7fd0ff; font-variant-numeric: tabular-nums; }
   #launch { margin-top: auto; background: #143a52; color: #d7f2ff; border: 1px solid #2f6f92;
@@ -57,7 +58,7 @@
   #synbadge { position: absolute; top: 12px; right: 12px; background: #3a1113; color: #ff8a7a;
               border: 1px solid #d13a2e; border-radius: 6px; padding: 6px 12px; font-weight: 700;
               letter-spacing: 0.18em; font-size: 13px; box-shadow: 0 0 18px rgba(209,58,46,0.35); }
-  #hint { position: absolute; top: 12px; left: 12px; color: #566579; font-size: 11px; }
+  #hint { position: absolute; top: 12px; left: 12px; color: #8291a6; font-size: 11px; }
   #err { color: #ff7a6b; font-size: 12px; min-height: 1em; }
   a { color: #7fd0ff; }
 </style>
@@ -146,6 +147,13 @@
 <script type="module">
 import * as THREE from "/vendor/three.module.min.js";
 
+// touch devices get touch gestures on the preview + a matching hint (WCAG 2.5.1 pointer alternatives)
+if (matchMedia("(pointer: coarse)").matches) {
+  document.body.classList.add("touch");
+  const h = document.getElementById("hint");
+  if (h) h.textContent = "drag to orbit · pinch to zoom";
+}
+
 // ── stream token ────────────────────────────────────────────────────────────────────────────
 // When the service is public (VIZ2_STREAM_TOKEN set), the page is opened as `/?token=<T>`. Read the
 // token from THIS page's URL and propagate it to every guarded call (/bundles, /preview/*), the
@@ -213,12 +221,31 @@ function updateCamera() {
     orbit.tgt.z + r * st * Math.cos(orbit.theta));
   camera.lookAt(orbit.tgt);
 }
-let dragging = false, lx = 0, ly = 0;
-canvas.addEventListener("pointerdown", (e) => { dragging = true; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
-canvas.addEventListener("pointerup", (e) => { dragging = false; try { canvas.releasePointerCapture(e.pointerId); } catch {} });
+// 1 finger orbits, 2 fingers pinch-zoom (touch has no wheel); mouse wheel still zooms on desktop
+let lx = 0, ly = 0, lastPinch = 0;
+const ptrs = new Map();
+function pinchDist() { const a = [...ptrs.values()]; return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); }
+canvas.addEventListener("pointerdown", (e) => {
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); canvas.setPointerCapture(e.pointerId);
+  if (ptrs.size === 1) { lx = e.clientX; ly = e.clientY; }
+  else if (ptrs.size === 2) { lastPinch = pinchDist(); }
+});
+function endP(e) {
+  ptrs.delete(e.pointerId); try { canvas.releasePointerCapture(e.pointerId); } catch {}
+  if (ptrs.size < 2) lastPinch = 0;
+  if (ptrs.size === 1) { const q = [...ptrs.values()][0]; lx = q.x; ly = q.y; }   // avoid an orbit jump
+}
+canvas.addEventListener("pointerup", endP);
+canvas.addEventListener("pointercancel", endP);
 canvas.addEventListener("pointermove", (e) => {
-  if (!dragging) return;
-  orbit.theta -= (e.clientX - lx) * 0.006;
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size >= 2) {                                   // pinch → zoom the orbit radius
+    const d = pinchDist();
+    if (lastPinch > 0 && d > 0) orbit.r = Math.max(60, Math.min(520, orbit.r * (lastPinch / d)));
+    lastPinch = d; return;
+  }
+  orbit.theta -= (e.clientX - lx) * 0.006;                // one finger → orbit
   orbit.phi = Math.max(0.08, Math.min(Math.PI - 0.08, orbit.phi - (e.clientY - ly) * 0.006));
   lx = e.clientX; ly = e.clientY;
 });
