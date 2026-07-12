@@ -90,6 +90,8 @@ var _view_size := Vector2i(1280, 720)
 var _region_cx := 0.0        # mission-region centre X (world m)
 var _region_cz := 0.0        # mission-region centre Z (world m)
 var _region_size := 0.0      # mission size (m); 0 = render the whole tile (legacy)
+var _topo_active := false     # MONOLITH topo overlay (analysis_mode 2) live -> animate the scan wave
+var _topo_scan_t := 0.0       # scan-wave progress 0..1 (looped in the stream frame update)
 var _hud_selfcheck := false           # Phase C: headless proof the HUD slider drives the sun
 var _clasts_path := ""                # Phase D: JSON rock field (spatial-k Golombek) to display
 var _path_path := ""                  # Phase F: JSON planned-route polyline (mission_planner.plan detour)
@@ -1141,6 +1143,58 @@ func _read_twist_live() -> Vector2:
 
 
 # viz2-owned far CONTEXT plane (the frozen terrain.gd is NOT instantiated in live mode). Mirrors
+# MONOLITH topo overlay: set the far-field topo uniforms from the real DEM + the mission region.
+func _apply_topo_uniforms(fm: ShaderMaterial) -> void:
+	# scan ring expands from the region centre out to its far corner; grid/contours scaled to the region.
+	var span := (_region_size * 0.75) if _region_size > 0.0 else 120.0
+	fm.set_shader_parameter("topo_scan_center", Vector2(_region_cx, _region_cz))
+	fm.set_shader_parameter("topo_scan_span", span)
+	fm.set_shader_parameter("topo_scan_width", maxf(2.0, span * 0.03))
+	fm.set_shader_parameter("topo_grid_step", maxf(5.0, (_region_size / 12.0) if _region_size > 0.0 else 10.0))
+	var hr := _topo_height_range()
+	fm.set_shader_parameter("topo_height_range", hr)
+	# minor contour interval ~ 1/25 of the relief, clamped to a legible floor (real elevation spacing)
+	fm.set_shader_parameter("topo_contour_interval", maxf(0.25, (hr.y - hr.x) / 25.0))
+
+# Real elevation min/max (m) over the MISSION REGION slice of the height texture (R = elevation m). Sampling
+# only the region (not the whole 2 km tile) is what makes the hypsometric ramp + contours span the LOCAL
+# relief instead of washing a flat sub-area into one band.
+func _topo_height_range() -> Vector2:
+	var tex = sf.tex_height_lowres(2)
+	if tex == null:
+		return Vector2(0.0, 10.0)
+	var img: Image = tex.get_image()
+	if img == null:
+		return Vector2(0.0, 10.0)
+	var w := img.get_width()
+	var h := img.get_height()
+	var x0 := 0
+	var x1 := w
+	var y0 := 0
+	var y1 := h
+	if _region_size > 0.0:
+		var ext: Vector2 = sf.extent_m()
+		var rsz := clampf(_region_size, 60.0, minf(ext.x, ext.y))
+		var c := Vector2(_region_cx, _region_cz)
+		var u0: Vector2 = (c - Vector2(rsz, rsz) * 0.5 - sf.world_min) / ext   # sf untyped -> annotate
+		var u1: Vector2 = (c + Vector2(rsz, rsz) * 0.5 - sf.world_min) / ext
+		x0 = clampi(int(minf(u0.x, u1.x) * float(w)), 0, w - 1)
+		x1 = clampi(int(maxf(u0.x, u1.x) * float(w)), x0 + 1, w)
+		y0 = clampi(int(minf(u0.y, u1.y) * float(h)), 0, h - 1)
+		y1 = clampi(int(maxf(u0.y, u1.y) * float(h)), y0 + 1, h)
+	var lo := INF
+	var hi := -INF
+	var step := maxi(1, (x1 - x0) / 64)
+	for y in range(y0, y1, step):
+		for x in range(x0, x1, step):
+			var e := img.get_pixel(x, y).r
+			lo = minf(lo, e)
+			hi = maxf(hi, e)
+	if hi > lo:
+		return Vector2(lo, hi)
+	return Vector2(0.0, 10.0)   # fallback if the texture is not CPU-readable
+
+
 # terrain.gd::_build_far_field: one low-poly PlaneMesh displaced in terrain_farfield.gdshader from a
 # decimated height texture read through the FROZEN loader (read-only). The live window overdraws it.
 func _build_far_context() -> void:
@@ -1555,11 +1609,17 @@ func _apply_stream_input(msg: Dictionary) -> void:
 			_wp_index = 0
 	if bool(msg.get("clear_wp", false)):
 		_clear_waypoints()
-	# analysis: toggle the slope-heatmap overlay on the terrain (path analysis vs grade)
+	# analysis overlays: 0 = normal photoreal, 1 = slope heatmap, 2 = MONOLITH topo (hypsometric +
+	# contours + grid + scan). The topo look is a toggleable PLANNING overlay; mode 0 = the photoreal drive view.
 	if msg.has("overlay"):
-		var mode := 1 if String(msg["overlay"]) == "slope" else 0
+		var ov := String(msg["overlay"])
+		var mode := 1 if ov == "slope" else (2 if ov == "topo" else 0)
+		_topo_active = (mode == 2)
 		if _far_context != null and _far_context.material_override is ShaderMaterial:
-			(_far_context.material_override as ShaderMaterial).set_shader_parameter("analysis_mode", mode)
+			var fm := _far_context.material_override as ShaderMaterial
+			fm.set_shader_parameter("analysis_mode", mode)
+			if mode == 2:
+				_apply_topo_uniforms(fm)
 		if _window != null:
 			_window.set_analysis_mode(mode)
 	if _sun != null and msg.has("sun_az"):

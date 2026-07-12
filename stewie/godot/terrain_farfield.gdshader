@@ -69,6 +69,33 @@ varying vec2 v_world_xz;                   // fragment world XZ (for the window-
 uniform vec2 region_uv_offset = vec2(0.0); // map plane UV -> the mission region's slice of the textures
 uniform vec2 region_uv_scale = vec2(1.0);
 varying vec2 v_suv;                         // region-mapped sample UV (height / state / disturbance)
+varying float v_height;                      // world elevation (m), for the topo hypsometric ramp + contours
+
+// TOPO overlay (analysis_mode == 2): MONOLITH-style shaded-relief topographic map — hypsometric
+// gradient + contour isolines + survey grid + an expanding radar scan wave. Ported from
+// kaolti/monolith-terrain (terrain.js onBeforeCompile); see stewie/design/STEWIE_viz2_planning_render_monolith_ATG.md.
+// A toggleable ANALYSIS overlay for the planning view — the photoreal drive view (mode 0) is untouched.
+uniform vec2  topo_height_range = vec2(0.0, 20.0);   // elevation min/max (m) mapped across the ramp
+uniform float topo_height_pivot = 0.5;
+uniform float topo_height_contrast = 1.0;
+uniform vec3  topo_grad_low  : source_color = vec3(0.10, 0.18, 0.26);   // 4-stop hypsometric ramp
+uniform vec3  topo_grad_mid1 : source_color = vec3(0.16, 0.40, 0.40);
+uniform vec3  topo_grad_mid2 : source_color = vec3(0.58, 0.54, 0.34);
+uniform vec3  topo_grad_high : source_color = vec3(0.86, 0.83, 0.75);
+uniform float topo_slope_tint = 0.35;                // darken steep faces toward brown
+uniform float topo_contour_interval = 1.0;           // m between MINOR contours (major every 5th)
+uniform vec3  topo_contour_color : source_color = vec3(0.05, 0.04, 0.03);
+uniform float topo_contour_opacity = 0.55;
+uniform float topo_grid_step = 10.0;                 // m between survey-grid lines (world XZ)
+uniform vec3  topo_grid_color : source_color = vec3(0.14, 0.13, 0.12);
+uniform float topo_grid_opacity = 0.5;
+uniform vec2  topo_scan_center = vec2(0.0);          // world XZ the scan ring expands from
+uniform float topo_scan_span = 120.0;                // max scan radius (m); R = topo_scan_t * span
+uniform float topo_scan_t = -1.0;                    // 0..1 progress, < 0 = scan off
+uniform float topo_scan_width = 3.0;
+uniform float topo_scan_blur = 1.5;
+uniform vec3  topo_scan_color : source_color = vec3(0.35, 0.95, 0.85);
+uniform float topo_ambient = 0.4;   // self-lit map floor so grazing-PSR shadows still read the topo
 
 // --- simplex noise (Ashima Arts / Stefan Gustavson "webgl-noise", MIT; mirror of terrain.gdshader) ---
 // Replaces the prior square-lattice value noise (axis-aligned diamond artifacts) with isotropic
@@ -134,7 +161,9 @@ void vertex() {
 	float hU = texture(height_lowres, suv + vec2(0.0, ts.y)).r;
 	NORMAL = normalize(vec3(hL - hR, 2.0 * lod_step_m, hD - hU));
 	v_slope = acos(clamp(NORMAL.y, -1.0, 1.0));   // 0 = flat, larger = steeper (for the slope overlay)
-	v_world_xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;   // world XZ (for the fine-window discard)
+	vec4 wpos = MODEL_MATRIX * vec4(VERTEX, 1.0);
+	v_world_xz = wpos.xz;   // world XZ (for the fine-window discard + topo grid/scan)
+	v_height = wpos.y;      // world elevation (m), for the topo hypsometric ramp + contours
 }
 
 void fragment() {
@@ -203,6 +232,36 @@ void fragment() {
 		vec3 heat = mix(vec3(0.15, 0.7, 0.2), vec3(0.9, 0.8, 0.12), clamp(s * 2.0, 0.0, 1.0));
 		heat = mix(heat, vec3(0.95, 0.15, 0.1), clamp(s * 2.0 - 1.0, 0.0, 1.0));
 		col = mix(col, heat, 0.6);
+	} else if (analysis_mode == 2) {
+		// MONOLITH shaded-relief TOPO map: hypsometric ramp + contour isolines + survey grid + scan wave.
+		// (kaolti/monolith-terrain terrain.js onBeforeCompile, ported.) Self-lit floor keeps PSR shadows legible.
+		float hN = clamp((v_height - topo_height_range.x) / max(topo_height_range.y - topo_height_range.x, 1e-4), 0.0, 1.0);
+		float rt = clamp(0.5 + (hN - topo_height_pivot) * topo_height_contrast, 0.0, 1.0);
+		vec3 ramp = (rt < 0.5) ? mix(topo_grad_low, topo_grad_mid1, rt * 2.0)
+		                       : mix(topo_grad_mid2, topo_grad_high, (rt - 0.5) * 2.0);
+		ramp = mix(ramp, vec3(0.42, 0.31, 0.21), clamp(v_slope / 0.61, 0.0, 1.0) * topo_slope_tint);
+		// contour isolines: minor every interval, major every 5th (fwidth screen-space AA)
+		float ch = v_height / max(topo_contour_interval, 1e-3);
+		float minorL = 1.0 - smoothstep(0.0, fwidth(ch) * 1.4, abs(fract(ch + 0.5) - 0.5));
+		float ch5 = ch / 5.0;
+		float majorL = 1.0 - smoothstep(0.0, fwidth(ch5) * 1.4, abs(fract(ch5 + 0.5) - 0.5));
+		ramp = mix(ramp, topo_contour_color, max(minorL * 0.55, majorL) * topo_contour_opacity);
+		// survey grid (world XZ)
+		vec2 gg = v_world_xz / max(topo_grid_step, 1e-3);
+		vec2 dg = fwidth(gg);
+		vec2 dGrid = abs(fract(gg + 0.5) - 0.5);
+		float grid = max(1.0 - smoothstep(0.0, dg.x * 1.4, dGrid.x), 1.0 - smoothstep(0.0, dg.y * 1.4, dGrid.y));
+		col = mix(ramp, topo_grid_color, grid * topo_grid_opacity);
+		EMISSION = col * topo_ambient;   // self-lit map floor (readable in shadow); Hapke relief adds on top
+		// expanding radar scan wave (bright emissive wavefront sweeping the site)
+		if (topo_scan_t >= 0.0) {
+			float d = length(v_world_xz - topo_scan_center);
+			float R = topo_scan_t * topo_scan_span;
+			float band = 1.0 - smoothstep(0.0, max(topo_scan_blur, fwidth(d)), abs(d - R) - topo_scan_width * 0.5);
+			float fade = 1.0 - smoothstep(0.6, 1.0, topo_scan_t);
+			col = mix(col, topo_scan_color, band * fade * 0.7);
+			EMISSION += topo_scan_color * band * fade;
+		}
 	}
 	ALBEDO = col;
 	ROUGHNESS = rough;
