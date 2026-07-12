@@ -229,6 +229,14 @@ class Viz2Runtime:
         # the pending impulse the drive consumes then clears; _last is the HUD/telemetry value.
         self._active_dig_reaction_n = 0.0
         self._last_dig_reaction_n = 0.0
+        # #31 aggregate execution metrics (DETERMINISTIC, from the real per-tick drive telem; no rng):
+        # ground-truth path length vs the slip-blind WHEEL ODOMETRY. The encoder reads the commanded wheel
+        # speed, so under slip it over-reads the achieved ground distance -> odometry_error is the
+        # dead-reckoning drift (the MER ~10%-of-distance envelope; stewie/sensors/imu_wheel provenance).
+        self._dist_actual_m = 0.0        # SUM |v_achieved| dt  (ground truth)
+        self._dist_wheel_m = 0.0         # SUM |v_cmd| dt        (wheel encoder, slip-blind -> over-reads)
+        self._slope_sum_deg = 0.0
+        self._slope_n = 0
 
         # --- generation / union-coverage bookkeeping (actor-thread owned) ---
         self._generation = 0
@@ -473,6 +481,7 @@ class Viz2Runtime:
         telem, dirty = self.ws.step(v, omega, self.dt, dig_reaction_n=self._active_dig_reaction_n)
         self._active_dig_reaction_n = 0.0
         self._last_applied_twist = (v, omega)
+        self._accumulate_metrics(telem, self.dt)          # #31 aggregate exec metrics from the real telem
         if do_dig:
             # a conserved dig at the current pose (WorkSite.flatten -> the drum ledger); its dirty
             # region rides THIS generation, so height/state/disturbance carry the trench downstream.
@@ -497,6 +506,11 @@ class Viz2Runtime:
         telem["dig_energy_per_kg"] = float(self._dig_energy_per_kg)     # grounded electrical anchor
         telem["dig_j_per_kg"] = float(self._last_dig_j_per_kg)          # FEE-modulated cost of the last pass
         telem["dig_reaction_n"] = float(self._last_dig_reaction_n)      # #2: unbalanced draft reaction (last dig)
+        # #31 aggregate execution metrics (deterministic; wheel odometry over-reads the ground truth by slip)
+        telem["dist_actual_m"] = float(self._dist_actual_m)
+        telem["wheel_odo_m"] = float(self._dist_wheel_m)
+        telem["odometry_error_m"] = float(self._dist_wheel_m - self._dist_actual_m)
+        telem["avg_slope_deg"] = float(self._slope_sum_deg / max(1, self._slope_n))
         payload = {
             "type": "telemetry", "generation": gen, "keyframe": keyframe,
             "telem": telem, "dirty": [list(b) for b in dirty],
@@ -603,6 +617,16 @@ class Viz2Runtime:
                   % len(clasts), flush=True)
         except Exception as exc:
             print("viz2_runtime: rockfield skipped (%s: %s)" % (type(exc).__name__, exc), flush=True)
+
+    def _accumulate_metrics(self, telem: dict, dt: float) -> None:
+        """#31: fold ONE tick's real drive telem into the deterministic aggregate metrics. Wheel odometry
+        integrates the COMMANDED wheel speed (what a slip-blind encoder reads), ground truth integrates the
+        ACHIEVED speed; under slip v_achieved < v_cmd so the wheel odometry over-reads -> the running
+        odometry_error is the dead-reckoning drift. avg slope is the mean traversed grade. No rng, no synthetic."""
+        self._dist_actual_m += abs(float(telem.get("v_achieved", 0.0))) * dt
+        self._dist_wheel_m += abs(float(telem.get("v_cmd", 0.0))) * dt
+        self._slope_sum_deg += math.degrees(abs(float(telem.get("slope_rad", 0.0))))
+        self._slope_n += 1
 
     def _drum_rc(self) -> tuple[int, int] | None:
         """Fine-window (row,col) of the FRONT DRUM (~0.4 m ahead of the pose along the travel heading) --

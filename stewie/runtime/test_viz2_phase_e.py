@@ -103,6 +103,26 @@ def test_apply_dig_arms_reaction_that_reaches_the_drive(tmp_path):
         rt.stop()
 
 
+# -- #31: aggregate execution metrics — wheel odometry over-reads the ground truth by slip ----
+
+def test_aggregate_metrics_wheel_odometry_over_reads_ground_truth(tmp_path):
+    """council/metrics #31: drive the REAL conserved physics and accumulate the deterministic aggregate
+    metrics. The slip-blind wheel odometry integrates the COMMANDED speed and the ground truth the ACHIEVED
+    speed, so under real slip the wheel odometry >= the actual distance and the odometry_error (drift) >= 0."""
+    rt = _runtime(tmp_path)
+    try:
+        assert rt._dist_actual_m == 0.0 and rt._dist_wheel_m == 0.0 and rt._slope_n == 0
+        for _ in range(12):
+            telem, _ = rt.ws.step(0.2, 0.0, rt.dt)        # commanded 0.2 m/s over the real Haworth DEM
+            rt._accumulate_metrics(telem, rt.dt)
+        assert rt._dist_actual_m > 0.0                    # the rover really moved (ground truth)
+        assert rt._dist_wheel_m >= rt._dist_actual_m      # slip-blind encoder over-reads
+        assert rt._dist_wheel_m - rt._dist_actual_m >= 0.0  # dead-reckoning drift is non-negative
+        assert 0.0 <= rt._slope_sum_deg / rt._slope_n < 90.0  # a real mean grade from the traversed terrain
+    finally:
+        rt.stop()
+
+
 # -- E2: the signed diff drape is streamed as an absolute-value patch field ------------------
 
 def test_diff_field_is_streamed_and_matches_the_authority(tmp_path):

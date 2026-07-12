@@ -31,6 +31,10 @@ var latest_seq := -1
 var slip := 0.0
 var entrapped := false
 var safe_stopped := false
+var dist_actual_m := 0.0        # #31 aggregate exec metrics from the runtime telem (ground truth vs wheel odo)
+var wheel_odo_m := 0.0
+var odometry_error_m := 0.0
+var avg_slope_deg := 0.0
 var _have_pose := false
 
 
@@ -150,6 +154,10 @@ func poll_frames() -> int:
 				latest_yaw = float(telem.get("yaw", latest_yaw))
 				slip = float(telem.get("slip", slip))
 				entrapped = bool(telem.get("entrapped", entrapped))
+				dist_actual_m = float(telem.get("dist_actual_m", dist_actual_m))
+				wheel_odo_m = float(telem.get("wheel_odo_m", wheel_odo_m))
+				odometry_error_m = float(telem.get("odometry_error_m", odometry_error_m))
+				avg_slope_deg = float(telem.get("avg_slope_deg", avg_slope_deg))
 	return count
 
 
