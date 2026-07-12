@@ -348,9 +348,26 @@ func _setup_environment() -> void:
 	e.sdfgi_enabled = false
 	e.glow_enabled = false
 	e.ssao_enabled = false
-	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	e.tonemap_mode = Environment.TONE_MAPPER_ACES   # C3: cinematic ACES filmic (MONOLITH), replaces filmic
+	e.tonemap_exposure = 0.96                        # MONOLITH exposure (main.js)
 	we.environment = e
 	add_child(we)
+	_build_post_fx()   # C3: cinematic grain + vignette over the whole frame (both drive + topo views)
+
+
+# C3: a full-screen post pass (MONOLITH grain + vignette) as a CanvasLayer over the 3D. The ColorRect
+# samples the composited screen texture, so it lifts BOTH the photoreal drive view and the topo overlay.
+func _build_post_fx() -> void:
+	var cl := CanvasLayer.new()
+	cl.layer = 90   # over the 3D; the DEM-citation overlay sits above so its text stays crisp
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://viz2_post.gdshader")
+	rect.material = mat
+	cl.add_child(rect)
+	add_child(cl)
 
 
 # Real-time render profile for the LIVE stream. project.godot's AA/shadow stack is authored for
