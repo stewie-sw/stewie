@@ -120,7 +120,7 @@ ws.onmessage = (ev) => {
     if (m.type === "status") {
       const ent = m.entrapped ? " ⚠ ENTRAPPED" : (m.safe_stop ? " ⛔ SAFE-STOP" : "");
       const hud = document.getElementById("hud");
-      hud.textContent = `slip ${(m.slip*100).toFixed(0)}% · dist ${m.dist_m}m · odo ${m.odo_m}m (drift ${m.odo_err_m}m) · slope ${m.avg_slope}° · (${m.x}, ${m.z}) · gen ${m.gen}${ent}`;
+      hud.textContent = `slip ${(m.slip*100).toFixed(0)}% · dist ${m.dist_m}m · odo ${m.odo_m}m (drift ${m.odo_err_m}m) · slope ${m.avg_slope}° · IMU a${m.imu_a} ω${m.imu_w} · (${m.x}, ${m.z}) · gen ${m.gen}${ent}`;
       hud.className = (m.entrapped || m.safe_stop) ? "err" : "";
       return;
     }

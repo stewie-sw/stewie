@@ -237,6 +237,13 @@ class Viz2Runtime:
         self._dist_wheel_m = 0.0         # SUM |v_cmd| dt        (wheel encoder, slip-blind -> over-reads)
         self._slope_sum_deg = 0.0
         self._slope_n = 0
+        # #32 faithful DETERMINISTIC IMU (no rng): gyro = achieved yaw rate; accelerometer = SPECIFIC FORCE
+        # = body longitudinal accel d(v_achieved)/dt + gravity projected along the incline (lunar g), + a
+        # lateral centripetal term. The grounded MTi-10 noise model (twin.proprioception) stays OPT-IN.
+        self._prev_v_achieved = 0.0
+        self._imu_gyro_z = 0.0           # yaw rate [rad/s]
+        self._imu_accel_long = 0.0       # longitudinal specific force [m/s^2]
+        self._imu_accel_lat = 0.0        # lateral (centripetal) specific force [m/s^2]
 
         # --- generation / union-coverage bookkeeping (actor-thread owned) ---
         self._generation = 0
@@ -511,6 +518,10 @@ class Viz2Runtime:
         telem["wheel_odo_m"] = float(self._dist_wheel_m)
         telem["odometry_error_m"] = float(self._dist_wheel_m - self._dist_actual_m)
         telem["avg_slope_deg"] = float(self._slope_sum_deg / max(1, self._slope_n))
+        # #32 faithful deterministic IMU (specific force + yaw rate)
+        telem["imu_gyro_z"] = float(self._imu_gyro_z)
+        telem["imu_accel_long"] = float(self._imu_accel_long)
+        telem["imu_accel_lat"] = float(self._imu_accel_lat)
         payload = {
             "type": "telemetry", "generation": gen, "keyframe": keyframe,
             "telem": telem, "dirty": [list(b) for b in dirty],
@@ -623,10 +634,21 @@ class Viz2Runtime:
         integrates the COMMANDED wheel speed (what a slip-blind encoder reads), ground truth integrates the
         ACHIEVED speed; under slip v_achieved < v_cmd so the wheel odometry over-reads -> the running
         odometry_error is the dead-reckoning drift. avg slope is the mean traversed grade. No rng, no synthetic."""
-        self._dist_actual_m += abs(float(telem.get("v_achieved", 0.0))) * dt
-        self._dist_wheel_m += abs(float(telem.get("v_cmd", 0.0))) * dt
-        self._slope_sum_deg += math.degrees(abs(float(telem.get("slope_rad", 0.0))))
+        va = float(telem.get("v_achieved", 0.0))          # signed ground-truth body speed
+        vc = float(telem.get("v_cmd", 0.0))               # commanded (== wheel-surface) speed
+        omega = float(telem.get("omega_achieved", 0.0))   # achieved yaw rate
+        slope = float(telem.get("slope_rad", 0.0))
+        # #31 aggregate distances (magnitudes) + mean grade
+        self._dist_actual_m += abs(va) * dt
+        self._dist_wheel_m += abs(vc) * dt
+        self._slope_sum_deg += math.degrees(abs(slope))
         self._slope_n += 1
+        # #32 faithful DETERMINISTIC IMU: gyro = achieved yaw rate; accelerometer = SPECIFIC FORCE
+        # (body accel d(v)/dt + gravity along the incline, lunar g) + a lateral centripetal term.
+        self._imu_gyro_z = omega
+        self._imu_accel_long = (va - self._prev_v_achieved) / max(dt, 1e-6) + LUNAR_G_MS2 * math.sin(slope)
+        self._imu_accel_lat = omega * va
+        self._prev_v_achieved = va
 
     def _drum_rc(self) -> tuple[int, int] | None:
         """Fine-window (row,col) of the FRONT DRUM (~0.4 m ahead of the pose along the travel heading) --

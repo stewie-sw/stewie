@@ -123,6 +123,28 @@ def test_aggregate_metrics_wheel_odometry_over_reads_ground_truth(tmp_path):
         rt.stop()
 
 
+# -- #32: faithful DETERMINISTIC IMU — gyro == achieved yaw rate, accel == specific force -----
+
+def test_faithful_imu_gyro_equals_yaw_rate_and_accel_finite(tmp_path):
+    """#32: the IMU is deterministic + faithful to the REAL drive — gyro IS the achieved yaw rate, the
+    accelerometer reads a FINITE specific force (body accel + lunar-gravity slope projection), no rng.
+    A turn gives a nonzero yaw-rate reading."""
+    import math as _m
+    rt = _runtime(tmp_path)
+    try:
+        for _ in range(6):
+            telem, _ = rt.ws.step(0.2, 0.0, rt.dt)               # straight drive
+            rt._accumulate_metrics(telem, rt.dt)
+        assert rt._imu_gyro_z == float(telem.get("omega_achieved", 0.0))   # gyro == achieved yaw rate
+        assert _m.isfinite(rt._imu_accel_long) and _m.isfinite(rt._imu_accel_lat)
+        telem, _ = rt.ws.step(0.2, 0.5, rt.dt)                   # turn -> a real yaw rate on the gyro
+        rt._accumulate_metrics(telem, rt.dt)
+        assert rt._imu_gyro_z == float(telem.get("omega_achieved", 0.0))
+        assert abs(rt._imu_gyro_z) > 0.0
+    finally:
+        rt.stop()
+
+
 # -- E2: the signed diff drape is streamed as an absolute-value patch field ------------------
 
 def test_diff_field_is_streamed_and_matches_the_authority(tmp_path):

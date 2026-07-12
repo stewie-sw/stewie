@@ -35,6 +35,9 @@ var dist_actual_m := 0.0        # #31 aggregate exec metrics from the runtime te
 var wheel_odo_m := 0.0
 var odometry_error_m := 0.0
 var avg_slope_deg := 0.0
+var imu_gyro_z := 0.0           # #32 faithful IMU: yaw rate [rad/s] + specific force [m/s^2]
+var imu_accel_long := 0.0
+var imu_accel_lat := 0.0
 var _have_pose := false
 
 
@@ -158,6 +161,9 @@ func poll_frames() -> int:
 				wheel_odo_m = float(telem.get("wheel_odo_m", wheel_odo_m))
 				odometry_error_m = float(telem.get("odometry_error_m", odometry_error_m))
 				avg_slope_deg = float(telem.get("avg_slope_deg", avg_slope_deg))
+				imu_gyro_z = float(telem.get("imu_gyro_z", imu_gyro_z))
+				imu_accel_long = float(telem.get("imu_accel_long", imu_accel_long))
+				imu_accel_lat = float(telem.get("imu_accel_lat", imu_accel_lat))
 	return count
 
 
