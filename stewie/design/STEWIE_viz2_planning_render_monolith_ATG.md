@@ -84,3 +84,30 @@ linear fog near 35.5 far 50 color #ffffff. No bloom.
 Edges: A->C, A->B(overlay), B->D, C->D. Parallel: {A2,A3}, {B,C} after A.
 Thought experiment: Constraint FLAG at C resolved (topo=toggle overlay, postproc=global, drive stays photoreal).
 Repair rule: on failure localize to the atomic node, freeze validated nodes, repair minimal subgraph.
+
+## COMPLETION STATUS (2026-07-12) — all nodes done + visually verified, on feat/viz2-lunar-dataset
+
+- A Research: done (monolith GLSL + postproc extracted; seam mapped).
+- C Monolith terrain look — COMPLETE, each node capture-verified (read the JPEG):
+  - C1 far-field topo (hypsometric ramp + slope-darken + contour isolines + survey grid) — `d1c4ed7d`
+  - C2 animated radar scan wave (precision-safe vertex-relative distance; clean triangular ring; amber) — `4c00c3b0`
+  - C1b topo continuous across the fine window (viz2_window.gdshader mirror + topo_material()) — `6f986fed`
+  - C3 global cinematic postprocessing (Environment ACES exposure 0.96 + a post CanvasLayer grain 0.35 /
+    vignette 0.6·0.28; DOF+heavy fog DEFERRED as unphysical for the faithful drive view) — `07195a7b`
+- B Planning→render integration (council #14) — COMPLETE:
+  - B-seam: a live `plan` control frame renders a route ribbon (protocol `plan` passthrough True|{route};
+    viz2_root._build_route_from_plan reuses Viz2Path; +2 protocol tests) — `102c3668`
+  - B-planner: server route SOURCE — `plan_request` verb computes a REAL slope-gated survey route
+    (lode.route_leg A* over the region's real DEM from the actual spawn) + pushes {plan:{route}} — `033a5a6f`
+- D: full-tree pytest gate (minus the known test_solar order-flake) + this doc.
+
+VERIFY DISCIPLINE (Aaron, standing): EVERY node got a live top-down capture that I READ (a muted/absent
+render = fail) + a Godot `--check-only` parse-gate + pytest exit code. The parse-gate caught two
+untyped-var errors (`u0/u1`, `wm`) before wasting a GPU capture; the scan-wave invisibility was debugged
+via a `step(d,R)` disk diagnostic through 3 stacked faults (contrast / 1e5-coord cancellation / fwidth AA).
+
+KNOWN POLISH (not blockers): the Haworth crater-floor region is near-flat -> the hypsometric reads muted +
+contours sparse (grid + scan carry the look); a `topo_vex` vertical-exaggeration uniform would make small
+relief legible. B-planner uses route_leg (single legs) not the full mission_planner.plan() PlanResult
+(battery/charge-aware ordered trips) — a richer route source is a follow-on. Server restart needed after
+app.py/protocol.py edits; `.gd`/`.gdshader`/runtime `.py` are per-session-fresh.
