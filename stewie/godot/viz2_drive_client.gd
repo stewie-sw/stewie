@@ -103,6 +103,8 @@ func poll_frames() -> int:
 	if _peer == null:
 		return 0
 	_peer.poll()
+	if _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		connected = false                 # link dropped -> the caller can trigger a reconnect (#7)
 	var avail := _peer.get_available_bytes()
 	if avail > 0:
 		var got := _peer.get_data(avail)
@@ -125,6 +127,10 @@ func poll_frames() -> int:
 			continue
 		if f.has("seq"):
 			latest_seq = int(f["seq"])
+		# a raw safe-stop notice (deadman trip) has no telemetry payload -> flag it for the HUD + recovery (#7)
+		if String(f.get("type", "")) == "safe_stop":
+			safe_stopped = true
+			continue
 		var payload = f.get("payload", null)
 		if typeof(payload) == TYPE_DICTIONARY and String(payload.get("type", "")) == "telemetry":
 			count += 1
@@ -151,6 +157,19 @@ func close() -> void:
 	if _peer != null:
 		_peer.disconnect_from_host()
 	connected = false
+
+
+# Deadman recovery: re-handshake a dropped / safe-stopped drive link. The runtime mints a FRESH epoch
+# and forces a connect keyframe on a new authenticated connection, so the drive resumes rather than
+# staying permanently safe-stopped. (council #7)
+func reconnect(session_dir: String) -> bool:
+	close()
+	_buf = PackedByteArray()
+	connected = false
+	handshake_ok = false
+	safe_stopped = false
+	epoch = 0
+	return connect_runtime(session_dir)
 
 
 func _send(obj: Dictionary) -> void:

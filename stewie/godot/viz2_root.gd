@@ -108,6 +108,7 @@ var _stream_io                          # Viz2Stream frame-socket helper (RefCou
 var _stream_v := 0.0                     # scaled twist held between browser commands (m/s)
 var _stream_omega := 0.0                 # scaled twist held between browser commands (rad/s)
 var _stream_max_seconds := 900.0         # hard wall-clock cap on the stream loop (safety)
+var _next_reconnect_ms := 0              # throttle for the deadman-recovery reconnect (#7)
 
 # ── browser-toggleable camera modes (the "rover view <-> 3rd person" ask) ──────────────────────
 const CAM_CHASE := 0        # 3rd-person chase: behind + above, rover in the foreground
@@ -1425,6 +1426,13 @@ func _run_stream() -> void:
 		for msg in _stream_io.poll_input():
 			_apply_stream_input(msg)
 			had_input = true
+		# deadman recovery: re-handshake a dead / safe-stopped drive link (fresh epoch + keyframe) (#7)
+		if _drive_client != null and (not _drive_client.connected or _drive_client.safe_stopped) \
+				and now >= _next_reconnect_ms:
+			_next_reconnect_ms = now + 1500
+			if _drive_client.reconnect(_session_dir):
+				_applied_gen = 0                 # force the fresh keyframe to re-sync the window
+				print("viz2: STREAM drive reconnected (deadman recovery)")
 		if _auto_traverse and not _waypoints.is_empty():
 			var vo := _traverse_step()           # autonomous: steer toward the plotted waypoints
 			_live_tick(vo.x, vo.y)
