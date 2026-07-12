@@ -134,6 +134,10 @@ var _wheel_angle := 0.0
 var _drum_angle := 0.0
 var _dig_anim_t := 0.0
 var _dump_anim_t := 0.0
+# manual articulation (browser-driven, independent of the auto dig/dump gesture)
+var _manual_drum := 0.0            # drum spin command (-1..1), 0 = hold
+var _arm_front_offset := 0.0       # manual front-arm angle offset (rad), added to the gesture
+var _arm_back_offset := 0.0        # manual back-arm angle offset (rad)
 
 # ── runtime state ────────────────────────────────────────────────────────────────────────
 var sf                                 # StateFields instance (read-only library)
@@ -609,16 +613,20 @@ func _animate_rover(dt: float) -> void:
 		_wheel_angle += (_stream_v / WHEEL_RADIUS_M) * dt
 		for k in ["LF", "RF", "LB", "RB"]:
 			_set_joint("wheel_" + k, _wheel_angle)
-	# bucket drums spin only WHILE digging/dumping (real RDS drums don't idle-spin); dump reverses them
+	# bucket drums: auto-spin while digging/dumping (dump reverses), else the browser's MANUAL command
 	var active := _dig_anim_t > 0.0 or _dump_anim_t > 0.0
+	var spin_dps := 0.0
 	if active:
-		var dir := -1.0 if _dump_anim_t > 0.0 else 1.0
-		_drum_angle += dir * deg_to_rad(DRUM_DIG_DPS) * dt
+		spin_dps = (-1.0 if _dump_anim_t > 0.0 else 1.0) * DRUM_DIG_DPS
+	elif absf(_manual_drum) > 1e-3:
+		spin_dps = _manual_drum * DRUM_DIG_DPS
+	_drum_angle += deg_to_rad(spin_dps) * dt
 	_set_joint("drum_front", _drum_angle)
 	_set_joint("drum_back", -_drum_angle)
+	# arms: the auto dig gesture PLUS whatever manual offset the browser dialed in (full URDF control)
 	var g := clampf(maxf(_dig_anim_t, _dump_anim_t) / DIG_ANIM_S, 0.0, 1.0)
-	_set_joint("arm_front", ARM_DIG_DOWN * g)
-	_set_joint("arm_back", ARM_TRANSPORT_UP * g)
+	_set_joint("arm_front", ARM_DIG_DOWN * g + _arm_front_offset)
+	_set_joint("arm_back", ARM_TRANSPORT_UP * g + _arm_back_offset)
 	if _dig_anim_t > 0.0:
 		_dig_anim_t -= dt
 	if _dump_anim_t > 0.0:
@@ -1312,7 +1320,7 @@ func _run_stream() -> void:
 		# dig/dump gesture, a control input, or the camera moved) -> an idle viewer stops burning GPU
 		# readback + JPEG + bandwidth on identical frames. (council n==0 + idle)
 		var cam_xf := _cam.global_transform if _cam != null else Transform3D()
-		var active_anim := _dig_anim_t > 0.0 or _dump_anim_t > 0.0
+		var active_anim := _dig_anim_t > 0.0 or _dump_anim_t > 0.0 or absf(_manual_drum) > 1e-3
 		var moving := absf(_stream_v) > 1e-4 or absf(_stream_omega) > 1e-4
 		var changed := had_input or moving or active_anim or _applied_gen != prev_gen \
 			or not cam_xf.is_equal_approx(prev_cam)
@@ -1358,6 +1366,13 @@ func _apply_stream_input(msg: Dictionary) -> void:
 	if bool(msg.get("dump", false)) and _drive_client != null:
 		_drive_client.send_dump()
 		_dump_anim_t = DIG_ANIM_S
+	# manual articulation: spin the drums + raise/lower each arm directly (full URDF control)
+	if msg.has("drum"):
+		_manual_drum = clampf(float(msg["drum"]), -1.0, 1.0)
+	if msg.has("arm_front_d"):
+		_arm_front_offset = clampf(_arm_front_offset + float(msg["arm_front_d"]), -0.4, 1.0)
+	if msg.has("arm_back_d"):
+		_arm_back_offset = clampf(_arm_back_offset + float(msg["arm_back_d"]), -0.4, 1.0)
 	if _sun != null and msg.has("sun_az"):
 		_sun.rotation_degrees.y = float(msg["sun_az"])
 	if _sun != null and msg.has("sun_el"):

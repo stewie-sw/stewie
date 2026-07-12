@@ -45,6 +45,18 @@
     <label>sun el <input id="el" type="range" min="-5" max="90" value="18"><span id="elv">18°</span></label>
   </div>
   <div class="row">
+    <span>drums:</span>
+    <button id="drumf">▶ spin</button>
+    <button id="drumr">◀ rev</button>
+    <button id="drumstop">■ stop</button>
+    <span>&nbsp;front arm:</span>
+    <button id="afd">▼ lower</button>
+    <button id="afu">▲ raise</button>
+    <span>&nbsp;back arm:</span>
+    <button id="abd">▼</button>
+    <button id="abu">▲</button>
+  </div>
+  <div class="row">
     <button id="save">💾 Save session</button>
     <span style="color:#8ea0b8">records every command · replay via <kbd>?play=&lt;name&gt;</kbd></span>
   </div>
@@ -146,6 +158,15 @@ document.getElementById("save").onclick = () => {
   const name = prompt("Save this session as (letters, digits, - or _):", "run1");
   if (name && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ save: name }));
 };
+// manual articulation — spin the drums + raise/lower each arm directly (full URDF control)
+const artic = (o) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(o)); };
+document.getElementById("drumf").onclick = () => artic({ drum: 1 });
+document.getElementById("drumr").onclick = () => artic({ drum: -1 });
+document.getElementById("drumstop").onclick = () => artic({ drum: 0 });
+document.getElementById("afd").onclick = () => artic({ arm_front_d: 0.12 });
+document.getElementById("afu").onclick = () => artic({ arm_front_d: -0.12 });
+document.getElementById("abd").onclick = () => artic({ arm_back_d: 0.12 });
+document.getElementById("abu").onclick = () => artic({ arm_back_d: -0.12 });
 
 const az = document.getElementById("az"), el = document.getElementById("el");
 const azv = document.getElementById("azv"), elv = document.getElementById("elv");

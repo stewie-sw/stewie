@@ -135,4 +135,10 @@ def normalize_input(msg: str | bytes | dict) -> dict[str, Any]:
     for k in ("orbit_dyaw", "orbit_dpitch", "orbit_dzoom"):
         if k in m:
             out[k] = max(-90.0, min(90.0, _finite_float(m.get(k), 0.0)))
+    # manual articulation: drum spin command (-1..1, 0=hold) + per-arm angle deltas (rad)
+    if "drum" in m:
+        out["drum"] = max(-1.0, min(1.0, _finite_float(m.get("drum"), 0.0)))
+    for k in ("arm_front_d", "arm_back_d"):
+        if k in m:
+            out[k] = max(-0.5, min(0.5, _finite_float(m.get(k), 0.0)))
     return out
