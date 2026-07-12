@@ -179,10 +179,10 @@ const artic = (o) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.string
 document.getElementById("drumf").onclick = () => artic({ drum: 1 });
 document.getElementById("drumr").onclick = () => artic({ drum: -1 });
 document.getElementById("drumstop").onclick = () => artic({ drum: 0 });
-document.getElementById("afd").onclick = () => artic({ arm_front_d: 0.12 });
-document.getElementById("afu").onclick = () => artic({ arm_front_d: -0.12 });
-document.getElementById("abd").onclick = () => artic({ arm_back_d: 0.12 });
-document.getElementById("abu").onclick = () => artic({ arm_back_d: -0.12 });
+document.getElementById("afd").onclick = () => artic({ arm_front_d: -0.12 });   // front + raises -> lower = -
+document.getElementById("afu").onclick = () => artic({ arm_front_d: 0.12 });
+document.getElementById("abd").onclick = () => artic({ arm_back_d: -0.12 });   // + raises -> lower = -
+document.getElementById("abu").onclick = () => artic({ arm_back_d: 0.12 });
 // planning: click-to-plot waypoints (in top-down), then autonomous traverse
 let plotting = false;
 const plotBtn = document.getElementById("plot");

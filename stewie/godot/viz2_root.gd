@@ -120,6 +120,7 @@ var _cam_mode := CAM_CHASE
 var _orbit_yaw := -2.3       # orbit azimuth (rad), pointer-driven
 var _orbit_pitch := 0.55     # orbit elevation (rad), pointer-driven, clamped
 var _orbit_radius := 9.0     # orbit / topdown distance (m)
+var _cam_zoom := 1.0         # zoom multiplier for chase/POV (orbit/topdown use _orbit_radius)
 
 # ── rover articulation (the URDF joints animate: wheels roll, drums counter-rotate, arms dig) ──
 # Grounded in ipex_specs: wheel ⌀0.305 m, drum rated 18 RPM (108 deg/s), counter-rotating bucket
@@ -127,8 +128,8 @@ var _orbit_radius := 9.0     # orbit / topdown distance (m)
 const WHEEL_RADIUS_M := 0.1524
 const DRUM_IDLE_DPS := 42.0        # cinematic idle drum spin (deg/s)
 const DRUM_DIG_DPS := 108.0        # 18 RPM rated dig spin (ipex_specs.DRUM_SPEED_RATED_RPM)
-const ARM_DIG_DOWN := 0.55         # extra front-arm pitch (rad): lower the drum to dig
-const ARM_TRANSPORT_UP := -0.35    # extra back-arm pitch (rad): raise for transport
+const ARM_DIG_DOWN := -0.55        # extra front-arm pitch (rad): LOWER the drum to dig (+ raises, so -)
+const ARM_TRANSPORT_UP := 0.35     # extra back-arm pitch (rad): RAISE for transport
 const DIG_ANIM_S := 2.2            # dig / dump gesture duration
 var _joints := {}                  # joint name -> {node, rest:Basis, origin:Vector3, base:float}
 var _wheel_angle := 0.0
@@ -760,8 +761,8 @@ func _update_stream_cam() -> void:
 			target = rp
 			up = Vector3(0.0, 0.0, -1.0)
 			clamp_eye = false
-		_:                                        # CAM_CHASE: behind + above, rover in the foreground
-			eye = rp - fwd * 8.0 + Vector3.UP * 4.0
+		_:                                        # CAM_CHASE: behind + above, rover in the foreground (zoomable)
+			eye = rp - fwd * (8.0 * _cam_zoom) + Vector3.UP * (4.0 * _cam_zoom)
 			target = rp + fwd * 2.0 + Vector3.UP * 0.6
 	# keep the eye above the terrain (+clearance) so chase/POV/orbit don't clip into >16deg slopes (council #11)
 	if clamp_eye:
@@ -1137,16 +1138,16 @@ func _build_far_context() -> void:
 	var ext: Vector2 = sf.extent_m()
 	var pm := PlaneMesh.new()
 	pm.size = ext
-	pm.subdivide_width = 128
-	pm.subdivide_depth = 128
+	pm.subdivide_width = 256   # was 128 (~78 m/vertex over a 10 km tile) -> ~39 m/vertex distance detail
+	pm.subdivide_depth = 256   # (512 looked great but ~9 fps; 256 keeps interactive fps + real relief)
 	_far_context = MeshInstance3D.new()
 	_far_context.name = "FarContext"
 	_far_context.mesh = pm
 	_far_context.position = Vector3(sf.world_min.x + ext.x * 0.5, 0.0, sf.world_min.y + ext.y * 0.5)
 	var sm := ShaderMaterial.new()
 	sm.shader = load("res://terrain_farfield.gdshader")
-	sm.set_shader_parameter("height_lowres", sf.tex_height_lowres(4))
-	var lw := int(ceil(float(sf.width) / 4.0))
+	sm.set_shader_parameter("height_lowres", sf.tex_height_lowres(2))   # was /4 -> 2x finer far height
+	var lw := int(ceil(float(sf.width) / 2.0))
 	sm.set_shader_parameter("lod_step_m", ext.x / float(maxi(lw, 1)))
 	sm.set_shader_parameter("state_tex", sf.tex_state())
 	sm.set_shader_parameter("disturbance_tex", sf.tex_disturbance())
@@ -1547,7 +1548,9 @@ func _apply_stream_input(msg: Dictionary) -> void:
 	if msg.has("orbit_dpitch"):
 		_orbit_pitch = clampf(_orbit_pitch + deg_to_rad(float(msg["orbit_dpitch"])), 0.12, 1.45)
 	if msg.has("orbit_dzoom"):
-		_orbit_radius = clampf(_orbit_radius + float(msg["orbit_dzoom"]), 3.0, 40.0)
+		var dz := float(msg["orbit_dzoom"])
+		_orbit_radius = clampf(_orbit_radius + dz, 3.0, 40.0)       # orbit / top-down zoom
+		_cam_zoom = clampf(_cam_zoom + dz * 0.06, 0.3, 3.0)         # chase / POV zoom (all modes now)
 	_update_stream_cam()
 
 
