@@ -47,9 +47,39 @@ def test_apply_dig_debits_grounded_dig_energy(tmp_path):
         dirty = rt._apply_dig()                           # conserved dig at the seated pose
         assert dirty, "dig produced no dirty region"
         assert rt.ws.cut_total_kg > 0.0
-        # HUD energy decreased by the grounded J/kg (Schuler et al 2024, ~4151 J/kg)
-        assert rt._dig_energy_j == pytest.approx(rt.ws.cut_total_kg * dig_energy_per_kg(), rel=1e-12)
+        # council #1: the debit is now the FEE-modulated per-kg cost of THIS pass, not a flat constant.
+        # WIRING: the accumulated energy == mass cut * the last pass's grounded J/kg.
+        assert rt._dig_energy_j == pytest.approx(rt._last_dig_moved_kg * rt._last_dig_j_per_kg, rel=1e-9)
+        assert rt._last_dig_j_per_kg > 0.0
+        # the flat electrical figure remains the ANCHOR; the modulated per-kg is a physical fraction of it
+        # (this real SfS bundle is looser + shallower than the BP-1 representative dig, so cost < anchor).
+        assert 0.0 < rt._last_dig_j_per_kg < dig_energy_per_kg()
         assert rt._dig_energy_per_kg == pytest.approx(dig_energy_per_kg(), rel=1e-12)
+    finally:
+        rt.stop()
+
+
+# -- E1b: the dig cost is FEE-grounded (depth^2 / density dependent), not a flat constant ------
+
+def test_dig_specific_energy_rises_with_bite_depth_and_density(tmp_path):
+    """council #1: excavation.earthmoving_report (McKyes/Reece FEE) is wired into the live dig so the
+    per-kg cost RISES with cut-bite depth and in-situ density -- the terramechanics the old flat 4151 J/kg
+    erased. Unit-tests the helper directly so the monotonicity does not depend on the real terrain relief."""
+    rt = _runtime(tmp_path)
+    try:
+        f = rt.ws._require_fine()
+        H, W = rt.window_shape()
+        r0, r1, c0, c1 = 20, 36, 20, 36                       # a fixed 16x16-cell footprint
+        area = float((r1 - r0) * (c1 - c0)) * (rt.ws.fine_cell_m ** 2)
+        rho = float(np.mean(np.asarray(f.density[r0:r1, c0:c1], dtype=float)))
+        # deeper bite = more mass removed over the same footprint -> strictly higher J/kg (FEE depth term)
+        shallow = 0.25 * rt._max_cut_per_pass_m * rho * area
+        deep = 1.00 * rt._max_cut_per_pass_m * rho * area
+        e_shallow = rt._dig_specific_energy(r0, r1, c0, c1, shallow, f)
+        e_deep = rt._dig_specific_energy(r0, r1, c0, c1, deep, f)
+        assert e_deep > e_shallow > 0.0, (e_shallow, e_deep)
+        # a zero-bite pass falls back to the flat grounded anchor (no negative / NaN cost)
+        assert rt._dig_specific_energy(r0, r1, c0, c1, 0.0, f) == pytest.approx(dig_energy_per_kg())
     finally:
         rt.stop()
 
@@ -74,8 +104,10 @@ def test_diff_field_is_streamed_and_matches_the_authority(tmp_path):
         authority = rt.ws.diff_field()
         # the streamed drape equals the authority's signed diff (rf32 precision)
         assert np.allclose(dst["diff"], authority, atol=1e-3)
-        # the cut region reads negative; the MAX CUT DEPTH in the drape == the authority min at that cell
-        assert float(dst["diff"].min()) < -0.05
+        # the cut region reads negative; the MAX CUT DEPTH in the drape == the authority min at that cell.
+        # The cut is at least the shallow-pass dig depth (~dig_depth_m below the box min, deeper over relief);
+        # the pre-shallow-pass -0.05 threshold is stale since dig_depth_m dropped to 0.02 (commit cc8e4461).
+        assert float(dst["diff"].min()) < -0.9 * rt.dig_depth_m
         assert float(dst["diff"].min()) == pytest.approx(float(authority.min()), abs=1e-3)
     finally:
         rt.stop()

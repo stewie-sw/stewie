@@ -59,7 +59,10 @@ from stewie.bridge.stream import PROTOCOL_VERSION, StreamSession
 from stewie.contracts import RegolithVolumeEstimate
 from stewie.contracts.physics_model_control import LIVE_DEFAULT_MODEL_ID, resolve_live_backend
 from stewie.physics.worksite import WorkSite
-from stewie.specs.ipex_specs import dig_energy_per_kg
+from stewie.specs.ipex_specs import (
+    DRUM_DIMENSIONS_M, LUNAR_G_MS2, dig_energy_per_kg, max_cut_per_pass_m)
+from stewie.physics.excavation import earthmoving_report, representative_dig
+from stewie.physics.material import cell_strength
 from stewie.twin.io_fields import atomic_write_bytes
 
 # Reused DISCIPLINE (not the class): the RuntimeProcess bounded request-line ceiling (M-03). A real
@@ -105,6 +108,7 @@ class Viz2Runtime:
                  ack_deadline_s: float = 2.0, window: int = 64,
                  keyframe_interval: int = 90, retain_generations: int = 256,
                  dig_depth_m: float = 0.02, dig_half_cells: int = 6,
+                 drum: str = "large",
                  host: str = "127.0.0.1"):
         # --- backend governance FIRST (R-M3): resolve mutation authority ONLY through the strict LIVE
         # resolver; a refused model raises PhysicsModelRefused before any world/socket is built. The
@@ -156,6 +160,11 @@ class Viz2Runtime:
         # displaces the trench — the visible carved rut the NB-2 render-geometry contract proves.
         self.dig_depth_m = float(dig_depth_m)
         self.dig_half_cells = int(dig_half_cells)
+        # Selected bucket drum (flight-representative "large" by default): its REAL width feeds the FEE
+        # excavation-force model (tool width w) and its scoop height sets the <=50% anti-bridging cut cap.
+        self.drum = str(drum) if str(drum) in DRUM_DIMENSIONS_M else "large"
+        self._drum_width_m = float(DRUM_DIMENSIONS_M[self.drum]["width"])
+        self._max_cut_per_pass_m = float(max_cut_per_pass_m(self.drum))
         self.host = str(host)
 
         # --- session directory + generation store ---
@@ -203,8 +212,16 @@ class Viz2Runtime:
         # streamed on telemetry so the HUD energy budget decreases by the real J/kg. Dump is passive
         # (spoil is dropped) — no grounded dump-energy constant exists, so it debits nothing (honest).
         self._dig_energy_per_kg = float(dig_energy_per_kg())
+        # FEE grounding (council #1): the flat electrical J/kg above is now the ANCHOR for a depth/density-
+        # dependent cost. `_fee_ref_j_per_kg` is the McKyes/Reece MECHANICAL specific energy for the
+        # representative IPEx dig of THIS drum (real width + <=50%-scoop depth + BP-1 in-situ soil). Per-pass
+        # energy = electrical_anchor * FEE(this pass) / FEE(representative) — i.e. the FEE mechanical work
+        # scaled by a CONSTANT excavation efficiency (ASSUMPTION) pinned so the representative dig == the
+        # grounded ~4151 J/kg, but a deeper/denser cut costs proportionally more (see `_dig_specific_energy`).
+        self._fee_ref_j_per_kg = float(representative_dig(drum=self.drum)["specific_energy_j_per_kg"])
         self._dig_energy_j = 0.0
         self._last_dig_moved_kg = 0.0
+        self._last_dig_j_per_kg = float(self._dig_energy_per_kg)
 
         # --- generation / union-coverage bookkeeping (actor-thread owned) ---
         self._generation = 0
@@ -467,7 +484,8 @@ class Viz2Runtime:
         telem["placed_total_kg"] = float(self.ws.placed_total_kg)
         telem["inventory_kg"] = float(self.ws.inventory_kg)
         telem["dig_energy_j"] = float(self._dig_energy_j)
-        telem["dig_energy_per_kg"] = float(self._dig_energy_per_kg)
+        telem["dig_energy_per_kg"] = float(self._dig_energy_per_kg)     # grounded electrical anchor
+        telem["dig_j_per_kg"] = float(self._last_dig_j_per_kg)          # FEE-modulated cost of the last pass
         payload = {
             "type": "telemetry", "generation": gen, "keyframe": keyframe,
             "telem": telem, "dirty": [list(b) for b in dirty],
@@ -611,9 +629,48 @@ class Viz2Runtime:
         target = float(f.derive_height()[r0:r1, c0:c1].min()) - self.dig_depth_m
         moved = self.ws.flatten(mask, target)                # cells above target -> cut (conserved)
         self._last_dig_moved_kg = float(moved)
-        self._dig_energy_j += float(moved) * self._dig_energy_per_kg   # E1: grounded 4151 J/kg debit
+        # FEE-grounded per-kg dig cost for THIS pass (depth^2/density-dependent), not the old flat constant.
+        j_per_kg = self._dig_specific_energy(r0, r1, c0, c1, float(moved), f)
+        self._last_dig_j_per_kg = float(j_per_kg)
+        self._dig_energy_j += float(moved) * j_per_kg                  # E1: FEE-modulated dig energy debit
         self._dig_count += 1
         return [[r0, c0, r1, c1]]
+
+    def _dig_specific_energy(self, r0: int, r1: int, c0: int, c1: int,
+                             moved_kg: float, f) -> float:
+        """FEE-grounded specific dig energy [J/kg] for ONE excavation pass (council #1).
+
+        The McKyes/Reece FEE (``excavation.earthmoving_report``) gives the MECHANICAL cutting work per kg
+        at the real per-pass BITE depth, the selected drum's tool width, and the LOCAL in-situ regolith
+        density + strength -- so it rises with cut depth^2 and density, the terramechanics the old flat
+        4151 J/kg constant erased. It is scaled by a constant excavation efficiency (ASSUMPTION) that pins
+        the representative IPEx dig to the grounded electrical figure, so the returned electrical J/kg is
+        ``anchor * FEE(this pass) / FEE(representative)``. Falls back to the flat grounded figure when the
+        pass has no bite (moved==0), the footprint is degenerate, or the FEE wedge is degenerate."""
+        if moved_kg <= 0.0 or self._fee_ref_j_per_kg <= 0.0:
+            return self._dig_energy_per_kg
+        cell = float(self.ws.fine_cell_m)
+        area_m2 = float((r1 - r0) * (c1 - c0)) * cell * cell
+        if area_m2 <= 0.0:
+            return self._dig_energy_per_kg
+        # LOCAL in-situ bulk density of the cut cells (real per-cell density field, not a constant).
+        rho = float(np.mean(np.asarray(f.density[r0:r1, c0:c1], dtype=float)))
+        if rho <= 0.0:
+            return self._dig_energy_per_kg
+        # Characteristic per-pass BITE depth = mean height removed = moved / (rho * area); capped at the
+        # <=50%-scoop anti-bridging limit so the FEE depth stays in the physical single-pass regime.
+        d_eff = min(moved_kg / (rho * area_m2), self._max_cut_per_pass_m)
+        if d_eff <= 0.0:
+            return self._dig_energy_per_kg
+        phi_rad, cohesion_pa = cell_strength(rho)
+        try:
+            fee = float(earthmoving_report(
+                depth_m=d_eff, width_m=self._drum_width_m, cohesion_pa=cohesion_pa,
+                bulk_density_kg_m3=rho, gravity_ms2=LUNAR_G_MS2, phi_rad=phi_rad,
+            )["specific_energy_j_per_kg"])
+        except ValueError:
+            return self._dig_energy_per_kg
+        return float(self._dig_energy_per_kg) * (fee / self._fee_ref_j_per_kg)
 
     def _apply_dump(self) -> list[list[int]]:
         """Conserved deposit at the current pose (actor thread only): dump the whole drum ledger as
