@@ -306,6 +306,15 @@ class StreamSession:
                 await ws.send_text(json.dumps({"type": "saved", "name": name,
                                                "commands": len(self._bag) - 1}))
                 continue
+            # council #14 route SOURCE: compute a REAL slope-gated survey route (lode.route_leg over the
+            # region's DEM) and PUSH it to Godot as a {plan:{route}} frame -> the live route ribbon.
+            if isinstance(obj, dict) and obj.get("plan_request"):
+                route = self._planner_route()
+                if route:
+                    self._writer.write(pack_frame(json.dumps({"plan": {"route": route}}).encode()))
+                    await self._writer.drain()
+                await ws.send_text(json.dumps({"type": "planned", "points": len(route or [])}))
+                continue
             cmd = protocol.normalize_input(raw)
             if not cmd:
                 continue
@@ -324,6 +333,45 @@ class StreamSession:
         with open(BAGS_DIR / (safe + ".json"), "w") as fh:
             json.dump(payload, fh)
         return safe
+
+    def _planner_route(self, max_legs: int = 3) -> list | None:
+        """council #14: a REAL slope-gated SURVEY route over the region's DEM (spawn -> survey goals) via
+        lode.route_leg (A* on the slope costmap, max 25 deg). Returns the terrain-following polyline as
+        world [[x, z], ...] in the Godot frame (== DEM world frame), or None if unavailable. Real-mode only."""
+        if self.cfg.get("mode") != "real":
+            return None
+        try:
+            import numpy as np
+            from stewie.physics.worksite import coarse_base_from_bundle
+            from lode.planner_routing import route_leg
+            tok = json.loads(Path(self.session_dir, "viz2_session.json").read_text().splitlines()[0])
+            sx, sy = float(tok["start_xy"][0]), float(tok["start_xy"][1])
+            base, meta = coarse_base_from_bundle(self._resolve_bundle())
+            Z = np.asarray(base.derive_height(), dtype=float)
+            cell = float(meta["grid"]["cell_m"])
+            wb = meta["world_bounds_m"]
+            x0, y0 = float(wb["x0"]), float(wb["y0"])
+            H, W = Z.shape
+            slx, sly = sx - x0, sy - y0                      # spawn in the DEM-local frame
+            def _clamp(v: float, hi: float) -> float:
+                return min(max(v, 30.0), hi - 30.0)
+            # a small survey pattern of goal offsets [m] from spawn, clamped to the DEM interior
+            legs = [(slx, sly)]
+            for dx, dz in ((60.0, 0.0), (60.0, 60.0), (0.0, 60.0)):
+                legs.append((_clamp(slx + dx, W * cell), _clamp(sly + dz, H * cell)))
+            world: list = []
+            for i in range(min(max_legs, len(legs) - 1)):
+                _rm, _sm, reached, wps = route_leg((Z, cell), (0.0, 0.0), legs[i], legs[i + 1],
+                                                   max_slope_deg=25.0)
+                if not reached or not wps:
+                    continue
+                for j in range(0, len(wps), 8):             # downsample the dense polyline
+                    world.append([float(wps[j][0]) + x0, float(wps[j][1]) + y0])
+                world.append([float(wps[-1][0]) + x0, float(wps[-1][1]) + y0])
+            return world if len(world) >= 2 else None
+        except Exception as exc:                            # never crash the input pump on a plan miss
+            print(f"viz2: planner route failed: {exc}", flush=True)
+            return None
 
     async def pump_playback(self, events: list[dict]) -> None:
         """Replay a saved bag's control frames to Godot at their recorded relative timestamps — the
