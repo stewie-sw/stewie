@@ -237,10 +237,15 @@ func set_diff_mode(enabled: bool) -> void:
 
 func diff_mode() -> bool: return _diff_mode
 
-# Analysis overlay on the fine window (mirror of the far-context): 0 = off, 1 = slope heatmap.
+# Analysis overlay on the fine window (mirror of the far-context): 0 = off, 1 = slope heatmap, 2 = topo.
 func set_analysis_mode(mode: int) -> void:
 	if _mat != null:
 		_mat.set_shader_parameter("analysis_mode", mode)
+
+# The live window's ShaderMaterial, so viz2_root can set the MONOLITH topo uniforms on it too (C1b:
+# the topo overlay is continuous across the fine window + the far context). Null before _build.
+func topo_material() -> ShaderMaterial:
+	return _mat
 
 # Diagnostic: global AABB of the displaced window mesh + the live height/diff texture ranges.
 func debug_stats() -> String:

@@ -49,7 +49,35 @@ uniform float hapke_gain = 1.4;
 
 varying vec2 fuv;   // UV (0..1 across the window) carried to the fragment stage
 varying float v_slope;                    // world-normal slope angle [rad], for the analysis overlay
-uniform int analysis_mode = 0;            // 0 = normal shading, 1 = slope heatmap (path analysis)
+uniform int analysis_mode = 0;            // 0 = normal shading, 1 = slope heatmap, 2 = MONOLITH topo
+varying vec2 v_world_xz;                   // fragment world XZ (topo grid + scan)
+varying float v_height;                    // world elevation (m) — hypsometric ramp + contours
+varying vec2 v_scan_rel;                   // pos relative to the scan centre (precision-safe at 1e5 world XZ)
+
+// TOPO overlay (analysis_mode == 2): MONOLITH shaded-relief map — MIRROR of terrain_farfield.gdshader so
+// the fine window and the far context render one continuous topo. Driven by the SAME uniforms (set on both
+// materials in viz2_root). See stewie/design/STEWIE_viz2_planning_render_monolith_ATG.md.
+uniform vec2  topo_height_range = vec2(0.0, 20.0);
+uniform float topo_height_pivot = 0.5;
+uniform float topo_height_contrast = 1.0;
+uniform vec3  topo_grad_low  : source_color = vec3(0.10, 0.18, 0.26);
+uniform vec3  topo_grad_mid1 : source_color = vec3(0.16, 0.40, 0.40);
+uniform vec3  topo_grad_mid2 : source_color = vec3(0.58, 0.54, 0.34);
+uniform vec3  topo_grad_high : source_color = vec3(0.86, 0.83, 0.75);
+uniform float topo_slope_tint = 0.35;
+uniform float topo_contour_interval = 1.0;
+uniform vec3  topo_contour_color : source_color = vec3(0.05, 0.04, 0.03);
+uniform float topo_contour_opacity = 0.55;
+uniform float topo_grid_step = 10.0;
+uniform vec3  topo_grid_color : source_color = vec3(0.14, 0.13, 0.12);
+uniform float topo_grid_opacity = 0.5;
+uniform vec2  topo_scan_center = vec2(0.0);
+uniform float topo_scan_span = 120.0;
+uniform float topo_scan_t = -1.0;
+uniform float topo_scan_width = 3.0;
+uniform float topo_scan_blur = 1.5;
+uniform vec3  topo_scan_color : source_color = vec3(1.0, 0.55, 0.12);
+uniform float topo_ambient = 0.4;
 
 // --- simplex noise (Ashima Arts / Stefan Gustavson "webgl-noise", MIT; mirror of terrain_farfield) ---
 vec2 _sx_mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -109,6 +137,10 @@ void vertex() {
 	float hU = texture(height_tex, UV + vec2(0.0, ts.y)).r;
 	NORMAL = normalize(vec3(hL - hR, 2.0 * lod_step_m, hD - hU));
 	v_slope = acos(clamp(NORMAL.y, -1.0, 1.0));   // 0 = flat, larger = steeper (for the slope overlay)
+	vec4 wpos = MODEL_MATRIX * vec4(VERTEX, 1.0);
+	v_world_xz = wpos.xz;
+	v_height = wpos.y;
+	v_scan_rel = wpos.xz - topo_scan_center;   // huge-coord-safe scan distance (mirror of far-field)
 }
 
 void fragment() {
@@ -151,6 +183,31 @@ void fragment() {
 		vec3 heat = mix(vec3(0.15, 0.7, 0.2), vec3(0.9, 0.8, 0.12), clamp(s * 2.0, 0.0, 1.0));
 		heat = mix(heat, vec3(0.95, 0.15, 0.1), clamp(s * 2.0 - 1.0, 0.0, 1.0));
 		col = mix(col, heat, 0.6);
+	} else if (analysis_mode == 2) {       // MONOLITH shaded-relief topo (mirror of terrain_farfield.gdshader)
+		float hN = clamp((v_height - topo_height_range.x) / max(topo_height_range.y - topo_height_range.x, 1e-4), 0.0, 1.0);
+		float rt = clamp(0.5 + (hN - topo_height_pivot) * topo_height_contrast, 0.0, 1.0);
+		vec3 ramp = (rt < 0.5) ? mix(topo_grad_low, topo_grad_mid1, rt * 2.0)
+		                       : mix(topo_grad_mid2, topo_grad_high, (rt - 0.5) * 2.0);
+		ramp = mix(ramp, vec3(0.42, 0.31, 0.21), clamp(v_slope / 0.61, 0.0, 1.0) * topo_slope_tint);
+		float ch = v_height / max(topo_contour_interval, 1e-3);
+		float minorL = 1.0 - smoothstep(0.0, fwidth(ch) * 1.4, abs(fract(ch + 0.5) - 0.5));
+		float ch5 = ch / 5.0;
+		float majorL = 1.0 - smoothstep(0.0, fwidth(ch5) * 1.4, abs(fract(ch5 + 0.5) - 0.5));
+		ramp = mix(ramp, topo_contour_color, max(minorL * 0.55, majorL) * topo_contour_opacity);
+		vec2 gg = v_world_xz / max(topo_grid_step, 1e-3);
+		vec2 dg = fwidth(gg);
+		vec2 dGrid = abs(fract(gg + 0.5) - 0.5);
+		float grid = max(1.0 - smoothstep(0.0, dg.x * 1.4, dGrid.x), 1.0 - smoothstep(0.0, dg.y * 1.4, dGrid.y));
+		col = mix(ramp, topo_grid_color, grid * topo_grid_opacity);
+		EMISSION = col * topo_ambient;
+		if (topo_scan_t >= 0.0) {
+			float d = length(v_scan_rel);
+			float R = topo_scan_t * topo_scan_span;
+			float band = smoothstep(topo_scan_width, 0.0, abs(d - R));
+			float fade = 1.0 - smoothstep(0.6, 1.0, topo_scan_t);
+			col = mix(col, topo_scan_color, band * fade * 0.85);
+			EMISSION += topo_scan_color * band * fade * 1.8;
+		}
 	}
 	ALBEDO = col;
 	ROUGHNESS = rough;

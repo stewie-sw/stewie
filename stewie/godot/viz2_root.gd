@@ -1353,7 +1353,12 @@ func _update_farfield_window_uniforms() -> void:
 	# topo overlay (analysis_mode 2) is live. fmod on ticks_msec avoids threading dt through the stream loop.
 	if _topo_active:
 		var period_s := 4.0
-		sm.set_shader_parameter("topo_scan_t", fmod(float(Time.get_ticks_msec()) / 1000.0, period_s) / period_s)
+		var st := fmod(float(Time.get_ticks_msec()) / 1000.0, period_s) / period_s
+		sm.set_shader_parameter("topo_scan_t", st)
+		if _window != null:
+			var wm: ShaderMaterial = _window.topo_material()   # C1b: sweep the fine window in lockstep with the far field
+			if wm != null:
+				wm.set_shader_parameter("topo_scan_t", st)
 
 
 # Headless live capture: connect -> drive forward (carving a TREAD/disturbance rut) -> DIG (carving a
@@ -1629,6 +1634,10 @@ func _apply_stream_input(msg: Dictionary) -> void:
 				_apply_topo_uniforms(fm)
 		if _window != null:
 			_window.set_analysis_mode(mode)
+			if mode == 2:
+				var wm: ShaderMaterial = _window.topo_material()   # C1b: topo continuous across the fine window
+				if wm != null:
+					_apply_topo_uniforms(wm)
 	if _sun != null and msg.has("sun_az"):
 		_sun.rotation_degrees.y = float(msg["sun_az"])
 	if _sun != null and msg.has("sun_el"):
