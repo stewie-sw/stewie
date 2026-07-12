@@ -589,24 +589,42 @@ class WorkSite:
         clasts whose footprint intersects the window (+ one footprint's slack) are kept, so the per-
         wheel ride-over scan in conform_pose stays O(nearby clasts), not O(whole field). Returns None
         when there is no rock field (drive_step(clasts=None) == the pre-D4 byte-identical seam)."""
-        if not self.clasts or self.window_world_origin is None:
+        clasts = self.clasts
+        if not clasts or self.window_world_origin is None:
             return None
+        # Numpy cache built ONCE per clast list (identity-checked): the per-tick window test is then a
+        # vectorized mask instead of a pure-Python scan over the whole (capped-1500) field every 15 Hz
+        # tick -- and dicts are built only for the few survivors near the rover. (council #14)
+        if getattr(self, "_clast_cache_src", None) is not clasts:
+            n = len(clasts)
+            cx = np.zeros(n); cy = np.zeros(n); cz = np.zeros(n); rad = np.zeros(n)
+            keep = np.ones(n, dtype=bool)
+            for i, c in enumerate(clasts):
+                ctr = c.get("center_m")
+                if ctr is None:
+                    keep[i] = False
+                    continue
+                cx[i] = float(ctr[0]); cy[i] = float(ctr[1]); cz[i] = float(ctr[2])
+                rad[i] = float(c.get("radius_m", 0.0))
+            self._clast_cache_src = clasts
+            self._clast_cx, self._clast_cy, self._clast_cz = cx, cy, cz
+            self._clast_rad, self._clast_keep = rad, keep
         ox, oy = self.window_world_origin
         fine = self._require_fine()
         span_x = fine.width * self.fine_cell_m
         span_y = fine.height * self.fine_cell_m
         slack = self._footprint_radius_m(0.18)               # one footprint of edge tolerance
-        out: list[dict] = []
-        for c in self.clasts:
-            ctr = c.get("center_m")
-            if ctr is None:
-                continue
-            lx = float(ctr[0]) - ox
-            lz = float(ctr[2]) - oy
-            r = float(c.get("radius_m", 0.0)) + slack
-            if lx < -r or lx > span_x + r or lz < -r or lz > span_y + r:
-                continue                                     # clast footprint is outside this window
-            out.append({**c, "center_m": [lx, float(ctr[1]), lz]})
+        lx = self._clast_cx - ox
+        lz = self._clast_cz - oy
+        r = self._clast_rad + slack
+        inwin = self._clast_keep & (lx >= -r) & (lx <= span_x + r) & (lz >= -r) & (lz <= span_y + r)
+        idx = np.nonzero(inwin)[0]
+        if idx.size == 0:
+            return None
+        out: list[dict] = [
+            {**clasts[i], "center_m": [float(lx[i]), float(self._clast_cy[i]), float(lz[i])]}
+            for i in idx
+        ]
         return out or None
 
     def _footprint_radius_m(self, wheel_width_m: float) -> float:

@@ -39,11 +39,24 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 GODOT_PROJECT = Path(os.environ.get("STEWIE_GODOT_PROJECT", REPO_ROOT / "stewie" / "godot"))
 SAMPLES_DIR = REPO_ROOT / "samples" / "lunar_dem"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+#: saved command bags (ROS-bag-style record/replay of the full control surface).
+BAGS_DIR = REPO_ROOT / "out" / "viz2_bags"
+
+
+def _safe_bag_name(name: str) -> str:
+    safe = "".join(ch for ch in str(name) if ch.isalnum() or ch in "-_")[:64]
+    return safe or "session"
+
+
+def _load_bag(name: str) -> dict:
+    with open(BAGS_DIR / (_safe_bag_name(name) + ".json")) as fh:
+        return json.load(fh)
 
 #: python used for the Viz2Runtime subprocess (same interpreter that serves this app by default).
 STREAM_PY = os.environ.get("STEWIE_STREAM_PY", sys.executable)
-#: runtime hold window; the session stops it explicitly on disconnect, this is the hard ceiling.
-RUNTIME_SECONDS = float(os.environ.get("STEWIE_STREAM_RUNTIME_SECONDS", "600"))
+#: runtime hold window; the session stops it explicitly on disconnect, this is the hard ceiling. Must
+#: EXCEED Godot's _stream_max_seconds (900) so the physics never dies mid-stream (was 600 -> 5-min freeze).
+RUNTIME_SECONDS = float(os.environ.get("STEWIE_STREAM_RUNTIME_SECONDS", "960"))
 STREAM_SIZE = os.environ.get("STEWIE_STREAM_SIZE", "960x540")
 STREAM_FPS = os.environ.get("STEWIE_STREAM_FPS", "24")
 STREAM_QUALITY = os.environ.get("STEWIE_STREAM_QUALITY", "0.72")
@@ -86,6 +99,14 @@ class StreamSession:
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._godot_connected = asyncio.Event()
+        # command bag (ROS-bag-style): config + every control frame with a relative timestamp, for
+        # save + deterministic playback (the record->replay / RL seam).
+        self._bag: list[dict] = [{"t": 0.0, "config": dict(cfg)}]
+        self._bag_t0: float | None = None
+        # frame egress: a single-slot LATEST buffer + event, so a slow browser drops stale frames rather
+        # than backpressuring the seam TCP into Godot's render/ack loop (the terminal-deadman chain).
+        self._latest_frame: bytes | None = None
+        self._frame_evt = asyncio.Event()
 
     # -- bundle resolution --------------------------------------------------------------------
     def _resolve_bundle(self) -> str:
@@ -104,6 +125,44 @@ class StreamSession:
         bundle_dir = str(REPO_ROOT / "out" / "procedural_sandbox" / name)
         self._proc_bundle_dir = bundle_dir
         return bundle_dir
+
+    # -- rock field ---------------------------------------------------------------------------
+    def _generate_rockfield(self, bundle: str) -> str | None:
+        """Spatial-k Golombek rock field over the REAL DEM window around the resolved spawn, written as
+        a scene-frame clast JSON for ``viz2_root.gd --clasts``. Real data only (boulders drawn from the
+        sourced size-frequency law over the real heightfield's morphology). Best-effort: any failure ->
+        no rocks and the drive still works."""
+        # the runtime now seeds the rock field, SETS it on its WorkSite (physics ride-over/block), and
+        # writes clasts.json into the session dir -- prefer that ONE source so a rock seen == a rock felt.
+        _rt = os.path.join(self.session_dir, "clasts.json")
+        if os.path.isfile(_rt):
+            return _rt
+        if self.cfg.get("mode") != "real":
+            return None
+        try:
+            import importlib.util
+            tok = json.loads(Path(self.session_dir, "viz2_session.json").read_text().splitlines()[0])
+            sx, sy = tok["start_xy"]
+            x0, y0, cell = tok["world_x0"], tok["world_y0"], tok["base_cell_m"]
+            bw, bh = int(tok["base_w"]), int(tok["base_h"])
+            n = max(8, min(int(round(140.0 / cell)), bw, bh))       # ~140 m field around the spawn
+            c0 = int(min(max(0, round((sx - x0) / cell - n / 2)), bw - n))
+            r0 = int(min(max(0, round((sy - y0) / cell - n / 2)), bh - n))
+            spec = importlib.util.spec_from_file_location(
+                "viz2_rockfield_clasts", str(REPO_ROOT / "scripts" / "viz2_rockfield_clasts.py"))
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            result = mod.build_clasts(bundle, r0, c0, n, d_min_m=0.15, d_max_m=0.8, world_seed=0)
+            out = os.path.join(self.session_dir, "clasts.json")
+            with open(out, "w") as fh:
+                json.dump(result, fh)
+            n_clasts = len(result.get("clasts", []))
+            print("viz2-stream: rock field seeded — %d clasts over [%d:%d,%d:%d]"
+                  % (n_clasts, r0, r0 + n, c0, c0 + n), flush=True)
+            return out if n_clasts > 0 else None
+        except Exception as exc:
+            print("viz2-stream: rock field skipped (%s: %s)" % (type(exc).__name__, exc), flush=True)
+            return None
 
     # -- frame seam ---------------------------------------------------------------------------
     async def _on_godot(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
@@ -130,6 +189,10 @@ class StreamSession:
             env=_subproc_env(), start_new_session=True)
         await self._await_token(timeout=20.0)
 
+        # 2b) seed the DISPLAY rock field (spatial-k Golombek over the REAL DEM) around the resolved
+        #     spawn the runtime just wrote, so the drive view shows real-statistics boulders.
+        clasts_path = self._generate_rockfield(bundle)
+
         # 3) Godot on the host GPU: drives THROUGH the runtime (--live) + streams frames (--stream)
         godot = _resolve_godot()
         args = [
@@ -141,6 +204,8 @@ class StreamSession:
             "--stream-fps", STREAM_FPS, "--stream-quality", STREAM_QUALITY,
             "--sun-az", str(self.cfg["sun_az"]), "--sun-el", str(self.cfg["sun_el"]),
         ]
+        if clasts_path:
+            args += ["--clasts", clasts_path]
         self._godot = await asyncio.create_subprocess_exec(
             *args, env=_subproc_env(), start_new_session=True)
 
@@ -166,24 +231,98 @@ class StreamSession:
         raise RuntimeError(f"viz2_serve never wrote the token file within {timeout}s")
 
     # -- relay --------------------------------------------------------------------------------
-    async def pump_frames(self, ws: WebSocket) -> None:
+    async def _read_seam(self) -> None:
+        """Drain frames from the Godot seam as fast as they arrive into a single-slot LATEST buffer, so a
+        slow browser never backpressures the seam TCP -> the Godot render/ack loop -> the terminal
+        deadman. Stale frames are simply overwritten (drop-latest). (council #5)"""
         assert self._reader is not None
         while True:
             try:
                 frame = await read_frame(self._reader)
             except (asyncio.IncompleteReadError, ConnectionResetError):
                 break  # Godot closed the seam
-            await ws.send_bytes(frame)
+            self._latest_frame = frame
+            self._frame_evt.set()
+
+    async def _send_ws(self, ws: WebSocket) -> None:
+        """Deliver the freshest frame to the browser. If the browser link is slow this task lags, but the
+        seam reader keeps draining, so only the LATEST frame is sent -- older ones are dropped."""
+        while True:
+            await self._frame_evt.wait()
+            self._frame_evt.clear()
+            frame = self._latest_frame
+            self._latest_frame = None
+            if frame is not None:
+                await ws.send_bytes(frame)
+
+    async def _watch_procs(self, ws: WebSocket) -> None:
+        """End the session (and tell the browser) if the runtime or Godot exits early -- otherwise a dead
+        runtime streams a frozen sim for minutes with no signal (RUNTIME_SECONDS gap). (council #6)"""
+        while True:
+            await asyncio.sleep(1.0)
+            rc_s = self._serve.returncode if self._serve is not None else None
+            rc_g = self._godot.returncode if self._godot is not None else None
+            if rc_s is not None or rc_g is not None:
+                who = "runtime" if rc_s is not None else "renderer"
+                try:
+                    await ws.send_text(json.dumps({"type": "error",
+                                                   "error": f"{who} exited (session ended)"}))
+                except Exception:
+                    pass
+                return
 
     async def pump_input(self, ws: WebSocket) -> None:
         assert self._writer is not None
+        if self._bag_t0 is None:
+            self._bag_t0 = time.monotonic()
         while True:
             raw = await ws.receive_text()
+            # server-side control verb: SAVE the recorded session bag (not forwarded to Godot)
+            obj: object = None
+            try:
+                obj = json.loads(raw)
+            except (ValueError, TypeError):
+                obj = None
+            if isinstance(obj, dict) and obj.get("save"):
+                name = self._save_bag(str(obj.get("save")))
+                await ws.send_text(json.dumps({"type": "saved", "name": name,
+                                               "commands": len(self._bag) - 1}))
+                continue
             cmd = protocol.normalize_input(raw)
             if not cmd:
                 continue
+            # record (timestamped) THEN forward — the bag replays byte-for-byte
+            self._bag.append({"t": max(0.0, time.monotonic() - self._bag_t0), "cmd": cmd})
             self._writer.write(pack_frame(json.dumps(cmd).encode()))
             await self._writer.drain()
+
+    def _save_bag(self, name: str) -> str:
+        """Persist the recorded command bag (config + timestamped control frames) to out/viz2_bags/."""
+        safe = _safe_bag_name(name)
+        BAGS_DIR.mkdir(parents=True, exist_ok=True)
+        dur = float(self._bag[-1]["t"]) if len(self._bag) > 1 else 0.0
+        payload = {"config": self._bag[0]["config"], "duration_s": dur,
+                   "n_commands": len(self._bag) - 1, "events": self._bag[1:]}
+        with open(BAGS_DIR / (safe + ".json"), "w") as fh:
+            json.dump(payload, fh)
+        return safe
+
+    async def pump_playback(self, events: list[dict]) -> None:
+        """Replay a saved bag's control frames to Godot at their recorded relative timestamps — the
+        deterministic record->replay seam. Frames keep streaming (pump_frames) so the browser watches
+        the replay; after the last command the session holds until the browser disconnects."""
+        assert self._writer is not None
+        t0 = time.monotonic()
+        for ev in events:
+            wait = float(ev.get("t", 0.0)) - (time.monotonic() - t0)
+            if wait > 0:
+                await asyncio.sleep(min(wait, 30.0))
+            cmd = ev.get("cmd")
+            if isinstance(cmd, dict) and cmd:
+                self._writer.write(pack_frame(json.dumps(cmd).encode()))
+                await self._writer.drain()
+        while True:                             # hold the replayed session open for viewing
+            await asyncio.sleep(3600)
 
     # -- teardown -----------------------------------------------------------------------------
     async def stop(self) -> None:
@@ -275,6 +414,23 @@ async def bundles() -> dict:
     return {"bundles": rows, "default": previews.DEFAULT_SITE}
 
 
+@app.get("/bags")
+async def bags_list() -> dict:
+    """Saved command bags (record/replay): name, duration, command count, and the recorded site/mode."""
+    rows = []
+    if BAGS_DIR.is_dir():
+        for p in sorted(BAGS_DIR.glob("*.json")):
+            try:
+                b = json.loads(p.read_text())
+                cfg = b.get("config") or {}
+                rows.append({"name": p.stem, "duration_s": round(float(b.get("duration_s", 0.0)), 1),
+                             "n_commands": int(b.get("n_commands", 0)),
+                             "site": cfg.get("site"), "mode": cfg.get("mode")})
+            except (ValueError, OSError):
+                continue
+    return {"bags": rows}
+
+
 @app.get("/preview/heightmap")
 async def preview_heightmap(site: str = Query(previews.DEFAULT_SITE)) -> dict:
     """A REAL, decimated heightmap (~128²) for the setup preview mesh + the site's REAL citation."""
@@ -309,11 +465,25 @@ async def ws_stream(ws: WebSocket) -> None:
     # 0) public-exposure guard: token + per-IP rate-limit (accepts the socket, or closes 4401/4429).
     if not await security.ws_guard_admit(ws):
         return
-    # 1) the first message is the session config
+    # 1) the first message is either the session config, or {play: <bag>} to REPLAY a saved bag
+    playback_events: list | None = None
     try:
         cfg_raw = await ws.receive_text()
-        cfg = protocol.parse_config(cfg_raw)
+        try:
+            first = json.loads(cfg_raw)
+        except (ValueError, TypeError):
+            first = None
+        if isinstance(first, dict) and first.get("play"):
+            bag = _load_bag(str(first["play"]))
+            cfg = protocol.parse_config(json.dumps(bag.get("config") or {}))
+            playback_events = list(bag.get("events") or [])
+        else:
+            cfg = protocol.parse_config(cfg_raw)
     except WebSocketDisconnect:
+        return
+    except FileNotFoundError:
+        await ws.send_text(json.dumps({"type": "error", "error": "bag not found"}))
+        await ws.close(code=1003)
         return
     except protocol.ConfigError as exc:
         await ws.send_text(json.dumps({"type": "error", "error": str(exc)}))
@@ -330,31 +500,49 @@ async def ws_stream(ws: WebSocket) -> None:
     try:
         session = StreamSession(cfg)
         try:
-            await session.start()
-        except Exception as exc:  # bundle / runtime / godot launch failure -> report + close
-            await ws.send_text(json.dumps({"type": "error",
-                                           "error": f"{type(exc).__name__}: {exc}"}))
-            await session.stop()
-            await ws.close(code=1011)
-            return
+            # Start; report failure BEST-EFFORT (the browser may already be gone) but ALWAYS fall
+            # through to the outer finally -> session.stop(), so a disconnect during the up-to-90s Godot
+            # connect wait can never leak the GPU process / tmpdir. (council #6)
+            try:
+                await session.start()
+            except Exception as exc:  # bundle / runtime / godot launch failure
+                try:
+                    await ws.send_text(json.dumps({"type": "error",
+                                                   "error": f"{type(exc).__name__}: {exc}"}))
+                    await ws.close(code=1011)
+                except Exception:
+                    pass
+                return
+            try:
+                await ws.send_text(json.dumps({"type": "ready", "mode": cfg["mode"],
+                                               "site": cfg.get("site"), "fine_cell_m": cfg["fine_cell_m"]}))
+                if playback_events is not None:
+                    await ws.send_text(json.dumps({"type": "playback",
+                                                   "commands": len(playback_events)}))
+            except Exception:
+                return
 
-        await ws.send_text(json.dumps({"type": "ready", "mode": cfg["mode"],
-                                       "site": cfg.get("site"), "fine_cell_m": cfg["fine_cell_m"]}))
-        frames = asyncio.create_task(session.pump_frames(ws))
-        inputs = asyncio.create_task(session.pump_input(ws))
-        try:
-            done, pending = await asyncio.wait({frames, inputs},
-                                               return_when=asyncio.FIRST_COMPLETED)
-            for t in pending:
-                t.cancel()
-            await asyncio.gather(*pending, return_exceptions=True)
-        except WebSocketDisconnect:
-            pass
+            # frame egress is decoupled: a fast drop-latest seam reader + a separate ws sender, so a slow
+            # browser can never backpressure the render/ack loop into the terminal deadman. A monitor task
+            # ends the session if the runtime/renderer dies early.
+            reader = asyncio.create_task(session._read_seam())
+            sender = asyncio.create_task(session._send_ws(ws))
+            monitor = asyncio.create_task(session._watch_procs(ws))
+            if playback_events is not None:
+                inputs = asyncio.create_task(session.pump_playback(playback_events))
+            else:
+                inputs = asyncio.create_task(session.pump_input(ws))
+            tasks = {reader, sender, monitor, inputs}
+            try:
+                await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            except WebSocketDisconnect:
+                pass
+            finally:
+                for t in tasks:
+                    t.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
         finally:
-            for t in (frames, inputs):
-                t.cancel()
-            await asyncio.gather(frames, inputs, return_exceptions=True)
-            await session.stop()
+            await session.stop()          # ALWAYS stop, even if start() returned early (no leak)
             try:
                 await ws.close()
             except Exception:

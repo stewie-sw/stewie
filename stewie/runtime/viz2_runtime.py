@@ -104,7 +104,7 @@ class Viz2Runtime:
                  rate_hz: float = 15.0, dt: float = 0.1,
                  ack_deadline_s: float = 2.0, window: int = 64,
                  keyframe_interval: int = 90, retain_generations: int = 256,
-                 dig_depth_m: float = 0.12, dig_half_cells: int = 8,
+                 dig_depth_m: float = 0.02, dig_half_cells: int = 6,
                  host: str = "127.0.0.1"):
         # --- backend governance FIRST (R-M3): resolve mutation authority ONLY through the strict LIVE
         # resolver; a refused model raises PhysicsModelRefused before any world/socket is built. The
@@ -118,11 +118,28 @@ class Viz2Runtime:
         self.ws = WorkSite.from_haworth_bundle(
             bundle_dir, fine_cell_m=fine_cell_m, tile_base_cells=tile_base_cells)
         if start_xy is None:
-            # deep-interior default: the base grid centre
-            start_xy = (self.ws.world_x0 + 0.5 * self.ws.base.width * self.ws.base_cell_m,
-                        self.ws.world_y0 + 0.5 * self.ws.base.height * self.ws.base_cell_m)
+            # Spawn on the FLATTEST interior spot of the REAL DEM -- NOT the blind geometric centre,
+            # which on a 10 km LOLA crater tile is often a >18 deg wall (median tile slope ~16 deg), so
+            # the conserved slip model entraps the rover at t=0 and no twist can move it. Neighborhood-
+            # mean slope over the real heightfield (no synthetic data); the 1 m SfS tile's centre was
+            # already flat so this does not regress it.
+            from scipy.ndimage import uniform_filter
+            _h = np.asarray(self.ws.base.derive_height(), dtype=float)
+            _gy, _gx = np.gradient(_h, self.ws.base_cell_m)
+            _sm = uniform_filter(np.hypot(_gx, _gy), size=9, mode="nearest")   # tan(slope), region-mean
+            _m = max(1, int(round(0.06 * min(_h.shape))))                      # keep the fine window interior
+            _big = float(_sm.max()) + 1.0
+            _sm[:_m, :] = _big; _sm[-_m:, :] = _big; _sm[:, :_m] = _big; _sm[:, -_m:] = _big
+            _r, _c = np.unravel_index(int(np.argmin(_sm)), _sm.shape)
+            start_xy = (self.ws.world_x0 + float(_c) * self.ws.base_cell_m,
+                        self.ws.world_y0 + float(_r) * self.ws.base_cell_m)
+            print("viz2_runtime: spawn on flattest interior spot rc=(%d,%d) slope=%.2fdeg (was blind centre)"
+                  % (_r, _c, np.degrees(np.arctan(float(_sm[_r, _c])))), flush=True)
         self.ws.recenter((float(start_xy[0]), float(start_xy[1])))
         self.ws.set_pose((float(start_xy[0]), float(start_xy[1])), yaw=float(start_yaw))
+        # expose the resolved spawn + base-grid geometry so the stream server can seed the rock field
+        # (and any world-frame overlay) around where the rover actually starts.
+        self.start_xy = (float(start_xy[0]), float(start_xy[1]))
 
         self.dt = float(dt)
         self.rate_hz = float(rate_hz)
@@ -147,6 +164,12 @@ class Viz2Runtime:
         self.generations_dir = os.path.join(self.session_dir, "generations")
         os.makedirs(self.generations_dir, exist_ok=True)
         self.token_path = os.path.join(self.session_dir, "viz2_session.json")
+
+        # --- rock field: seed the spatial-k Golombek boulders around the spawn ONCE, set them on the
+        #     WorkSite so the conserved drive PHYSICALLY rides over / is blocked by them (drive_step D4
+        #     clasts), and write the SAME list as clasts.json for the Godot display -- one source, so a
+        #     rock the rover SEES is the rock it FEELS.
+        self._seed_rockfield(str(bundle_dir))
 
         # --- authenticated loopback-TCP seam (bound now; token minted; 0600 file) ---
         self.token = secrets.token_hex(32)
@@ -207,7 +230,13 @@ class Viz2Runtime:
         """Write ``{port, token}`` to a 0600 file. Born 0600 under a restrictive umask (the
         process.py S-09 idiom applied to a file), plus a belt-and-suspenders chmod — so only the same
         OS user can read the token that authorizes the drive session."""
-        data = (json.dumps({"port": self.port, "token": self.token}) + "\n").encode()
+        data = (json.dumps({
+            "port": self.port, "token": self.token,
+            "start_xy": list(self.start_xy),
+            "world_x0": float(self.ws.world_x0), "world_y0": float(self.ws.world_y0),
+            "base_cell_m": float(self.ws.base_cell_m),
+            "base_w": int(self.ws.base.width), "base_h": int(self.ws.base.height),
+        }) + "\n").encode()
         prev = os.umask(0o177)
         try:
             with open(self.token_path, "wb") as fh:
@@ -516,6 +545,48 @@ class Viz2Runtime:
             if not self._safe_stopped:
                 self._latest_twist = (float(v), float(omega))
 
+    def _seed_rockfield(self, bundle_dir: str) -> None:
+        """Generate the spatial-k Golombek rock field around the spawn and SET it on the WorkSite so the
+        conserved drive rides over / is blocked by rocks (drive_step clasts D4), plus write the same list
+        to clasts.json for the Godot display. Best-effort: any failure -> no rocks (drive still works;
+        drive_step(clasts=None) is the byte-identical clast-free seam). To bound the per-tick ride-over
+        scan, only the largest boulders are handed to the physics; the display shows the full field."""
+        try:
+            import importlib.util
+            repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            spec = importlib.util.spec_from_file_location(
+                "viz2_rockfield_clasts", os.path.join(repo, "scripts", "viz2_rockfield_clasts.py"))
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            cell = self.ws.base_cell_m
+            bw, bh = self.ws.base.width, self.ws.base.height
+            n = max(8, min(int(round(140.0 / cell)), bw, bh))
+            c0 = int(min(max(0, round((self.start_xy[0] - self.ws.world_x0) / cell - n / 2)), bw - n))
+            r0 = int(min(max(0, round((self.start_xy[1] - self.ws.world_y0) / cell - n / 2)), bh - n))
+            result = mod.build_clasts(bundle_dir, r0, c0, n, d_min_m=0.15, d_max_m=0.8, world_seed=0)
+            clasts = result.get("clasts") or []
+            # ALL boulders go to the physics now (small ride-over with a bump, >wheel-radius block/pitch);
+            # the window-local filter is vectorized + O(nearby), so the full field is cheap per tick.
+            self.ws.clasts = clasts or None
+            with open(os.path.join(self.session_dir, "clasts.json"), "w") as fh:
+                json.dump(result, fh)                        # display: the SAME full field
+            print("viz2_runtime: rock field %d clasts -> physics(ride-over/block) + display"
+                  % len(clasts), flush=True)
+        except Exception as exc:
+            print("viz2_runtime: rockfield skipped (%s: %s)" % (type(exc).__name__, exc), flush=True)
+
+    def _drum_rc(self) -> tuple[int, int] | None:
+        """Fine-window (row,col) of the FRONT DRUM (~0.4 m ahead of the pose along the travel heading) --
+        the real dig/dump contact point (front-drum-down geometry), which also keeps the worked patch
+        out from under the rover body so the trench/berm reads. yaw: 0=+x, +pi/2=+y (worksite convention)."""
+        if self.ws.pose_xy is None:
+            return None
+        ahead = 0.40
+        dx = ahead * math.cos(self.ws.yaw)
+        dy = ahead * math.sin(self.ws.yaw)
+        rc = self.ws.active_rc_for_xy((self.ws.pose_xy[0] + dx, self.ws.pose_xy[1] + dy))
+        return int(round(rc[0])), int(round(rc[1]))
+
     def _apply_dig(self) -> list[list[int]]:
         """Conserved excavation at the current pose (actor thread only): flatten a footprint-sized
         box down to ``dig_depth_m`` below its lowest cell, so every masked cell is a pure CUT into the
@@ -525,9 +596,10 @@ class Viz2Runtime:
         if self.ws.pose_xy is None:
             return []
         H, W = self._window_shape
-        rc = self.ws.active_rc_for_xy(self.ws.pose_xy)
-        r = int(round(rc[0]))
-        c = int(round(rc[1]))
+        drc = self._drum_rc()
+        if drc is None:
+            return []
+        r, c = drc
         hc = self.dig_half_cells
         r0, r1 = max(0, r - hc), min(H, r + hc + 1)
         c0, c1 = max(0, c - hc), min(W, c + hc + 1)
@@ -551,9 +623,10 @@ class Viz2Runtime:
         if self.ws.pose_xy is None or self.ws.inventory_kg <= 0.0:
             return []
         H, W = self._window_shape
-        rc = self.ws.active_rc_for_xy(self.ws.pose_xy)
-        r = int(round(rc[0]))
-        c = int(round(rc[1]))
+        drc = self._drum_rc()
+        if drc is None:
+            return []
+        r, c = drc
         hc = self.dig_half_cells
         r0, r1 = max(0, r - hc), min(H, r + hc + 1)
         c0, c1 = max(0, c - hc), min(W, c + hc + 1)
@@ -564,8 +637,13 @@ class Viz2Runtime:
         placed = self.ws.dump(mask)                          # whole ledger -> bulked spoil (conserved)
         if placed <= 0.0:
             return []
+        # sandpile-relax the fresh spoil to the ~35 deg lunar angle of repose so a real BERM forms
+        # (mass-conserving within the window) instead of a flat-topped box; the repose cone spreads
+        # past the dump footprint, so widen the dirty bbox the render re-displaces.
+        self.ws.relax()
         self._dump_count += 1
-        return [[r0, c0, r1, c1]]
+        br = 2 * hc
+        return [[max(0, r0 - br), max(0, c0 - br), min(H, r1 + br), min(W, c1 + br)]]
 
     # -- generation-namespaced patch manifests (plan §2b.4) ------------------------------------
 

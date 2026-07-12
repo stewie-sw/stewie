@@ -37,10 +37,16 @@
     <span>drive: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows &nbsp;·&nbsp; hold to move</span>
     <button id="dig">dig</button>
     <button id="dump">dump</button>
+    <button id="cam">📷 chase</button>
+    <span style="color:#8ea0b8">(<kbd>C</kbd> cycle · drag to orbit · scroll to zoom)</span>
   </div>
   <div class="row">
     <label>sun az <input id="az" type="range" min="0" max="360" value="135"><span id="azv">135°</span></label>
     <label>sun el <input id="el" type="range" min="-5" max="90" value="18"><span id="elv">18°</span></label>
+  </div>
+  <div class="row">
+    <button id="save">💾 Save session</button>
+    <span style="color:#8ea0b8">records every command · replay via <kbd>?play=&lt;name&gt;</kbd></span>
   </div>
 </div>
 <script>
@@ -72,6 +78,7 @@ const proto = location.protocol === "https:" ? "wss" : "ws";
 // token onto the WS URL so a single `?token=T` link works setup -> preview -> stream -> WS. No token
 // in the URL (tailnet mode) -> the WS URL is exactly `.../ws` as before.
 const TOKEN = new URLSearchParams(location.search).get("token");
+const PLAY = new URLSearchParams(location.search).get("play");   // ?play=<bag> -> replay a saved session
 const wsUrl = `${proto}://${location.host}/ws` + (TOKEN ? `?token=${encodeURIComponent(TOKEN)}` : "");
 const ws = new WebSocket(wsUrl);
 ws.binaryType = "arraybuffer";
@@ -79,7 +86,10 @@ ws.binaryType = "arraybuffer";
 let frames = 0, lastT = performance.now();
 function setStatus(t, cls) { statusEl.textContent = t; statusEl.className = cls || ""; }
 
-ws.onopen = () => { setStatus("sending config…"); ws.send(JSON.stringify(CONFIG)); };
+ws.onopen = () => {
+  if (PLAY) { setStatus("replaying “" + PLAY + "”…"); ws.send(JSON.stringify({ play: PLAY })); }
+  else { setStatus("sending config…"); ws.send(JSON.stringify(CONFIG)); }
+};
 ws.onclose = () => setStatus("disconnected", "err");
 ws.onerror = () => setStatus("socket error", "err");
 
@@ -87,6 +97,8 @@ ws.onmessage = (ev) => {
   if (typeof ev.data === "string") {
     let m; try { m = JSON.parse(ev.data); } catch { return; }
     if (m.type === "ready") setStatus(`live · ${m.mode} · ${m.site || "procedural"}`, "ok");
+    else if (m.type === "playback") setStatus(`▶ replaying ${m.commands} commands`, "ok");
+    else if (m.type === "saved") setStatus(`💾 saved “${m.name}” (${m.commands} cmds)`, "ok");
     else if (m.type === "error") setStatus("error: " + m.error, "err");
     return;
   }
@@ -130,6 +142,10 @@ window.addEventListener("blur", () => { keys.clear(); sendTwist(); });
 
 document.getElementById("dig").onclick = () => ws.send(JSON.stringify({ dig: true }));
 document.getElementById("dump").onclick = () => ws.send(JSON.stringify({ dump: true }));
+document.getElementById("save").onclick = () => {
+  const name = prompt("Save this session as (letters, digits, - or _):", "run1");
+  if (name && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ save: name }));
+};
 
 const az = document.getElementById("az"), el = document.getElementById("el");
 const azv = document.getElementById("azv"), elv = document.getElementById("elv");
@@ -140,6 +156,35 @@ if (CONFIG.sun) {
 }
 az.oninput = () => { azv.textContent = az.value + "°"; ws.send(JSON.stringify({ sun_az: +az.value })); };
 el.oninput = () => { elv.textContent = el.value + "°"; ws.send(JSON.stringify({ sun_el: +el.value })); };
+
+// ── camera: cycle modes (rover view ↔ 3rd person) + orbit drag / scroll zoom ──────────────
+const CAM_NAMES = ["chase", "rover POV", "orbit", "top-down"];
+let camIdx = 0;
+const camBtn = document.getElementById("cam");
+function cycleCam() {
+  camIdx = (camIdx + 1) % CAM_NAMES.length;
+  camBtn.textContent = "📷 " + CAM_NAMES[camIdx];
+  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ cam_next: true }));
+}
+camBtn.onclick = cycleCam;
+window.addEventListener("keydown", (e) => {
+  if (e.key.toLowerCase() === "c") { e.preventDefault(); cycleCam(); }
+});
+// pointer drag on the view → orbit az/el (meaningful in orbit mode; harmless in the others)
+let dragging = false, lastX = 0, lastY = 0;
+canvas.addEventListener("pointerdown", (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener("pointerup", () => { dragging = false; });
+canvas.addEventListener("pointercancel", () => { dragging = false; });
+canvas.addEventListener("pointermove", (e) => {
+  if (!dragging || ws.readyState !== WebSocket.OPEN) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  ws.send(JSON.stringify({ orbit_dyaw: dx * 0.4, orbit_dpitch: -dy * 0.3 }));
+});
+canvas.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ orbit_dzoom: Math.sign(e.deltaY) * 1.2 }));
+}, { passive: false });
 </script>
 </body>
 </html>

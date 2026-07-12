@@ -127,4 +127,12 @@ def normalize_input(msg: str | bytes | dict) -> dict[str, Any]:
         out["sun_az"] = _finite_float(m.get("sun_az"), DEFAULT_SUN_AZ) % 360.0
     if "sun_el" in m:
         out["sun_el"] = max(-5.0, min(90.0, _finite_float(m.get("sun_el"), DEFAULT_SUN_EL)))
+    # camera-mode toggle (rover view <-> 3rd person) + orbit drag/zoom deltas
+    if bool(m.get("cam_next", False)):
+        out["cam_next"] = True
+    if "cam_mode" in m:
+        out["cam_mode"] = int(_finite_float(m.get("cam_mode"), 0.0)) % 4
+    for k in ("orbit_dyaw", "orbit_dpitch", "orbit_dzoom"):
+        if k in m:
+            out[k] = max(-90.0, min(90.0, _finite_float(m.get(k), 0.0)))
     return out

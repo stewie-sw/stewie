@@ -74,7 +74,10 @@ const CAM_FOV := 55.0
 # a mid-low elevation so the whole 2 km reads; overridable via --sun-elev / --sun-azim. ───
 const SUN_ENERGY := 3.0
 const SHADOW_MAX_DIST_M := 300.0   # overview scale (sidecar's 16 m is tuned for a 5 m patch)
-const AMBIENT_FILL := 0.06         # tiny inspection-only fill so the shadow side is not pure black
+# Drive-view ambient fill: the calibrated zero-ambient PSR look is for the frozen sensor sidecar; the
+# interactive drive is a VIEWING surface, so lift the shadow side enough that a human can see the
+# terrain + drive (0.06 rendered near-black on the polar grazing sun). A future --psr toggle can drop it.
+const AMBIENT_FILL := 0.45
 
 # ── parsed CLI (OS.get_cmdline_user_args(), everything after '--') ────────────────────────
 var _site_dir := ""
@@ -105,6 +108,32 @@ var _stream_io                          # Viz2Stream frame-socket helper (RefCou
 var _stream_v := 0.0                     # scaled twist held between browser commands (m/s)
 var _stream_omega := 0.0                 # scaled twist held between browser commands (rad/s)
 var _stream_max_seconds := 900.0         # hard wall-clock cap on the stream loop (safety)
+
+# ── browser-toggleable camera modes (the "rover view <-> 3rd person" ask) ──────────────────────
+const CAM_CHASE := 0        # 3rd-person chase: behind + above, rover in the foreground
+const CAM_POV := 1          # rover POV: forward-facing cam on the rover body, near the ground
+const CAM_ORBIT := 2        # free orbit: pointer-drag swings az/el around the rover
+const CAM_TOPDOWN := 3      # top-down tactical: straight down (tracks / dig / waypoints from above)
+const CAM_MODE_COUNT := 4
+var _cam_mode := CAM_CHASE
+var _orbit_yaw := -2.3       # orbit azimuth (rad), pointer-driven
+var _orbit_pitch := 0.55     # orbit elevation (rad), pointer-driven, clamped
+var _orbit_radius := 9.0     # orbit / topdown distance (m)
+
+# ── rover articulation (the URDF joints animate: wheels roll, drums counter-rotate, arms dig) ──
+# Grounded in ipex_specs: wheel ⌀0.305 m, drum rated 18 RPM (108 deg/s), counter-rotating bucket
+# drums (KSC-TOPS-7), front arm DOWN to dig + back arm UP to transport ("COBRA" posture).
+const WHEEL_RADIUS_M := 0.1524
+const DRUM_IDLE_DPS := 42.0        # cinematic idle drum spin (deg/s)
+const DRUM_DIG_DPS := 108.0        # 18 RPM rated dig spin (ipex_specs.DRUM_SPEED_RATED_RPM)
+const ARM_DIG_DOWN := 0.55         # extra front-arm pitch (rad): lower the drum to dig
+const ARM_TRANSPORT_UP := -0.35    # extra back-arm pitch (rad): raise for transport
+const DIG_ANIM_S := 2.2            # dig / dump gesture duration
+var _joints := {}                  # joint name -> {node, rest:Basis, origin:Vector3, base:float}
+var _wheel_angle := 0.0
+var _drum_angle := 0.0
+var _dig_anim_t := 0.0
+var _dump_anim_t := 0.0
 
 # ── runtime state ────────────────────────────────────────────────────────────────────────
 var sf                                 # StateFields instance (read-only library)
@@ -160,7 +189,10 @@ func _ready() -> void:
 	else:
 		_build_terrain()
 	_build_rover()
-	_build_camera_rig()
+	# The 8-SubViewport sensor rig is unused by the stream (it reads only the main viewport), so skip
+	# its permanent per-session VRAM/driver cost on a GPU capped at 2 concurrent sessions. (council #12)
+	if not _stream:
+		_build_camera_rig()
 	# Phase D: display the spatial-k Golombek rock field over the real terrain (if --clasts given).
 	if _clasts_path != "":
 		_build_clasts_display()
@@ -178,6 +210,7 @@ func _ready() -> void:
 			get_tree().quit(5)
 			return
 		if _stream:
+			_apply_stream_render_profile()   # real-time AA/shadow profile (not the offline-still stack)
 			_run_stream()      # coroutine: continuous browser-driven live loop + JPEG frame stream
 		elif _auto_frames > 0:
 			_run_live_auto()   # coroutine: drive THROUGH the Viz2Runtime, carve, capture
@@ -289,6 +322,27 @@ func _setup_environment() -> void:
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	we.environment = e
 	add_child(we)
+
+
+# Real-time render profile for the LIVE stream. project.godot's AA/shadow stack is authored for
+# one-shot offline SENSOR STILLS (2.25x SSAA via scaling_3d=1.5, 4x MSAA, SMAA, TAA off, 8192px Ultra
+# PCSS) -- ~4-9x wasted shading on every ~24 fps streamed frame that is then downscaled to 960x540 and
+# JPEG'd. Override the main viewport for continuous rendering: TAA (correct for a moving scene, and it
+# suppresses the PCSS shadow shimmer), no SSAA/SMAA, light MSAA, and a distance-matched PSSM shadow that
+# concentrates texel density on the live chase/POV view instead of one 300 m ortho split. (council #2)
+func _apply_stream_render_profile() -> void:
+	var vp := get_viewport()
+	if vp == null:
+		return
+	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+	vp.scaling_3d_scale = 1.0
+	vp.msaa_3d = Viewport.MSAA_2X
+	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	vp.use_taa = true
+	if _sun != null:
+		_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+		_sun.directional_shadow_max_distance = 140.0
+	print("viz2: STREAM render profile — TAA on, SSAA/SMAA off, MSAA 2x, PSSM-4 shadow 140 m")
 
 
 # ── Phase C: interactive sun az/el HUD (viz2_hud.gd) ──────────────────────────────────────
@@ -533,7 +587,42 @@ func _make_joint(node_name: String, glb_res: String, origin: Vector3,
 	pivot.transform = Transform3D(rest_basis * Basis(ROVER_JOINT_AXIS, angle), origin)
 	mesh.transform = Transform3D(mesh_basis, Vector3.ZERO)
 	pivot.add_child(mesh)
+	# register for live articulation (re-drive the pivot about ROVER_JOINT_AXIS from its rest pose)
+	_joints[node_name] = {"node": pivot, "rest": rest_basis, "origin": origin, "base": angle}
 	return pivot
+
+
+func _set_joint(jname: String, extra: float) -> void:
+	var j = _joints.get(jname)
+	if j == null:
+		return
+	j["node"].transform = Transform3D(j["rest"] * Basis(ROVER_JOINT_AXIS, float(j["base"]) + extra), j["origin"])
+
+
+# Live articulation, called every stream frame: wheels roll with forward speed, the bucket drums
+# counter-rotate (front +, back -; a dig/dump gesture speeds them to the rated 18 RPM and dump
+# reverses the scoops), and the front arm lowers to dig while the back arm raises for transport.
+func _animate_rover(dt: float) -> void:
+	if _joints.is_empty():
+		return
+	if absf(_stream_v) > 1e-4:
+		_wheel_angle += (_stream_v / WHEEL_RADIUS_M) * dt
+		for k in ["LF", "RF", "LB", "RB"]:
+			_set_joint("wheel_" + k, _wheel_angle)
+	# bucket drums spin only WHILE digging/dumping (real RDS drums don't idle-spin); dump reverses them
+	var active := _dig_anim_t > 0.0 or _dump_anim_t > 0.0
+	if active:
+		var dir := -1.0 if _dump_anim_t > 0.0 else 1.0
+		_drum_angle += dir * deg_to_rad(DRUM_DIG_DPS) * dt
+	_set_joint("drum_front", _drum_angle)
+	_set_joint("drum_back", -_drum_angle)
+	var g := clampf(maxf(_dig_anim_t, _dump_anim_t) / DIG_ANIM_S, 0.0, 1.0)
+	_set_joint("arm_front", ARM_DIG_DOWN * g)
+	_set_joint("arm_back", ARM_TRANSPORT_UP * g)
+	if _dig_anim_t > 0.0:
+		_dig_anim_t -= dt
+	if _dump_anim_t > 0.0:
+		_dump_anim_t -= dt
 
 
 func _load_glb(res_path: String) -> Node3D:
@@ -622,6 +711,54 @@ func _update_chase_cam() -> void:
 	var rover_pos: Vector3 = _rover_root.global_transform.origin
 	var eye := rover_pos - fwd * CHASE_BACK + Vector3.UP * CHASE_UP
 	_cam.global_transform = _look_at_xf(eye, rover_pos + Vector3.UP * 0.4, Vector3.UP)
+
+
+# Mode-aware camera for the live/stream drive: the browser cycles CAM_CHASE/POV/ORBIT/TOPDOWN and
+# drags to orbit. Framed tight on the ~1.8 m rover so it reads at any DEM cell size (per-surface scale
+# is Phase 2; this keeps the rover legible now). Called every stream frame + on a camera command.
+func _update_stream_cam() -> void:
+	if _cam == null or _rover_root == null:
+		return
+	var rp: Vector3 = _rover_root.global_transform.origin
+	var fwd := (Basis(Vector3.UP, _pose_yaw) * Vector3(1, 0, 0)).normalized()
+	var eye: Vector3
+	var target: Vector3
+	var up := Vector3.UP
+	var clamp_eye := true
+	match _cam_mode:
+		CAM_POV:                                  # forward-facing cam on the rover body, near the ground
+			eye = rp + fwd * 0.95 + Vector3.UP * 1.05
+			target = rp + fwd * 14.0 + Vector3.UP * 0.35
+		CAM_ORBIT:                                # free orbit: az/el from pointer drag, fixed radius
+			var cp := cos(_orbit_pitch)
+			var dir := Vector3(cos(_orbit_yaw) * cp, sin(_orbit_pitch), sin(_orbit_yaw) * cp)
+			eye = rp + dir * _orbit_radius
+			target = rp + Vector3.UP * 0.4
+		CAM_TOPDOWN:                              # straight down — tracks / dig / waypoints as a plan/map
+			eye = rp + Vector3(0.001, _orbit_radius * 1.7, 0.001)
+			target = rp
+			up = Vector3(0.0, 0.0, -1.0)
+			clamp_eye = false
+		_:                                        # CAM_CHASE: behind + above, rover in the foreground
+			eye = rp - fwd * 8.0 + Vector3.UP * 4.0
+			target = rp + fwd * 2.0 + Vector3.UP * 0.6
+	# keep the eye above the terrain (+clearance) so chase/POV/orbit don't clip into >16deg slopes (council #11)
+	if clamp_eye:
+		eye.y = maxf(eye.y, _ground_h(eye.x, eye.z) + 0.8)
+	_cam.global_transform = _look_at_xf(eye, target, up)
+
+
+# Terrain height at world (x,z): the live carved window where it covers, else the static DEM.
+func _ground_h(x: float, z: float) -> float:
+	if _window != null:
+		var h: float = _window.height_at_world(x, z)
+		if not is_nan(h):
+			return h
+	if sf != null:
+		var u: float = clampf((x - sf.world_min.x) / sf.extent_m().x, 0.0, 1.0)
+		var v: float = clampf((z - sf.world_min.y) / sf.extent_m().y, 0.0, 1.0)
+		return sf.height_uv(u, v)
+	return 0.0
 
 
 func _look_at_xf(eye: Vector3, target: Vector3, up_hint: Vector3) -> Transform3D:
@@ -963,10 +1100,17 @@ func _live_tick(v: float, omega: float) -> void:
 	_drive_client.send_twist(v, omega)
 	var n: int = _drive_client.poll_frames()
 	if n > 0:
+		# ACK a generation ONLY after its manifest is actually applied (or there was nothing new to
+		# apply). Acking unconditionally advanced the runtime's union-coverage floor past regions the
+		# window never rendered, dropping them from every future bbox until the next keyframe. (council #3)
+		var applied_ok := true
 		if _drive_client.latest_generation > _applied_gen:
 			if _window.apply_manifest_file(_manifest_path(_drive_client.latest_generation)):
 				_applied_gen = _drive_client.latest_generation
-		_drive_client.ack(_drive_client.latest_seq)
+			else:
+				applied_ok = false            # apply failed -> retry next tick, do NOT ack past it
+		if applied_ok:
+			_drive_client.ack(_drive_client.latest_seq)
 		_place_rover_live()
 
 
@@ -977,7 +1121,11 @@ func _place_rover_live() -> void:
 		return
 	_pose_x = _drive_client.latest_pose.x
 	_pose_z = _drive_client.latest_pose.y
-	_pose_yaw = _drive_client.latest_yaw
+	# The runtime heading is math-convention (0=+x, +90=+z, CCW in the x-z plane); Godot's
+	# Basis(UP, yaw) rotates the OPPOSITE sense in x-z, so the mesh + chase cam pointed 180deg-mirrored
+	# in the turn axis (rover visibly turned one way while travelling the other). Negate so the mesh
+	# nose + camera track the ACTUAL travel direction. (user-reported steering bug)
+	_pose_yaw = -_drive_client.latest_yaw
 	var surf_y: float = _window.height_at_world(_pose_x, _pose_z)
 	if is_nan(surf_y):
 		var u: float = clampf((_pose_x - sf.world_min.x) / sf.extent_m().x, 0.0, 1.0)
@@ -985,7 +1133,7 @@ func _place_rover_live() -> void:
 		surf_y = sf.height_uv(u, vv)
 	_rover_root.transform = Transform3D(Basis(Vector3.UP, _pose_yaw),
 		Vector3(_pose_x, surf_y + _root_lift, _pose_z))
-	_update_chase_cam()
+	_update_stream_cam()
 
 
 # Headless live capture: connect -> drive forward (carving a TREAD/disturbance rut) -> DIG (carving a
@@ -1143,13 +1291,41 @@ func _run_stream() -> void:
 	# 2) the continuous stream loop: input -> conserved drive -> render -> capture -> send
 	var t_stop := Time.get_ticks_msec() + int(_stream_max_seconds * 1000.0)
 	var sent := 0
+	var last_t := Time.get_ticks_msec()
+	var prev_cam := Transform3D()
+	var prev_gen := -1
 	while _stream_io.connected and Time.get_ticks_msec() < t_stop:
+		var now := Time.get_ticks_msec()
+		var dt := clampf(float(now - last_t) / 1000.0, 0.0, 0.1)   # real wall-clock dt (was nominal 1/fps)
+		last_t = now
+		var had_input := false
 		for msg in _stream_io.poll_input():
 			_apply_stream_input(msg)
+			had_input = true
 		_live_tick(_stream_v, _stream_omega)
+		_animate_rover(dt)
+		_update_stream_cam()
+		# ONE post-draw wait: in a continuous loop the previous iteration already flushed state, so the
+		# second wait (a one-shot-capture idiom for a stale first buffer) just halves fps. (council #1)
 		await RenderingServer.frame_post_draw
-		await RenderingServer.frame_post_draw
-		var img := get_viewport().get_texture().get_image()
+		# Only read back + encode + send when something VISIBLY changed (physics advanced, driving, a
+		# dig/dump gesture, a control input, or the camera moved) -> an idle viewer stops burning GPU
+		# readback + JPEG + bandwidth on identical frames. (council n==0 + idle)
+		var cam_xf := _cam.global_transform if _cam != null else Transform3D()
+		var active_anim := _dig_anim_t > 0.0 or _dump_anim_t > 0.0
+		var moving := absf(_stream_v) > 1e-4 or absf(_stream_omega) > 1e-4
+		var changed := had_input or moving or active_anim or _applied_gen != prev_gen \
+			or not cam_xf.is_equal_approx(prev_cam)
+		if not changed:
+			continue
+		prev_gen = _applied_gen
+		prev_cam = cam_xf
+		var tex := get_viewport().get_texture()
+		if tex == null:
+			continue
+		var img := tex.get_image()
+		if img == null:                        # teardown race -> skip, do not deref a null image
+			continue
 		if img.get_format() != Image.FORMAT_RGB8:
 			img.convert(Image.FORMAT_RGB8)     # JPEG has no alpha; encode a clean RGB frame
 		var jpg := img.save_jpg_to_buffer(_stream_quality)
@@ -1173,15 +1349,31 @@ func _apply_stream_input(msg: Dictionary) -> void:
 		var v := clampf(float(msg.get("v", 0.0)), -1.0, 1.0)
 		var om := clampf(float(msg.get("omega", 0.0)), -1.0, 1.0)
 		_stream_v = v * LIVE_LIN
-		_stream_omega = om * LIVE_ANG
+		# flip so the browser's LEFT (A / left-arrow, omega=+1) actually curves the rover to ITS left
+		# in the world (it fed omega=+1 -> a right/CW arc before). (user-reported steering bug)
+		_stream_omega = -om * LIVE_ANG
 	if bool(msg.get("dig", false)) and _drive_client != null:
 		_drive_client.send_dig()
+		_dig_anim_t = DIG_ANIM_S
 	if bool(msg.get("dump", false)) and _drive_client != null:
 		_drive_client.send_dump()
+		_dump_anim_t = DIG_ANIM_S
 	if _sun != null and msg.has("sun_az"):
 		_sun.rotation_degrees.y = float(msg["sun_az"])
 	if _sun != null and msg.has("sun_el"):
 		_sun.rotation_degrees.x = -float(msg["sun_el"])
+	# camera-mode toggle (rover view <-> 3rd person) + orbit drag/zoom
+	if bool(msg.get("cam_next", false)):
+		_cam_mode = (_cam_mode + 1) % CAM_MODE_COUNT
+	if msg.has("cam_mode"):
+		_cam_mode = int(msg["cam_mode"]) % CAM_MODE_COUNT
+	if msg.has("orbit_dyaw"):
+		_orbit_yaw += deg_to_rad(float(msg["orbit_dyaw"]))
+	if msg.has("orbit_dpitch"):
+		_orbit_pitch = clampf(_orbit_pitch + deg_to_rad(float(msg["orbit_dpitch"])), 0.12, 1.45)
+	if msg.has("orbit_dzoom"):
+		_orbit_radius = clampf(_orbit_radius + float(msg["orbit_dzoom"]), 3.0, 40.0)
+	_update_stream_cam()
 
 
 # Robust capture: a full idle+draw cycle (process_frame) pushes any camera-transform change to
