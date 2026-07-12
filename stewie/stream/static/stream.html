@@ -30,6 +30,7 @@
   <span><b>STEWIE viz2</b> live pixel stream</span>
   <span id="status">connecting…</span>
   <span id="fps"></span>
+  <span id="hud"></span>
 </header>
 <div id="wrap">
   <canvas id="view" width="960" height="540"></canvas>
@@ -108,6 +109,13 @@ ws.onerror = () => setStatus("socket error", "err");
 ws.onmessage = (ev) => {
   if (typeof ev.data === "string") {
     let m; try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.type === "status") {
+      const ent = m.entrapped ? " ⚠ ENTRAPPED" : (m.safe_stop ? " ⛔ SAFE-STOP" : "");
+      const hud = document.getElementById("hud");
+      hud.textContent = `slip ${(m.slip*100).toFixed(0)}% · (${m.x}, ${m.z}) · yaw ${m.yaw}° · gen ${m.gen}${ent}`;
+      hud.className = (m.entrapped || m.safe_stop) ? "err" : "";
+      return;
+    }
     if (m.type === "ready") setStatus(`live · ${m.mode} · ${m.site || "procedural"}`, "ok");
     else if (m.type === "playback") setStatus(`▶ replaying ${m.commands} commands`, "ok");
     else if (m.type === "saved") setStatus(`💾 saved “${m.name}” (${m.commands} cmds)`, "ok");

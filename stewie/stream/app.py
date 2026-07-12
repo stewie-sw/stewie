@@ -106,6 +106,7 @@ class StreamSession:
         # frame egress: a single-slot LATEST buffer + event, so a slow browser drops stale frames rather
         # than backpressuring the seam TCP into Godot's render/ack loop (the terminal-deadman chain).
         self._latest_frame: bytes | None = None
+        self._latest_status: bytes | None = None   # JSON status frames (slip/entrapment/pose) from Godot
         self._frame_evt = asyncio.Event()
 
     # -- bundle resolution --------------------------------------------------------------------
@@ -241,17 +242,26 @@ class StreamSession:
                 frame = await read_frame(self._reader)
             except (asyncio.IncompleteReadError, ConnectionResetError):
                 break  # Godot closed the seam
-            self._latest_frame = frame
+            # discriminate a small JSON STATUS frame (slip/entrapment/pose) from a JPEG frame with zero
+            # wire change: a JPEG always starts 0xFF 0xD8 (SOI), a status object starts '{'. (council #8)
+            if frame[:1] == b"{":
+                self._latest_status = frame
+            else:
+                self._latest_frame = frame
             self._frame_evt.set()
 
     async def _send_ws(self, ws: WebSocket) -> None:
-        """Deliver the freshest frame to the browser. If the browser link is slow this task lags, but the
-        seam reader keeps draining, so only the LATEST frame is sent -- older ones are dropped."""
+        """Deliver the freshest frame + any pending status to the browser. If the browser link is slow
+        this task lags, but the seam reader keeps draining, so only the LATEST frame is sent."""
         while True:
             await self._frame_evt.wait()
             self._frame_evt.clear()
+            status = self._latest_status
+            self._latest_status = None
             frame = self._latest_frame
             self._latest_frame = None
+            if status is not None:
+                await ws.send_text(status.decode("utf-8", "replace"))
             if frame is not None:
                 await ws.send_bytes(frame)
 

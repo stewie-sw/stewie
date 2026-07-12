@@ -1340,6 +1340,14 @@ func _run_stream() -> void:
 		if not _stream_io.send_frame(jpg):
 			break
 		sent += 1
+		# periodic STATUS frame (slip / entrapment / pose) so the browser HUD shows the drive state, not
+		# just pixels -- a stuck or entrapped rover reads instead of a mystery frozen image. (council #8)
+		if sent % 12 == 0 and _drive_client != null:
+			var st := {"type": "status", "slip": snappedf(_drive_client.slip, 0.001),
+				"entrapped": _drive_client.entrapped, "safe_stop": _drive_client.safe_stopped,
+				"x": snappedf(_pose_x, 0.1), "z": snappedf(_pose_z, 0.1),
+				"yaw": snappedf(rad_to_deg(_pose_yaw), 0.1), "gen": _applied_gen}
+			_stream_io.send_frame(JSON.stringify(st).to_utf8_buffer())
 	_stream_io.close()
 	if _drive_client != null:
 		_drive_client.close()
