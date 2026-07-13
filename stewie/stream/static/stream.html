@@ -141,7 +141,7 @@ function setStatus(t, cls) { statusEl.textContent = t; statusEl.className = cls 
 
 // resilient WS: mobile links drop on backgrounding / cell handoff, so auto-reconnect with capped
 // exponential backoff + jitter, and reconnect immediately when a backgrounded tab returns to view.
-let ws = null, backoff = 500, reconnectTimer = null, wsGen = 0;
+let ws = null, backoff = 500, reconnectTimer = null, wsGen = 0, _lastPlan = null;
 function connect() {
   clearTimeout(reconnectTimer); reconnectTimer = null;
   const myGen = ++wsGen;                         // a socket we've already replaced goes silent
@@ -152,6 +152,7 @@ function connect() {
     backoff = 500;                               // healthy link -> reset backoff
     if (PLAY) { setStatus("replaying “" + PLAY + "”…"); ws.send(JSON.stringify({ play: PLAY })); }
     else { setStatus("sending config…"); ws.send(JSON.stringify(CONFIG)); }
+    if (_lastPlan) ws.send(JSON.stringify({ plan_request: { [_lastPlan.key]: _lastPlan.wps } }));  // re-drive the mission after a (re)connect
   };
   ws.onclose = () => { if (myGen === wsGen) { setStatus("reconnecting…", "err"); scheduleReconnect(); } };
   ws.onerror = () => { if (myGen === wsGen) setStatus("socket error — reconnecting…", "err"); };
@@ -206,6 +207,27 @@ function onWsMessage(ev) {
     if (now - lastT > 1000) { fpsEl.textContent = frames + " fps"; frames = 0; lastT = now; }
   });
 }
+
+// EMBED (GIS /ide fold): drive a mission handed in by the parent frame (postMessage) or the URL.
+// Waypoints are IAU_2015:30135 metres by default, or selenographic [lon,lat] when lonlat is set.
+function applyPlan(wps, lonlat) {
+  if (!Array.isArray(wps) || !wps.length) return;
+  _lastPlan = { key: lonlat ? "waypoints_lonlat" : "waypoints", wps };   // stored -> re-applied on reconnect
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify({ plan_request: { [_lastPlan.key]: _lastPlan.wps } }));
+}
+window.addEventListener("message", (e) => {                              // parent /ide -> iframe
+  const d = e.data;
+  if (d && d.type === "stewie:plan" && Array.isArray(d.waypoints)) applyPlan(d.waypoints, !!d.lonlat);
+});
+try {                                                                    // /stream?...&plan=<base64 JSON>
+  const praw = new URLSearchParams(location.search).get("plan");
+  if (praw) {
+    const pj = JSON.parse(atob(praw));
+    if (Array.isArray(pj.waypoints)) applyPlan(pj.waypoints, false);
+    else if (Array.isArray(pj.waypoints_lonlat)) applyPlan(pj.waypoints_lonlat, true);
+  }
+} catch (_e) { /* malformed plan param -> ignore, drive still works */ }
 connect();
 
 // ── drive input: WASD / arrows → normalized {v, omega} intent (Godot scales to IPEx envelope) ─
