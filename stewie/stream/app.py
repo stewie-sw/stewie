@@ -309,11 +309,13 @@ class StreamSession:
             # council #14 route SOURCE: compute a REAL slope-gated survey route (lode.route_leg over the
             # region's DEM) and PUSH it to Godot as a {plan:{route}} frame -> the live route ribbon.
             if isinstance(obj, dict) and obj.get("plan_request"):
-                route = self._planner_route()
+                goals = self._plan_goals(obj.get("plan_request"))     # QWC2 /ide mission, or None -> survey
+                route = self._planner_route(goals_world=goals)
                 if route:
                     self._writer.write(pack_frame(json.dumps({"plan": {"route": route}}).encode()))
                     await self._writer.drain()
-                await ws.send_text(json.dumps({"type": "planned", "points": len(route or [])}))
+                await ws.send_text(json.dumps({"type": "planned", "points": len(route or []),
+                                               "source": "waypoints" if goals else "survey"}))
                 continue
             cmd = protocol.normalize_input(raw)
             if not cmd:
@@ -334,10 +336,35 @@ class StreamSession:
             json.dump(payload, fh)
         return safe
 
-    def _planner_route(self, max_legs: int = 3) -> list | None:
-        """council #14: a REAL slope-gated SURVEY route over the region's DEM (spawn -> survey goals) via
-        lode.route_leg (A* on the slope costmap, max 25 deg). Returns the terrain-following polyline as
-        world [[x, z], ...] in the Godot frame (== DEM world frame), or None if unavailable. Real-mode only."""
+    @staticmethod
+    def _plan_goals(pr) -> list | None:
+        """Parse a plan_request into goal waypoints in IAU_2015:30135 metres (the authoritative frame,
+        GW-12). Accepts {"waypoints": [[x, y], ...]} already in 30135 metres (the QWC2 /ide map frame)
+        or {"waypoints_lonlat": [[lon, lat], ...]} (GeoJSON selenographic, converted via the shared
+        transform). `True` / anything else -> None, i.e. fall back to the built-in survey pattern."""
+        if not isinstance(pr, dict):
+            return None
+        wl = pr.get("waypoints")
+        if isinstance(wl, list) and wl:
+            return [(float(p[0]), float(p[1])) for p in wl
+                    if isinstance(p, (list, tuple)) and len(p) >= 2] or None
+        ll = pr.get("waypoints_lonlat")
+        if isinstance(ll, list) and ll:
+            from stewie.dataset.dem_source import latlon_to_proj
+            out = []
+            for p in ll:
+                if isinstance(p, (list, tuple)) and len(p) >= 2:
+                    x, y = latlon_to_proj(float(p[1]), float(p[0]))   # GeoJSON is [lon, lat]
+                    out.append((x, y))
+            return out or None
+        return None
+
+    def _planner_route(self, goals_world: list | None = None, max_legs: int = 12) -> list | None:
+        """council #14 / GIS fold: a REAL slope-gated route over the region's DEM via lode.route_leg
+        (A* on the slope costmap, max 25 deg). When goals_world is given (waypoints in IAU_2015:30135
+        metres, e.g. a mission authored in the QWC2 /ide), route spawn -> those goals; otherwise fall
+        back to a built-in survey pattern. Returns the terrain-following polyline as world [[x, z], ...]
+        in the Godot frame (== DEM world frame), or None if unavailable. Real-mode only."""
         if self.cfg.get("mode") != "real":
             return None
         try:
@@ -355,10 +382,13 @@ class StreamSession:
             slx, sly = sx - x0, sy - y0                      # spawn in the DEM-local frame
             def _clamp(v: float, hi: float) -> float:
                 return min(max(v, 30.0), hi - 30.0)
-            # a small survey pattern of goal offsets [m] from spawn, clamped to the DEM interior
             legs = [(slx, sly)]
-            for dx, dz in ((60.0, 0.0), (60.0, 60.0), (0.0, 60.0)):
-                legs.append((_clamp(slx + dx, W * cell), _clamp(sly + dz, H * cell)))
+            if goals_world:                                  # external mission (QWC2 /ide) in 30135 metres
+                for gx, gy in goals_world:                   # -> DEM-local, clamped to the interior
+                    legs.append((_clamp(gx - x0, W * cell), _clamp(gy - y0, H * cell)))
+            else:                                            # built-in survey pattern (plan_request: true)
+                for dx, dz in ((60.0, 0.0), (60.0, 60.0), (0.0, 60.0)):
+                    legs.append((_clamp(slx + dx, W * cell), _clamp(sly + dz, H * cell)))
             world: list = []
             for i in range(min(max_legs, len(legs) - 1)):
                 _rm, _sm, reached, wps = route_leg((Z, cell), (0.0, 0.0), legs[i], legs[i + 1],
