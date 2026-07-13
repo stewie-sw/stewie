@@ -109,7 +109,7 @@ class Viz2Runtime:
                  rate_hz: float = 15.0, dt: float = 0.1,
                  ack_deadline_s: float = 2.0, window: int = 64,
                  keyframe_interval: int = 90, retain_generations: int = 256,
-                 dig_depth_m: float = 0.02, dig_half_cells: int = 6,
+                 dig_depth_m: float = 0.02, dig_half_cells: int | None = None,
                  drum: str = "large",
                  host: str = "127.0.0.1"):
         # --- backend governance FIRST (R-M3): resolve mutation authority ONLY through the strict LIVE
@@ -145,9 +145,9 @@ class Viz2Runtime:
         # mass into the drum ledger), so derive_height() drops and the window mesh's VERTEX shader
         # displaces the trench — the visible carved rut the NB-2 render-geometry contract proves.
         self.dig_depth_m = float(dig_depth_m)
-        self.dig_half_cells = int(dig_half_cells)
         # Selected bucket drum (flight-representative "large" by default): its REAL width feeds the FEE
         # excavation-force model (tool width w) and its scoop height sets the <=50% anti-bridging cut cap.
+        # Resolved BEFORE the dig footprint, which is now derived from it.
         self.drum = str(drum) if str(drum) in DRUM_DIMENSIONS_M else "large"
         self._drum_width_m = float(DRUM_DIMENSIONS_M[self.drum]["width"])
         self._drum_radius_m = 0.5 * float(DRUM_DIMENSIONS_M[self.drum]["diameter"])
@@ -157,6 +157,19 @@ class Viz2Runtime:
         # drum refuses the bite outright -- that refusal IS the fill -> stop -> haul quantum. (Every hold
         # is <= the 30 kg/cycle RDS envelope, so the envelope now holds by construction, not after the fact.)
         self._drum_capacity_kg = float(DRUM_CAPACITY_KG[self.drum])
+        # [REQ:PX-11] The excavation FOOTPRINT is a PHYSICAL dimension -- the drum's width -- not a cell
+        # count. It used to be a fixed `dig_half_cells=6`, so the operator's "cell size" toggle (a RENDER
+        # resolution choice on the setup page) silently resized the excavator: a 13x13 box is 0.650 m at
+        # 5 cm but 0.260 m at 2 cm, so the SAME dig command on the SAME terrain moved 7.1x more mass at the
+        # coarser setting, and neither box was the drum's real width -- while `_dig_fee` billed the pass
+        # with width_m = the REAL drum width. Cut geometry and energy model described different tools (the
+        # PX-09 class of contradiction, one level out). Derive the closest odd cell box to the drum width
+        # so the machine is the same machine at every resolution. An explicit dig_half_cells still wins.
+        if dig_half_cells is None:
+            cell = float(self.ws.fine_cell_m)
+            self.dig_half_cells = max(1, int(round((self._drum_width_m / cell - 1.0) / 2.0)))
+        else:
+            self.dig_half_cells = int(dig_half_cells)
         self._drum_full = False                  # telemetry: the operator must dump/haul before digging on
         # [REQ:PX-10] the front arm is a PHYSICAL DOF, not a render pose: this is the operator's manual
         # offset on the dig posture (0 == ARM_DIG_DOWN == drum in the ground), and it GATES the cut, so a
@@ -763,7 +776,16 @@ class Viz2Runtime:
         sub_rho = f.density[r0:r1, c0:c1]
         cell_m = float(self.ws.fine_cell_m)
         cell_area = cell_m * cell_m
-        target = float(sub_h.min()) - d_eff
+        # [REQ:PX-09] ONE {dig} is ONE PASS, and the anti-bridging rule bounds the DEEPEST bite entering the
+        # scoop. `flatten` cuts every masked cell down to `target`, so a cell standing PROUD of the box drops
+        # by (its relief above the cut level) -- which means anchoring the level to the box MINIMUM lets a
+        # proud cell give up (relief + d_eff), silently exceeding the cap on any uneven ground. Anchor to the
+        # box MAXIMUM instead: the deepest per-cell bite is then exactly d_eff, the cap actually binds
+        # per-cell, and a pass SHAVES the high spots (repeat passes progressively deepen the rut) -- which is
+        # what a bucket drum at a fixed cutting level physically does. (This flaw hid behind the drum-capacity
+        # trim while the footprint was an oversized cell-count box; PX-11 shrank it to the real drum and
+        # exposed it.)
+        target = float(sub_h.max()) - d_eff
 
         def _mass_above(t: float) -> float:
             """kg the cut WOULD remove at level ``t`` (height identity: dz * density * area). An UPPER bound
