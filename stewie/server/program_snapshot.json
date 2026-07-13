@@ -1,9 +1,9 @@
 {
  "provenance": {
-  "citations_sha256": "b43c31fa666c7973650458123a2863da8b60b3dede9c399f055625a9cdc63b30",
+  "citations_sha256": "dbbee0394a6531904903c9bf936f6c4d60795fedefdc967ba1f9aaa2f7ddfd84",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "49e61d103562e849d5cca1718f882d59b9698f9a",
-  "prd_sha256": "38e85123a82d1439a29ea6dcbbdd8406a5b6bde830c4ea4f6e1f820c21211017",
+  "prd_commit": "708ca7571e853b7295da86a76789d94b36d55393",
+  "prd_sha256": "77c5be32d4f3ff49805f525347b156d58f6cc25f4aa62e9cc574785eeac40b95",
   "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
  },
  "rows": [
@@ -4891,6 +4891,18 @@
    "text": "**Godot mission view (sidecar-first).** Renders the selected branch/run (terrain/rover/path/hazards/sensor-cones/shadow/excavation/as-built) using the same site/body/frame as the map; captures carry run/branch id, camera pose, timestamp, source class, asset hashes; never physics or command authority. (extends BA-08)"
   },
   {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "RT-06",
+   "lane": "RT",
+   "pri": "P1",
+   "text": "**Drive-validate mission view embedded in the /ide (viz2) \u2014 SIM-scoped command authority.** The QWC2 IDE exposes `Validate \u25b8 Drive 3D`: a SideBar panel embedding the viz2 Godot pixel-stream (host-GPU, xvfb+Vulkan, the REAL Haworth SfS 1 m DEM in IAU_2015:30135) as an iframe, and FORWARDING the mission route authored on the 2D map into it (`postMessage {type:'stewie:plan',waypoints,lonlat}` -> viz2 `_plan_goals` -> `lode.route_leg` slope-costmap A*) so the operator DRIVES the exact authored plan on the real surface rather than a look-alike. This is the drive-validate surface; it is NOT RT-05 (which remains the read-only capture/evidence sidecar and stays unbuilt). **Command scope is the load-bearing constraint:** unlike an evidence panel, this surface HAS command verbs ({cmd_vel}/{safe}/{rearm} + the excavation actuators), and it ships on the PUBLIC front door -- so \u00a77.B's \"never an independent command surface\" is honored in its safety intent by making the scope SIM-ONLY and TESTING it: actuation targets the in-process conserved plant + Godot, and the stream server holds ZERO real-rover egress (no rclpy/live node, no executive/release path), preserving RT-02 sole-egress and the AG-08 real-instruction gate. `{cmd_vel}` still LOWERS through the real `ros2_bridge.twist_to_command` + `rc_contract.Pose` (a genuine shape/conformance proof, not a mock), and a contract `{safe}` is an ALL-STOP (refuses motion AND dig/dump/drum/arm until `{rearm}`), not a wheels-only stop. [REQ:RT-06] `stewie/stream/test_viz2_ide_embed.py` asserts all three against the REAL `pump_input` handler (GPU isolated: no Godot spawned, the Godot TCP seam replaced by a capturing writer, so the latch/gate logic under test stays real): (a) an AST guard proves the publicly reachable stream server imports/constructs NO real-rover egress; (b) `{cmd_vel}` is acked with the real lowered contract kind and the twist reaches only the sim seam; (c) a `{safe}` latch pushes an immediate all-stop frame then refuses cmd_vel AND every excavation actuator, restoring on `{rearm}`; (d) MissionDrive3D is registered in BOTH QWC2 places + carries the Validate menu entry (the python-visible gate for a JS plugin, since req_trace scans python only). All four are NON-VACUOUS -- verified to FAIL on an injected `make_live_node` import, on dropping `dig` from the SF-01 refuse-set, and on removing the menu entry. I=D (plugin `gis/qwc2/js/plugins/MissionDrive3D.jsx` + the viz2 plan-ingest/postMessage seam + the ROS console + the SF-01 latch, all live), X=D (registered in appConfig.js + config.json, DEPLOYED to the public front door: artemis.stewie.space/ide/ embeds the cross-origin viz2.stewie.space stream; viz2 runs as a durable systemd --user unit behind the cloudflared ingress), V=D (the [REQ:RT-06] gates above + a real Playwright run THROUGH Cloudflare: Validate\u25b8Drive 3D opens the panel, the cross-origin stream renders the real Haworth surface, and a forwarded lon/lat route drove it -- 121.1 m / 3 wp -- with zero console errors). (complements RT-05; scoped by RT-02/AG-08/SF-02; deploy runbook in `deploy/DEPLOY.md`)"
+  },
+  {
    "I": "N",
    "Q": "NA",
    "V": "N",
@@ -5742,7 +5754,7 @@
   "buckets": {
    "buildable": 96,
    "concurrent": 0,
-   "done": 271,
+   "done": 272,
    "gated": 30
   },
   "by_lane": {
@@ -5959,8 +5971,8 @@
     "total": 8
    },
    "RT": {
-    "done": 1,
-    "total": 6
+    "done": 2,
+    "total": 7
    },
    "SC": {
     "done": 0,
@@ -6033,8 +6045,8 @@
     "total": 118
    },
    "P1": {
-    "done": 153,
-    "total": 220
+    "done": 154,
+    "total": 221
    },
    "P2": {
     "done": 7,
@@ -6045,11 +6057,11 @@
     "total": 2
    }
   },
-  "cited": 292,
+  "cited": 293,
   "done_pct": 68.3,
-  "in_scope": 367,
-  "in_scope_done_pct": 73.8,
-  "total": 397
+  "in_scope": 368,
+  "in_scope_done_pct": 73.9,
+  "total": 398
  },
  "workflow_spine": [
   "Plan",
