@@ -17,7 +17,7 @@ var n_waypoints := 0
 var route_length_m := 0.0
 
 
-func build_from_file(path_json: String, width_m: float = 1.0, lift_m: float = 0.35) -> bool:
+func build_from_file(path_json: String, width_m: float = 1.0, lift_m: float = 0.35, marker_r: float = 1.6) -> bool:
 	var f := FileAccess.open(path_json, FileAccess.READ)
 	if f == null:
 		push_error("viz2_path: --path file not readable: %s" % path_json)
@@ -27,10 +27,10 @@ func build_from_file(path_json: String, width_m: float = 1.0, lift_m: float = 0.
 	if typeof(parsed) != TYPE_DICTIONARY or not parsed.has("waypoints"):
 		push_error("viz2_path: --path JSON missing a 'waypoints' array")
 		return false
-	return build(parsed["waypoints"], width_m, lift_m)
+	return build(parsed["waypoints"], width_m, lift_m, marker_r)
 
 
-func build(waypoints: Array, width_m: float = 1.0, lift_m: float = 0.35) -> bool:
+func build(waypoints: Array, width_m: float = 1.0, lift_m: float = 0.35, marker_r: float = 0.35) -> bool:
 	if waypoints.size() < 2:
 		push_warning("viz2_path: route has < 2 waypoints; nothing to draw")
 		return false
@@ -85,8 +85,8 @@ func build(waypoints: Array, width_m: float = 1.0, lift_m: float = 0.35) -> bool
 
 	# endpoint markers (start = green, goal = amber) so the haul direction reads. Small drive-view size:
 	# the start sits at the rover, so a plan-view-scale sphere (width*1.6) engulfed the chase-cam (council).
-	_add_marker(pts[0], Color(0.30, 0.90, 0.45), 0.35)
-	_add_marker(pts[pts.size() - 1], Color(1.0, 0.70, 0.10), 0.35)
+	_add_marker(pts[0], Color(0.30, 0.90, 0.45), marker_r)
+	_add_marker(pts[pts.size() - 1], Color(1.0, 0.70, 0.10), marker_r)
 
 	center = (lo + hi) * 0.5
 	span = maxf(hi.x - lo.x, hi.z - lo.z)

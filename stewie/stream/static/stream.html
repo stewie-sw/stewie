@@ -167,6 +167,7 @@ function connect() {
     if (PLAY) { setStatus("replaying “" + PLAY + "”…"); ws.send(JSON.stringify({ play: PLAY })); }
     else { setStatus("sending config…"); ws.send(JSON.stringify(CONFIG)); }
     if (_lastPlan) ws.send(JSON.stringify({ plan_request: { [_lastPlan.key]: _lastPlan.wps } }));  // re-drive the mission after a (re)connect
+    if (_safedClient) ws.send(JSON.stringify({ safe: { reason: 0 } }));   // council: re-latch SF-01 on the fresh session (a reconnect must NOT silently un-safe)
   };
   ws.onclose = () => { if (myGen === wsGen) { setStatus("reconnecting…", "err"); scheduleReconnect(); } };
   ws.onerror = () => { if (myGen === wsGen) setStatus("socket error — reconnecting…", "err"); };
@@ -239,13 +240,18 @@ function applyPlan(wps, lonlat) {
   _lastPlan = { key: lonlat ? "waypoints_lonlat" : "waypoints", wps };   // stored -> re-applied on reconnect
   safeSend({ plan_request: { [_lastPlan.key]: _lastPlan.wps } });
 }
-// only trust plan messages from an allowlisted parent origin (council: security — no open postMessage sink).
-// The embedding /ide passes its origin as ?parent=<origin>; same-origin + the known IDE host are always allowed.
-const _planOrigins = new Set([location.origin, "https://artemis.stewie.space"]);
-const _parentOrigin = new URLSearchParams(location.search).get("parent");
-if (_parentOrigin) { try { _planOrigins.add(new URL(_parentOrigin).origin); } catch (_e) { /* bad parent param */ } }
+// trust plan messages ONLY from a FIXED allowlist (council: the ?parent hint is embedder-controlled, so it
+// cannot be a trust source; the opaque "null" origin from data:/sandboxed frames is always rejected). In prod
+// the /ide reverse-proxies viz2 under its own origin, so same-origin covers the embed; *.stewie.space + local
+// dev hosts are also allowed.
+function _originOk(o) {
+  return !!o && o !== "null" && (
+    o === location.origin
+    || /^https:\/\/([a-z0-9-]+\.)*stewie\.space$/.test(o)
+    || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o));
+}
 window.addEventListener("message", (e) => {                              // parent /ide -> iframe
-  if (!_planOrigins.has(e.origin)) return;                              // drop messages from any non-allowlisted frame
+  if (!_originOk(e.origin)) return;                                     // drop any non-allowlisted / opaque frame
   const d = e.data;
   if (d && d.type === "stewie:plan" && Array.isArray(d.waypoints)) applyPlan(d.waypoints, !!d.lonlat);
 });
@@ -266,6 +272,7 @@ const KEYMAP = { w:"fwd", arrowup:"fwd", s:"back", arrowdown:"back",
 let lastV = 0, lastO = 0;
 function emitTwist(v, o) {
   v = Math.max(-1, Math.min(1, v)); o = Math.max(-1, Math.min(1, o));
+  if (_safedClient && (v !== 0 || o !== 0)) return;   // council: no drive while SAFE-latched (the server also refuses)
   if (v === lastV && o === lastO) return;   // only send on change
   lastV = v; lastO = o;
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ v, omega: o }));
@@ -337,6 +344,11 @@ document.getElementById("loadRoute").onclick = async () => {
     const r = await fetch(withTok("/routes/" + encodeURIComponent(name)));
     if (!r.ok) { routeMsg.textContent = "load failed"; return; }
     const fc = await r.json();
+    const savedSite = fc.properties && fc.properties.site;   // council: a route's absolute lon/lat goals are
+    if (savedSite && CONFIG.site && savedSite !== CONFIG.site) {   // only valid on their own DEM tile — refuse a
+      routeMsg.textContent = `route is for site “${savedSite}”, not “${CONFIG.site}” — relaunch on that site`;  // cross-site load rather than silently clamp to the edge
+      return;
+    }
     const wps = (fc.features || []).filter((f) => f.properties && f.properties.feature === "waypoint")
                                    .map((f) => f.geometry.coordinates);   // [lon, lat] goal waypoints
     if (wps.length) { applyPlan(wps, true); routeMsg.textContent = `↺ loaded “${name}” (${wps.length} wp) — drives on ▶ traverse`; }

@@ -348,7 +348,7 @@ class StreamSession:
             if isinstance(obj, dict) and obj.get("safe") is not None:
                 import stewie.bridge.rc_contract as RC
                 pr = obj["safe"] if isinstance(obj["safe"], dict) else {}
-                self._safe_cmd = RC.Safe(reason=int(pr.get("reason", RC.SAFE_REASON_OPERATOR)))  # real frozen contract cmd
+                self._safe_cmd = RC.Safe(reason=int(_finite(pr.get("reason", RC.SAFE_REASON_OPERATOR))))  # real frozen cmd; never raises
                 self._safed = True                                  # latch: motion refused until {rearm}
                 self._writer.write(pack_frame(json.dumps({"v": 0.0, "omega": 0.0, "traverse": False}).encode()))
                 await self._writer.drain()
@@ -373,7 +373,9 @@ class StreamSession:
                     rc_kind = getattr(twist_to_command(lx, az, pose=RC.Pose(leg_id=0, row=0.0, col=0.0, yaw_rad=0.0)), "kind", "?")
                 except Exception:
                     rc_kind = "invalid"
-                v = max(-1.0, min(1.0, lx / 0.29)); om = max(-1.0, min(1.0, -az / 0.90))   # SI -> normalized (LIVE_LIN/ANG)
+                # SI -> normalized {v,omega} (LIVE_LIN/ANG). omega keeps the SAME sign as the browser WASD
+                # convention (left = +omega); Godot applies the single -om flip, so REP-103 +angular_z turns left.
+                v = max(-1.0, min(1.0, lx / 0.29)); om = max(-1.0, min(1.0, az / 0.90))
                 self._writer.write(pack_frame(json.dumps({"v": v, "omega": om}).encode()))
                 await self._writer.drain()
                 await ws.send_text(json.dumps({"type": "cmd_vel_ack", "rc": rc_kind, "v": round(v, 3), "omega": round(om, 3)}))
@@ -381,8 +383,10 @@ class StreamSession:
             cmd = protocol.normalize_input(raw)
             if not cmd:
                 continue
-            # SF-01: while SAFE-latched, refuse new MOTION (drive/traverse/plan) until {rearm}; view/config verbs pass
-            if self._safed and any(k in cmd for k in ("v", "omega", "traverse", "plan", "click_px")):
+            # SF-01: while SAFE-latched, refuse ALL actuation (drive/steer/plan AND the excavation actuators
+            # dig/dump/drum/arm) until {rearm} — a contract Safe is ALL-STOP (council). View/config verbs pass.
+            if self._safed and any(k in cmd for k in ("v", "omega", "traverse", "plan", "click_px",
+                                                      "dig", "dump", "drum", "arm_front_d", "arm_back_d")):
                 continue
             # record (timestamped) THEN forward — the bag replays byte-for-byte
             self._bag.append({"t": max(0.0, time.monotonic() - self._bag_t0), "cmd": cmd})
