@@ -178,7 +178,8 @@ def four_wheel_pass(cs: ColumnState, poses: list[tuple[tuple[float, float], floa
     ``loads`` gives the per-wheel normal load [N] (dict keyed LF/RF/LB/RB, a scalar for
     all four, or None -> the static load for the current rover weight = dry + ``payload_kg``,
     the live drum fill, so a loaded rover firms harder); ``params`` selects the
-    TerramechanicsParams set (None -> constants.py defaults; .lunar()/.scm_oracle() also
+    TerramechanicsParams set (None -> constants.py defaults, which ARE the sourced NASA LTV LUNAR
+    reference and are already correct for lunar g -- see FIX-6/[REQ:PX-08]; .scm_oracle() also
     valid). Still a density-only edit -> mass conserved exactly. ``physical=False``
     (default) is byte-identical to the prior constant-compaction behaviour.
 

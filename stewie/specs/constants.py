@@ -67,9 +67,10 @@ Z_T = 0.12  # 12 cm
 # §5.2 Strength parameters
 # ---------------------------------------------------------------------------
 
-#: Cohesion [Pa]. [CALIB] spec §5.2 (c 0.1-1.0 kPa, ~0.17 kPa -> 170 Pa). Interlocking-
-#: driven ("like Velcro", spec §9); spec notes c DECREASES in low-g — NOT applied here.
-#: Earth/Apollo-era value; see lyasko2010.pdf (reduced-gravity Bekker corrections).
+#: Cohesion c [Pa]. SOURCED LUNAR reference — NASA LTV terramechanics white paper (NTRS 20220010732),
+#: which publishes c=170 Pa together with k_c/k_phi/n below as the LUNAR set. Interlocking-driven
+#: ("like Velcro", spec §9). This value ALREADY encodes the 1/6-g condition: do NOT Lyasko-reduce it
+#: (that double-counts gravity — FIX-6). See [REQ:PX-08] test_lowg_modulus_provenance.py.
 COHESION = 170.0  # 0.17 kPa
 
 #: Internal friction angle [rad]. [CALIB] spec §5.2 (phi 30-50 deg, ->55 at depth).
@@ -91,17 +92,19 @@ PHI = np.deg2rad(37.0)
 #   (spec §9 "forces engineered small ... must be geometry- and state-accurate"). ***
 # ---------------------------------------------------------------------------
 
-#: Sinkage exponent n [dimensionless]. [CALIB] spec §5.2 (0.8-1.0, ~1.0). Rises with
-#: density, DROPS in low-g (lyasko2010.pdf) — low-g drop NOT applied.
+#: Sinkage exponent n [dimensionless]. SOURCED LUNAR reference (NTRS 20220010732: n=1.0). Rises with
+#: density. Already the lunar value — no low-g drop is owed or applied (FIX-6; [REQ:PX-08]).
 N_SINKAGE = 1.0
 
-#: Bekker cohesive modulus k_c [Pa/m^(n-1)]. [CALIB] spec §5.2 (~1.4 kN/m^(n+1)).
-#: ~g-independent (lyasko2010.pdf). 1.4 kN -> 1400 (SI, at n=1).
+#: Bekker cohesive modulus k_c [Pa/m^(n-1)]. SOURCED LUNAR reference (NTRS 20220010732: 1.4 kN -> 1400
+#: SI at n=1). ~g-independent anyway (lyasko2010.pdf). Already lunar — do NOT reduce (FIX-6; [REQ:PX-08]).
 K_C = 1400.0
 
-#: Bekker frictional modulus k_phi [Pa/m^n]. [CALIB] spec §5.2 (~800-820 kN/m^(n+2),
-#: wide uncertainty). DROPS in low-g (lyasko2010.pdf) — drop NOT applied. 820 kN ->
-#: 820000 (SI, at n=1).
+#: Bekker frictional modulus k_phi [Pa/m^n]. SOURCED LUNAR reference — NASA LTV terramechanics white
+#: paper (NTRS 20220010732): 820 kN -> 820000 (SI, at n=1). k_phi DOES drop in low-g (lyasko2010.pdf),
+#: but this published value ALREADY encodes the 1/6-g lunar condition, so the drop must NOT be applied
+#: again: doing so cuts k_phi ~25% and OVERSTATES sinkage/slip everywhere (FIX-6, the double-reduce bug).
+#: The lunar parameter set is TerramechanicsParams.from_constants(), UNREDUCED. [REQ:PX-08].
 K_PHI = 820_000.0
 
 #: Shear deformation modulus K [m]. [CALIB] spec §5.2 (1.0-1.8 cm, ~1.8 -> 0.018 m).

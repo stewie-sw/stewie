@@ -30,9 +30,25 @@ PARAMETER NOTE / honest gap: constants.py uses the spec §5.2 Apollo-era moduli
 rover.py:112) used a JSC-1A analogue (k_phi=0.2e6, k_c=0) — a ~4x lower k_phi, so
 SCM predicts MORE sinkage. Which set to trust is exactly what the controlled
 load-sweep oracle (Phase 0.3, deferred to a PyChrono host) must reconcile; both
-are reachable via TerramechanicsParams.from_constants() / .scm_oracle(). The
-1g->1/6g Lyasko-2010 reduced-gravity correction is NOT yet applied (needs the
-sweep + the paper) and is the named next calibration step.
+are reachable via TerramechanicsParams.from_constants() / .scm_oracle().
+
+GRAVITY CORRECTION -- SETTLED, DO NOT RE-APPLY (FIX-6, resolved 2026-07-13). An earlier version of this
+header said the 1g->1/6g Lyasko-2010 correction "is not yet applied" and was "the named next calibration
+step", implying `from_constants()` is an Earth/Apollo-fit set awaiting reduction. That is WRONG. The NASA
+LTV terramechanics white paper (NTRS 20220010732) publishes k_phi=820000 Pa/m^n, k_c=1400, n=1.0,
+c=170 Pa as the LUNAR reference values, and those are exactly the constants shipped in
+`stewie.specs.constants`. So:
+
+    THE LUNAR PARAMETER SET IS `from_constants()`, UNREDUCED.
+
+Applying `lyasko_reduce()` on top double-counts gravity (it drops k_phi and cohesion ~25% at lunar g),
+which UNDERSTATES the frictional modulus and therefore OVERSTATES sinkage, slip and entrapment on every
+absolute number the sim reports. `lyasko_reduce()` is kept below because it is a sourced, correct
+transform for an EARTH-fit modulus set -- it simply must not be applied to these constants. The drive
+path takes `from_constants()` by default and never reduces. Locked by
+[REQ:PX-08] `stewie/physics/test_lowg_modulus_provenance.py`, which also forbids any production caller of
+`lyasko_reduce`. (What the deferred Chrono load-sweep oracle still owes us is a MAGNITUDE cross-check of
+these sourced moduli against measured sinkage -- not a gravity re-correction.)
 """
 from __future__ import annotations
 
@@ -102,12 +118,13 @@ class TerramechanicsParams:
         JSC-1A analogue (k_phi=0.2e6, k_c=0, n=1). For oracle cross-checks."""
         return cls(k_c=0.0, k_phi=0.2e6, n_sinkage=1.0)
 
-    @classmethod
-    def lunar(cls) -> "TerramechanicsParams":
-        """from_constants() with the Lyasko 1g->1/6g reduced-gravity correction
-        applied (sourced direction, [CALIB] magnitude). Use for lunar runs; the
-        bare from_constants() stays Earth/Apollo-fit (spec §5.2 "not applied")."""
-        return lyasko_reduce(cls.from_constants())
+    # NOTE (FIX-6, resolved): there is deliberately NO `.lunar()` constructor. It used to return
+    # `lyasko_reduce(from_constants())` and told callers to "use it for lunar runs" -- but the shipped
+    # constants ARE the NASA LTV LUNAR reference (NTRS 20220010732: k_phi=820000, k_c=1400, n=1, c=170),
+    # so reducing them again double-counts gravity (k_phi -25% -> sinkage/slip OVERSTATED everywhere).
+    # THE LUNAR SET IS `from_constants()`, UNREDUCED. `lyasko_reduce()` below remains available for an
+    # Earth-fit modulus set, but must not be applied to these. Locked by
+    # [REQ:PX-08] stewie/physics/test_lowg_modulus_provenance.py.
 
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)

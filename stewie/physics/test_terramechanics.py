@@ -241,27 +241,33 @@ def test_conform_pose_payload_scales_load():
 
 # -- Lyasko 1g->1/6g reduced-gravity correction -------------------
 
+# FIX-6 NOTE for the three tests below: they exercise `lyasko_reduce()` as a TRANSFORM -- its sourced
+# direction and its identity at Earth gravity. They are NOT how the lunar sim is parameterised. The shipped
+# constants are ALREADY the NASA LTV LUNAR reference (NTRS 20220010732), so the sim's lunar set is
+# `from_constants()` UNREDUCED, and applying this transform to it would double-count gravity. These used to
+# call a `.lunar()` constructor that did exactly that (and named the result "lunar"), which is why the
+# constructor is gone. See [REQ:PX-08] stewie/physics/test_lowg_modulus_provenance.py.
 def test_lyasko_increases_sinkage():
-    """The sourced NET truth: reduced gravity -> MORE sinkage under the same load."""
-    earth = tm.TerramechanicsParams.from_constants()
-    lunar = tm.TerramechanicsParams.lunar()
+    """The sourced NET truth of the correction: lowering gravity -> MORE sinkage under the same load."""
+    base = tm.TerramechanicsParams.from_constants()      # input to the transform, NOT "the Earth set"
+    reduced = tm.lyasko_reduce(base)
     load = tm.static_wheel_load_n(0.0)
-    z_earth = tm.wheel_static_sinkage(load, params=earth)
-    z_lunar = tm.wheel_static_sinkage(load, params=lunar)
-    assert z_lunar > z_earth, (z_earth, z_lunar)
+    z_base = tm.wheel_static_sinkage(load, params=base)
+    z_reduced = tm.wheel_static_sinkage(load, params=reduced)
+    assert z_reduced > z_base, (z_base, z_reduced)
 
 
 def test_lyasko_directions():
     """k_phi and cohesion decrease; k_c and phi unchanged (Lyasko: little change).
     n is left unchanged by default (the dimensional-units caveat in lyasko_reduce).
     """
-    earth = tm.TerramechanicsParams.from_constants()
-    lunar = tm.TerramechanicsParams.lunar()
-    assert lunar.k_phi < earth.k_phi
-    assert lunar.cohesion < earth.cohesion
-    assert lunar.k_c == earth.k_c
-    assert lunar.phi_rad == earth.phi_rad
-    assert lunar.n_sinkage == earth.n_sinkage  # n_frac default 0 (deferred to oracle fit)
+    base = tm.TerramechanicsParams.from_constants()
+    reduced = tm.lyasko_reduce(base)
+    assert reduced.k_phi < base.k_phi
+    assert reduced.cohesion < base.cohesion
+    assert reduced.k_c == base.k_c
+    assert reduced.phi_rad == base.phi_rad
+    assert reduced.n_sinkage == base.n_sinkage  # n_frac default 0 (deferred to oracle fit)
 
 
 def test_lyasko_identity_at_earth_gravity():
@@ -271,12 +277,12 @@ def test_lyasko_identity_at_earth_gravity():
     assert same == earth
 
 
-def test_lunar_params_json_roundtrip():
-    """Lunar params are still a valid JSON-serializable config."""
+def test_reduced_params_json_roundtrip():
+    """A gravity-corrected param set is still a valid JSON-serializable config."""
     import json
-    lunar = tm.TerramechanicsParams.lunar()
-    back = tm.TerramechanicsParams.from_dict(json.loads(lunar.to_json()))
-    assert back == lunar
+    reduced = tm.lyasko_reduce(tm.TerramechanicsParams.from_constants())
+    back = tm.TerramechanicsParams.from_dict(json.loads(reduced.to_json()))
+    assert back == reduced
 
 
 # -- slip-sinkage multiplier + four_wheel_pass slip -----------

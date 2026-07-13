@@ -9,10 +9,12 @@ stubs: the code runs, is mass-conserving, and is validated on the sourced qualit
 
 ## FIX-1 — Quantitative sinkage calibration (K_PHI reconciliation + Lyasko magnitudes)
 
-- **Problem.** Two parameter sets disagree: `constants.py` `K_PHI = 820000` (spec §5.2 Apollo-era) vs the
-  committed Chrono SCM run's `0.2e6 = 200000` (`scripts/chrono_scm_rover.py:113`), a ~4x gap. And the
-  Lyasko reduction fractions in `terramechanics.lyasko_reduce` (`kphi_frac=0.30`, `c_frac=0.30`) are
-  `[CALIB]` estimates, not fit to data.
+- **Problem.** Two parameter sets disagree: `constants.py` `K_PHI = 820000` — the NASA LTV **lunar**
+  reference (NTRS 20220010732; NOT "Apollo-era", see FIX-6) — vs the committed Chrono SCM run's
+  `0.2e6 = 200000` (`scripts/chrono_scm_rover.py:113`), a ~4x gap. This is a MAGNITUDE question (which
+  measured set to trust), not a gravity-correction question: FIX-6 settles that no Lyasko reduction is owed
+  on top of these. The Lyasko fractions in `terramechanics.lyasko_reduce` (`kphi_frac=0.30`, `c_frac=0.30`)
+  remain `[CALIB]` estimates, relevant only if the transform is ever applied to an EARTH-fit set.
 - **Fix.** Run the controlled static load-sweep on euclid (`scripts/chrono/calibrate_sinkage.py`, plan
   Phase 0.3) → `samples/calib/scm_sinkage.json`; least-squares fit `K_PHI`/`K_C` and the Lyasko fractions
   to the SCM table; update `constants.py` / `TerramechanicsParams` defaults.
@@ -79,25 +81,42 @@ stubs: the code runs, is mass-conserving, and is validated on the sourced qualit
   once a cell/pack thermal spec is available. Currently `[CALIB]`.
 - **Blocked on.** A real cell/pack temperature-vs-capacity curve.
 
-## FIX-6 — Lunar Bekker moduli may be double-Lyasko-reduced (surfaced by the bodies sysrev)
+## FIX-6 — Lunar Bekker moduli double-Lyasko-reduced — ✅ **RESOLVED 2026-07-13**
 
-- **Problem.** The per-planet systematic review (`roversim/docs/bodies_sysrev.md`) found that the NASA LTV
+- **Problem.** The per-planet systematic review (`docs/bodies_sysrev.md`) found that the NASA LTV
   terramechanics white paper (NTRS 20220010732) publishes `k_phi = 820,000 N/m^3, k_c = 1400 N/m^2,
   n = 1.0, c = 170 Pa` **as the LUNAR reference values** — i.e. these are *already* lunar, not Earth-era.
-  But `constants.py` labels them "Earth/Apollo-era" and `TerramechanicsParams.lunar()` applies an
-  **additional** Lyasko 1g→⅙g reduction on top, which would **double-count** the gravity correction.
-- **Fix (additive, non-breaking already in place).** `terrain_authority/bodies.py` `params_for_body("moon")`
-  uses the sourced NASA lunar values **directly** (no second reduction) — the literature-correct Moon. The
-  open question is only whether `lunar()` itself should drop the extra reduction (changes legacy behavior),
-  or whether John intends `constants.py` as a true Earth baseline. **Flagged for John; `lunar()` unchanged.**
-- **Blocked on.** John's intent for the `constants.py` baseline (Earth vs lunar). No data needed — a
-  modeling-decision clarification.
+  But `constants.py` labelled them "Earth/Apollo-era" and `TerramechanicsParams.lunar()` applied an
+  **additional** Lyasko 1g→⅙g reduction on top, which **double-counts** the gravity correction.
+- **Resolution.** The source decides it, so this never needed a modelling-intent call: NTRS 20220010732
+  publishes that set as the LUNAR reference, therefore **the lunar parameter set is
+  `TerramechanicsParams.from_constants()`, UNREDUCED**, and reducing it again is simply wrong.
+  Applied consistently:
+  - **`.lunar()` DELETED.** It returned `lyasko_reduce(from_constants())` — k_phi 820 000 → 614 624
+    (−25%) and cohesion 170 → 127.4 (−25%) — while its docstring said "Use for lunar runs". That
+    UNDERSTATES the frictional modulus and so OVERSTATES sinkage, slip and entrapment on every absolute
+    figure. It had **zero production callers** (tests only), so the drive path's numbers were always right;
+    the footgun was one honest mistake away from corrupting all of them.
+  - **Provenance single-sourced.** `constants.py` (K_PHI/K_C/N_SINKAGE/COHESION) and the
+    `stewie_forge/terramechanics.py` header now both state the NTRS 20220010732 lunar provenance and the
+    do-not-re-reduce rule, instead of contradicting each other and `body_params.py` (PHYS-01).
+  - **`lyasko_reduce()` KEPT** — it is a sourced, correct transform for an *Earth-fit* modulus set. It
+    just must never touch these constants.
+  - **Locked by `[REQ:PX-08]` `stewie/physics/test_lowg_modulus_provenance.py`**: the shipped constants
+    equal the sourced lunar set, the drive path's default params are not pre-reduced, the `.lunar()`
+    constructor may not return, and **no production module may call `lyasko_reduce`** (AST guard). All
+    non-vacuous (verified to fail on a re-introduced production reduce).
+- **Numbers unchanged.** The drive path already used `from_constants()`, so no published sinkage/slope
+  figure moves. What changed is that the correct behaviour is now *stated* and *enforced* rather than
+  accidental. (What the deferred Chrono load-sweep oracle still owes is a MAGNITUDE cross-check of these
+  sourced moduli against measured sinkage — not a gravity re-correction.)
 
 ---
 
 *FIX-1/FIX-2 remain (shared euclid PyChrono load-sweep oracle, plan Phase 0.3). FIX-3 done. FIX-4 done
 (per-cell deposit, PR #4). FIX-5 (battery thermal derating) blocked on a real cell thermal curve. FIX-6
-(lunar Bekker double-Lyasko) flagged for John, sidestepped in bodies.py. The Tier-2
+(lunar Bekker double-Lyasko) RESOLVED 2026-07-13: the constants ARE the sourced NTRS 20220010732 lunar
+reference, `.lunar()` (which double-reduced them) is deleted, and [REQ:PX-08] locks it. The Tier-2
 surrogate is parameter-consistent and qualitatively validated; the RL env is validated (env_checker +
 converging PPO); and the energy model (K2) is now grounded in real IPEx data (`terrain_authority/ipex_specs.py`,
 Schuler ASCEND 2024 + the 12S/30Ah pack) rather than arbitrary coefficients.*
