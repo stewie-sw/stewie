@@ -98,6 +98,7 @@ uniform float topo_scan_width = 3.0;
 uniform float topo_scan_blur = 1.5;
 uniform vec3  topo_scan_color : source_color = vec3(1.0, 0.55, 0.12);   // amber sweep, high-contrast on teal topo
 uniform float topo_ambient = 0.4;   // self-lit map floor so grazing-PSR shadows still read the topo
+uniform float far_ambient_floor = 0.13;   // photoreal backdrop: dim self-lit floor so the full-DEM Haworth horizon reads under the grazing polar sun (the far light() diffuse is ~0 at el 18°)
 
 // --- simplex noise (Ashima Arts / Stefan Gustavson "webgl-noise", MIT; mirror of terrain.gdshader) ---
 // Replaces the prior square-lattice value noise (axis-aligned diamond artifacts) with isotropic
@@ -266,6 +267,10 @@ void fragment() {
 			col = mix(col, topo_scan_color, band * fade * 0.85);
 			EMISSION += topo_scan_color * band * fade * 1.8;
 		}
+	} else {
+		// photoreal / slope modes: a dim self-lit floor so the full-tile Haworth backdrop reads at a grazing
+		// polar sun (light() diffuse ~0 in the distance). Sun highlights still add on top via light().
+		EMISSION = col * far_ambient_floor;
 	}
 	ALBEDO = col;
 	ROUGHNESS = rough;

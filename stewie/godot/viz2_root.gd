@@ -90,6 +90,7 @@ var _view_size := Vector2i(1280, 720)
 var _region_cx := 0.0        # mission-region centre X (world m)
 var _region_cz := 0.0        # mission-region centre Z (world m)
 var _region_size := 0.0      # mission size (m); 0 = render the whole tile (legacy)
+var _full_dem_bg := true      # far-context spans the WHOLE Haworth tile (full-DEM background); --far-region-only clamps it
 var _topo_active := false     # MONOLITH topo overlay (analysis_mode 2) live -> animate the scan wave
 var _topo_scan_t := 0.0       # scan-wave progress 0..1 (looped in the stream frame update)
 var _hud_selfcheck := false           # Phase C: headless proof the HUD slider drives the sun
@@ -312,6 +313,8 @@ func _parse_args() -> void:
 				i += 1; _region_cz = float(args[i])
 			"--region-size":
 				i += 1; _region_size = float(args[i])
+			"--far-region-only":
+				_full_dem_bg = false            # opt out: clamp the far backdrop to the mission region (perf)
 		i += 1
 
 
@@ -1264,7 +1267,11 @@ func _build_far_context() -> void:
 	# MISSION REGION: cover only a sub-area around the spawn (big rover ratio + fine terrain) instead of
 	# the whole tile. _region_size==0 -> legacy full-tile render. 256 subdivisions over a ~100 m mission
 	# = ~0.4 m/vertex (finer than the DEM), and the small plane is cheap.
-	var use_region := _region_size > 0.0
+	# full-DEM background (default): the far-context spans the WHOLE Haworth tile as the distant backdrop,
+	# while the fine window keeps the rover-local high-res detail. --far-region-only reverts to the mission-
+	# region backdrop. The fine-window poke-through discard follows window_origin/side/active, not the region,
+	# so the overlap stays correct regardless of the backdrop extent.
+	var use_region := _region_size > 0.0 and not _full_dem_bg
 	var rsize := clampf(_region_size, 60.0, minf(ext.x, ext.y))
 	var rcenter := Vector2(_region_cx, _region_cz)
 	if use_region:
