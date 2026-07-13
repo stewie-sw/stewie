@@ -83,9 +83,10 @@ func build(waypoints: Array, width_m: float = 1.0, lift_m: float = 0.35) -> bool
 	ribbon.mesh = im
 	add_child(ribbon)
 
-	# endpoint markers (start = green, goal = amber) so the haul direction reads
-	_add_marker(pts[0], Color(0.20, 1.0, 0.35), width_m * 1.6)
-	_add_marker(pts[pts.size() - 1], Color(1.0, 0.70, 0.10), width_m * 1.6)
+	# endpoint markers (start = green, goal = amber) so the haul direction reads. Small drive-view size:
+	# the start sits at the rover, so a plan-view-scale sphere (width*1.6) engulfed the chase-cam (council).
+	_add_marker(pts[0], Color(0.30, 0.90, 0.45), 0.35)
+	_add_marker(pts[pts.size() - 1], Color(1.0, 0.70, 0.10), 0.35)
 
 	center = (lo + hi) * 0.5
 	span = maxf(hi.x - lo.x, hi.z - lo.z)
@@ -97,14 +98,14 @@ func build(waypoints: Array, width_m: float = 1.0, lift_m: float = 0.35) -> bool
 
 func _add_marker(pos: Vector3, col: Color, r: float) -> void:
 	var sph := SphereMesh.new()
-	sph.radius = maxf(r, 0.4)
+	sph.radius = maxf(r, 0.25)
 	sph.height = sph.radius * 2.0
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.albedo_color = col
 	m.emission_enabled = true
 	m.emission = col
-	m.emission_energy_multiplier = 2.0
+	m.emission_energy_multiplier = 1.2
 	sph.material = m
 	var mi := MeshInstance3D.new()
 	mi.mesh = sph

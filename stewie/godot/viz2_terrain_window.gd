@@ -125,7 +125,8 @@ func _apply_field(fields: Dictionary, name: String, gdir: String, dst: Image, te
 	var need := w * h * (4 if is_float else 1)
 	if raw.size() < need:
 		return
-	var crop := Image.create_from_data(w, h, false, fmt, raw.slice(0, need))
+	# avoid a full PackedByteArray copy in the common exact-size case (council/Lena: crop file is exactly need)
+	var crop := Image.create_from_data(w, h, false, fmt, raw if raw.size() == need else raw.slice(0, need))
 	dst.blit_rect(crop, Rect2i(0, 0, w, h), Vector2i(c0, r0))   # absolute-value crop, idempotent
 	tex.update(dst)                                             # in-place GPU update, no realloc
 
