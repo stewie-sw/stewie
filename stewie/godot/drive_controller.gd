@@ -48,7 +48,7 @@ func setup(p_sidecar: Node, p_sf, p_auto: int) -> void:
 
 
 func _load_postures() -> void:
-    var path := ProjectSettings.globalize_path("res://") + "../terrain_authority/data/ipex_postures.json"
+    var path := ProjectSettings.globalize_path("res://") + "../physics/data/ipex_postures.json"
     var f := FileAccess.open(path, FileAccess.READ)
     if f:
         var doc = JSON.parse_string(f.get_as_text())

@@ -99,7 +99,8 @@ def _skid_steer_motion(v_cmd: float, omega_cmd: float, *, track_m: float,
                        normal_left_n: float, normal_right_n: float,
                        slope_rad: float, roll_rad: float, weight_n: float,
                        params: "tm.TerramechanicsParams",
-                       contact_len_m: float, contact_width_m: float) -> dict:
+                       contact_len_m: float, contact_width_m: float,
+                       extra_demand_n: float = 0.0) -> dict:
     """Per-side skid-steer terramechanics (T-05): left/right thrust balance + lateral scrub.
 
     A skid-steer rover turns by driving its two SIDES at different speeds: v_left = v - omega*track/2,
@@ -125,7 +126,9 @@ def _skid_steer_motion(v_cmd: float, omega_cmd: float, *, track_m: float,
         # side under more normal load (downhill on a cross-slope) has a bigger budget -> less slip.
         if abs(v_side) < 1e-12:
             return 0.0
-        demand = normal_side_n * math.sin(slope_rad)         # along-slope gravity on this side
+        # along-slope gravity on this side + half the external draft reaction (#2: the two sides share
+        # the unbalanced excavation reaction; default 0 -> unchanged).
+        demand = normal_side_n * math.sin(slope_rad) + 0.5 * abs(extra_demand_n)
         h_max = slipmod.traction_budget(normal_side_n, cohesion=params.cohesion,
                                         phi_rad=params.phi_rad, contact_area_m2=area)
         s, _ent = slipmod.slip_for_demand(abs(demand), h_max, contact_len_m=contact_len_m,
@@ -192,6 +195,7 @@ def drive_step(cs: ColumnState, rc: tuple[float, float], yaw: float,
                gauge_m: float = rover.WHEEL_GAUGE_M,
                wheelbase_m: float = rover.WHEEL_BASE_M,
                wheel_radius_m: float = rover.WHEEL_RADIUS_M,
+               dig_reaction_n: float = 0.0,
                ) -> tuple[tuple[float, float], float, dict]:
     """One closed-loop step: command twist in, (new_rc, new_yaw, telemetry) out.
 
@@ -234,7 +238,8 @@ def drive_step(cs: ColumnState, rc: tuple[float, float], yaw: float,
     eq = slipmod.slip_sinkage_equilibrium(weight_n, slope_rad, params=p,
                                           n_wheels=int(n_wheels),
                                           contact_len_m=contact_len_resolved,
-                                          contact_width_m=wheel_width_m, density=cell_rho)
+                                          contact_width_m=wheel_width_m, density=cell_rho,
+                                          extra_demand_n=abs(float(dig_reaction_n)))
     s = eq["slip"]
     entrapped = bool(eq["entrapped"])
     # T-01: entrapment is a DISCRETE stuck state, not a slow creep. When the demanded thrust exceeds
@@ -270,7 +275,8 @@ def drive_step(cs: ColumnState, rc: tuple[float, float], yaw: float,
                 normal_left_n=normal_left, normal_right_n=normal_right,
                 slope_rad=slope_rad, roll_rad=float(cf["roll_rad"]), weight_n=weight_n,
                 params=p,
-                contact_len_m=contact_len_resolved, contact_width_m=wheel_width_m)
+                contact_len_m=contact_len_resolved, contact_width_m=wheel_width_m,
+                extra_demand_n=abs(float(dig_reaction_n)))
             v_ach = ss["v_ach"]
             omega_ach = ss["omega_ach"]
             side_telem = {
@@ -293,6 +299,7 @@ def drive_step(cs: ColumnState, rc: tuple[float, float], yaw: float,
         "v_achieved": float(v_ach), "slip": float(s), "entrapped": entrapped,
         "slope_rad": float(slope_rad), "sinkage_m": float(eq["sinkage_m"]),
         "contact_len_m": float(contact_len_resolved),    # T-03: sinkage/radius-resolved contact patch
+        "dig_reaction_n": float(dig_reaction_n),         # #2: external excavation draft reaction this step
     }
     telem.update(side_telem)                              # T-05: per-side skid-steer breakdown (if any)
     return new_rc, new_yaw, telem

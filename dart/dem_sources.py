@@ -20,6 +20,14 @@ from dataclasses import dataclass
 
 _MOON_ME_RADIUS_M = 1737400        # mean lunar radius (MOON_ME); the lunar vertical datum
 
+# R-M7 (A3a): the LRO NAC Shape-from-Shading (photoclinometry) citation, verified against
+# design/DEM_CROSSREF_2026-06-11.md row 4 (Alexandrov & Beyer 2018, Earth & Space Sci. 5, 652).
+# This is the SfS DEM's authoritative provenance -- it is NOT the LOLA Product-78 (Barker/Mazarico)
+# citation the LOLA tiles carry (a different instrument + method entirely). Shared by the 1 m source
+# row and the committed 2 km drive-site crop so both name the same product + method.
+_SFS_CITATION = ("USGS Astrogeology LRO NAC photoclinometry (Shape-from-Shading) DEM 1 m; "
+                 "method Alexandrov & Beyer 2018 (Earth & Space Sci. 5:652)")
+
 
 @dataclass(frozen=True)
 class DemSource:
@@ -37,6 +45,11 @@ class DemSource:
     body: str = "moon"
     frame_radius_m: int = _MOON_ME_RADIUS_M
     notes: str = ""
+    #: R-M7 (A3a): the authoritative product/method citation. Additive + default-empty, so every
+    #: pre-existing row and its tests are unaffected until populated. Carried verbatim into a built
+    #: bundle's ``dem_provenance.citation`` (scripts/build_from_dem.build_from_source), so the map's
+    #: "About this DEM" provenance is machine-sourced from the registry, not hand-typed per bundle.
+    citation: str = ""
 
     @property
     def planning_grade(self) -> bool:
@@ -71,59 +84,60 @@ _CATALOG: tuple[DemSource, ...] = (
         license="public domain (US Gov)", ingest="dem_import", bundled=True,
         notes="PGDA Product 78 Site04; real LOLA polar-stereographic max-relief 10 km / 5 m tile "
               "(~4.4 km relief) carved by scripts/build_from_dem.py (Lane A), imported 2026-06-10."),
-    # These 8 Artemis-candidate tiles are real LOLA products available via the host bake / pending the
-    # host-mount (task #76); their 47 MB DEM bundles are NOT repo-committed, so bundled=False (the flag is
-    # metadata-only: a cockpit badge + a /dem/sources field, it does NOT gate site serving). Only the three
-    # committed tiles above (haworth, nobile_rim1, shackleton_rim) ship a real on-disk bundle. planning_grade
-    # stays True (it is derived from crs/ingest, independent of bundled).
+    # These Artemis-candidate tiles are real LOLA products carved from the on-host PGDA 5 m sources by
+    # scripts/build_from_dem.py. The 2026-07-11 widen built + tiled the 10 km @ 5 m bundles for DM2, Site01,
+    # Site07, Site11, Site20, Site23 (Site04/Site06 were already bundled), so a row is bundled=True once its
+    # heightmap is committed under samples/lunar_dem (a cockpit badge + a /dem/sources field; it does NOT
+    # gate site serving). Shoemaker + Site42 remain unbuilt (bundled=False). planning_grade stays True
+    # (derived from crs/ingest, independent of bundled).
     DemSource(
         id="connecting_ridge_10km_5m", name="Connecting Ridge (Site01) 10 km tile",
         instrument="LOLA", resolution_m=5.0, coverage="Connecting Ridge (Artemis III candidate), ~10 km",
         crs="south_polar_stereographic", fmt="geotiff_cog",
         access_url="https://pgda.gsfc.nasa.gov/products/78",
-        license="public domain (US Gov)", ingest="dem_import", bundled=False,
+        license="public domain (US Gov)", ingest="dem_import", bundled=True,
         notes="PGDA Product 78 Site01; real LOLA polar-stereographic 10 km / 5 m tile carved by "
-              "scripts/build_from_dem.py (Lane A), imported 2026-07-07. See stewie.specs.sites."),
+              "scripts/build_from_dem.py (Lane A), built + tiled 2026-07-11. See stewie.specs.sites."),
     DemSource(
         id="de_gerlache_rim_10km_5m", name="de Gerlache Rim (Site11) 10 km tile",
         instrument="LOLA", resolution_m=5.0, coverage="de Gerlache Rim (Artemis III candidate), ~10 km",
         crs="south_polar_stereographic", fmt="geotiff_cog",
         access_url="https://pgda.gsfc.nasa.gov/products/78",
-        license="public domain (US Gov)", ingest="dem_import", bundled=False,
+        license="public domain (US Gov)", ingest="dem_import", bundled=True,
         notes="PGDA Product 78 Site11; real LOLA polar-stereographic 10 km / 5 m tile carved by "
-              "scripts/build_from_dem.py (Lane A), imported 2026-07-07. See stewie.specs.sites."),
+              "scripts/build_from_dem.py (Lane A), built + tiled 2026-07-11. See stewie.specs.sites."),
     DemSource(
         id="leibnitz_beta_10km_5m", name="Leibnitz Beta Plateau (Site20) 10 km tile",
         instrument="LOLA", resolution_m=5.0, coverage="Leibnitz Beta Plateau (Artemis III candidate), ~10 km",
         crs="south_polar_stereographic", fmt="geotiff_cog",
         access_url="https://pgda.gsfc.nasa.gov/products/78",
-        license="public domain (US Gov)", ingest="dem_import", bundled=False,
+        license="public domain (US Gov)", ingest="dem_import", bundled=True,
         notes="PGDA Product 78 Site20; real LOLA polar-stereographic 10 km / 5 m tile carved by "
-              "scripts/build_from_dem.py (Lane A), imported 2026-07-07. See stewie.specs.sites."),
+              "scripts/build_from_dem.py (Lane A), built + tiled 2026-07-11. See stewie.specs.sites."),
     DemSource(
         id="malapert_massif_10km_5m", name="Malapert Massif (Site23) 10 km tile",
         instrument="LOLA", resolution_m=5.0, coverage="Malapert Massif (Artemis III candidate), ~10 km",
         crs="south_polar_stereographic", fmt="geotiff_cog",
         access_url="https://pgda.gsfc.nasa.gov/products/78",
-        license="public domain (US Gov)", ingest="dem_import", bundled=False,
+        license="public domain (US Gov)", ingest="dem_import", bundled=True,
         notes="PGDA Product 78 Site23; real LOLA polar-stereographic 10 km / 5 m tile carved by "
-              "scripts/build_from_dem.py (Lane A), imported 2026-07-07. See stewie.specs.sites."),
+              "scripts/build_from_dem.py (Lane A), built + tiled 2026-07-11. See stewie.specs.sites."),
     DemSource(
         id="nobile_rim2_10km_5m", name="Nobile Rim 2 (DM2) 10 km tile",
         instrument="LOLA", resolution_m=5.0, coverage="Nobile Rim 2 (Artemis III candidate), ~10 km",
         crs="south_polar_stereographic", fmt="geotiff_cog",
         access_url="https://pgda.gsfc.nasa.gov/products/78",
-        license="public domain (US Gov)", ingest="dem_import", bundled=False,
+        license="public domain (US Gov)", ingest="dem_import", bundled=True,
         notes="PGDA Product 78 DM2; real LOLA polar-stereographic 10 km / 5 m tile carved by "
-              "scripts/build_from_dem.py (Lane A), imported 2026-07-07. See stewie.specs.sites."),
+              "scripts/build_from_dem.py (Lane A), built + tiled 2026-07-11. See stewie.specs.sites."),
     DemSource(
         id="peak_near_shackleton_10km_5m", name="Peak near Shackleton (Site07) 10 km tile",
         instrument="LOLA", resolution_m=5.0, coverage="Peak near Shackleton (Artemis III candidate), ~10 km",
         crs="south_polar_stereographic", fmt="geotiff_cog",
         access_url="https://pgda.gsfc.nasa.gov/products/78",
-        license="public domain (US Gov)", ingest="dem_import", bundled=False,
+        license="public domain (US Gov)", ingest="dem_import", bundled=True,
         notes="PGDA Product 78 Site07; real LOLA polar-stereographic 10 km / 5 m tile carved by "
-              "scripts/build_from_dem.py (Lane A), imported 2026-07-07. See stewie.specs.sites."),
+              "scripts/build_from_dem.py (Lane A), built + tiled 2026-07-11. See stewie.specs.sites."),
     DemSource(
         id="shoemaker_10km_5m", name="Shoemaker Crater 10 km tile",
         instrument="LOLA", resolution_m=5.0, coverage="Shoemaker Crater (Artemis III candidate), ~10 km",
@@ -169,9 +183,20 @@ _CATALOG: tuple[DemSource, ...] = (
         instrument="LROC NAC", resolution_m=1.0, coverage="local site (e.g. Haworth)",
         crs="south_polar_stereographic", fmt="geotiff_cog",
         access_url="https://astrogeology.usgs.gov/search/map/lunar_lro_nac_haworth_photoclinometry_dem_1m",
-        license="public domain (US Gov)", ingest="dem_import",
-        notes="Absolutely controlled (tied to the LOLA geodetic frame). High-res local detail above "
-              "the LOLA backbone -- register to the global frame on import."),
+        license="public domain (US Gov)", ingest="dem_import", citation=_SFS_CITATION,
+        notes="Absolutely controlled (registered to the global geodetic frame). High-res local detail "
+              "above the coarse polar backbone -- register to the global frame on import. Method is "
+              "photoclinometry / Shape-from-Shading (Alexandrov & Beyer 2018), NOT LOLA altimetry."),
+    DemSource(
+        id="haworth_sfs_2km_1m", name="Haworth SfS 2 km drive-site tile (1 m)",
+        instrument="LROC NAC", resolution_m=1.0, coverage="Haworth crater drive site, ~2 km",
+        crs="south_polar_stereographic", fmt="geotiff_cog",
+        access_url="https://astrogeology.usgs.gov/search/map/lunar_lro_nac_haworth_photoclinometry_dem_1m",
+        license="public domain (US Gov)", ingest="dem_import", bundled=True, citation=_SFS_CITATION,
+        notes="Real LRO NAC Shape-from-Shading (photoclinometry) 1 m DEM; a 2 km @ 1 m crop taken "
+              "INSIDE the SfS footprint (Haworth) by scripts/build_from_dem.py --source-id "
+              "lroc_nac_sfs_1m, imported 2026-07-10. The driveable viz2 work-site base (SfS method "
+              "Alexandrov & Beyer 2018) -- NOT a LOLA Product-78 tile. See stewie.specs.sites."),
     DemSource(
         id="pds_radar_sp", name="PDS Lunar Radar Altimetry South Pole DEM",
         instrument="Mini-RF / radar altimetry", resolution_m=150.0, coverage="south pole",

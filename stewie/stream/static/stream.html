@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STEWIE viz2 — live pixel stream</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #05070c; color: #cdd6e3;
+         font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  header { padding: 8px 12px; border-bottom: 1px solid #1b2434; display: flex;
+           gap: 14px; align-items: center; flex-wrap: wrap; }
+  header b { color: #7fd0ff; }
+  #wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px; }
+  *, *::before, *::after { box-sizing: border-box; }
+  #view { background: #000; border: 1px solid #1b2434; max-width: 100%; image-rendering: auto;
+          touch-action: none; }   /* orbit/pinch own the gesture; no page pan/zoom over the render */
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  /* WCAG 2.5.5 / iOS 44pt / Android 48dp: every control is >= 44px, glove- + sunlight-safe. */
+  button { background: #142033; color: #cdd6e3; border: 1px solid #26364c; border-radius: 6px;
+           min-height: 44px; min-width: 44px; padding: 8px 14px; cursor: pointer; font: inherit;
+           touch-action: manipulation; }   /* kill the 300ms double-tap delay + double-tap zoom */
+  button:hover { background: #1c2c44; }
+  button:active { background: #24405f; }
+  :focus-visible { outline: 2px solid #7fd0ff; outline-offset: 2px; }   /* visible focus (WCAG 2.4.7) */
+  label { display: inline-flex; gap: 6px; align-items: center; min-height: 44px; }
+  input[type=range] { width: 140px; height: 44px; touch-action: manipulation; }
+  #status { color: #8ea0b8; }
+  .ok { color: #6fe08a; } .err { color: #ff7a6b; }
+  kbd { background:#142033; border:1px solid #26364c; border-radius:3px; padding:1px 5px; }
+  /* touch drive pad (#1): a thumb joystick shown only on coarse-pointer devices */
+  #drivepad { display: none; position: relative; width: 132px; height: 132px; border-radius: 50%;
+              background: radial-gradient(circle at 50% 50%, #14243a, #0b1220); border: 1px solid #26364c;
+              touch-action: none; user-select: none; flex: 0 0 auto; }
+  #drivenub { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px;
+              border-radius: 50%; background: #2b4a72; border: 1px solid #4a6da0;
+              pointer-events: none; }
+  #drivehint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+               color: #6c7c93; font-size: 11px; pointer-events: none; }
+  body.touch #drivepad { display: inline-block; }
+  body.touch .keyhint { display: none; }   /* hide WASD/scroll copy on touch devices (#11) */
+  /* emergency STOP (#2): always-reachable, oversized, high-contrast, halts drive regardless of mode */
+  #estop { background: #4a0f12; border-color: #ff5b52; color: #ffd9d6; font-weight: 700;
+           min-height: 52px; }
+  #estop:active { background: #6b1418; }
+  /* ENTRAPPED / SAFE-STOP banner (#8): a dedicated high-contrast bar, not a run-on HUD color class */
+  #banner { display: none; padding: 10px 14px; text-align: center; font-weight: 700; font-size: 15px;
+            background: #4a0f12; color: #ffe3e0; border-bottom: 2px solid #ff5b52; }
+  #banner.show { display: block; }
+  .touchhint { display: none; }
+  body.touch .touchhint { display: inline; }   /* touch-verb copy shows only on coarse-pointer devices */
+  /* keep each label with ITS buttons on wrap (#14): the group flows/wraps as a unit */
+  .grp { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div id="banner" role="alert" aria-live="assertive"></div>
+<header>
+  <span><b>STEWIE viz2</b> live pixel stream</span>
+  <span id="status" aria-live="polite">connecting…</span>
+  <span id="fps"></span>
+  <span id="hud" aria-live="polite"></span>
+</header>
+<div id="wrap">
+  <canvas id="view" width="960" height="540" role="img" aria-label="Live lunar rover camera stream"></canvas>
+  <div class="row">
+    <div id="drivepad" role="button" aria-label="Drive joystick — drag up to go forward, left/right to turn"><div id="drivenub"></div><div id="drivehint">DRIVE</div></div>
+    <span class="keyhint">drive: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows &nbsp;·&nbsp; hold to move</span>
+    <button id="estop" aria-label="Emergency stop — halt all drive motion">■ STOP</button>
+    <button id="dig" aria-label="Dig">dig</button>
+    <button id="dump" aria-label="Dump">dump</button>
+    <button id="cam" aria-label="Cycle camera view">📷 chase</button>
+    <span class="keyhint" style="color:#8ea0b8">(<kbd>C</kbd> cycle · drag to orbit · scroll to zoom)</span>
+    <span class="touchhint" style="color:#8ea0b8">tap-drag to orbit · pinch to zoom · tap map to plot</span>
+  </div>
+  <div class="row">
+    <label>sun az <input id="az" type="range" min="0" max="360" value="135"><span id="azv">135°</span></label>
+    <label>sun el <input id="el" type="range" min="-5" max="90" value="18"><span id="elv">18°</span></label>
+  </div>
+  <div class="row">
+    <span class="grp">drums:
+      <button id="drumf" aria-label="Spin drums forward">▶ spin</button>
+      <button id="drumr" aria-label="Reverse drums">◀ rev</button>
+      <button id="drumstop" aria-label="Stop drums">■ stop</button></span>
+    <span class="grp">front arm:
+      <button id="afd" aria-label="Lower front arm">▼ lower</button>
+      <button id="afu" aria-label="Raise front arm">▲ raise</button></span>
+    <span class="grp">back arm:
+      <button id="abd" aria-label="Lower back arm">▼</button>
+      <button id="abu" aria-label="Raise back arm">▲</button></span>
+  </div>
+  <div class="row">
+    <button id="plot" aria-label="Plot waypoints on the map">📍 plot waypoints</button>
+    <button id="traverse" aria-label="Start autonomous traverse">▶ traverse</button>
+    <button id="stoptrav" aria-label="Pause traverse">⏸ stop</button>
+    <button id="clearwp" aria-label="Clear waypoints">✕ clear</button>
+    <button id="overlay" aria-label="Toggle slope overlay">🗺 slope overlay</button>
+    <span class="keyhint" style="color:#8ea0b8">switch to top-down, plot, then traverse</span>
+  </div>
+  <div class="row">
+    <button id="save" aria-label="Save session recording">💾 Save session</button>
+    <span class="keyhint" style="color:#8ea0b8">records every command · replay via <kbd>?play=&lt;name&gt;</kbd></span>
+  </div>
+  <div class="row">
+    <button id="saveRoute" aria-label="Save the current mission route">🗺 Save route</button>
+    <select id="routeList" aria-label="Saved mission routes" style="min-height:44px; background:#142033; color:#cdd6e3; border:1px solid #26364c; border-radius:6px; padding:0 8px"></select>
+    <button id="loadRoute" aria-label="Load the selected route and drive it">📂 Load route</button>
+    <span id="routeMsg" aria-live="polite" style="color:#8ea0b8"></span>
+  </div>
+  <!-- ROS go-command console (council/Diego): contract-vocabulary commands the server lowers to the drive seam -->
+  <div class="row">
+    <button id="safeBtn" aria-label="Contract safe-stop, latches until re-arm" style="background:#4a0f12; border-color:#ff5b52; color:#ffd9d6; font-weight:700">⛔ SAFE</button>
+    <button id="rearmBtn" aria-label="Re-arm after a safe-stop">↻ re-arm</button>
+    <input id="cmd" type="text" aria-label="ROS go-command console" placeholder="go-command: cmd_vel 0.2 0.1 · goto -34700 89700 · followpath · stop · safe · rearm · dig" style="flex:1; min-width:220px; min-height:44px; background:#0c141f; color:#cdd6e3; border:1px solid #26364c; border-radius:6px; padding:0 10px" />
+    <button id="cmdSend" aria-label="Send go-command">▶ send</button>
+  </div>
+  <pre id="console" aria-live="polite" aria-label="Go-command log" style="max-height:96px; overflow:auto; margin:2px 0; padding:6px 8px; width:100%; box-sizing:border-box; background:#0a0f17; border:1px solid #1b2434; border-radius:6px; color:#9fb0c6; font-size:11px; white-space:pre-wrap"></pre>
+</div>
+<script>
+"use strict";
+// ── config contract (the three.js setup screen sends the SAME first message) ──────────────
+// First WS message = session config. Subsequent messages = per-frame control (normalized intent).
+// The setup screen (GET /) assembles a config and opens this view as /stream#cfg=<base64(JSON)>.
+// Absent that (opened standalone), fall back to the built-in real-Haworth default.
+const DEFAULT_CONFIG = { mode: "real", site: "haworth_sfs_2km_1m", fine: 0.05, sun: { az: 135, el: 18 } };
+function readConfig() {
+  try {
+    const h = new URLSearchParams(location.hash.slice(1));
+    const raw = h.get("cfg");
+    if (raw) {
+      const cfg = JSON.parse(atob(raw));
+      if (cfg && typeof cfg === "object") return cfg;
+    }
+  } catch (e) { /* malformed hash -> default */ }
+  return DEFAULT_CONFIG;
+}
+const CONFIG = readConfig();
+
+const canvas = document.getElementById("view");
+const ctx = canvas.getContext("2d");
+const statusEl = document.getElementById("status");
+const fpsEl = document.getElementById("fps");
+const banner = document.getElementById("banner");
+// coarse pointer (touch) -> show the drive joystick + touch copy, hide the WASD/scroll hints (#1, #11)
+if (window.matchMedia && matchMedia("(pointer: coarse)").matches) document.body.classList.add("touch");
+const proto = location.protocol === "https:" ? "wss" : "ws";
+// When the service is public the setup page navigated here as `/stream?token=T#cfg=...`. Carry that
+// token onto the WS URL so a single `?token=T` link works setup -> preview -> stream -> WS. No token
+// in the URL (tailnet mode) -> the WS URL is exactly `.../ws` as before.
+const TOKEN = new URLSearchParams(location.search).get("token");
+const PLAY = new URLSearchParams(location.search).get("play");   // ?play=<bag> -> replay a saved session
+const wsUrl = `${proto}://${location.host}/ws` + (TOKEN ? `?token=${encodeURIComponent(TOKEN)}` : "");
+let frames = 0, lastT = performance.now();
+function setStatus(t, cls) { statusEl.textContent = t; statusEl.className = cls || ""; }
+
+// resilient WS: mobile links drop on backgrounding / cell handoff, so auto-reconnect with capped
+// exponential backoff + jitter, and reconnect immediately when a backgrounded tab returns to view.
+let ws = null, backoff = 500, reconnectTimer = null, wsGen = 0, _lastPlan = null, _safedClient = false;
+function connect() {
+  clearTimeout(reconnectTimer); reconnectTimer = null;
+  const myGen = ++wsGen;                         // a socket we've already replaced goes silent
+  ws = new WebSocket(wsUrl);
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => {
+    if (myGen !== wsGen) return;
+    backoff = 500;                               // healthy link -> reset backoff
+    if (PLAY) { setStatus("replaying “" + PLAY + "”…"); ws.send(JSON.stringify({ play: PLAY })); }
+    else { setStatus("sending config…"); ws.send(JSON.stringify(CONFIG)); }
+    if (_lastPlan) ws.send(JSON.stringify({ plan_request: { [_lastPlan.key]: _lastPlan.wps } }));  // re-drive the mission after a (re)connect
+    if (_safedClient) ws.send(JSON.stringify({ safe: { reason: 0 } }));   // council: re-latch SF-01 on the fresh session (a reconnect must NOT silently un-safe)
+  };
+  ws.onclose = () => { if (myGen === wsGen) { setStatus("reconnecting…", "err"); scheduleReconnect(); } };
+  ws.onerror = () => { if (myGen === wsGen) setStatus("socket error — reconnecting…", "err"); };
+  ws.onmessage = onWsMessage;
+}
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+  const wait = Math.min(backoff, 10000) + Math.floor(Math.random() * 300);   // capped + jittered
+  reconnectTimer = setTimeout(() => { reconnectTimer = null; connect(); }, wait);
+  backoff = Math.min(backoff * 2, 10000);
+}
+function kickReconnect() {   // reconnect NOW (skip the backoff wait) when the device likely regained the link
+  if (!ws || ws.readyState > WebSocket.OPEN) {
+    backoff = 500; clearTimeout(reconnectTimer); reconnectTimer = null; connect();
+  }
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") kickReconnect(); });
+window.addEventListener("online", kickReconnect);
+
+function onWsMessage(ev) {
+  if (typeof ev.data === "string") {
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.type === "status") {
+      const ent = m.entrapped ? " ⚠ ENTRAPPED" : (m.safe_stop ? " ⛔ SAFE-STOP" : "");
+      const hud = document.getElementById("hud");
+      let plan = "";
+      if (m.route_m > 0) plan = ` · route ${m.route_m}m` + (m.wp_n > 0 ? ` (${m.wp_n}wp)` : "");
+      else if (m.wp_n > 0) plan = ` · ${m.wp_n}wp`;
+      hud.textContent = `slip ${(m.slip*100).toFixed(0)}% · dist ${m.dist_m}m · odo ${m.odo_m}m (drift ${m.odo_err_m}m) · slope ${m.avg_slope}° · IMU a${m.imu_a} ω${m.imu_w}${plan} · (${m.x}, ${m.z}) · gen ${m.gen}${ent}`;
+      hud.className = (m.entrapped || m.safe_stop) ? "err" : "";
+      // dedicated high-contrast safety banner (#8) + the operator SAFE latch (council/Diego) which the
+      // per-frame status must NOT clear (it is a server-side latch, not the runtime's safe_stop flag).
+      if (m.entrapped || m.safe_stop || _safedClient) {
+        banner.textContent = m.entrapped ? "⚠ ROVER ENTRAPPED — back off thrust"
+                           : (m.safe_stop ? "⛔ SAFE-STOP" : "⛔ SAFE latched — ↻ re-arm to drive");
+        banner.classList.add("show");
+      } else banner.classList.remove("show");
+      return;
+    }
+    if (m.type === "ready") setStatus(`live · ${m.mode} · ${m.site || "procedural"}`, "ok");
+    else if (m.type === "playback") setStatus(`▶ replaying ${m.commands} commands`, "ok");
+    else if (m.type === "saved") setStatus(`💾 saved “${m.name}” (${m.commands} cmds)`, "ok");
+    else if (m.type === "planned") { routeMsg.textContent = `route: ${m.points} pts · ${m.source}`; logLine(`planned: ${m.points} pts (${m.source})`); }   // council/Mara: was dropped
+    else if (m.type === "route_saved") { routeMsg.textContent = `🗺 saved “${m.name}” · ${m.route_m}m · ${m.n_goals} wp`; loadRoutes(); }
+    else if (m.type === "safe") { _safedClient = true; logLine(`⛔ SAFE latched (reason ${m.reason})`); banner.textContent = "⛔ SAFE latched — ↻ re-arm to drive"; banner.classList.add("show"); }
+    else if (m.type === "rearmed") { _safedClient = false; logLine("✓ re-armed — motion enabled"); banner.classList.remove("show"); }
+    else if (m.type === "cmd_vel_ack") logLine(`cmd_vel → ${m.rc} · v=${m.v} ω=${m.omega}`);
+    else if (m.type === "error") { setStatus("error: " + m.error, "err"); routeMsg.textContent = m.error; logLine("✗ " + m.error); }
+    return;
+  }
+  // binary = one JPEG frame → blit to the canvas
+  const blob = new Blob([ev.data], { type: "image/jpeg" });
+  createImageBitmap(blob).then((bmp) => {
+    if (canvas.width !== bmp.width || canvas.height !== bmp.height) {
+      canvas.width = bmp.width; canvas.height = bmp.height;
+    }
+    ctx.drawImage(bmp, 0, 0);
+    bmp.close();
+    frames++;
+    const now = performance.now();
+    if (now - lastT > 1000) { fpsEl.textContent = frames + " fps"; frames = 0; lastT = now; }
+  });
+}
+
+// EMBED (GIS /ide fold): drive a mission handed in by the parent frame (postMessage) or the URL.
+// Waypoints are IAU_2015:30135 metres by default, or selenographic [lon,lat] when lonlat is set.
+function safeSend(obj) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); }
+function applyPlan(wps, lonlat) {
+  if (!Array.isArray(wps) || !wps.length) return;
+  _lastPlan = { key: lonlat ? "waypoints_lonlat" : "waypoints", wps };   // stored -> re-applied on reconnect
+  safeSend({ plan_request: { [_lastPlan.key]: _lastPlan.wps } });
+}
+// trust plan messages ONLY from a FIXED allowlist (council: the ?parent hint is embedder-controlled, so it
+// cannot be a trust source; the opaque "null" origin from data:/sandboxed frames is always rejected). In prod
+// the /ide reverse-proxies viz2 under its own origin, so same-origin covers the embed; *.stewie.space + local
+// dev hosts are also allowed.
+function _originOk(o) {
+  return !!o && o !== "null" && (
+    o === location.origin
+    || /^https:\/\/([a-z0-9-]+\.)*stewie\.space$/.test(o)
+    || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o));
+}
+window.addEventListener("message", (e) => {                              // parent /ide -> iframe
+  if (!_originOk(e.origin)) return;                                     // drop any non-allowlisted / opaque frame
+  const d = e.data;
+  if (d && d.type === "stewie:plan" && Array.isArray(d.waypoints)) applyPlan(d.waypoints, !!d.lonlat);
+});
+try {                                                                    // /stream?...&plan=<base64 JSON>
+  const praw = new URLSearchParams(location.search).get("plan");
+  if (praw) {
+    const pj = JSON.parse(atob(praw));
+    if (Array.isArray(pj.waypoints)) applyPlan(pj.waypoints, false);
+    else if (Array.isArray(pj.waypoints_lonlat)) applyPlan(pj.waypoints_lonlat, true);
+  }
+} catch (_e) { /* malformed plan param -> ignore, drive still works */ }
+connect();
+
+// ── drive input: WASD / arrows → normalized {v, omega} intent (Godot scales to IPEx envelope) ─
+const keys = new Set();
+const KEYMAP = { w:"fwd", arrowup:"fwd", s:"back", arrowdown:"back",
+                 a:"left", arrowleft:"left", d:"right", arrowright:"right" };
+let lastV = 0, lastO = 0;
+function emitTwist(v, o) {
+  v = Math.max(-1, Math.min(1, v)); o = Math.max(-1, Math.min(1, o));
+  if (_safedClient && (v !== 0 || o !== 0)) return;   // council: no drive while SAFE-latched (the server also refuses)
+  if (v === lastV && o === lastO) return;   // only send on change
+  lastV = v; lastO = o;
+  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ v, omega: o }));
+}
+function sendTwist() {
+  let v = 0, o = 0;
+  if (keys.has("fwd")) v += 1; if (keys.has("back")) v -= 1;
+  if (keys.has("left")) o += 1; if (keys.has("right")) o -= 1;
+  emitTwist(v, o);
+}
+// touch drive joystick (#1): drag the nub -> normalized {v, omega}; release zeroes it (pointercancel too)
+const pad = document.getElementById("drivepad"), nub = document.getElementById("drivenub");
+let padId = null;
+function padTo(e) {
+  const r = pad.getBoundingClientRect();
+  let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+  const R = r.width / 2 - 12, d = Math.hypot(dx, dy);
+  if (d > R) { dx *= R / d; dy *= R / d; }
+  nub.style.transform = `translate(${dx}px, ${dy}px)`;
+  emitTwist(-dy / R, -dx / R);   // up = forward; left = turn left (omega+, same as A / left-arrow)
+}
+pad.addEventListener("pointerdown", (e) => { padId = e.pointerId; pad.setPointerCapture(e.pointerId); padTo(e); });
+pad.addEventListener("pointermove", (e) => { if (e.pointerId === padId) padTo(e); });
+function padEnd(e) { if (e.pointerId === padId) { padId = null; nub.style.transform = "translate(0,0)"; emitTwist(0, 0); } }
+pad.addEventListener("pointerup", padEnd);
+pad.addEventListener("pointercancel", padEnd);
+// emergency STOP (#2): halt drive regardless of input mode (keyboard OR joystick)
+document.getElementById("estop").onclick = () => {
+  keys.clear(); padId = null; nub.style.transform = "translate(0,0)"; lastV = NaN; emitTwist(0, 0);
+};
+window.addEventListener("keydown", (e) => {
+  const k = KEYMAP[e.key.toLowerCase()];
+  if (k) { e.preventDefault(); if (!keys.has(k)) { keys.add(k); sendTwist(); } }
+});
+window.addEventListener("keyup", (e) => {
+  const k = KEYMAP[e.key.toLowerCase()];
+  if (k) { e.preventDefault(); keys.delete(k); sendTwist(); }
+});
+window.addEventListener("blur", () => { keys.clear(); sendTwist(); });
+
+document.getElementById("dig").onclick = () => safeSend({ dig: true });
+document.getElementById("dump").onclick = () => safeSend({ dump: true });
+document.getElementById("save").onclick = () => {
+  const name = prompt("Save this session as (letters, digits, - or _):", "run1");
+  if (name && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ save: name }));
+};
+// council/Mara: SAVE / LIST / LOAD mission routes (re-plannable GeoJSON). Loading re-drives via applyPlan
+// (the goal waypoints are the load-bearing intent; the server re-plans the terrain-following route).
+const routeMsg = document.getElementById("routeMsg");
+const routeList = document.getElementById("routeList");
+const withTok = (u) => u + (TOKEN ? (u.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(TOKEN) : "");
+async function loadRoutes() {
+  try {
+    const j = await (await fetch(withTok("/routes"))).json();
+    routeList.innerHTML = "";
+    const rs = j.routes || [];
+    if (!rs.length) { const o = document.createElement("option"); o.value = ""; o.textContent = "(no saved routes)"; routeList.appendChild(o); return; }
+    rs.forEach((rt) => { const o = document.createElement("option"); o.value = rt.name; o.textContent = `${rt.name} · ${Math.round(rt.route_m)}m · ${rt.n_goals}wp`; routeList.appendChild(o); });
+  } catch (_e) { /* list unavailable */ }
+}
+document.getElementById("saveRoute").onclick = () => {
+  const name = prompt("Save the current mission route as (letters, digits, - or _):", "mission1");
+  if (name) safeSend({ save_route: name });     // server replies {type:route_saved} -> updates the list
+};
+document.getElementById("loadRoute").onclick = async () => {
+  const name = routeList.value;
+  if (!name) { routeMsg.textContent = "no route selected"; return; }
+  try {
+    const r = await fetch(withTok("/routes/" + encodeURIComponent(name)));
+    if (!r.ok) { routeMsg.textContent = "load failed"; return; }
+    const fc = await r.json();
+    const savedSite = fc.properties && fc.properties.site;   // council: a route's absolute lon/lat goals are
+    if (savedSite && CONFIG.site && savedSite !== CONFIG.site) {   // only valid on their own DEM tile — refuse a
+      routeMsg.textContent = `route is for site “${savedSite}”, not “${CONFIG.site}” — relaunch on that site`;  // cross-site load rather than silently clamp to the edge
+      return;
+    }
+    const wps = (fc.features || []).filter((f) => f.properties && f.properties.feature === "waypoint")
+                                   .map((f) => f.geometry.coordinates);   // [lon, lat] goal waypoints
+    if (wps.length) { applyPlan(wps, true); routeMsg.textContent = `↺ loaded “${name}” (${wps.length} wp) — drives on ▶ traverse`; }
+    else routeMsg.textContent = `“${name}” has no waypoints`;
+  } catch (_e) { routeMsg.textContent = "load error"; }
+};
+loadRoutes();
+
+// ── ROS go-command console (council/Diego): speaks the autonomy-contract vocabulary; the server lowers
+// each command to the existing drive seam (cmd_vel via twist_to_command; safe via rc_contract.Safe). ──
+const consoleEl = document.getElementById("console");
+function logLine(s) { consoleEl.textContent += (consoleEl.textContent ? "\n" : "") + s; consoleEl.scrollTop = consoleEl.scrollHeight; }
+document.getElementById("safeBtn").onclick = () => { safeSend({ safe: { reason: 0 } }); logLine("» SAFE (operator)"); };
+document.getElementById("rearmBtn").onclick = () => { safeSend({ rearm: true }); logLine("» re-arm"); };
+function runCommand(line) {
+  const t = line.trim().split(/\s+/), c = (t[0] || "").toLowerCase();
+  if (!c) return;
+  if (c === "cmd_vel" || c === "twist") safeSend({ cmd_vel: { linear_x: +t[1] || 0, angular_z: +t[2] || 0 } });
+  else if (c === "goto") { applyPlan([[+t[1], +t[2]]], false); safeSend({ traverse: true }); }   // GoTo(x,y): plan single goal + drive
+  else if (c === "followpath" || c === "traverse" || c === "go") safeSend({ traverse: true });
+  else if (c === "stop" || c === "halt") safeSend({ traverse: false });
+  else if (c === "safe" || c === "estop") safeSend({ safe: { reason: 0 } });
+  else if (c === "rearm") safeSend({ rearm: true });
+  else if (c === "dig") safeSend({ dig: true });
+  else if (c === "dump") safeSend({ dump: true });
+  else { logLine("? unknown command: " + c); return; }
+  logLine("» " + line.trim());
+}
+const cmdInput = document.getElementById("cmd");
+document.getElementById("cmdSend").onclick = () => { runCommand(cmdInput.value); cmdInput.value = ""; };
+cmdInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { runCommand(cmdInput.value); cmdInput.value = ""; } });
+// manual articulation — spin the drums + raise/lower each arm directly (full URDF control)
+const artic = (o) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(o)); };
+document.getElementById("drumf").onclick = () => artic({ drum: 1 });
+document.getElementById("drumr").onclick = () => artic({ drum: -1 });
+document.getElementById("drumstop").onclick = () => artic({ drum: 0 });
+document.getElementById("afd").onclick = () => artic({ arm_front_d: -0.12 });   // front + raises -> lower = -
+document.getElementById("afu").onclick = () => artic({ arm_front_d: 0.12 });
+document.getElementById("abd").onclick = () => artic({ arm_back_d: -0.12 });   // + raises -> lower = -
+document.getElementById("abu").onclick = () => artic({ arm_back_d: 0.12 });
+// planning: click-to-plot waypoints (in top-down), then autonomous traverse
+let plotting = false, dragMoved = 0;   // dragMoved suppresses a stray plot-tap after an orbit drag (#3)
+const plotBtn = document.getElementById("plot");
+plotBtn.onclick = () => { plotting = !plotting; plotBtn.textContent = plotting ? "📍 plotting… (tap map)" : "📍 plot waypoints"; };
+canvas.addEventListener("click", (e) => {
+  if (!plotting || dragMoved > 8 || ws.readyState !== WebSocket.OPEN) return;   // a drag/orbit is not a plot tap
+  const r = canvas.getBoundingClientRect();
+  const cx = (e.clientX - r.left) * (canvas.width / r.width);
+  const cy = (e.clientY - r.top) * (canvas.height / r.height);
+  ws.send(JSON.stringify({ click_px: [cx, cy] }));
+});
+document.getElementById("traverse").onclick = () => artic({ traverse: true });
+document.getElementById("stoptrav").onclick = () => artic({ traverse: false });
+document.getElementById("clearwp").onclick = () => artic({ clear_wp: true });
+let overlayOn = false;
+const ovBtn = document.getElementById("overlay");
+ovBtn.onclick = () => { overlayOn = !overlayOn; ovBtn.textContent = overlayOn ? "🗺 slope: ON" : "🗺 slope overlay"; artic({ overlay: overlayOn ? "slope" : "off" }); };
+
+const az = document.getElementById("az"), el = document.getElementById("el");
+const azv = document.getElementById("azv"), elv = document.getElementById("elv");
+// reflect the launched config's sun on the sliders (setup screen may have moved it)
+if (CONFIG.sun) {
+  if (Number.isFinite(+CONFIG.sun.az)) { az.value = +CONFIG.sun.az; azv.textContent = az.value + "°"; }
+  if (Number.isFinite(+CONFIG.sun.el)) { el.value = +CONFIG.sun.el; elv.textContent = el.value + "°"; }
+}
+az.oninput = () => { azv.textContent = az.value + "°"; safeSend({ sun_az: +az.value }); };
+el.oninput = () => { elv.textContent = el.value + "°"; safeSend({ sun_el: +el.value }); };
+
+// ── camera: cycle modes (rover view ↔ 3rd person) + orbit drag / scroll zoom ──────────────
+const CAM_NAMES = ["chase", "rover POV", "orbit", "top-down"];
+let camIdx = 0;
+const camBtn = document.getElementById("cam");
+function cycleCam() {
+  camIdx = (camIdx + 1) % CAM_NAMES.length;
+  camBtn.textContent = "📷 " + CAM_NAMES[camIdx];
+  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ cam_next: true }));
+}
+camBtn.onclick = cycleCam;
+window.addEventListener("keydown", (e) => {
+  if (e.key.toLowerCase() === "c") { e.preventDefault(); cycleCam(); }
+});
+// pointer(s) on the view: 1 finger orbits, 2 fingers PINCH-ZOOM (#5); tracks travel so a drag never
+// drops a stray waypoint (#3). Mouse wheel still zooms on desktop.
+const ptrs = new Map();
+let orbitId = null, lastX = 0, lastY = 0, lastPinch = 0;
+function pinchDist() { const a = [...ptrs.values()]; return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); }
+canvas.addEventListener("pointerdown", (e) => {
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  canvas.setPointerCapture(e.pointerId);
+  if (ptrs.size === 1) { orbitId = e.pointerId; lastX = e.clientX; lastY = e.clientY; dragMoved = 0; }
+  else if (ptrs.size === 2) { orbitId = null; lastPinch = pinchDist(); }
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ws.readyState !== WebSocket.OPEN) return;
+  if (ptrs.size >= 2) {                                   // two fingers → pinch zoom
+    const d = pinchDist();
+    if (lastPinch > 0) { const dz = (lastPinch - d) * 0.05; if (Math.abs(dz) > 0.02) ws.send(JSON.stringify({ orbit_dzoom: dz })); }
+    lastPinch = d;
+  } else if (e.pointerId === orbitId) {                   // one finger → orbit
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY; dragMoved += Math.abs(dx) + Math.abs(dy);
+    ws.send(JSON.stringify({ orbit_dyaw: dx * 0.4, orbit_dpitch: -dy * 0.3 }));
+  }
+});
+function endPtr(e) { ptrs.delete(e.pointerId); if (e.pointerId === orbitId) orbitId = null; if (ptrs.size < 2) lastPinch = 0; }
+canvas.addEventListener("pointerup", endPtr);
+canvas.addEventListener("pointercancel", endPtr);
+canvas.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ orbit_dzoom: Math.sign(e.deltaY) * 1.2 }));
+}, { passive: false });
+</script>
+</body>
+</html>

@@ -21,19 +21,22 @@ def test_catalog_has_the_known_real_products():
 
 def test_bundled_sources_are_the_repo_committed_tiles_rest_gated():
     # #43/#150 + P0 reconcile 2026-07-09: `bundled` means REPO-COMMITTED on-disk (CI must have the bytes,
-    # see test_every_bundled_source_has_a_real_on_disk_bundle). Only the 3 primary LOLA tiles are committed;
-    # the 8 Artemis-candidate tiles (47 MB each, 376 MB) are host-provided / pending host-mount (task #76),
-    # so they stay catalog entries with bundled=False -- exactly the "you supply the product" gated semantics.
-    # (The old expectation demanded all 11 bundled, which CI's clean tree -- with only 3 tiles carried in git
-    # -- can never satisfy without committing 376 MB; that is deferred to #76 / a git-lfs decision.)
+    # see test_every_bundled_source_has_a_real_on_disk_bundle). Derive the expected set from the GIT-TRACKED
+    # heightmap bundles (via the MT-01 gate's git ls-files) so the catalog flag and the committed data can
+    # never silently drift -- a bundle is bundled=True IFF its heightmap.rf32 is carried in git. The
+    # 2026-07-11 widen committed the DM2/Site01/Site04/Site06/Site07/Site11/Site20/Site23 10 km @ 5 m LOLA
+    # tiles alongside Haworth + the 1 m SfS drive-site crop; Shoemaker + Site42 stay gated (no committed
+    # bytes -- the "you supply the product" semantics).
+    from scripts.check_tracked_artifacts import tracked_files
+    committed = {p.split("/")[2] for p in tracked_files()
+                 if p.startswith("samples/lunar_dem/") and p.endswith("/heightmap.rf32")}
     bundled = {s.id for s in S.list_dem_sources() if s.bundled}
-    assert bundled == {"haworth_10km_5m", "nobile_rim1_10km_5m", "shackleton_rim_10km_5m"}, bundled
+    # bundled catalog entries and git-committed heightmap bundles must be the SAME set (no drift).
+    assert bundled == committed, f"bundled catalog {bundled} != committed heightmap bundles {committed}"
+    # a source with no committed heightmap must honestly stay bundled=False (Shoemaker + the metadata-only
+    # Site42 de_gerlache_kocher tile are the standing gated examples).
     gated = {s.id for s in S.list_dem_sources() if not s.bundled}
-    assert {
-        "connecting_ridge_10km_5m", "de_gerlache_rim_10km_5m", "leibnitz_beta_10km_5m",
-        "malapert_massif_10km_5m", "nobile_rim2_10km_5m", "peak_near_shackleton_10km_5m",
-        "shoemaker_10km_5m", "de_gerlache_kocher_10km_5m",
-    } <= gated, gated                                     # the 8 host-gated Artemis tiles remain in the catalog
+    assert {"shoemaker_10km_5m", "de_gerlache_kocher_10km_5m"} <= gated, gated                                     # the 8 host-gated Artemis tiles remain in the catalog
 
 
 def test_every_source_is_lunar_framed_and_provenanced():

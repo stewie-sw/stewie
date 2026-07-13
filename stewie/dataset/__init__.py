@@ -22,6 +22,7 @@ from stewie.dataset.annotations import (
 from stewie.dataset.dem_source import (
     DemGeometry,
     GeoTiffWindowReader,
+    WindowReader,
     read_geotiff_geometry,
     resolve_dem_path,
 )
@@ -29,7 +30,7 @@ from stewie.dataset.splits import SplitResult, spatial_block_split
 from stewie.dataset.tile_grid import Tile, TileGrid, build_tiles
 
 __all__ = [
-    "DemGeometry", "GeoTiffWindowReader", "read_geotiff_geometry", "resolve_dem_path",
+    "DemGeometry", "GeoTiffWindowReader", "WindowReader", "read_geotiff_geometry", "resolve_dem_path",
     "Tile", "TileGrid", "build_tiles",
     "SplitResult", "spatial_block_split",
     "LayerStats", "TileAnnotation", "annotate_tiles", "tile_annotation",

@@ -93,5 +93,5 @@ def test_layer_manifest_and_world_report_the_same_enrichment(client):  # [REQ:GW
 
 
 def test_layer_manifest_404s_a_site_without_a_dem_bundle(client):  # [REQ:GW-06]
-    r = client.get("/world/layer-manifest?site=de_gerlache_rim")    # a real site id whose bundle is not on disk
+    r = client.get("/world/layer-manifest?site=amundsen_rim")    # a real site id whose bundle is not on disk
     assert r.status_code == 404

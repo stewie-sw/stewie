@@ -1565,10 +1565,11 @@ def test_load_site_dem_honors_the_sites_registry():
     assert haw[1] == 5.0 and sha[1] == 5.0                 # both 5 m bundles
     import numpy as np
     assert not np.allclose(haw[0][:50, :50], sha[0][:50, :50])   # genuinely different terrain
-    # an un-imported site fails honestly (no fabricated DEM)
+    # an un-imported / unknown site fails honestly (no fabricated DEM). NB: malapert_massif is now a REAL
+    # imported site (86cc97fd), so use a name that is genuinely not in the registry.
     import pytest
     with pytest.raises((FileNotFoundError, KeyError, ValueError)):
-        MP.load_site_dem("malapert_massif")
+        MP.load_site_dem("no_such_unimported_site")
 
 
 def test_mv_cross_precedence_independent_chains_parallelize():

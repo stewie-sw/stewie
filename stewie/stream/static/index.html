@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STEWIE viz2 — drive setup</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #05070c; color: #cdd6e3;
+         font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  header { padding: 10px 16px; border-bottom: 1px solid #1b2434; display: flex;
+           gap: 14px; align-items: baseline; flex-wrap: wrap; }
+  header b { color: #7fd0ff; letter-spacing: 0.06em; }
+  header .sub { color: #6c7c93; }
+  #layout { display: flex; gap: 0; align-items: stretch; min-height: calc(100vh - 46px);
+            flex-wrap: wrap; }
+  /* the monolith config slab */
+  #panel { flex: 0 0 340px; max-width: 100%; padding: 16px; border-right: 1px solid #10161f;
+           background: linear-gradient(180deg,#080b12 0%, #05070c 100%);
+           display: flex; flex-direction: column; gap: 16px; }
+  #stage { flex: 1 1 480px; min-width: 320px; position: relative; background:
+           radial-gradient(120% 90% at 50% 0%, #0a0f18 0%, #05070c 70%); }
+  #view { display: block; width: 100%; height: 100%; touch-action: none; }
+  .grp { display: flex; flex-direction: column; gap: 9px; }
+  .grp > h2 { margin: 0; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+              color: #5294c9; font-weight: 600; }
+  .seg { display: flex; border: 1px solid #26364c; border-radius: 6px; overflow: hidden; }
+  .seg button { flex: 1; background: #0c141f; color: #9fb0c6; border: 0; padding: 9px 8px;
+                min-height: 44px; touch-action: manipulation;
+                cursor: pointer; font: inherit; letter-spacing: 0.04em; }
+  .seg button[aria-pressed="true"] { background: #16324a; color: #bfe6ff; box-shadow: inset 0 -2px 0 #7fd0ff; }
+  .seg button:focus-visible { outline: 2px solid #7fd0ff; outline-offset: -2px; }
+  label { display: flex; flex-direction: column; gap: 4px; color: #9fb0c6; }
+  label .lv { color: #cdd6e3; }
+  select, input[type=number] { background: #0c141f; color: #cdd6e3; border: 1px solid #26364c;
+           border-radius: 5px; padding: 10px 8px; min-height: 44px; font: inherit; width: 100%; }
+  input[type=range] { width: 100%; height: 44px; accent-color: #7fd0ff; touch-action: manipulation; }
+  .rowline { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .rowline .lv { color: #7fd0ff; font-variant-numeric: tabular-nums; }
+  #launch { margin-top: auto; background: #143a52; color: #d7f2ff; border: 1px solid #2f6f92;
+            border-radius: 7px; padding: 13px; cursor: pointer; font: inherit; font-size: 14px;
+            letter-spacing: 0.08em; }
+  #launch:hover { background: #1a4d6d; }
+  #launch:active { background: #226089; }
+  #launch:focus-visible { outline: 2px solid #7fd0ff; outline-offset: 2px; }
+  .hidden { display: none !important; }
+  /* provenance / synthetic overlay on the stage */
+  #prov { position: absolute; left: 12px; bottom: 12px; right: 12px; max-width: 640px;
+          background: rgba(6,10,16,0.86); border: 1px solid #1b2434; border-radius: 7px;
+          padding: 10px 12px; font-size: 12px; line-height: 1.45; backdrop-filter: blur(3px); }
+  #prov .tag { display: inline-block; font-size: 10px; letter-spacing: 0.12em; padding: 2px 7px;
+               border-radius: 4px; text-transform: uppercase; margin-right: 8px; vertical-align: 1px; }
+  .tag-real { background: #0e2e1c; color: #6fe08a; border: 1px solid #1f6b3f; }
+  .tag-syn { background: #3a1113; color: #ff8a7a; border: 1px solid #a12f28; }
+  #prov .cite { color: #9fb0c6; }
+  #prov .cite b { color: #cdd6e3; }
+  #synbadge { position: absolute; top: 12px; right: 12px; background: #3a1113; color: #ff8a7a;
+              border: 1px solid #d13a2e; border-radius: 6px; padding: 6px 12px; font-weight: 700;
+              letter-spacing: 0.18em; font-size: 13px; box-shadow: 0 0 18px rgba(209,58,46,0.35); }
+  #hint { position: absolute; top: 12px; left: 12px; color: #8291a6; font-size: 11px; }
+  #err { color: #ff7a6b; font-size: 12px; min-height: 1em; }
+  a { color: #7fd0ff; }
+</style>
+</head>
+<body>
+<header>
+  <span><b>STEWIE viz2</b> <span class="sub">· drive setup</span></span>
+  <span class="sub" id="headnote">configure a lunar drive, preview the surface, then launch</span>
+</header>
+
+<div id="layout">
+  <!-- ── the monolith config slab ─────────────────────────────────────────────── -->
+  <form id="panel" onsubmit="return false;">
+    <div class="grp">
+      <h2>Terrain source</h2>
+      <div class="seg" role="group" aria-label="Terrain source mode">
+        <button type="button" id="mode-real" aria-pressed="true">Real DEM</button>
+        <button type="button" id="mode-proc" aria-pressed="false">Procedural</button>
+      </div>
+    </div>
+
+    <!-- REAL controls -->
+    <div class="grp" id="grp-real">
+      <label for="site">Lunar site (real LOLA / SfS DEM)
+        <select id="site" aria-describedby="prov"></select>
+      </label>
+    </div>
+
+    <!-- PROCEDURAL controls -->
+    <div class="grp hidden" id="grp-proc">
+      <h2 style="color:#c9526a">Synthetic generator</h2>
+      <label for="seed">world_seed
+        <input type="number" id="seed" value="7" step="1" min="0">
+      </label>
+      <label>
+        <span class="rowline"><span>H (roughness)</span><span class="lv" id="H-v">0.90</span></span>
+        <input type="range" id="H" min="0.05" max="1.0" step="0.01" value="0.9">
+      </label>
+      <label>
+        <span class="rowline"><span>feature_wavelength_m</span><span class="lv" id="wl-v">40 m</span></span>
+        <input type="range" id="wl" min="4" max="120" step="1" value="40">
+      </label>
+      <label>
+        <span class="rowline"><span>amplitude_m</span><span class="lv" id="amp-v">8.0 m</span></span>
+        <input type="range" id="amp" min="0" max="40" step="0.5" value="8">
+      </label>
+      <label>
+        <span class="rowline"><span>octaves</span><span class="lv" id="oct-v">6</span></span>
+        <input type="range" id="oct" min="1" max="9" step="1" value="6">
+      </label>
+    </div>
+
+    <div class="grp">
+      <h2>Runtime</h2>
+      <div class="seg" role="group" aria-label="Fine cell size">
+        <button type="button" id="fine-05" aria-pressed="true">5 cm fine</button>
+        <button type="button" id="fine-02" aria-pressed="false">2 cm fine (heavy)</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <h2>Sun</h2>
+      <label>
+        <span class="rowline"><span>azimuth</span><span class="lv" id="az-v">135°</span></span>
+        <input type="range" id="az" min="0" max="360" step="1" value="135">
+      </label>
+      <label>
+        <span class="rowline"><span>elevation</span><span class="lv" id="el-v">18°</span></span>
+        <input type="range" id="el" min="-5" max="90" step="1" value="18">
+      </label>
+    </div>
+
+    <div id="err" role="alert"></div>
+    <button type="button" id="launch">▶ Launch drive</button>
+  </form>
+
+  <!-- ── the live three.js preview ────────────────────────────────────────────── -->
+  <div id="stage">
+    <canvas id="view"></canvas>
+    <div id="hint">drag to orbit · scroll to zoom</div>
+    <div id="synbadge" class="hidden">SYNTHETIC</div>
+    <div id="prov" aria-live="polite"></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from "/vendor/three.module.min.js";
+
+// touch devices get touch gestures on the preview + a matching hint (WCAG 2.5.1 pointer alternatives)
+if (matchMedia("(pointer: coarse)").matches) {
+  document.body.classList.add("touch");
+  const h = document.getElementById("hint");
+  if (h) h.textContent = "drag to orbit · pinch to zoom";
+}
+
+// ── stream token ────────────────────────────────────────────────────────────────────────────
+// When the service is public (VIZ2_STREAM_TOKEN set), the page is opened as `/?token=<T>`. Read the
+// token from THIS page's URL and propagate it to every guarded call (/bundles, /preview/*), the
+// /stream link, and (via /stream's own URL) the WS. When there is no token in the URL (tailnet
+// mode) `withToken` is a no-op, so URLs are exactly as before.
+const TOKEN = new URLSearchParams(location.search).get("token");
+function withToken(url) {
+  if (!TOKEN) return url;
+  return url + (url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(TOKEN);
+}
+
+// ── state ─────────────────────────────────────────────────────────────────────────────────
+const S = {
+  mode: "real",           // "real" | "procedural"
+  site: null,             // real bundle name
+  fine: 0.05,             // 0.05 | 0.02
+  sun: { az: 135, el: 18 },
+  proc: { seed: 7, H: 0.9, wavelength: 40, amplitude: 8, octaves: 6 },
+  bundles: [],            // /bundles rows (name+citation+…)
+};
+const $ = (id) => document.getElementById(id);
+const errEl = $("err");
+function setErr(msg) { errEl.textContent = msg || ""; }
+
+// ── three.js scene ────────────────────────────────────────────────────────────────────────
+const canvas = $("view");
+const PLANE = 100;              // preview world size (XY), metres are shown in the caption
+const VZ = 34;                  // vertical extent of the normalized preview box
+let renderer, scene, camera, mesh, sun, webglOK = true;
+// spherical orbit state — declared BEFORE animate() first runs (animate calls updateCamera synchronously)
+const orbit = { theta: 0.9, phi: 1.02, r: 168, tgt: new THREE.Vector3(0, -2, 0) };
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+} catch (e) { webglOK = false; }
+
+if (webglOK) {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x05070c);
+  camera = new THREE.PerspectiveCamera(42, 1, 0.1, 4000);
+  sun = new THREE.DirectionalLight(0xffffff, 2.4);
+  scene.add(sun);
+  scene.add(new THREE.AmbientLight(0x24303f, 0.9));
+  // a faint ground disc so an empty/flat preview still reads as a surface
+  const geo = new THREE.PlaneGeometry(PLANE, PLANE, 4, 4);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x6b7482, roughness: 0.98, metalness: 0.0,
+                                               flatShading: false, side: THREE.DoubleSide });
+  mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;   // lay the plane flat (height along world +Y)
+  scene.add(mesh);
+  placeSun();
+  fitCanvas();
+  animate();
+} else {
+  $("hint").textContent = "WebGL unavailable — preview disabled (config + launch still work)";
+}
+
+// simple orbit: spherical camera around the origin (state declared above)
+function updateCamera() {
+  if (!webglOK) return;
+  const r = orbit.r, st = Math.sin(orbit.phi), ct = Math.cos(orbit.phi);
+  camera.position.set(
+    orbit.tgt.x + r * st * Math.sin(orbit.theta),
+    orbit.tgt.y + r * ct,
+    orbit.tgt.z + r * st * Math.cos(orbit.theta));
+  camera.lookAt(orbit.tgt);
+}
+// 1 finger orbits, 2 fingers pinch-zoom (touch has no wheel); mouse wheel still zooms on desktop
+let lx = 0, ly = 0, lastPinch = 0;
+const ptrs = new Map();
+function pinchDist() { const a = [...ptrs.values()]; return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); }
+canvas.addEventListener("pointerdown", (e) => {
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); canvas.setPointerCapture(e.pointerId);
+  if (ptrs.size === 1) { lx = e.clientX; ly = e.clientY; }
+  else if (ptrs.size === 2) { lastPinch = pinchDist(); }
+});
+function endP(e) {
+  ptrs.delete(e.pointerId); try { canvas.releasePointerCapture(e.pointerId); } catch {}
+  if (ptrs.size < 2) lastPinch = 0;
+  if (ptrs.size === 1) { const q = [...ptrs.values()][0]; lx = q.x; ly = q.y; }   // avoid an orbit jump
+}
+canvas.addEventListener("pointerup", endP);
+canvas.addEventListener("pointercancel", endP);
+canvas.addEventListener("pointermove", (e) => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size >= 2) {                                   // pinch → zoom the orbit radius
+    const d = pinchDist();
+    if (lastPinch > 0 && d > 0) orbit.r = Math.max(60, Math.min(520, orbit.r * (lastPinch / d)));
+    lastPinch = d; return;
+  }
+  orbit.theta -= (e.clientX - lx) * 0.006;                // one finger → orbit
+  orbit.phi = Math.max(0.08, Math.min(Math.PI - 0.08, orbit.phi - (e.clientY - ly) * 0.006));
+  lx = e.clientX; ly = e.clientY;
+});
+canvas.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  orbit.r = Math.max(60, Math.min(520, orbit.r * (1 + Math.sign(e.deltaY) * 0.08)));
+}, { passive: false });
+
+function placeSun() {
+  if (!webglOK) return;
+  const azr = S.sun.az * Math.PI / 180, elr = Math.max(-5, S.sun.el) * Math.PI / 180;
+  const R = 300, ce = Math.cos(elr);
+  sun.position.set(R * ce * Math.sin(azr), R * Math.sin(elr), R * ce * Math.cos(azr));
+  sun.target.position.set(0, 0, 0);
+  sun.target.updateMatrixWorld();
+}
+
+function fitCanvas() {
+  if (!webglOK) return;
+  const w = canvas.clientWidth || 640, h = canvas.clientHeight || 480;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(fitCanvas).observe($("stage"));
+
+function animate() { requestAnimationFrame(animate); updateCamera(); renderer.render(scene, camera); }
+
+// Build/refresh the displacement mesh from a row-major heightfield (metres).
+function setHeightfield(z, nrows, ncols) {
+  if (!webglOK) return;
+  if (!z || !z.length || nrows < 2 || ncols < 2) {   // metadata-only / empty -> flat placeholder
+    const flat = new THREE.PlaneGeometry(PLANE, PLANE, 4, 4);
+    mesh.geometry.dispose(); mesh.geometry = flat;
+    mesh.material.color.set(0x2a323d); return;
+  }
+  let zmin = Infinity, zmax = -Infinity;
+  for (let i = 0; i < z.length; i++) { if (z[i] < zmin) zmin = z[i]; if (z[i] > zmax) zmax = z[i]; }
+  const range = Math.max(zmax - zmin, 1e-6);
+  const sizeX = PLANE, sizeY = PLANE * (nrows / ncols);
+  const g = new THREE.PlaneGeometry(sizeX, sizeY, ncols - 1, nrows - 1);
+  const pos = g.attributes.position;
+  // PlaneGeometry vertex index (iy*ncols + ix) == row-major grid index -> direct assign.
+  for (let i = 0; i < pos.count; i++) {
+    pos.setZ(i, (z[i] - zmin) / range * VZ - VZ / 2);
+  }
+  pos.needsUpdate = true;
+  g.computeVertexNormals();
+  mesh.geometry.dispose();
+  mesh.geometry = g;
+  mesh.material.color.set(S.mode === "procedural" ? 0x8a6b74 : 0x8b93a1);
+}
+
+// ── preview fetch (debounced) ───────────────────────────────────────────────────────────────
+let reqSeq = 0, debTimer = null;
+function schedulePreview() { clearTimeout(debTimer); debTimer = setTimeout(refreshPreview, 220); }
+
+async function refreshPreview() {
+  const seq = ++reqSeq;
+  setErr("");
+  try {
+    let url;
+    if (S.mode === "real") {
+      if (!S.site) return;
+      url = `/preview/heightmap?site=${encodeURIComponent(S.site)}`;
+    } else {
+      const p = S.proc;
+      url = `/preview/procedural?seed=${p.seed}&H=${p.H}&wavelength=${p.wavelength}`
+          + `&amplitude=${p.amplitude}&octaves=${p.octaves}`;
+    }
+    const r = await fetch(withToken(url));
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.detail || `HTTP ${r.status}`); }
+    const d = await r.json();
+    if (seq !== reqSeq) return;                    // a newer request superseded this one
+    setHeightfield(d.z, d.n || 0, d.ncols || d.n || 0);
+    renderProvenance(d);
+  } catch (e) {
+    if (seq === reqSeq) setErr("preview: " + e.message);
+  }
+}
+
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+function renderProvenance(d) {
+  const prov = $("prov"), badge = $("synbadge");
+  if (d.synthetic) {
+    badge.classList.remove("hidden");
+    prov.innerHTML =
+      `<span class="tag tag-syn">Synthetic</span>`
+      + `<b>PROCEDURAL — no real citation.</b> `
+      + `<span class="cite">${esc(d.source)} · seed ${esc(d.world_seed)} · `
+      + `${d.n}×${d.ncols} @ ${esc(d.cell_m)} m/cell (${esc(d.extent_m)} m). citation: <b>null</b>.</span>`;
+  } else {
+    badge.classList.add("hidden");
+    const relief = (typeof d.relief_m === "number") ? d.relief_m.toFixed(1) : "n/a";
+    const cite = d.citation || "(no citation in metadata)";
+    prov.innerHTML =
+      `<span class="tag tag-real">Real DEM</span>`
+      + `<span class="cite"><b>${esc(d.site)}</b> · ${esc(d.region)} · ${esc(d.cell_m)} m/cell`
+      + (d.has_heightmap ? ` · relief ${esc(relief)} m` : ` · metadata-only (no mesh preview)`)
+      + `<br>${esc(cite)}</span>`;
+  }
+}
+
+// ── controls ──────────────────────────────────────────────────────────────────────────────
+function setMode(mode) {
+  S.mode = mode;
+  $("mode-real").setAttribute("aria-pressed", String(mode === "real"));
+  $("mode-proc").setAttribute("aria-pressed", String(mode === "procedural"));
+  $("grp-real").classList.toggle("hidden", mode !== "real");
+  $("grp-proc").classList.toggle("hidden", mode !== "procedural");
+  schedulePreview();
+}
+$("mode-real").onclick = () => setMode("real");
+$("mode-proc").onclick = () => setMode("procedural");
+
+function setFine(f) {
+  S.fine = f;
+  $("fine-05").setAttribute("aria-pressed", String(f === 0.05));
+  $("fine-02").setAttribute("aria-pressed", String(f === 0.02));
+}
+$("fine-05").onclick = () => setFine(0.05);
+$("fine-02").onclick = () => setFine(0.02);
+
+$("site").onchange = (e) => { S.site = e.target.value; schedulePreview(); };
+
+// procedural sliders + seed
+function bindProc(id, key, fmt, onDone) {
+  const el = $(id), lab = $(id + "-v");
+  el.addEventListener("input", () => {
+    const v = key === "octaves" ? parseInt(el.value, 10) : parseFloat(el.value);
+    S.proc[key] = v;
+    if (lab) lab.textContent = fmt(v);
+    (onDone || schedulePreview)();
+  });
+}
+bindProc("H", "H", (v) => v.toFixed(2));
+bindProc("wl", "wavelength", (v) => v + " m");
+bindProc("amp", "amplitude", (v) => v.toFixed(1) + " m");
+bindProc("oct", "octaves", (v) => String(v));
+$("seed").addEventListener("input", () => {
+  const v = parseInt($("seed").value, 10);
+  S.proc.seed = Number.isFinite(v) ? v : 0; schedulePreview();
+});
+
+// sun sliders (relight the preview live + carry into the launch config)
+$("az").addEventListener("input", () => { S.sun.az = +$("az").value; $("az-v").textContent = S.sun.az + "°"; placeSun(); });
+$("el").addEventListener("input", () => { S.sun.el = +$("el").value; $("el-v").textContent = S.sun.el + "°"; placeSun(); });
+
+// ── launch ──────────────────────────────────────────────────────────────────────────────────
+function assembleConfig() {
+  const base = { fine: S.fine, sun: { az: S.sun.az, el: S.sun.el } };
+  if (S.mode === "real") return { mode: "real", site: S.site, ...base };
+  const p = S.proc;
+  return { mode: "procedural", world_seed: p.seed,
+           params: { H: p.H, feature_wavelength_m: p.wavelength, amplitude_m: p.amplitude, octaves: p.octaves },
+           ...base };
+}
+$("launch").onclick = () => {
+  const cfg = assembleConfig();
+  if (cfg.mode === "real" && !cfg.site) { setErr("pick a site first"); return; }
+  // token in the query string, cfg in the hash: `/stream?token=T#cfg=...` (or `/stream#cfg=...`).
+  location.href = withToken("/stream") + "#cfg=" + btoa(JSON.stringify(cfg));
+};
+
+// ── boot: load real bundles into the dropdown, then first preview ────────────────────────────
+(async function boot() {
+  try {
+    const r = await fetch(withToken("/bundles"));
+    const d = await r.json();
+    S.bundles = d.bundles || [];
+    const sel = $("site");
+    sel.innerHTML = "";
+    let def = d.default;
+    for (const b of S.bundles) {
+      const o = document.createElement("option");
+      o.value = b.name;
+      o.textContent = `${b.name}  ·  ${b.region || "?"}  ·  ${b.cell_m} m` + (b.has_heightmap ? "" : "  (meta-only)");
+      sel.appendChild(o);
+    }
+    if (!S.bundles.some((b) => b.name === def)) def = (S.bundles[0] || {}).name || null;
+    S.site = def; sel.value = def || "";
+  } catch (e) {
+    setErr("could not load /bundles: " + e.message);
+  }
+  refreshPreview();
+})();
+</script>
+</body>
+</html>
