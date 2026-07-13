@@ -22,6 +22,47 @@ ARM_MASS_FRAC = 0.15               # arm+drum share of dry mass per arm [ASSUMPT
 from stewie.physics.rassor_mass_model import ARM_LIFT_EFFICIENCY  # 0.5 [CALIB] -- ONE source
                                                                    # (was a drifted local 0.60; F3)
 
+#: [REQ:PX-10] The front-arm pitch (rad) that puts the drum in the DIG posture -- the "COBRA" stance the
+#: sim already commands (front arm DOWN to cut, back arm UP to transport). This is the ONE authority for
+#: that number; ``stewie/godot/viz2_root.gd`` mirrors it as ``ARM_DIG_DOWN`` for the render rig. Negative
+#: lowers the drum. The operator's manual ``arm_front_d`` deltas are an OFFSET on top of it.
+ARM_DIG_DOWN_RAD = -0.55           # [ASSUMPTION: render-rig consistent] drum-down dig posture
+
+#: [REQ:PX-10] Travel limits on the operator's manual arm OFFSET (rad). The render rig clamps the manual
+#: arm_front_d/arm_back_d deltas to exactly this band, and the runtime clamps to the same band at ingest --
+#: so a command off the public console can never pose the arm somewhere the rig cannot physically go (nor
+#: license a deeper cut than the rig can reach). ONE authority; ``viz2_root.gd`` mirrors these numbers.
+ARM_OFFSET_MIN_RAD = -0.4          # further DOWN than the dig posture (engagement already saturates at 1)
+ARM_OFFSET_MAX_RAD = 1.0           # raised well past stowed-horizontal (transport)
+
+
+def dig_engagement(arm_front_offset_rad: float) -> float:
+    """[REQ:PX-10] How much of the commanded bite the front drum can actually take, given where the
+    operator has put the arm. 0.0 = the drum is not in the ground (transport / stowed) -> NO cut;
+    1.0 = the drum is at (or below) the dig posture -> the full commanded bite (which the PX-09 caps then
+    bound).
+
+    ``arm_front_offset_rad`` is the operator's manual offset, exactly as the render rig applies it:
+    effective pitch = ARM_DIG_DOWN_RAD + offset. So offset 0 IS the dig posture (engagement 1.0), which is
+    why arming this gate does not change the default dig; raising the arm for transport (positive offset)
+    drives engagement to 0 and the dig stops cutting -- which is the whole point.
+
+    HONEST MODELLING NOTE. The physically right function is geometric: the drum's cutting edge penetrates
+    the ground by (arm-pivot height) - L*sin(pitch) - drum_radius, and the bite is that penetration. We do
+    NOT have a sourced arm-pivot height above ground (assuming the pivot sits at the wheel axle puts the
+    large drum's edge BELOW the wheels at stow, which is plainly wrong), so inventing that geometry would
+    fabricate every absolute number that fell out of it. Instead the engagement is a LINEAR ramp between
+    the two postures the sim itself defines -- stowed (no contact) and ARM_DIG_DOWN (full commanded bite).
+    [ASSUMPTION] the ramp SHAPE; the GATE it implements (arm up => no cut) is exact and is the requirement.
+    A geometric penetration model is deferred to a sourced pivot height.
+    """
+    if not math.isfinite(arm_front_offset_rad):
+        return 0.0                                  # a non-finite command must never license a cut
+    pitch = ARM_DIG_DOWN_RAD + float(arm_front_offset_rad)
+    if pitch >= 0.0:                                # at or above stowed-horizontal: the drum is off the ground
+        return 0.0
+    return max(0.0, min(1.0, pitch / ARM_DIG_DOWN_RAD))
+
 
 @dataclass
 class ArmState:

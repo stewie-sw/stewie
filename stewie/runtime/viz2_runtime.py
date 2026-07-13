@@ -63,7 +63,8 @@ from stewie.specs.ipex_specs import (
     DRUM_CAPACITY_KG, DRUM_DIMENSIONS_M, LUNAR_G_MS2, dig_energy_per_kg, max_cut_per_pass_m)
 from stewie.physics.excavation import earthmoving_report, representative_dig
 from stewie.physics.material import cell_strength
-from stewie.specs.arm_state import net_dig_reaction_n
+from stewie.specs.arm_state import (
+    ARM_OFFSET_MAX_RAD, ARM_OFFSET_MIN_RAD, dig_engagement, net_dig_reaction_n)
 from stewie.twin.io_fields import atomic_write_bytes
 
 # Reused DISCIPLINE (not the class): the RuntimeProcess bounded request-line ceiling (M-03). A real
@@ -157,6 +158,11 @@ class Viz2Runtime:
         # is <= the 30 kg/cycle RDS envelope, so the envelope now holds by construction, not after the fact.)
         self._drum_capacity_kg = float(DRUM_CAPACITY_KG[self.drum])
         self._drum_full = False                  # telemetry: the operator must dump/haul before digging on
+        # [REQ:PX-10] the front arm is a PHYSICAL DOF, not a render pose: this is the operator's manual
+        # offset on the dig posture (0 == ARM_DIG_DOWN == drum in the ground), and it GATES the cut, so a
+        # rover with its drum raised for transport carves nothing. Clamped to the render rig's travel.
+        self._arm_front_offset_rad = 0.0
+        self._arm_back_offset_rad = 0.0
         self.host = str(host)
 
         # --- session directory + generation store ---
@@ -533,6 +539,11 @@ class Viz2Runtime:
             if self._drum_capacity_kg > 0.0 else 0.0
         telem["drum_full"] = bool(self._drum_full)                      # -> dump/haul before digging on
         telem["max_cut_per_pass_m"] = float(self._max_cut_per_pass_m)   # the <=50%-scoop anti-bridging bite cap
+        # [REQ:PX-10] the arm is authoritative state now, so publish it: the operator must be able to see
+        # that the drum is raised (engagement 0) and that is WHY a dig command carved nothing.
+        telem["arm_front_offset_rad"] = float(self._arm_front_offset_rad)
+        telem["arm_back_offset_rad"] = float(self._arm_back_offset_rad)
+        telem["dig_engagement"] = float(self._arm_engagement())         # 0 = drum up (no cut) .. 1 = dig posture
         # #31 aggregate execution metrics (deterministic; wheel odometry over-reads the ground truth by slip)
         telem["dist_actual_m"] = float(self._dist_actual_m)
         telem["wheel_odo_m"] = float(self._dist_wheel_m)
@@ -585,6 +596,9 @@ class Viz2Runtime:
             cmd = str(msg.get("cmd", ""))
             if cmd == "twist":
                 self._ingest_twist(msg)
+            elif cmd == "arm":
+                # [REQ:PX-10] the render rig's arm pose is now AUTHORITATIVE state: it gates the dig.
+                self._ingest_arm(msg)
             elif cmd == "dig":
                 # arm a conserved dig for the next actor tick (applied on the actor thread only).
                 self._pending_dig = True
@@ -603,6 +617,24 @@ class Viz2Runtime:
                 gen = self._seq_to_gen.get(seq)
                 if gen is not None and gen > self._last_acked_gen:
                     self._last_acked_gen = gen               # union-coverage floor advances
+
+    def _ingest_arm(self, msg: dict) -> None:
+        """[REQ:PX-10] Adopt the operator's arm pose (rad offsets on the dig posture). Bounds-checked at
+        ingest like the twist (M-04): the arm command arrives from a PUBLIC console, so a non-finite angle
+        is REFUSED outright (never applied) and a wild one clamps to the render rig's travel -- neither may
+        license a deeper cut than the rig can physically reach."""
+        for key, attr in (("front", "_arm_front_offset_rad"), ("back", "_arm_back_offset_rad")):
+            if key not in msg:
+                continue
+            raw = msg.get(key)
+            if not (isinstance(raw, (int, float)) and math.isfinite(raw)):
+                self._rejected_bounds += 1
+                continue                                   # poisoned angle: keep the last good pose
+            setattr(self, attr, max(ARM_OFFSET_MIN_RAD, min(ARM_OFFSET_MAX_RAD, float(raw))))
+
+    def _arm_engagement(self) -> float:
+        """[REQ:PX-10] 0.0 (drum out of the ground -> no cut) .. 1.0 (dig posture -> the full bite)."""
+        return dig_engagement(self._arm_front_offset_rad)
 
     def _ingest_twist(self, msg: dict) -> None:
         v, omega = msg.get("v", 0.0), msg.get("omega", 0.0)
@@ -710,12 +742,19 @@ class Viz2Runtime:
         #     energy was UNDERSTATED exactly when the cut was worst. Cap the cut, and the two agree.
         # (2) DRUM HOLD: the drum carries a finite mass. A full drum refuses the bite (-> dump/haul), and a
         #     bite that would overfill is trimmed to the room left, so the ledger can never exceed capacity.
+        # [REQ:PX-10] ARM GATE (before anything touches the terrain): the drum can only cut what its POSTURE
+        # lets it reach. Raised for transport -> engagement 0 -> no cut at all, so a hauling rover stops
+        # carving a trench under itself; between the postures the arm MODULATES the bite. The arm was a
+        # cosmetic render offset before this, so the pictured vehicle and the world disagreed.
+        engagement = self._arm_engagement()
+        if engagement <= 0.0:
+            return []                                        # drum out of the ground: nothing to cut
         drum_kg = float(self.ws.inventory_kg)
         room_kg = self._drum_capacity_kg - drum_kg
         self._drum_full = room_kg <= 0.0
         if self._drum_full:
             return []                                        # fill -> STOP -> haul: no mass leaves the grid
-        d_eff = min(float(self.dig_depth_m), self._max_cut_per_pass_m)
+        d_eff = min(float(self.dig_depth_m), self._max_cut_per_pass_m) * engagement
 
         mask = np.zeros((H, W), dtype=bool)
         mask[r0:r1, c0:c1] = True

@@ -135,6 +135,12 @@ const WHEEL_RADIUS_M := 0.1524
 const DRUM_IDLE_DPS := 42.0        # cinematic idle drum spin (deg/s)
 const DRUM_DIG_DPS := 108.0        # 18 RPM rated dig spin (ipex_specs.DRUM_SPEED_RATED_RPM)
 const ARM_DIG_DOWN := -0.55        # extra front-arm pitch (rad): LOWER the drum to dig (+ raises, so -)
+# [REQ:PX-10] travel band for the operator's manual arm offset. MIRRORS stewie/specs/arm_state.py
+# (ARM_OFFSET_MIN_RAD / ARM_OFFSET_MAX_RAD, and ARM_DIG_DOWN_RAD above) -- the python module is the ONE
+# authority; the runtime clamps incoming arm commands to the same band, so the rig and the physics agree
+# on where the arm can physically be.
+const ARM_OFFSET_MIN := -0.4
+const ARM_OFFSET_MAX := 1.0
 const ARM_TRANSPORT_UP := 0.35     # extra back-arm pitch (rad): RAISE for transport
 const DIG_ANIM_S := 2.2            # dig / dump gesture duration
 var _joints := {}                  # joint name -> {node, rest:Basis, origin:Vector3, base:float}
@@ -1684,10 +1690,18 @@ func _apply_stream_input(msg: Dictionary) -> void:
 	# manual articulation: spin the drums + raise/lower each arm directly (full URDF control)
 	if msg.has("drum"):
 		_manual_drum = clampf(float(msg["drum"]), -1.0, 1.0)
+	# [REQ:PX-10] the arm is AUTHORITATIVE state: forward the pose to the runtime, which gates the cut on it
+	# (raised for transport => the dig carves nothing). The clamp band mirrors stewie/specs/arm_state.py
+	# (ARM_OFFSET_MIN_RAD/ARM_OFFSET_MAX_RAD) -- that module is the ONE authority for these numbers.
+	var _arm_moved := false
 	if msg.has("arm_front_d"):
-		_arm_front_offset = clampf(_arm_front_offset + float(msg["arm_front_d"]), -0.4, 1.0)
+		_arm_front_offset = clampf(_arm_front_offset + float(msg["arm_front_d"]), ARM_OFFSET_MIN, ARM_OFFSET_MAX)
+		_arm_moved = true
 	if msg.has("arm_back_d"):
-		_arm_back_offset = clampf(_arm_back_offset + float(msg["arm_back_d"]), -0.4, 1.0)
+		_arm_back_offset = clampf(_arm_back_offset + float(msg["arm_back_d"]), ARM_OFFSET_MIN, ARM_OFFSET_MAX)
+		_arm_moved = true
+	if _arm_moved and _drive_client != null:
+		_drive_client.send_arm(_arm_front_offset, _arm_back_offset)
 	# planning: plot a waypoint from a canvas click, run/stop the autonomous traverse, clear the route
 	if msg.has("click_px"):
 		var p = msg["click_px"]

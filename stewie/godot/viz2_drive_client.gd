@@ -100,6 +100,13 @@ func send_dump() -> void:
 	_send({"cmd": "dump"})
 
 
+# [REQ:PX-10] The arm is PHYSICAL state, not a render pose: the runtime gates the cut on it (drum raised
+# for transport => no cut). So the rig must TELL the authority where the operator put the arm; before this
+# the offsets never left Godot and the runtime dug at full depth with the drum in the air.
+func send_arm(front_offset_rad: float, back_offset_rad: float) -> void:
+	_send({"cmd": "arm", "front": front_offset_rad, "back": back_offset_rad})
+
+
 func ack(seq: int) -> void:
 	if seq >= 0:
 		_send({"cmd": "ack", "seq": seq})
