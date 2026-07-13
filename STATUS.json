@@ -34,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 292,
+  "cited": 293,
   "per_family": {
     "AC": {
       "cited": 1,
@@ -249,8 +249,8 @@
       "total": 8
     },
     "RT": {
-      "cited": 1,
-      "total": 6
+      "cited": 2,
+      "total": 7
     },
     "SC": {
       "cited": 0,
@@ -317,7 +317,7 @@
       "total": 4
     }
   },
-  "total": 397,
+  "total": 398,
   "unknown_markers": [],
   "v_done_uncited": [],
   "v_ne_d_flagged": [

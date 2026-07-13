@@ -62,9 +62,35 @@ def _reset_render_caches():
 
 @pytest.fixture(autouse=True)
 def _reset_auth_rate_limits():
-    """S-07: the auth rate limiters are process-global fixed-window counters. Reset them before each
-    test so a multi-login test (admin flows, fixtures) does not inherit another test's spent budget
-    and falsely 429. The production limiter is unaffected; this is test isolation for shared state."""
+    """S-07 / S-08 / GIS-03: every RateLimiter is a MODULE-LEVEL, process-global fixed-window counter,
+    and every TestClient shares ONE client IP ('testclient') -- so one test's spent budget leaks into
+    every later test in the same process. Reset them before each test. Production is unaffected: this
+    only clears in-process buckets between tests.
+
+    This fixture used to HAND-LIST the limiters, and that is exactly what failed: the GIS-03 globe quota
+    (`routers/layers.py::_globe_quota`, 180 hits / 60 s per IP) was added after this list and never
+    registered here. Once the suite made >180 `/layers/raster/*` calls inside one window, the budget was
+    spent, and a LATER, unrelated test went red on a 429 it never caused --
+    `stewie/specs/test_solar.py::test_layer_endpoint_accepts_mission_time`, which passes in isolation and
+    failed only in-suite (a genuine order-dependent false red, not a flake).
+
+    So instead of hand-listing (the thing that broke), SWEEP every loaded `stewie.*` module for live
+    RateLimiter instances and reset each. A limiter added in the future is then isolated automatically.
+    The explicit resets below are kept so this stays a strict superset even if a module is not yet
+    imported when the sweep runs.
+    """
+    try:
+        import sys
+
+        from stewie.server.ratelimit import RateLimiter
+        for _name, _mod in list(sys.modules.items()):
+            if _mod is None or not _name.startswith("stewie."):
+                continue
+            for _obj in list(vars(_mod).values()):
+                if isinstance(_obj, RateLimiter):
+                    _obj.reset()
+    except Exception:
+        pass
     try:
         from stewie.server.routers import auth as _authr
         for lim in ("_login_ip_limiter", "_login_acct_limiter", "_register_ip_limiter"):
@@ -74,6 +100,11 @@ def _reset_auth_rate_limits():
     try:
         from stewie.server.routers import plan as _planr
         _planr._heavy_quota.reset()           # S-08: per-identity heavy-route quota (process-global)
+    except Exception:
+        pass
+    try:
+        from stewie.server.routers import layers as _layersr
+        _layersr._globe_quota.reset()         # GIS-03: per-IP globe/raster render quota (the leak above)
     except Exception:
         pass
     yield

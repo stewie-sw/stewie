@@ -119,9 +119,19 @@ def test_preview_heightmap_bad_site_paths(client: TestClient):
 
 
 def test_preview_heightmap_metadata_only_bundle(client: TestClient):
-    # de_gerlache_kocher_10km_5m ships metadata-only (no heightmap.rf32) in the widened set
-    if not os.path.isdir(os.path.join(SAMPLES, "de_gerlache_kocher_10km_5m")):
+    # de_gerlache_kocher_10km_5m ships metadata-only (git tracks ONLY its metadata.json; no heightmap.rf32)
+    bundle = os.path.join(SAMPLES, "de_gerlache_kocher_10km_5m")
+    if not os.path.isdir(bundle):
         pytest.skip("metadata-only bundle not present")
+    # PRECONDITION, stated rather than assumed: this asserts the endpoint's metadata-ONLY branch, so it is
+    # only meaningful while the bundle really has no heightmap. A dev tree can carry an UNTRACKED
+    # heightmap.rf32 here (fetched/generated locally into a bundle that ships without one) -- then
+    # has_heightmap is legitimately True and the scenario under test simply is not present. Skip LOUDLY in
+    # that case instead of going red on a real, correct response: the assertions below still run in CI and
+    # on any clean checkout, where the file genuinely is absent.
+    if os.path.exists(os.path.join(bundle, "heightmap.rf32")):
+        pytest.skip("bundle carries an untracked local heightmap.rf32 -> the metadata-only case is absent "
+                    "in this tree (it ships metadata-only; CI/clean checkouts still exercise this test)")
     d = client.get("/preview/heightmap?site=de_gerlache_kocher_10km_5m").json()
     assert d["synthetic"] is False
     assert d["has_heightmap"] is False

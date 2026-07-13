@@ -52,6 +52,13 @@ claim on lunar positions). On that map you can:
   crops the global LOLA so you plan in that local frame, not only at the fixed sites;
 - **inspect the plan** — candidate-future compare, plan detail, and a Gantt schedule, then run a
   simulated execution;
+- **drive-validate the plan on the real surface** — `Validate ▸ Drive 3D` embeds a live Godot pixel-stream
+  of the rover on the real 1 m Haworth shape-from-shading DEM (rendered on the host GPU) and forwards the
+  route you authored on the map straight into it, so you drive **the plan you actually wrote**, not a
+  look-alike: a slope-gated A* route ribbon, live slip / sinkage / odometry telemetry, and a console that
+  speaks the real ROS contracts (`cmd_vel`, plus a `safe`/`rearm` all-stop). The command scope is
+  **simulation only** — the stream server holds no real-rover egress, and a test fails the build if that
+  ever changes;
 - **read the layer catalog** — the roughly 65-layer catalog with per-layer provenance, freshness, and
   uncertainty, with display-only layers visibly distinct from planning, release, and execute eligible
   ones; plus a selection inspector, an asset library, and an evidence and report bundle;
