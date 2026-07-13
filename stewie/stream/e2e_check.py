@@ -80,14 +80,18 @@ async def run_check(port: int = DEFAULT_PORT, site: str = "haworth_sfs_2km_1m",
     means = [float(a.mean()) for a in arrs]
     # each frame must be a real, non-black terrain raster
     for i, (b, a, mu) in enumerate(zip(raw, arrs, means)):
-        assert b[:2] == b"\xff\xd8", f"frame {i} is not JPEG (missing FFD8)"
-        assert a.size > 0, f"frame {i} decoded empty"
-        assert mu > 5.0, f"frame {i} is (near) black (mean={mu:.2f}) — no terrain rendered"
+        if b[:2] != b"\xff\xd8":
+            raise AssertionError(f"frame {i} is not JPEG (missing FFD8)")
+        if a.size == 0:
+            raise AssertionError(f"frame {i} decoded empty")
+        if mu <= 5.0:
+            raise AssertionError(f"frame {i} is (near) black (mean={mu:.2f}) — no terrain rendered")
     # frames must CHANGE across the drive (the rover/pose moved)
     n = min(arrs[0].shape[0], arrs[-1].shape[0])
     m = min(arrs[0].shape[1], arrs[-1].shape[1])
     diff = float(np.abs(arrs[0][:n, :m].astype(np.int16) - arrs[-1][:n, :m].astype(np.int16)).mean())
-    assert diff > 1.0, f"frames did not change under drive (mean-abs diff={diff:.4f})"
+    if diff <= 1.0:
+        raise AssertionError(f"frames did not change under drive (mean-abs diff={diff:.4f})")
     return {"frames": len(raw), "sizes": [a.shape for a in arrs],
             "means": [round(x, 2) for x in means], "first_last_diff": round(diff, 3),
             "bytes": [len(b) for b in raw]}

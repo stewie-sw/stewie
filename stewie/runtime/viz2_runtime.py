@@ -123,23 +123,7 @@ class Viz2Runtime:
         self.ws = WorkSite.from_haworth_bundle(
             bundle_dir, fine_cell_m=fine_cell_m, tile_base_cells=tile_base_cells)
         if start_xy is None:
-            # Spawn on the FLATTEST interior spot of the REAL DEM -- NOT the blind geometric centre,
-            # which on a 10 km LOLA crater tile is often a >18 deg wall (median tile slope ~16 deg), so
-            # the conserved slip model entraps the rover at t=0 and no twist can move it. Neighborhood-
-            # mean slope over the real heightfield (no synthetic data); the 1 m SfS tile's centre was
-            # already flat so this does not regress it.
-            from scipy.ndimage import uniform_filter
-            _h = np.asarray(self.ws.base.derive_height(), dtype=float)
-            _gy, _gx = np.gradient(_h, self.ws.base_cell_m)
-            _sm = uniform_filter(np.hypot(_gx, _gy), size=9, mode="nearest")   # tan(slope), region-mean
-            _m = max(1, int(round(0.06 * min(_h.shape))))                      # keep the fine window interior
-            _big = float(_sm.max()) + 1.0
-            _sm[:_m, :] = _big; _sm[-_m:, :] = _big; _sm[:, :_m] = _big; _sm[:, -_m:] = _big
-            _r, _c = np.unravel_index(int(np.argmin(_sm)), _sm.shape)
-            start_xy = (self.ws.world_x0 + float(_c) * self.ws.base_cell_m,
-                        self.ws.world_y0 + float(_r) * self.ws.base_cell_m)
-            print("viz2_runtime: spawn on flattest interior spot rc=(%d,%d) slope=%.2fdeg (was blind centre)"
-                  % (_r, _c, np.degrees(np.arctan(float(_sm[_r, _c])))), flush=True)
+            start_xy = self._flattest_interior_spawn()
         self.ws.recenter((float(start_xy[0]), float(start_xy[1])))
         self.ws.set_pose((float(start_xy[0]), float(start_xy[1])), yaw=float(start_yaw))
         # expose the resolved spawn + base-grid geometry so the stream server can seed the rock field
@@ -192,6 +176,11 @@ class Viz2Runtime:
         self.port = int(self._listen.getsockname()[1])
         self._write_token_file()
 
+        self._init_actor_state()
+
+    def _init_actor_state(self) -> None:
+        """[REQ:AS-15] actor/socket mutable state + metric accumulators + generation bookkeeping, split
+        out of __init__ to keep the constructor under the Power-of-10 statement budget (no behaviour change)."""
         # --- shared actor/socket state (guarded by _lock) ---
         self._lock = threading.RLock()
         self._inbound: queue.Queue[tuple[int, dict]] = queue.Queue()
@@ -262,6 +251,24 @@ class Viz2Runtime:
         self._actor_thread: threading.Thread | None = None
         self._accept_thread: threading.Thread | None = None
         self._conn_threads: list[threading.Thread] = []
+
+    def _flattest_interior_spawn(self) -> tuple[float, float]:
+        """[REQ:AS-15] Spawn on the FLATTEST interior spot of the REAL DEM -- NOT the blind geometric
+        centre, which on a 10 km LOLA crater tile is often a >18 deg wall (median tile slope ~16 deg) so
+        the conserved slip model entraps the rover at t=0. Neighborhood-mean slope over the real heightfield
+        (no synthetic data); the 1 m SfS tile's centre was already flat so this does not regress it."""
+        from scipy.ndimage import uniform_filter
+        _h = np.asarray(self.ws.base.derive_height(), dtype=float)
+        _gy, _gx = np.gradient(_h, self.ws.base_cell_m)
+        _sm = uniform_filter(np.hypot(_gx, _gy), size=9, mode="nearest")   # tan(slope), region-mean
+        _m = max(1, int(round(0.06 * min(_h.shape))))                      # keep the fine window interior
+        _big = float(_sm.max()) + 1.0
+        _sm[:_m, :] = _big; _sm[-_m:, :] = _big; _sm[:, :_m] = _big; _sm[:, -_m:] = _big
+        _r, _c = np.unravel_index(int(np.argmin(_sm)), _sm.shape)
+        print("viz2_runtime: spawn on flattest interior spot rc=(%d,%d) slope=%.2fdeg (was blind centre)"
+              % (_r, _c, np.degrees(np.arctan(float(_sm[_r, _c])))), flush=True)
+        return (self.ws.world_x0 + float(_c) * self.ws.base_cell_m,
+                self.ws.world_y0 + float(_r) * self.ws.base_cell_m)
 
     # -- token file (S-09 discipline applied to a FILE) ----------------------------------------
 

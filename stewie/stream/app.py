@@ -259,7 +259,8 @@ class StreamSession:
         """Drain frames from the Godot seam as fast as they arrive into a single-slot LATEST buffer, so a
         slow browser never backpressures the seam TCP -> the Godot render/ack loop -> the terminal
         deadman. Stale frames are simply overwritten (drop-latest). (council #5)"""
-        assert self._reader is not None
+        if self._reader is None:
+            raise RuntimeError("read seam requires a connected reader")
         while True:
             try:
                 frame = await read_frame(self._reader)
@@ -305,7 +306,8 @@ class StreamSession:
                 return
 
     async def pump_input(self, ws: WebSocket) -> None:
-        assert self._writer is not None
+        if self._writer is None:
+            raise RuntimeError("input pump requires a connected writer")
         if self._bag_t0 is None:
             self._bag_t0 = time.monotonic()
         while True:
@@ -531,7 +533,8 @@ class StreamSession:
         """Replay a saved bag's control frames to Godot at their recorded relative timestamps — the
         deterministic record->replay seam. Frames keep streaming (_read_seam/_send_ws) so the browser watches
         the replay; after the last command the session holds until the browser disconnects."""
-        assert self._writer is not None
+        if self._writer is None:
+            raise RuntimeError("playback requires a connected writer")
         t0 = time.monotonic()
         for ev in events:
             wait = float(ev.get("t", 0.0)) - (time.monotonic() - t0)
