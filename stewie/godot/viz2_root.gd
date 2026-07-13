@@ -556,6 +556,15 @@ func _build_route_from_plan(plan) -> void:
 		_path_node.name = "RoutePath"
 		add_child(_path_node)
 	_path_node.build(pts)
+	# council (Diego, gap 2): a SERVER-PUSHED plan route is ALSO the autonomous follow-list, so a
+	# coordinate GoTo / FollowPath (from the /ide plan or the ROS console) actually DRIVES the rover on
+	# {traverse:true} instead of only drawing a ribbon. A click-plotted set already IS _waypoints (else branch).
+	if plan is Dictionary and plan.has("route"):
+		_waypoints = pts.duplicate()
+		_wp_index = 0
+		if _wp_root != null:                    # drop stale click-plot markers; the ribbon shows the routed path
+			for c in _wp_root.get_children():
+				c.queue_free()
 
 
 # #33 planning metric: total planned route length [m] (the built Viz2Path ribbon's terrain-following

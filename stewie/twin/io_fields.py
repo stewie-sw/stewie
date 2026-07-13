@@ -36,15 +36,21 @@ _FIELD_SPEC: dict[str, tuple[str, str]] = {
 }
 
 
-def atomic_write_bytes(path: str, data: bytes) -> None:
-    """Write ``data`` to ``path`` atomically: a fsync'd ``.tmp`` sibling then an atomic os.replace
-    (CT-04 / PO-02). A reader never observes a partially written file. Shared utility (scene rasters,
-    metadata commit marker, and the server's reports/profiles)."""
+def atomic_write_bytes(path: str, data: bytes, sync: bool = True) -> None:
+    """Write ``data`` to ``path`` atomically: a ``.tmp`` sibling then an atomic os.replace (CT-04 /
+    PO-02). A reader never observes a partially written file. Shared utility (scene rasters, metadata
+    commit marker, and the server's reports/profiles).
+
+    ``sync`` (default True) fsyncs the tmp before the rename for crash durability. Callers writing into
+    an EPHEMERAL, torn-down-on-exit dir (the viz2 per-tick manifest/crop stream) pass ``sync=False``:
+    atomicity comes from ``os.replace``, not fsync, and cross-power-loss durability is worthless there,
+    so ~5-6 fsyncs/tick of pure syscall cost are dropped (council: perf)."""
     tmp = path + ".tmp"
     with open(tmp, "wb") as fh:
         fh.write(data)
-        fh.flush()
-        os.fsync(fh.fileno())
+        if sync:
+            fh.flush()
+            os.fsync(fh.fileno())
     os.replace(tmp, path)                              # atomic rename on POSIX (same directory)
 
 

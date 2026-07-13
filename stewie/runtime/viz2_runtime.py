@@ -831,7 +831,7 @@ class Viz2Runtime:
         for name, (arr, dtype, fname) in self._field_arrays(keyframe).items():
             crop = np.ascontiguousarray(np.asarray(arr)[r0:r1, c0:c1].astype(dtype))
             data = crop.tobytes()
-            atomic_write_bytes(os.path.join(gdir, fname), data)
+            atomic_write_bytes(os.path.join(gdir, fname), data, sync=False)   # ephemeral per-tick dir (council: perf)
             fields_meta[name] = {"file": fname, "dtype": dtype,
                                  "shape": [int(r1 - r0), int(c1 - c0)],
                                  "digest": hashlib.sha256(data).hexdigest()}
@@ -849,7 +849,7 @@ class Viz2Runtime:
         # the manifest is written LAST (the commit marker): its presence guarantees every crop beside
         # it is complete (io_fields CT-04 idiom). Atomic tmp+rename.
         atomic_write_bytes(os.path.join(gdir, "manifest.json"),
-                           json.dumps(manifest, sort_keys=True).encode())
+                           json.dumps(manifest, sort_keys=True).encode(), sync=False)   # ephemeral (council: perf)
         self._latest_manifest = os.path.join(gdir, "manifest.json")
         if keyframe:
             self._latest_keyframe_manifest = self._latest_manifest
