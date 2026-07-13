@@ -50,6 +50,15 @@ def _safe_bag_name(name: str) -> str:
     return safe or "session"
 
 
+def _finite(x) -> float:
+    """Coerce to a finite float or 0.0 (never NaN/inf/raise) — the console cmd_vel input guard."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return 0.0
+    return v if math.isfinite(v) else 0.0
+
+
 def _load_bag(name: str) -> dict:
     with open(BAGS_DIR / (_safe_bag_name(name) + ".json")) as fh:
         return json.load(fh)
@@ -107,6 +116,8 @@ class StreamSession:
         self._bag_t0: float | None = None
         self._last_route: list | None = None       # last computed route [[x,z]] 30135 m (for save_route; was discarded)
         self._last_goals: list | None = None        # the authored goals [[x,y]] 30135 m (the re-plannable intent)
+        self._safed = False                          # SF-01 latch: an operator RC.Safe halts + refuses motion
+        self._safe_cmd = None                        # the last frozen rc_contract.Safe (contract artifact)
         # frame egress: a single-slot LATEST buffer + event, so a slow browser drops stale frames rather
         # than backpressuring the seam TCP into Godot's render/ack loop (the terminal-deadman chain).
         self._latest_frame: bytes | None = None
@@ -313,6 +324,9 @@ class StreamSession:
             # council #14 route SOURCE: compute a REAL slope-gated survey route (lode.route_leg over the
             # region's DEM) and PUSH it to Godot as a {plan:{route}} frame -> the live route ribbon.
             if isinstance(obj, dict) and obj.get("plan_request"):
+                if self._safed:
+                    await ws.send_text(json.dumps({"type": "error", "error": "SAFE latched — rearm before planning"}))
+                    continue
                 goals = self._plan_goals(obj.get("plan_request"))     # QWC2 /ide mission, or None -> survey
                 # off the event loop: _planner_route reloads the DEM + runs up to 12 A* searches, which
                 # would otherwise stall the single uvicorn worker for every session (council: perf/security).
@@ -329,8 +343,46 @@ class StreamSession:
             if isinstance(obj, dict) and obj.get("save_route"):
                 await ws.send_text(json.dumps(self._save_route(str(obj.get("save_route")))))
                 continue
+            # ── ROS go-command console (council/Diego): contract-shaped verbs the server lowers to the
+            # existing drive seam. safe/rearm are the missing SF-01 operator safety command. ──────────────
+            if isinstance(obj, dict) and obj.get("safe") is not None:
+                import stewie.bridge.rc_contract as RC
+                pr = obj["safe"] if isinstance(obj["safe"], dict) else {}
+                self._safe_cmd = RC.Safe(reason=int(pr.get("reason", RC.SAFE_REASON_OPERATOR)))  # real frozen contract cmd
+                self._safed = True                                  # latch: motion refused until {rearm}
+                self._writer.write(pack_frame(json.dumps({"v": 0.0, "omega": 0.0, "traverse": False}).encode()))
+                await self._writer.drain()
+                await ws.send_text(json.dumps({"type": "safe", "reason": self._safe_cmd.reason, "latched": True}))
+                continue
+            if isinstance(obj, dict) and obj.get("rearm"):
+                self._safed = False
+                await ws.send_text(json.dumps({"type": "rearmed"}))
+                continue
+            if isinstance(obj, dict) and obj.get("cmd_vel") is not None:
+                if self._safed:
+                    await ws.send_text(json.dumps({"type": "error", "error": "SAFE latched — rearm before cmd_vel"}))
+                    continue
+                cv = obj["cmd_vel"] if isinstance(obj["cmd_vel"], dict) else {}
+                lx, az = _finite(cv.get("linear_x")), _finite(cv.get("angular_z"))
+                # contract conformance: lower the SI geometry_msgs/Twist through the SAME rclpy-optional
+                # function the live ROS2 node uses (nominal pose -> a shape/lowering proof). The sim drives
+                # by the forwarded normalized twist within the IPEx envelope, not the lowered GoTo goal cell.
+                import stewie.bridge.rc_contract as RC
+                from stewie.bridge.ros2_bridge import twist_to_command
+                try:
+                    rc_kind = getattr(twist_to_command(lx, az, pose=RC.Pose(leg_id=0, row=0.0, col=0.0, yaw_rad=0.0)), "kind", "?")
+                except Exception:
+                    rc_kind = "invalid"
+                v = max(-1.0, min(1.0, lx / 0.29)); om = max(-1.0, min(1.0, -az / 0.90))   # SI -> normalized (LIVE_LIN/ANG)
+                self._writer.write(pack_frame(json.dumps({"v": v, "omega": om}).encode()))
+                await self._writer.drain()
+                await ws.send_text(json.dumps({"type": "cmd_vel_ack", "rc": rc_kind, "v": round(v, 3), "omega": round(om, 3)}))
+                continue
             cmd = protocol.normalize_input(raw)
             if not cmd:
+                continue
+            # SF-01: while SAFE-latched, refuse new MOTION (drive/traverse/plan) until {rearm}; view/config verbs pass
+            if self._safed and any(k in cmd for k in ("v", "omega", "traverse", "plan", "click_px")):
                 continue
             # record (timestamped) THEN forward — the bag replays byte-for-byte
             self._bag.append({"t": max(0.0, time.monotonic() - self._bag_t0), "cmd": cmd})

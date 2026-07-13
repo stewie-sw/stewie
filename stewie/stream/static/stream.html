@@ -107,6 +107,14 @@
     <button id="loadRoute" aria-label="Load the selected route and drive it">📂 Load route</button>
     <span id="routeMsg" aria-live="polite" style="color:#8ea0b8"></span>
   </div>
+  <!-- ROS go-command console (council/Diego): contract-vocabulary commands the server lowers to the drive seam -->
+  <div class="row">
+    <button id="safeBtn" aria-label="Contract safe-stop, latches until re-arm" style="background:#4a0f12; border-color:#ff5b52; color:#ffd9d6; font-weight:700">⛔ SAFE</button>
+    <button id="rearmBtn" aria-label="Re-arm after a safe-stop">↻ re-arm</button>
+    <input id="cmd" type="text" aria-label="ROS go-command console" placeholder="go-command: cmd_vel 0.2 0.1 · goto -34700 89700 · followpath · stop · safe · rearm · dig" style="flex:1; min-width:220px; min-height:44px; background:#0c141f; color:#cdd6e3; border:1px solid #26364c; border-radius:6px; padding:0 10px" />
+    <button id="cmdSend" aria-label="Send go-command">▶ send</button>
+  </div>
+  <pre id="console" aria-live="polite" aria-label="Go-command log" style="max-height:96px; overflow:auto; margin:2px 0; padding:6px 8px; width:100%; box-sizing:border-box; background:#0a0f17; border:1px solid #1b2434; border-radius:6px; color:#9fb0c6; font-size:11px; white-space:pre-wrap"></pre>
 </div>
 <script>
 "use strict";
@@ -147,7 +155,7 @@ function setStatus(t, cls) { statusEl.textContent = t; statusEl.className = cls 
 
 // resilient WS: mobile links drop on backgrounding / cell handoff, so auto-reconnect with capped
 // exponential backoff + jitter, and reconnect immediately when a backgrounded tab returns to view.
-let ws = null, backoff = 500, reconnectTimer = null, wsGen = 0, _lastPlan = null;
+let ws = null, backoff = 500, reconnectTimer = null, wsGen = 0, _lastPlan = null, _safedClient = false;
 function connect() {
   clearTimeout(reconnectTimer); reconnectTimer = null;
   const myGen = ++wsGen;                         // a socket we've already replaced goes silent
@@ -189,17 +197,24 @@ function onWsMessage(ev) {
       else if (m.wp_n > 0) plan = ` · ${m.wp_n}wp`;
       hud.textContent = `slip ${(m.slip*100).toFixed(0)}% · dist ${m.dist_m}m · odo ${m.odo_m}m (drift ${m.odo_err_m}m) · slope ${m.avg_slope}° · IMU a${m.imu_a} ω${m.imu_w}${plan} · (${m.x}, ${m.z}) · gen ${m.gen}${ent}`;
       hud.className = (m.entrapped || m.safe_stop) ? "err" : "";
-      // dedicated high-contrast safety banner + assertive announce (#8)
-      if (m.entrapped || m.safe_stop) { banner.textContent = m.entrapped ? "⚠ ROVER ENTRAPPED — back off thrust" : "⛔ SAFE-STOP"; banner.classList.add("show"); }
-      else banner.classList.remove("show");
+      // dedicated high-contrast safety banner (#8) + the operator SAFE latch (council/Diego) which the
+      // per-frame status must NOT clear (it is a server-side latch, not the runtime's safe_stop flag).
+      if (m.entrapped || m.safe_stop || _safedClient) {
+        banner.textContent = m.entrapped ? "⚠ ROVER ENTRAPPED — back off thrust"
+                           : (m.safe_stop ? "⛔ SAFE-STOP" : "⛔ SAFE latched — ↻ re-arm to drive");
+        banner.classList.add("show");
+      } else banner.classList.remove("show");
       return;
     }
     if (m.type === "ready") setStatus(`live · ${m.mode} · ${m.site || "procedural"}`, "ok");
     else if (m.type === "playback") setStatus(`▶ replaying ${m.commands} commands`, "ok");
     else if (m.type === "saved") setStatus(`💾 saved “${m.name}” (${m.commands} cmds)`, "ok");
-    else if (m.type === "planned") routeMsg.textContent = `route: ${m.points} pts · ${m.source}`;   // council/Mara: was dropped
+    else if (m.type === "planned") { routeMsg.textContent = `route: ${m.points} pts · ${m.source}`; logLine(`planned: ${m.points} pts (${m.source})`); }   // council/Mara: was dropped
     else if (m.type === "route_saved") { routeMsg.textContent = `🗺 saved “${m.name}” · ${m.route_m}m · ${m.n_goals} wp`; loadRoutes(); }
-    else if (m.type === "error") { setStatus("error: " + m.error, "err"); routeMsg.textContent = m.error; }
+    else if (m.type === "safe") { _safedClient = true; logLine(`⛔ SAFE latched (reason ${m.reason})`); banner.textContent = "⛔ SAFE latched — ↻ re-arm to drive"; banner.classList.add("show"); }
+    else if (m.type === "rearmed") { _safedClient = false; logLine("✓ re-armed — motion enabled"); banner.classList.remove("show"); }
+    else if (m.type === "cmd_vel_ack") logLine(`cmd_vel → ${m.rc} · v=${m.v} ω=${m.omega}`);
+    else if (m.type === "error") { setStatus("error: " + m.error, "err"); routeMsg.textContent = m.error; logLine("✗ " + m.error); }
     return;
   }
   // binary = one JPEG frame → blit to the canvas
@@ -329,6 +344,30 @@ document.getElementById("loadRoute").onclick = async () => {
   } catch (_e) { routeMsg.textContent = "load error"; }
 };
 loadRoutes();
+
+// ── ROS go-command console (council/Diego): speaks the autonomy-contract vocabulary; the server lowers
+// each command to the existing drive seam (cmd_vel via twist_to_command; safe via rc_contract.Safe). ──
+const consoleEl = document.getElementById("console");
+function logLine(s) { consoleEl.textContent += (consoleEl.textContent ? "\n" : "") + s; consoleEl.scrollTop = consoleEl.scrollHeight; }
+document.getElementById("safeBtn").onclick = () => { safeSend({ safe: { reason: 0 } }); logLine("» SAFE (operator)"); };
+document.getElementById("rearmBtn").onclick = () => { safeSend({ rearm: true }); logLine("» re-arm"); };
+function runCommand(line) {
+  const t = line.trim().split(/\s+/), c = (t[0] || "").toLowerCase();
+  if (!c) return;
+  if (c === "cmd_vel" || c === "twist") safeSend({ cmd_vel: { linear_x: +t[1] || 0, angular_z: +t[2] || 0 } });
+  else if (c === "goto") { applyPlan([[+t[1], +t[2]]], false); safeSend({ traverse: true }); }   // GoTo(x,y): plan single goal + drive
+  else if (c === "followpath" || c === "traverse" || c === "go") safeSend({ traverse: true });
+  else if (c === "stop" || c === "halt") safeSend({ traverse: false });
+  else if (c === "safe" || c === "estop") safeSend({ safe: { reason: 0 } });
+  else if (c === "rearm") safeSend({ rearm: true });
+  else if (c === "dig") safeSend({ dig: true });
+  else if (c === "dump") safeSend({ dump: true });
+  else { logLine("? unknown command: " + c); return; }
+  logLine("» " + line.trim());
+}
+const cmdInput = document.getElementById("cmd");
+document.getElementById("cmdSend").onclick = () => { runCommand(cmdInput.value); cmdInput.value = ""; };
+cmdInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { runCommand(cmdInput.value); cmdInput.value = ""; } });
 // manual articulation — spin the drums + raise/lower each arm directly (full URDF control)
 const artic = (o) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(o)); };
 document.getElementById("drumf").onclick = () => artic({ drum: 1 });
