@@ -638,6 +638,8 @@ class Viz2Runtime:
         vc = float(telem.get("v_cmd", 0.0))               # commanded (== wheel-surface) speed
         omega = float(telem.get("omega_achieved", 0.0))   # achieved yaw rate
         slope = float(telem.get("slope_rad", 0.0))
+        if not (math.isfinite(va) and math.isfinite(vc) and math.isfinite(omega) and math.isfinite(slope)):
+            return                                        # never latch a NaN into the faithful cumulative HUD metrics
         # #31 aggregate distances (magnitudes) + mean grade
         self._dist_actual_m += abs(va) * dt
         self._dist_wheel_m += abs(vc) * dt

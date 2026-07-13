@@ -210,13 +210,19 @@ function onWsMessage(ev) {
 
 // EMBED (GIS /ide fold): drive a mission handed in by the parent frame (postMessage) or the URL.
 // Waypoints are IAU_2015:30135 metres by default, or selenographic [lon,lat] when lonlat is set.
+function safeSend(obj) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); }
 function applyPlan(wps, lonlat) {
   if (!Array.isArray(wps) || !wps.length) return;
   _lastPlan = { key: lonlat ? "waypoints_lonlat" : "waypoints", wps };   // stored -> re-applied on reconnect
-  if (ws && ws.readyState === WebSocket.OPEN)
-    ws.send(JSON.stringify({ plan_request: { [_lastPlan.key]: _lastPlan.wps } }));
+  safeSend({ plan_request: { [_lastPlan.key]: _lastPlan.wps } });
 }
+// only trust plan messages from an allowlisted parent origin (council: security — no open postMessage sink).
+// The embedding /ide passes its origin as ?parent=<origin>; same-origin + the known IDE host are always allowed.
+const _planOrigins = new Set([location.origin, "https://artemis.stewie.space"]);
+const _parentOrigin = new URLSearchParams(location.search).get("parent");
+if (_parentOrigin) { try { _planOrigins.add(new URL(_parentOrigin).origin); } catch (_e) { /* bad parent param */ } }
 window.addEventListener("message", (e) => {                              // parent /ide -> iframe
+  if (!_planOrigins.has(e.origin)) return;                              // drop messages from any non-allowlisted frame
   const d = e.data;
   if (d && d.type === "stewie:plan" && Array.isArray(d.waypoints)) applyPlan(d.waypoints, !!d.lonlat);
 });
@@ -277,8 +283,8 @@ window.addEventListener("keyup", (e) => {
 });
 window.addEventListener("blur", () => { keys.clear(); sendTwist(); });
 
-document.getElementById("dig").onclick = () => ws.send(JSON.stringify({ dig: true }));
-document.getElementById("dump").onclick = () => ws.send(JSON.stringify({ dump: true }));
+document.getElementById("dig").onclick = () => safeSend({ dig: true });
+document.getElementById("dump").onclick = () => safeSend({ dump: true });
 document.getElementById("save").onclick = () => {
   const name = prompt("Save this session as (letters, digits, - or _):", "run1");
   if (name && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ save: name }));
@@ -317,8 +323,8 @@ if (CONFIG.sun) {
   if (Number.isFinite(+CONFIG.sun.az)) { az.value = +CONFIG.sun.az; azv.textContent = az.value + "°"; }
   if (Number.isFinite(+CONFIG.sun.el)) { el.value = +CONFIG.sun.el; elv.textContent = el.value + "°"; }
 }
-az.oninput = () => { azv.textContent = az.value + "°"; ws.send(JSON.stringify({ sun_az: +az.value })); };
-el.oninput = () => { elv.textContent = el.value + "°"; ws.send(JSON.stringify({ sun_el: +el.value })); };
+az.oninput = () => { azv.textContent = az.value + "°"; safeSend({ sun_az: +az.value }); };
+el.oninput = () => { elv.textContent = el.value + "°"; safeSend({ sun_el: +el.value }); };
 
 // ── camera: cycle modes (rover view ↔ 3rd person) + orbit drag / scroll zoom ──────────────
 const CAM_NAMES = ["chase", "rover POV", "orbit", "top-down"];

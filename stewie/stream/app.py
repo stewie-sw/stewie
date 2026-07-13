@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import shutil
 import signal
@@ -310,7 +311,9 @@ class StreamSession:
             # region's DEM) and PUSH it to Godot as a {plan:{route}} frame -> the live route ribbon.
             if isinstance(obj, dict) and obj.get("plan_request"):
                 goals = self._plan_goals(obj.get("plan_request"))     # QWC2 /ide mission, or None -> survey
-                route = self._planner_route(goals_world=goals)
+                # off the event loop: _planner_route reloads the DEM + runs up to 12 A* searches, which
+                # would otherwise stall the single uvicorn worker for every session (council: perf/security).
+                route = await asyncio.to_thread(self._planner_route, goals)
                 if route:
                     self._writer.write(pack_frame(json.dumps({"plan": {"route": route}}).encode()))
                     await self._writer.drain()
@@ -344,17 +347,37 @@ class StreamSession:
         transform). `True` / anything else -> None, i.e. fall back to the built-in survey pattern."""
         if not isinstance(pr, dict):
             return None
+        # HARDENED (council: security+robustness): bounded, finite, never raises. A malformed waypoint
+        # must NOT crash pump_input (it runs before _planner_route's own guard). Cap the list so one
+        # message cannot spin the A* planner over an unbounded set.
+        _CAP = 64
+
+        def _pair(p) -> tuple | None:
+            if not (isinstance(p, (list, tuple)) and len(p) >= 2):
+                return None
+            try:
+                a, b = float(p[0]), float(p[1])
+            except (TypeError, ValueError):
+                return None
+            return (a, b) if math.isfinite(a) and math.isfinite(b) else None
+
         wl = pr.get("waypoints")
         if isinstance(wl, list) and wl:
-            return [(float(p[0]), float(p[1])) for p in wl
-                    if isinstance(p, (list, tuple)) and len(p) >= 2] or None
+            out = [pr2 for pr2 in (_pair(p) for p in wl[:_CAP]) if pr2 is not None]
+            return out or None
         ll = pr.get("waypoints_lonlat")
         if isinstance(ll, list) and ll:
             from stewie.dataset.dem_source import latlon_to_proj
             out = []
-            for p in ll:
-                if isinstance(p, (list, tuple)) and len(p) >= 2:
-                    x, y = latlon_to_proj(float(p[1]), float(p[0]))   # GeoJSON is [lon, lat]
+            for p in ll[:_CAP]:
+                lonlat = _pair(p)
+                if lonlat is None:
+                    continue
+                try:
+                    x, y = latlon_to_proj(lonlat[1], lonlat[0])   # GeoJSON is [lon, lat]; latlon_to_proj(lat, lon)
+                except Exception:
+                    continue
+                if math.isfinite(x) and math.isfinite(y):
                     out.append((x, y))
             return out or None
         return None
@@ -498,8 +521,8 @@ async def stream_view() -> FileResponse:
 
 @app.get("/healthz")
 async def healthz() -> dict:
-    return {"ok": True, "service": "viz2-stream", "godot": _resolve_godot(),
-            "godot_project": str(GODOT_PROJECT)}
+    # token-exempt endpoint: do NOT leak internal filesystem paths (council: security). Liveness only.
+    return {"ok": True, "service": "viz2-stream"}
 
 
 @app.get("/bundles")
