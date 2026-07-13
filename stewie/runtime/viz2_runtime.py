@@ -60,7 +60,7 @@ from stewie.contracts import RegolithVolumeEstimate
 from stewie.contracts.physics_model_control import LIVE_DEFAULT_MODEL_ID, resolve_live_backend
 from stewie.physics.worksite import WorkSite
 from stewie.specs.ipex_specs import (
-    DRUM_DIMENSIONS_M, LUNAR_G_MS2, dig_energy_per_kg, max_cut_per_pass_m)
+    DRUM_CAPACITY_KG, DRUM_DIMENSIONS_M, LUNAR_G_MS2, dig_energy_per_kg, max_cut_per_pass_m)
 from stewie.physics.excavation import earthmoving_report, representative_dig
 from stewie.physics.material import cell_strength
 from stewie.specs.arm_state import net_dig_reaction_n
@@ -151,6 +151,12 @@ class Viz2Runtime:
         self._drum_width_m = float(DRUM_DIMENSIONS_M[self.drum]["width"])
         self._drum_radius_m = 0.5 * float(DRUM_DIMENSIONS_M[self.drum]["diameter"])
         self._max_cut_per_pass_m = float(max_cut_per_pass_m(self.drum))
+        # [REQ:PX-09] the drum's sourced hold [BDSCALE] (small 3.80 / medium 7.30 / large 24.98 kg). The
+        # live dig is BOUNDED by it: a bite that would overfill is trimmed to the room left, and a full
+        # drum refuses the bite outright -- that refusal IS the fill -> stop -> haul quantum. (Every hold
+        # is <= the 30 kg/cycle RDS envelope, so the envelope now holds by construction, not after the fact.)
+        self._drum_capacity_kg = float(DRUM_CAPACITY_KG[self.drum])
+        self._drum_full = False                  # telemetry: the operator must dump/haul before digging on
         self.host = str(host)
 
         # --- session directory + generation store ---
@@ -520,6 +526,13 @@ class Viz2Runtime:
         telem["dig_energy_per_kg"] = float(self._dig_energy_per_kg)     # grounded electrical anchor
         telem["dig_j_per_kg"] = float(self._last_dig_j_per_kg)          # FEE-modulated cost of the last pass
         telem["dig_reaction_n"] = float(self._last_dig_reaction_n)      # #2: unbalanced draft reaction (last dig)
+        # [REQ:PX-09] the drum's sourced hold + how full it is. Without this the operator has no way to know
+        # WHY digging stopped -- the dig simply refuses once the drum is full (fill -> stop -> haul).
+        telem["drum_capacity_kg"] = float(self._drum_capacity_kg)
+        telem["drum_fill_frac"] = float(min(1.0, self.ws.inventory_kg / self._drum_capacity_kg)) \
+            if self._drum_capacity_kg > 0.0 else 0.0
+        telem["drum_full"] = bool(self._drum_full)                      # -> dump/haul before digging on
+        telem["max_cut_per_pass_m"] = float(self._max_cut_per_pass_m)   # the <=50%-scoop anti-bridging bite cap
         # #31 aggregate execution metrics (deterministic; wheel odometry over-reads the ground truth by slip)
         telem["dist_actual_m"] = float(self._dist_actual_m)
         telem["wheel_odo_m"] = float(self._dist_wheel_m)
@@ -690,10 +703,47 @@ class Viz2Runtime:
         if r1 <= r0 or c1 <= c0:
             return []
         f = self.ws._require_fine()
+        # [REQ:PX-09] BOUND THE BITE by the drum's own sourced limits [BDSCALE] before touching the terrain.
+        # (1) ANTI-BRIDGING: one pass may not cut deeper than 50% of the scoop opening. `_dig_fee` already
+        #     clamped ITS characteristic depth to this, so leaving the CUT uncapped meant the terrain gave up
+        #     a deeper bite than the one being billed -- and the McKyes/Reece FEE rises with depth^2, so dig
+        #     energy was UNDERSTATED exactly when the cut was worst. Cap the cut, and the two agree.
+        # (2) DRUM HOLD: the drum carries a finite mass. A full drum refuses the bite (-> dump/haul), and a
+        #     bite that would overfill is trimmed to the room left, so the ledger can never exceed capacity.
+        drum_kg = float(self.ws.inventory_kg)
+        room_kg = self._drum_capacity_kg - drum_kg
+        self._drum_full = room_kg <= 0.0
+        if self._drum_full:
+            return []                                        # fill -> STOP -> haul: no mass leaves the grid
+        d_eff = min(float(self.dig_depth_m), self._max_cut_per_pass_m)
+
         mask = np.zeros((H, W), dtype=bool)
         mask[r0:r1, c0:c1] = True
-        target = float(f.derive_height()[r0:r1, c0:c1].min()) - self.dig_depth_m
+        height = f.derive_height()
+        sub_h = height[r0:r1, c0:c1]
+        sub_rho = f.density[r0:r1, c0:c1]
+        cell_m = float(self.ws.fine_cell_m)
+        cell_area = cell_m * cell_m
+        target = float(sub_h.min()) - d_eff
+
+        def _mass_above(t: float) -> float:
+            """kg the cut WOULD remove at level ``t`` (height identity: dz * density * area). An UPPER bound
+            on what actually moves -- `cut_to_inventory` additionally clamps each cell at its firm DEM datum
+            -- so trimming against this can never overfill the drum, only under-fill it."""
+            return float(np.sum(np.clip(sub_h - t, 0.0, None) * sub_rho) * cell_area)
+
+        if _mass_above(target) > room_kg:
+            # Raise the cut level until the bite fits the room left (mass is monotone-decreasing in t).
+            lo, hi = target, float(sub_h.max())
+            for _ in range(48):
+                mid = 0.5 * (lo + hi)
+                if _mass_above(mid) > room_kg:
+                    lo = mid
+                else:
+                    hi = mid
+            target = hi
         moved = self.ws.flatten(mask, target)                # cells above target -> cut (conserved)
+        self._drum_full = float(self.ws.inventory_kg) >= self._drum_capacity_kg - 1e-9
         self._last_dig_moved_kg = float(moved)
         # ONE FEE solve -> the depth^2/density-dependent per-kg energy (council #1) AND the unbalanced draft
         # reaction on the chassis (council #2), not the old flat constant / zero reaction.
