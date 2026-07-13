@@ -42,6 +42,7 @@ SAMPLES_DIR = REPO_ROOT / "samples" / "lunar_dem"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 #: saved command bags (ROS-bag-style record/replay of the full control surface).
 BAGS_DIR = REPO_ROOT / "out" / "viz2_bags"
+ROUTES_DIR = REPO_ROOT / "out" / "viz2_routes"     # saved MISSION ROUTES (GeoJSON, re-plannable) — distinct from record/replay bags
 
 
 def _safe_bag_name(name: str) -> str:
@@ -104,6 +105,8 @@ class StreamSession:
         # save + deterministic playback (the record->replay / RL seam).
         self._bag: list[dict] = [{"t": 0.0, "config": dict(cfg)}]
         self._bag_t0: float | None = None
+        self._last_route: list | None = None       # last computed route [[x,z]] 30135 m (for save_route; was discarded)
+        self._last_goals: list | None = None        # the authored goals [[x,y]] 30135 m (the re-plannable intent)
         # frame egress: a single-slot LATEST buffer + event, so a slow browser drops stale frames rather
         # than backpressuring the seam TCP into Godot's render/ack loop (the terminal-deadman chain).
         self._latest_frame: bytes | None = None
@@ -314,11 +317,17 @@ class StreamSession:
                 # off the event loop: _planner_route reloads the DEM + runs up to 12 A* searches, which
                 # would otherwise stall the single uvicorn worker for every session (council: perf/security).
                 route = await asyncio.to_thread(self._planner_route, goals)
+                self._last_route = route                       # retain for save_route (council/Mara: was discarded)
+                self._last_goals = goals
                 if route:
                     self._writer.write(pack_frame(json.dumps({"plan": {"route": route}}).encode()))
                     await self._writer.drain()
                 await ws.send_text(json.dumps({"type": "planned", "points": len(route or []),
                                                "source": "waypoints" if goals else "survey"}))
+                continue
+            # council/Mara: SAVE the current mission ROUTE (re-plannable GeoJSON), distinct from the record/replay bag
+            if isinstance(obj, dict) and obj.get("save_route"):
+                await ws.send_text(json.dumps(self._save_route(str(obj.get("save_route")))))
                 continue
             cmd = protocol.normalize_input(raw)
             if not cmd:
@@ -338,6 +347,42 @@ class StreamSession:
         with open(BAGS_DIR / (safe + ".json"), "w") as fh:
             json.dump(payload, fh)
         return safe
+
+    def _save_route(self, name: str) -> dict:
+        """council/Mara: persist the last computed mission route as an RFC-7946 GeoJSON FeatureCollection
+        in selenographic lon/lat (goals as Points = the re-plannable INTENT; the routed polyline as a
+        LineString = the frozen record). Real-mode only (georeferenced). Reuses the shared 30135->lon/lat
+        transform. Loading re-drives via the browser's existing waypoints_lonlat path. Returns a
+        route_saved / error reply."""
+        if self.cfg.get("mode") != "real":
+            return {"type": "error", "error": "route save is real-mode only (procedural is not georeferenced)"}
+        if not self._last_route or len(self._last_route) < 2:
+            return {"type": "error", "error": "no route to save — plan one first"}
+        from stewie.dataset.dem_source import proj_to_latlon, geographic_crs_authority
+        safe = _safe_bag_name(name)
+        ROUTES_DIR.mkdir(parents=True, exist_ok=True)
+
+        def _ll(xy):                                        # 30135 metres -> GeoJSON [lon, lat]
+            lat, lon = proj_to_latlon(float(xy[0]), float(xy[1]))
+            return [lon, lat]
+
+        route_ll = [_ll(p) for p in self._last_route]
+        goals_ll = [_ll(g) for g in (self._last_goals or [])]
+        route_m = sum(math.hypot(self._last_route[i + 1][0] - self._last_route[i][0],
+                                 self._last_route[i + 1][1] - self._last_route[i][1])
+                      for i in range(len(self._last_route) - 1))
+        feats = [{"type": "Feature", "properties": {"feature": "waypoint", "i": i},
+                  "geometry": {"type": "Point", "coordinates": c}} for i, c in enumerate(goals_ll)]
+        feats.append({"type": "Feature", "properties": {"feature": "route"},
+                      "geometry": {"type": "LineString", "coordinates": route_ll}})
+        fc = {"type": "FeatureCollection",
+              "crs_note": f"selenographic lon/lat ({geographic_crs_authority()}); DEM CRS IAU_2015:30135; NOT Earth WGS84.",
+              "properties": {"name": safe, "site": self.cfg.get("site"), "mode": self.cfg.get("mode"),
+                             "n_goals": len(goals_ll), "route_m": round(route_m, 1)},
+              "features": feats}
+        with open(ROUTES_DIR / (safe + ".json"), "w") as fh:
+            json.dump(fc, fh)
+        return {"type": "route_saved", "name": safe, "n_goals": len(goals_ll), "route_m": round(route_m, 1)}
 
     @staticmethod
     def _plan_goals(pr) -> list | None:
@@ -548,6 +593,30 @@ async def bags_list() -> dict:
             except (ValueError, OSError):
                 continue
     return {"bags": rows}
+
+
+@app.get("/routes")
+async def routes_list() -> dict:
+    """Saved mission routes (GeoJSON, re-plannable): name, site, mode, goal count, planar route length."""
+    rows = []
+    if ROUTES_DIR.is_dir():
+        for p in sorted(ROUTES_DIR.glob("*.json")):
+            try:
+                pr = (json.loads(p.read_text()).get("properties") or {})
+                rows.append({"name": p.stem, "site": pr.get("site"), "mode": pr.get("mode"),
+                             "n_goals": int(pr.get("n_goals", 0)), "route_m": float(pr.get("route_m", 0.0))})
+            except (ValueError, OSError):
+                continue
+    return {"routes": rows}
+
+
+@app.get("/routes/{name}")
+async def route_get(name: str) -> FileResponse:
+    """Fetch a saved route's GeoJSON; the browser reads the waypoint Points and re-drives via applyPlan."""
+    p = ROUTES_DIR / (_safe_bag_name(name) + ".json")     # _safe_bag_name strips / \ . -> no traversal
+    if not p.is_file():
+        raise HTTPException(status_code=404, detail="route not found")
+    return FileResponse(str(p), media_type="application/geo+json")
 
 
 @app.get("/preview/heightmap")

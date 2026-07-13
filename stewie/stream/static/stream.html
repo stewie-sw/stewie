@@ -101,6 +101,12 @@
     <button id="save" aria-label="Save session recording">💾 Save session</button>
     <span class="keyhint" style="color:#8ea0b8">records every command · replay via <kbd>?play=&lt;name&gt;</kbd></span>
   </div>
+  <div class="row">
+    <button id="saveRoute" aria-label="Save the current mission route">🗺 Save route</button>
+    <select id="routeList" aria-label="Saved mission routes" style="min-height:44px; background:#142033; color:#cdd6e3; border:1px solid #26364c; border-radius:6px; padding:0 8px"></select>
+    <button id="loadRoute" aria-label="Load the selected route and drive it">📂 Load route</button>
+    <span id="routeMsg" aria-live="polite" style="color:#8ea0b8"></span>
+  </div>
 </div>
 <script>
 "use strict";
@@ -191,7 +197,9 @@ function onWsMessage(ev) {
     if (m.type === "ready") setStatus(`live · ${m.mode} · ${m.site || "procedural"}`, "ok");
     else if (m.type === "playback") setStatus(`▶ replaying ${m.commands} commands`, "ok");
     else if (m.type === "saved") setStatus(`💾 saved “${m.name}” (${m.commands} cmds)`, "ok");
-    else if (m.type === "error") setStatus("error: " + m.error, "err");
+    else if (m.type === "planned") routeMsg.textContent = `route: ${m.points} pts · ${m.source}`;   // council/Mara: was dropped
+    else if (m.type === "route_saved") { routeMsg.textContent = `🗺 saved “${m.name}” · ${m.route_m}m · ${m.n_goals} wp`; loadRoutes(); }
+    else if (m.type === "error") { setStatus("error: " + m.error, "err"); routeMsg.textContent = m.error; }
     return;
   }
   // binary = one JPEG frame → blit to the canvas
@@ -289,6 +297,38 @@ document.getElementById("save").onclick = () => {
   const name = prompt("Save this session as (letters, digits, - or _):", "run1");
   if (name && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ save: name }));
 };
+// council/Mara: SAVE / LIST / LOAD mission routes (re-plannable GeoJSON). Loading re-drives via applyPlan
+// (the goal waypoints are the load-bearing intent; the server re-plans the terrain-following route).
+const routeMsg = document.getElementById("routeMsg");
+const routeList = document.getElementById("routeList");
+const withTok = (u) => u + (TOKEN ? (u.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(TOKEN) : "");
+async function loadRoutes() {
+  try {
+    const j = await (await fetch(withTok("/routes"))).json();
+    routeList.innerHTML = "";
+    const rs = j.routes || [];
+    if (!rs.length) { const o = document.createElement("option"); o.value = ""; o.textContent = "(no saved routes)"; routeList.appendChild(o); return; }
+    rs.forEach((rt) => { const o = document.createElement("option"); o.value = rt.name; o.textContent = `${rt.name} · ${Math.round(rt.route_m)}m · ${rt.n_goals}wp`; routeList.appendChild(o); });
+  } catch (_e) { /* list unavailable */ }
+}
+document.getElementById("saveRoute").onclick = () => {
+  const name = prompt("Save the current mission route as (letters, digits, - or _):", "mission1");
+  if (name) safeSend({ save_route: name });     // server replies {type:route_saved} -> updates the list
+};
+document.getElementById("loadRoute").onclick = async () => {
+  const name = routeList.value;
+  if (!name) { routeMsg.textContent = "no route selected"; return; }
+  try {
+    const r = await fetch(withTok("/routes/" + encodeURIComponent(name)));
+    if (!r.ok) { routeMsg.textContent = "load failed"; return; }
+    const fc = await r.json();
+    const wps = (fc.features || []).filter((f) => f.properties && f.properties.feature === "waypoint")
+                                   .map((f) => f.geometry.coordinates);   // [lon, lat] goal waypoints
+    if (wps.length) { applyPlan(wps, true); routeMsg.textContent = `↺ loaded “${name}” (${wps.length} wp) — drives on ▶ traverse`; }
+    else routeMsg.textContent = `“${name}” has no waypoints`;
+  } catch (_e) { routeMsg.textContent = "load error"; }
+};
+loadRoutes();
 // manual articulation — spin the drums + raise/lower each arm directly (full URDF control)
 const artic = (o) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(o)); };
 document.getElementById("drumf").onclick = () => artic({ drum: 1 });
